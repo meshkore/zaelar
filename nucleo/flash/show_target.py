@@ -137,3 +137,51 @@ def show_card(rid: str, text: str = "") -> str:
         return _inst.show_id(rid, open_instances(), text)
     except Exception:  # noqa: BLE001
         return rid
+
+
+def fullscreen_target(widget_id: str, text: str = "") -> str:
+    """WHICH card a `fullscreen_widget` call means — ONE decision, read by both channels (V2-252).
+
+    Order of resolution: the id the model gave (exact, then `identify` over it or the turn text), and finally
+    **the card that IS at full screen right now**, reported by the canvas in `state.maximized_widget`.
+
+    That last step is the whole point (V2-605). `widget_id` used to be REQUIRED and «sal de pantalla
+    completa» names no widget, so the model had nothing legal to pass — and instead of asking, it answered
+    «Hecho.» having emitted no tool at all (measured live 2026-09-07 18:54:27; the engine's own friction
+    detector logged «data-op fantasma» and was in cooldown). The operator's point is exactly right: with one
+    card at full screen, the target is not ambiguous, it is *obvious* — and the canvas already knew it. A
+    verb whose object the system can see and the model cannot is a verb the model will decline to use.
+
+    Returns "" when nothing resolves. Deliberately never falls back to "the only open widget": leaving full
+    screen when nothing is at full screen would TOGGLE a card INTO it — the exact opposite of the order.
+    """
+    rid = (widget_id or "").strip()
+    try:
+        from widgets import runtime as rt
+    except Exception:
+        return rid
+    if rid:
+        # He named something: exact id, else resolve THAT name. Never the turn text — see below.
+        try:
+            if rt.get(rid) is not None:
+                return rid
+            m = _identify_ctx(rt, rid) or ""
+            if m and rt.get(m) is not None:
+                return m
+        except Exception:
+            pass
+        return ""
+    # No name given. `identify` over the TURN TEXT would answer here — with one card open it narrows to
+    # that card and «sal de pantalla completa» resolves to it happily (verified: it does). That is the one
+    # answer this function must never give: nothing is at full screen, so toggling that card would put it
+    # INTO full screen — the exact opposite of the order, on the operator's own most common canvas. An
+    # empty argument means «the one that is at full screen» and nothing else; when there is none, the
+    # honest result is nothing, and the caller asks.
+    try:
+        from memory import api as _memapi
+        maxw = str(((_memapi.state() or {}).get("maximized_widget") or "")).strip()
+        if maxw and rt.get(maxw) is not None:
+            return maxw
+    except Exception:
+        pass
+    return ""

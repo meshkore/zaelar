@@ -166,6 +166,17 @@ def for_prompt(open_ids=None, recent_ids=None, query: str = "", stats: dict | No
     cat = [p["w"] for p in picked]
     hidden = int(sel_stats.get("hidden") or 0)
 
+    # V2-605 — WHICH card is at full screen right now, reported by the canvas (`state.maximized_widget`).
+    # The model had the verb (`fullscreen_widget`, a toggle whose description names the OFF direction) and
+    # never this FACT, so «sal de pantalla completa» — an order whose object is obvious to anyone LOOKING at
+    # the screen — reached a model that could see no object at all, and it answered «Hecho.» having called
+    # nothing. Same shape as V2-603's connector: given a verb and no state, the model narrates.
+    try:
+        from memory import api as _memapi
+        maxw = str(((_memapi.state() or {}).get("maximized_widget") or "")).strip().lower()
+    except Exception:
+        maxw = ""
+
     lines = ["Widgets del canvas (id — para qué; acciones = data-ops que haces TÚ con widget_data, nunca escalas). "
              "Para una orden de widget cuyo objetivo NO sea inequívoco, prefiere «EN PANTALLA», luego «usado hace "
              "poco»:"]
@@ -174,6 +185,8 @@ def for_prompt(open_ids=None, recent_ids=None, query: str = "", stats: dict | No
         widl = str(wid or "").strip().lower()
         purpose = _purpose(str(w.get("whenToUse") or w.get("title") or "").strip().replace("\n", " "))
         tag = "  ◀ EN PANTALLA" if widl in opened else ("  · usado hace poco" if widl in recent else "")
+        if widl and widl == maxw:
+            tag += " · A PANTALLA COMPLETA ahora (para salir: fullscreen_widget, es un interruptor)"
         row = f"- {wid} — {purpose}{tag}"
         # Declared actions (names only, inline): the vocabulary referenced by the widget_data tool. Payload shapes
         # are omitted; the model infers them from the tool example, and agenda.data/refs normalize values (V2-026).

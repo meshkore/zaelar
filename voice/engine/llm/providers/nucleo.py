@@ -24,7 +24,8 @@ from livekit.agents.llm import ChatChunk, ChoiceDelta
 
 from .. import registry
 from nucleo.flash import (data_ops as _data_ops, image_turn as _image_turn,  # V2-391 / V2-402
-                          listing_turn as _lt, video_turn as _video_turn)      # V2-556 / V2-457: no cycles
+                          listing_turn as _lt, show_target as _show_target,    # V2-605: one target decision
+                          video_turn as _video_turn)                           # V2-556 / V2-457: no cycles
 # V2-515 (ratchet): ONE import replaces eight lazy `from widgets import confirm` — confirm.py never imports voice.
 from widgets import confirm as _wconfirm, lifecycle as _wlifecycle
 # The pending-confirmation pair moved to `confirm_gate.py` (2026-09-02 ratchet pass): they needed nothing
@@ -1521,17 +1522,11 @@ class NucleoLLMStream(llm.LLMStream):
                 # emite la tag de CANVAS `fullscreen` (nunca una data-op — esto es tamaño en pantalla, no datos).
                 if "fullscreen_widget" not in _tool_fired:
                     _tool_fired.add("fullscreen_widget")
-                    from widgets import runtime as _rt_fs
-                    _wid = (args.get("widget_id") or "").strip()
-                    _rid = ""
-                    try:
-                        if _wid and _rt_fs.get(_wid) is not None:
-                            _rid = _wid
-                        else:
-                            _m = (_rt_fs.identify(_wid or text) or {}).get("match") or ""
-                            _rid = _m if (_m and _rt_fs.get(_m) is not None) else ""
-                    except Exception:
-                        _rid = _wid if _rt_fs.get(_wid) is not None else ""
+                    # V2-605 — WHICH card, decided once for both channels (`show_target.fullscreen_target`):
+                    # the id given, then identify, then the card the canvas says IS at full screen. Before
+                    # that last step `widget_id` was required and «sal de pantalla completa» had nothing to
+                    # put in it, so the model called nothing and said «Hecho.» (measured live 2026-09-07).
+                    _rid = _show_target.fullscreen_target((args.get("widget_id") or "").strip(), text)
                     if _rid:
                         _tag_emit("show", {"id": _rid})     # por si no estaba abierto todavía
                         _tag_emit("fullscreen", {"id": _rid})

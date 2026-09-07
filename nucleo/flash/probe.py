@@ -61,6 +61,7 @@ def _session(sid: str) -> ProbeSession:
 # 2026-08-29 (architecture ratchet).
 from .show_target import (  # noqa: F401
     _ctx_ids, _identify_ctx, _running_goals, _show_target, classify_alias_call,
+    fullscreen_target as _fullscreen_target,
     last_assistant_line as _last_assistant_line, show_card as _show_card,
     show_instance as _show_instance,
 )
@@ -422,17 +423,11 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
     elif "fullscreen_widget" in names:
         # BUG real 2026-07-23 — espejo del provider: pone/quita pantalla completa de verdad. Resuelve el id por
         # nombre/alias con certeza (V2-082); sin match → pregunta (no fabrica).
+        # V2-605 — the SAME decision as the voice channel, not a second copy of it
+        # (`show_target.fullscreen_target`): with `widget_id` empty it falls through to the card the canvas
+        # says IS at full screen, which is what makes «sal de pantalla completa» answerable at all.
         _fw = next(t for t in tool_calls if t["name"] == "fullscreen_widget")
-        _fwid = (_fw["args"].get("widget_id") or "").strip()
-        try:
-            from widgets import runtime as _rtf
-            if _fwid and _rtf.get(_fwid) is not None:
-                _frid = _fwid
-            else:
-                _m = _identify_ctx(_rtf, _fwid or text) or ""
-                _frid = _m if (_m and _rtf.get(_m) is not None) else ""
-        except Exception:
-            _frid = ""
+        _frid = _fullscreen_target((_fw["args"].get("widget_id") or "").strip(), text)
         action = f"canvas:fullscreen:{_frid}" if _frid else "clarify"
     elif "arrange_canvas" in names:
         # V2-588 — espejo del provider (cablear en AMBOS): ordenar el canvas es una acción global, sin id.

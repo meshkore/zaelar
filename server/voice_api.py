@@ -433,7 +433,20 @@ async def canvas_state(payload: dict):
             emit("widget", "show", extra={"id": wid, "src": "user"})
         for wid in (prev - now):
             emit("widget", "close", extra={"id": wid, "src": "user"})
-        memory.set_state({"open_widgets": seen})
+        # V2-605 — WHICH card is at full screen, if any. It is not geometry (the brain does not care about
+        # coordinates, which is why `layout` goes to sys_kv): it is «what the operator has in front of them»,
+        # the same class of fact `open_widgets` exists for. Without it «sal de pantalla completa» named no
+        # target, `fullscreen_widget` required one, and the turn answered «Hecho.» having done nothing
+        # (measured live 2026-09-07 18:54:27). Normalized like the rest, so an instance card answers too.
+        _maxw = ""
+        try:
+            for it in ((payload or {}).get("layout") or [])[:40]:
+                if isinstance(it, dict) and it.get("max"):
+                    _maxw = str(it.get("id") or "").split("::", 1)[0].strip().lower()
+                    break
+        except Exception:  # noqa: BLE001
+            _maxw = ""
+        memory.set_state({"open_widgets": seen, "maximized_widget": _maxw})
         # V2-078: widgets that BECOME open enter the `recent_widgets` MRU (2nd scoping layer open>recent>catalog).
         # It persists after closing → "the one I used a moment ago" still has priority. Single hook: every show
         # (from the operator OR the brain via [[show]]) re-reports the canvas here.

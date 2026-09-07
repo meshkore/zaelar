@@ -172,6 +172,12 @@ TOOLS: list[dict] = [
             "description": (
                 # V2-596: the OFF direction is named — «minimízalo» over a maximized video used to have no
                 # route the model could pick with confidence, and the toggle is exactly that route.
+                # V2-605: naming the OFF direction was not enough, because the ARGUMENT could not be
+                # filled. «Sal de pantalla completa» names no widget, `widget_id` was REQUIRED, and the
+                # model answered «Hecho.» having called nothing (measured live 2026-09-07). The verb
+                # mapped fine — «quita la pantalla completa» worked nine seconds later — so the fix goes
+                # in the ARGUMENT, not here: the catalogue is paid on every voice turn (INI-027) and this
+                # one was three characters under its ceiling.
                 "PANTALLA COMPLETA de un widget — interruptor: «minimízalo»/«quítala» van aquí (la quita). "
                 "Acción del CANVAS, NO de datos: play/pausa/volumen son widget_data."
             ),
@@ -179,9 +185,12 @@ TOOLS: list[dict] = [
                 "type": "object",
                 "properties": {
                     "widget_id": {"type": "string",
-                                  "description": "id exacto del catálogo, o nombre natural del widget a ampliar"},
+                                  # VACÍO is the whole V2-605 fix, and it costs less than the prose it
+                                  # replaced: the salida is the one order with no object to name.
+                                  "description": ("id o nombre del widget; "
+                                                  "VACÍO = el que esté a pantalla completa")},
                 },
-                "required": ["widget_id"],
+                "required": [],
             },
         },
     },

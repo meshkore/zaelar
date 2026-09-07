@@ -324,8 +324,12 @@ export class Desktop {
       // full-canvas footprint used to get saved as if it were the card's normal size — closing (or reloading)
       // while maximized brought the widget back filling the desk, which is what the operator's screenshot
       // showed. Maximized is a transient VIEW of the card, not its size; only `_restore` holds its size.
+      // `max` (V2-605): `_restore` IS the maximize marker — it only exists while the card is maximized. The
+      // canvas is authoritative for this and it was the one thing it never said, so «sal de pantalla completa»
+      // reached a model that could not name the target and answered «Hecho.» without doing anything (measured
+      // live 2026-09-07 18:54:27). It rides the report that already travels on every _persist().
       items.push({id, q:w.q||"", left:(r?r.left:c.style.left), top:(r?r.top:c.style.top), z:c.style.zIndex||"",
-                  min:c.classList.contains("hb-minned")?1:0,
+                  min:c.classList.contains("hb-minned")?1:0, max:r?1:0,
                   w:(r?r.w:c.style.width)||"", h:(r?r.h:c.style.height)||""}); });
     return items;
   }
