@@ -56,7 +56,11 @@ canvas#viz{position:absolute;left:0;right:0;bottom:0;width:100%;height:30px;disp
 .chatwall.open{display:flex}
 /* DOCK as a full-height side column (drag the header to the left/right edge). The rest = empty canvas.
    top/bottom:0 (not height:100vh) = ROBUST full height in any browser; !important wins over floating inline styles. */
-.chatwall.docked{top:0!important;bottom:0!important;height:auto!important;max-height:none!important;border-radius:0}
+/* V2-608 F4 — a docked column starts BELOW the update banner. `--banner-h` was honoured by `.me` and `.tr`
+   and by nothing else, so with the banner up the column's own header — its tabs AND its close/undock buttons —
+   sat underneath it: the operator had a full-height bar he could not close, opened by the agent, with no
+   visible way out. Measured on his screenshot 2026-09-07. */
+.chatwall.docked{top:var(--banner-h)!important;bottom:0!important;height:auto!important;max-height:none!important;border-radius:0}
 .chatwall.docked.dock-left{border-radius:0 16px 16px 0;border-left:none}
 .chatwall.docked.dock-right{border-radius:16px 0 0 16px;border-right:none}
 /* resize handles (8: edges + corners), reusable (lib/resizable.js) */
@@ -71,8 +75,13 @@ canvas#viz{position:absolute;left:0;right:0;bottom:0;width:100%;height:30px;disp
 .hb-rz-sw{bottom:0;left:0;width:14px;height:14px;cursor:nesw-resize}
 /* docked → only the INNER edge resizes (the column width); hide the rest */
 .chatwall.docked .hb-rz{display:none}
-.chatwall.docked.dock-left .hb-rz-e{display:block}
-.chatwall.docked.dock-right .hb-rz-w{display:block}
+/* The width-resize strip starts BELOW the header. It runs the full height of the column and is 8px wide at the
+   very edge — which is exactly where the close button sits, so `elementFromPoint` over the × returned the strip
+   and the click never reached the button (measured 2026-09-07: `DIV.hb-rz hb-rz-e`). Together with the update
+   banner burying the same header, the operator had two independent reasons he could not close the column.
+   54px = the header's own height; below it the strip behaves as before. */
+.chatwall.docked.dock-left .hb-rz-e{display:block;top:54px}
+.chatwall.docked.dock-right .hb-rz-w{display:block;top:54px}
 /* dock preview while dragging to the edge */
 .hb-dock-preview{position:fixed;top:0;height:100vh;width:340px;z-index:9000;display:none;pointer-events:none;
      background:linear-gradient(var(--hb-accent),var(--hb-accent2));opacity:.16;border:2px dashed var(--hb-accent)}
@@ -91,7 +100,12 @@ body.chatdock-r .statuspanel,body.chatdock-r .cronpanel{right:calc(18px + var(--
 .cw-head{display:flex;align-items:center;gap:8px;padding:11px 14px;border-bottom:1px solid var(--hb-line);cursor:grab;touch-action:none;user-select:none}
 .cw-head:active{cursor:grabbing}
 .cw-title{font-weight:700;font-size:14px;color:var(--hb-ink)}
-.cw-x{margin-left:auto}
+.cw-x{margin-left:0}
+/* V2-608 F4 — the way OUT of a docked column, next to the close button. Hidden while floating (there is
+   nothing to undock from). `margin-left:auto` moved from .cw-x to this pair so both sit at the right end. */
+.cw-undock{margin-left:auto}
+.cw-undock.hidden{display:none}
+.cw-undock.hidden + .cw-x{margin-left:auto}
 .cw-list{flex:1 1 auto;overflow-y:auto;padding:12px 14px;display:flex;flex-direction:column;gap:8px}
 .cw-list:empty::after{content:"Type or paste (Ctrl/Cmd+V) to talk to the agent by text.";color:var(--hb-muted-2);font-size:12px}
 .cw-msg{max-width:85%;padding:8px 11px;border-radius:13px;font-size:13px;line-height:1.35;white-space:pre-wrap;word-break:break-word}
@@ -301,6 +315,11 @@ body.chatdock-r .statuspanel,body.chatdock-r .cronpanel{right:calc(18px + var(--
 /* ---------- BOTTOM-CENTRE: voice orb, no text ---------- */
 /* voice orb + activity rail: ALWAYS on top of everything (the spectrum is the overlay). Bottom-anchored so the
    activity text grows UPWARD from the orb. Draggable (the orb itself is the handle) + position persisted. */
+/* `left:50%` is 50% OF #desk, not of the window: .orbwrap lives inside #desk, which is a containing block by
+   its `transform` (V2-062, on purpose — so the orb and the camera travel with the desk). An untouched orb is
+   therefore already centred on the visible area and needs no help; measured 2026-09-07, adding the dock offset
+   here moved it off-centre by half a column. What DOES need help is an orb he has DRAGGED: its inline `left`
+   is a desk pixel that was valid for the old desk WIDTH, so Orb.js remaps that one by fraction. */
 .orbwrap{position:fixed;left:50%;bottom:8px;transform:translateX(-50%);z-index:100000;display:flex;flex-direction:column;align-items:center}
 /* OVAL VEIL behind the WHOLE eye cluster (icons + orb + ECG) — not just behind the orb canvas. Over a busy/bright
    background (a video playing in a widget, e.g.) the frameless icons and the thin ECG line were themselves

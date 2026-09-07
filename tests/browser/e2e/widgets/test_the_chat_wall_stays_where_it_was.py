@@ -209,6 +209,37 @@ def docked(run):
           return {cls: [...w.classList].join(' '), h: Math.round(r.height), w: Math.round(r.width),
                   dockL: getComputedStyle(document.documentElement).getPropertyValue('--chatdock-l').trim()};
         }""")
+        out["undock_visible"] = pg.evaluate("""() => {
+          const u = document.querySelector('#chatwall .cw-undock');
+          if (!u) return null;
+          const r = u.getBoundingClientRect();
+          return {shown: !u.classList.contains('hidden') && r.width > 0, top: Math.round(r.top)};
+        }""")
+        # With the update banner up, a full-height column used to slide its own header underneath it.
+        pg.evaluate("() => document.documentElement.style.setProperty('--banner-h', '44px')")
+        pg.wait_for_timeout(250)
+        out["with_banner"] = pg.evaluate("""() => {
+          const w = document.querySelector('#chatwall');
+          const h = document.querySelector('#chatwall .cw-head');
+          const u = document.querySelector('#chatwall .cw-undock');
+          const x = document.querySelector('#chatwall .cw-x');
+          const vis = el => { const r = el.getBoundingClientRect();
+            return r.top >= 44 && document.elementFromPoint(r.left + r.width/2, r.top + r.height/2) !== null
+                   && el.contains(document.elementFromPoint(r.left + r.width/2, r.top + r.height/2)); };
+          return {wallTop: Math.round(w.getBoundingClientRect().top),
+                  headTop: Math.round(h.getBoundingClientRect().top),
+                  undockReachable: vis(u), closeReachable: vis(x)};
+        }""")
+        # And the way back: press undock and the column becomes the floating chat panel again.
+        pg.evaluate("() => document.querySelector('#chatwall .cw-undock').click()")
+        pg.wait_for_timeout(400)
+        out["after_undock"] = pg.evaluate("""() => {
+          const w = document.querySelector('#chatwall');
+          const r = w.getBoundingClientRect();
+          return {cls: [...w.classList].join(' '), w: Math.round(r.width), h: Math.round(r.height),
+                  dockL: getComputedStyle(document.documentElement).getPropertyValue('--chatdock-l').trim(),
+                  deskLeft: Math.round(document.getElementById('desk').getBoundingClientRect().left)};
+        }""")
         out["errors"] = errors
         b.close()
     return out
@@ -254,3 +285,32 @@ def test_a_TAB_CHANGE_does_not_secretly_undock_the_wall(docked):
     assert "docked" in a["cls"] and "dock-left" in a["cls"], f"the tab change undocked it: {a['cls']}"
     assert a["h"] >= 700, f"a docked wall is a FULL-HEIGHT column, not a floating panel: {a}"
     assert a["dockL"] == f"{a['w']}px", f"strip and column disagree after the rebuild: {a}"
+
+
+def test_a_docked_column_ALWAYS_offers_a_way_out(docked):
+    """Operator, 2026-09-07: «no veo forma de cerrarlo… esa barra tiene que poder moverse y tiene que haber un
+    icono para minimizarla».
+
+    It matters because the wall can be opened by the AGENT — a proactive push showing the cluster list is what
+    happened to him — so it can arrive docked without him having docked it. Dragging the header back out is not
+    discoverable, and the × beside it CLOSES the panel instead of giving him the chat back."""
+    u = docked["undock_visible"]
+    assert u and u["shown"], "a docked column with no visible way out"
+
+
+def test_the_update_banner_does_not_bury_the_columns_own_header(docked):
+    """`--banner-h` was honoured by `.me` and `.tr` and by nothing else, so a full-height column ran from y=0 and
+    put its tabs AND both its buttons underneath the banner. That is why he could not close it."""
+    b = docked["with_banner"]
+    assert b["wallTop"] >= 44, f"the column still starts under the banner: {b}"
+    assert b["headTop"] >= 44, b
+    assert b["undockReachable"], f"the undock button is not clickable: {b}"
+    assert b["closeReachable"], f"the close button is not clickable: {b}"
+
+
+def test_undocking_gives_him_the_CHAT_WIDGET_back(docked):
+    """«Se minimiza la barra y vuelve a aparecer el widget del chat.» Not closed — floating, with its content."""
+    a = docked["after_undock"]
+    assert "docked" not in a["cls"] and "open" in a["cls"], a
+    assert a["h"] < 700, f"still a full-height column: {a}"
+    assert a["dockL"] == "0px" and a["deskLeft"] == 0, f"the desk did not get its space back: {a}"

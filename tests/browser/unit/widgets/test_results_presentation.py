@@ -726,7 +726,12 @@ def test_the_canvas_puts_the_task_in_the_card_header():
 def test_the_canonical_name_is_not_lost_only_moved():
     """This is how the piece is addressed by voice: it cannot disappear, only stop occupying the main position."""
     src = DESKTOP_JS.read_text()
-    fn = src[src.index("async _applyLiveTitle("):src.index("_wireDrag(card, grip)")]
+    # Bounded by the NEXT method definition rather than by one method's signature: the old anchor was the literal
+    # `_wireDrag(card, grip)`, and V2-608 changed that signature (the header became a drag handle too), which
+    # broke a test about TITLES. An anchor that a neighbour's refactor can move is not an anchor.
+    start = src.index("async _applyLiveTitle(")
+    end = src.index("\n  _", start + 1)
+    fn = src[start:end]
     assert "nameBtn.title" in fn and "alias" in fn
 
 

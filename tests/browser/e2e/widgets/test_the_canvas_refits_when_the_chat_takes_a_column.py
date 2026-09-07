@@ -26,12 +26,16 @@ DESKTOP = pathlib.Path("frontend/app/widgets/desktop.js")
 _HTML = """<!doctype html><html><head><meta charset="utf-8"><style>
   :root{ --chatdock-l:0px; --chatdock-r:0px; }
   html,body{margin:0;height:100%;background:#0a1017}
-  #desk{position:fixed;top:0;bottom:0;left:var(--chatdock-l);right:var(--chatdock-r)}
+  /* VERBATIM from styles.css, transform included — it is the whole point: a transformed ancestor becomes the
+     containing block for `position:fixed` descendants, so `.hb-stage{inset:0}` resolves against #desk and the
+     cards are written in DESK coordinates. The first fixture made #wstage a SIBLING of #desk; the two
+     coordinate systems then coincided, and the suite measured a product that does not exist. */
+  #desk{position:fixed;top:0;bottom:0;left:var(--chatdock-l);right:var(--chatdock-r);transform:translate3d(0,0,0)}
   #chatwall{position:fixed;top:0;bottom:0;width:0;display:none;background:#111}
   #chatwall.open{display:block}
   #chatwall.dock-left{left:0} #chatwall.dock-right{right:0}
 </style></head><body>
-  <div id="desk"></div><div id="wstage"></div><div id="activity"></div>
+  <div id="desk"><div id="wstage"></div></div><div id="activity"></div>
   <div id="chatwall"></div>
 </body></html>"""
 
@@ -46,12 +50,23 @@ _SETUP = """(async () => {
   d.grid = 5;
   d._meta = {results:{}, navegador:{min:{w:520, h:300}}};
   d._persist = () => { window.__persisted = (window.__persisted||0) + 1; };
+  d._uiAudit = () => {};
+  d.z = 20;
   const mk = (id, left, top, w, h) => {
     const c = document.createElement("div");
     c.className = "hb-win"; c.dataset.wid = id;
-    c.style.cssText = `position:absolute;left:${left}px;top:${top}px;width:${w}px;height:${h}px;box-sizing:border-box`;
+    c.style.cssText = `position:absolute;left:${left}px;top:${top}px;width:${w}px;height:${h}px;box-sizing:border-box;background:#223`;
+    // The real card chrome: a nine-dot grip and the header strip, both drag handles since V2-608 F6.
+    const grip = document.createElement("button");
+    grip.className = "hb-grip";
+    grip.style.cssText = "position:absolute;top:7px;left:8px;width:26px;height:26px";
+    const head = document.createElement("div");
+    head.className = "hb-head";
+    head.style.cssText = "position:absolute;top:6px;left:40px;right:70px;height:24px";
+    c.append(grip, head);
     d.stage.appendChild(c);
-    d.wins.set(id, {card:c});
+    d.wins.set(id, {card:c, head});
+    d._wireDrag(c);                      // the product decides which parts of the chrome are handles
     return c;
   };
   d._watchCanvas();            // the REAL registration the constructor calls — not a copy of it
@@ -62,15 +77,29 @@ _SETUP = """(async () => {
 
 _READ = """() => {
   const out = {};
+  const d = document.getElementById("desk").getBoundingClientRect();
   window.__d.wins.forEach((w, id) => {
-    const r = w.card.getBoundingClientRect();
+    const r = w.card.getBoundingClientRect();          // VIEWPORT — what the operator's eye sees
     out[id] = {left:Math.round(r.left), top:Math.round(r.top),
                right:Math.round(r.right), bottom:Math.round(r.bottom),
-               w:Math.round(r.width), h:Math.round(r.height)};
+               w:Math.round(r.width), h:Math.round(r.height),
+               styleLeft: parseInt(w.card.style.left)||0};
   });
-  out.__canvas = window.__d.canvas();
+  out.__desk = {left:Math.round(d.left), right:Math.round(d.right),
+                top:Math.round(d.top), bottom:Math.round(d.bottom), w:Math.round(d.width)};
+  out.__canvas = window.__d.canvas();                  // DESK coordinates, like style.left
+  out.__persisted = window.__persisted || 0;
   return out;
 }"""
+
+
+# Assertions are made in VIEWPORT space against the DESK's own box: that is what «inside the visible area»
+# means to the person looking at the screen, and it stays true whatever coordinate system the code uses
+# internally. Asserting the internal one is how the first version of this suite passed while the product
+# pushed every card off the right of the screen.
+def _inside(card, desk, slack=2):
+    return (card["left"] >= desk["left"] - slack and card["right"] <= desk["right"] + slack
+            and card["bottom"] <= desk["bottom"] + slack)
 
 
 def _module_source() -> str:
@@ -145,9 +174,9 @@ def test_a_card_behind_the_new_chat_column_is_brought_out(playwright_available):
     steps = _run([_two_cards, lambda pg: _dock_left(pg, 600)])
     before, after = steps[0], steps[1]
     assert before["results"]["left"] == 80, before["results"]
-    assert after["__canvas"]["x0"] >= 600, after["__canvas"]
-    assert after["results"]["left"] >= after["__canvas"]["x0"], \
-        f"the card stayed under the chat column: {after['results']}"
+    assert after["__desk"]["left"] == 600, after["__desk"]
+    assert _inside(after["results"], after["__desk"]), \
+        f"the card is not inside the visible desk: {after['results']} vs desk {after['__desk']}"
     assert after["errors"] == [], after["errors"]
 
 
@@ -155,10 +184,10 @@ def test_a_card_past_the_new_right_edge_is_pulled_back_whole(playwright_availabl
     """The screenshot's actual complaint: the card on the right is cut off by the window edge. Nothing moved it,
     because the rail clamp only ever pushed cards RIGHTWARDS and the chat dock announced nothing at all."""
     after = _run([_two_cards, lambda pg: _dock_left(pg, 600)])[1]
-    c = after["__canvas"]
-    assert after["navegador"]["right"] <= c["x1"] + 1, f"still hanging off the edge: {after['navegador']}"
-    assert after["navegador"]["left"] >= c["x0"] - 1, after["navegador"]
-    assert after["navegador"]["bottom"] <= c["y1"] + 1, after["navegador"]
+    d = after["__desk"]
+    assert after["navegador"]["right"] <= d["right"], \
+        f"still hanging off the right edge of the screen: {after['navegador']} vs desk {d}"
+    assert _inside(after["navegador"], d), after["navegador"]
 
 
 def test_a_card_too_wide_for_what_is_left_is_SHRUNK_not_just_moved(playwright_available):
@@ -166,9 +195,9 @@ def test_a_card_too_wide_for_what_is_left_is_SHRUNK_not_just_moved(playwright_av
     async def wide(pg):
         await pg.evaluate("""() => { window.__mk("results", 60, 100, 1200, 300); window.__d.fitAll(); }""")
     after = _run([wide, lambda pg: _dock_left(pg, 600)])[1]
-    c = after["__canvas"]
-    assert after["results"]["w"] <= (c["x1"] - c["x0"]) + 1, after["results"]
-    assert after["results"]["right"] <= c["x1"] + 1, after["results"]
+    d = after["__desk"]
+    assert after["results"]["w"] <= d["w"], after["results"]
+    assert _inside(after["results"], d), after["results"]
 
 
 def test_the_shrinking_stops_at_the_widget_OWN_minimum(playwright_available):
@@ -201,8 +230,10 @@ def test_undocking_does_not_drag_the_cards_back(playwright_available):
         await pg.wait_for_timeout(80)
     steps = _run([_two_cards, lambda pg: _dock_left(pg, 600), undock])
     docked, freed = steps[1], steps[2]
-    assert freed["results"]["left"] == docked["results"]["left"], "a legal card must not be moved again"
-    assert freed["navegador"]["left"] == docked["navegador"]["left"], freed["navegador"]
+    # Compared in DESK coordinates: the desk itself moves back left when the column is released, so the whole
+    # stage translates with it — that is CSS doing its job, not the refit moving anything.
+    assert freed["results"]["styleLeft"] == docked["results"]["styleLeft"], "a legal card must not be moved again"
+    assert freed["navegador"]["styleLeft"] == docked["navegador"]["styleLeft"], freed["navegador"]
 
 
 def test_nothing_is_persisted_when_nothing_had_to_move(playwright_available):
@@ -255,21 +286,23 @@ def test_a_FLOATING_chat_does_not_shrink_the_canvas(playwright_available):
     before, after = steps[0], steps[1]
     assert after["__canvas"]["x0"] == before["__canvas"]["x0"], \
         f"a floating panel moved the canvas edge: {before['__canvas']} → {after['__canvas']}"
+    assert after["__desk"]["left"] == before["__desk"]["left"], "the desk itself must not move"
     for wid in ("results", "navegador"):
         assert after[wid]["left"] == before[wid]["left"] and after[wid]["top"] == before[wid]["top"], \
             f"{wid} was moved by a chat that took no column: {before[wid]} → {after[wid]}"
         assert after[wid]["w"] == before[wid]["w"], f"{wid} was resized for nothing: {after[wid]}"
 
 
-def test_the_canvas_IS_the_desk(playwright_available):
-    """Stated as the property, not as a consequence. `#desk` is `left:var(--chatdock-l); right:var(--chatdock-r)`
-    in CSS; this rectangle reads the same two values, so the two cannot drift apart. Sniffing the wall's own box
-    was the second opinion that did drift."""
-    async def dock(pg):
-        await _dock_left(pg, 600)
-    after = _run([_two_cards, dock])[1]
-    desk = None
+def test_the_canvas_is_measured_in_DESK_coordinates(playwright_available):
+    """The property the whole fix rests on, stated where it can fail loudly.
 
+    `#wstage` is a child of `#desk`, and `#desk` carries `transform: translate3d(0,0,0)` — which makes it the
+    containing block for every `position:fixed` descendant, `.hb-stage{inset:0}` included. So `style.left` is
+    measured from the DESK, and the stage slides right on its own when a column insets `#desk` in CSS.
+
+    Measured on the real page: a card at `style.left:100px` renders at viewport 115 undocked and at 535 with a
+    420px column, with `style.left` untouched. Clamping `style.left` against a VIEWPORT number therefore adds
+    the column width a second time — which is exactly what the first cut of V2-608 did."""
     async def go():
         from playwright.async_api import async_playwright
         async with async_playwright() as pw:
@@ -279,12 +312,99 @@ def test_the_canvas_IS_the_desk(playwright_available):
             out = await pg.evaluate("""() => {
               const d = document.getElementById("desk").getBoundingClientRect();
               const c = window.__d.canvas();
-              return {deskLeft: Math.round(d.left), deskRight: Math.round(d.right), c};
+              const card = window.__d.wins.get("results").card;
+              return {deskLeft: Math.round(d.left), deskW: Math.round(d.width), c,
+                      styleLeft: parseInt(card.style.left)||0,
+                      renderedLeft: Math.round(card.getBoundingClientRect().left)};
             }""")
             await b.close()
             return out
     m = asyncio.run(go())
     pad = 14
-    assert m["c"]["x0"] == m["deskLeft"] + pad, m
-    assert m["c"]["x1"] == m["deskRight"] - pad, m
-    assert after["__canvas"]["x0"] >= 600
+    assert m["c"]["x0"] == pad, f"the canvas origin is the DESK's own left, not the window's: {m}"
+    assert m["c"]["x1"] == m["deskW"] - pad, m
+    # And the two coordinate systems really do differ by the column, which is what makes this load-bearing.
+    assert m["renderedLeft"] - m["styleLeft"] == m["deskLeft"], m
+
+
+# ── Dragging: desk coordinates, and the whole header is a handle (V2-608 F3/F6) ─────────────────────────────
+def _grab(sel):
+    """Press on `sel`, move 120px right / 60px down, release — a real pointer gesture, real hit-testing."""
+    async def step(pg):
+        box = await pg.locator(sel).bounding_box()
+        cx, cy = box["x"] + box["width"] / 2, box["y"] + box["height"] / 2
+        await pg.mouse.move(cx, cy)
+        await pg.mouse.down()
+        await pg.mouse.move(cx + 20, cy + 10)      # past the 4px tap threshold
+        await pg.mouse.move(cx + 120, cy + 60)
+        await pg.mouse.up()
+        await pg.wait_for_timeout(60)
+    return step
+
+
+def test_grabbing_a_card_with_a_column_docked_does_not_TELEPORT_it(playwright_available):
+    """His report: «cuando pincho en el botón para moverlo, la manita aparece desplazada 100 o 200 píxeles a la
+    izquierda del widget».
+
+    `_wireDrag` measured the grab offset from `getBoundingClientRect()` (VIEWPORT) and wrote the result straight
+    into `style.left` (DESK). With a column docked the two differ by its width, so the card jumped sideways by
+    exactly that on the first pointermove — and was silently correct whenever nothing was docked."""
+    async def dock(pg):
+        await _dock_left(pg, 600)
+
+    steps = _run([_two_cards, dock, _grab('[data-wid="results"] .hb-grip')])
+    docked, dragged = steps[1], steps[2]
+    dx = dragged["results"]["left"] - docked["results"]["left"]
+    dy = dragged["results"]["top"] - docked["results"]["top"]
+    assert 90 <= dx <= 150, f"the card did not follow the pointer: moved {dx}px for a 120px drag"
+    assert 40 <= dy <= 90, f"vertical drift: {dy}"
+    assert _inside(dragged["results"], dragged["__desk"]), dragged["results"]
+
+
+def test_the_WHOLE_HEADER_drags_the_card_not_only_the_nine_dots(playwright_available):
+    """Operator, 2026-09-07: «cualquier cajita en Windows o en Mac se puede mover pinchando en cualquier punto de
+    la barra superior, salvo en sus botones». Default for every widget, system-made or user-made."""
+    steps = _run([_two_cards, _grab('[data-wid="results"] .hb-head')])
+    before, after = steps[0], steps[1]
+    dx = after["results"]["left"] - before["results"]["left"]
+    assert 90 <= dx <= 150, f"the header did not drag the card: moved {dx}px"
+
+
+def test_a_TAP_on_the_header_does_not_move_the_card(playwright_available):
+    """The 4px threshold. The header carries the title button (it opens the aliases panel), so a click has to
+    stay a click — that is what the old `stopPropagation` was protecting, and it must survive the change."""
+    async def tap(pg):
+        box = await pg.locator('[data-wid="results"] .hb-head').bounding_box()
+        cx, cy = box["x"] + box["width"] / 2, box["y"] + box["height"] / 2
+        await pg.mouse.move(cx, cy)
+        await pg.mouse.down()
+        await pg.mouse.move(cx + 2, cy + 1)
+        await pg.mouse.up()
+        await pg.wait_for_timeout(60)
+    steps = _run([_two_cards, tap])
+    assert steps[1]["results"]["left"] == steps[0]["results"]["left"], "a tap moved the card"
+    # And it must not have been recorded as a move: on a 5px grid a 3px drag can snap back to the same pixel,
+    # so position alone would let «every tap is a drag» through. Persisting is the signal that cannot round away.
+    assert steps[1]["__persisted"] == 0, "a tap was persisted as a move"
+
+
+def test_a_new_card_placed_with_a_column_docked_does_not_land_on_an_existing_one(playwright_available):
+    """`_obstacles()` returned VIEWPORT rects while `_place()` scans in DESK coordinates, so with a column docked
+    every obstacle was reported a column-width to the right of where it actually is — and the scan happily put a
+    new card on top of one it thought was somewhere else. Silently correct whenever nothing is docked, which is
+    why it survived until docking became a real workflow."""
+    async def place_with_dock(pg):
+        await _dock_left(pg, 600)
+        await pg.evaluate("""() => {
+          const c = window.__mk("agenda", 0, 0, 300, 200);
+          window.__d._place(c);                       // the real placement scan
+        }""")
+        await pg.wait_for_timeout(60)
+
+    after = _run([_two_cards, place_with_dock])[1]
+    a, others = after["agenda"], [after["results"], after["navegador"]]
+    for o in others:
+        overlap = not (a["right"] <= o["left"] or a["left"] >= o["right"]
+                       or a["bottom"] <= o["top"] or a["top"] >= o["bottom"])
+        assert not overlap, f"placed on top of an existing card: {a} vs {o}"
+    assert _inside(a, after["__desk"]), a

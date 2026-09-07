@@ -237,6 +237,28 @@ export class Desktop {
     addEventListener("resize", refit);
   }
 
+  // WHERE THE CARDS ACTUALLY LIVE (V2-608 F3). `#wstage` is a CHILD of `#desk`, and `#desk` carries
+  // `transform: translate3d(0,0,0)` — which makes it the containing block for every `position:fixed`
+  // descendant, `.hb-stage{inset:0}` included. So a card's `style.left` is measured from the DESK, not from the
+  // window, and the whole stage slides right on its own when a docked column insets `#desk` in CSS.
+  //
+  // MEASURED on the real page: a card at `style.left:100px` renders at viewport 115 with nothing docked and at
+  // **535** with a 420px column — `style.left` never changed. So anything that clamps `style.left` against a
+  // VIEWPORT number is wrong by exactly the width of the column, and the first cut of V2-608 did that: it added
+  // the dock offset a second time and shoved every card further right, which is what the operator saw. It also
+  // explains the other half of his report — «pincho para moverlo y la manita aparece desplazada 100 o 200
+  // píxeles a la izquierda del widget»: drag code that mixes `getBoundingClientRect()` (viewport) with
+  // `style.left` (desk) disagrees with itself by that same width.
+  //
+  // My tests did not catch it because the fixture built `#wstage` as a SIBLING of `#desk`, so `position:fixed`
+  // resolved against the window and the two coordinate systems coincided. A harness whose DOM differs from the
+  // product's measures a different product.
+  deskBox(){
+    const e=document.getElementById("desk");
+    const r=e && e.getBoundingClientRect();
+    return (r && r.width) ? r : {left:0, top:0, width:innerWidth, height:innerHeight};
+  }
+
   // ── THE USABLE CANVAS (V2-608) ────────────────────────────────────────────────────────────────────────────
   // The rectangle a card may actually occupy. `.hb-stage` is `inset:0`, so cards live in VIEWPORT coordinates,
   // but the desk they read as theirs is inset by whatever is docked: the widget rail on the left (V2-538) and
@@ -248,26 +270,26 @@ export class Desktop {
   // it docked correctly into its column, and every card stayed exactly where it was. The desk shrank underneath
   // them, and the card on the right was cut off by the window edge with no way to reach it.
   canvas(){
-    const pad=this.tile.pad;
-    // ONLY A DOCKED COLUMN SHRINKS THE DESK. `--chatdock-l/r` are published by ChatWall.setReserve() exactly
-    // when the wall is open AND docked, and `#desk` is inset by those same two values in CSS — so reading them
-    // here makes this rectangle the desk BY CONSTRUCTION, with no second opinion to drift from it.
-    //
-    // The first version of this read the wall's own bounding rect instead, inherited from `arrange()`, whose
-    // comment said «docked/floating on the LEFT». For a deliberate tiling gesture, treating a floating panel as
-    // a wall is a nicety. For a refit that now runs on every canvas change it is a bug, and the operator caught
-    // it the same day (2026-09-07): «simplemente le he dicho que abra el chat… no lo hemos pegado a la barra de
-    // la izquierda para que se haga una columna, y ha movido el resto de objetos a la derecha. Eso no había
-    // pasado nunca.» A FLOATING wall changes nothing at all — it is already an obstacle in `_obstacles()`
-    // (`#chatwall.open`), which is how placement has avoided sitting on top of it since long before this.
-    const cs=getComputedStyle(document.documentElement);
-    const dockL=parseInt(cs.getPropertyValue("--chatdock-l"))||0;
-    const dockR=parseInt(cs.getPropertyValue("--chatdock-r"))||0;
-    let x0=Math.max(pad, this.minX()+pad, dockL+pad), x1=innerWidth-dockR-pad;
-    // A canvas narrower than one minimum-size card is not a canvas; keep it non-degenerate so the clamps below
-    // stay monotonic (x1 < x0 would flip every Math.min/Math.max into nonsense).
+    const pad=this.tile.pad, d=this.deskBox();
+    // The RAIL is viewport-fixed at left:0, so its right edge is a VIEWPORT x. Translated into desk
+    // coordinates it goes negative the moment the desk starts to its right — i.e. it stops intruding, which is
+    // exactly right: with the chat docked left, the rail sits over the chat, not over the canvas.
+    const rail=this.minX();
+    const x0=Math.max(pad, rail ? rail - d.left + pad : pad);
+    let x1=Math.round(d.width) - pad;
+    // A canvas narrower than one minimum-size card is not a canvas; keep it non-degenerate so the clamps stay
+    // monotonic (x1 < x0 would flip every Math.min/Math.max into nonsense).
     if(x1 - x0 < MIN_W) x1 = x0 + MIN_W;
-    return {x0, x1, y0:this.tile.top, y1:Math.max(this.tile.top+MIN_H, innerHeight-pad)};
+    return {x0, x1, y0:this.tile.top, y1:Math.max(this.tile.top+MIN_H, Math.round(d.height)-pad)};
+  }
+
+  // Convert a VIEWPORT rect (getBoundingClientRect, and every element that is not a card) into the desk
+  // coordinates the cards are written in. Anything that compares the two without this is wrong by the width of
+  // the docked column — and silently right whenever nothing is docked, which is why it survived.
+  _toDesk(r){
+    const d=this.deskBox();
+    return {left:r.left-d.left, top:r.top-d.top, right:r.right-d.left, bottom:r.bottom-d.top,
+            width:r.width, height:r.height};
   }
 
   // The smallest this widget may be squeezed to. Its manifest may declare `min` ({w,h}); otherwise the canvas
@@ -599,12 +621,15 @@ export class Desktop {
       } else { this._place(card); this._bringFront(card); }   // fit into free space without overlapping anything
       if(pos && (pos.w || pos.h)) this._applyGeom(card, pos.w, pos.h);   // …y con el tamaño que le dejó el operador
       if(pos && pos.min) card.classList.add("hb-minned");                // V2-537: minimized survives a reload
-      this._wireDrag(card, grip);
+      this._wireDrag(card);
       this._wireResize(card, id);
       this._watchSize(card);
       card.addEventListener("pointerdown",()=>this._bringFront(card));
-      // Dragging (grip) no longer swallows header clicks; the header ignores pointerdown so it does not drag the card.
-      head.addEventListener("pointerdown",e=>e.stopPropagation());
+      // The header IS a drag handle now (V2-608 F6), like an OS title bar. It used to swallow its own
+      // pointerdown precisely so it would NOT drag; what that protected — a click on the title opening the
+      // aliases panel — is protected instead by the 4px threshold in _dragHandle, which is how every other
+      // draggable piece of chrome in this app already tells a tap from a drag.
+      head.style.pointerEvents="auto"; head.style.cursor="grab";
       requestAnimationFrame(()=>card.classList.add("in"));
       card._long=setTimeout(()=>card.classList.add("long"),3500);
       w={card, body, q, id, base:baseId, nameBtn, head}; this.wins.set(id, w);
@@ -1048,7 +1073,7 @@ export class Desktop {
       const h = e.target.closest && e.target.closest(".hb-rz");
       if(!h || !card.contains(h)) return;
       dir = h.dataset.dir || ""; if(!dir) return;
-      const r = card.getBoundingClientRect();
+      const r = this._toDesk(card.getBoundingClientRect());   // desk coordinates, like style.left (V2-608 F3)
       sx=e.clientX; sy=e.clientY; sw=r.width; sh=r.height; sl=r.left; st=r.top; live=true;
       card._restore = null;                       // redimensionar a mano invalida el "volver" de maximizar
       card.classList.remove("hb-cinema");         // V2-596: with the way back gone, cinema must not linger
@@ -1188,7 +1213,7 @@ export class Desktop {
       t = setTimeout(() => {
         if(card._restore) return;             // maximized on purpose
         const c = this.canvas();
-        const r = card.getBoundingClientRect();
+        const r = this._toDesk(card.getBoundingClientRect());   // cards are written in DESK coordinates
         const out = r.right > c.x1 + 1 || r.bottom > c.y1 + 1
                  || r.left < c.x0 - 1 || r.top < c.y0 - 1;
         if(out){ this._fit(card); this._persist(); }
@@ -1261,10 +1286,10 @@ export class Desktop {
     const y0=cv.y0, y1=innerHeight-150;                      // 150 = orb/status strip, this gesture's own
     const cw=document.querySelector("#chatwall");
     if(cw && cw.classList.contains("open") && !cw.classList.contains("docked")){
-      const r=cw.getBoundingClientRect();
+      const r=this._toDesk(cw.getBoundingClientRect());
       if(r.width){
-        if(r.left <= innerWidth*0.3) x0=Math.max(x0, r.right+pad);
-        else if(r.right >= innerWidth*0.7) x1=Math.min(x1, r.left-pad);
+        if(r.left <= cv.x1*0.3) x0=Math.max(x0, r.right+pad);
+        else if(r.right >= cv.x1*0.7) x1=Math.min(x1, r.left-pad);
       }
     }
     const n=cards.length;
@@ -1297,15 +1322,17 @@ export class Desktop {
   minimizeAll(){ [...this.wins.keys()].forEach(id=>{ const w=this.wins.get(id); if(w&&w.card)w.card.classList.add("hb-minned"); }); this._persist(); }
   revealAll(){ [...this.wins.keys()].forEach(id=>{ const w=this.wins.get(id); if(w&&w.card)w.card.classList.remove("hb-minned"); }); this._persist(); }
 
+  // In DESK coordinates (V2-608 F3) — the placement scan compares these against candidate `style.left`/`top`,
+  // and a viewport rect is off by the width of any docked column. Silently correct while nothing is docked.
   _obstacles(exceptCard){
     const rects=[];
     this.wins.forEach(w=>{ if(w.card!==exceptCard && !w.card.classList.contains("hb-minned")){
-      const r=w.card.getBoundingClientRect(); if(r.width)rects.push(r); } });
+      const r=w.card.getBoundingClientRect(); if(r.width)rects.push(this._toDesk(r)); } });
     // V2-537 — the OPEN CHAT WALL (and the cron panel, and the widget rail) are obstacles too. Measured on the
     // operator's screen 2026-09-01: a new card landed exactly under the floating chat (z 9001, above every card's
     // 8000 cap by design) and was invisible — the scan avoided widgets, camera and orb, and nothing else.
     for(const sel of ["#me", "#orbwrap", "#chatwall.open", ".cronpanel", "#wrail"]){ const e=document.querySelector(sel);
-      if(e){ const r=e.getBoundingClientRect(); if(r.width)rects.push(r); } }
+      if(e){ const r=e.getBoundingClientRect(); if(r.width)rects.push(this._toDesk(r)); } }
     return rects;
   }
 
@@ -1318,17 +1345,61 @@ export class Desktop {
   _uiAudit(action, id){ try{ fetch("/api/ui-event",{method:"POST",headers:{"Content-Type":"application/json"},
     body:JSON.stringify({kind:"widget",action,id})}); }catch(_){} }
 
-  _wireDrag(card, grip){
-    let dx=0,dy=0,drag=false,moved=false;
-    grip.addEventListener("pointerdown",e=>{drag=true;moved=false;const r=card.getBoundingClientRect();
-      dx=e.clientX-r.left;dy=e.clientY-r.top;this._bringFront(card);grip.setPointerCapture(e.pointerId);e.preventDefault();});
-    grip.addEventListener("pointermove",e=>{if(!drag)return;moved=true;
+  // MOVE THE CARD. Every handle behaves like an OS title bar (operator, 2026-09-07): «cualquier cajita en
+  // Windows o en Mac se puede mover pinchando en cualquier punto de la barra superior, salvo en sus botones».
+  // So the nine-dot grip is no longer the only way in — the whole header strip drags too, and its buttons keep
+  // working because the drag only takes the pointer once it has actually MOVED (>4px). A tap on the title still
+  // opens the aliases panel.
+  //: Every element of a card's chrome that behaves like an OS title bar. Read from the CARD rather than passed
+  //: in, so this list is the single declaration of «what drags a widget» — a test can build a card and ask the
+  //: product which parts are handles, instead of choosing for it and proving only that its own choice works.
+  static DRAG_HANDLES = ".hb-grip, .hb-head";
+
+  _wireDrag(card){
+    for(const handle of card.querySelectorAll(Desktop.DRAG_HANDLES)) this._dragHandle(card, handle);
+  }
+
+  _dragHandle(card, handle){
+    let dx=0, dy=0, sx=0, sy=0, drag=false, moved=false;
+    handle.addEventListener("pointerdown", e=>{
+      if(e.target.closest && e.target.closest("button") && e.target.closest("button")!==handle) return;  // its own buttons
+      drag=true; moved=false; sx=e.clientX; sy=e.clientY;
+      // The grab offset is measured in VIEWPORT space, because that is what `clientX` is. It is turned into a
+      // DESK coordinate on write — see deskBox(). Mixing the two is what made the card jump sideways by the
+      // width of the docked column the instant it was grabbed: «la manita aparece desplazada 100 o 200 píxeles
+      // a la izquierda del widget» (operator, 2026-09-07). Silently correct whenever nothing is docked.
+      const r=card.getBoundingClientRect();
+      dx=e.clientX-r.left; dy=e.clientY-r.top;
+      this._bringFront(card);
+    });
+    // The move/up listeners live on the WINDOW, not on the handle. The nine-dot grip is 26px: with them on the
+    // handle, the pointer leaves it within the first few pixels and pointermove simply stops arriving — the card
+    // never moves at all (measured: 0px for a 120px drag). The obvious alternative, capturing the pointer on
+    // pointerdown, is what the old grip-only code did, and it is exactly what cannot be done now that the header
+    // is a handle too: capture retargets the click and the title button would stop opening the aliases panel.
+    // Listening on the window keeps the gesture reliable AND leaves the click completely untouched.
+    const onMove = e=>{
+      if(!drag) return;
+      if(!moved){
+        if(Math.abs(e.clientX-sx)+Math.abs(e.clientY-sy) <= 4) return;   // still a tap → let the click through
+        moved=true;
+      }
       // Snapped to the grid, and clamped so the card cannot be dragged off the canvas: the operator moves things
       // wherever he wants (V2-551), and «wherever» is still inside the screen.
-      let x=Math.max(this.minX(),Math.min(e.clientX-dx,innerWidth-card.offsetWidth));
-      let y=Math.max(0,Math.min(e.clientY-dy,innerHeight-card.offsetHeight));
-      card.style.left=this._snap(x)+"px";card.style.top=this._snap(y)+"px"; });
-    grip.addEventListener("pointerup",()=>{ drag=false; this._persist();   // remember the new position
-      if(moved) this._uiAudit("move", this._idOf(card)); });               // …and audit the user's move
+      const c=this.canvas(), d=this.deskBox();
+      const x=Math.max(c.x0, Math.min(e.clientX-dx-d.left, c.x1-card.offsetWidth));
+      const y=Math.max(0,    Math.min(e.clientY-dy-d.top,  c.y1-card.offsetHeight));
+      card.style.left=this._snap(x)+"px"; card.style.top=this._snap(y)+"px";
+    };
+    const end=()=>{
+      removeEventListener("pointermove", onMove);
+      removeEventListener("pointerup", end); removeEventListener("pointercancel", end);
+      if(!drag) return; drag=false;
+      if(!moved) return;                                                  // pure tap → nothing moved to persist
+      this._persist(); this._uiAudit("move", this._idOf(card)); };
+    handle.addEventListener("pointerdown", ()=>{
+      addEventListener("pointermove", onMove);
+      addEventListener("pointerup", end); addEventListener("pointercancel", end);
+    });
   }
 }

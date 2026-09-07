@@ -109,6 +109,7 @@ export function ChatWall() {
   let schedEl, cnameEl, cpromptEl;             // refs for the create-cron form (Crons tab)
   let dockSide = null;                         // null | "left" | "right"
   let dockW = DOCK_DEF_W;                      // the docked column's INTENDED width (see setReserve)
+  let undockEl = null;                         // the «back to a floating panel» button (docked only)
   let floatGeo = loadFloat();                  // {left,top,w,h} of the FLOATING window (last known)
   // Reopen exactly as it was left. Done HERE, at construction, so the first paint already has it: flipping the
   // signal later would show the desktop for a frame and then drop a panel on top of it.
@@ -305,6 +306,14 @@ export function ChatWall() {
         h("button", { class: () => "cw-tab" + (store.chatTab() === "clusters" ? " on" : ""), onClick: () => store.setChatTab("clusters") }, () => t("chat.tabClusters")),
         h("button", { class: () => "cw-tab" + (store.chatTab() === "conectores" ? " on" : ""), onClick: () => store.setChatTab("conectores") }, () => t("chat.tabConnectors")),
       ),
+      // UNDOCK — the way out of the column, and it has to be VISIBLE (operator, 2026-09-07). The wall can be
+      // opened by the AGENT (a proactive push showing the cluster list is what happened to him), so it can
+      // arrive docked without him ever having docked it; dragging the header back out is not discoverable, and
+      // the × beside it CLOSES the panel rather than giving him the chat widget back. «Se minimiza la barra y
+      // vuelve a aparecer el widget del chat» — that is this button: the same panel, floating again.
+      h("button", { class: "cw-undock hb-icbtn hidden", ref: el => (undockEl = el),
+                    title: () => t("chat.undock"),
+                    onClick: () => { applyFloat(floatGeo || defaultFloat()); } }, "⧉"),
       h("button", { class: "cw-x hb-icbtn", title: () => t("chat.close"), onClick: () => store.setChatOpen(false) }, raw(CLOSE_ICON)),
     ),
     // CHAT
@@ -472,6 +481,11 @@ export function ChatWall() {
       root.style.setProperty("--chatdock-l", "0px");
       root.style.setProperty("--chatdock-r", "0px");
     }
+    // The undock button is shown from HERE and nowhere else. Written first as a reactive `class` binding on
+    // `dockSide` — which is a plain variable, not a signal, so it evaluated once at build time and the button
+    // stayed hidden forever (measured: `undockVisible: false` with the wall fully docked). Every path that
+    // changes `dockSide` already calls setReserve(), so this is the one place that cannot be forgotten.
+    if (undockEl) undockEl.classList.toggle("hidden", !dockSide);
     // V2-608 — SAY SO. `#desk` follows these vars in CSS, but the widget cards live on `.hb-stage` (inset:0) in
     // viewport coordinates, so nothing moved them: the operator docked the chat left, the desk shrank underneath
     // his cards, and the one on the right was cut off by the window edge with no way to reach it. The desktop

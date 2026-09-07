@@ -224,6 +224,44 @@ export function Orb() {
   );
 
   makeDraggable(wrapEl, orbEl, "hb_pos_orb", "bl");   // drag the orb to move it (no click action any more)
+
+  // KEEP THE ORB IN THE SAME RELATIVE PLACE when a docked column changes the size of the visible area
+  // (operator, 2026-09-07): «tienes que dejar el orbe visible… si estaba abajo y centrado, déjalo en la misma
+  // posición relativa donde estaba, pero en el nuevo tamaño de la zona visible».
+  //
+  // Two cases, and only one of them needs JS. An orb he has never dragged is centred by CSS, which now centres
+  // it on the DESK instead of the window — no code, nothing to keep in sync. An orb he HAS dragged carries an
+  // inline `left` in viewport pixels (makeDraggable persists it), and that pixel is meaningless once the band
+  // moves: it is remapped by the FRACTION of the band it sat at, which is what «misma posición relativa» means.
+  // Clamped so it can never end up under the column or off the screen — «tienes que dejar el orbe visible».
+  // The band is the DESK's own width, and the orb's inline `left` is already a desk pixel (it lives inside
+  // #desk). So there is no viewport arithmetic here at all — only «which fraction of the desk was it at».
+  const band = () => {
+    const d = document.getElementById("desk");
+    const r = d && d.getBoundingClientRect();
+    return (r && r.width) ? r.width : innerWidth;
+  };
+  let lastW = band();
+  const remapOrb = () => {
+    const now = band(), prev = lastW;
+    lastW = now;
+    if (!wrapEl || !prev || !now) return;
+    if (Math.abs(now - prev) < 1) return;
+    const inline = parseFloat(wrapEl.style.left);
+    if (!isFinite(inline)) return;                       // never dragged → CSS keeps it centred on the desk
+    const w = wrapEl.offsetWidth || 0;
+    const frac = (inline + w / 2) / prev;                // where in the band its CENTRE sat
+    const left = Math.max(0, Math.min(frac * now - w / 2, now - w));
+    wrapEl.style.left = Math.round(left) + "px";
+    try { const p = JSON.parse(localStorage.getItem("hb_pos_orb") || "null");
+          if (p) { p.left = Math.round(left); localStorage.setItem("hb_pos_orb", JSON.stringify(p)); } } catch (_) {}
+  };
+  // A frame later: the CSS inset lands on `#desk` in the same tick the event fires, and reading the band before
+  // the browser has applied it measures the OLD desk and remaps to where it already was.
+  const onCanvas = () => requestAnimationFrame(remapOrb);
+  document.addEventListener("hb:canvas-resized", onCanvas);
+  document.addEventListener("hb:rail-resized", onCanvas);
+  addEventListener("resize", onCanvas);
   startEcg(ecgEl);                                    // start the heartbeat monitor (its own rAF; reads store.pulse)
 
   // ---- live-caption crawl, driven by LiveKit's AUDIO-SYNCED transcription (session-lk.js → store.captionSeg).
