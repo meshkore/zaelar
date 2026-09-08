@@ -91,7 +91,10 @@ def test_leaving_a_thread_resets_the_scroller(playwright_available):
 
 
 def test_the_dashboard_title_resets_the_scroller(playwright_available):
-    calls, errors = _run(_THREAD_DATA, ".hdtitle")
+    # V2-621 — the dashboard header (title included) only renders for the dashboard itself: an open thread
+    # has its OWN header now, with nothing to click back to the title from, so this exercises the title from
+    # the dashboard's own chat-list screen instead of `_THREAD_DATA`.
+    calls, errors = _run(_BASE, ".hdtitle")
     assert errors == [], errors
     assert calls >= 1, "the title always returns to the dashboard — a navigation, not a filter"
 

@@ -516,6 +516,15 @@ function cleanBody(text){
 const MEDIA_LABEL = {image:"📷 Foto", video:"🎥 Vídeo", audio:"🎵 Audio", ptt:"🎤 Nota de voz", document:"📄 Documento"};
 const PLACEHOLDER_RE = /^\[(image|video|audio|ptt|document) received\]$/;
 
+// V2-622 — a bare media placeholder ("[audio received]", or an empty body with a mediaType) becomes a label
+// like "🎵 Audio" purely so something reads where the caption would be. Once a real media block actually
+// renders below it, that label is pure noise — the player/thumbnail/link already say what it is. Only a
+// REAL caption the sender actually typed still needs the text line.
+function isBareMediaLabel(body){
+  const b = cleanBody(body);
+  return !b || PLACEHOLDER_RE.test(b);
+}
+
 function displayBody(body, mediaType){
   const b = cleanBody(body);
   const m = b.match(PLACEHOLDER_RE);
@@ -891,8 +900,10 @@ function richList(items, ctx){
     if(mine) from.appendChild(el("span","tag","para ti"));
     if(urg.lb) from.appendChild(el("span","tag",urg.lb));
     body.appendChild(from);
-    const msgEl = el("div","msg"); linkify(msgEl, displayBody(it.body, it.mediaType)); body.appendChild(msgEl);
     const media = mediaBlock(it);
+    if(!(media && isBareMediaLabel(it.body))){
+      const msgEl = el("div","msg"); linkify(msgEl, displayBody(it.body, it.mediaType)); body.appendChild(msgEl);
+    }
     if(media) body.appendChild(media);
     if(it.motivo) body.appendChild(el("div","why", it.motivo));
     row.appendChild(body);
@@ -1019,14 +1030,17 @@ function messageRow(it, ctx, rerender, isGroup){
   const bubble = el("div","tbubble"+(urgente && !outgoing?" urg":""));
   if(isGroup && !outgoing) bubble.appendChild(el("div","tbfrom", it.from!=null?it.from:"?"));
 
+  const media = mediaBlock(it);
+  const bareLabel = media && isBareMediaLabel(it.body);
   const {title, rest} = splitBody(displayBody(it.body, it.mediaType));
   const isLong = rest.length > 220 || rest.split("\n").length > 4;
   const expanded = _expanded.has(key);
-  if(title) bubble.appendChild(el("div","tbtitle", title));
-  const bodyEl = el("div","tbbody"+(isLong && !expanded ? " clamp" : ""));
-  linkify(bodyEl, rest);
-  bubble.appendChild(bodyEl);
-  const media = mediaBlock(it);
+  if(!bareLabel){
+    if(title) bubble.appendChild(el("div","tbtitle", title));
+    const bodyEl = el("div","tbbody"+(isLong && !expanded ? " clamp" : ""));
+    linkify(bodyEl, rest);
+    bubble.appendChild(bodyEl);
+  }
   if(media) bubble.appendChild(media);
 
   if(isLong){
@@ -1112,11 +1126,13 @@ function mailDetail(it, data, ctx, closeMail, rerender){
   if(when) meta.appendChild(el("span","mdwhen", when));
   card.appendChild(meta);
 
-  const {title, rest} = splitBody(displayBody(it.body, it.mediaType));
-  const bodyEl = el("div","mdbody");
-  linkify(bodyEl, title ? (rest || title) : rest);
-  card.appendChild(bodyEl);
   const media = mediaBlock(it);
+  if(!(media && isBareMediaLabel(it.body))){
+    const {title, rest} = splitBody(displayBody(it.body, it.mediaType));
+    const bodyEl = el("div","mdbody");
+    linkify(bodyEl, title ? (rest || title) : rest);
+    card.appendChild(bodyEl);
+  }
   if(media) card.appendChild(media);
   wrap.appendChild(card);
 
@@ -1449,6 +1465,26 @@ export function render(root, data, ctx){
     _platFilter = (pushed.platform && PLAT[pushed.platform]) ? pushed.platform : null;
   }
 
+  // V2-622 — an open thread/mail already carries its OWN header (platform + contact/subject + "← Volver");
+  // the dashboard header below (inbox count, every platform dot, connectors/settings/clear) stacked ABOVE
+  // that is not a second control surface, it is dead weight — on a hard refresh, with nothing to scroll past
+  // to hide it, it read as two headers glued together (operator screenshot, 2026-09-08). Checked here, before
+  // the dashboard header is even built, so it never gets appended for these two screens.
+  const showChannels = !!_screen || connectedCount===0;
+  const fItems = _platFilter ? items.filter(it=>it.platform===_platFilter) : items.filter(it=>it.highlight);
+  const activeChat = !showChannels ? (data.active_chat || null) : null;
+  if(activeChat){
+    root.appendChild(threadView(activeChat, data.active_items||[], data, ctx, rerender, data.thread_meta||null));
+    return;
+  }
+  const openMailItem = (!showChannels && _platFilter==="email" && _openMail!=null)
+    ? (fItems.find(x=>mailKey(x)===_openMail) || items.find(x=>mailKey(x)===_openMail))
+    : null;
+  if(openMailItem){
+    root.appendChild(mailDetail(openMailItem, data, ctx, ()=>{ _openMail=null; rerender(); }, rerender));
+    return;
+  }
+
   // Header: title + counter, connected icons only, connectors, settings, clear.
   const hd=el("div","hd");
   // V2-616 — this title used to repeat the CATALOG name ("Mensajería"), which the outer card chrome
@@ -1511,7 +1547,6 @@ export function render(root, data, ctx){
   // CHANNELS area: onboarding when nothing is connected, or when the user opens it from the header connector
   // button, or when the brain pushed a `connect_focus`. Messaging starts EMPTY; do not dump every connection
   // form by default (V2-051 product decision, unchanged).
-  const showChannels = !!_screen || connectedCount===0;
   if(showChannels){
     const scr = _screen || {view:"list"};
     if(scr.view==="wizard" && scr.platform && PLAT[scr.platform]){
@@ -1522,41 +1557,16 @@ export function render(root, data, ctx){
     return;
   }
 
-  // MESSAGES view, reached whenever at least one channel is connected. The lens (V2-521) narrows every
-  // shape below to one platform; an open thread wins over it (it already IS one conversation).
+  // MESSAGES view, reached whenever at least one channel is connected (an open thread/mail already
+  // returned above, before the dashboard header — see V2-622 near the top of this function). The lens
+  // (V2-521) narrows every shape below to one platform.
   // V2-607 — TWO SHAPES, on purpose. With a lens on, this is that channel's own section: EVERYTHING unread it
   // has brought, nothing filtered. With no lens, this is the summary, and it shows only what meets the criterion
   // he set (`highlight`, default = addressed to him) — the rest is not gone, it is one tap away in its channel.
-  const fItems = _platFilter ? items.filter(it=>it.platform===_platFilter) : items.filter(it=>it.highlight);
   const hidden = _platFilter ? 0 : items.length - fItems.length;
   const emptyMsg = _platFilter
     ? "Nada de "+((PLAT[_platFilter]||{}).label||_platFilter)+" que atender ✓"
     : (hidden ? "Nada dirigido a ti ✓" : "Nada que atender ahora ✓");
-  // AN OPEN THREAD WINS OVER EVERY LIST SHAPE (V2-544). It used to win over the lens but NOT over the
-  // «completo» profile, which returned first: with that profile selected, `open` set `active_chat` in the
-  // store and the card kept painting the same flat list — the operator asks to open a message, everything
-  // downstream works, and the screen does not move. The profile is a density preference for a LIST; opening a
-  // chat is a navigation the agent (or a click) just performed, and it must be visible in both.
-  const activeChat = data.active_chat || null;
-  if(activeChat){
-    root.appendChild(threadView(activeChat, data.active_items||[], data, ctx, rerender, data.thread_meta||null));
-    return;
-  }
-  // AN OPEN MAIL WINS OVER EVERY LIST SHAPE (V2-610), same precedence and same reasoning as an open thread
-  // just above: a navigation the operator (or a click) just performed has to stay visible no matter which
-  // density/profile is selected underneath it. `_openMail` holds `mailKey(it)` — the item's own STABLE
-  // `messageId`, never its positional `n` — because `n` gets REUSED the moment an earlier item leaves the
-  // list (`_renumber` reassigns 1..len by order on every save, data.py:128): a bare `n` here would resolve
-  // to whatever mail inherited that number next and silently show the WRONG one. A `messageId` never gets
-  // reused, so once the mail is gone (read, dismissed, archived, trashed — from here or from voice) the
-  // lookup fails FOR GOOD and the fallthrough below returns to the list, permanently — no reset needed.
-  if(_platFilter==="email" && _openMail!=null){
-    const it = fItems.find(x=>mailKey(x)===_openMail) || items.find(x=>mailKey(x)===_openMail);
-    if(it){
-      root.appendChild(mailDetail(it, data, ctx, ()=>{ _openMail=null; rerender(); }, rerender));
-      return;
-    }
-  }
   if(_profile==="completo"){
     if(fItems.length) root.appendChild(richList(fItems, ctx));
     else root.appendChild(el("div","empty",emptyMsg));

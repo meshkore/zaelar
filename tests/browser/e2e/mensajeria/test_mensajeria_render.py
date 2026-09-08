@@ -90,6 +90,7 @@ _MEASURE = """() => {
     filt: el.querySelectorAll('.picon.filt').length,
     rest: [...el.querySelectorAll('.rest')].map(n => n.textContent),
     acts: window.__acts || [],
+    hasHd: !!el.querySelector('.hd'),
   };
 }"""
 
@@ -155,6 +156,8 @@ def test_it_mounts_the_chat_list_with_spanish_media_labels_and_times(plain):
     assert plain["chats"] == ["JOSE VICENTE"], plain["chats"]
     assert any("📷 Foto" in p for p in plain["previews"]), \
         f"the bridge's placeholder must never reach the operator's eyes: {plain['previews']}"
+    # V2-622 — the dashboard header belongs to the DASHBOARD itself.
+    assert plain["hasHd"] is True
     assert not any("received]" in p for p in plain["previews"]), plain["previews"]
     assert plain["whens"] >= 1, "real timestamps must show"
 
@@ -204,6 +207,14 @@ def test_asking_for_the_main_list_lands_even_after_a_manual_change(playwright_av
     assert steps[1]["rest"] == ["1 mensaje más en sus canales"]
 
 
+def test_an_open_thread_has_no_dashboard_header_stacked_above_it(playwright_available):
+    # V2-622 — the operator's screenshot on a hard refresh: the dashboard header ("Mensajes · N para ti" +
+    # every platform dot + connectors/settings) sat stacked ABOVE the thread's own header ("← Volver ·
+    # contact"), which already carries everything a thread screen needs. An open thread is its own screen now.
+    m = _run([_WA_THREAD])[0]
+    assert m["hasHd"] is False, "an open thread must not stack the dashboard header above its own"
+
+
 def test_inside_a_thread_media_actually_paint(playwright_available):
     m = _run([_WA_THREAD])[0]
     assert m["imgs"] == ["/widgets/mensajeria/asset/img_x.jpg"], m["imgs"]
@@ -217,7 +228,11 @@ def test_inside_a_thread_media_actually_paint(playwright_available):
     assert m["audios"][0]["preload"] == "metadata"
     assert m["playBtns"] >= 1, "the custom play button must render"
     assert m["waveBars"] and m["waveBars"][0] > 0, "the waveform needs a fixed, non-zero bar count"
-    assert any("📷 Foto" in b or "🎤 Nota de voz" in b for b in m["bodies"]), m["bodies"]
+    # V2-622 — the operator: "no hace falta poner 'audio', ya se ve no?" A bare "[image received]"/"[ptt
+    # received]" placeholder used to surface as a redundant "📷 Foto"/"🎤 Nota de voz" text line ABOVE the
+    # image/player that already shows exactly that. Once the real media block renders, the label is noise —
+    # so with no real caption, `.tbbody` must not render at all for these two messages.
+    assert m["bodies"] == [], m["bodies"]
 
 
 def test_archive_and_trash_appear_ONLY_on_email_rows(playwright_available):

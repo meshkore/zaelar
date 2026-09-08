@@ -1804,6 +1804,15 @@ DOMAINS: list[dict] = [
             "ch": UNIT,
             "paths": ["tests/browser/e2e/mensajeria/test_navigation_resets_the_scroller.py",
                       "tests/browser/e2e/mensajeria/test_the_audio_player_actually_seeks.py"]},
+        # V2-622 — a bare media placeholder ("[audio received]") no longer prints a redundant "🎵 Audio" label
+        # once the real player/image/link already renders below it; and an open thread/mail no longer stacks
+        # the dashboard header (inbox count + every platform dot + connectors/settings) above its OWN header —
+        # on a hard refresh, with nothing to scroll past to hide it, that read as two headers glued together.
+        {"id": "4.132", "title": "Mensajería: una etiqueta de medio sin contenido propio no se repite junto al "
+                                 "reproductor, y un hilo/correo abierto no apila la cabecera del panel encima "
+                                 "de la suya",
+            "ch": UNIT,
+            "paths": ["tests/browser/e2e/mensajeria/test_mensajeria_render.py"]},
         # The source-level node above cannot see that the orb is a black hole in the middle of the bar: on
         # 2026-08-18 it was, at 0 painted pixels, while that node stayed green counting canvases. This one
         # RENDERS the shell at phone size and measures it. Self-contained (it starts its own preview server,

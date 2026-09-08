@@ -470,6 +470,32 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **A redundant media label, and a thread/mail screen stops stacking the dashboard header above its own
+  (V2-622, 2026-09-08)**: two operator reports in the same message. (1) A voice-note bubble printed "🎵
+  Audio" as a text line right above its own player — *"no hace falta poner 'audio', ya se ve no?"* (2) On a
+  hard page refresh with a thread open, the FULL dashboard header (inbox count, every platform dot,
+  connectors/settings/clear) rendered stacked above the thread's own header — *"ojo a como veo el widget al
+  refrescar page."*
+  - **`isBareMediaLabel(body)`** (new): a message whose body is empty or the literal `[<type> received]`
+    placeholder carries no REAL caption — only what `displayBody()` invented to have something to print. The
+    three call sites that render BOTH a text line and a `mediaBlock()` for the same item (`richList`,
+    `messageRow`, `mailDetail`) now skip the text line once the real media block renders and the body is
+    bare. A genuine caption typed alongside media is untouched — the placeholder regex requires the ENTIRE
+    body to match, so a real sentence never gets swallowed.
+  - **An open thread/mail is its own screen now, checked BEFORE the dashboard header is even built** — not
+    after, with an early return. Both screens already carry a full header of their own (platform chip +
+    contact/subject + "← Volver", since V2-620); the dashboard header sitting above it was never actually
+    reachable from inside a thread (only `ctx.action("close")` clears `active_chat`, and none of the header's
+    controls call it), so it was dead chrome, not a second control surface. Same precedence order as before
+    (`showChannels` > `activeChat` > `openMail` > the list shapes) — only WHERE the check runs moved.
+  - **Deliberately left alone**: the connectors/wizard screen has the identical stacking (its own
+    `.chanhead` under the dashboard `hd`) but was not what was reported, and touching it risks the
+    already-tested V2-561 wizard flow for no reported gain.
+  - Node **4.132** (1 file, 2 new + 1 rewritten case). Two disarms verified red (the label-suppression guard,
+    the early-return header-skip). `make test-widgets` stays green 14/14; full sweep
+    `tests/browser/{unit,e2e}/mensajeria/`: 162 passed.
+  - **Not yet verified live** — needs an engine restart, plus a reload for any already-open tab.
+
 - **The chat header names its tab, wide tabs keep their icons, and the ⧉ toggles BOTH ways (V2-621,
   2026-09-08)**: the operator's follow-up on V2-619's icon tabs — «nombre tab (fix min width) | 5 icons |
   2 icons at right», the same header in the floating box (whose lone × offered no way to BECOME a column),
