@@ -1746,6 +1746,18 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   Still the operator's: the LICENSE (T-03 — the repo declares itself open source with no license file) and
   this very file's compaction policy (T-18). The P2/P3 structural tier stays in V2-601.
 
+- **The A2A card names SKILLS, not a contact URL (V2-616, 2026-09-08)**: `parcelpilot` shipped, was
+  discoverable in both languages, and every errand 404'd — we posted to `/v1/search` while its card said
+  `skills: [{"id": "track-parcel"}]` and it served `/v1/track-parcel`. `_skill_path` read
+  `card["contact"]["http"]`, a field the current A2A card does not carry, and fell back to `/v1/search`. That
+  default only ever worked because the older agents keep `/v1/search` as a **legacy alias**; `parcelpilot` is
+  the first built without one, so **every new agent would have 404'd on arrival**, `placescout` included. The
+  contract was documented from day one («read the card, call `POST /v1/<skill-id>`») and never implemented —
+  the alias hid it. Now the skill id is the fallback, with an explicit `contact.http` still winning so nothing
+  that works today is rerouted. **The shape:** a default that is never exercised is not a default, it is an
+  untested branch — and the first new participant is what tests a compatibility path, by which time it is
+  production.
+
 - **An empty answer is not a served errand (V2-602, 2026-09-06)**: asked in English for sneakers, the mesh
   answered `ok: True` with **zero rows** — `ebay-finder` ranks first, its eBay lane is a sandbox, and `serve`
   took its `count: 0` and never reached `ybana`, which had twenty real offers. The same shape made my own

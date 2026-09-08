@@ -601,3 +601,44 @@ def test_an_unrecognised_payload_is_never_thrown_away():
     assert m._is_empty_payload({"count": 3}) is False
     assert m._is_empty_payload({"weird": {"nested": "thing"}}) is False
     assert m._is_empty_payload({"summary": "no rows but here is prose"}) is False
+
+
+# ── V2-616 · the A2A card names SKILLS, not a contact URL ─────────────────────────────────────────────────
+def test_the_path_comes_from_the_skill_id_when_the_card_has_no_contact(monkeypatch):
+    """Measured 2026-09-08 against `parcelpilot`, the first agent deployed without the legacy alias:
+
+        POST /v1/search        -> 404 {"error": "not_found", "path": "/v1/search"}
+        POST /v1/track-parcel  -> 200 with the parcel
+
+    Its card was correct all along — `skills: [{"id": "track-parcel"}]`. We read `contact.http`, which the
+    A2A card does not carry, and fell back to `/v1/search`. That default only ever worked because the OLDER
+    agents kept `/v1/search` as an alias, so every NEW agent would 404 on arrival: a broken reader that looks
+    exactly like a broken agent."""
+    monkeypatch.setattr(m, "_card_of", lambda ep: {
+        "name": "ParcelPilot", "url": ep,
+        "skills": [{"id": "track-parcel", "name": "Track a parcel"}],
+        "pricing": {"unit": "lookup", "amount": 0, "currency": "free"}})
+    assert m._skill_path("https://parcels.example") == "/v1/track-parcel"
+
+
+def test_an_explicit_contact_path_still_wins(monkeypatch):
+    """The older cards carry `contact.http` with the real path. That is more specific than a skill id and
+    keeps precedence — this change adds a fallback, it does not reroute the agents that already work."""
+    monkeypatch.setattr(m, "_card_of", lambda ep: {
+        "contact": {"http": "https://old.example/v1/search-flights"},
+        "skills": [{"id": "search-flights"}]})
+    assert m._skill_path("https://old.example") == "/v1/search-flights"
+
+
+def test_a_card_with_neither_falls_back_rather_than_crashing(monkeypatch):
+    monkeypatch.setattr(m, "_card_of", lambda ep: {"name": "Bare", "url": ep})
+    assert m._skill_path("https://bare.example") == m._DEFAULT_SKILL_PATH
+    monkeypatch.setattr(m, "_card_of", lambda ep: {"skills": [{"name": "sin id"}, "no es un dict"]})
+    assert m._skill_path("https://odd.example") == m._DEFAULT_SKILL_PATH
+
+
+def test_an_endpoint_that_already_names_a_path_is_left_alone(monkeypatch):
+    """Unchanged contract: when the Oracle hands back an endpoint that already carries its path, the card is
+    not consulted at all."""
+    monkeypatch.setattr(m, "_card_of", lambda ep: {"skills": [{"id": "other"}]})
+    assert m._skill_path("https://x.example/v1/already") == ""

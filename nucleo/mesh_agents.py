@@ -261,7 +261,22 @@ def _skill_path(endpoint: str) -> str:
         path = urlparse(advertised).path
     except Exception:
         path = ""
-    return path if path and path != "/" else _DEFAULT_SKILL_PATH
+    if path and path != "/":
+        return path
+    # The A2A card does not carry `contact` — it names SKILLS, and the mesh convention is `/v1/<skill-id>`.
+    # This is the contract as the operator stated it («read the card, call POST /v1/<skill-id>») and it was
+    # never implemented: the fallback below happened to work only because the older agents kept `/v1/search`
+    # as a LEGACY ALIAS. Measured 2026-09-08 against `parcelpilot`, the first agent built without that alias:
+    #     POST /v1/search        -> 404 {"error": "not_found", "path": "/v1/search"}
+    #     POST /v1/track-parcel  -> 200 with the parcel
+    # Its card said `skills: [{"id": "track-parcel"}]` all along. So every NEW agent on the mesh would 404 on
+    # arrival while its card was perfectly correct — the failure looks like a broken agent and is a broken
+    # reader.
+    for skill in (card.get("skills") or []):
+        sid = (skill or {}).get("id") if isinstance(skill, dict) else None
+        if isinstance(sid, str) and sid.strip():
+            return "/v1/" + sid.strip().strip("/")
+    return _DEFAULT_SKILL_PATH
 
 
 # V2-487 · what the agent ANSWERS when it says no, measured on 2026-08-29 against `roomrover` live:
