@@ -17,10 +17,17 @@
 // «optimiza los huecos» also flattened a sheet he had deliberately enlarged.
 //
 // DOCKED, not floating (operator, same day): the bar is a fixed full-height column that OWNS the left edge —
-// widgets get less horizontal room while it is open, they never slide under it. It folds to a thin border
-// (the fold survives a reload) and unfolds from that border with one click. Chips stack top-to-bottom.
+// widgets get less horizontal room while it is open, they never slide under it. Chips stack top-to-bottom.
 // The Desktop enforces the reservation (Desktop.minX()); this file only announces footprint changes with the
 // "hb:rail-resized" event so open cards get nudged out from under the bar.
+//
+// NEVER HIDDEN, FIXED WIDTH (V2-619, operator 2026-09-08: «la barrita vertical se queda siempre… no se puede
+// hacer ni más ancha ni más pequeña»). The old fold-to-a-sliver is gone: what the chevron collapses now is the
+// CHAT COLUMN («lo que se puede esconder es la columna del chat») — it toggles store.chatOpen, and the chat
+// wall does the rest (its dock survives closing, so reopening restores the column exactly). The bar's width is
+// the `--wrail-w` token, which is also what offsets the chat's dock-resize grip to sit just OUTSIDE this bar:
+// the bar itself never resizes, so dragging at its outer edge resizes the chat column and the whole left
+// assembly moves together.
 //
 // DELIBERATE LIMITS:
 //  · Not voice-addressable (name:null in SYSTEM_SURFACES, like the top bar) — the voice already opens widgets
@@ -31,8 +38,8 @@
 //    no polling, no import cycle.
 //  · Generic taskbar CONCEPT only: own glyphs and layout, no OS's trade dress is imitated.
 import { t } from "../core/i18n.js?v=1";
-
-const FOLD_KEY = "wrail.folded";
+import { createEffect } from "../core/reactive.js?v=2";
+import { chatOpen, setChatOpen } from "../core/store.js?v=2";
 
 function injectStyles(){
   if(document.getElementById("wrail-css")) return;
@@ -58,6 +65,7 @@ function injectStyles(){
   #wrail .wr-chip:hover{border-color:var(--hb-accent,#A48FFF)}
   #wrail .wr-chip.min{opacity:.45;border-style:dashed}
   #wrail .wr-sep{width:28px;height:1px;flex:none;background:var(--hb-line,#26262E);border:none;padding:0;margin:4px 0}
+  #wrail{width:var(--wrail-w,56px)}
   /* V2-552 — the operator's layout: the WHOLE upper part is the open widgets, the controls sit UNDERNEATH.
      The chips take all the slack (flex:1) and scroll among themselves, so the four buttons stay pinned to the
      bottom and never move: a control that shifts down as widgets open is a control you have to look for. */
@@ -66,14 +74,6 @@ function injectStyles(){
   #wrail .wr-chips{display:flex;flex-direction:column;gap:6px;align-items:center;
     flex:1 1 auto;min-height:0;overflow-y:auto;scrollbar-width:none}
   #wrail .wr-chips::-webkit-scrollbar{display:none}
-  /* FOLDED: a thin border that stays visible (and clickable) so the bar can be pushed back and pulled out.
-     Everything but the fold handle disappears; the handle grows to fill the strip so the whole edge is the
-     target — a 12px sliver with a 30px button inside would be unhittable. */
-  #wrail.folded{width:12px;padding:0;gap:0;cursor:pointer}
-  #wrail.folded .wr-chips,#wrail.folded .wr-tools,#wrail.folded .wr-sep{display:none}
-  #wrail.folded .wr-fold{width:100%;height:100%;border:none;border-radius:0;background:transparent;
-    color:var(--hb-muted-2,#7d8a9c);font-size:10px}
-  #wrail.folded:hover{background:color-mix(in srgb,var(--hb-accent,#3D6FE0) 18%,var(--hb-bg,#141d29))}
   `; document.head.appendChild(s);
 }
 
@@ -109,8 +109,15 @@ function announce(el){
 function refresh(el){
   const d=desk();
   const chips=el.querySelector(".wr-chips");
-  if(!d || !d.wins || d.wins.size===0){ el.classList.remove("on"); chips.innerHTML=""; announce(el); return; }
+  // V2-619, the operator's rule: the system bar NEVER hides — with zero widgets the chips area is simply
+  // empty and the layout tools sit disabled. (It used to vanish with the last card, which also made the
+  // version tag and the desk's left inset come and go with it.)
   el.classList.add("on");
+  if(!d || !d.wins || d.wins.size===0){
+    chips.innerHTML="";
+    for(const cls of [".wr-hide",".wr-show"]){ const b=el.querySelector(cls); if(b) b.disabled=true; }
+    announce(el); return;
+  }
   chips.innerHTML="";
   d.wins.forEach((w,id)=>{
     const b=document.createElement("button");
@@ -162,20 +169,16 @@ export function WidgetRail(){
   const sep=document.createElement("div"); sep.className="wr-sep";
   const chips=document.createElement("div"); chips.className="wr-chips";
   const tools=document.createElement("div"); tools.className="wr-tools";
+  // V2-619: the chevron collapses the CHAT COLUMN, never this bar (see the header comment). Reactive on
+  // store.chatOpen so the arrow always says what a click will do — whoever closed/opened the chat (the ×,
+  // the voice, a proactive push), the chevron follows.
   const paintFold=()=>{
-    const folded=el.classList.contains("folded");
-    fold.innerHTML=folded?ICONS.foldR:ICONS.foldL;
-    fold.title=folded?t("rail.expand"):t("rail.collapse");
+    const open=!!chatOpen();
+    fold.innerHTML=open?ICONS.foldL:ICONS.foldR;
+    fold.title=open?t("rail.hideChat"):t("rail.showChat");
   };
-  const setFold=(folded)=>{
-    el.classList.toggle("folded", !!folded);
-    try{ localStorage.setItem(FOLD_KEY, folded?"1":"0"); }catch(_){}
-    paintFold(); announce(el);
-  };
-  try{ if(localStorage.getItem(FOLD_KEY)==="1") el.classList.add("folded"); }catch(_){}
-  fold.onclick=(e)=>{ e.stopPropagation(); setFold(!el.classList.contains("folded")); };
-  // folded, the WHOLE strip is the unfold target — see the .folded CSS note
-  el.addEventListener("click",()=>{ if(el.classList.contains("folded")) setFold(false); });
+  fold.onclick=(e)=>{ e.stopPropagation(); setChatOpen(!chatOpen()); };
+  createEffect(paintFold);
   hide.onclick=()=>{ const d=desk(); if(d){ d.minimizeAll(); refresh(el); } };
   show.onclick=()=>{ const d=desk(); if(d){ d.revealAll();  refresh(el); } };
   // The two bulk layouts are DIFFERENT gestures and used to be one: `compact` closes the gaps and leaves every
@@ -185,6 +188,7 @@ export function WidgetRail(){
   fitA.onclick=()=>{ const d=desk(); if(d){ d.arrange(); refresh(el); } };
   tools.append(hide,show,comp,fitA,fold);
   el.append(chips,sep,tools);
+  el.classList.add("on");   // V2-619: visible from birth — the bar never hides, widgets or none
   document.addEventListener("hb:canvas-changed",()=>refresh(el));
   paintFold();
   // Tooltips read the i18n bundle, which loads async — repaint once shortly after mount so they land translated.

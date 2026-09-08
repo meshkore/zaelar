@@ -20,7 +20,7 @@ import * as session from "../services/session.js?v=3";
 import * as api from "../services/api.js?v=2";
 import * as feedbackApi from "../services/feedback-api.js?v=1";
 import { makeResizable } from "../lib/resizable.js?v=1";
-import { CLOSE_ICON, TRASH_ICON } from "../lib/icons.js?v=1";
+import { CLOSE_ICON, TRASH_ICON, MESSAGE_SQUARE_ICON, ACTIVITY_ICON, CLOCK_ICON, SERVER_ICON, LINK_ICON } from "../lib/icons.js?v=1";
 import { renderMarkdownLite } from "../lib/markdown-lite.js?v=1";
 import { t } from "../core/i18n.js?v=1";
 
@@ -325,14 +325,21 @@ export function ChatWall() {
   // Reproduced headless: classes `chatwall tab-chat open`, geometry top:232 h:480, `--chatdock-l: 420px`.
   // Reproducing the dock state here is what makes the two writers agree instead of racing (V2-608).
   const dockClass = () => (dockSide ? " docked dock-" + dockSide : "");
-  const wall = h("div", { id: "chatwall", ref: el => (wallEl = el), class: () => "chatwall tab-" + store.chatTab() + (store.chatOpen() ? " open" : "") + dockClass() },
+  // `narrow` is a SIGNAL read by the class binding, never a classList write: the binding rebuilds the whole
+  // className on any tab/open change and would wipe an imperative class — the exact V2-608 dock-class trap,
+  // which this file has now paid for twice.
+  const [narrow, setNarrow] = createSignal(false);
+  const wall = h("div", { id: "chatwall", ref: el => (wallEl = el), class: () => "chatwall tab-" + store.chatTab() + (store.chatOpen() ? " open" : "") + dockClass() + (narrow() ? " cw-narrow" : "") },
     h("div", { class: "cw-head", ref: el => (headEl = el) },
+      // Each tab carries an ICON + a LABEL: wide, the label shows; narrow (the wall's own ResizeObserver
+      // toggles `cw-narrow` below ~580px), the icons take over — V2-619, the operator's spec: «cuando el
+      // ancho no quepa con los cinco botones en texto, se transforman en iconos». Never a clipped word.
       h("div", { class: "cw-tabs" },
-        h("button", { class: () => "cw-tab" + (store.chatTab() === "chat" ? " on" : ""), onClick: () => store.setChatTab("chat") }, () => t("chat.tabChat")),
-        h("button", { class: () => "cw-tab" + (store.chatTab() === "procesos" ? " on" : ""), onClick: () => store.setChatTab("procesos") }, () => t("chat.tabProcesses")),
-        h("button", { class: () => "cw-tab" + (store.chatTab() === "crons" ? " on" : ""), onClick: () => store.setChatTab("crons") }, () => t("chat.tabCrons")),
-        h("button", { class: () => "cw-tab" + (store.chatTab() === "clusters" ? " on" : ""), onClick: () => store.setChatTab("clusters") }, () => t("chat.tabClusters")),
-        h("button", { class: () => "cw-tab" + (store.chatTab() === "conectores" ? " on" : ""), onClick: () => store.setChatTab("conectores") }, () => t("chat.tabConnectors")),
+        h("button", { class: () => "cw-tab" + (store.chatTab() === "chat" ? " on" : ""), title: () => t("chat.tabChat"), onClick: () => store.setChatTab("chat") }, raw(MESSAGE_SQUARE_ICON), h("span", { class: "cw-tab-label" }, () => t("chat.tabChat"))),
+        h("button", { class: () => "cw-tab" + (store.chatTab() === "procesos" ? " on" : ""), title: () => t("chat.tabProcesses"), onClick: () => store.setChatTab("procesos") }, raw(ACTIVITY_ICON), h("span", { class: "cw-tab-label" }, () => t("chat.tabProcesses"))),
+        h("button", { class: () => "cw-tab" + (store.chatTab() === "crons" ? " on" : ""), title: () => t("chat.tabCrons"), onClick: () => store.setChatTab("crons") }, raw(CLOCK_ICON), h("span", { class: "cw-tab-label" }, () => t("chat.tabCrons"))),
+        h("button", { class: () => "cw-tab" + (store.chatTab() === "clusters" ? " on" : ""), title: () => t("chat.tabClusters"), onClick: () => store.setChatTab("clusters") }, raw(SERVER_ICON), h("span", { class: "cw-tab-label" }, () => t("chat.tabClusters"))),
+        h("button", { class: () => "cw-tab" + (store.chatTab() === "conectores" ? " on" : ""), title: () => t("chat.tabConnectors"), onClick: () => store.setChatTab("conectores") }, raw(LINK_ICON), h("span", { class: "cw-tab-label" }, () => t("chat.tabConnectors"))),
       ),
       // UNDOCK — the way out of the column, and it has to be VISIBLE (operator, 2026-09-07). The wall can be
       // opened by the AGENT (a proactive push showing the cluster list is what happened to him), so it can
@@ -402,7 +409,9 @@ export function ChatWall() {
     // INPUT (Chat only — CSS hides it in the other tabs)
     h("div", { class: "cw-input" },
       h("textarea", {
-        ref: el => (inputEl = el), rows: 1, placeholder: () => t("chat.messagePlaceholder"),
+        // rows:3 — the composer is for WRITING (V2-619, operator: «ya de base debería tener dos o tres
+        // líneas de altura»); CSS gives it the matching min-height so a profile's type scale keeps the ratio.
+        ref: el => (inputEl = el), rows: 3, placeholder: () => t("chat.messagePlaceholder"),
         onKeydown: e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } },
       }),
       h("button", { class: "cw-send", title: () => t("chat.send"), onClick: send }, raw(SEND_SVG)),
@@ -442,6 +451,16 @@ export function ChatWall() {
   // Remember open/closed + which tab, on every change — including the ones the ENGINE makes (a proactive push
   // opens the wall by SSE, `[[close]]` shuts it). Those are as much «where he left it» as a click is.
   createEffect(() => { store.chatOpen(); store.chatTab(); saveOpen(); });
+
+  // V2-619: below this width the five tab LABELS cannot all fit, so the tabs become their icons (CSS keys
+  // off `cw-narrow`). Measured on the wall itself, so a dock resize, a float resize and a profile's larger
+  // type all take the same door.
+  const TABS_NARROW_BELOW = 580;
+  try {
+    new ResizeObserver(() => {
+      if (wallEl.offsetWidth > 0) setNarrow(wallEl.offsetWidth < TABS_NARROW_BELOW);
+    }).observe(wallEl);
+  } catch (_) {}
 
   // ── geometry: floating ↔ dock ────────────────────────────────────────────────────────────────────────────
   function defaultFloat() { return { left: 18, top: 232, w: 320, h: Math.min(Math.round(innerHeight * 0.6), 520) }; }

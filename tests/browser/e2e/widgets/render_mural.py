@@ -21,7 +21,10 @@ import os
 from playwright.sync_api import sync_playwright
 
 ENGINE = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", ".."))
-W, H = 1280, 800
+W, H = 1440, 900   # was 1280x800. V2-617 raised the type scale and the orb cluster grew ~4px wider — at 1280 its
+                   # left edge landed EXACTLY on column 1s tile boundary (470=470) and placements touch-counts-
+                   # as-overlap test (correct, conservative) blocked the column: the stacking check was pinned to
+                   # a 1px boundary coincidence of the fixture, not to the product property it measures.
 
 PREVIEW = '''
 import sys
@@ -287,28 +290,28 @@ def run(url):
         pg.evaluate("() => window.__zaelarDesktop.maximize('beta')")   # restore
         pg.wait_for_timeout(200)
 
-        # ── V2-538: folding gives the room back, unfolding takes it again ───────────────────────────────────
+        # ── V2-619: the rail NEVER folds — its chevron collapses the CHAT instead ──────────────────────────
+        # The operator's rule: «la barrita vertical se queda siempre… lo que se puede esconder es la columna
+        # del chat». The old fold-to-a-sliver is gone; clicking the chevron must leave the rail exactly as
+        # wide and toggle the chat wall's open state.
+        chat_before = pg.evaluate("() => document.getElementById('chatwall').classList.contains('open')")
         pg.evaluate("() => document.querySelector('#wrail .wr-fold').click()")
         pg.wait_for_timeout(300)
-        folded = pg.evaluate("""() => { const el = document.querySelector('#wrail');
+        after = pg.evaluate("""() => { const el = document.querySelector('#wrail');
           const r = el.getBoundingClientRect();
-          return { w: r.width, right: r.right, on: el.classList.contains('on'),
+          return { w: r.width, on: el.classList.contains('on'),
                    folded: el.classList.contains('folded'),
-                   visible: getComputedStyle(el).display !== 'none' }; }""")
-        check("folded, the rail is a thin border that is STILL visible (never gone)",
-              folded["folded"] and folded["visible"] and folded["on"] and folded["w"] <= 16, json.dumps(folded))
-        # A card opened while the bar is folded may legitimately sit at the very left edge — that is the card
-        # the reappearing bar has to shove. Without it, nothing is ever under the bar and the check is blind.
-        pg.evaluate("() => window.__zaelarDesktop.wins.get('gamma').card.style.left = '2px'")
-        pg.evaluate("() => document.querySelector('#wrail').click()")   # the whole strip unfolds it
-        pg.wait_for_timeout(300)
-        unfolded = pg.evaluate("""() => { const el = document.querySelector('#wrail');
-          return { w: el.getBoundingClientRect().width, folded: el.classList.contains('folded') }; }""")
-        check("clicking the folded strip brings the bar back",
-              not unfolded["folded"] and unfolded["w"] > 20, json.dumps(unfolded))
+                   visible: getComputedStyle(el).display !== 'none',
+                   chatOpen: document.getElementById('chatwall').classList.contains('open') }; }""")
+        check("the chevron never folds the rail — same width, still visible",
+              after["visible"] and after["on"] and not after["folded"] and after["w"] > 40, json.dumps(after))
+        check("the chevron toggles the CHAT panel instead",
+              after["chatOpen"] != chat_before, json.dumps({"before": chat_before, "after": after["chatOpen"]}))
+        pg.evaluate("() => document.querySelector('#wrail .wr-fold').click()")   # leave the chat as found
+        pg.wait_for_timeout(200)
         rr = rects(pg)
         rail_right = pg.evaluate("() => document.querySelector('#wrail').getBoundingClientRect().right")
-        check("after unfolding, no card is left underneath the bar (hb:rail-resized)",
+        check("no card sits underneath the always-present bar",
               all(v["x"] >= rail_right - 1 for v in rr.values()),
               json.dumps({"rail_right": rail_right, "cards": rr}))
 
@@ -571,6 +574,33 @@ def run(url):
         check("when the browser's gate only shows up as a REJECTED promise, the card still maximizes",
               vrej["w"] > W * 0.7 and vrej["h"] > H * 0.6 and not vrej["nativeEngaged"],
               json.dumps(vrej))
+
+        # ── V2-619: the feedback dialog is CLEAR — one header band, email on top, a real writing box,
+        # no explanatory paragraphs, and a send button that says send ───────────────────────────────────────
+        pg.evaluate("() => document.querySelector('.fw-launcher').click()")
+        pg.wait_for_timeout(300)
+        fw = pg.evaluate("""() => {
+          const q = s => document.querySelector(s);
+          const rt = el => el ? el.getBoundingClientRect() : null;
+          const head = rt(q('.fw-head')), tabs = rt(q('.fw-tabs')), x = rt(q('.fw-x'));
+          const email = rt(q('.fw-new .fw-email')), ta = rt(q('.fw-new .fw-textarea'));
+          const send = q('.fw-new .fw-send'); const sr = rt(send);
+          const panel = rt(q('.fw-panel'));
+          return {open: !!panel && panel.width > 0,
+                  tabsInHeader: !!tabs && !!head && tabs.top >= head.top - 1 && tabs.bottom <= head.bottom + 1,
+                  xInHeader: !!x && x.top >= head.top - 1 && x.bottom <= head.bottom + 1,
+                  emailAboveText: !!email && !!ta && email.bottom <= ta.top,
+                  taHeight: ta ? Math.round(ta.height) : 0,
+                  hints: document.querySelectorAll('.fw-new .fw-hint').length,
+                  sendText: (send && send.textContent.trim()) || "",
+                  sendWide: !!sr && !!panel && sr.width > panel.width * 0.8};
+        }""")
+        check("the feedback panel opens from the launcher", fw["open"], json.dumps(fw))
+        check("tabs and × live INSIDE the single header band", fw["tabsInHeader"] and fw["xInHeader"], json.dumps(fw))
+        check("email on top, then a real writing box (≥120px), and ZERO explainer paragraphs",
+              fw["emailAboveText"] and fw["taHeight"] >= 120 and fw["hints"] == 0, json.dumps(fw))
+        check("the send button is wide and SAYS send", fw["sendWide"] and len(fw["sendText"]) >= 5, json.dumps(fw))
+        pg.evaluate("() => document.querySelector('.fw-x').click()")
 
         check("no page errors", not errors, " | ".join(errors[:4]))
         b.close()

@@ -230,6 +230,42 @@ def docked(run):
                   headTop: Math.round(h.getBoundingClientRect().top),
                   undockReachable: vis(u), closeReachable: vis(x)};
         }""")
+        # V2-619 — the composer is for WRITING: three lines at rest, measured on the real textarea.
+        pg.evaluate("""async () => { const s = await import('/static/app/core/store.js?v=2'); s.setChatTab('chat'); }""")
+        pg.wait_for_timeout(250)
+        out["composer"] = pg.evaluate("""() => {
+          const ta = document.querySelector('#chatwall .cw-input textarea');
+          if (!ta) return null;
+          return {rows: ta.rows, h: Math.round(ta.getBoundingClientRect().height),
+                  fs: parseFloat(getComputedStyle(ta).fontSize)};
+        }""")
+        # V2-619 — narrow column ⇒ the five tabs are ICONS; wide ⇒ labels. Measured by resizing the real wall
+        # (the ResizeObserver under test is the only thing that can flip it).
+        _tabs = """() => {
+          const w = document.querySelector('#chatwall');
+          const label = w.querySelector('.cw-tab .cw-tab-label');
+          const svg = w.querySelector('.cw-tab svg');
+          return {narrow: w.classList.contains('cw-narrow'),
+                  labelShown: !!label && label.getBoundingClientRect().width > 0,
+                  iconShown: !!svg && svg.getBoundingClientRect().width > 0};
+        }"""
+        out["tabs_at_420"] = pg.evaluate(_tabs)
+        pg.evaluate("() => { document.querySelector('#chatwall').style.width = '720px'; }")
+        pg.wait_for_timeout(250)
+        out["tabs_at_720"] = pg.evaluate(_tabs)
+        pg.evaluate("() => { document.querySelector('#chatwall').style.width = '420px'; }")
+        pg.wait_for_timeout(250)
+        # V2-619 — ONE grip for the whole left assembly: the east resize strip sits just OUTSIDE the fixed-width
+        # rail, so dragging at the rail's outer edge resizes the chat column and everything moves together.
+        out["grip"] = pg.evaluate("""() => {
+          const w = document.querySelector('#chatwall').getBoundingClientRect();
+          const g = document.querySelector('#chatwall .hb-rz-e');
+          if (!g) return null;
+          const r = g.getBoundingClientRect();
+          const railW = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--wrail-w')) || 56;
+          return {gap: Math.round(r.left - w.right), railW, w: Math.round(r.width),
+                  display: getComputedStyle(g).display};
+        }""")
         # And the way back: press undock and the column becomes the floating chat panel again.
         pg.evaluate("() => document.querySelector('#chatwall .cw-undock').click()")
         pg.wait_for_timeout(400)
@@ -314,3 +350,29 @@ def test_undocking_gives_him_the_CHAT_WIDGET_back(docked):
     assert "docked" not in a["cls"] and "open" in a["cls"], a
     assert a["h"] < 700, f"still a full-height column: {a}"
     assert a["dockL"] == "0px" and a["deskLeft"] == 0, f"the desk did not get its space back: {a}"
+
+
+def test_the_composer_is_three_lines_tall(docked):
+    """V2-619, the operator: «ya de base debería tener dos o tres líneas de altura». rows=3 in the markup and
+    a real rendered height to match — a one-line slit is what this replaces."""
+    c = docked["composer"]
+    assert c, "the composer must exist on the chat tab"
+    assert c["rows"] == 3, f"rows must be 3: {c}"
+    assert c["h"] >= c["fs"] * 3.5, f"the rendered box must actually hold three lines: {c}"
+
+
+def test_narrow_tabs_are_icons_and_wide_tabs_are_words(docked):
+    """V2-619: at 420px the five labels cannot fit, so the icons take over — never a clipped «Conect». Wide
+    again, the words come back. The ResizeObserver on the wall is the thing under test."""
+    n, w = docked["tabs_at_420"], docked["tabs_at_720"]
+    assert n["narrow"] and n["iconShown"] and not n["labelShown"], f"420px must show icon-tabs: {n}"
+    assert not w["narrow"] and w["labelShown"], f"720px must show the labels again: {w}"
+
+
+def test_the_dock_grip_sits_outside_the_rail_band(docked):
+    """V2-619: the rail has a FIXED width and never resizes, so the column's east grip lives just past the
+    rail's outer edge — grabbing there resizes the chat and the whole left assembly moves together."""
+    g = docked["grip"]
+    assert g and g["display"] != "none", f"the docked east grip must exist and show: {g}"
+    assert abs(g["gap"] - g["railW"]) <= 2, \
+        f"the grip must start at the rail's OUTER edge (gap ≈ rail width {g['railW']}): {g}"

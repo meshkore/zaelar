@@ -191,24 +191,28 @@ def test_the_bar_and_the_badge(run):
         b.close()
 
 
-def test_the_number_gets_out_of_the_way_when_the_rail_is_folded(run):
-    """The badge lives in the widget rail's column. Folded, that column is a 12 px sliver the operator
-    asked to have out of the way, and a number floating over the canvas beside it is exactly the «mierda en
-    pantalla» V2-542 removed. Rendered, because the rule is a `:has()` selector — a thing that either works
-    in the browser or silently does not."""
+def test_the_number_never_hides_because_the_rail_never_folds(run):
+    """V2-619 retired the rail's fold (the operator: «la barrita vertical se queda siempre»), so the badge's
+    old hide-with-the-fold rule is gone WITH its trigger. The regression this pins: a STALE `wrail.folded`
+    key left in localStorage by a pre-V2-619 install must not resurrect the fold or hide the number."""
     from playwright.sync_api import sync_playwright
 
     with sync_playwright() as p:
         b = p.chromium.launch()
         pg = b.new_page(viewport={"width": 1280, "height": 800})
         pg.goto(run, wait_until="domcontentloaded")
-        pg.evaluate("() => localStorage.setItem('wrail.folded', '1')")
+        pg.evaluate("() => localStorage.setItem('wrail.folded', '1')")   # a pre-V2-619 install's leftovers
         _boot(pg, run)
         s = pg.evaluate(_STATE)
-        assert s["verFound"], "the badge must still be in the DOM — it is hidden by CSS, not unmounted"
-        assert not s["verOn"], "with the rail folded the number has to disappear with it"
-
-        pg.evaluate("() => localStorage.setItem('wrail.folded', '0')")
-        _boot(pg, run)
-        assert pg.evaluate(_STATE)["verOn"], "unfolded, the number is back"
+        assert s["verFound"] and s["verOn"], f"the number must show regardless of the stale fold key: {s}"
+        assert not pg.evaluate("() => document.querySelector('#wrail').classList.contains('folded')"), \
+            "the rail must never come up folded — the fold no longer exists"
+        # And the bar itself is ALWAYS there — this page boots with ZERO widgets, which is exactly the state
+        # in which the rail used to remove itself («la barrita vertical se queda siempre», V2-619).
+        rail = pg.evaluate("""() => { const el = document.querySelector('#wrail');
+          const r = el.getBoundingClientRect();
+          return {on: el.classList.contains('on'), visible: getComputedStyle(el).display !== 'none',
+                  w: Math.round(r.width)}; }""")
+        assert rail["on"] and rail["visible"] and rail["w"] >= 40, \
+            f"the rail must be visible with an empty canvas: {rail}"
         b.close()

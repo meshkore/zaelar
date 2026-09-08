@@ -113,13 +113,15 @@ export function FeedbackWidget() {
       onClick: () => store.setFeedbackOpen(!store.feedbackOpen()),
     }, raw(MESSAGE_SQUARE_ICON)),
     h("div", { class: () => "fw-panel tab-" + store.feedbackTab() + (store.feedbackOpen() ? " open" : "") },
+      // V2-619, the operator's layout: ONE header band — title, then the two tabs as real full-row
+      // tabulators right beside it, the × at the far end. No second row.
       h("div", { class: "fw-head" },
         h("div", { class: "fw-title" }, () => t("feedback.title")),
+        h("div", { class: "fw-tabs" },
+          h("button", { class: () => "fw-tab" + (store.feedbackTab() === "new" ? " on" : ""), onClick: () => store.setFeedbackTab("new") }, () => t("feedback.tabNew")),
+          h("button", { class: () => "fw-tab" + (store.feedbackTab() === "sent" ? " on" : ""), onClick: () => store.setFeedbackTab("sent") }, () => t("feedback.tabSent")),
+        ),
         h("button", { class: "fw-x", title: () => t("feedback.title"), onClick: () => store.setFeedbackOpen(false) }, raw(CLOSE_ICON)),
-      ),
-      h("div", { class: "fw-tabs" },
-        h("button", { class: () => "fw-tab" + (store.feedbackTab() === "new" ? " on" : ""), onClick: () => store.setFeedbackTab("new") }, () => t("feedback.tabNew")),
-        h("button", { class: () => "fw-tab" + (store.feedbackTab() === "sent" ? " on" : ""), onClick: () => store.setFeedbackTab("sent") }, () => t("feedback.tabSent")),
       ),
       // THE STATUS STRIP — outside both tab panes on purpose (V2-256). The thank-you used to live
       // inside `.fw-new`, and a successful send switches to the Sent tab, which sets `.fw-panel` to
@@ -133,30 +135,28 @@ export function FeedbackWidget() {
           : null),
         () => (sendLine() ? h("div", { class: "fw-error" }, sendLine()) : null),
       ),
+      // V2-619, the operator's order and his exact words: email on TOP, then a BIG clearly-boxed textarea
+      // («Escribe aquí tu feedback»), the evidence checkbox right under it WITHOUT the explanatory
+      // paragraph («ese texto… quítalo porque no funciona» — the placeholder and the label carry the
+      // meaning), and a big send button that SAYS send. The mic keeps its corner.
       h("div", { class: "fw-new" },
-        h("textarea", { class: "fw-textarea", ref: el => (textareaEl = el), rows: 4, placeholder: () => t("feedback.placeholder") }),
+        h("input", { type: "email", class: "fw-email", placeholder: () => t("feedback.emailPlaceholder"), ref: el => (emailEl = el) }),
+        h("textarea", { class: "fw-textarea", ref: el => (textareaEl = el), rows: 5, placeholder: () => t("feedback.placeholder") }),
         h("div", { class: "fw-row" },
           h("label", { class: "fw-check" },
             h("input", { type: "checkbox", ref: el => (evidenceEl = el) }),
             () => t("feedback.evidenceLabel"),
           ),
-        ),
-        h("div", { class: "fw-hint" }, () => t("feedback.evidenceExplainer")),
-        h("div", { class: "fw-field" },
-          h("input", { type: "email", class: "fw-email", placeholder: () => t("feedback.emailPlaceholder"), ref: el => (emailEl = el) }),
-          h("div", { class: "fw-hint" }, () => t("feedback.emailNudge")),
-        ),
-        h("div", { class: "fw-actions" },
           h("button", {
             class: () => "fw-mic" + (listening() ? " on" : "") + (dictation.isSupported() ? "" : " hidden"),
             title: () => (listening() ? t("feedback.dictating") : t("feedback.dictate")),
             onClick: toggleMic,
           }, raw(MIC_ICON)),
-          h("button", {
-            class: "fw-send", title: () => t("feedback.send"), onClick: send,
-            disabled: () => store.feedbackSending(),
-          }, raw(SEND_ICON)),
         ),
+        h("button", {
+          class: "fw-send", onClick: send,
+          disabled: () => store.feedbackSending(),
+        }, raw(SEND_ICON), h("span", {}, () => t("feedback.send"))),
       ),
       h("div", { class: "fw-sent" },
         () => (store.feedbackItems().length

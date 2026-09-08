@@ -12,10 +12,9 @@
 //     signal, not a control; clicking it just forces a check now.
 //
 // WHY THE BADGE IS ITS OWN FIXED ELEMENT and not a chip inside `WidgetRail.js`, which is the bar it visually
-// belongs to: the rail hides itself whenever the canvas is empty (`refresh()` drops the `on` class), and a
-// version number you can only read while a widget happens to be open is not a version number you can read.
-// It sits in the rail's column and gets out of the way when the rail is FOLDED — that is what the
-// `body:has(#wrail.folded)` rule is for, and it is why this file needs no reference to the rail at all.
+// belongs to: keeping it independent means this file needs no reference to the rail at all. (Historical: the
+// rail used to hide with an empty canvas and to fold to a sliver, and the badge had rules to follow both;
+// since V2-619 the rail NEVER hides and never folds, so the badge simply always sits in its column.)
 //
 // WHY THE BAR OWNS `--banner-h`: that custom property already existed in `core/palette.css`, documented as
 // «height of the update banner when visible (0 when hidden) — top controls shift down by this», with `.tr`
@@ -52,13 +51,11 @@ function injectStyles() {
     font:600 15px/1 inherit;cursor:pointer;padding:6px 4px}
   #hb-upd-bar .u-x:hover{color:#fff}
   /* The version badge lives in the rail's 40px column, pinned to the bottom edge. */
-  #hb-upd-ver{position:fixed;left:0;bottom:6px;width:40px;z-index:9003;
+  #hb-upd-ver{position:fixed;left:0;bottom:6px;width:var(--wrail-w,56px);z-index:9003;
     display:flex;align-items:center;justify-content:center;cursor:default;
     font:600 10px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
     color:var(--hb-muted-2,#7d8a9c);opacity:.75;user-select:none}
   #hb-upd-ver:hover{opacity:1;color:var(--hb-ink,#e8edf5)}
-  /* Folded rail = a 12px sliver the operator asked to get out of the way; the number goes with it. */
-  body:has(#wrail.folded) #hb-upd-ver{display:none}
   `;
   document.head.appendChild(s);
 }
