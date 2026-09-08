@@ -470,6 +470,20 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **The chat header names its tab, wide tabs keep their icons, and the ⧉ toggles BOTH ways (V2-621,
+  2026-09-08)**: the operator's follow-up on V2-619's icon tabs — «nombre tab (fix min width) | 5 icons |
+  2 icons at right», the same header in the floating box (whose lone × offered no way to BECOME a column),
+  and «si se amplían los anchos se ve el icon y la desc al lado». Header now: `.cw-tabname` (the active
+  tab's name, reactive, FIXED min-width so the icon strip holds still, hidden whenever the wall is not
+  `cw-narrow`) | five icon tabs (wide mode keeps the icon BESIDE the label — the old `svg{display:none}`
+  deleted, threshold 580→660 to pay for the ~24px each icon adds) | the ⧉ **mode toggle, visible in both
+  shapes**: docked → float (unchanged), floating → `applyDock` on the last dock side; its face (⧉/◫ +
+  title) is reactive through an `isDocked` SIGNAL written only by `setReserve` — `dockSide` is a plain
+  variable a reactive binding would read exactly once, the V2-608 lesson applied instead of re-paid. New
+  `chat.dock` key both bundles. Chat-wall suite grew to 17 (standing-name shown/retired, wide icon+label,
+  box shows both buttons and the ⧉ docks it back); three disarms, mutations asserted, all red; version-bar,
+  canvas-refit and the mural green after.
+
 - **A screen change resets the scroller, "Volver" becomes a real button, each platform gets its own color,
   and a voice note can actually be dragged (V2-620, 2026-09-08)**: the operator's follow-up screenshot on
   V2-618 — opening a WhatsApp thread while the chat list behind it sat scrolled down left the thread's own

@@ -31,6 +31,10 @@ const CONN_FAMILY_ORDER = ["mensajeria", "musica", "fotos", "archivos", "infra"]
 const connFamilyRank = (f) => { const i = CONN_FAMILY_ORDER.indexOf(f); return i < 0 ? 99 : i; };
 
 const SEND_SVG = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>`;
+// V2-621 — the ONE map from a tab id to its label key: the header's standing name (`.cw-tabname`) and each
+// tab button's own label read the same entry, so they cannot drift apart.
+const TAB_LABEL = { chat: "chat.tabChat", procesos: "chat.tabProcesses", crons: "chat.tabCrons",
+                    clusters: "chat.tabClusters", conectores: "chat.tabConnectors" };
 const FLOAT_KEY = "hb_chat_float", DOCK_KEY = "hb_chat_dock", OPEN_KEY = "hb_chat_open";
 
 // WHETHER IT WAS OPEN survives a reload too (V2-550). Its GEOMETRY already did — floating rect under
@@ -109,7 +113,11 @@ export function ChatWall() {
   let schedEl, cnameEl, cpromptEl;             // refs for the create-cron form (Crons tab)
   let dockSide = null;                         // null | "left" | "right"
   let dockW = DOCK_DEF_W;                      // the docked column's INTENDED width (see setReserve)
-  let undockEl = null;                         // the «back to a floating panel» button (docked only)
+  let lastDockSide = (loadDock() || {}).side || "left";   // where the ⧉ toggle docks a floating box (V2-621)
+  let undockEl = null;                         // the box↔column MODE TOGGLE (visible in both shapes, V2-621)
+  // `dockSide` is a plain variable a reactive binding would read exactly once (the V2-608 lesson) — this
+  // SIGNAL mirrors it for the toggle's reactive title/glyph, written only by setReserve.
+  const [isDocked, setIsDocked] = createSignal(false);
   let floatGeo = loadFloat();                  // {left,top,w,h} of the FLOATING window (last known)
   // Reopen exactly as it was left. Done HERE, at construction, so the first paint already has it: flipping the
   // signal later would show the desktop for a frame and then drop a panel on top of it.
@@ -331,9 +339,14 @@ export function ChatWall() {
   const [narrow, setNarrow] = createSignal(false);
   const wall = h("div", { id: "chatwall", ref: el => (wallEl = el), class: () => "chatwall tab-" + store.chatTab() + (store.chatOpen() ? " open" : "") + dockClass() + (narrow() ? " cw-narrow" : "") },
     h("div", { class: "cw-head", ref: el => (headEl = el) },
-      // Each tab carries an ICON + a LABEL: wide, the label shows; narrow (the wall's own ResizeObserver
-      // toggles `cw-narrow` below ~580px), the icons take over — V2-619, the operator's spec: «cuando el
-      // ancho no quepa con los cinco botones en texto, se transforman en iconos». Never a clipped word.
+      // V2-621 — the header reads «active tab NAME (fixed min-width) | five icon tabs | ⧉ ×» (operator,
+      // 2026-09-08). The standing name says WHERE you are once the tabs are icons; CSS hides it when the
+      // wall is wide enough for every tab to carry its own label beside its icon («si se amplían los
+      // anchos se ve el icono y la desc al lado»).
+      h("div", { class: "cw-tabname" }, () => t(TAB_LABEL[store.chatTab()] || "chat.tabChat")),
+      // Each tab carries an ICON + a LABEL: wide, both show side by side; narrow (the wall's own
+      // ResizeObserver toggles `cw-narrow`), the labels give way and the header's standing name takes
+      // over — V2-619/V2-621. Never a clipped word.
       h("div", { class: "cw-tabs" },
         h("button", { class: () => "cw-tab" + (store.chatTab() === "chat" ? " on" : ""), title: () => t("chat.tabChat"), onClick: () => store.setChatTab("chat") }, raw(MESSAGE_SQUARE_ICON), h("span", { class: "cw-tab-label" }, () => t("chat.tabChat"))),
         h("button", { class: () => "cw-tab" + (store.chatTab() === "procesos" ? " on" : ""), title: () => t("chat.tabProcesses"), onClick: () => store.setChatTab("procesos") }, raw(ACTIVITY_ICON), h("span", { class: "cw-tab-label" }, () => t("chat.tabProcesses"))),
@@ -341,14 +354,16 @@ export function ChatWall() {
         h("button", { class: () => "cw-tab" + (store.chatTab() === "clusters" ? " on" : ""), title: () => t("chat.tabClusters"), onClick: () => store.setChatTab("clusters") }, raw(SERVER_ICON), h("span", { class: "cw-tab-label" }, () => t("chat.tabClusters"))),
         h("button", { class: () => "cw-tab" + (store.chatTab() === "conectores" ? " on" : ""), title: () => t("chat.tabConnectors"), onClick: () => store.setChatTab("conectores") }, raw(LINK_ICON), h("span", { class: "cw-tab-label" }, () => t("chat.tabConnectors"))),
       ),
-      // UNDOCK — the way out of the column, and it has to be VISIBLE (operator, 2026-09-07). The wall can be
-      // opened by the AGENT (a proactive push showing the cluster list is what happened to him), so it can
-      // arrive docked without him ever having docked it; dragging the header back out is not discoverable, and
-      // the × beside it CLOSES the panel rather than giving him the chat widget back. «Se minimiza la barra y
-      // vuelve a aparecer el widget del chat» — that is this button: the same panel, floating again.
-      h("button", { class: "cw-undock hb-icbtn hidden", ref: el => (undockEl = el),
-                    title: () => t("chat.undock"),
-                    onClick: () => { applyFloat(floatGeo || defaultFloat()); } }, "⧉"),
+      // MODE TOGGLE — the box↔column switch, visible in BOTH shapes (operator, 2026-09-08: «en la box se
+      // tienen que ver tb los 2 icons a la derecha, para pasar el formato box a columna»). Docked, it gives
+      // the floating panel back («se minimiza la barra y vuelve a aparecer el widget del chat», 2026-09-07 —
+      // still needed because the AGENT can open the wall docked); floating, it docks a full-height column on
+      // the side it last occupied. The × beside it only ever CLOSES.
+      h("button", { class: "cw-undock hb-icbtn", ref: el => (undockEl = el),
+                    title: () => t(isDocked() ? "chat.undock" : "chat.dock"),
+                    onClick: () => { if (dockSide) applyFloat(floatGeo || defaultFloat());
+                                     else applyDock(lastDockSide, (loadDock() || {}).w || DOCK_DEF_W); } },
+        () => (isDocked() ? "⧉" : "◫")),
       h("button", { class: "cw-x hb-icbtn", title: () => t("chat.close"), onClick: () => store.setChatOpen(false) }, raw(CLOSE_ICON)),
     ),
     // CHAT
@@ -452,10 +467,11 @@ export function ChatWall() {
   // opens the wall by SSE, `[[close]]` shuts it). Those are as much «where he left it» as a click is.
   createEffect(() => { store.chatOpen(); store.chatTab(); saveOpen(); });
 
-  // V2-619: below this width the five tab LABELS cannot all fit, so the tabs become their icons (CSS keys
-  // off `cw-narrow`). Measured on the wall itself, so a dock resize, a float resize and a profile's larger
-  // type all take the same door.
-  const TABS_NARROW_BELOW = 580;
+  // V2-619/V2-621: below this width the five tabs cannot all carry icon+label, so the labels give way to
+  // the icons and the header's standing tab NAME takes over (CSS keys off `cw-narrow`). Measured on the wall
+  // itself, so a dock resize, a float resize and a profile's larger type all take the same door. 660, not
+  // V2-619's 580: wide tabs now keep their icons BESIDE the labels (~24px more per tab).
+  const TABS_NARROW_BELOW = 660;
   try {
     new ResizeObserver(() => {
       if (wallEl.offsetWidth > 0) setNarrow(wallEl.offsetWidth < TABS_NARROW_BELOW);
@@ -486,6 +502,7 @@ export function ChatWall() {
 
   function applyDock(side, w) {
     dockSide = side;
+    lastDockSide = side;                        // the ⧉ toggle re-docks a floating box to this side (V2-621)
     const width = Math.max(DOCK_MIN_W, _num(w, DOCK_DEF_W));
     dockW = width;
     wallEl.classList.add("docked");
@@ -528,11 +545,12 @@ export function ChatWall() {
       root.style.setProperty("--chatdock-l", "0px");
       root.style.setProperty("--chatdock-r", "0px");
     }
-    // The undock button is shown from HERE and nowhere else. Written first as a reactive `class` binding on
-    // `dockSide` — which is a plain variable, not a signal, so it evaluated once at build time and the button
-    // stayed hidden forever (measured: `undockVisible: false` with the wall fully docked). Every path that
-    // changes `dockSide` already calls setReserve(), so this is the one place that cannot be forgotten.
-    if (undockEl) undockEl.classList.toggle("hidden", !dockSide);
+    // The mode toggle's face is driven from HERE and nowhere else. Its first shape was a reactive `class`
+    // binding on `dockSide` — a plain variable, not a signal, so it evaluated once at build time and the
+    // button stayed hidden forever (measured: `undockVisible: false` with the wall fully docked). Every path
+    // that changes `dockSide` already calls setReserve(), so mirroring it into the signal here is the one
+    // place that cannot be forgotten (V2-621: the button now shows in BOTH shapes and only its face flips).
+    setIsDocked(!!dockSide);
     // V2-608 — SAY SO. `#desk` follows these vars in CSS, but the widget cards live on `.hb-stage` (inset:0) in
     // viewport coordinates, so nothing moved them: the operator docked the chat left, the desk shrank underneath
     // his cards, and the one on the right was cut off by the window edge with no way to reach it. The desktop
@@ -544,7 +562,7 @@ export function ChatWall() {
   headEl.style.touchAction = "none";
   let drag = false, moved = false, sx = 0, sy = 0, ox = 0, oy = 0, pid = null, preview = null;
   headEl.addEventListener("pointerdown", e => {
-    if (e.target.closest(".cw-x") || e.target.closest(".cw-tab")) return;   // buttons (close/tabs) do not drag
+    if (e.target.closest(".cw-x") || e.target.closest(".cw-tab") || e.target.closest(".cw-undock")) return;   // buttons do not drag
     drag = true; moved = false; pid = e.pointerId; sx = e.clientX; sy = e.clientY;
   });
   headEl.addEventListener("pointermove", e => {

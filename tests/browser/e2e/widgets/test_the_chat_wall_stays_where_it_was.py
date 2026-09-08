@@ -239,15 +239,21 @@ def docked(run):
           return {rows: ta.rows, h: Math.round(ta.getBoundingClientRect().height),
                   fs: parseFloat(getComputedStyle(ta).fontSize)};
         }""")
-        # V2-619 — narrow column ⇒ the five tabs are ICONS; wide ⇒ labels. Measured by resizing the real wall
-        # (the ResizeObserver under test is the only thing that can flip it).
+        # V2-619/V2-621 — narrow column ⇒ icon tabs + the header's standing tab NAME; wide ⇒ every tab shows
+        # its icon AND its label side by side, and the standing name retires. Measured by resizing the real
+        # wall (the ResizeObserver under test is the only thing that can flip it).
         _tabs = """() => {
           const w = document.querySelector('#chatwall');
           const label = w.querySelector('.cw-tab .cw-tab-label');
           const svg = w.querySelector('.cw-tab svg');
+          const name = w.querySelector('.cw-tabname');
+          const nr = name ? name.getBoundingClientRect() : null;
           return {narrow: w.classList.contains('cw-narrow'),
                   labelShown: !!label && label.getBoundingClientRect().width > 0,
-                  iconShown: !!svg && svg.getBoundingClientRect().width > 0};
+                  iconShown: !!svg && svg.getBoundingClientRect().width > 0,
+                  nameShown: !!nr && nr.width > 0,
+                  nameText: name ? name.textContent.trim() : '',
+                  nameMinW: name ? parseFloat(getComputedStyle(name).minWidth) || 0 : 0};
         }"""
         out["tabs_at_420"] = pg.evaluate(_tabs)
         pg.evaluate("() => { document.querySelector('#chatwall').style.width = '720px'; }")
@@ -275,6 +281,25 @@ def docked(run):
           return {cls: [...w.classList].join(' '), w: Math.round(r.width), h: Math.round(r.height),
                   dockL: getComputedStyle(document.documentElement).getPropertyValue('--chatdock-l').trim(),
                   deskLeft: Math.round(document.getElementById('desk').getBoundingClientRect().left)};
+        }""")
+        # V2-621 — «en la box se tienen que ver tb los 2 icons a la derecha, para pasar el formato box a
+        # columna»: floating, the SAME two right-end buttons show, and the toggle docks the box back.
+        out["box_header"] = pg.evaluate("""() => {
+          const u = document.querySelector('#chatwall .cw-undock');
+          const x = document.querySelector('#chatwall .cw-x');
+          const vis = el => !!el && el.getBoundingClientRect().width > 0
+                            && getComputedStyle(el).display !== 'none';
+          return {toggleShown: vis(u), closeShown: vis(x),
+                  glyph: u ? u.textContent.trim() : ''};
+        }""")
+        out["box_tabs"] = pg.evaluate(_tabs)
+        pg.evaluate("() => document.querySelector('#chatwall .cw-undock').click()")
+        pg.wait_for_timeout(400)
+        out["after_redock"] = pg.evaluate("""() => {
+          const w = document.querySelector('#chatwall');
+          const r = w.getBoundingClientRect();
+          return {cls: [...w.classList].join(' '), h: Math.round(r.height),
+                  dockL: getComputedStyle(document.documentElement).getPropertyValue('--chatdock-l').trim()};
         }""")
         out["errors"] = errors
         b.close()
@@ -363,10 +388,36 @@ def test_the_composer_is_three_lines_tall(docked):
 
 def test_narrow_tabs_are_icons_and_wide_tabs_are_words(docked):
     """V2-619: at 420px the five labels cannot fit, so the icons take over — never a clipped «Conect». Wide
-    again, the words come back. The ResizeObserver on the wall is the thing under test."""
+    again, the words come back — and V2-621 keeps the icons BESIDE them («si se amplían los anchos se ve el
+    icono y la desc al lado»). The ResizeObserver on the wall is the thing under test."""
     n, w = docked["tabs_at_420"], docked["tabs_at_720"]
     assert n["narrow"] and n["iconShown"] and not n["labelShown"], f"420px must show icon-tabs: {n}"
     assert not w["narrow"] and w["labelShown"], f"720px must show the labels again: {w}"
+    assert w["iconShown"], f"wide tabs keep the icon beside the label (V2-621): {w}"
+
+
+def test_the_header_NAMES_the_active_tab_once_the_tabs_are_icons(docked):
+    """V2-621, the operator's format: «nombre tab (fix min width) | 5 icons here - 2 icons at right». With
+    icon tabs, nothing said WHERE you are — the standing name does now, with a fixed min-width so the icon
+    strip does not jump when «Chat» becomes «Conectores». Wide, every tab says its own name and the standing
+    one retires."""
+    n, w = docked["tabs_at_420"], docked["tabs_at_720"]
+    assert n["nameShown"] and n["nameText"], f"icon-tabs with no standing tab name: {n}"
+    assert "." not in n["nameText"], f"the name is rendering a raw i18n key: {n}"
+    assert n["nameMinW"] >= 60, f"the name needs a FIXED min-width so the strip holds still: {n}"
+    assert not w["nameShown"], f"wide tabs carry their own labels — the standing name must retire: {w}"
+
+
+def test_the_floating_box_offers_the_COLUMN_button(docked):
+    """V2-621: «en la box se tienen que ver tb los 2 icons a la derecha, para pasar el formato box a
+    columna. mismo header en la box.» The toggle used to be docked-only; floating, the header showed a lone
+    ×. Both buttons show in the box now, and pressing the toggle docks it back into a full-height column."""
+    b = docked["box_header"]
+    assert b["toggleShown"] and b["closeShown"], f"the box must show BOTH right-end buttons: {b}"
+    a = docked["after_redock"]
+    assert "docked" in a["cls"], f"pressing the toggle in the box must dock it: {a}"
+    assert a["h"] >= 700, f"a docked wall is a full-height column: {a}"
+    assert a["dockL"] != "0px", f"the re-dock must reserve its strip again: {a}"
 
 
 def test_the_dock_grip_sits_outside_the_rail_band(docked):

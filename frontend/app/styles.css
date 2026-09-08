@@ -119,11 +119,9 @@ body.chatdock-r .statuspanel,body.chatdock-r .cronpanel{right:calc(18px + var(--
 .cw-head:active{cursor:grabbing}
 .cw-title{font-weight:700;font-size:0.875rem;color:var(--hb-ink)}
 .cw-x{margin-left:0}
-/* V2-608 F4 — the way OUT of a docked column, next to the close button. Hidden while floating (there is
-   nothing to undock from). `margin-left:auto` moved from .cw-x to this pair so both sit at the right end. */
+/* V2-621 — the box↔column MODE TOGGLE (was V2-608's docked-only undock): visible in BOTH shapes, right end
+   of the header next to ×. `margin-left:auto` pushes the pair to the right end. */
 .cw-undock{margin-left:auto}
-.cw-undock.hidden{display:none}
-.cw-undock.hidden + .cw-x{margin-left:auto}
 .cw-list{flex:1 1 auto;overflow-y:auto;padding:12px 14px;display:flex;flex-direction:column;gap:8px}
 .cw-list:empty::after{content:"Type or paste (Ctrl/Cmd+V) to talk to the agent by text.";color:var(--hb-muted-2);font-size:0.75rem}
 .cw-msg{max-width:85%;padding:8px 11px;border-radius:13px;font-size:0.8125rem;line-height:1.35;white-space:pre-wrap;word-break:break-word}
@@ -150,17 +148,23 @@ body.chatdock-r .statuspanel,body.chatdock-r .cronpanel{right:calc(18px + var(--
    active tab wears the ACCENT (the one color that means «interactive» across the whole skin). */
 /* min-width:0 + flex + own horizontal scroll: bigger tabs must NEVER grow over the header's ⧉/× buttons —
    in a 420px docked column they scroll within their slot instead (the V2-608 unreachable-close lesson).
-   V2-619 responsive: each tab is icon+label; when the wall is narrow (`cw-narrow`, set by the wall's own
-   ResizeObserver) the labels give way to the icons — a clipped «Conect» never happens. */
+   V2-619/V2-621 responsive: wide, each tab shows its icon AND its label side by side; narrow (`cw-narrow`,
+   set by the wall's own ResizeObserver) the labels give way to the icons and `.cw-tabname` names the active
+   tab — a clipped «Conect» never happens. */
 .cw-tabs{display:flex;gap:3px;background:var(--hb-bg-soft);border:1px solid var(--hb-line);border-radius:var(--hb-r-m,12px);padding:3px;
      flex:0 1 auto;min-width:0;overflow-x:auto;scrollbar-width:none}
 .cw-tabs::-webkit-scrollbar{display:none}
+/* V2-621 — the standing name of the ACTIVE tab: «nombre tab (min-width fijo) | 5 iconos | ⧉ ×». The fixed
+   min-width keeps the icon strip from jumping when «Chat» becomes «Conectores»; ellipsis, never a wrap.
+   Hidden once the wall is wide enough for every tab to say its own name beside its icon. */
+.cw-tabname{flex:0 0 auto;min-width:82px;max-width:118px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+     font-weight:700;font-size:var(--fs-ui,0.875rem);color:var(--hb-ink)}
+.chatwall:not(.cw-narrow) .cw-tabname{display:none}
 .cw-tab{flex:0 0 auto;display:flex;align-items:center;gap:7px;border:none;background:transparent;color:var(--hb-muted);
      font-size:0.8125rem;font-weight:600;padding:8px 12px;border-radius:9px;cursor:pointer;font-family:var(--sans);line-height:1.3}
-.cw-tab svg{width:17px;height:17px;flex:none;display:none}
+.cw-tab svg{width:17px;height:17px;flex:none}
 .cw-tab:hover:not(.on){background:var(--hb-hover);color:var(--hb-ink)}
 .cw-tab.on{background:var(--hb-accent);color:var(--canvas);box-shadow:0 1px 2px rgba(0,0,0,.18)}
-.chatwall.cw-narrow .cw-tab svg{display:block}
 .chatwall.cw-narrow .cw-tab-label{display:none}
 .chatwall.cw-narrow .cw-tab{padding:8px 11px}
 .cw-proc,.cw-crons,.cw-clusters,.cw-conn{flex:1 1 auto;min-height:0;flex-direction:column;overflow:hidden}
