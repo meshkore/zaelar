@@ -634,6 +634,41 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     widget (message content, a dictated label) stays exactly as untouched as the language rules already
     require.
 
+- **The skin is DATA: design profiles in ⚙ Apariencia, custom knobs, and the graphite default (V2-617,
+  2026-09-08)**: the operator's direction after approving the visual pitch — not one theme but a SYSTEM:
+  selectable profiles where the LLM config lives, everything customizable (accent, type size, typeface),
+  applied INTEGRALLY («no lo apliques en unas cajitas sí, en otras no») with user widgets adopting it by
+  default. What sized the job: styles.css already made 402 token reads and every widget + both shells link
+  ONE `core/palette.css` — so the whole ask is three data layers, not a rewrite.
+  - **palette.css** ships the new default («grafito»: warm near-black, four real elevation levels,
+    heliotrope accent, amber highlights-only, light re-derived as warm paper) plus new tokens: root size
+    `--hb-fs-base`, the `--fs-*` scale, radii, and the desktop ground layers. **core/themes.js** is the
+    profile catalog — `grafito` (an EMPTY override map: the stylesheet is the profile, one source of truth),
+    `clasico` (the exact old navy, kept whole so nobody loses today's look), `ambar` — plus `customVars()`
+    for the knobs. **services/theme.js** writes profile+custom as inline custom properties on `<html>`
+    (inline beats the stylesheet → one swap repaints every token reader, generated widgets included), tracks
+    applied keys so a profile never BLEEDS into the next, and persists two layers: localStorage (instant
+    paint) and the ACCOUNT's copy in settings.json via /api/settings, which wins on the boot reconcile.
+  - **The sanitizer is a security seam, not tidiness**: the stored theme dict is echoed into inline CSS on
+    every client that loads the account, so `settings.py` shape-checks slug/hex/enum on write AND read —
+    stored style injection is the attack.
+  - **The desktop**: `html{font-size:var(--hb-fs-base)}` + all 174 `font-size` declarations converted to rem
+    (scripted), so the S/M/L knob scales everything; token-driven ground (masked dot grid + accent halo);
+    chat tabs at UI scale wearing the accent; the composer at body scale; the **widget rail's tools became
+    21px silhouette SVGs in 44px targets** — the orb lid's language; his report on the 30px/11px text glyphs
+    was «no logro entender ninguno». ⚠️ The bigger tabs overflowed the 420px docked header and buried the
+    ⧉/× buttons — the V2-608 suite caught it (that exact unreachable-close test), fixed with
+    `min-width:0` + own overflow scroll. The generator contract + widgets/AGENTS.md now bind NEW widgets to
+    `var(--sans)` and rem, so the knobs reach them by default.
+  - Node **4.130** (8 rendered cases mounting the REAL modules served from disk — the probe asserts the
+    RESOLVED color of a token consumer, which catches an override key drifting from a token name — + 4
+    backend). Six disarms, all red. ⚠️ Two test traps paid: Playwright consults routes LAST-registered-first
+    (the catch-all swallowed /api/settings), and the first fixture hand-wrote the `html{font-size}` rule it
+    existed to test — the real styles.css is linked now. Sweeps: tests/browser 1577 + mensajería 152, green.
+  - **Open, named**: per-widget custom skins and desktop wallpaper images (user freedom on top of the
+    system); the hand re-scale of legacy micro-type to the `--fs-*` steps; the 14 shipped widgets still
+    hardcode their font stacks (new ones are bound; the sweep is its own pass).
+
 - **The music widget goes pro — a shared artist is said ONCE, and the play button lives on the art
   (V2-612, 2026-09-07)**: operator's screenshot, a real playlist ("True Blue") where every row read
   literally "Madonna Papa Don't Preach" — the artist baked into `title` with no separator, `artist` empty on
