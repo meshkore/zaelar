@@ -634,6 +634,31 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     widget (message content, a dictated label) stays exactly as untouched as the language rules already
     require.
 
+- **Chrome polish on the new skin: the composer writes, the tabs adapt, the rail never hides, and ONE grip
+  moves the whole left assembly (V2-619, 2026-09-08)**: the operator's batch right after approving V2-617,
+  six tasks over three components. **ChatWall**: composer at rows:3 + min-height + margins off the floor;
+  each tab is icon+label and the wall's own ResizeObserver flips to ICON tabs below 580px — a clipped
+  «Conect» never happens. ⚠️ The narrow flag is a SIGNAL read inside the class binding, never a classList
+  write — the reactive binding rebuilds the whole className and wiped the imperative class: the V2-608
+  dock-class trap, paid a THIRD time in the same file, caught by the rendered test before shipping.
+  **WidgetRail**: never hides (empty canvas = empty chips + disabled tools) and never folds — the
+  fold-to-a-sliver is deleted whole and the chevron toggles the CHAT COLUMN (`store.chatOpen`, reactive so
+  the arrow always says what a click does); width is the `--wrail-w` token. **One grip**: the rail's width
+  is FIXED, so the docked column's east strip sits just OUTSIDE the rail's edge (`-1*var(--wrail-w)-8px`,
+  full height — its old `top:54px` dodge is obsolete out there) and the docked wall stops clipping
+  overflow; dragging it resizes the chat while the rail travels with `#desk`: «arrastro todo».
+  **FeedbackWidget**: one header band (title · underline tabs · ×), email on top, a body-size clearly-boxed
+  textarea («Escribe aquí tu feedback…»), the checkbox without its explainer paragraph, a full-width send
+  that SAYS «Enviar mi feedback», and the launcher drops the last pre-V2-617 gradient for the solid accent.
+  Tests ride the mapped suites (chat-wall +3 · version-bar rewritten: a STALE `wrail.folded` key must not
+  resurrect the fold, and the rail shows on an EMPTY canvas · mural +6, feedback layout rendered); six
+  disarms, mutations asserted, all red. ⚠️ The mural's stacking check went red on a 1px COINCIDENCE, not a
+  defect: V2-617's scale grew the orb cluster ~4px, its left edge landed exactly on column 1's tile
+  boundary, and placement's touch-counts-as-overlap (correct, conservative) blocked the column — diagnosed
+  by probing `_obstacles()` live after the first theory died against the measurement; the harness viewport
+  moved off the boundary (1440×900). ⚠️ A sweep also showed 19 transient reds from another session
+  mid-WRITE on mensajería's widget.js — non-reproducible, its 181 green on re-run.
+
 - **The skin is DATA: design profiles in ⚙ Apariencia, custom knobs, and the graphite default (V2-617,
   2026-09-08)**: the operator's direction after approving the visual pitch — not one theme but a SYSTEM:
   selectable profiles where the LLM config lives, everything customizable (accent, type size, typeface),
