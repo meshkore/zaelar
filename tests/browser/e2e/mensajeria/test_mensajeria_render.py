@@ -78,9 +78,9 @@ _MEASURE = """() => {
     audios: [...el.querySelectorAll('audio.maud')].map(a => ({controls: a.controls, autoplay: a.autoplay,
                                                              preload: a.preload})),
     docs: [...el.querySelectorAll('a.mdoc')].map(a => a.textContent),
-    row_acts: [...el.querySelectorAll('.trow:not(.chatrow)')].map(r =>
+    row_acts: [...el.querySelectorAll('.tbrow')].map(r =>
       [...r.querySelectorAll('.tacts button')].map(b => b.textContent).join('')),
-    bodies: [...el.querySelectorAll('.tbody')].map(n => n.textContent),
+    bodies: [...el.querySelectorAll('.tbbody')].map(n => n.textContent),
     // V2-610 — the email lens's OWN shape: sender+subject+time, no body (`.msubj`/`.mfrom`, not `.tbody`).
     subjects: [...el.querySelectorAll('.msubj')].map(n => n.textContent),
     filt: el.querySelectorAll('.picon.filt').length,

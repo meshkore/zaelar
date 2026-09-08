@@ -56,14 +56,12 @@ _SETUP = """(async () => {
     const c = document.createElement("div");
     c.className = "hb-win"; c.dataset.wid = id;
     c.style.cssText = `position:absolute;left:${left}px;top:${top}px;width:${w}px;height:${h}px;box-sizing:border-box;background:#223`;
-    // The real card chrome: a nine-dot grip and the header strip, both drag handles since V2-608 F6.
-    const grip = document.createElement("button");
-    grip.className = "hb-grip";
-    grip.style.cssText = "position:absolute;top:7px;left:8px;width:26px;height:26px";
+    // The real card chrome: the header strip, the ONLY drag handle since V2-616 retired the separate
+    // nine-dot grip (redundant once the header itself became a handle, V2-608 F6).
     const head = document.createElement("div");
     head.className = "hb-head";
-    head.style.cssText = "position:absolute;top:6px;left:40px;right:70px;height:24px";
-    c.append(grip, head);
+    head.style.cssText = "position:absolute;top:6px;left:12px;right:70px;height:24px";
+    c.append(head);
     d.stage.appendChild(c);
     d.wins.set(id, {card:c, head});
     d._wireDrag(c);                      // the product decides which parts of the chrome are handles
@@ -362,7 +360,7 @@ def test_grabbing_a_card_with_a_column_docked_does_not_TELEPORT_it(playwright_av
     async def dock(pg):
         await _dock_left(pg, 600)
 
-    steps = _run([_two_cards, dock, _grab('[data-wid="results"] .hb-grip')])
+    steps = _run([_two_cards, dock, _grab('[data-wid="results"] .hb-head')])
     docked, dragged = steps[1], steps[2]
     dx = dragged["results"]["left"] - docked["results"]["left"]
     dy = dragged["results"]["top"] - docked["results"]["top"]
@@ -371,9 +369,11 @@ def test_grabbing_a_card_with_a_column_docked_does_not_TELEPORT_it(playwright_av
     assert _inside(dragged["results"], dragged["__desk"]), dragged["results"]
 
 
-def test_the_WHOLE_HEADER_drags_the_card_not_only_the_nine_dots(playwright_available):
+def test_the_WHOLE_HEADER_drags_the_card(playwright_available):
     """Operator, 2026-09-07: «cualquier cajita en Windows o en Mac se puede mover pinchando en cualquier punto de
-    la barra superior, salvo en sus botones». Default for every widget, system-made or user-made."""
+    la barra superior, salvo en sus botones». Default for every widget, system-made or user-made. The header used
+    to share this job with a separate nine-dot grip button; V2-616 retired the grip as redundant once the whole
+    header already did the same thing — this is now the ONLY drag handle a card has."""
     steps = _run([_two_cards, _grab('[data-wid="results"] .hb-head')])
     before, after = steps[0], steps[1]
     dx = after["results"]["left"] - before["results"]["left"]

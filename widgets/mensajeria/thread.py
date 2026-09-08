@@ -109,6 +109,12 @@ def append(db: dict, platform, chat_id, msg: dict, direction: str = "in", name: 
         th["complete"] = False
     if name:
         th["name"] = name
+    # V2-616 — whether this chat is a GROUP, remembered at the THREAD, never per-message: `_norm` does not
+    # keep `isGroup` on an individual entry (it only survives on a still-pending item, per `data.py`'s
+    # `_thread_view`), so a mostly-read group thread would otherwise look 1:1 by the time the widget asks.
+    # A chat's group-ness never changes over its life, so once true it is never cleared back to false.
+    if msg.get("isGroup"):
+        th["isGroup"] = True
     th["touched"] = time.time()
     return True
 
@@ -171,13 +177,14 @@ def meta(db: dict, platform, chat_id) -> dict:
     offering to load more. `complete` false with zero messages is NOT an invitation — there is no chat yet."""
     th = _thread(db, platform, chat_id, create=False)
     if th is None or not th["msgs"]:
-        return {"count": 0, "oldest_ts": 0, "complete": False, "can_load_more": False}
+        return {"count": 0, "oldest_ts": 0, "complete": False, "can_load_more": False, "isGroup": bool(th and th.get("isGroup"))}
     return {
         "count": len(th["msgs"]),
         "oldest_ts": float(th["msgs"][0].get("ts") or 0),
         "oldest_id": th["msgs"][0].get("id") or "",
         "complete": bool(th.get("complete")),
         "can_load_more": not bool(th.get("complete")),
+        "isGroup": bool(th.get("isGroup")),
     }
 
 

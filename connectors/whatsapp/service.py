@@ -70,6 +70,7 @@ async def _ingest_new() -> None:
     outgoing = [m for m in msgs if m.get("direction") == "out"]
     msgs = [m for m in msgs if m.get("direction") != "out"]
     if outgoing and ingest.v2_enabled():
+        sent = 0
         for m in outgoing:
             mid = m.get("messageId")
             if mid and mid not in _published:
@@ -77,6 +78,13 @@ async def _ingest_new() -> None:
                 m = dict(m)
                 m["from"] = ""                    # the thread module names the operator
                 ingest.publish_msg_out(PLATFORM, m)
+                sent += 1
+        # V2-616 — INFO, not debug: the whole outbound-capture path (his own phone joining the thread here)
+        # had never once been observed live before this, and a silent success is indistinguishable from a
+        # silent gap anywhere further down the chain (the owner's drain, the thread store). This is the ONE
+        # line that proves the bridge itself actually saw the message.
+        if sent:
+            logger.info(f"WhatsApp: +{sent} outbound message(s) captured from the operator's phone")
     if not msgs:
         return
     if ingest.v2_enabled():

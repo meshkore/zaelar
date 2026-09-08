@@ -1766,6 +1766,17 @@ DOMAINS: list[dict] = [
             "ch": UNIT,
             "paths": ["tests/browser/e2e/widgets/test_widget_roots_fill_a_wide_desktop_card.py",
                       "tests/browser/unit/widgets/test_a_widget_root_cannot_cap_its_own_width.py"]},
+        # V2-616 (2026-09-08) — the operator's two follow-up reports on the messaging widget. (1) The open
+        # thread repeated the contact's name on EVERY bubble in a 1:1 chat, and his own replies had no
+        # left/right shape — fixed by a THREAD-level `isGroup` flag (thread.py, since a per-message copy does
+        # not survive a message being read) and a real bubble layout (widget.js). (2) The card chrome carried
+        # a redundant nine-dot grip button now that the whole header already drags the card (V2-608 F6), and
+        # the title sat centered instead of flush left — retired in `desktop.js`, generic for every widget.
+        {"id": "4.129", "title": "Mensajería en burbujas izquierda/derecha sin repetir el nombre en 1:1, y "
+                                 "la cabecera del sistema pierde el grip redundante y centra a la izquierda",
+            "ch": UNIT,
+            "paths": ["tests/browser/e2e/mensajeria/test_thread_bubbles_read_like_a_chat.py",
+                      "tests/browser/unit/mensajeria/test_a_group_thread_remembers_its_own_identity.py"]},
         # The source-level node above cannot see that the orb is a black hole in the middle of the bar: on
         # 2026-08-18 it was, at 0 painted pixels, while that node stayed green counting canvases. This one
         # RENDERS the shell at phone size and measures it. Self-contained (it starts its own preview server,

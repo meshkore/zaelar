@@ -119,6 +119,10 @@ function injectStyles(){
   .hb-msg .hdtitle{cursor:pointer;border-radius:8px;padding:4px 7px;margin:-4px -7px}
   .hb-msg .hdtitle:hover{background:var(--hb-hover,#eef3f9)}
   .hb-msg .dots{display:flex;gap:4px;margin-left:auto}
+  /* V2-616 — a second cluster (connectors ⚙/🔌/Limpiar), set apart from the channel dots by a divider and
+     its own left padding rather than sharing the plain .hd gap every other pair of icons uses. */
+  .hb-msg .hdactions{display:flex;align-items:center;gap:4px;padding-left:10px;margin-left:6px;
+    border-left:1px solid var(--hb-line,#e3e8f0)}
   .hb-msg .picon{display:inline-flex;align-items:center;justify-content:center;opacity:.4;flex:0 0 auto;
     width:34px;height:34px;border-radius:10px;cursor:pointer}
   .hb-msg .picon svg{width:20px;height:20px}
@@ -174,11 +178,6 @@ function injectStyles(){
     font-size:10px;font-weight:700;color:#fff;flex:0 0 auto}
   .hb-msg .tfrom{font-size:14.5px;font-weight:600;color:var(--hb-ink,#0d1622)}
   .hb-msg .tgrp,.hb-msg .tpara{font-size:12.5px;color:var(--hb-muted,#6b7b92);font-weight:400}
-  .hb-msg .ttitle{font-size:14px;font-weight:600;color:var(--hb-ink,#0d1622);margin:2px 0 3px}
-  .hb-msg .tbody{font-size:14px;line-height:1.5;color:var(--hb-ink,#0d1622);white-space:pre-wrap;word-break:break-word}
-  .hb-msg .tbody.sub{color:var(--hb-muted,#5f6b7c)}
-  .hb-msg .tbody.clamp{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
-  .hb-msg .tbody a.lnk{color:var(--hb-accent,#3D6FE0);text-decoration:underline}
   .hb-msg .more{display:inline-block;margin-top:4px;font-size:12.5px;color:var(--hb-accent,#3D6FE0);cursor:pointer}
   .hb-msg .more:hover{text-decoration:underline}
   .hb-msg .tacts{display:flex;gap:2px;flex:0 0 auto;opacity:.3;transition:opacity .12s}
@@ -223,13 +222,31 @@ function injectStyles(){
     border:1px solid var(--hb-line,#eef1f6);border-radius:10px;padding:8px 10px}
   .hb-msg .composebox:focus{outline:none;border-color:var(--hb-accent,#3D6FE0)}
   .hb-msg .composerow{display:flex;justify-content:flex-end;margin-top:6px}
-  /* V2-546 — the operator's OWN messages in the thread, and the boundary of what we hold. An outgoing row is
-     indented and quieter: it is context he already knows, and giving it the same weight as an incoming
-     message would make a conversation unreadable at a glance.
+  /* V2-616 — the open thread as LEFT/RIGHT bubbles, not an indented copy of the same row (V2-546's old
+     shape). His report, verbatim in spirit: in a 1:1 chat the sender's name on every line is noise (the
+     header above already names who this is), and his own replies need to read apart from theirs at a
+     glance, the ordinary chat convention. isGroup (V2-616, thread.py) is the only reason a bubble still
+     carries a name — a group has no single "who this is" for the header to say once.
      NOTE: this whole block is inside a JS template literal, so a backtick here ENDS it — write prose here
      without one, ever (it broke this exact widget once already). */
-  .hb-msg .trow.tout{padding-left:26px;opacity:.78}
-  .hb-msg .tfrom.tme{color:var(--hb-accent,#3D6FE0)}
+  .hb-msg .tbrow{display:flex;padding:3px 2px;justify-content:flex-start}
+  .hb-msg .tbrow.out{justify-content:flex-end}
+  .hb-msg .tbrow:hover .tacts{opacity:1}
+  .hb-msg .tbstack{display:flex;flex-direction:column;max-width:78%;gap:3px}
+  .hb-msg .tbrow:not(.out) .tbstack{align-items:flex-start}
+  .hb-msg .tbrow.out .tbstack{align-items:flex-end}
+  .hb-msg .tbubble{padding:8px 12px;border-radius:16px;background:var(--hb-bubble,#eef1f6);color:var(--hb-ink,#0d1622)}
+  .hb-msg .tbrow:not(.out) .tbubble{border-bottom-left-radius:4px}
+  .hb-msg .tbrow.out .tbubble{background:var(--hb-accent,#3D6FE0);color:#fff;border-bottom-right-radius:4px}
+  .hb-msg .tbubble.urg{box-shadow:inset 3px 0 0 var(--hb-risk,#e5484d)}
+  .hb-msg .tbfrom{font-size:12px;font-weight:700;margin-bottom:2px;color:var(--hb-accent,#3D6FE0)}
+  .hb-msg .tbtitle{font-size:14px;font-weight:600;margin:0 0 3px}
+  .hb-msg .tbbody{font-size:14px;line-height:1.45;white-space:pre-wrap;word-break:break-word}
+  .hb-msg .tbbody.clamp{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+  .hb-msg .tbbody a.lnk{color:inherit;text-decoration:underline}
+  .hb-msg .tbrow.out .more{color:#fff}
+  .hb-msg .tbwhen{display:block;margin-top:3px;font-size:10.5px;text-align:right;opacity:.6}
+  .hb-msg .tbrow.out .tbwhen{color:rgba(255,255,255,.85)}
   .hb-msg .tstart{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;
                   padding:8px 2px 12px}
   .hb-msg .tsl{font-size:11.5px;color:var(--hb-muted,#7b879c)}
@@ -859,8 +876,12 @@ function messageActions(it, ctx){
   return acts;
 }
 
-function messageRow(it, ctx, rerender){
-  const mine = !!it.dirigido_a_mi;
+// V2-616 — a bubble timeline, not a repeated-name log. His report: in a 1:1 chat the sender's name on
+// EVERY line is noise (the header above the list already names who this is), and his OWN replies need to
+// stand apart from theirs at a glance — the classic left/right convention, not an indented quieter copy of
+// the same row shape. `isGroup` is the ONLY thing that still earns a per-bubble name: a group has no single
+// "who this is" to put in the header, so each inbound bubble still has to say which member sent it.
+function messageRow(it, ctx, rerender, isGroup){
   const urgente = it.urgencia === "alta";
   const key = String(it.messageId != null ? it.messageId : it.n);
   // V2-546 — «out» is what the OPERATOR wrote, here or in his own app; it is context, never something to act
@@ -869,38 +890,32 @@ function messageRow(it, ctx, rerender){
   const outgoing = it.dir === "out";
   const actionable = !outgoing && it.n != null;
 
-  const row = el("div","trow"+(outgoing?" tout":""));
-  const lead = el("span","tlead");
-  lead.style.background = urgente ? "var(--hb-risk,#e5484d)" : (mine ? "var(--hb-accent,#3D6FE0)" : "transparent");
-  row.appendChild(lead);
-
-  const main = el("div","tmain");
-  const head = el("div","thead");
-  head.appendChild(el("span","tfrom"+(outgoing?" tme":""), outgoing ? "Tú" : (it.from!=null?it.from:"?")));
-  if(mine && !outgoing) head.appendChild(el("span","tpara","· para ti"));
-  const when = fmtWhen(it.ts);
-  if(when) head.appendChild(el("span","twhen", when));
-  main.appendChild(head);
+  const row = el("div","tbrow"+(outgoing?" out":""));
+  const stack = el("div","tbstack");
+  const bubble = el("div","tbubble"+(urgente && !outgoing?" urg":""));
+  if(isGroup && !outgoing) bubble.appendChild(el("div","tbfrom", it.from!=null?it.from:"?"));
 
   const {title, rest} = splitBody(displayBody(it.body, it.mediaType));
   const isLong = rest.length > 220 || rest.split("\n").length > 4;
   const expanded = _expanded.has(key);
-  if(title) main.appendChild(el("div","ttitle", title));
-  const bodyEl = el("div","tbody"+(title?" sub":"")+(isLong && !expanded ? " clamp" : ""));
+  if(title) bubble.appendChild(el("div","tbtitle", title));
+  const bodyEl = el("div","tbbody"+(isLong && !expanded ? " clamp" : ""));
   linkify(bodyEl, rest);
-  main.appendChild(bodyEl);
+  bubble.appendChild(bodyEl);
   const media = mediaBlock(it);
-  if(media) main.appendChild(media);
+  if(media) bubble.appendChild(media);
 
   if(isLong){
     const more = el("span","more", expanded ? "mostrar menos" : "mostrar más");
     more.onclick=()=>{ expanded ? _expanded.delete(key) : _expanded.add(key); rerender(); };
-    main.appendChild(more);
+    bubble.appendChild(more);
   }
-  row.appendChild(main);
+  const when = fmtWhen(it.ts);
+  if(when) bubble.appendChild(el("span","tbwhen", when));
+  stack.appendChild(bubble);
 
-  if(!actionable) return row;       // history (or our own message): nothing left to do to it
-  row.appendChild(messageActions(it, ctx));
+  if(actionable) stack.appendChild(messageActions(it, ctx));
+  row.appendChild(stack);
   return row;
 }
 
@@ -1064,8 +1079,9 @@ function threadView(active, items, data, ctx, rerender, meta){
   wrap.appendChild(hd);
 
   wrap.appendChild(threadStart(meta, ctx));
+  const isGroup = !!(meta && meta.isGroup);
   const list = el("div","tl");
-  items.forEach(it=> list.appendChild(messageRow(it, ctx, rerender)));
+  items.forEach(it=> list.appendChild(messageRow(it, ctx, rerender, isGroup)));
   wrap.appendChild(list);
   // V2-611 — reply to the CONVERSATION, not a specific past message: `{}` lets the server resolve the
   // target from `active_chat` itself (`_resolve_target`), which is what «responderle» means for a thread.
@@ -1300,10 +1316,12 @@ export function render(root, data, ctx){
 
   // Header: title + counter, connected icons only, connectors, settings, clear.
   const hd=el("div","hd");
-  // V2-610 — the title is the way BACK to the dashboard, always. The operator's own words: the unified
-  // inbox is «la única que voy a querer mirar en principio» — one click on the name that names it, from
-  // any screen (a platform lens, a wizard, the connectors list, an open thread or mail).
-  const title=el("b","hdtitle","Mensajería"); title.title="Ver la bandeja unificada de todos tus canales";
+  // V2-616 — this title used to repeat the CATALOG name ("Mensajería"), which the outer card chrome
+  // already says (V2-082's header). What this line actually names is the SCREEN underneath it — the
+  // unified inbox — so it reads "Mensajes" now, the operator's own suggestion. The click behavior is
+  // unchanged: from V2-610, the way BACK to the dashboard, always, from any screen (a platform lens, a
+  // wizard, the connectors list, an open thread or mail).
+  const title=el("b","hdtitle","Mensajes"); title.title="Ver la bandeja unificada de todos tus canales";
   title.onclick=()=>{ _platFilter=null; _screen=null; _openMail=null; _confirmDisconnect=null;
     ctx.action("show_view",{platform:"all"}); rerender(); };
   hd.append(title,
@@ -1336,16 +1354,21 @@ export function render(root, data, ctx){
     dots.appendChild(ic);
   });
   hd.appendChild(dots);
+  // V2-616 — the operator: the platform icons and the settings/connectors icons "no pueden estar al mismo
+  // nivel ni pegados a lo que son secciones o diferentes plataformas". `.hdactions` is a second cluster with
+  // its own divider, so it reads as a DIFFERENT kind of control from the row of channel icons beside it.
+  const actions=el("div","hdactions");
   const connBtn=el("button","connbtn"+(_screen?" active":""),"🔌"); connBtn.title="Canales / conectores";
   connBtn.onclick=()=>{ _screen = _screen ? null : {view:"list"}; if(!_screen) _confirmDisconnect=null; rerender(); };
-  hd.appendChild(connBtn);
+  actions.appendChild(connBtn);
   const gear=el("button","gear"+(_settingsOpen?" active":""),"⚙"); gear.title="Ajustes";
   gear.onclick=()=>{ _settingsOpen=!_settingsOpen; rerender(); };
-  hd.appendChild(gear);
+  actions.appendChild(gear);
   if(items.length && !_screen){
     const clr=el("button","clr","Limpiar"); clr.title="Marcar todo como leído";
-    clr.onclick=()=>ctx.action("clear"); hd.appendChild(clr);
+    clr.onclick=()=>ctx.action("clear"); actions.appendChild(clr);
   }
+  hd.appendChild(actions);
   root.appendChild(hd);
 
   if(_settingsOpen) root.appendChild(settingsPanel(platforms, data, ctx, rerender));

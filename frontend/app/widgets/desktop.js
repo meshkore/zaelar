@@ -18,11 +18,6 @@
 import { t as tr } from "../core/i18n.js?v=1";
 import * as store from "../core/store.js?v=2";
 
-const NINE_DOTS = `<svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
-  <circle cx="2.5" cy="2.5" r="1.3"/><circle cx="7" cy="2.5" r="1.3"/><circle cx="11.5" cy="2.5" r="1.3"/>
-  <circle cx="2.5" cy="7" r="1.3"/><circle cx="7" cy="7" r="1.3"/><circle cx="11.5" cy="7" r="1.3"/>
-  <circle cx="2.5" cy="11.5" r="1.3"/><circle cx="7" cy="11.5" r="1.3"/><circle cx="11.5" cy="11.5" r="1.3"/></svg>`;
-
 function injectStyles(){
   if(document.getElementById("hb-desk-css"))return;
   const s=document.createElement("style"); s.id="hb-desk-css"; s.textContent=`
@@ -38,14 +33,11 @@ function injectStyles(){
   .hb-win.in{opacity:1;transform:none}
   /* The SCROLLER wraps the canvas, NOT the widget div: widget.js sets el.className="…" and overwrites any class
      placed on its root (so a rule for .hb-body applied to nothing). The widget remains the sole owner of its div;
-     scrolling is card chrome, like the grip or ×. NOTE: this is a template literal — no backticks inside. */
+     scrolling is card chrome, like the header or ×. NOTE: this is a template literal — no backticks inside. */
   .hb-scroll{flex:1 1 auto;min-height:0;overflow:auto}
   /* Resize WITHOUT a transition: with the one above enabled, dragging a corner stuttered (each frame animated
      for 200ms toward the new size). It is disabled while the gesture lasts. */
   .hb-win.rz{transition:none;user-select:none}
-  .hb-grip{position:absolute;top:7px;left:8px;width:26px;height:26px;border:none;border-radius:7px;cursor:grab;
-    background:var(--hb-bubble,#f1f4f9);color:var(--hb-muted-2,#9aa7b8);display:flex;align-items:center;justify-content:center;touch-action:none;z-index:3}
-  .hb-grip:active{cursor:grabbing}
   .hb-x{position:absolute;top:7px;right:8px;width:26px;height:26px;border:none;border-radius:7px;cursor:pointer;
     background:var(--hb-bubble,#f1f4f9);color:var(--hb-muted,#5b6b82);font-size:14px;z-index:3}
   .hb-max{position:absolute;top:7px;right:38px;width:26px;height:26px;border:none;border-radius:7px;cursor:pointer;
@@ -84,8 +76,8 @@ function injectStyles(){
     max-width:none!important;max-height:none!important;padding:0;background:#000;border:0;border-radius:0}
   .hb-stage:has(.hb-win.hb-cinema){z-index:99900}
   .hb-win:fullscreen{padding:0}
-  .hb-win.hb-cinema .hb-head,.hb-win.hb-cinema .hb-grip,.hb-win.hb-cinema .hb-max,.hb-win.hb-cinema .hb-x,
-  .hb-win.hb-cinema .hb-rz,.hb-win:fullscreen .hb-head,.hb-win:fullscreen .hb-grip,.hb-win:fullscreen .hb-max,
+  .hb-win.hb-cinema .hb-head,.hb-win.hb-cinema .hb-max,.hb-win.hb-cinema .hb-x,
+  .hb-win.hb-cinema .hb-rz,.hb-win:fullscreen .hb-head,.hb-win:fullscreen .hb-max,
   .hb-win:fullscreen .hb-x,.hb-win:fullscreen .hb-rz{display:none}
   .hb-win.hb-cinema .hb-scroll,.hb-win:fullscreen .hb-scroll{overflow:hidden}
   .hb-win.hb-cinema .hb-body,.hb-win:fullscreen .hb-body{height:100%}
@@ -95,21 +87,17 @@ function injectStyles(){
   .hb-cinexit:hover{background:rgba(0,0,0,.8)}
   .hb-win.hb-cinema .hb-cinexit,.hb-win:fullscreen .hb-cinexit{display:flex}
   .hb-win.loading{padding:22px;min-width:120px;min-height:120px;display:flex;align-items:center;justify-content:center}
-  .hb-win.loading .hb-x,.hb-win.loading .hb-max,.hb-win.loading .hb-grip,.hb-win.loading .hb-scroll,
+  .hb-win.loading .hb-x,.hb-win.loading .hb-max,.hb-win.loading .hb-scroll,
   .hb-win.loading .hb-head,.hb-win.loading .hb-rz{display:none}
-  /* Widget HEADER (V2-082): the NAME used to open it + a config button that expands the ALIASES. It lives in the
-     30px top strip, between the grip (left) and × (right). Generic for EVERY widget — widget.js does not touch it.
-     The name comes from _meta/registry (manifest.name|title). */
-  /* right:70px, no 40: los botones de la derecha son DOS desde que existe ⤢ (ocupa de 38 a 64), así que la
-     cabecera se le metía por debajo — invisible con un nombre corto y centrado, evidente con un título largo. */
-  .hb-head{position:absolute;top:6px;left:40px;right:70px;height:24px;display:flex;align-items:center;justify-content:center;
+  /* Widget HEADER (V2-082, left-aligned since V2-616): the NAME used to open it + a config button that expands
+     the ALIASES. It lives in the 30px top strip, between the desk edge (left) and × (right). Generic for EVERY
+     widget — widget.js does not touch it. The name comes from _meta/registry (manifest.name|title).
+     V2-616 — the operator: a title floating centered between two invisible margins reads worse than one flush
+     left, like every OS title bar; this dropped the .live/default split for the same reason it dropped the
+     grip below — there was never a real difference once the header stopped being centered. */
+  .hb-head{position:absolute;top:6px;left:12px;right:70px;height:24px;display:flex;align-items:center;justify-content:flex-start;
     gap:5px;pointer-events:none}
-  /* LIVE TITLE (2026-08-12): when the header carries the TASK instead of the widget name, it is left-aligned and
-     uses the full space. A short label centers well; a sentence reads from the margin, and centering it wastes
-     half the width on unnecessary symmetrical whitespace. */
-  .hb-head.live{justify-content:flex-start}
-  .hb-head.live .hb-name{max-width:100%;font-weight:600}
-  .hb-name{pointer-events:auto;max-width:70%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border:none;cursor:pointer;
+  .hb-name{pointer-events:auto;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border:none;cursor:pointer;
     background:transparent;color:var(--hb-ink,#e8edf5);font:600 12px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
   .hb-name:hover{color:var(--hb-accent,#3D6FE0)}
   .hb-cfg{pointer-events:auto;border:none;border-radius:6px;cursor:pointer;width:20px;height:20px;padding:0;font-size:11px;
@@ -593,7 +581,6 @@ export class Desktop {
     let w = this.wins.get(id), fresh=!w;
     if(fresh){
       const card=document.createElement("div"); card.className="hb-win loading"; card.dataset.wid=id;
-      const grip=document.createElement("button"); grip.className="hb-grip"; grip.innerHTML=NINE_DOTS; grip.title=tr("desktop.move_tooltip");
       const x=document.createElement("button"); x.className="hb-x"; x.textContent="×"; x.onclick=()=>this.close(id);
       const mx=document.createElement("button"); mx.className="hb-max"; mx.textContent="⤢"; mx.title=tr("desktop.maximize_tooltip");
       mx.onclick=()=>this.maximize(id);
@@ -614,7 +601,7 @@ export class Desktop {
       const scroll=document.createElement("div"); scroll.className="hb-scroll";
       const body=document.createElement("div"); body.className="hb-body";
       scroll.appendChild(body);
-      card.append(grip,mx,cx,x,head,load,scroll); this.stage.appendChild(card);
+      card.append(mx,cx,x,head,load,scroll); this.stage.appendChild(card);
       this._addHandles(card);
       if(pos && pos.left){                              // restored: honor the SAVED position instead of auto-placing
         card.style.left=pos.left; card.style.top=pos.top;
@@ -1371,15 +1358,16 @@ export class Desktop {
   _uiAudit(action, id){ try{ fetch("/api/ui-event",{method:"POST",headers:{"Content-Type":"application/json"},
     body:JSON.stringify({kind:"widget",action,id})}); }catch(_){} }
 
-  // MOVE THE CARD. Every handle behaves like an OS title bar (operator, 2026-09-07): «cualquier cajita en
+  // MOVE THE CARD. The header behaves like an OS title bar (operator, 2026-09-07): «cualquier cajita en
   // Windows o en Mac se puede mover pinchando en cualquier punto de la barra superior, salvo en sus botones».
-  // So the nine-dot grip is no longer the only way in — the whole header strip drags too, and its buttons keep
-  // working because the drag only takes the pointer once it has actually MOVED (>4px). A tap on the title still
-  // opens the aliases panel.
+  // A separate nine-dot grip button was retired the next day (V2-616) once this made it redundant — the
+  // header ALREADY drags the whole card, so a second, smaller handle beside it had nothing left to do. The
+  // drag only takes the pointer once it has actually MOVED (>4px), so a tap on the title still opens the
+  // aliases panel.
   //: Every element of a card's chrome that behaves like an OS title bar. Read from the CARD rather than passed
   //: in, so this list is the single declaration of «what drags a widget» — a test can build a card and ask the
   //: product which parts are handles, instead of choosing for it and proving only that its own choice works.
-  static DRAG_HANDLES = ".hb-grip, .hb-head";
+  static DRAG_HANDLES = ".hb-head";
 
   _wireDrag(card){
     for(const handle of card.querySelectorAll(Desktop.DRAG_HANDLES)) this._dragHandle(card, handle);

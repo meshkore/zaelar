@@ -470,6 +470,48 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **Messaging reads like a chat, and the card chrome stops looking like two headers (V2-618, 2026-09-08)**:
+  two operator reports in the same session. (1) A 1:1 WhatsApp thread repeated the contact's name on EVERY
+  bubble, and his own replies had no left/right shape (*"solo necesito ver a la izquierda los mensajes de
+  [él] y a la derecha los míos"*). (2) The card chrome: *"me disgusta profundamente el que parece que hay dos
+  headers"* — a redundant grip button, a centered outer title, and the widget's own header undifferentiated
+  from it.
+  - **Bubbles, sender name shown only in a GROUP.** The 1:1 header already names the other party once, so
+    repeating it per bubble was pure noise. The group flag had nowhere durable to live: `thread.py::_norm`
+    never kept `isGroup` on a stored message, and `data.py` only re-attached it from a still-UNREAD item — a
+    mostly-read group thread would silently look 1:1. Fixed by persisting `isGroup` on the **thread itself**
+    (`thread.py::append`, set once, never cleared), never a per-message copy.
+  - **The outbound-capture path was audited whole, not blindly patched.** His own reply not appearing sent me
+    through the entire chain — the bridge already forwards `fromMe` messages, the connector already publishes
+    them, the owner already writes them to the thread and clears pending items. Every seam checked out. The
+    live store held **zero outbound messages, ever, across every thread** — consistent with either a real,
+    narrow bug the source can't show or this path genuinely never having been exercised by an independent
+    live reply since it shipped (V2-546's own verification used a scripted case). Neither draining the
+    bridge's queue (destructive — steals the connector's own next poll) nor sending a real WhatsApp message as
+    a test (externally visible, hard to reverse, against a real contact) were safe ways to force a
+    reproduction. **Shipped instead**: two INFO log lines, one at each end of the same trace (the connector
+    confirming the bridge handed over the message, the owner confirming it reached the store) — both ends
+    were silent on success before. The next real occurrence is one grep away from diagnosable.
+  - **Confirmed NOT the problem**: the SSE push mechanism. An open card already re-renders live on a backend
+    store change (`sse.js`'s `data` handler → `desktop.refreshData`) — "más activo" was never a transport gap;
+    if a message never appears, it never reached the store, which the new logging will now show.
+  - **The redundant grip, retired.** `.hb-head` has been a full drag handle since V2-608 F6 — the code's own
+    comment already said so — so the separate nine-dot `.hb-grip` button had nothing left to do. Removed
+    system-wide (`desktop.js`): the button, its CSS, `NINE_DOTS`, its `DRAG_HANDLES` entry, every
+    cinema/fullscreen/loading selector hiding it, the orphaned `desktop.move_tooltip` i18n key. `.hb-head`
+    defaults to left-aligned now (previously centered, with a separate `.live` override that is simply the
+    default everywhere now) — generic chrome, every widget's outer bar changes.
+  - **The widget's own header, renamed and regrouped.** Inner title "Mensajería" (the catalog name, already
+    said once by the outer bar) → **"Mensajes"**, the operator's own suggestion for what the screen actually
+    is. The platform-icon row and the connectors/settings cluster are now two visually distinct groups
+    (`.hdactions`, its own divider) instead of four icons sharing one gap.
+  - Node **4.129** (2 new files, 7 cases). Two disarms verified red (thread-level `isGroup` persistence, the
+    name-suppression rule). Full sweep across `tests/browser/`, `tests/connectors/unit/messaging/`, the
+    roadmap/CLAUDE.md ratchets, and `make test-widgets` (14/14) all green.
+  - **Deliberately NOT done**: the outbound-capture bug is instrumented, not fixed — no code path was found
+    broken, and confirming or fixing it needs a real occurrence with the new logging live, which needs the
+    operator's own phone. No timestamp dividers, read-receipt ticks, or avatars were asked for either.
+
 - **A widget's root actually uses the width of the card it is given (V2-615, 2026-09-08)**: the operator,
   looking at mensajería's email detail — a long tracking URL wrapping across 4-5 lines while the 900px card
   around it sat mostly empty. *"Para este y TODOS los widgets deben ser auto-escalables."*

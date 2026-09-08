@@ -137,6 +137,10 @@ class _Owner:
             body["from"] = ev.get("from") or ev.get("senderName") or ""
             msgstore.record_outbound(platform, ev.get("chatId"), body,
                                      name=ev.get("chatName") or "")
+            # V2-616 — INFO, the far end of the same trace the connector's own log line starts: the operator
+            # reported his own reply never reaching the widget, and the whole pipeline was silent on success
+            # end to end. This confirms the message actually landed in the store, not just that the bus saw it.
+            logger.info(f"mensajeria: outbound {platform} message joined its thread ({ev.get('chatId')})")
 
     def _apply_external_reads(self) -> None:
         for ev in self._drain(self._read_sub):
