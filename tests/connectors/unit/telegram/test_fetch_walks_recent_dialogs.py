@@ -77,14 +77,14 @@ def _quiet_notes(monkeypatch):
     yield
 
 
-def test_the_walk_publishes_conversations_and_stops_at_the_first_stale_dialog(monkeypatch):
+def test_the_walk_skips_stale_dialogs_and_survives_a_pinned_one_at_the_head(monkeypatch):
     client = _Client(
         dialogs=[
+            _Dialog(9, "Anclado Viejo", 400.0),                           # PINNED and idle: heads the list
             _Dialog(1, "Marta", 1.0),
             _Dialog(2, "Canal Noticias", 2.0, is_channel=True),          # broadcast: excluded
             _Dialog(3, "Grupo Viaje", 3.0, is_group=True, is_channel=True),  # megagroup: included
-            _Dialog(4, "Viejo", 100.0),                                   # stale: ENDS the walk
-            _Dialog(5, "Nunca Visitado", 0.5),                            # after the stale one: never reached
+            _Dialog(4, "Viejo", 100.0),                                   # stale mid-list: skipped, not fatal
         ],
         msgs_by_entity={
             1: [_Msg(11, 0.5, "reunión mañana"), _Msg(10, 90.0, "antiguo, fuera de ventana")],
@@ -101,7 +101,8 @@ def test_the_walk_publishes_conversations_and_stops_at_the_first_stale_dialog(mo
 
     by_chat = {p["chat"]: p for p in published}
     assert set(by_chat) == {1, 3}, by_chat
-    assert 5 not in client.walked, "dialogs are newest-first: the first stale one must END the walk"
+    assert 9 not in client.walked and 4 not in client.walked, \
+        "stale dialogs are skipped without fetching their messages"
     assert by_chat[1]["name"] == "Marta" and by_chat[1]["group"] is False
     assert by_chat[3]["name"] == "Grupo Viaje" and by_chat[3]["group"] is True
     assert len(by_chat[1]["msgs"]) == 1, "the 90-hour-old message inside a live dialog must be trimmed"

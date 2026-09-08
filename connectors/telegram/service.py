@@ -309,8 +309,14 @@ async def _drain_fetch() -> None:
         chats = total = 0
         try:
             async for dialog in _client.iter_dialogs(limit=60):
+                # A stale dialog is SKIPPED, never a reason to stop: Telegram floats PINNED dialogs to the
+                # top of the list, so "newest-first" does not hold at the head — a pinned chat idle for
+                # months arrives FIRST, and breaking on it ends the walk before any real activity is seen
+                # (measured live 2026-09-09: a 72h fetch answered 0 over an account whose newest message
+                # was 12 minutes old). The limit already bounds the cost; get_messages only runs for the
+                # dialogs that pass.
                 if dialog.date is None or dialog.date < cutoff:
-                    break                    # dialogs come newest-first: the first stale one ends the walk
+                    continue
                 if dialog.is_channel and not dialog.is_group:
                     continue                 # broadcast feed, not a conversation
                 msgs = await _client.get_messages(dialog.entity, limit=20)
