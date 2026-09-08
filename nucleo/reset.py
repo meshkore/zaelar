@@ -16,6 +16,7 @@ session RESET); only the PROCESSES + MEMORY portion belongs here.
 """
 from __future__ import annotations
 
+import asyncio
 import time
 
 from loguru import logger
@@ -152,6 +153,17 @@ def abandon_work_soon(*, source: str) -> None:
         abandon_work(source=source)
 
 
+async def _reseed_messaging_safe() -> None:
+    """The task body scheduled by `reset_all()`'s blank-widgets step. Its own try/except (rather than only the
+    one around `create_task`) so a failure DEEP inside `reseed_all()` — or a connector's own `reseed()` — never
+    becomes an "unretrieved task exception" the asyncio default handler would otherwise report."""
+    try:
+        from connectors.messaging import reseed as _msg_reseed
+        await _msg_reseed.reseed_all()
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"reset_all: reseed de conectores de mensajería falló: {e}")
+
+
 def reset_all() -> dict:
     """The complete HARD RESET («Reset» button): `abandon_work` + what only makes sense when resetting — clear the
     process history, forget the rehydration trail, blank the widgets, clear UI state, and DELETE the conversation
@@ -190,6 +202,16 @@ def reset_all() -> dict:
         killed["widgets_en_blanco"] = len(blanked.get("blanked") or [])
     except Exception as e:  # noqa: BLE001
         logger.warning(f"reset_all: dejar los widgets en blanco falló: {e}")
+    # RESEED live messaging connectors (2026-09-08): blanking mensajería's store does not touch a connector's OWN
+    # delivery memory, so mail/messages it already handed over once would otherwise never come back — see
+    # `connectors/messaging/reseed.py`. Fire-and-forget: it talks to a real mailbox and must never slow down or
+    # fail the reset response itself — the task is wrapped in its OWN try/except (not just the `create_task`
+    # call) so an exception raised deep inside it never surfaces as an unretrieved-task warning either.
+    if "mensajeria" in (blanked.get("blanked") or []):
+        try:
+            asyncio.get_running_loop().create_task(_reseed_messaging_safe())
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"reset_all: reseed de conectores de mensajería falló: {e}")
     # THE CONVERSATION BUFFER (2026-08-31): «el chat se borra» includes seeding. `recent_window` reads the short-term
     # conversation cards and the provider seeds its window with them after reconnecting — a reset that does not
     # invalidate them lets the deleted conversation enter through the back door.

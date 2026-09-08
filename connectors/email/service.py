@@ -72,6 +72,40 @@ def unread_total() -> int:
     ninguno», which is the sentence the agent said over 1088 unread mails.
     """
     return _unread_total
+
+
+async def reseed() -> int:
+    """Forget this connector's own memory of what it already delivered — called when Reset blanks the widget's
+    store, so mail this connector handed over once does not become invisible FOREVER.
+
+    `_seen`/`_published` are populated once at connect (`seed_from_mailbox`) and again on every real delivery
+    (`_ingest_new`), and are otherwise cleared ONLY by `stop()` (a full disconnect). Reset
+    (`widgets/reset.py` → `widgets/mensajeria/data.py::blank()`) wipes the widget's `items` AND its durable
+    `taken` ledger, but it is a WIDGET-side operation and never touches a connector's own process state — so a
+    message this connector already delivered once stays in `_seen` forever, and `fetch_new(seen=_seen, ...)`
+    (`mailbox.py:420`) skips it on every future poll. The widget forgot it; the connector still insists it was
+    already handed over — genuinely unread mail vanishes from view until the engine restarts (which is the only
+    thing that currently calls `stop()`).
+
+    Measured live on the operator's engine: 1081 real unread in Gmail, zero reaching the widget, `taken` holding
+    no `email:*` entry at all — exactly this. Releases only the most recent `BACKFILL` unread, the SAME shape
+    `seed_from_mailbox` already produces on a fresh connect, so this cannot flood the widget with the whole
+    backlog at once; the next poll tick's `_ingest_new` redelivers them normally, straight into the
+    freshly-blanked store."""
+    if not (_task and not _task.done()):
+        return -1
+    mb = config.mailbox()
+    if mb is None:
+        return -1
+    ok, why = await asyncio.to_thread(mb.test_connection)
+    if not ok:
+        return -1
+    read, unread = await asyncio.to_thread(mb.inbox_split)
+    recent = set(unread[-BACKFILL:])
+    _seen.difference_update(recent)
+    _published.difference_update(recent)
+    _set_unread_total(len(unread))
+    return len(unread)
 _shown: set[str] = set()         # direct path: messageIds already surfaced
 _mark_inbox = None               # v2: msg.mark_read subscription (created in THIS loop)
 _reply_inbox = None              # v2: msg.reply subscription (created in THIS loop)

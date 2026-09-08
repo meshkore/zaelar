@@ -470,6 +470,40 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **A Reset does not leave a CONNECTED mailbox mute (V2-614, 2026-09-08)**: the operator's screenshot — the
+  mensajería widget open on "Nada que atender ahora ✓" right after asking to see his Gmail messages, and his
+  framing that Reset must never disconnect a connector. Measured live before touching anything: Gmail **was**
+  connected (`config/connectors.json`, `state.json` both said so) with **1081 real unread messages** — his
+  fear (Reset disconnects the connector) was false, and the real failure is narrower and easier to miss.
+  - **The bug: connected, polling, and permanently mute.** `connectors/email/service.py`'s `_seen`/`_published`
+    (populated once at connect by `seed_from_mailbox`, V2-606, and again on every real delivery) are cleared
+    ONLY by a full `stop()`. Reset (`widgets/reset.py` → `mensajeria/data.py::blank()`) wipes the widget's
+    `items` AND its durable `taken` ledger (V2-607) — but that is WIDGET-side, and never touches a
+    connector's own process state. So a message the connector already handed over once stays "already
+    delivered" forever from ITS point of view, even after Reset erases every trace of it from the widget:
+    `fetch_new(seen=_seen, ...)` skips it on every future poll. Measured: `taken` held zero `email:*` entries
+    at all — consistent with an earlier backfill delivered once, then orphaned by a Reset.
+  - **`reseed()`** (new) releases the most recent `BACKFILL`-sized (=30) currently-unread slice from
+    `_seen`/`_published` — the SAME shape a fresh connect already produces (V2-606), so this cannot flood the
+    widget with the whole backlog at once. `connectors/messaging/reseed.py::reseed_all()` fans out to every
+    connector that has one (today: only email); `nucleo/reset.py::reset_all()` fires it fire-and-forget,
+    wrapped in its own try/except, ONLY when mensajería actually had a store to blank.
+  - **WhatsApp/Telegram checked and deliberately NOT touched**: both are live-push, drain-once architectures
+    (a bridge queue drained server-side, a Telethon event fired once) with no durable "still unread on the
+    server" reservoir to re-poll — clearing their dedup sets would be a no-op, since the message is gone from
+    the transport, not merely masked by a Python set. Their own version of this problem (a Reset losing an
+    undelivered message with no recovery path) is real and harder, and stays open, not silently forgotten.
+  - **A second, separate cause in the same incident, NOT fixed here**: the model's tool call that turn was a
+    bare `show_widget(mensajeria)`, never the second `widget_data(show_view, {platform:"email"})` call the
+    manifest already declares and documents — a live routing/model-reasoning gap on one turn, not a missing
+    mechanism.
+  - **The dashboard default was checked and deliberately left alone**: the operator's own follow-up — for
+    direct (non-group) chats, "unread" and "directed at me" are nearly the same set, so V2-607's `highlight:
+    "direct"` default already covers most of what he described; not worth reopening yesterday's decision.
+  - Node **5.19** (12 cases across three files), full regression sweep of the touched area green (154 passed).
+  - **NOT verified live** — needs an engine restart. First check: with the real 1081-unread backlog still
+    orphaned, press Reset and confirm a fresh backlog lands on the next poll tick with no manual restart.
+
 - **The widget layer gets its i18n seam — `ctx.t`/`ctx.lang`, and two pilots prove it (V2-613,
   2026-09-07)**: closes the gap V2-603 named ("no `t()` seam exists in the widget layer at all") with the
   operator's own scope split — *"a user-customized widget is fine, it's made after the account already has a

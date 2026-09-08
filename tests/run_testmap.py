@@ -2062,6 +2062,21 @@ DOMAINS: list[dict] = [
                                 "por el widget, nunca por Gmail (que no interviene en un envío SMTP directo), "
                                 "y se lee fresca en cada envío, no cacheada desde el arranque",
             "ch": UNIT, "paths": ["tests/connectors/unit/email/test_the_signature_is_appended_once.py"]},
+        # 2026-09-08, medido en vivo: Gmail conectado, 1081 correos reales sin leer, CERO llegando al widget tras
+        # un Reset. No era una desconexión — `blank()` vacía `items`/`taken` (V2-607) pero JAMÁS toca la memoria
+        # PROPIA del conector (`_seen`/`_published` en `connectors/email/service.py`, viva desde el connect y
+        # solo borrada por un `stop()` completo): el correo que ya se entregó una vez queda «ya visto» para
+        # siempre desde el punto de vista del conector, aunque el widget haya perdido todo rastro de él. `reseed()`
+        # libera el mismo tramo de tamaño BACKFILL que ya usa `seed_from_mailbox` al conectar (V2-606), y
+        # `nucleo/reset.py` lo dispara fire-and-forget SOLO cuando mensajería tenía algo que vaciar. WhatsApp y
+        # Telegram quedan fuera a propósito: son arquitecturas live-push/drain-once sin un buzón durable que
+        # volver a sembrar, así que limpiar sus sets sería un no-op.
+        {"id": "5.19", "title": "Un Reset no deja el correo conectado y mudo: el conector olvida su propia "
+                                "memoria de entrega para que el buzón sin leer vuelva a llegar",
+            "ch": UNIT,
+            "paths": ["tests/connectors/unit/email/test_reset_reseeds_the_backlog.py",
+                      "tests/connectors/unit/messaging/test_reseed_after_reset.py",
+                      "tests/agent_headless/unit/test_reset_reseeds_messaging_connectors.py"]},
         # 2026-08-21, medido en vivo por el arnés: TRES workers conduciendo la MISMA pestaña (46+27+7 acciones
         # entrelazadas), y uno pulsando `click [29]` sobre una página que otro acababa de cambiar. Las refs se
         # reparten al MIRAR (V2-248), así que el mismo número es otro elemento: en una página con botón de pagar
