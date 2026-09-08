@@ -94,12 +94,11 @@ canvas#viz{position:absolute;left:0;right:0;bottom:0;width:100%;height:30px;disp
    54px = the header's own height; below it the strip behaves as before. */
 .chatwall.docked.dock-left .hb-rz-e{display:block;top:54px}
 .chatwall.docked.dock-right .hb-rz-w{display:block;top:54px}
-/* V2-619 — ONE resize grip for the whole left assembly. The widget rail sits flush against a dock-left
-   column and has a FIXED width (never resizable, never hidden), so the operator's mental model is
-   «chat + system bar move together». The east grip therefore lives just OUTSIDE the rail: dragging there
-   resizes the chat column and the rail (inset with #desk) travels with it. The wall must not clip it. */
+/* V2-623 — the system bar moved to the BOTTOM edge, so V2-619's «grip just outside the rail» offset is
+   retired: nothing sits between a dock-left column and the desk any more, and the east grip lives at the
+   wall's own edge, full height (the 54px header dodge above stays for the OTHER side's symmetry). */
 .chatwall.docked{overflow:visible}
-.chatwall.docked.dock-left .hb-rz-e{right:calc(-1 * var(--wrail-w,56px) - 8px);width:8px;top:0}
+.chatwall.docked.dock-left .hb-rz-e{right:-4px;width:8px;top:0}
 /* dock preview while dragging to the edge */
 .hb-dock-preview{position:fixed;top:0;height:100vh;width:340px;z-index:9000;display:none;pointer-events:none;
      background:linear-gradient(var(--hb-accent),var(--hb-accent2));opacity:.16;border:2px dashed var(--hb-accent)}
@@ -361,7 +360,12 @@ body.chatdock-r .statuspanel,body.chatdock-r .cronpanel{right:calc(18px + var(--
    therefore already centred on the visible area and needs no help; measured 2026-09-07, adding the dock offset
    here moved it off-centre by half a column. What DOES need help is an orb he has DRAGGED: its inline `left`
    is a desk pixel that was valid for the old desk WIDTH, so Orb.js remaps that one by fraction. */
-.orbwrap{position:fixed;left:50%;bottom:8px;transform:translateX(-50%);z-index:100000;display:flex;flex-direction:column;align-items:center}
+/* V2-623 — orb parked in the bottom bar: the eye chrome hides, but #activity and the flash label SURVIVE
+   (a transient notice must not die with the eye). The #orb canvas itself has been REPARENTED into the bar's
+   slot — one canvas ever, never re-created (the 4.19 lesson). */
+body.hb-orb-bar .orbwrap .orbveil,body.hb-orb-bar .orbwrap .orbctl,
+body.hb-orb-bar .orbwrap .orbcore,body.hb-orb-bar .orbwrap .orbecg{display:none}
+.orbwrap{position:fixed;left:50%;bottom:calc(12px + var(--wrail-h,64px));transform:translateX(-50%);z-index:100000;display:flex;flex-direction:column;align-items:center}
 /* OVAL VEIL behind the WHOLE eye cluster (icons + orb + ECG) — not just behind the orb canvas. Over a busy/bright
    background (a video playing in a widget, e.g.) the frameless icons and the thin ECG line were themselves
    nearly invisible, no matter how opaque the orb's own canvas fill was (operator 2026-07-22, 3rd pass: "no se ven
@@ -1121,7 +1125,8 @@ body.dbg-open .orbwrap{left:calc(50% - var(--dbg-w) / 2)}
 /* ── Feedback widget (V2-099): floating launcher + panel, self-contained/deletable module. z-index
    below the full-screen overlays (memmap/cfgfull/vault-modal, 9500-9600) so it never pokes through
    one of those, above the docked panels (chatwall/cronpanel/statuspanel, 9001). ─────────────────── */
-.fw-wrap{position:fixed;right:20px;bottom:20px;z-index:9200}
+/* V2-623: the bottom system bar owns the bottom edge — the launcher floats just above it. */
+.fw-wrap{position:fixed;right:20px;bottom:calc(16px + var(--wrail-h,64px));z-index:9200}
 /* V2-619: the launcher wears the skin — the ACCENT, solid, like every interactive piece (the old
    accent→teal gradient was the last pre-V2-617 look on screen). */
 .fw-launcher{width:58px;height:58px;border-radius:50%;border:none;cursor:pointer;color:var(--canvas);

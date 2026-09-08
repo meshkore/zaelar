@@ -5,9 +5,10 @@
 // may be fully hidden without a visible trace — one small chip per open card, always on top, so covering or
 // minimizing a widget never makes it unknowable.
 //
-// LAYOUT (V2-552, his spec): the WHOLE upper part is the open widgets, and the controls sit UNDERNEATH, pinned
-// to the bottom so they never move as cards come and go. Four of them, and they are four because he named four
-// distinct gestures — the previous bar collapsed them into two:
+// LAYOUT (V2-623, his spec — supersedes V2-552's vertical column): a HORIZONTAL bar along the BOTTOM edge.
+// Chips of the open widgets flow on the LEFT half, the bar ORB sits at the true centre (swap button + the slot
+// the one #orb canvas is reparented into — Orb.js owns the move), and the tools mirror the chips on the RIGHT.
+// The tools are the same four gestures V2-552 named (plus the chat chevron):
 //   ⊟ hide all      — MINIMIZE, never close: the chips stay, so any single one can be brought back
 //   ⊞ show all      — bring back everything that was hidden
 //   ▦ repack        — close the gaps, KEEPING every card at the size he made it (`Desktop.compact`)
@@ -16,18 +17,13 @@
 // read before it can be used. And the last two are genuinely different gestures — collapsing them meant
 // «optimiza los huecos» also flattened a sheet he had deliberately enlarged.
 //
-// DOCKED, not floating (operator, same day): the bar is a fixed full-height column that OWNS the left edge —
-// widgets get less horizontal room while it is open, they never slide under it. Chips stack top-to-bottom.
-// The Desktop enforces the reservation (Desktop.minX()); this file only announces footprint changes with the
-// "hb:rail-resized" event so open cards get nudged out from under the bar.
+// DOCKED, not floating: the bar OWNS the bottom edge — widgets get less vertical room while it is open, they
+// never slide under it (Desktop.railBand() reserves the band; this file only announces footprint changes with
+// the "hb:rail-resized" event).
 //
-// NEVER HIDDEN, FIXED WIDTH (V2-619, operator 2026-09-08: «la barrita vertical se queda siempre… no se puede
-// hacer ni más ancha ni más pequeña»). The old fold-to-a-sliver is gone: what the chevron collapses now is the
-// CHAT COLUMN («lo que se puede esconder es la columna del chat») — it toggles store.chatOpen, and the chat
-// wall does the rest (its dock survives closing, so reopening restores the column exactly). The bar's width is
-// the `--wrail-w` token, which is also what offsets the chat's dock-resize grip to sit just OUTSIDE this bar:
-// the bar itself never resizes, so dragging at its outer edge resizes the chat column and the whole left
-// assembly moves together.
+// NEVER HIDDEN, FIXED HEIGHT (V2-619's rule carried over the rotation): the bar never hides and never
+// resizes — its height is the `--wrail-h` token. The chevron still collapses the CHAT COLUMN («lo que se
+// puede esconder es la columna del chat»), toggling store.chatOpen.
 //
 // DELIBERATE LIMITS:
 //  · Not voice-addressable (name:null in SYSTEM_SURFACES, like the top bar) — the voice already opens widgets
@@ -39,16 +35,20 @@
 //  · Generic taskbar CONCEPT only: own glyphs and layout, no OS's trade dress is imitated.
 import { t } from "../core/i18n.js?v=1";
 import { createEffect } from "../core/reactive.js?v=2";
-import { chatOpen, setChatOpen } from "../core/store.js?v=2";
+import { chatOpen, setChatOpen, orbDock, setOrbDock, agentState, agentLive } from "../core/store.js?v=2";
 
 function injectStyles(){
   if(document.getElementById("wrail-css")) return;
   const s=document.createElement("style"); s.id="wrail-css";
   s.textContent=`
-  #wrail{position:fixed;left:0;top:0;bottom:0;z-index:9002;display:none;box-sizing:border-box;
-    flex-direction:column;align-items:center;gap:4px;padding:10px 5px;width:56px;overflow:hidden;
+  /* V2-623 — the system bar lives at the BOTTOM now (operator, 2026-09-08: «move the left bar to bottom.
+     orbe goes to center, left and right side contains the open widgets and the other icons»). Three zones:
+     chips (left, flex:1) · orb centre (fixed) · tools (right, flex:1) — the two flexible halves are equal so
+     the orb zone sits at the true middle. padding-left clears the version badge pinned at the corner. */
+  #wrail{position:fixed;left:0;right:0;bottom:0;z-index:9002;display:none;box-sizing:border-box;
+    flex-direction:row;align-items:center;gap:8px;padding:0 12px 0 72px;height:var(--wrail-h,64px);overflow:hidden;
     background:color-mix(in srgb,var(--hb-bg-soft,#121216) 92%,transparent);
-    border-right:1px solid var(--hb-line,#26262E);backdrop-filter:blur(6px)}
+    border-top:1px solid var(--hb-line,#26262E);backdrop-filter:blur(6px)}
   #wrail.on{display:flex}
   /* V2-617 — orb-style silhouettes: 44px hit targets, 21px strokes, no box until you hover (the orb lid's
      own language). The operator's report on the old 30px/11px buttons: «no logro entender ninguno». */
@@ -64,16 +64,29 @@ function injectStyles(){
     color:var(--hb-ink,#F1EFEA);letter-spacing:.04em}
   #wrail .wr-chip:hover{border-color:var(--hb-accent,#A48FFF)}
   #wrail .wr-chip.min{opacity:.45;border-style:dashed}
-  #wrail .wr-sep{width:28px;height:1px;flex:none;background:var(--hb-line,#26262E);border:none;padding:0;margin:4px 0}
-  #wrail{width:var(--wrail-w,56px)}
-  /* V2-552 — the operator's layout: the WHOLE upper part is the open widgets, the controls sit UNDERNEATH.
-     The chips take all the slack (flex:1) and scroll among themselves, so the four buttons stay pinned to the
-     bottom and never move: a control that shifts down as widgets open is a control you have to look for. */
-  #wrail .wr-tools{display:flex;flex-direction:column;gap:6px;align-items:center;flex:none}
-  /* chips stack from the TOP downward and scroll on their own when there are many */
-  #wrail .wr-chips{display:flex;flex-direction:column;gap:6px;align-items:center;
-    flex:1 1 auto;min-height:0;overflow-y:auto;scrollbar-width:none}
+  /* chips flow LEFT→RIGHT and scroll among themselves; tools mirror them on the right */
+  #wrail .wr-chips{display:flex;flex-direction:row;gap:6px;align-items:center;justify-content:flex-start;
+    flex:1 1 0;min-width:0;overflow-x:auto;overflow-y:hidden;scrollbar-width:none}
   #wrail .wr-chips::-webkit-scrollbar{display:none}
+  #wrail .wr-tools{display:flex;flex-direction:row;gap:6px;align-items:center;justify-content:flex-end;
+    flex:1 1 0;min-width:0}
+  /* the BAR ORB (V2-623): [3 lid controls] [orb slot] [2 lid controls + swap]. The slot is a BUTTON and in
+     bar mode the ORB IS THE SWITCH (the V2-124 mobile-dock pattern): stopped shows a ⏻ face, running shows
+     the reparented #orb canvas, and a click forwards to the real ⏻ control. Both faces are ALWAYS in the
+     DOM and alternate by visibility — the 4.19 lesson: a re-created canvas renders blank with no error. */
+  #wrail .wr-orb{flex:none;display:flex;align-items:center;gap:2px}
+  #wrail .wr-orbl,#wrail .wr-orbr{display:flex;align-items:center;gap:2px}
+  #wrail .wr-swap.on{color:var(--hb-accent,#A48FFF)}
+  #wrail .orbic{width:40px;height:40px}
+  #wrail .wr-orbslot{display:none;width:54px;height:54px;position:relative;border-radius:50%;flex:none}
+  body.hb-orb-bar #wrail .wr-orbslot{display:flex}
+  #wrail .wr-orbslot #orb{position:absolute;inset:0;margin:auto;width:46px!important;height:46px!important;
+    pointer-events:none}
+  #wrail .wr-orbslot .wr-orbpwr{position:absolute;inset:0;margin:auto;width:24px;height:24px;
+    visibility:hidden;color:var(--hb-muted,#A6A4AC)}
+  #wrail .wr-orbslot.off #orb{visibility:hidden}
+  #wrail .wr-orbslot.off .wr-orbpwr{visibility:visible}
+  #wrail .wr-orbslot:hover .wr-orbpwr{color:var(--hb-ink,#F1EFEA)}
   `; document.head.appendChild(s);
 }
 
@@ -159,6 +172,8 @@ export function WidgetRail(){
     fit:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M10 7h7v7"/></svg>',
     foldL:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m14 6-6 6 6 6"/></svg>',
     foldR:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m10 6 6 6-6 6"/></svg>',
+    orbBar:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><rect x="3" y="16" width="18" height="5" rx="2"/></svg>',
+    orbUp:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="16" width="18" height="5" rx="2"/><path d="M12 13V4"/><path d="m8 8 4-4 4 4"/></svg>',
   };
   const mk=(cls,svg)=>{ const b=document.createElement("button"); b.className=cls; if(svg) b.innerHTML=svg; return b; };
   const fold=mk("wr-fold","");
@@ -166,9 +181,33 @@ export function WidgetRail(){
   const show=mk("wr-show",ICONS.show);   // bring back everything that was hidden
   const comp=mk("wr-compact",ICONS.comp);// close the gaps, KEEPING every card's size
   const fitA=mk("wr-fitall",ICONS.fit);  // shrink to fit: everything on screen at once
-  const sep=document.createElement("div"); sep.className="wr-sep";
   const chips=document.createElement("div"); chips.className="wr-chips";
   const tools=document.createElement("div"); tools.className="wr-tools";
+  // V2-623 — the bar's CENTRE: the swap button + the slot the ONE #orb canvas is reparented into (Orb.js owns
+  // the move; this file only offers the slot and the toggle). «initially the hor bar orbe is deactivated»: in
+  // eye mode the slot is hidden and the swap wears a dimmed orb-on-a-bar; in bar mode the canvas sits here and
+  // the swap becomes the way back up.
+  const orbzone=document.createElement("div"); orbzone.className="wr-orb";
+  const swap=mk("wr-swap","");
+  const orbl=document.createElement("div"); orbl.className="wr-orbl";
+  const orbr=document.createElement("div"); orbr.className="wr-orbr";
+  // The slot is the bar's POWER SWITCH while the orb lives here: it holds the ⏻ face and (in bar mode) the
+  // reparented canvas, and forwards its click to the REAL ⏻ control — one owner of the power logic, in
+  // Orb.js, however many faces it has (the V2-124 rule).
+  const slot=mk("wr-orbslot",'<svg class="wr-orbpwr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.77.04"/></svg>');
+  slot.onclick=(e)=>{ e.stopPropagation(); const p=document.querySelector('[data-ctl="pwr"]'); if(p) p.click(); };
+  createEffect(()=>{ slot.classList.toggle("off", !agentLive());
+                     slot.title=t("orb.power_"+agentState()); });
+  orbr.append(swap);
+  orbzone.append(orbl,slot,orbr);
+  const paintSwap=()=>{
+    const bar=orbDock()==="bar";
+    swap.innerHTML=bar?ICONS.orbUp:ICONS.orbBar;
+    swap.title=bar?t("rail.orbToEye"):t("rail.orbHere");
+    swap.classList.toggle("on",bar);
+  };
+  swap.onclick=(e)=>{ e.stopPropagation(); setOrbDock(orbDock()==="bar"?"eye":"bar"); };
+  createEffect(paintSwap);
   // V2-619: the chevron collapses the CHAT COLUMN, never this bar (see the header comment). Reactive on
   // store.chatOpen so the arrow always says what a click will do — whoever closed/opened the chat (the ×,
   // the voice, a proactive push), the chevron follows.
@@ -187,14 +226,14 @@ export function WidgetRail(){
   comp.onclick=()=>{ const d=desk(); if(d){ d.compact(); refresh(el); } };
   fitA.onclick=()=>{ const d=desk(); if(d){ d.arrange(); refresh(el); } };
   tools.append(hide,show,comp,fitA,fold);
-  el.append(chips,sep,tools);
+  el.append(chips,orbzone,tools);
   el.classList.add("on");   // V2-619: visible from birth — the bar never hides, widgets or none
   document.addEventListener("hb:canvas-changed",()=>refresh(el));
   paintFold();
   // Tooltips read the i18n bundle, which loads async — repaint once shortly after mount so they land translated.
   const titles=()=>{ comp.title=t("rail.compact"); fitA.title=t("rail.fitAll");
                      hide.title=t("rail.hideAll"); show.title=t("rail.showAll"); };
-  setTimeout(()=>{ titles(); paintFold(); refresh(el); }, 800);
+  setTimeout(()=>{ titles(); paintFold(); paintSwap(); refresh(el); }, 800);
   titles();
   return el;
 }

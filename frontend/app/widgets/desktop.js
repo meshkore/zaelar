@@ -199,14 +199,17 @@ export class Desktop {
     this.restore();                                        // bring back the user's desktop (open widgets + positions)
   }
 
-  // Left edge reserved by the docked widget rail (0 when hidden). Every placement/drag/resize/maximize
-  // gesture starts right of it — see the constructor note.
-  minX(){
+  // V2-623 — the system bar owns the BOTTOM edge now (it was a left column, V2-538..V2-619): this returns the
+  // height of the band it occupies (0 when absent), so placement/refit never leave a card underneath it.
+  // minX() stays as a 0-returning shim: the left edge is nobody's any more, and callers that still ask keep a
+  // truthful answer instead of a stale one.
+  railBand(){
     const r=document.querySelector("#wrail");
     if(!r || !r.classList.contains("on")) return 0;
     const rr=r.getBoundingClientRect();
-    return rr.width ? Math.round(rr.right) : 0;
+    return rr.height ? Math.round(innerHeight - rr.top) : 0;
   }
+  minX(){ return 0; }
 
   // THE CANVAS CAN CHANGE SHAPE UNDER THE CARDS, and until V2-608 only one of the three ways said so.
   //   · the widget rail folds/unfolds (V2-538) — announced, but the listener only shoved cards rightwards: it
@@ -260,16 +263,16 @@ export class Desktop {
   // them, and the card on the right was cut off by the window edge with no way to reach it.
   canvas(){
     const pad=this.tile.pad, d=this.deskBox();
-    // The RAIL is viewport-fixed at left:0, so its right edge is a VIEWPORT x. Translated into desk
-    // coordinates it goes negative the moment the desk starts to its right — i.e. it stops intruding, which is
-    // exactly right: with the chat docked left, the rail sits over the chat, not over the canvas.
-    const rail=this.minX();
-    const x0=Math.max(pad, rail ? rail - d.left + pad : pad);
+    const x0=pad;
     let x1=Math.round(d.width) - pad;
     // A canvas narrower than one minimum-size card is not a canvas; keep it non-degenerate so the clamps stay
     // monotonic (x1 < x0 would flip every Math.min/Math.max into nonsense).
     if(x1 - x0 < MIN_W) x1 = x0 + MIN_W;
-    return {x0, x1, y0:this.tile.top, y1:Math.max(this.tile.top+MIN_H, Math.round(d.height)-pad)};
+    // V2-623 — the system bar is a BOTTOM band now: the desk's bottom is the viewport's, so its height in desk
+    // coordinates is simply subtracted from y1. Same non-degeneracy floor as the x axis.
+    let y1=Math.round(d.height) - pad - this.railBand();
+    if(y1 - this.tile.top < MIN_H) y1 = this.tile.top + MIN_H;
+    return {x0, x1, y0:this.tile.top, y1};
   }
 
   // Convert a VIEWPORT rect (getBoundingClientRect, and every element that is not a card) into the desk

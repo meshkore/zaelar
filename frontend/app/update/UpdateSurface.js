@@ -50,8 +50,9 @@ function injectStyles() {
   #hb-upd-bar .u-x{flex:none;border:none;background:transparent;color:rgba(255,255,255,.8);
     font:600 15px/1 inherit;cursor:pointer;padding:6px 4px}
   #hb-upd-bar .u-x:hover{color:#fff}
-  /* The version badge lives in the rail's 40px column, pinned to the bottom edge. */
-  #hb-upd-ver{position:fixed;left:0;bottom:6px;width:var(--wrail-w,56px);z-index:9003;
+  /* V2-623 — the version badge lives at the LEFT END of the bottom system bar (the bar pads itself 72px on
+     that side to make room), vertically centred in the band. Above the bar's own z so it always reads. */
+  #hb-upd-ver{position:fixed;left:0;bottom:0;width:64px;height:var(--wrail-h,64px);z-index:9003;
     display:flex;align-items:center;justify-content:center;cursor:default;
     font:600 10px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
     color:var(--hb-muted-2,#7d8a9c);opacity:.75;user-select:none}

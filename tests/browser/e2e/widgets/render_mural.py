@@ -190,17 +190,20 @@ def run(url):
           if (!el) return null;
           const r = el.getBoundingClientRect();
           return { on: el.classList.contains('on'), visible: getComputedStyle(el).display !== 'none',
-                   w: r.width, z: parseInt(getComputedStyle(el).zIndex) || 0,
+                   w: r.width, h: r.height, z: parseInt(getComputedStyle(el).zIndex) || 0,
                    chips: [...el.querySelectorAll('.wr-chip')].map(c => ({ wid: c.dataset.wid, tag: c.tagName,
                         min: c.classList.contains('min') })) }; }""")
-        check("the rail exists, is visible and thin", rail and rail["visible"] and rail["on"] and rail["w"] < 60,
-              json.dumps(rail))
+        # V2-623: the bar is HORIZONTAL along the bottom now — thin means a shallow BAND, not a narrow column.
+        check("the bar exists, is visible and a shallow band",
+              rail and rail["visible"] and rail["on"] and rail["h"] < 80, json.dumps(rail))
         rail_geom = pg.evaluate("""() => { const r = document.querySelector('#wrail').getBoundingClientRect();
-          return { x: r.x, h: r.height, right: r.right }; }""")
-        check("the rail is DOCKED: full height, at the left edge (V2-538)",
-              rail_geom["x"] <= 1 and rail_geom["h"] >= H * 0.95, json.dumps(rail_geom))
-        check("widgets do not overlap the docked rail (it owns the left edge)",
-              all(v["x"] >= rail_geom["right"] - 1 for v in rr.values()), json.dumps({"rail": rail_geom, "cards": rr}))
+          return { x: r.x, w: r.width, top: r.top, bottom: r.bottom }; }""")
+        check("the bar is DOCKED: full width, at the bottom edge (V2-623)",
+              rail_geom["x"] <= 1 and rail_geom["w"] >= W * 0.95 and rail_geom["bottom"] >= H - 1,
+              json.dumps(rail_geom))
+        check("widgets do not overlap the docked bar (it owns the bottom edge)",
+              all(v["y"] + v["h"] <= rail_geom["top"] + 1 for v in rr.values()),
+              json.dumps({"rail": rail_geom, "cards": rr}))
         check("one chip per open card, and they are buttons",
               rail and len(rail["chips"]) == 3 and all(c["tag"] == "BUTTON" for c in rail["chips"]),
               json.dumps(rail and rail["chips"]))
@@ -259,34 +262,33 @@ def run(url):
         check("with everything visible, SHOW-ALL is the one disabled",
               st["show"] and not st["hide"], json.dumps(st))
 
-        # ── arrange: a regular grid, right of the rail, clear of the chat, inside the canvas ────────────────
+        # ── arrange: a regular grid, ABOVE the bottom bar, clear of the chat, inside the canvas ─────────────
+        # (V2-623: the system bar owns the BOTTOM edge now — the reserved band is vertical, not a left column.)
         pg.evaluate("() => window.__zaelarDesktop.minimize('beta')")   # arrange must REVEAL what is minimized
         pg.evaluate("() => document.querySelector('#wrail .wr-fitall').click()")
         pg.wait_for_timeout(300)
         rr = rects(pg)
-        rail_r = pg.evaluate("() => document.querySelector('#wrail').getBoundingClientRect().right")
+        bar_top = pg.evaluate("() => document.querySelector('#wrail').getBoundingClientRect().top")
         ok_grid = (all(v["visible"] for v in rr.values())
                    and not any(overlap(rr[a], rr[b]) for a, b in pairs)
-                   and all(v["x"] >= rail_r for v in rr.values())
+                   and all(v["y"] + v["h"] <= bar_top + 1 for v in rr.values())
                    and not any(overlap(rr[k], chat) for k in rr)
-                   and all(v["x"] >= 0 and v["y"] >= 0 and v["x"] + v["w"] <= W and v["y"] + v["h"] <= H - 100
+                   and all(v["x"] >= 0 and v["y"] >= 0 and v["x"] + v["w"] <= W
                            for v in rr.values()))
-        check("arrange tiles every card in a visible, non-overlapping grid clear of chat and rail",
-              ok_grid, json.dumps({"rail_right": rail_r, "chat": chat, "cards": rr}))
+        check("arrange tiles every card in a visible, non-overlapping grid clear of chat and the bar",
+              ok_grid, json.dumps({"bar_top": bar_top, "chat": chat, "cards": rr}))
 
-        # ── V2-538: MAXIMIZE respects the reserved edge ─────────────────────────────────────────────────────
-        # Measured with the chat OPEN this check cannot discriminate: a chat docked left pushes every layout
-        # past the rail on its own. So the chat is closed first — then the only thing keeping a card off the
-        # bar is Desktop.minX().
+        # ── V2-538/V2-623: MAXIMIZE respects the reserved band ──────────────────────────────────────────────
+        # The chat is closed first so the only thing keeping a card off the bar is Desktop.railBand().
         pg.evaluate("() => window.zaelar.panel('chat')")   # toggle it shut
         pg.wait_for_timeout(300)
         pg.evaluate("() => window.__zaelarDesktop.maximize('beta')")
         pg.wait_for_timeout(300)
-        rail_right = pg.evaluate("() => document.querySelector('#wrail').getBoundingClientRect().right")
+        bar_top = pg.evaluate("() => document.querySelector('#wrail').getBoundingClientRect().top")
         mx = rects(pg)["beta"]
-        check("a MAXIMIZED card starts right of the docked rail (never under it)",
-              mx["x"] >= rail_right - 1 and mx["w"] > W * 0.7,
-              json.dumps({"rail_right": rail_right, "beta": mx}))
+        check("a MAXIMIZED card stops above the bottom bar (never under it)",
+              mx["y"] + mx["h"] <= bar_top + 1 and mx["w"] > W * 0.7,
+              json.dumps({"bar_top": bar_top, "beta": mx}))
         pg.evaluate("() => window.__zaelarDesktop.maximize('beta')")   # restore
         pg.wait_for_timeout(200)
 
@@ -310,10 +312,10 @@ def run(url):
         pg.evaluate("() => document.querySelector('#wrail .wr-fold').click()")   # leave the chat as found
         pg.wait_for_timeout(200)
         rr = rects(pg)
-        rail_right = pg.evaluate("() => document.querySelector('#wrail').getBoundingClientRect().right")
+        bar_top = pg.evaluate("() => document.querySelector('#wrail').getBoundingClientRect().top")
         check("no card sits underneath the always-present bar",
-              all(v["x"] >= rail_right - 1 for v in rr.values()),
-              json.dumps({"rail_right": rail_right, "cards": rr}))
+              all(v["y"] + v["h"] <= bar_top + 1 for v in rr.values()),
+              json.dumps({"bar_top": bar_top, "cards": rr}))
 
         # ── V2-542: the bottom-left connection line is GONE, and nothing it carried was lost ────────────────
         # The operator, with the desktop in front of him: «ya tenemos una barra a la izquierda, las opciones
@@ -411,14 +413,18 @@ def run(url):
         bar = pg.evaluate("""() => {
           const el = document.querySelector('#wrail'); if (!el) return null;
           const chips = el.querySelector('.wr-chips'), tools = el.querySelector('.wr-tools');
-          const r = n => { const b = n.getBoundingClientRect(); return {t: Math.round(b.top), b: Math.round(b.bottom)}; };
+          const orb = el.querySelector('.wr-orb');
+          const r = n => { const b = n.getBoundingClientRect(); return {l: Math.round(b.left), r: Math.round(b.right)}; };
           return {
-            chips: chips ? r(chips) : null, tools: tools ? r(tools) : null,
+            chips: chips ? r(chips) : null, tools: tools ? r(tools) : null, orb: orb ? r(orb) : null,
             buttons: tools ? [...tools.children].map(b => b.className) : [],
           };
         }""")
-        check("the open-widget icons occupy the UPPER part and the controls sit BELOW them",
-              bool(bar) and bar["chips"] and bar["tools"] and bar["chips"]["t"] <= bar["tools"]["t"],
+        # V2-623: the operator's bar layout — «left and right side contains the open widgets and the other
+        # icons in the bar respectively», with the orb zone between them.
+        check("chips flow on the LEFT, the orb zone sits between, and the controls mirror them on the RIGHT",
+              bool(bar) and bar["chips"] and bar["tools"] and bar["orb"]
+              and bar["chips"]["r"] <= bar["orb"]["l"] + 1 and bar["orb"]["r"] <= bar["tools"]["l"] + 1,
               json.dumps(bar))
 
         # ▦ REPACK vs ⤢ FIT are different gestures: the first must NOT resize. It used to be one button that

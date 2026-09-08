@@ -261,15 +261,14 @@ def docked(run):
         out["tabs_at_720"] = pg.evaluate(_tabs)
         pg.evaluate("() => { document.querySelector('#chatwall').style.width = '420px'; }")
         pg.wait_for_timeout(250)
-        # V2-619 — ONE grip for the whole left assembly: the east resize strip sits just OUTSIDE the fixed-width
-        # rail, so dragging at the rail's outer edge resizes the chat column and everything moves together.
+        # V2-623 — the system bar moved to the BOTTOM edge, so the dock-left column's east grip lives at the
+        # wall's OWN edge again (V2-619's outside-the-rail offset is retired with its trigger).
         out["grip"] = pg.evaluate("""() => {
           const w = document.querySelector('#chatwall').getBoundingClientRect();
           const g = document.querySelector('#chatwall .hb-rz-e');
           if (!g) return null;
           const r = g.getBoundingClientRect();
-          const railW = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--wrail-w')) || 56;
-          return {gap: Math.round(r.left - w.right), railW, w: Math.round(r.width),
+          return {gap: Math.round(r.left - w.right), w: Math.round(r.width),
                   display: getComputedStyle(g).display};
         }""")
         # And the way back: press undock and the column becomes the floating chat panel again.
@@ -420,10 +419,10 @@ def test_the_floating_box_offers_the_COLUMN_button(docked):
     assert a["dockL"] != "0px", f"the re-dock must reserve its strip again: {a}"
 
 
-def test_the_dock_grip_sits_outside_the_rail_band(docked):
-    """V2-619: the rail has a FIXED width and never resizes, so the column's east grip lives just past the
-    rail's outer edge — grabbing there resizes the chat and the whole left assembly moves together."""
+def test_the_dock_grip_sits_at_the_walls_edge(docked):
+    """V2-623: with the system bar moved to the BOTTOM, nothing sits between a dock-left column and the desk
+    any more — the east grip lives at the wall's own edge, full height, and V2-619's outside-the-rail offset
+    is retired WITH its trigger (a stale offset would put the grip 60px into the desk, over the cards)."""
     g = docked["grip"]
     assert g and g["display"] != "none", f"the docked east grip must exist and show: {g}"
-    assert abs(g["gap"] - g["railW"]) <= 2, \
-        f"the grip must start at the rail's OUTER edge (gap ≈ rail width {g['railW']}): {g}"
+    assert -10 <= g["gap"] <= 2, f"the grip must hug the wall's own edge: {g}"

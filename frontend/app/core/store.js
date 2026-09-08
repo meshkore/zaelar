@@ -112,6 +112,12 @@ export const [voiceFlash, setVoiceFlash] = createSignal({ text: "", show: false 
 // LiveKit (RoomEvent.TranscriptionReceived), delivered incrementally IN SYNC with the agent's audio playback —
 // { id, text (cumulative for that segment), final }. Seq bumps so the caption component reacts to every update.
 // LIVE ONLY — the chat wall keeps the history.
+// V2-623 — WHERE THE ORB LIVES: "eye" = the big bottom-centre eye cluster (default); "bar" = a small orb in
+// the centre of the bottom system bar, with the eye hidden. Toggled by the lid's corner swap icon and by the
+// bar's own centre button; persisted so a reload keeps the shape the operator chose.
+export const [orbDock, setOrbDockRaw] = createSignal(localStorage.getItem("hb_orb_dock") === "bar" ? "bar" : "eye");
+export const setOrbDock = (v) => { const m = v === "bar" ? "bar" : "eye"; setOrbDockRaw(m); try { localStorage.setItem("hb_orb_dock", m); } catch (_) {} };
+
 export const [captionsOn, setCaptionsOn] = createSignal(localStorage.getItem("hb_captions_on") !== "0");
 export const [captionSeg, setCaptionSeg] = createSignal(null);
 let _capSeq = 0;

@@ -496,6 +496,29 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     `tests/browser/{unit,e2e}/mensajeria/`: 162 passed.
   - **Not yet verified live** — needs an engine restart, plus a reload for any already-open tab.
 
+- **The system bar rotates to the BOTTOM, the orb swaps into its centre, and 🧠 moves upstairs (V2-623,
+  2026-09-08)**: the operator's redesign — «move the left bar to bottom. orbe goes to center, left and right
+  side contains the open widgets and the other icons»; «quita el icono de la memoria del orbe. ponlo arriba
+  a la derecha»; and the follow-up that settled ⏻: «no sé si poner el icono de arrancar y parar en el centro
+  del orbe» → YES, the orb IS the switch in bar mode — V2-124's mobile-dock pattern, now shared by both
+  shells. `#wrail` = horizontal bottom band (`--wrail-h` replaces `--wrail-w`): chips left · orb centre ·
+  tools right, version badge at the bar's left end, feedback launcher floated above it, the eye orb's
+  resting place raised over the band. `store.orbDock` (persisted) + Orb.js's `applyOrbDock` REPARENT the one
+  `#orb` canvas into the bar's slot and move the lid controls by `data-ctl` handles — mic·spk·cap | orb |
+  chat·bot·swap, 3|3, buttons MOVED never rebuilt so handlers travel; "eye" re-appends all seven in
+  canonical order (⏻ keeps the apex). The slot is a BUTTON whose ⏻ face and canvas alternate by VISIBILITY
+  (the 4.19 lesson) and whose click forwards to the real `[data-ctl="pwr"]` — one owner of the power logic.
+  Desktop: `railBand()` reserves the BOTTOM in `canvas()`, `minX()` is a 0 shim; V2-619's outside-the-rail
+  grip offset retired WITH its trigger (the east grip returns to the wall's edge). `#activity` and the flash
+  label survive bar mode on purpose — a transient notice must not die with the eye. Node **4.133** (7
+  rendered cases), five disarms asserted and red (the bottom-band one caught by the mural's maximize check);
+  the mural's five left-rail checks and V2-619's grip test rewritten to the new geometry; 130 widget-e2e +
+  mural + infrastructure green. ⚠️ This batch first took the number V2-622 and the CONCURRENT session
+  claimed it mid-build — renumbered at closure, and the blind rename clobbered ONE foreign citation in the
+  testmap before being caught: reserve the number by creating the file when you TAKE it, and rename by hand.
+  Open, named: captions hidden in bar mode; the slot's forwarding asserted structurally, not by a live
+  power cycle.
+
 - **The chat header names its tab, wide tabs keep their icons, and the ⧉ toggles BOTH ways (V2-621,
   2026-09-08)**: the operator's follow-up on V2-619's icon tabs — «nombre tab (fix min width) | 5 icons |
   2 icons at right», the same header in the floating box (whose lone × offered no way to BECOME a column),

@@ -1567,6 +1567,16 @@ DOMAINS: list[dict] = [
             "ch": UNIT,
             "paths": ["tests/browser/e2e/widgets/test_a_design_profile_repaints_the_whole_desktop.py",
                       "tests/infrastructure/unit/config/test_appearance_settings.py"]},
+        # V2-623 — the BOTTOM system bar and the orb swap (operator, 2026-09-08): the left rail rotated into
+        # a horizontal bottom bar (chips left · orb centre · tools right), the 🧠 memory control moved from
+        # the orb's lid to the TopBar, and the orb swaps eye↔bar by REPARENTING the one #orb canvas (the
+        # 4.19 lesson: a re-created canvas renders blank with no error — so every case measures the rendered
+        # page: the canvas's parent, its size, what a real click moves). In bar mode the lid controls flank
+        # the orb three a side and the slot IS the power switch (the V2-124 mobile-dock pattern).
+        {"id": "4.133", "title": "The bottom system bar: the orb swaps eye↔bar (one canvas, reparented), "
+                                 "lid controls flank it 3|3, and the memory control lives in the TopBar",
+            "ch": UNIT,
+            "paths": ["tests/browser/e2e/widgets/test_the_orb_swaps_into_the_bottom_bar.py"]},
         # V2-553 — la BARRA DE ACTUALIZACIÓN y el número de versión. La regla que solo se puede comprobar
         # renderizando no es que la barra salga: es que NO salga cuando lo único que cambió está en el
         # backend. El motor manda DOS campos (`build`, que sube en toda release, y `ui_rev`, que es el

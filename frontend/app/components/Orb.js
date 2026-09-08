@@ -5,7 +5,9 @@
 // nearly meet at the corners (canthi). SEVEN controls on the upper lid (L→R):
 //   🎤 mic      → mute/unmute the OPERATOR'S OWN microphone input. MOVED here 2026-08-09 when the CameraUnit
 //                 widget (its former home) was hidden/archived — same session.toggleMic()/store.micMuted() seam.
-//   🧠 memory   → open the MEMORAnd MAP visualizer (state + short/long-term + concept graph, V2-014). BLUE while open.
+//   ⇩ to-bar    → V2-623: LEFT CORNER — sends the orb into the bottom system bar (small orb at its centre, eye
+//                 chrome hidden); the bar's own centre button brings it back. The 🧠 memory control that lived
+//                 here moved to the TopBar the same pass (operator, 2026-09-08).
 //   🔊 speaker  → mute/unmute zaelar's voice OUTPUT (the agent keeps running: mic, brain and crons stay live).
 //   ⏻ power    → CENTRE (apex). Explicit ON/OFF of the voice session — the ONE exception to always-on: while
 //                 off (persisted hb_power_off) main.js does NOT auto-(re)connect; click again to come back.
@@ -36,7 +38,9 @@ import { t } from "../core/i18n.js?v=1";
 
 // Inline SVGs (self-contained, currentColor). Mic + memory + speaker on/off + power + captions + chat + robot.
 const MIC_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg>`;
-const MEM_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4.5a3 3 0 0 0-3 3 3 3 0 0 0-1.3 5.7A3 3 0 0 0 8 16.5a3 3 0 0 0 4 2.6"/><path d="M12 4.5a3 3 0 0 1 3 3 3 3 0 0 1 1.3 5.7A3 3 0 0 1 16 16.5a3 3 0 0 1-4 2.6"/><path d="M12 4.5v15"/></svg>`;
+// V2-623 — send the orb into the bottom system bar: an orb dropping onto a bar. The 🧠 memory icon that used
+// to sit on this lid moved to the TopBar the same pass (operator: «quita el icono de la memoria del orbe»).
+const TOBAR_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v8"/><path d="m8 8 4 4 4-4"/><rect x="3" y="16" width="18" height="5" rx="2"/></svg>`;
 const SPK_ON  = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg>`;
 const SPK_OFF = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="m22 9-6 6"/><path d="m16 9 6 6"/></svg>`;
 const CAP_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M7 10h5"/><path d="M7 14h9"/></svg>`;
@@ -45,7 +49,7 @@ const BOT_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" str
 const PWR_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.77.04"/></svg>`;
 
 export function Orb() {
-  let wrapEl, orbEl, capEl, capInnerEl, ecgEl;
+  let wrapEl, orbEl, capEl, capInnerEl, ecgEl, micblockEl;
 
   // ---- attention gate toggle (V2-016). Local signal mirrors config/settings.json's attention_mode: ON = wakeword
   // (only acts on "zaelar"/"harvis"), OFF = always (listens+answers to everything, default). Reflects the REAL
@@ -90,8 +94,16 @@ export function Orb() {
     h("div", { class: () => "vlabel" + (store.voiceFlash().show ? " show" : "") }, () => store.voiceFlash().text),
     h("div", { class: () => "micblockcap" + (store.micBlocked().show ? " show" : "") }, () => store.micBlocked().msg),
     // UPPER LID of the EYE — 7 controls arched over the orb (order L→R, CENTRE = ⏻ at the apex, outer icons dive
-    // to the corners to meet the ECG's lower lid): ⏰ · 🧠 · 🔊 · ⏻ · 📝 · ☾ · 🤖. BLUE = on/open, GREEN = off.
+    // to the corners to meet the ECG's lower lid): ⇩ · 🎤 · 🔊 · ⏻ · 📝 · 💬 · 🤖. BLUE = on/open, GREEN = off.
+    // V2-623: the 🧠 memory control moved to the TopBar; the LEFT CORNER slot is the swap that sends the orb
+    // into the bottom bar («en una esquina de los iconos del orbe») — the slot count stays 7, so the arc's
+    // nth-child geometry is untouched and ⏻ keeps the apex.
     h("div", { class: "orbctl" },
+      h("button", { "data-ctl": "tobar",
+        class: () => lidClass(false),
+        title: () => t("orb.to_bar"),
+        onClick: () => { store.setOrbDock("bar"); api.uiEvent("orb:dock", { where: "bar" }); },
+      }, raw(TOBAR_ICON)),
       h("button", {
         // 2026-08-09: relocated from CameraUnit (now hidden/archived) — same session.toggleMic()/store.micMuted()
         // seam, just a different button. ON (blue) = mic live, like the speaker's on/off language.
@@ -102,17 +114,13 @@ export function Orb() {
         // It scales with the mic's REAL level (store.micLevel, RMS 0..1) through a CSS variable, so the animation costs
         // no re-render: it only changes a custom property. With the mic muted or the agent stopped there is no effect —
         // because there is no level: the meter can move only when the system is actually listening.
+        "data-ctl": "mic",
         class: () => lidClass(!store.micMuted()) + (store.agentLive() && !store.micMuted() ? " vu" : ""),
         style: { "--vu": () => (store.agentLive() && !store.micMuted() ? String(Math.min(1, store.micLevel() * 6)) : "0") },
         title: () => (store.micMuted() ? t("camera.mic_unmute") : t("camera.mic_mute")),
         onClick: () => { session.toggleMic(); api.uiEvent("orb:mic", { state: store.micMuted() ? "muted" : "unmuted" }); },
       }, raw(MIC_ICON)),
-      h("button", {
-        class: () => lidClass(store.memOpen()),
-        title: () => t("orb.memory"),
-        onClick: () => { const v = !store.memOpen(); store.setMemOpen(v); api.uiEvent("orb:memory", { state: v ? "open" : "close" }); },
-      }, raw(MEM_ICON)),
-      h("button", {
+      h("button", { "data-ctl": "spk",
         class: () => lidClass(!store.botMuted()),
         title: () => store.botMuted() ? t("orb.speaker_muted") : t("orb.speaker_unmuted"),
         onClick: () => { session.toggleBotMute(); api.uiEvent("orb:speaker", { state: store.botMuted() ? "muted" : "unmuted" }); },
@@ -123,6 +131,7 @@ export function Orb() {
         //   live → blue · starting → “starting up” · off → grey (stopped manually) · stalled → WARNING.
         // `stalled` (“it should be on, but it isn't”) is the state that did not exist before: with it, a fallen agent
         // looks fallen instead of appearing operational.
+        "data-ctl": "pwr",
         class: () => "orbic pwr-" + store.agentState() + (store.agentLive() ? " on" : " off"),
         title: () => t("orb.power_" + store.agentState()),
         onClick: () => {
@@ -183,7 +192,7 @@ export function Orb() {
           api.uiEvent("orb:power", { state: off ? "off" : "on" });
         },
       }, raw(PWR_ICON)),
-      h("button", {
+      h("button", { "data-ctl": "cap",
         class: () => lidClass(store.captionsOn()),
         title: () => store.captionsOn() ? t("orb.captions_hide") : t("orb.captions_show"),
         onClick: () => { const v = store.toggleCaptions(); api.uiEvent("orb:captions", { state: v ? "on" : "off" }); },
@@ -191,11 +200,12 @@ export function Orb() {
       h("button", {
         // 2026-08-09: relocated from CameraUnit (now hidden/archived) — opens the SAME chat panel the old ⏰
         // cron shortcut used to jump into (crons live inside its 3rd tab; no separate cron icon any more).
+        "data-ctl": "chat",
         class: () => lidClass(store.chatOpen()),
         title: () => t("camera.chat_title"),
         onClick: () => { const v = !store.chatOpen(); store.setChatOpen(v); api.uiEvent("orb:chat", { state: v ? "open" : "close" }); },
       }, raw(CHAT_ICON)),
-      h("button", {
+      h("button", { "data-ctl": "bot",
         class: () => lidClass(wakeOn()),
         title: () => wakeOn() ? t("orb.wake_on") : t("orb.wake_off"),
         onClick: () => { toggleWake(); api.uiEvent("orb:attention", { state: wakeOn() ? "wakeword" : "always" }); },
@@ -215,7 +225,7 @@ export function Orb() {
       h("canvas", { id: "orb",
                     class: () => (store.botMuted() ? "muted" : "") + (store.agentLive() ? "" : " frozen"),
                     ref: el => (orbEl = el), title: () => t("orb.drag") }),
-      h("div", { class: () => "micblock" + (store.micBlocked().show ? " show" : "") }, h("span", { class: "ring" })),
+      h("div", { class: () => "micblock" + (store.micBlocked().show ? " show" : ""), ref: el => (micblockEl = el) }, h("span", { class: "ring" })),
     ),
     // ELECTROCARDIOGRAM under the orb — zaelar's REAL heartbeat: a QRS per orchestrator loop.tick (~1 Hz at rest),
     // racing when there are background tasks / FlashBrain turns. Driven by lib/ecg.js off store.pulse. Flat = no
@@ -224,6 +234,41 @@ export function Orb() {
   );
 
   makeDraggable(wrapEl, orbEl, "hb_pos_orb", "bl");   // drag the orb to move it (no click action any more)
+
+  // V2-623 — WHERE THE ORB LIVES. ONE canvas, ever (the 4.19 lesson: an orb canvas re-created inside a
+  // conditional renders BLANK with no error) — "bar" REPARENTS this same #orb element into the bottom bar's
+  // centre slot and hides the eye chrome via a body class (the #activity rail and the flash label stay
+  // visible: a transient notice must not die with the eye); "eye" puts the canvas back in .orbcore before the
+  // micblock ring. The bar may mount after us on a persisted "bar" boot, so the move retries on a frame until
+  // its slot exists.
+  // The lid's own controls FLANK the bar orb, three a side (operator, 2026-09-08: «el orbe tiene que estar
+  // en el centro y a los lados los tres iconos a un lado y los tres al otro»): mic·spk·captions left,
+  // chat·robot·(the bar's own swap) right. ⏻ does NOT travel: in bar mode the ORB IS THE SWITCH — the
+  // slot button forwards its click to the real ⏻ (data-ctl="pwr"), the exact V2-124 mobile-dock pattern.
+  // The buttons are MOVED, never rebuilt, so every handler/signal binding travels with its element.
+  const byCtl = (c) => document.querySelector(`[data-ctl="${c}"]`);
+  let _dockRaf = 0;
+  const applyOrbDock = () => {
+    const mode = store.orbDock();
+    document.body.classList.toggle("hb-orb-bar", mode === "bar");
+    cancelAnimationFrame(_dockRaf);
+    if (mode === "bar") {
+      const slot = document.querySelector("#wrail .wr-orbslot");
+      const l = document.querySelector("#wrail .wr-orbl");
+      const r = document.querySelector("#wrail .wr-orbr");
+      if (!slot || !l || !r) { _dockRaf = requestAnimationFrame(applyOrbDock); return; }
+      if (orbEl.parentNode !== slot) slot.appendChild(orbEl);
+      l.append(byCtl("mic"), byCtl("spk"), byCtl("cap"));
+      r.prepend(byCtl("chat"), byCtl("bot"));            // the bar's .wr-swap stays last
+    } else {
+      const ctl = wrapEl.querySelector(".orbctl");
+      // append() re-inserts in canonical lid order — the slot count stays 7 and ⏻ keeps the apex.
+      if (ctl) ctl.append(byCtl("tobar"), byCtl("mic"), byCtl("spk"), byCtl("pwr"),
+                          byCtl("cap"), byCtl("chat"), byCtl("bot"));
+      if (micblockEl && orbEl.nextSibling !== micblockEl) micblockEl.parentNode.insertBefore(orbEl, micblockEl);
+    }
+  };
+  createEffect(applyOrbDock);
 
   // KEEP THE ORB IN THE SAME RELATIVE PLACE when a docked column changes the size of the visible area
   // (operator, 2026-09-07): «tienes que dejar el orbe visible… si estaba abajo y centrado, déjalo en la misma

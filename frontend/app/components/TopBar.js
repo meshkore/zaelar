@@ -10,7 +10,7 @@ import * as api from "../services/api.js?v=2";
 import { overallStatus } from "../services/status.js?v=2";
 import { toggleTheme } from "../services/theme.js?v=2";
 import { t } from "../core/i18n.js?v=1";
-import { BUG_ICON, GEAR_ICON, COMPASS_ICON, MOON_ICON, USER_ICON } from "../lib/icons.js?v=1";
+import { BUG_ICON, GEAR_ICON, COMPASS_ICON, MOON_ICON, USER_ICON, MEM_ICON } from "../lib/icons.js?v=1";
 import { EnergyGauge } from "./EnergyGauge.js?v=1";
 
 // Status dot is a plain filled circle (see .statusBtn svg below) — recolors via the SAME --hb-ok/--hb-warn/--hb-risk
@@ -54,6 +54,11 @@ export function TopBar() {
     () => store.cloudProfile() ? h("button", { class: () => "ic" + (store.accountOpen() ? " on" : ""), id: "acctBtn",
       title: () => t("topbar.account.title"),
       onClick: () => { const v = !store.accountOpen(); store.setAccountOpen(v); api.uiEvent("topbar:account", { state: v ? "open" : "close" }); } }, raw(USER_ICON)) : null,
+    // 🧠 memory map — MOVED here from the orb's upper lid (V2-623, operator 2026-09-08: «quita el icono de la
+    // memoria del orbe. ponlo arriba a la derecha»). Same signal, same viewer; only the button's home changed.
+    h("button", { class: () => "ic" + (store.memOpen() ? " on" : ""), id: "memBtn",
+      title: () => t("orb.memory"),
+      onClick: () => { const v = !store.memOpen(); store.setMemOpen(v); api.uiEvent("topbar:memory", { state: v ? "open" : "close" }); } }, raw(MEM_ICON)),
     h("button", { class: () => "ic" + (store.theme() === "dark" ? " on" : ""), id: "themeBtn",
       title: () => (store.theme() === "dark" ? t("topbar.theme_light") : t("topbar.theme_dark")),
       onClick: () => { toggleTheme(); api.uiEvent("topbar:theme", { state: store.theme() }); } }, raw(MOON_ICON)),

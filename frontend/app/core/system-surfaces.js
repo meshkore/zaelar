@@ -61,7 +61,7 @@ export const SYSTEM_SURFACES = [
     name: null, aliases: null },
   // V2-537 — the widget rail: one chip per open card (always on top), ▦ auto-arrange, minimize/show all.
   // Not voice-addressable in v1 (like the top bar); it only shows itself while at least one card is open.
-  // V2-538 — DOCKED: full-height column that owns the left edge (Desktop.minX() keeps cards out of it),
+  // V2-538→V2-623 — DOCKED: a bar that owns the BOTTOM edge (Desktop.railBand() keeps cards out of it),
   // foldable to a thin border that unfolds on click; the fold survives a reload.
   { id: "wrail",      comp: WidgetRail,   target: "desk", phase: "overlay", kind: "chrome",
     toggle: "auto (visible while any widget card is open)", label: "Widget rail",

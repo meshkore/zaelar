@@ -30,8 +30,8 @@
   --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
   --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
   --banner-h:0px;   /* height of the update banner when visible (0 when hidden) — top controls shift down by this */
-  --wrail-w:56px;   /* the widget rail's FIXED width (V2-619: the rail never resizes and never hides; the
-                       chat column's dock-resize grip sits just OUTSIDE it, offset by this) */
+  --wrail-h:64px;   /* the bottom system bar's FIXED height (V2-623: the bar never resizes and never hides;
+                       the desk reserves this band, and the eye orb's resting place sits just above it) */
 
   /* type scale (V2-617): base 17px ≈ everything authored at 16 scales up ~6% — «fuentes más grandes en todo
      el escritorio» without touching a thousand declarations; the ⚙ size knob moves this one token. */
