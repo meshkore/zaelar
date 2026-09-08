@@ -500,7 +500,9 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     data-dependent branch, so even an EMPTY state exercises the rule). `make test-widgets` green 14/14 before
     AND after. Two disarms verified red. Full per-widget suites + the V2-574 phone-render script all green —
     no mobile regression from dropping the `vw` clamp term.
-  - **NOT verified live yet** — needs an engine restart.
+  - **Verified live** on `3.26+7c41646`: the engine restarted onto this build and the served
+    `widgets/mensajeria/widget.js` carries `width:100%;box-sizing:border-box` on `.hb-msg`. An already-open
+    browser tab needs a reload to pick up the new ES module (cached per page load, same as any widget update).
 
 - **A Reset does not leave a CONNECTED mailbox mute (V2-614, 2026-09-08)**: the operator's screenshot — the
   mensajería widget open on "Nada que atender ahora ✓" right after asking to see his Gmail messages, and his
