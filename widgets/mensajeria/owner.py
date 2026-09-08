@@ -162,7 +162,8 @@ class _Owner:
                       f"{_LABEL.get(platform, platform)} ({ev['error']}). Díselo al operador.")
                 continue
             msgstore.add_history(platform, ev.get("chatId"), ev.get("msgs") or [],
-                                 complete=bool(ev.get("complete")))
+                                 complete=bool(ev.get("complete")),
+                                 name=ev.get("name") or "", is_group=ev.get("isGroup"))
 
     def _apply_status(self) -> None:
         """Reflect pending connector.status events into the UI store; the owner is the only writer."""
@@ -216,10 +217,49 @@ class _Owner:
             if not items:
                 continue
             msgstore.upsert_items(platform, items)   # UI store + memory dump (kind='msg')
+            self._auto_reply(platform, items)        # V2-624: the autoresponder, AFTER storing, never instead
             notice = notify.deserving(items)
             logger.info(f"mensajeria: +{len(items)} from {platform} ({len(notice)} avisan)")
             if notice:
                 await notify.announce(_LABEL.get(platform, platform), notice)
+
+    def _auto_reply(self, platform: str, items: list[dict]) -> int:
+        """V2-624 — the autoresponder (the 'Phase 4' the WhatsApp client has named since INI-014, now with its
+        go-ahead). The DECISION lives whole in `widgets/mensajeria/autorespond.py` (zero-import, like policy.py):
+        never a group, email only when addressed to him, inside the configured hours, once per chat per 24 h
+        against a DURABLE ledger. The reply travels the SAME `msg.reply` seam a dictated reply uses — each
+        connector's already-tested send path, echoed into the thread by the existing outbound-capture seams.
+        Deliberately: the original item is NOT marked read and NOT removed — an automatic «estoy fuera» does
+        not deal with the message, it announces the absence; the message still waits for him."""
+        try:
+            import time as _time
+            from datetime import datetime
+            from . import autorespond
+            db = msgstore.load()
+            if not autorespond.config_for(db, platform)["enabled"]:
+                return 0
+            now_ts = _time.time()
+            now = datetime.now()
+            sent = 0
+            for it in items:
+                text = autorespond.should_reply(db, it, now_ts, (now.hour, now.minute))
+                if not text:
+                    continue
+                ingest.publish_reply({
+                    "platform": platform, "chatId": it.get("chatId"),
+                    "to": it.get("senderId") or it.get("chatId"),
+                    "messageId": it.get("messageId"), "subject": it.get("subject", ""),
+                    "msgid": it.get("msgid", ""), "text": text,
+                })
+                autorespond.note_replied(db, platform, it.get("chatId"), now_ts)
+                sent += 1
+            if sent:
+                msgstore.save(db)      # the ledger is durable ON PURPOSE (V2-607: memory guards cannot dedupe)
+                logger.info(f"mensajeria: autoresponder replied to {sent} chat(s) on {platform}")
+            return sent
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"mensajeria autoresponder: {e}")
+            return 0
 
     # Operator / brain actions through the supervisor mailbox.
     async def handle(self, action: str, payload: dict) -> None:
@@ -259,6 +299,12 @@ class _Owner:
                 ingest.publish_history_ask(order)
         except Exception as e:
             logger.debug(f"mensajeria history flush: {e}")
+        # And for platform-wide pull orders (V2-624): «chupar más mensajes» / the activity-window fetch.
+        try:
+            for order in msgstore.take_pending_fetch():
+                ingest.publish_fetch(order)
+        except Exception as e:
+            logger.debug(f"mensajeria fetch flush: {e}")
 
 
 # Single instance governed by the supervisor (contract: async start()/stop()/handle(action,payload)).

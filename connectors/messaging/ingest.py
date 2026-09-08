@@ -29,6 +29,11 @@ TOPIC_MSG_OUT = "connector.msg_out"    # the OPERATOR wrote, in his own app: joi
 TOPIC_READ = "connector.read"          # the operator read this chat elsewhere: a watermark, not a list
 TOPIC_HISTORY_ASK = "msg.history"      # widget asks a connector for OLDER messages of one chat
 TOPIC_HISTORY = "connector.history"    # the connector answers with them
+# V2-624 — the operator asking a connector to go and PULL, right now, platform-wide: «chupar más mensajes».
+# Distinct from msg.history (one chat, backwards) — this is «conversations with activity in a window», and it
+# is answered with connector.history events per chat, so everything it brings lands in threads as scrollback,
+# never in triage: pulling the past must not interrupt anybody.
+TOPIC_FETCH = "msg.fetch"
 
 
 def v2_enabled() -> bool:
@@ -154,6 +159,21 @@ class HistoryAskInbox(_PlatformInbox):
     _TOPIC = TOPIC_HISTORY_ASK
 
 
+class FetchInbox(_PlatformInbox):
+    """Per-platform subscription to `msg.fetch` (V2-624): the operator asking this connector to PULL now —
+    conversations with activity inside a time window. The connector answers with `connector.history` events
+    per chat (or one honest error naming what its transport allows)."""
+    _TOPIC = TOPIC_FETCH
+
+
+def publish_fetch(order: dict) -> None:
+    """Widget asks a connector to pull recent activity: {platform, since_hours}."""
+    try:
+        bus.emit_sync(TOPIC_FETCH, dict(order or {}))
+    except Exception:
+        pass
+
+
 # ── V2-546 publishers ───────────────────────────────────────────────────────
 def publish_msg_out(platform: str, msg: dict) -> None:
     """A message the OPERATOR sent from his own app. Same normalized shape as an inbound one; the widget appends
@@ -184,13 +204,21 @@ def publish_history_ask(order: dict) -> None:
 
 
 def publish_history(platform: str, chat_id, msgs: list[dict], complete: bool = False,
-                    error: str = "") -> None:
+                    error: str = "", name: str = "", is_group=None) -> None:
     """A connector answers with older messages. `complete` = it proved there is nothing before these, so the
     widget stops offering the button. `error` travels too: a request that could not be served has to SAY so —
-    a silent no-op is indistinguishable from a chat with no history."""
+    a silent no-op is indistinguishable from a chat with no history.
+
+    V2-624 — `name`/`is_group` are optional and matter for a thread BORN from a platform-wide fetch: without
+    them a group pulled fresh gets named after whichever member spoke first, and a mislabeled thread reads as
+    a different conversation. Both default to absent; readers only set what arrives."""
     try:
-        bus.emit_sync(TOPIC_HISTORY, {"platform": platform, "chatId": chat_id,
-                                      "msgs": list(msgs or []), "complete": bool(complete),
-                                      "error": error or ""})
+        ev = {"platform": platform, "chatId": chat_id,
+              "msgs": list(msgs or []), "complete": bool(complete), "error": error or ""}
+        if name:
+            ev["name"] = str(name)
+        if is_group is not None:
+            ev["isGroup"] = bool(is_group)
+        bus.emit_sync(TOPIC_HISTORY, ev)
     except Exception:
         pass

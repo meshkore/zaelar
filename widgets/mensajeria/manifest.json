@@ -8,7 +8,7 @@
  },
  "title": "Mensajería",
  "description": "Tu mensajería unificada (WhatsApp + Telegram + Email), ya triada: solo lo que va dirigido a ti o debes atender, en un solo sitio. WhatsApp/Telegram se vinculan por QR; el email por correo + contraseña de aplicación. Puedes dictar una respuesta, revisarla en el cuadro de texto y mandarla por voz o con el botón, a las tres plataformas — el email lleva firma propia si la tienes puesta.",
- "whenToUse": "Cuando el usuario pide ver sus mensajes, quién le ha escrito, qué debe responder, su WhatsApp/Telegram/correo, RESPONDER/contestar/mandar un mensaje o email (dictado o escrito), poner o cambiar su FIRMA de email, o vincular/conectar WhatsApp, Telegram o el email.",
+ "whenToUse": "Cuando pide ver sus mensajes, quién le ha escrito, su WhatsApp/Telegram/correo, responder/mandar un mensaje o email, RESUMIR una conversación o un grupo, traer mensajes del conector, poner un AUTORRESPONDEDOR, su firma de email, o vincular/conectar WhatsApp, Telegram o el email.",
  "keywords": [
   "mensajes",
   "mensajeria",
@@ -48,13 +48,19 @@
   "dile",
   "firma",
   "mi firma",
-  "firma de correo"
+  "firma de correo",
+  "autorespondedor",
+  "autoresponder",
+  "respuesta automática",
+  "resume",
+  "resumen"
  ],
  "actions": {
   "show_view": {
-   "desc": "CAMBIA LO QUE SE VE en la mensajería y CONTESTA: 'all' vuelve a la LISTA PRINCIPAL unificada (y cierra el chat abierto); 'whatsapp'|'telegram'|'email' filtra solo ese canal. Devuelve los chats que casan en `result.chats` para que respondas con sus nombres. Es obligatoria para eso — mostrar el widget de nuevo NO cambia la vista",
+   "desc": "CAMBIA LO QUE SE VE en la mensajería y CONTESTA: 'all' vuelve a la LISTA PRINCIPAL unificada (y cierra el chat abierto); 'whatsapp'|'telegram'|'email' filtra solo ese canal. Devuelve los chats que casan en `result.chats` para que respondas con sus nombres. Es obligatoria para eso — mostrar el widget de nuevo NO cambia la vista Con `window_h` (HORAS) fija además el CRITERIO de esa vista: enseña las CONVERSACIONES con actividad en esa ventana (72 = últimos 3 días; 0 lo quita) — queda fijado por plataforma hasta cambiarlo, y devuelve las que casan en `result.activity`",
    "payload": {
-    "platform": "string ('all' = lista principal | whatsapp | telegram | email)"
+    "platform": "string ('all' = lista principal | whatsapp | telegram | email)",
+    "window_h": "number opcional (horas de la ventana de actividad; 72 = 3 días; 0 = quitar el criterio)"
    },
    "safe": true,
    "view": true
@@ -196,6 +202,40 @@
    "desc": "Borra la firma de email entera",
    "payload": {},
    "confirm": true
+  },
+  "fetch_now": {
+   "desc": "PIDE al conector de esa plataforma que traiga YA las conversaciones con actividad reciente («chupa/refresca más mensajes del conector»): telegram y email. WhatsApp NO lo soporta (su transporte solo empuja en tiempo real; de un chat concreto sí hay load_more). Llegan a las conversaciones en unos segundos y se avisa al terminar",
+   "payload": {
+    "platform": "string (telegram|email)",
+    "since_hours": "number opcional (ventana en horas; por defecto 72)"
+   },
+   "safe": true
+  },
+  "peek": {
+   "desc": "LEE una conversación entera (hasta 40 mensajes guardados) y te la DEVUELVE para que TÚ la resumas, la analices o extraigas lo relevante («resume el grupo del viaje», «la esencia de esos correos») — sin abrir nada en pantalla y sin tocar la memoria. Si necesita más pasado: open + load_more primero",
+   "payload": {
+    "name": "string opcional (el chat/grupo tal como aparece; sin él usa la conversación abierta)",
+    "limit": "int opcional (máx 40)"
+   },
+   "safe": true
+  },
+  "set_autoresponder": {
+   "desc": "Activa un AUTORRESPONDEDOR («pon un autorrespondedor en WhatsApp: estoy de vacaciones»): contesta solo con `text`, UNA vez por chat cada 24 h, NUNCA en grupos, y en email solo a correos dirigidos a él. `hours` opcional acota la franja horaria («22:00-08:00», admite cruzar medianoche). Cada plataforma puede llevar su propio mensaje",
+   "payload": {
+    "platform": "string (whatsapp|telegram|email|all)",
+    "text": "string (lo que debe contestar)",
+    "hours": "string opcional (franja «HH:MM-HH:MM»)",
+    "enabled": "bool opcional (false = dejar configurado pero apagado)"
+   },
+   "confirm": true,
+   "confirm_q": "¿Activo el autorrespondedor con ese mensaje? Contestará él solo en tu nombre."
+  },
+  "clear_autoresponder": {
+   "desc": "Apaga y borra el autorrespondedor (de una plataforma, o de todas sin `platform`)",
+   "payload": {
+    "platform": "string opcional (whatsapp|telegram|email|all)"
+   },
+   "safe": true
   }
  },
  "entry": "widget.js",

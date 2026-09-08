@@ -354,13 +354,26 @@ def _clear_chat_items(db: dict, platform: str, chat_id, upto_ts: float | None = 
     return gone
 
 
-def add_history(platform: str, chat_id, msgs: list[dict], complete: bool = False) -> dict:
+def add_history(platform: str, chat_id, msgs: list[dict], complete: bool = False,
+                name: str = "", is_group=None) -> dict:
     """Older messages a connector fetched on demand ("load previous"). Prepends into the conversation and marks
-    whether we have now reached its beginning."""
+    whether we have now reached its beginning.
+
+    V2-624 — `name`/`is_group` label a thread BORN from a platform-wide fetch (msg.fetch): without them a
+    freshly-pulled group would be named after whichever member spoke first. Only set what arrives; a name a
+    live inbound message already wrote is never overwritten by an empty one."""
     db = load()
-    added = _thread().prepend(db, platform, chat_id, msgs or [], complete=complete)
+    th = _thread()
+    added = th.prepend(db, platform, chat_id, msgs or [], complete=complete)
+    if name or is_group is not None:
+        cur = (db.get("threads") or {}).get(th.key(platform, chat_id))
+        if isinstance(cur, dict):
+            if name and not cur.get("name"):
+                cur["name"] = str(name)
+            if is_group:
+                cur["isGroup"] = True
     db["updated"] = _now()
-    return save(db) if (added or complete) else db
+    return save(db) if (added or complete or name or is_group is not None) else db
 
 
 def take_pending_history(platform: str | None = None) -> list[dict]:
@@ -377,6 +390,17 @@ def take_pending_history(platform: str | None = None) -> list[dict]:
         db["pending_history"] = rest
         save(db)
     return mine
+
+
+def take_pending_fetch() -> list[dict]:
+    """Return (and REMOVE) platform-wide pull orders (V2-624): {platform, since_hours}. Enqueued by the
+    widget's `fetch_now`, published to `msg.fetch` by the owner, served by that platform's connector."""
+    db = load()
+    pending = db.get("pending_fetch", [])
+    if pending:
+        db["pending_fetch"] = []
+        save(db)
+    return list(pending)
 
 
 # ── pending_read drain by connectors ────────────────────────────────────────

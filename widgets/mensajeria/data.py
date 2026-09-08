@@ -9,9 +9,13 @@
 # marks the message read in its app. A platform failure does not bring down another platform or voice.
 #
 import time
-import unicodedata
 
 from .. import store
+# The READ side lives in views.py since V2-624 (the architecture ratchet's extraction, along the real seam:
+# name resolution, the thread/activity views, peek, and the autoresponder previews). One direction only —
+# views.py lazy-imports this module where it needs the store or the inbox helpers.
+from .views import (_activity_answer, _activity_chats, _autoresponder_preview, _autoresponder_view,
+                    _criteria_for, _find_chat_by_name, _group_chats, _peek_answer, _thread_meta, _thread_view)
 
 WIDGET_ID = "mensajeria"
 _PLATFORMS = ("whatsapp", "telegram", "email")   # email: V2-051
@@ -22,6 +26,14 @@ _PLATFORMS = ("whatsapp", "telegram", "email")   # email: V2-051
 # at all — offering one that cannot work is worse than not offering it.
 _HISTORY_PLATFORMS = ("telegram", "email", "whatsapp")
 _HISTORY_LIMIT = 30
+# V2-624 — which platforms can serve a PLATFORM-WIDE pull («tráete las conversaciones con actividad en las
+# últimas 72 h»). A transport statement, like _HISTORY_PLATFORMS above: Telegram enumerates its own dialogs,
+# IMAP searches the whole mailbox by date; WhatsApp's bridge can only relay what the phone pushes plus
+# per-chat history — there is no «list recent chats» door to ask through, and offering one that cannot work
+# is worse than saying so.
+_FETCH_PLATFORMS = ("telegram", "email")
+_FETCH_DEFAULT_H = 72.0
+_WINDOW_MAX_H = 24.0 * 90            # criteria and fetches are bounded: 90 days is «the past», not a lens
 _URG_RANK = {"alta": 0, "media": 1, "baja": 2}   # local copy; data.py is stdlib-only and does not import connectors
 
 # ── The VIEW is a declared ACTION (V2-543 — the V2-540/V2-541 lesson applied here) ──────────────────────────────
@@ -39,12 +51,6 @@ _PLAT_ALIASES = {
     "email": "email", "correo": "email", "mail": "email", "gmail": "email", "outlook": "email",
     "all": "", "todo": "", "todos": "", "": "", "inbox": "", "principal": "", "general": "", "lista": "",
 }
-
-
-def _norm_txt(s) -> str:
-    """Accent-stripped lowercase, for matching a spoken chat name against the list."""
-    s = unicodedata.normalize("NFD", str(s or "").strip().lower())
-    return "".join(ch for ch in s if unicodedata.category(ch) != "Mn")
 
 
 def _open_ref(payload: dict) -> tuple:
@@ -105,6 +111,12 @@ def blank() -> dict:
     cur = store.load(WIDGET_ID, {})
     if isinstance(cur.get("platforms"), dict):
         fresh["platforms"] = cur["platforms"]
+    # V2-624 — the operator's own CONFIGURATION survives a reset the way the connection state does: an
+    # autoresponder set for his vacation and his per-platform view criteria are not «messages and queues»,
+    # and a reset that silently stops answering people in his name is a worse surprise than any stale list.
+    for k in ("autoresponder", "lens_criteria"):
+        if isinstance(cur.get(k), dict) and cur.get(k):
+            fresh[k] = cur[k]
     return fresh
 
 
@@ -119,10 +131,12 @@ def load_db() -> dict:
     db.setdefault("pending_read", [])
     db.setdefault("pending_reply", [])
     db.setdefault("pending_history", [])
+    db.setdefault("pending_fetch", [])
     db.setdefault("threads", {})
     db.setdefault("updated", "")
     db.setdefault("active_chat", None)
     db.setdefault("draft", None)
+    db.setdefault("lens_criteria", {})
     return db
 
 
@@ -161,141 +175,6 @@ def _visible_items(db: dict) -> list:
         it["highlight"] = _policy.wants_highlight(pol, it)
         out.append(it)
     return _renumber(out)
-
-
-def _group_chats(items: list) -> list:
-    """Group the flat, already renumbered list by (platform, chatId), preserving appearance order: one item per
-    chat instead of one per message. Each chat has its own `n`, a separate addressing space from `items`
-    ([[msg.open:N]]/[[msg.readchat:N]] use this; [[msg.read:N]]/[[msg.dismiss:N]] still use the `items` `n`, only
-    addressable when the chat is open)."""
-    order, by_key = [], {}
-    for it in items:
-        key = (it.get("platform"), str(it.get("chatId")))
-        g = by_key.get(key)
-        if g is None:
-            g = {"platform": it.get("platform"), "chatId": it.get("chatId"),
-                 "name": it.get("group") or it.get("from") or "?", "isGroup": bool(it.get("isGroup")),
-                 "count": 0, "rank": 3, "dirigido_a_mi": False, "highlight": False, "last": it}
-            by_key[key] = g
-            order.append(key)
-        g["count"] += 1
-        g["rank"] = min(g["rank"], _URG_RANK.get(it.get("urgencia"), 3))
-        g["dirigido_a_mi"] = g["dirigido_a_mi"] or bool(it.get("dirigido_a_mi"))
-        # A chat belongs in the summary as soon as ONE of its messages does — the alternative silently buries a
-        # message addressed to him under a chat whose other traffic is noise (V2-607).
-        g["highlight"] = g["highlight"] or bool(it.get("highlight"))
-        g["last"] = it   # most recent by appearance order; the store has no timestamp
-    rank_to_urg = {0: "alta", 1: "media", 2: "baja"}
-    chats = []
-    for i, key in enumerate(order, 1):
-        g = by_key[key]
-        last = g["last"]
-        chats.append({
-            "n": i, "platform": g["platform"], "chatId": g["chatId"], "name": g["name"],
-            "isGroup": g["isGroup"], "count": g["count"], "dirigido_a_mi": g["dirigido_a_mi"],
-            "highlight": g["highlight"],
-            "urgencia": rank_to_urg.get(g["rank"], "media"),
-            "lastFrom": last.get("from"), "lastBody": last.get("body", ""), "lastMotivo": last.get("motivo", ""),
-            # V2-543: real time + media class of the preview (0/"" for legacy rows without them).
-            "lastTs": last.get("ts", 0), "lastMediaType": last.get("mediaType", ""),
-        })
-    return chats
-
-
-def _thread_view(db: dict, active: dict, pending_here: list) -> list:
-    """The open conversation, oldest first, in the shape widget.js already renders. A message that is STILL
-    pending keeps its live fields — above all `n`, which is what the ✓/✕/🗄 buttons address; one that has been
-    read (here or in the real app) arrives without them, so the widget shows it as history and offers no
-    action on something already dealt with.
-
-    Falls back to the pending items alone if there is no thread yet: an install that predates this, or a chat
-    whose messages arrived before it existed, must still open."""
-    platform, chat_id = active.get("platform"), active.get("chatId")
-    try:
-        from . import thread
-        msgs = thread.window(db, platform, chat_id)
-    except Exception:  # noqa: BLE001
-        msgs = []
-    if not msgs:
-        return list(pending_here)
-    by_id = {str(it.get("messageId")): it for it in pending_here}
-    out = []
-    for m in msgs:
-        live = by_id.pop(str(m.get("id")), None)
-        row = {
-            "platform": platform, "chatId": chat_id,
-            "messageId": m.get("id"), "from": m.get("who") or "?",
-            "body": m.get("body") or "", "ts": m.get("ts") or 0,
-            "dir": m.get("dir") or "in", "read": bool(m.get("read")),
-        }
-        if m.get("mediaType"):
-            row["mediaType"] = m.get("mediaType")
-        if m.get("media"):
-            row["media"] = m.get("media")
-        if live is not None:
-            for k in ("n", "urgencia", "dirigido_a_mi", "motivo", "senderId", "subject", "msgid", "group"):
-                if live.get(k) is not None:
-                    row[k] = live.get(k)
-        out.append(row)
-    # A pending item with no counterpart in the thread (arrived before threads existed, or was pruned) is still
-    # the operator's mail — appended rather than dropped. Losing a real message to a bookkeeping gap is the one
-    # outcome this whole file exists to prevent.
-    for it in pending_here:
-        if str(it.get("messageId")) in by_id:
-            out.append(it)
-    out.sort(key=lambda r: float(r.get("ts") or 0))
-    return out
-
-
-def _thread_meta(db: dict, active: dict) -> dict | None:
-    """Where our copy of the conversation STARTS, so the widget can say it out loud instead of pretending the
-    thread begins there. Carries `can_load_more` — the button only exists where asking makes sense."""
-    try:
-        from . import thread
-        info = thread.meta(db, active.get("platform"), active.get("chatId"))
-    except Exception:  # noqa: BLE001
-        return None
-    info["platform"] = active.get("platform")
-    info["supports_history"] = active.get("platform") in _HISTORY_PLATFORMS
-    info["can_load_more"] = bool(info.get("can_load_more")) and info["supports_history"] and info["count"] > 0
-    return info
-
-
-def _known_chats(db: dict) -> list:
-    """Conversations we HOLD, pending or not (V2-546). The main list stays an INBOX — what still wants
-    attention — and that is deliberate: showing every recent chat there would turn a triage surface into a
-    second messaging app. But a conversation the operator has already dealt with is still one he can read, so
-    `open` resolves against these too. Without it, answering someone from your phone makes their chat
-    unopenable here: it leaves the inbox, and the inbox was the only index."""
-    out = []
-    for k, th in (db.get("threads") or {}).items():
-        platform, _, chat_id = str(k).partition("|")
-        if not chat_id or not isinstance(th, dict):
-            continue
-        name = th.get("name") or ""
-        if not name:
-            for m in th.get("msgs") or []:
-                if m.get("dir") == "in" and m.get("who"):
-                    name = m["who"]
-                    break
-        out.append({"platform": platform, "chatId": chat_id, "name": name or chat_id,
-                    "touched": float(th.get("touched") or 0)})
-    out.sort(key=lambda c: -c["touched"])
-    return out
-
-
-def _find_chat_by_name(db: dict, name: str):
-    """Resolve a spoken chat name against the pending list FIRST and the conversations we hold second. Order
-    matters: what is on screen wins over what is merely remembered."""
-    want = _norm_txt(name)
-    if not want:
-        return None
-    for pool in (_group_chats(_visible_items(db)), _known_chats(db)):
-        hit = next((c for c in pool
-                    if want in _norm_txt(c.get("name")) or _norm_txt(c.get("name")) in want), None)
-        if hit is not None:
-            return hit
-    return None
 
 
 def _resolve_target(db: dict, n=None, mid: str | None = None) -> dict | None:
@@ -412,6 +291,15 @@ def view_data(q: str = "") -> dict:
         # V2-611 — the operator's OWN signature, read fresh (a local config file, not a secret) so an edit in
         # the settings screen is visible immediately. [] = none set; the connector appends nothing at all.
         "email_signature": _email_signature(),
+        # V2-624 — the operator's per-platform lens criteria («actividad en las últimas 72 h») and, for each
+        # platform that HAS one, the conversations matching it. Both empty unless he set something: the classic
+        # lens costs nothing new.
+        "lens_criteria": {p: c for p in _PLATFORMS if (c := _criteria_for(db, p))},
+        "activity_chats": [row for p in _PLATFORMS if (c := _criteria_for(db, p))
+                           for row in _activity_chats(db, p, c["window_h"])],
+        # V2-624 — the autoresponder state, for the settings panel and read_widget. Only platforms with any
+        # config at all; {} costs nothing.
+        "autoresponder": _autoresponder_view(db),
     }
 
 
@@ -437,11 +325,62 @@ def answer_action(action: str, payload: dict | None = None) -> dict | None:
                     "error": "no reconozco esa vista — vuelve a llamar a show_view con `platform`: 'all' "
                              "(la lista principal unificada), 'whatsapp', 'telegram' o 'email'"}
         platform = _PLAT_ALIASES[raw]
-        chats = [c for c in _group_chats(_visible_items(load_db()))
+        db = load_db()
+        chats = [c for c in _group_chats(_visible_items(db))
                  if not platform or c.get("platform") == platform]
-        return {"result": {"platform": platform or "all", "count": len(chats),
-                           "chats": [{"n": c.get("n"), "name": c.get("name"), "platform": c.get("platform"),
-                                      "count": c.get("count")} for c in chats[:12]]}}
+        result = {"platform": platform or "all", "count": len(chats),
+                  "chats": [{"n": c.get("n"), "name": c.get("name"), "platform": c.get("platform"),
+                             "count": c.get("count")} for c in chats[:12]]}
+        # V2-624 — PREVIEW of the criterion the owner is about to persist (this hook must never write): with
+        # `window_h` in the order, answer with the activity rows that window yields RIGHT NOW; without it,
+        # with whatever criterion is already set.
+        if platform and "window_h" in payload:
+            try:
+                win = float(payload.get("window_h") or 0)
+            except (TypeError, ValueError):
+                return {"ok": False,
+                        "error": "window_h tiene que ser un número de HORAS (72 = últimos 3 días); "
+                                 "0 quita el criterio y vuelve a la vista de pendientes"}
+            if win > 0:
+                rows = _activity_chats(db, platform, min(win, _WINDOW_MAX_H))
+                result.update({"criteria": {"window_h": min(win, _WINDOW_MAX_H)},
+                               "activity_count": len(rows),
+                               "activity": [{"name": r["name"], "isGroup": r["isGroup"],
+                                             "unread": r["unread"], "inWindow": r["inWindow"]}
+                                            for r in rows[:12]]})
+                if platform in _FETCH_PLATFORMS and len(rows) < 3:
+                    result["detail"] = (f"solo tengo {len(rows)} conversación(es) guardadas en esa ventana — "
+                                        f"fetch_now {{platform:'{platform}'}} trae del conector la actividad "
+                                        f"real del período")
+        else:
+            result.update(_activity_answer(db, platform))
+        return {"result": result}
+    if action == "fetch_now":
+        raw = str(payload.get("platform") or "").strip().lower()
+        platform = _PLAT_ALIASES.get(raw, raw)
+        if platform not in _FETCH_PLATFORMS:
+            if platform == "whatsapp":
+                return {"ok": False,
+                        "error": ("WhatsApp no permite pedirle al teléfono las conversaciones en bloque: lo "
+                                  "nuevo llega solo en tiempo real, y de un chat CONCRETO que ya tengamos sí "
+                                  "puedo traer mensajes anteriores (open + load_more)")}
+            return {"ok": False,
+                    "error": "fetch_now necesita `platform`: 'telegram' o 'email'"}
+        try:
+            since = float(payload.get("since_hours") or _FETCH_DEFAULT_H)
+        except (TypeError, ValueError):
+            since = _FETCH_DEFAULT_H
+        since = max(1.0, min(since, _WINDOW_MAX_H))
+        return {"result": {"asked": True, "platform": platform, "since_hours": since,
+                           "detail": "pedido al conector — las conversaciones de ese período irán apareciendo "
+                                     "en unos segundos; vuelve a mirar (show_view o peek) cuando lleguen"}}
+    if action == "peek":
+        return _peek_answer(payload)
+    if action == "set_autoresponder":
+        return _autoresponder_preview(payload)
+    if action == "clear_autoresponder":
+        return {"result": {"cleared": True,
+                           "detail": "autorespondedor apagado y borrado — confírmaselo al operador"}}
     if action == "open":
         n, name = _open_ref(payload)
         if n is None and not name:
@@ -521,15 +460,101 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
         platform = _PLAT_ALIASES[raw]
         db = load_db()
         db["active_chat"] = None            # every list view exits an open thread ("volver" included)
+        # V2-624 — the per-platform view CRITERION («todas las conversaciones con actividad en las últimas 72
+        # horas»). `window_h` present = set it (0/negative clears, back to the classic pending view); absent =
+        # KEEP whatever he set before — the criterion is per-platform STATE, his words, not per-utterance. It
+        # persists until changed and stays VISIBLE on the lens (a chip with a ✕), never a silent mode.
+        if platform and "window_h" in payload:
+            try:
+                win = float(payload.get("window_h") or 0)
+            except (TypeError, ValueError):
+                return {"ok": False,
+                        "error": "window_h tiene que ser un número de HORAS (72 = últimos 3 días); "
+                                 "0 quita el criterio y vuelve a la vista de pendientes"}
+            crit = db.setdefault("lens_criteria", {})
+            if win > 0:
+                crit[platform] = {"window_h": min(win, _WINDOW_MAX_H)}
+            else:
+                crit.pop(platform, None)
         _push_view(db, platform)
         store.save(WIDGET_ID, db)
         out = view_data()
         chats = [c for c in out.get("chats", []) if not platform or c.get("platform") == platform]
+        result = {"platform": platform or "all", "count": len(chats),
+                  "chats": [{"n": c.get("n"), "name": c.get("name"), "platform": c.get("platform"),
+                             "count": c.get("count")} for c in chats[:12]]}
+        result.update(_activity_answer(load_db(), platform))
+        return {"ok": True, "result": result, **out}
+
+    # PULL through the connector, on demand (V2-624 — the operator's «¿puedes ir al conector y chupar más
+    # mensajes?», refused honestly on 2026-09-08 because no such door existed). Enqueues a platform-wide
+    # fetch the connector serves against its real source; what arrives lands in the CONVERSATIONS as
+    # scrollback (never in triage — pulling the past must not interrupt anybody).
+    if action == "fetch_now":
+        raw = str(payload.get("platform") or "").strip().lower()
+        platform = _PLAT_ALIASES.get(raw, raw)
+        if platform not in _FETCH_PLATFORMS:
+            if platform == "whatsapp":
+                return {"ok": False,
+                        "error": ("WhatsApp no permite pedirle al teléfono las conversaciones en bloque: lo "
+                                  "nuevo llega solo en tiempo real, y de un chat CONCRETO que ya tengamos sí "
+                                  "puedo traer mensajes anteriores (open + load_more)")}
+            return {"ok": False,
+                    "error": "fetch_now necesita `platform`: 'telegram' o 'email' (WhatsApp no soporta la "
+                             "traída en bloque; ver su propio error)"}
+        try:
+            since = float(payload.get("since_hours") or _FETCH_DEFAULT_H)
+        except (TypeError, ValueError):
+            since = _FETCH_DEFAULT_H
+        since = max(1.0, min(since, _WINDOW_MAX_H))
+        db = load_db()
+        db.setdefault("pending_fetch", []).append({"platform": platform, "since_hours": since})
+        store.save(WIDGET_ID, db)
         return {"ok": True,
-                "result": {"platform": platform or "all", "count": len(chats),
-                           "chats": [{"n": c.get("n"), "name": c.get("name"), "platform": c.get("platform"),
-                                      "count": c.get("count")} for c in chats[:12]]},
-                **out}
+                "result": {"asked": True, "platform": platform, "since_hours": since,
+                           "detail": "se lo he pedido al conector; las conversaciones de ese período irán "
+                                     "apareciendo en unos segundos"},
+                **view_data()}
+
+    # THE AUTORESPONDER (V2-624 — the INI-014 «Phase 4» go-ahead). Config only: the decision runs in
+    # autorespond.py at the owner's ingest, the send travels the same reply seam a dictated reply uses.
+    if action == "set_autoresponder":
+        from . import autorespond
+        raw = str(payload.get("platform") or "all").strip().lower()
+        plats = list(_PLATFORMS) if raw in ("all", "todas", "todos", "") else [_PLAT_ALIASES.get(raw, raw)]
+        if any(p not in _PLATFORMS for p in plats):
+            return {"ok": False,
+                    "error": "set_autoresponder necesita `platform`: 'whatsapp', 'telegram', 'email' o 'all'"}
+        text = payload.get("text")
+        enabled = payload.get("enabled")
+        db = load_db()
+        if enabled and not str(text or "").strip() and \
+                not any(autorespond.config_for(db, p)["text"] for p in plats):
+            return {"ok": False,
+                    "error": "no hay ningún mensaje que responder — pásame `text` con lo que debe contestar"}
+        try:
+            for p in plats:
+                autorespond.set_config(db, p, text=text, hours=payload.get("hours"), enabled=enabled)
+        except ValueError as e:
+            return {"ok": False, "error": str(e)}
+        store.save(WIDGET_ID, db)
+        return {"ok": True, "result": {"autoresponder": _autoresponder_view(db)}, **view_data()}
+
+    if action == "clear_autoresponder":
+        from . import autorespond
+        raw = str(payload.get("platform") or "all").strip().lower()
+        plats = list(_PLATFORMS) if raw in ("all", "todas", "todos", "") else [_PLAT_ALIASES.get(raw, raw)]
+        db = load_db()
+        for p in plats:
+            if p in _PLATFORMS:
+                autorespond.clear_config(db, p)
+        store.save(WIDGET_ID, db)
+        return {"ok": True, "result": {"autoresponder": _autoresponder_view(db)}, **view_data()}
+
+    # `peek` is ANSWER-ONLY (V2-624): answer_action returns the conversation's content and nothing here has
+    # anything to mutate. Falling through to the generic branch would re-save the store for a read.
+    if action == "peek":
+        return view_data()
 
     # Connection control, executed by the supervisor, not the widget.
     if action in ("connect", "disconnect"):
@@ -729,6 +754,18 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
     if action == "open":
         n, name = _open_ref(payload)
         db = load_db()
+        # V2-624 — a DIRECT identity (platform + chatId), the address an activity-view row carries. Only a
+        # conversation we actually hold: opening an arbitrary identity would paint an empty thread.
+        if payload.get("platform") and payload.get("chatId") is not None and n is None and not name:
+            from . import thread as _th
+            key_ = (payload.get("platform"), payload.get("chatId"))
+            if _th.window(db, *key_) or any(
+                    (it.get("platform"), str(it.get("chatId"))) == (key_[0], str(key_[1]))
+                    for it in db.get("items", [])):
+                db["active_chat"] = {"platform": key_[0], "chatId": key_[1]}
+                store.save(WIDGET_ID, db)
+                return view_data()
+            return {"ok": False, "error": "no tengo esa conversación guardada", **view_data()}
         chats = _group_chats(_visible_items(db))
         match = None
         if n is not None:

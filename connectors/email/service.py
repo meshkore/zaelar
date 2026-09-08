@@ -112,6 +112,7 @@ _reply_inbox = None              # v2: msg.reply subscription (created in THIS l
 _archive_inbox = None            # V2-543: msg.archive subscription
 _trash_inbox = None              # V2-543: msg.trash subscription
 _history_inbox = None            # V2-546: msg.history subscription ("load previous")
+_fetch_inbox = None              # V2-624: msg.fetch subscription (platform-wide pull)
 
 
 def _media_dir() -> str | None:
@@ -344,6 +345,56 @@ async def _drain_history(mb) -> None:
         logger.info(f"Email: +{len(rows)} mensajes anteriores de {chat_id}")
 
 
+async def _drain_fetch(mb) -> None:
+    """Serve a platform-wide pull (V2-624 — «chupar más mensajes», «la actividad de las últimas 72 horas»).
+    IMAP searches the whole mailbox by date, so this is exact to the cutoff DAY (the search granularity) and
+    trimmed to the hour here. Everything lands in the CONVERSATIONS as read scrollback via the same
+    connector.history seam "load previous" uses — never in triage: pulling the past must not interrupt.
+    `parse_message`'s automated-sender filter applies on purpose: this widget is a triage surface, and the
+    newsletters it never shows live are not «conversations» when pulled either."""
+    if _fetch_inbox is None:
+        return
+    for order in _fetch_inbox.drain():
+        try:
+            hours = max(1.0, float(order.get("since_hours") or 72))
+        except (TypeError, ValueError):
+            hours = 72.0
+        msgs = await asyncio.to_thread(mb.search_since, hours, 100, _media_dir())
+        import time as _t
+        cutoff = _t.time() - hours * 3600
+        by_chat: dict[str, list[dict]] = {}
+        for m in msgs:
+            ts = float(m.get("timestamp") or 0)
+            if ts and ts < cutoff:
+                continue                     # SINCE over-fetches to the start of the cutoff day
+            by_chat.setdefault(str(m.get("chatId") or "?"), []).append(m)
+        total = 0
+        for chat_id, rows_in in by_chat.items():
+            rows = []
+            for m in rows_in:
+                subject = (m.get("subject") or "").strip()
+                body = m.get("body") or ""
+                rows.append({"messageId": m.get("messageId"), "dir": "in",
+                             "from": m.get("senderName") or chat_id,
+                             "body": f"{subject}\n{body}" if subject and not body.startswith("[Asunto:") else body,
+                             "ts": m.get("timestamp") or 0, "read": True})
+            name = next((m.get("senderName") for m in rows_in if m.get("senderName")), chat_id)
+            ingest.publish_history(PLATFORM, chat_id, rows, name=name, is_group=False)
+            total += len(rows)
+        logger.info(f"Email: fetch de {hours:.0f}h → {total} mensajes en {len(by_chat)} conversación(es)")
+        try:
+            from voice import brain_notes
+            if total:
+                brain_notes.push(f"[SISTEMA] Traída de Email hecha: {total} mensaje(s) de las últimas "
+                                 f"{hours:.0f} h en {len(by_chat)} conversación(es), ya en el widget de "
+                                 f"mensajería. Cuéntaselo al operador.")
+            else:
+                brain_notes.push(f"[SISTEMA] Traída de Email hecha: no hay correos (no automáticos) en las "
+                                 f"últimas {hours:.0f} h. Díselo al operador tal cual.")
+        except Exception:
+            pass
+
+
 async def _drain_disposals(mb) -> None:
     """Drain archive/delete orders (V2-543) and execute them in the REAL mailbox. The widget already removed
     the item and (for trash) the confirm gate already asked; a failure is TOLD, never silently retried — same
@@ -373,7 +424,7 @@ async def _drain_disposals(mb) -> None:
 
 
 async def _loop() -> None:
-    global _mark_inbox, _reply_inbox, _archive_inbox, _trash_inbox, _history_inbox
+    global _mark_inbox, _reply_inbox, _archive_inbox, _trash_inbox, _history_inbox, _fetch_inbox
     _set_status("starting", None, "Conectando con el servidor de correo…")
     mb = config.mailbox()
     if mb is None:
@@ -398,6 +449,8 @@ async def _loop() -> None:
             _trash_inbox = ingest.TrashInbox(PLATFORM)
         if _history_inbox is None:
             _history_inbox = ingest.HistoryAskInbox(PLATFORM)
+        if _fetch_inbox is None:
+            _fetch_inbox = ingest.FetchInbox(PLATFORM)
     _set_status("connected", None, f"Conectado como {config.address()}.")
     logger.info(f"Email conectado ({config.address()}) — escuchando tu buzón")
     while True:
@@ -417,7 +470,8 @@ async def _loop() -> None:
             await _drain_disposals(mb)
         except Exception as e:
             logger.debug(f"Email disposal tick: {e}")
-        for what, fn in (("flags", _poll_external_flags), ("history", _drain_history)):
+        for what, fn in (("flags", _poll_external_flags), ("history", _drain_history),
+                         ("fetch", _drain_fetch)):
             try:
                 await fn(mb)
             except Exception as e:  # noqa: BLE001

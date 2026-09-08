@@ -105,8 +105,37 @@ def _platform_states() -> str:
         + " ".join(lines) + tail
 
 
+def _pro_state() -> str:
+    """V2-624 — live state the manifest cannot carry: the active autoresponder(s) and any per-platform view
+    criterion. Empty when nothing is set (zero prompt cost). Declared so the model neither narrates a
+    capability that is off nor forgets one that is speaking for the operator right now."""
+    try:
+        from widgets.mensajeria import autorespond, data as _mdata
+        db = _mdata.load_db()
+    except Exception:  # noqa: BLE001
+        return ""
+    parts = []
+    try:
+        for p in autorespond.active_platforms(db):
+            cfg = autorespond.config_for(db, p)
+            win = f", franja {cfg['hours']}" if cfg.get("hours") else ""
+            parts.append(f"AUTORRESPONDEDOR ACTIVO en {_LABEL.get(p, p)} («{cfg['text'][:60]}»{win}) — "
+                         f"contesta solo, 1 vez/chat/24h; se apaga con clear_autoresponder")
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        for p, crit in (db.get("lens_criteria") or {}).items():
+            win = float((crit or {}).get("window_h") or 0)
+            if win > 0:
+                parts.append(f"la vista de {_LABEL.get(p, p)} está fijada a ACTIVIDAD de las últimas "
+                             f"{win:.0f} h (show_view con window_h:0 la quita)")
+    except Exception:  # noqa: BLE001
+        pass
+    return (" [" + " · ".join(parts) + "]") if parts else ""
+
+
 def for_brain() -> str:
-    body = PROTOCOL + "\n" + _platform_states()
+    body = PROTOCOL + "\n" + _platform_states() + _pro_state()
     try:
         from widgets.mensajeria import data
         v = data.view_data()

@@ -1823,6 +1823,20 @@ DOMAINS: list[dict] = [
                                  "de la suya",
             "ch": UNIT,
             "paths": ["tests/browser/e2e/mensajeria/test_mensajeria_render.py"]},
+        # V2-624 — messaging pro: the per-platform ACTIVITY criterion («conversaciones con movimiento en las
+        # últimas 72 h», persisted per platform, visible bar with its off switch), the fetch_now door to the
+        # connector (WhatsApp refused honestly — its transport has no bulk pull), `peek` (a conversation
+        # handed whole to the brain for summarizing/extracting, budget-clamped, newest first), and the
+        # AUTORESPONDER (never groups, email only when addressed to him, once per chat per 24 h against a
+        # durable ledger, hours window with wrap-around). The rendered file proves the bar/rows/buttons
+        # actually paint and fire — a criterion whose bar never paints is a silent mode.
+        {"id": "4.134", "title": "Mensajería pro: criterio de actividad por plataforma, fetch_now, peek "
+                                 "(la conversación entera al cerebro) y el autorrespondedor",
+            "ch": UNIT,
+            "paths": ["tests/browser/unit/mensajeria/test_view_criteria_and_the_fetch_door.py",
+                      "tests/browser/unit/mensajeria/test_peek_hands_the_conversation_whole.py",
+                      "tests/browser/unit/mensajeria/test_the_autoresponder_speaks_once_and_never_in_groups.py",
+                      "tests/browser/e2e/mensajeria/test_the_activity_lens_paints_and_clears.py"]},
         # The source-level node above cannot see that the orb is a black hole in the middle of the bar: on
         # 2026-08-18 it was, at 0 painted pixels, while that node stayed green counting canvases. This one
         # RENDERS the shell at phone size and measures it. Self-contained (it starts its own preview server,
@@ -2155,6 +2169,18 @@ DOMAINS: list[dict] = [
             "paths": ["tests/connectors/unit/email/test_reset_reseeds_the_backlog.py",
                       "tests/connectors/unit/messaging/test_reseed_after_reset.py",
                       "tests/agent_headless/unit/test_reset_reseeds_messaging_connectors.py"]},
+        # V2-624 — la mitad CONECTOR de «chupar más mensajes»: la traída en bloque (msg.fetch). Telegram
+        # enumera sus propios diálogos (la primera conversación rancia CORTA el paseo — llegan ordenadas por
+        # recencia —, un canal broadcast se excluye, y cada lote publica el NOMBRE y la marca de grupo del
+        # diálogo para que un hilo nacido de la traída quede bien etiquetado); el email busca por fecha
+        # (SINCE es de día — el servicio recorta a la hora por el timestamp de cada mensaje) y agrupa por
+        # remitente. Todo aterriza como scrollback LEÍDO por la misma costura connector.history de «cargar
+        # anteriores» — nunca en el triaje: traer el pasado no interrumpe a nadie.
+        {"id": "5.20", "title": "La traída en bloque (fetch_now) del conector: Telegram pasea sus diálogos "
+                                "recientes y el email busca por fecha — todo llega como scrollback etiquetado",
+            "ch": UNIT,
+            "paths": ["tests/connectors/unit/email/test_fetch_pulls_the_activity_window.py",
+                      "tests/connectors/unit/telegram/test_fetch_walks_recent_dialogs.py"]},
         # 2026-08-21, medido en vivo por el arnés: TRES workers conduciendo la MISMA pestaña (46+27+7 acciones
         # entrelazadas), y uno pulsando `click [29]` sobre una página que otro acababa de cambiar. Las refs se
         # reparten al MIRAR (V2-248), así que el mismo número es otro elemento: en una página con botón de pagar

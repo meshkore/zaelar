@@ -27,6 +27,7 @@ _seen: set[str] = set()          # already shown messageIds (do not resurrect wh
 _mark_inbox = None               # v2 stateless: msg.mark_read subscription (created in the loop; see ingest.py)
 _reply_inbox = None              # V2-521: msg.reply subscription (created in the loop)
 _history_inbox = None            # V2-546: msg.history subscription (created in the loop)
+_fetch_inbox = None              # V2-624: msg.fetch subscription (platform-wide pull)
 
 
 def enabled() -> bool:
@@ -288,6 +289,57 @@ async def _history_entry(msg, chat_id) -> dict:
     return entry
 
 
+async def _drain_fetch() -> None:
+    """Serve a platform-wide pull (V2-624 — «chupar más mensajes», «la actividad de las últimas 72 horas»).
+    Telegram is the platform where this is EXACT: the account enumerates its own dialogs, so «conversations
+    with movement in the window» is a real query, not an approximation. Broadcast channels are excluded on
+    purpose — a channel is a feed, not a conversation the operator has. Everything lands in the CONVERSATIONS
+    as read scrollback via the same connector.history seam "load previous" uses — never in triage: pulling
+    the past must not interrupt anybody. Caps: 60 dialogs walked, 20 messages per chat, so a busy account
+    cannot turn one voice order into thousands of fetches."""
+    if _fetch_inbox is None:
+        return
+    for order in _fetch_inbox.drain():
+        try:
+            hours = max(1.0, float(order.get("since_hours") or 72))
+        except (TypeError, ValueError):
+            hours = 72.0
+        import datetime as _dt
+        cutoff = _dt.datetime.now(_dt.timezone.utc) - _dt.timedelta(hours=hours)
+        chats = total = 0
+        try:
+            async for dialog in _client.iter_dialogs(limit=60):
+                if dialog.date is None or dialog.date < cutoff:
+                    break                    # dialogs come newest-first: the first stale one ends the walk
+                if dialog.is_channel and not dialog.is_group:
+                    continue                 # broadcast feed, not a conversation
+                msgs = await _client.get_messages(dialog.entity, limit=20)
+                rows = []
+                for m in msgs or []:
+                    try:
+                        if m.date is None or m.date < cutoff:
+                            continue
+                    except TypeError:
+                        continue
+                    rows.append(await _history_entry(m, dialog.id))
+                if not rows:
+                    continue
+                ingest.publish_history("telegram", dialog.id, rows,
+                                       name=dialog.name or "", is_group=bool(dialog.is_group))
+                chats += 1
+                total += len(rows)
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"Telegram fetch: {e}")
+            _note(f"[SISTEMA] La traída de Telegram falló ({e}). Díselo al operador.")
+            continue
+        logger.info(f"Telegram: fetch de {hours:.0f}h → {total} mensajes en {chats} conversación(es)")
+        _note(f"[SISTEMA] Traída de Telegram hecha: {total} mensaje(s) de las últimas {hours:.0f} h en "
+              f"{chats} conversación(es), ya en el widget de mensajería. Cuéntaselo al operador."
+              if total else
+              f"[SISTEMA] Traída de Telegram hecha: no hay conversaciones con actividad en las últimas "
+              f"{hours:.0f} h. Díselo al operador tal cual.")
+
+
 def _tg_msg_id(raw) -> int | None:
     """Our wire messageId is the composite '<chat_id>:<msg_id>' (service-made, `_normalize`). The per-chat
     Telegram id is the part AFTER the colon. int('<chat>:<id>') raises — which is exactly how replies silently
@@ -428,13 +480,15 @@ async def _loop() -> None:
         except Exception as e:  # noqa: BLE001
             logger.debug(f"Telegram read receipt: {e}")
 
-    global _mark_inbox, _reply_inbox, _history_inbox
+    global _mark_inbox, _reply_inbox, _history_inbox, _fetch_inbox
     if ingest.v2_enabled() and _mark_inbox is None:
         _mark_inbox = ingest.MarkReadInbox("telegram")   # subscription in THIS loop (server) -> direct delivery
     if ingest.v2_enabled() and _reply_inbox is None:
         _reply_inbox = ingest.ReplyInbox("telegram")     # V2-521: dictated replies, same delivery path
     if ingest.v2_enabled() and _history_inbox is None:
         _history_inbox = ingest.HistoryAskInbox("telegram")   # V2-546: "load previous"
+    if ingest.v2_enabled() and _fetch_inbox is None:
+        _fetch_inbox = ingest.FetchInbox("telegram")     # V2-624: platform-wide pull
     _set_status("connected", None)
     # Telethon dispatches updates only while the loop runs; this batching task coexists with that delivery.
     while True:
@@ -458,7 +512,7 @@ async def _loop() -> None:
         except Exception as e:
             logger.debug(f"Telegram replies tick: {e}")
         for what, fn in (("outbox", _drain_outbox), ("read marks", _drain_read_marks),
-                         ("history", _drain_history)):
+                         ("history", _drain_history), ("fetch", _drain_fetch)):
             try:
                 await fn()
             except Exception as e:  # noqa: BLE001

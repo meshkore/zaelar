@@ -639,6 +639,45 @@ class Mailbox:
                 pass
         return results, reached_start
 
+    def search_since(self, hours: float, limit: int = 100,
+                     media_dir: str | None = None) -> list[dict]:
+        """INBOX mail from the last `hours` hours, newest capped at `limit`, parsed (V2-624 — the platform-wide
+        pull: «tráete la actividad de las últimas 72 horas»). IMAP's SINCE compares the internal date at DAY
+        granularity, so the search over-fetches to the start of the cutoff day and the SERVICE trims by the
+        message's own timestamp — this method promises «no older than the cutoff day», not the exact hour.
+        BODY.PEEK like every read here: pulling activity must not mark anything read."""
+        import datetime as _dt
+        results: list[dict] = []
+        try:
+            im = self._imap()
+        except Exception:
+            return results
+        try:
+            im.select("INBOX")
+            since = (_dt.datetime.now() - _dt.timedelta(hours=float(hours))).strftime("%d-%b-%Y")
+            st, data = im.uid("search", None, "SINCE", since)
+            if st != "OK" or not data or not data[0]:
+                return results
+            uids = sorted(int(u) for u in data[0].split())
+            for uid in uids[-max(1, int(limit)):]:
+                st2, msg_data = im.uid("fetch", str(uid), "(BODY.PEEK[])")
+                if st2 != "OK" or not msg_data or not msg_data[0]:
+                    continue
+                try:
+                    parsed = parse_message(str(uid), msg_data[0][1], media_dir=media_dir)
+                except Exception:
+                    parsed = None
+                if parsed is not None:
+                    results.append(parsed)
+        except Exception:
+            pass
+        finally:
+            try:
+                im.logout()
+            except Exception:
+                pass
+        return results
+
     def mark_seen(self, uids: list[str]) -> bool:
         """Mark the given UIDs as \\Seen (read on the server). True if OK (batch best-effort)."""
         uids = [u for u in (uids or []) if u]

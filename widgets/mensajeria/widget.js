@@ -309,6 +309,17 @@ function injectStyles(){
   .hb-msg .empty{text-align:center;color:var(--hb-muted-2,#9aa7b8);font-size:13px;padding:22px 0}
   .hb-msg .rest{text-align:center;color:var(--hb-muted-2,#9aa7b8);font-size:11px;opacity:.75;padding:8px 0 2px}
 
+  /* ACTIVITY criterion bar (V2-624): the per-platform view criterion the operator set, always visible with
+     its own off switch — a lens in a mode he cannot see is a lens that lies. */
+  .hb-msg .critbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:2px 0 8px;
+    padding:6px 10px;border:1px solid var(--hb-line,#e3e8f0);border-radius:8px;
+    background:var(--hb-hover,#eef3f9)}
+  .hb-msg .critlbl{font-size:12px;font-weight:600;color:var(--hb-ink,#26313d)}
+  .hb-msg .critfetch{margin-left:auto;font-size:12px;padding:3px 8px}
+  .hb-msg .critoff{flex:0 0 auto;border:0;background:transparent;cursor:pointer;font-size:13px;
+    color:var(--hb-muted-2,#9aa7b8);padding:2px 4px}
+  .hb-msg .critoff:hover{color:var(--hb-risk,#e5484d)}
+
   /* NARROW SCREENS (V2-559). MEASURED FIRST, and the measurement removed most of what was written here:
      rendered at 375px in six states (connect panel with three failures, both wizards, the QR, the chat list
      and an open thread), NOTHING was clipped and nothing left the viewport, and the wrap rules drafted for the
@@ -864,6 +875,28 @@ function settingsPanel(platforms, data, ctx, rerender){
   // Connect/disconnect lives in the CHANNELS panel from the header button, with credential-deletion confirmation.
   // Settings only contains profile + muted channels, to avoid two different disconnection paths.
 
+  // V2-624 — the autoresponder's state, VISIBLE: something that answers people in the operator's name while
+  // he is away must never be a mode he has to remember. Configured by voice (set_autoresponder); this panel
+  // shows it and offers the off switch.
+  const auto = data.autoresponder || {};
+  const autoOn = Object.keys(auto).filter(p=> (auto[p]||{}).enabled);
+  if(autoOn.length){
+    wrap.appendChild(el("div","stitle","Autorespondedor"));
+    const box = el("div","conns");
+    autoOn.forEach(p=>{
+      const cfg = auto[p] || {};
+      const chip = el("span","ok");
+      const win = cfg.hours ? (" · " + cfg.hours) : "";
+      chip.append(document.createTextNode("🤖 " + ((PLAT[p]||{}).label||p) + win + " — «" +
+                                          String(cfg.text||"").slice(0,80) + "»"));
+      const off = el("span","lk","quitar");
+      off.onclick = ()=>{ off.textContent="…"; ctx.action("clear_autoresponder", {platform: p}); };
+      chip.append(document.createTextNode(" · "), off);
+      box.appendChild(chip);
+    });
+    wrap.appendChild(box);
+  }
+
   const muted = data.muted_channels||[];
   if(muted.length){
     wrap.appendChild(el("div","stitle","Silenciados"));
@@ -1146,6 +1179,60 @@ function mailDetail(it, data, ctx, closeMail, rerender){
 
 // CHAT list (simple profile, default): one item per conversation instead of per message. Shows name, pending
 // count, and the last message as preview. Click, or [[msg.open:N]] by voice, enters the full thread.
+// ── ACTIVITY view (V2-624) ──────────────────────────────────────────────────
+// A lens whose platform carries a view CRITERION («conversaciones con actividad en las últimas 72 h») lists
+// CONVERSATIONS from the thread store — movement includes what he already read and what he himself sent —
+// instead of the pending inbox. The criterion is per-platform STATE the operator set, so it is VISIBLE (a bar
+// with a ✕), never a silent mode; without one, the lens stays byte-for-byte the classic pending view.
+function fmtWindow(h){
+  const n = Number(h||0);
+  if(n <= 48) return "últimas " + Math.round(n) + " h";
+  return "últimos " + Math.round(n/24) + " días";
+}
+
+function criteriaBar(platform, crit, ctx, rerender){
+  const bar = el("div","critbar");
+  bar.appendChild(el("span","critlbl","Actividad · " + fmtWindow(crit.window_h)));
+  if(platform === "telegram" || platform === "email"){
+    const fetchBtn = el("button","bt bt-ghost critfetch","⟳ Traer del conector");
+    fetchBtn.title = "Pedirle al conector las conversaciones con actividad en ese período";
+    fetchBtn.onclick = ()=>{ fetchBtn.textContent = "⟳ Pedido…"; fetchBtn.disabled = true;
+      ctx.action("fetch_now", {platform: platform, since_hours: crit.window_h}); };
+    bar.appendChild(fetchBtn);
+  }
+  const off = el("button","critoff","✕");
+  off.title = "Quitar el criterio (volver a la vista de pendientes)";
+  off.onclick = ()=> ctx.action("show_view", {platform: platform, window_h: 0});
+  bar.appendChild(off);
+  return bar;
+}
+
+function activityList(rows, ctx){
+  const wrap = el("div","tl");
+  rows.forEach(c=>{
+    const row = el("div","trow chatrow");
+    row.title = "Abrir conversación";
+    const lead = el("span","tlead");
+    lead.style.background = c.unread ? "var(--hb-accent,#3D6FE0)" : "transparent";
+    row.appendChild(lead);
+    const main = el("div","tmain");
+    const head = el("div","thead");
+    head.appendChild(platformChip(c.platform));
+    head.appendChild(el("span","tfrom", c.name));
+    if(c.unread) head.appendChild(el("span","tcount", String(c.unread)));
+    if(c.isGroup) head.appendChild(el("span","tpara","· grupo"));
+    const when = fmtWhen(c.lastTs);
+    if(when) head.appendChild(el("span","twhen", when));
+    main.appendChild(head);
+    const who = c.lastFrom ? c.lastFrom + ": " : "";
+    main.appendChild(el("div","tprev", who + displayBody(c.lastBody, c.lastMediaType)));
+    row.appendChild(main);
+    row.onclick = ()=> { ctx.top(); ctx.action("open", {platform: c.platform, chatId: c.chatId}); };
+    wrap.appendChild(row);
+  });
+  return wrap;
+}
+
 function chatList(chats, ctx){
   const wrap = el("div","tl");
   chats.forEach(c=>{
@@ -1567,6 +1654,20 @@ export function render(root, data, ctx){
   const emptyMsg = _platFilter
     ? "Nada de "+((PLAT[_platFilter]||{}).label||_platFilter)+" que atender ✓"
     : (hidden ? "Nada dirigido a ti ✓" : "Nada que atender ahora ✓");
+  // V2-624 — the ACTIVITY view wins the lens when its platform has a criterion set: it is a different
+  // question («qué se ha movido») than the pending inbox («qué me espera»), and the operator set it
+  // explicitly. Applies in BOTH profiles — it is a lens-level view, not a density preference.
+  const crit = _platFilter ? (data.lens_criteria || {})[_platFilter] : null;
+  if(crit){
+    root.appendChild(criteriaBar(_platFilter, crit, ctx, rerender));
+    const rows = (data.activity_chats || []).filter(r=> r.platform === _platFilter);
+    if(rows.length) root.appendChild(activityList(rows, ctx));
+    else root.appendChild(el("div","empty",
+      "Sin conversaciones guardadas con actividad en ese período" +
+      ((_platFilter === "telegram" || _platFilter === "email")
+        ? " — «Traer del conector» las pide de verdad" : "")));
+    return;
+  }
   if(_profile==="completo"){
     if(fItems.length) root.appendChild(richList(fItems, ctx));
     else root.appendChild(el("div","empty",emptyMsg));

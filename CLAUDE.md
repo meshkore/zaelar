@@ -470,6 +470,54 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **Messaging pro: fetch on demand, per-platform view criteria, `peek` for analysis, and the autoresponder
+  (V2-624, 2026-09-09)**: the operator's directive after driving the widget live (sid `952fcf2f`) and
+  hitting two honest refusals — «todas las conversaciones con actividad en las últimas 72 horas» had no
+  criterion anywhere, and «¿puedes ir al conector y chupar más mensajes?» had no door. His governing
+  constraint: strictly incremental — «respeta lo que ya funciona y añade lo nuevo… no alterar los circuitos
+  de memoria». Detail: the V2-624 initiative. Four additive capabilities, zero rewrites:
+  - **`fetch_now {platform, since_hours}`** — a platform-wide pull through the connector, the same
+    queue→bus round-trip shape as `load_more` (`msg.fetch` topic, per-platform `FetchInbox`). Telegram
+    walks its own dialogs (newest-first: the FIRST stale one ends the walk; broadcast channels excluded —
+    a feed is not a conversation); email searches IMAP `SINCE` (day-granular — the service trims to the
+    hour by each message's own timestamp). Everything lands in the CONVERSATIONS as read scrollback via
+    the existing `connector.history` seam, never in triage: pulling the past must not interrupt anybody.
+    **WhatsApp refuses honestly, naming what IS possible** (realtime + per-chat `load_more`) — its bridge
+    has no bulk door, and offering one that cannot work is worse. `publish_history` gained optional
+    `name`/`isGroup` so a thread BORN from a pull is labeled correctly (a group named after whichever
+    member spoke first reads as a different conversation); a name a live message already wrote wins.
+  - **`show_view {window_h}`** — the per-platform view CRITERION, persisted until changed (his words:
+    criteria are per-platform state, not per-utterance; a plain `show_view` keeps it, `0` clears it). With
+    one set, that platform's lens lists conversations from the THREAD store with movement in the window —
+    «movimiento» includes what he read and what he sent — under a VISIBLE bar (label + ✕ + a «traer del
+    conector» button exactly where the transport can serve it). Without one, the lens stays byte-for-byte
+    the classic pending view. Activity rows carry no `n` on purpose (they open by identity,
+    platform+chatId — a second numbering space colliding with the chat list's would open wrong chats).
+  - **`peek {name|limit}`** — a conversation handed WHOLE to the brain (≤40 msgs, per-body and total
+    budget, newest win), so the model summarizes/extracts IN the turn: «dame lo relevante del grupo del
+    viaje», «la esencia de esos correos». Read-only by construction: the thread store IS the segregated
+    data his storage doctrine describes; analysis is a READ of it, never an index into memory — the memory
+    circuits (`kind='msg'` short-level ingestion, unchanged) were deliberately not touched.
+  - **The autoresponder** — the «Phase 4» `connectors/whatsapp/client.py` has named since INI-014, now
+    with its go-ahead. `set_autoresponder {platform|all, text, hours?}` (confirm-gated: it speaks for
+    him), decision whole in `autorespond.py` (zero-import, the policy.py placement): NEVER a group, email
+    only when `dirigido_a_mi`, hours window with wrap-around («22:00-08:00»), once per chat per 24 h
+    against a DURABLE ledger (V2-607: an in-memory guard cannot dedupe a durable source). The send rides
+    the EXISTING `msg.reply` seam — each connector's tested send path, echoed into the thread by the
+    existing outbound-capture seams; the original item is NOT marked read: an automatic «estoy fuera» does
+    not deal with the message. State is VISIBLE (settings panel chip + a brief line for the brain — an
+    undeclared capability is one the model narrates, V2-540) and **survives a Reset** (`blank()` preserves
+    `autoresponder`/`lens_criteria`: config is not «messages and queues»).
+  - The architecture ratchet fired on `data.py` (1184 > 900) and was paid by EXTRACTING `views.py` (the
+    read side: name resolution, thread/activity views, peek, previews, `_group_chats`) — one-directional
+    seam, lazy back-imports, 892/313 after. ⚠️ One disarm came back GREEN on its first anchor: the
+    mutation hit the `answer_action` PREVIEW instead of the `apply_action` branch — the same code shape
+    exists twice (preview computes what the owner will persist), so a disarm must anchor on something
+    unique to the function it claims to disarm (the V2-571 lesson, paid again).
+  - Nodes **4.134** (4 files: criteria/fetch/peek/autoresponder + the RENDERED activity lens) and
+    **5.20** (the two connector fetch drains, faked at the transport). Six disarms red. Sweeps:
+    mensajería+connectors 445, infrastructure 648, `make test-widgets` 14/14.
+
 - **A redundant media label, and a thread/mail screen stops stacking the dashboard header above its own
   (V2-622, 2026-09-08)**: two operator reports in the same message. (1) A voice-note bubble printed "🎵
   Audio" as a text line right above its own player — *"no hace falta poner 'audio', ya se ve no?"* (2) On a
