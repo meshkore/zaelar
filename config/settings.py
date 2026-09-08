@@ -177,13 +177,55 @@ def effective() -> dict:
              [("15 s", "15"), ("30 s", "30"), ("60 s", "60"), ("120 s", "120")], "live",
              "segundos que sigue atendiendo sin repetir «zaelar» tras dirigirte a él (modo inteligente)"),
     ]
-    return {"knobs": knobs, "free_text": [], "voices_by_provider": voices_by_provider}
+    return {"knobs": knobs, "free_text": [], "voices_by_provider": voices_by_provider, "theme": theme()}
+
+
+import re as _re
+
+# Appearance (V2-617): the ⚙ Apariencia tab persists the design profile + custom knobs HERE so the choice
+# belongs to the ACCOUNT (settings.json travels with a cloud Machine's Volume), not to one browser's
+# localStorage. The backend stores and sanitizes; the CATALOG of valid profiles/fonts lives in the frontend
+# (app/core/themes.js), which already falls back to the default on an id it does not know — so a slug is
+# validated for SHAPE here, never against a mirrored list that would drift.
+_SLUG_RE = _re.compile(r"^[a-z0-9_-]{1,32}$")
+_HEX_RE = _re.compile(r"^#[0-9a-fA-F]{6}$")
+
+
+def _sanitize_theme_custom(raw) -> dict:
+    """Keep only the knobs the theme service understands, each shape-checked. Unknown keys and malformed
+    values are DROPPED silently: this dict is echoed into inline CSS on every client, so it is the one
+    place a stored value must never be able to carry anything but a color, a size step or a font id."""
+    out = {}
+    if not isinstance(raw, dict):
+        return out
+    if _HEX_RE.match(str(raw.get("accent") or "")):
+        out["accent"] = str(raw["accent"])
+    if str(raw.get("fs") or "") in ("s", "m", "l"):
+        out["fs"] = str(raw["fs"])
+    if _SLUG_RE.match(str(raw.get("font") or "")):
+        out["font"] = str(raw["font"])
+    return out
+
+
+def theme() -> dict:
+    """The persisted appearance choice, for /api/settings GET (the boot reconcile in services/theme.js)."""
+    d = _read()
+    return {"profile": d.get("theme_profile") or "", "custom": _sanitize_theme_custom(d.get("theme_custom"))}
 
 
 def update(payload: dict) -> dict:
     """Validate + persist + apply. Returns {ok, applied, needs_reconnect, note}."""
     d = _read()
     applied, needs_reconnect = [], False
+    # Appearance (V2-617) — applies LIVE on the client, never needs a reconnect.
+    if "theme_profile" in payload:
+        prof = str(payload.get("theme_profile") or "").strip()
+        if _SLUG_RE.match(prof):
+            d["theme_profile"] = prof
+            applied.append("theme_profile")
+    if "theme_custom" in payload:
+        d["theme_custom"] = _sanitize_theme_custom(payload.get("theme_custom"))
+        applied.append("theme_custom")
     for k, env in ENV_KEYS.items():
         if k in payload and str(payload[k]).strip():
             val = str(payload[k]).strip()

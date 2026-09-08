@@ -39,17 +39,25 @@ function injectStyles(){
   const s=document.createElement("style"); s.id="wrail-css";
   s.textContent=`
   #wrail{position:fixed;left:0;top:0;bottom:0;z-index:9002;display:none;box-sizing:border-box;
-    flex-direction:column;align-items:center;gap:6px;padding:10px 4px;width:40px;overflow:hidden;
-    background:color-mix(in srgb,var(--hb-bg,#141d29) 92%,transparent);
-    border-right:1px solid var(--hb-line,#232e3d);backdrop-filter:blur(6px)}
+    flex-direction:column;align-items:center;gap:4px;padding:10px 5px;width:56px;overflow:hidden;
+    background:color-mix(in srgb,var(--hb-bg-soft,#121216) 92%,transparent);
+    border-right:1px solid var(--hb-line,#26262E);backdrop-filter:blur(6px)}
   #wrail.on{display:flex}
-  #wrail button{width:30px;height:30px;flex:none;border-radius:8px;border:1px solid var(--hb-line,#232e3d);
-    cursor:pointer;background:var(--hb-bg,#141d29);color:var(--hb-ink,#e8edf5);
-    font:600 11px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
-    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 2px}
-  #wrail button:hover{border-color:var(--hb-accent,#3D6FE0)}
+  /* V2-617 — orb-style silhouettes: 44px hit targets, 21px strokes, no box until you hover (the orb lid's
+     own language). The operator's report on the old 30px/11px buttons: «no logro entender ninguno». */
+  #wrail button{width:44px;height:44px;flex:none;border-radius:11px;border:none;
+    cursor:pointer;background:transparent;color:var(--hb-muted,#A6A4AC);
+    display:flex;align-items:center;justify-content:center;
+    font:600 0.75rem/1 var(--sans,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif);
+    overflow:hidden;padding:0}
+  #wrail button svg{width:21px;height:21px;flex:none}
+  #wrail button:hover{background:var(--hb-hover,#24242C);color:var(--hb-ink,#F1EFEA)}
+  #wrail button:disabled{opacity:.35;cursor:default;background:transparent}
+  #wrail .wr-chip{border:1px solid var(--hb-line,#26262E);background:var(--hb-bg,#18181D);
+    color:var(--hb-ink,#F1EFEA);letter-spacing:.04em}
+  #wrail .wr-chip:hover{border-color:var(--hb-accent,#A48FFF)}
   #wrail .wr-chip.min{opacity:.45;border-style:dashed}
-  #wrail .wr-sep{width:22px;height:1px;flex:none;background:var(--hb-line,#232e3d);border:none;padding:0;margin:2px 0}
+  #wrail .wr-sep{width:28px;height:1px;flex:none;background:var(--hb-line,#26262E);border:none;padding:0;margin:4px 0}
   /* V2-552 — the operator's layout: the WHOLE upper part is the open widgets, the controls sit UNDERNEATH.
      The chips take all the slack (flex:1) and scroll among themselves, so the four buttons stay pinned to the
      bottom and never move: a control that shifts down as widgets open is a control you have to look for. */
@@ -135,18 +143,28 @@ function refresh(el){
 export function WidgetRail(){
   injectStyles();
   const el=document.createElement("div"); el.id="wrail";
-  const mk=(cls,glyph)=>{ const b=document.createElement("button"); b.className=cls; b.textContent=glyph; return b; };
+  // V2-617: the tools are SILHOUETTE icons (stroke currentColor, the orb lid's language) instead of the old
+  // 11px text glyphs the operator could not read. Same four gestures, same handlers — only the face changed.
+  const ICONS={
+    hide:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4.5" width="17" height="15" rx="3"/><path d="M8 15h8"/></svg>',
+    show:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg>',
+    comp:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2.5"/><path d="M4 12h16M12 4v16"/></svg>',
+    fit:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M10 7h7v7"/></svg>',
+    foldL:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m14 6-6 6 6 6"/></svg>',
+    foldR:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m10 6 6 6-6 6"/></svg>',
+  };
+  const mk=(cls,svg)=>{ const b=document.createElement("button"); b.className=cls; if(svg) b.innerHTML=svg; return b; };
   const fold=mk("wr-fold","");
-  const hide=mk("wr-hide","⊟");     // minimize every card — hide, never close: the chips stay, so each comes back
-  const show=mk("wr-show","⊞");     // bring back everything that was hidden
-  const comp=mk("wr-compact","▦");  // close the gaps, KEEPING every card's size
-  const fitA=mk("wr-fitall","⤢");   // shrink to fit: everything on screen at once
+  const hide=mk("wr-hide",ICONS.hide);   // minimize every card — hide, never close: the chips stay, so each comes back
+  const show=mk("wr-show",ICONS.show);   // bring back everything that was hidden
+  const comp=mk("wr-compact",ICONS.comp);// close the gaps, KEEPING every card's size
+  const fitA=mk("wr-fitall",ICONS.fit);  // shrink to fit: everything on screen at once
   const sep=document.createElement("div"); sep.className="wr-sep";
   const chips=document.createElement("div"); chips.className="wr-chips";
   const tools=document.createElement("div"); tools.className="wr-tools";
   const paintFold=()=>{
     const folded=el.classList.contains("folded");
-    fold.textContent=folded?"»":"«";
+    fold.innerHTML=folded?ICONS.foldR:ICONS.foldL;
     fold.title=folded?t("rail.expand"):t("rail.collapse");
   };
   const setFold=(folded)=>{

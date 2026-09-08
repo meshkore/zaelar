@@ -20,7 +20,7 @@
 .boot-ovl.gone{opacity:0;pointer-events:none}
 .boot-canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
 .boot-caption{position:absolute;left:50%;top:70%;transform:translateX(-50%);
-  color:var(--hb-muted);font-size:13px;font-weight:600;letter-spacing:.04em;
+  color:var(--hb-muted);font-size:0.8125rem;font-weight:600;letter-spacing:.04em;
   white-space:nowrap;transition:opacity .4s ease;text-shadow:0 1px 12px var(--hb-bg)}
 
 /* ── Language onboarding (V2-101): first-run blocking modal, ABOVE the boot veil (100010) so it follows it —
@@ -32,16 +32,16 @@
 .lang-onb.gone{opacity:0;pointer-events:none}
 .lang-onb-card{width:100%;max-width:420px;background:var(--hb-bg);border:1px solid var(--hb-line);
   border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.4);padding:26px 24px;color:var(--hb-ink)}
-.lang-onb-q{font-size:17px;font-weight:700;text-align:center}
-.lang-onb-hint{font-size:12.5px;color:var(--hb-muted);text-align:center;margin-top:6px}
+.lang-onb-q{font-size:1.0625rem;font-weight:700;text-align:center}
+.lang-onb-hint{font-size:0.7812rem;color:var(--hb-muted);text-align:center;margin-top:6px}
 .lang-onb-chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:20px}
 .lang-onb-chip{border:1px solid var(--hb-line);background:var(--hb-bg-soft);color:var(--hb-ink);
-  font-size:13px;font-weight:600;padding:7px 14px;border-radius:20px;cursor:pointer}
+  font-size:0.8125rem;font-weight:600;padding:7px 14px;border-radius:20px;cursor:pointer}
 .lang-onb-chip:hover{border-color:var(--hb-accent);color:var(--hb-accent)}
 .lang-onb-chip[disabled]{opacity:.5;cursor:default}
 .lang-onb-typed{display:flex;gap:8px;margin-top:18px}
 .lang-onb-input{flex:1;box-sizing:border-box;padding:9px 12px;border:1px solid var(--hb-line);border-radius:10px;
-  background:var(--hb-bg-soft);color:var(--hb-ink);font-size:13px}
+  background:var(--hb-bg-soft);color:var(--hb-ink);font-size:0.8125rem}
 .lang-onb-input:focus{border-color:var(--hb-accent);outline:none}
 .lang-onb-go{width:38px;border-radius:10px;border:none;cursor:pointer;color:#fff;font-weight:700;
   background:linear-gradient(135deg,var(--hb-accent),var(--hb-accent2))}
@@ -50,7 +50,7 @@
 .lang-onb-spinner{width:30px;height:30px;border-radius:50%;border:3px solid var(--hb-line);
   border-top-color:var(--hb-accent);animation:lang-onb-spin 0.85s linear infinite}
 @keyframes lang-onb-spin{to{transform:rotate(360deg)}}
-.lang-onb-loading-text{font-size:13.5px;color:var(--hb-muted);text-align:center;line-height:1.4}
+.lang-onb-loading-text{font-size:0.8438rem;color:var(--hb-muted);text-align:center;line-height:1.4}
 
-.alert{position:fixed;top:0;left:0;right:0;background:var(--hb-risk);color:#fff;padding:11px 16px;font-size:14px;text-align:center;z-index:60;cursor:pointer;display:none}
+.alert{position:fixed;top:0;left:0;right:0;background:var(--hb-risk);color:#fff;padding:11px 16px;font-size:0.875rem;text-align:center;z-index:60;cursor:pointer;display:none}
 .alert.show{display:block}

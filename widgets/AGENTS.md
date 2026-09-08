@@ -21,7 +21,11 @@ widgets feel polished and consistent with the rest. These are HARD rules — fol
   - `--hb-warn-bg` / `--hb-warn-border` / `--hb-warn-ink` — amber warning/nudge banner (bg / border / text)
   Give every `var(...)` a hex fallback matching the OLD light values (e.g. `var(--hb-bg,#fff)`) so a widget still
   renders sanely even if loaded outside the host page. Example: `background:var(--hb-bg,#fff);color:var(--hb-ink,#0d1622)`.
-- **Type**: system sans (`-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial`). Title ~15px/600, body ~12.5–14px.
+- **Type**: `font-family:var(--sans,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif)` —
+  NEVER the raw stack alone: `--sans` is a THEME TOKEN (V2-617), so the operator's typeface choice in
+  ⚙ Apariencia reaches your widget only if you read the token. Sizes in **rem** (the desktop's root font size
+  is the ⚙ size knob — `1rem` scales with it, a hardcoded `13px` does not): title ~0.9rem/600, body
+  ~0.78–0.875rem. The canonical steps exist as tokens too: `var(--fs-micro/-caption/-ui/-body/-title/-display)`.
 - **Cards**: `background:var(--hb-bg,#fff)`, `border-radius:12–16px`, 1px `var(--hb-line,#eef1f6)` border, subtle
   shadow, ~11–14px padding. Optional 3–4px left accent bar in `var(--hb-accent,...)` / `var(--hb-accent2,...)`.
 - **Layout: TWO SCREENS, ONE WIDGET.** The same `widget.js` renders on a desk (a free-floating card the operator

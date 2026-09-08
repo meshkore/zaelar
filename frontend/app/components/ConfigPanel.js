@@ -11,6 +11,9 @@ import * as api from "../services/api.js?v=2";
 import * as session from "../services/session.js?v=3";
 import { GEAR_ICON, BRAIN_ICON, CPU_ICON, DATABASE_ICON, MIC_ICON, SEARCH_ICON, MUSIC_ICON, SERVER_ICON } from "../lib/icons.js?v=1";
 import { t } from "../core/i18n.js?v=1";
+import { THEMES, FONT_SIZES, FONT_STACKS } from "../core/themes.js?v=1";
+import * as themeSvc from "../services/theme.js?v=2";
+import { theme as themeSignal, setTheme } from "../core/store.js?v=2";
 
 const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const opt = (list, sel) => (list || []).map(o => `<option value="${esc(o.value != null ? o.value : o)}"${(o.value != null ? o.value : o) === sel ? " selected" : ""}>${esc(o.label != null ? o.label : o)}</option>`).join("");
@@ -46,6 +49,7 @@ const CLOUD_LOCKED_VOICE_KEYS = new Set(["stt_provider", "tts_provider"]);
 // "widgets" son nuevas. Patrón of pastilla segmentada (como the pestañas of the ChatWall).
 const TABS = [
   { id: "settings" },
+  { id: "apariencia" },   // V2-617: design profiles + custom knobs — the whole desktop's skin, per account
   { id: "conectores" },
   { id: "widgets" },
 ];
@@ -76,6 +80,8 @@ export function ConfigPanel() {
     let pane;
     if (activeTab === "conectores") {
       pane = `<div class="cf-tabpane"><div class="cf-scroll"><div class="cf-panel">${sec_connectors()}</div></div></div>`;
+    } else if (activeTab === "apariencia") {
+      pane = `<div class="cf-tabpane"><div class="cf-scroll"><div class="cf-panel">${sec_apariencia()}</div></div></div>`;
     } else if (activeTab === "widgets") {
       pane = `<div class="cf-tabpane"><div class="cf-scroll"><div class="cf-panel">${sec_widgets()}</div></div></div>`;
     } else {
@@ -277,6 +283,19 @@ export function ConfigPanel() {
   function wire() {
     // V2-083: pestañas principales (settings/conectores/widgets)
     bodyEl.querySelectorAll(".cf-tab").forEach(b => b.onclick = () => { if (b.dataset.tab !== activeTab) { activeTab = b.dataset.tab; render(); } });
+    // controles of the pestaña Apariencia (V2-617) — every change applies live + persists via the theme service
+    bodyEl.querySelectorAll(".cf-th-card").forEach(b => b.onclick = () => {
+      themeSvc.setThemeProfile(b.dataset.profile); msg(t("config.theme.applied")); render();
+    });
+    bodyEl.querySelectorAll(".cf-th-modebtn").forEach(b => b.onclick = () => { setTheme(b.dataset.mode); render(); });
+    const thAccent = document.getElementById("cf_th_accent");
+    if (thAccent) thAccent.onchange = () => { themeSvc.setThemeCustom({ accent: thAccent.value }); msg(t("config.theme.applied")); render(); };
+    const thAccentClear = bodyEl.querySelector(".cf-th-accent-clear");
+    if (thAccentClear) thAccentClear.onclick = () => { themeSvc.setThemeCustom({ accent: "" }); msg(t("config.theme.applied")); render(); };
+    const thFs = document.getElementById("cf_th_fs");
+    if (thFs) thFs.onchange = () => { themeSvc.setThemeCustom({ fs: thFs.value === "m" ? "" : thFs.value }); msg(t("config.theme.applied")); };
+    const thFont = document.getElementById("cf_th_font");
+    if (thFont) thFont.onchange = () => { themeSvc.setThemeCustom({ font: thFont.value === "system" ? "" : thFont.value }); msg(t("config.theme.applied")); };
     // controles of the pestaña Conectores
     bodyEl.querySelectorAll(".cf-cx-act").forEach(b => b.onclick = () => cxAct(b.dataset.act, b.dataset.id, b));
     const cxr = bodyEl.querySelector(".cf-cx-refresh"); if (cxr) cxr.onclick = () => reloadConnectors();
@@ -567,6 +586,36 @@ export function ConfigPanel() {
         await api.meshkoreRemove(btn.dataset.name); msg(t("config.msg.cluster_revoked")); await reloadConnectors();
       }
     } catch (e) { msg(t("config.msg.error_generic")); } finally { btn.disabled = false; }
+  }
+
+  // ═══ PESTAÑA APARIENCIA (V2-617) — design profiles + custom knobs. Everything applies INSTANTLY (the
+  // theme service repaints the tokens live) and persists to the ACCOUNT (settings.json) — no save button:
+  // a skin you have to imagine before committing to is a skin nobody tries. ═══════════════════════════════
+  function sec_apariencia() {
+    const curProf = themeSvc.themeProfile();
+    const custom = themeSvc.themeCustom();
+    const mode = themeSignal();
+    const cards = Object.entries(THEMES).map(([id, th]) => {
+      const sw = (th.swatches || []).map(c => `<i style="background:${esc(c)}"></i>`).join("");
+      return `<button type="button" class="cf-th-card${id === curProf ? " on" : ""}" data-profile="${esc(id)}">
+        <span class="cf-th-sw">${sw}</span><span class="cf-th-name">${esc(th.label || id)}</span></button>`;
+    }).join("");
+    const fsOpts = [["s", t("config.theme.fs_s")], ["m", t("config.theme.fs_m")], ["l", t("config.theme.fs_l")]]
+      .map(([v, l]) => `<option value="${v}"${(custom.fs || "m") === v ? " selected" : ""}>${esc(l)}</option>`).join("");
+    const fontOpts = [["system", t("config.theme.font_system")], ["rounded", t("config.theme.font_rounded")],
+                      ["serif", t("config.theme.font_serif")]]
+      .map(([v, l]) => `<option value="${v}"${(custom.font || "system") === v ? " selected" : ""}>${esc(l)}</option>`).join("");
+    return panel("apariencia", t("config.theme.title"), t("config.theme.sub"),
+      `<div class="cf-th-cards">${cards}</div>` +
+      row(t("config.theme.mode"),
+        `<span class="cf-th-mode"><button type="button" class="cf-th-modebtn${mode === "dark" ? " on" : ""}" data-mode="dark">${t("config.theme.mode_dark")}</button>` +
+        `<button type="button" class="cf-th-modebtn${mode === "light" ? " on" : ""}" data-mode="light">${t("config.theme.mode_light")}</button></span>`) +
+      row(t("config.theme.accent"),
+        `<span class="cf-th-accent"><input type="color" id="cf_th_accent" value="${esc(custom.accent || "#A48FFF")}">` +
+        `<button type="button" class="cf-th-accent-clear"${custom.accent ? "" : " disabled"}>${t("config.theme.accent_clear")}</button></span>`,
+        t("config.theme.accent_hint")) +
+      row(t("config.theme.fs"), `<select id="cf_th_fs">${fsOpts}</select>`) +
+      row(t("config.theme.font"), `<select id="cf_th_font">${fontOpts}</select>`, t("config.theme.font_hint")));
   }
 
   // ═══ PESTAÑA WIDGETS (V2-083) — a sola lista alfabética with badge de-serie/tuyo ═══════════════════════

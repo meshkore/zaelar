@@ -1553,6 +1553,20 @@ DOMAINS: list[dict] = [
                                  "y la posición persistida olvidada",
             "ch": UNIT,
             "paths": ["tests/browser/e2e/widgets/test_a_reset_sends_the_orb_home.py"]},
+        # V2-617 — el SISTEMA de temas (directriz del operador 2026-09-08): perfiles de diseño elegibles en
+        # ⚙ Apariencia + acento/tamaño/tipo de letra customizables, aplicado INTEGRALMENTE — el escritorio
+        # entero y todos los widgets leen UN contrato de tokens (palette.css), y un perfil es un mapa de
+        # overrides (themes.js) que theme.js escribe inline en <html>. Se prueba RENDERIZADO con los módulos
+        # reales: que un consumidor de var(--hb-bg) se repinta de verdad al cambiar de perfil (cazaría una
+        # clave que derive del nombre del token), que un perfil no sangra en el siguiente, que el knob de
+        # tamaño escala por la raíz REAL de styles.css, y las dos capas de persistencia (localStorage pinta
+        # al instante; la copia de la CUENTA en settings.json gana al reconciliar). El backend sanea lo que
+        # guarda: ese dict acaba en CSS inline de cada cliente, así que es una costura de seguridad.
+        {"id": "4.130", "title": "Un perfil de diseño repinta el escritorio ENTERO: tokens, knobs, dos capas "
+                                 "de persistencia y la pestaña Apariencia del ⚙",
+            "ch": UNIT,
+            "paths": ["tests/browser/e2e/widgets/test_a_design_profile_repaints_the_whole_desktop.py",
+                      "tests/infrastructure/unit/config/test_appearance_settings.py"]},
         # V2-553 — la BARRA DE ACTUALIZACIÓN y el número de versión. La regla que solo se puede comprobar
         # renderizando no es que la barra salga: es que NO salga cuando lo único que cambió está en el
         # backend. El motor manda DOS campos (`build`, que sube en toda release, y `ui_rev`, que es el

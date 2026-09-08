@@ -8,39 +8,65 @@
    [data-theme="light"] on <html> overrides the palette below. app/services/theme.js sets that attribute +
    persists the choice; app/core/store.js holds the `theme` signal.
 
+   DESIGN PROFILES (V2-617): the values below are the DEFAULT profile («grafito» — warm near-black neutrals,
+   heliotrope accent, amber for highlights). Alternative profiles live in app/core/themes.js as token OVERRIDE
+   maps that theme.js writes as inline custom properties on <html> — inline wins over this stylesheet, so a
+   profile swap or a user customization (accent, base font size, font) repaints everything that reads tokens,
+   which is the whole desktop and every widget. Add a token here, and give the non-default profiles their value
+   in themes.js when it must differ.
+
+   TYPE: `--hb-fs-base` is the ROOT font size — app/styles.css sets `html{font-size:var(--hb-fs-base)}` and
+   declares its font sizes in REM, so this single token scales the entire desktop (the ⚙ Apariencia size knob).
+   The `--fs-*` steps are the canonical scale for NEW/reworked components; legacy rem values migrate to them
+   as components are touched, never in bulk.
+
    WHY IT LIVES IN ITS OWN FILE: there are now TWO shells — the desktop (app/styles.css) and the mobile PWA
    (mobile/app/styles.css) — and both serve the SAME widget catalog. A widget renders with var(--hb-bg) whichever
    shell hosts it, so a second copy of these tokens would not fail loudly: it would fail as a widget quietly
    painting the wrong colors in one shell only. Both shells <link> this file BEFORE their own stylesheet.
    Add a token here, never in a shell. */
 :root{
-  --canvas:#0a0f16; --canvas-glow:#111a24; --chrome-line:#1d2735;
+  --canvas:#0B0B0E; --canvas-glow:#131318; --chrome-line:#26262E;
   --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
   --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
   --banner-h:0px;   /* height of the update banner when visible (0 when hidden) — top controls shift down by this */
 
-  --hb-bg:#141d29; --hb-bg-soft:#101720; --hb-bg-a:rgba(14,20,28,.82);
-  --hb-bubble:#1b2530; --hb-hover:#1c2733;
-  --hb-ink:#e8edf5; --hb-muted:#93a1b6; --hb-muted-2:#64758c; --hb-line:#232e3d; --hb-neutral:#3a4a5c;
-  --hb-accent:#3D6FE0; --hb-accent2:#16B8A6; --hb-risk:#e5484d; --hb-risk-soft:rgba(229,72,77,.16);
+  /* type scale (V2-617): base 17px ≈ everything authored at 16 scales up ~6% — «fuentes más grandes en todo
+     el escritorio» without touching a thousand declarations; the ⚙ size knob moves this one token. */
+  --hb-fs-base:17px;
+  --fs-micro:.6875rem; --fs-caption:.78125rem; --fs-ui:.875rem; --fs-body:.9375rem;
+  --fs-title:1.0625rem; --fs-display:1.375rem;
+  --hb-r-s:8px; --hb-r-m:12px; --hb-r-l:16px;
+
+  /* grafito surfaces — FOUR real elevation levels (canvas → panel → card → hover), warm-biased neutrals */
+  --hb-bg:#18181D; --hb-bg-soft:#121216; --hb-bg-a:rgba(17,17,20,.85);
+  --hb-bubble:#1D1D23; --hb-hover:#24242C;
+  --hb-ink:#F1EFEA; --hb-muted:#A6A4AC; --hb-muted-2:#67656F; --hb-line:#26262E; --hb-neutral:#4A4952;
+  /* ONE accent does all the interactive work; amber (--hb-update) only ever HIGHLIGHTS — never a button */
+  --hb-accent:#A48FFF; --hb-accent2:#16B8A6; --hb-risk:#e5484d; --hb-risk-soft:rgba(229,72,77,.16);
   /* semantic status colors (2026-07-22 frontend pass): ok/warn share the risk/accent pattern — ONE value across
      themes, not overridden per-theme (same as --hb-risk/--hb-accent already were). Consolidates 4+ ad hoc hex
      greens/ambers that used to be typed per-component (StatusPanel dots, MemoryMap pulses, DebugPanel latency). */
-  --hb-ok:#1f9d55; --hb-warn:#c98a00;
-  --hb-shadow-1:0 8px 30px rgba(0,0,0,.45); --hb-shadow-2:0 20px 60px rgba(0,0,0,.55);
-  --hb-warn-bg:#2a2013; --hb-warn-border:#5c4420; --hb-warn-ink:#e8b673;
+  --hb-ok:#4CB782; --hb-warn:#D9A03F;
+  --hb-shadow-1:inset 0 1px 0 rgba(255,255,255,.03), 0 10px 30px rgba(0,0,0,.5);
+  --hb-shadow-2:inset 0 1px 0 rgba(255,255,255,.04), 0 24px 70px rgba(0,0,0,.6);
+  --hb-warn-bg:#241B0E; --hb-warn-border:#52401C; --hb-warn-ink:#E4B978;
   /* dark "console" surface for log-like views that deliberately stay dark regardless of theme (a terminal/log
      reads the same in light or dark mode by convention) — shared by the Hermes update log and DebugPanel. */
-  --hb-console-bg:#0d1622; --hb-console-line:#1d2735; --hb-console-ink:#e8edf5; --hb-console-muted:#8ba0bc;
-  --hb-update:#f59e0b; --hb-update2:#f97316;
+  --hb-console-bg:#101014; --hb-console-line:#26262E; --hb-console-ink:#F1EFEA; --hb-console-muted:#9B99A2;
+  --hb-update:#E8A33D; --hb-update2:#E07A3F;
+  /* desktop ground layers (V2-617): dot-grid + accent halo painted by .canvas; profiles tune or zero them */
+  --desk-grid-a:.05; --desk-halo:rgba(164,143,255,.06); --desk-ember:rgba(232,163,61,.04);
 }
 :root[data-theme="light"]{
-  --canvas:#f7f9fc; --canvas-glow:#ffffff;
+  --canvas:#F6F5F2; --canvas-glow:#FFFFFF; --chrome-line:#E4E2DD;
 
-  --hb-bg:#fff; --hb-bg-soft:#fbfdff; --hb-bg-a:rgba(255,255,255,.82);
-  --hb-bubble:#f1f4f9; --hb-hover:#eef3f9;
-  --hb-ink:#0d1622; --hb-muted:#5f6b7c; --hb-muted-2:#9aa7b8; --hb-line:#e3e8f0; --hb-neutral:#c2ccda;
+  --hb-bg:#FFFFFF; --hb-bg-soft:#FAF9F7; --hb-bg-a:rgba(255,255,255,.85);
+  --hb-bubble:#F0EFEC; --hb-hover:#ECEAE6;
+  --hb-ink:#17161A; --hb-muted:#6B6A72; --hb-muted-2:#9C9BA3; --hb-line:#E4E2DD; --hb-neutral:#C9C7C1;
+  --hb-accent:#7A5FF0;   /* the heliotrope needs more pigment on paper to keep contrast */
   --hb-risk-soft:#fff5f5;
-  --hb-shadow-1:0 8px 30px rgba(13,22,34,.12); --hb-shadow-2:0 20px 60px rgba(13,22,34,.22);
-  --hb-warn-bg:#fff7ed; --hb-warn-border:#fed7aa; --hb-warn-ink:#9a5b1b;
+  --hb-shadow-1:0 8px 30px rgba(23,22,26,.10); --hb-shadow-2:0 20px 60px rgba(23,22,26,.18);
+  --hb-warn-bg:#FCF4E4; --hb-warn-border:#EAD3A2; --hb-warn-ink:#8A5E14;
+  --desk-grid-a:.06; --desk-halo:rgba(122,95,240,.05); --desk-ember:rgba(224,122,63,.04);
 }
