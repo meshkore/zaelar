@@ -74,7 +74,7 @@ def _mount(page, data: dict, profile: str):
              window.__calls = [];
              const mod = await import(src + '?v=' + Math.random());
              window.__ctx = { action: (name, payload) => { window.__calls.push([name, payload || {}]); },
-                              running: true };
+                              top: () => {}, running: true };
              mod.render(document.getElementById('w'), data, window.__ctx);
            }""",
         [page._hb_widget_url, data],

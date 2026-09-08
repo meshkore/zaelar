@@ -76,7 +76,11 @@ _MEASURE = """() => {
     imgs: [...el.querySelectorAll('img.matt')].map(i => i.getAttribute('src')),
     img_painted: [...el.querySelectorAll('img.matt')].map(i => i.naturalWidth > 0),
     audios: [...el.querySelectorAll('audio.maud')].map(a => ({controls: a.controls, autoplay: a.autoplay,
-                                                             preload: a.preload})),
+                                                             preload: a.preload, hidden: a.style.display === 'none'})),
+    // V2-616 F5 — the custom player replacing native <audio controls>: play button + a fixed bar count + a
+    // time label, per audio message.
+    playBtns: el.querySelectorAll('.mapbtn').length,
+    waveBars: [...el.querySelectorAll('.mawave')].map(w => w.querySelectorAll('.mabar').length),
     docs: [...el.querySelectorAll('a.mdoc')].map(a => a.textContent),
     row_acts: [...el.querySelectorAll('.tbrow')].map(r =>
       [...r.querySelectorAll('.tacts button')].map(b => b.textContent).join('')),
@@ -115,7 +119,8 @@ def _run(steps, clicks=None):
                 await pg.evaluate(
                     "d => window.render(document.getElementById('host'), d, "
                     "{action: async (name, payload) => {"
-                    " (window.__acts = window.__acts || []).push([name, payload]); return {}; }})", data)
+                    " (window.__acts = window.__acts || []).push([name, payload]); return {}; },"
+                    " top: () => {}})", data)
                 await pg.wait_for_timeout(80)
                 for at, sel in (clicks or []):
                     if at == i:
@@ -203,8 +208,15 @@ def test_inside_a_thread_media_actually_paint(playwright_available):
     m = _run([_WA_THREAD])[0]
     assert m["imgs"] == ["/widgets/mensajeria/asset/img_x.jpg"], m["imgs"]
     assert m["img_painted"] == [True], "the <img> must decode real bytes from the asset route"
-    assert m["audios"] and m["audios"][0]["controls"] is True and m["audios"][0]["autoplay"] is False
-    assert m["audios"][0]["preload"] in ("none", ""), "a received voice note never preloads, never autoplays"
+    # V2-616 F5 — native <audio controls> retired for a custom player: the element itself stays hidden and
+    # driven by the play button/waveform, never autoplaying. preload moved to "metadata" (duration has to be
+    # known for the bar and for a pre-play drag-to-seek to compute a real target time) — it fetches only the
+    # file's header, never the audio bytes, so "never autoplays" still holds.
+    assert m["audios"] and m["audios"][0]["controls"] is False and m["audios"][0]["autoplay"] is False
+    assert m["audios"][0]["hidden"] is True
+    assert m["audios"][0]["preload"] == "metadata"
+    assert m["playBtns"] >= 1, "the custom play button must render"
+    assert m["waveBars"] and m["waveBars"][0] > 0, "the waveform needs a fixed, non-zero bar count"
     assert any("📷 Foto" in b or "🎤 Nota de voz" in b for b in m["bodies"]), m["bodies"]
 
 

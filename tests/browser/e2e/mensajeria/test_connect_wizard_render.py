@@ -137,7 +137,8 @@ def _run(steps, actions=None, width=560):
                 await pg.evaluate(
                     "d => window.render(document.getElementById('host'), d, "
                     "{action: async (name, payload) => {"
-                    " (window.__acts = window.__acts || []).push([name, payload]); return {}; }})", data)
+                    " (window.__acts = window.__acts || []).push([name, payload]); return {}; },"
+                    " top: () => {}})", data)
                 await pg.wait_for_timeout(90)
                 for at, fn in (actions or []):
                     if at == i:

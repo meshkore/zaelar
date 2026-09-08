@@ -19,17 +19,22 @@ const URG = {
 
 // One definition per platform: label, badge color, whether credentials are needed (guided setup), and instructions
 // (credentials guide + QR scan steps). Adding a platform means adding one entry here.
+// V2-616 F4 — `bg` is each platform's own identity (the operator: "que el WhatsApp se parezca al WhatsApp,
+// el Telegram al Telegram y el Gmail al Gmail"), not just the header dot's tint: telegram and email used to
+// share the SAME generic --hb-accent blue, indistinguishable from each other at a glance. Literal hex here
+// (not a shared theme var) on purpose — this widget's own brand identity, self-contained, and never coupled
+// to the app's global palette (which a concurrent redesign of its own was mid-flight on the same day).
 const PLAT = {
   whatsapp: {
-    label: "WhatsApp", bg: "var(--hb-accent2,#16B8A6)", requiresCreds: false,
+    label: "WhatsApp", bg: "#16B8A6", requiresCreds: false,
     qrSteps: ["Abre WhatsApp en tu móvil → ", "Ajustes → Dispositivos vinculados", " → ", "Vincular un dispositivo", " y escanea este código."],
   },
   telegram: {
-    label: "Telegram", bg: "var(--hb-accent,#3D6FE0)", requiresCreds: true,
+    label: "Telegram", bg: "#2AABEE", requiresCreds: true,
     credLink: "https://my.telegram.org",
     qrSteps: ["Abre Telegram en tu móvil → ", "Ajustes → Dispositivos", " → ", "Vincular dispositivo de escritorio", " y escanea este código."],
   },
-  email: {label: "Email", bg: "var(--hb-accent,#3D6FE0)", requiresCreds: true},
+  email: {label: "Email", bg: "#D8452D", requiresCreds: true},
 };
 const ORDER = ["whatsapp", "telegram", "email"];
 
@@ -211,8 +216,13 @@ function injectStyles(){
     min-width:17px;height:17px;padding:0 5px;display:inline-flex;align-items:center;justify-content:center}
   .hb-msg .tprev{font-size:13.5px;color:var(--hb-muted,#5f6b7c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .hb-msg .thd{display:flex;align-items:center;gap:9px;margin:0 0 10px;padding-bottom:9px;border-bottom:1px solid var(--hb-line,#eef1f6)}
-  .hb-msg .thd .back{border:0;background:transparent;color:var(--hb-accent,#3D6FE0);cursor:pointer;font-size:13px;padding:3px 2px}
-  .hb-msg .thd .back:hover{text-decoration:underline}
+  /* V2-616 F3 — a real button, in the corner, never a bare underlined link: the operator's own words
+     ("estas flechas así largas que se subraya... no me gusta nada"). margin-left:auto on the LAST child
+     pushes it to the far right while the name (appended first) stays left, same pattern .chanhead already
+     used for its own back link — now sharing the SAME visual language instead of two different ones. */
+  .hb-msg .thd .back{margin-left:auto;flex:0 0 auto;border:1px solid var(--hb-line,#e3e8f0);background:var(--hb-bg,#fff);
+    color:var(--hb-muted,#5b6b82);cursor:pointer;font-size:12.5px;font-weight:600;padding:6px 12px;border-radius:8px}
+  .hb-msg .thd .back:hover{border-color:var(--hb-accent,#3D6FE0);color:var(--hb-accent,#3D6FE0);background:var(--hb-hover,#eef3f9)}
   .hb-msg .thdname{font-size:15px}
   /* COMPOSE BAR (V2-611): dictate or type, see it, then send — by button or by a later voice order.
      .bt/.bt-primary etc. are already declared below (the wizard's own buttons) — reused as-is. */
@@ -221,6 +231,9 @@ function injectStyles(){
     font:inherit;font-size:14px;line-height:1.4;color:var(--hb-ink,#0d1622);background:var(--hb-hover,#eef3f9);
     border:1px solid var(--hb-line,#eef1f6);border-radius:10px;padding:8px 10px}
   .hb-msg .composebox:focus{outline:none;border-color:var(--hb-accent,#3D6FE0)}
+  .hb-msg .thread.plat-whatsapp .composebox:focus{border-color:#16B8A6}
+  .hb-msg .thread.plat-telegram .composebox:focus{border-color:#2AABEE}
+  .hb-msg .thread.plat-email .composebox:focus{border-color:#D8452D}
   .hb-msg .composerow{display:flex;justify-content:flex-end;margin-top:6px}
   /* V2-616 — the open thread as LEFT/RIGHT bubbles, not an indented copy of the same row (V2-546's old
      shape). His report, verbatim in spirit: in a 1:1 chat the sender's name on every line is noise (the
@@ -239,6 +252,16 @@ function injectStyles(){
   .hb-msg .tbrow:not(.out) .tbubble{border-bottom-left-radius:4px}
   .hb-msg .tbrow.out .tbubble{background:var(--hb-accent,#3D6FE0);color:#fff;border-bottom-right-radius:4px}
   .hb-msg .tbubble.urg{box-shadow:inset 3px 0 0 var(--hb-risk,#e5484d)}
+  /* V2-616 F4 — WhatsApp reads as WhatsApp, Telegram as Telegram, email as email: his own reply's bubble and
+     the compose button take the OPEN thread's platform color (.thread.plat-ID, set once in threadView/
+     mailDetail) instead of the one generic accent blue every platform shared before. Literal hex, matching
+     PLAT[pl].bg exactly — the same identity, not a second palette that can drift from it. */
+  .hb-msg .thread.plat-whatsapp .tbrow.out .tbubble,
+  .hb-msg .thread.plat-whatsapp .composerow .bt-primary{background:#16B8A6}
+  .hb-msg .thread.plat-telegram .tbrow.out .tbubble,
+  .hb-msg .thread.plat-telegram .composerow .bt-primary{background:#2AABEE}
+  .hb-msg .thread.plat-email .tbrow.out .tbubble,
+  .hb-msg .thread.plat-email .composerow .bt-primary{background:#D8452D}
   .hb-msg .tbfrom{font-size:12px;font-weight:700;margin-bottom:2px;color:var(--hb-accent,#3D6FE0)}
   .hb-msg .tbtitle{font-size:14px;font-weight:600;margin:0 0 3px}
   .hb-msg .tbbody{font-size:14px;line-height:1.45;white-space:pre-wrap;word-break:break-word}
@@ -259,7 +282,26 @@ function injectStyles(){
   .hb-msg .mediaw{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
   .hb-msg .mediaw .matt{max-width:220px;max-height:170px;border-radius:10px;border:1px solid var(--hb-line,#e3e8f0);display:block}
   .hb-msg .mediaw video.mvid{max-width:260px;max-height:200px;border-radius:10px;background:#000}
-  .hb-msg .mediaw audio.maud{width:230px;height:32px}
+  /* V2-616 F5 — the custom player: wide, FIXED width whatever the clip's length (fixed bar COUNT, not one
+     derived from duration), a real drag-to-seek surface instead of the tiny native scrubber. */
+  .hb-msg .maudio{display:flex;align-items:center;gap:8px;width:100%;min-width:220px;box-sizing:border-box}
+  .hb-msg .mapbtn{flex:0 0 auto;width:32px;height:32px;border-radius:50%;border:0;cursor:pointer;
+    background:var(--hb-accent,#3D6FE0);color:#fff;font-size:12px;display:flex;align-items:center;justify-content:center}
+  .hb-msg .mapbtn:hover{filter:brightness(1.08)}
+  .hb-msg .mawave{flex:1 1 auto;min-width:0;height:30px;display:flex;align-items:center;gap:2.5px;cursor:pointer;touch-action:none}
+  .hb-msg .mabar{flex:1 1 0;min-width:2px;max-width:4px;border-radius:2px;background:var(--hb-muted-2,#9aa7b8);opacity:.5}
+  .hb-msg .mabar.played{background:var(--hb-accent,#3D6FE0);opacity:1}
+  .hb-msg .matime{flex:0 0 auto;font-size:11px;color:var(--hb-muted-2,#9aa7b8);font-variant-numeric:tabular-nums}
+  .hb-msg .tbrow.out .mapbtn{background:rgba(255,255,255,.28)}
+  .hb-msg .tbrow.out .mabar{background:rgba(255,255,255,.4)}
+  .hb-msg .tbrow.out .mabar.played{background:#fff;opacity:.95}
+  .hb-msg .tbrow.out .matime{color:rgba(255,255,255,.85)}
+  .hb-msg .thread.plat-whatsapp .mapbtn,.hb-msg .thread.plat-whatsapp .mabar.played{background:#16B8A6}
+  .hb-msg .thread.plat-telegram .mapbtn,.hb-msg .thread.plat-telegram .mabar.played{background:#2AABEE}
+  .hb-msg .thread.plat-email .mapbtn,.hb-msg .thread.plat-email .mabar.played{background:#D8452D}
+  .hb-msg .thread.plat-whatsapp .tbrow.out .mabar.played,
+  .hb-msg .thread.plat-telegram .tbrow.out .mabar.played,
+  .hb-msg .thread.plat-email .tbrow.out .mabar.played{background:#fff}
   .hb-msg .mediaw a.mdoc,.hb-msg .mediaw span.mdoc{font-size:12.5px;color:var(--hb-accent,#3D6FE0);text-decoration:none;border:1px solid var(--hb-line,#e3e8f0);border-radius:8px;padding:4px 9px}
   .hb-msg .mediaw a.mdoc:hover{border-color:var(--hb-accent,#3D6FE0)}
   .hb-msg .twhen{font-size:11px;color:var(--hb-muted-2,#9aa7b8);margin-left:auto;flex:0 0 auto}
@@ -276,7 +318,6 @@ function injectStyles(){
      fluid now, V2-615, so it needs no override here). */
   @media (max-width: 430px){
     .hb-msg .mediaw .matt,.hb-msg .mediaw video.mvid{max-width:100%;max-height:none}
-    .hb-msg .mediaw audio.maud{width:100%}
   }
   .hb-msg .linkcard{border:1px solid var(--hb-line,#e3e8f0);border-radius:12px;padding:13px 14px;margin-bottom:10px;background:var(--hb-bg-soft,#fbfdff)}
   .hb-msg .linkcard .ch{display:flex;align-items:center;gap:8px;margin-bottom:9px}
@@ -347,7 +388,14 @@ function injectStyles(){
      compact and scannable with 3 connectors today or 20 tomorrow — the operator's own worry about having
      to scroll past a long vertical list to reach the wizard. */
   .hb-msg .chanhead{display:flex;align-items:center;gap:8px;margin:2px 0 16px}
-  .hb-msg .chanhead b{font-size:14.5px} .hb-msg .chanhead .back{margin-left:auto;font-size:12.5px;color:var(--hb-accent,#3D6FE0);cursor:pointer}
+  .hb-msg .chanhead b{font-size:14.5px}
+  /* V2-616 F3 — the SAME back-button chip as .thd, not a second visual language for the same affordance.
+     display:inline-flex because this one is a <span> (not a <button>): padding/border on a plain inline
+     element does not box properly. */
+  .hb-msg .chanhead .back{display:inline-flex;align-items:center;margin-left:auto;flex:0 0 auto;
+    border:1px solid var(--hb-line,#e3e8f0);background:var(--hb-bg,#fff);
+    color:var(--hb-muted,#5b6b82);cursor:pointer;font-size:12.5px;font-weight:600;padding:6px 12px;border-radius:8px}
+  .hb-msg .chanhead .back:hover{border-color:var(--hb-accent,#3D6FE0);color:var(--hb-accent,#3D6FE0);background:var(--hb-hover,#eef3f9)}
   .hb-msg .chanhead .hint{font-size:12.5px;color:var(--hb-muted-2,#7d8a9c)}
   .hb-msg .igrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:12px}
   .hb-msg .ibox{display:flex;flex-direction:column;align-items:center;gap:7px;padding:16px 10px;
@@ -485,6 +533,85 @@ function fmtWhen(ts){
   return d.toLocaleDateString([], {day:"numeric", month:"short"}) + " " + hm;
 }
 
+// V2-616 F5 — a real seek control, wide, FIXED width regardless of the clip's length. The operator: WhatsApp's
+// native <audio controls> lets him play/pause but not drag to a point ("no puedo avanzar hasta cierto punto"),
+// and he wants it wider and shaped like a waveform, with the SAME width whether the clip is one minute or two
+// hours long.
+//
+// The bars are DECORATIVE, not real amplitude — worth saying plainly, because a fake waveform that LOOKS
+// measured is exactly the kind of "true sentence about the wrong mechanism" this codebase treats as the worst
+// failure shape. A real one needs the file's raw samples (Web Audio's decodeAudioData), and getting those
+// requires fetching the bytes ourselves — `fetch()`/`XMLHttpRequest` are BANNED sinks in widget.js on purpose
+// (widgets/validator.py, the "no network from the client" boundary V2-557 drew): the <audio> element loads
+// its own `src` through the browser's OWN media pipeline, never through code we could point anywhere else.
+// A FIXED bar count (not one derived from duration) is what keeps the width constant on its own — no decode
+// needed for that part at all.
+const _WAVE_BARS = 28;
+
+function _waveBarHeight(seed, i){
+  // A small, deterministic, non-cryptographic hash: same seed+index always draws the same bar, so the shape
+  // does not jitter on re-render, and two different clips still look visually distinct from each other.
+  let h = 0;
+  const s = seed + "#" + i;
+  for(let k=0; k<s.length; k++) h = (h*31 + s.charCodeAt(k)) >>> 0;
+  return 24 + (h % 76); // 24-99, as a percentage of the wave's own height
+}
+
+function audioPlayer(url){
+  const wrap = el("div","maudio");
+  const btn = document.createElement("button");
+  btn.type="button"; btn.className="mapbtn"; btn.textContent="▶"; btn.title="Reproducir";
+  const wave = el("div","mawave");
+  const bars = [];
+  for(let i=0; i<_WAVE_BARS; i++){
+    const bar = el("span","mabar");
+    bar.style.height = _waveBarHeight(url, i) + "%";
+    bars.push(bar);
+    wave.appendChild(bar);
+  }
+  const time = el("span","matime","0:00");
+  // preload="metadata": duration has to be known for the bar to mean anything and for a drag BEFORE the first
+  // play to compute a real target time — it fetches only the file's header, never the audio itself (that
+  // still waits for the operator's own play/seek, same "never autoplay" contract the old native player had).
+  const au = document.createElement("audio");
+  au.className="maud"; au.preload="metadata"; au.src=url; au.style.display="none";
+  wrap.append(btn, wave, time, au);
+
+  const fmt = (s)=>{ s = Math.max(0, Math.floor(s || 0)); return Math.floor(s/60)+":"+String(s%60).padStart(2,"0"); };
+  const refresh = ()=>{
+    const d = au.duration;
+    const known = isFinite(d) && d > 0;
+    time.textContent = known ? (fmt(au.currentTime)+" / "+fmt(d)) : fmt(au.currentTime);
+    const played = known ? Math.round((au.currentTime/d) * bars.length) : 0;
+    bars.forEach((b,i)=> b.classList.toggle("played", i < played));
+  };
+  au.addEventListener("timeupdate", refresh);
+  au.addEventListener("loadedmetadata", refresh);
+  au.addEventListener("play", ()=>{ btn.textContent="⏸"; btn.title="Pausar"; });
+  au.addEventListener("pause", ()=>{ btn.textContent="▶"; btn.title="Reproducir"; });
+  au.addEventListener("ended", ()=>{ btn.textContent="▶"; btn.title="Reproducir"; });
+  btn.onclick = ()=>{ if(au.paused) au.play().catch(()=>{}); else au.pause(); };
+
+  const seekTo = (clientX)=>{
+    const d = au.duration;
+    if(!isFinite(d) || d <= 0) return;         // duration not known yet — nothing to seek INTO
+    const r = wave.getBoundingClientRect();
+    if(!r.width) return;
+    const frac = Math.min(1, Math.max(0, (clientX - r.left) / r.width));
+    au.currentTime = frac * d;
+    refresh();
+  };
+  let dragging = false;
+  wave.addEventListener("pointerdown", (e)=>{ dragging=true; try{ wave.setPointerCapture(e.pointerId); }catch{} seekTo(e.clientX); });
+  wave.addEventListener("pointermove", (e)=>{ if(dragging) seekTo(e.clientX); });
+  const stopDrag = (e)=>{ dragging=false; try{ wave.releasePointerCapture(e.pointerId); }catch{} };
+  wave.addEventListener("pointerup", stopDrag);
+  wave.addEventListener("pointercancel", stopDrag);
+
+  refresh();
+  return wrap;
+}
+
 function mediaBlock(it){
   const list = it.media || [];
   if(!list.length) return null;
@@ -503,10 +630,7 @@ function mediaBlock(it){
       const v=document.createElement("video"); v.className="mvid"; v.controls=true; v.preload="metadata"; v.src=url;
       w.appendChild(v);
     } else if(t==="audio"||t==="ptt"){
-      // User-gesture playback only (controls, preload=none, never autoplay): a received voice note is passive
-      // content like the QR image, not agent production — the ⏻ producer contract governs what the AGENT plays.
-      const au=document.createElement("audio"); au.className="maud"; au.controls=true; au.preload="none"; au.src=url;
-      w.appendChild(au);
+      w.appendChild(audioPlayer(url));
     } else {
       const a=document.createElement("a"); a.className="mdoc"; a.href=url; a.target="_blank"; a.rel="noopener";
       a.textContent="📄 "+((u&&u.name)||"documento");
@@ -952,7 +1076,7 @@ function emailRow(it, ctx, openMail){
   main.appendChild(el("div","msubj", subj));
   row.appendChild(main);
 
-  row.onclick=()=>openMail(mailKey(it));
+  row.onclick=()=>{ ctx.top(); openMail(mailKey(it)); };
   return row;
 }
 
@@ -974,9 +1098,9 @@ function emailList(items, ctx, openMail){
 // used to carry, wired to the same `n` (unambiguous: read/dismiss/archive/trash/hide all resolve by the
 // item's own `n` against the flat renumbered list, never against a chat grouping — see data.py).
 function mailDetail(it, data, ctx, closeMail, rerender){
-  const wrap = el("div","thread");
+  const wrap = el("div","thread plat-email");
   const hd = el("div","thd");
-  const back = el("button","back","← Bandeja"); back.onclick=()=>closeMail();
+  const back = el("button","back","← Bandeja"); back.onclick=()=>{ ctx.top(); closeMail(); };
   hd.appendChild(back);
   wrap.appendChild(hd);
 
@@ -1029,7 +1153,12 @@ function chatList(chats, ctx){
     const {title, rest} = splitBody(displayBody(c.lastBody, c.lastMediaType));
     main.appendChild(el("div","tprev", title ? (title+" — "+rest) : rest));
     row.appendChild(main);
-    row.onclick = ()=> ctx.action("open", {n:c.n});
+    // V2-616 F2 — opening a thread swaps the whole screen (a chat list row for the thread's own header +
+    // messages), so the outer card scroller has to go back to the top. Without this, a chat list left
+    // scrolled down handed the fresh thread a stale scrollTop: its own header rendered scrolled PAST the
+    // visible area on first paint, reported live as "se ha metido como por debajo el header del otro" — his
+    // own scroll gesture only fixed it by accident, forcing the browser to reflow.
+    row.onclick = ()=> { ctx.top(); ctx.action("open", {n:c.n}); };
 
     const acts = el("div","tacts");
     const read=el("button",null,"✓"); read.title="Marcar todo el chat como leído";
@@ -1065,10 +1194,8 @@ function threadStart(meta, ctx){
 }
 
 function threadView(active, items, data, ctx, rerender, meta){
-  const wrap = el("div","thread");
+  const wrap = el("div","thread"+(" plat-"+active.platform));
   const hd = el("div","thd");
-  const back = el("button","back","← volver"); back.onclick=()=>ctx.action("close");
-  hd.appendChild(back);
   hd.appendChild(platformChip(active.platform));
   // The chat's name comes from an INBOUND message: with outbound ones in the thread (V2-546) the first row can
   // be the operator's own, and naming the conversation after himself is how a thread stops being recognisable.
@@ -1076,6 +1203,13 @@ function threadView(active, items, data, ctx, rerender, meta){
   const name = (inbound.find(it=>it.group)||{}).group || (inbound.find(it=>it.from)||{}).from
     || (PLAT[active.platform]||{}).label || "Chat";
   hd.appendChild(el("b","thdname", name));
+  // V2-616 F2/F3 — the operator: the name goes on the LEFT, "volver" moves to the far RIGHT as a real
+  // button, never a bare underlined link (`margin-left:auto` on the LAST child, same pattern the connectors
+  // list already used). And it resets the outer scroller (ctx.top()) — this IS a screen change (thread ->
+  // chat list), and skipping it is the same stale-scrollTop bug the "open" click just below it fixes.
+  const back = el("button","back","← Volver");
+  back.onclick=()=>{ ctx.top(); ctx.action("close"); };
+  hd.appendChild(back);
   wrap.appendChild(hd);
 
   wrap.appendChild(threadStart(meta, ctx));
@@ -1124,7 +1258,7 @@ function renderListScreen(platforms, ctx, rerender, connectedCount){
   head.appendChild(el("span","hint", connectedCount ? "" : "Conecta un canal para empezar — por voz o con un toque."));
   if(connectedCount){
     const back=el("span","back","← Mensajes");
-    back.onclick=()=>{ _screen=null; rerender(); };
+    back.onclick=()=>{ _screen=null; ctx.top(); rerender(); };
     head.appendChild(back);
   }
   wrap.appendChild(head);
@@ -1158,7 +1292,7 @@ function renderWizardScreen(platform, platforms, ctx, rerender){
 
   const crumb=el("div","crumb");
   const back=el("span","back","‹ Conectores");
-  back.onclick=()=>{ _screen={view:"list"}; rerender(); };
+  back.onclick=()=>{ _screen={view:"list"}; ctx.top(); rerender(); };
   crumb.append(back, el("span","sep","/"), el("span","cur", p.label));
   wrap.appendChild(crumb);
 
@@ -1239,6 +1373,7 @@ function renderWizardScreen(platform, platforms, ctx, rerender){
   const foot = el("div","wfoot");
   const backBtn = el("button","bt bt-ghost", "Atrás");
   backBtn.onclick=()=>{
+    ctx.top();
     if(step>1){ _wizStep[platform]=step-1; rerender(); }
     else { _screen={view:"list"}; rerender(); }
   };
@@ -1251,7 +1386,7 @@ function renderWizardScreen(platform, platforms, ctx, rerender){
                                                       : (steps[step-1].next || "Continuar"));
   nextBtn.disabled = isLast && !!_busy[platform];
   nextBtn.onclick=()=>{
-    if(!isLast){ _wizStep[platform]=step+1; rerender(); return; }
+    if(!isLast){ _wizStep[platform]=step+1; ctx.top(); rerender(); return; }
     if(platform==="email"){
       const d=_draft.email;
       const email_address=(refs.addr.value||"").trim();
@@ -1323,7 +1458,7 @@ export function render(root, data, ctx){
   // wizard, the connectors list, an open thread or mail).
   const title=el("b","hdtitle","Mensajes"); title.title="Ver la bandeja unificada de todos tus canales";
   title.onclick=()=>{ _platFilter=null; _screen=null; _openMail=null; _confirmDisconnect=null;
-    ctx.action("show_view",{platform:"all"}); rerender(); };
+    ctx.top(); ctx.action("show_view",{platform:"all"}); rerender(); };
   hd.append(title,
             el("span","sub", items.length ? `${items.length} para ti` : (connectedCount ? "al día" : "sin conectar")));
   const dots=el("div","dots");
@@ -1346,10 +1481,10 @@ export function render(root, data, ctx){
       // operator kept seeing Conectores no matter which platform he tapped (reported live 2026-09-07).
       ic.onclick=()=>{ const next=(_platFilter===pl ? "all" : pl); _platFilter=(_platFilter===pl ? null : pl);
         _screen=null; _openMail=null; _confirmDisconnect=null;
-        ctx.action("show_view",{platform:next}); rerender(); };
+        ctx.top(); ctx.action("show_view",{platform:next}); rerender(); };
     } else {
       ic.title=(PLAT[pl]||{}).label+": sin conectar — toca para conectarlo";
-      ic.onclick=()=>{ _screen={view:"wizard", platform:pl}; if(!_wizStep[pl]) _wizStep[pl]=1; rerender(); };
+      ic.onclick=()=>{ _screen={view:"wizard", platform:pl}; if(!_wizStep[pl]) _wizStep[pl]=1; ctx.top(); rerender(); };
     }
     dots.appendChild(ic);
   });
@@ -1359,7 +1494,7 @@ export function render(root, data, ctx){
   // its own divider, so it reads as a DIFFERENT kind of control from the row of channel icons beside it.
   const actions=el("div","hdactions");
   const connBtn=el("button","connbtn"+(_screen?" active":""),"🔌"); connBtn.title="Canales / conectores";
-  connBtn.onclick=()=>{ _screen = _screen ? null : {view:"list"}; if(!_screen) _confirmDisconnect=null; rerender(); };
+  connBtn.onclick=()=>{ _screen = _screen ? null : {view:"list"}; if(!_screen) _confirmDisconnect=null; ctx.top(); rerender(); };
   actions.appendChild(connBtn);
   const gear=el("button","gear"+(_settingsOpen?" active":""),"⚙"); gear.title="Ajustes";
   gear.onclick=()=>{ _settingsOpen=!_settingsOpen; rerender(); };

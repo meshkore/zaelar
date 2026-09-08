@@ -1791,6 +1791,19 @@ DOMAINS: list[dict] = [
             "ch": UNIT,
             "paths": ["tests/browser/e2e/mensajeria/test_thread_bubbles_read_like_a_chat.py",
                       "tests/browser/unit/mensajeria/test_a_group_thread_remembers_its_own_identity.py"]},
+        # V2-620 (2026-09-08) — the operator's follow-up screenshot: opening a thread while the chat list sat
+        # scrolled down left the thread's own "← Volver · contact" header rendered past the visible area on
+        # first paint (widget.js never called `ctx.top()`, which exists exactly for a screen swap). Plus three
+        # redesign asks in the same message: the back button moves to the far right as a real chip button
+        # instead of a bare underlined link; each platform gets its OWN color (WhatsApp/Telegram/email had all
+        # shared one generic accent blue, indistinguishable at a glance); and the native <audio controls> voice
+        # note is replaced by a wide, FIXED-width, genuinely drag-to-seek player.
+        {"id": "4.131", "title": "Mensajería: la apertura de un hilo resetea el scroll, «Volver» pasa a la "
+                                 "derecha como botón real, cada plataforma tiene su color, y el audio se "
+                                 "arrastra de verdad",
+            "ch": UNIT,
+            "paths": ["tests/browser/e2e/mensajeria/test_navigation_resets_the_scroller.py",
+                      "tests/browser/e2e/mensajeria/test_the_audio_player_actually_seeks.py"]},
         # The source-level node above cannot see that the orb is a black hole in the middle of the bar: on
         # 2026-08-18 it was, at 0 painted pixels, while that node stayed green counting canvases. This one
         # RENDERS the shell at phone size and measures it. Self-contained (it starts its own preview server,

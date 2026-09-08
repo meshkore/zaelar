@@ -105,7 +105,7 @@ def _mount(page, data: dict, replies: dict | None = None):
                                 window.__calls.push([name, payload || {}]);
                                 return Promise.resolve((replies || {})[name] || null);
                               },
-                              running: true };
+                              top: () => {}, running: true };
              window.__mod = mod;
              window.__data = data;
              window.__mount = () => mod.render(document.getElementById('w'), window.__data, window.__ctx);

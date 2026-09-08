@@ -23,12 +23,14 @@ body{margin:0;background:#0a1017}#host{width:520px}
 
 _MEASURE = """() => {
   const el = document.querySelector('.hb-msg');
+  const outBubble = el.querySelector('.tbrow.out .tbubble');
   return {
     mounted: !!el,
     fromNames: [...el.querySelectorAll('.tbfrom')].map(n => n.textContent),
     inRows: el.querySelectorAll('.tbrow:not(.out)').length,
     outRows: el.querySelectorAll('.tbrow.out').length,
     outBodies: [...el.querySelectorAll('.tbrow.out .tbbody')].map(n => n.textContent),
+    outBubbleColor: outBubble ? getComputedStyle(outBubble).backgroundColor : null,
   };
 }"""
 
@@ -59,6 +61,21 @@ _GROUP_DATA = {
     "platforms": {"whatsapp": {"status": "connected"}, "telegram": {"status": "off"}, "email": {"status": "off"}},
     "updated": "10:00:00", "items": [], "count": 0, "chats": [],
     "active_chat": _GROUP_ACTIVE, "active_items": _GROUP_ITEMS, "thread_meta": {"isGroup": True, "complete": True},
+    "muted_channels": [], "notify_policy": {}, "connect_focus": None, "view": None,
+}
+
+
+_TG_ACTIVE = {"platform": "telegram", "chatId": "-100111"}
+_TG_ITEMS = [
+    {"n": 1, "platform": "telegram", "from": "Marc", "dir": "in", "chatId": _TG_ACTIVE["chatId"],
+     "messageId": "t1", "body": "Hola", "ts": 1, "urgencia": "media", "dirigido_a_mi": True},
+    {"platform": "telegram", "from": "Tú", "dir": "out", "chatId": _TG_ACTIVE["chatId"],
+     "messageId": "t2", "body": "Qué tal", "ts": 2},
+]
+_TG_DATA = {
+    "platforms": {"whatsapp": {"status": "off"}, "telegram": {"status": "connected"}, "email": {"status": "off"}},
+    "updated": "10:00:00", "items": [], "count": 0, "chats": [],
+    "active_chat": _TG_ACTIVE, "active_items": _TG_ITEMS, "thread_meta": {"isGroup": False, "complete": True},
     "muted_channels": [], "notify_policy": {}, "connect_focus": None, "view": None,
 }
 
@@ -121,3 +138,14 @@ def test_his_own_replies_sit_on_the_right_and_are_visible(playwright_available):
     assert m["inRows"] == 2, m["inRows"]
     assert m["outRows"] == 1, m["outRows"]
     assert m["outBodies"] == ["Ya voy para allá"], m["outBodies"]
+
+
+def test_each_platform_keeps_its_own_bubble_color(playwright_available):
+    """V2-616 F4 — his complaint: WhatsApp and Telegram (and email) looked identical. WhatsApp's own reply
+    bubble and Telegram's must be genuinely different colors, not the one shared accent blue both used to
+    render as."""
+    wa = _run(_DM_DATA)
+    tg = _run(_TG_DATA)
+    assert wa["outBubbleColor"] == "rgb(22, 184, 166)", wa["outBubbleColor"]
+    assert tg["outBubbleColor"] == "rgb(42, 171, 238)", tg["outBubbleColor"]
+    assert wa["outBubbleColor"] != tg["outBubbleColor"]

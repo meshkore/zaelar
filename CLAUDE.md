@@ -470,6 +470,47 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **A screen change resets the scroller, "Volver" becomes a real button, each platform gets its own color,
+  and a voice note can actually be dragged (V2-620, 2026-09-08)**: the operator's follow-up screenshot on
+  V2-618 — opening a WhatsApp thread while the chat list behind it sat scrolled down left the thread's own
+  "← Volver · contact" header rendered past the visible viewport on first paint (*"se ha metido como por
+  debajo el header del otro"*), plus three redesign asks in the same message.
+  - **The bug: `ctx.top()` existed and was never called, on ANY of this widget's screen swaps.** Its own
+    comment already says "opening a record, changing tabs, returning to the list" — a chat list left
+    scrolled down handed the fresh thread's shorter subtree a stale `scrollTop`, so its own header rendered
+    scrolled past the viewport. His own scroll gesture only "fixed" it by forcing a reflow that happened to
+    reveal it. Added to every real transition (open/close thread, open/close mail detail, the connectors
+    toggle, a platform-lens click, a wizard open/step, the dashboard title) — verified against a SPY `ctx.top`
+    in a rendered test, not a source read.
+  - **"Volver" moves to the far right as a real bordered chip**, never a bare underlined link — the SAME
+    visual language `.chanhead`'s own back link already used elsewhere in this widget, applied consistently
+    instead of two languages for one affordance.
+  - **Each platform keeps its own color now.** `PLAT.telegram.bg` and `PLAT.email.bg` both silently shared
+    the SAME generic accent blue as everything else — indistinguishable at a glance, exactly what he
+    noticed. Real hex for each (Telegram `#2AABEE`, email `#D8452D`, WhatsApp kept its `#16B8A6`) fixed the
+    header dots and every chip avatar for free (`PLAT.bg` was already their one source), and a new
+    `.thread.plat-<id>` class extends it to the outgoing bubble, the compose send button and its textarea's
+    focus border. Literal hex, not a shared global theme var — deliberately never touching
+    `frontend/app/core/palette.css`, mid-redesign in the same shared tree, uncommitted, the same day.
+  - **The audio player actually scrubs now.** Native `<audio controls>` replaced by a custom play button +
+    fixed-count (28) bar waveform + time label, still driven by the same hidden `<audio>` element.
+    **The bars are decorative, not real amplitude — said plainly**: a real waveform needs the file's raw
+    samples via `decodeAudioData`, which needs `fetch()`/`XMLHttpRequest` — both BANNED sinks in `widget.js`
+    on purpose (the "no network from the client" boundary V2-557 drew, checked before writing a line). The
+    `<audio>` element loads its own `src` through the browser's OWN media pipeline — the one legitimate way
+    media reaches this widget. **Fixed width regardless of duration is structural, not tuned**: the bar
+    COUNT is fixed, never derived from length, so a 1-minute and a 2-hour clip both render the same total
+    width — his exact worry ("un audio de dos horas no va a caber el ancho") cannot happen by construction.
+  - ⚠️ **A real defect, found only by driving actual playback**: the first test version mocked the asset
+    route as a flat body-echo with no `Range`/`206` support — Chromium reported the clip's `seekable` as
+    `[[0,0]]` FOREVER, even fully downloaded, and silently discarded every `currentTime =` assignment. The
+    REAL route (`widgets/server_api.py`, Starlette's `FileResponse`) answers `Range:` with `206` on its own —
+    the fix was in the TEST (a Range-aware mock matching what `FileResponse` actually does), not the product.
+  - Node **4.131** (2 new files + 1 updated), three disarms verified red. Full sweep of
+    `tests/browser/{unit,e2e}/mensajeria/`: 161 passed.
+  - **Deliberately not done**: a true amplitude-accurate waveform (needs server-side peak extraction at
+    ingest time — its own, larger initiative); per-platform theming anywhere outside the open thread itself.
+
 - **Messaging reads like a chat, and the card chrome stops looking like two headers (V2-618, 2026-09-08)**:
   two operator reports in the same session. (1) A 1:1 WhatsApp thread repeated the contact's name on EVERY
   bubble, and his own replies had no left/right shape (*"solo necesito ver a la izquierda los mensajes de

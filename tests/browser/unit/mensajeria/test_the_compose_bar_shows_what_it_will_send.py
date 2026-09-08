@@ -72,7 +72,7 @@ def _mount(page, data: dict, replies: dict | None = None):
                                 window.__calls.push([name, payload || {}]);
                                 return Promise.resolve((replies || {})[name] || null);
                               },
-                              running: true };
+                              top: () => {}, running: true };
              mod.render(document.getElementById('w'), data, window.__ctx);
            }""",
         [page._hb_widget_url, data, replies or {}],
