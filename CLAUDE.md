@@ -874,6 +874,22 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     not the window). Wired through the client-side deterministic reset path: `_clearCanvasAndLog()`
     announces `hb:canvas-reset`, Orb.js answers. Node **4.126**, four disarms, rendered with the real
     draggable.js and pointer gestures.
+  - **F9 — the orb's drag was still in the WRONG coordinate space** (operator, 2026-09-08, next day: «cuando
+    pincho en el orbe, el ratón se va… se desplaza unos 200 píxeles; la segunda vez el orbe se me ha movido
+    fuera de la pantalla»). F3 fixed viewport-vs-desk for the CARDS (desktop.js); the orb/camera/status
+    chrome drags through `makeDraggable` (lib/draggable.js), which still took the grab origin from
+    `getBoundingClientRect()` (viewport) and wrote it into a `style.left` that resolves against `#desk` —
+    so with a column docked every drag added the column width once: first click a ~200px jump, second
+    off-screen, and a position persisted while docked came back shifted on every later load. Everything now
+    converts through `containerBox(el)` — the element's REAL containing block, found by walking to the
+    nearest transformed ancestor — so desk children drag in desk pixels, the clamp is the container's edge
+    («the orb never leaves the visible desk»), the persisted position travels in container space, and
+    elements mounted outside `#desk` (feedback button, floating chat) get the viewport box and are
+    byte-for-byte unchanged. ⚠️ **The hard-drag test then caught a SECOND live defect**: the move/up
+    listeners were handle-bound, so a fast drag whose first pointer sample already left the orb simply DIED
+    — `styleLeft` empty, nothing persisted, the drag never happened. The F6 grip lesson, paid again in the
+    OTHER drag path: per-drag window listeners now, no capture (a tap must keep firing the handle's click).
+    Node 4.121 (+1 file, 5 rendered cases, real pointer gestures), four verified disarms.
   - Node **4.121**, twenty verified disarms, all caught. **RENDERED, not read**: a source test says the listener
     exists; only layout says the card ended up inside. ⚠️ The first version of the test built the Desktop with
     `Object.create(prototype)` to skip a constructor that ends in `restore()` (which talks to the server) — so
