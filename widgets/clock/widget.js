@@ -5,7 +5,7 @@ function injectStyles(){
   if(document.getElementById("hb-clock-css"))return;
   const s=document.createElement("style"); s.id="hb-clock-css"; s.textContent=`
   .hb-clock{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;color:var(--hb-ink,#0d1622);
-            width:min(520px,90vw);background:var(--hb-bg,#fff);border:1px solid var(--hb-line,#eef1f6);border-radius:18px;
+            width:100%;box-sizing:border-box;background:var(--hb-bg,#fff);border:1px solid var(--hb-line,#eef1f6);border-radius:18px;
             padding:28px 24px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:10px}
   .hb-clock .time{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:72px;font-weight:600;
                   color:var(--hb-ink,#0d1622);letter-spacing:.02em;line-height:1;font-variant-numeric:tabular-nums}

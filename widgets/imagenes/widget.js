@@ -11,7 +11,7 @@ function injectStyles(){
   if(document.getElementById("hb-imagenes-css"))return;
   const s=document.createElement("style"); s.id="hb-imagenes-css"; s.textContent=`
   .hb-imgv{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
-           color:var(--hb-ink,#0d1622);width:min(720px,92vw);background:var(--hb-bg,#fff);
+           color:var(--hb-ink,#0d1622);width:100%;box-sizing:border-box;background:var(--hb-bg,#fff);
            border:1px solid var(--hb-line,#eef1f6);border-radius:16px;padding:12px 12px 10px;
            display:flex;flex-direction:column;gap:10px}
   .hb-imgv .imghd{display:flex;align-items:baseline;gap:8px;min-height:18px}

@@ -31,11 +31,20 @@ widgets feel polished and consistent with the rest. These are HARD rules — fol
     ends up scrolling sideways and the operator has to drag the widget around to read it. *The validation gate
     rejects this* (`widgets/validator.py`). Sizes come from `%`, `minmax()`, `flex-wrap`, `grid-template-columns:
     repeat(auto-fit,minmax(140px,1fr))` — that one line is a row on a desk and a column on a phone, for free.
+  - **Your ROOT element (the one `render(el, data, ctx)` sets `el.className` on) must be `width:100%` — never
+    a fixed `width:<N>px` or `width:min(<N>px, <M>vw)` cap** (V2-615, the operator: *"si lo amplío para poder
+    ver el texto mejor, que se pueda ampliar — todos los widgets deben ser auto-escalables"*). The desktop host
+    (`frontend/app/widgets/desktop.js`) mounts your `el` directly into a fully fluid card with NO intermediate
+    fixed-size wrapper, and drag-resize sets that card's width directly — so a hardcoded cap on your root is not
+    a safety net, it is the operator dragging a card wider and NOTHING inside it using the extra room (measured
+    live: a long URL wrapped across five lines inside a 480px column while the card itself sat empty at 900px).
+    Nine of the fourteen system widgets carried this exact anti-pattern before it was fixed catalog-wide — it was
+    desktop-era advice this file's own previous line already half-retracted for mobile but never actually
+    corrected on desktop. `results`, `documento` and `youtube` are the reference: `width:100%;box-sizing:
+    border-box`. *Measured, not assumed*: `tests/browser/e2e/widgets/test_widget_roots_fill_a_wide_desktop_card.py`
+    renders every widget in the catalog on a 900px card and fails if its root measures meaningfully less.
   - **COMPACT still, and horizontal WHERE IT FITS** — but a single column is not a failure mode on a phone, it is
     the right answer. What is still wrong is a column of tiny stacked rows that wastes the width it *does* have.
-    (This bullet used to say "NEVER a tall single column" and "respect `width:min(620px,90vw)`". That was desktop
-    advice written before the phone shell existed, and following it literally is what made widgets read badly
-    there.)
   - **Genuinely wide content scrolls in its OWN box**: put a wide table/timeline inside a wrapper with
     `overflow-x:auto`. Wide is fine; wide that pushes the CARD sideways is not.
   - **Tap targets**: the phone shell already applies a 44px floor to every `button`/`input`/`select`/`a[href]`

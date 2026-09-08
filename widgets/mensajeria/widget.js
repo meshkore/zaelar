@@ -104,7 +104,12 @@ const _expanded = new Set();   // message keys with the body expanded
 function injectStyles(){
   if(document.getElementById("hb-msg-css"))return;
   const s=document.createElement("style"); s.id="hb-msg-css"; s.textContent=`
-  .hb-msg{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;color:var(--hb-ink,#0d1622);width:min(480px,92vw)}
+  /* Fluid width, ANCHORED to the parent card (V2-615, same fix as youtube's V2-597): the old
+     width:min(480px,92vw) capped the readable column at 480px FOREVER, even on a card the operator had
+     deliberately dragged much wider to read a long line (a tracking URL, a long subject) — the card grew,
+     the text column inside it did not. The CARD decides the width now; box-sizing keeps padding from
+     overflowing it. */
+  .hb-msg{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;color:var(--hb-ink,#0d1622);width:100%;box-sizing:border-box}
   /* V2-611 redesign — the header is its OWN band, visually separated from the content below it (the
      operator's ask: "que se delimiten mejor las secciones"), and every icon in it is a real, bigger button
      with its own hover/click target — not a bare glyph floating in the row. */
@@ -247,14 +252,12 @@ function injectStyles(){
 
   /* NARROW SCREENS (V2-559). MEASURED FIRST, and the measurement removed most of what was written here:
      rendered at 375px in six states (connect panel with three failures, both wizards, the QR, the chat list
-     and an open thread), NOTHING was clipped and nothing left the viewport — the min(480px,92vw) width was
-     already doing the job, and the wrap rules drafted for the channel row only made every row twice as tall
-     for a defect that does not exist (the long statuses and the action button never co-occur).
-     What is left is the part that IS an improvement on a phone: let the CONTAINER decide the width instead of
-     reserving 8vw of it (the mobile deck already pads its card), and let a received photo use the whole card
-     instead of a 220px thumbnail taken from the desktop. */
+     and an open thread), NOTHING was clipped and nothing left the viewport, and the wrap rules drafted for the
+     channel row only made every row twice as tall for a defect that does not exist (the long statuses and the
+     action button never co-occur). What is left is the part that IS an improvement on a phone: let a received
+     photo use the whole card instead of a 220px thumbnail taken from the desktop (the root's own width is
+     fluid now, V2-615, so it needs no override here). */
   @media (max-width: 430px){
-    .hb-msg{width:auto;max-width:100%}
     .hb-msg .mediaw .matt,.hb-msg .mediaw video.mvid{max-width:100%;max-height:none}
     .hb-msg .mediaw audio.maud{width:100%}
   }

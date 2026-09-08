@@ -9,7 +9,7 @@ const KIND = {deep:"var(--hb-accent,#3D6FE0)", admin:"var(--hb-accent2,#16B8A6)"
 function injectStyles(){
   if(document.getElementById("hb-agenda-css"))return;
   const s=document.createElement("style"); s.id="hb-agenda-css"; s.textContent=`
-  .hb-agenda{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;color:var(--hb-ink,#0d1622);width:min(760px,90vw)}
+  .hb-agenda{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;color:var(--hb-ink,#0d1622);width:100%;box-sizing:border-box}
   .hb-agenda .hd{display:flex;align-items:baseline;gap:10px;margin:0 0 10px}
   .hb-agenda .hd .cals{display:flex;align-items:center;gap:7px;margin-left:auto}
   .hb-agenda .calicon{display:inline-flex;align-items:center;justify-content:center;opacity:.32;flex:0 0 auto}

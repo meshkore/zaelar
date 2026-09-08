@@ -5,7 +5,7 @@
 function injectStyles(){
   if(document.getElementById("hb-search-css"))return;
   const s=document.createElement("style"); s.id="hb-search-css"; s.textContent=`
-  .hb-search{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;color:var(--hb-ink,#0d1622);width:min(440px,88vw)}
+  .hb-search{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;color:var(--hb-ink,#0d1622);width:100%;box-sizing:border-box}
   .hb-search .hd{display:flex;align-items:center;gap:9px;margin:0 0 12px}
   .hb-search .scan{width:30px;height:30px;border-radius:50%;border:3px solid var(--hb-line,#e3e8f0);border-top-color:var(--hb-accent,#3D6FE0);animation:hbspin .8s linear infinite}
   @keyframes hbspin{to{transform:rotate(360deg)}}

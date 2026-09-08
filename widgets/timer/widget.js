@@ -6,7 +6,7 @@ function injectStyles() {
   if (document.getElementById("hb-timer-css")) return;
   const s = document.createElement("style"); s.id = "hb-timer-css"; s.textContent = `
   .hb-timer{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
-            width:min(520px,90vw);background:var(--hb-bg,#fff);border:1px solid var(--hb-line,#eef1f6);
+            width:100%;box-sizing:border-box;background:var(--hb-bg,#fff);border:1px solid var(--hb-line,#eef1f6);
             border-radius:18px;padding:28px 24px;text-align:center;
             display:flex;flex-direction:column;align-items:center;gap:8px}
   .hb-timer .ht-label{font-size:14px;font-weight:500;color:var(--hb-muted,#5b6b82);text-transform:uppercase;

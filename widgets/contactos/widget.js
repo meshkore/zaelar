@@ -9,7 +9,7 @@ const KLABEL = {person: "persona", place: "sitio", company: "empresa"};
 function injectStyles(){
   if(document.getElementById("hb-contactos-css"))return;
   const s=document.createElement("style"); s.id="hb-contactos-css"; s.textContent=`
-  .hb-contactos{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;color:var(--hb-ink,#0d1622);width:min(700px,92vw)}
+  .hb-contactos{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;color:var(--hb-ink,#0d1622);width:100%;box-sizing:border-box}
   .hb-contactos .cthd{display:flex;align-items:baseline;gap:10px;margin:0 0 10px}
   .hb-contactos .cthd b{font-size:18px}
   .hb-contactos .cthd .ctn{font-size:12px;color:var(--hb-muted-2,#7d8a9c);margin-left:auto;font-family:ui-monospace,Menlo,monospace}

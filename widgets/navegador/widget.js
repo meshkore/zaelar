@@ -20,7 +20,7 @@ let _wheelAt = 0;                    // simple mouse-wheel scroll throttle
 function injectStyles(){
   if(document.getElementById("hb-nav-css")) return;
   const s = document.createElement("style"); s.id = "hb-nav-css"; s.textContent = `
-  .hb-nav{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;color:var(--hb-ink,#0d1622);width:min(920px,94vw)}
+  .hb-nav{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;color:var(--hb-ink,#0d1622);width:100%;box-sizing:border-box}
   .hb-nav-bar{display:flex;gap:6px;align-items:center;margin-bottom:8px}
   .hb-nav-ic{border:1px solid var(--hb-line,#e3e8f0);background:var(--hb-bg,#fff);color:var(--hb-muted,#3a4757);border-radius:8px;width:32px;height:32px;font-size:15px;cursor:pointer;line-height:1;flex:0 0 auto}
   .hb-nav-ic:hover:not(:disabled){border-color:var(--hb-accent,#3D6FE0);color:var(--hb-accent,#3D6FE0)}
@@ -43,7 +43,11 @@ function injectStyles(){
   .hb-nav-scroll button{width:30px;height:30px;border-radius:8px;border:1px solid var(--hb-line,#e3e8f0);background:var(--hb-bg,#fff);color:var(--hb-muted,#3a4757);cursor:pointer;font-size:13px;opacity:.85}
   .hb-nav-scroll button:hover{border-color:var(--hb-accent,#3D6FE0);color:var(--hb-accent,#3D6FE0);opacity:1}
   /* ── TASK CARD (kind:"task"): capture above, state below. One per task/tab (V2-257). ── */
-  .hb-navt{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;color:var(--hb-ink,#0d1622);width:560px;max-width:92vw}
+  /* V2-615 — same fix as .hb-nav above: this is a SEPARATE root class (the per-task mini-browser card,
+     id navegador::<taskid>) that carried the identical desktop-era cap in a different syntax
+     (width+max-width instead of width:min(...)) — missed by a grep for the min() idiom, caught by actually
+     RENDERING it wide and measuring. */
+  .hb-navt{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;color:var(--hb-ink,#0d1622);width:100%;box-sizing:border-box}
   .hb-navt-head{display:flex;align-items:center;gap:7px;margin-bottom:7px}
   .hb-navt-status{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;padding:2px 7px;border-radius:999px;background:var(--hb-bubble,#f1f4f9);color:var(--hb-muted,#5b6b82);flex:0 0 auto}
   .hb-navt-status.s-working{background:rgba(61,111,224,.14);color:var(--hb-accent,#3D6FE0)}

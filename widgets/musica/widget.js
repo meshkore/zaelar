@@ -23,7 +23,7 @@ function injectStyles(){
   const s = document.createElement("style"); s.id = "hb-mus2-css"; s.textContent = `
   .hb-mus2-root{position:relative}
   .hb-mus2{--sp-green:#1DB954;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
-           width:min(468px,93vw);background:var(--hb-bg,#fff);border:1px solid var(--hb-line,#eef1f6);
+           width:100%;box-sizing:border-box;background:var(--hb-bg,#fff);border:1px solid var(--hb-line,#eef1f6);
            border-radius:16px;overflow:hidden;color:var(--hb-ink,#0d1622);display:flex;flex-direction:column}
   .hb-mus2-scroll{padding:15px 15px 8px;display:flex;flex-direction:column;gap:17px;max-height:60vh;overflow:auto}
   .hb-mus2-top{display:flex;align-items:center;gap:9px;padding-bottom:13px;border-bottom:1px solid var(--hb-line,#eef1f6)}

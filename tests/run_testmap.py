@@ -1745,6 +1745,20 @@ DOMAINS: list[dict] = [
                                  "pantalla, controles de 44px e inputs de 16px",
             "ch": UNIT, "live": True,
             "cmd": "./.venv/bin/python tests/browser/e2e/mobile/render_widgets_on_a_phone.py"},
+        # 4.111's DESKTOP counterpart (V2-615). The operator, looking at mensajería's email detail: a Plaid
+        # tracking URL wrapping across 4-5 lines while the 900px card around it sat mostly empty — "para este y
+        # TODOS los widgets deben ser auto-escalables". Nine of fourteen system widgets hardcoded their root at
+        # `width:min(<N>px,<M>vw)`, a desktop-era cap AGENTS.md itself already half-retracted for mobile
+        # (V2-574) but never actually fixed on desktop; `frontend/app/widgets/desktop.js` mounts a widget's
+        # root directly into a fully fluid, drag-resizable card, so the cap was 100% the widget's own CSS
+        # refusing the space the operator gave it. A static gate (`widgets/validator.py`) now rejects both
+        # shapes of the pattern (the `min()` clamp idiom, and a bare `width:Npx` at card scale) going forward.
+        {"id": "4.128", "title": "Un widget USA la anchura de la tarjeta que se le da — nueve del catálogo "
+                                 "capaban su raíz a un ancho fijo desktop-era; medido RENDERIZANDO en una "
+                                 "tarjeta de 900px, y el gate estático que lo impide desde ahora",
+            "ch": UNIT,
+            "paths": ["tests/browser/e2e/widgets/test_widget_roots_fill_a_wide_desktop_card.py",
+                      "tests/browser/unit/widgets/test_a_widget_root_cannot_cap_its_own_width.py"]},
         # The source-level node above cannot see that the orb is a black hole in the middle of the bar: on
         # 2026-08-18 it was, at 0 painted pixels, while that node stayed green counting canvases. This one
         # RENDERS the shell at phone size and measures it. Self-contained (it starts its own preview server,

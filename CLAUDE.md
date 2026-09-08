@@ -470,6 +470,38 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **A widget's root actually uses the width of the card it is given (V2-615, 2026-09-08)**: the operator,
+  looking at mensajería's email detail — a long tracking URL wrapping across 4-5 lines while the 900px card
+  around it sat mostly empty. *"Para este y TODOS los widgets deben ser auto-escalables."*
+  - **Nine of fourteen system widgets** (`mensajeria`, `agenda`, `contactos`, `musica`, `clock`, `timer`,
+    `search`, `imagenes`, `navegador`) hardcoded their root at `width:min(<N>px,<M>vw)` — a desktop-era cap
+    `widgets/AGENTS.md` itself already half-retracted for mobile (V2-574) but never actually swept from
+    desktop. `frontend/app/widgets/desktop.js` mounts a widget's root directly into a fully fluid,
+    drag-resizable card, so the cap was 100% the widget's own CSS refusing space the operator handed it. Fixed
+    to `width:100%;box-sizing:border-box` — the pattern `youtube`/`results`/`documento` already used.
+  - **A second occurrence of the SAME pattern, different syntax, found only by RENDERING**: `navegador`'s
+    per-task mini-browser card (`.hb-navt`, a SECOND root class) carried `width:560px;max-width:92vw` — a
+    grep for the `min()` idiom alone would have missed it entirely.
+  - **Taught forward**: `widgets/AGENTS.md` and `widgets/generator.py::_CONTRACT` both gained an explicit rule
+    naming the root by its exact contract clause (`el.className` in `render(el,...)`), not just an implied
+    "write it fluid." A new static gate (`widgets/validator.py`, sibling of V2-574's `min-width>360px` check)
+    rejects both shapes going forward, threshold chosen by measuring the whole catalog first (every legitimate
+    small element ≤320px, every real cap 440-920px).
+  - ⚠️ **A false positive found before shipping**: the fix's own explanatory CSS comments (documenting the OLD
+    capped value) contain the literal banned pattern as prose — the gate's first version scanned comments
+    too, so the fix commit tripped its own rule. Fixed by stripping `/* ... */` before either width check runs.
+  - ⚠️ **Two bugs in the new TEST harness itself, both caught before trusting it**: an `#id` selector on the
+    mount point out-specificities any class rule the widget declares (the test could never fail regardless of
+    the widget's CSS — the card's size now lives on a separate wrapper); and measuring
+    `host.firstElementChild` (copied from the mobile phone-render script's DOM shape) instead of `host` itself
+    picked up a shrink-to-fit flex ITEM's width on `clock`/`timer` (`align-items:center`) instead of the fluid
+    root around it.
+  - Node **4.128** (2 new files, content-independent by design — a widget's root class is set before any
+    data-dependent branch, so even an EMPTY state exercises the rule). `make test-widgets` green 14/14 before
+    AND after. Two disarms verified red. Full per-widget suites + the V2-574 phone-render script all green —
+    no mobile regression from dropping the `vw` clamp term.
+  - **NOT verified live yet** — needs an engine restart.
+
 - **A Reset does not leave a CONNECTED mailbox mute (V2-614, 2026-09-08)**: the operator's screenshot — the
   mensajería widget open on "Nada que atender ahora ✓" right after asking to see his Gmail messages, and his
   framing that Reset must never disconnect a connector. Measured live before touching anything: Gmail **was**

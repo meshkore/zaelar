@@ -140,18 +140,46 @@ def _scan_widget_js(js: str) -> str | None:
     # Measured before choosing the threshold: all 14 system widgets pass at 390px, and none declares a min-width
     # over 360 (tests/browser/e2e/mobile/render_widgets_on_a_phone.py is the behavioural half of this rule).
     style_text = "\n".join(re.findall(r"`([^`]*)`", js, re.S))
+    # CSS comments stripped before any width scan: a widget explaining IN A COMMENT what a fixed width used to
+    # be (exactly what this rule's own fix commits do, V2-615) must not trip the gate it is documenting.
+    style_text = re.sub(r"/\*.*?\*/", "", style_text, flags=re.S)
     for m in re.finditer(r"min-width\s*:\s*(\d+(?:\.\d+)?)px", style_text, re.I):
         if float(m.group(1)) > _PHONE_SAFE_MIN_WIDTH_PX:
             return (f"widget.js declares min-width:{m.group(1)}px — wider than a phone card can hold "
                     f"({_PHONE_SAFE_MIN_WIDTH_PX}px is the limit). Let the layout be FLUID (%, minmax, flex-wrap); "
                     f"if the content is genuinely wide (a table), keep it in its own overflow-x:auto wrapper so "
                     f"it scrolls INSIDE the card instead of pushing the card sideways")
+    # A ROOT THAT REFUSES A WIDE CARD (V2-615). The desktop host mounts a widget's root directly into a fully
+    # fluid card, and drag-resize sets that card's width directly — so a hardcoded CAP on the root is not a
+    # safety net, it is the operator dragging a card wider and nothing inside using the extra room. Measured
+    # live: a widget's root capped at 480px while its 900px card sat mostly empty, wrapping a long URL across
+    # five lines. `(?<!-)width` excludes `max-width`/`min-width` (both preceded by a hyphen) — only a PLAIN
+    # `width:` is a cap here, exactly the same reasoning the min-width rule above already uses. Two shapes of
+    # the same anti-pattern, both desktop-era: the `min(Npx, Mvw)` clamp idiom (this codebase never sizes a
+    # small element this way — it is ALWAYS a card-width cap) and a bare `width:Npx` at card scale (>=400px; a
+    # legitimate small fixed element — an icon, a QR code, a form field — never reaches that size here, measured
+    # across the whole catalog: the largest is 320px, and that one is a `max-width`).
+    for m in re.finditer(r"(?<!-)width\s*:\s*min\(\s*(\d+(?:\.\d+)?)px\s*,\s*\d+(?:\.\d+)?vw\s*\)", style_text, re.I):
+        return (f"widget.js declares width:min({m.group(1)}px,...) on its root — a card-width CAP that ignores "
+                f"how wide the operator's card actually is. The root must be width:100%;box-sizing:border-box; "
+                f"the CARD decides the size (widgets/AGENTS.md)")
+    for m in re.finditer(r"(?<!-)width\s*:\s*(\d+(?:\.\d+)?)px", style_text, re.I):
+        if float(m.group(1)) >= _ROOT_WIDTH_CAP_PX:
+            return (f"widget.js declares width:{m.group(1)}px — wide enough to be a card-width CAP, not a "
+                    f"small fixed element. If this is your root, it must be width:100%;box-sizing:border-box "
+                    f"(the CARD decides the size, widgets/AGENTS.md); if it is a genuinely large fixed element, "
+                    f"raise this threshold's exemption explicitly rather than silently passing it")
     return None
 
 
 # The widest a widget may REFUSE to shrink below. The mobile card is 390px minus 12px of padding on each side
 # (366px of content), so 360 leaves a hair of tolerance and still fails anything designed for a desk.
 _PHONE_SAFE_MIN_WIDTH_PX = 360
+
+# The narrowest a bare `width:Npx` may be before it is treated as a card-width CAP rather than a small fixed
+# element. Measured across the whole catalog before choosing it (V2-615): the largest legitimate small element
+# is 320px (a `max-width`, already excluded), every genuine root cap sat between 440-920px.
+_ROOT_WIDTH_CAP_PX = 400
 
 
 # data.py: stdlib-only. Allow the standard library, relative imports, and the widgets package (store/planner).
