@@ -1524,8 +1524,15 @@ DOMAINS: list[dict] = [
         {"id": "4.121", "title": "El lienzo se reajusta cuando el chat se lleva una columna: autofit + autoresize "
                                  "con el mínimo de cada widget, y el acople sobrevive a la recarga",
             "ch": UNIT,
+            # El tercer fichero (2026-09-08): el MISMO defecto de dos sistemas de coordenadas que F3 arregló
+            # para las tarjetas seguía vivo en makeDraggable (orbe/cámara/estado) — con columna acoplada,
+            # cada arrastre del orbe sumaba el ancho de la columna (1º clic: salto; 2º: fuera de pantalla),
+            # y el asa perdía los pointermove de un arrastre rápido (la lección del grip de F6). Ahora todo
+            # se lee y escribe en las coordenadas del CONTENEDOR real (containerBox), con listeners en la
+            # ventana, y la posición persistida viaja en ese mismo espacio.
             "paths": ["tests/browser/e2e/widgets/test_the_canvas_refits_when_the_chat_takes_a_column.py",
-                      "tests/browser/e2e/widgets/test_the_chat_wall_stays_where_it_was.py"]},
+                      "tests/browser/e2e/widgets/test_the_chat_wall_stays_where_it_was.py",
+                      "tests/browser/e2e/widgets/test_the_orb_drag_stays_under_the_cursor.py"]},
         # V2-608 F7, pestaña «Procesos» (operador, 2026-09-07): la fila de un encargo vivo nacía titulada
         # «leyendo brickset.com…» y MUTABA con cada fase y cada parte de progreso hasta que las actualizaciones
         # paraban. Dos causas: el store tenía UN solo `text` que cuatro escritores pisaban por turnos, y NO
