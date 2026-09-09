@@ -1707,6 +1707,18 @@ DOMAINS: list[dict] = [
                                 "la cabecera enseña los conectores de calendario sin mentir sobre ellos",
             "ch": UNIT, "paths": ["tests/browser/e2e/widgets/test_agenda_render.py",
                                   "tests/browser/unit/agenda/test_show_day_is_an_action_not_a_promise.py"]},
+        # V2-639 — LA AGENDA CONTESTA A LA VOZ. Medido en vivo (0c2af370 18:12 y c4ad8332 19:27, 2026-09-09):
+        # cuatro peticiones de vista mensual y cuatro veces a HOY — el modelo mandó `show_day {view:'month'}`
+        # y data.py solo leía `day`/`date` (la clase V2-341: el alias natural no puede costar el hecho). Y tres
+        # intenciones sin vocabulario (la lección de clear_all): mover una cita de día, avisos a TODAS las
+        # citas de un día, y añadir una TAREA sin hora. Los detalles de una cita eran invisibles para el
+        # cerebro (coach_context solo trae HOY) → prompt_digest; y toda la superficie hablaba castellano fijo
+        # → ctx.t/ctx.lang (V2-613) + fechas/horas EN + labels del planner por idioma. Renderizado donde el
+        # fuente no lo enseña (pestañas, cabecera de mes por locale, el tooltip con las notas).
+        {"id": "4.140", "title": "La AGENDA contesta a la voz: alias de vista, move_meeting, avisos en bloque, "
+                                 "add_task, digest con detalles, y el widget en el idioma del operador",
+            "ch": UNIT, "paths": ["tests/browser/unit/agenda/test_the_agenda_answers_to_the_voice.py",
+                                  "tests/browser/unit/agenda/test_the_agenda_dresses_in_the_operators_language.py"]},
         # V2-540 — la DIRECCIÓN de una acción del canvas. «El botón de ver detalle no es clic»: estaba cableado,
         # pintado y activo. Lo roto era a QUÉ hoja iba. `desktop.js::ctx.action` mete la instancia abierta en
         # cada payload con el nombre que usa el canvas —`q`— y `results.apply_action` solo miraba `sheet`, una
