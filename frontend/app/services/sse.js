@@ -15,6 +15,7 @@ import { t, applyLang } from "../core/i18n.js?v=1";
 // Guarded: the frontier harness mounts this module under Node, where `location` does not exist.
 const _SHOWCASE = typeof location !== "undefined" && new URLSearchParams(location.search).has("showcase");
 let _arrT = null;
+let _attnWinS = 12;   // last window_s seen from the gate — the ring's re-arm span (see the bot_speech branch)
 
 let es = null;
 
@@ -32,6 +33,12 @@ export function openSSE(desktop) {
       const speaking = typeof d.speaking === "boolean" ? d.speaking
                      : /speaking|started/.test(String(d.label));
       store.setBotSpeaking(speaking);
+      // The ring mirrors the REAL window (2026-09-09, session 0071d30e): the backend holds an open window
+      // while zaelar talks and re-anchors it at its last word (attention.note_bot_speech) — but the ring's
+      // timer only knew the last directed turn, so it died mid-reply and the operator read «no veo el círculo
+      // verde» as deafness while the mic was in fact still his. Held while speaking, re-armed for a full
+      // window on idle; a ring already off stays off (the bot's own speech never OPENS one).
+      if (store.attentionHit()) store.pulseAttentionHit(speaking ? 600 : _attnWinS);
       if (d.ttfa_ms != null) store.setLatency(d.ttfa_ms + " ms");
     } else if (d.kind === "error") {
       console.warn("voice error:", d.label || "");              // clean screen: log only, no banner
@@ -129,7 +136,8 @@ export function openSSE(desktop) {
     } else if (d.kind === "ui" && d.label === "orb:name") {                      // renamed by voice — tooltip updates live
       if (d.name) store.setAssistantName(d.name);
     } else if (d.kind === "ambient") {                                           // attention gate verdict → the "listening to you" ring
-      if (d.directed) store.pulseAttentionHit(d.window_s); else store.clearAttentionHit();
+      if (d.directed) { _attnWinS = d.window_s || _attnWinS; store.pulseAttentionHit(_attnWinS); }
+      else store.clearAttentionHit();
     } else if (d.kind === "language") {                                          // V2-089 P3: detected/changed language → the entire UI changes LIVE
       if (d.code) applyLang(d.code);                                             // fetches whatever the bundle has now — presets instant, a generating one falls back to English for missing keys until "ready"
       // V2-101: the first-run onboarding modal tracks phases on TOP of the plain applyLang above — "detected"
