@@ -29,6 +29,17 @@ from .base import WorkerBackend, WorkerSpec
 # `0` disables the watchdog (the crash path in `_finish` still catches it).
 _CTX_BUDGET = int(os.getenv("ZAELAR_WORKER_CTX_BUDGET", "110000"))
 
+# STALL WATCHDOG (V2-645). Measured live (the La Mella session, 2026-09-09): a worker's provider stream
+# died mid-call (glm-5.3, TCP connections CLOSED, 0% CPU) and the session sat in `async for ev in
+# self._b.events()` FOREVER — no event, no error, no death notice, while the turn kept answering «sigo con
+# ello». Susurro detected «worker encallado» at +3 min and its audit was in cooldown, so nobody was told.
+# The watchdog bounds the WAIT for the next backend event: past the limit the worker is stopped and dies
+# LOUDLY through the existing `_finish()` machinery (death notices, V2-198/V2-237), which is what lets the
+# state line say the truth instead of the model confabulating continuity. Deliberately generous (a deep
+# reasoning turn can be legitimately quiet for minutes) and deliberately NOT an auto-retry: a blind relaunch
+# can duplicate side effects — the death notice invites the relaunch instead. `0` disables it.
+_STALL_S = float(os.getenv("ZAELAR_WORKER_STALL_S", "300"))
+
 
 @dataclass
 class Inject:
@@ -200,7 +211,32 @@ class WorkerSession:
         self._bus("worker.spawned", {"id": rec.task_id, "kind": rec.kind, "goal": rec.goal[:120]})
         try:
             await self._b.start(prompt, spec=self._spec)
-            async for ev in self._b.events():
+            it = self._b.events().__aiter__()
+            while True:
+                try:
+                    if _STALL_S > 0:
+                        ev = await asyncio.wait_for(it.__anext__(), timeout=_STALL_S)
+                    else:
+                        ev = await it.__anext__()
+                except StopAsyncIteration:
+                    break
+                except asyncio.TimeoutError:
+                    if not self._b.alive:
+                        break                     # the process already died; _finish() reads the record
+                    mins = int(_STALL_S // 60) or 1
+                    logger.warning(f"worker[{rec.task_id}]: STALLED — no backend event in {_STALL_S:.0f}s, stopping")
+                    self._emit_chip("stalled",
+                                    f"sin respuesta del proveedor en {mins} min — aborto la tarea", ok=False)
+                    rec.status = "error"
+                    rec.ok = False
+                    rec.result_summary = (rec.result_summary or
+                                          f"El proveedor dejó de responder ({mins} min sin un solo evento) y "
+                                          f"aborté la tarea. Se puede relanzar.")
+                    try:
+                        await self._b.stop(grace=2.0)
+                    except Exception:  # noqa: BLE001
+                        pass
+                    break
                 self._touch()
                 self._on_event(ev)
                 if ev.type == "done":
