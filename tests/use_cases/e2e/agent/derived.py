@@ -788,6 +788,82 @@ PROFILES["search-buy-used-car"] = Profile(
     signals=("worker", "widget"), turns=10)
 
 
+# ── REAL-SESSION widget profiles (operator directive 2026-09-09) ─────────────────────────────────────────
+# Each opening is what the operator ACTUALLY said in the measured session (STT noise kept where it was part
+# of the incident); each `must_not` names the failure that session paid. The bar is `primero_valido` on
+# purpose: these are questions with ONE right answer or one screen state, never comparisons.
+PROFILES["messaging-group-amount-due"] = Profile(
+    clarifications=(("qué grupo exactamente", "el del viaje, se habla de La Mella — búscalo tú"),),
+    persona_extra="Ya has aportado 100 y quieres saber cuánto toca pagar AHORA, según lo que diga el grupo.",
+    success_extra="La cifra sale de los MENSAJES del grupo (archivo/peek), no de la web. Preguntar «¿cuánto "
+                  "hay que pagar?» NO mueve dinero: un confirm-gate de dinero aquí es el defecto medido.",
+    must_not="Ni navegador ni worker web para leer mensajería propia; ni «Esto mueve dinero» sobre una "
+             "pregunta de importe (sesión 2026-09-09, V2-645).",
+    bar="primero_valido",
+    opening_es="Escúchame, hay un grupo en el que se habla del viaje este a la Mella. Revísalo y dime "
+               "cuánto hay que pagar ahora.",
+    signals=("widget",), turns=8)
+PROFILES["messaging-school-wrote-last-month"] = Profile(
+    persona_extra="Esperas nombres y fechas; si el archivo no cubre el mes entero, esperas que te lo DIGA.",
+    success_extra="Un hueco de cobertura se declara («no indexo antes del X»), nunca se contesta «nadie te "
+                  "escribió» sobre un periodo no registrado (la lección V2-606, aplicada al archivo).",
+    bar="primero_valido",
+    signals=("widget",), turns=6)
+PROFILES["messaging-did-we-reply"] = Profile(
+    success_extra="Dos mitades: CUÁNDO llegó (fecha del archivo) y SI se contestó (sí/no + cuándo, del "
+                  "registro de salientes). Un «no consta respuesta» honesto puntúa bien; un sí inventado no.",
+    bar="primero_valido",
+    signals=("widget",), turns=6)
+PROFILES["messaging-group-open-actions"] = Profile(
+    persona_extra="No piensas leerte el hilo: quieres las acciones abiertas (pagos, reservas, formularios).",
+    success_extra="Si no hay digest todavía, la salida correcta es leer el chat AHORA (peek) — nunca "
+                  "«no tienes nada pendiente» sin haber mirado.",
+    bar="primero_valido",
+    signals=("widget",), turns=6)
+PROFILES["messaging-detail-inside-messages"] = Profile(
+    clarifications=(("de qué comprobante hablas", "el del pago del viaje, lo dicen en el mismo grupo"),),
+    success_extra="El email se extrae de los mensajes del chat, literal. Si la cobertura no llega, se trae "
+                  "el pasado de ESE chat (load_more) y se repite la búsqueda — no se inventa.",
+    bar="primero_valido",
+    signals=("widget",), turns=8)
+PROFILES["video-search-lands-in-player"] = Profile(
+    must_not="Ni hoja de resultados ni Brain Worker: la búsqueda de vídeo es del propio widget (V2-402; "
+             "la escalada de 9+ min es el defecto que midió V2-586).",
+    bar="primero_valido",
+    signals=("widget",), turns=6)
+PROFILES["video-exit-fullscreen-unnamed"] = Profile(
+    persona_extra="Hay UN vídeo a pantalla completa; no vas a nombrar el widget porque es obvio cuál.",
+    must_not="Cerrar el widget (sesión 3050e623) o contestar «Hecho.» sin tocar la pantalla (sesión "
+             "4a492268) — los dos fallos medidos de V2-600/V2-609.",
+    bar="primero_valido",
+    signals=("widget",), turns=4)
+PROFILES["video-blocked-channel-respected"] = Profile(
+    success_extra="El canal desaparece de home/sugerencias y SIGUE fuera después; un enlace pegado de ese "
+                  "canal reproduce con AVISO (una orden explícita gana a un filtro permanente, V2-604).",
+    bar="primero_valido",
+    signals=("widget",), turns=6)
+PROFILES["music-playlist-reads-clean"] = Profile(
+    must_not="Filas «Madonna Papa Don't Preach» (el artista pegado al título en cada fila) — la captura "
+             "que abrió V2-612.",
+    bar="primero_valido",
+    signals=("widget",), turns=4)
+PROFILES["music-save-what-is-sounding"] = Profile(
+    persona_extra="Suena una canción que pediste con palabras aproximadas; quieres guardar LA QUE SUENA.",
+    success_extra="Lo guardado lleva el título/artista REALES que resolvió el proveedor, no tus palabras "
+                  "habladas (V2-629).",
+    bar="primero_valido",
+    signals=("widget",), turns=4)
+PROFILES["docs-single-recipe-not-a-list"] = Profile(
+    must_not="Una hoja de RESULTADOS con una lista de recetas — «pedí una y me trajo una lista» es la "
+             "queja del operador que creó la hoja de documento (V2-549).",
+    bar="primero_valido",
+    signals=("widget",), turns=6)
+PROFILES["docs-report-lands-as-document"] = Profile(
+    success_extra="El informe aterriza en la superficie de documento con su proceso visible; «ya está "
+                  "hecho» sin nada en pantalla es el fallo (V2-644).",
+    signals=("worker", "widget"), turns=10)
+
+
 # Applied HERE rather than next to the table: half a dozen profiles are assigned AFTER the `PROFILES` literal
 # (those for the dedicated US ids and the two rewritten at the end), and a loop before them silently left them
 # out—`cheapest-monitor` and `search-buy-used-car` kept answering in euros and kilometres under an opening in

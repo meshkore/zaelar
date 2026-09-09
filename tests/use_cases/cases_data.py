@@ -779,6 +779,92 @@ CASES: list[UseCase] = [
             "on a main road.",
             "The agent picks a site people actually use in that market, applies the filters there, and "
             "reports which constraint each candidate meets."),
+
+    # --- REAL-SESSION widget cases (operator directive, 2026-09-09) ----------------------------------
+    # «Todo lo que está pasando en estas sesiones debería transformarse a tests e incorporarse a la
+    # lista de use cases, porque al final más realista que esto no hay nada.» Every case below is a
+    # REAL operator session, quoted as spoken (STT noise included) — the incident that measured it is
+    # named in `notes`, along with the deterministic coverage that already pins its mechanism where it
+    # exists. A case stays a SAMPLE, never a specification (the norm above): the fix that makes one
+    # green must survive the noun changing.
+    #
+    # -- mensajería (the La Mella session, 2026-09-09 21:28-21:36, diagnosed end to end in V2-645) --
+    UseCase("messaging-group-amount-due", "es", 3, "Find what is owed from a group chat",
+            "Escúchame, hay un grupo en el que se habla del viaje este a la Mella. Revísalo y dime "
+            "cuánto hay que pagar ahora.",
+            "The amount is answered from the group's own messages (archive/peek), in the turn or near "
+            "it — no browser, no web worker, no money confirm-gate for a pure read.",
+            notes="Measured 2026-09-09: the answer (100 EUR) sat in the communications archive while a "
+                  "kind=web worker searched the internet and the money gate asked three times. Fixes: "
+                  "V2-645 (read door, danger gate, errand kind); mechanism nodes 5.21."),
+    UseCase("messaging-school-wrote-last-month", "es", 2, "Who wrote from the school this month",
+            "¿Me han escrito del colegio de los niños en el último mes?",
+            "Answered with senders and dates from the permanent archive; if coverage starts later than "
+            "the window, the boundary is SAID («no indexo antes del X») — never «nadie te escribió».",
+            notes="The operator's own audit use case (2026-09-09) that triggered V2-628. Deterministic: "
+                  "tests/browser/unit/mensajeria/test_search_archive.py (node 5.21)."),
+    UseCase("messaging-did-we-reply", "es", 2, "When did it arrive and did we ever answer it",
+            "¿Cuándo nos mandaron aquel mensaje del comedor? ¿Lo llegamos a contestar?",
+            "The arrival date is named and the reply question is answered yes/no + when from the "
+            "archive's outbound capture (check_reply), not from memory recall.",
+            notes="V2-628 F2. Deterministic: test_search_archive.py::test_did_we_answer_it_is_a_join "
+                  "(node 5.21)."),
+    UseCase("messaging-group-open-actions", "es", 3, "Anything I must do from this group",
+            "¿Tengo que hacer alguna acción del grupo de las familias? No quiero leerme los 200 "
+            "mensajes.",
+            "The open actions (a payment owed, a booking, a form) are named from the per-chat digest "
+            "without the operator reading the thread; a chat with no digest yet channels to peek and "
+            "never answers «nada pendiente».",
+            notes="V2-628 F3 (the 200-messages-unread promise). Deterministic: test_chat_digest.py + "
+                  "test_digest.py (node 5.21)."),
+    UseCase("messaging-detail-inside-messages", "es", 2, "A detail buried in the conversation",
+            "También voy a necesitar que me digas a qué email hay que mandar el comprobante.",
+            "The email address is extracted from the group's messages (peek/search over the indexed "
+            "chat, pulling that chat's past via load_more if coverage is short) and answered verbatim.",
+            notes="The second half of the real La Mella errand (2026-09-09). Backfill teaching: V2-645 "
+                  "(search_archive miss names load_more)."),
+    # -- vídeo (sessions behind V2-586/V2-600/V2-609; widget redesigned in V2-632) --
+    UseCase("video-search-lands-in-player", "es", 1, "A video search plays in the widget",
+            "Búscame vídeos de recetas de paella.",
+            "Results land in the video widget's own search band (V2-402/V2-632 dashboard), not in a "
+            "results sheet and never via a Brain Worker rediscovering the widget's search data-op.",
+            notes="Measured in V2-586: the plural seeds were missing and every media search escalated "
+                  "(9+ min). Family-seed ratchet pins the class."),
+    UseCase("video-exit-fullscreen-unnamed", "es", 1, "Leave fullscreen without naming the widget",
+            "Sal de pantalla completa.",
+            "The card at fullscreen exits to its normal size. Nothing closes, and the order needs no "
+            "widget name — the canvas knows which card is maximized.",
+            notes="Sessions 4a492268 + 3050e623 (V2-600/V2-609): the widget was CLOSED, then «Hecho.» "
+                  "with no tool call. Deterministic: node 4.117."),
+    UseCase("video-blocked-channel-respected", "es", 2, "A blocked channel stays blocked in suggestions",
+            "Bloquéame este canal, no me lo vuelvas a sugerir.",
+            "The channel disappears from home/suggestions and stays out; an explicit pasted link from "
+            "it still plays with a WARNING (an explicit order outranks a standing filter).",
+            notes="V2-604's rule. The suggestions sweep shipped in V2-597/V2-632."),
+    # -- música (the True Blue session, V2-612; widget rebuilt in V2-629) --
+    UseCase("music-playlist-reads-clean", "es", 1, "A playlist reads like a player, not a dump",
+            "Ponme la lista True Blue.",
+            "Playback starts; a shared artist is said ONCE in the header, rows read clean (never "
+            "«Madonna Papa Don't Preach» per row), and the sounding row is visibly marked.",
+            notes="The operator's screenshot session (V2-612). Deterministic: node 4.3's rendered "
+                  "cases."),
+    UseCase("music-save-what-is-sounding", "es", 1, "Save the song that is actually playing",
+            "Guárdame esta canción en favoritas.",
+            "What lands in the list is the PROVIDER's resolved title/artist/art (what is sounding), "
+            "never the operator's raw spoken words.",
+            notes="V2-629: _track_from_resolved stores what the provider resolved; the heart may later "
+                  "distill the preference (domain-stores doctrine)."),
+    # -- documentos / informes (the recipe complaint that created the sheet, V2-549; V2-644) --
+    UseCase("docs-single-recipe-not-a-list", "es", 1, "One thing to read is ONE document",
+            "Dame la receta de la carbonara.",
+            "ONE readable document opens (the blank-sheet widget), not a results list of links — «pedí "
+            "una receta y me trajo una lista de recetas» is the failure this case exists to keep dead.",
+            notes="The operator's literal complaint that created V2-549. Deterministic: node 4.101."),
+    UseCase("docs-report-lands-as-document", "es", 2, "A commissioned report arrives as a document",
+            "Hazme un informe sobre coches eléctricos para ciudad y ponlo en pantalla.",
+            "The report is delivered on the document surface with its live process visible — never "
+            "narrated as done with nothing on screen.",
+            notes="V2-644 (a report is delivered as a document, surface «informe»)."),
 ]
 
 

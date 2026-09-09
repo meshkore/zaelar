@@ -121,6 +121,23 @@ SEGMENTS: dict[str, Segment] = {
     # is within the engine (seeding + recall + one response), with no credential, payment, or third party.
     "knows-who-i-am-without-being-told-again": _done(),
     "build-workout-tracker-widget": _done(),
+    # ── REAL-SESSION widget cases (operator directive 2026-09-09, cases_data.py's last section) ─────────
+    # All completable: the deliverable IS the answer or the screen state, and everything lives inside the
+    # engine. The messaging ones read the communications archive / thread store, which the lab SEEDS (no
+    # real WhatsApp link needed to measure the answering mechanism — the live connector is a separate,
+    # optional leg, same split as the email connector's live node).
+    "messaging-group-amount-due": _done(),
+    "messaging-school-wrote-last-month": _done(),
+    "messaging-did-we-reply": _done(),
+    "messaging-group-open-actions": _done(),
+    "messaging-detail-inside-messages": _done(),
+    "video-search-lands-in-player": _done(),
+    "video-exit-fullscreen-unnamed": _done(),
+    "video-blocked-channel-respected": _done(),
+    "music-playlist-reads-clean": _done(),
+    "music-save-what-is-sounding": _done(),
+    "docs-single-recipe-not-a-list": _done(),
+    "docs-report-lands-as-document": _done(),
     "three-tasks-at-once": _done(),
     # Music and video (2026-08-26). `completable` according to this module’s SINGLE question, asked of the opening
     # line: “play me music” and “play video X” do NOT request a credential, card, call, or nonexistent real object.
@@ -357,6 +374,16 @@ FINDINGS_EXEMPT = {
     #   would tell the judge to expect a list in the sheet — asking the agent for exactly the defect this case
     #   exists to measure.
     "show-real-photo-of-a-new-car",
+    # · REAL-SESSION widget cases (2026-09-09): each delivers ONE answer read from the operator's own data
+    #   (an amount, a date, a yes/no, an email) or ONE screen state (fullscreen exited, a playlist reading
+    #   clean, a document open) — never a shortlist of candidates on the results sheet. Giving them the
+    #   findings contract would ask the agent for exactly the wrong surface (the La Mella session opened a
+    #   results sheet nobody needed).
+    "messaging-group-amount-due", "messaging-school-wrote-last-month", "messaging-did-we-reply",
+    "messaging-group-open-actions", "messaging-detail-inside-messages",
+    "video-search-lands-in-player", "video-exit-fullscreen-unnamed", "video-blocked-channel-respected",
+    "music-playlist-reads-clean", "music-save-what-is-sounding",
+    "docs-single-recipe-not-a-list", "docs-report-lands-as-document",
     # · show-my-messages / connect-email-by-voice / dictate-a-reply-honestly → the surface is the messaging
     #   widget (its list, channel panel, and reply confirmation); a results sheet beside it would be the same
     #   second screen already rejected for music and video.

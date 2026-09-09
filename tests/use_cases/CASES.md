@@ -733,6 +733,22 @@ Each entry: `id` — utterance — expected outcome.
 - `group-plan-three-friends` — *"Coordínate con los agentes de Pedro, Marta y Javi por WhatsApp para quedar todos el sábado."*
 - `realtime-eta-share` — *"Avisa por WhatsApp al agente de Ana en cuanto salga de casa, para que sepa a qué hora llego."*
 
+**Real-session widget cases (operator directive, 2026-09-09)** — each one IS a measured operator
+session, quoted as spoken; the incident and the deterministic coverage that pins its mechanism are named
+in the case's `notes` (`cases_data.py`). «Más realista que esto no hay nada.»
+- `messaging-group-amount-due` — *"Escúchame, hay un grupo en el que se habla del viaje este a la Mella. Revísalo y dime cuánto hay que pagar ahora."* (the La Mella session, V2-645)
+- `messaging-school-wrote-last-month` — *"¿Me han escrito del colegio de los niños en el último mes?"* (the audit that triggered V2-628)
+- `messaging-did-we-reply` — *"¿Cuándo nos mandaron aquel mensaje del comedor? ¿Lo llegamos a contestar?"* (V2-628 F2)
+- `messaging-group-open-actions` — *"¿Tengo que hacer alguna acción del grupo de las familias? No quiero leerme los 200 mensajes."* (V2-628 F3)
+- `messaging-detail-inside-messages` — *"También voy a necesitar que me digas a qué email hay que mandar el comprobante."* (the second half of the La Mella errand)
+- `video-search-lands-in-player` — *"Búscame vídeos de recetas de paella."* (V2-586's measured escalation)
+- `video-exit-fullscreen-unnamed` — *"Sal de pantalla completa."* (sessions 4a492268 + 3050e623, V2-600/V2-609)
+- `video-blocked-channel-respected` — *"Bloquéame este canal, no me lo vuelvas a sugerir."* (V2-604's rule)
+- `music-playlist-reads-clean` — *"Ponme la lista True Blue."* (the screenshot session, V2-612)
+- `music-save-what-is-sounding` — *"Guárdame esta canción en favoritas."* (V2-629)
+- `docs-single-recipe-not-a-list` — *"Dame la receta de la carbonara."* (the complaint that created V2-549)
+- `docs-report-lands-as-document` — *"Hazme un informe sobre coches eléctricos para ciudad y ponlo en pantalla."* (V2-644)
+
 ### United States (us)
 
 **Tier 1 — bounded single-site action**
