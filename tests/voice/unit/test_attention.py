@@ -402,3 +402,66 @@ def test_both_close_backstops_are_wired_to_the_fullscreen_veto():
             assert "mentions_fullscreen" in window, (
                 f"{path.name}: the close backstop lost its fullscreen veto — a turn mentioning «pantalla "
                 f"completa» would close the whole widget again (measured 2026-09-05, session 3050e623)")
+
+
+# ── the window measures REAL silence, and only a directed turn can open it (2026-09-09, session 49e13093) ──
+# Measured live in wake-word mode: the 30s window re-fed itself off every turn IT admitted, so the operator's
+# conversation with a third person kept it alive indefinitely — «A ver, Raquel, ¿a qué hora comemos?» came in
+# as `active_window` 13.9s after zaelar's last word, and zaelar answered a family conversation for a minute.
+
+def _smart(monkeypatch):
+    monkeypatch.setenv("ZAELAR_ATTENTION", "smart")
+
+
+def test_the_window_is_per_mode_12s_in_wake_word_30s_in_always(monkeypatch):
+    assert attention.window_s() == 30.0     # always: V2-531's no-judge dialogue continuity keeps its 30s
+    _smart(monkeypatch)
+    assert attention.window_s() == 12.0     # wake word: 10-15s of silence closes it (operator, 2026-09-09)
+
+
+def test_third_party_talk_after_the_bot_finished_is_ambient(monkeypatch):
+    _smart(monkeypatch)
+    t = 1000.0
+    attention.note_directed(now=t)                      # «No.»
+    attention.note_bot_speech(True, now=t + 1)
+    attention.note_bot_speech(False, now=t + 6)         # «Perfecto, Ricard. Aquí estoy…» ends
+    v = attention.evaluate("A ver, Raquel, ¿a qué hora comemos?", now=t + 20)   # 14s of real silence
+    assert not v.directed and v.reason == "ambient"
+
+
+def test_an_answer_after_a_reply_longer_than_the_window_is_still_directed(monkeypatch):
+    # The window is anchored to zaelar's LAST WORD, not the operator's last turn: a 20s reply must not leave
+    # the operator's «Vale.» five seconds later marked ambient.
+    _smart(monkeypatch)
+    t = 1000.0
+    attention.note_directed(now=t)
+    attention.note_bot_speech(True, now=t + 1)
+    attention.note_bot_speech(False, now=t + 21)        # reply outlives the 12s window
+    assert attention.evaluate("Vale.", now=t + 26).directed
+
+
+def test_a_barge_in_while_the_bot_still_talks_is_directed(monkeypatch):
+    _smart(monkeypatch)
+    t = 1000.0
+    attention.note_directed(now=t)
+    attention.note_bot_speech(True, now=t + 1)          # still talking at t+15, window would have expired
+    assert attention.evaluate("espera, mejor otro", now=t + 15).directed
+
+
+def test_the_bots_own_speech_never_OPENS_a_window(monkeypatch):
+    # Kickoff/proactive: zaelar speaking on its own initiative grants no hands-free attention (the documented
+    # decision at the caller) — only a directed turn opens the window; the bot's speech merely holds one.
+    _smart(monkeypatch)
+    t = 1000.0
+    attention.note_bot_speech(True, now=t)
+    attention.note_bot_speech(False, now=t + 5)
+    v = attention.evaluate("qué frío hace hoy", now=t + 6)
+    assert not v.directed and v.reason == "ambient"
+
+
+def test_reset_clears_the_bot_hold(monkeypatch):
+    _smart(monkeypatch)
+    attention.note_directed(now=1000.0)
+    attention.note_bot_speech(True, now=1001.0)
+    attention.reset()
+    assert not attention.evaluate("sigo hablando", now=1002.0).directed

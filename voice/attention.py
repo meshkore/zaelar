@@ -32,7 +32,16 @@ from loguru import logger
 # ── configuration (UI-managed; env = fallback) ──────────────────────────────────────────────────────────
 _VALID_MODES = ("smart", "wakeword", "ptt", "always")
 _DEFAULT_MODE = "always"   # robot OFF = always listens and responds; the UI toggle switches to wake-word
+# Per-MODE window, because the two modes err on opposite sides. `always` keeps 30s: within it nobody judges
+# (V2-531 — the LLM judge went deaf mid-dialogue), and there is no wake word to recover with, so the window errs
+# long. `smart` (wake word) closes on 12s of REAL silence (2026-09-09, session 49e13093): with 30s, a
+# conversation the operator was having with a THIRD person kept re-entering the window turn after turn — each
+# handled turn refreshed it, so it never died while anyone in the room spoke at least every 30s. His own
+# expectation, verbatim: 10-15s without talking to zaelar should close it — and recovery there is cheap (say the
+# name again). Pauses-to-think (1-3s) stay comfortably inside; zaelar's own speech no longer eats the window
+# either (see `note_bot_speech`), so this measures actual conversational silence.
 _DEFAULT_WINDOW_S = 30.0
+_SMART_WINDOW_S = 12.0
 
 # Wake word: "zaelar". Extendable via env (`ZAELAR_WAKEWORDS`, comma-separated) with phonetic variants that STT
 # might confuse — the previous ones (harvey/arbi/jarbi…) were specific mishearings of "harbee" and no longer apply.
@@ -40,7 +49,7 @@ _DEFAULT_WINDOW_S = 30.0
 _DEFAULT_WAKEWORDS = ("zaelar",)
 
 # ── process state ───────────────────────────────────────────────────────────────────────────────────
-_state = {"last_directed": 0.0, "ptt": False, "assistant_name": ""}
+_state = {"last_directed": 0.0, "ptt": False, "assistant_name": "", "bot_hold": False}
 
 
 def _norm(text: str) -> str:
@@ -55,11 +64,12 @@ def mode() -> str:
 
 
 def window_s() -> float:
+    dflt = _SMART_WINDOW_S if mode() == "smart" else _DEFAULT_WINDOW_S
     try:
-        v = float((os.getenv("ZAELAR_ATTENTION_WINDOW") or "").strip() or _DEFAULT_WINDOW_S)
-        return v if v > 0 else _DEFAULT_WINDOW_S
+        v = float((os.getenv("ZAELAR_ATTENTION_WINDOW") or "").strip() or dflt)
+        return v if v > 0 else dflt
     except Exception:
-        return _DEFAULT_WINDOW_S
+        return dflt
 
 
 def _wakewords() -> tuple[str, ...]:
@@ -118,8 +128,11 @@ def evaluate(text: str, *, now: float | None = None) -> Verdict:
         return Verdict(False, "ambient")
     if m == "ptt":
         return Verdict(True, "ptt") if _state["ptt"] else Verdict(False, "ambient")
-    # smart: active conversation window
+    # smart: active conversation window. `bot_hold` covers a barge-in while zaelar is STILL TALKING inside an
+    # open conversation — a long reply must not let the window die mid-sentence (see `note_bot_speech`).
     now = time.time() if now is None else now
+    if _state["bot_hold"]:
+        return Verdict(True, "active_window")
     if _state["last_directed"] and (now - _state["last_directed"]) <= window_s():
         return Verdict(True, "active_window")
     return Verdict(False, "ambient")
@@ -250,6 +263,24 @@ def note_directed(now: float | None = None) -> None:
     _state["last_directed"] = time.time() if now is None else now
 
 
+def note_bot_speech(speaking: bool, now: float | None = None) -> None:
+    """Zaelar's OWN speech is conversation activity (2026-09-09, session 49e13093): the window used to be
+    anchored only to the operator's last turn, so a reply longer than the window left the operator's next
+    answer marked ambient — and conversely nothing distinguished 'zaelar just finished talking' from '30s of
+    dead air'. While zaelar talks inside an OPEN window the window cannot expire (`bot_hold`), and when it
+    finishes the window is re-anchored to that instant — so `window_s()` measures REAL silence after its last
+    word. Never OPENS a window from nothing: the kickoff greeting and a proactive announcement deliberately do
+    not grant hands-free attention (documented decision at the caller, nucleo.py) — only a window some directed
+    turn already opened is held/extended."""
+    now = time.time() if now is None else now
+    if speaking:
+        _state["bot_hold"] = (_state["bot_hold"] or
+                              bool(_state["last_directed"]) and (now - _state["last_directed"]) <= window_s())
+    elif _state["bot_hold"]:
+        _state["bot_hold"] = False
+        _state["last_directed"] = now
+
+
 def set_ptt(active: bool) -> None:
     """Push-to-talk state (set by the frontend through the `zaelar-ptt` data topic). Only counts in ptt mode."""
     _state["ptt"] = bool(active)
@@ -259,6 +290,7 @@ def reset() -> None:
     """Closes the window / clears PTT (new voice session or test)."""
     _state["last_directed"] = 0.0
     _state["ptt"] = False
+    _state["bot_hold"] = False
 
 
 # ── HARD interruption (T136): STOP always handled, BYPASSES the gate, DETERMINISTIC (does not depend on the LLM) ────

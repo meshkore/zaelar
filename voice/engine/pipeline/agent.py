@@ -274,6 +274,13 @@ async def entrypoint(ctx: JobContext) -> None:
         _emit("state", state.value, role="system", extra={"state": state.value, **({"trace": _tid} if _tid else {})})
         _emit("bot_speech", "speaking" if speaking else "idle",
               extra={"speaking": speaking, **({"trace": _tid} if _tid else {})})
+        # Wake-word window: zaelar's own speech holds/re-anchors an OPEN conversation window, so `window_s()`
+        # measures real silence after its last word (2026-09-09; never opens one — kickoff stays gated).
+        try:
+            from voice import attention as _attn
+            _attn.note_bot_speech(speaking)
+        except Exception:
+            pass
         # Nothing is still sounding at this instant — this is the safe point to close any flow that finished
         # generate text WHILE the bot was still narrating the response (operator report, 2026-08-16: the turn
         # disappeared from the master during TTS). See `nucleo.py::_maybe_close_flow`/`drain_pending_flow_closes`.
