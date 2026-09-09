@@ -241,10 +241,14 @@ def _search_archive_answer(payload: dict) -> dict:
                   f"el archivo cubre desde {coverage}")
     elif oldest is None:
         detail = ("el archivo está vacío todavía — guarda todo lo que llegue o salga desde su activación, "
-                  "pero no indexa el pasado; para algo anterior, el buzón de la app real es la fuente")
+                  "pero no indexa el pasado; para traer e indexar el pasado de UN chat concreto llama a "
+                  "load_more con ese chat (o fetch_now con platform en telegram/email) y repite esta "
+                  "búsqueda; si no, el buzón de la app real es la fuente")
     else:
         detail = (f"nada en el ARCHIVO casa con eso — cubre desde {coverage}; algo ANTERIOR a esa fecha no "
-                  f"está guardado aquí (no se indexó el pasado), dilo en vez de afirmar que no existió")
+                  f"está guardado aquí (no se indexó el pasado), dilo en vez de afirmar que no existió. "
+                  f"Para indexar el pasado de UN chat: load_more con ese chat (o fetch_now con platform en "
+                  f"telegram/email) y repite esta búsqueda")
     result = {"matches": matches, "count": len(matches), "archive_since": coverage, "detail": detail}
     # F2 — the answered state: «¿lo llegamos a contestar?» is a JOIN, never a memory. On request, the
     # newest INBOUND match is checked for the first outgoing message in the same chat after its instant.

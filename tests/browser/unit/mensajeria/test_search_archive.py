@@ -84,6 +84,8 @@ def test_an_empty_archive_states_its_boundary_instead_of_denying_the_past():
     res = r["result"]
     assert res["count"] == 0 and res["archive_since"] is None
     assert "no indexa el pasado" in res["detail"], "the model must say the log has no coverage, not «it never happened»"
+    assert "load_more" in res["detail"], \
+        "V2-645: the miss must teach the way IN — pull that chat's past and search again"
 
 
 def test_a_miss_names_the_coverage_start():
@@ -91,6 +93,7 @@ def test_a_miss_names_the_coverage_start():
     res = data.answer_action("search_archive", {"sender": "nadie-con-este-nombre"})["result"]
     assert res["count"] == 0 and res["archive_since"] is not None
     assert res["archive_since"] in res["detail"]
+    assert "load_more" in res["detail"], "a coverage miss also teaches the targeted backfill (V2-645)"
 
 
 def test_no_criterion_is_a_refusal_that_names_the_arguments():
