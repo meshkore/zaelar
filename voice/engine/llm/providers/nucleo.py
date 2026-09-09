@@ -2744,10 +2744,23 @@ class NucleoLLMStream(llm.LLMStream):
         # not-understanding. The stuck apology is for turns that produced NOTHING; an acted-and-silent turn
         # is the V2-633 design, and a deduped duplicate was handled, not lost. `_tool_handled` is computed
         # here (it used to live just below, feeding the fallbacks) so the backstop can read it.
+        # V2-646 (measured live, session 22:30:39): the operator TYPED «puedes ponermela en youtube o de
+        # alguna forma?», the model spent its 51 tokens on a `play_video` the canvas-license guard vetoed as
+        # context-bleed, `deduped` marked the turn handled — and the backstop below stayed quiet, so a typed
+        # question got completion_chars=0 and no answer at all. The V2-633/634 exemptions exist for AMBIENT
+        # speech dragged in from the room, where silence is the right answer; a sentence the operator sat
+        # down and WROTE is never that. So a vetoed/deduped action does not count as «handled» on a typed
+        # turn: it is exactly the void the backstop is for.
+        _typed_turn = False
+        try:
+            _typed_turn = attention.was_typed()
+        except Exception:
+            _typed_turn = False
         _tool_handled = bool(
-            acted["widget"] or data_done["v"] or worker_acted["v"] or style_fired["v"] or deduped["v"]
+            acted["widget"] or data_done["v"] or worker_acted["v"] or style_fired["v"]
+            or (deduped["v"] and not _typed_turn)
             or escalate_req["v"] is not None or search_req["v"] is not None
-            or music_req["v"] is not None or "play_video" in _tool_fired
+            or music_req["v"] is not None or ("play_video" in _tool_fired and not _typed_turn)
             or images_req["v"] is not None
             or confirm_state.get("opened") or confirm_state.get("handled"))
         if not spoken_text and not _tool_handled:

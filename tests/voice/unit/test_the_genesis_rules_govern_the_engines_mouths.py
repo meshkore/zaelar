@@ -214,6 +214,12 @@ def test_an_acted_but_silent_turn_never_gets_the_stuck_apology():
     src = (ENGINE / "voice/engine/llm/providers/nucleo.py").read_text(encoding="utf-8")
     assert "if not spoken_text and not _tool_handled:" in src, \
         "the mute backstop must skip turns that acted (V2-633 silence is design, not a void)"
-    assert 'or style_fired["v"] or deduped["v"]' in src, \
-        "a deduped duplicate order was HANDLED — it must count into _tool_handled"
+    # V2-646 narrowed this by ONE state, and the narrowing is the point: a deduped duplicate still counts as
+    # handled on a SPOKEN turn (that is V2-634's lesson, dragged-in room noise deserves silence), but never on
+    # a TYPED one — nobody types by accident, and a written question that got a vetoed action and no words is
+    # the void this backstop exists for (measured live 22:30:39, completion_chars=0).
+    assert 'or (deduped["v"] and not _typed_turn)' in src, \
+        "a deduped duplicate order was HANDLED — it must still count into _tool_handled for spoken turns"
+    assert "_typed_turn = attention.was_typed()" in src, \
+        "and the typed exception must read the real fact, not assume it"
     assert 'deduped["v"] = True' in src, "the context-bleed guard must mark the turn as handled"

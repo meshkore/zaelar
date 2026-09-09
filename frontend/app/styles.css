@@ -148,6 +148,10 @@ body.chatdock-r .statuspanel,body.chatdock-r .cronpanel{right:calc(18px + var(--
 .cw-input textarea:focus{border-color:var(--hb-accent)}
 .cw-send{flex:0 0 auto;width:36px;height:36px;border-radius:10px;border:none;cursor:pointer;color:#fff;
      background:linear-gradient(135deg,var(--hb-accent),var(--hb-accent2));display:flex;align-items:center;justify-content:center}
+/* V2-646: ⏻ OFF = nothing is listening, so the composer refuses instead of swallowing the message. The
+   button keeps its shape and loses its charge — a disabled control has to READ disabled, or the operator
+   types a whole sentence before finding out (which is exactly what happened). */
+.cw-send.off{background:var(--hb-line,#e3e8f0);color:var(--hb-muted-2,#9aa7b8);cursor:not-allowed;opacity:.65}
 /* V2-079 — ChatWall tabs (Chat / Processes / Crons) + panel visibility via the root's tab-* class */
 /* V2-617: the header tabs are the chat's PRIMARY navigation — UI-size type, real hit targets, and the
    active tab wears the ACCENT (the one color that means «interactive» across the whole skin). */

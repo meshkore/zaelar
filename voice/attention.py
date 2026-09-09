@@ -53,7 +53,8 @@ _state = {"last_directed": 0.0, "ptt": False, "assistant_name": "", "bot_hold": 
           "window_hint": 0.0,      # per-reply dynamic window (attention_window.hint); 0 = use the mode default
           "recent_directed": [],   # timestamps of recent directed turns → dialogue depth for the hint
           "spotted_at": 0.0,       # last instant wake-word spot (interim STT) — dedupe for the orb signal
-          "ambient_tail": []}      # (ts, text) of recently-DISCARDED ambient turns — reclaimed by a wake word
+          "ambient_tail": [],      # (ts, text) of recently-DISCARDED ambient turns — reclaimed by a wake word
+          "typed_at": 0.0}         # V2-646: last TYPED (chat/paste) turn — a typed message is never ambient
 
 
 def _norm(text: str) -> str:
@@ -288,6 +289,23 @@ def note_directed(now: float | None = None) -> None:
     rd = [t for t in _state["recent_directed"] if now - t <= 90.0]
     rd.append(now)
     _state["recent_directed"] = rd[-10:]
+
+
+def note_typed(now: float | None = None) -> None:
+    """The operator TYPED this turn (chat/paste). Stamped by the text-packet handler in `pipeline/agent.py`,
+    beside its `note_directed()`, because the two facts are different: `directed` says the turn is for us,
+    `typed` says it CANNOT be ambient chatter — nobody sits down and types by accident. That distinction is
+    what the mute backstop needs (V2-646): the exemptions that keep us silent over dragged-in noise must
+    never apply to a sentence the operator wrote."""
+    _state["typed_at"] = time.time() if now is None else now
+
+
+def was_typed(within_s: float = 45.0, now: float | None = None) -> bool:
+    """Was the turn being handled right now a TYPED one? Time-bounded so a chat message from minutes ago
+    never re-classifies a later spoken turn."""
+    now = time.time() if now is None else now
+    ts = _state.get("typed_at") or 0.0
+    return bool(ts) and (now - ts) <= within_s
 
 
 def note_reply(text: str, now: float | None = None) -> None:

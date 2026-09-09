@@ -554,3 +554,41 @@ def test_the_interim_stream_and_the_gate_are_both_wired():
     gate_src = _re.sub(r"(?m)#.*$", "", open("voice/engine/llm/providers/nucleo.py", encoding="utf-8").read())
     assert "note_wakeword_spotted()" in agent_src
     assert "reclaim_ambient_tail(" in gate_src and "note_ambient(" in gate_src
+
+
+# ── V2-646: a TYPED turn is never ambient ────────────────────────────────────────────────────────────────
+# Measured live 2026-09-09 22:30:39: the operator TYPED «puedes ponermela en youtube o de alguna forma?»,
+# the model spent its 51 tokens on a `play_video` the canvas-license guard vetoed as context-bleed, the
+# `deduped` flag marked the turn handled, and the mute backstop stayed quiet — completion_chars=0 and no
+# answer at all to a question he had sat down and written. The V2-633/634 silence exemptions exist for
+# AMBIENT speech dragged in from the room; a typed sentence can never be that, and this is the fact the
+# provider reads to tell the two apart.
+
+def test_a_typed_turn_is_stamped_and_readable():
+    attention.note_typed(now=1000.0)
+    assert attention.was_typed(now=1000.5), "the turn being handled right after a typed message IS typed"
+
+
+def test_the_typed_stamp_expires_so_a_later_spoken_turn_is_not_mislabelled():
+    attention.note_typed(now=1000.0)
+    assert not attention.was_typed(now=1000.0 + 46.0), \
+        "a chat message from minutes ago must never re-classify a spoken turn as typed"
+
+
+def test_with_nothing_typed_the_answer_is_no():
+    attention._state["typed_at"] = 0.0
+    assert not attention.was_typed(now=1000.0)
+
+
+def test_the_text_channel_stamps_it_and_the_provider_reads_it():
+    """Parallel-impl guard: the stamp is worthless if the text handler stops writing it, or the provider
+    stops reading it — and neither failure is loud. The provider's use is the one that matters: a vetoed
+    (`deduped`) action must not count as «handled» on a typed turn, or the backstop goes quiet again."""
+    import os
+    eng = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+    handler = open(os.path.join(eng, "voice/engine/pipeline/agent.py")).read()
+    assert "attention.note_typed()" in handler, "the chat/paste handler no longer stamps typed turns"
+    prov = open(os.path.join(eng, "voice/engine/llm/providers/nucleo.py")).read()
+    assert "was_typed()" in prov, "the provider no longer reads whether the turn was typed"
+    assert 'deduped["v"] and not _typed_turn' in prov, \
+        "a vetoed action must stop counting as «handled» on a typed turn — that is the whole fix"

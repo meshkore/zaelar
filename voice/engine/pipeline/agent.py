@@ -727,6 +727,7 @@ async def entrypoint(ctx: JobContext) -> None:
                 try:
                     from voice import attention
                     attention.note_directed()
+                    attention.note_typed()   # V2-646: a typed turn can never be ambient — see the mute backstop
                 except Exception:
                     pass
                 # OBSERVABILITY (intermittent chat/paste diagnosis): leave a trace showing that the text ARRIVED,

@@ -87,6 +87,7 @@
   "chat.sectionHistory": "History",
   "chat.sectionRunning": "Running",
   "chat.send": "Send",
+  "chat.sendAgentOff": "zaelar is off — turn it on to send",
   "chat.tabChat": "Chat",
   "chat.tabClusters": "Clusters",
   "chat.tabConnectors": "Connectors",

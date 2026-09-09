@@ -87,6 +87,7 @@
   "chat.sectionHistory": "Histórico",
   "chat.sectionRunning": "En marcha",
   "chat.send": "Enviar",
+  "chat.sendAgentOff": "zaelar está apagado — enciéndelo para enviar",
   "chat.tabChat": "Chat",
   "chat.tabClusters": "Clusters",
   "chat.tabConnectors": "Conectores",

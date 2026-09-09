@@ -503,6 +503,22 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   ⚠️ NOT verified live end-to-end: a real informe errand needs a worker run; the engine restart +
   served-code checks are the shipped verification. Detail: the V2-644 initiative.
 
+- **A typed message is never lost (V2-646, 2026-09-09)**: two defects, one promise. **(A)** With ⏻ OFF the
+  composer swallowed messages: `sendText` queues the text and calls `start()`, whose own gate against the
+  server's truth refuses — so the queue never flushed, while the wall showed «sent» and `send()` had already
+  cleared the box («la primera lo ha mandado al vacío… he tenido que escribir dos veces»). `canSend()` =
+  `agentState() !== "off"` now gates the button (disabled + a dead style + a title saying why) AND `send()`
+  itself, because Enter bypasses a button's `disabled`; `starting` stays open (there the queue does flush).
+  **(B)** Measured 22:30:39: a TYPED «puedes ponermela en youtube o de alguna forma?» spent its 51 tokens on
+  a `play_video` the canvas license vetoed as context-bleed, `deduped` marked the turn handled, and the mute
+  backstop stayed quiet — `completion_chars: 0`, a written question answered with nothing. The V2-633/634
+  silence exemptions are for AMBIENT room speech; a sentence somebody sat down and WROTE can never be that.
+  New fact `attention.note_typed()/was_typed()` (stamped by the chat/paste handler beside `note_directed()`),
+  and on a typed turn a vetoed/deduped action stops counting as «handled». V2-634's source guard was narrowed
+  by exactly one state, with the reason in the assertion — a deduped duplicate still counts on SPOKEN turns.
+  Node **4.144**; four disarms verified red. Left open on purpose: the license refused «ponermela» because the
+  request is ANAPHORIC (it points at «la peli de minions» from earlier), which is a licensing-vocabulary
+  decision, not a silence bug.
 - **A cover never ends the turn, and covers describe MOTION (V2-642, 2026-09-09)**: session 651c25ac,
   20:51:49 — «¿Por qué la vista semanal no tiene una columna para cada día?» → «Déjame que mire…» → a reply
   with `completion_tokens=84` but `completion_chars=0` (the model spent the turn re-emitting a stale data-op

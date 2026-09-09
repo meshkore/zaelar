@@ -124,7 +124,14 @@ export function ChatWall() {
   const _wasOpen = loadOpen();
   if (_wasOpen.open) { store.setChatTab(_wasOpen.tab); store.setChatOpen(true); }
 
-  const send = () => { if (!inputEl) return; submitChat(inputEl.value); inputEl.value = ""; inputEl.focus(); };
+  // V2-646 — NOTHING IS LISTENING, SO NOTHING IS SENT (operator, 2026-09-09): «estaba el agente parado y me
+  // he puesto a escribir… si lo mando y nadie está escuchando se pierde». It did: `session.sendText` queues
+  // the text and calls `start()`, but with the server's ⏻ OFF that start REFUSES (its own gate), so the
+  // message sat in the pending queue forever while the wall showed it as sent and the composer was cleared —
+  // he had to retype it from scratch. The composer now refuses in that ONE state («off»), keeps the text
+  // where he wrote it, and says why. `starting` is NOT blocked: there the queue really does flush on connect.
+  const canSend = () => store.agentState() !== "off";
+  const send = () => { if (!inputEl || !canSend()) return; submitChat(inputEl.value); inputEl.value = ""; inputEl.focus(); };
 
   // ── PROCESSES tab: live items (store.tasks, SSE) above + history (store.workerHistory, ledger) below ──────
   // V2-608 F7 — the row is STRUCTURED, and its first line holds still (operator, 2026-09-07): «el proceso que
@@ -429,7 +436,9 @@ export function ChatWall() {
         ref: el => (inputEl = el), rows: 3, placeholder: () => t("chat.messagePlaceholder"),
         onKeydown: e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } },
       }),
-      h("button", { class: "cw-send", title: () => t("chat.send"), onClick: send }, raw(SEND_SVG)),
+      h("button", { class: () => "cw-send" + (canSend() ? "" : " off"), disabled: () => !canSend(),
+                    title: () => t(canSend() ? "chat.send" : "chat.sendAgentOff"), onClick: send },
+        raw(SEND_SVG)),
     ),
   );
 
