@@ -91,9 +91,9 @@ function calIcon(c){
   const spec=CAL_SVG[c.id];
   const on=c.status==="connected";
   const wrap=el2("span","calicon"+(on?" on":"")+(c.status==="unavailable"?" soon":""));
-  wrap.title=c.label+(on ? ": conectado"
-                         : (c.status==="unavailable" ? ": todavía no disponible — aún no hemos construido este conector"
-                                                     : ": sin conectar"));
+  wrap.title=c.label+(on ? ": "+tt("cal_connected", null, "conectado")
+                         : (c.status==="unavailable" ? ": "+tt("cal_unavailable", null, "todavía no disponible — aún no hemos construido este conector")
+                                                     : ": "+tt("cal_off", null, "sin conectar")));
   if(spec){
     wrap.style.color=spec.color;
     const svg=document.createElementNS(SVG_NS_AG,"svg");
@@ -111,6 +111,36 @@ function calIcon(c){
 function el2(tag, cls, text){ const e=document.createElement(tag); if(cls)e.className=cls;
   if(text!=null)e.textContent=String(text); return e; }
 
+// V2-639 — the widget's own chrome follows the active language (the V2-613 `ctx.t` seam). `tt` looks the key
+// up and falls back to the literal (with {param} interpolation) so a bare render harness stays legible.
+let _T = null;
+function tt(key, params, fb){
+  try{
+    if(_T){ const s=_T("widgets.agenda."+key, params); if(s && s!=="widgets.agenda."+key) return s; }
+  }catch(_){}
+  let s = fb;
+  if(params) for(const k in params) s = s.split("{"+k+"}").join(String(params[k]));
+  return s;
+}
+let _LANG = "es";
+function fmtMonth(y, m){                       // month header, in the viewer's locale shape (V2-613 clock lesson)
+  try{ return new Intl.DateTimeFormat(_LANG, {month:"long", year:"numeric"}).format(new Date(y, m, 1)); }
+  catch(_){ return `${_MONTHS[m]} ${y}`; }
+}
+function fmtDow(i){                            // Mon..Sun short labels (i: 0=Monday)
+  try{ const d=new Date(2024, 0, 1+i);         // 2024-01-01 is a Monday
+    return new Intl.DateTimeFormat(_LANG, {weekday:"short"}).format(d).replace(/\.$/,""); }
+  catch(_){ return _DOW[i]; }
+}
+function dayLabel(d, i){                       // tab label for horizon day i, localized client-side
+  if(i===0) return tt("today", null, "Hoy");
+  if(i===1) return tt("tomorrow", null, "Mañana");
+  try{ const [y,m,dd]=(d.date||"").split("-").map(Number);
+    if(y) return new Intl.DateTimeFormat(_LANG, {weekday:"short"}).format(new Date(y, m-1, dd)).replace(/\.$/,""); }
+  catch(_){}
+  return d.label || d.weekday || "";
+}
+
 // Compact WEEK overview: one clickable row per day with its meetings, jumps to that day's tab.
 function renderWeek(el, days, todayIdx){
   const wrap=el2("div","agweek");
@@ -118,13 +148,13 @@ function renderWeek(el, days, todayIdx){
     const plan=d.plan||{}, blocks=(plan.blocks||[]);
     const row=el2("div","agwday"+(i===todayIdx?" today":"")); row.dataset.sel=String(i);
     const wh=el2("div","agwh");
-    wh.append(el2("b",null,d.label), el2("span","agwd",d.date||""),
-      el2("span","agct",plan.summary||`${blocks.length} bloques`));
+    wh.append(el2("b",null,dayLabel(d,i)), el2("span","agwd",d.date||""),
+      el2("span","agct",plan.summary||tt("n_blocks", {n:blocks.length}, "{n} bloques")));
     row.appendChild(wh);
     const mrow=el2("div","agwmeet");
     const meets=blocks.filter(b=>b.kind==="meeting");
     if(meets.length){ meets.forEach(m=>mrow.appendChild(el2("span","agwpill",`${m.start} ${m.label!=null?m.label:""}`))); }
-    else { mrow.appendChild(el2("span","warn","sin citas")); }
+    else { mrow.appendChild(el2("span","warn",tt("no_meetings", null, "sin citas"))); }
     row.appendChild(mrow);
     wrap.appendChild(row);
   });
@@ -149,7 +179,7 @@ function renderMonth(el, data, ctx, days){
   const prev=el2("button",null,"‹"); const next=el2("button",null,"›");
   prev.onclick=()=>{el._agMoff=off-1;render(el,data,ctx);};
   next.onclick=()=>{el._agMoff=off+1;render(el,data,ctx);};
-  nav.append(prev, el2("b",null,`${_MONTHS[dm]} ${dy}`), next);
+  nav.append(prev, el2("b",null,fmtMonth(dy,dm)), next);
   wrap.appendChild(nav);
 
   // Meetings by date (YYYY-MM-DD), sorted by time.
@@ -158,7 +188,7 @@ function renderMonth(el, data, ctx, days){
   Object.values(byDate).forEach(a=>a.sort((x,y)=>String(x.startTime||"").localeCompare(String(y.startTime||""))));
 
   const grid=el2("div","aggrid");
-  _DOW.forEach(d=>grid.appendChild(el2("div","agdow",d)));
+  _DOW.forEach((d,i)=>grid.appendChild(el2("div","agdow",fmtDow(i))));
   const lead=(new Date(dy,dm,1).getDay()+6)%7;               // getDay Sunday=0 -> Monday=0
   const nDays=new Date(dy,dm+1,0).getDate();
   for(let i=0;i<lead;i++) grid.appendChild(el2("div","agcell agpad"));
@@ -167,9 +197,12 @@ function renderMonth(el, data, ctx, days){
     const evs=byDate[dateStr]||[];
     const cell=el2("div","agcell"+(dateStr===data.date?" today":""));
     cell.appendChild(el2("div","agdn",String(dn)));
-    evs.slice(0,2).forEach(m=>cell.appendChild(
-      el2("div","agev",`${m.startTime?m.startTime+" ":""}${m.title!=null?m.title:""}`)));
-    if(evs.length>2) cell.appendChild(el2("div","agmore",`+${evs.length-2} más`));
+    evs.slice(0,2).forEach(m=>{
+      const ev=el2("div","agev",`${m.startTime?m.startTime+" ":""}${m.title!=null?m.title:""}`);
+      if(m.notes) ev.title=String(m.notes);        // V2-639: the appointment's details, one hover away
+      cell.appendChild(ev);
+    });
+    if(evs.length>2) cell.appendChild(el2("div","agmore",tt("n_more", {n:evs.length-2}, "+{n} más")));
     const hi=days.findIndex(d=>d.date===dateStr);            // in the horizon -> clickable, jumps to its day
     if(hi>=0){ cell.classList.add("aghas"); cell.dataset.sel=String(hi); }
     grid.appendChild(cell);
@@ -180,6 +213,8 @@ function renderMonth(el, data, ctx, days){
 
 export function render(el, data, ctx){
   injectStyles();
+  _T = (ctx && typeof ctx.t === "function") ? ctx.t : null;
+  _LANG = (ctx && ctx.lang) || "es";
   if(el._timer){clearInterval(el._timer);el._timer=null;}
 
   // Time horizon: precomputed days (today + upcoming). Compatibility: if `days` is missing, wrap today's plan.
@@ -219,8 +254,8 @@ export function render(el, data, ctx){
   el.className="hb-agenda";
   el.textContent="";                                          // reset (no innerHTML)
 
-  const hd=el2("div","hd"); hd.append(el2("b",null,"Agenda"),
-    el2("span","warn",onWeek?"Vista semana":(onMonth?"Vista mes":(day.date||""))),
+  const hd=el2("div","hd"); hd.append(el2("b",null,tt("title", null, "Agenda")),
+    el2("span","warn",onWeek?tt("week_view", null, "Vista semana"):(onMonth?tt("month_view", null, "Vista mes"):(day.date||""))),
     el2("span","now",isToday?(data.now||""):""));
   // The calendar connectors, at a glance and always visible — the same reading the messaging widget gives for
   // its channels (V2-521). None is linked today because none is BUILT; saying so out loud is deliberate.
@@ -235,17 +270,17 @@ export function render(el, data, ctx){
   el.appendChild(hd);
   if(el._agCalNote){
     const c=cals.find(x=>x.id===el._agCalNote);
-    if(c) el.appendChild(el2("div","calnote", c.status==="connected" ? c.label+": conectado."
+    if(c) el.appendChild(el2("div","calnote", c.status==="connected" ? c.label+": "+tt("cal_connected", null, "conectado")+"."
       : (c.status==="unavailable"
-         ? c.label+": todavía no está construido. Mientras tanto la agenda es la del propio Zaelar — lo que le dictes vive aquí, no en ese calendario."
-         : c.label+": construido pero sin enlazar. Conéctalo desde Configuración › Conectores.")));
+         ? c.label+": "+tt("cal_note_unavailable", null, "todavía no está construido. Mientras tanto la agenda es la del propio Zaelar — lo que le dictes vive aquí, no en ese calendario.")
+         : c.label+": "+tt("cal_note_off", null, "construido pero sin enlazar. Conéctalo desde Configuración › Conectores."))));
   }
 
   // Tabs: one day per tab plus Week view; switching stays client-side without another request.
   const tabs=el2("div","agtabs");
-  days.forEach((d,i)=>{ const t=el2("button","agtab"+(sel===i?" on":""),d.label); t.dataset.sel=String(i); tabs.appendChild(t); });
-  const wkTab=el2("button","agtab"+(onWeek?" on":""),"Semana"); wkTab.dataset.sel="week"; tabs.appendChild(wkTab);
-  const moTab=el2("button","agtab"+(onMonth?" on":""),"Mes"); moTab.dataset.sel="month"; tabs.appendChild(moTab);
+  days.forEach((d,i)=>{ const t=el2("button","agtab"+(sel===i?" on":""),dayLabel(d,i)); t.dataset.sel=String(i); tabs.appendChild(t); });
+  const wkTab=el2("button","agtab"+(onWeek?" on":""),tt("week", null, "Semana")); wkTab.dataset.sel="week"; tabs.appendChild(wkTab);
+  const moTab=el2("button","agtab"+(onMonth?" on":""),tt("month", null, "Mes")); moTab.dataset.sel="month"; tabs.appendChild(moTab);
   el.appendChild(tabs);
 
   if(onWeek){
@@ -264,36 +299,40 @@ export function render(el, data, ctx){
     const cols=el2("div","cols");
     const tl=el2("div","tl");
     const blocks=(plan.blocks||[]);
+    // V2-639: a meeting block's details («qué es ese punto») live one hover away.
+    const noteByKey={};
+    (data.meetings||[]).forEach(m=>{ if(m&&m.notes) noteByKey[`${m.date}|${m.startTime}`]=m.notes; });
     if(blocks.length){ blocks.forEach(b=>{
       const on = active && b.start===active.start && b.label===active.label;
       const blk=el2("div","blk"+(on?" act":""));
       blk.appendChild(el2("span","t",`${b.start}–${b.end}`));
       const bar=el2("span","bar"); bar.style.background=KIND[b.kind]||"var(--hb-neutral,#c2ccda)"; blk.appendChild(bar);  // KIND map = fixed palette, safe
       blk.appendChild(el2("span","lb",b.label!=null?b.label:""));
+      if(b.kind==="meeting"){ const nt=noteByKey[`${day.date}|${b.start}`]; if(nt) blk.title=String(nt); }
       tl.appendChild(blk);
-    }); } else { tl.appendChild(el2("div","warn","Sin bloques: revisa tu jornada o tus tareas.")); }
+    }); } else { tl.appendChild(el2("div","warn",tt("no_blocks", null, "Sin bloques: revisa tu jornada o tus tareas."))); }
     cols.appendChild(tl);
 
     const card=el2("div","now-card");
     if(isToday){
-      const nowBox=el2("div"); nowBox.append(el2("div","k","Ahora"), el2("div","task",active?active.label:"—")); card.appendChild(nowBox);
+      const nowBox=el2("div"); nowBox.append(el2("div","k",tt("now", null, "Ahora")), el2("div","task",active?active.label:"—")); card.appendChild(nowBox);
       card.appendChild(el2("div","count",active?fmt(active.remaining_min||0):"—")).id="hb-count";
 
       const taskId = active && active.taskId;
       if(taskId){ const acts=el2("div","acts");
-        [["done","✓ Hecha","done"],["not_now","No me apetece"],["snooze","Posponer"],["drop","Quitar tarea"]]
+        [["done","✓ "+tt("done", null, "Hecha"),"done"],["not_now",tt("not_now", null, "No me apetece")],["snooze",tt("snooze", null, "Posponer")],["drop",tt("drop", null, "Quitar tarea")]]
           .forEach(([a,label,extra])=>{ const b=el2("button",extra||null,label); b.dataset.a=a; b.dataset.tid=taskId;
             if(active.projectId)b.dataset.pid=active.projectId; acts.appendChild(b); });
         card.appendChild(acts);
-      } else { card.appendChild(el2("div","warn","Ahora mismo no hay tarea activa de foco.")); }
+      } else { card.appendChild(el2("div","warn",tt("no_active", null, "Ahora mismo no hay tarea activa de foco."))); }
     } else {
-      const box=el2("div"); box.append(el2("div","k",day.label), el2("div","task",plan.summary||"Día planificado")); card.appendChild(box);
+      const box=el2("div"); box.append(el2("div","k",dayLabel(day, days.indexOf(day))), el2("div","task",plan.summary||tt("planned_day", null, "Día planificado"))); card.appendChild(box);
     }
 
     ((isToday?data.coaching:plan.coaching)||[]).forEach(c=>card.appendChild(el2("div","nudge","🧭 "+c)));
     ((isToday?data.warnings:plan.warnings)||[]).forEach(w=>card.appendChild(el2("div","warn","⚠ "+w)));
 
-    const replan=el2("button","replan","↻ Replanificar"); replan.dataset.a="replan";
+    const replan=el2("button","replan","↻ "+tt("replan", null, "Replanificar")); replan.dataset.a="replan";
     card.appendChild(replan);
     cols.appendChild(card);
     el.appendChild(cols);

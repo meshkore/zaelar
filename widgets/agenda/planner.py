@@ -30,8 +30,29 @@ def project_roi(p: dict) -> float:
 
 ENERGY_RANK = {"low": 0, "medium": 1, "high": 2}
 
+# V2-639 — the plan's own words follow the active language. The planner stays PURE (lang is an argument,
+# the caller reads the engine's current code); only the strings the planner INVENTS are here — titles the
+# operator dictated pass through untouched, they are data.
+_L = {
+    "es": {"block": "Bloque", "meeting": "Reunión", "task": "Tarea", "lunch": "Comida",
+           "exercise": "Ejercicio", "break": "Descanso", "summary": "{n} tareas planificadas",
+           "overflow": "No cabe hoy: «{t}» ({d}m) — coste de oportunidad.",
+           "avoid": "Llevas evitando «{t}» — ¿de verdad te interesa, o lo quitamos del scope?",
+           "advance": "avanza {p} (prioridad {pr})", "priority": "prioridad"},
+    "en": {"block": "Block", "meeting": "Meeting", "task": "Task", "lunch": "Lunch",
+           "exercise": "Exercise", "break": "Break", "summary": "{n} tasks planned",
+           "overflow": "Does not fit today: “{t}” ({d}m) — opportunity cost.",
+           "avoid": "You keep avoiding “{t}” — do you actually want it, or shall we drop it?",
+           "advance": "advances {p} (priority {pr})", "priority": "priority"},
+}
 
-def plan_day(db: dict, date: str = "", now: str = "") -> dict:
+
+def _lbl(lang: str) -> dict:
+    return _L.get((lang or "es").lower()[:2], _L["es"])
+
+
+def plan_day(db: dict, date: str = "", now: str = "", lang: str = "") -> dict:
+    L = _lbl(lang)
     user = db.get("user", {})
     ws, we = _m(user.get("workStart", "09:00")), _m(user.get("workEnd", "18:00"))
     projects = {p["id"]: p for p in db.get("projects", [])}
@@ -46,21 +67,21 @@ def plan_day(db: dict, date: str = "", now: str = "") -> dict:
         days = r.get("days", "daily")
         ok = days == "daily" or (isinstance(days, list) and ((weekday + 1) % 7) in days)
         if ok:
-            reserved.append((_m(r["startTime"]), _m(r["endTime"]), r.get("title", "Bloque"), "personal", {}))
+            reserved.append((_m(r["startTime"]), _m(r["endTime"]), r.get("title", L["block"]), "personal", {}))
     for mt in db.get("meetings", []):
         if not date or str(mt.get("date", "")).startswith(date):
-            reserved.append((_m(mt["startTime"]), _m(mt["endTime"]), mt.get("title", "Reunión"), "meeting", {}))
+            reserved.append((_m(mt["startTime"]), _m(mt["endTime"]), mt.get("title", L["meeting"]), "meeting", {}))
     for t in db.get("tasks", []):
         if t.get("fixed") and t.get("startTime") and t.get("status") in (None, "todo", "in_progress"):
             s = _m(t["startTime"]); reserved.append((s, s + int(t.get("estimateMinutes", 30)),
-                                                      t.get("title", "Tarea"), "deep" if t.get("deep") else "admin",
+                                                      t.get("title", L["task"]), "deep" if t.get("deep") else "admin",
                                                       {"taskId": t["id"], "projectId": t.get("projectId")}))
 
     # 2) reserve lunch + exercise
     if user.get("lunchStart") and user.get("lunchEnd"):
-        reserved.append((_m(user["lunchStart"]), _m(user["lunchEnd"]), "Comida", "break", {}))
+        reserved.append((_m(user["lunchStart"]), _m(user["lunchEnd"]), L["lunch"], "break", {}))
     if user.get("wantsExercise"):
-        reserved.append((max(ws, we - 45), we, "Ejercicio", "exercise", {}))
+        reserved.append((max(ws, we - 45), we, L["exercise"], "exercise", {}))
 
     reserved = sorted([r for r in reserved if r[1] > ws and r[0] < we], key=lambda r: r[0])
 
@@ -96,20 +117,20 @@ def plan_day(db: dict, date: str = "", now: str = "") -> dict:
         while gi < len(gaps):
             gs, ge = gaps[gi]
             if ge - gs >= dur:
-                blocks.append({"start": _hhmm(gs), "end": _hhmm(gs + dur), "label": t.get("title", "Tarea"),
+                blocks.append({"start": _hhmm(gs), "end": _hhmm(gs + dur), "label": t.get("title", L["task"]),
                                "kind": "deep" if t.get("deep") else "admin",
                                "taskId": t["id"], "projectId": t.get("projectId"),
-                               "why": _why(t, projects)})
+                               "why": _why(t, projects, L)})
                 gs += dur; used_focus += dur
                 if used_focus >= 90 and ge - gs >= 15:
-                    blocks.append({"start": _hhmm(gs), "end": _hhmm(gs + 15), "label": "Descanso", "kind": "break"})
+                    blocks.append({"start": _hhmm(gs), "end": _hhmm(gs + 15), "label": L["break"], "kind": "break"})
                     gs += 15; used_focus = 0
                 gaps[gi][0] = gs
                 placed = True
                 break
             gi += 1
         if not placed:
-            warnings.append(f"No cabe hoy: «{t.get('title','tarea')}» ({dur}m) — coste de oportunidad.")
+            warnings.append(L["overflow"].format(t=t.get("title", L["task"]), d=dur))
 
     blocks.sort(key=lambda b: _m(b["start"]))
 
@@ -121,18 +142,19 @@ def plan_day(db: dict, date: str = "", now: str = "") -> dict:
         if pid and pid not in seen:
             seen.add(pid); p = projects.get(pid, {})
             focus.append({"projectId": pid, "label": p.get("name", pid), "objective": p.get("objective", ""),
-                          "why": f"prioridad {p.get('priority','?')} · ROI {project_roi(p):.0f}"})
-    coaching = [f"Llevas evitando «{t['title']}» — ¿de verdad te interesa, o lo quitamos del scope?"
+                          "why": f"{L['priority']} {p.get('priority', '?')} · ROI {project_roi(p):.0f}"})
+    coaching = [L["avoid"].format(t=t["title"])
                 for t in db.get("tasks", []) if int(t.get("avoidance", 0)) >= 3]
 
     return {"date": date, "greeting": "", "focus": focus[:3], "blocks": blocks,
-            "summary": f"{len([b for b in blocks if b['kind'] in ('deep','admin')])} tareas planificadas",
+            "summary": L["summary"].format(n=len([b for b in blocks if b["kind"] in ("deep", "admin")])),
             "warnings": warnings, "coaching": coaching, "generatedBy": "heuristic"}
 
 
-def _why(t: dict, projects: dict) -> str:
+def _why(t: dict, projects: dict, L: dict | None = None) -> str:
+    L = L or _lbl("")
     p = projects.get(t.get("projectId"), {})
-    return f"avanza {p.get('name','')} (prioridad {p.get('priority','?')})" if p else ""
+    return L["advance"].format(p=p.get("name", ""), pr=p.get("priority", "?")) if p else ""
 
 
 def active_block(plan: dict, now: str = "") -> dict | None:

@@ -94,12 +94,23 @@ def _now() -> str:
     return time.strftime("%H:%M")
 
 
+def _lang() -> str:
+    """Active engine language code ('es'/'en'…), best-effort — V2-639: the plan speaks the operator's language."""
+    try:
+        from voice.engine.core import langs as _langs
+        return (_langs.current_code() or "es").lower()
+    except Exception:  # noqa: BLE001
+        return "es"
+
+
 def compute_plan(db: dict | None = None) -> dict:
     # PURE: derive the day plan; do NOT persist on read (avoids read-modify-write races; GET stays idempotent).
-    return planner.plan_day(db or load_db(), date=_today(), now=_now())
+    return planner.plan_day(db or load_db(), date=_today(), now=_now(), lang=_lang())
 
 
-_WEEK_LABELS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
+_WEEK_LABELS = {"es": ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"],
+                "en": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]}
+_DAY_WORDS = {"es": ("Hoy", "Mañana"), "en": ("Today", "Tomorrow")}
 
 
 def _horizon(db: dict, span: int = 7) -> list[dict]:
@@ -108,13 +119,16 @@ def _horizon(db: dict, span: int = 7) -> list[dict]:
     import time as _t
     today = _today()
     base = _t.mktime(_t.localtime())
+    lang = _lang()
+    wk = _WEEK_LABELS.get(lang[:2], _WEEK_LABELS["es"])
+    words = _DAY_WORDS.get(lang[:2], _DAY_WORDS["es"])
     out: list[dict] = []
     for i in range(span):
         d = _t.localtime(base + i * 86400)
         date = _t.strftime("%Y-%m-%d", d)
-        plan = planner.plan_day(db, date=date, now=_now() if date == today else "")
-        label = "Hoy" if i == 0 else ("Mañana" if i == 1 else _WEEK_LABELS[d.tm_wday])
-        out.append({"date": date, "label": label, "weekday": _WEEK_LABELS[d.tm_wday], "plan": plan})
+        plan = planner.plan_day(db, date=date, now=_now() if date == today else "", lang=lang)
+        label = words[0] if i == 0 else (words[1] if i == 1 else wk[d.tm_wday])
+        out.append({"date": date, "label": label, "weekday": wk[d.tm_wday], "plan": plan})
     return out
 
 
@@ -215,12 +229,63 @@ def ref_index() -> list[dict]:
         if p.get("status") == "frozen":
             continue
         out.append({"id": p["id"], "label": p.get("name") or p["id"], "field": "projectId", "hint": "proyecto"})
+    # V2-639 — meetings are referenceable too («la cita del dentista» -> payload.title), so set_reminder /
+    # cancel_meeting / move_meeting resolve a spoken reference without the model re-typing the title. Only
+    # today-or-future ones: a past appointment is history, not a target.
+    today = _today()
+    for m in db.get("meetings", []):
+        if str(m.get("date") or "") < today:
+            continue
+        label = m.get("title") or "Cita"
+        out.append({"id": label, "label": label, "field": "title",
+                    "hint": f"cita {m.get('date', '')} {m.get('startTime', '')}".strip()})
     return out
 
 
-# Relative spoken date/time normalization (V2-026).
+def prompt_digest() -> str:
+    """What the brain sees while the agenda card is OPEN (`refs.prompt_digest` contract, capped there).
+
+    V2-639 — the operator asks the AGENDA questions («¿qué tengo mañana?», «¿qué es esa cita del
+    dentista?») and the model could not answer them: `coach_context` only carries TODAY's plan, so every
+    meeting beyond today was invisible and the reply was a guess. Upcoming meetings with their date, hour,
+    reminder and notes ARE the interior of this widget — same seam as contactos/fotos (V2-544)."""
+    db = load_db()
+    today = _today()
+    meets = sorted((m for m in db.get("meetings", []) if str(m.get("date") or "") >= today),
+                   key=lambda m: (str(m.get("date") or ""), str(m.get("startTime") or "")))
+    lines: list[str] = []
+    for m in meets[:12]:
+        row = f"  · {m.get('date', '?')} {m.get('startTime', '')} «{m.get('title', 'Cita')}»"
+        if m.get("remindAt"):
+            row += f" (aviso {m['remindAt']})"
+        if m.get("notes"):
+            row += f" — {str(m['notes'])[:120]}"
+        lines.append(row)
+    if len(meets) > 12:
+        lines.append(f"  · … y {len(meets) - 12} citas más")
+    pend = [t for t in db.get("tasks", []) if t.get("status") in (None, "todo", "in_progress")]
+    head = f"citas próximas ({len(meets)}) · tareas vivas ({len(pend)}):"
+    if not lines:
+        lines = ["  · sin citas apuntadas de hoy en adelante"]
+    return head + "\n" + "\n".join(lines)
+
+
+# Relative spoken date/time normalization (V2-026). English joined in V2-639: the engine is multilingual
+# (V2-613) and an EN operator says «tomorrow»/«monday» — a resolver that only hears Spanish silently files
+# their appointment TODAY, which is the same class of lie as the defaulted write.
 _WEEKDAYS = {"lunes": 0, "martes": 1, "miercoles": 2, "miércoles": 2, "jueves": 3, "viernes": 4,
-             "sabado": 5, "sábado": 5, "domingo": 6}
+             "sabado": 5, "sábado": 5, "domingo": 6,
+             "monday": 0, "tuesday": 1, "wednesday": 2, "thursday": 3, "friday": 4,
+             "saturday": 5, "sunday": 6}
+
+
+def _m2(hhmm) -> int:
+    """'HH:MM' -> minutes; tolerant of junk (0)."""
+    try:
+        h, m = str(hhmm or "0:0").split(":")[:2]
+        return int(h) * 60 + int(m)
+    except Exception:  # noqa: BLE001
+        return 0
 
 
 def _schedule_reminder(title: str, date: str, start: str, at: str = "", before_minutes: int = 120) -> tuple:
@@ -294,11 +359,11 @@ def _resolve_date(raw: str) -> str:
     today = _t.localtime()
     base = _t.mktime(today)
     day = 86400
-    if "pasado manana" in n:
+    if "pasado manana" in n or "day after tomorrow" in n:
         return _t.strftime("%Y-%m-%d", _t.localtime(base + 2 * day))
-    if "manana" in n:
+    if "manana" in n or "tomorrow" in n:
         return _t.strftime("%Y-%m-%d", _t.localtime(base + day))
-    if "hoy" in n:
+    if "hoy" in n or "today" in n:
         return _today()
     for name, wd in _WEEKDAYS.items():
         nn = _strip_accents(name)
@@ -321,8 +386,8 @@ def _resolve_time(raw: str, default: str = "17:00") -> str:
     m = re.search(r"\b(\d{1,2})\b", s)
     if m:
         h = int(m.group(1))
-        pm = any(w in s for w in ("tarde", "noche", "pm"))
-        am = any(w in s for w in ("manana", "mañana", "madrugada", "am"))
+        pm = any(w in s for w in ("tarde", "noche", "pm", "afternoon", "evening", "night"))
+        am = any(w in s for w in ("manana", "mañana", "madrugada", "am", "morning"))
         if pm and h < 12:
             h += 12
         elif not am and 1 <= h <= 7:                       # bare 1-7 without am/pm -> afternoon
@@ -386,6 +451,11 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
             eh = (int(start[:2]) + 1) % 24                 # no explicit end -> +1h
             end = f"{eh:02d}:{start[3:5]}"
         _new = {"title": title, "date": date, "startTime": start, "endTime": end}
+        # V2-639 — the operator asks WHAT an appointment is («qué es ese punto del dentista»); a title is
+        # a label, the substance travels in `notes` (place, who with, what to bring…), shown in the digest.
+        _notes = str(payload.get("notes") or payload.get("details") or "").strip()
+        if _notes:
+            _new["notes"] = _notes[:500]
         # V2-208: the SAME meeting twice (see `_is_same_meeting`). A duplicate notice is heard once; a duplicate
         # meeting is SEEN, and remains there until someone deletes it manually.
         if not any(_is_same_meeting(_new, m) for m in db.get("meetings", [])):
@@ -423,6 +493,25 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
         _hits = [m for m in db.get("meetings", [])
                  if (not title or title in _strip_accents(m.get("title", "").strip().lower()))
                  and (not date or m.get("date") == date)]
+        # V2-639 — «ponme avisos a TODAS las citas del jueves» is one intention, not N turns: a date with
+        # no title means every meeting of that day. `at` is optional in bulk (default ~2h before each).
+        if not title and date and _hits:
+            _done, _fail = 0, []
+            for m in _hits:
+                _cancel_reminder(m)
+                m.pop("reminder_id", None); m.pop("remindAt", None)
+                _jid, _disp = _schedule_reminder(m.get("title", "Cita"), m.get("date", date),
+                                                 m.get("startTime", ""))
+                if _jid:
+                    m["reminder_id"], m["remindAt"] = _jid, _disp
+                    _done += 1
+                else:
+                    _fail.append(f"«{m.get('title', 'Cita')}»: {_disp}")
+            db["currentPlan"] = compute_plan(db)
+            store.save(WIDGET_ID, db)
+            if not _done:
+                return {"ok": False, "error": "no pude programar ningún aviso — " + "; ".join(_fail)}
+            return view_data()
         if not title or not _hits:
             return {"ok": False,
                     "error": "no encuentro esa cita en la agenda — dime el título tal como está "
@@ -474,6 +563,72 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
         # (`lunchStart`/`lunchEnd`), not from anything the operator scheduled. Deleting it when asking for an empty
         # agenda would leave the schedule broken tomorrow without explaining why. Changing the frame is «cambia mi horario».
 
+    elif action == "add_task":
+        # V2-639 — add_meeting existed with no sibling for TASKS, so «apúntame revisar el contrato» could
+        # only land as a fake appointment with an invented hour. Same write discipline as add_meeting: a
+        # payload with no real title is an error that names the expected keys, never a defaulted row.
+        title = str(payload.get("title") or payload.get("task") or "").strip()
+        if not title:
+            return {"ok": False,
+                    "error": "no me ha llegado la tarea — vuelve a llamar a add_task con `title` "
+                             "(y opcionalmente estimateMinutes, priority 1-5, startTime HH:MM si es a hora fija)"}
+        tid = "t_" + re.sub(r"\W+", "_", _strip_accents(title).lower())[:40].strip("_")
+        if tid in tasks:
+            tid = f"{tid}_{int(time.time()) % 100000}"     # same slug twice is a second task, not a lost write
+        _t = {"id": tid, "title": title, "status": "todo",
+              "estimateMinutes": int(payload.get("estimateMinutes") or 30),
+              "priority": int(payload.get("priority") or 3)}
+        if payload.get("deep"):
+            _t["deep"] = True
+        if payload.get("projectId"):
+            _t["projectId"] = str(payload["projectId"])
+        _raw_start = str(payload.get("startTime") or payload.get("time") or "").strip()
+        if _raw_start:
+            _t["fixed"], _t["startTime"] = True, _resolve_time(_raw_start)
+        db.setdefault("tasks", []).append(_t)
+    elif action == "move_meeting":
+        # V2-639 — moving an appointment had NO name: the only path was cancel + re-add, two turns the model
+        # never chains (the clear_all lesson: a frequent intention with no action cannot be gotten right).
+        # Finds the meeting like cancel_meeting does; the reminder MOVES with it (an alarm for the old day
+        # fires a ghost, the V2-473 rule).
+        title = _strip_accents((payload.get("title") or "").strip().lower())
+        raw_date = payload.get("date", "")
+        date = _resolve_date(raw_date) if raw_date else ""
+        _hits = [m for m in db.get("meetings", [])
+                 if (not title or title in _strip_accents(m.get("title", "").strip().lower()))
+                 and (not date or m.get("date") == date)]
+        if not title or not _hits:
+            return {"ok": False,
+                    "error": "no encuentro esa cita en la agenda — dime el título tal como está "
+                             "apuntada (y la fecha si hay varias)"}
+        _rawnew = str(payload.get("newDate") or payload.get("new_date") or payload.get("day")
+                      or payload.get("to") or "").strip()
+        _rawtime = str(payload.get("newTime") or payload.get("new_time") or payload.get("startTime")
+                       or payload.get("time") or "").strip()
+        _mgl = re.match(r"^\s*(\d{4}-\d{2}-\d{2})[T ]+(\d{1,2}:\d{2})\s*$", _rawnew)
+        if _mgl:                                           # glued «YYYY-MM-DD HH:MM» is both fields in one
+            _rawnew = _mgl.group(1)
+            if not _rawtime:
+                _rawtime = _mgl.group(2)
+        if not _rawnew and not _rawtime:
+            return {"ok": False,
+                    "error": "me falta el destino — mándame `newDate` (mañana, jueves, YYYY-MM-DD) "
+                             "y/o `newTime` (HH:MM)"}
+        m = _hits[0]
+        new_date = _resolve_date(_rawnew) if _rawnew else str(m.get("date") or _today())
+        new_start = _resolve_time(_rawtime) if _rawtime else str(m.get("startTime") or "17:00")
+        try:                                               # the end keeps the meeting's duration
+            _dur = (_m2(m.get("endTime")) - _m2(m.get("startTime"))) or 60
+        except Exception:  # noqa: BLE001
+            _dur = 60
+        _endm = (_m2(new_start) + max(15, _dur)) % (24 * 60)
+        _cancel_reminder(m)
+        m["date"], m["startTime"] = new_date, new_start
+        m["endTime"] = f"{_endm // 60:02d}:{_endm % 60:02d}"
+        m.pop("reminder_id", None); m.pop("remindAt", None)
+        _jid, _at = _schedule_reminder(m.get("title", "Cita"), new_date, new_start)
+        if _jid:
+            m["reminder_id"], m["remindAt"] = _jid, _at
     elif action == "show_day":
         # V2-540 — CHANGE THE VIEW is an action, because otherwise it is a PROMISE.
         # Measured in the operator's own session (2026-09-01 15:11, events 873/931/995): he asked three times
@@ -488,7 +643,11 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
         # the token moves — so without `n`, asking for tomorrow, clicking back to today and asking again would
         # write the identical `sel`, change no signature and move nothing, which is the exact failure being
         # fixed here wearing a different mask.
-        _raw = str(payload.get("day") or payload.get("date") or "").strip()
+        # V2-639 — the model's natural alias must not cost the fact (the V2-341/V2-473 rule). Measured
+        # live 2026-09-09 19:27: «Muéstrame la agenda con vista mensual» arrived as `{view: 'month'}`,
+        # only `day`/`date` were read, and the view silently fell to TODAY four requests in a row.
+        _raw = str(payload.get("day") or payload.get("date") or payload.get("view")
+                   or payload.get("mode") or payload.get("vista") or "").strip()
         _n = _strip_accents(_raw.lower())
         if "seman" in _n or "week" in _n:
             _sel = "week"

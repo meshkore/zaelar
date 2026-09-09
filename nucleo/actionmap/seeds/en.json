@@ -1,634 +1,744 @@
 {
-  "_comment": "Genesis seed pack (English) for the action map (V2-539). Same rules as es.json: unambiguous whole-utterance commands only; variants are separate entries; anything that could mean more than the mapped action stays out and goes to the model.",
-  "version": 6,
-  "grids": [
-    {
-      "_comment": "VERB x OBJECT grid for mensajeria's LENSES (V2-545). «Abreme el Telegram» is not «show the card»: WhatsApp/Telegram/correo are VIEWS OF a card, and the model reads them as card names because they are also the widget's aliases - measured live, three turns of «Aqui lo tienes» over an unmoved card. Expanded into ordinary exact-match entries at import; a view op also brings the card up (executor), so one order gets both halves. `$` is filled with the value.",
-      "verbs": [
-        "open",
-        "show",
-        "show me",
-        "show me now",
-        "bring up",
-        "let me see",
-        "display"
-      ],
-      "objects": {
-        "whatsapp": "whatsapp",
-        "the whatsapp": "whatsapp",
-        "my whatsapps": "whatsapp",
-        "only whatsapp": "whatsapp",
-        "the whatsapp messages": "whatsapp",
-        "telegram": "telegram",
-        "the telegram": "telegram",
-        "only telegram": "telegram",
-        "the telegram messages": "telegram",
-        "the email": "email",
-        "my email": "email",
-        "the mail": "email",
-        "my emails": "email",
-        "the inbox": "email",
-        "gmail": "email",
-        "outlook": "email",
-        "the email messages": "email",
-        "the main list": "all",
-        "all the messages": "all",
-        "the unified list": "all",
-        "the messages": "all",
-        "my messages": "all",
-        "all chats": "all",
-        "messages": "all",
-        "messaging": "all"
-      },
-      "action": {
-        "do": "widget_data",
-        "widget": "mensajeria",
-        "action": "show_view",
-        "payload": {
-          "platform": "$"
-        }
-      }
-    },
-    {
-      "_comment": "VERB x OBJECT grid for OPENING every card (V2-567) — mirror of es.json's; see that pack for the measured incident.",
-      "verbs": [
-        "open",
-        "show",
-        "show me",
-        "bring up",
-        "display"
-      ],
-      "objects": {
-        "the contacts": "contactos",
-        "my contacts": "contactos",
-        "the contacts widget": "contactos",
-        "the directory": "contactos",
-        "my favorite restaurants": "contactos",
-        "my favourites": "contactos",
-        "my favorites": "contactos",
-        "the agenda": "agenda",
-        "the calendar": "agenda",
-        "the clock": "clock",
-        "the timer": "timer",
-        "the images": "imagenes",
-        "the image viewer": "imagenes",
-        "the gallery": "fotos",
-        "the photo gallery": "fotos",
-        "my photos": "fotos",
-        "the player": "musica",
-        "the music player": "musica",
-        "youtube": "youtube",
-        "the browser": "navegador",
-        "the results": "results",
-        "the results sheet": "results",
-        "the files": "archivos",
-        "the file explorer": "archivos",
-        "my files": "archivos",
-        "the document": "documento",
-        "the search": "search"
-      },
-      "action": {
-        "do": "show_widget",
-        "widget": "$"
-      }
-    },
-    {
-      "_comment": "VERB x OBJECT grid for CLOSING every card (V2-567) — mirror of es.json's. navegador/results are gated by the executor's live-work check.",
-      "verbs": [
-        "close",
-        "hide",
-        "dismiss"
-      ],
-      "objects": {
-        "the contacts": "contactos",
-        "my contacts": "contactos",
-        "the contacts widget": "contactos",
-        "the directory": "contactos",
-        "the agenda": "agenda",
-        "the calendar": "agenda",
-        "the clock": "clock",
-        "the timer": "timer",
-        "the images": "imagenes",
-        "the image viewer": "imagenes",
-        "the gallery": "fotos",
-        "the photo gallery": "fotos",
-        "the player": "musica",
-        "the music player": "musica",
-        "youtube": "youtube",
-        "the browser": "navegador",
-        "the results": "results",
-        "the results sheet": "results",
-        "the files": "archivos",
-        "the file explorer": "archivos",
-        "my files": "archivos",
-        "the document": "documento",
-        "the search": "search",
-        "the messages": "mensajeria",
-        "whatsapp": "mensajeria",
-        "telegram": "mensajeria",
-        "the email": "mensajeria",
-        "the messaging": "mensajeria"
-      },
-      "action": {
-        "do": "close_widget",
-        "widget": "$"
-      }
+ "_comment": "Genesis seed pack (English) for the action map (V2-539). Same rules as es.json: unambiguous whole-utterance commands only; variants are separate entries; anything that could mean more than the mapped action stays out and goes to the model.",
+ "version": 7,
+ "grids": [
+  {
+   "_comment": "VERB x OBJECT grid for mensajeria's LENSES (V2-545). «Abreme el Telegram» is not «show the card»: WhatsApp/Telegram/correo are VIEWS OF a card, and the model reads them as card names because they are also the widget's aliases - measured live, three turns of «Aqui lo tienes» over an unmoved card. Expanded into ordinary exact-match entries at import; a view op also brings the card up (executor), so one order gets both halves. `$` is filled with the value.",
+   "verbs": [
+    "open",
+    "show",
+    "show me",
+    "show me now",
+    "bring up",
+    "let me see",
+    "display"
+   ],
+   "objects": {
+    "whatsapp": "whatsapp",
+    "the whatsapp": "whatsapp",
+    "my whatsapps": "whatsapp",
+    "only whatsapp": "whatsapp",
+    "the whatsapp messages": "whatsapp",
+    "telegram": "telegram",
+    "the telegram": "telegram",
+    "only telegram": "telegram",
+    "the telegram messages": "telegram",
+    "the email": "email",
+    "my email": "email",
+    "the mail": "email",
+    "my emails": "email",
+    "the inbox": "email",
+    "gmail": "email",
+    "outlook": "email",
+    "the email messages": "email",
+    "the main list": "all",
+    "all the messages": "all",
+    "the unified list": "all",
+    "the messages": "all",
+    "my messages": "all",
+    "all chats": "all",
+    "messages": "all",
+    "messaging": "all"
+   },
+   "action": {
+    "do": "widget_data",
+    "widget": "mensajeria",
+    "action": "show_view",
+    "payload": {
+     "platform": "$"
     }
-  ],
-  "entries": [
-    {
-      "phrase": "clear the screen",
-      "action": {
-        "do": "close_all"
-      }
-    },
-    {
-      "phrase": "clear screen",
-      "action": {
-        "do": "close_all"
-      }
-    },
-    {
-      "phrase": "clear the screen please",
-      "action": {
-        "do": "close_all"
-      }
-    },
-    {
-      "phrase": "please clear the screen",
-      "action": {
-        "do": "close_all"
-      }
-    },
-    {
-      "phrase": "empty the screen",
-      "action": {
-        "do": "close_all"
-      }
-    },
-    {
-      "phrase": "clean the screen",
-      "action": {
-        "do": "close_all"
-      }
-    },
-    {
-      "phrase": "clear the desktop",
-      "action": {
-        "do": "close_all"
-      }
-    },
-    {
-      "phrase": "close all widgets",
-      "action": {
-        "do": "close_all"
-      }
-    },
-    {
-      "phrase": "close all the widgets",
-      "action": {
-        "do": "close_all"
-      }
-    },
-    {
-      "phrase": "remove all widgets",
-      "action": {
-        "do": "close_all"
-      }
-    },
-    {
-      "phrase": "close everything",
-      "action": {
-        "do": "close_all"
-      }
-    },
-    {
-      "phrase": "close whatsapp",
-      "action": {
-        "do": "close_widget",
-        "widget": "mensajeria"
-      }
-    },
-    {
-      "phrase": "close telegram",
-      "action": {
-        "do": "close_widget",
-        "widget": "mensajeria"
-      }
-    },
-    {
-      "phrase": "close the messages",
-      "action": {
-        "do": "close_widget",
-        "widget": "mensajeria"
-      }
-    },
-    {
-      "phrase": "open the agenda",
-      "action": {
-        "do": "show_widget",
-        "widget": "agenda"
-      }
-    },
-    {
-      "phrase": "show me the agenda",
-      "action": {
-        "do": "show_widget",
-        "widget": "agenda"
-      }
-    },
-    {
-      "phrase": "open the calendar",
-      "action": {
-        "do": "show_widget",
-        "widget": "agenda"
-      }
-    },
-    {
-      "phrase": "open my day",
-      "action": {
-        "do": "show_widget",
-        "widget": "agenda"
-      }
-    },
-    {
-      "phrase": "close the agenda",
-      "action": {
-        "do": "close_widget",
-        "widget": "agenda"
-      }
-    },
-    {
-      "phrase": "open the music player",
-      "action": {
-        "do": "show_widget",
-        "widget": "musica"
-      }
-    },
-    {
-      "phrase": "open youtube",
-      "action": {
-        "do": "show_widget",
-        "widget": "youtube"
-      }
-    },
-    {
-      "phrase": "open the images",
-      "action": {
-        "do": "show_widget",
-        "widget": "imagenes"
-      }
-    },
-    {
-      "phrase": "open the photos",
-      "action": {
-        "do": "show_widget",
-        "widget": "imagenes"
-      }
-    },
-    {
-      "phrase": "open the clock",
-      "action": {
-        "do": "show_widget",
-        "widget": "clock"
-      }
-    },
-    {
-      "phrase": "open the timer",
-      "action": {
-        "do": "show_widget",
-        "widget": "timer"
-      }
-    },
-    {
-      "phrase": "open the contacts",
-      "action": {
-        "do": "show_widget",
-        "widget": "contactos"
-      }
-    },
-    {
-      "phrase": "open the chat",
-      "action": {
-        "do": "show_panel",
-        "tab": "chat",
-        "action": "open"
-      }
-    },
-    {
-      "phrase": "close the chat",
-      "action": {
-        "do": "show_panel",
-        "tab": "chat",
-        "action": "close"
-      }
-    },
-    {
-      "phrase": "open the processes",
-      "action": {
-        "do": "show_panel",
-        "tab": "procesos",
-        "action": "open"
-      }
-    },
-    {
-      "phrase": "show me the processes",
-      "action": {
-        "do": "show_panel",
-        "tab": "procesos",
-        "action": "open"
-      }
-    },
-    {
-      "phrase": "open the alarms",
-      "action": {
-        "do": "show_panel",
-        "tab": "crons",
-        "action": "open"
-      }
-    },
-    {
-      "phrase": "open the reminders",
-      "action": {
-        "do": "show_panel",
-        "tab": "crons",
-        "action": "open"
-      }
-    },
-    {
-      "phrase": "open the crons",
-      "action": {
-        "do": "show_panel",
-        "tab": "crons",
-        "action": "open"
-      }
-    },
-    {
-      "phrase": "open the clusters",
-      "action": {
-        "do": "show_panel",
-        "tab": "clusters",
-        "action": "open"
-      }
-    },
-    {
-      "phrase": "arrange the widgets",
-      "action": {
-        "do": "arrange"
-      }
-    },
-    {
-      "phrase": "arrange the screen",
-      "action": {
-        "do": "arrange"
-      }
-    },
-    {
-      "phrase": "tidy up the widgets",
-      "action": {
-        "do": "arrange"
-      }
-    },
-    {
-      "phrase": "tidy the screen",
-      "action": {
-        "do": "arrange"
-      }
-    },
-    {
-      "phrase": "organize the widgets",
-      "action": {
-        "do": "arrange"
-      }
-    },
-    {
-      "phrase": "organize the screen",
-      "action": {
-        "do": "arrange"
-      }
-    },
-    {
-      "phrase": "pause the video",
-      "action": {
-        "do": "widget_data",
-        "widget": "youtube",
-        "action": "pause"
-      }
-    },
-    {
-      "phrase": "stop the video",
-      "action": {
-        "do": "widget_data",
-        "widget": "youtube",
-        "action": "pause"
-      }
-    },
-    {
-      "phrase": "resume the video",
-      "action": {
-        "do": "widget_data",
-        "widget": "youtube",
-        "action": "play"
-      }
-    },
-    {
-      "phrase": "pause the music",
-      "action": {
-        "do": "widget_data",
-        "widget": "musica",
-        "action": "pause"
-      }
-    },
-    {
-      "phrase": "next song",
-      "action": {
-        "do": "widget_data",
-        "widget": "musica",
-        "action": "next"
-      }
-    },
-    {
-      "phrase": "play the next song",
-      "action": {
-        "do": "widget_data",
-        "widget": "musica",
-        "action": "next"
-      }
-    },
-    {
-      "phrase": "skip this song",
-      "action": {
-        "do": "widget_data",
-        "widget": "musica",
-        "action": "next"
-      }
-    },
-    {
-      "phrase": "skip to the next song",
-      "action": {
-        "do": "widget_data",
-        "widget": "musica",
-        "action": "next"
-      }
-    },
-    {
-      "phrase": "previous song",
-      "action": {
-        "do": "widget_data",
-        "widget": "musica",
-        "action": "previous"
-      }
-    },
-    {
-      "phrase": "play the previous song",
-      "action": {
-        "do": "widget_data",
-        "widget": "musica",
-        "action": "previous"
-      }
-    },
-    {
-      "phrase": "go back to the previous song",
-      "action": {
-        "do": "widget_data",
-        "widget": "musica",
-        "action": "previous"
-      }
-    },
-    {
-      "phrase": "stop the music",
-      "action": {
-        "do": "widget_data",
-        "widget": "musica",
-        "action": "pause"
-      }
-    },
-    {
-      "phrase": "turn off the subtitles",
-      "action": {
-        "do": "widget_data",
-        "widget": "youtube",
-        "action": "captions_off"
-      }
-    },
-    {
-      "phrase": "turn off captions",
-      "action": {
-        "do": "widget_data",
-        "widget": "youtube",
-        "action": "captions_off"
-      }
-    },
-    {
-      "phrase": "turn on the subtitles",
-      "action": {
-        "do": "widget_data",
-        "widget": "youtube",
-        "action": "captions_on"
-      }
-    },
-    {
-      "phrase": "turn on captions",
-      "action": {
-        "do": "widget_data",
-        "widget": "youtube",
-        "action": "captions_on"
-      }
-    },
-    {
-      "phrase": "play the video",
-      "action": {
-        "do": "widget_data",
-        "widget": "youtube",
-        "action": "play"
-      }
-    },
-    {
-      "phrase": "unpause the video",
-      "action": {
-        "do": "widget_data",
-        "widget": "youtube",
-        "action": "play"
-      }
-    },
-    {
-      "phrase": "continue the video",
-      "action": {
-        "do": "widget_data",
-        "widget": "youtube",
-        "action": "play"
-      }
-    },
-    {
-      "phrase": "hit play",
-      "action": {
-        "do": "widget_data",
-        "widget": "youtube",
-        "action": "play"
-      }
-    },
-    {
-      "phrase": "put the video in full screen",
-      "action": {
-        "do": "fullscreen",
-        "widget": "youtube"
-      }
-    },
-    {
-      "phrase": "put the video in fullscreen",
-      "action": {
-        "do": "fullscreen",
-        "widget": "youtube"
-      }
-    },
-    {
-      "phrase": "full screen the video",
-      "action": {
-        "do": "fullscreen",
-        "widget": "youtube"
-      }
-    },
-    {
-      "phrase": "minimize the video",
-      "action": {
-        "do": "minimize",
-        "widget": "youtube"
-      }
-    },
-    {
-      "phrase": "minimize the video widget",
-      "action": {
-        "do": "minimize",
-        "widget": "youtube"
-      }
-    },
-    {
-      "phrase": "close the video",
-      "action": {
-        "do": "close_widget",
-        "widget": "youtube"
-      }
-    },
-    {
-      "phrase": "close the video widget",
-      "action": {
-        "do": "close_widget",
-        "widget": "youtube"
-      }
-    },
-    {
-      "phrase": "close youtube",
-      "action": {
-        "do": "close_widget",
-        "widget": "youtube"
-      }
-    },
-    {
-      "phrase": "close the youtube",
-      "action": {
-        "do": "close_widget",
-        "widget": "youtube"
-      }
+   }
+  },
+  {
+   "_comment": "VERB x OBJECT grid for OPENING every card (V2-567) — mirror of es.json's; see that pack for the measured incident.",
+   "verbs": [
+    "open",
+    "show",
+    "show me",
+    "bring up",
+    "display"
+   ],
+   "objects": {
+    "the contacts": "contactos",
+    "my contacts": "contactos",
+    "the contacts widget": "contactos",
+    "the directory": "contactos",
+    "my favorite restaurants": "contactos",
+    "my favourites": "contactos",
+    "my favorites": "contactos",
+    "the agenda": "agenda",
+    "the calendar": "agenda",
+    "the clock": "clock",
+    "the timer": "timer",
+    "the images": "imagenes",
+    "the image viewer": "imagenes",
+    "the gallery": "fotos",
+    "the photo gallery": "fotos",
+    "my photos": "fotos",
+    "the player": "musica",
+    "the music player": "musica",
+    "youtube": "youtube",
+    "the browser": "navegador",
+    "the results": "results",
+    "the results sheet": "results",
+    "the files": "archivos",
+    "the file explorer": "archivos",
+    "my files": "archivos",
+    "the document": "documento",
+    "the search": "search"
+   },
+   "action": {
+    "do": "show_widget",
+    "widget": "$"
+   }
+  },
+  {
+   "_comment": "VERB x OBJECT grid for CLOSING every card (V2-567) — mirror of es.json's. navegador/results are gated by the executor's live-work check.",
+   "verbs": [
+    "close",
+    "hide",
+    "dismiss"
+   ],
+   "objects": {
+    "the contacts": "contactos",
+    "my contacts": "contactos",
+    "the contacts widget": "contactos",
+    "the directory": "contactos",
+    "the agenda": "agenda",
+    "the calendar": "agenda",
+    "the clock": "clock",
+    "the timer": "timer",
+    "the images": "imagenes",
+    "the image viewer": "imagenes",
+    "the gallery": "fotos",
+    "the photo gallery": "fotos",
+    "the player": "musica",
+    "the music player": "musica",
+    "youtube": "youtube",
+    "the browser": "navegador",
+    "the results": "results",
+    "the results sheet": "results",
+    "the files": "archivos",
+    "the file explorer": "archivos",
+    "my files": "archivos",
+    "the document": "documento",
+    "the search": "search",
+    "the messages": "mensajeria",
+    "whatsapp": "mensajeria",
+    "telegram": "mensajeria",
+    "the email": "mensajeria",
+    "the messaging": "mensajeria"
+   },
+   "action": {
+    "do": "close_widget",
+    "widget": "$"
+   }
+  }
+ ],
+ "entries": [
+  {
+   "phrase": "clear the screen",
+   "action": {
+    "do": "close_all"
+   }
+  },
+  {
+   "phrase": "clear screen",
+   "action": {
+    "do": "close_all"
+   }
+  },
+  {
+   "phrase": "clear the screen please",
+   "action": {
+    "do": "close_all"
+   }
+  },
+  {
+   "phrase": "please clear the screen",
+   "action": {
+    "do": "close_all"
+   }
+  },
+  {
+   "phrase": "empty the screen",
+   "action": {
+    "do": "close_all"
+   }
+  },
+  {
+   "phrase": "clean the screen",
+   "action": {
+    "do": "close_all"
+   }
+  },
+  {
+   "phrase": "clear the desktop",
+   "action": {
+    "do": "close_all"
+   }
+  },
+  {
+   "phrase": "close all widgets",
+   "action": {
+    "do": "close_all"
+   }
+  },
+  {
+   "phrase": "close all the widgets",
+   "action": {
+    "do": "close_all"
+   }
+  },
+  {
+   "phrase": "remove all widgets",
+   "action": {
+    "do": "close_all"
+   }
+  },
+  {
+   "phrase": "close everything",
+   "action": {
+    "do": "close_all"
+   }
+  },
+  {
+   "phrase": "close whatsapp",
+   "action": {
+    "do": "close_widget",
+    "widget": "mensajeria"
+   }
+  },
+  {
+   "phrase": "close telegram",
+   "action": {
+    "do": "close_widget",
+    "widget": "mensajeria"
+   }
+  },
+  {
+   "phrase": "close the messages",
+   "action": {
+    "do": "close_widget",
+    "widget": "mensajeria"
+   }
+  },
+  {
+   "phrase": "open the agenda",
+   "action": {
+    "do": "show_widget",
+    "widget": "agenda"
+   }
+  },
+  {
+   "phrase": "show me the agenda",
+   "action": {
+    "do": "show_widget",
+    "widget": "agenda"
+   }
+  },
+  {
+   "phrase": "open the calendar",
+   "action": {
+    "do": "show_widget",
+    "widget": "agenda"
+   }
+  },
+  {
+   "phrase": "open my day",
+   "action": {
+    "do": "show_widget",
+    "widget": "agenda"
+   }
+  },
+  {
+   "phrase": "close the agenda",
+   "action": {
+    "do": "close_widget",
+    "widget": "agenda"
+   }
+  },
+  {
+   "phrase": "open the music player",
+   "action": {
+    "do": "show_widget",
+    "widget": "musica"
+   }
+  },
+  {
+   "phrase": "open youtube",
+   "action": {
+    "do": "show_widget",
+    "widget": "youtube"
+   }
+  },
+  {
+   "phrase": "open the images",
+   "action": {
+    "do": "show_widget",
+    "widget": "imagenes"
+   }
+  },
+  {
+   "phrase": "open the photos",
+   "action": {
+    "do": "show_widget",
+    "widget": "imagenes"
+   }
+  },
+  {
+   "phrase": "open the clock",
+   "action": {
+    "do": "show_widget",
+    "widget": "clock"
+   }
+  },
+  {
+   "phrase": "open the timer",
+   "action": {
+    "do": "show_widget",
+    "widget": "timer"
+   }
+  },
+  {
+   "phrase": "open the contacts",
+   "action": {
+    "do": "show_widget",
+    "widget": "contactos"
+   }
+  },
+  {
+   "phrase": "open the chat",
+   "action": {
+    "do": "show_panel",
+    "tab": "chat",
+    "action": "open"
+   }
+  },
+  {
+   "phrase": "close the chat",
+   "action": {
+    "do": "show_panel",
+    "tab": "chat",
+    "action": "close"
+   }
+  },
+  {
+   "phrase": "open the processes",
+   "action": {
+    "do": "show_panel",
+    "tab": "procesos",
+    "action": "open"
+   }
+  },
+  {
+   "phrase": "show me the processes",
+   "action": {
+    "do": "show_panel",
+    "tab": "procesos",
+    "action": "open"
+   }
+  },
+  {
+   "phrase": "open the alarms",
+   "action": {
+    "do": "show_panel",
+    "tab": "crons",
+    "action": "open"
+   }
+  },
+  {
+   "phrase": "open the reminders",
+   "action": {
+    "do": "show_panel",
+    "tab": "crons",
+    "action": "open"
+   }
+  },
+  {
+   "phrase": "open the crons",
+   "action": {
+    "do": "show_panel",
+    "tab": "crons",
+    "action": "open"
+   }
+  },
+  {
+   "phrase": "open the clusters",
+   "action": {
+    "do": "show_panel",
+    "tab": "clusters",
+    "action": "open"
+   }
+  },
+  {
+   "phrase": "arrange the widgets",
+   "action": {
+    "do": "arrange"
+   }
+  },
+  {
+   "phrase": "arrange the screen",
+   "action": {
+    "do": "arrange"
+   }
+  },
+  {
+   "phrase": "tidy up the widgets",
+   "action": {
+    "do": "arrange"
+   }
+  },
+  {
+   "phrase": "tidy the screen",
+   "action": {
+    "do": "arrange"
+   }
+  },
+  {
+   "phrase": "organize the widgets",
+   "action": {
+    "do": "arrange"
+   }
+  },
+  {
+   "phrase": "organize the screen",
+   "action": {
+    "do": "arrange"
+   }
+  },
+  {
+   "phrase": "pause the video",
+   "action": {
+    "do": "widget_data",
+    "widget": "youtube",
+    "action": "pause"
+   }
+  },
+  {
+   "phrase": "stop the video",
+   "action": {
+    "do": "widget_data",
+    "widget": "youtube",
+    "action": "pause"
+   }
+  },
+  {
+   "phrase": "resume the video",
+   "action": {
+    "do": "widget_data",
+    "widget": "youtube",
+    "action": "play"
+   }
+  },
+  {
+   "phrase": "pause the music",
+   "action": {
+    "do": "widget_data",
+    "widget": "musica",
+    "action": "pause"
+   }
+  },
+  {
+   "phrase": "next song",
+   "action": {
+    "do": "widget_data",
+    "widget": "musica",
+    "action": "next"
+   }
+  },
+  {
+   "phrase": "play the next song",
+   "action": {
+    "do": "widget_data",
+    "widget": "musica",
+    "action": "next"
+   }
+  },
+  {
+   "phrase": "skip this song",
+   "action": {
+    "do": "widget_data",
+    "widget": "musica",
+    "action": "next"
+   }
+  },
+  {
+   "phrase": "skip to the next song",
+   "action": {
+    "do": "widget_data",
+    "widget": "musica",
+    "action": "next"
+   }
+  },
+  {
+   "phrase": "previous song",
+   "action": {
+    "do": "widget_data",
+    "widget": "musica",
+    "action": "previous"
+   }
+  },
+  {
+   "phrase": "play the previous song",
+   "action": {
+    "do": "widget_data",
+    "widget": "musica",
+    "action": "previous"
+   }
+  },
+  {
+   "phrase": "go back to the previous song",
+   "action": {
+    "do": "widget_data",
+    "widget": "musica",
+    "action": "previous"
+   }
+  },
+  {
+   "phrase": "stop the music",
+   "action": {
+    "do": "widget_data",
+    "widget": "musica",
+    "action": "pause"
+   }
+  },
+  {
+   "phrase": "turn off the subtitles",
+   "action": {
+    "do": "widget_data",
+    "widget": "youtube",
+    "action": "captions_off"
+   }
+  },
+  {
+   "phrase": "turn off captions",
+   "action": {
+    "do": "widget_data",
+    "widget": "youtube",
+    "action": "captions_off"
+   }
+  },
+  {
+   "phrase": "turn on the subtitles",
+   "action": {
+    "do": "widget_data",
+    "widget": "youtube",
+    "action": "captions_on"
+   }
+  },
+  {
+   "phrase": "turn on captions",
+   "action": {
+    "do": "widget_data",
+    "widget": "youtube",
+    "action": "captions_on"
+   }
+  },
+  {
+   "phrase": "play the video",
+   "action": {
+    "do": "widget_data",
+    "widget": "youtube",
+    "action": "play"
+   }
+  },
+  {
+   "phrase": "unpause the video",
+   "action": {
+    "do": "widget_data",
+    "widget": "youtube",
+    "action": "play"
+   }
+  },
+  {
+   "phrase": "continue the video",
+   "action": {
+    "do": "widget_data",
+    "widget": "youtube",
+    "action": "play"
+   }
+  },
+  {
+   "phrase": "hit play",
+   "action": {
+    "do": "widget_data",
+    "widget": "youtube",
+    "action": "play"
+   }
+  },
+  {
+   "phrase": "put the video in full screen",
+   "action": {
+    "do": "fullscreen",
+    "widget": "youtube"
+   }
+  },
+  {
+   "phrase": "put the video in fullscreen",
+   "action": {
+    "do": "fullscreen",
+    "widget": "youtube"
+   }
+  },
+  {
+   "phrase": "full screen the video",
+   "action": {
+    "do": "fullscreen",
+    "widget": "youtube"
+   }
+  },
+  {
+   "phrase": "minimize the video",
+   "action": {
+    "do": "minimize",
+    "widget": "youtube"
+   }
+  },
+  {
+   "phrase": "minimize the video widget",
+   "action": {
+    "do": "minimize",
+    "widget": "youtube"
+   }
+  },
+  {
+   "phrase": "close the video",
+   "action": {
+    "do": "close_widget",
+    "widget": "youtube"
+   }
+  },
+  {
+   "phrase": "close the video widget",
+   "action": {
+    "do": "close_widget",
+    "widget": "youtube"
+   }
+  },
+  {
+   "phrase": "close youtube",
+   "action": {
+    "do": "close_widget",
+    "widget": "youtube"
+   }
+  },
+  {
+   "phrase": "close the youtube",
+   "action": {
+    "do": "close_widget",
+    "widget": "youtube"
+   }
+  },
+  {
+   "phrase": "show me today s agenda",
+   "action": {
+    "do": "widget_data",
+    "widget": "agenda",
+    "action": "show_day",
+    "payload": {
+     "day": "hoy"
     }
-  ]
+   }
+  },
+  {
+   "phrase": "show me the agenda for today",
+   "action": {
+    "do": "widget_data",
+    "widget": "agenda",
+    "action": "show_day",
+    "payload": {
+     "day": "hoy"
+    }
+   }
+  },
+  {
+   "phrase": "open today s agenda",
+   "action": {
+    "do": "widget_data",
+    "widget": "agenda",
+    "action": "show_day",
+    "payload": {
+     "day": "hoy"
+    }
+   }
+  },
+  {
+   "phrase": "show me tomorrow s agenda",
+   "action": {
+    "do": "widget_data",
+    "widget": "agenda",
+    "action": "show_day",
+    "payload": {
+     "day": "manana"
+    }
+   }
+  },
+  {
+   "phrase": "show me the agenda for tomorrow",
+   "action": {
+    "do": "widget_data",
+    "widget": "agenda",
+    "action": "show_day",
+    "payload": {
+     "day": "manana"
+    }
+   }
+  },
+  {
+   "phrase": "put the agenda in month view",
+   "action": {
+    "do": "widget_data",
+    "widget": "agenda",
+    "action": "show_day",
+    "payload": {
+     "day": "mes"
+    }
+   }
+  },
+  {
+   "phrase": "show the agenda in month view",
+   "action": {
+    "do": "widget_data",
+    "widget": "agenda",
+    "action": "show_day",
+    "payload": {
+     "day": "mes"
+    }
+   }
+  },
+  {
+   "phrase": "show me the month view",
+   "action": {
+    "do": "widget_data",
+    "widget": "agenda",
+    "action": "show_day",
+    "payload": {
+     "day": "mes"
+    }
+   }
+  },
+  {
+   "phrase": "put the agenda in week view",
+   "action": {
+    "do": "widget_data",
+    "widget": "agenda",
+    "action": "show_day",
+    "payload": {
+     "day": "semana"
+    }
+   }
+  },
+  {
+   "phrase": "show the agenda in week view",
+   "action": {
+    "do": "widget_data",
+    "widget": "agenda",
+    "action": "show_day",
+    "payload": {
+     "day": "semana"
+    }
+   }
+  }
+ ]
 }

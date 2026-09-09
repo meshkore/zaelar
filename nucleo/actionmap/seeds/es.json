@@ -1,770 +1,924 @@
 {
-  "_comment": "Genesis seed pack (Spanish) for the action map (V2-539). Every entry is an UNAMBIGUOUS, whole-utterance command mapped to one allowlisted direct action. Phrases are normalized on import (accents/punctuation don't matter here). Courtesy/word-order variants are separate entries ON PURPOSE — the matcher is not allowed to understand. When a phrase could plausibly mean something richer than the mapped action, it does NOT belong in this pack: the model handles it.",
-  "version": 6,
-  "grids": [
-    {
-      "_comment": "VERB x OBJECT grid for mensajeria's LENSES (V2-545). «Abreme el Telegram» is not «show the card»: WhatsApp/Telegram/correo are VIEWS OF a card, and the model reads them as card names because they are also the widget's aliases - measured live, three turns of «Aqui lo tienes» over an unmoved card. Expanded into ordinary exact-match entries at import; a view op also brings the card up (executor), so one order gets both halves. `$` is filled with the value.",
-      "verbs": [
-        "abre",
-        "ábreme",
-        "ábreme ahora",
-        "muestra",
-        "muéstrame",
-        "muéstrame ahora",
-        "enséñame",
-        "enséñame ahora",
-        "ponme"
-      ],
-      "objects": {
-        "el whatsapp": "whatsapp",
-        "whatsapp": "whatsapp",
-        "el wasap": "whatsapp",
-        "wasap": "whatsapp",
-        "los whatsapp": "whatsapp",
-        "mis whatsapp": "whatsapp",
-        "los mensajes de whatsapp": "whatsapp",
-        "los mensajes del whatsapp": "whatsapp",
-        "solo el whatsapp": "whatsapp",
-        "solo los mensajes de whatsapp": "whatsapp",
-        "el telegram": "telegram",
-        "telegram": "telegram",
-        "mis telegram": "telegram",
-        "los mensajes de telegram": "telegram",
-        "los mensajes del telegram": "telegram",
-        "solo el telegram": "telegram",
-        "solo los mensajes de telegram": "telegram",
-        "el correo": "email",
-        "mi correo": "email",
-        "los correos": "email",
-        "mis correos": "email",
-        "el email": "email",
-        "los emails": "email",
-        "mis emails": "email",
-        "el mail": "email",
-        "el gmail": "email",
-        "mi gmail": "email",
-        "el outlook": "email",
-        "mi outlook": "email",
-        "los mensajes de correo": "email",
-        "solo el correo": "email",
-        "solo los mensajes de correo": "email",
-        "la lista principal": "all",
-        "la lista general": "all",
-        "la lista unificada": "all",
-        "todos los mensajes": "all",
-        "todos los chats": "all",
-        "la bandeja": "all",
-        "la bandeja de entrada": "all",
-        "la mensajería": "all",
-        "los mensajes": "all",
-        "mis mensajes": "all",
-        "mensajes": "all",
-        "la mensajeria": "all"
-      },
-      "action": {
-        "do": "widget_data",
-        "widget": "mensajeria",
-        "action": "show_view",
-        "payload": {
-          "platform": "$"
-        }
-      }
-    },
-    {
-      "_comment": "VERB x OBJECT grid for OPENING every card (V2-567). Measured 2026-09-03: «cierra los mensajes» hit this table in 0.08 ms while «cierra los contactos», five seconds later, had no entry, fell to the model, took 3.4 s and OPENED mensajeria — the close only happened because a backstop rescued it. The favourite-restaurant phrases open the contactos CARD on purpose (a favourite IS a directory entry, per its manifest) and the fine-grained view filter stays with the model: the operator's live rows carry favorite=true with empty groups, so a deterministic group filter would answer ZERO.",
-      "verbs": [
-        "abre",
-        "abreme",
-        "muestra",
-        "muestrame",
-        "ensename"
-      ],
-      "objects": {
-        "los contactos": "contactos",
-        "el widget de contactos": "contactos",
-        "mis contactos": "contactos",
-        "el directorio": "contactos",
-        "la lista de contactos": "contactos",
-        "mis restaurantes favoritos": "contactos",
-        "la lista de restaurantes favoritos": "contactos",
-        "mi lista de restaurantes favoritos": "contactos",
-        "mis favoritos": "contactos",
-        "mis sitios favoritos": "contactos",
-        "la agenda": "agenda",
-        "el calendario": "agenda",
-        "el reloj": "clock",
-        "el temporizador": "timer",
-        "las imagenes": "imagenes",
-        "el visor de imagenes": "imagenes",
-        "la galeria": "fotos",
-        "la galeria de fotos": "fotos",
-        "mis fotos": "fotos",
-        "las fotos": "fotos",
-        "el reproductor": "musica",
-        "el reproductor de musica": "musica",
-        "youtube": "youtube",
-        "el youtube": "youtube",
-        "el navegador": "navegador",
-        "los resultados": "results",
-        "la hoja de resultados": "results",
-        "los archivos": "archivos",
-        "el explorador de archivos": "archivos",
-        "mis archivos": "archivos",
-        "el documento": "documento",
-        "el buscador": "search"
-      },
-      "action": {
-        "do": "show_widget",
-        "widget": "$"
-      }
-    },
-    {
-      "_comment": "VERB x OBJECT grid for CLOSING every card (V2-567) — the half that measured 2 of 14 widgets covered. Closing mensajeria's lens names (whatsapp/telegram/correo) closes the card: it is one card, and that is what the order means. navegador/results stay listed here on purpose — the EXECUTOR declines close_widget while live work sits behind them and the turn falls through whole to the model.",
-      "verbs": [
-        "cierra",
-        "cierrame",
-        "quita",
-        "quitame"
-      ],
-      "objects": {
-        "los contactos": "contactos",
-        "el widget de contactos": "contactos",
-        "mis contactos": "contactos",
-        "el directorio": "contactos",
-        "contactos": "contactos",
-        "la agenda": "agenda",
-        "el calendario": "agenda",
-        "el reloj": "clock",
-        "el temporizador": "timer",
-        "las imagenes": "imagenes",
-        "el visor de imagenes": "imagenes",
-        "la galeria": "fotos",
-        "la galeria de fotos": "fotos",
-        "las fotos": "fotos",
-        "el reproductor": "musica",
-        "el reproductor de musica": "musica",
-        "youtube": "youtube",
-        "el youtube": "youtube",
-        "el navegador": "navegador",
-        "los resultados": "results",
-        "la hoja de resultados": "results",
-        "los archivos": "archivos",
-        "el explorador de archivos": "archivos",
-        "el documento": "documento",
-        "el buscador": "search",
-        "la mensajeria": "mensajeria",
-        "los mensajes": "mensajeria",
-        "el whatsapp": "mensajeria",
-        "whatsapp": "mensajeria",
-        "el telegram": "mensajeria",
-        "telegram": "mensajeria",
-        "el correo": "mensajeria"
-      },
-      "action": {
-        "do": "close_widget",
-        "widget": "$"
-      }
+ "_comment": "Genesis seed pack (Spanish) for the action map (V2-539). Every entry is an UNAMBIGUOUS, whole-utterance command mapped to one allowlisted direct action. Phrases are normalized on import (accents/punctuation don't matter here). Courtesy/word-order variants are separate entries ON PURPOSE — the matcher is not allowed to understand. When a phrase could plausibly mean something richer than the mapped action, it does NOT belong in this pack: the model handles it.",
+ "version": 7,
+ "grids": [
+  {
+   "_comment": "VERB x OBJECT grid for mensajeria's LENSES (V2-545). «Abreme el Telegram» is not «show the card»: WhatsApp/Telegram/correo are VIEWS OF a card, and the model reads them as card names because they are also the widget's aliases - measured live, three turns of «Aqui lo tienes» over an unmoved card. Expanded into ordinary exact-match entries at import; a view op also brings the card up (executor), so one order gets both halves. `$` is filled with the value.",
+   "verbs": [
+    "abre",
+    "ábreme",
+    "ábreme ahora",
+    "muestra",
+    "muéstrame",
+    "muéstrame ahora",
+    "enséñame",
+    "enséñame ahora",
+    "ponme"
+   ],
+   "objects": {
+    "el whatsapp": "whatsapp",
+    "whatsapp": "whatsapp",
+    "el wasap": "whatsapp",
+    "wasap": "whatsapp",
+    "los whatsapp": "whatsapp",
+    "mis whatsapp": "whatsapp",
+    "los mensajes de whatsapp": "whatsapp",
+    "los mensajes del whatsapp": "whatsapp",
+    "solo el whatsapp": "whatsapp",
+    "solo los mensajes de whatsapp": "whatsapp",
+    "el telegram": "telegram",
+    "telegram": "telegram",
+    "mis telegram": "telegram",
+    "los mensajes de telegram": "telegram",
+    "los mensajes del telegram": "telegram",
+    "solo el telegram": "telegram",
+    "solo los mensajes de telegram": "telegram",
+    "el correo": "email",
+    "mi correo": "email",
+    "los correos": "email",
+    "mis correos": "email",
+    "el email": "email",
+    "los emails": "email",
+    "mis emails": "email",
+    "el mail": "email",
+    "el gmail": "email",
+    "mi gmail": "email",
+    "el outlook": "email",
+    "mi outlook": "email",
+    "los mensajes de correo": "email",
+    "solo el correo": "email",
+    "solo los mensajes de correo": "email",
+    "la lista principal": "all",
+    "la lista general": "all",
+    "la lista unificada": "all",
+    "todos los mensajes": "all",
+    "todos los chats": "all",
+    "la bandeja": "all",
+    "la bandeja de entrada": "all",
+    "la mensajería": "all",
+    "los mensajes": "all",
+    "mis mensajes": "all",
+    "mensajes": "all",
+    "la mensajeria": "all"
+   },
+   "action": {
+    "do": "widget_data",
+    "widget": "mensajeria",
+    "action": "show_view",
+    "payload": {
+     "platform": "$"
     }
-  ],
-  "entries": [
-    {
-      "phrase": "limpia la pantalla",
-      "action": {
-        "do": "close_all"
-      }
-    },
-    {
-      "phrase": "limpia la pantalla por favor",
-      "action": {
-        "do": "close_all"
-      }
-    },
-    {
-      "phrase": "por favor limpia la pantalla",
-      "action": {
-        "do": "close_all"
-      }
-    },
-    {
-      "phrase": "vacia la pantalla",
-      "action": {
-        "do": "close_all"
-      }
-    },
-    {
-      "phrase": "despeja la pantalla",
-      "action": {
-        "do": "close_all"
-      }
-    },
-    {
-      "phrase": "limpia el escritorio",
-      "action": {
-        "do": "close_all"
-      }
-    },
-    {
-      "phrase": "borra todos los widgets",
-      "action": {
-        "do": "close_all"
-      }
-    },
-    {
-      "phrase": "quita todos los widgets",
-      "action": {
-        "do": "close_all"
-      }
-    },
-    {
-      "phrase": "cierra todos los widgets",
-      "action": {
-        "do": "close_all"
-      }
-    },
-    {
-      "phrase": "cierra whatsapp",
-      "action": {
-        "do": "close_widget",
-        "widget": "mensajeria"
-      }
-    },
-    {
-      "phrase": "cierra el whatsapp",
-      "action": {
-        "do": "close_widget",
-        "widget": "mensajeria"
-      }
-    },
-    {
-      "phrase": "cierra telegram",
-      "action": {
-        "do": "close_widget",
-        "widget": "mensajeria"
-      }
-    },
-    {
-      "phrase": "cierra la mensajeria",
-      "action": {
-        "do": "close_widget",
-        "widget": "mensajeria"
-      }
-    },
-    {
-      "phrase": "cierra los mensajes",
-      "action": {
-        "do": "close_widget",
-        "widget": "mensajeria"
-      }
-    },
-    {
-      "phrase": "abre la agenda",
-      "action": {
-        "do": "show_widget",
-        "widget": "agenda"
-      }
-    },
-    {
-      "phrase": "ensename la agenda",
-      "action": {
-        "do": "show_widget",
-        "widget": "agenda"
-      }
-    },
-    {
-      "phrase": "muestrame la agenda",
-      "action": {
-        "do": "show_widget",
-        "widget": "agenda"
-      }
-    },
-    {
-      "phrase": "abre el calendario",
-      "action": {
-        "do": "show_widget",
-        "widget": "agenda"
-      }
-    },
-    {
-      "phrase": "abre mi dia",
-      "action": {
-        "do": "show_widget",
-        "widget": "agenda"
-      }
-    },
-    {
-      "phrase": "cierra la agenda",
-      "action": {
-        "do": "close_widget",
-        "widget": "agenda"
-      }
-    },
-    {
-      "phrase": "abre el reproductor",
-      "action": {
-        "do": "show_widget",
-        "widget": "musica"
-      }
-    },
-    {
-      "phrase": "abre el reproductor de musica",
-      "action": {
-        "do": "show_widget",
-        "widget": "musica"
-      }
-    },
-    {
-      "phrase": "abre youtube",
-      "action": {
-        "do": "show_widget",
-        "widget": "youtube"
-      }
-    },
-    {
-      "phrase": "abre el youtube",
-      "action": {
-        "do": "show_widget",
-        "widget": "youtube"
-      }
-    },
-    {
-      "phrase": "abre las imagenes",
-      "action": {
-        "do": "show_widget",
-        "widget": "imagenes"
-      }
-    },
-    {
-      "phrase": "abre el reloj",
-      "action": {
-        "do": "show_widget",
-        "widget": "clock"
-      }
-    },
-    {
-      "phrase": "abre el temporizador",
-      "action": {
-        "do": "show_widget",
-        "widget": "timer"
-      }
-    },
-    {
-      "phrase": "abre los contactos",
-      "action": {
-        "do": "show_widget",
-        "widget": "contactos"
-      }
-    },
-    {
-      "phrase": "abre el chat",
-      "action": {
-        "do": "show_panel",
-        "tab": "chat",
-        "action": "open"
-      }
-    },
-    {
-      "phrase": "cierra el chat",
-      "action": {
-        "do": "show_panel",
-        "tab": "chat",
-        "action": "close"
-      }
-    },
-    {
-      "phrase": "abre los procesos",
-      "action": {
-        "do": "show_panel",
-        "tab": "procesos",
-        "action": "open"
-      }
-    },
-    {
-      "phrase": "ensename los procesos",
-      "action": {
-        "do": "show_panel",
-        "tab": "procesos",
-        "action": "open"
-      }
-    },
-    {
-      "phrase": "abre las alarmas",
-      "action": {
-        "do": "show_panel",
-        "tab": "crons",
-        "action": "open"
-      }
-    },
-    {
-      "phrase": "abre los avisos",
-      "action": {
-        "do": "show_panel",
-        "tab": "crons",
-        "action": "open"
-      }
-    },
-    {
-      "phrase": "abre los crons",
-      "action": {
-        "do": "show_panel",
-        "tab": "crons",
-        "action": "open"
-      }
-    },
-    {
-      "phrase": "abre los clusters",
-      "action": {
-        "do": "show_panel",
-        "tab": "clusters",
-        "action": "open"
-      }
-    },
-    {
-      "phrase": "ordena los widgets",
-      "action": {
-        "do": "arrange"
-      }
-    },
-    {
-      "phrase": "ordena los widgets de la pantalla",
-      "action": {
-        "do": "arrange"
-      }
-    },
-    {
-      "phrase": "ordena la pantalla",
-      "action": {
-        "do": "arrange"
-      }
-    },
-    {
-      "phrase": "recoloca los widgets",
-      "action": {
-        "do": "arrange"
-      }
-    },
-    {
-      "phrase": "organiza los widgets",
-      "action": {
-        "do": "arrange"
-      }
-    },
-    {
-      "phrase": "organiza la pantalla",
-      "action": {
-        "do": "arrange"
-      }
-    },
-    {
-      "phrase": "coloca bien los widgets",
-      "action": {
-        "do": "arrange"
-      }
-    },
-    {
-      "phrase": "ajusta los widgets a la pantalla",
-      "action": {
-        "do": "arrange"
-      }
-    },
-    {
-      "phrase": "ordename los widgets",
-      "action": {
-        "do": "arrange"
-      }
-    },
-    {
-      "phrase": "para el video",
-      "action": {
-        "do": "widget_data",
-        "widget": "youtube",
-        "action": "pause"
-      }
-    },
-    {
-      "phrase": "pausa el video",
-      "action": {
-        "do": "widget_data",
-        "widget": "youtube",
-        "action": "pause"
-      }
-    },
-    {
-      "phrase": "pon el video en pausa",
-      "action": {
-        "do": "widget_data",
-        "widget": "youtube",
-        "action": "pause"
-      }
-    },
-    {
-      "phrase": "deten el video",
-      "action": {
-        "do": "widget_data",
-        "widget": "youtube",
-        "action": "pause"
-      }
-    },
-    {
-      "phrase": "reanuda el video",
-      "action": {
-        "do": "widget_data",
-        "widget": "youtube",
-        "action": "play"
-      }
-    },
-    {
-      "phrase": "para la musica",
-      "action": {
-        "do": "widget_data",
-        "widget": "musica",
-        "action": "pause"
-      }
-    },
-    {
-      "phrase": "pausa la musica",
-      "action": {
-        "do": "widget_data",
-        "widget": "musica",
-        "action": "pause"
-      }
-    },
-    {
-      "phrase": "reanuda la musica",
-      "action": {
-        "do": "widget_data",
-        "widget": "musica",
-        "action": "resume"
-      }
-    },
-    {
-      "phrase": "siguiente cancion",
-      "action": {
-        "do": "widget_data",
-        "widget": "musica",
-        "action": "next"
-      }
-    },
-    {
-      "phrase": "pasa a la siguiente cancion",
-      "action": {
-        "do": "widget_data",
-        "widget": "musica",
-        "action": "next"
-      }
-    },
-    {
-      "phrase": "pon la siguiente cancion",
-      "action": {
-        "do": "widget_data",
-        "widget": "musica",
-        "action": "next"
-      }
-    },
-    {
-      "phrase": "pasa a la siguiente",
-      "action": {
-        "do": "widget_data",
-        "widget": "musica",
-        "action": "next"
-      }
-    },
-    {
-      "phrase": "salta esta cancion",
-      "action": {
-        "do": "widget_data",
-        "widget": "musica",
-        "action": "next"
-      }
-    },
-    {
-      "phrase": "cambia de cancion",
-      "action": {
-        "do": "widget_data",
-        "widget": "musica",
-        "action": "next"
-      }
-    },
-    {
-      "phrase": "cancion anterior",
-      "action": {
-        "do": "widget_data",
-        "widget": "musica",
-        "action": "previous"
-      }
-    },
-    {
-      "phrase": "pon la cancion anterior",
-      "action": {
-        "do": "widget_data",
-        "widget": "musica",
-        "action": "previous"
-      }
-    },
-    {
-      "phrase": "vuelve a la cancion anterior",
-      "action": {
-        "do": "widget_data",
-        "widget": "musica",
-        "action": "previous"
-      }
-    },
-    {
-      "phrase": "quita los subtitulos",
-      "action": {
-        "do": "widget_data",
-        "widget": "youtube",
-        "action": "captions_off"
-      }
-    },
-    {
-      "phrase": "pon los subtitulos",
-      "action": {
-        "do": "widget_data",
-        "widget": "youtube",
-        "action": "captions_on"
-      }
-    },
-    {
-      "phrase": "activa los subtitulos",
-      "action": {
-        "do": "widget_data",
-        "widget": "youtube",
-        "action": "captions_on"
-      }
-    },
-    {
-      "phrase": "reproduce el video",
-      "action": {
-        "do": "widget_data",
-        "widget": "youtube",
-        "action": "play"
-      }
-    },
-    {
-      "phrase": "reproduce el video otra vez",
-      "action": {
-        "do": "widget_data",
-        "widget": "youtube",
-        "action": "play"
-      }
-    },
-    {
-      "phrase": "dale al play",
-      "action": {
-        "do": "widget_data",
-        "widget": "youtube",
-        "action": "play"
-      }
-    },
-    {
-      "phrase": "quita la pausa",
-      "action": {
-        "do": "widget_data",
-        "widget": "youtube",
-        "action": "play"
-      }
-    },
-    {
-      "phrase": "continua el video",
-      "action": {
-        "do": "widget_data",
-        "widget": "youtube",
-        "action": "play"
-      }
-    },
-    {
-      "phrase": "sigue el video",
-      "action": {
-        "do": "widget_data",
-        "widget": "youtube",
-        "action": "play"
-      }
-    },
-    {
-      "phrase": "sigue con el video",
-      "action": {
-        "do": "widget_data",
-        "widget": "youtube",
-        "action": "play"
-      }
-    },
-    {
-      "phrase": "reanuda la reproduccion",
-      "action": {
-        "do": "widget_data",
-        "widget": "youtube",
-        "action": "play"
-      }
-    },
-    {
-      "phrase": "pon el video a pantalla completa",
-      "action": {
-        "do": "fullscreen",
-        "widget": "youtube"
-      }
-    },
-    {
-      "phrase": "pon el video en pantalla completa",
-      "action": {
-        "do": "fullscreen",
-        "widget": "youtube"
-      }
-    },
-    {
-      "phrase": "video a pantalla completa",
-      "action": {
-        "do": "fullscreen",
-        "widget": "youtube"
-      }
-    },
-    {
-      "phrase": "minimiza el video",
-      "action": {
-        "do": "minimize",
-        "widget": "youtube"
-      }
-    },
-    {
-      "phrase": "minimiza el widget de video",
-      "action": {
-        "do": "minimize",
-        "widget": "youtube"
-      }
-    },
-    {
-      "phrase": "quita la pantalla completa",
-      "action": {
-        "do": "minimize",
-        "widget": "youtube"
-      }
-    },
-    {
-      "phrase": "cierra el video",
-      "action": {
-        "do": "close_widget",
-        "widget": "youtube"
-      }
-    },
-    {
-      "phrase": "cierra el widget de video",
-      "action": {
-        "do": "close_widget",
-        "widget": "youtube"
-      }
-    },
-    {
-      "phrase": "cierra el youtube",
-      "action": {
-        "do": "close_widget",
-        "widget": "youtube"
-      }
-    },
-    {
-      "phrase": "cierra youtube",
-      "action": {
-        "do": "close_widget",
-        "widget": "youtube"
-      }
+   }
+  },
+  {
+   "_comment": "VERB x OBJECT grid for OPENING every card (V2-567). Measured 2026-09-03: «cierra los mensajes» hit this table in 0.08 ms while «cierra los contactos», five seconds later, had no entry, fell to the model, took 3.4 s and OPENED mensajeria — the close only happened because a backstop rescued it. The favourite-restaurant phrases open the contactos CARD on purpose (a favourite IS a directory entry, per its manifest) and the fine-grained view filter stays with the model: the operator's live rows carry favorite=true with empty groups, so a deterministic group filter would answer ZERO.",
+   "verbs": [
+    "abre",
+    "abreme",
+    "muestra",
+    "muestrame",
+    "ensename"
+   ],
+   "objects": {
+    "los contactos": "contactos",
+    "el widget de contactos": "contactos",
+    "mis contactos": "contactos",
+    "el directorio": "contactos",
+    "la lista de contactos": "contactos",
+    "mis restaurantes favoritos": "contactos",
+    "la lista de restaurantes favoritos": "contactos",
+    "mi lista de restaurantes favoritos": "contactos",
+    "mis favoritos": "contactos",
+    "mis sitios favoritos": "contactos",
+    "la agenda": "agenda",
+    "el calendario": "agenda",
+    "el reloj": "clock",
+    "el temporizador": "timer",
+    "las imagenes": "imagenes",
+    "el visor de imagenes": "imagenes",
+    "la galeria": "fotos",
+    "la galeria de fotos": "fotos",
+    "mis fotos": "fotos",
+    "las fotos": "fotos",
+    "el reproductor": "musica",
+    "el reproductor de musica": "musica",
+    "youtube": "youtube",
+    "el youtube": "youtube",
+    "el navegador": "navegador",
+    "los resultados": "results",
+    "la hoja de resultados": "results",
+    "los archivos": "archivos",
+    "el explorador de archivos": "archivos",
+    "mis archivos": "archivos",
+    "el documento": "documento",
+    "el buscador": "search"
+   },
+   "action": {
+    "do": "show_widget",
+    "widget": "$"
+   }
+  },
+  {
+   "_comment": "VERB x OBJECT grid for CLOSING every card (V2-567) — the half that measured 2 of 14 widgets covered. Closing mensajeria's lens names (whatsapp/telegram/correo) closes the card: it is one card, and that is what the order means. navegador/results stay listed here on purpose — the EXECUTOR declines close_widget while live work sits behind them and the turn falls through whole to the model.",
+   "verbs": [
+    "cierra",
+    "cierrame",
+    "quita",
+    "quitame"
+   ],
+   "objects": {
+    "los contactos": "contactos",
+    "el widget de contactos": "contactos",
+    "mis contactos": "contactos",
+    "el directorio": "contactos",
+    "contactos": "contactos",
+    "la agenda": "agenda",
+    "el calendario": "agenda",
+    "el reloj": "clock",
+    "el temporizador": "timer",
+    "las imagenes": "imagenes",
+    "el visor de imagenes": "imagenes",
+    "la galeria": "fotos",
+    "la galeria de fotos": "fotos",
+    "las fotos": "fotos",
+    "el reproductor": "musica",
+    "el reproductor de musica": "musica",
+    "youtube": "youtube",
+    "el youtube": "youtube",
+    "el navegador": "navegador",
+    "los resultados": "results",
+    "la hoja de resultados": "results",
+    "los archivos": "archivos",
+    "el explorador de archivos": "archivos",
+    "el documento": "documento",
+    "el buscador": "search",
+    "la mensajeria": "mensajeria",
+    "los mensajes": "mensajeria",
+    "el whatsapp": "mensajeria",
+    "whatsapp": "mensajeria",
+    "el telegram": "mensajeria",
+    "telegram": "mensajeria",
+    "el correo": "mensajeria"
+   },
+   "action": {
+    "do": "close_widget",
+    "widget": "$"
+   }
+  }
+ ],
+ "entries": [
+  {
+   "phrase": "limpia la pantalla",
+   "action": {
+    "do": "close_all"
+   }
+  },
+  {
+   "phrase": "limpia la pantalla por favor",
+   "action": {
+    "do": "close_all"
+   }
+  },
+  {
+   "phrase": "por favor limpia la pantalla",
+   "action": {
+    "do": "close_all"
+   }
+  },
+  {
+   "phrase": "vacia la pantalla",
+   "action": {
+    "do": "close_all"
+   }
+  },
+  {
+   "phrase": "despeja la pantalla",
+   "action": {
+    "do": "close_all"
+   }
+  },
+  {
+   "phrase": "limpia el escritorio",
+   "action": {
+    "do": "close_all"
+   }
+  },
+  {
+   "phrase": "borra todos los widgets",
+   "action": {
+    "do": "close_all"
+   }
+  },
+  {
+   "phrase": "quita todos los widgets",
+   "action": {
+    "do": "close_all"
+   }
+  },
+  {
+   "phrase": "cierra todos los widgets",
+   "action": {
+    "do": "close_all"
+   }
+  },
+  {
+   "phrase": "cierra whatsapp",
+   "action": {
+    "do": "close_widget",
+    "widget": "mensajeria"
+   }
+  },
+  {
+   "phrase": "cierra el whatsapp",
+   "action": {
+    "do": "close_widget",
+    "widget": "mensajeria"
+   }
+  },
+  {
+   "phrase": "cierra telegram",
+   "action": {
+    "do": "close_widget",
+    "widget": "mensajeria"
+   }
+  },
+  {
+   "phrase": "cierra la mensajeria",
+   "action": {
+    "do": "close_widget",
+    "widget": "mensajeria"
+   }
+  },
+  {
+   "phrase": "cierra los mensajes",
+   "action": {
+    "do": "close_widget",
+    "widget": "mensajeria"
+   }
+  },
+  {
+   "phrase": "abre la agenda",
+   "action": {
+    "do": "show_widget",
+    "widget": "agenda"
+   }
+  },
+  {
+   "phrase": "ensename la agenda",
+   "action": {
+    "do": "show_widget",
+    "widget": "agenda"
+   }
+  },
+  {
+   "phrase": "muestrame la agenda",
+   "action": {
+    "do": "show_widget",
+    "widget": "agenda"
+   }
+  },
+  {
+   "phrase": "abre el calendario",
+   "action": {
+    "do": "show_widget",
+    "widget": "agenda"
+   }
+  },
+  {
+   "phrase": "abre mi dia",
+   "action": {
+    "do": "show_widget",
+    "widget": "agenda"
+   }
+  },
+  {
+   "phrase": "cierra la agenda",
+   "action": {
+    "do": "close_widget",
+    "widget": "agenda"
+   }
+  },
+  {
+   "phrase": "abre el reproductor",
+   "action": {
+    "do": "show_widget",
+    "widget": "musica"
+   }
+  },
+  {
+   "phrase": "abre el reproductor de musica",
+   "action": {
+    "do": "show_widget",
+    "widget": "musica"
+   }
+  },
+  {
+   "phrase": "abre youtube",
+   "action": {
+    "do": "show_widget",
+    "widget": "youtube"
+   }
+  },
+  {
+   "phrase": "abre el youtube",
+   "action": {
+    "do": "show_widget",
+    "widget": "youtube"
+   }
+  },
+  {
+   "phrase": "abre las imagenes",
+   "action": {
+    "do": "show_widget",
+    "widget": "imagenes"
+   }
+  },
+  {
+   "phrase": "abre el reloj",
+   "action": {
+    "do": "show_widget",
+    "widget": "clock"
+   }
+  },
+  {
+   "phrase": "abre el temporizador",
+   "action": {
+    "do": "show_widget",
+    "widget": "timer"
+   }
+  },
+  {
+   "phrase": "abre los contactos",
+   "action": {
+    "do": "show_widget",
+    "widget": "contactos"
+   }
+  },
+  {
+   "phrase": "abre el chat",
+   "action": {
+    "do": "show_panel",
+    "tab": "chat",
+    "action": "open"
+   }
+  },
+  {
+   "phrase": "cierra el chat",
+   "action": {
+    "do": "show_panel",
+    "tab": "chat",
+    "action": "close"
+   }
+  },
+  {
+   "phrase": "abre los procesos",
+   "action": {
+    "do": "show_panel",
+    "tab": "procesos",
+    "action": "open"
+   }
+  },
+  {
+   "phrase": "ensename los procesos",
+   "action": {
+    "do": "show_panel",
+    "tab": "procesos",
+    "action": "open"
+   }
+  },
+  {
+   "phrase": "abre las alarmas",
+   "action": {
+    "do": "show_panel",
+    "tab": "crons",
+    "action": "open"
+   }
+  },
+  {
+   "phrase": "abre los avisos",
+   "action": {
+    "do": "show_panel",
+    "tab": "crons",
+    "action": "open"
+   }
+  },
+  {
+   "phrase": "abre los crons",
+   "action": {
+    "do": "show_panel",
+    "tab": "crons",
+    "action": "open"
+   }
+  },
+  {
+   "phrase": "abre los clusters",
+   "action": {
+    "do": "show_panel",
+    "tab": "clusters",
+    "action": "open"
+   }
+  },
+  {
+   "phrase": "ordena los widgets",
+   "action": {
+    "do": "arrange"
+   }
+  },
+  {
+   "phrase": "ordena los widgets de la pantalla",
+   "action": {
+    "do": "arrange"
+   }
+  },
+  {
+   "phrase": "ordena la pantalla",
+   "action": {
+    "do": "arrange"
+   }
+  },
+  {
+   "phrase": "recoloca los widgets",
+   "action": {
+    "do": "arrange"
+   }
+  },
+  {
+   "phrase": "organiza los widgets",
+   "action": {
+    "do": "arrange"
+   }
+  },
+  {
+   "phrase": "organiza la pantalla",
+   "action": {
+    "do": "arrange"
+   }
+  },
+  {
+   "phrase": "coloca bien los widgets",
+   "action": {
+    "do": "arrange"
+   }
+  },
+  {
+   "phrase": "ajusta los widgets a la pantalla",
+   "action": {
+    "do": "arrange"
+   }
+  },
+  {
+   "phrase": "ordename los widgets",
+   "action": {
+    "do": "arrange"
+   }
+  },
+  {
+   "phrase": "para el video",
+   "action": {
+    "do": "widget_data",
+    "widget": "youtube",
+    "action": "pause"
+   }
+  },
+  {
+   "phrase": "pausa el video",
+   "action": {
+    "do": "widget_data",
+    "widget": "youtube",
+    "action": "pause"
+   }
+  },
+  {
+   "phrase": "pon el video en pausa",
+   "action": {
+    "do": "widget_data",
+    "widget": "youtube",
+    "action": "pause"
+   }
+  },
+  {
+   "phrase": "deten el video",
+   "action": {
+    "do": "widget_data",
+    "widget": "youtube",
+    "action": "pause"
+   }
+  },
+  {
+   "phrase": "reanuda el video",
+   "action": {
+    "do": "widget_data",
+    "widget": "youtube",
+    "action": "play"
+   }
+  },
+  {
+   "phrase": "para la musica",
+   "action": {
+    "do": "widget_data",
+    "widget": "musica",
+    "action": "pause"
+   }
+  },
+  {
+   "phrase": "pausa la musica",
+   "action": {
+    "do": "widget_data",
+    "widget": "musica",
+    "action": "pause"
+   }
+  },
+  {
+   "phrase": "reanuda la musica",
+   "action": {
+    "do": "widget_data",
+    "widget": "musica",
+    "action": "resume"
+   }
+  },
+  {
+   "phrase": "siguiente cancion",
+   "action": {
+    "do": "widget_data",
+    "widget": "musica",
+    "action": "next"
+   }
+  },
+  {
+   "phrase": "pasa a la siguiente cancion",
+   "action": {
+    "do": "widget_data",
+    "widget": "musica",
+    "action": "next"
+   }
+  },
+  {
+   "phrase": "pon la siguiente cancion",
+   "action": {
+    "do": "widget_data",
+    "widget": "musica",
+    "action": "next"
+   }
+  },
+  {
+   "phrase": "pasa a la siguiente",
+   "action": {
+    "do": "widget_data",
+    "widget": "musica",
+    "action": "next"
+   }
+  },
+  {
+   "phrase": "salta esta cancion",
+   "action": {
+    "do": "widget_data",
+    "widget": "musica",
+    "action": "next"
+   }
+  },
+  {
+   "phrase": "cambia de cancion",
+   "action": {
+    "do": "widget_data",
+    "widget": "musica",
+    "action": "next"
+   }
+  },
+  {
+   "phrase": "cancion anterior",
+   "action": {
+    "do": "widget_data",
+    "widget": "musica",
+    "action": "previous"
+   }
+  },
+  {
+   "phrase": "pon la cancion anterior",
+   "action": {
+    "do": "widget_data",
+    "widget": "musica",
+    "action": "previous"
+   }
+  },
+  {
+   "phrase": "vuelve a la cancion anterior",
+   "action": {
+    "do": "widget_data",
+    "widget": "musica",
+    "action": "previous"
+   }
+  },
+  {
+   "phrase": "quita los subtitulos",
+   "action": {
+    "do": "widget_data",
+    "widget": "youtube",
+    "action": "captions_off"
+   }
+  },
+  {
+   "phrase": "pon los subtitulos",
+   "action": {
+    "do": "widget_data",
+    "widget": "youtube",
+    "action": "captions_on"
+   }
+  },
+  {
+   "phrase": "activa los subtitulos",
+   "action": {
+    "do": "widget_data",
+    "widget": "youtube",
+    "action": "captions_on"
+   }
+  },
+  {
+   "phrase": "reproduce el video",
+   "action": {
+    "do": "widget_data",
+    "widget": "youtube",
+    "action": "play"
+   }
+  },
+  {
+   "phrase": "reproduce el video otra vez",
+   "action": {
+    "do": "widget_data",
+    "widget": "youtube",
+    "action": "play"
+   }
+  },
+  {
+   "phrase": "dale al play",
+   "action": {
+    "do": "widget_data",
+    "widget": "youtube",
+    "action": "play"
+   }
+  },
+  {
+   "phrase": "quita la pausa",
+   "action": {
+    "do": "widget_data",
+    "widget": "youtube",
+    "action": "play"
+   }
+  },
+  {
+   "phrase": "continua el video",
+   "action": {
+    "do": "widget_data",
+    "widget": "youtube",
+    "action": "play"
+   }
+  },
+  {
+   "phrase": "sigue el video",
+   "action": {
+    "do": "widget_data",
+    "widget": "youtube",
+    "action": "play"
+   }
+  },
+  {
+   "phrase": "sigue con el video",
+   "action": {
+    "do": "widget_data",
+    "widget": "youtube",
+    "action": "play"
+   }
+  },
+  {
+   "phrase": "reanuda la reproduccion",
+   "action": {
+    "do": "widget_data",
+    "widget": "youtube",
+    "action": "play"
+   }
+  },
+  {
+   "phrase": "pon el video a pantalla completa",
+   "action": {
+    "do": "fullscreen",
+    "widget": "youtube"
+   }
+  },
+  {
+   "phrase": "pon el video en pantalla completa",
+   "action": {
+    "do": "fullscreen",
+    "widget": "youtube"
+   }
+  },
+  {
+   "phrase": "video a pantalla completa",
+   "action": {
+    "do": "fullscreen",
+    "widget": "youtube"
+   }
+  },
+  {
+   "phrase": "minimiza el video",
+   "action": {
+    "do": "minimize",
+    "widget": "youtube"
+   }
+  },
+  {
+   "phrase": "minimiza el widget de video",
+   "action": {
+    "do": "minimize",
+    "widget": "youtube"
+   }
+  },
+  {
+   "phrase": "quita la pantalla completa",
+   "action": {
+    "do": "minimize",
+    "widget": "youtube"
+   }
+  },
+  {
+   "phrase": "cierra el video",
+   "action": {
+    "do": "close_widget",
+    "widget": "youtube"
+   }
+  },
+  {
+   "phrase": "cierra el widget de video",
+   "action": {
+    "do": "close_widget",
+    "widget": "youtube"
+   }
+  },
+  {
+   "phrase": "cierra el youtube",
+   "action": {
+    "do": "close_widget",
+    "widget": "youtube"
+   }
+  },
+  {
+   "phrase": "cierra youtube",
+   "action": {
+    "do": "close_widget",
+    "widget": "youtube"
+   }
+  },
+  {
+   "phrase": "ensename la agenda de hoy",
+   "action": {
+    "do": "widget_data",
+    "widget": "agenda",
+    "action": "show_day",
+    "payload": {
+     "day": "hoy"
     }
-  ]
+   }
+  },
+  {
+   "phrase": "muestrame la agenda de hoy",
+   "action": {
+    "do": "widget_data",
+    "widget": "agenda",
+    "action": "show_day",
+    "payload": {
+     "day": "hoy"
+    }
+   }
+  },
+  {
+   "phrase": "abre la agenda de hoy",
+   "action": {
+    "do": "widget_data",
+    "widget": "agenda",
+    "action": "show_day",
+    "payload": {
+     "day": "hoy"
+    }
+   }
+  },
+  {
+   "phrase": "ensename la agenda de manana",
+   "action": {
+    "do": "widget_data",
+    "widget": "agenda",
+    "action": "show_day",
+    "payload": {
+     "day": "manana"
+    }
+   }
+  },
+  {
+   "phrase": "muestrame la agenda de manana",
+   "action": {
+    "do": "widget_data",
+    "widget": "agenda",
+    "action": "show_day",
+    "payload": {
+     "day": "manana"
+    }
+   }
+  },
+  {
+   "phrase": "abre la agenda de manana",
+   "action": {
+    "do": "widget_data",
+    "widget": "agenda",
+    "action": "show_day",
+    "payload": {
+     "day": "manana"
+    }
+   }
+  },
+  {
+   "phrase": "pon la agenda en vista mensual",
+   "action": {
+    "do": "widget_data",
+    "widget": "agenda",
+    "action": "show_day",
+    "payload": {
+     "day": "mes"
+    }
+   }
+  },
+  {
+   "phrase": "pon la agenda en modo mensual",
+   "action": {
+    "do": "widget_data",
+    "widget": "agenda",
+    "action": "show_day",
+    "payload": {
+     "day": "mes"
+    }
+   }
+  },
+  {
+   "phrase": "muestrame la agenda con vista mensual",
+   "action": {
+    "do": "widget_data",
+    "widget": "agenda",
+    "action": "show_day",
+    "payload": {
+     "day": "mes"
+    }
+   }
+  },
+  {
+   "phrase": "ensename la agenda del mes",
+   "action": {
+    "do": "widget_data",
+    "widget": "agenda",
+    "action": "show_day",
+    "payload": {
+     "day": "mes"
+    }
+   }
+  },
+  {
+   "phrase": "pon la agenda en vista semanal",
+   "action": {
+    "do": "widget_data",
+    "widget": "agenda",
+    "action": "show_day",
+    "payload": {
+     "day": "semana"
+    }
+   }
+  },
+  {
+   "phrase": "pon la agenda en modo semanal",
+   "action": {
+    "do": "widget_data",
+    "widget": "agenda",
+    "action": "show_day",
+    "payload": {
+     "day": "semana"
+    }
+   }
+  },
+  {
+   "phrase": "ensename la semana",
+   "action": {
+    "do": "widget_data",
+    "widget": "agenda",
+    "action": "show_day",
+    "payload": {
+     "day": "semana"
+    }
+   }
+  },
+  {
+   "phrase": "ensename la agenda de la semana",
+   "action": {
+    "do": "widget_data",
+    "widget": "agenda",
+    "action": "show_day",
+    "payload": {
+     "day": "semana"
+    }
+   }
+  }
+ ]
 }

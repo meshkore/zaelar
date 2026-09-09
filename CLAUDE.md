@@ -471,6 +471,28 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **The agenda answers to the voice: the view alias, the missing vocabulary, the visible details, and the
+  operator's language (V2-639, 2026-09-09)**: the operator's session, read event by event — he asked FOUR
+  times for the month view and the widget landed on today every time, silently. The model had done its job
+  (`show_day {view: 'month'}`) and `apply_action` only read `day`/`date`: the V2-341 class again — the
+  model's natural alias must not cost the fact. `show_day` reads `day|date|view|mode|vista` now. Three
+  intentions had NO vocabulary at all (the clear_all lesson): `move_meeting` (find like cancel_meeting,
+  the end keeps the meeting's DURATION, and the reminder MOVES with it — an alarm for the old day fires a
+  ghost, V2-473), `set_reminder` with a date and no title reaches EVERY meeting of that day («avisos para
+  todas las citas del jueves» is one intention, not N turns), and `add_task` (a task is not a fake
+  appointment with an invented hour; same no-inventing write discipline as add_meeting). The appointment's
+  SUBSTANCE travels in `notes` now, and `prompt_digest()` (the V2-544/V2-576 seam) hands the brain the
+  upcoming meetings — date · hour · title · reminder · notes — so «qué es ese punto del dentista» stops
+  being a guess: `coach_context` only ever carried TODAY, so every meeting beyond it was invisible and the
+  model narrated. `ref_index` exposes future meetings and the manifest declares `ref: "title"` on the three
+  meeting actions (V2-595), so a spoken reference resolves. The whole surface is multilingual now:
+  `_resolve_date`/`_resolve_time` hear English, the planner's INVENTED labels (Lunch/Break/overflow/
+  avoidance) follow a `lang` argument — dictated titles pass through untouched, they are data — and
+  `widget.js` dresses through `ctx.t`/`Intl.DateTimeFormat(ctx.lang)` (V2-613; `widgets.agenda.*` in both
+  bundles, i18n manifest 5→6). Seed packs v7 carry the operator's literal live sentence («muéstrame la
+  agenda con vista mensual») and the day/view grid into the deterministic lane. Node **4.140** (19 + 6
+  RENDERED cases); six disarms, mutations asserted, all red. Detail: the V2-639 initiative.
+
 - **A canvas mutation needs the operator's words — and a known order survives the wake word (V2-635,
   2026-09-09)**: one live session (34386d8f) measured four classes of the same failure, the model dragging
   its PREVIOUS tool call into a turn that licensed nothing: «Johnny pausa el vídeo» became fullscreen (the

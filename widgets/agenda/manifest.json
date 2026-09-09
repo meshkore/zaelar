@@ -29,31 +29,34 @@
   ],
   "entry": "widget.js",
   "dataSchemaRef": "schema:DB",
-  "usage": "Añade citas con add_meeting (cada cita crea su aviso por defecto ~2h antes; muévelo con set_reminder), cancélalas con cancel_meeting (título + fecha opcional) y gestiona el estado de una tarea con done/snooze/not_now/drop (necesitan su taskId). Todas son data-ops instantáneas menos drop_project, que descarta un proyecto entero y pide confirmación. Para VACIARLA ENTERA («déjala vacía por completo», «hoy y siempre») usa clear_all — una sola acción, sin payload: pide confirmación y deja tareas descartadas, proyectos congelados y cero citas. NO vayas tirando elementos de uno en uno para eso. Para CAMBIAR LA VISTA que se ve en pantalla («muéstrame mañana», «enséñame el jueves», «ponme la semana», «vista de mes») usa show_day: es la ÚNICA forma de mover el día que se ve — abrir el widget otra vez NO lo cambia, siempre abre por hoy.",
+  "usage": "Añade citas con add_meeting (title+date+startTime, opcional notes con los detalles; cada cita crea su aviso ~2h antes) y TAREAS sin hora con add_task. Cancela con cancel_meeting, MUEVE de día/hora con move_meeting (title + newDate/newTime). set_reminder mueve el aviso de una cita, y SIN title + con date pone avisos a todas las citas de ese día. Estado de tareas: done/snooze/not_now/drop (taskId). Para VACIARLA ENTERA usa clear_all (confirma; nunca tires elementos de uno en uno). Para CAMBIAR LA VISTA («la agenda de hoy/mañana», «enséñame el jueves», «vista semanal», «vista de mes») usa show_day con day=hoy|mañana|<día>|semana|mes — es la ÚNICA forma de mover lo que se ve; reabrir el widget siempre abre por hoy. Los detalles de una cita (hora, aviso, notas) los tienes en su digest cuando la agenda está abierta.",
   "actions": {
     "add_meeting": {
-      "desc": "añade una cita/reunión al día — crea SOLO su aviso por defecto (~2h antes), no hace falta pedirlo; para moverlo o quitarlo usa set_reminder",
+      "desc": "añade una cita/reunión al día — crea SOLO su aviso por defecto (~2h antes), no hace falta pedirlo; para moverlo o quitarlo usa set_reminder; acepta `notes` con los detalles de la cita",
       "payload": {
         "title": "string",
         "date": "YYYY-MM-DD (hoy si se omite)",
         "startTime": "HH:MM",
-        "endTime": "HH:MM"
+        "endTime": "HH:MM",
+        "notes": "string (opcional: detalles — lugar, con quién, qué llevar)"
       }
     },
     "set_reminder": {
-      "desc": "mueve el AVISO de una cita existente a otra hora («avísame a mediodía»)",
+      "desc": "mueve el AVISO de una cita («avísame a mediodía»); SIN title y CON date pone avisos a TODAS las citas de ese día («avisos para todas las citas del jueves»)",
       "payload": {
         "title": "string (título de la cita, aunque sea parcial)",
-        "date": "YYYY-MM-DD (si hay varias con ese título)",
+        "date": "YYYY-MM-DD o «mañana»/día de la semana (con title filtra; SIN title = todas las citas de ese día)",
         "at": "HH:MM del día de la cita, o YYYY-MM-DD HH:MM"
-      }
+      },
+      "ref": "title"
     },
     "cancel_meeting": {
       "desc": "cancela/elimina una cita ya agendada",
       "payload": {
         "title": "string",
         "date": "YYYY-MM-DD (opcional, filtra por fecha)"
-      }
+      },
+      "ref": "title"
     },
     "done": {
       "desc": "marca una tarea como hecha",
@@ -96,9 +99,28 @@
     "show_day": {
       "desc": "CAMBIA EL DÍA O LA VISTA que se está viendo en la agenda («muéstrame mañana», «el jueves», «la semana», «el mes»). No modifica ningún dato: solo mueve lo que se ve. Es obligatoria para eso — mostrar el widget de nuevo lo abre siempre por HOY",
       "payload": {
-        "day": "«hoy», «mañana», «pasado mañana», un día de la semana, YYYY-MM-DD, o «semana»/«mes» para esas dos vistas"
+        "day": "«hoy», «mañana», «pasado mañana», un día de la semana, YYYY-MM-DD, o «semana»/«mes» para esas dos vistas (también se aceptan las claves view/mode)"
       },
       "view": true
+    },
+    "add_task": {
+      "desc": "añade una TAREA (no una cita): algo que hacer sin hora obligatoria; el planificador la coloca en el día",
+      "payload": {
+        "title": "string",
+        "estimateMinutes": "int (opcional, 30 por defecto)",
+        "priority": "int 1-5 (opcional, 3)",
+        "startTime": "HH:MM (opcional — la fija a esa hora)"
+      }
+    },
+    "move_meeting": {
+      "desc": "MUEVE una cita existente a otro día y/u hora («pásame el dentista al jueves», «la reunión a las 10») — el aviso se mueve con ella",
+      "payload": {
+        "title": "string (título de la cita, aunque sea parcial)",
+        "date": "YYYY-MM-DD (opcional, si hay varias con ese título)",
+        "newDate": "«mañana», un día de la semana o YYYY-MM-DD",
+        "newTime": "HH:MM (opcional — conserva la hora si no viene)"
+      },
+      "ref": "title"
     }
   },
   "name": "Agenda del día",
