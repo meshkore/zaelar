@@ -105,3 +105,86 @@ async def handled(brain, text: str, emit, *, first_turn: bool, t_entry: float, w
     if _ack_on:
         await _speak_ack(brain)
     return True
+
+
+# ── PRESENCE fast lane (V2-640) ──────────────────────────────────────────────────────────────────────────
+# «¿Sigues ahí?» is not a task — it is a knock on the door, and answering it through a 3-5 s model turn is
+# how the 19:27 session became a dialogue of besugos: the knock armed a thinking filler («Déjame ver…»), the
+# operator asked what we wanted to see, and every meta-question armed another cover. A presence check has
+# exactly one honest answer and it is knowable without a model: "I'm here" (plus "still on your task" when
+# workers are actually running). Whole-utterance match, deterministic, same manners as the action map —
+# the model is skipped, the exchange still lands in the window and the conv buffer, and observability says
+# `engine: "presence"` so no one audits a model turn that never happened.
+# The DETECTOR lives in `nucleo/flash/presence.py` — neutral ground both channels import (this lane
+# downward, the probe by injection), so the two can never drift apart on what counts as a knock.
+from nucleo.flash.presence import is_presence_check  # noqa: F401 — re-exported for the lane's tests
+
+
+async def presence(brain, text: str, emit, *, first_turn: bool, window_max: int) -> bool:
+    """Answer a presence knock instantly, without the model. False = not one (or no mouth to speak with) →
+    the turn proceeds untouched. Fail-open like `handled` — the caller catches everything."""
+    if first_turn:
+        return False
+    try:
+        from config.settings import get as _sget
+        _aname = str(_sget("assistant_name") or "")
+    except Exception:
+        _aname = ""
+    if not is_presence_check(text, _aname):
+        return False
+    try:
+        from voice import proactive
+        speak = proactive.speaker()
+        if speak is None or proactive.user_speaking():
+            return False                   # no mouth (chat channel) / talking over — the model answers
+    except Exception:
+        return False
+    busy = False
+    try:
+        from nucleo import dispatch as _d
+        busy = _d.has_active()
+    except Exception:
+        pass
+    try:
+        from voice.engine.core import langs
+        sp = langs.spec()
+        pool = list(getattr(sp, "presence_busy" if busy else "presence_idle", ()) or ())
+    except Exception:
+        pool = []
+    if not pool:
+        return False
+    last = getattr(brain, "_last_presence", "")
+    import random as _rnd
+    phrase = _rnd.choice([p for p in pool if p != last] or pool)
+    brain._last_presence = phrase
+    try:
+        brain._last_spoken = phrase        # anti-echo, the filler's own manners
+        brain._last_spoke_at = time.time()
+    except Exception:
+        pass
+    emit("presence", "🚪 presence knock answered (no model)", text=text[:160], role="user",
+         extra={"cat": "flash", "engine": "presence", "origin": "presence", "busy": busy,
+                "reply": phrase, "src": "presence"})
+    # The exchange HAPPENED — it must exist for the next model turn (the canned-line lesson, V2-605:
+    # a phrase of ours that skips the history erases its own story).
+    from nucleo.flash import dialog as _dialog
+    _dialog.push_user(brain._window, text)
+    brain._window.append({"role": "assistant", "content": phrase})
+    del brain._window[:-window_max]
+    try:
+        from memory import api as _memory
+        _memory.write(f"Operador: {text[:200]} · zaelar: {phrase}",
+                      kind="conv", level="short", importance=0.1, ttl_days=1.0,
+                      meta={"source": "conv", "u": text[:400], "a": phrase})
+    except Exception:
+        pass
+    try:
+        from voice import observer as _obs
+        _obs.turn_detail(system="", window=list(brain._window)[-6:], tools=[],
+                        user=text, decision={"action": "presence", "reply": phrase})
+    except Exception:
+        pass
+    r = speak(phrase)
+    if asyncio.iscoroutine(r):
+        await r
+    return True

@@ -111,12 +111,31 @@ class LangSpec:
     fillers: tuple = (
         "A ver…", "Mmm…", "Veamos…", "Déjame ver…", "Un segundo…", "Espera…",
         "Vale, a ver…", "Pues…", "A ver qué tenemos…", "Déjame que mire…", "Un momentito…",
+        # V2-640 (operator, 2026-09-09: «necesito más variedad… no siempre las mismas tres»): the pool grew
+        # and the anti-repetition now remembers several turns back, not one — see `pick_filler`.
+        "Vamos a ver…", "Ahora te digo…", "Dame un segundo…", "Voy a mirarlo…", "Deja que lo mire…",
+        "Pues mira, un momento…", "Mmm, a ver…", "Un instante…", "Ahora mismo lo miro…", "A ver, un segundo…",
     )
     # Lead-ins for a turn that is an ORDER to act (V2-572). «Déjame ver…» before closing a widget reads as
     # incomprehension — the operator's own words. These commit to nothing either: they promise motion, not a
     # result, so a turn that ends up declining («no puedo cerrar eso, hay un encargo en marcha») still
     # continues them naturally.
-    fillers_action: tuple = ("Voy…", "Ahora mismo…", "Marchando…", "Voy a ello…", "Venga…")
+    fillers_action: tuple = ("Voy…", "Ahora mismo…", "Marchando…", "Voy a ello…", "Venga…",
+                             "Voy con ello…", "Ahora mismo voy…", "Venga, va…", "Voy, un segundo…")
+    # Lead-ins for a SOCIAL/META turn (V2-640) — the operator asks about the CONVERSATION itself or about us
+    # («¿qué tal?», «¿de qué me estás hablando?», «¿qué quieres ver?»). A thinking sound here is what produced
+    # the 19:27 besugos session: «Déjame ver…» answered «¿qué quieres ver?» and the operator asked what we
+    # wanted to see, forever. These open an EXPLANATION or a presence, promise no looking, and the reply
+    # continues them («Pues…» → «Pues te decía que…»).
+    fillers_social: tuple = ("Pues…", "Verás…", "Sí, mira…", "Te cuento…", "A ver, te explico…", "Eh, pues…")
+    # V2-640 — the PRESENCE fast lane's spoken answers («¿sigues ahí?» must never wait 4 s for a model).
+    # Two pools because the honest answer differs: idle = "I'm here, talk to me"; busy = "here, and still
+    # on your task" — which is what that question really asks mid-task.
+    presence_idle: tuple = ("Sí, aquí estoy. Dime.", "Aquí sigo, cuéntame.", "Te escucho, dime.",
+                            "Sí, dime.", "Aquí estoy. ¿Qué necesitas?")
+    presence_busy: tuple = ("Aquí estoy — sigo con lo tuyo, ahora te cuento.",
+                            "Sí, sigo aquí, dándole a lo que me pediste.",
+                            "Aquí sigo, trabajando en ello.")
     # The spoken confirmation of an already-EXECUTED direct action (the action-map fast lane). Unlike fillers
     # these DO commit — they are only ever spoken after the mutation happened, never as a lead-in.
     acks: tuple = ("Hecho.", "Vale, hecho.", "Listo.", "Ya está.")
@@ -219,8 +238,16 @@ LANGUAGES: dict[str, LangSpec] = {
         fillers=(
             "Let's see…", "Hmm…", "Let me see…", "One sec…", "Hold on…", "Let me check…",
             "Right, let's see…", "Okay…", "Let me have a look…", "Just a moment…",
+            "Let me look that up…", "Give me a second…", "I'll check right now…", "Hmm, let's see…",
+            "One moment…", "Let me take a look…", "Bear with me…",
         ),
-        fillers_action=("On it…", "Right away…", "Sure…", "Doing it…"),
+        fillers_action=("On it…", "Right away…", "Sure…", "Doing it…", "On it now…", "Right, doing it…"),
+        fillers_social=("Well…", "So…", "Right, so…", "Let me explain…", "Okay, so…"),
+        presence_idle=("Yes, I'm here. Go ahead.", "Still here, tell me.", "I'm listening.",
+                       "Right here — what do you need?"),
+        presence_busy=("I'm here — still on your task, I'll tell you in a moment.",
+                       "Yes, still here, working on what you asked.",
+                       "Still here, on it."),
         acks=("Done.", "Okay, done.", "All set.", "There you go."),
         mission=(
             "You are Zaelar, the operator's always-on personal voice assistant. "
@@ -346,22 +373,34 @@ def _generated_fillers(code: str) -> list[str]:
         return []
 
 
+_RECENT_FILLERS: list[str] = []   # V2-640: the anti-repetition remembers a few turns back, not one —
+_RECENT_MAX = 4                   # the operator heard «A ver…» twice in three turns with depth-1 memory.
+
+
 def pick_filler(last: str = "", code: str | None = None, kind: str = "neutral") -> str:
-    """A varied lead-in in the active language, different from the last one (anti-repetition), and MATCHED to
-    the turn's shape (V2-572): `kind="action"` draws from the action pool («Voy…»), because the operator heard
-    «Déjame ver…» answer «cierra los mensajes» and called it out — a thinking sound before an order to act
-    reads as incomprehension. Any other kind (questions, statements) keeps the thinking pool. Deterministic-
-    agnostic: if there is no pool, return an empty string → the caller says nothing."""
+    """A varied lead-in in the active language, MATCHED to the turn's shape and not heard recently.
+    Shapes (V2-572 + V2-640): `kind="action"` draws from the action pool («Voy…») — a thinking sound before
+    an order to act reads as incomprehension; `kind="social"` draws from the explanation-openers («Pues…») —
+    a thinking sound answering a question about the conversation itself is what turned the 19:27 session
+    into a dialogue of besugos; anything else keeps the thinking pool. Anti-repetition is a small RECENT
+    window (depth {n}), not just the last phrase. Deterministic-agnostic: no pool → empty string → the
+    caller says nothing.""".format(n=_RECENT_MAX)
     if kind == "action":
         pool = list(getattr(spec(code), "fillers_action", ()) or ())
+    elif kind == "social":
+        pool = list(getattr(spec(code), "fillers_social", ()) or ())
     else:
         pool = _generated_fillers(code or current_code())
         if not pool:
             pool = list(getattr(spec(code), "fillers", ()) or ())
     if not pool:
         return ""
-    choices = [p for p in pool if p != last] or pool
-    return _random.choice(choices)
+    avoid = set(_RECENT_FILLERS[-_RECENT_MAX:]) | ({last} if last else set())
+    choices = [p for p in pool if p not in avoid] or [p for p in pool if p != last] or pool
+    phrase = _random.choice(choices)
+    _RECENT_FILLERS.append(phrase)
+    del _RECENT_FILLERS[:-8]
+    return phrase
 
 
 def pick_ack(last: str = "", code: str | None = None) -> str:

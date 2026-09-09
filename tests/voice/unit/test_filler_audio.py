@@ -66,7 +66,7 @@ def test_an_armed_slow_turn_emits_the_filler_and_a_FLUSH_before_the_reply(monkey
     """The core. The FlushSentinel is not decoration: it CLOSES the segment, which is the whole reason
     this is not v1 — without it LiveKit's sentence tokenizer retains a short unpunctuated phrase and it
     comes out glued to the reply, which is the 2026-08-14 bug."""
-    monkeypatch.setattr(fa, "_pick_phrase", lambda brain, kind="neutral": "A ver…")
+    monkeypatch.setattr(fa, "_pick_phrase", lambda brain, kind="neutral", phrase="": "A ver…")
     fa.arm(_Brain())
     out = _run(_collect_llm(_inner_llm(first_after=0.3)))
     assert _shape(out) == ["A ver… ", "FLUSH", "Sí, ", "aquí estoy."], \
@@ -75,7 +75,7 @@ def test_an_armed_slow_turn_emits_the_filler_and_a_FLUSH_before_the_reply(monkey
 
 def test_a_fast_reply_gets_NO_filler(monkeypatch):
     """“If we are going to answer in one second or less, do not add the interjection.”"""
-    monkeypatch.setattr(fa, "_pick_phrase", lambda brain, kind="neutral": "A ver…")
+    monkeypatch.setattr(fa, "_pick_phrase", lambda brain, kind="neutral", phrase="": "A ver…")
     fa.arm(_Brain())
     out = _run(_collect_llm(_inner_llm(first_after=0.0)))
     assert _shape(out) == ["Sí, ", "aquí estoy."], "a fast reply must pass through byte-identical"
@@ -84,7 +84,7 @@ def test_a_fast_reply_gets_NO_filler(monkeypatch):
 def test_an_UNARMED_generation_never_gets_a_filler(monkeypatch):
     """A generation this turn did not arm (kickoff, or any future caller of llm_node) never sounds one,
     however slow it is."""
-    monkeypatch.setattr(fa, "_pick_phrase", lambda brain, kind="neutral": "A ver…")
+    monkeypatch.setattr(fa, "_pick_phrase", lambda brain, kind="neutral", phrase="": "A ver…")
     out = _run(_collect_llm(_inner_llm(first_after=0.3)))
     assert _shape(out) == ["Sí, ", "aquí estoy."]
 
@@ -101,7 +101,7 @@ def test_the_arm_is_consumed_ONCE_and_expires():
 def test_the_filler_is_STRIPPED_from_the_transcript_but_the_reply_is_not(monkeypatch):
     """`transcription_node`'s output is what LiveKit forwards to the subtitles AND writes into chat_ctx
     (`forwarded_text`, not the LLM's raw generated_text). The filler is spoken, never written there."""
-    monkeypatch.setattr(fa, "_pick_phrase", lambda brain, kind="neutral": "A ver…")
+    monkeypatch.setattr(fa, "_pick_phrase", lambda brain, kind="neutral", phrase="": "A ver…")
     fa.arm(_Brain())
     _run(_collect_llm(_inner_llm(first_after=0.3)))   # this marks the phrase for stripping
 
@@ -201,7 +201,7 @@ def test_a_turn_that_ARMS_AFTER_the_deadline_still_gets_its_filler(monkeypatch):
     between), and how far before varies per turn. One turn armed 150 ms BEFORE the deadline and fired; the
     very next armed ~400 ms AFTER it and produced NO filler at all, with TTFT 3.26 s — a turn that plainly
     deserved one. Past the deadline we keep polling for the arm, still racing the model's first chunk."""
-    monkeypatch.setattr(fa, "_pick_phrase", lambda brain, kind="neutral": "A ver…")
+    monkeypatch.setattr(fa, "_pick_phrase", lambda brain, kind="neutral", phrase="": "A ver…")
 
     async def go():
         async def arm_late():
@@ -223,7 +223,56 @@ def test_but_an_arm_that_NEVER_arrives_stays_silent(monkeypatch):
     every test green, because the first-chunk future always resolves (chunk, end, or error) and the loop
     exits there anyway. The bound is a guard against spinning on a model that hangs forever, not a
     behavioural boundary — claiming otherwise would be crediting coverage that does not exist."""
-    monkeypatch.setattr(fa, "_pick_phrase", lambda brain, kind="neutral": "A ver…")
+    monkeypatch.setattr(fa, "_pick_phrase", lambda brain, kind="neutral", phrase="": "A ver…")
     monkeypatch.setattr(fa, "_ARM_GRACE_S", 0.1)
     out = _run(_collect_llm(_inner_llm(first_after=0.5)))
     assert _shape(out) == ["Sí, ", "aquí estoy."], "no arm ever → no filler, however slow the model is"
+
+
+# ── V2-640: covers that LISTEN ───────────────────────────────────────────────────────────────────────────
+
+def test_a_meta_question_about_the_conversation_is_SOCIAL_never_thinking():
+    """The 19:27 besugos session, classified: «Déjame ver…» answered «¿qué quieres ver?» and the operator
+    asked what we wanted to see, forever. Every one of these is a real utterance from that session (sid
+    1674ee35) or its English twin — none may ever draw from the thinking pool again."""
+    for utt in ("¿Sigues ahí?", "¿Me oyes?", "¿Qué tal?", "¿De qué me estás hablando?",
+                "¿Qué quieres ver?", "¿Para qué quieres un momentito?", "¿A qué tengo que esperar?",
+                "No estás haciendo nada", "are you there?", "what do you mean?"):
+        assert fa.filler_kind(utt) == "social", f"{utt!r} must be social, got {fa.filler_kind(utt)!r}"
+    # and the boundary holds: real lookups and orders keep their own classes
+    assert fa.filler_kind("¿Qué hora es?") == "neutral"
+    assert fa.filler_kind("Búscame un hotel en Soria") == "neutral"
+    assert fa.filler_kind("Cierra los mensajes") == "action"
+
+
+def test_the_armed_phrase_is_the_one_that_sounds(monkeypatch):
+    """arm() chooses the cover and promises it to the model; the fire must speak THAT phrase, not roll a
+    new one — otherwise the continuation instruction points at words that never sounded."""
+    import voice.proactive as proactive
+    monkeypatch.setattr(proactive, "user_speaking", lambda: False)
+    promised = fa.arm(_Brain(), "¿me buscas un hotel en Soria?")
+    assert promised, "arm must hand back the chosen phrase"
+    out = _run(_collect_llm(_inner_llm(first_after=0.3)))
+    assert _shape(out)[0] == promised + " ", f"the promise {promised!r} must be what sounds, got {_shape(out)[0]!r}"
+
+
+def test_the_arm_notes_the_cover_into_the_turn_prompt_only():
+    """The [SISTEMA] continuation note lands on the LAST USER message of the local `messages` list — and
+    nowhere else: the phrase must be inside it, and a caller that passes no messages gets no side effect."""
+    msgs = [{"role": "system", "content": "sys"}, {"role": "user", "content": "búscame un hotel"}]
+    phrase = fa.arm(_Brain(), "búscame un hotel", messages=msgs)
+    assert phrase and phrase in msgs[-1]["content"], "the exact cover phrase must ride the note"
+    assert msgs[-1]["content"].startswith("búscame un hotel"), "the operator's words stay first, untouched"
+    assert msgs[0]["content"] == "sys", "the stable prefix (V2-536 cache) must never change"
+    fa._reset_for_tests()
+    phrase2 = fa.arm(_Brain(), "otra cosa")           # no messages → arm still works, no crash
+    assert isinstance(phrase2, str)
+
+
+def test_the_recent_window_beats_the_old_depth_one_repetition():
+    """Operator, 2026-09-09: «no siempre las mismas tres». With depth-1 anti-repetition he heard «A ver…»
+    twice in three turns; the pool now carries a recent window, so five consecutive picks are five
+    different phrases."""
+    from voice.engine.core import langs
+    picks = [langs.pick_filler(kind="neutral", code="es") for _ in range(5)]
+    assert len(set(picks)) == 5, f"five picks must differ: {picks}"

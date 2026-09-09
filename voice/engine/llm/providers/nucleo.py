@@ -470,17 +470,17 @@ class NucleoLLMStream(llm.LLMStream):
             brain._utterance = {"text": text, "at": time.time()}
             self._turn_text = text
 
-        # ACTION MAP (V2-539): a KNOWN short command skips the model entirely. The whole lane — lookup,
-        # execute, bookkeeping, and since V2-572 the spoken «Hecho.» — lives in `fast_lane.py` (extracted
-        # paying the ratchet); mirror in `probe.py::run_turn` (parallel impl). Fail-open here as always.
+        # ACTION MAP (V2-539) + PRESENCE knock (V2-640) skip the model: see fast_lane.py (mirror in probe.py).
         try:
             from voice.engine.llm.providers import fast_lane as _fast_lane
-            if await _fast_lane.handled(brain, text, emit, first_turn=first_turn,
-                                        t_entry=_t_entry, window_max=_WINDOW_MAX):
+            if (await _fast_lane.handled(brain, text, emit, first_turn=first_turn,
+                                         t_entry=_t_entry, window_max=_WINDOW_MAX)
+                    or await _fast_lane.presence(brain, text, emit, first_turn=first_turn,
+                                                 window_max=_WINDOW_MAX)):
                 _release_acc_trace_if_fresh(brain)   # same situation as the hard interrupt: no offer()
                 return
         except Exception as _e_am:  # noqa: BLE001
-            logger.warning(f"actionmap skipped (fail-open): {_e_am!r}")
+            logger.warning(f"fast lane skipped (fail-open): {_e_am!r}")
 
         # ACUMULADOR DE FRASE PARTIDA (V2-096). Hermano de la guarda de arriba, para el caso que ella NO cubre: la
         # guarda mata un fragmento cuando ya llegó su continuación; esto decide qué hacer cuando la continuación
@@ -1932,7 +1932,7 @@ class NucleoLLMStream(llm.LLMStream):
         try:
             from voice.engine.speech import filler_audio as _filler_audio
             if _filler_audio.enabled() and not first_turn:
-                _filler_audio.arm(brain, text)
+                _filler_audio.arm(brain, text, messages=messages)   # V2-640: cover noted into THIS turn
         except Exception:
             pass
         self._phase = "generando la respuesta"

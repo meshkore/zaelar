@@ -35,7 +35,8 @@ from nucleo.flash import music_turn as _music_turn, reminder_guards as _rg_mute
 from nucleo.flash import image_turn as _image_turn, listing_turn as _lt
 from nucleo.flash import video_turn as _video_turn
 from nucleo.flash import widget_data_turn as _widget_data_turn
-from nucleo.flash import probe_scheduling as _probe_scheduling
+from nucleo.flash import presence as _presence, probe_scheduling as _probe_scheduling
+from nucleo.flash.probe_actionmap import try_map as _amap_try
 from nucleo.flash import second_pass as _second
 
 _WINDOW_MAX = 10
@@ -144,8 +145,8 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
     # ACTION MAP (V2-539) — MIRROR of the provider (parallel impl: wire BOTH channels). The mirror's body
     # lives in `probe_actionmap.py` (ratchet pass, 2026-09-05); the wiring guards read both files.
     from voice.engine.core import langs as _lg_am
-    from .probe_actionmap import try_map as _amap_try
-    _amap_resp = _amap_try(text, sess, execute=execute, trace_id=_trace_id, pick_ack=_lg_am.pick_ack)
+    _amap_resp = (_amap_try(text, sess, execute=execute, trace_id=_trace_id, pick_ack=_lg_am.pick_ack)
+                  or _presence.mirror(text, sess, _trace_id, _lg_am.spec))   # V2-640: presence knock, same lane
     if _amap_resp is not None:
         return _amap_resp
 

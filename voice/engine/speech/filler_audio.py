@@ -96,12 +96,37 @@ def _norm(text: str) -> str:
     return "".join(c for c in t if not unicodedata.combining(c)).strip()
 
 
+# V2-640 — the SOCIAL/META class the 19:27 session was missing: the operator asks about the CONVERSATION
+# itself («¿de qué me estás hablando?», «¿qué quieres ver?», «¿a qué tengo que esperar?») or about us
+# («¿sigues ahí?», «¿qué tal?»), and a thinking cover («Déjame ver…») reads as an ANSWER that promises
+# looking at something — so the operator asks what we want to see, and every such question arms another
+# thinking cover: a self-sustaining dialogue of besugos, measured live (sid 1674ee35). Coarse and
+# deterministic like the action class: only phrasings we can match without understanding.
+_SOCIAL_RE = re.compile(
+    r"(?:^|\b)(?:"
+    r"que tal\b|como (?:estas|vas|va)\b|"
+    r"sigues? ahi\b|estas? ahi\b|me (?:oyes|escuchas|recibes)\b|"
+    r"hay alguien\b|estas? (?:disponible|operativ|vivo)\w*|"
+    r"de que (?:me )?(?:estas? )?habla\w*|"
+    r"que (?:quieres|querias) (?:ver|decir|mirar)\b|"
+    r"para que (?:quieres|necesitas)\b|"
+    r"a que tengo que esperar|"
+    r"no (?:me )?estas (?:haciendo|entendiendo|escuchando|siguiendo)|"
+    r"no estas haciendo nada|que dices\b|"
+    r"how are you\b|are you (?:there|okay|alive|listening)\b|can you hear me\b|"
+    r"what are you (?:talking about|doing)\b|what do you (?:want|mean)\b"
+    r")")
+
+
 def filler_kind(text: str) -> str:
-    """"action" when the utterance opens with an imperative action verb and asks nothing; "neutral" otherwise
-    (questions and statements keep the thinking pool). Feeds `langs.pick_filler(kind=…)`."""
+    """"social" when the utterance is about the conversation/us (see `_SOCIAL_RE` — those turns must never
+    get a thinking sound); "action" when it opens with an imperative action verb and asks nothing; "neutral"
+    otherwise (questions and statements keep the thinking pool). Feeds `langs.pick_filler(kind=…)`."""
+    n = _norm(text)
+    if _SOCIAL_RE.search(n):
+        return "social"
     if "?" in (text or ""):
         return "neutral"
-    n = _norm(text)
     for _ in range(3):
         n2 = _LEADING_CHATTER_RE.sub("", n)
         if n2 == n:
@@ -110,26 +135,48 @@ def filler_kind(text: str) -> str:
     return "action" if _ACTION_VERB_RE.match(n) else "neutral"
 
 
-def arm(brain, text: str = "") -> None:
+def arm(brain, text: str = "", messages: list | None = None) -> str:
     """Called by the voice provider once per eligible turn, right where the model is about to be paid.
-    `text` is the operator's utterance — it picks which filler POOL covers this turn (V2-572)."""
+    `text` is the operator's utterance — it picks which filler POOL covers this turn (V2-572). Since V2-640
+    the PHRASE is chosen here too, so the model can be told which cover may sound before its reply («que las
+    siguientes frases continúen a partir de esas frases de relleno», operator 2026-09-09): when the turn's
+    `messages` are handed in, a [SISTEMA] note with the exact phrase is appended to the LAST USER message —
+    the local list only, so the stable prompt prefix (V2-536 cache) and the durable window never see it, and
+    conditional wording on purpose (a fast reply gets no filler and the model cannot know which case it is
+    in). The phrase is only committed (anti-echo, last-said) at fire time, if it sounds."""
     global _arm
-    _arm = (time.monotonic(), brain, filler_kind(text))
+    kind = filler_kind(text)
+    phrase = ""
+    try:
+        from voice.engine.core import langs
+        last = getattr(brain, "_last_filler", "") or _last_phrase
+        phrase = langs.pick_filler(last, kind=kind)
+    except Exception:
+        phrase = ""
+    _arm = (time.monotonic(), brain, kind, phrase)
+    if phrase and messages and isinstance(messages[-1], dict) and messages[-1].get("role") == "user":
+        messages[-1] = {**messages[-1], "content": str(messages[-1].get("content") or "") + (
+            f"\n\n[SISTEMA] Si tu respuesta tarda, sonará antes «{phrase}» en tu voz. Que tu primera "
+            "frase continúe esa muletilla con naturalidad (sin repetirla ni contradecirla); y que "
+            "también funcione sola por si no llega a sonar.")}
+    return phrase
 
 
 def _consume_arm():
     global _arm
     if _arm is None:
         return None
-    ts, brain, kind = _arm
+    ts, brain, kind, phrase = _arm
     _arm = None
     if time.monotonic() - ts > _ARM_TTL_S:
         return None
-    return brain, kind
+    return brain, kind, phrase
 
 
-def _pick_phrase(brain, kind: str = "neutral") -> str:
-    """Same guards the say-path filler had: never over the operator's voice, varied, anti-echo updated."""
+def _pick_phrase(brain, kind: str = "neutral", phrase: str = "") -> str:
+    """Same guards the say-path filler had: never over the operator's voice, varied, anti-echo updated.
+    An armed `phrase` (chosen at arm time, already promised to the model) is used verbatim; picking here
+    remains the fallback for callers that never armed one."""
     global _last_phrase
     try:
         from voice import proactive as _pro
@@ -137,12 +184,13 @@ def _pick_phrase(brain, kind: str = "neutral") -> str:
             return ""
     except Exception:
         pass
-    try:
-        from voice.engine.core import langs
-        last = getattr(brain, "_last_filler", "") or _last_phrase
-        phrase = langs.pick_filler(last, kind=kind)
-    except Exception:
-        return ""
+    if not phrase:
+        try:
+            from voice.engine.core import langs
+            last = getattr(brain, "_last_filler", "") or _last_phrase
+            phrase = langs.pick_filler(last, kind=kind)
+        except Exception:
+            return ""
     if not phrase:
         return ""
     _last_phrase = phrase
@@ -255,7 +303,7 @@ async def llm_node_with_filler(agent, default_impl, chat_ctx, tools, model_setti
                 if now >= deadline:
                     armed = _consume_arm()
                     if armed is not None:
-                        brain, kind = armed
+                        brain, kind, armed_phrase = armed
                         # V2-633: the style policy rules the fire. Genesis "smart" drops the cover on ACTION
                         # turns («reproduce el vídeo» + «Un segundo…» measured as pure annoyance, session
                         # 6c715232); "off" (operator rule) drops it everywhere. Checked at fire time, so a
@@ -266,7 +314,7 @@ async def llm_node_with_filler(agent, default_impl, chat_ctx, tools, model_setti
                                 break
                         except Exception:
                             pass
-                        phrase = _pick_phrase(brain, kind)
+                        phrase = _pick_phrase(brain, kind, armed_phrase)
                         if phrase:
                             _announce(phrase)
                             mark_for_strip(phrase)
