@@ -56,6 +56,17 @@ _DATA_NOT_CODE_RE = re.compile(
     r"pon(?:er|ga|gas)?\b[^.!?]{0,30}\b(?:datos|resultados|informe|lista|items)|fill|populate|render|display)\b",
     re.I)
 
+# V2-645 — the two halves of «this errand READS the operator's messages» (see the guard inside
+# classify_kind). Both must match; each alone is everyday language.
+_MSG_READ_VERB_RE = re.compile(
+    r"\b(revis\w+|lee\w*|leer|busca\w*|mira\w*|consulta\w*|extrae\w*|averigua\w*|resume\w*|"
+    r"read|check\w*|review\w*|summar\w+|search)\b", re.I)
+_MSG_SOURCE_RE = re.compile(
+    r"\b(mensajer[íi]a|mensajes|grupos?\s+de\s+(?:whatsapp|telegram|mensajer[íi]a)|"
+    r"conversaci[óo]n\w*|chats?\b|whatsapp|telegram)\b"
+    r"|\bin\s+(?:my|his|her|the)\s+messages\b|\bgroup\s+chat\w*\b", re.I)
+
+
 def classify_kind(request: str) -> str:
     r = request or ""
     if _WEB_RE.search(r):
@@ -106,6 +117,16 @@ def classify_kind(request: str) -> str:
             return "web"
     except Exception:
         pass
+    # A READ of the operator's OWN messaging is widget work, never a web transaction (V2-645). Measured
+    # live (the La Mella session, 2026-09-09): «revisa las conversaciones/grupos de mensajería… y extrae la
+    # cifra exacta a pagar» fell through to the money branch below («a pagar» → moves_money) and spawned a
+    # kind="web" worker — a browser + a results sheet for an errand whose only data source is the messaging
+    # widget's own store/archive (read with `widget_cli read mensajeria`, per the worker doctrine). Narrow on
+    # purpose: it needs BOTH a read verb and a messaging-source noun; «paga la factura y avísame por
+    # WhatsApp» keeps its browser (no read verb on the messaging noun), and a named external site already
+    # returned web in the branches above this one.
+    if _MSG_READ_VERB_RE.search(r) and _MSG_SOURCE_RE.search(r):
+        return "generic"
     # …and a operation of DINERO or of COMPROMISO ocurre in a WEB, although the proveedor no este in ninguna lista
     # (V2-148, 2026-08-19). Medido sobre the frases of the own caso: «paga the factura of the luz», «paga the
     # factura of Endesa», «paga the factura of the luz in the web of Endesa» — the three a `generic`, or sea a

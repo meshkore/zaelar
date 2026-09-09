@@ -130,3 +130,26 @@ def test_a_lone_widget_request_is_untouched():
 def test_and_a_turn_that_asks_for_no_widget_yields_nothing():
     assert router_guards.create_widget_request("búscame un monitor barato de segunda mano") == ""
     assert router_guards.create_widget_request("") == ""
+
+
+# ── V2-645: a READ of the operator's own messaging is widget work, never a web transaction ─────────────────
+# Measured live (the La Mella session, 2026-09-09): «revisa las conversaciones/grupos de mensajería… extrae
+# la cifra exacta a pagar» spawned a kind="web" worker — a browser and a results sheet for an errand whose
+# only data source is the messaging widget's own store/archive.
+
+def test_reading_the_operators_messages_is_not_a_web_errand():
+    from nucleo.errand_kind import classify_kind
+    req = ("El operador Ricar (Soria) necesita conocer sobre un grupo de WhatsApp/Telegram en el que se "
+           "habla del viaje a \"La Mella\": cuánto hay que pagar ahora como aporte, y a qué email hay que "
+           "enviar el comprobante. Revisa las conversaciones/grupos de mensajería relativos a ese viaje y "
+           "extrae la cifra exacta a pagar y el email de destino del comprobante.")
+    assert classify_kind(req) == "generic"
+    assert classify_kind("revisa el grupo de WhatsApp del cole y dime si hay que llevar algo") == "generic"
+
+
+def test_the_counterweight_money_on_a_website_keeps_its_browser():
+    from nucleo.errand_kind import classify_kind
+    assert classify_kind("paga la factura de la luz en la web de Endesa") == "web"
+    assert classify_kind("paga la factura de Endesa y avísame por WhatsApp") == "web", \
+        "a messaging NOUN without a read verb must not steal the browser from a payment"
+    assert classify_kind("resérvame mesa para 2 en Casa Lucio") == "web"
