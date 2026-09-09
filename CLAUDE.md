@@ -471,6 +471,40 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **The desktop wallpaper is a SPOKEN property (V2-641, 2026-09-09)**: the operator's spec — «igual que
+  podemos con la voz colocar widgets o pasar el orbe a la barra, quiero poder poner una imagen de fondo…
+  la buscaremos con el sistema y le diré usa la número 3». The flow: `show_images` finds photos (with
+  «fondo» in the query, `image_turn._WALLPAPER_INTENT_RE` prefers ≥1600px files and sorts by area — there
+  are 2900x1440 monitors behind this), the viewer shows them, and `imagenes`'s new `wallpaper` action
+  (item resolved exactly like `select`; no item = the one on screen) persists it. Persistence is the
+  V2-617 two-layer seam: `config/settings.py` (with `_sanitize_wallpaper` — the URL is echoed into a CSS
+  `url("…")` on every client, so the sanitizer is a SECURITY seam: http(s) only, no quote/backslash/space,
+  else {}), plus localStorage for instant paint; the live push rides the widget event channel
+  (`emit("widget","wallpaper")` → sse.js → `theme.setWallpaper`, persist:false to avoid the echo loop).
+  CSS: `body.hb-wallpaper .canvas` paints the photo under a `--canvas`-colored ::after scrim (.38) so
+  widgets stay legible over any photo in either theme. The tool CATALOG deliberately carries no line —
+  it sits 3 chars under its per-turn ceiling; the manifest brief (costs prompt only with the widget on
+  screen, V2-526) teaches the action instead. Node **4.141** (e2e paints a fresh browser from the mocked
+  account settings + sanitizer unit); disarm of the CSS rule verified red.
+- **Covers that LISTEN, and the presence fast lane (V2-640, 2026-09-09)**: the 19:27 testing session
+  (sid 1674ee35) became a «diálogo de besugos» measured turn by turn: every meta-question («¿qué quieres
+  ver?», «¿a qué tengo que esperar?») armed a THINKING filler («Déjame ver…»), which read as an answer
+  promising to look at something, which spawned the next meta-question — while the real replies (3-5 s
+  TTFT on deepseek via aimlapi) died to barge-ins. Four changes: **(1)** `filler_kind` gains a SOCIAL
+  class (`_SOCIAL_RE`: presence checks, greetings, questions about the conversation itself) with its own
+  explanation-opener pool («Pues…», «Verás…») — a thinking sound may never again answer a question about
+  us. **(2)** pools grew (20 neutral es / 9 action / 6 social, en likewise) and `pick_filler`'s
+  anti-repetition is now a recent WINDOW (depth 4), not depth-1 — the operator heard «A ver…» twice in
+  three turns. **(3)** the cover is chosen at ARM time and `filler_audio.arm(messages=…)` appends a
+  [SISTEMA] note with the exact phrase to the turn's last user message (local list only — the V2-536
+  stable prefix never changes), so the reply CONTINUES the muletilla instead of colliding with it; fire
+  time speaks the promised phrase. **(4)** «¿sigues ahí?» never reaches a model: `nucleo/flash/presence.py`
+  holds the ONE detector (whole-utterance, ≤7 words, vocative-stripped; a knock with cargo falls through),
+  `fast_lane.presence` answers instantly from the idle/busy pools and the exchange still lands in the
+  window + conv buffer (the V2-605 canned-line lesson), `probe.py` mirrors it via `_presence.mirror`
+  (parallel impl). Plus the prompt now says the model's UI capabilities are EXACTLY the declared surface
+  (canvas tags + widget actions) — the wallpaper turn showed it narrating past a capability that did not
+  exist. Node **3.24**; two disarms (social branch, arm note) verified red.
 - **The agent gets its OWN filesystem, and the torrent client becomes a SYSTEM tool (V2-638, 2026-09-09)**:
   the operator's reframing of V2-637, the day after it shipped. What a widget downloads is **not that
   widget's property**: a paper for `documento`, a track, a film — it all belongs in a tree the AGENT owns,
