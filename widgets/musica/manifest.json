@@ -182,5 +182,8 @@
         "now_playing.playing": true
       }
     ]
+  },
+  "size": {
+    "w": 468
   }
 }

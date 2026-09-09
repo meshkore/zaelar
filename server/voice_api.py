@@ -472,7 +472,9 @@ async def canvas_state(payload: dict):
             for it in items[:40]:
                 if not isinstance(it, dict) or not str(it.get("id") or "").strip():
                     continue
-                clean.append({k: str(it.get(k) or "")[:120] for k in ("id", "q", "left", "top", "z")})
+                # w/h included since V2-630: a size the operator set is part of "where he left it" — dropping
+                # them made a cross-browser restore fall back to auto-size, the exact dance the rule forbids.
+                clean.append({k: str(it.get(k) or "")[:120] for k in ("id", "q", "left", "top", "z", "w", "h")})
             memory.kv_set("canvas_layout", {"at": time.time(), "items": clean})
     except Exception:  # noqa: BLE001
         pass

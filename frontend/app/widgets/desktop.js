@@ -689,6 +689,7 @@ export class Desktop {
       // Una superficie de ancho fluido (la hoja de resultados) no puede deducir su tamaño del contenido: sin esto
       // encogería a la anchura de su tarjeta más estrecha. Lo declara su manifest (`size`), no lo adivina el canvas.
       if(fresh) this._applyPreferred(w.card, baseId, !!(pos && pos.w), !!(pos && pos.h));
+      if(fresh) this._freezeSize(w.card, baseId);      // V2-630: after this, content changes never resize the card
       if(fresh){ w.card.classList.add("boop"); setTimeout(()=>w.card.classList.remove("boop"),460); }
       // Remember signature/module/ctx so refreshData() (SSE-triggered, NO polling) can re-render on change, and
       // the DATA itself (V2-613) so a language switch can re-render with the identical content, just re-translated.
@@ -1060,6 +1061,23 @@ export class Desktop {
     if((size.w && !haveW) || (size.h && !haveH)){ card.style.maxWidth="none"; card.style.maxHeight="none"; }
     // Reposition: the card was placed at the default size (400×340) and may have grown beyond the canvas.
     this._fit(card, baseId);
+  }
+  // FIXED FOOTPRINT (V2-630, operator's rule 2026-09-09): a card's size belongs to the OPERATOR, never to the
+  // content. Once the first real render is on screen, any dimension still auto-sized is frozen at its rendered
+  // value — from then on a longer song title, a new row or a screen change inside the widget truncates or
+  // scrolls INSIDE the card instead of resizing it. Only the operator's own gestures (the resize handles,
+  // maximize/cinema, a voice resize, the bulk arrange buttons) and the canvas itself (_fit on shrink) change a
+  // card's size after this. Measured live (session 7be94951): the musica card danced wider and narrower on
+  // every song change, because its width was pure shrink-to-fit of a nowrap title in the playback bar.
+  _freezeSize(card, id){
+    if(!card || card.classList.contains("hb-minned")) return;   // a minimized card measures its collapsed bar
+    const haveW = !!card.style.width, haveH = !!card.style.height;
+    if(haveW && haveH) return;
+    const c=this.canvas(), min=this._minSize(id || card.dataset.wid);
+    if(!haveW) card.style.width  = this._snap(Math.max(min.w, Math.min(card.offsetWidth,  c.x1 - c.x0))) + "px";
+    if(!haveH) card.style.height = this._snap(Math.max(min.h, Math.min(card.offsetHeight, c.y1 - c.y0))) + "px";
+    card.style.maxWidth="none"; card.style.maxHeight="none";
+    this._fit(card, id);
   }
   _wireResize(card, id){
     // (MIN_W/MIN_H are module-scope since V2-608 — the drag handles, `_fit` and `_minSize` must agree, and
