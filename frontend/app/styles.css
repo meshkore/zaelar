@@ -419,8 +419,14 @@ canvas#orb{width:148px;height:148px;display:block;cursor:grab;touch-action:none}
 canvas#orb:active{cursor:grabbing}
 .vlabel{font-family:var(--mono);font-size:0.6875rem;color:var(--hb-muted-2);opacity:0;transition:opacity .25s;margin-bottom:2px;pointer-events:none}
 .vlabel.show{opacity:1}
-/* BOT MUTED: zaelar's voice output silenced (agent still running). Dim the orb — the 🔊/🔇 control lives below. */
-canvas#orb.muted{opacity:.5;filter:grayscale(.45)}
+/* THE SPEAKER NO LONGER TOUCHES THE ORB (V2-648, operator 2026-09-10): «el naranja realmente lo quiero poner
+   cuando la gente nos está escuchando A NOSOTROS, no cuando puede hablar… el altavoz no tiene ningún efecto
+   sobre el color del orbe». `canvas#orb.muted{opacity:.5;filter:grayscale(.45)}` used to dim it, and that rule
+   is OLDER than the day the orb's colour became the listening signal (2026-09-09): from then on a silenced
+   speaker desaturated the orange into a dull brown, and the operator read the dull brown as «no me escucha».
+   Two meanings on one surface, and the newer one lost. What the rule carried — «my voice output is silenced» —
+   is not deleted, it MOVED to the 🔊 control right beside it, which already paints itself crossed out and grey.
+   The orb now answers exactly one question: is anybody listening to YOU. */
 /* AGENT STOPPED (2026-08-10): the orb turns fully off. `muted` means “I am not talking to you” (I am still here);
    `frozen` means “I am not here”. Grayer and dimmer than mute, and motionless — the visualizer also freezes its phase. */
 canvas#orb.frozen{opacity:.32;filter:grayscale(1)}
@@ -470,8 +476,17 @@ canvas#orb.frozen{opacity:.32;filter:grayscale(1)}
   transition:color .15s,opacity .15s,transform .15s}
 .orbic svg{width:22px;height:22px}
 .orbic:hover{color:var(--hb-accent)}
-.orbic.on{color:var(--hb-accent)}
+/* ON vs OFF must be readable WITHOUT comparing two icons side by side (operator, 2026-09-10: «no hay mucha
+   diferencia entre los iconos en el color activo y en el desactivado, se aprecia poco… aumenta el contraste
+   entre el brillo»). Colour alone was doing the work; now the lit state also carries a halo and a heavier
+   stroke, so it reads as LIT rather than merely tinted. The off state is deliberately NOT dimmed further:
+   the muted mic has to stay legible — its slash is the message (see .mic-slash). */
+.orbic.on{color:var(--hb-accent);opacity:1;filter:drop-shadow(0 0 4px currentColor)}
+.orbic.on svg{stroke-width:2.3}
 .orbic.off{color:var(--hb-muted-2);opacity:.5}
+/* V2-648 — the slash over a stopped microphone. Full-strength within its (dimmed) icon: it is the one stroke
+   that must survive the dimming, because it is what says «nothing is listening». */
+.orbic .mic-slash{opacity:1;stroke-width:2.2}
 /* ⏻ REAL agent STATES (2026-08-10). ⏻ is the icon the operator checks to know whether someone is on the other
    side, so it is the only one that cannot lie. `stalled` = “should be on but is NOT” (dropped session, denied
    microphone, lost room): pulses amber so it is not mistaken for operational — the operator spent quite a while

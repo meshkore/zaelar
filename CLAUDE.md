@@ -503,6 +503,23 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   ⚠️ NOT verified live end-to-end: a real informe errand needs a worker run; the engine restart +
   served-code checks are the shipped verification. Detail: the V2-644 initiative.
 
+- **The orb answers ONE question, and a stopped mic is crossed out (V2-648, 2026-09-10)**: three things
+  were painting on the same surface and nobody had reconciled them since the orb's colour became the
+  LISTENING signal (2026-09-09). **(A)** The claim ignored the microphone: `_listeningNow()` read powerOff +
+  attention mode, so a muted mic left the orb glowing «te escucho» over a shut input. The rule moved out of
+  the draw loop into `services/listening.js` (dependency-free, so the test drives it and not a copy) and
+  now reads `agentLive()` → mic → mode, in that order; an unreadable store answers NO, because a false grey
+  is a nuisance and a false orange is the reported bug. **(B)** `canvas#orb.muted{opacity:.5;grayscale(.45)}`
+  predated the signal and desaturated the orange into a dull brown whenever he silenced zaelar's voice —
+  «el altavoz no tiene ningún efecto sobre el color del orbe». Rule and class deleted; what they carried
+  MOVED to the 🔊 control beside it, which already paints itself crossed and grey. `frozen` stays. **(C)**
+  Grey alone was saying «mic off», and grey is also what a disabled control looks like: `MIC_OFF` now adds a
+  slash (the speaker's own off-face language), and the lit state gained a halo + heavier stroke so ON reads
+  as LIT, without dimming OFF further — the muted mic must stay legible, its slash IS the message. Nodes
+  **4.146** (e2e: the slash measured by its RENDERED ink, both swap directions, ON-vs-OFF weight through the
+  real cascade, and the orb's painting identical either side of a speaker click) and **4.147** (unit: the
+  real `isListening`). Three disarms red. Detail: the V2-648 initiative.
+
 - **The room is not the operator (V2-647, 2026-09-09)**: «todo lo que voy diciendo en mi conversación en la
   sala está siendo captado y transcrito en el chat». The GATE was never wrong — every line of that
   conversation was correctly judged `ambient` and answered with silence, and the grey orb correctly meant

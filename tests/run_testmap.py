@@ -1908,6 +1908,19 @@ DOMAINS: list[dict] = [
                                  "guarda — el ambiente no llega ni al chat ni al canvas, y un veredicto que "
                                  "no llega NO se traga sus palabras",
             "ch": UNIT, "paths": ["tests/browser/unit/chat/test_the_room_is_not_the_operator.py"]},
+        # V2-648 — EL MICRO PARADO SE VE TACHADO, y el altavoz deja de teñir el orbe. Dos quejas del operador
+        # del 2026-09-10 sobre la MISMA superficie: (1) «que se vea un icono de micro tachado cuando está
+        # parado, porque en gris se aprecia poco» — el gris es también lo que hace un control deshabilitado,
+        # así que el mensaje lo tiene que llevar la FORMA; (2) «el naranja lo quiero cuando la gente nos está
+        # escuchando A NOSOTROS, no cuando puede hablar»: `canvas#orb.muted` dimeaba el orbe desde antes de
+        # que su color fuera la señal de escucha, y silenciar la voz desaturaba el naranja a marrón. El orbe
+        # contesta UNA pregunta, y ahora el micro cuenta en ella (antes no: micro cerrado, orbe naranja).
+        {"id": "4.146", "title": "El micrófono parado se ve TACHADO (y pinta), el activo brilla más que el "
+                                 "apagado, y el altavoz no toca el orbe",
+            "ch": UNIT, "paths": ["tests/browser/e2e/widgets/test_a_stopped_microphone_is_crossed_out.py"]},
+        {"id": "4.147", "title": "El orbe solo se pone naranja si algo escucha: micro cerrado o agente parado "
+                                 "= gris, y el modo Nombre solo dentro de su ventana",
+            "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_the_orb_only_glows_when_something_listens.py"]},
         # V2-600 → V2-601 T-07 (2026-09-05): «cierra la pantalla completa» (y el «…completamente» del STT) es una
         # orden de ESTADO de pantalla; el veto vivía en los dos backstops del servidor y la TERCERA copia de la
         # regla —la del cliente, voiceCommands.js— seguía cerrando el canvas entero. Conduce el módulo REAL.

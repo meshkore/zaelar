@@ -38,6 +38,13 @@ import { t } from "../core/i18n.js?v=1";
 
 // Inline SVGs (self-contained, currentColor). Mic + memory + speaker on/off + power + captions + chat + robot.
 const MIC_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg>`;
+// V2-648 — a STOPPED mic is CROSSED OUT, exactly like the speaker's own off face. Operator, 2026-09-10:
+// «cuando el micro está desactivado, aparte de que se quede en gris, quiero que se vea un icono de micro
+// tachado, porque si no se aprecia poco». Grey alone was carrying the whole message, and grey is what a
+// disabled control looks like anyway — the SHAPE has to say it, so it reads without comparing brightnesses.
+// The slash keeps its own class so a test can measure that it actually RENDERS (the 4.19 lesson) rather
+// than trusting that the right string was chosen.
+const MIC_OFF = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/><path class="mic-slash" d="m3.5 3.5 17 17"/></svg>`;
 // V2-623 — send the orb into the bottom system bar: an orb dropping onto a bar. The 🧠 memory icon that used
 // to sit on this lid moved to the TopBar the same pass (operator: «quita el icono de la memoria del orbe»).
 const TOBAR_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v8"/><path d="m8 8 4 4 4-4"/><rect x="3" y="16" width="18" height="5" rx="2"/></svg>`;
@@ -125,7 +132,7 @@ export function Orb() {
         style: { "--vu": () => (store.agentLive() && !store.micMuted() ? String(Math.min(1, store.micLevel() * 6)) : "0") },
         title: () => (store.micMuted() ? t("camera.mic_unmute") : t("camera.mic_mute")),
         onClick: () => { session.toggleMic(); api.uiEvent("orb:mic", { state: store.micMuted() ? "muted" : "unmuted" }); },
-      }, raw(MIC_ICON)),
+      }, () => raw(store.micMuted() ? MIC_OFF : MIC_ICON)),
       h("button", { "data-ctl": "spk",
         class: () => lidClass(!store.botMuted()),
         title: () => store.botMuted() ? t("orb.speaker_muted") : t("orb.speaker_unmuted"),
@@ -248,8 +255,12 @@ export function Orb() {
       // `frozen` (2026-08-10): with the agent stopped, the orb turns off and remains STILL. It is the piece that most
       // “personifies” zaelar, so seeing it ripple with the agent stopped is the most misleading signal on the whole
       // screen. The visualizer also stops advancing its phase, so it is not merely grey: it does not move.
+      // V2-648: the SPEAKER is gone from here. The orb's colour is the LISTENING signal (warm = «te escucho»),
+      // and dimming it because zaelar's own voice is silenced answered a different question on the same
+      // surface — the operator read the desaturated orange as «no me escucha». `frozen` stays: a stopped
+      // agent is not listening either, and it must look and be still.
       h("canvas", { id: "orb",
-                    class: () => (store.botMuted() ? "muted" : "") + (store.agentLive() ? "" : " frozen"),
+                    class: () => (store.agentLive() ? "" : "frozen"),
                     ref: el => (orbEl = el), title: () => t("orb.drag") }),
       h("div", { class: () => "micblock" + (store.micBlocked().show ? " show" : ""), ref: el => (micblockEl = el) }, h("span", { class: "ring" })),
       // "te estoy escuchando" ring (2026-09-09): lights up the instant the attention gate judges a turn
