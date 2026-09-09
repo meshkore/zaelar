@@ -236,19 +236,14 @@ def apply_action(action: str, payload: dict = None) -> dict:
             k = int(db.get("i") or 0)          # «ponla de fondo» → the one being viewed
         it = items[k]
         url = str(it.get("url") or it.get("thumb") or "").strip()
-        from config import settings as _settings
-        _settings.update({"wallpaper": {"url": url, "title": str(it.get("title") or "")}})
-        stored = _settings.wallpaper()
+        # The framework owns persistence + the live push (widgets/desktop_props.py): data.py stays
+        # stdlib-only, which the validator enforces — importing `config` here is how this broke on day one.
+        from widgets import desktop_props as _props
+        stored = _props.set_wallpaper(url, str(it.get("title") or ""))
         if not stored.get("url"):
             return {"ok": False, "error": "esa imagen no tiene una URL utilizable como fondo", "n": len(items)}
         db["i"] = k                            # the viewer shows what the desktop now wears
         store.save(WIDGET_ID, _clamp(db))
-        try:
-            from voice.observer import emit
-            emit("widget", "wallpaper", extra={"id": WIDGET_ID, "url": stored["url"],
-                                               "title": stored.get("title") or ""})
-        except Exception:
-            pass
         out = {"ok": True, "wallpaper": stored["url"], "i": k + 1, "n": len(items),
                "shown": it.get("title") or it.get("site") or ""}
         try:
@@ -261,13 +256,8 @@ def apply_action(action: str, payload: dict = None) -> dict:
         return out
 
     if a in ("wallpaper_clear", "clear_wallpaper"):
-        from config import settings as _settings
-        _settings.update({"wallpaper": None})
-        try:
-            from voice.observer import emit
-            emit("widget", "wallpaper", extra={"id": WIDGET_ID, "url": "", "title": ""})
-        except Exception:
-            pass
+        from widgets import desktop_props as _props
+        _props.clear_wallpaper()
         return {"ok": True, "wallpaper": ""}
 
     if a == "slideshow":
