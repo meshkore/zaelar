@@ -509,3 +509,48 @@ def test_note_reply_drives_window_s_in_smart_mode(monkeypatch):
     # env override stays the power-user escape hatch
     monkeypatch.setenv("ZAELAR_ATTENTION_WINDOW", "20")
     assert attention.window_s() == 20.0
+
+
+# ── instant wake-word spotting + reclaiming the speech said BEFORE the name (2026-09-09) ───────────────────
+# Operator: the orb lit 1-3s after the wake word (STT-final + the whole turn gate in between), and «Ostras,
+# para la música, Johnny» lost its order — the fragments before the name were judged ambient and dropped, so
+# the model only ever saw «Johnny».
+
+def test_a_wakeword_turn_reclaims_the_ambient_speech_just_before_it(monkeypatch):
+    _smart(monkeypatch)
+    t = 1000.0
+    attention.note_ambient("Ostras, para la música,", now=t)
+    assert attention.reclaim_ambient_tail("Johnny.", now=t + 3) == "Ostras, para la música, Johnny."
+
+
+def test_the_tail_is_consumed_and_never_feeds_two_turns(monkeypatch):
+    _smart(monkeypatch)
+    t = 1000.0
+    attention.note_ambient("para la música,", now=t)
+    attention.reclaim_ambient_tail("Johnny.", now=t + 2)
+    assert attention.reclaim_ambient_tail("Johnny, ¿me oyes?", now=t + 5) == "Johnny, ¿me oyes?"
+
+
+def test_old_ambient_speech_is_not_reclaimed(monkeypatch):
+    # Nobody ends a half-minute-old sentence with the wake word — stale room chatter must not ride in.
+    _smart(monkeypatch)
+    attention.note_ambient("esto es charla de hace rato", now=1000.0)
+    assert attention.reclaim_ambient_tail("Johnny, hola", now=1020.0) == "Johnny, hola"
+
+
+def test_wakeword_spotting_emits_once_per_burst(monkeypatch):
+    hits = []
+    import voice.observer as _obs
+    monkeypatch.setattr(_obs, "emit", lambda *a, **k: hits.append(a))
+    attention.note_wakeword_spotted(now=1000.0)
+    attention.note_wakeword_spotted(now=1001.0)   # interims repeat within the same utterance → deduped
+    attention.note_wakeword_spotted(now=1005.0)   # a later burst may light again
+    assert len(hits) == 2
+
+
+def test_the_interim_stream_and_the_gate_are_both_wired():
+    import re as _re
+    agent_src = _re.sub(r"(?m)#.*$", "", open("voice/engine/pipeline/agent.py", encoding="utf-8").read())
+    gate_src = _re.sub(r"(?m)#.*$", "", open("voice/engine/llm/providers/nucleo.py", encoding="utf-8").read())
+    assert "note_wakeword_spotted()" in agent_src
+    assert "reclaim_ambient_tail(" in gate_src and "note_ambient(" in gate_src

@@ -38,11 +38,33 @@ function bgRgb() {
   return _bgRgb;
 }
 
+// THE ORB'S COLOR IS THE LISTENING SIGNAL (operator 2026-09-09): a separate green ring «me estropea el diseño
+// del ojo» — the orb itself now wears a vivid warm color while zaelar is listening TO YOU (always mode running,
+// or wake-word mode inside the attention window) and a pale gray while it is not. Smoothed per frame so the
+// change reads as the orb waking, not a hard flip; works identically in eye and bottom-bar mode (same canvas).
+const _ORB_LIVE = [["#FFC46B", "#FF9D3B", 0, 1], ["#FF9D3B", "#F0761F", 2.1, .85], ["#FFD9A0", "#FFB35C", 4.2, .7]];
+const _ORB_IDLE = [["#9AA3AE", "#7C838C", 0, 1], ["#868D96", "#6A7078", 2.1, .85], ["#B0B7BF", "#949BA3", 4.2, .7]];
+let _lisT = 0;
+function _listeningNow() {
+  try {
+    if (store.powerOff && store.powerOff()) return false;
+    const m = store.attentionMode ? store.attentionMode() : "always";
+    if (m === "smart" || m === "wakeword") return !!(store.attentionHit && store.attentionHit());
+    return !!(store.started && store.started());
+  } catch (_) { return true; }
+}
+function _mixHex(a, b, t) {
+  const [ar, ag, ab] = hexRgb(a), [br2, bg3, bb2] = hexRgb(b);
+  return `rgb(${Math.round(ar + (br2 - ar) * t)},${Math.round(ag + (bg3 - ag) * t)},${Math.round(ab + (bb2 - ab) * t)})`;
+}
+
 // PRO radial spectrum (ported from prototype_interviewer), driven by the PERSON's voice.
 function drawOrbPro(x, W, H, buf, lvl) {
   const cx = W / 2, cy = H / 2, R = Math.min(W, H) * 0.34;
   vizPhase += 0.005 + lvl * 0.05;
-  const N = 72, layers = [["#2DD4BF", "#1FAE9C", 0, 1], ["#4D8DFF", "#3D6FE0", 2.1, .85], ["#9A8CFF", "#6A5CFF", 4.2, .7]];
+  _lisT += ((_listeningNow() ? 1 : 0) - _lisT) * 0.12;
+  const N = 72, layers = _ORB_IDLE.map((L, i) =>
+    [_mixHex(L[0], _ORB_LIVE[i][0], _lisT), _mixHex(L[1], _ORB_LIVE[i][1], _lisT), L[2], L[3]]);
   // Opaque backstop FIRST — but soft-edged (radial gradient, alpha 1→0) + a drop shadow, not a flat hard-edged
   // disc: a plain solid circle read as a "hole punched in the widget behind it" rather than a shape floating
   // ABOVE it (operator 2026-07-22, 2nd pass: "it does not feel like it is above everything"). The shadow is

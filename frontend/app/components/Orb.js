@@ -256,7 +256,6 @@ export function Orb() {
       // DIRECTED at zaelar (voice/attention.py via nucleo.py's `emit("ambient", "👂 dirigido a zaelar", …)`) —
       // the operator's own ask: some visible proof he is heard, in EVERY mode (Modo Nombre or the default
       // always-on), not only once he has already started talking and hopes for the best.
-      h("div", { class: () => "attnring" + (store.attentionHit() ? " show" : "") }, h("span", { class: "ring" })),
     ),
     // ELECTROCARDIOGRAM under the orb — zaelar's REAL heartbeat: a QRS per orchestrator loop.tick (~1 Hz at rest),
     // racing when there are background tasks / FlashBrain turns. Driven by lib/ecg.js off store.pulse. Flat = no

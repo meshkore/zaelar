@@ -51,7 +51,9 @@ _DEFAULT_WAKEWORDS = ("zaelar",)
 # ── process state ───────────────────────────────────────────────────────────────────────────────────
 _state = {"last_directed": 0.0, "ptt": False, "assistant_name": "", "bot_hold": False,
           "window_hint": 0.0,      # per-reply dynamic window (attention_window.hint); 0 = use the mode default
-          "recent_directed": []}   # timestamps of recent directed turns → dialogue depth for the hint
+          "recent_directed": [],   # timestamps of recent directed turns → dialogue depth for the hint
+          "spotted_at": 0.0,       # last instant wake-word spot (interim STT) — dedupe for the orb signal
+          "ambient_tail": []}      # (ts, text) of recently-DISCARDED ambient turns — reclaimed by a wake word
 
 
 def _norm(text: str) -> str:
@@ -303,6 +305,44 @@ def note_bot_speech(speaking: bool, now: float | None = None) -> None:
         _state["last_directed"] = now
 
 
+def note_wakeword_spotted(now: float | None = None) -> None:
+    """INSTANT visual (operator 2026-09-09): the orb used to light 1-3s after the wake word — STT-final plus
+    the whole turn gate sat in between. The INTERIM transcript stream already carries the words as they are
+    heard, and `has_wakeword` is a regex — so the caller (pipeline/agent.py, interim branch) spots the word
+    the moment it appears and this emits the SAME `ambient` event the frontend already lights on. Deduped
+    (interims repeat per utterance); the real turn verdict is untouched — this is signal, never permission."""
+    now = time.time() if now is None else now
+    if now - _state["spotted_at"] < 3.0:
+        return
+    _state["spotted_at"] = now
+    try:
+        from voice.observer import emit
+        emit("ambient", "👂 wake word oída (interim)",
+             extra={"directed": True, "reason": "wakeword_interim", "window_s": window_s()})
+    except Exception:
+        pass
+
+
+def note_ambient(text: str, now: float | None = None) -> None:
+    """Remembers a just-DISCARDED ambient turn so a wake word seconds later can reclaim it (operator
+    2026-09-09): «Ostras, para la música, Johnny» arrives as fragments, and the ones BEFORE the name were
+    judged ambient and dropped — the model then saw only «Johnny» and the order was lost. Bounded: 4 entries."""
+    t = (text or "").strip()
+    if not t:
+        return
+    now = time.time() if now is None else now
+    _state["ambient_tail"] = ([(ts, x) for ts, x in _state["ambient_tail"] if now - ts <= 12.0] + [(now, t)])[-4:]
+
+
+def reclaim_ambient_tail(text: str, now: float | None = None, within_s: float = 10.0) -> str:
+    """Glues the ambient speech of the last `within_s` seconds IN FRONT of a wake-word turn, and consumes it
+    (a tail must not feed two turns). «para la música,» + «Johnny» → «para la música, Johnny»."""
+    now = time.time() if now is None else now
+    tail = [x for ts, x in _state["ambient_tail"] if now - ts <= within_s]
+    _state["ambient_tail"] = []
+    return (" ".join(tail) + " " + (text or "")).strip() if tail else (text or "")
+
+
 def set_ptt(active: bool) -> None:
     """Push-to-talk state (set by the frontend through the `zaelar-ptt` data topic). Only counts in ptt mode."""
     _state["ptt"] = bool(active)
@@ -315,6 +355,8 @@ def reset() -> None:
     _state["bot_hold"] = False
     _state["window_hint"] = 0.0
     _state["recent_directed"] = []
+    _state["spotted_at"] = 0.0
+    _state["ambient_tail"] = []
 
 
 # ── HARD interruption (T136): STOP always handled, BYPASSES the gate, DETERMINISTIC (does not depend on the LLM) ────

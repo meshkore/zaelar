@@ -455,6 +455,15 @@ async def entrypoint(ctx: JobContext) -> None:
             _maybe_detect_language(ev.transcript)
         else:
             _emit("interim", "…", text=ev.transcript, role="user")   # live, UI-only (dedup/no-disk in observer)
+            # INSTANT wake-word spotting (2026-09-09): a regex over the interim stream — the orb lights the
+            # moment the word is HEARD, not after STT-final + the turn gate (measured 1-3s late). Signal only:
+            # the turn's real verdict is still the gate's.
+            try:
+                from voice import attention as _attn_spot
+                if _attn_spot.mode() in ("smart", "wakeword") and _attn_spot.has_wakeword(ev.transcript):
+                    _attn_spot.note_wakeword_spotted()
+            except Exception:
+                pass
 
     @session.on("conversation_item_added")
     def _on_item(ev) -> None:
