@@ -141,3 +141,17 @@ Node 4.138 (9 rendered cases) + updated 4.4/4.52/4.53 files; golden re-recorded 
 - `play_result` rides `availability.swap_to` (one field-set). The brain reads `blocked_notice` in
   `prompt_digest` (AVISO DEL REPRODUCTOR). Tests: `test_an_unplayable_video_is_swapped_not_served.py` (+1
   rendered banner case in the tabs file).
+
+## 2026-09-09 — V2-636: the widget dresses like the product
+
+Redesign per the operator's screenshot: the PLAYER tab fills the card (`:has` over the real card chrome;
+the frame is the flexible pixel and the icon control bar is pinned — the clipped-buttons bug cannot
+recur; other tabs keep their scroll), tab strip = defined band + red brand mark + INVERTED active chip,
+title/channel·date share one line (`.hb-yt-tline` wraps the same `E.title`/`E.meta` refs), controls are
+local-copy SVG icon buttons (main play/pause toggle in YouTube red, face follows `data.paused`), playing
+markers wear `#f03`, hint only over an empty player, volume readout «NN%»/«—». Tests:
+`tests/browser/unit/youtube/test_the_player_dresses_like_the_product.py` (node 4.4).
+
+Related, same session (V2-635, engine side): `player_error`-class context-bleed guards — a turn without
+the operator's words can no longer close this widget, reload its video, or toggle fullscreen; «minimiza»
+rides the new canvas `minimize` order (`desktop.shrink`).
