@@ -47,7 +47,7 @@ DEFAULT = VOICE
 _ALIASES = {
     "list": LIST, "listado": LIST, "lista": LIST, "results": LIST, "resultados": LIST,
     "item": ITEM, "ficha": ITEM, "detalle": ITEM, "detail": ITEM, "single": ITEM,
-    # V2-644 — the sixth value, not a synonym of `item`: an ITEM is a card you glance at (a product, a hotel),
+    # V2-644 — the sixth value, not a synonym of `item`: an ITEM is a card you glance at,
     # a REPORT is a written piece you sit down and read, and it lands in the `documento` sheet, not `results`.
     "informe": DOC, "documento": DOC, "doc": DOC, "document": DOC, "report": DOC, "dossier": DOC,
     "widget": WIDGET, "app": WIDGET, "componente": WIDGET,

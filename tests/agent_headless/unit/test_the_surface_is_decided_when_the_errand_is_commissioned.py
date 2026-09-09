@@ -23,18 +23,21 @@ from nucleo.flash import router
 
 
 # ── the vocabulary, which is what prevents this from drifting ─────────────────────────────────────────────────
-def test_there_are_exactly_five_and_no_more():
-    assert surfaces.SURFACES == ("lista", "item", "widget", "voz", "silenciosa")
+def test_there_are_exactly_six_and_no_more():
+    # V2-644 added `informe` (a written thing you READ, delivered into the documento sheet) — the closed
+    # vocabulary is six now, and this pin is what makes the next addition a deliberate decision too.
+    assert surfaces.SURFACES == ("lista", "item", "informe", "widget", "voz", "silenciosa")
 
 
 @pytest.mark.parametrize("said,expected", [
     ("lista", "lista"), ("LISTA", "lista"), ("listado", "lista"), ("results", "lista"),
     ("item", "item"), ("ficha", "item"), ("detalle", "item"),
+    ("informe", "informe"), ("report", "informe"), ("dossier", "informe"),
     ("widget", "widget"), ("app", "widget"),
     ("voz", "voz"), ("voice", "voz"),
     ("silenciosa", "silenciosa"), ("none", "silenciosa"),
 ])
-def test_the_wording_maps_onto_the_same_five(said, expected):
+def test_the_wording_maps_onto_the_same_six(said, expected):
     assert surfaces.normalize(said) == expected
 
 
