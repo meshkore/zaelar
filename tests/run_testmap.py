@@ -1751,6 +1751,15 @@ DOMAINS: list[dict] = [
                 "tests/agent_headless/unit/test_a_report_errand_opens_the_document_sheet.py",
                 "tests/agent_headless/unit/workers/test_an_empty_search_query_refuses_loudly.py",
                 "tests/browser/unit/documento/test_the_report_shows_its_process_and_lands_on_paper.py"]},
+        # V2-646 — el compositor del chat NO traga un mensaje que nadie va a oír. Con ⏻ apagado
+        # `session.sendText` encolaba el texto y llamaba a `start()`, que se NIEGA contra la verdad del
+        # servidor: la cola no se vaciaba nunca, la pared ya lo había pintado como enviado y el compositor
+        # ya estaba vacío. Solo un navegador mide un control deshabilitado, el texto que sobrevive y la
+        # tecla Enter (que se salta el `disabled` de un botón y necesita su propio guarda).
+        {"id": "4.144", "title": "Con el agente apagado el compositor del chat se NIEGA: botón deshabilitado "
+                                 "que dice por qué, y el texto escrito se queda donde el operador lo escribió",
+            "ch": UNIT,
+            "paths": ["tests/browser/e2e/widgets/test_the_composer_refuses_when_nothing_listens.py"]},
         # V2-641 — el fondo de escritorio es una PROPIEDAD HABLADA: «usa la número 3» viste el escritorio.
         # Lo que solo un navegador mide: que la URL de la cuenta PINTA en un navegador virgen (reconcile del
         # boot), el scrim que mantiene legible el escritorio sobre cualquier foto, y que limpiar no deja nada.
