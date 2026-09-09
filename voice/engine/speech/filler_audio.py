@@ -158,6 +158,17 @@ def last_fired_at() -> float:
     return _last_fired_at
 
 
+def played_recently(within_s: float = 20.0) -> str:
+    """The filler phrase that actually SOUNDED within the last `within_s` seconds — "" otherwise. For the
+    canned-line choosers (holding line): a wait the operator JUST heard must not be restated with other words
+    (measured 2026-09-09, session 2bdc67ee: «Déjame que mire…» + «Vale, dame un momento que lo miro.» back to
+    back — two of our own canned waits in a row). Time-bounded so a filler from a previous exchange never
+    counts as this turn's."""
+    if _last_phrase and _last_fired_at and (time.monotonic() - _last_fired_at) <= within_s:
+        return _last_phrase
+    return ""
+
+
 def _announce(phrase: str) -> None:
     """The filler's visibility contract (V2-122 addenda): observability + an EXPLICIT chat-wall event with
     its own kind, pushed synchronously at the decision — always before any real reply text exists."""

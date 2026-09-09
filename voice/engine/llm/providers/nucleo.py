@@ -2722,15 +2722,15 @@ class NucleoLLMStream(llm.LLMStream):
         # Escalada sin texto hablado en el mismo turno → frase de espera neutral (no mudo). V2-029: si YA había una
         # tarea de fondo en curso al empezar el turno, VARÍA la frase ("sigo con ello") en vez de repetir la misma.
         if escalate_req["v"] is not None and not spoken_text:
-            # el lead-in ("a ver…") NO cuenta como contenido → aquí sí decimos la frase de espera CON sentido
-            # ("vale, dame un momento que lo miro"): juntas suenan naturales ("a ver… vale, dame un momento").
+            # el lead-in ("a ver…") NO cuenta como contenido → aquí sí decimos la frase de espera CON sentido.
+            # Si un filler YA SONÓ este turno, la apertura la restataría («Déjame que mire…» + «Vale, dame un
             try:
                 from voice.engine.core import langs
                 _lg = langs.current_language()
                 # V2-189: nunca la MISMA frase dos veces (espejo del probe — cablear en AMBOS). `_prev_pending`
                 # solo distinguía la primera de las demás; a partir de la tercera, todas eran idénticas.
-                from nucleo.flash import router_guards as _rg_hold
-                spoken_text = _rg_hold.holding_line(brain._window, _lg)
+                from nucleo.flash import router_guards as _rg_hold   # momento» — medido 2026-09-09, 2bdc67ee):
+                spoken_text = _rg_hold.holding_line(brain._window, _lg, after_filler=_filler_audio.played_recently())
             except Exception:
                 spoken_text = "Sigo con ello." if _prev_pending else "Vale, dame un momento."
             send(speech.sanitize(spoken_text, drop_metadata=False))

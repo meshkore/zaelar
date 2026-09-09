@@ -91,3 +91,33 @@ distinguished the FIRST wait from the others: from the third onward they were al
     from voice.engine.llm.providers import nucleo as _provider
     assert "holding_line(" in inspect.getsource(_probe.run_turn)
     assert "holding_line(" in inspect.getsource(_provider)
+
+
+# ── a filler that already SOUNDED burns the opener (2026-09-09, session 2bdc67ee) ──────────────────────────
+# Measured live: lead-in «Déjame que mire…» + the opener «Vale, dame un momento que lo miro.» back to back —
+# two of OUR canned waits restating each other. With `after_filler` set (the voice channel passes
+# `filler_audio.played_recently()`), the opener counts as already said and a CONTINUATION variant follows.
+
+def test_after_a_played_filler_the_opener_is_burned():
+    es = langs.LANGUAGES["es"]
+    assert g.holding_line([], es) == es.holding_lines[0]                       # no filler → opener is fine
+    line = g.holding_line([], es, after_filler="Déjame que mire…")
+    assert line != es.holding_lines[0] and line in es.holding_lines
+
+
+def test_played_recently_is_time_bounded(monkeypatch):
+    import time as _t
+
+    from voice.engine.speech import filler_audio as _fa
+    monkeypatch.setattr(_fa, "_last_phrase", "A ver…")
+    monkeypatch.setattr(_fa, "_last_fired_at", _t.monotonic() - 5)
+    assert _fa.played_recently() == "A ver…"
+    monkeypatch.setattr(_fa, "_last_fired_at", _t.monotonic() - 60)
+    assert _fa.played_recently() == ""                                          # a past exchange's filler never counts
+
+
+def test_the_voice_channel_passes_the_played_filler():
+    import inspect
+
+    from voice.engine.llm.providers import nucleo as _provider
+    assert "after_filler=_filler_audio.played_recently()" in inspect.getsource(_provider)

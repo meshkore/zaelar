@@ -264,7 +264,7 @@ def commitment_clause(operator_text: str) -> str:
     end = m.start() if len(n) == len(text) else None
     head = text[:end] if end is not None else n[:m.start()]
     return head.strip(" ,.;:y")
-def holding_line(window, lang=None) -> str:
+def holding_line(window, lang=None, after_filler: str = "") -> str:
     """The never-mute filler for a turn whose only content is «the task is still running» — one that does NOT
     repeat itself.
 
@@ -289,6 +289,13 @@ def holding_line(window, lang=None) -> str:
     said = [str((m or {}).get("content") or "").strip()
             for m in (window or []) if (m or {}).get("role") == "assistant"]
     recent = [t for t in said[-3:] if t]
+    if after_filler:
+        # A lead-in filler ALREADY SOUNDED this turn (voice channel passes `filler_audio.played_recently()`).
+        # That filler IS a wait the operator just heard, so the opener variant («Vale, dame un momento que lo
+        # miro.») would restate it with other words — measured 2026-09-09, session 2bdc67ee: «Déjame que
+        # mire…» + that opener, back to back. Burning the opener makes the scan land on a CONTINUATION
+        # variant («Sigo con ello; te aviso en cuanto lo tenga.»), which follows a filler naturally.
+        recent = recent + [lines[0]]
     waits = sum(1 for t in recent if t in lines)
     if waits >= 2:
         mins = _longest_pending_min()
