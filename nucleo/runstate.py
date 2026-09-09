@@ -266,6 +266,17 @@ async def start(src: str = "operator") -> dict:
             heartbeat = _loop.is_running()
     except Exception as e:  # noqa: BLE001
         logger.warning(f"runstate.start: heartbeat revive failed: {e!r}")
+    # ⏻ ON is a DIRECTED gesture (V2-645). Measured live (the La Mella session, 2026-09-09): the operator
+    # powered back on and said «Continúa con la tarea del WhatsApp» 5 s later — discarded as ambient, twice,
+    # because the smart-mode conversation window had expired across the stop; he had to say the wake word to
+    # be heard again. Whoever just pressed the button is talking to the agent, so the press itself opens the
+    # window. Only for the operator's own press: a system/cron start is nobody speaking.
+    if src == "operator":
+        try:
+            from voice import attention
+            attention.note_directed()
+        except Exception:  # noqa: BLE001
+            pass
     logger.info(f"runstate: EN MARCHA por {src} — {resumed} worker(s) continúan donde estaban "
                 f"(los widgets NO se reanudan: los reanuda el operador)")
     _emit("start", f"en marcha por {src}: {resumed} worker(s) continúan", {"src": src, "workers": resumed})

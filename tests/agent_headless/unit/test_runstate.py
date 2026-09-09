@@ -358,3 +358,22 @@ def test_background_noise_after_stop_does_not_resurrect_the_closed_session(pieza
     assert not ev.get("sid"), "background noise after a deliberate stop must not mint a fresh session"
     assert identity.session_info().get("session_id") is None
     identity.end_session("test")
+
+
+def test_encender_abre_la_ventana_de_atencion(piezas, monkeypatch):
+    """V2-645, measured live: after ⏻ ON, «Continúa con la tarea del WhatsApp» (no wake word, 5 s later) was
+    discarded as ambient — the smart window had died with the stop. The press IS a directed gesture."""
+    from voice import attention
+    monkeypatch.setenv("ZAELAR_ATTENTION", "smart")
+    attention._state["last_directed"] = 0.0
+    attention._state["bot_hold"] = False
+    assert attention.evaluate("continúa con la tarea del whatsapp").directed is False
+    asyncio.run(runstate.stop("operator"))
+    asyncio.run(runstate.start("operator"))
+    v = attention.evaluate("continúa con la tarea del whatsapp")
+    assert v.directed is True and v.reason == "active_window"
+    # counterweight: a SYSTEM start is nobody speaking — the window stays shut
+    attention._state["last_directed"] = 0.0
+    asyncio.run(runstate.stop("system"))
+    asyncio.run(runstate.start("system"))
+    assert attention.evaluate("continúa con la tarea del whatsapp").directed is False
