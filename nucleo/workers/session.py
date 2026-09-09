@@ -20,6 +20,7 @@ from dataclasses import dataclass, field
 from loguru import logger
 
 from . import progress as _progress
+from . import stall as _stall
 from .base import WorkerBackend, WorkerSpec
 
 # CONTEXT BUDGET (incident 2026-08-18). Not the model's real ceiling — deliberately well below it, because the
@@ -29,16 +30,6 @@ from .base import WorkerBackend, WorkerSpec
 # `0` disables the watchdog (the crash path in `_finish` still catches it).
 _CTX_BUDGET = int(os.getenv("ZAELAR_WORKER_CTX_BUDGET", "110000"))
 
-# STALL WATCHDOG (V2-645). Measured live (the La Mella session, 2026-09-09): a worker's provider stream
-# died mid-call (glm-5.3, TCP connections CLOSED, 0% CPU) and the session sat in `async for ev in
-# self._b.events()` FOREVER — no event, no error, no death notice, while the turn kept answering «sigo con
-# ello». Susurro detected «worker encallado» at +3 min and its audit was in cooldown, so nobody was told.
-# The watchdog bounds the WAIT for the next backend event: past the limit the worker is stopped and dies
-# LOUDLY through the existing `_finish()` machinery (death notices, V2-198/V2-237), which is what lets the
-# state line say the truth instead of the model confabulating continuity. Deliberately generous (a deep
-# reasoning turn can be legitimately quiet for minutes) and deliberately NOT an auto-retry: a blind relaunch
-# can duplicate side effects — the death notice invites the relaunch instead. `0` disables it.
-_STALL_S = float(os.getenv("ZAELAR_WORKER_STALL_S", "300"))
 
 
 @dataclass
@@ -144,27 +135,7 @@ class SessionRecord:
     task: "asyncio.Task | None" = None
 
 
-    # V2-241 — WHICH fragment the gate stopped. A correction repeating general rules does not say WHICH command
-    # is unnecessary; the CLI names it in three different measured forms. Returns "" if the text does not say —
-    # never invents a fragment, which would ask it to rewrite a command it did not write.
-_DENIED_RE = (
-    re.compile(r"following part requires approval:\s*(.+?)(?:\.\s|$)", re.I | re.S),
-    re.compile(r"\bcd in ['\"](.+?)['\"] was blocked", re.I),
-    re.compile(r"requires approval:\s*(.+?)(?:\.\s|$)", re.I | re.S),
-    re.compile(r"permissions? to use\s+(\S+)", re.I),
-)
-
-
-def denied_fragment(text: str) -> str:
-    """The command (or path) named by the gate, trimmed and placed on one line."""
-    t = str(text or "")
-    for rx in _DENIED_RE:
-        m = rx.search(t)
-        if m:
-            frag = " ".join((m.group(1) or "").split()).strip(" .,:;")
-            if frag:
-                return frag[:160]
-    return ""
+from nucleo.workers.stall import denied_fragment  # noqa: F401 — moved to stall.py (V2-645), re-export
 
 
 #: How many AUTOMATIC relaunches an errand gets before we stop and SAY so. Two, because there are two independent
@@ -213,25 +184,14 @@ class WorkerSession:
             await self._b.start(prompt, spec=self._spec)
             it = self._b.events().__aiter__()
             while True:
-                try:
-                    if _STALL_S > 0:
-                        ev = await asyncio.wait_for(it.__anext__(), timeout=_STALL_S)
-                    else:
-                        ev = await it.__anext__()
-                except StopAsyncIteration:
+                # V2-645 — a hung provider stream must not hold this loop forever (nucleo/workers/stall.py).
+                kind, ev = await _stall.bounded_next(it)
+                if kind == "end":
                     break
-                except asyncio.TimeoutError:
+                if kind == "stalled":
                     if not self._b.alive:
                         break                     # the process already died; _finish() reads the record
-                    mins = int(_STALL_S // 60) or 1
-                    logger.warning(f"worker[{rec.task_id}]: STALLED — no backend event in {_STALL_S:.0f}s, stopping")
-                    self._emit_chip("stalled",
-                                    f"sin respuesta del proveedor en {mins} min — aborto la tarea", ok=False)
-                    rec.status = "error"
-                    rec.ok = False
-                    rec.result_summary = (rec.result_summary or
-                                          f"El proveedor dejó de responder ({mins} min sin un solo evento) y "
-                                          f"aborté la tarea. Se puede relanzar.")
+                    _stall.mark_stalled(rec, self._emit_chip)
                     try:
                         await self._b.stop(grace=2.0)
                     except Exception:  # noqa: BLE001

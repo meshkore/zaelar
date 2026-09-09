@@ -704,28 +704,11 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
             from . import router_guards as _rg_src
             if _rg_src.answer_needs_a_source(operator_text, spoken):
                 action, _forced_search = "search", True
-            # V2-572 — a QUESTION answered with a bare «Hecho.» gets its real answer composed (mirror of the
-            # voice channel's spoken follow-up — wire in BOTH). The guard's own doc carries the session.
-            elif _rg_src.a_bare_ack_answers_a_question(operator_text, spoken):
-                spoken = (await _second.bare_ack_repair(
-                    operator_text, dialog.prune_window(sess.window), spec)) or spoken
             else:
-                # V2-587 — the blind sibling (mirror of the voice channel — wire in BOTH): «sigo con ello»
-                # over a question with NOTHING running. `action == "chat"` already says this turn acted on
-                # nothing; liveness is read fail-safe (unreadable counts as running).
-                try:
-                    from nucleo import dispatch as _d_ew
-                    _running = bool(_d_ew.has_active())
-                except Exception:
-                    _running = True
-                if _rg_src.a_continuity_claim_over_nothing(operator_text, spoken,
-                                                           acted=False, anything_running=_running):
-                    # V2-645 mirror — «sigo con ella» over nothing: the deterministic state sentence.
-                    spoken = (spoken + " " + _second.continuity_truth()).strip()
-                elif _rg_src.an_empty_wait_answers_a_question(operator_text, spoken,
-                                                              acted=False, anything_running=_running):
-                    spoken = (await _second.empty_wait_repair(
-                        operator_text, dialog.prune_window(sess.window), spec)) or spoken
+                # V2-572/587/645 — the post-turn repairs (a bare «Hecho.» over a question, «sigo con
+                # ello/ella» over nothing), extracted to ONE home shared with the voice seam: probe.py sat
+                # over its ratchet ceiling and the parallel impl these comments used to apologise for is gone.
+                spoken = await _second.probe_hollow_repairs(operator_text, spoken, sess.window, spec)
         except Exception:
             pass
     if action == "search":

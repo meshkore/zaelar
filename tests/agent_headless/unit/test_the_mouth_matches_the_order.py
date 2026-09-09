@@ -106,9 +106,10 @@ def test_both_channels_wire_the_repair():
     seam = (ENGINE / "nucleo/flash/second_pass.py").read_text(encoding="utf-8")
     probe = (ENGINE / "nucleo/flash/probe.py").read_text(encoding="utf-8")
     assert "hollow_repairs(" in voice, "the voice channel dropped the hollow-turn seam"
-    for name, src in (("seam", seam), ("probe", probe)):
-        assert "a_bare_ack_answers_a_question" in src, f"the {name} dropped the bare-ack guard"
-        assert "bare_ack_repair" in src, f"the {name} detects but never repairs"
+    assert "a_bare_ack_answers_a_question" in seam, "the seam dropped the bare-ack guard"
+    assert "bare_ack_repair" in seam, "the seam detects but never repairs"
+    # V2-645: the probe stopped carrying a parallel impl — it wires through the seam's probe door.
+    assert "probe_hollow_repairs" in probe, "the probe dropped the shared post-turn repairs"
 
 
 # ── 2b · V2-587: a question is not answered with an EMPTY WAIT ───────────────────────────────────────────
@@ -148,10 +149,11 @@ def test_both_channels_wire_the_empty_wait_repair():
     running). The voice side of both lives in `second_pass.hollow_repairs` since V2-642."""
     seam = (ENGINE / "nucleo/flash/second_pass.py").read_text(encoding="utf-8")
     probe = (ENGINE / "nucleo/flash/probe.py").read_text(encoding="utf-8")
-    for name, src in (("seam", seam), ("probe", probe)):
-        assert "an_empty_wait_answers_a_question" in src, f"the {name} dropped the empty-wait guard"
-        assert "empty_wait_repair" in src, f"the {name} detects but never repairs"
-        assert "running = True" in src, f"the {name}'s liveness read no longer fails safe"
+    assert "an_empty_wait_answers_a_question" in seam, "the seam dropped the empty-wait guard"
+    assert "empty_wait_repair" in seam, "the seam detects but never repairs"
+    assert "running = True" in seam, "the seam's liveness read no longer fails safe"
+    # V2-645: the probe wires the SAME repairs through the seam's probe-facing door (channel, not file).
+    assert "probe_hollow_repairs" in probe, "the probe dropped the shared post-turn repairs"
 
 
 # ── 3 · the fast lane confirms out loud ──────────────────────────────────────────────────────────────────
@@ -322,6 +324,6 @@ def test_the_continuity_truth_is_deterministic_and_names_the_confirm_exit(monkey
 def test_both_channels_wire_the_continuity_guard():
     seam = (ENGINE / "nucleo/flash/second_pass.py").read_text(encoding="utf-8")
     probe = (ENGINE / "nucleo/flash/probe.py").read_text(encoding="utf-8")
-    for name, src in (("seam", seam), ("probe", probe)):
-        assert "a_continuity_claim_over_nothing" in src, f"the {name} dropped the continuity guard"
-        assert "continuity_truth" in src, f"the {name} detects but never says the state"
+    assert "a_continuity_claim_over_nothing" in seam, "the seam dropped the continuity guard"
+    assert "continuity_truth" in seam, "the seam detects but never says the state"
+    assert "probe_hollow_repairs" in probe, "the probe dropped the shared post-turn repairs"

@@ -9,7 +9,7 @@ import asyncio
 
 import pytest
 
-from nucleo.workers import session as sess_mod
+from nucleo.workers import stall as stall_mod
 from nucleo.workers.session import SessionRecord, WorkerSession
 
 
@@ -45,7 +45,7 @@ def _run(coro):
 
 
 def test_a_hung_stream_ends_the_session_with_an_honest_summary(monkeypatch):
-    monkeypatch.setattr(sess_mod, "_STALL_S", 0.2)
+    monkeypatch.setattr(stall_mod, "_STALL_S", 0.2)
     b = _HangingBackend()
     rec = SessionRecord(task_id="t1", goal="revisa el grupo del viaje", kind="generic")
     s = WorkerSession(b, type("S", (), {"model": "", "kind": "generic"})(), rec)
@@ -59,7 +59,7 @@ def test_a_hung_stream_ends_the_session_with_an_honest_summary(monkeypatch):
 
 
 def test_a_stream_that_finishes_in_time_is_untouched(monkeypatch):
-    monkeypatch.setattr(sess_mod, "_STALL_S", 5.0)
+    monkeypatch.setattr(stall_mod, "_STALL_S", 5.0)
 
     class _Quick(_HangingBackend):
         async def events(self):
@@ -76,7 +76,7 @@ def test_a_stream_that_finishes_in_time_is_untouched(monkeypatch):
 
 def test_zero_disables_the_watchdog(monkeypatch):
     """`0` must mean OFF (the documented contract), not an instant timeout."""
-    monkeypatch.setattr(sess_mod, "_STALL_S", 0.0)
+    monkeypatch.setattr(stall_mod, "_STALL_S", 0.0)
 
     class _SlowButAlive(_HangingBackend):
         async def events(self):

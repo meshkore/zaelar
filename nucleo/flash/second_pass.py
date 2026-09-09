@@ -135,6 +135,31 @@ def continuity_truth() -> str:
     return "La verdad: ahora mismo no hay ninguna tarea en marcha — se perdió. ¿La vuelvo a lanzar?"
 
 
+async def probe_hollow_repairs(operator_text: str, spoken: str, window: list, spec) -> str:
+    """The PROBE channel's post-turn repairs (V2-572/587/645) — extracted here from probe.py so the two
+    channels share one home instead of a documented parallel impl (and probe.py pays its size ratchet by
+    extraction, per the house rule). The probe has no audio covers, so the mute-cover shape cannot happen
+    here; it re-composes instead of speaking follow-ups — except the continuity truth, deterministic in
+    both channels. Any internal failure returns what it was given."""
+    try:
+        from nucleo.flash import answer_guards as _ag
+        from nucleo.flash import dialog as _dialog
+        try:
+            from nucleo import dispatch as _d
+            running = bool(_d.has_active())
+        except Exception:  # noqa: BLE001
+            running = True                       # fail-safe: unreadable liveness counts as running (V2-587)
+        if _ag.a_bare_ack_answers_a_question(operator_text, spoken):
+            return (await bare_ack_repair(operator_text, _dialog.prune_window(window), spec)) or spoken
+        if _ag.a_continuity_claim_over_nothing(operator_text, spoken, acted=False, anything_running=running):
+            return (spoken + " " + continuity_truth()).strip()    # V2-645 mirror
+        if _ag.an_empty_wait_answers_a_question(operator_text, spoken, acted=False, anything_running=running):
+            return (await empty_wait_repair(operator_text, _dialog.prune_window(window), spec)) or spoken
+    except Exception:  # noqa: BLE001
+        pass
+    return spoken
+
+
 async def hollow_repairs(text: str, spoken_text: str, window: list, spec, *,
                          did_act: bool, covered: bool, speak, emit, pick_closer=None) -> str:
     """ONE seam for the three hollow-turn repairs — the shapes a completed turn may not end in:

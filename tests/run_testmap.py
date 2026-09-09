@@ -453,6 +453,9 @@ DOMAINS: list[dict] = [
             # el contexto del worker: cwd propio (el motor no le mete su CLAUDE.md), vigía que le pide entregar antes
             # del techo, «compactar y continuar» al desbordarse, y NUNCA un error crudo del proveedor como informe
             "tests/agent_headless/unit/workers/test_context_budget.py",
+            # V2-645: a hung provider stream (zero events, zero errors) ends the worker LOUDLY through the
+            # stall watchdog instead of waiting forever under a «sigo con ello».
+            "tests/agent_headless/unit/workers/test_a_stalled_stream_dies_loudly.py",
             "tests/agent_headless/unit/workers/test_the_process_tab_gets_the_steps.py",
             # V2-236: lo que devuelve una BÚSQUEDA WEB moría dentro del worker (7 búsquedas, 5 respuestas con el
             # dato exacto que pidió el operador, 0 notas al cerebro). Se empuja en cuanto existe, el JUICIO se
@@ -2515,7 +2518,9 @@ DOMAINS: list[dict] = [
             "tests/connectors/unit/spotify/test_auth.py", "tests/connectors/unit/spotify/test_provider.py"]},
         {"id": "5.4", "title": "Architect", "ch": UNIT, "paths": ["tests/connectors/unit/architect/test_architect.py"]},
         {"id": "5.5", "title": "WhatsApp: normalización y allowlist", "ch": UNIT, "paths": [
-            "tests/connectors/unit/whatsapp/test_allowlist_contract.py"]},
+            "tests/connectors/unit/whatsapp/test_allowlist_contract.py",
+            # V2-645: a group event carries the group's SUBJECT (bridge seam, comment-stripped source pin)
+            "tests/connectors/unit/whatsapp/test_a_group_event_carries_its_subject.py"]},
         # V2-557 (2026-09-02) — archivos en la nube (Drive/OneDrive). Lo que se vigila NO es que la llamada
         # HTTP funcione (eso necesita una cuenta y vive en el 5.8) sino el razonamiento alrededor, que es donde
         # este conector puede estar equivocado CONTESTANDO 200: un permiso que NO PUEDE LISTAR devuelve una
