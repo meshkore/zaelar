@@ -610,19 +610,12 @@ def live_state() -> str:
     # word is, or which tool toggles it. One line closes all three. Lives here (not the stable prefix) because
     # the current mode is runtime config; it only changes when the mode does, and this layer is last anyway.
     # `_mstate` is the location block's read above — shared on purpose (the lazy-import ratchet is at 30/30).
+    # Runtime-mode lines riding the set_style_directive tool (wake-word mode + V2-633 silent-orders):
+    # composed in `nucleo/flash/style_directive.py`, the module that also HANDLES that tool (extracted
+    # paying the ratchet — the teaching and the handler stay in one place).
     try:
-        from config import settings as _cfg_att
-        _att_mode = str(_cfg_att.get("attention_mode") or "always")
-        _att_name = (_mstate.get("assistant_name") or "Zaelar").strip() or "Zaelar"
-        _att_now = ("ACTIVADO (solo atiendes los turnos que dicen tu nombre, o los que siguen a uno reciente)"
-                    if _att_mode in ("smart", "wakeword") else "desactivado (escuchas siempre)")
-        lines.append(
-            f"MODO WAKE WORD — el modo en el que solo respondes cuando dicen tu palabra de activación, que ES "
-            f"tu nombre («{_att_name}»; nunca preguntes cuál es la palabra ni cómo se llama el operador: ambos "
-            f"están en tu ESTADO). Ahora está {_att_now}. Si el operador pide activarlo o desactivarlo («activa "
-            f"el modo wake word», «escúchame/respóndeme solo cuando diga tu nombre», «vuelve a escucharme "
-            f"siempre»), LLAMA a set_style_directive con esa orden tal cual — el sistema lo aplica al instante; "
-            f"no pidas ningún dato más y nunca digas que está hecho sin haber llamado a la tool.")
+        from nucleo.flash import style_directive as _styled
+        lines.extend(_styled.prompt_lines(_mstate))
     except Exception:
         pass
     try:

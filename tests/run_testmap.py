@@ -1160,6 +1160,15 @@ DOMAINS: list[dict] = [
         {"id": "3.20", "title": "Las CIFRAS se dicen como se dicen: separador de millares, decimales y símbolos "
                                 "de moneda, sin tocar una IP ni una fecha",
             "ch": UNIT, "paths": ["tests/voice/unit/test_say_numbers.py"]},
+        # V2-633 — measured live (session 6c715232): the operator's rule «al recibir órdenes no responder nada»
+        # was set and persisted, and «Reproduce el vídeo» still got «Déjame ver…» + «Hecho.» — three engine
+        # mouths (fast-lane ack, never-mute backstops, lead-in filler) spoke without consulting any rule. The
+        # genesis defaults (nucleo/genesis.json: silent short orders, smart fillers) + per-install overrides
+        # written by set_style_directive in the SAME turn now govern all three; voice only — chat keeps its
+        # text acks on purpose.
+        {"id": "3.22", "title": "The genesis style rules govern the engine's mouths: a short order runs in "
+                                "silence, a spoken rule overrides on the very next turn",
+            "ch": UNIT, "paths": ["tests/voice/unit/test_the_genesis_rules_govern_the_engines_mouths.py"]},
         {"id": "3.2", "title": "Puente voz→nucleo + trazas", "ch": VOICE, "paths": [
             "tests/voice/unit/providers/test_nucleo.py", "tests/voice/unit/providers/test_nucleo_guards.py",
             # ⚠️ SIN MAPEAR hasta el 2026-08-21 (V2-245), los cinco: el acumulador que perdía 64 s del operador en

@@ -1,0 +1,8 @@
+{
+  "_comment": "GENESIS RULES (V2-633) — the engine's shipped BASE conversational rules. This file is the factory default every install starts from; the operator overrides any of it by just SAYING so (set_style_directive -> style_policy.apply_directive persists the override in <workspace>/config/style.json, applied on the very next turn). Nothing here is per-user data: user overrides never live in this file.",
+  "version": 1,
+  "style": {
+    "confirm_short_actions": false,
+    "fillers": "smart"
+  }
+}

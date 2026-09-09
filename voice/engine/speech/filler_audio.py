@@ -83,7 +83,12 @@ _ACTION_VERB_RE = re.compile(
     r"^(?:me\s+|lo\s+|la\s+|los\s+|las\s+)?(?:cierra\w*|abre\w*|quita\w*|muestra\w*|muestrame|ensename?\w*|"
     r"pon\w*|apaga\w*|enciende\w*|sube\w*|baja\w*|borra\w*|guarda\w*|manda\w*|envia\w*|arranca\w*|activa\w*|"
     r"desactiva\w*|silencia\w*|limpia\w*|vacia\w*|despeja\w*|"
-    r"close|open|show|hide|dismiss|play|pause|mute|unmute|clear|turn|put|start|launch|send|save|delete)\b")
+    # V2-633: the media verbs the class was missing — «reproduce el vídeo» read as "neutral" and got a
+    # thinking cover. «siguiente/anterior» are bare-noun commands («siguiente canción») but commands still.
+    r"reproduce\w*|reanuda\w*|pausa\w*|salta\w*|cambia\w*|repite\w*|reinicia\w*|deten\w*|continua\w*|"
+    r"siguiente|anterior|"
+    r"close|open|show|hide|dismiss|play|pause|mute|unmute|clear|turn|put|start|launch|send|save|delete|"
+    r"resume|skip|next|previous|stop|replay)\b")
 
 
 def _norm(text: str) -> str:
@@ -251,6 +256,16 @@ async def llm_node_with_filler(agent, default_impl, chat_ctx, tools, model_setti
                     armed = _consume_arm()
                     if armed is not None:
                         brain, kind = armed
+                        # V2-633: the style policy rules the fire. Genesis "smart" drops the cover on ACTION
+                        # turns («reproduce el vídeo» + «Un segundo…» measured as pure annoyance, session
+                        # 6c715232); "off" (operator rule) drops it everywhere. Checked at fire time, so a
+                        # rule given one turn ago already governs this one.
+                        try:
+                            from nucleo import style_policy as _style
+                            if not _style.filler_allowed(kind):
+                                break
+                        except Exception:
+                            pass
                         phrase = _pick_phrase(brain, kind)
                         if phrase:
                             _announce(phrase)

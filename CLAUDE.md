@@ -470,6 +470,31 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **The genesis rules govern the engine's OWN mouths — a short order runs in silence, and a spoken rule
+  rules the very next turn (V2-633, 2026-09-09)**: the operator's session (6c715232) proved the style
+  mechanism worked and still failed him: his rule («al recibir órdenes no responder nada») was captured and
+  persisted by `set_style_directive` at 16:40:41 — and «Reproduce el vídeo» still got «Déjame ver…» +
+  «Hecho.», twice, after the model had agreed. Cause: THREE mouths speak without the model and none
+  consulted any rule — the fast lane's ack (V2-572, born from his own earlier opposite order), the
+  never-mute backstops (the model OBEYED and said nothing; the engine injected «Hecho.» into its mouth),
+  and the lead-in filler (whose `filler_kind` did not even know «reproduce» as an action verb). Now:
+  `nucleo/genesis.json` ships the base rules (silent short orders; fillers "smart" — never covering a turn
+  that is itself a short order), `nucleo/style_policy.py` layers per-install overrides written by the
+  directive handler IN the same turn (`<workspace>/config/style.json`, mtime-cached read per use — a rule
+  given by voice or chat governs the next utterance, and survives restarts; retraction restores genesis),
+  and all three mouths consult it: the fast-lane ack is opt-in («confírmame las órdenes» brings it back),
+  the data-op/show backstops gate on `_ack_allowed` (clarify/confirm stay never-mute — they are questions,
+  not confirmations), and the filler checks `filler_allowed(kind)` at fire time. VOICE mouths only, stated
+  in the module: chat keeps its text acks (an empty chat bubble looks broken; a written «Hecho.» interrupts
+  nobody) — which is also why the probe's ack faces are untouched while a chat-given rule still moves the
+  flags. `prompt_line()` teaches the MODEL's own mouth the same manners, only while the policy says silent.
+  The missing seeds shipped too: «reproduce el video»/«dale al play»/… → youtube play (es+en, packs v5) —
+  the session's exact phrase resolves in the deterministic lane now, like «pausa» always did. The ratchet
+  fired twice and was paid by extracting `nucleo/flash/style_directive.py` — the WHOLE set_style_directive
+  path for both channels (`handle`/`handle_probe`) plus `prompt_lines()` (wake-word + silent-orders: the
+  tool's teaching and its handler in one place); wiring guards repointed to the CHANNEL (V2-555). Node
+  **3.22** (15 cases, isolated workspace, two disarms red). Detail: the V2-633 initiative.
+
 - **The video widget becomes a real player: tabs, a dashboard that carries the search, and the honest
   shelf of sources (V2-632, 2026-09-09)**: the operator's full redesign, triggered by his screenshot — the
   card opened EMPTY and small («reproduce un vídeo» opened the card before the video existed; V2-630's

@@ -85,10 +85,15 @@ def _stripped_source(path: str) -> str:
 
 
 def test_both_channels_call_identity_actions():
+    # V2-633 moved the whole set_style_directive path into nucleo/flash/style_directive.py — the guard
+    # follows the CHANNEL (V2-555): each channel's entry must delegate there, and the shared module must
+    # still ride identity_actions on both faces.
     voice = _stripped_source("voice/engine/llm/providers/nucleo.py")
     probe = _stripped_source("nucleo/flash/probe.py")
-    assert "identity_actions" in voice and ".handle_voice(" in voice
-    assert "identity_actions" in probe and ".handle_probe(" in probe
+    shared = _stripped_source("nucleo/flash/style_directive.py")
+    assert "style_directive" in voice and ".handle(" in voice
+    assert "style_directive" in probe and ".handle_probe(" in probe
+    assert "identity_actions" in shared and ".handle_voice(" in shared and ".handle_probe(" in shared
 
 
 def test_the_probe_mute_ladder_acks_the_identity_actions():

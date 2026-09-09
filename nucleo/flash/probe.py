@@ -496,31 +496,12 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
         action = "style"
         _sd = next(t for t in tool_calls if t["name"] == "set_style_directive")
         d = (_sd["args"].get("directive") or "").strip()
-        # ESPEJO del provider (2026-09-09, impl paralela — cablear en AMBOS): ver nucleo/flash/identity_actions.py.
-        from nucleo.flash import identity_actions as _ident
-        _ident_action = await _ident.handle_probe(d, ingest=ingest) if d else None
+        # The whole path (identity mirror, V2-633 style flags, persisted user rule) lives in
+        # `nucleo/flash/style_directive.py` — the module that owns this tool in BOTH channels.
+        from nucleo.flash import style_directive as _styled
+        _ident_action = await _styled.handle_probe(d, text, sess, ingest)
         if _ident_action:
             action = _ident_action
-        elif d:
-            # ESPEJO del provider (V2-046 A1, impl paralela — cablear en AMBOS): la regla se aplica ya (directiva
-            # de sesión) y PERSISTE como user rule (state.rules). Gated a `ingest` (=turno real); con ingest=false
-            # (tests de routing) NO se toca el estado. Sentido añadir/retirar por el guard determinista.
-            if _router.looks_like_rule_removal(text):
-                sess.directive = ""
-                if ingest:
-                    try:
-                        from memory import api as _memapi
-                        await asyncio.to_thread(_memapi.remove_user_rule, d)
-                    except Exception:
-                        pass
-            else:
-                sess.directive = d
-                if ingest:
-                    try:
-                        from memory import api as _memapi
-                        await asyncio.to_thread(_memapi.add_user_rule, d)
-                    except Exception:
-                        pass
     elif tags:
         show_ids = [str(t.get("extra", {}).get("id") or "") for t in tags if t["action"] == "show"]
         action = (f"canvas:show:{show_ids[-1]}" if show_ids and show_ids[-1]

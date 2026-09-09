@@ -1564,37 +1564,14 @@ class NucleoLLMStream(llm.LLMStream):
             elif name == "confirm_widget_delete":
                 confirm_state["handled"] = _resolve_confirm(bool(args.get("confirmed")))
             elif name == "set_style_directive":
-                # V2-046 A1: la regla se aplica YA (directiva de sesión, capa inmediata — intacto) y PERSISTE como
-                # USER RULE en el ESTADO (state.rules, off-loop → viaja en compose_state §B en cada prompt, µs).
-                # El sentido añadir/retirar lo decide un guard determinista sobre el turno, no el LLM. Fuera el
-                # anti-patrón viejo de "lanza un worker para guardarla".
+                # V2-046 A1 + V2-633 — the whole path (identity actions first, style FLAGS for the engine's
+                # mouths applied synchronously, rule text persisted off-loop) lives in
+                # `nucleo/flash/style_directive.py`, extracted paying the ratchet. True = identity consumed it.
                 directive = (args.get("directive") or "").strip()
                 if directive:
                     style_fired["v"] = True
-
-                    from nucleo.flash import identity_actions as _ident   # rename/attention-mode toggle
-                    if _ident.handle_voice(directive, emit, _spawn): return
-
-                    async def _persist_rule(d: str, removal: bool) -> None:
-                        try:
-                            from memory import api as _mem
-                            if removal:
-                                _, gone = await asyncio.to_thread(_mem.remove_user_rule, d)
-                                emit("brain", "🧬 user rule retirada" if gone else "🧬 user rule: sin match para retirar",
-                                     text=(gone or d)[:100], role="system")
-                            else:
-                                await asyncio.to_thread(_mem.add_user_rule, d)
-                                emit("brain", "🧬 user rule guardada (persiste)", text=d[:100], role="system")
-                        except Exception as e:  # noqa: BLE001
-                            logger.warning(f"user rule no persistida (voz sigue): {e}")
-
-                    if _router.looks_like_rule_removal(text):
-                        brain._directive = ""            # la capa inmediata también suelta la regla retirada
-                        _spawn(_persist_rule(directive, True), "user-rule")
-                    else:
-                        brain._directive = directive
-                        emit("brain", "🎯 directiva de estilo fijada", text=directive, role="system")
-                        _spawn(_persist_rule(directive, False), "user-rule")
+                    from nucleo.flash import style_directive as _styled
+                    if _styled.handle(directive, text, brain, emit, _spawn): return
             elif name == "authenticate_web":
                 # Guard DETERMINISTA (V2-022): si además de entrar hay una TAREA ("entra en mi Gmail y BÓRRAME…"),
                 # no es un login → es una tarea con sesión → escala al navegador (que resuelve el login como parte
@@ -2684,7 +2661,16 @@ class NucleoLLMStream(llm.LLMStream):
         # Data-op despachada por tool sin frase hablada (el modelo fue directo a la tool) → ack corto (no mudo).
         # V2-038 (test post-P1/P2): dos data-ops seguidas con el MISMO "Hecho." disparaban el loop-detector — se
         # elige una variante que NO repita el último ack hablado (funcional consecutivo = se dice distinto).
-        if data_done["v"] and not spoken_text and escalate_req["v"] is None and search_req["v"] is None:
+        # V2-633: under silent-orders (genesis default, or the operator's own rule) the SUCCESS ack stays
+        # unspoken — the visible effect is the answer. Failures still speak: dispatch_and_report (V2-607)
+        # and clarify/confirm above are questions and reports, not confirmations, and are not gated.
+        try:
+            from nucleo import style_policy as _style_ack
+            _ack_allowed = _style_ack.confirm_short_actions()
+        except Exception:
+            _ack_allowed = True
+        if data_done["v"] and not spoken_text and _ack_allowed \
+                and escalate_req["v"] is None and search_req["v"] is None:
             try:
                 from voice.engine.core import langs as _langs
                 _lg = _langs.current_language()
@@ -2708,7 +2694,8 @@ class NucleoLLMStream(llm.LLMStream):
         # SHOW/CLOSE de canvas por tag SIN frase hablada → ack corto (bug 2026-07-13: el modelo emitía [[show:agenda]]
         # sin decir nada → turno MUDO; el operador no oía NI veía nada y creía que estaba roto). Nunca mudo al abrir/
         # cerrar un widget.
-        if acted["widget"] and not spoken_text and escalate_req["v"] is None and search_req["v"] is None \
+        if acted["widget"] and not spoken_text and _ack_allowed \
+                and escalate_req["v"] is None and search_req["v"] is None \
                 and not confirm_state.get("opened") and not clarify["msg"]:
             try:
                 from voice.engine.core import langs as _langs
