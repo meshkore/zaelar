@@ -28,7 +28,7 @@ def _seed(msgs=None, name="Grupo Viaje", is_group=True):
         {"id": "m2", "dir": "in", "who": "Luis", "body": "Yo puedo del 12 al 19", "ts": now - 7000, "read": False},
         {"id": "m3", "dir": "out", "who": "Tú", "body": "me apunto", "ts": now - 6000, "read": True},
     ]
-    db["threads"] = {f"whatsapp|999": {"name": name, "isGroup": is_group, "complete": False,
+    db["threads"] = {"whatsapp|999": {"name": name, "isGroup": is_group, "complete": False,
                                        "touched": now, "msgs": msgs}}
     wstore.save("mensajeria", db)
     return now
