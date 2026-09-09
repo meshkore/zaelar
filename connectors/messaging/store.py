@@ -265,7 +265,22 @@ def upsert_items(platform: str, new_items: list[dict]) -> dict:
     db["updated"] = _now()
     out = save(db)     # UI SSE intact: the per-widget store still sends the face
     _to_memory(fresh)  # ALSO, durable content goes to central memory (brain recall)
+    _to_archive(fresh)  # AND the canonical communications log (V2-628) — the only copy that does not expire
     return out
+
+
+def _to_archive(items: list[dict], platform: str | None = None, chat_id=None, **kw) -> None:
+    """V2-628 — the canonical communications log. This store and the `msg` pills both EXPIRE by design (replay
+    cache and recall salience); the archive is the one permanent, catalogued copy, so «a message from a month
+    ago» stays answerable. Same stance as `_to_memory`: best-effort, never breaks the UI store."""
+    try:
+        from connectors.messaging import archive
+        if platform is None:
+            archive.record_items(items)
+        else:
+            archive.record(platform, chat_id, items, **kw)
+    except Exception:  # noqa: BLE001
+        pass
 
 
 def _to_memory(items: list[dict]) -> None:
@@ -308,6 +323,7 @@ def record_outbound(platform: str, chat_id, msg: dict, name: str = "") -> dict:
     db = load()
     th = _thread()
     added = th.append(db, platform, chat_id, msg, "out", name=name)
+    _to_archive([msg], platform, chat_id, direction="out", chat_name=name)
     try:
         ts = float(msg.get("ts") or msg.get("timestamp") or time.time())
     except (TypeError, ValueError):
@@ -365,6 +381,7 @@ def add_history(platform: str, chat_id, msgs: list[dict], complete: bool = False
     db = load()
     th = _thread()
     added = th.prepend(db, platform, chat_id, msgs or [], complete=complete)
+    _to_archive(msgs or [], platform, chat_id, chat_name=name, is_group=is_group)
     if name or is_group is not None:
         cur = (db.get("threads") or {}).get(th.key(platform, chat_id))
         if isinstance(cur, dict):
