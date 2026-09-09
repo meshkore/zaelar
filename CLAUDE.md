@@ -564,6 +564,11 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   mural + infrastructure green. ⚠️ This batch first took the number V2-622 and the CONCURRENT session
   claimed it mid-build — renumbered at closure, and the blind rename clobbered ONE foreign citation in the
   testmap before being caught: reserve the number by creating the file when you TAKE it, and rename by hand.
+  **Fix 2026-09-09**: the first `applyOrbDock` runs before the orb is mounted, `byCtl` queried only
+  `document`, and `Element.append(null)` doesn't throw — it prints the LITERAL text "null" (seven of them
+  beside the orb, found via an operator screenshot after two suites had passed). `byCtl` now falls back to
+  the detached `wrapEl` and every lid move goes through a null-filtering `ctls()`; the swap test measures
+  stray text in all four states (its 8th case), red before the fix.
   Open, named: captions hidden in bar mode; the slot's forwarding asserted structurally, not by a live
   power cycle.
 

@@ -69,6 +69,18 @@ _STATE = """() => {
     memOnLid: lid.some(b => ((b.getAttribute('title') || '').toLowerCase().includes('memor'))),
     memBtn: !!document.getElementById('memBtn'),
     memBtnOn: !!(document.getElementById('memBtn') || {classList:{contains:()=>false}}).classList.contains('on'),
+    // Stray TEXT nodes among the lid/flank buttons. Element.append(null) does not throw — it prints the
+    // literal word "null" (the 2026-09-09 operator screenshot: seven of them beside the orb), so any
+    // non-empty text directly inside these containers is a rendering bug, never content.
+    strayText: (() => {
+      const scopes = [document.querySelector('#orbwrap .orbctl'),
+                      document.querySelector('#wrail .wr-orbl'),
+                      document.querySelector('#wrail .wr-orbr')].filter(Boolean);
+      let s = '';
+      for (const sc of scopes) for (const n of sc.childNodes)
+        if (n.nodeType === 3 && n.textContent.trim()) s += n.textContent.trim();
+      return s;
+    })(),
   };
 }"""
 
@@ -219,3 +231,14 @@ def test_the_memory_control_moved_to_the_top_bar(measured):
     assert e["lidCount"] == 7, f"the lid keeps 7 slots so the arc geometry holds: {e['lidTitles']}"
     assert e["pwrSlot"] == 4, f"⏻ must stay at the apex (slot 4): {e['lidTitles']}"
     assert measured["mem_after_click"]["memBtnOn"], "clicking the TopBar memory button must open the map"
+
+
+def test_no_lid_move_ever_prints_the_word_null(measured):
+    # 2026-09-09, operator screenshot: "nullnullnullnullnullnullnull" floating beside the orb. The first
+    # applyOrbDock ran before the orb was in the document, byCtl() returned null seven times, and
+    # Element.append(null) coerces each null to the TEXT "null" instead of throwing. The stray text nodes
+    # then survive every later (correct) re-append. Measured across all four states so neither direction
+    # of the swap can reintroduce it.
+    for state in ("eye", "bar", "bar_reload", "back"):
+        stray = measured[state]["strayText"]
+        assert stray == "", f"stray text printed among the lid/flank buttons in state '{state}': {stray!r}"

@@ -246,7 +246,11 @@ export function Orb() {
   // chat·robot·(the bar's own swap) right. ⏻ does NOT travel: in bar mode the ORB IS THE SWITCH — the
   // slot button forwards its click to the real ⏻ (data-ctl="pwr"), the exact V2-124 mobile-dock pattern.
   // The buttons are MOVED, never rebuilt, so every handler/signal binding travels with its element.
-  const byCtl = (c) => document.querySelector(`[data-ctl="${c}"]`);
+  // The buttons may live in the document (after mount) or still inside the detached wrapEl (the very first
+  // effect run happens before mounting) — check both, and NEVER hand append() a null: append(null) does not
+  // throw, it prints the literal text "null" (seven of them beside the orb, operator screenshot 2026-09-09).
+  const byCtl = (c) => document.querySelector(`[data-ctl="${c}"]`) || wrapEl.querySelector(`[data-ctl="${c}"]`);
+  const ctls = (...ids) => ids.map(byCtl).filter(Boolean);
   let _dockRaf = 0;
   const applyOrbDock = () => {
     const mode = store.orbDock();
@@ -258,13 +262,12 @@ export function Orb() {
       const r = document.querySelector("#wrail .wr-orbr");
       if (!slot || !l || !r) { _dockRaf = requestAnimationFrame(applyOrbDock); return; }
       if (orbEl.parentNode !== slot) slot.appendChild(orbEl);
-      l.append(byCtl("mic"), byCtl("spk"), byCtl("cap"));
-      r.prepend(byCtl("chat"), byCtl("bot"));            // the bar's .wr-swap stays last
+      l.append(...ctls("mic", "spk", "cap"));
+      r.prepend(...ctls("chat", "bot"));                 // the bar's .wr-swap stays last
     } else {
       const ctl = wrapEl.querySelector(".orbctl");
       // append() re-inserts in canonical lid order — the slot count stays 7 and ⏻ keeps the apex.
-      if (ctl) ctl.append(byCtl("tobar"), byCtl("mic"), byCtl("spk"), byCtl("pwr"),
-                          byCtl("cap"), byCtl("chat"), byCtl("bot"));
+      if (ctl) ctl.append(...ctls("tobar", "mic", "spk", "pwr", "cap", "chat", "bot"));
       if (micblockEl && orbEl.nextSibling !== micblockEl) micblockEl.parentNode.insertBefore(orbEl, micblockEl);
     }
   };
