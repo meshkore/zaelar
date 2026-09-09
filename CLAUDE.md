@@ -471,6 +471,64 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **The agent gets its OWN filesystem, and the torrent client becomes a SYSTEM tool (V2-638, 2026-09-09)**:
+  the operator's reframing of V2-637, the day after it shipped. What a widget downloads is **not that
+  widget's property**: a paper for `documento`, a track, a film — it all belongs in a tree the AGENT owns,
+  structured, reachable by every widget, present by default on a cloud Machine. Nine requirements, and the
+  design falls out of the first: **one root, a folder per kind, layout from GENESIS and overridable by him.**
+  - **`library/`** (new module, declared in `cluster.yaml`): `paths.py` — the layout read from
+    `nucleo/genesis.json` with per-install overrides in `<workspace>/config/library.json`, mtime-cached
+    exactly like V2-633's style policy, plus `resolve()`, the SINGLE door. That door is a security seam, not
+    a convenience: every path arriving here comes from a magnet payload, model output or a query string, so
+    absolutes are REFUSED (never silently reinterpreted — stripping the leading slash maps `/etc/passwd` to
+    a plausible in-library path and hides the caller's real intent), `..` is refused, and the check is made
+    against the RESOLVED path, which is the only version that catches a symlink planted inside the library.
+    A renamed folder is one segment, so a rename can never relocate the tree. `formats.py` separates what a
+    file IS from whether the BROWSER can play it; `index.py` is the normalized record a widget consumes
+    (`url`/`playable`/`kind`/`size`) and files a finished download onto its shelf; `server_api.py` serves
+    `/api/library/*` including the ONE stream route both players share.
+  - **The download policy is his**: by default only bring home what the page can play, with `keep` as the
+    explicit escape for «lo quiero para el pendrive» — and an unplayable file is still offered through
+    `/download`, because refusing without a way round is how a legitimate file looks broken. This corrected
+    a REAL defect shipped the day before: V2-637 listed `.mkv`/`.avi` as playable video. No mainstream
+    browser decodes either, so the client could pick a file it was structurally unable to show.
+  - **The torrent client is now a system tool**: it writes ONLY into `library/downloads/` (his isolation
+    rule) and never needs a path outside it — filing is our move, afterwards; `want` picks the shelf the
+    caller came for, so the same client serves video, music and documents; a refusal NAMES the file it
+    declined and offers the way round; and it has an operator SWITCH (`config/connectors.json`, default ON —
+    it is the one connector that can saturate a line). **Second real defect found**: `connectors.enabled()`
+    consulted the store and an env var but never the declared `_DEFAULTS`, so any connector shipped ON
+    answered False on a fresh install. It hid because all four pre-existing connectors default to False.
+  - **The video player stops being YouTube-only** (his requirement that the player hold the torrent tool
+    directly — a film is watched there, so the download that produces it belongs to the same surface): a new
+    `widgets/youtube/sources.py` owns where a row comes from — `youtube` → the embed, `local`/`torrent` → a
+    plain `<video src>` against our own routes (the library one, or the piece-aware one while it still
+    fills). Extracted rather than added because `data.py` sat EXACTLY on the 900-line newborn ceiling, so it
+    ends net negative (899→896). The control funnel learned the second vocabulary: `post()` translates the
+    IFrame API's verbs into media-element operations, so all five control sites work unchanged instead of
+    growing a parallel copy. **Two latent defects closed BEFORE any non-YouTube row could exist**:
+    `blocked_ids` keyed the blocklist on `videoId` and every such row carries `""` — one blocked local file
+    would have put `""` in the set, which the queue filter reads as «matches everything», silently skipping
+    every local item forever; and `swap_to` located the playing row by `videoId`, so two local rows both
+    resolved to the first. A streaming row is also no longer given an invented `youtube.com/watch` URL.
+  - **The music widget gets its third source** and, with it, MIXED playlists — needing **no new schema**:
+    the track shape already carries `uri` and YouTube-audio already uses a scheme there (`yt:<id>`), so a
+    local track is just `uri = "local:<rel>"` and playlists, Recent, Top and dedup keep working untouched.
+    `local_audio.play` clears the `yt` block (the bar shows ONE thing) and bumps a `seq`, because asking for
+    the same file twice must be two events and not one silent no-op. Two things deliberately NOT done
+    because they fail silently: a local track is never queued into the connector (that queue holds query
+    STRINGS it re-resolves, so a file would be dropped), and a filename with no « - » never invents an
+    artist (a wrong credit propagates into Recent, Top and every playlist that holds the track).
+  - Nodes **7.42** (19 cases), **4.139** (10 RENDERED + 14 unit) and **4.3** (+13); twelve disarms, every
+    mutation asserted, all red. ⚠️ The V2-554 Dockerfile guard caught the missing `COPY library` before it
+    could break a cloud boot — `server/__init__.py` imports it at module level. **NOT verified live**: the
+    engine was not restarted, so none of the three surfaces has been driven by hand.
+  - ⚠️ **Concurrency incident worth keeping**: three sessions were editing `tests/run_testmap.py`. To keep a
+    peer's staged hunk out of my commit I rebuilt the file as HEAD + my hunk — and in that window the peer
+    committed, so their node was lost and HEAD went red with two test files outside the map. Restored in
+    `2b9ba75`. Rebuilding a shared file from HEAD to isolate one hunk is only safe if nobody commits in that
+    window, which a session cannot know.
+
 - **The agenda answers to the voice: the view alias, the missing vocabulary, the visible details, and the
   operator's language (V2-639, 2026-09-09)**: the operator's session, read event by event — he asked FOUR
   times for the month view and the widget landed on today every time, silently. The model had done its job

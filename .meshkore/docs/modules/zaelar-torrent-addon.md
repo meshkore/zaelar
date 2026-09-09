@@ -38,10 +38,25 @@ stream** — a browser re-requests a Range far better than it survives a socket 
 The `streamable` gate (metadata present + the file's first ~4 MB of pieces down) is the only thing the widget
 waits on before showing the player; until then it shows progress, never a dead `<video>`.
 
+## It is a SYSTEM tool, not one widget's property (V2-638)
+
+The client downloads into **`library/downloads/`** — its sandbox inside the agent's own filesystem — and
+writes nowhere else. Filing a finished file onto its shelf (`video/`, `audio/`, `documents/`) is OUR move
+afterwards (`service.file_it`), which is what keeps the client's own reach confined to one directory.
+
+`want` says which shelf the caller came for (`video` / `audio` / `document`, `media` for either of the first
+two, `any`), so the SAME client serves the video widget, the music widget and a document fetch. `keep` lifts
+the browser-playable default for the operator's explicit «I want the file itself» case.
+
+**The operator's switch**: `config/connectors.json` → `torrent.enabled`, default ON. It needs no credential
+and no account, so defaulting it off would just make the feature invisible; but it is the one connector that
+can saturate a line, so someone on a metered or shared connection must be able to stop it outright.
+`service.available()` requires BOTH the wheel and the switch.
+
 ## Cloud vs self-host
 
-Identical. Downloads land under `widgets/_data/torrent/downloads` (a declared workspace root, so a fresh cloud
-Volume already has somewhere to put them). `available()` is the only difference, and only on a hypothetical
+Identical — `library/` lives under the workspace root, so a cloud Machine's Volume carries it unchanged and
+the tree is declared in `workspace.SUBDIRS`. `available()` is the only difference, and only on a hypothetical
 machine that shipped without the wheel — there the whole feature is off, not broken.
 
 ## Boundaries kept (the V2-557 rules)
@@ -57,4 +72,4 @@ machine that shipped without the wheel — there the whole feature is off, not b
 The metadata-resolution path is proven live (a public-domain magnet resolved its torrent info in ~4 s). The
 end-to-end **byte streaming** of a real payload into the player is not exercised in the test suite (a unit test
 opens no session and reaches no network); the arithmetic, the `streamable` gate and the fail-safe facade are.
-Node **5.22**.
+Nodes **5.22** and **7.42**.
