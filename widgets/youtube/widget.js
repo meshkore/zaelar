@@ -19,6 +19,8 @@ function injectStyles(){
   .hb-yt-meta{font-size:12px;color:var(--hb-muted,#5b6b82);line-height:1.3;margin-top:-4px;
               white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .hb-yt-meta .hb-yt-latest{color:var(--hb-accent,#3D6FE0);font-weight:600}
+  .hb-yt-blockmsg{font-size:12px;line-height:1.35;color:#8a5a00;background:rgba(240,170,20,.12);
+    border:1px solid rgba(240,170,20,.35);border-radius:8px;padding:6px 9px;margin:2px 0 4px}
   .hb-yt-frame{position:relative;width:100%;padding-top:56.25%;border-radius:12px;overflow:hidden;
                background:var(--hb-bg-soft,#0d1622)}
   .hb-yt-frame iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
@@ -167,12 +169,14 @@ function injectStyles(){
   /* View switching is CLASS-driven, never inline display (an inline style would beat the cinema rules
      below). V2-632: one class per TAB — every face hidden by default, each tab shows its own with the
      right display value. Cinema and connmode are declared AFTER and win by order at equal specificity. */
+  .hb-yt .hb-yt-blockmsg,
   .hb-yt .hb-yt-frame,.hb-yt .hb-yt-title,.hb-yt .hb-yt-meta,.hb-yt .hb-yt-ctrls,.hb-yt .hb-yt-hint,
   .hb-yt .hb-yt-list,.hb-yt .hb-yt-addrow,.hb-yt .hb-yt-home,.hb-yt .hb-yt-blocked,.hb-yt .hb-yt-subs,
   .hb-yt .hb-yt-mylists{display:none}
   .hb-yt.hb-yt-t-inicio .hb-yt-home{display:grid}
   .hb-yt.hb-yt-t-inicio .hb-yt-blocked{display:block}
   .hb-yt.hb-yt-t-player .hb-yt-frame{display:block}
+  .hb-yt.hb-yt-t-player .hb-yt-blockmsg{display:block}
   .hb-yt.hb-yt-t-player .hb-yt-title,.hb-yt.hb-yt-t-player .hb-yt-meta,
   .hb-yt.hb-yt-t-player .hb-yt-hint{display:block}
   .hb-yt.hb-yt-t-player .hb-yt-ctrls{display:flex}
@@ -185,7 +189,8 @@ function injectStyles(){
   .hb-yt.hb-yt-connmode .hb-yt-frame,.hb-yt.hb-yt-connmode .hb-yt-title,.hb-yt.hb-yt-connmode .hb-yt-meta,
   .hb-yt.hb-yt-connmode .hb-yt-ctrls,.hb-yt.hb-yt-connmode .hb-yt-hint,.hb-yt.hb-yt-connmode .hb-yt-list,
   .hb-yt.hb-yt-connmode .hb-yt-addrow,.hb-yt.hb-yt-connmode .hb-yt-home,.hb-yt.hb-yt-connmode .hb-yt-subs,
-  .hb-yt.hb-yt-connmode .hb-yt-mylists,.hb-yt.hb-yt-connmode .hb-yt-blocked{display:none}
+  .hb-yt.hb-yt-connmode .hb-yt-mylists,.hb-yt.hb-yt-connmode .hb-yt-blocked,
+  .hb-yt.hb-yt-connmode .hb-yt-blockmsg{display:none}
   .hb-yt:not(.hb-yt-connmode) .hb-yt-conn{display:none}
   /* CINEMA (V2-596): inside a maximized/fullscreen card the video IS the screen — the frame fills the card and
      the card-shaped furniture (title, controls, hint, playlist, add row) disappears. Without this, a voice
@@ -199,6 +204,7 @@ function injectStyles(){
   .hb-win.hb-cinema .hb-yt-title,.hb-win.hb-cinema .hb-yt-meta,.hb-win.hb-cinema .hb-yt-ctrls,
   .hb-win.hb-cinema .hb-yt-hint,.hb-win.hb-cinema .hb-yt-list,.hb-win.hb-cinema .hb-yt-addrow,
   .hb-win.hb-cinema .hb-yt-nav,.hb-win.hb-cinema .hb-yt-home,.hb-win.hb-cinema .hb-yt-blocked,
+  .hb-win.hb-cinema .hb-yt-blockmsg,.hb-win:fullscreen .hb-yt-blockmsg,
   .hb-win.hb-cinema .hb-yt-conn,.hb-win.hb-cinema .hb-yt-subs,.hb-win.hb-cinema .hb-yt-mylists,
   .hb-win:fullscreen .hb-yt-title,.hb-win:fullscreen .hb-yt-meta,.hb-win:fullscreen .hb-yt-ctrls,
   .hb-win:fullscreen .hb-yt-hint,.hb-win:fullscreen .hb-yt-list,.hb-win:fullscreen .hb-yt-addrow,
@@ -670,6 +676,11 @@ export function render(root, data, ctx){
 
     const title = el("div", "hb-yt-title", data.title || "YouTube");
     root.appendChild(title);
+    // V2-634 — the playback-block banner: when the owner refuses embedding, the card SAYS what happened
+    // (a swap of our own pick, or the honest «only on YouTube» for a pasted link) instead of leaving the
+    // operator alone with the player's raw error screen. Filled per render from data.blocked_notice.
+    const blockMsg = el("div", "hb-yt-blockmsg", "");
+    root.appendChild(blockMsg);
     const meta = el("div", "hb-yt-meta", "");            // channel · publication date (verifiable, V2-057)
     root.appendChild(meta);
 
@@ -774,7 +785,7 @@ export function render(root, data, ctx){
 
     root._hbYt = { id: id, seq: seq, loading: loading };   // "load" is already covered by new src → do not re-post as command
     root._hbYtBuilt = true;
-    root._hbYtEls = { iframe: iframe, title: title, meta: meta, vol: vol, muteBtn: muteBtn, unmuteHint: unmuteHint,
+    root._hbYtEls = { iframe: iframe, title: title, meta: meta, blockMsg: blockMsg, vol: vol, muteBtn: muteBtn, unmuteHint: unmuteHint,
                       listBox: listBox, home: home, blockedLine: blockedLine, dots: dots, conn: conn,
                       subsBox: subsBox, listsBox: listsBox };
   }
@@ -839,6 +850,32 @@ export function render(root, data, ctx){
   renderConn(E, root, data, ctx);
   }
   if(E.title) E.title.textContent = data.title || (id ? "YouTube" : "Sin vídeo");
+  if(E.blockMsg){
+    const bn = data.blocked_notice || {};
+    const tt = (key, params, fb) => {
+      try{
+        if(ctx && typeof ctx.t === "function"){
+          const s = ctx.t(key, params);
+          if(s && s !== key) return s;
+        }
+      }catch(_){}
+      let s = fb;
+      if(params) for(const k in params) s = s.split("{" + k + "}").join(String(params[k]));
+      return s;
+    };
+    let msg = "";
+    if(bn.kind === "swapped")
+      msg = tt("widgets.youtube.blocked_swapped", {from: bn.from || "", to: bn.to || ""},
+               "«{from}» está bloqueado por su propietario para reproducirse aquí — pongo el siguiente: «{to}».");
+    else if(bn.kind === "explicit")
+      msg = tt("widgets.youtube.blocked_explicit", {from: bn.from || ""},
+               "Su propietario bloquea la reproducción fuera de YouTube — este vídeo solo puede verse allí.");
+    else if(bn.kind === "exhausted")
+      msg = tt("widgets.youtube.blocked_exhausted", {from: bn.from || ""},
+               "«{from}» está bloqueado por su propietario y no encontré sustituto — dime otra búsqueda.");
+    E.blockMsg.textContent = msg;
+    E.blockMsg.style.display = msg ? "" : "none";
+  }
   if(E.meta){
     const bits = [];
     if(data.channel) bits.push(data.channel);
@@ -868,7 +905,10 @@ export function render(root, data, ctx){
   // The queue advances because the player told us the video ended — refreshed every render so the callback
   // always carries the CURRENT ctx. Gated on halted: a stopped agent starts no playback (V2-092).
   _ytEnded = () => { if(ctx && ctx.action && !halted(ctx)) ctx.action("ended"); };
-  _ytError = (code) => { if(ctx && ctx.action) ctx.action("player_error", {code: String(code == null ? "unknown" : code)}); };
+  // V2-634: the report names WHICH video failed — the store swaps the current one for the next playable
+  // candidate, and a late onError for an already-replaced video must not be attributed to its successor.
+  _ytError = (code) => { if(ctx && ctx.action) ctx.action("player_error",
+      {code: String(code == null ? "unknown" : code), videoId: id || ""}); };
   _ytQuality = (levels, vid) => {
     if(ctx && ctx.action) ctx.action("player_quality", {levels: Array.isArray(levels) ? levels : [], videoId: vid || ""});
   };

@@ -129,3 +129,15 @@ the missing manifest height visible). What changed:
   reason, Vimeo/Dailymotion/Twitch as honest shut doors (`connector_shelf` from the V2-526 catalog).
 - Player placeholder when nothing is loaded (title «Sin vídeo» + the 16:9 frame kept, marked).
 Node 4.138 (9 rendered cases) + updated 4.4/4.52/4.53 files; golden re-recorded (40 keys).
+
+## V2-634 (2026-09-09) — an unplayable video is swapped, not served
+- The embedded player's fatal onError codes (101/150 owner blocks embedding, 100 removed, 2/5 broken) are
+  ACTED on in `availability.py`: blocklist (`blocked_videos`, cap 30 — searches and swaps never re-offer),
+  then provenance decides — OUR pick (query/band/queue) swaps to `next_unblocked` (queue after pos → search
+  band → `last_query` re-resolved); a pasted link (`pick_explicit`) keeps the honest message, never a swap.
+- widget.js sends `videoId` with the onError report; a late report for a replaced video is `stale` and never
+  blames the successor. The `.hb-yt-blockmsg` banner (player tab; hidden in connmode/cinema) speaks via
+  `ctx.t` (`widgets.youtube.blocked_*`, both bundles) with interpolated Spanish fallback.
+- `play_result` rides `availability.swap_to` (one field-set). The brain reads `blocked_notice` in
+  `prompt_digest` (AVISO DEL REPRODUCTOR). Tests: `test_an_unplayable_video_is_swapped_not_served.py` (+1
+  rendered banner case in the tabs file).

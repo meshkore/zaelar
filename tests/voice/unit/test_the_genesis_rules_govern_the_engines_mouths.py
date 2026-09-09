@@ -202,3 +202,18 @@ def test_the_model_prompt_carries_the_silence_rule_only_while_silent():
     assert "prompt_lines(" in src, "prompt.py must append the runtime-mode lines (wake-word + silence)"
     shared = (ENGINE / "nucleo/flash/style_directive.py").read_text(encoding="utf-8")
     assert "prompt_line()" in shared, "style_directive.prompt_lines must carry the policy line"
+
+
+# ── 6 · the stuck apology is for turns that produced NOTHING (V2-634) ────────────────────────────────────
+
+def test_an_acted_but_silent_turn_never_gets_the_stuck_apology():
+    """Measured live (session b828c901): with silent orders on, a turn that executed play_video ended with
+    empty spoken_text and fell into the mute backstop — four «se me ha ido» apologies over turns that had
+    worked, reading as not-understanding. The backstop must be gated on the turn having done NOTHING, and a
+    context-bleed dedupe counts as handled (a deliberately ignored duplicate is not a void to apologize for)."""
+    src = (ENGINE / "voice/engine/llm/providers/nucleo.py").read_text(encoding="utf-8")
+    assert "if not spoken_text and not _tool_handled:" in src, \
+        "the mute backstop must skip turns that acted (V2-633 silence is design, not a void)"
+    assert 'or style_fired["v"] or deduped["v"]' in src, \
+        "a deduped duplicate order was HANDLED — it must count into _tool_handled"
+    assert 'deduped["v"] = True' in src, "the context-bleed guard must mark the turn as handled"

@@ -759,6 +759,8 @@ class NucleoLLMStream(llm.LLMStream):
         confirm_state = {"handled": False}
         clarify = {"msg": None}          # V2-026: pregunta a decir si una referencia a un item no se resolvió
         data_done = {"v": False}         # V2-026: se despachó una data-op FAST → ack hablado si el modelo no habló
+        deduped = {"v": False}           # V2-634: el guarda anti context-bleed descartó un duplicado — el turno
+                                         # fue ATENDIDO (dedupe deliberado), no un vacío que disculpar
         worker_acted = {"v": None}       # V2-038: 'inject'|'stop'|'answer' si se dirigió a un Brain Worker vivo
         cron_seen = {"v": False}         # V2-146: el turno YA pidió un cron → el backstop de aviso no duplica
         _shown_ids: set = set()          # ids ya mostrados ESTE turno → dedup de [[show]] duplicado
@@ -1109,6 +1111,7 @@ class NucleoLLMStream(llm.LLMStream):
                         and _word_overlap(" ".join(str(v) for v in (payload or {}).values()), text) == 0:
                     emit("brain", "🛡️ data-op del turno anterior re-emitida — ignorada (context-bleed)",
                          text=f"{wid}:{action_name}", role="system")
+                    deduped["v"] = True
                     return
                 acted["widget"] = True
                 data_done["v"] = True
@@ -2731,7 +2734,19 @@ class NucleoLLMStream(llm.LLMStream):
         # pregunta del operador palabra por palabra. Último recurso: si a estas alturas sigue sin haber nada
         # que decir, dilo con sentido según si hay trabajo de fondo en marcha. Espejo del backstop genérico de
         # `probe.py` (impl PARALELA, cablear en AMBOS).
-        if not spoken_text:
+        # V2-634 (measured live, session b828c901): with the V2-633 silent-orders gate on, a turn that DID
+        # act (play_video → load) ended with empty spoken_text and fell into THIS backstop — four apologies
+        # («se me ha ido», «llevo tres intentos») over turns that had executed perfectly, reading as
+        # not-understanding. The stuck apology is for turns that produced NOTHING; an acted-and-silent turn
+        # is the V2-633 design, and a deduped duplicate was handled, not lost. `_tool_handled` is computed
+        # here (it used to live just below, feeding the fallbacks) so the backstop can read it.
+        _tool_handled = bool(
+            acted["widget"] or data_done["v"] or worker_acted["v"] or style_fired["v"] or deduped["v"]
+            or escalate_req["v"] is not None or search_req["v"] is not None
+            or music_req["v"] is not None or "play_video" in _tool_fired
+            or images_req["v"] is not None
+            or confirm_state.get("opened") or confirm_state.get("handled"))
+        if not spoken_text and not _tool_handled:
             try:
                 from voice.engine.core import langs
                 from nucleo.flash import reminder_guards as _rg_mute      # V2-603: the shared decision
@@ -2757,12 +2772,7 @@ class NucleoLLMStream(llm.LLMStream):
         # abría un widget que nadie pidió (bug 17-jul: «necesito que PONgas a Bruce Springsteen» → play_music OK,
         # pero el safety-net corrió igual, el regex `\bpon` casó "pongas" e `_identify` fuzzy-casó ruido → show:clock
         # espurio). music/video no marcaban acted["widget"], por eso hay que mirar TODAS las señales de tool.
-        _tool_handled = bool(
-            acted["widget"] or data_done["v"] or worker_acted["v"] or style_fired["v"]
-            or escalate_req["v"] is not None or search_req["v"] is not None
-            or music_req["v"] is not None or "play_video" in _tool_fired
-            or images_req["v"] is not None
-            or confirm_state.get("opened") or confirm_state.get("handled"))
+        # `_tool_handled` computed above (V2-634), before the mute backstop that also reads it.
 
         # SAFETY NET (PRIMERO): el modelo a veces DICE que abre/cierra un widget sin emitir la tag → la emitimos
         # nosotros. Va ANTES del login-fallback a propósito (V2-023): "abre mensajería y dime si WhatsApp está

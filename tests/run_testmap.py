@@ -1429,7 +1429,12 @@ DOMAINS: list[dict] = [
                    "tests/browser/unit/youtube/test_a_blocked_channel_never_comes_back.py",
                    # V2-597: the ACCOUNT layer — intent travels, credentials never do; suggest honors the
                    # blocked-channels filter and passes a legitimate emptiness through as ok+reason.
-                   "tests/browser/unit/youtube/test_the_account_connects_by_intent_never_by_credential.py"]},
+                   "tests/browser/unit/youtube/test_the_account_connects_by_intent_never_by_credential.py",
+                   # V2-634: an unplayable video (owner blocks embedding, LaLiga live case) is ACTED on —
+                   # our own pick swaps to the next playable candidate and is blocklisted forever; a link
+                   # the operator pasted gets the honest message instead; a late onError never blames the
+                   # replacement; the brain is told what happened so it can say it instead of narrate.
+                   "tests/browser/unit/youtube/test_an_unplayable_video_is_swapped_not_served.py"]},
         {"id": "4.5", "title": "Widget de mensajería", "ch": UNIT, "paths": ["tests/browser/unit/mensajeria/test_owner_v2.py",
                   "tests/browser/unit/mensajeria/test_notification_policy.py"]},
         {"id": "4.123", "title": "Mensajería RENDERIZA: un clic en un canal SALE de Conectores (no se queda "

@@ -211,3 +211,21 @@ def test_recently_watched_band_renders_from_our_own_history(_page):
     calls = _page.evaluate("window.__calls")
     assert ["load", {"videoId": "h1", "title": "Visto Uno"}] in calls
     assert "hb-yt-t-player" in _cls(_page)
+
+
+def test_the_block_banner_says_what_happened_and_only_when_something_did(_page):
+    """V2-634 — the owner's embed block is SAID on the card, not left as YouTube's raw error screen. The
+    harness ctx has no `t`, so this also proves the i18n fallback interpolates the {from}/{to} params."""
+    _mount(_page, _data(videoId="dQw4w9WgXcQ", title="El Sustituto",
+                        blocked_notice={"kind": "swapped", "from": "El Brujo", "to": "El Sustituto",
+                                        "code": "150"}))
+    txt = _page.locator(".hb-yt-blockmsg").inner_text()
+    assert "El Brujo" in txt and "El Sustituto" in txt and "{from}" not in txt
+    assert _page.locator(".hb-yt-blockmsg").is_visible(), "the banner belongs on the player tab"
+    # explicit link: the honest copyright message, no swap wording
+    _remount(_page, _data(videoId="dQw4w9WgXcQ", title="El que pegó él",
+                          blocked_notice={"kind": "explicit", "from": "El que pegó él", "code": "101"}))
+    assert "YouTube" in _page.locator(".hb-yt-blockmsg").inner_text()
+    # nothing happened → no banner
+    _remount(_page, _data(videoId="dQw4w9WgXcQ", title="Sano"))
+    assert not _page.locator(".hb-yt-blockmsg").is_visible()

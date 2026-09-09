@@ -37,6 +37,11 @@ _SEED = {
     # Written back by widget.js so "is it producing?" answers the player's reported reality, not our intent:
     # the operator's screenshot showed "This video is unavailable" while the declared state said playing.
     "player_error": "",
+    # V2-634 — an unplayable video is a FACT to act on (rules and mechanism: availability.py's docstring).
+    "blocked_videos": [],     # [{videoId,title,code,at}] the embedded player REFUSED — searches skip them
+    "blocked_notice": {},     # {kind: swapped|explicit|exhausted, from, to?, code} — banner + brain; cleared on load
+    "pick_explicit": False,   # the CURRENT video was a URL/id the operator handed over (block → honest message)
+    "last_query": "",         # the search phrase behind our pick, so a swap can re-resolve the same intent
     "pos": -1,            # index in `list` of the item playing (or last played); -1 = current video is not from the list
     "adding": "",         # an `add` by name is searching the network right now (visible state, like `loading` for load)
     "list_filter": "",    # display-only filter over the list (filter_list); never touches the list itself
@@ -159,6 +164,9 @@ def _drop_blocked(hits: list, blocked: list) -> "tuple[list, int]":
 
 account._drop_blocked = _drop_blocked   # the extraction's one seam back (V2-632)
 
+from widgets.youtube import availability as _avail  # noqa: E402  — V2-634, the unplayable-video family
+_blocked_ids, _swap_to = _avail.blocked_ids, _avail.swap_to
+
 
 def _oembed_title(vid: str) -> dict:
     """Title/channel of a video added by bare LINK, via the public oembed endpoint. Best-effort, fail-open:
@@ -246,7 +254,7 @@ def _search_many(q: str, n: int = 5) -> list:
     return out
 
 
-def _search_id(q: str, blocked: list = None) -> dict:
+def _search_id(q: str, blocked: list = None, blocked_ids: set = None) -> dict:
     """Best-effort: resolve a phrase ("Messi goal") to the first YouTube video. Stdlib, 6s, fail-open.
     If the phrase asks for someone's MOST RECENT video ("the latest from ..."), sort by upload date.
     Returns {videoId,title,channel,published,latest} — publication date lets the operator VERIFY it is the correct
@@ -257,14 +265,18 @@ def _search_id(q: str, blocked: list = None) -> dict:
     channel he told us to filter out."""
     q = (q or "").strip()
     out = {"videoId": "", "title": "", "channel": "", "published": "", "latest": bool(_LATEST_RE.search(q))}
-    hits = _search_many(q, 6 if blocked else 1)
+    hits = _search_many(q, 6 if (blocked or blocked_ids) else 1)
     if blocked:
         hits, _ = _drop_blocked(hits, blocked)
+    if blocked_ids:   # V2-634: a video the player already refused is never offered again
+        hits = [h for h in hits if h["videoId"] not in blocked_ids]
     if hits:
         h = hits[0]
         out.update({"videoId": h["videoId"], "title": h["title"] or q,
                     "channel": h["channel"], "published": h["published"]})
     return out
+
+_avail._search_id = _search_id   # the injected search door (see availability.py docstring)
 
 
 def _seed() -> dict:
@@ -343,12 +355,14 @@ def prompt_digest() -> str:
         db = _load()
     except Exception:  # noqa: BLE001
         return ""
+    # V2-634 — what just happened to playback is a FACT the model must say instead of narrate.
+    lines = _avail.notice_lines(db)
     res = db.get("search_results") or []
     if not res:
-        return ""
+        return "\n".join(lines)
     q = str(db.get("search_query") or "").strip()
-    lines = [f"BÚSQUEDA DE VÍDEOS EN PANTALLA («{q}», {len(res)} resultados numerados — "
-             "«el tercero» = el 3; reproducir: play_result{item:N} · a la cola: add_results{items:\"1,3\"|\"all\"}):"]
+    lines += [f"BÚSQUEDA DE VÍDEOS EN PANTALLA («{q}», {len(res)} resultados numerados — "
+              "«el tercero» = el 3; reproducir: play_result{item:N} · a la cola: add_results{items:\"1,3\"|\"all\"}):"]
     for i, r in enumerate(res, 1):
         bits = [str(r.get("title") or "")[:70]]
         if r.get("channel"):
@@ -408,6 +422,8 @@ def _play_pos(db: dict, i: int, cmd: str) -> dict:
     item's own, so the on-screen verification (V2-057) keeps working when the list drives playback."""
     it = db["list"][i]
     db["player_error"] = ""   # a DIFFERENT video: the old player error says nothing about it (V2-401)
+    db["blocked_notice"] = {}
+    db["pick_explicit"] = False           # V2-634: queue-driven playback is our side driving
     db["videoId"] = it.get("videoId") or ""
     db["url"] = it.get("url") or ("https://www.youtube.com/watch?v=" + db["videoId"])
     db["title"] = it.get("title") or db["url"]
@@ -438,17 +454,21 @@ def apply_action(action: str, payload: dict = None) -> dict:
         had_video = bool(db.get("videoId"))
         raw = str(p.get("url") or p.get("videoId") or "").strip()
         vid = _extract_id(raw)
+        # V2-634 — provenance decides what a playback block may do (availability.py); internal swaps pass
+        # pick:"ours" so re-loading through this branch never claims the operator's authorship.
+        explicit = bool(vid) and str(p.get("pick") or "") != "ours"
         title = str(p.get("title") or "").strip()
         channel, published, latest = "", "", False
         if not vid:                                     # not URL/id → search by name
             q = str(p.get("query") or p.get("q") or raw or "").strip()
+            db["last_query"] = q
             # Real LOADER (bug 2026-07-23, "there is no loader showing that you are searching"): _search_id scrapes
             # the network (several seconds) — without this the card looked COMPLETELY empty in the meantime,
             # indistinguishable from "nothing requested". Save+emit NOW (before network) so widget.js paints the
             # spinner immediately; the final load turns it off.
             db["loading"], db["loading_query"] = True, q
             store.save(WID, db)
-            r = _search_id(q, db.get("blocked_channels"))
+            r = _search_id(q, db.get("blocked_channels"), _blocked_ids(db))
             vid = r["videoId"]
             latest = r["latest"]
             if vid and not title:
@@ -459,6 +479,8 @@ def apply_action(action: str, payload: dict = None) -> dict:
             store.save(WID, db)                          # turn off loader even if nothing was found
             return {"ok": False, "error": "no_video", "message": "No encontré ese vídeo."}
         db["player_error"] = ""   # fresh video, clean slate (V2-401)
+        db["blocked_notice"] = {}
+        db["pick_explicit"] = explicit
         db["videoId"] = vid
         db["url"] = "https://www.youtube.com/watch?v=" + vid
         db["title"] = title or db["url"]
@@ -510,7 +532,7 @@ def apply_action(action: str, payload: dict = None) -> dict:
                 return {"ok": False, "error": "no_video", "message": "Dime qué vídeo añado (enlace o nombre)."}
             db["adding"] = q                            # visible state while the network search runs
             store.save(WID, db)
-            r = _search_id(q, db.get("blocked_channels"))
+            r = _search_id(q, db.get("blocked_channels"), _blocked_ids(db))
             db["adding"] = ""
             vid = r["videoId"]
             if vid and not title:
@@ -554,10 +576,12 @@ def apply_action(action: str, payload: dict = None) -> dict:
         db["adding"] = q                                # visible state while the network search runs (as `add`)
         store.save(WID, db)
         blocked = db.get("blocked_channels") or []
+        bids = _blocked_ids(db)
         # Fetch a few extra when a filter exists, so blocking a channel does not shrink every search.
-        hits = _search_many(q, n + (4 if blocked else 0))
+        hits = _search_many(q, n + (4 if blocked else 0) + (4 if bids else 0))
         hits, n_blocked = _drop_blocked(hits, blocked)
-        hits = hits[:n]
+        hits = [h for h in hits if h["videoId"] not in bids][:n]   # V2-634: the refused never come back
+        db["last_query"] = q
         db["adding"] = ""
         if not hits:
             store.save(WID, db)                          # turn the state off even when nothing was found
@@ -594,19 +618,7 @@ def apply_action(action: str, payload: dict = None) -> dict:
             return {"ok": False, "error": "bad_index", "count": len(res),
                     "message": f"Solo hay {len(res)} resultados."}
         it = res[i]
-        db["player_error"] = ""
-        db["videoId"] = it.get("videoId") or ""
-        db["url"] = it.get("url") or ("https://www.youtube.com/watch?v=" + db["videoId"])
-        db["title"] = it.get("title") or db["url"]
-        db["channel"] = it.get("channel") or ""
-        db["published"] = it.get("published") or ""
-        db["latest"] = False
-        # If that video already sits in the queue, `next` continues from there; otherwise pos=-1 as `load`.
-        db["pos"] = next((j for j, x in enumerate(db.get("list") or [])
-                          if x.get("videoId") == db["videoId"]), -1)
-        db["paused"] = False
-        library.record_play(db, it)
-        library.apply_prefs(db, fresh=False)
+        _swap_to(db, it)   # V2-634: the shared field-set (pick_explicit=False and queue position inside)
         r = _bump(db, "load")
         r["position"] = i + 1
         return r
@@ -816,10 +828,17 @@ def apply_action(action: str, payload: dict = None) -> dict:
         db["paused"] = False
         return _bump(db, "play")
     if action == "player_error":
-        # V2-401 — reported by widget.js when the embedded player refuses to play (onError). Recorded so the
-        # producing predicate stops counting a broken player as playing. Never raises on a garbage code: the
-        # value crosses a postMessage boundary and is data, not trusted input.
-        db["player_error"] = str(p.get("code") or "unknown")[:40]
+        # V2-401 — widget.js reports onError (untrusted, crosses postMessage). V2-634 — a FATAL code is
+        # ACTED on: blocklist + swap of our own pick, or the honest message for a pasted link — the whole
+        # behavior lives in `availability.on_player_error`, beside the blocklist it maintains.
+        code = str(p.get("code") or "unknown")[:40]
+        dead = str(p.get("videoId") or db.get("videoId") or "")[:20]
+        verdict = _avail.on_player_error(db, code, dead)
+        if verdict == "stale":
+            store.save(WID, db)
+            return {"ok": True, "cmd": "player_error", "stale": True}
+        if verdict is None:
+            db["player_error"] = code
         return _bump(db, "player_error")
 
     if action == "pause":
@@ -877,3 +896,4 @@ def apply_action(action: str, payload: dict = None) -> dict:
         return r
 
     return {"ok": False, "error": "unknown_action", "action": action}
+

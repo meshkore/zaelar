@@ -471,6 +471,28 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **An unplayable video is swapped, not served — and the silent turn must not apologize (V2-634,
+  2026-09-09)**: the operator, with LaLiga's «Video unavailable» on the card. We use the NATIVE YouTube
+  IFrame embed, so embedding restrictions are per-video, set by the rights holder — the video plays on
+  youtube.com and refuses every embed. The widget HAD reported it (`player_error`, one second after the
+  load) and nothing consumed the report. His rule, now mechanism (`widgets/youtube/availability.py`,
+  extracted paying the newborn ceiling — data.py sits at 900 exactly): a fatal code (101/150 embed
+  disabled, 100 removed, 2/5 broken) puts the video on a BLOCKLIST no search or swap ever re-offers, and
+  **provenance decides the rest** — a video WE resolved (query, search band, queue) is silently swapped
+  for the next playable candidate (queue after pos → search band → the stored `last_query` re-resolved
+  through the injected `_search_id`), while a link HE pasted gets the honest copyright message EVERY time
+  («swapping what he explicitly asked for would be a different lie»). The onError report now names its
+  `videoId`, so a late report for an already-replaced video never blames the successor. The card SAYS it
+  (`.hb-yt-blockmsg`, via the V2-613 `ctx.t` seam, keys in both bundles, interpolated fallback) and the
+  brain is told through `prompt_digest` (AVISO DEL REPRODUCTOR + the forbidden moves). **The same session
+  also measured a one-hour-old V2-633 regression**: the model understood «ponme un vídeo de Ronaldinho»
+  every time and called the tool every time — but with the ack gated, an acted-but-silent turn fell into
+  the MUTE backstop and APOLOGIZED («se me ha ido» ×3) over turns that had worked, reading as
+  not-understanding; and the context-bleed guard's correct swallows left those turns looking void. The
+  backstop is gated on `_tool_handled` (hoisted above it) and a dedupe now marks the turn as handled.
+  Node 4.4 (+11 cases) · 4.138 (+1 rendered) · 3.22 (+1); seven disarms red, one repeated against the
+  MOVED code after the extraction. Detail: the V2-634 initiative.
+
 - **The genesis rules govern the engine's OWN mouths — a short order runs in silence, and a spoken rule
   rules the very next turn (V2-633, 2026-09-09)**: the operator's session (6c715232) proved the style
   mechanism worked and still failed him: his rule («al recibir órdenes no responder nada») was captured and
