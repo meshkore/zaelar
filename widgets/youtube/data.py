@@ -166,6 +166,7 @@ account._drop_blocked = _drop_blocked   # the extraction's one seam back (V2-632
 
 from widgets.youtube import availability as _avail  # noqa: E402  — V2-634, the unplayable-video family
 _blocked_ids, _swap_to = _avail.blocked_ids, _avail.swap_to
+from . import sources as _sources        # V2-638: where a playable row comes from (youtube | local | torrent)
 
 
 def _oembed_title(vid: str) -> dict:
@@ -321,30 +322,10 @@ def view_data(q: str = "") -> dict:
     # 🔌 screen renders it exactly like messaging's — including the shut doors, on purpose (INI-027's wishlist
     # rule: what we do NOT have is shown, never narrated). Composed from the V2-526 catalog (data, stdlib json)
     # merged with the live platform rows; fail-soft to [] — a broken catalog must not blank the player.
-    out["connector_shelf"] = _connector_shelf(db)
+    out["connector_shelf"] = _sources.connector_shelf(db)
+    # V2-638 — a download being watched while it fills; {} for every other source, so the card shows nothing.
+    out["download"] = _sources.live_status(db)
     return out
-
-
-def _connector_shelf(db: dict) -> list:
-    rows = []
-    try:
-        from connectors import catalog as _cat
-        live = {str(r.get("id") or ""): r for r in (db.get("platforms") or [])}
-        for m in _cat.load_manifests():
-            if m.get("family") != "video" or m.get("kind") != "connector":
-                continue
-            pid = str(m.get("id") or "")
-            lv = live.get(pid) or {}
-            rows.append({"id": pid, "label": str(m.get("label") or pid),
-                         "state": str(m.get("state") or "planned"),
-                         "connected": bool(lv.get("connected")),
-                         "note": str(m.get("why-not") or m.get("notes") or m.get("note") or "")[:220]})
-    except Exception:  # noqa: BLE001
-        return []
-    # YouTube first (the one people ask about), then buildable, then shut doors.
-    rank = {"built": 0, "planned": 1, "not-possible": 2}
-    rows.sort(key=lambda r: (0 if r["id"] == "youtube" else 1, rank.get(r["state"], 3), r["label"]))
-    return rows
 
 
 def prompt_digest() -> str:
@@ -425,7 +406,11 @@ def _play_pos(db: dict, i: int, cmd: str) -> dict:
     db["blocked_notice"] = {}
     db["pick_explicit"] = False           # V2-634: queue-driven playback is our side driving
     db["videoId"] = it.get("videoId") or ""
-    db["url"] = it.get("url") or ("https://www.youtube.com/watch?v=" + db["videoId"])
+    _sources.carry(db, it)                # V2-638: source + src travel with the row, or a <video> gets a stale src
+    db["torrent_id"] = str(it.get("torrent_id") or "")
+    # A local/torrent row has no watch URL to fall back to — inventing one names a YouTube video that is not it.
+    db["url"] = it.get("url") or ("" if _sources.is_stream(it)
+                                  else "https://www.youtube.com/watch?v=" + db["videoId"])
     db["title"] = it.get("title") or db["url"]
     db["channel"] = it.get("channel") or ""
     db["published"] = it.get("published") or ""
@@ -449,6 +434,18 @@ def apply_action(action: str, payload: dict = None) -> dict:
         cur = str(db.get("channel") or "").strip()
         if cur:
             p = dict(p); p["channel"] = cur
+
+    # V2-638 — the player is where a film is WATCHED, so the two non-YouTube sources belong on this surface
+    # too: a file in the agent's own library, and a torrent that plays while it is still downloading.
+    if action in ("play_local", "play_torrent"):
+        r = (_sources.play_local(db, str(p.get("path") or p.get("file") or ""))
+             if action == "play_local" else
+             _sources.play_torrent(db, str(p.get("query") or "").strip(),
+                                   str(p.get("magnet") or "").strip(), bool(p.get("keep"))))
+        if not r.get("ok"):
+            return r
+        db["list"].append(r["item"])
+        return _play_pos(db, len(db["list"]) - 1, "play")
 
     if action == "load":
         had_video = bool(db.get("videoId"))

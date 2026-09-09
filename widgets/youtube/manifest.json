@@ -307,6 +307,22 @@
         "videoId": "id the levels belong to (optional)"
       }
     },
+    "play_local": {
+      "desc": "reproduce un vídeo que ya está en la biblioteca del agente (por su ruta)",
+      "payload": {
+        "path": "ruta del fichero dentro de la biblioteca (p. ej. video/pelicula.mp4)"
+      },
+      "view": true
+    },
+    "play_torrent": {
+      "desc": "busca un torrent de vídeo por la red y lo reproduce aquí mientras se descarga",
+      "payload": {
+        "query": "qué buscar (título de la peli o el vídeo)",
+        "magnet": "opcional: un enlace magnet concreto en vez de buscar",
+        "keep": "opcional: true si además lo quiere guardar aunque no sea reproducible"
+      },
+      "view": true
+    },
     "play_result": {
       "desc": "reproduce UN resultado de la búsqueda del inicio, por número 1-based («el tercero» → item:3)",
       "payload": {

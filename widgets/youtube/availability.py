@@ -24,7 +24,13 @@ FATAL_CODES = {"2", "5", "100", "101", "150"}
 
 
 def blocked_ids(db: dict) -> set:
-    return {str(b.get("videoId") or "") for b in (db.get("blocked_videos") or [])}
+    """The blocklist, keyed on videoId — and NEVER containing the empty string (V2-638).
+
+    Every non-YouTube row (a library file, a torrent) has `videoId == ""`, so an empty id in this set is not
+    one blocked video: it is a key that matches ALL of them at once. The membership test in `next_unblocked`
+    would then skip every local item in the queue, permanently and silently. Filtering here rather than at
+    each call site keeps the invariant with the set that has it."""
+    return {v for v in (str(b.get("videoId") or "") for b in (db.get("blocked_videos") or [])) if v}
 
 
 def remember_blocked(db: dict, vid: str, title: str, code: str) -> None:
@@ -41,13 +47,23 @@ def swap_to(db: dict, it: dict) -> None:
     db["player_error"] = ""
     db["blocked_notice"] = {}
     db["videoId"] = str(it.get("videoId") or "")
-    db["url"] = it.get("url") or ("https://www.youtube.com/watch?v=" + db["videoId"])
+    # V2-638 — a swap must carry the row's SOURCE, or a local/torrent replacement is handed to the YouTube
+    # embed (and a stale `src` from the previous row plays instead of it).
+    from . import sources as _src
+    _src.carry(db, it)
+    db["torrent_id"] = str(it.get("torrent_id") or "")
+    db["url"] = it.get("url") or ("" if _src.is_stream(it)
+                                  else "https://www.youtube.com/watch?v=" + db["videoId"])
     db["title"] = it.get("title") or db["url"]
     db["channel"] = it.get("channel") or ""
     db["published"] = it.get("published") or ""
     db["latest"] = False
+    # Identity is (source, id): two local rows both carry videoId "" , so matching on videoId alone would
+    # report the FIRST local item as the position of whichever local item is actually playing.
+    _key = "src" if _src.is_stream(it) else "videoId"
+    _want = str(it.get(_key) or "")
     db["pos"] = next((j for j, x in enumerate(db.get("list") or [])
-                      if x.get("videoId") == db["videoId"]), -1)
+                      if _want and str(x.get(_key) or "") == _want), -1)
     db["paused"] = False
     db["pick_explicit"] = False
     library.record_play(db, it)

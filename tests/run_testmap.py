@@ -1565,6 +1565,20 @@ DOMAINS: list[dict] = [
         {"id": "4.138", "title": "El reproductor de vídeo lleva pestañas y un dashboard: búsqueda numerada "
                                  "pilotable, placeholder, cola con miniaturas y la estantería honesta de fuentes",
             "ch": UNIT, "paths": ["tests/browser/unit/youtube/test_the_player_wears_tabs_and_a_dashboard.py"]},
+        # V2-638 — EL REPRODUCTOR DEJA DE SER SOLO YOUTUBE: una fila puede venir de la biblioteca del agente o
+        # de un torrent que aún se está bajando, y ambas se reproducen en un <video> pelado contra nuestras
+        # propias rutas (la de la biblioteca, o la que sabe de piezas mientras descarga). Se RENDERIZA porque
+        # nada de esto se ve en el fuente: qué elemento se monta, si un SEGUNDO fichero local reconstruye el
+        # reproductor (los dos llevan videoId "", así que la clave vieja lo habría dejado clavado en el
+        # primero), y si el embudo de control (`post`) alcanza de verdad a un elemento de medios en vez de
+        # postMessagear contra un iframe nulo. Incluye los dos defectos latentes que había que cerrar ANTES de
+        # que existiera ninguna fila no-YouTube: el id vacío envenenando la lista de bloqueados (una sola
+        # bloqueada habría saltado TODAS las locales para siempre) y `swap_to` localizando la fila por videoId.
+        {"id": "4.139", "title": "El reproductor toca tres fuentes: YouTube, un fichero de la biblioteca y un "
+                                 "torrent que aún se descarga",
+            "ch": UNIT, "paths": [
+                "tests/browser/unit/youtube/test_the_player_mounts_a_video_for_local_sources.py",
+                "tests/browser/unit/youtube/test_the_player_plays_three_sources.py"]},
         # V2-537 (2026-09-01): el mural. Un widget nuevo aterrizó DEBAJO del chat flotante (z 9001, encima del
         # tope 8000 de las tarjetas por diseño) y el operador no tenía forma de saber que existía. Renderiza el
         # escritorio en Chromium con backend falso por intercepción: colocación que esquiva el chat abierto,

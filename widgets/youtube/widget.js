@@ -25,6 +25,10 @@ function injectStyles(){
     border:1px solid rgba(240,170,20,.35);border-radius:8px;padding:6px 9px;margin:2px 0 4px}
   .hb-yt-frame{position:relative;width:100%;aspect-ratio:16/9;border-radius:12px;overflow:hidden;
                background:#000;flex:0 0 auto}
+  /* V2-638 - a library or torrent row plays in a plain <video>, filling the same frame the embed does so
+     the player looks identical whatever the source. object-fit:contain letterboxes rather than crops: a
+     film in the wrong aspect must not lose its edges. */
+  .hb-yt-video{position:absolute;inset:0;width:100%;height:100%;background:#000;object-fit:contain}
   /* V2-636 - the PLAYER tab is a flex column that FILLS the card: the frame takes every spare pixel
      (YouTube letterboxes inside the iframe) and the control bar below stays pinned and visible at ANY
      card size - the operator grew the card and the buttons were CLIPPED under its bottom edge. The
@@ -304,10 +308,28 @@ function startListening(iframe){
   try{ iframe.contentWindow.postMessage(JSON.stringify({event:"listening", id:"hb-youtube", channel:"widget"}), "*"); }catch(_){}
 }
 
-function post(iframe, func, args){
+// The ONE funnel every control path goes through (applyState, applyCmd, applyCaptions and the render tail).
+// V2-638 — it now speaks to a plain <video> as well as to the YouTube embed, translating the IFrame API's
+// vocabulary into media-element operations. Teaching the funnel instead of the five call sites is what keeps
+// local/torrent playback from needing a parallel copy of every control (the V2-539 "wire both channels" trap,
+// avoided by having only one wire): pause, volume, seek and the queue jump all work unchanged.
+function post(target, func, args){
   try{
-    if(!iframe || !iframe.contentWindow) return;
-    iframe.contentWindow.postMessage(JSON.stringify({event:"command", func:func, args:args||[]}), "*");
+    if(!target) return;
+    if(String(target.tagName || "").toLowerCase() === "video"){
+      const a = args || [];
+      if(func === "playVideo"){ const p = target.play(); if(p && p.catch) p.catch(function(){}); }
+      else if(func === "pauseVideo") target.pause();
+      else if(func === "mute") target.muted = true;
+      else if(func === "unMute") target.muted = false;
+      else if(func === "setVolume") target.volume = Math.max(0, Math.min(100, Number(a[0]) || 0)) / 100;
+      else if(func === "seekTo") target.currentTime = Math.max(0, Number(a[0]) || 0);
+      // loadModule/unloadModule are captions: a local file carries no track list we can switch, so there is
+      // nothing honest to do — silently ignored rather than faked.
+      return;
+    }
+    if(!target.contentWindow) return;
+    target.contentWindow.postMessage(JSON.stringify({event:"command", func:func, args:args||[]}), "*");
   }catch(_){}
 }
 
@@ -669,22 +691,30 @@ export function render(root, data, ctx){
   const seq = Number(data.cmd_seq || 0);
   const loading = !!data.loading;
   const st = root._hbYt || null;
+  // V2-638 — a row can come from three places. `local`/`torrent` play through a plain <video src> (our own
+  // library route, or the piece-aware torrent route while it still downloads); everything else is the embed.
+  // The rebuild key covers BOTH: two different local files both carry videoId "", so keying on the id alone
+  // would keep the first one mounted forever.
+  const src = String(data.src || "");
+  const isStream = !!src && (data.source === "local" || data.source === "torrent");
+  const pkey = isStream ? ("s:" + src) : ("y:" + id);
+  const hasVid = !!id || isStream;
 
   // (Re)build the card when the video changes, or when entering/leaving "searching" state (real bug 2026-07-23:
   // without this the card looked COMPLETELY empty while load searched YouTube, with no signal).
-  if(!st || st.id !== id || st.loading !== loading || !root._hbYtBuilt){
+  if(!st || st.key !== pkey || st.loading !== loading || !root._hbYtBuilt){
     root.className = "hb-yt";
     root.textContent = "";
     // HOME vs PLAYER (V2-596): with no video loaded the card IS the home catalog; with one, the nav button
     // under the card header switches views WITHOUT unmounting the iframe (audio keeps playing while browsing —
     // remounting would cut it, the same reason the mobile Deck hides instead of unmounting).
-    if(id) root.classList.add("hb-yt-hasvid");
+    if(hasVid) root.classList.add("hb-yt-hasvid");
     // V2-632 — default tab: a video on screen means the player; nothing loaded means the dashboard. A tab the
     // operator already chose this page-life survives the rebuild (module-lived, like _screen) — EXCEPT that a
     // video ARRIVING on a card that had none jumps to the player: «ponme el vídeo de X» means watching it,
     // and leaving the dashboard up while it plays underneath is the confusion the redesign exists to end.
-    if(!_tab) _tab = id ? "player" : "inicio";
-    if(id && st && !st.id && !loading) _tab = "player";
+    if(!_tab) _tab = hasVid ? "player" : "inicio";
+    if(hasVid && st && !st.key.slice(2) && !loading) _tab = "player";
     applyTabClass(root);
 
     const nav = el("div", "hb-yt-nav");
@@ -739,12 +769,30 @@ export function render(root, data, ctx){
 
     const frame = el("div", "hb-yt-frame");
     let iframe = null;
+    let video = null;
     let unmuteHint = null;
     if(loading){
       const box = el("div", "hb-yt-loading");
       box.appendChild(el("div", "hb-yt-spin"));
       box.appendChild(el("div", "", data.loading_query ? `Buscando «${data.loading_query}»…` : "Buscando…"));
       frame.appendChild(box);
+    } else if(isStream){
+      // V2-638 — a file we hold (library) or one still arriving (torrent). Same element either way: the
+      // difference is only which route serves the bytes, and both answer Range, so seeking works on both.
+      // The src is set ONCE here and never re-assigned on a re-render (the V2-124/4.19 rule) — the rebuild
+      // key above is what changes it, by rebuilding the card.
+      video = document.createElement("video");
+      video.className = "hb-yt-video";
+      video.controls = true;
+      video.playsInline = true;
+      video.preload = "metadata";
+      video.title = data.title || "";
+      // Our own routes only — never an arbitrary origin (the mensajeria boundary, V2-620).
+      if(src.startsWith("/api/library/") || src.startsWith("/api/torrent/")) video.src = src;
+      if(!data.paused && !halted(ctx)){ try{ video.play().catch(function(){}); }catch(_){} }
+      const c1 = ctx;
+      video.addEventListener("ended", function(){ try{ c1.action("ended"); }catch(_){} });
+      frame.appendChild(video);
     } else if(id){
       iframe = document.createElement("iframe");
       iframe.title = data.title || "YouTube";
@@ -841,9 +889,9 @@ export function render(root, data, ctx){
     addRow.appendChild(addInp); addRow.appendChild(addBtn);
     root.appendChild(addRow);
 
-    root._hbYt = { id: id, seq: seq, loading: loading };   // "load" is already covered by new src → do not re-post as command
+    root._hbYt = { id: id, key: pkey, seq: seq, loading: loading };   // "load" is already covered by new src → do not re-post as command
     root._hbYtBuilt = true;
-    root._hbYtEls = { iframe: iframe, title: title, meta: meta, blockMsg: blockMsg, vol: vol,
+    root._hbYtEls = { iframe: iframe, video: video, title: title, meta: meta, blockMsg: blockMsg, vol: vol,
                       muteBtn: muteBtn, playBtn: playBtn, unmuteHint: unmuteHint,
                       listBox: listBox, home: home, blockedLine: blockedLine, dots: dots, conn: conn,
                       subsBox: subsBox, listsBox: listsBox };
@@ -852,6 +900,9 @@ export function render(root, data, ctx){
   // Dynamic refresh on EVERY render (title, verifiable metadata, mute-toggle button, volume).
   const E = root._hbYtEls || {};
   root._hbYtData = data;
+  // V2-638 — the control sites below address whichever player is mounted: a <video> for a library or
+  // torrent row, the YouTube embed otherwise. `post` speaks both, so nothing else has to branch.
+  const PL = E.video || E.iframe;
   // Tab chrome per render: the Cola tab wears its count, the active tab wears .on (V2-632).
   if(root._hbYtTabBtns){
     const nQ = Array.isArray(data.list) ? data.list.length : 0;
@@ -957,14 +1008,14 @@ export function render(root, data, ctx){
     E.muteBtn.onclick = () => {
       // Direct `post` (does not go through the server: it is the REAL click that unlocks browser audio) is also gated
       // — otherwise, with the agent stopped, this button would make the video play through the back door.
-      if(data.muted && !halted(ctx)){ post(E.iframe, "unMute", []); post(E.iframe, "setVolume", [vol0]); }
+      if(data.muted && !halted(ctx)){ post(PL, "unMute", []); post(PL, "setVolume", [vol0]); }
       if(ctx && ctx.action) ctx.action(data.muted ? "unmute" : "mute");
     };
   }
   if(E.unmuteHint){
     E.unmuteHint.style.display = data.muted ? "flex" : "none";
     E.unmuteHint.onclick = () => {
-      if(!halted(ctx)){ post(E.iframe, "unMute", []); post(E.iframe, "setVolume", [vol0]); }
+      if(!halted(ctx)){ post(PL, "unMute", []); post(PL, "setVolume", [vol0]); }
       if(ctx && ctx.action) ctx.action("unmute");
     };
   }
@@ -1239,7 +1290,7 @@ export function render(root, data, ctx){
 
   // Apply the last command if the counter advanced (same video; video changes are covered by the new src).
   if(seq !== root._hbYt.seq){
-    applyCmd(E.iframe, data, ctx);
+    applyCmd(PL, data, ctx);
     root._hbYt.seq = seq;
   }
 }
