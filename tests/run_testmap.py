@@ -1160,9 +1160,17 @@ DOMAINS: list[dict] = [
         # (respuesta, say(), relleno, aviso proactivo). Aquí van las DOS mitades —lo que arregla y lo que
         # tiene que dejar en paz (una IP, una fecha, una hora, una versión)— más la costura de streaming: el
         # nodo recibe TROZOS, así que «151.» + «008 €» no lo ve ninguna regex si nadie retiene la cola.
+        # V2-649 — la otra mitad del mismo cuello de botella, medida en la sesión 653f8346 (2026-09-10): el
+        # cliente de torrent rechazó un .mkv y su negativa NOMBRABA el fichero, así que la voz dijo
+        # «Minions.and.Monsters.2026.1080p.WEBRip.AAC5.1.10bits.x265-Rapta.mkv» tres veces, punto a punto.
+        # El nombre es un HECHO y el chat lo quiere exacto, así que se arregla donde ya viven las cifras. A
+        # diferencia de ellas es AGNÓSTICO DEL IDIOMA (`.mkv` es `.mkv` en todos), y la mitad que lo hace
+        # seguro es lo que se niega a tocar: un dominio, una IP, una versión, una fecha, una hora.
         {"id": "3.20", "title": "Las CIFRAS se dicen como se dicen: separador de millares, decimales y símbolos "
-                                "de moneda, sin tocar una IP ni una fecha",
-            "ch": UNIT, "paths": ["tests/voice/unit/test_say_numbers.py"]},
+                                "de moneda, sin tocar una IP ni una fecha — y un NOMBRE DE FICHERO se dice "
+                                "como un título, no letra a letra",
+            "ch": UNIT, "paths": ["tests/voice/unit/test_say_numbers.py",
+                                  "tests/voice/unit/test_say_names.py"]},
         # V2-633 — measured live (session 6c715232): the operator's rule «al recibir órdenes no responder nada»
         # was set and persisted, and «Reproduce el vídeo» still got «Déjame ver…» + «Hecho.» — three engine
         # mouths (fast-lane ack, never-mute backstops, lead-in filler) spoke without consulting any rule. The

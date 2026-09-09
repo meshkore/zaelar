@@ -30,6 +30,8 @@ from __future__ import annotations
 
 import re
 
+from voice.engine.speech import say_names
+
 # Per language: which char groups thousands, which one decimates, and how each symbol is SAID.
 # `one` is used only for an exact «1» — «1,50 €» stays plural, which is what a person says.
 _LANG: dict[str, dict] = {
@@ -83,9 +85,20 @@ def _fix_symbols(text: str, symbols: dict[str, tuple[str, str]]) -> str:
 
 
 def speakable(text: str, lang: str) -> str:
-    """The spoken form of `text`. Unknown language → returned untouched (see the module docstring)."""
+    """The spoken form of `text`. An unknown language still gets the NAMES pass (see below)."""
+    if not text:
+        return text
+    # Names first, and that order is load-bearing: a release name is full of digit runs («2026.1080p»,
+    # «AAC5.1») that the figure regexes would otherwise be handed as if they were money.
+    try:
+        text = say_names.speakable_names(text)
+    except Exception:
+        pass
+    # ⚠️ The figure half is parameterised by language and MUST leave an unknown one alone (a "1.500" it
+    # cannot place is either fifteen hundred or one point five). The name half has no such doubt — `.mkv` is
+    # `.mkv` in every language — so it runs above this gate, not under it.
     spec = _LANG.get((lang or "").split("-")[0].lower())
-    if not spec or not text:
+    if not spec:
         return text
     try:
         return _fix_symbols(_fix_numbers(text, spec["group"], spec["decimal"]), spec["symbols"])
@@ -109,11 +122,15 @@ _TAIL_RE = re.compile(r"(?:[€$£¥%]\s?)?\d[\d.,]*(?:\s?[€$£¥%])?\s?$|[€
 
 
 def safe_cut(buf: str) -> int:
-    """Index up to which `buf` can be emitted now; the rest may still be the head of a figure."""
+    """Index up to which `buf` can be emitted now; the rest may still be the head of a figure OR a name."""
+    cut = len(buf)
     m = _TAIL_RE.search(buf)
-    if not m or len(buf) - m.start() > _MAX_HOLD:
-        return len(buf)
-    return m.start()
+    if m and len(buf) - m.start() <= _MAX_HOLD:
+        cut = m.start()
+    name = say_names.hold_start(buf)
+    if name is not None:
+        cut = min(cut, name)               # the EARLIER hold wins: whatever is still growing must stay whole
+    return cut
 
 
 async def stream(source, lang: str):
