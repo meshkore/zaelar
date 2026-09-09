@@ -300,10 +300,22 @@ export async function start() {
     // and obeying history here tears down the startup the operator just asked for and leaves ⏻ stuck amber. The
     // ordering in Orb.js now makes that race rare; this makes it harmless — the command can also arrive from
     // ANOTHER tab, which no ordering here can prevent.
+    // V2-627 adds the OTHER half of the same rule: a snapshot is also history when the operator's ⏻ ON is
+    // still IN FLIGHT. `powerCmdAt` only catches a command that arrives after we asked; the press that starts
+    // the agent stamps itself BEFORE, so this reply — taken while `POST /api/run/start` was still travelling —
+    // would report the state the operator is in the middle of changing, and tearing the startup down here is
+    // what made him press ⏻ twice. main.js keeps other roads out of this window; this keeps the window honest
+    // even for a start that got in.
     const askedAt = Date.now();
     const rs = await api.runState();
-    if (store.powerCmdAt() > askedAt) { /* the operator commanded LATER: this snapshot is history */ }
+    if (store.powerCmdAt() > askedAt || store.powerOnPending()) { /* the operator's command wins: this is history */ }
     else if (rs && rs.running === false) {
+      // The abort used to be SILENT — the operator saw the ⏻ shade and go dark with nothing anywhere to say
+      // why, and it took reading his observability log to find it. It is a legitimate outcome (a fresh tab
+      // over a stopped agent), so it is not an error; but it is a DECISION, and a decision nobody can see is
+      // the one that costs a session to diagnose.
+      console.warn("[zaelar] voice startup refused: the server says the agent is STOPPED (⏻ off)");
+      api.uiEvent("voice:refused", { reason: "server_stopped", src: "frontend" });
       store.setPowerOff(true); store.setMicMuted(true); store.setBotMuted(true);
       starting = false; store.setStarting(false); store.setConnState("—");
       if (!_everBooted) _unblockBoot();   // don't leave the UI stuck on the splash: there's nothing to wait for

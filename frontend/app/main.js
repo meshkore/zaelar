@@ -145,7 +145,19 @@ session.startVisuals({ orbCanvas: $("#orb"), vizCanvas: $("#viz") });
 // and re-arms after Reset. ONE exception (V2-039 «ojo»): the ⏻ power icon on the orb's upper lid — an EXPLICIT,
 // persisted operator off (store.powerOff) that this auto-connect must respect, or the very click on ⏻ would
 // re-arm the session it just stopped. To just silence zaelar keep using 🔊 (mute; agent keeps running).
-function ensureVoice() { if (store.powerOff()) return; if (!store.started() && !store.starting()) session.start().catch(() => {}); }
+// V2-627 — the second guard is the ⏻ ON HANDOFF. `ensureVoice` is reached from three roads (boot, every
+// pointerdown, and the effect that watches `powerOff` drop), and one of them fires INSIDE the ⏻ click itself:
+// `setPowerOff(false)` flips the flag synchronously, the effect below runs, and this would start a session
+// while `POST /api/run/start` is still travelling. The server, asked by that session's own ⏻ gate, still
+// answers STOPPED — so the startup aborts, sets `powerOff` back to true, and the operator has to press ⏻ a
+// SECOND time (measured on his log, 2026-09-09 11:59:33 → `starting`, `off`, and a second `orb:power` five
+// seconds later). While the command is in flight the click owns the startup; it calls `session.start()` itself
+// once the server has confirmed. Idempotency was never the issue — ORDER was.
+function ensureVoice() {
+  if (store.powerOff()) return;
+  if (store.powerOnPending()) return;
+  if (!store.started() && !store.starting()) session.start().catch(() => {});
+}
 // Real bug 2026-07-24 (operator report: "does not progress from Starting to zaelar…"): with ⏻ off from a previous
 // session (persisted in localStorage), `ensureVoice()` NEVER calls `session.start()` — and `start()` is the
 // only place that arms the safety timer and calls `_unblockBoot()`. Without it, `store.bootReady()` stays

@@ -1503,6 +1503,15 @@ DOMAINS: list[dict] = [
         # la voz esperaba al siguiente `pointerdown`. Un estado que solo se arregla recargando es el que miente.
         {"id": "4.91", "title": "⏻ ON arranca de verdad: el servidor primero, y la voz vuelve sin recargar",
             "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_power_on_brings_the_voice_up.py"]},
+        # V2-627 (2026-09-09): y AUN ASÍ hacían falta DOS pulsaciones. Los dos arreglos del nodo de arriba son
+        # del MISMO día y se estorban: `setPowerOff(false)` corre síncrono dentro del clic, así que el efecto
+        # que revive la voz arranca una sesión ANTES de que salga `POST /api/run/start`; esa sesión pregunta al
+        # servidor, se le dice PARADO (cierto, por unos milisegundos), aborta y devuelve `powerOff` a true.
+        # Lo cazó su propia observabilidad: dos `orb:power on` seguidos con un `off` entre medias. La máquina de
+        # estados del traspaso se prueba cargando el `core/store.js` REAL en Chromium; el cableado, por texto.
+        {"id": "4.136", "title": "⏻ ON a la PRIMERA: mientras la orden viaja, el clic es dueño del arranque "
+                                 "(y una respuesta que no llega caduca sola)",
+            "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_the_power_handoff_is_not_a_race.py"]},
         # V2-537 (2026-09-01): el mural. Un widget nuevo aterrizó DEBAJO del chat flotante (z 9001, encima del
         # tope 8000 de las tarjetas por diseño) y el operador no tenía forma de saber que existía. Renderiza el
         # escritorio en Chromium con backend falso por intercepción: colocación que esquiva el chat abierto,

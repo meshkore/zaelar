@@ -470,6 +470,29 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **⏻ ON took two presses: two right fixes from the same day, racing (V2-627, 2026-09-09)**: the operator
+  reported that the first press on a stopped agent «se sombrea un poco pero no arranca». His own observability
+  had it — `orb:power on`, `agent:state starting`, `agent:state off`, all in the same second, and a SECOND
+  `orb:power on` five seconds later (two consecutive `on` is the proof that `powerOff` had gone back to true).
+  Cause: the 2026-08-31 pair. Orb.js was sequenced server-first (`runStart().then(session.start)`), and
+  main.js gained an effect that revives the voice when `powerOff` drops from outside this tab — but
+  `setPowerOff(false)` runs SYNCHRONOUSLY inside the click, so that effect started a session before
+  `POST /api/run/start` was even sent; its ⏻ gate asked the server, was told STOPPED (true for a few more
+  ms), aborted and set `powerOff` back to true, and the click's own `start()` then found `starting` still
+  true and no-opped. The ordering fix was bypassed, not broken. Fix: a HANDOFF (`store.powerOnAt`) — while a
+  ⏻ ON is in flight the click owns the startup and no other road may open a session; the guard lives INSIDE
+  `ensureVoice`, so all three of its roads (boot, `pointerdown`, the effect) are covered at once, and the
+  gate treats an in-flight ⏻ ON as history too. A TIMESTAMP with a 15 s expiry, never a boolean: a reply that
+  never comes must not wedge the voice shut. Counterweight (a regression the fix could have introduced): EVERY
+  press drops the handoff before branching and only ON takes it again — ON then OFF inside the window would
+  otherwise have let the ON's still-scheduled `then(...)` bring the voice up over an agent just stopped. Two observability changes ship with it — every ⏻ press names
+  itself and the state it was pressed in (`[zaelar] ⏻ ON — agent was off`, his request), and **the gate's
+  abort stopped being silent** (`console.warn` + `voice:refused` on the server timeline): it is a legitimate
+  outcome, but an invisible decision is the expensive kind. Node **4.136** — the handoff state machine is
+  exercised by loading the REAL `core/store.js` in Chromium (it depends only on `reactive.js` and
+  `localStorage`), the wiring is structural like its neighbour 4.91; six disarms red. Detail: the V2-627
+  initiative.
+
 - **Choosing a channel is ONE state transition, not a filter assignment (V2-626, 2026-09-09)**: the operator
   asked for his mail; the email dot lit and the WhatsApp connector screen stayed underneath it. `render()`
   applied a pushed view by assigning `_platFilter` alone, while the body is gated on

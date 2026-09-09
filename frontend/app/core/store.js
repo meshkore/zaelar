@@ -58,6 +58,20 @@ export const setPowerOff = (off) => { setPowerOffRaw(off); localStorage.setItem(
 export const [powerCmdAt, setPowerCmdAt] = createSignal(0);
 export const markPowerCommand = () => setPowerCmdAt(Date.now());
 
+// ⏻ ON IS IN FLIGHT (V2-627, 2026-09-09, measured on the operator's own log): between `setPowerOff(false)` and
+// `POST /api/run/start` landing, the server still says STOPPED — and anything that starts the voice session in
+// that gap dies against `session-lk.js`'s own ⏻ gate, which reads that stale truth and puts `powerOff` back to
+// true. It took TWO presses to turn the agent on. The starter of that ghost session was not the click (Orb.js
+// has sequenced `runStart().then(session.start)` since 2026-08-31) but the effect added the SAME day to revive
+// the voice when `powerOff` drops from outside this tab: it fires the instant the flag flips, synchronously,
+// inside the click itself. Both fixes were right; together they raced.
+// While this window is open the ⏻ click OWNS the startup and no other road may open a session. It is a
+// TIMESTAMP, not a boolean, so it can never wedge the voice shut: an answer that never comes expires by itself.
+export const [powerOnAt, setPowerOnAt] = createSignal(0);
+export const markPowerOnPending = () => setPowerOnAt(Date.now());
+export const clearPowerOnPending = () => setPowerOnAt(0);
+export const powerOnPending = () => { const t = powerOnAt(); return t > 0 && (Date.now() - t) < 15000; };
+
 // ⏻ PAUSING (V2-092 addenda, 2026-08-15): a stop requested while a turn's model call is REALLY in flight
 // (`nucleo/runstate.py`'s `_inflight`) doesn't cut anything mid-way — it's DEFERRED until that turn ends on its
 // own, never on a timer. Meanwhile the agent keeps genuinely running underneath (nothing has been frozen): this

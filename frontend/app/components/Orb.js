@@ -142,10 +142,22 @@ export function Orb() {
         title: () => t("orb.power_" + store.agentState()),
         onClick: () => {
           const off = !store.powerOff();
+          // V2-627, the operator's own request: say it out loud on every press. `orb:power` already reaches
+          // the server's timeline, but that is a place you have to go and read; when he reports "I pressed it
+          // and nothing happened", the first question is whether the press even ran, and the console answers
+          // that without a round trip. The agent's state at the moment of the press is what makes the line
+          // worth anything — «⏻ ON — agent was off» next to a startup that never arrives is the whole report.
+          console.info("[zaelar] ⏻ " + (off ? "OFF" : "ON") + " — agent was " + store.agentState());
           // Stamp the command BEFORE applying it: from here on, any server reconciliation that went to fetch the
           // state before this instant is holding a stale snapshot and must stay quiet (see store.js and the
           // seeding in main.js). Without this, a cold start tore down the session just asked for.
           store.markPowerCommand();
+          // V2-627 — a NEWER press supersedes an older one, handoff included. Without this, pressing ON and
+          // then OFF inside the 15 s window left the stamp up, and the ON's own `runStart().then(...)` (still
+          // scheduled) would have brought a voice session up over an agent the operator had just stopped —
+          // with the ⏻ gate, told to treat the window as history, waving it through. The ON branch below
+          // takes the handoff again; every other path leaves it down.
+          store.clearPowerOnPending();
           store.setPowerOff(off);
           if (off) {
             // V2-066 (2026-07-24, explicit operator request after a real failure: "the main button must block
@@ -190,7 +202,15 @@ export function Orb() {
             // Turning on CONTINUES frozen work (SIGCONT) but does NOT resume widgets: putting the music or the
             // video back on is the operator's gesture, not a consequence of powering on (deliberate asymmetry,
             // see nucleo/runstate.py).
+            // V2-627 — and the ordering has to HOLD, not just be written: `setPowerOff(false)` above already
+            // woke main.js's «power came back» effect synchronously, inside this very click, and that road
+            // started a session against a server that had not been told yet. The handoff stamp closes the
+            // window: while it is up, no other road opens a session, and this click starts it once the server
+            // has answered. `api.runStart()` swallows its own errors, so this `then` always runs — and the
+            // stamp expires on its own anyway, so a reply that never arrives cannot wedge the voice shut.
+            store.markPowerOnPending();
             api.runStart().then(() => {
+              store.clearPowerOnPending();
               store.fetchTasks();
               try { session.start(); } catch (_) {}
             });
