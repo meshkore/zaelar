@@ -1292,6 +1292,13 @@ DOMAINS: list[dict] = [
         {"id": "3.13", "title": "Refuerzo de términos del STT: los topónimos que nova-3 destroza, y una lista que "
                                 "no puede crecer hasta dejar el motor sordo",
             "ch": VOICE, "paths": ["tests/voice/unit/test_stt_gazetteer.py"]},
+        # V2-640 — «¿sigues ahí?» es un toque en la puerta, no un encargo: se contesta al instante y sin
+        # modelo (carril de presencia, espejo en probe), y el intercambio queda en la ventana igualmente.
+        # Nació de la sesión 19:27 (sid 1674ee35): el toque armaba un «Déjame ver…» y la conversación
+        # entera se volvió de besugos.
+        {"id": "3.24", "title": "El toque de presencia se contesta al instante y sin modelo — y solo si la "
+                                "frase ENTERA es el toque (con carga cae al modelo)",
+            "ch": UNIT, "paths": ["tests/voice/unit/test_presence_fast_lane.py"]},
     ]},
     {"id": "4", "name": "WIDGETS", "nodes": [
         {"id": "4.1", "title": "Ciclo de vida / acciones / refs / generador / background", "ch": UNIT, "paths": [
@@ -1719,6 +1726,16 @@ DOMAINS: list[dict] = [
                                  "add_task, digest con detalles, y el widget en el idioma del operador",
             "ch": UNIT, "paths": ["tests/browser/unit/agenda/test_the_agenda_answers_to_the_voice.py",
                                   "tests/browser/unit/agenda/test_the_agenda_dresses_in_the_operators_language.py"]},
+        # V2-641 — el fondo de escritorio es una PROPIEDAD HABLADA: «usa la número 3» viste el escritorio.
+        # Lo que solo un navegador mide: que la URL de la cuenta PINTA en un navegador virgen (reconcile del
+        # boot), el scrim que mantiene legible el escritorio sobre cualquier foto, y que limpiar no deja nada.
+        # La URL acaba en un url("…") de CSS en cada cliente → el saneador de config/settings.py es costura
+        # de seguridad y se mide aquí también.
+        {"id": "4.141", "title": "El escritorio viste un fondo por voz: pinta en navegador virgen, scrim "
+                                 "legible, limpiar lo borra — y solo URLs limpias sobreviven",
+            "ch": UNIT,
+            "paths": ["tests/browser/e2e/widgets/test_the_desktop_wears_a_wallpaper.py",
+                      "tests/infrastructure/unit/test_the_wallpaper_survives_only_clean_urls.py"]},
         # V2-540 — la DIRECCIÓN de una acción del canvas. «El botón de ver detalle no es clic»: estaba cableado,
         # pintado y activo. Lo roto era a QUÉ hoja iba. `desktop.js::ctx.action` mete la instancia abierta en
         # cada payload con el nombre que usa el canvas —`q`— y `results.apply_action` solo miraba `sheet`, una
