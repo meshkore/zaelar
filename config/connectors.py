@@ -35,6 +35,11 @@ _DEFAULTS = {
     # V2-083: the Architect daemon token lives HERE (dynamic store), NOT in .env — configurable/revocable from the
     # Connectors tab. Optional `url` (default loopback). `token` is SECRET (redacted to the frontend).
     "architect": {"enabled": False, "token": "", "url": ""},
+    # V2-638: the embedded torrent client. The ONLY connector shipped enabled by DEFAULT (operator's rule) —
+    # it needs no credential and no account, so there is nothing to set up and hiding it would just make the
+    # feature invisible. Turning it OFF is a real need he named: it is the one connector that can saturate a
+    # line, so someone on a metered or shared connection must be able to stop it consuming data outright.
+    "torrent": {"enabled": True},
 }
 # Keys that are NEVER returned to the frontend (replaced by a `<key>_set` boolean). Privacy fail-safe.
 _SECRET_KEYS = {"api_hash", "email_password", "token"}
@@ -80,11 +85,20 @@ def set(platform: str, patch: dict) -> dict:
 
 
 def enabled(platform: str) -> bool:
-    """Is the connector enabled? The store WINS; if it says nothing, fall back to env var (back-compat / power-user)."""
+    """Is the connector enabled? Store WINS → env var (back-compat / power-user) → the DECLARED default.
+
+    That last step was missing until V2-638 and it silently contradicted `_DEFAULTS`: `enabled()` read only the
+    store and an env var, so a connector declared `{"enabled": True}` answered False on every install where
+    nobody had written the store yet — i.e. every fresh one. It went unnoticed because all four connectors that
+    existed defaulted to False, which is also what the env fallback returns when unset; the first connector
+    shipped ON (the torrent client) is the one that exposed it. `get()` has always merged `_DEFAULTS`, so this
+    only makes the two agree."""
     v = _read().get(platform, {}).get("enabled")
     if v is not None:
         return bool(v)
-    return os.getenv(_ENABLED_ENV.get(platform, ""), "0") == "1"
+    if os.getenv(_ENABLED_ENV.get(platform, ""), "") == "1":
+        return True
+    return bool(_DEFAULTS.get(platform, {}).get("enabled", False))
 
 
 def public(platform: str) -> dict:

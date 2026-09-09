@@ -4,5 +4,18 @@
   "style": {
     "confirm_short_actions": false,
     "fillers": "smart"
+  },
+  "library": {
+    "_comment": "The agent's OWN filesystem (V2-638). One root, a folder per kind of thing. These are the FACTORY defaults; the operator renames a folder or moves the root by saying so, and the override lands in <workspace>/config/library.json. Every widget reads paths from here instead of inventing its own — that is the whole point.",
+    "root": "library",
+    "folders": {
+      "video": "video",
+      "audio": "audio",
+      "documents": "documents",
+      "images": "images",
+      "downloads": "downloads"
+    },
+    "guide": "Video and films go in video/, music and any audio in audio/, papers, books and PDFs in documents/, pictures in images/. downloads/ is the torrent client's own sandbox — it writes there and nowhere else; a finished file is filed into its folder by kind.",
+    "browser_playable_only": true
   }
 }

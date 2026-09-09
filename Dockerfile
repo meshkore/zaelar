@@ -61,6 +61,7 @@ COPY config ./config
 COPY frontend ./frontend
 COPY i18n ./i18n
 COPY observability ./observability
+COPY library ./library
 # update/ (V2-553) — the update channel. It carries `update/BUILD`, the ONE version number a user is
 # ever shown, and this COPY is the only way that number reaches production: there is no `.git` inside
 # the image, so `version.sha()` is "nogit" here and the file is the sole surviving source of truth.

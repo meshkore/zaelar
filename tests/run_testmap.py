@@ -2819,6 +2819,19 @@ DOMAINS: list[dict] = [
                                 "sin permisos de administrador",
             "ch": UNIT,
             "paths": ["tests/infrastructure/unit/daemon/test_the_daemon_can_be_built_and_installed.py"]},
+        # V2-638 — EL SISTEMA DE ARCHIVOS DEL AGENTE: un solo árbol que comparten todos los widgets, en vez de
+        # que cada uno guarde en su rincón. Lo que se fija, por orden de daño: la FRONTERA (`paths.resolve()` es
+        # la única puerta y toda ruta que llega es no fiable — magnet, salida del modelo, query string; una
+        # absoluta se RECHAZA, y un symlink plantado DENTRO tampoco saca a nadie fuera), la POLÍTICA de formatos
+        # (por defecto solo se trae lo que el navegador reproduce, con la salida explícita `keep` para el caso
+        # del pendrive) —que además corrige el defecto de V2-637, donde .mkv/.avi contaban como reproducibles—,
+        # el layout génesis+override (renombrar una carpeta no resetea las otras, y un nombre no puede mudar la
+        # biblioteca), y el interruptor del cliente de descargas, incluido el fallo de `enabled()` que ignoraba
+        # los `_DEFAULTS` declarados y dejaba en False a todo conector que se enviara ENCENDIDO.
+        {"id": "7.42", "title": "El sistema de archivos del agente: una frontera que nadie cruza, y solo se "
+                                "descarga lo que el navegador sabe reproducir",
+            "ch": UNIT,
+            "paths": ["tests/infrastructure/unit/core/test_the_agents_own_filesystem.py"]},
         # 2026-09-04 — LA NUBE, por lo único que se puede comprobar sin gastar dinero ni dejar una cuenta detrás:
         # `my.zaelar.com` es un BORDE de ruteo, y sin cookie de sesión cae a la «entrada inteligente» que manda al
         # visitante al motor de su propio ordenador. Eso es lo que ve cualquiera que escriba la dirección, y falla

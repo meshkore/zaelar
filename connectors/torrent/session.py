@@ -17,9 +17,10 @@ import os
 import threading
 import time
 
-# Only the extensions a browser <video> can actually play; the largest matching file in the torrent is the one
-# we stream (a release folder is padded with samples, .nfo, .srt — never the feature).
-_VIDEO_EXTS = (".mp4", ".m4v", ".webm", ".mov", ".mkv", ".avi", ".ogv")
+# What counts as "the file we came for" is decided by `library.formats`, never by a list kept here — this
+# module had its own copy in V2-637 and it was WRONG (`.mkv`/`.avi` were listed as playable video; no
+# mainstream browser decodes either), which could pick a file the player was structurally unable to show.
+# One table, in the module that owns the question.
 
 _lock = threading.RLock()
 _session = None            # the one libtorrent.session, or None until first use / when unavailable
@@ -48,12 +49,13 @@ def import_error() -> str:
 
 
 def _downloads_dir() -> str:
-    """Where the payload lands — under the widget's own store dir, which is a DECLARED workspace root
-    (`widgets/_data`, workspace.SUBDIRS), so a fresh cloud Volume already has somewhere to put it."""
-    from widgets import store
-    base = os.path.join(store.data_dir("torrent"), "downloads")
-    os.makedirs(base, exist_ok=True)
-    return base
+    """The client's SANDBOX — `library/downloads/`, and nothing else, ever (operator's isolation rule).
+
+    It is the agent's own filesystem (V2-638), so a finished file is reachable by every widget instead of
+    being trapped in one widget's private store, which is where V2-637 first put it. Filing it onto its shelf
+    (video/, audio/, documents/) is OUR move afterwards — this client never needs a path outside its sandbox."""
+    from library import paths
+    return str(paths.downloads_dir())
 
 
 def _get_session():
@@ -74,14 +76,42 @@ def _get_session():
         return _session
 
 
-def _pick_video_file(ti) -> int:
-    """The index of the largest playable file, or -1 if the torrent carries no video."""
+def _pick_file(ti, want: str = "media", keep: bool = False) -> int:
+    """Index of the file we came for: the LARGEST one matching `want` that policy allows, or -1.
+
+    Largest, because a release folder is padded with samples, .nfo and .srt and the feature is always the big
+    one. `want` is the SHELF asked for (`video`/`audio`/`document`, or `media` for either of the first two,
+    or `any`), which is what lets the same client serve the video widget, the music widget and a document
+    fetch. `keep` lifts the browser-playable default — the operator's explicit «I want the file itself» —
+    and is the only way an `.mkv` or an `.epub` is ever chosen."""
+    from library import formats
     fs = ti.files()
+    wanted = {"media": ("video", "audio"), "any": ("video", "audio", "document", "image", "other")}.get(
+        want, (want,))
     best, best_size = -1, -1
     for i in range(fs.num_files()):
-        name = fs.file_name(i).lower()
-        if name.endswith(_VIDEO_EXTS) and fs.file_size(i) > best_size:
+        name = fs.file_name(i)
+        if formats.kind_of(name) not in wanted:
+            continue
+        if not formats.allowed(name, keep=keep):
+            continue
+        if fs.file_size(i) > best_size:
             best, best_size = i, fs.file_size(i)
+    return best
+
+
+def _best_rejected(ti, want: str) -> str:
+    """The biggest file we DECLINED, so the refusal can name it and offer the way round (V2-638). A bare
+    «no reproducible» over a torrent that plainly holds the film reads as a broken client."""
+    from library import formats
+    fs = ti.files()
+    wanted = {"media": ("video", "audio"), "any": ("video", "audio", "document", "image", "other")}.get(
+        want, (want,))
+    best, best_size = "", -1
+    for i in range(fs.num_files()):
+        name = fs.file_name(i)
+        if formats.kind_of(name) in wanted and fs.file_size(i) > best_size:
+            best, best_size = name, fs.file_size(i)
     return best
 
 
@@ -92,8 +122,9 @@ def _hash_of(h) -> str:
         return str(h.info_hash())
 
 
-def add_magnet(magnet: str, *, metadata_timeout_s: float = 30.0) -> dict:
-    """Add a magnet, resolve its metadata, and set up to sequentially download ONLY the video file.
+def add_magnet(magnet: str, *, want: str = "media", keep: bool = False,
+               metadata_timeout_s: float = 30.0) -> dict:
+    """Add a magnet, resolve its metadata, and sequentially download ONLY the one file we came for.
 
     Returns `{"ok": True, "id": <info_hash>}` or `{"ok": False, "error": ...}`. Idempotent on the info hash:
     re-adding a magnet already present returns the existing id instead of a duplicate download."""
@@ -135,13 +166,20 @@ def add_magnet(magnet: str, *, metadata_timeout_s: float = 30.0) -> dict:
         return {"ok": False, "error": "no encontré fuentes para este torrent (nadie lo comparte)"}
 
     ti = h.torrent_file()
-    fidx = _pick_video_file(ti)
+    fidx = _pick_file(ti, want, keep)
     if fidx < 0:
         try:
             ses.remove_torrent(h)
         except Exception:  # noqa: BLE001
             pass
-        return {"ok": False, "error": "este torrent no contiene ningún vídeo reproducible"}
+        # NAME what was there and refused, with the way round it (V2-638). «No hay nada reproducible» over a
+        # torrent that plainly holds the film reads as a broken client; «es un .mkv, dime que lo guarde y te
+        # lo bajo» is the same fact with the door left open.
+        from library import formats
+        rejected = _best_rejected(ti, want)
+        if rejected and not keep:
+            return {"ok": False, "error": formats.refusal(rejected), "unplayable": rejected}
+        return {"ok": False, "error": "este torrent no contiene nada que encaje con lo que buscas"}
 
     # Download ONLY the chosen file: 0 = skip, 4 = normal. Sequential flag then delivers its pieces front-first.
     prio = [0] * ti.files().num_files()
@@ -223,6 +261,27 @@ def file_info(rid: str) -> dict:
     mime = {".mp4": "video/mp4", ".m4v": "video/mp4", ".webm": "video/webm", ".mov": "video/quicktime",
             ".mkv": "video/x-matroska", ".avi": "video/x-msvideo", ".ogv": "video/ogg"}.get(ext, "video/mp4")
     return {"ok": True, "size": int(fs.file_size(fidx)), "name": name, "mime": mime}
+
+
+def saved_path(rid: str) -> str:
+    """Absolute path of the file being downloaded, inside the sandbox. "" if unknown."""
+    rec = _record(rid)
+    if not rec:
+        return ""
+    h, fidx = rec["h"], rec["file"]
+    st = h.status()
+    if not st.has_metadata:
+        return ""
+    return os.path.join(st.save_path, h.torrent_file().files().file_path(fidx))
+
+
+def is_complete(rid: str) -> bool:
+    """Has the file we asked for finished? (Only the chosen file is wanted, so `total_wanted` is the ruler.)"""
+    rec = _record(rid)
+    if not rec:
+        return False
+    st = rec["h"].status()
+    return bool(st.has_metadata and st.total_wanted > 0 and st.total_wanted_done >= st.total_wanted)
 
 
 def _ensure_pieces(h, ti, fidx: int, offset: int, length: int, *, wait_s: float) -> bool:

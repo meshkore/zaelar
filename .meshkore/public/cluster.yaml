@@ -25,6 +25,21 @@ modules:
     path: server/
     description: >-
       FastAPI app + routers + module entrypoint (python -m server). Runs the LiveKit agent worker EMBEDDED in-process. HTTP: livekit_api (token + connect config + session.js swap), voice_api (voices/settings/status/events SSE), widgets, pages.
+  - id: library
+    path: library/
+    description: >-
+      The agent's OWN filesystem (V2-638) — one root under the workspace with a folder per kind (video/ audio/
+      documents/ images/ downloads/), shared by every widget instead of each inventing a private corner. The
+      layout ships in nucleo/genesis.json and the operator overrides it by saying so (renamed folder / moved
+      root / download policy → <workspace>/config/library.json, mtime-cached). paths.py owns the layout AND
+      resolve(), the single boundary-safe door (rejects absolutes, .., and symlinks escaping the root — every
+      path here arrives from a magnet payload, model output or a query string). formats.py answers what a file
+      IS and whether the BROWSER can play it, which is the default download policy the operator set: only bring
+      home what the page can play, unless he explicitly asks to keep the file (the pendrive case). index.py is
+      the normalized record a widget consumes (url/playable/kind/size) and files a finished download onto its
+      shelf. server_api.py serves /api/library/* — including the ONE stream route both players share, so the
+      video widget's <video> and the music widget's <audio> read local files from the same place. downloads/ is
+      the torrent client's sandbox: it writes there and nowhere else.
   - id: widgets
     path: widgets/
     description: >-
