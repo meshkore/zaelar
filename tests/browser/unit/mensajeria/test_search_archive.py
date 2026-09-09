@@ -52,6 +52,25 @@ def test_did_we_answer_it_is_a_direction_query():
     assert "reunión" in res["matches"][0]["body"]
 
 
+def test_did_we_answer_it_is_a_join_that_names_the_date():
+    _seed_school_month()
+    res = data.answer_action("search_archive", {"q": "comedor", "check_reply": True})["result"]
+    assert res["reply"] is not None, "an outgoing message in the same chat after the hit IS the answer"
+    assert len(res["reply"]["when"]) == 16 and "asistiré" in res["reply"]["body"]
+    assert "SÍ se contestó" in res["detail"] and res["reply"]["when"] in res["detail"]
+
+
+def test_an_unanswered_message_is_stated_not_invented():
+    _seed_school_month()
+    now = time.time()
+    archive.record("whatsapp", "g1", [
+        {"messageId": "w1", "from": "Marta", "body": "hay que pagar la excursión", "ts": now - 3 * 86400},
+    ], direction="in", chat_name="Familias 3ºB", is_group=True)
+    res = data.answer_action("search_archive", {"q": "excursión", "check_reply": True})["result"]
+    assert res["reply"] is None
+    assert "NO consta ninguna respuesta" in res["detail"], "absence is declared, never a guessed yes"
+
+
 def test_the_window_filters_and_text_walks_the_index():
     _seed_school_month()
     recent = data.answer_action("search_archive", {"sender": "valle", "since_days": 7})["result"]

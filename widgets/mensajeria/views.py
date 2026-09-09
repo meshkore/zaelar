@@ -245,8 +245,22 @@ def _search_archive_answer(payload: dict) -> dict:
     else:
         detail = (f"nada en el ARCHIVO casa con eso — cubre desde {coverage}; algo ANTERIOR a esa fecha no "
                   f"está guardado aquí (no se indexó el pasado), dilo en vez de afirmar que no existió")
-    return {"result": {"matches": matches, "count": len(matches),
-                       "archive_since": coverage, "detail": detail}}
+    result = {"matches": matches, "count": len(matches), "archive_since": coverage, "detail": detail}
+    # F2 — the answered state: «¿lo llegamos a contestar?» is a JOIN, never a memory. On request, the
+    # newest INBOUND match is checked for the first outgoing message in the same chat after its instant.
+    if payload.get("check_reply") and rows:
+        hit = next((r for r in rows if r.get("direction") == "in"), None)
+        if hit is not None:
+            rep = archive.replied(hit.get("platform"), hit.get("chat_id"), float(hit.get("ts") or 0))
+            if rep:
+                when = datetime.fromtimestamp(float(rep.get("ts") or 0)).strftime("%Y-%m-%d %H:%M")
+                result["reply"] = {"when": when, "body": (rep.get("body") or "")[:_ARCHIVE_MAX_BODY]}
+                result["detail"] += f"; SÍ se contestó — lo nuestro salió el {when}"
+            else:
+                result["reply"] = None
+                result["detail"] += ("; NO consta ninguna respuesta nuestra posterior en ese chat "
+                                     "(el archivo registra las salientes desde su activación)")
+    return {"result": result}
 
 
 def _peek_answer(payload: dict) -> dict:

@@ -238,7 +238,7 @@
    "safe": true
   },
   "search_archive": {
-   "desc": "BUSCA en el ARCHIVO PERMANENTE de comunicaciones (todas las plataformas, entradas Y salidas — no caduca nunca) y DEVUELVE las coincidencias con su fecha para que TÚ contestes («¿cuándo me escribió el colegio?», «¿le llegué a contestar?» → direction:'out'). Una pregunta sobre mensajes PASADOS se contesta con esto, nunca de memoria",
+   "desc": "BUSCA en el ARCHIVO PERMANENTE de comunicaciones (todas las plataformas, entradas Y salidas — no caduca nunca) y DEVUELVE las coincidencias con su fecha para que TÚ contestes («¿cuándo me escribió el colegio?»; «¿le llegué a contestar?» → check_reply:true, que dice si hubo respuesta nuestra y cuándo). Una pregunta sobre mensajes PASADOS se contesta con esto, nunca de memoria",
    "payload": {
     "q": "string opcional (texto a buscar)",
     "sender": "string opcional (remitente, subcadena)",
@@ -246,6 +246,7 @@
     "platform": "string opcional: whatsapp|telegram|email",
     "since_days": "number opcional (ventana hacia atrás en días)",
     "direction": "'in'|'out' opcional",
+  "check_reply": "bool opcional: comprueba si el mensaje encontrado tuvo respuesta nuestra",
     "limit": "int opcional (máx 20)"
    },
    "safe": true
