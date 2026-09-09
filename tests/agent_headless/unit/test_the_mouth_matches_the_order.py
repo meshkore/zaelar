@@ -280,3 +280,48 @@ def test_the_thinking_pool_describes_action_not_thought():
         pool = set(getattr(langs.spec(code), "fillers", ()) or ())
         assert pool, f"[{code}] empty thinking pool"
         assert not (pool & banned), f"[{code}] bare thinking sounds returned: {pool & banned}"
+
+
+# ── V2-645 · a continuity claim over nothing ─────────────────────────────────────────────────────────────
+# Measured live (the La Mella session, turn T15): «¿Sigues con esa tarea del WhatsApp o la has perdido
+# cuando te he parado?» → «Sigo con ella, no la he perdido. Estoy revisando ese grupo…» — zero live
+# sessions, and the prompt's own state line already said «la tarea está PARADA». The V2-587 guard could not
+# see it («sigo con ELLA», the «parado» action-verb bail, a reply that names what it claims to do).
+
+def test_the_measured_continuity_lie_fires_the_guard():
+    from nucleo.flash import answer_guards as ag
+    q = "¿Sigues con esa tarea del WhatsApp o la has perdido cuando te he parado? ¿Johnny?"
+    a = "Sigo con ella, no la he perdido. Estoy revisando ese grupo de WhatsApp del viaje a La Mella."
+    assert ag.a_continuity_claim_over_nothing(q, a, acted=False, anything_running=False)
+
+
+def test_an_honest_continuity_claim_stays_out():
+    from nucleo.flash import answer_guards as ag
+    q = "¿Sigues con esa tarea del WhatsApp?"
+    a = "Sigo con ella, estoy revisando el grupo."
+    assert not ag.a_continuity_claim_over_nothing(q, a, acted=False, anything_running=True), \
+        "with a live task the claim is honest"
+    assert not ag.a_continuity_claim_over_nothing(q, "¿Te refieres a la del viaje?",
+                                                  acted=False, anything_running=False), \
+        "a clarifying counter-question is legitimate"
+    assert not ag.a_continuity_claim_over_nothing("ponme música", "Sigo con ella.",
+                                                  acted=False, anything_running=False), \
+        "no continuity question, no guard"
+
+
+def test_the_continuity_truth_is_deterministic_and_names_the_confirm_exit(monkeypatch):
+    from nucleo.flash import second_pass as sp
+    from nucleo import dispatch
+    monkeypatch.setattr(dispatch, "confirm_line", lambda: "PARADA esperando confirmación", raising=False)
+    assert "confirmación" in sp.continuity_truth()
+    monkeypatch.setattr(dispatch, "confirm_line", lambda: "", raising=False)
+    t = sp.continuity_truth()
+    assert "ninguna tarea en marcha" in t and "?" in t
+
+
+def test_both_channels_wire_the_continuity_guard():
+    seam = (ENGINE / "nucleo/flash/second_pass.py").read_text(encoding="utf-8")
+    probe = (ENGINE / "nucleo/flash/probe.py").read_text(encoding="utf-8")
+    for name, src in (("seam", seam), ("probe", probe)):
+        assert "a_continuity_claim_over_nothing" in src, f"the {name} dropped the continuity guard"
+        assert "continuity_truth" in src, f"the {name} detects but never says the state"

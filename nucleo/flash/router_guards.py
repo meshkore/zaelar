@@ -692,7 +692,7 @@ from nucleo.flash.surface_ack import nothing_to_show, show_ack  # noqa: F401 —
 # 2026-09-03, V2-567). Historical names stay as ALIASES; the measured story lives with the code.
 from nucleo.flash.answer_guards import (  # noqa: F401 — re-export, not a local use
     _EXTERNAL_FACT_RE, _FIGURE_RE, _OWN_THING_RE, a_bare_ack_answers_a_question,
-    an_empty_wait_answers_a_question, answer_needs_a_source,
+    a_continuity_claim_over_nothing, an_empty_wait_answers_a_question, answer_needs_a_source,
 )
 
 # ── the PROMISED-REMINDER guards (moved to reminder_guards.py, 2026-09-02 ratchet pass) ───────────────────────

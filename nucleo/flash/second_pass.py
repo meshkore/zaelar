@@ -121,6 +121,20 @@ async def mute_cover_repair(operator_text: str, window: list, spec) -> str:
         return ""
 
 
+def continuity_truth() -> str:
+    """The honest sentence for «are you still on it?» when nothing runs (V2-645) — DETERMINISTIC, never
+    composed: the state is ours to say, and a second model pass over the same window that produced the lie
+    could reproduce it. Names the way out the confirm gate is actually holding open, when it is."""
+    try:
+        from nucleo import dispatch as _dd
+        if (_dd.confirm_line() or "").strip():
+            return ("La verdad: ahora mismo no hay ninguna tarea en marcha — se quedó parada esperando tu "
+                    "confirmación. Dime «sí» y la lanzo ya.")
+    except Exception:  # noqa: BLE001
+        pass
+    return "La verdad: ahora mismo no hay ninguna tarea en marcha — se perdió. ¿La vuelvo a lanzar?"
+
+
 async def hollow_repairs(text: str, spoken_text: str, window: list, spec, *,
                          did_act: bool, covered: bool, speak, emit, pick_closer=None) -> str:
     """ONE seam for the three hollow-turn repairs — the shapes a completed turn may not end in:
@@ -146,6 +160,14 @@ async def hollow_repairs(text: str, spoken_text: str, window: list, spec, *,
             if rep:
                 speak(rep)
                 return (spoken_text + " " + rep).strip()
+        elif _ag.a_continuity_claim_over_nothing(text, spoken_text, acted=did_act, anything_running=running):
+            # V2-645 — «¿sigues con esa tarea?» answered «sigo con ella» over NOTHING. The correction is the
+            # deterministic state sentence, spoken as a follow-up (the lie already sounded; V2-572's shape).
+            emit("brain", "🚧 continuidad afirmada sin nada en marcha — digo el estado de verdad",
+                 text=text[:160], role="system", extra={"cat": "flash"})
+            rep = continuity_truth()
+            speak(rep)
+            return (spoken_text + " " + rep).strip()
         elif _ag.an_empty_wait_answers_a_question(text, spoken_text, acted=did_act, anything_running=running):
             emit("brain", "🚧 pregunta contestada con una espera VACÍA (nada en marcha) — compongo la "
                  "respuesta que falta", text=text[:160], role="system", extra={"cat": "flash"})

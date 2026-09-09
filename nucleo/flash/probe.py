@@ -718,8 +718,12 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
                     _running = bool(_d_ew.has_active())
                 except Exception:
                     _running = True
-                if _rg_src.an_empty_wait_answers_a_question(operator_text, spoken,
-                                                            acted=False, anything_running=_running):
+                if _rg_src.a_continuity_claim_over_nothing(operator_text, spoken,
+                                                           acted=False, anything_running=_running):
+                    # V2-645 mirror — «sigo con ella» over nothing: the deterministic state sentence.
+                    spoken = (spoken + " " + _second.continuity_truth()).strip()
+                elif _rg_src.an_empty_wait_answers_a_question(operator_text, spoken,
+                                                              acted=False, anything_running=_running):
                     spoken = (await _second.empty_wait_repair(
                         operator_text, dialog.prune_window(sess.window), spec)) or spoken
         except Exception:
