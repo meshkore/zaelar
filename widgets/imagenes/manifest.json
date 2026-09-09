@@ -22,10 +22,15 @@
     "photos",
     "picture",
     "pictures",
-    "image gallery"
+    "image gallery",
+    "fondo de escritorio",
+    "fondo de pantalla",
+    "pon de fondo",
+    "wallpaper",
+    "desktop background"
   ],
   "entry": "widget.js",
-  "usage": "Para enseñar fotos usa 'show' con la lista de imágenes en 'items' (cada una {url, thumb, title, site, page, w, h}) y 'query'/'title' con qué se está viendo — reemplaza lo que hubiera. 'add' añade más sin perder las de antes. Para moverse: 'next', 'previous', o 'select' con el número (1-N) o parte del título/fuente ('la de Ferrari'). Para que pasen SOLAS («modo presentación», «que vayan pasando»): 'slideshow' (every_s opcional, def 6); se para con 'slideshow_stop' o eligiendo una con 'select'. 'local' abre las imágenes guardadas en este equipo (widgets/_data/imagenes/), sin buscar nada en la web. 'clear' vacía el visor. Es SOLO un visor: no recorta, no edita, no descarga. Las imágenes las busca quien llama (show_images en el turno rápido, o un worker si hay que curar) — este widget no busca por su cuenta.",
+  "usage": "Para enseñar fotos usa 'show' con la lista de imágenes en 'items' (cada una {url, thumb, title, site, page, w, h}) y 'query'/'title' con qué se está viendo — reemplaza lo que hubiera. 'add' añade más sin perder las de antes. Para moverse: 'next', 'previous', o 'select' con el número (1-N) o parte del título/fuente ('la de Ferrari'). Para que pasen SOLAS («modo presentación», «que vayan pasando»): 'slideshow' (every_s opcional, def 6); se para con 'slideshow_stop' o eligiendo una con 'select'. 'local' abre las imágenes guardadas en este equipo (widgets/_data/imagenes/), sin buscar nada en la web. 'clear' vacía el visor. 'wallpaper' pone UNA de las imágenes en pantalla como FONDO DE ESCRITORIO (payload item: número 1-N o parte del título; sin item = la que se está viendo) — para fondos busca imágenes GRANDES (≥1600px de ancho: hay monitores de 2900x1440). 'wallpaper_clear' quita el fondo. Es SOLO un visor: no recorta, no edita, no descarga. Las imágenes las busca quien llama (show_images en el turno rápido, o un worker si hay que curar) — este widget no busca por su cuenta.",
   "actions": {
     "show": {
       "desc": "enseña un conjunto de fotos (reemplaza lo que hubiera) y deja la primera en grande",
@@ -80,6 +85,15 @@
     "clear": {
       "desc": "vacía el visor",
       "payload": {}
+    },
+    "wallpaper": {
+      "desc": "pone una de las imágenes en pantalla como fondo de escritorio (persistente)",
+      "payload": {
+        "item": "número (1-N) o parte del título/fuente; vacío = la imagen que se está viendo"
+      }
+    },
+    "wallpaper_clear": {
+      "desc": "quita el fondo de escritorio y vuelve al fondo normal"
     }
   },
   "name": "Imágenes",
@@ -92,8 +106,12 @@
   ],
   "fullscreen": "native",
   "runtime": {
-    "produce": ["slideshow"],
+    "produce": [
+      "slideshow"
+    ],
     "suspend": "slideshow_stop",
-    "active_when": {"auto": true}
+    "active_when": {
+      "auto": true
+    }
   }
 }

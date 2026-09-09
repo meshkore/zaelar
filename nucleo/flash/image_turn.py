@@ -28,6 +28,8 @@ turn can escalate on the operator's word rather than on a guess.
 """
 from __future__ import annotations
 
+import re
+
 # How many pictures a set holds. Twelve fills the thumbnail strip without turning the viewer into a contact
 # sheet, and it is what one Google results page yields without scrolling — asking for more would cost a second
 # page load to add pictures nobody scrolls to.
@@ -43,6 +45,9 @@ def request_from(tool_calls: list) -> dict:
     except Exception:  # noqa: BLE001
         n = DEFAULT_N
     return {"query": str(args.get("query") or "").strip(), "n": max(1, min(n, 24))}
+
+
+_WALLPAPER_INTENT_RE = re.compile(r"fondo de (?:escritorio|pantalla)|wallpaper|\bde fondo\b", re.I)
 
 
 async def execute(query: str, n: int = DEFAULT_N) -> dict:
@@ -63,6 +68,15 @@ async def execute(query: str, n: int = DEFAULT_N) -> dict:
         res = await _bs.images(q, n)
         res = res if isinstance(res, dict) else {}
         items = [it for it in (res.get("items") or []) if isinstance(it, dict) and it.get("url")]
+        # V2-641 — a WALLPAPER search wants big files, not relevant thumbnails: there are 2900x1440 monitors
+        # behind this. Only when the query itself names the intent (the tool description tells the model to
+        # keep those words in), so an ordinary photo search keeps the index's own relevance order untouched.
+        if _WALLPAPER_INTENT_RE.search(q):
+            big = [it for it in items if int(it.get("w") or 0) >= 1600]
+            if len(big) >= 3:
+                items = big
+            items.sort(key=lambda it: -(int(it.get("w") or 0) * int(it.get("h") or 0)))
+            parte["large_pref"] = True
         parte["source"] = str(res.get("source") or "")
         if res.get("degraded_from"):
             parte["degraded_from"] = str(res["degraded_from"])

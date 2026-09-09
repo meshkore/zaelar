@@ -283,3 +283,65 @@ def test_el_widget_arma_UN_timer_de_un_disparo_que_llama_a_next():
     assert "setInterval" not in src, "an interval leaks across renders; the one-shot re-arms from the data cycle"
     assert 'ctx.action("next")' in src.split("_hbImgAuto", 1)[1][:400], "the pase must advance through the server"
     assert "ctx.running===false" in src, "a stopped agent must arm nothing (V2-092)"
+
+
+# ── wallpaper (V2-641): the desktop wears one of the pictures ────────────────────────────────────────────
+@pytest.fixture()
+def wall(monkeypatch, tmp_path, data):
+    """The wallpaper action persists through config.settings — a unit test must never write the operator's
+    real settings.json (nor leave their desktop wearing Ferrari test pictures)."""
+    from config import settings as cfg
+    monkeypatch.setattr(cfg, "SETTINGS_FILE", tmp_path / "settings.json")
+    events = []
+    import voice.observer as observer
+    monkeypatch.setattr(observer, "emit",
+                        lambda kind, label, text="", role="", extra=None, **kw:
+                        events.append({"kind": kind, "label": label, "extra": extra or {}}))
+    return cfg, events
+
+
+def test_use_number_3_dresses_the_desktop(data, wall):
+    cfg, events = wall
+    data.apply_action("show", {"items": _items(3), "query": "cañón del colorado"})
+    r = data.apply_action("wallpaper", {"item": "3"})
+    assert r["ok"] and r["wallpaper"] == "https://cdn.ferrari.com/2.jpg"
+    assert cfg.wallpaper()["url"] == "https://cdn.ferrari.com/2.jpg", "the choice must survive a reboot"
+    assert data.view_data()["i"] == 2, "the viewer shows what the desktop now wears"
+    live = [e for e in events if e["kind"] == "widget" and e["label"] == "wallpaper"]
+    assert live and live[0]["extra"]["url"].endswith("/2.jpg"), "every open frontend gets the push"
+
+
+def test_no_item_means_the_picture_being_viewed(data, wall):
+    cfg, _ = wall
+    data.apply_action("show", {"items": _items(3)})
+    data.apply_action("select", {"item": "2"})
+    r = data.apply_action("wallpaper", {})
+    assert r["ok"] and r["wallpaper"].endswith("/1.jpg")
+
+
+def test_a_lost_reference_names_the_choices(data, wall):
+    data.apply_action("show", {"items": _items(2)})
+    r = data.apply_action("wallpaper", {"item": "la del cañón"})
+    assert not r["ok"] and "En pantalla:" in r["error"], "the refusal must NAME the choices (V2-463)"
+
+
+def test_a_small_image_warns_it_will_blur(data, wall):
+    small = [{"url": "https://x/tiny.jpg", "title": "pequeña", "w": 640, "h": 480}]
+    data.apply_action("show", {"items": small})
+    r = data.apply_action("wallpaper", {})
+    assert r["ok"] and "640x480" in r.get("note", ""), "a small file must carry its own warning"
+
+
+def test_clearing_removes_the_wallpaper_everywhere(data, wall):
+    cfg, events = wall
+    data.apply_action("show", {"items": _items(1)})
+    assert data.apply_action("wallpaper", {})["ok"]
+    r = data.apply_action("wallpaper_clear", {})
+    assert r["ok"] and cfg.wallpaper() == {}
+    assert any(e["label"] == "wallpaper" and not e["extra"]["url"] for e in events
+               if e["kind"] == "widget"), "the clear must reach the open frontends too"
+
+
+def test_an_empty_viewer_answers_honestly(data, wall):
+    r = data.apply_action("wallpaper", {"item": "1"})
+    assert not r["ok"] and "no hay ninguna imagen" in r["error"]

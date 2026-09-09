@@ -185,7 +185,7 @@ def effective() -> dict:
     except Exception:
         assistant_name = "Zaelar"
     return {"knobs": knobs, "free_text": [], "voices_by_provider": voices_by_provider, "theme": theme(),
-            "assistant_name": assistant_name}
+            "wallpaper": wallpaper(), "assistant_name": assistant_name}
 
 
 import re as _re
@@ -221,6 +221,30 @@ def theme() -> dict:
     return {"profile": d.get("theme_profile") or "", "custom": _sanitize_theme_custom(d.get("theme_custom"))}
 
 
+def _sanitize_wallpaper(raw) -> dict:
+    """The desktop wallpaper (V2-641) is a URL the client echoes into a CSS `url("…")` value, so this is a
+    security seam exactly like `_sanitize_theme_custom`: only http(s), no quote/backslash/angle/whitespace
+    characters that could break out of the quoted CSS string, bounded length. Anything malformed collapses
+    to {} — which the client reads as "no wallpaper", never as a partially trusted value."""
+    if not isinstance(raw, dict):
+        return {}
+    url = str(raw.get("url") or "").strip()
+    if not (8 < len(url) <= 2000) or not url.startswith(("http://", "https://")):
+        return {}
+    if any(c in url for c in "\"'\\<>\n\r\t ") or any(ord(c) < 0x20 for c in url):
+        return {}
+    out = {"url": url}
+    title = str(raw.get("title") or "").strip()[:120]
+    if title:
+        out["title"] = title
+    return out
+
+
+def wallpaper() -> dict:
+    """The persisted desktop wallpaper, for /api/settings GET ({} = none)."""
+    return _sanitize_wallpaper(_read().get("wallpaper"))
+
+
 def update(payload: dict) -> dict:
     """Validate + persist + apply. Returns {ok, applied, needs_reconnect, note}."""
     d = _read()
@@ -234,6 +258,10 @@ def update(payload: dict) -> dict:
     if "theme_custom" in payload:
         d["theme_custom"] = _sanitize_theme_custom(payload.get("theme_custom"))
         applied.append("theme_custom")
+    if "wallpaper" in payload:
+        # None/{}/invalid all CLEAR it — «quita el fondo» must not need a second vocabulary.
+        d["wallpaper"] = _sanitize_wallpaper(payload.get("wallpaper"))
+        applied.append("wallpaper")
     for k, env in ENV_KEYS.items():
         if k in payload and str(payload[k]).strip():
             val = str(payload[k]).strip()

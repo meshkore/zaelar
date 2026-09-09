@@ -65,7 +65,11 @@ export function initTheme() {
     if (th.custom && typeof th.custom === "object"
         && JSON.stringify(th.custom) !== JSON.stringify(_custom)) { _custom = th.custom; changed = true; }
     if (changed) { _persistLocal(); _apply(); }
+    // Wallpaper reconcile rides the same fetch: the server's copy wins (it survives a new browser).
+    const wp = (d && typeof d.wallpaper === "object" && d.wallpaper) || {};
+    if (JSON.stringify(wp) !== JSON.stringify(_wallpaper)) setWallpaper(wp.url ? wp : null, { persist: false });
   }).catch(() => {});
+  _applyWallpaper();
 }
 
 export function setThemeProfile(id) {
@@ -83,4 +87,36 @@ export function setThemeCustom(partial) {
 
 export function toggleTheme() {
   setTheme(theme() === "dark" ? "light" : "dark");
+}
+
+// ── Desktop WALLPAPER (V2-641) — a photo the voice can put behind everything. Same two-layer persistence as
+// the profile: localStorage paints at boot, /api/settings makes it durable per account (the server SANITIZES
+// — config/settings.py is the security seam; this regex is only the belt to its braces, because the URL is
+// echoed into a CSS url("…") and a quote inside it would otherwise open a style-injection door). Applied as
+// one custom property + a body class, so the CSS owns how the photo sits under the canvas glow and scrim.
+const _WALL_URL_RE = /^https?:\/\/[^\s"'\\<>]+$/;
+let _wallpaper = {};
+try { _wallpaper = JSON.parse(localStorage.getItem("hb_wallpaper") || "{}") || {}; } catch (_) {}
+
+export const wallpaper = () => ({ ..._wallpaper });
+
+function _applyWallpaper() {
+  const root = document.documentElement;
+  const url = _wallpaper && _wallpaper.url;
+  if (url && _WALL_URL_RE.test(url)) {
+    root.style.setProperty("--desk-wallpaper", 'url("' + url + '")');
+    document.body.classList.add("hb-wallpaper");
+  } else {
+    root.style.removeProperty("--desk-wallpaper");
+    document.body.classList.remove("hb-wallpaper");
+  }
+}
+
+export function setWallpaper(w, { persist = true } = {}) {
+  _wallpaper = (w && w.url) ? { url: String(w.url), title: String(w.title || "") } : {};
+  try { localStorage.setItem("hb_wallpaper", JSON.stringify(_wallpaper)); } catch (_) {}
+  _applyWallpaper();
+  // persist:false = the change ARRIVED from the server (SSE push after a voice order) — echoing it back
+  // would be a write loop for nothing; the server already holds it.
+  if (persist) api.saveSettings({ wallpaper: _wallpaper.url ? _wallpaper : null }).catch(() => {});
 }

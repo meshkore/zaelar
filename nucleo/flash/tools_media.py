@@ -77,6 +77,11 @@ TOOLS: list[dict] = [
         },
     },
     {
+        # V2-641: the WALLPAPER flow deliberately does NOT ride this description — the tool catalog sits
+        # 3 chars under its per-turn ceiling (23097/23100, measured). It needs no line here: a wallpaper ask
+        # is a photo search (this tool), and once the viewer is OPEN its manifest brief (which only costs
+        # prompt when the widget is on screen, V2-526's pattern) teaches `imagenes`:`wallpaper` to the model.
+        # `image_turn._WALLPAPER_INTENT_RE` handles the large-size preference from the query itself.
         # V2-457: FOTOS como tool de 1ª clase, tercera hermana de play_music/play_video y por el mismo motivo —
         # lo que se VE tiene su widget, no la hoja de resultados. Antes esto era un ESCALADO: 355 s y $1,96 en la
         # sesión que lo midió, frente a 3 s por aquí. El SÍ-list de escalate se queda con CURAR, no con enseñar.

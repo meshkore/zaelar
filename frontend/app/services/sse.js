@@ -9,6 +9,7 @@ import { handleWidgetVoice } from "./voiceCommands.js?v=3";
 import { refreshStatus } from "./status.js?v=2";
 import * as vault from "./vault.js?v=1";
 import { t, applyLang } from "../core/i18n.js?v=1";
+import { setWallpaper } from "./theme.js?v=2";
 
 // V2-464 — SHOWCASE mode: ?showcase=1 in the URL. The use-case recorder (recorder.py) uses it to keep the chat
 // open and the grid auto-arranged, so the video is readable without hands.
@@ -94,6 +95,9 @@ export function openSSE(desktop) {
       // happens to be open right now; otherwise there's nothing on screen to update.
       else if (d.label === "data" && d.id) desktop.refreshData(d.id);
       else if (d.label === "alias") desktop.refreshRegistry && desktop.refreshRegistry();  // V2-082: a name/alias changed → repaint header + panel
+      // V2-641: the voice set (or cleared) the desktop WALLPAPER — the server already persisted it, so this
+      // apply is persist:false (echoing it back would be a pointless write loop). Empty url = clear.
+      else if (d.label === "wallpaper") setWallpaper(d.url ? { url: d.url, title: d.title || "" } : null, { persist: false });
     } else if (d.kind === "panel") {                                              // V2-079/086: the brain opens/closes the native panel (chat/processes/crons/clusters) by voice
       // 2026-08-10: it also CLOSES. `show_panel` only knew how to open, so «close the chat» had nowhere to go
       // and the turn ended with a false «okay, closed» — the operator asked five times in a row and had to close

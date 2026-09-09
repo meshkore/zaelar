@@ -219,6 +219,57 @@ def apply_action(action: str, payload: dict = None) -> dict:
         return {"ok": True, "i": k + 1, "n": len(items),
                 "shown": cur.get("title") or cur.get("site") or "", "url": cur.get("url") or ""}
 
+    if a in ("wallpaper", "set_wallpaper"):
+        # V2-641 — «usa la número 3 de fondo»: the DESKTOP wallpaper is set from the picture the operator is
+        # looking at, resolved exactly like `select` (a number, part of the title, or — with no item — the one
+        # currently shown). The widget only RESOLVES; the persisted value goes through config.settings'
+        # sanitizer (the CSS-injection seam), and the live push rides the same widget event channel as show/close.
+        if not items:
+            return {"ok": False, "error": "no hay ninguna imagen en pantalla que poner de fondo", "n": 0}
+        wants = str(p.get("item") or "").strip()
+        k = _resolve(items, p.get("item"))
+        if k is None:
+            if wants:
+                menu = " · ".join(f"{i}: {str(it.get('title') or it.get('site') or '?')[:40]}"
+                                  for i, it in enumerate(items[:6], 1))
+                return {"ok": False, "error": f"no encuentro «{wants[:60]}». En pantalla: {menu}", "n": len(items)}
+            k = int(db.get("i") or 0)          # «ponla de fondo» → the one being viewed
+        it = items[k]
+        url = str(it.get("url") or it.get("thumb") or "").strip()
+        from config import settings as _settings
+        _settings.update({"wallpaper": {"url": url, "title": str(it.get("title") or "")}})
+        stored = _settings.wallpaper()
+        if not stored.get("url"):
+            return {"ok": False, "error": "esa imagen no tiene una URL utilizable como fondo", "n": len(items)}
+        db["i"] = k                            # the viewer shows what the desktop now wears
+        store.save(WIDGET_ID, _clamp(db))
+        try:
+            from voice.observer import emit
+            emit("widget", "wallpaper", extra={"id": WIDGET_ID, "url": stored["url"],
+                                               "title": stored.get("title") or ""})
+        except Exception:
+            pass
+        out = {"ok": True, "wallpaper": stored["url"], "i": k + 1, "n": len(items),
+               "shown": it.get("title") or it.get("site") or ""}
+        try:
+            w, hgt = int(it.get("w") or 0), int(it.get("h") or 0)
+            if 0 < w < 1200:
+                out["note"] = (f"la imagen es pequeña ({w}x{hgt}) y puede verse borrosa de fondo; "
+                               "puedo buscar una más grande")
+        except Exception:
+            pass
+        return out
+
+    if a in ("wallpaper_clear", "clear_wallpaper"):
+        from config import settings as _settings
+        _settings.update({"wallpaper": None})
+        try:
+            from voice.observer import emit
+            emit("widget", "wallpaper", extra={"id": WIDGET_ID, "url": "", "title": ""})
+        except Exception:
+            pass
+        return {"ok": True, "wallpaper": ""}
+
     if a == "slideshow":
         # V2-589 — the capability the model PROMISED four times in one live session («voy a ponerlas en modo
         # presentación») with zero tools behind it: it did not exist, so narrating was the only move available.

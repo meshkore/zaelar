@@ -21,6 +21,12 @@ body{margin:0;font-family:var(--sans);overflow:hidden;-webkit-text-size-adjust:1
   radial-gradient(1200px 500px at 50% -15%, var(--desk-halo,transparent), transparent 60%),
   radial-gradient(900px 500px at 85% 112%, var(--desk-ember,transparent), transparent 55%),
   radial-gradient(60% 50% at 50% 45%, var(--canvas-glow), var(--canvas) 70%)}
+/* WALLPAPER (V2-641): a photo the voice put behind everything. The image replaces the gradient ground and a
+   ::after SCRIM in the theme's own --canvas color keeps widgets/text legible over any photo (dark theme dims,
+   light theme lifts). cover+center so one large image serves a 16" laptop and a 2900x1440 monitor alike. */
+body.hb-wallpaper .canvas{background:var(--desk-wallpaper) center/cover no-repeat, var(--canvas)}
+body.hb-wallpaper .canvas::after{content:"";position:absolute;inset:0;pointer-events:none;
+  background:var(--canvas);opacity:var(--wallpaper-scrim,.38)}
 /* dot grid: opacity is the --desk-grid-a token; a radial mask fades it toward the edges so it reads as a
    surface, not as wallpaper. */
 .canvas::before{content:"";position:absolute;inset:0;opacity:var(--desk-grid-a,.05);pointer-events:none;
