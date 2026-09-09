@@ -591,9 +591,32 @@ def live_state() -> str:
         # una ciudad que él no ha dicho. Mismo remedio que la marca «SIN paso reportado aún»: nombrar el hueco.
         # Coste CERO cuando el estado sí la trae — la línea ni aparece.
         from memory import api as _memapi_loc
-        if not (_memapi_loc.state() or {}).get("location"):
+        _mstate = _memapi_loc.state() or {}
+        if not _mstate.get("location"):
             lines.append("NO SABES dónde vive el operador (su ESTADO no tiene ubicación): no supongas ninguna "
                          "ciudad ni la nombres; si hace falta para lo que te pide, pregúntasela.")
+    except Exception:
+        _mstate = {}
+    # WAKE WORD MODE is a fact the model must HOLD, not guess (2026-09-09, session 8a07e8d9): asked by voice to
+    # activate it, the model — with the assistant name AND the operator's name right there in the state block —
+    # invented that it knew neither («¿con qué palabra quieres que me active?», «cuál es tu nombre, que ahora
+    # mismo no lo tengo») and never called the tool. Nothing in the prompt said the mode EXISTS, what its wake
+    # word is, or which tool toggles it. One line closes all three. Lives here (not the stable prefix) because
+    # the current mode is runtime config; it only changes when the mode does, and this layer is last anyway.
+    # `_mstate` is the location block's read above — shared on purpose (the lazy-import ratchet is at 30/30).
+    try:
+        from config import settings as _cfg_att
+        _att_mode = str(_cfg_att.get("attention_mode") or "always")
+        _att_name = (_mstate.get("assistant_name") or "Zaelar").strip() or "Zaelar"
+        _att_now = ("ACTIVADO (solo atiendes los turnos que dicen tu nombre, o los que siguen a uno reciente)"
+                    if _att_mode in ("smart", "wakeword") else "desactivado (escuchas siempre)")
+        lines.append(
+            f"MODO WAKE WORD — el modo en el que solo respondes cuando dicen tu palabra de activación, que ES "
+            f"tu nombre («{_att_name}»; nunca preguntes cuál es la palabra ni cómo se llama el operador: ambos "
+            f"están en tu ESTADO). Ahora está {_att_now}. Si el operador pide activarlo o desactivarlo («activa "
+            f"el modo wake word», «escúchame/respóndeme solo cuando diga tu nombre», «vuelve a escucharme "
+            f"siempre»), LLAMA a set_style_directive con esa orden tal cual — el sistema lo aplica al instante; "
+            f"no pidas ningún dato más y nunca digas que está hecho sin haber llamado a la tool.")
     except Exception:
         pass
     try:

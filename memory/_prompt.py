@@ -62,8 +62,34 @@ def compose_state(*, mission_fallback: str = "") -> tuple[str, str, dict]:
 
     # ── B · QUIÉN TIENES DELANTE (situacional) ───────────────────────────────────────────────────────────
     sit: list[str] = []
+    # IDENTIDAD SIN AMBIGÜEDAD (2026-09-09): `assistant_name` estaba declarado en el estado desde el origen
+    # (V2-002) y NUNCA se renderizaba — un cambio de nombre por voz (tool set_style_directive → V2-046) solo
+    # dejaba una REGLA de texto libre ("El asistente debe llamarse Johnny") mezclada sin distinción con las
+    # demás reglas del operador, dos nombres en el prompt y ninguna instrucción de cuál usar para dirigirse a
+    # quién. Medido en vivo (sesión a9b3a813, 2026-09-09): tras renombrarse a "Johnny", respondió «Cuéntame,
+    # Johnny» AL OPERADOR — su propio nombre nuevo, usado como vocativo hacia la persona equivocada. Una línea
+    # propia e imperativa cierra la ambigüedad en la FUENTE en vez de esperar que el modelo la resuelva turno
+    # a turno; ver `nucleo/flash/identity_actions.extract_name_change` (quien ahora escribe este campo en vez
+    # de `state.rules` para un cambio de nombre).
+    aname = (st.get("assistant_name") or "Zaelar").strip() or "Zaelar"
     if op:
-        sit.append(f"El operador se llama {op}.")
+        # NUNCA "⚠️" aquí: ese marcador está RESERVADO a los hechos CRÍTICOS (`crit`, más abajo) y un test
+        # (test_the_limit_is_the_last_thing_read.py) exige que sin ellos el bloque no lo contenga — diluirlo
+        # en más sitios es precisamente lo que le quita fuerza. Verificado en vivo (2026-09-09) que ni la frase
+        # neutra ni un intento con ⚠️ bastaban solos — sigue siendo el modelo pequeño el que a veces se
+        # equivoca; esta línea es la mitigación en el PROMPT, no una garantía dura.
+        # El OPERADOR va PRIMERO en la frase a propósito (2026-09-09, sesiones 76bd0bb5/8a07e8d9): con el orden
+        # inverso («Te llamas Johnny — …») el modelo pequeño agarraba el primer nombre que veía y saludó al
+        # operador como «Johnny» dos veces más, con la instrucción imperativa delante. El primer nombre del
+        # bloque tiene que ser el que va a usar de vocativo.
+        sit.append(f"El operador se llama {op}: para dirigirte a él usa «{op}» y SOLO «{op}». Tú te llamas "
+                   f"{aname} — «{aname}» eres TÚ (y es tu palabra de activación), JAMÁS un modo de llamarle "
+                   f"a él.")
+    elif aname != "Zaelar":
+        # Sin nombre de operador todavía pero YA renombrado: sigue mereciendo una línea (empty state = empty
+        # block solo aplica al «nada que decir», y un rename SÍ es algo que decir); con todo en blanco (el
+        # caso de un state recién creado) el bloque se queda vacío, igual que antes de esta línea.
+        sit.append(f"Te llamas {aname}.")
     if st.get("treatment"):
         sit.append(f"Trato preferido: {st['treatment']}.")
     # USER RULES (V2-046 A1): reglas de comportamiento que el operador impuso hablando; persisten entre sesiones

@@ -496,7 +496,12 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
         action = "style"
         _sd = next(t for t in tool_calls if t["name"] == "set_style_directive")
         d = (_sd["args"].get("directive") or "").strip()
-        if d:
+        # ESPEJO del provider (2026-09-09, impl paralela — cablear en AMBOS): ver nucleo/flash/identity_actions.py.
+        from nucleo.flash import identity_actions as _ident
+        _ident_action = await _ident.handle_probe(d, ingest=ingest) if d else None
+        if _ident_action:
+            action = _ident_action
+        elif d:
             # ESPEJO del provider (V2-046 A1, impl paralela — cablear en AMBOS): la regla se aplica ya (directiva
             # de sesión) y PERSISTE como user rule (state.rules). Gated a `ingest` (=turno real); con ingest=false
             # (tests de routing) NO se toca el estado. Sentido añadir/retirar por el guard determinista.
@@ -1025,8 +1030,8 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
                 # V2-380 — la BOCA dice lo que PASÓ, no «Hecho.» pase lo que pase. Misma casa que la ejecución.
                 spoken = _music_turn.spoken_for(
                     return_extra_exec if isinstance(return_extra_exec, dict) else {}, _lg.data_ack)
-            elif action == "style":
-                spoken = _lg.data_ack        # V2-046 A1: fijar/retirar una regla nunca deja el turno mudo
+            elif action in ("style", "attention_mode", "rename_assistant"):   # V2-046 A1 + identity_actions 2026-09-09: una acción HECHA nunca sale muda ni con ack de culpa
+                spoken = _lg.data_ack   # («Perdona, se me ha ido» medido en vivo sobre el toggle YA aplicado)
             else:
                 # BACKSTOP GENÉRICO — turno de CHARLA pura (`action=="chat"` u otro no cubierto arriba) que
                 # salió MUDO: el modelo no llamó a ninguna tool Y no dijo nada. Live bug (search-buy-used-car,

@@ -1080,6 +1080,16 @@ DOMAINS: list[dict] = [
                                 "lane, and a question is never left at «Hecho.»",
             "ch": UNIT,
             "paths": ["tests/agent_headless/unit/test_the_mouth_matches_the_order.py"]},
+        # 2026-09-09 — sessions 76bd0bb5/8a07e8d9: «activa ese modo» became a stale free-text rule (the model's
+        # paraphrase said «responder», the detector only knew «escuchar»), and next session the model invented
+        # that it knew neither the wake word nor the operator's name — both were in its prompt; nothing said the
+        # MODE exists. Detector widened (respond verbs + the mode's product name «Modo Wake Word», STT garble
+        # included) and `live_state()` teaches the mode: wake word IS the assistant's name, toggled via
+        # set_style_directive. Wiring guard on BOTH channels (V2-108).
+        {"id": "2.51", "title": "Wake Word Mode: the toggle rides the directive, and the prompt teaches the "
+                                "mode exists",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/flash/test_wake_word_mode_rides_the_directive.py"]},
         {"id": "2.44", "title": "La cara de anuncios NOMBRA lo que ya tiene (y una sola cara para los dos "
                                 "canales)", "ch": UNIT,
             "paths": ["tests/agent_headless/unit/flash/test_listing_face_names_what_it_already_has.py"]},

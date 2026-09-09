@@ -40,7 +40,7 @@ _DEFAULT_WINDOW_S = 30.0
 _DEFAULT_WAKEWORDS = ("zaelar",)
 
 # ── process state ───────────────────────────────────────────────────────────────────────────────────
-_state = {"last_directed": 0.0, "ptt": False}
+_state = {"last_directed": 0.0, "ptt": False, "assistant_name": ""}
 
 
 def _norm(text: str) -> str:
@@ -68,7 +68,32 @@ def _wakewords() -> tuple[str, ...]:
         ws = tuple(_norm(w) for w in env.split(",") if w.strip())
         if ws:
             return ws
+    # A renamed assistant's own name is ALSO a wake word (2026-09-09, session a9b3a813): the operator
+    # renamed zaelar to "Johnny" mid-session, and every following "Johnny, …" turn was marked `ambient`
+    # forever — this list was still hardcoded to "zaelar" and nothing had ever wired the rename to it. See
+    # `set_assistant_name()` below for who calls in. Additive, never a replacement: "zaelar" keeps working
+    # even after a rename (habit, or a stray "oye zaelar" from before it).
+    custom = _norm(_state["assistant_name"])
+    if custom and custom not in _DEFAULT_WAKEWORDS:
+        return _DEFAULT_WAKEWORDS + (custom,)
     return _DEFAULT_WAKEWORDS
+
+
+def set_assistant_name(name: str | None) -> None:
+    """PROCESS-level cache of zaelar's current spoken name (renamed via voice — the rename guard in
+    `nucleo/flash/router_guards.extract_name_change`, wired from both channels). Extends `_wakewords()` so a
+    rename does not silently break `wakeword`/`smart` mode. Deliberately no DB access HERE — this module never
+    touches memory (see the file docstring): the caller reads `state.assistant_name` and pushes it in, the
+    same shape `note_directed()`/`set_ptt()` already use for other process-level facts. Called (a) immediately
+    by the rename handler, session-layer, and (b) off-hot-path by `nucleo/flash/memory_cache` on every state
+    refresh, so a reconnect or another surface renaming it (e.g. the ⚙ panel, if one is ever added) also reaches
+    here without a code change."""
+    _state["assistant_name"] = (name or "").strip()
+
+
+def assistant_name() -> str:
+    """The name pushed by `set_assistant_name()` — '' if never set (nothing to add beyond the default)."""
+    return _state["assistant_name"]
 
 
 def has_wakeword(text: str) -> bool:

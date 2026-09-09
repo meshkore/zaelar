@@ -124,6 +124,12 @@ export function openSSE(desktop) {
     } else if (d.kind === "alert") {                                              // hard notice (e.g. no LLM credit) → red banner
       store.showAlert(d.label || t("sse.llm_problem"));
       refreshStatus();                                                           // turn the ◉ status icon red now
+    } else if (d.kind === "ui" && d.label === "orb:attention") {                 // 🤖 mode changed — button OR voice (2026-09-09)
+      store.setAttentionMode(d.state === "wakeword" ? "smart" : (d.state || "always"));
+    } else if (d.kind === "ui" && d.label === "orb:name") {                      // renamed by voice — tooltip updates live
+      if (d.name) store.setAssistantName(d.name);
+    } else if (d.kind === "ambient") {                                           // attention gate verdict → the "listening to you" ring
+      if (d.directed) store.pulseAttentionHit(d.window_s); else store.clearAttentionHit();
     } else if (d.kind === "language") {                                          // V2-089 P3: detected/changed language → the entire UI changes LIVE
       if (d.code) applyLang(d.code);                                             // fetches whatever the bundle has now — presets instant, a generating one falls back to English for missing keys until "ready"
       // V2-101: the first-run onboarding modal tracks phases on TOP of the plain applyLang above — "detected"

@@ -69,6 +69,24 @@ export const [botSpeaking, setBotSpeaking] = createSignal(false);            // 
 export const [micBlocked, setMicBlocked]   = createSignal({ show: false, msg: "" });  // 🚫 ring over the orb
 export const [micLevel, setMicLevel]       = createSignal(0);               // true mic RMS (0..1) for the meter
 
+// ── attention gate (V2-016 + 2026-09-09): the 🤖 mode + a real-time "I'm listening to YOU" ring ─────────────
+// `attentionMode` mirrors config/settings.json's `attention_mode` (source of truth: /api/settings on load,
+// then the `ui`/`orb:attention` SSE event whichever side changes it — the button OR a voice order, see
+// nucleo/flash/identity_actions.py). `assistantName` is the CURRENT spoken name (renamed via voice), read the
+// same way + `ui`/`orb:name`. `attentionHit` lights the ring the instant the gate judges a turn DIRECTED —
+// the only real-time signal this turn-based system can give (never word-by-word); it clears on the next
+// `ambient` (not-directed) verdict or after its own `window_s`, whichever comes first — see sse.js.
+export const [attentionMode, setAttentionMode] = createSignal("always");
+export const [assistantName, setAssistantName] = createSignal("Zaelar");
+export const [attentionHit, setAttentionHit]   = createSignal(false);
+let _attnHitT = null;
+export function pulseAttentionHit(windowS) {
+  setAttentionHit(true);
+  clearTimeout(_attnHitT);
+  _attnHitT = setTimeout(() => setAttentionHit(false), Math.max(1, Number(windowS) || 30) * 1000);
+}
+export function clearAttentionHit() { clearTimeout(_attnHitT); setAttentionHit(false); }
+
 // ── IS THE AGENT ALIVE? ONE single derived answer — not another signal to maintain ────────────────────────
 // It arose from a real and costly failure (operator session, 2026-08-10). Each orb icon decided its appearance from
 // a DIFFERENT signal, and none meant «the agent is running»:

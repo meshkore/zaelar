@@ -66,6 +66,14 @@ def _compose() -> tuple[str, str]:
     except Exception:
         return "", ""
     _set_stats(**stats)
+    # The attention gate's wake-word tracks a rename (2026-09-09): this refresh already runs off the hot
+    # path and re-fires on `memory.updated` (a rename fires it immediately), so it is the natural place to
+    # keep `voice.attention` in sync without giving that module its OWN memory read — see its docstring.
+    try:
+        from voice import attention
+        attention.set_assistant_name(memory.state().get("assistant_name"))
+    except Exception:
+        pass
     return block, op
 
 

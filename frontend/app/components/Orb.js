@@ -28,7 +28,7 @@
 // activity rail (#activity) is owned by the desktop. Captions are LIVE only (last 3 lines) — the chat wall keeps
 // the history.
 import { h, raw } from "../core/dom.js?v=2";
-import { createEffect, createSignal } from "../core/reactive.js?v=2";
+import { createEffect } from "../core/reactive.js?v=2";
 import * as store from "../core/store.js?v=2";
 import * as session from "../services/session.js?v=3";
 import * as api from "../services/api.js?v=2";
@@ -51,22 +51,28 @@ const PWR_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" str
 export function Orb() {
   let wrapEl, orbEl, capEl, capInnerEl, ecgEl, micblockEl;
 
-  // ---- attention gate toggle (V2-016). Local signal mirrors config/settings.json's attention_mode: ON = wakeword
-  // (only acts on "zaelar"/"harvis"), OFF = always (listens+answers to everything, default). Reflects the REAL
-  // current mode on load; toggling writes it LIVE via the same /api/settings seam the ⚙ uses (attention_mode is
-  // "live" — voice/attention.py::mode() reads ZAELAR_ATTENTION each turn, no reconnect needed).
-  const [wakeOn, setWakeOn] = createSignal(false);
+  // ---- attention gate toggle (V2-016 + 2026-09-09 "Modo Nombre"). ON = `smart` (wake-word OR an active
+  // conversation window — say the name once, keep talking through short pauses; NOT raw `wakeword`, which
+  // re-demands it every utterance with no window: measured live, that is exactly what made a rename look
+  // "worked twice and then stopped"). OFF = always (listens+answers to everything, default).
+  // store.attentionMode/assistantName mirror config/settings.json — read once here (GET /api/settings), kept
+  // live afterwards by the `ui`/`orb:attention` + `orb:name` SSE events (sse.js) whichever side changes them,
+  // button OR voice ("activa el modo nombre" — nucleo/flash/identity_actions.py). Toggling writes LIVE via the
+  // same /api/settings seam the ⚙ uses (attention_mode is "live" — voice/attention.py::mode() reads
+  // ZAELAR_ATTENTION each turn, no reconnect needed).
+  const wakeOn = () => store.attentionMode() === "smart" || store.attentionMode() === "wakeword";
   api.getSettings()
     .then(cfg => {
       const knob = (cfg.knobs || []).find(k => k.key === "attention_mode");
-      setWakeOn((knob && knob.value) === "wakeword");
+      if (knob) store.setAttentionMode(knob.value === "wakeword" ? "smart" : knob.value);
+      if (cfg.assistant_name) store.setAssistantName(cfg.assistant_name);
     })
     .catch(() => {});
   const toggleWake = () => {
-    const next = !wakeOn();
-    setWakeOn(next);                                            // optimistic; reflects immediately
-    api.saveSettings({ attention_mode: next ? "wakeword" : "always" })
-      .catch(() => setWakeOn(!next));                           // revert on failure
+    const prev = store.attentionMode();
+    const next = wakeOn() ? "always" : "smart";
+    store.setAttentionMode(next);                               // optimistic; reflects immediately
+    api.saveSettings({ attention_mode: next }).catch(() => store.setAttentionMode(prev));   // revert on failure
   };
 
   // ⏻ STOPPED dims the whole lid (operator request): a stopped agent can't use mic/speaker/captions — and
@@ -207,8 +213,8 @@ export function Orb() {
       }, raw(CHAT_ICON)),
       h("button", { "data-ctl": "bot",
         class: () => lidClass(wakeOn()),
-        title: () => wakeOn() ? t("orb.wake_on") : t("orb.wake_off"),
-        onClick: () => { toggleWake(); api.uiEvent("orb:attention", { state: wakeOn() ? "wakeword" : "always" }); },
+        title: () => wakeOn() ? t("orb.wake_on", { name: store.assistantName() }) : t("orb.wake_off", { name: store.assistantName() }),
+        onClick: () => { toggleWake(); api.uiEvent("orb:attention", { state: store.attentionMode() }); },
       }, raw(BOT_ICON)),
     ),
     // orb + its overlays in a RELATIVE box: the caption is ABSOLUTE, anchored above the orb (bottom:100%), so it
@@ -226,6 +232,11 @@ export function Orb() {
                     class: () => (store.botMuted() ? "muted" : "") + (store.agentLive() ? "" : " frozen"),
                     ref: el => (orbEl = el), title: () => t("orb.drag") }),
       h("div", { class: () => "micblock" + (store.micBlocked().show ? " show" : ""), ref: el => (micblockEl = el) }, h("span", { class: "ring" })),
+      // "te estoy escuchando" ring (2026-09-09): lights up the instant the attention gate judges a turn
+      // DIRECTED at zaelar (voice/attention.py via nucleo.py's `emit("ambient", "👂 dirigido a zaelar", …)`) —
+      // the operator's own ask: some visible proof he is heard, in EVERY mode (Modo Nombre or the default
+      // always-on), not only once he has already started talking and hopes for the best.
+      h("div", { class: () => "attnring" + (store.attentionHit() ? " show" : "") }, h("span", { class: "ring" })),
     ),
     // ELECTROCARDIOGRAM under the orb — zaelar's REAL heartbeat: a QRS per orchestrator loop.tick (~1 Hz at rest),
     // racing when there are background tasks / FlashBrain turns. Driven by lib/ecg.js off store.pulse. Flat = no

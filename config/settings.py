@@ -177,7 +177,15 @@ def effective() -> dict:
              [("15 s", "15"), ("30 s", "30"), ("60 s", "60"), ("120 s", "120")], "live",
              "segundos que sigue atendiendo sin repetir «zaelar» tras dirigirte a él (modo inteligente)"),
     ]
-    return {"knobs": knobs, "free_text": [], "voices_by_provider": voices_by_provider, "theme": theme()}
+    # Read-only, for the orb's 🤖 tooltip (2026-09-09): the wake-word IS the current spoken name (renamed via
+    # voice, `nucleo/flash/identity_actions.py`), not the literal "zaelar" the tooltip used to hardcode.
+    try:
+        from memory import api as _mem
+        assistant_name = (_mem.state().get("assistant_name") or "Zaelar").strip() or "Zaelar"
+    except Exception:
+        assistant_name = "Zaelar"
+    return {"knobs": knobs, "free_text": [], "voices_by_provider": voices_by_provider, "theme": theme(),
+            "assistant_name": assistant_name}
 
 
 import re as _re
