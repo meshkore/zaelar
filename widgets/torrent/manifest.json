@@ -1,0 +1,53 @@
+{
+  "id": "torrent",
+  "version": "0.1.0",
+  "title": "Descargas",
+  "description": "Encuentra una película o un vídeo por la red de torrents y lo reproduce aquí dentro mientras se descarga. El buscador vive en la red MeshKore; esto es el cliente que baja el enlace y lo pone en pantalla.",
+  "whenToUse": "Cuando piden VER algo por torrent — «busca la peli X y ponla», «descarga el vídeo de Y». Encuentra un enlace magnet por la red, empieza a bajarlo y lo reproduce en cuanto hay suficiente. FRONTERA: un vídeo de YouTube o web → `youtube`; una web en vivo → `navegador`.",
+  "keywords": [
+    "torrent",
+    "descarga",
+    "descargar",
+    "magnet",
+    "pelicula",
+    "peli",
+    "bajar la pelicula",
+    "torrents",
+    "download",
+    "movie"
+  ],
+  "entry": "widget.js",
+  "usage": "`search` {query} busca un enlace magnet por la red MeshKore y empieza a descargarlo, reproduciéndolo en cuanto hay suficiente. `play` {magnet} baja un enlace magnet concreto. `poll` refresca el progreso. `stop` cancela la descarga y borra el fichero. Solo reproduce; el buscador es un agente de la red, no esto.",
+  "worker_guide": "Para poner un torrent desde un worker: `python -m nucleo.widget_cli data torrent search @q.json` con {\"query\":\"la peli que sea\"}, luego `python -m nucleo.widget_cli show torrent`. El id de la descarga vuelve en la respuesta; el progreso se lee con `data torrent poll`.",
+  "actions": {
+    "search": {
+      "desc": "busca un torrent por la red y empieza a descargarlo",
+      "payload": { "query": "qué buscar (título de la peli o el vídeo)" },
+      "view": true
+    },
+    "play": {
+      "desc": "descarga un enlace magnet concreto",
+      "payload": { "magnet": "enlace magnet:?..." },
+      "view": true
+    },
+    "poll": {
+      "desc": "refresca el progreso de la descarga en curso",
+      "payload": {}
+    },
+    "stop": {
+      "desc": "cancela la descarga y borra el fichero",
+      "payload": {}
+    }
+  },
+  "name": "Descargas",
+  "aliases": [
+    "Descargas",
+    "el torrent",
+    "la descarga",
+    "la pelicula"
+  ],
+  "origin": "builtin",
+  "size": { "w": 720, "h": 560 },
+  "live_title": true,
+  "fullscreen": "native"
+}

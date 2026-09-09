@@ -44,6 +44,13 @@ segno>=1.6                        # QR PNG puro-Python para el login por QR de T
 # página y el widget muestra la captura. Tras instalar: `python -m playwright install chromium` (baja el binario).
 playwright>=1.61                  # Chromium headless para el widget navegador — widgets/navegador/
 #
+# --- Widget "torrent" (V2-637, cliente BitTorrent embebido) -----------------------------------------------------
+# Reproducir dentro del agente un vídeo bajado por torrent, sin instalar nada en el host: el motor de qBittorrent
+# como wheel puro (bindings oficiales en PyPI, cero deps de sistema). El buscador es un agente de la red MeshKore;
+# esto es solo el cliente que baja el magnet y lo transmite por HTTP Range. El código degrada solo si falta el
+# wheel (service.available() → False, conector oculto), así que un instalador sin binario no rompe el arranque.
+libtorrent==2.1.1                 # sesión + descarga secuencial + streaming — connectors/torrent/session.py
+#
 # --- Memoria central v2 «Colmena» (V2-002) ----------------------------------------------------------------------
 # Memoria tipo humana 100% LOCAL en un solo fichero SQLite (memory/_data/zaelar.db, WAL) — sin servidor ni broker.
 # sqlite-vec = extensión C de búsqueda vectorial por fuerza bruta (1-5 ms a decenas de miles de recuerdos), se

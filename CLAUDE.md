@@ -514,6 +514,38 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   card structure per the V2-608 fixture lesson). Frontend-only: a page reload picks it up. Detail: the
   V2-636 initiative.
 
+- **An embedded torrent client, so a magnet becomes a video playing INSIDE the agent (V2-637, 2026-09-09)**:
+  the operator asked whether Zaelar could carry its own torrent client as an add-on — the mesh already has a
+  search agent that returns a magnet, and he wanted the other half: find the movie AND play it in the agent,
+  the same promise as the embedded browser, working on cloud and self-host, «part of our code package, nothing
+  installed on the system». Measured before designing anything: `libtorrent` (the qBittorrent core) installs
+  as a pure-Python wheel (2.1.1, py3.12) with zero system deps, and a public-domain magnet resolved its
+  torrent metadata over the real network in ~4 s. So it ships in `requirements.txt` and the whole feature is
+  in-package. `connectors/torrent/` mirrors the `connectors/video` family shape: `session.py` is the ONLY
+  file that imports libtorrent (a LAZY process singleton — built on first use, never in the ASGI lifespan,
+  which runs twice), `search.py` gets the magnet through `mesh_agents.serve` (free agents only, a 402 is a
+  fact never paid, «nobody does this» is a spoken reason — the search itself is a network agent, not ours),
+  `service.py` is the fail-safe facade whose `available()` is DERIVED from the wheel importing (V2-603 rule —
+  a machine without it hides the connector, never shows-and-breaks), and `server_api.py` serves
+  `/api/torrent/*`. The one hard part is streaming a file that is still DOWNLOADING: `FileResponse` stats once
+  and is useless, so `stream` hand-rolls a `206` — parses `Range:`, reports `Content-Range` against the FULL
+  size a `<video>` needs to seek, and streams through `session.iter_range`, which reads from DISK (a completed
+  piece is checked and flushed there by default storage) after prioritizing (`set_piece_deadline`) and
+  awaiting (`have_piece`) the pieces it is about to serve; sequential download + a per-file priority delivers
+  the front first, so «play while it downloads» works. A chunk that never arrives raises and CLOSES the stream
+  (a browser re-requests a Range better than it survives a hung socket). The `torrent` widget (`Descargas`)
+  builds its `<video>` ONCE and only updates it on re-render (the V2-124/4.19 rule), showing the player only
+  when `streamable` (metadata + first ~4 MB down), progress until then — its declared actions ARE the skills
+  (V2-544), driven by the generic `widget_data` tool. **The FlashBrain model-tool wiring (a dedicated
+  `stream_torrent` in the 5-file router core) was DEFERRED on purpose** — the V2-561 precedent: a
+  self-contained feature does not also touch the sensitive, well-tested tool-routing core in the same commit;
+  the agent already operates it through `widget_data` like `documento`/`archivos`. Node **5.22** (16 cases,
+  three disarms verified red — the stream_url gate, the search-miss-must-not-download guard, the Range clamp);
+  `make test-widgets` 15/15, connectors unit 299 green. Data lands under `widgets/_data/` (a declared
+  workspace root). **NOT verified live end-to-end**: the metadata path is proven, the byte streaming of a real
+  payload is not exercised in the suite (a unit test opens no session, reaches no network). Detail:
+  `.meshkore/docs/modules/zaelar-torrent-addon.md`.
+
 - **An unplayable video is swapped, not served — and the silent turn must not apologize (V2-634,
   2026-09-09)**: the operator, with LaLiga's «Video unavailable» on the card. We use the NATIVE YouTube
   IFrame embed, so embedding restrictions are per-video, set by the rights holder — the video plays on

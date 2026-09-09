@@ -1,0 +1,12 @@
+{
+  "view_data_shape": {
+    "available": "bool",
+    "error": "str",
+    "id": "str",
+    "query": "str",
+    "status": "dict",
+    "stream_url": "str",
+    "streamable": "bool",
+    "title": "str"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "id": "torrent",
+  "label": "Torrent (descargas)",
+  "kind": "connector",
+  "family": "video",
+  "transport": "native",
+  "auth": "none",
+  "state": "built",
+  "capabilities": [
+    "torrent",
+    "descargar pelicula",
+    "descargar video",
+    "reproducir torrent",
+    "magnet",
+    "download movie",
+    "stream torrent"
+  ],
+  "notes": "Cliente BitTorrent embebido (libtorrent, sin instalar nada en el sistema). El buscador es un agente de la red MeshKore; esto baja el enlace magnet y lo reproduce dentro del agente mientras se descarga (streaming por HTTP Range). Se activa solo si el paquete libtorrent está presente; no necesita ninguna credencial."
+}

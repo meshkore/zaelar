@@ -361,7 +361,11 @@ _STDLIB_EXEMPT = {"musica", "agenda", "archivos", "fotos", "youtube", "results",
                    # connect wizard already writes account credentials to — and reading the effective
                    # signature for view_data needs `connectors.email.config`, lazily, exactly like
                    # `youtube`'s own `_svc()` reaches its connector.
-                   "mensajeria"}
+                   "mensajeria",
+                   # V2-637: the `torrent` widget IS a connector surface — its data.py reaches
+                   # `connectors.torrent.service` (which owns the libtorrent session), deferred so the
+                   # catalog never imports libtorrent just to list the widget.
+                   "torrent"}
 
 
 def _scan_data_py(src: str, wid: str = "") -> str | None:
