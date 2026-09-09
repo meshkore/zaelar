@@ -33,9 +33,12 @@ store», it is a view and may expire freely.
   catalogued, cross-platform (platform is a column, not a silo), fed at the store's write seams including
   outbound. The inbox/threads are expiring views; the `kind='msg'` pills are decaying salience. **Neither is
   the record anymore.**
-- **Music** → `widgets/_data/musica/` owns playlists, play counts / most-played, cover-art cache, followed
-  artists. Memory gets the distilled preference («likes Madonna» — a `pref` pill), never the playlist rows.
-  (Being settled with the music-widget work, 2026-09-09; this section is the contract to build against.)
+- **Music** → `widgets/_data/musica/state.json` (V2-629) owns `playlists[]` (tracks:
+  title/artist/album/art/query/uri/videoId), `recent[]` (cap 30, with `at`), `counts{}` (per-track play
+  counters `{title, artist, album, count}` keyed by normalized `title|artist` — `top` is DERIVED from it),
+  and `art_cache{}` (iTunes covers; bookkeeping stripped from `view_data` before serving). The widget writes
+  ZERO rows into memory. Inferred preference («likes Madonna») is the sleep cycle's lane: REM reads `counts`
+  read-only, the heart distills the `pref` pill — the widget never decides what is biographical.
 - **Video** → same shape (V2-604 already ruled it: the widget OWNS its library and watch history — we record
   what WE play; a connector only extends).
 
