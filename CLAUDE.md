@@ -132,6 +132,7 @@ Los agentes DEBEN trabajar dentro de esta estructura — no crear `docs/` ni car
 | **Memory change workflow** | `.meshkore/docs/ops/zaelar-memory-workflow.md` |
 | **Alignment review** | `.meshkore/docs/ops/zaelar-alignment-review.md` |
 | **Model/latency benchmarks** | `.meshkore/docs/ops/zaelar-model-benchmarks.md` |
+| **Changing a model (checklist + traps)** | `.meshkore/docs/ops/zaelar-model-change.md` |
 | **Testing playbook** | `.meshkore/docs/ops/zaelar-testing.md` |
 | **Monitorización de conversaciones de cluster** | `.meshkore/docs/ops/zaelar-cluster-conversation-monitoring.md` |
 | Observabilidad / debug | `.meshkore/docs/ops/zaelar-observability.md` |
