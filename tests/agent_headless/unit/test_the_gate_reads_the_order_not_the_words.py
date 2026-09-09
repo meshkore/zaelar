@@ -89,3 +89,32 @@ def test_the_detection_patterns_were_not_loosened():
     src = inspect.getsource(danger)
     for verbo in ("comprar", "pagar", "purchase", "buy", "checkout", "delete account"):
         assert verbo in src, f"desapareció «{verbo}» del catálogo de irreversibles"
+
+
+# ── V2-645: an AMOUNT QUESTION is not a payment ────────────────────────────────────────────────────────────
+# Measured live (the La Mella session, 2026-09-09): «revisa el grupo… y averigua cuánto hay que pagar»
+# tripped the money gate three times over a task whose whole job was READING messages. Asking about money
+# moves none; an imperative in the same sentence still gates.
+
+def test_the_la_mella_escalation_reads_messages_and_moves_no_money():
+    from nucleo import danger
+    esc = ("El operador Raquel (también se llama a sí mismo Ricar) tiene en su mensajería un grupo donde "
+           "se habla de un viaje a \"la Mella\". Revísalo y averigua cuánto hay que pagar ahora y a qué "
+           "email hay que mandar el comprobante.")
+    assert not danger.is_dangerous(esc)
+    assert not danger.moves_money(esc)
+
+
+def test_an_amount_question_is_not_a_charge_in_either_language():
+    from nucleo import danger
+    for t in ("dime cuánto hay que pagar", "cuánto cuesta la reserva",
+              "how much do we have to pay for the trip?"):
+        assert not danger.moves_money(t), t
+        assert not danger.is_dangerous(t), t
+
+
+def test_the_counterweight_an_imperative_next_to_the_question_still_gates():
+    from nucleo import danger
+    for t in ("averigua cuánto es y págalo", "transfiere 100 euros al grupo",
+              "paga la cuota del viaje", "renueva la suscripción"):
+        assert danger.is_dangerous(t) or danger.moves_money(t), t

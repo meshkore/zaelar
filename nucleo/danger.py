@@ -137,6 +137,25 @@ _PURCHASE_ADJUNCT_RE = re.compile(
     r"available\s+for\s+purchase|for\s+purchase|for\s+sale|to\s+buy|worth\s+buying)\b", re.I)
 
 
+# An AMOUNT QUESTION is not a payment (V2-645). Measured live (the La Mella session, 2026-09-09): the
+# escalation «revisa el grupo… y averigua cuánto hay que pagar» tripped the money gate THREE times — the
+# operator was asked to confirm a charge nobody proposed, over a task whose whole job was READING messages
+# to find out a number. «cuánto hay que pagar» / «how much do we have to pay» asks ABOUT money and moves
+# none. Unlike _PURCHASE_ADJUNCT_RE this drop is NOT gated on a lookup head: a composed worker request
+# starts with «El operador…», so the ^-anchored head never matches there, and the interrogative itself is
+# the evidence. Narrow on purpose: only «cuanto/how much» within a few words of a money verb is dropped —
+# «paga lo que pida» and «averigua cuánto es y págalo» keep their imperative and still gate (tests).
+_AMOUNT_QUESTION_RE = re.compile(
+    r"\bcuant[oa]s?\b(?:\s+\w+){0,3}?\s+(?:pagar|abonar|pago|pagamos|pagas|debo|debemos|debe|deben|"
+    r"cuesta|cuestan|costaria|vale|valen|transferir|aportar|poner)\w*"
+    r"|\bhow\s+much\b(?:\s+\w+){0,4}?\s+(?:pay|owe|owed|cost|costs|transfer|chip\s+in)\w*", re.I)
+
+
+def _drop_amount_questions(order: str) -> str:
+    """A question about an amount is dropped BEFORE the danger/money regexes look for their verbs."""
+    return _AMOUNT_QUESTION_RE.sub(" ", order)
+
+
 def _drop_lookup_adjuncts(order: str) -> str:
     """Documentation translated to English."""
     return _PURCHASE_ADJUNCT_RE.sub(" ", order) if _LOOKUP_HEAD_RE.search(order) else order
@@ -164,7 +183,7 @@ def is_dangerous(text: str) -> bool:
     # translated implementation note
     # translated implementation note
     # translated implementation note
-    order = _drop_lookup_adjuncts(_REMINDER_RE.sub(" ", _strip_accents(_order_text(text))))
+    order = _drop_amount_questions(_drop_lookup_adjuncts(_REMINDER_RE.sub(" ", _strip_accents(_order_text(text)))))
     return bool(_DANGER_RE.search(order) or _DANGER_CLITIC_RE.search(order)
                 or _DANGER_ASK_CLITIC_RE.search(order) or _DANGER_PROCLITIC_RE.search(order)
                 or _COMMITMENT_RE.search(order))
@@ -207,7 +226,7 @@ def moves_money(text: str) -> bool:
     """Documentation translated to English."""
     # translated implementation note
     # translated implementation note
-    order = _drop_lookup_adjuncts(_REMINDER_RE.sub(" ", _strip_accents(_order_text(text))))
+    order = _drop_amount_questions(_drop_lookup_adjuncts(_REMINDER_RE.sub(" ", _strip_accents(_order_text(text)))))
     if _MONEY_RE.search(order):
         return True
     # translated implementation note
