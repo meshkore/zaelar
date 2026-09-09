@@ -200,3 +200,28 @@ def test_toda_tool_del_catalogo_tiene_familia():
     side) and could never be trimmed. It is silent debt: better for it to be caught here."""
     huerfanas = _names(FULL) - set(ts._family_of)
     assert not huerfanas, f"tools sin familia en router.FAMILIES: {sorted(huerfanas)}"
+
+
+def test_revisar_un_grupo_conserva_la_puerta_de_lectura():
+    """V2-645, measured live (the La Mella session): the operator's literal errand named NO family — «grupo»
+    was not a seed — and the box that reached the model had no widget_data, so a question the archive answers
+    in-turn was forced into a Brain Worker behind a money confirm-gate."""
+    text = ("Hola, Johnny. Soy Ricar ahora. Escúchame, hay un hay un grupo en el que se habla del viaje "
+            "este a la Mella, Revísalo y dime cuánto hay que pagar ahora.")
+    got = _names(ts.select(FULL, turn_text=text)[0])
+    assert "widget_data" in got, "the read door of messaging IS widget_data (declared actions are the skills)"
+    assert "reply_message" in got
+
+
+def test_pedir_la_familia_messaging_trae_tambien_su_puerta_de_lectura():
+    """The second half of the same incident: the model DID ask (`need_capability(messaging)`) and the family
+    handed it only reply_message — a SEND tool for a READ question. A forced family pulls its implication."""
+    got = _names(ts.select(FULL, turn_text="da igual qué palabras", force={"messaging"})[0])
+    assert "widget_data" in got and "reply_message" in got
+
+
+def test_la_implicacion_no_hace_ruido_en_la_charla():
+    """The counterweight: small talk still drags neither widgets nor messaging — the implication only fires
+    when messaging itself was named/forced/recent, never on its own."""
+    got = _names(ts.select(FULL, turn_text="hola, ¿qué tal estás?")[0])
+    assert "widget_data" not in got and "reply_message" not in got

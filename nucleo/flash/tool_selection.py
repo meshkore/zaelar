@@ -105,7 +105,25 @@ _HINTS: dict[str, tuple[str, ...]] = {
                   "mail", "message", "messages", "reply", "chat",
                   # V2-611: sending/signature verbs, which name no platform on their own («envíaselo»,
                   # «pon mi firma») — without a seed here they have nothing to route to.
-                  "envia", "manda", "mandale", "escribele", "firma", "send", "signature"),
+                  "envia", "manda", "mandale", "escribele", "firma", "send", "signature",
+                  # V2-645: the GROUP nouns. Measured live (2026-09-09, the La Mella session): «hay un grupo
+                  # en el que se habla del viaje… revísalo y dime cuánto hay que pagar» named NO family — the
+                  # operator's natural word for a group chat was not a seed, so the one errand shape the
+                  # archive exists to answer retrieved nothing. Same rule as always: the same seeds in the
+                  # other number and the other language, never a longer verb list.
+                  "grupo", "grupos", "group", "groups",
+                  "conversacion", "conversaciones", "conversation", "conversations"),
+}
+
+# A family may IMPLY another: keeping one pulls the other in, at every layer (named, forced via
+# `need_capability`, recent). V2-645, measured live: the model asked for `messaging` by name and received
+# ONLY `reply_message` — a SEND tool for a READ question («revisa el grupo y dime cuánto hay que pagar»),
+# because the read door of every messaging surface is `widget_data` (the declared widget actions ARE the
+# skills, V2-549) and that lives in `widgets`. With no read tool in the box, escalating was the model's only
+# legal move, and a Brain Worker + a money confirm-gate stood in for what `search_archive` answers in-turn.
+# Reading messages IS operating the widget, so the implication is structural, not a convenience.
+_IMPLIES: dict[str, tuple[str, ...]] = {
+    "messaging": ("widgets",),
 }
 
 
@@ -173,6 +191,8 @@ def select(tools: list[dict], *, turn_text: str = "", open_widgets=None,
             named.add(fam)
     keep |= named
     keep |= {f for f in (recent_families or ()) if f in FAMILIES}
+    for f in tuple(keep):
+        keep |= set(_IMPLIES.get(f, ()))
 
     out, omitted = [], set()
     for t in tools:
