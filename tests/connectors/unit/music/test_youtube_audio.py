@@ -111,3 +111,38 @@ def test_registry_prefers_spotify_when_connected(monkeypatch):
     monkeypatch.setattr(SpotifyProvider, "connected", lambda self: True)
     assert registry.active().name == "spotify"
     registry._PROVIDERS.clear(); registry._loaded = False
+
+
+# --- V2-629: free cover art the instant a videoId resolves, no extra network call ---
+
+def test_yt_thumb_derives_a_url_from_the_id_alone():
+    assert ya._yt_thumb("dQw4w9WgXcQ") == "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg"
+    assert ya._yt_thumb("") == ""
+    assert ya._yt_thumb(None) == ""
+
+
+def test_play_writes_art_into_the_store_and_the_result_track(_store, monkeypatch):
+    monkeypatch.setattr(ya, "_resolve", lambda q: ("VID00000001", "Fly Me to the Moon"))
+    r = ya.YouTubeAudioProvider().play(query="frank sinatra")
+    assert r.track.art == "https://i.ytimg.com/vi/VID00000001/hqdefault.jpg"
+    assert _store["yt"]["art"] == "https://i.ytimg.com/vi/VID00000001/hqdefault.jpg"
+
+
+def test_the_no_restart_reply_still_carries_art(_store, monkeypatch):
+    """The V2-047 F5 guard returns EARLY, before any new resolution — the art must come from the STORE, not
+    from re-deriving it, since a legacy stored `yt` block (written before V2-629) may have none."""
+    monkeypatch.setattr(ya, "_resolve", lambda q: ("VID00000001", "Fly Me to the Moon"))
+    p = ya.YouTubeAudioProvider()
+    p.play(query="sinatra")
+    r = p.play(query="sinatra")   # identical query, already playing -> the no-restart branch
+    assert r.extra.get("noop") is True
+    assert r.track.art == "https://i.ytimg.com/vi/VID00000001/hqdefault.jpg"
+
+
+def test_on_ended_carries_art_for_the_next_track(_store, monkeypatch):
+    monkeypatch.setattr(ya, "_resolve", lambda q: ("V" + q[:10].ljust(10, "0"), q.title()))
+    p = ya.YouTubeAudioProvider()
+    p.play(query="beatles")
+    p.enqueue(query="shakira")
+    r = p.on_ended()
+    assert r.track.art == _store["yt"]["art"] == "https://i.ytimg.com/vi/Vshakira000/hqdefault.jpg"

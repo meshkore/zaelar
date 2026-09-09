@@ -36,3 +36,12 @@
   crear nada — un guardado fallido no deja lista vacía); `favorite_current {playlist}` acepta destino nombrado.
   Dedup por título+artista. En el mismo V2-366/384: el listener de `ended` filtrado por id `hb-musica`
   (cross-talk con el widget de youtube) y los favoritos dejan de llamarse «Favoritos de Manolo».
+- 2026-09-09 (V2-629): real cover art, fast then cached. YouTube-audio tracks get a FREE thumbnail the
+  instant a videoId resolves (`connectors/music/youtube_audio.py::_yt_thumb`, zero extra network call);
+  anything else asks iTunes lazily, once per song ever (`_enrich_art`, cached in `art_cache`, stripped from
+  what `view_data()` returns to the wire). Every emoji control became an inline SVG matching the app shell's
+  icon language; the heart reflects `data.fav_current`. Real bug found by rendering, not reading: `_SW` +
+  an appended `fill="currentColor"` never overrides — the HTML parser keeps the first duplicate attribute —
+  so the "solid" play/pause icons were rendering as hairline outlines; fixed with a separate solid attribute
+  set (`_SF`). Coordinated with memoria-dev over the cluster about a future listening-preference path; no
+  memory code touched here.

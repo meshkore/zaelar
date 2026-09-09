@@ -5,9 +5,10 @@
 // double-click=play on every track row. Contract:
 // render(el, data, ctx).
 // data = GET /widgets/musica/data -> {mode:"spotify"|"youtube"|"idle", connected, can_connect, own_client_id_set,
-//   default_available, redirect_uri, now_playing (spotify)|null, yt:{videoId,title,paused,muted,volume,cmd_seq},
-//   playlists:[{id,name,art,tracks:[{title,artist,album,art,query,uri,videoId}]}], recent:[track], top:[track+count],
-//   view:{kind:"home|playlist|...",id}}.  ctx.action(name,payload) -> POST /widgets/musica/action (JSON).
+//   default_available, redirect_uri, now_playing (spotify)|null, yt:{videoId,title,artist,paused,muted,volume,
+//   cmd_seq,art}, playlists:[{id,name,art,tracks:[{title,artist,album,art,query,uri,videoId}]}], recent:[track],
+//   top:[track+count], fav_current:bool, view:{kind:"home|playlist|...",id}}.
+//   ctx.action(name,payload) -> POST /widgets/musica/action (JSON).
 //
 // Views: HOME (lists + top tracks + recent) and PLAYLIST (cover + tracklist). State `view` controls what is
 // rendered; play_playlist / open_view / back change it through FlashBrain data-ops or clicks. Playback bar at the
@@ -17,6 +18,20 @@
 // The hidden YouTube-audio player is reused between re-renders (persistent `_ytHost`): rebuilding the view never
 // reloads the iframe, which would restart the song. It is recreated only when videoId changes; if cmd_seq changes,
 // the pause/volume command is applied by postMessage. Spotify connection remains intact.
+//
+// COVER ART (V2-629), fast first then enhancements — never the other way round:
+//  1. FREE and INSTANT: a track played through YouTube-audio already carries `art` (the video's own thumbnail,
+//     set server-side the moment its videoId resolves — connectors/music/youtube_audio.py — at ZERO extra cost:
+//     no fetch of ours, just a templated CDN URL the <img> tag loads on its own). Spotify tracks already carry
+//     real album art from Spotify's own API. Neither ever delays "sonar rápido".
+//  2. SLOW and CACHED: a track this widget never actually played (typed into a list, or a legacy row) has no
+//     art. `maybeEnrich()` below asks the server for it AFTER paint, once per song per page life (`_enrichAsked`),
+//     never on the play path — the server caches the answer (hit or miss) so the SAME song is never looked up
+//     twice, on this machine or the next request (widgets/musica/data.py::_enrich_art).
+//
+// ICONS are inline SVG in the SAME visual language as the app shell (frontend/app/lib/icons.js): viewBox
+// 0 0 24 24, stroke=currentColor, stroke-width 2, round caps/joins — duplicated locally because widget.js
+// cannot import from frontend/app (same isolation rule V2-557 already applied to `_norm` below).
 
 function injectStyles(){
   if(document.getElementById("hb-mus2-css")) return;
@@ -25,7 +40,10 @@ function injectStyles(){
   .hb-mus2{--sp-green:#1DB954;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
            width:100%;box-sizing:border-box;background:var(--hb-bg,#fff);border:1px solid var(--hb-line,#eef1f6);
            border-radius:16px;overflow:hidden;color:var(--hb-ink,#0d1622);display:flex;flex-direction:column}
-  .hb-mus2-scroll{padding:15px 15px 8px;display:flex;flex-direction:column;gap:17px;max-height:60vh;overflow:auto}
+  .hb-mus2-scroll{padding:16px;display:flex;flex-direction:column;gap:18px;max-height:60vh;overflow:auto}
+  .hb-mus2 svg{display:block}
+  .hb-mus2-art svg{width:38%;height:38%;color:rgba(255,255,255,.92)}
+  .hb-mus2-new .hb-mus2-art svg{color:var(--hb-muted,#5b6b82)}
   .hb-mus2-top{display:flex;align-items:center;gap:9px;padding-bottom:13px;border-bottom:1px solid var(--hb-line,#eef1f6)}
   .hb-mus2-top b{font-size:17px;font-weight:800;letter-spacing:-.015em}
   .hb-mus2-prov{margin-left:auto;font-size:11px;color:var(--hb-muted,#5b6b82);border:1px solid var(--hb-line,#eef1f6);
@@ -40,12 +58,12 @@ function injectStyles(){
                background:linear-gradient(135deg,var(--hb-accent,#3D6FE0),var(--hb-accent2,#16B8A6));
                box-shadow:0 6px 16px rgba(0,0,0,.16);transition:transform .15s,box-shadow .15s}
   .hb-mus2-art img{width:100%;height:100%;object-fit:cover}
-  .hb-mus2-pl .hb-mus2-art{width:114px;height:114px;font-size:34px}
+  .hb-mus2-pl .hb-mus2-art{width:112px;height:112px}
   .hb-mus2-pl:hover .hb-mus2-art{transform:translateY(-2px);box-shadow:0 12px 24px rgba(0,0,0,.24)}
   .hb-mus2-plname{font-size:12.5px;font-weight:600;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .hb-mus2-plsub{font-size:11px;color:var(--hb-muted,#5b6b82)}
   .hb-mus2-new .hb-mus2-art{background:var(--hb-bg-soft,#fbfdff);border:1.5px dashed var(--hb-line,#eef1f6);
-                            color:var(--hb-muted,#5b6b82);box-shadow:none;font-size:30px}
+                            color:var(--hb-muted,#5b6b82);box-shadow:none}
   .hb-mus2-grid{display:flex;flex-direction:column;gap:1px}
   .hb-mus2-tr{display:flex;align-items:center;gap:11px;padding:7px 8px;border-radius:9px;cursor:pointer;
               user-select:none}
@@ -54,36 +72,39 @@ function injectStyles(){
   .hb-mus2-tr.playing{background:rgba(29,185,84,.10)}
   .hb-mus2-tr.playing.selected{background:rgba(29,185,84,.16)}
   .hb-mus2-tr.playing .hb-mus2-trt{color:var(--sp-green)}
-  .hb-mus2-tr .hb-mus2-art{width:40px;height:40px;font-size:17px;box-shadow:none;flex:0 0 auto}
+  .hb-mus2-tr .hb-mus2-art{width:40px;height:40px;box-shadow:none;flex:0 0 auto}
   .hb-mus2-trn{font-size:12px;color:var(--hb-muted-2,#9aa7b8);font-family:ui-monospace,Menlo,monospace;
                min-width:16px;text-align:center;display:flex;align-items:center;justify-content:center}
   .hb-mus2-trmeta{min-width:0;flex:1}
   .hb-mus2-trt{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .hb-mus2-tra{font-size:11.5px;color:var(--hb-muted,#5b6b82);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .hb-mus2-x{border:0;background:none;color:var(--hb-muted-2,#9aa7b8);font-size:15px;cursor:pointer;
-             padding:2px 7px;border-radius:7px;line-height:1;flex:0 0 auto}
+  .hb-mus2-x{border:0;background:none;color:var(--hb-muted-2,#9aa7b8);cursor:pointer;
+             padding:5px;border-radius:7px;line-height:1;flex:0 0 auto;display:flex}
+  .hb-mus2-x svg{width:14px;height:14px}
   .hb-mus2-x:hover{color:var(--hb-risk,#e5484d)}
   .hb-mus2-empty{font-size:12px;color:var(--hb-muted-2,#9aa7b8);padding:1px 2px}
-  .hb-mus2-back{border:0;background:none;color:var(--hb-muted,#5b6b82);font-size:13px;cursor:pointer;
-                display:flex;align-items:center;gap:5px;padding:0;align-self:flex-start}
+  .hb-mus2-back{border:0;background:none;color:var(--hb-muted,#5b6b82);font-size:13px;font-weight:600;cursor:pointer;
+                display:flex;align-items:center;gap:4px;padding:0;align-self:flex-start}
+  .hb-mus2-back svg{width:15px;height:15px}
   .hb-mus2-back:hover{color:var(--hb-accent,#3D6FE0)}
   .hb-mus2-head{display:flex;gap:15px;align-items:flex-end}
   .hb-mus2-artwrap{position:relative;flex:0 0 auto}
-  .hb-mus2-head .hb-mus2-art{width:96px;height:96px;font-size:40px;box-shadow:0 8px 20px rgba(0,0,0,.2);flex:0 0 auto}
+  .hb-mus2-head .hb-mus2-art{width:100px;height:100px;box-shadow:0 8px 20px rgba(0,0,0,.2);flex:0 0 auto}
   .hb-mus2-headmeta{display:flex;flex-direction:column;gap:7px;min-width:0}
   .hb-mus2-headk{font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:var(--hb-muted-2,#9aa7b8);
                  font-family:ui-monospace,Menlo,monospace}
   .hb-mus2-headn{font-size:22px;font-weight:800;line-height:1.08;letter-spacing:-.02em;word-break:break-word}
   .hb-mus2-playfab{position:absolute;right:8px;bottom:8px;width:46px;height:46px;border-radius:50%;
-                   background:var(--sp-green);color:#fff;border:0;font-size:17px;cursor:pointer;
+                   background:var(--sp-green);color:#fff;border:0;cursor:pointer;
                    display:flex;align-items:center;justify-content:center;box-shadow:0 6px 14px rgba(0,0,0,.35);
                    transition:transform .15s}
+  .hb-mus2-playfab svg{width:19px;height:19px}
   .hb-mus2-playfab:hover{transform:scale(1.07)}
   .hb-mus2-playfab:disabled{opacity:.4;cursor:default;box-shadow:none;transform:none}
   .hb-mus2-bar{border-top:1px solid var(--hb-line,#eef1f6);background:var(--hb-bg-soft,#fbfdff);
                padding:10px 13px;display:flex;align-items:center;gap:11px}
   .hb-mus2-barartwrap{position:relative;flex:0 0 auto}
-  .hb-mus2-bar .hb-mus2-art{width:44px;height:44px;font-size:20px;box-shadow:none;flex:0 0 auto}
+  .hb-mus2-bar .hb-mus2-art{width:46px;height:46px;box-shadow:none;flex:0 0 auto}
   .hb-mus2-areq{position:absolute;right:-3px;bottom:-3px;width:19px;height:19px;border-radius:50%;
                 background:var(--hb-ink,#0d1622);display:flex;align-items:center;justify-content:center;
                 box-shadow:0 0 0 2px var(--hb-bg-soft,#fbfdff)}
@@ -92,12 +113,16 @@ function injectStyles(){
   .hb-mus2-barmeta{min-width:0;flex:1}
   .hb-mus2-bart{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .hb-mus2-bara{font-size:11.5px;color:var(--hb-muted,#5b6b82);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .hb-mus2-barc{display:flex;align-items:center;gap:3px}
-  .hb-mus2-cbtn{border:0;background:none;color:var(--hb-ink,#0d1622);font-size:16px;cursor:pointer;padding:5px;
-                border-radius:8px;line-height:1}
+  .hb-mus2-barc{display:flex;align-items:center;gap:5px}
+  .hb-mus2-cbtn{border:0;background:none;color:var(--hb-ink,#0d1622);cursor:pointer;padding:7px;
+                border-radius:8px;line-height:1;display:flex}
+  .hb-mus2-cbtn svg{width:17px;height:17px}
   .hb-mus2-cbtn:hover{color:var(--hb-accent,#3D6FE0)}
-  .hb-mus2-cbtn.main{width:34px;height:34px;border-radius:50%;background:var(--hb-ink,#0d1622);
-                     color:var(--hb-bg,#fff);display:flex;align-items:center;justify-content:center;font-size:14px}
+  .hb-mus2-cbtn.fav{color:var(--sp-green)}
+  .hb-mus2-cbtn.fav:hover{color:var(--sp-green);opacity:.8}
+  .hb-mus2-cbtn.main{width:36px;height:36px;border-radius:50%;background:var(--hb-ink,#0d1622);
+                     color:var(--hb-bg,#fff);align-items:center;justify-content:center;padding:0}
+  .hb-mus2-cbtn.main svg{width:15px;height:15px}
   .hb-mus2-cbtn.main:hover{color:var(--hb-bg,#fff);opacity:.85}
   .hb-mus2-connect{display:flex;flex-direction:column;gap:8px}
   .hb-mus2-sub{font-size:12.5px;color:var(--hb-muted,#5b6b82);line-height:1.45}
@@ -127,6 +152,37 @@ function injectStyles(){
   `; document.head.appendChild(s);
 }
 
+// ── icon set, "our line" (V2-629) ────────────────────────────────────────────────────────────────────────
+// Two attribute sets, never combined on one <svg> — the HTML parser keeps the FIRST occurrence of a
+// duplicate attribute and silently drops the rest, so a tag carrying both `fill="none"` (from an outline
+// base) and a later `fill="currentColor"` override stays "none" forever: a solid icon that quietly rendered
+// as a hairline outline, caught only by a render test asserting the resolved attribute, not by reading.
+const _SW = 'viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" ' +
+           'stroke-linejoin="round"';                                            // OUTLINE icons
+const _SF = 'viewBox="0 0 24 24" fill="currentColor" stroke="none"';              // SOLID icons
+const ICON_NOTE      = `<svg ${_SW}><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>`;
+const ICON_PLUS       = `<svg ${_SW}><path d="M12 5v14"/><path d="M5 12h14"/></svg>`;
+const ICON_BACK       = `<svg ${_SW}><path d="m15 18-6-6 6-6"/></svg>`;
+const ICON_CLOSE      = `<svg ${_SW}><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>`;
+const ICON_PREV       = `<svg ${_SW}><polygon points="19 20 9 12 19 4 19 20"/><line x1="5" y1="19" x2="5" y2="5"/></svg>`;
+const ICON_NEXT       = `<svg ${_SW}><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/></svg>`;
+const ICON_PLAY       = `<svg ${_SF}><path d="M8 5v14l11-7z"/></svg>`;
+const ICON_PAUSE      = `<svg ${_SF}><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>`;
+const ICON_VOL_DOWN   = `<svg ${_SW}><path d="M11 5 6 9H2v6h4l5 4V5z"/></svg>`;
+const ICON_VOL_UP     = `<svg ${_SW}><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg>`;
+const ICON_HEART      = `<svg ${_SW}><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.8 1-1a5.5 5.5 0 0 0 0-7.6z"/></svg>`;
+const ICON_HEART_FILL = `<svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" ` +
+  `stroke-linecap="round" stroke-linejoin="round"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 ` +
+  `0 0 0-7.8 7.8l1 1L12 21l7.8-7.8 1-1a5.5 5.5 0 0 0 0-7.6z"/></svg>`;
+
+// Raw SVG markup -> element (same trick as frontend/app/core/dom.js::raw — duplicated, widgets never import
+// app-shell code).
+function svgEl(markup){
+  const t = document.createElement("template");
+  t.innerHTML = markup.trim();
+  return t.content.firstElementChild;
+}
+
 function h(tag, cls, text){
   const e = document.createElement(tag);
   if(cls) e.className = cls;
@@ -144,8 +200,18 @@ function eqIcon(){
 // Cover art: image (Spotify URL) or fallback emoji. URL goes into img.src, never innerHTML.
 function artNode(art, fallback){
   const a = h("div", "hb-mus2-art");
-  if(art){ const img = document.createElement("img"); img.src = art; img.alt = ""; a.appendChild(img); }
-  else a.textContent = fallback || "🎵";
+  const paintFallback = () => { a.textContent = ""; a.appendChild(svgEl(fallback || ICON_NOTE)); };
+  if(art){
+    const img = document.createElement("img"); img.src = art; img.alt = "";
+    // A dead or since-removed thumbnail (V2-629) degrades to the SAME placeholder a missing one gets,
+    // instead of the browser's broken-image glyph — cheap, and it is what "a player nicer than the rest"
+    // means for the one part of this that is a hotlink to somebody else's server (the V2-563 fact of life).
+    img.onerror = paintFallback;
+    a.appendChild(img);
+  }
+  // A crisp SVG placeholder instead of an emoji glyph (V2-629): an emoji font renders differently per OS —
+  // the exact "looks like a different app" seam a redesign is supposed to close — an inline vector does not.
+  else paintFallback();
   return a;
 }
 
@@ -334,16 +400,38 @@ function connectBlock(data, ctx, {compact=false} = {}){
 function nowPlaying(data){
   if(data.now_playing && data.now_playing.title) return data.now_playing;
   const yt = data.yt || {};
-  if(yt.videoId) return {title: yt.title || "Música", artist: "", art: "", playing: !yt.paused};
+  // yt.art/yt.artist (V2-629): the connector already resolves free cover art the instant it knows a videoId,
+  // and the server splits an "Artist - Title" upload title for display — both arrive ready on `data.yt`.
+  if(yt.videoId) return {title: yt.title || "Música", artist: yt.artist || "", art: yt.art || "", playing: !yt.paused};
   return null;
+}
+
+// Lazy cover-art ENRICHMENT (V2-629): asked once per (title, artist) per page life, always AFTER the row/bar
+// is already on screen with its fallback icon — never on anything that would delay playback starting.
+const _enrichAsked = new Set();
+function maybeEnrich(t, ctx){
+  if(!t || t.art) return;
+  const title = (t.title || t.query || "").trim();
+  if(!title) return;
+  const key = _norm(title) + "|" + _norm(t.artist || "");
+  if(_enrichAsked.has(key)) return;
+  _enrichAsked.add(key);
+  // Defensive against ANY ctx implementation, not just the desktop host's own Promise-returning one — the
+  // same caution `ended` already takes two lines below (`try{ ctx.action("ended"); }catch(_){}`), extended to
+  // also tolerate a return value that is not thenable at all.
+  try {
+    const p = ctx.action("enrich_art", {title, artist: t.artist || ""});
+    if (p && typeof p.catch === "function") p.catch(() => {});
+  } catch (_) {}
 }
 
 function playbackBar(data, ctx){
   const bar = h("div", "hb-mus2-bar");
   const np = nowPlaying(data);
   const playing = !!(np && np.playing);
+  if(np) maybeEnrich(np, ctx);
   const artWrap = h("div", "hb-mus2-barartwrap");
-  artWrap.appendChild(artNode(np && np.art, "🎵"));
+  artWrap.appendChild(artNode(np && np.art, ICON_NOTE));
   if(playing){ const badge = h("div", "hb-mus2-areq"); badge.appendChild(eqIcon()); artWrap.appendChild(badge); }
   bar.appendChild(artWrap);
   const meta = h("div", "hb-mus2-barmeta");
@@ -351,14 +439,25 @@ function playbackBar(data, ctx){
   meta.appendChild(h("div", "hb-mus2-bara", np ? (np.artist || (np.device ? np.device : "")) : "Dime «pon música» o abre una lista."));
   bar.appendChild(meta);
   const ctrls = h("div", "hb-mus2-barc");
-  const mk = (label, action, cls) => { const b = h("button", "hb-mus2-cbtn" + (cls ? " " + cls : ""), label);
-    b.onclick = () => ctx.action(action); return b; };     // control = fire-and-forget; SSE re-renders
-  ctrls.appendChild(mk("⏮", "previous"));
-  ctrls.appendChild(mk(playing ? "⏸" : "▶", playing ? "pause" : "resume", "main"));
-  ctrls.appendChild(mk("⏭", "next"));
-  ctrls.appendChild(mk("🔉", "volume_down"));
-  ctrls.appendChild(mk("🔊", "volume_up"));
-  if(np) ctrls.appendChild(mk("♥", "favorite_current"));
+  const mkIcon = (svg, action, cls) => {                    // control = fire-and-forget; SSE re-renders
+    const b = h("button", "hb-mus2-cbtn" + (cls ? " " + cls : ""));
+    b.appendChild(svgEl(svg));
+    b.onclick = () => ctx.action(action);
+    return b;
+  };
+  ctrls.appendChild(mkIcon(ICON_PREV, "previous"));
+  ctrls.appendChild(mkIcon(playing ? ICON_PAUSE : ICON_PLAY, playing ? "pause" : "resume", "main"));
+  ctrls.appendChild(mkIcon(ICON_NEXT, "next"));
+  ctrls.appendChild(mkIcon(ICON_VOL_DOWN, "volume_down"));
+  ctrls.appendChild(mkIcon(ICON_VOL_UP, "volume_up"));
+  if(np){
+    // The heart is a STATE indicator, not only a button (V2-629): filled when the operator already saved this
+    // song, so tapping it again (harmless — favorite_current dedupes) never contradicts what is on screen.
+    const fav = !!data.fav_current;
+    const heart = mkIcon(fav ? ICON_HEART_FILL : ICON_HEART, "favorite_current", fav ? "fav" : "");
+    heart.title = fav ? "Ya está en Favoritos" : "Guardar en Favoritos";
+    ctrls.appendChild(heart);
+  }
   bar.appendChild(ctrls);
   return bar;
 }
@@ -368,6 +467,7 @@ function playbackBar(data, ctx){
 // "now playing" state, by contrast, IS driven by data (`opts.playing`) and survives a re-render.
 function trackRow(t, ctx, opts){
   opts = opts || {};
+  maybeEnrich(t, ctx);
   const row = h("div", "hb-mus2-tr" + (opts.playing ? " playing" : ""));
   if(opts.index != null || opts.playing){
     const cell = h("div", "hb-mus2-trn");
@@ -375,7 +475,7 @@ function trackRow(t, ctx, opts){
     else cell.textContent = opts.index;
     row.appendChild(cell);
   }
-  row.appendChild(artNode(t.art, "🎵"));
+  row.appendChild(artNode(t.art, ICON_NOTE));
   const meta = h("div", "hb-mus2-trmeta");
   meta.appendChild(h("div", "hb-mus2-trt", opts.title || t.title || t.query || "—"));
   if(!opts.hideArtist){
@@ -392,7 +492,7 @@ function trackRow(t, ctx, opts){
   };
   row.ondblclick = () => ctx.action("play", {query: t.query || [t.title, t.artist].filter(Boolean).join(" ") || t.title});
   if(opts.remove){
-    const x = h("button", "hb-mus2-x", "✕"); x.title = "Quitar de la lista";
+    const x = h("button", "hb-mus2-x"); x.appendChild(svgEl(ICON_CLOSE)); x.title = "Quitar de la lista";
     x.onclick = (e) => { e.stopPropagation(); ctx.action("remove_from_playlist", {playlist: opts.remove, item: t.title}); };
     x.ondblclick = (e) => e.stopPropagation();
     row.appendChild(x);
@@ -429,7 +529,7 @@ function homeView(host, data, ctx){
   const lists = h("div", "hb-mus2-lists");
   (data.playlists || []).forEach(pl => {
     const c = h("div", "hb-mus2-pl");
-    c.appendChild(artNode(pl.art, "🎶"));
+    c.appendChild(artNode(pl.art, ICON_NOTE));
     c.appendChild(h("div", "hb-mus2-plname", pl.name || "Lista"));
     const n = (pl.tracks || []).length;
     c.appendChild(h("div", "hb-mus2-plsub", `${n} ${n === 1 ? "canción" : "canciones"}`));
@@ -465,7 +565,7 @@ function homeView(host, data, ctx){
 
 function newListCard(lists, ctx){
   const card = h("div", "hb-mus2-pl hb-mus2-new");
-  card.appendChild(artNode(null, "＋"));
+  card.appendChild(artNode(null, ICON_PLUS));
   card.appendChild(h("div", "hb-mus2-plname", "Nueva lista"));
   card.onclick = () => {
     // Inline: an input replaces the create gesture; Enter/blur -> create_playlist, then SSE re-renders the list.
@@ -488,7 +588,7 @@ function playlistView(host, data, ctx, pl){
   const wrap = h("div", "hb-mus2");
   const scroll = h("div", "hb-mus2-scroll");
 
-  const back = h("button", "hb-mus2-back", "‹ Volver");
+  const back = h("button", "hb-mus2-back"); back.appendChild(svgEl(ICON_BACK)); back.appendChild(h("span", null, "Volver"));
   back.onclick = () => ctx.action("back");
   scroll.appendChild(back);
 
@@ -498,8 +598,8 @@ function playlistView(host, data, ctx, pl){
 
   const head = h("div", "hb-mus2-head");
   const artwrap = h("div", "hb-mus2-artwrap");
-  artwrap.appendChild(artNode(pl.art, "🎶"));
-  const play = h("button", "hb-mus2-playfab", "▶");
+  artwrap.appendChild(artNode(pl.art, ICON_NOTE));
+  const play = h("button", "hb-mus2-playfab"); play.appendChild(svgEl(ICON_PLAY));
   play.title = "Reproducir esta lista";
   if(!n) play.disabled = true;
   play.onclick = () => ctx.action("play_playlist", {playlist: pl.id});

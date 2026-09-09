@@ -240,7 +240,9 @@ def test_a_single_click_selects_without_calling_the_server(mounted):
     mount(_data(playlists=[pl], view={"kind": "playlist", "id": "p"}))
     page.click(".hb-mus2-tr:nth-child(1)")
     assert page.eval_on_selector_all(".hb-mus2-tr.selected", "els => els.length") == 1
-    assert page.evaluate("window.__calls") == []
+    # V2-629 — a row with no cover art fires a harmless background `enrich_art` lookup on MOUNT, unrelated to
+    # selecting; what this asserts is that the CLICK itself never calls the server.
+    assert [c for c in page.evaluate("window.__calls") if c[0] != "enrich_art"] == []
     # selecting a second row moves the highlight, it does not add a second one
     page.click(".hb-mus2-tr:nth-child(2)")
     selected = page.eval_on_selector_all(".hb-mus2-tr.selected .hb-mus2-trt", "els => els.map(e => e.textContent)")

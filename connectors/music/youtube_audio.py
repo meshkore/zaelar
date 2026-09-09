@@ -23,6 +23,18 @@ from .base import MusicProvider, MusicResult, NowPlaying, Track
 logger = logging.getLogger("zaelar.music.youtube")
 
 _WID = "musica"                              # hidden AUDIO lives in the MUSIC widget (not the YouTube widget)
+
+def _yt_thumb(video_id: str) -> str:
+    """Cover art for a YouTube-resolved track, for FREE: the video's own thumbnail, at a fixed CDN URL derived
+    from the id alone — no network call on our side, no API key, no latency added to playback (V2-629).
+    `hqdefault.jpg` (480x360) is the one size YouTube guarantees for every public video; `maxresdefault`/
+    `sddefault` do not exist for a lot of uploads and come back as a grey placeholder or a 404. It is not
+    always the album's real artwork (a lyric video's thumbnail is a still frame), but for the common case —
+    an "Official Audio"/"Official Video" upload — the thumbnail IS the cover, and it is available the INSTANT
+    a videoId is known, which `_track_from_resolved` (widgets/musica/data.py) then carries into recent/top."""
+    vid = str(video_id or "").strip()
+    return f"https://i.ytimg.com/vi/{vid}/hqdefault.jpg" if vid else ""
+
 _MSG = {
     "es": {"play": "Suena {label}.", "pause": "Pausado.", "resume": "Sigo.", "volume": "Volumen al {n} por ciento.",
            "no_track": "No he encontrado «{q}».", "unsupported": "Con esta fuente gratis no puedo saltar de canción; "
@@ -151,7 +163,7 @@ class YouTubeAudioProvider(MusicProvider):
 
     def search(self, query: str, limit: int = 5) -> "list[Track]":
         vid, title = _resolve(query)
-        return [Track(id=vid, uri=f"yt:{vid}", title=title)] if vid else []
+        return [Track(id=vid, uri=f"yt:{vid}", title=title, art=_yt_thumb(vid))] if vid else []
 
     def play(self, query: str = "", uri: str = "") -> MusicResult:
         vid = _extract_id(uri)
@@ -164,7 +176,8 @@ class YouTubeAudioProvider(MusicProvider):
         nq = _norm_q(query)
         if nq and not uri and nq == _norm_q(yt.get("query") or "") and yt.get("videoId") and not yt.get("paused"):
             return MusicResult(ok=True, provider=self.name, action="play",
-                               track=Track(id=yt.get("videoId", ""), title=yt.get("title", "")),
+                               track=Track(id=yt.get("videoId", ""), title=yt.get("title", ""),
+                                          art=yt.get("art") or _yt_thumb(yt.get("videoId", ""))),
                                message=_t("already", label=yt.get("title") or query),
                                extra={"surface": "widget", "widget": _WID, "videoId": yt.get("videoId"),
                                       "noop": True})
@@ -174,10 +187,10 @@ class YouTubeAudioProvider(MusicProvider):
             return MusicResult(ok=False, provider=self.name, action="play", reason="no_track",
                                message=_t("no_track", q=query or uri))
         yt.update({"videoId": vid, "title": title or query or vid, "query": query or "", "paused": False,
-                   "muted": False, "volume": int(yt.get("volume") or 70)})
+                   "muted": False, "volume": int(yt.get("volume") or 70), "art": _yt_thumb(vid)})
         _bump(yt, "load")
         return MusicResult(ok=True, provider=self.name, action="play",
-                           track=Track(id=vid, uri=f"yt:{vid}", title=title or query or vid),
+                           track=Track(id=vid, uri=f"yt:{vid}", title=title or query or vid, art=_yt_thumb(vid)),
                            message=_t("play", label=title or query or "la música"),
                            extra={"surface": "widget", "widget": _WID, "videoId": vid})
 
@@ -215,10 +228,10 @@ class YouTubeAudioProvider(MusicProvider):
             _save_yt(yt)
             return self.on_ended()
         yt.update({"videoId": vid, "title": title or nxt, "query": nxt, "paused": False,
-                   "muted": False, "queue": queue})
+                   "muted": False, "queue": queue, "art": _yt_thumb(vid)})
         _bump(yt, "load")
         return MusicResult(ok=True, provider=self.name, action="ended",
-                           track=Track(id=vid, uri=f"yt:{vid}", title=title or nxt),
+                           track=Track(id=vid, uri=f"yt:{vid}", title=title or nxt, art=_yt_thumb(vid)),
                            message=_t("play", label=title or nxt),
                            extra={"surface": "widget", "widget": _WID, "videoId": vid, "queue_len": len(queue)})
 
@@ -266,7 +279,9 @@ class YouTubeAudioProvider(MusicProvider):
         if not yt.get("videoId"):
             return NowPlaying(playing=False, provider=self.name)
         return NowPlaying(playing=not bool(yt.get("paused")), volume=yt.get("volume"),
-                          track=Track(id=yt.get("videoId", ""), title=yt.get("title", "")), provider=self.name)
+                          track=Track(id=yt.get("videoId", ""), title=yt.get("title", ""),
+                                     art=yt.get("art") or _yt_thumb(yt.get("videoId", ""))),
+                          provider=self.name)
 
     def status(self) -> dict:
         return {"provider": self.name, "connected": True, "kind": "in_browser_audio"}

@@ -18,6 +18,8 @@
 import re
 import time
 import unicodedata
+import urllib.parse
+import urllib.request
 
 from .. import store
 
@@ -28,6 +30,16 @@ _SEED = {"connected": False, "provider": "spotify", "can_connect": False, "own_c
 
 _RECENT_CAP = 30
 _TOP_CAP = 8
+
+# Cover-art ENRICHMENT (V2-629): a track with no art yet (typed into a list, imported, or a legacy row from
+# before the connector started giving out YouTube thumbnails for free) gets looked up ONCE against the iTunes
+# Search API — free, no key, no auth — and the result is cached forever by (artist, title) so the SAME song
+# never pays a second network round trip, on this machine or the next request. `_ART_MISS_COOLDOWN_S` bounds
+# only the NEGATIVE case (nothing found): a transient API hiccup or a temporarily-misspelled title should not
+# become a permanent "no art" verdict, but a song that genuinely is not in iTunes' catalog should not be
+# re-queried on every render either.
+_ART_MISS_COOLDOWN_S = 14 * 24 * 3600
+_ART_CACHE_CAP = 600
 
 
 # Normalization helpers.
@@ -54,6 +66,7 @@ def _load_db() -> dict:
     db.setdefault("recent", [])
     db.setdefault("counts", {})
     db.setdefault("view", {"kind": "home", "id": ""})
+    db.setdefault("art_cache", {})
     return db
 
 
@@ -95,7 +108,7 @@ def _live_fields(db: dict) -> dict:
         "default_available": bool(st.get("default_available")),
         "redirect_uri": st.get("redirect_uri", ""),
         "now_playing": (_now_playing() if connected else None),
-        "yt": yt,
+        "yt": _yt_display(yt),
         "mode": mode,
     }
 
@@ -108,12 +121,21 @@ def _derive_top(db: dict) -> list:
 
 
 def _compose(db: dict) -> dict:
-    """Exact blob seen by the card: persisted db + live state + derived top tracks."""
-    return {**db, **_live_fields(db), "top": _derive_top(db)}
+    """Exact blob seen by the card: persisted db + live state + derived top tracks + whether the track
+    playing right now is already one of the operator's favorites (the heart's filled state, V2-629)."""
+    live = _live_fields(db)
+    return {**db, **live, "top": _derive_top(db),
+            "fav_current": _fav_playlist_match(db, _current_track_from_live(live))}
 
 
 def view_data(q: str = "") -> dict:
-    return _compose(_load_db())
+    d = _compose(_load_db())
+    # `art_cache` (V2-629) is server bookkeeping — up to 600 tiny entries the card never reads — so it
+    # rides along in `_compose`'s return ONLY because `_persist` reuses that same function to write the
+    # disk file back whole (see its docstring): stripping it THERE would delete the cache on the next
+    # save. Stripped here instead, where it only shrinks what actually crosses the wire.
+    d.pop("art_cache", None)
+    return d
 
 
 def _persist(db: dict) -> None:
@@ -150,6 +172,65 @@ def _split_artist_title(text: str) -> "tuple[str, str]":
     return "", text.strip()
 
 
+# YouTube upload titles carry boilerplate no album ever had ("(Official Video)", "[Lyric Video]"…). Stripped
+# for DISPLAY ONLY — the STORED title never changes, so this stays reversible and the no-restart guard
+# (V2-047 F5, which compares queries against the stored `yt.query`) is untouched. Only a KNOWN, closed set of
+# upload tags is removed, applied repeatedly because an upload sometimes stacks two ("Song (Official Video)
+# (4K)") — never a guess, the same discipline `_split_artist_title` follows: recognize, don't invent.
+_YT_TAG_RE = re.compile(
+    r"\s*[\(\[]\s*(?:official\s*(?:music\s*)?(?:video|audio|lyric\s*video)?|lyrics?(?:\s*video)?|"
+    r"audio\s*(?:only)?|visualizer|hq|hd|4k|remaster(?:ed)?(?:\s*\d{2,4})?)\s*[\)\]]\s*$",
+    re.IGNORECASE,
+)
+
+
+def _clean_yt_title(title: str) -> str:
+    t = str(title or "").strip()
+    seen = set()
+    while t and t not in seen:
+        seen.add(t)
+        stripped = _YT_TAG_RE.sub("", t).strip(" -–—")
+        if not stripped:                      # never strip a title down to nothing
+            break
+        t = stripped
+    return t or str(title or "").strip()
+
+
+def _yt_display(yt: dict) -> dict:
+    """The `yt` block reshaped for what the card SHOWS: upload boilerplate stripped from the raw video title,
+    and an artist split off an explicit 'Artist - Title' delimiter when the connector could not name one
+    separately (YouTube never does — Spotify already gives artist/title apart). Never mutates the stored
+    block: all the OTHER fields (`videoId`/`cmd_seq`/`paused`/`volume`/`queue`) pass through byte-identical,
+    which is what `widget.js::syncYtPlayer`'s equality checks depend on."""
+    if not yt or not yt.get("videoId"):
+        return yt or {}
+    out = dict(yt)
+    title = _clean_yt_title(yt.get("title"))
+    artist, stripped = _split_artist_title(title)
+    out["title"] = stripped if artist else title
+    if artist:
+        out["artist"] = artist
+    return out
+
+
+def _fav_playlist_match(db: dict, track: "dict | None") -> bool:
+    """Whether `track` is already saved in a 'Favoritos'-shaped list — the SAME loose contains-match
+    `favorite_current` uses to find its own target list, so the heart's filled state and what tapping it
+    again would actually do never disagree."""
+    if not track:
+        return False
+    key = _norm((track.get("title") or "") + "|" + (track.get("artist") or ""))
+    if not key or key == "|":
+        return False
+    for pl in db.get("playlists") or []:
+        if "favorit" not in _norm(pl.get("name")):
+            continue
+        for t in pl.get("tracks") or []:
+            if _norm((t.get("title") or "") + "|" + (t.get("artist") or "")) == key:
+                return True
+    return False
+
+
 def _track_from_payload(p: dict) -> "dict | None":
     """Build a track from flexible payload: {track:{...}} or {query|title[,artist,album]}."""
     src = p.get("track")
@@ -172,18 +253,23 @@ def _track_from_payload(p: dict) -> "dict | None":
             "album": (p.get("album") or "").strip(), "art": "", "query": q, "uri": "", "videoId": ""}
 
 
-def _current_track(db: dict) -> "dict | None":
-    """Currently playing song (Spotify or YouTube-audio), so it can be saved into a favorites list."""
-    live = _live_fields(db)
+def _current_track_from_live(live: dict) -> "dict | None":
+    """Currently playing song (Spotify or YouTube-audio), so it can be saved into a favorites list. Takes
+    the already-composed LIVE state (`_live_fields`'s return) so a caller who has it — `_compose`, on
+    every render — need not pay for `_spotify_status()` a second time."""
     np = live.get("now_playing")
     if np and np.get("title"):
         return {"title": np.get("title") or "", "artist": np.get("artist") or "",
                 "album": np.get("album") or "", "art": np.get("art") or "", "query": np.get("title") or ""}
-    yt = live.get("yt") or {}
+    yt = live.get("yt") or {}          # already DISPLAY-shaped (V2-629): clean title, split artist, free art
     if yt.get("videoId"):
-        return {"title": yt.get("title") or "Música", "artist": "", "album": "", "art": "",
-                "query": yt.get("title") or "", "videoId": yt.get("videoId")}
+        return {"title": yt.get("title") or "Música", "artist": yt.get("artist") or "", "album": "",
+                "art": yt.get("art") or "", "query": yt.get("title") or "", "videoId": yt.get("videoId")}
     return None
+
+
+def _current_track(db: dict) -> "dict | None":
+    return _current_track_from_live(_live_fields(db))
 
 
 def _find_playlist(db: dict, ref) -> "dict | None":
@@ -255,6 +341,108 @@ def _play_track(track: dict) -> "dict":
             "reason": getattr(r, "reason", "")}
 
 
+def _track_from_resolved(query: str, track) -> dict:
+    """What actually gets remembered in Recent/Top when the card plays a bare query: the RESOLVED provider
+    `Track` (real title, artist, album and — since V2-629 — free cover art) when the connector found one,
+    the operator's own words otherwise. Before this, `_push_recent` stored exactly the spoken/typed query
+    forever, so Home kept showing the raw search string even after the connector had already resolved a
+    clean title and free YouTube-thumbnail art for it."""
+    title = getattr(track, "title", "") if track is not None else ""
+    if not title:
+        return {"title": query, "query": query}
+    clean = _clean_yt_title(title)
+    artist = (getattr(track, "artist", "") or "").strip()
+    if not artist:                            # YouTube never splits artist/title; Spotify already does
+        guessed_artist, guessed_title = _split_artist_title(clean)
+        if guessed_artist:
+            artist, clean = guessed_artist, guessed_title
+    return {"title": clean, "artist": artist, "album": (getattr(track, "album", "") or "").strip(),
+            "art": getattr(track, "art", "") or "", "query": query,
+            "uri": getattr(track, "uri", "") or "", "videoId": getattr(track, "id", "") or ""}
+
+
+# ── Cover-art ENRICHMENT for tracks the connector never resolved (V2-629) ────────────────────────────────
+# A track typed straight into a list (`add_to_playlist {title, artist}`, no `query`), or a legacy row from
+# before the connector started giving out YouTube thumbnails, has no art and never will on its own. This is
+# the SLOW, cached path the widget asks for lazily, on demand, once per song — never on the play critical
+# path (`_track_from_resolved` above already covers the fast, zero-cost case for anything actually played
+# through YouTube-audio).
+def _art_cache_key(title: str, artist: str) -> str:
+    return _norm((title or "") + "|" + (artist or ""))
+
+
+def _itunes_lookup(title: str, artist: str) -> "tuple[str, str]":
+    """(art_url, album) from the iTunes Search API — free, no key, no auth. Best-effort, fail-open: a network
+    hiccup or a song iTunes does not carry must never break the widget, it just stays without art. The
+    100x100 thumbnail iTunes returns by default is upsized to 600x600 by rewriting that URL segment — a
+    documented trick, the SAME single request, no second endpoint."""
+    import json
+    term = " ".join(p for p in (artist, title) if p).strip()
+    if not term:
+        return "", ""
+    try:
+        url = "https://itunes.apple.com/search?" + urllib.parse.urlencode(
+            {"term": term, "entity": "song", "limit": 1})
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        data = json.loads(urllib.request.urlopen(req, timeout=5).read().decode("utf-8", "ignore"))
+    except Exception:
+        return "", ""
+    results = data.get("results") or []
+    if not results:
+        return "", ""
+    hit = results[0]
+    art = str(hit.get("artworkUrl100") or "").replace("100x100bb", "600x600bb")
+    return art, str(hit.get("collectionName") or "").strip()
+
+
+def _backfill_art(db: dict, key: str, art: str, album: str) -> None:
+    """One enrichment lights up the song wherever it ALREADY appears — Home's Recent/Top and any list it was
+    saved into — not only the single row that happened to ask first."""
+    def matches(t: dict) -> bool:
+        return _art_cache_key(t.get("title") or t.get("query") or "", t.get("artist") or "") == key
+
+    for t in db.get("recent") or []:
+        if matches(t) and not t.get("art"):
+            t["art"] = art
+            if album and not t.get("album"):
+                t["album"] = album
+    for c in (db.get("counts") or {}).values():
+        if matches(c) and not c.get("art"):
+            c["art"] = art
+            if album and not c.get("album"):
+                c["album"] = album
+    for pl in db.get("playlists") or []:
+        for t in pl.get("tracks") or []:
+            if matches(t) and not t.get("art"):
+                t["art"] = art
+                if album and not t.get("album"):
+                    t["album"] = album
+
+
+def _enrich_art(db: dict, title: str, artist: str) -> "tuple[str, str]":
+    """Cached iTunes lookup: a HIT is cached forever (an album's art does not change); a MISS is cached only
+    for `_ART_MISS_COOLDOWN_S` — a transient API hiccup, or a title that reads oddly, should not become a
+    permanent "no art" verdict, but a song genuinely absent from iTunes' catalog should not be re-queried on
+    every render either."""
+    key = _art_cache_key(title, artist)
+    if not key or key == "|":
+        return "", ""
+    cache = db.setdefault("art_cache", {})
+    hit = cache.get(key)
+    now = time.time()
+    if hit and (hit.get("art") or now - float(hit.get("at") or 0) < _ART_MISS_COOLDOWN_S):
+        return hit.get("art") or "", hit.get("album") or ""
+    art, album = _itunes_lookup(title, artist)
+    cache[key] = {"art": art, "album": album, "at": now}
+    if len(cache) > _ART_CACHE_CAP:               # evict the OLDEST misses first — a real hit is never dropped
+        stale = sorted(cache.items(), key=lambda kv: (bool(kv[1].get("art")), kv[1].get("at") or 0))
+        for k, _v in stale[:len(cache) - _ART_CACHE_CAP]:
+            cache.pop(k, None)
+    if art:
+        _backfill_art(db, key, art, album)
+    return art, album
+
+
 def _find_or_create_playlist(db: dict, name: str) -> "tuple[dict, bool]":
     """Resolve a spoken list name to the real playlist, CREATING it when it does not exist (V2-384).
     Measured live: «save it in a list called Curro» answered «Done.» with nothing behind —
@@ -320,6 +508,19 @@ def apply_action(action: str, payload: dict = None) -> dict:
     if action == "refresh":
         _save_view()
         return {"ok": True}
+
+    # V2-629 — lazy, cached cover-art lookup. The widget calls this ONCE per (title, artist) it renders
+    # without art (recent/top/playlist rows the card, not the connector, is showing); never on the play
+    # critical path, and never twice for the same song thanks to `_enrich_art`'s cache.
+    if action == "enrich_art":
+        title = (p.get("title") or "").strip()
+        artist = (p.get("artist") or "").strip()
+        if not title:
+            return {"ok": False, "error": "missing_title"}
+        db = _load_db()
+        art, album = _enrich_art(db, title, artist)
+        _persist(db)
+        return {"ok": bool(art), "art": art, "album": album}
 
     # Lists (V2-058, Phase 1).
     if action == "create_playlist":
@@ -454,7 +655,7 @@ def apply_action(action: str, payload: dict = None) -> dict:
             # (play_music) goes through another path and does not pass here (Phase 1).
             if action == "play" and ok and query:
                 db = _load_db()
-                _push_recent(db, {"title": query, "query": query})
+                _push_recent(db, _track_from_resolved(query, getattr(r, "track", None)))
                 _persist(db)
             else:
                 _save_view()

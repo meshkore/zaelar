@@ -470,6 +470,42 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **The music widget brings real cover art, fast first, then enhancements (V2-629, 2026-09-09)**: the
+  operator asked for a nicer design in "our line" of icons, real album/song art, and a player better than the
+  competition — with a hard ordering constraint: music has to SOUND fast, art can arrive after, and whatever
+  is fetched gets cached. Two speeds: (1) FREE and instant — a track played through YouTube-audio already has
+  a resolved `videoId`, so `connectors/music/youtube_audio.py::_yt_thumb(id)` derives the video's own
+  thumbnail URL with zero extra network call of ours; wired into every `Track(...)` and the persisted `yt`
+  block. Same fix let `widgets/musica/data.py::_track_from_resolved` store what the PROVIDER resolved (real
+  title/artist/art) into Recent/Top instead of the operator's raw spoken words, and `_clean_yt_title`/
+  `_yt_display` strip upload boilerplate ("(Official Video)"…) and split an explicit "Artist - Title"
+  delimiter for DISPLAY only — the stored title never changes. (2) SLOW and CACHED — a track never actually
+  played (typed into a list, a legacy row) gets a lazy, once-per-song iTunes Search API lookup
+  (`_enrich_art`/`_itunes_lookup`, free, no key), cached forever on a hit / 14 days on a miss, backfilling
+  every occurrence of that song across Recent/Top/every playlist. The widget asks for it AFTER the row is
+  already painted with its fallback (`widget.js::maybeEnrich`, deduped per page life, defensively tolerant of
+  a `ctx.action` that returns anything other than a Promise) — never on the play path. `art_cache` rides
+  along in `_compose` (which `_persist` also uses to write the disk file whole) but is stripped by
+  `view_data()` before it crosses the wire, so the cache survives while the payload stays light. Every emoji
+  control (⏮⏸▶⏭🔉🔊♥) became an inline SVG matching the app shell's own visual language (duplicated locally —
+  `widget.js` cannot import app-shell code, V2-557's rule); the heart is a STATE indicator now
+  (`data.fav_current`, filled when the playing track is already saved) and a dead cover URL degrades to the
+  placeholder icon via `img.onerror` instead of a broken-image glyph.
+  **A real bug the render tests caught, not reading**: `ICON_PLAY`/`ICON_PAUSE` were built as the outline
+  base (`fill="none"`) plus an APPENDED `fill="currentColor"` on the same tag — the HTML parser keeps the
+  FIRST duplicate attribute, so `fill` stayed `"none"` and the "solid" icons rendered as hairline outlines;
+  invisible in a screenshot at icon size, caught only by asserting the resolved attribute. Fixed with a
+  second, clean attribute set for solid icons, never an override on top of the outline one. Node 4.3
+  (+1 file, 10 RENDERED cases + 4 connector-level), seven disarms, each mutation verified red. Two
+  pre-existing tests needed fixing, not weakening: one asserted an empty call list that the new (correct)
+  background enrichment now legitimately populates (filtered to exclude `enrich_art`); another's mock
+  `ctx.action` returns `undefined`, so `maybeEnrich` was made defensive against any shape, matching the
+  `try{...}catch(_){}` caution the same file already takes for `ended`. `make test-widgets` 14/14 (golden
+  re-recorded — `fav_current` is a new key). **Coordination, per the operator's explicit split**: a message
+  went to `memoria-dev` over the MeshKore dev cluster describing this build and asking about the in-progress
+  memory upgrade, to align a FUTURE listening-preference ingestion path — no memory code was touched here;
+  that is memory's call, briefed separately. Detail: the V2-629 initiative.
+
 - **⏻ ON took two presses: two right fixes from the same day, racing (V2-627, 2026-09-09)**: the operator
   reported that the first press on a stopped agent «se sombrea un poco pero no arranca». His own observability
   had it — `orb:power on`, `agent:state starting`, `agent:state off`, all in the same second, and a SECOND

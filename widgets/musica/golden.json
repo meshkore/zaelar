@@ -4,6 +4,7 @@
     "connected": "bool",
     "counts": "dict",
     "default_available": "bool",
+    "fav_current": "bool",
     "mode": "str",
     "now_playing": "NoneType",
     "own_client_id_set": "bool",

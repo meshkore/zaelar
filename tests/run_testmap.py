@@ -1404,7 +1404,15 @@ DOMAINS: list[dict] = [
                                                                  # per-row "now playing" indicator (playlist/top/recent/
                                                                  # bottom bar) and click=select/dblclick=play — all
                                                                  # RENDERED, none of it reachable from source alone.
-                                                                 "tests/browser/unit/musica/test_the_playlist_reads_like_spotify_now.py"]},
+                                                                 "tests/browser/unit/musica/test_the_playlist_reads_like_spotify_now.py",
+                                                                 # V2-629: real cover art (the YouTube thumbnail
+                                                                 # arrives free the instant a videoId resolves,
+                                                                 # iTunes lookup+cache for tracks that were never
+                                                                 # played), the favorited heart as a STATE
+                                                                 # indicator, "our line" SVG icons replacing every
+                                                                 # emoji glyph, and lazy fast-first enrichment —
+                                                                 # again all RENDERED.
+                                                                 "tests/browser/unit/musica/test_the_player_looks_and_sounds_like_a_real_one_now.py"]},
         {"id": "4.4", "title": "Widget de YouTube", "ch": UNIT,
          "paths": ["tests/browser/unit/youtube/test_youtube.py",
                    # V2-596: blocked channels — the filter the operator educates by voice; every NAME-search
@@ -2359,12 +2367,12 @@ DOMAINS: list[dict] = [
         {"id": "5.2", "title": "Mensajería (ingest/reply)", "ch": UNIT, "paths": [
             "tests/connectors/unit/messaging/test_ingest.py", "tests/connectors/unit/messaging/test_reply.py",
             "tests/connectors/unit/messaging/test_memory_dump.py"]},
-        # V2-628 F0 — the canonical communications archive. Measured 2026-09-09 before building it: every
+        # V2-629 F0 — the canonical communications archive. Measured 2026-09-09 before building it: every
         # message body was written twice (thread store, msg pill) and BOTH copies expire by design, so «a
         # message from a month ago» was unanswerable from any store we control. The archive is the one
         # permanent, catalogued, cross-platform copy; the store's three write seams (triage, outbound,
         # history landings) all feed it, idempotent under retries, and it must never break the store.
-        {"id": "5.21", "title": "The communications archive: the one copy that does not expire (V2-628 F0+F1)",
+        {"id": "5.21", "title": "The communications archive: the one copy that does not expire (V2-629 F0+F1)",
             "ch": UNIT, "paths": ["tests/connectors/unit/messaging/test_archive.py",
                                   "tests/browser/unit/mensajeria/test_search_archive.py"]},
         # V2-582 — medido en la sesión e32b00f1: con «Email: error.» en el prompt el modelo contestó «lo tengo
