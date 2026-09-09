@@ -2364,8 +2364,9 @@ DOMAINS: list[dict] = [
         # message from a month ago» was unanswerable from any store we control. The archive is the one
         # permanent, catalogued, cross-platform copy; the store's three write seams (triage, outbound,
         # history landings) all feed it, idempotent under retries, and it must never break the store.
-        {"id": "5.21", "title": "The communications archive: the one copy that does not expire (V2-628 F0)",
-            "ch": UNIT, "paths": ["tests/connectors/unit/messaging/test_archive.py"]},
+        {"id": "5.21", "title": "The communications archive: the one copy that does not expire (V2-628 F0+F1)",
+            "ch": UNIT, "paths": ["tests/connectors/unit/messaging/test_archive.py",
+                                  "tests/browser/unit/mensajeria/test_search_archive.py"]},
         # V2-582 — medido en la sesión e32b00f1: con «Email: error.» en el prompt el modelo contestó «lo tengo
         # conectado», y tras conectarlo el operador en vivo («Email: conectado.») siguió con «no me ha quedado
         # conectado», anclado a sus propias frases. La mitad de MECANISMO: "error" se dice con palabras (NO

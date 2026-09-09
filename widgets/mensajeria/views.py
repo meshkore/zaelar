@@ -6,10 +6,12 @@
 #
 # The seam is one-directional on purpose: data.py imports THIS module at the top; anything here that needs
 # data.py's store or inbox helpers imports it LAZILY inside the function. Same widget-package contract as
-# data.py itself: stdlib plus the `widgets` package, never `connectors`.
+# data.py itself: stdlib plus the `widgets` package — `connectors` only LAZILY and only because this
+# widget sits in validator's curated _STDLIB_EXEMPT (V2-611: the email signature; V2-628: the archive).
 #
 import time
 import unicodedata
+from datetime import datetime
 
 _PEEK_MAX_MSGS = 40                  # = thread.KEEP: everything a thread can hold live
 _PEEK_MAX_BODY = 500
@@ -181,6 +183,70 @@ def _activity_answer(db: dict, platform: str) -> dict:
         out["detail"] = (f"solo tengo {len(rows)} conversación(es) guardadas en esa ventana — "
                          f"fetch_now {{platform:'{platform}'}} le pide al conector la actividad real del período")
     return out
+
+
+_ARCHIVE_MAX_ROWS = 20
+_ARCHIVE_MAX_BODY = 200
+
+
+def _search_archive_answer(payload: dict) -> dict:
+    """The PERMANENT communications archive, answered as data (V2-628 F1). A question about PAST messages
+    («when did the school write?», «did I ever answer it?») channels HERE — never to memory recall: the
+    inbox, the threads and the msg pills all EXPIRE by design, and this log is the one copy that does not.
+    Read-only; matches come back with their date so the model answers with names and dates. The answer also
+    carries `archive_since`: the log only holds what arrived after its activation, and hiding that boundary
+    is how «you have none» gets said over a period we simply never recorded (the V2-606 lesson)."""
+    from connectors.messaging import archive
+    from . import data as _d
+    q = str(payload.get("q") or payload.get("text") or "").strip() or None
+    sender = str(payload.get("sender") or payload.get("from") or "").strip() or None
+    chat = str(payload.get("chat") or payload.get("group") or payload.get("name") or "").strip() or None
+    platform = str(payload.get("platform") or "").strip().lower()
+    platform = _d._PLAT_ALIASES.get(platform, platform) or None
+    direction = payload.get("direction") if payload.get("direction") in ("in", "out") else None
+    since = until = None
+    for key, sign in (("since_days", "since"), ("until_days", "until")):
+        try:
+            days = float(payload.get(key))
+        except (TypeError, ValueError):
+            continue
+        cut = time.time() - max(0.0, days) * 86400
+        if sign == "since":
+            since = cut
+        else:
+            until = cut
+    if not any((q, sender, chat, platform, direction, since, until)):
+        return {"ok": False,
+                "error": "search_archive necesita algún criterio: `q` (texto), `sender`, `chat`, `platform`, "
+                         "`since_days`, `until_days` o `direction`"}
+    try:
+        limit = max(1, min(_ARCHIVE_MAX_ROWS, int(payload.get("limit") or _ARCHIVE_MAX_ROWS)))
+    except (TypeError, ValueError):
+        limit = _ARCHIVE_MAX_ROWS
+    rows = archive.search(q, sender=sender, chat=chat, platform=platform,
+                          since=since, until=until, direction=direction, limit=limit)
+    st = archive.stats()
+    oldest = st.get("oldest")
+    matches = []
+    for r in rows:
+        matches.append({
+            "when": datetime.fromtimestamp(float(r.get("ts") or 0)).strftime("%Y-%m-%d %H:%M"),
+            "platform": r.get("platform"), "dir": r.get("direction"),
+            "chat": r.get("chat_name") or r.get("chat_id"),
+            "from": "yo" if r.get("direction") == "out" else (r.get("sender") or "?"),
+            "body": (r.get("body") or "")[:_ARCHIVE_MAX_BODY]})
+    coverage = (datetime.fromtimestamp(float(oldest)).strftime("%Y-%m-%d") if oldest else None)
+    if matches:
+        detail = (f"{len(matches)} mensaje(s) del ARCHIVO permanente — contesta con nombres y fechas; "
+                  f"el archivo cubre desde {coverage}")
+    elif oldest is None:
+        detail = ("el archivo está vacío todavía — guarda todo lo que llegue o salga desde su activación, "
+                  "pero no indexa el pasado; para algo anterior, el buzón de la app real es la fuente")
+    else:
+        detail = (f"nada en el ARCHIVO casa con eso — cubre desde {coverage}; algo ANTERIOR a esa fecha no "
+                  f"está guardado aquí (no se indexó el pasado), dilo en vez de afirmar que no existió")
+    return {"result": {"matches": matches, "count": len(matches),
+                       "archive_since": coverage, "detail": detail}}
 
 
 def _peek_answer(payload: dict) -> dict:

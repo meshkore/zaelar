@@ -8,7 +8,7 @@
  },
  "title": "Mensajería",
  "description": "Tu mensajería unificada (WhatsApp + Telegram + Email), ya triada: solo lo que va dirigido a ti o debes atender, en un solo sitio. WhatsApp/Telegram se vinculan por QR; el email por correo + contraseña de aplicación. Puedes dictar una respuesta, revisarla en el cuadro de texto y mandarla por voz o con el botón, a las tres plataformas — el email lleva firma propia si la tienes puesta.",
- "whenToUse": "Cuando pide ver sus mensajes, quién le ha escrito, su WhatsApp/Telegram/correo, responder/mandar un mensaje o email, RESUMIR una conversación o un grupo, traer mensajes del conector, poner un AUTORRESPONDEDOR, su firma de email, o vincular/conectar WhatsApp, Telegram o el email.",
+ "whenToUse": "Cuando pide ver sus mensajes, quién le ha escrito, su WhatsApp/Telegram/correo, responder o mandar un mensaje/email, RESUMIR una conversación o grupo, buscar mensajes PASADOS en el archivo («¿cuándo me escribió X?»), traer mensajes del conector, el AUTORRESPONDEDOR, su firma, o conectar un canal.",
  "keywords": [
   "mensajes",
   "mensajeria",
@@ -234,6 +234,19 @@
    "desc": "Apaga y borra el autorrespondedor (de una plataforma, o de todas sin `platform`)",
    "payload": {
     "platform": "string opcional (whatsapp|telegram|email|all)"
+   },
+   "safe": true
+  },
+  "search_archive": {
+   "desc": "BUSCA en el ARCHIVO PERMANENTE de comunicaciones (todas las plataformas, entradas Y salidas — no caduca nunca) y DEVUELVE las coincidencias con su fecha para que TÚ contestes («¿cuándo me escribió el colegio?», «¿le llegué a contestar?» → direction:'out'). Una pregunta sobre mensajes PASADOS se contesta con esto, nunca de memoria",
+   "payload": {
+    "q": "string opcional (texto a buscar)",
+    "sender": "string opcional (remitente, subcadena)",
+    "chat": "string opcional (nombre del chat/grupo)",
+    "platform": "string opcional: whatsapp|telegram|email",
+    "since_days": "number opcional (ventana hacia atrás en días)",
+    "direction": "'in'|'out' opcional",
+    "limit": "int opcional (máx 20)"
    },
    "safe": true
   }
