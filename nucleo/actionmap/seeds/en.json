@@ -1,6 +1,6 @@
 {
   "_comment": "Genesis seed pack (English) for the action map (V2-539). Same rules as es.json: unambiguous whole-utterance commands only; variants are separate entries; anything that could mean more than the mapped action stays out and goes to the model.",
-  "version": 5,
+  "version": 6,
   "grids": [
     {
       "_comment": "VERB x OBJECT grid for mensajeria's LENSES (V2-545). «Abreme el Telegram» is not «show the card»: WhatsApp/Telegram/correo are VIEWS OF a card, and the model reads them as card names because they are also the widget's aliases - measured live, three turns of «Aqui lo tienes» over an unmoved card. Expanded into ordinary exact-match entries at import; a view op also brings the card up (executor), so one order gets both halves. `$` is filled with the value.",
@@ -565,6 +565,69 @@
         "do": "widget_data",
         "widget": "youtube",
         "action": "play"
+      }
+    },
+    {
+      "phrase": "put the video in full screen",
+      "action": {
+        "do": "fullscreen",
+        "widget": "youtube"
+      }
+    },
+    {
+      "phrase": "put the video in fullscreen",
+      "action": {
+        "do": "fullscreen",
+        "widget": "youtube"
+      }
+    },
+    {
+      "phrase": "full screen the video",
+      "action": {
+        "do": "fullscreen",
+        "widget": "youtube"
+      }
+    },
+    {
+      "phrase": "minimize the video",
+      "action": {
+        "do": "minimize",
+        "widget": "youtube"
+      }
+    },
+    {
+      "phrase": "minimize the video widget",
+      "action": {
+        "do": "minimize",
+        "widget": "youtube"
+      }
+    },
+    {
+      "phrase": "close the video",
+      "action": {
+        "do": "close_widget",
+        "widget": "youtube"
+      }
+    },
+    {
+      "phrase": "close the video widget",
+      "action": {
+        "do": "close_widget",
+        "widget": "youtube"
+      }
+    },
+    {
+      "phrase": "close youtube",
+      "action": {
+        "do": "close_widget",
+        "widget": "youtube"
+      }
+    },
+    {
+      "phrase": "close the youtube",
+      "action": {
+        "do": "close_widget",
+        "widget": "youtube"
       }
     }
   ]

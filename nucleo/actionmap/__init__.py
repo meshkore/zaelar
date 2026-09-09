@@ -19,7 +19,7 @@ from . import executor as _executor
 from . import store as _store
 from .normalize import normalize
 
-__all__ = ["enabled", "match", "execute", "describe", "record_hit", "invalidate"]
+__all__ = ["enabled", "match", "match_spoken", "execute", "describe", "record_hit", "invalidate"]
 
 
 def enabled() -> bool:
@@ -55,6 +55,23 @@ def match(text: str) -> dict | None:
     except Exception:
         pass
     return dict(entry, phrase=phrase)
+
+
+def match_spoken(text: str) -> dict | None:
+    """`match`, retried once with the LEADING vocative wake word stripped (V2-635). The agent's name is the
+    ADDRESS, not part of the command — in wakeword/smart mode every order carries it, and the exact
+    whole-utterance lookup was dead on exactly the phrases this map exists for (measured 2026-09-09:
+    «Johnny pausa el vídeo» fell to the model, which repeated its previous fullscreen). Only the known wake
+    words from `voice.attention` come off; the no-courtesy-stripping doctrine of normalize.py is untouched."""
+    hit = match(text)
+    if hit is not None:
+        return hit
+    try:
+        from voice import attention
+        rest = attention.strip_leading_wakeword(text)
+    except Exception:
+        rest = ""
+    return match(rest) if rest else None
 
 
 def execute(entry: dict, emit, phrase: str = "") -> bool:

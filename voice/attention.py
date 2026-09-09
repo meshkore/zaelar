@@ -117,6 +117,23 @@ def has_wakeword(text: str) -> bool:
     return any(re.search(r"\b" + re.escape(w) + r"\b", n) for w in _wakewords())
 
 
+def strip_leading_wakeword(text: str) -> str:
+    """The utterance with its LEADING vocative wake word removed («Johnny, pausa el vídeo» → «pausa el
+    vídeo»), '' when there is nothing to strip or nothing left. The name is the ADDRESS, never part of the
+    order — in wakeword/smart mode every command carries it, so the action map's exact whole-utterance
+    lookup (V2-539) went dead on precisely the orders it exists for: measured 2026-09-09 (session 34386d8f),
+    «Johnny pausa el vídeo» missed the verbatim «pausa el video» seed, fell to the model, and the model
+    re-emitted its previous fullscreen (V2-635). Only the KNOWN wake words come off — courtesy prefixes stay
+    forbidden (normalize.py doctrine: «por favor…» is another seed entry, not something a matcher may
+    understand). Returns normalized text; fine for a lookup whose store normalizes the same way."""
+    n = _norm(text).strip()
+    for w in sorted(_wakewords(), key=len, reverse=True):
+        m = re.match(r"^(?:oye\s+|hey\s+)?" + re.escape(w) + r"[\s,.!:;]+(?=\S)", n)
+        if m:
+            return n[m.end():].strip()
+    return ""
+
+
 @dataclass
 class Verdict:
     directed: bool

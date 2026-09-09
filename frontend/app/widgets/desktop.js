@@ -1348,6 +1348,15 @@ export class Desktop {
     const w = this.wins.get(id); if(!w || !w.card) return false;
     w.card.classList.add("hb-minned"); this._persist(); return true;
   }
+  // V2-635 — «minimiza el vídeo» by voice: ONE honest step down, decided by the card's real state. The
+  // fullscreen() toggle was the only route the model had, and on a non-maximized card the toggle does the
+  // exact opposite (measured 2026-09-09, session 34386d8f: «minimiza» maximized the video, twice).
+  shrink(id){
+    const w = this.wins.get(id); if(!w || !w.card) return false;
+    if(document.fullscreenElement === w.card){ document.exitFullscreen?.(); return true; }
+    if(w.card._restore) return this.maximize(id);        // maximized → restore its former geometry
+    return this.minimize(id);                            // normal card → the rail chip keeps it reachable
+  }
   reveal(id){
     const w = this.wins.get(id); if(!w || !w.card) return false;
     w.card.classList.remove("hb-minned"); this._bringFront(w.card); this._persist(); return true;

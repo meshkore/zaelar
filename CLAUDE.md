@@ -471,6 +471,49 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **A canvas mutation needs the operator's words — and a known order survives the wake word (V2-635,
+  2026-09-09)**: one live session (34386d8f) measured four classes of the same failure, the model dragging
+  its PREVIOUS tool call into a turn that licensed nothing: «Johnny pausa el vídeo» became fullscreen (the
+  verbatim «pausa el video» seed missed because the phrase carried the agent's name — the map's exact
+  whole-utterance lookup was dead in wake-word use), «minimiza el vídeo» became fullscreen TWICE (the
+  toggle was the model's only route, and on a non-maximized card the toggle does the exact opposite),
+  «Johnny eres tonto» and «¿Y por qué lo has quitado?» each CLOSED the widget nobody asked to close (the
+  first emptied the loaded video, so «Continúa el vídeo» honestly died with «No hay ningún vídeo»), and
+  «Muy bien, señora.» / «¿Pero por qué lo has cambiado otra vez?» each RELOADED the playing video. The
+  remedy is grammar, never intent (V2-095), the stop_worker GUARD 2 posture: `nucleo/flash/
+  canvas_license.py` (shared, BOTH channels) — `close_license` (looks_like_close: a model [[close]] or a
+  widget_data «close» without a close verb in the turn is drag, discarded), `video_license` (conjugated
+  request forms only — a participle narrates the past; «otro/otra» only NEXT TO a media noun, because
+  «otra vez» in a complaint was the measured false positive; a short bare «Sí» keeps answering the
+  model's own offer), and `fullscreen_license` (no screen-size words = drag, discarded; shrink words
+  route to the new first-class `minimize` canvas order — executor + SSE + `desktop.shrink(id)`: exit
+  fullscreen → restore maximize → rail chip — never the toggle backwards). A guarded discard counts as
+  HANDLED (`deduped`), so the V2-633 silence never falls into the mute apology. And the fast lane retries
+  its lookup with the leading VOCATIVE stripped (`attention.strip_leading_wakeword` +
+  `actionmap.match_spoken`, both channels): only the known wake words come off — normalize.py's
+  no-courtesy-stripping doctrine stands. Seed packs v6 add the session's missing phrases (minimiza /
+  pantalla completa / cierra el vídeo, es+en). The provider ratchet was paid by extracting the play_video
+  and fullscreen_widget branch BODIES into `video_turn.voice_execute` / `show_target.fullscreen_dispatch`
+  (where the licenses live once for both channels). Node **3.23** (16 cases); eight disarms, mutations
+  asserted, all red. Detail: the V2-635 initiative.
+
+- **The video widget dresses like the product (V2-636, 2026-09-09)**: the operator's redesign order with
+  his screenshot — he grew the card with the mouse and the control buttons were CLIPPED under its bottom
+  edge; the tabs read as a second title line; title and date burned two rows; the controls were text
+  buttons («no sé si es necesario el texto Play en un botón de play»). Now: the PLAYER tab is a flex
+  column that FILLS the card (`:has` on the real card chrome — `.hb-scroll` overflow hidden, root
+  height 100% — the frame takes every spare pixel and YouTube letterboxes inside the iframe, so the icon
+  bar below is pinned and visible at ANY card size; every other tab keeps its scroll); the tab strip is a
+  DEFINED band (bottom border, nowrap) behind a red brand mark, with the active tab an INVERTED chip
+  (ink↔bg — the operator's «color de fondo y el texto invertido», which is also YouTube's own dark-mode
+  chip); title left + channel·date right on ONE line (`.hb-yt-tline`); the controls are SVG icon buttons
+  (⏮ ▶/⏸ ⏭ · vol−/vol+ · mute) in the music widget's `.hb-mus2-cbtn` language — local copies per V2-557 —
+  with the main play/pause a red round toggle whose face says what a click will DO, and the volume
+  readout as the bar's only text («70%», «—» muted); playing markers wear #f03; the voice hint only
+  teaches over an EMPTY player. Node 4.4 (+1 file, 10 RENDERED cases — the clipping case mounts the REAL
+  card structure per the V2-608 fixture lesson). Frontend-only: a page reload picks it up. Detail: the
+  V2-636 initiative.
+
 - **An unplayable video is swapped, not served — and the silent turn must not apologize (V2-634,
   2026-09-09)**: the operator, with LaLiga's «Video unavailable» on the card. We use the NATIVE YouTube
   IFrame embed, so embedding restrictions are per-video, set by the rights holder — the video plays on

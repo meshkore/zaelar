@@ -185,3 +185,31 @@ def fullscreen_target(widget_id: str, text: str = "") -> str:
     except Exception:
         pass
     return ""
+
+
+def fullscreen_dispatch(args: dict, text: str, tag_emit, emit, deduped: dict) -> None:
+    """The provider's whole `fullscreen_widget` branch body (extracted paying the architecture ratchet,
+    V2-635): resolve the card (V2-609, above) and route by what the turn actually SAYS. Measured 2026-09-09
+    (session 34386d8f): «Johnny pausa el vídeo» became fullscreen (pure drag — no screen-size words at all),
+    and «minimiza el vídeo» became fullscreen TWICE, because the toggle was the only route and on a
+    non-maximized card the toggle does the exact opposite. Shrink orders now ride the canvas `minimize`
+    event (desktop.shrink: exit fullscreen → restore maximize → rail chip); a call licensed by nothing is
+    discarded and counts as handled (`deduped`) — same posture as stop_worker's GUARD 2."""
+    from nucleo.flash import canvas_license as _lic
+    verdict = _lic.fullscreen_license(text)
+    if not verdict:
+        emit("brain", "🛡️ fullscreen_widget ignorado — el turno no habla de tamaño de pantalla (context-bleed)",
+             text=(text or "")[:120], role="system",
+             extra={"cat": "flash", "kind_diag": "fullscreen_without_order"})
+        deduped["v"] = True
+        return
+    rid = fullscreen_target((args.get("widget_id") or "").strip(), text)
+    if not rid:
+        return
+    if verdict == "minimize":
+        tag_emit("minimize", {"id": rid})
+        emit("brain", "⤵️ fullscreen_widget con orden de ENCOGER → canvas minimize", text=rid, role="system")
+        return
+    tag_emit("show", {"id": rid})     # por si no estaba abierto todavía
+    tag_emit("fullscreen", {"id": rid})
+    emit("brain", "⛶ fullscreen_widget → canvas", text=rid, role="system")

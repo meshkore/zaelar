@@ -237,6 +237,9 @@ export class Deck {
   // Already full screen. The contract method exists so «put it full screen» resolves to something true:
   // bring that card to the front.
   fullscreen(id) { const i = this.order.indexOf(id); if (i >= 0) this._goTo(i, 0); }
+  // V2-635 — the canvas `minimize` order: on the phone a card is already the whole screen, so the one
+  // honest step down is leaving native fullscreen if the browser is in it; there is no rail to hide into.
+  shrink(_id) { if (document.fullscreenElement) document.exitFullscreen?.(); }
 
   // Desktop aligns its grid here (V2-464 showcase). On mobile there is no grid — one card fills the screen —
   // so an aligned deck is the deck it already is. Kept explicit so the shared bridges' contract stays whole.

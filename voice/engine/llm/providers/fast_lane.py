@@ -58,7 +58,7 @@ async def handled(brain, text: str, emit, *, first_turn: bool, t_entry: float, w
     if not _amap.enabled() or (getattr(brain, "_acc", None) and brain._acc.fragments):
         return False
     _tm = time.time()
-    _amap_hit = _amap.match(text)
+    _amap_hit = _amap.match_spoken(text)   # V2-635: a leading «Johnny, …» must not hide a known order
     _amap_ms = round((time.time() - _tm) * 1000, 2)
     if _amap_hit is None or not _amap.execute(_amap_hit, emit, phrase=text):
         return False

@@ -88,6 +88,7 @@ export function openSSE(desktop) {
       else if (d.label === "move" && d.id) desktop.move(d.id, d.where);            // reposition on the canvas (left/right/…)
       else if (d.label === "resize" && d.id) desktop.resize(d.id, d.data);          // resize a widget (HERMES-ONLY)
       else if (d.label === "fullscreen" && d.id) desktop.fullscreen(d.id);          // toggle native fullscreen
+      else if (d.label === "minimize" && d.id) desktop.shrink(d.id);                // V2-635: one honest step down
       // A widget's STORED data changed (its own ctx.action, or Hermes via [[widget.data]]) — widgets/store.py is
       // the single choke point that emits this. No polling anywhere: re-fetch + re-render ONLY if that widget
       // happens to be open right now; otherwise there's nothing on screen to update.

@@ -1169,6 +1169,15 @@ DOMAINS: list[dict] = [
         {"id": "3.22", "title": "The genesis style rules govern the engine's mouths: a short order runs in "
                                 "silence, a spoken rule overrides on the very next turn",
             "ch": UNIT, "paths": ["tests/voice/unit/test_the_genesis_rules_govern_the_engines_mouths.py"]},
+        # V2-635 — measured live (session 34386d8f): «Johnny pausa el vídeo» → fullscreen (the wake word hid
+        # the verbatim seed and the model repeated its last tool), «minimiza» → fullscreen twice (the toggle
+        # was the only route), «Johnny eres tonto» → an unasked close that emptied the video, and «Muy bien,
+        # señora.» → a reload of the playing video. Grammar licenses (canvas_license) gate model closes,
+        # play_video and fullscreen_widget in BOTH channels; minimize is a first-class canvas order; the
+        # action map retries its lookup with the leading vocative stripped.
+        {"id": "3.23", "title": "A canvas mutation needs the operator's words, and a known order survives "
+                                "the wake word",
+            "ch": UNIT, "paths": ["tests/voice/unit/test_a_canvas_mutation_needs_the_operators_words.py"]},
         {"id": "3.2", "title": "Puente voz→nucleo + trazas", "ch": VOICE, "paths": [
             "tests/voice/unit/providers/test_nucleo.py", "tests/voice/unit/providers/test_nucleo_guards.py",
             # ⚠️ SIN MAPEAR hasta el 2026-08-21 (V2-245), los cinco: el acumulador que perdía 64 s del operador en
@@ -1434,7 +1443,12 @@ DOMAINS: list[dict] = [
                    # our own pick swaps to the next playable candidate and is blocklisted forever; a link
                    # the operator pasted gets the honest message instead; a late onError never blames the
                    # replacement; the brain is told what happened so it can say it instead of narrate.
-                   "tests/browser/unit/youtube/test_an_unplayable_video_is_swapped_not_served.py"]},
+                   "tests/browser/unit/youtube/test_an_unplayable_video_is_swapped_not_served.py",
+                   # V2-636: the redesign — inverted-chip tab band behind the red brand mark, one-line
+                   # header, icon controls in a bar that stays VISIBLE at any card size (the player tab
+                   # fills the card; the clipping the operator photographed cannot recur), hint only over
+                   # an empty player.
+                   "tests/browser/unit/youtube/test_the_player_dresses_like_the_product.py"]},
         {"id": "4.5", "title": "Widget de mensajería", "ch": UNIT, "paths": ["tests/browser/unit/mensajeria/test_owner_v2.py",
                   "tests/browser/unit/mensajeria/test_notification_policy.py"]},
         {"id": "4.123", "title": "Mensajería RENDERIZA: un clic en un canal SALE de Conectores (no se queda "
@@ -2493,6 +2507,14 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": [
                 "tests/connectors/unit/video/"
                 "test_connecting_an_account_is_one_step_and_failures_reach_the_operator.py"]},
+        # V2-636 — el cliente BitTorrent embebido: la red MeshKore da el magnet, el cliente lo baja y lo
+        # transmite (HTTP Range) al <video> mientras se descarga, y todo degrada a palabras si falta el wheel.
+        # La sesión libtorrent no se toca en unit; se fija la extracción del magnet, la aritmética de Range,
+        # la puerta `streamable` que espera el widget, y las acciones del widget (que SON las skills, V2-544).
+        {"id": "5.22", "title": "Torrent embebido: el magnet viene de la red, el cliente lo transmite, y "
+                                "todo falla a salvo",
+            "ch": UNIT, "paths": [
+                "tests/connectors/unit/torrent/test_the_torrent_addon_finds_streams_and_fails_safe.py"]},
     ]},
     {"id": "6", "name": "CLUSTER (meshkore)", "nodes": [
         {"id": "6.1", "title": "Cápsula / framing (una sola mente)", "ch": PEER, "paths": [

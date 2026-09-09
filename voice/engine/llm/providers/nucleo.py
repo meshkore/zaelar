@@ -23,7 +23,8 @@ from livekit.agents import DEFAULT_API_CONNECT_OPTIONS, llm, utils
 from livekit.agents.llm import ChatChunk, ChoiceDelta
 
 from .. import registry
-from nucleo.flash import (data_ops as _data_ops, image_turn as _image_turn,  # V2-391 / V2-402
+from nucleo.flash import (close_guards as _closeg,                             # V2-635: close needs the words
+                          data_ops as _data_ops, image_turn as _image_turn,  # V2-391 / V2-402
                           listing_turn as _lt, show_target as _show_target,    # V2-609: one target decision
                           video_turn as _video_turn)                           # V2-556 / V2-457: no cycles
 # V2-515 (ratchet): ONE import replaces eight lazy `from widgets import confirm` — confirm.py never imports voice.
@@ -930,6 +931,14 @@ class NucleoLLMStream(llm.LLMStream):
                     logger.warning(f"nucleo cron {action} failed: {e}")
                 return
             # show / close / move → acción de canvas.
+            # GUARD close sin orden (V2-635, espejo del GUARD 2 de stop_worker): «Johnny eres tonto» acabó en
+            # un [[close]] que NADIE pidió (34386d8f). Gramática (looks_like_close ya excluye negaciones y
+            # narraciones): sin verbo de cerrar EN el turno del operador, el close del modelo es arrastre.
+            if action == "close" and not _closeg.looks_like_close(text):
+                emit("brain", "🛡️ close ignorado — el operador no ha pedido cerrar nada (context-bleed)",
+                     text=(text or "")[:120], role="system", extra={"cat": "flash", "kind_diag": "close_without_order"})
+                deduped["v"] = True
+                return
             if action == "show":
                 contextual = _show_guard_target(text, brain._window, brain._last_action)
                 if contextual:
@@ -1184,6 +1193,13 @@ class NucleoLLMStream(llm.LLMStream):
                      role="system")
                 _tag_emit("close", {"id": wid})
                 return
+            # GUARD V2-635 (espejo del de [[close]] en _tag_emit): la data-op «close» VACÍA contenido (en
+            # youtube borra el vídeo cargado y el «Continúa el vídeo» siguiente muere). Sin verbo de cerrar = arrastre.
+            if action_name == "close" and not _router.looks_like_close(text):
+                emit("brain", "🛡️ data-op close ignorada — el operador no ha pedido cerrar nada (context-bleed)",
+                     text=(text or "")[:120], role="system", extra={"cat": "flash", "kind_diag": "close_without_order", "id": wid})
+                deduped["v"] = True
+                return
             if _frontend.action_mode(wid, action_name) is None:   # acción no declarada → ¿verbo de canvas o escala?
                 # GUARD frontera CANVAS vs DATOS (diag sesiones-largas 2026-07-15): a profundidad, el modelo a
                 # veces cuela el SHOW/CLOSE como pseudo data-op (`widget_data(clock, action="show")` ante
@@ -1381,16 +1397,11 @@ class NucleoLLMStream(llm.LLMStream):
                           ("volume_up", "volume_down", "pause", "resume", "stop", "next", "previous")):
                         music_req["followup"] = _mq
             elif name == "play_video":
-                # V2-045: VÍDEO = widget youtube (VER), hermano de play_music (OÍR); tool de 1ª clase (la prosa no
-                # bastaba). El provider la EJECUTA; una por turno; el ack "nunca mudo" lo cubre data_done (abajo).
+                # V2-045: VÍDEO = widget youtube (VER); una por turno. Cuerpo + LICENCIA V2-635 («Muy bien,
+                # señora.» recargaba el que sonaba) en `video_turn.voice_execute` — una impl, ambos canales.
                 if "play_video" not in _tool_fired:
                     _tool_fired.add("play_video")
-                    _vq = (args.get("query") or "").strip()
-                    emit("widget", "show", extra={"id": "youtube", "src": "flash"})
-                    # V2-402 — a media SEARCH (action=list) fills the player's LIST, never the results sheet.
-                    _vop, _vlbl = _video_turn.voice_dispatch(args.get("action"))
-                    _apply_widget_data("youtube", _vop, {"query": _vq} if _vq else {})
-                    emit("brain", _vlbl, text=_vq[:80], role="system")
+                    _video_turn.voice_execute(args, text, emit, _apply_widget_data, deduped)
             elif name == "show_images":
                 # V2-457: FOTOS = visor `imagenes` (VER), tercera hermana de play_music/play_video. Una por
                 # turno; se EJECUTA tras el stream (buscar es red) y se dice allí si el modelo calló.
@@ -1522,20 +1533,12 @@ class NucleoLLMStream(llm.LLMStream):
                             clarify["msg"] = _res.get("error") or "No pude cambiar el alias."
                         emit("brain", f"🏷️ manage_widget_alias {_op} → {_rid}", text=_alias, role="system")
             elif name == "fullscreen_widget":
-                # BUG real 2026-07-23: "ponme el vídeo a pantalla completa" no tenía tool → el modelo confabulaba
-                # éxito o inventaba una data-op falsa. Espejo de show_widget: resuelve el id (exacto o fuzzy) y
-                # emite la tag de CANVAS `fullscreen` (nunca una data-op — esto es tamaño en pantalla, no datos).
+                # BUG 2026-07-23: sin tool, el modelo confabulaba éxito. Cuerpo (resolución V2-609 + licencia y
+                # dirección V2-635: «pausa el vídeo» disparaba fullscreen; «minimiza» ya no cae en el toggle al
+                # revés) en `show_target.fullscreen_dispatch` — una decisión, ambos canales.
                 if "fullscreen_widget" not in _tool_fired:
                     _tool_fired.add("fullscreen_widget")
-                    # V2-609 — WHICH card, decided once for both channels (`show_target.fullscreen_target`):
-                    # the id given, then identify, then the card the canvas says IS at full screen. Before
-                    # that last step `widget_id` was required and «sal de pantalla completa» had nothing to
-                    # put in it, so the model called nothing and said «Hecho.» (measured live 2026-09-07).
-                    _rid = _show_target.fullscreen_target((args.get("widget_id") or "").strip(), text)
-                    if _rid:
-                        _tag_emit("show", {"id": _rid})     # por si no estaba abierto todavía
-                        _tag_emit("fullscreen", {"id": _rid})
-                        emit("brain", "⛶ fullscreen_widget → canvas", text=_rid, role="system")
+                    _show_target.fullscreen_dispatch(args, text, _tag_emit, emit, deduped)
             elif name == "arrange_canvas":
                 # V2-588: «ordena los widgets» tenía TODO el tramo de abajo construido (botón ⤢, Desktop.arrange,
                 # POST /api/canvas/arrange, handler SSE) y NINGUNA cara hacia el modelo — que llegó a afirmar en

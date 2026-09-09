@@ -216,6 +216,12 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
         tool_calls.append({"name": name, "args": args})
 
     def _tag_emit(action: str, extra: dict) -> None:
+        if action == "close":
+            # V2-635 (espejo del guarda del provider): un [[close]] del modelo sin verbo de cerrar en el
+            # turno del operador es arrastre de contexto, no obediencia — se descarta.
+            from nucleo.flash import close_guards as _closeg
+            if not _closeg.looks_like_close(text):
+                return
         if action == "show":
             contextual = _show_target(text, sess.window, sess.last_action)
             if contextual:
@@ -369,8 +375,13 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
         action = "music"                     # V2-041: ruta ligera; la EJECUTA el bloque `execute` de abajo (V2-380)
         music_req = _music_turn.request_from(tool_calls)
     elif "play_video" in names:
-        action = "canvas:show:youtube"       # V2-045: VER → widget youtube (show + data-op load); espejo del provider
-        video_req = _video_turn.request_from(tool_calls)   # V2-383: y se EJECUTA abajo, como la música
+        from nucleo.flash import canvas_license as _lic_v
+        if _lic_v.video_license(text):
+            action = "canvas:show:youtube"   # V2-045: VER → widget youtube (show + data-op load); espejo del provider
+            video_req = _video_turn.request_from(tool_calls)   # V2-383: y se EJECUTA abajo, como la música
+        else:
+            # V2-635 (espejo del provider): un turno que no pide ningún vídeo no carga ninguno — arrastre.
+            action = "chat"
     elif "show_images" in names:
         action = "canvas:show:imagenes"      # V2-457: FOTOS → visor `imagenes`; espejo del provider
         images_req = _image_turn.request_from(tool_calls)
@@ -426,9 +437,16 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
         # V2-609 — the SAME decision as the voice channel, not a second copy of it
         # (`show_target.fullscreen_target`): with `widget_id` empty it falls through to the card the canvas
         # says IS at full screen, which is what makes «sal de pantalla completa» answerable at all.
+        # V2-635 (espejo del provider): sin palabras de tamaño de pantalla la llamada es arrastre; con
+        # orden de ENCOGER la ruta es el `minimize` del canvas, nunca el toggle al revés.
+        from nucleo.flash import canvas_license as _lic_f
         _fw = next(t for t in tool_calls if t["name"] == "fullscreen_widget")
-        _frid = _fullscreen_target((_fw["args"].get("widget_id") or "").strip(), text)
-        action = f"canvas:fullscreen:{_frid}" if _frid else "clarify"
+        _fsv = _lic_f.fullscreen_license(text)
+        if not _fsv:
+            action = "chat"
+        else:
+            _frid = _fullscreen_target((_fw["args"].get("widget_id") or "").strip(), text)
+            action = f"canvas:{_fsv}:{_frid}" if _frid else "clarify"
     elif "arrange_canvas" in names:
         # V2-588 — espejo del provider (cablear en AMBOS): ordenar el canvas es una acción global, sin id.
         action = "canvas:arrange"
@@ -599,7 +617,7 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
     # BUG real 2026-07-23: "quita la pantalla completa" (verbo amplio 'quita' + turno corto + 1 widget abierto) NO
     # estaba en esta lista → el backstop de cierre de abajo CERRABA el widget entero en vez de solo salir de
     # fullscreen (fullscreen_widget YA resolvió la intención real este turno).
-    _already = action.startswith(("music", "video", "search", "widget_data", "canvas:fullscreen"))
+    _already = action.startswith(("music", "video", "search", "widget_data", "canvas:fullscreen", "canvas:minimize"))
     if not _already and not any(t["action"] == "close" for t in tags):
         try:
             from . import router as _router0

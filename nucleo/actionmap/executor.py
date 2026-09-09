@@ -24,6 +24,7 @@ _ALLOWED: dict[str, tuple[str, ...]] = {
     "show_panel": ("tab",),      # optional "action": open|close (default open)
     "move": ("widget", "where"),
     "fullscreen": ("widget",),
+    "minimize": ("widget",),     # V2-635: one step smaller (exit fullscreen → restore maximize → rail chip)
     "arrange": (),               # V2-588: snap the whole canvas to the aligned grid — no target, no data
     "widget_data": ("widget", "action"),   # FAST-classified declared ops only, checked at execute
 }
@@ -163,6 +164,13 @@ def execute(action: dict, emit, phrase: str = "") -> bool:
         return True
     if do == "fullscreen":
         emit("widget", "fullscreen", text=said, extra={"id": wid, **src})
+        return True
+    if do == "minimize":
+        # V2-635 — «minimiza el vídeo» had NO deterministic route: the model chose the fullscreen TOGGLE,
+        # which on a non-maximized card does the exact OPPOSITE (measured 2026-09-09, session 34386d8f).
+        # The frontend decides the one honest step down (desktop.shrink): exit fullscreen if engaged, else
+        # restore a maximized card, else minimize to the rail chip.
+        emit("widget", "minimize", text=said, extra={"id": wid, **src})
         return True
     if do == "widget_data":
         # Only ops the widget DECLARES as FAST run without the model; everything else falls through.

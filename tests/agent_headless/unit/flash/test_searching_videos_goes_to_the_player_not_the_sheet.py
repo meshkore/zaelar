@@ -117,8 +117,14 @@ def test_the_voice_channel_reaches_the_search_dataop():
     import inspect
     import voice.engine.llm.providers.nucleo as prov
     src = inspect.getsource(prov)
-    assert "voice_dispatch" in src, "the voice provider must consume the ONE shared play/list decision"
-    assert '_apply_widget_data("youtube", _vop' in src, "the decided op must reach the widget data rail"
+    # V2-635 moved the whole play_video branch body one level further, into `video_turn.voice_execute`
+    # (paying the provider's ratchet); the guard follows the CHANNEL (V2-555): the provider consumes the
+    # shared body, and the shared body consumes the ONE play/list decision.
+    assert "voice_execute" in src, "the voice provider must consume the shared play_video body"
+    assert "voice_dispatch" in inspect.getsource(VT.voice_execute), \
+        "voice_execute must consume the ONE shared play/list decision"
+    assert 'apply_widget_data("youtube", op' in inspect.getsource(VT.voice_execute), \
+        "the decided op must reach the widget data rail"
 
 
 # ── the WHOLE probe turn, where V2-383's family of defects lived (per-link guards stayed green there) ───────

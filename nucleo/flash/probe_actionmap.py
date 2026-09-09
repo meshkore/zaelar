@@ -28,7 +28,7 @@ def try_map(text: str, sess, *, execute: bool, trace_id: str, pick_ack=None) -> 
         from nucleo import actionmap as _amap
         if not _amap.enabled():
             return None
-        _amap_hit = _amap.match(text)
+        _amap_hit = _amap.match_spoken(text)   # V2-635 — mirror of the voice lane's vocative strip
         if _amap_hit is not None and execute:
             from voice.observer import emit as _emit_amap
             if not _amap.execute(_amap_hit, _emit_amap, phrase=text):
