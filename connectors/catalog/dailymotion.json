@@ -1,0 +1,15 @@
+{
+  "id": "dailymotion",
+  "label": "Dailymotion",
+  "kind": "connector",
+  "family": "video",
+  "transport": "native",
+  "auth": "oauth",
+  "state": "planned",
+  "capabilities": [
+    "dailymotion",
+    "video",
+    "videos"
+  ],
+  "notes": "API publica y player embebible; construible cuando toque."
+}

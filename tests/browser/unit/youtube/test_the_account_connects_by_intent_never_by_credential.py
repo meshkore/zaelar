@@ -26,7 +26,8 @@ def _account_layer_enabled(monkeypatch):
     and the gate itself is measured in
     `tests/connectors/unit/video/test_connecting_an_account_is_one_step_and_failures_reach_the_operator.py`
     — one file per question, neither able to hide the other's regression."""
-    monkeypatch.setattr(yt, "_accounts_enabled", lambda: True)
+    from widgets.youtube import account as ytacc
+    monkeypatch.setattr(ytacc, "_accounts_enabled", lambda: True)
 
 _MANIFEST = pathlib.Path(yt.__file__).parent / "manifest.json"
 
@@ -63,7 +64,8 @@ class _FakeSvc:
 def sandbox(monkeypatch, tmp_path):
     monkeypatch.setattr(store, "DATA_DIR", str(tmp_path))
     svc = _FakeSvc()
-    monkeypatch.setattr(yt, "_svc", lambda: svc)
+    from widgets.youtube import account as ytacc2
+    monkeypatch.setattr(ytacc2, "_svc", lambda: svc)
     return svc
 
 
@@ -168,7 +170,8 @@ def test_disconnect_account_empties_the_band_a_disconnected_account_no_longer_ba
 
 
 def test_a_missing_connector_package_degrades_to_words_never_a_traceback(sandbox, monkeypatch):
-    monkeypatch.setattr(yt, "_svc", lambda: None)
+    from widgets.youtube import account as ytacc3
+    monkeypatch.setattr(ytacc3, "_svc", lambda: None)
     for action in ("connect_account", "disconnect_account", "suggest"):
         r = yt.apply_action(action, {})
         assert r["ok"] is False and "conector" in r["error"]

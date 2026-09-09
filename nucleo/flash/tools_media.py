@@ -59,8 +59,8 @@ TOOLS: list[dict] = [
                 "play_music (eso es OÍR) ni web_search (un dato que se cuenta). Tarda unos segundos: habla en "
                 "presente o futuro ('lo busco'), NUNCA en pasado — decir 'hecho' antes de que cargue es mentir, "
                 "aunque ya hubiera otro vídeo en pantalla. BUSCAR para ver/oír y ELEGIR ('búscame vídeos de X', "
-                "'qué documentales hay', un podcast) también es ESTA tool, con action=list: varios candidatos a "
-                "la LISTA, sin reproducir. Un ENLACE ya PEGADO NO se reproduce: se AÑADE con "
+                "'qué documentales hay', un podcast) también es ESTA tool, con action=list: resultados NUMERADOS "
+                "al Inicio (luego play_result/add_results). Un ENLACE ya PEGADO NO se reproduce: se AÑADE con "
                 "widget_data(youtube, add) — «añadir a la cola»; cortarle lo que ve es un defecto. No lo "
                 "escales ni lo mandes a la hoja: es para INFORMACIÓN, no para lo que se ve u oye."
             ),
@@ -70,7 +70,7 @@ TOOLS: list[dict] = [
                     "query": {"type": "string",
                               "description": "qué vídeo VER, en lenguaje natural (se busca/carga en YouTube)"},
                     "action": {"type": "string", "description": (
-                        "play (def: carga y reproduce el mejor resultado) | list (varios candidatos a la LISTA)")},
+                        "play (def: carga y reproduce el mejor resultado) | list (numerados al Inicio)")},
                 },
                 "required": ["query"],
             },

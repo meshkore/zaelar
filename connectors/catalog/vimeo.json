@@ -1,0 +1,16 @@
+{
+  "id": "vimeo",
+  "label": "Vimeo",
+  "kind": "connector",
+  "family": "video",
+  "transport": "native",
+  "auth": "oauth",
+  "state": "planned",
+  "capabilities": [
+    "vimeo",
+    "video",
+    "videos",
+    "creadores"
+  ],
+  "notes": "API real y reproductor embebible; construible cuando toque. Hoy la fuente de video es YouTube."
+}

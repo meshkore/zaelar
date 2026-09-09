@@ -470,6 +470,41 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **The video widget becomes a real player: tabs, a dashboard that carries the search, and the honest
+  shelf of sources (V2-632, 2026-09-09)**: the operator's full redesign, triggered by his screenshot — the
+  card opened EMPTY and small («reproduce un vídeo» opened the card before the video existed; V2-630's
+  freeze pinned the footprint the missing manifest height produced). What was already built stayed the
+  foundation (V2-366 queue · V2-597 account layer · V2-604 library); this pass reorganizes the SURFACE and
+  the search's destination:
+  · **Top TABS** (Inicio · Reproductor · Cola · Suscripciones · Listas) replace the home↔player toggle.
+    `selectTab` is the ONE writer and clears the connectors screen — the V2-626 rule applied at birth
+    instead of paid later (this widget's latent copy of that bug was already named in the V2-626 entry).
+    A video ARRIVING on an empty card auto-jumps to Reproductor; a disarm proved the tab-close claim had
+    to be measured ACROSS a re-render, not at the click (clearing pixels while `_screen` survives
+    resurrects the shelf on the first SSE repaint).
+  · **The SEARCH lands on the DASHBOARD, never in the queue** (`search_results` — numbered band, replaces
+    the previous search; the queue only receives what he sends in): `play_result{item}` /
+    `add_results{items:"1,3"|"all"}` / `clear_search` steer it, `prompt_digest()` (V2-576's seam) hands
+    the numbered rows to the brain so «reproduce el tercero» resolves against what he SEES.
+    `play_video(action=list)`'s whole chain updated (tool text · `video_turn` spoken face with real
+    singular/plural · manifest `view:true` per V2-547's lesson) — the shared tool-catalog ceiling tripped
+    at +60 chars and was paid by compacting the same description, never raised.
+  · **Placeholder** on the player tab («Sin vídeo» title + the 16:9 frame kept and marked), queue rows
+    with thumbnails, Suscripciones/Listas as real tabs over V2-604's data, and `follow_channel` with no
+    name follows the CURRENT video's author (a required argument the sentence never fills, V2-609 class).
+  · **The 🔌 SHELF** (messaging igrid language, local copy per V2-557): every video source with its truth —
+    YouTube disabled naming INI-032's reason, Vimeo/Dailymotion/Twitch as shut doors from the V2-526
+    catalog (`connector_shelf` composed server-side, fail-soft). A disabled box never fires a connect.
+  · **Manifest sizes made honest** for the two width-only declarations the V2-630 freeze exposed:
+    youtube 680×560, musica 468×540.
+  · Data per the domain-stores doctrine (2026-09-09): everything in the widget's own store, ZERO rows into
+    memory; the inferred channel preference is REM/heart's lane. Coordinated over the dev cluster with
+    memoria-dev (heads-up + exact key inventory sent for the doctrine's Video section).
+  Node **4.138** (9 rendered cases) + 4.4/4.52/4.53/4.116 files realigned to the new faces; golden
+  re-recorded (40 keys); seven disarms, mutations asserted, all red after one test was hardened.
+  ⚠️ Caught by SCREENSHOT, not by reading: the connmode CSS block sat BEFORE the per-tab rules and lost by
+  order at equal specificity — the queue rendered underneath the shelf. Detail: the V2-632 initiative.
+
 - **A card's size never follows its content (V2-630, 2026-09-09)**: the operator, with two screenshots of
   the same musica card at two widths — «el tamaño de los widgets debe ser fijo; si el texto no cabe, se
   acorta; el usuario decidirá si lo hace más grande o más pequeño». Mechanism: `.hb-win` has no width of its

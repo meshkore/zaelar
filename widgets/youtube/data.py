@@ -11,7 +11,7 @@ import urllib.parse
 import urllib.request
 
 from .. import store
-from . import library
+from . import account, library
 
 WID = "youtube"
 
@@ -62,6 +62,14 @@ _SEED = {
     "suggested_at": 0,
     "suggested_channels": 0,
     "suggesting": False,     # a suggestions pull is on the network right now (visible state, like `adding`)
+    # V2-632 — the SEARCH lives on the DASHBOARD, never in the queue (operator's redesign, 2026-09-09):
+    # «búscame vídeos de X» paints numbered candidates at the TOP of the Inicio tab; he steers by voice from
+    # there («reproduce el tercero», «añade los tres primeros a la cola», «regenera en 4K») and the queue only
+    # receives what he explicitly sends in. `source` travels per row because the widget is provider-agnostic
+    # by design — today every row says "youtube", and a second source is a value, not a schema change.
+    "search_results": [],    # [{videoId, title, channel, published, url, source}]
+    "search_query": "",
+    "searched_at": 0,
 }
 # V2-604 — the widget's OWN library (followed channels, history, preferences, saved lists) lives in
 # `library.py` and merges its fields here, so there is one seed and `_seed()`/`_load()` keep normalizing
@@ -71,6 +79,15 @@ _SEED.update(library.seed_fields())
 # How long the cached platform rows are trusted before the card asks for a re-sync. Short and cheap: the
 # sync reads two local files (token store + credential store), no network.
 _PLATFORMS_FRESH_S = 300
+
+# The account layer lives in account.py (extracted 2026-09-09, V2-632) — re-exported so every caller and
+# test keeps reaching them through data.py; the blocked-channels filter is injected to avoid a cycle.
+_svc = account._svc
+_accounts_enabled = account._accounts_enabled
+_sync_platforms = account._sync_platforms
+_NOT_YET = account._NOT_YET
+account._drop_blocked = None  # bound below, once _drop_blocked exists
+
 
 _YT_RE = re.compile(
     r"(?:youtube\.com/watch\?v=|youtu\.be/|youtube\.com/embed/|youtube\.com/shorts/)([0-9A-Za-z_-]{11})"
@@ -138,6 +155,9 @@ def _drop_blocked(hits: list, blocked: list) -> "tuple[list, int]":
     say honestly that results existed and were filtered — a silent drop reads as a worse search (V2-414)."""
     kept = [h for h in hits if not _is_blocked(h.get("channel") or "", blocked)]
     return kept, len(hits) - len(kept)
+
+
+account._drop_blocked = _drop_blocked   # the extraction's one seam back (V2-632)
 
 
 def _oembed_title(vid: str) -> dict:
@@ -262,52 +282,6 @@ def _seed() -> dict:
     return d
 
 
-def _svc():
-    """The video-account connector, imported here and never at module top: module import is what the widget
-    CATALOG pays on every prompt, and it must not pull in httpx or the credential store (the archivos rule,
-    written in its own docstring). Returns None if the package cannot load — callers report that as words."""
-    try:
-        from connectors.video import service
-        return service
-    except Exception:
-        return None
-
-
-def _accounts_enabled() -> bool:
-    """Cheap and fail-CLOSED: an unreadable connector means the account layer stays hidden, never half-offered."""
-    svc = _svc()
-    if svc is None:
-        return False
-    try:
-        return bool(svc.available())
-    except Exception:
-        return False
-
-
-#: The one sentence every account action declines with, so the three doors cannot drift apart.
-_NOT_YET = ("conectar cuentas de vídeo todavía no está disponible en esta versión — no es que esté "
-            "desconectada, es que la puerta aún no existe")
-
-
-def _sync_platforms(db: dict) -> dict:
-    """Refresh the cached platform rows from the connector (local file reads, no network). The cache is what
-    view_data serves — the hot path never imports the connector."""
-    svc = _svc()
-    db["platforms_at"] = int(time.time())
-    if svc is None:
-        db["platforms"] = []
-        return {"ok": False, "error": "conector de vídeo no disponible", "platforms": []}
-    st = svc.status()
-    rows = []
-    for r in (st.get("providers") or []):
-        rows.append({"id": str(r.get("id") or ""), "label": str(r.get("label") or ""),
-                     "connected": bool(r.get("connected")),
-                     "app_configured": bool(r.get("app_configured")),
-                     "note": str(r.get("note") or "")})
-    db["platforms"] = rows
-    return {"ok": bool(st.get("ok")), "platforms": rows}
-
-
 def _load() -> dict:
     db = store.load(WID, _seed())
     for k, v in _SEED.items():                          # normalize missing fields (old store)
@@ -331,7 +305,56 @@ def view_data(q: str = "") -> dict:
     # no platform row and no connect screen: a door that cannot open is worse than no door (measured, session
     # e1acdcca). DERIVED from the connector, so it turns on by itself the day a client id lands.
     out["accounts_enabled"] = _accounts_enabled()
+    # V2-632 — the connector SHELF: what video sources exist, live or not, with their honest state. The card's
+    # 🔌 screen renders it exactly like messaging's — including the shut doors, on purpose (INI-027's wishlist
+    # rule: what we do NOT have is shown, never narrated). Composed from the V2-526 catalog (data, stdlib json)
+    # merged with the live platform rows; fail-soft to [] — a broken catalog must not blank the player.
+    out["connector_shelf"] = _connector_shelf(db)
     return out
+
+
+def _connector_shelf(db: dict) -> list:
+    rows = []
+    try:
+        from connectors import catalog as _cat
+        live = {str(r.get("id") or ""): r for r in (db.get("platforms") or [])}
+        for m in _cat.load_manifests():
+            if m.get("family") != "video" or m.get("kind") != "connector":
+                continue
+            pid = str(m.get("id") or "")
+            lv = live.get(pid) or {}
+            rows.append({"id": pid, "label": str(m.get("label") or pid),
+                         "state": str(m.get("state") or "planned"),
+                         "connected": bool(lv.get("connected")),
+                         "note": str(m.get("why-not") or m.get("notes") or m.get("note") or "")[:220]})
+    except Exception:  # noqa: BLE001
+        return []
+    # YouTube first (the one people ask about), then buildable, then shut doors.
+    rank = {"built": 0, "planned": 1, "not-possible": 2}
+    rows.sort(key=lambda r: (0 if r["id"] == "youtube" else 1, rank.get(r["state"], 3), r["label"]))
+    return rows
+
+
+def prompt_digest() -> str:
+    """What the OPEN card is showing that the brain must not guess at (V2-576's seam, open cards only):
+    the dashboard's numbered search results — «reproduce el tercero» has to resolve against THESE rows, and
+    without this block the model either invents an index or re-searches what is already on screen."""
+    try:
+        db = _load()
+    except Exception:  # noqa: BLE001
+        return ""
+    res = db.get("search_results") or []
+    if not res:
+        return ""
+    q = str(db.get("search_query") or "").strip()
+    lines = [f"BÚSQUEDA DE VÍDEOS EN PANTALLA («{q}», {len(res)} resultados numerados — "
+             "«el tercero» = el 3; reproducir: play_result{item:N} · a la cola: add_results{items:\"1,3\"|\"all\"}):"]
+    for i, r in enumerate(res, 1):
+        bits = [str(r.get("title") or "")[:70]]
+        if r.get("channel"):
+            bits.append(str(r["channel"])[:30])
+        lines.append(f"  {i}. " + " — ".join(bits))
+    return "\n".join(lines)
 
 
 def ref_index() -> list:
@@ -403,6 +426,13 @@ def _play_pos(db: dict, i: int, cmd: str) -> dict:
 def apply_action(action: str, payload: dict = None) -> dict:
     p = payload or {}
     db = _load()
+
+    # V2-632 — «este vídeo me gusta: sigue al autor» names nobody; the CURRENT video's channel is the obvious
+    # referent, and demanding the name back is an argument the sentence never fills (the V2-609 class).
+    if action == "follow_channel" and not str(p.get("channel") or p.get("name") or p.get("item") or "").strip():
+        cur = str(db.get("channel") or "").strip()
+        if cur:
+            p = dict(p); p["channel"] = cur
 
     if action == "load":
         had_video = bool(db.get("videoId"))
@@ -508,18 +538,19 @@ def apply_action(action: str, payload: dict = None) -> dict:
         return {"ok": True, "position": len(lst), "title": lst[-1]["title"], "count": len(lst)}
 
     if action == "search":
-        # V2-402 — a MEDIA search lands in the PLAYER, not in the results sheet. "Find me videos about X" means
-        # the operator wants to CHOOSE: several candidates go into the list (same rows as `add`, so play_item /
-        # next / remove all work on them), and NOTHING starts playing — V2-366's rule (adding never autoplays)
-        # holds for searching too. Player state is untouched on purpose: a search must not interrupt playback.
+        # V2-402/V2-632 — a MEDIA search lands in the WIDGET, never in the results sheet; and since the
+        # operator's redesign (2026-09-09) it lands on the DASHBOARD as its own numbered band, never in the
+        # queue: results are something to CHOOSE FROM, the queue is what he chose. A new search REPLACES the
+        # previous one (results are a view of the last question, not an archive). NOTHING starts playing
+        # (V2-366's rule holds), and player state is untouched: a search must not interrupt playback.
         q = str(p.get("query") or p.get("q") or "").strip()
         if not q:
             return {"ok": False, "error": "no_query", "message": "Dime qué vídeos busco."}
         try:
-            n = int(p.get("n") or 5)
+            n = int(p.get("n") or 6)
         except Exception:
-            n = 5
-        n = max(1, min(n, 8))
+            n = 6
+        n = max(1, min(n, 10))
         db["adding"] = q                                # visible state while the network search runs (as `add`)
         store.save(WID, db)
         blocked = db.get("blocked_channels") or []
@@ -536,109 +567,94 @@ def apply_action(action: str, payload: dict = None) -> dict:
                 return {"ok": False, "error": "all_blocked", "blocked_out": n_blocked,
                         "message": "Había resultados pero todos eran de canales que tienes bloqueados."}
             return {"ok": False, "error": "no_video", "message": "No encontré vídeos de eso."}
-        lst = db.setdefault("list", [])
-        added, positions = [], []
-        for h in hits:
-            if any(it.get("videoId") == h["videoId"] for it in lst):
-                continue
-            seq = max((int(it.get("added_seq") or 0) for it in lst), default=0) + 1
-            lst.append({"videoId": h["videoId"], "title": h["title"] or ("youtu.be/" + h["videoId"]),
-                        "channel": h["channel"], "published": h["published"],
-                        "url": "https://www.youtube.com/watch?v=" + h["videoId"],
-                        "added_at": int(time.time()), "added_seq": seq})
-            added.append(lst[-1]["title"])
-            positions.append(len(lst))
+        db["search_results"] = [{"videoId": h["videoId"],
+                                 "title": h["title"] or ("youtu.be/" + h["videoId"]),
+                                 "channel": h["channel"], "published": h["published"],
+                                 "url": "https://www.youtube.com/watch?v=" + h["videoId"],
+                                 "source": "youtube"} for h in hits]
+        db["search_query"] = q
+        db["searched_at"] = int(time.time())
         store.save(WID, db)
-        out = {"ok": True, "added": added, "positions": positions, "count": len(lst), "query": q}
+        out = {"ok": True, "results": [r["title"] for r in db["search_results"]],
+               "count": len(db["search_results"]), "query": q}
         if n_blocked:
             out["blocked_out"] = n_blocked               # the ack can say «and N more from blocked channels»
         return out
 
-    if action == "sync_platforms":
-        # V2-597 (internal, fired by the card on mount when the cache is stale): refresh which video
-        # platforms exist / are connected. Local file reads only — never the provider's network.
-        r = _sync_platforms(db)
-        store.save(WID, db)
+    if action == "play_result":
+        # V2-632 — «reproduce el tercero» over the dashboard's search band. 1-based, like every spoken number.
+        res = db.get("search_results") or []
+        try:
+            i = int(str(p.get("item") or p.get("n") or "").strip()) - 1
+        except Exception:
+            i = -1
+        if not res:
+            return {"ok": False, "error": "no_results", "message": "No hay resultados de búsqueda ahora mismo."}
+        if i < 0 or i >= len(res):
+            return {"ok": False, "error": "bad_index", "count": len(res),
+                    "message": f"Solo hay {len(res)} resultados."}
+        it = res[i]
+        db["player_error"] = ""
+        db["videoId"] = it.get("videoId") or ""
+        db["url"] = it.get("url") or ("https://www.youtube.com/watch?v=" + db["videoId"])
+        db["title"] = it.get("title") or db["url"]
+        db["channel"] = it.get("channel") or ""
+        db["published"] = it.get("published") or ""
+        db["latest"] = False
+        # If that video already sits in the queue, `next` continues from there; otherwise pos=-1 as `load`.
+        db["pos"] = next((j for j, x in enumerate(db.get("list") or [])
+                          if x.get("videoId") == db["videoId"]), -1)
+        db["paused"] = False
+        library.record_play(db, it)
+        library.apply_prefs(db, fresh=False)
+        r = _bump(db, "load")
+        r["position"] = i + 1
         return r
 
-    if action == "open_connectors":
-        if not _accounts_enabled():
-            return {"ok": False, "error": _NOT_YET, "message": _NOT_YET}
-        # V2-597 — the VOICE door into a platform's connect screen (V2-520 shape: intent only, never a
-        # credential). The card consumes `connect_focus` once per timestamp and opens that platform's
-        # wizard — or its status screen if it is already connected.
-        platform = str(p.get("platform") or "").strip().lower()
-        _sync_platforms(db)
-        known = {r.get("id") for r in db.get("platforms") or []}
-        if platform not in known:
-            platform = "youtube" if "youtube" in known else ""
-        db["connect_focus"] = {"platform": platform, "ts": int(time.time() * 1000)}
+    if action == "add_results":
+        # V2-632 — «añade los tres primeros a la cola» / «añádelos todos». Payload: items="1,2,3" | [1,2,3] |
+        # "all" (or a single n). The queue gets rows in the same shape `add` writes, so play_item/next/remove
+        # keep working on them untouched.
+        res = db.get("search_results") or []
+        if not res:
+            return {"ok": False, "error": "no_results", "message": "No hay resultados de búsqueda ahora mismo."}
+        raw = p.get("items", p.get("item", p.get("n", "")))
+        idxs = []
+        if isinstance(raw, list):
+            idxs = [int(x) for x in raw if str(x).strip().isdigit()]
+        else:
+            t = str(raw or "").strip().lower()
+            if t in ("all", "todos", "todas", "*"):
+                idxs = list(range(1, len(res) + 1))
+            else:
+                idxs = [int(x) for x in re.findall(r"\d+", t)]
+        idxs = [i for i in idxs if 1 <= i <= len(res)]
+        if not idxs:
+            return {"ok": False, "error": "no_items", "count": len(res),
+                    "message": "Dime cuáles añado (números, o «todos»)."}
+        lst = db.setdefault("list", [])
+        added, positions = [], []
+        for i in idxs:
+            h = res[i - 1]
+            if any(it.get("videoId") == h.get("videoId") for it in lst):
+                continue
+            seq = max((int(it.get("added_seq") or 0) for it in lst), default=0) + 1
+            lst.append({"videoId": h.get("videoId"), "title": h.get("title") or "",
+                        "channel": h.get("channel") or "", "published": h.get("published") or "",
+                        "url": h.get("url") or "", "added_at": int(time.time()), "added_seq": seq})
+            added.append(h.get("title") or "")
+            positions.append(len(lst))
         store.save(WID, db)
-        row = next((r for r in db.get("platforms") or [] if r.get("id") == platform), {})
-        return {"ok": True, "platform": platform, "connected": bool(row.get("connected")),
-                "app_configured": bool(row.get("app_configured"))}
+        return {"ok": True, "added": added, "positions": positions, "count": len(lst)}
 
-    if action == "connect_account":
-        if not _accounts_enabled():
-            return {"ok": False, "error": _NOT_YET, "message": _NOT_YET}
-        # Starts the OAuth consent for a platform whose app is ALREADY registered (client_id typed once in
-        # ⚙ → Conectores, never through a widget payload — V2-520). Returns the URL; the card opens the
-        # window synchronously on the click and fills its location after.
-        platform = str(p.get("platform") or "youtube").strip().lower()
-        svc = _svc()
-        if svc is None:
-            return {"ok": False, "error": "conector de vídeo no disponible"}
-        r = svc.connect_url(platform)
-        if not r.get("ok"):
-            return {"ok": False, "error": str(r.get("error") or "no pude empezar la conexión")[:200]}
-        return {"ok": True, "url": r.get("url"), "platform": platform}
-
-    if action == "disconnect_account":
-        platform = str(p.get("platform") or "youtube").strip().lower()
-        svc = _svc()
-        if svc is None:
-            return {"ok": False, "error": "conector de vídeo no disponible"}
-        r = svc.disconnect(platform)
-        _sync_platforms(db)
-        # A disconnected account's suggestions are stale by definition — keeping them would show a band the
-        # data no longer backs.
-        db["suggested"], db["suggested_at"], db["suggested_channels"] = [], 0, 0
+    if action == "clear_search":
+        db["search_results"], db["search_query"], db["searched_at"] = [], "", 0
         store.save(WID, db)
-        return {"ok": bool(r.get("ok")), "platform": platform,
-                **({} if r.get("ok") else {"error": str(r.get("error") or "")[:200]})}
+        return {"ok": True}
 
-    if action == "suggest":
-        if not _accounts_enabled():
-            return {"ok": False, "error": _NOT_YET, "message": _NOT_YET}
-        # V2-597 — fill/refresh the HOME suggestions band from the connected account's subscriptions.
-        # Pulled ONLY when asked (no background, decision in V2-597); blocked channels are dropped at this
-        # door like at every other NAME door, and the count travels so the ack can say it (V2-414).
-        platform = str(p.get("platform") or "youtube").strip().lower()
-        svc = _svc()
-        if svc is None:
-            return {"ok": False, "error": "conector de vídeo no disponible"}
-        db["suggesting"] = True
-        store.save(WID, db)                              # visible state while the network pull runs
-        try:
-            r = svc.suggestions(platform)
-        finally:
-            db["suggesting"] = False
-        if not r.get("ok"):
-            store.save(WID, db)                          # turn the state off even on failure
-            return {"ok": False, "error": str(r.get("error") or "no pude traer sugerencias")[:200],
-                    "message": str(r.get("error") or "No pude traer sugerencias.")[:200]}
-        items, n_blocked = _drop_blocked(r.get("items") or [], db.get("blocked_channels"))
-        db["suggested"] = items
-        db["suggested_at"] = int(time.time())
-        db["suggested_channels"] = int(r.get("channels") or 0)
-        _sync_platforms(db)                              # a successful pull proves the connection is live
-        store.save(WID, db)
-        out = {"ok": True, "n": len(items), "channels": db["suggested_channels"], "platform": platform}
-        if n_blocked:
-            out["blocked_out"] = n_blocked
-        if r.get("reason"):
-            out["reason"] = str(r.get("reason"))[:200]
-        return out
+    r = account.apply(action, p, db)                     # the ACCOUNT layer (V2-597, account.py)
+    if r is not None:
+        return r
 
     if action == "block_channel":
         # V2-596 — «no quiero ver este canal»: the filter the operator educates by voice. The brain names the

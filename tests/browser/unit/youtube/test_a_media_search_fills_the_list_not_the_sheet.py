@@ -53,24 +53,48 @@ def test_search_many_respects_n(sandbox):
     assert len(yt._search_many("paella", 2)) == 2
 
 
-def test_search_action_fills_the_list_and_touches_no_player_state(sandbox):
-    # A video is PLAYING; the search must not interrupt it — V2-366's law extended to searching.
+def test_search_action_fills_the_dashboard_and_touches_no_player_or_queue_state(sandbox):
+    # A video is PLAYING; the search must not interrupt it — V2-366's law extended to searching. And since
+    # V2-632 the results are the DASHBOARD's band, never queue rows: results are something to choose from,
+    # the queue is what he chose.
     yt.apply_action("load", {"url": "https://www.youtube.com/watch?v=ZZZZZZZZZZ9", "title": "Sonando"})
     before = yt.view_data()
     r = yt.apply_action("search", {"query": "videos de paella"})
-    assert r["ok"] and len(r["added"]) == 3 and r["count"] == 3
+    assert r["ok"] and len(r["results"]) == 3 and r["count"] == 3
     after = yt.view_data()
     assert after["videoId"] == before["videoId"] == "ZZZZZZZZZZ9", "a search must never change what is playing"
     assert after.get("paused") == before.get("paused")
-    assert [it["videoId"] for it in after["list"]] == ["AAAAAAAAAA1", "BBBBBBBBBB2", "CCCCCCCCCC3"]
+    assert after["list"] == before["list"] == [], "a search must never write into the queue (V2-632)"
+    assert [it["videoId"] for it in after["search_results"]] == ["AAAAAAAAAA1", "BBBBBBBBBB2", "CCCCCCCCCC3"]
+    assert after["search_query"] == "videos de paella"
 
 
-def test_search_dedups_against_what_the_list_already_has(sandbox):
+def test_a_new_search_replaces_the_previous_results(sandbox):
+    yt.apply_action("search", {"query": "videos de paella"})
+    yt.apply_action("search", {"query": "otra paella"})
+    d = yt.view_data()
+    assert d["search_query"] == "otra paella"
+    assert len(d["search_results"]) == 3, "results are a view of the LAST question, never an archive"
+
+
+def test_play_result_loads_that_video_and_add_results_feeds_the_queue_deduped(sandbox):
+    yt.apply_action("search", {"query": "videos de paella"})
+    r = yt.apply_action("play_result", {"item": "2"})
+    assert r["ok"] and yt.view_data()["videoId"] == "BBBBBBBBBB2"
+    # «añade los tres primeros a la cola» — and adding what the queue already holds is not a new row.
     yt.apply_action("add", {"url": "https://youtu.be/AAAAAAAAAA1", "title": "Ya estaba"})
-    r = yt.apply_action("search", {"query": "videos de paella"})
-    assert r["ok"] and len(r["added"]) == 2, "an already-listed video is not a new finding"
+    r = yt.apply_action("add_results", {"items": "1,3"})
+    assert r["ok"] and len(r["added"]) == 1, "an already-queued video is not a new addition"
     vids = [it["videoId"] for it in yt.view_data()["list"]]
-    assert vids.count("AAAAAAAAAA1") == 1
+    assert vids == ["AAAAAAAAAA1", "CCCCCCCCCC3"]
+    # «todos» works, out-of-range numbers refuse honestly, and clear_search empties the band.
+    r = yt.apply_action("add_results", {"items": "all"})
+    assert r["ok"]
+    assert yt.apply_action("play_result", {"item": "9"})["error"] == "bad_index"
+    yt.apply_action("clear_search", {})
+    d = yt.view_data()
+    assert d["search_results"] == [] and d["search_query"] == ""
+    assert yt.apply_action("play_result", {"item": "1"})["error"] == "no_results"
 
 
 def test_an_empty_search_is_said_not_swallowed(sandbox, monkeypatch):
@@ -83,3 +107,18 @@ def test_an_empty_search_is_said_not_swallowed(sandbox, monkeypatch):
 def test_a_search_without_query_asks_for_one(sandbox):
     r = yt.apply_action("search", {})
     assert r["ok"] is False and r["error"] == "no_query"
+
+
+def test_follow_channel_with_no_name_follows_the_current_videos_author(sandbox):
+    # V2-632: «este vídeo me gusta — sigue a este canal» names nobody; the CURRENT video's channel is the
+    # referent (the V2-609 class: a required argument the sentence never fills).
+    yt.apply_action("load", {"url": "https://www.youtube.com/watch?v=ZZZZZZZZZZ9", "title": "Sonando"})
+    db = yt._load(); db["channel"] = "MUNDO DE LA VELA"
+    from widgets import store as _st
+    _st.save(yt.WID, db)
+    r = yt.apply_action("follow_channel", {})
+    assert r["ok"] and r["channel"] == "MUNDO DE LA VELA"
+    # with NOTHING playing and no name, the honest refusal stays
+    yt.apply_action("close", {})
+    r = yt.apply_action("follow_channel", {})
+    assert r["ok"] is False and r["error"] == "no_channel"

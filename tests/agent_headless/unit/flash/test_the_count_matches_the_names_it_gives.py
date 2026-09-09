@@ -21,7 +21,7 @@ def _spoken(added):
 
 def test_five_added_names_three_and_says_two_more():
     s = _spoken(["A", "B", "C", "D", "E"])
-    assert "5 vídeos" in s and "«C»" in s and "y 2 más" in s
+    assert "5 resultados" in s and "«C»" in s and "y 2 más" in s and "Inicio" in s
     assert "…" not in s
 
 
@@ -50,7 +50,7 @@ def test_a_spoken_promise_gets_the_delivery_appended():
     parte = {"executed": "play_video", "accion": "list", "ok": True, "added": ["A", "B", "C", "D", "E"]}
     out = VT.ensure_delivery_named("Voy a buscar vídeos reales y de personas de verdad.", parte)
     assert out.startswith("Voy a buscar vídeos reales")
-    assert "5 vídeos" in out and "«A»" in out and "y 2 más" in out
+    assert "5 resultados" in out and "«A»" in out and "y 2 más" in out
 
 
 def test_a_failed_search_appends_the_honest_outcome_too():
@@ -68,7 +68,7 @@ def test_a_non_list_turn_is_left_alone():
 def test_an_empty_spoken_returns_the_canned_line_alone():
     parte = {"executed": "play_video", "accion": "list", "ok": True, "added": ["A"]}
     out = VT.ensure_delivery_named("", parte)
-    assert out.startswith("Te he puesto 1")
+    assert out.startswith("Tienes 1 resultado ")
 
 
 def test_the_probe_actually_wires_the_augmentation():

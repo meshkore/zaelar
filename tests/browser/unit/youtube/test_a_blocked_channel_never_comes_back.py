@@ -48,7 +48,8 @@ def test_search_drops_blocked_channels_and_says_how_many(sandbox):
     yt.apply_action("block_channel", {"channel": "Lucid AI Cars"})
     r = yt.apply_action("search", {"query": "coches"})
     assert r["ok"] and r["blocked_out"] == 1
-    assert [it["channel"] for it in yt.view_data()["list"]] == ["Motor Clasico"]
+    # V2-632: a search lands on the dashboard band, never in the queue.
+    assert [it["channel"] for it in yt.view_data()["search_results"]] == ["Motor Clasico"]
 
 
 def test_all_results_blocked_is_said_honestly_not_as_a_worse_search(sandbox):

@@ -57,12 +57,14 @@ Entirely fail-soft: the turn has to complete even if the player is broken.
     try:
         from widgets.server_api import brain_action
         if normalize_action(action) == "list":
-            # V2-402 — a media search goes to the PLAYER: several candidates into the list, nothing autoplays.
+            # V2-402/V2-632 — a media search goes to the PLAYER's own dashboard: numbered results on the
+            # Inicio tab, nothing autoplays, the queue untouched (the operator steers from there by voice).
             res = await brain_action("youtube", "search", {"query": q} if q else {})
             res = res if isinstance(res, dict) else {}
             _show_card(bool(res.get("ok")))
             return {"executed": "play_video", "accion": "list", "ok": bool(res.get("ok")),
-                    "query": q[:80], "added": [str(t)[:120] for t in (res.get("added") or [])],
+                    "query": q[:80],
+                    "added": [str(t)[:120] for t in (res.get("results") or res.get("added") or [])],
                     "count": int(res.get("count") or 0),
                     "message": str(res.get("message") or res.get("error") or "")[:160]}
         res = await brain_action("youtube", "load", {"query": q} if q else {})
@@ -143,11 +145,14 @@ load, that is stated — the fifth time one of our sentences about an empty box 
                 resto = len(added) - 3
                 if resto > 0:
                     nombres += (f" and {resto} more" if en else f" y {resto} más")
-                return (f"I've queued {len(added)} videos: {nombres} — tell me which one to play."
+                _n = len(added)
+                return ((f"You have {_n} result{'s' if _n != 1 else ''} on the player's Home: {nombres} — "
+                         "tell me which one to play, or which to queue.")
                         if en else
-                        f"Te he puesto {len(added)} vídeos en la lista: {nombres} — dime cuál pongo.")
-            return ("They were all in the list already — tell me which one to play." if en
-                    else "Ya estaban todos en la lista — dime cuál pongo.")
+                        (f"Tienes {_n} resultado{'s' if _n != 1 else ''} en el Inicio del reproductor: "
+                         f"{nombres} — dime cuál pongo, o cuáles mando a la cola."))
+            return ("The search came back empty this time — tell me which one to play." if en
+                    else "La búsqueda no ha traído nada nuevo — dime cuál pongo.")
         msg = str(parte.get("message") or "").strip()
         if en:
             return "I couldn't search for them: " + (msg or "I found no videos of that.")

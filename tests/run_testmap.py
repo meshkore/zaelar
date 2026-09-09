@@ -1528,6 +1528,15 @@ DOMAINS: list[dict] = [
         {"id": "4.137", "title": "El tamaño de una tarjeta nunca sigue a su contenido: congelado tras el primer "
                                  "render, solo lo cambian los gestos del operador (y el _fit del lienzo)",
             "ch": UNIT, "paths": ["tests/browser/e2e/widgets/test_a_cards_size_never_follows_its_content.py"]},
+        # V2-632 (rediseño del operador, 2026-09-09): el reproductor de vídeo con PESTAÑAS (Inicio · Reproductor
+        # · Cola · Suscripciones · Listas), la búsqueda como banda NUMERADA del dashboard (se pilota por voz:
+        # play_result/add_results), placeholder donde vivirá el vídeo, salto automático al reproductor cuando
+        # llega uno, miniaturas en la cola, y la estantería 🔌 de fuentes con su verdad (YouTube desactivado con
+        # su porqué INI-032; Vimeo/Dailymotion/Twitch como puertas aún cerradas). Elegir pestaña es UNA
+        # transición (la regla V2-626 aplicada de nacimiento) y sobrevive al siguiente render.
+        {"id": "4.138", "title": "El reproductor de vídeo lleva pestañas y un dashboard: búsqueda numerada "
+                                 "pilotable, placeholder, cola con miniaturas y la estantería honesta de fuentes",
+            "ch": UNIT, "paths": ["tests/browser/unit/youtube/test_the_player_wears_tabs_and_a_dashboard.py"]},
         # V2-537 (2026-09-01): el mural. Un widget nuevo aterrizó DEBAJO del chat flotante (z 9001, encima del
         # tope 8000 de las tarjetas por diseño) y el operador no tenía forma de saber que existía. Renderiza el
         # escritorio en Chromium con backend falso por intercepción: colocación que esquiva el chat abierto,

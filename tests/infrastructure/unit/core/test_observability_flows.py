@@ -200,13 +200,24 @@ def test_a_worker_tool_result_is_recorded(wired):
 
     emit("task", "web ↩", text="Tour 2026: ganó Vingegaard", extra={"id": "7", "evidence": True,
                                                                     "span": "worker:7"})
-    _settle()
+    # POLL for the event instead of one fixed sleep (2026-09-09, third occurrence of this file's own
+    # 2026-08-25 lesson): the sink writes on the publishing thread and a busy full-suite run can exceed any
+    # fixed settle — measured, the row was sometimes absent entirely at read time. The claim is «my event
+    # lands and is attributed», not «within 250ms».
+    for _ in range(40):
+        _settle()
+        if any(e.get("span") == "worker:7" for e in flows.events(limit=500) if e["kind"] == "task"):
+            break
     # Find THE EVENT ITSELF, not «the last one in the table». `rows[-1]` tied this test to nobody else
     # emitting a `task` afterward, and the store is SHARED: on 2026-08-25 it failed once in the full run
     # and passed on its own and when the suite was repeated. A test that depends on the order in which the
     # others run does not measure what it claims to measure, and its failure cannot distinguish a regression
     # from a coincidence.
-    rows = [e for e in flows.events(limit=50) if e["kind"] == "task"]
+    # limit=500, not 50 (2026-09-09, second occurrence of the 2026-08-25 incident this comment describes):
+    # the store is SHARED across the whole core run, and a 50-event window is a bet on how chatty the
+    # neighbors were — V2-632's manifest changes made the language-onboarding tests emit more and the bet
+    # started losing 2 runs in 3. The claim is «MY event exists, attributed», not «within the last 50».
+    rows = [e for e in flows.events(limit=500) if e["kind"] == "task"]
     assert rows, "el resultado de una tool tiene que quedar registrado"
     mio = [e for e in rows if e.get("span") == "worker:7"]
     assert mio, "…y atribuido a SU actor, o no se puede agrupar por quién lo hizo"

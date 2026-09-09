@@ -1,0 +1,16 @@
+{
+  "id": "twitch",
+  "label": "Twitch",
+  "kind": "connector",
+  "family": "video",
+  "transport": "native",
+  "auth": "oauth",
+  "state": "planned",
+  "capabilities": [
+    "twitch",
+    "directos",
+    "streams",
+    "video en directo"
+  ],
+  "notes": "API y embeds oficiales (orientado a DIRECTOS); construible cuando toque."
+}

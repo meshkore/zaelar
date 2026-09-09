@@ -112,3 +112,20 @@
   the CARD decides the width (operator: «anclado al contenedor parent»); the 680 default moved to
   manifest.size. Connector lives in `connectors/video/` (family; doc:
   .meshkore/docs/modules/zaelar-video-widget-and-account-connector.md).
+
+## 2026-09-09 — V2-632: tabs, dashboard-with-search, placeholder, thumbnails, the 🔌 shelf
+The operator's redesign (his screenshot: the card frozen SMALL because it opened empty — V2-630's freeze made
+the missing manifest height visible). What changed:
+- `manifest.size` is 680×560 now (an honest default footprint; the freeze pins whatever renders first).
+- Top TABS replace the home↔player toggle: Inicio · Reproductor · Cola · Suscripciones · Listas. `selectTab`
+  is the single writer and clears the connectors screen (V2-626's rule applied at birth). A video ARRIVING on
+  an empty card jumps to Reproductor.
+- `search` fills `search_results` on the DASHBOARD (numbered band, replaces the previous search) and never
+  touches the queue; `play_result{item}` / `add_results{items:"1,3"|"all"}` / `clear_search` steer it by
+  voice; `prompt_digest()` hands the numbered rows to the brain so «el tercero» resolves.
+- The queue rows carry thumbnails; Suscripciones/Listas got their own tabs (library data unchanged, V2-604).
+- `follow_channel` with no name follows the CURRENT video's author («sigue a este canal»).
+- The 🔌 button shows the connector SHELF (messaging igrid language): YouTube disabled with its INI-032
+  reason, Vimeo/Dailymotion/Twitch as honest shut doors (`connector_shelf` from the V2-526 catalog).
+- Player placeholder when nothing is loaded (title «Sin vídeo» + the 16:9 frame kept, marked).
+Node 4.138 (9 rendered cases) + updated 4.4/4.52/4.53 files; golden re-recorded (40 keys).

@@ -195,7 +195,10 @@ def test_a_connected_platform_shows_bright_and_its_status_screen_disconnects(_pa
     _page.get_by_text("Desconectar").click()
     _page.wait_for_timeout(50)
     assert ["disconnect_account", {"platform": "youtube"}] in _page.evaluate("window.__calls")
-    # The crumb is the way back: the player faces return.
+    # V2-632: the crumb walks back THROUGH the shelf (a platform screen is one item of the shelf, so «back»
+    # means the shelf first), and the shelf's own crumb leaves connect mode for the active tab.
+    _page.locator(".hb-ytw-crumb").click()
+    assert _page.locator(".hb-yt-igrid").count() == 1
     _page.locator(".hb-ytw-crumb").click()
     assert _page.evaluate("() => !document.querySelector('.hb-yt').classList.contains('hb-yt-connmode')")
 

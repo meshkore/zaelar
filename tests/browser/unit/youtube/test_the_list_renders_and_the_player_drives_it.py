@@ -80,34 +80,40 @@ def _mount(page, data: dict, running: bool = True):
     )
 
 
-def test_the_rows_render_as_text_with_the_playing_marker(_page):
+def test_the_rows_render_with_thumbnails_and_the_playing_marker(_page):
+    # V2-632: the queue lives on its own Cola tab now, and every row carries a thumbnail («que se intuya
+    # mejor de qué vídeo estamos hablando» — the operator's redesign reversed V2-366's text-only rule).
     _mount(_page, {"videoId": "BBBBBBBBBBB", "title": "Segundo vídeo", "list": _LIST, "pos": 1})
-    rows = _page.locator(".hb-yt-row")
+    _page.click(".hb-yt-tab[data-tab=cola]")
+    rows = _page.locator(".hb-yt-list .hb-yt-row")
     assert rows.count() == 3
     assert "Primer vídeo" in rows.nth(0).inner_text()
     assert "Canal Uno" in rows.nth(0).inner_text()
-    assert _page.locator(".hb-yt-list img").count() == 0        # linear TEXT list, no thumbnails
+    assert _page.locator(".hb-yt-list .hb-yt-rimg").count() == 3   # one thumbnail per row (V2-632)
     assert "▶" in rows.nth(1).inner_text()                       # the playing row is marked
     assert rows.nth(1).evaluate("e => e.classList.contains('playing')")
+    # …and the tab itself wears the count.
+    assert "3" in _page.locator(".hb-yt-tab[data-tab=cola]").inner_text()
 
 
 def test_click_plays_that_item_and_the_cross_removes_without_playing(_page):
-    # V2-596: with no video loaded the card's face is the HOME catalog (tiles), not the linear list —
-    # the protected behaviors are the same: a click plays that item, its ✕ removes without playing.
+    # V2-632: the queue's face is the Cola tab. The protected behaviors survive the redesign untouched:
+    # a row click plays that item (and jumps to the player), its ✕ removes without playing or navigating.
     _mount(_page, {"videoId": "", "list": _LIST, "pos": -1})
-    tiles = _page.locator(".hb-yt-tile")
-    assert tiles.count() == 3
-    # ✕ first: removing never plays AND never leaves the catalog (stopPropagation covers both).
-    tiles.nth(2).locator(".hb-yt-tilex").click()
+    _page.click(".hb-yt-tab[data-tab=cola]")
+    rows = _page.locator(".hb-yt-list .hb-yt-row")
+    assert rows.count() == 3
+    rows.nth(2).locator(".hb-yt-rowx").click()
     calls = _page.evaluate("window.__calls")
     assert calls == [["remove", {"item": "3"}]]
+    assert _page.evaluate("() => document.querySelector('.hb-yt').className").find("hb-yt-t-cola") >= 0
     _page.evaluate("window.__calls = []")
-    tiles.nth(1).click()
+    rows.nth(1).click()
     calls = _page.evaluate("window.__calls")
     assert calls == [["play_item", {"item": "2"}]]
-    # Choosing a tile LEAVES the catalog for the player view (V2-596) — same-video clicks rebuild nothing,
-    # so the widget must switch on its own.
-    assert _page.evaluate("() => !document.querySelector('.hb-yt').classList.contains('hb-yt-homemode')")
+    # Choosing a row LEAVES the queue for the player tab — same-video clicks rebuild nothing, so the
+    # widget must switch on its own.
+    assert _page.evaluate("() => document.querySelector('.hb-yt').className").find("hb-yt-t-player") >= 0
 
 
 def test_the_players_ended_message_advances_only_from_our_player(_page):
@@ -142,11 +148,11 @@ def test_a_stopped_agent_never_advances_the_queue(_page):
 
 
 def test_the_filter_hides_rows_without_touching_the_list_and_the_chip_clears_it(_page):
-    # V2-596: same face change — the voice filter must stay VISIBLE on the home catalog (a filter that
-    # changes no pixels is indistinguishable from a broken one), and its chip still clears it.
+    # V2-632: the filter lives with the queue on the Cola tab (the queue no longer renders on the home).
     _mount(_page, {"videoId": "", "list": _LIST, "pos": -1, "list_filter": "canal"})
-    assert _page.locator(".hb-yt-tile").count() == 2             # «Tercer clip» (channel «Otro») filtered out
-    chip = _page.locator(".hb-yt-home .hb-yt-chip")
+    _page.click(".hb-yt-tab[data-tab=cola]")
+    assert _page.locator(".hb-yt-list .hb-yt-row").count() == 2  # «Tercer clip» (channel «Otro») filtered out
+    chip = _page.locator(".hb-yt-list .hb-yt-chip")
     assert chip.count() == 1
     chip.click()
     assert ["filter_list", {"q": ""}] in _page.evaluate("window.__calls")
@@ -154,8 +160,9 @@ def test_the_filter_hides_rows_without_touching_the_list_and_the_chip_clears_it(
 
 def test_pasting_a_link_adds_and_an_empty_list_says_so(_page):
     _mount(_page, {"videoId": "", "list": [], "pos": -1})
+    _page.click(".hb-yt-tab[data-tab=cola]")
     assert "vacía" in _page.locator(".hb-yt-list").inner_text()
-    inp = _page.locator(".hb-yt-addinp")
+    inp = _page.locator(".hb-yt-addrow .hb-yt-addinp")
     inp.fill("https://youtu.be/DDDDDDDDDDD")
     inp.press("Enter")
     calls = _page.evaluate("window.__calls")
