@@ -4,6 +4,7 @@
     "chars": "int",
     "empty": "bool",
     "kind": "str",
+    "process": "dict",
     "source": "str",
     "src": "str",
     "subtitle": "str",

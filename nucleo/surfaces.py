@@ -30,11 +30,12 @@ from __future__ import annotations
 # ── the closed vocabulary ────────────────────────────────────────────────────────────────────────────────────
 LIST = "lista"              # several things to compare/pick from  → results sheet, opened NOW
 ITEM = "item"               # ONE thing with its detail            → results sheet, opened NOW
+DOC = "informe"             # ONE written thing to READ at the end → documento sheet, opened NOW (V2-644)
 WIDGET = "widget"           # new functionality the operator uses  → its box, with a loader
 VOICE = "voz"               # it is told, there is nothing to look at → box
 SILENT = "silenciosa"       # nothing to show at all               → only the activity hexagon
 
-SURFACES = (LIST, ITEM, WIDGET, VOICE, SILENT)
+SURFACES = (LIST, ITEM, DOC, WIDGET, VOICE, SILENT)
 
 #: Surfaces that open the results sheet before there is anything in it (the whole point of deciding early).
 SHEET = frozenset({LIST, ITEM})
@@ -46,6 +47,9 @@ DEFAULT = VOICE
 _ALIASES = {
     "list": LIST, "listado": LIST, "lista": LIST, "results": LIST, "resultados": LIST,
     "item": ITEM, "ficha": ITEM, "detalle": ITEM, "detail": ITEM, "single": ITEM,
+    # V2-644 — the sixth value, not a synonym of `item`: an ITEM is a card you glance at (a product, a hotel),
+    # a REPORT is a written piece you sit down and read, and it lands in the `documento` sheet, not `results`.
+    "informe": DOC, "documento": DOC, "doc": DOC, "document": DOC, "report": DOC, "dossier": DOC,
     "widget": WIDGET, "app": WIDGET, "componente": WIDGET,
     "voz": VOICE, "voice": VOICE, "speech": VOICE, "chat": VOICE,
     "silenciosa": SILENT, "silencioso": SILENT, "silent": SILENT, "none": SILENT, "ninguna": SILENT,
@@ -91,3 +95,13 @@ def set_once(rec, value) -> str:
 def opens_sheet(surface: str) -> bool:
     """Does this surface mean «open the results sheet now, before there is anything in it»?"""
     return (surface or "") in SHEET
+
+
+def opens_doc(surface: str) -> bool:
+    """Does this surface mean «open the DOCUMENT sheet now, with its process view» (V2-644)?
+
+    Deliberately not part of `SHEET`: the results sheet and the document sheet are different boxes with
+    different delivery contracts, and every `opens_sheet` caller (open, retitle, close, browser delivery)
+    must NOT start treating a report errand as a list errand — that is the exact confusion this value exists
+    to remove."""
+    return (surface or "") == DOC

@@ -439,6 +439,28 @@ def to_criteria(brief: dict) -> dict:
     return out
 
 
+async def seed_criteria(brief: dict) -> None:
+    """Pour the freshly composed brief into the CRITERIA tab of the results sheet.
+
+    Done in the PRE-FLIGHT, never inside the worker: if it depended on the executor remembering to write it,
+    it would be missing in exactly the searches that go worst. Side effect — and wanted: `goal` is the errand's
+    signature, so starting a DIFFERENT research empties the previous sheet (the operator once sat looking at
+    the previous search's results believing they were his), while a round 2 preserves the objective so
+    «sigue buscando» deletes nothing.
+
+    Hard best-effort: this is the SCREEN, not the work. If the widget fails, the research continues.
+    (Lived in `nucleo/dispatch.py` until V2-644; moved here to pay the architecture ratchet — same module
+    that composes the brief and already owns `to_criteria`.)"""
+    try:
+        payload = to_criteria(brief)
+        if not payload:
+            return
+        from widgets.server_api import brain_action
+        await brain_action("results", "criteria", payload)
+    except Exception as exc:                                # noqa: BLE001 — never brake a task for the view
+        logger.debug(f"research: could not seed the criteria into the results sheet ({exc})")
+
+
 
 
 # `to_prompt_block`'s actual formatting logic moved to research_prompts.py (same split as `_SYSTEM` above) — this

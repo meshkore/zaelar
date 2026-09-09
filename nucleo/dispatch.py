@@ -316,7 +316,7 @@ from nucleo.turn_marks import mark_stall_offered, stall_offered  # noqa: F401 �
 from nucleo.sheets import (  # noqa: F401 — re-export
     PHASES_KEPT, _phrases, _sheet_close, _sheet_open, retitle as _sheet_retitle, sheet_id_for, sheet_of,
 )
-from nucleo import sheets as _sheets
+from nucleo import docsheet as _docsheet, sheets as _sheets
 
 
 def _sheet_sessions() -> list:
@@ -330,6 +330,11 @@ def sheet_for_nav_task(nav_task: str) -> str:
 
 def sheet_progress(sheet: str = "") -> dict:
     return _sheets.sheet_progress(sheet, _SESSIONS.values(), LIVE_SESSION_STATES)
+
+
+def task_progress(task: str = "") -> dict:
+    """The live narrative of ONE errand by task_id — the documento sheet's process view (V2-644)."""
+    return _sheets.task_progress(task, _SESSIONS.values(), LIVE_SESSION_STATES)
 
 
 def sheet_harvest(sheet: str = "") -> dict:
@@ -834,24 +839,7 @@ async def stop_all_async(*, grace: float = 2.0) -> int:
 # ── arranque of a session from a escalada ────────────────────────────────────────────────────────────
 
 
-async def _seed_research_criteria(brief: dict) -> None:
-    """Vuelca the brief recien compuesto a the tab CRITERIOS of the sheet of results.
-
-    Se does AQUÍ, in the pre-vuelo, and no inside of the worker: if dependiera of that the ejecutor is acuerde of
-    escribirlo, faltaria justo in the busquedas that peor van. Efecto of step —and buscado—: the `goal` es the firma
-    of the errand, so that start a research DISTINTA empty the sheet of the anterior. El operator already is comio
-    a vez quedarse mirando the results of the search of before creyendo that eran the suyos. Una ronda 2
-    preserves the objetivo, so that «continues buscando» no borra nothing.
-
-    Best-effort duro: esto es the pantalla, no the work. If the widget falla, the research continues igual."""
-    try:
-        payload = research.to_criteria(brief)
-        if not payload:
-            return
-        from widgets.server_api import brain_action
-        await brain_action("results", "criteria", payload)
-    except Exception as exc:                                # noqa: BLE001 — nunca frenar una tarea por la vista
-        logger.debug(f"dispatch: no pude sembrar los criterios en la hoja de resultados ({exc})")
+_seed_research_criteria = research.seed_criteria   # V2-644: body moved to research.py (ratchet)
 
 
 async def _compose_brief(request: str, context: str, trusted: bool, resume: dict | None = None) -> dict | None:
@@ -919,6 +907,8 @@ def _name_errand(rec) -> None:
                 pass
             if surfaces.opens_sheet(getattr(rec, "surface", "")):
                 _sheet_retitle(rec)
+            elif surfaces.opens_doc(getattr(rec, "surface", "")):
+                _docsheet.doc_retitle(rec)
             sync_state()
 
         _t = asyncio.ensure_future(_go())
@@ -960,7 +950,8 @@ def _attach_brief_followup(task: "asyncio.Task", *, key: str, rec: "SessionRecor
             if b:
                 research.save(key, b)
                 research.remember_round(_goal_key(req), b)
-                asyncio.ensure_future(_seed_research_criteria(b))
+                if not surfaces.opens_doc(getattr(rec, "surface", "")):    # V2-644: no results sheet to seed
+                    asyncio.ensure_future(_seed_research_criteria(b))
                 block = research.to_prompt_block(b)
                 if block and rec.status in LIVE_SESSION_STATES:
                     inject_soon(key, ("Ya está compuesta la DIRECCIÓN de tu investigación — aplícala DESDE "
@@ -1333,7 +1324,8 @@ f"dispatch: could not write the confinement jail for {key} — dev worker starts
             if brief:
                 research.save(key, brief)
                 research.remember_round(_goal_key(req), brief)   # para que una 2ª petición continúe, no reempiece
-                await _seed_research_criteria(brief)
+                if not surfaces.opens_doc(getattr(rec, "surface", "")):   # V2-644: no results sheet to seed
+                    await _seed_research_criteria(brief)
                 rec.phase = "preparando la investigación"
                 # EL BRIEF ES LA PRUEBA of that esto es a INVESTIGACIÓN, and with ella is cobra the budget that le
                 # corresponde. `loop._kind_budget_default` already reservaba 1200s for `research`… but NADIE asignaba
@@ -1362,6 +1354,10 @@ f"dispatch: could not write the confinement jail for {key} — dev worker starts
             prompt = _web_prompt(req, ctx, brief, vision=_worker_sees())
         else:
             prompt = _build_prompt(req, ctx, trusted, brief)
+        # V2-644 — a REPORT flips the delivery contract (documento open, results not); after the method block.
+        if trusted and surfaces.opens_doc(getattr(rec, "surface", "")):
+            from nucleo.dispatch_prompts import DOC_SURFACE_BLOCK
+            prompt += "\n\n" + DOC_SURFACE_BLOCK
         if resume and (kind == "web" and trusted):
             prompt = ("REANUDAS una gestión que YA empezaste (no arranques de cero): la pestaña sigue donde la "
                       "dejaste y los datos que ya reuniste están en memoria (consúltalos con mem_cli recall). Haz "
@@ -1453,6 +1449,8 @@ f"dispatch: could not write the confinement jail for {key} — dev worker starts
             # session siguiera inside `alive` seguiria diciendo that si. Y no al resume: the errand continua.
             if not _continues and surfaces.opens_sheet(getattr(rec, "surface", "")):
                 _sheet_close(rec)
+            elif not _continues and surfaces.opens_doc(getattr(rec, "surface", "")):
+                _docsheet.doc_close(rec)
             try:
                 from nucleo import worker_api
                 worker_api.purge_task(key)   # §v3·L: sin asks pendientes de una sesión terminada
@@ -1719,6 +1717,8 @@ async def run_listener(stop: "asyncio.Event | None" = None) -> None:
             # entrega, es donde the operator leaves of mirar a pantalla in blanco.
             if surfaces.opens_sheet(getattr(rec, "surface", "")):
                 _sheet_open(rec)
+            elif surfaces.opens_doc(getattr(rec, "surface", "")):   # a REPORT opens the DOCUMENT sheet (V2-644)
+                _docsheet.doc_open(rec)
             _SESSIONS[key] = rec
             _name_errand(rec)          # V2-530 — asynchronous; the sheet is already open under its brief
 

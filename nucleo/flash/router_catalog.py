@@ -38,10 +38,10 @@ TOOLS: list[dict] = [
             # V2-457 — showing photos is also removed from the YES-list: it was a worker request (355 s and $1.96 measured
             # 2026-08-28) and is now a 3 s turn through `show_images`. What remains here is CURATING photos.
             "description": (
-                "Delega: lanza un worker de fondo (memoria, código, navegador, razonamiento). "
+                "Delega: lanza un worker de fondo (memoria, código, navegador). "
                 "SÍ: investigar/informe/comparativa a fondo; operar una web o marketplace "
                 "(anuncios→search_listings); "
-                "crear, modificar o arreglar el CÓDIGO de un widget; recordar algo de OTRAS sesiones "
+                "crear o arreglar el CÓDIGO de un widget; recordar algo de OTRAS sesiones "
                 "fuera de tu ESTADO; y HACER, cambiar o DESHACER un compromiso real "
                 "(reservar, cancelar, dar de baja, pagar) — el widget es solo su espejo. "
                 "NO: charla; un dato puntual del mundo (web_search); un aviso a una hora "
@@ -49,12 +49,11 @@ TOOLS: list[dict] = [
                 "existe en un widget, aunque digas «el mensaje nuevo» (show_widget); poner/BUSCAR "
                 "vídeo/música/podcast (play_video/play_music, no la hoja); enseñar FOTOS aunque las pida "
                 "verificadas/de verdad (show_images). "
-                "VARIAS tareas distintas en un "
-                "turno = una llamada por CADA UNA (corren a la vez). Y no estar en el catálogo NO es motivo para negarte: se construye. "
-                "Ante la duda, escala. "
+                "VARIAS tareas distintas = una llamada por CADA UNA (corren a la vez). Y "
+                "no estar en el catálogo NO es motivo para negarte: se construye. Ante la duda, escala. "
                 "Si ya hay una tarea EN CURSO no la repitas: di que sigues "
-                "con ello; y PREGUNTAR POR ELLA («¿alguna novedad?») NO es encargarla: eso se lee de tu "
-                "ESTADO, nunca se escala. Llámala YA en este turno; tu frase acompaña la llamada, no la sustituye."
+                "con ello; PREGUNTAR POR ELLA NO es encargarla: eso se lee de tu "
+                "ESTADO, nunca se escala. Llámala YA en este turno; tu frase la acompaña, no la sustituye."
             ),
             "parameters": {
                 "type": "object",
@@ -70,11 +69,12 @@ TOOLS: list[dict] = [
                     },
                     "surface": {
                         "type": "string",
-                        "enum": ["lista", "item", "widget", "voz", "silenciosa"],
+                        "enum": ["lista", "item", "informe", "widget", "voz", "silenciosa"],
                         "description": (
                             "Qué MIRARÁ el operador al acabar: lista=varias cosas que comparar; item=UNA "
-                            "ficha; widget=funcionalidad que él maneja (un juego, un contador); voz=se "
-                            "cuenta y ya; silenciosa=nada que enseñar. Se le abre al arrancar: elígela ya."
+                            "ficha; informe=un ESCRITO que se lee entero → hoja de documento; "
+                            "widget=funcionalidad que él maneja (un juego, un contador); voz=se "
+                            "cuenta y ya; silenciosa=nada que enseñar. Se abre al arrancar: elígela ya."
                         ),
                     }
                 },

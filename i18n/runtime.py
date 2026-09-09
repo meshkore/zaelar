@@ -21,7 +21,7 @@ from i18n import store as _store
 # Coarse cache-buster for the browser's localStorage bundle cache. Bump when the SET of keys or their English
 # text changes. (Per-key upgrade diffing uses the English snapshot stored in each generated bundle — see
 # i18n.init.ensure; this version is just the frontend cache signal.)
-MANIFEST_VERSION = 7   # 2026-09-09: V2-643 agenda calendar redesign — its `widgets.agenda.*` keys rebuilt
+MANIFEST_VERSION = 8   # 2026-09-09: V2-644 documento process view — `widgets.documento.*` keys added
 
 PRESET = ("en", "es")            # shipped in the repo; never generated
 BASE = "en"                      # the manifest language every other bundle is translated FROM

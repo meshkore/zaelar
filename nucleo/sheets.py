@@ -127,10 +127,33 @@ def sheet_for_delivery(nav_task: str, sessions=(), live_states=()) -> str:
     for r in list(sessions):
         if r.status not in live_states:
             continue
+        # V2-644 — a REPORT errand (surface `informe`) never gets a results sheet auto-opened under it. Its
+        # deliverable is the document, and its worker already receives every browser finding as a note. The
+        # Juncal research measured what this branch does to a report: the page-extract pushed einforma's own
+        # trust badges («Cero CO2», «Confianza Online») into a results sheet as if they were findings.
+        if surfaces.opens_doc(getattr(r, "surface", "")):
+            continue
         if tid in (str(getattr(r, "nav_task", "") or ""), str(getattr(r, "task_id", "") or "")):
             _sheet_open(r)
             return sheet_of(r)
     return ""
+
+
+def task_progress(task: str = "", sessions=(), live_states=()) -> dict:
+    """`{alive, phases}` of ONE errand named by its task_id — the documento sheet's process view (V2-644).
+
+    Sibling of `sheet_progress` for the errand that has no results sheet: a report errand (surface `informe`)
+    binds the `documento` widget to its task at commission time, and that widget derives its process view from
+    here on every read — never stored, same division as the results sheet's live view. A dead or unknown task
+    returns `alive: False` with no phases; the widget then falls back to whatever history was persisted when
+    the errand closed."""
+    tid = str(task or "").strip()
+    if not tid:
+        return {"alive": False, "phases": []}
+    for r in list(sessions):
+        if str(getattr(r, "task_id", "") or "") == tid and r.status in live_states:
+            return {"alive": True, "phases": _phrases(r)[-PHASES_KEPT:]}
+    return {"alive": False, "phases": []}
 
 
 def sheet_progress(sheet: str = "", sessions=(), live_states=()) -> dict:

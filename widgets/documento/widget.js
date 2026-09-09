@@ -11,8 +11,10 @@
 // THIS sheet's typography instead of dragging a foreign stylesheet's ideas into the canvas.
 
 function injectStyles(){
-  if(document.getElementById("hb-documento-css"))return;
-  const s=document.createElement("style"); s.id="hb-documento-css"; s.textContent=`
+  const prev=document.getElementById("hb-documento-css");
+  if(prev && (prev.dataset||{}).v==="644")return;
+  if(prev)prev.remove();
+  const s=document.createElement("style"); s.id="hb-documento-css"; s.dataset.v="644"; s.textContent=`
   .hbd-doc{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
            color:var(--hb-ink,#0d1622);background:var(--hb-bg,#fff);display:flex;flex-direction:column;
            height:100%;min-height:0;border-radius:14px;overflow:hidden}
@@ -25,7 +27,14 @@ function injectStyles(){
             color:var(--hb-accent2,#16B8A6);border:1px solid var(--hb-line,#eef1f6);border-radius:999px;
             padding:1px 8px;white-space:nowrap}
   .hbd-src{font-size:11.5px;color:var(--hb-muted-2,#9aa7b8);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .hbd-sheet{flex:1 1 auto;min-height:0;overflow:auto;padding:20px 24px 28px;font-size:14px;line-height:1.66}
+  /* V2-644 — the report reads like PAPER: a white page on the desk, whatever the theme. The page keeps the
+     .hbd-sheet class so every content selector below still applies; colors inside are fixed light-scheme. */
+  .hbd-scroll{flex:1 1 auto;min-height:0;overflow:auto;background:var(--hb-bg-soft,#eceef1);padding:16px 14px 22px}
+  .hbd-sheet{max-width:760px;margin:0 auto;background:#fff;color:#111827;border-radius:6px;
+             box-shadow:0 1px 3px rgba(15,23,42,.16),0 10px 30px rgba(15,23,42,.10);
+             padding:30px 36px 40px;font-size:14px;line-height:1.66}
+  .hbd-sheet{--hb-ink:#111827;--hb-muted:#4b5563;--hb-muted-2:#6b7280;--hb-line:#e5e7eb;
+             --hb-bg-soft:#f6f8fa;--hb-accent:#2457c5;--hb-accent2:#0e9488}
   .hbd-sheet>*:first-child{margin-top:0}
   .hbd-sheet p{margin:0 0 .85em}
   .hbd-sheet h1,.hbd-sheet h2,.hbd-sheet h3,.hbd-sheet h4,.hbd-sheet h5,.hbd-sheet h6{
@@ -62,7 +71,29 @@ function injectStyles(){
   .hbd-blank span{font-size:12px;max-width:34ch;line-height:1.5}
   .hbd-mark{width:26px;height:32px;border:1px solid var(--hb-line,#eef1f6);border-radius:3px;
             background:var(--hb-bg-soft,#f6f8fb);margin-bottom:6px}
-  @media(max-width:520px){.hbd-head{padding:12px 16px 9px}.hbd-sheet{padding:16px 17px 22px;font-size:13.5px}}
+  /* V2-644 — the two tabs of a commissioned report: Proceso (live narrative) and Documento (the paper). */
+  .hbd-tabs{display:flex;align-items:center;gap:6px;padding:8px 16px;border-bottom:1px solid var(--hb-line,#eef1f6);
+            flex:0 0 auto}
+  .hbd-tab{font-size:12px;font-weight:600;padding:4px 13px;border-radius:999px;cursor:pointer;border:0;
+           color:var(--hb-muted,#5b6b82);background:none;font-family:inherit;display:inline-flex;
+           align-items:center;gap:6px}
+  .hbd-tab.on{background:var(--hb-ink,#0d1622);color:var(--hb-bg,#fff)}
+  .hbd-livedot{width:7px;height:7px;border-radius:50%;background:#22c55e;animation:hbdPulse 1.5s ease-in-out infinite}
+  @keyframes hbdPulse{0%,100%{opacity:1}50%{opacity:.25}}
+  .hbd-proc{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
+  .hbd-pstat{display:flex;align-items:center;gap:10px;padding:14px 20px 12px;flex:0 0 auto;
+             border-bottom:1px solid var(--hb-line,#eef1f6)}
+  .hbd-pspin{width:14px;height:14px;border-radius:50%;border:2px solid var(--hb-line,#eef1f6);
+             border-top-color:var(--hb-accent2,#16B8A6);animation:hbdSpin 1s linear infinite;flex:0 0 auto}
+  @keyframes hbdSpin{to{transform:rotate(360deg)}}
+  .hbd-pnow{font-size:13.5px;font-weight:600;line-height:1.35;min-width:0}
+  .hbd-plist{flex:1 1 auto;min-height:0;overflow:auto;padding:10px 20px 16px}
+  .hbd-prow{font-size:12.5px;line-height:1.5;color:var(--hb-muted,#5b6b82);padding:3px 0 3px 14px;
+            border-left:2px solid var(--hb-line,#eef1f6);margin:0 0 2px;word-break:break-word}
+  .hbd-prow:last-child{color:var(--hb-ink,#0d1622);border-left-color:var(--hb-accent2,#16B8A6)}
+  .hbd-pempty{padding:22px 20px;font-size:12.5px;color:var(--hb-muted-2,#9aa7b8)}
+  @media(max-width:520px){.hbd-head{padding:12px 16px 9px}.hbd-scroll{padding:10px 8px 14px}
+    .hbd-sheet{padding:18px 18px 24px;font-size:13.5px}}
   `; document.head.appendChild(s);
 }
 
@@ -235,11 +266,47 @@ function htmlInto(root, src){
 // ── the card ─────────────────────────────────────────────────────────────────────────────────────────────
 const KIND_LABEL = { markdown:"documento", html:"documento", pdf:"pdf" };
 
-function blank(root){
+// The V2-613 seam: chrome strings go through ctx.t when the host provides it, with the Spanish product
+// default inline — the bare render harness has no bundle and must still say something true.
+function tr(ctx, key, fallback){
+  try{
+    if(ctx && typeof ctx.t === "function"){
+      const k = "widgets.documento." + key, s = ctx.t(k);
+      if(s && s !== k) return s;
+    }
+  }catch(_){ /* the fallback below is the contract */ }
+  return fallback;
+}
+
+function blank(root, ctx){
   const box = root.appendChild(el("div","hbd-blank"));
   box.appendChild(el("div","hbd-mark"));
-  box.appendChild(el("b", null, "Hoja en blanco"));
-  box.appendChild(el("span", null, "Aquí va lo que sea para leer: una receta, un informe, unas instrucciones o un PDF."));
+  box.appendChild(el("b", null, tr(ctx,"blank_title","Hoja en blanco")));
+  box.appendChild(el("span", null, tr(ctx,"blank_hint",
+    "Aquí va lo que sea para leer: una receta, un informe, unas instrucciones o un PDF.")));
+}
+
+// ── the process view (V2-644) — what a commissioned report shows while the worker researches ────────────
+function processInto(root, d, ctx){
+  const proc = d.process || {};
+  const alive = !!proc.alive;
+  const phases = Array.isArray(proc.phases) ? proc.phases : [];
+  const box = root.appendChild(el("div","hbd-proc"));
+  const stat = box.appendChild(el("div","hbd-pstat"));
+  if(alive) stat.appendChild(el("div","hbd-pspin"));
+  const hasBody = !!String(d.body||"").trim();
+  const now = alive
+    ? (hasBody ? tr(ctx,"writing","Redactando el documento…")
+               : (phases[phases.length-1] || tr(ctx,"preparing","Preparando…")))
+    : tr(ctx,"process_done","Proceso terminado");
+  stat.appendChild(el("div","hbd-pnow", now));
+  if(!phases.length){
+    box.appendChild(el("div","hbd-pempty", tr(ctx,"no_steps","Aún no hay pasos que contar.")));
+    return;
+  }
+  const list = box.appendChild(el("div","hbd-plist"));
+  for(const p of phases) list.appendChild(el("div","hbd-prow", String(p)));
+  list.scrollTop = list.scrollHeight;                       // the newest step is the one being watched
 }
 
 export function render(root, data, ctx){
@@ -250,7 +317,7 @@ export function render(root, data, ctx){
 
   if(d.error){
     const box = root.appendChild(el("div","hbd-blank"));
-    box.appendChild(el("b", null, "No se pudo abrir el documento"));
+    box.appendChild(el("b", null, tr(ctx,"error_title","No se pudo abrir el documento")));
     box.appendChild(el("span", null, String(d.error)));
     return;
   }
@@ -260,6 +327,29 @@ export function render(root, data, ctx){
   const source = String(d.source||"").trim();
   const kind = KIND_LABEL[d.kind] ? d.kind : "markdown";
   const empty = !!d.empty || (!String(d.body||"").trim() && !String(d.src||"").trim());
+
+  // V2-644 — a sheet bound to an errand carries TWO tabs: the live process and the document. Without a
+  // process (the plain recipe of V2-549) nothing changes: no band, the document alone.
+  const proc = d.process;
+  const hasProc = !!(proc && (proc.alive || (Array.isArray(proc.phases) && proc.phases.length)));
+  const st = root._hbd || (root._hbd = { tab: null });
+  let tab = "doc";
+  if(hasProc) tab = st.tab || (empty ? "proc" : "doc");
+  if(tab === "doc" && empty && hasProc && proc.alive) tab = "proc";   // nothing to read yet: show the work
+
+  if(hasProc){
+    const band = root.appendChild(el("div","hbd-tabs"));
+    const mk = (id, label) => {
+      const b = band.appendChild(el("button","hbd-tab" + (tab === id ? " on" : ""), label));
+      b.dataset.tab = id;
+      if(id === "proc" && proc.alive) b.appendChild(el("span","hbd-livedot"));
+      b.addEventListener("click", () => { st.tab = id; render(root, data, ctx); });
+    };
+    mk("proc", tr(ctx,"process_tab","Proceso"));
+    mk("doc", tr(ctx,"document_tab","Documento"));
+  }
+
+  if(tab === "proc"){ processInto(root, d, ctx); return; }
 
   // The card header already carries the title when the host asked for a live title; repeating it there and
   // here is the same sentence twice, on the two lines that are hardest to ignore.
@@ -275,7 +365,7 @@ export function render(root, data, ctx){
     }
   }
 
-  if(empty){ blank(root); return; }
+  if(empty){ blank(root, ctx); return; }
 
   if(kind === "pdf"){
     const frame = el("iframe","hbd-pdf");
@@ -285,7 +375,10 @@ export function render(root, data, ctx){
     return;
   }
 
-  const sheet = root.appendChild(el("div","hbd-sheet"));
+  // The PAPER (V2-644): the document itself is a white page on the desk, whatever the theme — the shape the
+  // operator asked for by name («como un documento de Word o un PDF, con su fondo blanco»).
+  const scroll = root.appendChild(el("div","hbd-scroll"));
+  const sheet = scroll.appendChild(el("div","hbd-sheet"));
   if(kind === "html") htmlInto(sheet, d.body);
   else markdownInto(sheet, d.body);
 }

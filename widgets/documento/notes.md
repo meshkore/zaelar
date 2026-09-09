@@ -23,3 +23,14 @@
   question about text we already hold. A PDF says outright that its inside is not readable from here rather
   than letting the model invent it.
 - **`live_title: true`** — the card header shows the document's own title, so the body does not repeat it.
+- **V2-644 (2026-09-09) — the sheet becomes a REPORT surface.** A sixth errand surface (`informe`) binds this
+  widget to a task at commission time (`nucleo/docsheet.py` → `begin_task`/`retitle_task`/`finish_task`; never
+  worker actions). While the errand runs, `view_data().process` is DERIVED per read from
+  `dispatch.task_progress` (the results sheet's live-view pattern; `documento` joined `_STDLIB_EXEMPT` for
+  that deferred import); at finish the narrative is persisted. The card grows Proceso|Documento tabs only
+  when a process exists — the plain V2-549 recipe renders unchanged. The document itself is PAPER now: a
+  white page (fixed light palette scoped to `.hbd-sheet`) on the desk, whatever the host theme — the
+  operator's own words («como un documento de Word o un PDF, con su fondo blanco»). Default tab: alive+empty
+  → Proceso; body → Documento; finished+empty → Proceso (what happened beats a blank page). `process` is
+  ALWAYS a dict in view_data — a None would freeze the golden's shape as NoneType and turn the harness red
+  the first time a live engine had a bound errand.

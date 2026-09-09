@@ -471,6 +471,38 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **A REPORT is delivered as a DOCUMENT — the `informe` surface (V2-644, 2026-09-09)**: the operator's
+  order after the Juncal research (session adc8a7c7, read event by event before touching anything): a report
+  errand must open «el visor simple» — a process tab while the work runs, then ONE white-paper document —
+  never the results sheet, whose card list «queda un poco ridículo» for a report. What the forensics showed:
+  STT heard «la empresa junca de ella Salvador SL» (= Juncadella Salvador SL, the operator's own surname),
+  Flash guessed «Juncal de El Salvador» and the errand title froze on the guess even after the worker
+  CONFIRMED the real name and NIF (21:14:30); the surface was `lista`, so the browser's page-extract pushed
+  einforma's own trust badges («Cero CO2», «Confianza Online», «Tarifas») into Resultados as findings; the
+  worker sent its web_search query under a key the bridge did not read, got a SILENT
+  `{"results": [], "source": "none"}` twice, concluded «el puente no devuelve nada» and drove the browser
+  for four minutes; and the report never landed anywhere (cancelled by a restart). Four changes:
+  **(1)** a SIXTH surface value `informe` (`surfaces.DOC`, aliases informe/documento/report/dossier;
+  offered in the escalation tool's enum — the shared catalog ceiling was paid by compacting, ending UNDER
+  the old 23_100). Deliberately NOT in `SHEET`: every `opens_sheet` caller branches, so a report errand
+  never rides the results-sheet path. **(2)** commission opens the `documento` widget bound to the task
+  (`nucleo/docsheet.py`: doc_open/doc_retitle/doc_close — the sheet's own three gestures, sibling module),
+  criteria seeding is guarded off, `sheet_for_delivery` skips doc-surface errands (the badge-junk path),
+  and the worker prompt gains `DOC_SURFACE_BLOCK`: deliver via `documento` (4d), results is NOT open, first
+  `show` early + `append` per section, say «Elaborando el informe…» before writing, and the document title
+  carries the TRUE confirmed name — not the errand's phonetic guess. **(3)** the widget grows a live
+  process view: `view_data().process` derived per read from the new `dispatch.task_progress(tid)`
+  (`sheets.task_progress`, task-keyed sibling of `sheet_progress`), persisted at finish; Proceso|Documento
+  tabs only when a process exists, and the document is PAPER — a white page whatever the host theme.
+  **(4)** the `use_tool web_search` gate refuses an EMPTY query loudly naming the exact form, and accepts
+  the sibling keys (`q`/`text`/`search`/`consulta`) a worker actually writes. Node **4.143** (17 headless +
+  4 bridge + 6 rendered cases); seven disarms, mutations asserted, all red — TWO came back green first and
+  the TESTS were wrong: nothing measured the finished-empty default tab (the alive safety net covered the
+  mutation), and the bare harness defined no theme vars, so `var(--hb-bg,#fff)` resolved white and a
+  regression to theme-following was invisible — the fixture now mounts a hostile dark host theme.
+  ⚠️ NOT verified live end-to-end: a real informe errand needs a worker run; the engine restart +
+  served-code checks are the shipped verification. Detail: the V2-644 initiative.
+
 - **A cover never ends the turn, and covers describe MOTION (V2-642, 2026-09-09)**: session 651c25ac,
   20:51:49 — «¿Por qué la vista semanal no tiene una columna para cada día?» → «Déjame que mire…» → a reply
   with `completion_tokens=84` but `completion_chars=0` (the model spent the turn re-emitting a stale data-op

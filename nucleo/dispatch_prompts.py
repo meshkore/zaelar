@@ -195,6 +195,23 @@ def _known_route_line(goal: str) -> str:
     return ""
 
 
+# V2-644 — the errand whose surface is `informe`: the DOCUMENT sheet is already on screen, bound to this task,
+# streaming its process view. The delivery contract flips: step 4d is the PRIMARY route and the results sheet
+# does not exist for this errand. Measured need (the Juncal research, 2026-09-09): a report errand on the
+# results surface ended with a page-scrape's trust badges shown as «resultados» and no report at all.
+DOC_SURFACE_BLOCK = (
+    "ENTREGA COMO INFORME (la superficie de este encargo es un DOCUMENTO): el operador pidió un ESCRITO y la "
+    "hoja `documento` YA ESTÁ ABIERTA en su pantalla, enseñando tu progreso en vivo mientras trabajas — tus "
+    "fases de agent_report son lo que él lee ahí, repórtalas de verdad (qué fuente miras, qué acabas de "
+    "confirmar). La hoja de RESULTADOS NO está abierta para este encargo: NO entregues en `results` ni "
+    "vuelques listas de candidatos — el paso 4b no aplica; aplica el 4d con `documento`. En cuanto tengas la "
+    "estructura, primer `show` con el esqueleto del informe (título REAL confirmado del asunto, secciones) y "
+    "ve llenando con `data documento append @parte.json` por secciones: el operador ve crecer el documento en "
+    "vez de esperar callado. Justo antes de redactar, di la fase «Elaborando el informe con toda la "
+    "documentación». El `title` del documento lleva el nombre VERDADERO confirmado (no el fonético del "
+    "encargo si difieren), y `source` de dónde sale. La voz final es corta: el informe ya lo está leyendo.")
+
+
 def _build_prompt(request: str, context: str, trusted: bool, brief: dict | None = None) -> str:
     header = ("Eres un Brain Worker del asistente personal zaelar: una sesión de trabajo que CONDUCE una tarea del "
               "operador con tus herramientas (memoria, navegador, código, búsqueda). Resuelve la PETICIÓN de forma "

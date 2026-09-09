@@ -365,7 +365,11 @@ _STDLIB_EXEMPT = {"musica", "agenda", "archivos", "fotos", "youtube", "results",
                    # V2-637: the `torrent` widget IS a connector surface — its data.py reaches
                    # `connectors.torrent.service` (which owns the libtorrent session), deferred so the
                    # catalog never imports libtorrent just to list the widget.
-                   "torrent"}
+                   "torrent",
+                   # V2-644: a report errand binds this sheet to its task, and the Proceso view is derived
+                   # per read from `nucleo.dispatch.task_progress` — deferred + fail-open, the same seam
+                   # `results` already has for its live view.
+                   "documento"}
 
 
 def _scan_data_py(src: str, wid: str = "") -> str | None:

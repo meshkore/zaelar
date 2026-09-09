@@ -1738,6 +1738,16 @@ DOMAINS: list[dict] = [
         {"id": "4.142", "title": "La AGENDA es un calendario: semana en columnas, colores por categoría e "
                                  "intensidad por estado, insignias de aviso y asistentes, y nada recortado",
             "ch": UNIT, "paths": ["tests/browser/unit/agenda/test_the_agenda_looks_like_a_calendar.py"]},
+        # V2-644 — un INFORME se entrega como DOCUMENTO: la sexta superficie (`informe`) abre la hoja
+        # `documento` al encargar (proceso en vivo derivado del registro del dispatcher, papel blanco al
+        # entregar), la hoja de resultados NO se abre ni se siembra para ese encargo, y el puente de
+        # búsqueda rechaza con ruido una query vacía (el silencio mandó al worker al navegador 4 minutos).
+        {"id": "4.143", "title": "Un INFORME se entrega como documento: superficie informe, proceso en vivo, "
+                                 "papel blanco, y la hoja de resultados fuera del camino",
+            "ch": UNIT, "paths": [
+                "tests/agent_headless/unit/test_a_report_errand_opens_the_document_sheet.py",
+                "tests/agent_headless/unit/workers/test_an_empty_search_query_refuses_loudly.py",
+                "tests/browser/unit/documento/test_the_report_shows_its_process_and_lands_on_paper.py"]},
         # V2-641 — el fondo de escritorio es una PROPIEDAD HABLADA: «usa la número 3» viste el escritorio.
         # Lo que solo un navegador mide: que la URL de la cuenta PINTA en un navegador virgen (reconcile del
         # boot), el scrim que mantiene legible el escritorio sobre cualquier foto, y que limpiar no deja nada.

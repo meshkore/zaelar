@@ -54,8 +54,17 @@ _ASSET_RE = re.compile(r"^[A-Za-z0-9._-]+$")
 _TAG_RE = re.compile(r"<[^>]+>")
 
 
+#: The process view keeps the same bounds as the results sheet's live view (`widgets/results/live.py`).
+_MAX_PHASES = 40
+_MAX_PHASE_CHARS = 160
+
+
 def _seed() -> dict:
-    return {"kind": "markdown", "title": "", "subtitle": "", "body": "", "src": "", "source": "", "updated": 0}
+    return {"kind": "markdown", "title": "", "subtitle": "", "body": "", "src": "", "source": "", "updated": 0,
+            # V2-644 — a REPORT errand (surface `informe`) binds this sheet to its task at commission time:
+            # `task` names the live errand, `task_title` its composed name, `process` the persisted history
+            # once the errand closed. While the errand is alive the narrative is DERIVED per read, not stored.
+            "task": "", "task_title": "", "process": []}
 
 
 def _load() -> dict:
@@ -101,6 +110,42 @@ def _resolve_src(raw) -> tuple[str, str]:
     return f"/widgets/{WIDGET_ID}/asset/{name}", ""
 
 
+def _clean_phases(raw) -> list:
+    if not isinstance(raw, (list, tuple)):
+        return []
+    return [str(x)[:_MAX_PHASE_CHARS] for x in raw if str(x or "").strip()][-_MAX_PHASES:]
+
+
+def _process(db: dict):
+    """The PROCESS view of the bound errand — derived from the dispatcher's live record on every read, exactly
+    like the results sheet's Proceso tab (`widgets/results/live.py`): storing it would leave a stale copy on
+    screen. Once the errand is over, the history persisted by `finish_task` is what remains. `None` means this
+    sheet was never an errand's surface — the widget then renders as the plain document it always was.
+
+    Fail-soft on purpose: without a dispatcher (the bare render harness, a test), a bound task shows its
+    stored history and `alive: False`, which is exactly what is true from here.
+
+    Always a dict (never None): the golden pins the SHAPE of view_data, and a key that flips between
+    NoneType and dict would turn the harness red the first time a live engine had a bound errand. A sheet
+    that was never an errand's surface is `{alive: False, phases: []}` — the widget reads that as «no
+    process» and renders the plain document it always did."""
+    tid = str(db.get("task") or "")
+    stored = _clean_phases(db.get("process"))
+    if not tid and not stored:
+        return {"alive": False, "phases": [], "title": ""}
+    live = {}
+    if tid:
+        try:
+            from nucleo import dispatch as _disp
+            live = _disp.task_progress(tid) or {}
+        except Exception:  # noqa: BLE001
+            live = {}
+    if live.get("alive"):
+        return {"alive": True, "phases": _clean_phases(live.get("phases")),
+                "title": str(db.get("task_title") or "")}
+    return {"alive": False, "phases": stored, "title": str(db.get("task_title") or "")}
+
+
 def view_data(q: str = "") -> dict:
     db = _load()
     body = str(db.get("body") or "")
@@ -115,7 +160,39 @@ def view_data(q: str = "") -> dict:
         "updated": int(db.get("updated") or 0),
         "chars": len(body),
         "empty": not (body or src),
+        "process": _process(db),
     }
+
+
+# ── the errand binding (V2-644) — called by `nucleo/docsheet.py`, never by a worker action ──────────────────
+def begin_task(title: str, task_id: str) -> None:
+    """A REPORT errand was commissioned: bind this sheet to it and start blank. Fresh on purpose — the same
+    trade the results sheet makes (`begin_task(fresh=True)`): the operator asked for a NEW report, and the
+    old document staying on screen under a live process view would read as the answer arriving instantly."""
+    db = _seed()
+    db.update({"task": str(task_id or ""), "task_title": _text(title, 120)})
+    store.save(WIDGET_ID, _stamp(db))
+
+
+def retitle_task(title: str, task_id: str) -> None:
+    """The errand's composed name reaches the process header. Only for the errand this sheet is bound to —
+    a late title from a dead errand must not rename somebody else's document."""
+    db = _load()
+    if str(db.get("task") or "") != str(task_id or "") or not str(task_id or ""):
+        return
+    db["task_title"] = _text(title, 120)
+    store.save(WIDGET_ID, _stamp(db))
+
+
+def finish_task(task_id: str, phases: list) -> None:
+    """The bound errand is OVER: keep its narrative so the report retains the account of how it was reached
+    (the live record disappears with the errand), and release the binding."""
+    db = _load()
+    if str(db.get("task") or "") != str(task_id or "") or not str(task_id or ""):
+        return
+    db["task"] = ""
+    db["process"] = _clean_phases(phases)
+    store.save(WIDGET_ID, _stamp(db))
 
 
 def prompt_digest() -> str:
@@ -134,6 +211,14 @@ def prompt_digest() -> str:
                 f"contenido, dilo — no lo inventes.")
     body = str(db.get("body") or "")
     if not body.strip():
+        # V2-644 — a bound errand still working is a different fact from an empty sheet: the operator is
+        # watching the process view, and «no ves nada» would contradict his own screen.
+        proc = _process(db)
+        if proc and proc.get("alive"):
+            last = (proc.get("phases") or [""])[-1]
+            head_t = str(db.get("task_title") or "").strip()
+            return (f"La hoja enseña el PROCESO del informe en curso{f' «{head_t}»' if head_t else ''}: "
+                    f"aún no hay documento. Última fase: {last or 'arrancando'}.")
         return "La hoja está ABIERTA y VACÍA: el operador no ve nada dentro."
     if kind == "html":
         body = _TAG_RE.sub(" ", body)

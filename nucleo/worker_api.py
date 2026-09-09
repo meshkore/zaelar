@@ -101,7 +101,20 @@ def _safe_reminder_prompt(text: str) -> str:
 async def _exec_allow(action: str, payload: dict, rec) -> dict:
     payload = payload or {}
     if action == "use_tool" and payload.get("tool") == "web_search":
-        q = (payload.get("args") or {}).get("query") or payload.get("query") or ""
+        # V2-644 — the query key is forgiving, but an EMPTY query refuses loudly. Measured 2026-09-09: a worker
+        # sent its query under another key, got back `{"results": [], "source": "none"}` twice, concluded «the
+        # search bridge returns nothing» and drove the browser for four minutes. The silent echo blamed the
+        # module; the real fault was the payload shape, which only an error naming the key could have said.
+        args = payload.get("args") or {}
+        q = ""
+        for key in ("query", "q", "text", "search", "consulta"):
+            q = str(args.get(key) or payload.get(key) or "").strip()
+            if q:
+                break
+        if not q:
+            return {"ok": False, "error": "falta `query`: la búsqueda va en "
+                                          "{\"tool\":\"web_search\",\"args\":{\"query\":\"…\"}} — no adivino "
+                                          "qué buscar con una query vacía."}
         try:
             from nucleo import websearch
             res = await asyncio.to_thread(websearch.search, str(q))
