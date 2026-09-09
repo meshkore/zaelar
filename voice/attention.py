@@ -49,7 +49,9 @@ _SMART_WINDOW_S = 12.0
 _DEFAULT_WAKEWORDS = ("zaelar",)
 
 # ── process state ───────────────────────────────────────────────────────────────────────────────────
-_state = {"last_directed": 0.0, "ptt": False, "assistant_name": "", "bot_hold": False}
+_state = {"last_directed": 0.0, "ptt": False, "assistant_name": "", "bot_hold": False,
+          "window_hint": 0.0,      # per-reply dynamic window (attention_window.hint); 0 = use the mode default
+          "recent_directed": []}   # timestamps of recent directed turns → dialogue depth for the hint
 
 
 def _norm(text: str) -> str:
@@ -64,7 +66,9 @@ def mode() -> str:
 
 
 def window_s() -> float:
-    dflt = _SMART_WINDOW_S if mode() == "smart" else _DEFAULT_WINDOW_S
+    # smart: the window is DYNAMIC per reply (operator directive 2026-09-09, `voice/attention_window.py` —
+    # 4-15s by what the exchange looks like); the env override stays the power-user escape hatch for both modes.
+    dflt = (_state["window_hint"] or _SMART_WINDOW_S) if mode() == "smart" else _DEFAULT_WINDOW_S
     try:
         v = float((os.getenv("ZAELAR_ATTENTION_WINDOW") or "").strip() or dflt)
         return v if v > 0 else dflt
@@ -260,7 +264,25 @@ async def evaluate_content(text: str, *, context: str = "", now: float | None = 
 
 def note_directed(now: float | None = None) -> None:
     """Marks that a directed turn was HANDLED → opens/refreshes the active conversation window (smart mode)."""
-    _state["last_directed"] = time.time() if now is None else now
+    now = time.time() if now is None else now
+    _state["last_directed"] = now
+    rd = [t for t in _state["recent_directed"] if now - t <= 90.0]
+    rd.append(now)
+    _state["recent_directed"] = rd[-10:]
+
+
+def note_reply(text: str, now: float | None = None) -> None:
+    """The reply that just finished sizes the window it re-anchors (operator directive 2026-09-09): a reply
+    that asks, or an errand running for him, earns the long pause; a bare «Hecho.» to a one-shot order earns
+    the short one. Deterministic — `voice/attention_window.hint()`; called from the assistant-transcript seam
+    (pipeline/agent.py), so it needs nothing from the provider."""
+    try:
+        from voice import attention_window as _aw
+        now = time.time() if now is None else now
+        depth = len([t for t in _state["recent_directed"] if now - t <= 90.0])
+        _state["window_hint"] = _aw.hint(text or "", dialogue_turns=depth)
+    except Exception:
+        _state["window_hint"] = 0.0
 
 
 def note_bot_speech(speaking: bool, now: float | None = None) -> None:
@@ -291,6 +313,8 @@ def reset() -> None:
     _state["last_directed"] = 0.0
     _state["ptt"] = False
     _state["bot_hold"] = False
+    _state["window_hint"] = 0.0
+    _state["recent_directed"] = []
 
 
 # ── HARD interruption (T136): STOP always handled, BYPASSES the gate, DETERMINISTIC (does not depend on the LLM) ────

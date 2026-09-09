@@ -468,6 +468,12 @@ async def entrypoint(ctx: JobContext) -> None:
             _tid = _trace.active()
             _emit("transcript", "zaelar", text=text, role="assistant",
                   extra=({"trace": _tid} if _tid else None))
+            # The finished reply sizes the wake-word window it re-anchors (2026-09-09, dynamic 4-15s).
+            try:
+                from voice import attention as _attn_w
+                _attn_w.note_reply(text)
+            except Exception:
+                pass
 
     @session.on("agent_false_interruption")
     def _on_false_interrupt(ev) -> None:

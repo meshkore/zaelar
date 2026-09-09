@@ -465,3 +465,47 @@ def test_reset_clears_the_bot_hold(monkeypatch):
     attention.note_bot_speech(True, now=1001.0)
     attention.reset()
     assert not attention.evaluate("sigo hablando", now=1002.0).directed
+
+
+# ── the window is DYNAMIC per reply: 4-15s by what the exchange looks like (2026-09-09) ────────────────────
+# Operator directive: after «dime el tiempo» → «Hecho.» four seconds of open mic is plenty; mid-errand or
+# right after zaelar ASKS something, fifteen is the natural pause. Deterministic, model-free
+# (voice/attention_window.py); the reply that just finished sizes the window it re-anchors.
+from voice import attention_window
+
+
+def test_a_bare_ack_to_a_one_shot_order_earns_the_short_window():
+    assert attention_window.hint("Hecho.", dialogue_turns=1, task_live=False) == 5.0
+
+
+def test_a_reply_that_asks_earns_the_long_window():
+    assert attention_window.hint("¿Quieres que te ponga alguno de la lista?", dialogue_turns=1,
+                                 task_live=False) == 15.0
+
+
+def test_a_live_errand_earns_the_long_window_even_after_a_bare_ack():
+    assert attention_window.hint("Hecho.", dialogue_turns=1, task_live=True) == 15.0
+
+
+def test_a_flowing_conversation_keeps_the_dialogue_window():
+    assert attention_window.hint("Pues de garajes caseros te recomendaría un par de canales.",
+                                 dialogue_turns=4, task_live=False) == 12.0
+
+
+def test_anything_else_gets_the_base_window():
+    assert attention_window.hint("Te lo apunto para el viernes por la tarde.",
+                                 dialogue_turns=1, task_live=False) == 8.0
+
+
+def test_note_reply_drives_window_s_in_smart_mode(monkeypatch):
+    _smart(monkeypatch)
+    monkeypatch.setattr(attention_window, "live_task", lambda: False)
+    t = 1000.0
+    attention.note_directed(now=t)
+    attention.note_reply("Hecho.", now=t + 2)
+    assert attention.window_s() == 5.0
+    attention.note_reply("¿Te lo pongo?", now=t + 4)
+    assert attention.window_s() == 15.0
+    # env override stays the power-user escape hatch
+    monkeypatch.setenv("ZAELAR_ATTENTION_WINDOW", "20")
+    assert attention.window_s() == 20.0
