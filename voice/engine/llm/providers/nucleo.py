@@ -737,6 +737,7 @@ class NucleoLLMStream(llm.LLMStream):
         except Exception:
             _busy_at_start = {}
         buf, spoken, first_ms = "", [], None
+        _t_stream0 = time.monotonic()      # covers fired at/after this instant belong to THIS turn (V2-642)
         # `v` = la escalada PRINCIPAL del turno (la primera); `more` = las ADICIONALES cuando el operador encarga
         # varias tareas DISTINTAS de una sentada (V2-118, medido 2026-08-18). Antes solo existía `v` con un
         # `if is None`, así que de «hazme un informe, búscame un monitor y móntame un widget» arrancaba UNA tarea
@@ -2875,37 +2876,18 @@ class NucleoLLMStream(llm.LLMStream):
         _did_act = bool(acted["widget"] or data_done["v"] or worker_acted["v"] or escalate_req["v"] is not None
                         or search_req["v"] is not None or music_req["v"] is not None or confirm_state.get("opened")
                         or clarify.get("msg"))
-        # V2-572 — a QUESTION answered with a bare «Hecho.» gets its real answer SPOKEN as a follow-up (mirror
-        # of the probe's re-compose — wire in BOTH). This channel speaking again is NOT the double-speech
-        # V2-210's doctrine forbids above: «Hecho.» carried zero information, so the follow-up is the answer
-        # said once, late — the recovery the operator performed by hand twice in one session.
+        # The three HOLLOW-turn repairs — V2-572 bare «Hecho.» · V2-587 empty wait · V2-642 MUTE after a
+        # sounded cover («Déjame que mire…» then silence forever, session 651c25ac) — live in ONE seam:
+        # `second_pass.hollow_repairs`. The turn always closes; failing everything, the honest closer speaks.
         try:
-            from nucleo.flash import router_guards as _rg_ack, second_pass as _second
-            if _rg_ack.a_bare_ack_answers_a_question(text, spoken_text):
-                emit("brain", "🚧 pregunta contestada con un «hecho» vacío — compongo la respuesta que falta",
-                     text=text[:160], role="system", extra={"cat": "flash"})
-                _rep = await _second.bare_ack_repair(text, list(brain._window), spec)
-                if _rep:
-                    send(speech.sanitize(_rep, drop_metadata=False))
-                    spoken_text = (spoken_text + " " + _rep).strip()
-            else:
-                # V2-587 — the blind sibling: «Sigo con ello; te aviso» over a question with NOTHING running
-                # (session 0e3a42d6: the mail count got three empty promises and the session ended unanswered).
-                # Liveness is read fail-safe: unreadable counts as running, so a broken import never repairs
-                # over a task that exists.
-                try:
-                    from nucleo import dispatch as _d_ew
-                    _running = bool(_d_ew.has_active())
-                except Exception:
-                    _running = True
-                if _rg_ack.an_empty_wait_answers_a_question(text, spoken_text,
-                                                            acted=_did_act, anything_running=_running):
-                    emit("brain", "🚧 pregunta contestada con una espera VACÍA (nada en marcha) — compongo la "
-                         "respuesta que falta", text=text[:160], role="system", extra={"cat": "flash"})
-                    _rep = await _second.empty_wait_repair(text, list(brain._window), spec)
-                    if _rep:
-                        send(speech.sanitize(_rep, drop_metadata=False))
-                        spoken_text = (spoken_text + " " + _rep).strip()
+            from voice.engine.core import langs as _lg_cl
+            from voice.engine.speech import filler_audio as _fa_cl
+            from nucleo.flash import second_pass as _second
+            spoken_text = await _second.hollow_repairs(
+                text, spoken_text, brain._window, spec, did_act=_did_act,
+                covered=bool(_fa_cl.last_fired_at() and _fa_cl.last_fired_at() >= _t_stream0),
+                speak=lambda _r: send(speech.sanitize(_r, drop_metadata=False)),
+                emit=emit, pick_closer=_lg_cl.pick_closer)
         except Exception:
             pass
         emit("brain", "⚡ Nucleo(flash): reply", text=spoken_text, role="assistant", extra=_reply_extra)

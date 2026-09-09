@@ -450,7 +450,9 @@ def test_the_probe_channel_runs_the_action_when_asked_to_execute():
     assert "_amap_hit = None" in window, \
         "an action that could not run must fall through to the model, like the voice rail's `and execute(...)`"
     probe = (root / "nucleo" / "flash" / "probe.py").read_text(encoding="utf-8")
-    assert "execute=execute" in probe[probe.index("from .probe_actionmap import try_map"):][:400], \
+    # Anchored on the CALL, not the import: the import moved to the top of the file (2026-09-09, paying
+    # the hidden-coupling ratchet) and a window measured from it no longer contains the call.
+    assert "execute=execute" in probe[probe.index("_amap_try("):][:400], \
         "probe.py must pass the caller's execute flag through to the mirror"
 
 

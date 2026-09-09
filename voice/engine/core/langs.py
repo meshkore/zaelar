@@ -108,13 +108,16 @@ class LangSpec:
     # LEAD-IN FILLERS (2026-07-19): neutral, varied THINKING sounds to fill TTFT silence (~1.1s measured) ONLY when
     # the turn genuinely takes time (timer, `pick_filler`). They NEVER commit to or contradict the real response
     # (they are neutral, not "done/okay"): the actual utterance continues them. Naturalness, not filler everywhere.
+    # V2-642 — the pool follows OpenAI's realtime prompting doctrine, which the operator pointed at
+    # («OpenAI tiene un agente de voz que es brillante gestionando esos huecos»): a cover DESCRIBES THE
+    # ACTION («I'll check that now»), never a bare thinking sound — their explicit avoid-list («Hmm…»,
+    # «Let me think…», «One moment while I process…») was literally our old pool, and the 19:27 session
+    # showed why: a sound that promises nothing invites «¿a ver qué?» back.
     fillers: tuple = (
-        "A ver…", "Mmm…", "Veamos…", "Déjame ver…", "Un segundo…", "Espera…",
-        "Vale, a ver…", "Pues…", "A ver qué tenemos…", "Déjame que mire…", "Un momentito…",
-        # V2-640 (operator, 2026-09-09: «necesito más variedad… no siempre las mismas tres»): the pool grew
-        # and the anti-repetition now remembers several turns back, not one — see `pick_filler`.
-        "Vamos a ver…", "Ahora te digo…", "Dame un segundo…", "Voy a mirarlo…", "Deja que lo mire…",
-        "Pues mira, un momento…", "Mmm, a ver…", "Un instante…", "Ahora mismo lo miro…", "A ver, un segundo…",
+        "Voy a mirarlo…", "Ahora te digo…", "Te lo miro ahora…", "Un segundo, que lo compruebo…",
+        "Deja que lo mire…", "Ahora mismo lo miro…", "Vamos a verlo…", "Te lo compruebo…",
+        "A ver qué tenemos…", "Dame un segundo…", "Un momento, que lo busco…", "Buena pregunta…",
+        "Pues mira, te lo miro…", "Déjame que lo mire…",
     )
     # Lead-ins for a turn that is an ORDER to act (V2-572). «Déjame ver…» before closing a widget reads as
     # incomprehension — the operator's own words. These commit to nothing either: they promise motion, not a
@@ -136,6 +139,12 @@ class LangSpec:
     presence_busy: tuple = ("Aquí estoy — sigo con lo tuyo, ahora te cuento.",
                             "Sí, sigo aquí, dándole a lo que me pediste.",
                             "Aquí sigo, trabajando en ello.")
+    # V2-642 — the HONEST closer for a turn that produced no answer after a sounded cover. The operator's
+    # rule: «igual no tenía respuesta, pero igualmente hay que cerrar las conversaciones» — a conversation
+    # may end without an answer, never without an ending.
+    closers_no_answer: tuple = ("Pues ahora mismo no tengo una buena respuesta a eso.",
+                                "Esa no te la sé contestar ahora, la verdad.",
+                                "Ahí me he quedado sin respuesta — pregúntamelo de otra forma si quieres.")
     # The spoken confirmation of an already-EXECUTED direct action (the action-map fast lane). Unlike fillers
     # these DO commit — they are only ever spoken after the mutation happened, never as a lead-in.
     acks: tuple = ("Hecho.", "Vale, hecho.", "Listo.", "Ya está.")
@@ -236,10 +245,9 @@ LANGUAGES: dict[str, LangSpec] = {
         msg_notice_multi=("You have {count} messages on {platform} you might want to check, from {sender} "
                           "among others."),
         fillers=(
-            "Let's see…", "Hmm…", "Let me see…", "One sec…", "Hold on…", "Let me check…",
-            "Right, let's see…", "Okay…", "Let me have a look…", "Just a moment…",
-            "Let me look that up…", "Give me a second…", "I'll check right now…", "Hmm, let's see…",
-            "One moment…", "Let me take a look…", "Bear with me…",
+            "I'll check that now…", "Let me look that up…", "One sec, checking…", "I'll take a look…",
+            "Let me pull that up…", "Give me a second, checking…", "Good question…",
+            "Let me see what we have…", "I'll find out now…", "Let me check that for you…",
         ),
         fillers_action=("On it…", "Right away…", "Sure…", "Doing it…", "On it now…", "Right, doing it…"),
         fillers_social=("Well…", "So…", "Right, so…", "Let me explain…", "Okay, so…"),
@@ -248,6 +256,9 @@ LANGUAGES: dict[str, LangSpec] = {
         presence_busy=("I'm here — still on your task, I'll tell you in a moment.",
                        "Yes, still here, working on what you asked.",
                        "Still here, on it."),
+        closers_no_answer=("I don't have a good answer to that right now.",
+                           "Honestly, that one's beyond me at the moment.",
+                           "I came up empty there — try asking me another way."),
         acks=("Done.", "Okay, done.", "All set.", "There you go."),
         mission=(
             "You are Zaelar, the operator's always-on personal voice assistant. "
@@ -403,6 +414,16 @@ def pick_filler(last: str = "", code: str | None = None, kind: str = "neutral") 
     return phrase
 
 
+def pick_closer(last: str = "", code: str | None = None) -> str:
+    """The honest «no answer» closer (V2-642), varied like the acks — spoken when a turn that sounded a
+    cover produced nothing and even the repair pass came back empty. Empty string when no pool ships."""
+    pool = list(getattr(spec(code), "closers_no_answer", ()) or ())
+    if not pool:
+        return ""
+    choices = [p for p in pool if p != last] or pool
+    return _random.choice(choices)
+
+
 def pick_ack(last: str = "", code: str | None = None) -> str:
     """The spoken «done» after an EXECUTED direct action (the action-map fast lane, V2-572). Varied like the
     fillers and never the same twice in a row; empty string when the language ships no pool."""
@@ -414,4 +435,4 @@ def pick_ack(last: str = "", code: str | None = None) -> str:
 
 
 __all__ = ["LangSpec", "LANGUAGES", "DEFAULT_LANG", "current_code", "current_language",
-           "spec", "supported", "kokoro_voices", "pick_filler", "pick_ack"]
+           "spec", "supported", "kokoro_voices", "pick_filler", "pick_ack", "pick_closer"]

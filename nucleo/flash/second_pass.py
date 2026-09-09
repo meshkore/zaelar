@@ -96,3 +96,75 @@ async def empty_wait_repair(operator_text: str, window: list, spec) -> str:
         return dialog.sanitize_reply(raw).strip()
     except Exception:
         return ""
+
+
+async def mute_cover_repair(operator_text: str, window: list, spec) -> str:
+    """The third sibling (V2-642): the reply came out EMPTY after a wait lead-in already sounded. The
+    instruction names the hole — nothing was said at all — so the model either answers now or closes
+    honestly; it may never leave the lead-in hanging. Returns "" on any failure — the caller then speaks
+    the deterministic closer instead, because this turn ending mute is the one outcome that cannot happen."""
+    try:
+        from nucleo.flash import dialog, prompt as _prompt
+        ctx = "\n".join(f"{m.get('role', '?')}: {str(m.get('content', ''))[:300]}"
+                        for m in (window or [])[-8:] if isinstance(m, dict))
+        sys2 = (_prompt._lang_lock()
+                + "\nEl operador ha dicho algo y tu turno salió VACÍO: sonó una muletilla de espera y después "
+                  "nada — se quedó colgado esperando. Contesta AHORA en 1-2 frases habladas y naturales usando "
+                  "el CONTEXTO RECIENTE de abajo; si de verdad no tienes respuesta, CIERRA con honestidad "
+                  "(«pues ahora mismo no tengo una buena respuesta a eso») — lo único prohibido es no decir "
+                  "nada.\n\n"
+                + f"LO QUE DIJO EL OPERADOR: {operator_text}"
+                + ("\n\nCONTEXTO RECIENTE:\n" + ctx if ctx else ""))
+        raw = await collect(sys2, operator_text, spec, max_tokens=200)
+        return dialog.sanitize_reply(raw).strip()
+    except Exception:
+        return ""
+
+
+async def hollow_repairs(text: str, spoken_text: str, window: list, spec, *,
+                         did_act: bool, covered: bool, speak, emit, pick_closer=None) -> str:
+    """ONE seam for the three hollow-turn repairs — the shapes a completed turn may not end in:
+      · V2-572: an information question answered with a bare «Hecho.» → compose the missing answer;
+      · V2-587: the same question answered with «sigo con ello» while NOTHING runs → compose it;
+      · V2-642: a MUTE completion after a sounded cover (or over a question) → compose, else speak the
+        deterministic honest closer (`pick_closer`) — after «Déjame que mire…», silence is never an option.
+    Extracted here from the provider (the file-size ratchet: nucleo.py sat exactly at its ceiling) and
+    called by the voice channel; the probe channel keeps its own parallel wiring of the first two, and the
+    third cannot happen there (the probe has no audio covers). Returns the final spoken text; any internal
+    failure returns what it was given — a repair must never take down a live turn."""
+    try:
+        from nucleo.flash import answer_guards as _ag
+        try:
+            from nucleo import dispatch as _d
+            running = bool(_d.has_active())
+        except Exception:
+            running = True                       # fail-safe: unreadable liveness counts as running (V2-587)
+        if _ag.a_bare_ack_answers_a_question(text, spoken_text):
+            emit("brain", "🚧 pregunta contestada con un «hecho» vacío — compongo la respuesta que falta",
+                 text=text[:160], role="system", extra={"cat": "flash"})
+            rep = await bare_ack_repair(text, list(window), spec)
+            if rep:
+                speak(rep)
+                return (spoken_text + " " + rep).strip()
+        elif _ag.an_empty_wait_answers_a_question(text, spoken_text, acted=did_act, anything_running=running):
+            emit("brain", "🚧 pregunta contestada con una espera VACÍA (nada en marcha) — compongo la "
+                 "respuesta que falta", text=text[:160], role="system", extra={"cat": "flash"})
+            rep = await empty_wait_repair(text, list(window), spec)
+            if rep:
+                speak(rep)
+                return (spoken_text + " " + rep).strip()
+        elif _ag.a_cover_left_hanging(text, spoken_text, covered=covered, acted=did_act):
+            emit("brain", "🚧 turno MUDO tras el nexo — compongo el cierre que falta",
+                 text=text[:160], role="system", extra={"cat": "flash", "covered": covered})
+            rep = await mute_cover_repair(text, list(window), spec)
+            if not rep and pick_closer is not None:
+                try:
+                    rep = pick_closer() or ""
+                except Exception:
+                    rep = ""
+            if rep:
+                speak(rep)
+                return rep
+    except Exception:
+        pass
+    return spoken_text

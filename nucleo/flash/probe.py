@@ -36,7 +36,7 @@ from nucleo.flash import image_turn as _image_turn, listing_turn as _lt
 from nucleo.flash import video_turn as _video_turn
 from nucleo.flash import widget_data_turn as _widget_data_turn
 from nucleo.flash import presence as _presence, probe_scheduling as _probe_scheduling
-from nucleo.flash.probe_actionmap import try_map as _amap_try
+from .probe_actionmap import try_map as _amap_try
 from nucleo.flash import second_pass as _second
 
 _WINDOW_MAX = 10

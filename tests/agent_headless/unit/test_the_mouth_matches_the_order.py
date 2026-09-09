@@ -72,7 +72,7 @@ def test_the_voice_arm_carries_the_utterance():
     """`filler_kind` runs at ARM time, so the provider must hand the text over — an arm without it silently
     degrades every action order back to «Déjame ver…»."""
     src = (ENGINE / "voice/engine/llm/providers/nucleo.py").read_text(encoding="utf-8")
-    assert "_filler_audio.arm(brain, text)" in src, "the provider arms the filler without the turn's text"
+    assert "_filler_audio.arm(brain, text" in src, "the provider arms the filler without the turn's text"
 
 
 # ── 2 · a question is never answered with a bare ack ─────────────────────────────────────────────────────
@@ -99,13 +99,16 @@ def test_and_stays_out_of_turns_that_were_fine(q, a):
 
 
 def test_both_channels_wire_the_repair():
-    """V2-539's lesson yet again: a rule applied in one channel silently stops existing in the other. Both
-    must consult the guard and compose the missing answer through `second_pass.bare_ack_repair`."""
+    """V2-539's lesson yet again: a rule applied in one channel silently stops existing in the other. Since
+    V2-642 the voice channel consults the ONE seam (`second_pass.hollow_repairs`) that holds guard + repair;
+    the probe keeps its parallel wiring inline."""
     voice = (ENGINE / "voice/engine/llm/providers/nucleo.py").read_text(encoding="utf-8")
+    seam = (ENGINE / "nucleo/flash/second_pass.py").read_text(encoding="utf-8")
     probe = (ENGINE / "nucleo/flash/probe.py").read_text(encoding="utf-8")
-    for name, src in (("voice", voice), ("probe", probe)):
-        assert "a_bare_ack_answers_a_question" in src, f"the {name} channel dropped the bare-ack guard"
-        assert "bare_ack_repair" in src, f"the {name} channel detects but never repairs"
+    assert "hollow_repairs(" in voice, "the voice channel dropped the hollow-turn seam"
+    for name, src in (("seam", seam), ("probe", probe)):
+        assert "a_bare_ack_answers_a_question" in src, f"the {name} dropped the bare-ack guard"
+        assert "bare_ack_repair" in src, f"the {name} detects but never repairs"
 
 
 # ── 2b · V2-587: a question is not answered with an EMPTY WAIT ───────────────────────────────────────────
@@ -142,13 +145,13 @@ def test_and_the_empty_wait_guard_stays_out_of_fine_turns(q, a):
 
 def test_both_channels_wire_the_empty_wait_repair():
     """Same wiring rule as its sibling above — and the liveness read must fail SAFE (unreadable counts as
-    running), which both call sites write as `_running = True` in their except branch."""
-    voice = (ENGINE / "voice/engine/llm/providers/nucleo.py").read_text(encoding="utf-8")
+    running). The voice side of both lives in `second_pass.hollow_repairs` since V2-642."""
+    seam = (ENGINE / "nucleo/flash/second_pass.py").read_text(encoding="utf-8")
     probe = (ENGINE / "nucleo/flash/probe.py").read_text(encoding="utf-8")
-    for name, src in (("voice", voice), ("probe", probe)):
-        assert "an_empty_wait_answers_a_question" in src, f"the {name} channel dropped the empty-wait guard"
-        assert "empty_wait_repair" in src, f"the {name} channel detects but never repairs"
-        assert "_running = True" in src, f"the {name} channel's liveness read no longer fails safe"
+    for name, src in (("seam", seam), ("probe", probe)):
+        assert "an_empty_wait_answers_a_question" in src, f"the {name} dropped the empty-wait guard"
+        assert "empty_wait_repair" in src, f"the {name} detects but never repairs"
+        assert "running = True" in src, f"the {name}'s liveness read no longer fails safe"
 
 
 # ── 3 · the fast lane confirms out loud ──────────────────────────────────────────────────────────────────
@@ -192,3 +195,88 @@ def test_the_ack_never_sounds_when_the_lane_declines(monkeypatch):
                                             first_turn=False, t_entry=0.0, window_max=10))
     assert handled is False
     assert spoken == [], "the lane spoke an ack for an action that never happened"
+
+
+# ── 4 · V2-642: a cover never ends the turn ──────────────────────────────────────────────────────────────
+# Session 651c25ac (2026-09-09 20:51:49): «¿Por qué la vista semanal no tiene una columna para cada día?»
+# → «Déjame que mire…» → completion_tokens=84 but completion_chars=0 (the model spent the turn re-emitting
+# a stale data-op the context-bleed guard rightly ignored) → silence forever. The operator's rule: «igual
+# no tenía respuesta, pero igualmente hay que cerrar las conversaciones».
+
+def test_the_measured_mute_turn_fires_the_guard():
+    assert answer_guards.a_cover_left_hanging(
+        "¿Por qué la visión semanal no tiene el una columna para cada día?", "",
+        covered=True, acted=False)
+
+
+@pytest.mark.parametrize("reply,covered,acted", [
+    ("Tienes 12 correos.", True, False),   # something WAS said — nothing hanging
+    ("", True, True),                      # the turn acted visibly — the pause is the answer (V2-633)
+    ("", False, True),
+])
+def test_a_turn_that_spoke_or_acted_is_not_hanging(reply, covered, acted):
+    assert not answer_guards.a_cover_left_hanging("¿cuántos correos hay?", reply,
+                                                  covered=covered, acted=acted)
+
+
+def test_an_uncovered_mute_statement_stays_legitimate_silence():
+    """No cover sounded and nothing was asked: staying quiet over «vale, perfecto» is correct — the guard
+    must not turn every silent turn into a speech."""
+    assert not answer_guards.a_cover_left_hanging("vale, perfecto", "", covered=False, acted=False)
+
+
+def test_but_an_uncovered_mute_QUESTION_is_still_hanging():
+    assert answer_guards.a_cover_left_hanging("¿cuántos correos hay en mi bandeja?", "",
+                                              covered=False, acted=False)
+
+
+def _run_hollow(monkeypatch, *, composed, closer="Pues ahora mismo no tengo una buena respuesta a eso."):
+    """Drive second_pass.hollow_repairs over the measured mute turn with the composer stubbed."""
+    import asyncio
+    from nucleo.flash import second_pass
+    spoken_calls, events = [], []
+
+    async def _fake_collect(sys2, user_text, spec, max_tokens=240):
+        return composed
+    monkeypatch.setattr(second_pass, "collect", _fake_collect)
+    from nucleo import dispatch
+    monkeypatch.setattr(dispatch, "has_active", lambda: False)
+    out = asyncio.run(second_pass.hollow_repairs(
+        "¿Por qué la vista semanal no tiene una columna para cada día?", "", [], object(),
+        did_act=False, covered=True,
+        speak=spoken_calls.append,
+        emit=lambda kind, label, text="", role="", extra=None, **kw: events.append(label),
+        pick_closer=lambda: closer))
+    return out, spoken_calls, events
+
+
+def test_the_mute_turn_gets_its_answer_composed(monkeypatch):
+    out, spoken, events = _run_hollow(monkeypatch, composed="La vista semanal aún no pinta columnas por día.")
+    assert spoken == ["La vista semanal aún no pinta columnas por día."] and out == spoken[0]
+    assert any("MUDO" in e for e in events), "the repair must be auditable in observability"
+
+
+def test_and_when_even_the_repair_is_empty_the_honest_closer_speaks(monkeypatch):
+    """The one outcome that cannot happen is silence: composer down → the deterministic closer closes."""
+    out, spoken, _ = _run_hollow(monkeypatch, composed="")
+    assert spoken == ["Pues ahora mismo no tengo una buena respuesta a eso."] and out == spoken[0]
+
+
+def test_the_closer_exists_in_both_languages_and_varies():
+    for code in ("es", "en"):
+        pool = getattr(langs.spec(code), "closers_no_answer", ()) or ()
+        assert len(pool) >= 3, f"[{code}] no closers shipped"
+        last = langs.pick_closer(code=code)
+        assert langs.pick_closer(last, code=code) != last, "anti-repetition: never the same closer twice"
+
+
+def test_the_thinking_pool_describes_action_not_thought():
+    """OpenAI's realtime prompting guide — which the operator pointed at — bans the bare thinking sounds
+    («Hmm…», «Let me think…», «One moment while I process…»); our old pool was exactly that list. A cover
+    must describe motion toward an answer, so the banned exact phrases may never return."""
+    banned = {"Mmm…", "A ver…", "Espera…", "Un momentito…", "Veamos…", "Pues…", "Déjame ver…",
+              "Un segundo…", "Hmm…", "One sec…", "Hold on…", "Okay…", "Just a moment…", "One moment…"}
+    for code in ("es", "en"):
+        pool = set(getattr(langs.spec(code), "fillers", ()) or ())
+        assert pool, f"[{code}] empty thinking pool"
+        assert not (pool & banned), f"[{code}] bare thinking sounds returned: {pool & banned}"

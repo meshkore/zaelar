@@ -276,3 +276,15 @@ def test_the_recent_window_beats_the_old_depth_one_repetition():
     from voice.engine.core import langs
     picks = [langs.pick_filler(kind="neutral", code="es") for _ in range(5)]
     assert len(set(picks)) == 5, f"five picks must differ: {picks}"
+
+
+def test_a_dangling_fragment_gets_no_cover_at_all():
+    """V2-642 — measured 20:51:26: the STT delivered «Ahora quiero» alone and the turn covered it with
+    «A ver qué tenemos…», promising an answer to half a sentence. A fragment arms NOTHING; a whole sentence
+    still does."""
+    for frag in ("Ahora quiero", "ponme la", "y también el de", "vale pues"):
+        fa._reset_for_tests()
+        assert fa.arm(_Brain(), frag) == "", f"{frag!r} must arm no cover"
+        assert fa._consume_arm() is None, f"{frag!r} left an arm behind"
+    fa._reset_for_tests()
+    assert fa.arm(_Brain(), "Búscame un hotel en Soria para el sábado"), "a whole sentence still arms"

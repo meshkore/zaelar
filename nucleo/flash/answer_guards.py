@@ -152,3 +152,24 @@ def an_empty_wait_answers_a_question(operator_text: str, reply: str, *,
     if "?" in a or len(a) > 140:
         return False
     return bool(_EMPTY_WAIT_RE.match(a))
+
+
+def a_cover_left_hanging(operator_text: str, reply: str, *, covered: bool, acted: bool) -> bool:
+    """Did the turn end MUTE — zero spoken characters — after a wait-cover already sounded, or over an
+    information question? Session 651c25ac (2026-09-09 20:51): «¿Por qué la vista semanal no tiene una
+    columna para cada día?» → «Déjame que mire…» → the model spent its 84 tokens re-emitting a stale data-op
+    (rightly ignored by the context-bleed guard) → completion_chars=0 → silence forever. A cover is a spoken
+    PROMISE that words are coming; a mute completion breaks it. The operator's rule: «igual no tenía
+    respuesta, pero igualmente hay que cerrar las conversaciones».
+
+    `covered` = a lead-in actually sounded for THIS turn; `acted` = the turn executed something visible.
+    A mute turn with no cover and no question stays legitimate silence (V2-633: for a short order the pause
+    IS the answer)."""
+    if acted or (reply or "").strip():
+        return False
+    q = _fold(operator_text)
+    if not q:
+        return False
+    if covered:
+        return True
+    return bool(_INFO_QUESTION_RE.search(q) and not _ACTION_VERB_ANYWHERE_RE.search(q))

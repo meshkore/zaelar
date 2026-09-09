@@ -118,6 +118,24 @@ _SOCIAL_RE = re.compile(
     r")")
 
 
+# V2-642 — a DANGLING fragment gets NO cover. Measured 20:51:26: the STT delivered «Ahora quiero» alone
+# and the turn covered it with «A ver qué tenemos…» — promising an answer to half a sentence. The shape is
+# coarse: very short, no question mark, or ending in a word that grammatically cannot end a Spanish/English
+# sentence. The turn itself still runs (the accumulator owns fragment semantics); only the PROMISE is held.
+_DANGLING_TAIL_RE = re.compile(
+    r"(?:^|\s)(?:que|quiero|quieres|de|del|la|el|los|las|un|una|unos|unas|me|te|se|le|les|lo|a|al|y|o|u|"
+    r"con|para|por|mi|tu|su|mis|tus|sus|es|en|si|the|to|of|and|or|my|your|i|that|want)$")
+
+
+def _dangling_fragment(text: str) -> bool:
+    if "?" in (text or ""):
+        return False
+    n = _norm(text)
+    if not n:
+        return False                      # no utterance handed in = no evidence — suppression needs a POSITIVE
+    return len(n.split()) <= 2 or bool(_DANGLING_TAIL_RE.search(n))
+
+
 def filler_kind(text: str) -> str:
     """"social" when the utterance is about the conversation/us (see `_SOCIAL_RE` — those turns must never
     get a thinking sound); "action" when it opens with an imperative action verb and asks nothing; "neutral"
@@ -145,6 +163,9 @@ def arm(brain, text: str = "", messages: list | None = None) -> str:
     conditional wording on purpose (a fast reply gets no filler and the model cannot know which case it is
     in). The phrase is only committed (anti-echo, last-said) at fire time, if it sounds."""
     global _arm
+    if _dangling_fragment(text):
+        _arm = None                       # half a sentence gets no promise — V2-642
+        return ""
     kind = filler_kind(text)
     phrase = ""
     try:

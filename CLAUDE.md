@@ -471,6 +471,26 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **A cover never ends the turn, and covers describe MOTION (V2-642, 2026-09-09)**: session 651c25ac,
+  20:51:49 — «¿Por qué la vista semanal no tiene una columna para cada día?» → «Déjame que mire…» → a reply
+  with `completion_tokens=84` but `completion_chars=0` (the model spent the turn re-emitting a stale data-op
+  the context-bleed guard rightly ignored) → silence forever. The operator's rule: «igual no tenía
+  respuesta, pero igualmente hay que cerrar las conversaciones». Four changes. **(1)** third hollow-turn
+  guard `a_cover_left_hanging` (mute completion after a sounded cover, or over an information question —
+  but an uncovered mute STATEMENT stays legitimate silence, V2-633) + `mute_cover_repair` composes the
+  missing answer; failing even that, `langs.pick_closer()` speaks the honest deterministic closer («pues
+  ahora mismo no tengo una buena respuesta a eso») — the turn ALWAYS closes. **(2)** the three repairs
+  (V2-572 bare ack · V-587 empty wait · this) consolidated in `second_pass.hollow_repairs` — ONE seam,
+  called by the voice channel with `covered = filler fired after this turn's stream began` (monotonic
+  stamp); the extraction also paid nucleo.py's ceiling (3024/3043). **(3)** the filler pools follow
+  OpenAI's realtime prompting doctrine, which the operator pointed at: a cover DESCRIBES THE ACTION («Voy
+  a mirarlo…», «Te lo compruebo…»), never a bare thinking sound — their explicit avoid-list («Hmm…», «Let
+  me think…», «One moment while I process…») was literally our old pool, and a source-level test bans
+  those exact phrases from returning. **(4)** a DANGLING fragment arms NO cover («Ahora quiero» got «A ver
+  qué tenemos…» at 20:51:26 — half a sentence gets no promise; suppression needs POSITIVE evidence, an
+  empty text still arms). Tests ride existing nodes 3.19 + the mouth file; three disarms verified red
+  (the first mute-guard disarm came back GREEN — both branches caught the case — and was replaced by the
+  real one: «empty reply never repairs», the pre-fix world).
 - **The desktop wallpaper is a SPOKEN property (V2-641, 2026-09-09)**: the operator's spec — «igual que
   podemos con la voz colocar widgets o pasar el orbe a la barra, quiero poder poner una imagen de fondo…
   la buscaremos con el sistema y le diré usa la número 3». The flow: `show_images` finds photos (with
