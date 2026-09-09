@@ -470,6 +470,26 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **Choosing a channel is ONE state transition, not a filter assignment (V2-626, 2026-09-09)**: the operator
+  asked for his mail; the email dot lit and the WhatsApp connector screen stayed underneath it. `render()`
+  applied a pushed view by assigning `_platFilter` alone, while the body is gated on
+  `showChannels = !!_screen || …`, which returns EARLY — so the lens never rendered. The click path had no
+  such bug: V2-610 had taught it, INLINE, to clear `_screen`/`_openMail`/`_confirmDisconnect`. That is the
+  whole lesson — the behaviour lived in the CALLER, so each new caller had to remember it and the voice path
+  never did. Now `selectPlatform(pl)` is the ONLY writer of `_platFilter` and owns the whole transition; the
+  header dot, the title and the brain's pushed view all go through it. `connect_focus` resolves AFTER the
+  pushed view on purpose: when one payload carries both, the SPECIFIC request (open this connector) survives.
+  His framing is the rule to keep: *«toda esa mecánica del widget es mecánica… gestiones de estados. Por lo
+  tanto, no puede ser que eso falle»* — and a rule every caller has to remember is not a rule.
+  Node **4.135**, RENDERED (source cannot see it: the assignment is identical either way, only the screen on
+  top differs), five disarms red. Two of them were green at first and the TEST was wrong, not the code: an
+  open mail only yields visibly when the SAME channel is re-asked (otherwise the platform guard hides it),
+  and a pending disconnect confirmation only renders back inside that connector's own screen.
+  The class, checked in the siblings: `contactos` already clears its detail; `agenda` has no blocking screen;
+  **`youtube` has the same latent defect** (`.hb-yt-connmode` hides the player/list/home, `_screen` is
+  module-lived, nothing clears it) — unreachable today because INI-032 leaves `accounts_enabled` false, and
+  named in the V2-626 initiative so reactivating accounts carries it. Detail: the V2-626 initiative.
+
 - **Messaging pro: fetch on demand, per-platform view criteria, `peek` for analysis, and the autoresponder
   (V2-624, 2026-09-09)**: the operator's directive after driving the widget live (sid `952fcf2f`) and
   hitting two honest refusals — «todas las conversaciones con actividad en las últimas 72 horas» had no
@@ -478,8 +498,10 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   de memoria». Detail: the V2-624 initiative. Four additive capabilities, zero rewrites:
   - **`fetch_now {platform, since_hours}`** — a platform-wide pull through the connector, the same
     queue→bus round-trip shape as `load_more` (`msg.fetch` topic, per-platform `FetchInbox`). Telegram
-    walks its own dialogs (newest-first: the FIRST stale one ends the walk; broadcast channels excluded —
-    a feed is not a conversation); email searches IMAP `SINCE` (day-granular — the service trims to the
+    walks its own dialogs (a stale one is SKIPPED, never a reason to stop — Telegram floats PINNED dialogs
+    to the head of the list, and an early exit on the first stale one answered 0 over a live account whose
+    newest message was 12 minutes old; the walk is bounded by a 60-dialog cap instead, `3627978`. Broadcast
+    channels excluded — a feed is not a conversation); email searches IMAP `SINCE` (day-granular — the service trims to the
     hour by each message's own timestamp). Everything lands in the CONVERSATIONS as read scrollback via
     the existing `connector.history` seam, never in triage: pulling the past must not interrupt anybody.
     **WhatsApp refuses honestly, naming what IS possible** (realtime + per-chat `load_more`) — its bridge

@@ -1837,6 +1837,14 @@ DOMAINS: list[dict] = [
                       "tests/browser/unit/mensajeria/test_peek_hands_the_conversation_whole.py",
                       "tests/browser/unit/mensajeria/test_the_autoresponder_speaks_once_and_never_in_groups.py",
                       "tests/browser/e2e/mensajeria/test_the_activity_lens_paints_and_clears.py"]},
+        # V2-626 — the sibling half of the node above, and it can only be seen RENDERED: the operator asked
+        # for his mail, the email dot lit, and the WhatsApp connector screen stayed underneath it. The filter
+        # had moved and the screen had not. A source read sees the assignment either way; only a render sees
+        # which screen is on top.
+        {"id": "4.135", "title": "Mensajería: elegir un canal es UN estado — el cuerpo sigue a la cabecera "
+                                 "venga de la voz o del dedo, y deja atrás la pantalla que hubiera debajo",
+            "ch": UNIT,
+            "paths": ["tests/browser/e2e/mensajeria/test_the_header_and_the_body_move_together.py"]},
         # The source-level node above cannot see that the orb is a black hole in the middle of the bar: on
         # 2026-08-18 it was, at 0 painted pixels, while that node stayed green counting canvases. This one
         # RENDERS the shell at phone size and measures it. Self-contained (it starts its own preview server,

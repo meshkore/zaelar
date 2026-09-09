@@ -311,3 +311,31 @@ def _group_chats(items: list) -> list:
             "lastTs": last.get("ts", 0), "lastMediaType": last.get("mediaType", ""),
         })
     return chats
+
+
+# ── Reading what the CALLER referred to, and what the card must show about policy (moved here V2-626) ──────
+# Both are read-side shaping that stayed behind in data.py; they moved when data.py crossed the unlisted-file
+# cap again. Same rule as the V2-624 extraction: the ratchet is paid by moving code along the seam that is
+# already there, never by raising a ceiling.
+
+def _open_ref(payload: dict) -> tuple:
+    """(n, name) normalized for open. widget_data's item convention drops a natural reference into the
+    action's primary payload key, so `n` can arrive as "1" (coerce) or as a NAME (reroute) — without this,
+    `widget_data(open, item='Francisco')` missed every chat while the list sat on screen (V2-544)."""
+    n = payload.get("n")
+    name = str(payload.get("name") or payload.get("chat") or "").strip()
+    if isinstance(n, str):
+        n = n.strip()
+        if n.isdigit():
+            n = int(n)
+        else:
+            name, n = (name or n), None
+    return n, name
+
+
+def _notify_policy_view(db: dict) -> dict:
+    """Effective (normalized) notification policy per platform, for the card and for read_widget. Always the
+    full platform set, so a reader never has to guess what an absent entry means."""
+    from .policy import policy_for
+    from . import data as _d          # `_PLATFORMS` lives with the store shape, not with the views
+    return {p: policy_for(db, p) for p in _d._PLATFORMS}

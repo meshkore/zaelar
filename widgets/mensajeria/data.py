@@ -12,10 +12,12 @@ import time
 
 from .. import store
 # The READ side lives in views.py since V2-624 (the architecture ratchet's extraction, along the real seam:
-# name resolution, the thread/activity views, peek, and the autoresponder previews). One direction only —
+# name resolution, the thread/activity views, peek, the autoresponder previews, and — since V2-626 — the
+# open reference and the effective notify policy). One direction only —
 # views.py lazy-imports this module where it needs the store or the inbox helpers.
 from .views import (_activity_answer, _activity_chats, _autoresponder_preview, _autoresponder_view,
-                    _criteria_for, _find_chat_by_name, _group_chats, _peek_answer, _thread_meta, _thread_view)
+                    _criteria_for, _find_chat_by_name, _group_chats, _notify_policy_view, _open_ref,
+                    _peek_answer, _thread_meta, _thread_view)
 
 WIDGET_ID = "mensajeria"
 _PLATFORMS = ("whatsapp", "telegram", "email")   # email: V2-051
@@ -51,21 +53,6 @@ _PLAT_ALIASES = {
     "email": "email", "correo": "email", "mail": "email", "gmail": "email", "outlook": "email",
     "all": "", "todo": "", "todos": "", "": "", "inbox": "", "principal": "", "general": "", "lista": "",
 }
-
-
-def _open_ref(payload: dict) -> tuple:
-    """(n, name) normalized for open. widget_data's item convention drops a natural reference into the
-    action's primary payload key, so `n` can arrive as "1" (coerce) or as a NAME (reroute) — without this,
-    `widget_data(open, item='Francisco')` missed every chat while the list sat on screen (V2-544)."""
-    n = payload.get("n")
-    name = str(payload.get("name") or payload.get("chat") or "").strip()
-    if isinstance(n, str):
-        n = n.strip()
-        if n.isdigit():
-            n = int(n)
-        else:
-            name, n = (name or n), None
-    return n, name
 
 
 def _push_view(db: dict, platform: str) -> None:
@@ -224,13 +211,6 @@ def _enqueue_reply(db: dict, target: dict, text: str) -> None:
     if target.get("messageId") is not None:
         db.setdefault("pending_read", []).append(_key(target))
         db["items"] = [it for it in db.get("items", []) if it is not target]
-
-
-def _notify_policy_view(db: dict) -> dict:
-    """Effective (normalized) notification policy per platform, for the card and for read_widget. Always the
-    full platform set, so a reader never has to guess what an absent entry means."""
-    from .policy import policy_for
-    return {p: policy_for(db, p) for p in _PLATFORMS}
 
 
 def view_data(q: str = "") -> dict:

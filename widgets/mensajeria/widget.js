@@ -106,6 +106,21 @@ let _confirmDisconnect = null;       // platform with a pending disconnect confi
 let _openMail = null;   // mailKey() of the single EMAIL item shown in the detail screen (V2-610), or null = list
 const _expanded = new Set();   // message keys with the body expanded
 
+// ONE DOOR for «the widget is now on channel X» (V2-626). Choosing a channel is a single STATE TRANSITION,
+// not an assignment to `_platFilter`: whoever asks — a tap on a header dot, the title, or an order the brain
+// pushed — everything BELOW the header follows automatically. This is pure state mechanics; it has nothing to
+// do with which caller triggered it, so no caller gets to know only a subset of it.
+// Before this, each entry point had to REMEMBER to clear the connectors screen, an open mail and a pending
+// disconnect confirmation. The click path learned it in V2-610; the voice path never did, so «enséñame el
+// correo» lit the email dot and left WhatsApp's connector screen sitting underneath it (operator screenshot,
+// 2026-09-09). A rule every caller has to remember is not a rule — it is a bug waiting for the next caller.
+function selectPlatform(pl){
+  _platFilter = (pl && PLAT[pl]) ? pl : null;   // unknown/absent = the unified main list
+  _screen = null;             // Conectores/wizard is a SETUP screen; naming a channel leaves it
+  _openMail = null;           // a mail detail is a screen too: a lens change lands on that lens's LIST
+  _confirmDisconnect = null;  // a pending confirmation never outlives the screen that asked for it
+}
+
 function injectStyles(){
   if(document.getElementById("hb-msg-css"))return;
   const s=document.createElement("style"); s.id="hb-msg-css"; s.textContent=`
@@ -1530,6 +1545,17 @@ export function render(root, data, ctx){
   const rerender=()=>render(root, data, ctx);
   const connectedCount = ORDER.filter(pl=>(platforms[pl]||{}).status==="connected").length;
 
+  // A pushed VIEW (V2-543) applies only when its witness counter moves: «vuelve a la lista principal» /
+  // «solo el WhatsApp» land even when repeated, and a plain repaint never yanks the operator's own choice.
+  // V2-626 — it goes through the SAME door as a click, so the body follows the header by itself; and it is
+  // resolved BEFORE `connect_focus` on purpose, so that when one payload carries both, the more specific
+  // request (open THIS connector's wizard) is the one left standing.
+  const pushed = data.view || null;
+  if(pushed && Number(pushed.n||0) > 0 && Number(pushed.n) !== _viewN){
+    _viewN = Number(pushed.n);
+    selectPlatform(pushed.platform);
+  }
+
   // The brain was asked to connect a channel (V2-520, redesigned V2-570): jump straight into that
   // connector's OWN screen — never the list — so "connect my email" lands on the Gmail/Outlook/… wizard
   // directly instead of a panel the operator still has to click through. Honoured once per request.
@@ -1542,14 +1568,6 @@ export function render(root, data, ctx){
     } else {
       _screen = {view:"list"};
     }
-  }
-
-  // A pushed VIEW (V2-543) applies only when its witness counter moves: «vuelve a la lista principal» /
-  // «solo el WhatsApp» land even when repeated, and a plain repaint never yanks the operator's own choice.
-  const pushed = data.view || null;
-  if(pushed && Number(pushed.n||0) > 0 && Number(pushed.n) !== _viewN){
-    _viewN = Number(pushed.n);
-    _platFilter = (pushed.platform && PLAT[pushed.platform]) ? pushed.platform : null;
   }
 
   // V2-622 — an open thread/mail already carries its OWN header (platform + contact/subject + "← Volver");
@@ -1580,8 +1598,7 @@ export function render(root, data, ctx){
   // unchanged: from V2-610, the way BACK to the dashboard, always, from any screen (a platform lens, a
   // wizard, the connectors list, an open thread or mail).
   const title=el("b","hdtitle","Mensajes"); title.title="Ver la bandeja unificada de todos tus canales";
-  title.onclick=()=>{ _platFilter=null; _screen=null; _openMail=null; _confirmDisconnect=null;
-    ctx.top(); ctx.action("show_view",{platform:"all"}); rerender(); };
+  title.onclick=()=>{ selectPlatform(null); ctx.top(); ctx.action("show_view",{platform:"all"}); rerender(); };
   hd.append(title,
             el("span","sub", items.length ? `${items.length} para ti` : (connectedCount ? "al día" : "sin conectar")));
   const dots=el("div","dots");
@@ -1602,8 +1619,7 @@ export function render(root, data, ctx){
       // a platform icon while the Conectores screen was open changed `_platFilter` and called `show_view`
       // but never cleared `_screen`, so `showChannels` stayed true and the click was invisible — the
       // operator kept seeing Conectores no matter which platform he tapped (reported live 2026-09-07).
-      ic.onclick=()=>{ const next=(_platFilter===pl ? "all" : pl); _platFilter=(_platFilter===pl ? null : pl);
-        _screen=null; _openMail=null; _confirmDisconnect=null;
+      ic.onclick=()=>{ const next=(_platFilter===pl ? "all" : pl); selectPlatform(_platFilter===pl ? null : pl);
         ctx.top(); ctx.action("show_view",{platform:next}); rerender(); };
     } else {
       ic.title=(PLAT[pl]||{}).label+": sin conectar — toca para conectarlo";
