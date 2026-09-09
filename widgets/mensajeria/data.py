@@ -17,7 +17,8 @@ from .. import store
 # views.py lazy-imports this module where it needs the store or the inbox helpers.
 from .views import (_activity_answer, _activity_chats, _autoresponder_preview, _autoresponder_view,
                     _criteria_for, _find_chat_by_name, _group_chats, _notify_policy_view, _open_ref,
-                    _peek_answer, _search_archive_answer, _thread_meta, _thread_view)
+                    _chat_digest_answer, _peek_answer, _search_archive_answer, _thread_meta,
+                    _thread_view)
 
 WIDGET_ID = "mensajeria"
 _PLATFORMS = ("whatsapp", "telegram", "email")   # email: V2-051
@@ -358,6 +359,8 @@ def answer_action(action: str, payload: dict | None = None) -> dict | None:
         return _peek_answer(payload)
     if action == "search_archive":
         return _search_archive_answer(payload)
+    if action == "chat_digest":
+        return _chat_digest_answer(payload)
     if action == "set_autoresponder":
         return _autoresponder_preview(payload)
     if action == "clear_autoresponder":
@@ -533,9 +536,9 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
         store.save(WIDGET_ID, db)
         return {"ok": True, "result": {"autoresponder": _autoresponder_view(db)}, **view_data()}
 
-    # `peek` (V2-624) and `search_archive` (V2-628) are ANSWER-ONLY: answer_action returns the conversation's content and nothing here has
+    # `peek` (V2-624), `search_archive` and `chat_digest` (V2-628) are ANSWER-ONLY: answer_action returns the conversation's content and nothing here has
     # anything to mutate. Falling through to the generic branch would re-save the store for a read.
-    if action in ("peek", "search_archive"):
+    if action in ("peek", "search_archive", "chat_digest"):
         return view_data()
 
     # Connection control, executed by the supervisor, not the widget.

@@ -263,6 +263,34 @@ def _search_archive_answer(payload: dict) -> dict:
     return {"result": result}
 
 
+def _chat_digest_answer(payload: dict) -> dict:
+    """The per-chat digest (V2-628 F3) — «¿tengo que hacer alguna acción de este grupo?», «¿tengo algo
+    pendiente de mis grupos?». Reads the LIVING state the idle pass distilled from the archive; with a chat
+    named it returns that chat's digest, without one it returns every chat that still carries open actions.
+    Read-only. A chat with no digest yet is said honestly — the pass runs while the chat is quiet, so a
+    brand-new conversation has none; `peek` is the live read for that."""
+    from connectors.messaging import digest as _dg
+    chat = str(payload.get("chat") or payload.get("group") or payload.get("name") or "").strip() or None
+    rows = _dg.find(chat, only_open=(chat is None))
+    items = []
+    for d in rows:
+        items.append({
+            "chat": d["chat_name"] or d["chat_id"], "platform": d["platform"],
+            "summary": d["digest"].get("summary") or "",
+            "open_actions": d["digest"].get("open_actions") or [],
+            "deadlines": d["digest"].get("deadlines") or [],
+            "updated": datetime.fromtimestamp(float(d["updated_ts"])).strftime("%Y-%m-%d %H:%M")})
+    if items:
+        detail = ("estado destilado del ARCHIVO por chat — contesta nombrando las acciones abiertas y sus "
+                  "fechas; si open_actions está vacío, di que no hay nada pendiente de ese chat")
+    elif chat:
+        detail = (f"no hay digest de «{chat}» todavía — se destila en reposo cuando el chat tiene mensajes "
+                  "nuevos; para leerlo AHORA usa peek con ese nombre, no digas que no hay nada pendiente")
+    else:
+        detail = "ningún chat con acciones abiertas registradas en los digests"
+    return {"result": {"digests": items, "count": len(items), "detail": detail}}
+
+
 def _peek_answer(payload: dict) -> dict:
     """A conversation handed WHOLE to the brain (V2-624) — «dame lo relevante del grupo del viaje», «resume
     esos correos». Read-only: the thread store already holds the segregated data, so analysis is a READ of it,

@@ -237,7 +237,14 @@
    },
    "safe": true
   },
-  "search_archive": {
+  "chat_digest": {
+  "desc": "ESTADO destilado por chat desde el archivo: acciones ABIERTAS, plazos y resumen («¿tengo que hacer algo de este grupo?», «¿tengo algo pendiente de mis grupos?»). Con chat devuelve su digest; sin chat, los chats con acciones abiertas",
+  "payload": {
+   "chat": "string opcional (nombre del chat/grupo)"
+  },
+  "safe": true
+ },
+ "search_archive": {
    "desc": "BUSCA en el ARCHIVO PERMANENTE de comunicaciones (todas las plataformas, entradas Y salidas — no caduca nunca) y DEVUELVE las coincidencias con su fecha para que TÚ contestes («¿cuándo me escribió el colegio?»; «¿le llegué a contestar?» → check_reply:true, que dice si hubo respuesta nuestra y cuándo). Una pregunta sobre mensajes PASADOS se contesta con esto, nunca de memoria",
    "payload": {
     "q": "string opcional (texto a buscar)",

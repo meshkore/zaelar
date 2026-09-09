@@ -510,6 +510,21 @@ class OrchestratorLoop:
                 logger.info(f"sueño REM: {rep}")
         except Exception as e:  # noqa: BLE001
             logger.warning(f"rem failed: {e}")
+        # PER-CHAT DIGEST (V2-628 F3, connectors/messaging/digest.py): the idle HEART pass over the
+        # communications archive — one living state per settled chat with new messages. LLM hook injected
+        # here (same seam and same reason as rem.run above: the domain module does not import brains).
+        # Self-gating: due-by-movement per chat, bounded per cycle, kill-switch ZAELAR_CHAT_DIGEST=0.
+        try:
+            from connectors.messaging import digest as _digest
+            if _digest.enabled():
+                from . import memllm as _memllm
+                rep = await asyncio.to_thread(
+                    _digest.refresh_due,
+                    lambda system, user: _memllm.chat_sync("rem", system, user, max_tokens=700))
+                if rep.get("digested") or rep.get("failed"):
+                    _emit("loop.chat_digest", rep)
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"chat digest failed: {e}")
 
 
 # ── process singleton (mounted by the server lifespan) ───────────────────────────────────────────────────
