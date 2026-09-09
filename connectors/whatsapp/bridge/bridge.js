@@ -212,6 +212,23 @@ const recentlySentIds = new Set();
 const MAX_RECENT_IDS = 50;
 
 let sock = null;
+
+// ZAELAR-PATCH (V2-645): a group message must carry the group's SUBJECT, never its bare numeric id.
+// Measured live (2026-09-09): every group event shipped chatName = the id digits, so «el grupo del viaje»
+// was unfindable BY NAME in every store downstream (thread store, communications archive). The metadata
+// door already existed one screen down (GET /chat/:id uses sock.groupMetadata) — the events simply never
+// walked through it. Cached per chat: subjects are stable, and one lookup per group per process is the
+// right price. A failed lookup is NOT cached, so the next message retries.
+const groupSubjects = new Map();
+async function groupSubject(chatId) {
+  if (groupSubjects.has(chatId)) return groupSubjects.get(chatId);
+  try {
+    const md = await sock.groupMetadata(chatId);
+    const subject = (md && md.subject) || '';
+    if (subject) groupSubjects.set(chatId, subject);
+    return subject;
+  } catch { return ''; }
+}
 let connectionState = 'disconnected';
 let currentQR = null;  // ZAELAR-PATCH (INI-014): latest pairing QR as a data-URI PNG (null once connected)
 
@@ -487,7 +504,8 @@ async function startSocket() {
         chatId,
         senderId,
         senderName: msg.pushName || senderNumber,
-        chatName: isGroup ? (chatId.split('@')[0]) : (msg.pushName || senderNumber),
+        // ZAELAR-PATCH (V2-645): the group's real subject; the id digits only as the last resort.
+        chatName: isGroup ? ((await groupSubject(chatId)) || chatId.split('@')[0]) : (msg.pushName || senderNumber),
         isGroup,
         body,
         hasMedia,
