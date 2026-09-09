@@ -255,7 +255,22 @@ def prompt_digest() -> str:
                    key=lambda m: (str(m.get("date") or ""), str(m.get("startTime") or "")))
     lines: list[str] = []
     for m in meets[:12]:
-        row = f"  · {m.get('date', '?')} {m.get('startTime', '')} «{m.get('title', 'Cita')}»"
+        _hour = "todo el día" if m.get("allDay") else str(m.get("startTime") or "")
+        row = f"  · {m.get('date', '?')} {_hour} «{m.get('title', 'Cita')}»"
+        if m.get("location"):
+            row += f" en {str(m['location'])[:60]}"
+        # V2-643 — who is coming and whether they answered. «¿Cuántos somos el jueves?» and «¿me lo
+        # confirmaron?» are questions about THIS card; without these two fields the model had to guess.
+        _who = [w for w in (m.get("attendees") or []) if str(w).strip()]
+        _n = len(m.get("attendees") or [])
+        if _n:
+            row += f" · {_n} persona{'s' if _n != 1 else ''}"
+            if _who:
+                row += f" ({', '.join(_who[:6])})"
+        if m.get("status") == "pending":
+            row += " · SIN confirmar por la otra parte"
+        elif m.get("status") == "confirmed" and _n:
+            row += " · confirmada"
         if m.get("remindAt"):
             row += f" (aviso {m['remindAt']})"
         if m.get("notes"):
@@ -396,6 +411,92 @@ def _resolve_time(raw: str, default: str = "17:00") -> str:
     return default
 
 
+# V2-643 — WHAT an appointment is made of, beyond a title and an hour. The operator's spec for a real
+# calendar: «si son reuniones, si están confirmadas por la contraparte, si no; si es una cita con más
+# personas, cuántas». So a meeting carries `attendees` (names), `status` (confirmed|pending), `location`
+# and `category`, and the widget paints hue from the category and INTENSITY from the status — a pending
+# invitation is outlined, a confirmed one is solid, exactly the convention every calendar already uses.
+_STATUS = ("confirmed", "pending")
+# WORD BOUNDARIES, not substrings, and PENDING is tested first — «sigue pendiente» read as confirmed
+# because «si» lives inside «sigue» (caught by this module's own test before it shipped). A negated
+# confirmation («sin confirmar», «no me lo ha confirmado») is pending, so it has to win the race.
+_PENDING_RE = re.compile(r"\b(?:pendiente|pending|tentative|provisional|maybe|quiza\w*|esperando|waiting)\b"
+                         r"|\b(?:sin|no|not|todavia\s+no|aun\s+no)\b[^.]{0,20}\bconfirm",
+                         re.I)
+_CONFIRMED_RE = re.compile(r"\b(?:confirm\w*|aceptad\w*|acepta\w*|accepted|cerrad\w*|ok|okay|si|yes)\b", re.I)
+
+
+def _norm_status(raw) -> str:
+    """A spoken status ('ya me lo ha confirmado', 'sigue pendiente') → 'confirmed' | 'pending' | ''.
+    Unknown words return '' rather than a guess: a wrong status is a claim about somebody else's answer."""
+    n = _strip_accents(str(raw or "").strip().lower())
+    if not n:
+        return ""
+    if _PENDING_RE.search(n):
+        return "pending"
+    return "confirmed" if _CONFIRMED_RE.search(n) else ""
+
+
+def _norm_attendees(raw) -> list:
+    """Attendees as a list of NAMES. Accepts a list, a comma/'y'-separated sentence, or a bare COUNT
+    ('somos cuatro' → four unnamed seats), because the operator often knows how many before who."""
+    if isinstance(raw, (int, float)) and not isinstance(raw, bool):
+        n = max(0, min(200, int(raw)))
+        return [""] * n
+    if isinstance(raw, list):
+        return [str(x).strip()[:60] for x in raw if str(x).strip()][:50]
+    s = str(raw or "").strip()
+    if not s:
+        return []
+    if s.isdigit():
+        return [""] * max(0, min(200, int(s)))
+    parts = re.split(r"\s*(?:,|;|\+|\by\b|\band\b|&)\s*", s)
+    return [p.strip()[:60] for p in parts if p.strip()][:50]
+
+
+def _apply_details(meeting: dict, payload: dict) -> None:
+    """Copy the optional descriptive fields of a meeting from a payload onto it. Shared by the create and
+    the edit paths so the two can never disagree about what a meeting is made of. Only keys PRESENT in the
+    payload are touched — an edit that names one field must not blank the others."""
+    if "notes" in payload or "details" in payload:
+        notes = str(payload.get("notes") or payload.get("details") or "").strip()
+        if notes:
+            meeting["notes"] = notes[:500]
+        else:
+            meeting.pop("notes", None)
+    if "location" in payload or "place" in payload:
+        loc = str(payload.get("location") or payload.get("place") or "").strip()
+        if loc:
+            meeting["location"] = loc[:160]
+        else:
+            meeting.pop("location", None)
+    if "category" in payload:
+        cat = str(payload.get("category") or "").strip().lower()
+        if cat:
+            meeting["category"] = cat[:40]
+        else:
+            meeting.pop("category", None)
+    for key in ("attendees", "people", "with"):
+        if key in payload:
+            who = _norm_attendees(payload.get(key))
+            if who:
+                meeting["attendees"] = who
+            else:
+                meeting.pop("attendees", None)
+            break
+    if "status" in payload or "confirmed" in payload:
+        if "confirmed" in payload and "status" not in payload:
+            st = "confirmed" if payload.get("confirmed") else "pending"
+        else:
+            st = _norm_status(payload.get("status"))
+        if st:
+            meeting["status"] = st
+    if payload.get("allDay") or payload.get("all_day"):
+        meeting["allDay"] = True
+        meeting.pop("startTime", None)
+        meeting.pop("endTime", None)
+
+
 def apply_action(action: str, payload: dict | None = None) -> dict:
     """Widget actions (HANDOFF §9.3): mark done / not now / snooze / drop / replan. Mutates the isolated store."""
     payload = payload or {}
@@ -453,9 +554,13 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
         _new = {"title": title, "date": date, "startTime": start, "endTime": end}
         # V2-639 — the operator asks WHAT an appointment is («qué es ese punto del dentista»); a title is
         # a label, the substance travels in `notes` (place, who with, what to bring…), shown in the digest.
-        _notes = str(payload.get("notes") or payload.get("details") or "").strip()
-        if _notes:
-            _new["notes"] = _notes[:500]
+        # V2-643 adds the rest of what a calendar entry is: who is coming, where, which category, and
+        # whether the other side has confirmed.
+        _apply_details(_new, payload)
+        if "status" not in _new:
+            # An appointment WITH other people starts awaiting their answer; one you simply put in your own
+            # day is settled the moment you say it. Same default every calendar uses for an invitation.
+            _new["status"] = "pending" if _new.get("attendees") else "confirmed"
         # V2-208: the SAME meeting twice (see `_is_same_meeting`). A duplicate notice is heard once; a duplicate
         # meeting is SEEN, and remains there until someone deletes it manually.
         if not any(_is_same_meeting(_new, m) for m in db.get("meetings", [])):
@@ -629,6 +734,32 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
         _jid, _at = _schedule_reminder(m.get("title", "Cita"), new_date, new_start)
         if _jid:
             m["reminder_id"], m["remindAt"] = _jid, _at
+    elif action == "update_meeting":
+        # V2-643 — the DETAILS of an appointment already in the agenda: «el dentista ya me lo ha
+        # confirmado», «apunta que vienen cuatro», «es en la clínica Ruiz». Date and time are NOT edited
+        # here — moving an appointment reschedules its notice, and that belongs to move_meeting, which
+        # owns the reminder. One door per consequence.
+        title = _strip_accents((payload.get("title") or "").strip().lower())
+        raw_date = payload.get("date", "")
+        date = _resolve_date(raw_date) if raw_date else ""
+        _hits = [m for m in db.get("meetings", [])
+                 if (not title or title in _strip_accents(m.get("title", "").strip().lower()))
+                 and (not date or m.get("date") == date)]
+        if not title or not _hits:
+            return {"ok": False,
+                    "error": "no encuentro esa cita en la agenda — dime el título tal como está "
+                             "apuntada (y la fecha si hay varias)"}
+        _fields = ("notes", "details", "location", "place", "category", "attendees", "people", "with",
+                   "status", "confirmed", "allDay", "all_day", "newTitle")
+        if not any(k in payload for k in _fields):
+            return {"ok": False,
+                    "error": "no me has dicho qué cambiar — manda alguno de: status (confirmed/pending), "
+                             "attendees, location, category, notes o newTitle"}
+        m = _hits[0]
+        _apply_details(m, payload)
+        _nt = str(payload.get("newTitle") or "").strip()
+        if _nt:
+            m["title"] = _nt[:160]
     elif action == "show_day":
         # V2-540 — CHANGE THE VIEW is an action, because otherwise it is a PROMISE.
         # Measured in the operator's own session (2026-09-01 15:11, events 873/931/995): he asked three times
@@ -653,6 +784,8 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
             _sel = "week"
         elif "mes" in _n or "month" in _n:
             _sel = "month"
+        elif "lista" in _n or "list" in _n or "agenda" in _n or "schedule" in _n or "proximo" in _n:
+            _sel = "list"                              # V2-643: the classic Schedule/Agenda view
         else:
             _sel = _resolve_date(_raw)                 # spoken relative date -> YYYY-MM-DD (today if unsaid)
         import time as _tm

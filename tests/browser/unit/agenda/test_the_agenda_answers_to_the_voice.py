@@ -171,6 +171,77 @@ def test_ref_index_exposes_future_meetings_never_past_ones(fake_sched):
     assert "Dentista" in titles and "Vieja" not in titles
 
 
+# ── V2-642: what an appointment is MADE of ───────────────────────────────────────────────────────────────
+
+def test_an_appointment_with_people_starts_awaiting_their_answer(fake_sched):
+    """Every calendar's own default: you invite people, so it is pending until they answer; a slot you put
+    in your own day is settled the moment you say it. Without this the card would paint every meeting as
+    confirmed and the operator could never tell which ones are still in the air."""
+    agenda.apply_action("add_meeting", {"title": "Consejo", "date": _tomorrow(), "startTime": "10:00",
+                                        "attendees": ["Ana", "Luis"]})
+    agenda.apply_action("add_meeting", {"title": "Gimnasio", "date": _tomorrow(), "startTime": "19:00"})
+    by = {m["title"]: m for m in agenda.load_db()["meetings"]}
+    assert by["Consejo"]["status"] == "pending"
+    assert by["Consejo"]["attendees"] == ["Ana", "Luis"]
+    assert by["Gimnasio"]["status"] == "confirmed"
+
+
+def test_add_meeting_keeps_location_category_and_a_count_of_people(fake_sched):
+    agenda.apply_action("add_meeting", {"title": "Comida", "date": _tomorrow(), "startTime": "14:00",
+                                        "location": "El Fogón", "category": "social", "attendees": 4})
+    m = agenda.load_db()["meetings"][0]
+    assert m["location"] == "El Fogón" and m["category"] == "social"
+    assert len(m["attendees"]) == 4, "«somos cuatro» is a count, and a count is four seats"
+
+
+def test_update_meeting_confirms_what_the_other_side_answered(fake_sched):
+    agenda.apply_action("add_meeting", {"title": "Consejo", "date": _tomorrow(), "startTime": "10:00",
+                                        "attendees": ["Ana"]})
+    agenda.apply_action("update_meeting", {"title": "consejo", "status": "ya me lo ha confirmado"})
+    assert agenda.load_db()["meetings"][0]["status"] == "confirmed"
+    agenda.apply_action("update_meeting", {"title": "consejo", "status": "sigue pendiente"})
+    assert agenda.load_db()["meetings"][0]["status"] == "pending", \
+        "«sigue pendiente» must not read as confirmed — «si» lives inside «sigue»"
+    # The NEGATED confirmation is the case that decides the order of the two tests: «sin confirmar» contains
+    # the confirm stem, so whichever pattern is consulted first wins, and only one of the two is right.
+    agenda.apply_action("update_meeting", {"title": "consejo", "status": "confirmed"})
+    agenda.apply_action("update_meeting", {"title": "consejo", "status": "sin confirmar"})
+    assert agenda.load_db()["meetings"][0]["status"] == "pending", "«sin confirmar» is NOT a confirmation"
+    agenda.apply_action("update_meeting", {"title": "consejo",
+                                           "status": "no me lo han confirmado todavía"})
+    assert agenda.load_db()["meetings"][0]["status"] == "pending"
+
+
+def test_update_meeting_touches_only_what_it_names(fake_sched):
+    agenda.apply_action("add_meeting", {"title": "Consejo", "date": _tomorrow(), "startTime": "10:00",
+                                        "location": "Sala 2", "notes": "traer el informe"})
+    agenda.apply_action("update_meeting", {"title": "consejo", "attendees": ["Ana", "Luis", "Marta"]})
+    m = agenda.load_db()["meetings"][0]
+    assert len(m["attendees"]) == 3
+    assert m["location"] == "Sala 2" and m["notes"] == "traer el informe", \
+        "naming one field must not blank the others"
+
+
+def test_update_meeting_refuses_when_it_was_told_nothing_to_change(fake_sched):
+    agenda.apply_action("add_meeting", {"title": "Consejo", "date": _tomorrow(), "startTime": "10:00"})
+    r = agenda.apply_action("update_meeting", {"title": "consejo"})
+    assert r.get("ok") is False and "status" in r["error"]
+
+
+def test_an_all_day_event_carries_no_hour_at_all(fake_sched):
+    agenda.apply_action("add_meeting", {"title": "Viaje a Madrid", "date": _tomorrow(), "allDay": True})
+    m = agenda.load_db()["meetings"][0]
+    assert m["allDay"] is True and "startTime" not in m
+
+
+def test_the_digest_says_who_is_coming_and_whether_they_confirmed(fake_sched):
+    agenda.apply_action("add_meeting", {"title": "Consejo", "date": _tomorrow(), "startTime": "10:00",
+                                        "attendees": ["Ana", "Luis"], "location": "Sala 2"})
+    d = agenda.prompt_digest()
+    assert "2 personas" in d and "Ana" in d and "Sala 2" in d
+    assert "SIN confirmar" in d, "the model must be able to answer «¿me lo confirmaron?»"
+
+
 # ── multilingual: dates, hours and the plan's own words ──────────────────────────────────────────────────
 
 def test_spoken_dates_resolve_in_english_too():
@@ -217,5 +288,11 @@ def test_the_new_vocabulary_is_declared_and_fast():
     for name in ("add_task", "move_meeting"):
         assert name in acts
         assert wactions.classify(acts[name], name) == wactions.FAST
-    assert acts["move_meeting"].get("ref") == "title", "spoken references resolve to the title payload key"
-    assert acts["set_reminder"].get("ref") == "title"
+    # V2-643 — the meeting actions deliberately do NOT declare `ref` (V2-595's positional resolver).
+    # Declaring it would let «la tercera» resolve BY POSITION, and unlike the video list — which prints 1, 2,
+    # 3 beside its rows, the visible anchor that made V2-595 safe there — no agenda view numbers anything.
+    # A positional guess with nothing on screen to point at would CANCEL or MOVE an appointment nobody named.
+    # The spoken title is resolved by `data.py` itself (accent- and case-insensitive), and when it cannot,
+    # it REFUSES naming what is missing instead of picking a neighbour.
+    for name in ("move_meeting", "set_reminder", "cancel_meeting", "update_meeting"):
+        assert "ref" not in acts[name], f"{name} must not accept positional references"

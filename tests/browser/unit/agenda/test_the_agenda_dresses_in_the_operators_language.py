@@ -1,7 +1,7 @@
-# V2-639 — the agenda's own chrome follows the active language (the V2-613 `ctx.t`/`ctx.lang` seam), and an
-# appointment's details are one hover away. Rendered, not read: whether a tab says "Week", whether the month
-# header comes out in the viewer's locale shape, and whether a meeting cell carries its notes as a tooltip
-# are all invisible to a source grep.
+# V2-639/V2-643 — the agenda's own chrome follows the active language (the V2-613 `ctx.t`/`ctx.lang` seam),
+# and its details are one hover away. Rendered, not read: whether a view tab says "Week", whether the range
+# title comes out in the viewer's locale shape, and whether a month cell carries its notes are all invisible
+# to a source grep.
 from __future__ import annotations
 
 import json
@@ -76,7 +76,7 @@ def _page():
 def _mount(page, data, *, lang=None, bundle=None):
     """lang+bundle -> a ctx with the V2-613 seam; without them the bare-fallback path renders."""
     page.goto(page._hb_origin)
-    page.set_content("<div id='w' style='width:660px'></div>")
+    page.set_content("<div id='w' style='width:820px'></div>")
     page.evaluate(
         """async ([src, data, lang, bundle]) => {
              const mod = await import(src);
@@ -90,48 +90,50 @@ def _mount(page, data, *, lang=None, bundle=None):
         [page._hb_url, data, lang, bundle or {}])
 
 
-def test_the_tabs_speak_english_through_the_real_bundle(_page):
+def test_the_views_speak_english_through_the_real_bundle(_page):
     _mount(_page, _data(days=_days()), lang="en", bundle=_EN)
     labels = _page.locator(".agtab").all_inner_texts()
-    assert "Week" in labels and "Month" in labels
-    assert labels[0] == "Today" and labels[1] == "Tomorrow"
-    assert "Semana" not in labels
+    assert labels == ["Day", "Week", "Month", "List"], labels
+    assert _page.locator(".agnav [data-nav=today]").inner_text() == "Today"
 
 
 def test_without_the_seam_the_spanish_fallbacks_stand(_page):
     _mount(_page, _data(days=_days()))
     labels = _page.locator(".agtab").all_inner_texts()
-    assert "Semana" in labels and "Mes" in labels
-    assert labels[0] == "Hoy" and labels[1] == "Mañana"
+    assert labels == ["Día", "Semana", "Mes", "Lista"], labels
+    assert _page.locator(".agnav [data-nav=today]").inner_text() == "Hoy"
 
 
-def test_the_month_header_comes_out_in_the_viewers_locale(_page):
+def test_the_range_title_comes_out_in_the_viewers_locale(_page):
     _mount(_page, _data(days=_days()), lang="en", bundle=_EN)
-    _page.click(".agtab[data-sel=month]")
-    header = _page.locator(".agmnav b").inner_text()
-    month_en = time.strftime("%B")
-    assert month_en.lower() in header.lower(), header
+    _page.click(".agtab[data-view=month]")
+    header = _page.locator(".agrange").inner_text()
+    assert time.strftime("%B").lower() in header.lower(), header
 
 
-def test_a_meetings_notes_are_one_hover_away_in_the_month_grid(_page):
+def test_a_meetings_notes_and_details_are_in_its_panel(_page):
     meets = [{"title": "Dentista", "date": _today(), "startTime": "17:00", "endTime": "18:00",
-              "notes": "Clínica Ruiz, llevar la radiografía"}]
+              "notes": "Clínica Ruiz, llevar la radiografía", "location": "Calle Mayor 3",
+              "attendees": ["Ana", "Luis"], "status": "pending", "remindAt": "2026-09-09 15:00"}]
     _mount(_page, _data(days=_days(), meetings=meets))
-    _page.click(".agtab[data-sel=month]")
-    ev = _page.locator(".agev").first
-    assert "Dentista" in ev.inner_text()
-    assert ev.get_attribute("title") == "Clínica Ruiz, llevar la radiografía"
+    _page.click(".agtab[data-view=day]")
+    _page.click(".agev")
+    panel = _page.locator(".agpanel").inner_text()
+    assert "Dentista" in panel and "radiografía" in panel
+    assert "Calle Mayor 3" in panel and "Ana" in panel
+    assert "confirmar" in panel.lower(), "a pending invitation SAYS the other side has not answered"
 
 
-def test_the_week_view_empty_row_and_action_buttons_follow_the_bundle(_page):
-    _mount(_page, _data(days=_days()), lang="en", bundle=_EN)
-    _page.click(".agtab[data-sel=week]")
-    assert "no meetings" in _page.locator(".agweek").inner_text()
-    _mount(_page, _data(days=_days()), lang="en", bundle=_EN)
-    assert _page.locator(".replan").inner_text().endswith("Replan")
-
-
-def test_a_pushed_month_view_still_lands(_page):
-    """The live bug's other half: once show_day resolves the alias, the push must move the widget."""
-    _mount(_page, _data(days=_days(), view={"sel": "month", "n": 1, "at": time.time()}))
-    assert _page.locator(".agmonth").count() == 1, "the pushed view selected the month tab on mount"
+def test_the_coach_rail_survives_in_the_day_view(_page):
+    """The agenda has always been a coach too (Now + countdown + done/snooze/not_now/drop). The redesign
+    moves it beside the day grid; losing it would be a feature deleted by a restyle."""
+    active = {"start": "12:00", "end": "13:00", "label": "Revisar contrato", "kind": "deep",
+              "taskId": "t1", "remaining_min": 25}
+    _mount(_page, _data(days=_days(), active=active,
+                        plan={"blocks": [{"start": "12:00", "end": "13:00", "label": "Revisar contrato",
+                                          "kind": "deep", "taskId": "t1"}], "focus": []}))
+    _page.click(".agtab[data-view=day]")
+    side = _page.locator(".agside").inner_text()
+    assert "Revisar contrato" in side
+    assert _page.locator(".agacts [data-a=done]").count() == 1
+    assert _page.locator("[data-a=replan]").count() == 1

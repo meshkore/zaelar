@@ -583,6 +583,41 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     `2b9ba75`. Rebuilding a shared file from HEAD to isolate one hunk is only safe if nobody commits in that
     window, which a session cannot know.
 
+- **The agenda looks like a CALENDAR — the shapes everybody already knows (V2-643, 2026-09-09)**: the
+  operator's redesign order with two screenshots of the week view. Measured before touching anything: the
+  card declared NO `manifest.size`, so it opened at the default 400×340 tile — literally «se muestra muy
+  pequeño, se cortan las palabras de abajo», the same class as V2-630 (musica) and V2-597 (youtube); the
+  «week» was a list of the seven horizon days, one per row, with the per-day tabs (Hoy · Mañana · vie · sáb
+  · dom · lun · mar) that are exactly the cramped buttons he was complaining about; and the calendar
+  connectors were three 15px icons in the header that dropped an explanatory paragraph over the content —
+  «los iconos son tan pequeños y están apelmazados que no se sabe qué significa ninguno» plus «un texto ahí
+  que me parece absurdo como descripción». Now: a toolbar (brand · range · ‹ Hoy ›), a defined view band
+  whose active view is an INVERTED chip (the V2-636 language), and the four classic views — **Día** (hour
+  grid beside the coach rail this widget has always had), **Semana** (seven Mon–Sun COLUMNS over the grid,
+  each day's items inside its own column, overlapping meetings packed SIDE BY SIDE because a calendar that
+  hides an appointment is the worst thing this widget can do), **Mes** (navigable 7×N grid) and **Lista**
+  (the Schedule view). His «varios colores, varias intensidades» is two axes, both DERIVED FROM DATA and
+  never from sniffing a title (V2-095): the HUE comes from the dictated `category` or the planner's own
+  block kind, the INTENSITY from how settled it is — a confirmed appointment is solid, one the other side
+  has not answered is dashed (the convention every calendar already uses), a planner-placed task block is
+  soft. Badges carry the rest of his spec: a bell when a reminder exists, 👥N for attendees. So the data
+  model grew what a calendar entry actually is — `attendees` (names or a bare count: «somos cuatro» is four
+  seats), `status`, `location`, `category`, `allDay` — with `update_meeting` as the single door for editing
+  them (it touches ONLY the keys the payload names) and one default that matters: a meeting WITH people is
+  born `pending` and one without is `confirmed`, because you invite people and then wait. ⚠️ Two bugs the
+  tests caught, both mine: «sigue pendiente» read as CONFIRMED because «si» lives inside «sigue» (word
+  boundaries now, and `_PENDING_RE` runs FIRST because «sin confirmar» contains the confirm stem — a disarm
+  that stayed green proved nothing measured that negated case, which is what decides the order); and an
+  all-day entry CRASHED the whole day plan, because `planner.plan_day` read `mt["startTime"]` on a meeting
+  that by definition has none. The card FILLS its frame (`:has` on `.hb-scroll`, V2-636) with the grid
+  scrolling inside, so nothing is clipped at any size; `manifest.size` 920×640. Node **4.142** (17 RENDERED
+  cases — seven columns, a chip landing at its hour's pixel, two meetings not covering each other, the real
+  card chrome for the clipping cases per the V2-608 fixture lesson), V2-540's render test rewritten to the
+  new DOM with every behavioural claim intact, and the XSS fixture repointed at the surface that now
+  renders. Ten disarms, mutations asserted, all red. ⚠️ Renumbered TWICE at closure (640 → 642 → 643): the
+  concurrent session had already pushed V2-640/641/642 into this log — what is pushed wins, and the cheap
+  thing to move is the batch that is not committed yet. Detail: the V2-643 initiative.
+
 - **The agenda answers to the voice: the view alias, the missing vocabulary, the visible details, and the
   operator's language (V2-639, 2026-09-09)**: the operator's session, read event by event — he asked FOUR
   times for the month view and the widget landed on today every time, silently. The model had done its job

@@ -69,6 +69,11 @@ def plan_day(db: dict, date: str = "", now: str = "", lang: str = "") -> dict:
         if ok:
             reserved.append((_m(r["startTime"]), _m(r["endTime"]), r.get("title", L["block"]), "personal", {}))
     for mt in db.get("meetings", []):
+        # V2-642 — an ALL-DAY entry has no hours and belongs to the calendar's all-day band, never to the
+        # working day's timeline: it blocks no slot, and reading `mt["startTime"]` on one raised a KeyError
+        # that took the whole plan down (found by this module's own test the day all-day events shipped).
+        if mt.get("allDay") or not mt.get("startTime") or not mt.get("endTime"):
+            continue
         if not date or str(mt.get("date", "")).startswith(date):
             reserved.append((_m(mt["startTime"]), _m(mt["endTime"]), mt.get("title", L["meeting"]), "meeting", {}))
     for t in db.get("tasks", []):

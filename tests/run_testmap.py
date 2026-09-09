@@ -1726,6 +1726,18 @@ DOMAINS: list[dict] = [
                                  "add_task, digest con detalles, y el widget en el idioma del operador",
             "ch": UNIT, "paths": ["tests/browser/unit/agenda/test_the_agenda_answers_to_the_voice.py",
                                   "tests/browser/unit/agenda/test_the_agenda_dresses_in_the_operators_language.py"]},
+        # V2-643 — LA AGENDA SE PARECE A UN CALENDARIO. Reporte del operador con dos capturas de la vista
+        # semanal: la tarjeta abría en el tile por defecto (no declaraba `size`) y se cortaban las palabras
+        # de abajo; la «semana» era una lista de días, no columnas; los tres iconos de conector de 15 px en
+        # la cabecera «no se sabe qué significa ninguno» y soltaban un párrafo encima del contenido. Su
+        # especificación: las vistas clásicas (Día · Semana · Mes · Lista) con ‹ Hoy ›, cada día una COLUMNA
+        # con sus ítems dentro, colores por categoría e INTENSIDADES por estado, campana si hay aviso, y
+        # cuántas personas vienen / si la contraparte confirmó. Todo RENDERIZADO — que un chip caiga en su
+        # columna a su hora, que dos citas solapadas no se tapen, y que nada se corte dentro de la tarjeta
+        # REAL (.hb-win > .hb-scroll > raíz, copiada verbatim) no se ve en el fuente.
+        {"id": "4.142", "title": "La AGENDA es un calendario: semana en columnas, colores por categoría e "
+                                 "intensidad por estado, insignias de aviso y asistentes, y nada recortado",
+            "ch": UNIT, "paths": ["tests/browser/unit/agenda/test_the_agenda_looks_like_a_calendar.py"]},
         # V2-641 — el fondo de escritorio es una PROPIEDAD HABLADA: «usa la número 3» viste el escritorio.
         # Lo que solo un navegador mide: que la URL de la cuenta PINTA en un navegador virgen (reconcile del
         # boot), el scrim que mantiene legible el escritorio sobre cualquier foto, y que limpiar no deja nada.

@@ -1,8 +1,8 @@
 {
   "id": "agenda",
   "version": "0.2.0",
-  "title": "Agenda del día",
-  "description": "Tu agenda viva del día con rol de coach de productividad: franja activa por reloj, tarea en curso con contador, y nudges hacia tu objetivo global.",
+  "title": "Agenda",
+  "description": "Tu calendario completo: vistas de día, semana, mes y lista, con las citas coloreadas por categoría, su aviso, quién asiste y si la otra parte ha confirmado. Además planifica tu día con las tareas y hace de coach de productividad.",
   "whenToUse": "Cuando el usuario pide su agenda, su día, qué hacer ahora, a qué ponerse, su planning o coaching de productividad.",
   "confirm_ui": false,
   "keywords": [
@@ -29,16 +29,20 @@
   ],
   "entry": "widget.js",
   "dataSchemaRef": "schema:DB",
-  "usage": "Añade citas con add_meeting (title+date+startTime, opcional notes con los detalles; cada cita crea su aviso ~2h antes) y TAREAS sin hora con add_task. Cancela con cancel_meeting, MUEVE de día/hora con move_meeting (title + newDate/newTime). set_reminder mueve el aviso de una cita, y SIN title + con date pone avisos a todas las citas de ese día. Estado de tareas: done/snooze/not_now/drop (taskId). Para VACIARLA ENTERA usa clear_all (confirma; nunca tires elementos de uno en uno). Para CAMBIAR LA VISTA («la agenda de hoy/mañana», «enséñame el jueves», «vista semanal», «vista de mes») usa show_day con day=hoy|mañana|<día>|semana|mes — es la ÚNICA forma de mover lo que se ve; reabrir el widget siempre abre por hoy. Los detalles de una cita (hora, aviso, notas) los tienes en su digest cuando la agenda está abierta.",
+  "usage": "Añade citas con add_meeting (title+date+startTime; opcionales attendees/location/category/notes/allDay; cada cita crea su aviso ~2h antes) y TAREAS sin hora con add_task. Cancela con cancel_meeting, MUEVE de día/hora con move_meeting (title + newDate/newTime) y cambia sus DETALLES con update_meeting (status confirmed/pending cuando la otra parte responda, attendees, location, category, notes, newTitle). set_reminder mueve el aviso de una cita, y SIN title + con date pone avisos a todas las citas de ese día. Estado de tareas: done/snooze/not_now/drop (taskId). Para VACIARLA ENTERA usa clear_all (confirma; nunca tires elementos de uno en uno). Para CAMBIAR LA VISTA («la agenda de hoy/mañana», «enséñame el jueves», «vista semanal», «vista de mes», «la lista de lo que viene») usa show_day con day=hoy|mañana|<día>|semana|mes|lista — es la ÚNICA forma de mover lo que se ve; reabrir el widget siempre abre por hoy. Los detalles de cada cita (hora, aviso, quién viene, si está confirmada, notas) los tienes en su digest cuando la agenda está abierta, así que contéstalos sin preguntar.",
   "actions": {
     "add_meeting": {
-      "desc": "añade una cita/reunión al día — crea SOLO su aviso por defecto (~2h antes), no hace falta pedirlo; para moverlo o quitarlo usa set_reminder; acepta `notes` con los detalles de la cita",
+      "desc": "añade una cita/reunión al día — crea SOLA su aviso por defecto (~2h antes), no hace falta pedirlo; acepta también quién viene, dónde, categoría y notas",
       "payload": {
         "title": "string",
         "date": "YYYY-MM-DD (hoy si se omite)",
         "startTime": "HH:MM",
         "endTime": "HH:MM",
-        "notes": "string (opcional: detalles — lugar, con quién, qué llevar)"
+        "notes": "detalles (opcional): qué llevar, con quién, cualquier cosa que él querrá recordar",
+        "attendees": "quién viene: lista de nombres, «Ana y Luis», o un NÚMERO si solo sabe cuántos (opcional)",
+        "location": "dónde (opcional)",
+        "category": "trabajo | personal | salud | social | viaje | … — solo colorea la cita (opcional)",
+        "allDay": "true si es de todo el día (sin hora)"
       }
     },
     "set_reminder": {
@@ -47,16 +51,14 @@
         "title": "string (título de la cita, aunque sea parcial)",
         "date": "YYYY-MM-DD o «mañana»/día de la semana (con title filtra; SIN title = todas las citas de ese día)",
         "at": "HH:MM del día de la cita, o YYYY-MM-DD HH:MM"
-      },
-      "ref": "title"
+      }
     },
     "cancel_meeting": {
       "desc": "cancela/elimina una cita ya agendada",
       "payload": {
         "title": "string",
         "date": "YYYY-MM-DD (opcional, filtra por fecha)"
-      },
-      "ref": "title"
+      }
     },
     "done": {
       "desc": "marca una tarea como hecha",
@@ -97,9 +99,9 @@
       "confirm_q": "¿Vacío la agenda entera? Es permanente."
     },
     "show_day": {
-      "desc": "CAMBIA EL DÍA O LA VISTA que se está viendo en la agenda («muéstrame mañana», «el jueves», «la semana», «el mes»). No modifica ningún dato: solo mueve lo que se ve. Es obligatoria para eso — mostrar el widget de nuevo lo abre siempre por HOY",
+      "desc": "CAMBIA EL DÍA O LA VISTA que se está viendo en la agenda («muéstrame mañana», «el jueves», «la semana», «el mes», «la lista»). No modifica ningún dato: solo mueve lo que se ve. Es obligatoria para eso — mostrar el widget de nuevo lo abre siempre por HOY",
       "payload": {
-        "day": "«hoy», «mañana», «pasado mañana», un día de la semana, YYYY-MM-DD, o «semana»/«mes» para esas dos vistas (también se aceptan las claves view/mode)"
+        "day": "«hoy», «mañana», «pasado mañana», un día de la semana, YYYY-MM-DD, o «semana»/«mes»/«lista» para esas vistas (también valen las claves view/mode/vista)"
       },
       "view": true
     },
@@ -119,11 +121,23 @@
         "date": "YYYY-MM-DD (opcional, si hay varias con ese título)",
         "newDate": "«mañana», un día de la semana o YYYY-MM-DD",
         "newTime": "HH:MM (opcional — conserva la hora si no viene)"
-      },
-      "ref": "title"
+      }
+    },
+    "update_meeting": {
+      "desc": "cambia los DETALLES de una cita que ya existe: si la otra parte la ha confirmado («el dentista ya me lo ha confirmado» → status=confirmed), quién viene, dónde, categoría, notas o su título. NO mueve la fecha ni la hora — para eso está move_meeting",
+      "payload": {
+        "title": "string (título de la cita, aunque sea parcial)",
+        "date": "YYYY-MM-DD (opcional, si hay varias con ese título)",
+        "status": "confirmed | pending (o dilo como él: «ya me lo confirmaron», «sigue sin confirmar»)",
+        "attendees": "lista de nombres, «Ana y Luis», o un número",
+        "location": "dónde",
+        "category": "trabajo | personal | salud | social | viaje | …",
+        "notes": "detalles",
+        "newTitle": "para renombrarla"
+      }
     }
   },
-  "name": "Agenda del día",
+  "name": "Agenda",
   "aliases": [
     "Agenda del día",
     "agenda",
@@ -134,5 +148,13 @@
   "data": {
     "durable": true,
     "why": "Lo que hay dentro NO es la salida de un trabajo: son los proyectos, tareas, ideas y citas REALES del operador. Un reset deja en blanco las superficies derivadas (resultados, informes, gráficas) porque son reproducibles; borrar esto sería pérdida de datos, del mismo orden que borrar la memoria — y eso solo pasa si el operador marca su casilla en el diálogo del reset."
+  },
+  "size": {
+    "w": 920,
+    "h": 640
+  },
+  "min": {
+    "w": 420,
+    "h": 380
   }
 }
