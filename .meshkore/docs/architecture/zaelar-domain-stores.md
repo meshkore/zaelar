@@ -39,8 +39,15 @@ store», it is a view and may expire freely.
   and `art_cache{}` (iTunes covers; bookkeeping stripped from `view_data` before serving). The widget writes
   ZERO rows into memory. Inferred preference («likes Madonna») is the sleep cycle's lane: REM reads `counts`
   read-only, the heart distills the `pref` pill — the widget never decides what is biographical.
-- **Video** → same shape (V2-604 already ruled it: the widget OWNS its library and watch history — we record
-  what WE play; a connector only extends).
+- **Video** → `widgets/_data/youtube/state.json` (V2-604 + V2-632) owns `list[]` (the queue:
+  videoId/title/channel/published/url/added_at/added_seq) + `pos`, `history[]` (cap 300, per-row `played_at`
+  and `plays` — recorded ONLY when WE play, per V2-604: the platform API cannot hand this back),
+  `channels[]` (provider-agnostic follows — our reference, never an account), `lists[]`, `prefs{}` +
+  `prefs_notes[]`, `blocked_channels[]`, and the cached account layer. `search_results[]` +
+  `search_query/searched_at` are a declared VIEW of the last question — replaced whole, losing them loses
+  nothing. Thumbnails come from YouTube's CDN by videoId: zero cache of ours, fully re-derivable. The widget
+  writes ZERO rows into memory; the inferred preference («likes channel X») is the REM/heart lane reading
+  `channels`/`history` read-only, same seam as music's `counts`.
 
 ## The rules that keep it clean
 
