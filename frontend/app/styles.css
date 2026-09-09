@@ -498,7 +498,10 @@ canvas#orb.frozen{opacity:.32;filter:grayscale(1)}
    the icon stays exactly as it was: if nothing is heard, it does not move. `transform`/`opacity` animate via a
    CSS variable (compositor), without a per-frame re-render. */
 .orbic.vu{transform-origin:50% 50%}
-.orbic.vu svg{transform:scale(calc(1 + var(--vu, 0) * .28));opacity:calc(.72 + var(--vu, 0) * .28);
+/* V2-648 — the RESTING floor was .72, which is why the one icon the operator names («sobre todo el micro»)
+   read as half-lit whenever he was not talking: a live, unmuted mic sat closer to a disabled control than to
+   a lit one. The meter still swells with his voice; it just starts from LIT. */
+.orbic.vu svg{transform:scale(calc(1 + var(--vu, 0) * .28));opacity:calc(.88 + var(--vu, 0) * .12);
   transition:transform .07s linear,opacity .07s linear}
 @media (prefers-reduced-motion:reduce){ .orbic.vu svg{transform:none} }
 .orbic.pwr-stalled{color:var(--hb-warn);opacity:1;animation:pwrAlert 1.6s ease-in-out infinite}

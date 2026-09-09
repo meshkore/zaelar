@@ -71,11 +71,13 @@ _WEIGHT = """() => {
     document.body.appendChild(b);
     const cs = getComputedStyle(b), sv = getComputedStyle(b.querySelector('svg'));
     const out = {opacity: Number(cs.opacity), color: cs.color, filter: cs.filter,
-                 stroke: parseFloat(sv.strokeWidth) || 0};
+                 stroke: parseFloat(sv.strokeWidth) || 0, ink: Number(cs.opacity) * Number(sv.opacity)};
     b.remove();
     return out;
   };
-  return {on: mk('on'), off: mk('off')};
+  // `on vu` is the LIVE MICROPHONE at rest — the icon he singled out. Its meter dims the svg between beats,
+  // and that resting floor is what he was actually comparing against the dark icons.
+  return {on: mk('on'), off: mk('off'), micRest: mk('on vu')};
 }"""
 
 
@@ -200,3 +202,12 @@ def test_the_speaker_does_not_touch_the_orb(measured):
     assert before and after, f"the orb canvas must exist to be measured: {before} / {after}"
     assert measured["spk_off"], "the click must really have toggled the speaker control"
     assert after == before, f"muting the speaker repainted the orb: {before} -> {after}"
+
+
+def test_a_live_microphone_reads_as_lit_between_words(measured):
+    """The VU meter dims the mic between beats. At its resting floor it still has to look LIT — «sobre todo el
+    micro» is the icon he was comparing, and a lit control that sits near a dark one is the complaint."""
+    w = measured["weight"]
+    assert w["micRest"]["ink"] >= 0.85, f"a live mic at rest must read as lit, not half-off: {w['micRest']}"
+    assert w["micRest"]["ink"] - w["off"]["ink"] >= 0.3, \
+        f"and must stand clearly apart from a stopped control: {w}"

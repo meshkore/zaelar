@@ -515,7 +515,9 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   MOVED to the 🔊 control beside it, which already paints itself crossed and grey. `frozen` stays. **(C)**
   Grey alone was saying «mic off», and grey is also what a disabled control looks like: `MIC_OFF` now adds a
   slash (the speaker's own off-face language), and the lit state gained a halo + heavier stroke so ON reads
-  as LIT, without dimming OFF further — the muted mic must stay legible, its slash IS the message. Nodes
+  as LIT, without dimming OFF further — the muted mic must stay legible, its slash IS the message. The VU
+  meter's RESTING floor went .72 → .88 in the same pass: a live, unmuted mic between words sat closer to a
+  disabled control than to a lit one, which is why the icon he singled out was the one that read wrong. Nodes
   **4.146** (e2e: the slash measured by its RENDERED ink, both swap directions, ON-vs-OFF weight through the
   real cascade, and the orb's painting identical either side of a speaker click) and **4.147** (unit: the
   real `isListening`). Three disarms red. Detail: the V2-648 initiative.

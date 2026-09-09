@@ -1916,7 +1916,7 @@ DOMAINS: list[dict] = [
         # que su color fuera la señal de escucha, y silenciar la voz desaturaba el naranja a marrón. El orbe
         # contesta UNA pregunta, y ahora el micro cuenta en ella (antes no: micro cerrado, orbe naranja).
         {"id": "4.146", "title": "El micrófono parado se ve TACHADO (y pinta), el activo brilla más que el "
-                                 "apagado, y el altavoz no toca el orbe",
+                                 "apagado —suelo del VU incluido—, y el altavoz no toca el orbe",
             "ch": UNIT, "paths": ["tests/browser/e2e/widgets/test_a_stopped_microphone_is_crossed_out.py"]},
         {"id": "4.147", "title": "El orbe solo se pone naranja si algo escucha: micro cerrado o agente parado "
                                  "= gris, y el modo Nombre solo dentro de su ventana",
