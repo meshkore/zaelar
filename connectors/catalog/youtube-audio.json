@@ -1,0 +1,17 @@
+{
+  "id": "youtube-audio",
+  "label": "YouTube (audio gratis)",
+  "kind": "connector",
+  "family": "musica",
+  "transport": "native",
+  "auth": "none",
+  "state": "built",
+  "capabilities": [
+    "youtube",
+    "musica gratis",
+    "canciones",
+    "audio",
+    "sin cuenta"
+  ],
+  "note": "La fuente por DEFECTO: suena sin cuenta ni clave. Si conectas Spotify, Spotify pasa a ser prioritario."
+}

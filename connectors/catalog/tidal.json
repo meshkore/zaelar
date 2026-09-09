@@ -1,0 +1,16 @@
+{
+  "id": "tidal",
+  "label": "TIDAL",
+  "kind": "connector",
+  "family": "musica",
+  "transport": "native",
+  "auth": "oauth",
+  "state": "not-possible",
+  "capabilities": [
+    "tidal",
+    "musica",
+    "canciones",
+    "hifi"
+  ],
+  "why-not": "Su plataforma de desarrolladores (2024) da metadatos y previews de 30 s, no reproduccion completa para terceros."
+}

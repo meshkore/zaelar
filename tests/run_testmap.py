@@ -1520,6 +1520,14 @@ DOMAINS: list[dict] = [
         {"id": "4.136", "title": "⏻ ON a la PRIMERA: mientras la orden viaja, el clic es dueño del arranque "
                                  "(y una respuesta que no llega caduca sola)",
             "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_the_power_handoff_is_not_a_race.py"]},
+        # V2-630 (operador, 2026-09-09, sesión 7be94951): la tarjeta de música se ensanchaba y encogía con cada
+        # cambio de canción — .hb-win no tiene ancho propio (shrink-to-fit) y el título nowrap de la barra
+        # empujaba el ancho de TODA la tarjeta. Regla del operador, de CLASE: el tamaño de una tarjeta es del
+        # OPERADOR, nunca del contenido — tras el primer render real, _freezeSize congela en px lo que siga en
+        # auto; a partir de ahí el contenido recorta o scrollea DENTRO. Renderizado con el desktop.js real.
+        {"id": "4.137", "title": "El tamaño de una tarjeta nunca sigue a su contenido: congelado tras el primer "
+                                 "render, solo lo cambian los gestos del operador (y el _fit del lienzo)",
+            "ch": UNIT, "paths": ["tests/browser/e2e/widgets/test_a_cards_size_never_follows_its_content.py"]},
         # V2-537 (2026-09-01): el mural. Un widget nuevo aterrizó DEBAJO del chat flotante (z 9001, encima del
         # tope 8000 de las tarjetas por diseño) y el operador no tenía forma de saber que existía. Renderiza el
         # escritorio en Chromium con backend falso por intercepción: colocación que esquiva el chat abierto,
@@ -2436,7 +2444,11 @@ DOMAINS: list[dict] = [
         # prompt con el catálogo real y uno con N manifiestos `planned` sintéticos sean BYTE-IDÉNTICOS.
         {"id": "5.11", "title": "El catálogo de conectores: listar cuesta CERO hasta que algo se conecta",
             "ch": UNIT, "paths": [
-                "tests/connectors/unit/catalog/test_the_shelf_costs_nothing_until_connected.py"]},
+                "tests/connectors/unit/catalog/test_the_shelf_costs_nothing_until_connected.py",
+                # V2-631: el catálogo de FUENTES DE MÚSICA — la gratis por defecto es una fila visible y
+                # conectada, cada puerta cerrada (Amazon/Deezer/SoundCloud/TIDAL/YT Music) nombra su porqué,
+                # y la prioridad sigue siendo «la conectada primero, la gratis nunca desaparece».
+                "tests/connectors/unit/catalog/test_the_music_source_catalog.py"]},
         # V2-597 — la cuenta de YouTube (familia video): el registro es DATO (solo lectura; el tramo de
         # escritura queda aparcado a propósito), el pending del OAuth lleva verifier+tramo bajo el state, un
         # refresh sin refresh_token CONSERVA el anterior, y la fachada separa la vacuidad legítima (cuenta

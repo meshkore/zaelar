@@ -1,0 +1,16 @@
+{
+  "id": "soundcloud",
+  "label": "SoundCloud",
+  "kind": "connector",
+  "family": "musica",
+  "transport": "native",
+  "auth": "oauth",
+  "state": "not-possible",
+  "capabilities": [
+    "soundcloud",
+    "musica",
+    "canciones",
+    "independiente"
+  ],
+  "why-not": "El registro de apps nuevas de su API lleva años cerrado (solo un formulario sin respuesta garantizada); sin client_id no hay busqueda ni streaming."
+}

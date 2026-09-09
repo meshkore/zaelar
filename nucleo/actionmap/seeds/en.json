@@ -440,6 +440,62 @@
       }
     },
     {
+      "phrase": "next song",
+      "action": {
+        "do": "widget_data",
+        "widget": "musica",
+        "action": "next"
+      }
+    },
+    {
+      "phrase": "play the next song",
+      "action": {
+        "do": "widget_data",
+        "widget": "musica",
+        "action": "next"
+      }
+    },
+    {
+      "phrase": "skip this song",
+      "action": {
+        "do": "widget_data",
+        "widget": "musica",
+        "action": "next"
+      }
+    },
+    {
+      "phrase": "skip to the next song",
+      "action": {
+        "do": "widget_data",
+        "widget": "musica",
+        "action": "next"
+      }
+    },
+    {
+      "phrase": "previous song",
+      "action": {
+        "do": "widget_data",
+        "widget": "musica",
+        "action": "previous"
+      }
+    },
+    {
+      "phrase": "play the previous song",
+      "action": {
+        "do": "widget_data",
+        "widget": "musica",
+        "action": "previous"
+      }
+    },
+    {
+      "phrase": "go back to the previous song",
+      "action": {
+        "do": "widget_data",
+        "widget": "musica",
+        "action": "previous"
+      }
+    },
+    {
       "phrase": "stop the music",
       "action": {
         "do": "widget_data",

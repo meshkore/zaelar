@@ -286,6 +286,15 @@ def test_looks_like_close_guard():
     # NEGATION: "no cierres / no lo cierres" is NOT close (do not close, reversed).
     for neg in ("no cierres el widget de música", "no lo cierres todavía", "don't close the clock"):
         assert not router.looks_like_close(neg), neg
+    # NARRATED close (V2-631, session 7be94951): a participle after «haber» describes the past and «va(n) a
+    # cerrar» has somebody else as its subject — neither is an order, and both closed the music card live
+    # (the second one WHILE the model was correctly trying to reopen it).
+    for narrated in ("¿Van a cerrar anuncios?", "No sigue sonando porque has cerrado el widget de música.",
+                     "me habéis cerrado la música", "you've closed the music widget"):
+        assert not router.looks_like_close(narrated), narrated
+    # …but an imperative next to a narrated close is still an order — the strip removes evidence, never vetoes.
+    assert router.looks_like_close("has cerrado la música; ahora cierra también el reloj")
+    assert router.looks_like_close("puedes cerrar la música")
 
 
 def test_looks_like_rule_removal_guard():

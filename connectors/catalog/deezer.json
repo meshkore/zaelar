@@ -1,0 +1,16 @@
+{
+  "id": "deezer",
+  "label": "Deezer",
+  "kind": "connector",
+  "family": "musica",
+  "transport": "native",
+  "auth": "oauth",
+  "state": "not-possible",
+  "capabilities": [
+    "deezer",
+    "musica",
+    "canciones",
+    "playlist"
+  ],
+  "why-not": "Deezer cerro su API publica a apps nuevas en noviembre de 2023; sin registro de app no hay puerta."
+}

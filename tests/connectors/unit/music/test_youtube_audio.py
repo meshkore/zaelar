@@ -87,11 +87,51 @@ def test_pause_resume_volume_bump_seq(_store, monkeypatch):
     assert _store["yt"]["volume"] == 30
 
 
-def test_next_previous_unsupported(_store, monkeypatch):
+def test_next_with_an_empty_queue_refuses_honestly(_store, monkeypatch):
+    # V2-631: the old shape returned reason="unsupported" with a canned «no puedo saltar de canción» — false,
+    # and measured absurd live (session 7be94951). With nothing queued the refusal now says THAT.
     monkeypatch.setattr(ya, "_resolve", lambda q: ("VID00000001", "x"))
     p = ya.YouTubeAudioProvider()
     p.play(query="x")
-    assert p.next().reason == "unsupported" and p.previous().reason == "unsupported"
+    r = p.next()
+    assert not r.ok and r.reason == "empty_queue"
+    assert "no puedo saltar" not in (r.message or "")
+
+
+def test_next_skips_to_the_queued_track(_store, monkeypatch):
+    vids = {"first": ("VID00000001", "First"), "second": ("VID00000002", "Second")}
+    monkeypatch.setattr(ya, "_resolve", lambda q: vids[q])
+    p = ya.YouTubeAudioProvider()
+    p.play(query="first")
+    p.enqueue(query="second")
+    r = p.next()
+    assert r.ok and r.track.id == "VID00000002"
+    yt = ya._load_yt()
+    assert yt["videoId"] == "VID00000002"
+    # the skipped track is remembered so previous() can return to it
+    assert [h["videoId"] for h in yt["history"]] == ["VID00000001"]
+
+
+def test_previous_with_no_history_refuses(_store, monkeypatch):
+    monkeypatch.setattr(ya, "_resolve", lambda q: ("VID00000001", "x"))
+    p = ya.YouTubeAudioProvider()
+    p.play(query="x")
+    assert p.previous().reason == "no_previous"
+
+
+def test_previous_goes_back_and_requeues_the_current_track(_store, monkeypatch):
+    vids = {"first": ("VID00000001", "First"), "second": ("VID00000002", "Second")}
+    monkeypatch.setattr(ya, "_resolve", lambda q: vids[q])
+    p = ya.YouTubeAudioProvider()
+    p.play(query="first")
+    p.play(query="second")                       # replacing a loaded track records history
+    r = p.previous()
+    assert r.ok and r.track.id == "VID00000001"
+    yt = ya._load_yt()
+    assert yt["videoId"] == "VID00000001"
+    # the track we left is at the FRONT of the queue, so next() returns to it — nothing is lost
+    assert yt["queue"][0] == "second"
+    assert p.next().track.id == "VID00000002"
 
 
 def test_extract_id_from_uri():

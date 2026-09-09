@@ -1,0 +1,16 @@
+{
+  "id": "amazon-music",
+  "label": "Amazon Music",
+  "kind": "connector",
+  "family": "musica",
+  "transport": "native",
+  "auth": "oauth",
+  "state": "not-possible",
+  "capabilities": [
+    "amazon music",
+    "musica",
+    "canciones",
+    "amazon"
+  ],
+  "why-not": "Amazon no publica ninguna API de reproducción para terceros; solo existe una API cerrada por invitación para fabricantes de dispositivos."
+}

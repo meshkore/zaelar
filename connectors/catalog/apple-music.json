@@ -1,0 +1,17 @@
+{
+  "id": "apple-music",
+  "label": "Apple Music",
+  "kind": "connector",
+  "family": "musica",
+  "transport": "native",
+  "auth": "oauth",
+  "state": "planned",
+  "capabilities": [
+    "apple music",
+    "musica",
+    "canciones",
+    "playlist",
+    "apple"
+  ],
+  "note": "Posible via MusicKit: requiere cuenta Apple Developer de pago (99 $/año) para el developer token, y el usuario necesita suscripción activa para reproducir completo."
+}

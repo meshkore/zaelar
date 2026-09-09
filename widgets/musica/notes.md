@@ -45,3 +45,10 @@
   so the "solid" play/pause icons were rendering as hairline outlines; fixed with a separate solid attribute
   set (`_SF`). Coordinated with memoria-dev over the cluster about a future listening-preference path; no
   memory code touched here.
+
+## 2026-09-09 — V2-630/V2-631 (canvas + connector, not this widget's code)
+- `manifest.json` declares `"size": {"w": 468}`: the card's deterministic first footprint. The canvas now
+  FREEZES every card's size after its first render (V2-630, `desktop.js::_freezeSize`) — the bar's long
+  titles ellipsize inside a stable card instead of resizing it per song.
+- The free source skips now: `connectors/music/youtube_audio.py` implements `next()`/`previous()` over the
+  queue + a bounded history; the canned «no puedo saltar de canción» refusal is gone (V2-631).

@@ -470,6 +470,47 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **A card's size never follows its content (V2-630, 2026-09-09)**: the operator, with two screenshots of
+  the same musica card at two widths — «el tamaño de los widgets debe ser fijo; si el texto no cabe, se
+  acorta; el usuario decidirá si lo hace más grande o más pequeño». Mechanism: `.hb-win` has no width of its
+  own (shrink-to-fit), musica declared no `manifest.size`, and the playback bar's nowrap title propagated
+  its max-content width into the card — so the card's width was a function of the current song title. Fixed
+  at CLASS level in the canvas: `desktop.js::_freezeSize` runs once per fresh card, right after
+  `_applyPreferred`, and writes any still-auto dimension as explicit px (snapped, canvas-clamped, floored at
+  the widget's `_minSize`; a minimized card and operator-set dimensions are untouched) — from then on
+  content truncates or scrolls INSIDE the card, and only the operator's gestures and the canvas's own `_fit`
+  change its size. Companions: musica declares `"size":{"w":468}` (deterministic first footprint — the
+  freeze alone would pin whatever the current title happened to measure), and `/api/canvas/state`'s
+  whitelist keeps `w`/`h` (the server fallback restore silently dropped the size half of «where he left
+  it»). Node **4.137**, RENDERED with the real desktop.js and a CONTROL case proving an unfrozen card
+  genuinely grows (without it the other cases measure air); two disarms red. Frontend-only: a page reload
+  picks it up. Detail: the V2-630 initiative.
+
+- **The free source CAN skip, and a narrated close is not an order (V2-631, 2026-09-09)**: the operator's
+  session review (7be94951), each link verified in observability. (1) «Pasa a la siguiente canción» met
+  `youtube_audio.py::next()` returning `unsupported` with a canned «Con esta fuente gratis no puedo saltar
+  de canción» — spoken three times, twice right after AGREEING with him — while he skipped by hand through
+  the very queue `on_ended()` already advances. `next()` now delegates to that same advance (empty queue =
+  the honest refusal, naming the queue), `previous()` works off a new bounded `history` and requeues the
+  current track at the front, the canned string is DELETED from both language tables, and the skip phrases
+  are SEEDED in the action map (es+en) — the deterministic lane pause/resume already had. (2) The musica
+  card closed itself TWICE — killing the audio, which lives inside it: `looks_like_close` matched «¿Van a
+  cerrar anuncios?» (infinitive, third-person future) and «has cerrado el widget de música» (a complaint
+  narrating the FIRST wrongful close) — the second one both fired the close backstop AND made
+  `show_contradicts_the_order` discard the `show_widget` the model had correctly called to reopen it: one
+  wrong True, three symptoms. Grammar, not intent: `_NARRATED_CLOSE_RE` STRIPS (never vetoes) participles
+  after «haber»/«you've» and «va(n) a <infinitivo>» before testing — an imperative beside a narrated close
+  still closes. The `action_map` was checked and NOT poisoned (zero learned rows). The ratchet fired on
+  `router_guards.py` and was paid by extracting the whole close-order grammar to
+  `nucleo/flash/close_guards.py` (AST-identical, re-exported). (3) The source catalog he asked for is the
+  honest version: priority already existed (`music/registry._BUILTIN`: connected Spotify first,
+  YouTube-audio always) — what was missing was VISIBILITY: `registry._music()` now lists youtube-audio as a
+  live always-connected row, and the V2-526 shelf gains the music family (apple-music `planned` with its
+  real gate; amazon-music/deezer/soundcloud/tidal/youtube-music `not-possible`, each naming why) — showing
+  what we do NOT have on purpose, instead of narrating an Amazon integration that cannot exist. Nodes 5.11
+  (+1 file) and the router/actionmap/music suites; six disarms red. NOT verified live (needs an engine
+  restart). Detail: the V2-631 initiative.
+
 - **The music widget brings real cover art, fast first, then enhancements (V2-629, 2026-09-09)**: the
   operator asked for a nicer design in "our line" of icons, real album/song art, and a player better than the
   competition — with a hard ordering constraint: music has to SOUND fast, art can arrive after, and whatever

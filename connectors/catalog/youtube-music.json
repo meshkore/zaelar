@@ -1,0 +1,15 @@
+{
+  "id": "youtube-music",
+  "label": "YouTube Music",
+  "kind": "connector",
+  "family": "musica",
+  "transport": "native",
+  "auth": "oauth",
+  "state": "not-possible",
+  "capabilities": [
+    "youtube music",
+    "musica",
+    "canciones"
+  ],
+  "why-not": "No existe API publica de YouTube Music; la via real ya la cubre la fuente gratis de YouTube (youtube-audio), que es la que suena por defecto."
+}

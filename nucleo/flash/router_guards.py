@@ -173,43 +173,12 @@ def is_music_service(site: str = "", text: str = "") -> bool:
     return any(s in blob for s in _MUSIC_SERVICES)
 
 
-_CLOSE_VERB_RE = _re.compile(r"\b(cierr\w*|cerr\w*|ocult\w*|escond\w*|apag\w*|quit\w*|close|hide|turn\s+off)\b")
-_DELETE_VERB_RE = _re.compile(r"\b(borr|elimin|delete|remove|deshaz)\w*")
-# Negated close: "no cierres / no lo cierres / don't close" — must not count as close (prevents doing the opposite).
-_NO_CLOSE_RE = _re.compile(r"\bno\s+(?:me\s+|lo\s+|la\s+|los\s+|las\s+)?(?:cierr\w*|ocult\w*|escond\w*)\b|\bdon'?t\s+close\b")
-
-
-def looks_like_close(text: str) -> bool:
-    """True if the turn asks to CLOSE (hide) a widget, NOT delete it. EXECUTION GUARD for delete_widget (V2-045,
-    V2-017 invariant 'cerrar ≠ borrar'): the non-reasoning model sometimes chooses delete_widget for 'cierra el
-    widget de X'; deletion is FOREVER and closing is reversible → with a close verb and NO delete verb, it is a
-    close. Deterministic and accent-free (the input is normalized). Ignores NEGATION ('no cierres')."""
-    n = _norm_txt(text)
-    return (bool(_CLOSE_VERB_RE.search(n)) and not _DELETE_VERB_RE.search(n)
-            and not _NO_CLOSE_RE.search(n))
-
-
-# A CLOSE order answered with an OPEN is not obedience (V2-567). Measured live 2026-09-03 19:02:35:
-# «Cierra los contactos» → the model called `show_widget(mensajeria)`; contactos only closed because the close
-# backstop rescued it, so ONE order produced TWO mutations — a spurious open landing beside the ordered close.
-# The probe channel had already written the rule down («un canvas:show ESPURIO en un turno de cerrar SÍ debe
-# corregirse a close») and the voice channel never applied it: the show executed anyway. This is GRAMMAR, not
-# intent (V2-095): with a close verb and no un-negated open verb anywhere in the turn, a show_widget call
-# contradicts the very words that produced it. A compound «cierra X y enséñame Y» keeps its show — the open
-# verb licenses it — and «no abras nada, cierra los contactos» does not: a negated open licenses nothing.
-_OPEN_VERB_RE = _re.compile(r"\b(abr\w*|muestr\w*|ensen\w*|desplieg\w*|saca\w*|pon\w*|vuelv\w*|open|show|display|bring\s+up)\b")
-_NO_OPEN_RE = _re.compile(r"\bno\s+(?:me\s+|lo\s+|la\s+|los\s+|las\s+)?(?:abr\w*|muestr\w*|ensen\w*|saqu\w*|pong\w*)\b"
-                          r"|\bdon'?t\s+(?:open|show|display)\b")
-
-
-def show_contradicts_the_order(text: str) -> bool:
-    """True when the turn is a CLOSE order that licenses no open — so a `show_widget` call must be discarded
-    (the close backstop still does the closing; nothing is lost, one mutation happens instead of two)."""
-    if not looks_like_close(text):
-        return False
-    n = _norm_txt(text)
-    return not (_OPEN_VERB_RE.search(n) and not _NO_OPEN_RE.search(n))
-
+# The CLOSE-order grammar lives in `close_guards.py` (extracted 2026-09-09, V2-631) — re-exported here so
+# every existing call site (`router.looks_like_close(...)`, the two internal callers below) keeps working.
+from .close_guards import (  # noqa: F401
+    _CLOSE_VERB_RE, _DELETE_VERB_RE, _NARRATED_CLOSE_RE, _NO_CLOSE_RE, _NO_OPEN_RE, _OPEN_VERB_RE,
+    looks_like_close, show_contradicts_the_order,
+)
 
 # show_widget execution GUARD (2026-07-17): CREATING a NEW widget is ESCALATED to the generator (code), NOT
 # "shown". After the show_widget tool was added, the non-reasoning model chose it for 'créame un widget de X',

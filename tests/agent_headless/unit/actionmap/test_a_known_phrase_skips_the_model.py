@@ -467,7 +467,13 @@ def test_the_measured_media_orders_are_deterministic_now():
             ("es", "Para el vídeo.", "youtube", "pause"),
             ("es", "Pausa el vídeo", "youtube", "pause"),
             ("es", "Quita los subtítulos", "youtube", "captions_off"),
-            ("en", "pause the video", "youtube", "pause")):
+            ("en", "pause the video", "youtube", "pause"),
+            # V2-631 (session 7be94951): «Pasa a la siguiente canción» went to the model, which answered a
+            # canned refusal — skipping is deterministic now that the free source can actually skip.
+            ("es", "Siguiente canción", "musica", "next"),
+            ("es", "pasa a la siguiente canción", "musica", "next"),
+            ("es", "canción anterior", "musica", "previous"),
+            ("en", "next song", "musica", "next")):
         d = json.loads((root / f"nucleo/actionmap/seeds/{lang}.json").read_text(encoding="utf-8"))
         by_phrase = {normalize(e["phrase"]): e["action"] for e in d["entries"]}
         got = by_phrase.get(normalize(phrase))

@@ -37,12 +37,14 @@ def _yt_thumb(video_id: str) -> str:
 
 _MSG = {
     "es": {"play": "Suena {label}.", "pause": "Pausado.", "resume": "Sigo.", "volume": "Volumen al {n} por ciento.",
-           "no_track": "No he encontrado «{q}».", "unsupported": "Con esta fuente gratis no puedo saltar de canción; "
-                        "dime qué pongo.", "done": "Hecho.",
+           "no_track": "No he encontrado «{q}».", "done": "Hecho.",
+           "no_next": "No hay más canciones en la cola; dime qué pongo.",
+           "no_prev": "No hay canción anterior a la que volver.",
            "already": "Ya está sonando {label}.", "queued": "Vale, después pongo {label}."},
     "en": {"play": "Now playing {label}.", "pause": "Paused.", "resume": "Resuming.", "volume": "Volume at {n} percent.",
-           "no_track": "I couldn't find \"{q}\".", "unsupported": "I can't skip tracks on the free source; tell me what "
-                       "to play.", "done": "Done.",
+           "no_track": "I couldn't find \"{q}\".", "done": "Done.",
+           "no_next": "Nothing else queued; tell me what to play.",
+           "no_prev": "There is no previous track to go back to.",
            "already": "{label} is already playing.", "queued": "Got it, I'll play {label} next."},
 }
 
@@ -155,6 +157,17 @@ def _bump(yt: dict, cmd: str) -> dict:
     return yt
 
 
+def _push_history(yt: dict) -> None:
+    """Remember the track being REPLACED so previous() can go back to it (V2-631). Only a real, resolved track
+    (with a videoId) enters; capped at 20 so the store never grows unbounded."""
+    vid = yt.get("videoId")
+    if not vid:
+        return
+    hist = list(yt.get("history") or [])
+    hist.append({"videoId": vid, "title": yt.get("title") or "", "query": yt.get("query") or ""})
+    yt["history"] = hist[-20:]
+
+
 class YouTubeAudioProvider(MusicProvider):
     name = "youtube"
 
@@ -186,6 +199,8 @@ class YouTubeAudioProvider(MusicProvider):
         if not vid:
             return MusicResult(ok=False, provider=self.name, action="play", reason="no_track",
                                message=_t("no_track", q=query or uri))
+        if yt.get("videoId") and yt.get("videoId") != vid:
+            _push_history(yt)
         yt.update({"videoId": vid, "title": title or query or vid, "query": query or "", "paused": False,
                    "muted": False, "volume": int(yt.get("volume") or 70), "art": _yt_thumb(vid)})
         _bump(yt, "load")
@@ -227,6 +242,7 @@ class YouTubeAudioProvider(MusicProvider):
             yt["queue"] = queue
             _save_yt(yt)
             return self.on_ended()
+        _push_history(yt)
         yt.update({"videoId": vid, "title": title or nxt, "query": nxt, "paused": False,
                    "muted": False, "queue": queue, "art": _yt_thumb(vid)})
         _bump(yt, "load")
@@ -255,12 +271,44 @@ class YouTubeAudioProvider(MusicProvider):
         return self._cmd("resume", "resume", "resume")
 
     def next(self) -> MusicResult:
-        return MusicResult(ok=False, provider=self.name, action="next", reason="unsupported",
-                           message=_t("unsupported"))
+        """Skip to the next queued track (V2-631). The free source CAN skip: every track is an independent
+        resolved video, and the queue on_ended() advances through is exactly the remainder of whatever
+        play_playlist loaded. This used to return "unsupported" with a canned refusal — measured absurd live
+        (session 7be94951, 2026-09-09): the agent repeated «Con esta fuente gratis no puedo saltar de
+        canción» while the operator skipped by hand, double-clicking rows of the same queue."""
+        yt = _load_yt()
+        if not yt.get("videoId"):
+            return MusicResult(ok=False, provider=self.name, action="next", reason="no_track",
+                               message=_t("no_track", q=""))
+        if not (yt.get("queue") or []):
+            return MusicResult(ok=False, provider=self.name, action="next", reason="empty_queue",
+                               message=_t("no_next"))
+        res = self.on_ended()                # same advance the natural end of a track uses
+        return MusicResult(ok=res.ok, provider=self.name, action="next", track=res.track,
+                           message=res.message, reason=res.reason, extra=res.extra)
 
     def previous(self) -> MusicResult:
-        return MusicResult(ok=False, provider=self.name, action="previous", reason="unsupported",
-                           message=_t("unsupported"))
+        """Go back to the track that played before this one (V2-631). The current one is put back at the
+        FRONT of the queue, so next() returns to it — skipping back and forth loses nothing."""
+        yt = _load_yt()
+        hist = list(yt.get("history") or [])
+        if not hist:
+            return MusicResult(ok=False, provider=self.name, action="previous", reason="no_previous",
+                               message=_t("no_prev"))
+        prev = hist.pop()
+        cur_q = (yt.get("query") or yt.get("title") or "").strip()
+        queue = list(yt.get("queue") or [])
+        if yt.get("videoId") and cur_q:
+            queue.insert(0, cur_q)
+        vid = prev.get("videoId", "")
+        yt.update({"videoId": vid, "title": prev.get("title") or prev.get("query") or vid,
+                   "query": prev.get("query") or "", "paused": False, "muted": False,
+                   "history": hist, "queue": queue, "art": _yt_thumb(vid)})
+        _bump(yt, "load")
+        return MusicResult(ok=True, provider=self.name, action="previous",
+                           track=Track(id=vid, uri=f"yt:{vid}", title=yt["title"], art=yt["art"]),
+                           message=_t("play", label=yt["title"] or "la música"),
+                           extra={"surface": "widget", "widget": _WID, "videoId": vid})
 
     def set_volume(self, percent: int) -> MusicResult:
         pct = max(0, min(100, int(percent or 0)))

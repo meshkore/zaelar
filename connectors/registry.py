@@ -43,15 +43,22 @@ def _messaging() -> list[dict]:
 
 
 def _music() -> list[dict]:
+    # V2-631: the DEFAULT free source is a row too — the tab is the operator's source catalog, and the source
+    # everything actually plays through was invisible in it. Always connected (no login, no key); the priority
+    # rule lives in connectors/music/registry.py: a connected Spotify outranks it, YouTube-audio never goes away.
+    yt_row = {"id": "youtube-audio", "label": "YouTube (audio gratis)", "family": "musica", "auth": "none",
+              "connected": True, "status": "connected",
+              "detail": "Default free source — plays without an account. A connected Spotify takes priority.",
+              "config": {}}
     try:
         from connectors.spotify import auth
         st = auth.status() or {}
         return [{"id": "spotify", "label": "Spotify", "family": "musica", "auth": "oauth",
                  "connected": bool(st.get("logged_in")), "status": "connected" if st.get("logged_in") else "off",
-                 "detail": "Play and control Spotify (OAuth).", "config": st}]
+                 "detail": "Play and control Spotify (OAuth).", "config": st}, yt_row]
     except Exception as e:
         return [{"id": "spotify", "label": "Spotify", "family": "musica", "auth": "oauth",
-                 "connected": False, "status": "error", "detail": str(e), "config": {}}]
+                 "connected": False, "status": "error", "detail": str(e), "config": {}}, yt_row]
 
 
 def _files() -> list[dict]:

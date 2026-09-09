@@ -537,6 +537,78 @@
       }
     },
     {
+      "phrase": "siguiente cancion",
+      "action": {
+        "do": "widget_data",
+        "widget": "musica",
+        "action": "next"
+      }
+    },
+    {
+      "phrase": "pasa a la siguiente cancion",
+      "action": {
+        "do": "widget_data",
+        "widget": "musica",
+        "action": "next"
+      }
+    },
+    {
+      "phrase": "pon la siguiente cancion",
+      "action": {
+        "do": "widget_data",
+        "widget": "musica",
+        "action": "next"
+      }
+    },
+    {
+      "phrase": "pasa a la siguiente",
+      "action": {
+        "do": "widget_data",
+        "widget": "musica",
+        "action": "next"
+      }
+    },
+    {
+      "phrase": "salta esta cancion",
+      "action": {
+        "do": "widget_data",
+        "widget": "musica",
+        "action": "next"
+      }
+    },
+    {
+      "phrase": "cambia de cancion",
+      "action": {
+        "do": "widget_data",
+        "widget": "musica",
+        "action": "next"
+      }
+    },
+    {
+      "phrase": "cancion anterior",
+      "action": {
+        "do": "widget_data",
+        "widget": "musica",
+        "action": "previous"
+      }
+    },
+    {
+      "phrase": "pon la cancion anterior",
+      "action": {
+        "do": "widget_data",
+        "widget": "musica",
+        "action": "previous"
+      }
+    },
+    {
+      "phrase": "vuelve a la cancion anterior",
+      "action": {
+        "do": "widget_data",
+        "widget": "musica",
+        "action": "previous"
+      }
+    },
+    {
       "phrase": "quita los subtitulos",
       "action": {
         "do": "widget_data",
