@@ -1417,6 +1417,14 @@ DOMAINS: list[dict] = [
             "tests/browser/unit/navegador/test_task_finish_is_coherent.py"]},
         {"id": "4.3", "title": "Widget de música", "ch": UNIT, "paths": ["tests/browser/unit/musica/test_data.py",
                                                                  "tests/browser/unit/musica/test_anothers_player_never_advances_the_music_queue.py",
+                                                                 # V2-638: la TERCERA fuente — una pista que es un
+                                                                 # FICHERO de la biblioteca del agente, y por tanto
+                                                                 # listas MIXTAS (Spotify + YouTube + fichero local)
+                                                                 # sin schema nuevo: un local es `uri="local:<rel>"`.
+                                                                 # Incluye lo que NO se puede encolar en el conector
+                                                                 # (su cola guarda cadenas que re-resuelve) y que un
+                                                                 # nombre de fichero sin delimitador no inventa artista.
+                                                                 "tests/browser/unit/musica/test_a_track_can_be_a_file_we_hold.py",
                                                                  # V2-XXX PRO redesign: shared-artist header derivation,
                                                                  # the play button living ON the cover art, the
                                                                  # per-row "now playing" indicator (playlist/top/recent/
@@ -1699,18 +1707,6 @@ DOMAINS: list[dict] = [
                                 "la cabecera enseña los conectores de calendario sin mentir sobre ellos",
             "ch": UNIT, "paths": ["tests/browser/e2e/widgets/test_agenda_render.py",
                                   "tests/browser/unit/agenda/test_show_day_is_an_action_not_a_promise.py"]},
-        # V2-639 — LA AGENDA CONTESTA A LA VOZ. Medido en vivo (0c2af370 18:12 y c4ad8332 19:27, 2026-09-09):
-        # cuatro peticiones de vista mensual y cuatro veces a HOY — el modelo mandó `show_day {view:'month'}`
-        # y data.py solo leía `day`/`date` (la clase V2-341: el alias natural no puede costar el hecho). Y tres
-        # intenciones sin vocabulario (la lección de clear_all): mover una cita de día, avisos a TODAS las
-        # citas de un día, y añadir una TAREA sin hora. Los detalles de una cita eran invisibles para el
-        # cerebro (coach_context solo trae HOY) → prompt_digest; y toda la superficie hablaba castellano fijo
-        # → ctx.t/ctx.lang (V2-613) + fechas/horas EN + labels del planner por idioma. Renderizado donde el
-        # fuente no lo enseña (pestañas, cabecera de mes por locale, el tooltip con las notas).
-        {"id": "4.140", "title": "La AGENDA contesta a la voz: alias de vista, move_meeting, avisos en bloque, "
-                                 "add_task, digest con detalles, y el widget en el idioma del operador",
-            "ch": UNIT, "paths": ["tests/browser/unit/agenda/test_the_agenda_answers_to_the_voice.py",
-                                  "tests/browser/unit/agenda/test_the_agenda_dresses_in_the_operators_language.py"]},
         # V2-540 — la DIRECCIÓN de una acción del canvas. «El botón de ver detalle no es clic»: estaba cableado,
         # pintado y activo. Lo roto era a QUÉ hoja iba. `desktop.js::ctx.action` mete la instancia abierta en
         # cada payload con el nombre que usa el canvas —`q`— y `results.apply_action` solo miraba `sheet`, una

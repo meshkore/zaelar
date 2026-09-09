@@ -316,10 +316,47 @@ if (typeof window !== "undefined" && !window.__hbMusicaYtBound){
 // explicit; a ctx without the field must not leave the player muted forever.
 function halted(ctx){ return !!(ctx && ctx.running === false); }
 
+// V2-638 — a track that is a FILE we hold plays HERE, in the page, through a plain <audio> against our own
+// library route. It shares `_ytHost` with the hidden YouTube iframe because only one of the two can ever be
+// mounted (the server clears the yt block when a local track starts), and the same memo guards (`_hbSeq`)
+// keep a re-render from restarting the song — the reason the seq exists at all is that asking for the SAME
+// file twice must still be two events.
+function syncLocalPlayer(el, data, ctx){
+  const loc = data.local || {};
+  const host = el._ytHost;
+  const stopped = halted(ctx);
+  if(!loc.src){
+    if(el._hbAudio){ host.textContent = ""; el._hbAudio = null; el._hbLocal = null; el._hbLocSeq = null; }
+    return false;
+  }
+  if(el._hbLocal === loc.src && el._hbAudio){        // same file -> only apply the new command
+    if(el._hbLocSeq !== loc.seq){
+      el._hbLocSeq = loc.seq;
+      if(loc.paused || stopped) el._hbAudio.pause();
+      else { try{ el._hbAudio.currentTime = 0; }catch(_){} const q = el._hbAudio.play(); if(q && q.catch) q.catch(function(){}); }
+    }
+    return true;
+  }
+  host.textContent = "";
+  el._hbFrame = null; el._hbVid = null; el._hbSeq = null;   // the iframe, if any, is gone with the innerHTML
+  const a = document.createElement("audio");
+  a.className = "hb-mus2-audio-el";
+  a.preload = "metadata";
+  // Our own library route only — never an arbitrary origin (the V2-620 boundary).
+  if(String(loc.src).startsWith("/api/library/")) a.src = loc.src;
+  if(!(loc.paused || stopped)){ const q = a.play(); if(q && q.catch) q.catch(function(){}); }
+  a.addEventListener("ended", function(){ try{ ctx.action("ended"); }catch(_){} });
+  host.appendChild(a);
+  el._hbAudio = a; el._hbLocal = loc.src; el._hbLocSeq = loc.seq;
+  return true;
+}
+
 function syncYtPlayer(el, data, ctx){
   const yt = data.yt || {};
   const host = el._ytHost;
   const stopped = halted(ctx);
+  // A local file and a YouTube track can never sound at once: if one is mounted the other releases.
+  if(syncLocalPlayer(el, data, ctx)) return;
   if(!yt.videoId){                                   // nothing playing through YouTube -> release the frame
     if(el._hbFrame){ host.textContent = ""; el._hbFrame = null; el._hbVid = null; el._hbSeq = null; }
     return;

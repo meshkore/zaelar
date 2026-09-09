@@ -22,6 +22,7 @@ import urllib.parse
 import urllib.request
 
 from .. import store
+from . import local_audio as _local   # V2-638: a track that is a FILE in the agent's own library
 
 WID = "musica"
 
@@ -99,7 +100,11 @@ def _live_fields(db: dict) -> dict:
     connected = bool(st.get("logged_in"))
     yt = dict(db.get("yt") or {})
     # mode = what the bar shows: spotify (remote device), youtube (hidden audio), or idle.
-    mode = "spotify" if connected else ("youtube" if yt.get("videoId") else "idle")
+    loc = _local.display(db)
+    # V2-638 — a file we hold is the third thing the bar can be showing. It wins over the connector
+    # modes because it is the one playing IN the page: `local_audio.play` clears the yt block, so the
+    # two can never be set at once and the order here only decides what an inconsistent db shows.
+    mode = "local" if loc else ("spotify" if connected else ("youtube" if yt.get("videoId") else "idle"))
     return {
         **_SEED,
         "connected": connected,
@@ -109,6 +114,7 @@ def _live_fields(db: dict) -> dict:
         "redirect_uri": st.get("redirect_uri", ""),
         "now_playing": (_now_playing() if connected else None),
         "yt": _yt_display(yt),
+        "local": loc,
         "mode": mode,
     }
 
@@ -333,8 +339,15 @@ def _push_recent(db: dict, t: dict) -> None:
     counts[key] = c
 
 
-def _play_track(track: dict) -> "dict":
-    """Plays ONE track through the connector seam (Spotify if there is an account, otherwise YouTube-audio). Fail-safe."""
+def _play_track(track: dict, db: "dict | None" = None) -> "dict":
+    """Plays ONE track. A `local:` uri is a file WE hold and plays in the page (V2-638); everything else goes
+    through the connector seam (Spotify if there is an account, otherwise YouTube-audio). Fail-safe.
+
+    The local branch needs the db because that is where the player state lives, so callers that have one pass
+    it; a caller without one keeps the old behaviour and a local track simply falls through to the connector,
+    which refuses it honestly rather than pretending."""
+    if db is not None and _local.is_local(track):
+        return _local.play(db, track)
     from connectors import music
     r = music.control("play", query=_track_query(track), uri=track.get("uri") or "")
     return {"ok": bool(getattr(r, "ok", False)), "message": getattr(r, "message", ""),
@@ -609,9 +622,12 @@ def apply_action(action: str, payload: dict = None) -> dict:
         if not tracks:
             return {"ok": False, "error": "empty_playlist", "playlist": pl["id"]}
         try:
-            r = _play_track(tracks[0])                          # first track starts now
+            r = _play_track(tracks[0], db)                      # first track starts now (local or not)
             from connectors import music
             for t in tracks[1:]:                                # rest goes to queue (V2-047 F4)
+                if _local.is_local(t):
+                    continue        # the connector queue holds query STRINGS it re-resolves; a file
+                                    # has nothing to re-resolve, so queueing it would silently drop it
                 try:
                     music.control("queue", query=_track_query(t), uri=t.get("uri") or "")
                 except Exception:
@@ -642,10 +658,32 @@ def apply_action(action: str, payload: dict = None) -> dict:
         _persist(db)
         return {"ok": True, "view": db["view"]}
 
+    # V2-638 — a track that is a FILE we hold. Mixed lists (a Spotify link, a YouTube link, a local file)
+    # need no new schema: a local track is just `uri = "local:<rel>"`, so playlists, Recent and Top keep
+    # working untouched.
+    if action == "play_local":
+        db = _load_db()
+        t = _local.track_from_library(str(p.get("path") or p.get("file") or ""))
+        if t is None:
+            return {"ok": False, "error": "no encuentro ese audio en tu biblioteca (o no se puede reproducir)"}
+        r = _play_track(t, db)
+        if r.get("ok"):
+            _push_recent(db, t)
+        _persist(db)
+        return r
+
     # Playback control from card buttons. Voice uses play_music. Converges on the same seam.
     # `ended` (V2-047 F4): fired by the widget when the song ends; the seam advances the queue.
     if action in ("play", "pause", "resume", "next", "previous", "volume_up", "volume_down", "set_volume",
                   "queue", "ended"):
+        if action in ("ended", "next") and (_load_db().get("local") or {}).get("src"):
+            # A local file finished (or was skipped): it is not in the connector's queue — that holds query
+            # strings it re-resolves — so clear the bar here instead of asking the connector to advance past
+            # something it never knew about.
+            _db = _load_db()
+            _local.stop(_db)
+            _persist(_db)
+            return {"ok": True, "message": "", "reason": ""}
         try:
             from connectors import music
             query = str(p.get("query") or "")

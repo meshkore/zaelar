@@ -97,6 +97,13 @@
         "query": "opcional: canción/artista a poner"
       }
     },
+    "play_local": {
+      "desc": "reproduce un audio que ya está en la biblioteca del agente (por su ruta)",
+      "payload": {
+        "path": "ruta del fichero dentro de la biblioteca (p. ej. audio/cancion.mp3)"
+      },
+      "view": true
+    },
     "pause": {
       "desc": "pausa la reproducción en curso",
       "payload": {}
