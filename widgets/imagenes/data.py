@@ -257,7 +257,7 @@ def apply_action(action: str, payload: dict = None) -> dict:
 
     if a in ("wallpaper_clear", "clear_wallpaper"):
         from widgets import desktop_props as _props
-        _props.clear_wallpaper()
+        _props.clear_wallpaper()          # clearing nothing is a no-op, not a write
         return {"ok": True, "wallpaper": ""}
 
     if a == "slideshow":

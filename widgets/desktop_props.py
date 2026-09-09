@@ -29,7 +29,13 @@ def set_wallpaper(url: str, title: str = "") -> dict:
     return stored
 
 
-def clear_wallpaper() -> None:
+def clear_wallpaper() -> bool:
+    """Take the wallpaper off. Returns whether there was one — clearing NOTHING writes nothing and pushes
+    nothing: a store write for a no-op is how a unit test that merely calls every declared action ends up
+    touching the operator's real settings file (caught by `test_suite_isolation` the day this shipped)."""
     from config import settings as _settings
+    if not _settings.wallpaper().get("url"):
+        return False
     _settings.update({"wallpaper": None})
     _emit_wallpaper("", "")
+    return True

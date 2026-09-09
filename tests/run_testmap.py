@@ -1898,6 +1898,16 @@ DOMAINS: list[dict] = [
         # caso del barge-in, donde el transcript llega truncado).
         {"id": "4.17", "title": "El muro de chat no espera a la voz (y el transcript posterior no duplica)",
             "ch": UNIT, "paths": ["tests/browser/unit/chat/test_chat_wall_promptness.py"]},
+        # V2-647 — LA HABITACIÓN NO ES EL OPERADOR. El micro está siempre abierto y el guarda de atención
+        # juzga cada turno; ese veredicto llega en su propio evento, justo DESPUÉS de la transcripción, así
+        # que la pared pintaba primero y se enteraba después (medido 2026-09-09 23:18: una conversación
+        # entera del operador con otra persona, cada línea juzgada «no dirigido a zaelar» y contestada con
+        # silencio, y cada línea en su chat igualmente). El atajo del canvas tenía el mismo agujero, y ese
+        # es el peor: «cierra» dicho en la habitación cerraba sus widgets.
+        {"id": "4.145", "title": "La habitación no es el operador: un turno hablado espera el veredicto del "
+                                 "guarda — el ambiente no llega ni al chat ni al canvas, y un veredicto que "
+                                 "no llega NO se traga sus palabras",
+            "ch": UNIT, "paths": ["tests/browser/unit/chat/test_the_room_is_not_the_operator.py"]},
         # V2-600 → V2-601 T-07 (2026-09-05): «cierra la pantalla completa» (y el «…completamente» del STT) es una
         # orden de ESTADO de pantalla; el veto vivía en los dos backstops del servidor y la TERCERA copia de la
         # regla —la del cliente, voiceCommands.js— seguía cerrando el canvas entero. Conduce el módulo REAL.

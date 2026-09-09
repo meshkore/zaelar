@@ -6,6 +6,7 @@
 // ============================================================================
 import * as store from "../core/store.js?v=2";
 import { handleWidgetVoice } from "./voiceCommands.js?v=3";
+import { createAttentionHold } from "./attention_hold.js?v=1";
 import { refreshStatus } from "./status.js?v=2";
 import * as vault from "./vault.js?v=1";
 import { t, applyLang } from "../core/i18n.js?v=1";
@@ -17,6 +18,22 @@ import { setWallpaper } from "./theme.js?v=2";
 const _SHOWCASE = typeof location !== "undefined" && new URLSearchParams(location.search).has("showcase");
 let _arrT = null;
 let _attnWinS = 12;   // last window_s seen from the gate — the ring's re-arm span (see the bot_speech branch)
+
+// ── V2-647: a spoken turn waits for the attention gate's verdict ─────────────────────────────────────────
+// The decision itself lives in `attention_hold.js` (dependency-free, and what the tests drive); here we only
+// wire it to this channel's two seams — the transcript that arrives first, and the gate's ruling that
+// arrives just after. See that module for the measured session this comes from.
+const _hold = createAttentionHold({
+  mode: () => store.attentionMode(),
+  deliver: (text, isFinal) => {
+    handleWidgetVoice(_holdDesk, text, isFinal);
+    store.pushChat({ role: "you", text });
+  },
+});
+let _holdDesk = null;   // the canvas the delivery acts on, captured per event (sse.js has no module-level desktop)
+
+export function holdSpokenTurn(desktop, text, isFinal) { _holdDesk = desktop; _hold.spoken(text, isFinal); }
+export function settleHeldTurns(desktop, verdictText, directed) { _holdDesk = desktop; _hold.verdict(verdictText, directed); }
 
 let es = null;
 
@@ -129,9 +146,16 @@ export function openSSE(desktop) {
         // "interim" = partial. TYPED chat/paste ("text-injected …") is DEFINITIVELY final — treat it as such, or a
         // typed "close widgets" would be seen as interim and the close fast-path would never fire.
         const isFinal = d.label === "transcript" || (d.label || "").startsWith("text-injected");
-        handleWidgetVoice(desktop, d.text, isFinal);                               // SHOW acts on interim too (real-time)
-        // kind "transcript" (vs "interim") is already the FINAL user turn → record it in the chat wall history.
-        store.pushChat({ role: "you", text: d.text });
+        const typed = (d.label || "").startsWith("text-injected");
+        // V2-647 — THE ROOM IS NOT THE OPERATOR. The mic is always open and the attention gate decides, per
+        // turn, whether the words were addressed to zaelar; that verdict travels as its own `ambient` event
+        // and arrives just AFTER this transcript. Painting here unconditionally filled the wall with a
+        // conversation the operator was having with somebody else (measured 23:18, session-long: every one of
+        // those turns was correctly judged «no dirigido a zaelar» and answered with silence — and every one
+        // of them still landed in the chat as if he had said it). So a spoken turn is HELD until the verdict
+        // says it was for us; typed text bypasses the hold, being directed by construction.
+        if (typed) { handleWidgetVoice(desktop, d.text, isFinal); store.pushChat({ role: "you", text: d.text }); }
+        else holdSpokenTurn(desktop, d.text, isFinal);
       }
     } else if (d.kind === "alert") {                                              // hard notice (e.g. no LLM credit) → red banner
       store.showAlert(d.label || t("sse.llm_problem"));
@@ -143,6 +167,7 @@ export function openSSE(desktop) {
     } else if (d.kind === "ambient") {                                           // attention gate verdict → the "listening to you" ring
       if (d.directed) { _attnWinS = d.window_s || _attnWinS; store.pulseAttentionHit(_attnWinS); }
       else store.clearAttentionHit();
+      settleHeldTurns(desktop, d.text || "", !!d.directed);                        // V2-647: and the wall obeys it
     } else if (d.kind === "language") {                                          // V2-089 P3: detected/changed language → the entire UI changes LIVE
       if (d.code) applyLang(d.code);                                             // fetches whatever the bundle has now — presets instant, a generating one falls back to English for missing keys until "ready"
       // V2-101: the first-run onboarding modal tracks phases on TOP of the plain applyLang above — "detected"

@@ -503,6 +503,22 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   ⚠️ NOT verified live end-to-end: a real informe errand needs a worker run; the engine restart +
   served-code checks are the shipped verification. Detail: the V2-644 initiative.
 
+- **The room is not the operator (V2-647, 2026-09-09)**: «todo lo que voy diciendo en mi conversación en la
+  sala está siendo captado y transcrito en el chat». The GATE was never wrong — every line of that
+  conversation was correctly judged `ambient` and answered with silence, and the grey orb correctly meant
+  «hearing, not attending». The FRONTEND was wrong, twice: the gate's verdict travels as its own event and
+  arrives just AFTER the transcript, so `sse.js` painted every user transcript into the wall and learned the
+  verdict second — and never unlearned; and that same ungated transcript drove `handleWidgetVoice`, so room
+  speech carrying «cierra» could close his widgets — V2-015's premise bypassed by a client-side shortcut
+  older than it. `services/attention_hold.js` now HOLDS a spoken turn until the gate rules: directed →
+  released whole (wall + canvas, `isFinal` intact), ambient → the turns that verdict COVERS are dropped,
+  uncovered fragments keep waiting for their own ruling. It FAILS OPEN (no verdict in 2.5 s → release:
+  showing an ambient line is a nuisance, swallowing a real one is the bug) and holds nothing in `always`
+  mode; typed text bypasses it, directed by construction. Node **4.145**, six groups against the REAL module
+  (not a copy of its logic), three disarms red. ⚠️ Two traps paid: `node --check` said OK on an sse.js with a
+  stray `}` (the ES-module trap — the browser boot is the real gate and caught it), and `wallpaper_clear`
+  wrote to the store with nothing to clear, which made a contract test that calls every declared action touch
+  the suite's real settings file. Clearing nothing writes nothing.
 - **A typed message is never lost (V2-646, 2026-09-09)**: two defects, one promise. **(A)** With ⏻ OFF the
   composer swallowed messages: `sendText` queues the text and calls `start()`, whose own gate against the
   server's truth refuses — so the queue never flushed, while the wall showed «sent» and `send()` had already
