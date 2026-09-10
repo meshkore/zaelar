@@ -104,6 +104,13 @@ async def report_failure(wid: str, action: str, res: dict) -> bool:
     detail = str(res.get("message") or res.get("error") or "").strip()
     if not detail:
         return False
+    # V2-652 — the two keys have two AUDIENCES, and only one of them is the operator. `message` is the
+    # widget's speakable sentence (the house convention since V2-463/V2-650b); `error` is diagnostic and
+    # often literally addressed to the MODEL («vuelve a llamar a add_meeting con el título…»). Measured
+    # 2026-09-10 (session 7f77e2cc): that exact retry instruction was spoken aloud and painted into the
+    # chat as zaelar's own words, twice. A bare `error` still corrects the model through the note below —
+    # it is never voiced and never becomes agent speech.
+    speakable = str(res.get("message") or "").strip()
     wid = (wid or "").strip().lower()
     action = (action or "").strip()
     if _dedup(f"{wid}:{action}:{detail}", _time.time()):
@@ -122,16 +129,19 @@ async def report_failure(wid: str, action: str, res: dict) -> bool:
         told = True
     except Exception:
         pass
-    try:
-        from voice import proactive
-        await proactive.notify("Conector", detail, speak=True, kind="notify")
-        told = True
-    except Exception:
-        pass
+    if speakable:
+        try:
+            from voice import proactive
+            await proactive.notify("Conector", speakable, speak=True, kind="notify")
+            told = True
+        except Exception:
+            pass
     try:
         from voice.observer import emit
-        emit("widget", "🩹 data-op fallida → corregida en voz",
-             text=detail[:160], extra={"id": wid, "action": action, "told": told, "is_error": True})
+        emit("widget", "🩹 data-op fallida → corregida en voz" if speakable
+             else "🩹 data-op fallida → nota al modelo (motivo interno, no se habla)",
+             text=detail[:160], extra={"id": wid, "action": action, "told": told,
+                                       "spoken": bool(speakable), "is_error": True})
     except Exception:
         pass
     return told

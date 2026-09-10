@@ -526,10 +526,14 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
         # face of success — and the reply said «Hecho.». A write with none of the real fields is an error
         # that names the expected keys (so the model retries with the right shape), never a silent row.
         if not any(str(payload.get(k) or "").strip() for k in ("title", "date", "startTime", "time")):
+            # V2-652 — two audiences: `error` coaches the MODEL's retry and must never be spoken;
+            # `message` is what the operator may hear (data_ops.report_failure only voices `message`).
             return {"ok": False,
                     "error": "no me ha llegado ningún dato de la cita — vuelve a llamar a add_meeting "
                              "con el título, el día (YYYY-MM-DD) y la hora (HH:MM), sin preguntarle nada "
-                             "al operador si ya te los dijo"}
+                             "al operador si ya te los dijo",
+                    "message": "No he llegado a apuntar la cita: no me ha quedado claro el título, "
+                               "el día o la hora."}
         title = payload.get("title", "Cita")
         # V2-026: normalize spoken date/time into date=+1d and startTime='17:00' when appropriate, so the meeting
         # lands correctly even if the model does not calculate the date itself.

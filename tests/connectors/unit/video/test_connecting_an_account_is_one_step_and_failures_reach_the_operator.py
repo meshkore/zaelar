@@ -165,7 +165,30 @@ def test_a_failed_data_op_is_announced_instead_of_vanishing(rails):
     assert pushed and "sin app OAuth registrada para YouTube" in pushed[0]
     # The note must FORBID the claim, not merely report the failure: the model had been saying «Hecho.»
     assert "NO se ejecutó" in pushed[0] and "NO digas que está" in pushed[0]
-    assert spoken and "sin app OAuth" in spoken[0]
+    # V2-652 — a bare `error` is diagnostic/model-facing and is NEVER voiced: the correction reaches the
+    # operator through the model's next reply, not as a verbatim internal sentence in zaelar's voice.
+    assert spoken == []
+
+
+def test_a_model_facing_error_is_never_spoken_but_a_message_is(rails):
+    """V2-652, measured live (session 7f77e2cc): the agenda's retry instruction («vuelve a llamar a
+    add_meeting con el título, el día (YYYY-MM-DD)…») was spoken aloud and painted into the chat as
+    zaelar's own words. The two result keys have two audiences: `message` speaks, `error` only ever
+    reaches the model's [SISTEMA] note."""
+    from nucleo.flash import data_ops
+
+    pushed, spoken = rails
+    told = asyncio.run(data_ops.report_failure(
+        "agenda", "add_meeting",
+        {"ok": False,
+         "error": "vuelve a llamar a add_meeting con el título, el día (YYYY-MM-DD) y la hora (HH:MM)",
+         "message": "No he llegado a apuntar la cita: me falta el título, el día o la hora."}))
+
+    assert told is True
+    # The speakable half is the ONLY thing voiced, and the tool vocabulary never crosses that rail.
+    assert spoken == ["No he llegado a apuntar la cita: me falta el título, el día o la hora."]
+    # The model still gets the exact retry coaching.
+    assert pushed and "add_meeting" in pushed[0]
 
 
 def test_a_SUCCESSFUL_data_op_says_nothing(rails):
