@@ -471,6 +471,37 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **The conversation can DIE during table talk: the aside, the spoken shut-up, and the honest provider
+  label (V2-657, 2026-09-10)**: the operator's dinner session (130418ed), read event by event. With a
+  window open, every table utterance was admitted `active_window` (V2-531: inside a live window nobody
+  judges), the model ANSWERED the room («Acostaros» → «Buenas noches, Ricardo»; «Luis, disfrutemos de
+  las noticias…» → a clarifying question; «¿Mi copa de vino?» → a hallucinated denial), and both the
+  admission (`note_directed`) and the answer's falling edge (V2-655) re-anchored the 5 s window — the
+  conversation structurally could not die while anybody talked near the mic, until «¿Por qué sigues
+  escuchando? Maldita sea, cállate. Apaga.» and the ⏻ by hand (killing a live worker with it). Three
+  mechanisms: **(1) `[[aparte]]`** — the model's SANCTIONED silence for a turn clearly addressed to
+  somebody else present (rule rides the wake-word block of `style_directive.prompt_lines`; ante la
+  mínima duda, contesta): the channel marks the turn handled (never on TYPED, V2-646), skips the hollow
+  repairs (a sanctioned silence is not a hole for V2-642's closer to fill), and
+  **`attention.retract_last_directed()`** rolls back exactly that admission's window refresh — refusing
+  once anything newer re-anchored, because deafness is the worse failure (V2-655); the window then
+  expires from the operator's own last word. Probe mirrors the backstop skip. **(2) A spoken SHUT-UP
+  order** («cállate», «silencio», «deja de escuchar»; per-sentence, vocative-stripped, interjections
+  admitted — the session's literal «Maldita sea, cállate.») is an ATTENTION order resolved at the gate
+  BEFORE any model: `attention.close_window()` (shared `_wipe_window()` with the V2-656 mode flip, same
+  `orb:attention` emit) and the turn is swallowed — answering it would re-anchor the window it ordered
+  shut. «apaga/apágate» deliberately stay out: they name the power or a device. **(3) The provider
+  LABEL derives from the endpoint** (`model_spec._provider_label`; `ollama` honoured — it IS routing):
+  that session's every brain event said `engine: aimlapi` while every request went to
+  `api.deepseek.com`, and the stale label had been resurrected at 21:59 by the remote PROFILE, whose
+  `fast` section still declared the broker under a rationale that stopped being true when the cloud
+  moved to DeepSeek direct — profile aligned to the canonical table titular, with a test measuring it
+  AGAINST the table. Node **3.31**; six disarms, mutations asserted, all red — one came back GREEN
+  first because the wiring guard's anchor also matched the second occurrence of the same expression
+  (the V2-571 lesson, paid again; re-anchored on the unique `or (` shape). ⚠️ NOT verified live —
+  needs an engine restart. Open, named: a filler can still sound over an aside turn (the addressee is
+  only known post-model until V2-651 F1), and «apaga» by voice reaches no power switch on purpose.
+
 - **A bare boot loads the PRODUCT, a dead session is VISIBLE and recycles, the ◉ reads the speaker side,
   and no conversational pause exceeds 5s (V2-656, 2026-09-10)**: the operator's integrity review after an
   evening lost to a restart without `BRAIN=nucleo` — the profile default handed the AgentSession the raw

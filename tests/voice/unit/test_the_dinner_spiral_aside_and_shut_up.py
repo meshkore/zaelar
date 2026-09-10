@@ -143,7 +143,10 @@ def test_the_voice_channel_wires_the_aside(monkeypatch):
     repairs, and retract the admission — removing any of the three brings the spiral back."""
     prov = _src("voice/engine/llm/providers/nucleo.py")
     assert 'if action == "aparte":' in prov and 'aside["v"] = True' in prov
-    assert 'aside["v"] and not _typed_turn' in prov, \
+    # Anchored on the `or (` shape UNIQUE to the _tool_handled expression — the same expression also
+    # exists as `_aside_turn = bool(...)` further down, and a disarm that removed only the _tool_handled
+    # line came back GREEN against the loose anchor (the V2-571 lesson, paid again while building this).
+    assert 'or (aside["v"] and not _typed_turn)' in prov, \
         "an aside must count as handled (mute backstop) — but never on a TYPED turn (V2-646)"
     assert "retract_last_directed()" in prov, "the admission's window refresh must be retracted"
     assert "if not _aside_turn:" in prov, "the hollow repairs must not fill a sanctioned silence"
