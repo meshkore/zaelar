@@ -17,6 +17,7 @@ import { h, mount, $ } from "../../app/core/dom.js?v=2";
 import { createEffect } from "../../app/core/reactive.js?v=2";
 import * as store from "../../app/core/store.js?v=2";
 import * as session from "../../app/services/session.js?v=3";
+import * as mic from "../../app/services/mic.js?v=1";
 import { openSSE } from "../../app/services/sse.js?v=4";
 import * as api from "../../app/services/api.js?v=2";
 import { startStatusPolling } from "../../app/services/status.js?v=2";
@@ -166,7 +167,9 @@ createEffect(() => store.setMobileVoiceHeld(!!store.micBlocked().show && !store.
     const r = await api.runState();
     if (!r || typeof r.running !== "boolean") return;
     if (store.powerCmdAt() > askedAt) return;
-    if (!r.running) { store.setPowerOff(true); store.setMicMuted(true); store.setBotMuted(true); }
+    // V2-654: through the door. The note below already named this exact failure — «the phone would paint itself
+    // off with the mic open — the state that lies» — and this line was still only painting.
+    if (!r.running) { store.setPowerOff(true); mic.setMuted(true, "boot-not-running"); store.setBotMuted(true); }
     else if (store.powerOff()) api.runStop();
   } catch { /* the server isn't answering yet: local state already applied */ }
 })();

@@ -87,6 +87,11 @@ _CAT = {
     # PERPETUAL. It cluttered the thread with ~720 rows/hour carrying no signal (the PER-PHRASE latency, which does carry one, already appears
     # as `stt`/`tts`/`brain` with backend, model, and text). Same logic as the `VADMetrics` anti-flood from
     # 2026-07-12: continuous metric ≠ turn event. It remains persisted in the jsonl files.
+    # `mic` (V2-654): the microphone switch changing hands. Family `system` because it is the machine's own
+    # plumbing, its own kind because "the operator closed the mic" and "the mic was open and we heard this" must
+    # be separable at a glance — the incident that created it (session 85eec898) was invisible precisely because
+    # the switch left NO trace anywhere and the transcripts looked like an ordinary conversation.
+    "mic": "system",
     "metric": "system", "vad": "system", "cluster": "system", "perf": "system",
     "stt": "system", "tts": "system", "bot_speech": "system", "state": "system",
     "session": "system", "timing": "system", "notify": "system",

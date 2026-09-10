@@ -441,6 +441,27 @@ class NucleoLLMStream(llm.LLMStream):
         # dirigiéndose a él — así, si la sesión arranca en mitad de una reunión, no hay un hueco inicial en el
         # que la voz ambiente se cuele como dirigida y auto-extienda la ventana. El operador abre la conversación
         # con la wake-word ("zaelar") y a partir de ahí la ventana la mantiene viva (o chat/paste, ya marcados).
+        # V2-654 — EL INTERRUPTOR DEL MICRO manda sobre todo lo que viene detrás. Si el operador cerró el micro,
+        # este turno no existe: ni modelo, ni tool, ni widget, ni memoria, ni encargo. Va ANTES de la puerta de
+        # atención a propósito — «cerrado» no es una opinión sobre a quién le hablaba, es que no nos autorizó a
+        # oírle, y no hay ventana de conversación ni wake word que lo levante.
+        #
+        # El turno ESCRITO es la única excepción, y es exactamente el caso de uso: se cierra el micro PARA poder
+        # teclear. Se consume de una sola vez (`consume_typed()`, sin ventana de tiempo): con ventana, teclear y
+        # hablar acto seguido colaba el turno hablado por el interruptor cerrado.
+        #
+        # Que esto llegue a saltar SIGNIFICA que el navegador siguió publicando audio con el icono cerrado —
+        # la avería del 2026-09-10 (sesión 85eec898), donde cuatro de los seis escritores del estado tocaban el
+        # icono y no la pista. Por eso el evento lleva el texto: es la EVIDENCIA de la divergencia, y sin ella
+        # costó siete minutos verla.
+        if not first_turn and not attention.consume_typed():
+            from voice import mic_input as _mic
+            if _mic.is_muted():
+                emit("mic", "🎤⃠ turno DESCARTADO — el micrófono está cerrado", text=text[:200], role="user",
+                     extra={"muted": True, "src": (_mic.snapshot().get("source") or "")})
+                _release_acc_trace_if_fresh(brain)   # este turno no llega a offer() — ver docstring
+                return
+
         if not first_turn:
             # `evaluate_content()` (2026-08-16), no la `evaluate()` heurística pura: en modo `always` (el
             # default, micro siempre abierto) lo único que distingue "me hablas a mí" de "ruido de fondo" es la

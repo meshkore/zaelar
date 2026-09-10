@@ -23,6 +23,7 @@ import { Room, RoomEvent, LocalAudioTrack, ConnectionState } from "../../vendor/
 import * as store from "../core/store.js?v=2";
 import * as audio from "./audio.js?v=2";
 import * as api from "./api.js?v=2";
+import * as mic from "./mic.js?v=1";
 import { openSSE } from "./sse.js?v=4";
 import { clearDebugBuffer } from "./debugbus.js?v=2";
 import { startVisualizer } from "./visualizer.js?v=2";
@@ -141,7 +142,7 @@ let _hb = null, _blockedRetry = null;
 function _startHeartbeat() {
   if (_hb) return;
   _hb = setInterval(() => {
-    api.sessionHeartbeat(SID).then((r) => {
+    api.sessionHeartbeat(SID, mic.beat()).then((r) => {   // V2-654: the beat re-asserts the mic switch, free
       if (r && r.ok === false && started) {   // we lost the race (another tab is alive) → yield, not two mics
         console.warn("session lock perdido — otra sesión tomó el control; cierro esta.");
         stop();
@@ -237,14 +238,21 @@ export function getAudit() { return audit; }
 export function isActive() { return started; }
 
 // ---- mic / camera toggles ----
-export function applyMic() {
-  if (room && room.localParticipant) { try { room.localParticipant.setMicrophoneEnabled(!store.micMuted()); } catch (_) {} }
-  if (stream) stream.getAudioTracks().forEach(t => t.enabled = !store.micMuted());
+// V2-654: this is the TRANSPORT half only — it moves the audio and nothing else. The state, the icon, the
+// storage and the engine belong to `services/mic.js`, the single door; this function is what that door installs
+// via `mic.useTransport()`. `setMicrophoneEnabled` returns a PROMISE: its rejection was never caught by the
+// try/catch that wrapped it (a sync catch cannot see an async rejection), so a failed publish change was a
+// silent divergence between icon and microphone. Caught explicitly now — and the track's own `enabled` flag is
+// set regardless, because that one is synchronous and is what actually makes the wire go quiet.
+function _applyMicTransport(want) {
+  if (stream) stream.getAudioTracks().forEach(t => t.enabled = !want);
+  if (room && room.localParticipant) {
+    try { Promise.resolve(room.localParticipant.setMicrophoneEnabled(!want)).catch(() => {}); } catch (_) {}
+  }
 }
+export function applyMic() { mic.applyNow("session"); }
 export function applyCam() { if (stream) stream.getVideoTracks().forEach(t => t.enabled = !store.camOff()); }
-export function toggleMic() {
-  const next = !store.micMuted(); store.setMicMuted(next); localStorage.setItem("hb_mic_muted", next ? "1" : "0"); applyMic();
-}
+export function toggleMic() { mic.toggle("orb"); }
 export function applyBotMute() {
   if (!botAudioEl) return;
   botAudioEl.muted = store.botMuted();
@@ -364,7 +372,7 @@ export async function start() {
       // the one that costs a session to diagnose.
       console.warn("[zaelar] voice startup refused: the server says the agent is STOPPED (⏻ off)");
       api.uiEvent("voice:refused", { reason: "server_stopped", src: "frontend" });
-      store.setPowerOff(true); store.setMicMuted(true); store.setBotMuted(true);
+      store.setPowerOff(true); mic.setMuted(true, "server-stopped"); store.setBotMuted(true);   // V2-654: the door
       starting = false; store.setStarting(false); store.setConnState("—");
       if (!_everBooted) _unblockBoot();   // don't leave the UI stuck on the splash: there's nothing to wait for
       return;
@@ -429,7 +437,7 @@ export async function start() {
     // session) instead of carrying `token: undefined` forward into a LiveKit room that will never connect.
     if (!ok) {
       started = false; store.setStarted(false);
-      store.setPowerOff(true); store.setMicMuted(true); store.setBotMuted(true);
+      store.setPowerOff(true); mic.setMuted(true, "server-stopped"); store.setBotMuted(true);   // V2-654: the door
       api.obsSessionEnd("engine_stopped");
       try { stream.getTracks().forEach((tr) => tr.stop()); } catch (_) {}
       starting = false; store.setStarting(false); store.setConnState("—");
@@ -543,7 +551,11 @@ export async function start() {
     // Publish the mic track we already captured (so the analyser and the published audio are the SAME track).
     const micTrack = stream.getAudioTracks()[0];
     if (micTrack) await room.localParticipant.publishTrack(new LocalAudioTrack(micTrack));
-    applyMic(); applyCam();
+    // V2-654: registering APPLIES — a track that was just published must be born in the state the icon already
+    // shows. This is the reconnect hole: the mute survived in localStorage and on screen, the new publication
+    // came up open, and nothing re-asserted it.
+    mic.useTransport(_applyMicTransport);
+    applyCam();
     openSSE(window.__zaelarDesktop);   // backend→UI events (widgets, bot_speech, transcript, alerts) — same as before
     _startHeartbeat();                 // keep the single-session lock while alive
     starting = false; store.setStarting(false);

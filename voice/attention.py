@@ -54,7 +54,8 @@ _state = {"last_directed": 0.0, "ptt": False, "assistant_name": "", "bot_hold": 
           "recent_directed": [],   # timestamps of recent directed turns → dialogue depth for the hint
           "spotted_at": 0.0,       # last instant wake-word spot (interim STT) — dedupe for the orb signal
           "ambient_tail": [],      # (ts, text) of recently-DISCARDED ambient turns — reclaimed by a wake word
-          "typed_at": 0.0}         # V2-646: last TYPED (chat/paste) turn — a typed message is never ambient
+          "typed_at": 0.0,         # V2-646: last TYPED (chat/paste) turn — a typed message is never ambient
+          "typed_pending": False}  # V2-654: that typed turn has not been handled yet — the mic gate's exemption
 
 
 def _norm(text: str) -> str:
@@ -298,6 +299,18 @@ def note_typed(now: float | None = None) -> None:
     what the mute backstop needs (V2-646): the exemptions that keep us silent over dragged-in noise must
     never apply to a sentence the operator wrote."""
     _state["typed_at"] = time.time() if now is None else now
+    _state["typed_pending"] = True   # V2-654 — see `consume_typed()`
+
+
+def consume_typed() -> bool:
+    """ONE-SHOT: was the turn about to be handled the TYPED one, and clear the mark. Separate from
+    `was_typed()` on purpose — the backstop wants a time WINDOW ("the operator was writing recently"), while
+    the microphone gate (V2-654) needs an exact answer for exactly one turn: with a window, muting the mic to
+    type and then speaking within it would walk the spoken turn straight through the closed switch. Nothing
+    else may consume this; a second reader would silently eat the exemption of the first."""
+    was = bool(_state.get("typed_pending"))
+    _state["typed_pending"] = False
+    return was
 
 
 def was_typed(within_s: float = 45.0, now: float | None = None) -> bool:
@@ -392,6 +405,8 @@ def reset() -> None:
     _state["recent_directed"] = []
     _state["spotted_at"] = 0.0
     _state["ambient_tail"] = []
+    _state["typed_at"] = 0.0
+    _state["typed_pending"] = False
 
 
 # ── HARD interruption (T136): STOP always handled, BYPASSES the gate, DETERMINISTIC (does not depend on the LLM) ────

@@ -11,6 +11,7 @@
 import * as store from "../core/store.js?v=2";
 import * as audio from "./audio.js?v=2";
 import * as api from "./api.js?v=2";
+import * as mic from "./mic.js?v=1";
 import { SpeakerGate } from "../lib/speaker-gate.js?v=2";
 import { startMicVAD, stopMicVAD } from "./vad.js?v=2";
 import { startBrowserSTT, stopBrowserSTT } from "./stt.js?v=2";
@@ -84,15 +85,16 @@ function spkOwner(d) {
 }
 
 // ---- mic / camera toggles. State persists across refreshes; here we only apply to the live stream. ----
-export function applyMic() {
-  if (stream) stream.getAudioTracks().forEach(t => t.enabled = !store.micMuted());   // muted → track sends silence
+// V2-654 — TRANSPORT half only (mirror of session-lk.js): the state, the icon, the storage and the engine
+// belong to `services/mic.js`, the single door. This is what that door installs via `mic.useTransport()`.
+function _applyMicTransport(want) {
+  if (stream) stream.getAudioTracks().forEach(t => t.enabled = !want);   // muted → track sends silence
 }
+export function applyMic() { mic.applyNow("session"); }
 export function applyCam() {
   if (stream) stream.getVideoTracks().forEach(t => t.enabled = !store.camOff());
 }
-export function toggleMic() {
-  const next = !store.micMuted(); store.setMicMuted(next); localStorage.setItem("hb_mic_muted", next ? "1" : "0"); applyMic();
-}
+export function toggleMic() { mic.toggle("orb"); }
 // ---- bot audio mute: SILENCE zaelar's voice output without stopping the agent. The WebRTC link, the mic and
 // the brain keep running (it still listens, thinks and replies) — we just don't PLAY the incoming audio. State
 // persists across refreshes and is honored on (re)connect in pc.ontrack. ----
@@ -201,7 +203,7 @@ export async function start() {
     //   catch (e) { console.warn("camera unavailable (audio continues):", e); }
     // }
     if (videoEl) videoEl.srcObject = stream; started = true; store.setStarted(true);
-    applyMic(); applyCam();   // honor persisted mic-muted / camera-off on the live stream
+    mic.useTransport(_applyMicTransport); applyCam();   // registering APPLIES — see the note in session-lk.js
     let iceServers = await api.iceServers();
     pc = new RTCPeerConnection({ iceServers });
     dc = pc.createDataChannel("vala-turn");

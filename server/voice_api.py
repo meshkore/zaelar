@@ -351,6 +351,28 @@ async def client_log(payload: dict):
                              ("device", "muted", "enabled", "state", "rms", "raw") if k in payload}))
 
 
+@router.post("/api/mic")
+async def mic_switch(payload: dict):
+    """V2-654 — THE microphone switch, told to the engine. The browser's `services/mic.js` is the only writer and
+    it calls here on every change AND on every (re)connect; the session heartbeat re-asserts the same value every
+    ~4s, so a divergence between icon and engine cannot outlive one beat.
+
+    Before this route the mute existed ONLY in the browser and only as an icon signal: four of its six writers
+    never touched the audio track, so the engine heard a microphone the operator had closed and had no way to
+    know (session 85eec898). Reading it is `voice/mic_input.py`; the gate that uses it is in the turn path."""
+    from voice import mic_input
+    muted = bool((payload or {}).get("muted"))
+    src = str((payload or {}).get("src") or "frontend")[:40]
+    return JSONResponse(mic_input.set_muted(muted, source=src))
+
+
+@router.get("/api/mic")
+async def mic_state():
+    """The engine's own answer, so the client can VERIFY instead of assuming its write landed."""
+    from voice import mic_input
+    return JSONResponse(mic_input.snapshot())
+
+
 @router.post("/api/ui-event")
 async def ui_event(payload: dict):
     """V2-039 — AUDIT of what happens in the frontend, on the SAME timeline as FlashBrain and worker orders. Two

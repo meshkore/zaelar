@@ -1196,6 +1196,15 @@ DOMAINS: list[dict] = [
                                 "conformidad con los incidentes medidos, y la sombra que solo mide",
             "ch": UNIT, "paths": [
                 "tests/agent_headless/unit/test_the_canvas_arbiter_judges_every_mutation.py"]},
+        # V2-654 — the engine half of the microphone switch (its frontend door is node 4.152). The whole
+        # point is the GATE's position: it runs ABOVE the attention gate, because a closed mic is not an
+        # opinion about who was being addressed, so neither a wake word nor an open conversation window may
+        # lift it. The one exemption is the typed turn — muting to type IS the use case — and it is consumed
+        # ONCE, with no time window, or typing and then speaking walks the spoken turn straight through.
+        {"id": "3.26", "title": "El interruptor del micrófono manda en el motor: titular único, la ruta y el "
+                                "latido que lo re-afirman, y el turno que no existe con el micro cerrado",
+            "ch": UNIT, "paths": [
+                "tests/agent_headless/unit/test_the_microphone_switch_governs_the_whole_system.py"]},
         {"id": "3.2", "title": "Puente voz→nucleo + trazas", "ch": VOICE, "paths": [
             "tests/voice/unit/providers/test_nucleo.py", "tests/voice/unit/providers/test_nucleo_guards.py",
             # ⚠️ SIN MAPEAR hasta el 2026-08-21 (V2-245), los cinco: el acumulador que perdía 64 s del operador en
@@ -2076,6 +2085,16 @@ DOMAINS: list[dict] = [
                       "tests/browser/unit/mensajeria/test_peek_hands_the_conversation_whole.py",
                       "tests/browser/unit/mensajeria/test_the_autoresponder_speaks_once_and_never_in_groups.py",
                       "tests/browser/e2e/mensajeria/test_the_activity_lens_paints_and_clears.py"]},
+        # V2-654 — the microphone switch. Two halves of ONE fact and they are tested apart because they fail
+        # apart: the frontend node is a RATCHET (nobody writes the mic state outside `services/mic.js`, and
+        # nobody touches the audio track outside a session engine), because the incident was not a broken
+        # function — it was six writers of one state, four of which only painted an icon. The engine node
+        # pins the holder, the two doors that write it and the turn gate that makes a closed mic actually
+        # mean something: no model, no tool, no widget, no memory, no errand off audio nobody authorised.
+        {"id": "4.152", "title": "El interruptor del micrófono tiene UNA puerta: un solo escritor mueve icono, "
+                                 "almacenamiento, pista de audio y motor a la vez",
+            "ch": UNIT,
+            "paths": ["tests/browser/unit/mic/test_the_mic_state_has_one_door.py"]},
         # V2-626 — the sibling half of the node above, and it can only be seen RENDERED: the operator asked
         # for his mail, the email dot lit, and the WhatsApp connector screen stayed underneath it. The filter
         # had moved and the screen had not. A source read sees the assignment either way; only a render sees

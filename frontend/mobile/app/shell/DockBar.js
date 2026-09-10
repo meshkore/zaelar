@@ -52,6 +52,7 @@ import { h, raw } from "../../../app/core/dom.js?v=2";
 import * as store from "../../../app/core/store.js?v=2";
 import * as session from "../../../app/services/session.js?v=3";
 import * as api from "../../../app/services/api.js?v=2";
+import * as mic from "../../../app/services/mic.js?v=1";
 import { t } from "../../../app/core/i18n.js?v=1";
 import { OrbMini } from "./OrbMini.js?v=3";
 
@@ -78,12 +79,12 @@ function togglePower() {
   if (off) {
     try { session.stop(); } catch (_) {}
     api.obsSessionEnd("power_off");
-    store.setMicMuted(true); localStorage.setItem("hb_mic_muted", "1");
+    mic.setMuted(true, "power-off");   // V2-654: through the door — icon, storage, TRACK and engine together
     store.setBotMuted(true); localStorage.setItem("hb_bot_muted", "1");
     try { store.fetchTasks(); } catch (_) {}
     api.runStop().then(() => store.fetchTasks());
   } else {
-    store.setMicMuted(false); localStorage.setItem("hb_mic_muted", "0");
+    mic.setMuted(false, "power-on");   // V2-654: through the door
     store.setBotMuted(false); localStorage.setItem("hb_bot_muted", "0");
     try { session.start(); } catch (_) {}
     api.runStart().then(() => store.fetchTasks());
@@ -165,7 +166,7 @@ export function DockBar() {
         // stopped there is no effect, because there is no level — the meter can only move when we are truly hearing.
         style: { "--vu": () => (store.agentLive() && !store.micMuted() ? String(Math.min(1, store.micLevel() * 6)) : "0") },
         "aria-label": () => (store.micMuted() ? t("camera.mic_unmute") : t("camera.mic_mute")),
-        onClick: () => { session.toggleMic(); api.uiEvent("mobile:mic", { state: store.micMuted() ? "muted" : "unmuted" }); },
+        onClick: () => { mic.toggle("dock"); api.uiEvent("mobile:mic", { state: store.micMuted() ? "muted" : "unmuted" }); },
       }, () => raw(store.micMuted() ? MIC_OFF : MIC_ON)),
 
       h("button", {

@@ -32,6 +32,7 @@ import { createEffect } from "../core/reactive.js?v=2";
 import * as store from "../core/store.js?v=2";
 import * as session from "../services/session.js?v=3";
 import * as api from "../services/api.js?v=2";
+import * as mic from "../services/mic.js?v=1";
 import { makeDraggable, resetDraggable } from "../lib/draggable.js?v=2";
 import { startEcg } from "../lib/ecg.js?v=2";
 import { t } from "../core/i18n.js?v=1";
@@ -131,7 +132,7 @@ export function Orb() {
         class: () => lidClass(!store.micMuted()) + (store.agentLive() && !store.micMuted() ? " vu" : ""),
         style: { "--vu": () => (store.agentLive() && !store.micMuted() ? String(Math.min(1, store.micLevel() * 6)) : "0") },
         title: () => (store.micMuted() ? t("camera.mic_unmute") : t("camera.mic_mute")),
-        onClick: () => { session.toggleMic(); api.uiEvent("orb:mic", { state: store.micMuted() ? "muted" : "unmuted" }); },
+        onClick: () => { mic.toggle("orb"); api.uiEvent("orb:mic", { state: store.micMuted() ? "muted" : "unmuted" }); },
       }, () => raw(store.micMuted() ? MIC_OFF : MIC_ICON)),
       h("button", { "data-ctl": "spk",
         class: () => lidClass(!store.botMuted()),
@@ -178,7 +179,12 @@ export function Orb() {
             // gesture that means “I'm done.” A `stop()` caused by reconnection does NOT close the session — if it did,
             // a network hiccup would split in two what the operator experiences as one afternoon of work.
             api.obsSessionEnd("power_off");
-            store.setMicMuted(true); localStorage.setItem("hb_mic_muted", "1");
+            // V2-654: through the DOOR. This line used to move the icon and the storage and nothing else —
+            // ⏻ drew a closed microphone over a track that kept publishing, which is exactly how the engine
+            // spent seven minutes transcribing an operator who had shut it (session 85eec898). The comment
+            // above says `session.stop()` already cuts the mic; that stayed true and this stayed a safeguard —
+            // but a safeguard that only paints an icon is worse than none, because it looks like proof.
+            mic.setMuted(true, "power-off");
             store.setBotMuted(true); localStorage.setItem("hb_bot_muted", "1");
             // Real bug 2026-07-23 (operator report): powering off left the ECG pulse beating and the captions stuck.
             // The ECG locally generates beats while `store.tasks()` has something unfinished (lib/ecg.js::activeLoad)
@@ -197,7 +203,7 @@ export function Orb() {
           } else {
             // Symmetrically, the mute imposed by ⏻ when powering off (above) is undone when powering on — if the
             // operator wants the mic/speaker muted INDEPENDENTLY, they have their own buttons for that.
-            store.setMicMuted(false); localStorage.setItem("hb_mic_muted", "0");
+            mic.setMuted(false, "power-on");   // V2-654: through the door — see the ⏻-off branch above
             store.setBotMuted(false); localStorage.setItem("hb_bot_muted", "0");
             // ORDER: the SERVER first, the voice session AFTER (2026-08-31, operator: "when I press the start button
             // it stays blinking yellow… if I refresh the page, everything starts automatically"). `session.start()` opens with a ⏻ gate against the server's truth

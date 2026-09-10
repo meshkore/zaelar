@@ -50,9 +50,20 @@ def session_acquire(sid: str = Body(..., embed=True)) -> dict:
 
 
 @router.post("/api/session/heartbeat")
-def session_heartbeat(sid: str = Body(..., embed=True)) -> dict:
+def session_heartbeat(payload: dict = Body(...)) -> dict:
     """Renew the lock (the live tab beats every ~4s). If it lost it but the lock is free, it retakes it; if another
-    live tab owns it, ok=False → the UI must release (it lost the race)."""
+    live tab owns it, ok=False → the UI must release (it lost the race).
+
+    V2-654 — it also RE-ASSERTS the microphone switch when the beat carries `muted`. The beat is the cheapest
+    place in the system to make a state self-correcting: whatever drifts between the icon and the engine is put
+    back within one interval, so nobody has to remember to re-assert after a reconnect, a republished track or a
+    tab regaining focus. `muted` is optional on purpose — an older client that never sends it beats exactly as
+    before and simply leaves the switch where the explicit `POST /api/mic` last put it."""
+    sid = str((payload or {}).get("sid") or "")
+    muted = (payload or {}).get("muted")
+    if isinstance(muted, bool):
+        from voice import mic_input
+        mic_input.set_muted(muted, source="heartbeat")
     now = _time.time()
     with _lock_mx:
         if _active["sid"] == sid or _free(now):

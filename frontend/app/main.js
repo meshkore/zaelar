@@ -9,6 +9,7 @@
 import { h, mount, $ } from "./core/dom.js?v=2";
 import { createEffect } from "./core/reactive.js?v=2";
 import * as session from "./services/session.js?v=3";
+import * as mic from "./services/mic.js?v=1";
 import { openSSE } from "./services/sse.js?v=4";
 import * as store from "./core/store.js?v=2";
 import { startStatusPolling } from "./services/status.js?v=2";
@@ -192,7 +193,10 @@ window.addEventListener("pointerdown", ensureVoice);
     const r = await api.runState();
     if (!r || typeof r.running !== "boolean") return;
     if (store.powerCmdAt() > askedAt) return;   // the operator commanded LATER: this snapshot is history
-    if (!r.running) { store.setPowerOff(true); store.setMicMuted(true); store.setBotMuted(true); }
+    // V2-654: `mic.setMuted`, not `store.setMicMuted` — the boot probe was the writer that made the icon lie
+    // hardest, because it fires before the operator has touched anything and its muted icon is the FIRST thing
+    // he sees. Through the door it now also silences the track and tells the engine.
+    if (!r.running) { store.setPowerOff(true); mic.setMuted(true, "boot-not-running"); store.setBotMuted(true); }
     else if (store.powerOff()) api.runStop();
   } catch { /* the server is not responding yet: local state prevails, as it is already applied */ }
 })();

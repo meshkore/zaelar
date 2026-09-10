@@ -5,6 +5,7 @@
 import { h, raw } from "../core/dom.js?v=2";
 import * as store from "../core/store.js?v=2";
 import * as session from "../services/session.js?v=3";
+import * as mic from "../services/mic.js?v=1";
 import { makeDraggable } from "../lib/draggable.js?v=2";
 import { t } from "../core/i18n.js?v=1";
 
@@ -32,7 +33,7 @@ export function CameraUnit() {
       h("button", {
         class: () => "mtog" + (store.micMuted() ? " off" : ""), id: "micToggle",
         title: () => (store.micMuted() ? t("camera.mic_unmute") : t("camera.mic_mute")), "aria-label": () => t("camera.mic_mute"),
-        onClick: () => session.toggleMic(),
+        onClick: () => mic.toggle("camera-unit"),   // V2-654: the single door (this surface is archived, kept in step)
       }, raw(MIC_SVG)),
       h("button", {
         class: () => "mtog" + (store.camOff() ? " off" : ""), id: "camToggle",
