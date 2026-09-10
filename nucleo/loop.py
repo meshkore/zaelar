@@ -164,6 +164,7 @@ class OrchestratorLoop:
         self._ticks += 1
         await self._supervise_workers(now)
         await self._supervise_confirms(now)
+        await self._supervise_harness(now)
         await self._supervise_stale_flows(now)
         await self._fire_due(now)
         await self._maybe_spark(now)
@@ -319,6 +320,17 @@ class OrchestratorLoop:
         for e in expired:
             q = (e.get("question") or "").strip() or self._lang().generic_task
             await self._deliver("zaelar", self._say("confirm_expired", question=q))
+
+    async def _supervise_harness(self, now: float) -> None:
+        """V2-659 — re-verify the open errand goals against the product's own state: a goal a worker (or a
+        later turn) met is CLOSED here with an event, an expired one is retired. No voice: the delivery
+        that met it already announced itself (V2-644); this is the ledger catching up, not a second mouth."""
+        try:
+            from nucleo import harness
+            if harness.open_goals(now):
+                await harness.sweep(now)
+        except Exception as e:  # noqa: BLE001
+            logger.debug(f"harness sweep skipped: {e}")
 
     async def _supervise_stale_flows(self, now: float) -> None:
         """Closes a CONVERSATIONAL flow the operator started and then walked away from (2026-08-16, operator

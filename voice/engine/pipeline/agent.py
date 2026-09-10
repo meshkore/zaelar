@@ -381,6 +381,13 @@ async def entrypoint(ctx: JobContext) -> None:
                       role="user", extra={"over_agent": True, **({"trace": _tid} if _tid else {})})
             else:
                 _emit("vad", "🎤 voz detectada (VAD)", role="user", extra={"over_agent": False})
+            # V2-659 — the window measures the operator's SILENCE, which ends HERE, not when the STT
+            # finalizes the sentence (a 4-second sentence begun inside a 5 s window used to be judged outside it).
+            try:
+                from voice import attention as _attn_onset
+                _attn_onset.note_speech_onset()
+            except Exception:
+                pass
         elif new == "listening":
             _emit("vad", "… fin de voz", role="user", extra={})
             _onset["voice_ended"] = time.monotonic()   # the near end of the wait the operator is about to live

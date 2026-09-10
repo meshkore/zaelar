@@ -336,6 +336,22 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
     # de tokens no es un vacío — el contenido no cabe en un turno; el rescate es la escalada con superficie
     # documento, nunca «¿me lo repites?». Se sintetiza la tool para que el resto del camino (clasificación,
     # ejecución, ack) sea el de una escalada normal.
+    # V2-659 (espejo del provider): las tarjetas mostradas este turno son objetivos del arnés, y una
+    # afirmación de entrega sobre una hoja VACÍA se rescata escalando con la superficie documento.
+    try:
+        from nucleo import harness as _harness_p
+        for _t in tags:
+            if _t.get("action") == "show" and (_t.get("extra") or {}).get("id"):
+                _harness_p.note_goal(_harness_p.KIND_WIDGET_CONTENT, str(_t["extra"]["id"]), text)
+        if not any(t["name"] in ("escalate_to_slowbrain", "widget_data") for t in tool_calls):
+            _fc_p = await _harness_p.false_claim(spoken, data_done=False)
+            if _fc_p:
+                tool_calls.append({"name": "escalate_to_slowbrain", "args": {
+                    "request": _harness_p.rescue_request(_fc_p),
+                    "surface": "documento" if _fc_p["target"] == "documento" else ""}})
+    except Exception as _e_hp:  # noqa: BLE001
+        from loguru import logger as _log_hp
+        _log_hp.warning(f"probe harness skipped: {_e_hp}")
     if not tool_calls:
         try:
             from nucleo.flash.fast_client import oversized_widget_write as _oversized_p

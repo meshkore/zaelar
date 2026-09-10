@@ -1246,6 +1246,15 @@ DOMAINS: list[dict] = [
                                 "documento en vez de disculparse — en los dos canales",
             "ch": UNIT, "paths": [
                 "tests/voice/unit/test_an_oversized_widget_write_escalates.py"]},
+        # V2-659 (directiva del operador: «cerrar el círculo cuando obtiene permiso» — un arnés que comprueba
+        # el estado final). El ARNÉS: cada tarjeta mostrada es un objetivo; una afirmación de entrega sobre
+        # una hoja VACÍA se repara (seguimiento honesto + escalada con superficie); el objetivo viaja en el
+        # prompt como hecho con regla y el latido lo cierra cuando se cumple. Y la ventana mide el silencio
+        # desde que EMPIEZA a hablar, no desde que el STT cierra la frase.
+        {"id": "3.33", "title": "El arnés del encargo cierra el círculo: la afirmación de entrega se "
+                                "verifica contra la hoja, y la ventana mide el silencio desde el onset",
+            "ch": UNIT, "paths": [
+                "tests/voice/unit/test_the_errand_harness_closes_the_circle.py"]},
         {"id": "3.30", "title": "Si el turno PIDIÓ PERMISO, el encargo se aparca en vez de lanzarse — y el "
                                 "«sí» del operador lanza exactamente ese",
             "ch": UNIT, "paths": [

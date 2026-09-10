@@ -2249,6 +2249,7 @@ class NucleoLLMStream(llm.LLMStream):
                 _pw = _identify(_op_text)
                 if _pw:
                     acted["widget"] = True
+                    _shown_ids.add(_pw)          # V2-659: a shown card is an end state the harness verifies
                     emit("widget", "show", extra={"id": _pw, "src": "flash"})
                     emit("brain", "🪟 show por backstop de promesa (prometió mostrar sin tool)", text=_pw, role="system")
             elif _router.promises_music(spoken_text):     # 'voy a poner algo de rock' sin tool → reproduce
@@ -2716,6 +2717,41 @@ class NucleoLLMStream(llm.LLMStream):
             except Exception:
                 spoken_text = "Aquí lo tienes."
             send(speech.sanitize(spoken_text, drop_metadata=False))
+
+        # V2-659 — the ERRAND HARNESS (nucleo/harness.py). Every card this turn SHOWED is an end state the
+        # turn implied (content in it); and a reply that CLAIMS delivery («aquí tienes el texto completo…»)
+        # over a card the harness can read as EMPTY is a false claim — measured 2026-09-11 after the
+        # operator's «Adelante»: one web_search, an empty `documento`, and «aquí tienes». The sentence has
+        # already sounded (streaming), so the repair is the V2-572 shape — the honest follow-up — plus the
+        # machinery that CAN deliver: an escalation carrying his words and the surface. `data_done` guards
+        # the fire-and-forget race (V2-603): a data-op this very turn is trusted, never contradicted.
+        try:
+            from nucleo import harness as _harness
+            _h_words = _router.operator_words(operator_text, text)
+            try:
+                from voice import trace as _trace_h
+                _h_trace = _trace_h.current() or ""
+            except Exception:
+                _h_trace = ""
+            for _gid in list(_shown_ids):
+                _harness.note_goal(_harness.KIND_WIDGET_CONTENT, _gid, _h_words, trace=_h_trace)
+            if escalate_req["v"] is None and not aside["v"]:
+                _fc = await _harness.false_claim(spoken_text, data_done=bool(data_done["v"]))
+                if _fc:
+                    _fc_req = _harness.rescue_request(_fc)
+                    escalate_req["v"] = _fc_req
+                    escalate_req["surface"][_fc_req] = "documento" if _fc["target"] == "documento" else ""
+                    try:
+                        from voice.engine.core import langs as _lg_h
+                        _en = str(_lg_h.current_code() or "").lower().startswith("en")
+                    except Exception:
+                        _en = False
+                    _fix = ("Sorry — it is not on screen yet. I am getting it ready for you."
+                            if _en else "Perdona — todavía no está en pantalla. Te lo estoy preparando.")
+                    send(speech.sanitize(_fix, drop_metadata=False))
+                    spoken_text = (spoken_text + " " + _fix).strip()
+        except Exception as _e_h:  # noqa: BLE001
+            logger.warning(f"harness skipped: {_e_h}")
 
         # V2-658 — a widget_data cut by the TOKEN CAP is not a void: the model tried to hand a widget more
         # content than a voice turn can carry (the full Declaration pasted inline into `documento`, twice

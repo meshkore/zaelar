@@ -165,9 +165,29 @@ def evaluate(text: str, *, now: float | None = None) -> Verdict:
     now = time.time() if now is None else now
     if _state["bot_hold"]:
         return Verdict(True, "active_window")
-    if _state["last_directed"] and (now - _state["last_directed"]) <= window_s():
+    if _state["last_directed"] and (_window_ref(now) - _state["last_directed"]) <= window_s():
         return Verdict(True, "active_window")
     return Verdict(False, "ambient")
+
+
+def note_speech_onset(now: float | None = None) -> None:
+    """The operator STARTED speaking (VAD rising edge, `pipeline/agent.py`). V2-659: the window measures
+    his SILENCE, and his silence ends when he starts talking — not when his sentence is finalized. Measured
+    2026-09-11 (session 0141a72a): «Johnny.» at :50 opened a 5 s window, he began «Enséñame la declaración
+    de independencia» at :52 and the STT finalized it at :56 — judged at :56 it fell OUTSIDE the window and
+    was thrown away as room noise, with the two follow-ups after it. He was inside the window when he opened
+    his mouth; the sentence just took longer than the window to say."""
+    _state["speech_onset"] = time.time() if now is None else now
+
+
+def _window_ref(now: float) -> float:
+    """The instant the window is measured against: the speech ONSET when it fell inside the window that was
+    standing (the anchor is older than the onset, the onset is not in the future), else `now`."""
+    onset = _state.get("speech_onset") or 0.0
+    ld = _state["last_directed"]
+    if onset and ld and ld < onset <= now:
+        return onset
+    return now
 
 
 # ── CONTENT, not just mode (2026-08-16) ────────────────────────────────────────────────────────────────────
@@ -277,7 +297,7 @@ async def evaluate_content(text: str, *, context: str = "", now: float | None = 
     if not t:
         return Verdict(False, "ambient")
     now = time.time() if now is None else now
-    if _state["last_directed"] and (now - _state["last_directed"]) <= window_s():
+    if _state["last_directed"] and (_window_ref(now) - _state["last_directed"]) <= window_s():
         return Verdict(True, "active_window")
     try:
         directed = await _directed_judge(t, context)
@@ -562,6 +582,7 @@ def reset() -> None:
     _state["typed_pending"] = False
     _state["bot_addressed"] = 0.0
     _state["_prev_anchor"] = None
+    _state["speech_onset"] = 0.0
 
 
 # ── HARD interruption (T136): STOP always handled, BYPASSES the gate, DETERMINISTIC (does not depend on the LLM) ────
