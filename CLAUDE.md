@@ -504,8 +504,12 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   engine — F0 exists precisely to gather that. Next, per the study: F1 identity shield (operator-voice-only
   writes to identity/state, closing the empty-profile and correction-bypass holes), F2 the «environment
   people» roster + a compact per-turn presence line the FlashBrain manages cheaply (no per-turn prompt/traffic
-  cost when nobody else is there), F3 the opt-in hard voice-lock. Full study + operator rulings:
-  `.meshkore/roadmap/initiatives/V2-651-speaker-identity-and-voice-lock-study.md`.
+  cost when nobody else is there), F3 the opt-in hard voice-lock. **Mechanism, limits and how to read the
+  shadow log: `.meshkore/docs/modules/zaelar-speaker-identity.md`** (the phase plan lives in the initiative,
+  which is not published). One measured interaction named there and load-bearing for F1: `attention.py`'s
+  active-conversation shortcut (V2-531) means that INSIDE a live window nothing is judged — with a TV on, room
+  lines were logged `👂 dirigido a zaelar` and answered — so a speaker check must be consulted BEFORE that
+  shortcut or a perfect voiceprint would change nothing.
 
 - **A just-closed widget does not reopen on chatter, and a garbled list name resolves or refuses
   naming what exists (V2-650b, 2026-09-10)**: the operator's very next live minute (sid 3d394…), read

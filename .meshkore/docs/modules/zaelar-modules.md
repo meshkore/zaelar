@@ -174,7 +174,9 @@ frontend/
       store.js            app-wide reactive state as signals (conn, mic, cam, botSpeaking, voices, theme, …)
     services/             framework-agnostic logic — migrates UNCHANGED
       session.js          the WebRTC/session ENGINE (start/stop/reset/reconnect, mic capture, speaker gate;
-                          camera capture disabled 2026-08-28 — code kept commented, V2-456)
+                          camera capture disabled 2026-08-28 — code kept commented, V2-456).
+                          NOTE: on the LiveKit engine this URL serves session-lk.js (see server/livekit_api.py),
+                          which runs the V2-651 speaker-identity SHADOW off the mic analyser.
       theme.js            dark/light mode — applies the `theme` signal to `<html data-theme>` + persists it
       audio.js  vad.js  stt.js  sse.js  status.js  visualizer.js  voiceCommands.js  api.js
     components/           function components (read store, build DOM via h(), run effects) — map 1:1 to Solid
@@ -209,7 +211,15 @@ frontend/
       services/sse.js calls store.bumpMemory(); MemoryMap refetches (debounced) ONLY while open.
     lib/
       draggable.js        makeDraggable (drag + position persistence)
-      speaker-gate.js     owner-voice acoustic gate (unchanged)
+      speaker-id.js       SPEAKER IDENTITY (V2-651 F0) — pure DSP core (pitch/centroid/rms, enroll,
+                          multi-profile classify, energy segmenter) + the SpeakerID AnalyserNode adapter.
+                          The fingerprint is computed IN THE BROWSER (the client carries the cost; only a
+                          tiny verdict would ever reach the backend). F0 is SHADOW: every speech segment is
+                          logged to observability as `🎙️ speaker` and NOTHING is gated or written.
+                          Doc: docs/modules/zaelar-speaker-identity.md
+      speaker-gate.js     LEGACY owner-voice acoustic gate — the orphaned predecessor of speaker-id.js.
+                          Still imported by the Pipecat-era session.js; DEAD on the LiveKit engine, where
+                          session-lk.js::getGate() returns null.
     widgets/
       desktop.js          widget window-manager (independent; talks only the widgets HTTP contract)
   vad/                    vendored browser-VAD (onnx + wasm + worklet), served at /static/vad/

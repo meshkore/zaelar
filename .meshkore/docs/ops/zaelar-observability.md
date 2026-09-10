@@ -320,6 +320,25 @@ reportados que no existían. Ahora las **transiciones** del cliente entran por e
 | `audio:out` | `state` ∈ `attached\|released` | El attach ya se veía (`🔈 TrackSubscribed`); el **release** no → un altavoz zombi no dejaba rastro |
 | `tab:visibility` | `state` ∈ `hidden\|visible` | `requestAnimationFrame` NO corre en pestaña de fondo, y de rAF dependen el visualizador y varios guardas: distingue «se congeló» de «estabas en otra aplicación» |
 
+### `🎙️ speaker` — la SOMBRA de identificación de voz (V2-651 F0, 2026-09-10)
+
+Filas `kind="client"` con label **`🎙️ speaker`**, UNA por segmento de habla, emitidas por el NAVEGADOR
+(`frontend/app/lib/speaker-id.js` → `api.clientLog`). Son **medición pura**: no cierran ningún gate, no escriben
+memoria y no tocan el prompt. Existen para elegir, con datos del micro y la sala REALES del operador, el umbral que
+usará la fase siguiente. Se apagan con `?nospk=1` o `localStorage.zaelar_spk_shadow=0`.
+
+| Campo | Qué es |
+|---|---|
+| `label` | `enroll` · `operator` · `other` · `known:<id>` |
+| `op_score` | el VOTO grueso contra el perfil del operador (solo vale 0, ⅓, ⅔ o 1) |
+| `d_mean` / `d_pitch` / `d_centroid` | distancias **continuas** en σ (0 = clavado en el perfil, 1 = a una desviación) |
+| `rms_ratio` | volumen frente al enrolado (≪ 1 = lejos del micro) |
+| `pitch` / `centroid` / `rms` | la instantánea cruda, para análisis offline |
+
+⚠️ **Para fijar un umbral se usa `d_mean`, NUNCA `op_score`**: el voto es de 3 criterios, así que solo puede tomar
+cuatro valores — medido sobre 60 voces sintéticas distintas devolvió exactamente TRES. Sirve para clasificar y no
+sirve para decidir dónde cortar. Detalle del mecanismo y sus límites: `docs/modules/zaelar-speaker-identity.md`.
+
 **Regla de uso, y es la que los mantiene útiles: son eventos de ESTADO, no de actividad.** Se emiten SOLO en
 transición y jamás dentro de un bucle de render. Dos consecuencias prácticas en el código: `agent:state` cuelga de un
 `createEffect` sobre una señal DERIVADA —que se re-ejecuta cuando cambia cualquiera de sus dependencias, a veces con
