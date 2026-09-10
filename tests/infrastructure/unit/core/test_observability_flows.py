@@ -57,7 +57,10 @@ def test_a_whole_flow_shares_one_correlation_id(wired):
     assert got, "no se registró ningún flujo"
     f = got[0]
     assert f["corr_id"] == tid
-    assert f["events"] == 4, "el evento raíz + los tres derivados deben caer en el MISMO flujo"
+    # V2-653: el show de widget dispara además el veredicto SOMBRA del árbitro (`kind="arbiter"`), que
+    # hereda el trace y cae — correctamente — en el MISMO flujo: la auditoría de una mutación viaja con
+    # la frase que la originó. Raíz + brain + search + show + veredicto = 5.
+    assert f["events"] == 5, "raíz + tres derivados + el veredicto del árbitro, todos en el MISMO flujo"
     assert set((f["families"] or "").split(",")) == {"flash", "widget"}
     assert f["tokens_in"] == 4700 and f["tokens_out"] == 120
     assert f["errors"] == 0
