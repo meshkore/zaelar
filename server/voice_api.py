@@ -239,11 +239,32 @@ async def status():
         from nucleo import mem_processor
         _mp = mem_processor.status()
         mem_err = health_state.get("memory")
-        if mem_err or _mp.get("degraded"):
+        # ONE LIGHT, FOURTEEN WRITERS (2026-09-10). `health_state["memory"]` is a key SHARED by the heart, REM,
+        # the retriever, the embedding backend and the turn's recall budget — facts with nothing in common. This
+        # row used to render EVERY one of them as the heart's canned outage line, which stated something FALSE:
+        # measured live on the operator's engine, it read «gpt-4.1-mini · 0 fallos — escribiendo por heurística»
+        # while the heart was distilling pills normally and the real fact was a recall that missed its 0.8 s
+        # budget (0.6 % of turns, and each one held the light red for the full 600 s TTL — which is why the panel
+        # looked broken one time in two). «0 fallos» inside an outage headline is the tell that the two halves of
+        # the sentence came from different places.
+        #
+        # So the row is built from WHO recorded the fact, not from the fact merely existing:
+        #   · the heart's own outage keeps the red AND the narrative — there it is true;
+        #   · any other `outage` is red too, but IN ITS OWN WORDS (e.g. «rem: sin proveedor …»);
+        #   · a `degraded` record is AMBER — a relay, a slow recall or a degraded vector space is a warning, not
+        #     an outage, and painting warnings red is how a light stops being read at all.
+        _mem_says = (mem_err or {}).get("text") or ""
+        if _mp.get("degraded"):
             mem_state = "error"
             mem_detail = f"{_mp['model']} · {_mp['fail_streak']} fallos — escribiendo por heurística"
+        elif mem_err and mem_err.get("kind") == "outage":
+            mem_state = "error"
+            mem_detail = f"{_mp['model']} · {_mem_says or 'sin proveedor'}"[:160]
         elif _mp.get("fail_streak"):
             mem_state, mem_detail = "warn", f"{_mp['model']} · {_mp['fail_streak']} fallo(s) recientes"
+        elif mem_err:
+            mem_state = "warn"
+            mem_detail = f"{_mp['model']} · {_mem_says or 'degradada'}"[:160]
         else:
             mem_state, mem_detail = "ok", f"{_mp['model']}"
         items.append({"key": "memory", "label": "Memoria · CORAZÓN", "state": mem_state, "detail": mem_detail})

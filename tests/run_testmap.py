@@ -663,7 +663,7 @@ DOMAINS: list[dict] = [
         # recall that missed its 0.8 s budget (0.6 % of turns, red for the whole 600 s TTL) read as
         # «gpt-4.1-mini · 0 fallos — escribiendo por heurística» while the heart was distilling normally. Zero
         # fallos inside an outage headline is the tell that the two halves came from different places.
-        {"id": "3.32", "title": "The ◉ memory row says WHOSE fact it shows — a slow recall is amber in its own "
+        {"id": "3.33", "title": "The ◉ memory row says WHOSE fact it shows — a slow recall is amber in its own "
                                 "words, and only the heart's own outage claims the heuristic",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/test_a_slow_recall_is_not_a_dead_heart.py"]},
         {"id": "2.28", "title": "El recall se compone fuera del loop y acotado en LOS DOS canales; el que NO "
