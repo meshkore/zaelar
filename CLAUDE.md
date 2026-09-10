@@ -471,6 +471,23 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **A widget_data cut by the TOKEN CAP escalates with the doc surface instead of apologizing (V2-658,
+  2026-09-10)**: «le he dicho un documento y no lo ha hecho» — measured twice in consecutive sessions
+  (the Declaration of Independence): the model opened an EMPTY `documento`, promised twice, finally
+  pasted the FULL text inline into ONE `widget_data` → `finish_reason: length`, the action was
+  discarded (V2-171's recording worked), and the turn fell to the mute backstop's «Perdona, ¿me lo
+  repites?» over an errand it had in hand. Content that exceeds a voice turn is a WORKER's delivery
+  (V2-644's doc surface), never an inline retry: `_drop_tool_call` records **`args_head`** (the head of
+  what the model was writing — the operator's bare turn text at the incident was «Venga, estoy
+  esperando.», useless as an errand), `oversized_widget_write()` names exactly the token-capped
+  `widget_data` class (the other two drop classes are different faults, V2-566, and are NOT escalated),
+  and both channels rescue: the voice provider escalates the request with `surface=documento` BEFORE
+  the holding line so the turn speaks it, the probe synthesizes the same `escalate_to_slowbrain` before
+  action classification. The `documento` manifest teaches the rule (costs prompt only with the card
+  open — exactly the failing state). The same session live-verified V2-657: ~90 s of wedding room talk,
+  zero responses. Node **3.32**; four disarms, mutations asserted, all red. ⚠️ NOT verified live
+  end-to-end (needs a real worker run).
+
 - **The conversation can DIE during table talk: the aside, the spoken shut-up, and the honest provider
   label (V2-657, 2026-09-10)**: the operator's dinner session (130418ed), read event by event. With a
   window open, every table utterance was admitted `active_window` (V2-531: inside a live window nobody
