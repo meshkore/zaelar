@@ -1929,6 +1929,16 @@ DOMAINS: list[dict] = [
         {"id": "4.147", "title": "El orbe solo se pone naranja si algo escucha: micro cerrado o agente parado "
                                  "= gris, y el modo Nombre solo dentro de su ventana",
             "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_the_orb_only_glows_when_something_listens.py"]},
+        # V2-650 (2026-09-10, sesión aed0736c «True Blue»): play_playlist persistía un snapshot cargado ANTES de
+        # que el proveedor escribiera yt.videoId + la cola — borraba la reproducción recién arrancada (silencio
+        # con ok:True); y el guard anti context-bleed se comió los TRES replays explícitos del operador porque su
+        # única vía de escape mide solape de palabras contra el PAYLOAD. replay_license = acción `produce`
+        # declarada + gramática de petición de medios (V2-635) → un replay pedido es una orden, nunca arrastre.
+        {"id": "4.148", "title": "Una lista que se reproduce CONSERVA el estado del proveedor, y un replay "
+                                 "explícito del play es una orden, no context-bleed",
+            "ch": UNIT, "paths": [
+                "tests/browser/unit/musica/test_playing_a_playlist_keeps_the_playback_the_provider_started.py",
+                "tests/voice/unit/test_an_explicit_replay_of_a_play_order_is_an_order.py"]},
         # V2-600 → V2-601 T-07 (2026-09-05): «cierra la pantalla completa» (y el «…completamente» del STT) es una
         # orden de ESTADO de pantalla; el veto vivía en los dos backstops del servidor y la TERCERA copia de la
         # regla —la del cliente, voiceCommands.js— seguía cerrando el canvas entero. Conduce el módulo REAL.
