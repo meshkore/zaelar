@@ -109,6 +109,28 @@ export function matchScore(f, p) {
   return tot ? ok / tot : 0;
 }
 
+// CONTINUOUS distance of a snapshot to a profile — the number F0 exists to collect.
+//
+// `matchScore` is a 3-criteria VOTE, so it can only ever return 0, ⅓, ⅔ or 1: measured across 60 distinct
+// synthetic voices it produced exactly THREE distinct values. That is enough to classify, and useless to
+// THRESHOLD against — and choosing F1's threshold from real sessions is the whole point of the shadow phase.
+// So every verdict also carries per-feature z-distances (|x−μ|/σ, so 0 = dead on the profile, 1 = one standard
+// deviation out) plus their mean. Reported, never used to decide: F0 changes no behaviour.
+export function distancesTo(f, p) {
+  if (!f || !p) return null;
+  const z = (v, st) => (st && st.s > 0 && v > 0 && st.m > 0) ? Math.abs(v - st.m) / st.s : null;
+  const dPitch = z(f.pitch, p.pitch);
+  const dCentroid = z(f.centroid, p.centroid);
+  const parts = [dPitch, dCentroid].filter(x => x !== null);
+  return {
+    pitch: dPitch,
+    centroid: dCentroid,
+    mean: parts.length ? parts.reduce((a, b) => a + b, 0) / parts.length : null,
+    // loudness as a RATIO to the enrolled level (1 = same loudness; « 1 = far from the mic)
+    rmsRatio: (p.rms && p.rms.m > 0) ? f.rms / p.rms.m : null,
+  };
+}
+
 // Classify a snapshot against a MAP {id: profile}. Returns the best {id, score} and the runner-up gap.
 // This is the seam the "environment people" feature and a future ONNX classifier both plug into.
 export function classify(f, profiles) {
@@ -162,6 +184,11 @@ export class SpeakerID {
     this.onUtterance = opts.onUtterance || (() => {});
     this.onState = opts.onState || (() => {});
     this.isEnrollable = opts.isEnrollable || (() => true);   // F2 will gate this to DIRECTED turns
+    // SUPPRESSION — the agent's OWN voice must never become a segment. It comes out of the operator's speakers
+    // and back into his mic; echo cancellation attenuates it but does not remove it, and an unsuppressed TTS
+    // segment can be auto-enrolled AS the operator, which would poison the very measurement this phase exists
+    // for. Anything mid-segment when suppression starts is DISCARDED rather than half-kept.
+    this.suppressed = opts.suppressed || (() => false);
     this.profiles = opts.profiles || {};         // {operator: profile, "known:<id>": profile, ...}
     this._seg = new Segmenter(opts);
     this._ring = [];                             // per-frame features of the current segment
@@ -176,6 +203,10 @@ export class SpeakerID {
   tick() {
     const an = this.getAnalyser && this.getAnalyser();
     if (!an) return;
+    if (this.suppressed()) {                     // the agent is talking: drop anything in flight, listen to nothing
+      if (this._seg.active() || this._ring.length) { this._seg.reset(); this._ring = []; }
+      return;
+    }
     if (++this._tick % 2) return;                // throttle to ~every other frame
     if (!this._td || this._td.length !== an.fftSize) {
       this._td = new Float32Array(an.fftSize);
@@ -213,9 +244,11 @@ export class SpeakerID {
     if (best.id === "operator" && best.score >= this.operatorThreshold) label = "operator";
     else if (best.id && best.id !== "operator" && best.score >= this.operatorThreshold) label = best.id;
     else label = "other";
-    // ALWAYS report the operator's own score too, so the shadow log measures operator separability directly.
+    // ALWAYS report the operator's own score AND continuous distance, so the shadow log measures operator
+    // separability directly — the vote alone is too coarse to pick a threshold from (see `distancesTo`).
     const opScore = matchScore(f, this.profiles.operator);
-    this.onUtterance({ label, score: best.score, opScore, matched: best.id, gap: best.gap, features: f });
+    const opDist = distancesTo(f, this.profiles.operator);
+    this.onUtterance({ label, score: best.score, opScore, opDist, matched: best.id, gap: best.gap, features: f });
   }
 
   addProfile(id, profile) { this.profiles[id] = profile; }

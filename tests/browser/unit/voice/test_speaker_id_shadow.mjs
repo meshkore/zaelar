@@ -6,7 +6,8 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
-  rmsOf, pitchOf, centroidOf, frameFeatures, snapshot, buildProfile, matchScore, classify, Segmenter, SpeakerID,
+  rmsOf, pitchOf, centroidOf, frameFeatures, snapshot, buildProfile, matchScore, classify, distancesTo,
+  Segmenter, SpeakerID,
 } from "../../../../frontend/app/lib/speaker-id.js";
 
 const SR = 48000, N = 2048;
@@ -62,6 +63,35 @@ function spectrum(peakHz, bins = N / 2, sr = SR) {
   assert.equal(classify(bSnap, profiles).id, "known:kid", "a known household voice classifies as that person");
 }
 
+// ── the CONTINUOUS distance: the vote is too coarse to pick a threshold from, the distance is not ──
+{
+  const featA = () => frameFeatures(sine(120, 0.32), spectrum(900), SR);
+  const opProf = buildProfile([0, 1, 2].map(() => snapshot([featA(), featA(), featA()])));
+
+  // measured: across 60 distinct synthetic voices `matchScore` returns only THREE values — useless as a threshold
+  const votes = new Set(), dists = new Set();
+  for (const hz of [110, 120, 130, 150, 170, 190, 210, 230, 250, 300]) {
+    for (const pk of [700, 900, 1200, 1800, 2400, 3000]) {
+      const s = snapshot([frameFeatures(sine(hz, 0.32), spectrum(pk), SR),
+                          frameFeatures(sine(hz, 0.32), spectrum(pk), SR),
+                          frameFeatures(sine(hz, 0.32), spectrum(pk), SR)]);
+      votes.add(matchScore(s, opProf).toFixed(3));
+      const d = distancesTo(s, opProf);
+      if (d && d.mean != null) dists.add(d.mean.toFixed(3));
+    }
+  }
+  assert.ok(votes.size <= 4, "the vote is coarse by construction (3 criteria → at most 4 values)");
+  assert.ok(dists.size > 20,
+    `the continuous distance actually separates voices (got ${dists.size} distinct values over 60 voices)`);
+
+  // and it points the right way: the operator's own voice is NEARER than a clearly different one
+  const near = distancesTo(snapshot([featA(), featA(), featA()]), opProf).mean;
+  const far = distancesTo(snapshot([frameFeatures(sine(235, 0.32), spectrum(2500), SR),
+                                    frameFeatures(sine(235, 0.32), spectrum(2500), SR),
+                                    frameFeatures(sine(235, 0.32), spectrum(2500), SR)]), opProf).mean;
+  assert.ok(far > near, `a different voice must be FARTHER from the profile (near=${near}, far=${far})`);
+}
+
 // ── the Segmenter opens once on speech and closes once on silence ──
 {
   const seg = new Segmenter();
@@ -103,23 +133,62 @@ function spectrum(peakHz, bins = N / 2, sr = SR) {
   drive(sine(235, 0.32), spectrum(2500));  // a different voice → not the operator
   const otherTurn = seen[seen.length - 1];
   assert.equal(otherTurn.label, "other", "a clearly different voice is labelled other, not operator");
+  assert.ok(otherTurn.opDist && typeof otherTurn.opDist.mean === "number",
+    "every verdict carries the continuous distance F1 will threshold on");
+}
+
+// ── SUPPRESSION: the agent's own voice never becomes a segment (it would be enrolled as the operator) ──
+{
+  const fake = {
+    fftSize: N, frequencyBinCount: N / 2, _td: new Float32Array(N), _fd: new Uint8Array(N / 2),
+    getFloatTimeDomainData(a) { a.set(this._td); },
+    getByteFrequencyData(a) { a.set(this._fd); },
+  };
+  const seen = [];
+  let botTalking = true;
+  const spk = new SpeakerID(() => fake, () => SR, {
+    minEnroll: 2, onUtterance: (v) => seen.push(v), suppressed: () => botTalking,
+  });
+  const drive = (td, fd) => {
+    fake._td = td; fake._fd = fd;
+    for (let i = 0; i < 30; i++) spk.tick();
+    fake._td = new Float32Array(N); fake._fd = new Uint8Array(N / 2);
+    for (let i = 0; i < 30; i++) spk.tick();
+  };
+
+  drive(sine(200, 0.32), spectrum(1800));   // this is the AGENT's own TTS coming back through the mic
+  drive(sine(200, 0.32), spectrum(1800));
+  assert.deepEqual(seen, [], "nothing is fingerprinted while the agent is speaking");
+  assert.ok(!spk.enrolled(), "and the agent's own voice can never be auto-enrolled as the operator");
+
+  botTalking = false;                        // the agent stops; the real person speaks
+  drive(sine(120, 0.32), spectrum(900));
+  assert.equal(seen.length, 1, "once the agent is quiet, real speech is measured again");
 }
 
 // ── the wiring: session-lk.js runs the shadow and stops it with the session, log-only and killable ──
 {
   const src = readFileSync(new URL("../../../../frontend/app/services/session-lk.js", import.meta.url), "utf8");
   assert.ok(src.includes('from "../lib/speaker-id.js'), "session-lk imports the speaker module");
-  assert.ok(/_startSpeakerShadow\(\);[^\n]*\n/.test(src) && src.includes("audio.initMic(stream);"),
-    "the shadow starts after the mic analyser exists");
+  // Anchor the CALL SITE, not two independent substrings. The first version of this asserted
+  // `includes("_startSpeakerShadow();") && includes("audio.initMic(stream);")`, which stayed GREEN with the two
+  // lines swapped — it verified nothing about where the shadow is started. (The lazy analyser getter means the
+  // order is not crash-critical, but a start that drifts out of the session's startup IS a regression.)
+  assert.ok(/audio\.initMic\(stream\);[^\n]*\n\s*_startSpeakerShadow\(\);/.test(src),
+    "the shadow is started inside start(), right after the mic analyser is built");
   // anchor on the CALL site inside stop() (after _stopHeartbeat), not the function definition — a disarm that
   // removes the call must go red.
   assert.ok(/_stopHeartbeat\(\);[\s\S]{0,200}?_stopSpeakerShadow\(\);/.test(src),
     "the shadow loop is stopped inside stop(), right after the heartbeat");
   assert.ok(src.includes('api.clientLog("🎙️ speaker"'), "the verdict is logged to observability (shadow), not gated");
   assert.ok(src.includes("zaelar_spk_shadow") && src.includes('"nospk"'), "the shadow is killable");
+  assert.ok(/suppressed:\s*\(\)\s*=>[^\n]*botSpeaking/.test(src),
+    "the agent's own voice is suppressed — an unsuppressed TTS segment could be enrolled as the operator");
+  assert.ok(src.includes("d_mean") && src.includes("d_pitch"),
+    "the continuous distances F1 will threshold on are logged, not just the coarse vote");
   // F0 must not touch behaviour: no gate/turn/close call in the shadow path.
   assert.ok(!/_startSpeakerShadow[\s\S]{0,600}(sendText|setGate|publishData)/.test(src),
     "the shadow path neither gates nor sends turns — it only measures");
 }
 
-console.log("ok — speaker-id shadow (6 groups)");
+console.log("ok — speaker-id shadow (8 groups)");

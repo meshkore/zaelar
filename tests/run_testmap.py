@@ -1949,14 +1949,18 @@ DOMAINS: list[dict] = [
                                  "se resuelve o se niega nombrando lo que hay",
             "ch": UNIT, "paths": [
                 "tests/voice/unit/test_a_just_closed_widget_does_not_reopen_on_chatter.py"]},
-        # V2-651 F0 (2026-09-10): identificar la voz del OPERADOR. El coste vive en el NAVEGADOR (directriz del
-        # operador): la huella de cada segmento de habla se calcula en el cliente y al backend solo viajaría una
-        # etiqueta minúscula. F0 es MEDICIÓN EN SOMBRA — cero cambio de conducta: fingerprint + clasificación
-        # multi-perfil (operador + personas del entorno) registrada por observabilidad, sin gate ni memoria. El
-        # núcleo DSP es puro (testeado con frames sintéticos) y el adaptador SpeakerID se conduce con un
-        # AnalyserNode falso. NOTA: el tap real del micro y la calidad de la huella se verifican EN VIVO.
-        {"id": "4.150", "title": "La voz del operador (F0, sombra): fingerprint en el navegador, clasificación "
-                                 "multi-perfil y registro por observabilidad — sin gate ni escritura de memoria",
+        # V2-651 F0 (2026-09-10): identify the OPERATOR's voice. The cost lives in the BROWSER (operator
+        # directive): the fingerprint of every speech segment is computed client-side and only a tiny label would
+        # ever cross to the backend. F0 is SHADOW MEASUREMENT — zero behaviour change: fingerprint + multi-profile
+        # classification (operator today, household voices later) logged through observability, no gate, no memory
+        # write. The DSP core is pure (synthetic frames) and the SpeakerID adapter is driven through a fake
+        # AnalyserNode. Two things this node pins that a review caught: the agent's OWN voice is suppressed (an
+        # unsuppressed TTS segment can be auto-enrolled AS the operator) and every verdict carries a CONTINUOUS
+        # distance — the 3-criteria vote returns only three distinct values over 60 voices, useless to threshold
+        # against, and picking F1's threshold is the whole point of the shadow phase.
+        {"id": "4.150", "title": "The operator's voice (F0, shadow): browser-side fingerprint, multi-profile "
+                                 "classification, self-voice suppression and a continuous distance — logged, "
+                                 "never gated",
             "ch": UNIT, "paths": ["tests/browser/unit/voice/test_speaker_id_shadow.py"]},
         # V2-600 → V2-601 T-07 (2026-09-05): «cierra la pantalla completa» (y el «…completamente» del STT) es una
         # orden de ESTADO de pantalla; el veto vivía en los dos backstops del servidor y la TERCERA copia de la

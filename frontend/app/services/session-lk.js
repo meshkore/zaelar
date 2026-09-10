@@ -110,12 +110,18 @@ function _startSpeakerShadow() {
     _spk = new SpeakerID(
       () => audio.micAnalyser(),
       () => { const c = audio.context(); return (c && c.sampleRate) || 48000; },
-      { onUtterance: (v) => {
+      { // never fingerprint the agent's own voice coming back through the mic (it would poison enrollment)
+        suppressed: () => { try { return !!store.botSpeaking(); } catch (_) { return false; } },
+        onUtterance: (v) => {
           try {
+            const d = v.opDist || {};
             api.clientLog("🎙️ speaker", {
-              text: `label=${v.label} score=${(v.score || 0).toFixed(2)} op=${(v.opScore ?? 0).toFixed(2)}`,
+              text: `label=${v.label} op=${(v.opScore ?? 0).toFixed(2)} dist=${d.mean != null ? d.mean.toFixed(2) : "—"}`,
               label: v.label, score: v.score, op_score: v.opScore ?? null, matched: v.matched ?? null,
               gap: v.gap ?? null,
+              // continuous distances are what F1's threshold will actually be chosen from
+              d_mean: d.mean ?? null, d_pitch: d.pitch ?? null, d_centroid: d.centroid ?? null,
+              rms_ratio: d.rmsRatio ?? null,
               pitch: Math.round(v.features?.pitch || 0), centroid: Math.round(v.features?.centroid || 0),
               rms: +(v.features?.rms || 0).toFixed(3), shadow: true,
             });

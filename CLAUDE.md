@@ -488,10 +488,18 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   each verdict (label · score · operator score · pitch/centroid/rms) through the EXISTING `api.clientLog` seam
   into observability — nothing gated, no memory written, killable with `?nospk=1` / `zaelar_spk_shadow=0`.
   Its whole job is to produce the separability numbers on the operator's real mic/room BEFORE any later phase
-  thresholds against it (measure, don't deduce). Node **4.150** (6 groups; the pure math, enroll+multi-profile
-  classify, the segmenter, the real adapter through a fake AnalyserNode, and the wiring); two disarms verified
-  red — one of them EXPOSED a weak wiring assertion (`_stopSpeakerShadow()` also matched the function
-  definition, so removing the CALL stayed green), re-anchored on the call site after `_stopHeartbeat()`.
+  thresholds against it (measure, don't deduce). Node **4.150** (8 groups); five disarms verified red.
+  **A review pass the same day found three real defects in this very build, all fixed here**: (1) the coarse
+  vote is unusable as a measurement — `matchScore` is a 3-criteria vote, and measured across 60 distinct
+  synthetic voices it returns exactly THREE distinct values, so every verdict now also carries `distancesTo`,
+  a CONTINUOUS per-feature z-distance (that is what F1's threshold gets chosen from); (2) the agent's OWN TTS
+  comes back through the mic and could be auto-enrolled AS the operator, poisoning the measurement — a
+  `suppressed()` predicate wired to `store.botSpeaking()` now discards anything in flight and fingerprints
+  nothing while zaelar talks; (3) TWO wiring assertions were weak in the same way — `_stopSpeakerShadow()`
+  also matched the function DEFINITION, and the start-ordering check merely asserted two independent
+  substrings existed, staying GREEN with the lines swapped — both re-anchored on the real call sites and
+  re-disarmed. Measured cost: `pitchOf` is 0.91 ms/frame ⇒ ~27 ms/s ≈ **2.7% of one core**, only while speech
+  is active.
   ⚠️ **NOT verified live**: the real mic tap and the fingerprint's accuracy in a room need the operator's
   engine — F0 exists precisely to gather that. Next, per the study: F1 identity shield (operator-voice-only
   writes to identity/state, closing the empty-profile and correction-bypass holes), F2 the «environment
