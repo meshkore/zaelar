@@ -471,6 +471,32 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **The errand HARNESS closes the circle, and the window measures silence from speech ONSET (V2-659,
+  2026-09-11)**: the operator's directive — «cuando obtiene permiso para realizar una acción falta terminar
+  de cerrar el círculo… un arnés dinámico que comprueba que lo pedido se ha conseguido y solo entonces se
+  informa». Session 0141a72a, two defects in one minute. **(1)** «Johnny.» opened a 5 s window; he began
+  «Enséñame la declaración…» 2 s later and the STT finalized it 6 s later — judged at the END it fell
+  outside the window and three directed turns became room noise. The window measures his SILENCE, which
+  ends when he opens his mouth: `attention.note_speech_onset()` (VAD rising edge, `pipeline/agent.py`) and
+  `_window_ref()` measure against the onset when it fell inside the standing window (a stale onset older
+  than the anchor grants nothing). **(2)** After his «Adelante» the model said «aquí tienes el texto
+  completo…» having run ONE web_search — `documento` open and EMPTY — and nothing compared the claim with
+  the screen: `promise_backstop` reads promises, not completion claims; `_no_tool` was False because the
+  search fired; the susurro caught it 40 s later. **`nucleo/harness.py`**: a ledger of GOALS `(kind,
+  target, his words)` born from what the turn TOUCHED (every card shown, incl. the promise-backstop show),
+  verified by readers of the product's own truth (the widget's `view_data()` `empty` flag + the open-cards
+  state; a widget that does not declare emptiness → unverifiable, and the harness stays SILENT — a wrong
+  «you did not deliver» over a delivered card is worse than none). Three seams: turn end in BOTH channels
+  (`claims_done` over an unmet goal with no data-op this turn — the V2-603 fire-and-forget race is trusted
+  — → the honest follow-up is spoken, V2-572 shape, and the errand escalates with the doc surface quoting
+  his words); the prompt's live state (an open goal is a FACT with its RULE, V2-453); the loop heartbeat
+  (met goals close with an event — no second mouth, the delivery announced itself). Typed by the WIDGET
+  touched, never by an errand's words — the doctrine's word-swap test holds. F2-F4 named in the initiative:
+  widget-declared verifiers (his CRITERIA, the language), worker goals closed by delivery events, bounded
+  iteration, and the clarifying-question hinge (a «¿te refieres a X?» + yes should bind to the original
+  request; `dispatch_confirm` parks only PERMISSION questions). Node **3.33** (18 cases); five disarms,
+  mutations asserted, all red. ⚠️ NOT verified live end-to-end.
+
 - **A widget_data cut by the TOKEN CAP escalates with the doc surface instead of apologizing (V2-658,
   2026-09-10)**: «le he dicho un documento y no lo ha hecho» — measured twice in consecutive sessions
   (the Declaration of Independence): the model opened an EMPTY `documento`, promised twice, finally
