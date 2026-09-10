@@ -62,19 +62,22 @@ TOOLS: list[dict] = [
                         "type": "string",
                         "description": (
                             "La petición reformulada clara y autocontenida (quien la resuelve NO ve esta "
-                            "conversación). CONSERVA todas las restricciones que el operador no haya retirado: si "
-                            "dice 'la cilindrada da igual', suelta solo la cilindrada, no generalices a 'una moto "
-                            "cualquiera'."
+                            "conversación). CONSERVA todas las restricciones que el operador no haya "
+                            "retirado — afloja solo lo que él aflojó, sin generalizar."
                         ),
                     },
                     "surface": {
                         "type": "string",
                         "enum": ["lista", "item", "informe", "widget", "voz", "silenciosa"],
                         "description": (
+                            # V2-652: «pedir cita previa en Hacienda» rode `lista` and the operator got a
+                            # comparison sheet of non-options («¿Por qué me muestras el widget de
+                            # resultados?»). A GESTIÓN's deliverable is that it gets DONE — that is voz.
                             "Qué MIRARÁ el operador al acabar: lista=varias cosas que comparar; item=UNA "
                             "ficha; informe=un ESCRITO que se lee entero → hoja de documento; "
-                            "widget=funcionalidad que él maneja (un juego, un contador); voz=se "
-                            "cuenta y ya; silenciosa=nada que enseñar. Se abre al arrancar: elígela ya."
+                            "widget=funcionalidad que él maneja; voz=se cuenta y ya — una GESTIÓN "
+                            "(reservar, pedir cita, tramitar) va aquí: quede HECHA, no una lista; "
+                            "silenciosa=nada que enseñar. Se abre al arrancar."
                         ),
                     }
                 },

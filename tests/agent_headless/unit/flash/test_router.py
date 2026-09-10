@@ -179,6 +179,20 @@ def test_escalate_no_longer_claims_showing_a_photo_and_points_at_the_tool():
     assert "show_images" in no, "the NO-list must say where it goes, as it already does for play_video/play_music"
 
 
+def test_an_action_errand_is_taught_to_be_voz_not_a_list():
+    """V2-652 — measured live (session 7f77e2cc): «pedir cita previa en Hacienda» escalated onto a
+    `lista` surface and the operator was shown a comparison sheet of non-options («¿Por qué me muestras
+    el widget de resultados? Eso no tiene ningún sentido»). The surface gloss is the only place the
+    model is told WHEN voz beats lista, so the teaching itself is pinned — same shape as the informe
+    gloss test in test_a_report_errand_opens_the_document_sheet.py."""
+    esc = next(t["function"] for t in router.TOOLS
+               if t["function"]["name"] == "escalate_to_slowbrain")
+    prop = esc["parameters"]["properties"]["surface"]
+    d = prop["description"]
+    assert "GESTIÓN" in d and "voz=" in d, "the gloss must say a gestión is delivered done, via voz"
+    assert d.index("GESTIÓN") > d.index("voz="), "the gestión rule belongs to the voz value, not lista"
+
+
 def test_tool_catalog_stays_compact():
     import json as _json
     size = len(_json.dumps(router.TOOLS, ensure_ascii=False))
