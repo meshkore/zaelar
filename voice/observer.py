@@ -72,6 +72,10 @@ _CAT = {
     # aliases, and the operator’s own taps on the UI (`ui`). This record ties the “wrong widget”
     # wrong widget” to the PHRASE that requested it (each event carries the turn text + its trace chip).
     "widget": "widget", "ui": "widget",
+    # `arbiter` (V2-653): the canvas arbiter's verdict for a widget mutation — allow/veto, the tree
+    # branch that decided, and the evidence. Family `widget` because the verdict is ABOUT a canvas
+    # command; in F0 (shadow) it records what the armed tree WOULD have done.
+    "arbiter": "widget",
     # ── Widgets, second batch: NATIVE surfaces that the brain opens like a card (`panel` = ChatWall tab via
     # `show_panel`; `secret` = vault modal). To the operator, “open the chat” and “open the
     # agenda” are the same gesture against the canvas, so they belong to the same family.
@@ -385,6 +389,17 @@ def emit(kind: str, label: str, text: str = "", role: str = "", extra: dict | No
         _bus_sse.publish(ev)
     except Exception:
         pass
+    # CANVAS ARBITER — F0 SHADOW TAP (V2-653). This stream is the one funnel EVERY canvas command already
+    # travels through (`widget` events with `src`, V2-039) and every operator turn (`transcript`), so the
+    # shadow judges here instead of adding lines to N dispatch sites. Emit-only (it produces `arbiter`
+    # verdict events, never touches this one), re-entrancy-guarded, fail-open, kill-switch
+    # ZAELAR_ARBITER_SHADOW=0. Enforcement, when it comes (F1+), lives at the doors — never here.
+    if kind in ("widget", "transcript", "ambient"):
+        try:
+            from nucleo import canvas_arbiter as _arb
+            _arb.shadow_tap(kind, label, text, role, extra)
+        except Exception:
+            pass
     return ev
 
 

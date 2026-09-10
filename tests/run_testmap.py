@@ -1189,6 +1189,13 @@ DOMAINS: list[dict] = [
         {"id": "3.23", "title": "A canvas mutation needs the operator's words, and a known order survives "
                                 "the wake word",
             "ch": UNIT, "paths": ["tests/voice/unit/test_a_canvas_mutation_needs_the_operators_words.py"]},
+        # V2-653 F0 — el ÁRBITRO del canvas: un solo árbol de decisión (procedencia + licencia) juzga toda
+        # mutación de widgets; los incidentes medidos del mes son su suite de conformidad, y la sombra
+        # (tap en observer.emit) emite veredictos `arbiter` sin imponer nada todavía.
+        {"id": "3.25", "title": "El árbitro del canvas: procedencia + licencia deciden toda mutación — "
+                                "conformidad con los incidentes medidos, y la sombra que solo mide",
+            "ch": UNIT, "paths": [
+                "tests/agent_headless/unit/test_the_canvas_arbiter_judges_every_mutation.py"]},
         {"id": "3.2", "title": "Puente voz→nucleo + trazas", "ch": VOICE, "paths": [
             "tests/voice/unit/providers/test_nucleo.py", "tests/voice/unit/providers/test_nucleo_guards.py",
             # ⚠️ SIN MAPEAR hasta el 2026-08-21 (V2-245), los cinco: el acumulador que perdía 64 s del operador en

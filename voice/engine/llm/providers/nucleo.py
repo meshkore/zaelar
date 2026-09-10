@@ -1110,7 +1110,8 @@ class NucleoLLMStream(llm.LLMStream):
                 equivocada con el texto exacto que la produjo. La fila del store se queda como está (es el efecto,
                 no la orden)."""
                 emit("widget", f"data:{action_name}", text=(text or "").strip()[:160],
-                     extra={"id": wid, "action": action_name, "mode": m, "src": "flash"})
+                     extra={"id": wid, "action": action_name, "mode": m, "src": "flash",
+                            "payload": payload if isinstance(payload, dict) else {}})   # V2-653: the order's content, judged by the arbiter
 
             if mode == _wactions.FAST:
                 # GUARD anti context-bleed (round headless V2-038 #1): el modelo a veces RE-emite la data-op del
