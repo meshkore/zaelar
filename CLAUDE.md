@@ -471,6 +471,34 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **A bare boot loads the PRODUCT, a dead session is VISIBLE and recycles, the ◉ reads the speaker side,
+  and no conversational pause exceeds 5s (V2-656, 2026-09-10)**: the operator's integrity review after an
+  evening lost to a restart without `BRAIN=nucleo` — the profile default handed the AgentSession the raw
+  broker plugin (no FlashBrain, no memory, no relay), the fundless provider 403'd every turn, LiveKit
+  closed the session as unrecoverable at 38 s, and the ◉ said «Todo bien» while he talked to a grey orb.
+  **(1)** Both profiles default `llm` to `nucleo` (`profile.py`) — baselines stay one env var away; booting
+  the real product never again depends on remembering one. **(2)** A close-with-error records
+  `health_state("voice","dead")`, alerts the timeline, and asks `homeostasis.request_recycle()` (new seam
+  `_consume_recycle_request`: honoured next beat, survives the cooldown, never loops); the `/api/status`
+  voice row goes RED and `StatusPanel.js` stops overwriting a server-side error with the browser's green —
+  the browser's room stays connected when the server session dies, so it structurally cannot see this
+  failure. **(3)** `voiceStatus` says the two silent «no me habla» causes (blocked playback, the 🔊 mute);
+  `server/system_audio.py` reads the MACHINE's output (macOS osascript, cached): volume 0 / muted → warn,
+  and an unmeasured OS gets NO row, never a fake green. A genuinely dead ElevenLabs key reddens the TTS
+  row via the balance probe; a key that 401s only `user_read` records nothing — measured first: the
+  operator's scoped key serves TTS fine. **(4)** The broker left every DEFAULT path (profile default gone;
+  the stale `fast.provider` label removed from the operator's v2.json → the canonical table's DeepSeek
+  titular governs). **(5)** Operator directive superseding 2026-09-09's ceiling: **no pause over 5 s** —
+  `attention_window.MAX_S`=5 (the shape scale stays, every rung clamps), and `window_s()` clamps AFTER the
+  env override in smart mode, because the ⚙ knob offered 15-120 s and an old stored value would have
+  silently defeated the rule (options now 3/4/5). Livable because V2-655 anchors at the agent's LAST word.
+  **(6)** A mode FLIP closes the standing window NOW (`attention.on_mode_change`, called from the single
+  `settings.update()` seam only on a REAL change — a bulk save re-sending the same mode wipes nothing) and
+  announces `orb:attention`, where `sse.js` now also darkens the ring: he measured 20+ s of orange after
+  activating wake-word mode, riding out a window opened under the previous mode. Node **9.3** + additions
+  to 9.1 and the attention suite; four disarms, mutations asserted, all red. ⚠️ NOT verified live: the
+  3-second ring darken and a recycle after a real death.
+
 - **IF IT TALKS TO YOU IT LISTENS TO YOU · the core is not modifiable · ⏻ stopped resumes nothing
   (V2-655, 2026-09-10)**: the operator, on the forensics of session 85eec898 — «arregla todo eso, no
   podemos permitir la sordera». Three defects, one shape: every piece does something correct and the

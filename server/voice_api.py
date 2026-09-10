@@ -184,9 +184,18 @@ async def status():
     except Exception:
         live = False
     # Voice ALWAYS ON (2026-07-07): there is no longer an "Activate" button — the session starts when the web opens.
-    items.append({"key": "voice", "label": "Sistema de voz",
-                  "state": "ok" if live else "off",
-                  "detail": "sesión activa" if live else "en espera · se activa al abrir la web"})
+    # A recorded session DEATH outranks everything here (2026-09-10): an unrecoverable error closed the
+    # AgentSession while the room stayed connected, and this panel kept saying green — the operator's exact
+    # complaint («no es normal que el sistema pueda estar arriba» while nothing answers). The client merge
+    # (StatusPanel.js) deliberately does NOT overwrite an error state on this row.
+    vdead = health_state.get("voice")
+    if vdead:
+        items.append({"key": "voice", "label": "Sistema de voz", "state": "error",
+                      "detail": "la sesión MURIÓ — reciclando el motor; recarga la página si no vuelve"})
+    else:
+        items.append({"key": "voice", "label": "Sistema de voz",
+                      "state": "ok" if live else "off",
+                      "detail": "sesión activa" if live else "en espera · se activa al abrir la web"})
 
     # ── LLM provider (the fast-layer model driving the conversation) ─────────────────────────────────────────
     # With BRAIN=nucleo, the fast-layer model is PER INVOCATION (config/v2 `fast`, UI-managed); here we show the
@@ -201,9 +210,10 @@ async def status():
             _spec = spec_from_config()
             model_name = _spec.model or model_name
             _url = _spec.resolved_base_url().lower()
-            prov_label = ("Ollama·local" if _spec.is_local() else "xAI" if "x.ai" in _url
+            prov_label = ("Ollama·local" if _spec.is_local() else "DeepSeek" if "deepseek" in _url
+                          else "xAI" if "x.ai" in _url
                           else "Groq" if "groq" in _url else "Gemini" if "googleapis" in _url or "generativelanguage" in _url
-                          else "AIMLAPI" if "aimlapi" in _url else "nube")
+                          else "nube")
             llm_key = _spec.is_local() or bool(_spec.resolved_api_key())
         except Exception:
             prov_label = "nube"
@@ -260,7 +270,10 @@ async def status():
     except Exception:
         prov, cur = SETTINGS.tts_provider, "?"
     tts_err = health_state.get("tts")
-    needs_key = {"cartesia": "CARTESIA_API_KEY"}.get(prov)
+    # elevenlabs was MISSING from this map (2026-09-10): with no key at all — or a revoked one — the row said
+    # «ok · Voz ElevenLabs» while every synthesis would 401. Presence here; validity comes from the balance
+    # probe recording health_state («auth») when the provider answers 401.
+    needs_key = {"cartesia": "CARTESIA_API_KEY", "elevenlabs": "ELEVENLABS_API_KEY"}.get(prov)
     if tts_err:
         tts_state, tts_detail = "error", f"{prov} · {tts_err['kind']}"
     elif needs_key and not has(needs_key):
@@ -268,6 +281,15 @@ async def status():
     else:
         tts_state, tts_detail = "ok", f"{prov} · {cur}"
     items.append({"key": "tts", "label": "TTS · texto→voz", "state": tts_state, "detail": tts_detail})
+
+    # ── OS audio output (operator request 2026-09-10: the monitor must catch «volume at zero») ──────────────
+    try:
+        from . import system_audio
+        _sys_audio = system_audio.status_item()
+        if _sys_audio is not None:
+            items.append(_sys_audio)
+    except Exception:
+        pass
 
     # ── Crons (proactivity · OWN orchestrator loop, nucleo/) ─────────────────────────────────────────────────
     if brain == "nucleo":
@@ -308,7 +330,7 @@ async def status():
 
     # Group items so the panel can show the CORE (what you boot from the terminal — must be up for zaelar to work)
     # above the fold, and SECONDARY features (proactivity, widgets, cluster) below in a quieter section.
-    CORE = {"server", "brain", "voice", "llm", "memory", "stt", "tts"}
+    CORE = {"server", "brain", "voice", "llm", "memory", "stt", "tts", "sysaudio"}
     for it in items:
         it["group"] = "core" if it["key"] in CORE else "extra"
 

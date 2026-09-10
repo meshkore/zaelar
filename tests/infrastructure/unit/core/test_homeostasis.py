@@ -115,3 +115,49 @@ def test_enabled_kill_switch(monkeypatch):
     assert not H.enabled()
     monkeypatch.setenv("ZAELAR_HOMEOSTASIS", "1")
     assert H.enabled()
+
+
+# ── 7) explicit recycle request (2026-09-10 — a dead voice session asks for it by name) ─────────────────────────
+# The degraded-marks detector cannot see an AgentSession closed by an unrecoverable LLM error (no WebRTC log
+# marker fires), so the close handler requests the recycle explicitly and the next heartbeat honours it.
+
+def _tick_app():
+    class _S:  # app.state with a live lk_server sentinel
+        lk_server = object()
+    class _A:
+        state = _S()
+    return _A()
+
+
+def test_a_requested_recycle_is_honoured_on_the_next_beat(monkeypatch):
+    import asyncio
+    calls = []
+    async def _fake_recycle(app):
+        calls.append(app); return True
+    monkeypatch.setattr(H, "_recycle_livekit", _fake_recycle)
+    monkeypatch.setattr(H, "_last_recycle", 0.0)
+    H.request_recycle("voice session died: test")
+    assert asyncio.run(H._consume_recycle_request(_tick_app(), time.time())) is True
+    assert len(calls) == 1
+    assert H._recycle_requested == ""          # consumed
+
+
+def test_the_request_SURVIVES_the_cooldown_instead_of_being_dropped(monkeypatch):
+    import asyncio
+    calls = []
+    async def _fake_recycle(app):
+        calls.append(app); return True
+    monkeypatch.setattr(H, "_recycle_livekit", _fake_recycle)
+    monkeypatch.setattr(H, "_last_recycle", time.time())   # recycled seconds ago → inside the cooldown
+    H.request_recycle("voice session died: test")
+    assert asyncio.run(H._consume_recycle_request(_tick_app(), time.time())) is False
+    assert calls == []                          # not yet — repeat protection
+    assert H._recycle_requested != ""           # …but the request is kept for a later beat
+    H._recycle_requested = ""                   # leave the module clean for the next test
+
+
+def test_the_heartbeat_actually_consults_the_request():
+    """Wiring guard: the extracted seam must stay called from _tick, or a request would wait forever."""
+    import inspect
+    src = inspect.getsource(H._tick)
+    assert "_consume_recycle_request(app, now)" in src

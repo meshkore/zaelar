@@ -56,6 +56,22 @@ _ROTATABLE = ("timeline-latest.jsonl", "meshkore.jsonl")
 _marks: list[float] = []
 _last_recycle: float = 0.0
 _alerted: set[str] = set()      # dedup de avisos al operador (una vez por incidente)
+_recycle_requested: str = ""    # explicit recycle request (reason) — see request_recycle()
+
+
+def request_recycle(reason: str) -> None:
+    """An explicit request to recycle the embedded LiveKit worker on the next heartbeat (V2-655 follow-up,
+    2026-09-10). Born from a measured incident: an unrecoverable LLM error made the AgentSession CLOSE while
+    the room, the mic and the whole server stayed up — the operator talked to a grey orb for two minutes and
+    nothing anywhere tried to bring the session back. The degraded-marks detector cannot see that shape (no
+    WebRTC log marker fires), so the piece that KNOWS the session died asks for the recycle by name.
+
+    Only the repeat-protection cooldown gates it (a first death recycles on the next beat; a crash LOOP does
+    not turn into a recycle loop). `safe_to_recycle` is deliberately not consulted: the requester is a session
+    that no longer exists, so there is no live conversation to cut."""
+    global _recycle_requested
+    _recycle_requested = (reason or "").strip() or "unspecified"
+    log.warning("homeostasis: recycle requested — %s", _recycle_requested)
 
 
 def enabled() -> bool:
@@ -175,6 +191,24 @@ def _voice_on() -> bool:
         return False
 
 
+async def _consume_recycle_request(app, now: float) -> bool:
+    """Honour a pending request_recycle() — the flag SURVIVES the cooldown window so a request during it is
+    honoured on a later beat, never dropped. True if a recycle actually ran."""
+    global _recycle_requested
+    if not _recycle_requested or now - _last_recycle < _RECYCLE_COOLDOWN_S:
+        return False
+    reason, _recycle_requested = _recycle_requested, ""
+    _emit("degraded", f"reciclado solicitado: {reason}")
+    if await _recycle_livekit(app):
+        try:
+            from voice import health_state
+            health_state.clear("voice")
+        except Exception:
+            pass
+        return True
+    return False
+
+
 async def _recycle_livekit(app) -> bool:
     """Recrea el worker LiveKit EMBEBIDO (aclose + make_server + nueva task) SIN reiniciar el proceso — clava el
     fallo del 2026-07-25 sin cortar el server. Devuelve True si recicló."""
@@ -234,6 +268,8 @@ async def _tick(app) -> None:
     # 1) MOTOR LiveKit
     try:
         if getattr(app, "state", None) is not None and getattr(app.state, "lk_server", None) is not None:
+            # 1a) EXPLICIT request (a dead voice session, see request_recycle)
+            await _consume_recycle_request(app, now)
             if livekit_degraded(_marks, now):
                 if now - _last_recycle < _RECYCLE_COOLDOWN_S:
                     pass  # ya se recicló hace poco; deja respirar (evita un bucle de reciclado)

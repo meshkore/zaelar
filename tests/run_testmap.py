@@ -3108,6 +3108,10 @@ DOMAINS: list[dict] = [
     {"id": "9", "name": "HOMEOSTASIS (latido autónomo)", "nodes": [
         {"id": "9.1", "title": "Detección/seguridad/eviction/rotación (V2-070)", "ch": UNIT, "paths": [
             "tests/infrastructure/unit/core/test_homeostasis.py"]},
+        {"id": "9.3", "title": "Integridad de arranque + el monitor dice la verdad: un boot pelado carga el "
+                               "PRODUCTO, una sesión de voz muerta se VE y pide reciclado, el volumen del "
+                               "sistema llega al ◉ (2026-09-10)", "ch": UNIT, "paths": [
+            "tests/infrastructure/unit/core/test_boot_integrity_and_the_monitor.py"]},
         {"id": "9.2", "title": "Salud viva de la máquina", "ch": HTTP, "live": True,
             "cmd": "./.venv/bin/python tests/infrastructure/e2e/smoke/run_full_smoke.py --no-pytest"},
     ]},

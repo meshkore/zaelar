@@ -748,6 +748,27 @@ async def entrypoint(ctx: JobContext) -> None:
     @session.on("close")
     def _on_close(ev) -> None:
         _emit("session", "session closed", role="system")
+        # A session that closes ON AN ERROR is a DEATH, not a goodbye (2026-09-10, measured live: an
+        # unrecoverable LLM error closed the AgentSession while the room, the mic and the server stayed up —
+        # the operator talked to a grey orb for two minutes with the ◉ panel green and nothing trying to
+        # recover). Three duties, none of which may depend on the others: say it where the monitor looks
+        # (health_state → /api/status turns the voice row RED), say it on the timeline (alert), and ask
+        # homeostasis to recycle the embedded worker so the next page connect gets a living engine.
+        err = getattr(ev, "error", None)
+        if err is not None:
+            reason = str(err)[:160]
+            try:
+                from voice import health_state
+                health_state.record("voice", "dead", reason)
+            except Exception:
+                pass
+            _emit("alert", "⚠️ la sesión de voz MURIÓ por un error irrecuperable — reciclando el motor",
+                  text=reason, role="system")
+            try:
+                from nucleo import homeostasis
+                homeostasis.request_recycle(f"voice session died: {reason}")
+            except Exception:
+                pass
         try:
             _proactive.clear_speaker(_speak)
         except Exception:
@@ -769,6 +790,11 @@ async def entrypoint(ctx: JobContext) -> None:
     agent = ZaelarAgent(instructions=SETTINGS.system_prompt + " " + _lang.reply_directive)
     await session.start(room=ctx.room, agent=agent)
     logger.info("Session started.")
+    try:
+        from voice import health_state
+        health_state.clear("voice")   # a session that just STARTED supersedes any recorded death (see _on_close)
+    except Exception:
+        pass
 
     # BOOT SEQUENCE — INIT then PROCESS. The voice must NOT run under the splash: we report the ordered backend
     # milestones over the "vl2" channel (the frontend's «Colmena» splash lights one cluster per phase), emit the

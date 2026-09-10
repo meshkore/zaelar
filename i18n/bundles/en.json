@@ -518,6 +518,8 @@
   "status.title": "Status",
   "statussvc.active_listening": "active · listening",
   "statussvc.active_mic_muted": "active · mic muted 🚫",
+  "statussvc.audio_blocked": "audio output BLOCKED by the browser — tap the orb to enable it",
+  "statussvc.voice_muted": "voice muted with the 🔊 — you will not hear zaelar",
   "statussvc.connecting": "connecting…",
   "statussvc.mic_unavailable": "🔇 microphone unavailable",
   "statussvc.reconnecting": "reconnecting…",

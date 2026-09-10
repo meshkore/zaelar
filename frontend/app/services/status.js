@@ -28,6 +28,11 @@ export function voiceStatus() {
   if (store.started()) {
     if (reconnecting) return { state: "warn", detail: t("statussvc.reconnecting") };
     if (!conn.ok) return { state: "warn", detail: t("statussvc.connecting") };
+    // The SPEAKER half (operator request 2026-09-10): «me escucha pero no me habla» has two silent causes this
+    // browser already knows and the panel never said — playback locked by the browser (tap the orb, V2-573)
+    // and the operator's own 🔊 mute. Both must be readable HERE, not deduced from silence.
+    if (store.audioBlocked()) return { state: "warn", detail: t("statussvc.audio_blocked") };
+    if (store.botMuted()) return { state: "warn", detail: t("statussvc.voice_muted") };
     return { state: "ok", detail: store.micMuted() ? t("statussvc.active_mic_muted") : t("statussvc.active_listening") };
   }
   if (store.starting()) return { state: "warn", detail: t("statussvc.connecting") };

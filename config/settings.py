@@ -173,9 +173,12 @@ def effective() -> dict:
               ("Pulsar para hablar", "ptt"),
               ("Siempre activo (todo es orden)", "always")], "live",
              "smart = solo actúa si le hablas a zaelar («zaelar») o sigues una conversación; el resto lo ignora (ambiente)"),
-        knob("attention_window", "Atención · ventana de conversación", os.getenv("ZAELAR_ATTENTION_WINDOW", "30"),
-             [("15 s", "15"), ("30 s", "30"), ("60 s", "60"), ("120 s", "120")], "live",
-             "segundos que sigue atendiendo sin repetir «zaelar» tras dirigirte a él (modo inteligente)"),
+        # ⚠️ 5s is a HARD ceiling in smart mode (operator rule 2026-09-10: no pause over 5 seconds) — the
+        # engine clamps whatever this knob says (voice/attention.py::window_s), so the options only shorten.
+        knob("attention_window", "Atención · ventana de conversación", os.getenv("ZAELAR_ATTENTION_WINDOW", "5"),
+             [("3 s", "3"), ("4 s", "4"), ("5 s (máximo)", "5")], "live",
+             "segundos que sigue atendiendo sin repetir «zaelar» tras dirigirte a él (modo inteligente); "
+             "tope duro de 5 s"),
     ]
     # Read-only, for the orb's 🤖 tooltip (2026-09-09): the wake-word IS the current spoken name (renamed via
     # voice, `nucleo/flash/identity_actions.py`), not the literal "zaelar" the tooltip used to hardcode.
@@ -265,9 +268,20 @@ def update(payload: dict) -> dict:
     for k, env in ENV_KEYS.items():
         if k in payload and str(payload[k]).strip():
             val = str(payload[k]).strip()
+            changed = d.get(k) != val
             d[k] = val
             os.environ[env] = val
             applied.append(k); needs_reconnect = True
+            # Attention-mode flips close the standing conversation window NOW (operator, 2026-09-10: the orb
+            # must go grey within seconds of activating the wake-word mode, not ride out the previous mode's
+            # window). Only on a real CHANGE — a bulk save re-sending the same mode must not wipe a live
+            # window. This is the single seam every writer goes through (⚙, the 🤖 button, the voice directive).
+            if k == "attention_mode" and changed:
+                try:
+                    from voice import attention
+                    attention.on_mode_change(val)
+                except Exception as e:  # noqa: BLE001
+                    logger.warning(f"update: attention.on_mode_change failed ({e})")
     # Boolean knobs (apply live, without reconnecting): e.g. memory_observability.
     for k in BOOL_DEFAULTS:
         if k in payload:

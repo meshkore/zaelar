@@ -518,6 +518,8 @@
   "status.title": "Estado",
   "statussvc.active_listening": "activo · escuchando",
   "statussvc.active_mic_muted": "activo · micrófono silenciado 🚫",
+  "statussvc.audio_blocked": "salida de audio BLOQUEADA por el navegador — toca el orbe para activarla",
+  "statussvc.voice_muted": "voz silenciada con el 🔊 — no vas a oír a zaelar",
   "statussvc.connecting": "conectando…",
   "statussvc.mic_unavailable": "🔇 micrófono no disponible",
   "statussvc.reconnecting": "reconectando…",

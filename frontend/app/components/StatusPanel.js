@@ -42,7 +42,12 @@ export function StatusPanel() {
       () => {
         // VOICE row is CLIENT-authoritative (the server's active.count() never sees the LiveKit session): override
         // it with this browser's live state, and inject one if the server didn't send it (e.g. server offline).
-        let items = (store.status().items || []).map((it) => (it.key === "voice" ? { ...it, ...voiceStatus() } : it));
+        // The client knows the LIVE voice truth (mic, connection) and overwrites the server's stale row — EXCEPT
+        // when the server reports an ERROR: a dead AgentSession (2026-09-10) is a server-side fact this browser
+        // cannot see (its room stays connected), and the green local row was exactly how a dead session stayed
+        // invisible on a panel saying «Todo bien».
+        let items = (store.status().items || []).map((it) =>
+          (it.key === "voice" && it.state !== "error" ? { ...it, ...voiceStatus() } : it));
         if (!items.some((it) => it.key === "voice")) {
           items = [...items, { key: "voice", label: "Voice system", group: "core", ...voiceStatus() }];
         }

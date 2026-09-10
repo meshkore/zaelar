@@ -9,6 +9,15 @@ env override for any component always wins, which is what makes hybrids possible
 zaelar note (INI-012): the ``llm`` default here is only a fallback. In practice
 ``config._llm_provider_default`` lets the ``BRAIN`` env (hermes|duo|direct)
 override it, so these values apply when BRAIN is unset.
+
+⚠️ The ``llm`` default is ``nucleo`` — the PRODUCT's own brain — and this is a boot-integrity rule, not a
+taste (2026-09-10). It used to be the raw broker plugin, so a bare ``python -m server`` (no ``BRAIN`` env)
+silently booted a DIFFERENT product: a bare cloud model with no FlashBrain, no memory, no tools, no widgets
+and no provider relay — while ``/api/brain`` kept answering «nucleo» from its own separate knob. Measured
+live: the operator's engine ran a whole evening on the wrong brain, every turn died on the raw plugin's
+provider error, and LiveKit closed the session with the mic still open. The baselines are still one env var
+away (``BRAIN=direct`` / ``BRAIN=local``); what may never again depend on remembering an env var is booting
+the real product.
 """
 from __future__ import annotations
 
@@ -17,8 +26,8 @@ from .env import env
 PROFILE = env("ZAELAR_PROFILE", "remote")
 
 _DEFAULTS: dict[str, dict[str, str]] = {
-    "remote": {"stt": "voxtral", "tts": "cartesia", "llm": "aimlapi"},
-    "local": {"stt": "whisper_local", "tts": "kokoro_local", "llm": "local"},
+    "remote": {"stt": "voxtral", "tts": "cartesia", "llm": "nucleo"},
+    "local": {"stt": "whisper_local", "tts": "kokoro_local", "llm": "nucleo"},
 }
 
 

@@ -162,6 +162,11 @@ export function openSSE(desktop) {
       refreshStatus();                                                           // turn the ◉ status icon red now
     } else if (d.kind === "ui" && d.label === "orb:attention") {                 // 🤖 mode changed — button OR voice (2026-09-09)
       store.setAttentionMode(d.state === "wakeword" ? "smart" : (d.state || "always"));
+      // A mode flip closes the standing window on the ENGINE (attention.on_mode_change, 2026-09-10) — the
+      // ring must not keep burning its local timer over a window that no longer exists: he measured 20+
+      // seconds of orange after activating the wake-word mode. Clearing on every flip is correct in both
+      // directions (in `always` the ring re-arms on the next verdict anyway).
+      store.clearAttentionHit();
     } else if (d.kind === "ui" && d.label === "orb:name") {                      // renamed by voice — tooltip updates live
       if (d.name) store.setAssistantName(d.name);
     } else if (d.kind === "ambient") {                                           // attention gate verdict → the "listening to you" ring

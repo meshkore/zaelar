@@ -37,6 +37,14 @@ def _probe_elevenlabs(key: str) -> dict | None:
             body = (r.text or "").lower()
             if "missing_permission" in body or "user_read" in body or "permission" in body:
                 return {"state": "unknown", "detail": "activa · la key no puede leer el saldo (permiso user_read)"}
+            # A GENUINELY dead key must also reach the ◉ TTS row, not only the APIs section (2026-09-10):
+            # with only the presence check, the panel said «ok · Voz ElevenLabs» over a key every synthesis
+            # would 401 — the exact «up and green while broken» shape the monitor exists to prevent.
+            try:
+                from voice import health_state
+                health_state.record("tts", "auth", "clave de ElevenLabs inválida o caducada")
+            except Exception:
+                pass
             return {"state": "error", "detail": "credencial inválida o caducada"}
         if r.status_code == 429:
             return {"state": "error", "detail": "SIN SALDO/cuota"}

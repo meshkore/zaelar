@@ -41,7 +41,8 @@ _DEFAULT_MODE = "always"   # robot OFF = always listens and responds; the UI tog
 # name again). Pauses-to-think (1-3s) stay comfortably inside; zaelar's own speech no longer eats the window
 # either (see `note_bot_speech`), so this measures actual conversational silence.
 _DEFAULT_WINDOW_S = 30.0
-_SMART_WINDOW_S = 12.0
+_SMART_WINDOW_S = 5.0    # was 12.0 — operator rule 2026-09-10: no conversational pause may exceed 5s
+_SMART_WINDOW_MAX_S = 5.0  # hard ceiling for smart mode, applied AFTER the env override (see window_s)
 
 # Wake word: "zaelar". Extendable via env (`ZAELAR_WAKEWORDS`, comma-separated) with phonetic variants that STT
 # might confuse — the previous ones (harvey/arbi/jarbi…) were specific mishearings of "harbee" and no longer apply.
@@ -73,12 +74,17 @@ def mode() -> str:
 def window_s() -> float:
     # smart: the window is DYNAMIC per reply (operator directive 2026-09-09, `voice/attention_window.py` —
     # 4-15s by what the exchange looks like); the env override stays the power-user escape hatch for both modes.
-    dflt = (_state["window_hint"] or _SMART_WINDOW_S) if mode() == "smart" else _DEFAULT_WINDOW_S
+    # ⚠️ In smart mode the ceiling is HARD (operator, 2026-09-10: «ninguna pausa puede pasar de 5 segundos»)
+    # and it clamps AFTER the override: the ⚙ knob used to offer 15-120s, so an old stored value would have
+    # silently defeated the rule. The override can shorten, never lengthen past the ceiling.
+    smart = mode() == "smart"
+    dflt = (_state["window_hint"] or _SMART_WINDOW_S) if smart else _DEFAULT_WINDOW_S
     try:
         v = float((os.getenv("ZAELAR_ATTENTION_WINDOW") or "").strip() or dflt)
-        return v if v > 0 else dflt
+        v = v if v > 0 else dflt
     except Exception:
-        return dflt
+        v = dflt
+    return min(v, _SMART_WINDOW_MAX_S) if smart else v
 
 
 def _wakewords() -> tuple[str, ...]:
@@ -445,6 +451,31 @@ def reclaim_ambient_tail(text: str, now: float | None = None, within_s: float = 
 def set_ptt(active: bool) -> None:
     """Push-to-talk state (set by the frontend through the `zaelar-ptt` data topic). Only counts in ptt mode."""
     _state["ptt"] = bool(active)
+
+
+def on_mode_change(new_mode: str = "") -> None:
+    """A mode flip is a DELIBERATE act, and the standing conversation window does not survive it (operator,
+    2026-09-10): he activated the wake-word mode and the orb stayed orange 20+ seconds, riding out a window
+    opened under the PREVIOUS mode — «en el momento en que se activa el modo, en 3 segundos quiero el orbe
+    gris». Clearing the anchors closes it NOW; if he flips and keeps talking, the normal rules re-open it
+    (that is his stated override: an active engagement wins). Called from `config.settings.update()` — the
+    single seam every mode writer goes through (⚙ panel, the orb's 🤖 button, the voice directive) — and only
+    when the value actually CHANGED. Tells the clients through the same `orb:attention` event the voice path
+    already emits, so the ring darkens at once instead of waiting out its local timer.
+
+    Deliberately NOT `reset()`: the typed-turn exemption (V2-654) and the ambient tail belong to the mic and
+    the transcript, not to the mode, and wiping them here would swallow a typed turn mid-flight."""
+    _state["last_directed"] = 0.0
+    _state["bot_hold"] = False
+    _state["bot_addressed"] = 0.0
+    _state["window_hint"] = 0.0
+    _state["spotted_at"] = 0.0
+    _state["recent_directed"] = []
+    try:
+        from voice.observer import emit
+        emit("ui", "orb:attention", extra={"state": new_mode or mode(), "src": "settings"})
+    except Exception:
+        pass
 
 
 def reset() -> None:

@@ -76,7 +76,7 @@ def test_smart_active_window_is_directed(monkeypatch):
     monkeypatch.setenv("ZAELAR_ATTENTION", "smart")
     now = 1000.0
     attention.note_directed(now=now)
-    v = attention.evaluate("y mañana qué tengo", now=now + 10)   # within 30s
+    v = attention.evaluate("y mañana qué tengo", now=now + 4)   # within the 5s ceiling (2026-09-10)
     assert v.directed and v.reason == "active_window"
 
 
@@ -88,12 +88,17 @@ def test_smart_window_expires(monkeypatch):
     assert not v.directed and v.reason == "ambient"
 
 
-def test_window_configurable(monkeypatch):
+def test_window_configurable_only_SHORTENS_in_smart_mode(monkeypatch):
+    """The knob is an escape hatch that can shorten, never lengthen past the 5s ceiling (operator rule
+    2026-09-10) — an old stored 60s must not silently defeat it."""
     monkeypatch.setenv("ZAELAR_ATTENTION", "smart")
     monkeypatch.setenv("ZAELAR_ATTENTION_WINDOW", "60")
     now = 1000.0
     attention.note_directed(now=now)
-    assert attention.evaluate("sigo hablando", now=now + 50).directed
+    assert not attention.evaluate("sigo hablando", now=now + 50).directed   # 60 clamps to 5
+    monkeypatch.setenv("ZAELAR_ATTENTION_WINDOW", "3")
+    attention.note_directed(now=now)
+    assert not attention.evaluate("sigo hablando", now=now + 4).directed    # 3 genuinely shortens
 
 
 # ── evaluate: wakeword / always / ptt ───────────────────────────────────────────────────────────────────
@@ -125,7 +130,7 @@ def test_evaluate_content_ignores_smart_wakeword_modes_same_as_evaluate(monkeypa
     monkeypatch.setenv("ZAELAR_ATTENTION", "smart")
     now = 1000.0
     attention.note_directed(now=now)
-    v = _run(attention.evaluate_content("y mañana qué tengo", now=now + 10))
+    v = _run(attention.evaluate_content("y mañana qué tengo", now=now + 4))
     assert v.directed and v.reason == "active_window"
 
 
@@ -413,10 +418,12 @@ def _smart(monkeypatch):
     monkeypatch.setenv("ZAELAR_ATTENTION", "smart")
 
 
-def test_the_window_is_per_mode_12s_in_wake_word_30s_in_always(monkeypatch):
+def test_the_window_is_per_mode_5s_in_wake_word_30s_in_always(monkeypatch):
     assert attention.window_s() == 30.0     # always: V2-531's no-judge dialogue continuity keeps its 30s
     _smart(monkeypatch)
-    assert attention.window_s() == 12.0     # wake word: 10-15s of silence closes it (operator, 2026-09-09)
+    # Wake word: hard 5s ceiling (operator, 2026-09-10: «ninguna pausa puede pasar de 5 segundos» — he
+    # measured 12s pauses keeping the mic attentive and ruled them out; supersedes 2026-09-09's 12s).
+    assert attention.window_s() == 5.0
 
 
 def test_third_party_talk_after_the_bot_finished_is_ambient(monkeypatch):
@@ -483,26 +490,21 @@ def test_a_bare_ack_to_a_one_shot_order_earns_the_short_window():
     assert attention_window.hint("Hecho.", dialogue_turns=1, task_live=False) == 5.0
 
 
-def test_a_reply_that_asks_earns_the_long_window():
-    assert attention_window.hint("¿Quieres que te ponga alguno de la lista?", dialogue_turns=1,
-                                 task_live=False) == 15.0
+def test_NO_shape_may_exceed_the_5s_ceiling():
+    """Operator rule 2026-09-10: «ninguna pausa puede ser tan grande si estamos hablando con el sistema —
+    a los 5 segundos se apaga». The scale still distinguishes the shapes underneath, but every rung clamps
+    to 5s — including the two that used to earn 15s (a reply that asks, a live errand) and the 12s dialogue
+    window he measured live and ruled out."""
+    asks = attention_window.hint("¿Quieres que te ponga alguno de la lista?", dialogue_turns=1, task_live=False)
+    live = attention_window.hint("Hecho.", dialogue_turns=1, task_live=True)
+    dialogue = attention_window.hint("Pues de garajes caseros te recomendaría un par de canales.",
+                                     dialogue_turns=4, task_live=False)
+    base = attention_window.hint("Te lo apunto para el viernes por la tarde.", dialogue_turns=1, task_live=False)
+    assert asks == live == dialogue == base == 5.0
+    assert attention_window.MAX_S == 5.0
 
 
-def test_a_live_errand_earns_the_long_window_even_after_a_bare_ack():
-    assert attention_window.hint("Hecho.", dialogue_turns=1, task_live=True) == 15.0
-
-
-def test_a_flowing_conversation_keeps_the_dialogue_window():
-    assert attention_window.hint("Pues de garajes caseros te recomendaría un par de canales.",
-                                 dialogue_turns=4, task_live=False) == 12.0
-
-
-def test_anything_else_gets_the_base_window():
-    assert attention_window.hint("Te lo apunto para el viernes por la tarde.",
-                                 dialogue_turns=1, task_live=False) == 8.0
-
-
-def test_note_reply_drives_window_s_in_smart_mode(monkeypatch):
+def test_note_reply_drives_window_s_in_smart_mode_and_the_ceiling_beats_the_override(monkeypatch):
     _smart(monkeypatch)
     monkeypatch.setattr(attention_window, "live_task", lambda: False)
     t = 1000.0
@@ -510,10 +512,14 @@ def test_note_reply_drives_window_s_in_smart_mode(monkeypatch):
     attention.note_reply("Hecho.", now=t + 2)
     assert attention.window_s() == 5.0
     attention.note_reply("¿Te lo pongo?", now=t + 4)
-    assert attention.window_s() == 15.0
-    # env override stays the power-user escape hatch
+    assert attention.window_s() == 5.0      # even a question caps at the ceiling (2026-09-10)
+    # The env override can SHORTEN…
+    monkeypatch.setenv("ZAELAR_ATTENTION_WINDOW", "3")
+    assert attention.window_s() == 3.0
+    # …but never lengthen past the ceiling: the ⚙ knob used to offer 15-120s, and an old stored value must
+    # not silently defeat the rule.
     monkeypatch.setenv("ZAELAR_ATTENTION_WINDOW", "20")
-    assert attention.window_s() == 20.0
+    assert attention.window_s() == 5.0
 
 
 # ── instant wake-word spotting + reclaiming the speech said BEFORE the name (2026-09-09) ───────────────────
@@ -603,3 +609,40 @@ def test_the_text_channel_stamps_it_and_the_provider_reads_it():
     assert "was_typed()" in prov, "the provider no longer reads whether the turn was typed"
     assert 'deduped["v"] and not _typed_turn' in prov, \
         "a vetoed action must stop counting as «handled» on a typed turn — that is the whole fix"
+
+
+# ── a mode flip closes the standing window NOW (operator, 2026-09-10) ─────────────────────────────────────
+# He activated the wake-word mode and the orb stayed orange 20+ seconds, riding out a window opened under
+# the previous mode: «en el momento en que se activa el modo, en 3 segundos quiero el orbe gris».
+
+def test_a_mode_flip_closes_an_open_window(monkeypatch):
+    _smart(monkeypatch)
+    t = 1000.0
+    attention.note_directed(now=t)
+    assert attention.window_open(now=t + 1)
+    attention.on_mode_change("smart")
+    assert not attention.window_open(now=t + 1)
+
+
+def test_the_flip_tells_the_clients_so_the_ring_darkens_at_once(monkeypatch):
+    import voice.observer as observer
+    seen = []
+    monkeypatch.setattr(observer, "emit", lambda *a, **k: seen.append((a, k)))
+    attention.on_mode_change("smart")
+    assert any(a[:2] == ("ui", "orb:attention") for a, _ in seen)
+
+
+def test_settings_update_is_the_seam_and_only_a_REAL_change_wipes_the_window(monkeypatch, tmp_path):
+    """Every mode writer (⚙ panel, the 🤖 button, the voice directive) goes through config.settings.update.
+    A bulk save re-sending the SAME mode must not wipe a live conversation window."""
+    from config import settings as cfg
+    monkeypatch.setattr(cfg, "SETTINGS_FILE", tmp_path / "settings.json")
+    monkeypatch.setenv("ZAELAR_ATTENTION", "always")    # register the key so teardown restores it (V2-571)
+    cfg.update({"attention_mode": "smart"})             # change → wipes
+    t = 2000.0
+    attention.note_directed(now=t)
+    assert attention.window_open(now=t + 1)
+    cfg.update({"attention_mode": "smart"})             # SAME value → must not wipe
+    assert attention.window_open(now=t + 1)
+    cfg.update({"attention_mode": "always"})            # real change → wipes
+    assert attention._state["last_directed"] == 0.0
