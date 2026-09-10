@@ -471,6 +471,36 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **A replayed play order is an order — and the playlist keeps the playback it started (V2-650,
+  2026-09-10)**: the operator's morning session (aed0736c, the «True Blue» errand), read event by event.
+  The worker did its job — refused the torrent as protected, confirmed the real album (Flash had escalated
+  «"Blue" de Madonna (es un álbum de versiones de blues/jazz)», an invented gloss), built the 9-track list
+  and verified it on screen. Then the music died twice, silently. **(1)**
+  `widgets/musica/data.py::play_playlist` loaded its store snapshot, called the provider — which resolved
+  track 1 and wrote `yt.videoId` + an 8-track queue into the store through its own load/save, exactly the
+  read-modify-write contract the file's own header declares — and then persisted the STALE snapshot,
+  erasing the playback it had just started: nothing sounded, the action reported `ok: True`, and the live
+  store still held `yt: {}` as the evidence (the write landed 0.6 s after the action — too fast for the
+  resolutions the clobber then discarded). The V2-611 class again: a stale snapshot is never written back
+  over a store a collaborator writes to. A non-local first track now gets NO db (the connector owns the
+  store during play/queue) and the final persist runs on a fresh load; a local first track keeps the old
+  single-writer flow. **(2)** The operator then ordered the play THREE times («Vale, pues reproduce la
+  lista», «Vamos, dale al play, a la primera canción») and the data-op dedupe guard (V2-038) ate every
+  one as context-bleed: its only escape measures word overlap against the PAYLOAD, and no natural play
+  order names `{"playlist": "true-blue"}` — one turn even ended with `completion_chars=0` over his
+  explicit command. New `canvas_license.replay_license` (V2-635 doctrine — declared data + grammar, never
+  intent): an identical re-emission passes the dedupe only when the action is one the widget DECLARES as
+  starting production (`runtime.produce` — agenda-class ops declare none, so the founding dentist
+  duplicate stays dead) AND the turn carries a conjugated media request. Verified against the session's
+  own four turns: exactly the two real orders pass, the two drag turns stay deduped. Node **4.148**;
+  three disarms, mutations asserted, all red. ⚠️ The V2-531 lesson was paid AGAIN mid-build: a
+  `git checkout` after a disarm restored HEAD and silently wiped the uncommitted fix in all three files —
+  re-apply the edit or commit BEFORE disarming, never checkout over uncommitted work. Open, named in the
+  initiative: the same session's «¿Qué tiempo va a hacer hoy en Soria?» (and the complaint after it) was
+  classified `llm_ambient` in `always` mode and never answered — an attention-gate classifier miss, not
+  touched here; Flash's invented album gloss in the escalation brief and the errand title frozen on
+  «Blue» after the worker confirmed «True Blue» (the V2-644 title class, for widget-surface errands).
+
 - **A REPORT is delivered as a DOCUMENT — the `informe` surface (V2-644, 2026-09-09)**: the operator's
   order after the Juncal research (session adc8a7c7, read event by event before touching anything): a report
   errand must open «el visor simple» — a process tab while the work runs, then ONE white-paper document —

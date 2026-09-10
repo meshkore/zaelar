@@ -52,3 +52,12 @@
   titles ellipsize inside a stable card instead of resizing it per song.
 - The free source skips now: `connectors/music/youtube_audio.py` implements `next()`/`previous()` over the
   queue + a bounded history; the canned «no puedo saltar de canción» refusal is gone (V2-631).
+- **V2-650 (2026-09-10) — `play_playlist` keeps the playback the provider started.** The action loaded
+  its db snapshot, called the provider (which resolves the first track and writes `yt.videoId` + the
+  queue into the store through its own load/save — the read-modify-write contract the header already
+  states), then persisted the STALE snapshot, erasing the playback it had just created: nothing sounded,
+  `ok: True` reported, `yt` left `{}` (measured live, the «True Blue» errand). Now a non-local first
+  track gets no db (the connector owns the store during play/queue) and the final persist runs on a
+  FRESH load. A local first track keeps the old single-writer flow untouched. The dedupe half of the
+  same incident (three explicit «reproduce la lista»/«dale al play» replays eaten as context-bleed)
+  lives in `nucleo/flash/canvas_license.py::replay_license`.
