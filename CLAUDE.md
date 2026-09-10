@@ -471,6 +471,47 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **THE MICROPHONE SWITCH has ONE door, and it is not the wake-word mode (V2-654, 2026-09-10)**: the
+  operator, reading the forensics of session 85eec898 — «cuando yo desactivo el icono, ese estado es
+  TOTAL … el estado se debe controlar en un solo sitio y controla todo el sistema. No puede fallar
+  nunca.» He was right and it was worse than it looked: `store.micMuted` + `hb_mic_muted` had **SIX
+  writers and four of them only painted an icon** — the boot probe on both shells, the ⏻ power button on
+  both shells, the mobile dock, the server-stopped branch — because `applyMic()` was not on their path;
+  and there was **no fourth thing to move at all**, since the engine had no notion of a microphone
+  switch, so a correct client could not be checked and a wrong one could not be caught. Measured: the
+  icon read CLOSED while the track published, the engine transcribed him for seven minutes and escalated
+  an errand off what it heard. The mobile file's own comment already NAMED the failure («the phone would
+  paint itself off with the mic open — the state that lies, again») and the line under it still only
+  painted. Two secondary faults in the same path: `setMicrophoneEnabled` returns a PROMISE whose
+  rejection a synchronous `catch` cannot see (a failed publish change was a silent divergence), and
+  nothing re-asserted after a republished track. **`frontend/app/services/mic.js` is THE door**: one
+  write moves the SIGNAL, the STORAGE, the live TRACK and the ENGINE (`POST /api/mic`), with the
+  transport injected by whichever session engine is live and **registering APPLYING** (the reconnect
+  hole). **`voice/mic_input.py` is THE holder**, and its `blocks_turn()` is consulted in the turn path
+  ABOVE the attention gate: a closed mic reaches no model, no tool, no widget, no memory, no errand.
+  Failure directions are deliberate and asymmetric — **muted is STICKY** (a client that mutes then dies
+  leaves the engine muted, the safe side) and **the boot default is OPEN** (a stale client must never
+  leave the agent deaf forever — deafness is the OTHER failure that same session paid for, 16 turns
+  discarded in a row); the **session heartbeat re-asserts every ~4 s**, so a divergence in either
+  direction self-corrects without anyone remembering to, and `muted` stays OPTIONAL on the beat so an
+  older client beats as before. **NOT the attention mode, and neither may be written in terms of the
+  other** (operator's clarification mid-build): the 🤖 wake-word mode is what makes a permanently open
+  microphone livable — audio arrives, is transcribed, and `attention.py` decides turn by turn what was
+  addressed to us — and **those rules are untouched**; a hard close is consulted first and **no wake word
+  lifts it**, lifting the close **changes no attention state**, and a swallowed turn never reaches
+  `note_directed()`. The one exemption is the TYPED turn, because muting in order to type IS the use
+  case: consumed **one-shot** (`attention.consume_typed`, beside the window-based `was_typed` the mute
+  backstop owns), never on a time window — with a window, typing and then speaking walks the spoken turn
+  straight through the closed switch. It is deliberately **not a privacy boundary against the browser**:
+  a live track still reaches STT and the transcript still lands in observability, because that transcript
+  is the EVIDENCE of a divergence and hiding it is what made this cost seven minutes to see. Nodes
+  **3.26** (engine) and **4.152** (the frontend RATCHET — nobody writes the mic state outside the door,
+  nobody touches the track outside a session engine; the incident was not a broken function, it was six
+  writers of one state, and *a rule each caller has to remember is not a rule*). Nine disarms, each
+  mutation asserted, all red. The architecture ratchet went red mid-build and was paid by EXTRACTING the
+  rule to `mic_input` rather than raising the ceiling. ⚠️ **NOT verified live** — needs an engine restart
+  and a page reload.
+
 - **The CANVAS ARBITER — one decision tree for every widget mutation, shadow first (V2-653 F0,
   2026-09-10)**: the operator's structural verdict after 30 days of widget incidents — «cada vez que
   hago una prueba me falla por un lado o por otro… un catálogo de <15 widgets: un sistema de puertas
