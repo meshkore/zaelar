@@ -58,8 +58,18 @@ def test_asking_for_a_GO_AHEAD_is_recognised(reply):
     "Hecho.",
 ])
 def test_a_courtesy_question_or_a_plain_promise_is_NOT_held(reply):
-    """Retener una cortesía produce el fallo CONTRARIO: pregunta, él dice que sí, y nunca se encoló nada."""
+    """Retener una cortesía produce el fallo CONTRARIO: pregunta, él dice que sí, y nunca se encoló nada.
+
+    Queda fuera porque NO ESTÁ EN LA LISTA. La primera versión le puso encima un veto explícito para la
+    cortesía; desarmarlo no cambió ni un caso —«te aviso» nunca fue una frase de permiso— y encima habría
+    vetado la frase de abajo, que sí pide permiso. Un guarda que no guarda nada es peor que ninguno."""
     assert clar.asks_permission(reply) is False
+
+
+def test_a_question_that_asks_AND_promises_to_report_still_asks():
+    """La trampa del veto que se quitó: «¿te lo busco…?» es pedir permiso aunque la misma frase prometa
+    avisar después."""
+    assert clar.asks_permission("¿Te lo busco y te aviso cuando lo tenga?") is True
 
 
 def test_the_two_predicates_stay_apart():
