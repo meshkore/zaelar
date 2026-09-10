@@ -110,14 +110,22 @@ def play_local(db: dict, path: str) -> dict:
     return {"ok": True, "item": it}
 
 
-def play_torrent(db: dict, query: str = "", magnet: str = "", keep: bool = False) -> dict:
-    """Action body: find (or take) a torrent and play its video while it downloads.
+def play_torrent(db: dict, query: str = "", magnet: str = "", keep: bool = False, id: str = "") -> dict:
+    """Action body: find (or take) a torrent and play its video while it downloads — or ADOPT one already
+    downloading/finished (`id`), the Descargas widget's own «▶» row button (its own `apply_action` never
+    reaches into this widget's store, per widgets/AGENTS.md's isolation rule — `nucleo/torrent_router.py` is
+    what hands the id over, the same layer `nucleo/docsheet.py` already uses for an analogous hand-off).
 
     This is the video widget holding the torrent tool directly, which is what the operator asked for — the
     player is where a film is watched, so the download that produces it belongs to the same surface."""
     from connectors.torrent import service
     if not service.available():
         return {"ok": False, "error": service.unavailable_reason()}
+    if id:
+        st = service.status(id)
+        if not st.get("ok"):
+            return {"ok": False, "error": st.get("error") or "esa descarga ya no está activa"}
+        return {"ok": True, "item": item_from_torrent(id, st.get("name") or query)}
     res = (service.add_magnet(magnet, want="video", keep=keep) if magnet
            else service.search_and_play(query, want="video", keep=keep))
     if not res.get("ok"):

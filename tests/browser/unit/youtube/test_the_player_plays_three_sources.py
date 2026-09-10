@@ -114,6 +114,29 @@ def test_play_torrent_asks_for_a_VIDEO_and_passes_keep_through(monkeypatch):
     assert seen["want"] == "video" and seen["keep"] is True
 
 
+def test_play_torrent_with_an_id_adopts_it_without_searching_again(monkeypatch):
+    """The Descargas widget's own «▶» hands over an id already downloading/finished — no new search, no new
+    magnet, the SAME session handle."""
+    from connectors.torrent import service
+    monkeypatch.setattr(service, "available", lambda: True)
+    monkeypatch.setattr(service, "status", lambda rid: {"ok": True, "id": rid, "name": "The Film"})
+    hit = []
+    monkeypatch.setattr(service, "search_and_play", lambda q, **k: hit.append(1) or {"ok": False})
+    monkeypatch.setattr(service, "add_magnet", lambda m, **k: hit.append(1) or {"ok": False})
+    r = sources.play_torrent({}, id="HASH")
+    assert not hit
+    assert r["ok"] and r["item"]["source"] == "torrent" and r["item"]["torrent_id"] == "HASH"
+    assert r["item"]["title"] == "The Film"
+
+
+def test_play_torrent_with_an_id_that_is_no_longer_active_refuses(monkeypatch):
+    from connectors.torrent import service
+    monkeypatch.setattr(service, "available", lambda: True)
+    monkeypatch.setattr(service, "status", lambda rid: {"ok": False, "error": "ese torrent ya no está activo"})
+    r = sources.play_torrent({}, id="GONE")
+    assert r["ok"] is False and "activo" in r["error"]
+
+
 # ── 4 · the two latent defects, closed before a non-YouTube row can exist ───────────────────────────────────
 
 def test_the_blocklist_never_contains_the_empty_id():

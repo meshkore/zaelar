@@ -139,6 +139,29 @@ FIXTURES = {
     "navegador": {"mode": "page", "url": "https://www.eltenedor.es/restaurante/baltasar-barrio-estacion-soria/123456",
                   "title": "Baltasar — Barrio de la Estación · Reservar mesa", "rev": 3, "loading": False,
                   "error": "", "can_back": True, "can_forward": False, "updated": "2026-09-04T00:52:00+00:00"},
+    # The Descargas manager: several rows, so the LIST layout renders (not the single-item hero) — this is
+    # where the ▶/💾/✕ row buttons live, exactly the class of small-touch-target risk this harness exists for.
+    "torrent": {
+        "available": True, "unavailable_reason": "", "error": "",
+        "downloads": [
+            {"id": "h1", "title": "Un.Documental.Muy.Largo.Sobre.Volcanes.2026.2160p.HDR10.DDP5.1.H265-GRUPO",
+             "kind": "video", "file_name": "volcanes.mkv", "playable": False, "group": "download",
+             "state": "downloading", "progress": 34, "complete": False, "download_rate": 512000,
+             "num_peers": 11, "downloaded": 350000000, "size": 1600000000, "streamable": False,
+             "can_stream": False, "can_play": False},
+            {"id": "h2", "title": "Canción de prueba con un título bastante largo y sin espacios_final_mezcla",
+             "kind": "audio", "file_name": "cancion.mp3", "playable": True, "group": "download",
+             "state": "downloading", "progress": 71, "complete": False, "download_rate": 128000,
+             "num_peers": 4, "downloaded": 4200000, "size": 6000000, "streamable": False,
+             "can_stream": False, "can_play": False},
+        ],
+        "seeds": [
+            {"id": "h3", "title": "Cortometraje Independiente 2025 1080p WEB-DL", "kind": "video",
+             "file_name": "corto.mp4", "playable": True, "group": "seed", "state": "seeding",
+             "progress": 100, "complete": True, "download_rate": 0, "num_peers": 2, "downloaded": 900000000,
+             "size": 900000000, "streamable": True, "can_stream": True, "can_play": True},
+        ],
+    },
 }
 
 

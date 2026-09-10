@@ -315,11 +315,12 @@
       "view": true
     },
     "play_torrent": {
-      "desc": "busca un torrent de vídeo por la red y lo reproduce aquí mientras se descarga",
+      "desc": "busca un torrent de vídeo por la red y lo reproduce aquí mientras se descarga, o adopta uno que ya está en Descargas",
       "payload": {
         "query": "qué buscar (título de la peli o el vídeo)",
         "magnet": "opcional: un enlace magnet concreto en vez de buscar",
-        "keep": "opcional: true si además lo quiere guardar aunque no sea reproducible"
+        "keep": "opcional: true si además lo quiere guardar aunque no sea reproducible",
+        "id": "opcional: el id de una descarga que ya está en curso en el widget Descargas, para reproducirla aquí sin volver a buscarla"
       },
       "view": true
     },

@@ -438,10 +438,13 @@ def apply_action(action: str, payload: dict = None) -> dict:
     # V2-638 — the player is where a film is WATCHED, so the two non-YouTube sources belong on this surface
     # too: a file in the agent's own library, and a torrent that plays while it is still downloading.
     if action in ("play_local", "play_torrent"):
+        # `title` (no `query`/`magnet`) is how the Descargas widget's own «▶» names an id it is adopting —
+        # a fallback label for the rare case metadata carries no name yet, never a search term on its own.
         r = (_sources.play_local(db, str(p.get("path") or p.get("file") or ""))
              if action == "play_local" else
-             _sources.play_torrent(db, str(p.get("query") or "").strip(),
-                                   str(p.get("magnet") or "").strip(), bool(p.get("keep"))))
+             _sources.play_torrent(db, str(p.get("query") or p.get("title") or "").strip(),
+                                   str(p.get("magnet") or "").strip(), bool(p.get("keep")),
+                                   str(p.get("id") or "").strip()))
         if not r.get("ok"):
             return r
         db["list"].append(r["item"])

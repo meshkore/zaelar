@@ -21,7 +21,8 @@ reason) and pulls the magnet out of whatever shape the agent answered with.
 | `connectors/torrent/search.py` | Magnet lookup through the MeshKore network. |
 | `connectors/torrent/service.py` | The fail-safe facade the widget and API call. Never raises. `available()` is **DERIVED** from the wheel importing — no hand-set flag; a machine without the wheel simply hides the connector. |
 | `connectors/torrent/server_api.py` | `/api/torrent/*`, loopback. The one non-trivial endpoint is `GET /api/torrent/stream/{id}`. |
-| `widgets/torrent/` | The `Descargas` widget: progress while downloading, a `<video>` once streamable. Its declared actions ARE the skills (V2-544) — the FlashBrain drives them through the generic `widget_data` tool, no bespoke model tool. |
+| `widgets/torrent/` | The `Descargas` widget: a MANAGER (see below), never a player. Its declared actions ARE the skills (V2-544) — the FlashBrain drives them through the generic `widget_data` tool, no bespoke model tool. |
+| `nucleo/torrent_router.py` | Hands a Descargas row to the widget that can actually play it (see below). |
 
 ## Streaming a file that is still downloading
 
@@ -37,6 +38,51 @@ stream** — a browser re-requests a Range far better than it survives a socket 
 
 The `streamable` gate (metadata present + the file's first ~4 MB of pieces down) is the only thing the widget
 waits on before showing the player; until then it shows progress, never a dead `<video>`.
+
+## The Descargas widget is a MANAGER, not a player (redesign)
+
+The operator's brief: it has to look like a real torrent client. Two lists, like any client — files that are
+part of the SEEDS (finished, still sharing back) on one side, files still DOWNLOADING (or finished but not
+yet reannounced as seeding) on the other. Per row: play, save, remove-the-torrent-and-the-file. One download
+alone renders as a single "hero" card (the original single-download layout, kept because it read well);
+several switch to a compact row list — never one download claiming the whole screen regardless of how many
+are running.
+
+`widgets/torrent/data.py::view_data()` builds both lists FRESH from `connectors.torrent.service.active()` on
+every render — no private "my downloads" bookkeeping. The client is a SYSTEM tool (see below): a magnet
+started from this widget, from `youtube`'s own `play_torrent`, or by voice, all land on the one shelf every
+caller reads. `session.status()` now also reports `file_name`/`kind`/`playable` (`library.formats` decides,
+never a second copy of its lists) and `group` (`"seed"` once libtorrent's own state says `seeding`, `
+"download"` otherwise) — the exact split the two lists render.
+
+**Playing routes to whichever widget owns that surface — never inline here.** A playable video row's ▶ asks
+`nucleo/torrent_router.py::route_video(rid, title)`, which calls `youtube`'s `play_torrent` action WITH the
+existing id (`widgets/youtube/sources.py::play_torrent` grew an `id=` parameter for exactly this: adopt the
+SAME session handle via `item_from_torrent`, no re-search, no new download) and raises the card
+(`voice.observer.emit("widget","show",...)`). A finished, playable audio row's ▶ files it onto its shelf
+first (`service.file_it`, which now also RETIRES the handle — see below) then hands the library-relative path
+to `musica`'s `play_local`. Either way the OTHER exclusive-audio widget is asked to pause first, best-effort,
+mirroring `widgets/producers.py`'s "one speaker" rule without needing its async exclusivity machinery (this
+call may not have a running event loop under it).
+
+This crosses widget boundaries on purpose, and it lives in `nucleo/`, never inside `widgets/torrent/data.py`
+itself: "widgets are dumb and never talk to each other" (`widgets/AGENTS.md`) means a widget's OWN
+`apply_action` must not reach into a sibling's store. `nucleo/torrent_router.py` is the same layer
+`nucleo/docsheet.py` already uses for an analogous hand-off (opening `documento` bound to a worker's errand)
+— an orchestrator that is ALLOWED to know several widgets' shapes, called by a widget's `data.py` instead of
+that widget importing its sibling directly.
+
+`service.file_it()` used to just move the file and leave the torrent handle alone — which meant a completed
+download that got filed kept a handle in `active()` pointing at a path that no longer existed (the file was
+gone from `library/downloads/`), so the piece-aware stream route would serve nothing for it ever again and it
+would sit in the seeds list forever, dead. It now calls `session.remove(rid, delete_files=False)` right after
+a successful move — the file already left the sandbox, there is nothing left there to delete.
+
+A row's DELETE asks a real "¿Eliminar y borrar el fichero? Sí / Cancelar" inline before calling `remove`
+(`agenda`'s own two-step click-to-confirm pattern, `state.confirmDel`) — the manifest's `"confirm":true` on
+that action only gates the FlashBrain's own dispatch of it; a raw UI button click goes through the plain
+`/widgets/{id}/action` route and bypasses that gate entirely, so a destructive button needs its own confirm
+step in the widget itself.
 
 ## It is a SYSTEM tool, not one widget's property (V2-638)
 
@@ -73,3 +119,11 @@ The metadata-resolution path is proven live (a public-domain magnet resolved its
 end-to-end **byte streaming** of a real payload into the player is not exercised in the test suite (a unit test
 opens no session and reaches no network); the arithmetic, the `streamable` gate and the fail-safe facade are.
 Nodes **5.22** and **7.42**.
+
+The manager redesign (multiple rows, the seed/download split, the `open`→`nucleo/torrent_router.py`→
+`youtube`/`musica` hand-off, the `save`→`file_it`→handle-retirement path) is covered by unit tests against a
+faked connector and a Chromium-rendered phone fixture — never against a real libtorrent session or a real
+engine. Needs an engine restart plus a real magnet to confirm end to end: (1) two-plus concurrent downloads
+actually render as a list, not a hero card each; (2) a video row's ▶ genuinely opens `youtube` playing that
+torrent's own stream while it is still filling; (3) a finished audio row's ▶ genuinely files it and starts it
+in `musica`; (4) removing a row actually deletes the file on disk.

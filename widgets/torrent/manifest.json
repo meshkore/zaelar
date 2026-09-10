@@ -1,41 +1,57 @@
 {
   "id": "torrent",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "title": "Descargas",
-  "description": "Encuentra una película o un vídeo por la red de torrents y lo reproduce aquí dentro mientras se descarga. El buscador vive en la red MeshKore; esto es el cliente que baja el enlace y lo pone en pantalla.",
-  "whenToUse": "Cuando piden VER algo por torrent — «busca la peli X y ponla», «descarga el vídeo de Y». Encuentra un enlace magnet por la red, empieza a bajarlo y lo reproduce en cuanto hay suficiente. FRONTERA: un vídeo de YouTube o web → `youtube`; una web en vivo → `navegador`.",
+  "description": "Un cliente de descargas: encuentra una película o un vídeo por la red de torrents y lo baja al agente. Lista lo que se está descargando y lo que ya terminó y se comparte como semilla, con reproducir/guardar/eliminar por fila — como cualquier cliente de torrent.",
+  "whenToUse": "Cuando piden DESCARGAR o VER algo por torrent — «busca la peli X y ponla», «descarga el vídeo de Y», «qué tengo descargando», «cancela esa descarga». El buscador vive en la red MeshKore; esto es el cliente que baja el enlace y lo enseña, en dos listas (descargando / semillas). FRONTERA: reproducir de verdad ocurre en `youtube` (vídeo) o `musica` (audio) una vez hay algo que enseñar — este widget solo gestiona la descarga y ENVÍA a esos widgets.",
   "keywords": [
     "torrent",
+    "torrents",
     "descarga",
+    "descargas",
     "descargar",
     "magnet",
     "pelicula",
     "peli",
     "bajar la pelicula",
-    "torrents",
     "download",
-    "movie"
+    "semilla",
+    "semillas",
+    "compartiendo"
   ],
   "entry": "widget.js",
-  "usage": "`search` {query} busca un enlace magnet por la red MeshKore y empieza a descargarlo, reproduciéndolo en cuanto hay suficiente. `play` {magnet} baja un enlace magnet concreto. `poll` refresca el progreso. `stop` cancela la descarga y borra el fichero. Solo reproduce; el buscador es un agente de la red, no esto.",
-  "worker_guide": "Para poner un torrent desde un worker: `python -m nucleo.widget_cli data torrent search @q.json` con {\"query\":\"la peli que sea\"}, luego `python -m nucleo.widget_cli show torrent`. El id de la descarga vuelve en la respuesta; el progreso se lee con `data torrent poll`.",
+  "usage": "`search` {query} busca un enlace magnet por la red MeshKore y empieza a descargarlo. `add_magnet` {magnet} baja un enlace magnet concreto. `open` {id} reproduce esa fila — abre `youtube` o `musica` con ella. `save` {id} guarda una descarga terminada en la biblioteca (para un formato que el navegador no reproduce, o para quedársela). `remove` {id} cancela la descarga y borra el fichero. `poll` refresca el progreso. El buscador es un agente de la red; este widget descarga, lista y enruta — no reproduce nada dentro de sí mismo.",
+  "worker_guide": "Para poner un torrent desde un worker: `python -m nucleo.widget_cli data torrent search @q.json` con {\"query\":\"la peli que sea\"}, luego `python -m nucleo.widget_cli show torrent`. El id de la descarga vuelve en la respuesta; la lista completa (descargando + semillas) se lee con `python -m nucleo.widget_cli data torrent`.",
   "actions": {
     "search": {
       "desc": "busca un torrent por la red y empieza a descargarlo",
-      "payload": { "query": "qué buscar (título de la peli o el vídeo)" },
+      "payload": { "query": "qué buscar (título de la peli o el vídeo)", "keep": "opcional: true para guardarlo aunque no sea reproducible" },
       "view": true
     },
-    "play": {
-      "desc": "descarga un enlace magnet concreto",
-      "payload": { "magnet": "enlace magnet:?..." },
+    "add_magnet": {
+      "desc": "añade un enlace magnet concreto y empieza a descargarlo",
+      "payload": { "magnet": "enlace magnet:?...", "keep": "opcional: true para guardarlo aunque no sea reproducible" },
       "view": true
+    },
+    "open": {
+      "desc": "reproduce una fila: manda el vídeo a `youtube` o el audio (ya terminado) a `musica`",
+      "payload": { "id": "el id de la descarga" },
+      "ref": "id",
+      "view": true
+    },
+    "save": {
+      "desc": "guarda una descarga TERMINADA en la biblioteca del agente (para un formato no reproducible, o para quedársela)",
+      "payload": { "id": "el id de la descarga" },
+      "ref": "id"
+    },
+    "remove": {
+      "desc": "cancela la descarga y BORRA el fichero — irreversible",
+      "payload": { "id": "el id de la descarga" },
+      "ref": "id",
+      "confirm": true
     },
     "poll": {
-      "desc": "refresca el progreso de la descarga en curso",
-      "payload": {}
-    },
-    "stop": {
-      "desc": "cancela la descarga y borra el fichero",
+      "desc": "refresca el progreso de todas las descargas",
       "payload": {}
     }
   },
@@ -43,11 +59,9 @@
   "aliases": [
     "Descargas",
     "el torrent",
-    "la descarga",
-    "la pelicula"
+    "las descargas",
+    "los torrents"
   ],
   "origin": "builtin",
-  "size": { "w": 720, "h": 560 },
-  "live_title": true,
-  "fullscreen": "native"
+  "size": { "w": 760, "h": 600 }
 }

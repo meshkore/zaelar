@@ -201,13 +201,22 @@ def _record(rid: str):
 
 def status(rid: str) -> dict:
     """A speakable snapshot of one download. `streamable` is the only field the widget waits on to show the
-    player: metadata present, the file's first pieces down, and enough of it buffered to start."""
+    player: metadata present, the file's first pieces down, and enough of it buffered to start.
+
+    `file_name`/`kind`/`playable` describe the ONE file this download is FOR (`library.formats` owns that
+    question, never a copy of its lists here — V2-637's original mistake). `group` is the torrent-client
+    distinction the Descargas widget renders on either side of the fold: a finished download that libtorrent
+    is still sharing back reads as "seed" — the very next line in the client's own catalog is a "seed" —
+    everything else (still filling, or finished but not yet reannounced as seeding) reads as "download"."""
     rec = _record(rid)
     if not rec:
         return {"ok": False, "error": "ese torrent ya no está activo"}
     h, fidx = rec["h"], rec["file"]
     st = h.status()
     ti = h.torrent_file() if st.has_metadata else None
+    from library import formats
+    file_name = ti.files().file_name(fidx) if ti else ""
+    state = str(st.state)
     out = {
         "ok": True, "id": rid,
         "name": st.name or (ti.name() if ti else ""),
@@ -216,7 +225,11 @@ def status(rid: str) -> dict:
         "num_peers": int(st.num_peers),
         "downloaded": int(st.total_wanted_done),
         "size": int(st.total_wanted),
-        "state": str(st.state),
+        "state": state,
+        "file_name": file_name,
+        "kind": formats.kind_of(file_name) if file_name else "",
+        "playable": formats.browser_playable(file_name) if file_name else False,
+        "group": "seed" if state == "seeding" else "download",
     }
     out["streamable"] = _is_streamable(h, fidx, ti) if ti else False
     return out

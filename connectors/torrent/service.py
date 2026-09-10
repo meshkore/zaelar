@@ -75,7 +75,10 @@ def file_it(rid: str) -> dict:
     """Move a FINISHED download out of the sandbox and onto its shelf, so every widget can reach it.
 
     Filing is ours, never the client's: that is what keeps the client's own access confined to
-    `library/downloads/` (the operator's isolation rule)."""
+    `library/downloads/` (the operator's isolation rule). Once the move lands, the handle is RETIRED
+    (`delete_files=False` — the file is already gone from the sandbox, there is nothing left to delete): a
+    torrent handle whose file just moved out from under it would otherwise linger in `active()` pointing at a
+    path that no longer exists, and the piece-aware stream route would serve nothing for it ever again."""
     if not available():
         return {"ok": False, "error": unavailable_reason()}
     if not session.is_complete(rid):
@@ -84,7 +87,10 @@ def file_it(rid: str) -> dict:
     if not path:
         return {"ok": False, "error": "no encuentro el fichero de esa descarga"}
     from library import index
-    return index.file_into_place(path)
+    result = index.file_into_place(path)
+    if result.get("ok"):
+        session.remove(rid, delete_files=False)
+    return result
 
 
 def active() -> list:
