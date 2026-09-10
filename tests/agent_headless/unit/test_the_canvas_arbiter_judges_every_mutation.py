@@ -206,3 +206,15 @@ def test_the_observer_calls_the_tap_and_classifies_the_kind():
         "the F0 wiring is ONE call in observer.emit — without it the shadow measures nothing")
     import voice.observer as obs
     assert obs._CAT.get("arbiter") == "widget", "the verdict kind must belong to a viewer family"
+
+
+def test_the_data_op_log_carries_its_payload_for_the_arbiter():
+    """The OTHER half of the payload-in-turn license: the tap reads `extra['payload']`, and the ONLY
+    writer of that key is `_log_dataop`'s emit in the voice provider. A first disarm of that emit came
+    back GREEN because the tap test hands in its own dict — this pins the carrier itself."""
+    src = _stripped("voice/engine/llm/providers/nucleo.py")
+    m = re.search(r'emit\("widget", f"data:\{action_name\}"[^)]*\)', src, re.S)
+    assert m, "the data-op order log (_log_dataop) must still exist"
+    assert '"payload"' in m.group(0), (
+        "the data:* event must carry the op's payload — without it the arbiter cannot judge "
+        "payload-in-turn and every legitimate agenda write reads as a veto in shadow")
