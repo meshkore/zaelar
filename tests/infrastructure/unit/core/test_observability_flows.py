@@ -66,7 +66,8 @@ def test_a_whole_flow_shares_one_correlation_id(wired):
     assert f["errors"] == 0
 
     detail = flows.flow(tid)
-    assert [e["kind"] for e in detail] == ["trace", "brain", "search", "widget"], "orden cronológico del flujo"
+    assert [e["kind"] for e in detail] == ["trace", "brain", "search", "widget", "arbiter"], (
+        "orden cronológico del flujo — el veredicto sombra del árbitro (V2-653) sigue a su mutación")
     assert detail[1]["ms"] == 420.0, "la duración real sube del payload a su columna"
 
 
