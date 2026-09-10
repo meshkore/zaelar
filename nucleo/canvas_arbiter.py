@@ -237,10 +237,18 @@ def shadow_tap(kind: str, label: str, text: str, role: str, extra: dict | None) 
             op = "close"
         elif isinstance(label, str) and label.startswith("data:"):
             op, action = "data", label.split(":", 1)[1]
+        elif label == "action":
+            # The ORDER event both data funnels emit (`widget_action` for the UI, `brain_action` for
+            # every non-UI door) — measured live 2026-09-10: a real click produced `action`, never
+            # `data:*`, and the first shadow judged nothing. A flash-sourced `action` is skipped here
+            # because the SAME order was already judged richer (with its payload) at the `data:*` log.
+            op, action = "data", str(ex.get("action") or "")
         if not op:
             return
         wid = str(ex.get("id") or "").strip().lower()
         src = str(ex.get("src") or "") or _prov_src(wid)
+        if label == "action" and src.split(":", 1)[0] == "flash":
+            return
         # data:* events carry the ORIGINATING phrase in `text` AND (since V2-653) their payload in
         # `extra` (V2-039's action log); show/close do not, so those borrow the assembled last turn.
         turn, credit = (str(text or ""), True) if op == "data" and text else _turn_text()

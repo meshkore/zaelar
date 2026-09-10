@@ -175,6 +175,22 @@ def test_a_data_event_carries_its_own_phrase_and_is_judged_on_it(verdicts):
     assert verdicts[0]["allow"] is True
 
 
+def test_a_ui_click_travels_as_an_action_event_and_is_judged(verdicts):
+    """Measured live 2026-09-10: a real click emits label `action` (never `data:*`), and the first
+    shadow judged nothing — the ORDER events of both data funnels wear this label."""
+    arb.shadow_tap("widget", "action", "", "",
+                   {"id": "agenda", "action": "show_day", "src": "user"})
+    assert verdicts and verdicts[0]["rule"] == "operator-hands" and verdicts[0]["allow"] is True
+
+
+def test_a_flash_action_event_is_not_judged_twice(verdicts):
+    """`brain_action` re-emits `action` for the same order `_log_dataop` already logged with its
+    payload — one order, ONE verdict, the richer one."""
+    arb.shadow_tap("widget", "action", "", "",
+                   {"id": "agenda", "action": "add_meeting", "src": "flash"})
+    assert verdicts == []
+
+
 def test_an_ambient_verdict_removes_the_turns_credit(verdicts):
     arb.shadow_tap("transcript", "🗣", "enséñame la agenda", "user", None)
     arb.shadow_tap("ambient", "🙉 ambiente — no dirigido a zaelar", "", "user", None)
