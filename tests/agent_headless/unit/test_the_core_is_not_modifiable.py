@@ -19,8 +19,14 @@ from nucleo import protected_core as pc
 # ── la INTENCIÓN: qué se reconoce como «esto me modifica a mí» ───────────────────────────────────────────
 
 @pytest.mark.parametrize("req", [
-    "revisa que los rails o canalizaciones de esas acciones vayan a parar aquí",   # el mensaje real, verbatim
-    "Revisar y reconfigurar el FLUJO PRIORITARIO de resolución de peticiones",     # el encargo que se creó
+    # ⚠️ EL MENSAJE REAL, ENTERO. La primera versión de este test lo usaba RECORTADO, sin la coletilla
+    # «…al widget correcto», y por eso pasaba: la exención por widget eximía cualquier frase que nombrara
+    # uno en cualquier parte, así que el mensaje exacto que provocó toda la iniciativa se colaba limpio.
+    # Lo cazó la comprobación EN VIVO, no el test. Se queda completo, y con el encargo que llegó a crearse.
+    "revisa que los rails o canalizaciones de esas acciones directamente vayan a parar aquí",
+    "Revisar y reconfigurar el FLUJO PRIORITARIO de resolución de peticiones de VER o DESCARGAR una "
+    "película/serie, para que las acciones vayan al widget correcto",
+    "cambia el enrutado del motor para que abra la tarjeta buena",
     "cambia el prompt del dispatcher",
     "quiero que modifiques el motor de voz",
     "toca el núcleo para que vaya más rápido",
@@ -38,6 +44,8 @@ def test_an_order_to_change_ZAELAR_ITSELF_is_recognised(req):
     "modifica el widget de la agenda para que muestre la semana",
     "cambia el flujo de trabajo del widget de música",   # nombra un widget: el trabajo permitido
     "cambia la tarjeta de música para que muestre el artista",
+    "modifícame el panel de contactos",
+    "arregla el widget del tiempo, que no carga",
     "búscame un hotel en Soria",
     "arregla la cita del dentista de mañana",
     "arregla la reserva del restaurante",
@@ -48,7 +56,10 @@ def test_an_order_to_change_ZAELAR_ITSELF_is_recognised(req):
 ])
 def test_a_legitimate_errand_is_NOT_blocked(req):
     """El contrapeso, y es la mitad que decide si esto sirve o estorba: un falso positivo aquí es negarse a
-    algo que el operador sí pidió, que es el fallo que no queremos importar del otro lado."""
+    algo que el operador sí pidió, que es el fallo que no queremos importar del otro lado.
+
+    Nombrar un widget exime cuando el widget es LO QUE SE CAMBIA — no cuando se cambia el motor para que
+    algo acabe en un widget. Esa distinción es la que faltaba y la que dejó pasar su mensaje."""
     assert pc.touches_the_engine(req) is False
 
 

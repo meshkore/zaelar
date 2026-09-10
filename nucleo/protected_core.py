@@ -57,9 +57,20 @@ _CHANGE_VERB = (r"(?:modifi\w*|cambi\w*|reconfigur\w*|configur\w*|recable\w*|cab
 _TOUCH_RE = re.compile(_CHANGE_VERB + r"\b[^.!?]{0,60}\b" + _ENGINE_NOUN, re.I)
 _TOUCH_REV_RE = re.compile(_ENGINE_NOUN + r"\b[^.!?]{0,40}\b" + _CHANGE_VERB, re.I)
 
-# EL CONTRAPESO, y es la mitad que decide si esto sirve o estorba: un WIDGET sí se puede modificar. Una frase
-# que nombra un widget describe el trabajo permitido, aunque también diga «cambia» y «flujo».
-_WIDGET_RE = re.compile(r"\b(widget|tarjeta|panel|card)\w*\b", re.I)
+# EL CONTRAPESO, y es la mitad que decide si esto sirve o estorba: un WIDGET sí se puede modificar.
+#
+# ⚠️ Y la primera versión de esto era un COLADERO, encontrado EN VIVO contra el mensaje real del operador:
+# eximía cualquier frase que nombrara un widget EN CUALQUIER PARTE, y la suya acababa en «…para que las
+# acciones vayan al widget correcto». O sea que el mensaje exacto que provocó toda esta iniciativa pasaba
+# limpio. El test unitario no lo vio porque usaba una versión recortada, sin esa palabra — midió un caso
+# cómodo en vez del suyo.
+#
+# La regla correcta: nombrar un widget exime cuando el widget es lo que se CAMBIA, no cuando se cambia el
+# MOTOR para que algo acabe en un widget. Gramaticalmente: el widget tiene que ser el objeto del verbo —
+# cerca, y sin una pieza del motor por medio. Misma idea de ventana corta que `errand_kind._MODIFY_CODE_RE`.
+_WIDGET_NOUN = r"(?:widget|tarjeta|panel|card)\w*"
+_WIDGET_OBJECT_RE = re.compile(_CHANGE_VERB + r"\b((?:(?!" + _ENGINE_NOUN + r"\b)[^.!?]){0,45}?)\b" + _WIDGET_NOUN,
+                               re.I)
 
 
 def _norm(text: str) -> str:
@@ -74,9 +85,10 @@ def touches_the_engine(request: str) -> bool:
     t = _norm(request or "")
     if not t.strip():
         return False
-    if _WIDGET_RE.search(t):
+    if not (_TOUCH_RE.search(t) or _TOUCH_REV_RE.search(t)):
         return False
-    return bool(_TOUCH_RE.search(t) or _TOUCH_REV_RE.search(t))
+    # Nombrar un widget exime solo si el widget es LO QUE SE CAMBIA — ver la nota sobre el coladero.
+    return not _WIDGET_OBJECT_RE.search(t)
 
 
 def refusal(request: str) -> str:
