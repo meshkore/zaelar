@@ -30,7 +30,7 @@ from typing import Any
 
 from loguru import logger
 
-from nucleo import dev_worker_guard, research
+from nucleo import dev_worker_guard, protected_core, research
 from nucleo.workers import WorkerSpec, get_backend, workdir
 from nucleo.workers.providers import worker_sees as _worker_sees
 from nucleo import surfaces
@@ -158,7 +158,7 @@ def _model_for(kind: str) -> str:
     return str(tier.get("model") or "")              # relevado: el modelo del escalón, o el default del proveedor
 
 
-def _tools_for(kind: str, trusted: bool) -> list[str] | None:
+def _tools_for(kind: str, trusted: bool, may_write: bool = False) -> list[str] | None:
     """Allowlist of worker tools by type. An untrusted turn never reaches here (deny_tools in the spec).
 
     NUNCA a `"Bash"` pelado (auditoria 2026-07-14): the Bash of the worker queda acotado a the CLIs bridge
@@ -167,7 +167,9 @@ def _tools_for(kind: str, trusted: bool) -> list[str] | None:
     romper the ESCRITOR ÚNICO. Es the invariante documentado in CLAUDE.md («Bash SOLO a esos CLIs»)."""
     if not trusted:
         return []
-    if kind == "code":
+    # V2-655: `Write`/`Edit` los da `may_write`, no el kind. Un `code` que no es el generador de widgets
+    # —la rama `architect`— pedía escritura sobre el motor y la recibía por llamarse igual.
+    if kind == "code" and may_write:
         return ["Read", "Write", "Edit", "WebSearch", "WebFetch"]
     if kind == "web":
         return ["Read", "WebSearch", "WebFetch"]
@@ -1269,11 +1271,12 @@ f"dispatch: could not write the confinement jail for {key} — dev worker starts
             # collision, private CLAUDE.md). `read_dirs` declara the dependencia of lectura of the VISIÓN of the
             # browser (the captura arrives by path absoluta outside of the cwd, V2-049) — measured that the CLI already the allows
             # without decirselo, so that es defensa in profundidad, no a requisito.
+            _may_write = protected_core.writes_are_confined(kind, req)   # V2-655: el ENCARGO, no el kind
             _wd = None
-            if not workdir.needs_repo(kind):
+            if not (_may_write and workdir.needs_repo(kind)):
                 _wd = workdir.for_task(key)
                 env.update(workdir.env_for_task(env))
-            spec = WorkerSpec(kind=kind, model=_model_for(kind), tools=_tools_for(kind, trusted),
+            spec = WorkerSpec(kind=kind, model=_model_for(kind), tools=_tools_for(kind, trusted, _may_write),
                               deny_tools=(not trusted), trusted=trusted, task_id=key,
                               token=rec_token(rec), parent_task_id=rec.parent_task_id, depth=rec.depth,
                               env=env, cwd=_wd, resume_sid=resume_sid,

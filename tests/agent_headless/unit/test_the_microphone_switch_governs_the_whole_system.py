@@ -150,7 +150,8 @@ def test_the_gate_sits_ABOVE_the_attention_gate_and_below_nothing_else():
     src = Path(__file__).resolve().parents[3] / "voice/engine/llm/providers/nucleo.py"
     text = re.sub(r"(?m)#.*$", "", src.read_text(encoding="utf-8"))
     gate = text.find("mic_input.blocks_turn")
-    attn = text.find("attention.evaluate_content")
+    # V2-655: la puerta de atención se extrajo a `attention_turn.judge`; el guarda sigue al CÓDIGO.
+    attn = text.find("attention_turn.judge")
     assert gate >= 0, "the turn path must consult the microphone switch"
     assert attn >= 0 and gate < attn, (
         "the mic gate must run BEFORE the attention gate — otherwise a wake word or an open "

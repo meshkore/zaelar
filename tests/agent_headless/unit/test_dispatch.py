@@ -120,7 +120,10 @@ def test_dispatch_composes_prompt_with_memory_context(fresh_db, fake_backend, mo
     # Audit 2026-07-14: NEVER a bare "Bash" — the worker's Bash is only for bridge CLIs
     # (added by claude_session._BRIDGE_TOOLS). An open Bash would break memory's SINGLE WRITER.
     assert "Bash" not in (b.seen_spec.tools or [])
-    assert "Write" in (b.seen_spec.tools or [])             # the 'code' worker retains its coding tools
+    # V2-655: `Write` ya no lo da el KIND, lo da el ENCARGO. «arregla el bug de arranque» es `code` y NO es
+    # una petición de widget — exactamente la clase que no puede escribir en el motor. La herramienta de
+    # escritura se comprueba ahora en `test_the_core_is_not_modifiable.py`, con las dos direcciones.
+    assert "Write" not in (b.seen_spec.tools or [])
 
 
 def test_worker_prompt_has_verification_scaffold_and_today():

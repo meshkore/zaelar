@@ -1210,6 +1210,15 @@ DOMAINS: list[dict] = [
         # apagado por el operador. Dos puertas se lo saltaban (rehidratación y el relanzamiento de widgets) y
         # la que sí lo miraba fallaba ABIERTA. El nodo fija además la mitad que se olvida: gatear TARDE, tras
         # consumir el rastro, no es gatear — es perder el trabajo del operador en silencio.
+        # V2-655 — EL NÚCLEO NO SE MODIFICA. Un mensaje pegado en el chat, escrito para un agente de
+        # desarrollo, se convirtió en encargo a un worker de código en el mismo segundo en que el modelo
+        # preguntaba si podía; lo único que lo frenó fue la puerta del GASTO, que es vocabulario de dinero y
+        # no sabe nada de tocar el motor. El nodo prueba las DOS capas y, sobre todo, el contrapeso: un falso
+        # positivo aquí es negarse a algo que el operador sí pidió.
+        {"id": "3.29", "title": "El núcleo y el motor no se modifican desde la voz ni el chat — solo widgets, "
+                                "y el mecanismo no entrega con qué escribir",
+            "ch": UNIT, "paths": [
+                "tests/agent_headless/unit/test_the_core_is_not_modifiable.py"]},
         {"id": "3.28", "title": "Con ⏻ parado no se resucita nada ni se lanza ningún worker — y el rastro "
                                 "del trabajo interrumpido SOBREVIVE (aplazar, no perder)",
             "ch": UNIT, "paths": [

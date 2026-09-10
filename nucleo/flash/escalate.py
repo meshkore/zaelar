@@ -12,6 +12,8 @@ from __future__ import annotations
 
 import time
 
+from loguru import logger
+
 _tasks: dict[int, dict] = {}      # id → {request, started_at, done, summary}
 # Task ids come from the process-identity owner (F5, 2026-08-23). The counter itself is still per-process —
 # that is fine for a RAM registry — but anything DURABLE keyed on these ids must compose `runtime_ids.boot_id()`
@@ -82,6 +84,25 @@ def strip_system_notes(text: str) -> str:
     return "\n".join(lines[i:]).strip()
 
 
+def _refuse(req: str, reason: str) -> None:
+    """La negativa VIAJA: al operador por la vía proactiva (que ya sabe hablar y ya sabe degradar a nota
+    escrita si no hay voz) y a la línea de tiempo, para que «no pasó nada» nunca sea la única evidencia."""
+    try:
+        from voice.observer import emit
+        emit("task", "blocked", role="system", text=req[:120],
+             extra={"reason": "el núcleo y el motor no se modifican desde la voz ni el chat"})
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        import asyncio
+
+        from voice import proactive
+        asyncio.get_running_loop().create_task(proactive.notify("zaelar", reason))
+    except Exception:  # noqa: BLE001 — sin loop (tests, arranque) la fila de la timeline ya deja constancia
+        pass
+    logger.info(f"escalate: RECHAZADA — pide modificar el motor: {req[:80]}")
+
+
 def escalate_to_slowbrain(request: str, *, context: dict | None = None) -> int:
     """Queue the INTENT of a SlowBrain turn for `request`. Returns a task id. STUB in V2-004:
     records + publishes `escalate.requested`; SlowBrain executes it asynchronously starting in V2-006/V2-007."""
@@ -90,6 +111,17 @@ def escalate_to_slowbrain(request: str, *, context: dict | None = None) -> int:
         # There were only system notes: the operator asked for nothing, so there is no task. Previously this
         # was precisely the worker-chasing-the-worker.
         return 0
+    # EL NÚCLEO NO SE MODIFICA (V2-655). Este es el ÚNICO portal por el que pasa toda escalada, que es el
+    # mismo argumento que puso `strip_system_notes` aquí: un llamante nuevo hereda la regla sin tener que
+    # acordarse. El encargo NO llega a existir — ni ficha, ni hoja en el canvas, ni nombre —, porque la
+    # avería del 2026-09-10 fue justo eso: el encargo visible en el mismo segundo en que el modelo preguntaba
+    # si podía. La negativa se dice, no se calla: negarse en silencio se lee como una avería.
+    ctx0 = dict(context or {})
+    if ctx0.get("kind") != "dev" and not ctx0.get("confirmed"):
+        from nucleo import protected_core
+        if protected_core.touches_the_engine(req):
+            _refuse(req, protected_core.refusal(req))
+            return 0
     tid = _next_seq("escalate.task")
     _tasks[tid] = {"request": req[:200], "started_at": time.time(), "done": False, "summary": ""}
     if len(_tasks) > _MAX:
