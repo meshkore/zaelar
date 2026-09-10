@@ -46,6 +46,17 @@ async def judge(text: str, *, context: str, emit) -> tuple[bool, str, float]:
         attention.note_ambient(text)
         return False, text, gate_ms
 
+    # V2-657 — a spoken SHUT-UP order («cállate», «silencio») is an ATTENTION order, not conversation:
+    # it closes the window NOW and reaches no model — answering it («vale, me callo») would itself
+    # re-anchor the window it just ordered shut. Measured 2026-09-10 (dinner session 130418ed):
+    # «¿Por qué sigues escuchando? Maldita sea, cállate» arrived as one more directed turn.
+    if attention.is_shut_up(text):
+        attention.close_window(src="voice-order")
+        emit("ambient", "🤫 orden de silencio — ventana cerrada", text=text[:120], role="user",
+             extra={"mode": attention.mode(), "reason": "shut_up",
+                    "window_s": attention.window_s(), "window_open": False})
+        return False, text, gate_ms
+
     attention.note_directed()
     if verdict.reason == "wakeword":
         text = attention.reclaim_ambient_tail(text)

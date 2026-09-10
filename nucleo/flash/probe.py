@@ -962,7 +962,11 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
     # hacer LO MISMO, porque una data-op MUDA deja la ventana sin respuesta del asistente y el turno siguiente
     # ve la petición "sin atender" y la RE-DISPARA (context-bleed: la cita del dentista duplicada). Impl paralela:
     # cablear en ambos, siempre.
-    if not spoken:
+    if not spoken and any(t.get("action") == "aparte" for t in tags):
+        # V2-657 (espejo del provider — impl paralela, cablear en AMBOS): [[aparte]] es silencio SANCIONADO,
+        # el turno iba dirigido a otra persona de la sala. Ningún backstop lo rellena.
+        pass
+    elif not spoken:
         try:
             from voice.engine.core import langs as _langs
             _lg = _langs.current_language()

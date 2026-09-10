@@ -308,12 +308,38 @@ def window_open(now: float | None = None) -> bool:
 
 
 def note_directed(now: float | None = None) -> None:
-    """Marks that a directed turn was HANDLED → opens/refreshes the active conversation window (smart mode)."""
+    """Marks that a directed turn was HANDLED → opens/refreshes the active conversation window (smart mode).
+
+    V2-657: the PREVIOUS anchor is kept so `retract_last_directed()` can undo exactly this refresh if the
+    model later judges the turn an ASIDE (addressed to somebody else in the room). Inside an open window
+    nothing is judged before the model (V2-531), so the admission is provisional by nature — measured
+    2026-09-10 (dinner session 130418ed): every piece of table talk extended the window 5 more seconds,
+    and the conversation structurally could not die while anybody talked near the mic."""
     now = time.time() if now is None else now
+    _state["_prev_anchor"] = (_state["last_directed"], list(_state["recent_directed"]),
+                              _state.get("window_hint") or 0.0)
     _state["last_directed"] = now
     rd = [t for t in _state["recent_directed"] if now - t <= 90.0]
     rd.append(now)
     _state["recent_directed"] = rd[-10:]
+
+
+def retract_last_directed() -> bool:
+    """Undo the LAST `note_directed()` — the admitted turn turned out to be an ASIDE, not conversation.
+    Only if nothing re-anchored since (a newer directed turn, or the falling edge of the agent's own
+    speech, both move `last_directed` past the value that refresh wrote); then the rollback would eat
+    somebody else's anchor and deafness is the worse failure (V2-655)."""
+    prev = _state.get("_prev_anchor")
+    if not prev:
+        return False
+    cur = _state["last_directed"]
+    # `note_bot_speech`'s falling edge and any later turn write a NEWER timestamp; equal means untouched.
+    if not _state["recent_directed"] or cur != _state["recent_directed"][-1]:
+        return False
+    _state["last_directed"], _state["recent_directed"], _state["window_hint"] = \
+        prev[0], list(prev[1]), prev[2]
+    _state["_prev_anchor"] = None
+    return True
 
 
 def note_typed(now: float | None = None) -> None:
@@ -465,17 +491,62 @@ def on_mode_change(new_mode: str = "") -> None:
 
     Deliberately NOT `reset()`: the typed-turn exemption (V2-654) and the ambient tail belong to the mic and
     the transcript, not to the mode, and wiping them here would swallow a typed turn mid-flight."""
+    _wipe_window()
+    try:
+        from voice.observer import emit
+        emit("ui", "orb:attention", extra={"state": new_mode or mode(), "src": "settings"})
+    except Exception:
+        pass
+
+
+def _wipe_window() -> None:
+    """Close the standing conversation window NOW (shared by the mode flip and the spoken shut-up order)."""
     _state["last_directed"] = 0.0
     _state["bot_hold"] = False
     _state["bot_addressed"] = 0.0
     _state["window_hint"] = 0.0
     _state["spotted_at"] = 0.0
     _state["recent_directed"] = []
+    _state["_prev_anchor"] = None
+
+
+def close_window(src: str = "voice-order") -> None:
+    """A spoken SHUT-UP order («cállate», «silencio») closes the window immediately — V2-657, measured at
+    the 2026-09-10 dinner: «¿Por qué sigues escuchando? Maldita sea, cállate» reached the model as one
+    more conversational turn and nothing anywhere could grant the silence he was ordering. Same client
+    notification as a mode flip, so the ring darkens at once."""
+    _wipe_window()
     try:
         from voice.observer import emit
-        emit("ui", "orb:attention", extra={"state": new_mode or mode(), "src": "settings"})
+        emit("ui", "orb:attention", extra={"state": mode(), "src": src})
     except Exception:
         pass
+
+
+# V2-657 — the SPOKEN shut-up order. Whole-sentence grammar, vocative-stripped, per SENTENCE because the
+# order lives in the last sentence of a spoken turn (V2-652: «Maldita sea, cállate.»). Deliberately narrow:
+# «apaga»/«apágate» stay OUT (they name the POWER, or a device — «apaga la música» — and guessing here kills
+# a turn); a negated form («no te calles») never matches because the negation precedes the verb in the same
+# sentence.
+_SHUT_UP_RE = re.compile(
+    r"^(?:(?:maldita\s+sea|por\s+favor|por\s+dios|venga|ya|basta)[,!\s]+)*"
+    r"(?:c[áa]llate(?:\s+ya)?|calla(?:te)?(?:\s+ya)?|silencio|"
+    r"deja\s+de\s+escuchar(?:me)?|shut\s+up|be\s+quiet|stop\s+listening(?:\s+to\s+me)?)"
+    r"[\s.!]*$", re.I)
+
+
+def is_shut_up(text: str) -> bool:
+    """Does this turn ORDER silence? Checked per sentence on the vocative-stripped text.
+    (`strip_leading_wakeword` returns '' when there was nothing to strip — it exists for the action-map
+    retry — so the un-stripped sentence is kept when no wake word led it.)"""
+    for part in re.split(r"[.!?¡¿]+", _norm(text or "")):
+        part = part.strip(" ,")
+        part = strip_leading_wakeword(part) or part
+        # A negated form («no te calles») can never match: the grammar is anchored at the sentence start
+        # and «no» is not an admitted interjection.
+        if part and _SHUT_UP_RE.match(part):
+            return True
+    return False
 
 
 def reset() -> None:
@@ -490,6 +561,7 @@ def reset() -> None:
     _state["typed_at"] = 0.0
     _state["typed_pending"] = False
     _state["bot_addressed"] = 0.0
+    _state["_prev_anchor"] = None
 
 
 # ── HARD interruption (T136): STOP always handled, BYPASSES the gate, DETERMINISTIC (does not depend on the LLM) ────

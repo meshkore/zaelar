@@ -1219,6 +1219,17 @@ DOMAINS: list[dict] = [
         # el encargo existía. La dirección del fallo manda: un falso positivo APARCA algo que él sí quería y se
         # convierte en «te lo pregunté y luego no hiciste nada», así que el nodo mide las dos direcciones y
         # deja fuera la cortesía («¿te aviso cuando lo tenga?»), que es lo que rompería el flujo bueno.
+        # V2-657 (la espiral de la cena, sesión 130418ed): dentro de una ventana abierta la charla de mesa se
+        # admitía como dirigida, el modelo la contestaba, y turno y respuesta re-anclaban la ventana — la
+        # conversación no podía morir con gente hablando cerca del micro. Tres mecanismos: [[aparte]] (el
+        # silencio SANCIONADO del modelo, con retract del re-anclaje), «cállate» como orden de atención que
+        # cierra la ventana en el gate sin llegar a ningún modelo, y la etiqueta de proveedor que ya no puede
+        # contradecir al endpoint real.
+        {"id": "3.31", "title": "La conversación puede morir durante la charla de sala: [[aparte]] retracta "
+                                "el ancla, «cállate» cierra la ventana en el gate, y la etiqueta de proveedor "
+                                "dice la verdad",
+            "ch": UNIT, "paths": [
+                "tests/voice/unit/test_the_dinner_spiral_aside_and_shut_up.py"]},
         {"id": "3.30", "title": "Si el turno PIDIÓ PERMISO, el encargo se aparca en vez de lanzarse — y el "
                                 "«sí» del operador lanza exactamente ese",
             "ch": UNIT, "paths": [
@@ -1905,19 +1916,23 @@ DOMAINS: list[dict] = [
         # thread (cap, TIME ordering, dedup, read watermark), the writers that reflect what happened elsewhere,
         # and "load previous". The RENDERING half lives in 4.98 (`..._paints_in_every_profile`) — which is what
         # caught that a backtick inside a comment CLOSES the CSS template literal.
-        # V2-557 (2026-09-02) — el explorador de archivos en la nube. Dos mitades. La del CONTRATO fija las
-        # cuatro decisiones que un cambio posterior puede deshacer en silencio: la acción que CONTESTA la
-        # frase para la que existe el widget («búscame el contrato de Axa») es de VISTA y devuelve sus
-        # coincidencias (sin lo primero una orden pura de mostrar deja una tarjeta muda, V2-547; sin lo
-        # segundo el turno no tiene qué decir, V2-541); NINGÚN payload de acción lleva una credencial (V2-520
-        # — la voz llega exactamente a estas acciones); `view_data` no toca la red, porque corre en cada
-        # repintado; y un permiso que no puede listar se distingue de una carpeta vacía.
+        # V2-557 (2026-09-02) → V2-657 (2026-09-10): de explorador de la nube a GESTOR DE ARCHIVOS unificado.
+        # `local` es el proveedor por defecto (la biblioteca propia, V2-638) y no necesita conexión alguna;
+        # cada servicio en la nube (Drive, OneDrive…) vive AL LADO, con un icono en la cabecera, y solo ofrece
+        # lo que su API permite — rename/copy/delete son LOCAL ONLY y un conector que no puede hacerlos lo
+        # rechaza POR NOMBRE, nunca los dibuja como botones muertos. La acción que CONTESTA la frase para la
+        # que existe el widget («búscame el contrato de Axa») sigue siendo de VISTA y devuelve sus
+        # coincidencias (V2-547/V2-541); NINGÚN payload de acción lleva una credencial (V2-520); `view_data`
+        # no toca la red; y un permiso que no puede listar se distingue de una carpeta vacía. Abrir un fichero
+        # local reproducible nunca importa `widgets.youtube`/`widgets.musica` directamente — pasa por
+        # `nucleo/library_router.py` (nodo 7.42), el mismo molde que `nucleo/torrent_router.py`.
         # La mitad que RENDERIZA es la que ninguna lectura del fuente puede dar: un nombre de fichero es texto
-        # UNTRUSTED del disco de alguien —`<img src=x onerror=…>` es un nombre legal en todos los proveedores—
-        # y solo un navegador dice si eso se convirtió en un elemento o siguió siendo una cadena; y un aviso
-        # que existe en el DOM con altura cero no explica nada a nadie.
-        {"id": "4.104", "title": "ARCHIVOS: el explorador es genérico, contesta lo que encuentra, y dice lo que "
-                                 "su permiso NO puede ver (contrato + renderizado)",
+        # UNTRUSTED —`<img src=x onerror=…>` es un nombre legal en cualquier proveedor o carpeta local— y solo
+        # un navegador dice si eso se convirtió en un elemento o siguió siendo una cadena; y un aviso que
+        # existe en el DOM con altura cero no explica nada a nadie.
+        {"id": "4.104", "title": "ARCHIVOS: la biblioteca local es el gestor por defecto (rename/copy/delete), "
+                                 "la nube ofrece solo lo que puede, y dice lo que su permiso NO puede ver "
+                                 "(contrato + renderizado)",
             "ch": UNIT, "paths": [
                 "tests/browser/unit/archivos/test_the_explorer_is_generic_and_says_what_it_cannot_see.py",
                 "tests/browser/e2e/widgets/test_archivos_render.py"]},
@@ -3053,7 +3068,10 @@ DOMAINS: list[dict] = [
         {"id": "7.42", "title": "El sistema de archivos del agente: una frontera que nadie cruza, y solo se "
                                 "descarga lo que el navegador sabe reproducir",
             "ch": UNIT,
-            "paths": ["tests/infrastructure/unit/core/test_the_agents_own_filesystem.py"]},
+            "paths": ["tests/infrastructure/unit/core/test_the_agents_own_filesystem.py",
+                      # V2-657 — el gestor de archivos unificado añade rename/copy/delete a la biblioteca y
+                      # el hand-off `nucleo/library_router.py` (mismo molde que `nucleo/torrent_router.py`).
+                      "tests/infrastructure/unit/core/test_library_router_hands_a_file_to_its_player.py"]},
         # 2026-09-04 — LA NUBE, por lo único que se puede comprobar sin gastar dinero ni dejar una cuenta detrás:
         # `my.zaelar.com` es un BORDE de ruteo, y sin cookie de sesión cae a la «entrada inteligente» que manda al
         # visitante al motor de su propio ordenador. Eso es lo que ve cualquiera que escriba la dirección, y falla

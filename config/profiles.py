@@ -60,14 +60,14 @@ _PROFILES: dict[str, dict] = {
             # two-versions-old model — a profile is a shortcut to the RECOMMENDED setup, and one that ships a stale
             # model is worse than one that ships nothing.
             #
-            # ⚠️ It is DELIBERATELY the broker and not `api.deepseek.com`, even though the standing provider rule
-            # (2026-08-19) puts the direct endpoint first and `config/v2.py §fast` now defaults to it. Reason: a
-            # profile WRITES `config/v2.json`, the store WINS over env (`config/v2.py::get`), and a cloud Machine
-            # gets its endpoint from env — `fly.accounts.toml` pins `FAST_*` to the broker there because the direct
-            # endpoint's key is not among the cloud's provider secrets. So on the very deployment this profile is
-            # named after, writing the direct endpoint would OVERRIDE the working env with an endpoint that has no
-            # credential. The rule picks the order when both are reachable; here only one is.
-            "fast": {"provider": "aimlapi", "model": "deepseek/deepseek-v4-flash", "base_url": "", "api_key": ""},
+            # V2-657: aligned to the canonical model table (config/models.default.json §voice_brain, V2-500) —
+            # DeepSeek DIRECT. The old value here was the broker, with a rationale («the cloud's secrets lack
+            # the direct key») that stopped being true when `fly.accounts.toml` pinned `FAST_*` to the direct
+            # endpoint and the provisioner started passing `DEEPSEEK_API_KEY` — so re-applying the profile
+            # kept writing a stale broker label into the operator's `config/v2.json`, and observability
+            # printed that name on every turn while the traffic went elsewhere.
+            "fast": {"provider": "deepseek", "model": "deepseek-v4-pro",
+                     "base_url": "https://api.deepseek.com", "api_key": ""},
             "memory": {"embed_provider": "fastembed", "embed_model": "",
                        "rerank_provider": "local", "mem_processor_model": ""},
         },

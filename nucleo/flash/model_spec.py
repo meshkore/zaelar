@@ -111,6 +111,28 @@ _FALLBACK_MODEL = "deepseek-v4-pro"
 _FALLBACK_BASE = "https://api.deepseek.com"
 
 
+def _provider_label(stored: str, base: str | None) -> str:
+    """The provider LABEL the spec carries (cosmetic everywhere but `ollama`, which drives `is_local`).
+    A stored label that CONTRADICTS the endpoint the traffic actually goes to loses to the URL (V2-657,
+    measured live 2026-09-10: the operator's v2.json carried a stale `provider: aimlapi` while every
+    request went to api.deepseek.com — and observability printed the stale name on every turn). `ollama`
+    is honoured as stored because it IS routing, not a label."""
+    s = (stored or "").strip().lower()
+    if s == "ollama":
+        return s
+    u = (base or "").lower()
+    for needle, name in (("api.deepseek.com", "deepseek"), ("api.openai.com", "openai"),
+                         ("mistral.ai", "mistral"), ("x.ai", "xai"), ("groq.com", "groq"),
+                         ("api.z.ai", "zai"), ("googleapis", "gemini"), ("generativelanguage", "gemini"),
+                         ("aimlapi", "aimlapi"), ("11434", "ollama"), ("localhost", "ollama"),
+                         ("127.0.0.1", "ollama")):
+        if needle in u:
+            return name
+    # No base URL stored: with no explicit label either, the ModelSpec default applies downstream;
+    # a stored label for an unrecognized endpoint is kept as-is (it may be truthful).
+    return s or "aimlapi"
+
+
 def spec_from_config() -> ModelSpec:
     """Builds the default `ModelSpec` from `config/v2` (managed by the UI; env = power-user fallback).
     The caller may ignore it and pass its own spec (model per invocation)."""
@@ -129,7 +151,7 @@ def spec_from_config() -> ModelSpec:
             model=model,
             base_url=base,
             api_key=cfg.get("api_key") or None,
-            provider=cfg.get("provider") or ("deepseek" if base == _FALLBACK_BASE else "aimlapi"),
+            provider=_provider_label(cfg.get("provider") or "", base),
         )
     except Exception as e:  # noqa: BLE001
         logger.warning(f"fast spec_from_config fallback (usando defaults): {e}")

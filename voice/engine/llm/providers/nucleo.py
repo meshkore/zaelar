@@ -760,6 +760,9 @@ class NucleoLLMStream(llm.LLMStream):
         data_done = {"v": False}         # V2-026: se despachó una data-op FAST → ack hablado si el modelo no habló
         deduped = {"v": False}           # V2-634: el guarda anti context-bleed descartó un duplicado — el turno
                                          # fue ATENDIDO (dedupe deliberado), no un vacío que disculpar
+        aside = {"v": False}             # V2-657: el modelo emitió [[aparte]] — el turno iba dirigido a OTRA
+                                         # persona presente; silencio sancionado, y el refresco de ventana se
+                                         # RETRACTA para que la conversación pueda morir durante charla de sala
         worker_acted = {"v": None}       # V2-038: 'inject'|'stop'|'answer' si se dirigió a un Brain Worker vivo
         cron_seen = {"v": False}         # V2-146: el turno YA pidió un cron → el backstop de aviso no duplica
         _shown_ids: set = set()          # ids ya mostrados ESTE turno → dedup de [[show]] duplicado
@@ -860,6 +863,11 @@ class NucleoLLMStream(llm.LLMStream):
                 return
             if action in ("unknown_tag_dropped",):
                 logger.warning(f"unknown_tag_dropped: {(extra.get('text') or '')[:120]!r}")
+                return
+            if action == "aparte":
+                # V2-657 — sanctioned silence: the model judged this in-window turn addressed to somebody
+                # else in the room. Handled (no mute backstop, no hollow repair); resolved after the stream.
+                aside["v"] = True
                 return
             if action == "widget.data":
                 # Camino de RESERVA (V2-026): el tag inline sigue soportado, pero el camino PRINCIPAL de las
@@ -2755,6 +2763,7 @@ class NucleoLLMStream(llm.LLMStream):
         _tool_handled = bool(
             acted["widget"] or data_done["v"] or worker_acted["v"] or style_fired["v"]
             or (deduped["v"] and not _typed_turn)
+            or (aside["v"] and not _typed_turn)   # V2-657: an ASIDE is deliberate silence — never on typed
             or escalate_req["v"] is not None or search_req["v"] is not None
             or music_req["v"] is not None or ("play_video" in _tool_fired and not _typed_turn)
             or images_req["v"] is not None
@@ -2888,17 +2897,30 @@ class NucleoLLMStream(llm.LLMStream):
         # The three HOLLOW-turn repairs — V2-572 bare «Hecho.» · V2-587 empty wait · V2-642 MUTE after a
         # sounded cover («Déjame que mire…» then silence forever, session 651c25ac) — live in ONE seam:
         # `second_pass.hollow_repairs`. The turn always closes; failing everything, the honest closer speaks.
-        try:
-            from voice.engine.core import langs as _lg_cl
-            from voice.engine.speech import filler_audio as _fa_cl
-            from nucleo.flash import second_pass as _second
-            spoken_text = await _second.hollow_repairs(
-                text, spoken_text, brain._window, spec, did_act=_did_act,
-                covered=bool(_fa_cl.last_fired_at() and _fa_cl.last_fired_at() >= _t_stream0),
-                speak=lambda _r: send(speech.sanitize(_r, drop_metadata=False)),
-                emit=emit, pick_closer=_lg_cl.pick_closer)
-        except Exception:
-            pass
+        _aside_turn = bool(aside["v"] and not _typed_turn)   # V2-657 — see the [[aparte]] branch in _tag_emit
+        if not _aside_turn:
+            try:
+                from voice.engine.core import langs as _lg_cl
+                from voice.engine.speech import filler_audio as _fa_cl
+                from nucleo.flash import second_pass as _second
+                spoken_text = await _second.hollow_repairs(
+                    text, spoken_text, brain._window, spec, did_act=_did_act,
+                    covered=bool(_fa_cl.last_fired_at() and _fa_cl.last_fired_at() >= _t_stream0),
+                    speak=lambda _r: send(speech.sanitize(_r, drop_metadata=False)),
+                    emit=emit, pick_closer=_lg_cl.pick_closer)
+            except Exception:
+                pass
+        elif not spoken_text and not _did_act:
+            # The window refresh this turn's admission wrote is RETRACTED, so the conversation can expire on
+            # its own during table talk instead of self-extending forever (the 2026-09-10 dinner spiral).
+            _retracted = False
+            try:
+                _retracted = attention.retract_last_directed()
+            except Exception:
+                pass
+            emit("ambient", "🙊 aparte — dirigida a otra persona (el modelo la dejó pasar)", text=text[:120],
+                 role="user", extra={"reason": "aside", "retracted": _retracted,
+                                     "window_s": attention.window_s(), "window_open": attention.window_open()})
         emit("brain", "⚡ Nucleo(flash): reply", text=spoken_text, role="assistant", extra=_reply_extra)
         # …y el VEREDICTO en una línea legible: si el turno pasó del listón, POR QUÉ (prompt grande / proveedor /
         # frío / trabajo real). Los números ya estaban todos en `_reply_extra`, pero enterrados en el extra: había

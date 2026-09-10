@@ -79,6 +79,16 @@ def prompt_lines(mstate: dict) -> list[str]:
             f"el modo wake word», «escúchame/respóndeme solo cuando diga tu nombre», «vuelve a escucharme "
             f"siempre»), LLAMA a set_style_directive con esa orden tal cual — el sistema lo aplica al instante; "
             f"no pidas ningún dato más y nunca digas que está hecho sin haber llamado a la tool.")
+        if att_mode in ("smart", "wakeword"):
+            # V2-657 — the ASIDE exit. Measured at the 2026-09-10 dinner: «Acostaros» got «Buenas noches»,
+            # «Luis, disfrutemos de las noticias» got a clarifying question — the model had no way to let a
+            # turn PASS, so it answered room talk and every answer kept the conversation window alive.
+            lines.append(
+                "CONVERSACIÓN CON GENTE DELANTE — hay más personas en la sala y el micro lo oye todo. Si el "
+                "turno va CLARAMENTE dirigido a otra persona (la nombra por su nombre, o es charla doméstica "
+                "de la sala sin ninguna petición ni pregunta para ti), responde EXACTAMENTE con [[aparte]] y "
+                "nada más: ni una palabra, ninguna tool. Nunca contestes a lo que no era para ti ni preguntes "
+                "qué significaba. Ante la MÍNIMA duda de que sí te hablaba a ti, contesta con normalidad.")
     except Exception:
         pass
     try:
