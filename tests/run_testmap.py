@@ -1763,6 +1763,13 @@ DOMAINS: list[dict] = [
                 "tests/agent_headless/unit/test_a_report_errand_opens_the_document_sheet.py",
                 "tests/agent_headless/unit/workers/test_an_empty_search_query_refuses_loudly.py",
                 "tests/browser/unit/documento/test_the_report_shows_its_process_and_lands_on_paper.py"]},
+        # V2-652 — el recon ACABA en un campo validado: un formulario real jamás se avanza con valores
+        # inventados («12345678Z» contra el censo de Hacienda, dos veces, con `worker_bridge ask` sin
+        # llamar). La regla vive dentro de la disciplina RECON→ASK→EJECUTA del prompt web del worker.
+        {"id": "4.151", "title": "Un formulario REAL nunca se alimenta con valores inventados: el recon "
+                                 "acaba en el campo validado y el camino es preguntar o entregar el bloqueo",
+            "ch": UNIT, "paths": [
+                "tests/agent_headless/unit/test_a_real_form_is_never_fed_invented_values.py"]},
         # V2-646 — el compositor del chat NO traga un mensaje que nadie va a oír. Con ⏻ apagado
         # `session.sendText` encolaba el texto y llamaba a `start()`, que se NIEGA contra la verdad del
         # servidor: la cola no se vaciaba nunca, la pared ya lo había pintado como enviado y el compositor

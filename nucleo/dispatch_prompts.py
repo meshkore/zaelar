@@ -535,6 +535,14 @@ def _web_prompt(goal: str, context: str, brief: dict | None = None, *, vision: b
         "zaelar ya sepa.\n"
         "   b. PIDE DE GOLPE lo que falte: una SOLA `worker_bridge ask` con TODOS los datos que te faltan a la vez "
         "(no de uno en uno, no vayas y vengas). Espera la respuesta. NUNCA inventes valores.\n"
+        # V2-652 — measured live (session 7f77e2cc): the worker typed the placeholder NIF «12345678Z» into
+        # Hacienda's REAL form twice, the census validation refused, and it kept grinding the same modal for
+        # minutes instead of asking for the real datum. Recon ends at a validated field.
+        "   ⚠ Un formulario REAL se envía de verdad: JAMÁS lo avances con valores inventados o de prueba "
+        "(«12345678Z», nombres falsos). Si un paso VALIDA un dato personal (NIF/DNI contra un censo, un "
+        "login), el RECON acaba AHÍ: pide el dato real (b) y espera, o entrega el bloqueo nombrando el dato "
+        "exacto que falta. Reintentar contra esa validación con datos falsos no es explorar, es fallar en "
+        "bucle.\n"
         "   c. EJECUTA hasta el FINAL: rellena TODOS los campos con visión, elige opciones, avanza el calendario, "
         "acepta condiciones y ENVÍA/CONFIRMA. Es una acción a TERMINAR, no algo que se le explique al operador.\n"
         + ("   (Si el objetivo es BUSCAR/COMPARAR: llega a la página de RESULTADOS con los filtros exactos "
