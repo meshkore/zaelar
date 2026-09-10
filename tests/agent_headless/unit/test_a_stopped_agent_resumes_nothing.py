@@ -70,6 +70,24 @@ def test_the_trail_SURVIVES_so_the_next_boot_can_pick_it_up(monkeypatch):
     assert bumped == [], "y no se quema una vida de RESUME_CAP por un intento que ni ocurrió"
 
 
+def test_the_LOOP_does_not_wipe_the_trail_a_second_later(monkeypatch):
+    """ENCONTRADO EN VIVO, y el test unitario no lo veía porque parcheaba `forget`. `sync_state()` llama a
+    `remember()` en el bucle de ~1 Hz, y sin sesiones vivas en RAM hacía `kv_del`: al reiniciar con el agente
+    parado, `at_boot` respetaba el rastro y un segundo después el bucle lo borraba. Con el interruptor
+    cerrado nada puede arrancar, así que «no hay nada vivo» es una consecuencia del ⏻, no la noticia de que
+    el trabajo terminó."""
+    from memory import api as _mem
+    _mem.kv_set("live_sessions", {"at": 1000.0, "sessions": _LIVE})
+    asyncio.run(runstate.stop("operator"))
+    R.remember([], now=1001.0)
+    assert _mem.kv_get("live_sessions"), "el bucle no puede borrar lo que el arranque acaba de respetar"
+
+    asyncio.run(runstate.start("operator"))
+    R.remember([], now=1002.0)
+    assert not _mem.kv_get("live_sessions"), (
+        "…y con el agente EN MARCHA la lista vacía sí significa que no queda nada, como siempre")
+
+
 def test_it_still_says_how_many_are_waiting(monkeypatch):
     _trail(monkeypatch, _LIVE)
     asyncio.run(runstate.stop("operator"))

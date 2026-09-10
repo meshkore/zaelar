@@ -62,6 +62,16 @@ def remember(sessions: list[dict], *, now: float | None = None) -> None:
         from memory import api as _mem
         live = [s for s in (sessions or []) if isinstance(s, dict) and str(s.get("status") or "") in _LIVE]
         if not live:
+            # CON EL AGENTE PARADO, «no hay nada vivo» NO SIGNIFICA NADA (V2-655, encontrado EN VIVO). Nada
+            # puede arrancar con el interruptor cerrado, así que la lista vacía es una consecuencia del ⏻ y
+            # no la noticia de que el trabajo terminó. Este `kv_del` corre en el bucle de ~1 Hz: al reiniciar
+            # con el agente parado, `at_boot` respetaba el rastro… y un segundo después el bucle lo borraba,
+            # que es el fallo entero de «aplazar, no perder» derrotado por el vecino de al lado. Medido
+            # reiniciando el motor del operador: la rehidratación dijo «1 tarea se queda esperando» y el
+            # rastro ya no existía.
+            from nucleo import runstate
+            if runstate.blocks_new_work(who="rehidratación/remember"):
+                return
             _mem.kv_del(_KEY)            # nada en vuelo → no dejamos rastro que rehidratar
             return
         _mem.kv_set(_KEY, {"at": float(now or time.time()), "sessions": live})
