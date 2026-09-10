@@ -213,8 +213,9 @@ def test_the_data_op_log_carries_its_payload_for_the_arbiter():
     writer of that key is `_log_dataop`'s emit in the voice provider. A first disarm of that emit came
     back GREEN because the tap test hands in its own dict — this pins the carrier itself."""
     src = _stripped("voice/engine/llm/providers/nucleo.py")
-    m = re.search(r'emit\("widget", f"data:\{action_name\}"[^)]*\)', src, re.S)
-    assert m, "the data-op order log (_log_dataop) must still exist"
-    assert '"payload"' in m.group(0), (
+    i = src.find('emit("widget", f"data:{action_name}"')
+    assert i >= 0, "the data-op order log (_log_dataop) must still exist"
+    window = src[i:i + 400]
+    assert '"payload"' in window, (
         "the data:* event must carry the op's payload — without it the arbiter cannot judge "
         "payload-in-turn and every legitimate agenda write reads as a veto in shadow")
