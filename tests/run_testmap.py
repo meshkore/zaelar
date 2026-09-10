@@ -1501,7 +1501,11 @@ DOMAINS: list[dict] = [
             # V2-208: la MISMA cita dos veces. V2-194 lo cerró para el BACKSTOP y la data-op del propio modelo no
             # tenía guarda — dos turnos, dos `add_meeting`, nadie comparando. Ahora vive junto a la ESCRITURA,
             # que es por donde pasan todos los que escriben.
-            "tests/browser/unit/agenda/test_the_same_meeting_twice.py"]},
+            "tests/browser/unit/agenda/test_the_same_meeting_twice.py",
+            # V2-652: una hora que falta es un HECHO, no un hueco para un default — sin hora la cita nace de
+            # día entero (nada de inventar las 17:00), y el add CON hora asienta al gemelo sin hora en vez de
+            # plantarse al lado («dos ítems», sesión 7f77e2cc).
+            "tests/browser/unit/agenda/test_the_write_does_not_invent_an_hour.py"]},
         # V2-085 — la garantía de ESCALA: el prompt es O(K) y no O(N) por muchos widgets que haya. Nodo propio (no
         # dentro de 4.1) porque lo que prueba no es el contrato de UN widget sino el del CATÁLOGO: sintéticos de
         # 100/1.000/10.000, promoción del widget nombrado desde la cola, e índice compacto del endpoint.

@@ -54,7 +54,13 @@ def _is_same_meeting(a: dict, b: dict) -> bool:
         return False
     if str(a.get("startTime") or "") != str(b.get("startTime") or ""):
         return False
-    ka, kb = _title_key(a.get("title")), _title_key(b.get("title"))
+    return _titles_overlap(a.get("title"), b.get("title"))
+
+
+def _titles_overlap(ta, tb) -> bool:
+    """One title's meaningful tokens equal to or a subset of the other's — the V2-473 round-6 rule,
+    extracted so the hour-less-twin settlement (V2-652) compares titles with the exact same judgment."""
+    ka, kb = _title_key(ta), _title_key(tb)
     if not ka or not kb:
         return False
     if ka == kb:
@@ -549,13 +555,22 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
             _rawdate = _m.group(1)
             if not _rawtime.strip():
                 _rawtime = _m.group(2)
-        start = _resolve_time(_rawtime, default="17:00")
         date = _resolve_date(_rawdate)
-        end = payload.get("endTime", "")
-        if not re.match(r"^\d{1,2}[:h]\d{2}$|^\d{2}:\d{2}$", str(end)):
-            eh = (int(start[:2]) + 1) % 24                 # no explicit end -> +1h
-            end = f"{eh:02d}:{start[3:5]}"
-        _new = {"title": title, "date": date, "startTime": start, "endTime": end}
+        if not _rawtime.strip():
+            # V2-652 — a missing hour is a FACT, never a slot for a default. The old `default="17:00"`
+            # dressed absence up as an afternoon appointment: the promise backstop wrote title+date, the
+            # agenda invented 17:00, and the operator read it as us copying his «hoy tengo reunión a las
+            # cinco» (session 7f77e2cc). No hour given → an all-day entry, which the calendar already
+            # renders honestly («todo el día»); the hour arrives later through the timed twin settlement
+            # below or through update_meeting.
+            _new = {"title": title, "date": date, "allDay": True}
+        else:
+            start = _resolve_time(_rawtime)
+            end = payload.get("endTime", "")
+            if not re.match(r"^\d{1,2}[:h]\d{2}$|^\d{2}:\d{2}$", str(end)):
+                eh = (int(start[:2]) + 1) % 24             # no explicit end -> +1h
+                end = f"{eh:02d}:{start[3:5]}"
+            _new = {"title": title, "date": date, "startTime": start, "endTime": end}
         # V2-639 — the operator asks WHAT an appointment is («qué es ese punto del dentista»); a title is
         # a label, the substance travels in `notes` (place, who with, what to bring…), shown in the digest.
         # V2-643 adds the rest of what a calendar entry is: who is coming, where, which category, and
@@ -565,19 +580,47 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
             # An appointment WITH other people starts awaiting their answer; one you simply put in your own
             # day is settled the moment you say it. Same default every calendar uses for an invitation.
             _new["status"] = "pending" if _new.get("attendees") else "confirmed"
-        # V2-208: the SAME meeting twice (see `_is_same_meeting`). A duplicate notice is heard once; a duplicate
-        # meeting is SEEN, and remains there until someone deletes it manually.
-        if not any(_is_same_meeting(_new, m) for m in db.get("meetings", [])):
-            # V2-473 — the default reminder is the AGENDA's job, not the model's conduct. Measured in
-            # `dentist-appointment-into-agenda` round 2: asked for a notice, the model escalated to a WORKER
-            # that died on Google's login screen, said «Hecho», and `scheduled_jobs` stayed empty. Telling
-            # the agent an appointment schedules its notice (~2h before) with nobody asking (INI-026 A2);
-            # moving it is `set_reminder`. Best-effort: a scheduler failure must not lose the WRITE — but
-            # it is stored on the meeting, so the state never claims a notice that does not exist.
-            _jid, _at = _schedule_reminder(title, date, start)
-            if _jid:
-                _new["reminder_id"], _new["remindAt"] = _jid, _at
-            db.setdefault("meetings", []).append(_new)
+        # V2-652 — the HOUR-LESS TWIN. The promise backstop writes title+date with no hour (an all-day
+        # entry since this pass); the operator's explicit «a las once y media» then arrives as a TIMED add
+        # of the same appointment, and standing beside it produced «dos ítems» on his screen (session
+        # 7f77e2cc). A timed write SETTLES the all-day twin in place; an all-day write over an
+        # already-timed twin adds nothing — in both directions the timed row is the richer fact.
+        _meets = db.get("meetings", [])
+
+        def _twin_of(m: dict) -> bool:
+            return (str(m.get("date") or "") == str(_new.get("date") or "")
+                    and _titles_overlap(m.get("title"), _new.get("title")))
+
+        if _new.get("allDay"):
+            _dup = any(_twin_of(m) for m in _meets)        # timed or all-day — either way it already exists
+            if not _dup:
+                db.setdefault("meetings", []).append(_new)   # no auto reminder: ~2h before needs an hour
+        else:
+            _ad = next((m for m in _meets if m.get("allDay") and _twin_of(m)), None)
+            if _ad is not None:
+                # settle in place: the dictated title and hour win; what only the old row knew survives.
+                _cancel_reminder(_ad)
+                for k in ("allDay", "reminder_id", "remindAt"):
+                    _ad.pop(k, None)
+                for k, v in _new.items():
+                    _ad[k] = v
+                _jid, _at = _schedule_reminder(_ad.get("title", title), date, _ad.get("startTime", ""))
+                if _jid:
+                    _ad["reminder_id"], _ad["remindAt"] = _jid, _at
+            # V2-208: the SAME meeting twice (see `_is_same_meeting`). A duplicate notice is heard once; a
+            # duplicate meeting is SEEN, and remains there until someone deletes it manually.
+            elif not any(_is_same_meeting(_new, m) for m in _meets):
+                # V2-473 — the default reminder is the AGENDA's job, not the model's conduct. Measured in
+                # `dentist-appointment-into-agenda` round 2: asked for a notice, the model escalated to a
+                # WORKER that died on Google's login screen, said «Hecho», and `scheduled_jobs` stayed
+                # empty. Telling the agent an appointment schedules its notice (~2h before) with nobody
+                # asking (INI-026 A2); moving it is `set_reminder`. Best-effort: a scheduler failure must
+                # not lose the WRITE — but it is stored on the meeting, so the state never claims a notice
+                # that does not exist.
+                _jid, _at = _schedule_reminder(title, date, _new.get("startTime", ""))
+                if _jid:
+                    _new["reminder_id"], _new["remindAt"] = _jid, _at
+                db.setdefault("meetings", []).append(_new)
     elif action == "cancel_meeting":
         # Cancel meeting(s) matching title (case-insensitive, accent-insensitive) plus optional date.
         title = _strip_accents((payload.get("title") or "").strip().lower())
