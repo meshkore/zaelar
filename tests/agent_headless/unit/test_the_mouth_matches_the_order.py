@@ -48,6 +48,38 @@ def test_everything_else_keeps_the_thinking_pool(text):
     assert filler_audio.filler_kind(text) == "neutral"
 
 
+# ── 1b · V2-652: the order may live in the LAST sentence, and a data write is an action ──────────────────
+# Measured live (session 7f77e2cc, 2026-09-10): «…Añade en la agenda mañana una cita» was covered with
+# «Un momento, que lo busco…» — a searching promise over a write — because the imperative was judged on the
+# whole utterance's FIRST word, and the operator's turns open with chatter, a statement, or the wake word.
+
+@pytest.mark.parametrize("text", [
+    # the literal measured utterances, verbatim:
+    "Certificado para personas jurídicas, es lo que pedí. Johnny. Añade en la agenda mañana una cita",
+    "Añade en la agenda mañana una cita a las once treinta en la agencia tributaria, "
+    "que ya la he pedido yo a mano.",
+    # complaint + explicit order: the ORDER wins the cover — motion, not «Pues…»
+    "Pero en ningún caso te he dicho que añadieras nada a las cinco. Quítalo inmediatamente.",
+    "Apúntame una reunión el jueves",
+    "Anota que mañana como fuera",
+    "Recuérdame llamar al fontanero",
+    "Add a meeting tomorrow at noon",
+])
+def test_a_data_write_order_is_an_action_wherever_it_sits_in_the_turn(text):
+    assert filler_audio.filler_kind(text) == "action"
+
+
+@pytest.mark.parametrize("text", [
+    # the measured complaints — a thinking cover here reads as not listening (the operator's own words:
+    # «¿Qué tienes que buscar? Te he dicho que hagas una acción sobre la agenda.»)
+    "¿Qué tienes que buscar? Te he dicho que hagas una acción sobre la agenda.",
+    "Te he hecho una pregunta.",
+    "Te acabo de pedir que borres la cita.",
+])
+def test_a_complaint_about_us_never_gets_a_thinking_cover(text):
+    assert filler_audio.filler_kind(text) == "social"
+
+
 def test_the_action_pool_promises_motion_and_the_pools_do_not_mix():
     for code in ("es", "en"):
         action = set(getattr(langs.spec(code), "fillers_action", ()) or ())

@@ -87,8 +87,13 @@ _ACTION_VERB_RE = re.compile(
     # thinking cover. «siguiente/anterior» are bare-noun commands («siguiente canción») but commands still.
     r"reproduce\w*|reanuda\w*|pausa\w*|salta\w*|cambia\w*|repite\w*|reinicia\w*|deten\w*|continua\w*|"
     r"siguiente|anterior|"
+    # V2-652: the DATA-WRITE verbs the class was missing — «Añade en la agenda mañana una cita» read as
+    # "neutral" and got «Un momento, que lo busco…», a searching promise over a write (session 7f77e2cc).
+    # «busca…» stays OUT on purpose: a search takes real time and the thinking pool fits it.
+    r"anade\w*|apunta\w*|anota\w*|agendame\w*|crea\w*|programa\w*|recuerda\w*|mete\w*|coloca\w*|"
+    r"cancela\w*|elimina\w*|mueve\w*|"
     r"close|open|show|hide|dismiss|play|pause|mute|unmute|clear|turn|put|start|launch|send|save|delete|"
-    r"resume|skip|next|previous|stop|replay)\b")
+    r"resume|skip|next|previous|stop|replay|add|create|schedule|remind|set|cancel|remove|move)\b")
 
 
 def _norm(text: str) -> str:
@@ -113,8 +118,18 @@ _SOCIAL_RE = re.compile(
     r"a que tengo que esperar|"
     r"no (?:me )?estas (?:haciendo|entendiendo|escuchando|siguiendo)|"
     r"no estas haciendo nada|que dices\b|"
+    # V2-652 — COMPLAINT shapes about our own behaviour: a thinking cover here reads as not listening.
+    # Measured (session 7f77e2cc): «¿Qué tienes que buscar? Te he dicho que hagas una acción sobre la
+    # agenda.» got «Déjame que lo mire…», and «Te he hecho una pregunta.» the same. These open an
+    # explanation, never another look.
+    r"te he (?:dicho|pedido)\b|te acabo de (?:decir|pedir)\b|te estoy (?:diciendo|pidiendo)\b|"
+    r"te he hecho una pregunta|respondeme\b|contestame\b|"
+    r"por que (?:lo |me )?has\b|que chorrada\b|no tiene (?:ningun )?sentido\b|"
+    r"aclarate\b|en que quedamos\b|"
     r"how are you\b|are you (?:there|okay|alive|listening)\b|can you hear me\b|"
-    r"what are you (?:talking about|doing)\b|what do you (?:want|mean)\b"
+    r"what are you (?:talking about|doing)\b|what do you (?:want|mean)\b|"
+    r"i (?:just )?(?:told|asked) you\b|answer (?:me|the question|my question)\b|why did you\b|"
+    r"that makes no sense\b"
     r")")
 
 
@@ -136,21 +151,44 @@ def _dangling_fragment(text: str) -> bool:
     return len(n.split()) <= 2 or bool(_DANGLING_TAIL_RE.search(n))
 
 
+def _strip_vocative(n: str) -> str:
+    """A leading wake word is the ADDRESS, never part of the order (V2-635's lesson, applied to covers):
+    «Johnny añade en la agenda…» must classify like «añade en la agenda…». Only the KNOWN wake words come
+    off; best-effort because this module must not hard-depend on the attention gate."""
+    try:
+        from voice import attention as _att
+        stripped = _att.strip_leading_wakeword(n)
+        if stripped:
+            return stripped
+    except Exception:
+        pass
+    return n
+
+
 def filler_kind(text: str) -> str:
-    """"social" when the utterance is about the conversation/us (see `_SOCIAL_RE` — those turns must never
-    get a thinking sound); "action" when it opens with an imperative action verb and asks nothing; "neutral"
-    otherwise (questions and statements keep the thinking pool). Feeds `langs.pick_filler(kind=…)`."""
+    """"action" when any sentence opens with an imperative action verb and the turn asks nothing — an
+    explicit order to act outranks everything, so a complaint that ENDS in «Quítalo inmediatamente» still
+    gets motion; "social" when the utterance is about the conversation/us (see `_SOCIAL_RE` — those turns
+    must never get a thinking sound); "neutral" otherwise (questions and statements keep the thinking
+    pool). Feeds `langs.pick_filler(kind=…)`.
+
+    V2-652 — the imperative is judged per SENTENCE, with a leading vocative stripped: «…es lo que pedí.
+    Johnny. Añade en la agenda mañana una cita» carries its order in the LAST sentence, and anchoring on
+    the whole utterance hid it (measured 2026-09-10, session 7f77e2cc)."""
     n = _norm(text)
+    if "?" not in (text or ""):
+        for part in re.split(r"[.!;]+", _strip_vocative(n)):
+            p = _strip_vocative(part.strip())
+            for _ in range(3):
+                p2 = _LEADING_CHATTER_RE.sub("", p)
+                if p2 == p:
+                    break
+                p = p2
+            if p and _ACTION_VERB_RE.match(p):
+                return "action"
     if _SOCIAL_RE.search(n):
         return "social"
-    if "?" in (text or ""):
-        return "neutral"
-    for _ in range(3):
-        n2 = _LEADING_CHATTER_RE.sub("", n)
-        if n2 == n:
-            break
-        n = n2
-    return "action" if _ACTION_VERB_RE.match(n) else "neutral"
+    return "neutral"
 
 
 def arm(brain, text: str = "", messages: list | None = None) -> str:
