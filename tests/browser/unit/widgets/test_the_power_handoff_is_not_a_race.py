@@ -139,7 +139,7 @@ def test_every_road_to_the_voice_respects_the_handoff():
 
 def test_the_power_click_takes_the_handoff_and_gives_it_back():
     code = _code(ORB)
-    i = code.find('localStorage.setItem("hb_mic_muted", "0")')
+    i = code.find('mic.setMuted(false, "power-on")')   # V2-654: the mic write moved behind the door
     j = code.find('api.uiEvent("orb:power"', i)
     branch = code[i:j]
     assert "store.markPowerOnPending()" in branch, "the ⏻ ON click has to claim the startup"
@@ -167,7 +167,7 @@ def test_the_refusal_is_not_silent_any_more():
     """The whole reason this cost a log read: the abort said nothing, anywhere. It is a legitimate outcome,
     so it is not an error — but it is a decision, and a decision nobody can see is the expensive kind."""
     code = _code(SESSION)
-    i = code.find("store.setPowerOff(true); store.setMicMuted(true)")
+    i = code.find('store.setPowerOff(true); mic.setMuted(true, "server-stopped")')   # V2-654: the door
     assert i > 0, "the gate's abort moved"
     window = code[max(0, i - 400):i]
     assert "console.warn" in window, "say it in the console the operator is already looking at"
@@ -195,6 +195,6 @@ def test_a_newer_press_supersedes_the_handoff():
     assert j > i
     assert "store.clearPowerOnPending()" in code[i:j], \
         "the handoff has to drop on EVERY press, before the branch: a newer command supersedes an older one"
-    on_branch = _code(ORB)[code.find('localStorage.setItem("hb_mic_muted", "0")'):]
+    on_branch = _code(ORB)[code.find('mic.setMuted(false, "power-on")'):]   # V2-654: same anchor as above
     assert "store.markPowerOnPending()" in on_branch[:on_branch.index('api.uiEvent("orb:power"')], \
         "…and only the ON branch takes it again"
