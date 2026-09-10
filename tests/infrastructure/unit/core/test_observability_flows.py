@@ -319,3 +319,21 @@ def test_a_request_without_a_known_origin_is_denied(monkeypatch):
     r = _Req()
     r.client = None
     assert not api._allowed(r)
+
+
+def test_a_lazily_born_session_marker_never_joins_the_operators_flow(wired):
+    """The 7-instead-of-5 contamination (2026-09-10, full-suite runs only): a session can be born LAZILY,
+    inside the very emit of an operator turn (`stamp_identity` → `session_id()` self-open), and its start
+    marker inherited that turn's trace ContextVar — landing INSIDE the operator's flow. A session marker
+    belongs to the SESSION (it stamps `sid` explicitly); `_emit_session` pins `trace` empty."""
+    from observability import flows, identity
+    from voice import trace
+    from voice.observer import emit
+
+    identity.end_session("test")                 # no session open → the next emit births one lazily
+    tid = trace.begin("hazme una búsqueda")
+    emit("brain", "decide")                       # the self-open happens INSIDE this emit, under tid
+    _settle()
+    kinds = [e["kind"] for e in flows.flow(tid)]
+    assert "session" not in kinds, f"a session marker joined the flow: {kinds}"
+    assert "brain" in kinds

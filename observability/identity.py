@@ -364,8 +364,15 @@ def _emit_session(label: str, info: dict, extra: dict | None = None) -> None:
     nothing: it is a value, not a lookup."""
     try:
         from voice.observer import emit
+        # `trace` is pinned EMPTY (2026-09-10): a session can be born LAZILY, inside the very emit of an
+        # operator turn (`stamp_identity` → `session_id()` self-open), and without this pin the start marker
+        # inherited that turn's trace ContextVar and landed INSIDE the operator's flow — measured as
+        # `test_a_whole_flow_shares_one_correlation_id` counting 7 events instead of 5 in full-suite runs
+        # only (the lazy birth needs a particular prior-test state to happen mid-turn). A session marker
+        # belongs to the SESSION (it stamps `sid` explicitly, that is this function's whole point), never to
+        # whichever turn happened to trigger its birth.
         emit("session", label, role="system",
-             extra={"sid": info.get("id") or "", "session_id": info.get("id"),
+             extra={"trace": "", "sid": info.get("id") or "", "session_id": info.get("id"),
                     "user_id": user_id(), **(extra or {})})
     except Exception:
         pass
