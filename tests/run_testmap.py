@@ -1251,10 +1251,19 @@ DOMAINS: list[dict] = [
         # una hoja VACÍA se repara (seguimiento honesto + escalada con superficie); el objetivo viaja en el
         # prompt como hecho con regla y el latido lo cierra cuando se cumple. Y la ventana mide el silencio
         # desde que EMPIEZA a hablar, no desde que el STT cierra la frase.
-        {"id": "3.33", "title": "El arnés del encargo cierra el círculo: la afirmación de entrega se "
+        {"id": "3.35", "title": "El arnés del encargo cierra el círculo: la afirmación de entrega se "
                                 "verifica contra la hoja, y la ventana mide el silencio desde el onset",
             "ch": UNIT, "paths": [
                 "tests/voice/unit/test_the_errand_harness_closes_the_circle.py"]},
+        # V2-661 (sesión 1cdcb08e, 2026-09-11): 47 s hablando sin pausa mayor de 1,1 s → once flancos de VAD, y
+        # cada uno re-sellaba el onset; la frase se midió desde su ÚLTIMO aliento (33 s tras el ancla) y se tiró
+        # como ambiente, con el anillo del orbe apagado a los 5 s. La ventana mide el SILENCIO del operador: un
+        # flanco de subida a menos de una ventana del de bajada CONTINÚA la frase; el anillo se sostiene mientras
+        # su voz está activa y se rearma al callar.
+        {"id": "3.34", "title": "La ventana mide el silencio, no el habla: una frase de 47 s sin pausa sigue "
+                                "dirigida, y el anillo del orbe no muere a mitad de frase",
+            "ch": UNIT, "paths": [
+                "tests/voice/unit/test_the_window_measures_silence_not_speech.py"]},
         {"id": "3.30", "title": "Si el turno PIDIÓ PERMISO, el encargo se aparca en vez de lanzarse — y el "
                                 "«sí» del operador lanza exactamente ese",
             "ch": UNIT, "paths": [
@@ -1672,6 +1681,35 @@ DOMAINS: list[dict] = [
         {"id": "4.137", "title": "El tamaño de una tarjeta nunca sigue a su contenido: congelado tras el primer "
                                  "render, solo lo cambian los gestos del operador (y el _fit del lienzo)",
             "ch": UNIT, "paths": ["tests/browser/e2e/widgets/test_a_cards_size_never_follows_its_content.py"]},
+        # V2-658 follow-up (operador, 2026-09-11): un DOBLE CLIC en la barra negra de la cabecera alterna
+        # pantalla completa en los dos sentidos — corregido en vivo por el propio operador: la primera versión
+        # maximizaba con un solo clic, y probándolo dijo «he dicho doble clic, no uno solo». `.hb-head` ya era
+        # el asa de arrastre (V2-608 F6) y `maximize()` ya guardaba/restauraba la geometría previa
+        # (V2-600/V2-609) — solo faltaba el GESTO. Un solo toque queda como no-op siempre (es también el reposo
+        # del propio arrastre); el doble clic llama al MISMO `maximize()`, que ya es un interruptor.
+        {"id": "4.153", "title": "Un doble clic en la cabecera alterna pantalla completa en los dos sentidos; "
+                                 "un solo toque nunca hace nada, ni compite con arrastrar ni con sus botones",
+            "ch": UNIT, "paths": [
+                "tests/browser/e2e/widgets/test_the_header_click_maximizes_and_dblclick_restores.py"]},
+        # V2-658 follow-up, mismo día: maximizar ahora cubre TODO el viewport para cualquier widget —menos la
+        # barra inferior del sistema (#wrail, V2-623)—, no solo el lienzo. `.hb-cinema` (V2-596/600) ya hacía
+        # justo esto pero reservado a `fullscreen:"native"` (el vídeo) y tapando también la barra, a propósito
+        # (inmersión total). El resto de widgets recibe una clase HERMANA, `.hb-fullwide`: misma cobertura de
+        # viewport, mismo `.hb-cinexit` flotante como salida, pero su z-index (9001) queda POR DEBAJO de la
+        # barra (9002) — el orbe/mic/selector de widgets siguen accesibles mientras un widget normal ocupa
+        # toda la pantalla. El vídeo no cambia.
+        {"id": "4.154", "title": "Maximizar cubre TODO el viewport para cualquier widget, salvo la barra "
+                                 "inferior del sistema — el vídeo conserva su cine inmersivo sin cambios",
+            "ch": UNIT, "paths": [
+                "tests/browser/e2e/widgets/test_maximize_covers_the_screen_but_not_the_rail.py"]},
+        # V2-661 (sesión 1cdcb08e): «¿has guardado la declaración en mis archivos?» → el worker escribió el .md
+        # en el directorio del widget navegador (la única ruta que conocía) y la tarjeta `archivos` no lo enseñó.
+        # La biblioteca archiva un texto (save_text), el gestor lo declara (save_document), la hoja exporta lo que
+        # ya está en pantalla (save_to_library) y el prompt del worker nombra la raíz.
+        {"id": "4.155", "title": "Un texto se guarda en la BIBLIOTECA y aparece en sus archivos: save_document, "
+                                 "save_to_library y el worker sabe dónde viven los ficheros",
+            "ch": UNIT, "paths": [
+                "tests/browser/unit/archivos/test_a_text_is_saved_into_the_library.py"]},
         # V2-632 (rediseño del operador, 2026-09-09): el reproductor de vídeo con PESTAÑAS (Inicio · Reproductor
         # · Cola · Suscripciones · Listas), la búsqueda como banda NUMERADA del dashboard (se pilota por voz:
         # play_result/add_results), placeholder donde vivirá el vídeo, salto automático al reproductor cuando

@@ -14,20 +14,25 @@
 const STYLE_ID = "hb-archivos-style";
 
 const CSS = `
-.arx{display:flex;flex-direction:column;height:100%;min-height:0;position:relative;
+.arx{display:flex;flex-direction:column;width:100%;height:100%;min-height:0;box-sizing:border-box;
+  position:relative;background:var(--hb-bg,#fff);border-radius:14px;overflow:hidden;
   font:13px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial;color:var(--hb-ink,#0d1622)}
-.arx-provs{display:flex;align-items:center;gap:6px;padding:8px 10px 0;flex:0 0 auto;flex-wrap:wrap}
-.arx-pchip{width:30px;height:30px;border-radius:9px;border:1px solid var(--hb-line,#eef1f6);
-  background:var(--hb-bg,#fff);display:flex;align-items:center;justify-content:center;font-size:15px;
-  font-weight:700;cursor:pointer;flex:0 0 auto;color:var(--hb-muted,#67707d)}
+/* ONE header row — the storage chips, the breadcrumb and the tools live together so the chrome never reads
+   as two half-empty bands with a void between them. */
+.arx-bar{display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--hb-line,#eef1f6);
+  flex:0 0 auto;flex-wrap:wrap;row-gap:8px}
+.arx-chips{display:flex;align-items:center;gap:6px;flex:0 0 auto}
+.arx-pchip{width:32px;height:32px;border-radius:10px;border:1px solid var(--hb-line,#eef1f6);
+  background:var(--hb-bg,#fff);display:grid;place-items:center;font-size:16px;line-height:1;
+  font-weight:700;cursor:pointer;flex:0 0 auto;color:var(--hb-muted,#67707d);
+  box-shadow:0 1px 2px rgba(0,0,0,.14)}
 .arx-pchip:hover{background:var(--hb-bg-soft,#f5f7fb)}
-.arx-pchip.on{border-color:var(--hb-accent,#2f6df6);box-shadow:inset 0 0 0 1px var(--hb-accent,#2f6df6);
+.arx-pchip.on{border-color:var(--hb-accent,#2f6df6);box-shadow:0 0 0 2px color-mix(in srgb,var(--hb-accent,#2f6df6) 30%,transparent);
   color:var(--hb-accent,#2f6df6)}
 .arx-pchip.conn:not(.on){border-color:var(--hb-accent2,#12a594);color:var(--hb-accent2,#12a594)}
 .arx-pchip.off{opacity:.5}
-.arx-pspacer{flex:1 1 auto}
-.arx-bar{display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid var(--hb-line,#eef1f6);flex:0 0 auto;flex-wrap:wrap}
-.arx-crumbs{display:flex;align-items:center;gap:4px;flex:1 1 220px;min-width:0;overflow:hidden}
+.arx-divider{width:1px;align-self:stretch;background:var(--hb-line,#eef1f6);flex:0 0 auto}
+.arx-crumbs{display:flex;align-items:center;gap:4px;flex:1 1 180px;min-width:0;overflow:hidden}
 .arx-crumb{background:none;border:0;padding:2px 6px;border-radius:6px;color:var(--hb-accent,#2f6df6);cursor:pointer;font:inherit;max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .arx-crumb:hover{background:var(--hb-bg-soft,#f5f7fb)}
 .arx-crumb[disabled]{color:var(--hb-ink,#0d1622);cursor:default}
@@ -40,18 +45,24 @@ const CSS = `
 .arx-btn[disabled]{opacity:.4;cursor:default}
 .arx-btn.on{border-color:var(--hb-accent,#2f6df6);color:var(--hb-accent,#2f6df6)}
 .arx-btn.danger{color:var(--hb-risk,#d64545);border-color:var(--hb-risk,#d64545)}
-.arx-body{flex:1 1 auto;min-height:0;overflow:auto;padding:6px}
-.arx-shelves{display:grid;grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:10px;padding:6px}
-.arx-shelf{display:flex;flex-direction:column;align-items:center;gap:6px;padding:16px 8px;border:1px solid var(--hb-line,#eef1f6);border-radius:14px;cursor:pointer;background:var(--hb-bg,#fff)}
-.arx-shelf:hover{background:var(--hb-bg-soft,#f5f7fb)}
-.arx-shelf .arx-ic{font-size:30px}
+/* The content PANEL — a visibly different surface from the chrome above it, so "where the files are" reads
+   as one bounded area instead of bleeding into the rest of the card. */
+.arx-body{flex:1 1 auto;min-height:0;overflow:auto;padding:12px;background:var(--hb-bg-soft,#f5f7fb)}
+.arx-shelves{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.arx-shelf{display:flex;flex-direction:column;align-items:center;gap:8px;padding:20px 10px;
+  border:1px solid var(--hb-line,#eef1f6);border-radius:14px;cursor:pointer;background:var(--hb-bg,#fff);
+  box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.arx-shelf:hover{border-color:var(--hb-accent,#2f6df6);box-shadow:0 2px 8px rgba(0,0,0,.18)}
+.arx-shelf .arx-ic{width:52px;height:52px;border-radius:16px;background:var(--hb-bg-soft,#f5f7fb);
+  display:grid;place-items:center;font-size:26px;line-height:1}
 .arx-shelf b{font-size:.85rem}
 .arx-shelf span{color:var(--hb-muted,#67707d);font-size:.72rem}
-.arx-row{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:9px}
-.arx-row:hover{background:var(--hb-bg-soft,#f5f7fb)}
-.arx-row.sel{background:var(--hb-bg-soft,#f5f7fb);box-shadow:inset 2px 0 0 var(--hb-accent,#2f6df6)}
+.arx-row{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:9px;
+  background:var(--hb-bg,#fff);border:1px solid var(--hb-line,#eef1f6);margin-bottom:6px}
+.arx-row:hover{border-color:var(--hb-accent,#2f6df6)}
+.arx-row.sel{box-shadow:inset 3px 0 0 var(--hb-accent,#2f6df6)}
 .arx-clickable{cursor:pointer;flex:1 1 auto;min-width:0;display:flex;align-items:center;gap:10px}
-.arx-ic{flex:0 0 auto;font-size:16px;width:20px;text-align:center}
+.arx-ic{flex:0 0 auto;font-size:17px;width:22px;text-align:center;line-height:1}
 .arx-nm{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .arx-meta{flex:0 0 auto;color:var(--hb-muted,#67707d);font-size:11.5px;white-space:nowrap}
 .arx-acts{display:flex;align-items:center;gap:3px;flex:0 0 auto}
@@ -62,13 +73,18 @@ const CSS = `
 .arx-rename input{flex:1 1 auto;min-width:0;border:1px solid var(--hb-accent,#2f6df6);border-radius:6px;padding:3px 6px;font:inherit;background:var(--hb-bg,#fff);color:var(--hb-ink,#0d1622)}
 .arx-confirm{display:flex;align-items:center;gap:6px;flex:0 0 auto}
 .arx-confirm span{color:var(--hb-risk,#d64545);font-size:11.5px}
-.arx-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(116px,1fr));gap:8px}
-.arx-tile{display:flex;flex-direction:column;align-items:center;gap:5px;padding:12px 6px;border:1px solid var(--hb-line,#eef1f6);border-radius:12px;cursor:pointer;background:var(--hb-bg,#fff)}
-.arx-tile:hover{background:var(--hb-bg-soft,#f5f7fb)}
+.arx-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px}
+.arx-tile{display:flex;flex-direction:column;align-items:center;gap:5px;padding:12px 6px;
+  border:1px solid var(--hb-line,#eef1f6);border-radius:12px;cursor:pointer;background:var(--hb-bg,#fff);
+  box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.arx-tile:hover{border-color:var(--hb-accent,#2f6df6);box-shadow:0 2px 8px rgba(0,0,0,.18)}
 .arx-tile img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px}
 .arx-tile .arx-ic{font-size:26px;width:auto}
 .arx-tile .arx-nm{width:100%;text-align:center;font-size:12px;white-space:normal;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
-.arx-note{margin:10px;padding:10px 12px;border-radius:10px;background:var(--hb-bg-soft,#f5f7fb);border:1px solid var(--hb-line,#eef1f6);color:var(--hb-muted,#67707d)}
+.arx-note{padding:10px 12px;border-radius:10px;background:var(--hb-bg,#fff);border:1px solid var(--hb-line,#eef1f6);color:var(--hb-muted,#67707d);
+  margin-bottom:10px;display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.arx-path{background:var(--hb-bg-soft,#f5f7fb);border-radius:6px;padding:2px 6px;color:var(--hb-ink,#0d1622);
+  word-break:break-all;font:12px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace}
 .arx-note.warn{background:var(--hb-warn-bg,#fff8e6);border-color:var(--hb-warn-border,#f5d78e);color:var(--hb-warn-ink,#7a5b00)}
 .arx-note.bad{border-color:var(--hb-risk,#d64545);color:var(--hb-risk,#d64545)}
 .arx-foot{flex:0 0 auto;border-top:1px solid var(--hb-line,#eef1f6);padding:8px 10px;display:flex;gap:10px;align-items:center}
@@ -84,7 +100,7 @@ const CSS = `
 .arx-tiernote{color:var(--hb-muted-2,#9aa4b2);font-size:11.5px;margin:2px 0 8px}
 .arx-badge{font-size:11px;padding:1px 7px;border-radius:999px;border:1px solid var(--hb-line,#eef1f6);color:var(--hb-muted,#67707d)}
 .arx-badge.ok{border-color:var(--hb-accent2,#12a594);color:var(--hb-accent2,#12a594)}
-.arx-lb{position:absolute;inset:0;background:rgba(10,12,16,.86);display:flex;flex-direction:column;z-index:5;border-radius:12px}
+.arx-lb{position:absolute;inset:0;background:rgba(10,12,16,.86);display:flex;flex-direction:column;z-index:5;border-radius:14px}
 .arx-lb-top{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;color:#fff;flex:0 0 auto}
 .arx-lb-top b{font-size:.85rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .arx-lb-close{background:none;border:0;color:#fff;font-size:20px;cursor:pointer;padding:2px 8px;line-height:1}
@@ -163,20 +179,21 @@ export function render(root, data, ctx) {
   // the instant a sibling action (e.g. a background download progressing) touched the store.
   const ui = root._arxUi || (root._arxUi = { renameId: "", renameVal: "", confirmId: "", preview: null });
 
+  // The passed-in element IS the root — no wrapper div. A wrapped root sizes to its own CONTENT instead of
+  // the card it was handed (`el.className` set here is what `desktop.js`'s fluid `.hb-win`/`.hb-scroll`
+  // actually measures); `results`/`documento`/`youtube` set the same convention (V2-615).
   root.textContent = "";
-  const wrap = el("div", "arx");
-  root.appendChild(wrap);
+  root.className = "arx";
 
   if (d.panel === "connect") {
-    wrap.appendChild(connectPanel(d, act));
+    root.appendChild(connectPanel(d, act));
     return;
   }
 
-  wrap.appendChild(providerRow(d, act, ui));
-  wrap.appendChild(toolbar(d, act, ui));
-  wrap.appendChild(body(d, act, ui));
-  if (d.selected) wrap.appendChild(footer(d.selected, act));
-  if (ui.preview) wrap.appendChild(lightbox(ui, act));
+  root.appendChild(header(d, act, ui));
+  root.appendChild(body(d, act, ui));
+  if (d.selected) root.appendChild(footer(d.selected, act));
+  if (ui.preview) root.appendChild(lightbox(ui, act));
 
   if (d.needs_refresh && !root._arxAsked) {
     root._arxAsked = true;
@@ -191,14 +208,18 @@ export function render(root, data, ctx) {
   if (!d.providers_stale) root._arxProvAsked = false;
 }
 
-// ── provider row: this device + every cloud service, connected or not ────────────────────────────────────────
-function providerRow(d, act, ui) {
-  const row = el("div", "arx-provs");
+// ── ONE header row: this device + every cloud service, then the breadcrumb, then the tools ─────────────────
+// Kept as a single row deliberately (see the module notes) — two half-empty bands read as "un doble header
+// vacío" the instant a card has real width; one populated row reads as one screen.
+function header(d, act, ui) {
+  const bar = el("div", "arx-bar");
+  const isLocal = d.provider === "local";
 
-  const local = el("button", "arx-pchip" + (d.provider === "local" ? " on" : ""), "💻");
+  const chips = el("div", "arx-chips");
+  const local = el("button", "arx-pchip" + (isLocal ? " on" : ""), "💻");
   local.title = "Este dispositivo";
   local.onclick = () => { ui.preview = null; act("set_provider", { provider: "local" }); };
-  row.appendChild(local);
+  chips.appendChild(local);
 
   (d.providers || []).forEach(p => {
     const letter = String(p.label || p.id || "?").trim().charAt(0).toUpperCase() || "?";
@@ -210,20 +231,10 @@ function providerRow(d, act, ui) {
       if (p.connected) act("set_provider", { provider: p.id });
       else act("open_connectors", { provider: p.id });
     };
-    row.appendChild(chip);
+    chips.appendChild(chip);
   });
-
-  row.appendChild(el("div", "arx-pspacer"));
-  const cx = el("button", "arx-btn", "⚙");
-  cx.title = "Servicios en la nube";
-  cx.onclick = () => act("open_connectors", {});
-  row.appendChild(cx);
-  return row;
-}
-
-function toolbar(d, act, ui) {
-  const bar = el("div", "arx-bar");
-  const isLocal = d.provider === "local";
+  bar.appendChild(chips);
+  bar.appendChild(el("div", "arx-divider"));
 
   const crumbs = el("div", "arx-crumbs");
   if (d.query) {
@@ -288,12 +299,19 @@ function toolbar(d, act, ui) {
   ref.onclick = () => act("refresh", {});
   tools.appendChild(ref);
 
+  const cx = el("button", "arx-btn", "⚙");
+  cx.title = "Servicios en la nube";
+  cx.onclick = () => act("open_connectors", {});
+  tools.appendChild(cx);
+
   bar.appendChild(tools);
   return bar;
 }
 
 function body(d, act, ui) {
   const box = el("div", "arx-body");
+
+  if (ui.pathHint) box.appendChild(pathHintNote(ui, act));
 
   if (d.error) {
     box.appendChild(el("div", "arx-note bad", d.error));
@@ -406,11 +424,29 @@ function selectOrPreview(e, act) {
 
 function rowActions(e, act, ui) {
   const acts = el("div", "arx-acts");
+  const isLocalUnplayable = e.provider === "local" && !e.playable;
 
-  const openBtn = el("button", "arx-ac", e.provider === "local" ? primaryGlyph(e) : "↗");
-  openBtn.title = e.provider === "local" ? "Abrir" : "Abrir el enlace";
-  openBtn.onclick = () => openEntry(e, act, openBtn.closest(".arx-row"));
-  acts.appendChild(openBtn);
+  if (isLocalUnplayable) {
+    // Never a silent download here — see the module notes. `same_machine` (self-host) gets a "where is it"
+    // affordance; a cloud engine gets nothing extra (the explicit ⬇ below is its only, and correct, way).
+    if (e.same_machine) {
+      const reveal = el("button", "arx-ac", "📁");
+      reveal.title = "Ver dónde está";
+      reveal.onclick = () => revealLocal(e, act, reveal.closest(".arx-row"));
+      acts.appendChild(reveal);
+    }
+    if (e.download_url) {
+      const dl = el("button", "arx-ac", "⬇");
+      dl.title = "Descargar una copia";
+      dl.onclick = () => { try { window.open(e.download_url, "_blank", "noopener,noreferrer"); } catch (_) {} };
+      acts.appendChild(dl);
+    }
+  } else {
+    const openBtn = el("button", "arx-ac", e.provider === "local" ? primaryGlyph(e) : "↗");
+    openBtn.title = e.provider === "local" ? "Abrir" : "Abrir el enlace";
+    openBtn.onclick = () => openEntry(e, act, openBtn.closest(".arx-row"));
+    acts.appendChild(openBtn);
+  }
 
   if (e.provider === "local") {
     const ren = el("button", "arx-ac", "✎");
@@ -480,13 +516,18 @@ function deleteConfirm(e, act, ui) {
 }
 
 // Open a row: local media hands off to its player (the server raises that card); a local image/document
-// previews INSIDE this card; anything else that cannot play offers its download link; a cloud file returns
-// its web link.
+// previews INSIDE this card; a local file that cannot play NEVER auto-downloads — see `revealLocal` and the
+// module notes (a double-click that quietly copies a file already on this disk into the browser's own
+// Downloads folder is how the operator ended up with two copies of the same film); a cloud file returns its
+// web link.
 async function openEntry(e, act, anyNodeInCard) {
-  // `.arx`'s parent is the widget's actual mount node — where `render()` keeps `_arxUi` across repaints.
-  const wrap = anyNodeInCard ? anyNodeInCard.closest(".arx") : null;
-  const hostEl = wrap ? wrap.parentElement : null;
+  // `.arx` IS the widget's mount node (no wrapper) — where `render()` keeps `_arxUi` across repaints.
+  const hostEl = anyNodeInCard ? anyNodeInCard.closest(".arx") : null;
   const ui = hostEl ? hostEl._arxUi : null;
+  if (e.provider === "local" && !e.playable) {
+    if (e.same_machine) await revealLocal(e, act, anyNodeInCard);
+    return;                                                 // cloud engine: the row's own ⬇ button is the way
+  }
   const r = await act("open_file", { fileId: e.id });
   if (!r) return;
   if (r.ok && r.preview && ui) {
@@ -496,11 +537,37 @@ async function openEntry(e, act, anyNodeInCard) {
   }
   if (r.ok && r.file && r.file.web_url) {
     window.open(r.file.web_url, "_blank", "noopener,noreferrer");
-    return;
   }
-  if (!r.ok && r.download_url) {
-    window.open(r.download_url, "_blank", "noopener,noreferrer");
-  }
+}
+
+// Ask the server to reveal a local file in its native file manager (self-host only — see `_same_machine` on
+// the backend) and show the resolved path either way, so the operator can find it by hand if the OS call
+// could not run (e.g. a headless install with no desktop).
+async function revealLocal(e, act, anyNodeInCard) {
+  const hostEl = anyNodeInCard ? anyNodeInCard.closest(".arx") : null;
+  const ui = hostEl ? hostEl._arxUi : null;
+  const r = await act("reveal_local_file", { fileId: e.id });
+  if (ui) ui.pathHint = (r && r.ok) ? { name: e.name, path: r.path, opened: !!r.opened } : null;
+  act("refresh", {});
+}
+
+function pathHintNote(ui, act) {
+  const h = ui.pathHint;
+  const note = el("div", "arx-note");
+  const label = h.opened
+    ? `«${h.name}» está en:`
+    : `«${h.name}» está en (no pude abrir el gestor de archivos):`;
+  note.appendChild(el("span", null, label + " "));
+  note.appendChild(el("code", "arx-path", h.path));
+  const copy = el("button", "arx-btn", "Copiar");
+  copy.onclick = async () => {
+    try { await navigator.clipboard.writeText(h.path); } catch (_) {}
+  };
+  const close = el("button", "arx-btn", "✕");
+  close.onclick = () => { ui.pathHint = null; act("refresh", {}); };
+  note.appendChild(copy);
+  note.appendChild(close);
+  return note;
 }
 
 function lightbox(ui, act) {

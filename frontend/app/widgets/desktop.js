@@ -75,17 +75,31 @@ function injectStyles(){
   .hb-win.hb-cinema{position:fixed;top:0!important;left:0!important;width:100vw!important;height:100vh!important;
     max-width:none!important;max-height:none!important;padding:0;background:#000;border:0;border-radius:0}
   .hb-stage:has(.hb-win.hb-cinema){z-index:99900}
+  /* GENERIC full-screen maximize (V2-658): every OTHER widget's double-click-header / ⤢ / voice "pantalla
+     completa" gets the same full-viewport treatment as cinema, minus TWO things the operator asked to keep
+     reachable while a widget fills the screen: the bottom system rail (#wrail, z-index 9002 — orb, mic, the
+     widget switcher) stays ON TOP, so switching to another open card or talking to the agent never needs
+     leaving fullscreen first; and the background follows the THEME (cinema's #000 is a video-only choice —
+     a themed widget on a black field would flash unstyled at the edges). Video keeps its own cinema class
+     untouched (V2-600: it covers the rail too, on purpose — full immersion is what "maximize the video"
+     means there). NOTE: this whole block is a template literal — no backticks inside, ever (V2-559's trap,
+     paid here once already: a backtick in a comment CLOSES the string and turns the rest into raw JS). */
+  .hb-win.hb-fullwide{position:fixed;top:0!important;left:0!important;width:100vw!important;height:100vh!important;
+    max-width:none!important;max-height:none!important;padding:0;background:var(--hb-bg,#fff);border:0;border-radius:0}
+  .hb-stage:has(.hb-win.hb-fullwide){z-index:9001}
   .hb-win:fullscreen{padding:0}
-  .hb-win.hb-cinema .hb-head,.hb-win.hb-cinema .hb-max,.hb-win.hb-cinema .hb-x,
-  .hb-win.hb-cinema .hb-rz,.hb-win:fullscreen .hb-head,.hb-win:fullscreen .hb-max,
+  .hb-win.hb-cinema .hb-head,.hb-win.hb-cinema .hb-max,.hb-win.hb-cinema .hb-x,.hb-win.hb-cinema .hb-rz,
+  .hb-win.hb-fullwide .hb-head,.hb-win.hb-fullwide .hb-max,.hb-win.hb-fullwide .hb-x,.hb-win.hb-fullwide .hb-rz,
+  .hb-win:fullscreen .hb-head,.hb-win:fullscreen .hb-max,
   .hb-win:fullscreen .hb-x,.hb-win:fullscreen .hb-rz{display:none}
-  .hb-win.hb-cinema .hb-scroll,.hb-win:fullscreen .hb-scroll{overflow:hidden}
-  .hb-win.hb-cinema .hb-body,.hb-win:fullscreen .hb-body{height:100%}
+  .hb-win.hb-cinema .hb-scroll,.hb-win.hb-fullwide .hb-scroll,.hb-win:fullscreen .hb-scroll{overflow:hidden}
+  .hb-win.hb-cinema .hb-body,.hb-win.hb-fullwide .hb-body,.hb-win:fullscreen .hb-body{height:100%}
   .hb-cinexit{display:none;position:absolute;top:10px;right:10px;z-index:6;width:36px;height:36px;border:0;
     border-radius:10px;background:rgba(0,0,0,.55);color:#fff;font-size:16px;line-height:1;cursor:pointer;
     align-items:center;justify-content:center}
   .hb-cinexit:hover{background:rgba(0,0,0,.8)}
-  .hb-win.hb-cinema .hb-cinexit,.hb-win:fullscreen .hb-cinexit{display:flex}
+  .hb-win.hb-fullwide .hb-cinexit{background:color-mix(in srgb,var(--hb-ink,#0d1622) 55%,transparent)}
+  .hb-win.hb-cinema .hb-cinexit,.hb-win.hb-fullwide .hb-cinexit,.hb-win:fullscreen .hb-cinexit{display:flex}
   .hb-win.loading{padding:22px;min-width:120px;min-height:120px;display:flex;align-items:center;justify-content:center}
   .hb-win.loading .hb-x,.hb-win.loading .hb-max,.hb-win.loading .hb-scroll,
   .hb-win.loading .hb-head,.hb-win.loading .hb-rz{display:none}
@@ -301,7 +315,7 @@ export class Desktop {
     let n=0;
     this.wins.forEach((w,id)=>{
       const c=w.card; if(!c || !c.isConnected) return;
-      if(c.classList.contains("hb-cinema")) return;      // cinema IS the viewport, by declaration
+      if(c.classList.contains("hb-cinema") || c.classList.contains("hb-fullwide")) return;   // IS the viewport
       const before=c.style.left+"|"+c.style.top+"|"+c.style.width+"|"+c.style.height;
       // A maximized card is deliberately canvas-sized: re-maximize it to the NEW canvas instead of clamping the
       // old footprint, or shrinking the desk would leave it hanging over the chat column it was told to avoid.
@@ -996,27 +1010,33 @@ export class Desktop {
     const card = w.card, pad = this.tile.pad, top = this.tile.top;
     if(card._restore){
       const r = card._restore; card._restore = null;
-      card.classList.remove("hb-cinema");
+      card.classList.remove("hb-cinema","hb-fullwide");
       card.style.left=r.left; card.style.top=r.top; card.style.width=r.w; card.style.height=r.h;
       card.style.maxWidth=r.mw; card.style.maxHeight=r.mh;
     } else {
       card._restore = {left:card.style.left, top:card.style.top, w:card.style.width, h:card.style.height,
                        mw:card.style.maxWidth, mh:card.style.maxHeight};
       this._maximizeTo(card);                            // V2-538 rail + V2-608 chat column: see canvas()
-      // CINEMA (V2-596): the widget DECLARED that full screen means "the content IS the screen"
-      // (manifest fullscreen:"native" — the same declaration fullscreen() reads), so a voice order that
-      // lands here gets the full-bleed layout instead of a big card with a small player inside.
+      // FULL SCREEN, for every widget (V2-658 generalizes V2-596's CINEMA beyond video): "maximize" now means
+      // the content covers the viewport, not just the canvas. A widget that DECLARED `fullscreen:"native"`
+      // (the video) gets cinema's full-bleed, rail included — that choice stays exactly as V2-600 left it.
+      // Every other widget gets `.hb-fullwide`: same full-viewport coverage, but the bottom system rail (orb,
+      // mic, the widget switcher) stays reachable on top of it, per the operator's own words.
       const baseId = (id||"").split("::")[0];
       const meta = this._meta && this._meta[baseId];
-      if(meta && meta.fullscreen === "native") card.classList.add("hb-cinema");
-      else if(!this._meta){
+      const isNative = !!(meta && meta.fullscreen === "native");
+      card.classList.add(isNative ? "hb-cinema" : "hb-fullwide");
+      if(!this._meta){
         // The catalog loads lazily (_resolve): a card restored on reload and maximized before that fetch
-        // answers has no meta yet, and cinema silently depended on WHICH road opened the card (operator's
-        // screenshot, 2026-09-05: a maximized video with all its chrome and a dead area beside it). Resolve
-        // and re-apply — only if the card is STILL maximized when the answer lands.
+        // answers has no meta yet, so the class above is a provisional guess (fullwide, right for 13 of 14
+        // widgets) — corrected once the catalog resolves, and ONLY if still maximized when the answer lands
+        // (operator's screenshot, 2026-09-05: a maximized video with all its chrome and a dead area beside it).
         this._resolve(baseId).then(()=>{
+          if(!card._restore) return;
           const m2 = this._meta && this._meta[baseId];
-          if(m2 && m2.fullscreen === "native" && card._restore) card.classList.add("hb-cinema");
+          const wantNative = !!(m2 && m2.fullscreen === "native");
+          card.classList.remove("hb-cinema","hb-fullwide");
+          card.classList.add(wantNative ? "hb-cinema" : "hb-fullwide");
         }).catch(()=>{});
       }
     }
@@ -1110,7 +1130,7 @@ export class Desktop {
       const r = this._toDesk(card.getBoundingClientRect());   // desk coordinates, like style.left (V2-608 F3)
       sx=e.clientX; sy=e.clientY; sw=r.width; sh=r.height; sl=r.left; st=r.top; live=true;
       card._restore = null;                       // redimensionar a mano invalida el "volver" de maximizar
-      card.classList.remove("hb-cinema");         // V2-596: with the way back gone, cinema must not linger
+      card.classList.remove("hb-cinema","hb-fullwide");  // V2-596/658: with the way back gone, neither may linger
       card.style.maxWidth="none"; card.style.maxHeight="none";
       card.classList.add("rz"); this._bringFront(card);
       h.setPointerCapture(e.pointerId); e.preventDefault(); e.stopPropagation();
@@ -1129,7 +1149,7 @@ export class Desktop {
     const w = this.wins.get(id); if(!w || !w.card) return false;
     const card = w.card;
     card._restore = null;
-    card.classList.remove("hb-cinema");           // V2-596: an explicit resize leaves the cinema state
+    card.classList.remove("hb-cinema","hb-fullwide");   // V2-596/658: an explicit resize leaves either state
     const _c = this.canvas(), _min = this._minSize(id);
     if(opts.width != null){
       const maxW = _c.x1 - _c.x0;
@@ -1286,7 +1306,7 @@ export class Desktop {
     cards.sort((a,b)=>(b.offsetWidth*b.offsetHeight)-(a.offsetWidth*a.offsetHeight));
     for(const c of cards){
       c._restore=null;                                   // a compacted card is no longer «maximized, restorable»
-      c.classList.remove("hb-cinema");                   // V2-596: nor in cinema, which rides on that state
+      c.classList.remove("hb-cinema","hb-fullwide");     // V2-596/658: nor full-screen, which rides on that state
       const W=c.offsetWidth, H=c.offsetHeight;
       let put=false;
       for(let x=xmin; !put && x+W<=cv.x1; x+=step){
@@ -1405,6 +1425,7 @@ export class Desktop {
 
   _dragHandle(card, handle){
     let dx=0, dy=0, sx=0, sy=0, drag=false, moved=false;
+    const isHead = handle.classList.contains("hb-head");
     handle.addEventListener("pointerdown", e=>{
       if(e.target.closest && e.target.closest("button") && e.target.closest("button")!==handle) return;  // its own buttons
       drag=true; moved=false; sx=e.clientX; sy=e.clientY;
@@ -1445,5 +1466,15 @@ export class Desktop {
       addEventListener("pointermove", onMove);
       addEventListener("pointerup", end); addEventListener("pointercancel", end);
     });
+    if(isHead){
+      // DOUBLE-click on the header toggles fullscreen BOTH ways — an OS title bar's own convention, and the
+      // operator's explicit correction: a single click must stay a no-op (it is also the drag gesture's
+      // resting state), only a deliberate double-click may blow a card up to fullscreen or bring it back.
+      // `maximize()` already IS a toggle (`card._restore` truthy ⇒ restore, else maximize), so one call.
+      handle.addEventListener("dblclick", e=>{
+        if(e.target.closest("button")) return;
+        this.maximize(this._idOf(card));
+      });
+    }
   }
 }

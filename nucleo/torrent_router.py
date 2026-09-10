@@ -47,7 +47,13 @@ def route_audio(rid: str, title: str = "") -> dict:
 def _show(wid: str) -> None:
     try:
         from voice.observer import emit
-        emit("widget", "show", extra={"id": wid, "src": "user"})
+        # `src` must NEVER be "user" here (V2-658 fix — this shipped broken since V2-637): `sse.js` reads a
+        # `show` event with `src==="user"` as an ECHO of an action the operator's OWN browser already applied
+        # (`server/voice_api.py`'s canvas-diff audit is the one legitimate case) and DISCARDS it on purpose —
+        # so the card this function exists to raise never opened, silently, and the ▶ button looked dead.
+        # Every genuine cross-widget hand-off in the codebase (`nucleo/docsheet.py`, the FlashBrain's own
+        # `src="flash"`, a worker's `src=f"worker:{tid}"`) names WHO is driving the show — never "user".
+        emit("widget", "show", extra={"id": wid, "src": "widget"})
     except Exception:  # noqa: BLE001 — raising a real card open must never fail on a log line
         pass
 

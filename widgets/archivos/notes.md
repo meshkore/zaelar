@@ -57,3 +57,57 @@
   an in-progress rename is per-viewer chrome, not a fact the brain or another tab needs to see. Flipping it
   forces a repaint the only way available (`act("refresh", {})`, a cheap round-trip that pushes over SSE) since
   the host only re-renders on a server push.
+- **2026-09-11 · design pass: the root IS the mount node, no wrapper div — and the header is ONE row.**
+  Operator's screenshot: the home screen's shelf tiles filled barely 40% of a maximized card's width, the
+  provider chip sat alone with a huge dead gap before ⚙, and the tiles read as borderless in his dark theme.
+  Root cause: `render()` created a CHILD `<div class="arx">` and appended it to the passed `root` instead of
+  setting `root.className` directly — `results`/`documento`/`youtube` all set the class on the element they
+  are GIVEN (V2-615's own convention), and the one test that exists for this
+  (`test_widget_roots_fill_a_wide_desktop_card.py`) measures `#host` itself, which stayed a plain full-width
+  div regardless of what a CHILD did — so the bug was invisible to that guard. Fixed: `root.className = "arx"`,
+  no wrapper, plus an explicit `width:100%;box-sizing:border-box` on `.arx` (belt and suspenders, matching
+  `youtube`'s own `.hb-yt` rule). The old two-row chrome (a provider-chip row, then a separate breadcrumb+tools
+  row) is now ONE `.arx-bar`: chips · divider · breadcrumb · tools, so there is no empty band between them —
+  see `header()`. Shelf tiles and list rows gained a background + shadow distinct from the new `.arx-body`
+  panel background (`--hb-bg` tiles over a `--hb-bg-soft` body), so the content area reads as one bounded
+  surface instead of bleeding into the card. Icon badges (chips, shelves) use `display:grid;place-items:center`
+  — flex centering plus emoji line-height metrics was reading as visibly off-center.
+- **A card's header MAXIMIZES on a DOUBLE-click — corrected live, in front of the operator.** First cut bound
+  a single tap to maximize; he tried it and corrected immediately: *"he dicho doble clic, no uno solo... me
+  pide solo un clic y de golpe ya se maximiza"*. `.hb-head` (`frontend/app/widgets/desktop.js`) is already the
+  drag handle (V2-608 F6) and `maximize()` is already a toggle that saves/restores geometry (V2-600/V2-609) —
+  `_dragHandle`'s tap-vs-drag distinction (`moved` flag, 4px threshold) now wires a `dblclick` listener on
+  `.hb-head` (guarded against landing on the header's own buttons) straight to `this.maximize(id)`. A single
+  tap stays a no-op in BOTH directions — it is also the resting state of a drag gesture.
+- **Maximizing now covers the FULL viewport, for every widget — except the bottom system rail.** Same
+  session, same screenshot: a maximized `archivos` card still sat under the top icon cluster (Reset/⚙/☾/…).
+  V2-596/V2-600 already built exactly this coverage (`.hb-cinema`, a floating `.hb-cinexit` exit button) but
+  reserved it for `fullscreen:"native"` widgets (video) ONLY, and deliberately covers the rail too there
+  (full immersion). `maximize()` now applies a SIBLING class, `.hb-fullwide`, to every other widget: same
+  full-viewport `position:fixed` treatment, own hidden chrome, own visible `.hb-cinexit` — but its stage
+  z-index (9001) sits below the rail's (9002, V2-623) on purpose, so the orb/mic/widget-switcher stay
+  reachable while a normal widget fills the screen. Video's `.hb-cinema` is untouched.
+- **A local file that cannot play in the browser is NEVER downloaded by a click — it is REVEALED.**
+  Operator, live: double-clicking an unplayable `.mkv` in the Descargas shelf downloaded a SECOND copy into
+  his Mac's own `~/Downloads`, next to the one already sitting in Zaelar's own library on that SAME disk —
+  "eso es ineficiente". `_same_machine()` (`nucleo.cloud_account.is_cloud_account()`, inverted) tells apart
+  self-host (the engine process IS the operator's own computer — shelling out to `open -R`/`explorer /select,`/
+  `xdg-open` there is no bigger a privilege than the library writes this widget already does) from a cloud
+  Machine (no local disk of the operator's exists to reveal — the gesture is hidden entirely there, and the
+  explicit ⬇ stays the only, correct, way to get a copy onto HIS computer). New action `reveal_local_file`
+  (self-host + local provider only) shells out best-effort and always returns the resolved absolute path, shown
+  inline with a Copiar button — the honest fallback for a desktop-less self-host. Every local row now carries
+  `same_machine`; `rowActions()` shows 📁 (reveal) only when true, and ⬇ (explicit download, never the primary
+  click) whenever `download_url` exists — both, never neither, for a self-hosted unplayable file.
+- **REAL BUG FOUND while chasing "the ▶ button does nothing": `src:"user"` on a cross-widget `widget/show`
+  emit is an ECHO marker, not a free-text label — it silently DISCARDS the event.** `frontend/app/services/
+  sse.js` treats any `widget/show` with `src==="user"` as something the browser's OWN click handler already
+  applied (the one legitimate case: `server/voice_api.py`'s periodic canvas-diff AUDIT, reporting what the
+  operator's client already did) and skips calling `desktop.show()` — so `nucleo/library_router.py`'s (and,
+  copied from it, `nucleo/torrent_router.py`'s) `_show()` helper, which used `src:"user"` for a genuine
+  SERVER-initiated hand-off, silently never opened the player card. Every other emitter in the codebase names
+  WHO is driving the show (`"flash"`, `f"worker:{tid}"`, `f"wall:{task_id}"`) — never `"user"`. Fixed in both
+  router modules to `src:"widget"`. This means the Descargas widget's own ▶ button has been silently broken
+  since V2-637/V2-638 shipped, discovered only now because the archivos redesign hit the exact same class of
+  hand-off. ⚠️ **NOT verified live end-to-end** (needs an engine restart + a real click) — verified only that
+  the emit call itself now carries the right `src`, and that `sse.js`'s `_eco` check reads exactly that field.

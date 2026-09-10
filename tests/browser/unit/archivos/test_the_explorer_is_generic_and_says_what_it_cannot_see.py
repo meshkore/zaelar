@@ -286,6 +286,62 @@ def test_deleting_a_local_file_removes_it_from_disk(data):
     assert not (lib_paths.dir_for("documents") / "borrame.txt").exists()
 
 
+# ── local files never silently download a second copy (V2-658 follow-up) ──────────────────────────────────
+def test_a_self_hosted_engine_reveals_an_unplayable_local_file_in_place(data, monkeypatch):
+    """The operator's own report: double-clicking an unplayable local video downloaded a SECOND copy into
+    his Mac's Downloads folder, next to the one already sitting in Zaelar's own library — a wasteful
+    duplicate on the SAME disk. Self-host: reveal it, never silently fetch a copy."""
+    from library import paths as lib_paths
+    (lib_paths.dir_for("video") / "pelicula.mkv").write_bytes(b"x")           # .mkv: video, unplayable
+    monkeypatch.setattr("nucleo.cloud_account.is_cloud_account", lambda: False)
+    monkeypatch.setattr(data, "_reveal_in_os", lambda p: True)
+    out = data.apply_action("reveal_local_file", {"fileId": "video/pelicula.mkv"})
+    assert out["ok"], out
+    assert out["path"].endswith("pelicula.mkv") and out["opened"] is True
+
+
+def test_a_cloud_hosted_engine_refuses_to_reveal_anything_naming_why(data, monkeypatch):
+    """No local disk of the OPERATOR's exists to reveal on a cloud Machine — offering the gesture there would
+    open a window on a remote server nobody is looking at, so it is refused, by name, instead."""
+    from library import paths as lib_paths
+    (lib_paths.dir_for("video") / "pelicula.mkv").write_bytes(b"x")
+    monkeypatch.setattr("nucleo.cloud_account.is_cloud_account", lambda: True)
+    out = data.apply_action("reveal_local_file", {"fileId": "video/pelicula.mkv"})
+    assert out["ok"] is False and "nube" in out["error"]
+
+
+def test_reveal_local_file_is_refused_on_a_cloud_PROVIDER_regardless_of_where_the_engine_runs(data, monkeypatch):
+    """Two independent axes: this gate is about which PROVIDER is on screen (Drive has no local disk at all),
+    not whether the engine itself is self-hosted — a cloud-drive row must be refused even mid-self-host."""
+    svc = _switch_to_cloud(data, _Svc(entries=_FILES), monkeypatch)
+    svc.calls.clear()
+    monkeypatch.setattr("nucleo.cloud_account.is_cloud_account", lambda: False)
+    out = data.apply_action("reveal_local_file", {"fileId": "f1"})
+    assert out["ok"] is False and "gdrive" in out["error"]
+    assert not svc.calls, "a refused reveal must never round-trip to the cloud provider"
+
+
+def test_every_local_row_carries_whether_this_is_the_same_machine(data, monkeypatch):
+    from library import paths as lib_paths
+    (lib_paths.dir_for("documents") / "a.txt").write_text("x")
+    monkeypatch.setattr("nucleo.cloud_account.is_cloud_account", lambda: False)
+    data.apply_action("open_folder", {"folderId": "shelf:documents"})
+    rows = data.view_data()["entries"]
+    assert rows and rows[0]["same_machine"] is True
+
+    monkeypatch.setattr("nucleo.cloud_account.is_cloud_account", lambda: True)
+    data.apply_action("refresh", {})
+    rows = data.view_data()["entries"]
+    assert rows and rows[0]["same_machine"] is False
+
+
+def test_an_unreadable_same_machine_signal_defaults_to_the_safe_no(data, monkeypatch):
+    """A broken/unimportable signal must never grant an OS-shell-out affordance nobody asked to expose."""
+    monkeypatch.setattr("nucleo.cloud_account.is_cloud_account",
+                        lambda: (_ for _ in ()).throw(RuntimeError("boom")))
+    assert data._same_machine() is False
+
+
 # ── a cloud provider cannot write, and says so ─────────────────────────────────────────────────────────────
 def test_a_cloud_provider_refuses_rename_copy_and_delete_BY_NAME(data, monkeypatch):
     svc = _switch_to_cloud(data, _Svc(entries=_FILES), monkeypatch)

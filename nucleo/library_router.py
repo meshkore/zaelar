@@ -37,7 +37,10 @@ def route_audio(rel: str, title: str = "") -> dict:
 def _show(wid: str) -> None:
     try:
         from voice.observer import emit
-        emit("widget", "show", extra={"id": wid, "src": "user"})
+        # `src` must NEVER be "user" (see `nucleo/torrent_router.py`'s own note — the same bug, copied from
+        # there): `sse.js` treats `src==="user"` as an ECHO of something the browser already did itself and
+        # discards it, so the card this exists to raise would never actually open.
+        emit("widget", "show", extra={"id": wid, "src": "widget"})
     except Exception:  # noqa: BLE001
         pass
 

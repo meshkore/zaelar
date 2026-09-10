@@ -27,7 +27,7 @@
     "w": 820,
     "h": 600
   },
-  "usage": "El gestor de archivos: por defecto navega TU BIBLIOTECA (video/audio/documents/images/downloads); con `set_provider` cambia a un servicio conectado en la nube. Para NAVEGAR usa open_folder (con folderId — un id de carpeta de la nube, o `video`/`audio`/`documents`/`images`/`downloads` para una carpeta local), go_up y go_home. Para CONTESTAR «¿tengo un contrato de Axa?» o «¿tengo descargada esa peli?» usa search_files: filtra la vista Y devuelve los que casan en `result.matches`. open_file ABRE el archivo: si es un vídeo o un audio local reproducible lo manda al reproductor correspondiente y lo enseña; si es una imagen o un documento local reproducible lo enseña dentro de esta misma tarjeta; si es un fichero de la nube devuelve su `web_url` y decides tú qué hacer con él. rename_file/copy_file/delete_file SOLO funcionan en la biblioteca local (un servicio en la nube los rechaza con el motivo). Si no hay ningún servicio en la nube conectado, open_connectors abre el asistente de conexión dentro de la tarjeta — pero la biblioteca local funciona siempre, sin conectar nada.",
+  "usage": "El gestor de archivos: por defecto navega TU BIBLIOTECA (video/audio/documents/images/downloads); con `set_provider` cambia a un servicio conectado en la nube. Para NAVEGAR usa open_folder (con folderId — un id de carpeta de la nube, o `video`/`audio`/`documents`/`images`/`downloads` para una carpeta local), go_up y go_home. Para CONTESTAR «¿tengo un contrato de Axa?» o «¿tengo descargada esa peli?» usa search_files: filtra la vista Y devuelve los que casan en `result.matches`. open_file ABRE el archivo: si es un vídeo o un audio local reproducible lo manda al reproductor correspondiente y lo enseña; si es una imagen o un documento local reproducible lo enseña dentro de esta misma tarjeta; si es un fichero de la nube devuelve su `web_url` y decides tú qué hacer con él. Para GUARDAR un texto como fichero («guárdalo en mis archivos») usa save_document {name, text}: escribe el fichero en la biblioteca y abre la carpeta donde quedó — un texto largo que no cabe en un turno lo guarda el worker por esa misma acción, o con `save_to_library` desde la hoja `documento` si ya está en pantalla. rename_file/copy_file/delete_file SOLO funcionan en la biblioteca local (un servicio en la nube los rechaza con el motivo). Si no hay ningún servicio en la nube conectado, open_connectors abre el asistente de conexión dentro de la tarjeta — pero la biblioteca local funciona siempre, sin conectar nada.",
   "actions": {
     "sync_providers": {
       "desc": "refresca qué servicios de archivos en la nube están registrados/conectados, para la fila de iconos",
@@ -73,6 +73,23 @@
       "desc": "abre un archivo: si es local y reproducible, lo abre en su reproductor o lo enseña aquí; si es de la nube, devuelve su ficha y su enlace web",
       "payload": {
         "fileId": "id del archivo (local: su ruta dentro de la biblioteca; nube: su id o nombre)"
+      },
+      "ref": "fileId",
+      "view": true
+    },
+    "save_document": {
+      "desc": "GUARDA un texto como fichero en la biblioteca (por defecto en documents; .md si no lleva extensión) y enseña la carpeta donde quedó",
+      "payload": {
+        "name": "nombre del fichero (p. ej. «Declaración de Independencia.md»)",
+        "text": "el contenido completo",
+        "folderId": "opcional: documents (por defecto) | video | audio | images | downloads"
+      },
+      "view": true
+    },
+    "reveal_local_file": {
+      "desc": "enseña dónde está un archivo LOCAL en el disco de este ordenador (self-host) en vez de descargar una segunda copia; en la nube no existe",
+      "payload": {
+        "fileId": "el archivo cuya carpeta se quiere ver"
       },
       "ref": "fileId",
       "view": true

@@ -127,3 +127,16 @@ engine. Needs an engine restart plus a real magnet to confirm end to end: (1) tw
 actually render as a list, not a hero card each; (2) a video row's ▶ genuinely opens `youtube` playing that
 torrent's own stream while it is still filling; (3) a finished audio row's ▶ genuinely files it and starts it
 in `musica`; (4) removing a row actually deletes the file on disk.
+
+⚠️ **A real defect in exactly item (2)/(3), found 2026-09-11 chasing an identical report on `archivos`'s own
+`▶` (V2-658): `torrent_router.py::_show()` emitted `widget/show` with `src:"user"`.** `frontend/app/services/
+sse.js` reads `src==="user"` on a `widget/show` event as an ECHO — something the browser's OWN click handler
+already applied — and silently discards it rather than calling `desktop.show()` (the one legitimate case is
+`server/voice_api.py`'s periodic canvas-diff AUDIT, reporting what the client already did, not asking it to do
+anything). This router's `_show()` is a genuine SERVER-initiated hand-off with no client-side echo to defer
+to, so `"user"` was simply the wrong label — every other emitter in the codebase names WHO drives the show
+(`"flash"`, `f"worker:{tid}"`) and none of them use it. Fixed to `src:"widget"`. Net effect: the ▶ button on a
+Descargas row has likely never actually opened the player, since the redesign shipped — the unit tests only
+ever asserted the emit CALL happened (`shown[0]["id"] == "youtube"`), never that the frontend would act on it,
+which is exactly the gap `NOT verified live` above was already naming. Still unverified live after the fix —
+next restart should confirm a real ▶ click actually raises `youtube`.

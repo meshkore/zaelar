@@ -240,7 +240,8 @@ def _local_row(rec: dict) -> dict:
             modified = ""
     return {"id": rec["rel"], "name": rec["name"], "kind": "file", "file_kind": rec["kind"],
             "mime": rec["mime"], "size": rec["size"], "modified": modified, "provider": "local",
-            "playable": rec["playable"], "url": rec["url"], "download_url": rec["download_url"]}
+            "playable": rec["playable"], "url": rec["url"], "download_url": rec["download_url"],
+            "same_machine": _same_machine()}
 
 
 def _shelf_rows() -> list[dict]:
@@ -362,11 +363,55 @@ def _handle_local_nav(db: dict, act: str, payload: dict) -> dict:
             "where": _where(db), "entries": _matches(db["entries"])}
 
 
+def _same_machine() -> bool:
+    """Is the browser reading this card on the SAME machine the engine runs on? Self-host: yes, always — the
+    engine process already IS the operator's own computer, so opening a Finder/Explorer window on it shows
+    the operator something real. A cloud Machine: no — there is no local disk of the operator's to reveal, and
+    trying would open a window on a remote, usually headless, server nobody is looking at."""
+    try:
+        from nucleo.cloud_account import is_cloud_account
+        return not is_cloud_account()
+    except Exception:  # noqa: BLE001 — an unreadable signal must default to the SAFE answer: offer nothing
+        return False
+
+
+def _reveal_in_os(path) -> bool:
+    """Best-effort: ask the OS to show this file in its native file manager. Never raises — a desktop-less
+    self-host (a headless Linux box someone still chose to run natively) simply reports it could not."""
+    import subprocess
+    import sys
+    try:
+        if sys.platform == "darwin":
+            subprocess.run(["open", "-R", str(path)], check=False, timeout=3)
+        elif sys.platform.startswith("win"):
+            subprocess.run(["explorer", "/select,", str(path)], check=False, timeout=3)
+        else:
+            subprocess.run(["xdg-open", str(path.parent)], check=False, timeout=3)
+        return True
+    except Exception:  # noqa: BLE001
+        return False
+
+
 def _handle_local_write(db: dict, act: str, payload: dict) -> dict:
     from library import index as _idx
     fid = _text(payload.get("fileId") or payload.get("id"), 400)
     if not fid:
         return _err("dime QUÉ archivo")
+    if act == "reveal_local_file":
+        # Read-only from the LIBRARY's point of view (never touches the file) — kept in the "write" gate
+        # anyway because, like the others, it makes no sense for a cloud provider (V2-658: the operator
+        # caught a real duplicate — double-clicking an unplayable local file downloaded a SECOND copy into
+        # his Mac's own Downloads folder, when the file already sat on that same Mac's disk in Zaelar's own
+        # library). Local + self-host: reveal it in place. Anything else: nothing to reveal.
+        if not _same_machine():
+            return _err("el agente está en la nube: aquí no hay una carpeta local que abrir — descarga el "
+                        "archivo si lo quieres en este ordenador")
+        from library import paths as _paths
+        p = _paths.resolve(fid)
+        if p is None or not p.is_file():
+            return _err("no encuentro ese archivo en la biblioteca")
+        opened = _reveal_in_os(p)
+        return {"ok": True, "path": str(p), "opened": opened}
     if act == "rename_file":
         name = _text(payload.get("name") or payload.get("newName"), 200)
         if not name:
@@ -587,11 +632,17 @@ def apply_action(action: str, payload: dict | None = None):
 
     provider = db.get("provider") or "local"
 
-    if act in ("rename_file", "copy_file", "delete_file"):
+    if act in ("rename_file", "copy_file", "delete_file", "reveal_local_file"):
         if provider != "local":
             return _err(f"«{provider}» no permite modificar archivos desde aquí — solo se puede navegar, "
                         f"buscar y abrir")
         return _handle_local_write(db, act, payload)
+
+    if act == "save_document":
+        # V2-661 — a TEXT becomes a file ON A SHELF, whatever the provider on screen: the library is the one
+        # place a file the operator asks for can land (a worker wrote the Declaration into the browser
+        # widget's data dir — the only path it knew — and then watched this card not show it).
+        return _save_document(db, payload)
 
     if act in ("refresh", "go_home", "open_folder", "go_up", "search_files", "clear_search", "open_file"):
         if provider == "local":
@@ -606,8 +657,36 @@ def apply_action(action: str, payload: dict | None = None):
         return _handle_cloud_nav(db, svc, act, payload)
 
     return _err(f"acción desconocida: «{act}». Las que hay: refresh, open_folder, go_up, go_home, "
-                f"search_files, clear_search, open_file, rename_file, copy_file, delete_file, set_view, "
-                f"set_provider, open_connectors, close_connectors, connect_provider, disconnect_provider")
+                f"search_files, clear_search, open_file, save_document, rename_file, copy_file, delete_file, "
+                f"reveal_local_file, set_view, set_provider, open_connectors, close_connectors, "
+                f"connect_provider, disconnect_provider")
+
+
+def _save_document(db: dict, payload: dict) -> dict:
+    """`save_document {name, text, folderId?}` → a real file in the library, and the card lands on its shelf
+    showing it. The caller gets `where` (the shelf label) and `path` (the absolute path on this machine — what
+    a self-hosted operator can go and open) beside the entry; refusing an empty text names the fields."""
+    from library import index as _idx
+    name = _text(payload.get("name") or payload.get("title") or payload.get("filename"), 160)
+    text = str(payload.get("text") or payload.get("body") or payload.get("content") or "")
+    if not text.strip():
+        return _err("no llegó ningún texto que guardar: manda `text` (el contenido) y `name` (el nombre del fichero)")
+    fid = _text(payload.get("folderId") or payload.get("folder") or payload.get("shelf"), 40).lower()
+    kind = fid.split(":", 1)[1] if fid.startswith("shelf:") else fid
+    from library import paths as _paths
+    kind = kind if kind in _paths.KINDS else "documents"
+    res = _idx.save_text(name, text, kind=kind)
+    if not res.get("ok"):
+        return _err(res.get("error") or "no pude guardar el fichero")
+    db["provider"] = "local"
+    db["query"] = ""
+    db["panel"] = ""
+    db = _relist_local(db, f"shelf:{kind}")
+    rec = res.get("entry") or {}
+    db["selected"] = _local_row(rec) if rec else None
+    _save(db)
+    return {"ok": True, "file": db["selected"], "where": _SHELF_LABEL.get(kind, kind), "folder_id": f"shelf:{kind}",
+            "path": res.get("path") or "", "rel": res.get("rel") or ""}
 
 
 def _matches(entries: list) -> list[dict]:
