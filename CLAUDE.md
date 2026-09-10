@@ -471,6 +471,40 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **The CANVAS ARBITER — one decision tree for every widget mutation, shadow first (V2-653 F0,
+  2026-09-10)**: the operator's structural verdict after 30 days of widget incidents — «cada vez que
+  hago una prueba me falla por un lado o por otro… un catálogo de <15 widgets: un sistema de puertas
+  lógicas podría manejarlo; los usuarios van a forkear widgets, el sistema tiene que ser
+  estructuralmente sólido; decisión piramidal, pocas opciones por nivel» — and this pass's own census
+  agrees: ~8 doors mutate the canvas, ~13 guards veto a posteriori across ~10 modules and 2 channels,
+  each correct and measured, and the SUM is a blacklist that never converges (every session finds the
+  next gap) whose pieces now collide (the V2-652 silent tail = two correct guards interacting).
+  `nucleo/canvas_arbiter.py` inverts the posture: every mutation is judged by ONE pyramidal tree
+  needing TWO credentials — PROVENANCE (closed set: user/system/worker:tid/actionmap/flash/backstop;
+  an unknown src or op inherits NOBODY's pass) and a LICENSE (the operator's words in THIS turn, a
+  task that owns the surface, or his own hands). The proven guard modules are the tree's LEAVES
+  (`canvas_license`, `close_guards`, manifest-driven `producers`/`actions.is_view`/`runtime.identify`),
+  so a user-forked widget inherits the rails from its OWN manifest with zero code of ours.
+  **F0 is SHADOW, deliberately** (the V2-651 pattern): `decide()` is enforced nowhere; ONE tap in
+  `observer.emit` — the funnel every canvas command already travels as a `widget` event with `src`
+  (V2-039), every turn as a `transcript`, every gate ruling as an `ambient` — assembles context and
+  emits `kind="arbiter"` verdicts (allow/veto · rule · evidence; `_CAT` family `widget`; kill-switch
+  `ZAELAR_ARBITER_SHADOW=0`; re-entrancy-guarded, fail-open). `data:*` order logs now CARRY their
+  payload, so `payload-in-turn` is judged precisely. **The conformance suite is the month replayed**:
+  V2-567 (a close order licenses no show), V2-605, V2-635 (insults close nothing; pausing is not
+  fullscreen), V2-650 (a replayed play order is an order; the dentist duplicate stays dead), V2-650b
+  (chatter reopens nothing), V2-652 (the drag turn), ambient credit, backstop duplication — node
+  **3.25**, all green against `decide()` first try. Its own first run found `op=None` walking out as
+  `lifecycle` (op vocabulary validated BEFORE the provenance ladder now), and a carrier disarm came
+  back green TWICE (the tap test hands in its own dict; then the fix's regex died on the first paren
+  and failed on GOOD code, masked by a pipe eating pytest's exit code — measure both directions, with
+  pipefail). **Gate F0→F1, the operator's condition**: ZERO false vetoes over his real sessions,
+  audited from the shadow verdicts. Then F1 arms data-ops at `widgets/server_api._dispatch` (verdict
+  travels as a ticket via `provenance`), F2 funnels the ~15 scattered `emit("widget","show"/"close")`
+  sites through `arbiter.command()`, F3 RETIRES each absorbed guard (dedupe cross-turn, `show_
+  contradicts_the_order`, the probe's duplicated wiring) with its disarm inverted — the system ends
+  with FEWER pieces. Census, tree diagram and full plan: the V2-653 initiative.
+
 - **An internal message never reaches the operator's ears, a cover matches the order, and the agenda
   never invents an hour (V2-652, 2026-09-10)**: the operator's manual session (7f77e2cc, «pide cita
   previa en Hacienda»), read event by event — five defect classes, four closed here. **(1)** `add_meeting`'s
