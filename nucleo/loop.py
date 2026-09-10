@@ -322,7 +322,7 @@ class OrchestratorLoop:
             await self._deliver("zaelar", self._say("confirm_expired", question=q))
 
     async def _supervise_harness(self, now: float) -> None:
-        """V2-659 — re-verify the open errand goals against the product's own state: a goal a worker (or a
+        """V2-660 — re-verify the open errand goals against the product's own state: a goal a worker (or a
         later turn) met is CLOSED here with an event, an expired one is retired. No voice: the delivery
         that met it already announced itself (V2-644); this is the ledger catching up, not a second mouth."""
         try:

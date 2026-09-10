@@ -336,7 +336,7 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
     # de tokens no es un vacío — el contenido no cabe en un turno; el rescate es la escalada con superficie
     # documento, nunca «¿me lo repites?». Se sintetiza la tool para que el resto del camino (clasificación,
     # ejecución, ack) sea el de una escalada normal.
-    # V2-659 (espejo del provider): las tarjetas mostradas este turno son objetivos del arnés, y una
+    # V2-660 (espejo del provider): las tarjetas mostradas este turno son objetivos del arnés, y una
     # afirmación de entrega sobre una hoja VACÍA se rescata escalando con la superficie documento.
     try:
         from nucleo import harness as _harness_p

@@ -1,4 +1,4 @@
-"""V2-659 — the errand HARNESS closes the circle, and the window measures silence from speech ONSET.
+"""V2-660 — the errand HARNESS closes the circle, and the window measures silence from speech ONSET.
 
 Session 0141a72a (2026-09-11), two defects in one minute:
   1. «Johnny.» opened a 5 s window; he began «Enséñame la declaración de independencia» 2 s later and the

@@ -1,6 +1,6 @@
 """nucleo/harness.py — the ERRAND HARNESS: what END STATE a turn implied, verified against the REAL state.
 
-V2-659 (operator directive, 2026-09-11): «cuando obtiene permiso para realizar una acción falta terminar
+V2-660 (operator directive, 2026-09-11): «cuando obtiene permiso para realizar una acción falta terminar
 de cerrar el círculo … un arnés dinámico que comprueba que lo pedido se ha conseguido — el documento
 correcto, en el idioma pedido, el visor abierto y el documento cargado — y solo entonces se informa al
 usuario». Measured the same night (session 0141a72a): after his «Adelante», the model said «Claro, aquí

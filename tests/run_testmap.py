@@ -1246,7 +1246,7 @@ DOMAINS: list[dict] = [
                                 "documento en vez de disculparse — en los dos canales",
             "ch": UNIT, "paths": [
                 "tests/voice/unit/test_an_oversized_widget_write_escalates.py"]},
-        # V2-659 (directiva del operador: «cerrar el círculo cuando obtiene permiso» — un arnés que comprueba
+        # V2-660 (directiva del operador: «cerrar el círculo cuando obtiene permiso» — un arnés que comprueba
         # el estado final). El ARNÉS: cada tarjeta mostrada es un objetivo; una afirmación de entrega sobre
         # una hoja VACÍA se repara (seguimiento honesto + escalada con superficie); el objetivo viaja en el
         # prompt como hecho con regla y el latido lo cierra cuando se cumple. Y la ventana mide el silencio

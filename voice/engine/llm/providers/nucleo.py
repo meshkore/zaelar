@@ -2249,7 +2249,7 @@ class NucleoLLMStream(llm.LLMStream):
                 _pw = _identify(_op_text)
                 if _pw:
                     acted["widget"] = True
-                    _shown_ids.add(_pw)          # V2-659: a shown card is an end state the harness verifies
+                    _shown_ids.add(_pw)          # V2-660: a shown card is an end state the harness verifies
                     emit("widget", "show", extra={"id": _pw, "src": "flash"})
                     emit("brain", "🪟 show por backstop de promesa (prometió mostrar sin tool)", text=_pw, role="system")
             elif _router.promises_music(spoken_text):     # 'voy a poner algo de rock' sin tool → reproduce
@@ -2718,7 +2718,7 @@ class NucleoLLMStream(llm.LLMStream):
                 spoken_text = "Aquí lo tienes."
             send(speech.sanitize(spoken_text, drop_metadata=False))
 
-        # V2-659 — the ERRAND HARNESS (nucleo/harness.py). Every card this turn SHOWED is an end state the
+        # V2-660 — the ERRAND HARNESS (nucleo/harness.py). Every card this turn SHOWED is an end state the
         # turn implied (content in it); and a reply that CLAIMS delivery («aquí tienes el texto completo…»)
         # over a card the harness can read as EMPTY is a false claim — measured 2026-09-11 after the
         # operator's «Adelante»: one web_search, an empty `documento`, and «aquí tienes». The sentence has

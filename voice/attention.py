@@ -171,7 +171,7 @@ def evaluate(text: str, *, now: float | None = None) -> Verdict:
 
 
 def note_speech_onset(now: float | None = None) -> None:
-    """The operator STARTED speaking (VAD rising edge, `pipeline/agent.py`). V2-659: the window measures
+    """The operator STARTED speaking (VAD rising edge, `pipeline/agent.py`). V2-660: the window measures
     his SILENCE, and his silence ends when he starts talking — not when his sentence is finalized. Measured
     2026-09-11 (session 0141a72a): «Johnny.» at :50 opened a 5 s window, he began «Enséñame la declaración
     de independencia» at :52 and the STT finalized it at :56 — judged at :56 it fell OUTSIDE the window and
