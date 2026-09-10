@@ -23,7 +23,8 @@ from livekit.agents import DEFAULT_API_CONNECT_OPTIONS, llm, utils
 from livekit.agents.llm import ChatChunk, ChoiceDelta
 
 from .. import registry
-from nucleo.flash import (close_guards as _closeg,                             # V2-635: close needs the words
+from nucleo.flash import (canvas_license as _canvas_lic,                       # V2-650: a replay can be an order
+                          close_guards as _closeg,                             # V2-635: close needs the words
                           data_ops as _data_ops, image_turn as _image_turn,  # V2-391 / V2-402
                           listing_turn as _lt, show_target as _show_target,    # V2-609: one target decision
                           video_turn as _video_turn)                           # V2-556 / V2-457: no cycles
@@ -1115,10 +1116,14 @@ class NucleoLLMStream(llm.LLMStream):
                 # → cita DUPLICADA). Una mutación IDÉNTICA a la recién ejecutada (<120s), cuyo contenido el turno
                 # actual NI MENCIONA, es arrastre → se ignora. Determinista: "apunta otra vez lo del dentista" SÍ
                 # menciona el contenido → pasa.
+                # V2-650: unless the turn ITSELF orders the production again — «reproduce la lista» /
+                # «dale al play» share zero words with {"playlist": "true-blue"}, so payload overlap
+                # alone ate three explicit replays of a playback that had failed in silence.
                 _last = brain._last_dataop
                 if _last and _last[0] == wid and _last[1] == action_name and _last[2] == (payload or {}) \
                         and (time.time() - _last[3]) < 120 \
-                        and _word_overlap(" ".join(str(v) for v in (payload or {}).values()), text) == 0:
+                        and _word_overlap(" ".join(str(v) for v in (payload or {}).values()), text) == 0 \
+                        and not _canvas_lic.replay_license(wid, action_name, text):
                     emit("brain", "🛡️ data-op del turno anterior re-emitida — ignorada (context-bleed)",
                          text=f"{wid}:{action_name}", role="system")
                     deduped["v"] = True

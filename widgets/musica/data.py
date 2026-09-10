@@ -621,8 +621,12 @@ def apply_action(action: str, payload: dict = None) -> dict:
         tracks = pl.get("tracks") or []
         if not tracks:
             return {"ok": False, "error": "empty_playlist", "playlist": pl["id"]}
+        pl_id = pl["id"]
+        first_local = _local.is_local(tracks[0])
         try:
-            r = _play_track(tracks[0], db)                      # first track starts now (local or not)
+            # A local first track mutates THIS snapshot (local state has no other writer); a streamed one
+            # goes through the connector, which loads/saves the store ITSELF — so it gets no db.
+            r = _play_track(tracks[0], db if first_local else None)   # first track starts now
             from connectors import music
             for t in tracks[1:]:                                # rest goes to queue (V2-047 F4)
                 if _local.is_local(t):
@@ -634,10 +638,15 @@ def apply_action(action: str, payload: dict = None) -> dict:
                     pass
         except Exception as e:  # noqa: BLE001
             return {"ok": False, "error": str(e)[:120]}
+        if not first_local:
+            # V2-650: the connector just wrote yt.videoId + the queue into the store while we held this
+            # snapshot; persisting the snapshot would erase the playback it started (measured live
+            # 2026-09-10: «reproduce la lista» resolved True Blue, then wrote yt={} back — silence).
+            db = _load_db()
         _push_recent(db, tracks[0])
-        db["view"] = {"kind": "playlist", "id": pl["id"]}
+        db["view"] = {"kind": "playlist", "id": pl_id}
         _persist(db)
-        return {"ok": r.get("ok", False), "message": r.get("message", ""), "playlist": pl["id"]}
+        return {"ok": r.get("ok", False), "message": r.get("message", ""), "playlist": pl_id}
 
     if action == "open_view":
         kind = (p.get("kind") or "home").strip().lower()

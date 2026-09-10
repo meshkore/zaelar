@@ -81,3 +81,24 @@ def fullscreen_license(text: str) -> str:
     if _GROW_RE.search(n):
         return "fullscreen"
     return ""
+
+
+def replay_license(wid: str, action: str, text: str) -> bool:
+    """True when a data-op IDENTICAL to the one just executed is a fresh ORDER, not drag. The dedupe
+    guard (V2-038) measures the turn's words against the payload only, so «reproduce la lista» and
+    «dale al play» share zero words with {"playlist": "true-blue"} and a legitimate replay died in
+    silence three turns in a row (measured live 2026-09-10, session aed0736c: playback had failed mute
+    and every explicit play order after it was eaten as context-bleed). Two facts decide, no intent:
+    the action must be one the widget itself DECLARES as starting production (manifest
+    `runtime.produce` — agenda-class ops declare none and keep the full dedupe, so the V2-038 dentist
+    duplicate stays dead), and the turn must carry a conjugated media request (the same grammar that
+    licenses a video load)."""
+    if not (wid and action):
+        return False
+    try:
+        from widgets import producers
+        if not producers.starts_production(wid, action):
+            return False
+    except Exception:
+        return False
+    return video_license(text)
