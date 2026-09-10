@@ -166,6 +166,27 @@ function spectrum(peakHz, bins = N / 2, sr = SR) {
   assert.equal(seen.length, 1, "once the agent is quiet, real speech is measured again");
 }
 
+// ── the level check: a mic quieter than the start floor must be REPORTABLE, not a mystery ──
+{
+  const fake = {
+    fftSize: N, frequencyBinCount: N / 2, _td: new Float32Array(N), _fd: new Uint8Array(N / 2),
+    getFloatTimeDomainData(a) { a.set(this._td); },
+    getByteFrequencyData(a) { a.set(this._fd); },
+  };
+  const seen = [];
+  const spk = new SpeakerID(() => fake, () => SR, { minEnroll: 2, onUtterance: (v) => seen.push(v) });
+
+  // a mic far below the start floor: speech-like, but too quiet to ever open a segment
+  fake._td = sine(120, 0.004); fake._fd = spectrum(900);
+  for (let i = 0; i < 60; i++) spk.tick();
+
+  assert.deepEqual(seen, [], "too quiet to segment: no verdicts, as expected");
+  assert.ok(spk.peakRms() > 0, "but the peak level was still observed");
+  assert.ok(spk.peakRms() < spk.startFloor(),
+    `and it is measurably BELOW the start floor (peak=${spk.peakRms().toFixed(4)} < ${spk.startFloor()}) — `
+    + "which is what turns 'nothing is logged' into a diagnosis");
+}
+
 // ── the wiring: session-lk.js runs the shadow and stops it with the session, log-only and killable ──
 {
   const src = readFileSync(new URL("../../../../frontend/app/services/session-lk.js", import.meta.url), "utf8");
@@ -186,9 +207,15 @@ function spectrum(peakHz, bins = N / 2, sr = SR) {
     "the agent's own voice is suppressed — an unsuppressed TTS segment could be enrolled as the operator");
   assert.ok(src.includes("d_mean") && src.includes("d_pitch"),
     "the continuous distances F1 will threshold on are logged, not just the coarse vote");
+  // DIAGNOSABILITY: measured 2026-09-10 — real sessions with the mic open produced zero verdicts, and with
+  // everything in silent try/catch a stale tab, a throwing constructor and a too-high floor all looked the same.
+  assert.ok(src.includes('"🎙️ speaker: armado"'), "arming says so, or its absence cannot be read");
+  assert.ok(src.includes('"⚠️ speaker: no arrancó"'), "a failure to arm is reported, never swallowed");
+  assert.ok(src.includes("peakRms()") && src.includes("startFloor()"),
+    "the level check reports the loudest frame against the start floor");
   // F0 must not touch behaviour: no gate/turn/close call in the shadow path.
   assert.ok(!/_startSpeakerShadow[\s\S]{0,600}(sendText|setGate|publishData)/.test(src),
     "the shadow path neither gates nor sends turns — it only measures");
 }
 
-console.log("ok — speaker-id shadow (8 groups)");
+console.log("ok — speaker-id shadow (9 groups)");

@@ -71,6 +71,17 @@ Rows arrive as observability `client` events labelled `🎙️ speaker`, one per
 | `rms_ratio` | loudness vs the enrolled level (≪ 1 = far from the mic) |
 | `pitch`, `centroid`, `rms` | the raw snapshot, for offline analysis |
 
+Two more rows exist so that *silence in the log* is itself readable — added after a measured failure
+(2026-09-10: real voice sessions with the mic open produced ZERO verdicts and nothing said why):
+
+| Row | Says |
+|---|---|
+| `🎙️ speaker: armado` | the shadow started. **Its ABSENCE means the browser tab is running an older build** — the ES module is cached per page load, so a hard reload is required after any change here |
+| `⚠️ speaker: no arrancó` | arming threw. Previously swallowed by a silent `catch`, which is how a module is born dead and nobody notices |
+| `🎙️ speaker: nivel` | one-shot ~25 s in: the loudest frame seen vs the segmenter's start floor. If `peak_rms` < `start_floor`, no segment can ever open on that mic and the calibration — not the code — is what needs changing |
+
+So: no `armado` row → stale tab. `armado` but no verdicts → check the `nivel` row.
+
 **Use `d_mean`, not `op_score`, to choose a threshold.** `matchScore` is a three-criteria vote, so it can
 only return four values — measured across 60 distinct synthetic voices it produced exactly THREE. That is
 enough to classify and useless to threshold against, and choosing F1's threshold from real sessions is the

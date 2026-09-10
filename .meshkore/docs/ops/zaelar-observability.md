@@ -335,6 +335,14 @@ usará la fase siguiente. Se apagan con `?nospk=1` o `localStorage.zaelar_spk_sh
 | `rms_ratio` | volumen frente al enrolado (≪ 1 = lejos del micro) |
 | `pitch` / `centroid` / `rms` | la instantánea cruda, para análisis offline |
 
+Además hay tres filas de DIAGNÓSTICO, para que el silencio del log se pueda leer (medido 2026-09-10: sesiones de
+voz reales con el micro abierto no dejaron ni una fila y no había forma de saber por qué):
+**`🎙️ speaker: armado`** (arrancó; **si NO está, la pestaña del navegador corre código viejo** — el módulo ES se
+cachea por carga de página, así que tras tocar esto hay que recargar), **`⚠️ speaker: no arrancó`** (falló al
+armar; antes se lo tragaba un `catch` mudo) y **`🎙️ speaker: nivel`** (una sola vez, a los ~25 s: el pico de
+volumen visto contra el umbral de inicio del segmentador — si `peak_rms` < `start_floor`, con ese micro no puede
+abrirse ningún segmento y lo que hay que ajustar es la calibración, no el código).
+
 ⚠️ **Para fijar un umbral se usa `d_mean`, NUNCA `op_score`**: el voto es de 3 criterios, así que solo puede tomar
 cuatro valores — medido sobre 60 voces sintéticas distintas devolvió exactamente TRES. Sirve para clasificar y no
 sirve para decidir dónde cortar. Detalle del mecanismo y sus límites: `docs/modules/zaelar-speaker-identity.md`.

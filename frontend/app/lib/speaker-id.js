@@ -195,9 +195,14 @@ export class SpeakerID {
     this._enroll = [];                           // operator enrollment snapshots
     this._td = null; this._fd = null;
     this._tick = 0;
+    this._peakRms = 0;                           // loudest frame seen — the level check reports it
   }
 
   enrolled() { return !!this.profiles.operator; }
+  // Diagnostics. A shadow that produces no verdicts is either a mic quieter than the start floor or a stale
+  // build; these two make the first case answerable instead of a guess.
+  peakRms() { return this._peakRms; }
+  startFloor() { return this._seg.on; }
 
   // Call from a render loop while the mic is live. Cheap on silence; the heavy pitch pass runs on speech frames.
   tick() {
@@ -214,6 +219,7 @@ export class SpeakerID {
     }
     an.getFloatTimeDomainData(this._td);
     const rms = rmsOf(this._td);
+    if (rms > this._peakRms) this._peakRms = rms;
     const ev = this._seg.feed(rms);
     if (ev === "start") { this._ring = []; }
     if (this._seg.active() && rms >= 0.012) {

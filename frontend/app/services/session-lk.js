@@ -131,10 +131,38 @@ function _startSpeakerShadow() {
     );
     const loop = () => { if (!_spk) return; try { _spk.tick(); } catch (_) {} _spkRaf = requestAnimationFrame(loop); };
     _spkRaf = requestAnimationFrame(loop);
-  } catch (_) { _spk = null; }
+    // ARMED — say so, once. Without this line a shadow that never logs is UNDIAGNOSABLE: a stale browser tab
+    // (the module is cached per page load), a constructor that threw, and thresholds that never open a segment
+    // all look identical from the log — namely, like nothing. Measured 2026-09-10: real voice sessions with the
+    // mic open produced ZERO verdicts and there was no way to tell which of the three it was.
+    // With this: no «armado» row  → the tab is running old code (or arming failed, which now says so).
+    //            «armado» and no verdicts → the segmenter never opened on this mic (see `peak` below).
+    api.clientLog("🎙️ speaker: armado", { text: "sombra de identificación de voz activa", shadow: true });
+    // One-shot LEVEL CHECK ~25s in: the loudest frame actually seen. This is the number that says whether the
+    // segmenter's start floor (0.02 rms) is right for THIS operator's mic and distance — which is precisely the
+    // kind of thing F0 exists to measure instead of assume.
+    clearTimeout(_spkLevelT);
+    _spkLevelT = setTimeout(() => {
+      try {
+        if (!_spk) return;
+        const peak = _spk.peakRms();
+        api.clientLog("🎙️ speaker: nivel", {
+          text: `pico rms=${peak.toFixed(3)} · umbral de inicio=${_spk.startFloor().toFixed(3)}`
+                + (peak < _spk.startFloor() ? " — NUNCA se abre un segmento con este micro" : ""),
+          peak_rms: +peak.toFixed(4), start_floor: _spk.startFloor(), shadow: true,
+        });
+      } catch (_) {}
+    }, 25000);
+  } catch (e) {
+    _spk = null;
+    // A silent failure here is how a module is born DEAD and nobody notices for weeks.
+    try { api.clientLog("⚠️ speaker: no arrancó", { text: String((e && e.message) || e), shadow: true }); } catch (_) {}
+  }
 }
+let _spkLevelT = 0;
 function _stopSpeakerShadow() {
   if (_spkRaf) { try { cancelAnimationFrame(_spkRaf); } catch (_) {} _spkRaf = 0; }
+  clearTimeout(_spkLevelT); _spkLevelT = 0;
   _spk = null;
 }
 
