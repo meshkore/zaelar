@@ -23,6 +23,18 @@
 #     must never be able to leave the agent deaf forever — deafness is the OTHER failure the same session paid
 #     for (16 turns discarded in a row while the operator asked what was wrong).
 #
+# NOT THE ATTENTION MODE, and the two may never be written in terms of each other (operator, 2026-09-10).
+# The 🤖 wake-word mode is how a permanently OPEN microphone is made livable: audio keeps arriving, it keeps
+# being transcribed, and `voice/attention.py` decides turn by turn what was addressed to us — a wake word or
+# an open conversation window effectively switches the agent's ear on and off by VOICE, and that is
+# necessary, not a workaround. Nothing here changes any of it: those rules stay exactly as they were.
+#
+# THIS switch is the other axis — the operator's own hand shutting the input. Hence the order and the
+# asymmetry: a hard close is consulted FIRST and no wake word can lift it (he did not authorise us to hear
+# him at all), while lifting the close changes no attention state whatsoever — the mode he had is the mode he
+# gets back. And a turn this switch swallows never reaches `note_directed()`, so it cannot open or refresh a
+# conversation window on its way out.
+#
 # NOT a privacy boundary against the browser: if the published track really is live, audio still reaches STT and
 # the transcript still appears in observability. That is on purpose — the transcript is the EVIDENCE that a
 # divergence happened, and hiding it is what made this cost seven minutes to see. What the switch guarantees is
@@ -60,6 +72,36 @@ def set_muted(muted: bool, *, source: str = "frontend", now: float | None = None
     if changed:
         _emit(muted, source)
     return {"ok": True, "muted": muted, "changed": changed}
+
+
+def blocks_turn(text: str) -> bool:
+    """THE rule: does the switch swallow this turn? True = it does not exist — no model, no tool, no widget,
+    no memory, no errand.
+
+    It is consulted BEFORE the attention gate on purpose: «closed» is not an opinion about who was being
+    addressed, it is that we were not authorised to hear him, so no conversation window and no wake word may
+    lift it.
+
+    The TYPED turn is the only exemption, and it is exactly the use case — the microphone is closed IN ORDER
+    to type. Consumed one-shot (`attention.consume_typed`, no time window): with a window, typing and then
+    speaking would walk the spoken turn straight through the closed switch.
+
+    That this ever fires MEANS the browser kept publishing audio with the icon shut — the 2026-09-10 failure
+    (session 85eec898), where four of the state's six writers moved the icon and not the track. Which is why
+    the event carries the TEXT: it is the evidence of the divergence, and without it that cost seven minutes
+    to see."""
+    from voice import attention
+    if attention.consume_typed():
+        return False
+    if not is_muted():
+        return False
+    try:
+        from voice.observer import emit
+        emit("mic", "🎤⃠ turno DESCARTADO — el micrófono está cerrado", text=(text or "")[:200], role="user",
+             extra={"muted": True, "src": snapshot().get("source") or ""})
+    except Exception:  # noqa: BLE001
+        pass
+    return True
 
 
 def reset() -> None:

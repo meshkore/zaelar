@@ -42,7 +42,9 @@ def _code(p: Path) -> str:
 def _power_on_branch() -> str:
     """The `else` arm of the ⏻ click — the one that turns the agent ON."""
     code = _code(ORB)
-    i = code.find('localStorage.setItem("hb_mic_muted", "0")')
+    # V2-654 moved the mic write behind the single door (`services/mic.js`) — this anchor follows it there.
+    # It is still the first line of the ON arm, which is all this guard needs from it.
+    i = code.find('mic.setMuted(false, "power-on")')
     assert i > 0, "the ⏻ ON branch moved: this guard would be watching nothing"
     j = code.find('api.uiEvent("orb:power"', i)
     assert j > i, "the end of the ⏻ handler moved: this guard would be watching nothing"

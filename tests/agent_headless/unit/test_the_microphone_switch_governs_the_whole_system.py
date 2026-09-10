@@ -93,6 +93,55 @@ def test_the_window_based_fact_is_untouched_by_the_one_shot():
     assert attention.was_typed(within_s=45.0) is True
 
 
+def test_a_muted_turn_is_swallowed_and_an_open_one_is_not(monkeypatch):
+    import voice.observer as obs
+    seen = []
+    monkeypatch.setattr(obs, "emit", lambda kind, label, text="", role="", extra=None:
+                        seen.append((kind, text)))
+    assert mic_input.blocks_turn("cierra el widget") is False, "an open mic swallows nothing"
+    assert seen == [], "an open mic leaves no row: the timeline records the switch, not every heard turn"
+    mic_input.set_muted(True, source="orb")
+    assert mic_input.blocks_turn("cierra el widget") is True
+    assert seen[-1][0] == "mic"
+    assert "cierra el widget" in seen[-1][1], (
+        "the discarded text is the EVIDENCE that the browser kept publishing over a shut icon — "
+        "without it, that divergence cost seven minutes to see")
+
+
+def test_a_typed_turn_passes_a_CLOSED_switch_but_the_audio_behind_it_does_not(monkeypatch):
+    import voice.observer as obs
+    monkeypatch.setattr(obs, "emit", lambda *a, **k: None)
+    mic_input.set_muted(True, source="orb")
+    attention.note_typed()
+    assert mic_input.blocks_turn("¿qué hora es?") is False, "muting to type IS the use case"
+    assert mic_input.blocks_turn("¿qué hora es?") is True, "the next turn is audio again"
+
+
+def test_the_switch_and_the_WAKE_WORD_MODE_are_two_different_axes(monkeypatch):
+    """Operator's rule (2026-09-10): the 🤖 wake-word mode is what makes a permanently open microphone
+    livable — audio arrives, is transcribed, and the attention rules decide turn by turn what was addressed
+    to us. This switch is the OTHER axis, his own hand shutting the input, and neither may be written in
+    terms of the other: no wake word lifts a hard close, and lifting the close changes no attention state.
+    """
+    import voice.observer as obs
+    monkeypatch.setattr(obs, "emit", lambda *a, **k: None)
+    monkeypatch.setenv("ZAELAR_ATTENTION", "smart")
+
+    mic_input.set_muted(True, source="orb")
+    assert mic_input.blocks_turn("zaelar, enséñame la agenda") is True, (
+        "a wake word may not lift a microphone the operator closed")
+
+    before = attention.evaluate("enséñame la agenda").directed
+    mic_input.blocks_turn("zaelar, enséñame la agenda")
+    assert attention.evaluate("enséñame la agenda").directed == before, (
+        "a swallowed turn must not open or refresh a conversation window on its way out")
+
+    mic_input.set_muted(False, source="orb")
+    assert mic_input.blocks_turn("enséñame la agenda") is False, "the switch is open again"
+    assert attention.evaluate("enséñame la agenda").directed is False, (
+        "…and the mode he had is the mode he gets back: lifting the close grants no attention of its own")
+
+
 def test_the_gate_sits_ABOVE_the_attention_gate_and_below_nothing_else():
     """Structural: a closed mic is not an opinion about who was being addressed, so no conversation window
     and no wake word may lift it — the check has to run BEFORE `evaluate_content` is consulted."""
@@ -100,13 +149,12 @@ def test_the_gate_sits_ABOVE_the_attention_gate_and_below_nothing_else():
     from pathlib import Path
     src = Path(__file__).resolve().parents[3] / "voice/engine/llm/providers/nucleo.py"
     text = re.sub(r"(?m)#.*$", "", src.read_text(encoding="utf-8"))
-    gate = text.find("mic_input")
+    gate = text.find("mic_input.blocks_turn")
     attn = text.find("attention.evaluate_content")
     assert gate >= 0, "the turn path must consult the microphone switch"
     assert attn >= 0 and gate < attn, (
         "the mic gate must run BEFORE the attention gate — otherwise a wake word or an open "
         "conversation window would walk audio through a microphone the operator closed")
-    assert "consume_typed()" in text, "a typed turn must stay exempt, or muting to type breaks the chat"
 
 
 # ── the two doors that write it ──────────────────────────────────────────────────────────────────────────
