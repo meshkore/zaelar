@@ -55,6 +55,22 @@ def test_registering_a_transport_APPLIES_immediately():
         "registering must APPLY — a freshly published track has to be born in the state the icon shows")
 
 
+def test_the_door_remembers_what_LANDED_not_what_it_tried():
+    """A request lost before a heartbeat exists behind it (⏻ off, no room) must be re-sent, not recorded as
+    told — otherwise the module built to end the silent divergence contains one."""
+    door = _stripped(DOOR)
+    m = re.search(r"function applyNow\([^)]*\)\s*\{(.*?)\n\}", door, flags=re.S)
+    assert m, "applyNow must exist — it is the re-assert"
+    body = m.group(1)
+    assert re.search(r"api\.micState\([^)]*\)\s*\.then", body), (
+        "the write must be confirmed before it is remembered")
+    assert not re.search(r"_lastSent\s*=\s*want;\s*api\.micState", body), (
+        "remembering BEFORE the reply is what makes a lost request permanent")
+    api = _stripped(FRONTEND / "app/services/api.js")
+    assert re.search(r"micState\s*=[^\n]*\n?[^\n]*r\.ok", api), (
+        "micState must report whether the engine took it")
+
+
 def test_the_heartbeat_carries_the_state_every_beat():
     """Not only on change: a beat heals a divergence the client cannot detect (an engine restarted under a
     live tab comes back at its boot default and nobody would ever tell it otherwise)."""

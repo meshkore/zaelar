@@ -52,7 +52,11 @@ export const sessionHeartbeat = (sid, muted) => postJSON("/api/session/heartbeat
 // V2-654 — the microphone switch, told to the engine. Only `services/mic.js` may call this: the whole point of
 // that module is that ONE write moves icon, storage, audio track and engine together. Best-effort like the rest
 // of the telemetry here, because the heartbeat re-asserts the same value every ~4s and heals a lost request.
-export const micState = (muted, src = "frontend") => { try { postJSON("/api/mic", { muted: !!muted, src }); } catch (_) {} };
+// Resolves TRUE only if the engine actually took it: the door remembers what LANDED, not what it tried, so a
+// request lost before the heartbeat exists (⏻ off, no room, no beat behind it) is retried instead of becoming
+// the exact silent divergence this whole module exists to end.
+export const micState = (muted, src = "frontend") =>
+  postJSON("/api/mic", { muted: !!muted, src }).then((r) => !!(r && r.ok)).catch(() => false);
 // V2-124: TAKE the voice from whichever surface holds it. EXPLICIT operator gesture only (the mobile shell's
 // «traerla aquí»); the automatic path stays "ask, be refused, retry" in services/session-lk.js. Fail-CLOSED on a
 // network error, unlike acquire/heartbeat above: those fail open because "the server did not answer" means there is

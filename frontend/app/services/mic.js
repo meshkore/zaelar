@@ -70,7 +70,13 @@ export function toggle(reason = "ui") { setMuted(!store.micMuted(), reason); ret
 export function applyNow(reason = "assert") {
   const want = store.micMuted();
   if (_transport) { try { _transport(want); } catch (_) {} }
-  if (want !== _lastSent) { _lastSent = want; api.micState(want, reason); }
+  if (want === _lastSent) return;
+  // Remember what LANDED, never what we tried: a request lost before a heartbeat
+  // exists behind it (⏻ off, no room) would otherwise be recorded as told and
+  // never re-sent — the silent divergence in miniature.
+  try {
+    api.micState(want, reason).then((ok) => { if (ok && store.micMuted() === want) _lastSent = want; });
+  } catch (_) {}
 }
 
 // The value the session heartbeat piggybacks (~4s). Sending it EVERY beat, not
