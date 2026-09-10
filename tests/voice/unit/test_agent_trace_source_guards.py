@@ -52,13 +52,18 @@ def test_operator_transcript_and_interim_never_read_active():
 
 
 def test_stt_metrics_never_read_active_but_tts_metrics_do():
-    body = _body()
-    i = body.index('@session.on("metrics_collected")')
-    block = body[i:body.index("@session.on(", i + 10)] if "@session.on(" in body[i + 10:] else body[i:]
-    tts_block = block[block.index('kind == "TTSMetrics"'):block.index('kind == "STTMetrics"')]
-    stt_block = block[block.index('kind == "STTMetrics"'):]
+    # The handler body lives in metrics_tap.py since 2026-09-10 (extraction paying the newborn-size
+    # ratchet) — the guard follows the CHANNEL (V2-555), and agent.py must still call it.
+    from pathlib import Path
+    body = (Path(__file__).resolve().parents[3] / "voice/engine/pipeline/metrics_tap.py").read_text(encoding="utf-8")
+    tts_block = body[body.index('kind == "TTSMetrics"'):body.index('kind == "STTMetrics"')]
+    stt_block = body[body.index('kind == "STTMetrics"'):]
     assert "trace.active()" in tts_block, "TTS metrics describe audio for text the turn already generated"
     assert "trace.active()" not in stt_block, "STT metrics describe recognition that precedes the turn's trace"
+    agent = _body()
+    i = agent.index('@session.on("metrics_collected")')
+    block = agent[i:agent.index("@session.on(", i + 10)]
+    assert "on_metrics(ev, _emit)" in block, "the extraction is only real if the handler still calls it"
 
 
 def test_vad_speaking_onset_and_end_of_speech_never_read_active_but_barge_in_does():

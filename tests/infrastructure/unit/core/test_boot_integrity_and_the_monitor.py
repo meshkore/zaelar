@@ -49,24 +49,43 @@ def _stripped(path):
     return re.sub(r"(?m)#.*$", "", src.read_text(encoding="utf-8"))
 
 
-def test_the_session_close_handler_records_the_death_and_asks_for_the_recycle():
-    """Wiring guard on the real handler (comment-stripped): the three duties live in `_on_close` — say it
-    where the monitor looks, say it on the timeline, ask homeostasis to recycle."""
-    text = _stripped("voice/engine/pipeline/agent.py")
-    i = text.find('def _on_close(')
-    j = text.find("def ", i + 10)
-    body = text[i:j]
-    assert 'health_state.record("voice", "dead"' in body
-    assert "homeostasis.request_recycle(" in body
-    assert 'emit("alert"' in body.replace("_emit(", "emit(")
+def test_a_dead_session_records_alerts_and_asks_for_the_recycle(monkeypatch):
+    """The three duties, exercised for real (session_health owns them since the newborn-size ratchet made
+    agent.py pay by extracting): say it where the monitor looks, on the timeline, and to homeostasis."""
+    from nucleo import homeostasis as H
+    from voice import health_state
+    from voice.engine.pipeline import session_health
+    emitted = []
+    monkeypatch.setattr(H, "_recycle_requested", "", raising=False)
+    health_state.clear("voice")
+    session_health.on_session_dead(RuntimeError("unrecoverable LLM error"), lambda *a, **k: emitted.append(a))
+    try:
+        err = health_state.get("voice")
+        assert err and err["kind"] == "dead"
+        assert any(a and a[0] == "alert" for a in emitted)
+        assert "voice session died" in H._recycle_requested
+    finally:
+        health_state.clear("voice")
+        H._recycle_requested = ""
 
 
 def test_a_session_that_starts_clears_the_recorded_death():
+    """A living session supersedes the record — otherwise the ◉ row stays red for the record's whole TTL."""
+    from voice import health_state
+    from voice.engine.pipeline import session_health
+    health_state.record("voice", "dead", "x")
+    session_health.on_session_alive()
+    assert health_state.get("voice") is None
+
+
+def test_the_close_handler_is_wired_to_session_health():
+    """Wiring guard on the CHANNEL (V2-555: guards follow the channel, not the file): the extraction is
+    only real if agent.py's close handler and start path actually call it."""
     text = _stripped("voice/engine/pipeline/agent.py")
-    i = text.find("await session.start(room=ctx.room, agent=agent)")
-    assert i >= 0
-    assert 'health_state.clear("voice")' in text[i:i + 400], (
-        "a living session supersedes the death record — otherwise the row stays red for 10 minutes of TTL")
+    i = text.find("def _on_close(")
+    assert i >= 0 and "on_session_dead(err, _emit)" in text[i:text.find("def ", i + 10)]
+    j = text.find("await session.start(room=ctx.room, agent=agent)")
+    assert j >= 0 and "on_session_alive()" in text[j:j + 300]
 
 
 def test_api_status_says_the_voice_session_died(monkeypatch):

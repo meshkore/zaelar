@@ -114,16 +114,6 @@ def prewarm(proc: JobProcess) -> None:
     logger.info("prewarm() DONE — warm executor ready (userdata: %s)", sorted(proc.userdata.keys()))
 
 
-def _metric_line(m) -> str:
-    parts = []
-    for attr, label in (("ttft", "ttft"), ("duration", "dur"), ("ttfb", "ttfb"),
-                        ("end_of_utterance_delay", "eou"), ("audio_duration", "audio")):
-        v = getattr(m, attr, None)
-        if isinstance(v, (int, float)) and v > 0:
-            parts.append(f"{label}={v:.2f}s")
-    return f"{type(m).__name__}: " + " ".join(parts) if parts else type(m).__name__
-
-
 # GUARD: one kickoff per room (V2-047 F8): room → timestamp of the last greeting. A 2nd job for the SAME room in a
 # short window does not greet again (LiveKit double dispatch / rapid frontend reconnection).
 _KICKOFF_SEEN: dict = {}
@@ -512,43 +502,9 @@ async def entrypoint(ctx: JobContext) -> None:
 
     @session.on("metrics_collected")
     def _on_metrics(ev) -> None:
-        # ANTI-FLOOD (2026-07-12): metrics WITHOUT real latencies (especially VADMetrics, ~2/s continuously
-        # continuously — more with background noise) are NOT logged: they provide no useful data and each event caused 2
-        # SYNCHRONOUS file writes in the voice thread + flooded SSE. `_metric_line` adds "=" only when there are numbers
-        # (ttft/dur/ttfb/eou/audio) → without "=", it is a bare name and is discarded.
-        line = _metric_line(ev.metrics)
-        if "=" in line:
-            _emit("metric", line, role="system")
-        # Forward REMOTE STT/TTS latency into the observer stream too — Cartesia/Deepgram/Voxtral run entirely
-        # inside their LiveKit plugin (no zaelar call site to instrument directly), so LiveKit's own per-provider
-        # metric is the only place this ever surfaces. Local backends (Kokoro/whisper_local) already emit their
-        # own tts_ms/stt_ms at the exact call site (more precise: text/backend attached) — skip here to avoid a
-        # duplicate row for the same utterance.
-        m = ev.metrics
-        kind = type(m).__name__
-        if kind == "TTSMetrics" and SETTINGS.tts_provider != "kokoro_local":
-            dur = getattr(m, "duration", None)
-            if dur:
-                # SAFE to label with active() (source audit 2026-08-16): a TTS metric describes audio synthesized
-                # for text the turn ALREADY generated — its trace exists. Unlike STTMetrics (below, untouched):
-                # that describes recognition of what the operator is saying NOW, which almost always precedes the
-                # trace of the turn it will trigger.
-                from voice import trace as _trace
-                _tid = _trace.active()
-                _emit("tts", f"🔊 {SETTINGS.tts_provider}", extra={"tts_ms": round(dur * 1000),
-                      **({"trace": _tid} if _tid else {})})
-            from nucleo import energy_meter as _energy
-            # The PROVIDER is passed, not looked up inside the meter: the rate has to follow whatever
-            # backend actually produced this audio, and this hook is the only place that knows it.
-            _energy.report_tts_usage(characters=getattr(m, "characters_count", None),
-                                     provider=SETTINGS.tts_provider)
-        elif kind == "STTMetrics" and SETTINGS.stt_provider != "whisper_local":
-            dur = getattr(m, "duration", None)
-            if dur:
-                _emit("stt", f"👂 {SETTINGS.stt_provider}", extra={"stt_ms": round(dur * 1000)})
-            from nucleo import energy_meter as _energy
-            _energy.report_stt_usage(audio_seconds=getattr(m, "audio_duration", None),
-                                     provider=SETTINGS.stt_provider)
+        # Anti-flood + remote STT/TTS forwarding + Energy reports — extracted whole to metrics_tap (2026-09-10).
+        from .metrics_tap import on_metrics
+        on_metrics(ev, _emit)
 
     @session.on("error")
     def _on_error(ev) -> None:
@@ -748,27 +704,11 @@ async def entrypoint(ctx: JobContext) -> None:
     @session.on("close")
     def _on_close(ev) -> None:
         _emit("session", "session closed", role="system")
-        # A session that closes ON AN ERROR is a DEATH, not a goodbye (2026-09-10, measured live: an
-        # unrecoverable LLM error closed the AgentSession while the room, the mic and the server stayed up —
-        # the operator talked to a grey orb for two minutes with the ◉ panel green and nothing trying to
-        # recover). Three duties, none of which may depend on the others: say it where the monitor looks
-        # (health_state → /api/status turns the voice row RED), say it on the timeline (alert), and ask
-        # homeostasis to recycle the embedded worker so the next page connect gets a living engine.
+        # Closing ON AN ERROR is a death, not a goodbye → record + alert + recycle (see session_health).
         err = getattr(ev, "error", None)
         if err is not None:
-            reason = str(err)[:160]
-            try:
-                from voice import health_state
-                health_state.record("voice", "dead", reason)
-            except Exception:
-                pass
-            _emit("alert", "⚠️ la sesión de voz MURIÓ por un error irrecuperable — reciclando el motor",
-                  text=reason, role="system")
-            try:
-                from nucleo import homeostasis
-                homeostasis.request_recycle(f"voice session died: {reason}")
-            except Exception:
-                pass
+            from .session_health import on_session_dead
+            on_session_dead(err, _emit)
         try:
             _proactive.clear_speaker(_speak)
         except Exception:
@@ -790,11 +730,8 @@ async def entrypoint(ctx: JobContext) -> None:
     agent = ZaelarAgent(instructions=SETTINGS.system_prompt + " " + _lang.reply_directive)
     await session.start(room=ctx.room, agent=agent)
     logger.info("Session started.")
-    try:
-        from voice import health_state
-        health_state.clear("voice")   # a session that just STARTED supersedes any recorded death (see _on_close)
-    except Exception:
-        pass
+    from .session_health import on_session_alive
+    on_session_alive()   # a session that just STARTED supersedes any recorded death
 
     # BOOT SEQUENCE — INIT then PROCESS. The voice must NOT run under the splash: we report the ordered backend
     # milestones over the "vl2" channel (the frontend's «Colmena» splash lights one cluster per phase), emit the
