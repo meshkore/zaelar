@@ -89,3 +89,37 @@ def test_a_failed_resolution_reports_not_ok_with_the_providers_message(monkeypat
     res = md.apply_action("play_playlist", {"playlist": "true-blue"})
     assert res["ok"] is False
     assert "No he encontrado" in (res.get("message") or "")
+
+
+def test_a_spoken_garble_of_the_only_plausible_list_still_plays(monkeypatch):
+    """«arranca la lista de Trublo» — the STT's rendering of «True Blue», measured live 2026-09-10:
+    the exact/containment finder missed and the operator got a raw code over music he had just named."""
+    _seed_playlist()
+    import connectors.music as music
+    monkeypatch.setattr(music, "control", _provider_like_control)
+    res = md.apply_action("play_playlist", {"playlist": "Trublo"})
+    assert res["ok"] is True and res["playlist"] == "true-blue"
+
+
+def test_a_hopeless_reference_refuses_with_a_sentence_that_names_the_lists(monkeypatch):
+    _seed_playlist()
+    import connectors.music as music
+    monkeypatch.setattr(music, "control", _provider_like_control)
+    res = md.apply_action("play_playlist", {"playlist": "los cuarenta principales"})
+    assert res["ok"] is False and res["error"] == "playlist_not_found"
+    msg = res.get("message") or ""
+    assert "True Blue" in msg, "the refusal must NAME what exists — the raw code was read aloud"
+    assert "los cuarenta principales" in msg
+
+
+def test_two_plausible_lists_stay_a_refusal_never_a_guess(monkeypatch):
+    import widgets.store as store
+    store.save("musica", {"playlists": [
+        {"id": "true-blue", "name": "True Blue", "tracks": [{"title": "A", "query": "A"}]},
+        {"id": "true-blues", "name": "True Blues", "tracks": [{"title": "B", "query": "B"}]},
+    ]})
+    import connectors.music as music
+    monkeypatch.setattr(music, "control", _provider_like_control)
+    res = md.apply_action("play_playlist", {"playlist": "Trublo"})
+    assert res["ok"] is False, "with two near-matches, guessing plays the wrong music — refuse and name both"
+    assert "True Blue" in (res.get("message") or "") and "True Blues" in (res.get("message") or "")

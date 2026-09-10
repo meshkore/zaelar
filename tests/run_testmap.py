@@ -1939,6 +1939,16 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": [
                 "tests/browser/unit/musica/test_playing_a_playlist_keeps_the_playback_the_provider_started.py",
                 "tests/voice/unit/test_an_explicit_replay_of_a_play_order_is_an_order.py"]},
+        # V2-650b (2026-09-10, sid 3d394…): «cierra el widget de YouTube» cerró bien — y ocho segundos después la
+        # charla de la sala hizo al modelo re-emitir su show DESCARTADO y la tarjeta se reabrió sola: V2-635 dio
+        # licencia a close/video/fullscreen y el SHOW no tenía. reopen_license: solo protege un widget cerrado por
+        # orden en los últimos 2 min, y se reabre con verbo de petición o nombrándolo — nunca por charla. En el
+        # mismo minuto, «la lista de Trublo» (STT de True Blue) murió con «playlistnotfound» leído en crudo: el
+        # finder gana resolución difusa de ganador único y la negativa NOMBRA las listas que existen (V2-463).
+        {"id": "4.149", "title": "Un widget recién cerrado no se reabre por charla, y un garble de la lista "
+                                 "se resuelve o se niega nombrando lo que hay",
+            "ch": UNIT, "paths": [
+                "tests/voice/unit/test_a_just_closed_widget_does_not_reopen_on_chatter.py"]},
         # V2-600 → V2-601 T-07 (2026-09-05): «cierra la pantalla completa» (y el «…completamente» del STT) es una
         # orden de ESTADO de pantalla; el veto vivía en los dos backstops del servidor y la TERCERA copia de la
         # regla —la del cliente, voiceCommands.js— seguía cerrando el canvas entero. Conduce el módulo REAL.

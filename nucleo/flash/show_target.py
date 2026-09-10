@@ -96,6 +96,34 @@ def classify_alias_call(tool_calls: list, text: str) -> str:
     return f"alias:{op}:{rid}" if rid else "clarify"
 
 
+def resolve_show(wid_arg: str, text: str, window, last_action, guard_target) -> tuple:
+    """The voice provider's show_widget RESOLUTION, moved here whole (V2-650b, paid to the provider's
+    size ratchet): open/recent context from memory state, then contextual target → exact catalog id →
+    the certainty resolver (V2-082). `guard_target` is passed IN by the caller (it lives in the
+    provider's widget_intent module — importing it here would add a new upward dependency the V2-569
+    direction ratchet freezes). Returns `(res, open_ids, recent_ids)`; `res` carries `match` and
+    `system`, exactly the shape the caller branched on before the move."""
+    from widgets import runtime
+    try:
+        from memory import api as _memapi
+        _st = _memapi.state() or {}
+        open_ids, recent_ids = _st.get("open_widgets") or [], _st.get("recent_widgets") or []
+    except Exception:
+        open_ids, recent_ids = [], []
+    res = {}
+    try:
+        contextual = guard_target(text, window, last_action)
+        if contextual:
+            res = {"match": contextual, "system": None}
+        elif wid_arg and runtime.get(wid_arg) is not None:       # exact catalog id
+            res = {"match": wid_arg, "system": None}
+        else:                                                    # name/alias → real id or system surface
+            res = runtime.identify(wid_arg or text, open_ids=open_ids, recent_ids=recent_ids) or {}
+    except Exception:
+        res = {"match": wid_arg if runtime.get(wid_arg) is not None else None, "system": None}
+    return res, open_ids, recent_ids
+
+
 def show_instance(rid: str, text: str = "", last_spoken: str = "") -> tuple[str, str, str]:
     """WHICH CARD of `rid` a «enséñamelo» means → `(id_to_show, question, chosen_label)`.
 

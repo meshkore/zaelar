@@ -298,6 +298,27 @@ def _find_playlist(db: dict, ref) -> "dict | None":
     return None
 
 
+def _closest_playlist(db: dict, ref) -> "dict | None":
+    """Last-resort resolution for a SPOKEN reference the exact/containment finder missed: the STT
+    garbles a name it has never seen («Trublo» for «True Blue», measured live 2026-09-10 — the play
+    failed with a raw code while the operator was naming his only list). Normalized, space-stripped
+    similarity; only a CLEAR, UNIQUE winner resolves (≥0.6 with the runner-up under 0.5). Anything
+    murkier stays a refusal that names what exists — never a guess between two plausible lists."""
+    from difflib import SequenceMatcher
+    nref = _norm(str(ref or "")).replace(" ", "")
+    if not nref:
+        return None
+    scored = []
+    for pl in (db.get("playlists") or []):
+        nn = _norm(pl.get("name") or "").replace(" ", "")
+        if nn:
+            scored.append((SequenceMatcher(None, nref, nn).ratio(), pl))
+    scored.sort(key=lambda t: -t[0])
+    if scored and scored[0][0] >= 0.6 and (len(scored) == 1 or scored[1][0] < 0.5):
+        return scored[0][1]
+    return None
+
+
 def _resolve_track_index(tracks: list, item) -> "int | None":
     """item = 1-based index ('2') or text matching a track title/query in the list."""
     if item is None:
@@ -615,9 +636,16 @@ def apply_action(action: str, payload: dict = None) -> dict:
 
     if action == "play_playlist":
         db = _load_db()
-        pl = _find_playlist(db, p.get("playlist") or p.get("id"))
+        ref = p.get("playlist") or p.get("id")
+        pl = _find_playlist(db, ref) or _closest_playlist(db, ref)
         if pl is None:
-            return {"ok": False, "error": "playlist_not_found", "playlist": p.get("playlist")}
+            names = [str(x.get("name") or x.get("id") or "").strip() for x in (db.get("playlists") or [])]
+            names = [n for n in names if n]
+            # The spoken correction reads `message` (data_ops.report_failure), so the refusal must be a
+            # sentence naming what exists (V2-463) — the bare code was read aloud as «playlistnotfound».
+            msg = (f"No encuentro ninguna lista que se llame «{str(ref or '').strip()}». "
+                   + (f"Tienes: {', '.join(names[:6])}." if names else "Todavía no hay ninguna lista guardada."))
+            return {"ok": False, "error": "playlist_not_found", "playlist": ref, "message": msg}
         tracks = pl.get("tracks") or []
         if not tracks:
             return {"ok": False, "error": "empty_playlist", "playlist": pl["id"]}

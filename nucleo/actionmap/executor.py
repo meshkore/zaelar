@@ -158,6 +158,13 @@ def execute(action: dict, emit, phrase: str = "") -> bool:
         if _widget_has_live_work(wid):
             return False
         emit("widget", "close", text=said, extra={"id": wid, **src})
+        try:
+            # V2-650b: a fast-lane close is by definition operator-ordered (a seeded phrase) — record it
+            # so a model-emitted show of the same widget needs his words again.
+            from nucleo.flash import canvas_license as _lic
+            _lic.note_operator_close(wid)
+        except Exception:
+            pass
         return True
     if do == "move":
         emit("widget", "move", text=said, extra={"id": wid, "where": action["where"], **src})

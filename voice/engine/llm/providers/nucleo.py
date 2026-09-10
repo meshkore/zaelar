@@ -969,6 +969,7 @@ class NucleoLLMStream(llm.LLMStream):
             acted["widget"] = True
             if action == "close":
                 acted["closed"] = True                   # el backstop de cierre corto no re-cierra (ver post-stream)
+                _canvas_lic.note_operator_close(str(extra.get("id") or ""))   # V2-650b: reopen needs his words
             extra["src"] = "flash"                       # V2-039: procedencia — esta orden viene del FlashBrain
             # REGISTRO DE ÓRDENES DE CANVAS (2026-08-09, petición del operador): el evento se lleva la FRASE que
             # lo provocó. Cuando se abre el widget EQUIVOCADO, la pregunta siempre es «¿de qué texto salió esto?»
@@ -1000,6 +1001,7 @@ class NucleoLLMStream(llm.LLMStream):
                         return
                     for _cid in (_t.get("ids") or [_t["id"] or wid]):
                         emit("widget", "close", extra={"id": _cid, "src": "flash"})
+                        _canvas_lic.note_operator_close(_cid)                 # V2-650b
                     emit("brain", "🙈 cerrar (no borrar) — guard cerrar≠borrar", text=wid, role="system")
                     acted["widget"] = True
                     acted["closed"] = True
@@ -1439,29 +1441,20 @@ class NucleoLLMStream(llm.LLMStream):
                         emit("brain", "🏗️ show_widget→CREATE: se escala al generador (no es un show)", role="system")
                     else:
                         from widgets import runtime
-                        # Resolver CON CERTEZA (V2-082): solo nombre/alias abren; contexto (abiertos>recientes) para
-                        # desempatar. Devuelve match (widget), system (superficie de sistema nombrada) o nada.
-                        try:
-                            from memory import api as _memapi
-                            _st = _memapi.state() or {}
-                            _open, _recent = _st.get("open_widgets") or [], _st.get("recent_widgets") or []
-                        except Exception:
-                            _open, _recent = [], []
-                        _res = {}
-                        try:
-                            _contextual = _show_guard_target(text, brain._window, brain._last_action)
-                            if _contextual:
-                                _res = {"match": _contextual, "system": None}
-                            elif _wid and runtime.get(_wid) is not None:       # id exacto del catálogo
-                                _res = {"match": _wid, "system": None}
-                            else:                                            # nombre/alias → id REAL o superficie
-                                _res = runtime.identify(_wid or text, open_ids=_open, recent_ids=_recent) or {}
-                        except Exception:
-                            _res = {"match": _wid if runtime.get(_wid) is not None else None, "system": None}
+                        # Resolver CON CERTEZA (V2-082) — the whole resolution lives in
+                        # show_target.resolve_show since V2-650b (ratchet extraction, guard passed in).
+                        _res, _open, _recent = _show_target.resolve_show(
+                            _wid, text, brain._window, brain._last_action, _show_guard_target)
                         _rid = _res.get("match") or ""
                         _rid = _rid if (_rid and runtime.get(_rid) is not None) else ""
                         _sys = _res.get("system")
-                        if _rid:
+                        # V2-650b: a widget the operator JUST closed does not reopen over chatter — the
+                        # model re-emitted its DISCARDED show and the card came back over nobody's order.
+                        if _rid and not _canvas_lic.reopen_license(_rid, text, _open, _recent):
+                            emit("brain", "🛡️ show de un widget recién cerrado sin pedirlo — ignorado "
+                                 "(context-bleed)", text=_rid, role="system")
+                            deduped["v"] = True
+                        elif _rid:
                             # V2-300 — la BASE con una instancia viva delante resuelve a la INSTANCIA: en la
                             # ronda 24 el modelo mostró `results` con la hoja del encargo abierta al lado y el
                             # canvas abrió la caja PELADA, vacía. Misma decisión y mismo dueño que el cierre
@@ -2339,6 +2332,7 @@ class NucleoLLMStream(llm.LLMStream):
                 acted["closed"] = True
                 for _cid in (_t.get("ids") or [_t["id"] or _cw]):
                     emit("widget", "close", extra={"id": _cid, "src": "flash"})
+                    _canvas_lic.note_operator_close(_cid)                     # V2-650b
                 emit("brain", "🙈 close por backstop (cerrar widget nombrado sin [[close]])",
                      text=_cw, role="system")
                 # cerrar un widget NO es tarea de worker → cancela la escalada espuria (evita el bucle de 3 min)

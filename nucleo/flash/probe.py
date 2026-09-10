@@ -425,11 +425,19 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
             _rid = _rid if (_rid and _rt.get(_rid) is not None) else ""
             _sys = _res.get("system")
             _show_ask = ""
+            _reopen_drag = False
             if _rid:
+                # V2-650b — mirror of the voice guard: a widget the operator JUST closed does not reopen
+                # over a turn whose words ask for nothing of the kind (parallel impl, wire in BOTH).
+                from nucleo.flash import canvas_license as _lic_s
+                _o2, _r2 = _ctx_ids()
+                _reopen_drag = not _lic_s.reopen_license(_rid, text, _o2, _r2)
+            if _rid and not _reopen_drag:
                 # V2-300/V2-605 — WHICH card, decided once for both channels (`show_target.show_instance`).
                 _rid, _show_ask, _show_chose = _show_instance(
                     _rid, text, _last_assistant_line(sess.window))
-            action = (f"canvas:show:{_rid}" if _rid else
+            action = ("guard:show-of-just-closed-widget" if _reopen_drag else
+                      f"canvas:show:{_rid}" if _rid else
                       "clarify" if _show_ask else
                       "panel:chat" if _sys == "chat" else "clarify")
     elif "fullscreen_widget" in names:

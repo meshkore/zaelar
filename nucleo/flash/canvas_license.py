@@ -16,6 +16,7 @@
 from __future__ import annotations
 
 import re as _re
+import time as _time
 
 from .close_guards import looks_like_close
 from .text_norm import _norm_txt
@@ -102,3 +103,47 @@ def replay_license(wid: str, action: str, text: str) -> bool:
     except Exception:
         return False
     return video_license(text)
+
+
+# ── A show of a JUST-CLOSED widget needs the operator's words again (V2-650b) ────────────────────────────
+_RECENT_CLOSES: dict = {}
+_REOPEN_WINDOW_S = 120.0
+
+
+def note_operator_close(wid: str) -> None:
+    """Every door that executes an operator-licensed close records the widget here (the [[close]] tag
+    funnel, the named-close backstop, the close-not-delete guard, the action map's fast lane): for the
+    next two minutes a model-emitted show of the SAME widget needs the operator's words again. Never
+    raises — a bookkeeping failure must not break a close."""
+    try:
+        w = str(wid or "").strip().lower()
+        if w:
+            _RECENT_CLOSES[w] = _time.time()
+    except Exception:
+        pass
+
+
+def reopen_license(wid: str, text: str, open_ids=None, recent_ids=None) -> bool:
+    """False only when the model shows a widget the operator JUST ordered closed and the turn's words
+    ask for nothing of the kind. Measured live 2026-09-10 (sid 3d394…): «Johnny, cierra el widget de
+    YouTube» closed it, and eight seconds later room chatter («Avisando de… cuidado, que aquí está
+    pasando algo») made the model re-emit its previously DISCARDED show_widget — the card reopened over
+    nobody's order. Same doctrine as the close/video/fullscreen licenses: what appears on the operator's
+    screen needs the operator's words in the turn that fires it. A widget not recently closed is
+    untouched by this gate; a recently closed one reopens on a conjugated media/show request
+    (`video_license`) or when the operator's OWN words resolve to that widget through the certainty
+    resolver every show already uses — never on chatter."""
+    w = str(wid or "").strip().lower()
+    ts = _RECENT_CLOSES.get(w)
+    if not ts or (_time.time() - ts) > _REOPEN_WINDOW_S:
+        return True
+    if video_license(text):
+        return True
+    try:
+        from widgets import runtime
+        m = runtime.identify(text, open_ids=list(open_ids or []), recent_ids=list(recent_ids or [])) or {}
+        return m.get("match") == w
+    except Exception:
+        # An unreadable resolver over a just-closed widget: staying closed is the cheap wrong — the
+        # operator can reopen with a word; a card resurrected over chatter is the measured bug.
+        return False
