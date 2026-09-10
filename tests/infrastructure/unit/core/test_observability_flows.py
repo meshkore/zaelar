@@ -60,14 +60,16 @@ def test_a_whole_flow_shares_one_correlation_id(wired):
     # V2-653: el show de widget dispara además el veredicto SOMBRA del árbitro (`kind="arbiter"`), que
     # hereda el trace y cae — correctamente — en el MISMO flujo: la auditoría de una mutación viaja con
     # la frase que la originó. Raíz + brain + search + show + veredicto = 5.
+    # El QUÉ antes del CUÁNTO: un «7 != 5» no dice nada y cuesta una corrida de siete minutos averiguar qué
+    # sobra. La lista se afirma primero, así que el fallo NOMBRA al intruso.
+    assert [e["kind"] for e in flows.flow(tid)] == ["trace", "brain", "search", "widget", "arbiter"], (
+        "orden cronológico del flujo — el veredicto sombra del árbitro (V2-653) sigue a su mutación")
     assert f["events"] == 5, "raíz + tres derivados + el veredicto del árbitro, todos en el MISMO flujo"
     assert set((f["families"] or "").split(",")) == {"flash", "widget"}
     assert f["tokens_in"] == 4700 and f["tokens_out"] == 120
     assert f["errors"] == 0
 
     detail = flows.flow(tid)
-    assert [e["kind"] for e in detail] == ["trace", "brain", "search", "widget", "arbiter"], (
-        "orden cronológico del flujo — el veredicto sombra del árbitro (V2-653) sigue a su mutación")
     assert detail[1]["ms"] == 420.0, "la duración real sube del payload a su columna"
 
 
