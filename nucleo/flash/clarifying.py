@@ -39,7 +39,10 @@ _ASKS_DETAIL_RE = _re.compile(
 #   · PERMISSION — about STARTING: «¿me pongo?», «¿lo hago?», «¿sigo?», «¿quieres que lo busque?», «¿procedo?»
 #   · COURTESY   — about REPORTING LATER: «¿te aviso cuando lo tenga?», «¿te lo enseño luego?»
 # The courtesy shape MUST stay out, or holding it would produce the opposite failure: it asks, the operator says
-# yes, and nothing was ever queued. That is why `_NOTIFY_RE` vetoes first.
+# yes, and nothing was ever queued. It stays out because it is simply NOT IN THE LIST — a first version added
+# a `_NOTIFY_RE` veto on top, and disarming it changed nothing on any case: «te aviso» was never a permission
+# phrase to begin with. Worse than useless, it would have vetoed «¿te lo busco y te aviso cuando lo tenga?»,
+# which IS asking permission. A guard that guards nothing is worse than none — the list is the guard.
 _ASKS_PERMISSION_RE = _re.compile(
     r"[^.!?]*(?:"
     r"\b(?:me pongo|lo hago|la hago|sigo|procedo|continúo|continuo|empiezo|arranco|lo lanzo|"
@@ -47,9 +50,6 @@ _ASKS_PERMISSION_RE = _re.compile(
     r"|\bquieres que\b|\bte parece (?:bien|si)\b|\blo intento\b"
     r"|\b(?:shall i|should i|want me to|do you want me to|may i|go ahead)\b"
     r")[^.!?]*\?", _re.I)
-# Vetoes: the question is about telling him LATER, not about starting now.
-_NOTIFY_RE = _re.compile(
-    r"\b(?:te aviso|te lo digo|te lo cuento|te lo enseño|te informo|i'?ll (?:tell|let) you)\b", _re.I)
 
 
 def asks_permission(reply: str) -> bool:
@@ -62,10 +62,7 @@ def asks_permission(reply: str) -> bool:
     Narrow on purpose, and the direction of the failure is why: a false positive HOLDS an errand he wanted,
     which turns into «te lo pregunté y luego no hiciste nada» — the same family of silence this batch exists
     to remove. When in doubt this returns False."""
-    r = reply or ""
-    if _NOTIFY_RE.search(r):
-        return False
-    return bool(_ASKS_PERMISSION_RE.search(r))
+    return bool(_ASKS_PERMISSION_RE.search(reply or ""))
 
 
 def asks_for_missing_detail(reply: str) -> bool:
