@@ -165,6 +165,50 @@ def test_listing_filters_by_shelf_and_skips_partial_files(lib):
     assert {r["name"] for r in index.listing("audio")} == {"b.mp3"}
 
 
+# ── 3b · the write ops a real file manager needs (V2-658) ──────────────────────────────────────────────────
+
+def test_renaming_a_file_moves_it_in_place(lib):
+    (paths.dir_for("documents") / "old.txt").write_text("x")
+    out = index.rename("documents/old.txt", "new.txt")
+    assert out["ok"] and out["rel"] == "documents/new.txt"
+    assert (paths.dir_for("documents") / "new.txt").exists()
+    assert not (paths.dir_for("documents") / "old.txt").exists()
+
+
+def test_renaming_onto_an_existing_name_is_refused_not_overwritten(lib):
+    (paths.dir_for("documents") / "a.txt").write_text("a")
+    (paths.dir_for("documents") / "b.txt").write_text("b")
+    out = index.rename("documents/a.txt", "b.txt")
+    assert out["ok"] is False
+    assert (paths.dir_for("documents") / "b.txt").read_text() == "b"   # untouched
+
+
+def test_duplicating_a_file_leaves_the_original_and_suffixes_the_copy(lib):
+    (paths.dir_for("images") / "pic.jpg").write_bytes(b"data")
+    out = index.duplicate("images/pic.jpg")
+    assert out["ok"] and out["rel"].endswith("pic (copia).jpg")
+    assert (paths.dir_for("images") / "pic.jpg").read_bytes() == b"data"
+    assert (paths.dir_for("images") / "pic (copia).jpg").read_bytes() == b"data"
+    # duplicating again finds the next free suffix instead of colliding
+    out2 = index.duplicate("images/pic.jpg")
+    assert out2["rel"].endswith("pic (copia 2).jpg")
+
+
+def test_deleting_a_file_removes_it_and_a_missing_one_is_refused(lib):
+    p = paths.dir_for("documents") / "gone.txt"
+    p.write_text("x")
+    assert index.delete("documents/gone.txt")["ok"] is True
+    assert not p.exists()
+    assert index.delete("documents/gone.txt")["ok"] is False
+
+
+def test_write_ops_stay_inside_the_boundary_like_every_other_door(lib):
+    """The three new write ops go through the SAME `paths.resolve()` door as everything else — a path that
+    escapes the library must be refused, never silently operated on."""
+    for op in (lambda r: index.rename(r, "x"), index.duplicate, index.delete):
+        assert op("../../etc/passwd")["ok"] is False
+
+
 # ── 4 · the connector switch: declared defaults are the defaults ────────────────────────────────────────────
 
 def test_a_connector_declared_enabled_is_enabled_before_anyone_writes_the_store(monkeypatch, tmp_path):

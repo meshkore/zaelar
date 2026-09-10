@@ -11,6 +11,7 @@
     "panel": "str",
     "provider": "str",
     "providers": "list",
+    "providers_stale": "bool",
     "query": "str",
     "reason": "str",
     "selected": "NoneType",

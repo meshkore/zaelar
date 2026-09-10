@@ -1219,7 +1219,7 @@ DOMAINS: list[dict] = [
         # el encargo existía. La dirección del fallo manda: un falso positivo APARCA algo que él sí quería y se
         # convierte en «te lo pregunté y luego no hiciste nada», así que el nodo mide las dos direcciones y
         # deja fuera la cortesía («¿te aviso cuando lo tenga?»), que es lo que rompería el flujo bueno.
-        # V2-657 (la espiral de la cena, sesión 130418ed): dentro de una ventana abierta la charla de mesa se
+        # V2-658 (la espiral de la cena, sesión 130418ed): dentro de una ventana abierta la charla de mesa se
         # admitía como dirigida, el modelo la contestaba, y turno y respuesta re-anclaban la ventana — la
         # conversación no podía morir con gente hablando cerca del micro. Tres mecanismos: [[aparte]] (el
         # silencio SANCIONADO del modelo, con retract del re-anclaje), «cállate» como orden de atención que
@@ -1916,7 +1916,7 @@ DOMAINS: list[dict] = [
         # thread (cap, TIME ordering, dedup, read watermark), the writers that reflect what happened elsewhere,
         # and "load previous". The RENDERING half lives in 4.98 (`..._paints_in_every_profile`) — which is what
         # caught that a backtick inside a comment CLOSES the CSS template literal.
-        # V2-557 (2026-09-02) → V2-657 (2026-09-10): de explorador de la nube a GESTOR DE ARCHIVOS unificado.
+        # V2-557 (2026-09-02) → V2-658 (2026-09-10): de explorador de la nube a GESTOR DE ARCHIVOS unificado.
         # `local` es el proveedor por defecto (la biblioteca propia, V2-638) y no necesita conexión alguna;
         # cada servicio en la nube (Drive, OneDrive…) vive AL LADO, con un icono en la cabecera, y solo ofrece
         # lo que su API permite — rename/copy/delete son LOCAL ONLY y un conector que no puede hacerlos lo
@@ -3069,7 +3069,7 @@ DOMAINS: list[dict] = [
                                 "descarga lo que el navegador sabe reproducir",
             "ch": UNIT,
             "paths": ["tests/infrastructure/unit/core/test_the_agents_own_filesystem.py",
-                      # V2-657 — el gestor de archivos unificado añade rename/copy/delete a la biblioteca y
+                      # V2-658 — el gestor de archivos unificado añade rename/copy/delete a la biblioteca y
                       # el hand-off `nucleo/library_router.py` (mismo molde que `nucleo/torrent_router.py`).
                       "tests/infrastructure/unit/core/test_library_router_hands_a_file_to_its_player.py"]},
         # 2026-09-04 — LA NUBE, por lo único que se puede comprobar sin gastar dinero ni dejar una cuenta detrás:

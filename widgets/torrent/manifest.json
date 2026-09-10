@@ -3,7 +3,7 @@
   "version": "0.2.0",
   "title": "Descargas",
   "description": "Un cliente de descargas: encuentra una película o un vídeo por la red de torrents y lo baja al agente. Lista lo que se está descargando y lo que ya terminó y se comparte como semilla, con reproducir/guardar/eliminar por fila — como cualquier cliente de torrent.",
-  "whenToUse": "Cuando piden DESCARGAR o VER algo por torrent — «busca la peli X y ponla», «descarga el vídeo de Y», «qué tengo descargando», «cancela esa descarga». El buscador vive en la red MeshKore; esto es el cliente que baja el enlace y lo enseña, en dos listas (descargando / semillas). FRONTERA: reproducir de verdad ocurre en `youtube` (vídeo) o `musica` (audio) una vez hay algo que enseñar — este widget solo gestiona la descarga y ENVÍA a esos widgets.",
+  "whenToUse": "Cuando piden DESCARGAR algo por torrent: «busca la peli X y ponla», «qué tengo descargando», «cancela esa descarga» — dos listas (descargando / semillas). FRONTERA: reproducir ocurre en `youtube`/`musica` una vez hay algo que enseñar; este widget solo descarga y ENVÍA.",
   "keywords": [
     "torrent",
     "torrents",

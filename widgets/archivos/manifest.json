@@ -1,32 +1,39 @@
 {
   "id": "archivos",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "title": "Archivos",
-  "description": "El explorador de los archivos que el operador tiene en la nube (Google Drive, OneDrive y los que vengan): carpetas, ficheros, búsqueda y ficha de cada uno, con la misma forma de navegar que un explorador de toda la vida.",
-  "whenToUse": "Cuando el usuario habla de SUS archivos en la nube (Drive, OneDrive): entrar en una carpeta, ver qué hay dentro, buscar un fichero por nombre o por lo que dice, o abrir uno concreto. FRONTERA: un texto ya escrito → `documento`; fotos → `imagenes`; buscar en internet → `search`.",
+  "description": "Un gestor de archivos de verdad: primero tu BIBLIOTECA propia (vídeo, audio, documentos, imágenes, descargas) con carpetas, renombrar/copiar/borrar y abrir con doble clic — y, con un icono en la cabecera, tus servicios en la nube conectados (Google Drive, OneDrive) para navegarlos y buscarlos igual.",
+  "whenToUse": "Cuando el usuario habla de SUS archivos —biblioteca local o nube (Drive, OneDrive)—: navegar, buscar, abrir, renombrar, copiar o borrar. FRONTERA: texto ya escrito → `documento`; fotos por internet → `imagenes`; buscar en internet → `search`.",
   "keywords": [
     "archivos",
     "mis archivos",
     "ficheros",
     "carpeta",
     "carpetas",
+    "biblioteca",
+    "descargas",
     "drive",
     "google drive",
     "onedrive",
     "mi nube",
-    "documentos guardados",
     "explorador de archivos",
+    "gestor de archivos",
     "files",
     "folder",
     "my drive"
   ],
   "entry": "widget.js",
   "size": {
-    "w": 760,
-    "h": 560
+    "w": 820,
+    "h": 600
   },
-  "usage": "El explorador de los archivos EN LA NUBE del operador. Para NAVEGAR usa open_folder (con folderId, o el nombre y se resuelve con lo que hay en pantalla), go_up y go_home. Para CONTESTAR «¿tengo un contrato de Axa?» usa search_files: filtra la vista Y devuelve los que casan en `result.matches`, así que puedes decir sus nombres — volver a mostrar el widget NO busca nada. open_file devuelve la ficha del archivo con su `web_url`; decide TÚ qué hacer con ella (enseñarla, abrirla en el navegador, resumirla). Si no hay ningún servicio conectado, open_connectors abre el asistente de conexión dentro de la tarjeta. Para conectar: open_connectors abre el asistente y connect_provider devuelve la URL de consentimiento; el client_id de la aplicación se registra UNA vez en Configuración → Conectores, nunca por voz.",
+  "usage": "El gestor de archivos: por defecto navega TU BIBLIOTECA (video/audio/documents/images/downloads); con `set_provider` cambia a un servicio conectado en la nube. Para NAVEGAR usa open_folder (con folderId — un id de carpeta de la nube, o `video`/`audio`/`documents`/`images`/`downloads` para una carpeta local), go_up y go_home. Para CONTESTAR «¿tengo un contrato de Axa?» o «¿tengo descargada esa peli?» usa search_files: filtra la vista Y devuelve los que casan en `result.matches`. open_file ABRE el archivo: si es un vídeo o un audio local reproducible lo manda al reproductor correspondiente y lo enseña; si es una imagen o un documento local reproducible lo enseña dentro de esta misma tarjeta; si es un fichero de la nube devuelve su `web_url` y decides tú qué hacer con él. rename_file/copy_file/delete_file SOLO funcionan en la biblioteca local (un servicio en la nube los rechaza con el motivo). Si no hay ningún servicio en la nube conectado, open_connectors abre el asistente de conexión dentro de la tarjeta — pero la biblioteca local funciona siempre, sin conectar nada.",
   "actions": {
+    "sync_providers": {
+      "desc": "refresca qué servicios de archivos en la nube están registrados/conectados, para la fila de iconos",
+      "payload": {},
+      "view": true
+    },
     "refresh": {
       "desc": "vuelve a leer lo que hay en la carpeta actual (o repite la búsqueda si hay una)",
       "payload": {},
@@ -35,8 +42,9 @@
     "open_folder": {
       "desc": "entra en una carpeta y enseña lo que tiene dentro",
       "payload": {
-        "folderId": "id de la carpeta (o su nombre, se resuelve con lo que hay en pantalla)"
+        "folderId": "id de la carpeta (local: video/audio/documents/images/downloads; nube: su id o nombre)"
       },
+      "ref": "folderId",
       "view": true
     },
     "go_up": {
@@ -45,12 +53,12 @@
       "view": true
     },
     "go_home": {
-      "desc": "vuelve a la carpeta raíz del servicio",
+      "desc": "vuelve a la raíz del proveedor actual",
       "payload": {},
       "view": true
     },
     "search_files": {
-      "desc": "BUSCA por nombre o por contenido en todos los archivos y CONTESTA: cambia lo que se ve y devuelve los que casan en `result.matches`",
+      "desc": "BUSCA por nombre en el proveedor actual y CONTESTA: cambia lo que se ve y devuelve los que casan en `result.matches`",
       "payload": {
         "query": "lo que se busca"
       },
@@ -62,11 +70,35 @@
       "view": true
     },
     "open_file": {
-      "desc": "abre la ficha de un archivo concreto y devuelve sus datos y su enlace web",
+      "desc": "abre un archivo: si es local y reproducible, lo abre en su reproductor o lo enseña aquí; si es de la nube, devuelve su ficha y su enlace web",
       "payload": {
-        "fileId": "id del archivo (o su nombre)"
+        "fileId": "id del archivo (local: su ruta dentro de la biblioteca; nube: su id o nombre)"
       },
+      "ref": "fileId",
       "view": true
+    },
+    "rename_file": {
+      "desc": "renombra un archivo de la biblioteca LOCAL (los servicios en la nube no lo permiten desde aquí)",
+      "payload": {
+        "fileId": "el archivo a renombrar",
+        "name": "el nombre nuevo"
+      },
+      "ref": "fileId"
+    },
+    "copy_file": {
+      "desc": "duplica un archivo de la biblioteca LOCAL, al lado del original",
+      "payload": {
+        "fileId": "el archivo a copiar"
+      },
+      "ref": "fileId"
+    },
+    "delete_file": {
+      "desc": "BORRA un archivo de la biblioteca LOCAL — irreversible",
+      "payload": {
+        "fileId": "el archivo a borrar"
+      },
+      "ref": "fileId",
+      "confirm": true
     },
     "set_view": {
       "desc": "cambia entre lista y cuadrícula",
@@ -76,14 +108,14 @@
       "view": true
     },
     "set_provider": {
-      "desc": "cambia al otro servicio de archivos conectado (Drive ↔ OneDrive)",
+      "desc": "cambia de proveedor: local (tu biblioteca) o un servicio de la nube conectado",
       "payload": {
-        "provider": "gdrive | onedrive"
+        "provider": "local | gdrive | onedrive"
       },
       "view": true
     },
     "open_connectors": {
-      "desc": "abre el asistente para conectar un servicio de archivos dentro de la tarjeta",
+      "desc": "abre el asistente para conectar un servicio de archivos en la nube dentro de la tarjeta",
       "payload": {
         "provider": "gdrive | onedrive (opcional)"
       },
@@ -95,14 +127,14 @@
       "view": true
     },
     "connect_provider": {
-      "desc": "empieza a conectar un servicio de archivos: devuelve la URL de consentimiento para abrirla",
+      "desc": "empieza a conectar un servicio de archivos en la nube: devuelve la URL de consentimiento para abrirla",
       "payload": {
         "provider": "gdrive | onedrive",
         "tier": "permiso a pedir (opcional)"
       }
     },
     "disconnect_provider": {
-      "desc": "olvida la sesión de un servicio de archivos (habrá que volver a dar permiso para usarlo)",
+      "desc": "olvida la sesión de un servicio de archivos en la nube (habrá que volver a dar permiso)",
       "payload": {
         "provider": "gdrive | onedrive"
       },
@@ -114,11 +146,13 @@
   "aliases": [
     "Archivos",
     "mis archivos",
+    "mi biblioteca",
     "el drive",
     "google drive",
     "onedrive",
     "mi nube",
-    "el explorador de archivos"
+    "el explorador de archivos",
+    "el gestor de archivos"
   ],
   "origin": "builtin",
   "live_title": true

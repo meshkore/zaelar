@@ -102,6 +102,59 @@ def file_into_place(src_path, *, name: str = "") -> dict:
     return {"ok": True, "rel": paths.rel_of(dest), "entry": entry_for(paths.rel_of(dest))}
 
 
+def rename(rel: str, new_name: str) -> dict:
+    """Rename a file IN PLACE — same folder, a different leaf name. Collisions are refused rather than
+    overwritten (losing a namesake file to a rename is not recoverable); the extension is not enforced, so
+    the operator can fix a stray one, but the target still has to resolve inside the library."""
+    src = paths.resolve(rel)
+    if src is None or not src.is_file():
+        return {"ok": False, "error": "no encuentro ese fichero en la biblioteca"}
+    name = "".join(c for c in str(new_name or "").strip() if c not in "/\\").strip()
+    if not name:
+        return {"ok": False, "error": "hace falta un nombre nuevo"}
+    dest = src.parent / name
+    if dest.resolve() == src.resolve():
+        return {"ok": True, "rel": paths.rel_of(src), "entry": entry_for(paths.rel_of(src))}
+    if dest.exists():
+        return {"ok": False, "error": f"ya hay un fichero llamado «{name}» ahí"}
+    try:
+        src.rename(dest)
+    except OSError as e:
+        return {"ok": False, "error": str(e)[:160]}
+    return {"ok": True, "rel": paths.rel_of(dest), "entry": entry_for(paths.rel_of(dest))}
+
+
+def duplicate(rel: str) -> dict:
+    """A copy of a file, next to the original, suffixed `(copia)`/`(copia 2)`/… until a free name is found."""
+    import shutil
+    src = paths.resolve(rel)
+    if src is None or not src.is_file():
+        return {"ok": False, "error": "no encuentro ese fichero en la biblioteca"}
+    stem, ext = os.path.splitext(src.name)
+    dest = src.parent / f"{stem} (copia){ext}"
+    n = 2
+    while dest.exists():
+        dest = src.parent / f"{stem} (copia {n}){ext}"
+        n += 1
+    try:
+        shutil.copy2(src, dest)
+    except OSError as e:
+        return {"ok": False, "error": str(e)[:160]}
+    return {"ok": True, "rel": paths.rel_of(dest), "entry": entry_for(paths.rel_of(dest))}
+
+
+def delete(rel: str) -> dict:
+    """Remove a file from disk — irreversible, the caller's job to confirm before calling this."""
+    p = paths.resolve(rel)
+    if p is None or not p.is_file():
+        return {"ok": False, "error": "no encuentro ese fichero en la biblioteca"}
+    try:
+        p.unlink()
+    except OSError as e:
+        return {"ok": False, "error": str(e)[:160]}
+    return {"ok": True}
+
+
 def summary() -> dict:
     """Counts and bytes per shelf — what the brain says when asked «¿qué tengo guardado?»."""
     per: dict = {}

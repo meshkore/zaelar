@@ -120,15 +120,22 @@ FIXTURES = {
                            f"traslada a la siguiente sesión ordinaria." for n in range(1, 14)))},
     # The two GRIDS, which are where a narrow screen usually breaks: a tile row that does not wrap pushes the
     # card sideways, and a long unbroken filename is the classic overflow nobody notices until a phone.
-    "archivos": {"provider": "drive", "providers": ["drive"], "connected": True, "folder_id": "root",
-                 "trail": [{"id": "root", "name": "Mi unidad"}, {"id": "f1", "name": "Documentos de trabajo 2026"}],
-                 "entries": ([{"id": f"d{n}", "name": f"Carpeta de proyecto {n}", "kind": "folder",
-                               "mimeType": "application/vnd.google-apps.folder", "size": 0} for n in range(1, 4)]
-                             + [{"id": f"f{n}", "name": f"Presupuesto_definitivo_revisado_v{n}_SIN_ESPACIOS.xlsx",
-                                 "kind": "file", "mimeType": "application/vnd.ms-excel",
-                                 "size": 1048576 * n} for n in range(1, 10)]),
+    # V2-658: the file manager's local shelf, list mode — every local file row carries FOUR action icons
+    # (open/rename/copy/delete), which is exactly the class of small-touch-target risk this harness exists
+    # for (the class that broke `archivos` the first time it had real content, V2-574).
+    "archivos": {"provider": "local",
+                 "providers": [{"id": "gdrive", "label": "Google Drive", "connected": True,
+                                "app_configured": True}],
+                 "providers_stale": False, "connected": True, "folder_id": "shelf:documents",
+                 "trail": [{"id": "shelf:documents", "name": "Documentos"}],
+                 "entries": [{"id": f"documents/Presupuesto_definitivo_revisado_v{n}_SIN_ESPACIOS.pdf",
+                              "name": f"Presupuesto_definitivo_revisado_v{n}_SIN_ESPACIOS.pdf", "kind": "file",
+                              "file_kind": "document", "mime": "application/pdf", "size": 1048576 * n,
+                              "modified": "2026-08-14T10:22:00Z", "provider": "local", "playable": True,
+                              "url": "/api/library/stream?path=x",
+                              "download_url": "/api/library/download?path=x"} for n in range(1, 10)],
                  "next": "", "query": "", "selected": None, "mode": "list", "panel": "", "error": "",
-                 "reason": "", "count": 12},
+                 "reason": "", "count": 9, "needs_refresh": False, "updated": 1},
     "fotos": {"connected": True, "app_configured": True, "session_pending": False, "years": [2026, 2025],
               "items": [{"id": f"p{n}", "thumb": f"https://example.invalid/t{n}.jpg",
                          "url": f"https://example.invalid/p{n}.jpg", "date": "2026-08-14T10:22:00Z",
