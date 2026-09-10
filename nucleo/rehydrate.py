@@ -175,6 +175,23 @@ def at_boot(*, now: float | None = None, schedule: bool = True, delay: float | N
     `schedule=False` (tests) devuelve el plan sin re-escalar nada."""
     now = float(now or time.time())
     snap = snapshot()
+    # ⏻ PARADO = NO SE RESUCITA NADA (V2-655). Medido 2026-09-10: con `{"state":"stopped","src":"operator"}`
+    # persistido, este arranque re-escaló un encargo viejo y levantó un Brain Worker con GLM — dinero real
+    # sobre un agente que el operador había apagado. Y el gate de `dispatch.run_listener`, seis segundos más
+    # tarde, NO basta: para entonces `forget()` ya ha borrado el rastro y `_bump()` ya ha quemado una vida de
+    # `RESUME_CAP`, así que un rechazo correcto allí destruye en silencio el trabajo interrumpido — justo el
+    # fallo que este módulo existe para evitar.
+    #
+    # Por eso se sale ARRIBA, ANTES de tocar nada: aplazar, no perder. Es la misma regla que `loop._fire_due`
+    # ya aplica a los crons (no disparan con el agente parado y siguen venciendo). El rastro queda intacto y
+    # el próximo arranque ENCENDIDO lo rehidrata.
+    from nucleo import runstate
+    if runstate.blocks_new_work(who="rehidratación"):
+        n = len((snap or {}).get("sessions") or [])
+        if n:
+            logger.info(f"rehidratación: el agente está PARADO (⏻) — {n} tarea(s) se quedan esperando, "
+                        f"el rastro NO se toca y el próximo arranque encendido las recoge")
+        return {"found": n, "resume": [], "buried": [], "halted": True}
     # El rastro se CONSUME aquí: si el proceso vuelve a caer en el arranque, no reanudamos dos veces por el mismo
     # rastro. Lo que de verdad siga en vuelo lo volverá a escribir `sync_state` en cuanto se registre.
     forget()

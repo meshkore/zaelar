@@ -223,11 +223,12 @@ class OrchestratorLoop:
                     # is never worse than it was.
                     goal = s.get("title") or s.get("goal") or ""
                     break
-            try:
-                from voice import attention
-                attention.note_directed()          # the operator's immediate response is DIRECTED (§v3·D)
-            except Exception:
-                pass
+            # V2-655 — the window is no longer opened HERE. `note_directed()` before the delivery anchored the
+            # silence clock at the FIRST word, so a 10-20 s relayed question could consume its own window and
+            # leave the answer ambient — the same defect, one size smaller, that the 90-second delivery of
+            # session 85eec898 made unmissable. `proactive.notify` now ARMS the window and `note_bot_speech`'s
+            # falling edge anchors it at the LAST word, which is what «§v3·D: his immediate response is
+            # DIRECTED» meant all along.
             await self._deliver("zaelar", self._say(
                 "worker_ask_named" if goal else "worker_ask_generic",
                 # Clipped on a word boundary (V2-530): the old `[:40]` cut mid-word, and a name read aloud

@@ -448,9 +448,14 @@ def test_a_barge_in_while_the_bot_still_talks_is_directed(monkeypatch):
     assert attention.evaluate("espera, mejor otro", now=t + 15).directed
 
 
-def test_the_bots_own_speech_never_OPENS_a_window(monkeypatch):
-    # Kickoff/proactive: zaelar speaking on its own initiative grants no hands-free attention (the documented
-    # decision at the caller) — only a directed turn opens the window; the bot's speech merely holds one.
+def test_the_KICKOFF_never_OPENS_a_window(monkeypatch):
+    # Zaelar speaking on its OWN INITIATIVE grants no hands-free attention: the documented decision at the
+    # gate call site is about the greeting — a session starting mid-meeting must not open with a free window
+    # into which ambient speech can walk. RE-SCOPED 2026-09-10 (V2-655): it used to be written as «the bot's
+    # own speech NEVER opens a window», which is not what that decision says and is what left the operator
+    # unheard for sixteen turns after a delivery the agent owed him. An utterance ARMED by
+    # `note_addressed_speech()` does open one — see test_if_it_talks_to_you_it_listens_to_you.py. Unarmed
+    # speech, which is what the kickoff is, still only HOLDS a window a directed turn already opened.
     _smart(monkeypatch)
     t = 1000.0
     attention.note_bot_speech(True, now=t)
@@ -551,9 +556,15 @@ def test_wakeword_spotting_emits_once_per_burst(monkeypatch):
 def test_the_interim_stream_and_the_gate_are_both_wired():
     import re as _re
     agent_src = _re.sub(r"(?m)#.*$", "", open("voice/engine/pipeline/agent.py", encoding="utf-8").read())
-    gate_src = _re.sub(r"(?m)#.*$", "", open("voice/engine/llm/providers/nucleo.py", encoding="utf-8").read())
+    # V2-655: the gate block moved out of the provider into `attention_turn.judge` (the ratchet asked for an
+    # extraction, not a bigger ceiling). The guard follows the CODE — the claim is unchanged.
+    gate_src = _re.sub(r"(?m)#.*$", "",
+                       open("voice/engine/llm/providers/attention_turn.py", encoding="utf-8").read())
+    prov_src = _re.sub(r"(?m)#.*$", "",
+                       open("voice/engine/llm/providers/nucleo.py", encoding="utf-8").read())
     assert "note_wakeword_spotted()" in agent_src
     assert "reclaim_ambient_tail(" in gate_src and "note_ambient(" in gate_src
+    assert "attention_turn.judge(" in prov_src, "…and the turn still goes through it"
 
 
 # ── V2-646: a TYPED turn is never ambient ────────────────────────────────────────────────────────────────

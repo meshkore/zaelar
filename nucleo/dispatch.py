@@ -1586,12 +1586,8 @@ async def run_listener(stop: "asyncio.Event | None" = None) -> None:
             # continuan al start (pause_all/resume_all), but start uno DESDE CERO sobre a agent parado es
             # it contrario of parar. Se rechaza VISIBLE (evento `task/blocked`), never in silencio: a escalada that
             # desaparece without rastro es the clase of failure that cuesta a session of diagnostico.
-            _halted = False
-            try:
-                from nucleo import runstate
-                _halted = runstate.stopped()
-            except Exception:
-                _halted = False
+            from nucleo import runstate
+            _halted = runstate.blocks_new_work(who="dispatch")   # V2-655: falla CERRADO, ver ese docstring
             if _halted:
                 try:
                     from voice.observer import emit

@@ -110,6 +110,7 @@ def _extends(prev: str, cur: str) -> bool:
 # historical names stay as ALIASES to the same functions; the voice tests and the call sites below are
 # untouched. What does NOT move is `_spawn`: the provider owns its background-task registry.
 from voice.engine.llm.providers import acc_notices as _accn
+from voice.engine.llm.providers import attention_turn as _attention_turn
 
 _ACC_NUDGE_S = _accn._ACC_NUDGE_S
 _acc_notice_plan = _accn._acc_notice_plan
@@ -447,24 +448,14 @@ class NucleoLLMStream(llm.LLMStream):
             return
 
         if not first_turn:
-            # `evaluate_content()` (2026-08-16), no la `evaluate()` heurística pura: en modo `always` (el
-            # default, micro siempre abierto) lo único que distingue "me hablas a mí" de "ruido de fondo" es la
-            # NATURALEZA de la frase, así que le pregunta al modelo rápido — ver voice/attention.py. `context`
-            # es deliberadamente barato (una frase, no la ventana entera): solo hace falta saber "qué estábamos
-            # haciendo", no reconstruir el diálogo completo para esto. `_last_reply`, NUNCA `_last_spoken`: este
-            # último incluye fillers ("Pues…", "Mmm…") que no llevan tema — pasarlo aquí dejaba al juez sin
-            # contexto justo tras cada relleno, y una pregunta de seguimiento real se leía como ruido ambiente.
-            _tg = time.time()
-            verdict = await attention.evaluate_content(text, context=brain._last_reply)
-            _gate_ms = round((time.time() - _tg) * 1000, 1)
-            if not verdict.directed:
-                emit("ambient", "🙉 ambiente — no dirigido a zaelar", text=text[:200], role="user", extra={"mode": attention.mode(), "reason": verdict.reason})
-                attention.note_ambient(text); _release_acc_trace_if_fresh(brain)   # un wake word en <10s reclama este texto · ver docstring: este turno no llega a offer()
+            # T134 — un turno no dirigido no se atiende. El bloque entero vive en `attention_turn.judge`
+            # (V2-655): qué decide, por qué el juez recibe `_last_reply`, y por qué AMBOS veredictos llevan
+            # la ventana («el sonido ambiente no interrumpe para nada los contadores») están escritos allí.
+            _directed, text, _gate_ms = await _attention_turn.judge(
+                text, context=brain._last_reply, emit=emit)
+            if not _directed:
+                _release_acc_trace_if_fresh(brain)   # ver docstring: este turno no llega a offer()
                 return
-            attention.note_directed()   # refresca la ventana de conversación activa
-            if verdict.reason == "wakeword":                                       # «Ostras, para la música, Johnny»: la orden llegó ANTES que el nombre,
-                text = attention.reclaim_ambient_tail(text)                        # en fragmentos ya descartados como ambiente — se pega la frase entera (2026-09-09)
-            emit("ambient", "👂 dirigido a zaelar", extra={"directed": True, "reason": verdict.reason, "window_s": attention.window_s()})
 
         # GUARDA DE FRAGMENTOS (2026-08-10). La frase de este turno queda registrada como la utterance EN CURSO. Si
         # mientras trabajamos llega una versión MÁS LARGA de la misma frase (el operador seguía hablando), este turno

@@ -138,6 +138,26 @@ def running() -> bool:
     return not stopped()
 
 
+def blocks_new_work(*, who: str = "") -> bool:
+    """¿Debe ESTE arranque/escalada abstenerse de gastar? La respuesta ÚNICA para todo lo que puede levantar
+    un worker o abrir un `claude -p` (V2-655): `dispatch.run_listener`, `rehydrate.at_boot`, el relanzamiento
+    de generaciones de widget. Antes cada uno llevaba su propio `try/except` y **los tres fallaban ABIERTOS**:
+    un interruptor ilegible significaba «adelante, gasta».
+
+    FALLA CERRADO, y la asimetría con `stopped()` es deliberada. `_load()` responde EN MARCHA ante una lectura
+    imposible para no dejar al operador con un agente muerto —lo que está en juego allí es que él pueda
+    USARLO—; aquí lo que está en juego es que nosotros GASTEMOS sin que nos lo pida, y equivocarse de más solo
+    cuesta un encargo aplazado y visible.
+
+    Medido 2026-09-10: con `{"state":"stopped","src":"operator"}` persistido, el arranque re-escaló un encargo
+    viejo y levantó un Brain Worker con GLM."""
+    try:
+        return stopped()
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"runstate: interruptor ILEGIBLE ({e!r}) — {who or 'quien pregunta'} no abre trabajo nuevo")
+        return True
+
+
 def snapshot() -> dict:
     """What the frontend sees (`GET /api/run`): the state, when it changed, and who changed it.
 

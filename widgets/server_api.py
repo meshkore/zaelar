@@ -9,6 +9,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 from fastapi import APIRouter
 from fastapi.responses import FileResponse, JSONResponse
+from loguru import logger
 
 from . import runtime
 
@@ -602,6 +603,16 @@ async def resume_interrupted_generations() -> None:
         process. Report it so the brain/operator can re-ask."""
     from . import generator
     from .generator import generate_widget
+
+    # ⏻ PARADO = NO SE RELANZA NADA (V2-655). Esta es la SEGUNDA puerta que gastaba dinero en el arranque
+    # saltándose el interruptor global: relanza `generate_widget`, que abre un `claude -p` de verdad. Va antes
+    # de `take_pending_jobs()` porque ese CONSUME el diario — gatear después borraría el trabajo pendiente del
+    # operador en silencio, que es la misma trampa que la rehidratación (aplazar, no perder). Falla CERRADO:
+    # un interruptor ilegible no autoriza gasto automático.
+    from nucleo import runstate
+    if runstate.blocks_new_work(who="widgets/resume"):
+        logger.info("widgets: el agente está PARADO (⏻) — las generaciones interrumpidas siguen en el diario")
+        return
 
     for job in generator.take_pending_jobs():
         wid = str(job.get("id") or "")

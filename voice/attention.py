@@ -55,7 +55,8 @@ _state = {"last_directed": 0.0, "ptt": False, "assistant_name": "", "bot_hold": 
           "spotted_at": 0.0,       # last instant wake-word spot (interim STT) — dedupe for the orb signal
           "ambient_tail": [],      # (ts, text) of recently-DISCARDED ambient turns — reclaimed by a wake word
           "typed_at": 0.0,         # V2-646: last TYPED (chat/paste) turn — a typed message is never ambient
-          "typed_pending": False}  # V2-654: that typed turn has not been handled yet — the mic gate's exemption
+          "typed_pending": False,  # V2-654: that typed turn has not been handled yet — the mic gate's exemption
+          "bot_addressed": 0.0}    # V2-655: the utterance about to be spoken is ADDRESSED to him — see note_addressed_speech
 
 
 def _norm(text: str) -> str:
@@ -283,6 +284,23 @@ async def evaluate_content(text: str, *, context: str = "", now: float | None = 
     return Verdict(directed, "always" if directed else "llm_ambient")
 
 
+def window_open(now: float | None = None) -> bool:
+    """Is a conversation window standing RIGHT NOW? (V2-655 — the client needs this to keep the «te escucho»
+    ring honest.) Pure, like `evaluate()`: says nothing about any particular utterance, only whether hands-
+    free attention is currently granted. In `always`/`ptt` the question does not apply and the answer is the
+    mode's own: `always` is permanently open, `ptt` follows its signal, `wakeword` never grants a window."""
+    m = mode()
+    if m == "always":
+        return True
+    if m == "ptt":
+        return bool(_state["ptt"])
+    if m == "wakeword":
+        return False
+    now = time.time() if now is None else now
+    return bool(_state["bot_hold"]) or (
+        bool(_state["last_directed"]) and (now - _state["last_directed"]) <= window_s())
+
+
 def note_directed(now: float | None = None) -> None:
     """Marks that a directed turn was HANDLED → opens/refreshes the active conversation window (smart mode)."""
     now = time.time() if now is None else now
@@ -335,22 +353,55 @@ def note_reply(text: str, now: float | None = None) -> None:
         _state["window_hint"] = 0.0
 
 
+_ADDRESSED_ARM_TTL_S = 60.0   # an arm that never became speech dies rather than licensing a later mouth
+
+
+def note_addressed_speech(now: float | None = None) -> None:
+    """ARM the next utterance as one the agent is addressing TO the operator — a finished errand's delivery,
+    a question it is asking him, a correction of something he ordered (V2-655).
+
+    IF IT TALKS TO YOU, IT LISTENS TO YOU. Measured 2026-09-10 (session 85eec898): a worker delivery spoke
+    for 90 s and ended with «¿Sigo?», and the answer two seconds later was classified as room noise — the
+    agent asked a question and then refused to hear the reply, then discarded sixteen turns in a row while
+    the operator asked what was wrong. Cause: `note_bot_speech` can only HOLD a window somebody else opened,
+    so the agent's own mouth could never grant attention and the clock ran down during its own monologue.
+
+    Deliberately an ARM and not an anchor: anchoring here would start the silence clock at the FIRST word of
+    a 90-second delivery, which is the very bug. The rising edge of `note_bot_speech` turns this into a hold
+    and the falling edge anchors it at the LAST word, so `window_s()` keeps measuring what it is supposed to
+    measure — silence from the operator, never wall time that includes us talking.
+
+    The KICKOFF stays outside this: the greeting is zaelar speaking on its own initiative into a room it
+    knows nothing about (the decision written at the gate call site, nucleo.py) — a session starting mid-
+    meeting must not open with a free window. That decision is about the greeting; it was never about a
+    delivery the operator is owed."""
+    _state["bot_addressed"] = time.time() if now is None else now
+
+
+def _addressed_armed(now: float) -> bool:
+    ts = _state.get("bot_addressed") or 0.0
+    return bool(ts) and (now - ts) <= _ADDRESSED_ARM_TTL_S
+
+
 def note_bot_speech(speaking: bool, now: float | None = None) -> None:
     """Zaelar's OWN speech is conversation activity (2026-09-09, session 49e13093): the window used to be
     anchored only to the operator's last turn, so a reply longer than the window left the operator's next
     answer marked ambient — and conversely nothing distinguished 'zaelar just finished talking' from '30s of
     dead air'. While zaelar talks inside an OPEN window the window cannot expire (`bot_hold`), and when it
     finishes the window is re-anchored to that instant — so `window_s()` measures REAL silence after its last
-    word. Never OPENS a window from nothing: the kickoff greeting and a proactive announcement deliberately do
-    not grant hands-free attention (documented decision at the caller, nucleo.py) — only a window some directed
-    turn already opened is held/extended."""
+    word.
+
+    It opens a window from nothing ONLY for an utterance `note_addressed_speech()` armed (V2-655) — a
+    delivery or a question the agent owes the operator. Everything else, the kickoff greeting above all,
+    still only HOLDS a window some directed turn already opened."""
     now = time.time() if now is None else now
     if speaking:
-        _state["bot_hold"] = (_state["bot_hold"] or
+        _state["bot_hold"] = (_state["bot_hold"] or _addressed_armed(now) or
                               bool(_state["last_directed"]) and (now - _state["last_directed"]) <= window_s())
     elif _state["bot_hold"]:
         _state["bot_hold"] = False
         _state["last_directed"] = now
+        _state["bot_addressed"] = 0.0   # consumed: this arm licensed THIS utterance, never the next one
 
 
 def note_wakeword_spotted(now: float | None = None) -> None:
@@ -407,6 +458,7 @@ def reset() -> None:
     _state["ambient_tail"] = []
     _state["typed_at"] = 0.0
     _state["typed_pending"] = False
+    _state["bot_addressed"] = 0.0
 
 
 # ── HARD interruption (T136): STOP always handled, BYPASSES the gate, DETERMINISTIC (does not depend on the LLM) ────

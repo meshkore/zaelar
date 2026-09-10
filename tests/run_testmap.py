@@ -1201,6 +1201,23 @@ DOMAINS: list[dict] = [
         # opinion about who was being addressed, so neither a wake word nor an open conversation window may
         # lift it. The one exemption is the typed turn — muting to type IS the use case — and it is consumed
         # ONCE, with no time window, or typing and then speaking walks the spoken turn straight through.
+        # V2-655 — LA SORDERA. La ventana de atención medía tiempo de reloj, no el silencio del OPERADOR: una
+        # entrega de 90 s se comía su propia ventana y la respuesta llegaba dos segundos después ya como ruido
+        # de sala (sesión 85eec898, 16 turnos suyos seguidos). El nodo re-juega esa secuencia exacta y fija las
+        # dos mitades de la regla del operador: si te habla, te escucha — y el sonido ambiente no toca los
+        # contadores, ni acortándolos ni alargándolos.
+        # V2-655 — ⏻ PARADO. El arranque resucitó un encargo viejo y levantó un Brain Worker con el agente
+        # apagado por el operador. Dos puertas se lo saltaban (rehidratación y el relanzamiento de widgets) y
+        # la que sí lo miraba fallaba ABIERTA. El nodo fija además la mitad que se olvida: gatear TARDE, tras
+        # consumir el rastro, no es gatear — es perder el trabajo del operador en silencio.
+        {"id": "3.28", "title": "Con ⏻ parado no se resucita nada ni se lanza ningún worker — y el rastro "
+                                "del trabajo interrumpido SOBREVIVE (aplazar, no perder)",
+            "ch": UNIT, "paths": [
+                "tests/agent_headless/unit/test_a_stopped_agent_resumes_nothing.py"]},
+        {"id": "3.27", "title": "Si el agente te HABLA, te escucha: su locución no consume la ventana y el "
+                                "ruido de la sala no toca los contadores",
+            "ch": UNIT, "paths": [
+                "tests/voice/unit/test_if_it_talks_to_you_it_listens_to_you.py"]},
         {"id": "3.26", "title": "El interruptor del micrófono manda en el motor: titular único, la ruta y el "
                                 "latido que lo re-afirman, y el turno que no existe con el micro cerrado",
             "ch": UNIT, "paths": [

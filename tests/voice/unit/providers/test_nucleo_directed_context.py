@@ -14,6 +14,9 @@ import re
 from pathlib import Path
 
 _SRC = Path(__file__).resolve().parents[4] / "voice" / "engine" / "llm" / "providers" / "nucleo.py"
+# V2-655: the `evaluate_content` call moved into `attention_turn.judge`; the provider now names the
+# same value at the call site. The claim — the judge is fed the last REAL reply — is untouched.
+_GATE = Path(__file__).resolve().parents[4] / "voice" / "engine" / "llm" / "providers" / "attention_turn.py"
 
 
 def _text() -> str:
@@ -21,9 +24,13 @@ def _text() -> str:
 
 
 def test_evaluate_content_reads_last_reply_not_last_spoken():
+    # The judge lives in `attention_turn.judge(text, context=...)` since V2-655; the provider is what names
+    # the value that fills `context`. Two hops, one claim — assert the hop that can actually be got wrong.
+    assert re.search(r"attention\.evaluate_content\(text, context=context\)",
+                     _GATE.read_text(encoding="utf-8")), "the gate no longer passes its caller's context"
     src = _text()
-    m = re.search(r"attention\.evaluate_content\(text, context=([\w.]+)\)", src)
-    assert m, "evaluate_content(...) call site not found — did it move/change shape?"
+    m = re.search(r"judge\(\s*text, context=([\w.]+)", src)
+    assert m, "the attention-gate call site not found — did it move/change shape?"
     assert m.group(1) == "brain._last_reply", (
         "the directed-content judge must be given the last REAL reply, never `brain._last_spoken` "
         "(which a filler word overwrites and empties of topic)"

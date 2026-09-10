@@ -131,8 +131,14 @@ def ephemeral_speaker():
 
 
 async def notify(title: str, text: str, *, speak: bool = True, kind: str = "notify",
-                 key: str = "") -> None:
-    """Deliver a proactive message: UI always, voice if a session is live. Best-effort — never raises."""
+                 key: str = "", opens_window: bool = True) -> None:
+    """Deliver a proactive message: UI always, voice if a session is live. Best-effort — never raises.
+
+    `opens_window` (V2-655) — this delivery is ADDRESSED TO the operator, so his answer to it is directed by
+    construction and reaches the brain without him having to say the wake word again. Default True because
+    that is what a proactive delivery IS: an errand he asked for reporting back, a question we are asking
+    him, a correction of something he ordered. Pass False for an utterance that is genuinely not soliciting
+    anything from him. See `voice/attention.note_addressed_speech` for the session this cost."""
     text = (text or "").strip()
     if not text:
         return
@@ -197,6 +203,16 @@ async def notify(title: str, text: str, *, speak: bool = True, kind: str = "noti
         if pause > 0:
             await asyncio.sleep(pause)
         try:
+            # V2-655 — ARM the window before the first word, never anchor it here: anchoring at the start of
+            # a 90-second delivery is exactly the bug this fixes. `note_bot_speech`'s rising edge turns the
+            # arm into a hold and its falling edge anchors at the LAST word, so the silence clock measures
+            # the operator's silence and not our own monologue.
+            if opens_window:
+                try:
+                    from voice import attention as _attn
+                    _attn.note_addressed_speech()
+                except Exception:  # noqa: BLE001
+                    pass
             r = _speaker(spoken)
             if asyncio.iscoroutine(r):
                 await r

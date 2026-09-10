@@ -165,8 +165,18 @@ export function openSSE(desktop) {
     } else if (d.kind === "ui" && d.label === "orb:name") {                      // renamed by voice — tooltip updates live
       if (d.name) store.setAssistantName(d.name);
     } else if (d.kind === "ambient") {                                           // attention gate verdict → the "listening to you" ring
+      // V2-655 — AMBIENT SOUND DOES NOT TOUCH THE COUNTERS (operator, 2026-09-10). This used to be
+      // `else store.clearAttentionHit()`: a stray word from the room turned OFF the operator's «te escucho»
+      // ring while the server's window was still wide open — the client contradicting the engine about the
+      // one thing the ring exists to report. The ring expires with the WINDOW, never with somebody else's
+      // noise: a discarded verdict darkens it only when the engine says the window is actually closed, and
+      // it never RE-ARMS a ring that is already lit (that would let room noise extend the counter from the
+      // other side). The third branch exists only to re-sync a client whose local timer ran out while the
+      // engine was still holding the window open — the bot_speech re-arm above cannot, since it refuses to
+      // light a ring that is off.
       if (d.directed) { _attnWinS = d.window_s || _attnWinS; store.pulseAttentionHit(_attnWinS); }
-      else store.clearAttentionHit();
+      else if (d.window_open === false) store.clearAttentionHit();
+      else if (d.window_open === true && !store.attentionHit()) store.pulseAttentionHit(d.window_s || _attnWinS);
       settleHeldTurns(desktop, d.text || "", !!d.directed);                        // V2-647: and the wall obeys it
     } else if (d.kind === "language") {                                          // V2-089 P3: detected/changed language → the entire UI changes LIVE
       if (d.code) applyLang(d.code);                                             // fetches whatever the bundle has now — presets instant, a generating one falls back to English for missing keys until "ready"
