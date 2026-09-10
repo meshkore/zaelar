@@ -471,6 +471,72 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **IF IT TALKS TO YOU IT LISTENS TO YOU · the core is not modifiable · ⏻ stopped resumes nothing
+  (V2-655, 2026-09-10)**: the operator, on the forensics of session 85eec898 — «arregla todo eso, no
+  podemos permitir la sordera». Three defects, one shape: every piece does something correct and the
+  SUM fails in silence.
+  **A · THE DEAFNESS.** Sixteen of his turns in a row classified `🙉 ambiente`, «¿Qué te ha pasado?
+  ¿Te has colgado?» and «Hola otra vez ×3» among them — 44% of that session. The window opened at
+  16:31:55 sized 15 s and expired at 16:32:10 while the agent was still working; it then spoke for
+  **90 seconds** and ended with «¿Sigo?», and the answer two seconds after its last word was room
+  noise. Structural, not a classifier miss: `note_bot_speech` could only HOLD a window somebody else
+  opened, so **the agent's own mouth could never grant attention** and the silence clock ran down
+  during its own monologue — with the irony that a proactive delivery DOES reach `note_reply`, so one
+  ending in `?` computed a 15 s `window_hint` for a window nobody opened. `attention.
+  note_addressed_speech()` now ARMS the window before the agent speaks and the falling edge ANCHORS it
+  at the LAST word (arming and not anchoring is the whole point: anchoring at the first word of a 90 s
+  delivery IS the bug); `proactive.notify(opens_window=True)` by default, because that is what a
+  proactive delivery IS. **The kickoff stays closed** — the written decision was always about the
+  GREETING, and the guard was re-scoped to say that rather than weakened. `loop.py` stopped opening the
+  window BEFORE its own 10-20 s of TTS. And **ambient sound does not touch the counters** (his rule,
+  verbatim): `sse.js` did `else store.clearAttentionHit()`, so **a stray word from the room turned off
+  his «te escucho» ring** while the engine's window was wide open — the client contradicting the engine
+  about the one thing the ring reports; both verdicts carry `window_open` now, the ring darkens only
+  when the engine says the window closed, and never re-arms a ring already lit. **Deliberately NOT
+  done**: widening the gate (the 09:24 session has 603 discarded turns and ZERO directed, with nobody
+  ever saying the name — that is V2-647 working), and any new signal (his call: ambient is ignored,
+  full stop).
+  **B · THE CORE IS NOT MODIFIABLE.** His directive: voice, chat or any interface with permissions may
+  only modify WIDGETS. A message he pasted into the chat, written for a DEV agent, became an errand to
+  a `claude_code` worker **in the same second** the model asked «¿Me pongo?»; the only thing that
+  stopped it was the SPEND gate, and `danger.py` is money/commerce vocabulary with **not one word about
+  touching the engine** — a coincidence, not a control. The protection that seemed to exist was
+  accidental: the `architect` branch is also `kind="code"` WITHOUT being a widget task, and that one
+  does not go through the confined generator — a CLI worker with `Write`+`Edit` and **the whole
+  repository as cwd**, reachable by voice. `nucleo/protected_core.py`, two layers: MECHANISM
+  (`writes_are_confined` — the question is the ERRAND, not the kind; only the widget generator and the
+  cluster dev worker write, everything else gets a scratch cwd and no Write/Edit; fails CLOSED) and
+  INTENT (`touches_the_engine` — grammar, never intent, exempted when the sentence names a widget,
+  applied at the SINGLE gateway so the errand never comes to exist: no record, no sheet, no name; the
+  refusal is spoken and lands on the timeline, because refusing in silence reads as a fault). **No
+  `confirmed` escape hatch**: the spend gate is lifted by a yes, this one is not. ⚠️ Measured while
+  writing it: the Spanish SUBJUNCTIVE slipped through — `modific\w*` does not match «modifiques»
+  (modifi-QUE-s), so «quiero que modifiques el motor de voz» passed clean; prefixes cut before the
+  alternation now. 10 vetoes + 12 legitimate errands, 0 failures both ways. The cluster `dev` channel
+  stays outside on purpose and says so.
+  **C · ⏻ STOPPED.** With `{"state":"stopped","src":"operator"}` persisted, boot resurrected a stale
+  errand and spawned a GLM Brain Worker; `rehydrate.py` consulted the switch in NO line. The gate goes
+  at the TOP, before `forget()` consumes the trail and `_bump()` burns a `RESUME_CAP` life — gating six
+  seconds later at the dispatch door rejects correctly and **destroys the interrupted work in
+  silence**, the very failure that module exists to prevent (*postpone, don't lose*, the rule
+  `loop._fire_due` already applies to crons). `runstate.blocks_new_work()` is the ONE answer for the
+  three spending doors and **fails CLOSED**: all three carried their own try/except and **all three
+  failed OPEN**, so an unreadable switch meant «go ahead and spend» (the asymmetry with `stopped()` is
+  deliberate and written down). Second door found and closed: `resume_interrupted_generations` relaunches
+  a real `claude -p` and was gated by neither the switch nor the active brain.
+  **D · A QUESTION IS NOT THEATRE.** `clarifying.asks_permission` is a NEW grammar and deliberately not
+  the existing `asks_for_missing_detail`, which is about a missing DATUM and keeps courtesy OUT; the
+  distinguishing feature is what the question is about — STARTING («¿me pongo?») versus REPORTING LATER
+  («¿te aviso cuando lo tenga?»). The errand is PARKED in `dispatch_confirm`, which already collects the
+  yes/no deterministically, tells the brain something is stopped so it does not narrate progress, and
+  expires silence into «esa tarea NUNCA empezó» rather than into execution; the line says OFFERED, never
+  IRREVERSIBLE. Fails CLOSED. ⚠️ A disarm came back GREEN and accused the CODE: the courtesy veto guarded
+  NOTHING («te aviso» was never a permission phrase) and would have vetoed «¿te lo busco y te aviso
+  cuando lo tenga?», which IS asking — **a guard that guards nothing is worse than none**, deleted.
+  Nodes **3.27-3.30**, 16 disarms with each mutation asserted. The architecture ratchet went red three
+  times and was paid by EXTRACTING (the attention gate → `attention_turn.py`, nucleo.py 3049→3033),
+  never by raising a ceiling. ⚠️ **NOT verified live** — needs an engine restart.
+
 - **THE MICROPHONE SWITCH has ONE door, and it is not the wake-word mode (V2-654, 2026-09-10)**: the
   operator, reading the forensics of session 85eec898 — «cuando yo desactivo el icono, ese estado es
   TOTAL … el estado se debe controlar en un solo sitio y controla todo el sistema. No puede fallar
