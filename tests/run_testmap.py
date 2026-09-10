@@ -1949,6 +1949,15 @@ DOMAINS: list[dict] = [
                                  "se resuelve o se niega nombrando lo que hay",
             "ch": UNIT, "paths": [
                 "tests/voice/unit/test_a_just_closed_widget_does_not_reopen_on_chatter.py"]},
+        # V2-651 F0 (2026-09-10): identificar la voz del OPERADOR. El coste vive en el NAVEGADOR (directriz del
+        # operador): la huella de cada segmento de habla se calcula en el cliente y al backend solo viajaría una
+        # etiqueta minúscula. F0 es MEDICIÓN EN SOMBRA — cero cambio de conducta: fingerprint + clasificación
+        # multi-perfil (operador + personas del entorno) registrada por observabilidad, sin gate ni memoria. El
+        # núcleo DSP es puro (testeado con frames sintéticos) y el adaptador SpeakerID se conduce con un
+        # AnalyserNode falso. NOTA: el tap real del micro y la calidad de la huella se verifican EN VIVO.
+        {"id": "4.150", "title": "La voz del operador (F0, sombra): fingerprint en el navegador, clasificación "
+                                 "multi-perfil y registro por observabilidad — sin gate ni escritura de memoria",
+            "ch": UNIT, "paths": ["tests/browser/unit/voice/test_speaker_id_shadow.py"]},
         # V2-600 → V2-601 T-07 (2026-09-05): «cierra la pantalla completa» (y el «…completamente» del STT) es una
         # orden de ESTADO de pantalla; el veto vivía en los dos backstops del servidor y la TERCERA copia de la
         # regla —la del cliente, voiceCommands.js— seguía cerrando el canvas entero. Conduce el módulo REAL.

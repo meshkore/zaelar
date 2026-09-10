@@ -26,6 +26,7 @@ import * as api from "./api.js?v=2";
 import { openSSE } from "./sse.js?v=4";
 import { clearDebugBuffer } from "./debugbus.js?v=2";
 import { startVisualizer } from "./visualizer.js?v=2";
+import { SpeakerID } from "../lib/speaker-id.js?v=1";
 import { t } from "../core/i18n.js?v=1";
 
 let room = null, stream = null, videoEl = null, botAudioEl = null;
@@ -88,6 +89,47 @@ const SID = (() => {
 // here» has to name WHO is taking it — and the only honest answer is this tab's own SID, not a fresh one. Exported
 // as a function rather than the const so nothing outside can reassign the identity we heartbeat with.
 export function sessionId() { return SID; }
+
+// ── SPEAKER ID — SHADOW MEASUREMENT (V2-651 F0) ──────────────────────────────────────────────────────────────
+// The whole cost lives HERE, in the browser (operator directive): we tap the mic analyser the visualiser already
+// owns, fingerprint each speech segment, and LOG the verdict to observability via client-log — nothing is gated,
+// no memory is written, the agent's behaviour is byte-for-byte unchanged. Its only purpose is to measure, on the
+// operator's real mic and room, how separable his voice is before any later phase thresholds against it. Killable
+// with `?nospk=1` or localStorage `zaelar_spk_shadow=0`. Entirely best-effort: it can never break the session.
+let _spk = null, _spkRaf = 0;
+function _speakerShadowOn() {
+  try {
+    const sp = new URLSearchParams(location.search);
+    if (sp.get("nospk") === "1") return false;
+    return localStorage.getItem("zaelar_spk_shadow") !== "0";
+  } catch (_) { return true; }
+}
+function _startSpeakerShadow() {
+  if (_spk || !_speakerShadowOn()) return;
+  try {
+    _spk = new SpeakerID(
+      () => audio.micAnalyser(),
+      () => { const c = audio.context(); return (c && c.sampleRate) || 48000; },
+      { onUtterance: (v) => {
+          try {
+            api.clientLog("🎙️ speaker", {
+              text: `label=${v.label} score=${(v.score || 0).toFixed(2)} op=${(v.opScore ?? 0).toFixed(2)}`,
+              label: v.label, score: v.score, op_score: v.opScore ?? null, matched: v.matched ?? null,
+              gap: v.gap ?? null,
+              pitch: Math.round(v.features?.pitch || 0), centroid: Math.round(v.features?.centroid || 0),
+              rms: +(v.features?.rms || 0).toFixed(3), shadow: true,
+            });
+          } catch (_) {}
+        } },
+    );
+    const loop = () => { if (!_spk) return; try { _spk.tick(); } catch (_) {} _spkRaf = requestAnimationFrame(loop); };
+    _spkRaf = requestAnimationFrame(loop);
+  } catch (_) { _spk = null; }
+}
+function _stopSpeakerShadow() {
+  if (_spkRaf) { try { cancelAnimationFrame(_spkRaf); } catch (_) {} _spkRaf = 0; }
+  _spk = null;
+}
 
 let _hb = null, _blockedRetry = null;
 function _startHeartbeat() {
@@ -372,6 +414,7 @@ export async function start() {
     started = true; store.setStarted(true);
     api.obsSessionStart("voice");   // opens (or reattaches) the work session grouping events — see api.js
     audio.initMic(stream);   // AudioContext + mic analyser → orb visualiser + mic-level meter keep working
+    _startSpeakerShadow();   // V2-651 F0: fingerprint each speech segment in the browser, log-only (shadow)
 
     // --- LiveKit room ---
     const { token, url, ok } = await api.lkToken();
@@ -544,6 +587,7 @@ export async function stop() {
   const a = botAudioEl;
   try { if (a) { a.pause(); a.srcObject = null; a.removeAttribute("src"); a.load(); } } catch (_) {}
   _stopHeartbeat();   // stop renewing the lock; the server TTL releases it, or `pagehide` does when the tab closes
+  _stopSpeakerShadow();   // V2-651 F0: the analyser is about to be closed below — drop the fingerprint loop first
   started = false; starting = false; store.setStarted(false); store.setStarting(false);
   try { if (room) await room.disconnect(); } catch (_) {} room = null;
 // NOTE: the /events stream is NOT closed here. Since 2026-08-09 `main.js` opens it at startup and its lifetime is the

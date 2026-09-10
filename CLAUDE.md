@@ -471,6 +471,34 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **Knowing WHO is talking — the browser computes it, F0 measures in shadow (V2-651 F0, 2026-09-10)**:
+  the operator's order — identify HIS voice and give it priority (which is also what lets Zaelar follow him
+  over a TV: a TV voice is a human voice, only the voiceprint separates it), know that other people are
+  present without profiling them, and NEVER let a third party's «yo soy Pedro» rename him or dirty his
+  single profile. Architectural directive: **the browser carries the cost** — in cloud the backend is on the
+  server and the browser on the client's laptop, so the fingerprint is computed CLIENT-SIDE and only a tiny
+  label would cross the wire, never the audio-to-analyze (local self-host is one machine, so the split is
+  free). This ships **F0 only: shadow measurement, ZERO behaviour change.** `frontend/app/lib/speaker-id.js`
+  is a pure DSP core (autocorrelation pitch + spectral centroid + loudness, unit-tested with synthetic
+  frames) plus a thin `SpeakerID` AnalyserNode adapter that self-segments (its own energy gate — the LiveKit
+  engine gives the browser no VAD signal), auto-enrolls the operator's first speech segments, and classifies
+  every later segment against a MAP of profiles (`classify`) — operator today, household voices tomorrow, an
+  ONNX embedding (CAM++/onnxruntime-web) later behind the SAME interface, all without changing this file.
+  `session-lk.js` runs it in a best-effort rAF started after `audio.initMic` and stopped in `stop()`, logging
+  each verdict (label · score · operator score · pitch/centroid/rms) through the EXISTING `api.clientLog` seam
+  into observability — nothing gated, no memory written, killable with `?nospk=1` / `zaelar_spk_shadow=0`.
+  Its whole job is to produce the separability numbers on the operator's real mic/room BEFORE any later phase
+  thresholds against it (measure, don't deduce). Node **4.150** (6 groups; the pure math, enroll+multi-profile
+  classify, the segmenter, the real adapter through a fake AnalyserNode, and the wiring); two disarms verified
+  red — one of them EXPOSED a weak wiring assertion (`_stopSpeakerShadow()` also matched the function
+  definition, so removing the CALL stayed green), re-anchored on the call site after `_stopHeartbeat()`.
+  ⚠️ **NOT verified live**: the real mic tap and the fingerprint's accuracy in a room need the operator's
+  engine — F0 exists precisely to gather that. Next, per the study: F1 identity shield (operator-voice-only
+  writes to identity/state, closing the empty-profile and correction-bypass holes), F2 the «environment
+  people» roster + a compact per-turn presence line the FlashBrain manages cheaply (no per-turn prompt/traffic
+  cost when nobody else is there), F3 the opt-in hard voice-lock. Full study + operator rulings:
+  `.meshkore/roadmap/initiatives/V2-651-speaker-identity-and-voice-lock-study.md`.
+
 - **A just-closed widget does not reopen on chatter, and a garbled list name resolves or refuses
   naming what exists (V2-650b, 2026-09-10)**: the operator's very next live minute (sid 3d394…), read
   event by event. «Johnny, cierra el widget de YouTube» worked exactly as designed (the V2-567 guard
