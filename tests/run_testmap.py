@@ -657,6 +657,15 @@ DOMAINS: list[dict] = [
         # («ningún turno ha preguntado desde entonces»): la cola de producción llegaba a 21 s, y V2-254 midió lo
         # que la memoria rancia hace a una conversación que ya se movió. Solo texto (sin ids: no se refuerza lo
         # que no se usó) y la nota no ordena anunciar — el juicio es del cerebro (doctrina de findings.py).
+        # V2-658 (2026-09-10): `health_state["memory"]` is ONE key with FOURTEEN writers — the heart, REM, the
+        # retriever, the embedding backend and the recall budget above all record into it, about facts with
+        # nothing in common. The ◉ row rendered every one of them with the HEART's canned outage line, so a
+        # recall that missed its 0.8 s budget (0.6 % of turns, red for the whole 600 s TTL) read as
+        # «gpt-4.1-mini · 0 fallos — escribiendo por heurística» while the heart was distilling normally. Zero
+        # fallos inside an outage headline is the tell that the two halves came from different places.
+        {"id": "3.32", "title": "The ◉ memory row says WHOSE fact it shows — a slow recall is amber in its own "
+                                "words, and only the heart's own outage claims the heuristic",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/test_a_slow_recall_is_not_a_dead_heart.py"]},
         {"id": "2.28", "title": "El recall se compone fuera del loop y acotado en LOS DOS canales; el que NO "
                                 "llega se VE, y el que llega TARDE es la nota del turno siguiente — o de nadie",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/turn/test_the_recall_budget_is_shared.py"]},
@@ -1230,6 +1239,13 @@ DOMAINS: list[dict] = [
                                 "dice la verdad",
             "ch": UNIT, "paths": [
                 "tests/voice/unit/test_the_dinner_spiral_aside_and_shut_up.py"]},
+        # V2-658 (la Declaración, dos sesiones seguidas): el modelo pegó el texto entero en UNA widget_data,
+        # el tope de tokens la cortó, y el turno cayó a «¿me lo repites?» con el encargo en la mano. Un
+        # contenido que no cabe en un turno es entrega de WORKER (superficie documento, V2-644).
+        {"id": "3.32", "title": "Una widget_data cortada por el tope de tokens escala con superficie "
+                                "documento en vez de disculparse — en los dos canales",
+            "ch": UNIT, "paths": [
+                "tests/voice/unit/test_an_oversized_widget_write_escalates.py"]},
         {"id": "3.30", "title": "Si el turno PIDIÓ PERMISO, el encargo se aparca en vez de lanzarse — y el "
                                 "«sí» del operador lanza exactamente ese",
             "ch": UNIT, "paths": [

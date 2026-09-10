@@ -332,6 +332,22 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
     spoken = dialog.sanitize_reply(spoken)
 
     # (e) acción derivada (qué HARÍA el turno real)
+    # V2-658 (espejo del provider — impl paralela, cablear en AMBOS): una widget_data cortada por el TOPE
+    # de tokens no es un vacío — el contenido no cabe en un turno; el rescate es la escalada con superficie
+    # documento, nunca «¿me lo repites?». Se sintetiza la tool para que el resto del camino (clasificación,
+    # ejecución, ack) sea el de una escalada normal.
+    if not tool_calls:
+        try:
+            from nucleo.flash.fast_client import oversized_widget_write as _oversized_p
+            _ow_head_p = _oversized_p(llm_metrics)
+        except Exception:
+            _ow_head_p = None
+        if _ow_head_p:
+            tool_calls.append({"name": "escalate_to_slowbrain", "args": {
+                "request": (text + " — [el turno intentó escribir este contenido en un widget y NO CABE "
+                            "en un turno: complétalo y entrégalo al widget documento con `append` por "
+                            "secciones. Lo que empezaba a escribir: " + _ow_head_p + "…]"),
+                "surface": "documento"}})
     names = [t["name"] for t in tool_calls]
     reveal_out = None                       # V2-060: desenlace de reveal_secret (sin el valor — lo sirve la API)
     music_req = None                        # V2-380: lo que pidió `play_music`, para EJECUTARLO abajo

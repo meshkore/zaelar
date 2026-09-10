@@ -2717,6 +2717,27 @@ class NucleoLLMStream(llm.LLMStream):
                 spoken_text = "Aquí lo tienes."
             send(speech.sanitize(spoken_text, drop_metadata=False))
 
+        # V2-658 — a widget_data cut by the TOKEN CAP is not a void: the model tried to hand a widget more
+        # content than a voice turn can carry (the full Declaration pasted inline into `documento`, twice
+        # across two sessions), the action was discarded, and the turn fell to «Perdona, ¿me lo repites?»
+        # over an errand it had IN HAND. Content that exceeds the turn is a WORKER's delivery (V2-644's doc
+        # surface): the rescue escalates THIS turn's request, naming what the model was trying to write.
+        if (escalate_req["v"] is None and not acted["widget"] and not data_done["v"]
+                and search_req["v"] is None and music_req["v"] is None and not aside["v"]):
+            try:
+                from nucleo.flash.fast_client import oversized_widget_write as _oversized
+                _ow_head = _oversized(llm_metrics)
+            except Exception:
+                _ow_head = None
+            if _ow_head:
+                _ow_req = (text + " — [el turno de voz intentó escribir este contenido en un widget y NO "
+                           "CABE en un turno: complétalo y entrégalo al widget documento con `append` por "
+                           "secciones. Lo que empezaba a escribir: " + _ow_head + "…]")
+                escalate_req["v"] = _ow_req
+                escalate_req["surface"][_ow_req] = "documento"
+                emit("brain", "🧾 widget_data cortada por el tope → escalada con superficie documento",
+                     text=_ow_head[:120], role="system")
+
         # Escalada sin texto hablado en el mismo turno → frase de espera neutral (no mudo). V2-029: si YA había una
         # tarea de fondo en curso al empezar el turno, VARÍA la frase ("sigo con ello") en vez de repetir la misma.
         if escalate_req["v"] is not None and not spoken_text:

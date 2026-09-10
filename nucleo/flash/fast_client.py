@@ -99,7 +99,11 @@ def _drop_tool_call(metrics: dict, name: str, raw_args: str) -> None:
         reason = "argumentos ilegibles"
     logger.warning(f"tool call {name} DESCARTADA ({reason}): {(raw_args or '')[:200]!r}")
     dropped = metrics.setdefault("dropped_tool_calls", [])
-    dropped.append({"name": name, "reason": reason, "chars": len(raw_args or "")})
+    # `args_head` (V2-658): the head of what the model was WRITING travels with the fact. A widget_data
+    # cut by the token cap usually begins with id/action/title — enough for the rescue escalation to name
+    # the errand instead of apologizing («Perdona, ¿me lo repites?» over a request the turn had in hand).
+    dropped.append({"name": name, "reason": reason, "chars": len(raw_args or ""),
+                    "args_head": (raw_args or "")[:240]})
     # V2-176 frente 2: and the fact has to OUTLIVE this turn. V2-171 recorded the drop in the turn's own metrics and in
     # observability, which the operator can inspect afterwards — but the NEXT turn saw nothing, so the
     # conversation carried on as if the action had gone out. The sentence «te pongo con ello» was already
@@ -113,6 +117,19 @@ def _drop_tool_call(metrics: dict, name: str, raw_args: str) -> None:
                                               "finish_reason": metrics.get("finish_reason") or ""})
     except Exception:
         pass
+
+
+def oversized_widget_write(metrics: dict | None) -> str | None:
+    """A `widget_data` this turn that was cut by the TOKEN CAP — the model tried to hand a widget MORE
+    CONTENT than a voice turn can carry (V2-658, measured 2026-09-10, session 0d070761: the full text of
+    the Declaration of Independence pasted inline into `documento`; `finish_reason: length`, action
+    discarded, and the turn fell to «Perdona, ¿me lo repites?» over an errand it had in hand — twice, in
+    two consecutive sessions). Returns the head of what it was writing, or None. The caller escalates:
+    content that exceeds the turn is a WORKER's delivery (V2-644's doc surface), never a retry inline."""
+    for d in (metrics or {}).get("dropped_tool_calls") or []:
+        if d.get("name") == "widget_data" and "tope de tokens" in str(d.get("reason") or ""):
+            return str(d.get("args_head") or "")[:240] or "(sin cabecera)"
+    return None
 
 
 def _is_transient(e: Exception) -> bool:
