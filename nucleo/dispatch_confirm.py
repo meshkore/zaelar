@@ -82,6 +82,26 @@ def remember_confirm(task_id: str, request: str, task: "Task", *, sheet: str = "
         "sheet": str(sheet or ""), "ts": time.time()}
 
 
+def remember_offer(request: str, *, context: dict, question: str) -> None:
+    """Aparca un encargo que el turno OFRECIÓ en vez de lanzar (V2-655).
+
+    Medido 2026-09-10: el modelo preguntó «¿Me pongo a revisar y dejar eso cableado?» y en el MISMO segundo el
+    encargo ya existía, con un worker en camino. La pregunta era decoración sobre una decisión ya tomada, y el
+    operador la leyó literalmente: contestó, y esperaba que su respuesta decidiera algo.
+
+    Reusa el registro del confirm-gate a propósito, porque ya resuelve todo lo difícil: el «sí/no» llega por el
+    clasificador determinista de `turn/confirm_gates.py`, `confirm_line()` le dice al cerebro que hay algo
+    parado —para que no narre progreso— y `_sweep_confirm` hace que un silencio caduque en «esa tarea NUNCA
+    empezó» en vez de en una ejecución. Lo único distinto es la PREGUNTA: aquí es la del modelo, con sus
+    palabras, no la fórmula de `danger.confirm_question` — el operador tiene que reconocer lo que contestó."""
+    _sweep_confirm()
+    key = f"offer:{int(time.time() * 1000)}"
+    _PENDING_CONFIRM[key] = {
+        "request": request, "kind": str((context or {}).get("kind") or "generic"), "trusted": True,
+        "context": {k: v for k, v in dict(context or {}).items() if k != "asked"},
+        "question": question, "sheet": "", "offered": True, "ts": time.time()}
+
+
 def pending_confirm() -> dict | None:
     """The confirmation still waiting for a yes/no, or None. Most recent wins — a second irreversible ask
     supersedes the first, exactly like the widget gate."""
@@ -111,6 +131,11 @@ def confirm_line() -> str:
     money = (" MUEVE DINERO: le prometiste decirle el importe exacto ANTES de cobrar nada, así que ni lo pagues"
              " ni digas que está pagado hasta haber mirado la cifra y habértela confirmado él."
              if _danger_line.moves_money(p["request"]) else "")
+    if p.get("offered"):
+        # V2-655: no es una acción irreversible, es algo que TÚ te ofreciste a hacer. Decirle «irreversible» a
+        # una oferta corriente asusta sin motivo y le hace contestar otra cosa.
+        return (f"TE OFRECISTE A HACER ESTO y él AÚN NO ha contestado: «{p['request'][:120]}». No has empezado "
+                f"nada, así que no digas que está en marcha. Si dice que SÍ, arranca; si dice que NO, olvídalo.")
     return (f"CONFIRMACIÓN PENDIENTE de una acción IRREVERSIBLE: «{p['request'][:120]}».{money} Le preguntaste al "
             f"operador y AÚN NO ha contestado, así que la tarea está PARADA y no ha empezado nada — no digas "
             f"que está en marcha. Si dice que SÍ, arranca; si dice que NO, olvídalo y confírmaselo.")

@@ -28,6 +28,46 @@ _ASKS_DETAIL_RE = _re.compile(
     _re.I)
 
 
+# ── ASKING FOR PERMISSION is not asking for a DETAIL (V2-655) ────────────────────────────────────────────
+# Measured 2026-09-10, session 85eec898: «Tienes razón, Ricardo, lo que toca es el widget de torrent…
+# ¿Me pongo a revisar y dejar eso cableado?» — and in the SAME second the errand already existed, with a worker
+# on the way. The question was theatre. `asks_for_missing_detail` cannot catch this and should not try: it is
+# deliberately about a missing DATUM («¿a qué ciudad?»), and its own docstring names the courtesy question as
+# something it must keep OUT.
+#
+# The distinguishing feature is what the question is ABOUT, and it is what keeps this narrow enough to be safe:
+#   · PERMISSION — about STARTING: «¿me pongo?», «¿lo hago?», «¿sigo?», «¿quieres que lo busque?», «¿procedo?»
+#   · COURTESY   — about REPORTING LATER: «¿te aviso cuando lo tenga?», «¿te lo enseño luego?»
+# The courtesy shape MUST stay out, or holding it would produce the opposite failure: it asks, the operator says
+# yes, and nothing was ever queued. That is why `_NOTIFY_RE` vetoes first.
+_ASKS_PERMISSION_RE = _re.compile(
+    r"[^.!?]*(?:"
+    r"\b(?:me pongo|lo hago|la hago|sigo|procedo|continúo|continuo|empiezo|arranco|lo lanzo|"
+    r"lo busco|te lo busco|lo miro|te lo miro|lo preparo|lo dejo hecho)\b"
+    r"|\bquieres que\b|\bte parece (?:bien|si)\b|\blo intento\b"
+    r"|\b(?:shall i|should i|want me to|do you want me to|may i|go ahead)\b"
+    r")[^.!?]*\?", _re.I)
+# Vetoes: the question is about telling him LATER, not about starting now.
+_NOTIFY_RE = _re.compile(
+    r"\b(?:te aviso|te lo digo|te lo cuento|te lo enseño|te informo|i'?ll (?:tell|let) you)\b", _re.I)
+
+
+def asks_permission(reply: str) -> bool:
+    """True when the reply asks the operator for a GO-AHEAD before starting.
+
+    Asking and doing in the same breath is a contradiction, and the operator reads the question literally: he
+    answers it and expects that his answer decided something. When the errand was already on its way, the
+    question was decoration on a decision already taken.
+
+    Narrow on purpose, and the direction of the failure is why: a false positive HOLDS an errand he wanted,
+    which turns into «te lo pregunté y luego no hiciste nada» — the same family of silence this batch exists
+    to remove. When in doubt this returns False."""
+    r = reply or ""
+    if _NOTIFY_RE.search(r):
+        return False
+    return bool(_ASKS_PERMISSION_RE.search(r))
+
+
 def asks_for_missing_detail(reply: str) -> bool:
     """True when the reply ASKS THE OPERATOR for something it needs before it can act.
 

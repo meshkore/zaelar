@@ -116,11 +116,34 @@ def escalate_to_slowbrain(request: str, *, context: dict | None = None) -> int:
     # acordarse. El encargo NO llega a existir — ni ficha, ni hoja en el canvas, ni nombre —, porque la
     # avería del 2026-09-10 fue justo eso: el encargo visible en el mismo segundo en que el modelo preguntaba
     # si podía. La negativa se dice, no se calla: negarse en silencio se lee como una avería.
+    # NO hay escotilla por `confirmed`: la puerta del gasto se levanta con un «sí», y esto NO — el operador
+    # dijo que el núcleo no se modifica, sin condición. Un «sí» dicho sobre una pregunta mal entendida es
+    # justo cómo se colaría. El canal de DESARROLLO del cluster (`kind="dev"`) sí queda fuera: es nuestra
+    # herramienta, no una interfaz del agente, y lleva su propio jail.
     ctx0 = dict(context or {})
-    if ctx0.get("kind") != "dev" and not ctx0.get("confirmed"):
+    if ctx0.get("kind") != "dev":
         from nucleo import protected_core
         if protected_core.touches_the_engine(req):
             _refuse(req, protected_core.refusal(req))
+            return 0
+    # UNA PREGUNTA NO ES TEATRO (V2-655). Si el turno que escala PIDIÓ PERMISO en voz alta, la orden todavía no
+    # existe: preguntar y hacer a la vez es una contradicción, y el operador lee la pregunta literalmente. Se
+    # APARCA (no se descarta) en el registro del confirm-gate, que ya sabe recoger el «sí», decirle al cerebro
+    # que hay algo parado, y hacer que el silencio caduque en «esa tarea nunca empezó».
+    #
+    # El texto hablado llega por el CONTEXTO porque este portal no puede verlo de otra forma. Son dos canales y
+    # los dos lo pasan; hay guarda que lo comprueba, igual que con el resto de implementaciones paralelas.
+    asked = str(ctx0.get("asked") or "")
+    if asked and not ctx0.get("confirmed"):
+        from nucleo.flash import clarifying as _clar
+        if _clar.asks_permission(asked):
+            try:
+                from nucleo import dispatch_confirm as _dc
+                _dc.remember_offer(req, context=ctx0, question=asked.strip()[:200])
+            except Exception:  # noqa: BLE001
+                logger.warning("escalate: no pude aparcar el ofrecimiento; NO lo lanzo por las bravas")
+            _emit_bus("escalate.offered", {"request": req, "asked": asked[:200], "ts": time.time()})
+            logger.info(f"escalate: APARCADA — el turno pidió permiso: {req[:70]}")
             return 0
     tid = _next_seq("escalate.task")
     _tasks[tid] = {"request": req[:200], "started_at": time.time(), "done": False, "summary": ""}

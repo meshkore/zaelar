@@ -2970,7 +2970,8 @@ class NucleoLLMStream(llm.LLMStream):
                 except Exception:
                     pass
                 _escalate_mod.escalate_to_slowbrain(
-                    req, context={"src": "voice", "surface": escalate_req["surface"].get(req, "")})
+                    req, context={"src": "voice", "surface": escalate_req["surface"].get(req, ""),
+                                  "asked": spoken_text})   # V2-655: si el turno pidió permiso, se APARCA
                 emit("brain", "🧭 Flash → Brain Worker (escalada registrada)", text=req, role="system")
 
             # …y las tareas ADICIONALES del mismo turno (V2-118). Van DESPUÉS de la principal y solo si esta
@@ -3009,7 +3010,8 @@ class NucleoLLMStream(llm.LLMStream):
                     else:
                         _escalate_mod.escalate_to_slowbrain(
                             _extra_req,
-                            context={"src": "voice", "surface": escalate_req["surface"].get(_extra_req, "")})
+                            context={"src": "voice", "surface": escalate_req["surface"].get(_extra_req, ""),
+                                     "asked": spoken_text})
                         emit("brain", "🧭 Flash → Brain Worker (tarea adicional del mismo turno)",
                              text=_extra_req, role="system")
                     _launched.append({"request": _extra_req})

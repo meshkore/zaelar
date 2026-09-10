@@ -1215,6 +1215,14 @@ DOMAINS: list[dict] = [
         # preguntaba si podía; lo único que lo frenó fue la puerta del GASTO, que es vocabulario de dinero y
         # no sabe nada de tocar el motor. El nodo prueba las DOS capas y, sobre todo, el contrapeso: un falso
         # positivo aquí es negarse a algo que el operador sí pidió.
+        # V2-655 — UNA PREGUNTA NO ES TEATRO. «¿Me pongo a revisar y dejar eso cableado?» y en el MISMO segundo
+        # el encargo existía. La dirección del fallo manda: un falso positivo APARCA algo que él sí quería y se
+        # convierte en «te lo pregunté y luego no hiciste nada», así que el nodo mide las dos direcciones y
+        # deja fuera la cortesía («¿te aviso cuando lo tenga?»), que es lo que rompería el flujo bueno.
+        {"id": "3.30", "title": "Si el turno PIDIÓ PERMISO, el encargo se aparca en vez de lanzarse — y el "
+                                "«sí» del operador lanza exactamente ese",
+            "ch": UNIT, "paths": [
+                "tests/agent_headless/unit/test_a_question_is_not_theatre.py"]},
         {"id": "3.29", "title": "El núcleo y el motor no se modifican desde la voz ni el chat — solo widgets, "
                                 "y el mecanismo no entrega con qué escribir",
             "ch": UNIT, "paths": [

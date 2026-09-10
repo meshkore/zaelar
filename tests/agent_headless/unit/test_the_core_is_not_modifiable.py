@@ -121,6 +121,19 @@ def test_the_tools_and_the_cwd_follow_the_ERRAND_not_its_kind():
         "…y el repositorio entero tampoco se entrega por llamarse `code`")
 
 
+def test_a_YES_is_not_an_escape_hatch():
+    """La puerta del GASTO se levanta con un «sí»; ésta no. El operador dijo que el núcleo no se modifica,
+    sin condición — y un «sí» dicho sobre una pregunta mal entendida es exactamente cómo se colaría."""
+    import re
+    from pathlib import Path
+    src = Path(__file__).resolve().parents[3] / "nucleo/flash/escalate.py"
+    text = re.sub(r"(?m)#.*$", "", src.read_text(encoding="utf-8"))
+    i = text.find("touches_the_engine(")
+    assert i >= 0
+    assert "confirmed" not in text[max(0, i - 400):i], (
+        "un encargo confirmado no puede saltarse la frontera del núcleo")
+
+
 def test_the_cluster_dev_channel_is_deliberately_outside_this_rule():
     """Es NUESTRA herramienta de trabajo, no una interfaz del agente, y ya lleva su propio jail que falla
     cerrado. Dicho explícito para que nadie lo cierre por inercia sin decidirlo."""
