@@ -471,6 +471,38 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **An internal message never reaches the operator's ears, a cover matches the order, and the agenda
+  never invents an hour (V2-652, 2026-09-10)**: the operator's manual session (7f77e2cc, «pide cita
+  previa en Hacienda»), read event by event — five defect classes, four closed here. **(1)** `add_meeting`'s
+  retry instruction («vuelve a llamar a add_meeting con el título, el día (YYYY-MM-DD)…») was SPOKEN aloud
+  and painted into the chat as zaelar's own words, twice: `data_ops.report_failure` (V2-603) voiced
+  `message or error`, and `error` is often literally addressed to the MODEL. Now only `message` (the
+  speakable sentence, the V2-463/V2-650b convention) is voiced; a bare `error` still corrects the model
+  through the [SISTEMA] note but never becomes agent speech — and the agenda's empty-add refusal carries
+  both keys. **(2)** «…Añade en la agenda mañana una cita» was covered with «Un momento, que lo busco…» and
+  the complaint «Te he dicho que hagas una acción sobre la agenda» with «Déjame que lo mire…»:
+  `filler_kind` now judges per SENTENCE with the leading vocative stripped (the order lives in the LAST
+  sentence of a spoken turn), `_ACTION_VERB_RE` knows the data-write verbs (añade/apunta/anota/recuérdame…,
+  es+en), `_SOCIAL_RE` knows complaint shapes, and an explicit imperative outranks the complaint beside it.
+  **(3)** The «17:00» item he read as us copying his «reunión a las cinco» was `add_meeting`'s own
+  `default="17:00"` over the promise backstop's hour-less write: a missing hour is a FACT — no hour → an
+  all-day entry, and a timed add of the same day+title SETTLES that twin in place (one row, the dictated
+  hour) instead of standing beside it («dos ítems»). **(4)** The errand escalated onto `lista` and the
+  worker delivered a booking as a comparison sheet of non-options: the escalation `surface` gloss now
+  teaches that a GESTIÓN (reservar, pedir cita, tramitar) is voz — delivered DONE, never a list — paid
+  under the shared catalog ceiling by compacting the same tool. **(5a)** The worker typed the placeholder
+  NIF «12345678Z» into Hacienda's REAL form twice and ground the census-validation modal for minutes: the
+  web prompt's RECON/ASK discipline now says recon ENDS at a validated personal field — ask
+  (`worker_bridge ask`) or deliver the blocker naming the datum, never retry with invented values. Nodes
+  5.15 / 2.50-family files / 4.6 / 4.151; nine disarms, mutations asserted, all red — one came back GREEN
+  first because its strip anchor matched an earlier «bucle» in the file and nothing had mutated (assert the
+  mutation before measuring, paid again), and the V2-650 checkout-over-uncommitted-fix trap was paid once
+  more before switching to commit-before-disarm. **Open, named in the initiative**: the SILENT TAIL (ten
+  consecutive zero-char replies while the dedupe swallowed a context-bled add_meeting — a spoken DIRECTED
+  deduped turn still counts «handled», V2-646's rule is typed-only), «Quítalo inmediatamente» never
+  reaching `cancel_meeting`, Flash reframing a booking as research in the escalation brief, and showing
+  the worker's browser for a voz-surface errand.
+
 - **Knowing WHO is talking — the browser computes it, F0 measures in shadow (V2-651 F0, 2026-09-10)**:
   the operator's order — identify HIS voice and give it priority (which is also what lets Zaelar follow him
   over a TV: a TV voice is a human voice, only the voiceprint separates it), know that other people are
