@@ -36,23 +36,38 @@ def test_a_cloud_endpoint_resolving_to_the_sentinel_has_NO_credential():
 
 
 # ── the order, and who gets dropped ───────────────────────────────────────────────────────────────────────────
-def test_the_chain_is_titular_then_broker(monkeypatch):
-    """The ORDER fixed here is: first the direct endpoint (titular), followed by the broker.
+def test_the_chain_is_titular_then_direct_then_broker(monkeypatch):
+    """The ORDER fixed here is the operator's 2026-09-10 directive: for the MEMORY tasks the titular is
+    OpenAI DIRECT, the stand-in is DeepSeek DIRECT, and the broker is at most the THIRD rung — never the
+    titular of anything, and no ladder exceeds three levels.
 
-    It was called `..._then_openai` and asserted `models[-1] == "openai/gpt-4.1-mini"`. On 2026-08-21, the
-    operator's rule —no OpenAI model may be what RUNS unless someone chooses it; it may be in the catalog—removed
-    that rung, so the assertion had become a statement of a deprecated policy. It was changed to assert what the
-    rule does guarantee and what this file exists to monitor: that the last resort is NOT OpenAI. Pinning the exact
-    name of the last model would tie the test again to a catalog choice that may change tomorrow."""
+    History of this assertion matters because it has flipped twice: it once pinned OpenAI as the LAST rung,
+    then the 2026-08-21 no-OpenAI norm made it assert the opposite. That norm was SCOPED on 2026-09-10 —
+    the operator chose OpenAI direct as the memory titular after the DeepSeek titular returned an empty 200
+    every REM cycle with AIMLAPI's wallet dry behind it, killing the whole ladder silently."""
     monkeypatch.setattr(memllm, "_endpoint_key", lambda url: "k")
-    monkeypatch.setattr(memllm, "resolve", lambda t: (_DS, "deepseek-v4-flash", "k", False))
     hosts = [u for u, _m, _k, _dt in memllm.chain("rem")]
-    assert hosts[0] == _DS, "el directo es el titular, no un escalón de relevo"
-    assert hosts[1:] == [_AIML, _AIML]
+    assert hosts[0] == "https://api.openai.com/v1", "OpenAI DIRECT is the memory titular (operator, 2026-09-10)"
+    assert hosts[1:] == [_DS, _AIML], "stand-in DeepSeek direct, broker third and last"
     models = [m for _u, m, _k, _dt in memllm.chain("rem")]
-    assert len(models) == 3, models
-    assert not any(m.lower().startswith("openai/") for m in models), \
-        f"un escalón de relevo corre SIN que nadie lo elija: {models}"
+    assert models[0] == "gpt-4.1-mini", models
+
+
+def test_no_ladder_exceeds_three_levels(monkeypatch):
+    """Operator rule (reiterated 2026-09-10): a titular, one stand-in, at most a third rung — a fourth level
+    cannot be reasoned about, configured or debugged. `chain()` is titular + `_FAILOVER` (minus the promoted
+    rung), so every task's worst case is 1 + len(_FAILOVER[task])."""
+    monkeypatch.setattr(memllm, "_endpoint_key", lambda url: "k")
+    for task in memllm._FAILOVER:
+        assert 1 + len(memllm._FAILOVER[task]) <= 3, f"{task}: more than three levels"
+        assert len(memllm.chain(task)) <= 3, f"{task}: chain() serves more than three levels"
+
+
+def test_the_broker_is_never_the_titular():
+    """AIMLAPI is failover ONLY — second or third rung at most, never the titular of any task (operator,
+    2026-09-10; also rule 3 of `config/models.default.json`)."""
+    for task, (url, _model, _dt) in memllm._DEFAULTS.items():
+        assert "aimlapi" not in url.lower(), f"{task}: the broker is its titular"
 
 
 def test_a_rung_the_config_already_promoted_is_not_tried_twice(monkeypatch):

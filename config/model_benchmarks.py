@@ -86,8 +86,14 @@ MODULES = [
         "role": "Destila cada turno en píldoras (dato + metadatos + capa + slot). Off-hot-path (nunca toca la "
                 "latencia de voz) — pero la WRITE-COMPLETENESS es la palanca nº1 del recall (V2-031): un dato mal "
                 "escrito no hay retriever que lo recupere.",
-        "current": {"model": "deepseek-v4-flash", "provider": "AIMLAPI", "cost_in": 0.14, "cost_out": 0.28,
-                    "since": "2026-08-09 (bench §12.3)"},
+        "current": {"model": "gpt-4.1-mini", "provider": "OpenAI (directo)", "cost_in": 0.40, "cost_out": 1.60,
+                    "since": "2026-09-10 (directriz del operador: los servicios de memoria van con OpenAI "
+                             "DIRECTO como titular; relevo deepseek-v4-flash directo, tercero el broker)"},
+        "why_previous_2026_08_09": "deepseek-v4-flash fue titular del 2026-08-09 al 2026-09-10, elegido por "
+                                   "PRECIO a igualdad de calidad útil (bench §12.3, −55%). Perdió el asiento el "
+                                   "2026-09-09/10: como razonador se comía max_tokens en prompts reales y "
+                                   "devolvía un 200 VACÍO, y con AIMLAPI sin fondos detrás la escalera entera "
+                                   "murió. Sigue de relevo directo.",
         "why": "Elegido por PRECIO a igualdad de calidad útil: 21 candidatos comerciales × 34 casos × 4 ejes, 3 "
                "pasadas a los finalistas. Empata con el anterior titular (gpt-4.1-mini) en los dos ejes que "
                "destruyen datos — captar el hecho (98,5% vs 98,9%: un hecho de 90) y no ensuciar con descartes "
@@ -119,8 +125,14 @@ MODULES = [
         "role": "Una vez al día agrupa los recuerdos durables por concepto y destila 1 INSIGHT de alto nivel por "
                 "grupo (kind='insight'). Es lo que hace que la memoria APRENDA patrones en vez de solo acumular "
                 "hechos. Off-hot-path total: corre de madrugada.",
-        "current": {"model": "deepseek-v4-flash", "provider": "AIMLAPI", "cost_in": 0.14, "cost_out": 0.28,
-                    "since": "2026-08-09 (bench §12.4)"},
+        "current": {"model": "gpt-4.1-mini", "provider": "OpenAI (directo)", "cost_in": 0.40, "cost_out": 1.60,
+                    "since": "2026-09-10 (directriz del operador — misma escalera que el CORAZÓN). ⚠️ RIESGO "
+                             "ACEPTADO, no derogado: la nota de abajo (gpt-4.1-mini fabrica un insight ante "
+                             "trivialidades, 0% aciertos en 3 pasadas, §12.4) sigue MEDIDA y vigente; el motivo "
+                             "del cambio es que el titular anterior devolvía un 200 vacío en cada ciclo "
+                             "(razonamiento se comía el presupuesto, 2026-09-09/10) — un fallo total pesa más "
+                             "que uno parcial. Si el REM empieza a fabricar insights, este es el asiento a "
+                             "revisar primero."},
         "why": "Aquí manda la CALIDAD, no el precio, y es por la forma del código: TODOS los grupos van en UNA "
                "llamada, con topes de 8 grupos × 12 recuerdos, una vez al día — el coste NO crece con el tamaño "
                "de la memoria. Todo el barrido cabía entre 0,14 y 2,17 dólares AL AÑO por usuario, así que "

@@ -10,10 +10,12 @@
     "credits nobody had authorised: the internal catalogue was headed by Z.AI and no file in the repo said so.",
     "",
     "RULES THAT GOVERN THIS TABLE (all of them the operator's):",
-    "  1. ONE FAILOVER per service. A titular and a stand-in; if the stand-in falls, that part stops working.",
-    "     No chains of three or four: they cannot be reasoned about, configured or debugged.",
-    "  2. DeepSeek through its DIRECT provider is the titular of everything that is not the Brain Worker.",
-    "  3. AIMLAPI is failover ONLY — a broker used to reach DeepSeek or another model when direct is down.",
+    "  1. A titular, ONE stand-in, and AT MOST a third rung (reiterated 2026-09-10). Never more than three",
+    "     levels anywhere — a fourth cannot be reasoned about, configured or debugged; if you find one, trim it.",
+    "  2. DeepSeek through its DIRECT provider is the titular of everything that is not the Brain Worker or a",
+    "     MEMORY service. The memory services (heart, REM, embeddings) run on OpenAI DIRECT as titular",
+    "     (operator directive 2026-09-10 — supersedes the 2026-08-21 no-OpenAI removal, for memory only).",
+    "  3. AIMLAPI is failover ONLY — second or third rung at most, NEVER the titular of any service.",
     "  4. Z.AI belongs to the Brain Worker ONLY, inside Claude Code. It is nobody else's failover (V2-496).",
     "  5. Everything here has to be able to run IN THE CLOUD. Ollama cannot: it is a local server and inside a",
     "     container it does not exist. That is why the embeddings go through a CLOUD provider (measured — see",
@@ -72,26 +74,36 @@
     "memory_writer": {
       "label": "Memory · HEART — distils every turn into pills",
       "titular": {
+        "provider": "openai",
+        "model": "gpt-4.1-mini",
+        "base_url": "https://api.openai.com/v1",
+        "key_env": "OPENAI_API_KEY"
+      },
+      "failover": {
         "provider": "deepseek",
         "model": "deepseek-v4-flash",
         "base_url": "https://api.deepseek.com",
         "key_env": "DEEPSEEK_API_KEY"
       },
-      "failover": null,
-      "why": "Chosen by measurement (21 candidates x 34 cases x 4 axes, 2026-08-09): matches gpt-4.1-mini on the two axes that destroy data, at -55% cost. It writes off the hot path, so its latency costs nothing.",
-      "failover_why": "SIN RELEVO, y es el cruce de dos normas del operador, no un olvido. AIMLAPI queda retirado (2026-09-03: «DeepSeek y Z.AI, y poco mas»), y Z.AI NO puede ser relevo de nada que no sea el Brain Worker (norma del 2026-08-30: el failover automatico se comio el saldo de una cartera no autorizada para esto). Juntas dejan a este servicio con titular y sin respaldo. Es un RIESGO CONOCIDO y esta medido en la doc de reparto: «un escalon de relevo sin probar convierte una caida de proveedor en una caida total» — aqui directamente no hay escalon. Reabrirlo exige una decision del operador: o reautorizar Z.AI para voz, o traer un tercer proveedor."
+      "why": "OPERATOR DIRECTIVE 2026-09-10: the memory services (heart, REM, embeddings) run on OpenAI DIRECT as titular — this supersedes the 2026-08-21 no-OpenAI removal FOR MEMORY ONLY. gpt-4.1-mini is not a new bet: the 2026-08-09 sweep (21 candidates x 34 cases x 4 axes) scored it top-tier on the two axes that destroy data, and it was this seat's rung until 2026-08-21. Measured live before this switch (2026-09-10): 200 on chat/completions with the house key. gpt-4o-mini remains VETOED here (puts an English-stated allergy into slot=operator.diet). Writes off the hot path, so latency costs nothing.",
+      "failover_why": "DeepSeek v4-flash DIRECT as the stand-in (the 2026-08-09 sweep winner at -55% cost). Known trap, measured 2026-09-09/10 while it sat as titular: as a reasoner it can eat max_tokens on rem-shaped prompts and return an EMPTY 200. AIMLAPI is permitted as a LAST rung only, never titular (operator, 2026-09-10) — the full chain lives in nucleo/memllm.py::_FAILOVER and never exceeds three levels."
     },
     "memory_rem": {
       "label": "Memory · REM sleep — nightly synthesis and repair",
       "titular": {
+        "provider": "openai",
+        "model": "gpt-4.1-mini",
+        "base_url": "https://api.openai.com/v1",
+        "key_env": "OPENAI_API_KEY"
+      },
+      "failover": {
         "provider": "deepseek",
         "model": "deepseek-v4-flash",
         "base_url": "https://api.deepseek.com",
         "key_env": "DEEPSEEK_API_KEY"
       },
-      "failover": null,
-      "why": "The same model as the HEART on purpose: they write to the same place with the same judgement.",
-      "failover_why": "SIN RELEVO, y es el cruce de dos normas del operador, no un olvido. AIMLAPI queda retirado (2026-09-03: «DeepSeek y Z.AI, y poco mas»), y Z.AI NO puede ser relevo de nada que no sea el Brain Worker (norma del 2026-08-30: el failover automatico se comio el saldo de una cartera no autorizada para esto). Juntas dejan a este servicio con titular y sin respaldo. Es un RIESGO CONOCIDO y esta medido en la doc de reparto: «un escalon de relevo sin probar convierte una caida de proveedor en una caida total» — aqui directamente no hay escalon. Reabrirlo exige una decision del operador: o reautorizar Z.AI para voz, o traer un tercer proveedor."
+      "why": "The same model as the HEART on purpose: they write to the same place with the same judgement. §12.2 measured gpt-4.1-mini at 100% on THIS task. Operator directive 2026-09-10: memory services run on OpenAI DIRECT as titular.",
+      "failover_why": "DeepSeek v4-flash DIRECT as the stand-in. The measured reason it lost the titular seat (2026-09-09/10): reasoning ate max_tokens on real REM prompts and returned an EMPTY 200 every cycle, and with AIMLAPI's wallet dry behind it the whole ladder died. AIMLAPI stays a LAST rung only, never titular (operator, 2026-09-10)."
     },
     "embeddings": {
       "label": "Memory · embeddings (the semantic space)",

@@ -363,8 +363,11 @@ reintentos. Para voz eso es minuto y cuarto de silencio. **Pendiente**: presupue
 Restricción: **OFF-hot-path** (la latencia NO toca la voz) → prioriza **write-completeness** (palanca nº1 del recall,
 V2-031).
 
-> ⚠️ **SECCIÓN HISTÓRICA — superada por §12.3 (2026-08-09).** El titular es hoy
-> **`deepseek/deepseek-v4-flash` vía AIMLAPI**, y la **directriz «SIEMPRE OpenAI» queda DEROGADA**: se tomó cuando
+> ⚠️ **SECCIÓN HISTÓRICA — superada por §12.3 (2026-08-09) y por la directriz del 2026-09-10.** El titular es hoy
+> **`gpt-4.1-mini` por OpenAI DIRECTO** (directriz del operador 2026-09-10: los servicios de memoria llevan
+> OpenAI directo como titular; DeepSeek directo de relevo, el broker de tercero como mucho y nunca titular — el
+> titular DeepSeek devolvía un 200 VACÍO en cada ciclo de REM y con AIMLAPI sin fondos la escalera murió entera).
+> Entre el 2026-08-09 y el 2026-09-10 fue `deepseek-v4-flash`, y la **directriz «SIEMPRE OpenAI» estuvo DEROGADA**: se tomó cuando
 > el único contendiente barato medido era `gpt-4o-mini` sobre 16 casos. El barrido de 21 candidatos × 34 casos
 > encontró modelos no-OpenAI que igualan la calidad útil a menos de la mitad de precio. También caduca la fila de
 > `gpt-4o-mini` de abajo: hoy SÍ capta la alergia; su fallo se movió al metadato (le pone `slot=operator.diet`
@@ -598,10 +601,12 @@ turno que había que tirar. Coincide con el descarte de `qwen3.5-flash` en §12.
 `openai/gpt-4.1-mini`. La alternativa CONSERVADORA, para quien prefiera metadato perfecto a 3 puntos de
 completeness, es `x-ai/grok-4-fast-non-reasoning` ($0,762, 100% en precisión y capa/slot, varianza cero).
 
-**Deroga la directriz «memoria = SIEMPRE OpenAI»** (§9.2, 2026-07-17): se tomó cuando el único contendiente barato
+**Derogó la directriz «memoria = SIEMPRE OpenAI»** (§9.2, 2026-07-17): se tomó cuando el único contendiente barato
 medido era `gpt-4o-mini` sobre 16 casos. Con 21 candidatos y 34 casos, hay modelos no-OpenAI que igualan la calidad
-útil a menos de la mitad de precio. Lo que SÍ se mantiene como regla: **el destilador se elige con el bench, nunca
-por reputación del proveedor.**
+útil a menos de la mitad de precio. **Nota 2026-09-10: la directriz vuelve, acotada a los servicios de memoria**
+(corazón/REM/embeddings con OpenAI DIRECTO de titular, tras el 200 vacío del titular DeepSeek en cada ciclo de REM
+con AIMLAPI sin fondos detrás). Lo que se mantiene como regla dentro de esa frontera: **el destilador se elige con
+el bench, nunca por reputación del proveedor.**
 
 **Notas de coste.** Los $/1k son con tarifa NATIVA del proveedor (`prices.json`, verificada por web el 2026-08-09);
 AIMLAPI cobra encima un margen de ~1,0-1,3× según modelo, común a todos los candidatos → no altera el ranking, sí

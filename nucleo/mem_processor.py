@@ -112,8 +112,10 @@ def _url() -> str:
 
 def _model() -> str:
     # Modelo del CORAZÓN de escritura. Va OFF-HOT-PATH (cola async) → su latencia NO la paga el turno de voz, así
-    # que el eje de elección es calidad-vs-PRECIO. **DEFAULT = `deepseek/deepseek-v4-flash` vía AIMLAPI**
-    # (2026-08-09, benchmarks §12.3: iguala a gpt-4.1-mini en completeness y precisión por −55% de coste).
+    # que el eje de elección es calidad-vs-PRECIO. **DEFAULT = the table's `memory_writer` row: OpenAI DIRECT
+    # `gpt-4.1-mini` (operator directive 2026-09-10 — memory services run on OpenAI direct as titular; the
+    # 2026-08-09 §12.3 sweep already scored this model top-tier on the axes that destroy data).** The broker
+    # literal below is only the config-unreadable last resort, not the default.
     # CONFIGURABLE (`config/v2.py`/`config/v2.json §memory.mem_processor_model`); env MEM_PROCESSOR_MODEL = fallback
     # power-user; el literal de abajo solo se alcanza si la config no se puede importar (ver _FALLBACK_MODEL).
     # ⚠️ Si se apunta a un modelo LOCAL (Ollama), ojo al TRADE-OFF con la voz 100% local: corre en la MISMA GPU

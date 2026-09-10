@@ -630,12 +630,17 @@ PY
 
 ### La REGLA que sustituye a la anterior
 
-La directriz **«memoria = SIEMPRE OpenAI»** (2026-07-17) queda **DEROGADA**. Se tomó cuando el único contendiente
-barato medido era `gpt-4o-mini` sobre 16 casos. Con 21 candidatos × 34 casos (destilar) y 11 × 8 grupos
-(consolidar) hay modelos no-OpenAI que igualan la calidad útil a menos de la mitad de precio. **La regla nueva:
-el modelo de la memoria se elige con el BENCH, nunca por reputación del proveedor** — y el bench se vuelve a
-correr antes de afirmar nada, porque los hallazgos caducan (el «gpt-4o-mini se come la alergia» de §9.2 dejó de
-ser cierto: hoy la capta, y falla en el metadato, que es peor).
+La directriz **«memoria = SIEMPRE OpenAI»** (2026-07-17) quedó **DEROGADA** el 2026-08-09 y **VUELVE, acotada,
+el 2026-09-10** (directriz del operador, reiterada dos días seguidos): **los servicios de memoria —corazón,
+REM, embeddings— llevan OpenAI DIRECTO como titular** (`gpt-4.1-mini` / `text-embedding-3-small`), con DeepSeek
+directo de relevo y el broker AIMLAPI como tercer escalón como MUCHO — nunca titular, y ninguna escalera pasa
+de tres niveles. El detonante fue medido, no de reputación: el titular DeepSeek devolvía un 200 VACÍO en cada
+ciclo de REM (el razonamiento se comía `max_tokens`) y con AIMLAPI sin fondos detrás la escalera entera murió
+en silencio (2026-09-09/10). **Sigue vigente lo demás: el bench manda para ELEGIR el modelo dentro de esa
+frontera, los hallazgos caducan, y el veto a `gpt-4o-mini` (se come la alergia vía slot) no se toca.** El
+riesgo aceptado con el cambio queda anotado en `config/model_benchmarks.py` §memory_rem: §12.4 midió que
+gpt-4.1-mini fabrica un insight ante trivialidades — si el REM empieza a inventar patrones, ese es el primer
+asiento a revisar.
 
 ### Cómo REPRODUCIR los benchmarks (ambos arneses son versionados y deterministas en su corpus)
 

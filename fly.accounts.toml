@@ -44,8 +44,8 @@ primary_region = "iad"   # same region as zaelar-demo
   ZAELAR_STT = "deepgram"
   CODE_AGENT_BASE_URL = "https://api.z.ai/api/anthropic"
   CODE_AGENT_MODEL = "glm-5.3"
-  MEM_PROCESSOR_URL = "https://api.deepseek.com"
-  MEM_PROCESSOR_MODEL = "deepseek-v4-flash"
+  MEM_PROCESSOR_URL = "https://api.openai.com/v1"
+  MEM_PROCESSOR_MODEL = "gpt-4.1-mini"
   # Embeddings de la memoria (V2-501). El backend por defecto del motor era Ollama, que dentro de un contenedor
   # NO EXISTE: la Machine caía a fastembed —un modelo solo-inglés que sobre castellano acierta 7 de 12 donde
   # este hace 12— y nada lo decía en rojo. Se piden 768 dims para que la tabla vectorial sea la de siempre.

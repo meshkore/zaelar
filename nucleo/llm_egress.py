@@ -47,6 +47,10 @@ _PROVIDER_BY_HOST = (
     ("api.x.ai", "xai"),
     ("api.z.ai", "zai"),
     ("mistral.ai", "mistral"),
+    # 2026-09-10 — the memory services' titular moved to OpenAI DIRECT (operator directive, see the table's
+    # memory_writer/memory_rem rows): without this entry the `X-Zaelar-Provider` header goes out EMPTY on every
+    # mediated memory write and the gateway falls back to its own default provider.
+    ("api.openai.com", "openai"),
 )
 
 
