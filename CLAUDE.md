@@ -471,6 +471,32 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **A just-closed widget does not reopen on chatter, and a garbled list name resolves or refuses
+  naming what exists (V2-650b, 2026-09-10)**: the operator's very next live minute (sid 3d394…), read
+  event by event. «Johnny, cierra el widget de YouTube» worked exactly as designed (the V2-567 guard
+  discarded the model's spurious show, the backstop closed) — and eight seconds later ROOM CHATTER
+  («Avisando de… cuidado, que aquí está pasando algo») made the model re-emit that DISCARDED
+  show_widget, and nothing blocked it: the card he had just closed reopened over nobody's order.
+  V2-635 built licenses for close, video and fullscreen; **SHOW had none**. New
+  `canvas_license.reopen_license` (narrow on purpose): only a widget the OPERATOR ordered closed in
+  the last two minutes is gated, and it reopens on a conjugated media/show request or when his own
+  words resolve to that widget through the V2-082 certainty resolver — never on chatter; a discarded
+  drag counts as handled (`deduped`). Every close door records the close (`note_operator_close`: the
+  tag funnel, the named-close backstop, the close-not-delete guard, the action map's fast lane), and
+  both channels consult the license (probe mirrored, parallel-impl rule). In the same minute, «arranca
+  la lista de Trublo» (the STT's rendering of «True Blue») was served TWICE by two mechanisms — the
+  `play_music` tool played the SONG, then a re-emitted `play_playlist` data-op failed
+  `playlist_not_found` on the garble and the correction path read the RAW CODE aloud
+  («playlistnotfound») over music already playing. `play_playlist` now resolves a spoken garble by
+  unique-winner similarity (≥0.6 with the runner-up under 0.5 — «Trublo»→«True Blue» measures 0.71
+  against 0.27 for the next list; two near-matches stay a refusal, never a guess) and its refusal is a
+  SENTENCE that names the existing lists (V2-463 — `report_failure` already speaks `message` when one
+  exists). The provider ratchet (3043) was paid by extracting the whole show_widget resolution to
+  `show_target.resolve_show` (guard-target passed IN — importing it there would add an upward
+  dependency the V2-569 ratchet freezes); nucleo.py ended at 3036. Node **4.149** (+3 cases in
+  4.148's musica file); four disarms, mutations asserted, all red — run AFTER committing the fix,
+  which is the V2-531 lesson applied instead of re-paid. Detail: the V2-650 initiative.
+
 - **A replayed play order is an order — and the playlist keeps the playback it started (V2-650,
   2026-09-10)**: the operator's morning session (aed0736c, the «True Blue» errand), read event by event.
   The worker did its job — refused the torrent as protected, confirmed the real album (Flash had escalated
