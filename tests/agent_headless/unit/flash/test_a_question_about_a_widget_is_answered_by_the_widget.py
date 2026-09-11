@@ -129,3 +129,28 @@ def test_the_probe_mirrors_the_route():
     assert 'elif "read_widget" in names:' in code
     assert 'if action == "read_widget":' in code
     assert "_wread.resolve(" in code and "_wread.compose_system(" in code
+
+
+# ── V2-668b: TODAY's agenda rides in the state with the card CLOSED, and says it outranks a recollection ──
+# Measured on the live re-run of the incident (11:33): `read_widget` was offered and the model still answered a
+# memory pill saying 11:00 over an agenda saying 11:30. A fact IN the prompt beats a tool call away.
+def test_todays_agenda_is_in_the_state_with_the_card_closed(_isolated_agenda):
+    from widgets import brief
+    out = brief.for_prompt(open_ids=[], recent_ids=[], query="¿a qué hora tengo la cita con Hacienda?")
+    assert "AGENDA DE HOY" in out and "11:30" in out and "Tributaria" in out
+    assert "MANDA esto" in out, "the block must say who wins when a recollection disagrees"
+    assert "read_widget" in out, "and where the rest of the calendar is read from"
+
+
+def test_the_open_card_keeps_its_coach_block_and_gets_no_duplicate_today_line(_isolated_agenda):
+    from widgets import brief
+    out = brief.for_prompt(open_ids=["agenda"], recent_ids=[], query="")
+    assert "AGENDA (abierta)" in out and "11:30" in out
+    assert "AGENDA DE HOY — lo que GUARDA" not in out
+
+
+def test_an_empty_day_costs_nothing(tmp_path, monkeypatch):
+    from widgets import store
+    monkeypatch.setattr(store, "DATA_DIR", tmp_path)
+    from widgets.agenda import data as agenda
+    assert agenda.today_line() == ""

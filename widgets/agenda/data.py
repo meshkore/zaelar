@@ -861,3 +861,39 @@ def coach_context() -> str:
     if d["warnings"]:
         lines.append("\nNO CABE HOY: " + " | ".join(d["warnings"]))
     return "\n".join(lines)
+
+
+def today_line(limit: int = 8) -> str:
+    """TODAY's meetings as ONE compact block for the turn prompt, whether or not the card is open (V2-668b).
+
+    Measured live (2026-09-11, 11:33, the very re-run of the Hacienda incident): with the agenda CLOSED, the
+    STATE carried a memory pill the processor had distilled from the conversation — «cita con la agencia
+    tributaria… a las 11:00» — while this widget held 11:30, and the model answered the pill without calling
+    `read_widget`, which it had been offered. A widget-owned fact asserted by a recollection outranks the widget
+    for a model, because the recollection is IN the prompt and the widget is a tool call away. So the one
+    calendar everybody asks about every day rides in the state, and the block says who wins when they disagree.
+    Only when there IS something today (an empty day costs nothing); the header names the precedence."""
+    try:
+        db = load_db()
+        today = _today()
+        meets = sorted((m for m in db.get("meetings", []) if str(m.get("date") or "") == today),
+                       key=lambda m: (bool(not m.get("allDay")), str(m.get("startTime") or "")))
+    except Exception:
+        return ""
+    if not meets:
+        return ""
+    rows = []
+    for m in meets[:limit]:
+        if m.get("allDay"):
+            when = "todo el día"
+        else:
+            when = str(m.get("startTime") or "?") + (f"–{m['endTime']}" if m.get("endTime") else "")
+        row = f"  {when} · {str(m.get('title') or 'Cita')[:80]}"
+        if m.get("location"):
+            row += f" · {str(m['location'])[:40]}"
+        rows.append(row)
+    if len(meets) > limit:
+        rows.append(f"  … y {len(meets) - limit} más (read_widget agenda)")
+    return ("AGENDA DE HOY — lo que GUARDA el widget agenda; si un recuerdo dice otra hora u otro día, MANDA esto "
+            "(para otro día o más detalle: read_widget):\n" + "\n".join(rows))
+

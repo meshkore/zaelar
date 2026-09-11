@@ -240,6 +240,18 @@ def for_prompt(open_ids=None, recent_ids=None, query: str = "", stats: dict | No
                 lines += ["", "AGENDA (abierta) — contexto de coaching:", ctx]
         except Exception:
             pass
+    else:
+        # V2-668b — TODAY's agenda rides in the state with the card CLOSED too. Measured on the live re-run of the
+        # Hacienda incident (2026-09-11 11:33): `read_widget` was offered and the model still answered from a
+        # memory pill that said 11:00 over an agenda that said 11:30 — a recollection IN the prompt beats a tool
+        # call away. The block names the precedence; an empty day adds nothing (`today_line` returns "").
+        try:
+            from .agenda import data as agenda
+            today = agenda.today_line()
+            if today:
+                lines += ["", today]
+        except Exception:
+            pass
 
     # HIDDEN CATALOG (V2-085): the list above is a top-K, not the inventory. Saying this matters for two opposite
     # and real reasons: without the notice, the model denies capabilities that do exist when we merely did not list
