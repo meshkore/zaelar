@@ -112,6 +112,7 @@ def _extends(prev: str, cur: str) -> bool:
 from voice.engine.llm.providers import acc_notices as _accn
 from voice.engine.llm.providers import attention_turn as _attention_turn
 from nucleo.flash import harness_turn as _ht   # V2-661: what a turn OWES (shared with the probe)
+from nucleo.flash import reminder_guards as _rg   # its canned lines: holding, mute backstop, follow-up
 
 _ACC_NUDGE_S = _accn._ACC_NUDGE_S
 _acc_notice_plan = _accn._acc_notice_plan
@@ -2736,7 +2737,7 @@ class NucleoLLMStream(llm.LLMStream):
                     emit("brain", "🧾 widget_data cortada por el tope → escalada con superficie documento",
                          text=_owed["head"][:120], role="system")
                 else:
-                    _fix = _ht.follow_up_line()
+                    _fix = _rg.follow_up_line()
                     send(speech.sanitize(_fix, drop_metadata=False))
                     spoken_text = (spoken_text + " " + _fix).strip()
         except Exception as _e_h:  # noqa: BLE001
@@ -2745,8 +2746,8 @@ class NucleoLLMStream(llm.LLMStream):
         # Escalada sin texto hablado → frase de espera neutral (V2-029/V2-189): varía turno a turno y esquiva
         # la apertura si un filler ya sonó — en `harness_turn.holding_line`, con su historia.
         if escalate_req["v"] is not None and not spoken_text:
-            spoken_text = _ht.holding_line(brain._window, _prev_pending,
-                                           after_filler=_filler_audio.played_recently())
+            spoken_text = _rg.holding_line_now(brain._window, _prev_pending,
+                                               after_filler=_filler_audio.played_recently())
             send(speech.sanitize(spoken_text, drop_metadata=False))
 
         # BACKSTOP GENÉRICO — turno MUDO que no hizo NADA (qué cuenta como «hecho algo»: `turn_handled`).
@@ -2764,9 +2765,8 @@ class NucleoLLMStream(llm.LLMStream):
             confirm=bool(confirm_state.get("opened") or confirm_state.get("handled")))
         if not spoken_text and not _tool_handled:
             try:
-                from voice.engine.core import langs
-                from nucleo.flash import reminder_guards as _rg_mute      # V2-603: the shared decision
-                spoken_text = _rg_mute.mute_backstop(brain._window, langs.current_language(), _prev_pending)
+                from voice.engine.core import langs                      # V2-603: the shared decision
+                spoken_text = _rg.mute_backstop(brain._window, langs.current_language(), _prev_pending)
             except Exception:
                 spoken_text = "Sigo con ello." if _prev_pending else "Perdona, ¿me lo repites?"
             send(speech.sanitize(spoken_text, drop_metadata=False))

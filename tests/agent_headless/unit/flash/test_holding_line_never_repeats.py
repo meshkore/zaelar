@@ -90,7 +90,11 @@ distinguished the FIRST wait from the others: from the third onward they were al
     from nucleo.flash import probe as _probe
     from voice.engine.llm.providers import nucleo as _provider
     assert "holding_line(" in inspect.getsource(_probe.run_turn)
-    assert "holding_line(" in inspect.getsource(_provider)
+    # V2-661b: the voice channel calls it through `reminder_guards.holding_line_now`, which resolves the
+    # LANGUAGE on the side of the door that may read it (the V2-569 dependency ratchet) — same chooser.
+    assert "holding_line_now(" in inspect.getsource(_provider)
+    from nucleo.flash import reminder_guards as _rg
+    assert "holding_line(" in inspect.getsource(_rg.holding_line_now)
 
 
 # ── a filler that already SOUNDED burns the opener (2026-09-09, session 2bdc67ee) ──────────────────────────

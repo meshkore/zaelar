@@ -19,6 +19,8 @@ const _SHOWCASE = typeof location !== "undefined" && new URLSearchParams(locatio
 let _arrT = null;
 let _attnWinS = 12;   // last window_s seen from the gate — the ring's re-arm span (see the bot_speech branch)
 const VAD_HOLD_S = 180; // V2-661: how long an active voice may hold the ring without a falling edge (engine's cap)
+const BOT_HOLD_S = 600; // …and while ZAELAR talks (its `idle` edge re-arms a real window; this is the safety net)
+let _voiceActive = false;   // V2-661b: his VAD is ON — his silence has not started, so no timer may be shortened
 
 // ── V2-647: a spoken turn waits for the attention gate's verdict ─────────────────────────────────────────
 // The decision itself lives in `attention_hold.js` (dependency-free, and what the tests drive); here we only
@@ -57,7 +59,7 @@ export function openSSE(desktop) {
       // timer only knew the last directed turn, so it died mid-reply and the operator read «no veo el círculo
       // verde» as deafness while the mic was in fact still his. Held while speaking, re-armed for a full
       // window on idle; a ring already off stays off (the bot's own speech never OPENS one).
-      if (store.attentionHit()) store.pulseAttentionHit(speaking ? 600 : _attnWinS);
+      if (store.attentionHit()) store.pulseAttentionHit(speaking ? BOT_HOLD_S : _attnWinS);
       if (d.ttfa_ms != null) store.setLatency(d.ttfa_ms + " ms");
     } else if (d.kind === "vad" && d.edge) {
       // V2-661 — the window measures the operator's SILENCE, and his silence has not started while he is
@@ -65,7 +67,8 @@ export function openSSE(desktop) {
       // dark 5 s in — the timer only knew the last verdict, and no verdict arrives mid-sentence. Held while
       // his voice is active (a long ceiling, never forever: a missed falling edge must not pin it), re-armed
       // for a full window the instant it stops. A ring already off stays off — room speech never lights it.
-      if (store.attentionHit()) store.pulseAttentionHit(d.edge === "on" ? VAD_HOLD_S : _attnWinS);
+      _voiceActive = (d.edge === "on");
+      if (store.attentionHit()) store.pulseAttentionHit(_voiceActive ? VAD_HOLD_S : _attnWinS);
     } else if (d.kind === "error") {
       console.warn("voice error:", d.label || "");              // clean screen: log only, no banner
       refreshStatus();                                          // but do reflect it in the ◉ status icon
@@ -187,7 +190,13 @@ export function openSSE(desktop) {
       // other side). The third branch exists only to re-sync a client whose local timer ran out while the
       // engine was still holding the window open — the bot_speech re-arm above cannot, since it refuses to
       // light a ring that is off.
-      if (d.directed) { _attnWinS = d.window_s || _attnWinS; store.pulseAttentionHit(_attnWinS); }
+      // V2-661b (measured 2026-09-11, session 63681d60): a DIRECTED verdict used to re-arm the ring for a
+      // WINDOW — which SHORTENED the hold the `vad` branch had just set, so mid-monologue the ring died on a
+      // 5 s timer while he was still talking («se ponía de naranja a gris en medio de mi conversación… yo no
+      // he dejado de hablar»). Measured: last verdict 09:11:55.5, next 09:12:08.9, no VAD edge between them —
+      // 13.4 s of continuous speech, ring grey from 09:12:00.5. A verdict never shortens an ACTIVE voice.
+      if (d.directed) { _attnWinS = d.window_s || _attnWinS;
+                        store.pulseAttentionHit(_voiceActive ? VAD_HOLD_S : _attnWinS); }
       else if (d.window_open === false) store.clearAttentionHit();
       else if (d.window_open === true && !store.attentionHit()) store.pulseAttentionHit(d.window_s || _attnWinS);
       settleHeldTurns(desktop, d.text || "", !!d.directed);                        // V2-647: and the wall obeys it

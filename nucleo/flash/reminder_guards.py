@@ -631,3 +631,25 @@ def mute_backstop(window, lang, has_work: bool) -> str:
     if has_work:
         return str(getattr(lang, "filler_still_working", "") or "Sigo con ello.")
     return mute_line(window, lang)
+def holding_line_now(window, prev_pending: bool = False, *, after_filler: bool = False) -> str:
+    """`holding_line` with the language resolved HERE (V2-661b). The shared turn-repair seam
+    (`flash/harness_turn.py`) must not reach into the motor's internals — the V2-569 dependency ratchet — and
+    this module already may, so the language lives on this side of the door. Fail-open to the plain sentence."""
+    try:
+        from voice.engine.core import langs as _langs
+        return holding_line(window, _langs.current_language(), after_filler=after_filler)
+    except Exception:  # noqa: BLE001
+        return "Sigo con ello." if prev_pending else "Vale, dame un momento."
+
+
+def follow_up_line(english: bool | None = None) -> str:
+    """The honest follow-up spoken over a FALSE delivery claim (V2-660) — the V2-572 shape: the missing truth,
+    said late, while the machinery that can actually deliver it starts. Beside `pick_closer`'s siblings."""
+    if english is None:
+        try:
+            from voice.engine.core import langs as _langs
+            english = str(_langs.current_code() or "").lower().startswith("en")
+        except Exception:  # noqa: BLE001
+            english = False
+    return ("Sorry — it is not on screen yet. I am getting it ready for you." if english
+            else "Perdona — todavía no está en pantalla. Te lo estoy preparando.")

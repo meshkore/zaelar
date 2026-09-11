@@ -16,6 +16,10 @@ the two channels must never drift apart on it (the parallel-implementation rule,
 and the probe now call the SAME decision and only differ in how they carry it out: the voice channel speaks the
 follow-up (its sentence has already streamed), the probe synthesizes the tool call.
 
+The two language-dependent SENTENCES this used to compose (the honest follow-up, the holding line) live in
+`reminder_guards`: this seam may not reach into the motor's internals (the V2-569 ratchet) and that module
+already owns the canned lines of a turn with nothing to say.
+
 Nothing here touches the network, the model or the canvas: it reads what the turn already produced and returns
 a decision. Fail-soft by construction — a repair that raises must never cost the operator his turn.
 """
@@ -46,18 +50,6 @@ def current_trace() -> str:
         return trace.current() or ""
     except Exception:  # noqa: BLE001
         return ""
-
-
-def follow_up_line(english: bool | None = None) -> str:
-    """The honest follow-up spoken over a false claim — V2-572's shape: the missing truth, said late."""
-    if english is None:
-        try:
-            from voice.engine.core import langs
-            english = str(langs.current_code() or "").lower().startswith("en")
-        except Exception:  # noqa: BLE001
-            english = False
-    return ("Sorry — it is not on screen yet. I am getting it ready for you." if english
-            else "Perdona — todavía no está en pantalla. Te lo estoy preparando.")
 
 
 async def rescue(spoken: str, *, data_done: bool, turn_text: str, metrics=None, may_escalate: bool = True):
@@ -104,8 +96,8 @@ async def mirror_probe(tool_calls: list, tags: list, spoken: str, turn_text: str
     the turn owes is synthesized as an `escalate_to_slowbrain` call, so the rest of the probe path (action
     classification, execution, ack) is the one a normal escalation takes. Never raises."""
     try:
-        await_shown = [(t.get("extra") or {}).get("id") for t in (tags or []) if t.get("action") == "show"]
-        note_shown(await_shown, turn_text)
+        shown = [(t.get("extra") or {}).get("id") for t in (tags or []) if t.get("action") == "show"]
+        note_shown(shown, turn_text)
         busy = any(t["name"] in ("escalate_to_slowbrain", "widget_data") for t in (tool_calls or []))
         owed = await rescue(spoken, data_done=False, turn_text=turn_text,
                             metrics=(None if tool_calls else metrics), may_escalate=not busy)
@@ -140,22 +132,6 @@ def turn_handled(*, typed: bool, widget=False, data=False, worker=False, style=F
     return bool(widget or data or worker or style
                 or (deduped and not typed) or (aside and not typed) or (video and not typed)
                 or escalated or searched or music or images or confirm)
-
-
-def holding_line(window, prev_pending: bool, *, after_filler: bool = False) -> str:
-    """The neutral waiting sentence for a turn that escalated and said nothing (extracted V2-661).
-
-    V2-029: with a background task ALREADY running when the turn began, the sentence varies («sigo con ello»)
-    instead of repeating. V2-189: never the same phrase twice — `prev_pending` only told the first from the
-    rest, so from the third on they were all identical (mirror of the probe, wire in BOTH). And if a filler
-    already sounded this turn, the opener would restate it («Déjame que mire…» + «Vale, dame un momento»,
-    measured 2026-09-09, session 2bdc67ee)."""
-    try:
-        from voice.engine.core import langs
-        from nucleo.flash import router_guards
-        return router_guards.holding_line(window, langs.current_language(), after_filler=after_filler)
-    except Exception:  # noqa: BLE001
-        return "Sigo con ello." if prev_pending else "Vale, dame un momento."
 
 
 def note_aside(text: str, *, attention, emit) -> None:

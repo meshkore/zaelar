@@ -1706,6 +1706,15 @@ DOMAINS: list[dict] = [
         # en el directorio del widget navegador (la única ruta que conocía) y la tarjeta `archivos` no lo enseñó.
         # La biblioteca archiva un texto (save_text), el gestor lo declara (save_document), la hoja exporta lo que
         # ya está en pantalla (save_to_library) y el prompt del worker nombra la raíz.
+        # V2-661b (sesión 63681d60, reportado por el operador): el orbe pasaba de naranja a gris EN MEDIO de su
+        # locución y volvía solo. Medido: un veredicto DIRIGIDO rearmaba el anillo por una VENTANA (5 s) y con
+        # eso acortaba la retención que la rama de VAD acababa de poner — 13,4 s hablando seguido sin ningún
+        # flanco ni veredicto = anillo gris a mitad de frase. Monta el sse.js REAL sobre el store REAL con un
+        # reloj controlado y reproduce sus veredictos.
+        {"id": "4.156", "title": "El anillo del orbe no muere a mitad de frase: un veredicto nunca acorta una "
+                                 "voz ACTIVA, y sí se apaga cuando calla de verdad",
+            "ch": UNIT, "paths": [
+                "tests/browser/unit/orbe/test_the_ring_never_dies_while_he_is_talking.py"]},
         {"id": "4.155", "title": "Un texto se guarda en la BIBLIOTECA y aparece en sus archivos: save_document, "
                                  "save_to_library y el worker sabe dónde viven los ficheros",
             "ch": UNIT, "paths": [
