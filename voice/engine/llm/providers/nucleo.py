@@ -186,26 +186,10 @@ def _resolve_pending_confirm(ok: bool) -> bool:
         return False
 
 
-def _surface_is_empty(widget_id: str) -> bool:
-    """Does the card we just opened have NOTHING to show?
-
-    It comes from the 13:20:50 session incident: the operator asked for results from a search that never happened,
-    the brain opened a blank sheet and said “Here you go.” The log gave no indication that the screen was empty —
-    someone had to be watching. Marking it on the `show_widget` event turns that false acknowledgement into queryable
-    data (and something a test can require). Generic and catalog-free: it checks SAVED state, so it works equally for
-    results, messages, or any future surface. Fail-open to `False` (we do not claim it is empty if we cannot know).
-    """
-    try:
-        from widgets import store
-        data = store.load(widget_id) or {}
-    except Exception:
-        return False
-    if not isinstance(data, dict):
-        return False
-    for v in data.values():
-        if isinstance(v, (list, tuple, dict)) and len(v) > 0:
-            return False
-    return True
+# V2-669: the body moved to `flash/surface_ack.saved_state_is_empty` — the SAME decision was written there too
+# (`nothing_to_show`'s docstring cited this copy by name), and the ratchet asks for a module, never a taller
+# ceiling. The name stays here because callers and tests reach for it through this module.
+from nucleo.flash.surface_ack import saved_state_is_empty as _surface_is_empty  # noqa: E402
 
 
 def _spawn(coro, label: str) -> None:

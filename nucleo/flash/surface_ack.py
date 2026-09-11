@@ -34,9 +34,22 @@ def nothing_to_show(widget_id: str) -> bool:
                 return True
         except Exception:
             return False
+    return saved_state_is_empty(wid.split("::")[0])
+
+
+def saved_state_is_empty(widget_id: str) -> bool:
+    """Does the card have NOTHING saved to show?
+
+    V2-669 moved it here from the voice provider (`_surface_is_empty`, 2026-08-17), which is where the
+    ratchet pointed: the SAME decision was written in both files — load the widget's saved state, call it
+    empty when no container in it holds anything — and `nothing_to_show`'s own docstring already cited the
+    other copy by name. One body now; `nucleo.py` re-exports the old name so every caller and test is
+    unchanged. Deliberately still catalog-free (it reads SAVED STATE, so a surface that does not exist yet
+    is covered) and still fail-open: never claim a card is empty when we cannot tell.
+    """
     try:
         from widgets import store as _store
-        data = _store.load(wid.split("::")[0]) or {}
+        data = _store.load(widget_id) or {}
     except Exception:
         return False
     if not isinstance(data, dict):
