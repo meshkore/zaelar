@@ -131,6 +131,19 @@ class LangSpec:
     # wanted to see, forever. These open an EXPLANATION or a presence, promise no looking, and the reply
     # continues them («Pues…» → «Pues te decía que…»).
     fillers_social: tuple = ("Pues…", "Verás…", "Sí, mira…", "Te cuento…", "A ver, te explico…", "Eh, pues…")
+    # WORK COVERS (V2-669) — the SECOND cover, spoken at the TOOL SEAM, not before the model. A lead-in is a
+    # blind guess made ~1.1 s in; by the time the router hands back a light route we KNOW what we are about to
+    # do, and the measured hole is on the far side of that seam: with `deepseek-v4-pro` a web-search turn ends
+    # 3.4-5.9 s AFTER the tool fires (7 real voice turns, 2026-09-04..11), and the lead-in's audio is long over.
+    # These name the SOURCE, which is information the lead-in could not carry — that is what keeps them from
+    # being a second stall («Voy a mirarlo…» then «Miro en agenda…» says something new). Short on purpose: a
+    # cover cannot be cut mid-sentence, so its own length is latency (the operator's rule, 2026-09-11).
+    covers_widget: tuple = ("Lo miro en {t}…", "Un segundo, lo miro en {t}…", "Lo compruebo en {t}…",
+                            "Déjame mirarlo en {t}…")
+    covers_search: tuple = ("Lo busco en internet…", "Un segundo, lo busco…", "Voy a buscarlo…",
+                            "Lo miro en la web…")
+    covers_recall: tuple = ("Miro lo que tengo guardado…", "Un segundo, lo busco en mis notas…",
+                            "Déjame recordarlo…", "Lo miro en lo que guardé…")
     # V2-640 — the PRESENCE fast lane's spoken answers («¿sigues ahí?» must never wait 4 s for a model).
     # Two pools because the honest answer differs: idle = "I'm here, talk to me"; busy = "here, and still
     # on your task" — which is what that question really asks mid-task.
@@ -251,6 +264,11 @@ LANGUAGES: dict[str, LangSpec] = {
         ),
         fillers_action=("On it…", "Right away…", "Sure…", "Doing it…", "On it now…", "Right, doing it…"),
         fillers_social=("Well…", "So…", "Right, so…", "Let me explain…", "Okay, so…"),
+        covers_widget=("Checking {t}…", "One sec, checking {t}…", "Let me check {t}…", "Looking at {t}…"),
+        covers_search=("Looking it up online…", "One sec, searching…", "Let me search for that…",
+                       "Checking the web…"),
+        covers_recall=("Checking what I have saved…", "One sec, checking my notes…", "Let me recall that…",
+                       "Checking my notes…"),
         presence_idle=("Yes, I'm here. Go ahead.", "Still here, tell me.", "I'm listening.",
                        "Right here — what do you need?"),
         presence_busy=("I'm here — still on your task, I'll tell you in a moment.",
@@ -414,6 +432,47 @@ def pick_filler(last: str = "", code: str | None = None, kind: str = "neutral") 
     return phrase
 
 
+_RECENT_COVERS: list[str] = []
+
+
+def _generated_covers(code: str, kind: str) -> list[str]:
+    """Same read-side seam as `_generated_fillers`, for the work covers — so a language onboarded at runtime
+    (Japanese, the operator's standing example) can eventually ship its own covers from the SAME generated
+    pack, without this module learning anything about generation. Empty today: nothing writes them yet."""
+    try:
+        from i18n.init import fillers as _fillers_store
+        return _fillers_store.read_covers(code, kind)
+    except Exception:
+        return []
+
+
+def pick_cover(kind: str, target: str = "", last: str = "", code: str | None = None) -> str:
+    """The WORK COVER for the tool seam (V2-669): a short line that names WHERE we are about to look, chosen
+    once the router has already decided. `kind` is "widget" | "search" | "recall"; `target` fills `{t}` for the
+    widget pool (the card's own title). Varied against a recent window like `pick_filler`, and — crucially —
+    against the LEAD-IN that may have just sounded (`last`), because the one thing this must never be is the
+    same wait said twice. No pool, or an unknown kind, returns "" and the caller stays silent."""
+    field = {"widget": "covers_widget", "search": "covers_search", "recall": "covers_recall"}.get(kind or "")
+    if not field:
+        return ""
+    pool = _generated_covers(code or current_code(), kind) or list(getattr(spec(code), field, ()) or ())
+    if not pool:
+        return ""
+    avoid = set(_RECENT_COVERS[-_RECENT_MAX:]) | ({last} if last else set())
+    # Three rungs like `pick_filler`, and the MIDDLE one is the point: once the recent window has swallowed a
+    # short pool, falling straight back to it would hand back the very phrase we must not repeat.
+    choices = [p for p in pool if p not in avoid] or [p for p in pool if p != last] or pool
+    phrase = _random.choice(choices)
+    _RECENT_COVERS.append(phrase)
+    del _RECENT_COVERS[:-8]
+    if "{t}" in phrase:
+        t = (target or "").strip()
+        if not t:
+            return ""                      # a widget cover with nothing to name says less than silence
+        phrase = phrase.replace("{t}", t)
+    return phrase
+
+
 def pick_closer(last: str = "", code: str | None = None) -> str:
     """The honest «no answer» closer (V2-642), varied like the acks — spoken when a turn that sounded a
     cover produced nothing and even the repair pass came back empty. Empty string when no pool ships."""
@@ -435,4 +494,4 @@ def pick_ack(last: str = "", code: str | None = None) -> str:
 
 
 __all__ = ["LangSpec", "LANGUAGES", "DEFAULT_LANG", "current_code", "current_language",
-           "spec", "supported", "kokoro_voices", "pick_filler", "pick_ack", "pick_closer"]
+           "spec", "supported", "kokoro_voices", "pick_filler", "pick_cover", "pick_ack", "pick_closer"]

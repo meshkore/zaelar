@@ -133,6 +133,18 @@ def compose_system(lang_lock: str, operator_text: str, wid: str, question: str, 
     )
 
 
+def cover_target(args: dict, operator_text: str) -> str:
+    """The card's own TITLE, for the voice channel's WORK COVER (V2-669). Resolved BEFORE the read so the
+    cover can name WHERE we are looking while the read and the second pass run — the one thing the blind
+    lead-in could not say. Empty string when nothing resolves: a cover with nothing to name says less than
+    silence, and `langs.pick_cover` drops it."""
+    try:
+        wid = resolve(str(args.get("widget_id") or ""), operator_text)
+        return title(wid) if wid else ""
+    except Exception:                                    # noqa: BLE001 — a cover never breaks a turn
+        return ""
+
+
 async def prepare(args: dict, operator_text: str, lang_lock: str, emit, channel: str = "") -> str:
     """Resolve → read → observe → compose: everything BOTH channels share about a `read_widget` turn, so the two
     parallel turn implementations cannot drift on it (V2-252). Returns the second pass's system prompt; the

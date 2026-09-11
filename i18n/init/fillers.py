@@ -36,9 +36,24 @@ def read(code: str) -> list[str]:
         return []
 
 
-def save(code: str, fillers: list[str]) -> None:
+def read_covers(code: str, kind: str) -> list[str]:
+    """The generated WORK-COVER pool for `code` (V2-669) — the short line said at the TOOL SEAM, per kind
+    ("widget" | "search" | "recall"). Same contract as `read`: [] when never generated, and the caller falls
+    back to the hardcoded es/en pool in `langs.LangSpec`. It shares this file on purpose — a language pack is
+    one artefact, so whatever eventually generates fillers generates these in the same pass."""
+    try:
+        data = json.loads(_path(code).read_text(encoding="utf-8"))
+        return [str(f) for f in (data.get(f"covers_{kind}") or []) if str(f).strip()]
+    except Exception:
+        return []
+
+
+def save(code: str, fillers: list[str], covers: dict | None = None) -> None:
     """Persist a generated pool atomically (tmp + os.replace) — same crash-safety pattern as `i18n.store.save`."""
     _GEN_DIR.mkdir(parents=True, exist_ok=True)
     tmp = _path(code).with_suffix(".fillers.json.tmp")
-    tmp.write_text(json.dumps({"fillers": list(fillers or [])}, ensure_ascii=False, indent=2), encoding="utf-8")
+    payload: dict = {"fillers": list(fillers or [])}
+    if covers:
+        payload.update({f"covers_{k}": list(v or []) for k, v in covers.items()})
+    tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     os.replace(tmp, _path(code))

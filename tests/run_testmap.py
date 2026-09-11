@@ -1106,6 +1106,16 @@ DOMAINS: list[dict] = [
                                 "lee la tarjeta cerrada en el turno, en los dos canales",
             "ch": UNIT, "paths": [
                 "tests/agent_headless/unit/flash/test_a_question_about_a_widget_is_answered_by_the_widget.py"]},
+        # V2-669 — el relleno de entrada se elige a ciegas ~1,1 s dentro del turno; el hueco que NO cubre está al
+        # otro lado de la costura de la herramienta. Medido en la observabilidad del operador (deepseek-v4-pro):
+        # el turno de read_widget de la cita con Hacienda tardó 6.029 ms con `ttft_ms: 0` (el 1er pase devolvió
+        # una tool y ningún texto), y en 7 turnos de voz reales la respuesta llegó 3,4-5,9 s DESPUÉS del evento
+        # de la tool. La cobertura de trabajo se elige cuando el router ya ha decidido, así que puede NOMBRAR la
+        # fuente — que es lo que evita que dos coberturas suenen como la misma espera dicha dos veces (V2-189).
+        {"id": "2.53", "title": "Un turno que llama a una TOOL se cubre en la costura: la cobertura de trabajo "
+                                "nombra la fuente, calla si la respuesta se adelanta y nunca pisa al relleno",
+            "ch": UNIT,
+            "paths": ["tests/voice/unit/test_a_tool_turn_is_covered_at_the_seam.py"]},
         {"id": "2.51", "title": "Wake Word Mode: the toggle rides the directive, and the prompt teaches the "
                                 "mode exists",
             "ch": UNIT,

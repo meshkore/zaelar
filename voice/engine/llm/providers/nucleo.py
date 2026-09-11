@@ -1821,6 +1821,16 @@ class NucleoLLMStream(llm.LLMStream):
             out, buf = strip_tags(buf, _tag_emit, final)
             return out
 
+        def _cover_work(kind: str, target: str = "") -> None:
+            """Tell the filler node what this turn is about to GO AND DO, so it can cover the far side of the
+            tool seam while the work and the second pass run (V2-669). Voice only: the text channel has no dead
+            air to fill. Never breaks a turn."""
+            try:
+                from voice.engine.speech import filler_audio as _fa_w
+                _fa_w.note_work(brain, kind, target)
+            except Exception:                       # noqa: BLE001
+                pass
+
         async def speak(sys2: str, user_text: str, max_tokens: int = 240, what: str = "2º pase") -> None:
             """ONE (system, user) SECOND PASS streamed straight into the mouth — the shape every light route
             (recall, read_widget) had written out in full. Owns this turn's tag accumulator (`buf`/`take`), so
@@ -2399,6 +2409,7 @@ class NucleoLLMStream(llm.LLMStream):
         if read_req["v"] is not None and escalate_req["v"] is None and search_req["v"] is None \
                 and reveal_req["v"] is None:
             from nucleo.flash import widget_read as _wread
+            _cover_work("widget", _wread.cover_target(read_req["v"] or {}, operator_text))
             await speak(await _wread.prepare(read_req["v"] or {}, operator_text, _prompt_mod._lang_lock(), emit),
                         operator_text, 220, "read_widget compose")
             spoken_text = "".join(spoken).strip()
@@ -2406,6 +2417,7 @@ class NucleoLLMStream(llm.LLMStream):
         if recall_req["v"] is not None and escalate_req["v"] is None and search_req["v"] is None \
                 and reveal_req["v"] is None and read_req["v"] is None:
             from nucleo.flash import second_pass as _second_v
+            _cover_work("recall")
             await _second_v.recall_spoken(text, recall_req["v"], spec, emit, speak)
             spoken_text = "".join(spoken).strip()
 
@@ -2429,6 +2441,7 @@ class NucleoLLMStream(llm.LLMStream):
         if search_req["v"] is not None and reveal_req["v"] is None:
             query = search_req["v"]
             emit("brain", "🔎 búsqueda web", text=query, role="system")
+            _cover_work("search")     # the slowest light route measured (7.2 s end to end) — V2-669
             _t_s = time.time()
             try:
                 from nucleo import websearch as _ws

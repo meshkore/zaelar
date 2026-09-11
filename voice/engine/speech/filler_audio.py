@@ -53,7 +53,15 @@ _ARM_GRACE_S = 0.8       # past the deadline, how long we keep polling for this 
                          # below). A spin guard, not a behavioural bound: the first-chunk future always
                          # resolves, so in practice the loop exits there — this only saves a model that hangs.
 _ARM_POLL_S = 0.05
+# The SECOND cover (V2-669). `_WORK_GRACE_S` is how long a work note waits before it is allowed to sound: a
+# second pass that comes back inside it beats the cover and nothing is said. `_COVER_MIN_GAP_S` is measured
+# from the LEAD-IN's fire, not its playout, because this node cannot know how long the TTS took — it is the
+# guard against the one failure this mechanism can produce, which the codebase has already met once (V2-189,
+# session 2bdc67ee): two of our own canned waits back to back.
+_WORK_GRACE_S = 0.35
+_COVER_MIN_GAP_S = 1.6
 _arm: tuple[float, object, str] | None = None   # (monotonic ts, brain, filler kind)
+_work: tuple[float, object, str, str] | None = None   # (monotonic ts, brain, work kind, target title)
 _last_phrase = ""
 _pending_strip: list[str] = []             # phrases emitted as fillers, awaiting removal from the transcript
 _last_fired_at = 0.0                       # monotonic; read by the turn onset (V2-535) to say whether
@@ -265,6 +273,64 @@ def _pick_phrase(brain, kind: str = "neutral", phrase: str = "") -> str:
     return phrase
 
 
+def note_work(brain, kind: str, target: str = "") -> None:
+    """The provider publishes, at the TOOL SEAM, what this turn is about to go and do — "widget" | "search" |
+    "recall" — so the node that is still waiting for the first chunk can cover the far side of that seam.
+
+    Why here and not in the lead-in: the lead-in is chosen ~1.1 s in, before any model has spoken, so it can
+    only ever be a blind thinking sound. The hole it does NOT cover is the one measured on 7 real voice turns
+    (2026-09-04..11, `deepseek-v4-pro`): the turn ends 3.4-5.9 s AFTER the tool event, with the lead-in's audio
+    long finished and nothing in between. By this point the route is decided, so the cover can name the SOURCE
+    — which is new information, and the reason two covers do not read as the same wait twice.
+
+    Deliberately VOICE-ONLY: the text channel (`nucleo/flash/probe.py`) has no dead air to fill — its answer
+    appears when it appears — so the parallel-implementation rule (V2-252) does not reach this one, and that is
+    written down rather than left as drift."""
+    global _work
+    if kind:
+        _work = (time.monotonic(), brain, str(kind), str(target or ""))
+
+
+def _peek_work():
+    if _work is None:
+        return None
+    ts, brain, kind, target = _work
+    if time.monotonic() - ts > _ARM_TTL_S:
+        return None
+    return ts, brain, kind, target
+
+
+def _consume_work() -> None:
+    global _work
+    _work = None
+
+
+def _pick_cover(brain, kind: str, target: str) -> str:
+    """Same guards as `_pick_phrase` — never over the operator's voice, anti-echo updated, never the reply
+    context — plus the one that only covers need: the LEAD-IN that just sounded is what we must not restate."""
+    try:
+        from voice import proactive as _pro
+        if _pro.user_speaking():
+            return ""
+    except Exception:
+        pass
+    try:
+        from voice.engine.core import langs
+        phrase = langs.pick_cover(kind, target=target, last=_last_phrase)
+    except Exception:
+        return ""
+    if not phrase:
+        return ""
+    try:
+        # anti-echo only (`_last_spoken`), NEVER `_last_reply` — a cover carries no topic either, and the
+        # directed-content judge misclassifies the next turn if it is fed one (the 2026-08-17 bug).
+        brain._last_spoken = phrase
+        brain._last_spoke_at = time.time()
+    except Exception:
+        pass
+    return phrase
+
+
 def last_fired_at() -> float:
     """Monotonic timestamp of the last filler that actually sounded (0.0 if none this process)."""
     return _last_fired_at
@@ -281,16 +347,21 @@ def played_recently(within_s: float = 20.0) -> str:
     return ""
 
 
-def _announce(phrase: str) -> None:
+def _announce(phrase: str, *, cover: str = "") -> None:
     """The filler's visibility contract (V2-122 addenda): observability + an EXPLICIT chat-wall event with
-    its own kind, pushed synchronously at the decision — always before any real reply text exists."""
-    global _last_fired_at
+    its own kind, pushed synchronously at the decision — always before any real reply text exists. `cover`
+    names the work kind when this is the SECOND cover (V2-669), so the two are told apart in the timeline."""
+    global _last_fired_at, _last_phrase
     _last_fired_at = time.monotonic()
+    _last_phrase = phrase          # covers feed the same anti-repetition window as lead-ins
     try:
         from voice.observer import emit
-        emit("brain", "💬 relleno de espera (lead-in)", text=phrase, role="system",
-             extra={"cat": "flash", "after_ms": delay_ms(), "path": "segment"})
-        emit("filler", "relleno", text=phrase, role="assistant", extra={"cat": "flash"})
+        label = f"🛠 cobertura de trabajo ({cover})" if cover else "💬 relleno de espera (lead-in)"
+        emit("brain", label, text=phrase, role="system",
+             extra={"cat": "flash", "after_ms": delay_ms(), "path": "segment",
+                    **({"work": cover} if cover else {})})
+        emit("filler", "cobertura" if cover else "relleno", text=phrase, role="assistant",
+             extra={"cat": "flash", **({"work": cover} if cover else {})})
     except Exception:
         pass
 
@@ -351,37 +422,80 @@ async def llm_node_with_filler(agent, default_impl, chat_ctx, tools, model_setti
             # plainly deserved one). So the deadline is not a single sleep: past it we keep polling for the
             # arm, still racing the model's first chunk, for a bounded grace. A generation that never arms
             # (the kickoff) just waits out the grace producing nothing — it is not yielding meanwhile either.
+            #
+            # V2-669 — the loop no longer STOPS once the lead-in has settled. The turn that takes longest is
+            # the one that calls a tool, and on that turn the lead-in is over long before the answer exists:
+            # measured on 7 real voice turns (2026-09-04..11, `deepseek-v4-pro`), a web-search turn ends
+            # 3.4-5.9 s AFTER the tool event while the lead-in sounded ~1 s in. So the node keeps racing the
+            # first chunk and covers a SECOND time when the provider publishes a work note (`note_work`).
             deadline = time.monotonic() + wait_ms / 1000.0
             give_up = deadline + _ARM_GRACE_S
+            lead_settled = False        # the lead-in phase is over: it fired, or its window closed
+            lead_at = 0.0               # monotonic of the lead-in that actually SOUNDED (0 = none did)
+            covered = False             # at most ONE work cover per turn
             while not get_t.done():
-                left = min(give_up, max(deadline, time.monotonic()) + _ARM_POLL_S) - time.monotonic()
+                now = time.monotonic()
+                left = (deadline - now) if (not lead_settled and now < deadline - _ARM_POLL_S) else _ARM_POLL_S
                 await asyncio.wait({get_t}, timeout=max(left, 0.01))
                 if get_t.done():
                     break
                 now = time.monotonic()
-                if now >= deadline:
+                if not lead_settled:
+                    if now < deadline:
+                        continue
                     armed = _consume_arm()
-                    if armed is not None:
-                        brain, kind, armed_phrase = armed
-                        # V2-633: the style policy rules the fire. Genesis "smart" drops the cover on ACTION
-                        # turns («reproduce el vídeo» + «Un segundo…» measured as pure annoyance, session
-                        # 6c715232); "off" (operator rule) drops it everywhere. Checked at fire time, so a
-                        # rule given one turn ago already governs this one.
-                        try:
-                            from nucleo import style_policy as _style
-                            if not _style.filler_allowed(kind):
-                                break
-                        except Exception:
-                            pass
-                        phrase = _pick_phrase(brain, kind, armed_phrase)
-                        if phrase:
-                            _announce(phrase)
-                            mark_for_strip(phrase)
-                            yield phrase + " "
-                            yield FlushSentinel()   # closes the segment → played on its own, right now
-                        break
-                    if now >= give_up:
-                        break
+                    if armed is None:
+                        if now >= give_up:
+                            lead_settled = True     # nothing armed — the WORK cover may still speak
+                        continue
+                    lead_settled = True
+                    brain, kind, armed_phrase = armed
+                    # V2-633: the style policy rules the fire. Genesis "smart" drops the cover on ACTION
+                    # turns («reproduce el vídeo» + «Un segundo…» measured as pure annoyance, session
+                    # 6c715232); "off" (operator rule) drops it everywhere. Checked at fire time, so a
+                    # rule given one turn ago already governs this one.
+                    try:
+                        from nucleo import style_policy as _style
+                        if not _style.filler_allowed(kind):
+                            continue
+                    except Exception:
+                        pass
+                    phrase = _pick_phrase(brain, kind, armed_phrase)
+                    if phrase:
+                        _announce(phrase)
+                        mark_for_strip(phrase)
+                        lead_at = now
+                        yield phrase + " "
+                        yield FlushSentinel()   # closes the segment → played on its own, right now
+                    continue
+                if covered:
+                    break                       # nothing left to say — stop spinning, just await the chunk
+                work = _peek_work()
+                if work is None:
+                    continue
+                w_ts, w_brain, w_kind, w_target = work
+                if now - w_ts < _WORK_GRACE_S:
+                    continue                    # a fast second pass still beats the cover
+                if lead_at and now - lead_at < _COVER_MIN_GAP_S:
+                    continue                    # never two of our own waits back to back (V2-189)
+                _consume_work()
+                covered = True
+                # The work cover asks the policy as a THINKING cover ("neutral"), so only an explicit
+                # «no fillers» silences it. The operator's action-turn rule (V2-633) is about an order that
+                # executes instantly — «reproduce esta canción» + «un segundo» — and a turn that is genuinely
+                # six seconds deep in a tool is the case he asked to have covered (2026-09-11).
+                try:
+                    from nucleo import style_policy as _style2
+                    if not _style2.filler_allowed("neutral"):
+                        continue
+                except Exception:
+                    pass
+                cover = _pick_cover(w_brain, w_kind, w_target)
+                if cover:
+                    _announce(cover, cover=w_kind)
+                    mark_for_strip(cover)
+                    yield cover + " "
+                    yield FlushSentinel()
         kind, val = await get_t
         while True:
             if kind == "err":
@@ -415,7 +529,9 @@ async def transcription_node_without_filler(agent, default_impl, text, model_set
 
 
 def _reset_for_tests() -> None:
-    global _arm, _last_phrase
+    global _arm, _last_phrase, _work, _last_fired_at
     _arm = None
+    _work = None
     _last_phrase = ""
+    _last_fired_at = 0.0
     _pending_strip.clear()
