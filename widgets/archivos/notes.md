@@ -111,3 +111,47 @@
   since V2-637/V2-638 shipped, discovered only now because the archivos redesign hit the exact same class of
   hand-off. ⚠️ **NOT verified live end-to-end** (needs an engine restart + a real click) — verified only that
   the emit call itself now carries the right `src`, and that `sse.js`'s `_eco` check reads exactly that field.
+- **2026-09-11 · V2-663 · navigation clarity — a sidebar, ONE search field, a real breadcrumb, and an exit
+  from the connect screen.** Operator's live screenshots: he double-clicked an unplayable `.mkv` (correctly
+  offered reveal-vs-download, V2-658), then typed a search — and reported *"no sé en qué carpeta estoy, no sé
+  cómo volver atrás"*, plus *"hay dos campos"* pointing at the breadcrumb's own `«Resultados de X»` pill sitting
+  right next to the actual search input showing the SAME query. A second screenshot showed the connect
+  wizard (`panel:"connect"`) with no header at all — just provider cards and a "← Volver" button at the very
+  bottom, no way out without scrolling to find it.
+  - **The duplicate search box is gone.** `crumbsRow()` no longer prints a `«Resultados de X»` span — the
+    breadcrumb always shows the REAL place (home, disabled when `trail` is empty, which it is for a local
+    search — an honest "this searched everywhere", not a fake location). The query lives in exactly ONE
+    place, the `.arx-find` input, with its clear (✕) and a result-count tag (`.arx-tag`, "N resultados") now
+    living right next to the breadcrumb instead of repeating the text he already sees in the box.
+  - **A long cloud trail collapses.** `crumbsRow()` keeps the deepest two steps and an "…" for the rest past
+    that (`ui.crumbsExpanded`, the same per-mount UI-state pattern rename/delete already use) — his own
+    "if there are 200 folders, don't print 200 folders" spec. The one-level-deep LOCAL library never has a
+    trail long enough to trigger it (`_relist_local` only ever writes one entry) — this is a cloud-only path.
+  - **A SIDEBAR, Finder/Explorer-shaped, at a wide card** (`ensureTierObserver`, `root.dataset.tier` ∈
+    s|m|l off a `ResizeObserver` on the mount node — measures the CARD's own box, not the viewport, since a
+    card resizes independently of the window): past ~900px, `.arx-side` lists the five local shelves plus
+    every cloud service with a live connected/off dot, each one a second, always-visible way to the same
+    places the header chips already reach — additive, not a replacement, so the header chips (and every test
+    that reads them) are untouched. Below that width it is not rendered at all; a phone-width card never pays
+    for it.
+  - **Progressive columns, CSS-only so a resize needs no re-render.** `.arx-col-date`/`.arx-col-loc` are
+    always IN the DOM (`display:none` by default, shown at `data-tier="m"`/`"l"`) rather than conditionally
+    built in JS — `ensureTierObserver`'s callback only flips the `data-tier` attribute, it never calls
+    `render()` again, so a column that JS decided not to build would stay missing until the next real
+    repaint. The location column (which shelf a MIXED search hit lives on — `data.py`'s new `shelf` field on
+    a local row, the reverse of `_FMT_KIND`) only shows during a search at the wide tier; a plain single-shelf
+    folder already says its shelf in the breadcrumb, so repeating it per row there would be noise.
+  - **The connect screen finally has an exit that doesn't need scrolling.** `connectPanel()` is now its own
+    small screen: a top bar with the title and a `✕` (`.arx-cxclose`), the original "← Volver al explorador"
+    kept at the bottom too — belt and braces, since he landed here from two different places (the ⚙ tool and
+    now, additionally, every sidebar cloud row and every unconnected header chip).
+  - **Provider chip text is UNCHANGED on purpose** — the existing render test asserts `chip.textContent`
+    equals the bare letter/emoji, so richer labelling happens through the NEW sidebar (which has room for a
+    full name) rather than by growing the chip's own text, which would have broken every `pchips` assertion
+    for a cosmetic gain the sidebar already delivers.
+  - Node **4.156** (`test_archivos_render.py`, 5 new cases: sidebar tier gating with real shelf/service names,
+    the single-search-field assertion incl. "no `Resultados` crumb", the mixed-search shelf column shown only
+    at the wide tier, the trail-collapse/no-collapse pair, the connect screen's close visibility). Two disarms
+    verified red (tier threshold, the close button's existence) before shipping. `make test-widgets` 15/15
+    (golden untouched — `view_data()`'s own keys did not change, only a new field on already-existing local
+    rows). **NOT verified live** — needs an engine restart and the operator's own eyes on the real card.

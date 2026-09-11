@@ -57,12 +57,19 @@ _BASE = {
     "mode": "list", "panel": "", "error": "", "reason": "", "count": 5, "needs_refresh": False, "updated": 1,
 }
 
-_HTML = """<!doctype html><html data-theme="dark"><head><meta charset="utf-8"><style>
-:root{--hb-bg:#0f1720;--hb-bg-soft:#16202c;--hb-ink:#e8eef6;--hb-muted:#9fb0c4;--hb-muted-2:#6f8299;
+def _html(host_w=820, host_h=600):
+    # The card's OWN box, not the viewport, is what `ensureTierObserver` measures — real cards resize
+    # independently of the browser window (the operator drags a card, never the whole app). Parametrized so
+    # tier-boundary tests can grow/shrink `#host` directly instead of faking it with the viewport.
+    return f"""<!doctype html><html data-theme="dark"><head><meta charset="utf-8"><style>
+:root{{--hb-bg:#0f1720;--hb-bg-soft:#16202c;--hb-ink:#e8eef6;--hb-muted:#9fb0c4;--hb-muted-2:#6f8299;
       --hb-line:#243244;--hb-accent:#2F6FEB;--hb-accent2:#16B8A6;--hb-risk:#e05252;
-      --hb-warn-bg:#3a2f10;--hb-warn-border:#7a6420;--hb-warn-ink:#f0d891}
-body{margin:0;background:#0a1017}#host{width:820px;height:600px}
+      --hb-warn-bg:#3a2f10;--hb-warn-border:#7a6420;--hb-warn-ink:#f0d891}}
+body{{margin:0;background:#0a1017}}#host{{width:{host_w}px;height:{host_h}px}}
 </style></head><body><div id="host"></div></body></html>"""
+
+
+_HTML = _html()
 
 _MEASURE = """() => {
   const el = document.querySelector('.arx');
@@ -73,14 +80,20 @@ _MEASURE = """() => {
   return {
     mounted: true,
     nested: el.querySelectorAll('.arx').length,
+    tier: el.dataset.tier || '',
     shelves: [...el.querySelectorAll('.arx-shelf b')].map(n => n.textContent),
     rows: [...el.querySelectorAll('.arx-row .arx-nm')].map(n => n.textContent),
     row_meta: [...el.querySelectorAll('.arx-row .arx-meta')].map(n => n.textContent),
+    row_loc: [...el.querySelectorAll('.arx-row .arx-col-loc')].map(n => vis(n) ? n.textContent : ''),
     icons: [...el.querySelectorAll('.arx-row .arx-ic')].map(n => n.textContent),
     tiles: [...el.querySelectorAll('.arx-tile .arx-nm')].map(n => n.textContent),
     row_action_counts: [...el.querySelectorAll('.arx-row')].map(r => r.querySelectorAll('.arx-ac').length),
     crumbs: crumbs.map(b => b.textContent),
     crumb_last_disabled: crumbs.length ? crumbs[crumbs.length - 1].disabled : null,
+    crumb_more: !!el.querySelector('.arx-crumb-more'),
+    search_tag: (el.querySelector('.arx-tag') || {}).textContent || '',
+    find_value: (el.querySelector('.arx-find input') || {}).value ?? null,
+    find_has_x: !!el.querySelector('.arx-find-x'),
     note_text: note ? note.textContent : '',
     note_visible: note ? vis(note) : false,
     note_warn: note ? note.classList.contains('warn') : false,
@@ -90,23 +103,26 @@ _MEASURE = """() => {
     footer: (el.querySelector('.arx-foot .arx-nm') || {}).textContent || '',
     pchips: [...el.querySelectorAll('.arx-pchip')].map(n => ({t: n.textContent, on: n.classList.contains('on'),
              conn: n.classList.contains('conn'), off: n.classList.contains('off')})),
+    side_items: [...el.querySelectorAll('.arx-side-item .arx-side-nm')].map(n => n.textContent),
+    side_visible: (() => { const s = el.querySelector('.arx-side'); return s ? vis(s) : false; })(),
+    cx_close_visible: (() => { const c = document.querySelector('.arx-cxclose'); return c ? vis(c) : false; })(),
     injected_imgs: document.querySelectorAll('img').length,
     up_disabled: (el.querySelector('.arx-tools .arx-btn') || {}).disabled,
   };
 }"""
 
 
-def _run(steps):
+def _run(steps, width=860, height=700, host_w=820, host_h=600):
     async def go():
         from playwright.async_api import async_playwright
         async with async_playwright() as pw:
             b = await pw.chromium.launch(headless=True, args=["--no-sandbox"])
-            pg = await b.new_page(viewport={"width": 860, "height": 700})
+            pg = await b.new_page(viewport={"width": width, "height": height})
             errors = []
             pg.on("pageerror", lambda e: errors.append(str(e)))
 
             async def _page(route):
-                await route.fulfill(status=200, content_type="text/html", body=_HTML)
+                await route.fulfill(status=200, content_type="text/html", body=_html(host_w, host_h))
             await pg.route("http://zaelar.test/", _page)
             await pg.goto("http://zaelar.test/")
             src = open(_WIDGET, encoding="utf-8").read()
@@ -117,7 +133,7 @@ def _run(steps):
                 await pg.evaluate(
                     "d => window.render(document.getElementById('host'), d, {action: async () => ({ok:true})})",
                     data)
-                await pg.wait_for_timeout(60)
+                await pg.wait_for_timeout(80)
                 m = await pg.evaluate(_MEASURE)
                 m["errors"] = list(errors)
                 out.append(m)
@@ -255,3 +271,61 @@ def test_a_provider_without_its_app_registered_says_where_to_register_it(playwri
     m = _run([off])[0]
     assert "Conectores" in m["note_text"], m["note_text"]
     assert m["tier_options"] == [], "there is nothing to choose until the app exists"
+
+
+# ── V2-662: navigation clarity — the sidebar, ONE search field, and an exit from the connect screen ─────────
+# The operator's own report: landing in a search or a cloud folder with no sense of where he was, two boxes
+# both showing the query, and getting trapped in the connect panel with no way back out.
+
+def test_a_narrow_card_hides_the_sidebar_and_a_wide_one_shows_the_shelves_and_every_service(playwright_available):
+    narrow = _run([_BASE], host_w=500)[0]
+    assert narrow["tier"] == "s", narrow["tier"]
+    assert narrow["side_visible"] is False, "a small card has no room for a sidebar — everything stays central"
+
+    wide = _run([_BASE], host_w=1000)[0]
+    assert wide["tier"] == "l", wide["tier"]
+    assert wide["side_visible"] is True
+    assert wide["side_items"][:5] == ["Vídeo", "Audio", "Documentos", "Imágenes", "Descargas"], wide["side_items"]
+    assert "Google Drive" in wide["side_items"], "the sidebar is a SECOND way to the same places, not a smaller one"
+
+
+def test_the_search_field_is_the_only_place_the_query_lives_no_duplicate_box(playwright_available):
+    hits = [{**_LOCAL_FILES[0], "shelf": "documents"}]
+    searching = {**_BASE, "folder_id": "", "trail": [], "query": "factura", "entries": hits, "count": 1}
+    m = _run([searching])[0]
+    assert m["find_value"] == "factura", "the query lives in the search INPUT, nowhere else"
+    assert m["find_has_x"] is True, "a live search always offers its own clear button, right beside the text"
+    assert m["search_tag"] == "1 resultado", m["search_tag"]
+    # the breadcrumb never repeats the query as a fake crumb — that was the second box the operator saw
+    assert not any("factura" in (c or "") for c in m["crumbs"]), m["crumbs"]
+    assert not any("Resultados" in (c or "") for c in m["crumbs"]), m["crumbs"]
+
+
+def test_a_mixed_search_names_which_shelf_each_hit_lives_on(playwright_available):
+    hits = [{**_LOCAL_FILES[0], "shelf": "documents"}, {**_LOCAL_FILES[1], "shelf": "documents"}]
+    searching = {**_BASE, "provider": "local", "query": "algo", "entries": hits, "count": 2}
+    at_small = _run([searching], host_w=500)[0]
+    assert all(t == "" for t in at_small["row_loc"]), \
+        "the shelf column is a WIDE-card affordance, not clutter on a phone-ish card"
+    at_large = _run([searching], host_w=1000)[0]
+    assert all("Documentos" in (t or "") for t in at_large["row_loc"]), at_large["row_loc"]
+
+
+def test_a_long_cloud_trail_collapses_and_the_ellipsis_expands_it(playwright_available):
+    deep_trail = [{"id": f"d{i}", "name": f"Carpeta {i}"} for i in range(6)]
+    deep = {**_BASE, "provider": "gdrive", "folder_id": "d5", "trail": deep_trail, "entries": _CLOUD_FILES}
+    collapsed = _run([deep])[0]
+    assert collapsed["crumb_more"] is True, "six levels deep must not print six crumbs"
+    assert "Carpeta 0" not in collapsed["crumbs"], "the buried early steps are the ones that hide"
+    assert "Carpeta 5" in collapsed["crumbs"], "the current location always stays visible"
+    assert collapsed["crumb_last_disabled"] is True
+
+    shallow_trail = deep_trail[:2]
+    shallow = {**deep, "folder_id": "d1", "trail": shallow_trail}
+    m2 = _run([shallow])[0]
+    assert m2["crumb_more"] is False, "a short trail never collapses — nothing to hide"
+
+
+def test_the_connect_screens_close_button_is_reachable_without_scrolling(playwright_available):
+    m = _run([{**_BASE, "panel": "connect"}])[0]
+    assert m["cx_close_visible"] is True, "landing here must never trap the operator with no way back"

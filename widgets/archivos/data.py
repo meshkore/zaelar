@@ -60,6 +60,10 @@ _MODES = ("list", "grid")
 
 _SHELF_LABEL = {"video": "Vídeo", "audio": "Audio", "documents": "Documentos",
                 "images": "Imágenes", "downloads": "Descargas"}
+# The reverse of `_FMT_KIND` (defined below) — a file's `library/formats.py` kind ("document") back to its
+# shelf key ("documents"), so a row can name WHERE it lives. Only meaningful across a flat listing (a search
+# spans every shelf); a plain single-shelf folder already says its shelf in the breadcrumb.
+_SHELF_OF_FMT = {"video": "video", "audio": "audio", "document": "documents", "image": "images"}
 
 
 def _seed() -> dict:
@@ -241,7 +245,7 @@ def _local_row(rec: dict) -> dict:
     return {"id": rec["rel"], "name": rec["name"], "kind": "file", "file_kind": rec["kind"],
             "mime": rec["mime"], "size": rec["size"], "modified": modified, "provider": "local",
             "playable": rec["playable"], "url": rec["url"], "download_url": rec["download_url"],
-            "same_machine": _same_machine()}
+            "same_machine": _same_machine(), "shelf": _SHELF_OF_FMT.get(rec["kind"], "")}
 
 
 def _shelf_rows() -> list[dict]:

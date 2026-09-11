@@ -1264,6 +1264,15 @@ DOMAINS: list[dict] = [
                                 "dirigida, y el anillo del orbe no muere a mitad de frase",
             "ch": UNIT, "paths": [
                 "tests/voice/unit/test_the_window_measures_silence_not_speech.py"]},
+        # V2-662 — UNA ORDEN SOBRE DATOS NO ES UNA ORDEN SOBRE EL LIENZO. Sesión eedf7f9b (2026-09-11):
+        # «quita, por favor, los datos de comidas de la agenda… todas esas entradas» cerró TODOS sus widgets
+        # (verbo de cierre en una oración y un cuantificador pelado quince palabras más allá, en OTRA), y
+        # «me vas a poner el vídeo del Apolo 11» murió como context-bleed porque la gramática de medios
+        # deletrea el infinitivo de todos sus verbos MENOS el más común en castellano.
+        {"id": "3.36", "title": "«quita los datos de la agenda» no cierra el escritorio y «me vas a poner el "
+                                "vídeo» SÍ es una orden: el cuantificador se lee por lo que gobierna",
+            "ch": UNIT, "paths": [
+                "tests/voice/unit/test_an_order_about_data_is_not_an_order_about_the_canvas.py"]},
         {"id": "3.30", "title": "Si el turno PIDIÓ PERMISO, el encargo se aparca en vez de lanzarse — y el "
                                 "«sí» del operador lanza exactamente ese",
             "ch": UNIT, "paths": [
@@ -1715,6 +1724,13 @@ DOMAINS: list[dict] = [
                                  "voz ACTIVA, y sí se apaga cuando calla de verdad",
             "ch": UNIT, "paths": [
                 "tests/browser/unit/orbe/test_the_ring_never_dies_while_he_is_talking.py"]},
+        # V2-662 — el ESPEJO CLIENTE de la regla de 3.36, y el atajo del canvas deja de actuar sobre voz que
+        # nadie juzgó: el fail-open de V2-647 soltaba a los 2,5 s —menos de lo que el propio guarda tarda con
+        # una frase continua— y abría una tarjeta mientras el operador DESCRIBÍA el fallo en voz alta.
+        {"id": "4.158", "title": "Una orden sobre datos no cierra el lienzo desde el cliente, y el atajo del "
+                                 "canvas solo actúa sobre lo que el guarda declaró dirigido",
+            "ch": UNIT, "paths": [
+                "tests/browser/unit/chat/test_a_data_order_never_closes_the_canvas.py"]},
         {"id": "4.155", "title": "Un texto se guarda en la BIBLIOTECA y aparece en sus archivos: save_document, "
                                  "save_to_library y el worker sabe dónde viven los ficheros",
             "ch": UNIT, "paths": [
@@ -2002,9 +2018,17 @@ DOMAINS: list[dict] = [
         # UNTRUSTED —`<img src=x onerror=…>` es un nombre legal en cualquier proveedor o carpeta local— y solo
         # un navegador dice si eso se convirtió en un elemento o siguió siendo una cadena; y un aviso que
         # existe en el DOM con altura cero no explica nada a nadie.
+        # V2-662 (capturas en vivo del operador, 2026-09-11): «no sé en qué carpeta estoy, no sé cómo volver
+        # atrás» — la ruta llevaba un «Resultados de X» que repetía la MISMA búsqueda ya visible en el campo de
+        # texto («hay dos campos»), y el asistente de conectores (panel:"connect") no dejaba ningún camino de
+        # vuelta salvo bajar a buscar un botón al final. La búsqueda vive ahora en UN solo sitio (con su cuenta
+        # y su ✕), una carpeta muy anidada en la nube se colapsa con «…», a partir de ~900px aparece una barra
+        # lateral (los cinco estantes + cada servicio) como segundo camino —nunca sustituto— de los chips del
+        # header, y el asistente de conectores gana un ✕ arriba, siempre alcanzable sin hacer scroll.
         {"id": "4.104", "title": "ARCHIVOS: la biblioteca local es el gestor por defecto (rename/copy/delete), "
                                  "la nube ofrece solo lo que puede, y dice lo que su permiso NO puede ver "
-                                 "(contrato + renderizado)",
+                                 "(contrato + renderizado); la ruta nunca repite la búsqueda, y hay barra "
+                                 "lateral + salida siempre visible del asistente de conectores",
             "ch": UNIT, "paths": [
                 "tests/browser/unit/archivos/test_the_explorer_is_generic_and_says_what_it_cannot_see.py",
                 "tests/browser/e2e/widgets/test_archivos_render.py"]},

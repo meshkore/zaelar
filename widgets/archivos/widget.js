@@ -1,8 +1,10 @@
-// archivos — a real file manager: the agent's own library first, cloud drives beside it (V2-658).
+// archivos — a real file manager: the agent's own library first, cloud drives beside it (V2-658/V2-662).
 //
 // Shaped like the file managers people already know: a small icon row up top for WHICH storage (this device,
-// Drive, OneDrive…), a breadcrumb + search + list/grid toolbar under it, folders before files, double-click to
-// open. Local files get real actions (rename/copy/delete); a cloud provider that cannot do one says so.
+// Drive, OneDrive…), a breadcrumb + ONE search field + list/grid toolbar under it, folders before files,
+// double-click to open. Local files get real actions (rename/copy/delete); a cloud provider that cannot do
+// one says so. At a wide card size a Finder/Explorer-style SIDEBAR appears (this device's shelves + the cloud
+// services) so navigation never depends only on the small header chips.
 //
 // TWO RULES THIS FILE CANNOT BREAK:
 //  · Every string in here — file names, folder names, mime types — is UNTRUSTED (a cloud drive, or a torrent's
@@ -17,6 +19,26 @@ const CSS = `
 .arx{display:flex;flex-direction:column;width:100%;height:100%;min-height:0;box-sizing:border-box;
   position:relative;background:var(--hb-bg,#fff);border-radius:14px;overflow:hidden;
   font:13px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial;color:var(--hb-ink,#0d1622)}
+.arx-layout{display:flex;flex:1 1 auto;min-height:0}
+.arx-main{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;min-height:0}
+/* The SIDEBAR — a Finder/Explorer-style nav column. Only shown once the card is wide enough to hold it
+   without squeezing the content area; see the tier system below, ensureTierObserver. */
+.arx-side{flex:0 0 190px;display:none;flex-direction:column;gap:1px;padding:10px 6px;overflow:auto;
+  border-right:1px solid var(--hb-line,#eef1f6);background:var(--hb-bg,#fff)}
+.arx[data-tier="l"] .arx-side{display:flex}
+.arx-side-head{background:none;border:0;text-align:left;font:inherit;font-size:10.5px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.05em;color:var(--hb-muted-2,#9aa4b2);padding:9px 8px 4px;cursor:pointer}
+.arx-side-head:hover{color:var(--hb-ink,#0d1622)}
+.arx-side-item{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;border:0;
+  background:none;text-align:left;cursor:pointer;color:var(--hb-ink,#0d1622);font:inherit;width:100%}
+.arx-side-item:hover{background:var(--hb-bg-soft,#f5f7fb)}
+.arx-side-item.on{background:color-mix(in srgb,var(--hb-accent,#2f6df6) 14%,transparent);
+  color:var(--hb-accent,#2f6df6);font-weight:600}
+.arx-side-item .arx-ic{width:18px;flex:0 0 auto;text-align:center;font-size:14px}
+.arx-side-nm{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.arx-side-count{flex:0 0 auto;color:var(--hb-muted-2,#9aa4b2);font-size:11px}
+.arx-side-dot{width:7px;height:7px;border-radius:50%;background:var(--hb-muted-2,#9aa4b2);flex:0 0 auto}
+.arx-side-dot.conn{background:var(--hb-accent2,#12a594)}
 /* ONE header row — the storage chips, the breadcrumb and the tools live together so the chrome never reads
    as two half-empty bands with a void between them. */
 .arx-bar{display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--hb-line,#eef1f6);
@@ -25,21 +47,30 @@ const CSS = `
 .arx-pchip{width:32px;height:32px;border-radius:10px;border:1px solid var(--hb-line,#eef1f6);
   background:var(--hb-bg,#fff);display:grid;place-items:center;font-size:16px;line-height:1;
   font-weight:700;cursor:pointer;flex:0 0 auto;color:var(--hb-muted,#67707d);
-  box-shadow:0 1px 2px rgba(0,0,0,.14)}
-.arx-pchip:hover{background:var(--hb-bg-soft,#f5f7fb)}
+  box-shadow:0 1px 2px rgba(0,0,0,.14);transition:transform .1s ease}
+.arx-pchip:hover{background:var(--hb-bg-soft,#f5f7fb);transform:translateY(-1px)}
 .arx-pchip.on{border-color:var(--hb-accent,#2f6df6);box-shadow:0 0 0 2px color-mix(in srgb,var(--hb-accent,#2f6df6) 30%,transparent);
   color:var(--hb-accent,#2f6df6)}
 .arx-pchip.conn:not(.on){border-color:var(--hb-accent2,#12a594);color:var(--hb-accent2,#12a594)}
 .arx-pchip.off{opacity:.5}
 .arx-divider{width:1px;align-self:stretch;background:var(--hb-line,#eef1f6);flex:0 0 auto}
-.arx-crumbs{display:flex;align-items:center;gap:4px;flex:1 1 180px;min-width:0;overflow:hidden}
-.arx-crumb{background:none;border:0;padding:2px 6px;border-radius:6px;color:var(--hb-accent,#2f6df6);cursor:pointer;font:inherit;max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.arx-crumbs{display:flex;align-items:center;gap:4px;flex:1 1 180px;min-width:0;overflow:hidden;flex-wrap:nowrap}
+.arx-crumb{background:none;border:0;padding:2px 6px;border-radius:6px;color:var(--hb-accent,#2f6df6);cursor:pointer;font:inherit;max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:0 1 auto}
 .arx-crumb:hover{background:var(--hb-bg-soft,#f5f7fb)}
-.arx-crumb[disabled]{color:var(--hb-ink,#0d1622);cursor:default}
+.arx-crumb[disabled]{color:var(--hb-ink,#0d1622);cursor:default;font-weight:600}
+.arx-crumb-more{max-width:none;padding:2px 8px;font-weight:700}
 .arx-sep{color:var(--hb-muted-2,#9aa4b2);flex:0 0 auto}
-.arx-tools{display:flex;align-items:center;gap:6px;flex:0 0 auto;flex-wrap:wrap}
+.arx-tag{flex:0 0 auto;font-size:11.5px;color:var(--hb-muted,#67707d);background:var(--hb-bg-soft,#f5f7fb);
+  border-radius:999px;padding:1px 8px;white-space:nowrap}
+.arx-tools{display:flex;align-items:center;gap:6px;flex:0 0 auto}
 .arx-find{display:flex;align-items:center;gap:4px;background:var(--hb-bg-soft,#f5f7fb);border:1px solid var(--hb-line,#eef1f6);border-radius:8px;padding:3px 6px}
+.arx-find.active{border-color:var(--hb-accent,#2f6df6)}
 .arx-find input{border:0;background:none;outline:none;font:inherit;color:var(--hb-ink,#0d1622);width:130px}
+.arx-find-ic{color:var(--hb-muted,#67707d);font-size:13px}
+.arx-find-count{flex:0 0 auto;font-size:11px;color:var(--hb-muted,#67707d);background:var(--hb-bg,#fff);
+  border-radius:999px;padding:1px 6px}
+.arx-find-x{border:0;background:none;color:var(--hb-muted,#67707d);cursor:pointer;font-size:13px;padding:0 2px;line-height:1}
+.arx-find-x:hover{color:var(--hb-ink,#0d1622)}
 .arx-btn{border:1px solid var(--hb-line,#eef1f6);background:var(--hb-bg,#fff);color:var(--hb-ink,#0d1622);border-radius:8px;padding:3px 8px;cursor:pointer;font:inherit;line-height:1.6}
 .arx-btn:hover{background:var(--hb-bg-soft,#f5f7fb)}
 .arx-btn[disabled]{opacity:.4;cursor:default}
@@ -64,7 +95,11 @@ const CSS = `
 .arx-clickable{cursor:pointer;flex:1 1 auto;min-width:0;display:flex;align-items:center;gap:10px}
 .arx-ic{flex:0 0 auto;font-size:17px;width:22px;text-align:center;line-height:1}
 .arx-nm{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.arx-meta{flex:0 0 auto;color:var(--hb-muted,#67707d);font-size:11.5px;white-space:nowrap}
+.arx-meta{flex:0 0 auto;display:flex;align-items:center;color:var(--hb-muted,#67707d);font-size:11.5px;white-space:nowrap}
+.arx-col-date{display:none}
+.arx-col-loc{display:none;color:var(--hb-muted-2,#9aa4b2)}
+.arx[data-tier="m"] .arx-col-date,.arx[data-tier="l"] .arx-col-date{display:inline}
+.arx[data-tier="l"] .arx-col-loc{display:inline}
 .arx-acts{display:flex;align-items:center;gap:3px;flex:0 0 auto}
 .arx-ac{border:0;background:none;color:var(--hb-muted,#67707d);cursor:pointer;font-size:15px;padding:4px 5px;border-radius:6px;line-height:1}
 .arx-ac:hover{background:var(--hb-bg-soft,#f5f7fb);color:var(--hb-ink,#0d1622)}
@@ -89,8 +124,16 @@ const CSS = `
 .arx-note.bad{border-color:var(--hb-risk,#d64545);color:var(--hb-risk,#d64545)}
 .arx-foot{flex:0 0 auto;border-top:1px solid var(--hb-line,#eef1f6);padding:8px 10px;display:flex;gap:10px;align-items:center}
 .arx-foot .arx-nm{font-weight:600}
-.arx-cx{padding:12px}
-.arx-cx h4{margin:0 0 4px;font-size:14px}
+/* The connect wizard, as its OWN screen with a persistent close/back — the operator's own report was
+   "I got in here and had no way out". A gear-icon ⚙ opens this; the ✕ up top always gets back out. */
+.arx-cxwrap{display:flex;flex-direction:column;height:100%;min-height:0}
+.arx-cxtop{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;
+  border-bottom:1px solid var(--hb-line,#eef1f6);flex:0 0 auto}
+.arx-cxtop b{font-size:13.5px}
+.arx-cxclose{background:none;border:0;color:var(--hb-muted,#67707d);font-size:19px;cursor:pointer;
+  padding:2px 8px;line-height:1;border-radius:8px}
+.arx-cxclose:hover{background:var(--hb-bg-soft,#f5f7fb);color:var(--hb-ink,#0d1622)}
+.arx-cx{flex:1 1 auto;overflow:auto;padding:12px}
 .arx-cx p{margin:0 0 10px;color:var(--hb-muted,#67707d);font-size:12px}
 .arx-prov{border:1px solid var(--hb-line,#eef1f6);border-radius:12px;padding:10px;margin-bottom:10px;background:var(--hb-bg,#fff)}
 .arx-prov b{font-size:13px}
@@ -122,6 +165,8 @@ const ICONS = [
 ];
 
 const SHELF_ICON = { video: "🎬", audio: "🎵", documents: "📄", images: "🖼", downloads: "⬇" };
+const SHELF_LABEL = { video: "Vídeo", audio: "Audio", documents: "Documentos", images: "Imágenes", downloads: "Descargas" };
+const SHELF_KINDS = ["video", "audio", "documents", "images", "downloads"];
 const LOCAL_ICON = { video: "🎬", audio: "🎵", image: "🖼", document: "📄", other: "📦" };
 
 function iconFor(entry) {
@@ -163,6 +208,26 @@ function el(tag, cls, text) {
   return n;
 }
 
+// The card is a FINDER, not a fixed-size box: at a narrow width everything lives in the central column with a
+// tightly-controlled breadcrumb; past ~900px a sidebar of shortcuts appears, the way any desktop file manager
+// grows. `data-tier` (s|m|l) drives it — CSS shows/hides the sidebar and the extra list columns from it, so a
+// resize needs no re-render, just a class flip. Attached ONCE per mount node; render() clears children every
+// call but never replaces the root itself, so the observer survives every repaint.
+function ensureTierObserver(root) {
+  if (root._arxRO) return;
+  const apply = () => {
+    const w = root.getBoundingClientRect().width;
+    const tier = w >= 900 ? "l" : w >= 560 ? "m" : "s";
+    if (root.dataset.tier !== tier) root.dataset.tier = tier;
+  };
+  apply();
+  try {
+    const ro = new ResizeObserver(apply);
+    ro.observe(root);
+    root._arxRO = ro;
+  } catch (_) { /* no ResizeObserver — the tier just stays at its first computed value */ }
+}
+
 export function render(root, data, ctx) {
   if (!document.getElementById(STYLE_ID)) {
     const s = document.createElement("style");
@@ -174,25 +239,31 @@ export function render(root, data, ctx) {
   const act = async (name, payload) => {
     try { return ctx && ctx.action ? await ctx.action(name, payload || {}) : null; } catch (_) { return null; }
   };
-  // Local view state (rename-in-progress, delete confirm, the lightbox) survives across pushed re-renders on
-  // the SAME dom node — it is not server state, and losing it on every SSE repaint would close the lightbox
-  // the instant a sibling action (e.g. a background download progressing) touched the store.
-  const ui = root._arxUi || (root._arxUi = { renameId: "", renameVal: "", confirmId: "", preview: null });
+  // Local view state (rename-in-progress, delete confirm, the lightbox, the expanded breadcrumb) survives
+  // across pushed re-renders on the SAME dom node — it is not server state, and losing it on every SSE
+  // repaint would close the lightbox the instant a sibling action (e.g. a background download) touched the store.
+  const ui = root._arxUi || (root._arxUi = { renameId: "", renameVal: "", confirmId: "", preview: null, crumbsExpanded: false });
 
   // The passed-in element IS the root — no wrapper div. A wrapped root sizes to its own CONTENT instead of
   // the card it was handed (`el.className` set here is what `desktop.js`'s fluid `.hb-win`/`.hb-scroll`
   // actually measures); `results`/`documento`/`youtube` set the same convention (V2-615).
   root.textContent = "";
   root.className = "arx";
+  ensureTierObserver(root);
 
   if (d.panel === "connect") {
     root.appendChild(connectPanel(d, act));
     return;
   }
 
-  root.appendChild(header(d, act, ui));
-  root.appendChild(body(d, act, ui));
-  if (d.selected) root.appendChild(footer(d.selected, act));
+  const layout = el("div", "arx-layout");
+  layout.appendChild(sidebar(d, act));
+  const main = el("div", "arx-main");
+  main.appendChild(header(d, act, ui));
+  main.appendChild(body(d, act, ui));
+  if (d.selected) main.appendChild(footer(d.selected, act));
+  layout.appendChild(main);
+  root.appendChild(layout);
   if (ui.preview) root.appendChild(lightbox(ui, act));
 
   if (d.needs_refresh && !root._arxAsked) {
@@ -208,6 +279,58 @@ export function render(root, data, ctx) {
   if (!d.providers_stale) root._arxProvAsked = false;
 }
 
+// ── the SIDEBAR: shortcuts for this device's five shelves + every cloud service — the "quick access" a real
+// file manager always has, so navigation never depends on the small header chips alone. Additive: the header
+// keeps its own chips too, this just gives a wide card a second, richer way to the same places.
+function sidebar(d, act) {
+  const side = el("div", "arx-side");
+  const isLocal = d.provider === "local";
+
+  const devHead = el("button", "arx-side-head", "Este dispositivo");
+  devHead.title = "Ir a tu biblioteca";
+  devHead.onclick = () => act("set_provider", { provider: "local" });
+  side.appendChild(devHead);
+
+  SHELF_KINDS.forEach(k => {
+    const active = isLocal && d.folder_id === `shelf:${k}`;
+    const item = el("button", "arx-side-item" + (active ? " on" : ""));
+    item.appendChild(el("span", "arx-ic", SHELF_ICON[k]));
+    item.appendChild(el("span", "arx-side-nm", SHELF_LABEL[k]));
+    item.title = SHELF_LABEL[k];
+    item.onclick = async () => {
+      if (!isLocal) await act("set_provider", { provider: "local" });
+      act("open_folder", { folderId: `shelf:${k}` });
+    };
+    side.appendChild(item);
+  });
+
+  const provs = d.providers || [];
+  if (provs.length) {
+    side.appendChild(el("div", "arx-side-head", "Nube"));
+    provs.forEach(p => {
+      const active = d.provider === p.id;
+      const item = el("button", "arx-side-item" + (active ? " on" : ""));
+      item.appendChild(el("span", "arx-side-dot" + (p.connected ? " conn" : "")));
+      item.appendChild(el("span", "arx-side-nm", p.label || p.id));
+      item.title = p.connected ? (p.label || p.id) : `${p.label || p.id} — sin conectar`;
+      item.onclick = () => {
+        if (p.connected) act("set_provider", { provider: p.id });
+        else act("open_connectors", { provider: p.id });
+      };
+      side.appendChild(item);
+    });
+  }
+
+  const gear = el("button", "arx-side-item", null);
+  gear.appendChild(el("span", "arx-ic", "⚙"));
+  gear.appendChild(el("span", "arx-side-nm", "Servicios en la nube"));
+  gear.title = "Conectar o gestionar servicios en la nube";
+  gear.onclick = () => act("open_connectors", {});
+  side.appendChild(gear);
+
+  return side;
+}
+
 // ── ONE header row: this device + every cloud service, then the breadcrumb, then the tools ─────────────────
 // Kept as a single row deliberately (see the module notes) — two half-empty bands read as "un doble header
 // vacío" the instant a card has real width; one populated row reads as one screen.
@@ -217,7 +340,7 @@ function header(d, act, ui) {
 
   const chips = el("div", "arx-chips");
   const local = el("button", "arx-pchip" + (isLocal ? " on" : ""), "💻");
-  local.title = "Este dispositivo";
+  local.title = "Este dispositivo — tu biblioteca";
   local.onclick = () => { ui.preview = null; act("set_provider", { provider: "local" }); };
   chips.appendChild(local);
 
@@ -225,7 +348,9 @@ function header(d, act, ui) {
     const letter = String(p.label || p.id || "?").trim().charAt(0).toUpperCase() || "?";
     const cls = "arx-pchip" + (d.provider === p.id ? " on" : (p.connected ? " conn" : " off"));
     const chip = el("button", cls, letter);
-    chip.title = p.connected ? (p.label || p.id) : `${p.label || p.id} (sin conectar)`;
+    chip.title = d.provider === p.id ? `${p.label || p.id} — estás aquí`
+      : p.connected ? `${p.label || p.id} — conectado, pulsa para entrar`
+      : `${p.label || p.id} — sin conectar, pulsa para conectarlo`;
     chip.onclick = () => {
       ui.preview = null;
       if (p.connected) act("set_provider", { provider: p.id });
@@ -236,25 +361,58 @@ function header(d, act, ui) {
   bar.appendChild(chips);
   bar.appendChild(el("div", "arx-divider"));
 
-  const crumbs = el("div", "arx-crumbs");
-  if (d.query) {
-    crumbs.appendChild(el("span", "arx-sep", "🔎"));
-    crumbs.appendChild(el("span", "arx-nm", `Resultados de «${d.query}»`));
-  } else {
-    const home = el("button", "arx-crumb", isLocal ? "Biblioteca" : (d.provider === "onedrive" ? "OneDrive" : "Mi unidad"));
-    home.onclick = () => act("go_home", {});
-    if (!(d.trail || []).length) home.disabled = true;
-    crumbs.appendChild(home);
-    (d.trail || []).forEach((t, i, arr) => {
-      crumbs.appendChild(el("span", "arx-sep", "›"));
-      const b = el("button", "arx-crumb", t.name || "…");
-      if (i === arr.length - 1) b.disabled = true;
-      else b.onclick = () => act("open_folder", { folderId: t.id });
-      crumbs.appendChild(b);
-    });
-  }
-  bar.appendChild(crumbs);
+  bar.appendChild(crumbsRow(d, ui, act));
+  bar.appendChild(toolsRow(d, act));
+  return bar;
+}
 
+// The breadcrumb ALWAYS shows the real place (never a "search results" placeholder that repeats the query —
+// the query already lives, once, in the search field itself). Long trails (a deeply-nested cloud folder)
+// collapse to Home › … › the last couple of steps, never a 200-item wall; the "…" itself is a control that
+// expands it inline, kept as pure UI state on `ui` (V2-608's own convention for a rename/delete flip).
+function crumbsRow(d, ui, act) {
+  const crumbs = el("div", "arx-crumbs");
+  const isLocal = d.provider === "local";
+  const trail = d.trail || [];
+
+  const home = el("button", "arx-crumb", isLocal ? "Biblioteca" : (d.provider === "onedrive" ? "OneDrive" : "Mi unidad"));
+  home.onclick = () => act("go_home", {});
+  if (!trail.length) home.disabled = true;
+  crumbs.appendChild(home);
+
+  const KEEP = 2; // how many of the deepest steps stay visible once a trail collapses
+  let visible = trail;
+  let hidden = 0;
+  if (trail.length > KEEP + 1 && !ui.crumbsExpanded) {
+    hidden = trail.length - KEEP;
+    visible = trail.slice(trail.length - KEEP);
+  }
+  if (hidden > 0) {
+    crumbs.appendChild(el("span", "arx-sep", "›"));
+    const more = el("button", "arx-crumb arx-crumb-more", "…");
+    more.title = `${hidden} carpeta(s) más — pulsa para ver la ruta completa`;
+    more.onclick = () => { ui.crumbsExpanded = true; act("refresh", {}); };
+    crumbs.appendChild(more);
+  }
+  visible.forEach((t, i) => {
+    crumbs.appendChild(el("span", "arx-sep", "›"));
+    const b = el("button", "arx-crumb", t.name || "…");
+    const isLast = i === visible.length - 1;
+    if (isLast) b.disabled = true;
+    else b.onclick = () => act("open_folder", { folderId: t.id });
+    crumbs.appendChild(b);
+  });
+
+  if (d.query) {
+    const n = typeof d.count === "number" ? d.count : (d.entries || []).length;
+    crumbs.appendChild(el("span", "arx-tag", n === 1 ? "1 resultado" : `${n} resultados`));
+  }
+  return crumbs;
+}
+
+// The tools row: up · ONE search field (icon + text, count + clear live INSIDE it — never a second box
+// duplicating the same query) · list/grid · refresh · cloud services.
+function toolsRow(d, act) {
   const tools = el("div", "arx-tools");
 
   const up = el("button", "arx-btn", "↑");
@@ -263,11 +421,11 @@ function header(d, act, ui) {
   up.onclick = () => act("go_up", {});
   tools.appendChild(up);
 
-  const find = el("div", "arx-find");
-  find.appendChild(el("span", null, "🔎"));
+  const find = el("div", "arx-find" + (d.query ? " active" : ""));
+  find.appendChild(el("span", "arx-find-ic", "🔎"));
   const input = document.createElement("input");
   input.type = "search";
-  input.placeholder = isLocal ? "Buscar en tu biblioteca" : "Buscar en tus archivos";
+  input.placeholder = d.provider === "local" ? "Buscar en tu biblioteca" : "Buscar en tus archivos";
   input.value = d.query || "";
   input.onkeydown = (ev) => {
     if (ev.key !== "Enter") return;
@@ -276,20 +434,19 @@ function header(d, act, ui) {
     else act("clear_search", {});
   };
   find.appendChild(input);
+  if (d.query) {
+    const clear = el("button", "arx-find-x", "✕");
+    clear.title = "Quitar la búsqueda y volver";
+    clear.onclick = () => act("clear_search", {});
+    find.appendChild(clear);
+  }
   tools.appendChild(find);
 
-  if (d.query) {
-    const clear = el("button", "arx-btn", "✕");
-    clear.title = "Quitar la búsqueda";
-    clear.onclick = () => act("clear_search", {});
-    tools.appendChild(clear);
-  }
-
   const list = el("button", "arx-btn" + (d.mode !== "grid" ? " on" : ""), "☰");
-  list.title = "Lista";
+  list.title = "Vista de lista";
   list.onclick = () => act("set_view", { mode: "list" });
   const grid = el("button", "arx-btn" + (d.mode === "grid" ? " on" : ""), "▦");
-  grid.title = "Cuadrícula";
+  grid.title = "Vista de cuadrícula";
   grid.onclick = () => act("set_view", { mode: "grid" });
   tools.appendChild(list);
   tools.appendChild(grid);
@@ -304,8 +461,7 @@ function header(d, act, ui) {
   cx.onclick = () => act("open_connectors", {});
   tools.appendChild(cx);
 
-  bar.appendChild(tools);
-  return bar;
+  return tools;
 }
 
 function body(d, act, ui) {
@@ -396,8 +552,17 @@ function listView(d, entries, act, ui) {
     nm.title = e.name || "";
     click.appendChild(nm);
     if (!isFolder) {
-      const bits = [humanSize(e.size), humanDate(e.modified)].filter(Boolean).join(" · ");
-      click.appendChild(el("span", "arx-meta", bits));
+      const meta = el("span", "arx-meta");
+      const sizeTxt = humanSize(e.size);
+      if (sizeTxt) meta.appendChild(el("span", "arx-col-size", sizeTxt));
+      const dateTxt = humanDate(e.modified);
+      if (dateTxt) meta.appendChild(el("span", "arx-col-date", (sizeTxt ? " · " : "") + dateTxt));
+      // The "location" column only earns its keep when results are MIXED across shelves — a plain folder
+      // listing already says where you are in the breadcrumb, so repeating it per row would be noise.
+      if (d.query && e.shelf && SHELF_LABEL[e.shelf]) {
+        meta.appendChild(el("span", "arx-col-loc", (sizeTxt || dateTxt ? " · " : "") + SHELF_LABEL[e.shelf]));
+      }
+      click.appendChild(meta);
     }
     click.onclick = () => isFolder ? act("open_folder", { folderId: e.id }) : selectOrPreview(e, act);
     click.ondblclick = () => { if (!isFolder) openEntry(e, act, row); };
@@ -432,7 +597,7 @@ function rowActions(e, act, ui) {
     if (e.same_machine) {
       const reveal = el("button", "arx-ac", "📁");
       reveal.title = "Ver dónde está";
-      reveal.onclick = () => revealLocal(e, act, reveal.closest(".arx-row"));
+      reveal.onclick = () => revealLocal(e, act, reveal.closest(".arx"));
       acts.appendChild(reveal);
     }
     if (e.download_url) {
@@ -444,7 +609,7 @@ function rowActions(e, act, ui) {
   } else {
     const openBtn = el("button", "arx-ac", e.provider === "local" ? primaryGlyph(e) : "↗");
     openBtn.title = e.provider === "local" ? "Abrir" : "Abrir el enlace";
-    openBtn.onclick = () => openEntry(e, act, openBtn.closest(".arx-row"));
+    openBtn.onclick = () => openEntry(e, act, openBtn.closest(".arx"));
     acts.appendChild(openBtn);
   }
 
@@ -614,10 +779,21 @@ function footer(sel, act) {
   return f;
 }
 
-// The connect wizard, INSIDE the card — house rule: a widget's sub-flow never becomes a separate window.
+// The connect wizard, INSIDE the card — house rule: a widget's sub-flow never becomes a separate window. It
+// is its OWN screen with a persistent close (✕, top-right, reachable without scrolling) AND the original
+// "← Volver" at the bottom — the operator's own report was landing here with no way back out.
 function connectPanel(d, act) {
+  const wrap = el("div", "arx-cxwrap");
+
+  const top = el("div", "arx-cxtop");
+  top.appendChild(el("b", null, "Servicios de archivos en la nube"));
+  const close = el("button", "arx-cxclose", "✕");
+  close.title = "Cerrar y volver al explorador";
+  close.onclick = () => act("close_connectors", {});
+  top.appendChild(close);
+  wrap.appendChild(top);
+
   const box = el("div", "arx-cx");
-  box.appendChild(el("h4", null, "Servicios de archivos en la nube"));
   box.appendChild(el("p", null,
     "zaelar entra en tu nube con TU permiso y solo para leer. La aplicación se registra una sola vez en "
     + "Configuración → Conectores; desde aquí eliges el permiso y das el consentimiento. Tu biblioteca en "
@@ -681,7 +857,8 @@ function connectPanel(d, act) {
   const back = el("button", "arx-btn", "← Volver al explorador");
   back.onclick = () => act("close_connectors", {});
   box.appendChild(back);
-  return box;
+  wrap.appendChild(box);
+  return wrap;
 }
 
 async function beginConsent(provider, tier, btn, act) {
