@@ -510,6 +510,19 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   the video returned `completion_chars: 0` and a susurro repair spoke 23 s later over work that had already
   succeeded; the fragment accumulator DUPLICATED his sentence around the summons; and the shadow arbiter
   vetoed both the correct load and the spurious search, so it still cannot arbitrate this class.
+  **V2-665b, same day, found by DRIVING the live engine rather than by reading**: «Johnny.» through the probe
+  still reached the model, because `fast_lane.presence` and `presence.mirror` both resolved his name with
+  `config.settings.get("assistant_name")` — **a key nobody writes**. A rename lands in MEMORY state and is
+  pushed into `voice.attention` by `memory_cache`; the settings file has held `None` the whole time. So this
+  is a defect OLDER than the batch that found it: the vocative strip that recognises «Johnny, ¿sigues ahí?»
+  as a knock has been dead for a renamed assistant since V2-640 shipped, and the summons check would have
+  been born dead the same way — **passing its own unit tests, because those handed the name in by hand**.
+  `presence.assistant_names()` is the single source now and asks the authority (`attention.wakewords()`, the
+  same list the gate itself consults: default + env + rename); both callers stop reading the settings file,
+  and `is_presence_check` strips every name it should, longest first. The node grew an end-to-end drive of the
+  REAL probe mirror, and its guard is anchored on the IMPORT rather than on the words — both files explain
+  this defect in prose, and a scan its own explanation trips is a scan that gets weakened instead of believed.
+  Sixth disarm red.
 
 - **An order about DATA is not an order about the CANVAS — and «me vas a poner el vídeo» is an order
   (V2-664, 2026-09-11)**: the operator drove his own session and reported three things: the Apollo 11 video
