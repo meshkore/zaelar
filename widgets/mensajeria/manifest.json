@@ -138,6 +138,7 @@
   },
   "reply": {
    "desc": "Enviar una respuesta al mensaje/chat N por su propio canal (email con hilo, WhatsApp y Telegram como respuesta al mensaje). El envío real lo hace el conector de esa plataforma.",
+   "confirm_q": "¿Envío esa respuesta por su propio canal?",
    "payload": {
     "n": "int (número del mensaje/chat en la lista)",
     "text": "string (el texto a enviar)"
@@ -155,6 +156,7 @@
   },
   "send_draft": {
    "desc": "Envía el borrador que ya está en el cuadro (escrito por voz o a mano) — el mismo texto que se ve en pantalla. No lleva texto propio: si aún no hay nada dictado, dile que dicte primero.",
+   "confirm_q": "¿Envío el borrador que hay escrito en el cuadro?",
    "payload": {},
    "confirm": true,
    "usage": "El botón «Enviar» de la propia tarjeta hace exactamente esto. Por voz: primero 'draft' con el texto, luego (con su confirmación) 'send_draft'."
@@ -200,6 +202,7 @@
   },
   "clear_signature": {
    "desc": "Borra la firma de email entera",
+   "confirm_q": "¿Borro tu firma de correo entera?",
    "payload": {},
    "confirm": true
   },

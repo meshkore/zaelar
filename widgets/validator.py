@@ -331,6 +331,38 @@ def _validate_actions_sync(man: dict, src: str, wdir: str = "") -> str | None:
     if invisible:
         return (f"apply_action handles action(s) {invisible} not declared in manifest 'actions' — the brain can't "
                 f"see them; declare each one (name/desc/payload) so the widget's data API is complete")
+    return _validate_confirm_questions(man)
+
+
+def _validate_confirm_questions(man: dict) -> str | None:
+    """An action that ASKS the operator must carry the sentence he hears (`confirm_q`) — V2-665.
+
+    `desc` is written FOR THE MODEL, and the fallback that quotes it read our own tool prose out loud:
+    «Ojo, esto es permanente: "BUSCAR vídeos para elegir: pinta hasta n resultados NUMERADOS en el INICIO
+    del widget…"». Nine of the seventeen confirming actions in the catalog had no `confirm_q` at all, so
+    that fallback was the NORMAL path, not the rare one. A rule each widget author has to remember is not a
+    rule: the gate enforces it, and `confirm_gate` keeps its desc branch as the last resort for a widget
+    that never came through here.
+
+    It also refuses the contradiction `view` + `confirm`: a view action changes only what is displayed and
+    writes nothing to undo, so asking about one is a manifest that disagrees with itself.
+    """
+    from widgets import actions as _wa
+    bare, both = [], []
+    for name, spec in (man.get("actions") or {}).items():
+        if not isinstance(spec, dict):
+            continue
+        if spec.get("view") is True and (spec.get("confirm") is True or spec.get("irreversible") is True):
+            both.append(str(name))
+        if _wa.classify(spec, str(name)) == _wa.CONFIRM and not str(spec.get("confirm_q") or "").strip():
+            bare.append(str(name))
+    if both:
+        return (f"action(s) {sorted(both)} declare BOTH 'view' and 'confirm' — a view action only changes what "
+                f"is displayed and writes nothing to undo, so it can never be irreversible; drop one")
+    if bare:
+        return (f"action(s) {sorted(bare)} ask the operator for a yes/no but declare no 'confirm_q' — add the "
+                f"SENTENCE he hears ('¿Borro «{{item}}»? Es permanente.'); 'desc' is written for the model and "
+                f"reading it aloud is what V2-665 fixed")
     return None
 
 

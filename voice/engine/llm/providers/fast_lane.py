@@ -117,7 +117,7 @@ async def handled(brain, text: str, emit, *, first_turn: bool, t_entry: float, w
 # `engine: "presence"` so no one audits a model turn that never happened.
 # The DETECTOR lives in `nucleo/flash/presence.py` — neutral ground both channels import (this lane
 # downward, the probe by injection), so the two can never drift apart on what counts as a knock.
-from nucleo.flash.presence import is_presence_check  # noqa: F401 — re-exported for the lane's tests
+from nucleo.flash.presence import is_presence_check, is_summons  # noqa: F401 — re-exported for the lane's tests
 
 
 async def presence(brain, text: str, emit, *, first_turn: bool, window_max: int) -> bool:
@@ -130,7 +130,12 @@ async def presence(brain, text: str, emit, *, first_turn: bool, window_max: int)
         _aname = str(_sget("assistant_name") or "")
     except Exception:
         _aname = ""
-    if not is_presence_check(text, _aname):
+    # V2-665 — a bare «Johnny.» is the SAME class: an address with no request in it. Left to the model it
+    # answered «Dime, Ricardo.» half the time and INVENTED an errand the other half (session e82f7fcb: it
+    # fired a `widget_data` search off a memory pill from the night before). The honest pools already say the
+    # right thing, and here they cost no model and reach no tool.
+    _knock = is_presence_check(text, _aname)
+    if not (_knock or is_summons(text, _aname)):
         return False
     try:
         from voice import proactive
@@ -162,9 +167,10 @@ async def presence(brain, text: str, emit, *, first_turn: bool, window_max: int)
         brain._last_spoke_at = time.time()
     except Exception:
         pass
-    emit("presence", "🚪 presence knock answered (no model)", text=text[:160], role="user",
+    emit("presence", "🚪 presence knock answered (no model)" if _knock else
+         "🙋 llamada por su nombre — atendida sin modelo", text=text[:160], role="user",
          extra={"cat": "flash", "engine": "presence", "origin": "presence", "busy": busy,
-                "reply": phrase, "src": "presence"})
+                "reply": phrase, "src": "presence", "kind_diag": "knock" if _knock else "summons"})
     # The exchange HAPPENED — it must exist for the next model turn (the canned-line lesson, V2-605:
     # a phrase of ours that skips the history erases its own story).
     from nucleo.flash import dialog as _dialog

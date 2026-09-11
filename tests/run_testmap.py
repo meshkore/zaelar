@@ -1727,6 +1727,16 @@ DOMAINS: list[dict] = [
         # V2-664 — el ESPEJO CLIENTE de la regla de 3.36, y el atajo del canvas deja de actuar sobre voz que
         # nadie juzgó: el fail-open de V2-647 soltaba a los 2,5 s —menos de lo que el propio guarda tarda con
         # una frase continua— y abría una tarjeta mientras el operador DESCRIBÍA el fallo en voz alta.
+        # V2-665 — UNA BÚSQUEDA NO ES IRREVERSIBLE. Sesión e82f7fcb (2026-09-11): pidió un vídeo, se le abrió
+        # la columna del chat, leyó nuestra prosa de tool como pregunta («Ojo, esto es permanente: "BUSCAR
+        # vídeos para elegir: pinta hasta n resultados NUMERADOS…"») y no vio el vídeo — que SÍ había cargado,
+        # tapado por el modal. Una causa: la heurística de irreversibilidad casó «manda» en una frase que
+        # describía OTRA acción, dentro de una acción `view: true` que no escribe nada.
+        {"id": "4.159", "title": "Una búsqueda no pide permiso, una acción de VISTA nunca es irreversible, la "
+                                 "pregunta no recita la prosa del modelo, y una llamada por su nombre no es un "
+                                 "encargo",
+            "ch": UNIT, "paths": [
+                "tests/browser/unit/widgets/test_a_search_is_not_irreversible.py"]},
         {"id": "4.158", "title": "Una orden sobre datos no cierra el lienzo desde el cliente, y el atajo del "
                                  "canvas solo actúa sobre lo que el guarda declaró dirigido",
             "ch": UNIT, "paths": [

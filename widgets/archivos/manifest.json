@@ -111,6 +111,7 @@
     },
     "delete_file": {
       "desc": "BORRA un archivo de la biblioteca LOCAL — irreversible",
+      "confirm_q": "¿Borro «{item}» de tus archivos? No se puede deshacer.",
       "payload": {
         "fileId": "el archivo a borrar"
       },

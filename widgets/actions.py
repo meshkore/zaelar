@@ -55,12 +55,25 @@ _IRREVERSIBLE_RE = re.compile(
 )
 
 
+def _own_clause(desc: str) -> str:
+    """The action's OWN statement — everything before the first sentence break.
+
+    V2-665: what follows is USAGE GUIDANCE, and it routinely talks about OTHER actions. `youtube:search`
+    ends «…add_results los MANDA a la cola», and that stray «manda» made a pure search irreversible: the
+    operator asked for a video and got «Ojo, esto es permanente» over a card that had already loaded it.
+    This is the same boundary `confirm_gate._human_confirm_question` already draws when it quotes a desc —
+    the guidance lives after the first period and is not the operator's business — applied one level
+    earlier, to the DECISION instead of to the sentence.
+    """
+    return (desc or "").split(". ")[0]
+
+
 def _looks_irreversible(name: str, desc: str) -> bool:
     """Whether the action name/description looks irreversible.
 
     Deterministic backstop for a generated widget that forgot to mark `confirm:true` on a consequential action.
     """
-    return bool(_IRREVERSIBLE_RE.search(f"{name or ''} {desc or ''}"))
+    return bool(_IRREVERSIBLE_RE.search(f"{name or ''} {_own_clause(desc)}"))
 
 
 def classify(spec: dict | None, name: str = "") -> str:
@@ -76,6 +89,16 @@ def classify(spec: dict | None, name: str = "") -> str:
     conf = spec.get("confirm")
     if conf is None:
         conf = spec.get("irreversible")
+    # V2-665 — A VIEW ACTION CAN NEVER BE IRREVERSIBLE, so the heuristic may not reach one. `view` means the
+    # action only changes what is DISPLAYED and «writes nothing the operator would have to undo and nothing
+    # outside the app» (the generator contract, verbatim) — the two flags are mutually exclusive by
+    # definition, and nothing but the guess ever put them together. Measured over the whole catalog the day
+    # this shipped: every true confirmation carries an EXPLICIT flag, and the heuristic's only two hits were
+    # `youtube:search` and `torrent:open` — both `view: true`, both caught by the word «manda» in prose about
+    # a sibling action. An explicit `confirm: true` still wins: a widget author who marks both is telling us
+    # something the flags cannot, and we obey the one that asks for friction.
+    if conf is None and spec.get("view") is True:
+        return FAST
     if conf is None:
         # No reliable new or legacy flag: infer it. (`safe:true` explicitly signals "trivial/reversible", so
         # preserve FAST even if the description contains a strong verb.)

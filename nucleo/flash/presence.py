@@ -43,8 +43,32 @@ def is_presence_check(text: str, assistant_name: str = "") -> bool:
     if name and n.startswith(name + " "):
         n = n[len(name):].strip()
     elif name and n == name:
-        return False                      # a bare call by name is a summons, not a presence question
+        return False                      # a bare call by name is a summons — `is_summons` below owns it
     return bool(_PRESENCE_BODY_RE.match(n))
+
+
+# A bare call by NAME is an address, not a request — it opens the window and asks for attention, and the only
+# honest answer is «dime». V2-665, session e82f7fcb (2026-09-11): «Johnny.» alone reached the model with a
+# memory pill about a video he had asked for the night before still in the window, and the model ANSWERED «Voy
+# a buscar el vídeo del Apolo 11» and fired a `widget_data` search on his behalf — inventing a request out of
+# a summons. Six seconds later a second bare «Johnny.» got «Dime, Ricardo.», which is the right answer: the
+# most frequent utterance in wake-word mode was non-deterministic, and half the time it acted. Now it never
+# reaches a model and never reaches a tool.
+_SUMMONS_LEAD_RE = re.compile(r"^(?:oye|hey|eh|hola|perdona|oiga)\s+")
+_SUMMONS_TAIL_RE = re.compile(r"\s+(?:por favor|porfa|please)$")
+
+
+def is_summons(text: str, assistant_name: str = "") -> bool:
+    """True when the WHOLE utterance is the assistant's name and nothing else (a leading interjection and a
+    trailing courtesy are allowed — they carry no request either). Anything after the name is a real turn."""
+    n = _norm(text)
+    if not n:
+        return False
+    n = _SUMMONS_TAIL_RE.sub("", _SUMMONS_LEAD_RE.sub("", n)).strip()
+    if not n:
+        return False
+    names = {_norm(assistant_name)} | {"zaelar"}
+    return n in {x for x in names if x}
 
 
 def mirror(text: str, sess, trace_id: str, spec) -> dict | None:
@@ -57,7 +81,7 @@ def mirror(text: str, sess, trace_id: str, spec) -> dict | None:
             aname = str(_sget("assistant_name") or "")
         except Exception:
             aname = ""
-        if not is_presence_check(text, aname):
+        if not (is_presence_check(text, aname) or is_summons(text, aname)):
             return None
         busy = False
         try:

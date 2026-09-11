@@ -46,6 +46,7 @@
     },
     "remove": {
       "desc": "cancela la descarga y BORRA el fichero — irreversible",
+      "confirm_q": "¿Cancelo la descarga de «{item}» y borro el fichero? No se puede deshacer.",
       "payload": { "id": "el id de la descarga" },
       "ref": "id",
       "confirm": true
