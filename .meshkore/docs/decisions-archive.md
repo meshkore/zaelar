@@ -7352,3 +7352,392 @@ one-line index that replaces these entries stay in `engine/CLAUDE.md`; each entr
     `settings.update()` writes `os.environ["ZAELAR_LANGUAGE"]` ITSELF, a mutation monkeypatch never saw and
     nothing reverted — the key is registered in monkeypatch's ledger FIRST now, so teardown restores the
     pre-test state whatever the code under test writes into it. Full sweep after both: 4423 passed, 0 failed.
+
+---
+
+## Moved on 2026-09-11
+
+Fourteen FULL entries moved out of `CLAUDE.md` when it reached its 400 KB ceiling, in the order they stood there. They go at the END of this file rather than interleaved by date on purpose: reordering a historical archive so that it reads chronologically is EDITING it, and the only thing this file promises is that the text is untouched. Every one of them keeps its citation line in `CLAUDE.md`, which is what the closure ratchet requires.
+
+- **La agenda no inventa, y el aviso por defecto es SUYO (V2-473, 2026-08-29)**: el caso
+  `dentist-appointment-into-agenda` (ES PASS 4/5 en 6 rondas de defecto-por-ronda; US 5/5 a la primera)
+  dejó estas reglas en `widgets/agenda/data.py` + `nucleo/flash/{router,prompt}.py`. (1) **La escritura no
+  inventa**: un `add_meeting` sin title/date/hora es un ERROR que enseña la forma del reintento — los
+  defaults fabricaban «Cita, hoy, 17:00» con cara de éxito. (2) **La forma natural no cuesta el hecho**
+  (V2-341): la hora pegada en `date` («2026-09-08 15:00») y el alias `time` se leen; el `startTime`
+  explícito manda. (3) **El aviso por defecto lo crea la AGENDA al escribir la cita** (~2h antes, prompt
+  RESUELTO, `reminder_id`/`remindAt` en la cita, jamás para el pasado) — la ronda 2 midió la alternativa:
+  el modelo escaló a un worker que murió en el login de Google con «Hecho» encima. (4) **`set_reminder` es
+  vocabulario** (la lección de `clear_all`): mover el aviso es una acción declarada, y las alarmas viajan
+  con sus citas al borrar (`cancel_meeting`/`clear_all`) — una alarma huérfana dispara una cita fantasma.
+  (5) La lista de «Próximos días» del prompt DECLARA que es un traductor de días nombrados, no el límite
+  del calendario (el modelo rechazó una cita válida a 10 días por leerla como tope). (6) La doctrina ya no
+  se contradice: la tool decía «el recordatorio es un [[cron.create]] aparte» contra el mecanismo nuevo
+  (familia V2-222) — el cron queda para avisos SUELTOS sin cita. (7) El dedup de citas entiende reintentos
+  retitulados y títulos contenidos a la misma fecha+hora (los sustantivos de categoría del widget son
+  ruido, no identidad). Los errores del widget sobreviven a ser HABLADOS (el modelo los lorea). Tests en
+  `tests/browser/unit/agenda/` (+13 esta tanda).
+
+- **La acción que ES el propósito de un widget es la que se salta el censo (V2-547, 2026-09-02)**: el operador
+  —«review last session, not working a simple request»—. La observabilidad del 2026-09-01 23:21 lo cierra:
+  «Enséñame la foto de un Ferrari F cuarenta» → `🪟 'abrir/mostrar' puro → show · imagenes (descartada show)`,
+  dos turnos seguidos, visor abierto y **vacío**, «No sale la foto», y de ahí una escalada a un agente de
+  CÓDIGO que se pasó minutos conduciendo un navegador por Wikimedia para traer una foto.
+  - **El guarda de V2-545 es correcto; lo que falló es el CENSO.** La pasada que marcó las acciones de
+    solo-vista llegó a `imagenes` y marcó `select`, `next`, `previous` y `local` —todas las formas de MOVERSE
+    entre fotos ya puestas— y se saltó `show` y `add`, **las dos únicas que PONEN una foto ahí**. El widget cuya
+    función entera es enseñar fotos tenía su acción principal descartada por la forma normal de pedir una.
+  - **La lección no es sobre `imagenes`**: una marca opt-in es una lista que alguien recorre, y la acción más
+    fácil de saltarse es la que ES el propósito del widget, porque no parece ni una lente ni un paso. La primera
+    pregunta al marcar un widget no es «cuáles son lentes» sino «cuál contesta la frase para la que existe».
+    Está escrito en el contrato de `is_view`, que es donde el próximo lo hará.
+
+- **El catálogo enrutaba con la frase cortada a mitad de palabra (V2-547, 2026-09-02)**: la segunda causa de la
+  misma sesión, y la más cara. `widgets/brief.py` recortaba `whenToUse` a 80 caracteres sin mirar dónde caía —
+  **los once widgets truncados**, y varios perdiendo justo la cláusula que los desambigua: `clock` su «NO para
+  el tiempo meteorológico», `search` su «FRONTERA con `result‹CORTE›»», `mensajeria` su «WhatsApp/Telegram/
+  correo» y `contactos` su «o por sus favoritos («mi restaurante favorito en Barcelona»)».
+  - Por eso «Enséñame mis restaurantes favoritos» —**la frase que ese manifest nombra literalmente**, con
+    `show_view` ya declarada `view` para contestarla— escaló a un agente de código y respondió «Sigo con ello».
+  - ⚠️ El corte de `mensajeria` es el mismo widget al que V2-545 dedicó una iniciativa entera: «ábreme el
+    Telegram» llegando a un modelo cuyo catálogo **no menciona Telegram**.
+  - **Ese texto lo escribimos nosotros PARA enrutar.** Cortarlo a mitad de palabra corta lo único para lo que
+    existe el bloque, y el fragmento que queda no pierde un significado: **inventa otro**. Sigue acotado
+    (V2-526) — tope generoso, corte en frontera de FRASE, y el número de widgets ya lo acota `selection`, así
+    que se acota la prosa POR widget, no el bloque. Medido 586 → 907 tokens por turno.
+  - Misma forma de fallo que el aviso de V2-027 que vive diez líneas más abajo en ese fichero: recortar el
+    `usage` hizo que un modelo pequeño **escalara en vez de deducir**. Segunda vez de la misma causa.
+  - ⚠️ Un segundo test —«todo widget de mirar declara alguna acción de vista»— **pasaba en verde con el defecto
+    puesto**, porque a `imagenes` le quedaban `select`/`next`/`previous`. Retirado en vez de dejar un guarda que
+    da falsa tranquilidad; la lección se guardó en el contrato, que es donde sí sirve.
+  - Nodos **2.1** (fichero existente) y **4.100**. Dos desarmes: 1 y 3 rojos.
+
+- **Un fallo de RECUPERACIÓN es invisible cuando sobrevive un vecino plausible (V2-548, 2026-09-02)**: la causa
+  de fondo de lo que el operador reportó como «not working a simple request», y de la que V2-547 solo arregló
+  los síntomas. Sus tres turnos de foto de esa noche —dos en castellano y el último, ya en inglés por el chat,
+  «show me a ferrari f40 picture» → *«Te lo abro, aunque de momento está vacío»*— llegaron al modelo **sin
+  `show_images` en la lista de herramientas**. La única tool que pone una foto en pantalla se había podado.
+  - **Las fotos viven en la familia `media`** (`show_images`, V2-457, el tercer hermano de música y vídeo) y las
+    pistas léxicas de esa familia tenían solo vocabulario de música y de vídeo: ni «foto», ni «imagen», ni
+    «picture». Así que «enséñame» recuperaba `widgets` y nadie recuperaba `media`. Medido: pedir MÚSICA
+    conservaba `show_images`; pedir una FOTO no.
+  - **La escotilla no podía absorberlo.** `need_capability` funciona cuando el modelo NOTA que le falta algo, y
+    aquí le quedaban `show_widget` y `widget_data` sobre la tarjeta `imagenes` — tools que PARECEN hacer el
+    trabajo. Las usó, abrió el visor vacío y dijo «Aquí lo tienes». Nadie rompió nada: la familia GANÓ una tool
+    y la lista de semillas se quedó atrás sola.
+  - **Trinquete de la CLASE**: las palabras del NOMBRE de una tool deben aparecer en las pistas de su familia —
+    el mínimo, que la familia sepa nombrar lo que contiene. Añadir una tool sin semilla es rojo en el mismo
+    commit. Al escribirlo encontró un segundo agujero: `reply_message` con pistas **solo en castellano**,
+    perdida por «reply to the message from Claudia».
+  - ⚠️ **El canal `probe` NO recorta herramientas** — no importa `tool_selection` en ningún sitio. Sondeando la
+    frase del operador para verificar el arreglo, el probe eligió `show_images` bien: **verde falso sobre el
+    defecto que estaba diagnosticando**. Y como la plataforma de casos de uso conduce el probe, **ningún caso de
+    uso podía cazar esto**. Espejarlo mueve los números de todos los casos a la vez: queda ABIERTO.
+  - Nodo **3.10**, dos desarmes. ⚠️ Uno **no llegó a aplicarse** por comillas anidadas en un `python -c` y sus
+    15 verdes no significaban nada: los desarmes van a FICHERO y con la mutación AFIRMADA antes de medir.
+
+- **LA HOJA EN BLANCO: una sola cosa para leer, y el borde que la mantiene pequeña (V2-549, 2026-09-02)**: encargo
+  del operador — «un widget que sea como una hoja en blanco, genérico, para enseñar otras cosas: un PDF, un HTML,
+  una receta, un informe que hagamos… el cuadrado y lo rellenamos con el contenido», con el código y sus
+  herramientas LIGEROS, «sin sobrecargar los prompts con skills, tools ni otras cosas».
+  - **La frontera con `results` la dictó él mismo**: aquella hoja contesta «búscame las opciones» (un CONJUNTO
+    que se compara, con fichas, fuentes y criterios); ésta contesta «dame la receta» — UNA cosa, ya elegida, que
+    se lee. «Pedí una receta y el sistema trajo una lista de recetas, y yo solo pedí una, y me fío de su
+    criterio». Un documento suelto en una superficie de comparación se lee como una lista de enlaces (la queja
+    que creó el visor de fotos, V2-457); una comparación aquí pierde sus columnas.
+  - **Tres tipos y ningún cuarto** (`markdown` por defecto —el texto llano ES markdown sin marcas—, `html`, `pdf`):
+    un cuarto tipo es un cuarto renderizador dentro de un widget cuyo valor entero es ser pequeño, y todo lo que
+    pudiera pedirse ya está en un sitio mejor — fotos → `imagenes`, una web en vivo → `navegador`, un conjunto a
+    comparar → `results`. Nombrar esos bordes cuesta una línea cada uno y evita que esto se convierta en todos.
+  - **Tres acciones declaradas y NINGUNA tool nueva** — la conduce el `widget_data` genérico; en el prompt son
+    nombres, ~5 tokens. Era una condición del encargo, no un detalle de implementación.
+  - **`show` y `append` nacen `view: true`** — la lección de V2-547 aplicada de nacimiento: la acción que ES el
+    propósito del widget es justo la que una pasada opt-in se salta, y sin marcar deja «enséñame la receta» en una
+    tarjeta vacía.
+  - **`prompt_digest` es por lo que esto gana a una captura**: con la hoja abierta, «¿cuánta harina lleva?» es una
+    pregunta sobre texto que ya tenemos. Solo se pide con la tarjeta ABIERTA. El PDF es la excepción honesta: le
+    damos el fichero al navegador y no lo leemos, así que el digest dice el título y dice que su interior no es
+    nuestro para citarlo.
+  - **NINGÚN `innerHTML`**: el trabajo entero de este widget es enseñar texto llegado de la web, de un worker o de
+    un modelo — justo el que jamás puede ejecutarse. El html se parsea INERTE (DOMParser: no corre ni carga nada) y
+    pasa una whitelist; los envoltorios desconocidos pero inocuos se vuelven `div` para no perder su CONTENIDO, y
+    los que llevan conducta se tiran enteros. Se le quitan `class` y `style` al entrar, y eso no es una limitación
+    sino el punto: venga de la página que venga, aterriza en la tipografía de ESTA hoja y sigue el tema vivo.
+  - **Un `show` vacío NUNCA borra una hoja que se está leyendo** (la regla de `imagenes`), y **`append` se niega
+    ENTERO en vez de recortar** — un corte silencioso cae a mitad de frase y se lee como un documento que
+    simplemente acaba: ni el llamante ni el operador pueden saber que se cortó. Lo cazó un test que afirmaba la
+    conducta correcta mientras el código crecía un carácter y reportaba éxito.
+  - **El `src` de un PDF es una URL http(s) o el nombre de un fichero que ya tenemos; una RUTA se rechaza aunque
+    nombre un fichero real** — un widget lee dentro de su directorio o en ningún sitio. La negativa NOMBRA lo que
+    hay (V2-463) y `state.json` queda fuera de esa lista: es el almacén del propio widget.
+  - **Medido DESPUÉS del primer commit, y cambió el manifest**: la línea de enrutado se corta a 300 chars y el
+    `whenToUse` medía **426**, así que la FRONTERA con `results`/`imagenes`/`navegador` —la mitad que enruta— no
+    llegaba al modelo. Cortaba en frontera de FRASE, así que el guarda de V2-547 callaba: no se perdía nada a mitad
+    de palabra, solo la parte que decide a dónde va una petición. Reescrito a 295 y clavado por un test que le
+    pregunta a `brief._purpose` en vez de copiar el número. **La regla que deja: la línea de enrutado de un widget
+    nuevo se escribe para CABER, y eso se comprueba contra el presupuesto real.**
+  - Nodo **4.101**, 18 casos, **siete desarmes con la mutación AFIRMADA antes de correr**. Verificado en vivo
+    (`3.16+fc8bf83`): en el catálogo, receta real conducida por la ruta de acción y renderizada, las dos negativas
+    devueltas literales, e `identify` resolviendo «el documento»/«la receta»/«el pdf»/«el papel» sin robarle «la
+    agenda». **Pendiente: el ojo del operador sobre la tarjeta.**
+
+- **Lo que se perdía del chat no era la posición, era estar ABIERTO (V2-550, 2026-09-02)**: el operador —«si
+  estaba abierto, no lo deja donde estaba»—. El muro guarda su rectángulo flotante y su lado acoplado
+  desde que se hizo movible y acoplable; lo que nunca guardó es estar abierto, porque `store.chatOpen` es una señal que nace `false`. Una
+  recarga lo devolvía cerrado y al reabrirlo la geometría se restauraba bien, que es exactamente lo que «no lo
+  deja donde estaba» parece desde fuera. **Su reporte era preciso y leerlo literalmente habría hecho perder la
+  mañana arreglando una geometría que funcionaba.**
+  - Abierto + pestaña viven en `localStorage` **junto a la geometría a la que pertenecen**, no en el layout del
+    canvas: es un panel nativo, no una tarjeta, y repartir el estado de una ventana entre dos almacenes es como
+    se descuelgan. Se restaura en la CONSTRUCCIÓN (cambiar la señal después enseña el escritorio un fotograma y
+    le deja caer un panel encima) y se guarda en cada cambio, **incluidos los del MOTOR** — un aviso proactivo
+    que abre el muro por SSE es tanto «donde lo dejó» como un clic suyo. Un wipe de servidor lo alcanza.
+  - **Una primera visita sigue encontrándolo CERRADO**, con su propia comprobación: recordar no puede
+    significar abrirse por defecto a quien nunca lo abrió. Nodo **4.102**.
+
+- **Media tarjeta no es una tarjeta más pequeña (V2-551, 2026-09-02)**: «se abre un widget de imagen y medio
+  widget está en el área visible y medio aparece como si estuviera fuera de la pantalla». `_place` reserva el
+  tile por defecto de 400×340 mientras la tarjeta CARGA, y luego el widget pinta doce fotos: nada la volvía a
+  meter. Había un re-encaje, pero **solo dentro de `_applyPreferred`**, o sea solo para los widgets que DECLARAN
+  tamaño; y el fallback de «no cabe» cascadeaba con `Math.max` en los dos ejes y **sin cota superior**.
+  - El encaje deja de ser un momento y pasa a ser una **garantía permanente** (`ResizeObserver`), y una tarjeta
+    demasiado grande se **ENCOGE, no se recorta**. Nunca pelea con el operador: solo se toca la que se sale, y
+    una maximizada se respeta.
+  - **Rejilla de 5px en colocación, arrastre Y redimensión** — cuadricular solo algunas deja bordes que *casi*
+    se alinean, que se lee peor que no tener rejilla. **El origen del barrido también se cuadricula**: arrancar
+    en el borde del raíl y avanzar de 5 en 5 arrastra el desfase para siempre.
+  - **Barrido por COLUMNAS**, y ese orden es la funcionalidad que pidió («pegados unos a otros»): por filas se
+    llena de izquierda a derecha y desparrama la sesión por arriba. Sin sitio → **el hueco más grande**, al
+    frente: la que puedes ver es la que puedes mover.
+  - ⚠️ **Dos guardas míos no medían nada.** El de «una tarjeta que crece sigue entera» pasaba con el arreglo
+    quitado, porque el registro falso declaraba tamaño para TODOS los widgets y la tarjeta **nunca llegaba a
+    crecer**; ahora una comprobación aparte exige que haya crecido ANTES de preguntar si cabe. Y un
+    `_bringFront` que añadí en `_place` no medía nada porque todos sus llamantes ya lo hacen: quitado, en vez de
+    dejarlo haciendo parecer que un guarda probaba esa rama. Nodo **4.92**, cuatro desarmes.
+
+- **Un glifo que cambia de significado bajo la mano hay que leerlo antes de usarlo (V2-552, 2026-09-02)**: la
+  barra izquierda queda con los **iconos de los widgets abiertos arriba** (con su scroll) y **cuatro controles
+  anclados abajo** — un control que se desplaza según se abren tarjetas es un control que hay que buscar.
+  - Son cuatro porque él nombró cuatro gestos y la barra los tenía en dos: **⊟ esconder todo** (MINIMIZA, nunca
+    cierra: los chips se quedan y cada uno vuelve por su cuenta), **⊞ restaurar todo**, **▦ recolocar**
+    cerrando huecos y **manteniendo tamaños** (`compact`, nuevo) y **⤢ meter todo en pantalla** encogiendo en
+    celdas (`arrange`, el de antes). Esconder y restaurar son dos botones, no un conmutador; cada uno se
+    deshabilita cuando no haría nada, que dice lo mismo sin moverse.
+  - **Recolocar y ajustar eran el MISMO botón** y no son el mismo gesto: `arrange` reparte en celdas iguales, o
+    sea que redimensiona — y «optimiza los huecos» acababa aplastando una hoja que él había agrandado aposta.
+  - **En `compact` los tamaños se asientan ANTES de empaquetar**: si `_fit` encoge una tarjeta después, la
+    garantía de V2-551 la devuelve a la esquina y la deja encima de las recién ordenadas. Y se empaqueta **de
+    mayor a menor**, porque colocar la grande al final la deja sin sitio y acaba enterrando a las ordenadas.
+  - ⚠️ **Escribí una comprobación que pedía un imposible** («tras recolocar nada solapa»): con una tarjeta que
+    ocupa 1178×656 de 1280×800 no existe colocación de cuatro sin solape, y el botón por diseño no redimensiona.
+    Lo exigible —y lo que se exige— es que queden **enteras y dentro del lienzo**. ⚠️ Y un desarme **mató la
+    corrida en vez de ponerla roja** (`null.click()`): la comprobación de que los cuatro controles existen se
+    movió ANTES de tocarlos. *Un fallo que revienta el instrumento es peor señal que el mismo fallo contado.*
+
+- **Un número de versión no sabe si el navegador tiene que recargar (V2-553, 2026-09-02)**: el canal de
+  actualización publica **DOS** campos porque su encargo tiene dos mitades opuestas — barra cuando llega una
+  versión nueva, y **nada** cuando lo único que cambió está en el backend. Un número solo no las distingue:
+  sube en TODA release, incluidas las que no tocan un byte de lo que el navegador ejecuta.
+  - **`build`** = un entero pelado, la ÚNICA versión que ve un usuario («la 1, la 2, la 25»). `version.VERSION`
+    no vale de sustituto: es semántica y no contesta «¿voy más nuevo que tú?» de un vistazo. **`ui_rev`** =
+    digest de los bytes de `frontend/**` que un navegador pide. La pregunta de recargar se **mide**.
+  - **El número vive en un FICHERO (`update/BUILD`) porque en la nube no hay git**: el `Dockerfile` no copia
+    `.git`, así que `version.sha()` es `"nogit"` dentro de cada Machine — lleva siéndolo siempre. Lo único que
+    sobrevive a la imagen es un fichero de texto. Y el gate del tag **rechaza una release cuyo número no se
+    movió**: olvidar `python -m update bump` deja a todo el mundo en «v24» tras recargar, en silencio.
+  - **El digest es de CONTENIDO, jamás de fechas**: un `COPY` de Docker y un `clone` recién hecho se INVENTAN
+    los mtimes → anuncio fantasma en cada despliegue, y silencio ante uno real escrito con fecha vieja. Cuesta
+    **8,1 ms una vez** (74 ficheros, ~2 MB) y luego 25 µs. Un árbol ilegible devuelve `"unknown"` y el cliente
+    se **niega a actuar** sobre él: un digest vacío es un valor estable contra el que todos comparan tan
+    tranquilos, y el canal se queda mudo para siempre sin que nadie lo note.
+  - **La pestaña sabe lo que ejecuta ELLA por la PRIMERA respuesta**: la sirvió ese mismo proceso segundos
+    antes. Así no hace falta inyectar la revisión en `index.html` en tiempo de build, que metería un paso de
+    compilación entre él y un fichero que edita a mano. ⚠️ Queda una carrera de ~0 s (reinicio entre servir la
+    página y la primera comprobación); por eso la primera se dispara al cargar el módulo, no en el intervalo.
+  - **Poll y no SSE, con el motivo**: un proceso nuevo rompe todo SSE abierto, así que «reconectó» ya sería la
+    noticia — pero el número tiene que seguir subiendo con el navegador abierto tres días y con la PWA de
+    fondo, y eso solo lo sostiene un poll. ~200 bytes contra un dict cacheado; pestaña oculta = **cero**.
+  - **`--banner-h` ya existía en `palette.css`** documentada como *«height of the update banner… top controls
+    shift down by this»*, con `.tr` y `.me` consumiéndola y su transición puesta: una costura construida para
+    esta barra que **nunca había tenido escritor**. Las tarjetas no se mueven porque la colocación ya reserva
+    70 px arriba (`tile.top`) > los 36 de la barra: la garantía de V2-551 sigue en pie.
+  - **La insignia no vive dentro de `WidgetRail.js`** aunque sea su columna: el raíl se esconde solo con el
+    lienzo vacío, y un número que solo se lee habiendo un widget abierto no es un número que se pueda leer.
+    Se aparta con el raíl **plegado** por `body:has(#wrail.folded)`, CSS puro y sin referencia al raíl.
+  - **Descartar dura UNA versión y no se persiste**: el arreglo de estar desactualizado es recargar, y recargar
+    ya lo limpia; un descarte recordado entre recargas esconde una actualización real para siempre.
+  - **Dos puntos de contacto y un test que los cuenta**: `server/__init__.py` monta el router y el `Dockerfile`
+    embarca el paquete. `git grep` de `import update` en `nucleo/ voice/ memory/ widgets/ connectors/ bus/
+    observability/` tiene que salir **vacío** — su restricción («que no ensucie el código del agente») escrita
+    como guarda, no como intención.
+
+- **Un `COPY` no significa que el directorio viaje (V2-554, 2026-09-02)**: `.dockerignore` se aplica al
+  contexto de build **ANTES** de que corra ningún `COPY`, así que un patrón puede vaciar en silencio un
+  directorio que se copia entero — y la imagen construye perfectamente, porque en build no hay nada que
+  resolver. Encontrado auditando la release: `config/*.json` estaba tirando `config/models.default.json`, la
+  tabla única de modelos (V2-500), que leen al arrancar `config/models.py`, `provider_chain`,
+  `workers/providers` y `memory/embeddings`.
+  - ⚠️ **Y no reventaba el arranque, que es lo que lo hacía peligroso.** Reproducido: la app se crea,
+    `/healthz` contesta 200, y el `FileNotFoundError` cae dentro del `try/except Exception` del bloque
+    «Colmena» de `create_app()`, que se traga **CUATRO routers** (probe, reporte CC, plano de workers, puente
+    del navegador) tras UNA línea de WARNING. El smoke del pipeline mira BOOT + ADMISSION: las dos habrían
+    pasado. **`success` en verde sobre un producto sin brain workers ni navegador.**
+  - **La regla que cierra la clase** (no el fichero): *lo que git VERSIONA dentro de una ruta que el
+    `Dockerfile` copia tiene que llegar a la imagen*. El estado por instalación que `.dockerignore` existe
+    para excluir no está versionado, así que la regla no lo roza. Medido: de todo lo tracked bajo rutas
+    copiadas, **exactamente uno** se caía. Guarda en el nodo 7.16, con el orden real de `.dockerignore`
+    (gana el ÚLTIMO patrón que casa; `!` re-incluye) y lista de exenciones **vacía**.
+  - **El gate de sintaxis del release es ahora la lista de `COPY`**: no compilaba `observability` ni `i18n`,
+    ambos importados a nivel de módulo por `server/__init__.py`.
+  - **Queda abierto y NO se tocó en la release**: ese `try/except Exception` convierte una mala configuración
+    FATAL en un warning. Lo correcto es distinguir «no hay cerebro configurado» de «hay cerebro y no montó»,
+    y que el segundo tumbe el arranque para que el smoke lo vea. Cambiar el manejo de excepciones del
+    arranque en el mismo commit que se corta una release es justo lo que provoca incidentes.
+
+- **Mover código «byte por byte» cambia sus GLOBALS (V2-555, 2026-09-02)**: el trinquete de arquitectura queda
+  CERRADO con cuatro extracciones y ningún techo subido — `reminder_guards.py` (26 guardas que forman un
+  conjunto cerrado y que nada de lo que se queda usa), `text_norm.py` (los tres ayudantes que ambas mitades
+  necesitan, para que ninguna importe a la otra de vuelta), `probe_scheduling.py` (una rodaja de `run_turn`,
+  que era 1136 de 1248 líneas) y `confirm_gate.py` (el único par del proveedor de voz que no necesita NADA
+  de él). Techos: 3493→**3470**, 1374/15→**789/7**, 1226→**1163**.
+  - **La costura se MIDE, no se elige por tamaño**: en los cuatro casos la pregunta fue «¿qué necesita este
+    bloque de lo que se queda, y qué necesita lo que se queda de él?». Y lo movido se comparó por **AST contra
+    HEAD**: mismo conjunto de nombres y cada definición `ast.dump`-idéntica. *Nada cambió, se mudó.*
+  - ⚠️ **Y aun así rompió dos cosas, las dos por globals.** `safe_reminder_schedule` leía `_sched` como global
+    del módulo; al quedarse ese import atrás lanzaba `NameError`, **que su propio `except` fail-soft se tragó**
+    devolviendo la entrada tal cual — nueve tests en rojo con valores plausibles, no con un error. Misma forma
+    que V2-554 y que el `_re` de v3.16. Y un `monkeypatch.setattr(router_guards, "_longest_pending_min", …)`
+    dejó de tener efecto: **un stub va donde la función MIRA, no donde el llamante importa**.
+  - **El guarda 7.30 NO caza esto** y conviene saberlo: solo mira nombres usados mientras el módulo se
+    IMPORTA. Un global leído dentro de una función lo caza la suite, no él.
+  - **Una guarda de cableado se apunta al CANAL, no al fichero**: cuatro guardas de «impl PARALELA — cablear en
+    AMBOS» leían el fuente de `probe.py`; el canal son ahora dos módulos y leen los dos. Desarmado para
+    comprobar que siguen mordiendo — si no, la siguiente extracción convierte la guarda en falsa alarma y la
+    tentación sería debilitarla.
+  - **Abierto**: `NucleoLLMStream` (2713 líneas) es la deuda que queda, y partirla es su propia tanda.
+
+- **BUSCAR ANUNCIOS es UNA tool, y el MÓDULO decide si sirve el turno o escala (V2-556, 2026-09-02)**: el
+  FlashBrain llama a `search_listings` y nunca elige entre rápido y profundo — `nucleo/flash/listing_turn.py`
+  lanza la pasada rápida con presupuesto de segundos, y o entrega filas REALES en la hoja o **se auto-escala**
+  a un Brain Worker que **HEREDA esa misma hoja** (`ctx={"sheet": …}`, la costura de relevo de V2-117: el
+  operador mira UNA caja desde el primer hallazgo hasta el informe final). La hoja se acuña en la pasada
+  rápida, no desde el encargo, precisamente para que la escalada la herede en vez de abrir otra.
+  - **Lo que YA se encontró se NOMBRA, no se cuenta.** La cara de escalada decía «hay 4 anuncios
+    provisionales» como HECHO al lado de un imperativo que solo ordenaba «di que sigues buscando»: el modelo
+    obedeció el imperativo y tiró el hecho — cuatro coches reales en la hoja contestados con «en cuanto tenga
+    resultados específicos te los digo». Y el bloque de TAREAS DE FONDO tenía el mismo defecto un nivel más
+    abajo: con «YA ENTREGADO (de su hoja): AUDI A3 — 10.990 EUR; AUDI Q5 — 9.590; BMW X3 — 9.980» EN EL PROMPT,
+    «¿tienes ya algo?» se contestó «Sigo sin tener anuncios concretos… puede haberse atascado» — negando una
+    entrega **e inventando una avería a los 37 s**. La rama anti-negación de V2-222 existía, quince líneas más
+    abajo. **La bifurcación va DENTRO del imperativo**, tercera vez que esta familia cuesta una ronda. Un
+    atasco solo puede afirmarse si el bloque pone ENCALLADA o SIN AVANZAR con esas letras. Nodos **2.44** y
+    **2.45**.
+  - **Una página de CATEGORÍA no es un anuncio, y lo dice su propio JSON-LD**: `AggregateOffer`, `offerCount`
+    o un `lowPrice` sin `price` es la colección poniéndose precio a sí misma («desde 300 EUR») — se rechaza, y
+    `lowPrice` no vale nunca de precio de repuesto. Medido: los 5 primeros de 12 «entregados» eran categorías de
+    coches.net y OcasionPlus, y el juez lo llamó inventar. Es V2-510 un nivel más abajo.
+  - **Una búsqueda cortada por tiempo NO se cachea** (`deadline_s` → `exhausted: False`): guardarla sirve una
+    truncación durante media hora.
+  - **El trinquete de arquitectura se puso rojo el día que nació la funcionalidad** —cayó sobre tres ficheros
+    que estaban EXACTAMENTE en su techo (3469/3470, 1162/1163, 928/930)— y siguió rojo un día porque corrí las
+    suites de mi barrio mientras ese guarda vive en `infrastructure`: **la misma lección ya escrita en ese
+    fichero**, pagada otra vez. Extraído, no subido: `router.py` **964→326** (el CATÁLOGO de tools es dato
+    puro → `router_catalog.py`), el proveedor de voz **3495→3327** (los lectores deterministas de intención de
+    widget → `widget_intent.py`) y `probe.py` **1180→1147**. Y tres copias de la propia forma de V2-556 se
+    colapsaron en su módulo: la DEFINICIÓN de la tool (el router solo la coloca), `request_from` y `voice_turn`
+    —la secuencia entera pasada rápida→cara→stream, que estaba escrita dos veces y ya había derivado un
+    párrafo—. Bench 2.13: **43/45**, sin caída.
+  - **Abierto**: los 27 casos restantes de la tanda de 30 están sin correr; se pararon a propósito para no
+    tasar un defecto ya diagnosticado. La nube no autentica en sitios, así que los casos son sin credencial a
+    propósito (paridad local↔nube), y falta el token de Bright Data del operador para probar el escalón de
+    desbloqueo.
+
+- **ARCHIVOS EN LA NUBE: el tramo de permiso es el DISEÑO, y un permiso que no puede listar no es un disco
+  vacío (V2-557, 2026-09-02)**: encargo del operador — un conector a sus archivos (Drive/OneDrive) y «un widget
+  de navegación lo más parecido posible a los que existen», conducible con el ratón y por voz, **genérico** para
+  los conectores que vengan. `connectors/files/` (registro tipado + PKCE compartido + un cliente por proveedor)
+  tras la **fachada agnóstica** `service.py`, que devuelve UNA forma normalizada — el widget `archivos` no sabe
+  con quién habla, y un tercer proveedor es un módulo cliente y una fila del registro, **cero líneas del
+  widget** (hay test de que los dos clientes emiten las mismas claves; sin él la fachada es una ilusión).
+  Detalle: `.meshkore/docs/modules/zaelar-cloud-files.md`.
+  - **El TRAMO no es una constante y por eso es un campo.** `drive.file` solo ve lo que la app creó o el
+    usuario eligió a mano → **no hay árbol que navegar**, y no es ámbito restringido; `drive.readonly` navega y
+    **sí** lo es (Google pide CASA para una app PUBLICADA — quien usa su propio cliente OAuth no está
+    publicando nada); Graph no pide nada equivalente para OneDrive personal. Elección por instalación, viaja
+    pegada al token, y el asistente la enseña **antes** del consentimiento.
+  - **La consecuencia es el arreglo de verdad**: el tramo estrecho contesta **200 con lista vacía**,
+    indistinguible de «esta carpeta está vacía», así que `service.py` devuelve `ok` + un **`reason`** y la
+    tarjeta imprime el motivo. Colapsarlos es cómo se le enseña «tu Drive está vacío» a quien lo tiene lleno —
+    y cómo el defecto se diagnostica como conector roto en vez de como permiso estrecho. Misma familia que
+    V2-507 (una negativa que no puede decir qué es se diagnostica mal).
+  - **NINGUNA tool nueva del FlashBrain**: las **13 acciones declaradas SON las skills**, ejecutadas con
+    `widget_data`. Es V2-526 aplicado — una entrada de catálogo cuesta UNA línea de prompt, no una plaza de
+    tool en cada turno. Las de navegación llevan `"view": true` o «ábreme el Drive» levantaría la tarjeta sin
+    listarla (V2-545), y `search_files` **devuelve** sus coincidencias porque «¿tengo un contrato de Axa?» es
+    una pregunta (V2-541).
+  - **Las fronteras que sostienen esto, todas con test**: la voz transporta INTENCIÓN y nunca una credencial
+    (V2-520 — ningún payload admite un `client_secret`; la app se registra una vez en ⚙); `widget.js` no toca
+    la red, así que el consentimiento lo arranca una acción declarada que devuelve la URL; nada de llamadas
+    entre widgets — `open_file` devuelve metadatos y `web_url` y decide el CEREBRO; y todo nombre de fichero es
+    texto UNTRUSTED (el test RENDERIZA uno llamado `<img src=x onerror=…>` y exige que no naciera ningún
+    elemento).
+  - **`data.py` importa el conector**, lo que normalmente está prohibido, porque este widget ES un conector y
+    no hay equivalente de stdlib para un token que se refresca en el credential store: entra en la lista
+    curada `_STDLIB_EXEMPT` junto a `musica`, con el import DIFERIDO para que el catálogo no pague `httpx` en
+    cada turno. De paso **`agenda` vuelve a verde**: V2-540 metió su import sin la exención y dejó
+    `make test-widgets` en rojo para todo el mundo, lo que hacía indistinguible el fallo del widget siguiente.
+  - **Tres errores míos, que son la parte reutilizable** y están en el workflow nuevo: (1) un consumidor
+    leyendo un campo que su productor no manda, **tres veces seguidas** — no falla con ruido, la superficie sale
+    VACÍA; (2) verifiqué el montaje del router leyendo `app.routes`, que devolvió `[]` **con las rutas
+    perfectamente montadas** (esta versión de FastAPI las guarda envueltas) y estuve a un paso de «arreglar»
+    algo que funcionaba — las rutas se comprueban con una PETICIÓN; (3) un `git add` en el árbol compartido y
+    otra sesión se llevó mis ficheros nuevos en SU commit (`7b24a91`): no se perdió código, ya estaba pusheado,
+    **no se reescribe `main`** por una atribución.
+  - `/api/cloudfiles/*` y **no** `/api/files/*`, que ya es de `server/memory_routes.py`; comprobado con una
+    petición real que las dos siguen vivas. 59 tests deterministas (conector · contrato · **renderizado**) con
+    cinco desarmes y la mutación afirmada antes de medir.
+  - **ABIERTO**: la ida y vuelta contra una cuenta REAL está construida entera (nodo **5.8**, `live`) y
+    **SALTA** hasta que el operador registre su app OAuth y conecte una cuenta — nada del camino HTTP está
+    probado contra el proveedor de verdad, y la tarjeta no se ha visto en su motor vivo. Es **solo lectura**:
+    escribir en el disco de alguien son acciones irreversibles y quieren su propia decisión.
+
+- **A refusal has to name what you PASTED, and a retry has to move something (V2-559, 2026-09-03)**: the
+  operator followed the guide, created the app password at Google, and the card answered «usa una CONTRASEÑA
+  DE APLICACIÓN» over a password he had just created. What was stored was **47 characters starting with
+  `https://`** — the LINK of the page where he had created it. The product held the evidence (a URL cannot be
+  a 16-letter app password) and threw it away to print a generic reason. FOUR faults, each measured before
+  touching anything, and none of them fails loudly:
+  - **The form accepted any string.** The rule now lives ONCE (`connectors/email/credentials`) and is read by
+    the three seams that need the same verdict: the shared connect door (`control.validate_connect`, which the
+    HTTP API and the supervisor both go through), `config.password()`, and the message after IMAP says no.
+    **Narrow on purpose**: the shape check only fires where the provider publishes a fixed format (Google and
+    Apple, 16 letters) and NEVER for Outlook/Yahoo/IMAP, whose formats vary — a false «that is not a password»
+    locks someone out of a mailbox that works, which is worse than the generic error it replaces.
+  - **The supervisor dropped `{ok:False,error}` on the floor.** `apply_connect` refused and nobody published a
+    status, so the widget kept painting «Conectando…» forever: **a refusal the user cannot see is
+    indistinguishable from a hang**, and it is the half he can act on.
+  - **«Corregir y reintentar» was `_expandConnect.add(pl)` on a set that already had it** — on the error path
+    the form is ALREADY expanded below, so the click repainted an identical card. From outside that is a dead
+    button, and it was reported as one. It now always moves something and lands the cursor on the field to fix.
+  - **The draft was wiped on submit**, so the form under the error banner came back EMPTY and «retry» meant
+    retyping the address and sixteen letters. It survives a REFUSAL and is cleared on CONNECTED — a connected
+    account has no reason to keep its app password in a form field.
+  - **The redesign** (his words: «que sea más de tipo asistente… respeto por los márgenes, crea las cajas, pon
+    el paso 1, paso 2, paso 3»): three numbered boxes, the middle one being the step he has to LEAVE for, with
+    a real link to the provider's page instead of a sentence buried between two inputs. Same visual language
+    for Telegram. Spaces are stripped where the provider PRINTS them (Google shows four groups of four; those
+    spaces are presentation and IMAP AUTH does not want them, and `.trim()` only removes the ends).
+  - ⚠️ **And the mobile half is mostly a NON-finding, which is the honest answer**: rendered at 375px in six
+    states (connect panel with three failures, both wizards, the QR, the chat list, a thread with media),
+    **nothing was clipped and nothing left the viewport** — `min(480px,92vw)` was already doing the job. The
+    wrap rules drafted for the channel row were DELETED after measuring: they made every row twice as tall for
+    a defect that does not exist (the long statuses and the action button never co-occur). What survived is the
+    part that IS an improvement on a phone — let the container decide the width instead of reserving 8vw, and
+    let a received photo use the whole card instead of a 220px thumbnail taken from the desktop.
+  - Nodes **5.9** (24 cases) and **4.106** (14 RENDERED). **Nine disarms, each mutation ASSERTED before
+    measuring — and two came back GREEN**: the phone checks passed with the whole media query removed (they
+    were a ratchet, not proof of a fix, and now say so), and `config.password()`'s normalization was never
+    exercised end-to-end because the fixture mocked it — an install that already saved the password WITH the
+    spaces would have kept failing at every reconnect. Both closed.
+  - ⚠️ A backtick inside a CSS comment CLOSES the widget's template literal — the trap this very file warns
+    about, paid again by writing `width:min(...)` in prose.
