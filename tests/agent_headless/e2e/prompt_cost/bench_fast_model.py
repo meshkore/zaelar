@@ -106,7 +106,11 @@ CASES: list[tuple[str, str, set[str], set[str]]] = [
     # with the answer in front of it in the prompt, it replied «Done» and called `widget_data`. Routing a
     # QUESTION to an ACTION is what the operator called «absurd conversations», and none of the
     # cases above catches it. Responding without a tool or looking at memory is acceptable; TOUCHING data is not.
-    ("pregunta memoria", "dime cuándo es la cita de la ITV", {"recall", "show_widget"},
+    # V2-668: `read_widget` is the RIGHT answer here and did not exist when this case was written — the accepted
+    # set was «remember it» or «open the card so he can look», neither of which reads the widget. Measured on
+    # 2026-09-11 the baseline routed this to `widget_data` (a GRAVE failure, this case's whole point); with the
+    # door in the catalog, deepseek-v4-pro went 14/15+1 grave → 15/15. The FORBIDDEN set is unchanged.
+    ("pregunta memoria", "dime cuándo es la cita de la ITV", {"recall", "show_widget", "read_widget"},
      {"widget_data", "escalate_to_slowbrain", "delete_widget"}),
     ("pregunta estado", "¿cuántas tareas tienes en marcha?", set(),
      {"widget_data", "escalate_to_slowbrain", "delete_widget"}),
