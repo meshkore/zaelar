@@ -286,8 +286,10 @@ async def lock(code: str, *, onboarding: bool = False) -> dict:
             if code not in _rt.PRESET:
                 from i18n.init import aliases as _aliases
                 await _aliases.ensure_aliases(code)      # the widget-name voice-command pack
+                from i18n.init import smalltalk as _smalltalk
+                await _smalltalk.ensure_smalltalk(code)  # the phrasebook (V2-674) — greetings, thanks, goodbye
         except Exception as e:  # noqa: BLE001
-            logger.warning(f"i18n.detect: alias pack for '{code}' failed: {e}")
+            logger.warning(f"i18n.detect: language packs for '{code}' failed: {e}")
 
     confirm_text = None
     try:

@@ -453,13 +453,16 @@ class NucleoLLMStream(llm.LLMStream):
             brain._utterance = {"text": text, "at": time.time()}
             self._turn_text = text
 
-        # ACTION MAP (V2-539) + PRESENCE knock (V2-640) skip the model: see fast_lane.py (mirror in probe.py).
+        # ACTION MAP (V2-539) + PRESENCE knock (V2-640) + SMALL TALK (V2-674) skip the model: see
+        # fast_lane.py (mirrors in probe.py).
         try:
             from voice.engine.llm.providers import fast_lane as _fast_lane
             if (await _fast_lane.handled(brain, text, emit, first_turn=first_turn,
                                          t_entry=_t_entry, window_max=_WINDOW_MAX)
                     or await _fast_lane.presence(brain, text, emit, first_turn=first_turn,
-                                                 window_max=_WINDOW_MAX)):
+                                                 window_max=_WINDOW_MAX)
+                    or await _fast_lane.small_talk(brain, text, emit, first_turn=first_turn,
+                                                   window_max=_WINDOW_MAX, ask_waiting=_ask_waiting)):
                 _release_acc_trace_if_fresh(brain)   # same situation as the hard interrupt: no offer()
                 return
         except Exception as _e_am:  # noqa: BLE001

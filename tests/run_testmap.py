@@ -1432,6 +1432,14 @@ DOMAINS: list[dict] = [
         {"id": "3.24", "title": "El toque de presencia se contesta al instante y sin modelo — y solo si la "
                                 "frase ENTERA es el toque (con carga cae al modelo)",
             "ch": UNIT, "paths": ["tests/voice/unit/test_presence_fast_lane.py"]},
+        # V2-674 (2026-09-11): el LIBRO DE FRASES — la familia ancha del toque de presencia. Un saludo, un
+        # «¿qué tal?», un «gracias», un «adiós» se contestan de una tabla POR IDIOMA y sin modelo; cualquier
+        # frase con carga cae al modelo intacta. La dirección cara es el falso positivo, así que los casos
+        # que RECHAZAN pesan más que los que contestan.
+        {"id": "3.37", "title": "Una frase hecha se contesta sin modelo, en cualquier idioma — y nada más lo "
+                                "hace (el libro de frases)",
+            "ch": UNIT,
+            "paths": ["tests/infrastructure/unit/core/test_a_set_phrase_is_answered_without_a_model.py"]},
     ]},
     {"id": "4", "name": "WIDGETS", "nodes": [
         {"id": "4.1", "title": "Ciclo de vida / acciones / refs / generador / background", "ch": UNIT, "paths": [

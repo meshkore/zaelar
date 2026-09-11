@@ -35,8 +35,8 @@ from nucleo.flash import music_turn as _music_turn, reminder_guards as _rg_mute
 from nucleo.flash import image_turn as _image_turn, listing_turn as _lt
 from nucleo.flash import video_turn as _video_turn
 from nucleo.flash import widget_data_turn as _widget_data_turn
-from nucleo.flash import presence as _presence, probe_scheduling as _probe_scheduling
-from .probe_actionmap import try_map as _amap_try
+from nucleo.flash import probe_scheduling as _probe_scheduling
+from .probe_actionmap import try_fast_lanes as _fast_lanes
 from nucleo.flash import second_pass as _second
 from nucleo.flash import harness_turn as _ht_p
 
@@ -49,6 +49,7 @@ class ProbeSession:
     window: list[dict] = field(default_factory=list)
     directive: str = ""
     seeded: bool = False   # window seeded from memory? (short-term circuit, mirror of nucleo.py::_run)
+    smalltalk_bounce: bool = False   # V2-674: did OUR last phrasebook reply hand the question back?
     last_action: str = ""  # surface/action produced by the preceding turn (for deictic continuity)
 
 
@@ -143,13 +144,12 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
             except Exception:
                 pass
 
-    # ACTION MAP (V2-539) — MIRROR of the provider (parallel impl: wire BOTH channels). The mirror's body
-    # lives in `probe_actionmap.py` (ratchet pass, 2026-09-05); the wiring guards read both files.
+    # Lanes that skip the model, MIRRORING the provider (map V2-539 · knock V2-640 · phrasebook V2-674).
     from voice.engine.core import langs as _lg_am
-    _amap_resp = (_amap_try(text, sess, execute=execute, trace_id=_trace_id, pick_ack=_lg_am.pick_ack)
-                  or _presence.mirror(text, sess, _trace_id, _lg_am.spec))   # V2-640: presence knock, same lane
-    if _amap_resp is not None:
-        return _amap_resp
+    _lane = _fast_lanes(text, sess, execute=execute, trace_id=_trace_id, spec=_lg_am.spec,
+                        pick_ack=_lg_am.pick_ack, smalltalk_book=_lg_am.smalltalk_book())
+    if _lane is not None:
+        return _lane
 
     t0 = time.time()
     timings: dict = {}

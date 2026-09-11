@@ -102,7 +102,10 @@ def test_both_channels_actually_wire_the_lane():
     eng = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
     prov = open(os.path.join(eng, "voice/engine/llm/providers/nucleo.py")).read()
     assert "_fast_lane.presence(" in prov, "the voice provider no longer calls the presence lane"
-    probe = open(os.path.join(eng, "nucleo/flash/probe.py")).read()
+    # The probe CHANNEL is two files since V2-674 (the lane chain moved to `probe_actionmap.py` paying the
+    # architecture ratchet). A wiring guard names the CHANNEL, never one file — V2-555's lesson.
+    probe = (open(os.path.join(eng, "nucleo/flash/probe.py")).read()
+             + open(os.path.join(eng, "nucleo/flash/probe_actionmap.py")).read())
     assert "_presence.mirror(" in probe, "the probe channel lost its presence mirror (parallel impl)"
     lane = open(os.path.join(eng, "voice/engine/llm/providers/fast_lane.py")).read()
     assert "from nucleo.flash.presence import is_presence_check" in lane, \

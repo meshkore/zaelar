@@ -137,6 +137,10 @@ _SOCIAL_RE = re.compile(
     r"how are you\b|are you (?:there|okay|alive|listening)\b|can you hear me\b|"
     r"what are you (?:talking about|doing)\b|what do you (?:want|mean)\b|"
     r"i (?:just )?(?:told|asked) you\b|answer (?:me|the question|my question)\b|why did you\b|"
+    # V2-674 — measured (sid fdd096a3): «You were saying?» got «One sec, checking…» and then an invented
+    # errand. Asking what WE were saying is a question about the conversation, never a reason to look at
+    # something; the same shape in Spanish was already covered by «de que me estas hablando».
+    r"(?:you|we) (?:were|was) saying\b|what were you saying\b|go on\b|carry on\b|"
     r"that makes no sense\b"
     r")")
 

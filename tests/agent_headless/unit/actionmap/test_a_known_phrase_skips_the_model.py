@@ -339,13 +339,16 @@ def test_both_channels_are_wired():
     root = Path(__file__).resolve().parents[4]
     provider = (root / "voice/engine/llm/providers/nucleo.py").read_text(encoding="utf-8")
     lane = (root / "voice/engine/llm/providers/fast_lane.py").read_text(encoding="utf-8")
-    probe = (root / "nucleo/flash/probe.py").read_text(encoding="utf-8")
+    # Two files since V2-674: the call site in `probe.py`, the lane bodies in `probe_actionmap.py`.
+    probe = ((root / "nucleo/flash/probe.py").read_text(encoding="utf-8")
+             + (root / "nucleo/flash/probe_actionmap.py").read_text(encoding="utf-8"))
     mirror = (root / "nucleo/flash/probe_actionmap.py").read_text(encoding="utf-8")
     assert "_fast_lane.handled" in provider, "voice: the provider no longer calls the fast lane"
     assert "from nucleo import actionmap" in lane, "voice: the fast lane lost the action map"
     # The probe's mirror moved to probe_actionmap.py (2026-09-05 ratchet pass) — the guard follows the CHANNEL,
     # both files, not one (V2-555: a guard pointed at a single file goes green the day the lane falls out).
-    assert "from .probe_actionmap import try_map" in probe, "probe: the mirror is no longer called"
+    assert "try_fast_lanes" in probe, "probe: the lane chain is no longer called"
+    assert "try_map(" in probe, "probe: the action-map mirror is no longer in the chain"
     assert "from nucleo import actionmap" in mirror, "probe: action map not wired in the mirror"
 
 
@@ -449,10 +452,10 @@ def test_the_probe_channel_runs_the_action_when_asked_to_execute():
     assert "and execute" in window, "and only when the caller asked for execution — a dry run stays dry"
     assert "_amap_hit = None" in window, \
         "an action that could not run must fall through to the model, like the voice rail's `and execute(...)`"
-    probe = (root / "nucleo" / "flash" / "probe.py").read_text(encoding="utf-8")
+    probe = (root / "nucleo" / "flash" / "probe_actionmap.py").read_text(encoding="utf-8")
     # Anchored on the CALL, not the import: the import moved to the top of the file (2026-09-09, paying
     # the hidden-coupling ratchet) and a window measured from it no longer contains the call.
-    assert "execute=execute" in probe[probe.index("_amap_try("):][:400], \
+    assert "execute=execute" in probe[probe.index("try_map("):][:400], \
         "probe.py must pass the caller's execute flag through to the mirror"
 
 

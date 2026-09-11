@@ -27,6 +27,10 @@ def _path(code: str) -> Path:
     return _GEN_DIR / f"{code}.fillers.json"
 
 
+def _smalltalk_path(code: str) -> Path:
+    return _GEN_DIR / f"{code}.smalltalk.json"
+
+
 def read(code: str) -> list[str]:
     """The generated filler pool for `code` — [] if never generated (caller falls back to the hardcoded pool)."""
     try:
@@ -46,6 +50,27 @@ def read_covers(code: str, kind: str) -> list[str]:
         return [str(f) for f in (data.get(f"covers_{kind}") or []) if str(f).strip()]
     except Exception:
         return []
+
+
+def read_smalltalk(code: str) -> dict:
+    """The generated PHRASEBOOK for `code` (V2-674) — `{}` if never generated, so the caller keeps its own
+    hardcoded es/en table. It lives in its OWN file rather than in the filler pack: a phrasebook is a nested
+    structure that a translator fills intent by intent, while the pack above is flat lists, and a partial
+    write of one must not be able to truncate the other."""
+    try:
+        data = json.loads(_smalltalk_path(code).read_text(encoding="utf-8"))
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
+def save_smalltalk(code: str, book: dict) -> None:
+    """Persist a generated phrasebook atomically (tmp + os.replace) — same crash-safety as `save`."""
+    _GEN_DIR.mkdir(parents=True, exist_ok=True)
+    p = _smalltalk_path(code)
+    tmp = p.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(book or {}, ensure_ascii=False, indent=2), encoding="utf-8")
+    os.replace(tmp, p)
 
 
 def save(code: str, fillers: list[str], covers: dict | None = None) -> None:

@@ -22,6 +22,9 @@ _PRESENCE_BODY_RE = re.compile(
     r"|are you (?:there|still there|listening|awake|alive|okay|with me)"
     r"|can you hear me"
     r"|(?:you )?still there"
+    # V2-674 — measured in the operator's own English session (sid daa7a385): «Hey, mate. You there?» reached
+    # a model and got «Let me check that for you…». The knock without a verb is the commonest spoken form.
+    r"|(?:so |hey )?(?:you|u)(?: still)? (?:there|around|awake|with me)"
     r"|anybody there"
     r")$")
 
@@ -32,13 +35,27 @@ def _norm(text: str) -> str:
     return re.sub(r"\s+", " ", re.sub(r"[¿?¡!.,;:]+", " ", t)).strip()
 
 
-def is_presence_check(text: str, assistant_name: str = "") -> bool:
+def is_presence_check(text: str, assistant_name: str = "", vocatives: tuple[str, ...] = ()) -> bool:
     """True only when the WHOLE utterance is a presence knock (≤7 words). A leading vocative — the
     assistant's own name, «oye» — is stripped first (V2-635's lesson: a leading name must not hide a known
-    phrase); any other content means a real turn and falls through to the model."""
+    phrase); any other content means a real turn and falls through to the model.
+
+    `vocatives` are the GENERIC forms of address of the operator's language, handed in by the caller from the
+    phrasebook (V2-674) rather than hardcoded here: «Hey, mate. You there?» was measured reaching a model and
+    being answered «Let me check that for you…», and the only word standing between it and this function was
+    «mate». Injected, never imported, for the same reason the probe injects `spec` — this module is neutral
+    ground and must not reach into the voice catalog."""
     n = _norm(text)
     if not n or len(n.split()) > 7:
         return False
+    if vocatives:
+        voc = {_norm(v) for v in vocatives} - {""}
+        # Removed WHEREVER they appear, not only at the ends: the measured sentence was «Hey, mate. You
+        # there?», whose address sits in the MIDDLE once the clause break is normalized away. Safe because
+        # the remainder still has to match a presence phrase EXACTLY, inside a seven-word ceiling.
+        n = " ".join(w for w in n.split() if w not in voc)
+        if not n:
+            return False                  # an address and nothing else — `is_summons` owns that shape
     for name in sorted({x for x in ({_norm(assistant_name)} | set(assistant_names())) if x},
                        key=len, reverse=True):
         if n.startswith(name + " "):
@@ -94,13 +111,13 @@ def is_summons(text: str, assistant_name: str = "") -> bool:
     return n in names
 
 
-def mirror(text: str, sess, trace_id: str, spec) -> dict | None:
+def mirror(text: str, sess, trace_id: str, spec, vocatives: tuple[str, ...] = ()) -> dict | None:
     """The PROBE channel's answer to a presence knock — the finished response dict, or None to fall through.
     Deterministic twin of the voice lane: first phrase of the honest pool (busy vs idle), the exchange lands
     in the window (the V2-605 canned-line lesson), and `action: "presence"` says no model resolved it."""
     try:
         aname = ""                      # `assistant_names()` is the authority; this stays for an explicit caller
-        if not (is_presence_check(text, aname) or is_summons(text, aname)):
+        if not (is_presence_check(text, aname, vocatives) or is_summons(text, aname)):
             return None
         busy = False
         try:

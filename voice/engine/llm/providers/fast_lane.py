@@ -120,6 +120,100 @@ async def handled(brain, text: str, emit, *, first_turn: bool, t_entry: float, w
 from nucleo.flash.presence import is_presence_check, is_summons  # noqa: F401 — re-exported for the lane's tests
 
 
+# ── SMALL TALK fast lane (V2-674) ────────────────────────────────────────────────────────────────────────
+# The presence knock's wider family: a greeting, «¿qué tal?», «gracias», «adiós». Measured in the operator's
+# own English session (sid fdd096a3, 2026-09-11), «Hello and good morning. How are you?» cost a 3.4 s model
+# call covered by «Let me explain…» — a lead-in that promises an explanation nobody asked for. The detector
+# and the phrasebook live outside this file for the same two reasons presence does: the probe channel needs
+# the SAME verdict, and the vocabulary has to be DATA so a fortieth language is a translation.
+from nucleo.flash import smalltalk as _smalltalk  # noqa: E402
+
+
+async def small_talk(brain, text: str, emit, *, first_turn: bool, window_max: int,
+                     ask_waiting: bool = False) -> bool:
+    """Answer a set phrase instantly, without the model. False = not one → the turn proceeds untouched.
+
+    Fail-open like its siblings. Three gates beyond the phrasebook's own strictness, each closing a way a
+    canned answer could swallow something real: never the first turn (the kickoff is not a conversation yet),
+    never while a worker's question is pending (a «gracias» then may be the ANSWER to it), and never with no
+    mouth to speak with — the chat channel has its own mirror.
+    """
+    if first_turn or ask_waiting:
+        return False
+    book = {}
+    try:
+        from voice.engine.core import langs
+        book = langs.smalltalk_book()
+    except Exception:  # noqa: BLE001
+        return False
+    if not book:
+        return False                       # no phrasebook for this language — the model answers, as before
+    bounce = bool(getattr(brain, "_smalltalk_bounce", False))
+    # Cleared HERE, on every turn that reaches the lane — not only on the ones it answers. The flag says «the
+    # question is still in the air», and any other sentence takes it out of the air; leaving it set would let
+    # a «bien» three turns later still be read as an answer to a question nobody remembers asking.
+    brain._smalltalk_bounce = False
+    intent = _smalltalk.classify(text, book, bounce_pending=bounce,
+                                 assistant_names=_presence_names())
+    if not intent:
+        return False
+    try:
+        from voice import proactive
+        speak = proactive.speaker()
+        if speak is None or proactive.user_speaking():
+            return False                   # no mouth (chat channel) / talking over — the model answers
+    except Exception:  # noqa: BLE001
+        return False
+    phrase = _smalltalk.reply_for(intent, book, avoid=getattr(brain, "_last_smalltalk", ""))
+    if not phrase:
+        return False                       # a half-filled pack answers nothing rather than answering wrong
+    brain._last_smalltalk = phrase
+    # Only a reply that HANDED THE QUESTION BACK makes the next «bien» mean «I'm fine». Set after the reply
+    # is chosen and cleared on every other intent, so the window is exactly one exchange wide.
+    brain._smalltalk_bounce = _smalltalk.bounces(intent, book)
+    try:
+        brain._last_spoken = phrase        # anti-echo, the filler's own manners
+        brain._last_spoke_at = time.time()
+    except Exception:
+        pass
+    emit("smalltalk", "💬 frase hecha — atendida sin modelo", text=text[:160], role="user",
+         extra={"cat": "flash", "engine": "smalltalk", "origin": "smalltalk", "intent": intent,
+                "reply": phrase, "src": "smalltalk"})
+    # The exchange HAPPENED (V2-605's canned-line lesson): a phrase of ours that skips the history erases its
+    # own story, and the next model turn would answer a greeting it has no record of receiving.
+    from nucleo.flash import dialog as _dialog2
+    _dialog2.push_user(brain._window, text)
+    brain._window.append({"role": "assistant", "content": phrase})
+    del brain._window[:-window_max]
+    try:
+        from memory import api as _memory2
+        _memory2.write(f"Operador: {text[:200]} · zaelar: {phrase}",
+                       kind="conv", level="short", importance=0.1, ttl_days=1.0,
+                       meta={"source": "conv", "u": text[:400], "a": phrase})
+    except Exception:
+        pass
+    try:
+        from voice import observer as _obs2
+        _obs2.turn_detail(system="", window=list(brain._window)[-6:], tools=[],
+                          user=text, decision={"action": "smalltalk", "intent": intent, "reply": phrase})
+    except Exception:
+        pass
+    r = speak(phrase)
+    if asyncio.iscoroutine(r):
+        await r
+    return True
+
+
+def _presence_names() -> tuple[str, ...]:
+    """The assistant's own names, so «Johnny, hola» strips down to «hola». Best-effort: the phrasebook must
+    not hard-depend on the attention gate (V2-665's lesson about where the authority lives)."""
+    try:
+        from nucleo.flash.presence import assistant_names
+        return tuple(assistant_names())
+    except Exception:  # noqa: BLE001
+        return ()
+
+
 async def presence(brain, text: str, emit, *, first_turn: bool, window_max: int) -> bool:
     """Answer a presence knock instantly, without the model. False = not one (or no mouth to speak with) →
     the turn proceeds untouched. Fail-open like `handled` — the caller catches everything."""
@@ -131,7 +225,12 @@ async def presence(brain, text: str, emit, *, first_turn: bool, window_max: int)
     # answered «Dime, Ricardo.» half the time and INVENTED an errand the other half (session e82f7fcb: it
     # fired a `widget_data` search off a memory pill from the night before). The honest pools already say the
     # right thing, and here they cost no model and reach no tool.
-    _knock = is_presence_check(text, _aname)
+    try:
+        from voice.engine.core import langs as _lg_voc
+        _vocatives = tuple(_lg_voc.smalltalk_book().get("vocatives") or ())
+    except Exception:  # noqa: BLE001
+        _vocatives = ()
+    _knock = is_presence_check(text, _aname, _vocatives)
     if not (_knock or is_summons(text, _aname)):
         return False
     try:

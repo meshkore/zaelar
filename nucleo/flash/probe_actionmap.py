@@ -1,4 +1,4 @@
-"""The probe channel's ACTION MAP mirror (V2-539 · V2-545 · V2-572).
+"""The probe channel's DETERMINISTIC LANES — action map, presence knock, phrasebook (V2-539 · V2-545 · V2-572 · V2-674).
 
 Extracted from `probe.py` on the 2026-09-05 ratchet pass (the file had grown past its ceiling; the ratchet asks
 for a module, never a taller ceiling). This is one half of the parallel-impl channel — the voice half lives in
@@ -14,6 +14,33 @@ without making it reports a decision the product does not take. A dry run (`exec
 which is what a dry run means. Same fail-open contract: any problem here and the turn proceeds to the model.
 """
 from __future__ import annotations
+
+
+def try_fast_lanes(text: str, sess, *, execute: bool, trace_id: str, spec, pick_ack=None,
+                   smalltalk_book: dict | None = None) -> dict | None:
+    """The three lanes that answer WITHOUT a model, in the same order the voice channel tries them.
+
+    One entry point rather than a chain written out at the call site: the two channels have drifted apart
+    three times (V2-252), and a lane added to one of them is invisible in the other until somebody notices.
+    Everything the motor owns — the language spec, the ack picker, the phrasebook — is passed IN, because the
+    dependency ratchet (7.32) refuses this module reaching into `voice.engine.core` (V2-572's verdict on
+    `second_pass.py`, same day it was born).
+    """
+    from . import presence as _presence, smalltalk as _smalltalk
+
+    got = try_map(text, sess, execute=execute, trace_id=trace_id, pick_ack=pick_ack)
+    if got is not None:
+        return got
+    book = smalltalk_book or {}
+    # The generic forms of address come from the phrasebook: «Hey, mate. You there?» is a knock with an
+    # address in the MIDDLE of it, and «mate» was the only word standing between it and this lane.
+    got = _presence.mirror(text, sess, trace_id, spec, tuple(book.get("vocatives") or ()))
+    if got is not None:
+        return got
+    # `bounce_pending` is the SESSION's state here, not a brain attribute — a probe session is this
+    # channel's equivalent of one live conversation.
+    return _smalltalk.mirror(text, sess, trace_id, book,
+                             bounce_pending=bool(getattr(sess, "smalltalk_bounce", False)))
 
 
 def try_map(text: str, sess, *, execute: bool, trace_id: str, pick_ack=None) -> dict | None:
