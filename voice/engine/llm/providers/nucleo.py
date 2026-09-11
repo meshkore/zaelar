@@ -111,7 +111,7 @@ def _extends(prev: str, cur: str) -> bool:
 # untouched. What does NOT move is `_spawn`: the provider owns its background-task registry.
 from voice.engine.llm.providers import acc_notices as _accn
 from voice.engine.llm.providers import attention_turn as _attention_turn
-from nucleo.flash import harness_turn as _ht          # V2-661: what a turn owes, shared with the probe
+from nucleo.flash import harness_turn as _ht   # V2-661: what a turn OWES (shared with the probe)
 
 _ACC_NUDGE_S = _accn._ACC_NUDGE_S
 _acc_notice_plan = _accn._acc_notice_plan
@@ -2749,8 +2749,7 @@ class NucleoLLMStream(llm.LLMStream):
                                            after_filler=_filler_audio.played_recently())
             send(speech.sanitize(spoken_text, drop_metadata=False))
 
-        # BACKSTOP GENÉRICO — turno MUDO que no hizo NADA. Qué cuenta como «hecho algo» tiene historia
-        # (V2-633/634/646/657) y vive con ella en `harness_turn.turn_handled`.
+        # BACKSTOP GENÉRICO — turno MUDO que no hizo NADA (qué cuenta como «hecho algo»: `turn_handled`).
         _typed_turn = False
         try:
             _typed_turn = attention.was_typed()
