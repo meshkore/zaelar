@@ -471,6 +471,50 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **An order about DATA is not an order about the CANVAS — and «me vas a poner el vídeo» is an order
+  (V2-664, 2026-09-11)**: the operator drove his own session and reported three things: the Apollo 11 video
+  never played, «borra los datos de la agenda» **closed every widget he had open**, and twenty seconds later
+  the YouTube card **reopened by itself, empty**. He then asked the question that shaped the batch — are the
+  GUARDRAILS failing, or the errand harness we have just been adding? **Session eedf7f9b contains ZERO
+  harness events**: no goal was born, no `false_claim` ran, nothing escalated. V2-660/661 did not fire once.
+  All three are rails, each correct in intent and wrong on one sentence.
+  **(1) The media grammar does not know how Spanish asks for a video.** «Bien, me vas a poner el vídeo del
+  Apolo 11 llegando a la luna» → the model DID call `play_video(query="Apolo 11 llegando a la luna")` and
+  `canvas_license.video_license` ate it as context-bleed: the pattern spells out the infinitive of every verb
+  it knows (cargar, buscar, reproducir, abrir, cambiar, repetir) except the commonest one —
+  `pon(?:me|te|le|lo|la|gas?|ed)?` **cannot reach «poner»**, because after «pon» come word characters and the
+  `\b` fails. The periphrastic form («me vas a poner…», «¿puedes ponerme…?») is how a person actually asks,
+  and it was the one shape the guard could not see; the turn ended promising «Y ahora te pongo el vídeo del
+  Apolo 11» over a player that never loaded. Fixed by adding the infinitive/gerund/future stems (plus
+  `mostrar`/`ensenar`, missing for the same reason); V2-635's participle rule is untouched. Second-order and
+  worth recording: the veto marks the turn `deduped`, so the promise backstop stayed quiet over it too.
+  **(2) A bare quantifier is not the canvas until it says so.** `hard_interrupt` fired close-ALL on *(a close
+  verb ANYWHERE) AND (a quantifier ANYWHERE)* — his sentence carries «quita» in one clause and «todas esas
+  entradas» fifteen words later in ANOTHER, so an order to delete ROWS INSIDE the agenda wiped the desktop,
+  twice (the glued fragments re-fired it). The rule is now structural and needs no lexicon of intentions —
+  grammar, never intent (V2-095): look at what the quantifier **governs**. Nothing («cierra todo»), a
+  particle («ciéralo todo ya») or a card noun («todos los widgets») is the canvas; any other noun («todas
+  esas entradas», «todos los datos») is a thing inside a widget. Implemented in BOTH copies, because the
+  decision genuinely exists twice (`voice/attention.py::_quantifies_the_canvas` and the client fast lane's
+  `quantifiesTheCanvas` — V2-252/V2-555, with a test reading both). V2-600's fullscreen veto and V2-584's
+  stop-object rule are untouched.
+  **(3) The fail-open release was driving the canvas.** V2-647 holds a spoken turn until the gate rules and
+  fails open after `HOLD_MS`, on the stated rationale that *showing an ambient line is a nuisance, swallowing
+  a real one is the bug*. Two things were wrong: **2.5 s is shorter than the verdict it waits for** (the
+  accumulator holds an unfinished sentence for as long as he keeps talking — his verdict landed 2.86 s after
+  the first held fragment, so the hold was in practice not holding), and **the release delivered BOTH
+  halves**. At 09:40:24 it fired 0.36 s before the verdict while he was describing this very failure out loud
+  («…que ha sido poner un vídeo…», every fragment correctly ruled AMBIENT) and the fast lane opened the card
+  he had closed. The two halves are not equally reversible: `deliver(text, isFinal, judged)` now carries
+  whether a verdict actually ruled directed, the CHAT still fails open, and the CANVAS never does.
+  Nodes **3.36** and **4.158** (the client half drives the REAL `voiceCommands.js`), plus five new groups on
+  4.145. **Six disarms, each mutation asserted before measuring, all red.** ⚠️ 4.158's own trap: the fast lane
+  dedupes an identical action signature for 2.5 s, so two `closeAll` cases in a row measure the DEDUPE and not
+  the rule. ⚠️ Renumbered from V2-662 at closure — the concurrent session had already PUSHED V2-662/663, and
+  what is pushed wins. **NOT verified live**: needs an engine restart and a page reload. Open and named in the
+  initiative: four duplicate «dentista» crons injected as four identical notes into one turn, and the product
+  question of a reminder riding the turn it interrupts (V2-607's design, his call).
+
 - **The window measures SILENCE, not speech — and a text the agent produces is FILED in the library
   (V2-661, 2026-09-11)**: «prioridad absoluta: le digo la palabra, hablo de forma continua sin pausas de 3 o
   5 segundos, y me desactiva el micro — se apaga el color del orbe y yo no he terminado la frase». Session
