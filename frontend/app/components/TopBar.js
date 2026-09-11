@@ -84,13 +84,17 @@ export function TopBar() {
 // widgets" (WhatsApp/Telegram/navegador). Marcar cualquiera of the dos exige that the server se reinicie solo
 // (SQLite/perfiles en uso) — `session.resetFull()` lo gestiona and pinta the overlay of "reiniciando…".
 function ResetConfirm() {
-  let memEl, credEl;
+  let memEl, credEl, profEl, filesEl;
   const close = () => store.setResetConfirmOpen(false);
   const confirm = () => {
     const wipeMemory = !!(memEl && memEl.checked);
     const wipeCredentials = !!(credEl && credEl.checked);
+    // V2-670: the two the operator asked for after measuring that ticking the first two still left an agent
+    // speaking his language with his voice — `stt_language` survived in settings.json, and it IS the gate.
+    const wipeProfile = !!(profEl && profEl.checked);
+    const wipeFiles = !!(filesEl && filesEl.checked);
     close();
-    session.resetFull({ wipeMemory, wipeCredentials });
+    session.resetFull({ wipeMemory, wipeCredentials, wipeProfile, wipeFiles });
   };
   let ovl;
   ovl = h("div", {
@@ -106,6 +110,12 @@ function ResetConfirm() {
       h("label", { class: "rc-check" },
         h("input", { type: "checkbox", ref: (el) => (credEl = el) }),
         " ", () => t("reset.confirm.wipeCredentials")),
+      h("label", { class: "rc-check" },
+        h("input", { type: "checkbox", ref: (el) => (profEl = el) }),
+        " ", () => t("reset.confirm.wipeProfile")),
+      h("label", { class: "rc-check" },
+        h("input", { type: "checkbox", ref: (el) => (filesEl = el) }),
+        " ", () => t("reset.confirm.wipeFiles")),
       h("p", { class: "rc-body rc-hint" }, () => t("reset.confirm.hint")),
       h("div", { class: "rc-actions" },
         h("button", { class: "rc-btn rc-no", onClick: close }, () => t("reset.confirm.cancel")),

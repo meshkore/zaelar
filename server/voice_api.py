@@ -797,6 +797,12 @@ async def reset_full(payload: dict | None = None, request: Request = None):
     p = payload or {}
     wipe_memory = bool(p.get("wipe_memory"))
     wipe_credentials = bool(p.get("wipe_credentials"))
+    # V2-670, the operator's «quiero inicializar un agente nuevo en otro idioma, todo de cero»:
+    # `wipe_profile` is what actually makes the first-run LANGUAGE CEREMONY fire again (it empties
+    # `stt_language`, the gate `i18n.init.detect.should_detect()` reads), and `wipe_files` deletes the
+    # agent's own library. Both need the process dead for the same reason the other two do.
+    wipe_profile = bool(p.get("wipe_profile"))
+    wipe_files = bool(p.get("wipe_files"))
 
     # ALWAYS base (observability + desktop): same sequence as /reset/hard, live, no restart.
     try:
@@ -808,7 +814,7 @@ async def reset_full(payload: dict | None = None, request: Request = None):
     ses = rotate_session("reset")           # NEW SESSION (new id + observability reset), not just a clean log
     emit("widget", "close", extra={})
 
-    if not wipe_memory and not wipe_credentials:
+    if not wipe_memory and not wipe_credentials and not wipe_profile and not wipe_files:
         return JSONResponse(emit("session", "RESET", extra={"hard": True, "reset": summary, "restarting": False,
                                                             "by": _who_asked(request),
                                                             "session": ses.get("session_id", "")}))
@@ -820,7 +826,8 @@ async def reset_full(payload: dict | None = None, request: Request = None):
     import time as _time
     engine_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     ts = _time.strftime("%Y%m%d-%H%M%S")
-    flags = ("" if wipe_memory else " --keep-memory") + (" --wipe-credentials" if wipe_credentials else "")
+    flags = (("" if wipe_memory else " --keep-memory") + (" --wipe-credentials" if wipe_credentials else "")
+             + (" --factory" if wipe_profile else "") + (" --wipe-files" if wipe_files else ""))
     cmd = (
         f"sleep 1; bash scripts/reset-memory.sh --yes{flags}; "
         f"nohup make run > .meshkore/logs/run-{ts}.log 2>&1 &"
@@ -832,4 +839,5 @@ async def reset_full(payload: dict | None = None, request: Request = None):
         logger.warning(f"reset_full: no se pudo lanzar el reinicio: {e}")
         return JSONResponse({"ok": False, "error": "restart_spawn_failed"}, status_code=500)
     return JSONResponse({"ok": True, "restarting": True, "wipe_memory": wipe_memory,
-                         "wipe_credentials": wipe_credentials, "reset": summary})
+                         "wipe_credentials": wipe_credentials, "wipe_profile": wipe_profile,
+                         "wipe_files": wipe_files, "reset": summary})

@@ -329,3 +329,64 @@ def update(payload: dict) -> dict:
         _write(d)
     note = "recarga la sesión de voz (Reconnect) para aplicar STT/TTS/voz/idioma" if needs_reconnect else "sin cambios"
     return {"ok": bool(applied), "applied": applied, "needs_reconnect": needs_reconnect, "note": note}
+
+
+# ── FACTORY RESET: which knobs belong to the INSTALLATION and which to the AGENT (V2-670) ─────────────────
+# The operator's test is «onboard a brand-new agent in another language, as if it were the first time». The
+# blocker was measured 2026-09-11: `i18n.init.detect.should_detect()` — the gate that decides whether the
+# first-run language ceremony fires at all — is True only while `stt_language` is EMPTY here, and this file
+# sat in `reset-memory.sh`'s KEEP_ALWAYS list, untouched even with both checkboxes ticked. So every «clean»
+# test still spoke Spanish with the voice already chosen, and the ceremony never ran.
+#
+# Deleting the file whole is the WRONG fix and that was measured too: the default profile is `remote`, whose
+# defaults are Voxtral + Cartesia, so wiping it silently swaps which paid provider does STT/TTS. The
+# ceremony is SPOKEN — a factory reset that changes the microphone stack is a test about the wrong thing.
+#
+# So the split is by OWNERSHIP, not by file: what the MACHINE is set up with survives, what the AGENT knows
+# and what the operator PREFERRED does not. `tests/infrastructure` fails if a knob this module declares is
+# in neither list — a new preference must not survive a factory reset by simply having been added later
+# (the V2-548 class: a seed list that falls behind on its own, silently).
+
+INSTALL_KEYS = frozenset({
+    "stt_provider",       # which paid STT this machine uses — setup, not identity
+    "tts_provider",       # idem for TTS
+    "zaelar_profile",     # remote/local voice-engine profile
+    "config_profile",     # the coordinated profile package (wizard V2-040)
+})
+
+AGENT_KEYS = frozenset({
+    "stt_language",       # THE onboarding gate — must be empty for the ceremony to fire
+    "assistant_voice",    # the ceremony picks a native voice for the chosen language
+    "assistant_name",     # a rename the operator gave it
+    "attention_mode",     # his preference
+    "attention_window",   # his preference
+    "wizard_done",        # a fresh install has not run the wizard
+    "wallpaper",          # V2-641, his desktop photo
+    "theme",              # V2-617 skin profile
+    "theme_custom",       # V2-617 custom knobs
+    "memory_observability",
+})
+
+
+def factory_reset() -> dict:
+    """Strip settings.json down to what a FRESH INSTALL would have: the installation's own setup, nothing else.
+
+    Returns `{"kept": [...], "dropped": [...]}`. Called by `scripts/reset-memory.sh --factory` (the Reset
+    dialog's «empezar de cero» checkbox), never on the hot path. Unknown keys are DROPPED, because the
+    promise of this button is «as if for the first time» and an unrecognised key is by definition not part of
+    the installation setup we deliberately preserve — the ratchet is what stops that from being a surprise.
+    """
+    try:
+        d = _read()
+    except Exception:
+        d = {}
+    if not isinstance(d, dict):
+        d = {}
+    kept = {k: v for k, v in d.items() if k in INSTALL_KEYS}
+    dropped = sorted(k for k in d if k not in INSTALL_KEYS)
+    try:
+        SETTINGS_FILE.write_text(json.dumps(kept, ensure_ascii=False, indent=2), encoding="utf-8")
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"factory_reset: no pude reescribir settings.json ({e})")
+        return {"kept": [], "dropped": [], "error": str(e)}
+    return {"kept": sorted(kept), "dropped": dropped}

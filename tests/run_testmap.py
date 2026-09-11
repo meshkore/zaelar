@@ -3283,6 +3283,15 @@ DOMAINS: list[dict] = [
         # default, en una lista de candidatos o en un banco, y solo un barrido ve los tres a la vez. Ya había
         # vuelto dos veces (el `.env` que medía todo el tablero contra otro cerebro; el perfil del wizard con un
         # titular de dos versiones atrás).
+        # V2-670 — medido en la instalación del operador: marcar LAS DOS casillas del diálogo de reset dejaba un
+        # agente que seguía hablando su idioma con su voz, porque `stt_language` vive en config/settings.json y
+        # ese fichero estaba en KEEP_ALWAYS. Y ES la puerta: `should_detect()` solo deja salir la ceremonia de
+        # idioma mientras esa clave está vacía. Dos casillas nuevas, y el reparto de qué ajuste es de la MÁQUINA
+        # y cuál del AGENTE vive en config/settings.py con trinquete.
+        {"id": "8.4", "title": "Reset de fábrica: el idioma se va, el proveedor de voz se queda, y las cuatro "
+                               "casillas llegan a las cuatro banderas",
+            "ch": UNIT,
+            "paths": ["tests/infrastructure/unit/config/test_a_factory_reset_starts_the_agent_over.py"]},
         {"id": "8.3", "title": "Política de modelos: un solo titular, sin proveedores retirados",
             "ch": UNIT, "paths": ["tests/infrastructure/unit/config/test_model_policy.py"]},
         {"id": "8.2", "title": "Perfiles / v2 / doctor / credenciales", "ch": UNIT, "paths": [

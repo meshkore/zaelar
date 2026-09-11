@@ -713,11 +713,15 @@ export async function resetHard() {
 // true el server SE REINICIA SOLO (SQLite/perfiles en uso) — no hay sesión a la que volver hasta que responda de
 // nuevo, así que en vez de re-`start()` (como resetHard) esperamos con un overlay y recargamos la página entera
 // cuando vuelva: más simple y robusto que intentar resucitar la Room de LiveKit a medio camino de un reinicio.
-export async function resetFull({ wipeMemory = false, wipeCredentials = false } = {}) {
+export async function resetFull({ wipeMemory = false, wipeCredentials = false,
+                                 wipeProfile = false, wipeFiles = false } = {}) {
   _clearCanvasAndLog();
   await stop();
   let res = {};
-  try { res = await api.resetFull({ wipe_memory: wipeMemory, wipe_credentials: wipeCredentials }); } catch (_) {}
+  try {
+    res = await api.resetFull({ wipe_memory: wipeMemory, wipe_credentials: wipeCredentials,
+                                wipe_profile: wipeProfile, wipe_files: wipeFiles });
+  } catch (_) {}
   if (!res || !res.restarting) {
     // El caso NORMAL del botón Reset (sin borrar memoria ni credenciales): el server sigue vivo, así que la voz
     // vuelve YA. Sin esto el reset dejaba el agente en `stalled` — el ámbar parpadeante — hasta el siguiente clic.
