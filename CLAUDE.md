@@ -471,6 +471,50 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **A turn that calls a TOOL is covered at the SEAM (V2-669, 2026-09-11)**: the operator, after the engine
+  moved onto the slower/better model — «si una pregunta como a qué hora tengo esta actividad en la agenda
+  tarda 8 segundos en resolverse, necesitamos alguna frase o palabra de relleno… o incluso más rápido que
+  dijera "dame unos segundos", porque si tenemos una locución demasiado larga alargaremos innecesariamente el
+  tiempo de respuesta». **Measured in his own observability before building anything** (`deepseek-v4-pro`):
+  the `read_widget` turn answering «¿a qué hora tengo la cita con Hacienda?» took **6 029 ms with
+  `ttft_ms: 0`** — the first pass returned a TOOL CALL and no text, so the reply stream stayed empty for the
+  whole turn — and across **7 real voice turns on a light route the turn ENDED 3.4-5.9 s AFTER the tool
+  event**, while the lead-in filler had sounded 1.0-3.3 s BEFORE it. Its ~1 s of audio was long over. Nothing
+  covered that stretch: both light-route branches went straight from the tool decision into the second pass,
+  and the `emit()` beside them is observability, not a mouth. **The lead-in cannot fix this by construction**:
+  it is chosen ~1.1 s in, before any model has spoken, so it can only ever be a blind thinking sound. The
+  node now keeps racing the model's first chunk after the lead-in settles and covers a SECOND time when the
+  provider publishes a work note at the seam (`filler_audio.note_work`, called from `read_widget`, `recall`
+  and `web_search`). **The cover NAMES the source** — «Lo miro en Agenda…», «Lo busco en internet…» — which
+  is the one thing the blind lead-in could not say, and is what keeps two covers from reading as the same
+  wait said twice: the failure this codebase already met once (V2-189, session 2bdc67ee, «Déjame que mire…»
+  then «Vale, dame un momento que lo miro.»). Guards, each disarmed: a second pass that answers inside
+  `_WORK_GRACE_S` beats it and nothing is said; it never sounds within `_COVER_MIN_GAP_S` of the lead-in's
+  FIRE (measured from the fire, because this node cannot know how long the TTS took); at most one per turn;
+  `fillers: off` silences it; it is stripped from the forwarded transcript; and it updates anti-echo but
+  **never `_last_reply`** — a cover carries no topic either, and feeding one to the directed-content judge is
+  the 2026-08-17 bug. Pools are per language (`covers_widget`/`covers_search`/`covers_recall`, es+en) behind
+  the same generated-pack seam the fillers use, so an onboarded language can eventually ship its own; a
+  length ceiling is enforced in the test, because **a cover cannot be cut mid-sentence, so its own length IS
+  latency** (his rule). **VOICE ONLY, and the module says why**: the text channel has no dead air to fill, so
+  the parallel-implementation rule (V2-252) deliberately does not reach this one — written down instead of
+  left as drift, with a guard that keeps `note_work` out of `probe.py`. Node **2.53**; eight disarms, each
+  mutation asserted before measuring, all red. ⚠️ **Two of them were MINE and green at first**: one left the
+  banned call alive inside the comment that replaced it, and one anchored on a line `pick_filler` carries
+  BYTE-IDENTICALLY, so it mutated the wrong function (the V2-571 lesson). ⚠️ **And the harness left a
+  mutation in the tree**: the mutation-landed assertion raised BEFORE the restore line, so a weakened
+  `pick_filler` sat in the working tree after the sweep had already gone green — the restore is in a
+  `finally` now. Also fixed here, and the same class: `test_filler_path_never_writes_last_reply` banned the
+  string `_last_reply` in the whole file, so DOCUMENTING that rule in a comment turned it red (V2-615's trap);
+  it reads comment-stripped code now and asserts BOTH mouths keep anti-echo. **Measured and NOT built,
+  reported instead**: the second pass runs on the TURN's spec, so `deepseek-v4-pro` is paid twice per light
+  route — 18 samples over the real agenda block put `deepseek-v4-flash` at **715-868 ms TTFT vs 805-949 ms**
+  and **909-1 155 ms total vs 1 248-1 769 ms**, with **zero confabulation in 6/6 runs** of the two
+  answer-is-absent cases (it states the absence AND names what IS there). The recorded reason pro holds the
+  seat is a ROUTING bench («Pro routes 41/42, direct Flash 38/42»), and the second pass does no routing — but
+  the allocation table is the operator's and `voice_brain` has no failover, so a split would add a second
+  failure surface. His call.
+
 - **A question about what a widget HOLDS is answered by the widget (V2-668, 2026-09-11)**: session 53de97d4,
   10:58:33 → 11:00:03. «¿a qué hora tengo la cita con Hacienda?» → «no la tengo con hora, solo que tienes que
   ir próximamente» — while the agenda held `11:30–12:30 · Cita Agencia Tributaria` in ONE line. Six turns
