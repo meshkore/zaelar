@@ -118,6 +118,7 @@ Los agentes DEBEN trabajar dentro de esta estructura — no crear `docs/` ni car
 | **Red MeshKore — agentes vivos (oráculo) + clusters, y en qué estado está cada pieza** | `.meshkore/docs/architecture/zaelar-meshkore-network.md` |
 | **⭐ Doctrina de los Brain Workers — endurecer los RECURSOS, abrir el RAZONAMIENTO (orienta CUALQUIER fix)** | `.meshkore/docs/architecture/zaelar-brain-worker-doctrine.md` |
 | **Multidioma / i18n (arranque idiomático, generación de bundles)** | `.meshkore/docs/architecture/zaelar-i18n.md` |
+| **El PRIMER ARRANQUE de punta a punta (idioma → carpeta → voz → saludo)** | `.meshkore/docs/modules/zaelar-first-run.md` |
 | Product / Context | `.meshkore/docs/product/zaelar-product.md` |
 | Deploy | `.meshkore/docs/deploy/zaelar-deploy.md` |
 | Ops / Setup | `.meshkore/docs/ops/zaelar-ops.md` |
