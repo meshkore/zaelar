@@ -698,44 +698,11 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
     # PARIDAD con el canal vivo: recall y web_search are two-pass LIGHT routes. Historically the probe only
     # reported the tool and returned an empty reply, so a chronological headless conversation lost the assistant
     # turn and every following pronoun was tested against a state that can never occur in production.
-    if "recall" in names and action == "chat":
-        _rq = next((t["args"].get("query") for t in tool_calls if t["name"] == "recall"), "") or text
-        _sp = await _second.recall_answer(
-            text, _rq, spec,
-            sanitize=lambda s: dialog.sanitize_reply(speech.sanitize(s, drop_metadata=False)))
-        if _sp:
-            spoken, action = _sp, "recall"
-    # V2-668 — READ A WIDGET (mirror of the provider's block — wire in BOTH): the interior of a CLOSED widget,
-    # read through `widget_read` and composed as the turn's spoken answer. Same shape as recall above.
-    if action == "read_widget":
-        from nucleo.flash import widget_read as _wread
-        from . import prompt as _prompt_rw
-        _rw = next((t["args"] for t in tool_calls if t["name"] == "read_widget"), {}) or {}
-        _rwid = _wread.resolve(str(_rw.get("widget_id") or ""), operator_text)
-        _t_w = time.time()
-        try:
-            _rblock = await asyncio.to_thread(_wread.read, _rwid) if _rwid else ""
-        except Exception:
-            _rblock = ""
-        try:
-            from voice.observer import emit as _emit_rw
-            _emit_rw("brain", "📖 lectura de widget (tool del modelo)", role="system",
-                     text=f"{_rwid or _rw.get('widget_id') or '?'} ← {_rw.get('question') or operator_text[:80]}",
-                     extra={"cat": "flash", "widget": _rwid or "", "asked": str(_rw.get("widget_id") or ""),
-                            "chars": len(_rblock or ""), "read_ms": round((time.time() - _t_w) * 1000),
-                            "ev": (_rblock or "")[:600], "channel": "probe"})
-        except Exception:
-            pass
-        try:
-            _sp = await _second.collect(
-                _wread.compose_system(_prompt_rw._lang_lock(), operator_text, _rwid or "",
-                                      str(_rw.get("question") or ""), _rblock),
-                operator_text, spec, max_tokens=220)
-            _sp = dialog.sanitize_reply(speech.sanitize(_sp or "", drop_metadata=False)).strip()
-            if _sp:
-                spoken = _sp
-        except Exception:
-            pass
+    _sp, action = await _second.probe_light_routes(      # recall · read_widget — see second_pass's docstring
+        action, names, tool_calls, text, operator_text, spec,
+        lambda s: dialog.sanitize_reply(speech.sanitize(s, drop_metadata=False)))
+    if _sp:
+        spoken = _sp
     # V2-210 — UN DATO DEL MUNDO NO SE IMPROVISA (espejo del provider — cablear en AMBOS). Medido en
     # `quick-fact-opening-hours`: «abre a las 10:00 y cuesta 15 €» con CERO herramientas. Las cifras eran
     # aproximadamente correctas, que es justo lo que lo hace peligroso — el modelo va seguro y no pide la tool.

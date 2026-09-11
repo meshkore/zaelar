@@ -24,6 +24,8 @@ from __future__ import annotations
 
 import asyncio
 
+from loguru import logger
+
 
 async def collect(sys2: str, user_text: str, spec, max_tokens: int = 240) -> str:
     """Stream one (system, user) exchange through the fast client and return the joined text, raw."""
@@ -34,6 +36,64 @@ async def collect(sys2: str, user_text: str, spec, max_tokens: int = 240) -> str
             spec=spec, max_tokens=max_tokens):
         parts.append(delta)
     return "".join(parts)
+
+
+async def probe_light_routes(action: str, names: list, tool_calls: list, text: str, operator_text: str,
+                             spec, sanitize) -> tuple[str, str]:
+    """The TEXT channel's LIGHT two-pass routes — `recall` and `read_widget` — in one place.
+
+    Both have the same shape (pick the tool's args → compose a spoken answer from a block → sanitize → become
+    the turn's reply), and the probe had them written out twice, the second one being this session's own
+    addition. Extracted 2026-09-11 paying the architecture ratchet on `probe.py`. Returns `(spoken, action)`;
+    `("", action)` when neither route ran, so the caller keeps exactly what it had.
+
+    `sanitize` is injected: this module must not import `voice.engine.*` (V2-569's direction ratchet)."""
+    if "recall" in names and action == "chat":
+        q = next((t["args"].get("query") for t in tool_calls if t["name"] == "recall"), "") or text
+        out = await recall_answer(text, q, spec, sanitize=sanitize)
+        return (out, "recall") if out else ("", action)
+    if action == "read_widget":
+        from voice.observer import emit as _emit
+        from nucleo.flash import prompt as _prompt, widget_read as _wread
+        args = next((t["args"] for t in tool_calls if t["name"] == "read_widget"), {}) or {}
+        out = await _wread.probe_answer(args, operator_text, _prompt._lang_lock(), _emit, spec, collect, sanitize)
+        return (out, action) if out else ("", action)
+    return "", action
+
+
+async def recall_spoken(text: str, query: str, spec, emit, speak) -> None:
+    """The VOICE channel's whole `recall` second pass — the durable memory composed straight into the mouth.
+
+    It lived hand-rolled in the provider while `recall_answer` right below it did the same job for the probe:
+    the same block, the same prose, written twice (V2-252's failure mode, with the module for it already here).
+    Extracted 2026-09-11 paying the architecture ratchet, which the `read_widget` route had turned red — and the
+    duplication is what the ratchet was pointing at.
+
+    `speak` is the channel's own (system, user, max_tokens) → mouth seam: this module must not import
+    `voice.engine.*` (V2-569), and the streaming/tag accumulation belongs to the provider's turn state.
+    `compose_recall` goes off the event loop — it does embeddings over HTTP (the V2-004 regression)."""
+    import asyncio as _asyncio
+    import time as _time
+
+    from nucleo.flash import prompt as _prompt_mod
+    emit("brain", "🧠 recall por tool", text=query, role="system")
+    _t = _time.time()
+    try:
+        block, _ids = await _asyncio.to_thread(_prompt_mod.compose_recall, query)
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"recall tool falló (voz sigue): {e}")
+        block = ""
+    emit("memory", "recall (tool del modelo)", role="system", text=query,
+         extra={"layer": "long", "chars": len(block or ""), "mem_ms": round((_time.time() - _t) * 1000)})
+    await speak(
+        _prompt_mod._lang_lock()
+        + "\nNecesitabas RECORDAR cosas del operador para este turno; aquí están tus recuerdos "
+        "relevantes. Responde a su petición en 1-3 frases HABLADAS y naturales usando SOLO lo que dan de "
+        "sí los recuerdos y la conversación; si falta algo, dilo con naturalidad y pregunta lo que "
+        "necesites. JAMÁS menciones «memoria», «recuerdos guardados» ni capas internas — hablas como "
+        "quien simplemente se acuerda.\n\n"
+        f"PETICIÓN DEL OPERADOR: {text}\n\nLO QUE SABES DE ÉL:\n{block or '(nada relevante guardado)'}",
+        text, 260, "recall compose")
 
 
 async def recall_answer(text: str, query: str, spec, sanitize=None) -> str:

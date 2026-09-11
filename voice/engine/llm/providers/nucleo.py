@@ -1821,6 +1821,24 @@ class NucleoLLMStream(llm.LLMStream):
             out, buf = strip_tags(buf, _tag_emit, final)
             return out
 
+        async def speak(sys2: str, user_text: str, max_tokens: int = 240, what: str = "2º pase") -> None:
+            """ONE (system, user) SECOND PASS streamed straight into the mouth — the shape every light route
+            (recall, read_widget) had written out in full. Owns this turn's tag accumulator (`buf`/`take`), so
+            it cannot live outside this closure; the routes themselves live in their modules and inject it."""
+            nonlocal buf
+            buf = ""                        # discard any tag leftovers from the first pass
+            try:
+                async for delta in FastClient().stream(
+                        [{"role": "system", "content": sys2}, {"role": "user", "content": user_text}],
+                        spec=spec, max_tokens=max_tokens):
+                    buf += delta
+                    send(speech.inline(take(False)))
+                send(speech.sanitize(take(True), drop_metadata=False))
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:  # noqa: BLE001
+                logger.warning(f"{what} falló (voz sigue): {e}")
+
         # Security-config voice command + spoken-secret interception (V2-060), both DETERMINISTA before the model
         # ever sees the text — moved to vault_intercept.py (2026-08-17 modularization pass, extraction step 1 of
         # the plan from this session's architecture audit). `send`/`emit` passed through as-is: `emit` may have
@@ -2381,69 +2399,14 @@ class NucleoLLMStream(llm.LLMStream):
         if read_req["v"] is not None and escalate_req["v"] is None and search_req["v"] is None \
                 and reveal_req["v"] is None:
             from nucleo.flash import widget_read as _wread
-            _rw = read_req["v"] or {}
-            _rwid = _wread.resolve(_rw.get("widget_id", ""), operator_text)
-            _t_w = time.time()
-            try:
-                _rblock = await asyncio.to_thread(_wread.read, _rwid) if _rwid else ""
-            except Exception as e:  # noqa: BLE001
-                logger.warning(f"read_widget falló (voz sigue): {e}")
-                _rblock = ""
-            emit("brain", "📖 lectura de widget (tool del modelo)", role="system",
-                 text=f"{_rwid or _rw.get('widget_id') or '?'} ← {_rw.get('question') or operator_text[:80]}",
-                 extra={"cat": "flash", "widget": _rwid or "", "asked": _rw.get("widget_id", ""),
-                        "chars": len(_rblock or ""), "read_ms": round((time.time() - _t_w) * 1000),
-                        "ev": (_rblock or "")[:600]})
-            sys2w = _wread.compose_system(_prompt_mod._lang_lock(), operator_text, _rwid or "",
-                                          _rw.get("question", ""), _rblock)
-            buf = ""   # descarta restos de tags del 1º pase
-            try:
-                async for delta in FastClient().stream(
-                        [{"role": "system", "content": sys2w}, {"role": "user", "content": operator_text}],
-                        spec=spec, max_tokens=220):
-                    buf += delta
-                    send(speech.inline(take(False)))
-                send(speech.sanitize(take(True), drop_metadata=False))
-            except asyncio.CancelledError:
-                raise
-            except Exception as e:  # noqa: BLE001
-                logger.warning(f"read_widget compose falló (voz sigue): {e}")
+            await speak(await _wread.prepare(read_req["v"] or {}, operator_text, _prompt_mod._lang_lock(), emit),
+                        operator_text, 220, "read_widget compose")
             spoken_text = "".join(spoken).strip()
 
         if recall_req["v"] is not None and escalate_req["v"] is None and search_req["v"] is None \
                 and reveal_req["v"] is None and read_req["v"] is None:
-            rquery = recall_req["v"]
-            emit("brain", "🧠 recall por tool", text=rquery, role="system")
-            _t_r = time.time()
-            try:
-                rblock, _rids = await asyncio.to_thread(_prompt_mod.compose_recall, rquery)
-            except Exception as e:  # noqa: BLE001
-                logger.warning(f"recall tool falló (voz sigue): {e}")
-                rblock = ""
-            emit("memory", "recall (tool del modelo)", role="system", text=rquery,
-                 extra={"layer": "long", "chars": len(rblock or ""),
-                        "mem_ms": round((time.time() - _t_r) * 1000)})
-            sys2r = (
-                _prompt_mod._lang_lock()
-                + "\nNecesitabas RECORDAR cosas del operador para este turno; aquí están tus recuerdos "
-                "relevantes. Responde a su petición en 1-3 frases HABLADAS y naturales usando SOLO lo que dan de "
-                "sí los recuerdos y la conversación; si falta algo, dilo con naturalidad y pregunta lo que "
-                "necesites. JAMÁS menciones «memoria», «recuerdos guardados» ni capas internas — hablas como "
-                "quien simplemente se acuerda.\n\n"
-                f"PETICIÓN DEL OPERADOR: {text}\n\nLO QUE SABES DE ÉL:\n{rblock or '(nada relevante guardado)'}"
-            )
-            buf = ""   # descarta restos de tags del 1º pase
-            try:
-                async for delta in FastClient().stream(
-                        [{"role": "system", "content": sys2r}, {"role": "user", "content": text}],
-                        spec=spec, max_tokens=260):
-                    buf += delta
-                    send(speech.inline(take(False)))
-                send(speech.sanitize(take(True), drop_metadata=False))
-            except asyncio.CancelledError:
-                raise
-            except Exception as e:  # noqa: BLE001
-                logger.warning(f"recall compose falló (voz sigue): {e}")
+            from nucleo.flash import second_pass as _second_v
+            await _second_v.recall_spoken(text, recall_req["v"], spec, emit, speak)
             spoken_text = "".join(spoken).strip()
 
         # BÚSQUEDA WEB FACTUAL (V2-022): ruta LIGERA — se resuelve EN ESTE turno (NO es el navegador pesado del
@@ -2509,19 +2472,7 @@ class NucleoLLMStream(llm.LLMStream):
                 f"PREGUNTA DEL OPERADOR: {operator_text}\n"
                 f"BÚSQUEDA REALIZADA: {query}\n\nRESULTADOS DE BÚSQUEDA:\n{ctx or '(sin resultados)'}"
             )
-            buf = ""   # descarta cualquier resto de tags del 1º pase antes de componer la respuesta
-            try:
-                async for delta in FastClient().stream(
-                        [{"role": "system", "content": sys2},
-                         {"role": "user", "content": operator_text or query}],
-                        spec=spec, max_tokens=240):
-                    buf += delta
-                    send(speech.inline(take(False)))
-                send(speech.sanitize(take(True), drop_metadata=False))
-            except asyncio.CancelledError:
-                raise
-            except Exception as e:  # noqa: BLE001
-                logger.warning(f"web_search compose falló (voz sigue): {e}")
+            await speak(sys2, operator_text or query, 240, "web_search compose")
             spoken_text = "".join(spoken).strip()
             brain._last_action = "search"
 

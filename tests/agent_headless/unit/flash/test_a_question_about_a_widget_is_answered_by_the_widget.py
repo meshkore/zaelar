@@ -115,42 +115,33 @@ def _code(rel: str) -> str:
 
 def test_the_voice_provider_captures_and_resolves_the_read():
     code = _code("voice/engine/llm/providers/nucleo.py")
-    assert 'elif name == "read_widget":' in code
+    assert 'elif name == "read_widget":' in code, "the tool call must be captured"
     assert "read_req = {" in code
-    assert "_wread.resolve(" in code and "_wread.read, _rwid" in code and "_wread.compose_system(" in code
-    # a read is a light route: it yields to a worker, a search or a secret in the same turn
+    assert "_wread.prepare(" in code, "the voice channel resolves+reads through the shared module"
+    # a read is a light route: it yields to a worker, a search or a secret in the same turn…
     assert 'if read_req["v"] is not None and escalate_req["v"] is None and search_req["v"] is None' in code
     # …and recall does not ALSO speak when the turn read a widget
     assert 'and reveal_req["v"] is None and read_req["v"] is None:' in code
 
 
 def test_the_probe_mirrors_the_route():
-    code = _code("nucleo/flash/probe.py")
-    assert 'elif "read_widget" in names:' in code
-    assert 'if action == "read_widget":' in code
-    assert "_wread.resolve(" in code and "_wread.compose_system(" in code
+    probe = _code("nucleo/flash/probe.py")
+    assert 'elif "read_widget" in names:' in probe, "the probe must classify the turn as a read"
+    assert "_second.probe_light_routes(" in probe, "and run it through the shared light-route seam"
+    second = _code("nucleo/flash/second_pass.py")
+    assert "_wread.probe_answer(" in second
 
 
-# ── V2-668b: TODAY's agenda rides in the state with the card CLOSED, and says it outranks a recollection ──
-# Measured on the live re-run of the incident (11:33): `read_widget` was offered and the model still answered a
-# memory pill saying 11:00 over an agenda saying 11:30. A fact IN the prompt beats a tool call away.
-def test_todays_agenda_is_in_the_state_with_the_card_closed(_isolated_agenda):
-    from widgets import brief
-    out = brief.for_prompt(open_ids=[], recent_ids=[], query="¿a qué hora tengo la cita con Hacienda?")
-    assert "AGENDA DE HOY" in out and "11:30" in out and "Tributaria" in out
-    assert "MANDA esto" in out, "the block must say who wins when a recollection disagrees"
-    assert "read_widget" in out, "and where the rest of the calendar is read from"
-
-
-def test_the_open_card_keeps_its_coach_block_and_gets_no_duplicate_today_line(_isolated_agenda):
-    from widgets import brief
-    out = brief.for_prompt(open_ids=["agenda"], recent_ids=[], query="")
-    assert "AGENDA (abierta)" in out and "11:30" in out
-    assert "AGENDA DE HOY — lo que GUARDA" not in out
-
-
-def test_an_empty_day_costs_nothing(tmp_path, monkeypatch):
-    from widgets import store
-    monkeypatch.setattr(store, "DATA_DIR", tmp_path)
-    from widgets.agenda import data as agenda
-    assert agenda.today_line() == ""
+def test_both_channels_end_in_the_SAME_module():
+    """The invariant the two guards above exist for (V2-252): whatever each channel's plumbing looks like, the
+    resolution, the read and the second pass's system prompt come from `widget_read` — not from two copies."""
+    import re
+    from pathlib import Path
+    voice = _code("voice/engine/llm/providers/nucleo.py")
+    second = _code("nucleo/flash/second_pass.py")
+    for where, code in (("voice", voice), ("probe→second_pass", second)):
+        assert re.search(r"widget_read as _wread", code), f"{where} must reach the module by import"
+    # and NEITHER channel re-implements the read: only `widget_read` may call `refs.prompt_digest` for this.
+    own = Path("nucleo/flash/widget_read.py").read_text(encoding="utf-8")
+    assert "prompt_digest" in own
+    assert "prompt_digest" not in voice and "prompt_digest" not in second

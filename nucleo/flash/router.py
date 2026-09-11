@@ -39,8 +39,7 @@ from nucleo.flash.listing_turn import request_from as _lt_request_from   # V2-55
 
 LISTINGS = "listings"  # V2-556: marketplace/product LISTING hunt (search_listings) — the fast module serves the
                        # turn or escalates BY ITSELF (listing_turn.py); the model never picks fast-vs-deep
-RECALL = "recall"      # V2-056: the MODEL decides to remember (the operator's durable memory) — lightweight route in the turn
-READ_WIDGET = "read_widget"  # V2-668: the MODEL decides to READ what a widget holds — RECALL's sibling, resolved in the turn
+RECALL, READ_WIDGET = "recall", "read_widget"   # the MODEL decides to read: his durable memory (V2-056) or what a widget HOLDS with its card closed (V2-668) — light routes, in the turn
 REVEAL = "reveal"      # V2-060: the operator requests a stored SECRET (reveal_secret) — lightweight route; out-of-band value
 MUSIC = "music"        # V2-041: plays/controls music through a connector (play_music) — lightweight route, in the turn
 VIDEO = "video"        # V2-045: plays a VIDEO in the YouTube widget (play_video) — MUSIC's sibling, SEE≠HEAR
@@ -226,27 +225,26 @@ def _canon_panel(v) -> str:
     return "procesos"
 
 
+# Tools whose WHOLE decision is «these string arguments, stripped» — six branches of one shape, folded when the
+# second light READ route arrived (V2-668). Anything with a default, a normalizer or a sub-parser keeps its own.
+# `escalate`'s surface travels RAW on purpose (V2-227): `surfaces.resolve()` needs the `kind` this point does not
+# know, and normalizing twice erases the «said nothing» case.
+_STR_ARGS: dict[str, tuple[str, tuple[str, ...]]] = {
+    "escalate_to_slowbrain": (ESCALATE, ("request", "surface")), "web_search": (SEARCH, ("query",)),
+    "recall": (RECALL, ("query",)), "read_widget": (READ_WIDGET, ("widget_id", "question")),
+    "reveal_secret": (REVEAL, ("label",)), "show_widget": (SHOW, ("widget_id",))}
+
+
 def decide(name: str, args: dict | None = None) -> Decision:
     """Translates ONE tool call (name + arguments) into a `Decision`. An unknown name = chat (fail-safe:
     the fast layer does not break because of an unrecognized function)."""
     args = args or {}
     name = (name or "").strip()
-    if name == "escalate_to_slowbrain":
-        # V2-227: the SURFACE travels with the request from here. It is deliberately passed RAW: `surfaces.resolve()`
-        # needs the `kind`, which this point does not know, and normalizing twice erases the “said nothing” case.
-        return Decision(ESCALATE, {"request": (args.get("request") or "").strip(),
-                                   "surface": (args.get("surface") or "").strip()})
-    if name == "web_search":
-        return Decision(SEARCH, {"query": (args.get("query") or "").strip()})
     if name == "search_listings":
         return Decision(LISTINGS, _lt_request_from(args, ""))   # V2-556: la forma de la petición, una sola vez
-    if name == "recall":
-        return Decision(RECALL, {"query": (args.get("query") or "").strip()})
-    if name == "read_widget":
-        return Decision(READ_WIDGET, {"widget_id": (args.get("widget_id") or "").strip(),
-                                      "question": (args.get("question") or "").strip()})
-    if name == "reveal_secret":
-        return Decision(REVEAL, {"label": (args.get("label") or "").strip()})
+    if name in _STR_ARGS:                   # tools whose whole decision is «these string arguments, stripped»
+        _kind, _keys = _STR_ARGS[name]
+        return Decision(_kind, {k: (args.get(k) or "").strip() for k in _keys})
     if name == "play_music":
         return Decision(MUSIC, {"query": (args.get("query") or "").strip(),
                                 "action": (args.get("action") or "play").strip().lower()})
@@ -255,8 +253,6 @@ def decide(name: str, args: dict | None = None) -> Decision:
                                 "action": _video_action(args.get("action"))})
     if name == "show_images":
         return Decision(IMAGES, _image_turn.request_from([{"name": "show_images", "args": args}]))
-    if name == "show_widget":
-        return Decision(SHOW, {"widget_id": (args.get("widget_id") or "").strip()})
     if name == "show_panel":
         return Decision(PANEL, {"panel": _canon_panel(args.get("panel")),
                                 "action": _canon_panel_action(args.get("action"))})

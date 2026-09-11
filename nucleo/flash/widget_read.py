@@ -23,6 +23,9 @@ read and the second-pass system prompt, so the two parallel turn implementations
 """
 from __future__ import annotations
 
+import asyncio
+import time
+
 _MAX_BLOCK_CHARS = 1800      # the same bound `refs.prompt_digest` keeps — a summary for reasoning, not the record
 
 TOOL_DEF = {
@@ -30,10 +33,10 @@ TOOL_DEF = {
     "function": {
         "name": "read_widget",
         "description": (
-            "LEE lo que un widget GUARDA para contestar una PREGUNTA sobre ello (la hora de una cita de la "
-            "agenda, un contacto, un fichero, la hoja de resultados), aunque la tarjeta esté CERRADA. Vuelve en "
-            "este turno, sin abrir nada. No cambia datos (widget_data) ni abre la tarjeta (show_widget); no es "
-            "su vida (recall) ni el mundo (web_search)."
+            "CONTESTA una PREGUNTA sobre lo que un widget GUARDA (a qué hora es una cita, el teléfono de "
+            "alguien, qué ficheros hay), aunque la tarjeta esté CERRADA. Vuelve en este turno, sin abrir nada. "
+            "SOLO responde: ELEGIR, abrir o tocar algo de dentro es widget_data, y enseñar la tarjeta es "
+            "show_widget. No es su vida (recall) ni el mundo (web_search)."
         ),
         "parameters": {
             "type": "object",
@@ -128,3 +131,41 @@ def compose_system(lang_lock: str, operator_text: str, wid: str, question: str, 
         f"PREGUNTA: {question or operator_text}\n\nPETICIÓN DEL OPERADOR: {operator_text}\n\n"
         f"LO QUE GUARDA «{title(wid)}»:\n{src}"
     )
+
+
+async def prepare(args: dict, operator_text: str, lang_lock: str, emit, channel: str = "") -> str:
+    """Resolve → read → observe → compose: everything BOTH channels share about a `read_widget` turn, so the two
+    parallel turn implementations cannot drift on it (V2-252). Returns the second pass's system prompt; the
+    caller only has to run that pass through its own mouth (voice streams it, the probe collects it).
+
+    `emit` is injected rather than imported: this module must not reach into `voice.engine.*` (V2-569's
+    direction ratchet). The read itself goes off the event loop — a widget's `view_data()` is synchronous
+    stdlib code and may touch its store."""
+    wid = resolve(str(args.get("widget_id") or ""), operator_text)
+    question = str(args.get("question") or "")
+    t0 = time.time()
+    try:
+        block = await asyncio.to_thread(read, wid) if wid else ""
+    except Exception:                                    # noqa: BLE001 — a broken widget never breaks the turn
+        block = ""
+    try:
+        emit("brain", "📖 lectura de widget (tool del modelo)", role="system",
+             text=f"{wid or args.get('widget_id') or '?'} ← {question or operator_text[:80]}",
+             extra={"cat": "flash", "widget": wid or "", "asked": str(args.get("widget_id") or ""),
+                    "chars": len(block or ""), "read_ms": round((time.time() - t0) * 1000),
+                    "ev": (block or "")[:600], **({"channel": channel} if channel else {})})
+    except Exception:                                    # noqa: BLE001
+        pass
+    return compose_system(lang_lock, operator_text, wid or "", question, block)
+
+
+async def probe_answer(args: dict, operator_text: str, lang_lock: str, emit, spec, collect, sanitize) -> str:
+    """The TEXT channel's whole `read_widget` turn: `prepare` + one collected second pass, sanitized. Returns the
+    spoken answer, or "" so the caller keeps whatever it had (the probe's own fail-soft convention)."""
+    sys2 = await prepare(args, operator_text, lang_lock, emit, channel="probe")
+    try:
+        out = await collect(sys2, operator_text, spec, max_tokens=220)
+        return sanitize(out or "").strip()
+    except Exception:                                    # noqa: BLE001 — a failed compose is not a failed turn
+        return ""
+
