@@ -364,6 +364,8 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
         # ads AND asks a fact is a hunt. The heavy side effects (search + possible self-escalation) run only
         # under `execute`, mirroring how `escalate` is reported here but executed further down.
         action = "listings"
+    elif "read_widget" in names:
+        action = "read_widget"               # V2-668: lee lo que guarda un widget — ruta ligera, se compone abajo
     elif "web_search" in names:
         action = "search"
     elif "reveal_secret" in names:
@@ -703,6 +705,37 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
             sanitize=lambda s: dialog.sanitize_reply(speech.sanitize(s, drop_metadata=False)))
         if _sp:
             spoken, action = _sp, "recall"
+    # V2-668 — READ A WIDGET (mirror of the provider's block — wire in BOTH): the interior of a CLOSED widget,
+    # read through `widget_read` and composed as the turn's spoken answer. Same shape as recall above.
+    if action == "read_widget":
+        from nucleo.flash import widget_read as _wread
+        from . import prompt as _prompt_rw
+        _rw = next((t["args"] for t in tool_calls if t["name"] == "read_widget"), {}) or {}
+        _rwid = _wread.resolve(str(_rw.get("widget_id") or ""), operator_text)
+        _t_w = time.time()
+        try:
+            _rblock = await asyncio.to_thread(_wread.read, _rwid) if _rwid else ""
+        except Exception:
+            _rblock = ""
+        try:
+            from voice.observer import emit as _emit_rw
+            _emit_rw("brain", "📖 lectura de widget (tool del modelo)", role="system",
+                     text=f"{_rwid or _rw.get('widget_id') or '?'} ← {_rw.get('question') or operator_text[:80]}",
+                     extra={"cat": "flash", "widget": _rwid or "", "asked": str(_rw.get("widget_id") or ""),
+                            "chars": len(_rblock or ""), "read_ms": round((time.time() - _t_w) * 1000),
+                            "ev": (_rblock or "")[:600], "channel": "probe"})
+        except Exception:
+            pass
+        try:
+            _sp = await _second.collect(
+                _wread.compose_system(_prompt_rw._lang_lock(), operator_text, _rwid or "",
+                                      str(_rw.get("question") or ""), _rblock),
+                operator_text, spec, max_tokens=220)
+            _sp = dialog.sanitize_reply(speech.sanitize(_sp or "", drop_metadata=False)).strip()
+            if _sp:
+                spoken = _sp
+        except Exception:
+            pass
     # V2-210 — UN DATO DEL MUNDO NO SE IMPROVISA (espejo del provider — cablear en AMBOS). Medido en
     # `quick-fact-opening-hours`: «abre a las 10:00 y cuesta 15 €» con CERO herramientas. Las cifras eran
     # aproximadamente correctas, que es justo lo que lo hace peligroso — el modelo va seguro y no pide la tool.

@@ -22,12 +22,11 @@ TOOLS: list[dict] = [
             # (hoy Spotify). Frontera clara: es ESCUCHAR música, NO un dato del mundo (web_search) NI un vídeo.
             "description": (
                 "Reproduce o controla MÚSICA o un PODCAST (solo AUDIO) con la cuenta de música conectada del operador. `query` = "
-                "qué poner en lenguaje natural (artista/canción/género), vacío = reanudar; acepta pistas vagas, no "
-                "pidas el nombre exacto. `action`: play (def) | queue | pause | resume | next | previous | volume_up "
+                "qué poner (artista/canción/género), vacío = reanudar; acepta pistas vagas. "
+                "`action`: play (def) | queue | pause | resume | next | previous | volume_up "
                 "| volume_down | stop. Varias seguidas: la 1ª con play y CADA siguiente con queue (encadena "
-                "solo). Si el operador SOLO comenta o se queja de lo que suena, no "
-                "reproduzcas otra vez; pero si quiere algo DISTINTO —aunque lo diga como deseo o dentro de "
-                "una pregunta— SÍ es cambiar: llámala con la nueva preferencia. VER algo en "
+                "solo). Comentar o quejarse de lo que suena no es otra reproducción; querer algo DISTINTO "
+                "(aun como deseo o pregunta) SÍ: llámala. VER algo en "
                 "pantalla (vídeo, videoclip, tráiler, peli) es play_video, no esto. Abrir un juego o widget se "
                 "MUESTRA, no se reproduce. Sus LISTAS guardadas son del widget `musica` (widget_data play_playlist / "
                 "create_playlist / add_to_playlist); CURAR una lista con contenido es escalate."
@@ -55,14 +54,13 @@ TOOLS: list[dict] = [
             "name": "play_video",
             "description": (
                 "Reproduce un VÍDEO en el widget `youtube` — VER en pantalla: 'pon el vídeo de…', un videoclip, "
-                "un tráiler, una peli, un directo. También «el último vídeo de <alguien>» (se ordena por fecha). `query` = qué vídeo, en lenguaje natural; acepta descripciones vagas. No es "
+                "un tráiler, una peli, un directo. También «el último vídeo de <alguien>». `query` = qué vídeo, en lenguaje natural. No es "
                 "play_music (eso es OÍR) ni web_search (un dato que se cuenta). Tarda unos segundos: habla en "
                 "presente o futuro ('lo busco'), NUNCA en pasado — decir 'hecho' antes de que cargue es mentir, "
                 "aunque ya hubiera otro vídeo en pantalla. BUSCAR para ver/oír y ELEGIR ('búscame vídeos de X', "
                 "'qué documentales hay', un podcast) también es ESTA tool, con action=list: resultados NUMERADOS "
-                "al Inicio (luego play_result/add_results). Un ENLACE ya PEGADO NO se reproduce: se AÑADE con "
-                "widget_data(youtube, add) — «añadir a la cola»; cortarle lo que ve es un defecto. No lo "
-                "escales ni lo mandes a la hoja: es para INFORMACIÓN, no para lo que se ve u oye."
+                "al Inicio (luego play_result/add_results). Un ENLACE ya PEGADO NO se reproduce: se AÑADE a la cola con "
+                "widget_data(youtube, add); cortarle lo que ve es un defecto. No lo escales ni lo mandes a la hoja."
             ),
             "parameters": {
                 "type": "object",

@@ -8,7 +8,7 @@ def test_tools_are_openai_functions():
     assert names == {"escalate_to_slowbrain", "set_style_directive", "show_widget", "show_panel", "fullscreen_widget", "restore_widget",
                      "manage_widget_alias", "widget_data", "delete_widget", "arrange_canvas",
                      "confirm_widget_delete", "authenticate_web", "login_done", "web_search", "search_listings",
-                     "recall",
+                     "recall", "read_widget",
                      "reveal_secret", "play_music", "play_video", "show_images", "reply_message", "connect_cluster",
                      "cluster_send", "set_cluster_objective", "send_to_worker", "stop_worker", "answer_worker"}
     for t in router.tools():

@@ -40,6 +40,7 @@ from nucleo.flash.listing_turn import request_from as _lt_request_from   # V2-55
 LISTINGS = "listings"  # V2-556: marketplace/product LISTING hunt (search_listings) — the fast module serves the
                        # turn or escalates BY ITSELF (listing_turn.py); the model never picks fast-vs-deep
 RECALL = "recall"      # V2-056: the MODEL decides to remember (the operator's durable memory) — lightweight route in the turn
+READ_WIDGET = "read_widget"  # V2-668: the MODEL decides to READ what a widget holds — RECALL's sibling, resolved in the turn
 REVEAL = "reveal"      # V2-060: the operator requests a stored SECRET (reveal_secret) — lightweight route; out-of-band value
 MUSIC = "music"        # V2-041: plays/controls music through a connector (play_music) — lightweight route, in the turn
 VIDEO = "video"        # V2-045: plays a VIDEO in the YouTube widget (play_video) — MUSIC's sibling, SEE≠HEAR
@@ -55,7 +56,7 @@ ANSWER = "answer"      # V2-038: answers the question of a waiting Brain Worker 
 # Priority when collapsing multiple tool calls from one turn into a decision (higher = wins). STOP overrides everything
 # (if the operator asks to stop AND something else, stop first); ANSWER/INJECT outrank ESCALATE (refine/respond to a
 # live worker before opening another). MUSIC follows the lightweight routes (SEARCH), below worker routes.
-_PRIORITY = {CHAT: 0, STYLE: 1, SEARCH: 2, LISTINGS: 2, RECALL: 2, REVEAL: 2, MUSIC: 3, VIDEO: 3, IMAGES: 3, SHOW: 3,
+_PRIORITY = {CHAT: 0, STYLE: 1, SEARCH: 2, LISTINGS: 2, RECALL: 2, READ_WIDGET: 2, REVEAL: 2, MUSIC: 3, VIDEO: 3, IMAGES: 3, SHOW: 3,
              PANEL: 3, ALIAS: 3,
              ANSWER: 4, INJECT: 5, ESCALATE: 6, STOP: 7}
 
@@ -82,7 +83,7 @@ FAMILIES: dict[str, tuple[str, ...]] = {
     "messaging": ("reply_message",),
     "media":     ("play_music", "play_video", "show_images"),
     "web":       ("web_search", "search_listings", "authenticate_web", "login_done"),
-    "memory":    ("recall", "reveal_secret"),
+    "memory":    ("recall", "reveal_secret", "read_widget"),   # V2-668: never trimmed — a question announces nothing
 }
 
 
@@ -241,6 +242,9 @@ def decide(name: str, args: dict | None = None) -> Decision:
         return Decision(LISTINGS, _lt_request_from(args, ""))   # V2-556: la forma de la petición, una sola vez
     if name == "recall":
         return Decision(RECALL, {"query": (args.get("query") or "").strip()})
+    if name == "read_widget":
+        return Decision(READ_WIDGET, {"widget_id": (args.get("widget_id") or "").strip(),
+                                      "question": (args.get("question") or "").strip()})
     if name == "reveal_secret":
         return Decision(REVEAL, {"label": (args.get("label") or "").strip()})
     if name == "play_music":

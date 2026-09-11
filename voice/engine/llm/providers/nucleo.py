@@ -616,7 +616,8 @@ class NucleoLLMStream(llm.LLMStream):
         if notes:
             for n in notes:
                 emit("brain", "📩 system note → FlashBrain", text=n, role="system")
-            text = "\n".join(notes) + "\n\n" + text
+            # V2-666: his words FIRST, the notes AFTER — see `brain_notes.compose_turn` for the measured turn.
+            text = brain_notes.compose_turn(text, notes)
 
         from nucleo.flash import dialog as _dialog
         from nucleo.flash import escalate as _escalate_mod
@@ -749,6 +750,7 @@ class NucleoLLMStream(llm.LLMStream):
         search_req = {"v": None}
         listing_req = {"v": None}        # V2-556: la pasada rápida de anuncios (nucleo/flash/listing_turn.py)
         recall_req = {"v": None}         # V2-056: el modelo pidió RECORDAR (tool recall) — se resuelve tras el stream
+        read_req = {"v": None}           # V2-668: el modelo pidió LEER un widget (read_widget) — hermana de recall
         reveal_req = {"v": None}         # V2-060: el operador pidió un SECRETO (reveal_secret) — valor OUT-OF-BAND
         music_req = {"v": None, "followup": None}  # V2-041: {'query','action'}; 'followup' = 2ª acción de CONTROL
         images_req = {"v": None}                   # V2-457: {'query','n'} de `show_images`, ejecutado tras el stream
@@ -1378,6 +1380,12 @@ class NucleoLLMStream(llm.LLMStream):
                 # fuera del event loop; la heurística needs_recall queda como prefetch.
                 if recall_req["v"] is None:
                     recall_req["v"] = (args.get("query") or "").strip() or text
+            elif name == "read_widget":
+                # V2-668: el MODELO decide LEER lo que guarda un widget (la hora de una cita con la agenda
+                # cerrada). Se resuelve tras el stream, en el turno, sin abrir nada — hermana de recall.
+                if read_req["v"] is None:
+                    read_req["v"] = {"widget_id": (args.get("widget_id") or "").strip(),
+                                     "question": (args.get("question") or "").strip()}
             elif name == "reveal_secret":
                 # V2-060: el operador pide un SECRETO guardado. Se resuelve tras el stream; el valor NUNCA entra en
                 # un prompt del modelo → el provider lo entrega OUT-OF-BAND (voz/pantalla). Aquí solo se captura QUÉ.
@@ -2366,8 +2374,44 @@ class NucleoLLMStream(llm.LLMStream):
         # RECALL DE MEMORIA por tool (V2-056): ruta LIGERA hermana de web_search — memory.query FUERA del event
         # loop (to_thread, V2-011) + 2º pase con los recuerdos (el modelo que el turno ya paga). Solo si el turno
         # no escaló (el worker recibe su propio dossier) ni buscó (una sola respuesta compuesta por turno).
-        if recall_req["v"] is not None and escalate_req["v"] is None and search_req["v"] is None \
+        # LECTURA DE UN WIDGET por tool (V2-668): la ruta LIGERA hermana de recall — lo que el widget GUARDA, leído
+        # por las costuras que ya publica para el prompt (`widget_read.read`) + 2º pase con ese contenido como
+        # ÚNICA fuente. Sesión 53de97d4: la hora de la cita con Hacienda estaba en la agenda y el modelo no tenía
+        # ninguna puerta para leerla con la tarjeta cerrada. Solo si el turno no escaló ni buscó ni reveló.
+        if read_req["v"] is not None and escalate_req["v"] is None and search_req["v"] is None \
                 and reveal_req["v"] is None:
+            from nucleo.flash import widget_read as _wread
+            _rw = read_req["v"] or {}
+            _rwid = _wread.resolve(_rw.get("widget_id", ""), operator_text)
+            _t_w = time.time()
+            try:
+                _rblock = await asyncio.to_thread(_wread.read, _rwid) if _rwid else ""
+            except Exception as e:  # noqa: BLE001
+                logger.warning(f"read_widget falló (voz sigue): {e}")
+                _rblock = ""
+            emit("brain", "📖 lectura de widget (tool del modelo)", role="system",
+                 text=f"{_rwid or _rw.get('widget_id') or '?'} ← {_rw.get('question') or operator_text[:80]}",
+                 extra={"cat": "flash", "widget": _rwid or "", "asked": _rw.get("widget_id", ""),
+                        "chars": len(_rblock or ""), "read_ms": round((time.time() - _t_w) * 1000),
+                        "ev": (_rblock or "")[:600]})
+            sys2w = _wread.compose_system(_prompt_mod._lang_lock(), operator_text, _rwid or "",
+                                          _rw.get("question", ""), _rblock)
+            buf = ""   # descarta restos de tags del 1º pase
+            try:
+                async for delta in FastClient().stream(
+                        [{"role": "system", "content": sys2w}, {"role": "user", "content": operator_text}],
+                        spec=spec, max_tokens=220):
+                    buf += delta
+                    send(speech.inline(take(False)))
+                send(speech.sanitize(take(True), drop_metadata=False))
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:  # noqa: BLE001
+                logger.warning(f"read_widget compose falló (voz sigue): {e}")
+            spoken_text = "".join(spoken).strip()
+
+        if recall_req["v"] is not None and escalate_req["v"] is None and search_req["v"] is None \
+                and reveal_req["v"] is None and read_req["v"] is None:
             rquery = recall_req["v"]
             emit("brain", "🧠 recall por tool", text=rquery, role="system")
             _t_r = time.time()
