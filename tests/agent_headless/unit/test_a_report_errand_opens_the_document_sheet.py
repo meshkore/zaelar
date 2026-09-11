@@ -172,4 +172,9 @@ def test_dispatch_wires_every_doc_branch_the_sheet_already_has():
     assert "docsheet.doc_close(rec)" in _DISPATCH_SRC
     assert _DISPATCH_SRC.count('opens_doc(getattr(rec, "surface", ""))') >= 5, (
         "commission, retitle, close, two criteria guards and the prompt block all branch on opens_doc")
-    assert "DOC_SURFACE_BLOCK" in _DISPATCH_SRC
+    # V2-661: the prompt BLOCKS a trusted worker gets (this one + the library block) compose in one place,
+    # `dispatch_prompts.trusted_blocks`; dispatch calls it. The guard follows the CHANNEL (V2-555).
+    assert "trusted_blocks(getattr(rec, \"surface\", \"\"))" in _DISPATCH_SRC
+    _PROMPTS_SRC = (pathlib.Path(__file__).resolve().parents[3] / "nucleo" / "dispatch_prompts.py").read_text(
+        encoding="utf-8")
+    assert "DOC_SURFACE_BLOCK" in _PROMPTS_SRC and "opens_doc(surface" in _PROMPTS_SRC

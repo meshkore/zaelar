@@ -125,7 +125,13 @@ def test_the_worker_prompt_names_the_library_root_and_the_filing_action(ws):
 
 
 def test_the_dispatcher_appends_the_block_to_every_trusted_worker():
+    """The blocks a trusted worker's prompt carries compose in ONE place (`dispatch_prompts.trusted_blocks`,
+    V2-661) and the dispatcher calls it for TRUSTED, non-dev workers only — the cluster dev channel keeps its
+    own prompt (V2-655's boundary)."""
+    prompts = (_ENGINE / "nucleo" / "dispatch_prompts.py").read_text(encoding="utf-8")
+    i = prompts.index("def trusted_blocks(")
+    body = prompts[i:prompts.index("\ndef ", i + 10)]
+    assert "library_block()" in body and "DOC_SURFACE_BLOCK" in body
     src = (_ENGINE / "nucleo" / "dispatch.py").read_text(encoding="utf-8")
-    i = src.index("library_block()")
-    assert src.index("DOC_SURFACE_BLOCK\n", 0) < i, "after the doc-surface block, before the resume preamble"
-    assert "if trusted and not _dev:" in src[i - 400:i], "trusted workers only — the dev channel keeps its own prompt"
+    j = src.index("trusted_blocks(")
+    assert "if trusted and not _dev:" in src[j - 400:j], "trusted workers only — the dev channel keeps its own prompt"
