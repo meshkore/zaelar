@@ -43,19 +43,24 @@ def test_the_drop_record_carries_the_head_of_what_was_being_written():
 
 
 def test_the_voice_channel_wires_the_rescue():
-    prov = _src("voice/engine/llm/providers/nucleo.py")
-    assert "oversized_widget_write as _oversized" in prov
-    assert 'escalate_req["surface"][_ow_req] = "documento"' in prov, \
+    # V2-661: the decision moved to the shared seam `nucleo/flash/harness_turn.py` (both channels call it);
+    # the guard follows the CHANNEL, per V2-555 — the invariant is unchanged.
+    seam = _src("nucleo/flash/harness_turn.py")
+    assert "oversized_widget_write" in seam
+    assert '"surface": "documento"' in seam, \
         "the rescue must carry the DOC surface (V2-644) — a results sheet is the wrong delivery for a text"
-    i = prov.index("oversized_widget_write as _oversized")
+    prov = _src("voice/engine/llm/providers/nucleo.py")
+    assert "_ht.rescue(" in prov, "the voice channel no longer asks what the turn owes"
+    assert 'escalate_req["surface"][_owed["request"]] = _owed["surface"]' in prov
+    i = prov.index("_ht.rescue(")
     j = prov.index('if escalate_req["v"] is not None and not spoken_text:')
     assert i < j, "the rescue must run BEFORE the mute-escalation holding line, so the turn speaks it"
 
 
 def test_the_probe_mirrors_the_rescue_as_a_synthesized_escalation():
     probe = _src("nucleo/flash/probe.py")
-    assert "oversized_widget_write as _oversized_p" in probe
-    i = probe.index("oversized_widget_write as _oversized_p")
+    assert "harness_turn as _ht_p" in probe and "_ht_p.rescue(" in probe
+    i = probe.index("_ht_p.rescue(")
     j = probe.index('names = [t["name"] for t in tool_calls]')
     assert i < j, "the synthesized escalate must exist before the action classification reads the names"
 

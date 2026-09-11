@@ -607,7 +607,9 @@ def test_the_text_channel_stamps_it_and_the_provider_reads_it():
     assert "attention.note_typed()" in handler, "the chat/paste handler no longer stamps typed turns"
     prov = open(os.path.join(eng, "voice/engine/llm/providers/nucleo.py")).read()
     assert "was_typed()" in prov, "the provider no longer reads whether the turn was typed"
-    assert 'deduped["v"] and not _typed_turn' in prov, \
+    assert "typed=_typed_turn" in prov, "the provider no longer passes the fact to the handled decision"
+    seam = open(os.path.join(eng, "nucleo/flash/harness_turn.py")).read()   # V2-661: the decision lives here
+    assert "(deduped and not typed)" in seam, \
         "a vetoed action must stop counting as «handled» on a typed turn — that is the whole fix"
 
 

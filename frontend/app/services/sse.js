@@ -18,6 +18,7 @@ import { setWallpaper } from "./theme.js?v=2";
 const _SHOWCASE = typeof location !== "undefined" && new URLSearchParams(location.search).has("showcase");
 let _arrT = null;
 let _attnWinS = 12;   // last window_s seen from the gate — the ring's re-arm span (see the bot_speech branch)
+const VAD_HOLD_S = 180; // V2-661: how long an active voice may hold the ring without a falling edge (engine's cap)
 
 // ── V2-647: a spoken turn waits for the attention gate's verdict ─────────────────────────────────────────
 // The decision itself lives in `attention_hold.js` (dependency-free, and what the tests drive); here we only
@@ -58,6 +59,13 @@ export function openSSE(desktop) {
       // window on idle; a ring already off stays off (the bot's own speech never OPENS one).
       if (store.attentionHit()) store.pulseAttentionHit(speaking ? 600 : _attnWinS);
       if (d.ttfa_ms != null) store.setLatency(d.ttfa_ms + " ms");
+    } else if (d.kind === "vad" && d.edge) {
+      // V2-661 — the window measures the operator's SILENCE, and his silence has not started while he is
+      // talking. Measured 2026-09-11 (session 1cdcb08e): he spoke for 47 s without a pause and the ring went
+      // dark 5 s in — the timer only knew the last verdict, and no verdict arrives mid-sentence. Held while
+      // his voice is active (a long ceiling, never forever: a missed falling edge must not pin it), re-armed
+      // for a full window the instant it stops. A ring already off stays off — room speech never lights it.
+      if (store.attentionHit()) store.pulseAttentionHit(d.edge === "on" ? VAD_HOLD_S : _attnWinS);
     } else if (d.kind === "error") {
       console.warn("voice error:", d.label || "");              // clean screen: log only, no banner
       refreshStatus();                                          // but do reflect it in the ◉ status icon

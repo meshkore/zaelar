@@ -145,4 +145,12 @@ scripts/com.zaelar.uc-loop.plist
 dist/
 
 # V2-638 — the torrent client sandbox: real payloads, never versioned
+# V2-661 — the agent's LIBRARY holds the OPERATOR's own files (a saved document, a track, a film) and this
+# repo is PUBLIC. Only `downloads/` was ignored, which was enough while the other shelves were empty and
+# stopped being enough the moment saving a text became routine. The module's CODE lives in the same
+# directory, so the shelves are ignored one by one, never `library/` whole.
 library/downloads/
+library/documents/
+library/video/
+library/audio/
+library/images/

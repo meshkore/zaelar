@@ -212,6 +212,45 @@ DOC_SURFACE_BLOCK = (
     "encargo si difieren), y `source` de dónde sale. La voz final es corta: el informe ya lo está leyendo.")
 
 
+def library_block() -> str:
+    """V2-661 — WHERE the operator's files live, for a worker that has to SAVE one.
+
+    Measured (session 1cdcb08e, 2026-09-11): asked to «guardar la Declaración en mis archivos», the worker
+    wrote a perfect `.md` into `widgets/_data/navegador/` — the browser task's directory, the only path it had
+    ever been told — then read the `archivos` card, saw nothing, and spent four minutes trying to download a
+    PDF through the browser. Nobody had told it the library exists. Resources are nailed down (the doctrine):
+    the ROOT path, the shelves, and the one action that files a text. Fail-soft: without a resolvable library
+    the block is empty rather than a guess."""
+    try:
+        from library import paths as _paths
+        root = str(_paths.root())
+        shelves = "/".join(_paths.KINDS)
+    except Exception:  # noqa: BLE001
+        return ""
+    return (f"LOS ARCHIVOS DEL OPERADOR viven en la BIBLIOTECA del agente: `{root}` con una carpeta por clase "
+            f"({shelves}) — es EXACTAMENTE lo que enseña el widget `archivos`, y NADA fuera de ese árbol aparece en "
+            f"«sus archivos» (ni tu directorio de trabajo, ni el del navegador, ni Descargas del sistema). Para "
+            f"GUARDAR un texto como fichero: escribe el JSON {{\"name\": \"…\", \"text\": \"…\"}} a `doc.json` y "
+            f"`python -m nucleo.widget_cli data archivos save_document @doc.json` — lo deja en documents/ y abre esa "
+            f"carpeta en la tarjeta. Un fichero que ya tienes en disco (un PDF descargado) se copia dentro de "
+            f"`{root}/<carpeta>/` y luego `python -m nucleo.widget_cli data archivos refresh`. Si el texto ya está "
+            f"en la hoja `documento`, `python -m nucleo.widget_cli data documento save_to_library` lo guarda sin "
+            f"volver a traerlo.")
+
+
+def trusted_blocks(surface: str = "") -> str:
+    """The extra blocks a TRUSTED worker's prompt carries, in order: the report-surface contract (V2-644) when
+    the errand delivers a document, and where the operator's files live (V2-661). Empty when neither applies."""
+    from nucleo import surfaces as _surfaces
+    out = []
+    if _surfaces.opens_doc(surface or ""):
+        out.append(DOC_SURFACE_BLOCK)
+    lib = library_block()
+    if lib:
+        out.append(lib)
+    return ("\n\n" + "\n\n".join(out)) if out else ""
+
+
 def _build_prompt(request: str, context: str, trusted: bool, brief: dict | None = None) -> str:
     header = ("Eres un Brain Worker del asistente personal zaelar: una sesión de trabajo que CONDUCE una tarea del "
               "operador con tus herramientas (memoria, navegador, código, búsqueda). Resuelve la PETICIÓN de forma "

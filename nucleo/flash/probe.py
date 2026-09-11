@@ -38,6 +38,7 @@ from nucleo.flash import widget_data_turn as _widget_data_turn
 from nucleo.flash import presence as _presence, probe_scheduling as _probe_scheduling
 from .probe_actionmap import try_map as _amap_try
 from nucleo.flash import second_pass as _second
+from nucleo.flash import harness_turn as _ht_p
 
 _WINDOW_MAX = 10
 
@@ -331,39 +332,8 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
     degenerate = dialog.looks_degenerate(spoken)
     spoken = dialog.sanitize_reply(spoken)
 
-    # (e) acción derivada (qué HARÍA el turno real)
-    # V2-658 (espejo del provider — impl paralela, cablear en AMBOS): una widget_data cortada por el TOPE
-    # de tokens no es un vacío — el contenido no cabe en un turno; el rescate es la escalada con superficie
-    # documento, nunca «¿me lo repites?». Se sintetiza la tool para que el resto del camino (clasificación,
-    # ejecución, ack) sea el de una escalada normal.
-    # V2-660 (espejo del provider): las tarjetas mostradas este turno son objetivos del arnés, y una
-    # afirmación de entrega sobre una hoja VACÍA se rescata escalando con la superficie documento.
-    try:
-        from nucleo import harness as _harness_p
-        for _t in tags:
-            if _t.get("action") == "show" and (_t.get("extra") or {}).get("id"):
-                _harness_p.note_goal(_harness_p.KIND_WIDGET_CONTENT, str(_t["extra"]["id"]), text)
-        if not any(t["name"] in ("escalate_to_slowbrain", "widget_data") for t in tool_calls):
-            _fc_p = await _harness_p.false_claim(spoken, data_done=False)
-            if _fc_p:
-                tool_calls.append({"name": "escalate_to_slowbrain", "args": {
-                    "request": _harness_p.rescue_request(_fc_p),
-                    "surface": "documento" if _fc_p["target"] == "documento" else ""}})
-    except Exception as _e_hp:  # noqa: BLE001
-        from loguru import logger as _log_hp
-        _log_hp.warning(f"probe harness skipped: {_e_hp}")
-    if not tool_calls:
-        try:
-            from nucleo.flash.fast_client import oversized_widget_write as _oversized_p
-            _ow_head_p = _oversized_p(llm_metrics)
-        except Exception:
-            _ow_head_p = None
-        if _ow_head_p:
-            tool_calls.append({"name": "escalate_to_slowbrain", "args": {
-                "request": (text + " — [el turno intentó escribir este contenido en un widget y NO CABE "
-                            "en un turno: complétalo y entrégalo al widget documento con `append` por "
-                            "secciones. Lo que empezaba a escribir: " + _ow_head_p + "…]"),
-                "surface": "documento"}})
+    # (e) acción derivada. V2-658/V2-660: lo que el turno DEBE lo decide la costura compartida y se sintetiza
+    await _ht_p.mirror_probe(tool_calls, tags, spoken, text, llm_metrics)
     names = [t["name"] for t in tool_calls]
     reveal_out = None                       # V2-060: desenlace de reveal_secret (sin el valor — lo sirve la API)
     music_req = None                        # V2-380: lo que pidió `play_music`, para EJECUTARLO abajo
@@ -995,9 +965,7 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
     # ve la petición "sin atender" y la RE-DISPARA (context-bleed: la cita del dentista duplicada). Impl paralela:
     # cablear en ambos, siempre.
     if not spoken and any(t.get("action") == "aparte" for t in tags):
-        # V2-657 (espejo del provider — impl paralela, cablear en AMBOS): [[aparte]] es silencio SANCIONADO,
-        # el turno iba dirigido a otra persona de la sala. Ningún backstop lo rellena.
-        pass
+        pass          # V2-657 (espejo del provider): [[aparte]] es silencio SANCIONADO — ningún backstop lo rellena
     elif not spoken:
         try:
             from voice.engine.core import langs as _langs

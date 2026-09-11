@@ -102,6 +102,37 @@ def file_into_place(src_path, *, name: str = "") -> dict:
     return {"ok": True, "rel": paths.rel_of(dest), "entry": entry_for(paths.rel_of(dest))}
 
 
+def save_text(name: str, text: str, *, kind: str = "documents") -> dict:
+    """Write a TEXT the agent produced (a transcript, a report, notes) into the library as a file (V2-661).
+
+    Measured need (session 1cdcb08e, 2026-09-11): asked to save the Declaration of Independence «en mis
+    archivos», a worker wrote a perfect `.md` — into the browser widget's data directory, the only path it
+    knew — then watched the `archivos` card not show it and spent four minutes trying to download a PDF instead.
+    A file the operator can find lives HERE, on its shelf, and nowhere else. The name is reduced to one safe
+    leaf (no separators — a name cannot relocate the file), a text with no extension becomes `.md`, and a
+    collision is suffixed rather than overwritten, like `file_into_place`."""
+    body = str(text or "")
+    if not body.strip():
+        return {"ok": False, "error": "no hay texto que guardar"}
+    leaf = os.path.basename(str(name or "").strip().replace("\\", "/")) or "documento"
+    leaf = "".join(c for c in leaf if c.isalnum() or c in " ._-()áéíóúñÁÉÍÓÚÑüÜçÇ").strip(" .") or "documento"
+    stem, ext = os.path.splitext(leaf)
+    if formats.kind_of(leaf) != "document":
+        stem, ext = leaf, ".md"          # «(EE. UU.)» is not an extension — the whole name is the stem
+    dest_dir = paths.dir_for(kind if kind in paths.KINDS else "documents")
+    dest = dest_dir / f"{stem}{ext}"
+    n = 1
+    while dest.exists():
+        dest = dest_dir / f"{stem} ({n}){ext}"
+        n += 1
+    try:
+        dest.write_text(body, encoding="utf-8")
+    except OSError as e:
+        return {"ok": False, "error": str(e)[:160]}
+    rel = paths.rel_of(dest)
+    return {"ok": True, "rel": rel, "path": str(dest), "entry": entry_for(rel)}
+
+
 def rename(rel: str, new_name: str) -> dict:
     """Rename a file IN PLACE — same folder, a different leaf name. Collisions are refused rather than
     overwritten (losing a namesake file to a rename is not recoverable); the extension is not enforced, so

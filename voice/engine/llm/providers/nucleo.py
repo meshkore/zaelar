@@ -111,6 +111,7 @@ def _extends(prev: str, cur: str) -> bool:
 # untouched. What does NOT move is `_spawn`: the provider owns its background-task registry.
 from voice.engine.llm.providers import acc_notices as _accn
 from voice.engine.llm.providers import attention_turn as _attention_turn
+from nucleo.flash import harness_turn as _ht          # V2-661: what a turn owes, shared with the probe
 
 _ACC_NUDGE_S = _accn._ACC_NUDGE_S
 _acc_notice_plan = _accn._acc_notice_plan
@@ -865,8 +866,8 @@ class NucleoLLMStream(llm.LLMStream):
                 logger.warning(f"unknown_tag_dropped: {(extra.get('text') or '')[:120]!r}")
                 return
             if action == "aparte":
-                # V2-657 — sanctioned silence: the model judged this in-window turn addressed to somebody
-                # else in the room. Handled (no mute backstop, no hollow repair); resolved after the stream.
+                # V2-657 — sanctioned silence: an in-window turn addressed to somebody else in the room.
+                # Handled (no mute backstop, no hollow repair); resolved after the stream.
                 aside["v"] = True
                 return
             if action == "widget.data":
@@ -2718,113 +2719,50 @@ class NucleoLLMStream(llm.LLMStream):
                 spoken_text = "Aquí lo tienes."
             send(speech.sanitize(spoken_text, drop_metadata=False))
 
-        # V2-660 — the ERRAND HARNESS (nucleo/harness.py). Every card this turn SHOWED is an end state the
-        # turn implied (content in it); and a reply that CLAIMS delivery («aquí tienes el texto completo…»)
-        # over a card the harness can read as EMPTY is a false claim — measured 2026-09-11 after the
-        # operator's «Adelante»: one web_search, an empty `documento`, and «aquí tienes». The sentence has
-        # already sounded (streaming), so the repair is the V2-572 shape — the honest follow-up — plus the
-        # machinery that CAN deliver: an escalation carrying his words and the surface. `data_done` guards
-        # the fire-and-forget race (V2-603): a data-op this very turn is trusted, never contradicted.
+        # V2-660/V2-658 — lo que el turno DEBE, en la costura compartida (`flash/harness_turn.py`, misma
+        # llamada que el probe): una afirmación de entrega sobre una hoja VACÍA o una widget_data cortada por
+        # el tope escalan con superficie documento, y la voz añade el seguimiento honesto (forma V2-572).
         try:
-            from nucleo import harness as _harness
-            _h_words = _router.operator_words(operator_text, text)
-            try:
-                from voice import trace as _trace_h
-                _h_trace = _trace_h.current() or ""
-            except Exception:
-                _h_trace = ""
-            for _gid in list(_shown_ids):
-                _harness.note_goal(_harness.KIND_WIDGET_CONTENT, _gid, _h_words, trace=_h_trace)
-            if escalate_req["v"] is None and not aside["v"]:
-                _fc = await _harness.false_claim(spoken_text, data_done=bool(data_done["v"]))
-                if _fc:
-                    _fc_req = _harness.rescue_request(_fc)
-                    escalate_req["v"] = _fc_req
-                    escalate_req["surface"][_fc_req] = "documento" if _fc["target"] == "documento" else ""
-                    try:
-                        from voice.engine.core import langs as _lg_h
-                        _en = str(_lg_h.current_code() or "").lower().startswith("en")
-                    except Exception:
-                        _en = False
-                    _fix = ("Sorry — it is not on screen yet. I am getting it ready for you."
-                            if _en else "Perdona — todavía no está en pantalla. Te lo estoy preparando.")
+            _ht.note_shown(_shown_ids, _router.operator_words(operator_text, text), trace=_ht.current_trace())
+            _owed = await _ht.rescue(
+                spoken_text, data_done=bool(data_done["v"]), turn_text=text,
+                metrics=(None if (acted["widget"] or data_done["v"] or search_req["v"] is not None
+                                  or music_req["v"] is not None) else llm_metrics),
+                may_escalate=(escalate_req["v"] is None and not aside["v"]))
+            if _owed:
+                escalate_req["v"] = _owed["request"]
+                escalate_req["surface"][_owed["request"]] = _owed["surface"]
+                if _owed["reason"] == _ht.OVERSIZED:
+                    emit("brain", "🧾 widget_data cortada por el tope → escalada con superficie documento",
+                         text=_owed["head"][:120], role="system")
+                else:
+                    _fix = _ht.follow_up_line()
                     send(speech.sanitize(_fix, drop_metadata=False))
                     spoken_text = (spoken_text + " " + _fix).strip()
         except Exception as _e_h:  # noqa: BLE001
-            logger.warning(f"harness skipped: {_e_h}")
+            logger.warning(f"turn repairs skipped: {_e_h}")
 
-        # V2-658 — a widget_data cut by the TOKEN CAP is not a void: the model tried to hand a widget more
-        # content than a voice turn can carry (the full Declaration pasted inline into `documento`, twice
-        # across two sessions), the action was discarded, and the turn fell to «Perdona, ¿me lo repites?»
-        # over an errand it had IN HAND. Content that exceeds the turn is a WORKER's delivery (V2-644's doc
-        # surface): the rescue escalates THIS turn's request, naming what the model was trying to write.
-        if (escalate_req["v"] is None and not acted["widget"] and not data_done["v"]
-                and search_req["v"] is None and music_req["v"] is None and not aside["v"]):
-            try:
-                from nucleo.flash.fast_client import oversized_widget_write as _oversized
-                _ow_head = _oversized(llm_metrics)
-            except Exception:
-                _ow_head = None
-            if _ow_head:
-                _ow_req = (text + " — [el turno de voz intentó escribir este contenido en un widget y NO "
-                           "CABE en un turno: complétalo y entrégalo al widget documento con `append` por "
-                           "secciones. Lo que empezaba a escribir: " + _ow_head + "…]")
-                escalate_req["v"] = _ow_req
-                escalate_req["surface"][_ow_req] = "documento"
-                emit("brain", "🧾 widget_data cortada por el tope → escalada con superficie documento",
-                     text=_ow_head[:120], role="system")
-
-        # Escalada sin texto hablado en el mismo turno → frase de espera neutral (no mudo). V2-029: si YA había una
-        # tarea de fondo en curso al empezar el turno, VARÍA la frase ("sigo con ello") en vez de repetir la misma.
+        # Escalada sin texto hablado → frase de espera neutral (V2-029/V2-189): varía turno a turno y esquiva
+        # la apertura si un filler ya sonó — en `harness_turn.holding_line`, con su historia.
         if escalate_req["v"] is not None and not spoken_text:
-            # el lead-in ("a ver…") NO cuenta como contenido → aquí sí decimos la frase de espera CON sentido.
-            # Si un filler YA SONÓ este turno, la apertura la restataría («Déjame que mire…» + «Vale, dame un
-            try:
-                from voice.engine.core import langs
-                _lg = langs.current_language()
-                # V2-189: nunca la MISMA frase dos veces (espejo del probe — cablear en AMBOS). `_prev_pending`
-                # solo distinguía la primera de las demás; a partir de la tercera, todas eran idénticas.
-                from nucleo.flash import router_guards as _rg_hold   # momento» — medido 2026-09-09, 2bdc67ee):
-                spoken_text = _rg_hold.holding_line(brain._window, _lg, after_filler=_filler_audio.played_recently())
-            except Exception:
-                spoken_text = "Sigo con ello." if _prev_pending else "Vale, dame un momento."
+            spoken_text = _ht.holding_line(brain._window, _prev_pending,
+                                           after_filler=_filler_audio.played_recently())
             send(speech.sanitize(spoken_text, drop_metadata=False))
 
-        # BACKSTOP GENÉRICO — turno de CHARLA pura que salió MUDO: ninguna tool se disparó (ninguno de los
-        # backstops de arriba — widget/data/style/confirm/clarify/escalada — encontró algo que resolver) Y el
-        # modelo no dijo NADA. Live bug (search-buy-used-car, 2026-08-17): tras varios check-ins con un worker
-        # corriendo, un turno de charla pura ("¿pudiste relanzarla?") volvió del modelo genuinamente vacío; como
-        # todo backstop anterior está gateado a SU propia acción, ninguno cubría este caso — el operador se
-        # quedó sin respuesta, y el turno SIGUIENTE, viendo ese hueco en la ventana, acabó ECOANDO la propia
-        # pregunta del operador palabra por palabra. Último recurso: si a estas alturas sigue sin haber nada
-        # que decir, dilo con sentido según si hay trabajo de fondo en marcha. Espejo del backstop genérico de
-        # `probe.py` (impl PARALELA, cablear en AMBOS).
-        # V2-634 (measured live, session b828c901): with the V2-633 silent-orders gate on, a turn that DID
-        # act (play_video → load) ended with empty spoken_text and fell into THIS backstop — four apologies
-        # («se me ha ido», «llevo tres intentos») over turns that had executed perfectly, reading as
-        # not-understanding. The stuck apology is for turns that produced NOTHING; an acted-and-silent turn
-        # is the V2-633 design, and a deduped duplicate was handled, not lost. `_tool_handled` is computed
-        # here (it used to live just below, feeding the fallbacks) so the backstop can read it.
-        # V2-646 (measured live, session 22:30:39): the operator TYPED «puedes ponermela en youtube o de
-        # alguna forma?», the model spent its 51 tokens on a `play_video` the canvas-license guard vetoed as
-        # context-bleed, `deduped` marked the turn handled — and the backstop below stayed quiet, so a typed
-        # question got completion_chars=0 and no answer at all. The V2-633/634 exemptions exist for AMBIENT
-        # speech dragged in from the room, where silence is the right answer; a sentence the operator sat
-        # down and WROTE is never that. So a vetoed/deduped action does not count as «handled» on a typed
-        # turn: it is exactly the void the backstop is for.
+        # BACKSTOP GENÉRICO — turno MUDO que no hizo NADA. Qué cuenta como «hecho algo» tiene historia
+        # (V2-633/634/646/657) y vive con ella en `harness_turn.turn_handled`.
         _typed_turn = False
         try:
             _typed_turn = attention.was_typed()
         except Exception:
             _typed_turn = False
-        _tool_handled = bool(
-            acted["widget"] or data_done["v"] or worker_acted["v"] or style_fired["v"]
-            or (deduped["v"] and not _typed_turn)
-            or (aside["v"] and not _typed_turn)   # V2-657: an ASIDE is deliberate silence — never on typed
-            or escalate_req["v"] is not None or search_req["v"] is not None
-            or music_req["v"] is not None or ("play_video" in _tool_fired and not _typed_turn)
-            or images_req["v"] is not None
-            or confirm_state.get("opened") or confirm_state.get("handled"))
+        _tool_handled = _ht.turn_handled(
+            typed=_typed_turn, widget=acted["widget"], data=data_done["v"], worker=worker_acted["v"],
+            style=style_fired["v"], deduped=deduped["v"], aside=aside["v"],
+            escalated=escalate_req["v"] is not None, searched=search_req["v"] is not None,
+            music=music_req["v"] is not None, video=("play_video" in _tool_fired),
+            images=images_req["v"] is not None,
+            confirm=bool(confirm_state.get("opened") or confirm_state.get("handled")))
         if not spoken_text and not _tool_handled:
             try:
                 from voice.engine.core import langs
@@ -2968,16 +2906,7 @@ class NucleoLLMStream(llm.LLMStream):
             except Exception:
                 pass
         elif not spoken_text and not _did_act:
-            # The window refresh this turn's admission wrote is RETRACTED, so the conversation can expire on
-            # its own during table talk instead of self-extending forever (the 2026-09-10 dinner spiral).
-            _retracted = False
-            try:
-                _retracted = attention.retract_last_directed()
-            except Exception:
-                pass
-            emit("ambient", "🙊 aparte — dirigida a otra persona (el modelo la dejó pasar)", text=text[:120],
-                 role="user", extra={"reason": "aside", "retracted": _retracted,
-                                     "window_s": attention.window_s(), "window_open": attention.window_open()})
+            _ht.note_aside(text, attention=attention, emit=emit)
         emit("brain", "⚡ Nucleo(flash): reply", text=spoken_text, role="assistant", extra=_reply_extra)
         # …y el VEREDICTO en una línea legible: si el turno pasó del listón, POR QUÉ (prompt grande / proveedor /
         # frío / trabajo real). Los números ya estaban todos en `_reply_extra`, pero enterrados en el extra: había

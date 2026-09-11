@@ -54,6 +54,7 @@ def test_a_stale_onset_from_before_the_anchor_grants_nothing(monkeypatch):
     monkeypatch.setenv("ZAELAR_ATTENTION", "smart")
     t = 1000.0
     attention.note_speech_onset(now=t - 30)
+    attention.note_speech_end(now=t - 28)       # V2-661: that earlier speech ENDED — it is not the anchor's utterance
     attention.note_directed(now=t)
     assert not attention.evaluate("y otra cosa", now=t + 6).directed
 
@@ -149,17 +150,23 @@ def test_a_met_goal_closes_on_the_sweep_and_leaves_the_prompt(monkeypatch):
 
 # ── the four seams are wired ────────────────────────────────────────────────────────────────────────────
 def test_the_voice_channel_wires_the_harness_before_the_rescue_and_the_holding_line():
+    # V2-661: both rescues (this one and V2-658's oversized write) moved into ONE shared seam,
+    # `nucleo/flash/harness_turn.py` — the harness is still asked FIRST inside it, and the whole decision
+    # still runs before the holding line, which is what makes the turn speak the follow-up.
+    seam = _src("nucleo/flash/harness_turn.py")
+    assert seam.index("harness.false_claim(spoken") < seam.index("oversized_widget_write"), \
+        "the harness must be consulted before the V2-658 oversized rescue"
+    assert "harness.note_goal(harness.KIND_WIDGET_CONTENT" in seam, "shown cards become goals"
     prov = _src("voice/engine/llm/providers/nucleo.py")
-    i = prov.index("_harness.false_claim(spoken_text, data_done=bool(data_done")
-    assert i < prov.index("oversized_widget_write as _oversized"), "harness runs before the V2-658 rescue"
+    i = prov.index("_ht.rescue(")
     assert i < prov.index('if escalate_req["v"] is not None and not spoken_text:')
-    assert "_harness.note_goal(_harness.KIND_WIDGET_CONTENT, _gid, _h_words" in prov, "shown cards become goals"
+    assert "_ht.note_shown(_shown_ids" in prov, "the turn's shown cards must reach the ledger"
     assert "_shown_ids.add(_pw)" in prov, "the promise-backstop show must register its card as a goal too"
 
 
 def test_the_probe_mirrors_goal_birth_and_the_false_claim():
     probe = _src("nucleo/flash/probe.py")
-    assert "_harness_p.note_goal(" in probe and "_harness_p.false_claim(spoken" in probe
+    assert "_ht_p.note_shown(" in probe and "_ht_p.rescue(spoken" in probe
 
 
 def test_the_prompt_and_the_heartbeat_read_the_ledger():

@@ -377,10 +377,12 @@ async def entrypoint(ctx: JobContext) -> None:
                 # leave them unforced, like the operator transcript (same criterion, see voice/trace.py).
                 from voice import trace as _trace
                 _tid = _trace.active()
+                # V2-661: `edge` is the client's key — the ring on the orb holds while his voice is ACTIVE
+                # and re-arms its window when it stops (sse.js), instead of dying mid-sentence on a timer.
                 _emit("vad", "✂️ barge-in — voz pisa la locución (LiveKit corta el TTS)",
-                      role="user", extra={"over_agent": True, **({"trace": _tid} if _tid else {})})
+                      role="user", extra={"over_agent": True, "edge": "on", **({"trace": _tid} if _tid else {})})
             else:
-                _emit("vad", "🎤 voz detectada (VAD)", role="user", extra={"over_agent": False})
+                _emit("vad", "🎤 voz detectada (VAD)", role="user", extra={"over_agent": False, "edge": "on"})
             # V2-660 — the window measures the operator's SILENCE, which ends HERE, not when the STT
             # finalizes the sentence (a 4-second sentence begun inside a 5 s window used to be judged outside it).
             try:
@@ -389,8 +391,14 @@ async def entrypoint(ctx: JobContext) -> None:
             except Exception:
                 pass
         elif new == "listening":
-            _emit("vad", "… fin de voz", role="user", extra={})
+            _emit("vad", "… fin de voz", role="user", extra={"edge": "off"})
             _onset["voice_ended"] = time.monotonic()   # the near end of the wait the operator is about to live
+            # V2-661 — his SILENCE starts here; the next rising edge decides whether it continues this utterance.
+            try:
+                from voice import attention as _attn_end
+                _attn_end.note_speech_end()
+            except Exception:
+                pass
 
     # FIRST-RUN LANGUAGE AUTO-DETECTION (V2-089 P3, extended by V2-101): on a brand-new install, detect the
     # operator's language from their first utterance(s) and lock it — no trip to settings. Fires at most once

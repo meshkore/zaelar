@@ -597,13 +597,7 @@ def live_state() -> str:
     # V2-276 — el bloque del NAVEGADOR vive en `live_blocks.py` desde el 2026-08-24 (trinquete de
     # arquitectura). Mismo texto, mismas caras, mismo fail-open: solo se mudó de fichero.
     lines.extend(_live_blocks.navegador_lines())
-    # V2-660 — open HARNESS goals travel as a fact WITH the rule (V2-453): a card the turn showed whose
-    # content is still missing must not be narrated as delivered by the next turn. Zero lines when none.
-    try:
-        from nucleo import harness as _harness
-        lines.extend(_harness.prompt_lines())
-    except Exception:
-        pass
+    lines.extend(_live_blocks.harness_lines())   # V2-660: an open harness goal is a FACT with its rule
     try:
         # AUSENCIA de ubicación, dicha con todas las letras (V2-127). Sin esto el prompt manda usar «la ciudad
         # del operador» y no hay ninguna: el hueco se rellena con una plausible y el operador oye el nombre de

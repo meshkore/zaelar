@@ -146,9 +146,14 @@ def test_the_voice_channel_wires_the_aside(monkeypatch):
     # Anchored on the `or (` shape UNIQUE to the _tool_handled expression — the same expression also
     # exists as `_aside_turn = bool(...)` further down, and a disarm that removed only the _tool_handled
     # line came back GREEN against the loose anchor (the V2-571 lesson, paid again while building this).
-    assert 'or (aside["v"] and not _typed_turn)' in prov, \
+    # V2-661: `_tool_handled` and the retraction moved to the shared seam `nucleo/flash/harness_turn.py`;
+    # the guard follows the CHANNEL (V2-555). The anchor stays UNIQUE to the handled expression.
+    seam = _src("nucleo/flash/harness_turn.py")
+    assert "(aside and not typed)" in seam, \
         "an aside must count as handled (mute backstop) — but never on a TYPED turn (V2-646)"
-    assert "retract_last_directed()" in prov, "the admission's window refresh must be retracted"
+    assert "aside=aside[\"v\"]" in prov, "the provider no longer tells the seam this turn was an aside"
+    assert "retract_last_directed()" in seam, "the admission's window refresh must be retracted"
+    assert "_ht_a.note_aside(" in prov, "the aside branch no longer reaches the seam"
     assert "if not _aside_turn:" in prov, "the hollow repairs must not fill a sanctioned silence"
 
 

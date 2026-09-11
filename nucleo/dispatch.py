@@ -1357,10 +1357,11 @@ f"dispatch: could not write the confinement jail for {key} — dev worker starts
             prompt = _web_prompt(req, ctx, brief, vision=_worker_sees())
         else:
             prompt = _build_prompt(req, ctx, trusted, brief)
-        # V2-644 — a REPORT flips the delivery contract (documento open, results not); after the method block.
-        if trusted and surfaces.opens_doc(getattr(rec, "surface", "")):
-            from nucleo.dispatch_prompts import DOC_SURFACE_BLOCK
-            prompt += "\n\n" + DOC_SURFACE_BLOCK
+        # V2-644 (a REPORT flips the delivery contract) + V2-661 (where the operator's FILES live): the blocks
+        # a trusted worker gets after the method block, composed in one place.
+        if trusted and not _dev:
+            from nucleo.dispatch_prompts import trusted_blocks
+            prompt += trusted_blocks(getattr(rec, "surface", ""))
         if resume and (kind == "web" and trusted):
             prompt = ("REANUDAS una gestión que YA empezaste (no arranques de cero): la pestaña sigue donde la "
                       "dejaste y los datos que ya reuniste están en memoria (consúltalos con mem_cli recall). Haz "

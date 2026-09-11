@@ -287,4 +287,25 @@ def apply_action(action: str, payload: dict = None) -> dict:
         store.save(WIDGET_ID, _stamp(_seed()))
         return {"ok": True, "empty": True}
 
+    if a == "save_to_library":
+        # V2-661 — «guárdalo en mis archivos» with the document ON SCREEN is one data-op, not an errand: the
+        # text is already here. It lands on the library's documents shelf (the `archivos` card's truth), never
+        # in this widget's own data directory, which no file manager shows. A PDF is a file we never held.
+        kind = _kind(db.get("kind"))
+        body = str(db.get("body") or "")
+        if kind == "pdf" or not body.strip():
+            return {"ok": False, "error": ("la hoja enseña un PDF que no tengo guardado: ábrelo desde su URL"
+                                           if kind == "pdf" else "la hoja está vacía: no hay nada que guardar")}
+        from library import index as _lib
+        name = _text(p.get("name") or p.get("filename") or db.get("title"), 160) or "documento"
+        if kind == "html" and not os.path.splitext(name)[1]:
+            name += ".html"
+        res = _lib.save_text(name, body, kind="documents")
+        if not res.get("ok"):
+            return {"ok": False, "error": res.get("error") or "no pude guardar el fichero"}
+        ent = res.get("entry") or {}
+        return {"ok": True, "file": {"name": ent.get("name") or name, "rel": res.get("rel") or ""},
+                "path": res.get("path") or "", "where": "documents",
+                "message": f"Guardado en tus archivos, en Documentos: «{ent.get('name') or name}»."}
+
     return {"ok": False, "error": f"acción desconocida: {action}"}

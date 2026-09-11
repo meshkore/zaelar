@@ -721,4 +721,15 @@ def any_live_task_rows(n: int = 3) -> tuple[str, list[str]]:
 
 
 
+def harness_lines() -> list[str]:
+    """V2-660 — open HARNESS goals travel as a fact WITH the rule (V2-453): a card the turn showed whose
+    content is still missing must not be narrated as delivered by the next turn. Zero lines when none, and
+    fail-open: a ledger that cannot be read costs the prompt nothing (extracted from `prompt.py`, V2-661)."""
+    try:
+        from nucleo import harness
+        return list(harness.prompt_lines())
+    except Exception:  # noqa: BLE001
+        return []
+
+
 from nucleo.flash.task_block import _short_note, pending_task_lines  # noqa: E402,F401 — re-export

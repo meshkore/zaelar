@@ -57,7 +57,15 @@ _state = {"last_directed": 0.0, "ptt": False, "assistant_name": "", "bot_hold": 
           "ambient_tail": [],      # (ts, text) of recently-DISCARDED ambient turns — reclaimed by a wake word
           "typed_at": 0.0,         # V2-646: last TYPED (chat/paste) turn — a typed message is never ambient
           "typed_pending": False,  # V2-654: that typed turn has not been handled yet — the mic gate's exemption
-          "bot_addressed": 0.0}    # V2-655: the utterance about to be spoken is ADDRESSED to him — see note_addressed_speech
+          "bot_addressed": 0.0,    # V2-655: the utterance about to be spoken is ADDRESSED to him — see note_addressed_speech
+          "speech_onset": 0.0,     # V2-660/V2-661: when the operator's CURRENT utterance began (its first VAD rising edge)
+          "speech_rise": 0.0,      # V2-661: the LAST VAD rising edge (an utterance is a chain of them)
+          "speech_end": 0.0}       # V2-661: when his voice last STOPPED (VAD falling edge) — the silence clock's start
+
+# V2-661 — the longest single utterance the onset may vouch for. A VAD falling edge that never arrives
+# (a missed event) would otherwise hold the window open for as long as the process lives; three minutes of
+# uninterrupted speech is past anything a person says to an assistant in one breath.
+_UTTERANCE_CAP_S = 180.0
 
 
 def _norm(text: str) -> str:
@@ -176,16 +184,54 @@ def note_speech_onset(now: float | None = None) -> None:
     2026-09-11 (session 0141a72a): «Johnny.» at :50 opened a 5 s window, he began «Enséñame la declaración
     de independencia» at :52 and the STT finalized it at :56 — judged at :56 it fell OUTSIDE the window and
     was thrown away as room noise, with the two follow-ups after it. He was inside the window when he opened
-    his mouth; the sentence just took longer than the window to say."""
-    _state["speech_onset"] = time.time() if now is None else now
+    his mouth; the sentence just took longer than the window to say.
+
+    V2-661 — an UTTERANCE is a chain of VAD segments, not one segment. Measured 2026-09-11 (session
+    1cdcb08e): the operator spoke for 47 s without a pause longer than 1.1 s — eleven VAD rising edges — and
+    every edge re-stamped the onset, so the final sentence was measured from its LAST breath (33 s after the
+    anchor) and thrown away as room noise, while the ring on his orb had gone dark 5 s in. The silence clock
+    only restarts when his silence lasted the whole window: a rising edge that follows a falling edge by less
+    than `window_s()` CONTINUES the utterance that began at the first edge."""
+    now = time.time() if now is None else now
+    onset = _state.get("speech_onset") or 0.0
+    end = _state.get("speech_end") or 0.0
+    ld = _state["last_directed"]
+    _state["speech_rise"] = now                          # the LAST rising edge — `_speaking()` reads this one
+    if onset and onset >= ld and (now - onset) <= _UTTERANCE_CAP_S:
+        gap = (now - end) if end >= onset else 0.0      # no falling edge since the onset = still the same breath
+        if gap <= window_s():
+            return                                       # same utterance — the onset stands
+    _state["speech_onset"] = now
+
+
+def note_speech_end(now: float | None = None) -> None:
+    """The operator STOPPED speaking (VAD falling edge). This is where his silence starts being counted;
+    `note_speech_onset` decides whether the next rising edge continues the utterance or starts a new one."""
+    _state["speech_end"] = time.time() if now is None else now
+
+
+def _speaking(now: float) -> bool:
+    """Is the operator's voice active RIGHT NOW as far as the VAD told us? The last rising edge with no falling
+    edge after it — bounded by the cap, so a missed edge cannot leave the window open forever."""
+    rise = _state.get("speech_rise") or 0.0
+    end = _state.get("speech_end") or 0.0
+    return bool(rise) and end < rise and (now - rise) <= _UTTERANCE_CAP_S
 
 
 def _window_ref(now: float) -> float:
-    """The instant the window is measured against: the speech ONSET when it fell inside the window that was
-    standing (the anchor is older than the onset, the onset is not in the future), else `now`."""
+    """The instant the window is measured against: the ONSET of the operator's current utterance when it began
+    inside the standing window (the anchor is not newer than the onset, the onset is not in the future and not
+    older than the utterance cap), else `now`. `>=` on purpose (V2-661): `note_directed` moves the onset ONTO
+    the anchor while he is still talking, so a sentence that straddles a fragment's verdict keeps its clock."""
     onset = _state.get("speech_onset") or 0.0
+    rise = _state.get("speech_rise") or 0.0
+    end = _state.get("speech_end") or 0.0
     ld = _state["last_directed"]
-    if onset and ld and ld < onset <= now:
+    if onset and ld and ld <= onset <= now and (now - onset) <= _UTTERANCE_CAP_S:
+        # His voice STOPPED and the silence since then outlasted the window: the utterance is over, and a
+        # question asked now («is the window open?») is about the silence, not about that utterance.
+        if end >= rise and (now - end) > window_s():
+            return now
         return onset
     return now
 
@@ -323,8 +369,9 @@ def window_open(now: float | None = None) -> bool:
     if m == "wakeword":
         return False
     now = time.time() if now is None else now
+    # V2-661: the same reference `evaluate()` uses — while he is mid-utterance the window is open, full stop.
     return bool(_state["bot_hold"]) or (
-        bool(_state["last_directed"]) and (now - _state["last_directed"]) <= window_s())
+        bool(_state["last_directed"]) and (_window_ref(now) - _state["last_directed"]) <= window_s())
 
 
 def note_directed(now: float | None = None) -> None:
@@ -342,6 +389,11 @@ def note_directed(now: float | None = None) -> None:
     rd = [t for t in _state["recent_directed"] if now - t <= 90.0]
     rd.append(now)
     _state["recent_directed"] = rd[-10:]
+    # V2-661: a fragment's verdict lands while he is STILL talking (the STT finalizes mid-sentence, the
+    # accumulator holds the rest). The utterance continues past this anchor, so its onset moves onto it:
+    # the silence clock reads zero until his voice actually stops.
+    if _speaking(now):
+        _state["speech_onset"] = now
 
 
 def retract_last_directed() -> bool:
@@ -583,6 +635,8 @@ def reset() -> None:
     _state["bot_addressed"] = 0.0
     _state["_prev_anchor"] = None
     _state["speech_onset"] = 0.0
+    _state["speech_rise"] = 0.0
+    _state["speech_end"] = 0.0
 
 
 # ── HARD interruption (T136): STOP always handled, BYPASSES the gate, DETERMINISTIC (does not depend on the LLM) ────

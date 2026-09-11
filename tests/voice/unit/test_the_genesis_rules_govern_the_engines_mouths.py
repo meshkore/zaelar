@@ -218,7 +218,8 @@ def test_an_acted_but_silent_turn_never_gets_the_stuck_apology():
     # handled on a SPOKEN turn (that is V2-634's lesson, dragged-in room noise deserves silence), but never on
     # a TYPED one — nobody types by accident, and a written question that got a vetoed action and no words is
     # the void this backstop exists for (measured live 22:30:39, completion_chars=0).
-    assert 'or (deduped["v"] and not _typed_turn)' in src, \
+    seam = (ENGINE / "nucleo/flash/harness_turn.py").read_text(encoding="utf-8")   # V2-661: extracted
+    assert "(deduped and not typed)" in seam, \
         "a deduped duplicate order was HANDLED — it must still count into _tool_handled for spoken turns"
     assert "_typed_turn = attention.was_typed()" in src, \
         "and the typed exception must read the real fact, not assume it"

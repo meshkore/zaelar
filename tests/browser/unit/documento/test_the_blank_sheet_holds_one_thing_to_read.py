@@ -53,7 +53,9 @@ def test_the_three_actions_are_declared_and_showing_is_a_view():
     purpose has to be runnable on a pure show order, or «enséñame la receta» can only open a bare card."""
     from widgets import actions as wactions
     acts = _manifest()["actions"]
-    assert set(acts) == {"show", "append", "clear"}, "keep the vocabulary small — that was the ask"
+    # V2-661 added `save_to_library`: «guárdalo en mis archivos» with the sheet on screen is the operator's own
+    # ask, and one data-op beats a worker re-fetching a text that is already here. Still no fifth.
+    assert set(acts) == {"show", "append", "clear", "save_to_library"}, "keep the vocabulary small — that was the ask"
     assert wactions.is_view(acts["show"], "show"), "`show` FILLS the sheet: it must be a view action (V2-547)"
     assert wactions.is_view(acts["append"], "append")
     assert wactions.classify(acts["clear"], "clear") == wactions.FAST
