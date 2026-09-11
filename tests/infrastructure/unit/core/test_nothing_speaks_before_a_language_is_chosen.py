@@ -246,3 +246,23 @@ def test_locking_a_language_persists_it_through_the_ONE_seam_that_moves_the_voic
     assert "assistant_voice" not in code, (
         "the voice alignment lives in config/settings.py — a second copy here would drift from the ⚙'s")
     assert "voice.engine.speech" not in code, "i18n must not reach into the motor's voice catalog"
+
+
+def test_the_settings_panel_offers_the_SAME_languages_as_the_first_run_picker():
+    """Two answers to one question is how they disagree. Onboarding could lock a language the ⚙ then could
+    not switch back to, because `langs.supported()` only lists the ones with a verified native Kokoro voice
+    — the right rule for that module, the wrong list for this dropdown."""
+    from config import settings as st
+    from i18n import catalog
+    knob = next(k for k in st.effective()["knobs"] if k["key"] == "stt_language")
+    assert [o["value"] for o in knob["options"]] == [r["code"] for r in catalog.picker()]
+    assert all(o["label"].strip() for o in knob["options"])
+
+
+def test_the_language_dropdown_never_renders_empty(monkeypatch):
+    """A settings panel with no languages at all is worse than one with the two we ship."""
+    from config import settings as st
+    from i18n import catalog
+    monkeypatch.setattr(catalog, "picker", lambda: (_ for _ in ()).throw(RuntimeError("boom")))
+    rows = st._ui_languages()
+    assert [r["code"] for r in rows] == ["en", "es"]

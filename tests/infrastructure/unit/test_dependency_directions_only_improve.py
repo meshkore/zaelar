@@ -62,7 +62,6 @@ def _walk_imports():
 _MOTOR_REACH: set[tuple[str, str]] = {
     ("config/doctor.py", "voice.engine.core"),
     ("config/settings.py", "voice.engine.core.config"),
-    ("config/settings.py", "voice.engine.core.langs"),
     ("config/settings.py", "voice.engine.speech.stt"),
     ("config/settings.py", "voice.engine.speech.tts"),
     ("config/settings.py", "voice.engine.speech.voices"),

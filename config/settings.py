@@ -128,11 +128,24 @@ _TTS_LABELS = {"cartesia": "Cartesia Sonic (cloud)", "kokoro_local": "Kokoro loc
                "elevenlabs": "ElevenLabs (cloud · voz nativa por idioma)"}
 
 
+def _ui_languages() -> list[dict]:
+    """The language rows the ⚙ offers. Falls back to the two shipped ones if the catalog cannot be read —
+    a settings panel that renders an EMPTY language dropdown is worse than one with two entries."""
+    try:
+        from i18n.catalog import picker
+        rows = picker()
+        if rows:
+            return rows
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"settings: no pude leer el catálogo de idiomas ({e})")
+    return [{"code": "en", "native": "English", "flag": "🇺🇸"},
+            {"code": "es", "native": "Español", "flag": "🇪🇸"}]
+
+
 def effective() -> dict:
     """Current values + option lists for the ⚙ UI. STT/TTS/voice options are DERIVED FROM THE LIVEKIT ENGINE
     (voice/engine): the STT/TTS registries for the provider lists, voice.engine.speech.voices for the catalog."""
     from voice.engine.core.config import SETTINGS
-    from voice.engine.core.langs import supported as langs_supported
     from voice.engine.speech.stt import available as stt_available
     from voice.engine.speech.tts import available as tts_available
     from voice.engine.speech.voices import tts_provider, voices_for
@@ -166,8 +179,14 @@ def effective() -> dict:
         knob("assistant_voice", "Voz · dentro del proveedor", vs[cur_idx]["voice"] if vs else "", voice_opts,
              "session", "elige la voz (se aplica al reconectar; también puedes rotarla tocando el orbe). "
                         "Con ElevenLabs y Kokoro la lista son voces NATIVAS de tu idioma primero"),
+        # V2-672 — the SAME catalog the first-run picker offers (`i18n/catalog.py`, 40 languages), not
+        # `langs.supported()`. Those are two answers to one question and they disagreed: onboarding could
+        # lock German and the ⚙ could not switch back to it, because `langs` only lists the languages we
+        # have a verified NATIVE Kokoro voice for — which is the right rule for THAT module and the wrong
+        # list for this dropdown. `langs.spec()` falls back to English for the parts that genuinely need a
+        # native voice, exactly as it already does for a language chosen at onboarding.
         knob("stt_language", "Idioma", os.getenv("ZAELAR_LANGUAGE", SETTINGS.language),
-             [(s.native, s.code) for s in langs_supported()], "session",
+             [(f"{row['flag']} {row['native']}", row["code"]) for row in _ui_languages()], "session",
              "multilingüe; al cambiar, STT, voz TTS y respuestas se re-alinean al idioma (aplica al reconectar)"),
         knob("attention_mode", "Atención · micro abierto", os.getenv("ZAELAR_ATTENTION", "always"),
              [("Inteligente (wake-word + conversación)", "smart"),
