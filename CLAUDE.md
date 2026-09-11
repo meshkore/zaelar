@@ -510,8 +510,8 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   Nodes **3.36** and **4.158** (the client half drives the REAL `voiceCommands.js`), plus five new groups on
   4.145. **Six disarms, each mutation asserted before measuring, all red.** ⚠️ 4.158's own trap: the fast lane
   dedupes an identical action signature for 2.5 s, so two `closeAll` cases in a row measure the DEDUPE and not
-  the rule. ⚠️ Renumbered from V2-662 at closure — the concurrent session had already PUSHED V2-662/663, and
-  what is pushed wins. **NOT verified live**: needs an engine restart and a page reload. Open and named in the
+  the rule. ⚠️ Renumbered at closure: the concurrent session had already PUSHED the two numbers below this
+  one, and what is pushed wins — the initiative file is created when the number is TAKEN, not at the end. **NOT verified live**: needs an engine restart and a page reload. Open and named in the
   initiative: four duplicate «dentista» crons injected as four identical notes into one turn, and the product
   question of a reminder riding the turn it interrupts (V2-607's design, his call).
 
