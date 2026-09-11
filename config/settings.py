@@ -400,6 +400,10 @@ AGENT_KEYS = frozenset({
     "theme",              # V2-617 skin profile
     "theme_custom",       # V2-617 custom knobs
     "memory_observability",
+    # V2-675 — the introduction phase, once it is over. Deliberately on the AGENT side and not with the
+    # installation's own setup: it records something about the RELATIONSHIP, so a factory reset ("empezar de
+    # cero, como si fuera la primera vez") correctly makes the agent introduce itself again.
+    "intro_done",
 })
 
 

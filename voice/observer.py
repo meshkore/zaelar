@@ -58,6 +58,10 @@ _CAT = {
     # filtered apart from «the model decided this»: both used to arrive as an ordinary `brain` row, and the
     # viewer's layer column then named the FlashBrain on turns where no model ran.
     "actionmap": "flash",
+    # `phase` (V2-675): a CONTEXT PACK opening or closing — the introduction ending, and whatever phases come
+    # after it. Family `flash` because it is prompt the turn carried; its own kind because «this stretch of
+    # the relationship is over» happens once and must stay findable, not be lost among the turn's own rows.
+    "phase": "flash",
     # ── Brain Workers (ON) — ASYNC work: worker sessions, the internal Chromium they open for browsing,
     # and backed/background processes that run outside the turn. The browser belongs HERE (2026-08-09): to the
     # operator, “open the browser” is not its own family; it is what a worker does when needed.

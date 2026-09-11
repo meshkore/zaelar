@@ -181,8 +181,10 @@ _CEILINGS: dict[str, tuple[int, int]] = {
     "nucleo/flash/probe.py": (1138, 73),
     "widgets/results/data.py": (991, 5),
     "memory/api.py": (1076, 19),
-    "nucleo/flash/prompt.py": (854, 30),   # 25-08: 41be5cb V2-311 step 3 · 26-08: +3 V2-342 (the COMPLAINT
+    "nucleo/flash/prompt.py": (834, 29),   # 25-08: 41be5cb V2-311 step 3 · 26-08: +3 V2-342 (the COMPLAINT
     # branch in the worker directive: inject before killing—directive prose, nothing extractable)
+    # 26-09-11: V2-675 · −21 — the CRON line moved to `live_blocks.py` (same precedent as the browser and
+    # background-task blocks), paying for the context-pack seam. Lowering the number IS the celebration.
     "nucleo/workers/session.py": (825, 19),
     "nucleo/flash/router.py": (327, 1),
 }

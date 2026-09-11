@@ -292,6 +292,14 @@ async def _lifespan(app: FastAPI):
         _amap_watch.start()
     except Exception as e:
         logger.warning(f"actionmap watch start failed (voice/chat unaffected): {e}")
+    # CONTEXT PACKS (V2-675): the introduction phase watches the same topic, for the opposite reason — to
+    # notice when it is OVER and archive itself. It subscribes to nothing once the phase has closed, so on
+    # an installation that is past its first conversation this line costs one settings read at boot.
+    try:
+        from nucleo.context_packs import introduction as _intro_pack
+        _intro_pack.start()
+    except Exception as e:
+        logger.warning(f"context packs start failed (conversation unaffected): {e}")
     # Widget layer: a restart mid-generation kills the headless agent — resume what the journal says was in
     # flight (relaunch creates, report interrupted modifies). Strong ref on app.state so the GC can't drop it.
     try:

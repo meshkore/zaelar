@@ -165,6 +165,9 @@ def mirror(text: str, sess, trace_id: str, book: dict, *, bounce_pending: bool =
     gives). It takes the FIRST phrase of the pool instead of a random one: a test channel that rolls dice
     cannot be asserted on."""
     try:
+        from nucleo import context_packs
+        if context_packs.active_ids():
+            return None                   # a guiding phase outranks the phrasebook — see the voice lane
         intent = classify(text, book, bounce_pending=bounce_pending)
         try:
             sess.smalltalk_bounce = False   # see the voice lane: any turn takes the question out of the air

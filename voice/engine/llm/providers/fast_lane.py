@@ -140,6 +140,17 @@ async def small_talk(brain, text: str, emit, *, first_turn: bool, window_max: in
     """
     if first_turn or ask_waiting:
         return False
+    # A PHASE that guides the conversation outranks the phrasebook (V2-675). During the introduction «hola»
+    # is not small talk — it is the first move of a conversation that has somewhere to go, and answering it
+    # from a table would end the exchange the phase exists to start. This is the operator's own «excepción
+    # al inicio», and it belongs HERE rather than inside the pack: the pack writes prompt, and a lane that
+    # never reaches a model would not read it.
+    try:
+        from nucleo import context_packs
+        if context_packs.active_ids():
+            return False
+    except Exception:  # noqa: BLE001
+        pass
     book = {}
     try:
         from voice.engine.core import langs

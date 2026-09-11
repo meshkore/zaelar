@@ -1440,6 +1440,15 @@ DOMAINS: list[dict] = [
                                 "hace (el libro de frases)",
             "ch": UNIT,
             "paths": ["tests/infrastructure/unit/core/test_a_set_phrase_is_answered_without_a_model.py"]},
+        # V2-675 (2026-09-11): CONTEXTO DE FASE — prompt que solo existe durante un tramo de la relación y
+        # que se archiva solo. Hoy hay uno (la presentación); lo que se guarda aquí no es su prosa —fijarla
+        # la volvería inmejorable— sino lo que hace que una fase sea una FASE: que no cueste nada apagada,
+        # que se pueda apagar, y que apagada no vuelva.
+        {"id": "3.38", "title": "Un tramo de la relación tiene su propio prompt — y desaparece cuando termina "
+                                "(paquetes de contexto)",
+            "ch": UNIT,
+            "paths": ["tests/infrastructure/unit/core/"
+                      "test_a_phase_of_the_relationship_has_its_own_prompt.py"]},
     ]},
     {"id": "4", "name": "WIDGETS", "nodes": [
         {"id": "4.1", "title": "Ciclo de vida / acciones / refs / generador / background", "ch": UNIT, "paths": [

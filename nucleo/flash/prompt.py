@@ -35,10 +35,15 @@ from nucleo.flash.recall_heuristics import (  # noqa: F401 — re-export
 # V2-276 — the stall threshold, human-readable site name, and "already found something" signal moved with
 # the block that uses them (`live_blocks.py`). They are re-exported because tests import them by name from
 # here: the extraction is a move, not an interface change.
+from nucleo import context_packs as _packs
 from nucleo.flash import live_blocks as _live_blocks
 # V2-348: `_short_note` moved with its sole caller to `live_blocks`; it is re-exported because tests import it
 # by name from here and because the public contract remains `live_state()` (as in V2-276).
 from nucleo.flash.live_blocks import _short_note  # noqa: F401
+# V2-675 ratchet pass: `_cron_line` MOVED to `live_blocks.py`, byte for byte — the same
+# precedent as the browser block (V2-276) and the background-task block (V2-348). Re-exported
+# so its callers and its test keep naming it here.
+from nucleo.flash.live_blocks import _cron_line  # noqa: F401 — re-export
 from nucleo.flash.live_blocks import (  # noqa: F401 — re-export
     _STALLED_S, _found_candidates, _site_of,
 )
@@ -194,36 +199,6 @@ def _directive_block(directive: str) -> str:
         return ""
     return ("\n\n── INSTRUCCIÓN DE ESTILO ACTIVA (el operador la dio esta sesión — OBLIGATORIA cada turno) ──\n"
             f"{directive}\n")
-
-
-def _cron_line() -> str:
-    """One line of proactivity (cron tags) plus anything already scheduled, if present. Concise (V2-027).
-
-    The RULE that "a spoken reminder is not a reminder" comes from the `remember-and-remind-deadline` use case
-    (V2-121, run 2026-08-18): when told "write it down for Thursday… and remind me on Wednesday," the brain
-    answered "Done" and kept claiming in later turns that it was scheduled, with ZERO mechanism behind it. This
-    was not model oversight: the catalog literally said a reminder was "acknowledged without a tool," so the
-    measured behavior was what the prompt requested. This says the opposite, using the absolute-date format
-    `scheduler.parse_schedule` already understands so a specific day can be EXPRESSED in one pass."""
-    line = ('Proactividad (recordatorios/tareas programadas): [[cron.create]]'
-            '{"schedule":"30m|every 2h|2026-08-19 09:00|0 9 * * *","prompt":"qué avisar","name":"…"}'
-            '[[/cron.create]] · [[cron.cancel:name]]. `schedule` admite un plazo relativo, una FECHA ABSOLUTA '
-            '(YYYY-MM-DD HH:MM, para un aviso de una sola vez en un día concreto — la fecha la sacas de la lista '
-            'de días de tu ESTADO, no la calcules a ojo) o un cron de 5 campos si es RECURRENTE. '
-            'Una ORDEN con plazo NO es pedir un recordatorio: «paga la factura antes del día 5» es HACERLO (y si es irreversible, preguntar antes) — apuntarlo en su lugar es no atenderle. REGLA DURA: si el operador pide que le AVISES/RECUERDES algo en un momento dado, emite la tag EN '
-            'ESE TURNO — decir «te lo recuerdo» sin ella no programa nada y es mentirle. Y si el compromiso '
-            'tiene fecha, apúntalo en su agenda (widget_data add_meeting) — la cita CREA SOLA su aviso por '
-            'defecto, así que NO emitas además un cron para la misma cita; para cambiarle la hora al aviso es '
-            'widget_data set_reminder. La tag es para avisos SUELTOS sin cita detrás. Si te falta la hora o el '
-            'día exacto, PREGUNTA antes de programar.')
-    try:
-        from nucleo import scheduler
-        jobs = scheduler.list_jobs(active_only=True)
-        if jobs:
-            line += " Ya programado: " + "; ".join(f"{j['name']} ({j['schedule']})" for j in jobs[:6]) + "."
-    except Exception:
-        pass
-    return line
 
 
 def _connector_briefs(open_ids: set[str]) -> str:
@@ -837,6 +812,11 @@ def build_flash_system(directive: str = "", recall_query: str = "", recall_block
         + ("\n\n" + recent_block if recent_block else "")
         + ("\n\n" + recall_block if recall_block else "")
         + _directive_block(directive)
+        # CONTEXT PACKS (V2-675) go AFTER the operator's own style directive and BEFORE the live state: a
+        # directive is HIS instruction and a pack is OURS; and a pack is about a STRETCH of the relationship,
+        # a weaker claim than what is true this second. Outside the stable prefix (V2-536) on purpose — a
+        # phase ends mid-conversation, and a cached block keeps being spoken after its phase is over.
+        + _packs.compose()
         + "\n\n── AHORA MISMO ──\n" + live
         + "\n\nAtiende ahora la petición del operador que viene a continuación."
     )
