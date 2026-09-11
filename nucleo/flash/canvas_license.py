@@ -25,8 +25,19 @@ from .text_norm import _norm_txt
 # («¿por qué lo has cambiado?» is a complaint, not an order), which is why the stems are spelled out
 # instead of a broad \w* that would swallow «cambiado»/«puesto». «otro/otra/siguiente» license a swap by
 # themselves («otro vídeo de Ronaldinho»).
+#
+# V2-664 — the INFINITIVE is a request form too, and it was the one missing. Spanish asks for media through
+# a periphrasis far more often than through a bare imperative: «me vas a poner el vídeo», «¿puedes ponerme
+# la canción?», «voy a ponerte…». Every other verb here already spells its infinitive out (cargar, buscar,
+# reproducir, abrir, cambiar, repetir) — `poner` did not, and `pon(?:me|te|le|lo|la|gas?|ed)?` cannot reach
+# it, because «poner» is «pon» followed by word characters and the \b fails. Measured live 2026-09-11
+# (session eedf7f9b): «Bien, me vas a poner el vídeo del Apolo 11 llegando a la luna» → the model fired
+# `play_video(query="Apolo 11 llegando a la luna")`, this license read it as context-bleed and ate it, and
+# the turn ended saying «Y ahora te pongo el vídeo del Apolo 11» over a video that never loaded.
 _MEDIA_REQ_RE = _re.compile(
-    r"\b(?:pon(?:me|te|le|lo|la|gas?|ed)?|carga(?:me|lo|la)?|cargar|busca(?:me|lo|la)?|buscar|"
+    r"\b(?:pon(?:me|te|le|lo|la|gas?|ed)?|"
+    r"pon(?:er|iendo|dr[aáeé])\w*|mostrar(?:me|lo|la)?|ensenar(?:me|lo|la)?|"
+    r"carga(?:me|lo|la)?|cargar|busca(?:me|lo|la)?|buscar|"
     r"reproduce(?:me|lo|la)?|reproducir|quiero|dame|dale|abre(?:me|lo|la)?|abrir|muestra(?:me)?|"
     r"ensena(?:me)?|veamos|vemos|ver|cambia(?:me|lo|la)?|cambiar|repite(?:me|lo)?|repetir|"
     # «otro/otra» licenses only NEXT TO a media noun: «otra vez» in a complaint («¿por qué lo has

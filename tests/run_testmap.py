@@ -1264,7 +1264,7 @@ DOMAINS: list[dict] = [
                                 "dirigida, y el anillo del orbe no muere a mitad de frase",
             "ch": UNIT, "paths": [
                 "tests/voice/unit/test_the_window_measures_silence_not_speech.py"]},
-        # V2-662 — UNA ORDEN SOBRE DATOS NO ES UNA ORDEN SOBRE EL LIENZO. Sesión eedf7f9b (2026-09-11):
+        # V2-664 — UNA ORDEN SOBRE DATOS NO ES UNA ORDEN SOBRE EL LIENZO. Sesión eedf7f9b (2026-09-11):
         # «quita, por favor, los datos de comidas de la agenda… todas esas entradas» cerró TODOS sus widgets
         # (verbo de cierre en una oración y un cuantificador pelado quince palabras más allá, en OTRA), y
         # «me vas a poner el vídeo del Apolo 11» murió como context-bleed porque la gramática de medios
@@ -1724,7 +1724,7 @@ DOMAINS: list[dict] = [
                                  "voz ACTIVA, y sí se apaga cuando calla de verdad",
             "ch": UNIT, "paths": [
                 "tests/browser/unit/orbe/test_the_ring_never_dies_while_he_is_talking.py"]},
-        # V2-662 — el ESPEJO CLIENTE de la regla de 3.36, y el atajo del canvas deja de actuar sobre voz que
+        # V2-664 — el ESPEJO CLIENTE de la regla de 3.36, y el atajo del canvas deja de actuar sobre voz que
         # nadie juzgó: el fail-open de V2-647 soltaba a los 2,5 s —menos de lo que el propio guarda tarda con
         # una frase continua— y abría una tarjeta mientras el operador DESCRIBÍA el fallo en voz alta.
         {"id": "4.158", "title": "Una orden sobre datos no cierra el lienzo desde el cliente, y el atajo del "

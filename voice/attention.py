@@ -652,8 +652,36 @@ _ENCLITIC = r"(?:(?:me|te|se|nos|os|lo|la|le|los|las|les){1,2})?"
 _CLOSE_VERB_RE = re.compile(
     r"\b(?:cierra|cierre|cierr|quita|elimina|esconde|oculta|limpia|despeja)" + _ENCLITIC + r"\b"
     r"|\b(?:close|hide|clear)\b")
+# The CARDS themselves — these nouns name the canvas, so a close verb next to one is a close-ALL on its own.
 _ALL_RE = re.compile(
-    r"\b(todo|todos|todas|all|widgets|tarjetas|ventanas|pantalla|escritorio|everything)\b")
+    r"\b(widgets|tarjetas|ventanas|pantalla|escritorio|everything)\b")
+# V2-664 — A BARE QUANTIFIER IS NOT THE CANVAS UNTIL IT SAYS SO. «todo/todos/todas/all» used to count
+# anywhere in the turn, so a close verb in one clause and a quantifier fifteen words later in ANOTHER wiped
+# the desktop. Measured live 2026-09-11 (session eedf7f9b): «Vale, quita, por favor, los datos de comidas de
+# la agenda… todas esas entradas de la…» — an order to delete ROWS INSIDE the agenda — matched «quita» +
+# «todas» and closed every card he had open, twice (the glued fragments re-fired it).
+# What decides is structural and needs no lexicon of intentions: look at what the quantifier GOVERNS. It is
+# the canvas when it governs nothing («cierra todo», «ciérralo todo ya») or governs a card noun («todos los
+# widgets»); it is a thing inside a widget when it governs any other noun («todas esas entradas»).
+_QUANT_RE = re.compile(
+    r"\b(?:todo|toda|todos|todas|all|everything)\b"
+    r"(?:\s+(?:los|las|el|la|mis|tus|sus|esos|esas|estos|estas|the|my|your)\b)?"
+    r"(?:\s+(\w+))?")
+# Nouns that ARE the cards (what a quantifier may govern and still mean the whole canvas) …
+_CARD_WORD_RE = re.compile(
+    r"^(?:widgets?|tarjetas?|ventanas?|cards?|pantallas?|escritorios?|canvas|mural|esto|eso|abierto|abiertos)$")
+# … and the particles that are not a noun at all, so the quantifier governs NOTHING through them.
+_PARTICLE_RE = re.compile(
+    r"^(?:ya|ahora|porfa|por|favor|please|now|de|una|vez|y|pero|vale|ok|anda|venga|gracias)$")
+
+
+def _quantifies_the_canvas(n: str) -> bool:
+    """True when some bare quantifier in `n` means THE CARDS — see `_QUANT_RE` above."""
+    for m in _QUANT_RE.finditer(n):
+        w = m.group(1) or ""
+        if not w or _PARTICLE_RE.match(w) or _CARD_WORD_RE.match(w):
+            return True
+    return False
 # REAL BUG 2026-07-23 (new fullscreen feature): "exit fullscreen" (exit fullscreen for ONE
 # widget) matched "close/remove the SCREEN" (closing verb + 'pantalla' from _ALL_RE) and triggered closing
 # ALL widgets — "fullscreen"/"full screen" is a mode of ONE widget, not a synonym for "everything".
@@ -708,7 +736,8 @@ def hard_interrupt(text: str) -> str | None:
     A stop verb that NAMES a thing («para el vídeo») is not a hard interrupt: the turn must run so the model
     (or the action map) can act on that thing — the barge-in upstream already silenced the voice either way."""
     n = _norm(text)
-    if _CLOSE_VERB_RE.search(n) and _ALL_RE.search(n) and not _FULLSCREEN_RE.search(n):
+    if (_CLOSE_VERB_RE.search(n) and not _FULLSCREEN_RE.search(n)
+            and (_ALL_RE.search(n) or _quantifies_the_canvas(n))):
         return "close"
     has_object = bool(_STOP_OBJECT_RE.search(n))
     if _STOP_HARD_RE.search(n) and not has_object:

@@ -28,8 +28,10 @@ let _voiceActive = false;   // V2-661b: his VAD is ON — his silence has not st
 // arrives just after. See that module for the measured session this comes from.
 const _hold = createAttentionHold({
   mode: () => store.attentionMode(),
-  deliver: (text, isFinal) => {
-    handleWidgetVoice(_holdDesk, text, isFinal);
+  deliver: (text, isFinal, judged) => {
+    // V2-664: the canvas fast-path acts only on speech the GATE ruled directed. A fail-open release still
+    // paints the wall (never lose a word) but may not open, close or move a card — see attention_hold.js.
+    if (judged) handleWidgetVoice(_holdDesk, text, isFinal);
     store.pushChat({ role: "you", text });
   },
 });

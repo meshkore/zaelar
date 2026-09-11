@@ -15,10 +15,30 @@ import { identifyWidget } from "./api.js?v=2";
 const norm = s => (s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 const OPEN_RE  = /\b(abr|muestr|ensen|pon|saca|sube)|quiero ver|ver mi|dejame ver/;   // stems (no trailing \b)
 const CLOSE_RE = /\b(quit|cierr|cerr|elimin|borra|escond|ocult|limpi|despej|vaci|recog|apart|remove|close|hide|dismiss|clear)/;
-// "all" scope: explicit "todo/all/everything", OR the generic PLURAL noun for the cards ("widgets", "tarjetas",
-// "cards") — "close widgets" / "cierra los widgets" means the whole set. Kept PLURAL on purpose so a singular,
-// named "close the meteo widget" still targets just that one (falls through to identify()).
-const ALL_RE   = /\b(todo|todos|todas|all|everything|widgets|tarjetas|cards|la pantalla|el escritorio|el canvas|el mural|todo esto)/;
+// "all" scope: the generic PLURAL noun for the cards ("widgets", "tarjetas", "cards") — "close widgets" /
+// "cierra los widgets" means the whole set. Kept PLURAL on purpose so a singular, named "close the meteo
+// widget" still targets just that one (falls through to identify()).
+const ALL_RE   = /\b(widgets|tarjetas|cards|la pantalla|el escritorio|el canvas|el mural)/;
+// V2-664 — A BARE QUANTIFIER IS NOT THE CANVAS UNTIL IT SAYS SO. This is the client half of the rule in
+// `voice/attention.py::_quantifies_the_canvas` (parallel implementations must not drift — V2-252/V2-555):
+// «todo/todos/todas/all» used to count anywhere in the turn, so a close verb in one clause and a quantifier
+// fifteen words later in ANOTHER wiped the desktop. Measured live 2026-09-11 (session eedf7f9b): «Vale,
+// quita, por favor, los datos de comidas de la agenda… todas esas entradas de la…» — an order to delete ROWS
+// INSIDE the agenda — closed every card he had open. What decides is what the quantifier GOVERNS: nothing
+// («cierra todo»), a particle («ciérralo todo ya») or a card noun («todos los widgets») is the canvas; any
+// other noun («todas esas entradas») is a thing inside a widget.
+const QUANT_RE = /\b(?:todo|toda|todos|todas|all|everything)\b(?:\s+(?:los|las|el|la|mis|tus|sus|esos|esas|estos|estas|the|my|your)\b)?(?:\s+(\w+))?/g;
+const CARD_WORD_RE = /^(?:widgets?|tarjetas?|ventanas?|cards?|pantallas?|escritorios?|canvas|mural|esto|eso|abierto|abiertos)$/;
+const PARTICLE_RE  = /^(?:ya|ahora|porfa|por|favor|please|now|de|una|vez|y|pero|vale|ok|anda|venga|gracias)$/;
+function quantifiesTheCanvas(n) {
+  QUANT_RE.lastIndex = 0;
+  let m;
+  while ((m = QUANT_RE.exec(n))) {
+    const w = m[1] || "";
+    if (!w || PARTICLE_RE.test(w) || CARD_WORD_RE.test(w)) return true;
+  }
+  return false;
+}
 // FULLSCREEN VETO (V2-600 → V2-601 T-07): «cierra la pantalla completa» is about a SCREEN STATE, never a
 // close-all — and the STT renders it as «…completamente» too. The veto landed in the server backstops
 // (voice/attention.py::mentions_fullscreen) and this third, client-side copy of the rule kept closing the whole
@@ -54,7 +74,7 @@ export async function handleWidgetVoice(desktop, text, isFinal) {
   if (CLOSE_RE.test(n)) {                                     // dismiss — only on the FINAL transcript
     if (!isFinal) return;
     if (FULLSCREEN_RE.test(n)) return;                        // a fullscreen mention is a screen-state order → the brain's
-    if (ALL_RE.test(n)) { if (_act("closeAll")) desktop.closeAll(); return; }
+    if (ALL_RE.test(n) || quantifiesTheCanvas(n)) { if (_act("closeAll")) desktop.closeAll(); return; }
     let target = await identifyWidget(text);
     if (!target) { const o = desktop.list(); target = o[o.length - 1]; }   // "remove it" → last opened
     if (target && _act("close:" + target)) desktop.close(target);
