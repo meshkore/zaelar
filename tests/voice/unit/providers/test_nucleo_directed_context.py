@@ -37,15 +37,35 @@ def test_evaluate_content_reads_last_reply_not_last_spoken():
     )
 
 
+def _code_only(path: Path) -> str:
+    """The file's CODE, with every comment and string literal removed. V2-669: the scan used to read the raw
+    file, so the moment somebody DOCUMENTED this very rule in a comment («never `_last_reply`») the guard went
+    red over prose that says exactly what it wants. Same trap V2-615 paid — a rule that punishes writing the
+    rule down is a rule that gets deleted instead of believed."""
+    import io as _io
+    import tokenize as _tk
+    out = []
+    src = path.read_text(encoding="utf-8")
+    for tok in _tk.generate_tokens(_io.StringIO(src).readline):
+        if tok.type in (_tk.COMMENT, _tk.STRING):
+            continue
+        out.append(tok.string)
+    return " ".join(out)
+
+
 def test_filler_path_never_writes_last_reply():
     # V2-122 (2026-08-17): the lead-in filler moved to its own module; V2-529 (2026-08-31) moved it again,
-    # to the audio-in-the-reply-speech mechanism — the invariant travels with it.
+    # to the audio-in-the-reply-speech mechanism — the invariant travels with it. V2-669 added a SECOND mouth
+    # in the same file (the work cover at the tool seam), which is why this now reads code and not prose.
     filler_src = Path(__file__).resolve().parents[4] / "voice" / "engine" / "speech" / "filler_audio.py"
-    filler_body = filler_src.read_text(encoding="utf-8")
-    assert "brain._last_spoken = phrase" in filler_body, "sanity: filler still updates anti-echo as designed"
-    assert "_last_reply" not in filler_body, (
-        "the filler must never touch `_last_reply` — it carries no topic, and evaluate_content() relies on "
-        "`_last_reply` staying real-content-only"
+    raw = filler_src.read_text(encoding="utf-8")
+    assert "brain._last_spoken = phrase" in raw, "sanity: filler still updates anti-echo as designed"
+    assert raw.count("brain._last_spoken = phrase") == 2, (
+        "sanity: BOTH mouths in this file (lead-in and work cover) must keep updating anti-echo"
+    )
+    assert "_last_reply" not in _code_only(filler_src), (
+        "no mouth in the filler module may touch `_last_reply` — neither carries a topic, and "
+        "evaluate_content() relies on `_last_reply` staying real-content-only"
     )
 
 
