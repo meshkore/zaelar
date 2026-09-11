@@ -1463,6 +1463,11 @@ DOMAINS: list[dict] = [
             "ch": UNIT,
             "paths": ["tests/infrastructure/unit/core/"
                       "test_what_the_operator_hears_is_in_his_language.py"]},
+        {"id": "3.40", "title": "Los guardarraíles hablan el idioma del operador — y una nota del SISTEMA "
+                                "nunca es una orden",
+            "ch": UNIT,
+            "paths": ["tests/infrastructure/unit/core/"
+                      "test_the_guardrails_speak_the_operators_language.py"]},
     ]},
     {"id": "4", "name": "WIDGETS", "nodes": [
         {"id": "4.1", "title": "Ciclo de vida / acciones / refs / generador / background", "ch": UNIT, "paths": [

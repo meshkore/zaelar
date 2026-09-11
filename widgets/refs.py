@@ -174,6 +174,22 @@ def _position_ref(query: str, n: int) -> "int | None":
     return pos if pos < n else None
 
 
+def position_index(ref: str, n: int) -> "int | None":
+    """The PUBLIC name of `_position_ref`, for a widget that resolves its own items (V2-677).
+
+    `widgets/imagenes/data.py::_resolve` matched a spoken reference against the TITLE and the SITE and
+    nothing else, so «la primera», «the first one», «el tercero» and «the last one» all resolved to
+    NOTHING — in either language — while a bare digit worked. Measured live 2026-09-11 (session e896f596):
+    the operator asked for one of six pictures and `select` answered «dime cuál: un número o parte del
+    título» over a set whose titles were all news headlines.
+
+    A widget that owns its own resolution (because it resolves against data the generic path cannot see)
+    still has no reason to own POSITION, which means the same thing everywhere. Exported rather than
+    copied: a second ordinal table is how the two would come to disagree.
+    """
+    return _position_ref(_norm(ref or ""), n)
+
+
 def _score(ref_n: str, label_n: str) -> float:
     if not ref_n or not label_n:
         return 0.0

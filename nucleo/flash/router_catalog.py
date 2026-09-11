@@ -206,8 +206,13 @@ TOOLS: list[dict] = [
         "function": {
             "name": "arrange_canvas",
             "description": (
-                "ORDENA los widgets en una rejilla («ordena/recoloca los widgets»). "
-                "Sin argumentos; no abre ni cierra nada."
+                # V2-677 — this description had no English word in it, and the operator's «Can you
+                # reposition all the boxes in the screen, all the widgets?» (session 366787ed, 23:24:34)
+                # reached no tool at all while the reply narrated a video. Synonyms live in the DESCRIPTION
+                # (V2-046 doctrine, no verb table), so the English ones belong here too. Paid inside the
+                # shared ceiling by compressing the same tool, never by raising it.
+                "ORDENA/RECOLOCA los widgets en rejilla: «ordena los widgets», «tidy/arrange/reposition "
+                "them». Sin args; ni abre ni cierra."
             ),
             "parameters": {"type": "object", "properties": {}},
         },

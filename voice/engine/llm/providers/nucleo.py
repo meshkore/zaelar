@@ -25,7 +25,8 @@ from livekit.agents.llm import ChatChunk, ChoiceDelta
 from .. import registry
 from nucleo.flash import (canvas_license as _canvas_lic,                       # V2-650: a replay can be an order
                           close_guards as _closeg,                             # V2-635: close needs the words
-                          data_ops as _data_ops, image_turn as _image_turn,  # V2-391 / V2-402
+                          data_ops as _data_ops, escalation_guard as _eguard,  # V2-391 / V2-677
+                          image_turn as _image_turn,                           # V2-402
                           listing_turn as _lt, show_target as _show_target,    # V2-609: one target decision
                           video_turn as _video_turn)                           # V2-556 / V2-457: no cycles
 # V2-515 (ratchet): ONE import replaces eight lazy `from widgets import confirm` — confirm.py never imports voice.
@@ -2190,19 +2191,16 @@ class NucleoLLMStream(llm.LLMStream):
         # («me pongo con ello», «te lo abro», «voy a poner…») SIN llamar a la tool → causa nº1 de "dice que lo hace y
         # no lo hace". Gated por la promesa en la RESPUESTA (zaelar se comprometió) → re-derivamos la intención con
         # los clasificadores DETERMINISTAS. GENERALIZA sobre todas las conjugaciones (no se parchea verbo a verbo).
-        # GUARD MARKETPLACE → NAVEGAR + MODIFICAR-WIDGET → GENERADOR (V2-057 2026-07-21): dos modos de fallo FIABLES
-        # del no-razonador. (a) un marketplace NOMBRADO + intención de buscar exige ENTRAR y navegar (worker), no un
-        # dato puntual de web_search. (b) cambiar el CÓDIGO/aspecto de un widget (color/columna/estilo) es trabajo
-        # del generador, no una data-op ni un "no puedo". En ambos, si el turno no escaló ni tocó otra tool, escala.
         # V2-556: elegir la pasada rápida de anuncios YA es actuar (ver `listing_turn.voice_turn`).
-        if (escalate_req["v"] is None and listing_req["v"] is None and not acted["widget"] and not data_done["v"]
-                and not music_req["v"]
-                and (_router.looks_like_marketplace_nav(text) or _router.looks_like_modify_widget(text))):
-            if search_req["v"] is not None:
+        # The two guards themselves, and WHY they read the operator's words, live in `escalation_guard`.
+        if (escalate_req["v"] is None and listing_req["v"] is None and not acted["widget"]
+                and not data_done["v"] and not music_req["v"]):
+            _guard_text = _eguard.escalation_text(operator_text, text)
+            if _guard_text:
                 search_req["v"] = None
-            escalate_req["v"] = text
-            emit("brain", "🧭 escalada por guard (marketplace→navegar / modificar-widget→generador)",
-                 text=text[:80], role="system")
+                escalate_req["v"] = _guard_text
+                emit("brain", "🧭 escalada por guard (marketplace→navegar / modificar-widget→generador)",
+                     text=_guard_text[:80], role="system")
 
         # BACKSTOP DE AVISO PROMETIDO (V2-146, impl PARALELA con el probe — cablear en AMBOS): el modelo prometió
         # el recordatorio en PROSA y no emitió la tag, así que `scheduled_jobs.created` salió vacío mientras el

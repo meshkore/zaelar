@@ -209,6 +209,12 @@ async def probe_hollow_repairs(operator_text: str, spoken: str, window: list, sp
             running = bool(_d.has_active())
         except Exception:  # noqa: BLE001
             running = True                       # fail-safe: unreadable liveness counts as running (V2-587)
+        # V2-677 — the same first branch as the voice channel: a denial of the canvas is corrected with a
+        # FACT from the language table, never re-composed by a model.
+        if _ag.a_reply_denies_the_screen(spoken):
+            rep = getattr(spec, "screen_denied_repair", "")
+            if rep:
+                return (spoken + " " + rep).strip()
         if _ag.a_bare_ack_answers_a_question(operator_text, spoken):
             return (await bare_ack_repair(operator_text, _dialog.prune_window(window), spec)) or spoken
         if _ag.a_continuity_claim_over_nothing(operator_text, spoken, acted=False, anything_running=running):
@@ -238,6 +244,16 @@ async def hollow_repairs(text: str, spoken_text: str, window: list, spec, *,
             running = bool(_d.has_active())
         except Exception:
             running = True                       # fail-safe: unreadable liveness counts as running (V2-587)
+        # V2-677 — FIRST, because a denial is worse than a hollow answer: a hollow answer is unhelpful, a
+        # denial teaches the operator the product cannot do something it does. It is not composed by a model
+        # either — what has to be said is a FACT about this system, so it comes from the language table.
+        if _ag.a_reply_denies_the_screen(spoken_text):
+            emit("brain", "🪟 negó una capacidad de pantalla que SÍ tiene — lo corrijo",
+                 text=spoken_text[:160], role="system", extra={"cat": "flash"})
+            rep = getattr(spec, "screen_denied_repair", "")
+            if rep:
+                speak(rep)
+                return (spoken_text + " " + rep).strip()
         if _ag.a_bare_ack_answers_a_question(text, spoken_text):
             emit("brain", "🚧 pregunta contestada con un «hecho» vacío — compongo la respuesta que falta",
                  text=text[:160], role="system", extra={"cat": "flash"})

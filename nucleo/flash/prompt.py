@@ -132,6 +132,9 @@ def compose_recall(recall_query: str = "", timings: dict | None = None) -> tuple
     return block, used_ids
 
 
+from . import canvas_claim as _canvas_claim
+
+
 def _lang_lock() -> str:
     """HARD language lock, read LIVE from the catalog (realigns if the operator changes language in ⚙)."""
     try:
@@ -460,11 +463,7 @@ def _flash_layer(open_ids: set[str], recent_ids: list[str] | None = None,
         "Y si de verdad NO PUEDES (no hay conector, hace falta una llamada de teléfono o "
         "una cuenta que no tienes), DILO claro en una frase: vale mucho más que intentarlo a medias, e "
         "infinitamente más que inventarte que estás en ello. "
-        # V2-640 — the 19:27 wallpaper turn: asked for a UI capability that did not exist, the model carried
-        # the conversation as if it did. The surface IS declared (canvas tags + widget actions): use it.
-        "Y lo mismo con la PANTALLA: lo que sabes hacer en la interfaz es EXACTAMENTE lo que declaran el canvas "
-        "y las acciones de los widgets del catálogo — si piden algo de la interfaz que nada de eso cubre, di "
-        "claro que aún no lo tienes (se le puede pedir al sistema construirlo), nunca sigas como si existiera. "
+        + _canvas_claim.SCREEN_BLOCK +
         "NUNCA recites datos en voz: "
         "para que el operador los VEA, ábrele su widget. Escalar, buscar y operar datos son TOOL CALLS invisibles; "
         "las tags de canvas van CALLADAS y al final, tras tu frase. Si el turno parece ruido del micro, pide que "

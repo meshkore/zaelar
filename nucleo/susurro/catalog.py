@@ -15,7 +15,7 @@ APPLY_TYPES = {"repair_say", "finding", "worker_action"}
 APPLY_TYPES_F1 = {"repair_say", "finding"}      # compat
 KNOWN_TYPES = {"repair_say", "finding", "user_rule", "worker_action", "state_patch", "memory_fix"}
 
-SYSTEM = """Eres el «Susurro» de zaelar, un asistente personal por VOZ en castellano. Eres su auditor interno:
+SYSTEM = """Eres el «Susurro» de zaelar, un asistente personal por VOZ. Eres su auditor interno:
 un modelo potente que revisa tramos de conversación cuando se detecta FRICCIÓN (el operador se queja, repite una
 petición, algo falló) y devuelve correcciones ESTRUCTURADAS.
 
@@ -53,9 +53,9 @@ CATÁLOGO (responde SOLO con JSON válido, sin markdown):
 {
   "assessment": "1-3 frases: qué pasó y por qué (o 'sin fallo apreciable')",
   "corrections": [
-    {"type": "repair_say", "text": "frase BREVE y natural en castellano que zaelar dirá al operador en el
-      próximo turno para reparar (reconocer el error, dar el dato correcto o retomar lo pendiente). Nunca jerga
-      interna ni disculpas largas."},
+    {"type": "repair_say", "text": "frase BREVE y natural, EN EL IDIOMA DEL OPERADOR (ver la regla de idioma
+      de arriba), que zaelar dirá al operador en el próximo turno para reparar (reconocer el error, dar el dato
+      correcto o retomar lo pendiente). Nunca jerga interna ni disculpas largas."},
     {"type": "worker_action", "request": "en UNA frase, la TAREA REAL que el cerebro rápido NO ejecutó y que hay
       que lanzar a un trabajador capaz: qué hacer en el MUNDO (p.ej. 'cancela la cita de la ITV en la web donde se
       reservó') y, si procede, reflejar el cambio en el widget/memoria después. Redáctala completa y autónoma —
@@ -146,3 +146,43 @@ def validate(parsed: dict) -> tuple[list[dict], list[dict]]:
                 "proposal": "habilitar en F2/F3 si el patrón se repite",
             })
     return ok, downgraded
+
+
+# ── The repair sentence is SPOKEN VERBATIM, so it is subject to the language lock (V2-677) ────────────────
+#
+# `repair_say` does not advise the model what to say — `apply.py` pushes it into `brain_notes` as «Repara con
+# naturalidad en tu PRÓXIMA respuesta: <text>», and the model says it. So the auditor is a MOUTH, and it was
+# the one mouth in the engine with Spanish written into its own prompt: «un asistente personal por VOZ en
+# castellano» and «frase BREVE y natural en castellano».
+#
+# Measured live 2026-09-11 (session 366787ed, an ENGLISH session): the auditor produced «Perdona el cruce,
+# Richard: me lié con el vídeo. Dime si retomo lo de recolocar los widgets o te pongo el vídeo de Neil
+# Armstrong.» and the reply went out as «No, I don't have any trouble playing videos — I just need to find
+# the right one first. Let me search for a Neil Armstrong video for you. Perdona el fallo de antes, ahora lo
+# pongo.» The operator asked, in the next breath, «Why are you speaking Spanish from time to time?»
+#
+# The window handed to the auditor is FULL of our own Spanish (event labels, prompts, [SISTEMA] notes), so
+# naming the target language is not enough on its own — V2-452's lesson is that the model copies what it
+# READS unless the prompt says which language is the CONVERSATION's and which is ours. Same shape, applied
+# to the auditor: the assessment/finding stay internal prose for us, the repair sentence is the operator's.
+
+
+def system_prompt() -> str:
+    """`SYSTEM` plus the language rule for the one field of this catalog the operator actually HEARS."""
+    try:
+        from i18n import langs as _lg
+        spec = _lg.current_language()
+        native, name = spec.native, spec.name
+    except Exception:
+        return SYSTEM
+    block = ("\n\n── IDIOMA ──\n"
+             f"El operador habla {native} ({name}). El texto de `repair_say` lo DIRÁ zaelar en voz alta tal "
+             f"cual, así que va ENTERO en {native} — ni una palabra de otra lengua.")
+    if not str(native).lower().startswith("espa"):
+        # Only when the two differ, the same shape `_lang_lock` uses: telling a Spanish operator's auditor
+        # not to copy Spanish is noise, and noise in a prompt is not free.
+        block += ("\nEstas instrucciones y el tramo de conversación que te paso llevan castellano dentro "
+                  "(etiquetas, prompts y notas INTERNAS del sistema): NUNCA copies esa lengua. `assessment`, "
+                  "`detail` y `proposal` son notas para el equipo y pueden ir en castellano; `repair_say` es "
+                  "la voz del producto.")
+    return SYSTEM + block

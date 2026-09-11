@@ -28,9 +28,26 @@ widgets feel polished and consistent with the rest. These are HARD rules — fol
   ~0.78–0.875rem. The canonical steps exist as tokens too: `var(--fs-micro/-caption/-ui/-body/-title/-display)`.
 - **Cards**: `background:var(--hb-bg,#fff)`, `border-radius:12–16px`, 1px `var(--hb-line,#eef1f6)` border, subtle
   shadow, ~11–14px padding. Optional 3–4px left accent bar in `var(--hb-accent,...)` / `var(--hb-accent2,...)`.
-- **Layout: TWO SCREENS, ONE WIDGET.** The same `widget.js` renders on a desk (a free-floating card the operator
-  sizes) and on a PHONE (`frontend/mobile/`: the widget IS the screen, ~390px wide, 366px of usable content).
-  Write it FLUID and it works on both; write it for one and it breaks on the other. In practice:
+- **Layout: THREE SIZES, ONE WIDGET.** The same `widget.js` has to read well at all three, because the operator
+  moves between them with one gesture: (1) a **PHONE** (`frontend/mobile/`: the widget IS the screen, ~390px
+  wide, 366px of usable content); (2) the **DESK CARD**, a free-floating window that opens at your
+  `manifest.size` and which the operator then drag-resizes down to `manifest.min`; (3) **MAXIMIZED / FULL
+  SCREEN**, the whole canvas (~1400×800 and up), reached by the ⤢ button, a double-click on the header, or by
+  voice. Write it FLUID and it works at all three; write it for one and it breaks at the others. In practice:
+  - **The third is the one that gets forgotten**, and it is the one the operator asks for when he actually
+    wants to LOOK at something. At that size a layout that only knows how to be narrow leaves a 400px column
+    stranded in the middle of an enormous empty card. Let the content REFLOW into the room it is given:
+    `repeat(auto-fit,minmax(<N>px,1fr))` for anything list- or grid-shaped, a `max-width` on long PROSE only
+    (in `ch`, never a px cap on the root), and `height:100%` on the one element that should fill the card
+    rather than a fixed pixel height.
+  - **The CHROME belongs to the host, never to the widget.** Every card is built by
+    `frontend/app/widgets/desktop.js` with a header carrying its name and its ⚙ aliases, a ✕ to close, a ⤢ to
+    maximize/restore, eight drag-resize handles, a draggable header, and its chip in the widget rail to
+    minimize — and the operator can drive every one of those by voice as well
+    (`fullscreen_widget`, `arrange_canvas`, `show_widget`, `[[close]]`). So **never draw your own
+    close/maximize/minimize/resize control, your own title bar, or your own outer border+shadow around
+    everything** — that is a second frame inside the first. What a widget owns is the INSIDE. `ctx.close()` is
+    there for content that means «I am done»; `ctx.top()` resets the scroll after you swap screens.
   - **Never a fixed `min-width` above 360px** — it is the one declaration no container can absorb, so the card
     ends up scrolling sideways and the operator has to drag the widget around to read it. *The validation gate
     rejects this* (`widgets/validator.py`). Sizes come from `%`, `minmax()`, `flex-wrap`, `grid-template-columns:

@@ -54,7 +54,7 @@ async def audit_llm(window_text: str) -> tuple[str | None, dict]:
     base = str(c.get("base_url") or "https://api.aimlapi.com/v1").rstrip("/")
     key = resolved_api_key(base, str(c.get("api_key") or "").strip())
     messages = [
-        {"role": "system", "content": catalog.SYSTEM},
+        {"role": "system", "content": catalog.system_prompt()},
         {"role": "user", "content": window_text},
     ]
     payload = {"model": model, "temperature": 0, "messages": messages,

@@ -612,8 +612,9 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
     # Alta precisión: el nombre del sitio + una intención de búsqueda/compra es señal fuerte de navegar.
     if action in ("search", "chat", "widget_data") or action.startswith("canvas:show") or action.startswith("canvas:unknown"):
         try:
-            from . import router as _routerc2
-            if _routerc2.looks_like_marketplace_nav(text) or _routerc2.looks_like_modify_widget(text):
+            # V2-677 — the SAME function the voice channel calls, not a copy of it (V2-252).
+            from . import escalation_guard as _eguard
+            if _eguard.escalation_text(operator_text, text):
                 action = "escalate"
         except Exception:
             pass

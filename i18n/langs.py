@@ -59,6 +59,15 @@ class LangSpec:
     search_blocked: str = ("He buscado, pero el buscador me ha bloqueado con una verificación anti-robot. No es "
                            "que no pueda mirar en internet: esta vez no me han dejado. ¿Lo intento a fondo con "
                            "el navegador?")
+    # V2-677 — the SAME shape one surface over: the agent denying, to its owner, something it ships with.
+    # Measured in session e896f596 (2026-09-11, English), three times in eighty seconds: «I can't display
+    # images or graphs» nineteen seconds after painting six of them on his canvas; «I don't have a way to
+    # actually select or display images from my side»; «I can't resize or maximize windows or widgets on
+    # your screen — I don't have control over your device's interface», with `fullscreen_widget` and
+    # `arrange_canvas` both in that turn's tool list. He read all three as the product lacking the feature.
+    # This line is what it says instead, and it ends by asking for the one thing that was actually missing.
+    screen_denied_repair: str = ("Perdona — sí que puedo: abro, cambio y ordeno los widgets de tu pantalla, y "
+                                 "los pongo a pantalla completa. Dime cuál y lo hago.")
     # V2-676 — the whole model chain is dry. SHORT on purpose: the detail (which model, how to top it up, the
     # way into the settings) belongs on the screen, in the operator's own language and with a button, not in a
     # spoken sentence full of config keys — which is exactly what he heard, in Spanish, in an English session.
@@ -451,6 +460,8 @@ LANGUAGES: dict[str, LangSpec] = {
         search_blocked=("I did search, but the search engine blocked me with an anti-bot check. It isn't that "
                         "I can't look things up — this time it wouldn't let me. Shall I try properly with the "
                         "browser?"),
+        screen_denied_repair=("Sorry — I can, actually: I open, change and arrange the widgets on your screen, "
+                              "and I can put them full screen. Tell me which one and I'll do it."),
         no_model_provider=("I've run out of credit on the language model. It's on your screen now — it needs "
                            "topping up, or switching in the settings."),
         no_model_provider_suppressed=(

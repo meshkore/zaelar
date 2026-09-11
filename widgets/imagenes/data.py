@@ -107,6 +107,18 @@ def _resolve(items: list, item) -> "int | None":
     s = str(item).strip()
     if not s:
         return None
+    # V2-677 — POSITION first, in every language, from the one table that already holds it
+    # (`widgets/refs.position_index`): «la primera», «the first one», «el tercero», «the last one», «3º».
+    # A bare digit worked and an ordinal resolved to nothing, so the most natural way to pick one of six
+    # numbered pictures was the one way that failed — measured live over a set of news headlines where no
+    # title could match anything the operator might say.
+    try:
+        from widgets import refs as _refs
+        k = _refs.position_index(s, len(items))
+        if k is not None:
+            return k
+    except Exception:  # noqa: BLE001
+        pass
     if s.isdigit():
         k = int(s) - 1
         return k if 0 <= k < len(items) else None
