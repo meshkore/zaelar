@@ -3292,6 +3292,15 @@ DOMAINS: list[dict] = [
                                "casillas llegan a las cuatro banderas",
             "ch": UNIT,
             "paths": ["tests/infrastructure/unit/config/test_a_factory_reset_starts_the_agent_over.py"]},
+        # V2-671 — medido en la instalación del operador: el reset de fábrica soltaba `wizard_done`, el
+        # asistente de primer arranque se abría solo y aplicaba un perfil, y `profiles.apply()` reescribe
+        # settings.json Y config/v2.json a la vez — o sea que las claves que V2-670 conservaba a propósito se
+        # machacaban veinte segundos después, junto al routing de modelos que el diálogo promete no tocar. La
+        # pregunta se retira (el despliegue se LEE) y el default del motor se mide contra la tabla canónica.
+        {"id": "8.5", "title": "El despliegue elige el perfil: nadie pregunta, y el arranque pelado usa la voz "
+                               "que dice la tabla",
+            "ch": UNIT,
+            "paths": ["tests/infrastructure/unit/config/test_the_deployment_picks_the_profile.py"]},
         {"id": "8.3", "title": "Política de modelos: un solo titular, sin proveedores retirados",
             "ch": UNIT, "paths": ["tests/infrastructure/unit/config/test_model_policy.py"]},
         {"id": "8.2", "title": "Perfiles / v2 / doctor / credenciales", "ch": UNIT, "paths": [

@@ -484,7 +484,7 @@
   "reset.confirm.wipeCredentials": "Borrar también las CREDENCIALES de widgets (WhatsApp, Telegram, sesión del navegador)",
   "reset.confirm.wipeFiles": "Borrar también los FICHEROS del agente (descargas, documentos e imágenes que ha guardado en su biblioteca)",
   "reset.confirm.wipeMemory": "Borrar también la MEMORIA (tu nombre, todo lo que sabe de ti — corto y largo plazo)",
-  "reset.confirm.wipeProfile": "Empezar de CERO, como la primera vez (borra el IDIOMA, la voz, el modo de atención y el asistente inicial: al volver, Zaelar te preguntará en qué idioma hablas). Conserva qué proveedor de voz usas.",
+  "reset.confirm.wipeProfile": "Empezar de CERO, como la primera vez (borra el IDIOMA, la voz y el modo de atención: al volver, Zaelar te preguntará en qué idioma hablas). No toca los modelos ni los proveedores de voz de la instalación.",
   "reset.confirm.yes": "Sí, continuar",
   "restarting.body": "Borrando lo que seleccionaste y empezando de nuevo. Tarda unos segundos — la página se recargará sola en cuanto vuelva a estar lista.",
   "restarting.title": "Reiniciando zaelar…",

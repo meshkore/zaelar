@@ -73,7 +73,10 @@ def test_factory_reset_keeps_the_setup_and_drops_everything_else(tmp_path, monke
     monkeypatch.setattr(st, "SETTINGS_FILE", f)
     out = st.factory_reset()
     left = json.loads(f.read_text(encoding="utf-8"))
-    assert set(left) == {"stt_provider", "tts_provider", "zaelar_profile"}, left
+    # `wizard_done` moved here in V2-671 and the reason is the whole point: on the AGENT side, dropping it
+    # made the first-run wizard fire after this very reset, and the wizard rewrote settings.json AND v2.json
+    # together — so the three keys above were preserved and then overwritten seconds later.
+    assert set(left) == {"stt_provider", "tts_provider", "zaelar_profile", "wizard_done"}, left
     assert left["stt_provider"] == "deepgram", "the machine's own setup must come through untouched"
     assert "stt_language" in out["dropped"] and "some_future_knob" in out["dropped"], (
         "an UNKNOWN key is dropped: 'as if for the first time' cannot preserve what nobody recognised")

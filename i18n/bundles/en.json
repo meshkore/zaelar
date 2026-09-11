@@ -484,7 +484,7 @@
   "reset.confirm.wipeCredentials": "Also wipe widget CREDENTIALS (WhatsApp, Telegram, browser session)",
   "reset.confirm.wipeFiles": "Also wipe the agent's FILES (downloads, documents and images it has saved to its library)",
   "reset.confirm.wipeMemory": "Also wipe MEMORY (your name, everything it knows about you — short and long term)",
-  "reset.confirm.wipeProfile": "Start from SCRATCH, as if for the first time (wipes the LANGUAGE, the voice, the attention mode and the setup wizard: when it comes back, Zaelar will ask which language you speak). Keeps which voice provider you use.",
+  "reset.confirm.wipeProfile": "Start from SCRATCH, as if for the first time (wipes the LANGUAGE, the voice and the attention mode: when it comes back, Zaelar will ask which language you speak). It does not touch the installation’s models or voice providers.",
   "reset.confirm.yes": "Yes, continue",
   "restarting.body": "Wiping what you selected and starting over. This takes a few seconds — the page will reload itself as soon as it's ready again.",
   "restarting.title": "Restarting zaelar…",

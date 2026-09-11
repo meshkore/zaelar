@@ -36,17 +36,23 @@ if not os.path.exists(_PY):
 
 # ── first-run marker (in settings.json, like config_profile from profiles.apply) ────────────────────────────
 def _first_run() -> bool:
-    if cloud_account.is_cloud_account():
-        # A real account Machine boots fresh (persisted Volume, but no settings.json of its own)
-        # and already gets working provider env vars from accountMachineConfig — the self-host
-        # first-run wizard ("Elige un perfil") is for a human setting up their own machine once,
-        # not a cloud account.
-        return False
-    try:
-        from config import settings
-        return not bool(settings.get("wizard_done"))
-    except Exception:
-        return True
+    """Always False since V2-671: NOBODY is asked to choose a profile on first run, in either deployment.
+
+    The operator's rule (2026-09-11): *«el paso de si quiero una instalación local o remota es absurdo porque
+    tú ya sabes si estás corriendo en el ordenador del cliente o la versión de la nube»*. A cloud account was
+    already exempt (the branch that used to live here), so the question only ever reached a self-hosted human
+    — and it asked them, in English, before they had chosen a language, to arbitrate between two provider
+    stacks by name. Whatever they answered, the answer was a guess.
+
+    It also did REAL damage rather than merely wasting a screen, and that is the measured part: `profiles.apply()`
+    writes `settings.json` AND `config/v2.json` as one coordinated lever, so the wizard firing after a factory
+    reset silently rewrote the operator's model routing (V2-670's checkbox promised the opposite). The default
+    now comes from the canonical table with nobody deciding anything — see `config/profiles.DEFAULT`.
+
+    The panel itself stays REACHABLE (🧭 in the TopBar) because choosing to run models on your own machine is a
+    legitimate thing to want; what is gone is it deciding that FOR you, unprompted, at first boot.
+    """
+    return False
 
 
 def _mark_done(done: bool = True) -> None:

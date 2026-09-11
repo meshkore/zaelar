@@ -76,7 +76,33 @@ _PROFILES: dict[str, dict] = {
 }
 _ALIASES = {"remote": "cloud"}
 
-DEFAULT = "local"
+# V2-671 — this used to be `"local"`, while `voice/engine/core/profile.py` defaulted the very same concept to
+# `"remote"`. TWO defaults for one idea, in two files, and the disagreement was not theoretical: a factory
+# reset dropped `wizard_done`, the first-run wizard fired, applied `local` because that was the recommendation
+# on an Apple Silicon machine with Ollama running, and `apply()` rewrote settings.json AND v2.json together —
+# so the operator's engine came back up on qwen2.5:14b instead of the table's titular, with the paid voice
+# stack swapped underneath it. The checkbox that promised to preserve his install had preserved it for about
+# twenty seconds.
+#
+# The default is now the CANONICAL TABLE's stack (`config/models.default.json`), which is the same in both
+# deployments — that is the point of having one table. `local` stays a deliberate opt-in from the ⚙ for
+# someone who wants models on their own machine, never something a detector decides for them.
+DEFAULT = "cloud"
+
+
+def deployment() -> str:
+    """WHERE this process runs — `cloud` on a real account Machine, `self_host` otherwise.
+
+    The operator's rule (2026-09-11): *«el paso de si quiero una instalación local o remota es absurdo porque
+    tú ya sabes si estás corriendo en el ordenador del cliente o la versión de la nube»*. He is right about the
+    question and it is worth being precise about WHY, because the two things share a word: this function
+    answers where the process runs, and the PROFILE answers which providers it uses. They are independent —
+    a self-hosted engine on a laptop runs the cloud-provider profile perfectly well, and that is the default.
+    The deployment is therefore never asked; it is read from the one thing that can tell, the env var the
+    provisioner injects.
+    """
+    from nucleo import cloud_account
+    return "cloud" if cloud_account.is_cloud_account() else "self_host"
 
 
 def names() -> list[str]:

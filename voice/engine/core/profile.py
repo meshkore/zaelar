@@ -25,8 +25,15 @@ from .env import env
 
 PROFILE = env("ZAELAR_PROFILE", "remote")
 
+# ⚠️ The `remote` row is NOT free to choose: it must name the SAME providers as the canonical model table
+# (`config/models.default.json` §stt / §tts, V2-500). This file is what a bare boot with no `settings.json`
+# gets — i.e. every fresh install and every factory reset — so a value that drifts from the table silently
+# ships a DIFFERENT voice stack than the one the table says we run, and nothing compares the two at runtime.
+# It had drifted: voxtral + cartesia here against deepgram + elevenlabs in the table (V2-671, measured on the
+# operator's install after a factory reset). `tests/infrastructure/unit/config/test_the_deployment_picks_the_profile.py`
+# is the ratchet — change the table and this row goes red until it follows.
 _DEFAULTS: dict[str, dict[str, str]] = {
-    "remote": {"stt": "voxtral", "tts": "cartesia", "llm": "nucleo"},
+    "remote": {"stt": "deepgram", "tts": "elevenlabs", "llm": "nucleo"},
     "local": {"stt": "whisper_local", "tts": "kokoro_local", "llm": "nucleo"},
 }
 

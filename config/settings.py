@@ -352,6 +352,13 @@ INSTALL_KEYS = frozenset({
     "tts_provider",       # idem for TTS
     "zaelar_profile",     # remote/local voice-engine profile
     "config_profile",     # the coordinated profile package (wizard V2-040)
+    # V2-671 — was on the AGENT side, and that was the whole defect the operator hit. Dropping it made the
+    # first-run wizard fire after a factory reset; the wizard applied a profile; and `profiles.apply()` writes
+    # settings.json AND config/v2.json together — so the four keys above were faithfully preserved and then
+    # overwritten twenty seconds later, along with the model routing the dialog promises never to touch. The
+    # wizard no longer auto-opens at all (`server/wizard_api._first_run`), and this belongs here anyway: it
+    # records something about the INSTALLATION, not about the agent's identity or the operator's taste.
+    "wizard_done",
 })
 
 AGENT_KEYS = frozenset({
@@ -360,7 +367,6 @@ AGENT_KEYS = frozenset({
     "assistant_name",     # a rename the operator gave it
     "attention_mode",     # his preference
     "attention_window",   # his preference
-    "wizard_done",        # a fresh install has not run the wizard
     "wallpaper",          # V2-641, his desktop photo
     "theme",              # V2-617 skin profile
     "theme_custom",       # V2-617 custom knobs

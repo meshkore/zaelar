@@ -60,8 +60,11 @@ for (const s of SYSTEM_SURFACES.filter(s => s.phase === "overlay")) {
   mount(s.comp(), s.target === "desk" ? desk : undefined);
 }
 
-// ---- first startup: if the config is not validated, open the wizard BEFORE anything else (config managed by the UI) ----
-api.wizardState().then(s => { if (s && s.first_run) store.setWizardOpen(true); }).catch(() => {});
+// ---- V2-671: NOTHING auto-opens the profile wizard any more. It used to open on first run and ask, in
+// English, before a language had even been chosen, whether the operator wanted local models or paid APIs —
+// a question the deployment can answer on its own (see server/wizard_api.py::_first_run and
+// config/profiles.DEFAULT). The panel stays reachable from the TopBar's 🧭 for someone who deliberately
+// wants to move their models onto their own machine. ----
 
 // The inline splash (#preboot in index.html) has served its purpose (loader from the FIRST byte); the modules have
 // loaded and BootOverlay (neuron veil) takes over → remove it to avoid overlapping two loaders. If main.js
