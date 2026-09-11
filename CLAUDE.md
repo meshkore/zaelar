@@ -471,6 +471,46 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **A SEARCH is not irreversible, a confirmation never recites our tool prose, and a bare name is not an
+  errand (V2-665, 2026-09-11)**: the operator, with a screenshot — «sólo le he dicho que abra el widget de
+  vídeo y que me ponga un vídeo y me ha abierto el chat en la columna de la izquierda, me ha soltado mensajes
+  que creo que son de sistema en la interface del usuario, no ha puesto el vídeo… simplifiquemos todo esto y
+  arreglémoslo de una vez». **Three symptoms, ONE cause.** At 10:07:07 the model called `widget_data(youtube,
+  search)` and `actions.classify` answered CONFIRM, so the irreversible-action gate fired: V2-518 puts
+  confirmations in the chat (the column that opened), the question was composed from the action's `desc` —
+  text written FOR THE MODEL, which he read as «Ojo, esto es permanente: "BUSCAR vídeos para elegir: pinta
+  hasta n resultados NUMERADOS en el INICIO del widget…"» — and the overlay covered the card. **The video had
+  LOADED** (`videoId 16AhQaStWxg`, «Apolo 11: cómo fue la llegada del hombre a la Luna»), dimmed behind a
+  modal he could not get past; it is visible in his own screenshot. Why CONFIRM: `_IRREVERSIBLE_RE` matched
+  «manda» inside «…add_results los manda a la cola» — prose describing a SIBLING action, inside an action
+  declared `view: true`, which writes nothing at all. **The catalog audit is the finding**: across 15 widgets
+  the heuristic produced TWO hits, both false positives (`youtube:search`, `torrent:open` — both `view: true`,
+  both on «manda»), and ZERO true positives; all 15 genuine confirmations carry an explicit flag. Three fixes,
+  most general first: **(1) a `view` action can never be irreversible** — the flag means it only changes what
+  is displayed and «writes nothing the operator would have to undo and nothing outside the app» (the generator
+  contract, verbatim), so the two are mutually exclusive by definition and only the guess put them together;
+  an explicit `confirm: true` still wins. **(2) The heuristic reads the action's OWN clause**, not the usage
+  guidance after the first period — the same boundary `confirm_gate._human_confirm_question` already draws
+  when it quotes a desc, applied one level earlier, to the DECISION instead of to the sentence. **(3) A
+  confirmation carries the sentence he hears**: NINE of seventeen confirming actions had no `confirm_q`, so
+  reciting tool prose was the NORMAL path, not the rare one — the seven still bare now have one, and
+  `widgets/validator.py` refuses both a bare confirmation and the `view`+`confirm` contradiction, because a
+  rule each widget author has to remember is not a rule. **And the trigger**: that search came off a bare
+  «Johnny.» — the wake word alone, reaching the model with a memory pill about the video he had asked for the
+  night before, so it answered «Voy a buscar el vídeo del Apolo 11» and acted; six seconds later a second bare
+  «Johnny.» got «Dime, Ricardo.», which is the right answer. The most frequent utterance in wake-word mode was
+  non-deterministic and half the time it invented an errand. `presence.is_summons` makes it its own class
+  beside the presence knock (a leading interjection and a trailing courtesy allowed — they carry no request
+  either; anything else is a real turn), answered from the same honest pools with no model and no tool, in
+  BOTH channels (V2-252/V2-539). The engine's own susurro had filed it at 10:07:40: «[P2·routing] Una
+  locución de wake-up suelta se convierte en consulta de widget y en promesa de acción». Node **4.159** (21
+  cases, including the whole-catalog ratchet that keeps the heuristic from ever DECIDING again); five disarms,
+  mutations asserted, all red — and the `confirm_q` disarm also turns `make test-widgets` red, which is the
+  gate biting rather than a test agreeing with itself. Open and named in the initiative: the turn that loaded
+  the video returned `completion_chars: 0` and a susurro repair spoke 23 s later over work that had already
+  succeeded; the fragment accumulator DUPLICATED his sentence around the summons; and the shadow arbiter
+  vetoed both the correct load and the spurious search, so it still cannot arbitrate this class.
+
 - **An order about DATA is not an order about the CANVAS — and «me vas a poner el vídeo» is an order
   (V2-664, 2026-09-11)**: the operator drove his own session and reported three things: the Apollo 11 video
   never played, «borra los datos de la agenda» **closed every widget he had open**, and twenty seconds later
