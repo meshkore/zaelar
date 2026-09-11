@@ -125,11 +125,8 @@ async def presence(brain, text: str, emit, *, first_turn: bool, window_max: int)
     the turn proceeds untouched. Fail-open like `handled` — the caller catches everything."""
     if first_turn:
         return False
-    try:
-        from config.settings import get as _sget
-        _aname = str(_sget("assistant_name") or "")
-    except Exception:
-        _aname = ""
+    _aname = ""                         # V2-665: `presence.assistant_names()` reads the wake words — see its
+    #                                     docstring for why the settings file was the wrong (and empty) source.
     # V2-665 — a bare «Johnny.» is the SAME class: an address with no request in it. Left to the model it
     # answered «Dime, Ricardo.» half the time and INVENTED an errand the other half (session e82f7fcb: it
     # fired a `widget_data` search off a memory pill from the night before). The honest pools already say the

@@ -129,6 +129,14 @@ def assistant_name() -> str:
     return _state["assistant_name"]
 
 
+def wakewords() -> tuple[str, ...]:
+    """Every word that IS his name right now — the default, the env override, and the RENAME. Public because
+    `nucleo/flash/presence.py` has to know what counts as being called by name (V2-665), and reading the
+    settings file for it is what made that dead: the name lives in MEMORY state (`memory.state()
+    ["assistant_name"]`, pushed here by `memory_cache`), never in `config/settings.json`."""
+    return _wakewords()
+
+
 def has_wakeword(text: str) -> bool:
     n = _norm(text)
     return any(re.search(r"\b" + re.escape(w) + r"\b", n) for w in _wakewords())

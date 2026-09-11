@@ -104,17 +104,42 @@ def test_the_gate_refuses_a_confirmation_with_no_question_and_the_view_contradic
 
 
 # ── the trigger: a bare name is an address, not an errand ────────────────────────────────────────────────
+@pytest.fixture()
+def _renamed():
+    """His engine is called «Johnny», and that is where the name REALLY lives."""
+    from voice import attention
+    prev = attention.assistant_name()
+    attention.set_assistant_name("Johnny")
+    yield
+    attention.set_assistant_name(prev)
+
+
 @pytest.mark.parametrize("txt", ["Johnny.", "johnny", "Oye Johnny", "Johnny, por favor", "zaelar"])
-def test_a_bare_call_by_name_is_a_summons(txt):
+def test_a_bare_call_by_name_is_a_summons(_renamed, txt):
     from nucleo.flash.presence import is_summons
-    assert is_summons(txt, "Johnny"), txt
+    assert is_summons(txt), txt
 
 
 @pytest.mark.parametrize("txt", ["Johnny, ponme el vídeo del Apolo 11", "Johnny ¿sigues ahí?",
                                  "johnny cierra todo", "", "   "])
-def test_anything_after_the_name_is_a_real_turn(txt):
+def test_anything_after_the_name_is_a_real_turn(_renamed, txt):
     from nucleo.flash.presence import is_summons
-    assert not is_summons(txt, "Johnny"), txt
+    assert not is_summons(txt), txt
+
+
+def test_the_name_is_read_where_a_rename_actually_lands(_renamed):
+    """⚠️ A defect OLDER than this batch, found while building it: both callers passed
+    `config.settings.get("assistant_name")`, a key NOBODY writes — a rename lands in memory state and is
+    pushed into `voice.attention`. So the vocative strip that recognises «Johnny, ¿sigues ahí?» was dead for
+    a renamed assistant, and the summons check would have been born dead the same way."""
+    from nucleo.flash import presence as _p
+    assert "johnny" in _p.assistant_names(), "the wake words are the authority on what his name is"
+    assert _p.is_presence_check("Johnny, ¿sigues ahí?"), "the vocative must come off a knock too"
+    # Anchored on the IMPORT, not the words: both files explain this defect in prose, and a scan that the
+    # explanation itself trips is a scan that will be weakened rather than believed.
+    for rel in (("voice", "engine", "llm", "providers", "fast_lane.py"), ("nucleo", "flash", "presence.py")):
+        src = (ENG.joinpath(*rel)).read_text(encoding="utf-8")
+        assert "from config.settings import" not in src, f"{rel[-1]} still reads the name from the settings file"
 
 
 def test_both_channels_answer_a_summons_without_a_model():
@@ -126,3 +151,18 @@ def test_both_channels_answer_a_summons_without_a_model():
     assert "is_summons(text, _aname)" in inspect.getsource(_fl.presence), \
         "the voice lane must answer a summons in its own fast lane, never through the model"
     assert "is_summons(text, aname)" in inspect.getsource(_p.mirror), "the probe channel must mirror it"
+
+
+def test_the_probe_channel_answers_a_summons_end_to_end(_renamed, monkeypatch):
+    """The measured failure ran through the MODEL. Driving the real mirror proves no model is reached."""
+    from nucleo.flash import presence as _p
+    from voice.engine.core import langs
+    called = {"n": 0}
+
+    class _Sess:
+        def __init__(self):
+            self.window = []
+    monkeypatch.setattr(_p, "_push", lambda *a, **k: called.__setitem__("n", called["n"] + 1), raising=False)
+    out = _p.mirror("Johnny.", _Sess(), "T1", lambda: langs.LANGUAGES["es"])   # `spec` is a CALLABLE
+    assert out and out.get("action") == "presence", f"a summons must not reach the model: {out}"
+    assert not (out.get("tool_calls") or out.get("tools")), "and it must fire no tool at all"
