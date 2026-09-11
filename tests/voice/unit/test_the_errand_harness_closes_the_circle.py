@@ -166,10 +166,14 @@ def test_the_voice_channel_wires_the_harness_before_the_rescue_and_the_holding_l
 
 def test_the_probe_mirrors_goal_birth_and_the_false_claim():
     probe = _src("nucleo/flash/probe.py")
-    assert "_ht_p.note_shown(" in probe and "_ht_p.rescue(spoken" in probe
+    assert "_ht_p.mirror_probe(" in probe
+    seam = _src("nucleo/flash/harness_turn.py")
+    assert "note_shown(" in seam and "rescue(spoken" in seam
 
 
 def test_the_prompt_and_the_heartbeat_read_the_ledger():
-    assert "_harness.prompt_lines()" in _src("nucleo/flash/prompt.py")
+    # V2-661: the harness lines joined their two neighbours in `live_blocks` (same precedent as V2-276/V2-348).
+    assert "harness_lines()" in _src("nucleo/flash/prompt.py")
+    assert "harness.prompt_lines()" in _src("nucleo/flash/live_blocks.py")
     loop = _src("nucleo/loop.py")
     assert "await self._supervise_harness(now)" in loop and "harness.sweep(now)" in loop

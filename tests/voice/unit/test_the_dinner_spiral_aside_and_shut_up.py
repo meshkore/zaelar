@@ -153,7 +153,7 @@ def test_the_voice_channel_wires_the_aside(monkeypatch):
         "an aside must count as handled (mute backstop) — but never on a TYPED turn (V2-646)"
     assert "aside=aside[\"v\"]" in prov, "the provider no longer tells the seam this turn was an aside"
     assert "retract_last_directed()" in seam, "the admission's window refresh must be retracted"
-    assert "_ht_a.note_aside(" in prov, "the aside branch no longer reaches the seam"
+    assert "_ht.note_aside(" in prov, "the aside branch no longer reaches the seam"
     assert "if not _aside_turn:" in prov, "the hollow repairs must not fill a sanctioned silence"
 
 
