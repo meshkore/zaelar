@@ -3325,6 +3325,13 @@ DOMAINS: list[dict] = [
                                "la nube no se pregunta",
             "ch": UNIT,
             "paths": ["tests/infrastructure/unit/core/test_where_the_agents_files_live.py"]},
+        # V2-673 — encontrado en el motor VIVO del operador: `config/v2.json` con `{"fast": {"provider":
+        # "aimlapi"}}` a secas, o sea el broker de titular sobre un `model` y un `base_url` que seguían
+        # siendo de DeepSeek. El guarda que existe para impedirlo comparaba el PATCH consigo mismo, y un
+        # patch con solo el proveedor no lleva modelo con el que compararse. Ahora juzga el RESULTADO.
+        {"id": "8.8", "title": "Un guardado de configuración se juzga por lo que DEJA, no por lo que lleva",
+            "ch": UNIT,
+            "paths": ["tests/infrastructure/unit/config/test_a_config_save_validates_the_RESULT.py"]},
         {"id": "8.3", "title": "Política de modelos: un solo titular, sin proveedores retirados",
             "ch": UNIT, "paths": ["tests/infrastructure/unit/config/test_model_policy.py"]},
         {"id": "8.2", "title": "Perfiles / v2 / doctor / credenciales", "ch": UNIT, "paths": [

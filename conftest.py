@@ -58,6 +58,22 @@ try:
 except Exception:                                  # if `config` is not importable, the suite continues as before
     pass
 
+# 2026-09-11 — the SAME invariant, applied to the place it had NEVER reached: `config/v2.json`, the MODEL
+# ROUTING store. Measured on the operator's live engine: it held `{"fast": {"provider": "aimlapi"}}` — the
+# broker as the TITULAR of his voice brain, which the model table forbids outright — over a `model` and a
+# `base_url` that were still DeepSeek's. The writer was
+# `tests/infrastructure/unit/core/test_config_api_cloud_gate.py`, which POSTs a real save through the router
+# and isolated nothing; every run of that node silently re-routed his brain, and had done since it was
+# written. Fixing that one file is not the fix: this is the third time this class has been paid («a test
+# never touches live artifacts», «my suite reset its LIVE engine»), and each time the remedy was one file
+# remembering. So the store moves for the whole session, here, beside the one that already does.
+try:
+    from config import v2 as _v2
+
+    _v2._PATH = _Path(tempfile.mkdtemp(prefix="zaelar-test-v2-")) / "v2.json"
+except Exception:                                  # if `config` is not importable, the suite continues as before
+    pass
+
 # V2-194 — the SAME invariant as above («a test never reads or writes the operator's real state»),
 # applied to the last place still missing: widget DATA. The comment above already cited
 # `store.DATA_DIR` as the same lesson, but it was applied only inside widget tests, not at session level

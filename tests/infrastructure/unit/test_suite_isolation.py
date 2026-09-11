@@ -39,6 +39,21 @@ def test_the_operators_settings_file_is_not_the_one_the_suite_reads():
     assert not Path(settings.SETTINGS_FILE).exists(), "y el fichero de la suite arranca VACÍO, no copiado"
 
 
+def test_the_operators_model_routing_is_not_the_one_the_suite_writes():
+    """Añadido 2026-09-11 porque faltaba y costó caro: `config/v2.json` es el ROUTING de modelos, y
+    `test_config_api_cloud_gate.py` POSTea un guardado REAL por el router sin aislar nada. Cada corrida de
+    ese nodo dejaba a AIMLAPI —el broker, que la tabla de modelos prohíbe como titular de nada— de
+    proveedor del cerebro de voz del operador, encima de un `model` y un `base_url` que seguían siendo de
+    DeepSeek. No fallaba: se quedaba ahí."""
+    from config import v2
+
+    p = str(v2._PATH)
+    assert "zaelar-test-v2-" in p, (
+        "la suite está escribiendo en el `config/v2.json` REAL: un test puede re-enrutar el cerebro del "
+        f"operador y nadie se entera. Apunta a: {p}")
+    assert not Path(v2._PATH).exists(), "y arranca VACÍO, no copiado — los defaults salen de la tabla canónica"
+
+
 def test_loading_the_settings_cannot_flip_the_suite():
     """The acid test: calling what the real startup does cannot change the language out from under the suite."""
     from config import settings

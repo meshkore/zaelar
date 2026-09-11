@@ -357,11 +357,30 @@ def _model_mismatch(section: str, patch: dict) -> str:
     HERE, with the name of the offending value.
 
     Only applies to CLOSED-list sections and only if the provider declares models: a provider without a list (or an
-    open section) still accepts whatever the caller sends — this validates, it does not lock in."""
+    open section) still accepts whatever the caller sends — this validates, it does not lock in.
+
+    ⚠️ It reads the RESULT of the patch, not the patch (fixed 2026-09-11 from a live corruption). The first
+    version compared `patch["provider"]` against `patch["model"]`, so a patch carrying ONLY a provider had no
+    model to compare and walked straight through — leaving `config/v2.json` holding
+    `{"fast": {"provider": "aimlapi"}}` over a `model` and `base_url` that still belonged to DeepSeek. The
+    effective config was a provider from one vendor with an endpoint from another, which is the V2-657 defect
+    exactly: observability prints one name while the traffic goes somewhere else. A validator that reads the
+    REQUEST instead of the resulting STATE cannot see a partial write, and a partial write is the normal shape
+    of a config edit."""
     conf = _PROVIDER_CATALOG.get(section) or {}
     if not conf.get("closed_models"):
         return ""
-    prov_id = str(patch.get("provider") or "").strip()
+    if not str(patch.get("provider") or "").strip():
+        # No provider named in this patch: the effective one is unchanged, so a model field that is present
+        # still has to agree with it — which is what merging below covers.
+        if not any(str(patch.get(f) or "").strip() for f in _MODEL_FIELDS.get(section, ())):
+            return ""
+    try:
+        from config import v2 as _v2
+        effective = {**_v2.get(section), **{k: v for k, v in (patch or {}).items() if v not in (None, "")}}
+    except Exception:  # noqa: BLE001 — an unreadable store must not block a save; validate the patch alone
+        effective = dict(patch or {})
+    prov_id = str(effective.get("provider") or "").strip()
     if not prov_id:
         return ""
     prov = next((p for p in conf.get("providers", []) if p.get("id") == prov_id), None)
@@ -371,10 +390,17 @@ def _model_mismatch(section: str, patch: dict) -> str:
     if not allowed:
         return ""
     for field in _MODEL_FIELDS.get(section, ()):
-        val = str(patch.get(field) or "").strip()
+        val = str(effective.get(field) or "").strip()
         if val and val not in allowed:
             return (f"«{val}» is not served by {prov.get('label') or prov_id} (field {field}). "
                     f"Available: {', '.join(sorted(allowed))}")
+    # The endpoint travels with the provider. A provider swapped without its `base_url` leaves the label
+    # saying one vendor and the traffic going to another — silent, and expensive to diagnose (V2-657).
+    want_url = str(prov.get("base_url") or "").strip()
+    got_url = str(effective.get("base_url") or "").strip()
+    if want_url and got_url and got_url.rstrip("/") != want_url.rstrip("/"):
+        return (f"«{prov.get('label') or prov_id}» does not answer at {got_url} — change the provider and its "
+                f"endpoint together (expected {want_url})")
     return ""
 
 
