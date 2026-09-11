@@ -192,6 +192,32 @@ interacciones (guardar Y leer) siguen alineadas con la versión nueva, + migraci
 CLAUDE.md, diagrama Memoria de `/architecture`), + tests, + commit. Evita re-investigar cada vez a quién afecta un
 cambio de memoria. Termina SIEMPRE con la revisión de alineación.
 
+**CLOSING a batch ("cierra esto" / "documenta lo que has hecho" / "pasa el cierre"), and the MODULE LOG:** at
+the end of ANY batch that changes behaviour. The full eight steps live in the workspace ROOT's `.meshkore/`
+(`zaelar-initiative-closure.md`, PRIVATE repo — whoever clones this one does not have it, same as the roadmap);
+what belongs to THIS repo, and is therefore written here, are the three that keep being skipped:
+
+1. **The test with its NODE** in `tests/run_testmap.py`. Not in the map = it does not exist for «is everything
+   green?».
+2. **The decision in this file**, §Decisiones clave, with the WHY and the real failure that motivated it. It is
+   the only thing the next agent is certain to read.
+3. **The MODULE LOG** — `.meshkore/modules/<module>/logs/<YYYY-MM>/<PREFIX>-NNN-<slug>.md`. It is the only place
+   that keeps **the OPERATOR'S OWN WORDS for the request, what was MEASURED before touching anything, and the
+   COMMITS** that delivered it: the decision above says WHAT was decided and the initiative holds the detail, but
+   neither says where the task came from or which tree was walked to get there — which is exactly what is lost
+   when a session is cut short. Frontmatter `id/title/status/priority/owner/initiative/created/updated`, and a
+   table of commits at the end.
+   ⚠️ **`T-NNN` numbering is GLOBAL**, shared by EVERY module (frontend, voice, server…); the module-specific
+   prefixes run on their own (`N-` nucleo, `MK-` cluster, `S-` security, `TS-` tester, `C-` clusters). `ls` before
+   taking a number, exactly like an initiative.
+   ⚠️ **Gitignored on purpose** (the «neither our past nor our future gets published» rule): it lives on the
+   operator's machine and never travels with the repo. That is what makes it the place for the DIARY rather than
+   the catalogue — and why its entries are written in the operator's language, unlike everything else here.
+
+Measured 2026-09-11: the module log **was not on the closure checklist**, and the result was that it stalled at
+`2026-08` while the engine shipped through V2-669 — a month of batches with no record of the request, across two
+sessions that were lost. *A step that is not on the checklist is a step that does not get taken.*
+
 **Testing del bot ("lanza un test del bot"):** cuando el operador dice **"lanza un test del bot"**, **"lanza la
 batería (de escenarios)"** o **"prueba el bot en tuen"**, ejecutar `zaelar-testing.md` — el playbook autocontenido:
 **Paso 0 = ALINEACIÓN** (comprobar que `tests/voice/e2e/agent/scenarios.py` cubre los módulos principales y los cambios de las
