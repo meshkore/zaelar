@@ -471,6 +471,65 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **A question about what a widget HOLDS is answered by the widget (V2-668, 2026-09-11)**: session 53de97d4,
+  10:58:33 → 11:00:03. «¿a qué hora tengo la cita con Hacienda?» → «no la tengo con hora, solo que tienes que
+  ir próximamente» — while the agenda held `11:30–12:30 · Cita Agencia Tributaria` in ONE line. Six turns
+  later, after he opened the card BY HAND, the model said «hoy a las once y media» **calling no tool**: a
+  widget's interior only ever reached the prompt while the card was OPEN (`widgets/brief.py`, `if wid in
+  opened`), and NO tool read a closed one — `widget_data` EXECUTES a declared action, `recall` reads his
+  long-term memory («no es para datos del mundo»), `web_search` reads the world. A question about his own
+  widget's store had no route and was answered from a memory pill, a race the susurro itself filed
+  (`[P1·memoria] La memoria durable se inyecta DESPUÉS de responder`). His verdict: «si yo le tengo que
+  explicar cómo llegar a los datos, pierdo menos tiempo buscándolos yo». **`read_widget`
+  (`nucleo/flash/widget_read.py`) is the fourth door**, `recall`'s sibling in shape — a LIGHT two-pass route
+  resolved IN the turn, no card opened, no worker — reading through the seams the widgets already publish for
+  the prompt (`refs.prompt_digest` → `coach_context()` → `refs.items_line`), so every widget that can be
+  reasoned about while open can be asked about while closed; the second pass has the widget's content as its
+  ONLY source and states an absence rather than filling it (V2-210). It lives in the `memory` family, which
+  `tool_selection` never trims — that module's docstring already named this exact case («when is the vehicle
+  inspection appointment?») and pointed it at `recall`, the wrong store. `web_search`, `widget_data` and
+  `recall` now point at it for his own data. Both channels call the module (V2-252). Keyword routing was
+  measured and rejected: «¿a qué hora tengo la cita?» hits the CLOCK's keywords, not the agenda's. The 23 100
+  catalog ceiling — paid on every voice turn — was met by compacting nine descriptions, never raised. Node
+  **2.52**.
+
+- **An order NAMES its target, and a notice waits its turn (V2-666, 2026-09-11)**: the same session, three
+  rails each correct in intent and wrong on one sentence. **(1)** «ponme un gráfico de la evolución del
+  Bitcoin» → the model escalated, and the show guard STOLE it and opened YouTube with «Aquí lo tienes»:
+  `runtime.identify` returned the only OPEN card «by context» (score 0.0, zero candidates) and the guard read
+  that as a NAME — a blind open of whatever was on screen, the thing `identify`'s own docstring says it never
+  does. `identify_named()` (alias/name only, context breaks ties, never a fallback) is what a SHOW asks now, in
+  both channels; with no name and no antecedent the guard resolves to NOTHING and the escalation stands.
+  **(2)** «Mírame, ábreme la agenda inmediatamente» opened the SEARCH card: the article «la» is a bare deictic
+  token for `looks_like_bare_ref` (right about «cancélala»), so one article made the whole sentence
+  «muéstramelo»-shaped, the noun he actually said was discarded, and the fallback «the previous route was a web
+  search» chose for him. A sentence that NAMES its widget is never deictic — the name wins first. **(3)**
+  «¿a qué hora tengo la cita con Hacienda?» arrived BEHIND three `[SISTEMA]` notes about a dead Bitcoin task
+  (`text = "\n".join(notes) + "\n\n" + text`), two of them ordering «Díselo en ESTE turno», and the reply
+  opened «Primero, Ricardo, te debo una cosa pendiente…». The operator's rule is the inverse and it is the
+  rule of any assistant: the order is served first, the news waits until it is answered. `brain_notes.
+  compose_turn` puts his words FIRST and the notes AFTER under a header that says when they may be spoken; the
+  two writers now say «DESPUÉS de contestar». A model reads what comes first as the frame of its answer; the
+  frame is his. Node **4.160**. Named, not done: the arbiter (V2-653) VETOED the blank `results` card that
+  same turn (`show-drag`) and ALLOWED the YouTube blind open — still in shadow, and it cannot arbitrate the
+  second class until it consults `identify_named`.
+
+- **The generator's contract never contradicts its gate, and a red gate gets ONE repair (V2-667,
+  2026-09-11)**: «ha intentado preparar un widget, ha fallado varias veces, cosa que me preocupa; es un
+  widget muy sencillo, quizás ha fallado a la hora de obtener los datos». Not the data: two builds of a
+  Bitcoin chart died 17 minutes apart, ~3 min and ~1 $ each, on the SAME error — `data.py imports non-stdlib
+  'memory' (data.py must be stdlib-only)`. `generator.py::_CONTRACT` said both things in one block: the
+  `data.py` bullet «STDLIB ONLY», the BACKGROUND bullet «`from memory import api as memory; memory.write(…)`».
+  A price chart classifies itself as data that changes on its own → the agent followed the second line → the
+  gate (the stricter one) killed the widget after the money was spent. `widgets/AGENTS.md:88` had carried the
+  corrected form (`ctx.remember(...)` — «so data.py stays stdlib-only, no import memory») and
+  `background.TickCtx` is the sanctioned door; the prompt was left behind by that refactor, and it hid because
+  it fails late, expensively, and looks like the model's fault. Two changes: the contract agrees with the gate
+  (`tick(ctx=None)`, memory through `ctx`, the prohibition spelled out), and **`_repair_once`** — a freshly
+  built widget that fails the gate gets the gate's own error and one bounded edit in place before `_discard`;
+  a second failure reports the NEW error, what stood after the repair. Create path only; modify has its
+  rollback. Node **4.161**.
+
 - **A SEARCH is not irreversible, a confirmation never recites our tool prose, and a bare name is not an
   errand (V2-665, 2026-09-11)**: the operator, with a screenshot — «sólo le he dicho que abra el widget de
   vídeo y que me ponga un vídeo y me ha abierto el chat en la columna de la izquierda, me ha soltado mensajes

@@ -1098,6 +1098,14 @@ DOMAINS: list[dict] = [
         # MODE exists. Detector widened (respond verbs + the mode's product name «Modo Wake Word», STT garble
         # included) and `live_state()` teaches the mode: wake word IS the assistant's name, toggled via
         # set_style_directive. Wiring guard on BOTH channels (V2-108).
+        # 2026-09-11 (V2-668): «¿a qué hora tengo la cita con Hacienda?» — la agenda tenía la hora en una línea y
+        # el modelo contestó «no la tengo con hora», porque el interior de un widget solo llegaba al prompt con la
+        # tarjeta ABIERTA y ninguna tool leía una cerrada (widget_data ejecuta, recall es su vida, web_search es
+        # el mundo). `read_widget` es la cuarta puerta, hermana de recall: ruta ligera, en el turno, sin abrir nada.
+        {"id": "2.52", "title": "Una pregunta sobre lo que GUARDA un widget la contesta el widget: read_widget "
+                                "lee la tarjeta cerrada en el turno, en los dos canales",
+            "ch": UNIT, "paths": [
+                "tests/agent_headless/unit/flash/test_a_question_about_a_widget_is_answered_by_the_widget.py"]},
         {"id": "2.51", "title": "Wake Word Mode: the toggle rides the directive, and the prompt teaches the "
                                 "mode exists",
             "ch": UNIT,
@@ -1537,7 +1545,8 @@ DOMAINS: list[dict] = [
             # `phase_active=True` y la fase de vuelo intacta, así que el turno vuelve a leer un estado que miente,
             # solo del revés. Los xfail son la deuda DECLARADA: cuando el arreglo entre, saldrán XPASS.
             "tests/browser/unit/navegador/test_task_finish_is_coherent.py"]},
-        {"id": "4.3", "title": "Widget de música", "ch": UNIT, "paths": ["tests/browser/unit/musica/test_data.py",
+        {"id": "4.3", "title": "Widget de música — cabecera y pie FIJOS, solo la lista central hace scroll "
+                              "(V2-667)", "ch": UNIT, "paths": ["tests/browser/unit/musica/test_data.py",
                                                                  "tests/browser/unit/musica/test_anothers_player_never_advances_the_music_queue.py",
                                                                  # V2-638: la TERCERA fuente — una pista que es un
                                                                  # FICHERO de la biblioteca del agente, y por tanto
@@ -1560,7 +1569,21 @@ DOMAINS: list[dict] = [
                                                                  # indicator, "our line" SVG icons replacing every
                                                                  # emoji glyph, and lazy fast-first enrichment —
                                                                  # again all RENDERED.
-                                                                 "tests/browser/unit/musica/test_the_player_looks_and_sounds_like_a_real_one_now.py"]},
+                                                                 "tests/browser/unit/musica/test_the_player_looks_and_sounds_like_a_real_one_now.py",
+                                                                 # V2-667 (operator, 2026-09-11): the idle playback
+                                                                 # bar read "Nada sonando" title + "Dime pon
+                                                                 # música" subtitle — shaped exactly like a real
+                                                                 # track, not like an empty state — and a growing
+                                                                 # playlist visibly pushed the bar DOWN past the
+                                                                 # card's own edge instead of staying pinned like a
+                                                                 # real player's transport bar. Two REAL states now
+                                                                 # (idle: one italic hint, transport disabled; loaded:
+                                                                 # title/artist, transport live) and three zones that
+                                                                 # never trade places (fixed header, fixed footer,
+                                                                 # ONLY the middle scrolls) — mounted inside the REAL
+                                                                 # card chrome (.hb-win > .hb-scroll), the V2-608
+                                                                 # fixture lesson.
+                                                                 "tests/browser/unit/musica/test_the_player_pins_header_and_footer.py"]},
         {"id": "4.4", "title": "Widget de YouTube", "ch": UNIT,
          "paths": ["tests/browser/unit/youtube/test_youtube.py",
                    # V2-596: blocked channels — the filter the operator educates by voice; every NAME-search
@@ -1732,6 +1755,23 @@ DOMAINS: list[dict] = [
         # vídeos para elegir: pinta hasta n resultados NUMERADOS…"») y no vio el vídeo — que SÍ había cargado,
         # tapado por el modal. Una causa: la heurística de irreversibilidad casó «manda» en una frase que
         # describía OTRA acción, dentro de una acción `view: true` que no escribe nada.
+        # 2026-09-11 (V2-666/V2-667): la sesión 53de97d4 del operador, leída al segundo. «ponme un gráfico del
+        # Bitcoin» abrió YouTube porque `identify` devolvió la única tarjeta ABIERTA «por contexto» y el guard de
+        # show lo consumió como un nombre; «ábreme la agenda inmediatamente» abrió el buscador porque el artículo
+        # «la» hizo deíctica la frase entera y tiró el sustantivo que había dicho; y «¿a qué hora tengo la cita?»
+        # llegó al modelo DETRÁS de tres avisos de sistema que ordenaban «díselo en ESTE turno». Y el widget del
+        # gráfico murió dos veces con el MISMO error de la puerta porque nuestro propio prompt le decía
+        # `from memory import api` en el bullet de fondo y «STDLIB ONLY» en el de data.py.
+        {"id": "4.160", "title": "Una orden NOMBRA su objetivo: un show nunca cae en la tarjeta que casualmente "
+                                 "está abierta, una frase que nombra su widget no es deíctica, y un aviso pendiente "
+                                 "espera a que la petición esté contestada",
+            "ch": UNIT, "paths": [
+                "tests/browser/unit/widgets/test_an_order_names_its_target.py",
+                "tests/voice/unit/providers/test_a_notice_waits_its_turn.py"]},
+        {"id": "4.161", "title": "El contrato del generador no contradice a su puerta, y una puerta en rojo "
+                                 "recibe UNA reparación antes de tirar tres minutos",
+            "ch": UNIT, "paths": [
+                "tests/browser/unit/widgets/test_the_generator_contract_never_contradicts_its_gate.py"]},
         {"id": "4.159", "title": "Una búsqueda no pide permiso, una acción de VISTA nunca es irreversible, la "
                                  "pregunta no recita la prosa del modelo, y una llamada por su nombre no es un "
                                  "encargo",
@@ -1773,9 +1813,15 @@ DOMAINS: list[dict] = [
         # escritorio en Chromium con backend falso por intercepción: colocación que esquiva el chat abierto,
         # el nuevo arriba, el raíl de widgets (un chip por tarjeta, siempre visible), minimizar/mostrar todo y
         # el ▦ de auto-orden. Autocontenido (su propio preview server); live solo por Chromium/Playwright.
+        # V2-666 (2026-09-11): el chevron que pliega/despliega el chat viaja al borde IZQUIERDO de la barra
+        # (antes vivía entre las herramientas de la derecha) — comprobado sin acoplarse a su posición, solo a
+        # que sigue abriendo/cerrando el chat. Los chips llevan hasta seis letras del NOMBRE del widget (antes
+        # solo dos iniciales); y junto al chevron, un contador de PROCESOS EN MARCHA (store.tasks — oculto sin
+        # ninguno, visible con el número real, y su clic abre el chat en la pestaña Procesos).
         {"id": "4.92", "title": "El MURAL renderizado: raíl ACOPLADO que reserva el borde, colocación que esquiva "
                                 "el chat, plegado, minimizar/mostrar todo, tamaño por defecto — y que ABAJO ya no "
-                                "queda nada (V2-542)",
+                                "queda nada (V2-542); chevron del chat + contador de procesos a la IZQUIERDA, "
+                                "chips con el nombre del widget (V2-666)",
             "ch": UNIT, "live": True,
             "cmd": "./.venv/bin/python tests/browser/e2e/widgets/render_mural.py"},
         # V2-550 — el MURO DE CHAT vuelve donde estaba. Su reporte era preciso: la POSICIÓN nunca fue lo que se
@@ -1848,20 +1894,28 @@ DOMAINS: list[dict] = [
         # 4.19 lesson: a re-created canvas renders blank with no error — so every case measures the rendered
         # page: the canvas's parent, its size, what a real click moves). In bar mode the lid controls flank
         # the orb three a side and the slot IS the power switch (the V2-124 mobile-dock pattern).
+        # V2-666 (2026-09-11, operator): the right flank was reordered — immediately right of the orb comes
+        # the wake-word/activation-mode toggle, then chat, then the swap back to the eye (it used to be
+        # chat·robot·swap).
         {"id": "4.133", "title": "The bottom system bar: the orb swaps eye↔bar (one canvas, reparented), "
-                                 "lid controls flank it 3|3, and the memory control lives in the TopBar",
+                                 "lid controls flank it 3|3 (robot·chat·swap on the right, V2-666), and the "
+                                 "memory control lives in the TopBar",
             "ch": UNIT,
             "paths": ["tests/browser/e2e/widgets/test_the_orb_swaps_into_the_bottom_bar.py"]},
-        # V2-553 — la BARRA DE ACTUALIZACIÓN y el número de versión. La regla que solo se puede comprobar
-        # renderizando no es que la barra salga: es que NO salga cuando lo único que cambió está en el
-        # backend. El motor manda DOS campos (`build`, que sube en toda release, y `ui_rev`, que es el
-        # digest de lo que el navegador ejecuta) precisamente porque uno solo no distingue los dos casos, y
-        # aquí se comprueba que la pestaña actúa sobre esa diferencia: número que sube sin barra, barra
-        # cuando el frontend cambia de verdad, el descarte que dura EXACTAMENTE una revisión, y la recarga.
-        # Las versiones nuevas se simulan interceptando `/api/update` y despertando la pestaña con un
-        # `visibilitychange` — el mismo camino que recorre volver a una pestaña de fondo, sin gancho de test.
-        {"id": "4.103", "title": "Hay una versión nueva: la barra sale cuando cambia el FRONTEND, el número "
-                                 "sube siempre, y «ahora no» dura una sola versión",
+        # V2-553 — la BARRA DE ACTUALIZACIÓN. La regla que solo se puede comprobar renderizando no es que la
+        # barra salga: es que NO salga cuando lo único que cambió está en el backend. El motor manda DOS
+        # campos (`build`, que sube en toda release, y `ui_rev`, que es el digest de lo que el navegador
+        # ejecuta) precisamente porque uno solo no distingue los dos casos, y aquí se comprueba que la
+        # pestaña actúa sobre esa diferencia: barra cuando el frontend cambia de verdad, el descarte que dura
+        # EXACTAMENTE una revisión, y la recarga. Las versiones nuevas se simulan interceptando `/api/update`
+        # y despertando la pestaña con un `visibilitychange` — el mismo camino que recorre volver a una
+        # pestaña de fondo, sin gancho de test.
+        # V2-666 (2026-09-11, operador): «lo de la versión 11 quítalo de la escena… puedes meter la versión
+        # dentro del apartado de configuración» — el número YA NO vive siempre visible en el lienzo
+        # (`#hb-upd-ver` retirado); ahora solo se ve al abrir ⚙ Ajustes, leyendo la MISMA señal en vivo.
+        {"id": "4.103", "title": "Hay una versión nueva: la barra sale cuando cambia el FRONTEND y «ahora no» "
+                                 "dura una sola versión; el número dejó la escena y solo se ve dentro de ⚙ "
+                                 "(V2-666)",
             "ch": UNIT,
             "paths": ["tests/browser/e2e/widgets/test_the_new_version_bar.py"]},
         # V2-538 — la hoja de resultados RENDERIZADA. El operador, con la hoja delante: cuatro bandas de cromo
