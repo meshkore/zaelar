@@ -23,6 +23,30 @@ _pending: list[tuple[str, str]] = []   # (key, text) — the key is "" for the v
 _MAX = 20                              # bound the mailbox; drop the oldest if a burst piles up (never grow unbounded)
 
 
+_AFTER_HEADER = ("[SISTEMA] Avisos pendientes — SOLO cuando hayas atendido y contestado lo que te ha pedido "
+                 "arriba, y después de eso, añade en una frase lo que sigue; nunca abras con ello ni le hagas "
+                 "esperar su respuesta:")
+
+
+def compose_turn(operator_text: str, notes: list[str]) -> str:
+    """The text the brain receives for a turn: the operator's words FIRST, the system notes AFTER, under a
+    header that says when they may be spoken.
+
+    V2-666. Until now the notes were glued to the FRONT of his words, and two of the writers ordered «Díselo en
+    ESTE turno». Measured live (session 53de97d4, 10:58:33): «Johnny, ¿a qué hora tengo la cita con Hacienda?»
+    arrived behind three notices about a dead Bitcoin task, and the reply opened «Primero, Ricardo, te debo una
+    cosa pendiente: el gráfico de Bitcoin…» — his question came last, after the backlog. The operator's rule is
+    the inverse and it is the rule of any assistant: the order is served first; the pending news waits until the
+    order is answered. A model reads what comes first as the frame of its answer, so the frame has to be his."""
+    op = (operator_text or "").strip()
+    ns = [str(n).strip() for n in (notes or []) if str(n or "").strip()]
+    if not ns:
+        return op
+    if not op:
+        return "\n".join(ns)
+    return op + "\n\n" + _AFTER_HEADER + "\n" + "\n".join(ns)
+
+
 def push(text: str, key: str = "") -> None:
     """Queue a one-shot system note for the brain's next turn. No-op on empty text. Best-effort.
 

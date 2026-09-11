@@ -154,6 +154,15 @@ def _show_guard_target(text: str, context: list[dict] | None = None, last_action
         return None
     if not _re.search(r"\b(abr|muestr|ensen|pon|saca|sube)|quiero ver|ver mi|ense", n):
         return None
+    # V2-666 — A SENTENCE THAT NAMES ITS WIDGET IS NEVER DEICTIC. Measured live (session 53de97d4, 10:59:10):
+    # «Mírame, ábreme la agenda inmediatamente» opened the SEARCH card. The article «la» is a bare deictic token
+    # for `looks_like_bare_ref` (it is right about «cancélala»), so one article made the whole sentence
+    # «muéstramelo»-shaped, the noun he actually said was thrown away, and the fallback below — «the previous
+    # route was a web search» — chose for him. The name wins first; the antecedent hunt only runs when he named
+    # nothing.
+    named = _identify_named(text)
+    if named:
+        return named
     # Pronouns such as "muéstramelo" deliberately omit the widget noun. Resolve their most recent topical
     # antecedent through the real catalogue; this preserves human continuity without a weather/agenda/etc table.
     try:
@@ -180,7 +189,27 @@ def _show_guard_target(text: str, context: list[dict] | None = None, last_action
                     pass
     except Exception:
         pass
-    return _identify(text)
+    # V2-666 — and with no name and no antecedent, a SHOW never lands on a card «by context». `_identify` would
+    # return the only open card here (`runtime.identify`'s data-op nuance); for an OPEN decision that is a blind
+    # open of whatever happens to be on screen — measured 10:33:27, «ponme un gráfico del Bitcoin» → youtube.
+    return None
+
+
+def _identify_named(text: str) -> str | None:
+    """The widget the sentence NAMES (alias/name only, context breaks ties, never a by-context fallback) —
+    `widgets.runtime.identify_named` with the same state narrowing `_identify` uses. V2-666."""
+    try:
+        from widgets import runtime
+        try:
+            from memory import api as _memapi
+            _st = _memapi.state() or {}
+            _open = _st.get("open_widgets") or []
+            _recent = _st.get("recent_widgets") or []
+        except Exception:
+            _open, _recent = [], []
+        return runtime.identify_named(text, open_ids=_open, recent_ids=_recent)
+    except Exception:
+        return None
 
 
 def _identify(text: str) -> str | None:

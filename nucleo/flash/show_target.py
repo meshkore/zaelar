@@ -18,6 +18,13 @@ def _ctx_ids() -> tuple[list, list]:
         return [], []
 
 
+def _identify_named_ctx(rt, query: str) -> str | None:
+    """`rt.identify_named(query, open_ids, recent_ids)` with state context — the widget the phrase NAMES, never
+    the one that merely happens to be open (V2-666). Mirror of `widget_intent._identify_named`."""
+    _o, _r = _ctx_ids()
+    return rt.identify_named(query, open_ids=_o, recent_ids=_r)
+
+
 def _identify_ctx(rt, query: str) -> str | None:
     """`rt.identify(query, open_ids, recent_ids)['match']` with state context — the resolver with the same
     open>recent>catalogue narrowing used by voice. `rt` is the `widgets.runtime` module already imported by the caller."""
@@ -39,6 +46,12 @@ def _show_target(text: str, context: list[dict] | None = None, last_action: str 
         return None
     try:
         from widgets import runtime
+        # V2-666 — a sentence that NAMES its widget is never deictic (mirror of `widget_intent._show_guard_target`,
+        # same measured turn: «Mírame, ábreme la agenda inmediatamente» → the SEARCH card, because the article
+        # «la» made the sentence «muéstramelo»-shaped and the noun he said was discarded). The name wins first.
+        named = _identify_named_ctx(runtime, text)
+        if named:
+            return named
         # A deictic show request ("muéstramelo") gets its noun from the recent dialogue. Resolve the most recent
         # topical utterance against the same real widget catalogue instead of forcing the model to repeat a noun.
         # This is generic: weather, agenda, messages, music… are all resolved by runtime.identify, not a keyword map.
@@ -60,7 +73,10 @@ def _show_target(text: str, context: list[dict] | None = None, last_action: str 
             # `search` (Búsqueda / Tiempo) surface. This is action→surface continuity, not a topic keyword table.
             if last_action == "search" and runtime.get("search") is not None:
                 return "search"
-        return _identify_ctx(runtime, text)
+        # V2-666 — no name, no antecedent: a SHOW never lands on a card «by context» (`identify`'s data-op
+        # nuance would hand back the only open card — a blind open, measured as «ponme un gráfico del Bitcoin» →
+        # youtube on the voice channel).
+        return None
     except Exception:
         return None
 

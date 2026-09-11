@@ -160,8 +160,11 @@ async def notify(title: str, text: str, *, speak: bool = True, kind: str = "noti
     if not (speak and _speaker is not None):
         try:
             from voice import brain_notes
+            # V2-666: «después de contestarle», never «primero» — the note rides BEHIND his words now
+            # (`brain_notes.compose_turn`), and its own wording must not undo that order.
             brain_notes.push(f"[SISTEMA] Aviso para el operador ({title or 'zaelar'}): {text[:400]} "
-                             f"Díselo en ESTE turno con tus palabras — todavía no lo sabe.", key=key)
+                             f"Díselo con tus palabras DESPUÉS de contestar a lo que te ha pedido — todavía no "
+                             f"lo sabe.", key=key)
         except Exception as e:  # noqa: BLE001
             logger.warning(f"proactive notify (nota al cerebro) failed: {e}")
         return

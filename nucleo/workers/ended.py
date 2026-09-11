@@ -97,8 +97,9 @@ def _remember_ended(rec, resuming: bool = False) -> None:
             _g = (rec.goal or "la tarea de fondo").strip()[:70]
             brain_notes.push(
                 f"[SISTEMA] La tarea de fondo «{_g}» ha MUERTO sin resultado y no se va a reintentar sola. El "
-                f"operador no lo sabe: está esperando algo que ya no va a llegar. Díselo EN ESTE TURNO con tus "
-                f"palabras y ofrécele una salida concreta —reintentarlo, probar otra vía o dejarlo—; no digas "
+                f"operador no lo sabe: está esperando algo que ya no va a llegar. Díselo con tus palabras en este "
+                f"turno, DESPUÉS de contestar a lo que te haya pedido (V2-666: su petición va primero), y "
+                f"ofrécele una salida concreta —reintentarlo, probar otra vía o dejarlo—; no digas "
                 f"«sigo con ello» ni «te aviso en cuanto lo tenga».")
     except Exception:  # noqa: BLE001
         pass

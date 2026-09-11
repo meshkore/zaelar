@@ -284,3 +284,22 @@ def identify(query: str, open_ids: list | None = None, recent_ids: list | None =
 
     return {"match": match, "ambiguous": ambiguous, "candidates": cands, "score": top_score,
             "system": (system_id if match is None else None), "by_context": by_context}
+
+
+def identify_named(query: str, open_ids: list | None = None, recent_ids: list | None = None) -> str | None:
+    """The widget the phrase NAMES — by alias or name only, never by context. `None` when it names none.
+
+    V2-666. `identify()` has one deliberate nuance: with no alias match and ONE open card, it returns that card
+    (`by_context`), because a data-op with no noun («súbele el volumen») means the thing in front of the
+    operator. That nuance is right for OPERATING and wrong for OPENING — and the show guards consumed it as if
+    it were a name. Measured live (session 53de97d4, 10:33:27): «ponme un gráfico de la evolución del Bitcoin»
+    with the YouTube card open resolved to `youtube` (score 0.0, zero candidates, `by_context: True`), the guard
+    stole the model's escalation, opened the video card and said «Aquí lo tienes». A blind open of the only open
+    card, which is exactly what `identify()`'s own docstring says it never does.
+
+    A SHOW decision asks «which card did he name?», and this is that question with no fallback. The context
+    still breaks a TIE between real alias matches (open > recent), as before."""
+    res = identify(query, open_ids=open_ids, recent_ids=recent_ids) or {}
+    if res.get("by_context"):
+        return None
+    return res.get("match") or None
