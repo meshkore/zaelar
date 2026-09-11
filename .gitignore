@@ -15,6 +15,9 @@ config/v2.json
 # Identidad de ESTA instalación (UUID4 aleatorio + fecha). Runtime por-instalación, jamás al repo:
 # commitearlo haría que todo el que clone comparta user_id y la observabilidad mezclaría instalaciones.
 config/identity.json
+# V2-672 — CACHE of the ElevenLabs voice catalog (per install, refreshed from the API). Not config: it is
+# regenerated on demand and holds nothing the operator typed.
+config/elevenlabs_voices.json
 # Estado del DAEMON LOCAL (V2-575). `daemon.json` es un fichero de CREDENCIALES aunque no viva en credentials/:
 # lleva el token de la API, y quien pueda leerlo puede leer todas las carpetas que el operador haya permitido.
 # `audit.jsonl` es el registro de qué ficheros SUYOS se han abierto. Ninguno de los dos sale de su máquina.

@@ -229,6 +229,11 @@ async def lock(code: str, *, onboarding: bool = False) -> dict:
     logger.info(f"i18n.detect: locking operator language → '{code}'" + (" (onboarding)" if onboarding else ""))
     try:
         from config import settings as _s
+        # THE VOICE FOLLOWS FROM HERE (V2-672). `settings.update()` realigns `assistant_voice` whenever the
+        # language moves and the current voice is not right for it — ONE seam, for every TTS provider. It is
+        # deliberately NOT duplicated in this module: a second alignment would reach into the motor's voice
+        # catalog from i18n (the dependency ratchet, node 7.32, refuses exactly that, and caught this very
+        # attempt) and would then have to be kept in step with the ⚙'s copy forever.
         _s.update({"stt_language": code})          # persist + env (voice realigns on next reconnect)
     except Exception as e:  # noqa: BLE001
         logger.warning(f"i18n.detect: settings.update failed: {e}")

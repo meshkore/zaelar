@@ -123,7 +123,11 @@ class Settings:
     # With the CREATOR tier (credits + unlocked library voices), this is the primary voice: stable Castilian accent,
     # without the English/Portuguese drift produced by the free tier's Anglo premade voice. The `language` lock (es) is set in the provider.
     elevenlabs_model: str = env("ELEVENLABS_MODEL", "eleven_turbo_v2_5")  # turbo = low latency and stable accent
-    elevenlabs_voice_id: str = env("ELEVENLABS_VOICE_ID", "KHCvMklQZZo0O30ERnVn")  # Sara Martin (es, peninsular)
+    # LAST resort only, and EMPTY by default since V2-672. It used to hardcode a Castilian voice, which the
+    # multilingual model then used for every language — the operator's own report: «la voz por defecto en
+    # español habla bien español, pero habla mal inglés». The voice is now resolved per language in
+    # `voice/engine/speech/elevenlabs_voices.py`; this stays as a power-user env override.
+    elevenlabs_voice_id: str = env("ELEVENLABS_VOICE_ID", "")
     mistral_api_key: str = env("MISTRAL_API_KEY")
     deepgram_api_key: str = env("DEEPGRAM_API_KEY")
     gemini_api_key: str = env("GEMINI_API_KEY")

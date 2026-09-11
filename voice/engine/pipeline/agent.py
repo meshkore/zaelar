@@ -767,11 +767,19 @@ async def entrypoint(ctx: JobContext) -> None:
     # resources (`build_flash_system` → `_flash_layer`), so dumping it again in the kickoff was the OLD dump that bloated
     # the FIRST turn (the most latency-sensitive). The greeting only needs the memory-aware first-turn instruction:
     # the brain already greets by name from central memory.
-    # FIRST-RUN LANGUAGE ONBOARDING (V2-101): before anything else — no name, no capabilities — a brand-new
-    # install must be asked what language to use. The frontend already blocks its whole UI behind a modal for
-    # exactly this turn (gated on the SAME `should_detect()`, via GET /api/i18n/state's `chosen` field), so the
-    # question HAS to go out now, in English (the product default), and nothing else. `_lang_detect["onboarding"]`
-    # tells `_maybe_detect_language` (above) that the NEXT answer is this question's answer, not idle chatter.
+    # FIRST-RUN LANGUAGE ONBOARDING (V2-101, INVERTED by V2-672): on a brand-new install NOTHING IS SAID.
+    #
+    # This branch used to greet and ask the question OUT LOUD, deliberately, "in English (the product
+    # default)". The operator's rule, 2026-09-11, is the opposite and he is right: *«me pide los idiomas,
+    # pero por detrás está hablando ya en un idioma por defecto. Eso no es correcto… no quiero que la gente
+    # hable hasta que no hayamos seleccionado el idioma»*. Half the people who see that screen do not speak
+    # the language it is spoken in, so the one utterance they cannot understand is the one asking them which
+    # language they understand — and the modal that blocks the UI already asks it, with flags, wordlessly.
+    #
+    # The voice session still STARTS (the mic has to be live to hear a spoken answer, and `_lang_detect`
+    # stays armed for it); it simply says nothing until a language exists. The first thing the operator ever
+    # hears is `onboarding.confirmSpoken`, in the language they just chose, spoken by `i18n_api` after the
+    # lock — which is also the greeting.
     _onboarding_kickoff = False
     try:
         from i18n.init import detect as _d_kickoff
@@ -780,11 +788,10 @@ async def entrypoint(ctx: JobContext) -> None:
         _onboarding_kickoff = False
     if _onboarding_kickoff:
         _lang_detect["onboarding"] = True
-        kickoff_text = (
-            "[FIRST RUN — no language has been chosen yet. SPEAK ENGLISH ONLY, regardless of any other "
-            "instruction.] I just connected for the very first time. Greet briefly (one short sentence) and "
-            "ask what language I'd like you to use — nothing else this turn (no name, no capabilities, no "
-            "small talk). Then stop and wait for my answer.")
+        _mark_kickoff(ctx.room.name)
+        _emit("brain", "🤐 kickoff en silencio — no hay idioma elegido todavía (el selector manda)",
+              role="system")
+        return
     else:
         kickoff_text = (f"[The operator's selected interface language is {_lang.native} — SPEAK "
                         f"{_lang.name}.]\n"

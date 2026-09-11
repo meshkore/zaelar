@@ -12,6 +12,7 @@ from livekit.plugins import elevenlabs as _eleven
 
 from ...core.config import SETTINGS
 from ...core import langs as _langs
+from .. import voices as _voices
 from ..voices import selected_voice
 from . import registry
 
@@ -27,7 +28,12 @@ def build():
     )
     # Voice: the one selected by the operator in ⚙ (voces.py provider 'elevenlabs') > env ELEVENLABS_VOICE_ID > the
     # Castilian Spanish config default. ElevenLabs identifies the voice by voice_id.
-    voice = selected_voice("elevenlabs") or SETTINGS.elevenlabs_voice_id
+    # V2-672: the language's own default sits BETWEEN the operator's choice and the env fallback. Before it
+    # there was no middle rung, and `SETTINGS.elevenlabs_voice_id` hardcoded a Castilian voice for every
+    # language — so English came out with a Spanish accent, which is exactly what the operator reported.
+    voice = (selected_voice("elevenlabs")
+             or _voices.elevenlabs_default_voice()
+             or SETTINGS.elevenlabs_voice_id)
     if voice:
         kwargs["voice_id"] = voice
     # Language LOCK: fixes the operator's language (es/en) so the model does NOT drift in accent (turbo/flash v2.5

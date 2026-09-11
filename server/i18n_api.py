@@ -3,7 +3,7 @@ i18n_api — HTTP surface for the multilingual UI (V2-089). Thin: GET endpoints 
 ensure/choose endpoints hit init (may generate). See the i18n package docstring for the runtime-vs-init
 separation.
 
-  GET  /api/i18n/state          → {active, available, preset, version, chosen}  (boot: which language + what
+  GET  /api/i18n/state          → {active, available, preset, version, chosen, picker}  (boot: which language
                                     exists + whether ANY language has ever been explicitly chosen — V2-101,
                                     drives whether the first-run language-onboarding modal shows at all)
   GET  /api/i18n/bundle/{code}  → {code, version, strings, generated}    (the UI strings for one language)
@@ -20,6 +20,7 @@ import asyncio
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
+from i18n import catalog as _catalog
 from i18n import runtime as _rt
 from i18n import init as _init
 from i18n.init import detect as _detect
@@ -31,6 +32,11 @@ router = APIRouter()
 async def i18n_state():
     state = _rt.state()
     state["chosen"] = not _detect.should_detect()
+    # V2-672 — the first-run picker's rows: ~40 languages with a flag and their own native name, the two we
+    # SHIP pinned on top. Served from here rather than hardcoded in the component because the same catalog
+    # answers "is this a language we can offer" on the server side too, and two copies of a 40-row list is
+    # how one of them goes stale.
+    state["picker"] = _catalog.picker()
     return state
 
 

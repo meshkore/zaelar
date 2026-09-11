@@ -30,22 +30,33 @@
   padding:16px;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);opacity:1;transition:opacity .5s ease}
 .lang-onb.open{display:flex}
 .lang-onb.gone{opacity:0;pointer-events:none}
-.lang-onb-card{width:100%;max-width:420px;background:var(--hb-bg);border:1px solid var(--hb-line);
-  border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.4);padding:26px 24px;color:var(--hb-ink)}
-.lang-onb-q{font-size:1.0625rem;font-weight:700;text-align:center}
-.lang-onb-hint{font-size:0.7812rem;color:var(--hb-muted);text-align:center;margin-top:6px}
-.lang-onb-chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:20px}
-.lang-onb-chip{border:1px solid var(--hb-line);background:var(--hb-bg-soft);color:var(--hb-ink);
-  font-size:0.8125rem;font-weight:600;padding:7px 14px;border-radius:20px;cursor:pointer}
-.lang-onb-chip:hover{border-color:var(--hb-accent);color:var(--hb-accent)}
-.lang-onb-chip[disabled]{opacity:.5;cursor:default}
-.lang-onb-typed{display:flex;gap:8px;margin-top:18px}
-.lang-onb-input{flex:1;box-sizing:border-box;padding:9px 12px;border:1px solid var(--hb-line);border-radius:10px;
-  background:var(--hb-bg-soft);color:var(--hb-ink);font-size:0.8125rem}
-.lang-onb-input:focus{border-color:var(--hb-accent);outline:none}
-.lang-onb-go{width:38px;border-radius:10px;border:none;cursor:pointer;color:#fff;font-weight:700;
-  background:linear-gradient(135deg,var(--hb-accent),var(--hb-accent2))}
-.lang-onb-go[disabled]{opacity:.55;cursor:default}
+.lang-onb-card{width:100%;max-width:520px;background:var(--hb-bg);border:1px solid var(--hb-line);
+  border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.4);padding:24px 22px;color:var(--hb-ink)}
+/* V2-672 — the picker carries NO words of ours: a speaking mark for what the screen is asking, then one row
+   per language with its flag and its OWN native name. Sized so the two shipped languages and the start of
+   the list are visible without scrolling on a laptop, and so the whole card fits a phone. */
+.lang-onb-mark{display:flex;justify-content:center;color:var(--hb-accent);margin-bottom:18px}
+.lang-onb-pinned{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.lang-onb-sep{height:1px;background:var(--hb-line);margin:16px 0 14px}
+.lang-onb-row{display:flex;align-items:center;gap:10px;width:100%;box-sizing:border-box;text-align:left;
+  border:1px solid var(--hb-line);background:var(--hb-bg-soft);color:var(--hb-ink);
+  padding:10px 12px;border-radius:12px;cursor:pointer;font-size:0.875rem;font-weight:600;min-height:44px}
+.lang-onb-row:hover{border-color:var(--hb-accent);color:var(--hb-accent)}
+.lang-onb-row[disabled]{opacity:.5;cursor:default}
+.lang-onb-row.pinned{border-color:var(--hb-accent);background:var(--hb-bubble);font-size:0.9375rem}
+.lang-onb-flag{font-size:1.25rem;line-height:1;flex:0 0 auto}
+.lang-onb-name{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lang-onb-search{display:flex;align-items:center;gap:8px;border:1px solid var(--hb-line);border-radius:10px;
+  background:var(--hb-bg-soft);padding:0 10px;margin-bottom:12px}
+.lang-onb-mag{flex:0 0 auto;opacity:.6;font-size:0.875rem}
+.lang-onb-input{flex:1;box-sizing:border-box;padding:10px 0;border:none;outline:none;
+  background:transparent;color:var(--hb-ink);font-size:1rem}
+.lang-onb-list{display:grid;grid-template-columns:1fr 1fr;gap:8px;max-height:44vh;overflow-y:auto;
+  padding-right:4px}
+@media (max-width:520px){
+  .lang-onb-pinned,.lang-onb-list{grid-template-columns:1fr}
+  .lang-onb-list{max-height:38vh}
+}
 .lang-onb-loading{display:flex;flex-direction:column;align-items:center;gap:16px;padding:10px 4px}
 .lang-onb-spinner{width:30px;height:30px;border-radius:50%;border:3px solid var(--hb-line);
   border-top-color:var(--hb-accent);animation:lang-onb-spin 0.85s linear infinite}

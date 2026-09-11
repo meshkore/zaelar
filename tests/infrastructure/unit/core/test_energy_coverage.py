@@ -52,6 +52,10 @@ _EXENTOS: dict[str, str] = {
     "voice/llm.py":
         "cliente del ARNÉS de evaluación (tests/agent_headless/harness) — corre en la máquina del "
         "desarrollador, nunca dentro de una Machine de inquilino, y su coste no es de ningún usuario.",
+    "voice/engine/speech/elevenlabs_voices.py":
+        "lee el CATÁLOGO de voces (/v1/voices y /v1/shared-voices). ElevenLabs factura por CARACTER "
+        "SINTETIZADO: estos dos endpoints son metadatos y no consumen cuota — lo que sí cuesta es "
+        "/v1/text-to-speech, y ese lo mide el builder del TTS por el camino de siempre.",
     "nucleo/llm_egress.py":
         "mapa de ENRUTADO: nombra hosts de proveedor para saber a qué familia iba dirigida una "
         "llamada, pero no abre ninguna conexión. Quien llama —y quien mide— es el call site.",

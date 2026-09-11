@@ -1778,6 +1778,14 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": [
                 "tests/browser/unit/widgets/test_an_order_names_its_target.py",
                 "tests/voice/unit/providers/test_a_notice_waits_its_turn.py"]},
+        # V2-672 — el selector de primer arranque, RENDERIZADO. La pantalla no lleva ni una palabra nuestra:
+        # una marca de persona hablando, y una fila por idioma con su bandera y su nombre nativo. El fuente
+        # no puede verlo — la primera corrida cazó que el icono se montaba con `innerHTML` en vez de `html`,
+        # así que h() lo ponía como ATRIBUTO y la marca no pintaba nada.
+        {"id": "4.162", "title": "El selector de idioma no instruye en ningún idioma: la marca pinta, en/es "
+                                 "arriba y destacados, 40 filas que caben",
+            "ch": UNIT, "paths": [
+                "tests/browser/e2e/onboarding/test_the_language_picker_has_no_words_of_ours.py"]},
         {"id": "4.161", "title": "El contrato del generador no contradice a su puerta, y una puerta en rojo "
                                  "recibe UNA reparación antes de tirar tres minutos",
             "ch": UNIT, "paths": [
@@ -3301,6 +3309,14 @@ DOMAINS: list[dict] = [
                                "que dice la tabla",
             "ch": UNIT,
             "paths": ["tests/infrastructure/unit/config/test_the_deployment_picks_the_profile.py"]},
+        # V2-672 — el operador, viendo su instalación recién reseteada: «me pide los idiomas, pero por detrás
+        # está hablando ya en un idioma por defecto». Era una DECISIÓN escrita en agent.py, no un despiste. Y
+        # la otra mitad: una única voz castellana cableada para TODOS los idiomas, así que el inglés salía con
+        # acento español. El selector ya no lleva ni una palabra nuestra y la voz la elige el idioma.
+        {"id": "8.6", "title": "Nadie habla hasta elegir idioma: el selector sin palabras, y la voz de "
+                               "ElevenLabs la decide el idioma",
+            "ch": UNIT,
+            "paths": ["tests/infrastructure/unit/core/test_nothing_speaks_before_a_language_is_chosen.py"]},
         {"id": "8.3", "title": "Política de modelos: un solo titular, sin proveedores retirados",
             "ch": UNIT, "paths": ["tests/infrastructure/unit/config/test_model_policy.py"]},
         {"id": "8.2", "title": "Perfiles / v2 / doctor / credenciales", "ch": UNIT, "paths": [

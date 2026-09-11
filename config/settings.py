@@ -124,7 +124,8 @@ def load_into_env():
 # Labels for the LiveKit engine's STT/TTS providers (engine names → human labels for the ⚙ dropdowns).
 _STT_LABELS = {"voxtral": "Voxtral · Mistral (cloud)", "deepgram": "Deepgram Nova-3 (cloud)",
                "whisper_local": "Whisper local (privado · gratis)"}
-_TTS_LABELS = {"cartesia": "Cartesia Sonic (cloud)", "kokoro_local": "Kokoro local (privado · gratis)"}
+_TTS_LABELS = {"cartesia": "Cartesia Sonic (cloud)", "kokoro_local": "Kokoro local (privado · gratis)",
+               "elevenlabs": "ElevenLabs (cloud · voz nativa por idioma)"}
 
 
 def effective() -> dict:
@@ -162,8 +163,9 @@ def effective() -> dict:
              "session", "STT server-side (LiveKit). Whisper local = gratis y privado."),
         knob("tts_provider", "TTS · texto→voz", os.getenv("ZAELAR_TTS", SETTINGS.tts_provider), tts_opts,
              "session", "Cartesia = cloud (multilingüe); Kokoro = local gratis."),
-        knob("assistant_voice", "Voz · dentro del proveedor", vs[cur_idx]["voice"], voice_opts,
-             "session", "elige la voz (se aplica al reconectar; también puedes rotarla tocando el orbe)"),
+        knob("assistant_voice", "Voz · dentro del proveedor", vs[cur_idx]["voice"] if vs else "", voice_opts,
+             "session", "elige la voz (se aplica al reconectar; también puedes rotarla tocando el orbe). "
+                        "Con ElevenLabs y Kokoro la lista son voces NATIVAS de tu idioma primero"),
         knob("stt_language", "Idioma", os.getenv("ZAELAR_LANGUAGE", SETTINGS.language),
              [(s.native, s.code) for s in langs_supported()], "session",
              "multilingüe; al cambiar, STT, voz TTS y respuestas se re-alinean al idioma (aplica al reconectar)"),
@@ -287,25 +289,33 @@ def update(payload: dict) -> dict:
         if k in payload:
             d[k] = bool(payload[k]) if not isinstance(payload[k], str) else payload[k].strip().lower() not in ("0", "false", "no", "off", "")
             applied.append(k)
-    # Language change → keep the VOICE aligned. ZAELAR_LANGUAGE was just set live above, so
-    # voices_for("kokoro") already reflects the new language. If the operator didn't also pick a voice
-    # and the persisted Kokoro voice isn't native to the new language, reset it to that language's
-    # default — a Spanish voice must never end up in the English pipeline (Cartesia is multilingual, skip).
+    # Language change → keep the VOICE aligned. ZAELAR_LANGUAGE was just set live above, so the catalogs
+    # below already reflect the new language. If the operator did not also pick a voice and the persisted
+    # one is not native to the new language, it is reset to that language's default — a Spanish voice must
+    # never end up in the English pipeline.
+    #
+    # V2-672: this covered KOKORO only, and ElevenLabs — the cloud TTS the canonical table names as the
+    # titular — fell through it entirely. So a language change moved the STT, the UI and the replies while
+    # the voice stayed whatever it was, which is the operator's own report. `default_voice_for` /
+    # `voices_for` answer for whichever provider is live, so Cartesia (genuinely multilingual: one voice
+    # speaks any language) correctly resolves to '' and nothing is realigned for it.
     if "stt_language" in applied and not str(payload.get("assistant_voice", "")).strip():
         try:
-            from voice.engine.speech.voices import kokoro_default_voice, tts_provider, voices_for
+            from voice.engine.speech.voices import (default_voice_for, tts_provider, voice_is_aligned,
+                                                     voices_for)
             prov = str(payload.get("tts_provider", "")).strip().lower() or tts_provider()
-            if prov in ("kokoro", "kokoro_local"):
-                vs = voices_for("kokoro")
-                if d.get("assistant_voice") not in {v["voice"] for v in vs}:
-                    d["assistant_voice"] = kokoro_default_voice()
-                    try:
-                        from server import state as S
-                        S.STATE["voice"] = next(
-                            (i for i, v in enumerate(vs) if v["voice"] == d["assistant_voice"]), 0)
-                    except Exception:
-                        pass
-                    applied.append("assistant_voice(realineada al idioma)")
+            lang = str(d.get("stt_language") or "").strip().lower()
+            want = default_voice_for(prov, lang)
+            if want and not voice_is_aligned(prov, str(d.get("assistant_voice") or ""), lang):
+                d["assistant_voice"] = want
+                try:
+                    from server import state as S
+                    vs = voices_for(prov, lang)
+                    S.STATE["voice"] = next(
+                        (i for i, v in enumerate(vs) if v["voice"] == d["assistant_voice"]), 0)
+                except Exception:
+                    pass
+                applied.append("assistant_voice(realineada al idioma)")
         except Exception as e:
             logger.warning(f"update: no pude realinear la voz al idioma ({e})")
 
