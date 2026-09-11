@@ -57,6 +57,19 @@
   .lang-onb-pinned,.lang-onb-list{grid-template-columns:1fr}
   .lang-onb-list{max-height:38vh}
 }
+/* V2-672 — step two: where the agent's files live. Self-host only, skippable, and it runs DURING the
+   language generation, so it is sized like the picker rather than like a dialog that interrupts. */
+.lang-onb-folder{display:flex;flex-direction:column;align-items:center;text-align:center;padding:6px 2px}
+.lang-onb-ftitle{font-size:1rem;font-weight:700;margin-bottom:8px}
+.lang-onb-fhint{font-size:0.8125rem;color:var(--hb-muted);line-height:1.45;margin-bottom:14px}
+.lang-onb-fpath{font-size:0.75rem;color:var(--hb-muted);opacity:.8;word-break:break-all;margin-bottom:12px}
+.lang-onb-folder .lang-onb-search{width:100%}
+.lang-onb-fproblem{font-size:0.8125rem;color:var(--hb-risk,#e0564a);margin-bottom:10px}
+.lang-onb-factions{display:flex;gap:10px;width:100%}
+.lang-onb-fbtn{flex:1 1 0;min-height:44px;border-radius:12px;cursor:pointer;font-size:0.9375rem;
+  font-weight:600;border:1px solid var(--hb-line);background:var(--hb-bg-soft);color:var(--hb-ink)}
+.lang-onb-fbtn.primary{border-color:var(--hb-accent);background:var(--hb-bubble);color:var(--hb-accent)}
+.lang-onb-fbtn[disabled]{opacity:.5;cursor:default}
 .lang-onb-loading{display:flex;flex-direction:column;align-items:center;gap:16px;padding:10px 4px}
 .lang-onb-spinner{width:30px;height:30px;border-radius:50%;border:3px solid var(--hb-line);
   border-top-color:var(--hb-accent);animation:lang-onb-spin 0.85s linear infinite}

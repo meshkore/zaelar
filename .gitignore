@@ -15,6 +15,8 @@ config/v2.json
 # Identidad de ESTA instalación (UUID4 aleatorio + fecha). Runtime por-instalación, jamás al repo:
 # commitearlo haría que todo el que clone comparta user_id y la observabilidad mezclaría instalaciones.
 config/identity.json
+# V2-638/V2-672 — per-install library overrides (a renamed folder, the base the operator chose).
+config/library.json
 # V2-672 — CACHE of the ElevenLabs voice catalog (per install, refreshed from the API). Not config: it is
 # regenerated on demand and holds nothing the operator typed.
 config/elevenlabs_voices.json

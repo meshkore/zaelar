@@ -68,8 +68,9 @@ def test_onboarding_lock_for_a_preset_language_skips_translation_and_alias_gener
 
 def test_onboarding_lock_for_a_new_language_translates_the_loading_line_before_the_full_bundle(monkeypatch):
     """The whole point of the priority translate: the 'detected' SSE event must carry ALREADY-translated
-    loading text, so the modal never shows a bare spinner with no words while the full bundle is still
-    generating in the background."""
+    text, so the modal never shows a bare spinner with no words while the full bundle is still generating
+    in the background. V2-672 widened it from one key to the whole set the first-run modal paints during
+    that wait (the loader AND the folder step), so it returns a dict now."""
     from i18n.init import detect
 
     _isolate_lock_side_effects(monkeypatch)
@@ -78,8 +79,8 @@ def test_onboarding_lock_for_a_new_language_translates_the_loading_line_before_t
 
     async def _fake_priority_translate(code):
         order.append("priority")
-        return "準備しています…"
-    monkeypatch.setattr(detect, "_priority_translate_loading", _fake_priority_translate)
+        return {"onboarding.loading": "準備しています…", "onboarding.folder.skip": "スキップ"}
+    monkeypatch.setattr(detect, "_priority_translate", _fake_priority_translate)
 
     from i18n import init as init_pkg
 
@@ -109,6 +110,8 @@ def test_onboarding_lock_for_a_new_language_translates_the_loading_line_before_t
     phases = [kw.get("extra", {}).get("phase") for _, kw in events]
     assert phases == ["detected", "ready"]
     assert events[0][1]["extra"]["loading"] == "準備しています…"
+    assert events[0][1]["extra"]["strings"]["onboarding.folder.skip"] == "スキップ", (
+        "the folder step runs DURING this wait, so its words have to travel with the same event")
 
 
 def test_plain_non_onboarding_lock_never_touches_the_alias_pack(monkeypatch):

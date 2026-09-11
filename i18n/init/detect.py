@@ -181,34 +181,46 @@ def ensure_for_text(text: str) -> str | None:
         return None
 
 
-async def _priority_translate_loading(code: str) -> str | None:
-    """Translate JUST `onboarding.loading` ahead of the full bundle, so a first-run onboarding modal can show
-    already-translated loader text without waiting the ~10s-2min the full 562-key manifest can take. Persists
-    the result into the generated store immediately so the full `ensure_language` diff (which runs right after)
-    sees it as already-current and doesn't re-translate it a second time with possibly different phrasing."""
+# The handful of strings the first-run modal paints BEFORE the full bundle exists. Everything the operator
+# sees between choosing a language and the agent being ready has to be in that language already — the
+# alternative is a loader and a folder question in a language they just told us they do not use.
+_PRIORITY_KEYS = ("onboarding.loading", "onboarding.folder.title", "onboarding.folder.hint",
+                  "onboarding.folder.choose", "onboarding.folder.skip", "onboarding.folder.problem")
+
+
+async def _priority_translate(code: str) -> dict:
+    """Translate JUST `_PRIORITY_KEYS` ahead of the full bundle, so the first-run modal can show real text
+    instead of a bare spinner while the ~10s-2min full manifest generates. Persists them into the generated
+    store immediately, so the `ensure_language` diff that runs right after sees them as already-current and
+    does not re-translate them with different phrasing.
+
+    Was `_priority_translate_loading`, one key. V2-672 made the modal's second step (where to keep the
+    files) run DURING that same wait — the operator's own sequencing — so the set it needs grew with it.
+    """
     from i18n import runtime as _rt
     if code in _rt.PRESET:
-        return _rt.strings(code).get("onboarding.loading")
+        have = _rt.strings(code)
+        return {k: have[k] for k in _PRIORITY_KEYS if k in have}
     man = _rt.manifest()
-    key = "onboarding.loading"
-    if key not in man:
-        return None
+    want = {k: man[k] for k in _PRIORITY_KEYS if k in man}
+    if not want:
+        return {}
     try:
         from i18n.init import generate as _generate
         from i18n import store as _store
-        got = await _generate.translate(code, {key: man[key]})
-        text = got.get(key)
-        if text:
+        got = await _generate.translate(code, want)
+        got = {k: v for k, v in (got or {}).items() if k in want and v}
+        if got:
             gen = _store.read(code)
             strings = dict(gen.get("strings", {}))
             src = dict(gen.get("src", {}))
-            strings[key] = text
-            src[key] = man[key]
+            strings.update(got)
+            src.update({k: want[k] for k in got})
             _store.save(code, _rt.MANIFEST_VERSION, strings, src)
-        return text
+        return got
     except Exception as e:  # noqa: BLE001
-        logger.warning(f"i18n.detect: priority translate of '{key}' failed for '{code}': {e}")
-        return None
+        logger.warning(f"i18n.detect: priority translate failed for '{code}': {e}")
+        return {}
 
 
 async def lock(code: str, *, onboarding: bool = False) -> dict:
@@ -249,13 +261,14 @@ async def lock(code: str, *, onboarding: bool = False) -> dict:
     except Exception as e:  # noqa: BLE001
         logger.warning(f"i18n.detect: could not set the memory's canonical language: {e}")
 
-    loading_text = None
+    early: dict = {}
     if onboarding:
-        loading_text = await _priority_translate_loading(code)
+        early = await _priority_translate(code)
         try:
             from voice.observer import emit
             emit("language", "detected", role="system",
-                 extra={"code": code, "phase": "detected", "loading": loading_text})
+                 extra={"code": code, "phase": "detected",
+                        "loading": early.get("onboarding.loading"), "strings": early})
         except Exception:
             pass
 

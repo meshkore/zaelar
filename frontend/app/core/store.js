@@ -373,6 +373,31 @@ export const pushMemPulse = (ev) => setMemPulse(ev);
 export const [langOnboardOpen, setLangOnboardOpen]   = createSignal(false);
 export const [langOnboardPhase, setLangOnboardPhase] = createSignal("ask");   // "ask" | "detected" | "ready"
 export const [langOnboardLoading, setLangOnboardLoading] = createSignal(""); // translated onboarding.loading text
+// V2-672 — the handful of strings the first-run modal paints BEFORE the full bundle exists (the loader line
+// and the folder step's own words). They ride the same SSE "detected" event, already translated by
+// i18n/init/detect.py's priority pass, because everything the operator sees after choosing a language has
+// to be in that language — including the screen that runs WHILE the rest of it is being generated.
+export const [langOnboardStrings, setLangOnboardStrings] = createSignal({});
+// A step of the first-run flow is still WAITING for an answer (today: the folder question). The language
+// being ready is no longer enough to close the veil — a bundle finishing while somebody is half-way through
+// choosing a folder must not take the question off the screen. Two facts, both required to close.
+export const [langOnboardHold, setLangOnboardHold] = createSignal(false);
+let _langReady = false;
+
+function _maybeCloseLangOnboard() {
+  if (!_langReady || langOnboardHold()) return;
+  setTimeout(() => setLangOnboardOpen(false), 550);   // let the CSS fade (.gone) play, then unmount
+}
+
+export function requestLangOnboardClose() {
+  _langReady = true;
+  _maybeCloseLangOnboard();
+}
+
+export function holdLangOnboard(on) {
+  setLangOnboardHold(!!on);
+  if (!on) _maybeCloseLangOnboard();
+}
 
 // ---- MOBILE SHELL (V2-124) — signals owned by the mobile PWA shell (frontend/mobile/), never read by the
 // desktop. They live HERE, in the shared store, and not in a store of their own, for the reason that governs the

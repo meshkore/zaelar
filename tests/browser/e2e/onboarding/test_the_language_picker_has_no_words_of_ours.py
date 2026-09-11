@@ -33,6 +33,7 @@ _HTML = """<!doctype html><html><head><meta charset="utf-8">
   // "/app/core/store.js?v=2" are two different modules to an ES loader, so dropping the query would give
   // the test its own copy of the store and `setLangOnboardOpen` would move nothing on screen.
   import * as store from "/app/core/store.js?v=2";
+  window.__store = store;
   const el = LanguageOnboarding();
   document.getElementById("root").appendChild(el);
   store.setLangOnboardOpen(true);
@@ -109,6 +110,10 @@ async def _boot(pw, viewport=None):
                   body=json.dumps({"chosen": False, "picker": catalog.picker()}))))
     await pg.route("http://zaelar.test/api/i18n/choose/**", lambda r: asyncio.ensure_future(
         r.fulfill(status=200, content_type="application/json", body='{"ok": true}')))
+    await pg.route("http://zaelar.test/api/library/base", lambda r: asyncio.ensure_future(
+        r.fulfill(status=200, content_type="application/json", body=json.dumps(
+            {"ok": True, "base": "/Users/x", "root": "/Users/x/library",
+             "can_choose": True, "has_dialog": True}))))
     await pg.route("http://zaelar.test/", lambda r: asyncio.ensure_future(
         r.fulfill(status=200, content_type="text/html", body=_HTML)))
     await pg.route("http://zaelar.test/app/**", lambda r: _serve(r, r.request.url))
@@ -185,3 +190,106 @@ def test_typing_narrows_the_list_and_clicking_a_row_locks_that_language(playwrig
     m = _run([filter_and_click])
     assert [u.split("zaelar.test")[-1] for u in m["posted"]] == ["/api/i18n/choose/de"], m["posted"]
     assert not m["errors"], f"page errors: {m['errors']}"
+
+
+# ── step two: where the files go (V2-672) ─────────────────────────────────────────────────────────────────
+
+_FOLDER_READ = """() => {
+  const card = document.querySelector(".lang-onb-card");
+  const veil = document.querySelector(".lang-onb");
+  const btns = [...document.querySelectorAll(".lang-onb-fbtn")];
+  return {
+    showing: !!document.querySelector(".lang-onb-folder"),
+    markInk: (() => { const m = document.querySelector(".lang-onb-folder svg");
+                      return !!m && m.getBoundingClientRect().width > 20; })(),
+    title: (document.querySelector(".lang-onb-ftitle") || {}).textContent || "",
+    path: (document.querySelector(".lang-onb-fpath") || {}).textContent || "",
+    buttons: btns.map(b => b.textContent),
+    problem: (document.querySelector(".lang-onb-fproblem") || {}).textContent || "",
+    gone: !!veil && veil.classList.contains("gone"),
+    onScreen: !!card && card.getBoundingClientRect().bottom <= window.innerHeight + 1,
+    loading: !!document.querySelector(".lang-onb-loading"),
+  };
+}"""
+
+
+async def _choose_language_then_detected(pg):
+    """Click a language, then play the SSE 'detected' event the way services/sse.js does — including the
+    already-translated strings the priority pass sends with it."""
+    await pg.fill(".lang-onb-input", "deu")
+    await pg.wait_for_function("() => document.querySelectorAll('.lang-onb-row').length === 1")
+    await pg.click(".lang-onb-row")
+    await pg.evaluate("""() => {
+      window.__store.setLangOnboardPhase("detected");
+      window.__store.setLangOnboardLoading("Wird vorbereitet…");
+      window.__store.setLangOnboardStrings({
+        "onboarding.folder.title": "Wo sollen die Dateien liegen?",
+        "onboarding.folder.choose": "Ordner wählen",
+        "onboarding.folder.skip": "Überspringen",
+        "onboarding.folder.problem": "Dieser Ordner geht nicht.",
+      });
+    }""")
+    await pg.wait_for_function("() => !!document.querySelector('.lang-onb-folder')")
+
+
+def _run_folder(steps=()):
+    async def go():
+        from playwright.async_api import async_playwright
+        async with async_playwright() as pw:
+            b, pg, errors = await _boot(pw)
+            await _choose_language_then_detected(pg)
+            for step in steps:
+                await step(pg)
+            out = await pg.evaluate(_FOLDER_READ)
+            out["errors"] = errors
+            await b.close()
+            return out
+    return asyncio.run(go())
+
+
+def test_the_wait_is_spent_asking_where_the_files_go_in_the_language_just_chosen(playwright_available):
+    """«Eso podría ser el paso número dos, en el idioma correspondiente… mientras se está haciendo la
+    traducción.» The words come from the SSE event, already translated — so this step is never in English
+    just because the full bundle is not built yet."""
+    m = _run_folder()
+    assert m["showing"], "the folder step must replace the bare spinner"
+    assert m["markInk"], "a folder mark, so the step reads before its words do"
+    assert m["title"] == "Wo sollen die Dateien liegen?", m["title"]
+    assert m["buttons"] == ["Ordner wählen", "Überspringen"], m["buttons"]
+    assert m["path"] == "/Users/x/library", "it has to say where the files go TODAY"
+    assert m["onScreen"] and not m["errors"], m
+
+
+def test_the_language_being_ready_does_not_snatch_the_question_away(playwright_available):
+    """The bundle finishing is not permission to close: he may be half-way through choosing a folder."""
+    async def ready(pg):
+        await pg.evaluate("""() => { window.__store.setLangOnboardPhase("ready");
+                                     window.__store.requestLangOnboardClose(); }""")
+    m = _run_folder([ready])
+    assert m["showing"], "«ready» must not remove an unanswered question"
+    assert not m["gone"], "and must not fade the card out from under it"
+
+
+def test_skip_is_a_real_way_out(playwright_available):
+    """«También hay que poner un botón de skip por si alguien no quiere hacer eso.»"""
+    async def ready_then_skip(pg):
+        await pg.evaluate("""() => { window.__store.setLangOnboardPhase("ready");
+                                     window.__store.requestLangOnboardClose(); }""")
+        await pg.click(".lang-onb-fbtn.ghost")
+        await pg.wait_for_function("() => document.querySelector('.lang-onb').classList.contains('gone')")
+    m = _run_folder([ready_then_skip])
+    assert m["gone"] and not m["showing"], m
+
+
+def test_a_folder_that_cannot_be_used_says_so_instead_of_failing_silently(playwright_available):
+    async def refuse(pg):
+        await pg.route("http://zaelar.test/api/library/base", lambda r: asyncio.ensure_future(
+            r.fulfill(status=400, content_type="application/json",
+                      body='{"ok": false, "reason": "system_directory"}'))
+            if r.request.method == "POST" else asyncio.ensure_future(r.fallback()))
+        await pg.fill(".lang-onb-folder .lang-onb-input", "/etc")
+        await pg.press(".lang-onb-folder .lang-onb-input", "Enter")
+        await pg.wait_for_function("() => !!document.querySelector('.lang-onb-fproblem')")
+    m = _run_folder([refuse])
+    assert m["problem"] == "Dieser Ordner geht nicht.", m["problem"]
+    assert m["showing"], "a refusal leaves him on the step, able to try again"

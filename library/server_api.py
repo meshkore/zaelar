@@ -33,6 +33,54 @@ async def set_rules(payload: dict | None = None):
     return JSONResponse(paths.set_overrides(payload or {}))
 
 
+# ── WHERE the library lives — the first-run folder step, self-host only (V2-672) ──────────────────────────
+# The operator picks a folder once, at onboarding, and every download and generated file lands under it.
+# A CLOUD account gets neither route: there the Volume IS the storage, the process has no desktop to draw a
+# dialog on, and offering the question would be offering a choice that cannot be honoured.
+
+def _folder_step_allowed() -> bool:
+    from nucleo import cloud_account
+    return not cloud_account.is_cloud_account()
+
+
+@router.get("/api/library/base")
+async def base_state():
+    """What the folder step needs to paint itself: where the files go now, whether this deployment may
+    change it, and whether a native picker can actually be drawn on this machine."""
+    from library import folder_dialog
+    allowed = _folder_step_allowed()
+    return JSONResponse({"ok": True, "base": str(paths.base()), "root": str(paths.root()),
+                         "can_choose": allowed,
+                         "has_dialog": bool(allowed and folder_dialog.available())})
+
+
+@router.post("/api/library/base/browse")
+async def base_browse():
+    """Open the OS folder picker. Best effort: `{"ok": false, "reason": "unavailable"}` when this machine
+    has no picker, which is a normal answer and not a failure — the caller falls back to a typed path."""
+    if not _folder_step_allowed():
+        return JSONResponse({"ok": False, "reason": "not_available_here"}, status_code=403)
+    from library import folder_dialog
+    return JSONResponse(folder_dialog.choose())
+
+
+@router.post("/api/library/base")
+async def set_base(payload: dict | None = None):
+    """Persist the chosen folder. An EMPTY value restores the default — the way back matters as much as the
+    way in. Refusals carry their `reason` so the screen can say what is wrong with the folder (V2-559)."""
+    if not _folder_step_allowed():
+        return JSONResponse({"ok": False, "reason": "not_available_here"}, status_code=403)
+    raw = str((payload or {}).get("base") or "").strip()
+    res = paths.set_overrides({"base": raw})
+    if not res.get("ok"):
+        return JSONResponse(res, status_code=400)
+    try:
+        paths.ensure()                    # create the tree where he put it, so the choice is visible at once
+    except Exception:  # noqa: BLE001
+        pass
+    return JSONResponse({"ok": True, "base": str(paths.base()), "root": str(paths.root())})
+
+
 @router.get("/api/library/list")
 async def listing(kind: str = "", playable_only: bool = False, limit: int = index.MAX_ENTRIES):
     return JSONResponse({"ok": True,

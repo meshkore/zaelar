@@ -3317,6 +3317,14 @@ DOMAINS: list[dict] = [
                                "ElevenLabs la decide el idioma",
             "ch": UNIT,
             "paths": ["tests/infrastructure/unit/core/test_nothing_speaks_before_a_language_is_chosen.py"]},
+        # V2-672 F4 — el paso DOS del arranque: dónde guarda el agente sus ficheros. Es una costura de
+        # seguridad NUEVA: `library/paths.resolve()` rechaza rutas absolutas a propósito (lo que le llega
+        # viene de magnets, del modelo y de query strings), y esta tiene que ACEPTARLAS. Otra puerta, otra
+        # procedencia, y un validador que RECHAZA en vez de reinterpretar.
+        {"id": "8.7", "title": "Dónde viven los ficheros del agente: el validador rechaza y dice por qué, y "
+                               "la nube no se pregunta",
+            "ch": UNIT,
+            "paths": ["tests/infrastructure/unit/core/test_where_the_agents_files_live.py"]},
         {"id": "8.3", "title": "Política de modelos: un solo titular, sin proveedores retirados",
             "ch": UNIT, "paths": ["tests/infrastructure/unit/config/test_model_policy.py"]},
         {"id": "8.2", "title": "Perfiles / v2 / doctor / credenciales", "ch": UNIT, "paths": [

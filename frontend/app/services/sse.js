@@ -211,9 +211,14 @@ export function openSSE(desktop) {
       if (d.phase === "detected") {
         store.setLangOnboardPhase("detected");
         store.setLangOnboardLoading(d.loading || "");
+        store.setLangOnboardStrings(d.strings || {});             // V2-672: the folder step's own words, early
       } else if (d.phase === "ready") {
         store.setLangOnboardPhase("ready");
-        setTimeout(() => store.setLangOnboardOpen(false), 550);   // let the CSS fade (.gone) play, then unmount
+        // V2-672 — the modal is NOT unmounted here any more. The folder step (where to keep the files) runs
+        // while the bundle generates, so "ready" can land with an unanswered question on screen; closing on
+        // it would take the question away mid-answer. The component owns the close now: it unmounts once the
+        // language is ready AND nothing is still being asked.
+        store.requestLangOnboardClose();
       }
     } else if (d.kind === "session" && d.label === "RESET") {                    // V2-084: reset → procesos EN BLANCO
       // The desktop closes it via the widget/close event; here we immediately empty the Processes tab (live chips
