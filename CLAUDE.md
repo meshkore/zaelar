@@ -471,6 +471,33 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **The window measures SILENCE, not speech — and a text the agent produces is FILED in the library
+  (V2-661, 2026-09-11)**: «prioridad absoluta: le digo la palabra, hablo de forma continua sin pausas de 3 o
+  5 segundos, y me desactiva el micro — se apaga el color del orbe y yo no he terminado la frase». Session
+  1cdcb08e, 00:46: with the window open he spoke for **47 s** with no gap over 1.1 s — eleven VAD rising
+  edges, the STT holding the sentence as «frase a medias», no verdict possible mid-sentence — and the whole
+  sentence was judged AMBIENT at :52. V2-660 had made the window measure from the speech ONSET, but every
+  rising edge re-stamped that onset, so the sentence was measured from its LAST breath, 33 s after the
+  anchor: the fix for «judged at the end» had moved the reference to the wrong start. The ring died 5 s in,
+  because its client timer only knows the last DIRECTED verdict. His rule (V2-655): three or four seconds
+  **of silence**. Now an utterance is a CHAIN of VAD segments: `note_speech_onset` keeps the chain's first
+  onset when a rising edge follows the falling edge (`note_speech_end`, new) by less than the window;
+  `note_directed` moves the onset ONTO the anchor when a fragment's verdict lands while he is still talking;
+  `_window_ref`/`window_open` answer `now` once his voice stopped and the silence outlasted the window; a
+  180 s cap bounds a missed falling edge. Both VAD events carry `edge: on|off` and `sse.js` holds a LIT ring
+  while his voice is active, re-arming a full window when it stops — never lighting one from off. **The
+  file**: «¿has guardado la declaración en mis archivos?» → the worker fetched and verified the text and
+  wrote a perfect `.md` into `widgets/_data/navegador/` — the browser task's directory, the only path it had
+  ever been told — then saw the `archivos` shelf empty and spent three minutes trying to download a PDF.
+  Resource, not reasoning: `library/index.save_text` (one safe leaf, `.md` when the name has no document
+  extension, collisions suffixed), `archivos.save_document {name,text}` (lands the card on the shelf with the
+  file selected, returns `where` + absolute `path`), `documento.save_to_library` (the text ON SCREEN becomes a
+  file — one data-op, no worker), and `dispatch_prompts.library_block()` appended to every trusted worker
+  prompt: the root, the shelves, the filing action, and the wrong place it actually wrote to. Nodes **3.34**
+  and **4.154**; four disarms, mutations asserted, all red. A sibling session owns the other half of that
+  night (`reveal_local_file`: a double-click must not download a second copy). ⚠️ The ring holding through a
+  long sentence is NOT verified live yet.
+
 - **The errand HARNESS closes the circle, and the window measures silence from speech ONSET (V2-660,
   2026-09-11)**: the operator's directive — «cuando obtiene permiso para realizar una acción falta terminar
   de cerrar el círculo… un arnés dinámico que comprueba que lo pedido se ha conseguido y solo entonces se
