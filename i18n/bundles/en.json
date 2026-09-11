@@ -728,5 +728,13 @@
   "wizard.stepHuecosTitle": "② Set up what's missing",
   "wizard.stepPerfilTitle": "① Choose a profile",
   "wizard.suggestion": "Suggestion: <b>{profile}</b> — {why}",
-  "wizard.title": "Initial setup"
+  "wizard.title": "Initial setup",
+  "fault.no_model.title": "The language model has no credit",
+  "fault.no_model.body": "Zaelar can't think without a model. {model} answered that the account has no balance left, so I've stopped the voice rather than pretend to listen.",
+  "fault.no_model.body_generic": "Zaelar can't think without a model, and none of the configured ones is answering. I've stopped the voice rather than pretend to listen.",
+  "fault.no_model.suppressed": "You do have credentials for {names}. I don't switch to a provider you haven't chosen — add it under {key} in the settings and I'll use it.",
+  "fault.no_model.fix": "Top up that provider's balance, or pick another model in the settings.",
+  "fault.no_model.open_config": "Open settings",
+  "fault.no_model.dismiss": "Carry on without voice",
+  "fault.no_model.retry": "I've fixed it — try again"
 }

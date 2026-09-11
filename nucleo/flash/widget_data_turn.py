@@ -276,7 +276,10 @@ def spoken_for(parte: dict, ack: str) -> str:
     parte = parte if isinstance(parte, dict) else {}
     ejec = parte.get("executed")
     if ejec == "widget_data_failed":
-        return "No he podido: " + (str(parte.get("message") or "").strip() or "el widget no lo aceptó.")
+        from voice.engine.core import langs as _lg_wd           # V2-676: out of the literal, into the table
+        _sp = _lg_wd.current_language()
+        return _sp.widget_data_failed.replace(
+            "{reason}", str(parte.get("message") or "").strip() or _sp.widget_refused)
     if ejec != "widget_data":
         return ack
     fallidas = parte.get("fallidas") or []

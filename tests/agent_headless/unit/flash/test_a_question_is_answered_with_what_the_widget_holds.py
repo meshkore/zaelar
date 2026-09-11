@@ -41,7 +41,10 @@ def test_a_widget_that_publishes_nothing_never_invents_an_enumeration():
 def test_a_failed_op_keeps_its_failure_message():
     parte = {"executed": "widget_data_failed", "widget": "youtube", "act": "add", "message": "no lo aceptó"}
     out = WDT.named_ack(parte, "Hecho.", "¿Qué hay en la lista?")
-    assert "No he podido" in out
+    # V2-676: the prefix comes from the language table now, so this reads it instead of pinning Spanish —
+    # the literal only passed while the code ignored which language the operator had chosen.
+    from voice.engine.core import langs as _lg
+    assert _lg.current_language().widget_data_failed.split("{")[0].strip() in out
 
 
 def test_the_probe_wires_it():

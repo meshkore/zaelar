@@ -340,11 +340,22 @@ def test_el_turno_de_VOZ_lo_pregunta_y_cambia_lo_que_dice():
     txt = src.read_text(encoding="utf-8")
     # V2-252: the shared module resolves «is anyone left?» and this turn READS the verdict.
     assert '_dry = bool(_v.get("dry"))' in txt
-    assert "sin proveedor de modelo" in txt
     # Repointed 2026-08-31 (ratchet extraction): the wiring is unchanged — «¿me lo repites?» stays the
     # NOT-dry line, and the dry branch swaps it for the chain's own sentence (dry_chain_line).
     assert '_line = "Uf, se me ha ido un momento. ¿Me lo repites?"' in txt
     assert "if _dry:" in txt and "_pchain2.dry_chain_line" in txt
+    # V2-676 — this used to also assert the Spanish SENTENCE appeared in that file. It does not any more, and
+    # that is the fix, not a regression: a sentence written where it is delivered is exactly how the operator
+    # ended up being told «me he quedado sin proveedor de modelo» in the middle of an English session. The
+    # wiring guard now measures that the branch reaches the TABLE, and that the table answers in his language.
+    assert "dry_alert_extra()" in txt, "the dry turn must also put the fault on his SCREEN"
+    import os
+    _prev = os.environ.get("ZAELAR_LANGUAGE")
+    os.environ["ZAELAR_LANGUAGE"] = "en"
+    try:
+        assert "credit" in pc.dry_chain_line([]).lower()
+    finally:
+        os.environ.pop("ZAELAR_LANGUAGE", None) if _prev is None else os.environ.update(ZAELAR_LANGUAGE=_prev)
     from nucleo.flash import provider_failure as _pf
     assert "pc.pick(role) is None" in inspect.getsource(_pf.handle)
 
@@ -439,7 +450,19 @@ def test_el_turno_de_voz_NOMBRA_lo_que_esta_callado():
     Repointed on 2026-08-31 (architecture ratchet): MESSAGE COMPOSITION was extracted to
     `provider_chain.dry_chain_line` — the guard still covers both halves, each where it now lives:
     the voice turn CALLS (suppressed_relays + dry_chain_line in nucleo.py), and the phrase NAMES the key that
-    activates it (`fast.providers`, now checked as FUNCTION BEHAVIOR rather than as text in a file)."""
+    activates it (`fast.providers`, now checked as FUNCTION BEHAVIOR rather than as text in a file).
+
+    RENEGOTIATED on 2026-09-11 (V2-676), deliberately and not sideways. V2-244's rule was that a credentialed
+    rung we are silencing must be NAMED **with the config key that enables it**. The operator heard that
+    sentence — config key and all — spoken aloud in Spanish in the middle of an English session, and ruled:
+    «hay que marcar el estado en rojo y que salga un mensaje en grande, en el idioma del usuario, recarga o
+    cámbialo en la configuración, y ponemos un botón que abra la configuración».
+
+    So the rule SPLITS, and both halves are still guarded here:
+      · the NAME stays in what he hears — a rung we silenced is useless as a secret;
+      · the CONFIG KEY moves to what he SEES (`dry_fault`), next to the button that acts on it. A voice
+        reciting `fast.providers` was never actionable; a screen with it is.
+    What would break the rule is the key existing NOWHERE, so the second assertion below is the teeth."""
     import inspect
     import pathlib
     src = pathlib.Path(inspect.getfile(pc)).parent.parent.parent / "voice/engine/llm/providers/nucleo.py"
@@ -447,8 +470,12 @@ def test_el_turno_de_voz_NOMBRA_lo_que_esta_callado():
     assert "_pchain2.suppressed_relays()" in txt
     assert "_pchain2.dry_chain_line" in txt
     line = pc.dry_chain_line(["deepseek-directo"])
-    assert "fast.providers" in line and "deepseek-directo" in line
-    assert "fast.providers" not in pc.dry_chain_line([])   # sin callados no se receta una clave que no aplica
+    assert "deepseek-directo" in line, "a rung we silenced must be named in what he hears"
+    # …and the key that turns it on reaches him on the SCREEN, with the rung it applies to.
+    fault = pc.dry_fault()
+    assert fault["config_key"] == "fast.providers"
+    assert fault["code"] == "no_model_credit"
+    assert "fast.providers" not in line, "config keys are not spoken aloud — they are shown, with a button"
 
 
 # ── V2-246: a tier that ALWAYS stalls was never penalized ──────────────────────────────────────────

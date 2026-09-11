@@ -865,8 +865,8 @@ async def _authenticate(task_id: str, url: str, *, site: str = "", goal: str = "
     tasks.milestone(task_id, "🔓 Inicia sesión en la ventana; lo detecto solo cuando entres — no tienes que hacer nada más")
     try:
         from voice import proactive
-        await proactive.notify("navegador", "Te abrí el login. Entra con tu cuenta; en cuanto vea que estás dentro, "
-                               "sigo yo solo.", speak=True)
+        from i18n import langs as _lg_ow          # V2-676: spoken text lives in the table
+        await proactive.notify("navegador", _lg_ow.current_language().login_opened, speak=True)
     except Exception:
         pass
     _arm_login_watch(task_id, site)                               # WATCH the window → auto-detect login
@@ -981,8 +981,10 @@ async def _auth_done(task_id: str) -> None:
         _auth_active = ""
         try:
             from voice import proactive
-            await proactive.notify("navegador", f"No me quedó guardada la sesión de {site}. ¿Reintentamos el "
-                                   f"inicio de sesión?", kind="notify")
+            from i18n import langs as _lg_ow2     # V2-676
+            await proactive.notify("navegador",
+                                   _lg_ow2.current_language().login_not_saved.replace("{site}", str(site)),
+                                   kind="notify")
         except Exception:
             pass
         return

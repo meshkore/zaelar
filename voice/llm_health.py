@@ -38,13 +38,20 @@ def classify(text: str) -> str:
 
 
 def messages(text: str) -> tuple[str, str]:
-    """Return (ui_banner, spoken_line) for the operator — clear, human, no HTTP jargon."""
+    """Return (ui_banner, spoken_line) for the operator — clear, human, no HTTP jargon.
+
+    V2-676: the six sentences moved to the LANGUAGE TABLE. They used to be Spanish literals here, so an
+    operator running in English was told his model had no credit in a language he had not chosen — measured
+    on session `af4429e0`. A sentence the operator can hear belongs where every other one lives."""
     kind = classify(text)
+    try:
+        from voice.engine.core import langs as _lg
+        sp = _lg.current_language()
+    except Exception:  # noqa: BLE001 — a broken table must never swallow a model failure
+        return ("⚠️ El modelo de lenguaje no responde ahora mismo.",
+                "Ahora mismo no puedo acceder al modelo. Probemos de nuevo en un momento.")
     if kind == "credit":
-        return ("⚠️ Sin saldo/cuota en el modelo de lenguaje — recarga los créditos.",
-                "Oye, nos hemos quedado sin saldo en el modelo. Recarga los créditos y seguimos.")
+        return (sp.model_credit_banner, sp.model_credit_line)
     if kind == "auth":
-        return ("⚠️ Credencial del modelo inválida — revisa la API key.",
-                "Tengo un problema con la credencial del modelo. Revísala, por favor.")
-    return ("⚠️ El modelo de lenguaje no responde ahora mismo.",
-            "Ahora mismo no puedo acceder al modelo. Probemos de nuevo en un momento.")
+        return (sp.model_auth_banner, sp.model_auth_line)
+    return (sp.model_outage_banner, sp.model_outage_line)

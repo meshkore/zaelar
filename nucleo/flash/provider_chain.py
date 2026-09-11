@@ -614,10 +614,49 @@ def dry_chain_line(callados: list[str]) -> str:
     `suppressed_relays()`, which produces its input. The two rules it carries are measured ones:
     «¿me lo repites?» is a lie with no provider left (V2-243), and a healthy, credentialed rung that the
     self-host rule is silencing must be NAMED, with the config key that enables it (V2-244)."""
+    # V2-676 — FROM THE LANGUAGE TABLE, and SHORT. The old text was a Spanish literal that also recited a
+    # config key (`fast.providers`) out loud: the operator heard it in English session `af4429e0` and read it
+    # as the product breaking twice over. The detail — which model, how to top it up, the way into the
+    # settings — now goes on SCREEN, in his language and with a button (`dry_fault()` below); what the voice
+    # says is one sentence that points at it.
+    from i18n import langs as _lg
+    sp = _lg.current_language()
     if callados:
-        return (f"Me he quedado sin proveedor de modelo. Tengo credencial de {', '.join(callados)}, pero en "
-                "self-host mi cadena de voz es solo el titular y no me paso sola a un proveedor que no hayas "
-                "elegido. Si quieres que lo use, ponlo en `fast.providers`; si no, hay que recargar el titular.")
-    return ("Me he quedado sin proveedor de modelo: no me queda ninguno al que preguntar, así que "
-            "repetírmelo no va a servir. Lo tienes en el panel de estado — hay que recargar o cambiar de "
-            "proveedor, y en cuanto lo hagas sigo.")
+        return sp.no_model_provider_suppressed.replace("{names}", ", ".join(callados))
+    return sp.no_model_provider
+
+
+# What the SCREEN is told when the chain is dry (V2-676) — a CODE plus data, never prose.
+#
+# The operator's instruction, after hearing the old sentence in the wrong language in the middle of an English
+# session: «hay que marcar el estado en rojo y que salga un mensaje en grande, en el idioma del usuario
+# obviamente, que diga falta saldo en el modelo tal, recarga por favor o cámbialo en la configuración, y
+# ponemos un botón que abra la configuración».
+#
+# So the engine sends FACTS and the frontend renders them with its own i18n keys. That is the only shape that
+# survives a language we do not ship: prose composed here would have to be translated here, and this is the
+# one moment when the thing that translates —a model— is exactly what we do not have.
+def dry_fault() -> dict:
+    """`{code, role, model, provider, suppressed, config_key}` for the blocking screen. Never raises."""
+    out = {"code": "no_model_credit", "role": "fast", "model": "", "provider": "", "suppressed": [],
+           # The key that would enable a silenced rung. It used to be recited ALOUD (V2-244); it belongs on a
+           # screen next to the button that opens the settings, which is where the operator can act on it.
+           "config_key": "fast.providers"}
+    try:
+        from config import v2 as _v2
+        cfg = _v2.get("fast") or {}
+        out["model"] = str(cfg.get("model") or "")
+        out["provider"] = str(cfg.get("provider") or "")
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        out["suppressed"] = list(suppressed_relays())
+    except Exception:  # noqa: BLE001
+        pass
+    return out
+
+
+def dry_alert_extra() -> dict:
+    """The BLOCKING alert's payload: `{blocking, fault}`. Never raises — an alert that dies computing its own
+    payload would leave the operator with a silent agent and no screen, which is the failure it reports."""
+    return {"blocking": True, "fault": dry_fault()}

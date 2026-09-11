@@ -725,7 +725,6 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
         _sq = next((t["args"].get("query") for t in tool_calls if t["name"] == "web_search"), "") or text
         try:
             from nucleo import websearch as _ws
-            from . import prompt as _prompt2
             _t_s = time.time()
             _res = await asyncio.to_thread(_ws.search, _sq)
             _ctx = _ws.format_results(_res)
@@ -745,25 +744,18 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
                 _emit_obs("search", "🔎 resultados web", text=_sq, role="system", extra=_x)
             except Exception:
                 pass
-            # V2-135 — the composing pass used to see the QUERY as the question, and the query is the model's
-            # own reformulation. «¿A qué hora abre mañana el Museo del Prado y cuánto cuesta la entrada general?»
-            # searched as «horario Museo del Prado» reached this prompt as a one-fact question, so the price half
-            # was gone BEFORE composition: not the model deciding to skip it, the half no longer existing. What
-            # the operator asked goes in verbatim, the query goes in as what was actually searched, and the
-            # difference between them is what lets the reply say which half the results do not cover.
-            _sys2 = (_prompt2._lang_lock()
-                     + "\nResponde en 1-2 frases habladas, naturales, sin URLs, usando estos resultados web. "
-                       "Contesta TODO lo que preguntó (si pidió dos datos, los dos); si los resultados solo "
-                       "cubren una parte, di CUÁL falta y ofrécete a mirarla — no la dejes caer en silencio. "
-                       "Si no contienen una respuesta clara, dilo; no inventes.\n\n"
-                     + f"PREGUNTA DEL OPERADOR: {operator_text}\n"
-                     + f"BÚSQUEDA REALIZADA: {_sq}\n\nRESULTADOS:\n{_ctx or '(sin resultados)'}")
+            # V2-676 — the prompt lives in `flash/search_turn`, shared with the voice channel (it was a
+            # parallel impl since V2-135, and the missing half — telling the model WHY a search came back
+            # empty — was missing in both). `denial_repair` is the backstop for the sentence the prompt bans.
+            from . import search_turn as _st
+            _sys2 = _st.compose_system(operator_text, _sq, _res, _ctx)
             _parts = []
             async for _delta in FastClient().stream(
                     [{"role": "system", "content": _sys2}, {"role": "user", "content": operator_text or _sq}],
-                    spec=spec, max_tokens=240):
+                    spec=spec, max_tokens=_st.MAX_TOKENS):
                 _parts.append(_delta)
-            spoken = dialog.sanitize_reply(speech.sanitize("".join(_parts), drop_metadata=False))
+            spoken = _st.denial_repair(
+                dialog.sanitize_reply(speech.sanitize("".join(_parts), drop_metadata=False)), _res)
         except Exception:
             # Con la búsqueda CAÍDA, dejar la respuesta original sería quedarnos justo con el dato improvisado
             # que este backstop existe para no dar. Un «no lo he podido comprobar» es peor respuesta y mejor

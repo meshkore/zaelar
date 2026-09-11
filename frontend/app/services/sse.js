@@ -173,6 +173,17 @@ export function openSSE(desktop) {
     } else if (d.kind === "alert") {                                              // hard notice (e.g. no LLM credit) → red banner
       store.showAlert(d.label || t("sse.llm_problem"));
       refreshStatus();                                                           // turn the ◉ status icon red now
+      // V2-676 — a BLOCKING fault is not a banner. The engine marks it, and it carries facts (which model,
+      // which key, which credentialed rung is silenced) that this client renders in the operator's own
+      // language. Measured: the model ran out of credit mid-conversation and the only sign he got was one
+      // sentence, spoken in Spanish, in an English session — he kept talking to an agent that could not
+      // answer. The voice stops with it: a live microphone over a dead brain is the state that lies.
+      // `session-lk.js` imports THIS module, so the stop is ANNOUNCED rather than called — the same shape as
+      // `hb:canvas-reset`. main.js owns the voice and listens for it.
+      if (d.blocking) {
+        store.showFault(d.fault || { code: "no_model_credit" });
+        try { document.dispatchEvent(new CustomEvent("hb:blocking-fault", { detail: d.fault || {} })); } catch (_) {}
+      }
     } else if (d.kind === "ui" && d.label === "orb:attention") {                 // 🤖 mode changed — button OR voice (2026-09-09)
       store.setAttentionMode(d.state === "wakeword" ? "smart" : (d.state || "always"));
       // A mode flip closes the standing window on the ENGINE (attention.on_mode_change, 2026-09-10) — the

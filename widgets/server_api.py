@@ -625,8 +625,10 @@ async def resume_interrupted_generations() -> None:
                 continue
             try:
                 from voice import proactive
-                await proactive.notify("widget", f"El servidor se reinició a mitad de crear el widget «{wid}»; "
-                                                 f"lo relanzo ahora.", speak=False)
+                from i18n import langs as _lg_wsa      # V2-676
+                await proactive.notify("widget",
+                                       _lg_wsa.current_language().widget_build_resumed.replace("{name}", str(wid)),
+                                       speak=False)
             except Exception:
                 pass
             generator._discard(wid)                     # half-written folder → rebuild from clean

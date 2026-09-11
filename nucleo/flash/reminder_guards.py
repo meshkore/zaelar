@@ -651,5 +651,7 @@ def follow_up_line(english: bool | None = None) -> str:
             english = str(_langs.current_code() or "").lower().startswith("en")
         except Exception:  # noqa: BLE001
             english = False
-    return ("Sorry — it is not on screen yet. I am getting it ready for you." if english
-            else "Perdona — todavía no está en pantalla. Te lo estoy preparando.")
+    # V2-676 — the inline `if english:` was RIGHT for an English operator and wrong for every other one: a
+    # second vocabulary that stops at two languages is exactly what the language table exists to replace.
+    from voice.engine.core import langs as _lg_rg
+    return _lg_rg.spec("en" if english else None).not_on_screen_yet

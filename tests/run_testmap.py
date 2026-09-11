@@ -1449,6 +1449,20 @@ DOMAINS: list[dict] = [
             "ch": UNIT,
             "paths": ["tests/infrastructure/unit/core/"
                       "test_a_phase_of_the_relationship_has_its_own_prompt.py"]},
+        # V2-676 — medido en su sesión INGLESA `af4429e0` (2026-09-11), dos fallos que viajaban juntos:
+        #   · cinco búsquedas del tiempo en Nueva York, las cinco n:0 con `failure.kind = captcha`, y el modelo
+        #     explicó el vacío con la única historia que tiene: «I don't have live internet access… my training
+        #     data has a cutoff date». La causa estaba MEDIDA en observabilidad y no llegaba al único lector que
+        #     tenía que explicarla. Su reacción es la medida del coste: «no entiendo cómo después de dos meses
+        #     de pruebas el sistema dice que no sabe buscar».
+        #   · el 402 de DeepSeek y un worker muerto se lo contaron EN CASTELLANO en mitad de una conversación
+        #     en inglés, porque esas frases eran literales en su punto de entrega en vez de filas de la tabla.
+        # El trinquete del final es la mitad duradera: congela QUÉ puntos de entrega escriben prosa todavía.
+        {"id": "3.39", "title": "Lo que oye el operador está en SU idioma, y una búsqueda bloqueada lo dice — "
+                                "nunca «no tengo acceso a internet»",
+            "ch": UNIT,
+            "paths": ["tests/infrastructure/unit/core/"
+                      "test_what_the_operator_hears_is_in_his_language.py"]},
     ]},
     {"id": "4", "name": "WIDGETS", "nodes": [
         {"id": "4.1", "title": "Ciclo de vida / acciones / refs / generador / background", "ch": UNIT, "paths": [

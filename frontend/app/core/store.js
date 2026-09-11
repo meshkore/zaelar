@@ -164,6 +164,18 @@ export const [gateOn, setGateOn]       = createSignal(localStorage.getItem("zael
 export const [spk, setSpk]             = createSignal({ show: false, text: "", kind: "" });           // owner-voice indicator
 
 export const [alert, setAlert]         = createSignal(null);   // { msg, onClick } | null  → top banner
+// A BLOCKING FAULT — the agent cannot work and saying so quietly is not enough (V2-676).
+//
+// The operator, after a session where the model ran out of credit mid-conversation and the only sign was a
+// sentence spoken in the wrong language: «la voz hay que pararla y hay que bloquear a la gente… que salga la
+// alerta en grande… en el idioma del usuario, obviamente… y ponemos un botón que abra la configuración».
+//
+// It holds FACTS from the engine (`{code, model, provider, suppressed, config_key}`), never prose: the text is
+// rendered here from i18n keys, so a French install shows French — which a sentence composed by the engine
+// could not do, because the thing that translates is the very model that just died.
+export const [fault, setFault]         = createSignal(null);   // { code, model, provider, suppressed, config_key } | null
+export const showFault = (f) => setFault(f && typeof f === "object" ? f : { code: "no_model_credit" });
+export const clearFault = () => setFault(null);
 
 // AUDIO PLAYBACK BLOCKED BY THE BROWSER (V2-573). Not a mute and not a failure: every mobile browser refuses to
 // play a remote audio track until the page has had a user gesture, and LiveKit reports it as `canPlaybackAudio`.

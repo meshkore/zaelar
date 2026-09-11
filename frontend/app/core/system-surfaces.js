@@ -30,6 +30,7 @@ import { ChatWall } from "../components/ChatWall.js?v=5";
 import { ConfigPanel } from "../components/ConfigPanel.js?v=2";
 import { DebugPanel } from "../components/DebugPanel.js?v=4";
 import { FeedbackWidget } from "../components/FeedbackWidget.js?v=1";
+import { FaultModal } from "../components/FaultModal.js?v=1";
 import { LanguageOnboarding } from "../components/LanguageOnboarding.js?v=1";
 import { MemoryMap } from "../components/MemoryMap.js?v=2";
 import { Orb } from "../components/Orb.js?v=3";
@@ -121,6 +122,13 @@ export const SYSTEM_SURFACES = [
   // ── TRANSITORIOS (banner / velo de arranque) ──
   { id: "alert",      comp: Alert,        target: "body", phase: "overlay", kind: "transient",
     toggle: "store.showAlert (hard notice, e.g. no model balance)", label: "Notice banner",
+    name: null, aliases: null },
+  // V2-676 — the BLOCKING fault. Sibling of `alert` and deliberately separate: a banner is what a dry model
+  // chain used to get, and the operator walked past it for two minutes while talking to an agent that could
+  // not answer. This one covers the screen, stops the voice and carries a button into the settings. Not
+  // voice-addressable: it appears when the agent cannot speak, so «open the fault» could never be said.
+  { id: "fault",      comp: FaultModal,   target: "body", phase: "overlay", kind: "modal",
+    toggle: "store.showFault (the agent cannot work — e.g. no model credit)", label: "Blocking fault",
     name: null, aliases: null },
   { id: "boot",       comp: BootOverlay,  target: "body", phase: "overlay", kind: "transient",
     toggle: "store.bootReady (startup veil)", label: "Startup splash",

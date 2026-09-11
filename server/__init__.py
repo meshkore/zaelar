@@ -300,6 +300,36 @@ async def _lifespan(app: FastAPI):
         _intro_pack.start()
     except Exception as e:
         logger.warning(f"context packs start failed (conversation unaffected): {e}")
+    # LANGUAGE TOP-UP AFTER AN UPDATE (V2-676). `i18n.init.prepare()` is the idempotent entry that fills in
+    # whatever manifest keys a language is missing — a brand-new language at onboarding, and equally the NEW
+    # KEYS an update ships. Its own docstring has claimed since V2-089 that "the boot sequence and the
+    # language-switch path" both call it. Only the second one ever did: `detect.lock()` and a `/api/i18n/ensure`
+    # endpoint nobody calls. So a self-hoster running in French who updated the engine kept every new label in
+    # English for good, with nothing anywhere saying why — the operator's own report, in his English session,
+    # of a product mixing two languages at once.
+    #
+    # It runs DETACHED and never blocks the boot: a preset language is a dict comparison, and a language that
+    # does need generating must not hold the server down while an LLM answers. A failure is logged and the
+    # engine comes up with the keys it already had.
+    try:
+        import asyncio as _aio
+
+        from i18n import runtime as _i18n_rt
+
+        async def _top_up_language() -> None:
+            code = _i18n_rt.active_code()
+            try:
+                from i18n import init as _i18n_init
+                r = await _i18n_init.prepare(code)
+                if int(r.get("generated") or 0):
+                    logger.info(f"i18n: '{code}' topped up after an update — {r['generated']} new keys translated")
+            except Exception as e:  # noqa: BLE001
+                logger.warning(f"i18n top-up for '{code}' failed (UI keeps the keys it had): {e!r}")
+
+        if _first_lifespan_entry:
+            app.state._i18n_topup = _aio.create_task(_top_up_language())
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"i18n top-up not scheduled (UI unaffected): {e}")
     # Widget layer: a restart mid-generation kills the headless agent — resume what the journal says was in
     # flight (relaunch creates, report interrupted modifies). Strong ref on app.state so the GC can't drop it.
     try:

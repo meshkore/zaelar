@@ -114,15 +114,34 @@ def _boca(parte):
     return WDT.spoken_for(parte, "Hecho.")
 
 
+# V2-676 — these two used to pin the SPANISH sentence, and passed only because the code ignored the operator's
+# language. They now measure the PROPERTY (the failure is said, the ack is not) against whatever the language
+# table holds, so the sentence stays editable and the test keeps its teeth in any language.
+def _spec():
+    from voice.engine.core import langs as _lg
+    return _lg.current_language()
+
+
 def test_si_FALLO_no_se_dice_Hecho():
     salida = _boca({"executed": "widget_data_failed", "message": "No hay más vídeos en la lista."})
-    assert salida.startswith("No he podido")
+    assert salida.startswith(_spec().widget_data_failed.split("{")[0].strip())
     assert "Hecho." not in salida
-    assert "No hay más vídeos" in salida
+    assert "No hay más vídeos" in salida             # the widget's OWN reason survives, verbatim
 
 
 def test_un_fallo_SIN_motivo_no_se_queda_mudo():
-    assert "el widget no lo aceptó" in _boca({"executed": "widget_data_failed"})
+    assert _spec().widget_refused in _boca({"executed": "widget_data_failed"})
+
+
+def test_el_fallo_se_dice_en_el_idioma_del_operador(monkeypatch):
+    """The whole point of the move. Measured on the operator's English session (`af4429e0`): our own canned
+    lines answered him in Spanish while he spoke English, which he read as the product breaking."""
+    from voice.engine.core import langs as _lg
+    monkeypatch.setenv("ZAELAR_LANGUAGE", "en")
+    assert _boca({"executed": "widget_data_failed"}).startswith("I couldn't")
+    monkeypatch.setenv("ZAELAR_LANGUAGE", "es")
+    assert _boca({"executed": "widget_data_failed"}).startswith("No he podido")
+    assert _lg.LANGUAGES["en"].widget_refused != _lg.LANGUAGES["es"].widget_refused
 
 
 def test_si_una_de_dos_fallo_se_DICE_aunque_la_otra_saliera(): 

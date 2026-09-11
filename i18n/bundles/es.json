@@ -728,5 +728,13 @@
   "wizard.stepHuecosTitle": "② Configura lo que falta",
   "wizard.stepPerfilTitle": "① Elige un perfil",
   "wizard.suggestion": "Sugerencia: <b>{profile}</b> — {why}",
-  "wizard.title": "Configuración inicial"
+  "wizard.title": "Configuración inicial",
+  "fault.no_model.title": "El modelo de lenguaje se ha quedado sin saldo",
+  "fault.no_model.body": "Zaelar no puede pensar sin un modelo. {model} responde que la cuenta no tiene saldo, así que he parado la voz en vez de fingir que te escucho.",
+  "fault.no_model.body_generic": "Zaelar no puede pensar sin un modelo, y ninguno de los configurados responde. He parado la voz en vez de fingir que te escucho.",
+  "fault.no_model.suppressed": "Sí tienes credencial de {names}. No me paso sola a un proveedor que no hayas elegido — añádelo en {key}, en la configuración, y lo uso.",
+  "fault.no_model.fix": "Recarga el saldo de ese proveedor, o elige otro modelo en la configuración.",
+  "fault.no_model.open_config": "Abrir configuración",
+  "fault.no_model.dismiss": "Seguir sin voz",
+  "fault.no_model.retry": "Ya está arreglado — reintentar"
 }

@@ -2090,8 +2090,13 @@ class NucleoLLMStream(llm.LLMStream):
             if stalled:
                 emit("alert", "Un turno se atascó y lo corté — sigo operativo.", text="flash turn stalled")
             elif _dry:
+                # V2-676 — the alert carries FACTS, not only prose: `blocking` tells the frontend to put a
+                # full-screen notice in the operator's own language with a button into the settings. His
+                # ruling: «la voz hay que pararla y bloquear a la gente… que salga en grande… y un botón que
+                # abra la configuración». Composition and facts both live in `provider_chain`.
+                from nucleo.flash import provider_chain as _pchain2   # ONE import, used twice in this branch
                 emit("alert", "Sin proveedor de modelo — no es un tropiezo, no hay a quién preguntar.",
-                     text=err_text[:200] or "provider chain exhausted")
+                     text=err_text[:200] or "provider chain exhausted", extra=_pchain2.dry_alert_extra())
             else:
                 emit("alert", "Cerebro rápido caído — turno degradado.", text="flash layer error")
             emit("error", "nucleo flash brain error")
@@ -2105,11 +2110,10 @@ class NucleoLLMStream(llm.LLMStream):
             _line = "Uf, se me ha ido un momento. ¿Me lo repites?"
             if _dry:
                 try:
-                    from nucleo.flash import provider_chain as _pchain2
                     _line = _pchain2.dry_chain_line(_pchain2.suppressed_relays())
                 except Exception:
-                    _line = ("Me he quedado sin proveedor de modelo — hay que recargar o cambiar de "
-                             "proveedor; lo tienes en el panel de estado.")
+                    from i18n import langs as _lg_dry
+                    _line = _lg_dry.current_language().no_model_provider
             send(_line)
             return
 
@@ -2453,27 +2457,25 @@ class NucleoLLMStream(llm.LLMStream):
             except Exception:
                 pass
             emit("search", "🔎 resultados web", text=query, role="system", extra=_ev)
-            _hoy = time.strftime("%A %d %b %Y (%Y-%m-%d)")
-            sys2 = (
-                _prompt_mod._lang_lock()
-                + f"\nHOY es {_hoy}. El operador preguntó algo que requería BUSCAR en la web. Con estos RESULTADOS, "
-                "responde a su pregunta en 1-2 frases HABLADAS: natural, sin markdown, sin emojis, sin leer URLs ni "
-                "números de fuente. Si la pregunta es SENSIBLE A LA FECHA (el tiempo, una cotización, un resultado, "
-                "algo «de hoy/ahora»): da el dato VIGENTE anclado a HOY y de aquí en adelante (nunca uno caducado; "
-                "el tiempo, de ahora en adelante, no el de ayer), y si procede menciona el día. Si los resultados "
-                "NO contienen la respuesta clara o no son de la fecha correcta, dilo con naturalidad y ofrécete a "
-                "mirarlo a fondo — NO inventes datos que no estén en los resultados. "
-                # V2-135 (impl PARALELA con el probe — cablear en AMBOS): este pase veía la QUERY como si fuera
-                # la pregunta, y la query es la reformulación del propio modelo. «¿A qué hora abre mañana el
-                # Museo del Prado Y cuánto cuesta la entrada general?» buscado como «horario Museo del Prado»
-                # llegaba aquí como una pregunta de UN dato: la mitad del precio ya no existía antes de componer.
-                "Contesta TODO lo que preguntó (si pidió dos datos, los dos); si los resultados solo cubren una "
-                "parte, di CUÁL falta y ofrécete a mirarla — no la dejes caer en silencio.\n\n"
-                f"PREGUNTA DEL OPERADOR: {operator_text}\n"
-                f"BÚSQUEDA REALIZADA: {query}\n\nRESULTADOS DE BÚSQUEDA:\n{ctx or '(sin resultados)'}"
-            )
-            await speak(sys2, operator_text or query, 240, "web_search compose")
+            # V2-676 — the prompt (and the REASON an empty search was empty) now lives in ONE home shared with
+            # the probe channel: `flash/search_turn`. It was a parallel implementation these two files had been
+            # apologising for since V2-135, and the half that was missing in BOTH is what cost the operator his
+            # «don't you have access to the Internet?» turn.
+            from nucleo.flash import search_turn as _st
+            sys2 = _st.compose_system(operator_text, query, res, ctx,
+                                      today=time.strftime("%A %d %b %Y (%Y-%m-%d)"))
+            await speak(sys2, operator_text or query, _st.MAX_TOKENS, "web_search compose")
             spoken_text = "".join(spoken).strip()
+            # THE BACKSTOP. The prompt above forbids the sentence; this catches it when the model says it
+            # anyway. Only reaches the room if it fires, and then what was already spoken is corrected — see
+            # `denial_repair` for why a false claim cannot be left standing as merely "a bad answer".
+            _fixed = _st.denial_repair(spoken_text, res)
+            if _fixed != spoken_text:
+                emit("alert", "🌐 retirada una frase que negaba tener internet",
+                     text=spoken_text[:200], role="system",
+                     extra={"cat": "flash", "guard": "denies_the_world", "failure": res.get("failure")})
+                send(_fixed)
+                spoken_text = _fixed
             brain._last_action = "search"
 
         # BÚSQUEDA DE ANUNCIOS (V2-556): ruta LIGERA hermana de web_search. La pasada rápida corre FUERA del

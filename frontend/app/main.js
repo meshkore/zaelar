@@ -214,6 +214,15 @@ createEffect(() => {
   if (store.started() || store.starting()) { try { session.stop(); } catch (_) {} }
 });
 
+// A BLOCKING FAULT STOPS THE VOICE (V2-676). The engine says the model chain is dry; there is nothing on the
+// other side to answer, so the microphone comes down with it. Deliberately NOT `powerOff`: the operator did
+// not stop the agent, the agent stopped — `powerOff` is his persisted intention and writing it here would
+// leave the ⏻ off after he fixes the credit, with no way to tell why. The fault modal is what he acts on, and
+// dismissing or retrying from it brings the voice back.
+document.addEventListener("hb:blocking-fault", () => {
+  if (store.started() || store.starting()) { try { session.stop(); } catch (_) {} }
+});
+
 // AND THE OPPOSITE DIRECTION (2026-08-31). The one above had covered only SHUTDOWN since V2-092: if
 // `powerOff` was lifted from OUTSIDE this tab —the SSE `run`/start event (another window pressed ⏻, or the
 // server itself started), or the `session-lk.js` guard undoing a false shutdown— nobody called

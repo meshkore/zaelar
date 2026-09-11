@@ -37,19 +37,24 @@ def operator_safe_summary(summary: str) -> str:
     t = (summary or "").strip()
     if not t:
         return ""
+    # V2-676 — THE THREE SENTENCES LIVE IN THE LANGUAGE TABLE NOW. They were Spanish literals right here, and
+    # this is the exact line the operator heard in the middle of an English session («esta tarea no ha podido
+    # realizarse por un fallo del proveedor… me la ha dicho en castellano»). The irony is that this function
+    # exists to stop a raw provider error reaching him in the WRONG LANGUAGE — it replaced English jargon with
+    # Spanish prose and called it a translation.
+    from i18n import langs as _lg
+    sp = _lg.current_language()
     try:
         from nucleo.workers import providers as _prov
         if _prov.is_context_overflow(t):
-            return ("Me he quedado sin espacio de contexto a mitad de esa tarea. La retomo con lo que llevaba; "
-                    "si vuelve a pasar, pídemela por partes.")
+            return sp.worker_context_full
         if _prov.classify_failure(t):
-            return ("El proveedor que mueve mis procesos de fondo me ha dado un problema con esa tarea. "
-                    "Lo tienes en el panel de estado.")
+            return sp.worker_provider_problem
     except Exception:
         pass
     # A bare «API Error…» with no classification is still not a report: it is the CLI talking to us, not to them.
     if t.lower().startswith("api error"):
-        return "Esa tarea no ha podido completarse por un fallo del proveedor. Lo tienes en el panel de estado."
+        return sp.worker_failed
     return t
 
 

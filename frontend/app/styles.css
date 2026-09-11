@@ -313,6 +313,25 @@ body.chatdock-r .statuspanel,body.chatdock-r .cronpanel{right:calc(18px + var(--
   margin:0 0 10px;cursor:pointer}
 .rc-check input{margin-top:2px;flex:none;cursor:pointer}
 .rc-hint{margin:0 0 14px;font-size:0.7188rem;color:var(--hb-muted-2)}
+/* BLOCKING FAULT (V2-676) — the agent cannot work. Covers the screen on purpose: the operator walked past
+   the banner version of this for two minutes while the model had no credit. Risk colours, not the theme's
+   quiet ones, and a hard ground so nothing behind it reads as usable. */
+.fault-ovl{align-items:center;background:rgba(0,0,0,.72);backdrop-filter:blur(6px);z-index:100020}
+.fault-box{width:min(480px,100%);background:var(--hb-bg);border:1px solid var(--hb-risk);border-radius:16px;
+  padding:24px 24px 18px;box-shadow:0 0 0 1px var(--hb-risk-soft),var(--hb-shadow-2);text-align:center}
+.fault-mark{font-size:2rem;line-height:1;color:var(--hb-risk);margin-bottom:10px}
+.fault-title{margin:0 0 10px;font-size:1.0625rem;font-weight:700;color:var(--hb-ink)}
+.fault-body{margin:0 0 12px;font-size:0.8438rem;line-height:1.55;color:var(--hb-ink)}
+.fault-note{margin:0 0 12px;font-size:0.7812rem;line-height:1.5;color:var(--hb-warn-ink);
+  background:var(--hb-warn-bg);border:1px solid var(--hb-warn-border);border-radius:10px;padding:9px 11px;text-align:left}
+.fault-fix{margin:0 0 18px;font-size:0.7812rem;line-height:1.5;color:var(--hb-muted)}
+.fault-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.fault-btn{border-radius:9px;padding:9px 15px;font-size:0.8125rem;font-weight:600;cursor:pointer;
+  border:1px solid var(--hb-line);background:var(--hb-bg);color:var(--hb-ink)}
+.fault-btn:hover{border-color:var(--hb-accent)}
+.fault-btn.primary{background:var(--hb-accent);border-color:var(--hb-accent);color:#fff}
+.fault-btn.primary:hover{filter:brightness(1.08)}
+.fault-btn.ghost{color:var(--hb-muted)}
 .cfgm{width:min(440px,100%);background:var(--hb-bg);border:1px solid var(--hb-line);border-radius:16px;padding:18px 18px 14px;box-shadow:var(--hb-shadow-2)}
 .cfgm .mh{display:flex;align-items:center;gap:10px;margin-bottom:6px}
 .cfgm h3{margin:0;font-size:1rem;color:var(--hb-ink)} .cfgm .x{margin-left:auto;background:var(--hb-bg);border:1px solid var(--hb-line);color:var(--hb-muted);border-radius:8px;padding:5px 10px;cursor:pointer}
