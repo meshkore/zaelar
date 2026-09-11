@@ -145,3 +145,65 @@ def test_both_channels_end_in_the_SAME_module():
     own = Path("nucleo/flash/widget_read.py").read_text(encoding="utf-8")
     assert "prompt_digest" in own
     assert "prompt_digest" not in voice and "prompt_digest" not in second
+
+
+# ── the OTHER light route the extraction moved: recall's voice pass had NO test at all (V2-668c) ──────────
+# Found by a disarm that came back GREEN: deleting the voice channel's whole recall route broke nothing in the
+# suite. It was untested before this batch too — moving it is the moment to cover it, because moving untested
+# code is how a silent regression ships.
+def test_recall_spoken_composes_from_the_memory_block_and_speaks_it_once(monkeypatch):
+    import asyncio as _a
+    from nucleo.flash import prompt as _prompt_mod, second_pass
+
+    monkeypatch.setattr(_prompt_mod, "compose_recall", lambda q: ("· le gusta el jazz", ["p1"]))
+    monkeypatch.setattr(_prompt_mod, "_lang_lock", lambda: "LOCK")
+    said, events = [], []
+
+    async def _speak(sys2, user_text, max_tokens=240, what=""):
+        said.append((sys2, user_text, max_tokens))
+
+    _a.run(second_pass.recall_spoken("¿qué música me gusta?", "gustos musicales", object(),
+                                     lambda *a, **k: events.append((a[:2], k.get("extra") or {})), _speak))
+    assert len(said) == 1, "one second pass, spoken once"
+    sys2, user_text, max_tokens = said[0]
+    assert sys2.startswith("LOCK") and "le gusta el jazz" in sys2
+    assert "¿qué música me gusta?" in sys2 and user_text == "¿qué música me gusta?"
+    assert "JAMÁS menciones «memoria»" in sys2, "the route's whole manner rule must travel with it"
+    labels = [a[1] for a, _ in events]
+    assert any("recall por tool" in str(x) for x in labels) and any("recall (tool" in str(x) for x in labels)
+
+
+def test_recall_spoken_still_speaks_when_memory_comes_back_empty(monkeypatch):
+    """An empty recall is a fact, not a reason to go mute — the block says so in the prompt."""
+    import asyncio as _a
+    from nucleo.flash import prompt as _prompt_mod, second_pass
+
+    monkeypatch.setattr(_prompt_mod, "compose_recall", lambda q: ("", []))
+    monkeypatch.setattr(_prompt_mod, "_lang_lock", lambda: "LOCK")
+    said = []
+
+    async def _speak(sys2, user_text, max_tokens=240, what=""):
+        said.append(sys2)
+
+    _a.run(second_pass.recall_spoken("¿cómo se llama mi hermano?", "hermano", object(),
+                                     lambda *a, **k: None, _speak))
+    assert len(said) == 1 and "(nada relevante guardado)" in said[0]
+
+
+def test_a_broken_recall_never_breaks_the_turn(monkeypatch):
+    """`compose_recall` does embeddings over HTTP — it can fail, and the voice turn must still speak."""
+    import asyncio as _a
+    from nucleo.flash import prompt as _prompt_mod, second_pass
+
+    def _boom(q):
+        raise RuntimeError("ollama down")
+
+    monkeypatch.setattr(_prompt_mod, "compose_recall", _boom)
+    monkeypatch.setattr(_prompt_mod, "_lang_lock", lambda: "LOCK")
+    said = []
+
+    async def _speak(sys2, user_text, max_tokens=240, what=""):
+        said.append(sys2)
+
+    _a.run(second_pass.recall_spoken("¿qué sabes de mí?", "sobre mí", object(), lambda *a, **k: None, _speak))
+    assert len(said) == 1 and "(nada relevante guardado)" in said[0]
