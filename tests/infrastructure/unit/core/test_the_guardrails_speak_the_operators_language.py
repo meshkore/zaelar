@@ -460,3 +460,33 @@ def test_the_client_lane_carries_the_same_rule():
         "the whole-turn test is back in the close-all branch")
     assert "NO_CLOSE_RE" in src, "the client lane had no negation check at all"
     assert "CLAUSE_SPLIT_RE" in src
+
+
+# ── L · A third party answers in the language we ASK in (V2-678) ─────────────────────────────────────────
+# «Now playing 75 vídeos.» — measured twice in one minute (11:00:11, 11:00:34) in an English session. Not a
+# string of ours: it is YouTube's own label, in Spanish, because the music provider sent a hardcoded
+# `Accept-Language: es-ES` from a module that reads the operator's language two functions above for its own
+# sentences. The cheapest half of «todo pasa por el idioma del operador» is one header.
+def test_the_music_provider_asks_in_the_operators_language():
+    from connectors.music import youtube_audio as ya
+    assert _with_language("en", ya._accept_language).startswith("en-US")
+    assert _with_language("es", ya._accept_language).startswith("es-ES")
+    src = open("connectors/music/youtube_audio.py", encoding="utf-8").read()
+    assert '"Accept-Language": "es-ES' not in src, "a hardcoded provider locale is back"
+
+
+def test_a_region_is_never_invented():
+    """«en» → «en-EN» is not a locale. Anything without a real region travels as the bare language tag."""
+    from connectors.music import youtube_audio as ya
+    assert "en-EN" not in _with_language("en", ya._accept_language)
+
+
+@pytest.mark.parametrize("title,is_count", [
+    ("75 vídeos", True), ("26 videos", True), ("8 canciones", True), ("12 songs", True),
+    ("100 Happy Tunes Vol 5", False), ("Here Comes the Sun", False), ("Positive Vibes Only", False),
+])
+def test_a_bare_count_is_not_a_name(title, is_count):
+    """He asked for the Beatles and heard a row count. A title that is only a number says nothing about
+    what is playing, so the caller says what he ASKED for instead."""
+    from connectors.music import youtube_audio as ya
+    assert ya.is_a_count_not_a_name(title) is is_count, title
