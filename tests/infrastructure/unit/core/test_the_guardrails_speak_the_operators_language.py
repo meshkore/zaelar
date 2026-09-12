@@ -406,3 +406,57 @@ def test_an_explicit_replay_order_still_passes(monkeypatch):
     from widgets import producers
     monkeypatch.setattr(producers, "starts_production", lambda w, a: True)
     assert cl.replay_license("musica", "play_playlist", _composed("dale al play"))
+
+
+# ── K · The close-ALL door finally gets a grammar (V2-678) ────────────────────────────────────────────────
+# The most destructive thing the operator can trigger by accident: it bypasses the attention gate, executes
+# immediately, and there is no undo. It was also the ONLY close door with no grammar behind it.
+# Measured live 2026-09-12 (session 352268b5), twice in six seconds — both wiped his canvas.
+@pytest.mark.parametrize("said", [
+    "Close also the agenda. And reposition all the widgets.",   # 10:59:45, verbatim
+    "I said reposition widgets. Do not close the widgets.",     # 10:59:51, verbatim
+    "Do not close the widgets.",
+    "Don't close the widgets, just move them",
+    "reposition all the widgets",
+    "cierra el widget de música",                               # ONE named card is not a close-all
+    "no cierres los widgets",
+    "sal de pantalla completa",                                 # V2-600 stays
+])
+def test_these_never_wipe_the_canvas(said):
+    import voice.attention as attention
+    assert attention.hard_interrupt(said) != "close", said
+
+
+@pytest.mark.parametrize("said", [
+    "close everything", "close all the widgets", "cierra todos los widgets",
+    "quita todas las tarjetas", "ciérralo todo", "limpia el escritorio",
+])
+def test_a_real_close_all_still_fires(said):
+    """The counterweight — the guard errs toward not firing, it must not stop firing."""
+    import voice.attention as attention
+    assert attention.hard_interrupt(said) == "close", said
+
+
+def test_the_negation_guard_hears_english_written_out():
+    """V2-631 built the veto with the CONTRACTION alone, so «Do not close» read as an order. Same bare-stem
+    asymmetry V2-677 found in the request verbs — here in the guard that exists to prevent damage."""
+    from nucleo.flash.close_guards import looks_like_close
+    for negated in ("Do not close the widgets.", "Don't close the widgets", "Never close the music widget",
+                    "please do not close them", "no cierres el widget", "no me quites la música"):
+        assert not looks_like_close(negated), negated
+    for real in ("Close also the agenda.", "close everything", "cierra el widget de música",
+                 "hide the agenda"):
+        assert looks_like_close(real), real
+
+
+def test_the_client_lane_carries_the_same_rule():
+    """V2-252/V2-555: this decision genuinely exists twice, and the client half executes with no server."""
+    src = open("frontend/app/services/voiceCommands.js", encoding="utf-8").read()
+    # Anchor on the CALL SITE, never on the name — `closesTheWholeCanvas(n)` also matches the function's own
+    # definition, so a disarm that reverted the call stayed green (the V2-571 lesson, paid again here).
+    assert "if (closesTheWholeCanvas(n)) {" in src, (
+        "the close-all lane still asks its two questions of the whole turn")
+    assert "ALL_RE.test(n) || quantifiesTheCanvas(n)" not in src, (
+        "the whole-turn test is back in the close-all branch")
+    assert "NO_CLOSE_RE" in src, "the client lane had no negation check at all"
+    assert "CLAUSE_SPLIT_RE" in src

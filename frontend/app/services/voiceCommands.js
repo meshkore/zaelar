@@ -39,6 +39,25 @@ function quantifiesTheCanvas(n) {
   }
   return false;
 }
+// V2-678 — NEGATION + CLAUSE, the client half of `voice/attention.py::_closes_the_whole_canvas`
+// (parallel implementations must not drift — V2-252/V2-555). This lane had NO negation check at all and
+// asked its two questions of the WHOLE turn, so measured live 2026-09-12 (session 352268b5) it wiped the
+// canvas twice in six seconds: «Close also the agenda. And reposition all the widgets.» (verb in one
+// clause, quantifier in the next, where the verb is «reposition») and «I said reposition widgets. Do not
+// close the widgets.» — the sentence that says not to. A false veto leaves the brain to close everything a
+// second later; a false positive destroys the desktop with no undo, so this errs toward NOT firing.
+const NO_CLOSE_RE = /\bno\s+(?:me\s+|lo\s+|la\s+|los\s+|las\s+)?(?:cierr|ocult|escond|apagu|quit)\w*|\b(?:do\s+not|don'?t|never)\s+(?:\w+\s){0,2}?(?:close|hide|shut|remove|clear)\b/;
+const CLAUSE_SPLIT_RE = /[.;!?\n]|\sy\s|\sand\s|\spero\s|\sbut\s/;
+function closesTheWholeCanvas(n) {
+  for (const clause of n.split(CLAUSE_SPLIT_RE)) {
+    const c = (clause || "").trim();
+    if (!c || !CLOSE_RE.test(c)) continue;
+    if (!(ALL_RE.test(c) || quantifiesTheCanvas(c))) continue;
+    if (NO_CLOSE_RE.test(c)) continue;
+    return true;
+  }
+  return false;
+}
 // FULLSCREEN VETO (V2-600 → V2-601 T-07): «cierra la pantalla completa» is about a SCREEN STATE, never a
 // close-all — and the STT renders it as «…completamente» too. The veto landed in the server backstops
 // (voice/attention.py::mentions_fullscreen) and this third, client-side copy of the rule kept closing the whole
@@ -74,7 +93,8 @@ export async function handleWidgetVoice(desktop, text, isFinal) {
   if (CLOSE_RE.test(n)) {                                     // dismiss — only on the FINAL transcript
     if (!isFinal) return;
     if (FULLSCREEN_RE.test(n)) return;                        // a fullscreen mention is a screen-state order → the brain's
-    if (ALL_RE.test(n) || quantifiesTheCanvas(n)) { if (_act("closeAll")) desktop.closeAll(); return; }
+    if (closesTheWholeCanvas(n)) { if (_act("closeAll")) desktop.closeAll(); return; }
+    if (NO_CLOSE_RE.test(n)) return;          // «do not close them» is not an order to close ONE either
     let target = await identifyWidget(text);
     if (!target) { const o = desktop.list(); target = o[o.length - 1]; }   // "remove it" → last opened
     if (target && _act("close:" + target)) desktop.close(target);

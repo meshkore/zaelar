@@ -736,6 +736,44 @@ _STOP_OBJECT_RE = re.compile(
     r"(?:el|la|los|las|un|una|este|esta|ese|esa|mi|tu|su|the|this|that|my|your)\s+\w+")
 
 
+# V2-678 — the close-ALL door is the most destructive thing the operator can trigger by accident: it
+# bypasses the attention gate, executes immediately, and there is no undo. It was also the ONLY close door
+# with no grammar behind it — `close_guards` has vetoed negations and narrated closes since V2-631, and this
+# one asked two bare questions of the WHOLE turn: «is there a close verb anywhere?» and «is there a canvas
+# quantifier anywhere?».
+#
+# Measured live 2026-09-12 (session 352268b5), twice in six seconds:
+#   10:59:45  «Close also the agenda. And reposition all the widgets.» → every card gone. The close verb
+#             was in the FIRST clause and the quantifier in the SECOND, where the verb is «reposition».
+#   10:59:51  «I said reposition widgets. Do not close the widgets.» → every card gone AGAIN, on the
+#             sentence that says not to.
+#
+# V2-664 taught the quantifier WHAT it governs; this teaches it which VERB governs it. Both directions of
+# failure are not equal — a false veto hands the turn to the model, which can still close everything; a
+# false positive destroys the desktop — so it errs toward NOT firing.
+_AND_SPLIT_RE = re.compile(r"[.;!?\n]|\sy\s|\sand\s|\spero\s|\sbut\s", re.I)
+
+
+def _closes_the_whole_canvas(n: str) -> bool:
+    """True when SOME CLAUSE of the turn orders the whole canvas closed — verb and quantifier together."""
+    if _FULLSCREEN_RE.search(n):
+        return False                       # a screen-state subject is never a close-all (V2-600)
+    for clause in _AND_SPLIT_RE.split(n):
+        c = (clause or "").strip()
+        if not c or not _CLOSE_VERB_RE.search(c):
+            continue
+        if not (_ALL_RE.search(c) or _quantifies_the_canvas(c)):
+            continue
+        try:
+            from nucleo.flash.close_guards import is_negated_or_narrated
+            if is_negated_or_narrated(c):
+                continue                   # «do not close the widgets», or narrating one already done
+        except Exception:  # noqa: BLE001
+            pass                           # unreadable guard: the clause already carries verb + quantifier
+        return True
+    return False
+
+
 def hard_interrupt(text: str) -> str | None:
     """Detects a hard STOP that is ALWAYS executed immediately (bypasses the attention gate):
       - 'close'  → close ALL widgets ("close the widgets / close everything").
@@ -744,8 +782,7 @@ def hard_interrupt(text: str) -> str | None:
     A stop verb that NAMES a thing («para el vídeo») is not a hard interrupt: the turn must run so the model
     (or the action map) can act on that thing — the barge-in upstream already silenced the voice either way."""
     n = _norm(text)
-    if (_CLOSE_VERB_RE.search(n) and not _FULLSCREEN_RE.search(n)
-            and (_ALL_RE.search(n) or _quantifies_the_canvas(n))):
+    if _closes_the_whole_canvas(n):
         return "close"
     has_object = bool(_STOP_OBJECT_RE.search(n))
     if _STOP_HARD_RE.search(n) and not has_object:

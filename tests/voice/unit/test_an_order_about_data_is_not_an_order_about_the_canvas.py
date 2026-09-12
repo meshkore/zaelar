@@ -103,5 +103,13 @@ def test_the_canvas_fast_lane_mirrors_the_quantifier_rule():
     assert "quantifiesTheCanvas(n)" in src, "the client fast lane must consult the same rule"
     assert "const ALL_RE   = /\\b(widgets|tarjetas|cards|" in src, \
         "the bare quantifiers must be OUT of the card-noun list — that is what fired on «todas esas entradas»"
-    i = src.index("if (ALL_RE.test(n)")
-    assert "quantifiesTheCanvas(n)" in src[i:i + 120], "closeAll must consult it at the decision, not elsewhere"
+    # V2-678 renegotiated the SHAPE, deliberately and without weakening the rule: the decision moved into
+    # `closesTheWholeCanvas`, which still asks this question and now also requires the close verb and the
+    # quantifier to share a CLAUSE and vetoes a negation. So the assertion moves from the old call shape to
+    # the PROPERTY — the quantifier rule is consulted inside the function the closeAll branch calls, and
+    # nowhere else decides it. Pinning the shape is what made this test red on a strictly stronger guard.
+    i = src.index("function closesTheWholeCanvas(n)")
+    body = src[i:i + 600]
+    assert "quantifiesTheCanvas(c)" in body, "the canvas decision must consult the quantifier rule"
+    j = src.index("if (closesTheWholeCanvas(n)) {")
+    assert "desktop.closeAll()" in src[j:j + 120], "closeAll must be reached only through that decision"
