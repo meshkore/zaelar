@@ -350,3 +350,59 @@ def test_position_is_resolved_from_the_one_table_that_holds_it():
     src = open("widgets/imagenes/data.py", encoding="utf-8").read()
     assert "refs.position_index" in src
     assert "primero" not in src, "the ordinals must not be re-listed here"
+
+
+# ── J · A SYSTEM NOTE never licenses what touches his screen (V2-678) ─────────────────────────────────────
+# The third door of this class in two days. Measured live 2026-09-12 (session 352268b5, 10:58:57): the
+# widget action logged the words that licensed it as «Now show me\n\n[SISTEMA] Avisos pendientes — SOLO
+# cuando hayas atendido y contestado…», so the grammar deciding what may touch his canvas, the context-bleed
+# dedupe and the audit trail were all reading our own Spanish prose in an English session.
+_NOTE = ("[SISTEMA] La tarea de fondo «Create a chart» ha MUERTO sin resultado. Díselo con tus palabras y "
+         "ofrécele una salida concreta — reintentarlo, ponerle otro vídeo o dejarlo.")
+
+
+def _composed(said):
+    from voice import brain_notes
+    return brain_notes.compose_turn(said, [_NOTE])
+
+
+def test_a_note_that_talks_about_a_video_licenses_no_video():
+    assert not cl.video_license(_composed("What time is it?")), (
+        "our own note licensed a media mutation on his screen")
+
+
+def test_a_note_that_talks_about_closing_licenses_no_close():
+    from voice import brain_notes
+    note = "[SISTEMA] El worker ha terminado; puedes cerrar la tarjeta cuando quieras."
+    assert not cl.close_license(brain_notes.compose_turn("¿qué hora es?", [note]))
+
+
+def test_his_own_order_still_licenses_through_the_notes():
+    """The counterweight: stripping the notes must not strip him."""
+    assert cl.video_license(_composed("play the Beatles"))
+    assert cl.close_license(_composed("cierra el widget de música"))
+    assert cl.fullscreen_license(_composed("maximize the widget")) == "fullscreen"
+
+
+def test_the_operator_half_is_recovered_from_one_place():
+    from voice import brain_notes
+    assert brain_notes.operator_half(_composed("Now show me")) == "Now show me"
+    # A turn with no notes is already his words — fail-open, today's behaviour exactly.
+    assert brain_notes.operator_half("Play the Beatles") == "Play the Beatles"
+
+
+@pytest.mark.parametrize("said", [
+    "Now show me the music widget.",                            # measured 10:59:00, reloaded the video
+    "I said, show me the music widget, not the video widget.",   # measured 10:59:15, reloaded it AGAIN
+    "Yeah. Okay.",
+])
+def test_an_order_about_another_card_never_replays_this_one(said, monkeypatch):
+    from widgets import producers
+    monkeypatch.setattr(producers, "starts_production", lambda w, a: True)
+    assert not cl.replay_license("youtube", "load", _composed(said)), said
+
+
+def test_an_explicit_replay_order_still_passes(monkeypatch):
+    from widgets import producers
+    monkeypatch.setattr(producers, "starts_production", lambda w, a: True)
+    assert cl.replay_license("musica", "play_playlist", _composed("dale al play"))

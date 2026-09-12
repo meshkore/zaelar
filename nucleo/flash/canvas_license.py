@@ -83,16 +83,35 @@ _EXIT_FS_RE = _re.compile(
 _AFFIRM_RE = _re.compile(r"\b(?:si|vale|venga|claro|hazlo|ok|okey|okay|yes|yeah|sure|adelante)\b")
 
 
+def _his_words(text: str) -> str:
+    """The operator's own words — never the composed turn with our `[SISTEMA]` notes glued to it (V2-678).
+
+    Applied at the ENTRY of every license in this module rather than at each call site, because that is the
+    third door of this class in two days (V2-677's escalation guard, V2-666's errand, this) and each one
+    broke the same way: the decider receives a variable called `text` and has no way to know what is inside
+    it. Measured live 2026-09-12 (session 352268b5, 10:58:57): the widget action logged the words that
+    licensed it as «Now show me\n\n[SISTEMA] Avisos pendientes — SOLO cuando hayas atendido y contestado…»,
+    so the grammar that decides what may touch his screen was reading our own Spanish prose.
+
+    Fail-open: an unreadable note boundary returns the text untouched, which is exactly today's behaviour.
+    """
+    try:
+        from voice import brain_notes
+        return brain_notes.operator_half(text)
+    except Exception:  # noqa: BLE001
+        return text or ""
+
+
 def asks_for_media(text: str) -> bool:
     """True only when the turn carries a conjugated media REQUEST VERB. The half of `video_license` that
     does not include the bare affirmative — see `replay_license` for why the distinction has to exist."""
-    return bool(_MEDIA_REQ_RE.search(_NEG_MEDIA_RE.sub(" ", _norm_txt(text))))
+    return bool(_MEDIA_REQ_RE.search(_NEG_MEDIA_RE.sub(" ", _norm_txt(_his_words(text)))))
 
 
 def video_license(text: str) -> bool:
     """True when the turn ASKS for media — the words that may carry a `play_video` (a load that replaces
     whatever is playing). Chatter, praise, insults and complaints about a past change license nothing."""
-    n = _NEG_MEDIA_RE.sub(" ", _norm_txt(text))
+    n = _NEG_MEDIA_RE.sub(" ", _norm_txt(_his_words(text)))
     if _MEDIA_REQ_RE.search(n):
         return True
     return len(n.split()) <= 4 and bool(_AFFIRM_RE.search(n))
@@ -101,14 +120,14 @@ def video_license(text: str) -> bool:
 def close_license(text: str) -> bool:
     """True when the turn ORDERS a close — `close_guards.looks_like_close` verbatim (negations and
     narrated closes already excluded there). A model-emitted [[close]] without it is drag, not obedience."""
-    return looks_like_close(text)
+    return looks_like_close(_his_words(text))
 
 
 def fullscreen_license(text: str) -> str:
     """'' (no screen-size words at all: a fullscreen_widget call is drag — the measured «pausa el vídeo» →
     fullscreen), 'minimize' (the turn asks to go smaller / leave full screen), or 'fullscreen' (the turn
     asks for full screen / bigger — the toggle)."""
-    n = _norm_txt(text)
+    n = _norm_txt(_his_words(text))
     if _EXIT_FS_RE.search(n) or _SHRINK_RE.search(n):
         return "minimize"
     if _GROW_RE.search(n):
@@ -144,8 +163,18 @@ def replay_license(wid: str, action: str, text: str) -> bool:
         return False
     try:
         from widgets import runtime
-        m = (runtime.identify(text) or {}).get("match")
+        seen = runtime.identify(_his_words(text)) or {}
+        m = seen.get("match")
         if m and str(m).strip().lower() != str(wid).strip().lower():
+            return False
+        # V2-678 — AMBIGUOUS counts as «not clearly this one». Measured live 2026-09-12 (session 352268b5,
+        # 10:59:15): «I said, show me the music widget, not the video widget.» names BOTH cards, so
+        # `identify` correctly returns no winner — and a replay re-loaded the video for the third time, on
+        # the very sentence complaining about it. A replay REPLACES what is playing, so ambiguity is the
+        # one thing that must not authorise it; his next word can still start it.
+        if seen.get("ambiguous") and any(
+                str(c.get("id", "")).lower() != str(wid).strip().lower()
+                for c in (seen.get("candidates") or [])):
             return False
     except Exception:
         pass

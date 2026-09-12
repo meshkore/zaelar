@@ -47,6 +47,33 @@ def compose_turn(operator_text: str, notes: list[str]) -> str:
     return op + "\n\n" + _AFTER_HEADER + "\n" + "\n".join(ns)
 
 
+def operator_half(turn_text: str) -> str:
+    """The operator's own words back out of a composed turn — everything before the notes header (V2-678).
+
+    `compose_turn` glues our `[SISTEMA]` notes onto the turn so the brain sees them as CONTEXT, and its own
+    comment has said since V2-666 that they are «NUNCA como parte de lo que el operador pidió». Every
+    DECIDER that reads the turn's words has to honour that, and they keep not doing it, because each one
+    receives a variable called `text` and has no way to know what is in it.
+
+    Measured live 2026-09-12 (session 352268b5, 10:58:57): the widget action logged for the turn carried
+    `"Now show me\n\n[SISTEMA] Avisos pendientes — SOLO cuando hayas atendido y contestado…"` as the words
+    that licensed it — so the licensing grammar, the context-bleed dedupe and the audit trail were all
+    reading our own Spanish prose in an English session. It is the same class V2-677 closed one door over,
+    where three words of ours («añade», «fondo», «panel») spawned a real worker off a greeting.
+
+    Fixing it at every caller is not fixing it: this is the third door of the same class in two days, and a
+    rule each caller has to remember is not a rule. Callers that genuinely want the composed turn (the
+    model's own prompt) keep passing it; the deciders call this.
+
+    Falls back to the text it was given when there is no header — a turn with no notes is already his words.
+    """
+    t = turn_text or ""
+    i = t.find(_AFTER_HEADER)
+    if i < 0:
+        return t
+    return t[:i].strip() or t
+
+
 def push(text: str, key: str = "") -> None:
     """Queue a one-shot system note for the brain's next turn. No-op on empty text. Best-effort.
 

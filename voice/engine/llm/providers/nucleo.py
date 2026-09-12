@@ -30,6 +30,7 @@ from nucleo.flash import (canvas_license as _canvas_lic,                       #
                           listing_turn as _lt, show_target as _show_target,    # V2-609: one target decision
                           video_turn as _video_turn)                           # V2-556 / V2-457: no cycles
 # V2-515 (ratchet): ONE import replaces eight lazy `from widgets import confirm` — confirm.py never imports voice.
+from voice import brain_notes as _bnotes          # V2-678: his words, never the composed turn
 from widgets import confirm as _wconfirm, lifecycle as _wlifecycle
 # The pending-confirmation pair moved to `confirm_gate.py` (2026-09-02 ratchet pass): they needed nothing
 # from this file, so the dependency runs one way. Imported back under their own names — every call site
@@ -1105,7 +1106,9 @@ class NucleoLLMStream(llm.LLMStream):
                 qué modo (fast/confirm/escalate) y con la FRASE que la originó, para poder atar una acción
                 equivocada con el texto exacto que la produjo. La fila del store se queda como está (es el efecto,
                 no la orden)."""
-                emit("widget", f"data:{action_name}", text=(text or "").strip()[:160],
+                # V2-678 — HIS words, not the composed turn: this row is the audit trail that ties a wrong
+                # action to the sentence that produced it, and with the notes glued on it named ours.
+                emit("widget", f"data:{action_name}", text=_bnotes.operator_half(text).strip()[:160],
                      extra={"id": wid, "action": action_name, "mode": m, "src": "flash",
                             "payload": payload if isinstance(payload, dict) else {}})   # V2-653: the order's content, judged by the arbiter
 
@@ -1121,7 +1124,8 @@ class NucleoLLMStream(llm.LLMStream):
                 _last = brain._last_dataop
                 if _last and _last[0] == wid and _last[1] == action_name and _last[2] == (payload or {}) \
                         and (time.time() - _last[3]) < 120 \
-                        and _word_overlap(" ".join(str(v) for v in (payload or {}).values()), text) == 0 \
+                        and _word_overlap(" ".join(str(v) for v in (payload or {}).values()),
+                                          _bnotes.operator_half(text)) == 0 \
                         and not _canvas_lic.replay_license(wid, action_name, text):
                     emit("brain", "🛡️ data-op del turno anterior re-emitida — ignorada (context-bleed)",
                          text=f"{wid}:{action_name}", role="system")
