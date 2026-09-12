@@ -229,6 +229,33 @@ def extract_attachments(msg, uid: str, media_dir: str) -> tuple[str | None, list
     return ("image" if all_images else "document"), paths
 
 
+def _other_recipients(msg, from_addr: str) -> list:
+    """Addresses in To/Cc that are neither the sender nor us — what a reply-all adds over a reply.
+
+    Our OWN address is dropped here rather than at send time: a reply-all that copies the operator on his
+    own outgoing mail is a bug every real client avoids, and the address is only knowable at this layer.
+    Order is preserved and duplicates collapsed (case-insensitively — an address is case-insensitive in its
+    domain and every real mailbox treats the local part that way too)."""
+    from email.utils import getaddresses
+    mine = {(from_addr or "").strip().lower()}
+    try:
+        from . import config as _cfg
+        own = _cfg.address().strip().lower()
+        if own:
+            mine.add(own)
+    except Exception:
+        pass                                   # no account configured: only the sender is excluded
+    out, seen = [], set()
+    for _name, addr in getaddresses([msg.get("To", ""), msg.get("Cc", "")]):
+        a = (addr or "").strip()
+        low = a.lower()
+        if not a or "@" not in a or low in mine or low in seen:
+            continue
+        seen.add(low)
+        out.append(a)
+    return out[:25]                            # a mailing-list blast is not a conversation to answer
+
+
 def parse_message(uid: str, raw_bytes: bytes, media_dir: str | None = None) -> dict | None:
     """Raw email (RFC822) → normalized dict for triage/store, or None if it should be ignored (automatic).
     `uid` = IMAP UID (str) → used as messageId (stable per mailbox). RFC Message-ID goes in `msgid`.
@@ -255,6 +282,10 @@ def parse_message(uid: str, raw_bytes: bytes, media_dir: str | None = None) -> d
         "msgid": msg.get("Message-ID", ""),   # RFC Message-ID → reply threading
         "authenticated": authok,
         "auth_reason": why,
+        # Everyone else the message went to (V2-680) — the only thing that makes a REPLY-ALL real. Without
+        # it, offering the choice would send the identical single reply under a second name, which is worse
+        # than not offering it: the operator would believe the other recipients were answered.
+        "recipients": _other_recipients(msg, from_addr),
     }
     try:
         from email.utils import parsedate_to_datetime
@@ -721,9 +752,14 @@ class Mailbox:
         except (socket.timeout, TimeoutError, ConnectionError, OSError):
             return _do(ipv4=True)          # IPv4 retry (unreachable IPv6)
 
-    def send_reply(self, to_addr: str, subject: str, body: str, in_reply_to: str = "") -> tuple[bool, str]:
+    def send_reply(self, to_addr: str, subject: str, body: str, in_reply_to: str = "",
+                   cc: list | None = None) -> tuple[bool, str]:
         """Send a reply by SMTP with correct threading (In-Reply-To/References, subject Re:). Returns
-        (ok, message_id|error)."""
+        (ok, message_id|error).
+
+        `cc` (V2-680) is what turns this into a reply-ALL: the other recipients of the original, already
+        stripped of the sender and of our own address when they were parsed. Empty or absent means a plain
+        reply, byte-for-byte what this method sent before — so no caller that omits it changes behaviour."""
         to_addr = (to_addr or "").strip()
         if not to_addr:
             return False, "sin destinatario"
@@ -733,6 +769,11 @@ class Mailbox:
         msg = MIMEText(body or "", "plain", "utf-8")
         msg["From"] = self.address
         msg["To"] = to_addr
+        # The Cc HEADER is what the recipients see, and `send_message` derives the envelope from To+Cc+Bcc
+        # on its own — so there is no second list to keep in sync here.
+        cc_list = [str(a).strip() for a in (cc or []) if str(a).strip() and str(a).strip().lower() != to_addr.lower()]
+        if cc_list:
+            msg["Cc"] = ", ".join(cc_list)
         msg["Subject"] = subj
         msg["Date"] = formatdate(localtime=True)
         domain = self.address.split("@")[-1] if "@" in self.address else "zaelar.local"

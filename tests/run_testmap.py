@@ -1678,7 +1678,12 @@ DOMAINS: list[dict] = [
             # V2-652: una hora que falta es un HECHO, no un hueco para un default — sin hora la cita nace de
             # día entero (nada de inventar las 17:00), y el add CON hora asienta al gemelo sin hora en vez de
             # plantarse al lado («dos ítems», sesión 7f77e2cc).
-            "tests/browser/unit/agenda/test_the_write_does_not_invent_an_hour.py"]},
+            "tests/browser/unit/agenda/test_the_write_does_not_invent_an_hour.py",
+            # V2-679: una vez conectado Google Calendar, add/cancel/move/update_meeting escriben A TRAVÉS del
+            # conector (nunca solo local) y una falla o excepción de red NUNCA pierde la escritura local; el
+            # tick de fondo agenda un aviso propio para una cita recién sincronizada; on_calendar_connected
+            # migra citas locales futuras sin duplicar lo que Google ya tiene.
+            "tests/browser/unit/agenda/test_google_calendar_sync.py"]},
         # V2-085 — la garantía de ESCALA: el prompt es O(K) y no O(N) por muchos widgets que haya. Nodo propio (no
         # dentro de 4.1) porque lo que prueba no es el contrato de UN widget sino el del CATÁLOGO: sintéticos de
         # 100/1.000/10.000, promoción del widget nombrado desde la cola, e índice compacto del endpoint.
@@ -1818,6 +1823,25 @@ DOMAINS: list[dict] = [
         # una marca de persona hablando, y una fila por idioma con su bandera y su nombre nativo. El fuente
         # no puede verlo — la primera corrida cazó que el icono se montaba con `innerHTML` en vez de `html`,
         # así que h() lo ponía como ATRIBUTO y la marca no pintaba nada.
+        # V2-679 (2ª vuelta) — LOS CONECTORES DE LA AGENDA como en mensajería. Su reporte con captura: «esto no
+        # funciona igual como en los mensajes… hay un icono, un botón para conectores y luego a la izquierda los
+        # tres iconos… si se clica en conectores, todo el espacio central de contenido lo centramos en los
+        # conectores… se desactiva el foco o el botón activo de día, semana, mes y lista… el botón de conectar a
+        # Google Calendar inicia un wizard con las instrucciones en la zona central… también tiene que tener una
+        # barrita de navegación para volver atrás… ahora ni siquiera funciona». El caso que NO se lee en el
+        # fuente es CUÁNDO se abre la ventana: un `window.open` después de un `await` ha perdido el gesto del
+        # usuario y el navegador lo bloquea EN SILENCIO — exactamente el «ni siquiera funciona» — así que la
+        # comprobación es de ORDEN, no de que la llamada exista.
+        {"id": "4.164", "title": "Un correo abierto usa la TARJETA ENTERA: cuerpo con su propio scroll, caja de "
+                                 "respuesta anclada abajo con 5 filas y el enviar a su derecha, un borrador por "
+                                 "conversación y un «responder a todos» que copia de verdad",
+            "ch": UNIT, "paths": [
+                "tests/browser/unit/mensajeria/test_an_open_mail_uses_the_whole_card.py",
+                "tests/browser/unit/mensajeria/test_a_draft_belongs_to_its_conversation.py"]},
+        {"id": "4.163", "title": "Los CONECTORES de la agenda toman la pantalla: iconos por proveedor, vistas "
+                                 "desactivadas, wizard guiado con vuelta atrás y la ventana de Google abierta "
+                                 "DENTRO del clic",
+            "ch": UNIT, "paths": ["tests/browser/unit/agenda/test_the_connectors_take_the_screen.py"]},
         {"id": "4.162", "title": "El selector de idioma no instruye en ningún idioma: la marca pinta, en/es "
                                  "arriba y destacados, 40 filas que caben",
             "ch": UNIT, "paths": [
@@ -2958,6 +2982,16 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": [
                 "tests/connectors/unit/video/"
                 "test_connecting_an_account_is_one_step_and_failures_reach_the_operator.py"]},
+        # V2-679 — Google Calendar (familia agenda): el registro usa el id "google" (no "google-calendar")
+        # para encajar en el placeholder ya existente de `widgets/agenda/data.py::_CALENDARS` en vez de dejar
+        # una fila fantasma al lado; `event_to_meeting`/`meeting_to_event` normalizan hora local/todo-el-día/
+        # asistentes/estado; `list_events` usa `singleEvents=true` (Google expande las recurrencias, cero RRULE
+        # aquí) con syncToken incremental y fallback a pull completo cuando caduca (410); `sync` fusiona
+        # nuevo/cambiado/borrado sin tocar decisiones de negocio (eso vive en `widgets/agenda/gcal.py`).
+        {"id": "5.23", "title": "Conector de Google Calendar: normalización, syncToken incremental, "
+                                "y la fachada fail-safe",
+            "ch": UNIT, "paths": [
+                "tests/connectors/unit/calendar/test_google_calendar_connector.py"]},
         # V2-637 — el cliente BitTorrent embebido: la red MeshKore da el magnet, el cliente lo baja y lo
         # transmite (HTTP Range) al <video> mientras se descarga, y todo degrada a palabras si falta el wheel.
         # La sesión libtorrent no se toca en unit; se fija la extracción del magnet, la aritmética de Range,

@@ -227,6 +227,11 @@ def upsert_items(platform: str, new_items: list[dict]) -> dict:
             entry["subject"] = m.get("subject")
         if m.get("msgid"):
             entry["msgid"] = m.get("msgid")
+        # V2-680 — the ORIGINAL's other recipients, which is the only thing that makes a reply-ALL real.
+        # Email-only, like the two fields above; a platform that does not send it stores nothing and the
+        # widget then does not offer the choice at all.
+        if m.get("recipients"):
+            entry["recipients"] = [str(a) for a in m.get("recipients") if str(a).strip()][:25]
         # V2-543 — media + real timestamp. The store had "no timestamp" written as a known gap since V2-051
         # ("most recent by appearance order"); connectors send it now and the widget shows real times.
         try:

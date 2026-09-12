@@ -98,7 +98,7 @@ def test_the_box_is_empty_and_send_is_disabled_with_no_draft(_page):
     _page.get_by_text("Reunión de mañana").click()          # into mailDetail
     box = _page.locator(".composebox")
     assert box.count() == 1 and box.input_value() == ""
-    assert _page.locator(".compose button").is_disabled()
+    assert _page.locator(".compose .bt-primary").is_disabled()
 
 
 def test_a_matching_draft_prefills_the_box(_page):
@@ -106,7 +106,7 @@ def test_a_matching_draft_prefills_the_box(_page):
     _open_email_lens(_page)
     _page.get_by_text("Reunión de mañana").click()
     assert _page.locator(".composebox").input_value() == "Sí, a las 10"
-    assert not _page.locator(".compose button").is_disabled()
+    assert not _page.locator(".compose .bt-primary").is_disabled()
 
 
 def test_a_draft_for_a_different_mail_does_not_leak_into_this_screen(_page):
@@ -123,7 +123,7 @@ def test_typing_enables_send_and_queues_a_draft_call(_page):
     _open_email_lens(_page)
     _page.get_by_text("Reunión de mañana").click()
     _page.locator(".composebox").fill("Perfecto a las 10")
-    assert not _page.locator(".compose button").is_disabled()
+    assert not _page.locator(".compose .bt-primary").is_disabled()
 
 
 def test_clicking_send_sends_the_boxs_own_text_via_draft_then_send_draft(_page):
@@ -131,7 +131,7 @@ def test_clicking_send_sends_the_boxs_own_text_via_draft_then_send_draft(_page):
     _open_email_lens(_page)
     _page.get_by_text("Reunión de mañana").click()
     _page.locator(".composebox").fill("Perfecto a las 10")
-    _page.locator(".compose button").click()
+    _page.locator(".compose .bt-primary").click()
     calls = _page.evaluate("() => window.__calls")
     names = [c[0] for c in calls]
     assert "draft" in names and "send_draft" in names
@@ -146,7 +146,7 @@ def test_the_compose_bar_also_renders_inside_an_open_thread_with_no_target_id(_p
     _mount(_page, _base(items=[_WA_ITEM], active_chat=_WA_ACTIVE, active_items=[_WA_ITEM]))
     assert _page.locator(".composebox").count() == 1
     _page.locator(".composebox").fill("Nos vemos luego")
-    _page.locator(".compose button").click()
+    _page.locator(".compose .bt-primary").click()
     draft_call = next(c for c in _page.evaluate("() => window.__calls") if c[0] == "draft")
     assert "n" not in draft_call[1] or draft_call[1].get("n") is None
     assert draft_call[1]["text"] == "Nos vemos luego"

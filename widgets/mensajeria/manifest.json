@@ -151,13 +151,17 @@
    "payload": {
     "text": "string (el texto dictado)",
     "n": "opcional: número de un email concreto (si no hay conversación abierta)",
-    "messageId": "opcional, alternativa a n"
+    "messageId": "opcional, alternativa a n",
+    "reply_all": "opcional, solo email: true para responder también a los demás destinatarios del original"
    }
   },
   "send_draft": {
    "desc": "Envía el borrador que ya está en el cuadro (escrito por voz o a mano) — el mismo texto que se ve en pantalla. No lleva texto propio: si aún no hay nada dictado, dile que dicte primero.",
    "confirm_q": "¿Envío el borrador que hay escrito en el cuadro?",
-   "payload": {},
+   "payload": {
+    "n": "opcional: el email concreto cuyo borrador se envía (sin esto va el último borrador tocado)",
+    "messageId": "opcional, alternativa a n"
+   },
    "confirm": true,
    "usage": "El botón «Enviar» de la propia tarjeta hace exactamente esto. Por voz: primero 'draft' con el texto, luego (con su confirmación) 'send_draft'."
   },

@@ -253,7 +253,10 @@ async def _drain_replies(mb) -> None:
                                                                           # trim signatures on reply look for it
         subject = r.get("subject") or ""
         in_reply_to = r.get("msgid") or ""
-        ok, info = await asyncio.to_thread(mb.send_reply, to, subject, text, in_reply_to)
+        # V2-680 — reply-ALL travels as a list of addresses, decided in the widget and resolved from the
+        # ORIGINAL message's own recipients. An empty list is a plain reply, which is every other caller.
+        cc = [str(a) for a in (r.get("cc") or []) if str(a).strip()]
+        ok, info = await asyncio.to_thread(mb.send_reply, to, subject, text, in_reply_to, cc)
         if ok:
             logger.info(f"Email: respuesta enviada a {to}")
             # V2-546 — record it in the conversation. Unlike WhatsApp and Telegram, sent mail does not come

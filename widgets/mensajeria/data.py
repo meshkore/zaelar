@@ -11,6 +11,7 @@
 import time
 
 from .. import store
+from . import drafts as _drafts
 # The READ side lives in views.py since V2-624 (the architecture ratchet's extraction, along the real seam:
 # name resolution, the thread/activity views, peek, the autoresponder previews, and — since V2-626 — the
 # open reference and the effective notify policy). One direction only —
@@ -102,7 +103,9 @@ def blank() -> dict:
     # V2-624 — the operator's own CONFIGURATION survives a reset the way the connection state does: an
     # autoresponder set for his vacation and his per-platform view criteria are not «messages and queues»,
     # and a reset that silently stops answering people in his name is a worse surprise than any stale list.
-    for k in ("autoresponder", "lens_criteria"):
+    # V2-680 — an unsent DRAFT survives too, for the same reason and a stronger one: it is text the operator
+    # himself wrote and never sent. A reset clears what arrived; it does not throw away his own writing.
+    for k in ("autoresponder", "lens_criteria", "drafts"):
         if isinstance(cur.get(k), dict) and cur.get(k):
             fresh[k] = cur[k]
     return fresh
@@ -124,6 +127,7 @@ def load_db() -> dict:
     db.setdefault("updated", "")
     db.setdefault("active_chat", None)
     db.setdefault("draft", None)
+    db.setdefault("drafts", {})
     db.setdefault("lens_criteria", {})
     return db
 
@@ -196,7 +200,7 @@ def _resolve_target(db: dict, n=None, mid: str | None = None) -> dict | None:
     return {"platform": key[0], "chatId": key[1]}
 
 
-def _enqueue_reply(db: dict, target: dict, text: str) -> None:
+def _enqueue_reply(db: dict, target: dict, text: str, cc: list | None = None) -> None:
     """The one place a reply/draft actually gets queued for the connector to send for real. A real item
     ALWAYS carries `messageId` (set on ingestion, by every connector) — including one resolved via `reply`'s
     own chat-grouping fallback, which never goes through `_renumber` and so never has `n` set either, which
@@ -208,6 +212,9 @@ def _enqueue_reply(db: dict, target: dict, text: str) -> None:
         "to": target.get("senderId") or target.get("chatId"),
         "messageId": target.get("messageId"), "subject": target.get("subject", ""),
         "msgid": target.get("msgid", ""), "text": text,
+        # V2-680 — reply-ALL. Empty (the default, and every caller that does not pass it) is a plain reply,
+        # so the queued shape is unchanged for `reply` and for every connector that ignores the field.
+        "cc": [str(a) for a in (cc or []) if str(a).strip()],
     })
     if target.get("messageId") is not None:
         db.setdefault("pending_read", []).append(_key(target))
@@ -269,6 +276,10 @@ def view_data(q: str = "") -> dict:
         # but has not sent yet. `target` names WHAT it would go to, so a stale draft from a conversation that
         # is no longer open never gets rendered against the wrong screen.
         "draft": db.get("draft") or None,
+        # V2-680 — one draft PER CONVERSATION, keyed by `_draft_key`. Before this there was exactly one
+        # draft in the whole widget, so starting a reply to a second conversation silently destroyed the
+        # first. The widget reads its own screen's key out of this map; `draft` above stays the most recent.
+        "drafts": dict(db.get("drafts") or {}),
         # V2-611 — the operator's OWN signature, read fresh (a local config file, not a secret) so an edit in
         # the settings screen is visible immediately. [] = none set; the connector appends nothing at all.
         "email_signature": _email_signature(),
@@ -596,26 +607,26 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
     # by the widget's own button or by a later voice order («envíalo»). `reply` above still exists for a
     # one-shot model-dictated reply (CONFIRM-gated, unchanged) — this is the review-first path instead.
     if action == "draft":
-        text = str(payload.get("text") or "")
         db = load_db()
         target = _resolve_target(db, payload.get("n"), payload.get("messageId"))
         if target is None:
             return {"ok": False, "error": "no_target",
                      "message": "No sé a qué conversación o mensaje se refiere el borrador."}
-        if not text.strip():
-            db["draft"] = None
-            store.save(WIDGET_ID, db)
-            return {"ok": True, "cleared": True}
-        db["draft"] = {"text": text[:4000],
-                        "target": {k: target.get(k) for k in
-                                   ("platform", "chatId", "senderId", "messageId", "subject", "msgid", "n")},
-                        "at": int(time.time())}
+        out = _drafts.write(db, target, str(payload.get("text") or ""), bool(payload.get("reply_all")))
         store.save(WIDGET_ID, db)
-        return {"ok": True, "text": db["draft"]["text"]}
+        return out
 
     if action == "send_draft":
         db = load_db()
-        draft = db.get("draft") or {}
+        # A send names WHICH conversation whenever the widget's own button fires it; a bare voice «envíalo»
+        # names nothing and gets the most recent draft, which is what it meant before drafts were per
+        # conversation. Resolving the key from the payload's own target keeps both callers on one path.
+        key = None
+        if payload.get("n") is not None or payload.get("messageId"):
+            t = _resolve_target(db, payload.get("n"), payload.get("messageId"))
+            if t is not None:
+                key = _drafts.key(t)
+        draft = _drafts.pick(db, key)
         text = str(draft.get("text") or "").strip()
         if not text:
             return {"ok": False, "error": "no_draft", "message": "No hay ningún borrador que enviar."}
@@ -625,10 +636,12 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
         # resolution `reply` itself uses. Falls back to the stored identity when nothing live matches: the
         # conversation's own platform/chatId are still enough to send to, even with no pending item left.
         target = _resolve_target(db, stored.get("n"), stored.get("messageId")) or stored
-        _enqueue_reply(db, target, text)
-        db["draft"] = None
+        cc = _drafts.cc_for(draft)
+        _enqueue_reply(db, target, text, cc=cc)
+        _drafts.forget(db, draft.get("key") or key)
         store.save(WIDGET_ID, db)
-        return {"ok": True, "to": target.get("senderId") or target.get("chatId"), "text": text}
+        return {"ok": True, "to": target.get("senderId") or target.get("chatId"), "text": text,
+                "cc": list(cc)}
 
     # V2-611 — the EMAIL SIGNATURE, appended once by the connector at real send time (service.py's
     # `_drain_replies`), never here: this only writes the config the connector reads. `config/connectors.py`

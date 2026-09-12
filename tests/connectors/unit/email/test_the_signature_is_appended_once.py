@@ -36,8 +36,10 @@ class _FakeMailbox:
     def __init__(self):
         self.calls = []
 
-    def send_reply(self, to, subject, text, in_reply_to=""):
-        self.calls.append({"to": to, "subject": subject, "text": text, "in_reply_to": in_reply_to})
+    def send_reply(self, to, subject, text, in_reply_to="", cc=None):
+        # `cc` (V2-680) is reply-ALL's extra recipients; a plain reply passes an empty list.
+        self.calls.append({"to": to, "subject": subject, "text": text, "in_reply_to": in_reply_to,
+                           "cc": list(cc or [])})
         return True, "ok"
 
 

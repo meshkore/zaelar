@@ -130,6 +130,25 @@ function injectStyles(){
      the text column inside it did not. The CARD decides the width now; box-sizing keeps padding from
      overflowing it. */
   .hb-msg{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;color:var(--hb-ink,#0d1622);width:100%;box-sizing:border-box}
+  /* V2-680 — a READING screen (an open mail, an open thread) takes the whole card and scrolls INSIDE it,
+     the way any mail client does: the message body gets every spare pixel and the reply box is pinned to
+     the bottom edge where it can always be reached. The operator's report was that a three-page mail was
+     shown through a keyhole while the card around it sat mostly empty.
+     Only these two screens opt in (the .full class): the dashboard and the connector wizard are stacks of
+     boxes that legitimately scroll as one page, and giving them a fixed height would only pin their own
+     headers against a short card.
+     NOTE — this deliberately does NOT disable the host's own scroller the way the video and agenda widgets
+     do. Measured on the real card chrome: with the height chain in place the widget is exactly the card's
+     height and the host never scrolls, so the rule would change nothing; and in the one case it COULD
+     change something — the height failing to resolve — it would clip the mail with no scrollbar at all,
+     which is strictly worse than a card that scrolls. */
+  .hb-msg.full{height:100%;display:flex;flex-direction:column;min-height:0}
+  .hb-msg.full > .thread{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
+  .hb-msg.full > .thread > .thd{flex:0 0 auto}
+  /* The body is the ONE part that grows and scrolls; everything else keeps its natural height. */
+  .hb-msg.full > .thread > .mdet,
+  .hb-msg.full > .thread > .tl{flex:1 1 auto;min-height:0;overflow:auto;max-height:none}
+  .hb-msg.full > .thread > .compose{flex:0 0 auto}
   /* V2-611 redesign — the header is its OWN band, visually separated from the content below it (the
      operator's ask: "que se delimiten mejor las secciones"), and every icon in it is a real, bigger button
      with its own hover/click target — not a bare glyph floating in the row. */
@@ -242,14 +261,25 @@ function injectStyles(){
   /* COMPOSE BAR (V2-611): dictate or type, see it, then send — by button or by a later voice order.
      .bt/.bt-primary etc. are already declared below (the wizard's own buttons) — reused as-is. */
   .hb-msg .compose{margin-top:12px;padding-top:10px;border-top:1px solid var(--hb-line,#eef1f6)}
-  .hb-msg .composebox{width:100%;box-sizing:border-box;resize:vertical;min-height:44px;max-height:160px;
-    font:inherit;font-size:14px;line-height:1.4;color:var(--hb-ink,#0d1622);background:var(--hb-hover,#eef3f9);
-    border:1px solid var(--hb-line,#eef1f6);border-radius:10px;padding:8px 10px}
+  /* V2-680 — the box is at least FIVE rows (the operator's own minimum: a reply is written, not tweeted),
+     and the send button sits to its RIGHT rather than on a row underneath, so growing the box never pushes
+     the button off the bottom of the card. */
+  .hb-msg .composemain{display:flex;gap:9px;align-items:stretch}
+  .hb-msg .composebox{flex:1 1 auto;min-width:0;box-sizing:border-box;resize:vertical;min-height:112px;
+    font:inherit;font-size:14px;line-height:1.45;color:var(--hb-ink,#0d1622);background:var(--hb-hover,#eef3f9);
+    border:1px solid var(--hb-line,#eef1f6);border-radius:10px;padding:9px 11px}
   .hb-msg .composebox:focus{outline:none;border-color:var(--hb-accent,#3D6FE0)}
   .hb-msg .thread.plat-whatsapp .composebox:focus{border-color:#16B8A6}
   .hb-msg .thread.plat-telegram .composebox:focus{border-color:#2AABEE}
   .hb-msg .thread.plat-email .composebox:focus{border-color:#D8452D}
+  .hb-msg .composeside{display:flex;flex-direction:column;gap:6px;flex:0 0 auto;justify-content:flex-end}
+  .hb-msg .composeside .bt{white-space:nowrap}
   .hb-msg .composerow{display:flex;justify-content:flex-end;margin-top:6px}
+  /* The reply / reply-all selector, ABOVE the box (email only — the other platforms have no second
+     recipient to include). A segmented control, the same .seg language the settings panel already uses. */
+  .hb-msg .composetop{display:flex;align-items:center;gap:9px;margin-bottom:7px;flex-wrap:wrap}
+  .hb-msg .composehint{font-size:11.5px;color:var(--hb-muted-2,#9aa7b8)}
+  .hb-msg .composesaved{font-size:11.5px;color:var(--hb-accent2,#16B8A6);font-weight:600}
   /* V2-616 — the open thread as LEFT/RIGHT bubbles, not an indented copy of the same row (V2-546's old
      shape). His report, verbatim in spirit: in a 1:1 chat the sender's name on every line is noise (the
      header above already names who this is), and his own replies need to read apart from theirs at a
@@ -1002,26 +1032,83 @@ function _draftMatches(draft, targetPayload, activeChat){
 // `targetPayload` addresses WHAT the reply goes to: `{}` for an open THREAD (the server resolves it from
 // `active_chat` itself, V2-611's `_resolve_target`), or `{n, messageId}` for a single EMAIL. `activeChat` is
 // `data.active_chat`, used only to match an incoming draft against the right screen.
-function composeBar(ctx, data, targetPayload, activeChat, rerender){
+// V2-680 — reply-ALL is remembered per conversation, module-lived like `_draftLocal`: it is a property of
+// the reply being written, not of the widget, so switching mails must not carry one mail's choice onto the
+// next. It is only ever offered when the ORIGINAL actually had other recipients (see `_otherRecipients`).
+const _replyAll = {};
+
+// The other people the original went to. It comes from the connector (`mailbox.parse_message`), which is
+// the only layer that can see To/Cc and knows our own address to strip. An older stored item — ingested
+// before this field existed — carries nothing, and then the choice is simply not offered: a reply-all that
+// silently reaches nobody extra is exactly the lie this widget must not tell.
+function _otherRecipients(it){
+  const r = (it && it.recipients) || [];
+  return Array.isArray(r) ? r.filter(a => typeof a === "string" && a.trim()) : [];
+}
+
+function composeBar(ctx, data, targetPayload, activeChat, rerender, mailItem){
   const key = _composeKey(targetPayload, activeChat);
   const wrap = el("div","compose");
+
+  // The draft for THIS conversation, out of the per-conversation map (V2-680). `data.draft` stays the
+  // fallback: it is the most recent one, which an older engine is all that ever answers with.
+  const stored = (data.drafts || {})[key];
+  const matches = _draftMatches(data.draft, targetPayload, activeChat);
+  const serverText = stored ? String(stored.text || "") : (matches ? String(data.draft.text || "") : "");
+
+  const others = _otherRecipients(mailItem);
+  if(others.length && !(key in _replyAll) && stored && stored.reply_all) _replyAll[key] = true;
+  const replyAll = others.length ? !!_replyAll[key] : false;
+
   const box = document.createElement("textarea");
   box.className = "composebox";
   box.placeholder = "Escribe tu respuesta… (o dila por voz y aparecerá aquí)";
-  box.rows = 2;
-  const matches = _draftMatches(data.draft, targetPayload, activeChat);
-  box.value = (key in _draftLocal) ? _draftLocal[key] : (matches ? String(data.draft.text || "") : "");
+  box.rows = 5;                       // the operator's own minimum — a reply is written, not tweeted
+  box.value = (key in _draftLocal) ? _draftLocal[key] : serverText;
 
-  const row = el("div","composerow");
+  // Reply / reply-all, above the box. Only for a mail whose original really had other recipients.
+  if(others.length){
+    const top = el("div","composetop");
+    const seg = el("div","seg");
+    [["one","Responder"], ["all","Responder a todos"]].forEach(([id, label])=>{
+      const b = el("button","segbtn"+(((id==="all")===replyAll)?" active":""), label);
+      b.onclick = ()=>{ _replyAll[key] = (id === "all"); rerender(); };
+      seg.appendChild(b);
+    });
+    top.appendChild(seg);
+    // What reply-all actually ADDS, named out loud: the promise is only worth making if he can see it.
+    top.appendChild(el("span","composehint", replyAll
+      ? ("copia a " + others.slice(0,3).join(", ") + (others.length > 3 ? ` y ${others.length-3} más` : ""))
+      : (others.length === 1 ? "1 destinatario más en el original"
+                             : `${others.length} destinatarios más en el original`)));
+    wrap.appendChild(top);
+  }
+
+  const main = el("div","composemain");
+  const side = el("div","composeside");
   const send = el("button","bt bt-primary","Enviar ➤");
+  const save = el("button","bt","Guardar borrador");
+  save.title = "Guardar lo escrito sin enviarlo (también se guarda solo al dejar de escribir)";
   const syncBtn = () => { send.disabled = !box.value.trim(); };
   syncBtn();
+
+  const payload = () => ({...targetPayload, reply_all: replyAll});
   box.addEventListener("input", () => {
     _draftLocal[key] = box.value;
     syncBtn();
     clearTimeout(_draftTimer);
-    _draftTimer = setTimeout(() => { ctx.action("draft", {...targetPayload, text: box.value}); }, 500);
+    _draftTimer = setTimeout(() => { ctx.action("draft", {...payload(), text: box.value}); }, 500);
   });
+  // Saving explicitly is the SAME write the autosave does, just now instead of in half a second — so the
+  // two can never disagree about what is stored. It says so on screen, because a save nobody can see is
+  // indistinguishable from a button that does nothing.
+  save.onclick = async () => {
+    clearTimeout(_draftTimer);
+    _draftLocal[key] = box.value;
+    await ctx.action("draft", {...payload(), text: box.value});
+    save.textContent = "Guardado ✓";
+    setTimeout(()=>{ try{ save.textContent = "Guardar borrador"; }catch(_){} }, 1600);
+  };
   send.onclick = async () => {
     const text = box.value;
     if(!text.trim()) return;
@@ -1030,12 +1117,15 @@ function composeBar(ctx, data, targetPayload, activeChat, rerender){
     delete _draftLocal[key];
     // The box's CURRENT value is what gets sent — never a value cached from an earlier keystroke or from
     // voice dictation alone: an edit made by hand after dictating is the operator's real final word.
-    await ctx.action("draft", {...targetPayload, text});
-    await ctx.action("send_draft", {});
+    await ctx.action("draft", {...payload(), text});
+    // The send NAMES its conversation (V2-680): with a draft per conversation, a bare send_draft would
+    // reach for the most recently TOUCHED one, which is not necessarily the screen this button is on.
+    await ctx.action("send_draft", {...targetPayload});
     rerender();
   };
-  row.appendChild(send);
-  wrap.append(box, row);
+  side.append(send, save);
+  main.append(box, side);
+  wrap.appendChild(main);
   return wrap;
 }
 
@@ -1188,7 +1278,7 @@ function mailDetail(it, data, ctx, closeMail, rerender){
   // V2-611 — reply to THIS mail specifically: `n`+`messageId` address it unambiguously, the same identity
   // read/dismiss/archive/trash already use (never the chat-grouping numbering, which the flat email list
   // does not have). Outgoing mail (his own, echoed into the thread) has nothing to reply TO.
-  if(it.dir !== "out") wrap.appendChild(composeBar(ctx, data, {n: it.n, messageId: it.messageId}, null, rerender));
+  if(it.dir !== "out") wrap.appendChild(composeBar(ctx, data, {n: it.n, messageId: it.messageId}, null, rerender, it));
   return wrap;
 }
 
@@ -1579,6 +1669,9 @@ export function render(root, data, ctx){
   const fItems = _platFilter ? items.filter(it=>it.platform===_platFilter) : items.filter(it=>it.highlight);
   const activeChat = !showChannels ? (data.active_chat || null) : null;
   if(activeChat){
+    // V2-680 — a reading screen owns the card: header fixed, messages scrolling in the middle, reply box
+    // pinned at the bottom. See the `.full` block in the stylesheet for why only these two screens opt in.
+    root.classList.add("full");
     root.appendChild(threadView(activeChat, data.active_items||[], data, ctx, rerender, data.thread_meta||null));
     return;
   }
@@ -1586,6 +1679,7 @@ export function render(root, data, ctx){
     ? (fItems.find(x=>mailKey(x)===_openMail) || items.find(x=>mailKey(x)===_openMail))
     : null;
   if(openMailItem){
+    root.classList.add("full");
     root.appendChild(mailDetail(openMailItem, data, ctx, ()=>{ _openMail=null; rerender(); }, rerender));
     return;
   }
