@@ -76,6 +76,17 @@ def _norm(m: dict, direction: str) -> dict:
         out["mediaType"] = str(m.get("mediaType"))
     if m.get("media"):
         out["media"] = m.get("media")
+    # V2-680 — what a MAIL needs and a chat bubble never did: the subject, the sender's real address and
+    # who else was on it. The operator's words, reading an email inside this widget: «quiero ver el
+    # asunto, quiero ver quién lo envía, quiero ver quién está en copia». A thread message kept none of
+    # the three, so the reading pane had nothing to show even though the connector had parsed them.
+    # Optional on purpose: a platform that does not send them stores nothing and renders as it always did.
+    if m.get("subject"):
+        out["subject"] = str(m.get("subject"))
+    if m.get("senderId"):
+        out["senderId"] = str(m.get("senderId"))
+    if m.get("recipients"):
+        out["recipients"] = [str(a) for a in m.get("recipients") if str(a).strip()][:25]
     return out
 
 

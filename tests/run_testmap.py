@@ -1832,12 +1832,19 @@ DOMAINS: list[dict] = [
         # fuente es CUÁNDO se abre la ventana: un `window.open` después de un `await` ha perdido el gesto del
         # usuario y el navegador lo bloquea EN SILENCIO — exactamente el «ni siquiera funciona» — así que la
         # comprobación es de ORDEN, no de que la llamada exista.
-        {"id": "4.164", "title": "Un correo abierto usa la TARJETA ENTERA: cuerpo con su propio scroll, caja de "
-                                 "respuesta anclada abajo con 5 filas y el enviar a su derecha, un borrador por "
-                                 "conversación y un «responder a todos» que copia de verdad",
+        # V2-680 (2ª vuelta) — un correo se LEE como en un cliente de correo, no como un chat. Su reporte con
+        # captura: «quita esa barrita roja de la izquierda… quiero ver el asunto, quién lo envía, quién está en
+        # copia y el texto en el medio… un cuadro bien delimitado… no quiero botones de mostrar más, lo quiero
+        # todo entero». Lo que NO se lee en el fuente: que el panel es flex y RECORTA una carta larga aunque
+        # todo esté "renderizado" — por eso las comprobaciones son de PÍXELES sobre el chrome real de la tarjeta.
+        {"id": "4.164", "title": "Un correo abierto usa la TARJETA ENTERA y se lee como un cliente de correo: "
+                                 "sobre con asunto/remitente/copia, cuerpo entero sin «mostrar más» en una caja "
+                                 "delimitada con su scroll, respuesta anclada abajo con 5 filas y el enviar a su "
+                                 "derecha, un borrador por conversación y un «responder a todos» que copia de verdad",
             "ch": UNIT, "paths": [
                 "tests/browser/unit/mensajeria/test_an_open_mail_uses_the_whole_card.py",
-                "tests/browser/unit/mensajeria/test_a_draft_belongs_to_its_conversation.py"]},
+                "tests/browser/unit/mensajeria/test_a_draft_belongs_to_its_conversation.py",
+                "tests/browser/unit/mensajeria/test_the_thread_keeps_what_a_LETTER_needs.py"]},
         {"id": "4.163", "title": "Los CONECTORES de la agenda toman la pantalla: iconos por proveedor, vistas "
                                  "desactivadas, wizard guiado con vuelta atrás y la ventana de Google abierta "
                                  "DENTRO del clic",

@@ -236,12 +236,43 @@ function injectStyles(){
   .hb-msg .mwhen{margin-left:auto;font-size:11.5px;color:var(--hb-muted-2,#9aa7b8);flex:0 0 auto}
   .hb-msg .msubj{font-size:13.5px;color:var(--hb-muted,#5f6b7c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .hb-msg .mdet{padding:2px 2px 10px}
-  .hb-msg .mdsubj{font-size:17px;font-weight:700;color:var(--hb-ink,#0d1622);margin-bottom:6px;word-break:break-word}
-  .hb-msg .mdmeta{display:flex;align-items:baseline;gap:8px;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--hb-line,#eef1f6)}
-  .hb-msg .mdfrom{font-size:14px;font-weight:600;color:var(--hb-ink,#0d1622)}
-  .hb-msg .mdwhen{font-size:12px;color:var(--hb-muted-2,#9aa7b8)}
-  .hb-msg .mdbody{font-size:14px;line-height:1.6;color:var(--hb-ink,#0d1622);white-space:pre-wrap;word-break:break-word}
-  .hb-msg .mdbody a.lnk{color:var(--hb-accent,#3D6FE0);text-decoration:underline}
+  /* V2-680 retired .mdsubj/.mdmeta/.mdfrom/.mdwhen/.mdbody: the detail screen draws the same LETTER the
+     thread does now (.mltr below), so keeping a second set of rules for the same thing is how two
+     renderings of one screen start to drift. */
+
+  /* V2-680 — READING A MAIL, shaped like a mail client and not like a chat. The operator, looking at an
+     email rendered as a chat bubble: «quita esa barrita roja de la izquierda… quiero ver el asunto, quién
+     lo envía, quién está en copia y el texto en el medio… un cuadro bien delimitado… no quiero botones de
+     mostrar más, lo quiero todo entero».
+     So: a bordered PANE with its own scrollbar (he asked for it explicitly — «un scroll a la derecha») and
+     a visible boundary, so he can see how much of it the content occupies; inside it, one bordered letter
+     per message with a real envelope header; the body complete, never clamped. The urgency bar is GONE
+     here on purpose — urgency belongs to the inbox list, which is where triage happens; inside an open
+     letter it was a red stripe on the one thing he had already chosen to read. */
+  .hb-msg .mpane{border:1px solid var(--hb-line,#e3e8f0);border-radius:12px;background:var(--hb-bg-soft,#fbfdff);
+    padding:12px;display:flex;flex-direction:column;gap:12px}
+  /* Deliberately NO overflow:hidden on a letter, and the rendered test caught why: it was here for the
+     rounded corners, and a letter taller than the pane got its body CUT — everything still "rendered",
+     nothing readable, which is the exact failure this screen exists to end. The only thing clipping can
+     do to a tall letter is hide the end of it. The letter keeps its full height (a flex item's default
+     min-height:auto already refuses to shrink below its content) and the PANE scrolls past it. */
+  .hb-msg .mltr{border:1px solid var(--hb-line,#e3e8f0);border-radius:10px;background:var(--hb-bg,#fff);
+    padding:14px 16px}
+  .hb-msg .mltr.out{background:var(--hb-hover,#eef3f9)}
+  .hb-msg .mltrsubj{font-size:16px;font-weight:700;color:var(--hb-ink,#0d1622);word-break:break-word;
+    margin:0 0 9px;line-height:1.3}
+  /* The envelope block: a label column and a value column, the shape every mail client uses. */
+  .hb-msg .menv{display:grid;grid-template-columns:auto 1fr;gap:3px 10px;align-items:baseline;
+    padding-bottom:11px;margin-bottom:12px;border-bottom:1px solid var(--hb-line,#eef1f6)}
+  .hb-msg .menvk{font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;
+    color:var(--hb-muted-2,#9aa7b8);white-space:nowrap}
+  .hb-msg .menvv{font-size:13px;color:var(--hb-ink,#0d1622);word-break:break-word;min-width:0}
+  .hb-msg .menvv .addr{color:var(--hb-muted,#6b7b92)}
+  .hb-msg .mltrbody{font-size:14.5px;line-height:1.65;color:var(--hb-ink,#0d1622);
+    white-space:pre-wrap;word-break:break-word}
+  .hb-msg .mltrbody a.lnk{color:var(--hb-accent,#3D6FE0);text-decoration:underline}
+  .hb-msg .mltr .tacts{opacity:.55;margin-top:12px}
+  .hb-msg .mltr:hover .tacts{opacity:1}
 
   /* Grouped CHAT list + open thread. */
   .hb-msg .chatrow{cursor:pointer;margin:0 -8px;padding-left:8px;padding-right:8px;border-radius:9px}
@@ -1249,6 +1280,72 @@ function emailList(items, ctx, openMail){
 // out. Reuses `messageActions` so read/dismiss/archive/trash/mute stay the SAME five buttons the row itself
 // used to carry, wired to the same `n` (unambiguous: read/dismiss/archive/trash/hide all resolve by the
 // item's own `n` against the flat renumbered list, never against a chat grouping — see data.py).
+// ── READING A MAIL (V2-680) ───────────────────────────────────────────────────────────────────────────
+// One letter, shaped like a mail client: subject, the envelope (who wrote it, who it went to, who was
+// copied, when) and the body WHOLE. `full` says whether the body may be cut — it never may here; the
+// argument exists so the preview shapes elsewhere keep their own behaviour.
+//
+// Everything is DERIVED from what the message actually carries. An address we do not have is a row that
+// is not drawn, never an invented one and never an empty label: "Cc: —" states something false about the
+// original mail, and the operator reads this pane to know who was on it.
+function mailEnvelope(it, meta){
+  const env = el("div","menv");
+  const row = (k, node)=>{ env.appendChild(el("div","menvk", k)); env.appendChild(node); };
+  const val = (text, addr)=>{
+    const v = el("div","menvv", text);
+    if(addr && addr !== text) v.appendChild(el("span","addr", " · " + addr));
+    return v;
+  };
+  const outgoing = it.dir === "out";
+  // The sender. On his OWN reply the thread stores our label, and the person it went TO is the
+  // conversation itself — which is the only place that identity survives once the item is answered.
+  const who = outgoing ? "Tú" : (it.who || it.from || "?");
+  row("De", val(who, outgoing ? "" : (it.senderId || "")));
+  const other = (meta && meta.chatId) || it.senderId || "";
+  if(outgoing && other) row("Para", val(other, ""));
+  else if(!outgoing) row("Para", val("Tú", ""));
+  const cc = (it.recipients || []).filter(a => typeof a === "string" && a.trim());
+  if(cc.length) row("Copia", val(cc.join(", "), ""));
+  const when = fmtWhen(it.ts);
+  if(when) row("Fecha", val(when, ""));
+  return env;
+}
+
+// The connector folds the subject into the body as a leading "[Asunto: X]" line (mailbox.parse_message), so
+// a screen that ALSO shows the subject in its own field prints it twice — visible in the very first render
+// of this pane. Stripping it is exact and not a guess: that marker is ours, written by our own parser, and
+// only the FIRST line is ever touched.
+const _SUBJECT_MARKER = /^\s*\[Asunto:([^\]\n]*)\]\n?/;
+
+function stripSubjectLine(text){
+  return String(text == null ? "" : text).replace(_SUBJECT_MARKER, "");
+}
+
+function mailLetter(it, ctx, meta){
+  const wrap = el("div","mltr"+(it.dir === "out" ? " out" : ""));
+  const media = mediaBlock(it);
+  const raw = displayBody(it.body, it.mediaType);
+  const marked = _SUBJECT_MARKER.exec(raw);
+  const {title, rest} = splitBody(stripSubjectLine(raw));
+  // The stored subject wins; the marker line is the fallback for a message ingested before the field
+  // existed, and a plain first-line title is the last resort for a body with neither.
+  const subject = (it.subject || "").trim() || (marked ? marked[1].trim() : "") || title || "";
+  if(subject) wrap.appendChild(el("div","mltrsubj", subject));
+  wrap.appendChild(mailEnvelope(it, meta));
+  if(!(media && isBareMediaLabel(it.body))){
+    const body = el("div","mltrbody");
+    // NO clamp and NO «mostrar más», at any length — his rule: «lo quiero todo entero». The pane around
+    // this scrolls, which is what makes showing everything affordable.
+    // `rest` is the body once splitBody has lifted the "[Asunto: X]" line off it; `title` is the fallback
+    // for a message that is nothing BUT that line.
+    linkify(body, rest || title);
+    wrap.appendChild(body);
+  }
+  if(media) wrap.appendChild(media);
+  if(it.dir !== "out" && it.n != null) wrap.appendChild(messageActions(it, ctx));
+  return wrap;
+}
+
 function mailDetail(it, data, ctx, closeMail, rerender){
   const wrap = el("div","thread plat-email");
   const hd = el("div","thd");
@@ -1256,25 +1353,12 @@ function mailDetail(it, data, ctx, closeMail, rerender){
   hd.appendChild(back);
   wrap.appendChild(hd);
 
-  const card = el("div","mdet");
-  card.appendChild(el("div","mdsubj", (it.subject || "").trim() || "(sin asunto)"));
-  const meta = el("div","mdmeta");
-  meta.appendChild(el("span","mdfrom", it.from!=null ? it.from : "?"));
-  const when = fmtWhen(it.ts);
-  if(when) meta.appendChild(el("span","mdwhen", when));
-  card.appendChild(meta);
+  // V2-680 — the SAME letter shape the thread uses, inside the same bordered pane, so «open this mail»
+  // and «open this conversation» are not two different-looking screens for the same act of reading.
+  const pane = el("div","mdet mpane");
+  pane.appendChild(mailLetter({...it, who: it.from}, ctx, {chatId: it.chatId}));
+  wrap.appendChild(pane);
 
-  const media = mediaBlock(it);
-  if(!(media && isBareMediaLabel(it.body))){
-    const {title, rest} = splitBody(displayBody(it.body, it.mediaType));
-    const bodyEl = el("div","mdbody");
-    linkify(bodyEl, title ? (rest || title) : rest);
-    card.appendChild(bodyEl);
-  }
-  if(media) card.appendChild(media);
-  wrap.appendChild(card);
-
-  if(!(it.dir === "out") && it.n != null) wrap.appendChild(messageActions(it, ctx));
   // V2-611 — reply to THIS mail specifically: `n`+`messageId` address it unambiguously, the same identity
   // read/dismiss/archive/trash already use (never the chat-grouping numbering, which the flat email list
   // does not have). Outgoing mail (his own, echoed into the thread) has nothing to reply TO.
@@ -1422,8 +1506,17 @@ function threadView(active, items, data, ctx, rerender, meta){
 
   wrap.appendChild(threadStart(meta, ctx));
   const isGroup = !!(meta && meta.isGroup);
-  const list = el("div","tl");
-  items.forEach(it=> list.appendChild(messageRow(it, ctx, rerender, isGroup)));
+  // V2-680 — EMAIL is read like a mail client, not like a chat. A bubble timeline is the right shape for
+  // WhatsApp and Telegram (short turns, one line each) and the wrong one for a letter: it clamped a
+  // three-page mail to three lines behind a «mostrar más», hid the subject, showed neither the recipients
+  // nor who was copied, and put an urgency stripe down the side of the one thing he had opened on purpose.
+  const list = el("div","tl" + (active.platform === "email" ? " mpane" : ""));
+  if(active.platform === "email"){
+    const who = {chatId: active.chatId};
+    items.forEach(it=> list.appendChild(mailLetter(it, ctx, who)));
+  } else {
+    items.forEach(it=> list.appendChild(messageRow(it, ctx, rerender, isGroup)));
+  }
   wrap.appendChild(list);
   // V2-611 — reply to the CONVERSATION, not a specific past message: `{}` lets the server resolve the
   // target from `active_chat` itself (`_resolve_target`), which is what «responderle» means for a thread.

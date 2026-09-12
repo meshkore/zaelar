@@ -82,9 +82,12 @@ _MEASURE = """() => {
     playBtns: el.querySelectorAll('.mapbtn').length,
     waveBars: [...el.querySelectorAll('.mawave')].map(w => w.querySelectorAll('.mabar').length),
     docs: [...el.querySelectorAll('a.mdoc')].map(a => a.textContent),
-    row_acts: [...el.querySelectorAll('.tbrow')].map(r =>
+    // V2-680 — a MESSAGE is a chat bubble (.tbrow) on WhatsApp/Telegram and a LETTER (.mltr) on email,
+    // which reads like a mail client instead. Both shapes carry the same per-message actions, so the probe
+    // has to know both or an email claim silently measures an empty list.
+    row_acts: [...el.querySelectorAll('.tbrow, .mltr')].map(r =>
       [...r.querySelectorAll('.tacts button')].map(b => b.textContent).join('')),
-    bodies: [...el.querySelectorAll('.tbbody')].map(n => n.textContent),
+    bodies: [...el.querySelectorAll('.tbbody, .mltrbody')].map(n => n.textContent),
     // V2-610 — the email lens's OWN shape: sender+subject+time, no body (`.msubj`/`.mfrom`, not `.tbody`).
     subjects: [...el.querySelectorAll('.msubj')].map(n => n.textContent),
     filt: el.querySelectorAll('.picon.filt').length,

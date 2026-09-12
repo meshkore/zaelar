@@ -92,8 +92,16 @@ def _thread_view(db: dict, active: dict, pending_here: list) -> list:
             row["mediaType"] = m.get("mediaType")
         if m.get("media"):
             row["media"] = m.get("media")
+        # V2-680 — the envelope a MAIL is read by. These come off the THREAD, so a mail already read still
+        # says who wrote it and who was copied: before this they were merged only from a still-pending
+        # item, which means the fields vanished the moment the message was dealt with — exactly when the
+        # operator scrolls back to check who else was on it.
+        for k in ("subject", "senderId", "recipients"):
+            if m.get(k):
+                row[k] = m.get(k)
         if live is not None:
-            for k in ("n", "urgencia", "dirigido_a_mi", "motivo", "senderId", "subject", "msgid", "group"):
+            for k in ("n", "urgencia", "dirigido_a_mi", "motivo", "senderId", "subject", "msgid", "group",
+                      "recipients"):
                 if live.get(k) is not None:
                     row[k] = live.get(k)
         out.append(row)

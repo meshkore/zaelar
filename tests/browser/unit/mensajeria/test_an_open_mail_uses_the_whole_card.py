@@ -211,6 +211,138 @@ def test_the_dashboard_list_still_scrolls_as_one_page(_page):
     assert _page.evaluate("getComputedStyle(document.querySelector('.hb-scroll')).overflow") != "hidden"
 
 
+# ── read like a mail client, not like a chat ──────────────────────────────────────────────────────────
+
+_THREAD = {"platform": "email", "chatId": "ana@x.com"}
+# The shape `_thread_view` really hands the widget: the sender travels as `from` (it maps the thread's
+# `who` onto it), never as `who` — a fixture using the internal name would measure a different product.
+_LETTERS = [
+    {"messageId": "uid-ana", "dir": "in", "from": "Ana", "senderId": "ana@x.com",
+     "subject": "Reunión de mañana", "recipients": ["marta@x.com", "pedro@x.com"],
+     "ts": 1700003600, "n": 1, "platform": "email", "chatId": "ana@x.com",
+     "body": f"[Asunto: Reunión de mañana]\n{_LONG}", "urgencia": "alta"},
+]
+
+
+def _open_thread(page, letters=None):
+    _mount(page, _base(active_chat=_THREAD, active_items=letters or _LETTERS))
+    page.wait_for_timeout(60)
+
+
+def test_an_email_thread_is_NOT_a_chat_timeline(_page):
+    """The operator's screenshot: an email rendered as a WhatsApp bubble — a red urgency stripe down its
+    left side and its body clamped to three lines behind «mostrar más». A bubble is the right shape for a
+    chat turn and the wrong one for a letter."""
+    _open_thread(_page)
+    assert _page.locator(".tbubble").count() == 0                 # no chat bubble
+    assert _page.locator(".mltr").count() == 1                    # a letter instead
+
+
+def test_the_red_urgency_STRIPE_is_gone_from_an_open_mail(_page):
+    """«Quita esa barrita roja de la izquierda». Measured as rendered INK, not as a missing class: the
+    stripe was an inset box-shadow, which a class check would not have seen either way."""
+    _open_thread(_page)                                           # the letter is urgencia: alta
+    shadow = _page.evaluate("getComputedStyle(document.querySelector('.mltr')).boxShadow")
+    assert "rgb" not in shadow or shadow == "none", shadow
+
+
+def test_nothing_is_hidden_behind_a_SHOW_MORE(_page):
+    """«No quiero botones de mostrar más, ni quiero nada. Lo quiero todo entero.»"""
+    _open_thread(_page)
+    assert _page.get_by_text("mostrar más").count() == 0
+    # And the body really is whole: its rendered text carries the LAST paragraph of a 60-paragraph mail.
+    assert "Párrafo 60" in _page.locator(".mltrbody").inner_text()
+
+
+def test_the_body_is_never_CLIPPED_by_the_pane_around_it(_page):
+    """The counterweight, and a real bug this caught: the pane is a flex column, so a letter that is a
+    flex ITEM gets shrunk to fit and its body cut — everything still 'rendered', nothing readable."""
+    _open_thread(_page)
+    m = _page.evaluate("""() => {
+        const l = document.querySelector('.mltr');
+        return {clipped: l.scrollHeight - l.clientHeight, tall: l.getBoundingClientRect().height};
+    }""")
+    assert m["clipped"] <= 1, m                                   # the letter itself cuts nothing
+    assert m["tall"] > 1000, m                                    # and it really is a long one
+
+
+def test_the_letter_says_the_subject_the_sender_and_who_was_COPIED(_page):
+    """«Quiero ver el asunto, quiero ver quién lo envía, quiero ver quién está en copia.» None of the
+    three survived into a thread message before — the connector parsed them and the store dropped them."""
+    _open_thread(_page)
+    assert "Reunión de mañana" in _page.locator(".mltrsubj").inner_text()
+    env = _page.locator(".menv").inner_text()
+    assert "Ana" in env and "ana@x.com" in env
+    assert "marta@x.com" in env and "pedro@x.com" in env
+
+
+def test_the_subject_is_not_printed_TWICE(_page):
+    """Found by looking at the render, not by reading: the connector folds the subject into the body as a
+    leading "[Asunto: X]" line, so a pane that also shows it in its own field printed it in both places,
+    one under the other. That marker is OURS, written by our own parser, so stripping the first line is
+    exact rather than a guess."""
+    _open_thread(_page)
+    body = _page.locator(".mltrbody").inner_text()
+    assert "[Asunto:" not in body, body[:200]
+    assert "Reunión de mañana" in _page.locator(".mltrsubj").inner_text()   # …and it IS shown, once
+
+
+def test_a_mail_with_only_the_marker_still_gets_its_subject(_page):
+    """The counterweight: a message stored before `subject` existed carries the marker and nothing else,
+    and stripping it must not leave the letter untitled."""
+    old = [{k: v for k, v in _LETTERS[0].items() if k != "subject"}]
+    _open_thread(_page, old)
+    assert "Reunión de mañana" in _page.locator(".mltrsubj").inner_text()
+
+
+def test_a_row_we_do_not_HAVE_is_not_drawn_at_all(_page):
+    """An empty «Copia: —» states something false about the original, and this pane is read precisely to
+    know who was on it."""
+    bare = [{**_LETTERS[0], "recipients": []}]
+    _open_thread(_page, bare)
+    # Read the LABELS, upper-cased: `.menvk` carries text-transform:uppercase, so rendered text says
+    # "COPIA" — an assertion written as `"Copia" not in inner_text()` is vacuously true whether the row
+    # is drawn or not, which is exactly what the disarm caught.
+    labels = [t.strip().upper() for t in _page.locator(".menvk").all_inner_texts()]
+    assert "COPIA" not in labels, labels
+    assert "DE" in labels, labels                                 # …and the envelope really did render
+
+
+def test_the_content_area_is_a_DELIMITED_box_with_its_own_scroll(_page):
+    """«Todo el contenido central tiene que ser un cuadro bien delimitado… y un scroll a la derecha por
+    si eso es más grande.» A visible border is the whole point: it is what tells him how much of the box
+    the mail occupies."""
+    _open_thread(_page)
+    style = _page.evaluate("""() => {
+        const p = document.querySelector('.tl.mpane');
+        const cs = getComputedStyle(p);
+        return {w: cs.borderTopWidth, radius: cs.borderTopLeftRadius,
+                scrolls: p.scrollHeight - p.clientHeight};
+    }""")
+    assert parse_px(style["w"]) >= 1, style                       # a real boundary, drawn
+    assert parse_px(style["radius"]) > 0, style
+    assert style["scrolls"] > 200, style                          # and the long mail scrolls inside it
+
+
+def parse_px(v):
+    try:
+        return float(str(v).replace("px", ""))
+    except ValueError:
+        return 0.0
+
+
+def test_a_WHATSAPP_thread_keeps_its_bubbles(_page):
+    """The counterweight to the whole redesign: a chat turn is one line and a bubble timeline is the
+    right shape for it. Only EMAIL changes."""
+    wa = {"platform": "whatsapp", "chatId": "111"}
+    msgs = [{"messageId": "w1", "dir": "in", "from": "Marta", "ts": 1700000000, "body": "¿Vienes?",
+             "platform": "whatsapp", "chatId": "111"}]
+    _mount(_page, _base(active_chat=wa, active_items=msgs))
+    _page.wait_for_timeout(60)
+    assert _page.locator(".tbubble").count() == 1
+    assert _page.locator(".mltr").count() == 0
+
+
 # ── the reply box ─────────────────────────────────────────────────────────────────────────────────────
 
 def test_the_box_has_at_least_five_rows(_page):
