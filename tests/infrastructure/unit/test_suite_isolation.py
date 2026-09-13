@@ -89,3 +89,25 @@ def test_the_operators_widget_data_is_not_the_one_the_suite_writes():
     assert Path(store.DATA_DIR).resolve() != real.resolve(), (
         "la suite está escribiendo en los datos de widgets REALES del operador: una data-op de cualquier test "
         f"le deja basura en su agenda. Apunta a: {store.DATA_DIR}")
+
+
+def test_the_operators_database_is_not_the_one_the_suite_reads():
+    """Added 2026-09-13 (V2-684). `zaelar.db` holds the memory, the durable event log and — since V2-683 —
+    the ERRAND LEDGER, and it was the last store this file's invariant had never reached. The gap was even
+    written down in `tests/browser/unit/agenda/conftest.py` («nothing in the test conftests overrides
+    `ZAELAR_DB`»), which is the usual shape: a rule stated in prose and never made red.
+
+    What made it visible was the first real errand. `context_packs.active_ids()` answered `['errands']` —
+    the operator's own gestión, in flight, in his own ledger — and four tests about the PHRASEBOOK went red
+    on a clean tree, because the phrasebook correctly stands aside while a phase is guiding. Nothing was
+    broken: the suite had simply started depending on whether he happened to have an errand open.
+
+    Checked the way its widget-data sibling is, by what MATTERS: any path but the operator's own. A runner
+    that points at its own corpus is honoured — that is a test choosing its state, which is this rule.
+    """
+    from memory import db
+
+    real = Path(__file__).resolve().parents[3] / "memory" / "_data" / "zaelar.db"
+    assert Path(db.db_path()).resolve() != real.resolve(), (
+        "the suite is reading and writing the operator's REAL database: his memory, his event log and his "
+        f"errands decide what green means. It points at: {db.db_path()}")

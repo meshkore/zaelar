@@ -90,6 +90,30 @@ try:
 except Exception:                                  # if `widgets` is not importable, the suite continues as before
     pass
 
+# 2026-09-13 (V2-684) — THE SAME INVARIANT, and this time the place it had never reached is the DATABASE:
+# `zaelar.db`, which holds the memory, the durable event log AND, since V2-683, the errand ledger.
+#
+# `tests/browser/unit/agenda/conftest.py` already wrote the gap down in prose — «nothing in the test
+# conftests overrides `ZAELAR_DB`» — and, as ever, a rule written and never made red is not a rule. Dozens
+# of individual tests point it at a tmp_path each; everything else read and wrote the operator's real file.
+#
+# MEASURED, the day the first real errand existed: `test_the_probe_mirror_is_deterministic` and three of
+# its neighbours went red on a clean tree, because `context_packs.active_ids()` answered `['errands']` —
+# the operator's OWN live errand, sitting in his OWN ledger, making a phase «active» inside a test about
+# the phrasebook. Nothing was broken; four tests simply started depending on whether he happened to have a
+# gestión in flight. (And the same file is where the suite's bus events have been landing all along.)
+#
+# The rule is narrow on purpose: the suite may never use the DEFAULT path. A runner that deliberately
+# points at its own corpus (`tests/memory/e2e/memory_cron_tick.sh` exports a membot database) is honoured
+# — that is a test choosing its own state, which is the invariant, not a breach of it.
+try:
+    from memory import db as _memdb
+
+    if not os.getenv("ZAELAR_DB") or _Path(os.environ["ZAELAR_DB"]) == _memdb.db_path():
+        os.environ["ZAELAR_DB"] = str(_Path(tempfile.mkdtemp(prefix="zaelar-test-db-")) / "zaelar.db")
+except Exception:                                  # if `memory` is not importable, the suite continues as before
+    pass
+
 
 # V2-279 — AN OPEN TRACE LEAKS INTO SUBSEQUENT TESTS (2026-08-24).
 #

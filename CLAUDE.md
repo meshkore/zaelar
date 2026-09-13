@@ -551,8 +551,43 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     nobody, since the arcs drive it through the harness). `memory.errands_store` is blessed in the memory
     contract: the boundary test and the architecture ratchet pointed opposite ways in V2-683 and the
     extraction won — the blessing records that instead of leaving a red test with no written reason.
-    **NOT verified live**: nothing has been sent to `@cryptonite_fund` yet. NOT built: the journey case
-    and the language axis proper (T-B…T-G), named in the initiative.
+  - ⭐ **VERIFIED LIVE, and the live run found SIX more defects, none of them visible from the suite.**
+    The operator answered from `@cryptonite_fund` and at 23:13:29 the errand answered him BY ITSELF —
+    «Perfecto, mañana por la mañana. ¿Te viene bien a las 10:00?» — the first sentence this system has ever
+    said to a person with nobody dictating it. What it cost, in the order it was found: (1) an errand
+    CLOSED ITSELF in the same second over his real «Cinema with Mary», because `verify.meeting_exists`
+    filtered on a `created` field the agenda never writes — **the earlier tests passed because they wrote
+    that field BY HAND**; (2) an answer arriving with the ⏻ off was LOST rather than postponed, because
+    `_fire_wakes` POPPED the wake six lines before `wake()` refused with «parado»; (3) the errand tests read
+    his REAL `config/playbooks.json`, which the live node writes `shadow: false` into, so the shadow arcs
+    ARMED themselves; (4) **an answer that arrived before a RESTART was lost for ever** — three messages
+    landed at 22:28, the engine came back at 22:33, and the errand sat in `contacting` with `last_inbound`
+    empty, because `_pending_wakes` is memory, the bus subscription is memory, and nothing ever asked the
+    thread store what it was ALREADY HOLDING (`watch._reconcile` now compares each live errand against its
+    own conversation: the bus becomes the FAST path instead of the only path, which also covers a ⏻ off for
+    longer than one process and any dropped event); (5) **the model said NOTHING and the conversation
+    died** — the party turn asked `deepseek-v4-pro`, a REASONER, for 700 tokens and got `reasoning_tokens:
+    700` of 700, `finish_reason: length`, `content: ''`, which `wake()` filed as «ilegible» and answered
+    with silence toward somebody who was waiting (the V2-658 class one layer over: `no_thinking`, a wider
+    budget, ONE bounded retry — and the operator is told, because a turn that could not answer is
+    indistinguishable from a gestión still in flight); (6) the dossier announced his OCCUPIED hours under
+    the label «HUECOS LIBRES», so the next thing it would have done is offer «Cinema with Mary»'s slot to a
+    stranger — **a label that contradicts its own value is worse than no line at all** — and the person was
+    called «telegram», because the contact is filed by the handle he dictated while the conversation is
+    keyed by the platform's numeric id.
+  - ⚠️ **And the first real errand turned four UNRELATED tests red on a clean tree**:
+    `context_packs.active_ids()` answered `['errands']` — his own gestión, in his own ledger — so the
+    PHRASEBOOK cases failed, because the phrasebook correctly stands aside while a phase is guiding.
+    Nothing was broken; the suite had started depending on whether he happened to have an errand open. The
+    cause is this invariant's last unreached store, **`zaelar.db`** (the memory, the durable event log and
+    the errand ledger), and the gap was already written down in `tests/browser/unit/agenda/conftest.py` —
+    «nothing in the test conftests overrides `ZAELAR_DB`» — which is the same shape V2-673 paid for
+    `config/v2.json`. The database moves for the whole session in the ROOT `conftest.py` now, beside the
+    three that already do, with its row in `test_suite_isolation`; a runner pointing at its own corpus is
+    honoured, because that is a test choosing its state. **NOT built**: the journey case and the language
+    axis proper (T-B…T-G), named in the initiative. **Still not verified live**: the full CLOSE of an
+    errand against a real agreement — the party turn holds no tools, so nothing turns «agreed» into an
+    agenda row yet (V2-683 row 6, blocked on `connectors/calendar/`).
 
 - **An errand with a THIRD PARTY outlives the turn — and it ships in SHADOW (V2-683, 2026-09-13)**: the
   operator's errand — «contacta con Iván Musikin y mantén una conversación con él para organizar una
