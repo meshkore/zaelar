@@ -1476,6 +1476,16 @@ DOMAINS: list[dict] = [
                                 "el prompt diciendo que NO está hecho",
             "ch": UNIT,
             "paths": ["tests/agent_headless/unit/test_an_errand_outlives_the_turn.py"]},
+        # V2-683 fila 4 — LA BOCA MÁS CONSECUENTE del motor: escribe a personas reales, en nombre del
+        # operador, desde sus propias cuentas. El resto de guardas protegen su pantalla o su cartera; esta
+        # protege su reputación. Por eso el peso está en lo que NO puede pasar: el texto del tercero llega a
+        # un modelo SIN TOOLS (no hay nada que una instrucción inyectada pueda llamar), la respuesta solo
+        # puede ir a la conversación que el encargo ya tiene, el dossier lleva tres datos del operador y
+        # ninguno más, y de fábrica va en SOMBRA: decide y lo deja escrito, no envía.
+        {"id": "3.42", "title": "El encargo se mueve solo cuando el mundo contesta — y las palabras de un "
+                                "desconocido no mueven NADA (sombra, sin tools, dirección fija, ⏻)",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/test_an_errand_wakes_when_the_world_answers.py"]},
         # V2-676 — medido en su sesión INGLESA `af4429e0` (2026-09-11), dos fallos que viajaban juntos:
         #   · cinco búsquedas del tiempo en Nueva York, las cinco n:0 con `failure.kind = captcha`, y el modelo
         #     explicó el vacío con la única historia que tiene: «I don't have live internet access… my training

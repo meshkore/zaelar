@@ -100,10 +100,15 @@ def window_from(text: str, default_s: float = DEFAULT_WINDOW_S) -> float:
 
 
 # ── the ledger ──────────────────────────────────────────────────────────────────────────────────────────
-def start(objective: str, *, kind: str = "generic", mandate: dict | None = None, title: str = "",
+def start(objective: str, *, kind: str = "", mandate: dict | None = None, title: str = "",
           window_s: float = 0.0, done_when: dict | None = None, unknowns=None,
           trace: str = "", now: float | None = None) -> dict | None:
     """Open an errand. Returns the row, or None when it must not exist at all.
+
+    The ONE door, and it is self-sufficient: the kind, the closing condition and what still has to be known
+    are read from the playbook here rather than by each caller, so an errand opened from anywhere closes
+    itself. (Written after a test caught the other shape: only the bus watcher filled `done_when`, and an
+    errand opened by any other path could never verify and could only ever end by running out of time.)
 
     The refusal is not a formality: `escalate_to_slowbrain` puts the SAME check at the one gateway every
     escalation passes (V2-655), so that an errand about modifying the engine never comes to exist — no
@@ -120,14 +125,32 @@ def start(objective: str, *, kind: str = "generic", mandate: dict | None = None,
     except Exception:  # noqa: BLE001 — the guard failing must not open the door it guards
         return None
     now = time.time() if now is None else now
-    window = float(window_s) if window_s > 0 else window_from(obj)
+    # The three clocks are the operator's to set (genesis, overridable per install) and fall back to the
+    # constants above, so an errand opened before that layer is readable still closes itself.
+    grace, ceiling, default_window = GRACE_S, MAX_S, DEFAULT_WINDOW_S
+    kind = (kind or "").strip().lower()
+    try:
+        from .playbooks import done_when as _pb_done, kind_for, needs as _pb_needs, settings
+        cfg = settings()
+        grace = float(cfg.get("grace_h", GRACE_S / 3600)) * 3600
+        ceiling = float(cfg.get("max_days", MAX_S / 86400)) * 86400
+        default_window = float(cfg.get("default_window_h", DEFAULT_WINDOW_S / 3600)) * 3600
+        if not kind:
+            kind = kind_for(obj)
+        if done_when is None:
+            done_when = _pb_done(kind)
+        if unknowns is None:
+            unknowns = _pb_needs(kind)
+    except Exception:
+        pass
+    window = float(window_s) if window_s > 0 else window_from(obj, default_window)
     deadline = now + window
     row = {
-        "id": new_id(), "kind": (kind or "generic").strip().lower(), "title": (title or obj)[:120],
+        "id": new_id(), "kind": kind or "generic", "title": (title or obj)[:120],
         "objective": obj[:300], "mandate": dict(mandate or {}), "state": "contacting",
         "unknowns": list(unknowns or []), "done_when": dict(done_when or {}),
         "last_inbound": "", "wake_count": 0, "trace_id": trace or "",
-        "deadline": int(deadline), "expires_at": int(min(deadline + GRACE_S, now + MAX_S)),
+        "deadline": int(deadline), "expires_at": int(min(deadline + grace, now + ceiling)),
         "created_at": int(now), "updated_at": int(now), "closed_at": 0, "outcome": "",
     }
     _memory().errand_put(row)

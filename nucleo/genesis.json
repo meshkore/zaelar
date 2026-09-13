@@ -17,5 +17,75 @@
     },
     "guide": "Video and films go in video/, music and any audio in audio/, papers, books and PDFs in documents/, pictures in images/. downloads/ is the torrent client's own sandbox — it writes there and nowhere else; a finished file is filed into its folder by kind.",
     "browser_playable_only": true
+  },
+  "errands": {
+    "_comment": "V2-683 — ERRANDS with a third party. `shadow` TRUE = decide and LOG what it would say, send nothing: autonomy that writes to real people in the operator's name is handed over after he has read a few of those rows, not on the strength of a green test suite.",
+    "shadow": true,
+    "default_window_h": 4,
+    "grace_h": 24,
+    "max_days": 7
+  },
+  "playbooks": {
+    "_comment": "A BRIEFING per kind of errand, never a script: what «done» means, what has to be known before acting, how this kind of thing is done well, and what ends it without success. An errand whose kind is not here still runs (the generic path) — that is what keeps this a shortcut and not a fence. The operator overrides any of it in config/playbooks.json.",
+    "meeting": {
+      "matches": [
+        "reuni",
+        "meeting",
+        "quedar",
+        "vernos",
+        "cita con",
+        "videollamada",
+        "llamada con"
+      ],
+      "done_when": {
+        "widget": "agenda",
+        "has": "meeting",
+        "within": "window"
+      },
+      "needs": [
+        "con quién",
+        "ventana de fechas",
+        "duración",
+        "medio (presencial, videollamada…)"
+      ],
+      "defaults": {
+        "duration_min": 30
+      },
+      "prefers": {
+        "medium": [
+          "videollamada",
+          "presencial",
+          "teléfono"
+        ]
+      },
+      "stop_when": [
+        "pide hablar con el operador",
+        "dice que no puede",
+        "se pasó la ventana"
+      ],
+      "brief": "Propón dos horas CONCRETAS dentro de la ventana que te dio tu operador, mirando lo que ya tiene ocupado. Acepta la primera que la otra persona confirme y no sigas negociando después. No propongas nada fuera de esa ventana salvo que el encargo nombre una alternativa. Cuando haya hora, dilo claro y una sola vez."
+    },
+    "booking": {
+      "matches": [
+        "reserva",
+        "reservar",
+        "mesa para",
+        "booking",
+        "cita en",
+        "pedir hora"
+      ],
+      "needs": [
+        "sitio",
+        "día y hora",
+        "cuántas personas",
+        "a nombre de quién"
+      ],
+      "stop_when": [
+        "no tienen sitio",
+        "piden datos que solo el operador puede dar",
+        "se pasó la ventana"
+      ],
+      "brief": "Pide lo que falta antes de comprometer nada, confirma con la otra parte el día, la hora y el número de personas, y no des por hecha una reserva que no te han confirmado."
+    }
   }
 }

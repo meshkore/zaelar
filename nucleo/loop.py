@@ -165,6 +165,7 @@ class OrchestratorLoop:
         await self._supervise_workers(now)
         await self._supervise_confirms(now)
         await self._supervise_harness(now)
+        await self._supervise_errands(now)
         await self._supervise_stale_flows(now)
         await self._fire_due(now)
         await self._maybe_spark(now)
@@ -184,6 +185,18 @@ class OrchestratorLoop:
             identity.close_if_idle()
         except Exception:
             pass
+
+    async def _supervise_errands(self, now: float) -> None:
+        """V2-683 — the beat an errand with a third party moves on: it reads the bus (a message that went
+        out, a conversation created, somebody answering), wakes at most one errand, and closes what ran out
+        of time. It lives on THIS loop rather than in a task of its own for the reason the whole module
+        exists: an errand is not a process, and giving it one would be the thing that dies on a restart.
+        Best-effort, like every other supervisor here — it must never be able to stop the pulse."""
+        try:
+            from nucleo.errands import watch
+            await watch.tick(now)
+        except Exception as e:  # noqa: BLE001
+            logger.debug(f"errands tick skipped: {e}")
 
     async def _supervise_workers(self, now: float) -> None:
         """V2-038 (§8): PROJECTS the RAM registry into STATE (~1 Hz, §v2·C), RELAYS a waiting worker's question
