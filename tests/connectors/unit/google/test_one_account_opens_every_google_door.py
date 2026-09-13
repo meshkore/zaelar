@@ -272,26 +272,26 @@ def test_the_conference_version_rides_the_request_that_asks_for_one():
 
 @_needs_calendar
 def test_the_meet_flag_is_carried_only_when_the_payload_names_it():
-    """`gcal.apply_meet` is the agenda's Google seam for this, and it is deliberately the only place the rule
-    lives — `_apply_details` is shared by the create and the edit paths, so both get the same answer.
+    """`details.apply_meet` lives beside the other detail-appliers, and is deliberately the only place the
+    rule lives — `_apply_details` is shared by the create and the edit paths, so both get the same answer.
 
     ⚠️ The DROPPING half is the one that needs a meeting room to already exist. The first version of this
     case only ever asserted absence, so removing the `if key not in payload` guard altogether left it GREEN:
     the mutation pops a key that was not there, which is indistinguishable from never setting it. A case that
     starts from the trimmed state measures the trim (V2-655's lesson, paid here)."""
-    from widgets.agenda import gcal
+    from widgets.agenda import details
     m = {"title": "Equipo"}
-    gcal.apply_meet(m, {"startTime": "11:00"})
+    details.apply_meet(m, {"startTime": "11:00"})
     assert "meet" not in m, "an edit that never mentions Meet must not mint one"
 
-    gcal.apply_meet(m, {"meet": True})
+    details.apply_meet(m, {"meet": True})
     assert m["meet"] is True
 
     # The load-bearing one: he moves the hour of a meeting that ALREADY has a room.
-    gcal.apply_meet(m, {"startTime": "12:00", "location": "sala 2"})
+    details.apply_meet(m, {"startTime": "12:00", "location": "sala 2"})
     assert m["meet"] is True, "an unrelated edit silently cancelled the video call"
 
-    gcal.apply_meet(m, {"meet": "no"})
+    details.apply_meet(m, {"meet": "no"})
     assert "meet" not in m and "meetLink" not in m
 
 
@@ -299,24 +299,25 @@ def test_the_meet_flag_is_carried_only_when_the_payload_names_it():
 def test_a_paraphrased_name_for_a_video_call_still_lands():
     """An unambiguous natural alias must not cost the fact (V2-341): `meet` is the manifest's name, and the
     other two are what a model writes when it paraphrases."""
-    from widgets.agenda import gcal
+    from widgets.agenda import details
     for key in ("videocall", "conference"):
         m: dict = {}
-        gcal.apply_meet(m, {key: True})
+        details.apply_meet(m, {key: True})
         assert m.get("meet") is True, key
 
 
-@pytest.mark.skip(reason="V2-685: the agenda's `_apply_details` delegation is the ONE line this capability "
-                         "still needs, and `widgets/agenda/data.py` sits EXACTLY on the 900-line newborn "
-                         "ceiling while another session is editing it. Paying that ceiling means extracting "
-                         "from their file mid-flight, and the ratchet is never paid by a smaller diff. The "
-                         "line is `gcal.apply_meet(meeting, payload)` at the end of `_apply_details`; "
-                         "un-skip this the moment that file lands.")
-def test_the_agenda_delegates_the_flag_to_its_google_seam():
+def test_the_agenda_actually_delegates_the_flag():
+    """The wiring, and it IS the whole feature: `apply_meet` called from nowhere is a module born dead.
+
+    It was pending for exactly one reason — `widgets/agenda/data.py` sat ON the 900-line newborn ceiling, so
+    there was no line to spend on it. Paid the way the ratchet asks, by EXTRACTING (`details.py`; data.py
+    900 → 824), which is also where these appliers belonged: everything in that module answers one question
+    and touches only the payload's own keys."""
     import inspect
 
-    from widgets.agenda import data
-    assert "gcal.apply_meet(meeting, payload)" in inspect.getsource(data._apply_details)
+    from widgets.agenda import data, details
+    assert "apply_meet(meeting, payload)" in inspect.getsource(details._apply_details)
+    assert data._apply_details is details._apply_details, "data.py must not grow a second copy"
 
 
 # ── 4 · what both brains are told ───────────────────────────────────────────────────────────────────────
