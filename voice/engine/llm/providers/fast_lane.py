@@ -215,6 +215,49 @@ async def small_talk(brain, text: str, emit, *, first_turn: bool, window_max: in
     return True
 
 
+# ── RENAME fast lane (V2-682) ────────────────────────────────────────────────────────────────────────────
+# A rename is the one identity order whose failure is a DEAF agent, so it may not depend on the model deciding
+# to call a tool about it. Measured 2026-09-12: the engine introduced itself as «Johnny» all day from a memory
+# pill while `state.assistant_name` said «Zaelar», so `attention.wakewords()` answered only to «zaelar» and
+# «Hey, Johnny.» was ruled ambient — thirty-five turns. The detector, the process-level apply and the durable
+# write all already existed in `identity_actions`; what was missing was a door the operator's own sentence
+# opens. Both channels have it (the probe's is in `probe_actionmap.try_fast_lanes`).
+async def rename(brain, text: str, emit, *, first_turn: bool, window_max: int) -> bool:
+    """Rename the assistant from his own words, without the model. False = not a rename → turn untouched."""
+    if first_turn:
+        return False
+    from nucleo.flash import identity_actions as _ident
+    got = _ident.spoken_identity_order(text)
+    if not got:
+        return False
+    name = got[1]
+    from voice import proactive
+    from voice.engine.core import langs
+    speak = proactive.speaker()
+    if speak is None or proactive.user_speaking():
+        return False                       # no mouth / talking over — let the model handle it as before
+    _ident.apply_rename_now(name)          # the gate answers to it from the NEXT utterance on
+    emit("brain", "🏷️ zaelar se renombra", text=name, role="system",
+         extra={"cat": "flash", "engine": "rename", "origin": "rename", "src": "fast_lane"})
+    emit("ui", "orb:name", extra={"name": name})
+    asyncio.create_task(_ident.persist_rename(name))
+    phrase = langs.current_language().data_ack
+    try:
+        brain._last_spoken = phrase
+        brain._last_spoke_at = time.time()
+    except Exception:
+        pass
+    # The exchange HAPPENED (V2-605): a canned line that skips the history erases its own story.
+    from nucleo.flash import dialog as _dialog_rn
+    _dialog_rn.push_user(brain._window, text)
+    brain._window.append({"role": "assistant", "content": phrase})
+    del brain._window[:-window_max]
+    r = speak(phrase)
+    if asyncio.iscoroutine(r):
+        await r
+    return True
+
+
 def _presence_names() -> tuple[str, ...]:
     """The assistant's own names, so «Johnny, hola» strips down to «hola». Best-effort: the phrasebook must
     not hard-depend on the attention gate (V2-665's lesson about where the authority lives)."""

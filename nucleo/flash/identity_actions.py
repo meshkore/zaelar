@@ -30,7 +30,7 @@ from .text_norm import _norm_txt
 _NAME_CHANGE_RE = _re.compile(
     r"(?:el asistente(?: (?:se|debe|deber[ií]a) llamarse| se llama)|"
     r"(?:te|tu) llamas|ll[aá]mate|tu nombre (?:ahora )?es|"
-    r"cambia(?:te)? (?:tu )?nombre a|"
+    r"c[aá]mbia(?:te)? (?:tu |el )?nombre a|"
     r"the assistant(?: should| must)?(?: be)? (?:called|named)|the assistant('?s| is) name is|"
     r"you(?:'re| are)(?: now)? call(?:ed)?|your name is|call yourself)"
     r"\s+(.+)$",
@@ -85,6 +85,60 @@ def extract_attention_mode_change(directive: str) -> str | None:
     if _ATT_LISTEN_RE.search(d) and _ATT_ALWAYS_RE.search(d) and not _ATT_ON_RE.search(d):
         return "always"
     return None
+
+
+# ── THE OPERATOR'S OWN SENTENCE, not the model's paraphrase (V2-682) ─────────────────────────────────────
+#
+# Everything above runs on `directive` — what the MODEL wrote into `set_style_directive`. That is narrower and
+# more predictable than raw speech, and it was the right trade while the only way to rename was to ask for it.
+#
+# What 2026-09-12 measured is the hole it leaves. The operator's engine introduced itself as «Johnny» in every
+# single kickoff of that day — the name lived in a MEMORY PILL («desea que su asistente se llame Johnny»),
+# which recall feeds to the model and the model obeys — while `state.assistant_name` was still «Zaelar» and
+# `attention.wakewords()` therefore still answered only to «zaelar». The rename had never gone through the
+# structured door, because the model had no reason to call the tool about a name it already believed it had.
+#
+# The cost is not cosmetic, and it is the operator's headline complaint of that session: «Hey, Johnny.» ·
+# «Hello. Johnny. How are you?» · «Hey, Johnny. Show me my agenda.» were all ruled 🙉 AMBIENT — the agent tells
+# him what to call it and then does not answer to it. Thirty-five turns of one day died that way.
+#
+# So the rename gets a DETERMINISTIC lane, the V2-539/V2-674 shape: his own words, no model, both channels. The
+# regex is the one above (already bilingual and already tested), tightened for raw speech — the model's
+# paraphrase is written to be parsed, a sentence spoken into a room is not.
+_ASKS_THE_NAME_RE = _re.compile(
+    r"^\s*[¿?]|\b(?:como|cual|cuales|quien|que|how|what|which|who)\b\s+(?:\w+\s+){0,2}"
+    r"(?:te\s+llamas|llamas|name|called)", _re.IGNORECASE)
+# A NAME, not a sentence: «llámate Johnny» renames, «llámate como quieras» does not, and neither does a clause
+# that happens to open with one of the verbs. Three words is generous for a name and still refuses prose.
+_NAME_SHAPE_RE = _re.compile(r"^[\w'’.-]+(?:\s+[\w'’.-]+){0,2}$", _re.UNICODE)
+_NOT_A_NAME = frozenset({
+    "como", "quieras", "eso", "asi", "igual", "algo", "nada", "alguien", "otra", "otro", "mismo",
+    "how", "whatever", "something", "anything", "nothing", "someone", "else", "that", "it", "me", "him",
+})
+
+
+def spoken_identity_order(text: str) -> tuple[str, str] | None:
+    """`resolve()` over the OPERATOR's raw sentence — the deterministic lane's predicate.
+
+    Deliberately NARROWER than `resolve()`, in the two directions raw speech differs from a paraphrase:
+
+      · a QUESTION about the name is not an order to change it («¿cómo te llamas?», «what's your name?»);
+      · what follows the verb has to LOOK like a name, or «llámate como quieras» renames the assistant
+        «como quieras».
+
+    The attention-mode half is deliberately NOT lowered into this lane: «solo escúchame si digo tu nombre» is
+    a sentence about a MODE and reads a dozen ways, which is exactly the kind of judgement the model is better
+    at than a regex. Only the rename — whose grammar is a fixed handful of forms in both languages, and whose
+    failure is a deaf agent — comes down here."""
+    t = (text or "").strip()
+    if not t or _ASKS_THE_NAME_RE.search(t):
+        return None
+    name = extract_name_change(t)
+    if not name or len(name) > 32 or not _NAME_SHAPE_RE.match(name):
+        return None
+    if any(w.lower() in _NOT_A_NAME for w in name.split()):
+        return None
+    return ("rename", name)
 
 
 def resolve(directive: str) -> tuple[str, str] | None:

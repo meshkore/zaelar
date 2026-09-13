@@ -37,10 +37,37 @@ def try_fast_lanes(text: str, sess, *, execute: bool, trace_id: str, spec, pick_
     got = _presence.mirror(text, sess, trace_id, spec, tuple(book.get("vocatives") or ()))
     if got is not None:
         return got
+    got = try_rename(text, sess, trace_id=trace_id, spec=spec, execute=execute)
+    if got is not None:
+        return got
     # `bounce_pending` is the SESSION's state here, not a brain attribute — a probe session is this
     # channel's equivalent of one live conversation.
     return _smalltalk.mirror(text, sess, trace_id, book,
                              bounce_pending=bool(getattr(sess, "smalltalk_bounce", False)))
+
+
+def try_rename(text: str, sess, *, trace_id: str, spec, execute: bool) -> dict | None:
+    """The rename lane's probe mirror (V2-682) — his own sentence renames the assistant, no model.
+
+    `execute` gates the WRITE exactly like `try_map`'s: a dry run reports the decision and changes nothing.
+    The durable half is awaited-free here because this seam is synchronous; it is done through the same
+    `identity_actions` pair the voice lane and the tool handler use, so there is one write path and not
+    three."""
+    try:
+        from . import identity_actions as _ident
+        got = _ident.spoken_identity_order(text)
+        if not got:
+            return None
+        name = got[1]
+        if execute:
+            _ident.apply_rename_now(name)
+            from memory import api as _mem_rn
+            _mem_rn.set_state({"assistant_name": name})
+        phrase = getattr(spec, "data_ack", "") or ""
+        return {"ok": True, "reply": [phrase] if phrase else [], "action": "rename_assistant",
+                "tool_calls": [], "tags": [], "trace": trace_id}
+    except Exception:  # noqa: BLE001 — fail-open: the turn proceeds to the model
+        return None
 
 
 def try_map(text: str, sess, *, execute: bool, trace_id: str, pick_ack=None) -> dict | None:

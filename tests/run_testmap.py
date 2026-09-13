@@ -1112,6 +1112,11 @@ DOMAINS: list[dict] = [
         # una tool y ningún texto), y en 7 turnos de voz reales la respuesta llegó 3,4-5,9 s DESPUÉS del evento
         # de la tool. La cobertura de trabajo se elige cuando el router ya ha decidido, así que puede NOMBRAR la
         # fuente — que es lo que evita que dos coberturas suenen como la misma espera dicha dos veces (V2-189).
+        {"id": "2.56", "title": "The assistant answers to the name it CALLS ITSELF: his own sentence "
+                                "renames it deterministically, in both channels and both languages",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/flash/"
+                      "test_the_name_it_answers_to_is_the_name_it_says.py"]},
         {"id": "2.55", "title": "A widget order never needs a worker: the possessive and the courtesy form "
                                 "are ENTRIES in both packs, and the selector reads the REQUEST and not the "
                                 "sentence that closes it",

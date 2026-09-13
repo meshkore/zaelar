@@ -463,6 +463,8 @@ class NucleoLLMStream(llm.LLMStream):
                                          t_entry=_t_entry, window_max=_WINDOW_MAX)
                     or await _fast_lane.presence(brain, text, emit, first_turn=first_turn,
                                                  window_max=_WINDOW_MAX)
+                    or await _fast_lane.rename(brain, text, emit, first_turn=first_turn,
+                                               window_max=_WINDOW_MAX)
                     or await _fast_lane.small_talk(brain, text, emit, first_turn=first_turn,
                                                    window_max=_WINDOW_MAX, ask_waiting=_ask_waiting)):
                 _release_acc_trace_if_fresh(brain)   # same situation as the hard interrupt: no offer()
