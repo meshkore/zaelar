@@ -1,4 +1,4 @@
-"""One Google account, six doors — and the one verb the engine has never had (V2-684).
+"""One Google account, six doors — and the one verb the engine has never had (V2-685).
 
 ## What was measured before writing any of this
 
@@ -271,17 +271,52 @@ def test_the_conference_version_rides_the_request_that_asks_for_one():
 
 
 @_needs_calendar
-def test_the_agenda_carries_the_flag_only_when_the_payload_names_it():
-    """`_apply_details` is shared by the create and the edit paths, so an edit that only moves the hour must
-    never mint (or silently drop) a meeting room the operator never mentioned."""
-    from widgets.agenda.data import _apply_details
+def test_the_meet_flag_is_carried_only_when_the_payload_names_it():
+    """`gcal.apply_meet` is the agenda's Google seam for this, and it is deliberately the only place the rule
+    lives — `_apply_details` is shared by the create and the edit paths, so both get the same answer.
+
+    ⚠️ The DROPPING half is the one that needs a meeting room to already exist. The first version of this
+    case only ever asserted absence, so removing the `if key not in payload` guard altogether left it GREEN:
+    the mutation pops a key that was not there, which is indistinguishable from never setting it. A case that
+    starts from the trimmed state measures the trim (V2-655's lesson, paid here)."""
+    from widgets.agenda import gcal
     m = {"title": "Equipo"}
-    _apply_details(m, {"startTime": "11:00"})
-    assert "meet" not in m
-    _apply_details(m, {"meet": True})
+    gcal.apply_meet(m, {"startTime": "11:00"})
+    assert "meet" not in m, "an edit that never mentions Meet must not mint one"
+
+    gcal.apply_meet(m, {"meet": True})
     assert m["meet"] is True
-    _apply_details(m, {"meet": "no"})
+
+    # The load-bearing one: he moves the hour of a meeting that ALREADY has a room.
+    gcal.apply_meet(m, {"startTime": "12:00", "location": "sala 2"})
+    assert m["meet"] is True, "an unrelated edit silently cancelled the video call"
+
+    gcal.apply_meet(m, {"meet": "no"})
     assert "meet" not in m and "meetLink" not in m
+
+
+@_needs_calendar
+def test_a_paraphrased_name_for_a_video_call_still_lands():
+    """An unambiguous natural alias must not cost the fact (V2-341): `meet` is the manifest's name, and the
+    other two are what a model writes when it paraphrases."""
+    from widgets.agenda import gcal
+    for key in ("videocall", "conference"):
+        m: dict = {}
+        gcal.apply_meet(m, {key: True})
+        assert m.get("meet") is True, key
+
+
+@pytest.mark.skip(reason="V2-685: the agenda's `_apply_details` delegation is the ONE line this capability "
+                         "still needs, and `widgets/agenda/data.py` sits EXACTLY on the 900-line newborn "
+                         "ceiling while another session is editing it. Paying that ceiling means extracting "
+                         "from their file mid-flight, and the ratchet is never paid by a smaller diff. The "
+                         "line is `gcal.apply_meet(meeting, payload)` at the end of `_apply_details`; "
+                         "un-skip this the moment that file lands.")
+def test_the_agenda_delegates_the_flag_to_its_google_seam():
+    import inspect
+
+    from widgets.agenda import data
+    assert "gcal.apply_meet(meeting, payload)" in inspect.getsource(data._apply_details)
 
 
 # ── 4 · what both brains are told ───────────────────────────────────────────────────────────────────────
@@ -314,10 +349,15 @@ def test_with_no_client_at_all_it_says_the_doors_cannot_be_opened(tmp_path, monk
 
 
 def test_the_turn_prompt_consults_it():
-    """Wiring, structural: a fact nobody injects is a fact the model never had."""
+    """Wiring, structural: a fact nobody injects is a fact the model never had.
+
+    Anchored on the module that OWNS the block (`flash/connector_briefs.py`), not on `prompt.py` where it
+    used to live — V2-555's lesson: a wiring guard pinned to a file goes red the next time somebody pays the
+    architecture ratchet by extracting, and then gets weakened instead of repointed. The second assertion is
+    the one that matters: `prompt.py` must still REACH the composer."""
     import inspect
 
-    from nucleo.flash import prompt
-    src = inspect.getsource(prompt)
-    assert "from connectors.google import brain as _gb" in src
-    assert "_gb.brain_state()" in src
+    from nucleo.flash import connector_briefs, prompt
+    assert "from connectors.google import brain as _gb" in inspect.getsource(connector_briefs)
+    assert "_gb.brain_state()" in inspect.getsource(connector_briefs)
+    assert "connector_briefs" in inspect.getsource(prompt._connector_briefs)

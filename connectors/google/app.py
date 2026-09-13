@@ -1,4 +1,4 @@
-"""app.py — Zaelar's OAuth client for Google, resolved ONCE for every Google-backed connector (V2-684).
+"""app.py — Zaelar's OAuth client for Google, resolved ONCE for every Google-backed connector (V2-685).
 
 ## Why this exists
 

@@ -48,7 +48,7 @@ def _cred(name: str) -> str:
     return (os.getenv(name) or "").strip()
 
 
-# V2-684 — the ONE Google app. The operator registered Zaelar's OAuth client once (2026-09-12); before
+# V2-685 — the ONE Google app. The operator registered Zaelar's OAuth client once (2026-09-12); before
 # this, saying so meant pasting the same client_id into five different env names, one per Google door.
 # The connector's OWN name still wins — a self-hoster who wants a separate app for this service keeps it.
 _GOOGLE_PROVIDERS = {'gdrive'}

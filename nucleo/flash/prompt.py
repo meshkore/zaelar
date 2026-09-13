@@ -205,68 +205,11 @@ def _directive_block(directive: str) -> str:
 
 
 def _connector_briefs(open_ids: set[str]) -> str:
-    """Connector briefs for the FlashBrain turn—#6 contributor to prompt bloat (V2-027): they appeared in EVERY
-    turn even when unused. Normal turns now omit them; only **messaging** gets one, and ONLY while its widget is
-    OPEN (in front of the operator). **architect** and **cluster/meshkore** briefs are rare, operator-only tag
-    protocols, so they stay out of the hot prompt: the cluster channel uses its own brief (`bridge.for_brain`,
-    stateless), and code/project tasks use `escalate_to_slowbrain`. If voice→architect/cluster is wanted later,
-    reactivate it here gated by work IN PROGRESS, not by being 'configured'. Best-effort."""
-    try:
-        _msg_on = False
-        try:
-            from connectors.whatsapp import service as _wa
-            _msg_on = _msg_on or _wa.enabled()
-        except Exception:
-            pass
-        try:
-            from connectors.telegram import service as _tg
-            _msg_on = _msg_on or _tg.enabled()
-        except Exception:
-            pass
-        out = ""
-        if _msg_on:
-            from connectors.messaging import brief as _mb
-            # OPEN widget → full brief (protocol + live list, visible to the operator). CLOSED but messaging
-            # CONFIGURED → connection STATE only (concise, ~2 lines): FlashBrain then knows whether it can read and
-            # does NOT HALLUCINATE "you have no messages" when disconnected or unchecked (the headless test found
-            # that it invented "you have no important messages" while the widget was closed).
-            out = _mb.for_brain() if "mensajeria" in open_ids else _mb._platform_states()
-        # V2-603 — VIDEO ACCOUNTS. TWO different gates, because they answer two different questions:
-        #
-        #   · the capability does NOT EXIST yet (no OAuth client anywhere) → ALWAYS, card open or not.
-        #   · the account's connection STATE → only while the card is open (the messaging cost rule).
-        #
-        # The always-on half was learned the hard way, live, minutes after F2 shipped: with the block gated on
-        # the open card, «Conéctame mi cuenta de YouTube» still answered «Te abro YouTube para que vincules tu
-        # cuenta, ahí te guía paso a paso» — offering a door that had just been sealed. A model cannot decline
-        # what is not in its prompt (V2-540), and «is this capability available at all» is exactly the fact a
-        # turn needs BEFORE any card is open, since the offer is what opens it. It costs ~70 tokens and only
-        # while the connector is off; once a client exists this branch disappears entirely.
-        try:
-            from connectors.video import service as _vs
-            if not _vs.available() or "youtube" in open_ids:
-                vstate = _vs.brain_state()
-                if vstate:
-                    out = (out + "\n\n" + vstate) if out else vstate
-        except Exception:
-            pass
-        # V2-684 — GOOGLE, the account behind five of these cards, and MEET, a verb the engine has never
-        # had before today. Same gate shape as video above and for the same reason: the fact is only worth
-        # the tokens when the turn could plausibly act on it. It is in, however, whenever Google is NOT
-        # fully usable — that is precisely the state in which a model with the verbs and no facts invents
-        # «Hecho.», which is what `connectors/google/brain.py` exists to stop.
-        try:
-            from connectors.google import brain as _gb
-            if open_ids & {"agenda", "mensajeria", "fotos", "archivos", "youtube"} or not _gb.connected_services():
-                gstate = _gb.brain_state()
-                if gstate:
-                    out = (out + "\n\n" + gstate) if out else gstate
-        except Exception:
-            pass
-        return out
-    except Exception:
-        pass
-    return ""
+    """The connector facts for this turn. Body in `flash/connector_briefs.py` — extracted to pay the
+    architecture ratchet (V2-685), which asks for a module and never for a higher ceiling. Kept as a name
+    here because three tests and one call site already address it through this module."""
+    from nucleo.flash import connector_briefs as _cb
+    return _cb.for_prompt(open_ids)
 
 
 def _open_widget_ids() -> set[str]:

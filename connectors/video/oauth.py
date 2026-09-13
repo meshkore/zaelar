@@ -42,7 +42,7 @@ def _cred(name: str) -> str:
     return (os.getenv(name) or "").strip()
 
 
-# V2-684 — `builtin_client_id` has said «EMPTY until Zaelar registers its own Google OAuth client» since
+# V2-685 — `builtin_client_id` has said «EMPTY until Zaelar registers its own Google OAuth client» since
 # V2-603. He registered it on 2026-09-12, and it lives in `connectors/google/app.py` so that ONE answer
 # serves all five Google doors. Resolved on each call, not frozen into the provider table at import: the
 # operator drops the console's JSON into the credential store while the engine is running, and a value

@@ -2987,6 +2987,14 @@ DOMAINS: list[dict] = [
         # que el conector todavía tiene que convertir en conversación, y el id que resuelve no existe en
         # ningún otro sitio. Por eso el eco (`connector.msg_out` con el `ref` del encargo) no es un adorno:
         # es la única forma de que quien pidió el envío sepa qué conversación acaba de abrir.
+        {"id": "5.25", "title": "ONE Google account opens all six doors — and Meet is an ARGUMENT, not a tool",
+            "ch": UNIT, "paths": [
+            # V2-685 (2026-09-13): `builtin_client_id` had said «EMPTY until Zaelar registers its own Google
+            # OAuth client» since V2-603 and was copied into the calendar connector in V2-679. He registered
+            # it — and filling those two strings by hand would have left Gmail, Drive and Photos still asking
+            # for the same value under three more env names. The rows that reach `connectors/calendar` SKIP
+            # on a clean clone: that package is another session's uncommitted work.
+            "tests/connectors/unit/google/test_one_account_opens_every_google_door.py"]},
         {"id": "5.24", "title": "Un PRIMER mensaje abre la conversación: los tres conectores resuelven el "
                                 "destinatario, devuelven el id que crearon, y una negativa se dice UNA vez "
                                 "y no se reintenta (transportes falsos)",

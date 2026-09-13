@@ -1,4 +1,4 @@
-"""brain.py — what the FlashBrain and the Brain Workers are TOLD about Google (V2-684).
+"""brain.py — what the FlashBrain and the Brain Workers are TOLD about Google (V2-685).
 
 This is the third time this file's lesson gets paid, and the two earlier receipts are written into the
 connectors that paid them: `connectors/video/service.py::brain_state` («four claims, zero connections»,

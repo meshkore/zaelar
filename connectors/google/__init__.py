@@ -1,4 +1,4 @@
-"""connectors/google/ — ONE Google identity for the whole engine (V2-684).
+"""connectors/google/ — ONE Google identity for the whole engine (V2-685).
 
 Gmail, Calendar, Meet, Drive, Photos and YouTube are six doors into the SAME Google account, and the
 engine had grown six copies of the same OAuth app question — `EMAIL_GMAIL_CLIENT_ID`,
