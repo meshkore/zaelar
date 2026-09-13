@@ -48,11 +48,21 @@ def meeting_exists(errand: dict, now: float | None = None) -> bool | None:
     for m in rows:
         if not _within(str(m.get("date") or ""), born, deadline):
             continue
-        # A row the errand itself could have produced: created after it opened. The agenda stores a creation
-        # date at day granularity, so this is deliberately generous — the cost of missing one is that the
-        # errand closes by deadline instead, which is the safe direction.
+        # A row the errand itself could have produced has to SAY SO: a creation stamp, on or after the day
+        # the errand opened. No stamp = not verifiable, and that closes nothing.
+        #
+        # ⚠️ This was the opposite way round until the first live run (2026-09-13, V2-684) and it closed a
+        # real errand in the SAME SECOND it was born, announcing «la gestión está hecha y verificada» over
+        # the operator's own «Cinema with Mary» that evening. The old shape skipped a row only when it
+        # carried a stamp OLDER than the errand — reasoned as «deliberately generous, the cost of missing
+        # one is that it closes by deadline instead, which is the safe direction». That reasoning assumed
+        # the field exists. It does not: the agenda writes no `created` on any meeting, so EVERY row read
+        # as «could be ours» and any appointment in the window verified any errand.
+        #
+        # The unit test missed it for the reason that keeps costing: it wrote `created` by hand, so it
+        # measured a shape the real data has never had. The arc now measures a stamp-less row too.
         created = str(m.get("created") or "")
-        if created and created < time.strftime("%Y-%m-%d", time.localtime(born)):
+        if not created or created < time.strftime("%Y-%m-%d", time.localtime(born)):
             continue
         if str(m.get("status") or "confirmed") == "cancelled":
             continue

@@ -164,8 +164,23 @@ async def tick(now: float | None = None) -> None:
 
 
 async def _fire_wakes(now: float) -> None:
-    """One errand at a time, and only once the coalesce window has passed."""
+    """One errand at a time, and only once the coalesce window has passed.
+
+    ⚠️ The ⏻ gate is HERE, above the queue, and that is the fix for a defect the first live run found
+    (2026-09-13, V2-684): a person answered while the agent was stopped, this loop POPPED the pending wake
+    and `wake()` then refused with «parado» — so the answer was not postponed, it was LOST, and the errand
+    could only ever move if that person happened to write again. «Postpone, don't lose» is the rule
+    (`loop._fire_due` for crons, V2-655 for the interrupted-work trail), and consuming the queue six lines
+    before the refusal is exactly how it gets broken. `wake()` keeps its own gate: two of them cost
+    nothing, and this one has to survive somebody calling `wake()` from anywhere else.
+    """
     from . import get, wake as _wake_mod
+    try:
+        from nucleo import runstate
+        if runstate.blocks_new_work():
+            return                            # nothing is consumed: the same wake is due on the next beat
+    except Exception:
+        return                                # fails CLOSED, like every other reader of this switch
     due = [(eid, row) for eid, row in _pending_wakes.items()
            if now - float(row.get("at") or now) >= COALESCE_S]
     for eid, row in due:

@@ -170,19 +170,35 @@ def main() -> int:
     ap.add_argument("--objective", default="organizar una reunión de prueba en las próximas 4 horas")
     ap.add_argument("--text", default=None, help="the opening message (default: introduces itself)")
     ap.add_argument("--wait", type=float, default=1800, help="seconds to wait for each of his replies")
+    ap.add_argument("--resume", action="store_true",
+                    help="attach to the errand already open instead of sending a NEW opening message")
     args = ap.parse_args()
 
     if not args.yes:
         say(__doc__)
         say("Refusing to run without --yes: this sends a REAL message to a REAL person.")
         return 2
-    if not (_engine_is_up() and _telegram_is_connected() and _nothing_else_is_open()):
+    if not _engine_is_up() or not _telegram_is_connected():
+        return 1
+    if not args.resume and not _nothing_else_is_open():
         return 1
 
     opener = args.text or (
         "Hola, soy Zaelar, el asistente personal de Ricard. Me ha pedido que organice una reunión con "
         "vosotros esta tarde, en las próximas cuatro horas. ¿Te viene bien alguna hora? Si no, mañana lunes "
         "a cualquier hora también nos sirve.")
+
+    from nucleo import errands as _e
+    if args.resume:
+        # Picking up a conversation already in flight. The point of the run is what happens when somebody
+        # ANSWERS, and sending a third identical opener to a real person to get there is not a test, it is
+        # a nuisance. Also the honest shape of the thing: an errand outlives the process that opened it.
+        row = _newest_errand(_e)
+        if not row or row.get("state") in ("closed", "abandoned", "blocked"):
+            say("✘ --resume, but there is no open errand to resume.")
+            return 1
+        with Armed():
+            return _follow(_e, row, args)
 
     say("── 1 · the contact ─────────────────────────────────────────────────────────────")
     res = _action("contactos", "add_contact", {
@@ -203,49 +219,71 @@ def main() -> int:
         say(f"   queued · ref {ref}")
 
         say("── 3 · the echo, which is what BIRTHS the errand ───────────────────────────────")
-        row = _wait_for("Telegram to confirm the message went out", lambda: _first_open_errand(errands),
+        row = _wait_for("Telegram to confirm the message went out", lambda: _newest_errand(errands),
                         timeout=120, poll=2)
         if not row:
             say("  → check the engine log: a send that never echoes means the connector could not resolve the "
                 "handle, and no errand is opened on purpose.")
             return 1
-        threads = errands.threads(row["id"])
-        chat = str(threads[0]["chat_id"]) if threads else ""
-        say(f"   errand {row['id']} · kind {row['kind']} · owns {PLATFORM}:{chat}")
+        if row.get("state") in ("closed", "abandoned", "blocked"):
+            say(f"✘ the errand was born and ENDED immediately: {row['state']} · {row.get('outcome') or '—'}")
+            say("  → that is a product defect, not a transport one: the message DID go out. Read the "
+                "outcome above before running again.")
+            return 1
+        say(f"   errand {row['id']} · kind {row['kind']}")
         say(f"   deadline {time.strftime('%H:%M', time.localtime(row['deadline']))} · "
             f"expires {time.strftime('%a %H:%M', time.localtime(row['expires_at']))}")
 
-        say("── 4 · the conversation ────────────────────────────────────────────────────────")
-        say(f"   ANSWER NOW from {args.to}. Every reply wakes the errand; it answers on its own.")
-        seen = len(_thread(chat))
-        for turn in range(1, 9):
-            got = _wait_for(f"reply #{turn}", lambda: _grew(chat, seen), timeout=args.wait)
-            if not got:
-                break
-            seen = len(got)
-            say(f"\n   transcript after reply #{turn}:")
-            say(_transcript(got[-8:]))
-            state = (errands.get(row["id"]) or {}).get("state") or "closed"
-            say(f"   errand state: {state}")
-            if state in ("closed", "abandoned", "blocked"):
-                break
-
-        say("── 5 · how it ended ────────────────────────────────────────────────────────────")
-        final = errands.get(row["id"]) or {}
-        say(f"   state {final.get('state')} · outcome {final.get('outcome') or '—'} · "
-            f"wakes {final.get('wake_count')}")
-        if final.get("state") == "agreed":
-            say("   ⚠️ it agreed a time and the errand is still open — that is CORRECT today: nothing in the "
-                "engine writes the agreed meeting into the agenda yet (V2-683 row 6, blocked on "
-                "connectors/calendar/). Put it in by hand and the next beat should close the errand.")
-        say("\n   full transcript:")
-        say(_transcript(_thread(chat)))
+        return _follow(errands, row, args)
     return 0
 
 
-def _first_open_errand(errands):
-    rows = errands.live()
-    return rows[0] if rows else None
+def _follow(errands, row: dict, args) -> int:
+    """Wait for the other person, one reply at a time, and report how it ended."""
+    threads = errands.threads(row["id"])
+    chat = str(threads[0]["chat_id"]) if threads else ""
+    say("── 4 · the conversation ────────────────────────────────────────────────────────")
+    say(f"   errand {row['id']} · {row.get('state')} · owns {PLATFORM}:{chat}")
+    say(f"   ANSWER NOW from {args.to}. Every reply wakes the errand; it answers on its own.")
+    seen = len(_thread(chat))
+    for turn in range(1, 9):
+        got = _wait_for(f"reply #{turn}", lambda: _grew(chat, seen), timeout=args.wait)
+        if not got:
+            break
+        seen = len(got)
+        say(f"\n   transcript after reply #{turn}:")
+        say(_transcript(got[-8:]))
+        state = (errands.get(row["id"]) or {}).get("state") or "closed"
+        say(f"   errand state: {state}")
+        if state in ("closed", "abandoned", "blocked"):
+            break
+
+    say("── 5 · how it ended ────────────────────────────────────────────────────────────")
+    final = errands.get(row["id"]) or {}
+    say(f"   state {final.get('state')} · outcome {final.get('outcome') or '—'} · "
+        f"wakes {final.get('wake_count')}")
+    if final.get("state") == "agreed":
+        say("   ⚠️ it agreed a time and the errand is still open — that is CORRECT today: nothing in the "
+            "engine writes the agreed meeting into the agenda yet (V2-683 row 6, blocked on "
+            "connectors/calendar/). Put it in by hand and the next beat should close the errand.")
+    say("\n   full transcript:")
+    say(_transcript(_thread(chat)))
+    return 0
+
+
+def _newest_errand(errands):
+    """The errand this run opened — whatever STATE it is in.
+
+    ⚠️ It used to ask `errands.live()`, and the first live run showed why that is the wrong question: the
+    errand was born and CLOSED itself in the same second (a verifier defect), so `live()` answered empty
+    and the runner reported «Telegram never confirmed the message went out» — over a message Telegram had
+    confirmed one second earlier. An instrument that can only see the happy path describes every other
+    outcome as the one failure it knows.
+    """
+    from memory import errands_store as store
+    rows = store.errands_where(("contacting", "gathering", "negotiating", "agreed",
+                                "closed", "abandoned", "blocked"), limit=50)
+    return dict(rows[-1]) if rows else None
 
 
 def _grew(chat: str, seen: int):

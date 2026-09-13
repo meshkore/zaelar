@@ -29,6 +29,14 @@ def env(tmp_path, monkeypatch):
     from widgets import store as wstore
     monkeypatch.setattr(wstore, "DATA_DIR", str(tmp_path / "widgets"))
     monkeypatch.setattr(wstore, "_last_hash", {})
+    # The operator's OWN `config/playbooks.json` must not decide what green means — it holds `shadow`, and
+    # the live node (V2-684) writes `shadow: false` into it while it runs. These cases were green only
+    # because that file had never existed on this machine; the first live run created it and two of them
+    # went red, correctly.
+    from nucleo import workspace
+    from nucleo.errands import playbooks
+    monkeypatch.setattr(workspace, "root", lambda: tmp_path)
+    playbooks._override_cache = (None, {})
     from nucleo import errands
     from nucleo.errands import wake as wake_mod
     wake_mod._last_wake.clear()

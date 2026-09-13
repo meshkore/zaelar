@@ -38,6 +38,14 @@ def world(tmp_path, monkeypatch):
     from widgets import store as wstore
     monkeypatch.setattr(wstore, "DATA_DIR", str(tmp_path / "widgets"))
     monkeypatch.setattr(wstore, "_last_hash", {})
+    # The operator's OWN `config/playbooks.json` must not decide what green means. Measured the hard way
+    # (2026-09-13): the live node writes `shadow: false` into that file while it runs, and the suite read
+    # it — the shadow arc armed itself and sent a second message. Same rule as `settings.json`,
+    # `config/v2.json` and `store.DATA_DIR` in the root conftest, reaching the one store it had not.
+    from nucleo import workspace
+    from nucleo.errands import playbooks
+    monkeypatch.setattr(workspace, "root", lambda: tmp_path)
+    playbooks._override_cache = (None, {})
     from nucleo.errands import wake as wake_mod, watch
     wake_mod._last_wake.clear()
     watch.stop()
@@ -134,7 +142,7 @@ def test_an_agreement_closes_the_errand_against_the_AGENDA_and_not_against_the_m
     # on `connectors/calendar/`. Writing it by hand here is what makes this a test of the VERIFIER — and
     # naming the gap is worth more than an arc that pretends the loop already closes itself.
     agenda_holds({"date": time.strftime("%Y-%m-%d"), "startTime": "18:00", "title": "Reunión con Iván",
-                  "status": "confirmed"})
+                  "status": "confirmed", "created": time.strftime("%Y-%m-%d")})
     world.beat()
     row = errands.get(eid)
     assert row["state"] == "closed" and row["closed_at"] > 0
@@ -287,6 +295,28 @@ def test_the_owners_OWN_BEAT_flushes_the_outbound_queues(world):
 
 
 # ── 7 · a meeting he already had ────────────────────────────────────────────────────────────────────────
+def test_a_meeting_with_NO_creation_STAMP_closes_nothing(world):
+    """⚠️ The case the FIRST LIVE RUN found, and the one the unit tests could not (2026-09-13).
+
+    The agenda writes no `created` on any meeting — measured on the operator's own store. The verifier
+    used to skip a row only when it carried a stamp OLDER than the errand, so a row with no stamp at all
+    read as «could be ours»: a real errand closed itself in the same second it was born, announcing «la
+    gestión está hecha y verificada» over his own «Cinema with Mary» that evening.
+
+    Every previous test of this passed because it wrote the field BY HAND — measuring a shape the real
+    data has never had. This one measures the real one.
+    """
+    from nucleo import errands
+    _ivan()
+    agenda_holds({"date": time.strftime("%Y-%m-%d"), "startTime": "19:00", "title": "Cinema with Mary",
+                  "status": "confirmed"})
+    got = _open(world)
+    world.beat()
+    row = errands.get(got["errand"]["id"])
+    assert not row["closed_at"], "no creation stamp means it cannot be told from what was already there"
+    assert row["state"] != "closed"
+
+
 def test_a_meeting_he_ALREADY_had_closes_nothing(world):
     """Last week's dentist must not close today's errand — the difference between verifying and coinciding."""
     from nucleo import errands
@@ -466,3 +496,38 @@ def test_the_operators_language_reaches_the_party_turn_through_the_engine(world,
         _answers_and_wakes(world, got["chat"], "Hi, who is this?")
     assert "English" in model.calls[-1]["system"], \
         "the engine's own language travelled into the party turn as the fallback"
+
+
+# ══ THE ⏻ SWITCH: postponed, never lost ══════════════════════════════════════════════════════════════════
+
+def test_an_answer_arriving_while_the_agent_is_STOPPED_is_postponed_and_not_lost(world, monkeypatch):
+    """⚠️ The defect the first live run found (2026-09-13).
+
+    The operator answered from his own second account while the ⏻ was off. The beat POPPED the pending
+    wake and `wake()` then refused with «parado» — so the answer was not postponed, it was DISCARDED, and
+    the errand could only ever move if that person happened to write a second time. «Postpone, don't
+    lose» is the rule; consuming the queue six lines before the refusal is how it gets broken.
+    """
+    from nucleo import errands, runstate
+    _ivan()
+    armed(monkeypatch)
+    answers(monkeypatch, '{"say": "¿Te va bien a las 18:00?", "state": "negotiating"}')
+    got = _open(world)
+
+    # Patched rather than `runstate.stop()`: the suite-root fixture pins the switch to RUNNING for every
+    # test (conftest `_agente_en_marcha`), which is right — it stops the operator's real ⏻ from deciding
+    # what green means — and it also means a test that wants the switch OFF has to say so at the reader.
+    real = runstate.blocks_new_work
+    runstate.blocks_new_work = lambda: True          # by hand: `monkeypatch.undo()` would also undo the
+    try:                                             # model double and the arming, and call the real API
+        _answers_and_wakes(world, got["chat"], "¿Qué hora te viene bien?")
+        assert errands.get(got["errand"]["id"])["state"] == "contacting", "stopped means nothing moves"
+        assert len(world.sent()) == 1, "and nothing is said to anybody"
+    finally:
+        runstate.blocks_new_work = real
+
+    # The very next beat, with nobody writing again, finds the same answer still waiting.
+    world.advance(60)
+    world.beat()
+    assert errands.get(got["errand"]["id"])["state"] == "negotiating"
+    assert world.texts()[-1] == "¿Te va bien a las 18:00?"

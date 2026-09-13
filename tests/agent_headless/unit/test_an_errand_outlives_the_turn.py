@@ -28,6 +28,13 @@ def er(tmp_path, monkeypatch):
     monkeypatch.setenv("ZAELAR_DB", str(tmp_path / "zaelar.db"))
     import memory.db as _db
     _db.reset_db()
+    # The operator's OWN `config/playbooks.json` must not decide what green means — it holds `shadow`,
+    # and the live node (V2-684) writes `shadow: false` into it while it runs. These two cases were green
+    # only because that file had never existed on this machine.
+    from nucleo import workspace
+    from nucleo.errands import playbooks
+    monkeypatch.setattr(workspace, "root", lambda: tmp_path)
+    playbooks._override_cache = (None, {})
     from nucleo import errands
     yield errands
     _db.reset_db()
