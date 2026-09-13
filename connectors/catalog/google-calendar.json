@@ -5,7 +5,7 @@
   "family": "agenda",
   "transport": "native",
   "auth": "oauth",
-  "state": "planned",
+  "state": "built",
   "capabilities": [
     "google calendar",
     "calendario",

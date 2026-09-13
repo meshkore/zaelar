@@ -252,7 +252,11 @@ def test_spoken_dates_resolve_in_english_too():
 
 
 def test_the_plan_speaks_the_active_language():
+    # V2-676 — a fresh account ships with NO lunch schedule (planner.py only reserves the block once the
+    # operator actually sets lunchStart/lunchEnd), so this test sets one explicitly instead of relying on
+    # the seed to invent a "Comida"/"Lunch" appointment nobody scheduled.
     db = agenda.load_db()
+    db["user"]["lunchStart"], db["user"]["lunchEnd"] = "13:00", "14:00"
     es = planner.plan_day(db, date=time.strftime("%Y-%m-%d"), lang="es")
     en = planner.plan_day(db, date=time.strftime("%Y-%m-%d"), lang="en")
     assert any(b["label"] == "Comida" for b in es["blocks"])

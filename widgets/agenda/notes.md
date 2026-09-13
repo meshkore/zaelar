@@ -61,3 +61,161 @@
 - **The card FILLS its frame** (`:has(> .hb-agenda)` on `.hb-scroll`, the V2-636 rule) and the grid scrolls inside it — nothing can be clipped at any card size.
 - i18n rebuilt: 38 `widgets.agenda.*` keys in both bundles, month/weekday names via `Intl.DateTimeFormat(ctx.lang)`; i18n MANIFEST_VERSION 6→7.
 - Tests: `test_the_agenda_looks_like_a_calendar.py` (17 rendered, node 4.142), V2-540's `test_agenda_render.py` rewritten to the new DOM keeping every behavioural claim, the XSS fixture repointed at the surface that now renders (meetings), +8 data cases. Ten disarms, mutations asserted, all red — one (D8) came back green and exposed a real gap: nothing measured the NEGATED confirmation, which is the case that decides the parser's order.
+
+## 2026-09-12 (V2-679): Google Calendar sync — a real connector, not just the header placeholder
+- Operator's directive: put the three calendar-provider icons already in the header to work, keep only Google
+  active (iCloud/CalDAV stay visible and INERT, per the shelf pattern already used elsewhere in this codebase
+  — showing what we do NOT have on purpose, INI-027), add the "conectores" button like messaging/video/photos
+  have, and build a REAL Google Calendar connector: OAuth, and once connected it becomes the SOLE source of
+  truth for meetings — several Google calendars merge into one view with a chosen default for new writes, and
+  sync has to be "lo más rápido posible" (his own acceptance test: dictate an appointment by voice, see it in
+  the real Google Calendar within seconds; add one on the phone, ask Zaelar to confirm it moments later).
+- **The scaffolding for exactly this already existed and was waiting**: `widgets/agenda/data.py::calendars()`
+  (V2-540) already read `connectors.registry.descriptors()` filtered to `family in ("agenda","calendar")`
+  against a hardcoded `_CALENDARS` tuple keyed `("google","icloud","caldav")`, and
+  `connectors/catalog/google-calendar.json` already existed as a `"state": "planned"` wishlist entry. Building
+  the connector meant: register it under registry id **"google"** (not "google-calendar" — matching the
+  existing placeholder's key so the real row REPLACES it instead of standing beside it as a duplicate, the
+  measured T2 trap from the V2-557 workflow doc) and flip the catalog entry's `state` to `"built"`.
+- **`connectors/calendar/`** — the same 5-layer family shape as `connectors/video/`(V2-597)/`photos/`(V2-564):
+  `providers.py` (ONE provider, ONE tier — unlike video's parked write tier, this had to ship read+write from
+  day one since voice-driven writes ARE the acceptance test; scope
+  `https://www.googleapis.com/auth/calendar`), `oauth.py` (PKCE, copied byte-for-byte from video/oauth.py —
+  same class of problem, deliberate copy not reinvention — including the origin-derived redirect_uri, video's
+  MORE recent fix, not photos' older hardcoded one), `google_calendar.py` (the API client: `singleEvents=true`
+  on every list call means Google expands recurring events into individual instances SERVER-SIDE — zero RRULE
+  parsing anywhere in this connector; incremental sync via `syncToken`, `410` → fall back to a full pull with
+  a ±120/400-day window), `service.py` (fail-safe facade, MECHANICAL only — dedup/twin-settlement/reminder
+  policy deliberately stay in the widget, never taught to the connector, so a future second provider needs no
+  agenda-specific code), `server_api.py` (`/api/calendar/*`, mirrors `/api/video/*` exactly including the
+  "push the widget's store right after the callback so the operator never has to press comprobar" pattern).
+- **`widgets/agenda/gcal.py`** (new file) — ALL of the agenda-specific Google glue (`commit_meeting`,
+  `patch_google`, `delete_google`, `ui_action`, `tick`, `on_calendar_connected`, plus `calendars()`/
+  `_CALENDARS` moved here too) lives in its OWN module, extracted the same day it was written rather than
+  after the fact: `data.py` sat EXACTLY on its 900-line ceiling before this feature (the same newborn-file
+  ratchet documented in V2-604/V2-611/etc.), so every line of new logic had a choice — go in `gcal.py`, or
+  push `data.py` over the ceiling. `data.py` keeps only thin call sites (`gcal.commit_meeting(db, _new)` etc.)
+  and two one-line re-exports (`tick`/`on_calendar_connected`) that the scheduler and the OAuth callback need
+  to find at their conventional address. Same shape as `widgets/youtube/account.py` delegating
+  `connect_account`/`disconnect_account` out of `data.py` — confirmed as the RIGHT precedent (not messaging's
+  UI-only, mailbox-routed connect/disconnect, which only applies to `"kind":"backed"` widgets) by reading how
+  `widgets/validator.py::_validate_actions_sync` actually gates a PASSIVE widget's `apply_action`.
+- **Local-only mode is completely unchanged**: every write action (`add_meeting`/`cancel_meeting`/
+  `move_meeting`/`update_meeting`) keeps its ENTIRE existing dedup/twin-settlement/reminder logic untouched —
+  the Google glue is a THIN layer bolted onto the existing append/mutate points (`gcal.commit_meeting` wraps
+  the append, `gcal.patch_google`/`delete_google` mirror an edit/cancel onto a meeting whose `source ==
+  "google"`). A meeting with no `source` field behaves exactly as it did before this feature existed.
+- **Once connected**: `add_meeting` creates the event on Google FIRST (via the default calendar) and stores
+  the Google-enriched dict (carrying `googleId`/`googleCalendarId`/`source`) instead of the plain local one —
+  best-effort: a Google failure OR a raised exception (two different risks, both tested) still keeps the
+  LOCAL write, the same "a side-effect failure must never lose the write" rule `_schedule_reminder` already
+  follows. `cancel_meeting`/`move_meeting`/`update_meeting` mirror onto Google only for `source == "google"`
+  meetings — a purely local meeting never touches the network on edit.
+- **Background sync** (`manifest.json`: `"background": {"every": "10s"}`) — a DELIBERATE departure from the
+  video connector's on-demand-only precedent (V2-597: "the operator's standing rule is absolute control — the
+  suggestions band fills when ASKED, never on a timer"). That rule fits a read-only suggestions feed; it does
+  not fit a calendar whose whole point is "diez segundos y ya está en mi agenda" — a connector that only
+  refreshes when the card happens to be open would miss exactly the phone-then-ask-Zaelar case he described.
+  Cheap in the steady state: `service.sync` costs one empty round-trip per selected calendar when nothing
+  changed, thanks to `syncToken`. A freshly-synced timed event gets Zaelar's own SPOKEN reminder (~2h before,
+  the same policy a locally-dictated appointment gets) — Google's own notification is a different, silent
+  channel this product does not rely on.
+- **`on_calendar_connected()`** (called from the OAuth callback, mirroring video's `_refresh_card` pattern) —
+  an immediate sync so existing Google appointments show up without waiting for the first tick, PLUS a
+  one-time best-effort migration of pre-existing LOCAL future meetings up to Google, using the SAME
+  `_titles_overlap` rule the write path already uses for dedup so a local meeting that already looks like one
+  Google just handed back is never pushed twice. Past meetings are never migrated (history, not a live
+  obligation). This is the direct answer to "no quiero divergencias… si tienes que duplicar los datos, busca
+  la mejor forma de hacerlo."
+- **Multiple calendars merge, one default for writes**: `db["google"]` caches the account's full calendar list
+  (refreshed every tick) plus a chosen `defaultCalendarId` (a `set_default_calendar` UI-only action from the
+  panel's radio picker — never voice, it is a preference not an intention). Every SELECTED Google calendar
+  (mirroring what the operator already sees as "shown" in Google's own UI) syncs into the SAME merged
+  `meetings` list, tagged with `calendarColor`/`googleCalendarId` for display.
+- **Widget UI** (`widget.js::renderCalendars`, extended, not rebuilt): only Google gets a real connect button
+  ("Conectar Google Calendar") or, honestly, a note pointing at ⚙ → Conectores when no OAuth app is registered
+  yet (`status: "unconfigured"`, distinct from `"unavailable"` = not built at all) — iCloud/CalDAV get NO
+  click handler, matching the operator's own ask ("deja los iconos puestos… no nos vamos a preocupar de
+  nada"). Connected state adds the default-calendar radio picker + a "Desconectar" button. Deliberately did
+  **NOT** add a second row of bare brand icons into the toolbar (`.agbar`) — this file's own CLAUDE.md
+  decision log already records that exact attempt being reverted once for being "too small and cramped"
+  (V2-643) — the existing 🔌-style "Calendarios" button already IS the connectors door messaging/video/photos
+  each have their own version of; it now does real work instead of only showing three permanently-off rows.
+- **⚙ Settings wiring** (the T3 trap from V2-597's own postmortem — "the registry rows existed and nobody
+  rendered them, so there was nowhere to paste the client_id" — checked against explicitly, not assumed
+  fixed): `ConfigPanel.js` fams list gains `["agenda", fam_calendar]`, the generic photos/video OAuth card
+  condition extends to `fam === "agenda"`, `cxAct`'s dispatcher branches on the disconnect button's new
+  `data-fam` attribute (an id collision risk otherwise — the provider id "google" is generic and could belong
+  to more than one family later) and on a new `calendar-connect` act; `api.js` gains
+  `calendarConnect`/`calendarDisconnect`; `i18n` gains `config.cx.fam_calendar` in EN+ES (app-shell chrome, so
+  a missing key would show the raw key string — unlike the widget's own `tt()` fallback, this one is not
+  forgiving) — MANIFEST_VERSION 9→10.
+- **The write-through/patch/delete branches are UI-only** (`connect`/`disconnect`/`set_default_calendar`,
+  declared in `manifest.json` per the youtube/account.py precedent — `widgets/validator.py` requires every
+  `apply_action` branch to be declared for a PASSIVE widget, unlike messaging's `"kind":"backed"` exemption).
+  `connect`/`disconnect` are voice-reachable as an INTENT door only (V2-520: no credential ever crosses a
+  data-op) and return the connector's result directly, never `view_data()`.
+- **Known limitation, named rather than solved**: the widget-action dispatcher (`apply_action`) has no HTTP
+  request to read an `Origin`/`Host` header from, so `connect`'s OAuth redirect always resolves to the
+  loopback default — correct for the self-hosted engine this was built and verified against (the operator's
+  own stated test), but a cloud deployment would need the same per-request origin video's dedicated
+  `/api/video/connect` ROUTE derives, which is a route-level concern this shared widget endpoint does not
+  have. Also open: a `patch_google`/`delete_google` failure leaves the local edit standing with no automatic
+  self-heal on the next sync (a real divergence risk, smaller than the one this build closes, not solved
+  here); no recurrence EDITING (only whole-instance create/cancel/move — recurrence series management was out
+  of scope, "que lo hagamos de la manera más simple posible" per the operator).
+- Tests: `tests/connectors/unit/calendar/test_google_calendar_connector.py` (22 cases — provider registry,
+  OAuth PKCE, event↔meeting normalization in both directions incl. all-day exclusive-end and attendee/self
+  status, `list_events` pagination + 410 handling, the facade's `_prepared` failure ladder, `sync`'s merge of
+  new/changed/deleted plus its 410 fallback, `create_event`/`patch_event`/`delete_event`), node 5.23.
+  `tests/browser/unit/agenda/test_google_calendar_sync.py` (16 cases — the write-through/patch/delete
+  contract, background tick incl. reminder scheduling for a fresh sync, `on_calendar_connected`'s migration
+  and its two guards against duplicating/migrating-the-past), added to node 4.6. `test_show_day_is_an_action_
+  not_a_promise.py`'s pre-existing "all three calendars are unbuilt" assertion updated to the new, correct
+  reality (google now genuinely "unconfigured", not "unavailable"). Disarmed: the 410-fallback branch and the
+  raised-exception safety net both verified red on a targeted mutation. `make test-widgets` 15/15, full
+  `tests/browser/unit/` sweep (1877 relevant cases) green, `tests/infrastructure/unit/` 941/941 green
+  including the architecture ratchet (data.py landed at exactly 900 LOC, same ceiling it started this feature
+  at) and the testmap-completeness ratchet.
+- **NOT verified live** — needs a real Google OAuth client registered (the `builtin_client_id` field is
+  empty, exactly like video's own INI-032 status; the operator's own acceptance test — dictate an appointment,
+  watch it appear in the real Google Calendar on another machine — needs that alta done first) plus an engine
+  restart and a page reload.
+
+## 2026-09-12 (V2-679, 2ª vuelta) — los conectores TOMAN la pantalla, como en mensajería
+
+El operador, con una captura del primer intento: «esto no funciona igual como en los mensajes. He dicho que
+hay un icono, un botón para conectores y luego a la izquierda los tres iconos… si se clica en conectores,
+todo el espacio central de contenido lo centramos en los conectores, igual que en mensajería. Y se desactiva
+el foco o el botón activo de día, semana, mes y lista… el botón de conectar a Google Calendar lo que hace es
+inicia un wizard con las instrucciones en la zona central del widget… también tiene que tener una barrita de
+navegación para volver atrás… Ahora este botón de conectar a Google Calendar ni siquiera funciona.»
+
+- **Los tres iconos en el subheader** (`renderProviderIcons`), a la izquierda del botón **Conectores**, con
+  el mismo reparto que la cabecera de mensajería: Google vivo (su icono es la puerta a su pantalla), iCloud y
+  CalDAV **atenuados y `disabled`**, con su tooltip diciendo que aún no están. Objetivos de 26 px, no la tira
+  de 15 px que V2-643 ya revirtió una vez por ilegible.
+- **El área de contenido ENTERA pasa a los conectores** (`S.screen` = `null` | `"list"` | `"wizard"`, la misma
+  máquina de tres estados que mensajería tiene desde V2-570), en vez del panel flotante `agveil`/`agpanel` de
+  la primera vuelta. Mientras esa pantalla manda, **ninguna vista está activa y ninguna se puede pulsar**
+  (`t.disabled = !!S.screen`) — la vista elegida sobrevive debajo y vuelve al cerrar. Una vista empujada por
+  voz **sale** de la pantalla de conectores (la lección de V2-626: una orden de navegación no puede quedar
+  renderizada debajo de una pantalla de configuración).
+- **«Conectar Google Calendar» ya no dispara el handshake: abre el WIZARD** — tres pasos de instrucciones
+  (proyecto de Google Cloud + API de Calendar · ID de cliente OAuth de escritorio · pegarlo en ⚙ → Conectores)
+  con sus enlaces reales a las páginas de Google, migas de pan y **Atrás en cada paso** (desde el paso 1
+  vuelve a la lista, nunca fuera del widget). Solo el ÚLTIMO paso habla con nadie.
+- **Y ahí estaba el «ni siquiera funciona»**: la ventana de Google se abría con `window.open` **después** de
+  `await ctx.action("connect")`, o sea fuera del gesto del usuario — y eso lo bloquea **en silencio** cualquier
+  navegador actual. Ahora la ventana se abre EN BLANCO dentro del propio clic y se navega cuando llega la URL;
+  si el conector rechaza, se cierra y **se dice por qué** (su propia frase: «sin app OAuth registrada…»), en
+  vez de dejar el botón como si no hiciera nada. El test que lo cubre es de ORDEN, no de existencia de la
+  llamada — es la única forma de verlo.
+- La pantalla de una cuenta CONECTADA (elegir el calendario por defecto, desconectar) es la misma de antes,
+  solo que vive en la lista en vez de en un modal.
+- Tests: `tests/browser/unit/agenda/test_the_connectors_take_the_screen.py`, nodo **4.163**, 16 casos
+  RENDERIZADOS; ocho desarmes, cada mutación comprobada antes de medir, los ocho en rojo. De paso quedó
+  arreglado un fallo que ya venía roto: el texto de reserva de `cal_soon` decía «próximamente» mientras el
+  bundle dice «aún no disponible», y `test_the_panel_tells_the_TRUTH_that_none_is_built_yet` llevaba fallando
+  por esa discrepancia; las claves nuevas del asistente están en los dos bundles (`MANIFEST_VERSION` 10 → 11).
+- **NO verificado en vivo** — sigue necesitando el alta del cliente OAuth de Google y una recarga de página.

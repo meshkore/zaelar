@@ -9,6 +9,8 @@ import time
 import unicodedata
 
 from .. import store
+from . import gcal
+from .details import _apply_details, _norm_attendees, _norm_status  # noqa: F401
 from . import planner
 
 
@@ -138,17 +140,6 @@ def _horizon(db: dict, span: int = 7) -> list[dict]:
     return out
 
 
-# CALENDAR CONNECTORS shown in the agenda's header (V2-540). Deliberately a READ of the real inventory, never a
-# hardcoded «off»: the day a calendar connector is registered under this family it lights up here with nothing
-# else to change. Today `connectors/` has SIX and not one of them is a calendar, so the honest answer for all
-# three is «not built yet» — and per INI-027 showing what we do NOT have is the point, not an embarrassment.
-#
-# WHY THESE THREE and not the famous ones: Google Calendar is the one everybody has; iCloud's CALENDAR is
-# reachable over CalDAV with an app-specific password (unlike iCloud Drive, which CloudKit makes impossible);
-# and a generic CalDAV covers Outlook/Fastmail/Nextcloud with one connector instead of three brands.
-_CALENDARS = (("google", "Google Calendar"), ("icloud", "iCloud (Apple)"), ("caldav", "CalDAV (Outlook, Fastmail…)"))
-
-
 # How long a pushed view stays worth OBEYING (V2-540). It is not the mounted widget that needs this — that one
 # keeps whatever is on screen and only moves when the token changes — it is a widget mounting FRESH.
 #
@@ -171,28 +162,9 @@ def _fresh_view(db: dict) -> dict | None:
 
 
 def calendars() -> list[dict]:
-    """Connection state of each calendar provider, for the header strip.
-
-    `status`: "connected" | "off" (built, not linked) | "unavailable" (no connector exists yet). The widget
-    must be able to tell the last two apart — «you have not linked it» and «we have not built it» are different
-    sentences, and showing the first when the second is true is the same class of lie as promising a view."""
-    live: dict[str, dict] = {}
-    try:
-        from connectors import registry
-        for d in registry.descriptors():
-            if str(d.get("family") or "") in ("agenda", "calendar"):
-                live[str(d.get("id") or "")] = d
-    except Exception:
-        pass                                          # a registry that cannot be read is not a linked calendar
-    known = dict(_CALENDARS)
-    out = [{"id": cid, "label": (live.get(cid, {}).get("label") or label),
-            "status": ("connected" if live[cid].get("connected") else str(live[cid].get("status") or "off"))
-                      if cid in live else "unavailable"}
-           for cid, label in _CALENDARS]
-    out += [{"id": cid, "label": str(d.get("label") or cid),
-             "status": "connected" if d.get("connected") else str(d.get("status") or "off")}
-            for cid, d in live.items() if cid not in known]
-    return out
+    """Connection state of each calendar provider, for the header strip. Body in `gcal.py` (architecture
+    ratchet extraction) — kept re-exported here since tests and `view_data()` call `data.calendars()`."""
+    return gcal.calendars()
 
 
 def view_data(q: str = "") -> dict:
@@ -213,6 +185,9 @@ def view_data(q: str = "") -> dict:
         # operator's own tab alone — a refresh must never yank the day he is reading out from under him.
         "view": _fresh_view(db),
         "calendars": calendars(),        # header strip: which calendar providers are linked
+        # V2-679 — the default-calendar picker reads this tick-refreshed cache; view_data stays a pure read.
+        "googleCalendars": (db.get("google") or {}).get("calendars", []),
+        "defaultCalendarId": (db.get("google") or {}).get("defaultCalendarId", ""),
 
         "warnings": plan.get("warnings", []),
         "coaching": plan.get("coaching", []),
@@ -426,83 +401,6 @@ _STATUS = ("confirmed", "pending")
 # WORD BOUNDARIES, not substrings, and PENDING is tested first — «sigue pendiente» read as confirmed
 # because «si» lives inside «sigue» (caught by this module's own test before it shipped). A negated
 # confirmation («sin confirmar», «no me lo ha confirmado») is pending, so it has to win the race.
-_PENDING_RE = re.compile(r"\b(?:pendiente|pending|tentative|provisional|maybe|quiza\w*|esperando|waiting)\b"
-                         r"|\b(?:sin|no|not|todavia\s+no|aun\s+no)\b[^.]{0,20}\bconfirm",
-                         re.I)
-_CONFIRMED_RE = re.compile(r"\b(?:confirm\w*|aceptad\w*|acepta\w*|accepted|cerrad\w*|ok|okay|si|yes)\b", re.I)
-
-
-def _norm_status(raw) -> str:
-    """A spoken status ('ya me lo ha confirmado', 'sigue pendiente') → 'confirmed' | 'pending' | ''.
-    Unknown words return '' rather than a guess: a wrong status is a claim about somebody else's answer."""
-    n = _strip_accents(str(raw or "").strip().lower())
-    if not n:
-        return ""
-    if _PENDING_RE.search(n):
-        return "pending"
-    return "confirmed" if _CONFIRMED_RE.search(n) else ""
-
-
-def _norm_attendees(raw) -> list:
-    """Attendees as a list of NAMES. Accepts a list, a comma/'y'-separated sentence, or a bare COUNT
-    ('somos cuatro' → four unnamed seats), because the operator often knows how many before who."""
-    if isinstance(raw, (int, float)) and not isinstance(raw, bool):
-        n = max(0, min(200, int(raw)))
-        return [""] * n
-    if isinstance(raw, list):
-        return [str(x).strip()[:60] for x in raw if str(x).strip()][:50]
-    s = str(raw or "").strip()
-    if not s:
-        return []
-    if s.isdigit():
-        return [""] * max(0, min(200, int(s)))
-    parts = re.split(r"\s*(?:,|;|\+|\by\b|\band\b|&)\s*", s)
-    return [p.strip()[:60] for p in parts if p.strip()][:50]
-
-
-def _apply_details(meeting: dict, payload: dict) -> None:
-    """Copy the optional descriptive fields of a meeting from a payload onto it. Shared by the create and
-    the edit paths so the two can never disagree about what a meeting is made of. Only keys PRESENT in the
-    payload are touched — an edit that names one field must not blank the others."""
-    if "notes" in payload or "details" in payload:
-        notes = str(payload.get("notes") or payload.get("details") or "").strip()
-        if notes:
-            meeting["notes"] = notes[:500]
-        else:
-            meeting.pop("notes", None)
-    if "location" in payload or "place" in payload:
-        loc = str(payload.get("location") or payload.get("place") or "").strip()
-        if loc:
-            meeting["location"] = loc[:160]
-        else:
-            meeting.pop("location", None)
-    if "category" in payload:
-        cat = str(payload.get("category") or "").strip().lower()
-        if cat:
-            meeting["category"] = cat[:40]
-        else:
-            meeting.pop("category", None)
-    for key in ("attendees", "people", "with"):
-        if key in payload:
-            who = _norm_attendees(payload.get(key))
-            if who:
-                meeting["attendees"] = who
-            else:
-                meeting.pop("attendees", None)
-            break
-    if "status" in payload or "confirmed" in payload:
-        if "confirmed" in payload and "status" not in payload:
-            st = "confirmed" if payload.get("confirmed") else "pending"
-        else:
-            st = _norm_status(payload.get("status"))
-        if st:
-            meeting["status"] = st
-    if payload.get("allDay") or payload.get("all_day"):
-        meeting["allDay"] = True
-        meeting.pop("startTime", None)
-        meeting.pop("endTime", None)
-
-
 def apply_action(action: str, payload: dict | None = None) -> dict:
     """Widget actions (HANDOFF §9.3): mark done / not now / snooze / drop / replan. Mutates the isolated store."""
     payload = payload or {}
@@ -594,7 +492,7 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
         if _new.get("allDay"):
             _dup = any(_twin_of(m) for m in _meets)        # timed or all-day — either way it already exists
             if not _dup:
-                db.setdefault("meetings", []).append(_new)   # no auto reminder: ~2h before needs an hour
+                gcal.commit_meeting(db, _new)   # no auto reminder: ~2h before needs an hour
         else:
             _ad = next((m for m in _meets if m.get("allDay") and _twin_of(m)), None)
             if _ad is not None:
@@ -604,6 +502,7 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
                     _ad.pop(k, None)
                 for k, v in _new.items():
                     _ad[k] = v
+                gcal.patch_google(_ad)   # the twin may already be a Google event (V2-679) — mirror the settle
                 _jid, _at = _schedule_reminder(_ad.get("title", title), date, _ad.get("startTime", ""))
                 if _jid:
                     _ad["reminder_id"], _ad["remindAt"] = _jid, _at
@@ -620,7 +519,7 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
                 _jid, _at = _schedule_reminder(title, date, _new.get("startTime", ""))
                 if _jid:
                     _new["reminder_id"], _new["remindAt"] = _jid, _at
-                db.setdefault("meetings", []).append(_new)
+                gcal.commit_meeting(db, _new)
     elif action == "cancel_meeting":
         # Cancel meeting(s) matching title (case-insensitive, accent-insensitive) plus optional date.
         title = _strip_accents((payload.get("title") or "").strip().lower())
@@ -635,6 +534,7 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
         # V2-473 — an orphan alarm fires a ghost appointment: the reminder goes with its meeting.
         for m in _gone:
             _cancel_reminder(m)
+            gcal.delete_google(m)   # V2-679: a cancelled Google-origin meeting is deleted from Google too
     elif action == "set_reminder":
         # V2-473 — moving the notice is VOCABULARY (the clear_all lesson: a frequent intention with no
         # action cannot be gotten right). Finds the meeting like cancel_meeting does, cancels its current
@@ -778,6 +678,7 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
         m["date"], m["startTime"] = new_date, new_start
         m["endTime"] = f"{_endm // 60:02d}:{_endm % 60:02d}"
         m.pop("reminder_id", None); m.pop("remindAt", None)
+        gcal.patch_google(m)   # V2-679: a moved Google-origin meeting is rescheduled on Google too
         _jid, _at = _schedule_reminder(m.get("title", "Cita"), new_date, new_start)
         if _jid:
             m["reminder_id"], m["remindAt"] = _jid, _at
@@ -807,6 +708,7 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
         _nt = str(payload.get("newTitle") or "").strip()
         if _nt:
             m["title"] = _nt[:160]
+        gcal.patch_google(m)   # V2-679: an edited Google-origin meeting is patched on Google too
     elif action == "show_day":
         # V2-540 — CHANGE THE VIEW is an action, because otherwise it is a PROMISE.
         # Measured in the operator's own session (2026-09-01 15:11, events 873/931/995): he asked three times
@@ -837,6 +739,16 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
             _sel = _resolve_date(_raw)                 # spoken relative date -> YYYY-MM-DD (today if unsaid)
         import time as _tm
         db["view"] = {"sel": _sel, "n": int((db.get("view") or {}).get("n", 0)) + 1, "at": _tm.time()}
+    elif action in ("connect", "disconnect", "set_default_calendar"):
+        # V2-679 — Google Calendar connect/disconnect/default-picker; body in `gcal.py` (ratchet extraction).
+        # connect/disconnect return the connector's result directly (never a credential crosses here, V2-520).
+        res = gcal.ui_action(action, payload, db)
+        if action != "set_default_calendar":
+            return res
+        if not (res or {}).get("ok"):
+            return res
+        store.save(WIDGET_ID, db)
+        return view_data()
 
     # 'replan' (and any action) just recomputes below
     db["currentPlan"] = compute_plan(db)  # persist the updated plan too, not just the mutation
@@ -896,4 +808,16 @@ def today_line(limit: int = 8) -> str:
         rows.append(f"  … y {len(meets) - limit} más (read_widget agenda)")
     return ("AGENDA DE HOY — lo que GUARDA el widget agenda; si un recuerdo dice otra hora u otro día, MANDA esto "
             "(para otro día o más detalle: read_widget):\n" + "\n".join(rows))
+
+
+def tick(ctx) -> None:
+    """Background sync with Google Calendar (`widgets/background.py`'s scheduler contract needs this name in
+    THIS file — the body lives in `gcal.py` to pay the architecture ratchet by extraction)."""
+    gcal.tick(ctx)
+
+
+def on_calendar_connected() -> None:
+    """Called by `connectors/calendar/server_api.py` right after OAuth consent completes. Body in `gcal.py`
+    (same reason as `tick` above); kept re-exported here because that caller imports `widgets.agenda.data`."""
+    gcal.on_calendar_connected()
 

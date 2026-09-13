@@ -143,6 +143,82 @@ def _videoaccounts() -> list[dict]:
                  "connected": False, "status": "error", "detail": str(e), "config": {}}]
 
 
+def _calendar() -> list[dict]:
+    """Calendar-account connectors (V2-679). family="agenda" on purpose: `widgets/agenda/data.py::calendars()`
+    reads exactly this family (or "calendar", both accepted), keyed by id "google" — matching
+    `connectors/calendar/providers.py`'s registry id so this row REPLACES the widget's own "not built yet"
+    placeholder instead of standing beside it."""
+    try:
+        from connectors.calendar import oauth, providers
+        catalog = {c["id"]: c for c in providers.public_list()}
+        out = []
+        for st in oauth.status():
+            cat = catalog.get(st["id"], {})
+            connected = bool(st.get("connected"))
+            out.append({"id": st["id"], "label": st["label"], "family": "agenda", "auth": "oauth",
+                        "connected": connected,
+                        "status": "connected" if connected else ("off" if st.get("app_configured")
+                                                                 else "unconfigured"),
+                        "detail": st.get("note") or "",
+                        "config": {"app_configured": bool(st.get("app_configured")),
+                                   "tier": st.get("tier") or "", "tier_label": st.get("tier_label") or "",
+                                   "tiers": cat.get("tiers") or [],
+                                   "default_tier": cat.get("default_tier") or ""}})
+        return out
+    except Exception as e:
+        return [{"id": "google", "label": "Google Calendar", "family": "agenda", "auth": "oauth",
+                 "connected": False, "status": "error", "detail": str(e), "config": {}}]
+
+
+def _google() -> list[dict]:
+    """The Google ACCOUNT row (V2-685) — the identity, not a sixth surface.
+
+    Gmail, Calendar, Meet, Drive, Photos and YouTube already appear in their own families, each with its
+    own card and its own tokens. What had no row anywhere was the thing they SHARE: the OAuth app. When it
+    is missing, all five go dormant at once and each of them says so separately, which reads as five
+    unrelated faults instead of one missing answer. family="infra" because it is not a widget surface —
+    it is what the surfaces authenticate against.
+
+    `connected` counts services with live tokens, so the row distinguishes the three states that need
+    different actions: no app registered at all, an app nobody has consented to yet, and a working account.
+    """
+    try:
+        from connectors.google import app as gapp, services as gsvc
+        st = gapp.status()
+        live: list[str] = []
+        for svc in gsvc.SERVICES.values():
+            if not svc.owner:
+                continue                                   # Meet has no flow of its own: it rides calendar
+            try:
+                mod = __import__(f"{svc.owner}.oauth", fromlist=["oauth"])
+                rows = mod.status() or []
+                if any(r.get("connected") for r in (rows if isinstance(rows, list) else [rows])):
+                    live.append(svc.id)
+            except Exception:                              # noqa: BLE001 — one broken door never hides the rest
+                continue
+        if "calendar" in live:
+            live.append("meet")                            # a connected calendar IS a usable Meet
+        configured = bool(st.get("configured"))
+        # id "google-account", NOT "google": `_calendar()` already ships a row keyed "google" (its provider
+        # id, which `widgets/agenda/data.py::_CALENDARS` matches on). Two rows with one id is a collision the
+        # tab resolves by showing whichever it saw last — the account row would have eaten the calendar card.
+        return [{"id": "google-account", "label": "Google (cuenta)", "family": "infra", "auth": "oauth",
+                 "connected": bool(live),
+                 "status": "connected" if live else ("off" if configured else "unconfigured"),
+                 "detail": ("Una sola cuenta para Gmail, Calendar, Meet, Drive, Fotos y YouTube."
+                            if configured else
+                            "Falta el cliente OAuth de Google: deja el client_secret_*.json de Google Cloud "
+                            "en .meshkore/credentials/ y se activan las seis puertas a la vez."),
+                 "config": {"app_configured": configured, "source": st.get("source") or "",
+                            "project_id": st.get("project_id") or "",
+                            "web_client": bool(st.get("web_client")),
+                            "redirect_uris": st.get("redirect_uris") or [],
+                            "services": gsvc.public_list(), "connected_services": sorted(set(live))}}]
+    except Exception as e:                                 # noqa: BLE001
+        return [{"id": "google-account", "label": "Google (cuenta)", "family": "infra", "auth": "oauth",
+                 "connected": False, "status": "error", "detail": str(e), "config": {}}]
+
+
 def _architect() -> list[dict]:
     try:
         from config import connectors as cfg
@@ -180,8 +256,10 @@ def _meshkore() -> list[dict]:
                  "connected": False, "status": "error", "detail": str(e), "clusters": [], "config": {}}]
 
 
-# Stable family order (messaging -> music -> files -> photos -> video -> infra) for the tab.
+# Stable family order (messaging -> music -> files -> photos -> video -> agenda -> infra) for the tab.
+# Google leads `infra`: it is the account the five surfaces above authenticate against (V2-685).
 def descriptors() -> list[dict]:
     """Complete connector inventory with state + redacted config. Each source is isolated (a broken connector does
     not take down the registry)."""
-    return [*_messaging(), *_music(), *_files(), *_photos(), *_videoaccounts(), *_architect(), *_meshkore()]
+    return [*_messaging(), *_music(), *_files(), *_photos(), *_videoaccounts(), *_calendar(),
+            *_google(), *_architect(), *_meshkore()]

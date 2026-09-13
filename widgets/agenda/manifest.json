@@ -5,6 +5,9 @@
   "description": "Tu calendario completo: vistas de día, semana, mes y lista, con las citas coloreadas por categoría, su aviso, quién asiste y si la otra parte ha confirmado. Además planifica tu día con las tareas y hace de coach de productividad.",
   "whenToUse": "Cuando el usuario pide su agenda, su día, qué hacer ahora, a qué ponerse, su planning o coaching de productividad.",
   "confirm_ui": false,
+  "background": {
+    "every": "10s"
+  },
   "keywords": [
     "agenda",
     "día",
@@ -42,7 +45,8 @@
         "attendees": "quién viene: lista de nombres, «Ana y Luis», o un NÚMERO si solo sabe cuántos (opcional)",
         "location": "dónde (opcional)",
         "category": "trabajo | personal | salud | social | viaje | … — solo colorea la cita (opcional)",
-        "allDay": "true si es de todo el día (sin hora)"
+        "allDay": "true si es de todo el día (sin hora)",
+        "meet": "true si la cita lleva videollamada de Google Meet — se crea el enlace con la cita y se ve en la tarjeta (solo si el calendario de Google está conectado)"
       }
     },
     "set_reminder": {
@@ -133,7 +137,28 @@
         "location": "dónde",
         "category": "trabajo | personal | salud | social | viaje | …",
         "notes": "detalles",
-        "newTitle": "para renombrarla"
+        "newTitle": "para renombrarla",
+        "meet": "true si la cita lleva videollamada de Google Meet — se crea el enlace con la cita y se ve en la tarjeta (solo si el calendario de Google está conectado)"
+      }
+    },
+    "connect": {
+      "desc": "(la dispara el botón Conectar de la tarjeta) empieza el consentimiento OAuth de Google Calendar sobre una app ya registrada y devuelve la URL — nunca lleva credenciales. Úsala si el operador pide conectar/vincular Google Calendar",
+      "payload": {
+        "provider": "string opcional (google)"
+      }
+    },
+    "disconnect": {
+      "desc": "desconecta Google Calendar (olvida sus tokens). Lo ya sincronizado se queda como citas locales, nada desaparece",
+      "payload": {
+        "provider": "string opcional (google)"
+      },
+      "confirm": true,
+      "confirm_q": "¿Desconecto Google Calendar? Tus citas ya sincronizadas se quedan aquí, pero dejarán de actualizarse."
+    },
+    "set_default_calendar": {
+      "desc": "elige en qué calendario de Google se crean las citas nuevas cuando el operador tiene varios",
+      "payload": {
+        "calendarId": "string — el id del calendario elegido"
       }
     }
   },

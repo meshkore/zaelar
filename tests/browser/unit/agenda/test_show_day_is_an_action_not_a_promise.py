@@ -127,13 +127,37 @@ def test_the_connector_strip_READS_the_inventory_instead_of_declaring_a_state(ag
     assert by_id["icloud"]["status"] == "unavailable", by_id["icloud"]
 
 
-def test_TODAY_it_says_none_is_built_because_none_is(agenda):
-    """`connectors/` holds six connectors and not one is a calendar (INI-027). «You have not linked it» and «we
-    have not built it» are different sentences, and showing the first when the second is true is the same class
-    of lie as promising a view — which is the other half of this very file."""
+def test_only_google_is_built_the_other_two_stay_honestly_unbuilt(agenda, monkeypatch):
+    """V2-679 — Google Calendar shipped as a real connector; iCloud and CalDAV did not. «You have not linked
+    it» («unconfigured» — built, no app registered yet), «we have not built it» («unavailable») and
+    «connected» are three different sentences, and showing the wrong one is the same class of lie as
+    promising a view — which is the other half of this very file.
+
+    ⚠️ V2-685 — the comment on the `unconfigured` line used to read «no OAuth client registered in this test
+    env», and that was the whole problem: it was measuring the ENV rather than pinning it. Since the shipped
+    Google client exists, the operator's own machine answers `off` (built, app registered, awaiting his
+    consent) — a FOURTH sentence, and the right one. The absence is pinned here so the three original
+    sentences stay measurable, and the fourth gets its own case below."""
+    from connectors.calendar import oauth as _cal_oauth
+    monkeypatch.setattr(_cal_oauth, "_cred", lambda _name: "")
+    monkeypatch.setattr(_cal_oauth, "_shipped_google", lambda *a, **k: "")
     cals = agenda.calendars()
+    by_id = {c["id"]: c["status"] for c in cals}
     assert [c["id"] for c in cals] == ["google", "icloud", "caldav"], cals
-    assert all(c["status"] == "unavailable" for c in cals), cals
+    assert by_id["google"] == "unconfigured", cals    # built, and no OAuth client anywhere — pinned above
+    assert by_id["icloud"] == "unavailable" and by_id["caldav"] == "unavailable", cals
+
+
+def test_a_registered_app_awaiting_consent_is_its_own_sentence(agenda, monkeypatch):
+    """The fourth state, and the one the operator's own install is in the moment he drops the console's JSON
+    into the credential store: the app EXISTS, so «you have not linked it» is no longer true — what is
+    missing is his consent, which is a different thing to tell him and a different button to press."""
+    from connectors.calendar import oauth as _cal_oauth
+    monkeypatch.setattr(_cal_oauth, "_cred", lambda _name: "")
+    monkeypatch.setattr(_cal_oauth, "_shipped_google",
+                        lambda *a, **k: "shared.apps.googleusercontent.com")
+    by_id = {c["id"]: c["status"] for c in agenda.calendars()}
+    assert by_id["google"] == "off", "a registered-but-unauthorized app is not «unconfigured»"
 
 
 def test_a_registry_that_cannot_be_read_is_not_a_connected_calendar(agenda, monkeypatch):

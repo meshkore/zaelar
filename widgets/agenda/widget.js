@@ -38,9 +38,9 @@ const CATEGORY_HUE = {
 
 function injectStyles(){
   const prev = document.getElementById("hb-agenda-css");
-  if(prev && (prev.dataset||{}).v === "640") return;   // dataset is optional on a foreign node
+  if(prev && (prev.dataset||{}).v === "679") return;   // dataset is optional on a foreign node
   if(prev) prev.remove();                      // an older build's sheet would fight this one, silently
-  const s=document.createElement("style"); s.id="hb-agenda-css"; s.dataset.v="640"; s.textContent=`
+  const s=document.createElement("style"); s.id="hb-agenda-css"; s.dataset.v="679"; s.textContent=`
   /* The card decides the size (manifest.size); the widget fills it and scrolls INSIDE — the operator's
      report was «se muestra muy pequeño, se cortan las palabras de abajo». :has reaches the card chrome
      (.hb-scroll wraps the widget root) exactly as the video widget does since V2-636. */
@@ -72,7 +72,19 @@ function injectStyles(){
     padding:6px 14px;font-size:12.5px;font-weight:600;cursor:pointer;line-height:1.2;white-space:nowrap;flex:0 0 auto}
   .hb-agenda .agtab:hover{background:var(--hb-bg-soft,#f4f7fb);color:var(--hb-ink,#0d1622)}
   .hb-agenda .agtab.on{background:var(--hb-ink,#0d1622);color:var(--hb-bg,#fff)}
-  .hb-agenda .agcalbtn{margin-left:auto;border:1px solid var(--hb-line,#e3e8f0);background:var(--hb-bg,#fff);
+  .hb-agenda .agtab:disabled{opacity:.4;cursor:default;pointer-events:none}
+  /* Platform icons + Conectores button, ONE right-aligned cluster — mirroring the messaging widget's own
+     header pattern (icons for every provider, a door into the connectors screen), per the operator's V2-679
+     follow-up: «he dicho que hay un icono, un botón para conectores y luego a la izquierda los tres iconos». */
+  .hb-agenda .agviewsright{margin-left:auto;display:flex;align-items:center;gap:10px;flex:0 0 auto}
+  .hb-agenda .agconnicons{display:flex;align-items:center;gap:4px}
+  .hb-agenda .agconnicon{width:26px;height:26px;border-radius:8px;border:0;background:none;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;opacity:.55}
+  .hb-agenda .agconnicon svg{width:15px;height:15px;display:block}
+  .hb-agenda .agconnicon:hover:not(:disabled){opacity:1;background:var(--hb-bg-soft,#f4f7fb)}
+  .hb-agenda .agconnicon.on{opacity:1}
+  .hb-agenda .agconnicon.off{opacity:.28;cursor:default}
+  .hb-agenda .agcalbtn{border:1px solid var(--hb-line,#e3e8f0);background:var(--hb-bg,#fff);
     color:var(--hb-muted,#5b6b82);border-radius:9px;height:30px;padding:0 11px;font-size:12.5px;font-weight:600;
     cursor:pointer;display:flex;align-items:center;gap:7px;flex:0 0 auto}
   .hb-agenda .agcalbtn:hover,.hb-agenda .agcalbtn.on{border-color:var(--hb-accent,#3D6FE0);color:var(--hb-accent,#3D6FE0)}
@@ -243,6 +255,53 @@ function injectStyles(){
     background:var(--hb-bg-soft,#f4f7fb);color:var(--hb-muted-2,#7d8a9c)}
   .hb-agenda .agcalst.on{background:rgba(22,184,166,.16);color:#0f766e}
   .hb-agenda .agnote{font-size:11.5px;color:var(--hb-muted-2,#7d8a9c);line-height:1.4}
+  .hb-agenda .agcalst.unconf{background:rgba(232,151,58,.16);color:#92510a}
+  .hb-agenda .agcalbtn2{border:1px solid var(--hb-accent,#3D6FE0);background:var(--hb-accent,#3D6FE0);
+    color:#fff;border-radius:9px;padding:8px 13px;font-size:12.5px;font-weight:700;cursor:pointer;
+    margin:6px 4px 2px;align-self:flex-start}
+  .hb-agenda .agcalbtn2:disabled{opacity:.6;cursor:default}
+  .hb-agenda .agcalbtn2.risk{background:none;color:var(--hb-muted,#5b6b82);border-color:var(--hb-line,#e3e8f0)}
+  .hb-agenda .agcalbtn2.risk:hover{color:var(--hb-risk,#e5484d);border-color:var(--hb-risk,#e5484d)}
+  .hb-agenda .agcaldef{display:flex;flex-direction:column;gap:5px;padding:4px 4px 2px}
+  .hb-agenda .agcaldeflabel{font-size:11.5px;font-weight:600;color:var(--hb-muted,#5b6b82)}
+  .hb-agenda .agcaldefrow{display:flex;align-items:center;gap:7px;font-size:12.5px;cursor:pointer}
+  .hb-agenda .agcaldot{width:9px;height:9px;border-radius:50%;background:var(--hb-neutral,#c2ccda);flex:0 0 auto}
+
+  /* ── CONNECTORS SCREEN — takes over the WHOLE content area (V2-679 follow-up), like the messaging
+     widget's own connectors screen, instead of a small floating overlay. .agconnscreen overrides
+     .agpanel's modal width (source-order wins at equal specificity) while keeping ".agpanel .agnote"
+     reachable for anything that still queries the old selector. ─────────────────────────────────────── */
+  .hb-agenda .agconnscreen{width:100%;max-width:640px;margin:0 auto;box-shadow:none;border:0;padding:2px}
+  .hb-agenda .agconnhead{display:flex;align-items:center;gap:10px;margin-bottom:4px}
+  .hb-agenda .agconnback{cursor:pointer;color:var(--hb-accent,#3D6FE0);font-weight:600;font-size:13px;
+    margin-left:auto;flex:0 0 auto}
+  .hb-agenda .agconnback:hover{text-decoration:underline}
+  /* Breadcrumb inside the wizard — same shape as messaging's .crumb (V2-570), so a step-by-step guide
+     always tells you where "back" goes: to the connectors list, never out of the widget entirely. */
+  .hb-agenda .agwcrumb{display:flex;align-items:center;gap:7px;margin:2px 0 14px;font-size:13px}
+  .hb-agenda .agwcrumb .agconnback{margin-left:0}
+  .hb-agenda .agwsep{color:var(--hb-muted-2,#9aa7b8)}
+  .hb-agenda .agwcur{color:var(--hb-ink,#0d1622);font-weight:700}
+  .hb-agenda .agwstep{border:1px solid var(--hb-line,#e3e8f0);border-radius:12px;padding:15px 16px 16px;
+    background:var(--hb-bg,#fff);margin:2px 0 14px}
+  .hb-agenda .agwhead{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+  .hb-agenda .agwnum{width:25px;height:25px;flex:0 0 auto;border-radius:50%;display:inline-flex;
+    align-items:center;justify-content:center;font-size:12.5px;font-weight:700;color:#fff;
+    background:var(--hb-neutral,#3a4a5c)}
+  .hb-agenda .agwtitle{font-size:15px;font-weight:700;color:var(--hb-ink,#0d1622)}
+  .hb-agenda .agwcount{margin-left:auto;flex:0 0 auto;font-size:11.5px;color:var(--hb-muted-2,#9aa7b8)}
+  .hb-agenda .agwbody{font-size:13.5px;color:var(--hb-muted,#4a5a70);line-height:1.6}
+  .hb-agenda .agwlink{display:inline-flex;align-items:center;gap:6px;margin:9px 9px 0 0;
+    border:1px solid var(--hb-accent,#3D6FE0);color:var(--hb-accent,#3D6FE0);border-radius:9px;
+    padding:9px 14px;font-size:13px;font-weight:600;text-decoration:none;background:transparent}
+  .hb-agenda .agwlink:hover{background:var(--hb-accent,#3D6FE0);color:#fff}
+  .hb-agenda .agwtip{margin-top:10px;font-size:12.5px;color:var(--hb-muted,#5b6b82);
+    background:var(--hb-bg-soft,#fbfdff);border:1px solid var(--hb-line,#eef1f6);border-radius:9px;
+    padding:9px 11px;line-height:1.55}
+  .hb-agenda .agwerr{margin-top:10px;font-size:12.5px;color:var(--hb-risk,#e5484d);line-height:1.5}
+  .hb-agenda .agwfoot{display:flex;gap:9px;margin-top:2px}
+  .hb-agenda .agwfoot .agcalbtn2{flex:1 1 auto;margin:0;text-align:center;justify-content:center}
+  .hb-agenda .agwfoot .agcalbtn2.risk{flex:0 0 auto}
   `; document.head.appendChild(s);
 }
 
@@ -650,16 +709,49 @@ function renderDetail(root, ev, ctx, state, redraw){
   veil.appendChild(p); root.appendChild(veil);
 }
 
-// ── CONNECTORS panel — readable rows, not three cramped icons in the header ───────────────────────────
-function renderCalendars(root, cals, state, redraw){
-  const veil = el2("div","agveil");
-  veil.onclick = e => { if(e.target===veil){ state.cals=false; redraw(); } };
-  const p = el2("div","agpanel");
-  const head = el2("div","agphead");
-  head.appendChild(el2("div","agptitle", tt("calendars", null, "Calendarios")));
-  const x = el2("button","agpx","×"); x.onclick = ()=>{ state.cals=false; redraw(); };
-  head.appendChild(x); p.appendChild(head);
+// ── The PLATFORM ICONS in the subheader (V2-679 follow-up) — the messaging widget's own pattern: every
+// provider visible at a glance, the ones we have not built dimmed and inert, the live one a door into its
+// screen. Deliberately NOT the cramped 15px strip V2-643 removed: these are 26px targets with a tooltip each,
+// sitting beside the Conectores button instead of competing with the range title. ───────────────────────────
+function renderProviderIcons(cals, S, redraw){
+  const wrap = el2("div","agconnicons");
   (cals||[]).forEach(c=>{
+    const live = c.id === "google";            // the only provider with a connector behind it today
+    const on = c.status === "connected";
+    const btn = el2("button","agconnicon" + (on?" on":"") + (live?"":" off"));
+    const spec = CAL_SVG[c.id];
+    if(spec){ btn.style.color = spec.color; btn.appendChild(svgEl(spec.path, {fill:true})); }
+    else { btn.appendChild(svgEl(ICO_CAL)); }
+    btn.title = (c.label || c.id) + " — " + (!live ? tt("cal_soon", null, "aún no disponible")
+                                                   : on ? tt("cal_connected", null, "conectado")
+                                                        : tt("cal_off", null, "sin conectar"));
+    if(!live){ btn.disabled = true; }
+    else {
+      btn.onclick = ()=>{
+        // Connected → the list screen (where the default calendar and «Desconectar» live); not connected →
+        // straight into its wizard, the same shortcut messaging's dimmed icons take.
+        S.screen = on ? "list" : "wizard";
+        if(!on){ S.wizStep = 1; S.connectErr = ""; }
+        redraw();
+      };
+    }
+    wrap.appendChild(btn);
+  });
+  return wrap;
+}
+
+// ── CONNECTORS SCREEN (list) — the whole content area, not an overlay ────────────────────────────────────
+function renderConnectorScreen(data, ctx, S, redraw){
+  const cals = data.calendars || [];
+  const wrap = el2("div","agconnscreen agpanel");
+  const head = el2("div","agconnhead");
+  head.appendChild(el2("div","agptitle", tt("connectors", null, "Conectores")));
+  const back = el2("span","agconnback", "← " + tt("back_to_agenda", null, "Agenda"));
+  back.onclick = ()=>{ S.screen = null; redraw(); };
+  head.appendChild(back);
+  wrap.appendChild(head);
+
+  cals.forEach(c=>{
     const row = el2("div","agcalrow");
     const ico = el2("div","agcalico"); const spec = CAL_SVG[c.id];
     if(spec){ ico.style.color = spec.color; ico.appendChild(svgEl(spec.path, {fill:true})); }
@@ -667,15 +759,171 @@ function renderCalendars(root, cals, state, redraw){
     row.appendChild(ico);
     row.appendChild(el2("div","agcalname", c.label || c.id));
     const on = c.status === "connected";
-    row.appendChild(el2("div","agcalst" + (on?" on":""),
+    row.appendChild(el2("div","agcalst" + (on?" on":"") + (c.status==="unconfigured"?" unconf":""),
       on ? tt("cal_connected", null, "conectado")
          : (c.status === "unavailable" ? tt("cal_soon", null, "aún no disponible")
-                                       : tt("cal_off", null, "sin conectar"))));
-    p.appendChild(row);
+                                       : (c.status === "unconfigured" ? tt("cal_unconf", null, "sin configurar")
+                                                                      : tt("cal_off", null, "sin conectar")))));
+    wrap.appendChild(row);
+    // Only Google is wired to a real connector today (V2-679); iCloud/CalDAV stay VISIBLE but INERT — no
+    // button, no click handler — until a second provider lands in `connectors/calendar/providers.py`.
+    if(c.id !== "google") return;
+    if(on){
+      const cald = el2("div","agcaldef");
+      const gcals = data.googleCalendars || [];
+      if(gcals.length){
+        cald.appendChild(el2("div","agcaldeflabel", tt("cal_default_label", null,
+          "Calendario donde crear las citas nuevas:")));
+        gcals.forEach(gc=>{
+          const line = el2("label","agcaldefrow");
+          const radio = document.createElement("input"); radio.type = "radio"; radio.name = "hb-ag-defcal";
+          radio.checked = gc.id === data.defaultCalendarId;
+          radio.onchange = ()=>{ ctx.action("set_default_calendar", {calendarId: gc.id}); };
+          line.appendChild(radio);
+          const dot = el2("span","agcaldot"); if(gc.backgroundColor) dot.style.background = gc.backgroundColor;
+          line.appendChild(dot);
+          line.appendChild(el2("span",null, gc.summary || gc.id));
+          cald.appendChild(line);
+        });
+      }
+      wrap.appendChild(cald);
+      const disc = el2("button","agcalbtn2 risk", tt("cal_disconnect", null, "Desconectar Google Calendar"));
+      disc.onclick = ()=>{ ctx.action("disconnect", {provider:"google"}); };
+      wrap.appendChild(disc);
+    } else {
+      // The operator's rule: this button STARTS THE GUIDE, it does not fire an OAuth handshake that cannot
+      // succeed yet — «lo que hace es iniciar un wizard con las instrucciones en la zona central del widget».
+      const btn = el2("button","agcalbtn2", tt("cal_connect", null, "Conectar Google Calendar"));
+      btn.onclick = ()=>{ S.screen = "wizard"; S.wizStep = 1; S.connectErr = ""; redraw(); };
+      wrap.appendChild(btn);
+    }
   });
-  p.appendChild(el2("div","agnote", tt("cal_footer", null,
-    "Mientras no haya ninguno conectado, esta agenda es la de Zaelar: lo que le dictes vive aquí.")));
-  veil.appendChild(p); root.appendChild(veil);
+  wrap.appendChild(el2("div","agnote", tt("cal_footer", null,
+    "Conecta Google Calendar y esta agenda pasa a sincronizarse con él: tus citas de ahí se ven aquí y lo que " +
+    "dictes por voz aparece allí. Mientras no haya nada conectado, esta agenda es la de Zaelar.")));
+  return wrap;
+}
+
+// ── GOOGLE CALENDAR WIZARD — one step at a time, in the content area, with a way back at every step ──────
+// Steps 1-3 are the work that happens OUTSIDE (a Google Cloud project, an OAuth client, pasting its id into
+// ⚙ → Conectores); the last one is the only one that talks to anybody, and it is the real handshake.
+function agWizardSteps(){
+  return [
+    {title: tt("wiz1_title", null, "Crea el proyecto en Google y activa Calendar")},
+    {title: tt("wiz2_title", null, "Crea el ID de cliente OAuth"),
+     next:  tt("wiz_have_it", null, "Ya lo tengo — continuar")},
+    {title: tt("wiz3_title", null, "Pega el ID en Configuración → Conectores")},
+  ];
+}
+function agLink(href, label){
+  const a = document.createElement("a"); a.className = "agwlink"; a.href = href;
+  a.target = "_blank"; a.rel = "noopener"; a.textContent = label + " ↗";
+  return a;
+}
+function agStepBody(step){
+  const wrap = el2("div");
+  if(step === 1){
+    wrap.appendChild(el2("div","agwbody", tt("wiz1_body", null,
+      "En Google Cloud crea un proyecto (o reutiliza uno que ya tengas) y activa en él la API de Google "
+      + "Calendar. Es gratis y solo se hace una vez.")));
+    wrap.appendChild(agLink("https://console.cloud.google.com/projectcreate",
+      tt("wiz1_link1", null, "Crear un proyecto de Google Cloud")));
+    wrap.appendChild(agLink("https://console.cloud.google.com/apis/library/calendar-json.googleapis.com",
+      tt("wiz1_link2", null, "Activar la API de Calendar")));
+  } else if(step === 2){
+    wrap.appendChild(el2("div","agwbody", tt("wiz2_body", null,
+      "En «Credenciales» crea un ID de cliente de OAuth de tipo «Aplicación de escritorio»: ese tipo no "
+      + "necesita secreto ni dominio. Copia el ID de cliente que te da Google.")));
+    wrap.appendChild(agLink("https://console.cloud.google.com/apis/credentials",
+      tt("wiz2_link", null, "Abrir Credenciales de Google Cloud")));
+    wrap.appendChild(el2("div","agwtip", tt("wiz2_tip", null,
+      "El ID de cliente termina en .apps.googleusercontent.com. No es un secreto: lo que protege la conexión "
+      + "es el propio permiso que das en la ventana de Google.")));
+  } else {
+    wrap.appendChild(el2("div","agwbody", tt("wiz3_body", null,
+      "Abre Configuración (⚙) → Conectores → Calendario y pega ahí el ID de cliente. Al guardarlo, este "
+      + "asistente ya puede pedirle permiso a Google.")));
+    wrap.appendChild(el2("div","agwtip", tt("wiz3_tip", null,
+      "Si tu cliente OAuth es de tipo «Web» en vez de escritorio, pega también su secreto en esa misma "
+      + "tarjeta y añade la URL de retorno que ahí se indica.")));
+  }
+  return wrap;
+}
+function renderGoogleWizard(data, ctx, S, redraw){
+  const wrap = el2("div","agconnscreen agpanel");
+  const crumb = el2("div","agwcrumb");
+  const back = el2("span","agconnback", "‹ " + tt("connectors", null, "Conectores"));
+  back.onclick = ()=>{ S.screen = "list"; S.connectErr = ""; redraw(); };
+  crumb.appendChild(back);
+  crumb.appendChild(el2("span","agwsep","/"));
+  crumb.appendChild(el2("span","agwcur", "Google Calendar"));
+  wrap.appendChild(crumb);
+
+  const steps = agWizardSteps();
+  const total = steps.length + 1;                        // +1 = the step that actually connects
+  const step = Math.min(Math.max(Number(S.wizStep) || 1, 1), total);
+  S.wizStep = step;
+  const last = step === total;
+
+  const box = el2("div","agwstep");
+  const head = el2("div","agwhead");
+  head.appendChild(el2("span","agwnum", String(step)));
+  head.appendChild(el2("span","agwtitle", last ? tt("wiz4_title", null, "Autoriza tu cuenta de Google")
+                                               : steps[step-1].title));
+  head.appendChild(el2("span","agwcount", tt("wiz_step_n", {n:step, total}, "Paso {n} de {total}")));
+  box.appendChild(head);
+  if(last){
+    box.appendChild(el2("div","agwbody", tt("wiz4_body", null,
+      "Se abrirá una ventana de Google para que autorices el acceso a tu calendario. Al aceptar, tus citas "
+      + "aparecen aquí y lo que dictes por voz se crea allí.")));
+    if(S.connectErr) box.appendChild(el2("div","agwerr", S.connectErr));
+  } else {
+    box.appendChild(agStepBody(step));
+  }
+  wrap.appendChild(box);
+
+  const foot = el2("div","agwfoot");
+  const backBtn = el2("button","agcalbtn2 risk", tt("wiz_back", null, "Atrás"));
+  backBtn.onclick = ()=>{
+    if(step > 1){ S.wizStep = step - 1; S.connectErr = ""; } else { S.screen = "list"; }
+    redraw();
+  };
+  foot.appendChild(backBtn);
+
+  if(!last){
+    const nextBtn = el2("button","agcalbtn2", steps[step-1].next || tt("wiz_next", null, "Continuar"));
+    nextBtn.onclick = ()=>{ S.wizStep = step + 1; redraw(); };
+    foot.appendChild(nextBtn);
+  } else {
+    const go = el2("button","agcalbtn2", S.connectBusy ? tt("cal_connecting", null, "Abriendo Google…")
+                                                       : tt("cal_connect", null, "Conectar Google Calendar"));
+    go.disabled = !!S.connectBusy;
+    go.onclick = async ()=>{
+      // The popup is opened SYNCHRONOUSLY, inside the click — a window.open() that runs after an `await` is
+      // outside the user gesture and every mainstream browser blocks it in SILENCE, which is exactly why the
+      // previous version of this button «ni siquiera funciona»: the URL arrived, and nothing ever showed.
+      let popup = null;
+      try{ popup = window.open("", "gcal_connect", "width=520,height=760"); }catch(_){ popup = null; }
+      S.connectBusy = true; S.connectErr = ""; redraw();
+      let res; try{ res = await ctx.action("connect", {provider:"google"}); }catch(_){ res = null; }
+      S.connectBusy = false;
+      const url = res && res.url;
+      if(url && popup){ try{ popup.location = url; }catch(_){ try{ window.open(url, "gcal_connect"); }catch(_2){} } }
+      else if(url){ try{ window.open(url, "gcal_connect", "width=520,height=760"); }catch(_){} }
+      else {
+        if(popup){ try{ popup.close(); }catch(_){} }
+        // A refusal SAYS what went wrong — the connector's own sentence when it has one («sin app OAuth
+        // registrada…»), which is the step above this one still pending.
+        S.connectErr = (res && res.error) || tt("cal_connect_failed", null,
+          "No pude abrir la ventana de Google. Revisa que el ID de cliente esté guardado en Configuración → "
+          + "Conectores → Calendario.");
+      }
+      redraw();
+    };
+    foot.appendChild(go);
+  }
+  wrap.appendChild(foot);
+  return wrap;
 }
 
 // ── the render ────────────────────────────────────────────────────────────────────────────────────────
@@ -686,7 +934,11 @@ export function render(el, data, ctx){
   _LANG = (ctx && ctx.lang) || "es";
 
   const today = data.date || ymd(new Date());
-  if(!el._ag) el._ag = {view:"week", anchor:today, sel:null, cals:false, confirmDel:false, viewN:null};
+  // `screen` is the CONNECTORS area (null = the calendar itself, "list" = every provider, "wizard" = the
+  // guided Google connect). It is a SCREEN and not an overlay: the operator asked for the whole content area,
+  // «igual que en mensajería», where the same three-state machine has lived since V2-570.
+  if(!el._ag) el._ag = {view:"week", anchor:today, sel:null, screen:null, wizStep:1, connectBusy:false,
+                        connectErr:"", confirmDel:false, viewN:null};
   const S = el._ag;
 
   // A VIEW PUSHED FROM VOICE (`show_day`). Applied only when its token MOVES, so a plain refresh never
@@ -699,6 +951,9 @@ export function render(el, data, ctx){
     if(want==="week" || want==="month" || want==="list"){ S.view = want; S.anchor = today; }
     else if(/^\d{4}-\d{2}-\d{2}$/.test(want)){ S.view = "day"; S.anchor = want; }
     S.sel = null;
+    // A pushed view is a NAVIGATION order: it has to leave the connectors screen, or the day it asked for
+    // renders underneath a setup screen and the order looks ignored (V2-626's lesson, one widget over).
+    S.screen = null;
   }
   if(!S.anchor) S.anchor = today;
 
@@ -754,17 +1009,28 @@ export function render(el, data, ctx){
   const views = el2("div","agviews");
   [["day", tt("day", null, "Día")], ["week", tt("week", null, "Semana")],
    ["month", tt("month", null, "Mes")], ["list", tt("list", null, "Lista")]].forEach(([id,label])=>{
-    const t = el2("button","agtab" + (S.view===id?" on":""), label);
+    // While the connectors screen owns the content, NO view is the one on screen — so none of them is lit and
+    // none of them is clickable (the operator: «se desactiva el foco o el botón activo de día, semana, mes y
+    // lista»). The chosen view survives underneath and comes back when the screen closes.
+    const t = el2("button","agtab" + (!S.screen && S.view===id ? " on" : ""), label);
     t.dataset.view = id;
+    t.disabled = !!S.screen;
     t.onclick = ()=>{ S.view = id; S.sel = null; render(el, data, ctx); };
     views.appendChild(t);
   });
-  const calBtn = el2("button","agcalbtn" + (S.cals?" on":""));
+  const right = el2("div","agviewsright");
+  right.appendChild(renderProviderIcons(data.calendars || [], S, ()=>render(el, data, ctx)));
+  const calBtn = el2("button","agcalbtn" + (S.screen?" on":""));
   calBtn.appendChild(svgEl(ICO_PLUG));
-  calBtn.appendChild(el2("span",null, tt("calendars", null, "Calendarios")));
+  calBtn.appendChild(el2("span",null, tt("connectors", null, "Conectores")));
   calBtn.title = tt("calendars_hint", null, "Qué calendarios están conectados");
-  calBtn.onclick = ()=>{ S.cals = !S.cals; render(el, data, ctx); };
-  views.appendChild(calBtn);
+  calBtn.onclick = ()=>{
+    S.screen = S.screen ? null : "list";
+    if(S.screen === "list"){ S.sel = null; S.connectErr = ""; }
+    render(el, data, ctx);
+  };
+  right.appendChild(calBtn);
+  views.appendChild(right);
   el.appendChild(views);
 
   // ── body ───────────────────────────────────────────────────────────────────────────────────────────
@@ -773,7 +1039,11 @@ export function render(el, data, ctx){
   const pickDay = ds => { S.view = "day"; S.anchor = ds; S.sel = null; render(el, data, ctx); };
 
   let active = null;
-  if(S.view === "week"){
+  if(S.screen === "list"){
+    body.appendChild(renderConnectorScreen(data, ctx, S, ()=>render(el, data, ctx)));
+  } else if(S.screen === "wizard"){
+    body.appendChild(renderGoogleWizard(data, ctx, S, ()=>render(el, data, ctx)));
+  } else if(S.view === "week"){
     renderGrid(body, dates, all, data, pick, pickDay);
   } else if(S.view === "month"){
     renderMonth(body, S.anchor, all, data, pick, pickDay);
@@ -835,8 +1105,6 @@ export function render(el, data, ctx){
     const ev = all.find(e=>e.key===S.sel);
     if(ev) renderDetail(el, ev, ctx, S, redraw); else S.sel = null;
   }
-  if(S.cals) renderCalendars(el, data.calendars||[], S, ()=>render(el, data, ctx));
-
   // Live countdown for the active block (today only).
   if(active){
     let rem = (active.remaining_min||0)*60;
@@ -852,7 +1120,7 @@ export function render(el, data, ctx){
   });
 
   // Open the grid on the working hours instead of at midnight-ish, once per paint.
-  if(S.view === "day" || S.view === "week"){
+  if(!S.screen && (S.view === "day" || S.view === "week")){
     const scroller = el.querySelector(".agday-grid") || el.querySelector(".agbody");
     if(scroller){
       const [lo] = hourRange(dates.flatMap(d=>eventsOn(all, d)));
