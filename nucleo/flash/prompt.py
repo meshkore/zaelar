@@ -250,6 +250,19 @@ def _connector_briefs(open_ids: set[str]) -> str:
                     out = (out + "\n\n" + vstate) if out else vstate
         except Exception:
             pass
+        # V2-684 — GOOGLE, the account behind five of these cards, and MEET, a verb the engine has never
+        # had before today. Same gate shape as video above and for the same reason: the fact is only worth
+        # the tokens when the turn could plausibly act on it. It is in, however, whenever Google is NOT
+        # fully usable — that is precisely the state in which a model with the verbs and no facts invents
+        # «Hecho.», which is what `connectors/google/brain.py` exists to stop.
+        try:
+            from connectors.google import brain as _gb
+            if open_ids & {"agenda", "mensajeria", "fotos", "archivos", "youtube"} or not _gb.connected_services():
+                gstate = _gb.brain_state()
+                if gstate:
+                    out = (out + "\n\n" + gstate) if out else gstate
+        except Exception:
+            pass
         return out
     except Exception:
         pass

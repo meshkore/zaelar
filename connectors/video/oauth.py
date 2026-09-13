@@ -42,6 +42,24 @@ def _cred(name: str) -> str:
     return (os.getenv(name) or "").strip()
 
 
+# V2-684 — `builtin_client_id` has said «EMPTY until Zaelar registers its own Google OAuth client» since
+# V2-603. He registered it on 2026-09-12, and it lives in `connectors/google/app.py` so that ONE answer
+# serves all five Google doors. Resolved on each call, not frozen into the provider table at import: the
+# operator drops the console's JSON into the credential store while the engine is running, and a value
+# captured at import time would leave him restarting to be believed.
+_GOOGLE_PROVIDERS = {'youtube'}
+
+
+def _shipped_google(provider_id: str, *, secret: bool = False) -> str:
+    if provider_id not in _GOOGLE_PROVIDERS:
+        return ""
+    try:
+        from connectors.google import app as _google
+        return _google.client_secret() if secret else _google.client_id()
+    except Exception:  # noqa: BLE001 — no shared app just leaves the connector dormant, as before
+        return ""
+
+
 def client_id(provider_id: str) -> str:
     """The OAuth client this install uses. The operator's OWN always wins; otherwise the one SHIPPED with the
     engine (V2-603). Returns "" when neither exists — the connector then stays dormant and SAYS so."""
@@ -49,7 +67,8 @@ def client_id(provider_id: str) -> str:
     if own:
         return own
     p = _pv.get(provider_id)
-    return (p.builtin_client_id or "").strip() if p else ""
+    builtin = (p.builtin_client_id or "").strip() if p else ""
+    return builtin or _shipped_google(provider_id)
 
 
 def uses_builtin_app(provider_id: str) -> bool:
@@ -57,11 +76,12 @@ def uses_builtin_app(provider_id: str) -> bool:
     Drives the wizard's SHAPE: one consent step, or the whole bring-your-own-app road."""
     own = _cred(f"VIDEO_{provider_id.upper().replace('-', '_')}_CLIENT_ID")
     p = _pv.get(provider_id)
-    return not own and bool(p and (p.builtin_client_id or "").strip())
+    builtin = (p.builtin_client_id or "").strip() if p else ""
+    return not own and bool(builtin or _shipped_google(provider_id))
 
 
 def client_secret(provider_id: str) -> str:
-    return _cred(f"VIDEO_{provider_id.upper().replace('-', '_')}_CLIENT_SECRET")
+    return _cred(f"VIDEO_{provider_id.upper().replace('-', '_')}_CLIENT_SECRET") or _shipped_google(provider_id, secret=True)
 
 
 def configured(provider_id: str) -> bool:

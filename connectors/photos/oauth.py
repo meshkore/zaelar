@@ -39,12 +39,29 @@ def _cred(name: str) -> str:
     return (os.getenv(name) or "").strip()
 
 
+# V2-684 — the ONE Google app. The operator registered Zaelar's OAuth client once (2026-09-12); before
+# this, saying so meant pasting the same client_id into five different env names, one per Google door.
+# The connector's OWN name still wins — a self-hoster who wants a separate app for this service keeps it.
+_GOOGLE_PROVIDERS = {'google-photos'}
+
+
+def _shipped_google(provider_id: str, *, secret: bool) -> str:
+    """Zaelar's shared Google client, or "" when this provider is not a Google one (or none is installed)."""
+    if provider_id not in _GOOGLE_PROVIDERS:
+        return ""
+    try:
+        from connectors.google import app as _google
+        return _google.client_secret() if secret else _google.client_id()
+    except Exception:  # noqa: BLE001 — a missing shared app leaves the connector exactly as dormant as before
+        return ""
+
+
 def client_id(provider_id: str) -> str:
-    return _cred(f"PHOTOS_{provider_id.upper().replace('-', '_')}_CLIENT_ID")
+    return _cred(f"PHOTOS_{provider_id.upper().replace('-', '_')}_CLIENT_ID") or _shipped_google(provider_id, secret=False)
 
 
 def client_secret(provider_id: str) -> str:
-    return _cred(f"PHOTOS_{provider_id.upper().replace('-', '_')}_CLIENT_SECRET")
+    return _cred(f"PHOTOS_{provider_id.upper().replace('-', '_')}_CLIENT_SECRET") or _shipped_google(provider_id, secret=True)
 
 
 def configured(provider_id: str) -> bool:
