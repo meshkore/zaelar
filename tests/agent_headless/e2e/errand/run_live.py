@@ -264,8 +264,10 @@ def _follow(errands, row: dict, args) -> int:
         f"wakes {final.get('wake_count')}")
     if final.get("state") == "agreed":
         say("   ⚠️ it agreed a time and the errand is still open — that is CORRECT today: nothing in the "
-            "engine writes the agreed meeting into the agenda yet (V2-683 row 6, blocked on "
-            "connectors/calendar/). Put it in by hand and the next beat should close the errand.")
+            "engine writes the agreed meeting into the agenda. The party turn holds no tools by design "
+            "(V2-683), and the calendar connector landing (V2-685) gave us the ROW's address, not the step "
+            "that writes it. Put the meeting in by hand and the next beat should close the errand — that "
+            "is the one half of the arc no live run has proven yet.")
     say("\n   full transcript:")
     say(_transcript(_thread(chat)))
     return 0
