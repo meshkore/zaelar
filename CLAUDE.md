@@ -499,6 +499,72 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **ONE Google account, six doors — and Meet is an ARGUMENT, not a tool (V2-685, 2026-09-13)**: the
+  operator, handing over the OAuth client he had just registered — «we need to create the google connector…
+  we will use it for gmail. **change current to standardize**. use it for calendar and meet and for now i
+  guess we do not have more widgets were applicable», then «add features to the system so brain workers etc,
+  flashbrain, all can use it when need it». **MEASURED before writing a line**: six near-identical OAuth
+  modules (1 325 lines), **five of them fronting Google**, each asking for the SAME client under a different
+  name — `EMAIL_GMAIL_*`, `CALENDAR_GOOGLE_*`, `VIDEO_YOUTUBE_*`, `PHOTOS_GOOGLE_PHOTOS_*`, `FILES_GDRIVE_*`.
+  He answers one and the other four stay dormant in silence. `builtin_client_id` had been declared and EMPTY
+  since V2-603 and copied verbatim into the calendar connector the day it was built, both saying «EMPTY until Zaelar registers its own Google OAuth
+  client». He registered it on 2026-09-12.
+  - **`connectors/google/` holds the answer once, and is a LEAF**: nothing there imports another connector,
+    because everything else imports it. `app.py` resolves the client — the operator's own (`GOOGLE_CLIENT_ID`)
+    first, then the `client_secret_*.json` the console hands you, read **verbatim** out of
+    `.meshkore/credentials/` so nothing is retyped into a source file and no second copy can drift; cached on
+    (path, mtime), so a file dropped in while the engine runs is seen without a restart, and a value frozen at
+    import would have left him restarting to be believed. It reports WHERE the client came from, never what it
+    is. **Each connector's own name still wins**, which is what keeps the fair-code self-host story honest and
+    what makes the change safe: Outlook, which authenticates against Microsoft, gets nothing — handing it a
+    Google client would turn a dormant connector into a broken one, and that counterweight is the test that
+    matters most here.
+  - **`services.py` deliberately does NOT own the scopes of a connector that has its own registry.** Each
+    already declares them next to the client that requests them, this package sits BELOW those connectors and
+    cannot import them to check, and two copies of a scope list drift. It fills in `scopes` only for a service
+    with no connector at all — which today means exactly one.
+  - **Meet is that one, and it asks for NOTHING extra**: a Meet link is `conferenceData` on a calendar event,
+    minted by the calendar scope the connector already holds. There IS a standalone Meet REST API behind
+    `.../auth/meetings.space.created` and it is **named in `FUTURE_SCOPES` and not requested** — an unused
+    sensitive scope buys nothing today and costs a harder Google verification for every user of the app.
+    ⚠️ **`conferenceDataVersion=1` is the half that fails silently**: without that query parameter Google
+    returns 200, creates the event, and DROPS the conference — no error, no link, and an agent that has just
+    told the operator it made them a meeting room.
+  - **The capability is an ARGUMENT of the tool the model already has**, and `brain.py` says so out loud. Meet
+    is a verb this engine has never had, so a model asked for one has no prior behaviour to fall back on
+    except inventing a `create_meet` tool or promising a link before Google minted it. Naming the capability
+    alone is what makes a model improvise a verb — so the line names `meet: true` and states that no separate
+    tool exists. Third payment of V2-603's receipt («four claims, zero connections»). **Workers needed no
+    exception**: they reach it through `act widget_data`, already allowed and gated on the widget's own
+    manifest, so `_PRESTABLE_TOOLS` — whose comment says it «grows only with an explicit designation, never by
+    accident» — was left untouched.
+  - ⚠️ **Three ratchets went red and two were paid by EXTRACTING**: `prompt.py` (846 > 834, 30 lazy imports >
+    29) → `flash/connector_briefs.py`, ending at **789 and 26**, lower than before the batch started; the
+    Google wiring guard re-anchored on the module that OWNS the block, per V2-555. The third was **not paid**:
+    `widgets/agenda/data.py` sits EXACTLY on the 900-line newborn ceiling while another session edits it, so
+    its one-line delegation (`gcal.apply_meet(meeting, payload)`) is deliberately left out — extracting from
+    somebody else's in-flight file is worse than leaving one line, and a ratchet is never paid by a smaller
+    diff. Its test is skipped and says exactly that.
+  - ⚠️ **Eight tests in three other files went red, and all eight were MINE**: video, calendar and agenda each
+    assumed no Google client could exist — video's `sandbox` fixture said so in its own docstring and simply
+    had a third source it did not know about. **Pinned, never relaxed** (V2-606's lesson: a test that measures
+    the machine it runs on), each with its counterweight asserting the new reality — including a FOURTH
+    connector state the agenda had no sentence for: an app registered and awaiting consent is not «you have
+    not linked it». And one test DOUBLE had a narrower signature than the real client (`post` with no
+    `params`), so the new query parameter raised a TypeError that `insert_event`'s own except swallowed into
+    `{"ok": False}`.
+  - ⚠️ **The number collided.** This batch took V2-684 and the concurrent session already owned it; renumbered
+    at closure, and the blind rename then clobbered **four foreign citations** in `tests/run_testmap.py`,
+    restored by hand. Create the initiative file when the number is TAKEN.
+  - Node **5.25** (27 cases, ten disarms, every mutation asserted, all red — one came back GREEN and accused
+    the TEST: the case started from the already-trimmed state, so removing the guard popped a key that was not
+    there). **NOT verified live, and it cannot be yet**: it is a **web** client, so Google refuses a redirect
+    URI it has never seen — with `invalid_client`, at the END of a flow that looks healthy all the way up —
+    and the five the engine serves (`app.redirect_uris()`) are not registered in the console. Nothing connects
+    until the operator pastes them. **NOT committed**: `connectors/registry.py`, `connectors/calendar/`,
+    `widgets/agenda/` and their tests all carry another session's uncommitted work, and a pathspec limits
+    files, never hunks.
+
 - **The test system learns the ERRAND, and a language leak becomes a failure (V2-684, 2026-09-13)**: the
   operator, handing over a second Telegram account of his own (`@cryptonite_fund`) to answer from — «así
   lo podrás probar contra una cuenta real» — and merging two testing plans into one batch, errand first.
