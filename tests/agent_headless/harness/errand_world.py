@@ -179,8 +179,10 @@ def answers(monkeypatch, *payloads: str):
     from nucleo.errands import wake as wake_mod
     seq = list(payloads) or ["{}"]
 
-    async def _fake(system: str, dossier: str) -> str:
-        _fake.calls.append({"system": system, "dossier": dossier})
+    async def _fake(system: str, dossier: str, *, max_tokens: int = 0) -> str:
+        # `max_tokens` is recorded, not ignored: the retry after an EMPTY answer is only a retry if it asks
+        # for more room than the call that came back with nothing.
+        _fake.calls.append({"system": system, "dossier": dossier, "max_tokens": max_tokens})
         return seq[min(len(_fake.calls) - 1, len(seq) - 1)]
 
     _fake.calls = []

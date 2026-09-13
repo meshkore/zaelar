@@ -533,6 +533,90 @@ def test_an_answer_arriving_while_the_agent_is_STOPPED_is_postponed_and_not_lost
     assert world.texts()[-1] == "¿Te va bien a las 18:00?"
 
 
+# ══ WHAT THE PARTY TURN IS SHOWN, AND WHAT IT GIVES BACK ════════════════════════════════════════════════
+
+def test_the_agenda_line_says_what_is_TAKEN_and_never_calls_it_free(world, monkeypatch):
+    """⚠️ The line said the exact opposite of its own value, and the first live run caught it.
+
+    `playbooks.free_slots_line` computes the intervals ALREADY TAKEN — its own docstring says so, and gives
+    the reason: a gap this module computed would be a promise about his time made by arithmetic. The
+    dossier announced them as «HUECOS LIBRES», so the model was told the operator was FREE exactly where he
+    was busy, and the next thing it would have done is offer that hour to a stranger.
+    """
+    _ivan()
+    model = answers(monkeypatch, '{"say": "¿Te va bien a las 18:00?", "state": "negotiating"}')
+    agenda_holds({"date": time.strftime("%Y-%m-%d"), "startTime": "19:00",
+                  "title": "Cine con María", "status": "confirmed"})
+    got = _open(world)
+
+    _answers_and_wakes(world, got["chat"], "¿A qué hora?")
+    dossier = model.calls[-1]["dossier"]
+    assert "Cine con María" in dossier, "what he already has is what the model has to work around"
+    assert "HUECOS LIBRES" not in dossier, "these are the hours he is BUSY — the old label was a lie"
+    assert "YA OCUPADO" in dossier and "no propongas encima" in dossier
+
+
+def test_the_person_is_named_from_the_CONVERSATION_when_the_directory_has_nobody(world, monkeypatch):
+    """«PERSONA con la que hablas: telegram» — the platform standing in for a person, live on 2026-09-13.
+
+    And it is not an exotic case: the contact is filed under the HANDLE the operator dictated
+    (`@cryptonite_fund`), while the conversation the connector created is keyed by the platform's own
+    numeric id — so `find_by_channel(platform, chat_id)` legitimately finds nobody for a contact that
+    exists. The thread knows the name the connector delivered it under.
+    """
+    _ivan()                                  # filed by handle; the chat the echo creates is another key
+    model = answers(monkeypatch, '{"say": "Perfecto.", "state": "negotiating"}')
+    got = _open(world)
+    world.advance(300)
+    world.say(PLATFORM, got["chat"], "Mejor mañana", name="Cryptonite")
+    world.beat()
+    world.beat()
+
+    dossier = model.calls[-1]["dossier"]
+    assert "PERSONA con la que hablas: Cryptonite" in dossier
+    assert "PERSONA con la que hablas: telegram" not in dossier
+
+
+def test_a_model_that_says_NOTHING_is_asked_again_with_more_room(world, monkeypatch):
+    """⚠️ The defect that ended the first live run's conversation (2026-09-13).
+
+    The turn brain is a REASONER and the call asked it for 700 tokens: it spent `reasoning_tokens: 700` of
+    700 deliberating and returned `finish_reason: length` with `content: ''`. An empty string is not a
+    decision — it is an empty turn — and the errand filed it as «unreadable» and said nothing at all to
+    somebody who was waiting for an answer.
+    """
+    _ivan()
+    armed(monkeypatch)
+    model = answers(monkeypatch, "", '{"say": "Mañana a las 10, ¿te va bien?", "state": "negotiating"}')
+    got = _open(world)
+
+    _answers_and_wakes(world, got["chat"], "Mejor mañana por la mañana")
+    assert len(model.calls) == 2, "an empty turn is asked again, exactly once"
+    assert model.calls[1]["max_tokens"] > model.calls[0]["max_tokens"], \
+        "asking the same thing the same way is not a retry"
+    assert world.texts()[-1] == "Mañana a las 10, ¿te va bien?"
+    from nucleo import errands
+    assert errands.get(got["errand"]["id"])["state"] == "negotiating"
+
+
+def test_an_errand_that_could_not_answer_TELLS_the_operator(world, monkeypatch):
+    """He must never discover this one by himself: somebody answered, the errand could not answer back, and
+    from outside that looks exactly like a gestión still quietly in flight — the class of lie the whole
+    expiry announcement exists against."""
+    from nucleo import errands
+    _ivan()
+    armed(monkeypatch)
+    answers(monkeypatch, "no es JSON, es prosa", "tampoco esto")
+    got = _open(world)
+    notes = _capture_notes(monkeypatch)
+
+    _answers_and_wakes(world, got["chat"], "¿Qué hora te viene bien?")
+    assert len(world.sent()) == 1, "unreadable means SILENT toward the person — half an action is worse"
+    assert any("no he sabido qué responder" in n for n in notes), \
+        "and loud toward the operator, who is the one who can still answer"
+    assert errands.get(got["errand"]["id"])["state"] == "contacting"
+
+
 # ══ THE RESTART: the conversation is the record, the bus is only a notification ══════════════════════════
 
 def _restart() -> None:

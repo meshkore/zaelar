@@ -63,7 +63,7 @@ def build_system(assistant_name: str, operator_name: str, lang_native: str) -> s
 
 
 def build_dossier(errand: dict, *, party: str, messages: list[dict], brief: str = "",
-                  now_line: str = "", free_slots: str = "") -> str:
+                  now_line: str = "", busy: str = "") -> str:
     """What the model is given, and NOTHING else: the errand, who it is with, what has been said in THIS
     conversation, and the clock. Deliberately not `compose_state` — see the module note."""
     lines = [f"ENCARGO (te lo dio tu operador, con sus palabras): «{str(errand.get('objective') or '')}»."]
@@ -75,8 +75,13 @@ def build_dossier(errand: dict, *, party: str, messages: list[dict], brief: str 
         lines.append("TE FALTA POR SABER: " + ", ".join(str(u) for u in unknowns) + ".")
     if now_line:
         lines.append(now_line)
-    if free_slots:
-        lines.append(f"HUECOS LIBRES en la agenda de tu operador: {free_slots}.")
+    if busy:
+        # ⚠️ These are the intervals ALREADY TAKEN, which is what `free_slots_line` computes and says in its
+        # own docstring — and this line used to announce them as «HUECOS LIBRES», the exact opposite. The
+        # first live run caught it (2026-09-13): the model was told the operator was free at 19:00 while his
+        # agenda held «Cinema with Mary» there, and the next thing it would have done is propose it to a
+        # stranger. A label that contradicts its own value is worse than no line at all.
+        lines.append(f"YA OCUPADO en la agenda de tu operador (no propongas encima): {busy}.")
     if brief:
         lines.append(f"CÓMO SE HACE ESTO: {brief}")
     lines.append("")

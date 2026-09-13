@@ -31,6 +31,8 @@ TIMEOUT_S = 60.0
 MAX_MSGS = 12
 #: Nothing is woken more often than this, whatever arrives — a burst of five messages is ONE move.
 MIN_GAP_S = 20.0
+#: Room for the decision even when the model deliberates anyway (see `_ask_model`).
+MAX_TOKENS = 1200
 
 _last_wake: dict[str, float] = {}
 
@@ -59,10 +61,26 @@ def _thread_messages(platform: str, chat_id) -> list[dict]:
 
 
 def _party_name(platform: str, chat_id) -> str:
+    """Who this is, best first: the operator's own directory, then the name the CONVERSATION carries.
+
+    The fallback matters more than it looks. Without it the dossier said «PERSONA con la que hablas:
+    telegram» on the first live run — the platform standing in for a person, which is what the caller's
+    `party or platform` was already doing one level up. The thread knows the name the connector delivered
+    it under, and a reply written to «telegram» reads like a reply written to nobody.
+    """
     try:
         from widgets import directory
         c = directory.find_by_channel(platform, chat_id)
-        return str((c or {}).get("name") or "")
+        name = str((c or {}).get("name") or "")
+        if name:
+            return name
+    except Exception:
+        pass
+    try:
+        from connectors.messaging import store as msgstore
+        from widgets.mensajeria import thread as _thread
+        th = (msgstore.load().get("threads") or {}).get(_thread.key(platform, chat_id)) or {}
+        return str(th.get("name") or "")
     except Exception:
         return ""
 
@@ -72,13 +90,23 @@ def _now_line() -> str:
             ". No inventes otra fecha ni otra hora.")
 
 
-async def _ask_model(system: str, dossier: str) -> str:
+async def _ask_model(system: str, dossier: str, *, max_tokens: int = MAX_TOKENS) -> str:
+    """⚠️ `no_thinking`, and a budget that is not the deliberation's.
+
+    Measured on the first live run (2026-09-13): the turn brain is `deepseek-v4-pro`, a REASONER, and this
+    call asked it for 700 tokens — it spent `reasoning_tokens: 700` of 700 deliberating, came back with
+    `finish_reason: length` and `content: ''`, and the errand treated that empty string as an unreadable
+    answer and said nothing to a person who was waiting. The V2-658 class exactly, one layer over. So: the
+    caller wants the ANSWER and says so (the direct endpoint obeys it; the broker reasons anyway), and the
+    budget leaves room for the JSON even when it does.
+    """
     from nucleo.flash.fast_client import FastClient
     from nucleo.flash.model_spec import spec_from_config
     return await asyncio.wait_for(
         FastClient().complete([{"role": "system", "content": system},
                                {"role": "user", "content": dossier}],
-                              spec=spec_from_config(), max_tokens=700, tools=None),
+                              spec=spec_from_config(), max_tokens=max_tokens, tools=None,
+                              no_thinking=True),
         timeout=TIMEOUT_S)
 
 
@@ -134,18 +162,24 @@ async def wake(errand: dict, *, reason: str = "inbound", inbound_id: str = "",
         note_wake(eid)
 
     name, op, lang = _identity()
-    brief, free_slots = "", ""
+    brief, busy = "", ""
     try:
         from .playbooks import brief_for, free_slots_line
         brief = brief_for(errand.get("kind") or "")
-        free_slots = free_slots_line(errand, now)
+        busy = free_slots_line(errand, now)
     except Exception:
         pass
     system = _build_system(name, op, lang)
     dossier = _build_dossier(errand, party=party or platform, messages=msgs, brief=brief,
-                             now_line=_now_line(), free_slots=free_slots)
+                             now_line=_now_line(), busy=busy)
     try:
         raw = await _ask_model(system, dossier)
+        if not raw.strip():
+            # NOTHING came back — not a decision, an empty turn. One retry with a wider budget, because the
+            # commonest cause is a reasoner that spent the whole of it deliberating, and the cost of giving
+            # up here is a person left unanswered. Bounded by construction: exactly one extra call.
+            logger.info(f"errands: el modelo no dijo nada en {eid} — lo pido otra vez con más margen")
+            raw = await _ask_model(system, dossier, max_tokens=MAX_TOKENS * 2)
     except Exception as e:  # noqa: BLE001
         logger.warning(f"errands: el turno con el tercero falló ({e!r}) — el encargo se queda como estaba")
         return {"ok": False, "why": "modelo"}
@@ -154,8 +188,14 @@ async def wake(errand: dict, *, reason: str = "inbound", inbound_id: str = "",
     decision = _party.parse(raw)
     if decision is None:
         # Loud here, silent toward the person: a reply we cannot read must never become half an action.
+        # And the OPERATOR is told, because this is the shape he must never discover by himself: somebody
+        # answered, the errand could not answer back, and from outside that is indistinguishable from a
+        # gestión still quietly in flight.
         logger.warning(f"errands: respuesta ilegible en {eid} — no se hace nada ({raw[:120]!r})")
         _emit_decision(errand, {"say": "", "reason": "respuesta ilegible"}, reason, sent=False)
+        _tell_operator(
+            f"[SISTEMA] Te han contestado sobre «{str(errand.get('objective') or '')[:80]}» y no he sabido "
+            f"qué responder. Díselo al operador y pregúntale si contesta él.")
         return {"ok": False, "why": "ilegible"}
 
     say = decision.get("say") or ""
