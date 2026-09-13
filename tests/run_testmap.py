@@ -1112,6 +1112,12 @@ DOMAINS: list[dict] = [
         # una tool y ningún texto), y en 7 turnos de voz reales la respuesta llegó 3,4-5,9 s DESPUÉS del evento
         # de la tool. La cobertura de trabajo se elige cuando el router ya ha decidido, así que puede NOMBRAR la
         # fuente — que es lo que evita que dos coberturas suenen como la misma espera dicha dos veces (V2-189).
+        {"id": "2.55", "title": "A widget order never needs a worker: the possessive and the courtesy form "
+                                "are ENTRIES in both packs, and the selector reads the REQUEST and not the "
+                                "sentence that closes it",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/actionmap/"
+                      "test_a_widget_order_never_needs_a_worker.py"]},
         {"id": "2.54", "title": "A provider that REJECTS the request relays like an outage — a deterministic "
                                 "4xx is not a quota, and a blown context is not a relay",
             "ch": UNIT,

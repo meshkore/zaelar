@@ -164,7 +164,8 @@ def enabled() -> bool:
 
 
 def select(tools: list[dict], *, turn_text: str = "", open_widgets=None,
-           recent_families=None, force: set[str] | None = None) -> tuple[list[dict], dict]:
+           recent_families=None, force: set[str] | None = None,
+           carried_text: str = "") -> tuple[list[dict], dict]:
     """Trims `tools` (which have ALREADY been gated by state, `router.tools`) to what this turn may need.
 
     Returns `(trimmed_tools, report)`. The report travels to observability: without it, an incorrect trim means a model
@@ -175,6 +176,7 @@ def select(tools: list[dict], *, turn_text: str = "", open_widgets=None,
       · `state`    — what the operator has IN FRONT OF THEM (open widgets → widgets family)
       · `forced`   — what the caller requires (e.g. after a `need_capability`)
       · `named`    — what the words in the turn suggest
+      · `carried`  — what the words of the turns JUST BEFORE suggest (V2-682, see below)
       · `recent`   — families used in recent turns (MRU), so a conversation does not lose the thread
     """
     if not enabled() or not tools:
@@ -190,6 +192,30 @@ def select(tools: list[dict], *, turn_text: str = "", open_widgets=None,
         if ws & set(hints):
             named.add(fam)
     keep |= named
+    # V2-682 — A REQUEST IS NOT ALWAYS IN THE SENTENCE THAT CLOSES IT.
+    #
+    # Measured on the operator's engine, 2026-09-12 (English sessions). He asked for a Neil Armstrong video
+    # across four fragments; the attention gate ruled the first three ambient and the turn that finally
+    # reached the model was «Do you understand?». That sentence names nothing, so `media` was trimmed —
+    # `play_video` was not in the catalog of the very turn asking for a video — and the only door left was
+    # `escalate_to_slowbrain`. A Brain Worker was spawned to do what `play_video` does in one call, which is
+    # his own complaint, verbatim: «cualquier cosa que sea localizar vídeo, música o cosas así son
+    # prácticamente búsquedas directas». Same shape ten minutes later: «Now show me the first, uh, Neil
+    # Armstrong moonwalk» carries no seed word at all, in either language.
+    #
+    # The `recent` layer below cannot cover it: it is fed by tools actually CALLED, and on these turns the
+    # model never got to call one — it escalated instead. So the miss feeds itself.
+    #
+    # This is still RETRIEVAL and not a gate (see the docstring): it proposes candidates from words, it never
+    # decides that something does not exist. What it adds is that the words it reads are the ones of the
+    # REQUEST, which in speech is routinely spread over the previous couple of turns.
+    carried: set[str] = set()
+    if carried_text:
+        cw = _words(carried_text)
+        for fam, hints in _HINTS.items():
+            if cw & set(hints):
+                carried.add(fam)
+    keep |= carried
     keep |= {f for f in (recent_families or ()) if f in FAMILIES}
     for f in tuple(keep):
         keep |= set(_IMPLIES.get(f, ()))
@@ -207,8 +233,59 @@ def select(tools: list[dict], *, turn_text: str = "", open_widgets=None,
         out.append(NEED_CAPABILITY)              # the escape hatch, only if something is genuinely missing
 
     report = {"selection": "on", "kept": sorted(keep), "omitted": sorted(omitted),
-              "n_before": len(tools), "n_after": len(out), "named": sorted(named)}
+              "n_before": len(tools), "n_after": len(out), "named": sorted(named),
+              "carried": sorted(carried - named)}
     return out, report
+
+
+def select_for_turn(tools: list[dict], *, turn_text: str, window=None, recent_families=None,
+                    force: set[str] | None = None) -> tuple[list[dict], dict]:
+    """`select` with the two layers the VOICE turn has to assemble — extracted so both live here (V2-682).
+
+    · `open_widgets` — «what he has IN FRONT OF HIM» comes from STATE, never from the words: it is the layer
+      that cannot be trimmed (V2-085). A direct µs read, already cached; if it fails, the other layers carry.
+    · `carried_text`  — the request is routinely spread over the previous turns (a sentence cut into
+      fragments, a wake word reclaiming an ambient tail). See `carried_from_window`.
+
+    It lives here rather than at the call site because the caller is `providers/nucleo.py`, which is under an
+    architecture ratchet: a layer added there has to be paid by an extraction, and this one was always a
+    selector concern anyway."""
+    try:
+        from memory import api as _mem
+        open_now = (_mem.state() or {}).get("open_widgets") or []
+    except Exception:  # noqa: BLE001
+        open_now = []
+    return select(tools, turn_text=turn_text, open_widgets=open_now,
+                  carried_text=carried_from_window(window, exclude=turn_text),
+                  recent_families=recent_families, force=force)
+
+
+def carried_from_window(window, exclude: str = "", n: int = 2) -> str:
+    """The operator's last `n` turns BEFORE this one, joined — the `carried` layer's input (V2-682).
+
+    Built from the window the model is already being sent, so it adds no state and no I/O. It reads USER
+    turns only: what zaelar itself said is not the request, and feeding our own words back in would let a
+    reply about music keep the media family alive over a turn that has moved on.
+
+    `exclude` drops the current turn when the caller has already appended it (the window is assembled at
+    different points in the two channels, and a duplicated sentence would just be counted twice)."""
+    out: list[str] = []
+    ex = (exclude or "").strip()
+    for m in reversed(list(window or ())):
+        try:
+            role = (m.get("role") or "") if isinstance(m, dict) else getattr(m, "role", "")
+            txt = (m.get("text") or m.get("content") or "") if isinstance(m, dict) else getattr(m, "text", "")
+        except Exception:  # noqa: BLE001
+            continue
+        if role != "user" or not isinstance(txt, str):
+            continue
+        t = txt.strip()
+        if not t or t == ex:
+            continue
+        out.append(t)
+        if len(out) >= max(0, int(n)):
+            break
+    return " ".join(reversed(out))
 
 
 def families_used(names) -> set[str]:

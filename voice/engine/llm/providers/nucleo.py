@@ -1925,15 +1925,8 @@ class NucleoLLMStream(llm.LLMStream):
         if not first_turn:
             try:
                 from nucleo.flash import tool_selection as _tsel
-                # «Lo que tiene DELANTE» sale del ESTADO, no de las palabras — es la capa que no se puede recortar
-                # (V2-085). Lectura directa de µs, ya cacheada; si falla, se degrada a las otras capas.
-                try:
-                    from memory import api as _mem_sel
-                    _open_now = (_mem_sel.state() or {}).get("open_widgets") or []
-                except Exception:
-                    _open_now = []
-                _turn_tools, _tool_report = _tsel.select(
-                    _turn_tools, turn_text=text, open_widgets=_open_now,
+                _turn_tools, _tool_report = _tsel.select_for_turn(
+                    _turn_tools, turn_text=text, window=getattr(brain, "_window", None),
                     recent_families=getattr(brain, "_recent_tool_families", None),
                     force=getattr(self, "_force_families", None))
                 if _tool_report.get("omitted"):
