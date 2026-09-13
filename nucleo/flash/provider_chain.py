@@ -35,7 +35,7 @@ from loguru import logger
 # this module had its own `_RESET_RE` that read only the DATE, so a same-day reset (“reset at 23:15:37”) resolved to
 # the following midnight and the cooldown was born expired — the bug the sibling had already fixed but which remained
 # alive here. Two copies of the same parser guarantee that one of them falls behind.
-from nucleo.workers.providers import _reset_epoch, classify_failure, is_depleted
+from nucleo.workers.providers import _reset_epoch, classify_failure, is_broken_request, is_depleted
 # Cooldown mechanics shared with the sibling module (V2-098) — the STATE stays separate on purpose (its own KV
 # namespace: a MODEL tier being down says nothing about a CLI endpoint being down), only load/save/token/available.
 from nucleo import provider_health as _health
@@ -52,6 +52,8 @@ _DEPLETED_COOLDOWN_S = 20 * 60         # V2-243 set this to 6 h (“a balance do
                                        # balance again. A top-up is invisible here: the only way to learn is to retry.
                                        # The cost of probation is ~3 failed calls per hour while there truly is no
                                        # balance; the cost of not having it was six hours of silence.
+_BROKEN_COOLDOWN_S = 15 * 60           # V2-682: a REJECTED request is our config or their deploy, and both
+                                       # get fixed in minutes — retry soon rather than park the tier.
 _AUTH_COOLDOWN_S = 5 * 60              # bad credential: it may be a mistake; do not punish it for a week
 _KV = "cluster_provider_cooldown"      # historical name: cooldown is SHARED (see `role` below)
 
@@ -403,7 +405,11 @@ def note_failure(text: str, tier: dict | None = None, *, role: str = ROLE_CLUSTE
     retries THIS SAME turn with the relay returned — for cluster that keeps a real-time reply to a peer from being
     lost just because the lead tier ran out of quota; for voice it lets the NEXT turn start on the relay instead
     of repeating the same broken call (2026-08-15, `voice/engine/llm/providers/nucleo.py`)."""
-    kind = classify_failure(text)
+    # V2-682 — a tier that REJECTS the request (a deterministic 4xx that is neither quota nor credential) is
+    # down for us however fast it answers, and the worker chain met it first: 15 escalations, 15 identical
+    # 400s, no relay. The two chains read the same predicate on purpose — the voice brain has no more reason
+    # than the worker to keep choosing an endpoint that refuses every call.
+    kind = classify_failure(text) or ("broken" if is_broken_request(text) else "")
     if not kind:
         return None
     t = tier or pick(role)
@@ -411,7 +417,9 @@ def note_failure(text: str, tier: dict | None = None, *, role: str = ROLE_CLUSTE
         return None
 
     dry = is_depleted(text)
-    if kind == "exhausted":
+    if kind == "broken":
+        until = time.time() + _BROKEN_COOLDOWN_S
+    elif kind == "exhausted":
         # La fecha de reset que da el proveedor manda… salvo que ya haya PASADO. Un mensaje con una fecha vencida
         # (respuesta cacheada, reloj desfasado, texto de error reutilizado) dejaba `until` en el pasado → el
         # escalón quedaba disponible en el acto → se relevaba a SÍ MISMO y volvía a fallar: exactamente el bucle
@@ -436,7 +444,12 @@ def note_failure(text: str, tier: dict | None = None, *, role: str = ROLE_CLUSTE
     # V2-243: una cuota le dice al operador «espera»; un saldo le dice «recarga». Escribir una hora en la que no
     # va a pasar nada es peor que no escribir ninguna — medido el 2026-08-21 con «sin cuota hasta el 21 Aug 03:02»
     # sobre un `Insufficient Balance` de DeepSeek, con el cerebro ya sin ningún proveedor.
-    estado = "SIN SALDO — no vuelve solo, hay que recargar" if dry else f"sin cuota hasta el {when}"
+    if kind == "broken":
+        estado = f"RECHAZA nuestras peticiones (no es cuota ni credencial) — reintento a las {when}"
+    elif dry:
+        estado = "SIN SALDO — no vuelve solo, hay que recargar"
+    else:
+        estado = f"sin cuota hasta el {when}"
     # V2-244 — y si NO hay relevo, decir si es que no hay ninguno o que la regla de self-host lo está callando.
     # «SIN RELEVO disponible» a secas manda al operador a buscar un proveedor que a lo mejor ya tiene puesto.
     _callados = suppressed_relays() if role == ROLE_VOICE else []

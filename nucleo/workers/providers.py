@@ -90,6 +90,8 @@ _DEPLETED_COOLDOWN_S = 20 * 60         # V2-243 lo puso en 6 h («un saldo no se
                                        # aquí: la única manera de enterarse es volver a probar. El coste de la
                                        # libertad condicional son ~3 llamadas fallidas por hora mientras de verdad
                                        # no hay saldo; el coste de no tenerla fueron seis horas de silencio.
+_BROKEN_COOLDOWN_S = 15 * 60           # V2-682: a rejected REQUEST is our config or their deploy — both get
+                                       # fixed in minutes, so the tier is retried soon rather than parked.
 _AUTH_COOLDOWN_S = 5 * 60              # credencial mal: puede ser un despiste, no castigues una semana
 _KV = "worker_provider_cooldown"
 
@@ -349,6 +351,55 @@ def is_depleted(text: str) -> bool:
     return not _RESET_RE.search(t)
 
 
+# V2-682 — A PROVIDER THAT REJECTS THE REQUEST ITSELF IS DOWN FOR US, even though it answers instantly.
+#
+# Measured on the operator's own engine, 2026-09-12 (English session, 19:53 → 20:46): **15 escalations, 15
+# deaths**, every one of them the same line —
+#
+#     API Error: 400 [1210][Invalid API parameter, please check the documentation.]
+#
+# — from `glm-5.3`. He heard «That task couldn't be completed — a provider failure» seven times and asked
+# «What fucking provider failed?». Nothing relayed, nothing went on cooldown, nothing reached the status
+# panel: `classify_failure` knows quota, credentials and rate-limits, and a 400 is none of the three, so it
+# returned '' and `note_failure` walked away. The next errand picked the SAME broken tier, and the one after
+# that. An outage that is total and permanent looked, to the relay, like an ordinary error.
+#
+# It is the third face of a lesson already written twice in this repo: **a capability is MEASURED, never
+# read**. `research.py` met this exact provider code (1210, «This model always engages in thinking and cannot
+# be disabled») and closed it for ITS caller with a local predicate; this closes it for the class.
+#
+# A SEPARATE predicate, not a fourth value of `classify_failure`, for the reason written above `is_depleted`:
+# that function is shared with `nucleo/flash/provider_chain.py`, which branches on its three values and would
+# return None for an unknown one — silently no-oping in the very module that has to relay.
+#
+# The failure directions are deliberately asymmetric. Marking a HEALTHY tier broken costs one relay to the
+# next tier, which is exactly what the chain is for; NOT marking a broken one costs every errand, for as long
+# as it stays broken. So a reading this cannot classify errs towards relaying — and the cooldown is SHORT,
+# because unlike an empty wallet a rejected parameter is our config or their deploy, and both get fixed in
+# minutes rather than days.
+_BROKEN_RE = re.compile(
+    r"\b(?:400|404|422)\b|invalid[ _]?(?:api[ _]?)?parameter|invalid[ _]request|"
+    r"unsupported[ _](?:parameter|model)|model[ _](?:not[ _]found|does[ _]not[ _]exist)|unknown[ _]model",
+    re.I)
+
+
+def is_broken_request(text: str) -> bool:
+    """True when the provider REJECTED the call itself — a deterministic 4xx that will repeat identically.
+
+    Three things it must NOT be, and each exclusion is load-bearing:
+      · a quota / credential / rate problem — `classify_failure` owns those and answers them better;
+      · a blown CONTEXT, which is very often a 400 too and whose answer is COMPACT AND CONTINUE
+        (`handoff.context_handoff`): relaying it would blow up identically on the next tier, because the cause
+        is the size of the conversation and not who serves it;
+      · anything with no 4xx signature at all — a timeout or a 5xx is transient and retrying is right."""
+    t = str(text or "")
+    if not _BROKEN_RE.search(t):
+        return False
+    if classify_failure(t):
+        return False
+    return not is_context_overflow(t)
+
+
 def classify_failure(text: str) -> str:
     """'exhausted' (plan/cuota agotada, hay que relevar) · 'auth' · 'rate' (pasajero) · '' (no es de proveedor)."""
     t = (text or "")
@@ -465,7 +516,7 @@ def note_failure(text: str, tier: dict | None = None) -> dict | None:
 
     Es el punto que faltaba: hasta hoy este 429 se entregaba al operador como texto de resultado («API Error…»)
     y moría ahí — ni alerta en el panel, ni cambio de proveedor, ni registro."""
-    kind = classify_failure(text)
+    kind = classify_failure(text) or ("broken" if is_broken_request(text) else "")
     if not kind:
         return None
     t = tier or pick()
@@ -473,7 +524,9 @@ def note_failure(text: str, tier: dict | None = None) -> dict | None:
         return None                                  # la licencia local no se pone en cooldown por esto
 
     dry = is_depleted(text)
-    if kind == "exhausted":
+    if kind == "broken":
+        until = time.time() + _BROKEN_COOLDOWN_S     # V2-682 — see `is_broken_request`
+    elif kind == "exhausted":
         # Mismo suelo que en el hermano `nucleo/flash/provider_chain.py` (2026-08-09): una fecha de reset ya
         # VENCIDA en el texto del error dejaba el escalón disponible en el acto → relevo a sí mismo → bucle.
         # V2-243: si es SALDO y no cuota, no hay nada que esperar — reintentar cada media hora es quemar un
@@ -492,8 +545,12 @@ def note_failure(text: str, tier: dict | None = None) -> dict | None:
     # V2-243: lo que se escribe aquí es lo que el operador lee en el panel, y de ello depende lo que HAGA. Una
     # cuota le dice «espera»; un saldo le dice «recarga». Poner una hora donde no va a pasar nada es peor que no
     # poner ninguna.
-    estado = ("SIN SALDO — no vuelve solo, hay que recargar" if dry
-              else f"sin cuota hasta el {when}")
+    if kind == "broken":
+        estado = f"RECHAZA nuestras peticiones (no es cuota ni credencial) — reintento a las {when}"
+    elif dry:
+        estado = "SIN SALDO — no vuelve solo, hay que recargar"
+    else:
+        estado = f"sin cuota hasta el {when}"
     detail = (f"«{t['name']}» ({t.get('plan', '')}) {estado}"
               + (f" → relevo a «{nxt['name']}»" if nxt else " · SIN RELEVO disponible"))
     logger.warning(f"brain worker: {detail}")
@@ -501,7 +558,8 @@ def note_failure(text: str, tier: dict | None = None) -> dict | None:
     # (1) al panel de ALERTAS, por el mismo canal reactivo que usan los demás proveedores
     try:
         from voice import health_state
-        health_state.record("code_agent", "credit" if kind == "exhausted" else "auth", detail)
+        health_state.record("code_agent",
+                            {"exhausted": "credit", "auth": "auth"}.get(kind, "outage"), detail)
     except Exception:
         pass
     # (2) al timeline, con el mismo peso que una degradación del motor

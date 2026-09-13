@@ -1112,6 +1112,11 @@ DOMAINS: list[dict] = [
         # una tool y ningún texto), y en 7 turnos de voz reales la respuesta llegó 3,4-5,9 s DESPUÉS del evento
         # de la tool. La cobertura de trabajo se elige cuando el router ya ha decidido, así que puede NOMBRAR la
         # fuente — que es lo que evita que dos coberturas suenen como la misma espera dicha dos veces (V2-189).
+        {"id": "2.54", "title": "A provider that REJECTS the request relays like an outage — a deterministic "
+                                "4xx is not a quota, and a blown context is not a relay",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/workers/"
+                      "test_a_rejected_request_relays_like_an_outage.py"]},
         {"id": "2.53", "title": "Un turno que llama a una TOOL se cubre en la costura: la cobertura de trabajo "
                                 "nombra la fuente, calla si la respuesta se adelanta y nunca pisa al relleno",
             "ch": UNIT,
