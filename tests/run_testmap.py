@@ -1501,6 +1501,22 @@ DOMAINS: list[dict] = [
                                 "y aguanta el cambio de palabra",
             "ch": UNIT,
             "paths": ["tests/agent_headless/unit/test_an_errand_runs_the_whole_errand.py"]},
+        # V2-684 — la puerta de ARMADO, convertida en un número. La condición del operador para entregar la
+        # autoridad es «unos cuantos encargos reales cuyas decisiones en sombra lea y le parezcan bien, con
+        # CERO que hubieran escrito a la persona equivocada»: eso es una medida, y no había instrumento.
+        # Solo lectura — abre el log de eventos y el libro de encargos, y no escribe en ninguno.
+        {"id": "3.44", "title": "Lo que el encargo DIRÍA: el informe de sombra y su veredicto", "ch": UNIT,
+            "live": True,
+            "cmd": "./.venv/bin/python -m tests.agent_headless.e2e.errand.shadow_report"},
+        # V2-684 — el ÚNICO test de la casa que le escribe a una PERSONA. El operador dio una segunda cuenta
+        # de Telegram suya (`@cryptonite_fund`) para contestar él mismo mientras mira. Prueba las cinco
+        # cosas que 3.43 no puede: que Telegram aceptó el mensaje, que el eco trajo un chatId usable, que su
+        # respuesta llegó como evento, que el hilo la tenía a tiempo para el dossier, y que una persona
+        # leyéndolo entiende qué se le está pidiendo. ⚠️ Arma el motor fuera de sombra mientras dura (y lo
+        # devuelve en un `finally`); se niega a arrancar si hay cualquier otro encargo abierto.
+        {"id": "3.45", "title": "Un encargo REAL contra una persona REAL (humano en el bucle)", "ch": UNIT,
+            "live": True,
+            "cmd": "./.venv/bin/python -m tests.agent_headless.e2e.errand.run_live --yes"},
         # V2-676 — medido en su sesión INGLESA `af4429e0` (2026-09-11), dos fallos que viajaban juntos:
         #   · cinco búsquedas del tiempo en Nueva York, las cinco n:0 con `failure.kind = captcha`, y el modelo
         #     explicó el vacío con la única historia que tiene: «I don't have live internet access… my training
