@@ -74,6 +74,7 @@ def _empty() -> dict:
         "items": [],
         "pending_read": [],
         "pending_reply": [],
+        "pending_send": [],        # V2-683: writing to a PERSON, not answering a conversation
         "pending_control": [],
         "pending_history": [],
         "muted_channels": [],
@@ -106,6 +107,7 @@ def load() -> dict:
     db.setdefault("items", [])
     db.setdefault("pending_read", [])
     db.setdefault("pending_reply", [])
+    db.setdefault("pending_send", [])
     db.setdefault("pending_control", [])
     db.setdefault("pending_history", [])
     db.setdefault("muted_channels", [])
@@ -488,6 +490,27 @@ def take_pending_reply(platform: str | None = None) -> list[dict]:
         rest = [k for k in pending if k.get("platform") != platform]
     db["pending_reply"] = rest
     save(db)
+    return mine
+
+
+def take_pending_send(platform: str | None = None) -> list[dict]:
+    """Return (and REMOVE) pending sends to a PERSON (V2-683) — the sibling of `take_pending_reply` for the
+    orders that OPEN a conversation instead of answering one. Each order:
+    {ref, platform, to, chatId, name, contactId, text, subject?, objective?}.
+
+    `to` is what the connector needs to open the conversation (a username, a phone, an address) and `chatId`
+    is empty until one exists — which is exactly the difference with a reply, and why the connector echoes
+    the id it resolved (`connector.msg_out` carrying this `ref`) instead of the caller inventing one."""
+    db = load()
+    pending = db.get("pending_send", [])
+    if platform is None:
+        mine, rest = list(pending), []
+    else:
+        mine = [k for k in pending if k.get("platform") == platform]
+        rest = [k for k in pending if k.get("platform") != platform]
+    if pending:
+        db["pending_send"] = rest
+        save(db)
     return mine
 
 

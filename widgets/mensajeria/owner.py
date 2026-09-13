@@ -38,6 +38,27 @@ def _note(text: str) -> None:
         pass
 
 
+def _scrub(text: str) -> tuple[str, str]:
+    """V2-683 — the last door before a MODEL-composed text leaves toward somebody outside. Returns
+    `(text, "")` when it is clean and `(text, what)` when it is not, and the caller does not send.
+
+    It FAILS CLOSED, and deliberately does not redact-and-send: a reply's text is dictated by the operator
+    and goes to a conversation he is already in, but this one was written by a model for a third party, so a
+    secret inside it is either a mistake or an injection, and both are answered by stopping rather than by
+    delivering a redacted version he never got to read. `memory/secrets.py` is the same detector the worker
+    bridge already runs on anything leaving through `push_channel`."""
+    try:
+        from memory import secrets as _secrets
+        found = _secrets.detect(text or "")
+    except Exception as e:  # noqa: BLE001 — a scan that could not run is not a licence to send
+        logger.warning(f"mensajeria: no pude revisar el texto saliente ({e!r}) — no se envía")
+        return (text, "un texto que no he podido revisar")
+    if found:
+        kinds = sorted({str(getattr(f, "kind", "") or "un secreto") for f in found})
+        return (text, ", ".join(kinds))
+    return (text, "")
+
+
 def _origin(m: dict) -> tuple[str, str | None]:
     if m.get("isGroup"):
         return (m.get("senderName") or "?", m.get("chatName") or "grupo")
@@ -285,6 +306,21 @@ class _Owner:
                 ingest.publish_reply(rep)
         except Exception as e:
             logger.debug(f"mensajeria reply flush: {e}")
+        # And for a message to a PERSON (V2-683) — the order that OPENS a conversation instead of answering
+        # one. Same shape, one door later: the last thing it passes through before leaving the engine is the
+        # secret scan, because unlike every other queue here the text was composed by a MODEL and its
+        # destination is somebody outside.
+        try:
+            for order in msgstore.take_pending_send():
+                clean, leaked = _scrub(order.get("text") or "")
+                if leaked:
+                    ingest.publish_send_failed(order, f"contenía {leaked} — no se ha enviado")
+                    _note(f"[SISTEMA] NO he enviado el mensaje a {order.get('name') or order.get('to')}: el "
+                          f"texto llevaba dentro {leaked}. Díselo al operador y no lo reintentes.")
+                    continue
+                ingest.publish_send({**order, "text": clean})
+        except Exception as e:
+            logger.debug(f"mensajeria send flush: {e}")
         # And for archive/delete orders (V2-543): the platform's connector executes them in the real mailbox.
         try:
             for key in msgstore.take_pending_disposal("archive"):

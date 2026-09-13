@@ -109,6 +109,7 @@ async def reseed() -> int:
 _shown: set[str] = set()         # direct path: messageIds already surfaced
 _mark_inbox = None               # v2: msg.mark_read subscription (created in THIS loop)
 _reply_inbox = None              # v2: msg.reply subscription (created in THIS loop)
+_send_inbox = None               # V2-683: msg.send — writing to somebody who has not written
 _archive_inbox = None            # V2-543: msg.archive subscription
 _trash_inbox = None              # V2-543: msg.trash subscription
 _history_inbox = None            # V2-546: msg.history subscription ("load previous")
@@ -283,6 +284,46 @@ async def _drain_replies(mb) -> None:
                 pass
 
 
+async def _drain_sends(mb) -> None:
+    """Drain orders that OPEN a conversation (V2-683): a first message to somebody, by SMTP.
+
+    The send itself is `send_reply` with no `in_reply_to` — which is what it already does for a mail that has
+    no thread to continue, so nothing new reaches the network here. The differences with a reply are the two
+    that matter: the subject is the errand's own (there is no «Re:» to inherit), and the echo carries the
+    order's `ref`, which is what lets whatever asked for this bind the conversation it just created."""
+    if not ingest.v2_enabled() or _send_inbox is None:
+        return
+    for r in _send_inbox.drain():
+        to = str(r.get("to") or r.get("chatId") or "").strip()
+        text = r.get("text") or ""
+        if not to or not text.strip():
+            continue
+        lines = config.signature_lines()
+        if lines:
+            text = text.rstrip("\n") + "\n\n-- \n" + "\n".join(lines)
+        subject = str(r.get("subject") or "").strip() or "Hola"
+        ok, info = await asyncio.to_thread(mb.send_reply, to, subject, text, "", None)
+        if ok:
+            logger.info(f"Email: mensaje enviado a {to} (ref {r.get('ref')})")
+            import time as _t
+            # The address IS the conversation's id for email (the thread store keys on it), so unlike
+            # Telegram and WhatsApp there is nothing to resolve — the echo still carries `ref` so every
+            # platform binds the same way.
+            ingest.publish_msg_out(PLATFORM, {
+                "chatId": to, "messageId": f"sent:{_t.time():.0f}:{to[:60]}", "ref": r.get("ref"),
+                "from": "", "body": text, "timestamp": _t.time(),
+                "chatName": r.get("name") or to})
+        else:
+            logger.warning(f"Email: fallo al escribir a {to}: {info}")
+            ingest.publish_send_failed(r, str(info))
+            try:
+                from voice import brain_notes
+                brain_notes.push(f"[SISTEMA] No se pudo escribir a {r.get('name') or to} por correo ({info}). "
+                                 f"Avísale al operador; no lo he reintentado.")
+            except Exception:
+                pass
+
+
 async def _poll_external_flags(mb) -> None:
     """Ask the server what the operator did in his own mail client (V2-546).
 
@@ -427,7 +468,7 @@ async def _drain_disposals(mb) -> None:
 
 
 async def _loop() -> None:
-    global _mark_inbox, _reply_inbox, _archive_inbox, _trash_inbox, _history_inbox, _fetch_inbox
+    global _mark_inbox, _reply_inbox, _send_inbox, _archive_inbox, _trash_inbox, _history_inbox, _fetch_inbox
     _set_status("starting", None, "Conectando con el servidor de correo…")
     mb = config.mailbox()
     if mb is None:
@@ -446,6 +487,8 @@ async def _loop() -> None:
             _mark_inbox = ingest.MarkReadInbox(PLATFORM)
         if _reply_inbox is None:
             _reply_inbox = ingest.ReplyInbox(PLATFORM)
+        if _send_inbox is None:
+            _send_inbox = ingest.SendInbox(PLATFORM)
         if _archive_inbox is None:
             _archive_inbox = ingest.ArchiveInbox(PLATFORM)
         if _trash_inbox is None:
@@ -473,8 +516,8 @@ async def _loop() -> None:
             await _drain_disposals(mb)
         except Exception as e:
             logger.debug(f"Email disposal tick: {e}")
-        for what, fn in (("flags", _poll_external_flags), ("history", _drain_history),
-                         ("fetch", _drain_fetch)):
+        for what, fn in (("sends", _drain_sends), ("flags", _poll_external_flags),
+                         ("history", _drain_history), ("fetch", _drain_fetch)):
             try:
                 await fn(mb)
             except Exception as e:  # noqa: BLE001
@@ -500,17 +543,17 @@ def start() -> None:
 
 
 async def stop() -> None:
-    global _task, _mark_inbox, _reply_inbox, _archive_inbox, _trash_inbox
+    global _task, _mark_inbox, _reply_inbox, _send_inbox, _archive_inbox, _trash_inbox
     if _task:
         _task.cancel()
         _task = None
-    for inbox in (_mark_inbox, _reply_inbox, _archive_inbox, _trash_inbox):
+    for inbox in (_mark_inbox, _reply_inbox, _send_inbox, _archive_inbox, _trash_inbox):
         try:
             if inbox is not None:
                 inbox.close()
         except Exception:
             pass
-    _mark_inbox = _reply_inbox = _archive_inbox = _trash_inbox = None
+    _mark_inbox = _reply_inbox = _send_inbox = _archive_inbox = _trash_inbox = None
     _seen.clear()
     _set_unread_total(-1)
     _published.clear()

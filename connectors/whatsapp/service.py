@@ -23,6 +23,7 @@ _seen: set[str] = set()          # already shown messageIds (to avoid resurrecti
 _published: set[str] = set()     # v2 stateless: messageIds already published to bus (dedup before widget triage)
 _mark_inbox = None               # v2 stateless: msg.mark_read subscription (created in the loop; see ingest.py)
 _reply_inbox = None              # V2-521: msg.reply subscription (created in the loop)
+_send_inbox = None               # V2-683: msg.send — writing to somebody who has not written
 _history_inbox = None            # V2-546: msg.history subscription (created in the loop)
 
 
@@ -155,6 +156,53 @@ async def _drain_replies() -> None:
             _note(f"[SISTEMA] No se pudo enviar el WhatsApp a {r.get('to') or chat_id} ({e}). Avísale al operador.")
 
 
+def _jid(handle: str) -> str:
+    """The conversation id WhatsApp addresses a person by, from whatever we hold. A JID is already one; a
+    phone becomes `<digits>@s.whatsapp.net`, which is exactly what the bridge's own chat ids look like — so a
+    conversation opened this way is keyed the same as one that arrived on its own, and the thread does not
+    split in two. Punctuation and spaces are dropped because a stored number is written for a human."""
+    h = str(handle or "").strip()
+    if "@" in h:
+        return h
+    digits = "".join(ch for ch in h if ch.isdigit())
+    return f"{digits}@s.whatsapp.net" if digits else ""
+
+
+async def _drain_sends() -> None:
+    """Drain orders that OPEN a conversation (V2-683): a first message to somebody who has not written.
+
+    WhatsApp has no «resolve this person» step — a number IS the address — so the only translation is the JID
+    above. What the bridge cannot tell us is whether that number has WhatsApp at all: it answers with an
+    error, and that error is reported once and never retried, which is the honest half of the asymmetry
+    `widgets/directory.py` documents (a phone is offered for WhatsApp only when the operator NAMED it)."""
+    if not ingest.v2_enabled() or _send_inbox is None:
+        return
+    for r in _send_inbox.drain():
+        chat_id = str(r.get("chatId") or "").strip() or _jid(r.get("to"))
+        text = (r.get("text") or "").strip()
+        if not chat_id or not text:
+            continue
+        try:
+            res = await client.send_message(chat_id, text)
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"WhatsApp: fallo al escribir a {chat_id}: {e}")
+            ingest.publish_send_failed(r, str(e))
+            _note(f"[SISTEMA] No pude escribir a {r.get('name') or chat_id} por WhatsApp ({e}). Puede que ese "
+                  f"número no tenga WhatsApp. Díselo al operador; no lo he reintentado.")
+            continue
+        # SENT — the echo sits outside the try on purpose (see the Telegram drain): a failure to RECORD the
+        # message must never be reported as a failure to SEND it.
+        logger.info(f"WhatsApp: mensaje enviado a {chat_id} (ref {r.get('ref')})")
+        try:
+            import time as _t
+            ingest.publish_msg_out(PLATFORM, {
+                "chatId": chat_id, "messageId": (res or {}).get("messageId") or f"sent:{_t.time():.0f}",
+                "ref": r.get("ref"), "from": "", "body": text, "timestamp": _t.time(),
+                "chatName": r.get("name") or ""})
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"WhatsApp: enviado, pero no pude registrar la conversación: {e}")
+
+
 def _history_entry(m: dict) -> dict:
     """A backfilled message in the conversation's shape. Read by definition — it is scrollback, not something
     demanding attention — and the operator is named by the thread module, not here."""
@@ -222,11 +270,12 @@ def _note(text: str) -> None:
 
 
 async def _loop() -> None:
-    global _mark_inbox, _reply_inbox, _history_inbox
+    global _mark_inbox, _reply_inbox, _send_inbox, _history_inbox
     _set_status("starting", None)
     if ingest.v2_enabled() and _mark_inbox is None:
         _mark_inbox = ingest.MarkReadInbox(PLATFORM)     # subscription in THIS loop (server) -> direct delivery
         _reply_inbox = ingest.ReplyInbox(PLATFORM)       # V2-521: dictated replies, same delivery path
+        _send_inbox = ingest.SendInbox(PLATFORM)         # V2-683: opening a conversation
         _history_inbox = ingest.HistoryAskInbox(PLATFORM)  # V2-546: "load previous"
     try:
         await bridge.start()
@@ -247,7 +296,8 @@ async def _loop() -> None:
                 await _ingest_new()
                 await _drain_reads()
                 await _drain_replies()
-                for what, fn in (("read marks", _drain_external_reads), ("history", _drain_history)):
+                for what, fn in (("sends", _drain_sends),
+                                 ("read marks", _drain_external_reads), ("history", _drain_history)):
                     try:
                         await fn()
                     except Exception as e:  # noqa: BLE001

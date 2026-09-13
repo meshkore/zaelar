@@ -165,6 +165,19 @@
    "confirm": true,
    "usage": "El botón «Enviar» de la propia tarjeta hace exactamente esto. Por voz: primero 'draft' con el texto, luego (con su confirmación) 'send_draft'."
   },
+  "send_to": {
+   "desc": "Escribe a una PERSONA del directorio de contactos por su canal (el preferido si no dices cuál), ABRIENDO la conversación si no existía. Es lo que se usa para «mándale un mensaje a X», «escríbele a X», «contacta con X» — `reply` solo sirve para contestar a algo que YA llegó.",
+   "confirm_q": "¿Le escribo a {item}?",
+   "payload": {
+    "contact": "string (el nombre tal y como lo dijo el operador; también vale una dirección de correo suelta)",
+    "text": "string (lo que hay que decirle)",
+    "channel": "opcional: whatsapp | telegram | email — sin esto va por su canal preferido",
+    "subject": "opcional, solo email",
+    "objective": "opcional: si esto abre una gestión que habrá que seguir («organizar una reunión esta tarde»), para qué, con las palabras del operador"
+   },
+   "confirm": true,
+   "usage": "Si no tienes su canal guardado, guárdalo antes con contactos/set_channel. Si no sabes a cuál de dos se refiere, PREGÚNTASELO: nunca escribas a alguien por parecido."
+  },
   "open_connectors": {
    "desc": "Si se nombra la plataforma (email/gmail/outlook, whatsapp, telegram), entra DIRECTAMENTE en la pantalla de ESE conector — su asistente paso a paso si no está conectado, o su estado si ya lo está. Sin plataforma, abre la lista de todos los conectores. Úsala siempre que el operador pida conectar/vincular/añadir un canal. No pidas tú credenciales por voz.",
    "payload": {

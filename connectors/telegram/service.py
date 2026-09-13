@@ -26,6 +26,7 @@ _reads: list[dict] = []          # V2-546: chats he read elsewhere ({chatId, max
 _seen: set[str] = set()          # already shown messageIds (do not resurrect what the operator removed)
 _mark_inbox = None               # v2 stateless: msg.mark_read subscription (created in the loop; see ingest.py)
 _reply_inbox = None              # V2-521: msg.reply subscription (created in the loop)
+_send_inbox = None               # V2-683: msg.send — writing to somebody who has not written
 _history_inbox = None            # V2-546: msg.history subscription (created in the loop)
 _fetch_inbox = None              # V2-624: msg.fetch subscription (platform-wide pull)
 
@@ -404,6 +405,62 @@ async def _drain_replies() -> None:
             _note(f"[SISTEMA] No se pudo enviar el Telegram a {r.get('to') or chat_id} ({e}). Avísale al operador.")
 
 
+async def _drain_sends() -> None:
+    """Drain orders that OPEN a conversation (V2-683): a first message to somebody who has not written.
+
+    The one real difference with a reply: a reply already holds the `chatId`, and here we hold a HANDLE — a
+    @username or a phone — that Telegram still has to resolve into a person. Telethon does that itself when
+    `send_message` is given the string, so nothing is re-implemented; what matters is what happens when it
+    CANNOT: a phone that is not in the account's contacts, or a username that does not exist, raises, and the
+    honest answer is to say so once and stop. Never a retry — a message retried at somebody is worse than a
+    message not sent."""
+    if not ingest.v2_enabled() or _send_inbox is None:
+        return
+    for r in _send_inbox.drain():
+        to = str(r.get("to") or "").strip()
+        text = (r.get("text") or "").strip()
+        if not to or not text:
+            continue
+        try:
+            # An id we already hold travels as an int (that IS the conversation); a handle stays a string for
+            # Telethon to resolve. Sending to the wrong peer because «600111222» was read as a user id is
+            # exactly the mistake this door cannot make.
+            peer = int(r["chatId"]) if str(r.get("chatId") or "").strip().lstrip("-").isdigit() else to
+            sent = await _client.send_message(peer, text)
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"Telegram: fallo al escribir a {to}: {e}")
+            ingest.publish_send_failed(r, str(e))
+            _note(f"[SISTEMA] No pude escribir a {r.get('name') or to} por Telegram ({e}). Puede que ese "
+                  f"usuario no exista o que ese teléfono no esté en sus contactos de Telegram. Díselo al "
+                  f"operador; no lo he reintentado.")
+            continue
+        # SENT. Everything below is bookkeeping, and it lives outside the try for a reason a test caught
+        # before this shipped: with the echo inside it, a NameError after a successful send was reported to
+        # the operator as «no pude escribir» over a message that had already reached the person.
+        logger.info(f"Telegram: mensaje enviado a {to} (ref {r.get('ref')})")
+        try:
+            chat_id = getattr(sent, "chat_id", None)
+            if chat_id is None:
+                chat_id = peer if isinstance(peer, int) else None
+            if chat_id is not None:
+                # The echo carries the id Telegram RESOLVED, which is the only place it exists: the caller
+                # asked by handle and could not have known it.
+                ingest.publish_msg_out("telegram", {
+                    "chatId": chat_id, "messageId": f"{chat_id}:{getattr(sent, 'id', 0)}",
+                    "ref": r.get("ref"), "from": "", "body": text,
+                    "timestamp": _sent_ts(sent), "chatName": r.get("name") or ""})
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"Telegram: enviado, pero no pude registrar la conversación: {e}")
+
+
+def _sent_ts(sent) -> float:
+    import time as _t
+    try:
+        return sent.date.timestamp()
+    except Exception:
+        return _t.time()
+
+
 def _note(text: str) -> None:
     try:
         from voice import brain_notes
@@ -486,11 +543,13 @@ async def _loop() -> None:
         except Exception as e:  # noqa: BLE001
             logger.debug(f"Telegram read receipt: {e}")
 
-    global _mark_inbox, _reply_inbox, _history_inbox, _fetch_inbox
+    global _mark_inbox, _reply_inbox, _send_inbox, _history_inbox, _fetch_inbox
     if ingest.v2_enabled() and _mark_inbox is None:
         _mark_inbox = ingest.MarkReadInbox("telegram")   # subscription in THIS loop (server) -> direct delivery
     if ingest.v2_enabled() and _reply_inbox is None:
         _reply_inbox = ingest.ReplyInbox("telegram")     # V2-521: dictated replies, same delivery path
+    if ingest.v2_enabled() and _send_inbox is None:
+        _send_inbox = ingest.SendInbox("telegram")       # V2-683: opening a conversation
     if ingest.v2_enabled() and _history_inbox is None:
         _history_inbox = ingest.HistoryAskInbox("telegram")   # V2-546: "load previous"
     if ingest.v2_enabled() and _fetch_inbox is None:
@@ -517,7 +576,8 @@ async def _loop() -> None:
             await _drain_replies()
         except Exception as e:
             logger.debug(f"Telegram replies tick: {e}")
-        for what, fn in (("outbox", _drain_outbox), ("read marks", _drain_read_marks),
+        for what, fn in (("sends", _drain_sends), ("outbox", _drain_outbox),
+                         ("read marks", _drain_read_marks),
                          ("history", _drain_history), ("fetch", _drain_fetch)):
             try:
                 await fn()

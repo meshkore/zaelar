@@ -12,6 +12,7 @@ import time
 
 from .. import store
 from . import drafts as _drafts
+from . import outbound as _outbound
 # The READ side lives in views.py since V2-624 (the architecture ratchet's extraction, along the real seam:
 # name resolution, the thread/activity views, peek, the autoresponder previews, and — since V2-626 — the
 # open reference and the effective notify policy). One direction only —
@@ -83,6 +84,7 @@ def _empty() -> dict:
         "items": [],
         "pending_read": [],
         "pending_reply": [],
+        "pending_send": [],    # V2-683: writing to a PERSON, not answering a conversation
         "pending_control": [],
         "pending_history": [],
         "threads": {},         # V2-546: the CONVERSATIONS (see thread.py). The inbox above is what still wants
@@ -121,6 +123,7 @@ def load_db() -> dict:
     db.setdefault("items", [])
     db.setdefault("pending_read", [])
     db.setdefault("pending_reply", [])
+    db.setdefault("pending_send", [])
     db.setdefault("pending_history", [])
     db.setdefault("pending_fetch", [])
     db.setdefault("threads", {})
@@ -167,58 +170,6 @@ def _visible_items(db: dict) -> list:
         it["highlight"] = _policy.wants_highlight(pol, it)
         out.append(it)
     return _renumber(out)
-
-
-def _resolve_target(db: dict, n=None, mid: str | None = None) -> dict | None:
-    """The identity `draft`/`send_draft` reply to (V2-611) — NOT `reply`, which keeps its own original,
-    separately-tested resolution (chat-list numbering when no thread is open) unchanged.
-
-    `n`/`messageId` resolve against the flat renumbered list — the same space read/dismiss/archive/trash/hide
-    already use, and the same meaning `n` has there (an ITEM, never a `_group_chats` row). The compose bar
-    always has the concrete item in hand for a single email (both `n` and `messageId`), so this never needs
-    to guess between the two numbering spaces the way `reply`'s legacy fallback does. With NEITHER given and
-    a thread open, it resolves to the conversation itself: the operator answering «the person I'm talking
-    to», not a specific past message."""
-    if n is not None or mid:
-        # `n` only exists on an item once `_renumber` assigns it — a raw stored item never carries one, so
-        # this must renumber first, exactly like every other n-addressed action in this file (read/dismiss/
-        # archive/trash/hide). Skipping it would make a bare `n` never resolve to anything at all outside a
-        # test fixture that happened to pre-set the field (the mistake this comment exists to prevent again).
-        items = _renumber(db.get("items", []))
-        return next((it for it in items
-                     if (n is not None and it.get("n") == n) or (mid and it.get("messageId") == mid)), None)
-    active = db.get("active_chat")
-    if active is None:
-        return None
-    key = (active.get("platform"), str(active.get("chatId")))
-    msgs = [it for it in db.get("items", []) if (it.get("platform"), str(it.get("chatId"))) == key]
-    if msgs:
-        return msgs[-1]
-    # Every pending item in this thread is already read/answered — nothing left in `items` to mark-read or
-    # remove, but the conversation still has an identity to reply to (V2-546: answering must not require an
-    # unread message to exist first). `_enqueue_reply` reads only platform/chatId/senderId from this shape.
-    return {"platform": key[0], "chatId": key[1]}
-
-
-def _enqueue_reply(db: dict, target: dict, text: str, cc: list | None = None) -> None:
-    """The one place a reply/draft actually gets queued for the connector to send for real. A real item
-    ALWAYS carries `messageId` (set on ingestion, by every connector) — including one resolved via `reply`'s
-    own chat-grouping fallback, which never goes through `_renumber` and so never has `n` set either, which
-    is why `n` cannot be the "is this real" signal here. Only the true synthetic thread-identity target (see
-    `_resolve_target`, `{"platform", "chatId"}` alone) has neither, and nothing pending to remove — correct,
-    since there was no pending item to begin with."""
-    db.setdefault("pending_reply", []).append({
-        "platform": target.get("platform"), "chatId": target.get("chatId"),
-        "to": target.get("senderId") or target.get("chatId"),
-        "messageId": target.get("messageId"), "subject": target.get("subject", ""),
-        "msgid": target.get("msgid", ""), "text": text,
-        # V2-680 — reply-ALL. Empty (the default, and every caller that does not pass it) is a plain reply,
-        # so the queued shape is unchanged for `reply` and for every connector that ignores the field.
-        "cc": [str(a) for a in (cc or []) if str(a).strip()],
-    })
-    if target.get("messageId") is not None:
-        db.setdefault("pending_read", []).append(_key(target))
-        db["items"] = [it for it in db.get("items", []) if it is not target]
 
 
 def view_data(q: str = "") -> dict:
@@ -310,6 +261,14 @@ def answer_action(action: str, payload: dict | None = None) -> dict | None:
     the ANSWER and vetoes an invalid order without touching the store; the mutation still goes through the
     owner. Must never call store.save."""
     payload = payload or {}
+    if action == "send_to":
+        # V2-683 — the veto runs BEFORE the order reaches the owner's mailbox: an unresolvable recipient must
+        # never be queued and then fail out of sight, and the sentence that says what is missing is the only
+        # thing that makes the next attempt succeed.
+        t = _outbound.resolve_target(payload)
+        if not t.get("ok"):
+            return t
+        return {"ok": True, "result": {"to": t.get("name"), "channel": t.get("platform")}}
     if action == "show_view":
         raw = str(payload.get("platform") or payload.get("view") or "").strip().lower()
         if raw not in _PLAT_ALIASES:
@@ -598,7 +557,7 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
                             if (it.get("platform"), str(it.get("chatId"))) == key]
                     target = msgs[-1] if msgs else None
             if target is not None:
-                _enqueue_reply(db, target, text)
+                _outbound.enqueue_reply(db, target, text)
                 store.save(WIDGET_ID, db)
         return view_data()
 
@@ -608,7 +567,7 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
     # one-shot model-dictated reply (CONFIRM-gated, unchanged) — this is the review-first path instead.
     if action == "draft":
         db = load_db()
-        target = _resolve_target(db, payload.get("n"), payload.get("messageId"))
+        target = _outbound.resolve_reply_target(db, payload.get("n"), payload.get("messageId"))
         if target is None:
             return {"ok": False, "error": "no_target",
                      "message": "No sé a qué conversación o mensaje se refiere el borrador."}
@@ -623,7 +582,7 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
         # conversation. Resolving the key from the payload's own target keeps both callers on one path.
         key = None
         if payload.get("n") is not None or payload.get("messageId"):
-            t = _resolve_target(db, payload.get("n"), payload.get("messageId"))
+            t = _outbound.resolve_reply_target(db, payload.get("n"), payload.get("messageId"))
             if t is not None:
                 key = _drafts.key(t)
         draft = _drafts.pick(db, key)
@@ -635,13 +594,28 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
         # elsewhere, read from the real app) is not blindly replied to under a stale identity — same
         # resolution `reply` itself uses. Falls back to the stored identity when nothing live matches: the
         # conversation's own platform/chatId are still enough to send to, even with no pending item left.
-        target = _resolve_target(db, stored.get("n"), stored.get("messageId")) or stored
+        target = _outbound.resolve_reply_target(db, stored.get("n"), stored.get("messageId")) or stored
         cc = _drafts.cc_for(draft)
-        _enqueue_reply(db, target, text, cc=cc)
+        _outbound.enqueue_reply(db, target, text, cc=cc)
         _drafts.forget(db, draft.get("key") or key)
         store.save(WIDGET_ID, db)
         return {"ok": True, "to": target.get("senderId") or target.get("chatId"), "text": text,
                 "cc": list(cc)}
+
+    if action == "send_to":
+        # V2-683 — writing to a PERSON who has not written to us. WHO and by WHICH channel are resolved in
+        # `outbound.py` (which asks `widgets/directory.py`), and an unresolved one comes back as a refusal
+        # that says what is missing: this door can say the right thing to the WRONG person, and that is the
+        # one mistake it cannot take back.
+        db = load_db()
+        t = _outbound.resolve_target(payload)
+        if not t.get("ok"):
+            return t
+        order = _outbound.enqueue(db, t, payload.get("text"), subject=str(payload.get("subject") or ""),
+                                  objective=str(payload.get("objective") or ""))
+        store.save(WIDGET_ID, db)
+        return {"ok": True, "result": {"to": t.get("name"), "channel": t.get("platform"),
+                                       "ref": order.get("ref")}}
 
     # V2-611 — the EMAIL SIGNATURE, appended once by the connector at real send time (service.py's
     # `_drain_replies`), never here: this only writes the config the connector reads. `config/connectors.py`

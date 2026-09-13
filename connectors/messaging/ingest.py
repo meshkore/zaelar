@@ -20,6 +20,11 @@ TOPIC_MSG = "connector.msg"
 TOPIC_STATUS = "connector.status"
 TOPIC_MARK_READ = "msg.mark_read"
 TOPIC_REPLY = "msg.reply"          # V2-051: widget asks to SEND a reply; that platform's connector sends it
+# V2-683 — writing to a PERSON who has not written to us. Deliberately NOT `msg.reply`: that one carries a
+# `chatId` that exists because somebody already wrote, and this one carries a `to` the connector still has to
+# RESOLVE into a conversation. Sharing the topic would mean every drain guessing which of the two it got.
+TOPIC_SEND = "msg.send"
+TOPIC_SEND_FAILED = "msg.send_failed"   # the send could not be made: the caller (and the operator) are told
 TOPIC_ARCHIVE = "msg.archive"      # V2-543: widget asks to ARCHIVE in the real mailbox (email today)
 TOPIC_TRASH = "msg.trash"          # V2-543: widget asks to DELETE in the real mailbox (email today)
 # V2-546 — the three signals that make the widget FOLLOW the real app instead of drifting from it. Until these
@@ -82,6 +87,26 @@ def publish_reply(key: dict) -> None:
     connector (email today) drains it from its `ReplyInbox` and sends it in its app (SMTP)."""
     try:
         bus.emit_sync(TOPIC_REPLY, dict(key or {}))
+    except Exception:
+        pass
+
+
+def publish_send(order: dict) -> None:
+    """Widget asks to OPEN a conversation and send (V2-683): {ref, platform, to, chatId, text, subject?}.
+    That platform's connector drains it from its `SendInbox`, resolves `to` into a real conversation, sends,
+    and echoes `connector.msg_out` carrying the same `ref` — which is what binds the new thread to whatever
+    asked for it."""
+    try:
+        bus.emit_sync(TOPIC_SEND, dict(order or {}))
+    except Exception:
+        pass
+
+
+def publish_send_failed(order: dict, reason: str) -> None:
+    """The send did not happen. A failure that only logs reads, from the outside, exactly like a success —
+    and the order is NOT requeued: one honest «no pude» beats a message retried forever at somebody."""
+    try:
+        bus.emit_sync(TOPIC_SEND_FAILED, {**dict(order or {}), "reason": str(reason or "")[:300]})
     except Exception:
         pass
 
@@ -152,6 +177,11 @@ class TrashInbox(_PlatformInbox):
 class ReplyInbox(_PlatformInbox):
     """Per-platform subscription to `msg.reply` (V2-051). The connector drains and SENDS the reply in its app."""
     _TOPIC = TOPIC_REPLY
+
+
+class SendInbox(_PlatformInbox):
+    """Per-platform subscription to `msg.send` (V2-683): OPEN a conversation with somebody and write to them."""
+    _TOPIC = TOPIC_SEND
 
 
 class HistoryAskInbox(_PlatformInbox):

@@ -1,7 +1,7 @@
 """V2-611 — the review-first reply: `draft` writes into a visible box, `send_draft` is the separate,
 deliberate act that actually sends. Built after diagnosing that the previous target resolution for a
 NO-active-chat reply (`reply`'s own fallback, unchanged here) addressed CHAT numbering, which the flat
-EMAIL list never has — the exact ambiguity `_resolve_target` closes by accepting `messageId` too.
+EMAIL list never has — the exact ambiguity `outbound.resolve_reply_target` closes by accepting `messageId` too.
 """
 from __future__ import annotations
 
@@ -9,6 +9,14 @@ import pytest
 
 from widgets import store
 from widgets.mensajeria import data as msg
+
+
+def _outbound():
+    """V2-683 moved the SENDING side out of data.py (the ratchet, paid by extraction along a real seam).
+    The claims below are unchanged; they are measured where the code now lives, because a test anchored on
+    a name that has moved measures nothing at all (V2-555)."""
+    from widgets.mensajeria import outbound
+    return outbound
 
 _EMAIL = {"n": 1, "platform": "email", "chatId": "ana@x.com", "messageId": "uid-1", "senderId": "ana@x.com",
           "from": "Ana", "subject": "Reunión", "msgid": "<m1>", "dir": "in", "body": "¿Confirmamos?", "ts": 1}
@@ -30,7 +38,7 @@ def _seed(items):
     store.save(msg.WIDGET_ID, db)
 
 
-# ── _resolve_target: the identity bug this closes ────────────────────────────────────────────────────────
+# ── outbound.resolve_reply_target: the identity bug this closes ────────────────────────────────────────────────────────
 
 def test_n_addresses_the_flat_email_list_directly_not_a_chat_number(sandbox):
     """The bug: `reply`'s old fallback resolved `n` against `_group_chats`' OWN numbering. Two single-message
@@ -38,7 +46,7 @@ def test_n_addresses_the_flat_email_list_directly_not_a_chat_number(sandbox):
     caught it — the real proof is `test_email_and_chat_numbering_can_legitimately_differ` below."""
     _seed([_EMAIL, _EMAIL2])
     db = msg.load_db()
-    t = msg._resolve_target(db, n=2)
+    t = _outbound().resolve_reply_target(db, n=2)
     assert t is not None and t["messageId"] == "uid-2"
 
 
@@ -49,7 +57,7 @@ def test_email_and_chat_numbering_can_legitimately_differ(sandbox):
     same_sender_2 = {**_EMAIL2, "n": 2, "chatId": "ana@x.com", "messageId": "uid-2b", "senderId": "ana@x.com"}
     _seed([_EMAIL, same_sender_2])
     db = msg.load_db()
-    t = msg._resolve_target(db, n=2)
+    t = _outbound().resolve_reply_target(db, n=2)
     assert t is not None and t["messageId"] == "uid-2b"          # NOT resolved as "chat n=2" (there is none)
 
 
@@ -61,14 +69,14 @@ def test_n_resolves_even_when_items_carry_no_stored_n_at_all(sandbox):
     bare = [{k: v for k, v in it.items() if k != "n"} for it in (_EMAIL, _EMAIL2)]
     _seed(bare)
     db = msg.load_db()
-    t = msg._resolve_target(db, n=2)
+    t = _outbound().resolve_reply_target(db, n=2)
     assert t is not None and t["messageId"] == "uid-2"
 
 
 def test_messageId_resolves_unambiguously_regardless_of_n(sandbox):
     _seed([_EMAIL, _EMAIL2])
     db = msg.load_db()
-    t = msg._resolve_target(db, mid="uid-2")
+    t = _outbound().resolve_reply_target(db, mid="uid-2")
     assert t is not None and t["n"] == 2
 
 
@@ -78,7 +86,7 @@ def test_an_open_thread_with_no_n_targets_its_last_message(sandbox):
     db["active_chat"] = {"platform": "whatsapp", "chatId": "34600"}
     store.save(msg.WIDGET_ID, db)
     db = msg.load_db()
-    t = msg._resolve_target(db)
+    t = _outbound().resolve_reply_target(db)
     assert t is not None and t["messageId"] == "wa-1"
 
 
@@ -90,13 +98,13 @@ def test_an_open_thread_already_fully_answered_still_has_an_identity(sandbox):
     db["active_chat"] = {"platform": "whatsapp", "chatId": "34600"}
     store.save(msg.WIDGET_ID, db)
     db = msg.load_db()
-    t = msg._resolve_target(db)
+    t = _outbound().resolve_reply_target(db)
     assert t == {"platform": "whatsapp", "chatId": "34600"}
 
 
 def test_no_target_and_no_open_thread_resolves_to_nothing(sandbox):
     _seed([])
-    assert msg._resolve_target(msg.load_db()) is None
+    assert _outbound().resolve_reply_target(msg.load_db()) is None
 
 
 # ── draft / send_draft ───────────────────────────────────────────────────────────────────────────────────

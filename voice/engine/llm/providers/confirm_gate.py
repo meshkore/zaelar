@@ -34,6 +34,12 @@ def _similar_pending(req: str, pendings: list[dict]) -> bool:
         if union and len(g & o) / union >= 0.5:
             return True
     return False
+def _out_label(platform) -> str:
+    """The app's name as the operator says it — he hears «por Telegram», never «por telegram»."""
+    return {"whatsapp": "WhatsApp", "telegram": "Telegram", "email": "correo"}.get(
+        str(platform or "").strip().lower(), "")
+
+
 def _human_confirm_question(wid: str, action: str, payload: dict) -> str:
     """Texto HUMANO de una confirmación de data-op irreversible (overlay + voz). Expone el ALCANCE real leído del
     MANIFEST — qué HACE la acción (`desc`) y sobre QUÉ item (etiqueta resuelta) — para que el operador vea si es
@@ -59,6 +65,32 @@ def _human_confirm_question(wid: str, action: str, payload: dict) -> str:
             pass
         dest = f" a {who}" if who else ""
         return f"Voy a responder{dest}: «{draft}». ¿Lo envío?"
+
+    # V2-683 — WRITING TO A PERSON. Same reason as the branch above, one step further: this send does not
+    # answer a conversation, it OPENS one, so the question has to name WHO and by WHICH app before anything
+    # leaves — «¿Le escribo a Iván por Telegram: "…"?». And when the order carries an `objective`, this
+    # sentence is also the MANDATE: the one yes that authorises the whole exchange that follows, said out
+    # loud instead of asked again per message. `confirm_q` cannot do it (it interpolates `{item}` and nothing
+    # else), which is exactly why `reply` composes its own here too.
+    if wid == "mensajeria" and action == "send_to":
+        p = payload or {}
+        try:
+            from widgets.mensajeria import outbound as _out
+            d = _out.describe(p)
+        except Exception:  # noqa: BLE001
+            d = {}
+        body = str(p.get("text") or "").strip()
+        draft = (body[:180] + "…") if len(body) > 180 else body
+        who = str(d.get("name") or p.get("contact") or p.get("to") or "").strip()
+        via = _out_label(d.get("platform") or p.get("channel") or "")
+        head = f"Voy a escribir a {who}" if who else "Voy a escribir"
+        head += f" por {via}" if via else ""
+        q = f"{head}: «{draft}». ¿Se lo mando?"
+        obj = str(p.get("objective") or "").strip()
+        if obj:
+            q = (f"{head}: «{draft}». Es para {obj}: si contesta, sigo yo la conversación por ahí y te aviso. "
+                 f"¿Le escribo?")
+        return q
 
     desc = ""
     human = ""

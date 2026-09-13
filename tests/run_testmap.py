@@ -2830,6 +2830,15 @@ DOMAINS: list[dict] = [
                                  "la sesión, con el micro en la fila del enviar y salida clara en el móvil",
             "ch": UNIT, "paths": [
                 "tests/browser/e2e/feedback/test_the_details_of_the_chat_wall_and_the_feedback_box.py"]},
+        # V2-683 — ESCRIBIR A UNA PERSONA que no nos ha escrito. Hasta aquí toda salida contestaba a algo
+        # que ya había llegado: `reply`/`draft`/`send_draft` resuelven contra un item guardado o el hilo
+        # abierto. El peso está en las NEGATIVAS: una respuesta solo puede decirle lo equivocado a la persona
+        # correcta; esta puerta puede decirle lo correcto a la persona EQUIVOCADA, y eso no se deshace.
+        {"id": "4.166", "title": "Escribir a una PERSONA: el canal preferido, la ambigüedad que PREGUNTA, el "
+                                 "secreto que no sale, y la frase que el operador oye (que con `objective` "
+                                 "ES el mandato) antes de que salga nada",
+            "ch": UNIT, "paths": [
+                "tests/browser/unit/mensajeria/test_writing_to_a_person_who_has_not_written.py"]},
         {"id": "4.34", "title": "El aviso de fallo del feedback RENDERIZADO: conectado, con caja, traducido y "
                                 "nombrando el 401 · y el gracias visible en la pestaña a la que se salta",
             "ch": UNIT, "live": True,
@@ -2922,6 +2931,15 @@ DOMAINS: list[dict] = [
         {"id": "5.2", "title": "Mensajería (ingest/reply)", "ch": UNIT, "paths": [
             "tests/connectors/unit/messaging/test_ingest.py", "tests/connectors/unit/messaging/test_reply.py",
             "tests/connectors/unit/messaging/test_memory_dump.py"]},
+        # V2-683 — `msg.reply` lleva un chatId que existe porque alguien escribió; `msg.send` lleva un HANDLE
+        # que el conector todavía tiene que convertir en conversación, y el id que resuelve no existe en
+        # ningún otro sitio. Por eso el eco (`connector.msg_out` con el `ref` del encargo) no es un adorno:
+        # es la única forma de que quien pidió el envío sepa qué conversación acaba de abrir.
+        {"id": "5.24", "title": "Un PRIMER mensaje abre la conversación: los tres conectores resuelven el "
+                                "destinatario, devuelven el id que crearon, y una negativa se dice UNA vez "
+                                "y no se reintenta (transportes falsos)",
+            "ch": UNIT, "paths": [
+                "tests/connectors/unit/messaging/test_a_first_message_opens_a_conversation.py"]},
         # V2-629 F0 — the canonical communications archive. Measured 2026-09-09 before building it: every
         # message body was written twice (thread store, msg pill) and BOTH copies expire by design, so «a
         # message from a month ago» was unanswerable from any store we control. The archive is the one
