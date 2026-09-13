@@ -62,8 +62,15 @@ def test_y_el_lock_de_siempre_sigue_entero(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def _restaura():
-    yield
+    """⚠️ V2-684: this used to POP the variable, so every test running after this file measured a suite
+    with NO language set — undoing the whole point of the root conftest forcing one. Nothing failed; the
+    cost landed on whichever neighbour ran next. Caught by the leak guard the day it was installed."""
     import os
+    before = os.environ.get("ZAELAR_LANGUAGE")
+    yield
     from nucleo.flash import prompt as P
-    os.environ.pop("ZAELAR_LANGUAGE", None)
+    if before is None:
+        os.environ.pop("ZAELAR_LANGUAGE", None)
+    else:
+        os.environ["ZAELAR_LANGUAGE"] = before
     importlib.reload(P)

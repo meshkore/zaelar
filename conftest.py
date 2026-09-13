@@ -121,3 +121,37 @@ try:
             pass
 except Exception:                                  # sin `voice` importable, la suite sigue como antes
     pass
+
+
+# V2-684 — A LANGUAGE LEAK IS A FAILURE OF THE TEST THAT CAUSED IT (2026-09-13).
+#
+# `ZAELAR_LANGUAGE` is forced above so the runner's machine cannot decide what «green» means. That holds
+# only as long as nothing changes it mid-suite — and something does: `config/settings.py::update()` writes
+# `os.environ["ZAELAR_LANGUAGE"]` UNCONDITIONALLY, because in production the store overrides the env, which
+# is correct there. `test_first_run_language.py:99-101` has carried a comment about the measured leak since
+# 2026-08-20 and nothing turned it into a red test, so the cost kept landing on whatever ran next: a test
+# asserting Spanish phrases passes or fails depending on which of its neighbours ran first, which is the
+# most expensive failure shape there is (it cannot be reproduced when investigated).
+#
+# The guard asserts the variable comes OUT of each test as it went IN. The test that dirties it fails, by
+# name, instead of tinting the rest of the run. A test that legitimately changes the language uses
+# `tests.lang.speaking(code)`, which restores it — so this guard is what makes that the only way.
+#
+# No `monkeypatch`, same reason as its two neighbours above.
+try:
+    import os as _os
+
+    import pytest as _pytest2
+
+    @_pytest2.fixture(autouse=True)
+    def _a_language_leak_is_a_failure():
+        before = _os.environ.get("ZAELAR_LANGUAGE")
+        yield
+        after = _os.environ.get("ZAELAR_LANGUAGE")
+        if after != before:
+            _os.environ["ZAELAR_LANGUAGE"] = before if before is not None else "en"
+            raise AssertionError(
+                f"this test left ZAELAR_LANGUAGE as {after!r} (it was {before!r}) — every test after it "
+                f"would have measured that language. Use `tests.lang.speaking(code)`, which restores it.")
+except Exception:
+    pass

@@ -3509,6 +3509,17 @@ DOMAINS: list[dict] = [
         {"id": "8.8", "title": "Un guardado de configuración se juzga por lo que DEJA, no por lo que lleva",
             "ch": UNIT,
             "paths": ["tests/infrastructure/unit/config/test_a_config_save_validates_the_RESULT.py"]},
+        # V2-684 T-A — una SOLA forma de cambiar el idioma de la suite, y una fuga es un fallo DEL TEST que
+        # la provoca. Cinco ficheros reinventaban el gesto por su cuenta y solo uno invalidaba el pack del
+        # action map (que está indexado POR IDIOMA y cacheado), así que un test que cambiaba de idioma medía
+        # la tabla del anterior y pasaba describiendo el idioma equivocado. El guarda encontró dos fugas
+        # reales el mismo día que se instaló: un fichero que BORRABA la variable en su teardown —dejando a
+        # la suite sin idioma ninguno— y dos casos que llaman a `settings.update({"stt_language": "de"})`,
+        # que escribe el entorno del proceso a propósito.
+        {"id": "8.9", "title": "La suite habla UN idioma cada vez: speaking() hace las tres cosas, y quien "
+                               "deja el idioma cambiado falla ÉL",
+            "ch": UNIT,
+            "paths": ["tests/infrastructure/unit/core/test_the_suite_speaks_one_language_at_a_time.py"]},
         {"id": "8.3", "title": "Política de modelos: un solo titular, sin proveedores retirados",
             "ch": UNIT, "paths": ["tests/infrastructure/unit/config/test_model_policy.py"]},
         {"id": "8.2", "title": "Perfiles / v2 / doctor / credenciales", "ch": UNIT, "paths": [

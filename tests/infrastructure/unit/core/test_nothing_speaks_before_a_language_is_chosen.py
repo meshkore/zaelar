@@ -22,6 +22,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.lang import speaking
+
 ROOT = Path(__file__).resolve().parents[4]
 AGENT = ROOT / "voice" / "engine" / "pipeline" / "agent.py"
 PICKER_JS = ROOT / "frontend" / "app" / "components" / "LanguageOnboarding.js"
@@ -189,8 +191,12 @@ def test_the_language_realignment_covers_every_provider_not_only_kokoro(monkeypa
     monkeypatch.setattr(V, "default_voice_for", lambda prov, lang: f"voice-for-{lang}")
     monkeypatch.setattr(V, "voice_is_aligned", lambda prov, voice, lang=None: False)
     monkeypatch.setattr(V, "voices_for", lambda prov, lang=None: [{"voice": f"voice-for-{lang}"}])
-    st.update({"stt_language": "de"})
-    assert json.loads(f.read_text(encoding="utf-8"))["assistant_voice"] == "voice-for-de"
+    # `settings.update()` writes ZAELAR_LANGUAGE into the PROCESS env — correct in production (the store
+    # overrides the env) and a suite-wide leak here: without this, every test after these two measured a
+    # German engine. `speaking()` puts it back. Caught by V2-684's leak guard.
+    with speaking("en"):
+        st.update({"stt_language": "de"})
+        assert json.loads(f.read_text(encoding="utf-8"))["assistant_voice"] == "voice-for-de"
 
 
 def test_a_voice_that_already_suits_the_new_language_is_left_alone(monkeypatch, tmp_path):
@@ -205,8 +211,9 @@ def test_a_voice_that_already_suits_the_new_language_is_left_alone(monkeypatch, 
     monkeypatch.setattr(V, "default_voice_for", lambda prov, lang: "other")
     monkeypatch.setattr(V, "voice_is_aligned", lambda prov, voice, lang=None: voice == "mine")
     monkeypatch.setattr(V, "voices_for", lambda prov, lang=None: [{"voice": "mine"}, {"voice": "other"}])
-    st.update({"stt_language": "de"})
-    assert json.loads(f.read_text(encoding="utf-8"))["assistant_voice"] == "mine"
+    with speaking("en"):
+        st.update({"stt_language": "de"})
+        assert json.loads(f.read_text(encoding="utf-8"))["assistant_voice"] == "mine"
 
 
 def test_being_in_the_list_is_not_the_same_question_as_being_right_for_the_language(monkeypatch):

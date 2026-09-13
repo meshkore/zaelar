@@ -133,6 +133,13 @@ BLESSED_INTERNAL_IMPORTS: dict[str, str] = {
     "memory.state": "fixed state table — CLOSEABLE: re-export from the facade",
     "memory.journal": "task journal — CLOSEABLE: re-export from the facade",
     # ── internals with a legitimate, bounded caller ──
+    # V2-683/V2-684: the errand ledger. It IS a facade — the `errands`/`errand_threads` tables and nothing
+    # else, with `nucleo/errands/` owning every rule — and it lives beside `api.py` instead of inside it
+    # because the architecture ratchet asks for a module rather than a higher ceiling on the facade. So the
+    # two rules pointed opposite ways and the extraction won; blessing the result is what makes that
+    # decision visible instead of leaving the boundary test red for a reason nobody wrote down. Closeable
+    # the day `api.py` has room: re-export from there and delete this line.
+    "memory.errands_store": "errand ledger — a facade the size ratchet forced OUT of api.py (V2-683)",
     "memory.writer": "the single writer — touched by memory_agent, which IS the writer",
     "memory.rerank": "reranker state for the config panel",
     "memory.embeddings": "backend state/dimension for the config panel and boot",
