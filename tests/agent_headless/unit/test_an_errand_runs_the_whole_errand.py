@@ -434,3 +434,35 @@ def test_no_playbook_names_a_person_a_company_or_a_site():
         blob += " " + " ".join(str(x) for x in (spec.get("needs") or []) + (spec.get("stop_when") or []))
         hit = banned.search(blob)
         assert not hit, f"playbook «{kind}» names «{hit.group(0)}» — that is a script, not a briefing"
+
+
+# ══ THE INTERSECTION: the party's language, not the operator's ═══════════════════════════════════════════
+# This is where V2-684's two halves meet. Every other language surface in the engine follows the OPERATOR;
+# this one deliberately does not — a stranger who writes in English gets answered in English, from a
+# Spanish install. `party.build_system` claims it in one line and nothing measured it.
+
+def test_the_reply_follows_the_PARTYS_language_and_the_operators_is_only_the_fallback():
+    from nucleo.errands import party
+    from tests.lang import speaking
+    from i18n import langs
+    for code in ("es", "en"):
+        with speaking(code):
+            native = langs.current_language().native
+            sys_prompt = party.build_system("Zaelar", "Ricard", native)
+            assert "en el idioma en el que te escriba" in sys_prompt, \
+                "the party's language wins — this is the one surface that does not follow the operator"
+            assert f"si todavía no ha escrito, en {native}" in sys_prompt, \
+                "and the operator's is the fallback for the FIRST message, when nobody has written yet"
+
+
+def test_the_operators_language_reaches_the_party_turn_through_the_engine(world, monkeypatch):
+    """End to end, not by reading `build_system`: the language the engine is speaking is what lands in the
+    system prompt of the turn that talks to a stranger."""
+    from tests.lang import speaking
+    _ivan()
+    model = answers(monkeypatch, '{"say": "ok", "state": "negotiating"}')
+    got = _open(world)
+    with speaking("en"):
+        _answers_and_wakes(world, got["chat"], "Hi, who is this?")
+    assert "English" in model.calls[-1]["system"], \
+        "the engine's own language travelled into the party turn as the fallback"

@@ -499,6 +499,61 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **The test system learns the ERRAND, and a language leak becomes a failure (V2-684, 2026-09-13)**: the
+  operator, handing over a second Telegram account of his own (`@cryptonite_fund`) to answer from — «así
+  lo podrás probar contra una cuenta real» — and merging two testing plans into one batch, errand first.
+  They ARE one plan: the errand's party turn is a language surface (`party.build_system` answers in the
+  PARTY's language, not the operator's), which is the one case neither plan covered.
+  - **The ARC, and why the pieces were not enough.** V2-683's 105 cases each move one piece with the
+    neighbours stubbed; all of the errand's interesting behaviour is multi-turn, and the multi-turn shape
+    had never run once. `tests/agent_headless/harness/errand_world.py` is ONE double, at the TRANSPORT —
+    it hears `msg.send`, decides whether the message really went out, echoes the conversation it created,
+    and can make the other person answer — with a clock the arc controls, so ten hours cost no seconds.
+    Everything above it is product: the widget's `send_to`, the owner's flush WITH its secret scan, the
+    watcher's three signals, the ledger, the wake, the parse, the verifier and the expiry sweep. Node
+    **3.43** (19 cases): agreement closing against the AGENDA and not against the model, the answer ten
+    hours later, «quiero hablar con Ricart» (blocks AND then stays quiet — the second half is the
+    assertion), nobody answering, two exchanges as ONE conversation, a send that failed, a meeting he
+    already had. Plus the half he said matters most, «sin necesidad de que lo tengamos que programar»: the
+    same arc with NO playbook, with reunión→cena, and with `config/playbooks.json` beating genesis — with
+    a ratchet that no playbook may name a person, a company or a site, which is what keeps a briefing from
+    quietly becoming a script.
+  - ⚠️ **The arc found a real defect: an ARMED errand would have answered NOBODY.** `wake._send` queues
+    the composed reply in `pending_send`, and the only flush lived inside `_Owner.handle` — with no
+    operator action on the messaging widget, nothing ever drained it. Invisible because the feature ships
+    in SHADOW (nothing to flush) and because every unit test stopped at «it was queued». The owner's own
+    beat drains it now; the flush stays where it is, because that is the one door where `memory/secrets.py`
+    reads a text written by a MODEL for somebody outside.
+  - **The shadow gate is a number now** (node **3.44**, read-only): every decision the errand logged, per
+    errand, with what it WOULD have said — and the one question answerable mechanically, «how many would
+    have written to a conversation that is not this errand's own». Zero is the gate. A log with no
+    decisions says so instead of printing a reassuring zero over nothing. And node **3.45** is the only
+    test in the house that writes to a PERSON: it arms the engine out of shadow for the length of the run
+    and restores it in a `finally`, **refuses to start while any other errand is open** (the flag is
+    global), and waits — saying what it is waiting for — through as many replies as the conversation takes.
+  - **A language leak is a failure of the test that caused it.** `tests/lang.speaking(code)` does the
+    THREE things a language change is (env + `actionmap.invalidate()` + `detect._should_cache`); five
+    files each did a subset by hand and only one invalidated the pack, so a test that switched language
+    read the previous language's table and passed describing the wrong one. The root conftest now fails
+    whoever leaves `ZAELAR_LANGUAGE` changed — documented in prose since 2026-08-20 and never made red —
+    and found two real leaks the day it was installed: one file POPPED the variable in its teardown
+    (leaving every later test with no language at all) and two cases call `settings.update
+    ({"stt_language": "de"})`, which writes the process env by design. Node **8.9**.
+  - **The segmenter corpus stops mixing languages.** It was red at 54 % against a 70 % floor and all ten
+    escaped fragments were English, while the segmenter has no branch for another language — so one
+    blended number was pressing to LOWER the Castilian bar to accommodate English. Two buckets, two
+    floors, a bucket too small to mean anything reported instead of asserted. ⚠️ Measured: the registry
+    holds ZERO Castilian fragments today (the sessions rotated), so that side SKIPS rather than passing,
+    and the test says which. ⚠️ Also measured, and the plan had it wrong: a session does NOT record its
+    language — one event in 12 127 carries the field — so the label is lexical and says it is test-side.
+  - Seven disarms, every mutation asserted, all red; two came back GREEN first and each accused the test
+    (the failed-send guard is not what stops a birth — no echo is; and the flush's WIRING was measured by
+    nobody, since the arcs drive it through the harness). `memory.errands_store` is blessed in the memory
+    contract: the boundary test and the architecture ratchet pointed opposite ways in V2-683 and the
+    extraction won — the blessing records that instead of leaving a red test with no written reason.
+    **NOT verified live**: nothing has been sent to `@cryptonite_fund` yet. NOT built: the journey case
+    and the language axis proper (T-B…T-G), named in the initiative.
+
 - **An errand with a THIRD PARTY outlives the turn — and it ships in SHADOW (V2-683, 2026-09-13)**: the
   operator's errand — «contacta con Iván Musikin y mantén una conversación con él para organizar una
   reunión esta tarde… y cuando él conteste, ahora o dentro de diez horas, sigue esa conversación» — plus
