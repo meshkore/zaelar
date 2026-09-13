@@ -1,0 +1,19 @@
+{
+  "id": "google-meet",
+  "label": "Google Meet",
+  "kind": "connector",
+  "family": "agenda",
+  "transport": "native",
+  "auth": "oauth",
+  "state": "built",
+  "capabilities": [
+    "google meet",
+    "meet",
+    "videollamada",
+    "videoconferencia",
+    "video call",
+    "video meeting",
+    "enlace de reunión",
+    "meeting link"
+  ]
+}
