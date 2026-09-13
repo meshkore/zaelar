@@ -271,7 +271,23 @@ def upsert_items(platform: str, new_items: list[dict]) -> dict:
     out = save(db)     # UI SSE intact: the per-widget store still sends the face
     _to_memory(fresh)  # ALSO, durable content goes to central memory (brain recall)
     _to_archive(fresh)  # AND the canonical communications log (V2-628) — the only copy that does not expire
+    _to_directory(platform, fresh)   # AND the contact learns the channel he wrote from (V2-683)
     return out
+
+
+def _to_directory(platform: str, items: list[dict]) -> None:
+    """V2-683 — passive channel learning (V2-052's closed decision 3). Every inbound already carries an
+    identity for its platform, so the contacts the operator really talks to build their own channel list and
+    «escríbele a Iván» stops needing to ask which app. The whole decision — who this is, whether it is
+    unambiguous, what may be written — lives in `widgets/directory.py`; this is only the fan-out, in the
+    same place and with the same stance as `_to_memory`/`_to_archive`: best-effort, never breaks the store."""
+    if not items:
+        return
+    try:
+        from widgets import directory
+        directory.note_many(platform, items)
+    except Exception:  # noqa: BLE001
+        pass
 
 
 def _to_archive(items: list[dict], platform: str | None = None, chat_id=None, **kw) -> None:

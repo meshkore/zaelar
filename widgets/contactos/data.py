@@ -140,6 +140,83 @@ def _matches(contacts: list, *, group: str = "", city: str = "", favorites=None,
     return out
 
 
+# V2-683 — CHANNELS. A contact carries how to REACH them, per platform, so «escríbele a Iván» has an
+# answer that is not a guess. Shape and the rules for choosing one live in `widgets/directory.py` (the layer
+# module every outbound door asks); this file only stores and validates what it is told.
+_PLATFORMS = ("whatsapp", "telegram", "email")
+
+
+def _platform(v) -> str:
+    n = _norm(v)
+    return n if n in _PLATFORMS else ""
+
+
+def _channel_row(raw) -> dict | None:
+    """One channel from whatever shape the caller used. A row with no platform, or with neither a handle nor
+    a chatId, is not a channel: it carries no way to reach anybody and storing it would make
+    `channel_for` answer «yes, by Telegram» over nothing."""
+    if not isinstance(raw, dict):
+        return None
+    p = _platform(raw.get("platform"))
+    if not p:
+        return None
+    handle = str(raw.get("handle") or raw.get("address") or raw.get("phone") or "").strip()
+    chat_id = str(raw.get("chatId") or "").strip()
+    if not handle and not chat_id:
+        return None
+    row = {"platform": p, "handle": handle, "chatId": chat_id,
+           "source": str(raw.get("source") or "operator").strip() or "operator",
+           "volume": int(raw.get("volume") or 0)}
+    try:
+        row["last_seen"] = float(raw.get("last_seen") or 0)
+    except (TypeError, ValueError):
+        row["last_seen"] = 0.0
+    return row
+
+
+def _channels_in(payload: dict) -> list[dict]:
+    """`channels` as a list of rows, or a single `{platform, handle}` — deduped by platform, last one wins."""
+    raw = payload.get("channels")
+    if raw is None:
+        return []
+    rows = raw if isinstance(raw, (list, tuple)) else [raw]
+    out: dict[str, dict] = {}
+    for r in rows:
+        row = _channel_row(r)
+        if row:
+            out[row["platform"]] = row
+    return list(out.values())
+
+
+def _merge_channel(c: dict, row: dict) -> None:
+    """Set one channel on a contact, keeping what the new row does not say (an operator fixing a handle must
+    not erase the chatId the traffic already taught us, and vice versa)."""
+    chs = c.setdefault("channels", [])
+    old = next((ch for ch in chs if ch.get("platform") == row["platform"]), None)
+    if old is None:
+        chs.append(row)
+        return
+    for k in ("handle", "chatId"):
+        if row.get(k):
+            old[k] = row[k]
+    old["source"] = row.get("source") or old.get("source") or "operator"
+    if row.get("volume"):
+        old["volume"] = row["volume"]
+    if row.get("last_seen"):
+        old["last_seen"] = row["last_seen"]
+
+
+def _reach(c: dict) -> list[dict]:
+    """Every channel this contact is reachable by, INCLUDING the ones derived from a plain stored address —
+    `widgets/directory.py` owns that judgement, and asking it here is what keeps what the brain reads and
+    what the sending door does from drifting apart. Falls back to the raw list if the layer is unavailable."""
+    try:
+        from .. import directory
+        return directory.channels(c)
+    except Exception:
+        return [ch for ch in (c.get("channels") or []) if ch.get("platform")]
+
+
 def _public(c: dict) -> dict:
     """The compact row an action RESULT carries back to the brain — enough to answer by voice, never the
     whole record (the full data travels in view_data, and a result is read inside a prompt)."""
@@ -149,6 +226,14 @@ def _public(c: dict) -> dict:
             out[k] = c[k]
     if c.get("favorite"):
         out["favorite"] = True
+    # The PLATFORMS only, never the handles: this row is read inside a prompt, and a phone number or an
+    # address in there is personal data travelling for no reason — the door that sends already reads the
+    # handle from the store itself.
+    chans = [str(ch.get("platform")) for ch in _reach(c)]
+    if chans:
+        out["channels"] = chans
+    if c.get("preferred"):
+        out["preferred"] = c["preferred"]
     return out
 
 
@@ -210,6 +295,14 @@ def prompt_digest() -> str:
         extra += [str(c.get("city") or "")] if c.get("city") else []
         extra += [", ".join(c.get("groups") or [])] if c.get("groups") else []
         extra += [f"tel {c['phone']}"] if c.get("phone") else []
+        # V2-683 — by WHICH channel he can be written to, and which one is his. Platforms only (a handle is
+        # personal data and the sending door reads it from the store, not from here). Asked through
+        # `directory` rather than read raw, so a stored address counts as the email channel it is — the
+        # digest and the door that sends must never disagree about who is reachable.
+        chans = [str(ch.get("platform")) for ch in _reach(c)]
+        if chans:
+            pref = str(c.get("preferred") or "")
+            extra.append("canales: " + ", ".join((p + " (preferido)") if p == pref else p for p in chans))
         if c.get("notes"):
             extra.append(str(c["notes"])[:80])
         if extra:
@@ -279,6 +372,10 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
                     existing.setdefault("groups", []).append(g)
             if payload.get("favorite") is not None:
                 existing["favorite"] = _truthy(payload.get("favorite"))
+            for row in _channels_in(payload):
+                _merge_channel(existing, row)
+            if _platform(payload.get("preferred")):
+                existing["preferred"] = _platform(payload.get("preferred"))
             existing["updated"] = now
             c, updated = existing, True
         else:
@@ -289,6 +386,7 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
                  "email": str(payload.get("email") or "").strip(),
                  "notes": str(payload.get("notes") or "").strip(),
                  "groups": groups, "favorite": _truthy(payload.get("favorite")),
+                 "channels": _channels_in(payload), "preferred": _platform(payload.get("preferred")),
                  "parentId": "", "created": now, "updated": now}
             db["next_id"] = int(db.get("next_id", 1)) + 1
             contacts.append(c)
@@ -317,10 +415,45 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
                     c.setdefault("groups", []).append(g)
         if payload.get("favorite") is not None:
             c["favorite"] = _truthy(payload.get("favorite"))
+        for row in _channels_in(payload):
+            _merge_channel(c, row)
+        if _platform(payload.get("preferred")):
+            c["preferred"] = _platform(payload.get("preferred"))
         c["updated"] = now
         store.save(WIDGET_ID, db)
         d = view_data(q)
         d.update({"ok": True, "result": {"contact": _public(c)}})
+        return d
+
+    if action == "set_channel":
+        # V2-683 — «a Iván escríbele por Telegram». The CHANNEL and the PREFERENCE are one gesture because
+        # that is how it is said; `preferred` alone (no handle) just moves the preference to a channel that
+        # already exists, which is the other half of the same sentence («mejor por WhatsApp»).
+        c = _find(db, payload.get("contactId"))
+        if not c:
+            return {"ok": False, "error": "no encuentro ese contacto — set_channel necesita su `contactId` "
+                                          "(pásame el nombre en `item` y lo resuelvo yo)"}
+        p = _platform(payload.get("platform"))
+        if not p:
+            return {"ok": False, "error": "no me ha llegado la plataforma — set_channel necesita `platform` "
+                                          "(whatsapp, telegram o email)"}
+        handle = str(payload.get("handle") or payload.get("address") or "").strip()
+        chat_id = str(payload.get("chatId") or "").strip()
+        if handle or chat_id:
+            _merge_channel(c, {"platform": p, "handle": handle, "chatId": chat_id,
+                               "source": "operator", "volume": 0, "last_seen": 0.0})
+        elif not any(ch.get("platform") == p for ch in c.get("channels") or []):
+            # Making a channel PREFERRED without saying how to reach it, when we do not know either, would
+            # store a preference that no send can honour — and it would read as «done» to him.
+            return {"ok": False,
+                    "error": f"no tengo ningún {p} suyo — vuelve a llamar a set_channel con `handle` "
+                             f"(su usuario, su teléfono o su dirección)"}
+        if _truthy(payload.get("preferred"), default=True):
+            c["preferred"] = p
+        c["updated"] = now
+        store.save(WIDGET_ID, db)
+        d = view_data(q)
+        d.update({"ok": True, "result": {"contact": _public(c), "channel": p}})
         return d
 
     if action == "remove_contact":

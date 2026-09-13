@@ -43,7 +43,9 @@ def _manifest():
 def test_every_capability_EXISTS_in_the_manifest_or_the_model_cannot_choose_it(ct):
     m = _manifest()
     assert set(m["actions"]) == {"add_contact", "update_contact", "remove_contact", "set_favorite",
-                                 "link_contact", "show_view", "show_contact"}
+                                 "link_contact", "show_view", "show_contact",
+                                 # V2-683 — by WHICH channel this person is written to, and which is his.
+                                 "set_channel"}
 
 
 def test_the_view_action_speaks_the_everyday_phrasing_not_a_schema(ct):

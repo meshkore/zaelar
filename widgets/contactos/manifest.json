@@ -23,7 +23,7 @@
   ],
   "entry": "widget.js",
   "size": { "w": 720, "h": 520 },
-  "usage": "El directorio ÚNICO de contactos del operador: personas, sitios y empresas, con grupos libres («amigos del trabajo», «restaurantes»), ciudad y favoritos — un restaurante favorito ES una entrada de este directorio, nunca una lista aparte. Añade con add_contact (mismo nombre y ciudad ACTUALIZA, no duplica), cambia con update_contact, borra con remove_contact (pide confirmación), marca con set_favorite y conecta una persona con su sitio o empresa con link_contact. Para VER o CONSULTAR el directorio («mi restaurante favorito en Barcelona», «enséñame los fontaneros de Soria») usa show_view: filtra lo que se ve Y devuelve los que casan en `result.matches` para que contestes con sus nombres — mostrar el widget otra vez NO filtra nada, abre el directorio entero. La ficha de uno concreto es show_contact.",
+  "usage": "El directorio ÚNICO de contactos del operador: personas, sitios y empresas, con grupos libres («amigos del trabajo», «restaurantes»), ciudad y favoritos — un restaurante favorito ES una entrada de este directorio, nunca una lista aparte. Añade con add_contact (mismo nombre y ciudad ACTUALIZA, no duplica), cambia con update_contact, borra con remove_contact (pide confirmación), marca con set_favorite y conecta una persona con su sitio o empresa con link_contact. Para VER o CONSULTAR el directorio («mi restaurante favorito en Barcelona», «enséñame los fontaneros de Soria») usa show_view: filtra lo que se ve Y devuelve los que casan en `result.matches` para que contestes con sus nombres — mostrar el widget otra vez NO filtra nada, abre el directorio entero. La ficha de uno concreto es show_contact. POR DÓNDE se le escribe a alguien vive aquí: set_channel guarda su WhatsApp, Telegram o correo y cuál es el preferido — eso es lo que luego usa `send_to` de mensajería para escribirle sin preguntar.",
   "actions": {
     "add_contact": {
       "desc": "guarda un contacto nuevo (persona, sitio o empresa: un amigo, un restaurante, un fontanero…) — con el mismo nombre y ciudad ACTUALIZA el existente en vez de duplicar",
@@ -36,7 +36,9 @@
         "email": "string (opcional)",
         "address": "string (opcional)",
         "notes": "string (opcional)",
-        "favorite": "true/false (opcional)"
+        "favorite": "true/false (opcional)",
+        "channels": "opcional: [{platform: whatsapp|telegram|email, handle: su usuario/teléfono/dirección}]",
+        "preferred": "opcional: el canal por el que se le escribe por defecto"
       }
     },
     "update_contact": {
@@ -59,6 +61,15 @@
       "payload": { "contactId": "string" },
       "confirm": true,
       "confirm_q": "¿Borro «{item}» del directorio? Es permanente."
+    },
+    "set_channel": {
+      "desc": "guarda POR DÓNDE se escribe a un contacto («a Iván escríbele por Telegram, es @ivanm») y lo deja como su canal preferido — con `preferred:false` solo guarda el canal sin cambiar el preferido",
+      "payload": {
+        "contactId": "string",
+        "platform": "whatsapp | telegram | email",
+        "handle": "su usuario de Telegram, su teléfono o su dirección de correo (opcional si ya lo tienes guardado)",
+        "preferred": "true/false (true si se omite)"
+      }
     },
     "set_favorite": {
       "desc": "marca o desmarca un contacto como favorito («mi restaurante favorito»)",
