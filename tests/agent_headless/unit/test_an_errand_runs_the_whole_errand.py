@@ -531,3 +531,105 @@ def test_an_answer_arriving_while_the_agent_is_STOPPED_is_postponed_and_not_lost
     world.beat()
     assert errands.get(got["errand"]["id"])["state"] == "negotiating"
     assert world.texts()[-1] == "¿Te va bien a las 18:00?"
+
+
+# ══ THE RESTART: the conversation is the record, the bus is only a notification ══════════════════════════
+
+def _restart() -> None:
+    """What a restart really costs an errand: the wake queue and the bus subscriptions, both in memory.
+
+    Not a simulation of one detail — it is the whole of what the process was holding. The ledger and the
+    thread store are files and survive, which is the entire point of the row.
+    """
+    from nucleo.errands import wake as wake_mod, watch
+    watch.stop()                          # the subscriptions die: whatever was queued on them is gone
+    watch._pending_births.clear()
+    watch._pending_wakes.clear()
+    watch._last_reconcile = 0.0
+    wake_mod._last_wake.clear()
+    assert watch.start()
+
+
+def test_an_answer_that_arrived_before_a_RESTART_is_taken_from_the_CONVERSATION(world, monkeypatch):
+    """⚠️ The second defect of the first live run, and the one that actually killed it (2026-09-13).
+
+    Three messages arrived at 22:28 on the conversation the errand owned. The engine was restarted at
+    22:33. `_pending_wakes` is memory, the bus subscription is memory, and nothing ever asked the thread
+    store what it was already holding — so the errand sat in `contacting` with `last_inbound` empty for
+    ever, and the only thing that could have moved it was that person happening to write a fourth time.
+
+    An errand is a ROW precisely so that it survives the process. Waking it can't depend on one.
+    """
+    from nucleo import errands
+    _ivan()
+    armed(monkeypatch)
+    answers(monkeypatch, '{"say": "Mañana a las 10 entonces, te paso el enlace.", "state": "negotiating"}')
+    got = _open(world)
+    eid = got["errand"]["id"]
+
+    world.advance(300)
+    world.say(PLATFORM, got["chat"], "Mejor mañana por la mañana")
+    _restart()
+    assert errands.get(eid)["last_inbound"] == "", "the answer reached the store and nothing else"
+
+    world.beat()                          # the reconciliation reads the conversation and owes itself a wake
+    world.beat()                          # the coalesce window has passed: it moves
+    row = errands.get(eid)
+    assert row["state"] == "negotiating", "a restart is not an excuse for leaving somebody unanswered"
+    assert row["last_inbound"], "and it records WHICH message it answered, so it does not answer it twice"
+    assert world.texts()[-1] == "Mañana a las 10 entonces, te paso el enlace."
+
+
+def test_the_same_reconciliation_does_NOT_answer_twice(world, monkeypatch):
+    """The idempotency mark is the whole reason `last_inbound` exists. A reconciliation that ignored it
+    would rewrite to the same person every thirty seconds — the loudest possible failure, and to a
+    stranger."""
+    from nucleo import errands
+    _ivan()
+    armed(monkeypatch)
+    answers(monkeypatch, '{"say": "Mañana a las 10 entonces.", "state": "negotiating"}')
+    got = _open(world)
+
+    world.advance(300)
+    world.say(PLATFORM, got["chat"], "Mejor mañana por la mañana")
+    _restart()
+    world.beat()
+    world.beat()
+    said = len(world.sent())
+
+    for _ in range(4):                    # four sweeps, nobody writing anything new
+        world.advance(60)
+        world.beat()
+    assert len(world.sent()) == said, "the message it already answered is not an answer it owes"
+    assert errands.get(got["errand"]["id"])["state"] == "negotiating"
+
+
+def test_the_reconciliation_never_answers_a_message_OLDER_than_the_errand(world, monkeypatch):
+    """A conversation usually has a past. Reading the newest inbound without asking WHEN would make a new
+    errand open by answering whatever was last said in that chat, which may have nothing to do with it."""
+    from nucleo import errands
+    _ivan()
+    armed(monkeypatch)
+    answers(monkeypatch, '{"say": "no debería decir nada", "state": "negotiating"}')
+
+    # An hour before the errand exists. The world's clock starts at the real one and `start()` stamps the
+    # row with the real one too, so «older than the errand» has to be walked backwards, not forwards.
+    chat = "chat-con-pasado"
+    world.advance(-3600)
+    world.say(PLATFORM, chat, "oye, ¿te acordaste de lo del otro día?")
+    world.beat()                          # drained while no errand owns this conversation: ignored
+    world.advance(3600)
+
+    world.act("send_to", {"contact": "Iván Musikin", "text": OPENER, "objective": OBJECTIVE})
+    world.deliver(world.outbox()[0], chat_id=chat)
+    world.beat()
+    e = errands.for_thread(PLATFORM, chat)
+    assert e is not None
+    said = len(world.sent())
+
+    _restart()
+    for _ in range(3):
+        world.advance(60)
+        world.beat()
+    assert len(world.sent()) == said, "an errand answers what was said TO it, not what the chat already had"
+    assert errands.get(e["id"])["state"] == "contacting"

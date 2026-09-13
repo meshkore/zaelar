@@ -31,10 +31,13 @@ from loguru import logger
 COALESCE_S = 4.0
 #: A birth that never got its echo is dropped rather than kept forever.
 PENDING_TTL_S = 300.0
+#: How often the memory queue is checked against the CONVERSATION, which is the durable truth.
+RECONCILE_S = 30.0
 
 _subs: dict = {}
 _pending_births: dict[str, dict] = {}     # ref → the order that will become an errand, if it goes out
 _pending_wakes: dict[str, dict] = {}      # errand id → {"at", "inbound"}
+_last_reconcile = 0.0
 
 
 def _ingest():
@@ -141,6 +144,58 @@ def _note_inbound(now: float) -> None:
         _pending_wakes[row["id"]] = {"at": now, "inbound": mid}
 
 
+def _newest_inbound(platform, chat_id, since: float) -> tuple[str, float]:
+    """The id and time of the last message the OTHER side wrote in that conversation, ignoring anything
+    older than `since` (an errand must never answer a message that predates its own birth)."""
+    try:
+        from connectors.messaging import store as msgstore
+        from widgets.mensajeria import thread as _thread
+        db = msgstore.load()
+        th = (db.get("threads") or {}).get(_thread.key(platform, chat_id)) or {}
+        for m in reversed(list(th.get("msgs") or [])):
+            if str(m.get("dir") or "") != "in":
+                continue
+            ts = float(m.get("ts") or 0.0)
+            return ("" if ts < since else str(m.get("id") or ""), ts)
+    except Exception:
+        pass
+    return "", 0.0
+
+
+def _reconcile(now: float) -> None:
+    """The DURABLE half of the wake queue: what the conversation already holds and the errand never answered.
+
+    `_pending_wakes` lives in memory, and the bus is a notification, not a record. The first live run
+    (2026-09-13, V2-684) lost a real answer exactly there: three messages arrived at 22:28, the engine was
+    restarted at 22:33, and the errand stayed in `contacting` for ever with `last_inbound` empty — nobody
+    ever asked the thread store what it was already holding, so the only thing that could have moved it was
+    that person happening to write a fourth time. The same hole swallows an answer that lands while the ⏻
+    is off for longer than one process, and any bus event dropped anywhere in between.
+
+    So every `RECONCILE_S` this compares each live errand's `last_inbound` against the newest inbound of the
+    conversations it owns and owes itself a wake when they disagree. It is a cheap read of a file the widget
+    keeps loaded, and it makes the bus an OPTIMISATION — the fast path — instead of the only path.
+    """
+    global _last_reconcile
+    if now - _last_reconcile < RECONCILE_S:
+        return
+    _last_reconcile = now
+    from . import live, threads
+    for row in live(now):
+        eid = str(row.get("id") or "")
+        if not eid or eid in _pending_wakes:
+            continue
+        seen = str(row.get("last_inbound") or "")
+        born = float(row.get("created_at") or 0.0)
+        for t in threads(eid):
+            mid, _ts = _newest_inbound(t.get("platform"), t.get("chat_id"), born)
+            if mid and mid != seen:
+                logger.info(f"errands: {eid} tiene una respuesta sin atender en "
+                            f"{t.get('platform')} — la recojo de la conversación")
+                _pending_wakes[eid] = {"at": now, "inbound": mid}
+                break
+
+
 # ── the beat ────────────────────────────────────────────────────────────────────────────────────────────
 async def tick(now: float | None = None) -> None:
     """One pulse, called by the orchestrator loop. Never raises: this must not be able to stop the loop."""
@@ -161,6 +216,13 @@ async def tick(now: float | None = None) -> None:
         _report_expired(now)
     except Exception as e:  # noqa: BLE001
         logger.debug(f"errands: barrido: {e!r}")
+    # LAST, and for the same reason `_report_expired` guards its own order: `live()` sweeps expired errands
+    # as a side effect, so reconciling earlier would close the timed-out ones SILENTLY and leave the line
+    # above with nothing to announce. A test caught it here too, which is the second time this one bites.
+    try:
+        _reconcile(now)
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"errands: reconciliación: {e!r}")
 
 
 async def _fire_wakes(now: float) -> None:
