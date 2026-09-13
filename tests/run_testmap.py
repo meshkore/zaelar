@@ -1486,6 +1486,21 @@ DOMAINS: list[dict] = [
                                 "desconocido no mueven NADA (sombra, sin tools, dirección fija, ⏻)",
             "ch": UNIT,
             "paths": ["tests/agent_headless/unit/test_an_errand_wakes_when_the_world_answers.py"]},
+        # V2-684 — 3.41 y 3.42 miden las PIEZAS con los vecinos doblados; esto conduce el ARCO, que es donde
+        # vive todo lo interesante de un encargo: es la única forma en la que «contesta dentro de diez
+        # horas», «quiere hablar con Ricart», «no contesta nunca» y «el mensaje no llegó a salir» se
+        # distinguen entre sí. Un solo doble en el TRANSPORTE (`harness/errand_world.py`) y otro para el
+        # turno del tercero; entre medias todo es producto. Y trae la mitad que el operador dijo que más le
+        # importa —«sin necesidad de que lo tengamos que programar»—: el mismo arco con las palabras
+        # cambiadas (reunión→cena), sin playbook ninguno, y con SU fichero mandando sobre génesis.
+        # ⚠️ El arco encontró un defecto real de V2-683: la respuesta que compone el encargo se quedaba en
+        # `pending_send` para siempre (la única purga vivía dentro de `_Owner.handle`), así que un encargo
+        # ARMADO no habría contestado a nadie. Invisible en sombra, que es por lo que sobrevivió.
+        {"id": "3.43", "title": "El encargo de punta a punta: nace de un sí, sigue la conversación diez "
+                                "horas después, se bloquea si piden al operador, caduca si nadie contesta — "
+                                "y aguanta el cambio de palabra",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/test_an_errand_runs_the_whole_errand.py"]},
         # V2-676 — medido en su sesión INGLESA `af4429e0` (2026-09-11), dos fallos que viajaban juntos:
         #   · cinco búsquedas del tiempo en Nueva York, las cinco n:0 con `failure.kind = captcha`, y el modelo
         #     explicó el vacío con la única historia que tiene: «I don't have live internet access… my training

@@ -128,7 +128,7 @@ class _Owner:
             # tick it would otherwise have been surfaced in, not one tick later as a notification he has
             # already dealt with.
             for what, fn in (("outbound", self._apply_outbound), ("read", self._apply_external_reads),
-                             ("history", self._apply_history)):
+                             ("history", self._apply_history), ("queues", self._flush_queues)):
                 try:
                     fn()
                 except Exception as e:  # noqa: BLE001
@@ -294,7 +294,21 @@ class _Owner:
         except Exception as e:
             logger.warning(f"mensajeria handle {action!r}: {e}")
             return
-        # Everything the mutation queued as mark-read goes to the bus; connectors drain it by platform.
+        self._flush_queues()
+
+    def _flush_queues(self) -> None:
+        """Push everything the store has queued onto the bus, for the connectors to execute.
+
+        ⚠️ Called from BOTH the action door and the owner's own beat, and the second caller is the fix for a
+        defect the V2-684 arc found (2026-09-13): an errand composes its reply through `wake._send`, which
+        queues it here exactly as a dictated reply is queued — and this flush only ever ran inside
+        `handle()`. With no operator action on the messaging widget, the reply sat in `pending_send`
+        forever, so an ARMED errand would have answered nobody. It was invisible because the feature ships
+        in SHADOW, where there is nothing to flush.
+
+        The flush deliberately stays HERE and is not moved next to the errand: this is the one door where
+        `memory/secrets.py` reads a text written by a MODEL for somebody outside the house.
+        """
         try:
             for key in msgstore.take_pending_read():
                 ingest.publish_mark_read(key)
