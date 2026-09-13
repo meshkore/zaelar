@@ -20,10 +20,17 @@ from connectors.video import oauth, providers, service
 
 @pytest.fixture
 def sandbox(monkeypatch, tmp_path):
-    """Isolate the token store AND the credential store: `client_id` reads the real one, and a developer with
-    their own YouTube app registered would otherwise flip every `builtin`/`configured` assertion here."""
+    """Isolate the token store AND every source of a client id: `client_id` reads the real ones, and an
+    install that HAS a Google app would otherwise flip every `builtin`/`configured` assertion here.
+
+    V2-685 added the third source — the shipped Google client shared by all five Google doors — and on the
+    operator's own machine that one is now populated, so these assertions started measuring his credential
+    store instead of the product. Pinned rather than relaxed: the property under test is «with NO app
+    anywhere the connector is dormant and SAYS so», and it is only meaningful if the absence is guaranteed
+    instead of inherited. `test_a_shipped_google_client_makes_this_connector_live` is its counterweight."""
     monkeypatch.setattr(oauth, "STORE", tmp_path / "video_oauth.json")
     monkeypatch.setattr(oauth, "_cred", lambda _name: "")
+    monkeypatch.setattr(oauth, "_shipped_google", lambda *a, **k: "")
     return tmp_path
 
 
@@ -42,6 +49,21 @@ def test_a_shipped_client_makes_the_connector_configured_without_the_operator_re
     _with_builtin(monkeypatch)
     assert oauth.configured("youtube") is True
     assert oauth.uses_builtin_app("youtube") is True
+
+
+def test_a_shipped_google_client_makes_this_connector_live(monkeypatch, tmp_path):
+    """The counterweight to everything the `sandbox` fixture pins, and the reason V2-685 exists: the operator
+    registers ONE Google OAuth client and YouTube stops being dormant without him touching a single
+    `VIDEO_YOUTUBE_*` name. Deliberately does NOT use `sandbox`, which exists to guarantee the opposite."""
+    from connectors.google import app as gapp
+    monkeypatch.setattr(oauth, "STORE", tmp_path / "video_oauth.json")
+    monkeypatch.setattr(oauth, "_cred", lambda _name: "")
+    monkeypatch.setattr(gapp, "_cred",
+                        lambda n: "shared.apps.googleusercontent.com" if n == "GOOGLE_CLIENT_ID" else "")
+    assert oauth.client_id("youtube") == "shared.apps.googleusercontent.com"
+    assert oauth.configured("youtube") is True
+    assert service.available() is True
+    assert "TODAVÍA NO ESTÁ DISPONIBLE" not in (service.brain_state() or "")
 
 
 def test_the_operators_own_client_always_wins_over_the_shipped_one(sandbox, monkeypatch):
