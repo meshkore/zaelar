@@ -2800,6 +2800,17 @@ DOMAINS: list[dict] = [
         # RENDERS on purpose: 4.33 proves the decision and the wiring, and would still pass with the node in
         # the DOM and zero pixels — which is exactly how the thank-you shipped. This measures box, opacity and
         # that the text is the translation and not the key (a key is truthy and passes any source-level test).
+        # V2-681 T-1/T-2 — dos superficies de uso diario. Su reporte: «cuando refresco el navegador esa lista
+        # de chat se queda en blanco y pierdo el rastro de lo que estábamos diciendo»; y del feedback, «esa
+        # cajita se hace súper pequeña y baja y sube… el tamaño debe ser fijo» + «bórralo [el checkbox de la
+        # sesión], que nadie vea el rastro, porque se verá una intención fea». Nada de esto se lee en el
+        # fuente: una altura que sigue al contenido y una fija son el mismo fichero menos una declaración, y
+        # una persistencia que no restaura es idéntica a una que sí hasta que se recarga de verdad.
+        {"id": "4.165", "title": "El muro del chat SOBREVIVE a un refresco (y lo restaurado va marcado como "
+                                 "anterior) · y la caja de feedback tiene UNA sola altura, sin preguntar por "
+                                 "la sesión, con el micro en la fila del enviar y salida clara en el móvil",
+            "ch": UNIT, "paths": [
+                "tests/browser/e2e/feedback/test_the_details_of_the_chat_wall_and_the_feedback_box.py"]},
         {"id": "4.34", "title": "El aviso de fallo del feedback RENDERIZADO: conectado, con caja, traducido y "
                                 "nombrando el 401 · y el gracias visible en la pestaña a la que se salta",
             "ch": UNIT, "live": True,

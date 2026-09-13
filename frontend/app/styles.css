@@ -129,6 +129,9 @@ body.chatdock-r .statuspanel,body.chatdock-r .cronpanel{right:calc(18px + var(--
 .cw-undock{margin-left:auto}
 .cw-list{flex:1 1 auto;overflow-y:auto;padding:12px 14px;display:flex;flex-direction:column;gap:8px}
 .cw-list:empty::after{content:"Type or paste (Ctrl/Cmd+V) to talk to the agent by text.";color:var(--hb-muted-2);font-size:0.75rem}
+/* V2-681 T-1 — the boundary of a history restored across a browser refresh. Quiet and centred, never a
+   bubble: it is a note about the conversation, not a line in it. */
+.cw-earlier{align-self:center;font-size:0.6875rem;color:var(--hb-muted-2);padding:2px 0;user-select:none}
 .cw-msg{max-width:85%;padding:8px 11px;border-radius:13px;font-size:0.8125rem;line-height:1.35;white-space:pre-wrap;word-break:break-word}
 .cw-msg.you{align-self:flex-end;background:linear-gradient(135deg,var(--hb-accent),var(--hb-accent2));color:#fff;border-bottom-right-radius:4px}
 .cw-msg.agent{align-self:flex-start;background:var(--hb-bubble);color:var(--hb-ink);border-bottom-left-radius:4px}
@@ -663,6 +666,9 @@ canvas#orb.frozen{opacity:.32;filter:grayscale(1)}
 .cf-shell{flex:1 1 auto;display:flex;flex-direction:column;min-height:0}
 .cf-head{flex:0 0 auto;display:flex;align-items:center;gap:14px;padding:14px 20px;border-bottom:1px solid var(--hb-line);background:var(--hb-bg-soft)}
 .cf-head h3{margin:0;font-size:1rem;color:var(--hb-ink)}
+/* V2-666 — the build number, moved here from the always-on desk badge; a quiet signal beside the title, not a control. */
+.cf-ver{flex:0 0 auto;color:var(--hb-muted-2,var(--hb-muted));font-size:0.75rem;font-weight:600;cursor:default;opacity:.75}
+.cf-ver:hover{opacity:1;color:var(--hb-ink)}
 .cf-msg{flex:1 1 auto;color:var(--hb-muted);font-size:0.8125rem}
 .cf-x{background:var(--hb-bubble);color:var(--hb-ink);border:1px solid var(--hb-line);border-radius:8px;padding:7px 14px;cursor:pointer}
 .cf-x:hover{background:var(--hb-hover)}
@@ -1184,14 +1190,25 @@ body.dbg-open .orbwrap{left:calc(50% - var(--dbg-w) / 2)}
   display:flex;align-items:center;justify-content:center;touch-action:none}
 .fw-launcher:hover{filter:brightness(1.08)}
 .fw-launcher svg{width:26px;height:26px}
-.fw-panel{position:fixed;right:20px;bottom:90px;z-index:9199;width:400px;max-height:min(78vh,660px);
+/* V2-681 T-2 — a FIXED height. It declared only a max-height before, so the panel was as tall as its
+   content happened to be: MEASURED on the real page, the New tab was 390px and the Sent tab with an empty
+   list 138px, so switching tabs made the box collapse and spring back («esa cajita se hace súper pequeña y
+   baja y sube… el tamaño debe ser fijo»). 585px is his +50% applied to the 390 that was actually there,
+   not to the 200-300 he estimated. The max-height stays as a clamp for a short screen — a fixed height
+   taller than the viewport would put the send button out of reach. */
+.fw-panel{position:fixed;right:20px;bottom:90px;z-index:9199;width:400px;height:585px;max-height:min(78vh,660px);
   display:none;flex-direction:column;background:var(--hb-bg);border:1px solid var(--hb-line);border-radius:16px;
   box-shadow:0 10px 30px rgba(0,0,0,.3);overflow:hidden;color:var(--hb-ink)}
 .fw-panel.open{display:flex}
 /* Mobile: the panel becomes the screen — a launcher-sized popover is unusable at phone width, and this
-   surface is also the marketing ask-for-anything entry point, so it earns the room. */
+   surface is also the marketing ask-for-anything entry point, so it earns the room. The close has to be
+   UNMISSABLE here (his ask): full screen with no visible way out is the one state a person cannot
+   escape, so the × gets a real 44px target and its own outlined box instead of a bare grey glyph. */
 @media (max-width:640px){
-  .fw-panel{right:0;bottom:0;left:0;top:0;width:auto;max-height:100%;border-radius:0;z-index:9250}
+  .fw-panel{right:0;bottom:0;left:0;top:0;width:auto;height:auto;max-height:100%;border-radius:0;z-index:9250}
+  .fw-x{width:44px;height:44px;padding:0;border:1px solid var(--hb-line);border-radius:12px;
+        color:var(--hb-ink);align-items:center;justify-content:center}
+  .fw-x svg{width:20px;height:20px}
 }
 /* V2-619 — one header band: title · tabulator-style tabs taking the row · ×. The tabs read as TABS
    (underline on the active one), not as two grey chips lost in a dark box. */
@@ -1214,9 +1231,9 @@ body.dbg-open .orbwrap{left:calc(50% - var(--dbg-w) / 2)}
   font-size:var(--fs-body,0.9375rem);line-height:1.5;padding:12px 14px}
 .fw-textarea:focus{border-color:var(--hb-accent);outline:none}
 .fw-textarea::placeholder{color:var(--hb-muted)}
-.fw-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
-.fw-check{display:flex;align-items:center;gap:9px;font-size:var(--fs-caption,0.78rem);color:var(--hb-muted);cursor:pointer}
-.fw-check input{width:16px;height:16px;accent-color:var(--hb-accent)}
+/* V2-681 T-2 — the row now holds the MIC and the SEND button, side by side (his layout). .fw-check is
+   gone with the checkbox it dressed: a rule for an element nobody renders is how dead CSS accumulates. */
+.fw-row{display:flex;align-items:center;gap:10px}
 .fw-email{width:100%;box-sizing:border-box;padding:10px 13px;border:1px solid var(--hb-line);border-radius:10px;
   background:var(--hb-bg-soft);color:var(--hb-ink);font-size:var(--fs-ui,0.875rem)}
 .fw-email:focus{border-color:var(--hb-accent);outline:none}
@@ -1227,7 +1244,8 @@ body.dbg-open .orbwrap{left:calc(50% - var(--dbg-w) / 2)}
 .fw-mic.on{color:var(--canvas);border-color:transparent;background:var(--hb-accent)}
 .fw-mic.hidden{display:none}
 /* the send button SAYS send, full width, unmissable — his words: «el botón bastante grande… muy claro todo» */
-.fw-send{width:100%;height:46px;border-radius:var(--hb-r-m,12px);border:none;cursor:pointer;color:var(--canvas);
+/* flex:1 — it shares the row with the mic now and takes everything the mic leaves. */
+.fw-send{flex:1 1 auto;min-width:0;height:46px;border-radius:var(--hb-r-m,12px);border:none;cursor:pointer;color:var(--canvas);
   background:var(--hb-accent);display:flex;align-items:center;justify-content:center;gap:9px;
   font:600 var(--fs-ui,0.875rem) var(--sans)}
 .fw-send svg{width:17px;height:17px}

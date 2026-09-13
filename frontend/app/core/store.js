@@ -483,7 +483,8 @@ export const [debugWidth, setDebugWidth] = createSignal(Math.max(300, parseInt(l
 // ---- chat wall (text channel to the agent) ----
 export const [chatOpen, setChatOpen]   = createSignal(false);  // chat wall panel visible?
 export const [chatTab, setChatTab]     = createSignal("chat");  // V2-079/086/561: "chat"|"procesos"|"crons"|"clusters"|"conectores"
-export const [chatMsgs, setChatMsgs]   = createSignal([]);     // [{ role:"you"|"agent", text }]
+const [chatMsgs, _setChatMsgs]         = createSignal([]);     // [{ role:"you"|"agent", text }]
+export { chatMsgs };
 // CAP (2026-07-23, operator request): without a limit, a long thread (e.g. hours talking with a
 // cluster over WebSocket) grows without end — and ChatWall rebuilds the ENTIRE DOM from `chatMsgs()` on every push
 // (`listEl.replaceChildren(...msgs.map(...))`), so thousands of lines would freeze the frontend. It is trimmed to
@@ -493,7 +494,92 @@ export const [chatMsgs, setChatMsgs]   = createSignal([]);     // [{ role:"you"|
 // not a memory layer.
 const CHAT_CAP = 100;
 const _capChat = xs => xs.length > CHAT_CAP ? xs.slice(xs.length - CHAT_CAP) : xs;
+
+// PERSISTENCE (V2-681 T-1, operator: «cuando refresco el navegador esa lista se queda en blanco y pierdo
+// el rastro de lo que estábamos diciendo… quiero que cuando se rehidrate el frontend se carguen los
+// mensajes últimos, siguiendo las reglas que ya tenemos»).
+//
+// It lives HERE, at the same chokepoint as the cap and for the same stated reason: seven places push into
+// this list and one clears it, so a rule written in any of them is a rule the eighth caller forgets. One
+// door means the reset clears the stored copy through the `setChatMsgs([])` it already calls, and the
+// MOBILE shell gets it for nothing — it imports this module instead of forking it.
+//
+// localStorage and not the server on purpose: this is the RENDER buffer, a frontend convenience. The real
+// conversation already travels to `memory/` and to observability by its own path, and reading it back from
+// there would make a cosmetic restore depend on two subsystems that have nothing to do with it.
+const CHAT_KEY = "hb_chat_log";
+const CHAT_MAX_TEXT = 4000;   // one pathological message must not eat the whole quota
+const CHAT_MAX_BYTES = 256000;
+
+// Every read and write is guarded: a private window, cleared site data or a blocked origin makes these
+// throw or answer empty, and the wall has to render correctly either way (it simply starts blank, which
+// is exactly what it did before this existed).
+function _loadChat() {
+  try {
+    const raw = localStorage.getItem(CHAT_KEY);
+    if (!raw) return { msgs: [], at: 0 };
+    const parsed = JSON.parse(raw);
+    const msgs = Array.isArray(parsed && parsed.msgs) ? parsed.msgs : [];
+    return { msgs: _capChat(msgs.filter(m => m && typeof m.text === "string")), at: Number(parsed.at) || 0 };
+  } catch (_) { return { msgs: [], at: 0 }; }
+}
+
+let _chatSaveTimer = null;
+let _chatPending = null;
+function _saveChat(xs) {
+  // Trailing debounce: a burst of streamed lines would otherwise write the whole list once per line, on
+  // the same frame the wall is already rebuilding its entire DOM from it.
+  _chatPending = xs;
+  clearTimeout(_chatSaveTimer);
+  _chatSaveTimer = setTimeout(() => { _chatSaveTimer = null; _saveChatNow(_chatPending); }, 400);
+}
+
+function _saveChatNow(xs) {
+  try {
+    if (!xs || !xs.length) { localStorage.removeItem(CHAT_KEY); return; }
+    let msgs = xs.map(m => (m && typeof m.text === "string" && m.text.length > CHAT_MAX_TEXT)
+      ? { ...m, text: m.text.slice(0, CHAT_MAX_TEXT) } : m);
+    let body = JSON.stringify({ v: 1, at: Date.now(), msgs });
+    // Over the byte budget we drop from the OLDEST end, which is the same direction the cap trims in.
+    while (body.length > CHAT_MAX_BYTES && msgs.length > 1) {
+      msgs = msgs.slice(Math.ceil(msgs.length / 4));
+      body = JSON.stringify({ v: 1, at: Date.now(), msgs });
+    }
+    localStorage.setItem(CHAT_KEY, body);
+  } catch (_) { /* quota, private window, blocked storage: the wall still works, it just will not restore */ }
+}
+
+const _restoredChat = _loadChat();
+// WHERE the restored part ends, so the wall can mark it. A history that looks like it was just said is
+// the V2-582 class — a stale thing presented as current is worse than a blank screen.
+export const restoredChatCount = _restoredChat.msgs.length;
+export const restoredChatAt = _restoredChat.at;
+
+// The exported setter IS the wrapper, so there is no unwrapped door: `_setChatMsgs` never leaves this file.
+export const setChatMsgs = (v) => {
+  const out = _setChatMsgs(v);
+  try { _saveChat(chatMsgs()); } catch (_) {}
+  return out;
+};
 export const pushChat = (m) => setChatMsgs(xs => _capChat([...xs, m]));
+
+if (_restoredChat.msgs.length) _setChatMsgs(_restoredChat.msgs);   // restore without re-writing what we read
+// A tab being closed can happen inside the debounce window — flush what is PENDING rather than lose the
+// last thing he said. `pagehide` fires where `beforeunload` is unreliable (mobile Safari, bfcache).
+//
+// It flushes a pending write and NOTHING else, which is the whole point: the first version wrote
+// `chatMsgs()` unconditionally, so leaving a page on which he had said nothing saved an empty list — and
+// an empty list means REMOVE. Opening the app, staying quiet and navigating away erased the previous
+// conversation, which is the exact failure this persistence exists to end, reintroduced by its own flush.
+// Clearing is the reset's job and reaches the store through the setter, like every other change.
+try {
+  window.addEventListener("pagehide", () => {
+    if (!_chatSaveTimer) return;
+    clearTimeout(_chatSaveTimer);
+    _chatSaveTimer = null;
+    _saveChatNow(_chatPending);
+  });
+} catch (_) {}
 // Agent line for the history, DEDUPED: proactive pushes arrive on two channels (SSE "notify" + the agent's own
 // transcript when it speaks the same text) — collapse an immediate repeat (ignoring a leading 🔔).
 // 2026-08-18 (V2-116): dedup compares by PREFIX, not exact equality, and also removes the 💬 marker.

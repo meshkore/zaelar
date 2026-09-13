@@ -35,7 +35,7 @@ function _excerpt(text, max = 180) {
 }
 
 export function FeedbackWidget() {
-  let wrapEl, btnEl, textareaEl, emailEl, evidenceEl;
+  let wrapEl, btnEl, textareaEl, emailEl;
   let recHandle = null, base = "", finalSoFar = "", pollTimer = null;
   const [listening, setListening] = createSignal(false);
   const [justSent, setJustSent] = createSignal(false);
@@ -79,7 +79,10 @@ export function FeedbackWidget() {
     if (listening()) toggleMic();
     store.setFeedbackSending(true);
     const res = await feedbackApi.sendFeedback({
-      message, email: emailEl?.value || "", includeSessionEvidence: !!evidenceEl?.checked,
+      // V2-681 T-2 — the checkbox is gone, so the evidence rides ALWAYS. That is what the box existed to
+      // avoid: feedback with no context is a sentence nobody can act on. ⚠️ It is also a privacy DEFAULT
+      // for every self-hoster, not only for the operator — reversing it is this one literal.
+      message, email: emailEl?.value || "", includeSessionEvidence: true,
     });
     store.setFeedbackSending(false);
     const out = sendOutcome(res);
@@ -89,7 +92,6 @@ export function FeedbackWidget() {
     setSendLine("");
     if (textareaEl) textareaEl.value = "";
     if (emailEl) emailEl.value = "";
-    if (evidenceEl) evidenceEl.checked = false;
     setJustSent(true);
     setTimeout(() => setJustSent(false), 4000);
     store.setFeedbackTab("sent");
@@ -136,27 +138,26 @@ export function FeedbackWidget() {
         () => (sendLine() ? h("div", { class: "fw-error" }, sendLine()) : null),
       ),
       // V2-619, the operator's order and his exact words: email on TOP, then a BIG clearly-boxed textarea
-      // («Escribe aquí tu feedback»), the evidence checkbox right under it WITHOUT the explanatory
-      // paragraph («ese texto… quítalo porque no funciona» — the placeholder and the label carry the
-      // meaning), and a big send button that SAYS send. The mic keeps its corner.
+      // («Escribe aquí tu feedback») and a big send button that SAYS send. (The evidence checkbox that
+      // used to sit between them was deleted in V2-681 T-2 — see the note on the row below.)
+      // V2-681 T-2, the operator: the "include what happened in this session" checkbox is DELETED, not
+      // hidden — «bórralo, que nadie vea el rastro, porque se verá una intención fea». A hidden control is
+      // still in the DOM and still reads as an intention to anyone who looks. And the mic moves down into
+      // the send row: «el icono del micrófono lo puedes poner en la fila del botón de send my feedback».
       h("div", { class: "fw-new" },
         h("input", { type: "email", class: "fw-email", placeholder: () => t("feedback.emailPlaceholder"), ref: el => (emailEl = el) }),
         h("textarea", { class: "fw-textarea", ref: el => (textareaEl = el), rows: 5, placeholder: () => t("feedback.placeholder") }),
         h("div", { class: "fw-row" },
-          h("label", { class: "fw-check" },
-            h("input", { type: "checkbox", ref: el => (evidenceEl = el) }),
-            () => t("feedback.evidenceLabel"),
-          ),
           h("button", {
             class: () => "fw-mic" + (listening() ? " on" : "") + (dictation.isSupported() ? "" : " hidden"),
             title: () => (listening() ? t("feedback.dictating") : t("feedback.dictate")),
             onClick: toggleMic,
           }, raw(MIC_ICON)),
+          h("button", {
+            class: "fw-send", onClick: send,
+            disabled: () => store.feedbackSending(),
+          }, raw(SEND_ICON), h("span", {}, () => t("feedback.send"))),
         ),
-        h("button", {
-          class: "fw-send", onClick: send,
-          disabled: () => store.feedbackSending(),
-        }, raw(SEND_ICON), h("span", {}, () => t("feedback.send"))),
       ),
       h("div", { class: "fw-sent" },
         () => (store.feedbackItems().length

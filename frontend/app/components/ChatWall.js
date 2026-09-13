@@ -653,9 +653,27 @@ export function ChatWall() {
   setReserve();
 
   // reactive CHAT message list: rebuild on every change, then pin to the latest message.
+  // V2-681 T-1 — where the RESTORED part of the history ends. The wall now survives a refresh, and a
+  // conversation from before that refresh must not read as something just said: this marks the boundary
+  // the way the messaging widget already marks the start of what it has stored. It shrinks as the
+  // restored lines age out of the 100-message cap, and reaches 0 once none are left.
+  let restoredLeft = store.restoredChatCount;
+  const restoredAt = store.restoredChatAt;
+  // Reuses `ago()` — this file's own relative formatter, already translated in both bundles — instead of a
+  // second way of saying when something happened inside one component.
+  const _whenLabel = () => (restoredAt
+    ? t("chat.earlierAt", { when: ago(restoredAt / 1000) })
+    : t("chat.earlier"));
+
   createEffect(() => {
     const msgs = store.chatMsgs(); if (!listEl) return;
-    listEl.replaceChildren(...msgs.map(m => {
+    // The cap trims from the OLDEST end, so the restored block can only shrink, never move.
+    if (restoredLeft > msgs.length) restoredLeft = msgs.length;
+    const rows = [];
+    msgs.forEach((m, i) => {
+      // The divider goes AFTER the last restored line — it says «what is above this was said earlier»,
+      // so with nothing restored (a fresh session, or a reset) it is never drawn at all.
+      if (restoredLeft > 0 && i === restoredLeft) rows.push(h("div", { class: "cw-earlier" }, _whenLabel()));
       const cls = m.role === "peer" ? "peer" : m.role === "agent" ? "agent" : m.role === "sys" ? "sys" : "you";
       const bubble = h("div", { class: "cw-msg " + cls });
       if (m.role === "peer" && (m.dir === "in" || m.dir === "out")) {
@@ -665,8 +683,15 @@ export function ChatWall() {
         bubble.appendChild(h("div", { class: "cw-msg-from" }, "🛰"));
       }
       bubble.appendChild(raw(`<div class="cw-msg-body">${renderMarkdownLite(m.text)}</div>`));
-      return bubble;
-    }));
+      rows.push(bubble);
+    });
+    // …and when the restored block IS the whole wall (he refreshed and has not said anything yet) the
+    // divider closes it at the end. Without this the commonest case of all — reload, look — drew no mark
+    // at all, and the whole history read as current: the exact thing the divider exists to prevent.
+    if (restoredLeft > 0 && restoredLeft === msgs.length) {
+      rows.push(h("div", { class: "cw-earlier" }, _whenLabel()));
+    }
+    listEl.replaceChildren(...rows);
     listEl.scrollTop = listEl.scrollHeight;
   });
 

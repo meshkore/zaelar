@@ -21,7 +21,7 @@ from i18n import store as _store
 # Coarse cache-buster for the browser's localStorage bundle cache. Bump when the SET of keys or their English
 # text changes. (Per-key upgrade diffing uses the English snapshot stored in each generated bundle — see
 # i18n.init.ensure; this version is just the frontend cache signal.)
-MANIFEST_VERSION = 8   # 2026-09-09: V2-644 documento process view — `widgets.documento.*` keys added
+MANIFEST_VERSION = 12   # 2026-09-13: V2-681 T-1 chat wall restored-history divider
 
 PRESET = ("en", "es")            # shipped in the repo; never generated
 BASE = "en"                      # the manifest language every other bundle is translated FROM
