@@ -294,6 +294,61 @@ FTS_MEMORIES = (
 )
 
 
+# V2-683 · ERRANDS — an errand with a THIRD PARTY that outlives the turn.
+#
+# What did not exist before this: a durable object for «contacta con Iván y organiza una reunión». The turn
+# lasts seconds; a worker session lasts minutes and lives in RAM (a restart buries it); a cron fires a prompt
+# and carries no state; the V2-660 harness caps its goals at five minutes. None of them can hold a
+# conversation with somebody who answers in ten hours.
+#
+# It is PROCESS state and never a memory pill — the same boundary `rehydrate.py` draws for its own trail:
+# nothing here is a fact about the operator, so nothing here belongs in the pill store or in `state`.
+#
+# A TABLE and not a `sys_kv` row (which is where the cluster capsule keeps its relationship state) for one
+# reason that decides it: every inbound message has to ask «does this conversation belong to an errand?», and
+# that has to be an indexed lookup by (platform, chat_id) — with kv it would be a scan of every open errand
+# on every message that arrives.
+ERRANDS = """
+CREATE TABLE IF NOT EXISTS errands (
+  id            TEXT PRIMARY KEY,
+  kind          TEXT NOT NULL DEFAULT 'generic',
+  title         TEXT,
+  objective     TEXT NOT NULL,
+  mandate       TEXT,
+  state         TEXT NOT NULL DEFAULT 'contacting',
+  unknowns      TEXT,
+  done_when     TEXT,
+  last_inbound  TEXT,
+  wake_count    INTEGER NOT NULL DEFAULT 0,
+  trace_id      TEXT,
+  deadline      INTEGER NOT NULL,
+  expires_at    INTEGER NOT NULL,
+  created_at    INTEGER NOT NULL,
+  updated_at    INTEGER NOT NULL,
+  closed_at     INTEGER,
+  outcome       TEXT
+)
+"""
+# ONE errand per conversation, by construction. A thread licensed to two errands is how a reply gets answered
+# twice, by two different objectives, in the same chat — so the primary key says it cannot happen, and the
+# second errand is refused with a sentence naming the one already open.
+ERRAND_THREADS = """
+CREATE TABLE IF NOT EXISTS errand_threads (
+  platform   TEXT NOT NULL,
+  chat_id    TEXT NOT NULL,
+  errand_id  TEXT NOT NULL,
+  contact_id TEXT,
+  bound_at   INTEGER NOT NULL,
+  PRIMARY KEY (platform, chat_id)
+)
+"""
+ERRANDS_INDEXES = [
+    "CREATE INDEX IF NOT EXISTS idx_errands_state ON errands(state, expires_at)",
+    "CREATE INDEX IF NOT EXISTS idx_errand_threads_errand ON errand_threads(errand_id)",
+]
+
+
 BASE_DDL = [STATE, MEMORIES, *MEMORIES_INDEXES, EDGES, *EDGES_INDEXES, EPISODIC, JOURNAL, SYS_KV,
             VAULT_META, VAULT_SECRETS, PARAPHRASE_INDEX, *PARAPHRASE_INDEXES,
-            ACTION_MAP, *ACTION_MAP_INDEXES, WORKFLOWS, *WORKFLOWS_INDEXES]
+            ACTION_MAP, *ACTION_MAP_INDEXES, WORKFLOWS, *WORKFLOWS_INDEXES,
+            ERRANDS, ERRAND_THREADS, *ERRANDS_INDEXES]

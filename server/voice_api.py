@@ -648,10 +648,21 @@ async def tasks():
     Read-only, no-cache."""
     try:
         from nucleo import dispatch
-        return JSONResponse({"sessions": dispatch.active_sessions()},
-                            headers={"Cache-Control": "no-cache"})
+        sessions = dispatch.active_sessions()
     except Exception:
         return JSONResponse({"sessions": []}, headers={"Cache-Control": "no-cache"})
+    # V2-683 — the ERRANDS with a third party ride the same board, and they are merged HERE rather than
+    # inside `active_sessions()` on purpose. That projection is read by the stall detector, the susurro's
+    # dedup and the worker ledger, all of which reason about a PROCESS: an errand has none, it survives
+    # restarts, and it can legitimately sit silent for hours waiting for somebody to answer — a row like
+    # that inside their input is a false «stuck worker» three different ways. The brain does not learn
+    # about errands here either; it has its own seam (the context pack). This is the OPERATOR's board.
+    try:
+        from nucleo import errands
+        sessions = sessions + errands.board_rows()
+    except Exception:  # noqa: BLE001 — the errand ledger must never empty the task board
+        pass
+    return JSONResponse({"sessions": sessions}, headers={"Cache-Control": "no-cache"})
 
 
 @router.get("/api/workers/history")

@@ -126,6 +126,13 @@ def _install() -> None:
         introduction.install()
     except Exception as e:  # noqa: BLE001
         logger.warning(f"context_packs: introduction pack not installed: {e!r}")
+    # V2-683 — an errand with a third party is a stretch of the relationship with its own instructions, and
+    # it is this mechanism's second consumer: the argument for a registry rather than a branch in prompt.py.
+    try:
+        from nucleo.errands import pack as _errands_pack
+        _errands_pack.install()
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"context_packs: errands pack not installed: {e!r}")
 
 
 _install()

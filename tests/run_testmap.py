@@ -1465,6 +1465,17 @@ DOMAINS: list[dict] = [
             "ch": UNIT,
             "paths": ["tests/infrastructure/unit/core/"
                       "test_a_phase_of_the_relationship_has_its_own_prompt.py"]},
+        # V2-683 — EL ENCARGO CON UN TERCERO. Ninguna de las cuatro formas de «en marcha» que había podía
+        # sostener «contacta con Iván y organiza una reunión esta tarde»: el turno dura segundos, la sesión de
+        # worker vive en RAM y un reinicio la entierra, un cron no lleva estado y el objetivo del arnés caduca
+        # a los cinco minutos. Lo que se mide aquí es sobre todo lo que lo hace SEGURO: que nace solo de algo
+        # que el operador autorizó, que un hilo pertenece a UN encargo, y que se cierra solo — «esa persona
+        # puede no contestar nunca más».
+        {"id": "3.41", "title": "Un encargo con un TERCERO sobrevive al turno: es una fila (no un proceso), un "
+                                "hilo pertenece a UN encargo, se cierra solo, y mientras está abierto viaja en "
+                                "el prompt diciendo que NO está hecho",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/test_an_errand_outlives_the_turn.py"]},
         # V2-676 — medido en su sesión INGLESA `af4429e0` (2026-09-11), dos fallos que viajaban juntos:
         #   · cinco búsquedas del tiempo en Nueva York, las cinco n:0 con `failure.kind = captcha`, y el modelo
         #     explicó el vacío con la única historia que tiene: «I don't have live internet access… my training

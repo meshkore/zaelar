@@ -70,6 +70,11 @@ _CAT = {
     # `flow` = EXPLICIT flow closure (V2-090/observability): before this, "closed" was only ever INFERRED from the
     # absence of new events under its corr_id; this marks it for real when the worker that spawned it finishes.
     "flow": "worker",
+    # `errand` (V2-683) = an errand with a THIRD PARTY: born, woken, closed. Family `worker` because to the
+    # operator it is work being done for him, like a task; its OWN kind because it is the one piece here that
+    # is not a process — it survives restarts, it waits hours between moves, and «when did this wake and what
+    # did it decide» has to be countable apart from a worker's steps.
+    "errand": "worker",
     # ── Memory (ON)
     "memory": "memory",
     # ── Widgets (ON) — EVERY command against the canvas: show/close/move, data-ops (raise volume, maximize…),
