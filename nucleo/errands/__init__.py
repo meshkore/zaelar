@@ -242,13 +242,31 @@ def close(errand_id: str, outcome: str = "closed", why: str = "", now: float | N
     return row
 
 
+def expiry_why(row: dict) -> str:
+    """WHY this errand ran out, in the operator's terms — and it is not one sentence, it is three.
+
+    ⚠️ It used to be «nadie contestó dentro del plazo», for every errand, whatever had happened. The first
+    live run reached `agreed` (the other person accepted an hour) and would have expired at 02:25 telling
+    him nobody had answered: a plain falsehood about his own gestión, and the expensive direction of it —
+    it would have made him believe a deal that WAS closed never happened. The expiry announcement exists
+    precisely against believing something false about a gestión in flight (`watch._report_expired`), so
+    the one thing it may not do is invent the ending.
+    """
+    if str(row.get("state") or "") == "agreed":
+        return "se acordó con la otra persona y se acabó el plazo sin que quedara confirmado"
+    if str(row.get("last_inbound") or ""):
+        return "hubo conversación pero no se cerró nada dentro del plazo"
+    return "nadie contestó dentro del plazo"
+
+
 def sweep(now: float | None = None) -> list[dict]:
     """Close what ran out of time. Returns the errands closed by THIS sweep, so the caller can tell him."""
     now = time.time() if now is None else now
     out = []
     for r in _memory().errands_where(LIVE):
         if int(r.get("expires_at") or 0) and now > int(r["expires_at"]):
-            closed = close(r["id"], "abandoned", "nadie contestó dentro del plazo", now=now)
+            parsed = _parse(r) or r
+            closed = close(r["id"], "abandoned", expiry_why(parsed), now=now)
             if closed:
                 out.append(closed)
     return out

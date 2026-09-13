@@ -617,6 +617,69 @@ def test_an_errand_that_could_not_answer_TELLS_the_operator(world, monkeypatch):
     assert errands.get(got["errand"]["id"])["state"] == "contacting"
 
 
+def test_the_party_turn_is_told_it_can_only_WRITE_in_this_conversation(world, monkeypatch):
+    """⚠️ It closed the deal and added «Te enviaré el enlace de la videollamada» — live, 2026-09-13.
+
+    It cannot: it has no tools, and nothing in the engine creates that link (V2-683 row 6). «No prometas
+    nada que no esté en el encargo» does not catch it either, because the medium IS part of the errand —
+    this is the other failure, the one this codebase keeps paying: an undeclared capability is one the
+    model narrates. So the limit is stated, and stated in the FIRST PERSON, which is where the lie lives.
+    """
+    _ivan()
+    model = answers(monkeypatch, '{"say": "Perfecto.", "state": "agreed"}')
+    got = _open(world)
+    _answers_and_wakes(world, got["chat"], "Vale, a las 11")
+
+    system = model.calls[-1]["system"]
+    assert "LO ÚNICO QUE PUEDES HACER es escribir mensajes" in system
+    assert "enlaces" in system and "lo hace tu operador" in system, \
+        "the way out has to be named too — a limit with no alternative is answered by inventing one"
+
+
+def test_an_errand_that_AGREED_and_ran_out_is_not_announced_as_silence(world, monkeypatch):
+    """«Se acabó el plazo y nadie contestó» over a deal the other person ACCEPTED is a plain falsehood
+    about his own gestión, and the expensive direction of it: he would believe a closed agreement never
+    happened. The announcement exists against believing something false about work in flight — inventing
+    the ending is the one thing it may not do."""
+    from nucleo import errands
+    _ivan()
+    armed(monkeypatch)
+    answers(monkeypatch, '{"say": "Perfecto, mañana a las 11:00.", "state": "agreed"}')
+    got = _open(world)
+    eid = got["errand"]["id"]
+    _answers_and_wakes(world, got["chat"], "Ok, a las 11")
+    assert errands.get(eid)["state"] == "agreed"
+
+    notes = _capture_notes(monkeypatch)
+    world.advance(6 * 24 * 3600)              # past the window AND past the grace
+    world.beat()
+
+    row = errands.get(eid)
+    assert row["state"] == "abandoned" and row["closed_at"] > 0
+    told = " ".join(n for n in notes if "Se acabó el plazo" in n)
+    assert told, "an errand that ends is always told once"
+    assert "nadie contestó" not in told, "somebody DID answer, and they agreed"
+    assert "se acordó" in told and "sin que quedara confirmado" in told
+
+
+def test_an_errand_ANSWERED_but_never_closed_says_that_instead(world, monkeypatch):
+    """The third ending, between the two: they talked and nothing was settled."""
+    from nucleo import errands
+    _ivan()
+    armed(monkeypatch)
+    answers(monkeypatch, '{"say": "¿Te va bien a las 18:00?", "state": "negotiating"}')
+    got = _open(world)
+    _answers_and_wakes(world, got["chat"], "Ya te diré algo")
+
+    notes = _capture_notes(monkeypatch)
+    world.advance(6 * 24 * 3600)
+    world.beat()
+
+    told = " ".join(n for n in notes if "Se acabó el plazo" in n)
+    assert "hubo conversación" in told and "nadie contestó" not in told
+    assert errands.get(got["errand"]["id"])["state"] == "abandoned"
+
+
 # ══ THE RESTART: the conversation is the record, the bus is only a notification ══════════════════════════
 
 def _restart() -> None:

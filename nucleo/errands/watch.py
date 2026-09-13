@@ -277,9 +277,13 @@ def _report_expired(now: float) -> None:
     for row in expired:
         try:
             from voice import brain_notes
+            # The SENTENCE is the row's own `outcome` (`errands.expiry_why`), never a fixed «nadie
+            # contestó»: an errand that reached an agreement and expired unconfirmed is a different piece of
+            # news, and the wrong one would have him believe a closed deal never happened.
             brain_notes.push(
-                f"[SISTEMA] Se acabó el plazo de «{str(row.get('objective') or '')[:90]}» y nadie contestó. "
-                f"Díselo al operador de forma natural y pregúntale si quiere que insistas.")
+                f"[SISTEMA] Se acabó el plazo de «{str(row.get('objective') or '')[:90]}»: "
+                f"{str(row.get('outcome') or 'nadie contestó dentro del plazo')}. "
+                f"Díselo al operador de forma natural y pregúntale qué quiere hacer.")
         except Exception:
             pass
 
