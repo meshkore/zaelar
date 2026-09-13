@@ -463,7 +463,8 @@ def test_if_the_retake_itself_fails_the_operator_is_TOLD_in_plain_language(monke
     ])
     assert delivered, "the task died in total silence"
     assert "API Error" not in delivered[0]
-    assert "contexto" in delivered[0]
+    from i18n import langs as _lg   # V2-682: the sentence lives in the table now
+    assert delivered[0] == _lg.current_language().worker_context_lost
 
 
 def test_a_normal_successful_task_is_delivered_exactly_as_before(monkeypatch):

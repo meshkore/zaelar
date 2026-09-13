@@ -200,6 +200,96 @@ def test_the_blocking_fault_is_wired_from_the_engine_to_a_translated_screen():
         assert f'"{k}"' in modal or k in modal
 
 
+# ── 4b · the four sentences of 2026-09-12 (V2-682) ─────────────────────────────────────────────────────
+# All four were heard VERBATIM, in Spanish, in an English session — and none of them was a `notify`/`say`
+# call, which is why the ratchet below had to grow two shapes as well.
+
+def test_the_irreversible_gate_asks_in_his_language():
+    """«¿Vacío la agenda entera? Es permanente.» → «Vale, no toco nada.», 20:07. A gate that stops the
+    product doing something has to explain itself in his language or it reads as a fault."""
+    from nucleo import danger
+    en = _in("en", lambda: danger.confirm_question("delete every appointment"))
+    es = _in("es", lambda: danger.confirm_question("borra todas las citas"))
+    assert "irreversible" in en.lower() and "your OK" in en
+    assert "irreversible" in es.lower() and "tu OK" in es
+    assert en != es
+
+
+def test_the_spend_gate_asks_in_his_language():
+    """20:45:05, fired by the STT rendering «pause» as «pay» — so he got a money warning, in Spanish, over a
+    request to pause the music."""
+    from nucleo import danger
+    en = _in("en", lambda: danger.confirm_question("pay the booking with my card"))
+    es = _in("es", lambda: danger.confirm_question("paga la reserva con mi tarjeta"))
+    assert "moves money" in en.lower() and "charge" in en.lower()
+    assert "mueve dinero" in es.lower()
+
+
+def test_the_confirmation_ack_comes_from_the_table():
+    """«Vale, no toco nada.» was a literal at the voice mouth."""
+    from i18n import langs as L
+    assert L.LANGUAGES["en"].confirm_cancelled != L.LANGUAGES["es"].confirm_cancelled
+    src = (ENGINE / "voice/engine/llm/providers/nucleo.py").read_text(encoding="utf-8")
+    assert "confirm_cancelled" in src and "Vale, no toco nada" not in src
+
+
+def test_the_first_turn_is_spoken_in_his_language():
+    """The kickoff is the one injected turn that impersonates the OPERATOR, so a Spanish one primes a Spanish
+    reply on turn one. It was a literal in the provider."""
+    from i18n import langs as L
+    assert L.LANGUAGES["en"].kickoff_prompt.startswith("This is the first turn")
+    src = (ENGINE / "voice/engine/llm/providers/nucleo.py").read_text(encoding="utf-8")
+    assert "kickoff_prompt" in src and "Es el primer turno" not in src
+
+
+def test_a_worker_that_dies_says_so_in_his_language():
+    """Seven of these were heard that evening. They were five Spanish literals in `workers/session.py` and
+    one more in `workers/stall.py`."""
+    from i18n import langs as L
+    for field in ("worker_context_lost", "worker_relay_failed", "worker_no_relay",
+                  "worker_gave_up_context", "worker_gave_up_provider", "worker_command_denied",
+                  "worker_stalled"):
+        en, es = getattr(L.LANGUAGES["en"], field), getattr(L.LANGUAGES["es"], field)
+        assert en and es and en != es, field
+    src = (ENGINE / "nucleo/workers/session.py").read_text(encoding="utf-8")
+    assert "_say().worker_" in src, "the endings must read the table"
+
+
+def test_the_stalled_ending_is_formatted_from_the_table():
+    from i18n import langs as L
+    line = _in("en", lambda: L.current_language().worker_stalled.format(minutes=7))
+    assert "7 min" in line and "stopped answering" in line
+
+
+def test_the_introduction_never_asks_a_question_the_language_does_not_have():
+    """«"tú" or "usted", which do you prefer?» — asked THREE times in one English conversation on
+    2026-09-12 (20:08, 20:24, 20:36). English has no T–V distinction, so there is no answer to give; the
+    goal was a Spanish literal in the phase's own goal list."""
+    from nucleo.context_packs import introduction as intro
+    known = intro._known
+    intro._known = lambda: {}                          # nothing learned yet: every goal is still open
+    try:
+        es = _in("es", intro.block)
+        en = _in("en", intro.block)
+    finally:
+        intro._known = known
+    from i18n import langs as L
+    q = L.LANGUAGES["es"].treatment_question
+    assert q and q in es, "Spanish keeps the question — the distinction is real there"
+    # The pack's PROSE is Spanish for every language on purpose (it is a model-facing prompt, like the rest
+    # of the system prompt), so the assertion is about the GOAL, not about the block's vocabulary.
+    assert q not in en and "(tú/usted)" not in en
+    assert "su nombre" in en, "the goals that DO exist in every language are untouched"
+
+
+def test_a_language_with_no_spec_of_its_own_is_not_asked_either():
+    """A generated language has no `LangSpec`, so it inherits the product default — and the safe default is
+    not asking about a distinction we cannot confirm exists."""
+    from i18n import langs as L
+    assert L.LANGUAGES["en"].treatment_question == ""
+    assert L.spec("ja").treatment_question == L.LANGUAGES[L.current_code()].treatment_question
+
+
 # ── 5 · THE RATCHET: prose at a delivery point only shrinks ─────────────────────────────────────────────
 # The operator's standing instruction: «intenta unificar todos los textos, labels, todo el contenido que
 # tiene que traducirse, que esté en un solo lugar». Two places qualify and both travel to any language:
@@ -220,6 +310,20 @@ _ACCENT = re.compile(r"[áéíóúñ¿¡]", re.I)
 # The calls that hand a sentence to the OPERATOR. `emit` is observability and `milestone` is the task log —
 # both are ours to read, not his, and both stay Spanish on purpose.
 _DELIVERS = {"notify", "send_operator", "say"}
+# V2-682 — THE RATCHET MEASURED ONE SHAPE AND THE LEAKS CAME THROUGH THREE OTHERS.
+#
+# Measured in his English session of 2026-09-12, all four in Spanish and none of them a `notify`/`say` call:
+#   · «¿Vacío la agenda entera? Es permanente.» — a RETURN value (`widgets` confirm_q, and `danger.py`'s own)
+#   · «Vale, no toco nada.» — a literal handed to `speech.sanitize(...)`, the voice mouth's own funnel
+#   · «Esto mueve dinero («…») y no hago ningún cargo sin tu OK» — a RETURN value from `danger.py`
+#   · the worker endings — an ASSIGNMENT to `rec.result_summary`, which is read aloud when a task dies
+#
+# So the measurement grows two shapes: what is written into a field whose content is SPOKEN, and what is
+# handed to the sanitizer. Kept narrow on purpose — `send`/`speak` were measured and rejected as the anchor
+# (in `session.py` and `second_pass.py` they carry text for the MODEL, not for him, and a ratchet with false
+# positives is a ratchet that gets an allowlist instead of a fix).
+_SPOKEN_FIELDS = {"result_summary", "spoken", "spoken_text", "_ack_early"}
+_SANITIZERS = {"sanitize"}
 
 
 def _spanishy(s: str) -> bool:
@@ -229,25 +333,74 @@ def _spanishy(s: str) -> bool:
     return len(w) >= 3 and (len(w) >= 4 or bool(_ACCENT.search(s)))
 
 
+def _flat(node) -> list[str]:
+    """Every string this expression can produce, with an f-string JOINED back together.
+
+    ⚠️ V2-682 — this is the hole the first version had, and it is the one that mattered: an f-string is a
+    `JoinedStr` whose pieces are each too short to look Spanish («El proveedor dejó de responder (» has two
+    stopwords), so the sentences that actually leaked — every one of them interpolated — were invisible to a
+    scan that only looked at `ast.Constant`. A disarm that put one back came back GREEN and accused the
+    ratchet, which is what a disarm is for."""
+    out: list[str] = []
+    for c in ast.walk(node):
+        if isinstance(c, ast.JoinedStr):
+            out.append("".join(v.value if isinstance(v, ast.Constant) and isinstance(v.value, str) else "{}"
+                               for v in c.values))
+        elif isinstance(c, ast.Constant) and isinstance(c.value, str):
+            out.append(c.value)
+    return out
+
+
+def _prose_in(src: str) -> bool:
+    """True when this source hands the operator a Spanish sentence at one of the watched delivery shapes."""
+    try:
+        tree = ast.parse(src)
+    except Exception:
+        return False
+    for n in ast.walk(tree):
+        carried = []
+        if isinstance(n, ast.Call):
+            fn = getattr(n.func, "attr", None) or getattr(n.func, "id", None)
+            if fn in _DELIVERS or fn in _SANITIZERS:
+                carried = list(n.args) + [k.value for k in n.keywords]
+        elif isinstance(n, ast.Assign):
+            names = {getattr(t, "attr", None) or getattr(t, "id", None) for t in n.targets}
+            if names & _SPOKEN_FIELDS:
+                carried = [n.value]
+        for a in carried:
+            if any(_spanishy(t) for t in _flat(a)):
+                return True
+    return False
+
+
 def _measure() -> set[str]:
     found: set[str] = set()
     for root in ("nucleo", "voice", "widgets", "server", "connectors"):
         for p in sorted((ENGINE / root).rglob("*.py")):
             try:
-                tree = ast.parse(p.read_text(encoding="utf-8"))
+                src = p.read_text(encoding="utf-8")
             except Exception:
                 continue
-            for n in ast.walk(tree):
-                if not isinstance(n, ast.Call):
-                    continue
-                fn = getattr(n.func, "attr", None) or getattr(n.func, "id", None)
-                if fn not in _DELIVERS:
-                    continue
-                for a in list(n.args) + [k.value for k in n.keywords]:
-                    for c in ast.walk(a):
-                        if isinstance(c, ast.Constant) and isinstance(c.value, str) and _spanishy(c.value):
-                            found.add(str(p.relative_to(ENGINE)))
+            if _prose_in(src):
+                found.add(str(p.relative_to(ENGINE)))
     return found
+
+
+# The ratchet must be able to SEE each shape, or «no new prose» only means «no prose of the one shape I read».
+def test_the_ratchet_sees_a_sentence_written_into_a_spoken_field():
+    assert _prose_in('rec.result_summary = "El proveedor dejó de responder y he abortado la tarea entera."')
+    assert _prose_in('rec.result_summary = f"El proveedor dejó de responder ({mins} min) y aborté la tarea."')
+
+
+def test_the_ratchet_sees_a_sentence_handed_to_the_mouth():
+    assert _prose_in('send(speech.sanitize("Vale, no toco nada, esto no lo hago sin tu permiso.", x=1))')
+
+
+def test_the_ratchet_leaves_our_own_prose_alone():
+    """Observability and the task log are OURS to read. A ratchet that reddens on those gets an allowlist
+    instead of a fix."""
+    assert not _prose_in('emit("brain", "el turno se descarta porque no hay nada que decir todavía")')
+    assert not _prose_in('logger.warning("no se pudo relevar el proveedor de los procesos de fondo")')
 
 
 def test_no_new_prose_is_written_at_a_delivery_point():

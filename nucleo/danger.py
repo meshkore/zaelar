@@ -237,11 +237,14 @@ def moves_money(text: str) -> bool:
 
 
 def confirm_question(text: str) -> str:
-    """Documentation translated to English."""
+    """The sentence the operator HEARS before an irreversible or money-moving action.
+
+    V2-682 — it used to be two Spanish literals right here, and he heard the money one verbatim in the
+    middle of an English session (2026-09-12 20:45), fired by the STT rendering «pause» as «pay». A gate
+    that stops the product doing something has to explain itself in HIS language or it reads as a fault."""
     t = (text or "").strip()
     short = (t[:120] + "…") if len(t) > 120 else t
-    if moves_money(t):
-        return (f"Esto mueve dinero («{short}») y no hago ningún cargo sin tu OK. Primero miro el importe "
-                f"exacto y te lo digo; cuando me lo confirmes, lo hago. ¿Sigo?")
-    return (f"Antes de seguir necesito tu OK: esto puede ser irreversible («{short}»). "
-            f"¿Confirmas que quieres que lo haga?")
+    from i18n import langs as _lg
+    sp = _lg.current_language()
+    tpl = sp.spend_confirm if moves_money(t) else sp.irreversible_confirm
+    return tpl.format(what=short)

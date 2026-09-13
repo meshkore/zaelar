@@ -766,8 +766,9 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
                 try:
                     from voice.engine.core import langs as _lg_src
                     spoken = _lg_src.current_language().unverified_fact
-                except Exception:
-                    spoken = "No he podido comprobarlo ahora mismo, así que prefiero no darte un dato inventado."
+                except Exception:  # noqa: BLE001 — V2-682: the last resort is the PRODUCT default (English),
+                    from i18n.langs import LANGUAGES  # never a Spanish literal an English operator cannot read
+                    spoken = LANGUAGES["en"].unverified_fact
 
     # BÚSQUEDA DE ANUNCIOS (V2-556) — espejo del provider (impl PARALELA, cablear en AMBOS). El cuerpo es
     # COMPARTIDO (`listing_turn.run`: pasada rápida → hoja → auto-escalación con la hoja heredada, y él mismo

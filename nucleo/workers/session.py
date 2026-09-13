@@ -22,6 +22,14 @@ from . import progress as _progress
 from . import stall as _stall
 from .base import WorkerBackend, WorkerSpec
 
+
+def _say():
+    """The language table (V2-682). These five endings are SPOKEN, and they were Spanish literals right here
+    — a worker that dies in a language the operator does not speak is a fault he cannot even read."""
+    from i18n import langs as _lg
+    return _lg.current_language()
+
+
 # CONTEXT BUDGET (incident 2026-08-18). Not the model's real ceiling — deliberately well below it, because the
 # provider rejects a call once input PLUS the requested output reservation exceeds its window, and we do not know
 # what reservation the CLI asks for. The worker that died reached 138,492 with a ~200k-window model, so the ceiling
@@ -334,8 +342,7 @@ class WorkerSession:
             except Exception as e:  # noqa: BLE001
                 logger.warning(f"worker[{rec.task_id}]: no pude retomar tras agotar el contexto: {e}")
                 rec.ok = False                    # V2-238: ver la nota de abajo — esto NO se entrega como logro
-                rec.result_summary = ("Me he quedado sin espacio de contexto en esa tarea y no he podido retomarla. "
-                                      "Si me la pides otra vez, la parto en trozos más pequeños.")
+                rec.result_summary = _say().worker_context_lost
         # PROVIDER HANDOFF: the task did not fail; it ran out of fuel. Relaunch ONCE —the exhausted tier is already
         # on cooldown, so the new spawn takes the next one— instead of delivering the operator the provider's raw
         # error as though it were the result of what they requested.
@@ -357,17 +364,14 @@ class WorkerSession:
                 except Exception as e:  # noqa: BLE001
                     logger.warning(f"worker[{rec.task_id}]: relevo de proveedor falló: {e}")
                     rec.ok = False
-                    rec.result_summary = ("Me he quedado sin cuota en el proveedor de los procesos de fondo y no "
-                                          "he podido relevarlo. Míralo en el panel de estado.")
+                    rec.result_summary = _say().worker_relay_failed
             else:
                 # V2-238 — THE THREE PATHS THAT ARE NOT A HANDOFF CLOSE `ok`. The three branches above write a
                 # `result_summary` that ANNOUNCES a failure, and none touched `ok`, which starts as True. If the
                 # backend had not already closed it, that sentence was delivered as «Task completed: I ran out of quota…»
                 # —the exact defect targeted by V2-092/V2-236: an ending that says the opposite of what happened.
                 rec.ok = False
-                rec.result_summary = ("Me he quedado sin cuota en el proveedor que mueve mis procesos de fondo y "
-                                      "no tengo otro configurado, así que esta tarea se queda parada. Lo tienes "
-                                      "en el panel de estado.")
+                rec.result_summary = _say().worker_no_relay
         # THE CHAIN STOPPED: it must be said, and the TRUTH must be told. Without this, a capped ending retained the
         # provider's raw error in `result_summary`, and `operator_safe_summary` translated it as «I ran out of context…
         # I'LL RESUME it with what I had» —a retry promise that will no longer happen. A reassuring sentence that
@@ -378,13 +382,9 @@ class WorkerSession:
             rec.ok = False
             _veces = int(rec.relay_gen or 0) + 1
             if rec.context_full:
-                rec.result_summary = (
-                    f"He intentado esa tarea {_veces} veces y las {_veces} me he quedado sin espacio de contexto, "
-                    f"así que paro en vez de seguir gastando. Pídemela por partes y la saco.")
+                rec.result_summary = _say().worker_gave_up_context.format(times=_veces)
             else:
-                rec.result_summary = (
-                    f"He intentado esa tarea {_veces} veces y el proveedor que mueve mis procesos de fondo ha "
-                    f"fallado las {_veces}, así que paro. Lo tienes en el panel de estado.")
+                rec.result_summary = _say().worker_gave_up_provider.format(times=_veces)
 
         # V2-241 — A SILENT ENDING AFTER HITTING THE GATE. The three measured cases died without saying anything,
         # and the cause appeared only by cross-checking the engine log. If the session ends without delivery or
@@ -392,10 +392,7 @@ class WorkerSession:
         # task failure; the route they chose is closed here.
         if (not rec.ok and not rec.handoff and rec.perm_denied and rec.status != "cancelled"
                 and not rec.result_summary.strip()):
-            rec.result_summary = (
-                f"Me he quedado a medias: el comando `{rec.perm_denied}` no está permitido en el cajón donde "
-                f"corren mis procesos de fondo, y no hay forma de aprobarlo desde aquí. Si me dices por dónde "
-                f"seguir, lo retomo por otra vía.")
+            rec.result_summary = _say().worker_command_denied.format(cmd=rec.perm_denied)
         if rec.status not in ("cancelled",):
             rec.status = "done" if rec.ok else ("relevada" if rec.handoff else "error")
         if rec.ok:

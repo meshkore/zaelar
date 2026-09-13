@@ -106,7 +106,8 @@ def test_un_relevo_SIN_a_donde_ir_es_una_muerte(sesion):
     _run(sesion._finish())
     assert not sesion._lanzadas
     assert rec.status == "error" and not rec.handoff
-    assert "sin cuota" in rec.result_summary
+    from i18n import langs as _lg   # V2-682: the sentence lives in the table now
+    assert rec.result_summary == _lg.current_language().worker_no_relay
 
 
 def test_si_el_relanzamiento_FALLA_no_se_finge_un_relevo(sesion, monkeypatch):
@@ -119,7 +120,8 @@ def test_si_el_relanzamiento_FALLA_no_se_finge_un_relevo(sesion, monkeypatch):
     rec.provider_down = {"provider": "z.ai", "next": "deepseek", "text": "insufficient balance"}
     _run(sesion._finish())
     assert not rec.handoff and rec.status == "error"
-    assert "no he podido relevarlo" in rec.result_summary
+    from i18n import langs as _lg
+    assert rec.result_summary == _lg.current_language().worker_relay_failed
 
 
 def test_una_cancelacion_no_se_convierte_en_relevo(sesion):

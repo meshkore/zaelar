@@ -41,6 +41,13 @@ _WINDOW_MAX = 10
 _TAG_TASKS: set = set()
 
 
+def _say():
+    """The language table (V2-682) — ONE home for this file's reads of it (the coupling ratchet counts
+    lazy imports: moving a sentence INTO the table must not cost a new one each time)."""  # noqa: D401
+    from voice.engine.core import langs as _lg
+    return _lg.current_language()
+
+
 def _last_user_text(chat_ctx) -> str:
     """Last user turn from ChatContext (FlashBrain composes its own window + memory)."""
     try:
@@ -586,9 +593,7 @@ class NucleoLLMStream(llm.LLMStream):
         if _clipped:
             emit("brain", "✂️ input recortado (comando preservado)", text=f"→{_max_in} chars")
         if first_turn:
-            text = ("Es el primer turno. Salúdame en 1-2 frases, cálido y breve; si por tu MEMORIA ya sabes mi "
-                    "nombre, úsalo y NO preguntes quién soy; si no, preséntate en una línea y pregúntame el nombre. "
-                    "Luego para.")
+            text = _say().kickoff_prompt   # V2-682 — it impersonates HIM, so it is in HIS language
 
         # V2-1xx: la petición REAL del operador, capturada ANTES de que se le antepongan notas del sistema —
         # el recall semántico (más abajo) tiene que buscar por ESTO, nunca por el turno completo. Confirmado en
@@ -817,7 +822,7 @@ class NucleoLLMStream(llm.LLMStream):
                 _verdict_early = None
             if _verdict_early:
                 if _resolve_pending_confirm(_verdict_early == "yes"):
-                    _ack_early = "Hecho." if _verdict_early == "yes" else "Vale, no toco nada."
+                    _ack_early = (_say().data_ack if _verdict_early == "yes" else _say().confirm_cancelled)
                     send(speech.sanitize(_ack_early, drop_metadata=False))
                     return
 

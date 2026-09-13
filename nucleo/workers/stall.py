@@ -46,9 +46,8 @@ def mark_stalled(rec, emit_chip) -> None:
         pass
     rec.status = "error"
     rec.ok = False
-    rec.result_summary = (rec.result_summary or
-                          f"El proveedor dejó de responder ({mins} min sin un solo evento) y "
-                          f"aborté la tarea. Se puede relanzar.")
+    from i18n import langs as _lg_st          # V2-682 — a spoken ending belongs to the language table
+    rec.result_summary = rec.result_summary or _lg_st.current_language().worker_stalled.format(minutes=mins)
 
 
 # ── the gate's refusal, read (V2-241) ──────────────────────────────────────────────────────────────────────

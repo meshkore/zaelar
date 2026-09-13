@@ -30,6 +30,14 @@ from loguru import logger
 from .. import store
 from nucleo.errors import brief as _brief
 
+
+def _say():
+    """The language table (V2-682) — this owner's three spoken sentences were f-strings at their own
+    `notify` call, and an English operator was told about his own browser in Spanish."""
+    from i18n import langs as _lg
+    return _lg.current_language()
+
+
 WID = "navegador"
 VIEWPORT = {"width": 1280, "height": 800}
 HOME = {"mode": "blank", "url": "", "title": "Nuevo navegador"}
@@ -212,8 +220,8 @@ async def start() -> None:
         pend = auth_memory.read_auth_pending()
         if pend and pend.get("sitio"):
             from voice import proactive
-            await proactive.notify("navegador", f"Antes dejaste a medias el inicio de sesión en "
-                                   f"{pend['sitio']}. Si quieres, lo retomamos.", kind="notify")
+            await proactive.notify("navegador", _say().login_left_halfway.format(site=pend["sitio"]),
+                                   kind="notify")
             auth_memory.clear_auth_pending()          # already notified → do not repeat the reminder on every startup
     except Exception:
         pass
@@ -812,8 +820,7 @@ async def _authenticate(task_id: str, url: str, *, site: str = "", goal: str = "
         tasks.milestone(task_id, f"✅ Ya había sesión en «{site}» — no hace falta iniciar sesión")
         try:
             from voice import proactive
-            await proactive.notify("navegador", f"Ya estabas dentro de {site}, no hace falta iniciar sesión. Sigo.",
-                                   kind="notify")
+            await proactive.notify("navegador", _say().login_already_in.format(site=site), kind="notify")
         except Exception:
             pass
         if goal_to_run:                                          # search to resume → launch it now (authenticated)
@@ -865,8 +872,7 @@ async def _authenticate(task_id: str, url: str, *, site: str = "", goal: str = "
     tasks.milestone(task_id, "🔓 Inicia sesión en la ventana; lo detecto solo cuando entres — no tienes que hacer nada más")
     try:
         from voice import proactive
-        from i18n import langs as _lg_ow          # V2-676: spoken text lives in the table
-        await proactive.notify("navegador", _lg_ow.current_language().login_opened, speak=True)
+        await proactive.notify("navegador", _say().login_opened, speak=True)   # V2-676: from the table
     except Exception:
         pass
     _arm_login_watch(task_id, site)                               # WATCH the window → auto-detect login
@@ -981,9 +987,8 @@ async def _auth_done(task_id: str) -> None:
         _auth_active = ""
         try:
             from voice import proactive
-            from i18n import langs as _lg_ow2     # V2-676
             await proactive.notify("navegador",
-                                   _lg_ow2.current_language().login_not_saved.replace("{site}", str(site)),
+                                   _say().login_not_saved.replace("{site}", str(site)),
                                    kind="notify")
         except Exception:
             pass
@@ -1576,8 +1581,9 @@ class TaskBrowser:
         tasks.ask(self.task_id, f"Voy a pulsar «{label[:50]}». ¿Lo confirmo? (dime sí o no)")
         try:
             from voice import proactive
-            await proactive.notify("navegador", f"La tarea {self.task_id} necesita tu OK para pulsar "
-                                   f"«{label[:40]}». ¿Confirmo?", kind="notify")
+            await proactive.notify("navegador",
+                                   _say().click_needs_ok.format(task=self.task_id, label=label[:40]),
+                                   kind="notify")
         except Exception:
             pass
         for _ in range(int(_CONFIRM_TIMEOUT / 0.5)):

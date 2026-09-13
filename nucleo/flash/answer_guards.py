@@ -297,10 +297,20 @@ _DENIES_THE_SCREEN_RE = _re.compile(
     # English — the three measured shapes.
     r"(do\s*n[o']?t|do\s+not|cannot|can\s*not|can[o']?t)\s+(?:actually\s+|really\s+)?"
     r"(display|show|select|pick|choose|resize|maximi[sz]e|minimi[sz]e|enlarge|open|close|move|arrange)\s+"
-    r"[^.]{0,30}(image|images|picture|pictures|photo|photos|graph|chart|widget|widgets|window|windows|card)|"
+    r"[^.]{0,30}(image|images|picture|pictures|photo|photos|graph|chart|widget|widgets|window|windows|card|"
+    # V2-682 — the NOUNS of the other surfaces. «I can't show you your WhatsApp messages directly» named a
+    # surface this list did not know, so the one sentence that denied a whole connector walked through.
+    r"message|messages|mail|email|emails|inbox|chat|chats|whatsapp|telegram|agenda|calendar|"
+    r"music|song|songs|video|videos|document|documents|file|files|screen)|"
     r"(do\s*n[o']?t|do\s+not)\s+have\s+(a\s+way|any\s+way|the\s+ability|control)\s+[^.]{0,40}"
     r"(display|show|select|resize|maximi[sz]e|widget|window|screen|interface)|"
     r"(do\s*n[o']?t|do\s+not)\s+have\s+control\s+over\s+[^.]{0,30}(interface|screen|display)|"
+    # V2-682 — the claim that denies the canvas WHOLESALE rather than one verb on it. Measured verbatim
+    # (2026-09-12, 20:18): «No problem — you won't see them here. I'm voice-only, so I can't show you your
+    # WhatsApp messages directly.» It is false about this product in every language: the agent drives a
+    # canvas, and this is the shape that teaches the operator it does not.
+    r"(i\s*'?m|i\s+am)\s+(?:just\s+|only\s+)?(voice[-\s]only|audio[-\s]only)|"
+    r"soy\s+(?:solo\s+|s[oó]lo\s+)?(?:una\s+)?(?:voz|asistente\s+de\s+voz\s+sin\s+pantalla)\b|"
     r"(i\s+)?can\s+only\s+describe\b)", _re.I)
 
 # The operator's OWN machine, outside the app, is a true limit — we drive OUR canvas, not his desktop. A

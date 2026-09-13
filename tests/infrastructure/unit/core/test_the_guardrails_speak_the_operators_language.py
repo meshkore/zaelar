@@ -151,6 +151,15 @@ def test_both_channels_call_the_same_function_and_neither_reads_the_composed_tur
     "No puedo mostrar imágenes, pero te cuento lo que dicen.",
     "No tengo forma de maximizar el widget desde aquí.",
     "I cannot select pictures myself.",
+    # V2-682 — the two sentences of 2026-09-12 that this guard did NOT catch. The first denies a whole
+    # connector by naming a surface the noun list did not know; the second denies the canvas WHOLESALE,
+    # which is the shape that teaches the operator the product does not have one.
+    "I can pause or stop music, but I can't close widgets on your screen. I'll pause playback for you.",
+    "No problem — you won't see them here. I'm voice-only, so I can't show you your WhatsApp messages "
+    "directly.",
+    "I'm voice-only, so I can't put that on screen.",
+    "Soy solo voz, no puedo enseñarte nada en pantalla.",
+    "I can't show you the agenda directly.",
 ])
 def test_a_denial_of_the_canvas_is_caught(said):
     assert ag.a_reply_denies_the_screen(said), said

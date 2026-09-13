@@ -98,12 +98,57 @@ class LangSpec:
                                     "esa tarea. Lo tienes en el panel de estado.")
     worker_failed: str = ("Esa tarea no ha podido completarse por un fallo del proveedor. Lo tienes en el "
                           "panel de estado.")
+    # V2-682 — THE CONFIRM GATE AND THE SPEND GATE. Both were hardcoded Spanish in `nucleo/danger.py` and in
+    # the voice provider, and the operator heard them verbatim in the middle of an English session
+    # (2026-09-12, 20:07 and 20:45): «¿Vacío la agenda entera? Es permanente.» → «Vale, no toco nada.», and
+    # «Esto mueve dinero («Yeah. Can you pay, uh, can you pause?») y no hago ningún cargo sin tu OK… ¿Sigo?»
+    # — the money gate, in Spanish, fired by the STT mishearing «pause» as «pay».
+    spend_confirm: str = ("Esto mueve dinero («{what}») y no hago ningún cargo sin tu OK. Primero miro el "
+                          "importe exacto y te lo digo; cuando me lo confirmes, lo hago. ¿Sigo?")
+    irreversible_confirm: str = ("Antes de seguir necesito tu OK: esto puede ser irreversible («{what}»). "
+                                 "¿Confirmas que quieres que lo haga?")
+    confirm_cancelled: str = "Vale, no toco nada."
+    # The FIRST TURN, spoken in the operator's own voice into the model's window. It is not an internal note
+    # like the system prompt: it impersonates HIM, so a Spanish one primes a Spanish reply on turn one.
+    kickoff_prompt: str = ("Es el primer turno. Salúdame en 1-2 frases, cálido y breve; si por tu MEMORIA ya "
+                           "sabes mi nombre, úsalo y NO preguntes quién soy; si no, preséntate en una línea y "
+                           "pregúntame el nombre. Luego para.")
+    # What a worker session says when it ENDS badly — `nucleo/workers/session.py`, four Spanish literals.
+    worker_context_lost: str = ("Me he quedado sin espacio de contexto en esa tarea y no he podido retomarla. "
+                                "Si me la pides otra vez, la parto en trozos más pequeños.")
+    worker_relay_failed: str = ("Me he quedado sin cuota en el proveedor de los procesos de fondo y no he "
+                                "podido relevarlo. Míralo en el panel de estado.")
+    worker_no_relay: str = ("Me he quedado sin cuota en el proveedor que mueve mis procesos de fondo y no "
+                            "tengo otro configurado, así que esta tarea se queda parada. Lo tienes en el "
+                            "panel de estado.")
+    worker_gave_up_context: str = ("He intentado esa tarea {times} veces y las {times} me he quedado sin "
+                                   "espacio de contexto, así que paro en vez de seguir gastando. Pídemela por "
+                                   "partes y la saco.")
+    worker_command_denied: str = ("Me he quedado a medias: el comando `{cmd}` no está permitido en el cajón "
+                                  "donde corren mis procesos de fondo, y no hay forma de aprobarlo desde aquí. "
+                                  "Si me dices por dónde seguir, lo retomo por otra vía.")
+    worker_stalled: str = ("El proveedor dejó de responder ({minutes} min sin un solo evento) y aborté la "
+                           "tarea. Se puede relanzar.")
+    worker_gave_up_provider: str = ("He intentado esa tarea {times} veces y el proveedor que mueve mis "
+                                    "procesos de fondo ha fallado las {times}, así que paro. Lo tienes en el "
+                                    "panel de estado.")
     # A widget refused a data operation — `nucleo/flash/widget_data_turn.py`.
     widget_data_failed: str = "No he podido: {reason}"
     widget_refused: str = "el widget no lo aceptó."
     # The browser's own login ceremony — `widgets/navegador/owner.py`.
     login_opened: str = ("Te abrí el login. Entra con tu cuenta; en cuanto vea que estás dentro, sigo yo solo.")
     login_not_saved: str = "No me quedó guardada la sesión de {site}. ¿Reintentamos el inicio de sesión?"
+    # V2-682 — THE INTRODUCTION MUST NOT ASK A QUESTION THIS LANGUAGE DOES NOT HAVE. The phase's goal list
+    # was hardcoded «cómo prefiere que le hables (tú/usted)», so an ENGLISH conversation was asked «"tú" or
+    # "usted", which do you prefer?» — three times in one session (2026-09-12, 20:08). English has no T–V
+    # distinction, so there is no answer to give. Empty = the goal is not pursued, which is also what every
+    # language with no spec of its own inherits: never ask about a distinction we cannot confirm exists.
+    treatment_question: str = "cómo prefiere que le hables (tú/usted)"
+    # The browser owner's own three sentences (V2-682) — all f-strings at a `notify` call, which is the
+    # shape the prose ratchet could not see until it learned to join an f-string back together.
+    login_left_halfway: str = ("Antes dejaste a medias el inicio de sesión en {site}. Si quieres, lo retomamos.")
+    login_already_in: str = "Ya estabas dentro de {site}, no hace falta iniciar sesión. Sigo."
+    click_needs_ok: str = "La tarea {task} necesita tu OK para pulsar «{label}». ¿Confirmo?"
     # A restart caught a widget half-built — `widgets/server_api.py`.
     widget_build_resumed: str = "El servidor se reinició a mitad de crear el widget «{name}»; lo relanzo ahora."
     # The two that already had an inline `if english:` ternary. They were CORRECT for an English operator and
@@ -478,10 +523,40 @@ LANGUAGES: dict[str, LangSpec] = {
         worker_provider_problem=("The provider that runs my background work gave me a problem with that task. "
                                  "It's in the status panel."),
         worker_failed="That task couldn't be completed — a provider failure. It's in the status panel.",
+        spend_confirm=("This one moves money («{what}») and I don't put a charge through without your OK. "
+                       "Let me check the exact amount first and tell you; once you confirm, I'll do it. "
+                       "Shall I go on?"),
+        irreversible_confirm=("Before I go on I need your OK: this could be irreversible («{what}»). "
+                              "Do you confirm you want me to do it?"),
+        confirm_cancelled="Alright, I won't touch anything.",
+        kickoff_prompt=("This is the first turn. Greet me in 1-2 sentences, warm and short; if you already "
+                        "know my name from your MEMORY, use it and do NOT ask who I am; if you don't, "
+                        "introduce yourself in one line and ask me my name. Then stop."),
+        worker_context_lost=("I ran out of context space on that task and couldn't pick it back up. Ask me "
+                             "for it again and I'll break it into smaller pieces."),
+        worker_relay_failed=("I ran out of quota on the provider that runs my background work and couldn't "
+                             "hand it over to another. Have a look at the status panel."),
+        worker_no_relay=("I ran out of quota on the provider that runs my background work and I have no "
+                         "other one configured, so this task is stuck. It's in the status panel."),
+        worker_gave_up_context=("I tried that task {times} times and ran out of context space all {times}, "
+                                "so I'm stopping instead of burning more. Ask me for it in parts and I'll "
+                                "get it."),
+        worker_command_denied=("I got stuck halfway: the command `{cmd}` is not allowed in the sandbox my "
+                               "background work runs in, and there's no way to approve it from here. Tell me "
+                               "which way to go and I'll pick it up another way."),
+        worker_stalled=("The provider stopped answering ({minutes} min without a single event) and I aborted "
+                        "the task. It can be relaunched."),
+        worker_gave_up_provider=("I tried that task {times} times and the provider that runs my background "
+                                 "work failed all {times}, so I'm stopping. It's in the status panel."),
         widget_data_failed="I couldn't: {reason}",
         widget_refused="the widget wouldn't take it.",
         login_opened=("I've opened the login for you. Sign in with your account; the moment I see you're in, "
                       "I'll carry on by myself."),
+        treatment_question="",
+        login_left_halfway=("You left the sign-in at {site} halfway through earlier. If you want, we can "
+                            "pick it up."),
+        login_already_in="You were already signed in at {site}, no need to log in. Carrying on.",
+        click_needs_ok="Task {task} needs your OK to click «{label}». Shall I?",
         login_not_saved="Your {site} session didn't stick. Shall we try signing in again?",
         widget_build_resumed=("The server restarted halfway through building the «{name}» widget; I'm "
                               "relaunching it now."),

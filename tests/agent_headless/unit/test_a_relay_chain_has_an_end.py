@@ -125,13 +125,21 @@ def test_a_capped_chain_never_promises_a_retake(relevos):
 
     from nucleo.workers.session import operator_safe_summary
     dicho = operator_safe_summary(rec.result_summary)
-    assert "retomo" not in dicho.lower(), f"le promete una retoma que no va a pasar: {dicho!r}"
+    # V2-682 — the sentence moved to the language table, so the contract is about WHAT it says, read from
+    # the table itself: it must not promise a retake, and it must tell him what to do instead.
+    from i18n import langs as _lg
+    _sp = _lg.current_language()
+    assert "retomo" not in dicho.lower() and "pick it up" not in dicho.lower(), \
+        f"le promete una retoma que no va a pasar: {dicho!r}"
     assert not rec.ok
-    assert "partes" in dicho.lower(), "tiene que decirle QUÉ hacer, no solo que falló"
+    assert dicho == _sp.worker_gave_up_context.format(times=6), \
+        "tiene que decirle QUÉ hacer, no solo que falló"
 
 
 def test_the_capped_chain_says_how_many_times_it_tried(relevos):
     """A «I could not do it» without a number does not distinguish «I tried once» from «I spent two dollars trying»."""
     rec = _rec(gen=5, context_full={"tokens": 1})
     asyncio.run(_sesion(rec)._finish())
-    assert "6 veces" in rec.result_summary, rec.result_summary
+    from i18n import langs as _lg2
+    assert rec.result_summary == _lg2.current_language().worker_gave_up_context.format(times=6), \
+        rec.result_summary

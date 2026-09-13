@@ -53,7 +53,10 @@ def test_a_hung_stream_ends_the_session_with_an_honest_summary(monkeypatch):
     # (a failure that kills the instrument is worse than the same failure reported).
     _run(asyncio.wait_for(s.run("da igual"), timeout=5))
     assert rec.status == "error" and rec.ok is False
-    assert "dejó de responder" in (rec.result_summary or ""), \
+    # V2-682 — the sentence moved to the language table, so the contract is «the record carries THAT
+    # sentence», not «the record carries these Spanish words».
+    from i18n import langs as _lg
+    assert _lg.current_language().worker_stalled.split("{")[0].strip() in (rec.result_summary or ""), \
         "the record must carry the truth the state line will speak"
     assert b.stopped, "the hung process is stopped, never left as a zombie"
 
@@ -71,7 +74,8 @@ def test_a_stream_that_finishes_in_time_is_untouched(monkeypatch):
     s = WorkerSession(b, type("S", (), {"model": "", "kind": "generic"})(), rec)
     _run(s.run("da igual"))
     assert rec.status != "error"
-    assert "dejó de responder" not in (rec.result_summary or "")
+    from i18n import langs as _lg
+    assert _lg.current_language().worker_stalled.split("{")[0].strip() not in (rec.result_summary or "")
 
 
 def test_zero_disables_the_watchdog(monkeypatch):
@@ -88,4 +92,5 @@ def test_zero_disables_the_watchdog(monkeypatch):
     s = WorkerSession(b, type("S", (), {"model": "", "kind": "generic"})(), rec)
     _run(s.run("da igual"))
     assert rec.status != "error"
-    assert "dejó de responder" not in (rec.result_summary or "")
+    from i18n import langs as _lg
+    assert _lg.current_language().worker_stalled.split("{")[0].strip() not in (rec.result_summary or "")

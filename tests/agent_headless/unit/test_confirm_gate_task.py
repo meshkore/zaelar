@@ -115,18 +115,38 @@ def test_a_second_irreversible_ask_supersedes_the_first():
 # It was right twice: there was no amount, and there could not have been one (nobody had checked the fee). A
 # generic question does not say the one thing that must be heard before authorizing a charge — that nothing is
 # paid without seeing the amount.
+def _es(fn):
+    """V2-682 — the two questions moved to the language table, so the cases pin the LANGUAGE they read in.
+    They used to assert Spanish words against a function that now answers in the operator's language, and
+    the operator heard this very sentence in Spanish in the middle of an English session (2026-09-12)."""
+    import os
+    prev = os.environ.get("ZAELAR_LANGUAGE")
+    os.environ["ZAELAR_LANGUAGE"] = "es"
+    try:
+        return fn()
+    finally:
+        os.environ.pop("ZAELAR_LANGUAGE", None) if prev is None else os.environ.__setitem__(
+            "ZAELAR_LANGUAGE", prev)
+
+
 def test_a_money_order_promises_the_amount_before_charging():
-    q = danger.confirm_question("Renueva mi cuota del gimnasio de este mes")
+    q = _es(lambda: danger.confirm_question("Renueva mi cuota del gimnasio de este mes"))
     assert "mueve dinero" in q.lower()
     assert "importe" in q                     # la promesa que el tester echó en falta
     assert "sin tu OK" in q
+
+
+def test_the_money_promise_survives_the_translation():
+    """The promise is the POINT of this question, so it has to be in every language's version of it."""
+    q = danger.confirm_question("Renew my gym membership for this month")   # default language: English
+    assert "moves money" in q.lower() and "exact amount" in q.lower() and "your OK" in q
 
 
 def test_a_non_money_irreversible_keeps_the_generic_question():
     """Deleting an account or publishing an ad is irreversible but costs nothing: promising an amount would be
     meaningless."""
     for req in ("borra la cuenta", "publica el anuncio en Wallapop", "cancela mi suscripción a Netflix"):
-        q = danger.confirm_question(req)
+        q = _es(lambda: danger.confirm_question(req))
         assert "mueve dinero" not in q.lower(), req
         assert "irreversible" in q, req
 

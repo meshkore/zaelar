@@ -91,10 +91,15 @@ def block() -> str:
     fact would survive the phase in the model's reading of itself even after the text stops being sent."""
     st = _known()
     name = str(st.get("operator_name") or "").strip()
-    missing = [label for label, key in (("su nombre", "operator_name"),
-                                        ("dónde vive", "location"),
-                                        ("cómo prefiere que le hables (tú/usted)", "treatment"))
-               if not str(st.get(key) or "").strip()]
+    # V2-682 — the treatment goal is LANGUAGE-DEPENDENT and comes from the table: English has no T–V
+    # distinction, so asking is asking for an answer that does not exist (measured: three times in one
+    # English session). An empty row means the goal is simply not pursued.
+    from i18n import langs as _lg
+    _goals = [("su nombre", "operator_name"), ("dónde vive", "location")]
+    _treat = (_lg.current_language().treatment_question or "").strip()
+    if _treat:
+        _goals.append((_treat, "treatment"))
+    missing = [label for label, key in _goals if not str(st.get(key) or "").strip()]
     lines = [
         "ES EL PRINCIPIO DE VUESTRA RELACIÓN: todavía no os conocéis. Durante esta fase, además de atender "
         "lo que te pida, te toca a ti llevar la conversación hacia conoceros.",
