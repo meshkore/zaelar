@@ -499,6 +499,71 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **An errand with a THIRD PARTY outlives the turn — and it ships in SHADOW (V2-683, 2026-09-13)**: the
+  operator's errand — «contacta con Iván Musikin y mantén una conversación con él para organizar una
+  reunión esta tarde… y cuando él conteste, ahora o dentro de diez horas, sigue esa conversación» — plus
+  the architectural half that outlives it: «que el sistema pueda soportar workflows de este tipo o de
+  cualquier otra índole SIN necesidad de que lo tengamos que programar». **Measured before building
+  anything: four kinds of «ongoing» existed and not one could hold it** — the TURN (seconds), the WORKER
+  SESSION (`workers/session.py`: minutes, RAM, buried by `rehydrate.py` past `STALE_S`), the CRON (a prompt
+  at a time, no state) and the HARNESS GOAL (`harness.py`: TTL 300 s, cap 8, RAM, verifies only whether a
+  widget is empty). And three capabilities were missing outright: a contact had **no channels** (phone and
+  email, no Telegram handle, no preferred one), **every outbound path required a conversation that already
+  existed** (`_resolve_target` → `pending_reply` → each connector's drain), and nothing linked an inbound
+  message to an errand WE started. So the work is a missing NOUN plus its resources, and deliberately NOT a
+  workflow engine: no steps, no branches, no retries — that is the script the brain-worker doctrine
+  forbids, and it is what would make «reservar una mesa» need a second engine next month.
+  - **`nucleo/errands/` is a ROW, not a process**: it survives a restart because that is what a row does,
+    and it is woken by the world instead of sitting in memory waiting. It is born from HIS OWN YES —
+    `mensajeria.send_to` is confirm-gated and its question IS the mandate («Voy a escribir a Iván Musikin
+    por Telegram: "…". Es para organizar una reunión esta tarde: si contesta, sigo yo la conversación por
+    ahí y te aviso») — and, his own rule, **it closes itself**: the objective verifies, the deadline passes
+    («en las próximas cuatro horas» is a GRAMMAR; a vague «esta tarde» falls back to a DECLARED default
+    rather than a guessed date, the call `scheduler.parse_when` already makes), or he says so. A closed
+    errand RELEASES its conversations, and `errand_threads`' primary key `(platform, chat_id)` makes «one
+    errand per conversation» structural rather than remembered.
+  - **The party turn holds NO TOOLS.** A stranger's words reach a model — that is what following a
+    conversation means — and the model returns ONE JSON object the ENGINE executes. There is nothing for an
+    injected instruction to call, structurally rather than by prompt wording. The profile is `cluster.py`'s
+    UNTRUSTED one (V2-069) with exactly two differences, both written down: identity is disclosed BY MANDATE
+    and only that much (the assistant's name, the operator's first name, that it writes on his behalf —
+    that IS the errand), and the language follows the PARTY. `compose_state` is never read. The reply can
+    only reach the conversation the errand already owns, held by two independent guards (a whitelist on the
+    parse, and a send BUILT from the binding).
+  - **SHADOW is what ships** (`errands.shadow`, genesis, default true): it decides and LOGS what it would
+    say, and sends nothing. Autonomy that writes to real people in his name is handed over after he has read
+    a few of those rows, not on the strength of a green suite. Fails closed, as do ⏻ (postponed, never lost)
+    and an unreadable answer (half an action out of unparseable prose is worse than none: it reaches a
+    person). Outbound text passes `memory/secrets.py` at the owner's flush and FAILS CLOSED — unlike a reply
+    he dictated, this text was written by a model for a third party.
+  - **Playbooks are DATA and a briefing** (`genesis.json`, overridable in `config/playbooks.json` — his
+    «otro usuario podría querer Zoom», one file away): what «done» means, what must be known first, how the
+    thing is done well, what ends it. Three properties keep it a shortcut and not a fence, each a test: an
+    errand with NO playbook still runs, the operator's file wins, and nothing in it names a person, a company
+    or a site — swap reunión→cena→taller and it stands.
+  - **It closes on the product's own truth**: `verify.py` asks the agenda, ignores a meeting he ALREADY had
+    (or last week's dentist closes today's errand), and answers None when it cannot read — which closes
+    nothing, because a wrong «ya está» is the exact lie the V2-660 harness was built against.
+  - ⚠️ **The ratchet caught a DESIGN mistake, not just a size**: the errand rows were being merged inside
+    `dispatch.active_sessions()`, which feeds the stall detector, the susurro's dedup and the worker ledger
+    — all three reasoning about a PROCESS, to which «waiting three hours for somebody to answer» reads as a
+    stuck worker. Moved to the `/api/tasks` route (the operator's board); the brain has its own seam, the
+    context pack. `dispatch.py` ended UNCHANGED and `memory/api.py` too (the facade went to
+    `memory/errands_store.py`), both paid by extraction and never by a higher ceiling.
+  - ⚠️ **Twenty green disarms across the batch, and they split three ways**: a guard that guarded NOTHING
+    (deleted, V2-655's rule), tests that measured with values where the mutation changed nothing (a window
+    equal to the default, a ceiling the grammar rejected, a numeric id where the point was a non-numeric
+    one), and — three times — a property genuinely held by TWO independent guards, re-anchored on the
+    load-bearing one, with the one that cannot be disarmed alone SAYING SO in the test instead of pretending.
+    Sixty-three disarms in total, every mutation asserted, all red.
+  - Nodes **4.96**, **4.166**, **5.24**, **3.41** and **3.42** (105 cases). ⚠️ **NOT verified live**: no
+    real message has been sent by this path and no real person has answered one — which is what shadow mode
+    is for. **NOT built**: the Meet link (`conferenceData.createRequest`, one small gap) waits on
+    `connectors/calendar/` being committed by the session that owns it; and the messaging widget's prompt
+    debt (a legacy 2 090-char `[[msg.*]]` protocol duplicating its 26 declared actions, and no
+    `prompt_digest`) is named in the initiative and deliberately left alone: retiring the protocol and
+    adding the digest are two halves of ONE swap on a live path, and that deserves its own batch.
+
 - **A SET PHRASE is answered from a table, in any language — the phrasebook (V2-674, 2026-09-11)**: the
   operator, after starting a session in ENGLISH to check the product is language agnostic — «le digo hola y
   me dice un segundo o check-in, o sea, ¿qué vas a chequear si te acabo de decir hola?… ya lo pedí, una serie
