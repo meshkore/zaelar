@@ -48,6 +48,7 @@ from .spotify_api import router as spotify_router  # Spotify music connector (OA
 from .config_api import router as config_router  # full-screen configuration area + API balances (V2-043)
 from .i18n_api import router as i18n_router  # multilingual UI: state + preset/generated bundles (V2-089)
 from .feedback_api import router as feedback_router  # send a suggestion to the developers (V2-100)
+from .daemon_api import router as daemon_router  # V2-575 P1: status + folder permissions of the LOCAL DAEMON
 
 
 @asynccontextmanager
@@ -554,7 +555,7 @@ def create_app() -> FastAPI:
     routers = [pages_router, voice_router, widgets_router, meshkore_router, messaging_router, files_router,
                vault_router, wizard_router, spotify_router, config_router, i18n_router,
                obs_router, feedback_router, update_router, cloudfiles_router, photos_router,
-               videoacct_router, calendar_router, torrent_router, library_router]
+               videoacct_router, calendar_router, torrent_router, library_router, daemon_router]
     # LiveKit control plane (token + connect config + session.js swap) — the default engine (INI-012).
     if os.getenv("ZAELAR_ENGINE", "livekit").lower() == "livekit":
         from .livekit_api import router as livekit_router

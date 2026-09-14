@@ -10,7 +10,8 @@ import * as api from "../services/api.js?v=2";
 import { overallStatus } from "../services/status.js?v=2";
 import { toggleTheme } from "../services/theme.js?v=2";
 import { t } from "../core/i18n.js?v=1";
-import { BUG_ICON, GEAR_ICON, COMPASS_ICON, MOON_ICON, USER_ICON, MEM_ICON } from "../lib/icons.js?v=1";
+import { BUG_ICON, GEAR_ICON, COMPASS_ICON, MOON_ICON, USER_ICON, MEM_ICON, DESKTOP_ICON } from "../lib/icons.js?v=2";
+import * as daemon from "../services/daemon.js?v=1";
 import { EnergyGauge } from "./EnergyGauge.js?v=1";
 
 // Status dot is a plain filled circle (see .statusBtn svg below) — recolors via the SAME --hb-ok/--hb-warn/--hb-risk
@@ -47,6 +48,16 @@ export function TopBar() {
     // LA PILA of Energy, pegada a the IZQUIERDA of the 👤 (EnergyGauge.js, 2026-08-13). Se gatea sola by the `cloud` de
     // /api/energy and NO by `cloudProfile`: es the mismo hecho by dos vías, and the pila tiene that creerle al endpoint
     // that le da the saldo, no a otro. En self-host devuelve null and here no aparece nada.
+    // 🖥 THE LOCAL DAEMON (V2-575 P1). The one icon here that is NOT gated on `cloudProfile`, and that is the
+    // whole point of it: a cloud account is precisely the case where the user's own computer is unreachable —
+    // no window to open, no CAPTCHA to pass, no documents — and this is where they get the installer for it.
+    // Hiding it in cloud would hide it from the only people who cannot solve the problem any other way.
+    // Same visual language as the ◉ (`.st-ok/.st-warn`), because it answers the same shape of question.
+    h("button", {
+      class: () => "ic daemonBtn st-" + daemon.iconState() + (store.daemonSetupOpen() ? " on" : ""),
+      id: "daemonBtn", title: () => t("topbar.daemon.title"),
+      onClick: () => { const v = !store.daemonSetupOpen(); store.setDaemonSetupOpen(v); api.uiEvent("topbar:daemon", { state: v ? "open" : "close" }); },
+    }, raw(DESKTOP_ICON)),
     EnergyGauge(),
     // 👤 Perfil of the CUENTA (SOLO cloud): the data of the cuenta of pago (usuario/energía/plan) — distinto of la
     // persona of the operador, that vive en the orbe. En self-host NO aparece (instalación puramente local, no hace falta).

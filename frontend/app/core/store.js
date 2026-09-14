@@ -476,6 +476,12 @@ export const [energy, setEnergy] = createSignal({ cloud: false, known: false, ba
 export const [statusOpen, setStatusOpen] = createSignal(false);            // status panel visible?
 export const [status, setStatus]         = createSignal({ overall: "unknown", items: [] });
 
+// ---- the LOCAL DAEMON (V2-575 P1: 🖥 icon + full-screen setup) ----
+// Only whether the screen is OPEN lives here. Everything the screen shows comes from `services/daemon.js`,
+// which owns the poll — the same split `update/watch.js` has, so the store never holds a stale copy of
+// something the network already answered.
+export const [daemonSetupOpen, setDaemonSetupOpen] = createSignal(false);
+
 // ---- debug / observability side-column (resizable right column, fed by the SSE /events bus) ----
 export const [debugOpen, setDebugOpen]   = createSignal(localStorage.getItem("hb_debug_open") === "1");
 export const [debugWidth, setDebugWidth] = createSignal(Math.max(300, parseInt(localStorage.getItem("hb_debug_w") || "460", 10)));

@@ -135,6 +135,34 @@ jobs:
             if (-not $refused) { throw "the rebind guard did not survive the build" }
           } finally { Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue }
 
+      # ⚠️ PLATFORM-DISTINCT NAMES, and not for tidiness. Both runners produce `zaelar-daemon.pyz`,
+      # `manifest.json` and `SHA256SUMS` under those exact names, so the release job — which flattens every
+      # downloaded artifact into one upload — had two files claiming each name and whichever landed second won.
+      # The download surface needs a URL per platform that does not move between releases, which is the
+      # difference between "the icon offers you the installer" and "the icon offers you a coin flip".
+      - name: Name the artifacts after the platform they are for (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          cd dist/daemon
+          mv zaelar-daemon zaelar-daemon-macos
+          mv zaelar-daemon.pyz zaelar-daemon-macos.pyz
+          mv manifest.json manifest-macos.json
+          mv SHA256SUMS SHA256SUMS-macos
+          cp "$GITHUB_WORKSPACE/daemon/packaging/macos/install.sh" zaelar-daemon-install-macos.sh
+          cp "$GITHUB_WORKSPACE/daemon/packaging/macos/uninstall.sh" zaelar-daemon-uninstall-macos.sh
+
+      - name: Name the artifacts after the platform they are for (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Set-Location dist/daemon
+          Move-Item zaelar-daemon.exe zaelar-daemon-windows.exe
+          Move-Item zaelar-daemon.pyz zaelar-daemon-windows.pyz
+          Move-Item manifest.json manifest-windows.json
+          Move-Item SHA256SUMS SHA256SUMS-windows
+          Copy-Item "$env:GITHUB_WORKSPACE/daemon/packaging/windows/install.ps1" zaelar-daemon-install-windows.ps1
+          Copy-Item "$env:GITHUB_WORKSPACE/daemon/packaging/windows/uninstall.ps1" zaelar-daemon-uninstall-windows.ps1
+
       - uses: actions/upload-artifact@v4
         with:
           name: zaelar-daemon-${{ runner.os }}

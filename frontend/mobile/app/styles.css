@@ -270,6 +270,11 @@ body {
   border: none; border-bottom: 1px solid var(--hb-line); background: transparent; color: var(--hb-ink);
 }
 .zm-row:active { background: var(--hb-hover); }
+/* A row that REPORTS instead of acting (V2-575: the local daemon cannot be installed from a phone). No
+   press feedback and no chevron, so the finger is never invited to tap something that does nothing. */
+.zm-row-static { cursor: default; }
+.zm-row-static:active { background: transparent; }
+
 .zm-row-t { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .zm-row-t b { font: 600 15px/1.25 var(--sans); }
 .zm-row-t small { font: 13px/1.35 var(--sans); color: var(--hb-muted); }

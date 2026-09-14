@@ -25,6 +25,12 @@ import * as api from "../../../app/services/api.js?v=2";
 import { listFeedback, sendFeedback } from "../../../app/services/feedback-api.js?v=1";
 import { sendOutcome, listOutcome, lineFor } from "../../../app/services/feedback-state.js?v=1";
 import { t } from "../../../app/core/i18n.js?v=1";
+import * as daemon from "../../../app/services/daemon.js?v=1";
+
+// The daemon poll runs here too: the desktop starts it from the setup surface, which this shell does not
+// mount. Without this the row would always read "not connected", which is a wrong answer rather than a
+// missing one — the worst of the three states a status row can be in.
+daemon.start();
 
 const CHEV = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg>`;
 
@@ -110,6 +116,17 @@ export function MenuSheet() {
 
       Row(() => t("mobile.settings"), () => t("mobile.settings_sub"),
         () => { store.setMobileSettingsOpen(true); }),
+
+      // ── 🖥 THE LOCAL DAEMON, READ ONLY (V2-575 P1). A phone does not install a desktop daemon, so this row
+      //    has no chevron and no click: it REPORTS. It is here because "is my computer connected?" is a
+      //    question somebody asks from wherever they are, and a mobile shell that simply omitted the answer
+      //    would read as "this device has no daemon" rather than "you cannot set it up from here".
+      h("div", { class: "zm-row zm-row-static" },
+        h("span", { class: "zm-row-t" },
+          h("b", null, () => t("daemon.mobile.row")),
+          h("small", null, () => (daemon.isConnected() ? t("daemon.ok.lead") : t("daemon.mobile.hint"))),
+        ),
+      ),
 
       // ── FEEDBACK, inline (one gesture, V2-100) ──
       h("button", { class: "zm-row", onClick: () => setFbOpen(!fbOpen()) },

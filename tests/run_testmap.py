@@ -3522,6 +3522,27 @@ DOMAINS: list[dict] = [
                                 "sin permisos de administrador",
             "ch": UNIT,
             "paths": ["tests/infrastructure/unit/daemon/test_the_daemon_can_be_built_and_installed.py"]},
+        # V2-575 P1 — EL DAEMON COMO PRODUCTO: que se pueda CONSEGUIR y GOBERNAR, no solo que funcione. El
+        # icono 🖥 sabe si está, la pantalla entrega el instalador de la máquina de quien mira (por su
+        # user-agent, no por la plataforma del motor, que en nube es un contenedor Linux), y conceder una
+        # carpeta es un acto deliberado de la persona delante de la pantalla. Lo caro está aquí: el motor hace
+        # de PROXY y eso reabriría por su propia puerta lo que el daemon cierra con cinco guardas —
+        #   · el proxy NO expone ninguna ruta de ficheros (trinquete: si mañana hace falta, hace falta un
+        #     modelo de amenazas, no editar el test);
+        #   · una web ajena no puede conceder una carpeta en nombre del usuario (sin CORS no puede LEER la
+        #     respuesta, pero `grant` cambia estado y no necesita leerla) — con su contrapeso: la página
+        #     NUESTRA, que también es un navegador, sí pasa;
+        #   · preguntar por el daemon no CREA su fichero de estado (`config.load()` acuña un token: en un
+        #     Volume de nube eso dejaría un secreto donde nunca habrá daemon);
+        #   · y sin token no se dice «conectado»: /health contesta sin credencial, así que sondear igualmente
+        #     pintaba el icono en verde sobre un daemon al que el motor no puede autenticarse.
+        # Y la junta de tres piezas que nadie prueba junta: la API nombra un fichero, el workflow lo produce
+        # con nombre por plataforma (los dos runners subían `zaelar-daemon.pyz` y uno pisaba al otro) y el
+        # instalador lo encuentra donde el navegador lo deja.
+        {"id": "7.44", "title": "Daemon local: se ofrece desde la interfaz y se gobierna desde ella — sin que el "
+                                "proxy del motor sea un atajo a los ficheros",
+            "ch": UNIT,
+            "paths": ["tests/infrastructure/unit/daemon/test_the_daemon_is_offered_and_governed_from_the_interface.py"]},
         # V2-638 — EL SISTEMA DE ARCHIVOS DEL AGENTE: un solo árbol que comparten todos los widgets, en vez de
         # que cada uno guarde en su rincón. Lo que se fija, por orden de daño: la FRONTERA (`paths.resolve()` es
         # la única puerta y toda ruta que llega es no fiable — magnet, salida del modelo, query string; una

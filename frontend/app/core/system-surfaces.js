@@ -28,6 +28,7 @@ import { BenchmarksPanel } from "../components/BenchmarksPanel.js?v=1";
 import { BootOverlay } from "../components/BootOverlay.js?v=2";
 import { ChatWall } from "../components/ChatWall.js?v=5";
 import { ConfigPanel } from "../components/ConfigPanel.js?v=2";
+import { DaemonSetup } from "../components/DaemonSetup.js?v=1";
 import { DebugPanel } from "../components/DebugPanel.js?v=4";
 import { FeedbackWidget } from "../components/FeedbackWidget.js?v=1";
 import { FaultModal } from "../components/FaultModal.js?v=1";
@@ -149,6 +150,14 @@ export const SYSTEM_SURFACES = [
   { id: "lang-onboarding", comp: LanguageOnboarding, target: "body", phase: "overlay", kind: "modal",
     toggle: "store.langOnboardOpen (first-run only, closes on SSE language phase:ready)",
     label: "First-run language onboarding",
+    name: null, aliases: null },
+  // V2-575 P1 (2026-09-14): the 🖥 local-daemon screen — install it, and choose which folders it may read.
+  // `name: null` because it is not voice-addressable: "open the daemon" is not a sentence anybody says, and
+  // the thing behind the icon is an install step plus a permission grant, both of which are deliberate
+  // clicks by design (see the component's own note on why this is a full screen and not a dismissible modal).
+  { id: "daemon-setup", comp: DaemonSetup, target: "body", phase: "overlay", kind: "fullscreen",
+    toggle: "store.daemonSetupOpen (🖥 icon in the TopBar)",
+    label: "Local daemon: install and folder permissions",
     name: null, aliases: null },
 ];
 

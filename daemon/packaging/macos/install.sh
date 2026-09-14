@@ -34,7 +34,13 @@ die() { printf '✗ %s\n' "$*" >&2; exit 1; }
 # nowhere near a terminal.
 SOURCE="${1:-}"
 if [[ -z "$SOURCE" ]]; then
-  for candidate in "$HERE/zaelar-daemon" "$HERE/zaelar-daemon.pyz" \
+  # The `-macos` names are what a RELEASE asset is called (the two runners would otherwise both claim
+  # `zaelar-daemon.pyz` and one would overwrite the other), so a person who downloaded the file from the web and
+  # ran this script next to it lands here. Without these four lines that person gets "no artifact found" while
+  # the artifact sits in the same folder, which is the most demoralising install failure there is.
+  for candidate in "$HERE/zaelar-daemon-macos" "$HERE/zaelar-daemon-macos.pyz" \
+                   "$HERE/zaelar-daemon" "$HERE/zaelar-daemon.pyz" \
+                   "$HOME/Downloads/zaelar-daemon-macos" "$HOME/Downloads/zaelar-daemon-macos.pyz" \
                    "$HERE/../../../dist/daemon/zaelar-daemon" "$HERE/../../../dist/daemon/zaelar-daemon.pyz"; do
     [[ -f "$candidate" ]] && { SOURCE="$candidate"; break; }
   done

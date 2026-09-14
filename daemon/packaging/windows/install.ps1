@@ -36,9 +36,16 @@ function Die  { param($m) Write-Host "X $m" -ForegroundColor Red; exit 1 }
 # assumption — a logon task that cannot find its interpreter fails at the NEXT LOGIN, with the user nowhere
 # near a console to see why.
 if (-not $Artifact) {
+  # The `-windows` names are what a RELEASE asset is called — both runners would otherwise upload a
+  # `zaelar-daemon.pyz` and one would silently overwrite the other. Somebody who downloaded the file from the
+  # web and ran this script beside it must not be told "no artifact found" while the artifact is right there.
   $candidates = @(
+    (Join-Path $Here 'zaelar-daemon-windows.exe'),
+    (Join-Path $Here 'zaelar-daemon-windows.pyz'),
     (Join-Path $Here 'zaelar-daemon.exe'),
     (Join-Path $Here 'zaelar-daemon.pyz'),
+    (Join-Path $env:USERPROFILE 'Downloads\zaelar-daemon-windows.exe'),
+    (Join-Path $env:USERPROFILE 'Downloads\zaelar-daemon-windows.pyz'),
     (Join-Path $Here '..\..\..\dist\daemon\zaelar-daemon.exe'),
     (Join-Path $Here '..\..\..\dist\daemon\zaelar-daemon.pyz')
   )

@@ -1379,3 +1379,69 @@ body.dbg-open .orbwrap{left:calc(50% - var(--dbg-w) / 2)}
 .fw-badge-done{background:color-mix(in srgb,var(--hb-accent2) 22%,transparent);color:var(--hb-accent2)}
 .fw-reply{margin-top:7px;padding-top:7px;border-top:1px dashed var(--hb-line);color:var(--hb-muted)}
 .fw-reply-label{font-size:var(--fs-micro);font-weight:700;letter-spacing:.02em;color:var(--hb-accent2);margin-bottom:2px;text-transform:uppercase}
+
+/* ── 🖥 THE LOCAL DAEMON (V2-575 P1) ────────────────────────────────────────────────────────────────────────
+   The tray icon speaks the SAME state language as the ◉ beacon (.st-ok/.st-warn), because it answers the same
+   shape of question — is this part of the system healthy? — and a second colour vocabulary in the same eight
+   pixels of toolbar would be one the user has to learn twice. "off" is muted rather than red on purpose: not
+   having installed an optional component is not a fault, and an alarm colour there would nag every self-hoster
+   who has decided they do not want it. */
+.daemonBtn.st-ok{color:var(--hb-ok)}
+.daemonBtn.st-warn{color:var(--hb-warn)}
+.daemonBtn.st-off,.daemonBtn.st-remote,.daemonBtn.st-unknown{color:var(--hb-muted-2)}
+
+.dsx-ovl{align-items:center}
+.dsx-box{width:min(680px,100%);max-height:min(86vh,760px);display:flex;flex-direction:column;
+  background:var(--hb-bg);border:1px solid var(--hb-line);border-radius:var(--hb-r-l);box-shadow:var(--hb-shadow-2)}
+.dsx-head{display:flex;align-items:center;gap:10px;padding:var(--sp-4) var(--sp-5);border-bottom:1px solid var(--hb-line)}
+.dsx-mark{display:flex;color:var(--hb-accent)}
+.dsx-mark svg{width:22px;height:22px}
+.dsx-title{margin:0;flex:1;font-size:1.0625rem;color:var(--hb-ink)}
+.dsx-icon{background:none;border:none;color:var(--hb-muted);cursor:pointer;padding:4px;display:flex;border-radius:8px}
+.dsx-icon:hover{color:var(--hb-ink);background:var(--hb-bg-soft)}
+.dsx-icon svg{width:18px;height:18px}
+.dsx-scroll{overflow-y:auto;padding:var(--sp-5)}
+.dsx-lead{margin:0 0 var(--sp-4);color:var(--hb-ink);font-size:0.9375rem;line-height:1.5}
+.dsx-note{margin:var(--sp-3) 0 0;color:var(--hb-muted);font-size:0.8125rem;line-height:1.5}
+.dsx-warn{margin:0 0 var(--sp-4);padding:10px 12px;border-radius:var(--hb-r-m);font-size:0.8125rem;line-height:1.5;
+  color:var(--hb-ink);border:1px solid color-mix(in srgb,var(--hb-warn) 40%,transparent);
+  background:color-mix(in srgb,var(--hb-warn) 8%,transparent)}
+.dsx-problem{margin:var(--sp-4) 0 0;padding:10px 12px;border-radius:var(--hb-r-m);font-size:0.8125rem;line-height:1.5;
+  color:var(--hb-ink);border:1px solid color-mix(in srgb,var(--hb-risk) 45%,transparent);
+  background:color-mix(in srgb,var(--hb-risk) 8%,transparent)}
+.dsx-waiting{margin:var(--sp-4) 0 0;color:var(--hb-muted);font-size:0.8125rem}
+.dsx-dl-row{display:flex;flex-wrap:wrap;gap:8px}
+.dsx-dl-btn{display:inline-block;padding:9px 16px;border-radius:var(--hb-r-m);text-decoration:none;font-size:0.875rem;
+  font-weight:600;color:var(--hb-ink);border:1px solid var(--hb-line);background:var(--hb-bg-soft)}
+.dsx-dl-btn.on{border-color:var(--hb-accent);color:var(--hb-accent)}
+.dsx-steps{margin:var(--sp-4) 0 0;padding-left:1.1rem;color:var(--hb-ink);font-size:0.875rem;line-height:1.7}
+.dsx-cmd{display:block;margin-top:6px;padding:8px 10px;border-radius:var(--hb-r-m);background:var(--hb-bg-soft);
+  border:1px solid var(--hb-line);color:var(--hb-ink);font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+  font-size:0.75rem;overflow-x:auto;white-space:pre}
+.dsx-link{color:var(--hb-accent)}
+.dsx-mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.8125rem}
+.dsx-h3{margin:0 0 6px;font-size:0.9375rem;color:var(--hb-ink)}
+.dsx-list{list-style:none;margin:var(--sp-3) 0 0;padding:0;display:flex;flex-direction:column;gap:6px}
+.dsx-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--hb-line);
+  border-radius:var(--hb-r-m);background:var(--hb-bg-soft)}
+.dsx-path{flex:1;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.75rem;color:var(--hb-ink);
+  overflow-wrap:anywhere}
+.dsx-mini{background:none;border:1px solid var(--hb-line);border-radius:8px;padding:4px 9px;font-size:0.75rem;
+  color:var(--hb-muted);cursor:pointer;white-space:nowrap}
+.dsx-mini:hover{color:var(--hb-ink)}
+.dsx-empty{margin:var(--sp-3) 0 0;color:var(--hb-muted);font-size:0.8125rem;font-style:italic}
+.dsx-cands{margin-top:var(--sp-4)}
+.dsx-chip{background:var(--hb-bg-soft);border:1px solid var(--hb-line);border-radius:999px;padding:5px 12px;
+  font-size:0.8125rem;color:var(--hb-ink);cursor:pointer}
+.dsx-chip:hover{border-color:var(--hb-accent);color:var(--hb-accent)}
+.dsx-add{display:flex;gap:8px;margin-top:var(--sp-4)}
+.dsx-input{flex:1;min-width:0;padding:8px 10px;border-radius:var(--hb-r-m);border:1px solid var(--hb-line);
+  background:var(--hb-bg);color:var(--hb-ink);font-size:0.8125rem}
+.dsx-btn{background:var(--hb-accent);color:var(--canvas);border:none;border-radius:var(--hb-r-m);padding:8px 14px;
+  font-size:0.8125rem;font-weight:600;cursor:pointer;white-space:nowrap}
+@media(max-width:640px){
+  .dsx-ovl{padding:12px}
+  .dsx-box{max-height:92vh}
+  .dsx-scroll{padding:var(--sp-4)}
+  .dsx-add{flex-direction:column}
+}
