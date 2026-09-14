@@ -763,6 +763,42 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **A COMPOUND close does not swallow the rest of the sentence (V2-688, 2026-09-14)**: «close all, open
+  agenda, connect to my google calendar» cleared the canvas and did nothing else — his question was the one
+  anybody would ask, «why is this order not followed?». Read from his own observability before touching
+  anything (flow `T10·c053`), and the WHOLE event chain of that turn is four lines: `✋ interrupción dura
+  atendida · widget close · ⛔ vetaría close-drag · flow end`. **No tool, no model call, no reply.** Two
+  thirds of one sentence discarded in silence — and the canvas DID clear, which looks enough like obedience
+  to hide the two orders thrown away with it.
+  - **The mechanism was right and the outcome wrong.** `attention.hard_interrupt()` exists because a close
+    order once fell OUTSIDE the excerpt of a 14 000-char turn and simply never happened (T136); its
+    guarantee — executed deterministically, before any model, always — is worth keeping and is not weakened
+    here. What nobody had examined is the **`return` after it**: it treats «close» as the whole of what the
+    operator said, which is true of «cierra todo» and false of every compound order. **Speech is full of
+    compound orders** — that is how a person clears a desk before starting something.
+  - **The close keeps its guarantee and the rest of the sentence keeps its turn.** ⚠️ The closing clause is
+    **REMOVED** from what the model reads, not left in: handed «close all» against an already-empty canvas a
+    model re-emits it (the context-bleed shape V2-635 catalogued across four classes), and that second close
+    would land on whatever the very same sentence had just asked to open — turning one silent failure into
+    an intermittent one, which is worse. `close_all_remainder()` is conservative by construction: courtesy
+    («cierra todo, por favor»), timing («ya», «ahora mismo») and a single bare word all come back empty, and
+    the caller then behaves exactly as before. **The comma is the only difference between its splitter and
+    the one `_closes_the_whole_canvas` uses**, which stays comma-blind on purpose so an enumeration of
+    things to close («cierra el vídeo, la música y todo lo demás») keeps reading as ONE closing clause.
+  - The architecture ratchet went red (`nucleo.py` 3054 > 3043) and was paid by **EXTRACTING**, never by
+    raising the ceiling: the whole hard-interrupt decision — worker vs music vs canvas, and whether closing
+    was the entire request — moved to `nucleo/flash/hard_turn.py`, and nucleo.py ends at **3014**, below
+    where the batch started. Wiring guards anchor on the module that OWNS the block (V2-555). Also dropped a
+    dead re-export (`_action_is_negated`) that nothing in the repo reads and that had the ruff F401 gate red
+    on that file before this batch.
+  - **Deliberately NOT mirrored into the probe channel, and a test says so**: the probe never had this
+    defect — it calls the model with the full text and only LABELS the action afterwards — so there is
+    nothing to mirror, and stripping text before its model call would be a change with no defect behind it.
+    V2-252's rule is that a behaviour fixed in one channel is fixed in both; **the channel that always
+    worked is not the one to change**. Node **3.46** (20 cases); seven disarms, every mutation asserted, all
+    red. ⚠️ **NOT verified live by voice** — the engine restarted onto it (`3.26+61100472`), but only the
+    operator saying the sentence proves the whole path.
+
 - **Both doors ask Google for the SAME return address (V2-687, 2026-09-14)**: the operator's FIRST real
   Google connect, and it died at the last step — «Access blocked: This app's request is invalid ·
   **Error 400: redirect_uri_mismatch**». Everything on this side was correct AND consistent, which is what
