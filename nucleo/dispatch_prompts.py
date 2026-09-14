@@ -238,6 +238,35 @@ def library_block() -> str:
             f"volver a traerlo.")
 
 
+def errand_block() -> str:
+    """V2-692 — a gestión with a THIRD PARTY is HANDED OVER, never sat out.
+
+    Measured twice in a row (2026-09-13 and 2026-09-14). Asked to organise a meeting, the worker sent the
+    message and then WAITED for the answer inside its own session: 25 `peek` calls, `sleep 150`, `sleep
+    240`, `sleep 300`, `sleep 420`, a `Monitor` loop the permission gate refused — ten minutes of paid
+    session doing nothing, and then the session ended and the task ended with it. When the person finally
+    answered, nothing was left to read it. The operator had to drive every step by hand and said so:
+    «tenía que asociarla a esa tarea en marcha y tenía que continuar ese workflow hasta que consiguiéramos
+    cerrar la tarea».
+
+    The mechanism for that already exists and is DURABLE — `nucleo/errands/`, a row rather than a process,
+    woken by the world, surviving a restart. What was missing is that nobody told the worker it exists, so
+    it reimplemented a worse version of it inside a session that dies. The line is short on purpose: the
+    resource is nailed down (which call opens it, and that the job ENDS there), the reasoning is not.
+    """
+    return ("SI EL ENCARGO DEPENDE DE QUE OTRA PERSONA CONTESTE (organizar una reunión, acordar una hora, "
+            "pedir algo a un tercero), NO te quedes esperando: eso NO es tu trabajo y tu sesión se muere "
+            "antes que la conversación. Manda el mensaje con "
+            "`python -m nucleo.widget_cli data mensajeria send_to @msg.json` incluyendo el campo "
+            "`objective` con LO QUE HAY QUE CONSEGUIR en palabras del operador — ese campo es el que abre "
+            "un ENCARGO durable, que el motor despierta solo cuando esa persona conteste, hoy o dentro de "
+            "diez horas, y que apunta la cita y manda el enlace de Meet por su cuenta cuando se acuerde la "
+            "hora. `send_to` es la puerta AUNQUE ya exista la conversación: lo que decide no es si te han "
+            "escrito antes, es si esto abre una gestión que hay que seguir. En cuanto salga el mensaje, "
+            "TERMINA y dilo — «le he escrito y sigo yo la conversación por ahí». Nada de `sleep`, ni "
+            "bucles de `peek`, ni esperar la respuesta.")
+
+
 def trusted_blocks(surface: str = "") -> str:
     """The extra blocks a TRUSTED worker's prompt carries, in order: the report-surface contract (V2-644) when
     the errand delivers a document, and where the operator's files live (V2-661). Empty when neither applies."""
@@ -248,6 +277,7 @@ def trusted_blocks(surface: str = "") -> str:
     lib = library_block()
     if lib:
         out.append(lib)
+    out.append(errand_block())
     return ("\n\n" + "\n\n".join(out)) if out else ""
 
 
