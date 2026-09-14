@@ -122,19 +122,31 @@ def book(errand: dict, decision: dict, party: str = "") -> dict:
         payload["endTime"] = end
     if medium in _VIDEO:
         payload["meet"] = True
-    # ⚠️ ONE ERRAND, ONE MEETING (V2-692d). Measured on this batch's own live run: the worker wrote
-    # «Meeting with Pruebas Zaelar» at 16:00 and the errand wrote «Meeting with Cryptonite» at 16:00, for
-    # the same order and the same person — two rows in his real calendar for one appointment. The agenda's
-    # own duplicate guard could not see it: `_is_same_meeting` compares TITLES, and the two came from two
-    # names for one contact (the directory's, and the one the conversation carries). An errand knows
-    # something the agenda cannot — that the slot it is about to write is the one it has been negotiating —
-    # so the check that belongs here is the SLOT, not the words. The duplicate cost the operator a row only
-    # he can delete, which is the same currency V2-689 paid for the defaulted «Cita».
-    already = _meeting_at(date, start)
-    if already is not None:
-        logger.info(f"errands.book: {errand.get('id')} ya tenía cita el {date} a las {start} — no duplico")
-        return {"ok": True, "link": str(already.get("meetLink") or already.get("hangoutLink") or ""),
-                "date": date, "time": start, "already": True}
+    # ⚠️ ONE ERRAND, ONE MEETING — and the row it owns is the one IT wrote, never whatever shares the hour.
+    #
+    # V2-692d put a SLOT check here, blind to the title, because two names for one contact had produced two
+    # rows. Its own live run showed why that was the wrong key (2026-09-14, 20:27): the operator answered
+    # «make it at 17:00», and his real calendar already held FIVE «Dentista» at 17:00 — so the guard read
+    # «already booked», wrote nothing, reported success, and `verify` then closed the errand as «hecha y
+    # verificada» against the 16:00 row from the previous round. The person was told 17:00 and the calendar
+    # said 16:00, pending. A guard that turns «I did nothing» into «done» is worse than the duplicate it
+    # replaced — the V2-660 class exactly, arriving through a check I added.
+    #
+    # The right key is the errand's OWN record: `done_when.at` is the slot it booked, written by the same
+    # turn that booked it. Same slot → nothing to do. A DIFFERENT slot → the hour changed, so the meeting
+    # MOVES; that is what «they said 17:00 instead» means, and leaving the old row behind is how he ends up
+    # with two. And an appointment that merely shares the hour is somebody else's: people double-book, and
+    # refusing his meeting in silence because the dentist is at five is not ours to decide.
+    mine = _mine(errand, payload["title"])
+    if mine is not None and str((errand.get("done_when") or {}).get("at") or "") == f"{date} {start}":
+        logger.info(f"errands.book: {errand.get('id')} ya tenía SU cita el {date} a las {start}")
+        return {"ok": True, "link": str(mine.get("meetLink") or mine.get("hangoutLink") or ""),
+                "date": date, "time": start, "already": True, "video": medium in _VIDEO}
+    if mine is not None:
+        moved = _move(mine, payload)
+        logger.info(f"errands.book: {errand.get('id')} mueve su cita a {date} {start}")
+        return {"ok": True, "link": str(moved.get("meetLink") or moved.get("hangoutLink") or ""),
+                "date": date, "time": start, "moved": True, "video": medium in _VIDEO}
     try:
         from widgets.agenda import data as agenda
         res = agenda.apply_action("add_meeting", payload)
@@ -208,23 +220,57 @@ def clear_owed(errand: dict) -> dict:
     return spec
 
 
-def _meeting_at(date: str, start: str) -> dict | None:
-    """A meeting already standing in THIS slot, whatever it is called.
-
-    Deliberately blind to the title: the whole point is that two names for one person produced two rows.
-    An appointment the operator already had at that hour is also a reason not to write a second one — he
-    would then have two overlapping rows and no way to tell which one the errand meant.
-    """
+def _rows() -> list:
     try:
         from widgets.agenda import data as agenda
-        rows = (agenda.load_db() or {}).get("meetings") or []
+        return list((agenda.load_db() or {}).get("meetings") or [])
     except Exception:  # noqa: BLE001
-        return None
-    for m in rows:
-        if isinstance(m, dict) and str(m.get("date") or "") == date \
-                and str(m.get("startTime") or "") == start:
-            return m
+        return []
+
+
+def _meeting_at(date: str, start: str, title: str = "") -> dict | None:
+    """The meeting standing in this slot — narrowed by TITLE when one is given, because an appointment that
+    merely shares the hour belongs to somebody else's day."""
+    for m in _rows():
+        if not isinstance(m, dict):
+            continue
+        if str(m.get("date") or "") != date or str(m.get("startTime") or "") != start:
+            continue
+        if title and str(m.get("title") or "") != title:
+            continue
+        return m
     return None
+
+
+def _mine(errand: dict, title: str) -> dict | None:
+    """The row THIS errand wrote, found by the slot it recorded and the title it uses. None before it has
+    written anything — which is the ordinary first booking."""
+    prev = str((errand.get("done_when") or {}).get("at") or "")
+    got = _when(prev)
+    return _meeting_at(got[0], got[1], title) if got else None
+
+
+def _move(m: dict, payload: dict) -> dict:
+    """The hour changed. The row MOVES, with its reminder, and Google is told — never a second row."""
+    from widgets.agenda import data as agenda, gcal
+    from widgets import store
+    db = agenda.load_db()
+    row = next((r for r in db.get("meetings") or []
+                if r.get("date") == m.get("date") and r.get("startTime") == m.get("startTime")
+                and r.get("title") == m.get("title")), None)
+    if row is None:
+        return m
+    agenda._cancel_reminder(row)
+    for k in ("date", "startTime", "endTime", "notes", "meet", "attendees", "status"):
+        if k in payload:
+            row[k] = payload[k]
+    jid, at = agenda._schedule_reminder(row.get("title", ""), row.get("date", ""), row.get("startTime", ""))
+    if jid:
+        row["reminder_id"], row["remindAt"] = jid, at
+    gcal.patch_google(row)
+    db["currentPlan"] = agenda.compute_plan(db)
+    store.save(agenda.WIDGET_ID, db)
+    return row
 
 
 def _link_of(date: str, start: str, title: str) -> str:

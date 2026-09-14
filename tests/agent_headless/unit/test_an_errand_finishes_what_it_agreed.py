@@ -324,24 +324,100 @@ def test_the_operator_is_TOLD_when_the_link_could_not_be_made(env, monkeypatch):
                "NO he podido crear el enlace" in t for t in said), said
 
 
-def test_ONE_errand_writes_ONE_meeting_whatever_it_is_called(env, monkeypatch):
-    """⚠️ Also measured live, same run: the worker wrote «Meeting with Pruebas Zaelar» at 16:00 and the
-    errand wrote «Meeting with Cryptonite» at 16:00 — one order, one person, TWO rows in his real calendar.
-    The agenda's own duplicate guard compares TITLES and the two came from two names for one contact. What
-    an errand knows that the agenda cannot is the SLOT it has been negotiating, so that is what it checks.
+def test_a_FOREIGN_appointment_at_the_same_hour_is_not_mistaken_for_its_own(env, monkeypatch):
+    """⚠️ The defect this batch shipped and its own live run caught (2026-09-14, 20:27).
+
+    V2-692d put a SLOT check in `book()`, blind to the title, to stop a duplicate. The operator then
+    answered «make it at 17:00» — and his real calendar already held FIVE «Dentista» at 17:00. The guard
+    read «already booked», wrote nothing, reported SUCCESS, and the verifier closed the errand as «hecha y
+    verificada» against the 16:00 row from the previous round. The person had been told 17:00; the calendar
+    said 16:00, pending.
+
+    A guard that turns «I did nothing» into «done» is worse than the duplicate it replaced. People
+    double-book, and refusing his meeting in silence because the dentist is at five is not ours to decide.
     """
-    from widgets.agenda import data as agenda
-    agenda.apply_action("add_meeting", {"title": "Meeting with Cryptonite", "date": "2026-09-15",
-                                        "startTime": "16:00"})
+    from widgets.agenda import data as agenda, gcal
+    monkeypatch.setattr(gcal, "connected", lambda: False)
+    agenda.apply_action("add_meeting", {"title": "Dentista", "date": "2026-09-15", "startTime": "17:00"})
     row = _order(env)
     env.bind("telegram", "987", row["id"], "c1")
     _answer(monkeypatch, '{"say": "Cerrado.", "state": "agreed", '
-                         '"agreed": {"start": "2026-09-15 16:00", "medium": "meet"}}')
+                         '"agreed": {"start": "2026-09-15 17:00", "medium": "meet"}}')
 
+    out = asyncio.run(_wake(row))
+
+    assert out["booked"] is True
+    titles = sorted(m["title"] for m in agenda.load_db()["meetings"] if m.get("startTime") == "17:00")
+    assert len(titles) == 2 and "Dentista" in titles, titles
+    assert any(t.startswith("Meeting with") for t in titles), "its own meeting really was written"
+
+
+def test_booking_the_SAME_slot_twice_writes_ONE_row(env, monkeypatch):
+    """The row an errand owns is the one IT wrote, found by the slot it recorded — so a second wake over
+    the same agreement adds nothing.
+
+    ⚠️ Measured, not assumed: this property is NOT held by anything in `book.py`. Disarming the «same
+    slot» shortcut keeps it green (the MOVE branch below moves the row onto the hour it is already at — a
+    no-op), and so does removing `_mine` entirely, because the AGENDA's own duplicate guard (`
+    _is_same_meeting`, V2-208) already refuses a second row with the same title, day and hour. So this is
+    a regression guard over somebody else's invariant, and it says so rather than taking credit for it.
+    What `_mine` really buys is the other two cases below: not mistaking a stranger's appointment for ours,
+    and MOVING the row when the hour changes.
+    """
+    from widgets.agenda import data as agenda, gcal
+    monkeypatch.setattr(gcal, "connected", lambda: False)
+    row = _order(env)
+    env.bind("telegram", "987", row["id"], "c1")
+    _answer(monkeypatch, '{"say": "Cerrado.", "state": "agreed", '
+                         '"agreed": {"start": "2026-09-15 17:00", "medium": "meet"}}')
+    asyncio.run(_wake(row))
+    from nucleo.errands import wake as wake_mod
+    wake_mod._last_wake.clear()
+    asyncio.run(_wake(env.get(row["id"])))
+
+    mine = [m for m in agenda.load_db()["meetings"] if str(m["title"]).startswith("Meeting with")]
+    assert len(mine) == 1, [m["title"] for m in mine]
+
+
+def test_a_CHANGED_hour_MOVES_the_meeting_instead_of_adding_a_second(env, monkeypatch):
+    """«Make it at 17:00 instead» is one appointment at a new hour, not two appointments. Leaving the old
+    row behind is exactly how he ended up with a calendar saying 16:00 and a person told 17:00."""
+    from nucleo.errands import wake as wake_mod
+    from widgets.agenda import data as agenda, gcal
+    monkeypatch.setattr(gcal, "connected", lambda: False)
+    row = _order(env)
+    env.bind("telegram", "987", row["id"], "c1")
+    _answer(monkeypatch, '{"say": "A las 16:00.", "state": "agreed", '
+                         '"agreed": {"start": "2026-09-15 16:00", "medium": "meet"}}')
     asyncio.run(_wake(row))
 
-    at_16 = [m for m in agenda.load_db()["meetings"] if m.get("startTime") == "16:00"]
-    assert len(at_16) == 1, f"one appointment, not two: {[m['title'] for m in at_16]}"
+    wake_mod._last_wake.clear()
+    _answer(monkeypatch, '{"say": "Vale, a las 17:00.", "state": "agreed", '
+                         '"agreed": {"start": "2026-09-15 17:00", "medium": "meet"}}')
+    asyncio.run(_wake(env.get(row["id"])))
+
+    mine = [m for m in agenda.load_db()["meetings"] if str(m["title"]).startswith("Meeting with")]
+    assert len(mine) == 1, [f"{m['startTime']} {m['title']}" for m in mine]
+    assert mine[0]["startTime"] == "17:00", "and it is at the hour they actually agreed"
+    assert (env.get(row["id"])["done_when"] or {}).get("at") == "2026-09-15 17:00"
+
+
+def test_the_verifier_reads_the_errands_OWN_slot_and_not_a_neighbour(env, monkeypatch):
+    """The other half of the same live defect: with nothing written at the agreed hour, `verify` closed the
+    errand as achieved against a DIFFERENT meeting in the window. A verifier that accepts a neighbouring
+    fact is how «done» stops meaning done."""
+    from nucleo.errands import verify
+    from widgets.agenda import data as agenda
+    agenda.apply_action("add_meeting", {"title": "Meeting with alguien", "date": "2026-09-15",
+                                        "startTime": "16:00"})
+    row = _order(env)
+    env.update(row["id"], done_when={"widget": "agenda", "has": "meeting", "at": "2026-09-15 17:00"})
+
+    assert verify.check(env.get(row["id"])) is False, "nothing at 17:00 — it is NOT done"
+
+    agenda.apply_action("add_meeting", {"title": "Meeting with Iván", "date": "2026-09-15",
+                                        "startTime": "17:00"})
+    assert verify.check(env.get(row["id"])) is True
 
 
 # ── 3c · the link that arrives LATE is still delivered ───────────────────────────────────────────────────

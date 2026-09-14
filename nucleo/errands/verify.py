@@ -43,6 +43,20 @@ def meeting_exists(errand: dict, now: float | None = None) -> bool | None:
     rows = _agenda_rows()
     if rows is None:
         return None                      # unreadable → the harness's rule: stay silent, never guess
+    # ⚠️ THE ERRAND'S OWN ROW, when it has one (V2-692g). `done_when.at` is the slot it booked, written by
+    # the turn that booked it, so there is no guessing left to do — and the guessing is what went wrong on
+    # the live run (2026-09-14, 20:27): the errand agreed 17:00, wrote NOTHING (the slot guard mistook five
+    # «Dentista» for its own booking), and this verifier then closed it as «hecha y verificada» against the
+    # 16:00 row from the previous round. The person had been told 17:00 and the calendar said 16:00.
+    # A verifier that accepts a NEIGHBOURING fact is how «done» stops meaning done.
+    at = str((errand.get("done_when") or {}).get("at") or "")
+    if at:
+        day, _, hhmm = at.partition(" ")
+        for m in rows:
+            if str(m.get("date") or "") == day and str(m.get("startTime") or "") == hhmm \
+                    and str(m.get("status") or "confirmed") != "cancelled":
+                return True
+        return False
     born = float(errand.get("created_at") or 0)
     deadline = float(errand.get("deadline") or now)
     for m in rows:
