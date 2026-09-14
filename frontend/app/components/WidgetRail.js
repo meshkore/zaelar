@@ -95,6 +95,21 @@ function injectStyles(){
   /* MINIMIZED is said twice — dimmer AND dashed — so the state survives a colourblind reader (the operator's
      rule about never leaning on colour alone), and it is the one chip state that is not merely a hover. */
   #wrail .wr-chip.min{opacity:.45;border-style:dashed}
+  /* V2-690 — THE ACTIVE APPLICATION. The dock could say what is OPEN and what is HIDDEN and had no way to say
+     which card the operator is actually in, which is the one thing a system bar exists to answer at a glance.
+     Said TWICE, like every other state here: an accent underline pinned to the bar's own edge (the shape a
+     dock uses, and the half that survives a colourblind reader) plus a light accent wash. It is a DEGREE of
+     the same chip, never a different chip — the card it points at is marked the same way, with .hb-focus.
+     A minimized card is never the active one, so .min wins by coming after. */
+  #wrail .wr-chip.on{background:color-mix(in srgb,var(--hb-accent,#9B7CFF) 15%,var(--hb-bg,#12151A));
+    border-color:color-mix(in srgb,var(--hb-accent,#9B7CFF) 45%,transparent);color:var(--hb-ink,#F2F4F7);
+    position:relative}
+  /* INSIDE the chip, not hanging below it: every button in this bar is overflow:hidden (chip labels are
+     clipped rather than allowed to widen the bar), which clips at the PADDING box — so a marker at
+     bottom:-1px paints one of its two pixels and silently renders at half the weight it declares. */
+  #wrail .wr-chip.on::after{content:"";position:absolute;left:6px;right:6px;bottom:0;height:2px;
+    border-radius:2px 2px 0 0;background:var(--hb-accent,#9B7CFF)}
+  #wrail .wr-chip.on.min::after{display:none}
   /* V2-666 — the LEFT cluster (operator, 2026-09-11): the chevron that opens/closes the chat moves to the
      left EDGE of the bar (it used to sit at the far right, mirroring the tools — he wants it where a "deploy
      the side panel" control belongs), and right beside it a live count of RUNNING PROCESSES (background
@@ -172,6 +187,17 @@ function chipLevel(chipsEl, count){
   return CHIP_CHARS[CHIP_CHARS.length-1];
 }
 
+// V2-690 — the ACTIVE card, i.e. the one the operator is working in. `hb-focus` is the desktop's own
+// single-writer marker (_bringFront), so the dock reports the same fact the window border already shows
+// rather than inventing a second opinion about it. A canvas nobody has clicked yet has no focused card;
+// there the topmost visible one is the honest answer, because that is what a click would reach.
+function activeCardId(d){
+  let focused=null;
+  d.wins.forEach((w,id)=>{ if(w && w.card && w.card.classList.contains("hb-focus")) focused=id; });
+  if(focused && !d.isMinimized(focused)) return focused;
+  return topCardId(d);
+}
+
 function topCardId(d){
   // The visible card with the highest z — the one a click would reach first.
   let best=null, bz=-1;
@@ -207,10 +233,11 @@ function refresh(el){
   }
   const level=chipLevel(chips, d.wins.size);
   const lvClass=CHIP_LV_CLASS[level];
+  const active=activeCardId(d);
   chips.innerHTML="";
   d.wins.forEach((w,id)=>{
     const b=document.createElement("button");
-    b.className="wr-chip"+lvClass+(d.isMinimized(id)?" min":"");
+    b.className="wr-chip"+lvClass+(id===active?" on":"")+(d.isMinimized(id)?" min":"");
     b.dataset.wid=id;
     const name=(w && w.nameBtn && w.nameBtn.textContent || id).trim();
     b.textContent=chipLabel(w,id,level);

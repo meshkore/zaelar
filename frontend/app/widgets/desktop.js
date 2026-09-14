@@ -31,10 +31,15 @@ function injectStyles(){
      shadow: a dark desk with heavy drop shadows reads as stickers on a table, which is what the operator was
      looking at. The card carries NO padding of its own any more — the header is a real 42px bar (a flex child,
      not an absolutely positioned strip over a padding reservation) and the .hb-scroll element owns the content inset, so
-     «desk → widget → header → content» is four visible steps instead of one box with text floating in it. */
+     «desk → widget → header → content» is four visible steps instead of one box with text floating in it.
+     V2-690 — the operator, looking at that: the window separates better and he wants a little more. Two
+     hairlines instead of a bigger shadow: one slightly brighter INSIDE the edge, one dark pixel OUTSIDE it
+     (the zero-blur first layer of --hb-shadow-win). A crisp boundary is what says where the desk ends; a
+     heavier drop shadow would only make the card float, which is the effect this pass exists to avoid. */
   .hb-win{position:absolute;pointer-events:auto;background:var(--hb-bg,#12151A);
-    border:1px solid var(--hb-line,rgba(255,255,255,.10));border-radius:var(--hb-r-l,12px);
-    box-shadow:var(--hb-shadow-1,0 4px 12px rgba(0,0,0,.22));padding:0;max-width:92vw;max-height:82vh;overflow:hidden;
+    border:1px solid var(--hb-line-win,rgba(255,255,255,.14));border-radius:var(--hb-r-l,12px);
+    box-shadow:var(--hb-shadow-win,0 0 0 1px rgba(0,0,0,.45), 0 12px 30px rgba(0,0,0,.24));
+    padding:0;max-width:92vw;max-height:82vh;overflow:hidden;
     display:flex;flex-direction:column;
     opacity:0;transform:scale(.9) translateY(10px);
     transition:opacity .2s,transform .2s cubic-bezier(.2,.9,.3,1.2),
@@ -43,8 +48,8 @@ function injectStyles(){
   /* FOCUS is a DEGREE, not a different design (the operator: no drastic colour changes, no loud effects). The
      card being worked in gets a slightly more visible border and a slightly stronger shadow; every other card
      stays one notch flatter. _bringFront() is the single writer of this class. */
-  .hb-win.hb-focus{border-color:var(--hb-line-strong,rgba(255,255,255,.18));
-    box-shadow:var(--hb-shadow-focus,0 22px 52px rgba(0,0,0,.48))}
+  .hb-win.hb-focus{border-color:var(--hb-line-win-focus,rgba(255,255,255,.22));
+    box-shadow:var(--hb-shadow-win-focus,0 0 0 1px rgba(0,0,0,.55), 0 22px 50px rgba(0,0,0,.40))}
   /* The SCROLLER wraps the canvas, NOT the widget div: widget.js sets el.className="…" and overwrites any class
      placed on its root (so a rule for .hb-body applied to nothing). The widget remains the sole owner of its div;
      scrolling is card chrome, like the header or ×. NOTE: this is a template literal — no backticks inside. */
@@ -57,12 +62,15 @@ function injectStyles(){
      of little filled boxes competes with the thing the operator opened it to look at. They live INSIDE the
      header now (they used to be absolutely positioned over a right:70px reservation, which is how a widget
      could end up with its title running under them); _dragHandle already ignores a pointerdown on a button,
-     so putting them on the drag handle costs nothing. */
+     so putting them on the drag handle costs nothing.
+     V2-690 — QUIET is not the same as INVISIBLE, and they had crossed the line: painted in the secondary ink
+     (which measured 4.2:1) at 13px inside a 28px box. The hit area is 30px, the glyph is 14px and the ink is
+     the primary secondary step — still chrome, still no box until hover, but findable. */
   .hb-winctl{display:flex;align-items:center;gap:2px;flex:0 0 auto;pointer-events:auto;margin-left:var(--sp-2,8px)}
-  .hb-x,.hb-max,.hb-min{flex:none;width:var(--hb-icon-h,28px);height:var(--hb-icon-h,28px);padding:0;
+  .hb-x,.hb-max,.hb-min{flex:none;width:30px;height:30px;padding:0;
     display:flex;align-items:center;justify-content:center;
     border:none;border-radius:var(--hb-r-s,8px);cursor:pointer;background:transparent;
-    color:var(--hb-muted-2,#737C89);font-family:var(--sans,system-ui);font-size:13px;line-height:1;
+    color:var(--hb-muted,#A7AFBC);font-family:var(--sans,system-ui);font-size:14px;line-height:1;
     transition:background var(--hb-t-fast,120ms) ease,color var(--hb-t-fast,120ms) ease}
   .hb-min:hover,.hb-max:hover{background:var(--hb-hover,#242A34);color:var(--hb-ink,#F2F4F7)}
   .hb-x:hover{background:var(--hb-risk-soft,rgba(255,107,117,.14));color:var(--hb-risk,#FF6B75)}
@@ -136,23 +144,26 @@ function injectStyles(){
      «title bar + content» the way every window on the operator's machine does, instead of a title floating in
      the top margin of one undifferentiated box. Order is FIXED for every widget — mark · title · ⚙ aliases ·
      (spacer) · controls — which is the whole point: the title is in the same place whichever widget is open. */
-  .hb-head{flex:0 0 auto;display:flex;align-items:center;gap:var(--sp-2,8px);height:42px;
+  .hb-head{flex:0 0 auto;display:flex;align-items:center;gap:var(--sp-2,8px);height:var(--hb-head-h,40px);
     padding:0 var(--sp-2,8px) 0 var(--sp-3,12px);box-sizing:border-box;
     background:var(--hb-bg-soft,#171B21);border-bottom:1px solid var(--hb-line-subtle,rgba(255,255,255,.06))}
   /* The widget's MARK. There is no per-widget icon anywhere in the catalog (no manifest carries one), and
      inventing fifteen glyphs by hand would be a second naming system to keep in sync with the registry — so
      the mark is a MONOGRAM tile built from the name the header already shows. It costs nothing, it is always
      present, and it gives the eye a fixed anchor at the left edge of every card. */
-  .hb-wicon{flex:none;width:20px;height:20px;border-radius:6px;display:flex;align-items:center;justify-content:center;
-    background:color-mix(in srgb,var(--hb-accent,#9B7CFF) 18%,transparent);color:var(--hb-accent,#9B7CFF);
+  .hb-wicon{flex:none;width:22px;height:22px;border-radius:var(--hb-r-s,8px);
+    display:flex;align-items:center;justify-content:center;
+    background:color-mix(in srgb,var(--hb-accent,#9B7CFF) 22%,transparent);color:var(--hb-accent,#9B7CFF);
+    border:1px solid color-mix(in srgb,var(--hb-accent,#9B7CFF) 30%,transparent);
     font:700 11px/1 var(--sans,system-ui);text-transform:uppercase;user-select:none}
   .hb-name{pointer-events:auto;flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
     border:none;padding:0;cursor:pointer;background:transparent;color:var(--hb-ink,#F2F4F7);
     font:600 var(--fs-ui,0.875rem)/1.2 var(--sans,system-ui)}
   .hb-name:hover{color:var(--hb-accent,#9B7CFF)}
-  .hb-cfg{pointer-events:auto;flex:none;border:none;border-radius:6px;cursor:pointer;width:22px;height:22px;padding:0;
-    display:flex;align-items:center;justify-content:center;font-size:11px;
-    background:transparent;color:var(--hb-muted-2,#737C89);opacity:0;
+  .hb-cfg{pointer-events:auto;flex:none;border:none;border-radius:var(--hb-r-s,8px);cursor:pointer;
+    width:24px;height:24px;padding:0;
+    display:flex;align-items:center;justify-content:center;font-size:12px;
+    background:transparent;color:var(--hb-muted,#A7AFBC);opacity:0;
     transition:opacity var(--hb-t-fast,120ms) ease,color var(--hb-t-fast,120ms) ease}
   /* the aliases button is a POWER control: it appears when the card is hovered or focused, so it never
      competes with the title, and it stays visible while its own panel is open. */
@@ -160,8 +171,8 @@ function injectStyles(){
   .hb-cfg:hover{color:var(--hb-ink,#F2F4F7);background:var(--hb-hover,#242A34)}
   .hb-head-sp{flex:1 1 auto;min-width:8px}
   /* ALIAS dropdown (host-level, patterned after .hb-confirm): editable chip list + add. */
-  .hb-aliases{position:absolute;top:46px;left:12px;right:12px;z-index:6;padding:12px;border-radius:var(--hb-r-m,10px);
-    max-height:calc(100% - 60px);overflow-y:auto;
+  .hb-aliases{position:absolute;top:44px;left:12px;right:12px;z-index:6;padding:12px;border-radius:var(--hb-r-m,10px);
+    max-height:calc(100% - 58px);overflow-y:auto;
     background:var(--hb-bg,#141d29);border:1px solid var(--hb-line,#232e3d);box-shadow:var(--hb-shadow-2,0 12px 40px rgba(0,0,0,.3));
     max-height:60%;overflow:auto;opacity:0;transform:translateY(-6px);transition:opacity .16s,transform .16s}
   .hb-aliases.in{opacity:1;transform:none}
@@ -1481,8 +1492,14 @@ export class Desktop {
   _bringFront(card){
     card.style.zIndex = Math.min(8000, ++this.z);       // stay BELOW the camera (9000) and orb (100000)
     try{
+      const was = card.classList.contains("hb-focus");
       this.wins.forEach(w=>{ if(w && w.card && w.card!==card) w.card.classList.remove("hb-focus"); });
       card.classList.add("hb-focus");
+      // V2-690 — the dock names the ACTIVE application, and it reads that fact from this very class, so a
+      // focus change has to be announced or the bar goes stale the moment a card is clicked (a plain
+      // pointerdown reaches here and never touches _persist). Announced only when the focus ACTUALLY moved:
+      // this runs on every pointerdown on a card, and rebuilding every chip per click would be churn.
+      if(!was){ try{ document.dispatchEvent(new CustomEvent("hb:canvas-changed")); }catch(_){} }
     }catch(_){}
   }
 

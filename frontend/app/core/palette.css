@@ -81,7 +81,10 @@
   --hb-bg:#12151A; --hb-bg-soft:#171B21; --hb-bg-a:rgba(18,21,26,.88);
   --hb-sidebar:#0E1014;
   --hb-bubble:#1D222A; --hb-hover:#242A34;
-  --hb-ink:#F2F4F7; --hb-muted:#A7AFBC; --hb-muted-2:#737C89;
+  /* V2-690 — --hb-muted-2 measured 4.2:1 on the widget ground: under the 4.5 floor, and it is what the small
+     grey icons and every metadata line are painted with. Lifted to ~5.1:1. --hb-muted stays (it measured
+     8:1 already) so the two steps of the ladder do not collapse into one. */
+  --hb-ink:#F2F4F7; --hb-muted:#A7AFBC; --hb-muted-2:#808A97;
   /* borders: alpha, so a hairline keeps its weight on every rung */
   --hb-line:rgba(255,255,255,.10); --hb-line-subtle:rgba(255,255,255,.06); --hb-line-strong:rgba(255,255,255,.18);
   --hb-neutral:#3A4049;
@@ -96,6 +99,21 @@
   --hb-shadow-1:0 1px 2px rgba(0,0,0,.30), 0 4px 12px rgba(0,0,0,.22);
   --hb-shadow-2:0 2px 6px rgba(0,0,0,.34), 0 16px 40px rgba(0,0,0,.40);
   --hb-shadow-focus:0 2px 8px rgba(0,0,0,.38), 0 22px 52px rgba(0,0,0,.48);
+  /* V2-690 — THE WINDOW EDGE. A window sits on the DESK; a panel sits inside a widget. The first boundary is
+     the one the eye has to find first, so it gets a hair more than the second: a slightly brighter hairline
+     INSIDE and a dark one-pixel ring OUTSIDE (the first layer of the shadow, zero blur). One pixel of dark is
+     what makes the edge read as crisp rather than hazy, and it is far cheaper than a bigger drop shadow —
+     which is what would turn the desk back into stickers on a table. */
+  --hb-line-win:rgba(255,255,255,.14);
+  --hb-line-win-focus:rgba(255,255,255,.22);
+  --hb-shadow-win:0 0 0 1px rgba(0,0,0,.45), 0 2px 5px rgba(0,0,0,.26), 0 12px 30px rgba(0,0,0,.24);
+  --hb-shadow-win-focus:0 0 0 1px rgba(0,0,0,.55), 0 4px 10px rgba(0,0,0,.32), 0 22px 50px rgba(0,0,0,.40);
+  /* the accent as a LARGE FILLED surface (a chat bubble, a selected block) — one notch down from the pure
+     accent, because a column of pure-accent boxes becomes the loudest thing on the screen and the accent
+     stops meaning «this is interactive». Derived, so a profile that moves the accent moves this with it. */
+  --hb-accent-fill:color-mix(in srgb,var(--hb-accent) 88%,var(--hb-bubble));
+  /* the window title bar's height, so the alias panel below it and any future header consumer agree */
+  --hb-head-h:40px;
   /* keyboard focus: ONE ring, everywhere, never removed without a replacement */
   --hb-focus-ring:0 0 0 2px var(--canvas), 0 0 0 4px color-mix(in srgb,var(--hb-accent) 70%,transparent);
   --hb-warn-bg:rgba(239,199,94,.10); --hb-warn-border:rgba(239,199,94,.28); --hb-warn-ink:#EFC75E;
@@ -112,7 +130,7 @@
   --hb-bg:#FFFFFF; --hb-bg-soft:#F7F8FA; --hb-bg-a:rgba(255,255,255,.88);
   --hb-sidebar:#F0F1F4;
   --hb-bubble:#EDEFF3; --hb-hover:#E4E7EC;
-  --hb-ink:#12151A; --hb-muted:#5C6573; --hb-muted-2:#8A929E;
+  --hb-ink:#12151A; --hb-muted:#5C6573; --hb-muted-2:#6F7886;   /* 3.1:1 on paper was worse than the dark side's */
   --hb-line:rgba(16,20,26,.10); --hb-line-subtle:rgba(16,20,26,.06); --hb-line-strong:rgba(16,20,26,.20);
   --hb-neutral:#C6CBD3;
   --hb-accent:#7A5AF5;   /* the heliotrope needs more pigment on paper to keep contrast */
@@ -121,6 +139,10 @@
   --hb-shadow-1:0 1px 2px rgba(16,20,26,.06), 0 4px 12px rgba(16,20,26,.07);
   --hb-shadow-2:0 2px 6px rgba(16,20,26,.08), 0 16px 40px rgba(16,20,26,.12);
   --hb-shadow-focus:0 2px 8px rgba(16,20,26,.10), 0 22px 52px rgba(16,20,26,.18);
+  --hb-line-win:rgba(16,20,26,.14);
+  --hb-line-win-focus:rgba(16,20,26,.24);
+  --hb-shadow-win:0 0 0 1px rgba(16,20,26,.10), 0 2px 5px rgba(16,20,26,.07), 0 12px 30px rgba(16,20,26,.10);
+  --hb-shadow-win-focus:0 0 0 1px rgba(16,20,26,.16), 0 4px 10px rgba(16,20,26,.10), 0 22px 50px rgba(16,20,26,.16);
   --hb-warn-bg:rgba(180,130,26,.10); --hb-warn-border:rgba(180,130,26,.28); --hb-warn-ink:#8A5E14;
   --hb-update:#B4821A; --hb-update2:#C0792C;
   --desk-grid-a:.05; --desk-halo:rgba(122,90,245,.05); --desk-ember:rgba(180,130,26,.03);

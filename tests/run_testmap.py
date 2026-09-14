@@ -2054,6 +2054,25 @@ DOMAINS: list[dict] = [
             "ch": UNIT,
             "paths": ["tests/browser/e2e/widgets/test_a_design_profile_repaints_the_whole_desktop.py",
                       "tests/infrastructure/unit/config/test_appearance_settings.py"]},
+        # V2-690 — la SEGUNDA pasada del operador sobre el sistema de diseño (14-sep), explícitamente
+        # «polishing, no redesign»: el borde de la ventana un punto más contrastado con un anillo exterior de
+        # UN píxel sin difuminar (una sombra mayor solo haría flotar la tarjeta), la barra de título como
+        # barra de verdad con controles alcanzables, el dock diciendo qué aplicación está ACTIVA, la bandeja
+        # de la esquina superior derecha como UN grupo enmarcado cuyos miembros comparten geometría, y una
+        # sola geometría de burbuja en el chat con el morado un escalón por debajo del acento puro.
+        # RENDERIZADO: nada de esto se ve en el fuente — que dos controles acaben midiendo lo mismo, que haya
+        # exactamente UNA pastilla marcada, o a qué color resuelve de verdad una burbuja, solo lo contesta la
+        # cascada de las cuatro hojas juntas. Un caso es deliberadamente GEOMÉTRICO y lo dice donde está: el
+        # marcador del dock, porque Pillow no es dependencia de este repo y un import no declarado es una de
+        # las tres formas de que un test deje de correr — y porque la regla que codifica es la que se rompió
+        # escribiéndolo (un marcador colgado por debajo de una caja que recorta pinta la mitad de lo que
+        # declara, con el estilo computado perfecto). El suelo de contraste de la tinta secundaria se MIDE,
+        # no se juzga: es el token con el que están pintados los iconos grises pequeños y estaba en 4,2:1.
+        {"id": "4.169", "title": "El cromo del escritorio comparte UNA geometría, y cada estado se dice dos "
+                                 "veces: borde de ventana, barra de título, app activa en el dock, la bandeja "
+                                 "del sistema como un grupo y las burbujas del chat",
+            "ch": UNIT,
+            "paths": ["tests/browser/e2e/widgets/test_the_chrome_shares_one_geometry.py"]},
         # V2-623 — the BOTTOM system bar and the orb swap (operator, 2026-09-08): the left rail rotated into
         # a horizontal bottom bar (chips left · orb centre · tools right), the 🧠 memory control moved from
         # the orb's lid to the TopBar, and the orb swaps eye↔bar by REPARENTING the one #orb canvas (the

@@ -82,10 +82,14 @@ canvas#viz{position:absolute;left:0;right:0;bottom:0;width:100%;height:30px;disp
    ONE visible edge toward the desk, and no shadow (a shadow says «floating», and this one is pinned). */
 .chatwall.docked{top:var(--banner-h)!important;bottom:0!important;height:auto!important;max-height:none!important;
   border-radius:0;background:var(--hb-sidebar);box-shadow:none}
+/* V2-690 — the column reads as the SYSTEM's side rail, so its edge toward the desk is the window edge, not
+   a panel hairline: the same pair the cards wear — one brighter pixel on the rail's side, one dark pixel on
+   the desk's. Still one border and no glow: the operator's point was that the boundary was hard to find, not
+   that the column needed to float. */
 .chatwall.docked.dock-left{border-radius:0;border-left:none;border-top:none;border-bottom:none;
-  border-right:1px solid var(--hb-line)}
+  border-right:1px solid var(--hb-line-win);box-shadow:1px 0 0 rgba(0,0,0,.35)}
 .chatwall.docked.dock-right{border-radius:0;border-right:none;border-top:none;border-bottom:none;
-  border-left:1px solid var(--hb-line)}
+  border-left:1px solid var(--hb-line-win);box-shadow:-1px 0 0 rgba(0,0,0,.35)}
 /* resize handles (8: edges + corners), reusable (lib/resizable.js) */
 .hb-rz{position:absolute;z-index:6}
 .hb-rz-n{top:0;left:12px;right:12px;height:7px;cursor:ns-resize}
@@ -109,6 +113,12 @@ canvas#viz{position:absolute;left:0;right:0;bottom:0;width:100%;height:30px;disp
    retired: nothing sits between a dock-left column and the desk any more, and the east grip lives at the
    wall's own edge, full height (the 54px header dodge above stays for the OTHER side's symmetry). */
 .chatwall.docked{overflow:visible}
+/* V2-690 — the column has been resizable since V2-608 and collapsible (the dock chevron → store.chatOpen)
+   since V2-619; what it never did was SAY SO. The grip stays invisible at rest — a permanent bar down the
+   edge is noise — and paints an accent hairline under the pointer, which is the whole affordance. */
+.chatwall.docked .hb-rz-e,.chatwall.docked .hb-rz-w{transition:background var(--hb-t-fast) ease}
+.chatwall.docked .hb-rz-e:hover,.chatwall.docked .hb-rz-w:hover{
+  background:color-mix(in srgb,var(--hb-accent) 55%,transparent)}
 .chatwall.docked.dock-left .hb-rz-e{right:-4px;width:8px;top:0}
 /* dock preview while dragging to the edge */
 .hb-dock-preview{position:fixed;top:0;height:100vh;width:340px;z-index:9000;display:none;pointer-events:none;
@@ -130,24 +140,46 @@ body.chatdock-r .statuspanel,body.chatdock-r .cronpanel{right:calc(18px + var(--
 .cw-head{display:flex;align-items:center;gap:var(--sp-2);min-height:44px;padding:0 var(--sp-3);flex:0 0 auto;
   background:var(--hb-bg-soft);border-bottom:1px solid var(--hb-line-subtle);
   cursor:grab;touch-action:none;user-select:none}
-.chatwall.docked .cw-head{background:var(--hb-sidebar);border-bottom-color:var(--hb-line)}
+/* V2-690 — docked, the header used to be the SAME ground as the column under it, so «Chat» read as the
+   first line of the transcript rather than as the bar that titles it. One rung up plus the full-weight
+   hairline delimits it without adding a box. */
+.chatwall.docked .cw-head{background:color-mix(in srgb,var(--hb-ink) 4%,var(--hb-sidebar));
+  border-bottom-color:var(--hb-line)}
 .cw-head:active{cursor:grabbing}
-.cw-title{font-weight:700;font-size:0.875rem;color:var(--hb-ink)}
+/* 700 was heavier than the window titles it sits beside; the type ladder says 600 for a title. */
+.cw-title{font-weight:600;font-size:var(--fs-ui);color:var(--hb-ink)}
 .cw-x{margin-left:0}
 /* V2-621 — the box↔column MODE TOGGLE (was V2-608's docked-only undock): visible in BOTH shapes, right end
    of the header next to ×. `margin-left:auto` pushes the pair to the right end. */
 .cw-undock{margin-left:auto}
-.cw-list{flex:1 1 auto;overflow-y:auto;padding:12px 14px;display:flex;flex-direction:column;gap:8px}
-.cw-list:empty::after{content:"Type or paste (Ctrl/Cmd+V) to talk to the agent by text.";color:var(--hb-muted-2);font-size:0.75rem}
+/* V2-690 — one vertical rhythm from the spacing scale, and the LAST exchange is the one at full strength:
+   the backlog recedes a step so the eye lands on what was just said. Deliberately reversible — hovering the
+   transcript brings every message back to full ink, because «older» must never mean «hard to read». */
+.cw-list{flex:1 1 auto;overflow-y:auto;padding:var(--sp-3) var(--sp-3) var(--sp-4);
+  display:flex;flex-direction:column;gap:var(--sp-3)}
+.cw-list > .cw-msg{opacity:.82;transition:opacity var(--hb-t) ease}
+.cw-list > .cw-msg:nth-last-child(-n+2),.cw-list:hover > .cw-msg{opacity:1}
+.cw-list:empty::after{content:"Type or paste (Ctrl/Cmd+V) to talk to the agent by text.";
+     color:var(--hb-muted-2);font-size:var(--fs-caption)}
 /* V2-681 T-1 — the boundary of a history restored across a browser refresh. Quiet and centred, never a
    bubble: it is a note about the conversation, not a line in it. */
-.cw-earlier{align-self:center;font-size:0.6875rem;color:var(--hb-muted-2);padding:2px 0;user-select:none}
-.cw-msg{max-width:85%;padding:8px 11px;border-radius:13px;font-size:0.8125rem;line-height:1.35;white-space:pre-wrap;word-break:break-word}
-.cw-msg.you{align-self:flex-end;background:var(--hb-accent);color:var(--canvas);border-bottom-right-radius:4px}
+.cw-earlier{align-self:center;font-size:var(--fs-micro);color:var(--hb-muted-2);padding:2px 0;user-select:none}
+/* V2-690 — ONE bubble geometry for all four kinds: the same radius, the same padding from the spacing
+   scale, the same max-width and the same type. Only the GROUND and the tail corner tell them apart, which is
+   the only difference that carries meaning. The purple comes down one notch (--hb-accent-fill): a column of
+   pure-accent boxes made the accent the loudest thing on the screen, and an accent that is everywhere has
+   stopped saying «interactive». Dark ink on it, not white — it measures 5.2:1 that way and 3.7:1 the other. */
+.cw-msg{max-width:85%;padding:var(--sp-2) var(--sp-3);border-radius:var(--hb-r-l,12px);
+  font-size:0.8125rem;line-height:1.45;white-space:pre-wrap;word-break:break-word;
+  border:1px solid transparent}
+.cw-msg.you{align-self:flex-end;background:var(--hb-accent-fill,var(--hb-accent));color:var(--canvas);
+  border-bottom-right-radius:var(--sp-1)}
 .cw-msg.agent{align-self:flex-start;background:var(--hb-bubble);color:var(--hb-ink);
-  border:1px solid var(--hb-line-subtle);border-bottom-left-radius:4px}
-.cw-msg.sys{align-self:center;background:transparent;border:1px dashed var(--hb-line);color:var(--hb-muted-2);font-style:italic;font-size:0.7188rem;padding:5px 10px}
-.cw-msg.peer{align-self:flex-start;background:var(--hb-bg-soft);border:1px solid var(--hb-line);color:var(--hb-ink);border-bottom-left-radius:4px}
+  border-color:var(--hb-line-subtle);border-bottom-left-radius:var(--sp-1)}
+.cw-msg.sys{align-self:center;background:transparent;border:1px dashed var(--hb-line);color:var(--hb-muted-2);
+  font-style:italic;font-size:var(--fs-micro,0.6875rem);padding:var(--sp-1) var(--sp-3);max-width:92%}
+.cw-msg.peer{align-self:flex-start;background:var(--hb-bg-soft);border-color:var(--hb-line);color:var(--hb-ink);
+  border-bottom-left-radius:var(--sp-1)}
 /* the composer sits on its own band, separated from the transcript above it by a real edge */
 .chatwall.docked .cw-input,.chatwall.docked .cw-tabs{background:var(--hb-sidebar)}
 .cw-msg-from{font-size:0.6562rem;font-weight:700;letter-spacing:.02em;color:var(--hb-accent2);margin-bottom:3px}
@@ -156,14 +188,19 @@ body.chatdock-r .statuspanel,body.chatdock-r .cronpanel{right:calc(18px + var(--
 .cw-msg-body code{font-family:var(--mono);font-size:0.75rem;background:var(--hb-hover);padding:1px 4px;border-radius:4px}
 .cw-msg-body ul,.cw-msg-body ol{margin:4px 0;padding-left:18px}
 .cw-msg-body li{margin:2px 0}
-.cw-input{display:flex;align-items:flex-end;gap:10px;padding:14px 16px 18px;border-top:1px solid var(--hb-line)}
+.cw-input{display:flex;align-items:flex-end;gap:var(--sp-2);padding:var(--sp-3) var(--sp-3) var(--sp-4);
+     border-top:1px solid var(--hb-line)}
 /* V2-617/619: the composer is for WRITING — body-size type, THREE lines tall at rest (rows:3 in the markup,
    min-height here so a profile's type scale keeps the ratio), and real margins off the floor. */
 .cw-input textarea{flex:1 1 auto;resize:none;min-height:4.4em;max-height:180px;border:1px solid var(--hb-line);border-radius:var(--hb-r-m,12px);
      padding:11px 13px;font-size:var(--fs-ui,0.875rem);font-family:var(--sans);color:var(--hb-ink);background:var(--hb-bg);outline:none;line-height:1.45}
 .cw-input textarea:focus{border-color:var(--hb-accent)}
-.cw-send{flex:0 0 auto;width:36px;height:36px;border-radius:var(--hb-r-m);border:none;cursor:pointer;color:var(--canvas);
-     background:var(--hb-accent);display:flex;align-items:center;justify-content:center}
+.cw-send{flex:0 0 auto;width:var(--hb-ctl-h);height:var(--hb-ctl-h);border-radius:var(--hb-r-m);border:none;
+     cursor:pointer;color:var(--canvas);background:var(--hb-accent);
+     display:flex;align-items:center;justify-content:center;
+     transition:filter var(--hb-t-fast) ease}
+.cw-send:not(.off):hover{filter:brightness(1.08)}
+.cw-send:not(.off):active{filter:brightness(.94)}
 /* V2-646: ⏻ OFF = nothing is listening, so the composer refuses instead of swallowing the message. The
    button keeps its shape and loses its charge — a disabled control has to READ disabled, or the operator
    types a whole sentence before finding out (which is exactly what happened). */
@@ -185,14 +222,16 @@ body.chatdock-r .statuspanel,body.chatdock-r .cronpanel{right:calc(18px + var(--
 .cw-tabname{flex:0 0 auto;min-width:82px;max-width:118px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
      font-weight:700;font-size:var(--fs-ui,0.875rem);color:var(--hb-ink)}
 .chatwall:not(.cw-narrow) .cw-tabname{display:none}
-.cw-tab{flex:0 0 auto;display:flex;align-items:center;gap:7px;border:none;background:transparent;color:var(--hb-muted);
-     font-size:0.8125rem;font-weight:600;padding:8px 12px;border-radius:9px;cursor:pointer;font-family:var(--sans);line-height:1.3}
+.cw-tab{flex:0 0 auto;display:flex;align-items:center;gap:var(--sp-2);border:none;background:transparent;
+     color:var(--hb-muted);font-size:0.8125rem;font-weight:600;padding:var(--sp-2) var(--sp-3);
+     border-radius:var(--hb-r-s);cursor:pointer;font-family:var(--sans);line-height:1.3;
+     transition:background var(--hb-t-fast) ease,color var(--hb-t-fast) ease}
 .cw-tab svg{width:17px;height:17px;flex:none}
 .cw-tab:hover:not(.on){background:var(--hb-hover);color:var(--hb-ink)}
 .cw-tab.on{background:color-mix(in srgb,var(--hb-accent) 18%,transparent);color:var(--hb-accent);
      box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--hb-accent) 40%,transparent)}
 .chatwall.cw-narrow .cw-tab-label{display:none}
-.chatwall.cw-narrow .cw-tab{padding:8px 11px}
+.chatwall.cw-narrow .cw-tab{padding:var(--sp-2)}
 .cw-proc,.cw-crons,.cw-clusters,.cw-conn{flex:1 1 auto;min-height:0;flex-direction:column;overflow:hidden}
 /* only the active tab's panel is shown (all hidden by default) */
 .chatwall .cw-list,.chatwall .cw-proc,.chatwall .cw-crons,.chatwall .cw-clusters,.chatwall .cw-conn,.chatwall .cw-input{display:none}
@@ -257,16 +296,28 @@ body.chatdock-r .statuspanel,body.chatdock-r .cronpanel{right:calc(18px + var(--
 .cw-empty{color:var(--hb-muted-2);font-size:0.75rem;line-height:1.45;padding:8px 4px}
 
 /* ---------- TOP-RIGHT: A · D · Reset · Power (power far right) ---------- */
-.tr{position:fixed;top:calc(16px + var(--banner-h));right:18px;z-index:20;display:flex;align-items:center;gap:8px;transition:top .2s}
-/* V2-689 — the top-right toolbar shares the IconButton face: quiet by default, the ground lifts on hover,
-   and the accent is reserved for STATE (the ◉ health colours, a badge), never for «this is a button». */
-.ic{width:34px;height:34px;border-radius:var(--hb-r-m);border:1px solid var(--hb-line);background:var(--hb-bg-soft);color:var(--hb-muted);
+/* V2-690 — THE SYSTEM TRAY. These controls belong to the DESKTOP, not to any widget, and they were reading
+   as six unrelated buttons that happened to be near each other: each carried its own box, and Reset was a
+   pill of a different height and radius altogether. They are ONE group now — a single framed band on the
+   window edge's own language — and inside it every control is a ghost IconButton of identical size, padding,
+   radius and hover. The frame is what does the grouping, so the members stop needing frames of their own.
+   Reset keeps its word (an unlabelled destructive button is worse than a labelled one) and gives up every
+   other difference: same height, same radius, same hover, separated from the icons by the toolbar rule —
+   a separator EARNS its place when the purpose of the row changes, and it changes there. */
+.tr{position:fixed;top:calc(16px + var(--banner-h));right:18px;z-index:20;
+    display:flex;align-items:center;gap:2px;padding:var(--sp-1);
+    background:var(--hb-bg);border:1px solid var(--hb-line-win);border-radius:var(--hb-r-l);
+    box-shadow:var(--hb-shadow-win);transition:top .2s}
+.ic{position:relative;width:32px;height:32px;border-radius:var(--hb-r-s);
+    border:1px solid transparent;background:transparent;color:var(--hb-muted);
     display:flex;align-items:center;justify-content:center;text-decoration:none;font-size:0.9375rem;cursor:pointer;
     transition:background var(--hb-t-fast) ease,color var(--hb-t-fast) ease,border-color var(--hb-t-fast) ease}
-.ic svg{width:19px;height:19px}
-.ic:hover{background:var(--hb-hover);border-color:var(--hb-line-strong);color:var(--hb-ink)}
+.ic svg{width:18px;height:18px}
+.ic:hover{background:var(--hb-hover);color:var(--hb-ink)}
+.ic:active{background:var(--hb-bubble)}
+/* ON is a STATE (the panel this button opens is up), so it is said with the accent — the one job colour has */
+.ic.on{background:color-mix(in srgb,var(--hb-accent) 16%,transparent);color:var(--hb-accent)}
 .ic:focus-visible{outline:none;box-shadow:var(--hb-focus-ring)}
-.ic{position:relative}
 /* Alert badge over an `.ic` button (2026-08-03): a provider (LLM/voice/cluster brain/brain workers) without
    balance/quota — the same data that already turns the status ◉ red (store.apiAlerts), but ALSO visible in ⚙ because
    that is where the operator will look to see “which provider is affected and which one we have switched to”. */
@@ -319,9 +370,15 @@ body.chatdock-r .statuspanel,body.chatdock-r .cronpanel{right:calc(18px + var(--
 .mm-btn{font-size:0.9375rem;line-height:1}
 .mm-chip.pin{display:inline-flex;align-items:center}
 .mm-chip.pin svg{width:9px;height:9px}
-.reset{border:1px solid var(--hb-line);background:var(--hb-bg-soft);color:var(--hb-muted);border-radius:999px;padding:9px 15px;font-size:0.8125rem;cursor:pointer;
+/* the one labelled member of the tray: the icons' geometry, its own word, and the separator that says the
+   row changes purpose here (it is the only destructive control in the group). */
+.reset{height:32px;display:flex;align-items:center;border:1px solid transparent;background:transparent;
+  color:var(--hb-muted);border-radius:var(--hb-r-s);padding:0 var(--sp-3);
+  margin-left:var(--sp-1);font-family:var(--sans);font-size:var(--fs-caption);font-weight:600;cursor:pointer;
   transition:background var(--hb-t-fast) ease,color var(--hb-t-fast) ease,border-color var(--hb-t-fast) ease}
-.reset:hover{background:var(--hb-hover);border-color:var(--hb-line-strong);color:var(--hb-ink)}
+.reset::before{content:"";width:1px;height:18px;margin-right:var(--sp-3);background:var(--hb-line);flex:none}
+.reset:hover{background:var(--hb-risk-soft);color:var(--hb-risk)}
+.reset:active{background:var(--hb-bubble)}
 /* V2-689 — EVERY interactive element of the shell answers the keyboard with the same ring. `:focus-visible`
    never fires for a mouse click, so there is no case left in which this is noise. */
 button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,
@@ -642,9 +699,12 @@ canvas#orb.frozen{opacity:.32;filter:grayscale(1)}
 @media(max-width:640px){ .cronpanel{left:12px;right:12px;width:auto;top:auto;bottom:12px;height:min(70vh,520px)} }
 /* STATUS — the ◉ toolbar icon colors by overall health; red BLINKS to grab attention. */
 .statusBtn{position:relative}
-.statusBtn.st-ok{color:var(--hb-ok);border-color:color-mix(in srgb,var(--hb-ok) 35%,transparent)}
-.statusBtn.st-warn{color:var(--hb-warn);border-color:color-mix(in srgb,var(--hb-warn) 40%,transparent)}
-.statusBtn.st-error{color:var(--hb-risk);border-color:color-mix(in srgb,var(--hb-risk) 55%,transparent);animation:stblink 1s steps(1) infinite}
+/* V2-690 — the beacon stays a STATE indicator and stops being the one member of the tray with a frame of
+   its own: the colour is carried by the dot itself (and, for a real fault, by the blink), which is the same
+   thing said with one signal fewer. Two signals still, never colour alone: colour AND motion. */
+.statusBtn.st-ok{color:var(--hb-ok)}
+.statusBtn.st-warn{color:var(--hb-warn)}
+.statusBtn.st-error{color:var(--hb-risk);background:var(--hb-risk-soft);animation:stblink 1s steps(1) infinite}
 .statusBtn.st-unknown{color:var(--hb-muted-2)}
 @keyframes stblink{50%{color:var(--canvas);background:var(--hb-risk);border-color:var(--hb-risk)}}
 /* STATUS PANEL — per-subsystem health, compact so the whole thing fits in one glance (no scroll). Two sections:

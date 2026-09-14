@@ -38,9 +38,9 @@ const CATEGORY_HUE = {
 
 function injectStyles(){
   const prev = document.getElementById("hb-agenda-css");
-  if(prev && (prev.dataset||{}).v === "679") return;   // dataset is optional on a foreign node
+  if(prev && (prev.dataset||{}).v === "690") return;   // dataset is optional on a foreign node
   if(prev) prev.remove();                      // an older build's sheet would fight this one, silently
-  const s=document.createElement("style"); s.id="hb-agenda-css"; s.dataset.v="679"; s.textContent=`
+  const s=document.createElement("style"); s.id="hb-agenda-css"; s.dataset.v="690"; s.textContent=`
   /* The card decides the size (manifest.size); the widget fills it and scrolls INSIDE — the operator's
      report was «se muestra muy pequeño, se cortan las palabras de abajo». :has reaches the card chrome
      (.hb-scroll wraps the widget root) exactly as the video widget does since V2-636. */
@@ -50,42 +50,64 @@ function injectStyles(){
     display:flex;flex-direction:column;gap:0;position:relative;min-height:0}
 
   /* ── TOOLBAR: brand · range title · ‹ Hoy › — one line, like every calendar ─────────────────────── */
-  .hb-agenda .agbar{display:flex;align-items:center;gap:10px;padding:0 0 9px;flex:0 0 auto;min-width:0}
+  /* V2-690 — four levels, and only ONE of them needs a rule to be legible: the window's own title bar
+     already draws a full-weight line right above this, so the calendar header is separated from the view
+     nav by SPACE and by type, and the single hairline left on the screen is the subtle one under the nav.
+     Two full-weight lines a few pixels apart was the redundancy the operator was looking at. */
+  .hb-agenda .agbar{display:flex;align-items:center;gap:var(--sp-2,8px);padding:0 0 var(--sp-3,12px);
+    flex:0 0 auto;min-width:0}
   .hb-agenda .agbrand{width:26px;height:26px;border-radius:8px;background:var(--hb-accent,#3D6FE0);color:#fff;
     display:flex;align-items:center;justify-content:center;flex:0 0 auto}
   .hb-agenda .agbrand svg{width:15px;height:15px;display:block}
-  .hb-agenda .agrange{font-size:15px;font-weight:700;letter-spacing:-.01em;white-space:nowrap;
-    overflow:hidden;text-overflow:ellipsis;flex:1 1 auto;min-width:0;text-transform:capitalize}
+  /* the range is the CONTENT's header, so it sits one step under the window title rather than over it —
+     a 15/700 range beside a 14/600 window name inverted the hierarchy it was supposed to express. */
+  .hb-agenda .agrange{font-size:14px;font-weight:600;letter-spacing:-.01em;white-space:nowrap;
+    overflow:hidden;text-overflow:ellipsis;flex:1 1 auto;min-width:0}
+  /* «14 – 20 Septiembre De 2026»: text-transform:capitalize raises EVERY word, which is an English
+     convention and wrong in the language this ships in. Only the first letter is ours to raise. */
+  .hb-agenda .agrange::first-letter{text-transform:uppercase}
   .hb-agenda .agnav{display:flex;align-items:center;gap:4px;flex:0 0 auto}
   .hb-agenda .agnav button{border:1px solid var(--hb-line,#e3e8f0);background:var(--hb-bg,#fff);
-    color:var(--hb-muted,#5b6b82);border-radius:9px;height:30px;min-width:30px;padding:0 9px;font-size:13px;
+    color:var(--hb-muted,#5b6b82);border-radius:var(--hb-r-s,8px);height:var(--hb-ctl-h-sm,32px);
+    min-width:var(--hb-ctl-h-sm,32px);padding:0 var(--sp-2,8px);font-size:13px;
     font-weight:600;cursor:pointer;line-height:1;display:flex;align-items:center;justify-content:center}
   .hb-agenda .agnav button:hover{border-color:var(--hb-accent,#3D6FE0);color:var(--hb-accent,#3D6FE0)}
   .hb-agenda .agnav svg{width:13px;height:13px;display:block}
 
   /* ── VIEW BAND: a defined strip, active view an INVERTED chip (the V2-636 language) ─────────────── */
-  .hb-agenda .agviews{display:flex;align-items:center;gap:5px;flex-wrap:nowrap;overflow-x:auto;
-    border-bottom:1px solid var(--hb-line,#e3e8f0);padding-bottom:9px;margin-bottom:10px;flex:0 0 auto;
+  .hb-agenda .agviews{display:flex;align-items:center;gap:var(--sp-1,4px);flex-wrap:nowrap;overflow-x:auto;
+    border-bottom:1px solid var(--hb-line-subtle,rgba(255,255,255,.06));
+    padding-bottom:var(--sp-2,8px);margin-bottom:var(--sp-4,16px);flex:0 0 auto;
     scrollbar-width:none}
   .hb-agenda .agviews::-webkit-scrollbar{display:none}
   .hb-agenda .agtab{border:0;background:none;color:var(--hb-muted,#5b6b82);border-radius:999px;
-    padding:6px 14px;font-size:12.5px;font-weight:600;cursor:pointer;line-height:1.2;white-space:nowrap;flex:0 0 auto}
-  .hb-agenda .agtab:hover{background:var(--hb-bg-soft,#f4f7fb);color:var(--hb-ink,#0d1622)}
-  .hb-agenda .agtab.on{background:var(--hb-ink,#0d1622);color:var(--hb-bg,#fff)}
-  .hb-agenda .agtab:disabled{opacity:.4;cursor:default;pointer-events:none}
+    padding:var(--sp-2,8px) var(--sp-3,12px);font-size:13px;font-weight:600;cursor:pointer;line-height:1.2;
+    white-space:nowrap;flex:0 0 auto;font-family:var(--sans,system-ui)}
+  .hb-agenda .agtab:hover{background:var(--hb-hover,#242A34);color:var(--hb-ink,#0d1622)}
+  /* V2-690 — SELECTED is said the same way everywhere in the product now (the chat's tabs, the tray's open
+     panel, the dock's active app): an accent-tinted chip with an accent ring. The inverted near-white pill
+     this used to be was a SECOND filled language on the screen, and the loudest thing on the card. */
+  .hb-agenda .agtab.on{background:color-mix(in srgb,var(--hb-accent,#9B7CFF) 16%,transparent);
+    color:var(--hb-accent,#9B7CFF);
+    box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--hb-accent,#9B7CFF) 40%,transparent)}
+  /* .4 of the secondary ink on the widget ground is under 2:1 — «disabled» has to read as unavailable,
+     not as absent (the tabs are still the map of where you are). */
+  .hb-agenda .agtab:disabled{opacity:.6;cursor:default;pointer-events:none}
   /* Platform icons + Conectores button, ONE right-aligned cluster — mirroring the messaging widget's own
      header pattern (icons for every provider, a door into the connectors screen), per the operator's V2-679
      follow-up: «he dicho que hay un icono, un botón para conectores y luego a la izquierda los tres iconos». */
   .hb-agenda .agviewsright{margin-left:auto;display:flex;align-items:center;gap:10px;flex:0 0 auto}
   .hb-agenda .agconnicons{display:flex;align-items:center;gap:4px}
-  .hb-agenda .agconnicon{width:26px;height:26px;border-radius:8px;border:0;background:none;cursor:pointer;
-    display:flex;align-items:center;justify-content:center;opacity:.55}
+  .hb-agenda .agconnicon{width:var(--hb-icon-h,28px);height:var(--hb-icon-h,28px);border-radius:var(--hb-r-s,8px);
+    border:0;background:none;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;opacity:.72}
   .hb-agenda .agconnicon svg{width:15px;height:15px;display:block}
   .hb-agenda .agconnicon:hover:not(:disabled){opacity:1;background:var(--hb-bg-soft,#f4f7fb)}
   .hb-agenda .agconnicon.on{opacity:1}
-  .hb-agenda .agconnicon.off{opacity:.28;cursor:default}
+  .hb-agenda .agconnicon.off{opacity:.4;cursor:default}
   .hb-agenda .agcalbtn{border:1px solid var(--hb-line,#e3e8f0);background:var(--hb-bg,#fff);
-    color:var(--hb-muted,#5b6b82);border-radius:9px;height:30px;padding:0 11px;font-size:12.5px;font-weight:600;
+    color:var(--hb-muted,#5b6b82);border-radius:var(--hb-r-s,8px);height:var(--hb-ctl-h-sm,32px);
+    padding:0 var(--sp-3,12px);font-size:13px;font-weight:600;
     cursor:pointer;display:flex;align-items:center;gap:7px;flex:0 0 auto}
   .hb-agenda .agcalbtn:hover,.hb-agenda .agcalbtn.on{border-color:var(--hb-accent,#3D6FE0);color:var(--hb-accent,#3D6FE0)}
   .hb-agenda .agcalbtn svg{width:14px;height:14px;display:block}
@@ -247,7 +269,12 @@ function injectStyles(){
     border-radius:9px;padding:7px 11px;font-size:12px;cursor:pointer;color:var(--hb-muted,#3a4757)}
   .hb-agenda .agpacts button:hover{border-color:var(--hb-accent,#3D6FE0);color:var(--hb-accent,#3D6FE0)}
   .hb-agenda .agpacts button.risk:hover{border-color:var(--hb-risk,#e5484d);color:var(--hb-risk,#e5484d)}
-  .hb-agenda .agcalrow{display:flex;align-items:center;gap:10px;padding:10px 12px;margin-bottom:8px;
+  /* V2-690 — ONE block per provider: the row, and whatever acts on it, indented to the row's own name
+     column so the pair reads as attached instead of floating between two rows. */
+  .hb-agenda .agcalgrp{margin-bottom:var(--sp-4,16px)}
+  .hb-agenda .agcalgrp .agcalbtn2{margin:var(--sp-2,8px) 0 0 50px}
+  .hb-agenda .agcalgrp .agcaldef{padding-left:50px}
+  .hb-agenda .agcalrow{display:flex;align-items:center;gap:10px;padding:10px 12px;
     background:var(--hb-bubble,#1D222A);border:1px solid var(--hb-line-subtle,rgba(255,255,255,.06));
     border-radius:var(--hb-r-m,10px)}
   .hb-agenda .agcalico{width:28px;height:28px;border-radius:8px;background:var(--hb-bg,#12151A);
@@ -286,20 +313,24 @@ function injectStyles(){
     box-shadow:var(--hb-focus-ring,0 0 0 2px var(--hb-accent,#9B7CFF));border-radius:4px}
   /* Breadcrumb inside the wizard — same shape as messaging's .crumb (V2-570), so a step-by-step guide
      always tells you where "back" goes: to the connectors list, never out of the widget entirely. */
-  .hb-agenda .agwcrumb{display:flex;align-items:center;gap:7px;margin:2px 0 14px;font-size:13px}
+  /* V2-690 — the breadcrumb needs room of its own: at 14px below it the step card read as hanging off it. */
+  .hb-agenda .agwcrumb{display:flex;align-items:center;gap:var(--sp-2,8px);margin:0 0 var(--sp-5,24px);
+    font-size:13px}
   .hb-agenda .agwcrumb .agconnback{margin-left:0}
   .hb-agenda .agwsep{color:var(--hb-muted-2,#9aa7b8)}
   .hb-agenda .agwcur{color:var(--hb-ink,#0d1622);font-weight:700}
   .hb-agenda .agwstep{border:1px solid var(--hb-line,rgba(255,255,255,.10));border-radius:var(--hb-r-l,12px);
     padding:var(--sp-4,16px);background:var(--hb-bg-soft,#171B21);margin:2px 0 var(--sp-4,16px)}
-  .hb-agenda .agwhead{display:flex;align-items:center;gap:10px;margin-bottom:12px}
-  .hb-agenda .agwnum{width:25px;height:25px;flex:0 0 auto;border-radius:50%;display:inline-flex;
-    align-items:center;justify-content:center;font-size:12.5px;font-weight:700;
+  /* V2-690 — the numeral and the title share ONE line box (24px, the badge's own height), so the «1» is
+     aligned with the title by construction rather than by whatever the two line heights happened to do. */
+  .hb-agenda .agwhead{display:flex;align-items:center;gap:var(--sp-3,12px);margin-bottom:var(--sp-3,12px)}
+  .hb-agenda .agwnum{width:24px;height:24px;flex:0 0 auto;border-radius:50%;display:inline-flex;
+    align-items:center;justify-content:center;font:700 13px/24px var(--sans,system-ui);
     color:var(--hb-accent,#9B7CFF);
     background:color-mix(in srgb,var(--hb-accent,#9B7CFF) 18%,transparent)}
-  .hb-agenda .agwtitle{font-size:15px;font-weight:700;color:var(--hb-ink,#0d1622)}
-  .hb-agenda .agwcount{margin-left:auto;flex:0 0 auto;font-size:11.5px;color:var(--hb-muted-2,#9aa7b8)}
-  .hb-agenda .agwbody{font-size:13.5px;color:var(--hb-muted,#4a5a70);line-height:1.6}
+  .hb-agenda .agwtitle{font:600 15px/24px var(--sans,system-ui);color:var(--hb-ink,#0d1622);min-width:0}
+  .hb-agenda .agwcount{margin-left:auto;flex:0 0 auto;font-size:12px;color:var(--hb-muted-2,#9aa7b8)}
+  .hb-agenda .agwbody{font-size:14px;color:var(--hb-muted,#4a5a70);line-height:1.6}
   .hb-agenda .agwlink{display:inline-flex;align-items:center;gap:6px;margin:9px 9px 0 0;
     border:1px solid var(--hb-line,rgba(255,255,255,.10));color:var(--hb-ink,#F2F4F7);
     background:var(--hb-bubble,#1D222A);border-radius:var(--hb-r-m,10px);
@@ -314,7 +345,13 @@ function injectStyles(){
      row — «un botón gigante» — which also destroyed the one thing a wizard's footer is for: the same
      control in the same place on every step. Natural width, a comfortable floor, and the pair sits under
      the step box where the reader's eye already is. */
-  .hb-agenda .agwfoot{display:flex;gap:var(--sp-2,8px);margin-top:var(--sp-4,16px);align-items:center}
+  /* V2-690 — THE STEP'S ACTION ZONE. «Atrás» and «Conectar Google Calendar» used to sit outside the step
+     box entirely, floating on the card's ground with nothing tying them to the thing they act on. They are
+     inside it now, under a hairline: the panel says what the step is, the band under it says what you can do
+     about it, and the pair still lands in the same place on every step. */
+  .hb-agenda .agwfoot{display:flex;gap:var(--sp-2,8px);align-items:center;
+    margin:var(--sp-4,16px) 0 0;padding-top:var(--sp-4,16px);
+    border-top:1px solid var(--hb-line-subtle,rgba(255,255,255,.06))}
   .hb-agenda .agwfoot .agcalbtn2{flex:0 0 auto;margin:0;min-width:104px}
   `; document.head.appendChild(s);
 }
@@ -766,6 +803,11 @@ function renderConnectorScreen(data, ctx, S, redraw){
   wrap.appendChild(head);
 
   cals.forEach(c=>{
+    // V2-690 — a provider is ONE block: its row and whatever acts on it. «Conectar Google Calendar» used to
+    // be a sibling of the list, so it rendered in the gap between the Google row and the iCloud row with the
+    // same distance to each — reading, at a glance, as iCloud's button. Everything a provider owns now hangs
+    // off its own group, and the group is what the spacing separates.
+    const grp = el2("div","agcalgrp");
     const row = el2("div","agcalrow");
     const ico = el2("div","agcalico"); const spec = CAL_SVG[c.id];
     if(spec){ ico.style.color = spec.color; ico.appendChild(svgEl(spec.path, {fill:true})); }
@@ -778,7 +820,8 @@ function renderConnectorScreen(data, ctx, S, redraw){
          : (c.status === "unavailable" ? tt("cal_soon", null, "aún no disponible")
                                        : (c.status === "unconfigured" ? tt("cal_unconf", null, "sin configurar")
                                                                       : tt("cal_off", null, "sin conectar")))));
-    wrap.appendChild(row);
+    grp.appendChild(row);
+    wrap.appendChild(grp);
     // Only Google is wired to a real connector today (V2-679); iCloud/CalDAV stay VISIBLE but INERT — no
     // button, no click handler — until a second provider lands in `connectors/calendar/providers.py`.
     if(c.id !== "google") return;
@@ -800,16 +843,16 @@ function renderConnectorScreen(data, ctx, S, redraw){
           cald.appendChild(line);
         });
       }
-      wrap.appendChild(cald);
+      grp.appendChild(cald);
       const disc = el2("button","agcalbtn2 hb-btn hb-btn--danger", tt("cal_disconnect", null, "Desconectar Google Calendar"));
       disc.onclick = ()=>{ ctx.action("disconnect", {provider:"google"}); };
-      wrap.appendChild(disc);
+      grp.appendChild(disc);
     } else {
       // The operator's rule: this button STARTS THE GUIDE, it does not fire an OAuth handshake that cannot
       // succeed yet — «lo que hace es iniciar un wizard con las instrucciones en la zona central del widget».
       const btn = el2("button","agcalbtn2 hb-btn hb-btn--primary", tt("cal_connect", null, "Conectar Google Calendar"));
       btn.onclick = ()=>{ S.screen = "wizard"; S.wizStep = 1; S.connectErr = ""; redraw(); };
-      wrap.appendChild(btn);
+      grp.appendChild(btn);
     }
   });
   wrap.appendChild(el2("div","agnote", tt("cal_footer", null,
@@ -902,8 +945,6 @@ function renderGoogleWizard(data, ctx, S, redraw){
   } else {
     box.appendChild(agStepBody(step));
   }
-  wrap.appendChild(box);
-
   const foot = el2("div","agwfoot");
   const backBtn = el2("button","agcalbtn2 hb-btn hb-btn--secondary", tt("wiz_back", null, "Atrás"));
   backBtn.onclick = ()=>{
@@ -953,7 +994,10 @@ function renderGoogleWizard(data, ctx, S, redraw){
     };
     foot.appendChild(go);
   }
-  wrap.appendChild(foot);
+  // V2-690 — the actions belong to the STEP, so they hang off the step box and not off the screen: they used
+  // to float on the card's ground with nothing tying them to the panel they act on.
+  box.appendChild(foot);
+  wrap.appendChild(box);
   return wrap;
 }
 

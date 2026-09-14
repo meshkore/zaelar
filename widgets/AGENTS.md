@@ -28,6 +28,13 @@ widgets feel polished and consistent with the rest. These are HARD rules — fol
   grey for an unset state (an unfilled bar, a dot with no category); `--hb-warn-bg`/`-border`/`-ink` are the amber
   nudge banner. **A state must never be said by colour ALONE** — pair it with a shape, an icon, a border or a word,
   or it disappears for a colourblind reader.
+  **SELECTION is an accent-TINTED chip, never an inverted fill (V2-690).** The one shape for «this is the
+  active tab / row / view», everywhere in the product: `background: color-mix(in srgb, var(--hb-accent) 16%,
+  transparent)`, `color: var(--hb-accent)`, and an accent ring at ~40% as the second signal. An inverted block
+  (ink ground, background-coloured text) is a SECOND filled language on the screen and becomes the loudest
+  thing on the card — the agenda's view tabs were exactly that until this pass. When the accent has to be a
+  large FILLED surface instead (a chat bubble, a highlighted block), use `--hb-accent-fill`, which is the
+  accent one notch down: a column of pure-accent boxes stops the accent meaning «interactive».
   **Geometry comes from tokens too**: spacing from the fixed scale `--sp-1`…`--sp-6` = 4/8/12/16/24/32 (nothing in
   between — an arbitrary 9px is how a dozen widgets end up almost-but-not-quite aligned); radii `--hb-r-s` 8 /
   `--hb-r-m` 10 / `--hb-r-l` 12; control heights `--hb-ctl-h` 36 / `--hb-ctl-h-sm` 32 / `--hb-icon-h` 28;
