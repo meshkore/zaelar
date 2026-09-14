@@ -633,12 +633,28 @@ def test_the_party_turn_may_promise_the_link_and_may_never_WRITE_one(world, monk
     got = _open(world)
     _answers_and_wakes(world, got["chat"], "Vale, a las 11")
 
-    system = model.calls[-1]["system"]
-    assert "NUNCA escribas tú una URL" in system, "the half that is still impossible"
-    assert "el sistema lo añade solo" in system, \
+    # ⚠️ AND IT IS CONDITIONAL (V2-692d), which this batch learned by shipping the bug on its own live run:
+    # the operator's Google Calendar was not linked, the meeting was written with no conference, and the
+    # errand told a real person «the Google Meet link will be sent with the invitation — it gets added
+    # automatically». A capability stated UNCONDITIONALLY is one the model promises unconditionally.
+    from nucleo.errands import party as _party
+
+    armed = _party.build_system("Johnny", "Ricart", "español", can_link=True)
+    assert "NUNCA lo escribas tú" in armed, "the half that is still impossible"
+    assert "lo añade el sistema" in armed, \
         "a limit with no alternative is answered by inventing one — say who does supply it"
-    assert "puedes decir que le pasas el enlace" in system, \
-        "and the half it CAN now do, or it argues the operator out of his own errand"
+    assert "puedes decirle que se lo pasas" in armed, \
+        "and the half it CAN do, or it argues the operator out of his own errand"
+
+    dark = _party.build_system("Johnny", "Ricart", "español", can_link=False)
+    assert "NO PUEDES MANDARLE NINGÚN ENLACE" in dark
+    assert "NO se lo prometas" in dark and "no va a llegar" in dark, \
+        "the sentence it actually said to a real person is the one that has to be forbidden"
+    assert "puedes decirle que se lo pasas" not in dark
+
+    system = model.calls[-1]["system"]
+    assert ("puedes decirle que se lo pasas" in system) ^ ("NO PUEDES MANDARLE" in system), \
+        "and the live prompt carries exactly ONE of the two — never both, never neither"
 
 
 def test_an_errand_that_AGREED_and_ran_out_is_not_announced_as_silence(world, monkeypatch):

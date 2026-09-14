@@ -169,7 +169,11 @@ async def wake(errand: dict, *, reason: str = "inbound", inbound_id: str = "",
         busy = free_slots_line(errand, now)
     except Exception:
         pass
-    system = _build_system(name, op, lang)
+    # V2-692d — what the model may PROMISE is read from the world, per wake: he can link his calendar
+    # between one message and the next, and a promise made on a stale answer is paid by a stranger.
+    from . import book as _book
+    can_link = _book.can_mint_link()
+    system = _build_system(name, op, lang, can_link=can_link)
     dossier = _build_dossier(errand, party=party or platform, messages=msgs, brief=brief,
                              now_line=_now_line(), busy=busy)
     try:
@@ -210,7 +214,6 @@ async def wake(errand: dict, *, reason: str = "inbound", inbound_id: str = "",
     # person already gave is the one outcome worth avoiding.
     booked = {}
     if state == "agreed":
-        from . import book as _book
         booked = _book.book(errand, decision, party or platform)
         if booked.get("ok"):
             say = _with_link(say, str(booked.get("link") or ""))
@@ -227,6 +230,14 @@ async def wake(errand: dict, *, reason: str = "inbound", inbound_id: str = "",
     if ask_op:
         _tell_operator(f"[SISTEMA] Sobre «{str(errand.get('objective') or '')[:80]}»: {ask_op} "
                        f"Pregúntaselo al operador.")
+    # The one thing the errand cannot solve by itself and he can, in one click. Said ONCE per errand, and
+    # only when the meeting really was written and really has no link — not every time the calendar is
+    # disconnected, which would be a nag about a connector he may not want.
+    if booked.get("ok") and not booked.get("link") and not can_link:
+        _tell_operator(
+            f"[SISTEMA] He cerrado «{str(errand.get('objective') or '')[:70]}» y he apuntado la cita, pero "
+            f"NO he podido crear el enlace de videollamada: su Google Calendar no está conectado. Díselo al "
+            f"operador en una frase y que lo conecte si quiere que el enlace salga solo.")
     if state in ("blocked", "abandoned"):
         close(eid, state, decision.get("reason") or "")
     return {"ok": True, "say": say, "sent": sent, "state": state, "shadow": shadow(),
@@ -291,9 +302,9 @@ def _emit_decision(errand: dict, decision: dict, reason: str, *, sent: bool,
         pass
 
 
-def _build_system(name: str, op: str, lang: str) -> str:
+def _build_system(name: str, op: str, lang: str, can_link: bool = False) -> str:
     from . import party as _party
-    return _party.build_system(name, op, lang)
+    return _party.build_system(name, op, lang, can_link=can_link)
 
 
 def _build_dossier(errand, **kw) -> str:

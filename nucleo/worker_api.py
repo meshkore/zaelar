@@ -218,8 +218,13 @@ async def _exec_allow(action: str, payload: dict, rec) -> dict:
 
             # the widget DATA (§7.3: view_data), off-loop and with a timeout — not just the manifest.
             data = await run_widget_hook(wid, "view_data", _call)
+            # V2-692c — BOUNDED. The agenda answered this call with 59 955 bytes (55 666 of them the
+            # operator's whole calendar), the CLI persisted it, and the worker could then not read the file
+            # it was handed. A widget that grows is one a worker structurally cannot read; the digest the
+            # turn prompt already uses says the same thing in 975 bytes. Small widgets are untouched.
+            from nucleo.workers import widget_view as _wv
             return {"ok": True, "result": {"manifest": man,
-                                           "data": None if data is MISSING else data}}
+                                           **_wv.bounded(wid, None if data is MISSING else data)}}
         except Exception as e:  # noqa: BLE001
             return {"ok": False, "error": f"read_widget falló: {e}"}
     if action in ("show_widget", "close_widget"):
@@ -292,7 +297,10 @@ async def _exec_allow(action: str, payload: dict, rec) -> dict:
             res = await brain_action(wid, act, data_payload)
             if isinstance(res, dict) and res.get("error"):
                 return {"ok": False, "error": str(res.get("error"))}
-            return {"ok": True, "result": {"widget": wid, "action": act, "data": res}}
+            # Same ceiling as `read_widget`, and for the same reason: several of the agenda's own actions
+            # answer with the whole view, so the op would succeed and its ANSWER would be unreadable.
+            from nucleo.workers import widget_view as _wv
+            return {"ok": True, "result": {"widget": wid, "action": act, **_wv.bounded(wid, res)}}
         except Exception as e:  # noqa: BLE001
             return {"ok": False, "error": f"widget_data falló: {e}"}
     if action == "spawn":

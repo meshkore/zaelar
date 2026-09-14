@@ -1550,6 +1550,14 @@ DOMAINS: list[dict] = [
                                 "le quita la conversación a un encargo que ya acabó", "ch": UNIT,
             "paths": ["tests/agent_headless/unit/"
                       "test_an_errand_finishes_what_it_agreed.py"]},
+        # V2-692c — medido en el mismo run: `read agenda` le contestó al worker con 59 955 bytes (55 666 de
+        # ellos el calendario ENTERO del operador), el CLI lo persistió a fichero y el worker no pudo leer
+        # el fichero que le habían dado — dos intentos, «31 844 tokens exceeds maximum allowed 25 000». Un
+        # widget que crece es un widget que un worker NO PUEDE LEER, por construcción. El resumen que ya usa
+        # el prompt del turno dice lo mismo en 975 bytes.
+        {"id": "3.48", "title": "Un worker puede LEER de verdad un widget grande", "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/"
+                      "test_a_worker_can_actually_read_a_big_widget.py"]},
         # V2-676 — medido en su sesión INGLESA `af4429e0` (2026-09-11), dos fallos que viajaban juntos:
         #   · cinco búsquedas del tiempo en Nueva York, las cinco n:0 con `failure.kind = captcha`, y el modelo
         #     explicó el vacío con la única historia que tiene: «I don't have live internet access… my training

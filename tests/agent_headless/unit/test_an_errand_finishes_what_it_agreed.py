@@ -270,6 +270,80 @@ def test_the_booking_FAILING_neither_stops_the_reply_nor_moves_the_errand(env, m
     del msgstore
 
 
+# ── 3b · what it may PROMISE is read from the world, and it writes ONE meeting ───────────────────────────
+def test_it_never_promises_a_link_the_engine_cannot_MINT(env, monkeypatch):
+    """⚠️ This batch SHIPPED this bug and its own live run caught it (2026-09-14, 19:37).
+
+    V2-683 forbade the model to promise a link because nothing could make one. V2-692 built the mechanism
+    and lifted the prohibition — unconditionally. The operator's Google Calendar was not linked, so the
+    meeting was written locally with no conference, and the errand told a real person «the Google Meet link
+    will be sent with the invitation — it gets added automatically». Nothing was ever going to arrive.
+    A capability stated unconditionally is one the model promises unconditionally, and the gap is paid by
+    a stranger.
+    """
+    from nucleo.errands import book, party
+    from widgets.agenda import gcal
+    monkeypatch.setattr(gcal, "connected", lambda: False)
+    assert book.can_mint_link() is False
+
+    dark = party.build_system("Johnny", "Ricart", "español", can_link=book.can_mint_link())
+    assert "NO se lo prometas" in dark and "no va a llegar" in dark
+    assert "puedes decirle que se lo pasas" not in dark
+    del env
+
+
+def test_an_unreadable_connector_means_DO_NOT_PROMISE(env, monkeypatch):
+    """Fails closed, like every other reader of a capability: the cost of staying quiet is one message the
+    operator sends by hand; the cost of the other direction is a person waiting for a link forever."""
+    from nucleo.errands import book
+    from widgets.agenda import gcal
+
+    def _boom():
+        raise RuntimeError("el conector no responde")
+    monkeypatch.setattr(gcal, "connected", _boom)
+    assert book.can_mint_link() is False
+    del env
+
+
+def test_the_operator_is_TOLD_when_the_link_could_not_be_made(env, monkeypatch):
+    """The one thing the errand cannot solve and he can, in one click. He must not discover it from the
+    other person asking again."""
+    said = []
+    from voice import brain_notes
+    from widgets.agenda import gcal
+    monkeypatch.setattr(brain_notes, "push", lambda t: said.append(t))
+    monkeypatch.setattr(gcal, "connected", lambda: False)
+    row = _order(env)
+    env.bind("telegram", "987", row["id"], "c1")
+    _answer(monkeypatch, '{"say": "Cerrado.", "state": "agreed", '
+                         '"agreed": {"start": "2026-09-15 19:00", "medium": "meet"}}')
+
+    asyncio.run(_wake(row))
+
+    assert any("no está conectado" in t.lower() or "no ha podido" in t.lower() or
+               "NO he podido crear el enlace" in t for t in said), said
+
+
+def test_ONE_errand_writes_ONE_meeting_whatever_it_is_called(env, monkeypatch):
+    """⚠️ Also measured live, same run: the worker wrote «Meeting with Pruebas Zaelar» at 16:00 and the
+    errand wrote «Meeting with Cryptonite» at 16:00 — one order, one person, TWO rows in his real calendar.
+    The agenda's own duplicate guard compares TITLES and the two came from two names for one contact. What
+    an errand knows that the agenda cannot is the SLOT it has been negotiating, so that is what it checks.
+    """
+    from widgets.agenda import data as agenda
+    agenda.apply_action("add_meeting", {"title": "Meeting with Cryptonite", "date": "2026-09-15",
+                                        "startTime": "16:00"})
+    row = _order(env)
+    env.bind("telegram", "987", row["id"], "c1")
+    _answer(monkeypatch, '{"say": "Cerrado.", "state": "agreed", '
+                         '"agreed": {"start": "2026-09-15 16:00", "medium": "meet"}}')
+
+    asyncio.run(_wake(row))
+
+    at_16 = [m for m in agenda.load_db()["meetings"] if m.get("startTime") == "16:00"]
+    assert len(at_16) == 1, f"one appointment, not two: {[m['title'] for m in at_16]}"
+
+
 # ── 4 · and now it can CLOSE by being achieved ──────────────────────────────────────────────────────────
 def test_the_agenda_STAMPS_the_day_a_meeting_was_written(env):
     """Without it `verify.meeting_exists` — «a row the errand itself could have produced has to SAY SO» —

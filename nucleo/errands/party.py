@@ -32,8 +32,16 @@ SHAPE = ('{"say": "…", "state": "negotiating|agreed|blocked|abandoned", '
 _STATES = ("gathering", "contacting", "negotiating", "agreed", "blocked", "abandoned")
 
 
-def build_system(assistant_name: str, operator_name: str, lang_native: str) -> str:
-    """The system prompt for one exchange with a third party."""
+def build_system(assistant_name: str, operator_name: str, lang_native: str,
+                 can_link: bool = False) -> str:
+    """The system prompt for one exchange with a third party.
+
+    `can_link` is whether the engine can ACTUALLY mint a conference link right now (V2-692d) — it is the
+    calendar connector's live answer, not a capability of ours in the abstract. Everything the model is
+    allowed to PROMISE hangs off it, which is the whole lesson of this seam: a capability stated
+    unconditionally is one the model promises unconditionally, and the person who pays for the gap is a
+    stranger waiting for a link that never arrives.
+    """
     who = assistant_name or "zaelar"
     op = operator_name or "la persona para la que trabajo"
     return (
@@ -59,10 +67,15 @@ def build_system(assistant_name: str, operator_name: str, lang_native: str) -> s
         # link. The model has none, the engine mints it AFTER this turn and appends it to this very message,
         # and a URL invented to look complete is the worst thing this mouth could send to a stranger.
         "LO QUE SÍ PUEDES: escribir en ESTA conversación, y dar por acordada una hora concreta — cuando lo "
-        "hagas, la cita se apunta sola en la agenda de tu operador, y si es videollamada el enlace se crea "
-        "con ella y se añade a ESTE mismo mensaje. Así que puedes decir que le pasas el enlace.\n"
-        "LO QUE NO: NUNCA escribas tú una URL ni un enlace — no lo tienes, y el sistema lo añade solo. "
-        "Tampoco puedes enviar ficheros, ni llamar, ni prometer nada fuera de este encargo. Si hace falta "
+        "hagas, la cita se apunta sola en la agenda de tu operador.\n"
+        + ("EL ENLACE de videollamada se crea con la cita y se añade a ESTE mismo mensaje, así que puedes "
+           "decirle que se lo pasas. Pero NUNCA lo escribas tú: no lo tienes, lo añade el sistema.\n"
+           if can_link else
+           "NO PUEDES MANDARLE NINGÚN ENLACE de videollamada ahora mismo: el calendario de tu operador no "
+           "está conectado y no hay forma de crearlo. NO se lo prometas, ni digas que llegará solo, ni que "
+           "va con la invitación — no va a llegar. Cierra la hora y dile que el enlace se lo manda tu "
+           "operador; y avísale a él con `ask_operator`.\n") +
+        "TAMPOCO puedes enviar ficheros, ni llamar, ni prometer nada fuera de este encargo. Si hace falta "
         "algo más, pídeselo a tu operador con `ask_operator`.\n"
         f"IDIOMA: contéstale en el idioma en el que te escriba; si todavía no ha escrito, en {lang_native}.\n"
         "ESTILO: escribe como una persona educada y breve — un par de frases, sin relleno, sin repetir lo ya "
