@@ -763,6 +763,81 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **The errand FINISHES what it agreed — and a verifier reads ONE fact while an objective has several
+  (V2-692, 2026-09-14)**: the operator reviewed his own test session and reported it whole — «he pedido que
+  se organice una reunión… me ha pedido permiso para hacer el envío. Después el otro ha respondido, pero no
+  ha seguido procesando… le he tenido que decir yo, acepta el mensaje. Y aún así no hemos terminado ni
+  añadiendo el ítem a la agenda, ni tampoco creando el link de Google Meet.» Read from his own
+  observability before touching anything (session `16770007`, flow `T9·08d2`, 209 events): **four defects
+  stacked under one sentence, three of them silent by construction.**
+  - **`bind()` refuses and NOBODY read the refusal.** A conversation belongs to one errand — right, and two
+    objectives answering one person is how they get two different replies to one message. What was wrong is
+    what the caller did with it: nothing. Yesterday's errand was still live (it had reached `agreed` and
+    could never verify, see below), so it held his Telegram thread with a deadline sixteen hours past, and
+    the errand born from his new order got **ZERO conversations** — a row that showed on the board as
+    «esperando respuesta», rode the turn's context pack as an open gestión, and could not be woken by
+    anything. His contact's reply then woke YESTERDAY's errand, against yesterday's objective. `claim()`
+    takes the thread from a live incumbent — his newest word about this person is the current one — and the
+    hand-over is TOLD; an errand that cannot take its conversation is closed on the spot rather than left
+    to announce, in four hours, that nobody answered.
+  - **`party.parse` has always returned an `agreed` block and NOTHING has ever read it.** The errand reached
+    «hora acordada» and wrote nothing, anywhere. `errands/book.py` writes the meeting the ENGINE was told
+    about, inside the mandate (`schedule` is a separate grant from `message`), and the Meet link Google
+    mints as `conferenceData` (V2-685) is appended to the very reply that promises it — booking happens
+    BEFORE the send, which is the whole point of the ordering. Meanwhile the worker was driving a browser
+    into `accounts.google.com/signin`, twice, in two sessions.
+  - **`verify.meeting_exists` filters on a `created` stamp the agenda has NEVER written**, so no errand in
+    this house could close by being ACHIEVED — only by running out of time. Its own note records that the
+    unit test missed it by writing the field BY HAND. `commit_meeting` stamps it now.
+  - **His permission travels with his ORDER**: `send_to` stops being confirm-gated (the worker was gated
+    FOUR times on one order and he had to answer «I don't want you to ask» to get his own errand moving);
+    `reply` stays gated, because answering something that arrived on its own is nobody's order — his own
+    rule, quoted. And `errands.shadow` ships FALSE: it shipped true so autonomy toward real people is not
+    handed over on a green suite, and he has now read those rows and asked for the opposite. The bound does
+    not move: an errand only ever writes to the ONE conversation it was born in.
+  - **A gestión with a third party is HANDED OVER, never sat out.** Measured twice: the worker sent the
+    message and then waited inside its own session — 25 `peek` calls, `sleep 150/240/300/420`, a `Monitor`
+    loop the permission gate refused — ten minutes of paid session doing nothing, and then the session ended
+    and the task ended with it. The durable mechanism existed since V2-683; nobody had told the worker. It
+    also settles which door: an errand can only be born from `send_to`, so a follow-up with somebody who had
+    already written to us could never become one — **what decides is not whether they wrote first, it is
+    whether this message opens something that has to be followed.**
+  - **A worker could not READ a widget that grows.** `read agenda` answered with **59 955 bytes**, 55 666 of
+    them his whole calendar; the CLI persisted it and the worker was then refused the file twice («31 844
+    tokens exceeds maximum allowed 25 000»), reaching 111 282 tokens of context in three minutes. Both
+    worker doors hand back the digest the turn prompt has used since V2-576 — 975 bytes for that same
+    calendar — plus what is inside and how big, so it can ask a declared action for a slice. Nothing is ever
+    truncated: cut JSON reads as complete and is a different shape.
+  - ⚠️ **THE BATCH SHIPPED THREE DEFECTS OF ITS OWN AND ITS LIVE RUN CAUGHT EVERY ONE**, all in the same
+    family. (d) Lifting V2-683's «never promise a link» prohibition UNCONDITIONALLY, so with his calendar
+    unlinked it told a real person «the Google Meet link will be sent with the invitation — it gets added
+    automatically»: **a capability stated unconditionally is one the model promises unconditionally**, and
+    the gap is paid by a stranger. What it may promise is read from the connector per wake, and fails
+    CLOSED. (g) An anti-duplicate guard keyed on the SLOT and blind to the title — his calendar held five
+    «Dentista» at 17:00, so it read «already booked», wrote nothing and **reported success**; the row an
+    errand owns is the one IT wrote (`done_when.at`), a different slot MOVES the meeting, and an
+    appointment that merely shares the hour belongs to somebody else's day. (h) And the verifier then closed
+    it as «hecha y verificada» with the link debt outstanding — **closing RELEASES the conversation**, so
+    the link could never be delivered.
+  - **The class, worth more than the three cases: a verifier reads ONE fact and an objective can have
+    SEVERAL**, and the error always falls the same way — it says done, and the operator finds out from the
+    other person. Three times in one evening: a stamp nobody wrote, a neighbouring meeting in the same
+    window, and a promise still unkept. «Acordar la videollamada Y MANDARLE el enlace» is one errand with
+    two halves, and his condition reads literally — «la tarea no termina hasta que no está correctamente
+    programada esa reunión» — where *programada* includes what was promised about it.
+  - ⭐ **VERIFIED LIVE**: one order → worker → `send_to` with an objective → errand born and bound, **zero
+    confirmations**; the engine RESTARTED mid-gestión and the errand came back exactly where it was; his
+    reply at 20:27:03 woke it **eleven seconds later** and it decided, answered and booked on its own; and a
+    second round moved the meeting from 16:00 to 17:00 instead of duplicating it. **NOT completed, and the
+    reason is not code**: the Meet link needs the OAuth consent, a click in HIS browser on HIS account that
+    the popup only survives inside — so the debt is recorded and the beat pays it the moment the link
+    exists. The same click blocks deleting 23 test appointments: 22 live in his real Google Calendar with
+    their own `googleId`, so a local-only delete would return on the next sync.
+  - Nodes **3.47** (33 cases) and **3.48** (8). Twenty-eight disarms, every mutation asserted. Three came
+    back green: two were harness artifacts (a `"confirm": true` inserted at the head of a JSON object is
+    overridden by the real key later in it) and one accused the TEST — that property is held by the AGENDA's
+    own `_is_same_meeting` (V2-208), not by this code, and the case now says so instead of taking credit.
+
 - **A COMPOUND close does not swallow the rest of the sentence (V2-688, 2026-09-14)**: «close all, open
   agenda, connect to my google calendar» cleared the canvas and did nothing else — his question was the one
   anybody would ask, «why is this order not followed?». Read from his own observability before touching
