@@ -308,11 +308,44 @@ function injectStyles(){
     color:var(--hb-ok,#5FD3A2)}
   .hb-agenda .agpstate.pending{background:color-mix(in srgb,var(--hb-warn,#EFC75E) 15%,transparent);
     color:var(--hb-warn,#EFC75E)}
+  .hb-agenda .agpstate.declined{background:color-mix(in srgb,var(--hb-risk,#e5484d) 15%,transparent);
+    color:var(--hb-risk,#e5484d)}
+  /* V2-697 — the join link is the one thing on this card somebody needs at a specific minute, so it reads as
+     an action and not as another grey detail line. */
+  .hb-agenda .agpmeet{color:var(--hb-accent,#3D6FE0);font-weight:600;text-decoration:none}
+  .hb-agenda .agpmeet:hover{text-decoration:underline}
+  .hb-agenda .agpglist{display:flex;flex-direction:column;gap:3px;min-width:0}
+  .hb-agenda .agpg{display:flex;align-items:baseline;gap:6px;min-width:0}
+  .hb-agenda .agpgm{flex:0 0 auto;width:13px;text-align:center;font-style:normal;font-weight:700;font-size:12px}
+  .hb-agenda .agpgm.accepted{color:var(--hb-ok,#5FD3A2)}
+  .hb-agenda .agpgm.declined{color:var(--hb-risk,#e5484d)}
+  .hb-agenda .agpgm.tentative{color:var(--hb-warn,#EFC75E)}
+  .hb-agenda .agpgm.unknown{color:var(--hb-muted-2,#8d9db4)}
+  .hb-agenda .agpgn{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+  .hb-agenda .agpgo{flex:0 0 auto;font-style:normal;font-size:11px;color:var(--hb-muted-2,#8d9db4)}
+  /* V2-697 — the proposals band. Deliberately NOT styled like a calendar entry: none of this is on the
+     calendar yet, and a row that looks like an appointment is already making the claim. */
+  .hb-agenda .agprops{display:flex;flex-direction:column;gap:8px;padding:8px 12px 0}
+  .hb-agenda .agprop{border:1px dashed var(--hb-accent,#3D6FE0);border-radius:11px;padding:9px 11px;
+    background:color-mix(in srgb,var(--hb-accent,#3D6FE0) 7%,transparent);
+    display:flex;flex-direction:column;gap:4px}
+  .hb-agenda .agprophead{font-size:13px;color:var(--hb-ink,#0d1622)}
+  .hb-agenda .agpropwhen{font-size:13px;font-weight:600;color:var(--hb-accent,#3D6FE0)}
+  .hb-agenda .agpropwhy{font-size:12px;color:var(--hb-muted,#3a4757)}
+  .hb-agenda .agpropacts{display:flex;flex-wrap:wrap;gap:6px;margin-top:3px}
+  .hb-agenda .agpropacts button{border:1px solid var(--hb-line,#e3e8f0);background:var(--hb-bg,#fff);
+    border-radius:9px;padding:6px 11px;font-size:13px;cursor:pointer;color:var(--hb-muted,#3a4757)}
+  .hb-agenda .agpropacts button.ok{border-color:color-mix(in srgb,var(--hb-ok,#5FD3A2) 55%,transparent);
+    color:var(--hb-ok,#5FD3A2)}
+  .hb-agenda .agpropacts button:hover{border-color:var(--hb-accent,#3D6FE0)}
   .hb-agenda .agpacts{display:flex;flex-wrap:wrap;gap:6px;margin-top:2px}
   .hb-agenda .agpacts button{border:1px solid var(--hb-line,#e3e8f0);background:var(--hb-bg,#fff);
     border-radius:9px;padding:7px 11px;font-size:13px;cursor:pointer;color:var(--hb-muted,#3a4757)}
   .hb-agenda .agpacts button:hover{border-color:var(--hb-accent,#3D6FE0);color:var(--hb-accent,#3D6FE0)}
   .hb-agenda .agpacts button.risk:hover{border-color:var(--hb-risk,#e5484d);color:var(--hb-risk,#e5484d)}
+  .hb-agenda .agpacts button.ok{border-color:color-mix(in srgb,var(--hb-ok,#5FD3A2) 55%,transparent);
+    color:var(--hb-ok,#5FD3A2)}
+  .hb-agenda .agpacts button.ok:hover{border-color:var(--hb-ok,#5FD3A2)}
   /* V2-690 — ONE block per provider: the row, and whatever acts on it, indented to the row's own name
      column so the pair reads as attached instead of floating between two rows. */
   .hb-agenda .agcalgrp{margin-bottom:var(--sp-4,16px)}
@@ -462,6 +495,21 @@ const ICO_NOTE  = ["M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z",
 const ICO_CHECK = "M20 6L9 17l-5-5";
 const ICO_CLOCK = ["M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z","M12 6v6l4 2"];
 const ICO_PLUG  = ["M9 2v6","M15 2v6","M6 8h12v3a6 6 0 0 1-12 0z","M12 17v5"];
+const ICO_CAM   = ["M23 7l-7 5 7 5V7z","M14 5H3a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2z"];
+const ICO_HOST  = ["M20 21v-2a4 4 0 0 0-3-3.87","M4 21v-2a4 4 0 0 1 3-3.87",
+                   "M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8"];
+
+// V2-697 — what each guest answered, as a mark instead of a word: a roster of six people is read at a glance
+// and never as six sentences. `needsAction` and an answer Google did not report both render as the same open
+// circle on purpose — «has not answered» and «we were not told» are equally «unknown» to the operator.
+const RSVP_MARK = {accepted: "✓", declined: "✗", tentative: "?"};
+
+// The connector refuses a non-http(s) join link at the boundary; this refuses it again at the SINK, because a
+// row stored before that guard existed is still on disk and this is the line that becomes an `href`.
+function safeHttpUrl(u){
+  const s = String(u || "").trim();
+  return /^https?:\/\//i.test(s) ? s : "";
+}
 
 // CALENDAR CONNECTORS (V2-540). Official simple-icons outlines (CC0), inline so the widget stays
 // self-contained with no CDN. CalDAV is a PROTOCOL, not a brand, so it wears a calendar glyph: painting a
@@ -492,7 +540,12 @@ function eventsOf(data){
     out.push({key:"m"+i, kind:"meeting", date:String(m.date).slice(0,10), allDay,
       start, end, title:m.title!=null?String(m.title):"", notes:m.notes||"", location:m.location||"",
       attendees:Array.isArray(m.attendees)?m.attendees:[], status:m.status||"confirmed",
-      category:m.category||"", remindAt:m.remindAt||"", meeting:true});
+      category:m.category||"", remindAt:m.remindAt||"", meeting:true,
+      // V2-697 — what makes an appointment somebody ELSE convened readable: where you join, who invited you,
+      // what each guest answered, and what YOU answered. The connector has written these since the first
+      // import; nothing copied them here, so the detail card could not show what Google plainly knew.
+      guests:Array.isArray(m.guests)?m.guests:[], organizer:m.organizer||"",
+      myRsvp:m.myRsvp||"", meetLink:m.meetLink||"", htmlLink:m.htmlLink||"", source:m.source||""});
   });
   (data.days||[]).forEach(d=>{
     ((d.plan||{}).blocks||[]).forEach((b,i)=>{
@@ -884,7 +937,43 @@ function renderDetail(root, ev, ctx, state, redraw){
 
   if(ev.location){ const r=el2("div","agprow"); r.appendChild(svgEl(ICO_PIN));
     r.appendChild(el2("span",null,ev.location)); p.appendChild(r); }
-  if((ev.attendees||[]).length){
+  // V2-697 — HOW YOU JOIN, first among the optional rows: it is the one thing on this card somebody is about
+  // to need at a specific minute. The connector only ever stores a VIDEO entry point, so the phone bridge and
+  // its PIN never reach here — the operator's own words, «cosas que yo considero que son extras y absurdas».
+  const meetHref = safeHttpUrl(ev.meetLink);
+  if(meetHref){
+    const r=el2("div","agprow"); r.appendChild(svgEl(ICO_CAM));
+    const a=el2("a","agpmeet", tt("join_meet", null, "Entrar a la videollamada"));
+    a.href = meetHref; a.target = "_blank"; a.rel = "noopener noreferrer";
+    r.appendChild(a); p.appendChild(r);
+  }
+  // WHO CONVENED IT. The connector sets `organizer` only when it is NOT us, so its mere presence is the
+  // answer to «did somebody invite me, or is this mine?» — and when it is ours the row is simply absent
+  // rather than saying so, because a card about your own appointment does not need to name you.
+  if(ev.organizer){
+    const r=el2("div","agprow"); r.appendChild(svgEl(ICO_HOST));
+    r.appendChild(el2("span",null, tt("invited_by",{who:ev.organizer},"Te invitó {who}")));
+    p.appendChild(r);
+  }
+  if((ev.guests||[]).length){
+    const r=el2("div","agprow agpguests"); r.appendChild(svgEl(ICO_USERS));
+    const box=el2("div","agpglist");
+    for(const g of ev.guests){
+      const row=el2("div","agpg");
+      const rs=String(g.rsvp||"");
+      const mk=el2("i","agpgm "+(RSVP_MARK[rs]?rs:"unknown"), RSVP_MARK[rs]||"·");
+      mk.title = rs==="accepted" ? tt("rsvp_yes", null, "Ha aceptado")
+               : rs==="declined" ? tt("rsvp_no", null, "No va")
+               : rs==="tentative" ? tt("rsvp_maybe", null, "Quizá")
+               : tt("rsvp_none", null, "Sin responder");
+      row.appendChild(mk);
+      row.appendChild(el2("span","agpgn", g.name || g.email || ""));
+      if(g.organizer) row.appendChild(el2("i","agpgo", tt("organizer", null, "organiza")));
+      box.appendChild(row);
+    }
+    r.appendChild(box); p.appendChild(r);
+  } else if((ev.attendees||[]).length){
+    // A meeting the operator dictated: names only, no roster to report.
     const named = ev.attendees.filter(a=>String(a).trim());
     const r=el2("div","agprow"); r.appendChild(svgEl(ICO_USERS));
     r.appendChild(el2("span",null, named.length
@@ -897,7 +986,29 @@ function renderDetail(root, ev, ctx, state, redraw){
   if(ev.notes){ const r=el2("div","agprow"); r.appendChild(svgEl(ICO_NOTE));
     r.appendChild(el2("span",null,ev.notes)); p.appendChild(r); }
 
-  if(ev.meeting && (ev.attendees||[]).length){
+  // V2-697 — YOUR answer and THEIRS are two different facts, and this card used to print one under the other's
+  // name: on a Google row `status` was the OPERATOR's own responseStatus while the label said «sin confirmar
+  // por la otra parte». An invitation he had accepted therefore read «Confirmada» as though THEY had agreed.
+  const invited = !!(ev.myRsvp && ev.organizer);      // somebody else convened it and we are on the guest list
+  if(ev.meeting && invited){
+    const mine = ev.myRsvp;
+    const st = el2("div","agpstate " + (mine==="accepted" ? "confirmed" : mine==="declined" ? "declined" : "pending"));
+    st.appendChild(svgEl(mine==="accepted" ? ICO_CHECK : ICO_CLOCK));
+    st.appendChild(el2("span",null,
+      mine==="accepted"  ? tt("mine_yes", null, "Vas a ir")
+    : mine==="declined"  ? tt("mine_no", null, "Has dicho que no vas")
+    : mine==="tentative" ? tt("mine_maybe", null, "Has dicho que quizá")
+    :                      tt("mine_none", null, "No has respondido todavía")));
+    p.appendChild(st);
+  }
+  if(ev.meeting && (ev.guests||[]).length){
+    const yes = ev.guests.filter(g=>g.rsvp==="accepted").length;
+    const st = el2("div","agpstate " + (yes===ev.guests.length ? "confirmed" : "pending"));
+    st.appendChild(svgEl(yes===ev.guests.length ? ICO_CHECK : ICO_CLOCK));
+    st.appendChild(el2("span",null, tt("others_yes",{yes,total:ev.guests.length},
+      "{yes} de {total} han aceptado")));
+    p.appendChild(st);
+  } else if(ev.meeting && (ev.attendees||[]).length){
     const st = el2("div","agpstate " + (ev.status==="pending" ? "pending" : "confirmed"));
     st.appendChild(svgEl(ev.status==="pending" ? ICO_CLOCK : ICO_CHECK));
     st.appendChild(el2("span",null, ev.status==="pending"
@@ -914,7 +1025,22 @@ function renderDetail(root, ev, ctx, state, redraw){
       state.sel = null; state.confirmDel = false;
       Promise.resolve(ctx.action(name, payload)).then(nd => redraw(nd)).catch(()=>redraw());
     };
-    if(ev.status === "pending"){
+    // V2-697 — ANSWERING an invitation. Offered only when somebody else convened it and we are on the guest
+    // list, because that is the only case where a response status exists for us to set; and the answer we
+    // have already given is not offered again. No «propose another time», by the operator's own scoping:
+    // «yo por ahora no haría la funcionalidad de proponer otra hora, pero sí diría si sí o si no».
+    if(invited){
+      if(ev.myRsvp !== "accepted"){
+        const b = el2("button","ok","✓ " + tt("rsvp_accept", null, "Sí, voy"));
+        b.onclick = ()=>call("rsvp_meeting", {title: ev.title, date: ev.date, answer: "accepted"});
+        acts.appendChild(b);
+      }
+      if(ev.myRsvp !== "declined"){
+        const b = el2("button",null,"✗ " + tt("rsvp_decline", null, "No puedo ir"));
+        b.onclick = ()=>call("rsvp_meeting", {title: ev.title, date: ev.date, answer: "declined"});
+        acts.appendChild(b);
+      }
+    } else if(ev.status === "pending"){
       const b = el2("button",null,"✓ " + tt("mark_confirmed", null, "Ya está confirmada"));
       b.onclick = ()=>call("update_meeting", {title: ev.title, date: ev.date, status: "confirmed"});
       acts.appendChild(b);
@@ -1189,6 +1315,38 @@ function renderGoogleWizard(data, ctx, S, redraw){
 }
 
 // ── the render ────────────────────────────────────────────────────────────────────────────────────────
+// V2-697 — the proposals band. Each row says WHO asked, WHEN, and what for, and offers exactly two answers.
+// There is no «propose another time» by the operator's own scoping, and no auto-accept at all: the name on a
+// proposal is a label he reads, never a credential — a cluster peer's handle is self-declared.
+function renderProposals(el, data, ctx, redraw){
+  const rows = Array.isArray(data.proposals) ? data.proposals : [];
+  if(!rows.length) return;
+  const box = el2("div","agprops");
+  for(const p of rows){
+    const r = el2("div","agprop");
+    const head = el2("div","agprophead");
+    head.appendChild(el2("strong",null, tt("prop_asks",{who: p.party || "Alguien"}, "{who} te propone una cita")));
+    r.appendChild(head);
+    const d = parseYmd(String(p.date || ""));
+    const when = d ? fmtDate(d,{weekday:"long",day:"numeric",month:"long"},String(p.date)) : String(p.date||"");
+    const hh = p.startTime ? ` · ${p.startTime}${p.endTime ? "–" + p.endTime : ""}` : "";
+    r.appendChild(el2("div","agpropwhen", when + hh));
+    if(p.objective) r.appendChild(el2("div","agpropwhy", String(p.objective)));
+    const acts = el2("div","agpropacts");
+    const call = name => {
+      Promise.resolve(ctx.action(name, {errand_id: p.errand_id})).then(nd => redraw(nd)).catch(()=>redraw());
+    };
+    const yes = el2("button","ok","✓ " + tt("prop_accept", null, "Aceptar"));
+    yes.onclick = ()=>call("accept_proposal");
+    const no = el2("button",null,"✗ " + tt("prop_decline", null, "Rechazar"));
+    no.onclick = ()=>call("decline_proposal");
+    acts.appendChild(yes); acts.appendChild(no);
+    r.appendChild(acts);
+    box.appendChild(r);
+  }
+  el.appendChild(box);
+}
+
 export function render(el, data, ctx){
   injectStyles();
   if(el._timer){ clearInterval(el._timer); el._timer=null; }
@@ -1321,6 +1479,11 @@ export function render(el, data, ctx){
   right.appendChild(calBtn);
   views.appendChild(right);
   el.appendChild(views);
+
+  // ── proposals ──────────────────────────────────────────────────────────────────────────────────────
+  // V2-697 — appointments somebody ELSE asked for. Above the calendar and visually apart from it, because
+  // NONE of this is on his calendar yet: the whole point is that it is a question, not an entry.
+  if(!S.screen) renderProposals(el, data, ctx, redraw);
 
   // ── body ───────────────────────────────────────────────────────────────────────────────────────────
   const body = el2("div","agbody");

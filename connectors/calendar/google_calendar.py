@@ -56,21 +56,44 @@ def _to_local_hhmm_date(iso: str) -> tuple[str, str]:
         return "", ""
 
 
-def _attendee_shape(att: dict) -> str:
-    name = str(att.get("displayName") or att.get("email") or "").strip()
-    return name
+#: Google's four answers. Anything outside this set is dropped rather than shown: a value we do not
+#: understand is not a claim we get to make about somebody else's answer.
+_RSVP = ("accepted", "declined", "tentative", "needsAction")
 
 
-def _self_status(ev: dict) -> str:
-    """'confirmed' | 'pending' from the OPERATOR's own responseStatus, mirroring the widget's existing
-    convention (an invitation with no answer yet is pending; a solo entry or one already accepted is
-    confirmed). Google's own `status` field (confirmed/tentative/cancelled) is a DIFFERENT axis — whether the
-    ORGANIZER holds the slot — and is not what this widget's pending/confirmed pill means."""
-    for a in ev.get("attendees") or []:
-        if a.get("self"):
-            rs = str(a.get("responseStatus") or "")
-            return "pending" if rs in ("needsAction", "tentative") else "confirmed"
-    return "confirmed"
+def _guest_shape(att: dict) -> dict:
+    """One row of the Google roster: who, and what they answered (V2-697).
+
+    `attendees` stays a list of plain NAMES because seven callers already read it that way — the voice
+    payloads, the errand booker, the digest line, and the write direction that turns it back into Google
+    bodies. This richer shape rides ALONGSIDE it under `guests`, written from the same list in the same
+    pass, so the two cannot drift; a meeting the operator dictated simply has no `guests`.
+    """
+    email = str(att.get("email") or "").strip()
+    name = str(att.get("displayName") or "").strip() or email
+    g: dict = {"name": name[:80]}
+    if email:
+        g["email"] = email[:120]
+    rs = str(att.get("responseStatus") or "").strip()
+    if rs in _RSVP:
+        g["rsvp"] = rs
+    if att.get("organizer"):
+        g["organizer"] = True
+    return g
+
+
+def _others_status(guests: list[dict]) -> str:
+    """'confirmed' | 'pending' about the OTHER party — which is what this widget's pill has always claimed
+    to mean («sin confirmar por la otra parte») and what a locally dictated meeting sets it from.
+
+    V2-697 fixed a real mix-up here: for a Google row this used to be the OPERATOR's own responseStatus,
+    so the same field meant «have they answered me» on one row and «have I answered them» on the next. The
+    operator's own answer is a different fact and now lives in `myRsvp`. A guest whose answer Google does
+    not report leaves this pending on purpose — not knowing is not the same as being confirmed.
+    """
+    if not guests:
+        return "confirmed"
+    return "confirmed" if all(g.get("rsvp") == "accepted" for g in guests) else "pending"
 
 
 def event_to_meeting(ev: dict, calendar_id: str, calendar_color: str = "") -> dict | None:
@@ -102,19 +125,31 @@ def event_to_meeting(ev: dict, calendar_id: str, calendar_color: str = "") -> di
     desc = str(ev.get("description") or "").strip()
     if desc:
         m["notes"] = desc[:500]
-    attendees = [_attendee_shape(a) for a in (ev.get("attendees") or []) if not a.get("self")]
-    attendees = [a for a in attendees if a]
-    if attendees:
-        m["attendees"] = attendees[:50]
-    m["status"] = _self_status(ev)
+    roster = [a for a in (ev.get("attendees") or []) if isinstance(a, dict)]
+    guests = [g for g in (_guest_shape(a) for a in roster if not a.get("self")) if g.get("name")][:50]
+    if guests:
+        m["guests"] = guests
+        m["attendees"] = [g["name"] for g in guests]
+    mine = next((a for a in roster if a.get("self")), None)
+    if mine is not None:
+        mail = str(mine.get("email") or "").strip()
+        if mail:
+            m["selfEmail"] = mail[:120]            # which row of the roster to PATCH when the operator answers
+        rs = str(mine.get("responseStatus") or "").strip()
+        if rs in _RSVP:
+            m["myRsvp"] = rs
+    m["status"] = _others_status(guests)
     link = str(ev.get("hangoutLink") or "").strip()
     if not link:
         for ep in (ev.get("conferenceData") or {}).get("entryPoints") or []:
             if ep.get("entryPointType") == "video" and ep.get("uri"):
                 link = ep["uri"]
                 break
-    if link:
-        m["meetLink"] = link
+    # ⚠️ Anybody who can send the operator an invitation writes this field, and the card turns it into an
+    # anchor's href — so a `javascript:` or `data:` URI would be a stored XSS arriving by calendar invite.
+    # Only the two schemes a video call is ever reached by survive (V2-697).
+    if link and link.split(":", 1)[0].lower() in ("http", "https"):
+        m["meetLink"] = link[:500]
     org = ((ev.get("organizer") or {}).get("displayName")
            or (ev.get("organizer") or {}).get("email") or "").strip()
     if org and not (ev.get("organizer") or {}).get("self"):
@@ -246,6 +281,20 @@ def insert_event(client, api_base: str, token: str, calendar_id: str, body: dict
         return {"ok": True, "event": r.json()}
     except Exception as e:
         return {"ok": False, "error": f"no pude crear la cita en Google Calendar: {e}"[:200]}
+
+
+def get_event(client, api_base: str, token: str, calendar_id: str, event_id: str) -> dict:
+    """Read ONE event back from Google. Exists for the RSVP read-modify-write (V2-697): `attendees` is an
+    array, and a PATCH carrying an array REPLACES it — answering an invitation by sending just our own row
+    would delete every other guest from somebody else's meeting."""
+    try:
+        r = client.get(f"{api_base}/calendars/{_q(calendar_id)}/events/{_q(event_id)}",
+                       headers={"Authorization": f"Bearer {token}"}, timeout=_TIMEOUT)
+        if r.status_code != 200:
+            return {"ok": False, "error": _err_of(r)}
+        return {"ok": True, "event": r.json()}
+    except Exception as e:
+        return {"ok": False, "error": f"no pude leer la cita en Google Calendar: {e}"[:200]}
 
 
 def patch_event(client, api_base: str, token: str, calendar_id: str, event_id: str, body: dict) -> dict:

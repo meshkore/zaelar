@@ -8221,3 +8221,89 @@ Fourteen FULL entries moved out of `CLAUDE.md` when it reached its 400 KB ceilin
   came back green because the retriever's LIKE rescue channel masked the missing FTS re-index: the sharpened
   test asks the FTS INDEX itself (`MATCH` walks the index; a plain SELECT on external-content FTS5 returns
   the content table's rows regardless, a measurement trap worth remembering). Suite: 646 passed.
+
+## Movidas el 2026-09-15 (ratchet de V2-697)
+
+- **«Sal de pantalla completa» needs no name — the canvas knew which card and never said so (V2-609,
+  2026-09-07)**: session `4a492268`. «Sal de pantalla completa.» → «Hecho.» with **no tool call at all**;
+  nine seconds later «Quita la pantalla completa del vídeo» exited correctly. Three things were true and
+  only the third is a defect: `maximize()` IS a real toggle (so the second phrasing worked),
+  `attention.mentions_fullscreen` correctly stopped the close-backstop from closing the whole widget
+  (V2-600), and **`fullscreen_widget` REQUIRED `widget_id`** — described as «el widget a AMPLIAR», which is
+  one-directional prose on a two-directional toggle — while the sentence names no widget. Inventing an id
+  is forbidden (V2-026), so the model's only remaining moves were to call nothing or to confabulate, and it
+  did both.
+  - **The operator's reading was the correct one**: one card at full screen, almost nothing else open — the
+    target was not ambiguous, it was *obvious*. And the canvas KNEW it: `card._restore` is the maximize
+    marker, and the report that already travels on every `_persist()` carried `min` and not `max`. Same
+    shape as V2-603's connector: **given a verb and no state, the model narrates.** A verb whose object the
+    system can see and the model cannot is a verb the model declines to use.
+  - **The fix went in the ARGUMENT, not the prose.** The verb mapped fine — the very next turn proves it —
+    and the tool catalogue is paid on EVERY voice turn (INI-027) and had **three characters of headroom**.
+    `widget_id` stops being required, its description says VACÍO = the one at full screen, and the catalogue
+    came out **9 chars smaller** than before. Four seams: `desktop.js` reports `max`, `/api/canvas/state`
+    keeps `state.maximized_widget`, `widgets/brief` marks that row, and `show_target.fullscreen_target`
+    decides the target ONCE for both channels (the probe is a parallel impl by design — V2-252).
+  - **The dangerous half, found by a disarm.** With NOTHING at full screen and ONE widget open — the
+    operator's own most common canvas — `identify` happily resolved «sal de pantalla completa» to that
+    widget, and `fullscreen_widget` is a TOGGLE: acting on it would have put the card INTO full screen, the
+    exact opposite of the order. An empty argument now means «the one at full screen» and NOTHING else;
+    with none, the honest result is nothing and the caller asks. ⚠️ My first version of that test opened
+    TWO widgets, so the single-widget fallback walked straight through it — **the test has to stand in the
+    operator's canvas, not in a convenient one**.
+  - **Also true and NOT fixed here**: the «Hecho.» itself. `susurro/friction.py` detected it in the same
+    second — «data-op fantasma (charló y dijo que actuaba sobre un widget, sin ejecutar la tool)» — and was
+    **in cooldown, so nobody was told**. That detector is diagnostic, not corrective; a general "claimed
+    done, called nothing" repair is its own batch and is named, not built.
+  - **The number was already taken.** V2-605 belongs to the card-question initiative; `probe.py` carried its
+    references before this work started. Renumbered to 609 at closure — and the rename then clobbered seven
+    of those pre-existing references, which is the second half of the same trap: *reserve the number when
+    you TAKE it, and rename by hand.*
+  - Node **4.117** (16 cases, 12 verified disarms). **Verified live** on `3.26+3223c6a` in both directions.
+
+- **The video widget OWNS its library; the connector only EXTENDS it (V2-604, 2026-09-07)**: operator's
+  direction, verbatim in spirit — «it is more important to me that the video widget is responsible for
+  storing the data. We don't want external dependencies. Our core, our engine, our memory, our widget are
+  the ones who have control.» Followed channels, watch history, preferences/filters and saved lists moved
+  into `widgets/youtube/library.py` and the widget's own store. **Every test in node 4.116 runs with the
+  account connector ABSENT**, which is also its real state (V2-603 F2 hid it): nothing here may ask it
+  anything or degrade without it.
+  - **The history is ours BECAUSE WE PLAY THE VIDEO.** Recorded in the two places playback really starts
+    and nowhere else, so `add`/`search` — which never autoplay (V2-366) — never enter it; a replay MOVES
+    the row and bumps `plays`. It is not a copy of anything: the YouTube API's watch history has returned
+    empty for every account since 2016, so this is the one video fact a connector could never hand us. The
+    ownership argument and the capability argument point the same way, which is why the operator's instinct
+    here was the stronger architecture and not merely the more independent one.
+  - **A "minimum 720p" rule is only checkable at the PLAYER.** Measured, not assumed: the results page does
+    not publish definition — of ~20 hits only 4K carries a badge at all — so `_search_many` can never
+    enforce it. `widget.js` reports `availableQualityLevels` from the `infoDelivery` the player already
+    sends (once per video; that stream fires several times a second and each report is a store write), and
+    `player_quality` checks it. It **WARNS and never skips**: he asked for THIS video, and an explicit order
+    outranks a standing filter — the same line `block_channel` draws for a pasted link. Levels that carry
+    no information (`auto`/`default`) produce no verdict, because guessing from them would invent a
+    complaint about a video that may be fine.
+  - **A preference we cannot enforce is stored as a NOTE and says so.** Only `min_definition`, `captions`
+    and `volume` are applied; anything else lands in `prefs_notes` with an answer that states plainly it
+    will be honoured by judgement, not forced. Storing an unenforceable rule as though it were enforced is
+    exactly the "true sentence about the wrong mechanism" V2-603 already paid for. `captions` re-asserts on
+    every video; `volume` only when playback starts from nothing — a preference that undoes his last
+    explicit order is not a preference, it is a bug with a settings screen.
+  - **Two defects the tests caught, both mine.** (1) `_seed()` guarded only against sharing its LISTS, and
+    its own docstring records the V2-366 bug that put that guard there; `prefs` arrived as the first DICT
+    in the seed and went straight through, so a preference set in one session was still in the next
+    widget's "empty" state. **A guard written against one container type is not a guard against aliasing.**
+    (2) The preference VALUE was matched more strictly than the key — the table held `si`, the operator
+    says `sí` — so the first sentence anyone would speak in Spanish was refused. Both were found by writing
+    the test in his words rather than in the API's.
+  - **The action gate now follows one level of delegation** (`widgets/validator.py`). It read `data.py`
+    only, so V2-025's rule (a declared action needs a branch HERE) and the architecture ratchet (pay a
+    growing file by EXTRACTING a module) pulled in opposite directions — leaving "keep the whole dispatch
+    in one god file" as the only green option for every widget, forever. It still fails closed in both
+    directions, and anything it cannot resolve statically is simply not counted.
+  - Node **4.116** (29 cases, **13 verified disarms**). ⚠️ **One disarm came back GREEN**: removing the
+    delegate-following from the gate changed nothing, because the test read the manifest directly instead
+    of exercising the gate — a test that asserts the RESULT of a mechanism does not test the mechanism.
+  - **Verified live** on `3.26+7b80c5b`: the library fields serve, the four preference paths answer, and
+    the probe data was cleaned back out of the operator's real widget. ⚠️ **NOT verified live: the quality
+    readback itself** — that the IFrame API emits `availableQualityLevels` inside `infoDelivery` needs a
+    real browser with the agent running. The server side is covered; the wire is not.

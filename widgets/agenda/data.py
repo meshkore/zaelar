@@ -214,9 +214,23 @@ def view_data(q: str = "") -> dict:
         "googleCalendars": (db.get("google") or {}).get("calendars", []),
         "defaultCalendarId": (db.get("google") or {}).get("defaultCalendarId", ""),
 
+        # V2-697 — appointments somebody ELSE asked for, waiting for the operator's yes. They are NOT in
+        # `meetings`: nothing here is on his calendar yet, and painting one as an appointment would be the
+        # claim this whole path exists to avoid making.
+        "proposals": _proposals(),
+
         "warnings": plan.get("warnings", []),
         "coaching": plan.get("coaching", []),
     }
+
+
+def _proposals() -> list[dict]:
+    """Best-effort: an unreadable errand ledger costs the proposals band, never the calendar."""
+    try:
+        from nucleo.errands import proposals as _p
+        return _p.pending()
+    except Exception:  # noqa: BLE001
+        return []
 
 
 def ref_index() -> list[dict]:
@@ -769,6 +783,53 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
         if _nt:
             m["title"] = _nt[:160]
         gcal.patch_google(m)   # V2-679: an edited Google-origin meeting is patched on Google too
+    elif action == "rsvp_meeting":
+        # V2-697 — ANSWER an invitation somebody else convened. Distinct from `update_meeting`'s `status`,
+        # which is a note the operator takes about the OTHER party («el dentista ya me lo ha confirmado»);
+        # this one travels to Google and tells the organizer. Two facts, two doors.
+        #
+        # Deliberately NOT offering «propose another time»: the operator scoped this to yes/no («yo por
+        # ahora no haría la funcionalidad de proponer otra hora, pero sí diría si sí o si no»).
+        _ans = _strip_accents(str(payload.get("answer") or payload.get("rsvp") or "").strip().lower())
+        _yes = ("accepted", "accept", "yes", "si", "acepto", "aceptar", "voy", "asisto", "confirmo")
+        _no = ("declined", "decline", "no", "rechazo", "rechazar", "no voy", "no asisto")
+        if _ans in _yes:
+            _ans = "accepted"
+        elif _ans in _no:
+            _ans = "declined"
+        elif _ans in ("tentative", "maybe", "quiza", "quizas", "tal vez"):
+            _ans = "tentative"
+        else:
+            return {"ok": False, "error": "dime si aceptas o rechazas la invitación"}
+        title = _strip_accents((payload.get("title") or "").strip().lower())
+        raw_date = payload.get("date", "")
+        date = _resolve_date(raw_date) if raw_date else ""
+        _hits = [m for m in db.get("meetings", [])
+                 if (not title or title in _strip_accents(m.get("title", "").strip().lower()))
+                 and (not date or m.get("date") == date)]
+        if not title or not _hits:
+            return {"ok": False,
+                    "error": "no encuentro esa invitación — dime el título tal como está apuntada "
+                             "(y la fecha si hay varias)"}
+        m = _hits[0]
+        _ok, _why = gcal.rsvp_google(m, _ans)
+        if not _ok:
+            # The local row is left UNTOUCHED on purpose. A response status only means anything because the
+            # organizer can see it; writing it here while Google never heard it would paint an answer the
+            # other side is still waiting for (the `delete_google` lesson, V2-693).
+            return {"ok": False, "error": _why}
+        # Success falls through to the common tail: `rsvp_google` folded Google's echo back into `m`, which
+        # is the same object `db["meetings"]` holds, so the card repaints with the answer Google confirmed.
+    elif action in ("accept_proposal", "decline_proposal"):
+        # V2-697 — the operator's answer to an appointment somebody else asked for. ALWAYS manual, by his own
+        # scoping: a cluster peer's handle is self-declared, so the name attached to a proposal is a label he
+        # reads, never an authorization. Accepting is what grants `schedule` and books it.
+        from nucleo.errands import proposals as _p
+        _eid = str(payload.get("errand_id") or payload.get("id") or "").strip()
+        res = _p.accept(_eid) if action == "accept_proposal" else _p.decline(_eid)
+        if not res.get("ok"):
+            return {"ok": False, "error": str(res.get("error") or "no pude registrar tu respuesta")}
+        return {**view_data(), "ok": True, "result": res}
     elif action == "show_day":
         # V2-540 — CHANGE THE VIEW is an action, because otherwise it is a PROMISE.
         # Measured in the operator's own session (2026-09-01 15:11, events 873/931/995): he asked three times

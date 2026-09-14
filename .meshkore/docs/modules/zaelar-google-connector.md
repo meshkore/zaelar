@@ -94,6 +94,39 @@ manifest tells the model to say «press Conectar Google Calendar». The URL the 
 by itself — the turn report keeps `{widget, act}` and discards the result — which is why the sentence has to
 be declared rather than returned.
 
+## Answering an invitation (V2-697)
+
+An RSVP is one field of one row of the event's `attendees` array — and that is exactly what makes it
+dangerous, because **in the Google API a PATCH carrying an array REPLACES it**. Sending only our own row
+would delete every other guest from the organizer's meeting and return 200 while doing it.
+
+So `service.rsvp(meeting, answer)` is a **read-modify-write**, and deliberately does NOT go through
+`patch_event`: that door rebuilds the whole body from `meeting_to_event`, which would re-send title, times
+and an attendee list rebuilt from bare names, on somebody else's event where we are a guest and not the
+organizer. Instead it reads the live event back (`get_event`), edits OUR row alone — located by
+`meeting["selfEmail"]`, captured at import — and sends the whole roster up again.
+
+It needs no new scope: the connector already holds `https://www.googleapis.com/auth/calendar`.
+
+**What the import captures, and why `attendees` did not change shape.** `event_to_meeting` writes a rich
+`guests` list (`{name, email, rsvp, organizer}`) **alongside** the plain `attendees` list of names, from the
+same roster in the same pass, so the two cannot drift. `attendees` stays `list[str]` because seven callers
+already read it that way — the voice payloads (`widgets/agenda/details.py::_norm_attendees`), the errand
+booker, the digest line, and the write direction that turns it back into Google bodies. A meeting the
+operator dictated simply has no `guests`.
+
+⚠️ **`status` changed meaning, and the change is the fix.** It used to be the OPERATOR's own
+`responseStatus` while the card labelled it «sin confirmar por la otra parte» — so an invitation he had
+accepted read as though THEY had agreed. Now `status` is about the other guests (`_others_status`) and his
+own answer is `myRsvp`. A guest whose answer Google does not report leaves the meeting **pending** on
+purpose: not knowing is not the same as being confirmed.
+
+⚠️ **`meetLink` is attacker-controlled.** Anybody who can send the operator an invitation writes
+`conferenceData`, and the card turns that string into an `href` — so only `http`/`https` survive the import,
+and the widget refuses it again at the sink for rows stored before that guard existed. Only a **video**
+entry point is ever stored: the phone bridge and its PIN never reach the card, by the operator's own
+scoping.
+
 ## Limits worth knowing
 
 - The YouTube Data API does **not** return watch history (empty for every account since 2016). The video

@@ -384,6 +384,7 @@ Los agentes DEBEN trabajar dentro de esta estructura — no crear `docs/` ni car
 | Conventions | `.meshkore/docs/conventions/zaelar-conventions.md` |
 | Modules | `.meshkore/docs/modules/zaelar-modules.md` |
 | **Conectores — la LISTA (qué conectamos hoy, qué está declarado y dónde se cablea cada pieza)** | `.meshkore/docs/modules/zaelar-connectors-inventory.md` |
+| **Una cita que pide OTRO — el criterio de autorización de las propuestas** | `.meshkore/docs/modules/zaelar-appointment-proposals.md` |
 | Security | `.meshkore/docs/security/zaelar-security.md` |
 | **Change protocol** | `.meshkore/docs/ops/zaelar-change-protocol.md` |
 | **Audit workflow** | `.meshkore/docs/ops/zaelar-audit-workflow.md` |
@@ -762,6 +763,75 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
 > when the size ratchet (`tests/infrastructure/unit/test_claude_md_ratchet.py`) trips, move the oldest
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
+
+- **An appointment says WHO convened it, and one that somebody else ASKS for waits for the operator
+  (V2-697, 2026-09-15)**: he opened the detail card for a real invitation — an intro convened by somebody at
+  zerohash — and put it beside Google's own popover for the same event. Ours showed a title, a date, one bare
+  address and a chip reading «Confirmed». Google's showed the Meet link, both guests with their answers, who
+  organized it, and buttons to say whether he was going. His priorities, verbatim: **«sobre todo el enlace, el
+  enlace a Google Meet, que es lo que más me importa, y nosotros no exponemos eso»** · «quién me ha convocado.
+  Porque a veces nosotros somos los que insertamos el ítem en la agenda, pero a veces es una invitación
+  externa que nosotros aceptamos». And what he explicitly did NOT want: the phone bridge, the PIN, «more
+  phone numbers» — «cosas que yo considero que son extras y absurdas» — nor proposing another time.
+  - **MEASURED before writing a line, and it reframed the whole batch: the data was already there.**
+    `connectors/calendar/google_calendar.py::event_to_meeting` has written `meetLink`, `organizer` and
+    `location` since the first import; `widget.js::eventsOf` simply never COPIED them into the object the
+    detail card reads. Connector and card were each individually correct, which is exactly why a source scan
+    does not find this — and why every case for it is RENDERED.
+  - ⚠️ **The chip was not merely missing information, it was MISLABELLED.** On a Google row `status` held the
+    OPERATOR's own `responseStatus` while the card said «sin confirmar por la otra parte», so an invitation he
+    had accepted read as though THEY had agreed — and on a locally dictated meeting the same field genuinely
+    did mean the other party. **One field, two meanings, decided by provenance.** Split: `status` is about the
+    other guests, `myRsvp` is his own answer, and both are shown. A guest whose answer Google does not report
+    leaves it **pending** on purpose — not knowing is not being confirmed.
+  - **`attendees` deliberately did NOT change shape.** Seven callers already read it as `list[str]` — the
+    voice payloads, the errand booker, the digest line, and the write direction that rebuilds Google bodies
+    from it — so the rich roster (`{name, email, rsvp, organizer}`) rides ALONGSIDE it under `guests`, written
+    from the same list in the same pass so the two cannot drift. Changing seven consumers to gain what a
+    second key gives free is a blast radius bought for nothing.
+  - ⚠️ **An RSVP is a READ-MODIFY-WRITE, and that is not belt-and-braces**: in the Google API `attendees` is an
+    array and **a PATCH carrying an array REPLACES it**, so answering by sending only our own row would delete
+    every other guest from the organizer's meeting — a silent, destructive 200. `service.rsvp` reads the live
+    roster back, edits OUR row alone (located by `selfEmail`, captured at import), and sends the whole list up
+    again. It deliberately does not reuse `patch_event`, which would rebuild the entire body from
+    `meeting_to_event` on an event we are a guest of and do not own. No new scope: the connector already holds
+    `auth/calendar`.
+  - ⚠️ **`meetLink` is attacker-controlled** — anybody who can send an invitation writes `conferenceData`, and
+    the card turns that string into an `href`. Only `http`/`https` survive the import, and the widget refuses
+    it again at the sink for rows stored before the guard existed. Only a **video** entry point is ever stored,
+    so the dial-in he called absurd cannot reach the card even by accident.
+  - **The second half — a cita can be born outside the operator.** An inbound message ALREADY became a
+    calendar entry (`errands/wake` → `book.book()`); what was missing is the branch where the errand has no
+    mandate to schedule: `may_schedule()` returned False and `book()` **returned**, so the other person had
+    agreed, the slot was in hand, and nobody was told. **Refusing to WRITE is right; refusing to ASK is not.**
+    The slot is parked ON THE ERRAND ROW — already durable, already expiring, already on his board, and
+    already holding the binding to the conversation the answer must travel back to — announced through
+    `brain_notes`, and offered on the agenda as a band that is deliberately NOT styled like an appointment,
+    because a row that looks like an entry is already making the claim. **Telegram and WhatsApp inherit it
+    with no code of their own; email is out by his own call** (a Gmail invite already lands in Calendar, so
+    treating it as a proposal would make the appointment twice).
+  - **The authorization criterion, and why «always manual» is not provisional.** He asked for the obvious
+    guard and floated an allowlist of authorized contacts. **A list like that would be worse than none
+    today**: a cluster peer's `handle` is SELF-DECLARED (`security.neutralize_identity` sanitizes the string,
+    it does not prove it), a cryptographic identity exists only for US (`identity.did_key`), and the allowlist
+    that does exist is per-CLUSTER, not per-person. So the name on a proposal is **a label he reads, never a
+    credential**; every proposal needs his explicit yes; **his yes IS the grant** (`accept` adds `schedule` to
+    the errand's mandate and calls the same `book.book()`, so nothing re-implements booking); and peer text
+    stays fenced DATA. The seam for auto-accept is left and the auto-accept is not built — it should not be
+    until a peer identity is something we can verify.
+  - `verify.meeting_exists` returns False while a proposal is parked, the `link_owed` shape one field over:
+    nothing is in the calendar, so a neighbouring meeting must not close the errand — and closing RELEASES the
+    conversation, leaving the person who asked waiting for an answer nobody will send.
+  - Nodes **4.175** (16 RENDERED), **3.50** (9) and **5.26** (7); the connector's own node grew 6. **Ten
+    disarms, every mutation asserted, all red** — the one that matters most turned 8 cases red at once: it
+    removed the field copy in `eventsOf`, which is the defect the operator photographed. One pre-existing test
+    pinned the OLD mixed-up `status` semantics and was **rewritten to the new contract with its claim intact**
+    (his unanswered invitation is still visible, now as `myRsvp`) plus a counterweight proving `status` still
+    moves — never relaxed.
+  - **NOT built, and named**: `cluster.propose` — `bridge.py::_CLUSTER_TURN_ALLOWED` still admits only
+    `send`/`done`/`pact`, so a peer turn has no verb that reaches this path and it is messaging-only for now.
+    **NOT verified live**: no real invitation has been answered and no real proposal has travelled the path.
+    Criterion and mechanism: `.meshkore/docs/modules/zaelar-appointment-proposals.md`.
 
 - **A NAME is a UI string, and the voice keeps answering to the one it shipped with (V2-694, 2026-09-14)**:
   the operator, on a session he had deliberately started in English — «el título de los widgets es en
@@ -3434,89 +3504,6 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     session's V2-608 F3–F7 work landed on `main` mid-build (its own commits, `3d74cd6`..`171d8b2`) — it
     correctly avoided this work's files, and its own initiative doc names this one back for the same reason.
 
-- **«Sal de pantalla completa» needs no name — the canvas knew which card and never said so (V2-609,
-  2026-09-07)**: session `4a492268`. «Sal de pantalla completa.» → «Hecho.» with **no tool call at all**;
-  nine seconds later «Quita la pantalla completa del vídeo» exited correctly. Three things were true and
-  only the third is a defect: `maximize()` IS a real toggle (so the second phrasing worked),
-  `attention.mentions_fullscreen` correctly stopped the close-backstop from closing the whole widget
-  (V2-600), and **`fullscreen_widget` REQUIRED `widget_id`** — described as «el widget a AMPLIAR», which is
-  one-directional prose on a two-directional toggle — while the sentence names no widget. Inventing an id
-  is forbidden (V2-026), so the model's only remaining moves were to call nothing or to confabulate, and it
-  did both.
-  - **The operator's reading was the correct one**: one card at full screen, almost nothing else open — the
-    target was not ambiguous, it was *obvious*. And the canvas KNEW it: `card._restore` is the maximize
-    marker, and the report that already travels on every `_persist()` carried `min` and not `max`. Same
-    shape as V2-603's connector: **given a verb and no state, the model narrates.** A verb whose object the
-    system can see and the model cannot is a verb the model declines to use.
-  - **The fix went in the ARGUMENT, not the prose.** The verb mapped fine — the very next turn proves it —
-    and the tool catalogue is paid on EVERY voice turn (INI-027) and had **three characters of headroom**.
-    `widget_id` stops being required, its description says VACÍO = the one at full screen, and the catalogue
-    came out **9 chars smaller** than before. Four seams: `desktop.js` reports `max`, `/api/canvas/state`
-    keeps `state.maximized_widget`, `widgets/brief` marks that row, and `show_target.fullscreen_target`
-    decides the target ONCE for both channels (the probe is a parallel impl by design — V2-252).
-  - **The dangerous half, found by a disarm.** With NOTHING at full screen and ONE widget open — the
-    operator's own most common canvas — `identify` happily resolved «sal de pantalla completa» to that
-    widget, and `fullscreen_widget` is a TOGGLE: acting on it would have put the card INTO full screen, the
-    exact opposite of the order. An empty argument now means «the one at full screen» and NOTHING else;
-    with none, the honest result is nothing and the caller asks. ⚠️ My first version of that test opened
-    TWO widgets, so the single-widget fallback walked straight through it — **the test has to stand in the
-    operator's canvas, not in a convenient one**.
-  - **Also true and NOT fixed here**: the «Hecho.» itself. `susurro/friction.py` detected it in the same
-    second — «data-op fantasma (charló y dijo que actuaba sobre un widget, sin ejecutar la tool)» — and was
-    **in cooldown, so nobody was told**. That detector is diagnostic, not corrective; a general "claimed
-    done, called nothing" repair is its own batch and is named, not built.
-  - **The number was already taken.** V2-605 belongs to the card-question initiative; `probe.py` carried its
-    references before this work started. Renumbered to 609 at closure — and the rename then clobbered seven
-    of those pre-existing references, which is the second half of the same trap: *reserve the number when
-    you TAKE it, and rename by hand.*
-  - Node **4.117** (16 cases, 12 verified disarms). **Verified live** on `3.26+3223c6a` in both directions.
-
-- **The video widget OWNS its library; the connector only EXTENDS it (V2-604, 2026-09-07)**: operator's
-  direction, verbatim in spirit — «it is more important to me that the video widget is responsible for
-  storing the data. We don't want external dependencies. Our core, our engine, our memory, our widget are
-  the ones who have control.» Followed channels, watch history, preferences/filters and saved lists moved
-  into `widgets/youtube/library.py` and the widget's own store. **Every test in node 4.116 runs with the
-  account connector ABSENT**, which is also its real state (V2-603 F2 hid it): nothing here may ask it
-  anything or degrade without it.
-  - **The history is ours BECAUSE WE PLAY THE VIDEO.** Recorded in the two places playback really starts
-    and nowhere else, so `add`/`search` — which never autoplay (V2-366) — never enter it; a replay MOVES
-    the row and bumps `plays`. It is not a copy of anything: the YouTube API's watch history has returned
-    empty for every account since 2016, so this is the one video fact a connector could never hand us. The
-    ownership argument and the capability argument point the same way, which is why the operator's instinct
-    here was the stronger architecture and not merely the more independent one.
-  - **A "minimum 720p" rule is only checkable at the PLAYER.** Measured, not assumed: the results page does
-    not publish definition — of ~20 hits only 4K carries a badge at all — so `_search_many` can never
-    enforce it. `widget.js` reports `availableQualityLevels` from the `infoDelivery` the player already
-    sends (once per video; that stream fires several times a second and each report is a store write), and
-    `player_quality` checks it. It **WARNS and never skips**: he asked for THIS video, and an explicit order
-    outranks a standing filter — the same line `block_channel` draws for a pasted link. Levels that carry
-    no information (`auto`/`default`) produce no verdict, because guessing from them would invent a
-    complaint about a video that may be fine.
-  - **A preference we cannot enforce is stored as a NOTE and says so.** Only `min_definition`, `captions`
-    and `volume` are applied; anything else lands in `prefs_notes` with an answer that states plainly it
-    will be honoured by judgement, not forced. Storing an unenforceable rule as though it were enforced is
-    exactly the "true sentence about the wrong mechanism" V2-603 already paid for. `captions` re-asserts on
-    every video; `volume` only when playback starts from nothing — a preference that undoes his last
-    explicit order is not a preference, it is a bug with a settings screen.
-  - **Two defects the tests caught, both mine.** (1) `_seed()` guarded only against sharing its LISTS, and
-    its own docstring records the V2-366 bug that put that guard there; `prefs` arrived as the first DICT
-    in the seed and went straight through, so a preference set in one session was still in the next
-    widget's "empty" state. **A guard written against one container type is not a guard against aliasing.**
-    (2) The preference VALUE was matched more strictly than the key — the table held `si`, the operator
-    says `sí` — so the first sentence anyone would speak in Spanish was refused. Both were found by writing
-    the test in his words rather than in the API's.
-  - **The action gate now follows one level of delegation** (`widgets/validator.py`). It read `data.py`
-    only, so V2-025's rule (a declared action needs a branch HERE) and the architecture ratchet (pay a
-    growing file by EXTRACTING a module) pulled in opposite directions — leaving "keep the whole dispatch
-    in one god file" as the only green option for every widget, forever. It still fails closed in both
-    directions, and anything it cannot resolve statically is simply not counted.
-  - Node **4.116** (29 cases, **13 verified disarms**). ⚠️ **One disarm came back GREEN**: removing the
-    delegate-following from the gate changed nothing, because the test read the manifest directly instead
-    of exercising the gate — a test that asserts the RESULT of a mechanism does not test the mechanism.
-  - **Verified live** on `3.26+7b80c5b`: the library fields serve, the four preference paths answer, and
-    the probe data was cleaned back out of the operator's real widget. ⚠️ **NOT verified live: the quality
-    readback itself** — that the IFrame API emits `availableQualityLevels` inside `infoDelivery` needs a
-    real browser with the agent running. The server side is covered; the wire is not.
 
 ### Archived decisions — index (full text: `.meshkore/docs/decisions-archive.md`)
 
@@ -3890,6 +3877,18 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
 - **ARCHIVOS EN LA NUBE: el tramo de permiso es el DISEÑO, y un permiso que no puede listar no es un disco vacío (V2-557, 2026-09-02)** (2026-09-02; V2-507, V2-520, V2-526, V2-540, V2-541, V2-545, V2-557)
 - **A refusal has to name what you PASTED, and a retry has to move something (V2-559, 2026-09-03)** (2026-09-03; V2-559)
 
+
+#### Movidas el 2026-09-14 (V2-694)
+
+- **Two screens, ONE widget (V2-574, 2026-09-04)** (2026-09-04; V2-574)
+- **The voice SEES the open directory — a widget the operator is looking at publishes its truth (V2-576, 2026-09-04)** (2026-09-04; V2-311, V2-576)
+- **A widget event reaches the pills it outdates — the lifecycle chain (V2-577, 2026-09-04)** (2026-09-04; V2-577)
+- **The sleep circuit review — five silent integrity holes in the REM process (V2-578, 2026-09-05)** (2026-09-05; V2-578)
+
+#### Movidas el 2026-09-15 (V2-697)
+
+- **«Sal de pantalla completa» needs no name — the canvas knew which card and never said so (V2-609, 2026-09-07)** (2026-09-07; V2-026, V2-540, V2-600, V2-609)
+- **The video widget OWNS its library; the connector only EXTENDS it (V2-604, 2026-09-07)** (2026-09-07; V2-366, V2-384, V2-603, V2-604)
 ## Testing y rueda de mejora (INI-013)
 
 zaelar se prueba **solo, sin micrófono humano**, con un agente tester independiente que HABLA con zaelar y un
@@ -4012,6 +4011,36 @@ abierta (`V2-091`); a partir de ahora, no añadir más.
 
 ## Hard rules
 
+- ⛔ **NO LANCES SUITES ANCHAS DE PYTEST EN LA CONSOLA — dejan la máquina del operador colgada** (norma del
+  operador, 2026-09-15, dicha ya DOS veces y en dos sesiones distintas: «todos estos tests que estás lanzando
+  en consola dejan al sistema colgado… no quiero que los lances»).
+
+  **PROHIBIDO**, sin excepción y sin pedir permiso para saltárselo:
+
+  ```
+  pytest tests/infrastructure/unit      pytest tests/browser/unit      pytest tests/browser/e2e
+  pytest tests/agent_headless/unit      pytest tests/connectors/unit   pytest tests/          (o cualquier
+  combinación de varias de ellas en una sola invocación, con o sin `-q`, en foreground o en background)
+  ```
+
+  **Lo que SÍ se hace** — y es suficiente para cerrar un cambio:
+  1. el FICHERO de test que has escrito o tocado: `pytest tests/<...>/test_lo_tuyo.py -q`;
+  2. como mucho la CARPETA de la pieza que has tocado (`tests/browser/unit/agenda`, `tests/connectors/unit/calendar`);
+  3. `make test-widgets` cuando el cambio sea de widgets;
+  4. los DESARMES (romper el producto y ver el test rojo), que son lo que de verdad demuestra que mides algo.
+
+  **Medido en esta misma máquina** el 2026-09-15, que es lo único que se afirma aquí: una pasada de
+  `tests/browser/unit` se quedó **7+ minutos clavada al 22%** y hubo que matarla, mientras había **71 procesos
+  Chromium huérfanos** vivos y **dos pytest de otra sesión** llevando 40 minutos sobre el mismo checkout. La
+  MISMA carpeta acusada, lanzada sola y en aislamiento, pasó **216/216 en 10 segundos**. Así que un fallo o un
+  cuelgue en una pasada ancha **no es una señal sobre tu código**: reprodúcelo en la carpeta sola antes de
+  tocar nada.
+
+  ⚠️ **La causa raíz NO está diagnosticada.** El operador la ha pedido investigar y todavía no hay respuesta.
+  Hasta que la haya, la regla es una prohibición y no una recomendación: no la relajes porque «esta vez es
+  corta», ni la esquives lanzándola en background — el problema es la CARGA sobre su máquina, no esperar el
+  resultado. Si de verdad hace falta una pasada ancha, se la pides a ÉL y la lanza él.
+
 - **COMMITEA PRONTO Y SIEMPRE — cada agente y cada sesión commitea SU propio trabajo.** En cuanto una tarea está
   hecha se commitea, **incluso ANTES de probarla**: si algo sale mal se revierte (`git revert`/`reset`), pero perder
   código NO es reversible. Con varios agentes/sesiones trabajando en paralelo, **un árbol de trabajo sin commitear
@@ -4058,11 +4087,3 @@ abierta (`V2-091`); a partir de ahora, no añadir más.
   Docker** — esa es la única parte donde Docker es aceptable.
 
 <!-- OPERATOR_CONTENT_END -->
-
-
-#### Movidas el 2026-09-14 (V2-694)
-
-- **Two screens, ONE widget (V2-574, 2026-09-04)** (2026-09-04; V2-574)
-- **The voice SEES the open directory — a widget the operator is looking at publishes its truth (V2-576, 2026-09-04)** (2026-09-04; V2-311, V2-576)
-- **A widget event reaches the pills it outdates — the lifecycle chain (V2-577, 2026-09-04)** (2026-09-04; V2-577)
-- **The sleep circuit review — five silent integrity holes in the REM process (V2-578, 2026-09-05)** (2026-09-05; V2-578)

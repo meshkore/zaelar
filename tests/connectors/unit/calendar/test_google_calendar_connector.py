@@ -86,14 +86,75 @@ def test_a_cancelled_event_is_not_a_meeting():
     assert gc.event_to_meeting({"id": "x", "status": "cancelled"}, "primary") is None
 
 
-def test_attendees_exclude_self_and_status_reads_the_operators_own_response():
+def test_the_operators_own_answer_and_the_other_partys_are_two_different_fields():
+    """V2-697 — `status` used to hold the OPERATOR's own responseStatus while the card labelled it «sin
+    confirmar por la otra parte», so an invitation he had accepted read as though THEY had agreed. The two
+    facts are separate now: `status` is about the other guests, `myRsvp` is his own answer."""
     ev = {"id": "ev3", "status": "confirmed",
           "start": {"dateTime": "2026-09-15T11:30:00+02:00"}, "end": {"dateTime": "2026-09-15T12:30:00+02:00"},
           "attendees": [{"email": "me@x.com", "self": True, "responseStatus": "needsAction"},
                         {"displayName": "Ana", "email": "ana@x.com", "responseStatus": "accepted"}]}
     m = gc.event_to_meeting(ev, "primary")
-    assert m["attendees"] == ["Ana"]
-    assert m["status"] == "pending"          # the OPERATOR has not answered yet
+    assert m["attendees"] == ["Ana"]                 # the plain-name view every older caller still reads
+    assert m["myRsvp"] == "needsAction"              # the OPERATOR has not answered yet — still visible
+    assert m["selfEmail"] == "me@x.com"              # which roster row an RSVP would patch
+    assert m["status"] == "confirmed"                # …and Ana, who is the other party, HAS accepted
+    assert m["guests"] == [{"name": "Ana", "email": "ana@x.com", "rsvp": "accepted"}]
+
+
+def test_the_other_party_not_having_answered_leaves_the_meeting_pending():
+    """The counterweight to the case above: `status` has to still MOVE, or it would be a constant."""
+    ev = {"id": "ev3b", "status": "confirmed",
+          "start": {"dateTime": "2026-09-15T11:30:00+02:00"}, "end": {"dateTime": "2026-09-15T12:30:00+02:00"},
+          "attendees": [{"email": "me@x.com", "self": True, "responseStatus": "accepted"},
+                        {"displayName": "Ana", "email": "ana@x.com", "responseStatus": "needsAction"}]}
+    m = gc.event_to_meeting(ev, "primary")
+    assert m["myRsvp"] == "accepted"
+    assert m["status"] == "pending"
+
+
+def test_a_guest_whose_answer_google_does_not_report_is_not_counted_as_accepted():
+    """Not knowing is not the same as being confirmed — claiming otherwise is a claim about somebody else."""
+    ev = {"id": "ev3c", "status": "confirmed",
+          "start": {"dateTime": "2026-09-15T11:30:00+02:00"}, "end": {"dateTime": "2026-09-15T12:30:00+02:00"},
+          "attendees": [{"email": "me@x.com", "self": True, "responseStatus": "accepted"},
+                        {"displayName": "Ana", "email": "ana@x.com"}]}
+    m = gc.event_to_meeting(ev, "primary")
+    assert "rsvp" not in m["guests"][0]
+    assert m["status"] == "pending"
+
+
+def test_the_organizer_is_marked_on_the_roster_row_that_holds_it():
+    ev = {"id": "ev3d", "status": "confirmed",
+          "start": {"dateTime": "2026-09-15T11:30:00+02:00"}, "end": {"dateTime": "2026-09-15T12:30:00+02:00"},
+          "organizer": {"displayName": "Gavin Hayes", "email": "g@z.com"},
+          "attendees": [{"email": "me@x.com", "self": True, "responseStatus": "accepted"},
+                        {"email": "g@z.com", "responseStatus": "accepted", "organizer": True}]}
+    m = gc.event_to_meeting(ev, "primary")
+    assert m["organizer"] == "Gavin Hayes"           # absent when it is OURS — that is the «who invited me»
+    assert m["guests"][0]["organizer"] is True
+    assert m["guests"][0]["name"] == "g@z.com"       # no displayName → the address is the only honest name
+
+
+def test_a_join_link_that_is_not_http_never_reaches_the_card():
+    """Anybody who can send an invitation writes `conferenceData`, and the card turns it into an href."""
+    base = {"id": "ev3e", "status": "confirmed",
+            "start": {"dateTime": "2026-09-15T11:30:00+02:00"},
+            "end": {"dateTime": "2026-09-15T12:30:00+02:00"}}
+    hostile = dict(base, conferenceData={"entryPoints": [
+        {"entryPointType": "video", "uri": "javascript:alert(1)"}]})
+    assert "meetLink" not in gc.event_to_meeting(hostile, "primary")
+    good = dict(base, hangoutLink="https://meet.google.com/cgh-pouq-gje")
+    assert gc.event_to_meeting(good, "primary")["meetLink"] == "https://meet.google.com/cgh-pouq-gje"
+
+
+def test_a_phone_bridge_is_never_offered_as_a_way_in():
+    """The operator's own words about the dial-in numbers and the PIN: «extras y absurdas»."""
+    ev = {"id": "ev3f", "status": "confirmed",
+          "start": {"dateTime": "2026-09-15T11:30:00+02:00"}, "end": {"dateTime": "2026-09-15T12:30:00+02:00"},
+          "conferenceData": {"entryPoints": [
+              {"entryPointType": "phone", "uri": "tel:+34910489510", "pin": "341785453"}]}}
+    assert "meetLink" not in gc.event_to_meeting(ev, "primary")
 
 
 def test_no_attendees_at_all_is_confirmed_by_default():

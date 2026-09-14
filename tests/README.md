@@ -3,6 +3,25 @@
 This is the first document to read before testing a change. It applies equally to Codex, Claude Code, local
 developers, CI and the Test Observatory web UI.
 
+## ⛔ Never launch a BROAD pytest sweep in the console
+
+Operator's rule, 2026-09-15, after saying it twice across two sessions: a whole-tree or whole-suite pytest run
+**hangs his machine**, so no agent launches one — not in the foreground, not in the background, not «just this
+once because it is short». `tests/infrastructure/unit`, `tests/browser/unit`, `tests/browser/e2e`,
+`tests/agent_headless/unit`, `tests/connectors/unit`, bare `tests/`, and any combination of them in one
+invocation are all out.
+
+Run instead: **the test file you wrote**, at most **the folder of the piece you touched**, `make test-widgets`
+for a widget change, and the **disarms** — breaking the product and watching the test go red is what proves a
+test measures anything, and it costs one narrow run each.
+
+Measured here on 2026-09-15, which is all that is claimed: a `tests/browser/unit` sweep sat **7+ minutes stuck
+at 22%** with **71 orphaned Chromium processes** alive and **two pytest runs from another session** 40 minutes
+deep on the same checkout — while the accused folder, run alone, passed **216/216 in 10 seconds**. So a failure
+inside a broad sweep is not evidence about your code: reproduce it in the folder alone before touching
+anything. ⚠️ The root cause is **not diagnosed**; until it is, this is a prohibition rather than advice. If a
+broad sweep is genuinely needed, ask the operator and let him run it.
+
 ## One system, two interfaces
 
 The terminal and the browser are two controls over the same catalog and event stream:

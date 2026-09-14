@@ -172,6 +172,26 @@
         "meet": "true si la cita lleva videollamada de Google Meet — se crea el enlace con la cita y se ve en la tarjeta (solo si el calendario de Google está conectado)"
       }
     },
+    "accept_proposal": {
+      "desc": "ACEPTA una cita que otra persona (o el agente de otro, por el cluster) ha propuesto y que está esperando el visto bueno del operador. Al aceptarla se crea de verdad en el calendario y se le confirma a quien la pidió. Nunca se acepta sola: siempre la acepta él",
+      "payload": {
+        "errand_id": "string (opcional; sin él, la única propuesta pendiente)"
+      }
+    },
+    "decline_proposal": {
+      "desc": "RECHAZA una cita propuesta que estaba esperando el visto bueno del operador. No se crea nada en el calendario y se cierra la gestión",
+      "payload": {
+        "errand_id": "string (opcional; sin él, la única propuesta pendiente)"
+      }
+    },
+    "rsvp_meeting": {
+      "desc": "RESPONDE a una invitación que te ha enviado otra persona («acepta la reunión con Gavin», «di que no voy»). Viaja a Google Calendar y el organizador lo ve. NO es lo mismo que update_meeting con status, que es una nota tuya sobre si la OTRA parte confirmó. Solo vale para citas venidas de Google en las que figuras como invitado",
+      "payload": {
+        "title": "string (título de la cita, aunque sea parcial)",
+        "date": "YYYY-MM-DD (opcional, si hay varias con ese título)",
+        "answer": "accepted | declined | tentative (o dilo como él: «sí voy», «no puedo», «quizá»)"
+      }
+    },
     "connect": {
       "desc": "conecta la agenda con GOOGLE CALENDAR: deja la tarjeta abierta EN su paso de conectar. Úsala siempre que el operador pida conectar/vincular su Google Calendar o «abre el conector de Google» — es esta acción, no mensajería. TÚ NO puedes autorizar por él y NUNCA dictes la URL: después de llamarla, dile en una frase que pulse «Conectar Google Calendar» en la tarjeta y acepte en la ventana de Google. Nunca lleva credenciales.",
       "payload": {

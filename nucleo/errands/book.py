@@ -101,7 +101,15 @@ def book(errand: dict, decision: dict, party: str = "") -> dict:
     if not when:
         return {"ok": False, "why": "sin hora acordada"}
     if not may_schedule(errand):
-        return {"ok": False, "why": "el mandato no incluye agendar"}
+        # V2-697 — REFUSING TO WRITE IS RIGHT; REFUSING TO ASK IS NOT. This returned here and the agreement
+        # died in silence: the other person had said yes, the slot was in hand, and the operator never heard
+        # about it. The slot is parked on the errand and announced instead, and his yes — which IS the grant
+        # that was missing — comes back through `proposals.accept`, which calls this same function again.
+        from . import proposals
+        parked = proposals.park(errand, decision, party)
+        return {"ok": False, "parked": bool(parked.get("ok")),
+                "why": "pendiente de que el operador acepte la cita" if parked.get("ok")
+                       else str(parked.get("why") or "el mandato no incluye agendar")}
     date, start = when
     end = ""
     ended = _when(agreed.get("end"))

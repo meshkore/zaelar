@@ -216,6 +216,54 @@ def patch_event(meeting: dict, changes: dict, provider_id: str = _DEFAULT_PROVID
     return {"ok": True, "meeting": enriched}
 
 
+def rsvp(meeting: dict, answer: str, provider_id: str = _DEFAULT_PROVIDER) -> dict:
+    """Answer an invitation: set the OPERATOR's own `responseStatus` on the Google event (V2-697).
+
+    Deliberately NOT routed through `patch_event`. That door rebuilds the whole body from
+    `meeting_to_event`, which would re-send title, times and an `attendees` list rebuilt from bare names —
+    on somebody ELSE's event, where we are a guest and not the organizer, that is a write we have no
+    business making.
+
+    ⚠️ It is a READ-MODIFY-WRITE, and that is not belt-and-braces: in the Google API `attendees` is an
+    array, and a PATCH carrying an array REPLACES it. Answering by sending only our own row would delete
+    every other guest from the organizer's meeting — a silent, destructive 200. So the live roster is read
+    back, OUR row alone is edited, and the whole list goes up again.
+
+    Requires `selfEmail` (which row of the roster is ours). It arrives with every synced Google event that
+    has guests; a meeting without it is one nobody invited us to, and there is nothing to answer.
+    """
+    import httpx
+    answer = str(answer or "").strip()
+    if answer not in ("accepted", "declined", "tentative"):
+        return {"ok": False, "error": f"no sé qué responder a una invitación con «{answer}»"}
+    gid, cid = meeting.get("googleId"), meeting.get("googleCalendarId")
+    if not gid or not cid:
+        return {"ok": False, "error": "esta cita no viene de Google Calendar"}
+    mail = str(meeting.get("selfEmail") or "").strip()
+    if not mail:
+        return {"ok": False, "error": "esta cita no es una invitación: no figuras en la lista de invitados"}
+    p, tok, err = _prepared(provider_id)
+    if err:
+        return err
+    with httpx.Client() as client:
+        live = _gc.get_event(client, p.api_base, tok, cid, gid)
+        if not live.get("ok"):
+            return live
+        roster = [a for a in (live["event"].get("attendees") or []) if isinstance(a, dict)]
+        ours = [a for a in roster if a.get("self") or str(a.get("email") or "").strip().lower() == mail.lower()]
+        if not ours:
+            return {"ok": False, "error": "ya no figuras en la lista de invitados de esta cita"}
+        for a in ours:
+            a["responseStatus"] = answer
+        res = _gc.patch_event(client, p.api_base, tok, cid, gid, {"attendees": roster})
+    if not res.get("ok"):
+        return res
+    enriched = _gc.event_to_meeting(res["event"], cid, meeting.get("calendarColor", ""))
+    if not enriched:
+        return {"ok": False, "error": "Google Calendar guardó tu respuesta pero no pude leerla de vuelta"}
+    return {"ok": True, "meeting": enriched}
+
+
 def delete_event(meeting: dict, provider_id: str = _DEFAULT_PROVIDER) -> dict:
     import httpx
     gid, cid = meeting.get("googleId"), meeting.get("googleCalendarId")

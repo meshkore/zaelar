@@ -60,6 +60,12 @@ def meeting_exists(errand: dict, now: float | None = None) -> bool | None:
     # correctamente programada esa reunión». Programada includes what was promised about it.
     if (errand.get("done_when") or {}).get("link_owed"):
         return False
+    # ⚠️ A PROPOSAL WAITING FOR THE OPERATOR IS NEVER DONE (V2-697). Same shape as the debt above: the slot
+    # is agreed with the other party and nothing is in the calendar, so an unrelated meeting sharing that
+    # window must not close the errand — and closing it would RELEASE the conversation, leaving the person
+    # who asked with an answer nobody is going to send.
+    if (errand.get("done_when") or {}).get("proposal"):
+        return False
     at = str((errand.get("done_when") or {}).get("at") or "")
     if at:
         day, _, hhmm = at.partition(" ")

@@ -117,6 +117,32 @@ def patch_google(m: dict) -> None:
         pass
 
 
+def rsvp_google(m: dict, answer: str) -> tuple[bool, str]:
+    """Answer an invitation on Google and fold the echo back into `m`. (True, "") when it really landed
+    THERE; (False, why) otherwise — same lesson as `delete_google`: a silent failure here would leave the
+    card claiming the operator answered when the organizer never heard it (V2-697).
+
+    Only Google rows can be answered. A meeting the operator dictated has no other party watching a
+    response status, so this door is simply not for it."""
+    if m.get("source") != "google":
+        return False, "esta cita no es una invitación de Google Calendar"
+    s = svc()
+    if s is None:
+        return False, "el conector de Google Calendar no está disponible en este build"
+    try:
+        res = s.rsvp(m, answer) or {}
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"agenda: no pude responder a «{m.get('title')}» en Google ({e!r})")
+        return False, "no pude contactar con Google Calendar"
+    if not res.get("ok"):
+        why = str(res.get("error") or "Google no guardó tu respuesta")
+        logger.warning(f"agenda: Google rechazó la respuesta a «{m.get('title')}»: {why}")
+        return False, why
+    for k, v in (res.get("meeting") or {}).items():
+        m[k] = v
+    return True, ""
+
+
 def delete_google(m: dict) -> bool:
     """Delete this meeting's Google event. True when it is really gone THERE, False when it is not.
 

@@ -1555,6 +1555,16 @@ DOMAINS: list[dict] = [
         # el fichero que le habían dado — dos intentos, «31 844 tokens exceeds maximum allowed 25 000». Un
         # widget que crece es un widget que un worker NO PUEDE LEER, por construcción. El resumen que ya usa
         # el prompt del turno dice lo mismo en 975 bytes.
+        # V2-697 — `book.may_schedule` decía que no y el encargo se quedaba ahí: la otra parte había dicho que
+        # sí, teníamos la franja, y no se enteraba nadie. Negarse a ESCRIBIR en su calendario está bien;
+        # negarse a PREGUNTAR, no. La propuesta se aparca en el propio encargo (que ya es durable, ya caduca y
+        # ya guarda la conversación por la que hay que contestar), se le cuenta al operador, y su sí —que ES
+        # el permiso que faltaba— la agenda por el MISMO `book.book()`. Siempre manual: el handle de un peer
+        # del cluster es autodeclarado, así que el nombre de quien propone es una etiqueta, no una credencial.
+        {"id": "3.50", "title": "Una cita que propone OTRO espera el sí del operador: se aparca, se avisa, y "
+                                "aceptarla es lo que la agenda", "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/"
+                      "test_a_proposal_waits_for_the_operators_yes.py"]},
         {"id": "3.48", "title": "Un worker puede LEER de verdad un widget grande", "ch": UNIT,
             "paths": ["tests/agent_headless/unit/"
                       "test_a_worker_can_actually_read_a_big_widget.py"]},
@@ -2395,6 +2405,17 @@ DOMAINS: list[dict] = [
         # V2-688 — se quedó FUERA del mapa al commitearse, así que `tests run all` no lo ejecutaba: un aviso de
         # datos que llega mientras la tarjeta todavía se está montando se APLAZA, nunca se pierde («abre la
         # agenda Y conéctala» son dos órdenes en un turno, y esa carrera la gana la frase natural siempre).
+        # V2-697 — el operador comparó nuestra ficha de una cita real con la que pinta Google para el MISMO
+        # evento: la nuestra decía título, fecha, un correo suelto y un chip «Confirmed»; la de Google, el
+        # enlace de Meet, los dos invitados con su respuesta, quién organizaba y botones para decir si iba.
+        # Casi todo el dato ya estaba guardado desde el primer import — lo que fallaba es que `eventsOf` no lo
+        # COPIABA al objeto que lee la ficha, cosa que un barrido del fuente no ve (conector y tarjeta eran
+        # cada uno correcto por separado). RENDERIZADO por eso. Incluye la banda de PROPUESTAS: una cita que
+        # ha pedido otro se pinta aparte del calendario, porque todavía no está en él.
+        {"id": "4.175", "title": "Una cita dice quién la convoca: enlace de Meet, organizador, invitados con "
+                                 "su respuesta, responder sí/no, y las propuestas ajenas aparte",
+            "ch": UNIT, "paths": [
+                "tests/browser/unit/agenda/test_an_appointment_says_who_convened_it.py"]},
         {"id": "4.174", "title": "Un aviso de datos durante el montaje de la tarjeta se aplaza, no se pierde",
             "ch": UNIT, "paths": ["tests/browser/e2e/widgets/test_a_data_push_during_a_mount_is_not_lost.py"]},
         # V2-613 — los DOS widgets piloto del seam ctx.t/ctx.lang: timer (strings propias, `add_to_playlist`-style
@@ -3246,6 +3267,13 @@ DOMAINS: list[dict] = [
                                 "y la fachada fail-safe",
             "ch": UNIT, "paths": [
                 "tests/connectors/unit/calendar/test_google_calendar_connector.py"]},
+        # V2-697 — responder a una invitación es UN campo de UNA fila del array `attendees`… y eso es
+        # justamente lo peligroso: en la API de Google un PATCH que lleva un array lo REEMPLAZA. Mandar solo
+        # nuestra fila borraría a todos los demás invitados de la reunión de otro, devolviendo 200. Por eso es
+        # un READ-MODIFY-WRITE y por eso estos casos miran lo que se ENVÍA, no lo que se contesta.
+        {"id": "5.26", "title": "Responder a una invitación conserva al resto de invitados", "ch": UNIT,
+            "paths": ["tests/connectors/unit/calendar/"
+                      "test_answering_an_invitation_keeps_the_other_guests.py"]},
         # V2-637 — el cliente BitTorrent embebido: la red MeshKore da el magnet, el cliente lo baja y lo
         # transmite (HTTP Range) al <video> mientras se descarga, y todo degrada a palabras si falta el wheel.
         # La sesión libtorrent no se toca en unit; se fija la extracción del magnet, la aritmética de Range,

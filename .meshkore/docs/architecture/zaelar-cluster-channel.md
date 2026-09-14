@@ -91,6 +91,13 @@ Esto es lo que ocurre, en ORDEN, cada vez que un peer manda algo (`bridge.on_eve
 9. **Parseo de la respuesta** — solo se admiten los tags `cluster.send`/`cluster.done`/`cluster.pact` desde un
    turno de peer (`_CLUSTER_TURN_ALLOWED`); cualquier otro tag (`cluster.connect`, `cron.*`, `widget.*`…) se
    DESCARTA y se avisa al operador — un peer no puede colar una acción con privilegio de operador en su reply.
+   ⚠️ **No existe `cluster.propose`** (V2-697). El operador quiere que los agentes puedan organizar citas
+   entre ellos, y el camino de la PROPUESTA ya está construido y funcionando desde mensajería
+   (`nucleo/errands/proposals.py`) — lo que falta es el verbo que lo alcance desde aquí, más su permiso por
+   cluster en `store.set_perms`. Cuando se añada, hay un criterio que NO se negocia: el `handle` de un peer
+   es **autodeclarado** (`security.neutralize_identity` lo sanea, no lo demuestra), así que el nombre de
+   quien propone es una **etiqueta que lee el operador, nunca una autorización**, y toda propuesta sigue
+   necesitando su sí explícito. Detalle: `.meshkore/docs/modules/zaelar-appointment-proposals.md`.
 10. **Guardas de SALIDA**, en cada `cluster.send`: `scan_outbound` (bloquea secretos duros, redacta huellas) →
     `guard_code_outbound` (un volcado de código se sustituye por un puntero al repo; **acumula por-destino en una
     ventana corta** para que fragmentarlo en varios mensajes no lo esquive) → la **cadencia pactada**
