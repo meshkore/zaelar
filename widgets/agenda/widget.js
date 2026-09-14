@@ -938,7 +938,7 @@ export function render(el, data, ctx){
   // guided Google connect). It is a SCREEN and not an overlay: the operator asked for the whole content area,
   // «igual que en mensajería», where the same three-state machine has lived since V2-570.
   if(!el._ag) el._ag = {view:"week", anchor:today, sel:null, screen:null, wizStep:1, connectBusy:false,
-                        connectErr:"", confirmDel:false, viewN:null};
+                        connectErr:"", confirmDel:false, viewN:null, connN:null};
   const S = el._ag;
 
   // A VIEW PUSHED FROM VOICE (`show_day`). Applied only when its token MOVES, so a plain refresh never
@@ -954,6 +954,18 @@ export function render(el, data, ctx){
     // A pushed view is a NAVIGATION order: it has to leave the connectors screen, or the day it asked for
     // renders underneath a setup screen and the order looks ignored (V2-626's lesson, one widget over).
     S.screen = null;
+  }
+
+  // A CONNECT PUSHED FROM VOICE (V2-686). «Conecta mi Google Calendar» cannot finish here — the consent
+  // popup only survives inside the operator's own click — so the voice does the half it can: it leaves the
+  // card ON the step that holds the button. Same token rule as the view above: it lands when the counter
+  // MOVES, never on a plain repaint.
+  const pushedConn = data.connect;
+  if(pushedConn && pushedConn.n !== S.connN){
+    S.connN = pushedConn.n;
+    S.screen = "wizard";
+    S.wizStep = agWizardSteps().length + 1;              // the LAST step: the one with «Conectar Google Calendar»
+    S.connectErr = "";
   }
   if(!S.anchor) S.anchor = today;
 

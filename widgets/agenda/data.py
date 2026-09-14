@@ -184,6 +184,9 @@ def view_data(q: str = "") -> dict:
         # The pushed VIEW (show_day). The widget honours it when its token moves and otherwise leaves the
         # operator's own tab alone — a refresh must never yank the day he is reading out from under him.
         "view": _fresh_view(db),
+        # V2-686 — the pushed CONNECT screen: a voice order to link Google Calendar leaves the card on the
+        # step that holds the button, because the consent itself needs the operator's own click.
+        "connect": gcal.fresh_connect(db),
         "calendars": calendars(),        # header strip: which calendar providers are linked
         # V2-679 — the default-calendar picker reads this tick-refreshed cache; view_data stays a pure read.
         "googleCalendars": (db.get("google") or {}).get("calendars", []),
@@ -743,6 +746,13 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
         # V2-679 — Google Calendar connect/disconnect/default-picker; body in `gcal.py` (ratchet extraction).
         # connect/disconnect return the connector's result directly (never a credential crosses here, V2-520).
         res = gcal.ui_action(action, payload, db)
+        if action == "connect":
+            # V2-686 — `connect` now MOVES the card (gcal.push_connect_screen), so its mutation has to be
+            # persisted like any other. It is the only visible half of this action from the voice: the turn
+            # report keeps only `{widget, act}` and throws the result away, so nothing the connector answers
+            # here can reach the model or the operator by itself.
+            store.save(WIDGET_ID, db)
+            return res
         if action != "set_default_calendar":
             return res
         if not (res or {}).get("ok"):

@@ -6,6 +6,7 @@
   "transport": "native",
   "auth": "oauth",
   "state": "built",
+  "notes": "NO tiene fila viva en `connectors/registry.py` a proposito: Meet no es una cuenta que el operador conecte, es un ARGUMENTO de add_meeting/update_meeting (`meet: true`, V2-685) que se sirve con el permiso de calendario que el conector de agenda ya tiene. Este manifiesto existe solo para que `catalog.search()` encuentre la capacidad por sus palabras cuando alguien pregunte por Meet.",
   "capabilities": [
     "google meet",
     "meet",

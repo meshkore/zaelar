@@ -1,17 +1,17 @@
 {
-  "id": "google-account",
-  "label": "Google (cuenta)",
+  "id": "google",
+  "label": "Google Calendar",
   "kind": "connector",
-  "family": "infra",
+  "family": "agenda",
   "transport": "native",
   "auth": "oauth",
   "state": "built",
+  "notes": "El id (y por tanto el NOMBRE de este fichero, que el gate exige que coincidan) es `google` y no `google-calendar` A PROPOSITO: `google` es el id del proveedor, el que usa su fila viva en `connectors/registry.py::_calendar()` y el que viaja en los payloads de conectar/desconectar. `catalog.search()` rankea \"conectado\" comparando ids contra el registro, asi que con el id bonito el buscador no habria sabido nunca que el calendario del operador ya estaba enlazado. La CUENTA de Google (el cliente OAuth que sirve a las seis puertas) es `google-account.json`.",
   "capabilities": [
-    "google",
-    "cuenta de google",
-    "google account",
-    "iniciar sesión con google",
-    "sign in with google",
-    "conectar google"
+    "google calendar",
+    "calendario",
+    "citas",
+    "agenda",
+    "eventos"
   ]
 }

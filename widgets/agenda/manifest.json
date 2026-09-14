@@ -3,7 +3,7 @@
   "version": "0.2.0",
   "title": "Agenda",
   "description": "Tu calendario completo: vistas de día, semana, mes y lista, con las citas coloreadas por categoría, su aviso, quién asiste y si la otra parte ha confirmado. Además planifica tu día con las tareas y hace de coach de productividad.",
-  "whenToUse": "Cuando el usuario pide su agenda, su día, qué hacer ahora, a qué ponerse, su planning o coaching de productividad.",
+  "whenToUse": "Cuando el usuario pide su agenda, su día, qué hacer ahora, a qué ponerse, su planning o coaching de productividad, sus citas o reuniones. TAMBIÉN es la agenda —no mensajería— quien tiene el conector de GOOGLE CALENDAR: conectarlo, vincularlo, desconectarlo o decir si está conectado.",
   "confirm_ui": false,
   "background": {
     "every": "10s"
@@ -28,11 +28,32 @@
     "my day",
     "agenda del día",
     "objetivos",
-    "hoy"
+    "hoy",
+    "cita",
+    "citas",
+    "reunión",
+    "reunion",
+    "calendario",
+    "calendar",
+    "google calendar",
+    "meeting",
+    "appointment",
+    "conectar calendario",
+    "conectar google calendar",
+    "conectar la agenda",
+    "vincular google calendar",
+    "connect calendar",
+    "connect google calendar",
+    "conector de google",
+    "conector de la agenda",
+    "google connector",
+    "calendar connector",
+    "sincronizar calendario",
+    "sync calendar"
   ],
   "entry": "widget.js",
   "dataSchemaRef": "schema:DB",
-  "usage": "Añade citas con add_meeting (title+date+startTime; opcionales attendees/location/category/notes/allDay; cada cita crea su aviso ~2h antes) y TAREAS sin hora con add_task. Cancela con cancel_meeting, MUEVE de día/hora con move_meeting (title + newDate/newTime) y cambia sus DETALLES con update_meeting (status confirmed/pending cuando la otra parte responda, attendees, location, category, notes, newTitle). set_reminder mueve el aviso de una cita, y SIN title + con date pone avisos a todas las citas de ese día. Estado de tareas: done/snooze/not_now/drop (taskId). Para VACIARLA ENTERA usa clear_all (confirma; nunca tires elementos de uno en uno). Para CAMBIAR LA VISTA («la agenda de hoy/mañana», «enséñame el jueves», «vista semanal», «vista de mes», «la lista de lo que viene») usa show_day con day=hoy|mañana|<día>|semana|mes|lista — es la ÚNICA forma de mover lo que se ve; reabrir el widget siempre abre por hoy. Los detalles de cada cita (hora, aviso, quién viene, si está confirmada, notas) los tienes en su digest cuando la agenda está abierta, así que contéstalos sin preguntar.",
+  "usage": "Añade citas con add_meeting (title+date+startTime; opcionales attendees/location/category/notes/allDay; cada cita crea su aviso ~2h antes) y TAREAS sin hora con add_task. Cancela con cancel_meeting, MUEVE de día/hora con move_meeting (title + newDate/newTime) y cambia sus DETALLES con update_meeting (status confirmed/pending cuando la otra parte responda, attendees, location, category, notes, newTitle). set_reminder mueve el aviso de una cita, y SIN title + con date pone avisos a todas las citas de ese día. Estado de tareas: done/snooze/not_now/drop (taskId). Para VACIARLA ENTERA usa clear_all (confirma; nunca tires elementos de uno en uno). Para CAMBIAR LA VISTA («la agenda de hoy/mañana», «enséñame el jueves», «vista semanal», «vista de mes», «la lista de lo que viene») usa show_day con day=hoy|mañana|<día>|semana|mes|lista — es la ÚNICA forma de mover lo que se ve; reabrir el widget siempre abre por hoy. Los detalles de cada cita (hora, aviso, quién viene, si está confirmada, notas) los tienes en su digest cuando la agenda está abierta, así que contéstalos sin preguntar. Para ENLAZAR con Google Calendar usa connect: deja la tarjeta en el paso de conectar y tú le dices que pulse el botón — el permiso lo da él en la ventana de Google, tú no puedes.",
   "actions": {
     "add_meeting": {
       "desc": "añade una cita/reunión al día — crea SOLA su aviso por defecto (~2h antes), no hace falta pedirlo; acepta también quién viene, dónde, categoría y notas",
@@ -142,7 +163,7 @@
       }
     },
     "connect": {
-      "desc": "(la dispara el botón Conectar de la tarjeta) empieza el consentimiento OAuth de Google Calendar sobre una app ya registrada y devuelve la URL — nunca lleva credenciales. Úsala si el operador pide conectar/vincular Google Calendar",
+      "desc": "conecta la agenda con GOOGLE CALENDAR: deja la tarjeta abierta EN su paso de conectar. Úsala siempre que el operador pida conectar/vincular su Google Calendar o «abre el conector de Google» — es esta acción, no mensajería. TÚ NO puedes autorizar por él y NUNCA dictes la URL: después de llamarla, dile en una frase que pulse «Conectar Google Calendar» en la tarjeta y acepte en la ventana de Google. Nunca lleva credenciales.",
       "payload": {
         "provider": "string opcional (google)"
       }
@@ -168,7 +189,12 @@
     "agenda",
     "mi día",
     "plan del día",
-    "planning"
+    "planning",
+    "calendario",
+    "mi calendario",
+    "calendar",
+    "my calendar",
+    "google calendar"
   ],
   "data": {
     "durable": true,

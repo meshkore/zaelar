@@ -1,0 +1,17 @@
+{
+  "id": "google-account",
+  "label": "Google (cuenta)",
+  "kind": "connector",
+  "family": "infra",
+  "transport": "native",
+  "auth": "oauth",
+  "state": "built",
+  "capabilities": [
+    "google",
+    "cuenta de google",
+    "google account",
+    "iniciar sesión con google",
+    "sign in with google",
+    "conectar google"
+  ]
+}

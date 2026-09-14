@@ -5,7 +5,7 @@
   "family": "video",
   "transport": "native",
   "auth": "oauth",
-  "state": "planned",
+  "state": "built",
   "capabilities": [
     "youtube",
     "suscripciones",
@@ -14,5 +14,5 @@
     "videos sugeridos",
     "mi cuenta de youtube"
   ],
-  "notes": "DESACTIVADO a proposito (V2-603 F2, directriz del operador 2026-09-06): el mecanismo esta construido y probado (V2-597) pero NO hay cliente OAuth de Google registrado, asi que la puerta no puede abrirse y ofrecerla era una promesa que el producto no puede cumplir. Se reactiva SOLO cuando exista el cliente: poner `state` a built otra vez es el ultimo paso del alta descrita en la iniciativa V2-603. El reproductor de video (buscar, poner, listas) no depende de esto y sigue funcionando. Limite conocido de la API: NO da el historial de reproduccion."
+  "notes": "Reactivado el 2026-09-14 (V2-685). Estuvo en `planned` a proposito desde el 2026-09-06 (V2-603 F2) por UNA razon, escrita entonces: el mecanismo estaba construido y probado (V2-597) pero no habia cliente OAuth de Google registrado, asi que la puerta no podia abrirse y ofrecerla era una promesa incumplible. Esa razon ya no existe: el cliente unico de Google (`connectors/google/app.py`) sirve tambien a esta puerta, y `oauth.authorize_url('youtube')` devuelve una URL de consentimiento valida. Mientras estuvo en `planned` el operador veia aqui un boton \"Lo quiero\" para algo que ya tenia. Limite conocido de la API, sin cambios: NO da el historial de reproduccion."
 }

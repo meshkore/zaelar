@@ -405,13 +405,32 @@ def test_the_card_is_told_to_hide_the_whole_account_surface(sandbox):
     assert ydata.view_data().get("accounts_enabled") is False
 
 
-def test_the_catalog_no_longer_advertises_it_as_built(sandbox):
-    """The third surface that claimed it worked. `built` puts a «Conectar» button on the Conectores tab."""
+def test_the_catalog_advertises_it_again_now_that_the_door_OPENS(sandbox):
+    """V2-686 updates this case, it does not relax it. The claim was never «youtube must stay planned» — it
+    was that a surface may not advertise a door that cannot open. It was parked in V2-603 F2 for ONE written
+    reason, «no Google OAuth client exists», and its own note said flipping it back was the last step of
+    registering one. V2-685 registered it, so the note is spent and the state is `built`.
+
+    ⚠️ While it was stale the failure ran the other way: the Conectores tab shows `planned` entries as a
+    wishlist with a «Lo quiero» button, so for two days the operator was offered a connector he already had.
+    """
     from connectors import catalog
 
     row = next(m for m in catalog.load_manifests() if m.get("id") == "youtube")
-    assert row["state"] == "planned"
-    assert "V2-603" in row["notes"]                              # and says what unblocks it
+    assert row["state"] == "built"
+    assert "V2-685" in row["notes"], "it does not say what unblocked it"
+
+
+def test_and_the_door_really_does_open_before_we_advertise_it():
+    """The counterweight, and the one that must never be assumed: the state above is only honest while a
+    client actually resolves. This asks the connector, not the manifest — and deliberately does NOT take
+    the `sandbox` fixture, whose whole job is to pin the client ABSENT."""
+    from connectors.video import oauth
+
+    if not oauth.configured("youtube"):
+        pytest.skip("no Google OAuth client on this machine")
+    r = oauth.authorize_url("youtube")
+    assert r.get("ok") and str(r.get("url", "")).startswith("https://accounts.google.com/")
 
 
 def test_hiding_the_account_layer_does_NOT_disable_the_player(sandbox):

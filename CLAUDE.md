@@ -125,6 +125,7 @@ Los agentes DEBEN trabajar dentro de esta estructura — no crear `docs/` ni car
 | Ops / Setup | `.meshkore/docs/ops/zaelar-ops.md` |
 | Conventions | `.meshkore/docs/conventions/zaelar-conventions.md` |
 | Modules | `.meshkore/docs/modules/zaelar-modules.md` |
+| **Conectores — la LISTA (qué conectamos hoy, qué está declarado y dónde se cablea cada pieza)** | `.meshkore/docs/modules/zaelar-connectors-inventory.md` |
 | Security | `.meshkore/docs/security/zaelar-security.md` |
 | **Change protocol** | `.meshkore/docs/ops/zaelar-change-protocol.md` |
 | **Audit workflow** | `.meshkore/docs/ops/zaelar-audit-workflow.md` |
@@ -177,9 +178,14 @@ nuevo"):** ejecutar `zaelar-new-widget-or-connector-workflow.md` — TODAS las a
 pieza nueva quede construida, cableada, probada, documentada y en el contexto. Es DISTINTO de
 `zaelar-widgets-workflow.md`, que gobierna cambios del SISTEMA de widgets; este gobierna piezas nuevas. Trae
 las cuatro decisiones previas (¿widget o conector? · ¿hace falta una tool nueva? casi siempre NO, las acciones
-declaradas SON las skills · ¿background? · ¿produce?), **la lista de los 8 puntos de cableado que fallan
+declaradas SON las skills · ¿background? · ¿produce?), **la lista de los 14 puntos de cableado que fallan
 VACÍOS** (registro, routers, `_BUILTINS`, tarjeta Y familia del ⚙, `api.js`, i18n en+es, exención stdlib,
-testmap), el set de tests en sus cuatro clases —incluida la VIVA, que se construye entera aunque no haya
+testmap, manifiesto de catálogo, orden de familias del muro de chat, claves `chat.connFamily.*`, brief del
+cerebro, README de credenciales, la LISTA de conectores), la mitad de RUMBO que se olvida siempre (un
+conector añade ACCIONES y casi nunca las PALABRAS que llevan a ellas — V2-686), **§7-bis el ÚLTIMO METRO**
+(el consentimiento es un clic del operador; por voz la acción deja la tarjeta EN el paso del botón) y
+**§7-ter declararlo HECHO** (sacarlo de `planned`, alinear el id, la fila en la lista, el estado en el
+cerebro), el set de tests en sus cuatro clases —incluida la VIVA, que se construye entera aunque no haya
 credencial y SALTA con los pasos para habilitarla—, las fronteras que no se cruzan (la voz transporta
 intención y nunca una credencial; `widget.js` no toca la red; los widgets no se hablan entre sí) y una tabla
 de **diez traps medidos**. Nació del build de V2-557 y su razón de ser es que el siguiente sea corto.
@@ -498,6 +504,65 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
 > when the size ratchet (`tests/infrastructure/unit/test_claude_md_ratchet.py`) trips, move the oldest
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
+
+- **The LAST METRE of a connector: the agenda owns its own, and a voice order ends in front of the BUTTON
+  (V2-686, 2026-09-14)**: the operator tried to connect Google Calendar by voice, twice, minutes after
+  V2-685 shipped the client, and lost both times — «he intentado conectar la agenda con Google Calendar
+  pero el sistema no me ha entendido… necesito hacer ese test manual porque la conexión la tengo que hacer
+  yo desde el browser con mi cuenta de Google». Read from his own observability before touching anything
+  (session `a9fcd650`, engine `3.26+860dd7fb`):
+  - **`T12·9e60` «open the google connector» → the model opened MESSAGING** and answered «the Google
+    connector is right there with the login steps». It did not hallucinate: `widgets_n_selected: 15` of 15,
+    so the whole catalog was in the prompt and selection filtered nothing — what decided it was that the
+    only purpose line mentioning connecting was messaging's («…o conectar un canal», plus `gmail`,
+    `conectar email` in its keywords), while the agenda's said nothing about connecting, nothing about
+    Google and nothing about a calendar. **A connector adds ACTIONS and almost never the WORDS that lead to
+    them**, and the routing line is the half nobody updates. Fixed by naming the service, the linking verb
+    and **the frontier** («es la agenda, no mensajería») in `whenToUse` — 283 of the 300-char budget,
+    asserted against `brief._purpose`, because what the cap trims is the END, which is exactly where the
+    frontier clause lives (trap T4) — plus 21 keywords and 5 aliases **in both languages**: both lost turns
+    were in ENGLISH against a widget whose vocabulary was Castilian except for «schedule» and «my day».
+  - **`T14·76b6`, naming the widget, DID reach it — and nothing happened.** `widget_data agenda:connect`
+    was allowed, executed, and returned a perfectly good consent URL; the screen did not move and the mouth
+    said nothing (`completion_chars: 0`). The connector was never broken. **Two links cut the last metre,
+    and neither is a bug that shows up in a log**: `widget_data_turn.py` keeps `{widget, act}` from a
+    successful data-op and **throws the result away**, so no `url`/`hint` in a return value can ever reach
+    the model; and even if it did, **the voice cannot finish an OAuth consent** — the popup only survives
+    inside the click that opened it, which `widget.js` already documents and the calendar connector already paid for.
+  - **So the voice does the half it CAN: it puts the button in front of him.** `gcal.push_connect_screen`
+    leaves the card ON its connect step, published through `view_data` with the same token shape as the
+    pushed view — a COUNTER (asking twice lands twice; a flag would stay true and move nothing) and an `at`
+    that EXPIRES at 180 s (or tomorrow's first repaint ambushes him with a setup screen over the agenda he
+    was reading). **The push happens BEFORE the connector is consulted**: if it depended on the URL coming
+    out well, the case that needs a screen most — no OAuth app registered — would be the one without one.
+    And the sentence is declared in the action's `desc`, which DOES travel in the prompt: call it, tell him
+    to press «Conectar Google Calendar», never dictate the URL.
+  - **The alta was not closed, and closing it found three live drifts**, each of which failed silently:
+    `connectors/catalog/youtube.json` was still `planned` — parked in V2-603 F2 for ONE written reason, «no
+    Google OAuth client», which V2-685 removed two days earlier — so the chat wall was offering him a **«Lo
+    quiero»** button for a connector he already had (`oauth.authorize_url('youtube')` returns a valid URL);
+    `google-calendar.json` declared id `google-calendar` while its live row is `google`, so
+    `catalog.search()` could never rank his own calendar as connected; and `ChatWall.js`'s
+    `CONN_FAMILY_ORDER` was missing `video` and `agenda`, live families since the YouTube account connector and the
+    calendar one, so both rendered below Infraestructura in the «a family nobody expects» bucket. **If a manifest parks something
+    behind a CONDITION, the condition goes in its notes and lifting it is the last step of whatever
+    satisfies it.**
+  - **The workflow now carries what this proved was missing**: six more wiring points (§4 is 14 now), the
+    ROUTING half in §5, **§7-bis the LAST METRE** and **§7-ter declararlo HECHO**, four new traps — plus the
+    two docs that did not exist: the connector **LIST**
+    (`.meshkore/docs/modules/zaelar-connectors-inventory.md`, the operator's «añádelo a la carpeta MeshKore,
+    a la lista de conectores») and the Google connector's module doc, which §8.1 required and V2-685 never
+    wrote. Node **5.7** (+1 file) is the ratchet behind it: no live connector may sit on the wishlist, a
+    `built` manifest with no live row must say why in writing, every live family has a name in BOTH bundles,
+    a place in the chat wall's order and a section in the ⚙ panel, and no two rows share an id.
+  - Node **4.167**; ten disarms, every mutation asserted, all red. ⚠️ **Two were harness artifacts** — a
+    `-k "a or b"` split on whitespace produced «no tests ran», which exits non-zero and reads as red (the
+    zsh trap, paid again) — and ⚠️ **one came back GREEN and accused the TEST**: the first two routing cases
+    asserted `selection.candidates`' ranking, and with fifteen widgets **everything** is a candidate, so
+    they measured nothing; rewritten against the artifact that actually failed, the row
+    `brief.for_prompt` puts in the turn prompt. **Not fixed here and named**: the turn report still discards
+    a successful data-op's result — making it reach the model is a change on the shared voice path and
+    deserves its own batch.
 
 - **ONE Google account, six doors — and Meet is an ARGUMENT, not a tool (V2-685, 2026-09-13)**: the
   operator, handing over the OAuth client he had just registered — «we need to create the google connector…

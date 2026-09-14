@@ -24,10 +24,13 @@ import { CLOSE_ICON, TRASH_ICON, MESSAGE_SQUARE_ICON, ACTIVITY_ICON, CLOCK_ICON,
 import { renderMarkdownLite } from "../lib/markdown-lite.js?v=1";
 import { t } from "../core/i18n.js?v=1";
 
-// V2-561/V2-526 — stable family order (mensajeria -> musica -> archivos -> infra, matching
-// connectors/registry.py's descriptors() order), any other family (e.g. a catalog-only "agenda" wishlist
-// entry) sorted after, alphabetically, so a family nobody expects does not jump to the top.
-const CONN_FAMILY_ORDER = ["mensajeria", "musica", "fotos", "archivos", "infra"];
+// V2-561/V2-526 — stable family order, matching connectors/registry.py's descriptors() order; any family
+// not listed (a catalog-only wishlist family) sorted after, alphabetically, so one nobody expects does not
+// jump to the top. V2-686: `video` and `agenda` were MISSING here — they are live families since V2-597 and
+// V2-679, so the YouTube account and Google Calendar were being filed under "a family nobody expects" and
+// rendered below Infraestructura. Nothing errored; they were just in the wrong place, which is how every
+// wiring point in this list fails. A test now walks descriptors() against this array.
+const CONN_FAMILY_ORDER = ["mensajeria", "musica", "fotos", "archivos", "video", "agenda", "infra"];
 const connFamilyRank = (f) => { const i = CONN_FAMILY_ORDER.indexOf(f); return i < 0 ? 99 : i; };
 
 const SEND_SVG = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>`;

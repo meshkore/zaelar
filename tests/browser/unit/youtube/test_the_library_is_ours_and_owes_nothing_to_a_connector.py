@@ -5,9 +5,11 @@ the video widget is responsible for storing the data. We don't want external dep
 the subscription list that we like, the video list that we like, the history, the preferences, the filters.
 Our core, our engine, our memory, our widget are the ones who have control.»
 
-So every test here runs with the account connector ABSENT — which is also its real state today (V2-603 F2
-deactivated it until an OAuth client exists). Nothing in the library may need it, ask it anything, or degrade
-without it. The connector, when INI-032 finally opens its door, only EXTENDS this.
+So every test here runs with the account connector ABSENT. Nothing in the library may need it, ask it
+anything, or degrade without it; the connector only EXTENDS this. ⚠️ Until 2026-09-14 «absent» was also the
+machine's real state (V2-603 F2 parked the account layer until an OAuth client existed) — V2-685 registered
+one, `service.available()` is DERIVED and turned the layer on by itself, and that is what exposed the fact
+that this file's first case was patching a RE-EXPORT and stubbing nothing at all.
 
 Two facts this file pins that are easy to get wrong later:
 
@@ -54,7 +56,12 @@ def sandbox(monkeypatch, tmp_path):
 # ── the library exists without any account ────────────────────────────────────────────────────────────────
 
 def test_the_connector_is_absent_and_the_library_still_answers(sandbox, monkeypatch):
-    monkeypatch.setattr(yt, "_svc", lambda: None)        # harder than today's reality: no connector at all
+    # V2-686 — this used to patch `yt._svc`, which is a re-export: the gate asks `account._svc`, so the stub
+    # reached nothing and the case only passed because `available()` happened to be False everywhere (no
+    # Google client existed). V2-685 shipped one, `available()` is DERIVED exactly as its docstring promises,
+    # and the surface turned on by itself — which is what exposed the no-op. Patched at the real seam now.
+    from widgets.youtube import account
+    monkeypatch.setattr(account, "_svc", lambda: None)   # harder than today's reality: no connector at all
     assert yt.view_data()["accounts_enabled"] is False
     assert yt.apply_action("follow_channel", {"channel": "Kurzgesagt"})["ok"]
     assert yt.apply_action("set_preference", {"key": "calidad mínima", "value": "720p"})["ok"]
@@ -64,6 +71,17 @@ def test_the_connector_is_absent_and_the_library_still_answers(sandbox, monkeypa
     assert [c["name"] for c in d["channels"]] == ["Kurzgesagt"]
     assert d["prefs"]["min_definition"] == 720
     assert len(d["history"]) == 1
+
+
+def test_the_account_layer_turns_itself_ON_the_day_a_client_exists(sandbox):
+    """The counterweight to the case above, and the promise `service.available()` makes in writing: the gate
+    is DERIVED, never a flag anybody has to remember to flip. With a resolvable client the account surface
+    lights up on its own — and the library keeps answering either way, which is this file's whole claim."""
+    from connectors.video import oauth
+    if not oauth.configured("youtube"):
+        pytest.skip("no Google OAuth client on this machine")
+    assert yt.view_data()["accounts_enabled"] is True
+    assert yt.apply_action("follow_channel", {"channel": "Kurzgesagt"})["ok"]
 
 
 def test_the_library_fields_survive_a_reload_of_the_store(sandbox):

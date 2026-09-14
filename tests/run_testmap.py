@@ -1917,6 +1917,13 @@ DOMAINS: list[dict] = [
                                  "desactivadas, wizard guiado con vuelta atrás y la ventana de Google abierta "
                                  "DENTRO del clic",
             "ch": UNIT, "paths": ["tests/browser/unit/agenda/test_the_connectors_take_the_screen.py"]},
+        # V2-686 — el ÚLTIMO METRO del conector, medido en vivo el 14-sep en dos vueltas perdidas: la agenda
+        # reclama las palabras de su propio conector (T12 enrutó a MENSAJERÍA), y una orden de voz deja la
+        # tarjeta en el paso que tiene el botón (T14 ejecutó connect, devolvió una URL buena y no se movió
+        # nada). El permiso lo sigue dando el operador con su clic: la voz no puede terminar un OAuth.
+        {"id": "4.167", "title": "«Conecta mi Google Calendar»: la agenda es quien lo tiene, y la orden "
+                                 "termina delante del botón",
+            "ch": UNIT, "paths": ["tests/browser/unit/agenda/test_the_agenda_owns_its_google_connector.py"]},
         {"id": "4.162", "title": "El selector de idioma no instruye en ningún idioma: la marca pinta, en/es "
                                  "arriba y destacados, 40 filas que caben",
             "ch": UNIT, "paths": [
@@ -3075,7 +3082,12 @@ DOMAINS: list[dict] = [
                 # V2-631: el catálogo de FUENTES DE MÚSICA — la gratis por defecto es una fila visible y
                 # conectada, cada puerta cerrada (Amazon/Deezer/SoundCloud/TIDAL/YT Music) nombra su porqué,
                 # y la prioridad sigue siendo «la conectada primero, la gratis nunca desaparece».
-                "tests/connectors/unit/catalog/test_the_music_source_catalog.py"]},
+                "tests/connectors/unit/catalog/test_the_music_source_catalog.py",
+                # V2-686 — el trinquete del alta: un conector ya vivo no se ofrece como pendiente, un
+                # `built` sin fila viva dice por qué, y toda familia viva tiene nombre en los DOS bundles,
+                # sitio en el orden del muro de chat y sección en el panel de ⚙. Los tres puntos fallaban
+                # a la vez el día que se escribió, y ninguno levantaba nada.
+                "tests/connectors/unit/catalog/test_a_built_connector_is_never_on_the_wishlist.py"]},
         # V2-597 — la cuenta de YouTube (familia video): el registro es DATO (solo lectura; el tramo de
         # escritura queda aparcado a propósito), el pending del OAuth lleva verifier+tramo bajo el state, un
         # refresh sin refresh_token CONSERVA el anterior, y la fachada separa la vacuidad legítima (cuenta

@@ -302,3 +302,40 @@ def test_a_connected_google_icon_opens_the_list_and_never_the_guide(_page):
     _page.locator(".agconnicon.on").click()
     assert _page.locator(".agcalrow").count() == 3
     assert _page.locator(".agwstep").count() == 0, "there is nothing to guide once the account is linked"
+
+
+# ── V2-686: the voice can ask to connect, and it lands ON the button ────────────────────────────────────
+# Measured live on 2026-09-14 (`T14·76b6`): «open the google connector in the agenda widget» executed
+# `agenda:connect`, the action returned a good consent URL, and the screen did not move. The voice cannot
+# finish the OAuth — the popup only survives inside the click, which is what
+# `test_the_window_is_opened_INSIDE_the_click…` measures a few lines above — so it does the half it can:
+# it leaves the operator in front of the button. RENDERED, because the jump belongs to `render`, not `data`.
+
+def test_a_pushed_voice_connect_lands_on_the_step_that_has_the_button(_page):
+    _mount(_page, _data(connect={"n": 1, "at": 9e9}))
+    assert _page.locator(".agwstep").count() == 1, "the voice order did not open the guide"
+    assert _page.locator(".agwfoot .agcalbtn2:not(.risk)").inner_text().strip() != "", "no button to press"
+    assert "4" in _page.locator(".agwcount").inner_text(), "it opened the guide at step one, not at the button"
+    assert _page.evaluate("window.__calls.length") == 0, \
+        "the voice CANNOT ask Google for the permission: that belongs to the operator's click"
+
+
+def test_the_pushed_connect_does_not_reopen_itself_on_every_repaint(_page):
+    """Same token: a repaint (an agenda tick, an SSE push) must not drag him back to a screen he has just
+    left. Same contract as the pushed view above."""
+    _mount(_page, _data(connect={"n": 1, "at": 9e9}))
+    _page.click(".agwfoot .agcalbtn2.risk")                    # «Atrás» -> out of the guide
+    _page.click(".agcalbtn")                                   # and close the connectors screen
+    _page.evaluate("d => window.__mod.render(document.getElementById('w'), d, window.__ctx)",
+                   _data(connect={"n": 1, "at": 9e9}))
+    assert _page.locator(".agwstep").count() == 0, "a repaint put the connect screen back on top of him"
+
+
+def test_asking_a_SECOND_time_brings_the_button_back(_page):
+    """And the other half: if the Google window closed on him and he asks again, it has to jump again."""
+    _mount(_page, _data(connect={"n": 1, "at": 9e9}))
+    _page.click(".agwfoot .agcalbtn2.risk")
+    _page.click(".agcalbtn")
+    _page.evaluate("d => window.__mod.render(document.getElementById('w'), d, window.__ctx)",
+                   _data(connect={"n": 2, "at": 9e9}))
+    assert _page.locator(".agwstep").count() == 1

@@ -133,6 +133,16 @@ una superficie vacía o una capacidad invisible.
 | 6 | `i18n/bundles/en.json` **y** `es.json` | `t()` devuelve la CLAVE, que es truthy: sale `config.cx.fam_files` en pantalla |
 | 7 | `widgets/validator.py::_STDLIB_EXEMPT` si `data.py` importa un conector | `make test-widgets` en rojo para todo el mundo |
 | 8 | `tests/run_testmap.py` | los tests existen y **no los corre nadie** |
+| 9 | `connectors/catalog/<id>.json` con `state: "built"` | el conector no aparece en la búsqueda por capacidad, y si estaba `planned` sigue ofreciéndose como pendiente |
+| 10 | `ChatWall.js::CONN_FAMILY_ORDER` si la FAMILIA es nueva | la familia cae en el cajón «alfabético al final» y el conector se pinta debajo de Infraestructura |
+| 11 | `chat.connFamily.<fam>` en `en.json` **y** `es.json` | `t()` devuelve la CLAVE: sale `chat.connFamily.agenda` como título de sección |
+| 12 | `nucleo/flash/connector_briefs.py` | el cerebro tiene el VERBO y no el ESTADO — y narra (V2-603) |
+| 13 | `.meshkore/credentials/README.md` | nadie sabe qué variable rellenar, ni dónde va el fichero de credenciales |
+| 14 | `.meshkore/docs/modules/zaelar-connectors-inventory.md` | la lista deja de contar la verdad el mismo día |
+
+> Los puntos 9-14 salieron del alta de Google (V2-686) **midiendo lo que había quedado suelto**, y hay
+> trinquete: `tests/connectors/unit/catalog/test_a_built_connector_is_never_on_the_wishlist.py` (nodo 5.7)
+> comprueba 9, 10 y 11 contra el registro vivo, más «ningún `built` sin fila viva» y «ningún id duplicado».
 
 **Regla de oro del cableado:** cada vez que una capa LEE un campo, comprueba que la capa que lo escribe lo
 manda. En V2-557 esto falló **tres veces seguidas** con la misma forma — el panel del widget leía `tiers`, la
@@ -160,6 +170,24 @@ Todo esto vive en `manifest.json`, y todo esto es lo que el modelo ve.
   con un test contra `brief._purpose`, no a ojo (V2-547).
 - **`keywords` / `aliases`**: precisos y no solapados. El harness avisa de colisiones; la validación rechaza
   un manifest cuyas keywords sean TODAS de otros.
+
+⚠️ **EL CONECTOR TIENE DOS MITADES Y LA SEGUNDA SE OLVIDA SIEMPRE: las ACCIONES y las PALABRAS que llevan a
+ellas.** Un conector nuevo añade `connect`/`disconnect` a un widget y casi nunca toca su `whenToUse` — que es
+la línea de ENRUTADO, la que el modelo lee para elegir widget. Medido en vivo el 2026-09-14 (V2-686): «open
+the google connector» abrió **MENSAJERÍA**, porque de los quince widgets del prompt el único cuya línea
+hablaba de conectar era el suyo («…o conectar un canal»), mientras el de la agenda —que es quien tiene el
+conector de Google Calendar— no decía ni «conectar», ni «Google», ni «calendario». El modelo enrutó con lo
+que había.
+
+La regla, entonces:
+
+1. La línea de rumbo **NOMBRA el servicio y el verbo de enlazar**, y cuando otro widget ya reclama palabras
+   parecidas, **dice la frontera** («es la agenda, no mensajería, quien tiene el conector de X»).
+2. Y tiene que **CABER**: el presupuesto son 300 caracteres y lo que se corta es el final, que es justo
+   donde acaba de ponerse la frontera. Se comprueba contra `brief._purpose`, no a ojo (trap T4).
+3. Las `keywords` crecen **en los DOS idiomas** — «conectar calendario» Y «connect calendar». Las dos vueltas
+   perdidas del 14-sep fueron en INGLÉS contra un widget cuyas veintiuna palabras eran castellanas salvo dos.
+   Y se AÑADEN: una palabra inglesa nunca sustituye a su equivalente castellana.
 - **`worker_guide`** si un Brain Worker debe entregar aquí: dile los DOS pasos (escribe el JSON a un fichero
   relativo con Write, después `python -m nucleo.widget_cli data <id> <acción> @fichero`). Pegar JSON en la
   línea de comandos lo bloquean las comillas y el guarda del shell.
@@ -228,6 +256,46 @@ ya esté cubierto**: el mapa lista rutas explícitas, no hace glob. Comprueba de
 
 ---
 
+## 7-bis. El ÚLTIMO METRO — el operador tiene que poder CONECTARLO
+
+Un conector construido, cableado y verde sigue sin servir de nada hasta que el operador da su
+consentimiento. Esa parte no la puede hacer el agente, y el diseño tiene que decirlo en vez de fingir lo
+contrario.
+
+- **El consentimiento es SIEMPRE un CLIC suyo.** `window.open()` solo sobrevive dentro del gesto que lo
+  abre; una ventana abierta después de un `await` la bloquea cada navegador **en silencio**. Por eso la
+  tarjeta abre el popup SÍNCRONAMENTE en el clic y le rellena el `location` después.
+- **Por voz, la acción hace la mitad que puede: deja la tarjeta EN el paso que tiene el botón.** No sirve
+  devolver la URL: `nucleo/flash/widget_data_turn.py` se queda con `{widget, act}` y **tira el resultado de
+  la acción**, así que nada de lo que devuelvas llega al modelo ni al operador. El empujón viaja por
+  `view_data()` con la forma de token que ya usa la vista empujada — un CONTADOR (pedirlo dos veces aterriza
+  dos veces) y un `at` que CADUCA (un repintado de mañana no le abre una pantalla de setup encima).
+- **La pantalla se mueve también cuando el conector SE NIEGA.** Si el empujón dependiera de que la URL salga
+  bien, el caso que más necesita pantalla —no hay app OAuth registrada— sería justo el que no la tiene.
+- **La frase la declara el MANIFIESTO, no el resultado.** Como el resultado se descarta, la única forma de
+  que la boca sepa qué decir es el `desc` de la acción, que sí viaja en el prompt: llámala, dile que pulse
+  el botón, y **nunca dictes la URL**.
+- **Un cliente OAuth «web» exige los URI de retorno dados de alta ANTES**, o Google contesta `invalid_client`
+  al FINAL de un flujo que parece sano. Imprime la lista exacta y ponla en el README de credenciales.
+
+## 7-ter. Declararlo HECHO — los cinco sitios donde un conector deja de estar pendiente
+
+Esto es lo que se salta cuando la parte técnica ya funciona y parece que se ha terminado.
+
+1. **`connectors/catalog/<id>.json` → `state: "built"`.** Si estaba `planned`, esto es lo que **lo quita de
+   los conectores pendientes**: el muro de chat pinta la wishlist (`planned` + `not-possible`) con un botón
+   «Lo quiero», así que un conector ya vivo que siga en `planned` le ofrece al operador algo que ya tiene.
+   ⚠️ Pasó: `youtube.json` estuvo `planned` ocho días después de que desapareciera su única razón para
+   estarlo. **Si un manifiesto aparca algo tras una CONDICIÓN, la condición va escrita en su `notes`, y
+   levantarla es el último paso de lo que la cumpla.**
+2. **El id del manifiesto = el id de su fila viva.** `catalog.search()` rankea «conectado» comparando ids
+   contra el registro; con un id distinto —aunque más bonito— el buscador nunca sabrá que está enlazado.
+3. **La fila del registro y su familia**, con la familia cableada en los puntos 10 y 11 de §4.
+4. **La lista**: una fila en `.meshkore/docs/modules/zaelar-connectors-inventory.md`, con su widget y su doc.
+5. **El cerebro**: su estado en `connector_briefs.py`, y —si estrena una capacidad que el modelo no ha visto
+   nunca— **la frase que NOMBRA su mecanismo**. Una capacidad nombrada sin su mecanismo se improvisa: el
+   modelo inventa una tool que no existe (V2-540, V2-603, V2-685).
+
 ## 8. La documentación — tres sitios, nunca dos de tres
 
 1. **Doc de módulo** — `engine/.meshkore/docs/modules/zaelar-<pieza>.md`: anatomía, contrato, las decisiones
@@ -239,6 +307,10 @@ ya esté cubierto**: el mapa lista rutas explícitas, no hace glob. Comprueba de
    trinquete (`test_roadmap_closure.py`) exige que toda iniciativa entregada esté citada y viceversa: cualquiera
    de las dos mitades sola deja el contexto contando media historia.
 4. Más el **`notes.md`** del widget, que es lo que impide que la próxima sesión deshaga una decisión ya tomada.
+4-bis. **La LISTA** (`.meshkore/docs/modules/zaelar-connectors-inventory.md`) y la **BITÁCORA del módulo**
+   (`.meshkore/modules/connectors/logs/<YYYY-MM>/T-NNN-<slug>.md`, gitignoreada): la lista es lo que se lee
+   para saber qué hay; la bitácora es lo único que guarda las PALABRAS del operador, lo MEDIDO antes de
+   tocar nada y los COMMITS. `ls` antes de coger un número `T-NNN` — la numeración es GLOBAL entre módulos.
 5. Si la pieza cruza a la nube o al negocio, **parte en dos**: el mecanismo aquí, el producto en
    `.meshkore/roadmap/initiatives/INI-xxx` de la RAÍZ.
 
@@ -297,6 +369,10 @@ Un test verde no es un producto que funciona.
 | **T8** | `git add` en un árbol compartido | Otra sesión se lleva tus ficheros en SU commit |
 | **T9** | Fichero de test nuevo sin línea en el testmap | Verde y **nadie lo ejecuta** |
 | **T10** | Elegir un prefijo `/api/` ya usado | Dos routers, uno gana por orden de montaje, en silencio |
+| **T11** | Añadir las ACCIONES y no las PALABRAS (`whenToUse`/`keywords`) | El modelo enruta al widget vecino que sí dice «conectar», y su respuesta suena perfectamente razonable |
+| **T12** | Devolver la URL de consentimiento esperando que llegue al modelo | El informe del turno tira el resultado: la acción se ejecuta, la pantalla no se mueve y la boca calla |
+| **T13** | Dejar en `planned` un conector que ya funciona | El muro de chat le ofrece «Lo quiero» de algo que ya tiene |
+| **T14** | Un id de catálogo distinto del id de su fila viva | `search()` nunca lo rankea como conectado, y nada falla |
 
 ---
 
@@ -318,10 +394,24 @@ WIDGET
 [ ] background: decidido y escrito · runtime{} si produce
 [ ] widget.js: sin fetch · sin innerHTML · textContent · clases con prefijo propio · tema por --hb-*
 
-CABLEADO  (los 8 puntos de §4, uno a uno)
+CABLEADO  (los 14 puntos de §4, uno a uno)
 [ ] registry conectores + descriptors()   [ ] server routers      [ ] _BUILTINS
 [ ] ConfigPanel tarjeta + fams            [ ] api.js              [ ] i18n en+es
 [ ] _STDLIB_EXEMPT si procede             [ ] run_testmap.py
+[ ] catalog/<id>.json state:"built", id == id de la fila viva
+[ ] CONN_FAMILY_ORDER + chat.connFamily.<fam> en los dos bundles (si la familia es nueva)
+[ ] connector_briefs.py (el ESTADO, no solo el verbo)   [ ] credentials/README.md
+
+RUMBO  (§5 — la mitad que se olvida)
+[ ] whenToUse nombra el servicio Y el verbo de enlazar, con su frontera, y CABE en 300
+[ ] keywords/alias en los DOS idiomas, añadidas (nunca sustituidas)
+
+ÚLTIMO METRO  (§7-bis)
+[ ] el consentimiento es un clic suyo · popup abierto DENTRO del clic
+[ ] por voz: la tarjeta queda EN el paso del botón (token con contador + caducidad)
+[ ] la pantalla se mueve también si el conector se niega
+[ ] el desc de la acción dice la frase · y prohíbe dictar la URL
+[ ] URI de retorno dados de alta (cliente web) e impresos en el README
 
 TESTS
 [ ] conector · contrato · RENDERIZADO · vivo (live:True, salta con instrucciones)
@@ -330,6 +420,7 @@ TESTS
 
 DOCS
 [ ] doc de módulo   [ ] iniciativa V2-NNN (número reservado)   [ ] CLAUDE.md   [ ] notes.md
+[ ] fila en zaelar-connectors-inventory.md   [ ] bitácora del módulo (T-NNN, número global)
 [ ] mecanismo aquí / producto en la raíz privada
 
 CIERRE

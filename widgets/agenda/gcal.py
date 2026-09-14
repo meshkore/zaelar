@@ -114,10 +114,47 @@ def delete_google(m: dict) -> None:
         pass
 
 
+# How long a pushed CONNECT screen stays fresh. Same shape as `data._VIEW_TTL_S` and shorter on purpose:
+# this one asks the operator for a CLICK, and an order to connect that he did not give in this minute must
+# not ambush him with a setup screen when the card repaints half an hour later.
+_CONNECT_TTL_S = 180
+
+
+def push_connect_screen(db: dict) -> None:
+    """Leave the card ON its connect step (V2-686).
+
+    The voice CANNOT finish an OAuth consent: the popup only survives inside the click that opened it
+    (`widget.js`'s own comment, paid for once already), and the turn report drops the action's result, so a
+    URL returned from here reaches NOBODY — measured 2026-09-14, `T14·76b6`: the operator said «open the
+    google connector in the agenda widget», this action ran, returned a perfectly good consent URL, and the
+    screen did not move nor did the mouth say a word.
+
+    So the voice does what the voice CAN do: it puts the button in front of him. Same token shape as the
+    pushed view — a counter, so asking twice lands twice, and a timestamp, so a repaint hours later does
+    not re-open it."""
+    import time as _tm
+    prev = db.get("connect") or {}
+    db["connect"] = {"n": int(prev.get("n", 0)) + 1, "at": _tm.time()}
+
+
+def fresh_connect(db: dict) -> dict | None:
+    """The pushed connect screen, only while it is still this conversation's."""
+    c = db.get("connect") or None
+    if not c:
+        return None
+    import time as _tm
+    at = float(c.get("at") or 0)
+    return c if at and (_tm.time() - at) <= _CONNECT_TTL_S else None
+
+
 def ui_action(action: str, payload: dict, db: dict) -> dict | None:
     """The three UI-ONLY actions (never voice-declared credential handling, V2-520 shape). `data.py::
     apply_action` calls this before its own dispatch chain; returning None means "not one of mine"."""
     if action == "connect":
+        # The screen moves FIRST and unconditionally — before asking the connector for anything. Whatever
+        # the answer is, the operator has to end up looking at the step that explains it: a consent URL when
+        # all is well, and the connector's own refusal ("sin app OAuth registrada…") when it is not.
+        push_connect_screen(db)
         s = svc()
         if s is None:
             return {"ok": False, "error": "el conector de Google Calendar no está disponible en este build"}
