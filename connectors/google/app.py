@@ -54,12 +54,18 @@ CREDENTIALS_DIR = _ROOT / ".meshkore" / "credentials"
 #: five flows store their tokens in five files with five different shapes, and rerouting them through a
 #: shared callback would be a token-store migration wearing a redirect's clothes. What IS unified is the
 #: app, which is the part the operator had to answer five times.
+#:
+#: ⚠️ These are the paths the engine ACTUALLY serves, not the ones its connectors are named after.
+#: `files` answers on `/api/cloudfiles/callback` (`connectors/files/server_api.py`), and this tuple said
+#: `/api/files/callback` until 2026-09-14 — a URI nothing serves, handed to the operator to register while
+#: the one Drive really uses was missing from the list. `test_every_callback_we_ask_him_to_register_is_a_route_we_serve`
+#: now derives the truth from the mounted router instead of trusting this tuple.
 CALLBACK_PATHS: tuple[str, ...] = (
     "/api/email/callback",
     "/api/calendar/callback",
     "/api/video/callback",
     "/api/photos/callback",
-    "/api/files/callback",
+    "/api/cloudfiles/callback",
 )
 
 #: Cache keyed by (path, mtime) so an edited credentials file is picked up without a restart, and a
@@ -180,29 +186,132 @@ def redirect_uris(origin: str = "") -> list[str]:
     return [base + path for path in CALLBACK_PATHS]
 
 
+#: The host of the engine's HTTPS listener. It is a DNS alias of 127.0.0.1 (`dig local.zaelar.com` → the
+#: loopback address) carrying a shared certificate, so that a LOCAL engine can be opened over TLS without
+#: the operator minting one. For Google it is not a second machine — it is the same machine by another name.
+LOCAL_TLS_HOST = "local.zaelar.com"
+
+
+def loopback_origin() -> str:
+    import os
+    return "http://127.0.0.1:" + (os.getenv("ZAELAR_PORT") or "43917").strip()
+
+
 def served_origins() -> list[str]:
     """The origins a LOCAL engine actually answers on — both listeners of the same app (`server/__main__.py`:
     HTTP on 43917, and the shared-cert HTTPS one on local.zaelar.com, ports overridable by env)."""
     import os
-    http_port = (os.getenv("ZAELAR_PORT") or "43917").strip()
     tls_port = (os.getenv("ZAELAR_TLS_PORT") or "44317").strip()
-    return [f"http://127.0.0.1:{http_port}", f"https://local.zaelar.com:{tls_port}"]
+    return [loopback_origin(), f"https://{LOCAL_TLS_HOST}:{tls_port}"]
+
+
+def normalize_origin(origin: str) -> str:
+    """Collapse this engine's TWO local listeners into the ONE address Google is asked to return to.
+
+    A browser on `https://local.zaelar.com:44317` is on the same process, the same port-neighbour and the
+    same token store as one on `http://127.0.0.1:43917`; the callback page is self-contained («conectado,
+    cierra esta pestaña») and reads nothing from the origin's session, so which of the two Google returns
+    to changes nothing the operator can observe.
+
+    What it DOES change is whether the address can be registered at all. Google exempts the loopback
+    address from domain ownership: `127.0.0.1` needs no verification, no HTTPS and no consent-screen
+    authorized domain. `local.zaelar.com` is a domain — OURS, shipped with the engine — so registering it
+    would require whoever self-hosts to verify a domain they do not own. Deriving the redirect from
+    whichever listener the operator happened to open therefore made half the attempts unregistrable, and
+    the remedy V2-687 reached for (print TEN URIs instead of five) asked him to register five addresses
+    that cannot be registered.
+
+    A genuinely remote origin — a managed deployment on its own verified domain — is NOT one of
+    `served_origins()` and passes through untouched, which is the whole of V2-603's finding and stays true.
+    """
+    o = (origin or "").strip().rstrip("/")
+    return loopback_origin() if o and o in set(served_origins()) else o
 
 
 def uris_to_register() -> list[str]:
     """EVERY callback the operator has to paste into the console — the answer to «what do I register».
 
-    ⚠️ It is not `redirect_uris()` and that difference cost the first real connect (V2-687, 2026-09-14):
-    the redirect is DERIVED from the origin the browser is on, this engine serves TWO (loopback HTTP and
-    local.zaelar.com HTTPS), and the flow dies with `redirect_uri_mismatch` on whichever one was not
-    registered. A list that prints one origin is a list that is right half the time — which reads, to
-    whoever followed it, as «I did exactly what it said and it still failed».
+    ⚠️ It is not `redirect_uris()`, and the difference cost the first real connect (V2-687, 2026-09-14):
+    the redirect is DERIVED from the origin the browser is on. Since `normalize_origin()` collapses this
+    engine's two local listeners onto loopback, that is once again ONE list of five — but five that Google
+    will actually accept, which the ten never were.
     """
     out: list[str] = []
-    for origin in served_origins():
-        for uri in redirect_uris(origin):
-            if uri not in out:
-                out.append(uri)
+    for uri in redirect_uris(loopback_origin()):
+        if uri not in out:
+            out.append(uri)
+    return out
+
+
+def check_registered(uris: list[str] | None = None, timeout: float = 8.0) -> dict:
+    """Ask GOOGLE whether each redirect URI is registered — before anyone opens a consent screen.
+
+    Registering a redirect URI is the one step of this setup that happens entirely in somebody else's
+    console, and until 2026-09-14 the only way to find out whether it had worked was to run a whole
+    consent flow and read `Error 400` at the end of it. That is a terrible feedback loop: the operator
+    pastes five addresses, comes back, presses Connect, and gets an error that names neither the address
+    it sent nor the box it should have gone in.
+
+    The probe builds the SAME authorize URL the flow builds and reads the redirect Google answers with,
+    following none of it: an unregistered URI comes back as a `302` to `accounts.google.com/signin/oauth/
+    error` whose `authError` payload carries `redirect_uri_mismatch` AND the exact string Google received.
+    Nothing is consented, no token exists and no browser opens — it stops at the first response.
+
+    Returns `{uri: True | False | None}`; **None means «could not tell»** (no client, no network, an answer
+    we do not recognise) and is never reported as a failure — an offline machine must not be told its setup
+    is broken. Never raises.
+    """
+    import base64
+    import urllib.error
+    import urllib.parse
+    import urllib.request
+
+    cid = client_id()
+    todo = uris if uris is not None else uris_to_register()
+    out: dict[str, bool | None] = {}
+    if not cid:
+        return {u: None for u in todo}
+
+    class _Stop(urllib.request.HTTPRedirectHandler):
+        """Google answers the probe with a redirect; following it would fetch a sign-in page for nothing."""
+        location = ""
+
+        def redirect_request(self, req, fp, code, msg, headers, newurl):  # noqa: D102
+            self.location = newurl
+            return None
+
+    for uri in todo:
+        qs = urllib.parse.urlencode({
+            "client_id": cid, "redirect_uri": uri, "response_type": "code",
+            "scope": "openid", "state": "zaelar-probe",
+        })
+        handler = _Stop()
+        try:
+            opener = urllib.request.build_opener(handler)
+            req = urllib.request.Request("https://accounts.google.com/o/oauth2/v2/auth?" + qs,
+                                         headers={"User-Agent": "Mozilla/5.0"})
+            try:
+                opener.open(req, timeout=timeout)
+            except urllib.error.HTTPError:
+                pass                       # a 4xx is still an ANSWER; the location is what we read
+            loc = handler.location or ""
+        except Exception:                  # noqa: BLE001 — no network is «could not tell», never «broken»
+            out[uri] = None
+            continue
+        if not loc:
+            out[uri] = None
+            continue
+        blob = urllib.parse.parse_qs(urllib.parse.urlparse(loc).query).get("authError", [""])[0]
+        if blob:
+            try:
+                raw = base64.urlsafe_b64decode(blob + "=" * (-len(blob) % 4))
+            except Exception:              # noqa: BLE001
+                out[uri] = None
+                continue
+            out[uri] = b"redirect_uri_mismatch" not in raw
+        else:
+            # No error payload at all: Google accepted the address and is asking the human to sign in.
+            out[uri] = "/signin/oauth/error" not in loc
     return out
 
 

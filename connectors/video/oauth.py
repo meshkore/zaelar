@@ -106,9 +106,21 @@ def redirect_uri(origin: str = "") -> str:
     if env:
         return env
     o = (origin or "").strip().rstrip("/")
+    o = _normalized(o)
     if o and _ORIGIN_RE.match(o):
         return o + _CALLBACK_PATH
     return _DEFAULT_REDIRECT
+
+
+def _normalized(origin: str) -> str:
+    """This engine's two local listeners are ONE return address for Google — see
+    `connectors/google/app.normalize_origin`. Fail-safe: without the shared module the origin passes
+    through exactly as it did before, so a missing import cannot take the connector down with it."""
+    try:
+        from connectors.google import app as _google
+        return _google.normalize_origin(origin)
+    except Exception:  # noqa: BLE001
+        return origin
 
 
 def _load() -> dict:
