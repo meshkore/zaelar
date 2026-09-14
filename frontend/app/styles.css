@@ -61,7 +61,7 @@ canvas#viz{position:absolute;left:0;right:0;bottom:0;width:100%;height:30px;disp
 .mtog:hover{border-color:var(--hb-accent);color:var(--hb-accent)}
 .mtog.off{color:var(--hb-risk);border-color:rgba(229,72,77,.55);background:var(--hb-risk-soft)}
 .mtog.off::after{content:"";position:absolute;left:4px;right:4px;top:calc(50% - 1px);height:2.5px;border-radius:2px;background:var(--hb-risk);transform:rotate(-45deg)}
-.mtog.chat.active{color:#fff;border-color:transparent;background:linear-gradient(135deg,var(--hb-accent),var(--hb-accent2))}
+.mtog.chat.active{color:var(--canvas);border-color:transparent;background:var(--hb-accent)}
 .spk{font-family:var(--mono);font-size:0.625rem;letter-spacing:.04em;color:var(--hb-muted);cursor:pointer;display:none;
      padding:2px 2px;user-select:none}
 .spk.show{display:block} .spk b{color:var(--hb-accent2)} .spk.other b{color:var(--hb-risk)}
@@ -69,7 +69,7 @@ canvas#viz{position:absolute;left:0;right:0;bottom:0;width:100%;height:30px;disp
 /* ---------- CHAT WALL: text channel to the agent (toggled by the chat icon) ---------- */
 .chatwall{position:fixed;top:232px;left:18px;z-index:9001;width:320px;height:min(60vh,520px);
      min-width:260px;min-height:200px;max-width:96vw;max-height:100vh;
-     background:var(--hb-bg);border:1px solid var(--hb-line);border-radius:16px;
+     background:var(--hb-bg);border:1px solid var(--hb-line);border-radius:var(--hb-r-l);
      box-shadow:var(--hb-shadow-2);display:none;flex-direction:column;overflow:hidden}
 .chatwall.open{display:flex}
 /* DOCK as a full-height side column (drag the header to the left/right edge). The rest = empty canvas.
@@ -78,9 +78,14 @@ canvas#viz{position:absolute;left:0;right:0;bottom:0;width:100%;height:30px;disp
    and by nothing else, so with the banner up the column's own header — its tabs AND its close/undock buttons —
    sat underneath it: the operator had a full-height bar he could not close, opened by the agent, with no
    visible way out. Measured on his screenshot 2026-09-07. */
-.chatwall.docked{top:var(--banner-h)!important;bottom:0!important;height:auto!important;max-height:none!important;border-radius:0}
-.chatwall.docked.dock-left{border-radius:0 16px 16px 0;border-left:none}
-.chatwall.docked.dock-right{border-radius:16px 0 0 16px;border-right:none}
+/* V2-689 — DOCKED = the system's side column, not a card: sidebar ground, square against the screen edge,
+   ONE visible edge toward the desk, and no shadow (a shadow says «floating», and this one is pinned). */
+.chatwall.docked{top:var(--banner-h)!important;bottom:0!important;height:auto!important;max-height:none!important;
+  border-radius:0;background:var(--hb-sidebar);box-shadow:none}
+.chatwall.docked.dock-left{border-radius:0;border-left:none;border-top:none;border-bottom:none;
+  border-right:1px solid var(--hb-line)}
+.chatwall.docked.dock-right{border-radius:0;border-right:none;border-top:none;border-bottom:none;
+  border-left:1px solid var(--hb-line)}
 /* resize handles (8: edges + corners), reusable (lib/resizable.js) */
 .hb-rz{position:absolute;z-index:6}
 .hb-rz-n{top:0;left:12px;right:12px;height:7px;cursor:ns-resize}
@@ -107,7 +112,7 @@ canvas#viz{position:absolute;left:0;right:0;bottom:0;width:100%;height:30px;disp
 .chatwall.docked.dock-left .hb-rz-e{right:-4px;width:8px;top:0}
 /* dock preview while dragging to the edge */
 .hb-dock-preview{position:fixed;top:0;height:100vh;width:340px;z-index:9000;display:none;pointer-events:none;
-     background:linear-gradient(var(--hb-accent),var(--hb-accent2));opacity:.16;border:2px dashed var(--hb-accent)}
+     background:var(--hb-accent);opacity:.14;border:2px dashed var(--hb-accent)}
 .hb-dock-preview.left{left:0;border-left:none} .hb-dock-preview.right{right:0;border-right:none}
 /* SPACE RESERVATION for docked chat (V2-062): the desktop (canvas, widgets, camera, orb, panels) MOVES
    into the free area instead of being covered — same pattern as DebugPanel's --dbg-w. Active only when chat is OPEN
@@ -120,7 +125,12 @@ canvas#viz{position:absolute;left:0;right:0;bottom:0;width:100%;height:30px;disp
 #desk{position:fixed;top:0;bottom:0;left:var(--chatdock-l);right:var(--chatdock-r);transform:translate3d(0,0,0)}
 /* panels/overlays live OUTSIDE #desk (top-right) → move them away from the right dock manually */
 body.chatdock-r .statuspanel,body.chatdock-r .cronpanel{right:calc(18px + var(--chatdock-r))}
-.cw-head{display:flex;align-items:center;gap:8px;padding:11px 14px;border-bottom:1px solid var(--hb-line);cursor:grab;touch-action:none;user-select:none}
+/* V2-689 — the wall's header IS the Toolbar component's geometry (44px, 12px padding, hairline under it) and
+   carries its own ground, so the column reads as «header | content» instead of one undifferentiated panel. */
+.cw-head{display:flex;align-items:center;gap:var(--sp-2);min-height:44px;padding:0 var(--sp-3);flex:0 0 auto;
+  background:var(--hb-bg-soft);border-bottom:1px solid var(--hb-line-subtle);
+  cursor:grab;touch-action:none;user-select:none}
+.chatwall.docked .cw-head{background:var(--hb-sidebar);border-bottom-color:var(--hb-line)}
 .cw-head:active{cursor:grabbing}
 .cw-title{font-weight:700;font-size:0.875rem;color:var(--hb-ink)}
 .cw-x{margin-left:0}
@@ -133,10 +143,13 @@ body.chatdock-r .statuspanel,body.chatdock-r .cronpanel{right:calc(18px + var(--
    bubble: it is a note about the conversation, not a line in it. */
 .cw-earlier{align-self:center;font-size:0.6875rem;color:var(--hb-muted-2);padding:2px 0;user-select:none}
 .cw-msg{max-width:85%;padding:8px 11px;border-radius:13px;font-size:0.8125rem;line-height:1.35;white-space:pre-wrap;word-break:break-word}
-.cw-msg.you{align-self:flex-end;background:linear-gradient(135deg,var(--hb-accent),var(--hb-accent2));color:#fff;border-bottom-right-radius:4px}
-.cw-msg.agent{align-self:flex-start;background:var(--hb-bubble);color:var(--hb-ink);border-bottom-left-radius:4px}
+.cw-msg.you{align-self:flex-end;background:var(--hb-accent);color:var(--canvas);border-bottom-right-radius:4px}
+.cw-msg.agent{align-self:flex-start;background:var(--hb-bubble);color:var(--hb-ink);
+  border:1px solid var(--hb-line-subtle);border-bottom-left-radius:4px}
 .cw-msg.sys{align-self:center;background:transparent;border:1px dashed var(--hb-line);color:var(--hb-muted-2);font-style:italic;font-size:0.7188rem;padding:5px 10px}
 .cw-msg.peer{align-self:flex-start;background:var(--hb-bg-soft);border:1px solid var(--hb-line);color:var(--hb-ink);border-bottom-left-radius:4px}
+/* the composer sits on its own band, separated from the transcript above it by a real edge */
+.chatwall.docked .cw-input,.chatwall.docked .cw-tabs{background:var(--hb-sidebar)}
 .cw-msg-from{font-size:0.6562rem;font-weight:700;letter-spacing:.02em;color:var(--hb-accent2);margin-bottom:3px}
 .cw-msg-body strong{font-weight:700}
 .cw-msg-body em{font-style:italic}
@@ -149,8 +162,8 @@ body.chatdock-r .statuspanel,body.chatdock-r .cronpanel{right:calc(18px + var(--
 .cw-input textarea{flex:1 1 auto;resize:none;min-height:4.4em;max-height:180px;border:1px solid var(--hb-line);border-radius:var(--hb-r-m,12px);
      padding:11px 13px;font-size:var(--fs-ui,0.875rem);font-family:var(--sans);color:var(--hb-ink);background:var(--hb-bg);outline:none;line-height:1.45}
 .cw-input textarea:focus{border-color:var(--hb-accent)}
-.cw-send{flex:0 0 auto;width:36px;height:36px;border-radius:10px;border:none;cursor:pointer;color:#fff;
-     background:linear-gradient(135deg,var(--hb-accent),var(--hb-accent2));display:flex;align-items:center;justify-content:center}
+.cw-send{flex:0 0 auto;width:36px;height:36px;border-radius:var(--hb-r-m);border:none;cursor:pointer;color:var(--canvas);
+     background:var(--hb-accent);display:flex;align-items:center;justify-content:center}
 /* V2-646: ⏻ OFF = nothing is listening, so the composer refuses instead of swallowing the message. The
    button keeps its shape and loses its charge — a disabled control has to READ disabled, or the operator
    types a whole sentence before finding out (which is exactly what happened). */
@@ -163,7 +176,7 @@ body.chatdock-r .statuspanel,body.chatdock-r .cronpanel{right:calc(18px + var(--
    V2-619/V2-621 responsive: wide, each tab shows its icon AND its label side by side; narrow (`cw-narrow`,
    set by the wall's own ResizeObserver) the labels give way to the icons and `.cw-tabname` names the active
    tab — a clipped «Conect» never happens. */
-.cw-tabs{display:flex;gap:3px;background:var(--hb-bg-soft);border:1px solid var(--hb-line);border-radius:var(--hb-r-m,12px);padding:3px;
+.cw-tabs{display:flex;gap:3px;background:var(--hb-bg);border:1px solid var(--hb-line);border-radius:var(--hb-r-m,10px);padding:3px;
      flex:0 1 auto;min-width:0;overflow-x:auto;scrollbar-width:none}
 .cw-tabs::-webkit-scrollbar{display:none}
 /* V2-621 — the standing name of the ACTIVE tab: «nombre tab (min-width fijo) | 5 iconos | ⧉ ×». The fixed
@@ -176,7 +189,8 @@ body.chatdock-r .statuspanel,body.chatdock-r .cronpanel{right:calc(18px + var(--
      font-size:0.8125rem;font-weight:600;padding:8px 12px;border-radius:9px;cursor:pointer;font-family:var(--sans);line-height:1.3}
 .cw-tab svg{width:17px;height:17px;flex:none}
 .cw-tab:hover:not(.on){background:var(--hb-hover);color:var(--hb-ink)}
-.cw-tab.on{background:var(--hb-accent);color:var(--canvas);box-shadow:0 1px 2px rgba(0,0,0,.18)}
+.cw-tab.on{background:color-mix(in srgb,var(--hb-accent) 18%,transparent);color:var(--hb-accent);
+     box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--hb-accent) 40%,transparent)}
 .chatwall.cw-narrow .cw-tab-label{display:none}
 .chatwall.cw-narrow .cw-tab{padding:8px 11px}
 .cw-proc,.cw-crons,.cw-clusters,.cw-conn{flex:1 1 auto;min-height:0;flex-direction:column;overflow:hidden}
@@ -193,7 +207,10 @@ body.chatdock-r .statuspanel,body.chatdock-r .cronpanel{right:calc(18px + var(--
 .cw-crons .cron-list{flex:1 1 auto;min-height:0}
 /* Clusters tab (V2-086): the NETWORK. Connection status + peers + traffic; no conversation. */
 .cw-clusters .cl-list{flex:1 1 auto;min-height:0;overflow-y:auto;padding:10px 12px;display:flex;flex-direction:column;gap:7px}
-.cl-row{display:flex;gap:9px;align-items:flex-start;border:1px solid var(--hb-line);border-radius:11px;padding:9px 10px}
+.cl-row{display:flex;gap:9px;align-items:flex-start;background:var(--hb-bg-soft);
+  border:1px solid var(--hb-line-subtle);border-radius:var(--hb-r-m);padding:var(--sp-2) var(--sp-3);
+  transition:border-color var(--hb-t-fast) ease,background var(--hb-t-fast) ease}
+.cl-row:hover{border-color:var(--hb-line-strong)}
 .cl-main{min-width:0;flex:1 1 auto}
 .cl-name{display:flex;align-items:center;gap:7px;font-size:0.8125rem;font-weight:650;color:var(--hb-ink)}
 .cl-dot{flex:0 0 auto;width:7px;height:7px;border-radius:50%;background:var(--hb-muted-2);opacity:.55}
@@ -203,9 +220,10 @@ body.chatdock-r .statuspanel,body.chatdock-r .cronpanel{right:calc(18px + var(--
 .cl-meta{font-size:0.6875rem;color:var(--hb-muted-2);margin-top:3px;word-break:break-word}
 .cl-id{font-size:0.625rem;color:var(--hb-muted-2);opacity:.7;margin-top:2px;font-family:var(--mono,ui-monospace,monospace);word-break:break-all}
 .cl-btns{flex:0 0 auto;display:flex;align-items:center}
-.cl-b{border:1px solid var(--hb-line);background:transparent;color:var(--hb-muted-2);border-radius:8px;
-  padding:4px 9px;cursor:pointer;font-family:var(--sans);font-size:0.7188rem}
-.cl-b:hover{color:var(--hb-ink)}
+.cl-b{border:1px solid var(--hb-line);background:var(--hb-bg);color:var(--hb-muted);border-radius:var(--hb-r-s);
+  padding:5px 10px;cursor:pointer;font-family:var(--sans);font-size:0.7188rem;font-weight:600;
+  transition:background var(--hb-t-fast) ease,color var(--hb-t-fast) ease,border-color var(--hb-t-fast) ease}
+.cl-b:hover{color:var(--hb-ink);background:var(--hb-hover);border-color:var(--hb-line-strong)}
 .cl-b.on{color:var(--hb-accent);border-color:var(--hb-accent)}
 .cl-confirm{margin:10px 12px 0;border:1px solid var(--hb-accent);border-radius:11px;padding:10px 11px;
   background:color-mix(in srgb, var(--hb-accent) 7%, transparent)}
@@ -221,7 +239,8 @@ body.chatdock-r .statuspanel,body.chatdock-r .cronpanel{right:calc(18px + var(--
 .cw-proc{overflow-y:auto;padding:10px 12px;gap:7px}
 .cw-proc-sec{font-size:0.6562rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--hb-muted-2);margin:6px 2px 2px}
 .cw-proc-sec:first-child{margin-top:0}
-.cw-proc-row{display:flex;gap:9px;align-items:flex-start;border:1px solid var(--hb-line);border-radius:11px;padding:8px 10px}
+.cw-proc-row{display:flex;gap:9px;align-items:flex-start;background:var(--hb-bg-soft);
+  border:1px solid var(--hb-line-subtle);border-radius:var(--hb-r-m);padding:var(--sp-2) var(--sp-3)}
 .cw-proc-dot{flex:0 0 auto;font-size:0.8125rem;line-height:1.5;width:16px;text-align:center}
 .cw-proc-row.run .cw-proc-dot,.cw-proc-row.done .cw-proc-dot{color:var(--hb-accent)}
 .cw-proc-row.error .cw-proc-dot{color:var(--hb-risk,#e5484d)}
@@ -239,10 +258,14 @@ body.chatdock-r .statuspanel,body.chatdock-r .cronpanel{right:calc(18px + var(--
 
 /* ---------- TOP-RIGHT: A · D · Reset · Power (power far right) ---------- */
 .tr{position:fixed;top:calc(16px + var(--banner-h));right:18px;z-index:20;display:flex;align-items:center;gap:8px;transition:top .2s}
-.ic{width:34px;height:34px;border-radius:9px;border:1px solid var(--hb-line);background:var(--hb-bg);color:var(--hb-muted);
-    display:flex;align-items:center;justify-content:center;text-decoration:none;font-size:0.9375rem;cursor:pointer}
+/* V2-689 — the top-right toolbar shares the IconButton face: quiet by default, the ground lifts on hover,
+   and the accent is reserved for STATE (the ◉ health colours, a badge), never for «this is a button». */
+.ic{width:34px;height:34px;border-radius:var(--hb-r-m);border:1px solid var(--hb-line);background:var(--hb-bg-soft);color:var(--hb-muted);
+    display:flex;align-items:center;justify-content:center;text-decoration:none;font-size:0.9375rem;cursor:pointer;
+    transition:background var(--hb-t-fast) ease,color var(--hb-t-fast) ease,border-color var(--hb-t-fast) ease}
 .ic svg{width:19px;height:19px}
-.ic:hover{border-color:var(--hb-accent);color:var(--hb-accent)}
+.ic:hover{background:var(--hb-hover);border-color:var(--hb-line-strong);color:var(--hb-ink)}
+.ic:focus-visible{outline:none;box-shadow:var(--hb-focus-ring)}
 .ic{position:relative}
 /* Alert badge over an `.ic` button (2026-08-03): a provider (LLM/voice/cluster brain/brain workers) without
    balance/quota — the same data that already turns the status ◉ red (store.apiAlerts), but ALSO visible in ⚙ because
@@ -281,10 +304,12 @@ body.chatdock-r .statuspanel,body.chatdock-r .cronpanel{right:calc(18px + var(--
 /* shared UTILITY icon-button (2026-07-22 frontend pass): close/refresh/delete-style controls in panels/modals —
    ChatWall/StatusPanel/CronPanel/MemoryMap/DebugPanel all converge here instead of 4 slightly-different sizes
    (26/28/30px) with slightly-different radii (7/8/9px). `.ic` above stays the (deliberately bigger) TopBar size. */
-.hb-icbtn{width:30px;height:30px;border-radius:9px;border:1px solid var(--hb-line);background:var(--hb-bg);
-  color:var(--hb-muted);display:flex;align-items:center;justify-content:center;cursor:pointer}
+.hb-icbtn{width:30px;height:30px;border-radius:var(--hb-r-s);border:1px solid transparent;background:transparent;
+  color:var(--hb-muted);display:flex;align-items:center;justify-content:center;cursor:pointer;
+  transition:background var(--hb-t-fast) ease,color var(--hb-t-fast) ease,border-color var(--hb-t-fast) ease}
 .hb-icbtn svg{width:16px;height:16px}
-.hb-icbtn:hover{border-color:var(--hb-accent);color:var(--hb-accent)}
+.hb-icbtn:hover{background:var(--hb-hover);color:var(--hb-ink)}
+.hb-icbtn:focus-visible{outline:none;box-shadow:var(--hb-focus-ring)}
 .hb-icbtn.danger:hover,.hb-icbtn.hb-danger-hover:hover{border-color:var(--hb-risk);color:var(--hb-risk)}
 /* inline icon sizing for icon+text combos (panel/modal headers, text buttons) — one rule instead of every
    component hand-tuning its own vertical-align/margin for the SVG it just dropped in next to a label. */
@@ -294,22 +319,28 @@ body.chatdock-r .statuspanel,body.chatdock-r .cronpanel{right:calc(18px + var(--
 .mm-btn{font-size:0.9375rem;line-height:1}
 .mm-chip.pin{display:inline-flex;align-items:center}
 .mm-chip.pin svg{width:9px;height:9px}
-.reset{border:1px solid var(--hb-line);background:var(--hb-bg);color:var(--hb-muted);border-radius:999px;padding:9px 15px;font-size:0.8125rem;cursor:pointer}
+.reset{border:1px solid var(--hb-line);background:var(--hb-bg-soft);color:var(--hb-muted);border-radius:999px;padding:9px 15px;font-size:0.8125rem;cursor:pointer;
+  transition:background var(--hb-t-fast) ease,color var(--hb-t-fast) ease,border-color var(--hb-t-fast) ease}
+.reset:hover{background:var(--hb-hover);border-color:var(--hb-line-strong);color:var(--hb-ink)}
+/* V2-689 — EVERY interactive element of the shell answers the keyboard with the same ring. `:focus-visible`
+   never fires for a mouse click, so there is no case left in which this is noise. */
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,
+[tabindex]:focus-visible{outline:none;box-shadow:var(--hb-focus-ring)}
 
 /* ⚙ settings modal — follows the app theme (dark by default, [data-theme="light"] overrides) */
 .ovl{position:fixed;inset:0;background:rgba(0,0,0,.42);backdrop-filter:blur(3px);z-index:100001;display:none;align-items:flex-start;justify-content:center;padding:70px 16px}
 .ovl.on{display:flex}
 /* HARD reset confirmation dialog (V2, Reset button) — deliberate modal, --hb-* theme */
 .rc-ovl{align-items:center}
-.rc-box{width:min(420px,100%);background:var(--hb-bg);border:1px solid var(--hb-line);border-radius:16px;
-  padding:20px 20px 16px;box-shadow:var(--hb-shadow-2)}
+.rc-box{width:min(420px,100%);background:var(--hb-bg);border:1px solid var(--hb-line);border-radius:var(--hb-r-l);
+  padding:var(--sp-5) var(--sp-5) var(--sp-4);box-shadow:var(--hb-shadow-2)}
 .rc-title{margin:0 0 8px;font-size:1rem;color:var(--hb-ink)}
 .rc-body{margin:0 0 16px;font-size:0.8125rem;line-height:1.5;color:var(--hb-muted)}
 .rc-actions{display:flex;gap:10px;justify-content:flex-end}
 .rc-btn{border-radius:9px;padding:8px 14px;font-size:0.8125rem;font-weight:600;cursor:pointer;border:1px solid var(--hb-line)}
 .rc-no{background:var(--hb-bg);color:var(--hb-muted)}
 .rc-no:hover{border-color:var(--hb-accent);color:var(--hb-ink)}
-.rc-yes{background:var(--hb-risk);border-color:var(--hb-risk);color:#fff}
+.rc-yes{background:var(--hb-risk);border-color:var(--hb-risk);color:var(--canvas)}
 .rc-yes:hover{filter:brightness(1.08)}
 /* Reset with checkboxes (V2-063) */
 .rc-check{display:flex;align-items:flex-start;gap:8px;font-size:0.7812rem;line-height:1.4;color:var(--hb-muted);
@@ -320,8 +351,8 @@ body.chatdock-r .statuspanel,body.chatdock-r .cronpanel{right:calc(18px + var(--
    the banner version of this for two minutes while the model had no credit. Risk colours, not the theme's
    quiet ones, and a hard ground so nothing behind it reads as usable. */
 .fault-ovl{align-items:center;background:rgba(0,0,0,.72);backdrop-filter:blur(6px);z-index:100020}
-.fault-box{width:min(480px,100%);background:var(--hb-bg);border:1px solid var(--hb-risk);border-radius:16px;
-  padding:24px 24px 18px;box-shadow:0 0 0 1px var(--hb-risk-soft),var(--hb-shadow-2);text-align:center}
+.fault-box{width:min(480px,100%);background:var(--hb-bg);border:1px solid var(--hb-risk);border-radius:var(--hb-r-l);
+  padding:var(--sp-5) var(--sp-5) 18px;box-shadow:0 0 0 1px var(--hb-risk-soft),var(--hb-shadow-2);text-align:center}
 .fault-mark{font-size:2rem;line-height:1;color:var(--hb-risk);margin-bottom:10px}
 .fault-title{margin:0 0 10px;font-size:1.0625rem;font-weight:700;color:var(--hb-ink)}
 .fault-body{margin:0 0 12px;font-size:0.8438rem;line-height:1.55;color:var(--hb-ink)}
@@ -332,10 +363,10 @@ body.chatdock-r .statuspanel,body.chatdock-r .cronpanel{right:calc(18px + var(--
 .fault-btn{border-radius:9px;padding:9px 15px;font-size:0.8125rem;font-weight:600;cursor:pointer;
   border:1px solid var(--hb-line);background:var(--hb-bg);color:var(--hb-ink)}
 .fault-btn:hover{border-color:var(--hb-accent)}
-.fault-btn.primary{background:var(--hb-accent);border-color:var(--hb-accent);color:#fff}
+.fault-btn.primary{background:var(--hb-accent);border-color:var(--hb-accent);color:var(--canvas)}
 .fault-btn.primary:hover{filter:brightness(1.08)}
 .fault-btn.ghost{color:var(--hb-muted)}
-.cfgm{width:min(440px,100%);background:var(--hb-bg);border:1px solid var(--hb-line);border-radius:16px;padding:18px 18px 14px;box-shadow:var(--hb-shadow-2)}
+.cfgm{width:min(440px,100%);background:var(--hb-bg);border:1px solid var(--hb-line);border-radius:var(--hb-r-l);padding:18px 18px 14px;box-shadow:var(--hb-shadow-2)}
 .cfgm .mh{display:flex;align-items:center;gap:10px;margin-bottom:6px}
 .cfgm h3{margin:0;font-size:1rem;color:var(--hb-ink)} .cfgm .x{margin-left:auto;background:var(--hb-bg);border:1px solid var(--hb-line);color:var(--hb-muted);border-radius:8px;padding:5px 10px;cursor:pointer}
 .cfgm .hint{color:var(--hb-muted-2);font-size:0.7188rem;margin:0 0 12px}
@@ -348,12 +379,12 @@ body.chatdock-r .statuspanel,body.chatdock-r .cronpanel{right:calc(18px + var(--
 .knob .voicetest{flex:0 0 auto;background:var(--hb-bg);border:1px solid var(--hb-line);color:var(--hb-accent2);border-radius:9px;padding:8px 12px;font-size:0.7812rem;font-weight:700;font-family:var(--sans);cursor:pointer;white-space:nowrap}
 .knob .voicetest:disabled{opacity:.55;cursor:default}
 .mfoot{display:flex;align-items:center;gap:12px;margin-top:4px}
-.mfoot button{background:linear-gradient(135deg,var(--hb-accent),var(--hb-accent2));border:none;color:#fff;font-weight:700;border-radius:9px;padding:9px 16px;font-size:0.8125rem;cursor:pointer}
+.mfoot button{background:var(--hb-accent);border:none;color:var(--canvas);font-weight:700;border-radius:9px;padding:9px 16px;font-size:0.8125rem;cursor:pointer}
 .mfoot .msg{font-size:0.7188rem;color:var(--hb-accent2)}
 /* Hermes update row inside the settings modal (mirror of the top banner) */
 .cfgm .updrow{align-items:center;gap:10px;justify-content:space-between;background:var(--hb-warn-bg);border:1px solid var(--hb-warn-border);border-radius:10px;padding:9px 12px;margin:0 0 12px}
 .cfgm .updrow .note{margin:0;color:var(--hb-warn-ink)}
-.cfgm .updrow-btn{flex:0 0 auto;background:linear-gradient(135deg,var(--hb-update),var(--hb-update2));border:none;color:#fff;font-weight:700;border-radius:8px;padding:7px 12px;font-size:0.75rem;cursor:pointer}
+.cfgm .updrow-btn{flex:0 0 auto;background:var(--hb-update);border:none;color:var(--canvas);font-weight:700;border-radius:8px;padding:7px 12px;font-size:0.75rem;cursor:pointer}
 
 /* ── First-start wizard (V2-040): local/cloud profile + gaps + credentials. Theme --hb-* ── */
 .wizm{width:min(560px,100%)}
@@ -365,10 +396,11 @@ body.chatdock-r .statuspanel,body.chatdock-r .cronpanel{right:calc(18px + var(--
 .wiz-card.rec{border-color:var(--hb-accent);box-shadow:0 0 0 1px var(--hb-accent) inset}
 .wiz-card-h{display:flex;align-items:center;gap:8px;font-size:0.875rem;color:var(--hb-ink)}
 .wiz-fix{font-family:var(--mono);font-size:0.6562rem;color:var(--hb-muted-2);margin-top:2px}
-.wiz-badge{font-size:0.5938rem;text-transform:uppercase;letter-spacing:.04em;padding:1px 7px;border-radius:999px;background:var(--hb-accent);color:#fff}
+.wiz-badge{font-size:0.5938rem;text-transform:uppercase;letter-spacing:.04em;padding:1px 7px;border-radius:999px;background:var(--hb-accent);color:var(--canvas)}
 .wiz-badge.ok{background:transparent;border:1px solid var(--hb-accent2);color:var(--hb-accent2)}
 .wiz-rows{display:flex;flex-direction:column;gap:8px}
-.wiz-row{display:flex;align-items:center;gap:10px;justify-content:space-between;border:1px solid var(--hb-line);border-radius:10px;padding:9px 11px}
+.wiz-row{display:flex;align-items:center;gap:10px;justify-content:space-between;background:var(--hb-bg-soft);
+  border:1px solid var(--hb-line-subtle);border-radius:var(--hb-r-m);padding:9px var(--sp-3)}
 .wiz-row.note{background:var(--hb-warn-bg);border-color:var(--hb-warn-border)}
 .wiz-row.note span{color:var(--hb-warn-ink);font-size:0.75rem}
 .wiz-row-l{display:flex;flex-direction:column;gap:3px;min-width:0}
@@ -376,7 +408,7 @@ body.chatdock-r .statuspanel,body.chatdock-r .cronpanel{right:calc(18px + var(--
 .wiz-row-r{display:flex;align-items:center;gap:8px;flex:0 0 auto}
 .wiz-cmd{font-family:var(--mono);font-size:0.6562rem;color:var(--hb-muted-2);background:var(--hb-bg);border:1px solid var(--hb-line);border-radius:6px;padding:2px 6px;overflow:auto;max-width:100%}
 .wiz-inp{width:150px;background:var(--hb-bg);border:1px solid var(--hb-line);color:var(--hb-ink);border-radius:8px;padding:6px 9px;font-size:0.75rem;font-family:var(--sans)}
-.wiz-btn{background:linear-gradient(135deg,var(--hb-accent),var(--hb-accent2));border:none;color:#fff;font-weight:700;border-radius:9px;padding:7px 13px;font-size:0.7812rem;cursor:pointer;white-space:nowrap}
+.wiz-btn{background:var(--hb-accent);border:none;color:var(--canvas);font-weight:700;border-radius:9px;padding:7px 13px;font-size:0.7812rem;cursor:pointer;white-space:nowrap}
 .wiz-btn.ghost{background:var(--hb-bg);border:1px solid var(--hb-line);color:var(--hb-muted)}
 .wiz-btn:disabled{opacity:.55;cursor:default}
 .wiz-foot{display:flex;align-items:center;gap:10px;margin-top:14px}
@@ -590,12 +622,13 @@ canvas#orb.frozen{opacity:.32;filter:grayscale(1)}
 /* (Proactive pushes no longer float a toast — they surface as a live caption over the orb + a chat-wall entry.) */
 /* CRON PANEL — manage zaelar's proactive tasks (native Hermes crons). */
 .cronpanel{position:fixed;top:64px;right:18px;z-index:9001;width:360px;max-width:92vw;height:min(64vh,560px);
-  background:var(--hb-bg);border:1px solid var(--hb-line);border-radius:16px;box-shadow:var(--hb-shadow-2);
+  background:var(--hb-bg);border:1px solid var(--hb-line);border-radius:var(--hb-r-l);box-shadow:var(--hb-shadow-2);
   display:none;flex-direction:column;overflow:hidden}
 .cronpanel.open{display:flex}
 .cron-list{flex:1 1 auto;overflow-y:auto;padding:10px 12px;display:flex;flex-direction:column;gap:8px}
 .cron-empty{color:var(--hb-muted-2);font-size:0.75rem;line-height:1.4;padding:6px 2px}
-.cron-row{display:flex;gap:8px;align-items:flex-start;border:1px solid var(--hb-line);border-radius:12px;padding:9px 11px}
+.cron-row{display:flex;gap:8px;align-items:flex-start;background:var(--hb-bg-soft);
+  border:1px solid var(--hb-line-subtle);border-radius:var(--hb-r-m);padding:var(--sp-2) var(--sp-3)}
 .cron-main{flex:1 1 auto;min-width:0}
 .cron-name{font-weight:700;font-size:0.8125rem;color:var(--hb-ink)}
 .cron-meta{font-family:var(--mono);font-size:0.6562rem;color:var(--hb-muted);margin-top:1px}
@@ -605,7 +638,7 @@ canvas#orb.frozen{opacity:.32;filter:grayscale(1)}
 .cron-add{border-top:1px solid var(--hb-line);padding:10px 12px;display:flex;flex-direction:column;gap:7px}
 .cron-in{width:100%;border:1px solid var(--hb-line);border-radius:9px;padding:7px 9px;font-size:0.7812rem;font-family:var(--sans);background:var(--hb-bg);color:var(--hb-ink);resize:none}
 .cron-in:focus{border-color:var(--hb-accent);outline:none}
-.cron-create{background:linear-gradient(135deg,var(--hb-accent),var(--hb-accent2));color:#fff;border:none;border-radius:9px;padding:8px;font-size:0.8125rem;font-weight:600;cursor:pointer}
+.cron-create{background:var(--hb-accent);color:var(--canvas);border:none;border-radius:9px;padding:8px;font-size:0.8125rem;font-weight:600;cursor:pointer}
 @media(max-width:640px){ .cronpanel{left:12px;right:12px;width:auto;top:auto;bottom:12px;height:min(70vh,520px)} }
 /* STATUS — the ◉ toolbar icon colors by overall health; red BLINKS to grab attention. */
 .statusBtn{position:relative}
@@ -613,11 +646,11 @@ canvas#orb.frozen{opacity:.32;filter:grayscale(1)}
 .statusBtn.st-warn{color:var(--hb-warn);border-color:color-mix(in srgb,var(--hb-warn) 40%,transparent)}
 .statusBtn.st-error{color:var(--hb-risk);border-color:color-mix(in srgb,var(--hb-risk) 55%,transparent);animation:stblink 1s steps(1) infinite}
 .statusBtn.st-unknown{color:var(--hb-muted-2)}
-@keyframes stblink{50%{color:#fff;background:var(--hb-risk);border-color:var(--hb-risk)}}
+@keyframes stblink{50%{color:var(--canvas);background:var(--hb-risk);border-color:var(--hb-risk)}}
 /* STATUS PANEL — per-subsystem health, compact so the whole thing fits in one glance (no scroll). Two sections:
    CORE (what you boot from the terminal) on top, SECONDARY (crons/widgets/cluster) below in a quieter style. */
 .statuspanel{position:fixed;top:94px;right:18px;z-index:9001;width:400px;max-width:94vw;height:auto;max-height:min(90vh,760px);
-  background:var(--hb-bg);border:1px solid var(--hb-line);border-radius:16px;box-shadow:var(--hb-shadow-2);
+  background:var(--hb-bg);border:1px solid var(--hb-line);border-radius:var(--hb-r-l);box-shadow:var(--hb-shadow-2);
   display:none;flex-direction:column;overflow:hidden}
 .statuspanel.open{display:flex}
 /* header: only the 9-dot grip drags (like the camera unit); the rest of the head is not a drag surface */
@@ -632,7 +665,8 @@ canvas#orb.frozen{opacity:.32;filter:grayscale(1)}
 .st-sec{font-size:0.6562rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--hb-muted-2);padding:8px 4px 2px}
 .st-sec.st-sec-2{color:var(--hb-muted-2);border-top:1px dashed var(--hb-line);margin-top:4px;padding-top:9px}
 /* row */
-.st-row{display:flex;gap:10px;align-items:center;border:1px solid var(--hb-line);border-radius:10px;padding:7px 11px}
+.st-row{display:flex;gap:10px;align-items:center;background:var(--hb-bg-soft);
+  border:1px solid var(--hb-line-subtle);border-radius:var(--hb-r-m);padding:7px var(--sp-3)}
 .st-row.st-error{border-color:color-mix(in srgb,var(--hb-risk) 45%,transparent);background:color-mix(in srgb,var(--hb-risk) 8%,transparent)}
 .st-row.st-warn{border-color:color-mix(in srgb,var(--hb-warn) 40%,transparent);background:color-mix(in srgb,var(--hb-warn) 8%,transparent)}
 .st-row.st-ok{border-color:color-mix(in srgb,var(--hb-ok) 26%,transparent)}
@@ -646,7 +680,7 @@ canvas#orb.frozen{opacity:.32;filter:grayscale(1)}
 .st-name{font-weight:700;font-size:0.8438rem;color:var(--hb-ink);line-height:1.25}
 .st-detail{font-size:0.7188rem;color:var(--hb-muted);margin-top:1px;word-break:break-word;line-height:1.3}
 /* secondary rows: quieter + denser */
-.st-row.st-2{padding:5px 11px;border-color:transparent;background:var(--hb-bg-soft)}
+.st-row.st-2{padding:5px var(--sp-3);border-color:transparent;background:transparent}
 .st-row.st-2 .st-name{font-size:0.7812rem;font-weight:600}
 .st-row.st-2 .st-detail{font-size:0.6875rem}
 .st-row.st-2 .st-dot{width:7px;height:7px}
@@ -664,7 +698,8 @@ canvas#orb.frozen{opacity:.32;filter:grayscale(1)}
 .cfgfull{position:fixed;inset:0;z-index:9600;background:var(--hb-bg);display:none;flex-direction:column}
 .cfgfull.open{display:flex}
 .cf-shell{flex:1 1 auto;display:flex;flex-direction:column;min-height:0}
-.cf-head{flex:0 0 auto;display:flex;align-items:center;gap:14px;padding:14px 20px;border-bottom:1px solid var(--hb-line);background:var(--hb-bg-soft)}
+.cf-head{flex:0 0 auto;display:flex;align-items:center;gap:14px;min-height:52px;padding:0 var(--sp-5);
+  border-bottom:1px solid var(--hb-line);background:var(--hb-bg-soft)}
 .cf-head h3{margin:0;font-size:1rem;color:var(--hb-ink)}
 /* V2-666 — the build number, moved here from the always-on desk badge; a quiet signal beside the title, not a control. */
 .cf-ver{flex:0 0 auto;color:var(--hb-muted-2,var(--hb-muted));font-size:0.75rem;font-weight:600;cursor:default;opacity:.75}
@@ -677,15 +712,16 @@ canvas#orb.frozen{opacity:.32;filter:grayscale(1)}
 /* body = tab bar (top) + tab panel (bottom) — V2-083 */
 .cf-body{flex:1 1 auto;display:flex;flex-direction:column;min-height:0;overflow:hidden}
 /* main tabs (Settings/Connectors/Widgets) — segmented pill like ChatWall */
-.cf-tabs{flex:0 0 auto;display:flex;gap:3px;padding:10px 20px;border-bottom:1px solid var(--hb-line);background:var(--hb-bg-soft)}
+.cf-tabs{flex:0 0 auto;display:flex;gap:3px;padding:var(--sp-2) var(--sp-5);border-bottom:1px solid var(--hb-line-subtle);background:var(--hb-bg-soft)}
 .cf-tab{border:none;background:transparent;color:var(--hb-muted-2);font-size:0.8125rem;font-weight:700;padding:7px 16px;
   border-radius:9px;cursor:pointer;font-family:var(--sans);line-height:1.4}
-.cf-tab.on{background:var(--hb-bubble);color:var(--hb-accent)}
+.cf-tab.on{background:var(--hb-bubble);color:var(--hb-accent);
+  box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--hb-accent) 40%,transparent)}
 .cf-tab:hover:not(.on){background:var(--hb-hover);color:var(--hb-ink)}
 /* tab panel: Settings has side navigation + scroll; Connectors/Widgets only scroll */
 .cf-tabpane{flex:1 1 auto;display:flex;min-height:0;overflow:hidden}
 /* generic button inside a group (Connectors) */
-.cf-btn{background:linear-gradient(135deg,var(--hb-accent),var(--hb-accent2));color:#fff;border:none;border-radius:9px;
+.cf-btn{background:var(--hb-accent);color:var(--canvas);border:none;border-radius:9px;
   padding:8px 16px;font-size:0.8125rem;font-weight:600;cursor:pointer;margin:10px 0 2px;transition:filter .15s ease}
 .cf-btn:hover{filter:brightness(1.08)}
 .cf-btn:disabled{opacity:.5;cursor:default}
@@ -717,16 +753,19 @@ canvas#orb.frozen{opacity:.32;filter:grayscale(1)}
 .cf-wname{font-size:0.875rem;font-weight:600;color:var(--hb-ink)}
 .cf-waliases{flex:1 1 auto;text-align:right;font-size:0.75rem;color:var(--hb-muted-2);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .cf-wbadge{display:inline-block;margin-left:8px;padding:1px 8px;border-radius:999px;font-size:0.625rem;font-weight:800;text-transform:uppercase;letter-spacing:.03em;vertical-align:middle}
-.cf-wbadge.builtin{background:rgba(91,157,255,.16);color:var(--hb-accent)}
-.cf-wbadge.user{background:rgba(22,184,166,.16);color:var(--hb-accent2)}
-.cf-nav{flex:0 0 232px;overflow-y:auto;padding:14px 10px;display:flex;flex-direction:column;gap:2px;
-  border-right:1px solid var(--hb-line);background:var(--hb-bg-soft)}
+.cf-wbadge.builtin{background:color-mix(in srgb,var(--hb-accent) 16%,transparent);color:var(--hb-accent)}
+.cf-wbadge.user{background:color-mix(in srgb,var(--hb-accent2) 16%,transparent);color:var(--hb-accent2)}
+.cf-nav{flex:0 0 232px;overflow-y:auto;padding:var(--sp-3) var(--sp-2);display:flex;flex-direction:column;gap:2px;
+  border-right:1px solid var(--hb-line);background:var(--hb-sidebar)}
 .cf-nav-item{display:flex;align-items:center;gap:11px;padding:10px 12px;border:0;border-radius:10px;
   background:transparent;color:var(--hb-muted);font-size:0.8125rem;font-weight:600;text-align:left;cursor:pointer;
   transition:background .15s ease,color .15s ease}
 .cf-nav-item svg{width:16px;height:16px;flex:0 0 auto}
 .cf-nav-item:hover{background:var(--hb-hover);color:var(--hb-ink)}
-.cf-nav-item.active{background:var(--hb-bubble);color:var(--hb-accent)}
+/* selection is never colour ALONE (the operator's rule): the active row also carries an accent rail and a
+   raised ground, so it survives a colourblind reader and a dimmed screen. */
+.cf-nav-item.active{background:var(--hb-bubble);color:var(--hb-accent);
+  box-shadow:inset 2px 0 0 var(--hb-accent)}
 .cf-scroll{flex:1 1 auto;overflow-y:auto;padding:32px 36px}
 .cf-panel{max-width:640px;margin:0 auto}
 
@@ -734,7 +773,7 @@ canvas#orb.frozen{opacity:.32;filter:grayscale(1)}
 .cf-panel-sec{display:flex;flex-direction:column;gap:14px}
 .cf-panel-head h4{margin:0 0 4px;font-size:1.1875rem;font-weight:700;color:var(--hb-ink)}
 .cf-panel-head p{margin:0;font-size:0.8125rem;color:var(--hb-muted-2);line-height:1.5}
-.cf-group{background:var(--hb-bg-soft);border:1px solid var(--hb-line);border-radius:14px;padding:4px 18px}
+.cf-group{background:var(--hb-bg-soft);border:1px solid var(--hb-line);border-radius:var(--hb-r-l);padding:4px 18px}
 
 /* setting row: label on the left, control on the right (Settings/Chrome pattern) */
 .cf-row2{display:flex;align-items:center;gap:22px;padding:14px 0;border-bottom:1px solid var(--hb-line)}
@@ -747,11 +786,11 @@ canvas#orb.frozen{opacity:.32;filter:grayscale(1)}
 .cf-status{font-size:0.8125rem;color:var(--hb-ink);font-weight:600}
 .cf-hint{font-size:0.6875rem;color:var(--hb-muted-2);text-align:right}
 .cf-foot{margin-top:2px;display:flex;justify-content:flex-end}
-.cf-foot button{background:linear-gradient(135deg,var(--hb-accent),var(--hb-accent2));color:#fff;border:none;border-radius:9px;padding:9px 18px;font-size:0.8125rem;font-weight:600;cursor:pointer;transition:filter .15s ease}
+.cf-foot button{background:var(--hb-accent);color:var(--canvas);border:none;border-radius:9px;padding:9px 18px;font-size:0.8125rem;font-weight:600;cursor:pointer;transition:filter .15s ease}
 .cf-foot button:hover{filter:brightness(1.08)}
 .cf-foot button:disabled{opacity:.5;cursor:default}
 .cf-badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:0.6875rem;font-weight:700}
-.cf-ok{background:rgba(22,184,166,.16);color:var(--hb-accent2)}
+.cf-ok{background:color-mix(in srgb,var(--hb-ok) 16%,transparent);color:var(--hb-ok)}
 .cf-warn{background:var(--hb-warn-bg);color:var(--hb-warn-ink)}
 .cf-error{background:var(--hb-risk-soft);color:var(--hb-risk)}
 .cf-off,.cf-unknown{background:var(--hb-bubble);color:var(--hb-muted-2)}
@@ -882,7 +921,7 @@ canvas#orb.frozen{opacity:.32;filter:grayscale(1)}
    of duplicated raw hex — the card below is a LOG/console view, which stays dark by convention regardless of
    theme (a terminal reads the same in light or dark mode), via the shared --hb-console-* tokens (2026-07-22). */
 .upd-bar{position:fixed;top:0;left:0;right:0;z-index:99998;
-  background:linear-gradient(90deg,var(--hb-update),var(--hb-update2));color:#fff;
+  background:var(--hb-update);color:var(--canvas);
   padding:9px 18px;font-size:0.8125rem;display:none;align-items:center;gap:10px;
   box-shadow:0 2px 14px color-mix(in srgb,var(--hb-update) 35%,transparent)}
 .upd-bar.on{display:flex}
@@ -1140,7 +1179,7 @@ body.dbg-open .orbwrap{left:calc(50% - var(--dbg-w) / 2)}
 .vault-modal{position:fixed;inset:0;z-index:9600;display:none;align-items:center;justify-content:center;
   background:rgba(0,0,0,.5);backdrop-filter:blur(2px)}
 .vault-modal.open{display:flex}
-.vault-card{width:min(92vw,420px);background:var(--hb-bg);border:1px solid var(--hb-line);border-radius:16px;
+.vault-card{width:min(92vw,420px);background:var(--hb-bg);border:1px solid var(--hb-line);border-radius:var(--hb-r-l);
   box-shadow:var(--hb-shadow-2);overflow:hidden;color:var(--hb-ink)}
 .vault-head{display:flex;align-items:center;gap:8px;padding:13px 16px;border-bottom:1px solid var(--hb-line)}
 .vault-title{font-weight:600;font-size:0.9375rem;flex:1}
@@ -1151,8 +1190,8 @@ body.dbg-open .orbwrap{left:calc(50% - var(--dbg-w) / 2)}
 .vault-in{width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--hb-line);border-radius:10px;
   background:var(--hb-bg-soft);color:var(--hb-ink);font-size:0.875rem;outline:none}
 .vault-in:focus{border-color:var(--hb-accent)}
-.vault-b{padding:10px 14px;border:none;border-radius:10px;background:linear-gradient(135deg,var(--hb-accent),var(--hb-accent2));
-  color:#fff;font-size:0.875rem;font-weight:600;cursor:pointer}
+.vault-b{padding:10px 14px;border:none;border-radius:10px;background:var(--hb-accent);
+  color:var(--canvas);font-size:0.875rem;font-weight:600;cursor:pointer}
 .vault-b:hover{filter:brightness(1.08)}
 .vault-b.ghost{background:transparent;border:1px solid var(--hb-line);color:var(--hb-ink);font-weight:500}
 .vault-b.ghost:hover{border-color:var(--hb-accent);color:var(--hb-accent)}
@@ -1197,7 +1236,7 @@ body.dbg-open .orbwrap{left:calc(50% - var(--dbg-w) / 2)}
    not to the 200-300 he estimated. The max-height stays as a clamp for a short screen — a fixed height
    taller than the viewport would put the send button out of reach. */
 .fw-panel{position:fixed;right:20px;bottom:90px;z-index:9199;width:400px;height:585px;max-height:min(78vh,660px);
-  display:none;flex-direction:column;background:var(--hb-bg);border:1px solid var(--hb-line);border-radius:16px;
+  display:none;flex-direction:column;background:var(--hb-bg);border:1px solid var(--hb-line);border-radius:var(--hb-r-l);
   box-shadow:0 10px 30px rgba(0,0,0,.3);overflow:hidden;color:var(--hb-ink)}
 .fw-panel.open{display:flex}
 /* Mobile: the panel becomes the screen — a launcher-sized popover is unusable at phone width, and this
@@ -1264,7 +1303,7 @@ body.dbg-open .orbwrap{left:calc(50% - var(--dbg-w) / 2)}
 .fw-empty{color:var(--hb-muted-2);font-size:0.7812rem;text-align:center;padding:18px 0}
 /* "Nothing sent yet" and "we cannot see the list" are not the same sentence and must not look alike. */
 .fw-empty-unreachable{color:var(--hb-warn-ink)}
-.fw-item{border:1px solid var(--hb-line);border-radius:10px;padding:9px 11px;font-size:0.7812rem}
+.fw-item{background:var(--hb-bg-soft);border:1px solid var(--hb-line-subtle);border-radius:var(--hb-r-m);padding:9px var(--sp-3);font-size:0.7812rem}
 .fw-item-msg{color:var(--hb-ink);line-height:1.4;white-space:pre-wrap;word-break:break-word}
 .fw-item-meta{color:var(--hb-muted-2);font-size:0.6875rem;margin-top:5px;display:flex;align-items:center;gap:5px}
 .fw-badge{font-size:0.6562rem;font-weight:700;letter-spacing:.02em;padding:1px 7px;border-radius:20px;text-transform:uppercase}

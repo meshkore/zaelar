@@ -12,6 +12,7 @@ about what was interrupted.
 import asyncio
 import json
 import pathlib
+import re
 
 import pytest
 
@@ -252,9 +253,15 @@ def test_the_scroller_is_a_wrapper_the_widget_cannot_clobber():
     NOBODY (caught live on 2026-08-12, with scrolling already written and not working). Scrolling is card chrome,
     like the header or the ×."""
     src = _desktop()
-    assert ".hb-scroll{flex:1 1 auto;min-height:0;overflow:auto}" in src.replace("\n", "")
+    rule = re.search(r"\.hb-scroll\{([^}]*)\}", src.replace("\n", ""))
+    assert rule, "the scroller must have a rule of its own"
+    for prop in ("flex:1 1 auto", "min-height:0", "overflow:auto"):
+        assert prop in rule.group(1), f"{prop} missing from .hb-scroll: {rule.group(1)}"
     assert "scroll.appendChild(body)" in src, "el widget monta DENTRO del scroller, no ES el scroller"
-    assert "card.append(mx,cx,x,head,load,scroll)" in src   # cx = the cinema exit button (V2-596)
+    # V2-689 — the window controls moved INSIDE the header, so the card's own children are the cinema-exit
+    # button, the header, the loader and the scroller. What this line guards is unchanged: the scroller is a
+    # child of the CARD, mounted by the host, and never the widget's own root.
+    assert "card.append(cx,head,load,scroll)" in src
 
 
 def test_navigating_returns_to_the_top_but_live_data_does_not_move_the_page():

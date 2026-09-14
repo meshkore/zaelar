@@ -763,5 +763,7 @@
  "wizard.stepHuecosTitle": "② Configura lo que falta",
  "wizard.stepPerfilTitle": "① Elige un perfil",
  "wizard.suggestion": "Sugerencia: <b>{profile}</b> — {why}",
- "wizard.title": "Configuración inicial"
+ "wizard.title": "Configuración inicial",
+ "desktop.close_tooltip": "Cerrar",
+ "desktop.minimize_tooltip": "Minimizar"
 }

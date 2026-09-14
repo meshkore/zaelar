@@ -126,9 +126,9 @@ def test_the_default_skin_is_grafito_and_a_token_consumer_wears_it(playwright_av
             await b.close()
             return m, errors
     m, errors = asyncio.run(go())
-    assert m["canvas"] == "#0B0B0E", f"default canvas must be grafito: {m}"
-    assert m["probeBg"] == _rgb("18181D"), f"a var(--hb-bg) consumer must wear the card surface: {m}"
-    assert m["probeColor"] == _rgb("A48FFF"), f"the accent is the heliotrope: {m}"
+    assert m["canvas"] == "#0B0D10", f"default canvas must be grafito: {m}"
+    assert m["probeBg"] == _rgb("12151A"), f"a var(--hb-bg) consumer must wear the card surface: {m}"
+    assert m["probeColor"] == _rgb("9B7CFF"), f"the accent is the heliotrope: {m}"
     assert not errors, errors
 
 
@@ -151,7 +151,7 @@ def test_switching_to_clasico_repaints_a_real_consumer(playwright_available):
     assert m["metaColor"] == "#0a0f16", f"the browser-chrome color must follow the profile: {m}"
     # and BACK: grafito is «no overrides», so the swap must REMOVE clasico's inline vars — a profile that
     # bleeds into the next one is exactly the half-skinned desktop the operator forbade
-    assert back["canvas"] == "#0B0B0E" and back["probeBg"] == _rgb("18181D"), f"clasico bled into grafito: {back}"
+    assert back["canvas"] == "#0B0D10" and back["probeBg"] == _rgb("12151A"), f"clasico bled into grafito: {back}"
 
 
 def test_a_custom_accent_beats_the_profile_and_clearing_restores_it(playwright_available):
@@ -170,7 +170,7 @@ def test_a_custom_accent_beats_the_profile_and_clearing_restores_it(playwright_a
     custom, still, cleared = asyncio.run(go())
     assert custom["probeColor"] == _rgb("22AA66"), f"custom accent must reach a consumer: {custom}"
     assert still["probeColor"] == _rgb("22AA66"), f"a custom accent survives a profile swap: {still}"
-    assert cleared["probeColor"] == _rgb("E8A33D"), f"clearing returns the PROFILE's accent (ámbar): {cleared}"
+    assert cleared["probeColor"] == _rgb("EFC75E"), f"clearing returns the PROFILE's accent (ámbar): {cleared}"
 
 
 def test_the_size_knob_scales_the_desktop_through_the_root(playwright_available):
@@ -213,7 +213,7 @@ def test_the_choice_survives_a_reload_and_the_server_copy_wins(playwright_availa
             return local, server
     local, server = asyncio.run(go())
     assert local["profile"] == "clasico" and local["probeBg"] == _rgb("141d29"), f"localStorage layer: {local}"
-    assert server["profile"] == "ambar" and server["probeColor"] == _rgb("E8A33D"), f"server layer: {server}"
+    assert server["profile"] == "ambar" and server["probeColor"] == _rgb("EFC75E"), f"server layer: {server}"
     assert server["lsProfile"] == "ambar", "the reconcile must refresh the local mirror too"
 
 
@@ -243,8 +243,8 @@ def test_light_mode_gets_the_grafito_paper_not_an_inverted_navy(playwright_avail
             await b.close()
             return m
     m = asyncio.run(go())
-    assert m["canvas"] == "#F6F5F2", f"light grafito is warm paper: {m}"
-    assert m["probeColor"] == _rgb("7A5FF0"), f"the accent gains pigment on paper for contrast: {m}"
+    assert m["canvas"] == "#F4F5F7", f"light grafito is cool paper, never pure white: {m}"
+    assert m["probeColor"] == _rgb("7A5AF5"), f"the accent gains pigment on paper for contrast: {m}"
 
 
 def test_the_config_panel_offers_the_system():

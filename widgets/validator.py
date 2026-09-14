@@ -86,20 +86,28 @@ _HOUSE_CSS_CACHE = {"mtime": None, "classes": set()}
 
 
 def _house_global_classes() -> set[str]:
-    """Bare classes defined in the app-wide stylesheet (frontend/app/styles.css) — the set a widget must never
+    """Bare classes defined in the app-wide CSS (frontend/app/styles.css + app/core/components.css) — the set a widget must never
     reuse verbatim, or it silently inherits whatever that global rule sets (position/display/etc.), invisibly,
     the moment the app stylesheet is loaded alongside the widget's own. This is exactly how it broke once already:
     mensajeria's own connection-card used the class "conn", which collided with the app's BARE `.conn{position:
     fixed;left:20px;bottom:14px;...}` (the mic/SSE status line) and got yanked out of the widget card entirely."""
-    css_path = os.path.join(ZAELAR, "frontend", "app", "styles.css")
+    # V2-689: the app-wide CSS is TWO files now — the desktop shell's own stylesheet and the shared COMPONENT
+    # layer both shells link. A class defined in either one applies to a widget's element just the same, so the
+    # collision set is their union; scanning only the first would let `components.css` grow a bare class name
+    # that silently steals properties from a widget, which is the exact failure this gate exists to prevent.
+    # (The `hb-`/`hbk-` prefixes stay exempt below — those ARE the house kit, offered to widgets on purpose.)
+    paths = [os.path.join(ZAELAR, "frontend", "app", "styles.css"),
+             os.path.join(ZAELAR, "frontend", "app", "core", "components.css")]
     try:
-        mtime = os.path.getmtime(css_path)
+        stamp = tuple(os.path.getmtime(p) for p in paths)
     except OSError:
         return set()
-    if _HOUSE_CSS_CACHE["mtime"] == mtime:
+    if _HOUSE_CSS_CACHE["mtime"] == stamp:
         return _HOUSE_CSS_CACHE["classes"]
-    classes = _bare_css_classes(open(css_path, encoding="utf-8").read())
-    _HOUSE_CSS_CACHE["mtime"], _HOUSE_CSS_CACHE["classes"] = mtime, classes
+    classes: set[str] = set()
+    for p in paths:
+        classes |= _bare_css_classes(open(p, encoding="utf-8").read())
+    _HOUSE_CSS_CACHE["mtime"], _HOUSE_CSS_CACHE["classes"] = stamp, classes
     return classes
 
 

@@ -3371,6 +3371,14 @@ DOMAINS: list[dict] = [
         # que TRES comportamientos entregados dejaron de existir en silencio (la pregunta de «¿cuál de las dos
         # hojas cierro?» de V2-259/V2-530, y el «enséñamelo» de V2-300 que volvió a abrir la caja pelada).
         # `compileall` demuestra que un fichero PARSEA, no que importarlo resuelva.
+        # 2026-09-14 (V2-689): medio chrome de la app inyecta su CSS como un TEMPLATE LITERAL, y un backtick
+        # dentro —hasta dentro de un comentario CSS— cierra la cadena y se lleva el módulo entero por delante.
+        # `node --check` no lo ve (lo que queda suele seguir parseando) y el fallo en vivo es total y mudo: el
+        # import nunca resuelve y el escritorio no monta. Estaba escrito como aviso en desktop.js desde V2-559
+        # y se volvió a pagar en V2-689 — una regla que hay que recordar no es una regla.
+        {"id": "7.43", "title": "Un bloque de <style> inyectado no lleva un backtick dentro (mata el módulo en "
+                                "silencio)", "ch": UNIT,
+            "paths": ["tests/infrastructure/unit/test_an_injected_style_block_holds_no_backtick.py"]},
         {"id": "7.30", "title": "Ningún módulo usa un nombre que no tiene al importarse (NameError al import)",
             "ch": UNIT,
             "paths": ["tests/infrastructure/unit/test_a_module_cannot_use_a_name_it_never_imported.py"]},

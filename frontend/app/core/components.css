@@ -1,0 +1,196 @@
+/* components.css — THE COMPONENT LAYER (V2-689), the shared vocabulary of the desktop AND of every widget.
+   Linked by BOTH shells right after core/palette.css and BEFORE their own stylesheet, so a shell rule of equal
+   specificity still wins and nothing that exists today is overridden by accident.
+
+   WHY IT EXISTS. The operator's report was not «make it prettier»: it was that a button, a toolbar and a panel
+   looked different in every widget, so the screen read as a set of prototypes rather than as one product. The
+   cause is structural — every surface hand-rolled its own CSS, so 15 widgets and ~20 app panels carry ~20
+   slightly different buttons, ~6 heights of toolbar and ~4 radii for the same kind of box. A design system that
+   lives only in a document is a document; this file is the version the browser enforces.
+
+   THE CONTRACT. Everything here is prefixed `hb-`, and `hb-`/`hbk-` are exactly the two prefixes
+   `widgets/validator.py` exempts from its class-collision gate — that exemption is what makes these classes
+   REACHABLE from a widget's own markup, including widgets an operator generates by voice (widgets/AGENTS.md
+   documents them as the house kit). Reaching for `hb-btn` instead of hand-rolling a button is therefore both the
+   cheaper path and the one that repaints for free when a design profile changes.
+
+   WHAT BELONGS HERE: a component that appears in more than one surface (button, icon button, toolbar, panel,
+   card, tabs, breadcrumbs, input, divider, badge, section title, and the focus ring every interactive element
+   shares). What does NOT: anything that positions itself on the screen. A component here must be layout-neutral —
+   the surface that mounts it decides where it goes. That is the same test `shared-surfaces.css` applies one level
+   up, and it is what keeps this file usable from the desktop, the phone and a widget card alike.
+
+   TOKENS ONLY. Not one hex value below: every colour, radius, spacing step, control height and duration comes
+   from core/palette.css. That is what makes a profile swap (core/themes.js) repaint this layer too. */
+
+/* ── FOCUS. ONE ring for the whole product, on the ONE selector that means «reached by keyboard». Declared first
+   so a component can still override its own ring, and never removed without a replacement: `:focus-visible`
+   does not fire for a mouse click, so there is no reason left to turn it off. ──────────────────────────────── */
+.hb-btn:focus-visible,.hb-iconbtn:focus-visible,.hb-tab:focus-visible,.hb-input:focus-visible,
+.hb-select:focus-visible,.hb-textarea:focus-visible,.hb-crumb:focus-visible{
+  outline:none;box-shadow:var(--hb-focus-ring)}
+
+/* ── BUTTON. Four variants and no more — the fifth is what turns a system back into a pile of one-offs.
+   PRIMARY is the accent and is the ONE affirmative action of a surface; SECONDARY is the neutral companion;
+   GHOST carries no box until hovered (a toolbar full of boxes is noise); DANGER is red and is reserved for an
+   action that destroys something, so red keeps meaning «this cannot be undone».
+   Height comes from the token, never from a hardcoded `height`: padding + min-height lets a long label wrap on a
+   phone instead of overflowing a pinned box (widgets/AGENTS.md's own rule about the 44px touch floor). ────── */
+.hb-btn{display:inline-flex;align-items:center;justify-content:center;gap:var(--sp-2);
+  min-height:var(--hb-ctl-h);padding:0 var(--sp-4);box-sizing:border-box;
+  border:1px solid transparent;border-radius:var(--hb-r-m);cursor:pointer;
+  font-family:var(--sans);font-size:var(--fs-ui);font-weight:600;line-height:1.2;text-decoration:none;
+  white-space:nowrap;
+  transition:background var(--hb-t-fast) ease,border-color var(--hb-t-fast) ease,color var(--hb-t-fast) ease}
+.hb-btn svg{width:16px;height:16px;flex:none}
+.hb-btn--sm{min-height:var(--hb-ctl-h-sm);padding:0 var(--sp-3);font-size:var(--fs-caption)}
+.hb-btn[disabled],.hb-btn.is-disabled{opacity:.45;cursor:default;pointer-events:none}
+
+.hb-btn--primary{background:var(--hb-accent);border-color:var(--hb-accent);color:var(--canvas)}
+.hb-btn--primary:hover{filter:brightness(1.08)}
+.hb-btn--primary:active{filter:brightness(.94)}
+
+.hb-btn--secondary{background:var(--hb-bg-soft);border-color:var(--hb-line);color:var(--hb-ink)}
+.hb-btn--secondary:hover{background:var(--hb-hover);border-color:var(--hb-line-strong)}
+.hb-btn--secondary:active{background:var(--hb-bubble)}
+
+.hb-btn--ghost{background:transparent;border-color:transparent;color:var(--hb-muted)}
+.hb-btn--ghost:hover{background:var(--hb-hover);color:var(--hb-ink)}
+.hb-btn--ghost:active{background:var(--hb-bubble)}
+
+.hb-btn--danger{background:transparent;border-color:var(--hb-line);color:var(--hb-muted)}
+.hb-btn--danger:hover{border-color:var(--hb-risk);color:var(--hb-risk);background:var(--hb-risk-soft)}
+/* the destructive action a dialog is ABOUT — solid red, deliberately rare */
+.hb-btn--danger.hb-btn--solid{background:var(--hb-risk);border-color:var(--hb-risk);color:#fff}
+.hb-btn--danger.hb-btn--solid:hover{filter:brightness(1.08);background:var(--hb-risk)}
+
+/* ── ICON BUTTON. Square, quiet until hover, and sized so its HIT AREA is the same everywhere — the operator's
+   report on the old rail was «no logro entender ninguno» against 30px boxes with 11px glyphs. `--hb-icon-h` is
+   the dense default (a toolbar); `--lg` is the comfortable one (a window control, a phone). ───────────────── */
+.hb-iconbtn{display:inline-flex;align-items:center;justify-content:center;flex:none;
+  width:var(--hb-icon-h);height:var(--hb-icon-h);padding:0;box-sizing:border-box;
+  border:1px solid transparent;border-radius:var(--hb-r-s);background:transparent;color:var(--hb-muted);
+  cursor:pointer;font-family:var(--sans);font-size:var(--fs-caption);line-height:1;
+  transition:background var(--hb-t-fast) ease,color var(--hb-t-fast) ease,border-color var(--hb-t-fast) ease}
+.hb-iconbtn svg{width:16px;height:16px;flex:none;display:block}
+.hb-iconbtn:hover{background:var(--hb-hover);color:var(--hb-ink)}
+.hb-iconbtn:active{background:var(--hb-bubble)}
+.hb-iconbtn.is-on{color:var(--hb-accent)}
+.hb-iconbtn[disabled]{opacity:.35;cursor:default;pointer-events:none}
+.hb-iconbtn--lg{width:34px;height:34px;border-radius:var(--hb-r-m)}
+.hb-iconbtn--lg svg{width:19px;height:19px}
+.hb-iconbtn--danger:hover{background:var(--hb-risk-soft);color:var(--hb-risk)}
+/* the bordered face, for an icon button that stands alone on a surface rather than inside a toolbar group */
+.hb-iconbtn--framed{border-color:var(--hb-line);background:var(--hb-bg-soft)}
+.hb-iconbtn--framed:hover{border-color:var(--hb-line-strong)}
+
+/* ── TOOLBAR. ONE height, ONE padding, ONE gap — the band that separates a surface's CHROME from its CONTENT,
+   and the border under it is what makes that separation visible rather than implied. `--sub` is the second
+   band (a filter row under the title row): same geometry, quieter ground. ─────────────────────────────────── */
+.hb-toolbar{display:flex;align-items:center;gap:var(--sp-2);flex:0 0 auto;box-sizing:border-box;
+  min-height:44px;padding:0 var(--sp-3);
+  background:var(--hb-bg-soft);border-bottom:1px solid var(--hb-line-subtle)}
+.hb-toolbar--sub{min-height:38px;background:transparent}
+.hb-toolbar-title{font-size:var(--fs-ui);font-weight:600;color:var(--hb-ink);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.hb-toolbar-sub{font-size:var(--fs-caption);color:var(--hb-muted);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.hb-toolbar-spacer{flex:1 1 auto;min-width:0}
+/* a separator EARNS its place: it marks a change of purpose in the row, it is not decoration between icons */
+.hb-toolbar-sep{flex:none;width:1px;align-self:stretch;margin:var(--sp-2) var(--sp-1);background:var(--hb-line)}
+.hb-toolbar-group{display:flex;align-items:center;gap:var(--sp-1);min-width:0}
+
+/* ── SURFACES. The ladder, as classes: PANEL is a box inside a widget (surface-2), CARD is a box inside that
+   panel (surface-3). A box never repeats its parent's rung — that rule is the whole reason the operator could
+   not tell where one object ended and the next began. ────────────────────────────────────────────────────── */
+.hb-panel{background:var(--hb-bg-soft);border:1px solid var(--hb-line);border-radius:var(--hb-r-l);
+  padding:var(--sp-4);box-sizing:border-box}
+.hb-panel-head{display:flex;align-items:center;gap:var(--sp-2);margin-bottom:var(--sp-3)}
+.hb-panel-title{font-size:var(--fs-ui);font-weight:600;color:var(--hb-ink);min-width:0;
+  overflow:hidden;text-overflow:ellipsis}
+.hb-panel-note{font-size:var(--fs-caption);color:var(--hb-muted);line-height:1.5}
+.hb-card{background:var(--hb-bubble);border:1px solid var(--hb-line-subtle);border-radius:var(--hb-r-m);
+  padding:var(--sp-3);box-sizing:border-box;
+  transition:border-color var(--hb-t-fast) ease,background var(--hb-t-fast) ease}
+.hb-card--interactive{cursor:pointer}
+.hb-card--interactive:hover{border-color:var(--hb-line-strong)}
+.hb-card.is-selected{border-color:var(--hb-accent);
+  background:color-mix(in srgb,var(--hb-accent) 10%,var(--hb-bubble))}
+
+/* ── SECTION TITLE + DIVIDER. The two cheapest ways to give a long panel structure, and the reason a screen
+   does not need a box around every group. ────────────────────────────────────────────────────────────────── */
+.hb-sectitle{font-size:var(--fs-caption);font-weight:600;color:var(--hb-muted);
+  letter-spacing:.04em;text-transform:uppercase;margin:var(--sp-5) 0 var(--sp-2)}
+.hb-sectitle:first-child{margin-top:0}
+.hb-divider{height:1px;background:var(--hb-line-subtle);border:0;margin:var(--sp-4) 0}
+
+/* ── TABS. A defined BAND with a border under it — a row of buttons floating over the content is exactly what
+   made the old tab strips read as a second title line. The active tab carries the accent as a 2px underline:
+   it marks position without inventing a second filled colour on the screen. ──────────────────────────────── */
+.hb-tabs{display:flex;align-items:stretch;gap:var(--sp-1);flex:0 0 auto;min-width:0;
+  border-bottom:1px solid var(--hb-line-subtle);overflow-x:auto;scrollbar-width:none}
+.hb-tabs::-webkit-scrollbar{display:none}
+.hb-tab{display:inline-flex;align-items:center;gap:var(--sp-2);flex:none;
+  padding:var(--sp-2) var(--sp-3);border:0;border-bottom:2px solid transparent;background:transparent;
+  color:var(--hb-muted);cursor:pointer;
+  font-family:var(--sans);font-size:var(--fs-ui);font-weight:600;line-height:1.3;white-space:nowrap;
+  transition:color var(--hb-t-fast) ease,border-color var(--hb-t-fast) ease}
+.hb-tab svg{width:16px;height:16px;flex:none}
+.hb-tab:hover:not(.is-on){color:var(--hb-ink)}
+.hb-tab.is-on{color:var(--hb-accent);border-bottom-color:var(--hb-accent)}
+
+/* ── BREADCRUMBS. Says where «back» goes — the one thing a step-by-step screen must never leave to guessing. */
+.hb-crumbs{display:flex;align-items:center;gap:var(--sp-2);flex-wrap:wrap;
+  font-size:var(--fs-caption);color:var(--hb-muted);min-width:0}
+.hb-crumb{border:0;background:transparent;padding:0;cursor:pointer;
+  font-family:var(--sans);font-size:inherit;font-weight:600;color:var(--hb-accent)}
+.hb-crumb:hover{text-decoration:underline}
+.hb-crumb-sep{color:var(--hb-muted-2)}
+.hb-crumb-cur{color:var(--hb-ink);font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap}
+
+/* ── FIELDS. One height, one radius, one focus treatment — and the accent border on focus is a SECOND signal
+   beside the ring, because a field that only changes its outline is easy to lose on a dark ground. ───────── */
+.hb-input,.hb-select,.hb-textarea{width:100%;box-sizing:border-box;
+  padding:0 var(--sp-3);min-height:var(--hb-ctl-h);
+  background:var(--hb-bg);border:1px solid var(--hb-line);border-radius:var(--hb-r-m);color:var(--hb-ink);
+  font-family:var(--sans);font-size:var(--fs-ui);outline:none;
+  transition:border-color var(--hb-t-fast) ease}
+.hb-textarea{padding:var(--sp-2) var(--sp-3);line-height:1.45;resize:vertical}
+.hb-input::placeholder,.hb-textarea::placeholder{color:var(--hb-muted-2)}
+.hb-input:focus,.hb-select:focus,.hb-textarea:focus{border-color:var(--hb-accent)}
+.hb-input[disabled],.hb-select[disabled],.hb-textarea[disabled]{opacity:.5;cursor:default}
+.hb-field{display:flex;flex-direction:column;gap:var(--sp-1);min-width:0}
+.hb-label{font-size:var(--fs-caption);font-weight:600;color:var(--hb-ink)}
+.hb-hint{font-size:var(--fs-micro);color:var(--hb-muted-2);line-height:1.45}
+
+/* ── STATUS BADGE. A pill that says a STATE, never an action. Colour is carried at low alpha so a row of badges
+   does not out-shout the content they annotate. ─────────────────────────────────────────────────────────── */
+.hb-badge{display:inline-flex;align-items:center;gap:var(--sp-1);
+  padding:2px var(--sp-2);border-radius:999px;border:1px solid var(--hb-line);
+  background:var(--hb-bubble);color:var(--hb-muted);
+  font-family:var(--sans);font-size:var(--fs-micro);font-weight:600;letter-spacing:.02em;white-space:nowrap}
+.hb-badge::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;flex:none}
+.hb-badge--bare::before{display:none}
+.hb-badge--ok{color:var(--hb-ok);border-color:color-mix(in srgb,var(--hb-ok) 35%,transparent);
+  background:color-mix(in srgb,var(--hb-ok) 12%,transparent)}
+.hb-badge--warn{color:var(--hb-warn);border-color:color-mix(in srgb,var(--hb-warn) 35%,transparent);
+  background:color-mix(in srgb,var(--hb-warn) 12%,transparent)}
+.hb-badge--error{color:var(--hb-risk);border-color:color-mix(in srgb,var(--hb-risk) 40%,transparent);
+  background:var(--hb-risk-soft)}
+.hb-badge--info{color:var(--hb-accent2);border-color:color-mix(in srgb,var(--hb-accent2) 35%,transparent);
+  background:color-mix(in srgb,var(--hb-accent2) 12%,transparent)}
+.hb-badge--accent{color:var(--hb-accent);border-color:color-mix(in srgb,var(--hb-accent) 35%,transparent);
+  background:color-mix(in srgb,var(--hb-accent) 12%,transparent)}
+
+/* ── EMPTY STATE. Every list has one, and a list that renders nothing at all is indistinguishable from a list
+   that is still loading — which is the failure this component exists to make impossible. ─────────────────── */
+.hb-empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:var(--sp-2);
+  padding:var(--sp-6) var(--sp-4);text-align:center;color:var(--hb-muted-2);font-size:var(--fs-caption);
+  line-height:1.5}
+
+/* ── REDUCED MOTION. The transitions above are 120-180ms and carry no information, so removing them costs
+   nothing and is the honest answer to the preference. ───────────────────────────────────────────────────── */
+@media (prefers-reduced-motion:reduce){
+  .hb-btn,.hb-iconbtn,.hb-tab,.hb-card,.hb-input,.hb-select,.hb-textarea{transition:none}
+}

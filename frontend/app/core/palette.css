@@ -8,27 +8,56 @@
    [data-theme="light"] on <html> overrides the palette below. app/services/theme.js sets that attribute +
    persists the choice; app/core/store.js holds the `theme` signal.
 
-   DESIGN PROFILES (V2-617): the values below are the DEFAULT profile («grafito» — warm near-black neutrals,
-   heliotrope accent, amber for highlights). Alternative profiles live in app/core/themes.js as token OVERRIDE
-   maps that theme.js writes as inline custom properties on <html> — inline wins over this stylesheet, so a
-   profile swap or a user customization (accent, base font size, font) repaints everything that reads tokens,
-   which is the whole desktop and every widget. Add a token here, and give the non-default profiles their value
-   in themes.js when it must differ.
+   DESIGN PROFILES (V2-617): the values below are the DEFAULT profile («grafito») . Alternative profiles live in
+   app/core/themes.js as token OVERRIDE maps that theme.js writes as inline custom properties on <html> — inline
+   wins over this stylesheet, so a profile swap or a user customization (accent, base font size, font) repaints
+   everything that reads tokens, which is the whole desktop and every widget. Add a token here, and give the
+   non-default profiles their value in themes.js when it must differ.
+
+   ── V2-689, THE ELEVATION LADDER ────────────────────────────────────────────────────────────────────────────
+   The operator's report, with the desk in front of him: «varios elementos parecen formar parte del mismo fondo»
+   — desk, sidebar, widget, panel and the box inside the panel were all within a couple of luminance points of
+   each other, so nothing on screen told you where one object ended and the next began. The fix is not more
+   colour, it is a MONOTONE LADDER every surface picks a rung from, and it is the reason these five tokens are
+   ordered and commented as one block rather than typed where each was first needed:
+
+       --canvas   0B0D10   the desk itself — the floor, and the only thing the wallpaper replaces
+       --hb-sidebar 0E1014 the side column / the system rails: adjacent to the desk, never equal to it
+       --hb-bg    12151A   SURFACE-1 — a widget, a panel, a modal: the objects that sit ON the desk
+       --hb-bg-soft 171B21 SURFACE-2 — a panel INSIDE one of those objects (a toolbar strip, a group box)
+       --hb-bubble 1D222A  SURFACE-3 — a card inside that panel, a chat bubble, a selected row
+       --hb-hover 242A34   the interaction rung — hover/active, one step above whatever it sits on
+
+   Two rules keep the ladder honest: NO PURE BLACK and NO PURE WHITE anywhere (both crush the steps at the ends),
+   and a box never repeats its parent's rung — if you find yourself nesting a `--hb-bg` inside a `--hb-bg`, the
+   inner one wants `--hb-bg-soft`. `--hb-bg-soft` used to be DARKER than `--hb-bg` (a recessed strip); it is now
+   one rung LIGHTER, because "deeper in" reads as "closer to you" in a dark UI, and because a widget's inner
+   panels were the exact place the operator could not see a boundary.
+
+   BORDERS are alpha, not hex (subtle .06 / default .10 / active .18): a hairline has to keep the same weight on
+   every rung of the ladder above, and a fixed hex only ever looks right on one of them.
 
    TYPE: `--hb-fs-base` is the ROOT font size — app/styles.css sets `html{font-size:var(--hb-fs-base)}` and
    declares its font sizes in REM, so this single token scales the entire desktop (the ⚙ Apariencia size knob).
    The `--fs-*` steps are the canonical scale for NEW/reworked components; legacy rem values migrate to them
    as components are touched, never in bulk.
 
+   SPACING is a fixed scale too (`--sp-1`..`--sp-6` = 4/8/12/16/24/32). New and reworked components take their
+   padding and gaps from it; an arbitrary 9px or 11px is how a dozen components end up almost-but-not-quite
+   aligned with each other.
+
    WHY IT LIVES IN ITS OWN FILE: there are now TWO shells — the desktop (app/styles.css) and the mobile PWA
    (mobile/app/styles.css) — and both serve the SAME widget catalog. A widget renders with var(--hb-bg) whichever
    shell hosts it, so a second copy of these tokens would not fail loudly: it would fail as a widget quietly
-   painting the wrong colors in one shell only. Both shells <link> this file BEFORE their own stylesheet.
+   painting the wrong colors in one shell only. Both shells <link> this file BEFORE their own stylesheet, and
+   `app/core/components.css` (the shared COMPONENT layer that reads these tokens) right after it.
    Add a token here, never in a shell. */
 :root{
-  --canvas:#0B0B0E; --canvas-glow:#131318; --chrome-line:#26262E;
-  --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
-  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --canvas:#0B0D10; --canvas-glow:#111419; --chrome-line:rgba(255,255,255,.10);
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace;
+  /* ONE UI family, best available first: SF on Apple, Inter/Geist when the operator has them installed,
+     Segoe/Roboto elsewhere. No webfont — a widget must render with zero network (widgets/AGENTS.md). */
+  --sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Inter","Geist","Segoe UI",Roboto,Helvetica,Arial,sans-serif;
   --banner-h:0px;   /* height of the update banner when visible (0 when hidden) — top controls shift down by this */
   --wrail-h:64px;   /* the bottom system bar's FIXED height (V2-623: the bar never resizes and never hides;
                        the desk reserves this band, and the eye orb's resting place sits just above it) */
@@ -38,37 +67,61 @@
   --hb-fs-base:17px;
   --fs-micro:.6875rem; --fs-caption:.78125rem; --fs-ui:.875rem; --fs-body:.9375rem;
   --fs-title:1.0625rem; --fs-display:1.375rem;
-  --hb-r-s:8px; --hb-r-m:12px; --hb-r-l:16px;
+  /* V2-689 — radii come down a notch: 16px on a 300px panel reads as a toy, 10–12 as a window. */
+  --hb-r-s:8px; --hb-r-m:10px; --hb-r-l:12px;
+  /* V2-689 — THE SPACING SCALE. 4/8/12/16/24/32, nothing between. */
+  --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:24px; --sp-6:32px;
+  /* V2-689 — control geometry, so every button/field in the app is the same height without each component
+     picking its own: 28px for a dense icon button, 32/36 for the two real button sizes. */
+  --hb-ctl-h:36px; --hb-ctl-h-sm:32px; --hb-icon-h:28px;
+  /* V2-689 — motion: fast and unfussy (120–180ms), never decorative. */
+  --hb-t-fast:120ms; --hb-t:160ms; --hb-t-slow:180ms;
 
-  /* grafito surfaces — FOUR real elevation levels (canvas → panel → card → hover), warm-biased neutrals */
-  --hb-bg:#18181D; --hb-bg-soft:#121216; --hb-bg-a:rgba(17,17,20,.85);
-  --hb-bubble:#1D1D23; --hb-hover:#24242C;
-  --hb-ink:#F1EFEA; --hb-muted:#A6A4AC; --hb-muted-2:#67656F; --hb-line:#26262E; --hb-neutral:#4A4952;
-  /* ONE accent does all the interactive work; amber (--hb-update) only ever HIGHLIGHTS — never a button */
-  --hb-accent:#A48FFF; --hb-accent2:#16B8A6; --hb-risk:#e5484d; --hb-risk-soft:rgba(229,72,77,.16);
-  /* semantic status colors (2026-07-22 frontend pass): ok/warn share the risk/accent pattern — ONE value across
-     themes, not overridden per-theme (same as --hb-risk/--hb-accent already were). Consolidates 4+ ad hoc hex
-     greens/ambers that used to be typed per-component (StatusPanel dots, MemoryMap pulses, DebugPanel latency). */
-  --hb-ok:#4CB782; --hb-warn:#D9A03F;
-  --hb-shadow-1:inset 0 1px 0 rgba(255,255,255,.03), 0 10px 30px rgba(0,0,0,.5);
-  --hb-shadow-2:inset 0 1px 0 rgba(255,255,255,.04), 0 24px 70px rgba(0,0,0,.6);
-  --hb-warn-bg:#241B0E; --hb-warn-border:#52401C; --hb-warn-ink:#E4B978;
+  /* THE ELEVATION LADDER (see the block comment above) */
+  --hb-bg:#12151A; --hb-bg-soft:#171B21; --hb-bg-a:rgba(18,21,26,.88);
+  --hb-sidebar:#0E1014;
+  --hb-bubble:#1D222A; --hb-hover:#242A34;
+  --hb-ink:#F2F4F7; --hb-muted:#A7AFBC; --hb-muted-2:#737C89;
+  /* borders: alpha, so a hairline keeps its weight on every rung */
+  --hb-line:rgba(255,255,255,.10); --hb-line-subtle:rgba(255,255,255,.06); --hb-line-strong:rgba(255,255,255,.18);
+  --hb-neutral:#3A4049;
+  /* ONE accent does all the interactive work; amber (--hb-update) only ever HIGHLIGHTS — never a button.
+     --hb-accent2 is the INFO cyan: a second voice for links/echoes, deliberately rare. */
+  --hb-accent:#9B7CFF; --hb-accent2:#4CC9F0; --hb-risk:#FF6B75; --hb-risk-soft:rgba(255,107,117,.14);
+  /* semantic status colors: ok/warn share the risk/accent pattern — ONE value across themes. */
+  --hb-ok:#5FD3A2; --hb-warn:#EFC75E;
+  /* V2-689 — depth by LUMINANCE, borders and spacing; the shadows are only there to lift an object off the
+     desk, never to draw attention. -1 = a resting widget · -2 = a modal/floating panel · -focus = the card
+     the operator is working in (one step stronger than its neighbours, not a different design). */
+  --hb-shadow-1:0 1px 2px rgba(0,0,0,.30), 0 4px 12px rgba(0,0,0,.22);
+  --hb-shadow-2:0 2px 6px rgba(0,0,0,.34), 0 16px 40px rgba(0,0,0,.40);
+  --hb-shadow-focus:0 2px 8px rgba(0,0,0,.38), 0 22px 52px rgba(0,0,0,.48);
+  /* keyboard focus: ONE ring, everywhere, never removed without a replacement */
+  --hb-focus-ring:0 0 0 2px var(--canvas), 0 0 0 4px color-mix(in srgb,var(--hb-accent) 70%,transparent);
+  --hb-warn-bg:rgba(239,199,94,.10); --hb-warn-border:rgba(239,199,94,.28); --hb-warn-ink:#EFC75E;
   /* dark "console" surface for log-like views that deliberately stay dark regardless of theme (a terminal/log
      reads the same in light or dark mode by convention) — shared by the Hermes update log and DebugPanel. */
-  --hb-console-bg:#101014; --hb-console-line:#26262E; --hb-console-ink:#F1EFEA; --hb-console-muted:#9B99A2;
-  --hb-update:#E8A33D; --hb-update2:#E07A3F;
+  --hb-console-bg:#0B0D10; --hb-console-line:rgba(255,255,255,.10); --hb-console-ink:#F2F4F7; --hb-console-muted:#A7AFBC;
+  --hb-update:#EFC75E; --hb-update2:#E0A84E;
   /* desktop ground layers (V2-617): dot-grid + accent halo painted by .canvas; profiles tune or zero them */
-  --desk-grid-a:.05; --desk-halo:rgba(164,143,255,.06); --desk-ember:rgba(232,163,61,.04);
+  --desk-grid-a:.04; --desk-halo:rgba(155,124,255,.05); --desk-ember:rgba(239,199,94,.03);
 }
 :root[data-theme="light"]{
-  --canvas:#F6F5F2; --canvas-glow:#FFFFFF; --chrome-line:#E4E2DD;
+  --canvas:#F4F5F7; --canvas-glow:#FBFBFC; --chrome-line:rgba(16,20,26,.10);
 
-  --hb-bg:#FFFFFF; --hb-bg-soft:#FAF9F7; --hb-bg-a:rgba(255,255,255,.85);
-  --hb-bubble:#F0EFEC; --hb-hover:#ECEAE6;
-  --hb-ink:#17161A; --hb-muted:#6B6A72; --hb-muted-2:#9C9BA3; --hb-line:#E4E2DD; --hb-neutral:#C9C7C1;
-  --hb-accent:#7A5FF0;   /* the heliotrope needs more pigment on paper to keep contrast */
-  --hb-risk-soft:#fff5f5;
-  --hb-shadow-1:0 8px 30px rgba(23,22,26,.10); --hb-shadow-2:0 20px 60px rgba(23,22,26,.18);
-  --hb-warn-bg:#FCF4E4; --hb-warn-border:#EAD3A2; --hb-warn-ink:#8A5E14;
-  --desk-grid-a:.06; --desk-halo:rgba(122,95,240,.05); --desk-ember:rgba(224,122,63,.04);
+  --hb-bg:#FFFFFF; --hb-bg-soft:#F7F8FA; --hb-bg-a:rgba(255,255,255,.88);
+  --hb-sidebar:#F0F1F4;
+  --hb-bubble:#EDEFF3; --hb-hover:#E4E7EC;
+  --hb-ink:#12151A; --hb-muted:#5C6573; --hb-muted-2:#8A929E;
+  --hb-line:rgba(16,20,26,.10); --hb-line-subtle:rgba(16,20,26,.06); --hb-line-strong:rgba(16,20,26,.20);
+  --hb-neutral:#C6CBD3;
+  --hb-accent:#7A5AF5;   /* the heliotrope needs more pigment on paper to keep contrast */
+  --hb-accent2:#1189C4; --hb-risk:#D93A45; --hb-risk-soft:rgba(217,58,69,.10);
+  --hb-ok:#1B9E6B; --hb-warn:#B4821A;
+  --hb-shadow-1:0 1px 2px rgba(16,20,26,.06), 0 4px 12px rgba(16,20,26,.07);
+  --hb-shadow-2:0 2px 6px rgba(16,20,26,.08), 0 16px 40px rgba(16,20,26,.12);
+  --hb-shadow-focus:0 2px 8px rgba(16,20,26,.10), 0 22px 52px rgba(16,20,26,.18);
+  --hb-warn-bg:rgba(180,130,26,.10); --hb-warn-border:rgba(180,130,26,.28); --hb-warn-ink:#8A5E14;
+  --hb-update:#B4821A; --hb-update2:#C0792C;
+  --desk-grid-a:.05; --desk-halo:rgba(122,90,245,.05); --desk-ember:rgba(180,130,26,.03);
 }

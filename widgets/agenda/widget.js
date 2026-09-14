@@ -236,32 +236,33 @@ function injectStyles(){
     color:var(--hb-muted-2,#9aa7b8)}
   .hb-agenda .agpstate{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;
     border-radius:999px;padding:3px 10px;align-self:flex-start}
-  .hb-agenda .agpstate.confirmed{background:rgba(22,184,166,.16);color:#0f766e}
-  .hb-agenda .agpstate.pending{background:rgba(240,170,20,.16);color:#8a5a00}
+  /* V2-689 — a state pill reads its colour from the SEMANTIC tokens. These carried literal dark-teal/dark-amber
+     ink over a translucent wash, which is legible on paper and invisible on the dark skin the product ships. */
+  .hb-agenda .agpstate.confirmed{background:color-mix(in srgb,var(--hb-ok,#5FD3A2) 15%,transparent);
+    color:var(--hb-ok,#5FD3A2)}
+  .hb-agenda .agpstate.pending{background:color-mix(in srgb,var(--hb-warn,#EFC75E) 15%,transparent);
+    color:var(--hb-warn,#EFC75E)}
   .hb-agenda .agpacts{display:flex;flex-wrap:wrap;gap:6px;margin-top:2px}
   .hb-agenda .agpacts button{border:1px solid var(--hb-line,#e3e8f0);background:var(--hb-bg,#fff);
     border-radius:9px;padding:7px 11px;font-size:12px;cursor:pointer;color:var(--hb-muted,#3a4757)}
   .hb-agenda .agpacts button:hover{border-color:var(--hb-accent,#3D6FE0);color:var(--hb-accent,#3D6FE0)}
   .hb-agenda .agpacts button.risk:hover{border-color:var(--hb-risk,#e5484d);color:var(--hb-risk,#e5484d)}
-  .hb-agenda .agcalrow{display:flex;align-items:center;gap:10px;padding:8px 4px;
-    border-bottom:1px solid var(--hb-line,#eef1f6)}
-  .hb-agenda .agcalrow:last-of-type{border-bottom:0}
-  .hb-agenda .agcalico{width:26px;height:26px;border-radius:8px;background:var(--hb-bg-soft,#f4f7fb);
+  .hb-agenda .agcalrow{display:flex;align-items:center;gap:10px;padding:10px 12px;margin-bottom:8px;
+    background:var(--hb-bubble,#1D222A);border:1px solid var(--hb-line-subtle,rgba(255,255,255,.06));
+    border-radius:var(--hb-r-m,10px)}
+  .hb-agenda .agcalico{width:28px;height:28px;border-radius:8px;background:var(--hb-bg,#12151A);
     display:flex;align-items:center;justify-content:center;flex:0 0 auto}
   .hb-agenda .agcalico svg{width:15px;height:15px;display:block}
   .hb-agenda .agcalname{font-size:13px;font-weight:600;flex:1 1 auto;min-width:0;white-space:nowrap;
     overflow:hidden;text-overflow:ellipsis}
   .hb-agenda .agcalst{font-size:11px;font-weight:600;border-radius:999px;padding:3px 9px;flex:0 0 auto;
     background:var(--hb-bg-soft,#f4f7fb);color:var(--hb-muted-2,#7d8a9c)}
-  .hb-agenda .agcalst.on{background:rgba(22,184,166,.16);color:#0f766e}
+  .hb-agenda .agcalst.on{background:color-mix(in srgb,var(--hb-ok,#5FD3A2) 15%,transparent);
+    color:var(--hb-ok,#5FD3A2)}
   .hb-agenda .agnote{font-size:11.5px;color:var(--hb-muted-2,#7d8a9c);line-height:1.4}
-  .hb-agenda .agcalst.unconf{background:rgba(232,151,58,.16);color:#92510a}
-  .hb-agenda .agcalbtn2{border:1px solid var(--hb-accent,#3D6FE0);background:var(--hb-accent,#3D6FE0);
-    color:#fff;border-radius:9px;padding:8px 13px;font-size:12.5px;font-weight:700;cursor:pointer;
-    margin:6px 4px 2px;align-self:flex-start}
-  .hb-agenda .agcalbtn2:disabled{opacity:.6;cursor:default}
-  .hb-agenda .agcalbtn2.risk{background:none;color:var(--hb-muted,#5b6b82);border-color:var(--hb-line,#e3e8f0)}
-  .hb-agenda .agcalbtn2.risk:hover{color:var(--hb-risk,#e5484d);border-color:var(--hb-risk,#e5484d)}
+  .hb-agenda .agcalst.unconf{background:color-mix(in srgb,var(--hb-warn,#EFC75E) 15%,transparent);
+    color:var(--hb-warn,#EFC75E)}
+  .hb-agenda .agcalbtn2{margin:6px 4px 2px;align-self:flex-start}
   .hb-agenda .agcaldef{display:flex;flex-direction:column;gap:5px;padding:4px 4px 2px}
   .hb-agenda .agcaldeflabel{font-size:11.5px;font-weight:600;color:var(--hb-muted,#5b6b82)}
   .hb-agenda .agcaldefrow{display:flex;align-items:center;gap:7px;font-size:12.5px;cursor:pointer}
@@ -278,39 +279,43 @@ function injectStyles(){
      content anchors at the same x as the view tabs above it and stays there. */
   .hb-agenda .agconnscreen{width:100%;max-width:720px;margin:0;box-shadow:none;border:0;padding:2px 0}
   .hb-agenda .agconnhead{display:flex;align-items:center;gap:10px;margin-bottom:4px}
-  .hb-agenda .agconnback{cursor:pointer;color:var(--hb-accent,#3D6FE0);font-weight:600;font-size:13px;
-    margin-left:auto;flex:0 0 auto}
+  .hb-agenda .agconnback{cursor:pointer;color:var(--hb-accent,#9B7CFF);font-weight:600;font-size:13px;
+    margin-left:auto;flex:0 0 auto;border:0;background:transparent;padding:0;font-family:var(--sans,system-ui)}
   .hb-agenda .agconnback:hover{text-decoration:underline}
+  .hb-agenda .agconnback:focus-visible{outline:none;
+    box-shadow:var(--hb-focus-ring,0 0 0 2px var(--hb-accent,#9B7CFF));border-radius:4px}
   /* Breadcrumb inside the wizard — same shape as messaging's .crumb (V2-570), so a step-by-step guide
      always tells you where "back" goes: to the connectors list, never out of the widget entirely. */
   .hb-agenda .agwcrumb{display:flex;align-items:center;gap:7px;margin:2px 0 14px;font-size:13px}
   .hb-agenda .agwcrumb .agconnback{margin-left:0}
   .hb-agenda .agwsep{color:var(--hb-muted-2,#9aa7b8)}
   .hb-agenda .agwcur{color:var(--hb-ink,#0d1622);font-weight:700}
-  .hb-agenda .agwstep{border:1px solid var(--hb-line,#e3e8f0);border-radius:12px;padding:15px 16px 16px;
-    background:var(--hb-bg,#fff);margin:2px 0 14px}
+  .hb-agenda .agwstep{border:1px solid var(--hb-line,rgba(255,255,255,.10));border-radius:var(--hb-r-l,12px);
+    padding:var(--sp-4,16px);background:var(--hb-bg-soft,#171B21);margin:2px 0 var(--sp-4,16px)}
   .hb-agenda .agwhead{display:flex;align-items:center;gap:10px;margin-bottom:12px}
   .hb-agenda .agwnum{width:25px;height:25px;flex:0 0 auto;border-radius:50%;display:inline-flex;
-    align-items:center;justify-content:center;font-size:12.5px;font-weight:700;color:#fff;
-    background:var(--hb-neutral,#3a4a5c)}
+    align-items:center;justify-content:center;font-size:12.5px;font-weight:700;
+    color:var(--hb-accent,#9B7CFF);
+    background:color-mix(in srgb,var(--hb-accent,#9B7CFF) 18%,transparent)}
   .hb-agenda .agwtitle{font-size:15px;font-weight:700;color:var(--hb-ink,#0d1622)}
   .hb-agenda .agwcount{margin-left:auto;flex:0 0 auto;font-size:11.5px;color:var(--hb-muted-2,#9aa7b8)}
   .hb-agenda .agwbody{font-size:13.5px;color:var(--hb-muted,#4a5a70);line-height:1.6}
   .hb-agenda .agwlink{display:inline-flex;align-items:center;gap:6px;margin:9px 9px 0 0;
-    border:1px solid var(--hb-accent,#3D6FE0);color:var(--hb-accent,#3D6FE0);border-radius:9px;
-    padding:9px 14px;font-size:13px;font-weight:600;text-decoration:none;background:transparent}
-  .hb-agenda .agwlink:hover{background:var(--hb-accent,#3D6FE0);color:#fff}
-  .hb-agenda .agwtip{margin-top:10px;font-size:12.5px;color:var(--hb-muted,#5b6b82);
-    background:var(--hb-bg-soft,#fbfdff);border:1px solid var(--hb-line,#eef1f6);border-radius:9px;
-    padding:9px 11px;line-height:1.55}
+    border:1px solid var(--hb-line,rgba(255,255,255,.10));color:var(--hb-ink,#F2F4F7);
+    background:var(--hb-bubble,#1D222A);border-radius:var(--hb-r-m,10px);
+    padding:9px 14px;font-size:13px;font-weight:600;text-decoration:none}
+  .hb-agenda .agwlink:hover{border-color:var(--hb-line-strong,rgba(255,255,255,.18));
+    background:var(--hb-hover,#242A34)}
+  .hb-agenda .agwtip{margin-top:10px;font-size:12.5px;color:var(--hb-muted,#A7AFBC);
+    background:var(--hb-bubble,#1D222A);border:1px solid var(--hb-line-subtle,rgba(255,255,255,.06));
+    border-radius:var(--hb-r-m,10px);padding:9px 11px;line-height:1.55}
   .hb-agenda .agwerr{margin-top:10px;font-size:12.5px;color:var(--hb-risk,#e5484d);line-height:1.5}
   /* A button is the size of its label. «flex:1 1 auto» made the primary swallow every spare pixel of the
      row — «un botón gigante» — which also destroyed the one thing a wizard's footer is for: the same
      control in the same place on every step. Natural width, a comfortable floor, and the pair sits under
      the step box where the reader's eye already is. */
-  .hb-agenda .agwfoot{display:flex;gap:10px;margin-top:16px;align-items:center}
-  .hb-agenda .agwfoot .agcalbtn2{flex:0 0 auto;margin:0;min-width:104px;padding:9px 18px;font-size:13px;
-    text-align:center;justify-content:center}
+  .hb-agenda .agwfoot{display:flex;gap:var(--sp-2,8px);margin-top:var(--sp-4,16px);align-items:center}
+  .hb-agenda .agwfoot .agcalbtn2{flex:0 0 auto;margin:0;min-width:104px}
   `; document.head.appendChild(s);
 }
 
@@ -755,7 +760,7 @@ function renderConnectorScreen(data, ctx, S, redraw){
   const wrap = el2("div","agconnscreen agpanel");
   const head = el2("div","agconnhead");
   head.appendChild(el2("div","agptitle", tt("connectors", null, "Conectores")));
-  const back = el2("span","agconnback", "← " + tt("back_to_agenda", null, "Agenda"));
+  const back = el2("button","agconnback", "← " + tt("back_to_agenda", null, "Agenda"));
   back.onclick = ()=>{ S.screen = null; redraw(); };
   head.appendChild(back);
   wrap.appendChild(head);
@@ -796,13 +801,13 @@ function renderConnectorScreen(data, ctx, S, redraw){
         });
       }
       wrap.appendChild(cald);
-      const disc = el2("button","agcalbtn2 risk", tt("cal_disconnect", null, "Desconectar Google Calendar"));
+      const disc = el2("button","agcalbtn2 hb-btn hb-btn--danger", tt("cal_disconnect", null, "Desconectar Google Calendar"));
       disc.onclick = ()=>{ ctx.action("disconnect", {provider:"google"}); };
       wrap.appendChild(disc);
     } else {
       // The operator's rule: this button STARTS THE GUIDE, it does not fire an OAuth handshake that cannot
       // succeed yet — «lo que hace es iniciar un wizard con las instrucciones en la zona central del widget».
-      const btn = el2("button","agcalbtn2", tt("cal_connect", null, "Conectar Google Calendar"));
+      const btn = el2("button","agcalbtn2 hb-btn hb-btn--primary", tt("cal_connect", null, "Conectar Google Calendar"));
       btn.onclick = ()=>{ S.screen = "wizard"; S.wizStep = 1; S.connectErr = ""; redraw(); };
       wrap.appendChild(btn);
     }
@@ -861,7 +866,7 @@ function agStepBody(step){
 function renderGoogleWizard(data, ctx, S, redraw){
   const wrap = el2("div","agconnscreen agpanel");
   const crumb = el2("div","agwcrumb");
-  const back = el2("span","agconnback", "‹ " + tt("connectors", null, "Conectores"));
+  const back = el2("button","agconnback", "‹ " + tt("connectors", null, "Conectores"));
   back.onclick = ()=>{ S.screen = "list"; S.connectErr = ""; redraw(); };
   crumb.appendChild(back);
   crumb.appendChild(el2("span","agwsep","/"));
@@ -900,7 +905,7 @@ function renderGoogleWizard(data, ctx, S, redraw){
   wrap.appendChild(box);
 
   const foot = el2("div","agwfoot");
-  const backBtn = el2("button","agcalbtn2 risk", tt("wiz_back", null, "Atrás"));
+  const backBtn = el2("button","agcalbtn2 hb-btn hb-btn--secondary", tt("wiz_back", null, "Atrás"));
   backBtn.onclick = ()=>{
     if(step > 1){ S.wizStep = step - 1; S.connectErr = ""; } else { S.screen = "list"; }
     redraw();
@@ -908,12 +913,12 @@ function renderGoogleWizard(data, ctx, S, redraw){
   foot.appendChild(backBtn);
 
   if(!last){
-    const nextBtn = el2("button","agcalbtn2", steps[step-1].next || tt("wiz_next", null, "Continuar"));
+    const nextBtn = el2("button","agcalbtn2 hb-btn hb-btn--primary", steps[step-1].next || tt("wiz_next", null, "Continuar"));
     nextBtn.onclick = ()=>{ S.wizStep = step + 1; redraw(); };
     foot.appendChild(nextBtn);
   } else {
 
-    const go = el2("button","agcalbtn2", S.connectBusy ? tt("cal_connecting", null, "Abriendo Google…")
+    const go = el2("button","agcalbtn2 hb-btn hb-btn--primary", S.connectBusy ? tt("cal_connecting", null, "Abriendo Google…")
                                                        : tt("cal_connect", null, "Conectar Google Calendar"));
     go.disabled = !!S.connectBusy;
     go.onclick = async ()=>{

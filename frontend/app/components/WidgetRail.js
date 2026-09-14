@@ -53,31 +53,47 @@ function injectStyles(){
      orbe goes to center, left and right side contains the open widgets and the other icons»). Zones, L→R:
      the LEFT cluster (chat chevron + process count, V2-666) · chips (flex:1) · orb centre (fixed) · tools
      (flex:1) — the two flexible halves are equal so the orb zone sits at the true middle. */
+  /* V2-689 — the DOCK has to read as part of the operating system at a glance, not as one more row floating
+     over the desk. What makes it read that way is not decoration: its own ground (the sidebar rung, distinct
+     from the desk under it), a real border along its top edge, and a shadow cast UPWARD that is barely there —
+     just enough to say the band is in front of the desk rather than painted onto it. The blur stays very
+     small: this is a clean dark interface, not glass. */
   #wrail{position:fixed;left:0;right:0;bottom:0;z-index:9002;display:none;box-sizing:border-box;
-    flex-direction:row;align-items:center;gap:8px;padding:0 12px;height:var(--wrail-h,64px);overflow:hidden;
-    background:color-mix(in srgb,var(--hb-bg-soft,#121216) 92%,transparent);
-    border-top:1px solid var(--hb-line,#26262E);backdrop-filter:blur(6px)}
+    flex-direction:row;align-items:center;gap:var(--sp-2,8px);padding:0 var(--sp-3,12px);
+    height:var(--wrail-h,64px);overflow:hidden;
+    background:color-mix(in srgb,var(--hb-sidebar,#0E1014) 94%,transparent);
+    border-top:1px solid var(--hb-line,rgba(255,255,255,.10));
+    box-shadow:0 -1px 0 rgba(255,255,255,.02), 0 -6px 20px rgba(0,0,0,.28);
+    backdrop-filter:blur(8px)}
   #wrail.on{display:flex}
   /* V2-617 — orb-style silhouettes: 44px hit targets, 21px strokes, no box until you hover (the orb lid's
      own language). The operator's report on the old 30px/11px buttons: «no logro entender ninguno». */
-  #wrail button{width:44px;height:44px;flex:none;border-radius:11px;border:none;
-    cursor:pointer;background:transparent;color:var(--hb-muted,#A6A4AC);
+  #wrail button{width:44px;height:44px;flex:none;border-radius:var(--hb-r-m,10px);border:1px solid transparent;
+    cursor:pointer;background:transparent;color:var(--hb-muted,#A7AFBC);
     display:flex;align-items:center;justify-content:center;
     font:600 0.75rem/1 var(--sans,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif);
-    overflow:hidden;padding:0}
+    overflow:hidden;padding:0;box-sizing:border-box;
+    transition:background var(--hb-t-fast,120ms) ease,color var(--hb-t-fast,120ms) ease,
+               border-color var(--hb-t-fast,120ms) ease}
   #wrail button svg{width:21px;height:21px;flex:none}
-  #wrail button:hover{background:var(--hb-hover,#24242C);color:var(--hb-ink,#F1EFEA)}
+  #wrail button:hover{background:var(--hb-hover,#242A34);color:var(--hb-ink,#F2F4F7)}
+  #wrail button:active{background:var(--hb-bubble,#1D222A)}
+  #wrail button:focus-visible{outline:none;box-shadow:var(--hb-focus-ring,0 0 0 2px var(--hb-accent,#9B7CFF))}
   #wrail button:disabled{opacity:.35;cursor:default;background:transparent}
   /* V2-666 — chips carry the widget's NAME, not just its initials (operator, 2026-09-11: "vídeo", "música",
      "archivos" have to fit, more or less, in five or six characters). Three fixed widths, same for every
      chip at a given level — refresh() PICKS the level from the space actually left between the chips'
      left edge and the orb zone, widest-that-fits first, falling back to 3 then 1 character when there are
      too many open widgets to letter them out in full. */
-  #wrail .wr-chip{border:1px solid var(--hb-line,#26262E);background:var(--hb-bg,#18181D);
-    color:var(--hb-ink,#F1EFEA);letter-spacing:.04em;width:64px;flex:none}
+  /* a chip is a card ON the dock: the widget rung, so it stands out from the band the way a widget stands out
+     from the desk — the same ladder, one level down. */
+  #wrail .wr-chip{border:1px solid var(--hb-line,rgba(255,255,255,.10));background:var(--hb-bg,#12151A);
+    color:var(--hb-ink,#F2F4F7);letter-spacing:.04em;width:64px;flex:none}
   #wrail .wr-chip.wr-lv3{width:42px}
   #wrail .wr-chip.wr-lv1{width:30px;letter-spacing:0}
-  #wrail .wr-chip:hover{border-color:var(--hb-accent,#A48FFF)}
+  #wrail .wr-chip:hover{background:var(--hb-hover,#242A34);border-color:var(--hb-line-strong,rgba(255,255,255,.18))}
+  /* MINIMIZED is said twice — dimmer AND dashed — so the state survives a colourblind reader (the operator's
+     rule about never leaning on colour alone), and it is the one chip state that is not merely a hover. */
   #wrail .wr-chip.min{opacity:.45;border-style:dashed}
   /* V2-666 — the LEFT cluster (operator, 2026-09-11): the chevron that opens/closes the chat moves to the
      left EDGE of the bar (it used to sit at the far right, mirroring the tools — he wants it where a "deploy
@@ -89,14 +105,16 @@ function injectStyles(){
      count opens it straight onto the Procesos tab. Hidden entirely at zero — an idle "0" is dead chrome. */
   #wrail .wr-left{flex:none;display:flex;align-items:center;gap:2px}
   #wrail .wr-proc{display:none;flex:none;align-items:center;gap:6px;height:44px;padding:0 10px 0 6px;
-    border-radius:11px;border:none;cursor:pointer;background:transparent;color:var(--hb-ink,#F1EFEA)}
+    border-radius:var(--hb-r-m,10px);border:none;cursor:pointer;background:transparent;color:var(--hb-ink,#F2F4F7);
+    transition:background var(--hb-t-fast,120ms) ease}
   #wrail .wr-proc.on{display:flex}
-  #wrail .wr-proc:hover{background:var(--hb-hover,#24242C)}
+  #wrail .wr-proc:hover{background:var(--hb-hover,#242A34)}
+  #wrail .wr-proc:focus-visible{outline:none;box-shadow:var(--hb-focus-ring,0 0 0 2px var(--hb-accent,#9B7CFF))}
   #wrail .wr-proc-n{font:700 0.9375rem/1 var(--sans,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif)}
-  #wrail .wr-proc-bar{width:3px;height:15px;border-radius:2px;background:var(--hb-line,#26262E);
+  #wrail .wr-proc-bar{width:3px;height:15px;border-radius:2px;background:var(--hb-line,rgba(255,255,255,.10));
     position:relative;overflow:hidden;flex:none}
   #wrail .wr-proc-bar i{position:absolute;left:0;right:0;bottom:0;height:100%;border-radius:2px;
-    background:var(--hb-accent,#A48FFF);transform-origin:50% 100%;animation:wrProcPulse 1.15s ease-in-out infinite}
+    background:var(--hb-accent,#9B7CFF);transform-origin:50% 100%;animation:wrProcPulse 1.15s ease-in-out infinite}
   @keyframes wrProcPulse{0%,100%{transform:scaleY(.28)}50%{transform:scaleY(1)}}
   /* chips flow LEFT→RIGHT and scroll among themselves; tools mirror them on the right */
   #wrail .wr-chips{display:flex;flex-direction:row;gap:6px;align-items:center;justify-content:flex-start;
@@ -110,17 +128,17 @@ function injectStyles(){
      DOM and alternate by visibility — the 4.19 lesson: a re-created canvas renders blank with no error. */
   #wrail .wr-orb{flex:none;display:flex;align-items:center;gap:2px}
   #wrail .wr-orbl,#wrail .wr-orbr{display:flex;align-items:center;gap:2px}
-  #wrail .wr-swap.on{color:var(--hb-accent,#A48FFF)}
+  #wrail .wr-swap.on{color:var(--hb-accent,#9B7CFF);background:color-mix(in srgb,var(--hb-accent,#9B7CFF) 16%,transparent)}
   #wrail .orbic{width:40px;height:40px}
   #wrail .wr-orbslot{display:none;width:54px;height:54px;position:relative;border-radius:50%;flex:none}
   body.hb-orb-bar #wrail .wr-orbslot{display:flex}
   #wrail .wr-orbslot #orb{position:absolute;inset:0;margin:auto;width:46px!important;height:46px!important;
     pointer-events:none}
   #wrail .wr-orbslot .wr-orbpwr{position:absolute;inset:0;margin:auto;width:24px;height:24px;
-    visibility:hidden;color:var(--hb-muted,#A6A4AC)}
+    visibility:hidden;color:var(--hb-muted,#A7AFBC)}
   #wrail .wr-orbslot.off #orb{visibility:hidden}
   #wrail .wr-orbslot.off .wr-orbpwr{visibility:visible}
-  #wrail .wr-orbslot:hover .wr-orbpwr{color:var(--hb-ink,#F1EFEA)}
+  #wrail .wr-orbslot:hover .wr-orbpwr{color:var(--hb-ink,#F2F4F7)}
   `; document.head.appendChild(s);
 }
 

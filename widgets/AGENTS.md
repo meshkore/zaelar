@@ -7,27 +7,45 @@ widgets feel polished and consistent with the rest. These are HARD rules — fol
 
 ## Visual style (match the existing widgets: `agenda`, `meteo-soria`, `results`)
 - **Theme via CSS variables — NEVER hardcode a hex color for anything theme-dependent.** The host page defines
-  these custom properties on `:root` (both themes) and every widget inherits them since it renders inside that
-  DOM tree — just reference them in your injected `<style>`, no import needed:
-  - `--hb-bg` — card/panel background (white in light, dark slate in dark)
-  - `--hb-bg-soft` — a softer/tinted surface (nested cards, "now" highlights, subtle rows)
-  - `--hb-ink` — primary text
-  - `--hb-muted` — secondary text (labels, timestamps, captions)
-  - `--hb-muted-2` — tertiary/faint text (least important, e.g. source attributions)
-  - `--hb-line` — hairline borders
-  - `--hb-accent` (blue) / `--hb-accent2` (teal) — same hue in both themes, safe to use as-is
-  - `--hb-risk` — error/danger red, same in both themes
-  - `--hb-neutral` — neutral gray for default/unset states (e.g. an unfilled bar or a dot with no category)
-  - `--hb-warn-bg` / `--hb-warn-border` / `--hb-warn-ink` — amber warning/nudge banner (bg / border / text)
-  Give every `var(...)` a hex fallback matching the OLD light values (e.g. `var(--hb-bg,#fff)`) so a widget still
-  renders sanely even if loaded outside the host page. Example: `background:var(--hb-bg,#fff);color:var(--hb-ink,#0d1622)`.
+  these custom properties on `:root` (both themes, every design profile) and every widget inherits them since it
+  renders inside that DOM tree — just reference them in your injected `<style>`, no import needed.
+  **THE ELEVATION LADDER (V2-689) is the half that decides whether the screen reads as a product or as a flat
+  sheet.** Five rungs, each one step lighter than the last, and **a box never repeats the rung of the box around
+  it**. If you find yourself nesting a `--hb-bg` inside a `--hb-bg`, the inner one wants `--hb-bg-soft`:
+  - `--canvas` `#0B0D10` — the desk. You never paint this; it is what your card sits on.
+  - `--hb-bg` `#12151A` — **SURFACE-1, your card's ground.** The host already paints it: do not repaint it, and
+    do not draw your own outer border or shadow around everything (see «the CHROME belongs to the host»).
+  - `--hb-bg-soft` `#171B21` — **SURFACE-2**, a panel inside your widget: a toolbar strip, a group box, a step.
+  - `--hb-bubble` `#1D222A` — **SURFACE-3**, a card inside that panel, a row, a chat bubble, a selected item.
+  - `--hb-hover` `#242A34` — the interaction rung: hover/active, one step above whatever it sits on.
+  Borders are **alpha**, so a hairline keeps its weight on every rung: `--hb-line` (.10, the default),
+  `--hb-line-subtle` (.06, inside a panel), `--hb-line-strong` (.18, a focused or active edge).
+  Text: `--hb-ink` primary · `--hb-muted` secondary (labels, timestamps) · `--hb-muted-2` tertiary (source
+  attributions, metadata).
+  **Colour is for STATE, SELECTION and IMPORTANT ACTIONS — nothing else.** `--hb-accent` (`#9B7CFF`) does ALL the
+  interactive work; the rest appear rarely and only when they mean something: `--hb-ok` `#5FD3A2`, `--hb-warn`
+  `#EFC75E`, `--hb-risk` `#FF6B75` (destructive only), `--hb-accent2` `#4CC9F0` (info/echo). `--hb-neutral` is the
+  grey for an unset state (an unfilled bar, a dot with no category); `--hb-warn-bg`/`-border`/`-ink` are the amber
+  nudge banner. **A state must never be said by colour ALONE** — pair it with a shape, an icon, a border or a word,
+  or it disappears for a colourblind reader.
+  **Geometry comes from tokens too**: spacing from the fixed scale `--sp-1`…`--sp-6` = 4/8/12/16/24/32 (nothing in
+  between — an arbitrary 9px is how a dozen widgets end up almost-but-not-quite aligned); radii `--hb-r-s` 8 /
+  `--hb-r-m` 10 / `--hb-r-l` 12; control heights `--hb-ctl-h` 36 / `--hb-ctl-h-sm` 32 / `--hb-icon-h` 28;
+  transitions `--hb-t-fast` 120ms / `--hb-t` 160ms / `--hb-t-slow` 180ms — fast and functional, never decorative;
+  and `--hb-focus-ring` for the keyboard focus every interactive element must have.
+  Give every `var(...)` a hex fallback matching the DARK default above (e.g. `var(--hb-bg,#12151A)`) so a widget
+  still renders sanely even if loaded outside the host page. Example:
+  `background:var(--hb-bg-soft,#171B21);color:var(--hb-ink,#F2F4F7);border:1px solid var(--hb-line,rgba(255,255,255,.10))`.
 - **Type**: `font-family:var(--sans,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif)` —
   NEVER the raw stack alone: `--sans` is a THEME TOKEN (V2-617), so the operator's typeface choice in
   ⚙ Apariencia reaches your widget only if you read the token. Sizes in **rem** (the desktop's root font size
   is the ⚙ size knob — `1rem` scales with it, a hardcoded `13px` does not): title ~0.9rem/600, body
   ~0.78–0.875rem. The canonical steps exist as tokens too: `var(--fs-micro/-caption/-ui/-body/-title/-display)`.
-- **Cards**: `background:var(--hb-bg,#fff)`, `border-radius:12–16px`, 1px `var(--hb-line,#eef1f6)` border, subtle
-  shadow, ~11–14px padding. Optional 3–4px left accent bar in `var(--hb-accent,...)` / `var(--hb-accent2,...)`.
+- **Cards**: a panel is `background:var(--hb-bg-soft,#171B21)` + 1px `var(--hb-line,...)` + `border-radius:
+  var(--hb-r-l,12px)` + `padding:var(--sp-4,16px)`; a card INSIDE it is `var(--hb-bubble,#1D222A)` + 1px
+  `var(--hb-line-subtle,...)` + `var(--hb-r-m,10px)` + `var(--sp-3,12px)`. Keep shadows very light or absent —
+  depth on a dark ground comes from luminance, borders and spacing, never from a big drop shadow or a glassy
+  blur. Optional 3–4px left accent bar in `var(--hb-accent,...)` to mark a category.
 - **Layout: THREE SIZES, ONE WIDGET.** The same `widget.js` has to read well at all three, because the operator
   moves between them with one gesture: (1) a **PHONE** (`frontend/mobile/`: the widget IS the screen, ~390px
   wide, 366px of usable content); (2) the **DESK CARD**, a free-floating window that opens at your
@@ -77,12 +95,35 @@ widgets feel polished and consistent with the rest. These are HARD rules — fol
     catalog — including this one, once it exists — at 390px with its real data and fails on horizontal overflow,
     anything escaping the screen, controls under 40px and inputs under 16px.
 - **Language**: Spanish labels when the user speaks Spanish (numbers/dates in es too).
-- **Widget kit (optional, `app/styles.css` §WIDGET KIT)**: global `hbk-`-prefixed helper classes for the patterns
-  that repeat in almost every widget — `hbk-card` (surface), `hbk-hd` (header row: `<b>` title + `.hbk-sub` +
-  optional `.hbk-sub.hbk-right` for a trailing timestamp), `hbk-muted`, `hbk-empty` (empty/error state box),
-  `hbk-chip` (pill/badge), `hbk-btn` (small button). They already use the `--hb-*` tokens, so reaching for them
-  instead of hand-rolling the same CSS again means LESS code to write and get a themed, consistent look for free.
-  Not mandatory — a layout that doesn't fit this shape can still be 100% custom CSS.
+- **THE COMPONENT KIT — use it instead of inventing your own (`frontend/app/core/components.css`, V2-689).** It is
+  loaded on every page, desktop and phone, and `hb-`/`hbk-` are the two class prefixes a widget is ALLOWED to
+  reuse (`widgets/validator.py` exempts exactly those two from the collision gate, on purpose — this kit is
+  offered to you). Reaching for it is both less code and the only way your widget looks like the rest of the
+  product and repaints when the operator changes design profile:
+  - **Button** — `hb-btn` plus exactly ONE variant: `hb-btn--primary` (accent; the ONE affirmative action of a
+    screen), `hb-btn--secondary` (the neutral companion — a «Back» is ALWAYS this), `hb-btn--ghost` (no box until
+    hover, for toolbars), `hb-btn--danger` (red, **only** for something that destroys data; `--solid` for the
+    action a confirmation dialog is about). `hb-btn--sm` for a dense row. Do not hand-roll a button: that is how
+    fifteen widgets end up with fifteen heights.
+  - **IconButton** — `hb-iconbtn`, with `--lg` (comfortable/touch), `--framed` (standing alone on a surface),
+    `--danger`. Add a `title` to any icon whose meaning is not obvious — a tooltip is not optional on an icon.
+  - **Toolbar** — `hb-toolbar` (+ `--sub` for a second band) with `hb-toolbar-title`, `hb-toolbar-sub`,
+    `hb-toolbar-spacer`, `hb-toolbar-group` and `hb-toolbar-sep` (a separator has to mark a change of PURPOSE;
+    it is not decoration between icons).
+  - **Panel / Card** — `hb-panel` (+ `hb-panel-head`, `hb-panel-title`, `hb-panel-note`) and `hb-card`
+    (+ `hb-card--interactive`, `.is-selected`). They already sit on the right rungs of the ladder.
+  - **Tabs** — `hb-tabs` / `hb-tab` (+ `.is-on`). **Breadcrumbs** — `hb-crumbs` / `hb-crumb` / `hb-crumb-sep` /
+    `hb-crumb-cur`: use them whenever your widget has a screen you can go «back» from, so it always says where
+    back goes.
+  - **Fields** — `hb-input`, `hb-select`, `hb-textarea`, wrapped in `hb-field` with `hb-label` and `hb-hint`.
+  - **StatusBadge** — `hb-badge` (+ `--ok`, `--warn`, `--error`, `--info`, `--accent`, `--bare` to drop the dot).
+  - **Divider / section title / empty state** — `hb-divider`, `hb-sectitle`, `hb-empty-state`.
+  The older `hbk-*` kit still works and is fine for a quick list: `hbk-card`, `hbk-hd` (header row: `<b>` title +
+  `.hbk-sub`, `.hbk-sub.hbk-right` for a trailing timestamp), `hbk-muted`, `hbk-empty`, `hbk-chip`, `hbk-btn`.
+- **Every interactive element needs five states**: default, hover, active, **keyboard focus** and disabled. The
+  components above give you all five; if you write your own control, give it a hover, a `:focus-visible` carrying
+  `box-shadow:var(--hb-focus-ring)`, and a disabled face that actually reads as disabled (a control that looks
+  live and does nothing is worse than one that is visibly off).
 
 ## Hard rules
 - **Self-contained**: no external libraries, no CDN, no network from `widget.js`. Inject your `<style>` once (id-guarded).

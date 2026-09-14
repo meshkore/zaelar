@@ -26,23 +26,48 @@ function injectStyles(){
      requires this change: when the card scrolled, the absolutely positioned edge handles moved with the content
      and could not be grabbed. It also keeps the header and confirmation overlay from scrolling out of view in a
      long widget. */
-  .hb-win{position:absolute;pointer-events:auto;background:var(--hb-bg,#fff);border:1px solid var(--hb-line,#e3e8f0);border-radius:16px;
-    box-shadow:var(--hb-shadow-2,0 20px 60px rgba(13,22,34,.22));padding:30px 16px 16px;max-width:92vw;max-height:82vh;overflow:hidden;
+  /* V2-689 — THE WINDOW. One standard for every widget: surface-1 ground, a 1px default border, a 12px radius
+     and a LIGHT shadow. Depth comes from the elevation ladder (palette.css) and the border, never from a big
+     shadow: a dark desk with heavy drop shadows reads as stickers on a table, which is what the operator was
+     looking at. The card carries NO padding of its own any more — the header is a real 42px bar (a flex child,
+     not an absolutely positioned strip over a padding reservation) and the .hb-scroll element owns the content inset, so
+     «desk → widget → header → content» is four visible steps instead of one box with text floating in it. */
+  .hb-win{position:absolute;pointer-events:auto;background:var(--hb-bg,#12151A);
+    border:1px solid var(--hb-line,rgba(255,255,255,.10));border-radius:var(--hb-r-l,12px);
+    box-shadow:var(--hb-shadow-1,0 4px 12px rgba(0,0,0,.22));padding:0;max-width:92vw;max-height:82vh;overflow:hidden;
     display:flex;flex-direction:column;
-    opacity:0;transform:scale(.9) translateY(10px);transition:opacity .2s,transform .2s cubic-bezier(.2,.9,.3,1.2)}
+    opacity:0;transform:scale(.9) translateY(10px);
+    transition:opacity .2s,transform .2s cubic-bezier(.2,.9,.3,1.2),
+               box-shadow var(--hb-t,160ms) ease,border-color var(--hb-t,160ms) ease}
   .hb-win.in{opacity:1;transform:none}
+  /* FOCUS is a DEGREE, not a different design (the operator: no drastic colour changes, no loud effects). The
+     card being worked in gets a slightly more visible border and a slightly stronger shadow; every other card
+     stays one notch flatter. _bringFront() is the single writer of this class. */
+  .hb-win.hb-focus{border-color:var(--hb-line-strong,rgba(255,255,255,.18));
+    box-shadow:var(--hb-shadow-focus,0 22px 52px rgba(0,0,0,.48))}
   /* The SCROLLER wraps the canvas, NOT the widget div: widget.js sets el.className="…" and overwrites any class
      placed on its root (so a rule for .hb-body applied to nothing). The widget remains the sole owner of its div;
      scrolling is card chrome, like the header or ×. NOTE: this is a template literal — no backticks inside. */
-  .hb-scroll{flex:1 1 auto;min-height:0;overflow:auto}
+  .hb-scroll{flex:1 1 auto;min-height:0;overflow:auto;padding:var(--sp-4,16px)}
   /* Resize WITHOUT a transition: with the one above enabled, dragging a corner stuttered (each frame animated
      for 200ms toward the new size). It is disabled while the gesture lasts. */
   .hb-win.rz{transition:none;user-select:none}
-  .hb-x{position:absolute;top:7px;right:8px;width:26px;height:26px;border:none;border-radius:7px;cursor:pointer;
-    background:var(--hb-bubble,#f1f4f9);color:var(--hb-muted,#5b6b82);font-size:14px;z-index:3}
-  .hb-max{position:absolute;top:7px;right:38px;width:26px;height:26px;border:none;border-radius:7px;cursor:pointer;
-    background:var(--hb-bubble,#f1f4f9);color:var(--hb-muted,#5b6b82);font-size:12px;line-height:1;z-index:3}
-  .hb-max:hover,.hb-x:hover{color:var(--hb-ink,#e8edf5)}
+  /* THE THREE WINDOW CONTROLS — minimize · maximize/restore · close. Same size, same hit area, same position
+     and the same hover in every widget, and QUIET until hovered: they are chrome, not content, so a card full
+     of little filled boxes competes with the thing the operator opened it to look at. They live INSIDE the
+     header now (they used to be absolutely positioned over a right:70px reservation, which is how a widget
+     could end up with its title running under them); _dragHandle already ignores a pointerdown on a button,
+     so putting them on the drag handle costs nothing. */
+  .hb-winctl{display:flex;align-items:center;gap:2px;flex:0 0 auto;pointer-events:auto;margin-left:var(--sp-2,8px)}
+  .hb-x,.hb-max,.hb-min{flex:none;width:var(--hb-icon-h,28px);height:var(--hb-icon-h,28px);padding:0;
+    display:flex;align-items:center;justify-content:center;
+    border:none;border-radius:var(--hb-r-s,8px);cursor:pointer;background:transparent;
+    color:var(--hb-muted-2,#737C89);font-family:var(--sans,system-ui);font-size:13px;line-height:1;
+    transition:background var(--hb-t-fast,120ms) ease,color var(--hb-t-fast,120ms) ease}
+  .hb-min:hover,.hb-max:hover{background:var(--hb-hover,#242A34);color:var(--hb-ink,#F2F4F7)}
+  .hb-x:hover{background:var(--hb-risk-soft,rgba(255,107,117,.14));color:var(--hb-risk,#FF6B75)}
+  .hb-x:focus-visible,.hb-max:focus-visible,.hb-min:focus-visible{outline:none;
+    box-shadow:var(--hb-focus-ring,0 0 0 2px var(--hb-accent,#9B7CFF))}
   /* RESIZE HANDLES — four corners and four edges. The operator asked to be able to grab “the widget corners”:
      they are invisible until hovered (a card full of handles is noise), but have a 14px hit area, making them
      grabbable without surgical precision. */
@@ -85,14 +110,13 @@ function injectStyles(){
      means there). NOTE: this whole block is a template literal — no backticks inside, ever (V2-559's trap,
      paid here once already: a backtick in a comment CLOSES the string and turns the rest into raw JS). */
   .hb-win.hb-fullwide{position:fixed;top:0!important;left:0!important;width:100vw!important;height:100vh!important;
-    max-width:none!important;max-height:none!important;padding:0;background:var(--hb-bg,#fff);border:0;border-radius:0}
+    max-width:none!important;max-height:none!important;padding:0;background:var(--hb-bg,#12151A);border:0;border-radius:0}
   .hb-stage:has(.hb-win.hb-fullwide){z-index:9001}
   .hb-win:fullscreen{padding:0}
-  .hb-win.hb-cinema .hb-head,.hb-win.hb-cinema .hb-max,.hb-win.hb-cinema .hb-x,.hb-win.hb-cinema .hb-rz,
-  .hb-win.hb-fullwide .hb-head,.hb-win.hb-fullwide .hb-max,.hb-win.hb-fullwide .hb-x,.hb-win.hb-fullwide .hb-rz,
-  .hb-win:fullscreen .hb-head,.hb-win:fullscreen .hb-max,
-  .hb-win:fullscreen .hb-x,.hb-win:fullscreen .hb-rz{display:none}
-  .hb-win.hb-cinema .hb-scroll,.hb-win.hb-fullwide .hb-scroll,.hb-win:fullscreen .hb-scroll{overflow:hidden}
+  .hb-win.hb-cinema .hb-head,.hb-win.hb-cinema .hb-rz,
+  .hb-win.hb-fullwide .hb-head,.hb-win.hb-fullwide .hb-rz,
+  .hb-win:fullscreen .hb-head,.hb-win:fullscreen .hb-rz{display:none}
+  .hb-win.hb-cinema .hb-scroll,.hb-win.hb-fullwide .hb-scroll,.hb-win:fullscreen .hb-scroll{overflow:hidden;padding:0}
   .hb-win.hb-cinema .hb-body,.hb-win.hb-fullwide .hb-body,.hb-win:fullscreen .hb-body{height:100%}
   .hb-cinexit{display:none;position:absolute;top:10px;right:10px;z-index:6;width:36px;height:36px;border:0;
     border-radius:10px;background:rgba(0,0,0,.55);color:#fff;font-size:16px;line-height:1;cursor:pointer;
@@ -101,25 +125,43 @@ function injectStyles(){
   .hb-win.hb-fullwide .hb-cinexit{background:color-mix(in srgb,var(--hb-ink,#0d1622) 55%,transparent)}
   .hb-win.hb-cinema .hb-cinexit,.hb-win.hb-fullwide .hb-cinexit,.hb-win:fullscreen .hb-cinexit{display:flex}
   .hb-win.loading{padding:22px;min-width:120px;min-height:120px;display:flex;align-items:center;justify-content:center}
-  .hb-win.loading .hb-x,.hb-win.loading .hb-max,.hb-win.loading .hb-scroll,
-  .hb-win.loading .hb-head,.hb-win.loading .hb-rz{display:none}
+  .hb-win.loading .hb-scroll,.hb-win.loading .hb-head,.hb-win.loading .hb-rz{display:none}
   /* Widget HEADER (V2-082, left-aligned since V2-616): the NAME used to open it + a config button that expands
      the ALIASES. It lives in the 30px top strip, between the desk edge (left) and × (right). Generic for EVERY
      widget — widget.js does not touch it. The name comes from _meta/registry (manifest.name|title).
      V2-616 — the operator: a title floating centered between two invisible margins reads worse than one flush
      left, like every OS title bar; this dropped the .live/default split for the same reason it dropped the
      grip below — there was never a real difference once the header stopped being centered. */
-  .hb-head{position:absolute;top:6px;left:12px;right:70px;height:24px;display:flex;align-items:center;justify-content:flex-start;
-    gap:5px;pointer-events:none}
-  .hb-name{pointer-events:auto;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border:none;cursor:pointer;
-    background:transparent;color:var(--hb-ink,#e8edf5);font:600 12px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
-  .hb-name:hover{color:var(--hb-accent,#3D6FE0)}
-  .hb-cfg{pointer-events:auto;border:none;border-radius:6px;cursor:pointer;width:20px;height:20px;padding:0;font-size:11px;
-    background:transparent;color:var(--hb-muted-2,#9aa7b8)}
-  .hb-cfg:hover{color:var(--hb-ink,#e8edf5);background:var(--hb-bubble,#f1f4f9)}
+  /* V2-689 — THE HEADER BAR. A real 42px band on surface-2 with a hairline under it, so the card reads as
+     «title bar + content» the way every window on the operator's machine does, instead of a title floating in
+     the top margin of one undifferentiated box. Order is FIXED for every widget — mark · title · ⚙ aliases ·
+     (spacer) · controls — which is the whole point: the title is in the same place whichever widget is open. */
+  .hb-head{flex:0 0 auto;display:flex;align-items:center;gap:var(--sp-2,8px);height:42px;
+    padding:0 var(--sp-2,8px) 0 var(--sp-3,12px);box-sizing:border-box;
+    background:var(--hb-bg-soft,#171B21);border-bottom:1px solid var(--hb-line-subtle,rgba(255,255,255,.06))}
+  /* The widget's MARK. There is no per-widget icon anywhere in the catalog (no manifest carries one), and
+     inventing fifteen glyphs by hand would be a second naming system to keep in sync with the registry — so
+     the mark is a MONOGRAM tile built from the name the header already shows. It costs nothing, it is always
+     present, and it gives the eye a fixed anchor at the left edge of every card. */
+  .hb-wicon{flex:none;width:20px;height:20px;border-radius:6px;display:flex;align-items:center;justify-content:center;
+    background:color-mix(in srgb,var(--hb-accent,#9B7CFF) 18%,transparent);color:var(--hb-accent,#9B7CFF);
+    font:700 11px/1 var(--sans,system-ui);text-transform:uppercase;user-select:none}
+  .hb-name{pointer-events:auto;flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+    border:none;padding:0;cursor:pointer;background:transparent;color:var(--hb-ink,#F2F4F7);
+    font:600 var(--fs-ui,0.875rem)/1.2 var(--sans,system-ui)}
+  .hb-name:hover{color:var(--hb-accent,#9B7CFF)}
+  .hb-cfg{pointer-events:auto;flex:none;border:none;border-radius:6px;cursor:pointer;width:22px;height:22px;padding:0;
+    display:flex;align-items:center;justify-content:center;font-size:11px;
+    background:transparent;color:var(--hb-muted-2,#737C89);opacity:0;
+    transition:opacity var(--hb-t-fast,120ms) ease,color var(--hb-t-fast,120ms) ease}
+  /* the aliases button is a POWER control: it appears when the card is hovered or focused, so it never
+     competes with the title, and it stays visible while its own panel is open. */
+  .hb-win:hover .hb-cfg,.hb-win.hb-focus .hb-cfg,.hb-cfg:focus-visible,.hb-cfg.is-on{opacity:1}
+  .hb-cfg:hover{color:var(--hb-ink,#F2F4F7);background:var(--hb-hover,#242A34)}
+  .hb-head-sp{flex:1 1 auto;min-width:8px}
   /* ALIAS dropdown (host-level, patterned after .hb-confirm): editable chip list + add. */
-  .hb-aliases{position:absolute;top:30px;left:12px;right:12px;z-index:6;padding:12px;border-radius:12px;
-    max-height:calc(100% - 44px);overflow-y:auto;
+  .hb-aliases{position:absolute;top:46px;left:12px;right:12px;z-index:6;padding:12px;border-radius:var(--hb-r-m,10px);
+    max-height:calc(100% - 60px);overflow-y:auto;
     background:var(--hb-bg,#141d29);border:1px solid var(--hb-line,#232e3d);box-shadow:var(--hb-shadow-2,0 12px 40px rgba(0,0,0,.3));
     max-height:60%;overflow:auto;opacity:0;transform:translateY(-6px);transition:opacity .16s,transform .16s}
   .hb-aliases.in{opacity:1;transform:none}
@@ -134,7 +176,7 @@ function injectStyles(){
   .hb-al-add{display:flex;gap:6px}
   .hb-al-add input{flex:1;min-width:0;border:1px solid var(--hb-line,#232e3d);border-radius:8px;padding:6px 8px;
     background:var(--hb-bg,#0f1621);color:var(--hb-ink,#e8edf5);font:12px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
-  .hb-al-add button{border:none;border-radius:8px;padding:6px 12px;cursor:pointer;background:var(--hb-accent,#3D6FE0);color:#fff;
+  .hb-al-add button{border:none;border-radius:8px;padding:6px 12px;cursor:pointer;background:var(--hb-accent,#3D6FE0);color:var(--canvas,#0B0D10);
     font:600 12px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
   .hb-al-err{color:var(--hb-risk,#e5484d);font:12px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;margin-top:7px}
   .hb-al-origin{margin-top:10px;padding-top:8px;border-top:1px solid var(--hb-line,#232e3d);}
@@ -159,14 +201,14 @@ function injectStyles(){
   /* CONFIRM OVERLAY (host-level, generic for ANY widget — never touches its widget.js): irreversible action
      (delete) asks Yes/No ON the card. Fed by the confirm SSE events; resolves via POST /widgets/{id}/confirm. */
   .hb-confirm{position:absolute;inset:0;z-index:5;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;
-    padding:18px;text-align:center;border-radius:16px;background:color-mix(in srgb,var(--hb-bg,#141d29) 82%,transparent);
+    padding:18px;text-align:center;border-radius:var(--hb-r-l,12px);background:color-mix(in srgb,var(--hb-bg,#12151A) 88%,transparent);
     backdrop-filter:blur(4px);opacity:0;transition:opacity .18s}
   .hb-confirm.in{opacity:1}
   .hb-confirm-msg{font:600 14px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;color:var(--hb-ink,#e8edf5);max-width:260px}
   .hb-confirm-row{display:flex;gap:10px}
   .hb-confirm-row button{font:600 13px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
     border:1px solid var(--hb-line,#232e3d);border-radius:10px;padding:9px 18px;cursor:pointer;background:var(--hb-bg,#141d29);color:var(--hb-ink,#e8edf5)}
-  .hb-confirm-row .hb-confirm-yes{border-color:transparent;background:var(--hb-risk,#e5484d);color:#fff}
+  .hb-confirm-row .hb-confirm-yes{border-color:transparent;background:var(--hb-risk,#FF6B75);color:var(--canvas,#0B0D10)}
   .hb-confirm-row button:hover{filter:brightness(1.08)}
   /* V2-537: a MINIMIZED card is open (the brain still sees it; its data survives) but off the canvas.
      The widget rail is the only door back in — its chip stays lit, so nothing on screen is ever unknowable. */
@@ -471,7 +513,15 @@ export class Desktop {
   async _applyName(w){
     if(w._liveTitle) return;                            // the TASK takes precedence over the catalog name (see _liveTitle)
     const reg=await this._ensureRegistry(); const e=reg[w.base];
-    if(e && w.nameBtn) w.nameBtn.textContent=e.name||w.base;
+    if(e && w.nameBtn){ w.nameBtn.textContent=e.name||w.base; this._applyMark(w, w.nameBtn.textContent); }
+  }
+  // V2-689 — the header's MONOGRAM. Derived from the text the header is already showing, so it can never
+  // disagree with the title beside it (a second, hand-maintained icon table would); a name that starts with a
+  // digit or a symbol still yields a stable, legible tile because the character is taken verbatim.
+  _applyMark(w, text){
+    if(!w || !w.mark) return;
+    const c=((text||w.base||"?").trim()[0]||"?");
+    w.mark.textContent=c;
   }
 
   // ---- LIVE TITLE: the header says WHAT this is, not WHAT the piece is called ----
@@ -505,6 +555,7 @@ export class Desktop {
     if(w._alias){ this._closeAliases(w); return; }
     const panel=document.createElement("div"); panel.className="hb-aliases"; w._alias=panel;
     w.card.appendChild(panel); this._renderAliases(w);
+    try{ w.head.querySelector(".hb-cfg").classList.add("is-on"); }catch(_){}
     requestAnimationFrame(()=>panel.classList.add("in"));
     w._aliasAway=(e)=>{ if(w._alias && !w._alias.contains(e.target) && !w.head.contains(e.target)) this._closeAliases(w); };
     setTimeout(()=>document.addEventListener("pointerdown",w._aliasAway),0);
@@ -512,6 +563,7 @@ export class Desktop {
   _closeAliases(w){
     if(w._aliasAway){ document.removeEventListener("pointerdown",w._aliasAway); w._aliasAway=null; }
     if(w._alias){ w._alias.remove(); w._alias=null; }
+    try{ w.head.querySelector(".hb-cfg").classList.remove("is-on"); }catch(_){}
   }
   async _renderAliases(w){
     const panel=w._alias; if(!panel) return;
@@ -598,9 +650,15 @@ export class Desktop {
     let w = this.wins.get(id), fresh=!w;
     if(fresh){
       const card=document.createElement("div"); card.className="hb-win loading"; card.dataset.wid=id;
-      const x=document.createElement("button"); x.className="hb-x"; x.textContent="×"; x.onclick=()=>this.close(id);
+      // THE THREE WINDOW CONTROLS (V2-689) — minimize · maximize/restore · close, in that order, on every card.
+      // Minimize was the one gesture with an API (`minimize()`, V2-537) and no BUTTON: it could only be reached
+      // by voice or by the rail's ⊟, so a mouse had two of the three window controls every desktop has.
+      const x=document.createElement("button"); x.className="hb-x"; x.textContent="✕";
+      x.title=tr("desktop.close_tooltip"); x.onclick=()=>this.close(id);
       const mx=document.createElement("button"); mx.className="hb-max"; mx.textContent="⤢"; mx.title=tr("desktop.maximize_tooltip");
       mx.onclick=()=>this.maximize(id);
+      const mn=document.createElement("button"); mn.className="hb-min"; mn.textContent="—";
+      mn.title=tr("desktop.minimize_tooltip"); mn.onclick=()=>this.minimize(id);
       // CINEMA exit (V2-596): in cinema state the header chrome is hidden, so this floating button is the manual
       // way back the operator asked for («as long as there is a button to minimize it»). It exits TRUE fullscreen
       // when engaged; otherwise it restores the maximize toggle. Only visible in cinema/:fullscreen (CSS).
@@ -610,15 +668,18 @@ export class Desktop {
                        this.maximize(id); };
       // HEADER (V2-082): NAME button + config to view/edit ALIASES. The name is populated from the registry.
       const head=document.createElement("div"); head.className="hb-head";
+      const mark=document.createElement("div"); mark.className="hb-wicon"; mark.setAttribute("aria-hidden","true");
       const nameBtn=document.createElement("button"); nameBtn.className="hb-name"; nameBtn.textContent=baseId;
       nameBtn.title=tr("desktop.name_tooltip");
       const cfg=document.createElement("button"); cfg.className="hb-cfg"; cfg.textContent="⚙"; cfg.title=tr("desktop.cfg_tooltip");
-      head.append(nameBtn,cfg);
+      const sp=document.createElement("div"); sp.className="hb-head-sp";
+      const ctl=document.createElement("div"); ctl.className="hb-winctl"; ctl.append(mn,mx,x);
+      head.append(mark,nameBtn,cfg,sp,ctl);
       const load=document.createElement("div"); load.className="hb-load";
       const scroll=document.createElement("div"); scroll.className="hb-scroll";
       const body=document.createElement("div"); body.className="hb-body";
       scroll.appendChild(body);
-      card.append(mx,cx,x,head,load,scroll); this.stage.appendChild(card);
+      card.append(cx,head,load,scroll); this.stage.appendChild(card);
       this._addHandles(card);
       if(pos && pos.left){                              // restored: honor the SAVED position instead of auto-placing
         card.style.left=pos.left; card.style.top=pos.top;
@@ -634,10 +695,11 @@ export class Desktop {
       // pointerdown precisely so it would NOT drag; what that protected — a click on the title opening the
       // aliases panel — is protected instead by the 4px threshold in _dragHandle, which is how every other
       // draggable piece of chrome in this app already tells a tap from a drag.
-      head.style.pointerEvents="auto"; head.style.cursor="grab";
+      head.style.cursor="grab";
       requestAnimationFrame(()=>card.classList.add("in"));
       card._long=setTimeout(()=>card.classList.add("long"),3500);
-      w={card, body, q, id, base:baseId, nameBtn, head}; this.wins.set(id, w);
+      w={card, body, q, id, base:baseId, nameBtn, head, mark}; this.wins.set(id, w);
+      this._applyMark(w, baseId);
       nameBtn.onclick=()=>this._toggleAliases(w); cfg.onclick=()=>this._toggleAliases(w);
       this._applyName(w);                               // populate the name from the registry (async, best-effort)
       // V2-537: the rail paints the chip NOW, not when the module finishes loading — a card whose code fails
@@ -1413,7 +1475,16 @@ export class Desktop {
     return rects;
   }
 
-  _bringFront(card){ card.style.zIndex = Math.min(8000, ++this.z); }   // stay BELOW the camera (9000) and orb (100000)
+  // V2-689 — raising a card also marks it FOCUSED, and un-marks whatever held the focus before: the operator
+  // asked to be able to tell at a glance which window he is working in, and z-order is the product's own
+  // existing answer to that question — reusing it means the visual state can never disagree with the stack.
+  _bringFront(card){
+    card.style.zIndex = Math.min(8000, ++this.z);       // stay BELOW the camera (9000) and orb (100000)
+    try{
+      this.wins.forEach(w=>{ if(w && w.card && w.card!==card) w.card.classList.remove("hb-focus"); });
+      card.classList.add("hb-focus");
+    }catch(_){}
+  }
 
   // reverse lookup: which widget id owns this card? (to attribute a UI action to the correct widget)
   _idOf(card){ for(const [id,w] of this.wins){ if(w && w.card===card) return id; } return ""; }

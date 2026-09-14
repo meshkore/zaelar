@@ -763,5 +763,7 @@
  "wizard.stepHuecosTitle": "② Set up what's missing",
  "wizard.stepPerfilTitle": "① Choose a profile",
  "wizard.suggestion": "Suggestion: <b>{profile}</b> — {why}",
- "wizard.title": "Initial setup"
+ "wizard.title": "Initial setup",
+ "desktop.close_tooltip": "Close",
+ "desktop.minimize_tooltip": "Minimize"
 }

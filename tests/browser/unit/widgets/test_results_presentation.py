@@ -299,6 +299,7 @@ def test_digest_is_reached_through_the_generic_hook_not_a_special_case():
 # — it also includes the criteria used, its progress, and where the data comes from. Those three things existed only verbally
 # (the agent had to be asked about them), so they could not be checked.
 import pathlib
+import re
 
 WIDGET_JS = pathlib.Path("widgets/results/widget.js")
 
@@ -746,11 +747,26 @@ def test_the_title_is_said_once_not_twice():
 
 
 def test_the_header_does_not_run_under_the_window_buttons():
-    """There have been TWO buttons on the right since ⤢ was added (it occupies 38 to 64): with the header ending at 40, a
-    título largo se le metía por debajo — invisible con un nombre corto y centrado, evidente con una frase."""
-    src = DESKTOP_JS.read_text()
-    head = src[src.index(".hb-head{"):src.index(".hb-head{") + 200]
-    assert "right:70px" in head
+    """There have been TWO buttons on the right since ⤢ was added: with the header ending at 40, a long title
+    slid underneath them — invisible with a short centred name, obvious with a phrase.
+
+    V2-689 answers this STRUCTURALLY instead of by reservation. The header is a real flex bar and the three
+    window controls are its own children, so the title cannot reach them whatever it says; what has to hold
+    now is that the title YIELDS (`flex:0 1 auto` + `min-width:0` + ellipsis) while the controls do not
+    (`flex:0 0 auto`) — a title that refuses to shrink would push them off the card instead of sliding
+    under them, which is the same defect with the geometry inverted.
+    """
+    src = DESKTOP_JS.read_text().replace("\n", "")
+    head = re.search(r"\.hb-head\{([^}]*)\}", src).group(1)
+    assert "display:flex" in head and "align-items:center" in head, head
+    name = re.search(r"\.hb-name\{([^}]*)\}", src).group(1)
+    assert "flex:0 1 auto" in name and "min-width:0" in name, f"the title must be the one that yields: {name}"
+    assert "text-overflow:ellipsis" in name and "white-space:nowrap" in name, name
+    ctl = re.search(r"\.hb-winctl\{([^}]*)\}", src).group(1)
+    assert "flex:0 0 auto" in ctl, f"the controls never shrink: {ctl}"
+    assert "margin-left:auto" in re.search(r"\.hb-head-sp\{[^}]*\}", src).group(0) or \
+           "flex:1 1 auto" in re.search(r"\.hb-head-sp\{([^}]*)\}", src).group(1), \
+        "a spacer has to sit between the title and the controls"
 
 
 def test_the_sticky_header_has_a_bounded_height():

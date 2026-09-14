@@ -14,6 +14,7 @@
 from __future__ import annotations
 
 import pathlib
+import re
 import socket
 import subprocess
 import sys
@@ -130,10 +131,24 @@ def _into_wizard(page, data=None, **kw):
 
 def _to_last_step(page, data=None, **kw):
     """Walk to the step that holds «Conectar Google Calendar», however many come before it — which now
-    depends on whether the Google account exists (none when it does, three when it does not)."""
+    depends on whether the Google account exists (none when it does, three when it does not).
+
+    The termination condition is «Paso N de N», not «there is a counter»: the widget shows the counter on
+    EVERY step of a multi-step guide, the last one included (`if(total > 1)` in renderGoogleWizard), so a
+    loop that stops when the counter disappears never stops — it clicks the connect button over and over,
+    with no Playwright timeout to end it because every click legitimately succeeds. Measured at 772a569b,
+    before this pass touched anything: the run simply hangs. The `range` is a second floor under it — a
+    helper that walks a wizard must not be able to hang the suite whatever the widget does next.
+    """
     _into_wizard(page, data, **kw)
-    while page.locator(".agwcount").count():      # a step counter only shows while there ARE earlier steps
-        page.click(".agwfoot .agcalbtn2:not(.risk)")
+    for _ in range(8):
+        counter = page.locator(".agwcount")
+        if not counter.count():
+            break                                 # one screen only: it already IS the one that connects
+        n, total = (int(x) for x in re.findall(r"\d+", counter.inner_text())[:2])
+        if n >= total:
+            break
+        page.click(".agwfoot .agcalbtn2.hb-btn--primary")
 
 
 # ── the header: every provider visible, only the built one alive ────────────────────────────────────────
@@ -233,7 +248,7 @@ def test_an_operator_who_ALREADY_has_a_google_account_is_shown_only_the_authoris
     assert _page.locator(".agwcount").count() == 0, "one screen is not «Paso 1 de N»"
     assert _page.locator(".agwlink").count() == 0, "and it does not re-teach the Google Cloud console"
     assert _page.evaluate("window.__calls.length") == 0, "opening it still connects nothing"
-    primary = _page.locator(".agwfoot .agcalbtn2:not(.risk)").inner_text()
+    primary = _page.locator(".agwfoot .agcalbtn2.hb-btn--primary").inner_text()
     assert "Google" in primary, f"the one screen is the one with the button: {primary!r}"
 
 
@@ -243,13 +258,13 @@ def test_the_guide_walks_one_step_at_a_time_and_every_step_can_go_back(_page):
     for _ in range(3):
         seen.append(_page.locator(".agwtitle").inner_text())
         assert _page.locator(".agwstep").count() == 1, "one step at a time, never a stack of boxes"
-        _page.click(".agwfoot .agcalbtn2:not(.risk)")
+        _page.click(".agwfoot .agcalbtn2.hb-btn--primary")
     assert len(set(seen)) == 3, f"each step says something of its own: {seen}"
     # Back walks the same path in reverse, and from step 1 it lands on the connector list — never outside.
     for _ in range(3):
-        _page.click(".agwfoot .agcalbtn2.risk")
+        _page.click(".agwfoot .agcalbtn2.hb-btn--secondary")
     assert _page.locator(".agwstep").count() == 1 and _page.locator(".agwcount").inner_text().count("1") >= 1
-    _page.click(".agwfoot .agcalbtn2.risk")
+    _page.click(".agwfoot .agcalbtn2.hb-btn--secondary")
     assert _page.locator(".agcalrow").count() == 3, "back from the first step returns to the connector list"
 
 
@@ -273,7 +288,7 @@ def test_the_breadcrumb_says_where_back_goes(_page):
 def test_only_the_last_step_asks_google_for_permission(_page):
     _to_last_step(_page, data=_unconf())
     assert _page.evaluate("window.__calls.length") == 0, "three steps of instructions ask nobody for anything"
-    _page.click(".agwfoot .agcalbtn2:not(.risk)")
+    _page.click(".agwfoot .agcalbtn2.hb-btn--primary")
     _page.wait_for_timeout(50)
     call = _page.evaluate("window.__calls.pop()")
     assert call[0] == "connect" and call[1]["provider"] == "google", call
@@ -284,7 +299,7 @@ def test_the_window_is_opened_INSIDE_the_click_not_after_the_answer_comes_back(_
     """THE defect he reported («ni siquiera funciona»). A popup opened after an `await` has lost the click's
     user activation and is blocked with no error anywhere — so the order is the product, not a detail."""
     _to_last_step(_page, connect="deferred")
-    _page.click(".agwfoot .agcalbtn2:not(.risk)")
+    _page.click(".agwfoot .agcalbtn2.hb-btn--primary")
     _page.wait_for_timeout(50)
     assert _page.evaluate("window.__seq") == ["open"], \
         "the window must already be open while the connect action is still in flight"
@@ -296,7 +311,7 @@ def test_the_window_is_opened_INSIDE_the_click_not_after_the_answer_comes_back(_
 
 def test_a_refusal_SAYS_why_instead_of_leaving_the_button_looking_broken(_page):
     _to_last_step(_page, connect="error")
-    _page.click(".agwfoot .agcalbtn2:not(.risk)")
+    _page.click(".agwfoot .agcalbtn2.hb-btn--primary")
     _page.wait_for_timeout(50)
     assert "OAuth" in _page.locator(".agwerr").inner_text(), _page.locator(".agwerr").inner_text()
     assert "close" in _page.evaluate("window.__seq"), "the blank window is closed again, not left hanging"
@@ -319,7 +334,7 @@ def test_a_connected_google_offers_its_default_calendar_and_the_way_out(_page):
     rows.nth(1).click()
     call = _page.evaluate("window.__calls.pop()")
     assert call[0] == "set_default_calendar" and call[1]["calendarId"] == "b@g", call
-    _page.click(".agcalbtn2.risk")
+    _page.click(".agcalbtn2.hb-btn--danger")
     assert _page.evaluate("window.__calls.pop()")[0] == "disconnect"
 
 
@@ -343,7 +358,7 @@ def test_a_connected_google_icon_opens_the_list_and_never_the_guide(_page):
 def test_a_pushed_voice_connect_lands_on_the_step_that_has_the_button(_page):
     _mount(_page, _data(connect={"n": 1, "at": 9e9}))
     assert _page.locator(".agwstep").count() == 1, "the voice order did not open the guide"
-    assert _page.locator(".agwfoot .agcalbtn2:not(.risk)").inner_text().strip() != "", "no button to press"
+    assert _page.locator(".agwfoot .agcalbtn2.hb-btn--primary").inner_text().strip() != "", "no button to press"
     assert _page.locator(".agwcount").count() == 0, \
         "with the account already registered there is ONE screen, and it is the one with the button"
     assert _page.evaluate("window.__calls.length") == 0, \
@@ -354,7 +369,7 @@ def test_the_pushed_connect_does_not_reopen_itself_on_every_repaint(_page):
     """Same token: a repaint (an agenda tick, an SSE push) must not drag him back to a screen he has just
     left. Same contract as the pushed view above."""
     _mount(_page, _data(connect={"n": 1, "at": 9e9}))
-    _page.click(".agwfoot .agcalbtn2.risk")                    # «Atrás» -> out of the guide
+    _page.click(".agwfoot .agcalbtn2.hb-btn--secondary")                    # «Atrás» -> out of the guide
     _page.click(".agcalbtn")                                   # and close the connectors screen
     _page.evaluate("d => window.__mod.render(document.getElementById('w'), d, window.__ctx)",
                    _data(connect={"n": 1, "at": 9e9}))
@@ -364,7 +379,7 @@ def test_the_pushed_connect_does_not_reopen_itself_on_every_repaint(_page):
 def test_asking_a_SECOND_time_brings_the_button_back(_page):
     """And the other half: if the Google window closed on him and he asks again, it has to jump again."""
     _mount(_page, _data(connect={"n": 1, "at": 9e9}))
-    _page.click(".agwfoot .agcalbtn2.risk")
+    _page.click(".agwfoot .agcalbtn2.hb-btn--secondary")
     _page.click(".agcalbtn")
     _page.evaluate("d => window.__mod.render(document.getElementById('w'), d, window.__ctx)",
                    _data(connect={"n": 2, "at": 9e9}))
