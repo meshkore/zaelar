@@ -41,7 +41,23 @@ def _with_language(code: str):
 
 @pytest.fixture(autouse=True)
 def _restore_language():
+    """Put the module table back EXACTLY as it was — the purge above is the most expensive thing a test in
+    this repo can do (2026-09-15).
+
+    `_with_language` deletes every `widgets*`/`i18n*` entry from `sys.modules`, which is the honest way to
+    measure a language change. Dropping the entries and walking away is not: the next module to import
+    `widgets.store` gets a SECOND copy of it, built from scratch, whose `DATA_DIR` is recomputed at import
+    time — so the session sandbox the root conftest installs is gone and the suite starts writing into the
+    operator's REAL `widgets/_data`. And every test module that had already imported a widget holds the OLD
+    object, so a fixture patching one copy no longer patches the one the product uses.
+
+    MEASURED on the full run: 222 of the 229 reds in `tests/browser/unit` came from here, none of them
+    reproducible in isolation, and the widget rows the suite left behind are indistinguishable from the
+    operator's own. The originals are never garbage: they are held here and put back, so the purge lives and
+    dies inside this file.
+    """
     before = os.environ.get("ZAELAR_LANGUAGE")
+    snapshot = {m: sys.modules[m] for m in list(sys.modules) if m.startswith(("widgets", "i18n"))}
     yield
     if before is None:
         os.environ.pop("ZAELAR_LANGUAGE", None)
@@ -49,6 +65,12 @@ def _restore_language():
         os.environ["ZAELAR_LANGUAGE"] = before
     for name in [m for m in list(sys.modules) if m.startswith(("widgets", "i18n"))]:
         del sys.modules[name]
+    sys.modules.update(snapshot)
+    try:                                           # the restored modules must re-read the restored language
+        from i18n import runtime as _i18n_runtime
+        _i18n_runtime.invalidate()
+    except Exception:
+        pass
 
 
 # ── the label ────────────────────────────────────────────────────────────────────────────────────────────────

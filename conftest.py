@@ -90,6 +90,27 @@ try:
 except Exception:                                  # if `widgets` is not importable, the suite continues as before
     pass
 
+# 2026-09-15 — THE SAME INVARIANT, one store further: which widgets the operator has DELETED.
+#
+# `widgets/hidden.py` keeps the "deleted" shipped widgets under `<workspace>/widgets/_data/_system/hidden.json`
+# and resolves that path PER CALL from `nucleo.workspace.root()` — so moving `store.DATA_DIR` above does not
+# reach it, and the whole catalog (`runtime.catalog`, `registry`, `brief.for_prompt`, `identify`) is filtered
+# by a file that belongs to whoever runs the suite.
+#
+# MEASURED on the operator's machine: he had deleted the `clock` widget at some point, so
+# `test_for_prompt_orders_and_marks` and `test_code_delete_never_creates` were RED on his tree and GREEN in a
+# clean checkout of the same commit. Nothing was broken; the suite had started depending on which cards he
+# happens to have on his canvas — and it is the shape that costs most, because the failure does not reproduce
+# where anybody looks for it.
+try:
+    from widgets import hidden as _hidden
+
+    _hidden_dir = _Path(tempfile.mkdtemp(prefix="zaelar-test-hidden-"))
+    _hidden._path = lambda _d=str(_hidden_dir / "hidden.json"): _d
+    _hidden._cache.update({"path": "", "mtime": None, "ids": frozenset()})
+except Exception:                                  # if `widgets` is not importable, the suite continues as before
+    pass
+
 # 2026-09-13 (V2-684) — THE SAME INVARIANT, and this time the place it had never reached is the DATABASE:
 # `zaelar.db`, which holds the memory, the durable event log AND, since V2-683, the errand ledger.
 #
@@ -115,6 +136,43 @@ try:
     _real_db = _Path(__file__).resolve().parent / "memory" / "_data" / "zaelar.db"
     if not os.getenv("ZAELAR_DB") or _Path(os.environ["ZAELAR_DB"]).resolve() == _real_db:
         os.environ["ZAELAR_DB"] = str(_Path(tempfile.mkdtemp(prefix="zaelar-test-db-")) / "zaelar.db")
+except Exception:                                  # never let the harness's own guard stop the suite
+    pass
+
+
+# 2026-09-15 — A PURGED MODULE TABLE UNDOES EVERY ISOLATION ABOVE, AND SAYS NOTHING.
+#
+# Each block above pins a path onto an ALREADY IMPORTED module (`_wstore.DATA_DIR`, `_v2._PATH`,
+# `_settings.SETTINGS_FILE`). That holds for exactly as long as the module object does. A test that deletes
+# `widgets.*` from `sys.modules` to re-import it under another language — the honest way to measure a language
+# change, and the only place in the suite that does it — hands the next importer a FRESH `widgets.store` whose
+# `DATA_DIR` is recomputed at import time from the real workspace. From that point the suite writes into the
+# operator's own `widgets/_data`, which is the incident the V2-194 block above was written for, and every test
+# module that had already imported a widget is left holding the previous copy.
+#
+# MEASURED: 222 of the 229 reds in `tests/browser/unit` came from one file doing this, and not one of them
+# reproduced in isolation — the most expensive failure shape there is. The purge itself is legitimate; walking
+# away from it is not, so the test that does it restores the table and this guard is what makes that the only
+# way. It fails the OFFENDER by name instead of tinting everything after it, and re-pins the sandbox so the
+# rest of the run still cannot reach the real data.
+try:
+    import pytest as _pytest3
+
+    @_pytest3.fixture(autouse=True)
+    def _a_purged_module_table_is_a_failure():
+        import sys as _sys
+        before = _sys.modules.get("widgets.store")
+        yield
+        after = _sys.modules.get("widgets.store")
+        if before is not None and after is not before:
+            if after is not None and before is not None:
+                after.DATA_DIR = before.DATA_DIR    # the rest of the run keeps its sandbox either way
+            _sys.modules["widgets.store"] = before
+            raise AssertionError(
+                "this test replaced `widgets.store` in sys.modules and did not put the original back — the "
+                "session sandbox installed in conftest.py is pinned on the module OBJECT, so every test after "
+                "it would have read and written the operator's real widgets/_data. Snapshot the modules you "
+                "purge and restore them in the teardown.")
 except Exception:                                  # never let the harness's own guard stop the suite
     pass
 
