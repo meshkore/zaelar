@@ -795,6 +795,34 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   - An origin in a payload is not a credential (V2-520) and cannot leak a code: Google only ever redirects
     to a URI the client has REGISTERED — the control this entire batch tripped over — and a malformed one
     falls back instead of travelling. Node **4.168**; five disarms, every mutation asserted, all red.
+  - ⚠️ **The retry failed too, and agreeing was never going to be enough (V2-687b, same afternoon).** The
+    engine probed Google's OWN authorize endpoint for every URI on the list — building the same URL the flow
+    builds, following none of it, consenting nothing — and all five answered `redirect_uri_mismatch` while
+    echoing the exact string we sent. So the client had **no redirect URI registered at all**, and **three
+    defects were stacked under one error message** with only the first found. **(2) The list asked him to
+    register five URIs Google will not accept.** `local.zaelar.com` is a DOMAIN — OURS, shipped as a DNS
+    alias of 127.0.0.1 so a local engine can be opened over TLS — and Google exempts only the LOOPBACK
+    address from domain ownership, so **no self-hoster can ever register it**. The remedy V2-687 reached for
+    — print TEN instead of five — therefore made half the list unregistrable, which is worse than the defect
+    it replaced. `app.normalize_origin()` collapses this engine's two local listeners onto loopback: same
+    process, same token store, and a callback page that reads nothing from the origin's session, so which of
+    the two Google returns to changes nothing the operator can observe. A genuinely remote origin is not one
+    of `served_origins()` and passes through untouched, so V2-603 stays true and the list is five again.
+    **(3) `CALLBACK_PATHS` named `/api/files/callback`, which this engine has NEVER served** — Drive answers
+    on `/api/cloudfiles/callback`, and `/api/files/*` belongs to `memory_routes`, which `server/__init__.py`
+    says in as many words. A wrong address on a list of five reads, to whoever pasted it, as «I did exactly
+    what it said». The test derives the truth from the MOUNTED routers instead of trusting the tuple, which
+    is the only one of the three a test could have caught the day it was written — and it declares the gap
+    it exposes: **`/api/email/callback` has no router at all** (`server/email_api.py`, named by
+    `connectors/email/oauth.py:7`, does not exist), so Gmail's OAuth door is dead and now says so.
+  - **`app.check_registered()` — ask Google instead of guessing.** Registering a redirect URI is the one
+    step of this setup that happens in somebody ELSE's console, and until today the only way to find out
+    whether it had worked was to run a whole consent flow and read `Error 400` at the end of it. It answers
+    **None, never False, when it cannot tell** — an offline machine must not be told its setup is broken,
+    because «could not tell» and «not registered» send the operator to two different places. ⚠️ The general
+    lesson, and the one worth more than this connector: **a list of addresses to register is only worth what
+    it is DERIVED from** — hand-typed, it drifts from the routes in silence, and the drift only ever
+    surfaces in the operator's browser, as HIS failure. Seven more disarms, every mutation asserted, all red.
 
 - **The LAST METRE of a connector: the agenda owns its own, and a voice order ends in front of the BUTTON
   (V2-686, 2026-09-14)**: the operator tried to connect Google Calendar by voice, twice, minutes after
@@ -3370,233 +3398,6 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   came back green because the retriever's LIKE rescue channel masked the missing FTS re-index: the sharpened
   test asks the FTS INDEX itself (`MATCH` walks the index; a plain SELECT on external-content FTS5 returns
   the content table's rows regardless, a measurement trap worth remembering). Suite: 646 passed.
-- **A voice fullscreen order must change the screen — requestFullscreen is gesture-gated and rejects in
-  SILENCE (V2-583, 2026-09-05)**: «Maximiza el video» routed perfectly twice (tool → `fullscreen` tag → SSE →
-  `desktop.fullscreen`) and nothing moved. `youtube` declares `fullscreen:"native"`, and the browser gates
-  `requestFullscreen()` on transient user activation — a voice order over SSE has none, so the call rejects
-  as a Promise AFTER the method returned true: the try/catch never saw it, no error anywhere, and the model
-  confabulated on top. Voice-driven native fullscreen never worked since its birth (2026-07-23). Fix in
-  `nativeFullscreen`: no activation → in-app `maximize()` (canvas filled, voice reachable, toggle restores);
-  no API or rejected promise → same fallback. Native stays for gesture-driven callers; exit needs no gesture.
-  ⚠️ **Why no test ever saw it**: Playwright's evaluate runs with CDP `userGesture:true` — the harness GRANTS
-  the activation a voice order never has, so the first version of the test passed `requestFullscreen` without
-  any gesture. Both refusal signals are simulated explicitly now (node 4.92, +3 checks; disarm 3 red, incl.
-  the unhandled rejection finally surfacing as a page error). Mobile Deck immune (its fullscreen just
-  navigates). Frontend-only: a page reload picks it up.
-- **The video widget gets an ACCOUNT — the video connector family, and the interior anchors to the parent
-  (V2-597, 2026-09-05)**: the operator's direction — replicate the MESSAGING pattern in the video widget
-  (platform icons in the header, a guided wizard when someone asks to connect, per-platform results never
-  mixed) and the HOME fed by his subscriptions under HIS filters. `connectors/video/` is the V2-557 family
-  shape (typed registry · PKCE oauth forked from photos · Data API v3 client · fail-safe facade ·
-  `/api/video/*`), one provider (YouTube, tier `readonly` ONLY — the write tier is deliberately not declared
-  until subscription management ships) but a FAMILY by design: adding a provider touches the registry + one
-  client, zero widget lines.
-  - **Quota facts that shaped the client**: `subscriptions.list` and `playlistItems.list` cost 1 unit/page;
-    a channel's uploads playlist is DERIVED (`UC…` → `UU…`), saving one `channels.list` per channel — a full
-    suggestions pull is ~26 of 10,000 free daily units.
-  - **The widget follows archivos, not mensajeria, for state**: youtube is PASSIVE, so every `apply_action`
-    branch must be declared — which is why credentials go through the ⚙ panel (`video-connect` card) and the
-    declared actions carry INTENT only (`open_connectors` the voice door with a timestamped `connect_focus`;
-    `connect_account` returns the consent URL, window opened synchronously on the click; `suggest` fills the
-    home band). `view_data` stays connector-free: platform rows are CACHED (`platforms_stale` computed from
-    age, the `needs_refresh` pattern) and the card asks for one `sync_platforms` when stale.
-  - **No background refresh, decided in writing** (V2-034 forces the decision): the operator's standing rule
-    is absolute control — the suggestions band fills when ASKED, never on a timer. `block_channel` sweeps
-    the band too, and a disconnect empties it.
-  - ⚠️ **Trap T3 found LIVED while wiring the ⚙ card**: the `fotos` family (V2-564) had registry rows and
-    NOBODY rendered them — no fams entry, no api.js helper, so there was nowhere to paste the Photos
-    client_id. Closed in the same seam (generic OAuth card for `fotos` + `video`).
-  - **The interior anchors to the parent card** (operator, live, with his screenshot: a maximized card kept
-    the widget at a fixed 680px hugging the left edge): `.hb-yt` is `width:100%` + `border-box` — the CARD
-    decides in every state — and the default footprint moved to `manifest.size` (680). And `maximize()` now
-    resolves a MISSING catalog meta lazily: a card restored on reload and maximized before the catalog fetch
-    answered never got its cinema class, so full-bleed silently depended on WHICH road opened the card.
-  - Nodes 5.13/5.14 (connector unit + LIVE roundtrip, skips with enable steps) and 4.4/4.53 additions; five
-    disarms, mutations asserted, all red; mural 4.92 green after the desktop.js change. **NOT verified live
-    against a real Google account** — the LIVE node is built whole and waits for the operator's OAuth client.
-    Doc: `.meshkore/docs/modules/zaelar-video-widget-and-account-connector.md`.
-
-- **A fullscreen order is about a SCREEN STATE, never a close — and cinema goes above everything (V2-600,
-  2026-09-05)**: the operator asked the video OUT of fullscreen and the widget CLOSED; reopening came back
-  «a pantalla completa pero dentro del escritorio». Read from his own observability (session `3050e623`),
-  three defects: (1) the STT rendered «cierra la pantalla completa» as «…completamente» — the hard-interrupt's
-  fullscreen guard demanded the exact bigram, missed, and «cierra»+«pantalla» fired close-ALL, once per glued
-  fragment; (2) the generic close backstop's only fullscreen guard was `fullscreen_widget in _tool_fired`, so
-  his complaint ABOUT the close («no que cerraras el widget del vídeo» — close verb + widget name, model called
-  nothing) closed `youtube` twice more; (3) the reopen looked «inside the desktop» because a voice order has no
-  user activation → V2-583's fallback gives in-app maximize+cinema, while his FIRST attempt rode a recent
-  click's activation window into true fullscreen — same order, two looks, a gesture RACE he cannot see.
-  - Fixes: `_FULLSCREEN_RE` tolerates «completamente» (a false veto hands the turn to the model; a miss
-    destroys the canvas); **`attention.mentions_fullscreen()` is the ONE copy** both close backstops (voice +
-    probe mirror) veto on — a turn mentioning fullscreen is never a whole-widget close for a backstop to
-    guess; **cinema covers the WHOLE viewport** (`position:fixed`+`!important` over maximize's inline
-    geometry, and `.hb-stage:has(.hb-cinema)` lifts the stage — its own z-index is a stacking context, so the
-    card alone could never beat the rail/chat); and **`_layout()` persists a maximized card at its `_restore`
-    geometry** — the full-canvas footprint was being saved as the card's normal size, so a close-while-maximized
-    reopened filling the desk.
-  - NOT seeded into the actionmap on purpose: `fullscreen` is a toggle and the map cannot see state; the exit
-    phrases name no widget. Nodes 3.x (+ wiring guard, comment-stripped, anchored on the backstop conditional)
-    and 4.92 (2 RENDERED checks). Five disarms, mutations asserted, all red. **Not verified live** — needs a
-    reload (frontend halves) and an engine restart (guard + vetoes).
-
-- **A stale connector error never greets a fresh open — and the state line OUTRANKS the window (V2-582,
-  2026-09-05)**: the operator opened the email connect screen days after a refused attempt and «No se pudo
-  conectar. Eso es un ENLACE…» was already on it; in the same session the agent claimed the email was
-  connected against `Email: error.` in its OWN prompt, and after the operator connected it live
-  (`Email: conectado.` from the next turn on) kept answering «no me ha quedado conectado», anchored on its
-  earlier sentences — the window beating the state line, both directions in five minutes (session
-  `e32b00f1`, read turn by turn before touching anything).
-  - **The banner belongs to the ATTEMPT, the status to the store.** `widgets/mensajeria/widget.js` keeps
-    module-lived `_attempted[platform]`: the error card renders only for a failure of THIS page session's
-    own connect attempt, and the connector list shows a stale-errored platform as plain «Sin conectar». The
-    store keeps `status:"error"` durably on purpose — the brain must keep knowing it is NOT connected.
-  - **A refusal ENDS the attempt** — found by RENDERING: `_busy` was only cleared on non-error advances, so
-    after a refusal the primary button sat disabled on «Conectando…» forever, with the banner's retry as the
-    only way out.
-  - **The state line speaks and RULES** (`connectors/messaging/brief.py`): `error` gets words («NO conectado
-    — el último intento falló») instead of the raw status the model filled in both directions, and the block
-    declares itself this turn's LIVE state that wins over the whole prior conversation, the model's own
-    claims named explicitly (V2-221: without the phrase inside, nothing to check itself against).
-  - **The worker knows the door** (`nucleo/dispatch_prompts.py`): the escalated worker invented
-    `nucleo.gmail_cli`, was denied a «gmail» tool, concluded — falsely — «no hay conector directo» and drove
-    the browser to webmail. The generic prompt now says messaging/email is read with
-    `widget_cli read mensajeria`, no gmail CLI or tool exists, and webmail-by-browser is the last resort.
-  - Design pass on the wizard (operator's ask): «Paso N de 3» into the step header, roomier boxes/inputs/
-    buttons, and outside-work steps label their own advance («Ya la tengo — continuar»). Nodes 4.106 (+3
-    cases incl. the exact incident and the counterweight: a THIS-session refusal stays visible) and 5.12;
-    five disarms, mutations asserted, all red. Open, named in the initiative: the bare «Hecho.» that
-    swallowed half a compound order (V2-567 family), and «cuántos SIN LEER» having no exact answer while the
-    widget holds triaged items, not a mailbox count.
-- **The daemon is the piece that reads somebody's disk, so it gets an attacker with a name (V2-575 P0 security
-  pass + P4, 2026-09-06)**: audited, split into `security/` (WHETHER: never-served names · a PURE admission
-  decision over headers · a refusal throttle) · `fs/` (WHAT: the one permission circuit · a TOCTOU-safe open ·
-  one module per capability, READ ONLY) · `http/` (the plumbing that joins them), with `permissions.py`,
-  `files.py` and `server.py` as re-export shims. Threat model and stated limits:
-  `.meshkore/docs/security/zaelar-daemon-security.md`; build/install/release:
-  `.meshkore/docs/ops/zaelar-daemon-build.md`.
-  - **The hole that mattered: the Origin check CANNOT SEE A REBIND.** A page on `evil.example` re-resolved to
-    127.0.0.1 makes a SAME-ORIGIN request, which carries no `Origin` header at all — so the guard rested
-    entirely on `Sec-Fetch-Site`, one header away from nothing. `Host` betrays it (the browser still names the
-    site it THINKS it is on), exact match against the loopback names AND this daemon's port — `startswith` is
-    satisfied by `127.0.0.1.evil.example`. Same class the engine already paid for in V2-601 T-14.
-  - **A body must be declared JSON**, which closes the browser vector ON ITS OWN: `text/plain`,
-    `x-www-form-urlencoded` and `multipart/form-data` are the only shapes a browser sends cross-origin with no
-    preflight, so requiring JSON forces a preflight that never succeeds.
-  - **Unauthorized attempts are AUDITED** — the old shape answered 401 before recording anything, so the single
-    most security-relevant signal there is left no trace in a log whose own docstring says refusals earn the
-    file — and COLLAPSED by a throttle, so a flood cannot push the interesting line off the end of a rotated
-    one. No lockout: every process here already runs as the user, so a ban is resettable by an attacker and
-    permanent for the person who mistyped their own token.
-  - **Every guard answers with the SAME 401 and sentence.** Naming which one fired turns «try things until
-    something works» into «read the error and adapt». The precise reason goes to the log.
-  - Also: a 500 no longer narrates its exception text (absolute paths, internal names) to the caller who most
-    wants it; `S_ISREG` + `O_NOFOLLOW` + the descriptor's OWN path re-checked against the boundary (`F_GETPATH`
-    / `/proc`, which catches a directory swapped MID-path — **Windows is a stated limit, not a solved
-    problem**); the never-served list grew what is actually on a disk (browser cookie stores, `.env.*`,
-    `.git/config`, shell history), normalized for case AND Unicode form because macOS stores names decomposed;
-    granting `$HOME` or a system folder is refused (a name list is not a boundary — home is the machine minus a
-    list); numbers off the wire are clamped instead of `int()`-ed into a 500; concurrency, body size and
-    connection lifetime are bounded.
-  - ⚠️ **The split cost a boot**: `fs/__init__.py` re-exported the FUNCTION `roots` over the SUBMODULE of the
-    same name, so `from ..fs import roots` handed a function to code that wanted the module — no import error,
-    a failure on the first attribute access, in whichever file wrote the shorter import. Guarded (7.40).
-  - **P4 — two artifacts, no administrator, and no self-updater.** A 50 KB stdlib `zipapp` (always buildable,
-    reproducible, zero build deps) beside a PyInstaller onefile; per-user LaunchAgent / scheduled task, so an
-    install never needs elevation — **a security property first**: a per-user daemon that needed it could then
-    reach every account. **Re-running the installer IS the upgrade path.** No auto-update on purpose: an update
-    channel that downloads and executes without a signed artifact is remote code execution by design, and this
-    is the worst possible daemon to put one on.
-  - **Verified where, because it is not everywhere.** macOS by hand end to end (built → installed into a temp
-    HOME → launchd ACCEPTED and ran the agent → it deferred to the already-running instance without
-    restart-looping → uninstalled, job gone). **The Windows half was written with no Windows and no PowerShell
-    on the machine**; `.github/workflows/daemon-artifacts.yml` is what turns that into a measurement, parse-
-    checking the scripts, building the .exe, and asserting a `Host: evil.example` request still gets a 401 —
-    the one regression that would ship a daemon which starts and defends nothing.
-  - Nodes **7.40** (hostile local process, seven disarms with each mutation ASSERTED before measuring) and
-    **7.41** (built, run from the artifact, installers name what the build produces, no elevation).
-
-- **The controls exist; a ROBOT runs them now — the audit remediation tier (V2-601 T-01..T-14, 2026-09-05/06)**:
-  the full-system audit's verdict on «this looks vibe-coded» was that the engineering controls were real and
-  UNOPERATED — the architecture ratchet sat RED on clean main and nobody saw, because nothing ran it. The
-  operator ordered the safe tier executed whole. What changed, one commit per task (`c95d8ee..217ac55`, each
-  with tests + verified disarms; full deterministic run 7473 green on the release tree, tagged v3.26/build 11):
-  · **CI on every push/PR** (`.github/workflows/ci.yml`): syntax sweep + ruff F/E9 + `tests/infrastructure`
-    (every ratchet). Its FIRST three runs caught a non-hermetic daemon e2e (it read the REAL `$HOME`) and then
-    caught the very session that created it (dispatch over its ceiling + a duplicate testmap id) — a robot
-    sees what a person running «their neighbourhood's suites» does not, which was the audit's whole point.
-  · **The red ratchet paid by extraction, never a ceiling**: `surface_ack.py`, `results/sheet_names.py`,
-    `probe_actionmap.py`, `providers/flow_lifecycle.py` — AST-identical moves with re-exports; the actionmap
-    wiring guards follow the CHANNEL (both files), per V2-555.
-  · **ruff F+E9 at the door** (no formatter — N agents share the tree; `tests/use_cases/` excluded whole,
-    arnés territory). Its first run found a REAL dead branch in the voice hot path: the V2-090
-    «a correction merges into the live task's flow» adopt call used `_trace` with the name never in scope —
-    it died as a NameError inside its own `except: pass` on EVERY firing since it shipped. The lint gate is
-    that class's regression guard now (the third paid instance after V2-348/V2-555).
-  · **A lockfile** (`constraints.txt` from the venv that runs the operator's engine — pinning to it is zero
-    behavior change by construction), the livekit-plugins stack pinned, a Python floor at the door.
-  · **Security seams closed, each with a reproduced test**: a peer's text can no longer ride the cluster
-    SYNTHESIS past the fence (neutralized at the write AND at the read, covering already-poisoned installs);
-    the originless same-origin GET from a DNS-rebound page is refused by the Host header (live-verified);
-    the widget generator runs from a SCRATCH cwd (the repo-root cwd shipped `engine/CLAUDE.md` AND the
-    private parent `CLAUDE.md` to the external provider on EVERY generation) with the dev-worker PreToolUse
-    jail reused as a MECHANICAL write-jail — probed first: acceptEdits happily writes an absolute path
-    outside the cwd, and path-scoped `Write(<dir>/**)` rules deny even matching paths, so cwd alone was
-    never confinement (la capacidad se MIDE, no se lee); the dev worker's jail fails CLOSED (no settings
-    file → ZERO tools, never unjailed) and its env is an ALLOWLIST (the process env carries every key
-    `.env` loads, and a peer-driven worker reads none of them now).
-  · **Correctness**: `create_app`'s broad except is gone — a configured brain whose routers fail to mount
-    RAISES where the release smoke can see it (V2-554's own prescription; the old shape booted «green» with
-    no probe, no worker plane, no browser bridge); `/api/cron` mounts only under the brain whose loop fires
-    the jobs (the V2-121 silent-alarm class); memory ingestion marshals to ONE home loop (its serializing
-    `asyncio.Lock` cannot span the engine's two loops — contended cross-loop it poisoned itself and lost
-    writes in silence); the client's close-all copy learned V2-600's fullscreen veto (the third handle);
-    `make test-widgets` is GREEN 14/14 (the results sheet's identity rides the payload instead of a fetch,
-    `results` sits in the curated `_STDLIB_EXEMPT` with its reason written, navegador's phantom golden
-    drift seeded away) — while it sat red, a NEW violation in any widget was invisible.
-  Still the operator's: the LICENSE (T-03 — the repo declares itself open source with no license file) and
-  this very file's compaction policy (T-18). The P2/P3 structural tier stays in V2-601.
-
-- **The A2A card names SKILLS, not a contact URL (V2-616, 2026-09-08)**: `parcelpilot` shipped, was
-  discoverable in both languages, and every errand 404'd — we posted to `/v1/search` while its card said
-  `skills: [{"id": "track-parcel"}]` and it served `/v1/track-parcel`. `_skill_path` read
-  `card["contact"]["http"]`, a field the current A2A card does not carry, and fell back to `/v1/search`. That
-  default only ever worked because the older agents keep `/v1/search` as a **legacy alias**; `parcelpilot` is
-  the first built without one, so **every new agent would have 404'd on arrival**, `placescout` included. The
-  contract was documented from day one («read the card, call `POST /v1/<skill-id>`») and never implemented —
-  the alias hid it. Now the skill id is the fallback, with an explicit `contact.http` still winning so nothing
-  that works today is rerouted. **The shape:** a default that is never exercised is not a default, it is an
-  untested branch — and the first new participant is what tests a compatibility path, by which time it is
-  production.
-
-- **An empty answer is not a served errand (V2-602, 2026-09-06)**: asked in English for sneakers, the mesh
-  answered `ok: True` with **zero rows** — `ebay-finder` ranks first, its eBay lane is a sandbox, and `serve`
-  took its `count: 0` and never reached `ybana`, which had twenty real offers. The same shape made my own
-  sweep wrong the day before: `compras → ebay-finder · 183B ok=True` was recorded as a working vertical, and
-  183 bytes is `{"count": 0, "offers": []}`. Now an empty `ok` is held back as a FALLBACK — still returned
-  when nobody does better, because «nobody has this» is a real result, but it no longer ends the search while
-  a candidate stands. `_is_empty_payload` treats anything it cannot recognise as NOT empty, so an unreadable
-  payload is never discarded. **And it undoes a regression V2-596 introduced**: `ybana` answers `{"error":
-  "missing_product", "detail": "body.product is required"}` — actionable, but under diagnostic keys, so the
-  new split called it «the agent broke». The two are separable by WORDING, not key: a missing field says
-  *missing* or *required*; a broken upstream calls what it got *invalid*. English shopping went 0 → 10.
-
-- **The engine is licensed: Sustainable Use License 1.0, fair-code (V2-601 T-03, 2026-09-06)**: operator
-  decision, checked against the competition per-artefact — Hermes Agent and OpenClaw both ship MIT, which
-  grants everyone the right to sell and sublicense, the opposite of the intent (use it and modify it for
-  yourself; don't commercialize it; commercial exploitation stays with Zaelar). `LICENSE.md` carries the SUL
-  1.0 verbatim (the n8n fair-code license) with the third-party carve-out named; the vendored WhatsApp bridge
-  finally has its upstream MIT text in `connectors/whatsapp/bridge/LICENSE` (Copyright 2025 Nous Research) —
-  the frame INI-027 §9 asked for, provenance untouched. This is source-available, NOT OSI open source: every
-  "open source" claim in README and on zaelar.com was corrected the same day (live-verified). Never
-  reintroduce "open source" or "MIT" wording for this repo.
-- **This file compacts by ARCHIVING, never by deleting (V2-601 T-18, 2026-09-06)**: at 869KB/~210k tokens no
-  agent could load the whole log, so every reader got a nondeterministic slice. Now recent decisions stay
-  verbatim, everything older moved — byte-for-byte, order preserved — to
-  `.meshkore/docs/decisions-archive.md`, leaving a one-line citation per entry in the index below (the
-  closure trinquete requires every delivered initiative to stay CITED here; verified: zero citations lost,
-  all 363 entries verbatim in one of the two files). The size ratchet
-  (`tests/infrastructure/unit/test_claude_md_ratchet.py`, ceiling 400KB) trips when the log regrows; the
-  procedure to pay it is written in the policy note at the top of this section.
 
 ### Archived decisions — index (full text: `.meshkore/docs/decisions-archive.md`)
 
@@ -3933,6 +3734,16 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
 - **A KNOWN phrase skips the model — the ACTION MAP (V2-539, 2026-09-01)** (2026-09-01; V2-095, V2-539, V2-545)
 
 #### Movidas el 2026-09-14
+- **A voice fullscreen order must change the screen — requestFullscreen is gesture-gated and rejects in SILENCE (V2-583, 2026-09-05)** (2026-09-05; V2-583)
+- **The video widget gets an ACCOUNT — the video connector family, and the interior anchors to the parent (V2-597, 2026-09-05)** (2026-09-05; V2-034, V2-557, V2-564, V2-597)
+- **A fullscreen order is about a SCREEN STATE, never a close — and cinema goes above everything (V2-600, 2026-09-05)** (2026-09-05; V2-583, V2-600)
+- **A stale connector error never greets a fresh open — and the state line OUTRANKS the window (V2-582, 2026-09-05)** (2026-09-05; V2-221, V2-567, V2-582)
+- **The daemon is the piece that reads somebody's disk, so it gets an attacker with a name (V2-575 P0 security pass + P4, 2026-09-06)** (2026-09-06; V2-575, V2-601)
+- **The controls exist; a ROBOT runs them now — the audit remediation tier (V2-601 T-01..T-14, 2026-09-05/06)** (2026-09-05; V2-090, V2-121, V2-348, V2-554, V2-555, V2-600, V2-601)
+- **The A2A card names SKILLS, not a contact URL (V2-616, 2026-09-08)** (2026-09-08; V2-616)
+- **An empty answer is not a served errand (V2-602, 2026-09-06)** (2026-09-06; V2-596, V2-602)
+- **The engine is licensed: Sustainable Use License 1.0, fair-code (V2-601 T-03, 2026-09-06)** (2026-09-06; INI-027, V2-601)
+- **This file compacts by ARCHIVING, never by deleting (V2-601 T-18, 2026-09-06)** (2026-09-06; V2-601)
 - **A catch-all category must not outrank a specific match (V2-599, 2026-09-05)** (2026-09-05; V2-599)
 - **A broken upstream is not a request for fields (V2-598, 2026-09-05)** (2026-09-05; V2-487, V2-598)
 - **The workflow table: what serves this kind of errand (V2-594, 2026-09-05)** (2026-09-05; V2-487, V2-594)
