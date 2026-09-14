@@ -226,10 +226,15 @@ async def wake(errand: dict, *, reason: str = "inbound", inbound_id: str = "",
     link = str(booked.get("link") or "") or _book.link_owed(errand)
     if link:
         say = _with_link(say, link)
-    elif booked.get("ok") and booked.get("date"):
-        # Agreed, written, and no conference — record the debt so the beat can settle it the moment the
-        # link appears, instead of leaving the errand to expire announcing it was never confirmed.
-        update(eid, done_when=_book.note_owed(errand, booked["date"], booked["time"]))
+    if booked.get("ok") and booked.get("date"):
+        # The booking is a FACT, and two things hang off it. It records the DEBT when the video link could
+        # not be minted, so the beat can settle it the moment the link appears instead of letting the
+        # errand expire announcing it was never confirmed. And it repairs a closing condition this errand
+        # may never have had: `kind_for` reads the objective's words, and one that is entirely about a
+        # meeting without saying the word falls to `generic`, whose `done_when` is empty — an errand that
+        # could only ever end by running out of time.
+        update(eid, done_when=_book.done_spec(errand, booked["date"], booked["time"],
+                                              owed=bool(booked.get("video")) and not link))
 
     sent = False
     if say and platform and chat_id and not shadow():
@@ -246,7 +251,7 @@ async def wake(errand: dict, *, reason: str = "inbound", inbound_id: str = "",
     # The one thing the errand cannot solve by itself and he can, in one click. Said ONCE per errand, and
     # only when the meeting really was written and really has no link — not every time the calendar is
     # disconnected, which would be a nag about a connector he may not want.
-    if booked.get("ok") and not booked.get("link") and not can_link:
+    if booked.get("ok") and booked.get("video") and not booked.get("link") and not can_link:
         _tell_operator(
             f"[SISTEMA] He cerrado «{str(errand.get('objective') or '')[:70]}» y he apuntado la cita, pero "
             f"NO he podido crear el enlace de videollamada: su Google Calendar no está conectado. Díselo al "

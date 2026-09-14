@@ -444,6 +444,54 @@ def test_a_link_in_hand_lets_the_model_speak_of_it_even_with_the_calendar_DOWN(e
     assert "NO PUEDES MANDARLE NINGÚN ENLACE" not in seen.seen["system"]
 
 
+def test_booking_REPAIRS_an_errand_that_had_no_closing_condition(env, monkeypatch):
+    """⚠️ Measured on the live errand: `playbooks.kind_for` reads the objective's WORDS, and the worker
+    wrote «Confirm Tuesday 15 September 16:00 and send the Google Meet link» — entirely about a meeting and
+    never saying the word, so it fell to `generic`, whose `done_when` is EMPTY. An errand with no closing
+    condition can only ever end by running out of time, however well it goes: the same shape as the missing
+    `created` stamp, arriving through the vocabulary instead of through the data.
+
+    Booking is a FACT and beats the guess. A row that has just written a meeting is a meeting errand.
+    """
+    from widgets.agenda import gcal
+    monkeypatch.setattr(gcal, "connected", lambda: False)
+    row = env.start("Confirm Tuesday 15 September 16:00 and send the Google Meet link",
+                    mandate={"parties": ["c1"], "channels": ["telegram"], "may": ["message", "schedule"]})
+    assert not (row.get("done_when") or {}).get("widget"), \
+        "this case is only meaningful over an objective the playbook could not classify"
+    env.bind("telegram", "987", row["id"], "c1")
+    _answer(monkeypatch, '{"say": "Cerrado.", "state": "agreed", '
+                         '"agreed": {"start": "2026-09-15 16:00", "medium": "meet"}}')
+
+    asyncio.run(_wake(row))
+
+    spec = env.get(row["id"])["done_when"]
+    assert spec.get("widget") == "agenda" and spec.get("has") == "meeting", \
+        "it can close by being ACHIEVED now, not only by expiring"
+
+
+def test_a_closing_condition_the_playbook_ALREADY_set_is_left_alone(env, monkeypatch):
+    """The repair only fills a hole; it never overwrites what the playbook decided.
+
+    ⚠️ The first version of this case used the DEFAULT spec, so wiping it produced an identical result and
+    the disarm came back green over a test that measured nothing. The spec here is deliberately one the
+    repair would never write.
+    """
+    from widgets.agenda import gcal
+    monkeypatch.setattr(gcal, "connected", lambda: False)
+    row = _order(env)
+    env.update(row["id"], done_when={"widget": "agenda", "has": "meeting", "within": "el-plazo-del-playbook"})
+    env.bind("telegram", "987", row["id"], "c1")
+    _answer(monkeypatch, '{"say": "Cerrado.", "state": "agreed", '
+                         '"agreed": {"start": "2026-09-15 16:00", "medium": "phone"}}')
+
+    asyncio.run(_wake(env.get(row["id"])))
+
+    spec = env.get(row["id"])["done_when"]
+    assert spec["within"] == "el-plazo-del-playbook", "untouched"
+    assert not spec.get("link_owed"), "a phone call owes no video link"
+
+
 # ── 4 · and now it can CLOSE by being achieved ──────────────────────────────────────────────────────────
 def test_the_agenda_STAMPS_the_day_a_meeting_was_written(env):
     """Without it `verify.meeting_exists` — «a row the errand itself could have produced has to SAY SO» —

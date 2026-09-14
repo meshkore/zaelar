@@ -146,7 +146,32 @@ def book(errand: dict, decision: dict, party: str = "") -> dict:
     link = _link_of(date, start, payload["title"])
     logger.info(f"errands.book: {errand.get('id')} → cita el {date} a las {start}"
                 + (" con enlace de Meet" if link else ""))
-    return {"ok": True, "link": link, "date": date, "time": start}
+    # `video` is what decides whether a MISSING link is a DEBT. A coffee or a phone call owes nobody a
+    # conference URL, and an errand that thinks it does would wait for one for ever and tell the operator
+    # about a connector it never needed.
+    return {"ok": True, "link": link, "date": date, "time": start, "video": medium in _VIDEO}
+
+
+def done_spec(errand: dict, date: str, start: str, *, owed: bool) -> dict:
+    """What closes this errand, now that it has actually WRITTEN a meeting (V2-692e).
+
+    ⚠️ It also repairs a closing condition the errand may never have had. `playbooks.kind_for` reads the
+    objective's WORDS, and the live run produced «Confirm Tuesday 15 September 16:00 and send the Google
+    Meet link» — an objective entirely about a meeting that never says the word, so it fell to `generic`,
+    whose `done_when` is empty. An errand with no closing condition can only ever end by running out of
+    time, however well it goes: the V2-692 `created`-stamp defect again, arriving through the vocabulary
+    instead of through the data.
+
+    Booking is a FACT and beats the guess: a row that just wrote a meeting is a meeting errand, whatever
+    its sentence happened to say. A spec the playbook already filled in is left exactly as it is.
+    """
+    spec = dict(errand.get("done_when") or {})
+    if not spec.get("widget"):
+        spec.update({"widget": "agenda", "has": "meeting", "within": "window"})
+    spec["at"] = f"{date} {start}"
+    if owed:
+        spec["link_owed"] = True
+    return spec
 
 
 def note_owed(errand: dict, date: str, start: str) -> dict:
@@ -161,9 +186,7 @@ def note_owed(errand: dict, date: str, start: str) -> dict:
     confirmed — AFTER the operator had connected and Google had minted the link. Measured on the live run
     (2026-09-14): «no he recibido el enlace», and he was right that an explanation is not a finish.
     """
-    spec = dict(errand.get("done_when") or {})
-    spec.update({"at": f"{date} {start}", "link_owed": True})
-    return spec
+    return done_spec(errand, date, start, owed=True)
 
 
 def link_owed(errand: dict) -> str:
