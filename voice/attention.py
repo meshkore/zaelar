@@ -792,6 +792,56 @@ def hard_interrupt(text: str) -> str | None:
     return None
 
 
+#: Clause splitter for the REMAINDER, and the one difference from `_AND_SPLIT_RE` is the comma. That one is
+#: deliberately comma-blind: `_closes_the_whole_canvas` wants a whole enumeration («cierra el vídeo, la música
+#: y todo lo demás») to read as ONE closing clause. Here the question is the opposite one — where does the
+#: closing order END and the next order begin — and in speech that boundary is almost always a comma.
+_REST_SPLIT_RE = re.compile(r"[,;.!?\n]|\sy\s|\sand\s|\spero\s|\sbut\s", re.I)
+
+#: A clause that is only politeness or timing carries no request. Without this, «cierra todo, por favor» would
+#: come back with «por favor» as its remainder and spend a whole model turn on it.
+_COURTESY_CLAUSE_RE = re.compile(
+    r"^(?:por\s+favor|porfa|please|gracias|thanks|thank\s+you|venga|vale|ok|okay|ya|ahora(?:\s+mismo)?|"
+    r"right\s+now|now|anda|hombre|tio|tia|hey)$", re.I)
+
+
+def close_all_remainder(text: str) -> str:
+    """What the operator asked for BESIDES closing the canvas, or "" when closing was the whole request.
+
+    `hard_interrupt()` answers «close» and the caller executes it DETERMINISTICALLY and returns — the
+    guarantee that a close order can never be buried in a long turn (T136), paid for by a real incident
+    where it fell outside a 14k-char excerpt. What that early return also did, and nobody had measured,
+    is throw away every other clause of the same sentence.
+
+    Measured live 2026-09-14, flow `T10·c053`: «close all, open agenda, connect to my google calendar».
+    The entire event chain is `✋ interrupción dura atendida · widget close · flow end`. No tool, no model
+    call, no reply — two thirds of a compound order discarded in silence, and the operator was told
+    nothing. The canvas cleared, which looks enough like obedience to hide the other two.
+
+    The close keeps its guarantee; the rest of the sentence keeps its turn. **The closing clause is
+    REMOVED rather than left in**, because a model that reads «close all» against an already-empty canvas
+    re-emits it (the context-bleed shape V2-635 catalogued), and that second close would land on whatever
+    the very same sentence had just asked to open.
+
+    Conservative by construction: anything it cannot confidently read as a second order comes back "",
+    and the caller then behaves exactly as it did before — a remainder that is only courtesy, or a single
+    bare word, buys a model turn that answers nothing.
+    """
+    if not _closes_the_whole_canvas(_norm(text)):
+        return ""                              # not a canvas close at all: nothing for this to split
+    kept: list[str] = []
+    for clause in _REST_SPLIT_RE.split(text or ""):
+        c = (clause or "").strip(" \t,;.")
+        if not c:
+            continue
+        n = _norm(c)
+        if _closes_the_whole_canvas(n) or _COURTESY_CLAUSE_RE.match(n.strip()):
+            continue
+        kept.append(c)
+    rest = ", ".join(kept).strip(" ,;.")
+    return rest if len(rest.split()) >= 2 else ""
+
+
 # ── bounded turn end + command preservation (T135) ───────────────────────────────────────────────
 # Explicit command clause (open/close/show/stop…), so a length-based truncation NEVER loses it.
 _COMMAND_RE = re.compile(

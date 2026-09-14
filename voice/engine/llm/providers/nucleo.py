@@ -362,45 +362,18 @@ class NucleoLLMStream(llm.LLMStream):
 
         # T136 — interrupción DURA: "cierra los widgets / para / silencio" se atiende SIEMPRE (salta el gate)
         # y se ejecuta de forma DETERMINISTA, nunca enterrada en un turno gigante. Fue el bug real (el `close`
-        # quedó fuera del recorte de un turno de 14k chars).
+        # quedó fuera del recorte de un turno de 14k chars). La decisión entera —worker vs música vs canvas, y
+        # si cerrar era TODO lo que se dijo (V2-688)— vive en `nucleo/flash/hard_turn.py`: son cuatro preguntas
+        # que se confunden entre sí, y aquí solo queda lo que este turno tiene que hacer con la respuesta.
         if not first_turn:
             hard = attention.hard_interrupt(text)
             if hard:
-                # V2-038 precedencia (§v3·M): un STOP corto ("para eso", "para el widget") con Brain Workers VIVOS y
-                # referencia a TRABAJO NO es callar el TTS — es PARAR UN WORKER. No retornamos aquí: el turno sigue y
-                # el modelo llama stop_worker (con backstop determinista post-stream). Sin workers, es stop de TTS.
-                _worker_stop = False
-                if hard == "stop":
-                    try:
-                        from nucleo import dispatch as _d0
-                        from nucleo.flash import router as _router0
-                        _worker_stop = _d0.has_active() and _router0.looks_like_stop_work(text)
-                    except Exception:
-                        _worker_stop = False
-                    # MÚSICA (bug 2026-07-16): con música SONANDO, "para / para la música" PARA la música — no solo
-                    # calla el TTS. El barge-in de LiveKit corta la VOZ de zaelar, NO el stream de música (widget/
-                    # Spotify) → sin esto había que decirlo dos veces. Determinista, off-loop; el run vivo del rail
-                    # `music.playing`/`music.search` indica que suena/se busca (µs, en RAM). Precedencia: parar un
-                    # WORKER manda (si aplica); si no, parar la música.
-                    if not _worker_stop:
-                        try:
-                            from nucleo import rails as _rails0
-                            if _rails0.get("music.playing") or _rails0.get("music.search"):
-                                from connectors import music as _music0
-                                await asyncio.to_thread(_music0.control, "stop")
-                                _rails0.resolve("music.playing")
-                                _rails0.resolve("music.search")
-                                emit("music", "🎵 stop (interrupción dura · música viva)", text=text[:80],
-                                     role="system", extra={"reason": "hard_interrupt"})
-                        except Exception:
-                            pass
-                if not _worker_stop:
-                    emit("ambient", "✋ interrupción dura atendida", text=text[:160], role="user",
-                         extra={"cmd": hard, "reason": "hard_interrupt"})
-                    if hard == "close":
-                        emit("widget", "close", extra={"src": "flash"})   # cerrar TODOS los widgets, ya
-                    _release_acc_trace_if_fresh(brain)          # ver docstring — este turno no llega a offer()
-                    return                                   # 'stop' → el barge-in ya cortó el TTS; no respondemos
+                from nucleo.flash import hard_turn as _hard_turn
+                _cont = await _hard_turn.handle(text, hard, emit)
+                if _cont is None:
+                    _release_acc_trace_if_fresh(brain)      # ver docstring — este turno no llega a offer()
+                    return
+                text = _cont
 
         # SUPRESIÓN DE ECO (FASE 2, 2026-07-14): con el micro SIEMPRE abierto y sin AEC perfecto, el mic capta el
         # TTS de zaelar y el STT lo transcribe como si fuera el operador → zaelar "se responde a sí mismo" (las
@@ -3037,5 +3010,5 @@ class NucleoLLMStream(llm.LLMStream):
 # trinquete (2026-09-02): son puros sobre el texto y no saben nada de un turno. Se reexportan porque los
 # puntos de llamada de este fichero —y los tests que los alcanzan por aquí— los nombran sin prefijo.
 from voice.engine.llm.providers.widget_intent import (  # noqa: E402
-    _action_is_negated, _close_target, _identify, _identify_is_widget, _is_meta_widget_question,
+    _close_target, _identify, _identify_is_widget, _is_meta_widget_question,
     _norm_nfkd, _show_guard_target, _show_target_instance, _widget_fallback)

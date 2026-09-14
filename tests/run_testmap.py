@@ -1517,6 +1517,15 @@ DOMAINS: list[dict] = [
         {"id": "3.45", "title": "Un encargo REAL contra una persona REAL (humano en el bucle)", "ch": UNIT,
             "live": True,
             "cmd": "./.venv/bin/python -m tests.agent_headless.e2e.errand.run_live --yes"},
+        # V2-688 — «close all, open agenda, connect to my google calendar» limpió el canvas y no hizo nada
+        # más. Medido en su motor (flujo `T10·c053`): la cadena ENTERA del turno es «✋ interrupción dura
+        # atendida · widget close · flow end» — sin tool, sin llamada al modelo y sin respuesta. El atajo
+        # determinista del cierre (T136) es correcto y su garantía no se toca; lo que nadie había mirado es
+        # que su `return` da por hecho que cerrar era TODO lo que se dijo. El cierre se ejecuta igual y el
+        # resto de la frase recupera su turno, con la cláusula de cierre RETIRADA del texto que lee el modelo.
+        {"id": "3.46", "title": "Un cierre COMPUESTO no se come el resto de la frase", "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/flash/"
+                      "test_a_compound_close_does_not_swallow_the_rest.py"]},
         # V2-676 — medido en su sesión INGLESA `af4429e0` (2026-09-11), dos fallos que viajaban juntos:
         #   · cinco búsquedas del tiempo en Nueva York, las cinco n:0 con `failure.kind = captcha`, y el modelo
         #     explicó el vacío con la única historia que tiene: «I don't have live internet access… my training
