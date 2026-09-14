@@ -905,7 +905,15 @@ function renderGoogleWizard(data, ctx, S, redraw){
       let popup = null;
       try{ popup = window.open("", "gcal_connect", "width=520,height=760"); }catch(_){ popup = null; }
       S.connectBusy = true; S.connectErr = ""; redraw();
-      let res; try{ res = await ctx.action("connect", {provider:"google"}); }catch(_){ res = null; }
+      // V2-687 — the ORIGIN travels. Two doors open this same consent and they were sending DIFFERENT
+      // redirect_uris: the settings panel derives it from the request headers (V2-603), and this one sent
+      // nothing, so it always fell back to the loopback default. Which URI Google saw depended on which
+      // button was pressed, so registering one of them left the other failing with redirect_uri_mismatch —
+      // measured on the operator's first real connect, 2026-09-14. An origin is not a credential (V2-520),
+      // and the engine validates it before it ever reaches a URL.
+      let res;
+      try{ res = await ctx.action("connect", {provider:"google", origin: location.origin}); }
+      catch(_){ res = null; }
       S.connectBusy = false;
       const url = res && res.url;
       if(url && popup){ try{ popup.location = url; }catch(_){ try{ window.open(url, "gcal_connect"); }catch(_2){} } }

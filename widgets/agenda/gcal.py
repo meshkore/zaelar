@@ -158,7 +158,11 @@ def ui_action(action: str, payload: dict, db: dict) -> dict | None:
         s = svc()
         if s is None:
             return {"ok": False, "error": "el conector de Google Calendar no está disponible en este build"}
-        return s.connect_url(str(payload.get("provider") or "google"), str(payload.get("tier") or ""))
+        # The ORIGIN the operator's browser is actually on, when the card knows it (V2-687). Absent — a
+        # voice-driven connect, a worker — it falls back to the loopback default, which is the only honest
+        # answer when nobody is looking at a page.
+        return s.connect_url(str(payload.get("provider") or "google"), str(payload.get("tier") or ""),
+                             origin=str(payload.get("origin") or ""))
     if action == "disconnect":
         s = svc()
         if s is None:

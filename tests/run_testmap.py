@@ -1924,6 +1924,12 @@ DOMAINS: list[dict] = [
         {"id": "4.167", "title": "«Conecta mi Google Calendar»: la agenda es quien lo tiene, y la orden "
                                  "termina delante del botón",
             "ch": UNIT, "paths": ["tests/browser/unit/agenda/test_the_agenda_owns_its_google_connector.py"]},
+        # V2-687 — el `redirect_uri_mismatch` del PRIMER intento real de conectar Google (14-sep): dos
+        # puertas abren el mismo consentimiento y derivaban la dirección de vuelta de forma distinta, así
+        # que dar de alta las cinco que imprime el motor dejaba las otras cinco fallando.
+        {"id": "4.168", "title": "Las dos puertas le piden a Google la MISMA dirección de vuelta",
+            "ch": UNIT, "paths": [
+                "tests/browser/unit/agenda/test_both_doors_ask_google_for_the_SAME_return_address.py"]},
         {"id": "4.162", "title": "El selector de idioma no instruye en ningún idioma: la marca pinta, en/es "
                                  "arriba y destacados, 40 filas que caben",
             "ch": UNIT, "paths": [

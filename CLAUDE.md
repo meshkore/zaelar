@@ -505,6 +505,39 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **Both doors ask Google for the SAME return address (V2-687, 2026-09-14)**: the operator's FIRST real
+  Google connect, and it died at the last step — «Access blocked: This app's request is invalid ·
+  **Error 400: redirect_uri_mismatch**». Everything on this side was correct AND consistent, which is what
+  made it hard to see: the client resolved (`source() == "shipped"`, project `studied-reason-508412-f7`,
+  web client) with **no per-connector override set**, and the pending OAuth record proves the exact string
+  we sent — `http://127.0.0.1:43917/api/calendar/callback`, verbatim what the engine printed and what he
+  was told to register. Two further measurements framed it: the error is `redirect_uri_mismatch` and NOT
+  `invalid_client`, so the client id was accepted; and the console's exported JSON carries **no
+  `redirect_uris` key at all**, which a web client omits only when it has none registered.
+  - **The defect is that TWO doors open this same consent and derived the address DIFFERENTLY.** ⚙ →
+    Conectores → Calendario (`/api/calendar/connect`) reads the REQUEST headers — V2-603's fix, because a
+    hardcoded loopback only works for a self-host opened on that machine — while the agenda card's own
+    button went through `gcal.ui_action` → `service.connect_url(provider, tier)` with **no origin**, so it
+    always fell back to the loopback default. Which URI Google had to match depended on which button he
+    pressed, and this engine serves TWO origins (`127.0.0.1:43917` and `local.zaelar.com:44317`, the two
+    listeners of the same app). **Registering the five the engine printed left the other five failing**,
+    with an error that names neither door.
+  - ⚠️ **The class is worth more than the case.** V2-603's origin fix was copied into this connector «from
+    day one instead of being paid twice» — its own docstring says so — and it was copied into ONE of its
+    two callers. **A fix that lives in a CALLER has to be re-applied by every caller that arrives later**,
+    which is exactly V2-626's «a rule every caller has to remember is not a rule», one connector over.
+  - Fixed by making the card send `location.origin` in the connect payload (absent — a voice-driven
+    connect, a worker — it falls back to the loopback, the only honest answer when nobody is looking at a
+    page), and by adding **`app.uris_to_register()`**, which is what the operator PASTES: every callback ×
+    every origin this engine answers on, ports read from the same env names `server/__main__.py` honours.
+    `redirect_uris(origin)` stays what the FLOW uses. **A list printed for one origin is right half the
+    time**, and that is what made this read as «I did exactly what it said and it still failed». The
+    README and the module docstring now name the error that actually happens and the right console box
+    (*URI de redirección autorizados*, **not** *Orígenes autorizados de JavaScript*).
+  - An origin in a payload is not a credential (V2-520) and cannot leak a code: Google only ever redirects
+    to a URI the client has REGISTERED — the control this entire batch tripped over — and a malformed one
+    falls back instead of travelling. Node **4.168**; five disarms, every mutation asserted, all red.
+
 - **The LAST METRE of a connector: the agenda owns its own, and a voice order ends in front of the BUTTON
   (V2-686, 2026-09-14)**: the operator tried to connect Google Calendar by voice, twice, minutes after
   V2-685 shipped the client, and lost both times — «he intentado conectar la agenda con Google Calendar

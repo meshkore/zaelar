@@ -30,9 +30,11 @@ could ship theirs in a public repo. A `client_secret` **is** one, and the file t
 reports WHERE the client came from, never what it is.
 
 ⚠️ This client is a Google **web** client (`"web"` key in the JSON), not an installed one, so Google
-requires the exact redirect URI to be pre-registered in the console. `redirect_uris()` prints the list
-the operator must paste there — being wrong about that is an `invalid_client` at the last step of a
-flow that looked fine all the way up to it.
+requires the exact redirect URI to be pre-registered in the console, and refuses an unregistered one
+with **`Error 400: redirect_uri_mismatch`** at the last step of a flow that looked fine all the way up.
+**`uris_to_register()` is what the operator pastes there — not `redirect_uris()`**: the redirect is
+DERIVED from the origin the browser is on and this engine serves two of them, so a list printed for one
+origin is right half the time. Measured the hard way on the first real connect (V2-687, 2026-09-14).
 
 Every function is SYNCHRONOUS and FAIL-SAFE: it returns "" or an empty list, never raises to a caller.
 """
@@ -176,6 +178,32 @@ def redirect_uris(origin: str = "") -> list[str]:
     """
     base = (origin or "").strip().rstrip("/") or "http://127.0.0.1:43917"
     return [base + path for path in CALLBACK_PATHS]
+
+
+def served_origins() -> list[str]:
+    """The origins a LOCAL engine actually answers on — both listeners of the same app (`server/__main__.py`:
+    HTTP on 43917, and the shared-cert HTTPS one on local.zaelar.com, ports overridable by env)."""
+    import os
+    http_port = (os.getenv("ZAELAR_PORT") or "43917").strip()
+    tls_port = (os.getenv("ZAELAR_TLS_PORT") or "44317").strip()
+    return [f"http://127.0.0.1:{http_port}", f"https://local.zaelar.com:{tls_port}"]
+
+
+def uris_to_register() -> list[str]:
+    """EVERY callback the operator has to paste into the console — the answer to «what do I register».
+
+    ⚠️ It is not `redirect_uris()` and that difference cost the first real connect (V2-687, 2026-09-14):
+    the redirect is DERIVED from the origin the browser is on, this engine serves TWO (loopback HTTP and
+    local.zaelar.com HTTPS), and the flow dies with `redirect_uri_mismatch` on whichever one was not
+    registered. A list that prints one origin is a list that is right half the time — which reads, to
+    whoever followed it, as «I did exactly what it said and it still failed».
+    """
+    out: list[str] = []
+    for origin in served_origins():
+        for uri in redirect_uris(origin):
+            if uri not in out:
+                out.append(uri)
+    return out
 
 
 def status(origin: str = "") -> dict:
