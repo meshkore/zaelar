@@ -283,7 +283,12 @@ def check_registered(uris: list[str] | None = None, timeout: float = 8.0) -> dic
     for uri in todo:
         qs = urllib.parse.urlencode({
             "client_id": cid, "redirect_uri": uri, "response_type": "code",
-            "scope": "openid", "state": "zaelar-probe",
+            # A scope this app actually DECLARES. It used to send `openid`, which our Google flows never
+            # request — only the Microsoft ones do — so the probe depended on a scope somebody could
+            # legitimately remove from the consent screen, and would then have started failing for a reason
+            # that has nothing to do with the redirect URI it exists to check. Caught 2026-09-14, by the
+            # person managing the console asking whether `openid` was safe to retire.
+            "scope": "https://www.googleapis.com/auth/calendar", "state": "zaelar-probe",
         })
         handler = _Stop()
         try:
