@@ -79,3 +79,34 @@ def test_with_everything_addressed_to_him_it_still_says_nobody_interrupts(monkey
     out = brief._summary_split([{"n": 1, "platform": "email", "name": "Ana", "highlight": True, "count": 1}])
     assert "NINGÚN canal te interrumpe" in out and "set_notify" in out, out
     assert "conversación(es) más" not in out, "there is no remainder to announce"
+
+
+# ── V2-686: a brief may claim its OWN family and no more ───────────────────────────────────────────────
+
+def test_the_brief_claims_messaging_channels_and_not_every_connector():
+    """Measured live on 2026-09-14, engine 3.26+e35211f8. This line used to read «si quiere conectar/ver UNA
+    APP, emite [[show:mensajeria]] … Guíale tú también de palabra ('te abro Mensajería, ahí tienes los
+    pasos')» — a blanket claim over every connection ceremony in the product, with the reply pre-written.
+    Asked «open the google connector», the model opened Messaging and answered «I'm opening the Messaging
+    widget — the Google connector is right there with the login steps»: this line, obeyed exactly, while the
+    calendar's connector lives in the AGENDA and Drive's in ARCHIVOS.
+
+    It was true when messaging was the only connector with a wizard. What makes it a defect is that the
+    engine grew five more and nobody came back to narrow the sentence — so the guard is on the SCOPE, not on
+    the wording."""
+    low = _states_with_email("connected").lower()
+    assert "mensajería" in low or "mensajeria" in low
+    # It has to say WHICH channels it is talking about, instead of «una app».
+    for channel in ("whatsapp", "telegram", "correo"):
+        assert channel in low, f"the claim does not name {channel}, so it reads as every connector"
+    assert "conectar/ver una app" not in low, "the blanket claim is back"
+
+
+def test_the_brief_points_the_other_families_at_their_own_widgets():
+    """The counterweight, and the half that actually redirects: saying «not me» without saying «them» leaves
+    the model exactly where it was. `connectors/google/brain.py` names each door's surface; this line only
+    has to stop swallowing them."""
+    low = _states_with_email("connected").lower()
+    assert "desde su widget" in low or "su propio widget" in low
+    for other in ("calendario", "archivos", "fotos"):
+        assert other in low, other

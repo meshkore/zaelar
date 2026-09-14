@@ -88,9 +88,18 @@ def _platform_states() -> str:
                           ("email", "Email", em_on)):
         st = (plats.get(pl) or {}).get("status", "off") if on else "off"
         lines.append(f"{label}: {hint.get(st, st) if on else 'SIN conectar'}.{_email_backlog() if pl == 'email' and on and st == 'connected' else ''}")
-    tail = (" NINGUNA app requiere que el operador toque ficheros: si quiere conectar/ver una app, emite "
-            "[[show:mensajeria]] y el widget le GUÍA paso a paso (credenciales si hacen falta → QR). Guíale tú "
-            "también de palabra ('te abro Mensajería, ahí tienes los pasos').")
+    # ⚠️ SCOPED to messaging, and the scope is the whole point (V2-686). Written when this was the only
+    # connector with a wizard, the sentence said «si quiere conectar/ver UNA APP» — a blanket claim over
+    # every connection ceremony in the product, with the reply already drafted for the model. Measured live
+    # 2026-09-14: «open the google connector» opened Messaging and answered «I'm opening the Messaging
+    # widget — the Google connector is right there with the login steps», which is this line, obeyed
+    # exactly. Meanwhile the calendar's connector lives in the AGENDA and Google Drive's in ARCHIVOS.
+    # A brief may claim its OWN family and no more; `connectors/google/brain.py` names each door's surface.
+    tail = (" Para los canales de MENSAJERÍA (WhatsApp, Telegram, correo) el operador no toca ficheros: si "
+            "quiere conectar o ver UNO DE ESTOS, emite [[show:mensajeria]] y el widget le GUÍA paso a paso "
+            "(credenciales si hacen falta → QR). Guíale tú también de palabra ('te abro Mensajería, ahí "
+            "tienes los pasos'). Otros conectores —calendario, archivos, fotos, vídeo— se conectan cada uno "
+            "DESDE SU WIDGET, no desde aquí.")
     # Prefix with "CONNECTORS" (not just "Messaging"): the operator asks "which connectors are active?" and the
     # model must map THAT question to THIS data (which it already has) instead of going to web_search.
     # And it OUTRANKS the conversation (V2-582, measured live): the operator connected email mid-dialogue and

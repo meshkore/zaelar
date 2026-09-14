@@ -7741,3 +7741,177 @@ Fourteen FULL entries moved out of `CLAUDE.md` when it reached its 400 KB ceilin
     spaces would have kept failing at every reconnect. Both closed.
   - ⚠️ A backtick inside a CSS comment CLOSES the widget's template literal — the trap this very file warns
     about, paid again by writing `width:min(...)` in prose.
+
+## Movidas el 2026-09-14 (V2-686)
+
+- **A catch-all category must not outrank a specific match (V2-599, 2026-09-05)**: `domain_of` asked the
+  site catalog first and returned whatever it said. Right for the categories that name a vertical, wrong for
+  `local_business`, which is «some business near you» — measured, it swallowed **six of ten** Spanish errands
+  (doctor, dentist, physio, hairdresser, vet, gym) into the single key `local`, so the specific patterns
+  never got a turn. Two costs: `pedir cita con el médico` keyed `local` while `book a doctor appointment`
+  keyed `health`, defeating the exact thing `_EXTRA` is bilingual to prevent — the two halves of one errand
+  writing to two rows that never help each other; and six unrelated needs sharing one cache row, where a
+  negative learned from the vet silences the doctor for the three days the row lives, answering «no hay
+  agente» for verticals it never asked about. Now `_WEAK_FROM_CATALOG` holds the catch-all back as a
+  FALLBACK, not an answer: specifics get their turn first, and `local` still serves what nothing else
+  matches (a better key than `""`, which writes no row). Ten of ten ES/EN pairs now key identically. **The
+  shape:** neither classifier was wrong about what it saw — the ORDER was, and it was written when every
+  catalog category happened to be specific. A generic bucket added later inherits a priority nobody meant to
+  give it.
+
+- **A broken upstream is not a request for fields (V2-598, 2026-09-05)**: measured live, `aerocast` fails on
+  roughly half of the free-text flight errands — it forwards a relative date to Duffel, which answers `422
+  validation_error`. That is the agent's bug. Ours was what `serve` did with it: `_HINT_KEYS` held `need` /
+  `missing` / `required` (*«give me these fields»*, actionable) in the same tuple as `error` / `detail` /
+  `message` / `hint` (*«something broke»*, not actionable), and the branch fired on the tuple as a whole. So
+  every upstream failure was reported as *«the agent says what it needs: ask again with `--field key=value`»*
+  — advice that cannot work, because the fields were never missing, and that loops the caller instead of
+  letting it fall through to the browser. Now `_names_missing_fields` gates that advice; anything else
+  returns `agent_failed: True` and says so. A diagnostic is truncated at 300 chars — the measured Duffel body
+  was 400+ characters of upstream JSON walking into the worker's context. **What let it live: nothing tested
+  `asks` at all.** V2-487 built the actionable half, verified it by hand against an agent that happened to
+  answer `missing_fields`, and left the other half unpinned.
+
+- **The workflow table: what serves this kind of errand (V2-594, 2026-09-05)**: operator directive — *«if
+  today I look for a restaurant and there is no agent, what cannot happen is that tomorrow I ask the Oracle
+  again»*, and *«if the Oracle says zero, we do not need a language model to tell us that»*. Both were real:
+  `mesh_agents` remembered only SUCCESS, and only under an intent it would key on, so the two most expensive
+  cases were the un-cacheable ones — «nobody does wellness» thrown away every time, and everything the Oracle
+  called `general` (events, shopping, wellness). New table `workflows` (`memory/schema.py`, facade in
+  `memory/api.py`, runtime in `nucleo/workflows/`): one row per `(domain, channel)` with `status`, `ttl_s`,
+  `source`, `evidence`. **It is not a second `action_map`** — that maps a PHRASE to a LOCAL widget action and
+  never leaves the machine; this maps a DOMAIN to the ORDER of EXTERNAL channels, and when a phrase is a local
+  action the action map wins and this is never consulted. **It is not a third opinion on what «reservar mesa»
+  means** either: `domain_of` asks `site_catalog.category_of` FIRST (the shared classifier behind `errand_kind`
+  and `router_guards`, whose comment warns that two components deciding the same thing end up disagreeing) and
+  only adds the verticals the catalogue cannot name, named after the ORACLE's own intents so both sides share
+  the key. **It is never carried in a prompt** — one regex sweep plus one indexed SELECT, zero tokens. Wired
+  into `serve`: a known-empty domain answers BEFORE the Oracle is called. **The live run caught the bug the
+  unit test could not**: the first version cached only `coverage == "none"`, which the test MOCKED, while a
+  real uncovered vertical returns an EMPTY coverage — so the saving never fired where it mattered. Fixing it
+  exposed that `find` flattened «answered with nobody» and «did not answer» into one empty list (the same
+  fault V2-487 fixed a layer down), so `find` now returns **`reached`** and **an outage is never cached** —
+  that would turn one bad minute into three bad days. TTL 7 days positive / 3 negative, shorter because a
+  negative is likeliest to stop being true (two agents arrived the same afternoon). Measured live: a plumber
+  errand went **1.02 s → 0.0002 s**, no network and no model. Node 2.5 (+3 and a new file, 49 green;
+  agent-headless 2667, memory 646). Disarm verified. **F2, same day**: the `browser` channel is now DERIVED from the site catalogue (never copied — a second
+  inventory of trusted sites is what drifted apart once), and the worker prompt is data-backed: its last line
+  used to hand-write «hoy hay agentes vivos de hoteles, vuelos y entradas/eventos», which went stale the same
+  day restaurants and wellness went live — a prompt claiming LESS coverage than exists sends the worker to the
+  browser for something an agent solves in two seconds. It now names the proven agent, or says the mesh is
+  known empty, and **writes nothing when nothing is known**, which is what keeps it free. `connector` and
+  `worker` stay declared and unwritten.
+- **A free tier arrives as one entry in a LIST (V2-593, 2026-09-05)**: the operator ruled that every agent
+  Zaelar can use must have a free tier, the mesh side complied — and **the three agents it unblocked were
+  still invisible here**. `_is_free` read `pricing` as a single dict and did `if not isinstance(pricing,
+  dict): continue`, so a **list of tiers** — the natural way to publish «free tier + paid tiers» — was
+  skipped entirely and returned False. Measured: `foodlens` republished a plain dict and passed, while
+  `lucid` and `ybana` published `amount: 0` as the FIRST entry of a list and both still counted as paid.
+  The reader was blind to exactly the thing it was looking for. `_tier_is_free` now judges one entry
+  (True / False / «did not say») and `_is_free` accepts a list when ANY tier is unambiguously zero. **This
+  is not a loosening**: a list of priced tiers with no free one is still a NO, and an empty or unreadable
+  list is still paid — unknown counts as paid, as before. What keeps it safe was never this function:
+  **the motor never pays**; a 402 is reported as a fact and never paid or retried, so the worst case of
+  calling a tiered agent past its quota is a fallback to the browser, never a charge. Verified live: `lucid`
+  and `foodlens` now come back from `find`. Node 2.5 (+4, 31 green; agent-headless 2649). Disarm 2 red.
+- **Zero agents beats a wrong one (V2-581, 2026-09-05)**: V2-580's measurements were sent to the mesh side,
+  who deployed — and the fixes were **re-measured with the original queries instead of taken on trust**. The
+  Oracle now puts `category`/`pricing`/`free`/`domain_match` in each row and `coverage` (`full|partial|none`)
+  on the envelope, honours **`strict: true`** server-side, and returns real intents (`transport.train`,
+  `events`, `wellness`, `health`…). The killer case is dead: the train errand returns `count: 0`,
+  `coverage: none`, and **`aerocast` no longer appears**; `ebay-finder` is discoverable with the query that
+  found nothing before; `events` is finally cacheable. Across the 16 verticals, wrong-domain matches went
+  **from 5 to 1**. Here: `find` sends `strict: true`, drops a row whose `domain_match` is explicitly `false`
+  — belt and braces, and **a MISSING key is not a mismatch**, since reading silence as `false` would empty
+  the mesh the day the field is rolled back (there is a fence test for that) — and returns `coverage`, so
+  `serve` can say the two emptinesses differently: «todavía no hay ningún agente en la red para esto»
+  (genuinely uncovered vertical) versus «no hay ningún agente libre». **The survivor proves the caller's own
+  check stays mandatory**: with strict ON, «find a flat to rent in Madrid under 1200 EUR» comes back
+  `coverage: full`, `domain_match: true`, agent `ebay-finder` — which answers `ok: true` with nine listings
+  topped by a ***«PISO EN ALQUILER» banner sign* for €81**. Ask for a flat, get a for-rent SIGN, and this
+  time the row asserts the match, which makes the lie more credible. That is what V2-580's `serves` is for.
+  Two other loose matches (`dinner delivery`, `track a parcel` → `ebay-finder`) were left alone on purpose:
+  they answer `count: 0` with an honest hint, and a failure that is visible is not worth spending on. Node
+  2.5 (+4, 27 green; agent-headless 2645). Also measured and smaller than feared: Spanish errands are not
+  systematically classified worse — of six ES/EN pairs only the events one differs.
+- **The answer says what the agent claims to be (V2-580, 2026-09-05)**: sweeping the 16 verticals of the
+  action-connector backlog against the Oracle, the mesh serves 3 (events, hotels, flights) — but five of the
+  gaps do not come back empty, they come back **wrong and confident**. Measured: asked for a TRAIN
+  Madrid→Barcelona the Oracle ranked `aerocast` (FLIGHTS) first, and `aerocast` answered `ok: true` with ten
+  flight offers (`IB3179`, an aviasales link). Also `rent a car` → `roomrover` (hotels), `parcel shipping` →
+  `foodlens` (food *vision*). **The failure arrives GREEN** — not a 404, not an empty list, a 200 with ten
+  plausible, well-formed, wrong results — and it does not fail once: `compute` is not in `_UNCACHEABLE`, so
+  that single probe LEARNED `compute → aerocast` into the real route store, where it would skip discovery for
+  seven days (found because a unit test read the live store and got answered by the real route instead of its
+  fixture; the entry was cleaned by hand). The module docstring and the worker's PASO 0 both order the caller
+  to check the domain of what came back — but `serve` returned an opaque `agent` id and the payload, and **a
+  wrong-domain payload looks exactly like a right one**, so the check was ordered against nothing. `serve` now
+  returns `serves` (the agent's declared capabilities) and `describes_itself_as` beside the data: no taxonomy,
+  no domain table, no verb list — it just stops discarding a claim the agent already publishes, and judging
+  stays the caller's job. Trimmed (12 caps / 240 chars) so a chatty card cannot eat a worker's context;
+  absence stays absent (an agent that declares nothing adds no keys — `serves: []` would assert something
+  false); and it **never buys a network round-trip**, using the card only when already memoised. The first
+  version fetched unconditionally and the autouse network trap reddened two unrelated tests, which is what
+  caught it. Node 2.5 (+4, 23 green). The other half is not ours: the Oracle must carry the agent's domain or
+  stop ranking a category-mismatched agent first — **zero agents is better than a wrong one**, because zero
+  falls back to the browser and a false positive hands the user a lie. Requested from meshkore-master, with
+  the two Oracle gaps now 17 days open (no `pricing` in the row; `general` for events/shopping/wellness).
+- **A mesh agent can gate its skills behind a bearer of its own issue (V2-579, 2026-09-05)**: the mesh caller
+  (`nucleo/mesh_agents.py`) only ever spoke to FREE, anonymous agents — right for `roomrover`/`aerocast`, wrong
+  for the coming `zaelar-connectors` service agent, whose skills (Places/Yelp/Ticketmaster/eBay) are gated NOT
+  by licence but by COST CONTROL: those providers bill per call, so open-to-the-mesh is an open invoice, and
+  meshkore-master issues a per-zaelar-agent bearer it can revoke. `_bearer_for(agent, endpoint)` reads it from
+  the credential store under `MESH_BEARER_<AGENT_ID>` (id uppercased, non-alphanumerics collapsed to `_`), the
+  endpoint HOST as fallback key; `_post` grows an optional `bearer=` that sets the `Authorization` header only
+  when one exists. **The keyword is passed only when the store holds a token**, so every existing caller and
+  test double keeps its `(url, body)` shape unchanged — one test hands `ask()` a legacy `_post` with no `bearer`
+  parameter as the regression fence. No entry, no header, no behaviour change: a public free agent is called
+  exactly as before, and the token never appears in code, a prompt or a log. Node 2.5 (+4), disarm 2 red. This
+  is the motor half of INI-030's `zaelar-connectors` contract (the business/cloud half lives in the workspace
+  root's private repo); the agent and the provider keys are meshkore-master's to build and hold.
+- **The phone is HEARD, and the dock is the operator's (V2-573, 2026-09-04)**: «i couldnt listen to the voice
+  in mobile» had TWO independent causes, both silent. (1) **Playback was never unlocked**: every mobile browser
+  refuses a remote audio track until the page has had a user gesture, this shell connects at LOAD by design
+  (`ensureVoice()` before any tap), and `room.startAudio()` — the SDK's own way out, reported by
+  `room.canPlaybackAudio` — was called **nowhere in this repo, on either shell**; the only recovery was a banner
+  whose action was a bare `play()` that a suspended context rejects again. (2) **Silence was inherited**:
+  `hb_bot_muted` is written by `togglePower()` too, so stopping on the phone and starting later from the
+  computer reopened the app live and muted. Now: `unlockAudio()` (gated on `canPlaybackAudio` → `startAudio()`
+  → `play()`), an `AudioPlaybackStatusChanged` subscription that also clears the warning when playback is
+  RESTORED, `store.audioBlocked` painted as an amber ring **on the orb** (where someone who cannot hear looks,
+  and tapping it is the gesture the unlock needs), the unlock on the shell's global `pointerdown` and on the
+  power tap, and a mobile boot that never inherits a mute — the desktop keeps its preference on purpose.
+  Dock restyled to the operator's layout (`chat · dashboards | ORB 74px with the mic INSIDE | mic · config`),
+  captions button AND band removed, deck paging widened to two OR three fingers, card content top-aligned in a
+  uniform box. ⚠️ **Two traps paid here**: removing the speaker button while the settings sheet still declared
+  that a speaker row would be «clutter» would have left NO way to mute — the row was added and a guard asserts
+  the control exists somewhere; and node 4.110 was green with the real `startAudio()` call deleted, because the
+  regex matched the COMMENT explaining it — every source read in that test is comment-stripped now. Nodes 4.110
+  (new) + 4.18/4.19/4.87 (the composition assertions now derive from the dock instead of hardcoding it).
+- **The mouth matches the order (V2-572, 2026-09-03)**: three shapes of the same incoherence, all measured in
+  ONE session (20:10-20:52): the action-map fast lane executed «in silence» (by design — the operator asked
+  for the opposite: *«he has to say 'ok, done'»*); a close order that reached the model got covered with
+  «Déjame ver…»; and two information questions were answered with a bare «Hecho.» until he protested («Te he
+  hecho una pregunta», «Respóndeme a la pregunta»). Fixes, node **2.50**: (1) `langs` ships ACTION fillers
+  («Voy…») + spoken ACKS («Hecho.», varied, anti-repetition), and `filler_audio.arm(brain, text)` classifies
+  the utterance deterministically (`filler_kind`: imperative action verb up front → action pool; «?» vetoes);
+  (2) the fast lane speaks the ack AFTER the mutation (never on a decline) — the lane moved whole to
+  `providers/fast_lane.py` paying the ratchet (3245→3218), probe reply carries the same ack for parity;
+  (3) `answer_guards.a_bare_ack_answers_a_question` (narrow: information question, no action verb, bare ack —
+  «¿puedes cerrar…?» + «Hecho.» stays legitimate) triggers `second_pass.bare_ack_repair` in BOTH channels: the
+  probe re-composes, the VOICE speaks the missing answer as a follow-up. That voice follow-up deliberately
+  diverges from V2-210's «hablar dos veces» doctrine and says why where it lives: «Hecho.» carried zero
+  information, so the follow-up is the answer said once, late — the operator's own manual recovery, automated.
+  `second_pass.py` also folds probe's triplicated stream-collect shape (recall compose moved there;
+  `sanitize` is passed IN by the caller — the dependency-direction ratchet (7.32) caught this module reaching
+  for `voice.engine.core.speech` on its second day of life, working exactly as designed).
+- **Dependency directions are a ratchet, like sizes (V2-569, 2026-09-03)**: the modularity doc had declared
+  since July that `voice/engine/` is not a facade, and §5 row 6 even wrote «new code adds no sites» for
+  `langs` — nothing measured it, and the ~10 sites became **30**. A rule each caller has to remember is not a
+  rule, so the directions now have teeth: `test_dependency_directions_only_improve.py` (node **7.32**, sibling
+  of 7.22) freezes the 42 (file→module) pairs that reach `voice.engine.*` from outside voice/ (shrink-only,
+  stale rows are ALSO red so the table cannot loosen silently) and allowlists the exactly ONE private `_x`
+  name that crosses a domain boundary in the whole engine. Named debt with the honest exit recorded in
+  `zaelar-modularity.md` §7: extract `langs` to a low layer behind a re-export shim (the `text_norm.py`
+  precedent), then retire rows. Growth doctrine, operator's directive: the size ratchet enforces the PIECES,
+  this one the JOINTS — what two domains both need is extracted DOWN, never imported ACROSS.

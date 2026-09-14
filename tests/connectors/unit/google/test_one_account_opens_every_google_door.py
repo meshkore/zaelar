@@ -362,3 +362,63 @@ def test_the_turn_prompt_consults_it():
     assert "from connectors.google import brain as _gb" in inspect.getsource(connector_briefs)
     assert "_gb.brain_state()" in inspect.getsource(connector_briefs)
     assert "connector_briefs" in inspect.getsource(prompt._connector_briefs)
+
+
+# ── V2-686: the brain is told WHICH DOOR, not just that a door exists ───────────────────────────────────
+# Measured live on 2026-09-14, engine 3.26+e35211f8: «open the google connector» opened MESSAGING and its
+# wizard. V2-685's own sentence had told the model it could offer to connect Google and never told it
+# where, so it picked the only widget whose text mentions connecting anything. Fourth time this file's
+# lesson gets paid, and the first time it was THIS file that owed it.
+
+def test_the_offer_names_the_surface_that_actually_consents_each_door(monkeypatch):
+    from connectors.google import app as gapp, brain as gb
+    monkeypatch.setattr(gapp, "configured", lambda: True)
+    monkeypatch.setattr(gb, "connected_services", lambda: [])
+    line = gb.brain_state()
+    assert "agenda:connect" in line, "the calendar's door is not named, which is the one that failed"
+    assert "mensajeria:open_connectors" in line, "gmail's door is not named either"
+    for door in ("drive", "photos", "youtube"):
+        assert door in line, door
+
+
+def test_one_app_is_not_one_consent(monkeypatch):
+    """V2-685 wrote «una sola vez sirve para Gmail, Calendar, Meet, Drive, Fotos y YouTube». True of the
+    CLIENT, false of the CONSENT: each connector runs its own flow, with its own scopes and its own token
+    store. Left standing, a model that had just linked the calendar would report the mail as connected."""
+    from connectors.google import app as gapp, brain as gb
+    monkeypatch.setattr(gapp, "configured", lambda: True)
+    monkeypatch.setattr(gb, "connected_services", lambda: [])
+    line = gb.brain_state().lower()
+    assert "una sola vez sirve" not in line
+    assert "cada puerta pide su permiso" in line
+
+
+def test_a_door_already_open_is_not_offered_again(monkeypatch):
+    """The offer shrinks as he connects. With calendar linked, the line stops explaining how to link it —
+    and Meet is never offered at all, because Meet is not a consent: it rides the calendar's."""
+    from connectors.google import app as gapp, brain as gb
+    monkeypatch.setattr(gapp, "configured", lambda: True)
+    monkeypatch.setattr(gb, "connected_services", lambda: ["calendar", "meet"])
+    line = gb.brain_state()
+    assert "agenda:connect" not in line, "it is still explaining how to connect what is already connected"
+    assert "gmail" in line, "the doors that are still shut have to stay named"
+    assert "meet:" not in line.lower().split("cómo se conecta")[-1], "Meet is not a door to consent"
+
+
+def test_with_nothing_left_to_connect_the_line_disappears(monkeypatch):
+    """It costs prompt on every turn, so it has to end. The whole account linked means no offer at all."""
+    from connectors.google import app as gapp, brain as gb
+    monkeypatch.setattr(gapp, "configured", lambda: True)
+    monkeypatch.setattr(gb, "connected_services",
+                        lambda: ["calendar", "meet", "gmail", "drive", "photos", "youtube"])
+    assert "CÓMO SE CONECTA" not in gb.brain_state()
+
+
+def test_with_no_client_at_all_nobody_is_told_to_go_pressing_buttons(monkeypatch):
+    """Counterweight. Without a registered app the doors cannot open, so naming them would send him to
+    five cards that can only refuse him — the exact failure V2-603 measured over nine minutes."""
+    from connectors.google import app as gapp, brain as gb
+    monkeypatch.setattr(gapp, "configured", lambda: False)
+    line = gb.brain_state()
+    assert "CÓMO SE CONECTA" not in line and "agenda:connect" not in line
+    assert "NO se pueden conectar" in line

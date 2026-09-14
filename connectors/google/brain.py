@@ -10,19 +10,59 @@ Google arrives with a new verb nobody has ever seen: **Meet**. Nothing in the en
 before today, so a model asked for one has no prior behaviour to fall back on except inventing a tool
 that does not exist, or claiming a link it never minted. Both are cheaper to prevent than to detect.
 
-Two facts are declared here and nowhere else:
+Three facts are declared here and nowhere else:
 
 1. **Whether the account is connected**, service by service, so «conéctame Gmail» can be declined with a
    reason instead of answered with «Hecho.».
 2. **How a Meet link is actually asked for** — as a field of `add_meeting`, not as a tool of its own.
    The model has the appointment tool already; what it lacks is the knowledge that one argument turns an
    appointment into a video meeting. A capability that is reachable but undeclared gets narrated.
+3. **Through WHICH door each service is consented** (V2-686). Added after the same failure arrived a
+   fourth time: told it could offer to connect Google and not told where, the model offered MESSAGING's
+   wizard for the calendar. And the sentence it replaced was wrong on its own terms — one app, six
+   consents, not one consent for six services.
 
 Workers reach all of this through `act widget_data` on the agenda, which `worker_policy` already allows
 and gates on the widget's own manifest — so nothing had to be added to `_PRESTABLE_TOOLS`, whose comment
 says it «grows only with an explicit designation, never by accident». This capability needed no exception.
 """
 from __future__ import annotations
+
+
+#: The doors a Google account can open, and WHICH surface consents each one. It is a table because the
+#: alternative is a sentence the model has to infer a mechanism from, and inferring a mechanism is exactly
+#: what makes it improvise one (see the module docstring's three receipts).
+#:
+#: ⚠️ ONE app, SIX consents. V2-685's own wording said «una sola vez sirve para Gmail, Calendar, Meet,
+#: Drive, Fotos y YouTube», which is true of the CLIENT and false of the CONSENT: each connector runs its
+#: own OAuth flow, with its own scopes and its own token store, so linking the calendar grants nothing to
+#: Gmail. Left as it was, a model that had just connected one door would answer «ya tienes el correo
+#: conectado» about the other five.
+_DOORS = {
+    "calendar": "AGENDA (widget_data agenda:connect)",
+    "gmail": "MENSAJERÍA (mensajeria:open_connectors, platform=email)",
+    "drive": "ARCHIVOS",
+    "photos": "FOTOS",
+    "youtube": "VÍDEO",
+}
+_ALL_DOORS = set(_DOORS) | {"meet"}
+
+
+def _how_to_connect(missing: set[str] | None = None) -> str:
+    """Name the MECHANISM, never just the capability.
+
+    Measured live on 2026-09-14: with this line absent, «open the google connector» opened MESSAGING and
+    offered its wizard. The model had been told it could offer to connect Google and never told through
+    WHICH door, so it picked the only widget whose own text mentions connecting anything. Same shape as
+    the Meet sentence below — a capability the model can reach but cannot NAME gets improvised.
+    """
+    doors = sorted(d for d in _DOORS if missing is None or d in missing)
+    if not doors:
+        return ""
+    rows = " · ".join(f"{d} → {_DOORS[d]}" for d in doors)
+    return ("CÓMO SE CONECTA: una cuenta, pero cada puerta pide SU permiso desde SU widget — " + rows +
+            ". Meet no se conecta: viene con calendar. El permiso lo da el operador PULSANDO en la "
+            "tarjeta: llama a la acción y dile que pulse el botón, nunca le dictes la URL.")
 
 
 def connected_services() -> list[str]:
@@ -62,9 +102,8 @@ def brain_state() -> str:
 
     if not live:
         return ("GOOGLE: la app está instalada pero el operador NO ha dado su consentimiento todavía, así "
-                "que no hay ni correo ni calendario reales. Puedes OFRECERLE conectarla (una sola vez sirve "
-                "para Gmail, Calendar, Meet, Drive, Fotos y YouTube), pero NO afirmes que está conectada ni "
-                "que has leído o escrito nada en su cuenta.")
+                "que no hay ni correo ni calendario reales. NO afirmes que está conectada ni que has leído "
+                "o escrito nada en su cuenta.\n" + _how_to_connect())
 
     out = ["GOOGLE conectado: " + ", ".join(sorted(live)) + ". Lo que no esté en esa lista NO está "
            "conectado — no lo des por hecho."]
@@ -75,4 +114,7 @@ def brain_state() -> str:
                    "update_meeting de la agenda con `meet: true` — NO hay ninguna tool aparte para crear "
                    "una reunión de Meet, y el enlace lo devuelve Google, así que no te lo inventes ni lo "
                    "prometas antes de que la cita esté creada.")
+    rest = _how_to_connect(missing=_ALL_DOORS - live)
+    if rest:
+        out.append(rest)
     return "\n".join(out)
