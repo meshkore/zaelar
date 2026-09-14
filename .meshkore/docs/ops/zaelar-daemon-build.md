@@ -97,6 +97,31 @@ It does more than build. On each runner it:
 git tag daemon-v0.2.0 && git push origin daemon-v0.2.0
 ```
 
+### ⚠️ Release assets are named per platform, and the interface depends on it
+
+Both runners produce `zaelar-daemon.pyz`, `manifest.json` and `SHA256SUMS` under those exact names, and the
+release job flattens every downloaded artifact into a single upload — so without a rename one platform's files
+silently overwrote the other's. Each runner renames its own before uploading:
+
+| Published asset | Platform |
+|---|---|
+| `zaelar-daemon-macos`, `zaelar-daemon-macos.pyz` | macOS |
+| `zaelar-daemon-windows.exe`, `zaelar-daemon-windows.pyz` | Windows |
+| `zaelar-daemon-install-<os>.sh` / `.ps1`, `SHA256SUMS-<os>`, `manifest-<os>.json` | both |
+
+**These names are a contract.** `server/daemon_api.py` builds the download links from them, and both installers
+look for them (including in `~/Downloads`, which is where a browser actually puts them). Renaming an asset
+without the other two is how the download screen starts offering a 404, so node **7.44** joins all three.
+
+### Where a user gets the file
+
+`GET /api/daemon/status` carries a `downloads` block pinned to **the daemon's own version tag** — not
+`releases/latest`, which follows whatever was released last, including an engine release with no daemon assets
+in it. The 🖥 icon in the interface renders it; on a cloud account that is the icon's whole job, since the
+cloud engine cannot reach a daemon on somebody's desk.
+
+`ZAELAR_DAEMON_DOWNLOAD_BASE` overrides the base URL for a mirror or a private build.
+
 ### Signing and notarizing
 
 Not automated, and not a side effect of a green build: it needs the operator's Apple Developer ID and

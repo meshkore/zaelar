@@ -107,6 +107,22 @@ def test_the_manifest_names_what_was_built_and_what_it_hashes_to(built):
     assert len(entry["sha256"]) == 64 and entry["bytes"] == built["archive"].stat().st_size
 
 
+def test_the_build_survives_a_console_that_is_not_utf_8(tmp_path):
+    """⚠️ MEASURED ON A WINDOWS RUNNER, 2026-09-14, and it failed the whole release. A Windows console defaults
+    to cp1252, and the success line printed an arrow — so `UnicodeEncodeError` was raised AFTER every artifact
+    had been written. The build worked; the script died formatting its own report, and CI recorded a failed
+    build for a directory full of correct files.
+
+    `PYTHONIOENCODING=cp1252` reproduces that console on any machine, which is the only way this node can check
+    a Windows property from a Mac."""
+    env = {"PATH": "/usr/bin:/bin", "HOME": str(tmp_path), "PYTHONIOENCODING": "cp1252"}
+    result = subprocess.run([sys.executable, str(PACKAGING / "build.py"), "--zipapp"],
+                            capture_output=True, text=True, timeout=120, env=env, cwd=str(ENGINE))
+    assert result.returncode == 0, (
+        f"the build died on a non-UTF-8 console after doing its work:\n{result.stderr[-800:]}"
+    )
+
+
 # ── the build tooling stays out of the daemon's own dependency set ────────────────────────────────────────
 
 def test_the_build_dependency_is_not_a_run_dependency():

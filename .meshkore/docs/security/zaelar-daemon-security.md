@@ -150,6 +150,35 @@ token.
 The log is itself sensitive — a list of every path the agent opened is a map of somebody's life — so it is
 `0600`, in a `0700` directory, like the token beside it.
 
+### 3.7 The engine's proxy — `server/daemon_api.py`
+
+The browser never talks to 45817. It cannot (plain http from an https page is mixed content, and the daemon
+sends no CORS headers by design) and it must not (the bearer token would have to reach JavaScript). The engine
+holds the token server-side and is the only thing that ever calls the daemon.
+
+That makes the proxy a second front door, so it is guarded as one:
+
+- **It exposes `status`, `grant` and `revoke`. Nothing else.** ⚠️ No file route, ever. The browser has no use
+  for file contents — the screen shows which folders are granted, not what is inside them — and the agent reads
+  files server-side, in-process. Proxying `files.read` would hand every page that can reach the engine exactly
+  the capability §3.1 spends five guards refusing, through the engine's own credentials. A ratchet test fixes
+  the route set; a future file route needs a threat model, not a test edit.
+- **Cross-origin is refused.** Without CORS a hostile page cannot READ our answer — but `grant` changes state,
+  so it never needs to. Fire and forget is enough to put a folder on somebody's allowlist with nothing on
+  screen to show for it. The guard is `Sec-Fetch-Site` first, `Origin` compared against the request's own
+  `Host` second — not a configured hostname, because this engine is reached as `localhost:43917`, as
+  `local.zaelar.com` and as whatever a cloud account resolves to, and a guard that knew only one of those would
+  lock the user out of their own interface with every escape test still green.
+- **No token means no probe.** `/health` answers without a credential, so an engine with no `daemon.json`
+  probing anyway would report "connected" on the strength of a daemon it cannot authenticate to — a green icon
+  over a surface where every real call 401s. A daemon that has run always wrote its config, so this locks
+  nobody out.
+- **Asking about the daemon creates nothing.** `config.load()` mints a token on first call and
+  `paths.state_dir()` creates the directory, so reaching for either from the engine would leave a credential
+  file on a cloud Volume where no daemon will ever run, just because somebody opened the status icon.
+- **A cloud engine does not probe loopback at all.** The daemon is on the user's computer; 127.0.0.1 in a
+  container is at best a timeout and at worst somebody else's daemon on the same host.
+
 ---
 
 ## 4. What is deliberately **not** covered
@@ -177,4 +206,4 @@ Saying this plainly is part of the model. A limit somebody can read is a limit s
   disarm that comes back green is a mutation that was not applied until proven otherwise.
 - Nodes: **7.34** (the circuit, both directions), **7.35** (not reachable from a browser), **7.36** (boot
   wiring), **7.37** (the installed process, end to end), **7.40** (a hostile local process), **7.41** (build and
-  install).
+  install), **7.44** (offered and governed from the interface — including the proxy's own guards).

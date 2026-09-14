@@ -158,6 +158,17 @@ def write_manifest(artifacts: list[Path]) -> Path:
 
 
 def main(argv: list[str]) -> int:
+    # ⚠️ WINDOWS CONSOLES ARE NOT UTF-8, and this cost a whole build. A Windows runner's stdout defaults to
+    # cp1252, so the "→" in the success line below raised UnicodeEncodeError — AFTER every artifact had been
+    # written. The build worked; the script died formatting its own report, and CI called it a failed build.
+    # Measured on windows-latest, 2026-09-14. Reconfiguring covers every future print rather than this one
+    # character, and `errors="replace"` means a console that still cannot render something prints a box
+    # instead of throwing away the build.
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:       # noqa: BLE001 — a stream that cannot be reconfigured is not a reason not to build
+            pass
     parser = argparse.ArgumentParser(description="Build the zaelar-daemon artifacts.")
     parser.add_argument("--zipapp", action="store_true", help="only the portable, dependency-free build")
     parser.add_argument("--onefile", action="store_true", help="only the bundled-interpreter build")
