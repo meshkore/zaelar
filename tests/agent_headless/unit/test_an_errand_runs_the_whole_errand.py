@@ -331,9 +331,11 @@ def test_a_meeting_he_ALREADY_had_closes_nothing(world):
 
 # ── shadow rides all seven ──────────────────────────────────────────────────────────────────────────────
 def test_in_SHADOW_the_arc_runs_whole_and_reaches_nobody(world, monkeypatch):
-    """The shipped default. It decides, it moves state, it logs what it would have said — and the wire is
-    silent after the one message the operator himself confirmed."""
+    """Shadow ARMED (V2-692 made speaking the default): it decides, it moves state, it logs what it would
+    have said — and the wire stays silent after the one message the operator's own order sent."""
     from nucleo import errands
+    from nucleo.errands import wake as wake_mod
+    monkeypatch.setattr(wake_mod, "shadow", lambda: True)
     _ivan()
     model = answers(monkeypatch, '{"say": "¿Te va bien a las 18:00?", "state": "negotiating"}')
     got = _open(world)
@@ -617,13 +619,14 @@ def test_an_errand_that_could_not_answer_TELLS_the_operator(world, monkeypatch):
     assert errands.get(got["errand"]["id"])["state"] == "contacting"
 
 
-def test_the_party_turn_is_told_it_can_only_WRITE_in_this_conversation(world, monkeypatch):
-    """⚠️ It closed the deal and added «Te enviaré el enlace de la videollamada» — live, 2026-09-13.
+def test_the_party_turn_may_promise_the_link_and_may_never_WRITE_one(world, monkeypatch):
+    """⚠️ It closed the deal and added «Te enviaré el enlace de la videollamada» — live, 2026-09-13. The
+    fix that day forbade the whole sentence, because nothing in the engine created that link.
 
-    It cannot: it has no tools, and nothing in the engine creates that link (V2-683 row 6). «No prometas
-    nada que no esté en el encargo» does not catch it either, because the medium IS part of the errand —
-    this is the other failure, the one this codebase keeps paying: an undeclared capability is one the
-    model narrates. So the limit is stated, and stated in the FIRST PERSON, which is where the lie lives.
+    V2-692 built it, so half that prohibition became the OPPOSITE defect: a capability the model is told it
+    lacks is one it talks the operator's gestión out of. What stays forbidden is the half that is still
+    impossible — WRITING a URL. The model has none; the engine mints it by creating the event and appends
+    it to this very message. So the prompt has to say both things, and the test measures both.
     """
     _ivan()
     model = answers(monkeypatch, '{"say": "Perfecto.", "state": "agreed"}')
@@ -631,9 +634,11 @@ def test_the_party_turn_is_told_it_can_only_WRITE_in_this_conversation(world, mo
     _answers_and_wakes(world, got["chat"], "Vale, a las 11")
 
     system = model.calls[-1]["system"]
-    assert "LO ÚNICO QUE PUEDES HACER es escribir mensajes" in system
-    assert "enlaces" in system and "lo hace tu operador" in system, \
-        "the way out has to be named too — a limit with no alternative is answered by inventing one"
+    assert "NUNCA escribas tú una URL" in system, "the half that is still impossible"
+    assert "el sistema lo añade solo" in system, \
+        "a limit with no alternative is answered by inventing one — say who does supply it"
+    assert "puedes decir que le pasas el enlace" in system, \
+        "and the half it CAN now do, or it argues the operator out of his own errand"
 
 
 def test_an_errand_that_AGREED_and_ran_out_is_not_announced_as_silence(world, monkeypatch):

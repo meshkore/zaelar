@@ -201,10 +201,26 @@ async def wake(errand: dict, *, reason: str = "inbound", inbound_id: str = "",
     say = decision.get("say") or ""
     ask_op = decision.get("ask_operator") or ""
     state = decision.get("state") or ""
+
+    # ⚠️ THE BOOKING HAPPENS BEFORE THE REPLY, and the order is the feature (V2-692). The model has just
+    # been told it may promise the link; the engine mints it by CREATING the event, so composing the
+    # message first would send a promise whose object does not exist yet and leave the link for a second
+    # message nobody triggers. A failure here writes nothing and says nothing new: the reply still goes,
+    # the errand stays where it was, and the next inbound tries again — losing an agreement the other
+    # person already gave is the one outcome worth avoiding.
+    booked = {}
+    if state == "agreed":
+        from . import book as _book
+        booked = _book.book(errand, decision, party or platform)
+        if booked.get("ok"):
+            say = _with_link(say, str(booked.get("link") or ""))
+        elif booked.get("why"):
+            logger.info(f"errands: {eid} acordó y no pude apuntarlo ({booked['why']})")
+
     sent = False
     if say and platform and chat_id and not shadow():
         sent = _send(errand, platform, chat_id, say, party)
-    _emit_decision(errand, decision, reason, sent=sent)
+    _emit_decision(errand, decision, reason, sent=sent, booked=booked)
 
     if state and state != errand.get("state"):
         update(eid, state=state)
@@ -213,7 +229,22 @@ async def wake(errand: dict, *, reason: str = "inbound", inbound_id: str = "",
                        f"Pregúntaselo al operador.")
     if state in ("blocked", "abandoned"):
         close(eid, state, decision.get("reason") or "")
-    return {"ok": True, "say": say, "sent": sent, "state": state, "shadow": shadow()}
+    return {"ok": True, "say": say, "sent": sent, "state": state, "shadow": shadow(),
+            "booked": bool(booked.get("ok"))}
+
+
+def _with_link(say: str, link: str) -> str:
+    """Append the conference link the ENGINE minted, on its own line and with no prose around it.
+
+    No sentence of ours travels with it: the reply is written in the PARTY's language (which may be neither
+    of the two this repo ships), so a Castilian «Aquí tienes el enlace» glued onto an answer in German is
+    the V2-676 defect aimed outward, at somebody who is not even our operator. A bare URL reads correctly
+    in every language there is. An empty `say` gets nothing: a link with no message is a stranger receiving
+    a naked URL.
+    """
+    if not link or not say.strip() or link in say:
+        return say
+    return say.rstrip() + "\n" + link
 
 
 def _send(errand: dict, platform: str, chat_id: str, text: str, party: str) -> bool:
@@ -241,7 +272,8 @@ def _tell_operator(text: str) -> None:
         pass
 
 
-def _emit_decision(errand: dict, decision: dict, reason: str, *, sent: bool) -> None:
+def _emit_decision(errand: dict, decision: dict, reason: str, *, sent: bool,
+                   booked: dict | None = None) -> None:
     """What it decided, always — in shadow this row IS the feature: it is what the operator reads before
     deciding whether to let it speak."""
     try:
@@ -252,7 +284,9 @@ def _emit_decision(errand: dict, decision: dict, reason: str, *, sent: bool) -> 
              text=say[:160], role="system",
              extra={"errand": errand.get("id"), "state": decision.get("state") or errand.get("state"),
                     "reason": decision.get("reason") or "", "wake": reason, "sent": sent,
-                    "shadow": shadow()})
+                    "shadow": shadow(),
+                    **({"booked": bool((booked or {}).get("ok")),
+                        "meet": bool((booked or {}).get("link"))} if booked else {})})
     except Exception:
         pass
 

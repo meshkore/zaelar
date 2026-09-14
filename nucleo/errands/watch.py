@@ -105,7 +105,7 @@ def _note_births(now: float) -> None:
 
 def _born_from_echo(now: float) -> list[dict]:
     """A message really went out: open the errand and give it the conversation the connector just created."""
-    from . import bind, start as _start
+    from . import claim, close, start as _start
     born = []
     for ev in _drain("out"):
         ref = str((ev or {}).get("ref") or "")
@@ -123,8 +123,18 @@ def _born_from_echo(now: float) -> list[dict]:
         )
         if not row:
             continue
-        bind(ev.get("platform") or order.get("platform"), ev.get("chatId"), row["id"],
-             str(order.get("contactId") or ""))
+        # ⚠️ AN ERRAND WITH NO CONVERSATION IS A GHOST (V2-692). The binding used to be fire-and-forget, and
+        # `bind()` returns False whenever another errand still holds the thread — which is exactly what
+        # happened on the second live run. The row existed, showed on the board as «esperando respuesta»,
+        # rode the turn's context pack as an open gestión, and could not be woken by anything: no thread to
+        # watch, so neither the bus nor `_reconcile` could ever reach it. `claim()` takes the conversation
+        # from a stale incumbent; if even that fails, the errand is ended HERE rather than left to expire in
+        # four hours announcing that nobody answered — a sentence that would be false twice over.
+        if not claim(ev.get("platform") or order.get("platform"), ev.get("chatId"), row["id"],
+                     str(order.get("contactId") or "")):
+            logger.warning(f"errands: {row['id']} no pudo quedarse con la conversación — lo cierro")
+            close(row["id"], "blocked", "no pude quedarme con esa conversación")
+            continue
         born.append(row)
     return born
 

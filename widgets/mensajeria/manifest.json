@@ -1,301 +1,300 @@
 {
- "id": "mensajeria",
- "version": "0.7.0",
- "kind": "backed",
- "backend": {
-  "owner": "owner.py",
-  "gate": "nucleo"
- },
- "title": "Mensajería",
- "description": "Tu mensajería unificada (WhatsApp + Telegram + Email), ya triada: solo lo que va dirigido a ti o debes atender, en un solo sitio. WhatsApp/Telegram se vinculan por QR; el email por correo + contraseña de aplicación. Puedes dictar una respuesta, revisarla en el cuadro de texto y mandarla por voz o con el botón, a las tres plataformas — el email lleva firma propia si la tienes puesta.",
- "whenToUse": "Cuando pide ver sus mensajes, quién le ha escrito, su WhatsApp/Telegram/correo, responder o mandar un mensaje/email, RESUMIR una conversación o grupo, buscar mensajes PASADOS en el archivo («¿cuándo me escribió X?»), traer mensajes del conector, el AUTORRESPONDEDOR, su firma, o conectar un canal.",
- "keywords": [
-  "mensajes",
-  "mensajeria",
-  "mensajería",
-  "chats",
-  "whatsapp",
-  "wasap",
-  "telegram",
-  "email",
-  "correo",
-  "mail",
-  "gmail",
-  "outlook",
-  "quién me ha escrito",
-  "quien me ha escrito",
-  "qué me han escrito",
-  "qué debo responder",
-  "responder",
-  "contestar",
-  "mis mensajes",
-  "vincular whatsapp",
-  "conectar whatsapp",
-  "vincular telegram",
-  "conectar telegram",
-  "conectar email",
-  "conectar correo",
-  "qr",
-  "silenciar",
-  "ocultar",
-  "muted",
-  "responde",
-  "contesta",
-  "envía",
-  "manda",
-  "mándale",
-  "escríbele",
-  "dile",
-  "firma",
-  "mi firma",
-  "firma de correo",
-  "autorespondedor",
-  "autoresponder",
-  "respuesta automática",
-  "resume",
-  "resumen"
- ],
- "actions": {
-  "show_view": {
-   "desc": "CAMBIA LO QUE SE VE en la mensajería y CONTESTA: 'all' vuelve a la LISTA PRINCIPAL unificada (y cierra el chat abierto); 'whatsapp'|'telegram'|'email' filtra solo ese canal. Devuelve los chats que casan en `result.chats` para que respondas con sus nombres. Es obligatoria para eso — mostrar el widget de nuevo NO cambia la vista Con `window_h` (HORAS) fija además el CRITERIO de esa vista: enseña las CONVERSACIONES con actividad en esa ventana (72 = últimos 3 días; 0 lo quita) — queda fijado por plataforma hasta cambiarlo, y devuelve las que casan en `result.activity`",
-   "payload": {
-    "platform": "string ('all' = lista principal | whatsapp | telegram | email)",
-    "window_h": "number opcional (horas de la ventana de actividad; 72 = 3 días; 0 = quitar el criterio)"
-   },
-   "safe": true,
-   "view": true
+  "id": "mensajeria",
+  "version": "0.7.0",
+  "kind": "backed",
+  "backend": {
+    "owner": "owner.py",
+    "gate": "nucleo"
   },
-  "open": {
-   "desc": "Abre un CHAT concreto (pasa a ver sus mensajes uno a uno): por `name` («abre el chat/mensaje de Jose Vicente») o por `n` de la lista de chats",
-   "payload": {
-    "name": "string opcional (nombre del chat/persona tal como aparece)",
-    "n": "int opcional (número del chat en la lista)"
-   },
-   "safe": true,
-   "view": true
+  "title": "Mensajería",
+  "description": "Tu mensajería unificada (WhatsApp + Telegram + Email), ya triada: solo lo que va dirigido a ti o debes atender, en un solo sitio. WhatsApp/Telegram se vinculan por QR; el email por correo + contraseña de aplicación. Puedes dictar una respuesta, revisarla en el cuadro de texto y mandarla por voz o con el botón, a las tres plataformas — el email lleva firma propia si la tienes puesta.",
+  "whenToUse": "Cuando pide ver sus mensajes, quién le ha escrito, su WhatsApp/Telegram/correo, responder o mandar un mensaje/email, RESUMIR una conversación o grupo, buscar mensajes PASADOS en el archivo («¿cuándo me escribió X?»), traer mensajes del conector, el AUTORRESPONDEDOR, su firma, o conectar un canal.",
+  "keywords": [
+    "mensajes",
+    "mensajeria",
+    "mensajería",
+    "chats",
+    "whatsapp",
+    "wasap",
+    "telegram",
+    "email",
+    "correo",
+    "mail",
+    "gmail",
+    "outlook",
+    "quién me ha escrito",
+    "quien me ha escrito",
+    "qué me han escrito",
+    "qué debo responder",
+    "responder",
+    "contestar",
+    "mis mensajes",
+    "vincular whatsapp",
+    "conectar whatsapp",
+    "vincular telegram",
+    "conectar telegram",
+    "conectar email",
+    "conectar correo",
+    "qr",
+    "silenciar",
+    "ocultar",
+    "muted",
+    "responde",
+    "contesta",
+    "envía",
+    "manda",
+    "mándale",
+    "escríbele",
+    "dile",
+    "firma",
+    "mi firma",
+    "firma de correo",
+    "autorespondedor",
+    "autoresponder",
+    "respuesta automática",
+    "resume",
+    "resumen"
+  ],
+  "actions": {
+    "show_view": {
+      "desc": "CAMBIA LO QUE SE VE en la mensajería y CONTESTA: 'all' vuelve a la LISTA PRINCIPAL unificada (y cierra el chat abierto); 'whatsapp'|'telegram'|'email' filtra solo ese canal. Devuelve los chats que casan en `result.chats` para que respondas con sus nombres. Es obligatoria para eso — mostrar el widget de nuevo NO cambia la vista Con `window_h` (HORAS) fija además el CRITERIO de esa vista: enseña las CONVERSACIONES con actividad en esa ventana (72 = últimos 3 días; 0 lo quita) — queda fijado por plataforma hasta cambiarlo, y devuelve las que casan en `result.activity`",
+      "payload": {
+        "platform": "string ('all' = lista principal | whatsapp | telegram | email)",
+        "window_h": "number opcional (horas de la ventana de actividad; 72 = 3 días; 0 = quitar el criterio)"
+      },
+      "safe": true,
+      "view": true
+    },
+    "open": {
+      "desc": "Abre un CHAT concreto (pasa a ver sus mensajes uno a uno): por `name` («abre el chat/mensaje de Jose Vicente») o por `n` de la lista de chats",
+      "payload": {
+        "name": "string opcional (nombre del chat/persona tal como aparece)",
+        "n": "int opcional (número del chat en la lista)"
+      },
+      "safe": true,
+      "view": true
+    },
+    "close": {
+      "desc": "Cierra el chat abierto y VUELVE a la lista de chats",
+      "payload": {},
+      "safe": true,
+      "view": true
+    },
+    "read": {
+      "desc": "Con un chat ABIERTO: marca como leído el mensaje N de ese chat (propaga a su app real — quita el no-leído en WhatsApp/Telegram/correo)",
+      "payload": {
+        "n": "int (número del mensaje en el chat abierto)"
+      },
+      "safe": true
+    },
+    "readchat": {
+      "desc": "Marca TODO el chat N como leído (en su app real) sin necesidad de abrirlo",
+      "payload": {
+        "n": "int (número del chat en la lista)"
+      },
+      "safe": true
+    },
+    "dismiss": {
+      "desc": "Descarta el mensaje N del widget SIN marcarlo leído en su app",
+      "payload": {
+        "n": "int"
+      },
+      "safe": true
+    },
+    "clear": {
+      "desc": "Marca como leído TODO lo visible (todos los chats) y vacía la bandeja",
+      "payload": {},
+      "safe": true
+    },
+    "archive": {
+      "desc": "ARCHIVA el correo N en el buzón REAL (sale de Recibidos allí también). Solo email; para WhatsApp/Telegram usa read o dismiss",
+      "payload": {
+        "n": "int (número del correo en la lista)"
+      },
+      "safe": true
+    },
+    "trash": {
+      "desc": "BORRA el correo N en el buzón REAL (a la papelera del proveedor). Solo email. Es permanente en la práctica",
+      "payload": {
+        "n": "int (número del correo en la lista)"
+      },
+      "confirm": true,
+      "confirm_q": "¿Borro ese correo de tu buzón real? Irá a la papelera del proveedor."
+    },
+    "hide": {
+      "desc": "Silencia un canal entero: oculta todos sus mensajes actuales y futuros sin marcarlos como leídos en la app",
+      "payload": {
+        "n": "int (número del item en la lista)"
+      },
+      "safe": true
+    },
+    "unhide": {
+      "desc": "Reactivar un canal silenciado para que sus mensajes vuelvan a aparecer",
+      "payload": {
+        "platform": "string (whatsapp|telegram|email)",
+        "chatId": "int|string"
+      },
+      "safe": true
+    },
+    "reply": {
+      "desc": "Enviar una respuesta al mensaje/chat N por su propio canal (email con hilo, WhatsApp y Telegram como respuesta al mensaje). El envío real lo hace el conector de esa plataforma.",
+      "confirm_q": "¿Envío esa respuesta por su propio canal?",
+      "payload": {
+        "n": "int (número del mensaje/chat en la lista)",
+        "text": "string (el texto a enviar)"
+      },
+      "confirm": true,
+      "usage": "Úsala vía la tool reply_message del cerebro, que pide confirmación antes de enviar. Enviar no se deshace."
+    },
+    "draft": {
+      "desc": "Escribe (o actualiza) el texto de respuesta en el CUADRO visible del widget, SIN enviarlo — dile al operador que se lo lees para que lo revise antes de que lo mande él (con 'send_draft' o el botón)",
+      "payload": {
+        "text": "string (el texto dictado)",
+        "n": "opcional: número de un email concreto (si no hay conversación abierta)",
+        "messageId": "opcional, alternativa a n",
+        "reply_all": "opcional, solo email: true para responder también a los demás destinatarios del original"
+      }
+    },
+    "send_draft": {
+      "desc": "Envía el borrador que ya está en el cuadro (escrito por voz o a mano) — el mismo texto que se ve en pantalla. No lleva texto propio: si aún no hay nada dictado, dile que dicte primero.",
+      "confirm_q": "¿Envío el borrador que hay escrito en el cuadro?",
+      "payload": {
+        "n": "opcional: el email concreto cuyo borrador se envía (sin esto va el último borrador tocado)",
+        "messageId": "opcional, alternativa a n"
+      },
+      "confirm": true,
+      "usage": "El botón «Enviar» de la propia tarjeta hace exactamente esto. Por voz: primero 'draft' con el texto, luego (con su confirmación) 'send_draft'."
+    },
+    "send_to": {
+      "desc": "Escribe a una PERSONA del directorio de contactos por su canal (el preferido si no dices cuál), ABRIENDO la conversación si no existía. Es lo que se usa para «mándale un mensaje a X», «escríbele a X», «contacta con X» — `reply` solo sirve para contestar a algo que YA llegó.",
+      "payload": {
+        "contact": "string (el nombre tal y como lo dijo el operador; también vale una dirección de correo suelta)",
+        "text": "string (lo que hay que decirle)",
+        "channel": "opcional: whatsapp | telegram | email — sin esto va por su canal preferido",
+        "subject": "opcional, solo email",
+        "objective": "opcional: si esto abre una gestión que habrá que seguir («organizar una reunión esta tarde»), para qué, con las palabras del operador"
+      },
+      "confirm": false,
+      "usage": "Si no tienes su canal guardado, guárdalo antes con contactos/set_channel. Si no sabes a cuál de dos se refiere, PREGÚNTASELO: nunca escribas a alguien por parecido. NO se pide confirmación para esto (V2-692): quien la llama está ejecutando una orden que el operador acaba de dar, y su permiso ya viene con la orden — preguntarle otra vez es hacerle dar el mismo permiso dos veces. `reply` SÍ la sigue pidiendo: contestar a algo que llegó no es una orden suya."
+    },
+    "open_connectors": {
+      "desc": "Si se nombra la plataforma (email/gmail/outlook, whatsapp, telegram), entra DIRECTAMENTE en la pantalla de ESE conector — su asistente paso a paso si no está conectado, o su estado si ya lo está. Sin plataforma, abre la lista de todos los conectores. Úsala siempre que el operador pida conectar/vincular/añadir un canal. No pidas tú credenciales por voz.",
+      "payload": {
+        "platform": "string opcional (email|whatsapp|telegram) — la plataforma a desplegar"
+      },
+      "safe": true,
+      "view": true
+    },
+    "set_notify": {
+      "desc": "Configura DOS cosas por canal, que son distintas: qué mensajes te INTERRUMPEN avisándote (notify: never|direct|important|all; por defecto never, nadie interrumpe) y si ese aviso puede hablarse en voz alta (speak). Y aparte, qué mensajes salen en el RESUMEN, la lista unificada sin filtro (highlight: direct|important|all; por defecto direct, solo lo dirigido a ti). No borra ni oculta nada: todos los mensajes siguen entrando y se ven en la sección de su canal.",
+      "payload": {
+        "platform": "string (whatsapp|telegram|email)",
+        "notify": "string opcional (never|direct|important|all) — qué te AVISA",
+        "highlight": "string opcional (direct|important|all) — qué sale en el RESUMEN",
+        "speak": "bool opcional (false = avisos solo por nota/pantalla, nunca por voz)"
+      },
+      "safe": true,
+      "usage": "«Avísame cada vez que llegue un mensaje» → set_notify {platform:'email', notify:'all'}. «De Telegram avísame solo de mensajes directos» → {platform:'telegram', notify:'direct'}. «Que WhatsApp no me interrumpa hablando» → {platform:'whatsapp', speak:false}. «Enséñame también lo importante en la lista principal» → {platform:'email', highlight:'important'}. Para silenciar UN chat concreto usa hide, no esto."
+    },
+    "load_more": {
+      "desc": "Trae MENSAJES ANTERIORES de la conversación abierta desde la app real (Telegram/correo/WhatsApp). Úsala cuando el operador pida ver lo de antes («cárgame los anteriores», «¿qué me dijo la semana pasada?») y el widget diga que ahí empieza lo guardado. No inventa nada: se los pide al conector",
+      "payload": {
+        "limit": "int opcional (cuántos, por defecto 30)"
+      },
+      "safe": true
+    },
+    "set_signature": {
+      "desc": "Fija la firma de EMAIL entera, una línea por elemento (ej. nombre / cargo / contacto). Se añade sola a cada correo que se envíe, nunca por el operador ni por Gmail — no lo prometas dos veces",
+      "payload": {
+        "lines": "array de strings, una por línea (máx. 10)"
+      }
+    },
+    "set_signature_line": {
+      "desc": "Pone o cambia UNA línea de la firma de email (1ª, 2ª, 3ª…) sin tocar las demás — para cuando la dicta línea a línea: «en la primera pon mi nombre, en la segunda mi cargo»",
+      "payload": {
+        "line": "int (1, 2, 3…)",
+        "text": "string (el texto de esa línea)"
+      }
+    },
+    "clear_signature": {
+      "desc": "Borra la firma de email entera",
+      "confirm_q": "¿Borro tu firma de correo entera?",
+      "payload": {},
+      "confirm": true
+    },
+    "fetch_now": {
+      "desc": "PIDE al conector de esa plataforma que traiga YA las conversaciones con actividad reciente («chupa/refresca más mensajes del conector»): telegram y email. WhatsApp NO lo soporta (su transporte solo empuja en tiempo real; de un chat concreto sí hay load_more). Llegan a las conversaciones en unos segundos y se avisa al terminar",
+      "payload": {
+        "platform": "string (telegram|email)",
+        "since_hours": "number opcional (ventana en horas; por defecto 72)"
+      },
+      "safe": true
+    },
+    "peek": {
+      "desc": "LEE una conversación entera (hasta 40 mensajes guardados) y te la DEVUELVE para que TÚ la resumas, la analices o extraigas lo relevante («resume el grupo del viaje», «la esencia de esos correos») — sin abrir nada en pantalla y sin tocar la memoria. Si necesita más pasado: open + load_more primero",
+      "payload": {
+        "name": "string opcional (el chat/grupo tal como aparece; sin él usa la conversación abierta)",
+        "limit": "int opcional (máx 40)"
+      },
+      "safe": true
+    },
+    "set_autoresponder": {
+      "desc": "Activa un AUTORRESPONDEDOR («pon un autorrespondedor en WhatsApp: estoy de vacaciones»): contesta solo con `text`, UNA vez por chat cada 24 h, NUNCA en grupos, y en email solo a correos dirigidos a él. `hours` opcional acota la franja horaria («22:00-08:00», admite cruzar medianoche). Cada plataforma puede llevar su propio mensaje",
+      "payload": {
+        "platform": "string (whatsapp|telegram|email|all)",
+        "text": "string (lo que debe contestar)",
+        "hours": "string opcional (franja «HH:MM-HH:MM»)",
+        "enabled": "bool opcional (false = dejar configurado pero apagado)"
+      },
+      "confirm": true,
+      "confirm_q": "¿Activo el autorrespondedor con ese mensaje? Contestará él solo en tu nombre."
+    },
+    "clear_autoresponder": {
+      "desc": "Apaga y borra el autorrespondedor (de una plataforma, o de todas sin `platform`)",
+      "payload": {
+        "platform": "string opcional (whatsapp|telegram|email|all)"
+      },
+      "safe": true
+    },
+    "chat_digest": {
+      "desc": "ESTADO destilado por chat desde el archivo: acciones ABIERTAS, plazos y resumen («¿tengo que hacer algo de este grupo?», «¿tengo algo pendiente de mis grupos?»). Con chat devuelve su digest; sin chat, los chats con acciones abiertas",
+      "payload": {
+        "chat": "string opcional (nombre del chat/grupo)"
+      },
+      "safe": true
+    },
+    "search_archive": {
+      "desc": "BUSCA en el ARCHIVO PERMANENTE de comunicaciones (todas las plataformas, entradas Y salidas — no caduca nunca) y DEVUELVE las coincidencias con su fecha para que TÚ contestes («¿cuándo me escribió el colegio?»; «¿le llegué a contestar?» → check_reply:true, que dice si hubo respuesta nuestra y cuándo). Una pregunta sobre mensajes PASADOS se contesta con esto, nunca de memoria",
+      "payload": {
+        "q": "string opcional (texto a buscar)",
+        "sender": "string opcional (remitente, subcadena)",
+        "chat": "string opcional (nombre del chat/grupo)",
+        "platform": "string opcional: whatsapp|telegram|email",
+        "since_days": "number opcional (ventana hacia atrás en días)",
+        "direction": "'in'|'out' opcional",
+        "check_reply": "bool opcional: comprueba si el mensaje encontrado tuvo respuesta nuestra",
+        "limit": "int opcional (máx 20)"
+      },
+      "safe": true
+    }
   },
-  "close": {
-   "desc": "Cierra el chat abierto y VUELVE a la lista de chats",
-   "payload": {},
-   "safe": true,
-   "view": true
-  },
-  "read": {
-   "desc": "Con un chat ABIERTO: marca como leído el mensaje N de ese chat (propaga a su app real — quita el no-leído en WhatsApp/Telegram/correo)",
-   "payload": {
-    "n": "int (número del mensaje en el chat abierto)"
-   },
-   "safe": true
-  },
-  "readchat": {
-   "desc": "Marca TODO el chat N como leído (en su app real) sin necesidad de abrirlo",
-   "payload": {
-    "n": "int (número del chat en la lista)"
-   },
-   "safe": true
-  },
-  "dismiss": {
-   "desc": "Descarta el mensaje N del widget SIN marcarlo leído en su app",
-   "payload": {
-    "n": "int"
-   },
-   "safe": true
-  },
-  "clear": {
-   "desc": "Marca como leído TODO lo visible (todos los chats) y vacía la bandeja",
-   "payload": {},
-   "safe": true
-  },
-  "archive": {
-   "desc": "ARCHIVA el correo N en el buzón REAL (sale de Recibidos allí también). Solo email; para WhatsApp/Telegram usa read o dismiss",
-   "payload": {
-    "n": "int (número del correo en la lista)"
-   },
-   "safe": true
-  },
-  "trash": {
-   "desc": "BORRA el correo N en el buzón REAL (a la papelera del proveedor). Solo email. Es permanente en la práctica",
-   "payload": {
-    "n": "int (número del correo en la lista)"
-   },
-   "confirm": true,
-   "confirm_q": "¿Borro ese correo de tu buzón real? Irá a la papelera del proveedor."
-  },
-  "hide": {
-   "desc": "Silencia un canal entero: oculta todos sus mensajes actuales y futuros sin marcarlos como leídos en la app",
-   "payload": {
-    "n": "int (número del item en la lista)"
-   },
-   "safe": true
-  },
-  "unhide": {
-   "desc": "Reactivar un canal silenciado para que sus mensajes vuelvan a aparecer",
-   "payload": {
-    "platform": "string (whatsapp|telegram|email)",
-    "chatId": "int|string"
-   },
-   "safe": true
-  },
-  "reply": {
-   "desc": "Enviar una respuesta al mensaje/chat N por su propio canal (email con hilo, WhatsApp y Telegram como respuesta al mensaje). El envío real lo hace el conector de esa plataforma.",
-   "confirm_q": "¿Envío esa respuesta por su propio canal?",
-   "payload": {
-    "n": "int (número del mensaje/chat en la lista)",
-    "text": "string (el texto a enviar)"
-   },
-   "confirm": true,
-   "usage": "Úsala vía la tool reply_message del cerebro, que pide confirmación antes de enviar. Enviar no se deshace."
-  },
-  "draft": {
-   "desc": "Escribe (o actualiza) el texto de respuesta en el CUADRO visible del widget, SIN enviarlo — dile al operador que se lo lees para que lo revise antes de que lo mande él (con 'send_draft' o el botón)",
-   "payload": {
-    "text": "string (el texto dictado)",
-    "n": "opcional: número de un email concreto (si no hay conversación abierta)",
-    "messageId": "opcional, alternativa a n",
-    "reply_all": "opcional, solo email: true para responder también a los demás destinatarios del original"
-   }
-  },
-  "send_draft": {
-   "desc": "Envía el borrador que ya está en el cuadro (escrito por voz o a mano) — el mismo texto que se ve en pantalla. No lleva texto propio: si aún no hay nada dictado, dile que dicte primero.",
-   "confirm_q": "¿Envío el borrador que hay escrito en el cuadro?",
-   "payload": {
-    "n": "opcional: el email concreto cuyo borrador se envía (sin esto va el último borrador tocado)",
-    "messageId": "opcional, alternativa a n"
-   },
-   "confirm": true,
-   "usage": "El botón «Enviar» de la propia tarjeta hace exactamente esto. Por voz: primero 'draft' con el texto, luego (con su confirmación) 'send_draft'."
-  },
-  "send_to": {
-   "desc": "Escribe a una PERSONA del directorio de contactos por su canal (el preferido si no dices cuál), ABRIENDO la conversación si no existía. Es lo que se usa para «mándale un mensaje a X», «escríbele a X», «contacta con X» — `reply` solo sirve para contestar a algo que YA llegó.",
-   "confirm_q": "¿Le escribo a {item}?",
-   "payload": {
-    "contact": "string (el nombre tal y como lo dijo el operador; también vale una dirección de correo suelta)",
-    "text": "string (lo que hay que decirle)",
-    "channel": "opcional: whatsapp | telegram | email — sin esto va por su canal preferido",
-    "subject": "opcional, solo email",
-    "objective": "opcional: si esto abre una gestión que habrá que seguir («organizar una reunión esta tarde»), para qué, con las palabras del operador"
-   },
-   "confirm": true,
-   "usage": "Si no tienes su canal guardado, guárdalo antes con contactos/set_channel. Si no sabes a cuál de dos se refiere, PREGÚNTASELO: nunca escribas a alguien por parecido."
-  },
-  "open_connectors": {
-   "desc": "Si se nombra la plataforma (email/gmail/outlook, whatsapp, telegram), entra DIRECTAMENTE en la pantalla de ESE conector — su asistente paso a paso si no está conectado, o su estado si ya lo está. Sin plataforma, abre la lista de todos los conectores. Úsala siempre que el operador pida conectar/vincular/añadir un canal. No pidas tú credenciales por voz.",
-   "payload": {
-    "platform": "string opcional (email|whatsapp|telegram) — la plataforma a desplegar"
-   },
-   "safe": true,
-   "view": true
-  },
-  "set_notify": {
-   "desc": "Configura DOS cosas por canal, que son distintas: qué mensajes te INTERRUMPEN avisándote (notify: never|direct|important|all; por defecto never, nadie interrumpe) y si ese aviso puede hablarse en voz alta (speak). Y aparte, qué mensajes salen en el RESUMEN, la lista unificada sin filtro (highlight: direct|important|all; por defecto direct, solo lo dirigido a ti). No borra ni oculta nada: todos los mensajes siguen entrando y se ven en la sección de su canal.",
-   "payload": {
-    "platform": "string (whatsapp|telegram|email)",
-    "notify": "string opcional (never|direct|important|all) — qué te AVISA",
-    "highlight": "string opcional (direct|important|all) — qué sale en el RESUMEN",
-    "speak": "bool opcional (false = avisos solo por nota/pantalla, nunca por voz)"
-   },
-   "safe": true,
-   "usage": "«Avísame cada vez que llegue un mensaje» → set_notify {platform:'email', notify:'all'}. «De Telegram avísame solo de mensajes directos» → {platform:'telegram', notify:'direct'}. «Que WhatsApp no me interrumpa hablando» → {platform:'whatsapp', speak:false}. «Enséñame también lo importante en la lista principal» → {platform:'email', highlight:'important'}. Para silenciar UN chat concreto usa hide, no esto."
-  },
-  "load_more": {
-   "desc": "Trae MENSAJES ANTERIORES de la conversación abierta desde la app real (Telegram/correo/WhatsApp). Úsala cuando el operador pida ver lo de antes («cárgame los anteriores», «¿qué me dijo la semana pasada?») y el widget diga que ahí empieza lo guardado. No inventa nada: se los pide al conector",
-   "payload": {
-    "limit": "int opcional (cuántos, por defecto 30)"
-   },
-   "safe": true
-  },
-  "set_signature": {
-   "desc": "Fija la firma de EMAIL entera, una línea por elemento (ej. nombre / cargo / contacto). Se añade sola a cada correo que se envíe, nunca por el operador ni por Gmail — no lo prometas dos veces",
-   "payload": {
-    "lines": "array de strings, una por línea (máx. 10)"
-   }
-  },
-  "set_signature_line": {
-   "desc": "Pone o cambia UNA línea de la firma de email (1ª, 2ª, 3ª…) sin tocar las demás — para cuando la dicta línea a línea: «en la primera pon mi nombre, en la segunda mi cargo»",
-   "payload": {
-    "line": "int (1, 2, 3…)",
-    "text": "string (el texto de esa línea)"
-   }
-  },
-  "clear_signature": {
-   "desc": "Borra la firma de email entera",
-   "confirm_q": "¿Borro tu firma de correo entera?",
-   "payload": {},
-   "confirm": true
-  },
-  "fetch_now": {
-   "desc": "PIDE al conector de esa plataforma que traiga YA las conversaciones con actividad reciente («chupa/refresca más mensajes del conector»): telegram y email. WhatsApp NO lo soporta (su transporte solo empuja en tiempo real; de un chat concreto sí hay load_more). Llegan a las conversaciones en unos segundos y se avisa al terminar",
-   "payload": {
-    "platform": "string (telegram|email)",
-    "since_hours": "number opcional (ventana en horas; por defecto 72)"
-   },
-   "safe": true
-  },
-  "peek": {
-   "desc": "LEE una conversación entera (hasta 40 mensajes guardados) y te la DEVUELVE para que TÚ la resumas, la analices o extraigas lo relevante («resume el grupo del viaje», «la esencia de esos correos») — sin abrir nada en pantalla y sin tocar la memoria. Si necesita más pasado: open + load_more primero",
-   "payload": {
-    "name": "string opcional (el chat/grupo tal como aparece; sin él usa la conversación abierta)",
-    "limit": "int opcional (máx 40)"
-   },
-   "safe": true
-  },
-  "set_autoresponder": {
-   "desc": "Activa un AUTORRESPONDEDOR («pon un autorrespondedor en WhatsApp: estoy de vacaciones»): contesta solo con `text`, UNA vez por chat cada 24 h, NUNCA en grupos, y en email solo a correos dirigidos a él. `hours` opcional acota la franja horaria («22:00-08:00», admite cruzar medianoche). Cada plataforma puede llevar su propio mensaje",
-   "payload": {
-    "platform": "string (whatsapp|telegram|email|all)",
-    "text": "string (lo que debe contestar)",
-    "hours": "string opcional (franja «HH:MM-HH:MM»)",
-    "enabled": "bool opcional (false = dejar configurado pero apagado)"
-   },
-   "confirm": true,
-   "confirm_q": "¿Activo el autorrespondedor con ese mensaje? Contestará él solo en tu nombre."
-  },
-  "clear_autoresponder": {
-   "desc": "Apaga y borra el autorrespondedor (de una plataforma, o de todas sin `platform`)",
-   "payload": {
-    "platform": "string opcional (whatsapp|telegram|email|all)"
-   },
-   "safe": true
-  },
-  "chat_digest": {
-  "desc": "ESTADO destilado por chat desde el archivo: acciones ABIERTAS, plazos y resumen («¿tengo que hacer algo de este grupo?», «¿tengo algo pendiente de mis grupos?»). Con chat devuelve su digest; sin chat, los chats con acciones abiertas",
-  "payload": {
-   "chat": "string opcional (nombre del chat/grupo)"
-  },
-  "safe": true
- },
- "search_archive": {
-   "desc": "BUSCA en el ARCHIVO PERMANENTE de comunicaciones (todas las plataformas, entradas Y salidas — no caduca nunca) y DEVUELVE las coincidencias con su fecha para que TÚ contestes («¿cuándo me escribió el colegio?»; «¿le llegué a contestar?» → check_reply:true, que dice si hubo respuesta nuestra y cuándo). Una pregunta sobre mensajes PASADOS se contesta con esto, nunca de memoria",
-   "payload": {
-    "q": "string opcional (texto a buscar)",
-    "sender": "string opcional (remitente, subcadena)",
-    "chat": "string opcional (nombre del chat/grupo)",
-    "platform": "string opcional: whatsapp|telegram|email",
-    "since_days": "number opcional (ventana hacia atrás en días)",
-    "direction": "'in'|'out' opcional",
-  "check_reply": "bool opcional: comprueba si el mensaje encontrado tuvo respuesta nuestra",
-    "limit": "int opcional (máx 20)"
-   },
-   "safe": true
-  }
- },
- "entry": "widget.js",
- "name": "Mensajería",
- "aliases": [
-  "Mensajería",
-  "mensajes",
-  "mis mensajes",
-  "chats",
-  "whatsapp",
-  "wasap",
-  "telegram",
-  "x",
-  "twitter",
-  "email",
-  "correo",
-  "mail",
-  "gmail",
-  "outlook"
- ],
- "usage": "Para VER mensajes basta con mostrar la tarjeta. Para NAVEGARLA por voz: «vuelve a la lista principal / enséñame la lista general» → show_view {platform:'all'}; «ábreme/muéstrame/enséñame el WhatsApp | el Telegram | el correo» (lleve o no «solo los mensajes de») → show_view con esa plataforma: WhatsApp, Telegram y el correo NO son tarjetas, son VISTAS de ésta, así que mostrar el widget otra vez NO cambia nada (contesta con los chats que casan en result.chats); «abre el chat de X» → open {name:'X'}; «vuelve atrás» desde un chat → close. Marcar leído (read/readchat/clear) PROPAGA a la app real. Para CONECTAR un canal («conéctame el correo», «vincula mi Gmail», «añade WhatsApp») muestra la tarjeta Y llama a open_connectors con la plataforma: se entra directamente en la pantalla de ESE conector, con su asistente ya en marcha. Email cubre Gmail, Outlook/Hotmail y cualquier otro por IMAP — el asistente pregunta cuál, así que no lo preguntes tú."
+  "entry": "widget.js",
+  "name": "Mensajería",
+  "aliases": [
+    "Mensajería",
+    "mensajes",
+    "mis mensajes",
+    "chats",
+    "whatsapp",
+    "wasap",
+    "telegram",
+    "x",
+    "twitter",
+    "email",
+    "correo",
+    "mail",
+    "gmail",
+    "outlook"
+  ],
+  "usage": "Para VER mensajes basta con mostrar la tarjeta. Para NAVEGARLA por voz: «vuelve a la lista principal / enséñame la lista general» → show_view {platform:'all'}; «ábreme/muéstrame/enséñame el WhatsApp | el Telegram | el correo» (lleve o no «solo los mensajes de») → show_view con esa plataforma: WhatsApp, Telegram y el correo NO son tarjetas, son VISTAS de ésta, así que mostrar el widget otra vez NO cambia nada (contesta con los chats que casan en result.chats); «abre el chat de X» → open {name:'X'}; «vuelve atrás» desde un chat → close. Marcar leído (read/readchat/clear) PROPAGA a la app real. Para CONECTAR un canal («conéctame el correo», «vincula mi Gmail», «añade WhatsApp») muestra la tarjeta Y llama a open_connectors con la plataforma: se entra directamente en la pantalla de ESE conector, con su asistente ya en marcha. Email cubre Gmail, Outlook/Hotmail y cualquier otro por IMAP — el asistente pregunta cuál, así que no lo preguntes tú."
 }

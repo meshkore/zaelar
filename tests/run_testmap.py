@@ -1536,6 +1536,20 @@ DOMAINS: list[dict] = [
         {"id": "3.46", "title": "Un cierre COMPUESTO no se come el resto de la frase", "ch": UNIT,
             "paths": ["tests/agent_headless/unit/flash/"
                       "test_a_compound_close_does_not_swallow_the_rest.py"]},
+        # V2-692 — segunda ejecución en vivo del encargo (2026-09-14). UNA orden suya («organiza una reunión
+        # con este contacto») y tuvo que conducirla entera a mano: autorizar el envío cuatro veces, avisar de
+        # que había llegado la respuesta, decir que la aceptara — y al final no había reunión ni en nuestra
+        # agenda ni en su Google Calendar, ni enlace de Meet. Cuatro averías apiladas, tres de ellas
+        # silenciosas por construcción: el encargo nacido de su orden se quedó con CERO conversaciones
+        # (`bind()` se niega si otro la tiene y nadie leía esa negativa), así que la respuesta despertó al
+        # encargo RANCIO de ayer; el bloque `agreed` que devuelve el modelo no lo leía NADIE, así que
+        # «hora acordada» no escribía nada en ninguna parte; y `verify.meeting_exists` filtra por un sello
+        # `created` que la agenda no ha escrito nunca, de modo que NINGÚN encargo de esta casa podía cerrarse
+        # por CONSEGUIDO — solo por agotar el plazo.
+        {"id": "3.47", "title": "El encargo TERMINA lo que acordó: apunta la cita, trae el enlace de Meet y "
+                                "le quita la conversación a un encargo que ya acabó", "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/"
+                      "test_an_errand_finishes_what_it_agreed.py"]},
         # V2-676 — medido en su sesión INGLESA `af4429e0` (2026-09-11), dos fallos que viajaban juntos:
         #   · cinco búsquedas del tiempo en Nueva York, las cinco n:0 con `failure.kind = captcha`, y el modelo
         #     explicó el vacío con la única historia que tiene: «I don't have live internet access… my training

@@ -10,6 +10,8 @@
 #
 from __future__ import annotations
 
+import time as _time
+
 # CALENDAR CONNECTORS shown in the agenda's header (V2-540). Deliberately a READ of the real inventory, never
 # a hardcoded «off»: the day a calendar connector is registered under this family it lights up here with
 # nothing else to change. V2-679 built exactly one of the three (Google) — the honest answer for the other
@@ -64,7 +66,18 @@ def commit_meeting(db: dict, m: dict) -> dict:
     the write cannot wait for the next background tick. Returns the dict actually stored (the Google-enriched
     one on success, carrying `googleId`/`source` so the next sync recognizes it as the SAME row instead of
     inventing a duplicate). Best-effort: a Google failure still keeps the LOCAL write — the same rule
-    `data._schedule_reminder` already follows, a write must never be lost because a side-effect failed."""
+    `data._schedule_reminder` already follows, a write must never be lost because a side-effect failed.
+
+    ⚠️ It also STAMPS the day the row was written (V2-692), and that stamp is not decoration: it is the only
+    thing that tells a row this engine just created from one the operator has had in his calendar for weeks.
+    `nucleo/errands/verify.meeting_exists` is written against it — «a row the errand itself could have
+    produced has to SAY SO» — and the field it reads had never been written by anybody, so that verifier
+    could only ever return False and NO errand in this house could close by being ACHIEVED; every one of them
+    could only ever end by running out of time. Its own note says the unit test missed the shape by writing
+    `created` itself, which measured data the product has never produced. A DATE, not a timestamp: that is
+    what the verifier compares against.
+    """
+    m.setdefault("created", _time.strftime("%Y-%m-%d"))
     s = svc()
     if s is not None:
         try:

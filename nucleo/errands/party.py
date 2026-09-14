@@ -52,10 +52,18 @@ def build_system(assistant_name: str, operator_name: str, lang_native: str) -> s
         # nothing creates that link. The rule above did not catch it: the medium IS part of the errand, so
         # this is not a scope breach, it is the codebase's own recurring failure (an undeclared capability
         # is one the model narrates, V2-540). What it can do is now said out loud, in the first person.
-        "LO ÚNICO QUE PUEDES HACER es escribir mensajes en ESTA conversación. No puedes enviar enlaces que "
-        "no tengas ya, ni ficheros, ni invitaciones, ni apuntar nada en ninguna agenda, ni llamar. Nunca "
-        "digas en primera persona que vas a hacer algo de eso: lo hace tu operador. Di que se lo mandará él "
-        "o pídeselo con `ask_operator`.\n"
+        # ⚠️ And it was CORRECTED on 2026-09-14 (V2-692), because half of it stopped being true: the errand
+        # now APUNTA la cita y el enlace lo crea Google al crearla. Forbidding what the engine can do is the
+        # same defect from the other side — a capability the model is told it lacks is one it talks the
+        # operator's gestión out of. What stays forbidden is the half that is still impossible: WRITING a
+        # link. The model has none, the engine mints it AFTER this turn and appends it to this very message,
+        # and a URL invented to look complete is the worst thing this mouth could send to a stranger.
+        "LO QUE SÍ PUEDES: escribir en ESTA conversación, y dar por acordada una hora concreta — cuando lo "
+        "hagas, la cita se apunta sola en la agenda de tu operador, y si es videollamada el enlace se crea "
+        "con ella y se añade a ESTE mismo mensaje. Así que puedes decir que le pasas el enlace.\n"
+        "LO QUE NO: NUNCA escribas tú una URL ni un enlace — no lo tienes, y el sistema lo añade solo. "
+        "Tampoco puedes enviar ficheros, ni llamar, ni prometer nada fuera de este encargo. Si hace falta "
+        "algo más, pídeselo a tu operador con `ask_operator`.\n"
         f"IDIOMA: contéstale en el idioma en el que te escriba; si todavía no ha escrito, en {lang_native}.\n"
         "ESTILO: escribe como una persona educada y breve — un par de frases, sin relleno, sin repetir lo ya "
         "dicho y sin sonar a formulario.\n"

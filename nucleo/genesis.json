@@ -19,8 +19,8 @@
     "browser_playable_only": true
   },
   "errands": {
-    "_comment": "V2-683 — ERRANDS with a third party. `shadow` TRUE = decide and LOG what it would say, send nothing: autonomy that writes to real people in the operator's name is handed over after he has read a few of those rows, not on the strength of a green test suite.",
-    "shadow": true,
+    "_comment": "V2-683/V2-692 — ERRANDS with a third party. `shadow` TRUE = decide and LOG what it would say, send nothing. It shipped TRUE because autonomy that writes to real people in the operator's name is handed over after he has read a few of those rows, not on the strength of a green test suite. He has now read them and asked for the opposite, in his own words: the agent has to carry the errand end to end «sin que tú le digas más que el disparo de salida», and «no necesita confirmacion». So the default is FALSE. The flag stays: an errand still only ever writes to the ONE conversation it was born in, and flipping this back is one edit.",
+    "shadow": false,
     "default_window_h": 4,
     "grace_h": 24,
     "max_days": 7

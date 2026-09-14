@@ -59,6 +59,11 @@ class LangSpec:
     agenda_no_data: str = ("No he llegado a apuntar la cita: no me ha quedado claro el título, el día o "
                            "la hora.")
     agenda_no_title: str = "No la he apuntado porque no sé de qué es la cita. ¿Cómo la llamo?"
+    #: The TITLE an errand writes on the meeting it just agreed with a third party (V2-692). It lands in
+    #: the operator's agenda and, through the connector, in his real Google Calendar — a row only HE can
+    #: delete — so it is a text he reads and belongs here rather than in an f-string inside the errand.
+    #: `{name}` is the other person, as the directory or the conversation names them.
+    errand_meeting_title: str = "Reunión con {name}"
     # V2-676 — THE SEARCH RAN AND THEY BLOCKED IT. Measured 2026-09-11 (session af4429e0): five searches for
     # the New York weather, every one `n:0` with `failure.kind = captcha`, and the reply the operator got was
     # «I actually don't have live internet access… my training data has a cutoff date». The agent denied, to
@@ -512,6 +517,7 @@ LANGUAGES: dict[str, LangSpec] = {
         unverified_fact="I couldn't check that just now, so I'd rather not give you a made-up figure.",
         agenda_no_data="I haven't put the appointment in: I'm not sure about the title, the day or the time.",
         agenda_no_title="I haven't put it in because I don't know what it's for. What should I call it?",
+        errand_meeting_title="Meeting with {name}",
         search_blocked=("I did search, but the search engine blocked me with an anti-bot check. It isn't that "
                         "I can't look things up — this time it wouldn't let me. Shall I try properly with the "
                         "browser?"),

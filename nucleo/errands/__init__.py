@@ -26,9 +26,13 @@ Not memory either. Nothing here is a fact about the operator: it is process stat
 
 ## The two rules that keep it from becoming a nuisance
 
-1. **It is born from his own YES.** `send_to` is confirm-gated and its question IS the mandate («… si
-   contesta, sigo yo la conversación por ahí y te aviso»); the errand comes to exist after that, from the
-   send that actually happened. Nothing here opens an errand because a model felt like it.
+1. **It is born from HIS OWN ORDER.** An errand comes to exist only from a `send_to` that really went out,
+   and `send_to` is only ever called while executing something the operator just asked for. It shipped
+   confirm-gated, so his YES to that question WAS the mandate — and on 2026-09-14 he removed the question
+   (V2-692): «si yo específicamente digo que se haga una acción y eso requiere mandar un mensaje,
+   obviamente ese permiso pasa ya por hecho». The mandate is now the order itself. What did NOT change is
+   the bound: an errand answers on the ONE conversation it was born in, and `reply` — answering something
+   that arrived on its own — is still gated, because that one is nobody's order.
 2. **It closes itself.** His words: «tampoco hay que abrir una tarea y dejarla abierta, porque esa persona
    puede no contestar nunca más». Three exits — the objective verifies, the deadline passes, or he says so
    — and a closed errand releases its conversations, so a message six weeks later about something else
@@ -185,6 +189,42 @@ def bind(platform: str, chat_id, errand_id: str, contact_id: str = "") -> bool:
     else:
         logger.warning(f"errands: {platform}:{chat_id} ya pertenece a otro encargo — {errand_id} no lo toma")
     return ok
+
+
+def claim(platform: str, chat_id, errand_id: str, contact_id: str = "") -> bool:
+    """Give a conversation to a NEWBORN errand, taking it from whatever still holds it (V2-692).
+
+    `bind()` refuses when another errand owns the thread, and that refusal is right — two objectives
+    answering one person is how they get two different replies to one message. What was wrong is what the
+    caller did with it: nothing. Measured on the second live run (2026-09-14), and it cost the whole session.
+    Yesterday's errand had reached `agreed` and never closed (its verifier could not read the agenda — see
+    `widgets/agenda/gcal.commit_meeting`), so at 18:52 it still owned the operator's Telegram thread with a
+    deadline sixteen hours past. The errand born from his new order got ZERO conversations: it could never be
+    woken, never verified, and its only possible ending was to announce that nobody had answered. Meanwhile
+    the answer that DID arrive woke the stale errand, against yesterday's objective. He had to drive every
+    step of it by hand.
+
+    So a live incumbent YIELDS to an order the operator gave just now — his newest word about this person is
+    the current one — and the hand-over is TOLD rather than done quietly: an errand he believes is in flight
+    must never end in silence, which is the same rule `watch._report_expired` already keeps.
+    """
+    if bind(platform, chat_id, errand_id, contact_id):
+        return True
+    incumbent = for_thread(platform, chat_id)
+    if incumbent and str(incumbent.get("id") or "") != str(errand_id):
+        close(incumbent["id"], "closed",
+              "lo reemplaza un encargo nuevo del operador sobre la misma conversación")
+        _tell(f"[SISTEMA] Has abierto una gestión nueva con la misma persona, así que doy por terminada la "
+              f"anterior: «{str(incumbent.get('objective') or '')[:90]}». Díselo al operador en una frase.")
+    return bind(platform, chat_id, errand_id, contact_id)
+
+
+def _tell(text: str) -> None:
+    try:
+        from voice import brain_notes
+        brain_notes.push(text)
+    except Exception:
+        pass
 
 
 def for_thread(platform: str, chat_id) -> dict | None:

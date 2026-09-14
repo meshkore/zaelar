@@ -64,9 +64,20 @@ def _answer(monkeypatch, payload: str):
 
 # ── shadow: the shipped default ──────────────────────────────────────────────────────────────────────────
 
-def test_shadow_is_what_ships(env):
+def test_the_errand_SPEAKS_by_default_now(env):
+    """V2-692 reversed the shipped default, and the reason is the operator's own second live run.
+
+    It shipped `shadow: true` — decide and log, send nothing — because autonomy that writes to real people
+    in his name is not handed over on the strength of a green suite. He has now read those rows and asked
+    for the opposite in as many words: the agent carries the errand end to end «sin que tú le digas más que
+    el disparo de salida», and «no necesita confirmacion». A gestión that decides the right answer and
+    sends nobody anything is one he has to finish by hand, which is what he measured.
+
+    The flag is not gone and the bound is not loosened: an errand still only ever writes to the ONE
+    conversation it was born in (see the tests below), and putting it back is one edit to `genesis.json`.
+    """
     from nucleo.errands import wake as wake_mod
-    assert wake_mod.shadow() is True, "autonomy that writes to people is not handed over by a green suite"
+    assert wake_mod.shadow() is False
 
 
 def test_an_unreadable_setting_means_SHADOW(env, monkeypatch):
@@ -81,7 +92,11 @@ def test_an_unreadable_setting_means_SHADOW(env, monkeypatch):
 
 
 def test_in_shadow_it_DECIDES_and_sends_nothing(env, monkeypatch):
+    """The MECHANISM, exercised on purpose now that it is no longer the default (V2-692): armed, the errand
+    reaches its decision in full and still reaches nobody. That is what makes the flag worth keeping."""
     from connectors.messaging import store as msgstore
+    from nucleo.errands import wake as wake_mod
+    monkeypatch.setattr(wake_mod, "shadow", lambda: True)
     row = _errand(env)
     _answer(monkeypatch, '{"say": "¿Te va bien a las seis?", "state": "negotiating"}')
     out = asyncio.run(_wake(row))
