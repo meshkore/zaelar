@@ -49,6 +49,17 @@ def meeting_exists(errand: dict, now: float | None = None) -> bool | None:
     # «Dentista» for its own booking), and this verifier then closed it as «hecha y verificada» against the
     # 16:00 row from the previous round. The person had been told 17:00 and the calendar said 16:00.
     # A verifier that accepts a NEIGHBOURING fact is how «done» stops meaning done.
+    # ⚠️ A DEBT OUTSTANDING IS NOT DONE (V2-692h). The appointment existing is not the whole objective when
+    # the errand also promised a link: «acordar la videollamada Y MANDARLE el enlace» is one errand with two
+    # halves, and closing on the first half releases the conversation — so the link can never be delivered
+    # and the person is left waiting for something nobody is going to send. Measured live three minutes
+    # after the previous fix (2026-09-14, 20:32): the meeting moved to 17:00, this verifier saw a meeting at
+    # 17:00, and closed the errand as «hecha y verificada» with `link_owed` still set.
+    #
+    # The operator's own condition is the one to read literally: «la tarea no termina hasta que no está
+    # correctamente programada esa reunión». Programada includes what was promised about it.
+    if (errand.get("done_when") or {}).get("link_owed"):
+        return False
     at = str((errand.get("done_when") or {}).get("at") or "")
     if at:
         day, _, hhmm = at.partition(" ")

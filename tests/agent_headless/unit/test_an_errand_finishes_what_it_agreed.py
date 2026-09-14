@@ -568,6 +568,50 @@ def test_a_closing_condition_the_playbook_ALREADY_set_is_left_alone(env, monkeyp
     assert not spec.get("link_owed"), "a phone call owes no video link"
 
 
+def test_an_errand_that_still_OWES_the_link_is_not_done(env, monkeypatch):
+    """⚠️ Measured live three minutes after the previous fix (2026-09-14, 20:32), and it is the THIRD time a
+    verifier has closed an errand it should not have.
+
+    The meeting moved to the agreed 17:00, the verifier saw a meeting at 17:00, and closed the errand as
+    «la gestión está hecha y verificada» — with the link debt still outstanding. Closing releases the
+    conversation, so the link can then never be delivered and the person is left waiting for something
+    nobody is going to send.
+
+    «Acordar la videollamada Y MANDARLE el enlace» is one errand with two halves. The operator's condition
+    reads literally: «la tarea no termina hasta que no está correctamente programada esa reunión» —
+    and programada includes what was promised about it.
+    """
+    from nucleo.errands import verify
+    from widgets.agenda import data as agenda
+    agenda.apply_action("add_meeting", {"title": "Meeting with Iván", "date": "2026-09-15",
+                                        "startTime": "17:00"})
+    row = _order(env)
+    env.update(row["id"], done_when={"widget": "agenda", "has": "meeting",
+                                     "at": "2026-09-15 17:00", "link_owed": True})
+    assert verify.check(env.get(row["id"])) is False, "the meeting exists and the errand is NOT done"
+
+    from nucleo.errands import book
+    env.update(row["id"], done_when=book.clear_owed(env.get(row["id"])))
+    assert verify.check(env.get(row["id"])) is True, "debt paid — now it is"
+
+
+def test_the_sweep_leaves_an_indebted_errand_OPEN(env, monkeypatch):
+    """End to end over the sweep that actually closes things, because that is the caller that did it."""
+    from nucleo.errands import verify
+    from widgets.agenda import data as agenda
+    agenda.apply_action("add_meeting", {"title": "Meeting with Iván", "date": "2026-09-15",
+                                        "startTime": "17:00"})
+    row = _order(env)
+    env.bind("telegram", "987", row["id"], "c1")
+    env.update(row["id"], state="agreed",
+               done_when={"widget": "agenda", "has": "meeting", "at": "2026-09-15 17:00",
+                          "link_owed": True})
+
+    assert verify.sweep_met() == []
+    assert env.get(row["id"])["state"] == "agreed"
+    assert env.threads(row["id"]), "and it still owns the conversation it has to answer on"
+
+
 # ── 4 · and now it can CLOSE by being achieved ──────────────────────────────────────────────────────────
 def test_the_agenda_STAMPS_the_day_a_meeting_was_written(env):
     """Without it `verify.meeting_exists` — «a row the errand itself could have produced has to SAY SO» —
@@ -590,8 +634,11 @@ def test_an_errand_whose_meeting_EXISTS_closes_itself(env, monkeypatch):
     env.bind("telegram", "987", row["id"], "c1")
     import time
     day = time.strftime("%Y-%m-%d", time.localtime(time.time() + 3600))
+    # ⚠️ `in_person` on purpose: a VIDEO call with no calendar connected leaves a link DEBT, and an errand
+    # that still owes what it promised is deliberately NOT done (see above). This case is about the other
+    # half — an errand with nothing outstanding closes on the product's own truth.
     _answer(monkeypatch, '{"say": "Hecho.", "state": "agreed", '
-                         '"agreed": {"start": "' + day + ' 19:00", "medium": "meet"}}')
+                         '"agreed": {"start": "' + day + ' 19:00", "medium": "in_person"}}')
     asyncio.run(_wake(row))
 
     assert verify.check(env.get(row["id"])) is True, "the product's own truth, not the model's word"
