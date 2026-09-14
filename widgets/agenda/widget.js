@@ -981,7 +981,10 @@ function renderGoogleWizard(data, ctx, S, redraw){
       // measured on the operator's first real connect, 2026-09-14. An origin is not a credential (V2-520),
       // and the engine validates it before it ever reaches a URL.
       let res;
-      try{ res = await ctx.action("connect", {provider:"google", origin: location.origin}); }
+      // `force` is a HUMAN pressing this button, and it is the only thing that sends it: re-linking a
+      // different Google account has to stay possible, while a voice turn or a Brain Worker asking to
+      // "connect" a calendar that is already connected gets told so instead of getting a wizard (V2-689).
+      try{ res = await ctx.action("connect", {provider:"google", origin: location.origin, force:true}); }
       catch(_){ res = null; }
       S.connectBusy = false;
       const url = res && res.url;
@@ -1040,7 +1043,13 @@ export function render(el, data, ctx){
   // popup only survives inside the operator's own click — so the voice does the half it can: it leaves the
   // card ON the step that holds the button. Same token rule as the view above: it lands when the counter
   // MOVES, never on a plain repaint.
-  const pushedConn = data.connect;
+  // ⚠️ …and NEVER over a calendar that is already linked (V2-689). `S.connN` starts at null on a fresh
+  // element, so within the push's 3-minute life ANY repaint that rebuilt the card re-applied it — which is
+  // how the button came back the instant Google finished authorizing, and how a Brain Worker calling this
+  // action threw a setup wizard over the week he was reading. The backend no longer pushes when connected;
+  // this is the second half, because a token already in the store must not fire on the next mount either.
+  const gcalOn = (data.calendars||[]).some(c => c.id === "google" && c.status === "connected");
+  const pushedConn = gcalOn ? null : data.connect;
   if(pushedConn && pushedConn.n !== S.connN){
     S.connN = pushedConn.n;
     S.screen = "wizard";

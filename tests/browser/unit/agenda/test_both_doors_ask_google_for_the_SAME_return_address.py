@@ -67,7 +67,7 @@ def _both_doors(calendar, origin: str) -> tuple[str, str]:
     from widgets.agenda import gcal
 
     panel = _redirect_of(calendar.connect_url("google", "", origin=origin)["url"])
-    card = _redirect_of(gcal.ui_action("connect", {"provider": "google", "origin": origin}, {})["url"])
+    card = _redirect_of(gcal.ui_action("connect", {"provider": "google", "origin": origin, "force": True}, {})["url"])
     return panel, card
 
 
@@ -112,7 +112,7 @@ def test_without_a_browser_it_still_answers_the_loopback(calendar):
     from widgets.agenda import gcal
 
     for payload in ({"provider": "google"}, {"provider": "google", "origin": ""}):
-        url = gcal.ui_action("connect", payload, {})["url"]
+        url = gcal.ui_action("connect", {**payload, "force": True}, {})["url"]
         assert _redirect_of(url) == _LOOPBACK + "/api/calendar/callback"
 
 
@@ -123,7 +123,7 @@ def test_a_shape_that_is_not_an_origin_falls_back_instead_of_travelling(calendar
     from widgets.agenda import gcal
 
     for junk in ("javascript:alert(1)", "not a url", "http://x y", "//evil", "http://a#f", ""):
-        url = gcal.ui_action("connect", {"provider": "google", "origin": junk}, {})["url"]
+        url = gcal.ui_action("connect", {"provider": "google", "origin": junk, "force": True}, {})["url"]
         assert _redirect_of(url) == _LOOPBACK + "/api/calendar/callback", junk
 
 
@@ -133,7 +133,9 @@ def test_the_card_actually_sends_its_own_origin():
     import pathlib
     js = (pathlib.Path(__file__).resolve().parents[4] / "widgets" / "agenda" / "widget.js").read_text("utf-8")
     body = "\n".join(L for L in js.splitlines() if not L.strip().startswith("//"))
-    assert 'ctx.action("connect", {provider:"google", origin: location.origin})' in body
+    assert 'ctx.action("connect", {provider:"google", origin: location.origin, force:true})' in body, (
+        "the card must send BOTH its origin (V2-687) and `force` (V2-689: only a human pressing this "
+        "button may re-open a consent for a calendar that is already connected)")
 
 
 def test_what_the_operator_PASTES_is_one_list_of_five_that_google_can_accept():

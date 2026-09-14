@@ -51,6 +51,14 @@ class LangSpec:
     show_ack_empty: str = "Te lo abro, aunque de momento está vacío."
     # V2-210: when the turn had to consult a source and could not. Worse response, better information.
     unverified_fact: str = "No he podido comprobarlo ahora mismo, así que prefiero no darte un dato inventado."
+    #: What the AGENDA says when it refuses to write (V2-689). These were hardcoded Spanish inside
+    #: `widgets/agenda/data.py`, which is the exact shape V2-676 ruled against — the operator running his
+    #: agent in English was answered by our own canned lines in Castilian. A widget's refusal is a text the
+    #: operator HEARS, so it belongs in the table that gets translated when a language is initialised, not
+    #: in an `_en` ternary that can only ever know the two languages this repo happens to ship.
+    agenda_no_data: str = ("No he llegado a apuntar la cita: no me ha quedado claro el título, el día o "
+                           "la hora.")
+    agenda_no_title: str = "No la he apuntado porque no sé de qué es la cita. ¿Cómo la llamo?"
     # V2-676 — THE SEARCH RAN AND THEY BLOCKED IT. Measured 2026-09-11 (session af4429e0): five searches for
     # the New York weather, every one `n:0` with `failure.kind = captcha`, and the reply the operator got was
     # «I actually don't have live internet access… my training data has a cutoff date». The agent denied, to
@@ -502,6 +510,8 @@ LANGUAGES: dict[str, LangSpec] = {
         show_ack="Here you go.",
         show_ack_empty="I've opened it, though there's nothing in it yet.",
         unverified_fact="I couldn't check that just now, so I'd rather not give you a made-up figure.",
+        agenda_no_data="I haven't put the appointment in: I'm not sure about the title, the day or the time.",
+        agenda_no_title="I haven't put it in because I don't know what it's for. What should I call it?",
         search_blocked=("I did search, but the search engine blocked me with an anti-bot check. It isn't that "
                         "I can't look things up — this time it wouldn't let me. Shall I try properly with the "
                         "browser?"),

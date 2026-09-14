@@ -137,6 +137,31 @@ def push_connect_screen(db: dict) -> None:
     db["connect"] = {"n": int(prev.get("n", 0)) + 1, "at": _tm.time()}
 
 
+def clear_connect_screen(db: dict) -> None:
+    """Retire the pushed connect screen. Called the moment the consent SUCCEEDS (V2-689).
+
+    Without this the push outlived what it was for. It expires by TTL, so for the next three minutes any
+    repaint that rebuilt the card's element re-applied it — the element's `connN` starts at null on a fresh
+    mount, so a token that has not moved still reads as new — and the operator, having just authorized
+    Google in a popup, was handed the «Connect Google Calendar» button again over a calendar that was by
+    then fully synced. **A screen whose whole purpose is asking for something already granted is worse than
+    no screen**: it says the thing he just did did not work."""
+    db.pop("connect", None)
+
+
+def connected() -> bool:
+    """True when a Google Calendar account is linked RIGHT NOW. Fail-safe: an unreadable connector answers
+    False, which is the side that still lets the operator reach the connect button."""
+    s = svc()
+    if s is None:
+        return False
+    try:
+        rows = s.status() or []
+        return any(r.get("connected") for r in (rows if isinstance(rows, list) else [rows]))
+    except Exception:                                  # noqa: BLE001
+        return False
+
+
 def fresh_connect(db: dict) -> dict | None:
     """The pushed connect screen, only while it is still this conversation's."""
     c = db.get("connect") or None
@@ -151,6 +176,17 @@ def ui_action(action: str, payload: dict, db: dict) -> dict | None:
     """The three UI-ONLY actions (never voice-declared credential handling, V2-520 shape). `data.py::
     apply_action` calls this before its own dispatch chain; returning None means "not one of mine"."""
     if action == "connect":
+        # ⚠️ ALREADY CONNECTED is not a reason to show a setup screen (V2-689). Measured live on the
+        # operator's first real connect: `worker:3` — a Brain Worker asked to check the calendar — called
+        # this action TWICE through `hbwidget data`, at +112 s and +198 s, and each call threw the connect
+        # wizard over the calendar he was reading. His words: «me salta el conector de conéctate, sin que
+        # yo toque nada». The same shape put the wizard back the instant Google finished authorizing.
+        #
+        # `force` is how the OPERATOR's own button says «yes, I mean it» — re-linking a different Google
+        # account has to stay possible — and nothing that is not a human pressing that button sends it.
+        if not bool(payload.get("force")) and connected():
+            return {"ok": True, "already": True,
+                    "message": "Tu Google Calendar ya está conectado."}
         # The screen moves FIRST and unconditionally — before asking the connector for anything. Whatever
         # the answer is, the operator has to end up looking at the step that explains it: a consent URL when
         # all is well, and the connector's own refusal ("sin app OAuth registrada…") when it is not.
@@ -227,6 +263,9 @@ def on_calendar_connected() -> None:
     from . import data as ag
     from .. import store
     db = ag.load_db()
+    # The consent is DONE: retire the pushed setup screen before anything else, so even a sync that fails
+    # leaves him looking at his calendar rather than at the button he has just finished pressing (V2-689).
+    clear_connect_screen(db)
     res = s.sync(db)
     if not res.get("ok"):
         store.save(ag.WIDGET_ID, db)

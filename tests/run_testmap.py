@@ -1523,6 +1523,16 @@ DOMAINS: list[dict] = [
         # determinista del cierre (T136) es correcto y su garantía no se toca; lo que nadie había mirado es
         # que su `return` da por hecho que cerrar era TODO lo que se dijo. El cierre se ejecuta igual y el
         # resto de la frase recupera su turno, con la cláusula de cierre RETIRADA del texto que lee el modelo.
+        # V2-689 — su PRIMERA conexión buena de Google Calendar, y todo lo de alrededor se portó mal:
+        # el conector seguía pidiendo conectarse sobre un calendario ya sincronizado, la pantalla de
+        # conexión le saltaba sola («pum, me salta el conector, sin que yo toque nada» — era un Brain
+        # Worker llamando a `agenda:connect` dos veces, +112s y +198s, medido en su log), y una frase
+        # partida por el STT escribió en su Google Calendar REAL una cita all-day titulada «Cita», porque
+        # el título se rellenaba por defecto igual que antes se rellenaba la hora.
+        {"id": "4.171", "title": "Un calendario CONECTADO no se vuelve a pedir conectar, y la agenda no "
+                                 "le pone nombre a una cita", "ch": UNIT,
+            "paths": ["tests/browser/unit/agenda/"
+                      "test_a_connected_calendar_is_never_asked_to_connect.py"]},
         {"id": "3.46", "title": "Un cierre COMPUESTO no se come el resto de la frase", "ch": UNIT,
             "paths": ["tests/agent_headless/unit/flash/"
                       "test_a_compound_close_does_not_swallow_the_rest.py"]},

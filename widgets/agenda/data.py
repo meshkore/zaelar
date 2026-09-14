@@ -102,6 +102,28 @@ def _now() -> str:
     return time.strftime("%H:%M")
 
 
+def _spoken(field: str) -> str:
+    """A line the operator HEARS, read from the language table instead of written here (V2-689).
+
+    His rule, and V2-676's receipt: every text the operator can hear or read lives in ONE place that gets
+    translated when the agent is initialised in a language. A hardcoded Spanish refusal is a defect for
+    every operator who is not speaking Spanish — and an `_en` ternary is the same defect for the third
+    language, which is why this reads the TABLE and never a two-way branch.
+
+    Fail-safe: an unreadable table falls back to the field's own default, which is the Castilian text that
+    used to be inline. A refusal the operator cannot hear is worse than one in the wrong language."""
+    try:
+        from i18n import langs as _langs
+        return str(getattr(_langs.spec(), field, "") or "")
+    except Exception:  # noqa: BLE001
+        from dataclasses import fields as _fields
+        try:
+            from i18n.langs import LangSpec as _LS
+            return str(next(f.default for f in _fields(_LS) if f.name == field))
+        except Exception:  # noqa: BLE001
+            return ""
+
+
 def _lang() -> str:
     """Active engine language code ('es'/'en'…), best-effort — V2-639: the plan speaks the operator's language."""
     try:
@@ -439,9 +461,21 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
                     "error": "no me ha llegado ningún dato de la cita — vuelve a llamar a add_meeting "
                              "con el título, el día (YYYY-MM-DD) y la hora (HH:MM), sin preguntarle nada "
                              "al operador si ya te los dijo",
-                    "message": "No he llegado a apuntar la cita: no me ha quedado claro el título, "
-                               "el día o la hora."}
-        title = payload.get("title", "Cita")
+                    "message": _spoken("agenda_no_data")}
+        # ⚠️ …and a missing TITLE is the same kind of fact as a missing hour (V2-689). This line used to
+        # default to «Cita», which is how the operator ended up with two events in his real Google Calendar
+        # for one sentence: the STT delivered «Add me one item to my agenda on» as a fragment, the turn ran
+        # on it, `date` was present so the guard above let it through, and the agenda wrote an all-day «Cita»
+        # on the 17th. The real one («Dentist», 17:00) arrived with the next turn and sat beside it.
+        # A word we chose is not a title he said — and once it reaches Google it is a row in HIS calendar
+        # that only he can delete. Refused with the same two audiences as the guard above: `error` coaches
+        # the model's retry, `message` is the only half that may be spoken.
+        title = str(payload.get("title") or "").strip()
+        if not title:
+            return {"ok": False,
+                    "error": "la cita no lleva título — vuelve a llamar a add_meeting con `title`, además "
+                             "del día (YYYY-MM-DD) y la hora (HH:MM); NO inventes un título genérico",
+                    "message": _spoken("agenda_no_title")}
         # V2-026: normalize spoken date/time into date=+1d and startTime='17:00' when appropriate, so the meeting
         # lands correctly even if the model does not calculate the date itself.
         _rawdate = str(payload.get("date", "") or "")
