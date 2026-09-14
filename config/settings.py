@@ -318,6 +318,22 @@ def update(payload: dict) -> dict:
     # the voice stayed whatever it was, which is the operator's own report. `default_voice_for` /
     # `voices_for` answer for whichever provider is live, so Cartesia (genuinely multilingual: one voice
     # speaks any language) correctly resolves to '' and nothing is realigned for it.
+    # V2-694 — …and keep every NAME aligned too. The engine now reads widget/surface labels out of the active
+    # bundle (`i18n.runtime.text`), and both that lookup and the registry PROJECTION in memory state are caches:
+    # left alone, the prompt would keep naming cards in the language the operator just left, and the resolver
+    # would keep offering the old label as the primary one. Best-effort and AFTER the write, so a language change
+    # never fails on a projection.
+    if "stt_language" in applied:
+        try:
+            from i18n import runtime as _i18n
+            _i18n.invalidate()
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"update: i18n.invalidate failed ({e})")
+        try:
+            from widgets import registry as _wreg
+            _wreg.refresh_state()
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"update: widget registry projection not refreshed ({e})")
     if "stt_language" in applied and not str(payload.get("assistant_voice", "")).strip():
         try:
             from voice.engine.speech.voices import (default_voice_for, tts_provider, voice_is_aligned,

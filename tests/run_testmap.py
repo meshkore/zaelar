@@ -2373,7 +2373,30 @@ DOMAINS: list[dict] = [
                                   "tests/browser/unit/i18n/test_cold_start_floor.py",
                                   # V2-613: el ratchet de claves del CATÁLOGO DE WIDGETS — cada `ctx.t("widgets.…")`
                                   # tiene que existir en AMBOS bundles, hermano del que ya vigilaba solo el shell móvil.
+                                  # V2-694 lo ENSANCHA a los 15 widgets (antes solo veía la clave COMPLETA, así que
+                                  # con catorce migrados seguía verde habiendo medido uno) y le añade la mitad que
+                                  # de verdad falta a un humano: NADA de texto visible sin envolver, ni con acento
+                                  # ni en ASCII pelado cuando va a parar a textContent/title/placeholder/alt.
                                   "tests/browser/unit/i18n/test_widget_keys.py"]},
+        # V2-694 — el NOMBRE del widget también es cadena de UI. El operador, en una sesión que él mismo había
+        # iniciado en inglés: «el título de los widgets es en castellano». No se había cambiado nada de idioma
+        # (medido: `stt_language: en` en los dos sitios) — los nombres estaban CABLEADOS en cada `manifest.json`,
+        # y V2-082 los había congelado a propósito porque el resolutor de voz casa contra ellos. Aquí se guarda
+        # justo esa frontera: el rótulo sigue al idioma y las DOS grafías siguen abriendo la misma tarjeta.
+        {"id": "4.172", "title": "El nombre de un widget se lee en el idioma del operador, y la voz sigue "
+                                 "respondiendo al que traía de fábrica (incluido un idioma GENERADO)",
+            "ch": UNIT, "paths": ["tests/browser/unit/i18n/test_a_widget_is_named_in_the_operators_language.py"]},
+        # …y la mitad que solo se ve PINTANDO: la cabecera de la tarjeta no la dibuja el widget, la dibuja el
+        # canvas desde un registro que cacheó al arrancar. Con el nombre convertido en cadena traducida, esa
+        # caché deja cada tarjeta titulada en el idioma que el operador acaba de abandonar.
+        {"id": "4.173", "title": "Un cambio de idioma REPINTA el título de las tarjetas abiertas (y tira la "
+                                 "caché del índice compacto, que lleva el mismo nombre dentro)",
+            "ch": UNIT, "paths": ["tests/browser/e2e/widgets/test_a_language_change_retitles_the_open_cards.py"]},
+        # V2-688 — se quedó FUERA del mapa al commitearse, así que `tests run all` no lo ejecutaba: un aviso de
+        # datos que llega mientras la tarjeta todavía se está montando se APLAZA, nunca se pierde («abre la
+        # agenda Y conéctala» son dos órdenes en un turno, y esa carrera la gana la frase natural siempre).
+        {"id": "4.174", "title": "Un aviso de datos durante el montaje de la tarjeta se aplaza, no se pierde",
+            "ch": UNIT, "paths": ["tests/browser/e2e/widgets/test_a_data_push_during_a_mount_is_not_lost.py"]},
         # V2-613 — los DOS widgets piloto del seam ctx.t/ctx.lang: timer (strings propias, `add_to_playlist`-style
         # "TEMPORIZADOR"/"Pausar"/"Cancelar" ahora vía bundle) y clock (día/mes vía Intl.DateTimeFormat(ctx.lang),
         # nunca una plantilla de palabras traducidas — el orden ES/EN de una fecha difiere, no solo las palabras).

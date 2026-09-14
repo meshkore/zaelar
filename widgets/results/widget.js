@@ -27,32 +27,25 @@
 // single result, so the first tab is the only one that has anything to show during the first few minutes.
 // The operator's request was literal: "if the worker takes a while, the user gets bored and the experience is poor.
 // They need to see IN REAL TIME what is happening."
-const TABS = [
-  {id: "process",  label: "Proceso"},
-  {id: "results",  label: "Resultados"},
-  {id: "summary",  label: "Sumario"},
-  {id: "sources",  label: "Fuentes"},
-  {id: "criteria", label: "Criterios"},
-];
+// The LABELS are resolved per paint (`tabLabel`), never stored in this table: a module-level constant is built
+// once, at IMPORT time, so its text would freeze in whatever language happened to be active the first time this
+// module loaded and would survive every later switch (V2-694). The table keeps only the ids, which are data.
+const TABS = [{id: "process"}, {id: "results"}, {id: "summary"}, {id: "sources"}, {id: "criteria"}];
 
 // Source state → how it is phrased and colored. The vocabulary is closed in the backend; here it is only translated.
 // The distinction matters: "could not enter" and "entered but was capped at 50" are VERY different outcomes.
 const SOURCE_STATUS = {
-  ok:      {label: "Entró",              cls: "ok"},
-  partial: {label: "Entró con límite",   cls: "warn"},
-  auth:    {label: "Pedía autenticación", cls: "warn"},
-  blocked: {label: "Acceso bloqueado",   cls: "bad"},
-  error:   {label: "Error",              cls: "bad"},
-  pending: {label: "En curso",           cls: "idle"},
+  ok:      {cls: "ok"},
+  partial: {cls: "warn"},
+  auth:    {cls: "warn"},
+  blocked: {cls: "bad"},
+  error:   {cls: "bad"},
+  pending: {cls: "idle"},
 };
 
 const CRIT_SECTIONS = [
-  {key: "hard",        label: "Criterios duros",     note: "incumplirlos descalifica"},
-  {key: "soft",        label: "Preferencias",        note: "puntúan, no descalifican"},
-  {key: "enrichments", label: "Añadido por criterio propio", note: ""},
-  {key: "assumed",     label: "Datos asumidos",      note: "no los dijiste — corrígelos si no van"},
-  {key: "quality_bar", label: "Baremo de calidad",   note: "qué hay que verificar de verdad"},
-  {key: "changes",     label: "Tus correcciones",    note: "lo que fuiste ajustando por el camino"},
+  {key: "hard"}, {key: "soft"}, {key: "enrichments"},
+  {key: "assumed"}, {key: "quality_bar"}, {key: "changes"},
 ];
 
 function injectStyles(){
@@ -437,13 +430,13 @@ function identityStrip(id){
   id = (id && (id.user_id || id.session_id)) ? id : null;
   if(!id) return document.createDocumentFragment();     // no identity in the payload → no strip (as before)
   const strip = elem("div","hr-ident");
-  const uBit = elem("span","hr-idbit"); const uCode = elem("code","","…"); uBit.append(elem("b","","Usuario"), uCode);
-  const sBit = elem("span","hr-idbit"); const sCode = elem("code","","…"); sBit.append(elem("b","","Sesión"), sCode);
-  const btn = elem("button","hr-idcopy","⧉ Copiar"); btn.type = "button"; btn.disabled = true;
+  const uBit = elem("span","hr-idbit"); const uCode = elem("code","","…"); uBit.append(elem("b","",tt("user", null, "Usuario")), uCode);
+  const sBit = elem("span","hr-idbit"); const sCode = elem("code","","…"); sBit.append(elem("b","",tt("session", null, "Sesión")), sCode);
+  const btn = elem("button","hr-idcopy",tt("copy", null, "⧉ Copiar")); btn.type = "button"; btn.disabled = true;
   strip.append(uBit, sBit, btn);
   {
-    uCode.textContent = shortId(id.user_id);  uBit.title = "Usuario: " + (id.user_id || "—");
-    sCode.textContent = shortId(id.session_id); sBit.title = "Sesión: " + (id.session_id || "—");
+    uCode.textContent = shortId(id.user_id);  uBit.title = tt("user_", null, "Usuario: ") + (id.user_id || "—");
+    sCode.textContent = shortId(id.session_id); sBit.title = tt("session_", null, "Sesión: ") + (id.session_id || "—");
     btn.disabled = false;
     let reset = null;
     btn.addEventListener("click", async () => {
@@ -458,10 +451,10 @@ function identityStrip(id){
           ok = document.execCommand("copy"); ta.remove();
         }catch(__){ ok = false; }
       }
-      btn.textContent = ok ? "✓ Copiado" : "No se pudo copiar";
+      btn.textContent = ok ? tt("copied", null, "✓ Copiado") : tt("copy_failed", null, "No se pudo copiar");
       btn.classList.toggle("ok", ok);
       if(reset) clearTimeout(reset);
-      reset = setTimeout(() => { btn.textContent = "⧉ Copiar"; btn.classList.remove("ok"); }, 1800);
+      reset = setTimeout(() => { btn.textContent = tt("copy", null, "⧉ Copiar"); btn.classList.remove("ok"); }, 1800);
     });
   }
   return strip;
@@ -503,7 +496,7 @@ function scoreTag(score){
 function scoreBlock(score){
   if(!score || (score.value==null && !score.label && !score.why)) return null;
   const box=elem("div","");
-  box.appendChild(elem("div","hr-bt","Valoración"));
+  box.appendChild(elem("div","hr-bt",tt("rating", null, "Valoración")));
   if(score.value != null){
     const row=elem("div","hr-head");
     row.appendChild(elem("div","hr-t", `${score.value} / ${score.max||10}`));
@@ -678,7 +671,7 @@ function makeCard(it, isPrimary, choose, ctx){
   }
 
   if(hasDetail && ctx){
-    const btn=elem("button","hr-more","Ver detalle →"); btn.type="button";
+    const btn=elem("button","hr-more",tt("see_detail", null, "Ver detalle →")); btn.type="button";
     // A REFUSED action has to SHOW. Throwing away the response is what made a real backend error
     // (`{ok:false, error:"no encuentro ese resultado en la hoja"}`, because the request was landing on the wrong
     // sheet — V2-540) indistinguishable from a dead button: the operator clicked, nothing moved, nothing said
@@ -689,9 +682,9 @@ function makeCard(it, isPrimary, choose, ctx){
       const r = await ctx.action("detail", { title: it.title || "" });
       btn.disabled=false;
       if(!r || r.ok===false){
-        btn.textContent = "Ver detalle → " + ((r && r.error) ? "no se pudo abrir" : "sin respuesta");
+        btn.textContent = tt("see_detail_", null, "Ver detalle → ") + ((r && r.error) ? tt("open_failed", null, "no se pudo abrir") : tt("no_answer", null, "sin respuesta"));
         btn.classList.add("hr-more-err");
-        btn.title = (r && r.error) ? String(r.error) : "el motor no respondió a la acción";
+        btn.title = (r && r.error) ? String(r.error) : tt("engine_silent", null, "el motor no respondió a la acción");
       }
     });
     card.appendChild(btn);
@@ -699,7 +692,7 @@ function makeCard(it, isPrimary, choose, ctx){
 
   if(choose && !asLink){
     card.classList.add("choosable");
-    const tagOf=()=>elem("span","hr-chosen-tag","✓ Elegido");
+    const tagOf=()=>elem("span","hr-chosen-tag",tt("chosen", null, "✓ Elegido"));
     if(choose.chosenTitle && it.title === choose.chosenTitle){ card.classList.add("chosen"); card.appendChild(tagOf()); }
     card.addEventListener("click", async () => {
       if(card.classList.contains("chosen")) return;
@@ -715,7 +708,7 @@ function makeCard(it, isPrimary, choose, ctx){
 // This renders "show me proposal one in detail": every photo, every datum, THE RATING with its reason, the whole
 // dynamic record, and each package piece expanded with its price, times, and real link.
 function renderDetail(panel, it, ctx){
-  const back=elem("button","hr-back","← Volver a la lista"); back.type="button";
+  const back=elem("button","hr-back",tt("back_list", null, "← Volver a la lista")); back.type="button";
   back.addEventListener("click", async ()=>{ await ctx.action("list", {}); });
   panel.appendChild(back);
 
@@ -786,7 +779,7 @@ function paintResults(panel, data, ctx){
   const total = items.length;
   const all = items.slice(0, 24);
   if(!all.length){
-    panel.appendChild(elem("div","hr-empty", data.note || "Sin resultados todavía."));
+    panel.appendChild(elem("div","hr-empty", data.note || tt("no_results", null, "Sin resultados todavía.")));
     return;
   }
 
@@ -826,8 +819,8 @@ function paintSummary(panel, data){
   const hasAny = Object.keys(s).length || c.shown || c.sources;
   if(!hasAny){
     panel.appendChild(elem("div","hr-empty",
-      "Todavía no hay nada que resumir. Esta pestaña se llena mientras se trabaja: estado, cuántos candidatos se "
-      + "han explorado y qué se ha ido haciendo."));
+      tt("summary_empty_1", null, "Todavía no hay nada que resumir. Esta pestaña se llena mientras se trabaja: estado, cuántos candidatos se ")
+      + tt("summary_empty_2", null, "han explorado y qué se ha ido haciendo.")));
     panel.appendChild(identityStrip(data.identity));   // the audit ids belong to this tab now — see render()'s note (V2-538)
     return;
   }
@@ -842,25 +835,25 @@ function paintSummary(panel, data){
   const add=(value, label, tone)=>{
     const box=elem("div","hr-stat"+(tone?" "+tone:""));
     box.appendChild(elem("b","", value));
-    box.appendChild(elem("span","", label));
+    box.appendChild(elem("span","", tallyLabel(k)));
     stats.appendChild(box);
   };
   const noBreadth = s.explored == null;
-  add(noBreadth ? "—" : s.explored, noBreadth ? "sin reportar" : "explorados", noBreadth ? "dim" : "");
-  add(c.shown || 0, "en pantalla");
-  if(s.discarded != null) add(s.discarded, "descartados");
-  if(c.sources) add(c.sources, "fuentes");
+  add(noBreadth ? "—" : s.explored, noBreadth ? tt("unreported", null, "sin reportar") : tt("explored", null, "explorados"), noBreadth ? "dim" : "");
+  add(c.shown || 0, tt("on_screen", null, "en pantalla"));
+  if(s.discarded != null) add(s.discarded, tt("discarded", null, "descartados"));
+  if(c.sources) add(c.sources, tt("sources", null, "fuentes"));
   // Problem sources go in their OWN cell and warning color. Stuffed into the "sources" label, they made a two-line
   // label ("SOURCES · 3 WITH / PROBLEM") that broke the row, and also hid the only datum here that asks the operator
   // for a decision inside another number's footer.
-  if(c.sources_failed) add(c.sources_failed, "sin aprovechar", "warn");
-  if(s.round && s.round > 1) add(s.round, "ronda");
+  if(c.sources_failed) add(c.sources_failed, tt("unused", null, "sin aprovechar"), "warn");
+  if(s.round && s.round > 1) add(s.round, tt("round", null, "ronda"));
   panel.appendChild(stats);
 
   if(s.note) panel.appendChild(elem("div","hr-why", s.note));
 
   if(Array.isArray(s.steps) && s.steps.length){
-    panel.appendChild(elem("div","hr-cgt","Lo que se ha hecho"));
+    panel.appendChild(elem("div","hr-cgt",tt("what_was_done", null, "Lo que se ha hecho")));
     const ul=elem("ul","hr-steps");
     s.steps.forEach(st=>ul.appendChild(elem("li","", st)));
     panel.appendChild(ul);
@@ -875,8 +868,8 @@ function paintSources(panel, data){
   const src = Array.isArray(data.sources) ? data.sources : [];
   if(!src.length){
     panel.appendChild(elem("div","hr-empty",
-      "Nadie ha reportado fuentes todavía. Aquí aparecerá cada web que se consulte y qué pasó en ella: si entró, "
-      + "si le limitaron los resultados, si pedía autenticación o si dio error."));
+      tt("sources_empty_1", null, "Nadie ha reportado fuentes todavía. Aquí aparecerá cada web que se consulte y qué pasó en ella: si entró, ")
+      + tt("sources_empty_2", null, "si le limitaron los resultados, si pedía autenticación o si dio error.")));
     return;
   }
   const c = data.counts || {};
@@ -904,12 +897,12 @@ function paintSources(panel, data){
       const a=elem("a","", s.name); a.href=s.url; a.target="_blank"; a.rel="noopener noreferrer"; name.appendChild(a);
     } else name.textContent = s.name;
     mid.appendChild(name);
-    mid.appendChild(elem("div","hr-sst "+st.cls, st.label));
+    mid.appendChild(elem("div","hr-sst "+st.cls, sourceLabel(s.status)));
     if(s.detail) mid.appendChild(elem("div","hr-sd", s.detail));
     row.appendChild(mid);
     if(s.found != null){
       const n=elem("div","hr-sn"+(s.found ? "" : " zero"), String(s.found));
-      n.appendChild(elem("small","", s.found === 1 ? "resultado" : "resultados"));
+      n.appendChild(elem("small","", s.found === 1 ? tt("result_one", null, "resultado") : tt("result_many", null, "resultados")));
       row.appendChild(n);
     } else row.appendChild(elem("div",""));
     list.appendChild(row);
@@ -925,24 +918,25 @@ function paintCriteria(panel, data){
   const any = c.goal || CRIT_SECTIONS.some(s=>Array.isArray(c[s.key]) && c[s.key].length);
   if(!any){
     panel.appendChild(elem("div","hr-empty",
-      "Todavía no hay criterios fijados. En cuanto se dirija una búsqueda aparecerán aquí el objetivo, los "
-      + "requisitos que descalifican, las preferencias y lo que se haya dado por supuesto — y podrás corregirlos "
-      + "hablando."));
+      tt("criteria_empty_1", null, "Todavía no hay criterios fijados. En cuanto se dirija una búsqueda aparecerán aquí el objetivo, los ")
+      + tt("criteria_empty_2", null, "requisitos que descalifican, las preferencias y lo que se haya dado por supuesto — y podrás corregirlos ")
+      + tt("criteria_empty_3", null, "hablando.")));
     return;
   }
   if(c.goal) panel.appendChild(elem("div","hr-goal", c.goal));
   const meta=[];
   if(c.domain) meta.push(c.domain);
-  if(c.min_candidates) meta.push(`amplitud mínima: ${c.min_candidates} candidatos`);
-  if(c.n_final) meta.push(`entrega: ${c.n_final} finalistas`);
+  if(c.min_candidates) meta.push(tt("min_breadth", {n:c.min_candidates}, `amplitud mínima: ${c.min_candidates} candidatos`));
+  if(c.n_final) meta.push(tt("n_final", {n:c.n_final}, `entrega: ${c.n_final} finalistas`));
   if(meta.length) panel.appendChild(elem("div","hr-sub", meta.join(" · ")));
 
   CRIT_SECTIONS.forEach(sec=>{
     const list = c[sec.key];
     if(!Array.isArray(list) || !list.length) return;
     const grp=elem("div","hr-cgrp "+sec.key);
-    const t=elem("div","hr-cgt", sec.label);
-    if(sec.note){ t.appendChild(document.createTextNode(" ")); t.appendChild(elem("em","","— "+sec.note)); }
+    const t=elem("div","hr-cgt", critLabel(sec.key));
+    const _note = critNote(sec.key);
+    if(_note){ t.appendChild(document.createTextNode(" ")); t.appendChild(elem("em","","— "+_note)); }
     grp.appendChild(t);
     const ul=elem("ul","hr-clist");
     list.forEach(x=>ul.appendChild(elem("li","", x)));
@@ -978,26 +972,39 @@ function paintCriteria(panel, data){
 // at 360px the grid wraps to two columns and "22 candidates" lands beside "5 without a price" looking like its peer.
 // A leading minus restores the arithmetic in one character, whatever the grid does with the boxes.
 const TALLY = [
-  {k:"pages",    label:"páginas miradas", always:true},
-  {k:"rows",     label:"fichas leídas",   always:true},
-  {k:"repeated", label:"repetidas",       sub:true},
-  {k:"unnamed",  label:"sin nombre",      sub:true},
-  {k:"hollow",   label:"sin precio ni tel.", sub:true},
-  {k:"kept",     label:"candidatos",      always:true},
-  {k:"offered",  label:"en la conversación"},
+  {k:"pages",    always:true},
+  {k:"rows",     always:true},
+  {k:"repeated", sub:true},
+  {k:"unnamed",  sub:true},
+  {k:"hollow",   sub:true},
+  {k:"kept",     always:true},
+  {k:"offered"},
 ];
+
+function tallyLabel(k){
+  switch(k){
+    case "pages":    return tt("tally_pages", null, "páginas miradas");
+    case "rows":     return tt("tally_rows", null, "fichas leídas");
+    case "repeated": return tt("tally_repeated", null, "repetidas");
+    case "unnamed":  return tt("tally_unnamed", null, "sin nombre");
+    case "hollow":   return tt("tally_hollow", null, "sin precio ni tel.");
+    case "kept":     return tt("tally_kept", null, "candidatos");
+    case "offered":  return tt("tally_offered", null, "en la conversación");
+    default:         return k;
+  }
+}
 
 function paintHarvest(panel, harvest){
   // `{}` means "we do not know" and nothing is painted: a grid of zeroes would claim that it was examined and empty.
   if(!harvest || !Object.keys(harvest).length) return;
   const grid = elem("div","hr-stats");
-  TALLY.forEach(({k, label, always, sub})=>{
+  TALLY.forEach(({k, always, sub})=>{
     const n = Number(harvest[k] || 0);
     if(!n && !always) return;
     const box = elem("div","hr-stat" + (!n ? " dim" : "") + (sub ? " cut" : ""));
     // U+2212 MINUS SIGN, not a hyphen: it aligns with the digits and reads as arithmetic, not as a dash.
     box.appendChild(elem("b","", (sub ? "\u2212" : "") + String(n)));
-    box.appendChild(elem("span","", label));
+    box.appendChild(elem("span","", tallyLabel(k)));
     grid.appendChild(box);
   });
   if(grid.childNodes.length) panel.appendChild(grid);
@@ -1020,15 +1027,15 @@ function paintBrowser(panel, data, ctx){
   if((br.shot_rev || 0) > 0 && br.shot){
     const img = document.createElement("img");
     img.className = "hr-navimg";
-    img.alt = br.page_title || "página";
+    img.alt = br.page_title || tt("page_alt", null, "página");
     img.src = "/widgets/navegador/asset/" + br.shot + "?v=" + (br.shot_rev || 0);
     img.addEventListener("error", ()=>{
       view.textContent = "";
-      view.appendChild(elem("div","hr-navph","sin captura todavía…"));
+      view.appendChild(elem("div","hr-navph",tt("no_shot", null, "sin captura todavía…")));
     });
     view.appendChild(img);
   } else {
-    view.appendChild(elem("div","hr-navph","abriendo pestaña…"));
+    view.appendChild(elem("div","hr-navph",tt("opening_tab", null, "abriendo pestaña…")));
   }
   nav.appendChild(view);
   if(br.page_title || br.url){
@@ -1040,8 +1047,8 @@ function paintBrowser(panel, data, ctx){
   if(br.awaiting_login){
     const box = elem("div","hr-login");
     box.appendChild(elem("div","hr-login-t",
-      "🔓 Inicia sesión en la ventana de Chrome que se abrió. Tu sesión se guardará para las próximas tareas."));
-    const btn = elem("button","hr-login-btn","Ya he iniciado sesión"); btn.type = "button";
+      tt("login_hint", null, "🔓 Inicia sesión en la ventana de Chrome que se abrió. Tu sesión se guardará para las próximas tareas.")));
+    const btn = elem("button","hr-login-btn",tt("login_done", null, "Ya he iniciado sesión")); btn.type = "button";
     btn.addEventListener("click", async ()=>{
       btn.disabled = true;
       const r = (ctx && ctx.action) ? await ctx.action("auth_done", {task_id: br.task_id}) : null;
@@ -1049,8 +1056,8 @@ function paintBrowser(panel, data, ctx){
       // is exactly the undiagnosable click this sheet already paid for once.
       if(!r || r.ok === false){
         btn.disabled = false;
-        btn.textContent = "Ya he iniciado sesión — " + ((r && r.error) ? "no llegó, reintenta" : "sin respuesta");
-        btn.title = (r && r.error) ? String(r.error) : "el motor no respondió a la acción";
+        btn.textContent = tt("login_done_", null, "Ya he iniciado sesión — ") + ((r && r.error) ? tt("login_retry", null, "no llegó, reintenta") : tt("no_answer", null, "sin respuesta"));
+        btn.title = (r && r.error) ? String(r.error) : tt("engine_silent", null, "el motor no respondió a la acción");
       }
     });
     box.appendChild(btn);
@@ -1058,7 +1065,7 @@ function paintBrowser(panel, data, ctx){
   }
   if(br.question){
     const q = elem("div","hr-navq","❓ " + br.question);
-    q.appendChild(elem("small","","Responde por voz."));
+    q.appendChild(elem("small","",tt("answer_voice", null, "Responde por voz.")));
     nav.appendChild(q);
   }
   wrap.appendChild(nav);
@@ -1068,7 +1075,7 @@ function paintBrowser(panel, data, ctx){
   const filt = [].concat(Array.isArray(c.hard) ? c.hard : [], Array.isArray(c.changes) ? c.changes : []);
   if(filt.length){
     const side = elem("div","hr-proc-side hr-cgrp hard");
-    side.appendChild(elem("div","hr-cgt","Filtros"));
+    side.appendChild(elem("div","hr-cgt",tt("filters", null, "Filtros")));
     const ul = elem("ul","hr-clist");
     filt.slice(0, 14).forEach(x=>ul.appendChild(elem("li","", String(x))));
     side.appendChild(ul);
@@ -1087,14 +1094,14 @@ function paintProcess(panel, data, ctx){
 
   if(!lines.length && !alive && !br.task_id && !Object.keys(harvest).length){
     panel.appendChild(elem("div","hr-empty",
-      "Aquí se ve lo que va haciendo mientras trabaja: el navegador que conduce, en qué web entra, qué filtro "
-      + "aplica, cuántos resultados encuentra. Todavía no hay ninguna tarea en marcha."));
+      tt("process_empty_1", null, "Aquí se ve lo que va haciendo mientras trabaja: el navegador que conduce, en qué web entra, qué filtro ")
+      + tt("process_empty_2", null, "aplica, cuántos resultados encuentra. Todavía no hay ninguna tarea en marcha.")));
     return;
   }
 
   const head = elem("div","hr-state");
   head.appendChild(elem("span", alive ? "hr-spin" : "hr-dot ok"));
-  head.appendChild(elem("span","", alive ? (pr.label || "Trabajando…") : "Terminado"));
+  head.appendChild(elem("span","", alive ? (pr.label || tt("working", null, "Trabajando…")) : tt("finished", null, "Terminado")));
   panel.appendChild(head);
 
   paintBrowser(panel, data, ctx);
@@ -1114,7 +1121,7 @@ function paintProcess(panel, data, ctx){
   // When it FINISHES, the tab is not emptied: it remains as a history of what happened (C5). Emptying it would erase the only
   // explanation of why the result is what it is.
   if(!alive && lines.length){
-    panel.appendChild(elem("div","hr-note","Esto es lo que hizo para llegar aquí (lo último, arriba)."));
+    panel.appendChild(elem("div","hr-note",tt("history_note", null, "Esto es lo que hizo para llegar aquí (lo último, arriba).")));
   }
 }
 
@@ -1160,7 +1167,64 @@ function tabCount(id, data){
   return null;
 }
 
+// ── i18n seam (V2-613 / V2-694): `ctx.t` for our own chrome, the literal as the FALLBACK ────────────────
+// The fallback is, byte for byte, the string that used to be hardcoded here — so a widget rendered outside the
+// engine (a render test, a headless DOM stub) shows exactly what it showed before, and only an engine with a
+// bundle loaded shows the operator's own language.
+let _T = null;
+function tt(key, params, fb){
+  try{
+    if(_T){ const s=_T("widgets.results."+key, params); if(s && s!=="widgets.results."+key) return s; }
+  }catch(_){}
+  let s = fb;
+  if(params) for(const k in params) s = s.split("{"+k+"}").join(String(params[k]));
+  return s;
+}
+
+function tabLabel(id){
+  switch(id){
+    case "process":  return tt("tab_process", null, "Proceso");
+    case "results":  return tt("tab_results", null, "Resultados");
+    case "summary":  return tt("tab_summary", null, "Sumario");
+    case "sources":  return tt("tab_sources", null, "Fuentes");
+    case "criteria": return tt("tab_criteria", null, "Criterios");
+    default:         return id;
+  }
+}
+function sourceLabel(status){
+  switch(String(status || "")){
+    case "partial": return tt("src_partial", null, "Entró con límite");
+    case "auth":    return tt("src_auth", null, "Pedía autenticación");
+    case "blocked": return tt("src_blocked", null, "Acceso bloqueado");
+    case "error":   return tt("src_error", null, "Error");
+    case "pending": return tt("src_pending", null, "En curso");
+    default:        return tt("src_ok", null, "Entró");
+  }
+}
+function critLabel(key){
+  switch(key){
+    case "hard":        return tt("crit_hard", null, "Criterios duros");
+    case "soft":        return tt("crit_soft", null, "Preferencias");
+    case "enrichments": return tt("crit_enrichments", null, "Añadido por criterio propio");
+    case "assumed":     return tt("crit_assumed", null, "Datos asumidos");
+    case "quality_bar": return tt("crit_quality_bar", null, "Baremo de calidad");
+    case "changes":     return tt("crit_changes", null, "Tus correcciones");
+    default:            return key;
+  }
+}
+function critNote(key){
+  switch(key){
+    case "hard":        return tt("crit_hard_n", null, "incumplirlos descalifica");
+    case "soft":        return tt("crit_soft_n", null, "puntúan, no descalifican");
+    case "assumed":     return tt("crit_assumed_n", null, "no los dijiste — corrígelos si no van");
+    case "quality_bar": return tt("crit_quality_bar_n", null, "qué hay que verificar de verdad");
+    case "changes":     return tt("crit_changes_n", null, "lo que fuiste ajustando por el camino");
+    default:            return "";
+  }
+}
+
 export function render(el, data, ctx){
+  _T = (ctx && typeof ctx.t === "function") ? ctx.t : null;
   injectStyles();
   data = data || {};
   el.className = "hb-results";
@@ -1210,7 +1274,7 @@ export function render(el, data, ctx){
 
   TABS.forEach(t=>{
     const b=elem("button","hr-tab"); b.type="button"; b.dataset.tab=t.id;
-    b.appendChild(document.createTextNode(t.label));
+    b.appendChild(document.createTextNode(tabLabel(t.id)));
     const c=tabCount(t.id, data);
     if(c && c.spin) b.appendChild(elem("span","hr-spin hr-tspin"));
     else if(c) b.appendChild(elem("span","hr-n"+(c.bad?" bad":""), String(c.n)));

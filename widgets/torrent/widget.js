@@ -75,28 +75,35 @@ function human(n){ n=Number(n)||0; if(n<1024)return n+" B"; if(n<1048576)return 
 
 const KIND_ICON = { video:"🎬", audio:"🎵", other:"📦", "":"⏳" };
 
-const STATE_LABEL = {
-  seeding:"Compartiendo (semilla)", finished:"Terminada", downloading:"Descargando",
-  downloading_metadata:"Buscando fuentes", checking_files:"Comprobando ficheros",
-  queued_for_checking:"En cola", allocating:"Reservando espacio", checking_resume_data:"Comprobando"
-};
+// Evaluated per paint, never a module-level table: one built at IMPORT time freezes its labels in whatever
+// language was active when the module first loaded, and survives every later switch (V2-694).
 function stateLabel(row){
-  if(row.state === "downloading" && row.progress <= 0) return "Buscando fuentes";
-  return STATE_LABEL[row.state] || (row.complete ? "Terminada" : "Descargando");
+  if(row.state === "downloading" && row.progress <= 0) return tt("st_sources", null, "Buscando fuentes");
+  switch(String(row.state || "")){
+    case "seeding":              return tt("st_seeding", null, "Compartiendo (semilla)");
+    case "finished":             return tt("st_finished", null, "Terminada");
+    case "downloading":          return tt("st_downloading", null, "Descargando");
+    case "downloading_metadata": return tt("st_sources", null, "Buscando fuentes");
+    case "checking_files":       return tt("st_checking_files", null, "Comprobando ficheros");
+    case "queued_for_checking":  return tt("st_queued", null, "En cola");
+    case "allocating":           return tt("st_allocating", null, "Reservando espacio");
+    case "checking_resume_data": return tt("st_checking", null, "Comprobando");
+  }
+  return row.complete ? tt("st_finished", null, "Terminada") : tt("st_downloading", null, "Descargando");
 }
 
 function buildShell(root, ctx){
   root.className="hbt"; root.textContent="";
   const head=document.createElement("div"); head.className="hbt-head";
-  const title=document.createElement("div"); title.className="hbt-title"; title.textContent="Descargas";
+  const title=document.createElement("div"); title.className="hbt-title"; title.textContent=tt("title", null, "Descargas");
   const count=document.createElement("div"); count.className="hbt-count";
   const addBtn=document.createElement("button"); addBtn.className="hbt-addbtn"; addBtn.type="button";
-  addBtn.textContent="+ Magnet";
+  addBtn.textContent=tt("add_magnet", null, "+ Magnet");
   head.append(title, count, addBtn);
 
   const addRow=document.createElement("div"); addRow.className="hbt-add";
-  const addInput=document.createElement("input"); addInput.type="text"; addInput.placeholder="magnet:?xt=urn:btih:…";
-  const addGo=document.createElement("button"); addGo.type="button"; addGo.textContent="Descargar";
+  const addInput=document.createElement("input"); addInput.type="text"; addInput.placeholder=tt("ph_magnet", null, "magnet:?xt=urn:btih:…");
+  const addGo=document.createElement("button"); addGo.type="button"; addGo.textContent=tt("download", null, "Descargar");
   addRow.append(addInput, addGo);
   addBtn.addEventListener("click", ()=>{
     addRow.classList.toggle("on");
@@ -137,27 +144,27 @@ function buildRow(row, ctx, ui, {hero}={}){
   const acts=document.createElement("div"); acts.className="hbt-acts";
   if(ui.confirmId === row.id){
     const cf=document.createElement("div"); cf.className="hbt-confirm";
-    const q=document.createElement("span"); q.textContent="¿Eliminar y borrar el fichero?";
-    const yes=document.createElement("button"); yes.className="yes"; yes.type="button"; yes.textContent="Sí, eliminar";
+    const q=document.createElement("span"); q.textContent=tt("confirm_delete", null, "¿Eliminar y borrar el fichero?");
+    const yes=document.createElement("button"); yes.className="yes"; yes.type="button"; yes.textContent=tt("yes_delete", null, "Sí, eliminar");
     yes.addEventListener("click", ()=>{ ui.confirmId=""; ctx&&ctx.action&&ctx.action("remove",{id:row.id}); });
-    const no=document.createElement("button"); no.type="button"; no.textContent="Cancelar";
+    const no=document.createElement("button"); no.type="button"; no.textContent=tt("cancel", null, "Cancelar");
     no.addEventListener("click", ()=>{ ui.confirmId=""; render(ui.root, ui.lastData, ctx); });
     cf.append(q, yes, no); acts.appendChild(cf);
   } else {
     if(row.can_play){
       const play=document.createElement("button"); play.className="hbt-btn play"; play.type="button";
-      play.title="Reproducir"; play.textContent="▶";
+      play.title=tt("play", null, "Reproducir"); play.textContent="▶";
       play.addEventListener("click", ()=>{ ctx&&ctx.action&&ctx.action("open",{id:row.id}); });
       acts.appendChild(play);
     }
     if(row.complete){
       const save=document.createElement("button"); save.className="hbt-btn"; save.type="button";
-      save.title="Guardar en la biblioteca"; save.textContent="💾";
+      save.title=tt("save_library", null, "Guardar en la biblioteca"); save.textContent="💾";
       save.addEventListener("click", ()=>{ ctx&&ctx.action&&ctx.action("save",{id:row.id}); });
       acts.appendChild(save);
     }
     const del=document.createElement("button"); del.className="hbt-btn danger"; del.type="button";
-    del.title="Eliminar"; del.textContent="✕";
+    del.title=tt("delete", null, "Eliminar"); del.textContent="✕";
     del.addEventListener("click", ()=>{ ui.confirmId=row.id; render(ui.root, ui.lastData, ctx); });
     acts.appendChild(del);
   }
@@ -173,7 +180,7 @@ function renderRows(ui, data, ctx){
 
   if(!data.available){
     const p=document.createElement("div"); p.className="hbt-unavail";
-    p.textContent=data.unavailable_reason || "El cliente de descargas no está disponible.";
+    p.textContent=data.unavailable_reason || tt("unavailable", null, "El cliente de descargas no está disponible.");
     body.appendChild(p); return;
   }
   if(data.error && total===0){
@@ -182,7 +189,7 @@ function renderRows(ui, data, ctx){
   }
   if(total===0){
     const p=document.createElement("div"); p.className="hbt-empty";
-    p.textContent="No hay descargas. Pide «descarga la película X» o añade un magnet.";
+    p.textContent=tt("empty", null, "No hay descargas. Pide «descarga la película X» o añade un magnet.");
     body.appendChild(p); return;
   }
   if(total===1){
@@ -192,21 +199,36 @@ function renderRows(ui, data, ctx){
   }
   if(downloads.length){
     const h=document.createElement("div"); h.className="hbt-sec";
-    const t=document.createElement("span"); t.textContent="Descargando";
+    const t=document.createElement("span"); t.textContent=tt("sec_downloading", null, "Descargando");
     const n=document.createElement("span"); n.className="n"; n.textContent=String(downloads.length);
     h.append(t,n); body.appendChild(h);
     for(const row of downloads) body.appendChild(buildRow(row, ctx, ui, {hero:false}));
   }
   if(seeds.length){
     const h=document.createElement("div"); h.className="hbt-sec";
-    const t=document.createElement("span"); t.textContent="Semillas";
+    const t=document.createElement("span"); t.textContent=tt("seeds", null, "Semillas");
     const n=document.createElement("span"); n.className="n"; n.textContent=String(seeds.length);
     h.append(t,n); body.appendChild(h);
     for(const row of seeds) body.appendChild(buildRow(row, ctx, ui, {hero:false}));
   }
 }
 
+// ── i18n seam (V2-613 / V2-694): `ctx.t` for our own chrome, the literal as the FALLBACK ────────────────
+// The fallback is, byte for byte, the string that used to be hardcoded here — so a widget rendered outside the
+// engine (a render test, a headless DOM stub) shows exactly what it showed before, and only an engine with a
+// bundle loaded shows the operator's own language.
+let _T = null;
+function tt(key, params, fb){
+  try{
+    if(_T){ const s=_T("widgets.torrent."+key, params); if(s && s!=="widgets.torrent."+key) return s; }
+  }catch(_){}
+  let s = fb;
+  if(params) for(const k in params) s = s.split("{"+k+"}").join(String(params[k]));
+  return s;
+}
+
 export function render(root, data, ctx){
+  _T = (ctx && typeof ctx.t === "function") ? ctx.t : null;
   injectStyles();
   const d = data || {};
   let ui = root.__hbt;

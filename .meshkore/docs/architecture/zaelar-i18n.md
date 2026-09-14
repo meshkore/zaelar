@@ -138,8 +138,64 @@ Voice-match vocabulary is a **cross-cutting concern with a clear rule**:
   aliases, and deserves its own dedicated initiative with its own testing. Non-preset languages correctly fall
   back to the LLM router for these cases today — just a bit slower, the accepted tradeoff either way.
 
+## The WIDGET layer (V2-613 seam, whole catalog V2-694)
+
+A widget cannot import `frontend/app/core/i18n.js` — that would couple every widget to an internal frontend path
+and break the bare-`http.server` render harnesses — so the seam is on `ctx`, beside `action`/`close`/`top`:
+
+- **`ctx.t(key, params?)`** — the same synchronous, in-memory lookup, passed straight through from the host.
+- **`ctx.lang`** — a GETTER for the raw active code, for the rarer need that is not a string swap: date ORDER,
+  month names, currency. `widgets/clock` is the reference and the honest exception — it delegates its whole
+  shape to `Intl.DateTimeFormat(ctx.lang, …)` and therefore owns no translated string at all.
+
+**The shape every widget uses** is a tiny local helper, `tt(key, params, fallback)`, that prefixes
+`widgets.<id>.` and falls back to the literal:
+
+```js
+let _T = null;
+function tt(key, params, fb){ /* _T("widgets.<id>." + key, params) || interpolate(fb) */ }
+export function render(el, data, ctx){ _T = (ctx && typeof ctx.t === "function") ? ctx.t : null; … }
+```
+
+The FALLBACK is byte for byte the string that used to be hardcoded, which is what makes the migration
+reviewable: outside the engine a widget renders exactly as before, and only an engine with a bundle loaded
+shows the operator's own language.
+
+⚠️ **A module-level TABLE of labels is the trap.** `const STATUS = {ok: "Hecho"}` is built once, at IMPORT
+time, before any `ctx` exists — so its text freezes in whatever language was active the first time the module
+loaded and survives every later switch. Ten of these were found across the catalog in V2-694 (source states,
+tab strips, media kinds, shelf names, wizard steps); every one became a function resolved per paint.
+
+**The NAME is a UI string too.** A widget's card title and a system surface's name come from
+`widgets.<id>.name` / `surfaces.<id>.name` (`widgets/registry.py::display_name`), not from `manifest.json`.
+The manifest's `name` stays as the FALLBACK — a generated widget has no bundle row and still needs a name —
+and, crucially, stays in `aliases`: the resolver answers to BOTH the translated label and the word the widget
+shipped with, so making the screen say «Messages» never stops «mensajería» from opening it. The lexical
+indexes in `widgets/runtime.py` are keyed on the active language for the same reason.
+
+**What keeps it from drifting back**: `tests/browser/unit/i18n/test_widget_keys.py` fails the build on a key
+missing from either bundle, on an unwrapped accented literal, and — language-independently — on ANY literal
+assigned to `textContent`/`title`/`placeholder`/`alt`/`ariaLabel`.
+
+## Changing the language AFTER first run
+
+Operator's rule (2026-09-14): **manually, from ⚙, and never by voice.** «Hay que hacer todas las traducciones
+de todos los prompts, de todos los widgets… no es una cosa que vamos a permitir hacer con la voz.»
+
+- There is no tool that changes the language — the only doors are `POST /api/i18n/choose/{code}` and
+  `config.settings.update`.
+- The desktop ⚙ → **Apariencia** carries the picker (V2-694; before that only the first-run veil and the
+  phone's sheet had one, so the answer on this shell was a factory reset). It posts to `/api/i18n/choose/{code}`
+  and never to the raw `stt_language` knob: that endpoint is what LOCKS the choice, generates the bundle for a
+  language we do not ship, realigns the TTS voice to one native to it and speaks the confirmation. It asks
+  **twice** on purpose.
+- `config.settings.update` is the ONE seam both paths cross, so it is where the caches are dropped:
+  `i18n.runtime.invalidate()` and `widgets.registry.refresh_state()`. On the client, `Desktop.relanguage()`
+  re-renders every open widget's body AND re-fetches the registry so the card HEADERS follow too.
+
 ## Adding a UI string / shipping a widget with new words
 
 Add the key to `i18n/bundles/en.json` (+ the Spanish in `es.json`). That's it: every generated language picks up
-the new/changed keys on its next `prepare()` (boot/upgrade). Bump `MANIFEST_VERSION` when the key set changes so
-browser caches refresh.
+the new/changed keys on its next `prepare()` (boot/upgrade) — widget labels and widget NAMES included, since
+they are ordinary rows in the same file. Bump `MANIFEST_VERSION` when the key set changes so browser caches
+refresh.

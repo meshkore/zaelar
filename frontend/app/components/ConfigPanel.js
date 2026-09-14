@@ -63,6 +63,11 @@ export function ConfigPanel() {
   let cfg = null, bodyEl, msgEl, ovl;
   let activeSec = SECTIONS[0].id;
   let activeTab = "settings";
+  // V2-694 — the language picker's rows and the code in force, read from GET /api/i18n/state (the SAME source
+  // the first-run veil uses, so the two screens can never offer different languages). `langArmed` is the
+  // first half of the two-click consent: see `applyLanguage`.
+  let langPicker = { rows: [], active: "" };
+  let langArmed = false;
 
   const msg = t => { if (msgEl) msgEl.textContent = t || ""; };
 
@@ -293,6 +298,10 @@ export function ConfigPanel() {
       themeSvc.setThemeProfile(b.dataset.profile); msg(t("config.theme.applied")); render();
     });
     bodyEl.querySelectorAll(".cf-th-modebtn").forEach(b => b.onclick = () => { setTheme(b.dataset.mode); render(); });
+    const lg = bodyEl.querySelector(".cf-lang-go"); if (lg) lg.onclick = () => applyLanguage(lg);
+    const ls = document.getElementById("cf_lang_sel");
+    // a fresh pick disarms the confirmation: the second click must mean «yes, THAT one».
+    if (ls) ls.onchange = () => { if (langArmed) { langArmed = false; render(); } };
     const thAccent = document.getElementById("cf_th_accent");
     if (thAccent) thAccent.onchange = () => { themeSvc.setThemeCustom({ accent: thAccent.value }); msg(t("config.theme.applied")); render(); };
     const thAccentClear = bodyEl.querySelector(".cf-th-accent-clear");
@@ -599,6 +608,14 @@ export function ConfigPanel() {
   // ═══ PESTAÑA APARIENCIA (V2-617) — design profiles + custom knobs. Everything applies INSTANTLY (the
   // theme service repaints the tokens live) and persists to the ACCOUNT (settings.json) — no save button:
   // a skin you have to imagine before committing to is a skin nobody tries. ═══════════════════════════════
+  // V2-694 — a profile added later ships its `label` before anyone writes its bundle row; `t()` answers with the
+  // raw key when it has none, so fall back to the label instead of painting `config.theme.profile_x` on the card.
+  function themeName(id, th) {
+    const key = "config.theme.profile_" + id;
+    const s = t(key);
+    return (s && s !== key) ? s : (th.label || id);
+  }
+
   function sec_apariencia() {
     const curProf = themeSvc.themeProfile();
     const custom = themeSvc.themeCustom();
@@ -606,7 +623,7 @@ export function ConfigPanel() {
     const cards = Object.entries(THEMES).map(([id, th]) => {
       const sw = (th.swatches || []).map(c => `<i style="background:${esc(c)}"></i>`).join("");
       return `<button type="button" class="cf-th-card${id === curProf ? " on" : ""}" data-profile="${esc(id)}">
-        <span class="cf-th-sw">${sw}</span><span class="cf-th-name">${esc(th.label || id)}</span></button>`;
+        <span class="cf-th-sw">${sw}</span><span class="cf-th-name">${esc(themeName(id, th))}</span></button>`;
     }).join("");
     const fsOpts = [["s", t("config.theme.fs_s")], ["m", t("config.theme.fs_m")], ["l", t("config.theme.fs_l")]]
       .map(([v, l]) => `<option value="${v}"${(custom.fs || "m") === v ? " selected" : ""}>${esc(l)}</option>`).join("");
@@ -623,7 +640,53 @@ export function ConfigPanel() {
         `<button type="button" class="cf-th-accent-clear"${custom.accent ? "" : " disabled"}>${t("config.theme.accent_clear")}</button></span>`,
         t("config.theme.accent_hint")) +
       row(t("config.theme.fs"), `<select id="cf_th_fs">${fsOpts}</select>`) +
-      row(t("config.theme.font"), `<select id="cf_th_font">${fontOpts}</select>`, t("config.theme.font_hint")));
+      row(t("config.theme.font"), `<select id="cf_th_font">${fontOpts}</select>`, t("config.theme.font_hint")))
+      + sec_idioma();
+  }
+
+  // ═══ IDIOMA (V2-694) — the operator's rule, verbatim: «el reset del idioma se debería poder hacer desde la
+  // configuración MANUALMENTE… no es una cosa que vamos a permitir hacer con la voz. Ahora me lo pones en chino,
+  // ahora me lo pones en sueco».
+  //
+  // Until now the desktop ⚙ had NO language control at all — the picker existed only in the first-run veil and
+  // in the phone's sheet, so on this shell the answer to «I want it in English» was a factory reset. It lands
+  // in Apariencia because that is the tab about how the product READS to you.
+  //
+  // It posts to `/api/i18n/choose/{code}` and NEVER to the raw `stt_language` knob: that endpoint is the one
+  // that LOCKS the choice, generates the bundle for a language we do not ship, realigns the TTS voice to one
+  // native to it and speaks the confirmation. Writing the setting directly would leave a Swedish operator with
+  // a Swedish `stt_language` and an English interface, which is the failure this whole batch is about.
+  //
+  // And it asks TWICE on purpose. Changing language re-translates every label, every prompt and every widget's
+  // chrome; it is not a toggle, and a single stray click on a dropdown should not start it.
+  function sec_idioma() {
+    const rows = (langPicker.rows || []).map(l =>
+      `<option value="${esc(l.code)}"${l.code === langPicker.active ? " selected" : ""}>` +
+      `${esc(l.flag || "")} ${esc(l.native || l.code)}</option>`).join("");
+    if (!rows) return "";
+    const pending = langArmed ? " armed" : "";
+    return panel("idioma", t("config.lang.title"), t("config.lang.sub"),
+      row(t("config.lang.pick"), `<select id="cf_lang_sel">${rows}</select>`) +
+      row("", `<button type="button" class="cf-lang-go${pending}">` +
+              `${langArmed ? t("config.lang.confirm") : t("config.lang.apply")}</button>`,
+          t("config.lang.hint")));
+  }
+
+  async function applyLanguage(btn) {
+    const sel = document.getElementById("cf_lang_sel");
+    const code = sel && sel.value;
+    if (!code || code === langPicker.active) { msg(t("config.lang.same")); return; }
+    if (!langArmed) { langArmed = true; render(); return; }   // the second click is the consent
+    langArmed = false;
+    btn.disabled = true;
+    msg(t("config.lang.working"));
+    try {
+      const r = await fetch("/api/i18n/choose/" + encodeURIComponent(code), { method: "POST" }).then(x => x.json());
+      if (!r || r.ok === false) { msg(t("config.msg.error_generic")); return; }
+      langPicker.active = code;
+      msg(t("config.lang.done"));
+    } catch (_) { msg(t("config.msg.error_generic")); }
+    finally { btn.disabled = false; render(); }
   }
 
   // ═══ PESTAÑA WIDGETS (V2-083) — a sola lista alfabética with badge de-serie/tuyo ═══════════════════════
@@ -652,6 +715,12 @@ export function ConfigPanel() {
         cfg.connectors = (cx && cx.connectors) || [];
         cfg.widgets = (wr && wr.registry) || [];
       } catch (_) { cfg.connectors = cfg.connectors || []; cfg.widgets = cfg.widgets || []; }
+      // Best-effort and in parallel with the rest: an unreachable i18n state costs the language ROW, never the
+      // whole panel — every other setting still has to be reachable.
+      try {
+        const st = await fetch("/api/i18n/state").then(r => r.json());
+        langPicker = { rows: (st && st.picker) || [], active: (st && st.active) || "" };
+      } catch (_) { langPicker = { rows: [], active: "" }; }
       render();
       store.setApiSummary(cfg.apis || []);
       store.setApiAlerts((cfg.apis || []).filter(a => a.state === "warn" || a.state === "error"));

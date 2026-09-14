@@ -48,16 +48,44 @@ def _norm_aliases(seq) -> list[str]:
     return out[:64]
 
 
+def display_name(kind: str, wid: str, fallback: str) -> str:
+    """The name the operator READS for this piece, in their own language (V2-694).
+
+    A manifest's `name` is written once, by whoever built the widget, in whatever language they wrote it — ours
+    are Castilian, and that is exactly what an English session was reading on every card header. The label is a
+    UI string like any other, so it lives where every other UI string lives: `i18n/bundles/en.json` (the source
+    of truth) + `es.json`, under `widgets.<id>.name` / `surfaces.<id>.name`, which means a language onboarded
+    later gets it translated by the SAME generation pass as the rest of the interface, for free.
+
+    The manifest keeps its `name`, and it is not dead weight: it is the FALLBACK (a widget the bundles have
+    never heard of — a generated one, a fork — still has a name) and it stays in `aliases`, so the word the
+    widget was born with never stops opening it.
+    """
+    try:
+        from i18n import runtime as _i18n
+        return _i18n.text(f"{kind}.{wid}.name", fallback) or fallback
+    except Exception:  # noqa: BLE001 — an unreadable bundle names the widget as its manifest does, never crashes
+        return fallback
+
+
 def widget_identity(w: dict) -> dict:
     """Canonical identity for ONE catalog widget: {id, name, aliases, surface:"user"}.
-    name = explicit `name` | `title` | id. aliases = manifest `aliases`, or legacy `keywords` as SEED
-    (V2-082 D1: keyword ≡ alias). `name` is added as an implicit alias so saying the name always opens it."""
+
+    name = the operator's-language label (`widgets.<id>.name`), falling back to explicit `name` | `title` | id.
+    aliases = manifest `aliases`, or legacy `keywords` as SEED (V2-082 D1: keyword ≡ alias).
+
+    BOTH the translated name and the manifest one are implicit aliases, and that pair is the whole safety of
+    V2-694: the resolver keeps answering to the word the widget shipped with («mensajería») while the screen and
+    the prompt use the word the operator reads («Messaging»). Translating the name WITHOUT keeping the original
+    would silently retire half the vocabulary of every install that ever spoke Castilian.
+    """
     wid = str(w.get("id") or "")
-    name = str(w.get("name") or w.get("title") or wid).strip() or wid
+    native = str(w.get("name") or w.get("title") or wid).strip() or wid
+    name = display_name("widgets", wid, native)
     seed = w.get("aliases")
     if not seed:                                   # no new field → seed from keywords (lazy migration)
         seed = w.get("keywords") or []
-    aliases = _norm_aliases([name, *seed])
+    aliases = _norm_aliases([name, native, *seed])
     return {"id": wid, "name": name, "aliases": aliases, "surface": "user", "origin": origin_of(w),
             "forked": bool(w.get("forked_from"))}
 
@@ -67,8 +95,11 @@ def registry() -> list[dict]:
     Order: widgets first (like the catalog), then system."""
     out = [widget_identity(w) for w in runtime.catalog()]
     for s in system_surfaces.surfaces():
-        out.append({"id": s["id"], "name": s["name"],
-                    "aliases": _norm_aliases([s["name"], *s["aliases"]]), "surface": "system", "origin": "system"})
+        native = s["name"]
+        name = display_name("surfaces", s["id"], native)
+        out.append({"id": s["id"], "name": name,
+                    "aliases": _norm_aliases([name, native, *s["aliases"]]),
+                    "surface": "system", "origin": "system"})
     return out
 
 

@@ -97,13 +97,40 @@ _STOP = set("el la los las un una de del en al a y o que con para por me mi tu s
 _WIDGET_WORD_RE = re.compile(r"\b(widget|gadget|tablero|contador|cuadro de mando|mini ?app|tarjeta)\b")
 
 
+def _lang() -> str:
+    """The active UI language, or "" if i18n cannot answer. Part of every lexical cache key below (V2-694):
+    the vocabulary a phrase is matched against now CONTAINS a translated name, so an index built under one
+    language is the wrong index under the next."""
+    try:
+        from i18n import runtime as _i18n
+        return _i18n.active_code() or ""
+    except Exception:  # noqa: BLE001
+        return ""
+
+
+def _display_name(kind: str, wid: str, fallback: str) -> str:
+    try:
+        from . import registry as _registry
+        return _registry.display_name(kind, wid, fallback)
+    except Exception:  # noqa: BLE001
+        return fallback
+
+
 def _aliases_of(w: dict) -> list[str]:
     """Widget IDENTITY aliases (V2-082): `name`|`title`|id + manifest `aliases` (or legacy `keywords` as seed —
-    keyword ≡ alias). ONLY opening signal; description no longer opens anything. Normalized, deduped."""
-    name = str(w.get("name") or w.get("title") or w.get("id") or "").strip()
+    keyword ≡ alias). ONLY opening signal; description no longer opens anything. Normalized, deduped.
+
+    V2-694 — and the name the operator READS is one of them. `widgets/naming.py` (the worker's door) went
+    through `registry`, so it already answered to a translated label; THIS index is built straight off the
+    manifests, so the voice did not. Measured with the bundles in place and nothing else changed: «messages»,
+    «downloads» and «browser» all resolved to None here while resolving correctly one module over — an English
+    operator could read «Messages» on the card and not be able to say it. The manifest's own name stays in the
+    list, so the Castilian keeps opening it too."""
+    native = str(w.get("name") or w.get("title") or w.get("id") or "").strip()
+    shown = _display_name("widgets", str(w.get("id") or ""), native)
     seed = w.get("aliases") or w.get("keywords") or []
     out, seen = [], set()
-    for a in [name, *seed]:
+    for a in [shown, native, *seed]:
         a = _norm(a)
         if a and a not in seen:
             seen.add(a)
@@ -112,7 +139,7 @@ def _aliases_of(w: dict) -> list[str]:
 
 
 def _identify_index() -> list[dict]:
-    sig = _signature()
+    sig = (_signature(), _lang())
     if sig == _index["sig"]:
         return _index["rows"]
     rows = []
@@ -130,24 +157,27 @@ _sys_index = {"loaded": False, "rows": []}
 
 def _system_index() -> list[dict]:
     """Lexical index for system surfaces (chat, config, debug...): id + normalized FIXED aliases. Source:
-    `widgets/system_surfaces.py` (front mirror). Loaded once (the list is static, does not change at runtime)."""
-    if _sys_index["loaded"]:
+    `widgets/system_surfaces.py` (front mirror). Rebuilt when the LANGUAGE moves (V2-694) — the hardcoded
+    aliases are still fixed and still not editable by the operator, but the surface's own NAME is now a
+    translated string, so «Ajustes» has to open Settings on a Castilian install exactly as «Settings» does."""
+    if _sys_index["loaded"] == _lang():
         return _sys_index["rows"]
     rows = []
     try:
         from . import system_surfaces
         for s in system_surfaces.surfaces():
+            shown = _display_name("surfaces", s["id"], s["name"])
             als, seen = [], set()
-            for a in [s["name"], *s["aliases"]]:
+            for a in [shown, s["name"], *s["aliases"]]:
                 a = _norm(a)
                 if a and a not in seen:
                     seen.add(a)
                     als.append(a)
-            rows.append({"id": s["id"], "name": s["name"], "aliases": als,
+            rows.append({"id": s["id"], "name": shown, "aliases": als,
                          "alias_tokens": {t for a in als for t in a.split() if t not in _STOP}})
     except Exception:
         rows = []
-    _sys_index["loaded"], _sys_index["rows"] = True, rows
+    _sys_index["loaded"], _sys_index["rows"] = _lang(), rows
     return rows
 
 
@@ -256,7 +286,13 @@ def identify(query: str, open_ids: list | None = None, recent_ids: list | None =
         if s >= _THRESHOLD:
             scored.append((s, row["w"]))
     scored.sort(key=lambda s: (-s[0], s[1].get("id", "")))
-    cands = [{"id": w["id"], "title": w.get("title", ""), "score": s} for s, w in scored]
+    # The candidate's TITLE is read back to the operator when the phrase is ambiguous («¿cuál te enseño?»), so
+    # it is the label they can SEE, not the manifest's own wording (V2-694, and V2-605's rule that a card is
+    # named by what it shows rather than by an id the operator never chose).
+    cands = [{"id": w["id"],
+              "title": _display_name("widgets", str(w.get("id") or ""),
+                                     str(w.get("title") or w.get("name") or "")),
+              "score": s} for s, w in scored]
     top = scored[0][1] if scored else None
     top_score = scored[0][0] if scored else 0.0
     ambiguous = len(scored) > 1 and scored[0][0] == scored[1][0]

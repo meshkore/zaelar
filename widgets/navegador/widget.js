@@ -82,8 +82,32 @@ function injectStyles(){
 function el(tag, cls, text){ const e = document.createElement(tag); if(cls) e.className = cls;
   if(text != null) e.textContent = String(text); return e; }
 
-const STATUS_LABEL = {queued:"en cola", working:"trabajando", needs_input:"pregunta", open:"abierto",
-                      done:"hecho", failed:"falló", cancelled:"cancelada"};
+// ── i18n seam (V2-613 / V2-694): `ctx.t` for our own chrome, the literal as the FALLBACK ────────────────
+let _T = null;
+function tt(key, params, fb){
+  try{
+    if(_T){ const s=_T("widgets.navegador."+key, params); if(s && s!=="widgets.navegador."+key) return s; }
+  }catch(_){}
+  let s = fb;
+  if(params) for(const k in params) s = s.split("{"+k+"}").join(String(params[k]));
+  return s;
+}
+
+// A FUNCTION and not the const map it replaces: a module-level table is built once, at IMPORT time, which is
+// before any `ctx` has been seen — so the labels would freeze in whatever language happened to be active the
+// first time this module was loaded and would survive every later switch. Evaluated per paint, they cannot.
+function statusLabel(status){
+  switch(String(status || "")){
+    case "queued":      return tt("st_queued", null, "en cola");
+    case "working":     return tt("st_working", null, "trabajando");
+    case "needs_input": return tt("st_needs_input", null, "pregunta");
+    case "open":        return tt("st_open", null, "abierto");
+    case "done":        return tt("st_done", null, "hecho");
+    case "failed":      return tt("st_failed", null, "falló");
+    case "cancelled":   return tt("st_cancelled", null, "cancelada");
+    default:            return "";
+  }
+}
 
 // TASK CARD (kind:"task"): mini-browser (capture of ITS tab) above + progress/results feed below.
 // One card per task (id navegador::<taskid>). Only textContent + same-origin <img> (isolation contract).
@@ -94,16 +118,16 @@ function renderTask(root, data, ctx){
   // (`live_title` in the manifest, desktop.js::_applyLiveTitle) — repeating it here is what left the operator
   // reading the same sentence twice, once under a header that said «Browser» and told him nothing.
   const head = el("div", "hb-navt-head");
-  head.appendChild(el("span", "hb-navt-status s-" + (data.status || ""), STATUS_LABEL[data.status] || data.status || ""));
+  head.appendChild(el("span", "hb-navt-status s-" + (data.status || ""), statusLabel(data.status) || data.status || ""));
   root.appendChild(head);
 
   const view = el("div", "hb-navt-view");
   if((data.shot_rev || 0) > 0 && data.shot){
-    const img = el("img", "hb-navt-img"); img.alt = data.page_title || "página";
+    const img = el("img", "hb-navt-img"); img.alt = data.page_title || tt("page_alt", null, "página");
     img.src = "/widgets/navegador/asset/" + data.shot + "?v=" + (data.shot_rev || 0);
     view.appendChild(img);
   } else {
-    view.appendChild(el("div", "hb-navt-ph", "abriendo pestaña…"));
+    view.appendChild(el("div", "hb-navt-ph", tt("opening_tab", null, "abriendo pestaña…")));
   }
   root.appendChild(view);
   if(data.url || data.page_title) root.appendChild(el("div", "hb-navt-urlline", data.page_title || data.url));
@@ -136,8 +160,8 @@ function renderTask(root, data, ctx){
   if(data.awaiting_login){
     const box = el("div", "hb-navt-login");
     box.appendChild(el("div", "hb-navt-login-t",
-      "🔓 Inicia sesión en la ventana de Chrome que se abrió. Tu sesión se guardará para las próximas tareas."));
-    const btn = el("button", "hb-navt-login-btn", "Ya he iniciado sesión");
+      tt("login_hint", null, "🔓 Inicia sesión en la ventana de Chrome que se abrió. Tu sesión se guardará para las próximas tareas.")));
+    const btn = el("button", "hb-navt-login-btn", tt("login_done", null, "Ya he iniciado sesión"));
     btn.onclick = () => ctx.action("auth_done", {task_id: data.id});
     box.appendChild(btn);
     root.appendChild(box);
@@ -147,7 +171,7 @@ function renderTask(root, data, ctx){
   if(data.question){
     const q = el("div", "hb-navt-q");
     q.appendChild(el("div", "hb-navt-q-t", "❓ " + data.question));
-    q.appendChild(el("div", "hb-navt-q-h", "Responde por voz."));
+    q.appendChild(el("div", "hb-navt-q-h", tt("answer_voice", null, "Responde por voz.")));
     root.appendChild(q);
   }
 
@@ -157,5 +181,6 @@ function renderTask(root, data, ctx){
 // to drive/watch the real browser, look at the real Chrome WINDOW; the card is the monitor + feed.
 export function render(root, data, ctx){
   injectStyles();
+  _T = (ctx && typeof ctx.t === "function") ? ctx.t : null;
   renderTask(root, data || {}, ctx);
 }

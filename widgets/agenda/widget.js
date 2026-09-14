@@ -817,7 +817,8 @@ function renderAdd(root, ctx, state, redraw){
   const row = el2("div","agfrow");
   const start = el2("input","agfield agftime"); start.type = "time"; start.value = hhmm(at.start || 9*60);
   const mins = el2("select","agfield agfdur");
-  [[30,"30 min"],[60,"1 h"],[90,"1 h 30"],[120,"2 h"]].forEach(([v,l])=>{
+  [[30,tt("dur_30",null,"30 min")],[60,tt("dur_60",null,"1 h")],
+   [90,tt("dur_90",null,"1 h 30")],[120,tt("dur_120",null,"2 h")]].forEach(([v,l])=>{
     const o = el2("option",null,l); o.value = String(v); if(v===60) o.selected = true; mins.appendChild(o);
   });
   row.appendChild(start); row.appendChild(mins); p.appendChild(row);

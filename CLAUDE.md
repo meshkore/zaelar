@@ -763,6 +763,66 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **A NAME is a UI string, and the voice keeps answering to the one it shipped with (V2-694, 2026-09-14)**:
+  the operator, on a session he had deliberately started in English — «el título de los widgets es en
+  castellano… una vez está inicializada la sesión en inglés, se usa en inglés», and the rule that frames the
+  whole batch: **«todos los nombres, etiquetas, títulos, botones… todo es configurable cuando se inicializa un
+  idioma»**. **MEASURED before touching anything, because the first question was whether HE had broken it**:
+  nothing had switched. `config/settings.json` held `stt_language: "en"`, every turn's prompt said «Responde
+  ÚNICAMENTE en English», and `i18n.init.detect.should_detect()` is False the moment a language is persisted —
+  so speaking Castilian could not have moved it and a reset only would with `wipe_profile`, which he had not
+  ticked. **The Castilian was HARDCODED.** V2-613 built the seam (`ctx.t`/`ctx.lang`) and migrated two pilots;
+  the other thirteen widgets carried their text inside `widget.js`, and every card TITLE came from
+  `manifest.json`, which V2-082 had frozen on purpose because the voice resolver matches against it.
+  - **That freeze is the interesting half.** The name is now `widgets.<id>.name` / `surfaces.<id>.name`, read by
+    `widgets/registry.py::display_name`, so it follows the operator's language like every other label — and the
+    manifest's own name stays as the FALLBACK (a generated widget has no bundle row and still needs a name) and
+    **stays in `aliases`**. Translating it without keeping the original would have quietly retired half the
+    vocabulary of every install that has ever spoken Castilian: a regression with no error message anywhere.
+  - ⚠️ **`widgets/naming.py` (the worker's door) went through the registry and answered to the translated name
+    from the first minute; `widgets/runtime.py::identify` (the VOICE) built its own lexical index straight off
+    the manifests and did not.** Measured with the bundles in place and nothing else changed: «messages»,
+    «downloads» and «browser» resolved to None for the voice while resolving correctly one module over — an
+    English operator could READ «Messages» on the card and not be able to say it. Two doors into one namespace
+    (V2-555), found only because the test was written against the real doors instead of against the registry.
+  - **~480 strings across the catalog**, migrated as `tt("key", params, "<the literal>")` where the fallback is
+    byte for byte what was hardcoded — so a widget rendered outside the engine behaves exactly as before and the
+    change is reviewable line by line. ⚠️ **Ten module-level TABLES were the trap**: `const STATUS = {ok:
+    "Hecho"}` is built at IMPORT time, before any `ctx` exists, so its text freezes in whatever language loaded
+    first and survives every later switch; every one became a function resolved per paint. ⚠️ And **a whole class
+    was invisible to the first scan** — sentences written as template literals, and labels living inside a
+    `${…}` substitution (`${n === 1 ? "canción" : "canciones"}`) — so the scanner had to learn that a
+    substitution is CODE, not template text, and then that a regex literal can contain backticks
+    (`widgets/documento`'s `/`([^`]+)`/g` desynced it into reading every later comment as operator-facing text).
+  - **The ratchet is the deliverable.** The old one recognised only a FULL key, so with fourteen widgets migrated
+    it would still have been green having measured one — *a ratchet that cannot see the thing it ratchets reports
+    safety*. It now derives each widget's prefix from its own helper, and refuses: a key missing from either
+    bundle, an accented literal outside a translation call, and — **language-independently**, which is what made
+    it bite — ANY literal assigned to `textContent`/`title`/`placeholder`/`alt`/`ariaLabel`. That last half was
+    added because disarming `tt("seeds", …)` back to a bare `"Semillas"` left the accent check GREEN.
+  - **Changing language is MANUAL and never spoken** (his rule: «hay que hacer todas las traducciones de todos
+    los prompts, de todos los widgets… no es una cosa que vamos a permitir hacer con la voz»). No tool changes
+    the language and none is added. ⚠️ Measured: the desktop ⚙ had **no language control at all** — the picker
+    existed only in the first-run veil and the phone's sheet, so on this shell the answer to «I want it in
+    English» was a factory reset. ⚙ → Apariencia carries it now, posting to `/api/i18n/choose/{code}` and never
+    to the raw `stt_language` knob: that endpoint is what LOCKS the choice, generates the bundle for a language
+    we do not ship, realigns the TTS voice and speaks the confirmation — writing the setting directly would
+    leave a Swedish operator with a Swedish `stt_language` and an English interface. It asks **twice**.
+  - `config.settings.update` is the ONE seam both doors cross, so that is where `i18n.runtime.invalidate()` and
+    `registry.refresh_state()` live. On the client, `Desktop.relanguage()` re-rendered every widget's BODY since
+    V2-613 and left the card HEADER alone — fine while the title was a constant, wrong the moment it became a
+    translated string: it drops the registry and the compact-index caches and re-applies the names.
+  - Nodes **4.11** (widened), **4.172** and **4.173** (RENDERED: a source scan proves the fetch line exists and
+    proves nothing about whether the header changes); sixteen disarms, every mutation asserted, all red — ⚠️ and
+    **four came back GREEN first, each accusing the test**: two properties were held by a second, independent
+    guard (every shipped manifest already repeats its own name as its first alias; every surface's es/en word is
+    already in the FIXED alias table), one measured a REIMPORT instead of the in-process cache the ⚙ actually
+    hits, and one scanned raw source whose own COMMENT contained the words it was looking for (the V2-615 trap).
+    The surface case could only be closed with a THIRD language, so the batch ships a generated-bundle test.
+  - **NOT done, and named**: the per-widget `whenToUse` routing prose stays Castilian on purpose — it is an
+    INTERNAL note the model reads and the prompt says so; and the catalog line still names a widget by its `id`
+    rather than its label, which is defensible and would cost the shared per-turn budget (V2-526) to change.
+
 - **A proxy in front of a hardened thing is a SECOND front door (V2-575 P1, 2026-09-14)**: the daemon had five
   guards and no way for a person to obtain it or point it at a folder. The engine now proxies it — a page over
   https cannot call plain http, a direct call needs CORS headers the daemon must never send, and the bearer
@@ -3458,80 +3518,6 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     readback itself** — that the IFrame API emits `availableQualityLevels` inside `infoDelivery` needs a
     real browser with the agent running. The server side is covered; the wire is not.
 
-- **Two screens, ONE widget (V2-574, 2026-09-04)**: nobody had ever rendered a widget at phone width — 4.18
-  checks the shell's contract, 4.19 the dock's pixels, 4.87 the deck's navigation, and the CONTENTS of the cards
-  were never looked at. Worse, the house style every widget is built against (`widgets/AGENTS.md`, quoted into
-  every generation by `generator.py::_CONTRACT`) was pushing the wrong way: «prefer horizontal / grid layouts»,
-  «NEVER a tall single broken column», `width:min(620px,90vw)` — desktop advice written before the phone shell
-  existed, so an agent following it built for a desk. Measured across all 14 at 390px with real data: **widths
-  were fine** (no overflow, nothing off-screen) and the break was TOUCH — six widgets with 20-34px controls,
-  three with inputs at 11.5-13px (**below 16px iOS Safari zooms the page on focus and never recovers**). Fixed
-  in THREE layers: the guide + contract now say fluid sizing and that a single column is the right answer on a
-  phone; `validator.py` REJECTS a `min-width` over 360px (the one declaration no scroll container can absorb —
-  a wide `width` inside `overflow-x:auto` stays legal on purpose); and a HOST touch floor in
-  `frontend/mobile/app/styles.css` (44px controls, 16px inputs, scoped to `.zm-scroll` so the desktop is
-  untouched and widgets that do not exist yet are covered — checkbox/radio/range excepted, and
-  `.zm-scroll.zm-scroll` doubled instead of `!important` so a widget can still out-specify the floor).
-  ⚠️ **Two lessons paid**: the floor itself broke `archivos` (six icon buttons at 44px = 414px in a 366px card),
-  fixed with a wrap + `max-width:100%` on any box holding controls — after `:has(> button + button)` failed to
-  fire (a search box sits between them) and wrapping alone changed nothing (`flex:0 0 auto` means its width IS
-  its content). And **an empty widget cannot overflow**: nine of fourteen rendered their empty state, so the
-  first green run measured almost nothing — filled fixtures were added and `archivos` failed the moment it had
-  content. Node 4.111 prints which widgets were measured thin, so the claim never covers more than it measured.
-- **The voice SEES the open directory — a widget the operator is looking at publishes its truth (V2-576,
-  2026-09-04)**: session 0a93de06, favourites. Asked «¿cuántos restaurantes favoritos tenemos?» the brain
-  answered from stale memory pills («one») while the open contactos card showed FOUR — then, confronted,
-  CONFABULATED «la vista actual no lo muestra», and 18 s after a worker fixed the store to five it still said
-  «de los cuatro». The model had labels (`ref_index` → items line) but no meaning: nothing said «these ARE all
-  the favourites, four in total», and no tool reads the directory. Fixed with `contactos/data.py::
-  prompt_digest()` through the EXISTING `refs.prompt_digest` seam (open cards only): authoritative counts, the
-  current view filter, every row compact — and the block declares it outranks memory for counting/listing what
-  is stored, which is what kills the confabulation branch. Empty says EMPTY. Node 4.96 (+5, incl. end-to-end
-  through `brief.for_prompt`), disarm 5 red. **The chain behind it, measured and still partly open**: the
-  memory pills asserting widget-owned state (a favourite «in your list», an errand «still pending», a DELETED
-  widget's description) are never invalidated by widget events — yesterday that same stale pill made the add
-  flow SKIP El Fogón («que ya tenías») right after its real entry was deleted, and today it misled the fix
-  worker into trying the deleted widget first. That half is memory-domain work; the four measured pills were
-  manually superseded. Also open: the fast lane firing `show_view`+«Hecho.» on complaints/questions (x3), and
-  repair whispers hardcoding counts that anchor later turns.
-- **A widget event reaches the pills it outdates — the lifecycle chain (V2-577, 2026-09-04)**: closes V2-576
-  cause B for the class with a deterministic anchor. Lifecycle pills carry `[widget:<id>]` in their text (only
-  `widgets/lifecycle.py` writes them), and each new lifecycle write (created/deleted/restored) now passes the
-  widget's PRIOR anchored pills as `supersedes` — V2-565's plumbing applied at the writer chokepoint, so only
-  the newest chapter of a widget's story stays valid and recall stops serving a birth announcement next to its
-  own tombstone (measured: pill 1165's «was CREATED» sent the fix worker to a DELETED widget first). Targets
-  come from the new read-only door `memory.api.widget_trace_ids(wid)` (valid, slotless, `LIKE` with `_`
-  escaped — a legal slug char and a LIKE wildcard); the hook lives in `_mem_write(wid=...)`. The superseded
-  chain keeps created-at/deleted-at for auditing — history is never deleted, it is just no longer VALID. Pills
-  without the anchor (worker notes, distiller prose) are out of reach ON PURPOSE: matching by content invents
-  targets; the write-side rule (workers prefix their widget notes; a completion note supersedes its order pill
-  via the V2-565 offer) is proposed in the initiative, unbuilt. Node 1.3, three disarms (1/2/4 red). ⚠️ Three
-  `_mem_write` test doubles needed the new signature — and the first disarm round restored the UNCOMMITTED fix
-  with `git checkout`, wiping it: re-apply the edit, never checkout (V2-531's lesson, paid again).
-- **The sleep circuit review — five silent integrity holes in the REM process (V2-578, 2026-09-05)**: full
-  review of deep sleep (`rem.py`), light sleep (`consolidator.py`) and their writer/api seams, measured
-  against a copy of the live DB first. The healthy half stated (daily cadence holding, 8 valid insights,
-  0% heuristic writes); the five holes, none of which failed loudly: (1) a stale `embed_pending` marker on a
-  row that already CARRIES a vector was unclearable by construction (repair only selects vector-less rows) —
-  `hygiene()` counted it forever; the repair entrance clears them now. (2) **«unforget = flip the flag, no
-  reindexing» stopped being true the day `prune_invalid` was built**: a shell pruned >2d ago lost FTS +
-  vector + paraphrases, so revival produced a row no search could surface, with `meta.pruned=1` lying —
-  unforget re-adds the FTS row itself (recall works at once through the keyword half), drops the stamp, and
-  marks `embed_pending` so the nightly repair restores the vector. Only rows the pruner touched: FTS5
-  external-content has no upsert, re-inserting a still-indexed row would duplicate its entries. (3) pinned
-  invalid shells were never de-indexed (`pinned=0` filter) — pinned protects from DELETION, not de-indexing;
-  measured live, a superseded pinned profile shell held its vector 4 days and counting. (4) **the trust
-  boundary did not reach any dedup door**: exact dedup (writer + consolidator) and semantic dedup (writer
-  neighbor + rem cosine merge) all matched across trust classes — an untrusted verbatim echo could reinforce
-  a trusted pill, and worse, a trusted write could fold INTO a quarantined row where synthesis never sees it
-  again. Trust class is part of a fact's identity in all four doors now; slots stay `remember_external`'s
-  job. (5) `semantic_dedup`'s pair scan was pure Python holding the GIL — measured 24 µs/pair, **~28 s at
-  cap 1500** against a comment claiming "ms"; one numpy float32 matmul now (~70 ms, releases the GIL), with a
-  tested pure-Python fallback. Six disarms, mutations asserted, backups BEFORE the first mutation — and one
-  came back green because the retriever's LIKE rescue channel masked the missing FTS re-index: the sharpened
-  test asks the FTS INDEX itself (`MATCH` walks the index; a plain SELECT on external-content FTS5 returns
-  the content table's rows regardless, a measurement trap worth remembering). Suite: 646 passed.
-
 ### Archived decisions — index (full text: `.meshkore/docs/decisions-archive.md`)
 
 - **The stop record declares its own lifespan (V2-568, 2026-09-03)** (2026-09-03; V2-567, V2-568)
@@ -4072,3 +4058,11 @@ abierta (`V2-091`); a partir de ahora, no añadir más.
   Docker** — esa es la única parte donde Docker es aceptable.
 
 <!-- OPERATOR_CONTENT_END -->
+
+
+#### Movidas el 2026-09-14 (V2-694)
+
+- **Two screens, ONE widget (V2-574, 2026-09-04)** (2026-09-04; V2-574)
+- **The voice SEES the open directory — a widget the operator is looking at publishes its truth (V2-576, 2026-09-04)** (2026-09-04; V2-311, V2-576)
+- **A widget event reaches the pills it outdates — the lifecycle chain (V2-577, 2026-09-04)** (2026-09-04; V2-577)
+- **The sleep circuit review — five silent integrity holes in the REM process (V2-578, 2026-09-05)** (2026-09-05; V2-578)

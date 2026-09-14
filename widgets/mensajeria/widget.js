@@ -12,9 +12,9 @@
 // contract or pass through Hermes. Settings replaces the old footer with "connected" chips.
 
 const URG = {
-  alta:  {dot: "var(--hb-risk,#e5484d)",   lb: "urgente"},
-  media: {dot: "var(--hb-accent,#3D6FE0)", lb: ""},
-  baja:  {dot: "var(--hb-muted-2,#9aa7b8)",lb: ""},
+  alta:  {dot: "var(--hb-risk,#e5484d)",   urgent: true},
+  media: {dot: "var(--hb-accent,#3D6FE0)"},
+  baja:  {dot: "var(--hb-muted-2,#9aa7b8)"},
 };
 
 // One definition per platform: label, badge color, whether credentials are needed (guided setup), and instructions
@@ -27,12 +27,12 @@ const URG = {
 const PLAT = {
   whatsapp: {
     label: "WhatsApp", bg: "#16B8A6", requiresCreds: false,
-    qrSteps: ["Abre WhatsApp en tu móvil → ", "Ajustes → Dispositivos vinculados", " → ", "Vincular un dispositivo", " y escanea este código."],
+    qrKey: "qr_whatsapp",
   },
   telegram: {
     label: "Telegram", bg: "#2AABEE", requiresCreds: true,
     credLink: "https://my.telegram.org",
-    qrSteps: ["Abre Telegram en tu móvil → ", "Ajustes → Dispositivos", " → ", "Vincular dispositivo de escritorio", " y escanea este código."],
+    qrKey: "qr_telegram",
   },
   email: {label: "Email", bg: "#D8452D", requiresCreds: true},
 };
@@ -64,8 +64,15 @@ const BRAND_SVG = {
 const _draft = {telegram: {api_id: "", api_hash: ""},
                 email: {email_address: "", email_password: "", provider: "gmail", imap_host: "", smtp_host: ""}};
 // Email providers with server-side host presets; "otro" asks for IMAP/SMTP manually.
-const EMAIL_PROVIDERS = [["gmail","Gmail"], ["outlook","Outlook / Hotmail"], ["icloud","iCloud"],
-                         ["otro","Otro (IMAP/SMTP)"]];
+const EMAIL_PROVIDERS = ["gmail", "outlook", "icloud", "otro"];
+function providerLabel(v){
+  switch(v){
+    case "gmail":   return "Gmail";                                   // brand names: never translated
+    case "outlook": return "Outlook / Hotmail";
+    case "icloud":  return "iCloud";
+    default:        return tt("provider_other", null, "Otro (IMAP/SMTP)");
+  }
+}
 const _busy = {};   // platform -> true while a connection is in progress, for button feedback
 // Which field of a connect form to land on after a refusal (V2-559). Module-lived like _busy: the card is
 // rebuilt on every render, so the intent has to outlive the DOM node it applies to.
@@ -524,7 +531,7 @@ function badge(platform){
 function miniDot(platform, on){
   const p=PLAT[platform]||{label:"?"};
   const d=el("span","pdot"+(on?" on":""), p.label[0]);
-  d.title = p.label + (on ? ": conectado" : ": no conectado");
+  d.title = p.label + (on ? tt("dot_connected", null, ": conectado") : tt("dot_disconnected", null, ": no conectado"));
   return d;
 }
 
@@ -540,7 +547,7 @@ function brandIcon(platform, on){
   const p=PLAT[platform]||{label:platform||"?",bg:"var(--hb-muted,#6b7b92)"};
   const spec=BRAND_SVG[platform];
   const wrap=el("span","picon"+(on?" on":""));
-  wrap.title=p.label+(on?": conectado":": no conectado");
+  wrap.title=p.label+(on?tt("dot_connected", null, ": conectado"):tt("dot_disconnected", null, ": no conectado"));
   wrap.style.color=p.bg;
   if(spec){
     const svg=document.createElementNS(SVG_NS,"svg");
@@ -600,7 +607,16 @@ function cleanBody(text){
 // The bridge/connectors store `[<type> received]` as an internal English placeholder; on screen it becomes a
 // human label. The bytes themselves are served by the widget's own asset route — an <img>/<audio>/<video>
 // element with a same-origin src is NOT a fetch (isolation contract, same reading as navegador/imagenes).
-const MEDIA_LABEL = {image:"📷 Foto", video:"🎥 Vídeo", audio:"🎵 Audio", ptt:"🎤 Nota de voz", document:"📄 Documento"};
+function mediaLabel(kind){
+  switch(String(kind || "")){
+    case "image":    return tt("media_image", null, "📷 Foto");
+    case "video":    return tt("media_video", null, "🎥 Vídeo");
+    case "audio":    return tt("media_audio", null, "🎵 Audio");
+    case "ptt":      return tt("media_ptt", null, "🎤 Nota de voz");
+    case "document": return tt("media_document", null, "📄 Documento");
+    default:         return "";
+  }
+}
 const PLACEHOLDER_RE = /^\[(image|video|audio|ptt|document) received\]$/;
 
 // V2-622 — a bare media placeholder ("[audio received]", or an empty body with a mediaType) becomes a label
@@ -615,8 +631,8 @@ function isBareMediaLabel(body){
 function displayBody(body, mediaType){
   const b = cleanBody(body);
   const m = b.match(PLACEHOLDER_RE);
-  if(m) return MEDIA_LABEL[m[1]] || b;
-  if(!b && mediaType) return MEDIA_LABEL[mediaType] || "";
+  if(m) return mediaLabel(m[1]) || b;
+  if(!b && mediaType) return mediaLabel(mediaType) || "";
   return b;
 }
 
@@ -656,7 +672,7 @@ function _waveBarHeight(seed, i){
 function audioPlayer(url){
   const wrap = el("div","maudio");
   const btn = document.createElement("button");
-  btn.type="button"; btn.className="mapbtn"; btn.textContent="▶"; btn.title="Reproducir";
+  btn.type="button"; btn.className="mapbtn"; btn.textContent="▶"; btn.title=tt("play", null, "Reproducir");
   const wave = el("div","mawave");
   const bars = [];
   for(let i=0; i<_WAVE_BARS; i++){
@@ -683,9 +699,9 @@ function audioPlayer(url){
   };
   au.addEventListener("timeupdate", refresh);
   au.addEventListener("loadedmetadata", refresh);
-  au.addEventListener("play", ()=>{ btn.textContent="⏸"; btn.title="Pausar"; });
-  au.addEventListener("pause", ()=>{ btn.textContent="▶"; btn.title="Reproducir"; });
-  au.addEventListener("ended", ()=>{ btn.textContent="▶"; btn.title="Reproducir"; });
+  au.addEventListener("play", ()=>{ btn.textContent="⏸"; btn.title=tt("pause", null, "Pausar"); });
+  au.addEventListener("pause", ()=>{ btn.textContent="▶"; btn.title=tt("play", null, "Reproducir"); });
+  au.addEventListener("ended", ()=>{ btn.textContent="▶"; btn.title=tt("play", null, "Reproducir"); });
   btn.onclick = ()=>{ if(au.paused) au.play().catch(()=>{}); else au.pause(); };
 
   const seekTo = (clientX)=>{
@@ -719,8 +735,8 @@ function mediaBlock(it){
     if(t==="image"){
       const a=document.createElement("a"); a.href=url; a.target="_blank"; a.rel="noopener";
       const img=document.createElement("img"); img.className="matt"; img.src=url;
-      img.loading="lazy"; img.decoding="async"; img.alt=(u&&u.name)||"imagen";
-      img.onerror=()=>{ a.replaceWith(el("span","mdoc","📷 (no disponible)")); };
+      img.loading="lazy"; img.decoding="async"; img.alt=(u&&u.name)||tt("image_alt", null, "imagen");
+      img.onerror=()=>{ a.replaceWith(el("span","mdoc",tt("image_unavailable", null, "📷 (no disponible)"))); };
       a.appendChild(img); w.appendChild(a);
     } else if(t==="video"){
       const v=document.createElement("video"); v.className="mvid"; v.controls=true; v.preload="metadata"; v.src=url;
@@ -729,7 +745,7 @@ function mediaBlock(it){
       w.appendChild(audioPlayer(url));
     } else {
       const a=document.createElement("a"); a.className="mdoc"; a.href=url; a.target="_blank"; a.rel="noopener";
-      a.textContent="📄 "+((u&&u.name)||"documento");
+      a.textContent="📄 "+((u&&u.name)||tt("document_alt", null, "documento"));
       w.appendChild(a);
     }
   });
@@ -778,20 +794,20 @@ function stepBox(n, title, done){
 // Per-provider guidance (V2-521): the generic app-password sentence never said WHERE to get one. One line + the
 // exact page, switching with the dropdown — the operator asked to be told the process, the token, whatever the
 // provider needs, right here.
-const EMAIL_GUIDE={
-  gmail:   {steps:"Activa la verificación en 2 pasos y entra en la página de contraseñas de aplicación.",
-            url:"https://myaccount.google.com/apppasswords", lbl:"Abrir contraseñas de aplicación de Google",
-            tip:"Google te la enseña en 4 bloques de 4 letras. Cópiala entera — da igual si trae espacios, "
-               +"los quito yo. Lo que NO va aquí es el enlace de la página."},
-  outlook: {steps:"Con la verificación en 2 pasos activada, crea una contraseña de aplicación.",
-            url:"https://account.live.com/proofs/AppPassword", lbl:"Abrir contraseñas de aplicación de Microsoft",
-            tip:"Cópiala tal cual te la muestre. Es una contraseña, no el enlace de la página."},
-  icloud:  {steps:"Genera una contraseña específica de app desde tu cuenta de Apple.",
-            url:"https://appleid.apple.com/account/manage", lbl:"Abrir appleid.apple.com",
-            tip:"Apple la muestra como xxxx-xxxx-xxxx-xxxx. Cópiala con los guiones."},
-  otro:    {steps:"Usa la contraseña (o contraseña de app) que te dé tu proveedor de correo.",
-            url:"", lbl:"", tip:"Necesitaré además sus servidores IMAP y SMTP, abajo."},
-};
+function EMAIL_GUIDE(){ return {
+  gmail:   {steps:tt("gm_steps", null, "Activa la verificación en 2 pasos y entra en la página de contraseñas de aplicación."),
+            url:"https://myaccount.google.com/apppasswords", lbl:tt("gm_link", null, "Abrir contraseñas de aplicación de Google"),
+            tip:tt("gm_tip_1", null, "Google te la enseña en 4 bloques de 4 letras. Cópiala entera — da igual si trae espacios, ")
+               +tt("gm_tip_2", null, "los quito yo. Lo que NO va aquí es el enlace de la página.")},
+  outlook: {steps:tt("ol_steps", null, "Con la verificación en 2 pasos activada, crea una contraseña de aplicación."),
+            url:"https://account.live.com/proofs/AppPassword", lbl:tt("ol_link", null, "Abrir contraseñas de aplicación de Microsoft"),
+            tip:tt("ol_tip", null, "Cópiala tal cual te la muestre. Es una contraseña, no el enlace de la página.")},
+  icloud:  {steps:tt("ic_steps", null, "Genera una contraseña específica de app desde tu cuenta de Apple."),
+            url:"https://appleid.apple.com/account/manage", lbl:tt("ic_link", null, "Abrir appleid.apple.com"),
+            tip:tt("ic_tip", null, "Apple la muestra como xxxx-xxxx-xxxx-xxxx. Cópiala con los guiones.")},
+  otro:    {steps:tt("ot_steps", null, "Usa la contraseña (o contraseña de app) que te dé tu proveedor de correo."),
+            url:"", lbl:"", tip:tt("ot_tip", null, "Necesitaré además sus servidores IMAP y SMTP, abajo.")},
+}; }
 
 // ── Email wizard steps (V2-570) ──────────────────────────────────────────────────────────────────────────
 // THREE steps, one visible at a time. Step 1 is the box the operator asked for literally: "put the mail
@@ -799,17 +815,18 @@ const EMAIL_GUIDE={
 // of a <select>, since a dropdown hides the other options until opened.
 function emailStep1Body(d, rerender){
   const wrap=el("div");
-  wrap.appendChild(el("div","wbody","Elige el proveedor de tu cuenta de correo."));
-  wrap.appendChild(iconGrid(EMAIL_PROVIDERS.map(([v,lab])=>({
-    key:v, icon:providerAvatar(lab), label:lab, cls:(d.provider===v?"sel":""),
-    onClick:()=>{ d.provider=v; rerender(); },
-  }))));
+  wrap.appendChild(el("div","wbody",tt("pick_provider", null, "Elige el proveedor de tu cuenta de correo.")));
+  wrap.appendChild(iconGrid(EMAIL_PROVIDERS.map((v)=>{
+    const lab = providerLabel(v);
+    return {key:v, icon:providerAvatar(lab), label:lab, cls:(d.provider===v?"sel":""),
+            onClick:()=>{ d.provider=v; rerender(); }};
+  })));
   return wrap;
 }
 
 function emailStep2Body(d){
   const wrap=el("div");
-  const g=EMAIL_GUIDE[d.provider]||EMAIL_GUIDE.otro;
+  const _eg=EMAIL_GUIDE(); const g=_eg[d.provider]||_eg.otro;
   wrap.appendChild(el("div","wbody", g.steps));
   if(g.url){
     const link=document.createElement("a"); link.className="wlink"; link.href=g.url;
@@ -826,11 +843,11 @@ function emailStep2Body(d){
 // unambiguous locally (empty fields, an address that is not one) and strip the spaces the provider prints.
 function emailStep3Body(d, refs){
   const wrap=el("div");
-  const addrL=el("label","f","Correo"); const addr=document.createElement("input");
-  addr.className="f"; addr.type="email"; addr.placeholder="tucuenta@gmail.com"; addr.autocomplete="off";
+  const addrL=el("label","f",tt("email_label", null, "Correo")); const addr=document.createElement("input");
+  addr.className="f"; addr.type="email"; addr.placeholder=tt("ph_email", null, "tucuenta@gmail.com"); addr.autocomplete="off";
   addr.value=d.email_address||""; addr.oninput=()=>{d.email_address=addr.value; addr.classList.remove("errfield");};
-  const pwL=el("label","f","Contraseña de aplicación"); const pw=document.createElement("input");
-  pw.className="f"; pw.type="password"; pw.placeholder="pega aquí la contraseña, no el enlace"; pw.autocomplete="off";
+  const pwL=el("label","f",tt("app_password", null, "Contraseña de aplicación")); const pw=document.createElement("input");
+  pw.className="f"; pw.type="password"; pw.placeholder=tt("app_password_ph", null, "pega aquí la contraseña, no el enlace"); pw.autocomplete="off";
   // The provider PRINTS the password in groups; those spaces are presentation and IMAP AUTH does not want them.
   pw.value=d.email_password||"";
   pw.oninput=()=>{ const clean=pw.value.replace(/\s+/g,""); if(clean!==pw.value) pw.value=clean;
@@ -839,11 +856,11 @@ function emailStep3Body(d, refs){
   refs.addr=addr; refs.pw=pw;
 
   if(d.provider==="otro"){
-    const imapL=el("label","f","Servidor IMAP"); const imap=document.createElement("input");
-    imap.className="f"; imap.type="text"; imap.placeholder="imap.tudominio.com";
+    const imapL=el("label","f",tt("imap_host", null, "Servidor IMAP")); const imap=document.createElement("input");
+    imap.className="f"; imap.type="text"; imap.placeholder=tt("ph_imap", null, "imap.tudominio.com");
     imap.value=d.imap_host||""; imap.oninput=()=>{d.imap_host=imap.value;};
-    const smtpL=el("label","f","Servidor SMTP"); const smtp=document.createElement("input");
-    smtp.className="f"; smtp.type="text"; smtp.placeholder="smtp.tudominio.com";
+    const smtpL=el("label","f",tt("smtp_host", null, "Servidor SMTP")); const smtp=document.createElement("input");
+    smtp.className="f"; smtp.type="text"; smtp.placeholder=tt("ph_smtp", null, "smtp.tudominio.com");
     smtp.value=d.smtp_host||""; smtp.oninput=()=>{d.smtp_host=smtp.value;};
     wrap.append(imapL, imap, smtpL, smtp);
     refs.imap=imap; refs.smtp=smtp;
@@ -854,9 +871,9 @@ function emailStep3Body(d, refs){
 // ── Telegram wizard steps (same shape as email, three steps → one at a time) ────────────────────────────
 function telegramStep1Body(){
   const wrap=el("div");
-  wrap.appendChild(el("div","wbody","Inicia sesión con tu número: te llega un código dentro de la propia app de Telegram."));
+  wrap.appendChild(el("div","wbody",tt("tg_intro", null, "Inicia sesión con tu número: te llega un código dentro de la propia app de Telegram.")));
   const link=document.createElement("a"); link.className="wlink"; link.href=PLAT.telegram.credLink;
-  link.target="_blank"; link.rel="noopener"; link.textContent="Abrir my.telegram.org ↗";
+  link.target="_blank"; link.rel="noopener"; link.textContent=tt("tg_link", null, "Abrir my.telegram.org ↗");
   wrap.appendChild(link);
   return wrap;
 }
@@ -864,10 +881,10 @@ function telegramStep1Body(){
 function telegramStep2Body(){
   const wrap=el("div");
   const b=el("div","wbody");
-  b.append(document.createTextNode("Entra en "), el("b",null,"API development tools"),
-           document.createTextNode(" y rellena el formulario ("), el("b",null,"App title: Zaelar"),
+  b.append(document.createTextNode(tt("tg_go_1", null, "Entra en ")), el("b",null,"API development tools"),
+           document.createTextNode(tt("tg_go_2", null, " y rellena el formulario (")), el("b",null,"App title: Zaelar"),
            document.createTextNode(", "), el("b",null,"Short name: Zaelar"),
-           document.createTextNode(", el resto en blanco). Pulsa "), el("b",null,"Create application"),
+           document.createTextNode(tt("tg_go_3", null, ", el resto en blanco). Pulsa ")), el("b",null,"Create application"),
            document.createTextNode("."));
   wrap.appendChild(b);
   return wrap;
@@ -875,13 +892,13 @@ function telegramStep2Body(){
 
 function telegramStep3Body(refs){
   const wrap=el("div");
-  wrap.appendChild(el("div","wtip","El api_id es un número corto y el api_hash una cadena larga de letras y números."));
+  wrap.appendChild(el("div","wtip",tt("tg_tip", null, "El api_id es un número corto y el api_hash una cadena larga de letras y números.")));
   const d=_draft.telegram;
   const idL=el("label","f","api_id"); const idI=document.createElement("input");
-  idI.className="f"; idI.type="text"; idI.inputMode="numeric"; idI.placeholder="p.ej. 12345678";
+  idI.className="f"; idI.type="text"; idI.inputMode="numeric"; idI.placeholder=tt("ph_api_id", null, "p.ej. 12345678");
   idI.value=d.api_id||""; idI.oninput=()=>{d.api_id=idI.value;};
   const hL=el("label","f","api_hash"); const hI=document.createElement("input");
-  hI.className="f"; hI.type="text"; hI.placeholder="cadena larga de letras y números";
+  hI.className="f"; hI.type="text"; hI.placeholder=tt("tg_hash_ph", null, "cadena larga de letras y números");
   hI.value=d.api_hash||""; hI.oninput=()=>{d.api_hash=hI.value;};
   wrap.append(idL, idI, hL, hI);
   refs.id=idI; refs.hash=hI;
@@ -892,39 +909,61 @@ function telegramStep3Body(refs){
 // screen (see renderWizardScreen's `status==="connecting"` branch), not something the user fills in.
 function whatsappStepBody(platform){
   const wrap=el("div");
-  wrap.appendChild(el("div","wbody","Pulsa Conectar para vincular tu "+PLAT[platform].label+" con un código QR (como WhatsApp Web)."));
+  wrap.appendChild(el("div","wbody",tt("qr_press_1", null, "Pulsa Conectar para vincular tu ")+PLAT[platform].label+tt("qr_press_2", null, " con un código QR (como WhatsApp Web).")));
   return wrap;
 }
 
-const WIZARD_STEPS = {
-  telegram: [{title:"Entra en my.telegram.org"}, {title:"Crea la aplicación", next:"Ya la he creado — continuar"},
-             {title:"Pega aquí los dos datos"}],
-  email:    [{title:"Elige tu proveedor de correo"},
-             {title:"Crea la contraseña de aplicación", next:"Ya la tengo — continuar"},
-             {title:"Pega aquí tus datos"}],
-};
+function WIZARD_STEPS(){ return {
+  telegram: [{title:tt("wiz_tg_1", null, "Entra en my.telegram.org")}, {title:tt("wiz_tg_2", null, "Crea la aplicación"), next:tt("wiz_tg_2_next", null, "Ya la he creado — continuar")},
+             {title:tt("wiz_tg_3", null, "Pega aquí los dos datos")}],
+  email:    [{title:tt("wiz_em_1", null, "Elige tu proveedor de correo")},
+             {title:tt("wiz_em_2", null, "Crea la contraseña de aplicación"), next:tt("wiz_em_2_next", null, "Ya la tengo — continuar")},
+             {title:tt("wiz_em_3", null, "Pega aquí tus datos")}],
+}; }
 
 // Card: credentials form (Telegram), guided for a non-technical user. Kept as the settings/muted-channels
 // path does not need it; message list rows never render a connector form inline any more (V2-570 moved every
 // connect flow to the wizard screen).
 
 // Card: QR to scan, with device-linking guide.
+// The caption alternates plain text and BOLD fragments (odd indexes are the menu entries to tap), so it is five
+// strings and not one — kept that way, one key each, rather than collapsing it into a sentence a translator
+// could not bold correctly.
+function qrSteps(key){
+  if(key === "qr_whatsapp") return [
+    tt("qr_wa_1", null, "Abre WhatsApp en tu móvil → "),
+    tt("qr_wa_2", null, "Ajustes → Dispositivos vinculados"),
+    " → ",
+    tt("qr_wa_3", null, "Vincular un dispositivo"),
+    tt("qr_scan", null, " y escanea este código."),
+  ];
+  if(key === "qr_telegram") return [
+    tt("qr_tg_1", null, "Abre Telegram en tu móvil → "),
+    tt("qr_tg_2", null, "Ajustes → Dispositivos"),
+    " → ",
+    tt("qr_tg_3", null, "Vincular dispositivo de escritorio"),
+    tt("qr_scan", null, " y escanea este código."),
+  ];
+  return [];
+}
+
 function qrCard(platform, pd){
   const p=PLAT[platform];
   const card=el("div","linkcard");
-  const ch=el("div","ch"); ch.append(badge(platform), el("b",null,"Vincular "+p.label)); card.appendChild(ch);
+  const ch=el("div","ch"); ch.append(badge(platform), el("b",null,tt("link_", null, "Vincular ")+p.label)); card.appendChild(ch);
   const qr=(pd&&typeof pd.qr==="string"&&pd.qr.startsWith("data:image/"))?pd.qr:null;
   if(qr){
     const w=el("div","qr-wrap");
-    const img=document.createElement("img"); img.alt="Código QR de "+p.label; img.src=qr; w.appendChild(img);
-    if(p.qrSteps&&p.qrSteps.length){
+    const img=document.createElement("img"); img.alt=tt("qr_of_", null, "Código QR de ")+p.label; img.src=qr; w.appendChild(img);
+    const qsteps = qrSteps(p.qrKey);
+    if(qsteps.length){
       const cap=el("div","cap");
-      p.qrSteps.forEach((t,i)=> cap.append(i%2 ? el("b",null,t) : document.createTextNode(t)));
+      qsteps.forEach((t,i)=> cap.append(i%2 ? el("b",null,t) : document.createTextNode(t)));
       w.appendChild(cap);
     }
     card.appendChild(w);
   } else {
-    card.appendChild(el("div","waiting","Generando el código QR de "+p.label+"…"));
+    card.appendChild(el("div","waiting",tt("qr_generating_", null, "Generando el código QR de ")+p.label+"…"));
   }
   return card;
 }
@@ -934,9 +973,9 @@ function qrCard(platform, pd){
 function settingsPanel(platforms, data, ctx, rerender){
   const wrap = el("div","settings");
 
-  wrap.appendChild(el("div","stitle","Perfil"));
+  wrap.appendChild(el("div","stitle",tt("profile", null, "Perfil")));
   const seg = el("div","seg");
-  [["simple","Simple"], ["completo","Completo"]].forEach(([key,label])=>{
+  [["simple",tt("profile_simple", null, "Simple")], ["completo",tt("profile_full", null, "Completo")]].forEach(([key,label])=>{
     const b = el("button","segbtn"+(_profile===key?" active":""), label);
     b.onclick=()=>{
       if(_profile===key) return;
@@ -957,7 +996,7 @@ function settingsPanel(platforms, data, ctx, rerender){
   const auto = data.autoresponder || {};
   const autoOn = Object.keys(auto).filter(p=> (auto[p]||{}).enabled);
   if(autoOn.length){
-    wrap.appendChild(el("div","stitle","Autorespondedor"));
+    wrap.appendChild(el("div","stitle",tt("autoresponder", null, "Autorespondedor")));
     const box = el("div","conns");
     autoOn.forEach(p=>{
       const cfg = auto[p] || {};
@@ -975,7 +1014,7 @@ function settingsPanel(platforms, data, ctx, rerender){
 
   const muted = data.muted_channels||[];
   if(muted.length){
-    wrap.appendChild(el("div","stitle","Silenciados"));
+    wrap.appendChild(el("div","stitle",tt("muted", null, "Silenciados")));
     const row = el("div","conns");
     muted.forEach(m=>{
       const chip=el("span","ok"); chip.append(document.createTextNode("🔇 "+m.group));
@@ -1006,8 +1045,8 @@ function richList(items, ctx){
     from.appendChild(badge(it.platform));
     from.appendChild(el("span",null, it.from!=null?it.from:"?"));
     if(it.isGroup && it.group && it.group!==it.from) from.appendChild(el("span","grp","· "+it.group));
-    if(mine) from.appendChild(el("span","tag","para ti"));
-    if(urg.lb) from.appendChild(el("span","tag",urg.lb));
+    if(mine) from.appendChild(el("span","tag",tt("for_you", null, "para ti")));
+    if(urg.urgent) from.appendChild(el("span","tag",tt("urgent", null, "urgente")));
     body.appendChild(from);
     const media = mediaBlock(it);
     if(!(media && isBareMediaLabel(it.body))){
@@ -1018,9 +1057,9 @@ function richList(items, ctx){
     row.appendChild(body);
 
     const acts = el("div","acts");
-    const read=el("button",null,"✓"); read.title="Marcar como leído"; read.onclick=()=>ctx.action("read",{n:it.n});
-    const dis=el("button",null,"✕"); dis.title="Descartar (no marcar leído)"; dis.onclick=()=>ctx.action("dismiss",{n:it.n});
-    const mute=el("button","mute","🔇"); mute.title="Silenciar este canal (no volverán a salir sus mensajes)";
+    const read=el("button",null,"✓"); read.title=tt("mark_read", null, "Marcar como leído"); read.onclick=()=>ctx.action("read",{n:it.n});
+    const dis=el("button",null,"✕"); dis.title=tt("dismiss", null, "Descartar (no marcar leído)"); dis.onclick=()=>ctx.action("dismiss",{n:it.n});
+    const mute=el("button","mute","🔇"); mute.title=tt("mute_channel_long", null, "Silenciar este canal (no volverán a salir sus mensajes)");
     mute.onclick=()=>{ mute.textContent="…"; ctx.action("hide",{n:it.n}); };
     acts.append(read,dis,mute); row.appendChild(acts);
     list.appendChild(row);
@@ -1093,7 +1132,7 @@ function composeBar(ctx, data, targetPayload, activeChat, rerender, mailItem){
 
   const box = document.createElement("textarea");
   box.className = "composebox";
-  box.placeholder = "Escribe tu respuesta… (o dila por voz y aparecerá aquí)";
+  box.placeholder = tt("compose_ph", null, "Escribe tu respuesta… (o dila por voz y aparecerá aquí)");
   box.rows = 5;                       // the operator's own minimum — a reply is written, not tweeted
   box.value = (key in _draftLocal) ? _draftLocal[key] : serverText;
 
@@ -1101,7 +1140,7 @@ function composeBar(ctx, data, targetPayload, activeChat, rerender, mailItem){
   if(others.length){
     const top = el("div","composetop");
     const seg = el("div","seg");
-    [["one","Responder"], ["all","Responder a todos"]].forEach(([id, label])=>{
+    [["one",tt("reply", null, "Responder")], ["all",tt("reply_all", null, "Responder a todos")]].forEach(([id, label])=>{
       const b = el("button","segbtn"+(((id==="all")===replyAll)?" active":""), label);
       b.onclick = ()=>{ _replyAll[key] = (id === "all"); rerender(); };
       seg.appendChild(b);
@@ -1109,17 +1148,17 @@ function composeBar(ctx, data, targetPayload, activeChat, rerender, mailItem){
     top.appendChild(seg);
     // What reply-all actually ADDS, named out loud: the promise is only worth making if he can see it.
     top.appendChild(el("span","composehint", replyAll
-      ? ("copia a " + others.slice(0,3).join(", ") + (others.length > 3 ? ` y ${others.length-3} más` : ""))
-      : (others.length === 1 ? "1 destinatario más en el original"
-                             : `${others.length} destinatarios más en el original`)));
+      ? (tt("cc_", null, "copia a ") + others.slice(0,3).join(", ") + (others.length > 3 ? tt("and_n_more", {n:others.length-3}, ` y ${others.length-3} más`) : ""))
+      : (others.length === 1 ? tt("one_more_recipient", null, "1 destinatario más en el original")
+                             : tt("n_more_recipients", {n:others.length}, `${others.length} destinatarios más en el original`))));
     wrap.appendChild(top);
   }
 
   const main = el("div","composemain");
   const side = el("div","composeside");
-  const send = el("button","bt bt-primary","Enviar ➤");
-  const save = el("button","bt","Guardar borrador");
-  save.title = "Guardar lo escrito sin enviarlo (también se guarda solo al dejar de escribir)";
+  const send = el("button","bt bt-primary",tt("send", null, "Enviar ➤"));
+  const save = el("button","bt",tt("save_draft", null, "Guardar borrador"));
+  save.title = tt("save_draft_hint", null, "Guardar lo escrito sin enviarlo (también se guarda solo al dejar de escribir)");
   const syncBtn = () => { send.disabled = !box.value.trim(); };
   syncBtn();
 
@@ -1137,8 +1176,8 @@ function composeBar(ctx, data, targetPayload, activeChat, rerender, mailItem){
     clearTimeout(_draftTimer);
     _draftLocal[key] = box.value;
     await ctx.action("draft", {...payload(), text: box.value});
-    save.textContent = "Guardado ✓";
-    setTimeout(()=>{ try{ save.textContent = "Guardar borrador"; }catch(_){} }, 1600);
+    save.textContent = tt("saved", null, "Guardado ✓");
+    setTimeout(()=>{ try{ save.textContent = tt("save_draft", null, "Guardar borrador"); }catch(_){} }, 1600);
   };
   send.onclick = async () => {
     const text = box.value;
@@ -1162,19 +1201,19 @@ function composeBar(ctx, data, targetPayload, activeChat, rerender, mailItem){
 
 function messageActions(it, ctx){
   const acts = el("div","tacts");
-  const read=el("button",null,"✓"); read.title="Marcar como leído"; read.onclick=()=>ctx.action("read",{n:it.n});
-  const dis=el("button",null,"✕"); dis.title="Descartar (no marcar leído)"; dis.onclick=()=>ctx.action("dismiss",{n:it.n});
+  const read=el("button",null,"✓"); read.title=tt("mark_read", null, "Marcar como leído"); read.onclick=()=>ctx.action("read",{n:it.n});
+  const dis=el("button",null,"✕"); dis.title=tt("dismiss", null, "Descartar (no marcar leído)"); dis.onclick=()=>ctx.action("dismiss",{n:it.n});
   acts.append(read,dis);
   if(it.platform==="email"){
     // Email-only affordances (V2-543): they act on the REAL mailbox, which is the whole point of the widget
     // being a substitute — other platforms have no archive/delete API and get no fake buttons.
-    const arc=el("button",null,"🗄"); arc.title="Archivar en tu buzón real";
+    const arc=el("button",null,"🗄"); arc.title=tt("archive", null, "Archivar en tu buzón real");
     arc.onclick=()=>{ arc.textContent="…"; ctx.action("archive",{n:it.n}); };
-    const del=el("button",null,"🗑"); del.title="Borrar en tu buzón real (pide confirmación)";
+    const del=el("button",null,"🗑"); del.title=tt("trash", null, "Borrar en tu buzón real (pide confirmación)");
     del.onclick=()=>ctx.action("trash",{n:it.n});
     acts.append(arc,del);
   }
-  const mute=el("button",null,"🔇"); mute.title="Silenciar este canal";
+  const mute=el("button",null,"🔇"); mute.title=tt("mute_channel", null, "Silenciar este canal");
   mute.onclick=()=>{ mute.textContent="…"; ctx.action("hide",{n:it.n}); };
   acts.append(mute);
   return acts;
@@ -1213,7 +1252,7 @@ function messageRow(it, ctx, rerender, isGroup){
   if(media) bubble.appendChild(media);
 
   if(isLong){
-    const more = el("span","more", expanded ? "mostrar menos" : "mostrar más");
+    const more = el("span","more", expanded ? tt("show_less", null, "mostrar menos") : tt("show_more", null, "mostrar más"));
     more.onclick=()=>{ expanded ? _expanded.delete(key) : _expanded.add(key); rerender(); };
     bubble.appendChild(more);
   }
@@ -1241,7 +1280,7 @@ function messageRow(it, ctx, rerender, isGroup){
 function emailRow(it, ctx, openMail){
   const urgente = it.urgencia === "alta";
   const row = el("div","mrow");
-  row.title = "Abrir";
+  row.title = tt("open", null, "Abrir");
   const lead = el("span","tlead");
   lead.style.background = urgente ? "var(--hb-risk,#e5484d)" : "var(--hb-accent,#3D6FE0)";
   row.appendChild(lead);
@@ -1255,7 +1294,7 @@ function emailRow(it, ctx, openMail){
   // `subject` is a first-class field on the item (mailbox.py/service.py) — reading it directly is more
   // reliable than parsing it back out of `body`, which only carries "[Asunto: X]\n…" on a LIVE arrival and
   // nothing at all on history (V2-546's `load_more` already folds subject into body there for that reason).
-  const subj = (it.subject || "").trim() || displayBody(it.body, it.mediaType).split("\n")[0] || "(sin asunto)";
+  const subj = (it.subject || "").trim() || displayBody(it.body, it.mediaType).split("\n")[0] || tt("no_subject", null, "(sin asunto)");
   main.appendChild(el("div","msubj", subj));
   row.appendChild(main);
 
@@ -1299,15 +1338,15 @@ function mailEnvelope(it, meta){
   const outgoing = it.dir === "out";
   // The sender. On his OWN reply the thread stores our label, and the person it went TO is the
   // conversation itself — which is the only place that identity survives once the item is answered.
-  const who = outgoing ? "Tú" : (it.who || it.from || "?");
-  row("De", val(who, outgoing ? "" : (it.senderId || "")));
+  const who = outgoing ? tt("you", null, "Tú") : (it.who || it.from || "?");
+  row(tt("from", null, "De"), val(who, outgoing ? "" : (it.senderId || "")));
   const other = (meta && meta.chatId) || it.senderId || "";
-  if(outgoing && other) row("Para", val(other, ""));
-  else if(!outgoing) row("Para", val("Tú", ""));
+  if(outgoing && other) row(tt("to", null, "Para"), val(other, ""));
+  else if(!outgoing) row(tt("to", null, "Para"), val(tt("you", null, "Tú"), ""));
   const cc = (it.recipients || []).filter(a => typeof a === "string" && a.trim());
-  if(cc.length) row("Copia", val(cc.join(", "), ""));
+  if(cc.length) row(tt("cc", null, "Copia"), val(cc.join(", "), ""));
   const when = fmtWhen(it.ts);
-  if(when) row("Fecha", val(when, ""));
+  if(when) row(tt("date", null, "Fecha"), val(when, ""));
   return env;
 }
 
@@ -1349,7 +1388,7 @@ function mailLetter(it, ctx, meta){
 function mailDetail(it, data, ctx, closeMail, rerender){
   const wrap = el("div","thread plat-email");
   const hd = el("div","thd");
-  const back = el("button","back","← Bandeja"); back.onclick=()=>{ ctx.top(); closeMail(); };
+  const back = el("button","back",tt("back_inbox", null, "← Bandeja")); back.onclick=()=>{ ctx.top(); closeMail(); };
   hd.appendChild(back);
   wrap.appendChild(hd);
 
@@ -1375,22 +1414,22 @@ function mailDetail(it, data, ctx, closeMail, rerender){
 // with a ✕), never a silent mode; without one, the lens stays byte-for-byte the classic pending view.
 function fmtWindow(h){
   const n = Number(h||0);
-  if(n <= 48) return "últimas " + Math.round(n) + " h";
-  return "últimos " + Math.round(n/24) + " días";
+  if(n <= 48) return tt("last_f", null, "últimas ") + Math.round(n) + " h";
+  return tt("last_m", null, "últimos ") + Math.round(n/24) + tt("_days", null, " días");
 }
 
 function criteriaBar(platform, crit, ctx, rerender){
   const bar = el("div","critbar");
-  bar.appendChild(el("span","critlbl","Actividad · " + fmtWindow(crit.window_h)));
+  bar.appendChild(el("span","critlbl",tt("activity_", null, "Actividad · ") + fmtWindow(crit.window_h)));
   if(platform === "telegram" || platform === "email"){
-    const fetchBtn = el("button","bt bt-ghost critfetch","⟳ Traer del conector");
-    fetchBtn.title = "Pedirle al conector las conversaciones con actividad en ese período";
-    fetchBtn.onclick = ()=>{ fetchBtn.textContent = "⟳ Pedido…"; fetchBtn.disabled = true;
+    const fetchBtn = el("button","bt bt-ghost critfetch",tt("fetch_connector", null, "⟳ Traer del conector"));
+    fetchBtn.title = tt("fetch_connector_hint", null, "Pedirle al conector las conversaciones con actividad en ese período");
+    fetchBtn.onclick = ()=>{ fetchBtn.textContent = tt("fetch_asked", null, "⟳ Pedido…"); fetchBtn.disabled = true;
       ctx.action("fetch_now", {platform: platform, since_hours: crit.window_h}); };
     bar.appendChild(fetchBtn);
   }
   const off = el("button","critoff","✕");
-  off.title = "Quitar el criterio (volver a la vista de pendientes)";
+  off.title = tt("clear_criteria", null, "Quitar el criterio (volver a la vista de pendientes)");
   off.onclick = ()=> ctx.action("show_view", {platform: platform, window_h: 0});
   bar.appendChild(off);
   return bar;
@@ -1400,7 +1439,7 @@ function activityList(rows, ctx){
   const wrap = el("div","tl");
   rows.forEach(c=>{
     const row = el("div","trow chatrow");
-    row.title = "Abrir conversación";
+    row.title = tt("open_chat", null, "Abrir conversación");
     const lead = el("span","tlead");
     lead.style.background = c.unread ? "var(--hb-accent,#3D6FE0)" : "transparent";
     row.appendChild(lead);
@@ -1409,7 +1448,7 @@ function activityList(rows, ctx){
     head.appendChild(platformChip(c.platform));
     head.appendChild(el("span","tfrom", c.name));
     if(c.unread) head.appendChild(el("span","tcount", String(c.unread)));
-    if(c.isGroup) head.appendChild(el("span","tpara","· grupo"));
+    if(c.isGroup) head.appendChild(el("span","tpara",tt("group", null, "· grupo")));
     const when = fmtWhen(c.lastTs);
     if(when) head.appendChild(el("span","twhen", when));
     main.appendChild(head);
@@ -1426,7 +1465,7 @@ function chatList(chats, ctx){
   const wrap = el("div","tl");
   chats.forEach(c=>{
     const row = el("div","trow chatrow");
-    row.title = "Abrir conversación";
+    row.title = tt("open_chat", null, "Abrir conversación");
     const lead = el("span","tlead");
     lead.style.background = c.urgencia === "alta" ? "var(--hb-risk,#e5484d)"
       : (c.dirigido_a_mi ? "var(--hb-accent,#3D6FE0)" : "transparent");
@@ -1437,7 +1476,7 @@ function chatList(chats, ctx){
     head.appendChild(platformChip(c.platform));
     head.appendChild(el("span","tfrom", c.name));
     if(c.count > 1) head.appendChild(el("span","tcount", String(c.count)));
-    if(c.dirigido_a_mi) head.appendChild(el("span","tpara","· para ti"));
+    if(c.dirigido_a_mi) head.appendChild(el("span","tpara",tt("dot_for_you", null, "· para ti")));
     const when = fmtWhen(c.lastTs);
     if(when) head.appendChild(el("span","twhen", when));
     main.appendChild(head);
@@ -1453,9 +1492,9 @@ function chatList(chats, ctx){
     row.onclick = ()=> { ctx.top(); ctx.action("open", {n:c.n}); };
 
     const acts = el("div","tacts");
-    const read=el("button",null,"✓"); read.title="Marcar todo el chat como leído";
+    const read=el("button",null,"✓"); read.title=tt("read_whole_chat", null, "Marcar todo el chat como leído");
     read.onclick=(ev)=>{ ev.stopPropagation(); ctx.action("readchat",{n:c.n}); };
-    const mute=el("button",null,"🔇"); mute.title="Silenciar este canal";
+    const mute=el("button",null,"🔇"); mute.title=tt("mute_channel", null, "Silenciar este canal");
     mute.onclick=(ev)=>{ ev.stopPropagation(); mute.textContent="…"; ctx.action("hide",{n:c.n}); };
     acts.append(read,mute);
     row.appendChild(acts);
@@ -1473,13 +1512,13 @@ function chatList(chats, ctx){
 function threadStart(meta, ctx){
   const box = el("div","tstart");
   if(meta && meta.complete){
-    box.appendChild(el("span","tsl","· principio de la conversación ·"));
+    box.appendChild(el("span","tsl",tt("chat_start", null, "· principio de la conversación ·")));
     return box;
   }
-  box.appendChild(el("span","tsl","· aquí empieza lo que tengo guardado ·"));
+  box.appendChild(el("span","tsl",tt("stored_start", null, "· aquí empieza lo que tengo guardado ·")));
   if(meta && meta.can_load_more){
-    const b = el("button","tsbtn","Cargar anteriores");
-    b.onclick=()=>{ b.disabled=true; b.textContent="Pidiéndolos…"; ctx.action("load_more",{}); };
+    const b = el("button","tsbtn",tt("load_older", null, "Cargar anteriores"));
+    b.onclick=()=>{ b.disabled=true; b.textContent=tt("loading_older", null, "Pidiéndolos…"); ctx.action("load_more",{}); };
     box.appendChild(b);
   }
   return box;
@@ -1493,13 +1532,13 @@ function threadView(active, items, data, ctx, rerender, meta){
   // be the operator's own, and naming the conversation after himself is how a thread stops being recognisable.
   const inbound = items.filter(it=> it.dir !== "out");
   const name = (inbound.find(it=>it.group)||{}).group || (inbound.find(it=>it.from)||{}).from
-    || (PLAT[active.platform]||{}).label || "Chat";
+    || (PLAT[active.platform]||{}).label || tt("chat", null, "Chat");
   hd.appendChild(el("b","thdname", name));
   // V2-616 F2/F3 — the operator: the name goes on the LEFT, "volver" moves to the far RIGHT as a real
   // button, never a bare underlined link (`margin-left:auto` on the LAST child, same pattern the connectors
   // list already used). And it resets the outer scroller (ctx.top()) — this IS a screen change (thread ->
   // chat list), and skipping it is the same stale-scrollTop bug the "open" click just below it fixes.
-  const back = el("button","back","← Volver");
+  const back = el("button","back",tt("back", null, "← Volver"));
   back.onclick=()=>{ ctx.top(); ctx.action("close"); };
   hd.appendChild(back);
   wrap.appendChild(hd);
@@ -1525,8 +1564,8 @@ function threadView(active, items, data, ctx, rerender, meta){
 }
 
 // Loader + human-readable connection state.
-const _ST_LABEL = {off:"Sin conectar", no_creds:"Sin conectar", starting:"Conectando…",
-                   connecting:"Esperando escaneo del QR…", connected:"Conectado", error:"No se pudo conectar"};
+const _ST_LABEL = {off:tt("st_off", null, "Sin conectar"), no_creds:tt("st_off", null, "Sin conectar"), starting:tt("st_connecting", null, "Conectando…"),
+                   connecting:tt("st_waiting_qr", null, "Esperando escaneo del QR…"), connected:tt("st_on", null, "Conectado"), error:tt("st_failed", null, "No se pudo conectar")};
 
 function statusLabel(pd){ return _ST_LABEL[(pd&&pd.status)||"off"] || (pd&&pd.status) || ""; }
 
@@ -1534,15 +1573,15 @@ function spinner(){ const s=document.createElement("span"); s.className="spin"; 
 
 function waitBox(label, detail){
   const w=el("div","waitbox");
-  const l=el("div","lbl"); l.append(spinner(), document.createTextNode(label||"Conectando…")); w.appendChild(l);
+  const l=el("div","lbl"); l.append(spinner(), document.createTextNode(label||tt("st_connecting", null, "Conectando…"))); w.appendChild(l);
   if(detail) w.appendChild(el("div","det", detail));
   return w;
 }
 
 function errorCard(pl, detail, ctx, rerender){
   const c=el("div","errcard");
-  const t=el("div","et"); t.append(el("b",null,"No se pudo conectar. "), document.createTextNode(detail||"Revisa los datos e inténtalo otra vez.")); c.appendChild(t);
-  const b=el("button","bt bt-ghost","Corregir y reintentar");
+  const t=el("div","et"); t.append(el("b",null,tt("failed_", null, "No se pudo conectar. ")), document.createTextNode(detail||tt("failed_hint", null, "Revisa los datos e inténtalo otra vez."))); c.appendChild(t);
+  const b=el("button","bt bt-ghost",tt("fix_retry", null, "Corregir y reintentar"));
   // V2-559/V2-570: the wizard screen is already showing the LAST step (that is where a submit happens from),
   // so there is nothing to "expand" any more — retry only needs to clear the busy flag and put the cursor
   // back on the field to fix.
@@ -1555,10 +1594,10 @@ function errorCard(pl, detail, ctx, rerender){
 function renderListScreen(platforms, ctx, rerender, connectedCount){
   const wrap=el("div");
   const head=el("div","chanhead");
-  head.appendChild(el("b",null, connectedCount ? "Conectores" : "Canales disponibles"));
-  head.appendChild(el("span","hint", connectedCount ? "" : "Conecta un canal para empezar — por voz o con un toque."));
+  head.appendChild(el("b",null, connectedCount ? tt("connectors", null, "Conectores") : tt("channels_available", null, "Canales disponibles")));
+  head.appendChild(el("span","hint", connectedCount ? "" : tt("connect_hint", null, "Conecta un canal para empezar — por voz o con un toque.")));
   if(connectedCount){
-    const back=el("span","back","← Mensajes");
+    const back=el("span","back",tt("back_messages", null, "← Mensajes"));
     back.onclick=()=>{ _screen=null; ctx.top(); rerender(); };
     head.appendChild(back);
   }
@@ -1592,7 +1631,7 @@ function renderWizardScreen(platform, platforms, ctx, rerender){
   if(st!=="off"&&st!=="no_creds") _busy[platform]=false;
 
   const crumb=el("div","crumb");
-  const back=el("span","back","‹ Conectores");
+  const back=el("span","back",tt("back_connectors", null, "‹ Conectores"));
   back.onclick=()=>{ _screen={view:"list"}; ctx.top(); rerender(); };
   crumb.append(back, el("span","sep","/"), el("span","cur", p.label));
   wrap.appendChild(crumb);
@@ -1606,18 +1645,19 @@ function renderWizardScreen(platform, platforms, ctx, rerender){
     if(platform==="telegram") _draft.telegram={api_id:"", api_hash:""};
     const card=el("div","linkcard");
     const ch=el("div","ch"); ch.append(brandIcon(platform,true), el("b",null,p.label)); card.appendChild(ch);
-    card.appendChild(el("div","wbody","Conectado. Tus mensajes llegan aquí automáticamente."));
+    card.appendChild(el("div","wbody",tt("connected_note", null, "Conectado. Tus mensajes llegan aquí automáticamente.")));
     if(_confirmDisconnect===platform){
       const cfm=el("div","cfm");
-      cfm.appendChild(document.createTextNode(`¿Eliminar las credenciales de ${p.label}? Tendrás que volver a conectarlo.`));
+      cfm.appendChild(document.createTextNode(tt("confirm_disconnect", {p:p.label},
+        `¿Eliminar las credenciales de ${p.label}? Tendrás que volver a conectarlo.`)));
       const row=el("div","row");
-      const y=el("button","bt bt-danger","Sí, desconectar");
+      const y=el("button","bt bt-danger",tt("yes_disconnect", null, "Sí, desconectar"));
       y.onclick=()=>{ _confirmDisconnect=null; _busy[platform]=false; _attempted[platform]=false;
                       ctx.action("disconnect",{platform, forget:true}); };
-      const n=el("button","bt bt-ghost","Cancelar"); n.onclick=()=>{ _confirmDisconnect=null; rerender(); };
+      const n=el("button","bt bt-ghost",tt("cancel", null, "Cancelar")); n.onclick=()=>{ _confirmDisconnect=null; rerender(); };
       row.append(y,n); cfm.appendChild(row); card.appendChild(cfm);
     } else {
-      const d=el("button","bt bt-ghost","Desconectar");
+      const d=el("button","bt bt-ghost",tt("disconnect", null, "Desconectar"));
       d.onclick=()=>{ _confirmDisconnect=platform; rerender(); };
       card.appendChild(d);
     }
@@ -1627,16 +1667,16 @@ function renderWizardScreen(platform, platforms, ctx, rerender){
 
   // Live states pre-empt the step form entirely — there is nothing to fill in while these are showing.
   if(_busy[platform] && (st==="off"||st==="no_creds")){
-    wrap.appendChild(waitBox("Conectando…", "Un momento, contactando con el servicio…"));
+    wrap.appendChild(waitBox(tt("st_connecting", null, "Conectando…"), tt("contacting", null, "Un momento, contactando con el servicio…")));
     return wrap;
   }
-  if(st==="starting"){ wrap.appendChild(waitBox("Conectando…", pd.detail||"")); return wrap; }
+  if(st==="starting"){ wrap.appendChild(waitBox(tt("st_connecting", null, "Conectando…"), pd.detail||"")); return wrap; }
   if(st==="connecting"){ wrap.appendChild(qrCard(platform, pd)); return wrap; }
   // The banner only accompanies an attempt made in THIS page session (operator's rule): a stored "error"
   // from another day opens as a clean wizard — the failure already expired with its attempt.
   if(st==="error" && _attempted[platform]){ wrap.appendChild(errorCard(platform, pd.detail, ctx, rerender)); }
 
-  const steps = WIZARD_STEPS[platform] || [{title:"Conectar "+p.label}];
+  const steps = WIZARD_STEPS()[platform] || [{title:tt("connect_", null, "Conectar ")+p.label}];
   const total = steps.length;
   let step = Math.min(Math.max(_wizStep[platform]||1, 1), total);
   _wizStep[platform] = step;
@@ -1672,7 +1712,7 @@ function renderWizardScreen(platform, platforms, ctx, rerender){
   }
 
   const foot = el("div","wfoot");
-  const backBtn = el("button","bt bt-ghost", "Atrás");
+  const backBtn = el("button","bt bt-ghost", tt("back_step", null, "Atrás"));
   backBtn.onclick=()=>{
     ctx.top();
     if(step>1){ _wizStep[platform]=step-1; rerender(); }
@@ -1683,8 +1723,8 @@ function renderWizardScreen(platform, platforms, ctx, rerender){
   const isLast = step===total;
   // A step whose work happens OUTSIDE (create the password at the provider) labels its own advance
   // («Ya la tengo — continuar»): a bare "Continuar" reads as skippable, and skipping it is the incident.
-  const nextBtn = el("button","bt bt-primary", isLast ? (_busy[platform]?"Conectando…":"Conectar "+p.label)
-                                                      : (steps[step-1].next || "Continuar"));
+  const nextBtn = el("button","bt bt-primary", isLast ? (_busy[platform]?tt("st_connecting", null, "Conectando…"):"Conectar "+p.label)
+                                                      : (steps[step-1].next || tt("continue", null, "Continuar")));
   nextBtn.disabled = isLast && !!_busy[platform];
   nextBtn.onclick=()=>{
     if(!isLast){ _wizStep[platform]=step+1; ctx.top(); rerender(); return; }
@@ -1692,12 +1732,12 @@ function renderWizardScreen(platform, platforms, ctx, rerender){
       const d=_draft.email;
       const email_address=(refs.addr.value||"").trim();
       const email_password=(refs.pw.value||"").replace(/\s+/g,"");
-      if(!/.+@.+\..+/.test(email_address)) return fail("Necesito tu dirección de correo completa.", refs.addr);
-      if(!email_password) return fail("Falta la contraseña de aplicación del paso 2.", refs.pw);
+      if(!/.+@.+\..+/.test(email_address)) return fail(tt("err_email", null, "Necesito tu dirección de correo completa."), refs.addr);
+      if(!email_password) return fail(tt("err_password", null, "Falta la contraseña de aplicación del paso 2."), refs.pw);
       const payload={platform, email_address, email_password, provider:d.provider};
       if(d.provider==="otro"){
-        if(!refs.imap.value.trim()) return fail("Para «Otro» necesito el servidor IMAP.", refs.imap);
-        if(!refs.smtp.value.trim()) return fail("Para «Otro» necesito el servidor SMTP.", refs.smtp);
+        if(!refs.imap.value.trim()) return fail(tt("err_imap", null, "Para «Otro» necesito el servidor IMAP."), refs.imap);
+        if(!refs.smtp.value.trim()) return fail(tt("err_smtp", null, "Para «Otro» necesito el servidor SMTP."), refs.smtp);
         payload.imap_host=refs.imap.value.trim(); payload.smtp_host=refs.smtp.value.trim();
       }
       _busy[platform]=true; _attempted[platform]=true; ctx.action("connect", payload); rerender();
@@ -1705,7 +1745,7 @@ function renderWizardScreen(platform, platforms, ctx, rerender){
       // wiping it meant retyping the address and the 16 letters from scratch. It is cleared once CONNECTED.
     } else if(platform==="telegram"){
       const api_id=(refs.id.value||"").trim(), api_hash=(refs.hash.value||"").trim();
-      if(!/^\d+$/.test(api_id) || !api_hash){ fail("Necesito el api_id (solo números) y el api_hash."); return; }
+      if(!/^\d+$/.test(api_id) || !api_hash){ fail(tt("err_tg", null, "Necesito el api_id (solo números) y el api_hash.")); return; }
       _busy[platform]=true; _attempted[platform]=true; ctx.action("connect", {platform, api_id, api_hash}); rerender();
     } else {
       _busy[platform]=true; _attempted[platform]=true; ctx.action("connect", {platform}); rerender();
@@ -1718,7 +1758,22 @@ function renderWizardScreen(platform, platforms, ctx, rerender){
   return wrap;
 }
 
+// ── i18n seam (V2-613 / V2-694): `ctx.t` for our own chrome, the literal as the FALLBACK ────────────────
+// The fallback is, byte for byte, the string that used to be hardcoded here — so a widget rendered outside the
+// engine (a render test, a headless DOM stub) shows exactly what it showed before, and only an engine with a
+// bundle loaded shows the operator's own language.
+let _T = null;
+function tt(key, params, fb){
+  try{
+    if(_T){ const s=_T("widgets.mensajeria."+key, params); if(s && s!=="widgets.mensajeria."+key) return s; }
+  }catch(_){}
+  let s = fb;
+  if(params) for(const k in params) s = s.split("{"+k+"}").join(String(params[k]));
+  return s;
+}
+
 export function render(root, data, ctx){
+  _T = (ctx && typeof ctx.t === "function") ? ctx.t : null;
   injectStyles();
   root.className="hb-msg";
   root.textContent="";
@@ -1784,10 +1839,10 @@ export function render(root, data, ctx){
   // unified inbox — so it reads "Mensajes" now, the operator's own suggestion. The click behavior is
   // unchanged: from V2-610, the way BACK to the dashboard, always, from any screen (a platform lens, a
   // wizard, the connectors list, an open thread or mail).
-  const title=el("b","hdtitle","Mensajes"); title.title="Ver la bandeja unificada de todos tus canales";
+  const title=el("b","hdtitle",tt("title", null, "Mensajes")); title.title=tt("title_hint", null, "Ver la bandeja unificada de todos tus canales");
   title.onclick=()=>{ selectPlatform(null); ctx.top(); ctx.action("show_view",{platform:"all"}); rerender(); };
   hd.append(title,
-            el("span","sub", items.length ? `${items.length} para ti` : (connectedCount ? "al día" : "sin conectar")));
+            el("span","sub", items.length ? `${items.length} para ti` : (connectedCount ? tt("up_to_date", null, "al día") : tt("not_connected", null, "sin conectar"))));
   const dots=el("div","dots");
   // V2-521: every channel is VISIBLE up here — connected bright, unconnected dimmed (the operator's ask:
   // seeing the catalogue at a glance). A bright icon toggles that platform's lens; a dimmed one opens that
@@ -1797,7 +1852,7 @@ export function render(root, data, ctx){
     const ic=brandIcon(pl, on);
     ic.style.cursor="pointer";
     if(on){
-      ic.title=(PLAT[pl]||{}).label+(_platFilter===pl?": quitar filtro":": ver solo este canal");
+      ic.title=(PLAT[pl]||{}).label+(_platFilter===pl?tt("dot_clear_filter", null, ": quitar filtro"):tt("dot_only_channel", null, ": ver solo este canal"));
       if(_platFilter===pl) ic.classList.add("filt");
       // Same door as the voice (V2-543): apply locally for an instant repaint AND stamp the server view, so
       // the next voice order and the next SSE repaint agree with what the click just did.
@@ -1809,7 +1864,7 @@ export function render(root, data, ctx){
       ic.onclick=()=>{ const next=(_platFilter===pl ? "all" : pl); selectPlatform(_platFilter===pl ? null : pl);
         ctx.top(); ctx.action("show_view",{platform:next}); rerender(); };
     } else {
-      ic.title=(PLAT[pl]||{}).label+": sin conectar — toca para conectarlo";
+      ic.title=(PLAT[pl]||{}).label+tt("dot_connect", null, ": sin conectar — toca para conectarlo");
       ic.onclick=()=>{ _screen={view:"wizard", platform:pl}; if(!_wizStep[pl]) _wizStep[pl]=1; ctx.top(); rerender(); };
     }
     dots.appendChild(ic);
@@ -1819,14 +1874,14 @@ export function render(root, data, ctx){
   // nivel ni pegados a lo que son secciones o diferentes plataformas". `.hdactions` is a second cluster with
   // its own divider, so it reads as a DIFFERENT kind of control from the row of channel icons beside it.
   const actions=el("div","hdactions");
-  const connBtn=el("button","connbtn"+(_screen?" active":""),"🔌"); connBtn.title="Canales / conectores";
+  const connBtn=el("button","connbtn"+(_screen?" active":""),"🔌"); connBtn.title=tt("channels_btn", null, "Canales / conectores");
   connBtn.onclick=()=>{ _screen = _screen ? null : {view:"list"}; if(!_screen) _confirmDisconnect=null; ctx.top(); rerender(); };
   actions.appendChild(connBtn);
-  const gear=el("button","gear"+(_settingsOpen?" active":""),"⚙"); gear.title="Ajustes";
+  const gear=el("button","gear"+(_settingsOpen?" active":""),"⚙"); gear.title=tt("settings", null, "Ajustes");
   gear.onclick=()=>{ _settingsOpen=!_settingsOpen; rerender(); };
   actions.appendChild(gear);
   if(items.length && !_screen){
-    const clr=el("button","clr","Limpiar"); clr.title="Marcar todo como leído";
+    const clr=el("button","clr",tt("clear", null, "Limpiar")); clr.title=tt("mark_all_read", null, "Marcar todo como leído");
     clr.onclick=()=>ctx.action("clear"); actions.appendChild(clr);
   }
   hd.appendChild(actions);
@@ -1855,8 +1910,8 @@ export function render(root, data, ctx){
   // he set (`highlight`, default = addressed to him) — the rest is not gone, it is one tap away in its channel.
   const hidden = _platFilter ? 0 : items.length - fItems.length;
   const emptyMsg = _platFilter
-    ? "Nada de "+((PLAT[_platFilter]||{}).label||_platFilter)+" que atender ✓"
-    : (hidden ? "Nada dirigido a ti ✓" : "Nada que atender ahora ✓");
+    ? tt("nothing_from_", null, "Nada de ")+((PLAT[_platFilter]||{}).label||_platFilter)+tt("_to_handle", null, " que atender ✓")
+    : (hidden ? tt("nothing_for_you", null, "Nada dirigido a ti ✓") : tt("nothing_now", null, "Nada que atender ahora ✓"));
   // V2-624 — the ACTIVITY view wins the lens when its platform has a criterion set: it is a different
   // question («qué se ha movido») than the pending inbox («qué me espera»), and the operator set it
   // explicitly. Applies in BOTH profiles — it is a lens-level view, not a density preference.
@@ -1866,9 +1921,9 @@ export function render(root, data, ctx){
     const rows = (data.activity_chats || []).filter(r=> r.platform === _platFilter);
     if(rows.length) root.appendChild(activityList(rows, ctx));
     else root.appendChild(el("div","empty",
-      "Sin conversaciones guardadas con actividad en ese período" +
+      tt("no_activity", null, "Sin conversaciones guardadas con actividad en ese período") +
       ((_platFilter === "telegram" || _platFilter === "email")
-        ? " — «Traer del conector» las pide de verdad" : "")));
+        ? tt("no_activity_hint", null, " — «Traer del conector» las pide de verdad") : "")));
     return;
   }
   if(_profile==="completo"){
@@ -1897,6 +1952,6 @@ export function render(root, data, ctx){
 // the operator ends up believing a connector is broken — the failure V2-606 came from (V2-607).
 function restNote(n){
   const d = el("div","rest");
-  d.textContent = n===1 ? "1 mensaje más en sus canales" : n+" mensajes más en sus canales";
+  d.textContent = n===1 ? tt("one_more_msg", null, "1 mensaje más en sus canales") : n+tt("n_more_msgs", null, " mensajes más en sus canales");
   return d;
 }

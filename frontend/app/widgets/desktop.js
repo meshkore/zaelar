@@ -983,6 +983,14 @@ export class Desktop {
       if(!w._mod || w._lastData == null) continue;
       try{ w._mod.render(w.body, w._lastData, w._ctx); }catch(_){}
     }
+    // V2-694 — the card's own HEADER is not part of `render()`: the canvas draws it, from the registry it
+    // cached once at boot. Since the display name is now a translated string (`widgets.<id>.name`), that cache
+    // is stale the moment the language changes, and re-rendering only the BODY left every card titled in the
+    // language the operator just left — the exact half-translated screen this batch exists to remove.
+    this._ids = null; this._meta = null;                 // the compact index carries `name` too (`_index_row`)
+    this._ensureRegistry(true).then(()=>{
+      for(const w of this.wins.values()){ try{ this._applyName(w); }catch(_){} }
+    }).catch(()=>{});
   }
 
   _unwatchSize(card){ try{ if(card && card._ro){ card._ro.disconnect(); card._ro=null; } }catch(_){} }

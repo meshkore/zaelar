@@ -165,7 +165,7 @@ const ICONS = [
 ];
 
 const SHELF_ICON = { video: "🎬", audio: "🎵", documents: "📄", images: "🖼", downloads: "⬇" };
-const SHELF_LABEL = { video: "Vídeo", audio: "Audio", documents: "Documentos", images: "Imágenes", downloads: "Descargas" };
+
 const SHELF_KINDS = ["video", "audio", "documents", "images", "downloads"];
 const LOCAL_ICON = { video: "🎬", audio: "🎵", image: "🖼", document: "📄", other: "📦" };
 
@@ -228,7 +228,35 @@ function ensureTierObserver(root) {
   } catch (_) { /* no ResizeObserver — the tier just stays at its first computed value */ }
 }
 
+// ── i18n seam (V2-613 / V2-694): `ctx.t` for our own chrome, the literal as the FALLBACK ────────────────
+// The fallback is, byte for byte, the string that used to be hardcoded here — so a widget rendered outside the
+// engine (a render test, a headless DOM stub) shows exactly what it showed before, and only an engine with a
+// bundle loaded shows the operator's own language.
+let _T = null;
+function tt(key, params, fb){
+  try{
+    if(_T){ const s=_T("widgets.archivos."+key, params); if(s && s!=="widgets.archivos."+key) return s; }
+  }catch(_){}
+  let s = fb;
+  if(params) for(const k in params) s = s.split("{"+k+"}").join(String(params[k]));
+  return s;
+}
+
+// Evaluated per paint, never a module-level table: one built at IMPORT time freezes its labels in whatever
+// language was active when the module first loaded, and survives every later switch (V2-694).
+function shelfLabel(kind){
+  switch(String(kind || "")){
+    case "video":     return tt("shelf_video", null, "Vídeo");
+    case "audio":     return tt("shelf_audio", null, "Audio");
+    case "documents": return tt("shelf_documents", null, "Documentos");
+    case "images":    return tt("shelf_images", null, "Imágenes");
+    case "downloads": return tt("shelf_downloads", null, "Descargas");
+    default:          return "";
+  }
+}
+
 export function render(root, data, ctx) {
+  _T = (ctx && typeof ctx.t === "function") ? ctx.t : null;
   if (!document.getElementById(STYLE_ID)) {
     const s = document.createElement("style");
     s.id = STYLE_ID;
@@ -286,8 +314,8 @@ function sidebar(d, act) {
   const side = el("div", "arx-side");
   const isLocal = d.provider === "local";
 
-  const devHead = el("button", "arx-side-head", "Este dispositivo");
-  devHead.title = "Ir a tu biblioteca";
+  const devHead = el("button", "arx-side-head", tt("device", null, "Este dispositivo"));
+  devHead.title = tt("go_library", null, "Ir a tu biblioteca");
   devHead.onclick = () => act("set_provider", { provider: "local" });
   side.appendChild(devHead);
 
@@ -295,8 +323,8 @@ function sidebar(d, act) {
     const active = isLocal && d.folder_id === `shelf:${k}`;
     const item = el("button", "arx-side-item" + (active ? " on" : ""));
     item.appendChild(el("span", "arx-ic", SHELF_ICON[k]));
-    item.appendChild(el("span", "arx-side-nm", SHELF_LABEL[k]));
-    item.title = SHELF_LABEL[k];
+    item.appendChild(el("span", "arx-side-nm", shelfLabel(k)));
+    item.title = shelfLabel(k);
     item.onclick = async () => {
       if (!isLocal) await act("set_provider", { provider: "local" });
       act("open_folder", { folderId: `shelf:${k}` });
@@ -306,7 +334,7 @@ function sidebar(d, act) {
 
   const provs = d.providers || [];
   if (provs.length) {
-    side.appendChild(el("div", "arx-side-head", "Nube"));
+    side.appendChild(el("div", "arx-side-head", tt("cloud", null, "Nube")));
     provs.forEach(p => {
       const active = d.provider === p.id;
       const item = el("button", "arx-side-item" + (active ? " on" : ""));
@@ -323,8 +351,8 @@ function sidebar(d, act) {
 
   const gear = el("button", "arx-side-item", null);
   gear.appendChild(el("span", "arx-ic", "⚙"));
-  gear.appendChild(el("span", "arx-side-nm", "Servicios en la nube"));
-  gear.title = "Conectar o gestionar servicios en la nube";
+  gear.appendChild(el("span", "arx-side-nm", tt("cloud_services", null, "Servicios en la nube")));
+  gear.title = tt("cloud_manage", null, "Conectar o gestionar servicios en la nube");
   gear.onclick = () => act("open_connectors", {});
   side.appendChild(gear);
 
@@ -340,7 +368,7 @@ function header(d, act, ui) {
 
   const chips = el("div", "arx-chips");
   const local = el("button", "arx-pchip" + (isLocal ? " on" : ""), "💻");
-  local.title = "Este dispositivo — tu biblioteca";
+  local.title = tt("device_lib", null, "Este dispositivo — tu biblioteca");
   local.onclick = () => { ui.preview = null; act("set_provider", { provider: "local" }); };
   chips.appendChild(local);
 
@@ -348,9 +376,10 @@ function header(d, act, ui) {
     const letter = String(p.label || p.id || "?").trim().charAt(0).toUpperCase() || "?";
     const cls = "arx-pchip" + (d.provider === p.id ? " on" : (p.connected ? " conn" : " off"));
     const chip = el("button", cls, letter);
-    chip.title = d.provider === p.id ? `${p.label || p.id} — estás aquí`
-      : p.connected ? `${p.label || p.id} — conectado, pulsa para entrar`
-      : `${p.label || p.id} — sin conectar, pulsa para conectarlo`;
+    const _pl = p.label || p.id;
+    chip.title = d.provider === p.id ? tt("chip_here", {p:_pl}, `${_pl} — estás aquí`)
+      : p.connected ? tt("chip_connected", {p:_pl}, `${_pl} — conectado, pulsa para entrar`)
+      : tt("chip_off", {p:_pl}, `${_pl} — sin conectar, pulsa para conectarlo`);
     chip.onclick = () => {
       ui.preview = null;
       if (p.connected) act("set_provider", { provider: p.id });
@@ -375,7 +404,7 @@ function crumbsRow(d, ui, act) {
   const isLocal = d.provider === "local";
   const trail = d.trail || [];
 
-  const home = el("button", "arx-crumb", isLocal ? "Biblioteca" : (d.provider === "onedrive" ? "OneDrive" : "Mi unidad"));
+  const home = el("button", "arx-crumb", isLocal ? tt("library", null, "Biblioteca") : (d.provider === "onedrive" ? "OneDrive" : tt("my_drive", null, "Mi unidad")));
   home.onclick = () => act("go_home", {});
   if (!trail.length) home.disabled = true;
   crumbs.appendChild(home);
@@ -390,7 +419,7 @@ function crumbsRow(d, ui, act) {
   if (hidden > 0) {
     crumbs.appendChild(el("span", "arx-sep", "›"));
     const more = el("button", "arx-crumb arx-crumb-more", "…");
-    more.title = `${hidden} carpeta(s) más — pulsa para ver la ruta completa`;
+    more.title = tt("crumbs_more", {n:hidden}, `${hidden} carpeta(s) más — pulsa para ver la ruta completa`);
     more.onclick = () => { ui.crumbsExpanded = true; act("refresh", {}); };
     crumbs.appendChild(more);
   }
@@ -405,7 +434,7 @@ function crumbsRow(d, ui, act) {
 
   if (d.query) {
     const n = typeof d.count === "number" ? d.count : (d.entries || []).length;
-    crumbs.appendChild(el("span", "arx-tag", n === 1 ? "1 resultado" : `${n} resultados`));
+    crumbs.appendChild(el("span", "arx-tag", n === 1 ? tt("one_result", null, "1 resultado") : tt("n_results", {n}, `${n} resultados`)));
   }
   return crumbs;
 }
@@ -416,7 +445,7 @@ function toolsRow(d, act) {
   const tools = el("div", "arx-tools");
 
   const up = el("button", "arx-btn", "↑");
-  up.title = "Subir una carpeta";
+  up.title = tt("up_folder", null, "Subir una carpeta");
   up.disabled = !!d.query || !(d.trail || []).length;
   up.onclick = () => act("go_up", {});
   tools.appendChild(up);
@@ -425,7 +454,7 @@ function toolsRow(d, act) {
   find.appendChild(el("span", "arx-find-ic", "🔎"));
   const input = document.createElement("input");
   input.type = "search";
-  input.placeholder = d.provider === "local" ? "Buscar en tu biblioteca" : "Buscar en tus archivos";
+  input.placeholder = d.provider === "local" ? tt("search_lib", null, "Buscar en tu biblioteca") : tt("search_files", null, "Buscar en tus archivos");
   input.value = d.query || "";
   input.onkeydown = (ev) => {
     if (ev.key !== "Enter") return;
@@ -436,28 +465,28 @@ function toolsRow(d, act) {
   find.appendChild(input);
   if (d.query) {
     const clear = el("button", "arx-find-x", "✕");
-    clear.title = "Quitar la búsqueda y volver";
+    clear.title = tt("clear_search", null, "Quitar la búsqueda y volver");
     clear.onclick = () => act("clear_search", {});
     find.appendChild(clear);
   }
   tools.appendChild(find);
 
   const list = el("button", "arx-btn" + (d.mode !== "grid" ? " on" : ""), "☰");
-  list.title = "Vista de lista";
+  list.title = tt("view_list", null, "Vista de lista");
   list.onclick = () => act("set_view", { mode: "list" });
   const grid = el("button", "arx-btn" + (d.mode === "grid" ? " on" : ""), "▦");
-  grid.title = "Vista de cuadrícula";
+  grid.title = tt("view_grid", null, "Vista de cuadrícula");
   grid.onclick = () => act("set_view", { mode: "grid" });
   tools.appendChild(list);
   tools.appendChild(grid);
 
   const ref = el("button", "arx-btn", "⟳");
-  ref.title = "Actualizar";
+  ref.title = tt("refresh", null, "Actualizar");
   ref.onclick = () => act("refresh", {});
   tools.appendChild(ref);
 
   const cx = el("button", "arx-btn", "⚙");
-  cx.title = "Servicios en la nube";
+  cx.title = tt("cloud_services", null, "Servicios en la nube");
   cx.onclick = () => act("open_connectors", {});
   tools.appendChild(cx);
 
@@ -485,7 +514,7 @@ function body(d, act, ui) {
   if (!entries.length) {
     if (!d.reason) {
       box.appendChild(el("div", "arx-note",
-        d.query ? `No hay nada que se llame «${d.query}».` : "Esta carpeta está vacía."));
+        d.query ? tt("no_match_named", {q:d.query}, `No hay nada que se llame «${d.query}».`) : tt("folder_empty", null, "Esta carpeta está vacía.")));
     }
     return box;
   }
@@ -493,7 +522,7 @@ function body(d, act, ui) {
   if (d.mode === "grid") box.appendChild(gridView(d, entries, act));
   else box.appendChild(listView(d, entries, act, ui));
 
-  if (d.next) box.appendChild(el("div", "arx-note", "Hay más elementos en esta carpeta."));
+  if (d.next) box.appendChild(el("div", "arx-note", tt("folder_more", null, "Hay más elementos en esta carpeta.")));
   return box;
 }
 
@@ -504,7 +533,7 @@ function shelfGrid(d, act) {
     tile.appendChild(el("span", "arx-ic", iconFor(e)));
     tile.appendChild(el("b", null, e.name || ""));
     const n = typeof e.count === "number" ? e.count : 0;
-    tile.appendChild(el("span", null, n === 1 ? "1 archivo" : `${n} archivos`));
+    tile.appendChild(el("span", null, n === 1 ? tt("one_file", null, "1 archivo") : tt("n_files", {n}, `${n} archivos`)));
     tile.onclick = () => act("open_folder", { folderId: e.id });
     grid.appendChild(tile);
   });
@@ -524,7 +553,7 @@ function gridView(d, entries, act) {
     } else {
       tile.appendChild(el("span", "arx-ic", iconFor(e)));
     }
-    const nm = el("span", "arx-nm", e.name || "(sin nombre)");
+    const nm = el("span", "arx-nm", e.name || tt("unnamed", null, "(sin nombre)"));
     nm.title = e.name || "";
     tile.appendChild(nm);
     tile.onclick = () => isFolder ? act("open_folder", { folderId: e.id }) : openEntry(e, act, tile);
@@ -548,7 +577,7 @@ function listView(d, entries, act, ui) {
 
     const click = el("div", "arx-clickable");
     click.appendChild(el("span", "arx-ic", iconFor(e)));
-    const nm = el("span", "arx-nm", e.name || "(sin nombre)");
+    const nm = el("span", "arx-nm", e.name || tt("unnamed", null, "(sin nombre)"));
     nm.title = e.name || "";
     click.appendChild(nm);
     if (!isFolder) {
@@ -559,8 +588,8 @@ function listView(d, entries, act, ui) {
       if (dateTxt) meta.appendChild(el("span", "arx-col-date", (sizeTxt ? " · " : "") + dateTxt));
       // The "location" column only earns its keep when results are MIXED across shelves — a plain folder
       // listing already says where you are in the breadcrumb, so repeating it per row would be noise.
-      if (d.query && e.shelf && SHELF_LABEL[e.shelf]) {
-        meta.appendChild(el("span", "arx-col-loc", (sizeTxt || dateTxt ? " · " : "") + SHELF_LABEL[e.shelf]));
+      if (d.query && e.shelf && shelfLabel(e.shelf)) {
+        meta.appendChild(el("span", "arx-col-loc", (sizeTxt || dateTxt ? " · " : "") + shelfLabel(e.shelf)));
       }
       click.appendChild(meta);
     }
@@ -596,26 +625,26 @@ function rowActions(e, act, ui) {
     // affordance; a cloud engine gets nothing extra (the explicit ⬇ below is its only, and correct, way).
     if (e.same_machine) {
       const reveal = el("button", "arx-ac", "📁");
-      reveal.title = "Ver dónde está";
+      reveal.title = tt("reveal", null, "Ver dónde está");
       reveal.onclick = () => revealLocal(e, act, reveal.closest(".arx"));
       acts.appendChild(reveal);
     }
     if (e.download_url) {
       const dl = el("button", "arx-ac", "⬇");
-      dl.title = "Descargar una copia";
+      dl.title = tt("download_copy", null, "Descargar una copia");
       dl.onclick = () => { try { window.open(e.download_url, "_blank", "noopener,noreferrer"); } catch (_) {} };
       acts.appendChild(dl);
     }
   } else {
     const openBtn = el("button", "arx-ac", e.provider === "local" ? primaryGlyph(e) : "↗");
-    openBtn.title = e.provider === "local" ? "Abrir" : "Abrir el enlace";
+    openBtn.title = e.provider === "local" ? tt("open", null, "Abrir") : tt("open_link", null, "Abrir el enlace");
     openBtn.onclick = () => openEntry(e, act, openBtn.closest(".arx"));
     acts.appendChild(openBtn);
   }
 
   if (e.provider === "local") {
     const ren = el("button", "arx-ac", "✎");
-    ren.title = "Renombrar";
+    ren.title = tt("rename", null, "Renombrar");
     // A pure UI-state flip (entering rename mode) has no server-side counterpart, so it asks for a repaint the
     // same way the host already repaints after any real action: `refresh` round-trips the store and the next
     // `render()` call sees `ui.renameId` set, on the SAME root (`root._arxUi` survives the repaint).
@@ -623,12 +652,12 @@ function rowActions(e, act, ui) {
     acts.appendChild(ren);
 
     const cp = el("button", "arx-ac", "⧉");
-    cp.title = "Duplicar";
+    cp.title = tt("duplicate", null, "Duplicar");
     cp.onclick = () => act("copy_file", { fileId: e.id });
     acts.appendChild(cp);
 
     const del = el("button", "arx-ac danger", "🗑");
-    del.title = "Borrar";
+    del.title = tt("delete", null, "Borrar");
     del.onclick = () => { ui.confirmId = e.id; act("refresh", {}); };
     acts.appendChild(del);
   }
@@ -670,10 +699,10 @@ function renameField(e, act, ui) {
 
 function deleteConfirm(e, act, ui) {
   const wrap = el("div", "arx-confirm");
-  wrap.appendChild(el("span", null, `¿Borrar «${e.name}»?`));
-  const yes = el("button", "arx-btn danger", "Sí");
+  wrap.appendChild(el("span", null, tt("confirm_delete", {name:e.name}, `¿Borrar «${e.name}»?`)));
+  const yes = el("button", "arx-btn danger", tt("yes", null, "Sí"));
   yes.onclick = () => { ui.confirmId = ""; act("delete_file", { fileId: e.id }); };
-  const no = el("button", "arx-btn", "No");
+  const no = el("button", "arx-btn", tt("no", null, "No"));
   no.onclick = () => { ui.confirmId = ""; act("refresh", {}); };
   wrap.appendChild(yes);
   wrap.appendChild(no);
@@ -720,11 +749,11 @@ function pathHintNote(ui, act) {
   const h = ui.pathHint;
   const note = el("div", "arx-note");
   const label = h.opened
-    ? `«${h.name}» está en:`
-    : `«${h.name}» está en (no pude abrir el gestor de archivos):`;
+    ? tt("reveal_at", {name:h.name}, `«${h.name}» está en:`)
+    : tt("reveal_at_nofm", {name:h.name}, `«${h.name}» está en (no pude abrir el gestor de archivos):`);
   note.appendChild(el("span", null, label + " "));
   note.appendChild(el("code", "arx-path", h.path));
-  const copy = el("button", "arx-btn", "Copiar");
+  const copy = el("button", "arx-btn", tt("copy", null, "Copiar"));
   copy.onclick = async () => {
     try { await navigator.clipboard.writeText(h.path); } catch (_) {}
   };
@@ -754,7 +783,7 @@ function lightbox(ui, act) {
   } else {
     const frame = document.createElement("iframe");
     frame.src = p.url;
-    frame.title = p.name || "documento";
+    frame.title = p.name || tt("document_alt", null, "documento");
     inner.appendChild(frame);
   }
   box.appendChild(inner);
@@ -770,7 +799,7 @@ function footer(sel, act) {
   if (sel.web_url) {
     const a = document.createElement("a");
     a.className = "arx-btn";
-    a.textContent = "Abrir en su web ↗";
+    a.textContent = tt("open_on_web", null, "Abrir en su web ↗");
     a.href = sel.web_url;
     a.target = "_blank";
     a.rel = "noopener noreferrer";
@@ -786,47 +815,47 @@ function connectPanel(d, act) {
   const wrap = el("div", "arx-cxwrap");
 
   const top = el("div", "arx-cxtop");
-  top.appendChild(el("b", null, "Servicios de archivos en la nube"));
+  top.appendChild(el("b", null, tt("cloud_title", null, "Servicios de archivos en la nube")));
   const close = el("button", "arx-cxclose", "✕");
-  close.title = "Cerrar y volver al explorador";
+  close.title = tt("close_back", null, "Cerrar y volver al explorador");
   close.onclick = () => act("close_connectors", {});
   top.appendChild(close);
   wrap.appendChild(top);
 
   const box = el("div", "arx-cx");
   box.appendChild(el("p", null,
-    "zaelar entra en tu nube con TU permiso y solo para leer. La aplicación se registra una sola vez en "
-    + "Configuración → Conectores; desde aquí eliges el permiso y das el consentimiento. Tu biblioteca en "
-    + "este dispositivo no necesita nada de esto — ya funciona."));
+    tt("cloud_note_1", null, "zaelar entra en tu nube con TU permiso y solo para leer. La aplicación se registra una sola vez en ")
+    + tt("cloud_note_2", null, "Configuración → Conectores; desde aquí eliges el permiso y das el consentimiento. Tu biblioteca en ")
+    + tt("cloud_note_3", null, "este dispositivo no necesita nada de esto — ya funciona.")));
 
   const provs = (d.providers || []);
   if (!provs.length) {
-    box.appendChild(el("div", "arx-note", "No pude leer el catálogo de servicios. Prueba a actualizar."));
+    box.appendChild(el("div", "arx-note", tt("catalog_failed", null, "No pude leer el catálogo de servicios. Prueba a actualizar.")));
   }
   provs.forEach(p => {
     const card = el("div", "arx-prov");
     const head = el("div", "arx-field");
     head.appendChild(el("b", null, p.label || p.id));
     head.appendChild(el("span", "arx-badge" + (p.connected ? " ok" : ""),
-      p.connected ? "conectado" : (p.app_configured ? "lista para conectar" : "sin registrar")));
+      p.connected ? tt("st_connected", null, "conectado") : (p.app_configured ? tt("st_ready", null, "lista para conectar") : tt("st_unregistered", null, "sin registrar"))));
     card.appendChild(head);
     if (p.note) card.appendChild(el("div", "arx-tiernote", p.note));
 
     if (p.connected) {
-      if (p.tier_label) card.appendChild(el("div", "arx-tiernote", "Permiso concedido: " + p.tier_label));
-      const off = el("button", "arx-btn", "Desconectar");
+      if (p.tier_label) card.appendChild(el("div", "arx-tiernote", tt("granted", null, "Permiso concedido: ") + p.tier_label));
+      const off = el("button", "arx-btn", tt("disconnect", null, "Desconectar"));
       off.onclick = () => act("disconnect_provider", { provider: p.id });
       card.appendChild(off);
     } else if (!p.app_configured) {
       card.appendChild(el("div", "arx-note",
-        "Todavía no has registrado su aplicación. Entra en Configuración → Conectores y pega ahí su "
-        + "client_id (una sola vez); después vuelve aquí y dale a Conectar."));
+        tt("unreg_1", null, "Todavía no has registrado su aplicación. Entra en Configuración → Conectores y pega ahí su ")
+        + tt("unreg_2", null, "client_id (una sola vez); después vuelve aquí y dale a Conectar.")));
     } else {
       let tierId = p.default_tier || "";
       const tiers = p.tiers || [];
       if (tiers.length > 1) {
         const tierRow = el("div", "arx-field");
-        tierRow.appendChild(el("label", null, "Permiso"));
+        tierRow.appendChild(el("label", null, tt("scope", null, "Permiso")));
         const sel = document.createElement("select");
         tiers.forEach(t => {
           const o = document.createElement("option");
@@ -847,14 +876,14 @@ function connectPanel(d, act) {
         paint();
         card.appendChild(tnote);
       }
-      const go = el("button", "arx-btn", "Conectar " + (p.label || p.id));
+      const go = el("button", "arx-btn", tt("connect_", null, "Conectar ") + (p.label || p.id));
       go.onclick = () => beginConsent(p.id, tierId, go, act);
       card.appendChild(go);
     }
     box.appendChild(card);
   });
 
-  const back = el("button", "arx-btn", "← Volver al explorador");
+  const back = el("button", "arx-btn", tt("back_explorer", null, "← Volver al explorador"));
   back.onclick = () => act("close_connectors", {});
   box.appendChild(back);
   wrap.appendChild(box);
@@ -866,7 +895,7 @@ async function beginConsent(provider, tier, btn, act) {
   try { win = window.open("", "_blank", "noopener"); } catch (_) { win = null; }
   btn.disabled = true;
   const prev = btn.textContent;
-  btn.textContent = "Abriendo…";
+  btn.textContent = tt("opening", null, "Abriendo…");
   try {
     const r = await act("connect_provider", { provider, tier });
     if (r && r.ok && r.url) {
@@ -874,14 +903,14 @@ async function beginConsent(provider, tier, btn, act) {
       else window.open(r.url, "_blank", "noopener");
     } else {
       if (win) { try { win.close(); } catch (_) {} }
-      btn.textContent = (r && r.error) ? String(r.error).slice(0, 110) : "No se pudo abrir";
+      btn.textContent = (r && r.error) ? String(r.error).slice(0, 110) : tt("open_failed", null, "No se pudo abrir");
       return;
     }
   } catch (_) {
     if (win) { try { win.close(); } catch (_) {} }
-    btn.textContent = "No se pudo abrir";
+    btn.textContent = tt("open_failed", null, "No se pudo abrir");
     return;
   } finally {
-    setTimeout(() => { btn.disabled = false; if (btn.textContent === "Abriendo…") btn.textContent = prev; }, 1500);
+    setTimeout(() => { btn.disabled = false; if (btn.textContent === tt("opening", null, "Abriendo…")) btn.textContent = prev; }, 1500);
   }
 }

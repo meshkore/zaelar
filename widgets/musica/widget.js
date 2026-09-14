@@ -421,13 +421,13 @@ function syncYtPlayer(el, data, ctx){
 
 // Spotify connection, intact from V2-041.
 async function doConnect(ctx, client_id, btn, adv){
-  if(btn){ btn.disabled = true; btn.textContent = "Abriendo Spotify…"; }
+  if(btn){ btn.disabled = true; btn.textContent = tt("opening_spotify", null, "Abriendo Spotify…"); }
   const res = await ctx.action("connect", client_id ? {client_id} : {});
   if(res && res.url){
     window.open(res.url, "spotify_login", "width=520,height=760");
-    if(btn) btn.textContent = "Termina el login en la ventana…";
+    if(btn) btn.textContent = tt("finish_login", null, "Termina el login en la ventana…");
   } else {
-    if(btn){ btn.disabled = false; btn.textContent = client_id ? "Conectar con mi Client ID" : "Conectar Spotify"; }
+    if(btn){ btn.disabled = false; btn.textContent = client_id ? tt("connect_own_id", null, "Conectar con mi Client ID") : tt("connect_spotify", null, "Conectar Spotify"); }
     if(res && res.need_client_id && adv) adv.open = true;
   }
 }
@@ -437,24 +437,24 @@ function connectBlock(data, ctx, {compact=false} = {}){
   let adv;
   if(data.can_connect){
     const b = h("button", compact ? "hb-mus2-link" : "hb-mus2-btn",
-      compact ? "Conectar Spotify (tu biblioteca)" : "Conectar Spotify");
+      compact ? tt("connect_spotify_lib", null, "Conectar Spotify (tu biblioteca)") : tt("connect_spotify", null, "Conectar Spotify"));
     b.onclick = () => doConnect(ctx, "", compact ? null : b, adv);
     frag.appendChild(b);
   }
   adv = h("details", "hb-mus2-adv");
   if(!data.can_connect) adv.open = true;
-  adv.appendChild(h("summary", null, data.can_connect ? "Usar mi propia app de Spotify (avanzado)"
-                                                      : "Conectar con tu app de Spotify"));
+  adv.appendChild(h("summary", null, data.can_connect ? tt("own_app", null, "Usar mi propia app de Spotify (avanzado)")
+                                                      : tt("own_app_title", null, "Conectar con tu app de Spotify")));
   const ol = h("ol", "hb-mus2-steps");
-  ol.appendChild(h("li", null, "Entra en developer.spotify.com → Dashboard → Create app."));
-  const li2 = h("li", null, "En «Redirect URIs» añade exactamente:");
+  ol.appendChild(h("li", null, tt("own_app_1", null, "Entra en developer.spotify.com → Dashboard → Create app.")));
+  const li2 = h("li", null, tt("own_app_2", null, "En «Redirect URIs» añade exactamente:"));
   li2.appendChild(h("div", "hb-mus2-code", data.redirect_uri || "http://127.0.0.1:43917/api/spotify/callback"));
   ol.appendChild(li2);
-  ol.appendChild(h("li", null, "Copia el «Client ID» y pégalo aquí:"));
+  ol.appendChild(h("li", null, tt("own_app_3", null, "Copia el «Client ID» y pégalo aquí:")));
   adv.appendChild(ol);
-  const inp = h("input", "hb-mus2-inp"); inp.placeholder = "Tu Client ID de Spotify";
+  const inp = h("input", "hb-mus2-inp"); inp.placeholder = tt("own_app_ph", null, "Tu Client ID de Spotify");
   adv.appendChild(inp);
-  const b2 = h("button", "hb-mus2-btn ghost", "Conectar con mi Client ID");
+  const b2 = h("button", "hb-mus2-btn ghost", tt("connect_own_id", null, "Conectar con mi Client ID"));
   b2.onclick = () => { const v = (inp.value||"").trim(); if(v) doConnect(ctx, v, b2, adv); };
   adv.appendChild(b2);
   frag.appendChild(adv);
@@ -467,7 +467,7 @@ function nowPlaying(data){
   const yt = data.yt || {};
   // yt.art/yt.artist (V2-629): the connector already resolves free cover art the instant it knows a videoId,
   // and the server splits an "Artist - Title" upload title for display — both arrive ready on `data.yt`.
-  if(yt.videoId) return {title: yt.title || "Música", artist: yt.artist || "", art: yt.art || "", playing: !yt.paused};
+  if(yt.videoId) return {title: yt.title || tt("music_fb", null, "Música"), artist: yt.artist || "", art: yt.art || "", playing: !yt.paused};
   return null;
 }
 
@@ -503,10 +503,10 @@ function playbackBar(data, ctx){
   // Two REAL states, never one row wearing a fake song title: an empty player is not a track called "Nada
   // sonando" (the operator's own words) — it is a plain hint, italic, with no title/artist pair at all.
   if(np){
-    meta.appendChild(h("div", "hb-mus2-bart", np.title || "Música"));
+    meta.appendChild(h("div", "hb-mus2-bart", np.title || tt("music_fb", null, "Música")));
     meta.appendChild(h("div", "hb-mus2-bara", np.artist || (np.device ? np.device : "")));
   } else {
-    meta.appendChild(h("div", "hb-mus2-baridle", "Dime qué quieres escuchar"));
+    meta.appendChild(h("div", "hb-mus2-baridle", tt("ask_what", null, "Dime qué quieres escuchar")));
   }
   bar.appendChild(meta);
   const ctrls = h("div", "hb-mus2-barc");
@@ -527,7 +527,7 @@ function playbackBar(data, ctx){
     // song, so tapping it again (harmless — favorite_current dedupes) never contradicts what is on screen.
     const fav = !!data.fav_current;
     const heart = mkIcon(fav ? ICON_HEART_FILL : ICON_HEART, "favorite_current", fav ? "fav" : "");
-    heart.title = fav ? "Ya está en Favoritos" : "Guardar en Favoritos";
+    heart.title = fav ? tt("already_fav", null, "Ya está en Favoritos") : tt("save_fav", null, "Guardar en Favoritos");
     ctrls.appendChild(heart);
   }
   bar.appendChild(ctrls);
@@ -564,7 +564,7 @@ function trackRow(t, ctx, opts){
   };
   row.ondblclick = () => ctx.action("play", {query: t.query || [t.title, t.artist].filter(Boolean).join(" ") || t.title});
   if(opts.remove){
-    const x = h("button", "hb-mus2-x"); x.appendChild(svgEl(ICON_CLOSE)); x.title = "Quitar de la lista";
+    const x = h("button", "hb-mus2-x"); x.appendChild(svgEl(ICON_CLOSE)); x.title = tt("remove_track", null, "Quitar de la lista");
     x.onclick = (e) => { e.stopPropagation(); ctx.action("remove_from_playlist", {playlist: opts.remove, item: t.title}); };
     x.ondblclick = (e) => e.stopPropagation();
     row.appendChild(x);
@@ -580,32 +580,33 @@ function homeView(host, data, ctx){
   const np = nowPlaying(data);
 
   const top = h("div", "hb-mus2-top");
-  top.appendChild(h("b", null, "Tu música"));
+  top.appendChild(h("b", null, tt("your_music", null, "Tu música")));
   const prov = h("div", "hb-mus2-prov");
   const connected = !!data.connected, yt = data.yt || {};
   prov.appendChild(h("span", "hb-mus2-dot" + (connected || yt.videoId ? " on" : "")));
-  prov.appendChild(h("span", null, connected ? "Spotify" : (yt.videoId ? "YouTube" : "Sin fuente")));
+  prov.appendChild(h("span", null, connected ? "Spotify" : (yt.videoId ? "YouTube" : tt("no_source", null, "Sin fuente"))));
   top.appendChild(prov);
   head.appendChild(top);
 
   if(!connected && !yt.videoId){
     const cx = h("div", "hb-mus2-connect");
     cx.appendChild(h("div", "hb-mus2-sub",
-      "Dime «pon música» o «ponme a Frank Sinatra» y suena gratis. Conecta tu Spotify (Premium) para tu biblioteca."));
+      tt("connect_hint", null,
+        "Dime «pon música» o «ponme a Frank Sinatra» y suena gratis. Conecta tu Spotify (Premium) para tu biblioteca.")));
     cx.appendChild(connectBlock(data, ctx, {compact:false}));
     scroll.appendChild(cx);
   }
 
   // Lists: covers + "New list" card.
   const secL = h("div", "hb-mus2-sec");
-  secL.appendChild(h("div", "hb-mus2-sech", "Tus listas"));
+  secL.appendChild(h("div", "hb-mus2-sech", tt("your_playlists", null, "Tus listas")));
   const lists = h("div", "hb-mus2-lists");
   (data.playlists || []).forEach(pl => {
     const c = h("div", "hb-mus2-pl");
     c.appendChild(artNode(pl.art, ICON_NOTE));
-    c.appendChild(h("div", "hb-mus2-plname", pl.name || "Lista"));
+    c.appendChild(h("div", "hb-mus2-plname", pl.name || tt("playlist", null, "Lista")));
     const n = (pl.tracks || []).length;
-    c.appendChild(h("div", "hb-mus2-plsub", `${n} ${n === 1 ? "canción" : "canciones"}`));
+    c.appendChild(h("div", "hb-mus2-plsub", `${n} ${n === 1 ? tt("song_one", null, "canción") : tt("song_many", null, "canciones")}`));
     c.onclick = () => ctx.action("open_view", {kind: "playlist", id: pl.id});
     lists.appendChild(c);
   });
@@ -616,7 +617,7 @@ function homeView(host, data, ctx){
   // Top tracks.
   if((data.top || []).length){
     const s = h("div", "hb-mus2-sec");
-    s.appendChild(h("div", "hb-mus2-sech", "Más escuchadas"));
+    s.appendChild(h("div", "hb-mus2-sech", tt("most_played", null, "Más escuchadas")));
     const g = h("div", "hb-mus2-grid");
     data.top.forEach((t, i) => g.appendChild(trackRow(t, ctx, {index: String(i + 1), playing: nowPlayingMatches(t, np)})));
     s.appendChild(g); scroll.appendChild(s);
@@ -625,7 +626,7 @@ function homeView(host, data, ctx){
   // Recent.
   if((data.recent || []).length){
     const s = h("div", "hb-mus2-sec");
-    s.appendChild(h("div", "hb-mus2-sech", "Recientes"));
+    s.appendChild(h("div", "hb-mus2-sech", tt("recent", null, "Recientes")));
     const g = h("div", "hb-mus2-grid");
     data.recent.slice(0, 8).forEach(t => g.appendChild(trackRow(t, ctx, {playing: nowPlayingMatches(t, np)})));
     s.appendChild(g); scroll.appendChild(s);
@@ -640,11 +641,11 @@ function homeView(host, data, ctx){
 function newListCard(lists, ctx){
   const card = h("div", "hb-mus2-pl hb-mus2-new");
   card.appendChild(artNode(null, ICON_PLUS));
-  card.appendChild(h("div", "hb-mus2-plname", "Nueva lista"));
+  card.appendChild(h("div", "hb-mus2-plname", tt("new_playlist", null, "Nueva lista")));
   card.onclick = () => {
     // Inline: an input replaces the create gesture; Enter/blur -> create_playlist, then SSE re-renders the list.
     const box = h("div", "hb-mus2-pl");
-    const inp = h("input", "hb-mus2-inp hb-mus2-newinp"); inp.placeholder = "Nombre";
+    const inp = h("input", "hb-mus2-inp hb-mus2-newinp"); inp.placeholder = tt("name_ph", null, "Nombre");
     box.appendChild(inp);
     lists.insertBefore(box, card);
     inp.focus();
@@ -663,7 +664,7 @@ function playlistView(host, data, ctx, pl){
   const headFix = h("div", "hb-mus2-headfix");
   const scroll = h("div", "hb-mus2-scroll");
 
-  const back = h("button", "hb-mus2-back"); back.appendChild(svgEl(ICON_BACK)); back.appendChild(h("span", null, "Volver"));
+  const back = h("button", "hb-mus2-back"); back.appendChild(svgEl(ICON_BACK)); back.appendChild(h("span", null, tt("back", null, "Volver")));
   back.onclick = () => ctx.action("back");
   headFix.appendChild(back);
 
@@ -675,18 +676,18 @@ function playlistView(host, data, ctx, pl){
   const artwrap = h("div", "hb-mus2-artwrap");
   artwrap.appendChild(artNode(pl.art, ICON_NOTE));
   const play = h("button", "hb-mus2-playfab"); play.appendChild(svgEl(ICON_PLAY));
-  play.title = "Reproducir esta lista";
+  play.title = tt("play_playlist", null, "Reproducir esta lista");
   if(!n) play.disabled = true;
   play.onclick = () => ctx.action("play_playlist", {playlist: pl.id});
   artwrap.appendChild(play);
   head.appendChild(artwrap);
 
   const hm = h("div", "hb-mus2-headmeta");
-  hm.appendChild(h("div", "hb-mus2-headk", "Lista"));
-  hm.appendChild(h("div", "hb-mus2-headn", pl.name || "Lista"));
+  hm.appendChild(h("div", "hb-mus2-headk", tt("playlist", null, "Lista")));
+  hm.appendChild(h("div", "hb-mus2-headn", pl.name || tt("playlist", null, "Lista")));
   const subParts = [];
   if(derived.commonArtist) subParts.push(derived.commonArtist);
-  subParts.push(`${n} ${n === 1 ? "canción" : "canciones"}`);
+  subParts.push(`${n} ${n === 1 ? tt("song_one", null, "canción") : tt("song_many", null, "canciones")}`);
   hm.appendChild(h("div", "hb-mus2-plsub", subParts.join(" · ")));
   head.appendChild(hm);
   headFix.appendChild(head);
@@ -702,7 +703,7 @@ function playlistView(host, data, ctx, pl){
       playing: nowPlayingMatches(t, np),
     })));
   } else {
-    g.appendChild(h("div", "hb-mus2-empty", "Lista vacía. Dime «añade una canción a esta lista»."));
+    g.appendChild(h("div", "hb-mus2-empty", tt("playlist_empty", null, "Lista vacía. Dime «añade una canción a esta lista».")));
   }
   scroll.appendChild(g);
 
@@ -723,7 +724,22 @@ function drawView(el, data, ctx){
   homeView(host, data, ctx);          // home por defecto (y para vistas de Fase 2 aún no implementadas)
 }
 
+// ── i18n seam (V2-613 / V2-694): `ctx.t` for our own chrome, the literal as the FALLBACK ────────────────
+// The fallback is, byte for byte, the string that used to be hardcoded here — so a widget rendered outside the
+// engine (a render test, a headless DOM stub) shows exactly what it showed before, and only an engine with a
+// bundle loaded shows the operator's own language.
+let _T = null;
+function tt(key, params, fb){
+  try{
+    if(_T){ const s=_T("widgets.musica."+key, params); if(s && s!=="widgets.musica."+key) return s; }
+  }catch(_){}
+  let s = fb;
+  if(params) for(const k in params) s = s.split("{"+k+"}").join(String(params[k]));
+  return s;
+}
+
 export function render(el, data, ctx){
+  _T = (ctx && typeof ctx.t === "function") ? ctx.t : null;
   injectStyles();
   data = data || {};
   if(!el._hbInit){                    // hosts persistentes: la vista se reconstruye, el player oculto NO

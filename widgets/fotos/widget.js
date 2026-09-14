@@ -65,7 +65,22 @@ function buildRows(items, cols) {
   return { rows, total: y };
 }
 
+// ── i18n seam (V2-613 / V2-694): `ctx.t` for our own chrome, the literal as the FALLBACK ────────────────
+// The fallback is, byte for byte, the string that used to be hardcoded here — so a widget rendered outside the
+// engine (a render test, a headless DOM stub) shows exactly what it showed before, and only an engine with a
+// bundle loaded shows the operator's own language.
+let _T = null;
+function tt(key, params, fb){
+  try{
+    if(_T){ const s=_T("widgets.fotos."+key, params); if(s && s!=="widgets.fotos."+key) return s; }
+  }catch(_){}
+  let s = fb;
+  if(params) for(const k in params) s = s.split("{"+k+"}").join(String(params[k]));
+  return s;
+}
+
 export function render(root, data, ctx) {
+  _T = (ctx && typeof ctx.t === "function") ? ctx.t : null;
   if (!document.getElementById(STYLE_ID)) {
     const s = document.createElement("style");
     s.id = STYLE_ID;
@@ -93,9 +108,9 @@ export function render(root, data, ctx) {
 function connectPanel(d, act) {
   const box = el("div", "fts-cx");
   box.appendChild(el("p", "", d.app_configured
-    ? "Google Photos no está conectado. Al pulsar se abrirá el consentimiento de Google."
-    : "Google Photos necesita una app OAuth registrada una vez en Configuración → Conectores."));
-  const b = el("button", "fts-btn", "Conectar Google Photos");
+    ? tt("not_connected", null, "Google Photos no está conectado. Al pulsar se abrirá el consentimiento de Google.")
+    : tt("needs_app", null, "Google Photos necesita una app OAuth registrada una vez en Configuración → Conectores.")));
+  const b = el("button", "fts-btn", tt("connect", null, "Conectar Google Photos"));
   b.onclick = async () => {
     b.disabled = true;
     const res = await act("connect", {});
@@ -103,7 +118,7 @@ function connectPanel(d, act) {
       // Opened synchronously in the click handler, or the browser blocks the popup (rule §6.2).
       window.open(res.url, "_blank", "noopener");
     } else {
-      box.appendChild(el("p", "fts-note bad", (res && res.error) || "No se pudo abrir el selector."));
+      box.appendChild(el("p", "fts-note bad", (res && res.error) || tt("picker_failed", null, "No se pudo abrir el selector.")));
     }
     b.disabled = false;
   };
@@ -117,30 +132,30 @@ function toolbar(d, act) {
   const find = el("div", "fts-find");
   const input = document.createElement("input");
   input.type = "text";
-  input.placeholder = "fotos del año pasado, o de un viaje…";
+  input.placeholder = tt("search_ph", null, "fotos del año pasado, o de un viaje…");
   input.value = (d.active_filter && d.active_filter.query) || "";
   find.appendChild(input);
   bar.appendChild(find);
 
-  const searchBtn = el("button", "fts-btn", "Buscar");
+  const searchBtn = el("button", "fts-btn", tt("search", null, "Buscar"));
   searchBtn.onclick = () => { const q = input.value.trim(); if (q) act("search", { query: q }); };
   input.addEventListener("keydown", (e) => { if (e.key === "Enter") searchBtn.click(); });
   bar.appendChild(searchBtn);
 
   if (d.active_filter && Object.keys(d.active_filter).length) {
-    const clearBtn = el("button", "fts-btn", "Quitar filtro");
+    const clearBtn = el("button", "fts-btn", tt("clear_filter", null, "Quitar filtro"));
     clearBtn.onclick = () => act("clear_search", {});
     bar.appendChild(clearBtn);
   }
 
-  const labelBtn = el("button", "fts-btn", "Etiquetar última tanda");
+  const labelBtn = el("button", "fts-btn", tt("label_batch", null, "Etiquetar última tanda"));
   labelBtn.onclick = () => {
-    const label = window.prompt("¿Qué nombre le pongo a la última tanda importada?", "");
+    const label = window.prompt(tt("label_prompt", null, "¿Qué nombre le pongo a la última tanda importada?"), "");
     if (label && label.trim()) act("label_batch", { label: label.trim() });
   };
   bar.appendChild(labelBtn);
 
-  const addBtn = el("button", "fts-btn", "Elegir más fotos");
+  const addBtn = el("button", "fts-btn", tt("pick_more", null, "Elegir más fotos"));
   addBtn.onclick = async () => {
     addBtn.disabled = true;
     const res = await act("connect", {});
@@ -157,10 +172,10 @@ function gallery(d, act) {
   const wrap = el("div", "fts-scroll");
   const items = d.items || [];
   if (d.session_pending) {
-    wrap.appendChild(el("div", "fts-note", "Esperando a que termines de elegir en el selector de Google…"));
+    wrap.appendChild(el("div", "fts-note", tt("waiting_picker", null, "Esperando a que termines de elegir en el selector de Google…")));
   }
   if (!items.length) {
-    wrap.appendChild(el("div", "fts-note", d.session_pending ? "" : "Todavía no hay fotos importadas."));
+    wrap.appendChild(el("div", "fts-note", d.session_pending ? "" : tt("empty", null, "Todavía no hay fotos importadas.")));
     return wrap;
   }
 
@@ -212,7 +227,7 @@ function gallery(d, act) {
 }
 
 function paintHeader(row) {
-  const h = el("div", "fts-year", row.year === "?" ? "Sin fecha" : row.year);
+  const h = el("div", "fts-year", row.year === "?" ? tt("no_date", null, "Sin fecha") : row.year);
   h.style.top = row.top + "px";
   return h;
 }

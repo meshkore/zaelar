@@ -139,10 +139,21 @@ una superficie vacía o una capacidad invisible.
 | 12 | `nucleo/flash/connector_briefs.py` | el cerebro tiene el VERBO y no el ESTADO — y narra (V2-603) |
 | 13 | `.meshkore/credentials/README.md` | nadie sabe qué variable rellenar, ni dónde va el fichero de credenciales |
 | 14 | `.meshkore/docs/modules/zaelar-connectors-inventory.md` | la lista deja de contar la verdad el mismo día |
+| 15 | **`widgets.<id>.name` en `en.json` Y `es.json`** | la tarjeta se titula con el `manifest.json`, o sea en el idioma en que la escribiste, para todo el mundo |
+| 16 | **`tt("clave", params, "<el literal>")` en CADA cadena visible del `widget.js`**, con su fila en los dos bundles | una sesión en inglés lee tus botones en castellano — y el gate (nodo 4.11) te lo tumba |
 
 > Los puntos 9-14 salieron del alta de Google (V2-686) **midiendo lo que había quedado suelto**, y hay
 > trinquete: `tests/connectors/unit/catalog/test_a_built_connector_is_never_on_the_wishlist.py` (nodo 5.7)
 > comprueba 9, 10 y 11 contra el registro vivo, más «ningún `built` sin fila viva» y «ningún id duplicado».
+>
+> Los **15-16 salieron de V2-694**, midiendo una sesión que el operador había iniciado en inglés y que leía
+> quince títulos en castellano. También tienen trinquete, y este SÍ falla el build:
+> `tests/browser/unit/i18n/test_widget_keys.py` (nodo 4.11) rechaza una clave ausente de cualquiera de los dos
+> bundles, un literal acentuado sin envolver, y —sin depender del idioma— **cualquier** literal asignado a
+> `textContent`/`title`/`placeholder`/`alt`/`ariaLabel`.
+> ⚠️ El trap que no se ve leyendo: **una TABLA de etiquetas a nivel de módulo** (`const ESTADO = {ok:"Hecho"}`)
+> se construye en el IMPORT, antes de que exista ningún `ctx`, así que congela el idioma para siempre. Hazla
+> función y resuélvela en cada pintado.
 
 **Regla de oro del cableado:** cada vez que una capa LEE un campo, comprueba que la capa que lo escribe lo
 manda. En V2-557 esto falló **tres veces seguidas** con la misma forma — el panel del widget leía `tiers`, la
@@ -394,7 +405,7 @@ WIDGET
 [ ] background: decidido y escrito · runtime{} si produce
 [ ] widget.js: sin fetch · sin innerHTML · textContent · clases con prefijo propio · tema por --hb-*
 
-CABLEADO  (los 14 puntos de §4, uno a uno)
+CABLEADO  (los 16 puntos de §4, uno a uno)
 [ ] registry conectores + descriptors()   [ ] server routers      [ ] _BUILTINS
 [ ] ConfigPanel tarjeta + fams            [ ] api.js              [ ] i18n en+es
 [ ] _STDLIB_EXEMPT si procede             [ ] run_testmap.py

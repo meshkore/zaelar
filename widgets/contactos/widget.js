@@ -4,7 +4,7 @@
 // Self-contained: scoped styles, plain DOM, no innerHTML on data, no network, no polling.
 
 const KICON = {person: "\u{1F464}", place: "\u{1F4CD}", company: "\u{1F3E2}"};
-const KLABEL = {person: "persona", place: "sitio", company: "empresa"};
+
 
 function injectStyles(){
   if(document.getElementById("hb-contactos-css"))return;
@@ -73,7 +73,7 @@ function filtered(data, st){
 
 function favBtn(c, ctx, el, data){
   const b=el2("button","ctfav"+(c.favorite?" on":""),"★");
-  b.title=c.favorite?"Quitar de favoritos":"Marcar como favorito";
+  b.title=c.favorite?tt("unfav", null, "Quitar de favoritos"):tt("fav", null, "Marcar como favorito");
   b.onclick=async(ev)=>{ ev.stopPropagation();
     const nd=await ctx.action("set_favorite",{contactId:c.id,favorite:!c.favorite});
     render(el,(nd&&nd.contacts)?nd:data,ctx); };
@@ -84,17 +84,17 @@ function favBtn(c, ctx, el, data){
 // Passing the column as `el` would re-render the whole widget INSIDE it — V2-124's detached-canvas family.
 function renderDetail(el, host, data, ctx, c){
   const box=el2("div","ctdet");
-  const back=el2("button","ctback","← Volver");
+  const back=el2("button","ctback",tt("back", null, "← Volver"));
   back.onclick=()=>{ el._ctDetail=null; render(el,data,ctx); };
   box.appendChild(back);
   const nm=el2("div","ctdnm"); nm.append(el2("span",null,KICON[c.kind]||KICON.person),
     el2("span",null,c.name||c.id), favBtn(c,ctx,el,data));
   box.appendChild(nm);
-  box.appendChild(el2("div","ctk",KLABEL[c.kind]||c.kind||""));
+  box.appendChild(el2("div","ctk",kindLabel(c.kind)||c.kind||""));
   const row=(k,v)=>{ if(!v)return; const r=el2("div","ctf");
     r.append(el2("span","ctfk",k), el2("span",null,String(v))); box.appendChild(r); };
-  row("Ciudad", c.city); row("Dirección", c.address); row("Teléfono", c.phone);
-  row("Email", c.email); row("Notas", c.notes);
+  row(tt("city", null, "Ciudad"), c.city); row(tt("address", null, "Dirección"), c.address); row(tt("phone", null, "Teléfono"), c.phone);
+  row(tt("email", null, "Email"), c.email); row(tt("notes", null, "Notas"), c.notes);
   if((c.groups||[]).length){
     const gs=el2("div","ctfil");
     c.groups.forEach(g=>gs.appendChild(el2("span","ctpill",g)));
@@ -102,13 +102,13 @@ function renderDetail(el, host, data, ctx, c){
   }
   const byId={}; (data.contacts||[]).forEach(x=>byId[x.id]=x);
   const parent=c.parentId?byId[c.parentId]:null;
-  if(parent){ const r=el2("div","ctf"); r.appendChild(el2("span","ctfk","Conectado a"));
+  if(parent){ const r=el2("div","ctf"); r.appendChild(el2("span","ctfk",tt("linked_to", null, "Conectado a")));
     const a=el2("span","ctlink",parent.name||parent.id);
     a.onclick=()=>{ el._ctDetail=parent.id; render(el,data,ctx); };
     r.appendChild(a); box.appendChild(r); }
   const kids=(data.contacts||[]).filter(x=>x.parentId===c.id);
   if(kids.length){
-    const r=el2("div","ctf"); r.appendChild(el2("span","ctfk","Conectados"));
+    const r=el2("div","ctf"); r.appendChild(el2("span","ctfk",tt("linked", null, "Conectados")));
     const wrap=el2("span",null,"");
     kids.forEach((k,i)=>{ if(i)wrap.appendChild(document.createTextNode(" · "));
       const a=el2("span","ctlink",k.name||k.id);
@@ -118,7 +118,33 @@ function renderDetail(el, host, data, ctx, c){
   host.appendChild(box);
 }
 
+// ── i18n seam (V2-613 / V2-694): `ctx.t` for our own chrome, the literal as the FALLBACK ────────────────
+// The fallback is, byte for byte, the string that used to be hardcoded here — so a widget rendered outside the
+// engine (a render test, a headless DOM stub) shows exactly what it showed before, and only an engine with a
+// bundle loaded shows the operator's own language.
+let _T = null;
+function tt(key, params, fb){
+  try{
+    if(_T){ const s=_T("widgets.contactos."+key, params); if(s && s!=="widgets.contactos."+key) return s; }
+  }catch(_){}
+  let s = fb;
+  if(params) for(const k in params) s = s.split("{"+k+"}").join(String(params[k]));
+  return s;
+}
+
+// A FUNCTION, not the module-level map it replaces: a table built at IMPORT time freezes its labels in
+// whatever language was active when the module first loaded, and survives every later switch (V2-694).
+function kindLabel(kind){
+  switch(String(kind || "")){
+    case "person":  return tt("kind_person", null, "persona");
+    case "place":   return tt("kind_place", null, "sitio");
+    case "company": return tt("kind_company", null, "empresa");
+    default:        return "";
+  }
+}
+
 export function render(el, data, ctx){
+  _T = (ctx && typeof ctx.t === "function") ? ctx.t : null;
   injectStyles();
 
   // A VIEW PUSHED FROM VOICE (`show_view`/`show_contact`). Applied only when its token MOVES — a plain data
@@ -143,14 +169,14 @@ export function render(el, data, ctx){
   el.textContent="";                                          // reset (no innerHTML)
 
   const hd=el2("div","cthd");
-  hd.append(el2("b",null,"Contactos"), el2("span","ctn",`${data.count||0} en el directorio`));
+  hd.append(el2("b",null,tt("title", null, "Contactos")), el2("span","ctn",`${data.count||0} en el directorio`));
   el.appendChild(hd);
 
   const contacts=data.contacts||[];
   if(!contacts.length){
     el.appendChild(el2("div","ctempty",
-      "El directorio está vacío. Dile a Zaelar: «apúntame el restaurante Elfo On de Soria como favorito» "+
-      "o «añade a Marta, amiga del trabajo»."));
+      tt("empty_1", null, "El directorio está vacío. Dile a Zaelar: «apúntame el restaurante Elfo On de Soria como favorito» ")+
+      tt("empty_2", null, "o «añade a Marta, amiga del trabajo».")));
     return;
   }
 
@@ -162,8 +188,8 @@ export function render(el, data, ctx){
     b.append(el2("span",null,label)); if(count!=null)b.append(el2("span","ctgc",String(count)));
     b.onclick=()=>{ el._ctGroup=id; el._ctDetail=null; el._ctCity=""; render(el,data,ctx); };
     return b; };
-  rail.appendChild(gbtn("Todos","",contacts.length));
-  rail.appendChild(gbtn("★ Favoritos","__fav",data.favorites_count||0));
+  rail.appendChild(gbtn(tt("all", null, "Todos"),"",contacts.length));
+  rail.appendChild(gbtn(tt("favs", null, "★ Favoritos"),"__fav",data.favorites_count||0));
   (data.groups||[]).forEach(g=>rail.appendChild(gbtn(g.id,g.id,g.count)));
   cols.appendChild(rail);
 
@@ -174,7 +200,7 @@ export function render(el, data, ctx){
   } else {
     // SUBHEADER — the filters, derived from the SELECTION: favorites toggle, the cities present, free text.
     const fil=el2("div","ctfil");
-    const favChip=el2("button","ctchip"+(st.fav?" on":""),"★ favoritos");
+    const favChip=el2("button","ctchip"+(st.fav?" on":""),tt("favs_chip", null, "★ favoritos"));
     favChip.onclick=()=>{ el._ctFav=!st.fav; render(el,data,ctx); };
     fil.appendChild(favChip);
     const inGroup=filtered(data,{group:st.group,city:"",fav:false,query:""});
@@ -185,7 +211,7 @@ export function render(el, data, ctx){
       b.onclick=()=>{ el._ctCity=on?"":ct; render(el,data,ctx); };
       fil.appendChild(b);
     });
-    const q=el2("input","ctq"); q.placeholder="filtrar…"; q.value=st.query;
+    const q=el2("input","ctq"); q.placeholder=tt("filter_ph", null, "filtrar…"); q.value=st.query;
     q.oninput=()=>{ el._ctQuery=q.value; const keep=q; render(el,data,ctx);
       const nq=el.querySelector(".ctq"); if(nq){ nq.focus(); nq.setSelectionRange(keep.value.length,keep.value.length); } };
     fil.appendChild(q);
@@ -194,7 +220,7 @@ export function render(el, data, ctx){
     const rows=filtered(data,st);
     const list=el2("div","ctlist");
     if(!rows.length){
-      list.appendChild(el2("div","ctempty","Nada que casar con ese filtro."));
+      list.appendChild(el2("div","ctempty",tt("no_match", null, "Nada que casar con ese filtro.")));
     }
     rows.forEach(c=>{
       const r=el2("div","ctrow");

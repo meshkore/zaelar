@@ -341,10 +341,21 @@ let _screen = null;
 // none → inicio). selectTab is the ONLY writer and also clears _screen (the V2-626 rule: choosing a surface
 // is ONE state transition — a connectors screen left open would silently sit on top of the chosen tab).
 let _tab = "";
-const _TABS = [["inicio", "Inicio"], ["player", "Reproductor"], ["cola", "Cola"],
-               ["subs", "Suscripciones"], ["listas", "Listas"]];
+// Ids only: the LABEL is resolved per paint (`tabLabel`), because a module-level table is built once, at IMPORT
+// time, so its text would freeze in whatever language was active the first time this module loaded (V2-694).
+const _TABS = ["inicio", "player", "cola", "subs", "listas"];
+function tabLabel(id){
+  switch(id){
+    case "inicio": return tt("tab_home", null, "Inicio");
+    case "player": return tt("tab_player", null, "Reproductor");
+    case "cola":   return tt("tab_queue", null, "Cola");
+    case "subs":   return tt("tab_subs", null, "Suscripciones");
+    case "listas": return tt("tab_lists", null, "Listas");
+    default:       return id;
+  }
+}
 function applyTabClass(root){
-  _TABS.forEach(([id]) => root.classList.toggle("hb-yt-t-" + id, _tab === id));
+  _TABS.forEach((id) => root.classList.toggle("hb-yt-t-" + id, _tab === id));
 }
 const _wizStep = {};        // platform -> current wizard step (1..2)
 let _connUrl = "";          // consent URL to offer as a link when the pop-up was blocked
@@ -377,9 +388,9 @@ function brandIcon(pid, on){
 function fmtAge(ts){
   if(!ts) return "";
   const m = Math.max(0, Math.round((Date.now() / 1000 - Number(ts)) / 60));
-  if(m < 1) return "ahora mismo";
-  if(m < 60) return "hace " + m + " min";
-  return "hace " + Math.round(m / 60) + " h";
+  if(m < 1) return tt("age_now", null, "ahora mismo");
+  if(m < 60) return tt("age_min", {n: m}, "hace " + m + " min");
+  return tt("age_hour", {n: Math.round(m / 60)}, "hace " + Math.round(m / 60) + " h");
 }
 
 function stepBox(n, total, title){
@@ -387,7 +398,7 @@ function stepBox(n, total, title){
   const head = el("div", "hb-ytw-head");
   head.appendChild(el("span", "hb-ytw-num", String(n)));
   head.appendChild(el("span", "hb-ytw-title", title));
-  if(total > 1) head.appendChild(el("span", "hb-ytw-count", "Paso " + n + " de " + total));
+  if(total > 1) head.appendChild(el("span", "hb-ytw-count", tt("wiz_step_n", {n, total}, "Paso " + n + " de " + total)));
   box.appendChild(head);
   return box;
 }
@@ -414,7 +425,7 @@ function renderConn(E, root, data, ctx){
     else { _screen = null; repaint(); }
   };
   const crumb = el("div", "hb-ytw-crumb",
-                   (_screen && _screen.view !== "shelf") ? "‹ Fuentes de vídeo" : "‹ Volver");
+                   (_screen && _screen.view !== "shelf") ? tt("back_sources", null, "‹ Fuentes de vídeo") : tt("back", null, "‹ Volver"));
   crumb.addEventListener("click", back);
   box.appendChild(crumb);
 
@@ -444,10 +455,10 @@ function renderConn(E, root, data, ctx){
       bx.appendChild(ic);
       bx.appendChild(el("span", "hb-yt-ilabel", rw.label || rw.id));
       bx.appendChild(el("span", "hb-yt-isub",
-        rw.connected ? "Conectada"
-          : usable ? "Sin conectar — toca para conectarla"
-          : rw.state === "not-possible" ? "No es posible"
-          : "No disponible aún"));
+        rw.connected ? tt("st_connected", null, "Conectada")
+          : usable ? tt("st_disconnected", null, "Sin conectar — toca para conectarla")
+          : rw.state === "not-possible" ? tt("st_impossible", null, "No es posible")
+          : tt("st_soon", null, "No disponible aún")));
       bx.addEventListener("click", () => {
         if(usable){
           _screen = {view: rw.connected ? "status" : "wizard", platform: rw.id};
@@ -456,8 +467,8 @@ function renderConn(E, root, data, ctx){
         }
         _connErr = (rw.label || rw.id) + ": " + (rw.note ||
           (rw.id === "youtube"
-            ? "de momento no es posible conectar la cuenta — falta registrar el cliente OAuth."
-            : "todavía no está construido."));
+            ? tt("why_impossible", null, "de momento no es posible conectar la cuenta — falta registrar el cliente OAuth.")
+            : tt("why_soon", null, "todavía no está construido.")));
         repaint();
       });
       grid.appendChild(bx);
@@ -485,21 +496,21 @@ function renderConn(E, root, data, ctx){
   if(row.connected && _screen.view !== "wizard"){
     const st = stepBox("✓", 1, (row.label || "YouTube") + " conectado");
     const body = el("div", "hb-ytw-body");
-    body.appendChild(el("div", "", "Cuenta conectada en modo solo lectura: las sugerencias del inicio "
-                                   + "salen de tus suscripciones. Tu cuenta no se toca."));
+    body.appendChild(el("div", "", tt("readonly_1", null, "Cuenta conectada en modo solo lectura: las sugerencias del inicio ")
+                                   + tt("readonly_2", null, "salen de tus suscripciones. Tu cuenta no se toca.")));
     st.appendChild(body);
     const foot = el("div", "hb-ytw-foot");
-    const sug = btn("↻ Traer sugerencias");
+    const sug = btn(tt("fetch_suggestions", null, "↻ Traer sugerencias"));
     sug.addEventListener("click", async () => {
       const r = await act("suggest", {platform: pid});
       if(r && r.ok){
         _connErr = "";
         if(root._hbYtSelectTab) root._hbYtSelectTab("inicio");   // the band lives on the dashboard — go look
         else { _screen = null; repaint(); }
-      } else { _connErr = (r && (r.message || r.error)) || "No pude traer sugerencias."; repaint(); }
+      } else { _connErr = (r && (r.message || r.error)) || tt("suggestions_failed", null, "No pude traer sugerencias."); repaint(); }
     });
     foot.appendChild(sug);
-    const dis = btn("Desconectar");
+    const dis = btn(tt("disconnect", null, "Desconectar"));
     dis.addEventListener("click", async () => { await act("disconnect_account", {platform: pid}); repaint(); });
     foot.appendChild(dis);
     st.appendChild(foot);
@@ -544,78 +555,78 @@ function renderConn(E, root, data, ctx){
     } else {
       if(w){ try{ w.close(); }catch(_e){} }
       _connUrl = "";
-      _connErr = (r && (r.message || r.error)) || "No pude empezar la conexión.";
+      _connErr = (r && (r.message || r.error)) || tt("connect_failed", null, "No pude empezar la conexión.");
     }
     repaint();
   };
 
   let sb;
   if(!builtin && step === 1){
-    sb = stepBox(1, total, "Registra una app OAuth de Google");
+    sb = stepBox(1, total, tt("wiz1_title", null, "Registra una app OAuth de Google"));
     const body = el("div", "hb-ytw-body");
-    body.appendChild(el("div", "", "Esta instalación todavía no trae una app de Google propia, así que hace "
-                                   + "falta la tuya: se registra UNA vez y sirve también para Drive y Fotos."));
+    body.appendChild(el("div", "", tt("wiz1_body_1", null, "Esta instalación todavía no trae una app de Google propia, así que hace ")
+                                   + tt("wiz1_body_2", null, "falta la tuya: se registra UNA vez y sirve también para Drive y Fotos.")));
     body.appendChild(row.app_configured
-      ? el("div", "hb-ytw-ok", "✓ App registrada — puedes continuar.")
-      : el("div", "", "Las credenciales se guardan en Configuración; por esta tarjeta nunca viajan."));
+      ? el("div", "hb-ytw-ok", tt("wiz1_ok", null, "✓ App registrada — puedes continuar."))
+      : el("div", "", tt("wiz1_note", null, "Las credenciales se guardan en Configuración; por esta tarjeta nunca viajan.")));
     sb.appendChild(body);
     const foot = el("div", "hb-ytw-foot");
-    const go = btn("Abrir Configuración → Conectores");
+    const go = btn(tt("open_settings", null, "Abrir Configuración → Conectores"));
     go.addEventListener("click", () => {
       // The card cannot import the app's store, so it asks for the panel the way every widget talks to the
       // host: a DOM event (the `hb:` convention desktop.js and the rail already use).
       try{ document.dispatchEvent(new CustomEvent("hb:open-config", {detail: {tab: "conectores"}})); }catch(_e){}
     });
     foot.appendChild(go);
-    const next = btn("Ya está — continuar");
+    const next = btn(tt("done_continue", null, "Ya está — continuar"));
     next.addEventListener("click", async () => {
       const r = await act("sync_platforms", {});
       const fresh = r && Array.isArray(r.platforms) ? r.platforms.find((x) => x.id === pid) : null;
       if(fresh && fresh.app_configured){ _wizStep[pid] = 2; _connErr = ""; }
-      else { _connErr = "Aún no veo el client_id — guárdalo en ⚙ → Conectores y vuelve a intentarlo."; }
+      else { _connErr = tt("no_client_id", null, "Aún no veo el client_id — guárdalo en ⚙ → Conectores y vuelve a intentarlo."); }
       repaint();
     });
     foot.appendChild(next);
     sb.appendChild(foot);
   } else {
-    sb = stepBox(builtin ? 1 : 2, total, "Autoriza tu cuenta de YouTube");
+    sb = stepBox(builtin ? 1 : 2, total, tt("wiz2_title", null, "Autoriza tu cuenta de YouTube"));
     const body = el("div", "hb-ytw-body");
-    body.appendChild(el("div", "", "Se abrirá la ventana de Google para que des permiso de SOLO LECTURA a tus "
-                                   + "suscripciones. Zaelar no puede tocar tu cuenta."));
-    body.appendChild(el("div", "", "En cuanto termines, esta tarjeta se actualiza sola."));
+    body.appendChild(el("div", "", tt("wiz2_body_1", null, "Se abrirá la ventana de Google para que des permiso de SOLO LECTURA a tus ")
+                                   + tt("wiz2_body_2", null, "suscripciones. Zaelar no puede tocar tu cuenta.")));
+    body.appendChild(el("div", "", tt("wiz2_note", null, "En cuanto termines, esta tarjeta se actualiza sola.")));
     sb.appendChild(body);
     const foot = el("div", "hb-ytw-foot");
     if(!builtin){
-      const back = btn("‹ Anterior");
+      const back = btn(tt("prev_step", null, "‹ Anterior"));
       back.addEventListener("click", () => { _wizStep[pid] = 1; _connErr = ""; _connUrl = ""; repaint(); });
       foot.appendChild(back);
     }
-    const go = btn(_connBusy ? "Conectando…" : "Conectar " + (row.label || "YouTube"), "bt-primary");
+    const go = btn(_connBusy ? tt("connecting", null, "Conectando…") : tt("connect_", null, "Conectar ") + (row.label || "YouTube"), "bt-primary");
     go.addEventListener("click", startConsent);
     foot.appendChild(go);
     sb.appendChild(foot);
     if(_connUrl){
       // The pop-up never opened. Say so plainly and hand over the link — silence here reads as a dead button.
       const blocked = el("div", "hb-ytw-body");
-      blocked.appendChild(el("div", "", "Tu navegador bloqueó la ventana. Abre este enlace para autorizar:"));
+      blocked.appendChild(el("div", "", tt("popup_blocked", null, "Tu navegador bloqueó la ventana. Abre este enlace para autorizar:")));
       const a = document.createElement("a");
       a.href = _connUrl; a.target = "_blank"; a.rel = "noopener";
-      a.textContent = "Abrir la autorización de Google";
+      a.textContent = tt("open_google_auth", null, "Abrir la autorización de Google");
       blocked.appendChild(a);
       sb.appendChild(blocked);
     }
     const alt = el("div", "hb-ytw-alt");
-    const chk = el("span", "hb-ytw-link", "¿No se ha actualizado? Comprobar ahora");
+    const chk = el("span", "hb-ytw-link", tt("check_now", null, "¿No se ha actualizado? Comprobar ahora"));
     chk.addEventListener("click", async () => {
       const r = await act("sync_platforms", {});
       const fresh = r && Array.isArray(r.platforms) ? r.platforms.find((x) => x.id === pid) : null;
       if(fresh && fresh.connected){ _screen = {view: "status", platform: pid}; _connErr = ""; _connUrl = ""; }
-      else { _connErr = "Todavía no veo la cuenta conectada — termina la ventana de Google."; }
+      else { _connErr = tt("not_yet_connected", null, "Todavía no veo la cuenta conectada — termina la ventana de Google."); }
       repaint();
     });
     alt.appendChild(chk);
     if(builtin){
-      const own = el("span", "hb-ytw-link", "Usar mi propia app OAuth");
+      const own = el("span", "hb-ytw-link", tt("use_own_app", null, "Usar mi propia app OAuth"));
       own.addEventListener("click", () => {
         try{ document.dispatchEvent(new CustomEvent("hb:open-config", {detail: {tab: "conectores"}})); }catch(_e){}
       });
@@ -684,7 +695,22 @@ function applyCmd(iframe, data, ctx){
   }
 }
 
+// ── i18n seam (V2-613 / V2-694): `ctx.t` for our own chrome, the literal as the FALLBACK ────────────────
+// The fallback is, byte for byte, the string that used to be hardcoded here — so a widget rendered outside the
+// engine (a render test, a headless DOM stub) shows exactly what it showed before, and only an engine with a
+// bundle loaded shows the operator's own language.
+let _T = null;
+function tt(key, params, fb){
+  try{
+    if(_T){ const s=_T("widgets.youtube."+key, params); if(s && s!=="widgets.youtube."+key) return s; }
+  }catch(_){}
+  let s = fb;
+  if(params) for(const k in params) s = s.split("{"+k+"}").join(String(params[k]));
+  return s;
+}
+
 export function render(root, data, ctx){
+  _T = (ctx && typeof ctx.t === "function") ? ctx.t : null;
   injectStyles();
   data = data || {};
   const id = data.videoId || "";
@@ -732,8 +758,8 @@ export function render(root, data, ctx){
       const connBox = root._hbYtEls && root._hbYtEls.conn; if(connBox) connBox.textContent = "";
       if(ctx && ctx.top) ctx.top();
     };
-    _TABS.forEach(([tid, label]) => {
-      const b = el("button", "hb-yt-tab" + (tid === _tab ? " on" : ""), label);
+    _TABS.forEach((tid) => {
+      const b = el("button", "hb-yt-tab" + (tid === _tab ? " on" : ""), tabLabel(tid));
       b.dataset.tab = tid;
       b.addEventListener("click", () => selectTab(tid));
       tabBtns[tid] = b;
@@ -745,7 +771,7 @@ export function render(root, data, ctx){
     const dots = el("div", "hb-yt-dots");
     nav.appendChild(dots);
     const connBtn = el("button", "hb-yt-conbtn", "🔌");
-    connBtn.title = "Fuentes de vídeo / conectores";
+    connBtn.title = tt("sources_title", null, "Fuentes de vídeo / conectores");
     connBtn.addEventListener("click", () => {
       if(_screen){ selectTab(_tab); return; }              // toggle off → back to the active tab
       _screen = {view: "shelf"}; _connErr = "";
@@ -774,7 +800,7 @@ export function render(root, data, ctx){
     if(loading){
       const box = el("div", "hb-yt-loading");
       box.appendChild(el("div", "hb-yt-spin"));
-      box.appendChild(el("div", "", data.loading_query ? `Buscando «${data.loading_query}»…` : "Buscando…"));
+      box.appendChild(el("div", "", data.loading_query ? tt("searching_q", {q:data.loading_query}, `Buscando «${data.loading_query}»…`) : tt("searching", null, "Buscando…")));
       frame.appendChild(box);
     } else if(isStream){
       // V2-638 — a file we hold (library) or one still arriving (torrent). Same element either way: the
@@ -819,7 +845,7 @@ export function render(root, data, ctx){
       // audio NOW, in the same gesture.
       unmuteHint = el("div", "hb-yt-unmute", "");
       unmuteHint.appendChild(el("span", "", "🔊"));
-      unmuteHint.appendChild(el("span", "", "Toca para activar el sonido"));
+      unmuteHint.appendChild(el("span", "", tt("tap_unmute", null, "Toca para activar el sonido")));
       frame.appendChild(unmuteHint);
     }
     else {
@@ -828,7 +854,7 @@ export function render(root, data, ctx){
       const ph = el("div", "hb-yt-empty");
       const inner = el("div", "");
       inner.appendChild(el("div", "hb-yt-empt-ico", "▶"));
-      inner.appendChild(el("div", "", "Sin vídeo — di «pon el vídeo de…» o busca desde Inicio."));
+      inner.appendChild(el("div", "", tt("no_video_hint", null, "Sin vídeo — di «pon el vídeo de…» o busca desde Inicio.")));
       ph.appendChild(inner);
       frame.appendChild(ph);
     }
@@ -851,21 +877,21 @@ export function render(root, data, ctx){
       if(action) b.addEventListener("click", () => { if(ctx && ctx.action) ctx.action(action); });
       return b;
     };
-    ctrls.appendChild(icbtn("", ICON_PREV, "Anterior", "previous"));
+    ctrls.appendChild(icbtn("", ICON_PREV, tt("prev", null, "Anterior"), "previous"));
     const playBtn = icbtn("main", ICON_PLAY, "Play");  // face + action follow data.paused on each render
     ctrls.appendChild(playBtn);
-    ctrls.appendChild(icbtn("", ICON_NEXT, "Siguiente", "next"));
-    ctrls.appendChild(icbtn("", ICON_VOL_DOWN, "Bajar volumen", "volume_down"));
-    ctrls.appendChild(icbtn("", ICON_VOL_UP, "Subir volumen", "volume_up"));
-    const muteBtn = icbtn("", ICON_MUTED, "Silencio");  // face/action are set on each render (toggle)
+    ctrls.appendChild(icbtn("", ICON_NEXT, tt("next", null, "Siguiente"), "next"));
+    ctrls.appendChild(icbtn("", ICON_VOL_DOWN, tt("vol_down", null, "Bajar volumen"), "volume_down"));
+    ctrls.appendChild(icbtn("", ICON_VOL_UP, tt("vol_up", null, "Subir volumen"), "volume_up"));
+    const muteBtn = icbtn("", ICON_MUTED, tt("mute", null, "Silencio"));  // face/action are set on each render (toggle)
     ctrls.appendChild(muteBtn);
     const vol = el("div", "hb-yt-vol", "");
     ctrls.appendChild(vol);
     root.appendChild(ctrls);
 
     root.appendChild(el("div", "hb-yt-hint",
-      "Por voz: «pon el vídeo de…», «búscame vídeos de…» (salen en Inicio), «reproduce el tercero», "
-      + "«siguiente», «pausa», «sigue a este canal»."));
+      tt("voice_hint_1", null, "Por voz: «pon el vídeo de…», «búscame vídeos de…» (salen en Inicio), «reproduce el tercero», ")
+      + tt("voice_hint_2", null, "«siguiente», «pausa», «sigue a este canal».")));
 
     // The QUEUE (V2-366; V2-632 gives every row a thumbnail — «que se intuya mejor de qué vídeo hablamos»).
     const listBox = el("div", "hb-yt-list");
@@ -876,8 +902,8 @@ export function render(root, data, ctx){
     root.appendChild(listsBox);
     const addRow = el("div", "hb-yt-addrow");
     const addInp = el("input", "hb-yt-addinp");
-    addInp.placeholder = "Pega un enlace de YouTube o escribe un título…";
-    const addBtn = el("button", "hb-yt-btn", "＋ Añadir");
+    addInp.placeholder = tt("add_ph", null, "Pega un enlace de YouTube o escribe un título…");
+    const addBtn = el("button", "hb-yt-btn", tt("add", null, "＋ Añadir"));
     const doAdd = () => {
       const v = (addInp.value || "").trim();
       if(!v || !ctx || !ctx.action) return;
@@ -906,7 +932,7 @@ export function render(root, data, ctx){
   // Tab chrome per render: the Cola tab wears its count, the active tab wears .on (V2-632).
   if(root._hbYtTabBtns){
     const nQ = Array.isArray(data.list) ? data.list.length : 0;
-    if(root._hbYtTabBtns.cola) root._hbYtTabBtns.cola.textContent = nQ ? ("Cola · " + nQ) : "Cola";
+    if(root._hbYtTabBtns.cola) root._hbYtTabBtns.cola.textContent = nQ ? (tt("queue_", null, "Cola · ") + nQ) : "Cola";
     Object.keys(root._hbYtTabBtns).forEach((k) => root._hbYtTabBtns[k].classList.toggle("on", k === _tab));
   }
 
@@ -946,8 +972,8 @@ export function render(root, data, ctx){
     const list = rows.length ? rows : [{id: "youtube", label: "YouTube", connected: false, app_configured: false}];
     list.forEach((r) => {
       const ic = brandIcon(r.id, !!r.connected);
-      ic.title = (r.label || r.id) + (r.connected ? ": cuenta conectada"
-                                                  : ": sin conectar — toca para conectarla");
+      ic.title = (r.label || r.id) + (r.connected ? tt("dot_connected", null, ": cuenta conectada")
+                                                  : tt("dot_disconnected", null, ": sin conectar — toca para conectarla"));
       ic.addEventListener("click", () => {
         _screen = {view: r.connected ? "status" : "wizard", platform: r.id};
         if(!_wizStep[r.id]) _wizStep[r.id] = 1;
@@ -959,29 +985,18 @@ export function render(root, data, ctx){
   }
   renderConn(E, root, data, ctx);
   }
-  if(E.title) E.title.textContent = data.title || (id ? "YouTube" : "Sin vídeo");
+  if(E.title) E.title.textContent = data.title || (id ? "YouTube" : tt("no_video", null, "Sin vídeo"));
   if(E.blockMsg){
     const bn = data.blocked_notice || {};
-    const tt = (key, params, fb) => {
-      try{
-        if(ctx && typeof ctx.t === "function"){
-          const s = ctx.t(key, params);
-          if(s && s !== key) return s;
-        }
-      }catch(_){}
-      let s = fb;
-      if(params) for(const k in params) s = s.split("{" + k + "}").join(String(params[k]));
-      return s;
-    };
     let msg = "";
     if(bn.kind === "swapped")
-      msg = tt("widgets.youtube.blocked_swapped", {from: bn.from || "", to: bn.to || ""},
+      msg = tt("blocked_swapped", {from: bn.from || "", to: bn.to || ""},
                "«{from}» está bloqueado por su propietario para reproducirse aquí — pongo el siguiente: «{to}».");
     else if(bn.kind === "explicit")
-      msg = tt("widgets.youtube.blocked_explicit", {from: bn.from || ""},
+      msg = tt("blocked_explicit", {from: bn.from || ""},
                "Su propietario bloquea la reproducción fuera de YouTube — este vídeo solo puede verse allí.");
     else if(bn.kind === "exhausted")
-      msg = tt("widgets.youtube.blocked_exhausted", {from: bn.from || ""},
+      msg = tt("blocked_exhausted", {from: bn.from || ""},
                "«{from}» está bloqueado por su propietario y no encontré sustituto — dime otra búsqueda.");
     E.blockMsg.textContent = msg;
     E.blockMsg.style.display = msg ? "" : "none";
@@ -989,7 +1004,7 @@ export function render(root, data, ctx){
   if(E.meta){
     const bits = [];
     if(data.channel) bits.push(data.channel);
-    if(data.published) bits.push((data.latest ? "más reciente · " : "") + data.published);
+    if(data.published) bits.push((data.latest ? tt("latest_", null, "más reciente · ") : "") + data.published);
     E.meta.textContent = bits.join("  ·  ");
     E.meta.style.display = bits.length ? "" : "none";
   }
@@ -998,13 +1013,13 @@ export function render(root, data, ctx){
     // ONE toggle, like the music bar: face shows what a click will DO (paused -> play triangle).
     E.playBtn.textContent = "";
     E.playBtn.appendChild(svgEl(data.paused ? ICON_PLAY : ICON_PAUSE));
-    E.playBtn.title = data.paused ? "Play" : "Pausa";
+    E.playBtn.title = data.paused ? "Play" : tt("pause", null, "Pausa");
     E.playBtn.onclick = () => { if(ctx && ctx.action) ctx.action(data.paused ? "play" : "pause"); };
   }
   if(E.muteBtn){
     E.muteBtn.textContent = "";
     E.muteBtn.appendChild(svgEl(data.muted ? ICON_VOL_UP : ICON_MUTED));
-    E.muteBtn.title = data.muted ? "Sonido" : "Silencio";
+    E.muteBtn.title = data.muted ? tt("sound", null, "Sonido") : tt("mute", null, "Silencio");
     E.muteBtn.onclick = () => {
       // Direct `post` (does not go through the server: it is the REAL click that unlocks browser audio) is also gated
       // — otherwise, with the agent stopped, this button would make the video play through the back door.
@@ -1040,16 +1055,16 @@ export function render(root, data, ctx){
     // V2-467 — the list NAME takes precedence over the generic label: if the operator called it “the afternoon
     // one,” that is what must be shown on the card so they can verify at a glance that their request was followed.
     const _nom = String(data.list_name || "").trim();
-    const _rot = _nom || "Lista";
+    const _rot = _nom || tt("list", null, "Lista");
     const head = el("div", "hb-yt-listh", lst.length ? (_rot + " · " + lst.length) : _rot);
     if(filt){
-      const chip = el("span", "hb-yt-chip", "filtro: «" + filt + "» ✕");
-      chip.title = "Quitar el filtro";
+      const chip = el("span", "hb-yt-chip", tt("filter_", null, "filtro: «") + filt + "» ✕");
+      chip.title = tt("clear_filter", null, "Quitar el filtro");
       chip.addEventListener("click", () => { if(ctx && ctx.action) ctx.action("filter_list", {q: ""}); });
       head.appendChild(chip);
     }
     E.listBox.appendChild(head);
-    if(data.adding) E.listBox.appendChild(el("div", "hb-yt-note", "Buscando «" + data.adding + "»…"));
+    if(data.adding) E.listBox.appendChild(el("div", "hb-yt-note", tt("searching_", null, "Buscando «") + data.adding + "»…"));
     const pos = Number(data.pos != null ? data.pos : -1);
     let shown = 0;
     lst.forEach((it, i) => {
@@ -1065,7 +1080,7 @@ export function render(root, data, ctx){
       row.appendChild(el("span", "hb-yt-rowt", it.title || it.url || "—"));
       if(it.channel) row.appendChild(el("span", "hb-yt-rowc", it.channel));
       const x = el("button", "hb-yt-rowx", "✕");
-      x.title = "Quitar de la lista";
+      x.title = tt("remove_from_list", null, "Quitar de la lista");
       x.addEventListener("click", (e) => { e.stopPropagation(); if(ctx && ctx.action) ctx.action("remove", {item: String(i + 1)}); });
       row.appendChild(x);
       row.addEventListener("click", () => {
@@ -1074,8 +1089,8 @@ export function render(root, data, ctx){
       });
       E.listBox.appendChild(row);
     });
-    if(lst.length && filt && !shown) E.listBox.appendChild(el("div", "hb-yt-note", "Nada en la lista casa con el filtro."));
-    if(!lst.length) E.listBox.appendChild(el("div", "hb-yt-note", "La lista está vacía: pega un enlace o dime «añade a la lista…»."));
+    if(lst.length && filt && !shown) E.listBox.appendChild(el("div", "hb-yt-note", tt("list_no_match", null, "Nada en la lista casa con el filtro.")));
+    if(!lst.length) E.listBox.appendChild(el("div", "hb-yt-note", tt("list_empty", null, "La lista está vacía: pega un enlace o dime «añade a la lista…».")));
   }
 
   // DASHBOARD (V2-596 → V2-632): the Inicio tab. Order is the operator's: the SEARCH band on top when a
@@ -1101,20 +1116,20 @@ export function render(root, data, ctx){
     const res = Array.isArray(data.search_results) ? data.search_results : [];
     if(data.adding){
       const sh = el("div", "hb-yt-schead");
-      sh.appendChild(el("span", "", "Buscando «" + data.adding + "»…"));
+      sh.appendChild(el("span", "", tt("searching_", null, "Buscando «") + data.adding + "»…"));
       E.home.appendChild(sh);
     }
     if(res.length){
       const sh = el("div", "hb-yt-schead");
-      sh.appendChild(el("span", "", "Resultados: «" + (data.search_query || "") + "»"));
-      const clr = el("span", "hb-yt-chip", "✕ quitar");
-      clr.title = "Quitar los resultados de búsqueda";
+      sh.appendChild(el("span", "", tt("results_", null, "Resultados: «") + (data.search_query || "") + "»"));
+      const clr = el("span", "hb-yt-chip", tt("clear", null, "✕ quitar"));
+      clr.title = tt("clear_results", null, "Quitar los resultados de búsqueda");
       clr.addEventListener("click", () => { if(ctx && ctx.action) ctx.action("clear_search", {}); });
       sh.appendChild(clr);
       E.home.appendChild(sh);
       res.forEach((it, i) => {
-        const addB = el("button", "hb-yt-radd", "+ cola");
-        addB.title = "Añadir a la cola sin reproducir";
+        const addB = el("button", "hb-yt-radd", tt("to_queue", null, "+ cola"));
+        addB.title = tt("to_queue_hint", null, "Añadir a la cola sin reproducir");
         addB.addEventListener("click", (e) => {
           e.stopPropagation();
           if(ctx && ctx.action) ctx.action("add_results", {items: String(i + 1)});
@@ -1133,9 +1148,9 @@ export function render(root, data, ctx){
     const hist = Array.isArray(data.history) ? data.history : [];
     if(hist.length){
       const hh = el("div", "hb-yt-schead");
-      hh.appendChild(el("span", "", "Vistos hace poco"));
-      const all = el("span", "hb-yt-chip", "⏱ todo el historial → cola");
-      all.title = "Carga el historial completo en la cola";
+      hh.appendChild(el("span", "", tt("recent", null, "Vistos hace poco")));
+      const all = el("span", "hb-yt-chip", tt("all_history", null, "⏱ todo el historial → cola"));
+      all.title = tt("all_history_hint", null, "Carga el historial completo en la cola");
       all.addEventListener("click", () => {
         if(ctx && ctx.action) ctx.action("show_history", {});
         if(root._hbYtSelectTab) root._hbYtSelectTab("cola");
@@ -1159,19 +1174,19 @@ export function render(root, data, ctx){
     const connectedAny = (Array.isArray(data.platforms) ? data.platforms : []).some((r) => r.connected);
     if(sug.length || connectedAny || data.suggesting){
       const sh = el("div", "hb-yt-sughead");
-      sh.appendChild(el("span", "", "Sugerencias de tus suscripciones"));
+      sh.appendChild(el("span", "", tt("subs_suggestions", null, "Sugerencias de tus suscripciones")));
       const bits = [];
       if(data.suggested_at) bits.push(fmtAge(data.suggested_at));
-      if(data.suggested_channels) bits.push(data.suggested_channels + " canales");
+      if(data.suggested_channels) bits.push(data.suggested_channels + tt("n_channels", null, " canales"));
       if(bits.length) sh.appendChild(el("span", "hb-yt-sugsub", "· " + bits.join(" · ")));
-      const rf = el("span", "hb-yt-chip", data.suggesting ? "buscando…" : "↻ refrescar");
-      rf.title = "Traer los vídeos recientes de tus suscripciones";
+      const rf = el("span", "hb-yt-chip", data.suggesting ? tt("loading", null, "buscando…") : tt("refresh", null, "↻ refrescar"));
+      rf.title = tt("refresh_hint", null, "Traer los vídeos recientes de tus suscripciones");
       rf.addEventListener("click", () => { if(ctx && ctx.action && !data.suggesting) ctx.action("suggest", {}); });
       sh.appendChild(rf);
       E.home.appendChild(sh);
       if(!sug.length && !data.suggesting)
         E.home.appendChild(el("div", "hb-yt-homemsg",
-          "Toca «refrescar» para traer los vídeos recientes de tus suscripciones."));
+          tt("subs_empty", null, "Toca «refrescar» para traer los vídeos recientes de tus suscripciones.")));
       sug.forEach((it) => {
         const tile = mkTile(it);
         tile.addEventListener("click", () => {
@@ -1186,16 +1201,16 @@ export function render(root, data, ctx){
     const prefs = data.prefs || {};
     const notes = Array.isArray(data.prefs_notes) ? data.prefs_notes : [];
     const pbits = [];
-    if(prefs.min_definition) pbits.push("mínimo " + prefs.min_definition + "p");
-    if(prefs.captions === true) pbits.push("subtítulos siempre");
-    if(prefs.captions === false) pbits.push("sin subtítulos");
-    if(prefs.volume != null) pbits.push("volumen " + prefs.volume);
-    notes.forEach((n) => { const t = String(n && n.text || "").trim(); if(t) pbits.push("nota: " + t); });
+    if(prefs.min_definition) pbits.push(tt("min_", null, "mínimo ") + prefs.min_definition + "p");
+    if(prefs.captions === true) pbits.push(tt("cc_on", null, "subtítulos siempre"));
+    if(prefs.captions === false) pbits.push(tt("cc_off", null, "sin subtítulos"));
+    if(prefs.volume != null) pbits.push(tt("volume_", null, "volumen ") + prefs.volume);
+    notes.forEach((n) => { const t = String(n && n.text || "").trim(); if(t) pbits.push(tt("note_", null, "nota: ") + t); });
     if(pbits.length) E.home.appendChild(el("div", "hb-yt-libp", pbits.join(" · ")));
 
     if(!res.length && !hist.length && !sug.length && !connectedAny && !data.adding && !data.suggesting){
       E.home.appendChild(el("div", "hb-yt-homemsg",
-        "No hay ningún vídeo cargado. Dime qué quieres ver, o «búscame vídeos de…» y elige de aquí."));
+        tt("home_empty", null, "No hay ningún vídeo cargado. Dime qué quieres ver, o «búscame vídeos de…» y elige de aquí.")));
     }
   }
 
@@ -1203,11 +1218,11 @@ export function render(root, data, ctx){
   if(E.subsBox){
     E.subsBox.textContent = "";
     const chans = Array.isArray(data.channels) ? data.channels : [];
-    E.subsBox.appendChild(el("div", "hb-yt-listh", "Suscripciones · " + chans.length));
+    E.subsBox.appendChild(el("div", "hb-yt-listh", tt("subs_", null, "Suscripciones · ") + chans.length));
     if(!chans.length){
       E.subsBox.appendChild(el("div", "hb-yt-secmsg",
-        "No sigues a nadie todavía. Con un vídeo puesto, di «sigue a este canal» y guardo al autor — "
-        + "sin tocar ninguna cuenta."));
+        tt("subs_none_1", null, "No sigues a nadie todavía. Con un vídeo puesto, di «sigue a este canal» y guardo al autor — ")
+        + tt("subs_none_2", null, "sin tocar ninguna cuenta.")));
     }
     chans.forEach((c) => {
       const nom = String(c && c.name || "").trim();
@@ -1215,8 +1230,8 @@ export function render(root, data, ctx){
       const row = el("div", "hb-yt-row");
       row.appendChild(el("span", "hb-yt-rown", "★"));
       row.appendChild(el("span", "hb-yt-rowt", nom));
-      const vids = el("span", "hb-yt-chip", "vídeos → cola");
-      vids.title = "Lo más reciente de " + nom + ", a la cola";
+      const vids = el("span", "hb-yt-chip", tt("videos_to_queue", null, "vídeos → cola"));
+      vids.title = tt("latest_from_", null, "Lo más reciente de ") + nom + tt("_to_queue", null, ", a la cola");
       vids.addEventListener("click", (e) => {
         e.stopPropagation();
         if(ctx && ctx.action) ctx.action("channel_videos", {channel: nom});
@@ -1224,7 +1239,7 @@ export function render(root, data, ctx){
       });
       row.appendChild(vids);
       const x = el("button", "hb-yt-rowx", "✕");
-      x.title = "Dejar de seguir";
+      x.title = tt("unfollow", null, "Dejar de seguir");
       x.addEventListener("click", (e) => {
         e.stopPropagation();
         if(ctx && ctx.action) ctx.action("unfollow_channel", {channel: nom});
@@ -1238,10 +1253,10 @@ export function render(root, data, ctx){
   if(E.listsBox){
     E.listsBox.textContent = "";
     const saved = Array.isArray(data.lists) ? data.lists : [];
-    E.listsBox.appendChild(el("div", "hb-yt-listh", "Listas guardadas · " + saved.length));
+    E.listsBox.appendChild(el("div", "hb-yt-listh", tt("saved_lists_", null, "Listas guardadas · ") + saved.length));
     if(!saved.length){
       E.listsBox.appendChild(el("div", "hb-yt-secmsg",
-        "No hay listas guardadas. Monta una cola y di «guarda la lista como…»."));
+        tt("lists_empty", null, "No hay listas guardadas. Monta una cola y di «guarda la lista como…».")));
     }
     saved.forEach((L) => {
       const nom = String(L && L.name || "").trim();
@@ -1249,8 +1264,8 @@ export function render(root, data, ctx){
       const row = el("div", "hb-yt-row");
       row.appendChild(el("span", "hb-yt-rown", "≣"));
       row.appendChild(el("span", "hb-yt-rowt", nom));
-      row.appendChild(el("span", "hb-yt-rowc", (Array.isArray(L.items) ? L.items.length : 0) + " vídeos"));
-      const open = el("span", "hb-yt-chip", "abrir → cola");
+      row.appendChild(el("span", "hb-yt-rowc", (Array.isArray(L.items) ? L.items.length : 0) + tt("n_videos", null, " vídeos")));
+      const open = el("span", "hb-yt-chip", tt("open_to_queue", null, "abrir → cola"));
       open.addEventListener("click", (e) => {
         e.stopPropagation();
         if(ctx && ctx.action) ctx.action("open_list", {name: nom});
@@ -1258,7 +1273,7 @@ export function render(root, data, ctx){
       });
       row.appendChild(open);
       const x = el("button", "hb-yt-rowx", "✕");
-      x.title = "Borrar la lista guardada";
+      x.title = tt("delete_list", null, "Borrar la lista guardada");
       x.addEventListener("click", (e) => {
         e.stopPropagation();
         if(ctx && ctx.action) ctx.action("delete_list", {name: nom});
@@ -1268,8 +1283,8 @@ export function render(root, data, ctx){
     });
     const saveRow = el("div", "hb-yt-saverow");
     const inp = el("input", "hb-yt-addinp");
-    inp.placeholder = "Guardar la cola actual como…";
-    const b = el("button", "hb-yt-btn", "Guardar");
+    inp.placeholder = tt("save_queue_ph", null, "Guardar la cola actual como…");
+    const b = el("button", "hb-yt-btn", tt("save", null, "Guardar"));
     const doSave = () => {
       const v = (inp.value || "").trim();
       if(!v || !ctx || !ctx.action) return;
@@ -1284,7 +1299,7 @@ export function render(root, data, ctx){
 
   if(E.blockedLine){
     const blk = Array.isArray(data.blocked_channels) ? data.blocked_channels : [];
-    E.blockedLine.textContent = blk.length ? ("🚫 Canales bloqueados: " + blk.join(", ")) : "";
+    E.blockedLine.textContent = blk.length ? (tt("blocked_channels_", null, "🚫 Canales bloqueados: ") + blk.join(", ")) : "";
     E.blockedLine.style.display = blk.length ? "" : "none";
   }
 

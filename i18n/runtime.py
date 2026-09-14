@@ -21,7 +21,7 @@ from i18n import store as _store
 # Coarse cache-buster for the browser's localStorage bundle cache. Bump when the SET of keys or their English
 # text changes. (Per-key upgrade diffing uses the English snapshot stored in each generated bundle — see
 # i18n.init.ensure; this version is just the frontend cache signal.)
-MANIFEST_VERSION = 12   # 2026-09-13: V2-681 T-1 chat wall restored-history divider
+MANIFEST_VERSION = 13   # 2026-09-14: V2-694 — every widget label, and every widget/surface NAME
 
 PRESET = ("en", "es")            # shipped in the repo; never generated
 BASE = "en"                      # the manifest language every other bundle is translated FROM
@@ -101,3 +101,59 @@ def bundle(code: str) -> dict:
     code = (code or BASE).strip().lower()
     return {"code": code, "version": MANIFEST_VERSION, "strings": strings(code),
             "generated": code not in PRESET}
+
+
+# ── the SERVER's own lookup (V2-694) ─────────────────────────────────────────────────────────────────────────
+# The frontend has had `t()` since V2-089 and the widget layer got `ctx.t` in V2-613, but the ENGINE never had
+# one — so everything it names for the operator (a widget's display name, the vocabulary the voice resolver
+# matches against, the catalog line the model reads) could only ever be the Castilian written in a manifest.
+# That is what left an English session reading «Mensajería» on every card.
+#
+# Cached per (code, bundle mtime): `registry()` is rebuilt on every prompt compose, and a JSON read per widget
+# per turn is a cost with no upside. A generated bundle has no file of its own here, so it caches on the code
+# alone and is invalidated by `invalidate()`, which the language seam calls.
+_TEXT_CACHE: dict[str, tuple[float, dict[str, str]]] = {}
+
+
+def invalidate() -> None:
+    """Drop the cached bundles. Called by the ONE language seam (`config.settings.update`, `init.detect.lock`)
+    — a stale table here would keep naming cards in the language the operator just left."""
+    _TEXT_CACHE.clear()
+
+
+def _table(code: str) -> dict[str, str]:
+    code = (code or BASE).strip().lower()
+    stamp = 0.0
+    if code in PRESET:
+        try:
+            stamp = (_BUNDLES_DIR / f"{code}.json").stat().st_mtime
+        except OSError:
+            stamp = 0.0
+    hit = _TEXT_CACHE.get(code)
+    if hit is not None and hit[0] == stamp:
+        return hit[1]
+    table = strings(code)
+    _TEXT_CACHE[code] = (stamp, table)
+    return table
+
+
+def text(key: str, default: str = "", code: str | None = None) -> str:
+    """One UI string in the ACTIVE language (or `code`), falling back to English and then to `default`.
+
+    Deliberately NOT falling back to the key itself the way the frontend's `t()` does: on screen a visible
+    `widgets.musica.name` is a bug report, but here the caller always has something honest to show — the
+    Castilian in the manifest, the literal that was there before — and printing a key into a voice prompt or a
+    card header would be worse than printing the untranslated original.
+    """
+    k = str(key or "").strip()
+    if not k:
+        return default
+    c = (code or active_code() or BASE).strip().lower()
+    v = _table(c).get(k)
+    if isinstance(v, str) and v.strip():
+        return v
+    if c != BASE:
+        v = _table(BASE).get(k)
+        if isinstance(v, str) and v.strip():
+            return v
+    return default

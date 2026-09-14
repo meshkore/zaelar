@@ -4,15 +4,16 @@
 // browser recognizes speech and we send the text (interim+final) over the data
 // channel; the server's ClientSTTInjector turns it into transcriptions. Chrome/Edge.
 // ============================================================================
-import { showAlert } from "../core/store.js?v=2";
+import { showAlert, lang as activeLang } from "../core/store.js?v=2";
+import { t } from "../core/i18n.js?v=1";
 
 let rec = null;
 
 export function startBrowserSTT(lang, { getDc, isActive }) {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) { showAlert("Este navegador no trae reconocimiento de voz nativo. Usa Chrome/Edge, o cambia STT_PROVIDER."); return; }
+  if (!SR) { showAlert(t("voice.alert_no_browser_stt")); return; }
   try { rec = new SR(); } catch (_) { return; }
-  rec.lang = lang || "es-ES"; rec.continuous = true; rec.interimResults = true; let _n = 0;
+  rec.lang = lang || activeLang(); rec.continuous = true; rec.interimResults = true; let _n = 0;
   rec.onresult = e => {
     for (let i = e.resultIndex; i < e.results.length; i++) {
       const r = e.results[i]; const text = (r[0] && r[0].transcript) || ""; if (!text) continue;

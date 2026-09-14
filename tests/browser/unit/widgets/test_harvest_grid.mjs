@@ -31,6 +31,11 @@ const mk = (tag) => ({
   appendChild(c){ this.childNodes.push(c); return c; },
 });
 const document = { createElement: mk };
+// V2-694 — the widget's labels come from tt(key, params, fallback), whose fallback IS the literal that used
+// to be hardcoded. Outside the engine there is no ctx.t, so the real widget takes this very branch: the stub
+// is what the product genuinely does here, not a convenience that softens the measurement.
+// (No backticks in this comment ON PURPOSE — it lives inside a template literal, and one would close it.)
+function tt(key, params, fb){ return fb; }
 function elem(tag, cls, text){
   const e = document.createElement(tag);
   if(cls) e.className = cls;

@@ -26,8 +26,23 @@ function injectStyles(){
   `; document.head.appendChild(s);
 }
 
+// ── i18n seam (V2-613 / V2-694): `ctx.t` for our own chrome, the literal as the FALLBACK ────────────────
+// The fallback is, byte for byte, the string that used to be hardcoded here — so a widget rendered outside the
+// engine (a render test, a headless DOM stub) shows exactly what it showed before, and only an engine with a
+// bundle loaded shows the operator's own language.
+let _T = null;
+function tt(key, params, fb){
+  try{
+    if(_T){ const s=_T("widgets.search."+key, params); if(s && s!=="widgets.search."+key) return s; }
+  }catch(_){}
+  let s = fb;
+  if(params) for(const k in params) s = s.split("{"+k+"}").join(String(params[k]));
+  return s;
+}
+
 export function render(el, data, ctx){
   injectStyles();
+  _T = (ctx && typeof ctx.t === "function") ? ctx.t : null;
   const srcs=data.sources||[];
   el.className="hb-search";
   // Header built as DOM: the query is web/user-sourced → it goes in via textContent, never interpolated into
@@ -35,7 +50,7 @@ export function render(el, data, ctx){
   el.textContent="";
   const hd=document.createElement("div"); hd.className="hd";
   const scan=document.createElement("div"); scan.className="scan"; scan.id="hb-scan";
-  const b=document.createElement("b"); b.textContent="Estoy buscando…";
+  const b=document.createElement("b"); b.textContent=tt("searching", null, "Estoy buscando…");
   const q=document.createElement("span"); q.className="q"; q.textContent=(data.query||data.location||"").slice(0,40);
   hd.append(scan,b,q); el.appendChild(hd);
   const host=document.createElement("div"); host.id="hb-srcs"; el.appendChild(host);
@@ -50,7 +65,7 @@ export function render(el, data, ctx){
   }
   // show all sources as "loading" cards (parallel tasks), then resolve each with a small stagger → feels live
   srcs.forEach((s,i)=>{
-    const c=srcCard(s); c.dataset.i=i; c.appendChild(elc("ln","analizando…"));
+    const c=srcCard(s); c.dataset.i=i; c.appendChild(elc("ln",tt("analyzing", null, "analizando…")));
     host.appendChild(c); requestAnimationFrame(()=>c.classList.add("in"));
   });
 

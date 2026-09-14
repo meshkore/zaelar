@@ -49,7 +49,22 @@ function txt(tag, cls, s){
   const e=document.createElement(tag); if(cls)e.className=cls; if(s!=null)e.textContent=s; return e;
 }
 
+// ── i18n seam (V2-613 / V2-694): `ctx.t` for our own chrome, the literal as the FALLBACK ────────────────
+// The fallback is, byte for byte, the string that used to be hardcoded here — so a widget rendered outside the
+// engine (a render test, a headless DOM stub) shows exactly what it showed before, and only an engine with a
+// bundle loaded shows the operator's own language.
+let _T = null;
+function tt(key, params, fb){
+  try{
+    if(_T){ const s=_T("widgets.imagenes."+key, params); if(s && s!=="widgets.imagenes."+key) return s; }
+  }catch(_){}
+  let s = fb;
+  if(params) for(const k in params) s = s.split("{"+k+"}").join(String(params[k]));
+  return s;
+}
+
 export function render(el, data, ctx){
+  _T = (ctx && typeof ctx.t === "function") ? ctx.t : null;
   injectStyles();
   el.className="hb-imgv";
   el.textContent="";
@@ -71,7 +86,7 @@ export function render(el, data, ctx){
 
   // ── header: what we are looking at, and how many ──────────────────────────────────────────────
   const hd = txt("div","imghd");
-  hd.appendChild(txt("b", null, String(cur.title || d.title || d.query || "Imágenes")));
+  hd.appendChild(txt("b", null, String(cur.title || d.title || d.query || tt("title_fb", null, "Imágenes"))));
   if(items.length) hd.appendChild(txt("span","imgcount", `${i+1} / ${items.length}`));
   el.appendChild(hd);
 
@@ -92,7 +107,7 @@ export function render(el, data, ctx){
   // ── stage: the big picture ────────────────────────────────────────────────────────────────────
   const stage = txt("div","imgstage");
   if(!items.length){
-    stage.appendChild(txt("div","imgempty","Sin imágenes. Pide una foto y aparecerá aquí."));
+    stage.appendChild(txt("div","imgempty",tt("empty", null, "Sin imágenes. Pide una foto y aparecerá aquí.")));
   } else {
     // A set from an image index carries TWO addresses for the SAME photograph: the file at the publisher
     // (`url`) and the index's own copy of it (`thumb`). Only the first one can die, and it does — measured
@@ -118,21 +133,21 @@ export function render(el, data, ctx){
         // line exists at all. Holding the node is what stops a thumb that is ALSO dead from looping here, and
         // what lets the marker be taken back: claiming a preview beside "this no longer loads" is worse than
         // either message alone.
-        aviso = txt("span","imgfb","· vista previa");
-        aviso.title = "El original ya no carga; esta es la copia del buscador, más pequeña.";
+        aviso = txt("span","imgfb",tt("preview", null, "· vista previa"));
+        aviso.title = tt("preview_hint", null, "El original ya no carga; esta es la copia del buscador, más pequeña.");
         src.appendChild(aviso);
         img.src = thumb;
         return;
       }
       if(aviso) aviso.remove();
-      img.replaceWith(txt("div","imgempty","Esta imagen ya no carga desde su origen. Prueba con la siguiente."));
+      img.replaceWith(txt("div","imgempty",tt("dead", null, "Esta imagen ya no carga desde su origen. Prueba con la siguiente.")));
     };
     img.src = full || thumb;
     stage.appendChild(img);
     if(items.length>1){
-      const prev=txt("button","imgnav imgprev","‹"); prev.title="Anterior";
+      const prev=txt("button","imgnav imgprev","‹"); prev.title=tt("prev", null, "Anterior");
       prev.onclick=()=>{ try{ctx.action("previous");}catch(_){} };
-      const next=txt("button","imgnav imgnext","›"); next.title="Siguiente";
+      const next=txt("button","imgnav imgnext","›"); next.title=tt("next", null, "Siguiente");
       next.onclick=()=>{ try{ctx.action("next");}catch(_){} };
       stage.appendChild(prev); stage.appendChild(next);
     }

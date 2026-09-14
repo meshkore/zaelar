@@ -8145,3 +8145,79 @@ Fourteen FULL entries moved out of `CLAUDE.md` when it reached its 400 KB ceilin
   all 363 entries verbatim in one of the two files). The size ratchet
   (`tests/infrastructure/unit/test_claude_md_ratchet.py`, ceiling 400KB) trips when the log regrows; the
   procedure to pay it is written in the policy note at the top of this section.
+
+## Moved on 2026-09-14 (V2-694 — the widget-label pass regrew the log)
+
+- **Two screens, ONE widget (V2-574, 2026-09-04)**: nobody had ever rendered a widget at phone width — 4.18
+  checks the shell's contract, 4.19 the dock's pixels, 4.87 the deck's navigation, and the CONTENTS of the cards
+  were never looked at. Worse, the house style every widget is built against (`widgets/AGENTS.md`, quoted into
+  every generation by `generator.py::_CONTRACT`) was pushing the wrong way: «prefer horizontal / grid layouts»,
+  «NEVER a tall single broken column», `width:min(620px,90vw)` — desktop advice written before the phone shell
+  existed, so an agent following it built for a desk. Measured across all 14 at 390px with real data: **widths
+  were fine** (no overflow, nothing off-screen) and the break was TOUCH — six widgets with 20-34px controls,
+  three with inputs at 11.5-13px (**below 16px iOS Safari zooms the page on focus and never recovers**). Fixed
+  in THREE layers: the guide + contract now say fluid sizing and that a single column is the right answer on a
+  phone; `validator.py` REJECTS a `min-width` over 360px (the one declaration no scroll container can absorb —
+  a wide `width` inside `overflow-x:auto` stays legal on purpose); and a HOST touch floor in
+  `frontend/mobile/app/styles.css` (44px controls, 16px inputs, scoped to `.zm-scroll` so the desktop is
+  untouched and widgets that do not exist yet are covered — checkbox/radio/range excepted, and
+  `.zm-scroll.zm-scroll` doubled instead of `!important` so a widget can still out-specify the floor).
+  ⚠️ **Two lessons paid**: the floor itself broke `archivos` (six icon buttons at 44px = 414px in a 366px card),
+  fixed with a wrap + `max-width:100%` on any box holding controls — after `:has(> button + button)` failed to
+  fire (a search box sits between them) and wrapping alone changed nothing (`flex:0 0 auto` means its width IS
+  its content). And **an empty widget cannot overflow**: nine of fourteen rendered their empty state, so the
+  first green run measured almost nothing — filled fixtures were added and `archivos` failed the moment it had
+  content. Node 4.111 prints which widgets were measured thin, so the claim never covers more than it measured.
+- **The voice SEES the open directory — a widget the operator is looking at publishes its truth (V2-576,
+  2026-09-04)**: session 0a93de06, favourites. Asked «¿cuántos restaurantes favoritos tenemos?» the brain
+  answered from stale memory pills («one») while the open contactos card showed FOUR — then, confronted,
+  CONFABULATED «la vista actual no lo muestra», and 18 s after a worker fixed the store to five it still said
+  «de los cuatro». The model had labels (`ref_index` → items line) but no meaning: nothing said «these ARE all
+  the favourites, four in total», and no tool reads the directory. Fixed with `contactos/data.py::
+  prompt_digest()` through the EXISTING `refs.prompt_digest` seam (open cards only): authoritative counts, the
+  current view filter, every row compact — and the block declares it outranks memory for counting/listing what
+  is stored, which is what kills the confabulation branch. Empty says EMPTY. Node 4.96 (+5, incl. end-to-end
+  through `brief.for_prompt`), disarm 5 red. **The chain behind it, measured and still partly open**: the
+  memory pills asserting widget-owned state (a favourite «in your list», an errand «still pending», a DELETED
+  widget's description) are never invalidated by widget events — yesterday that same stale pill made the add
+  flow SKIP El Fogón («que ya tenías») right after its real entry was deleted, and today it misled the fix
+  worker into trying the deleted widget first. That half is memory-domain work; the four measured pills were
+  manually superseded. Also open: the fast lane firing `show_view`+«Hecho.» on complaints/questions (x3), and
+  repair whispers hardcoding counts that anchor later turns.
+- **A widget event reaches the pills it outdates — the lifecycle chain (V2-577, 2026-09-04)**: closes V2-576
+  cause B for the class with a deterministic anchor. Lifecycle pills carry `[widget:<id>]` in their text (only
+  `widgets/lifecycle.py` writes them), and each new lifecycle write (created/deleted/restored) now passes the
+  widget's PRIOR anchored pills as `supersedes` — V2-565's plumbing applied at the writer chokepoint, so only
+  the newest chapter of a widget's story stays valid and recall stops serving a birth announcement next to its
+  own tombstone (measured: pill 1165's «was CREATED» sent the fix worker to a DELETED widget first). Targets
+  come from the new read-only door `memory.api.widget_trace_ids(wid)` (valid, slotless, `LIKE` with `_`
+  escaped — a legal slug char and a LIKE wildcard); the hook lives in `_mem_write(wid=...)`. The superseded
+  chain keeps created-at/deleted-at for auditing — history is never deleted, it is just no longer VALID. Pills
+  without the anchor (worker notes, distiller prose) are out of reach ON PURPOSE: matching by content invents
+  targets; the write-side rule (workers prefix their widget notes; a completion note supersedes its order pill
+  via the V2-565 offer) is proposed in the initiative, unbuilt. Node 1.3, three disarms (1/2/4 red). ⚠️ Three
+  `_mem_write` test doubles needed the new signature — and the first disarm round restored the UNCOMMITTED fix
+  with `git checkout`, wiping it: re-apply the edit, never checkout (V2-531's lesson, paid again).
+- **The sleep circuit review — five silent integrity holes in the REM process (V2-578, 2026-09-05)**: full
+  review of deep sleep (`rem.py`), light sleep (`consolidator.py`) and their writer/api seams, measured
+  against a copy of the live DB first. The healthy half stated (daily cadence holding, 8 valid insights,
+  0% heuristic writes); the five holes, none of which failed loudly: (1) a stale `embed_pending` marker on a
+  row that already CARRIES a vector was unclearable by construction (repair only selects vector-less rows) —
+  `hygiene()` counted it forever; the repair entrance clears them now. (2) **«unforget = flip the flag, no
+  reindexing» stopped being true the day `prune_invalid` was built**: a shell pruned >2d ago lost FTS +
+  vector + paraphrases, so revival produced a row no search could surface, with `meta.pruned=1` lying —
+  unforget re-adds the FTS row itself (recall works at once through the keyword half), drops the stamp, and
+  marks `embed_pending` so the nightly repair restores the vector. Only rows the pruner touched: FTS5
+  external-content has no upsert, re-inserting a still-indexed row would duplicate its entries. (3) pinned
+  invalid shells were never de-indexed (`pinned=0` filter) — pinned protects from DELETION, not de-indexing;
+  measured live, a superseded pinned profile shell held its vector 4 days and counting. (4) **the trust
+  boundary did not reach any dedup door**: exact dedup (writer + consolidator) and semantic dedup (writer
+  neighbor + rem cosine merge) all matched across trust classes — an untrusted verbatim echo could reinforce
+  a trusted pill, and worse, a trusted write could fold INTO a quarantined row where synthesis never sees it
+  again. Trust class is part of a fact's identity in all four doors now; slots stay `remember_external`'s
+  job. (5) `semantic_dedup`'s pair scan was pure Python holding the GIL — measured 24 µs/pair, **~28 s at
+  cap 1500** against a comment claiming "ms"; one numpy float32 matmul now (~70 ms, releases the GIL), with a
+  tested pure-Python fallback. Six disarms, mutations asserted, backups BEFORE the first mutation — and one
+  came back green because the retriever's LIKE rescue channel masked the missing FTS re-index: the sharpened
+  test asks the FTS INDEX itself (`MATCH` walks the index; a plain SELECT on external-content FTS5 returns
+  the content table's rows regardless, a measurement trap worth remembering). Suite: 646 passed.
