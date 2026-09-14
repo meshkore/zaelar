@@ -90,6 +90,27 @@ def test_los_dos_relanzamientos_mandan_la_hoja():
         assert '"sheet"' in ventana, f"{marca}: el relanzamiento no manda la hoja del encargo"
 
 
+def test_the_two_relaunches_send_the_surface_too():
+    """V2-698 — the hole beside the hole above. The sheet travelled; the SURFACE did not, so a «voz» errand
+    relayed twice (z.ai → deepseek → licencia) was reborn with the default surface and opened a results sheet
+    the operator never asked for (measured 2026-09-15, `results::40aa52-2` by `worker:2`)."""
+    import inspect
+
+    from nucleo.workers import session as S
+    src = inspect.getsource(S.WorkerSession._finish)
+    for marca in ('"src": "provider_failover"', '"src": "context_handoff"'):
+        i = src.index(marca)
+        ventana = src[i:i + 600]
+        assert '"surface"' in ventana, f"{marca}: the relaunch does not carry the errand's surface"
+
+
+def test_the_dispatcher_reads_the_surface_from_the_context():
+    import inspect
+
+    src = inspect.getsource(D.run_listener)
+    assert 'ctx.get("surface")' in src, "the relay's record is born without the surface it was sent"
+
+
 def test_el_dispatcher_lee_la_hoja_del_contexto():
     """The other end of the cable: sending it is useless if nobody picks it up when constructing the record."""
     import inspect

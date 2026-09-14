@@ -96,6 +96,29 @@ def test_claude_deny_tools_means_no_tools(fake_claude, tmp_path):
     assert call["argv"][ai + 1] == ""                    # deny_tools → NONE, ignores the allowlist
 
 
+def test_claude_ships_only_the_schemas_of_the_tools_it_allows(fake_claude, tmp_path):
+    """V2-698 — `--allowedTools` gates PERMISSION; the CLI still sends every built-in tool's JSON schema to
+    the provider. DeepSeek refused the `Artifact` schema (`\\p{Cc}` in a `pattern`) and z.ai answered 1210 on
+    the same request, so a three-tool worker fell through two tiers to the paid one. `--tools` names the SET."""
+    import json
+    asyncio.run(ClaudeCodeAgent().run("haz un resumen", spec=RunSpec(model="m", cwd=str(tmp_path), timeout=10)))
+    call = json.loads(fake_claude["log"].read_text(encoding="utf-8"))
+    ti = call["argv"].index("--tools")
+    names = call["argv"][ti + 1].split(",")
+    assert "Read" in names and "Bash" in names, names
+    assert all("(" not in n for n in names), f"--tools takes built-in NAMES, never Bash(...) patterns: {names}"
+    assert "Artifact" not in names and "WebFetch" not in names
+
+
+def test_claude_deny_tools_disables_the_built_in_set_too(fake_claude, tmp_path):
+    import json
+    asyncio.run(ClaudeCodeAgent().run(
+        "texto no confiable", spec=RunSpec(model="m", cwd=str(tmp_path), deny_tools=True, tools=["Bash"])))
+    call = json.loads(fake_claude["log"].read_text(encoding="utf-8"))
+    ti = call["argv"].index("--tools")
+    assert call["argv"][ti + 1] == "", "deny_tools → no schema travels either"
+
+
 def test_claude_timeout(fake_claude, tmp_path, monkeypatch):
     monkeypatch.setenv("FAKE_SLEEP", "2")
     res = asyncio.run(ClaudeCodeAgent().run("x", spec=RunSpec(model="m", cwd=str(tmp_path), timeout=0.3)))

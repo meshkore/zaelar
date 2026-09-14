@@ -146,12 +146,24 @@ def resolve(name: str) -> list[dict]:
             out.append(c)
     if out:
         return out
-    # Last resort: an address or a number said out loud instead of a name.
+    # An address or a number said out loud instead of a name.
     for c in people:
         if "@" in q and _norm(c.get("email")) == q:
             out.append(c)
         elif _same_phone(q, c.get("phone")):
             out.append(c)
+    if out:
+        return out
+    # Last resort: the name as the operator SPELLS it, a letter off the name as it is filed (V2-698).
+    # Measured 2026-09-15: he dictates «Kryptonite», the row says «Cryptonite», and `send_to` refused with
+    # «no tengo a Kryptonite en el directorio» while the worker guessed its way to the right spelling. Same
+    # rule as the playlist garble (V2-650b): a UNIQUE near match resolves, two near matches stay a refusal —
+    # writing to the wrong person is the failure this must never trade for.
+    import difflib
+    scored = sorted(((difflib.SequenceMatcher(None, q, _norm(c.get("name"))).ratio(), c) for c in people
+                     if _norm(c.get("name"))), key=lambda t: -t[0])
+    if scored and scored[0][0] >= 0.8 and (len(scored) == 1 or scored[1][0] < 0.7):
+        return [scored[0][1]]
     return out
 
 

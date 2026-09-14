@@ -92,6 +92,14 @@ _MUSIC_SERVICES = ("spotify", "apple music", "youtube music", "tidal", "deezer",
 # the mensajeria widget (its connection card), not Chromium.
 _MESSAGING_SERVICES = ("whatsapp", "wasap", "telegram", "email", "e-mail", "correo", "gmail", "outlook", "hotmail",
                        "icloud", "imap")
+# V2-698 — the GOOGLE services this engine links through ONE OAuth client INSIDE their own widgets (V2-685):
+# the calendar in the agenda card, a Meet link minted as `conferenceData` on a calendar event. Naming them is
+# not naming a website. Measured 2026-09-15: «propose a meeting… and send them a Google Meet link» resolved
+# `login_site` → google.com, `looks_like_web_task` → True, and the errand was born kind="web" — a Chromium tab
+# and a «Buscando en la web…» card for a task whose only doors are `mensajeria.send_to` and the agenda. The
+# bare word «google» stays OUT on purpose: «busca en google» IS a browser task.
+_GOOGLE_CONNECTOR_SERVICES = ("google calendar", "google meet", "meet link", "enlace de meet", "link de meet",
+                              "calendario de google", "google agenda")
 
 
 _SHOW_VERB_RE = _re.compile(r"\b(muestra|muestrame|ensena|ensename|abre|abreme|abrir|mostrar|ensenar|ver|"
@@ -611,6 +619,15 @@ def looks_like_bare_ref(ref: str) -> bool:
     the widget_data handler (2026-07-21, case «hay que cancelarlo» after «¿qué día tengo la ITV?»)."""
     n = (ref or "").strip().lower().strip("¿?¡!.,;:")
     return not n or bool(_BARE_REF_RE.match(n))
+
+
+def is_google_connector_service(site: str = "", text: str = "") -> bool:
+    """True if the «site» is google.com only because the sentence names Calendar or Meet — accounts linked
+    INSIDE the agenda widget (OAuth, V2-685/V2-686), never through Chromium. Mirror of `is_music_service`."""
+    if "google" not in f"{site}".lower():
+        return False
+    blob = f"{text}".lower()
+    return any(s in blob for s in _GOOGLE_CONNECTOR_SERVICES)
 
 
 def is_messaging_service(site: str = "", text: str = "") -> bool:

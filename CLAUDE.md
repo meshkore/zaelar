@@ -833,6 +833,31 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     **NOT verified live**: no real invitation has been answered and no real proposal has travelled the path.
     Criterion and mechanism: `.meshkore/docs/modules/zaelar-appointment-proposals.md`.
 
+- **A messaging errand runs in the BACKGROUND — no browser card, no sheet, and the name as he says it
+  (V2-698, 2026-09-15)**: the operator's own test, read event by event before touching anything: «Coge
+  nuestro contacto Kryptonite y propone una reunión mañana a las 19 horas…». **The cycle CLOSED on its own at
+  00:47:39** — the contact answered «Yes, works», the errand booked `Meeting with Cryptonite` 16/09 19:00 on
+  Google with a `meetLink` and sent it — and what he saw on the way was four defects, the first one mine.
+  (1) «he iniciado la tarea y no ha hecho nada»: a `make restart` 36 s after the worker was born killed it
+  (`task | cancel · session | end`), and a second one landed while the errand was waiting (it survived only
+  because V2-683/684 rehydrate). (2) The **browser card**: `classify_kind` said `web` because `login_site`
+  resolved «Google Meet» to google.com and «send/add» are task verbs — but Calendar and Meet are linked
+  INSIDE the agenda (V2-685), the same class as music and messaging, which already had their guard;
+  `is_google_connector_service` joins them, and «busca en google» stays web. (3) The **results sheet**: the
+  provider relay relaunches with a context that carried `sheet` and NOT `surface`, so a «voz» errand was
+  reborn with the default surface — the exact hole V2-259's «both relaunches send the sheet» test closed,
+  one field over; both send the surface now. (4) «no tengo a Kryptonite en el directorio»: he dictates K,
+  the row (kept by V2-693's dedupe because it holds the Telegram account) says C; `directory.resolve` gains
+  a last resort where a UNIQUE near match resolves and two near matches stay a refusal — writing to the
+  wrong person is what this must never trade for. ⚠️ **And one thing NOT fixed, said plainly**: the worker
+  fell through three providers ($1.23) on `400 [1210]` (z.ai) and `400 Invalid schema for function
+  'Artifact'` (DeepSeek) on each first message; 55 minutes later the worker's EXACT argv reproduced neither,
+  with or without `--tools`. The relay did its job; `--tools` ships as a narrowing (only the allowed tools'
+  schemas travel), not as a proven fix. Seven disarms, every mutation asserted, all red. **NOT verified
+  live** — it needs a restart, and a restart is not made with the operator inside. His design ask stays
+  open and named in the initiative: the PULSE as the owner of an open errand, not a worker sitting in a
+  session.
+
 - **A NAME is a UI string, and the voice keeps answering to the one it shipped with (V2-694, 2026-09-14)**:
   the operator, on a session he had deliberately started in English — «el título de los widgets es en
   castellano… una vez está inicializada la sesión en inglés, se usa en inglés», and the rule that frames the

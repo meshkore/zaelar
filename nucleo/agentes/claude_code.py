@@ -99,6 +99,11 @@ class ClaudeCodeAgent(CodeAgent):
             if not (spec.env or {}).get("ZAELAR_NO_MEM_TOOL"):
                 tools = list(tools) + [t for t in _MEM_TOOLS if t not in tools]
         cmd += ["--allowedTools", " ".join(tools)]      # cadena vacía = sin herramientas
+        # V2-698 — same rule as the live backend (`workers/claude_session.py`): `--allowedTools` gates
+        # permission, `--tools` decides which built-in SCHEMAS travel. A provider that rejects one schema it
+        # was never going to use (DeepSeek on `Artifact`, 2026-09-15) fails the whole call.
+        from nucleo.workers.claude_session import builtin_tool_names as _names
+        cmd += ["--tools", ",".join(_names(tools))]
         if spec.model:                                  # MODELO POR INVOCACIÓN (jamás una env global)
             cmd += ["--model", spec.model]
 

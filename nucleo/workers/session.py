@@ -333,6 +333,9 @@ class WorkerSession:
                 _esc.escalate_to_slowbrain(context_handoff(rec), context={
                     "src": "context_handoff", "kind": rec.kind, "trace": rec.trace_id,
                     "sheet": str(getattr(rec, "sheet", "") or ""),   # the sheet belongs to the ERRAND, not the session
+                    # V2-698 — and so does the SURFACE. Without it the relaunch was born with the default one
+                    # and opened a results sheet over a «voz» errand (measured 2026-09-15, provider relay ×2).
+                    "surface": str(getattr(rec, "surface", "") or ""),
                     "depth": int(rec.depth or 0), "relay_gen": int(rec.relay_gen or 0) + 1})
                 rec.result_summary = ""       # sin entrega: la retoma el worker nuevo, sin ruido
                 rec.ok = False
@@ -356,6 +359,9 @@ class WorkerSession:
                     _esc.escalate_to_slowbrain(rec.goal, context={
                         "src": "provider_failover", "kind": rec.kind, "trace": rec.trace_id,
                         "sheet": str(getattr(rec, "sheet", "") or ""),   # the sheet belongs to the ERRAND, not the session
+                    # V2-698 — and so does the SURFACE. Without it the relaunch was born with the default one
+                    # and opened a results sheet over a «voz» errand (measured 2026-09-15, provider relay ×2).
+                    "surface": str(getattr(rec, "surface", "") or ""),
                         "depth": int(rec.depth or 0), "relay_gen": int(rec.relay_gen or 0) + 1})
                     rec.result_summary = ""          # sin entrega: la retoma el worker de relevo, sin ruido
                     rec.ok = False

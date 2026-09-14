@@ -58,6 +58,12 @@ _BRIDGES = ("mem_cli", "agent_report", "nav_cli", "worker_bridge", "widget_cli",
 _BRIDGE_TOOLS = [f"Bash({py} -m nucleo.{mod}:*)" for mod in _BRIDGES for py in _INTERPRETERS]
 
 
+def builtin_tool_names(tools) -> list[str]:
+    """The built-in tool NAMES behind an allowlist: `Bash(python -m nucleo.x:*)` → `Bash`, `Read` → `Read`.
+    Sorted and unique, so the argv is stable; empty in → empty out (`--tools ""` disables every tool)."""
+    return sorted({str(t).split("(", 1)[0].strip() for t in (tools or []) if str(t).strip()})
+
+
 def bridge_python() -> str:
     """El intérprete EXACTO con el que el worker debe invocar los puentes: el del propio servidor (`sys.executable`,
     absoluto y garantizado), o `.venv/bin/python` si por lo que sea no resuelve. Se le da MASTICADO en el prompt y
@@ -171,6 +177,12 @@ class ClaudeCodeSession(WorkerBackend):
             if not (spec.env or {}).get("ZAELAR_NO_BRIDGE_TOOLS"):
                 tools = list(tools) + [t for t in _BRIDGE_TOOLS if t not in tools]
         cmd += ["--allowedTools", " ".join(tools)]
+        # V2-698 — `--allowedTools` gates PERMISSION; the CLI still ships the JSON schema of EVERY built-in tool
+        # to the provider. Measured 2026-09-15, one errand, two relays: DeepSeek answered `400 Invalid schema for
+        # function 'Artifact'` (its `pattern` uses `\p{Cc}` classes DeepSeek's validator does not know) and z.ai
+        # `400 [1210]` on the same request, so a three-tool worker fell through to the paid tier for $1.23.
+        # `--tools` names the built-in SET: only the tools this worker may use travel, in schema and in prompt.
+        cmd += ["--tools", ",".join(builtin_tool_names(tools))]
         # `read_dirs` → `--add-dir` (incident 2026-08-18). This backend's translation of "besides your cwd, you may
         # read here", for the CONFINED cwd of `workers/workdir.py`. Defence in depth, not a requirement: measured
         # against the real CLI that an absolute path outside the cwd is already readable without this. With no tools

@@ -186,6 +186,20 @@ def test_music_and_messaging_never_go_to_the_browser_even_naming_their_site():
         assert dispatch._classify_kind(req) != "web", req
 
 
+def test_google_calendar_and_meet_never_go_to_the_browser_either():
+    """V2-698 — the SAME invariant, one Google account over. The calendar links inside the agenda card and
+    a Meet link is minted on the event (V2-685): naming them is not naming a website. Measured 2026-09-15:
+    «propose a meeting… send them a Google Meet link» was born kind="web" — a Chromium tab and a
+    «Buscando en la web…» card for an errand whose only doors are `send_to` and the agenda."""
+    from nucleo import dispatch
+    for req in ("Contact Cryptonite, propose a meeting tomorrow at 19:00 and send them a Google Meet link",
+                "escríbele a Iván y mándale el enlace de Meet de la reunión del jueves",
+                "añade la reunión a mi Google Calendar y avísale por Telegram"):
+        assert dispatch._classify_kind(req) != "web", req
+    # The counterweight: the bare word «google» is the search engine, and that IS a browser task.
+    assert dispatch._classify_kind("busca en google los mejores restaurantes de Soria y resérvame mesa") == "web"
+
+
 def test_naming_no_site_is_still_not_a_browser_task():
     """The standalone verb is NOT enough: `looks_like_web_task` is broad (lee|mira|revis|compr), and its own docstring
     says it exists as a TRIGGER, not as a classifier. Over-routing already once cost two browser cards that nobody

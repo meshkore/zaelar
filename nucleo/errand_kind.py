@@ -112,7 +112,9 @@ def classify_kind(request: str) -> str:
         # operator what it needed. The carve-out is narrow on purpose — `ends_a_commitment` is False for «quita
         # the musica of Spotify» and for «conecta mi Spotify».
         from nucleo import danger as _danger_cls
-        _linking_guard = (_rg.is_music_service(_site, r) or _rg.is_messaging_service(_site, r))
+        # V2-698: Google Calendar / Meet join the two — linked inside the agenda card, never through Chromium.
+        _linking_guard = (_rg.is_music_service(_site, r) or _rg.is_messaging_service(_site, r)
+                          or _rg.is_google_connector_service(_site, r))
         if _site and _rg.looks_like_web_task(r) and (not _linking_guard or _danger_cls.ends_a_commitment(r)):
             return "web"
     except Exception:

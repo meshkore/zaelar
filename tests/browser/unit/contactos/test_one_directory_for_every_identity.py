@@ -332,3 +332,27 @@ def test_learning_an_id_for_a_contact_that_is_GONE_writes_nothing(ct):
     ct.apply_action("add_contact", _as_the_canvas_sends_it({"name": "Nadie"}))
     assert directory.note_reached("telegram", "999", "no-existe") is False
     assert directory.note_reached("telegram", "", ct.view_data()["contacts"][0]["id"]) is False
+
+
+# ── The name as the operator SPELLS it (V2-698) ─────────────────────────────────────────────────────────────
+
+def test_a_name_one_letter_off_resolves_when_it_is_the_only_near_match(ct):
+    """Measured 2026-09-15: he dictates «Kryptonite», the row says «Cryptonite», and `send_to` refused with
+    «no tengo a Kryptonite en el directorio» — the worker had to guess the spelling to get his order out."""
+    from widgets import directory
+    ct.apply_action("add_contact", _as_the_canvas_sends_it({"name": "Cryptonite", "telegram": "@cryptonite_fund"}))
+    assert [c["name"] for c in directory.resolve("Kryptonite")] == ["Cryptonite"]
+
+
+def test_two_near_names_stay_a_refusal_never_a_guess(ct):
+    """Writing to the wrong person is the failure the fuzzy match must never trade for."""
+    from widgets import directory
+    ct.apply_action("add_contact", _as_the_canvas_sends_it({"name": "Marta", "phone": "+34600000001"}))
+    ct.apply_action("add_contact", _as_the_canvas_sends_it({"name": "Marto", "phone": "+34600000002"}))
+    assert directory.resolve("Marte") == []
+
+
+def test_a_name_that_is_simply_not_there_still_resolves_to_nobody(ct):
+    from widgets import directory
+    ct.apply_action("add_contact", _as_the_canvas_sends_it({"name": "Cryptonite", "telegram": "@cryptonite_fund"}))
+    assert directory.resolve("Federico") == []

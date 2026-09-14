@@ -45,3 +45,21 @@ def test_con_deny_tools_sigue_SIN_NADA():
     src = inspect.getsource(CS)
     i = src.index("if spec.deny_tools:")
     assert "tools: list[str] = []" in src[i:i + 160]
+
+
+# ── V2-698 — only the schemas of the tools it may use travel ───────────────────────────────────────────────
+
+def test_the_built_in_names_behind_the_allowlist():
+    """`--allowedTools` gates permission; the CLI still ships EVERY built-in tool's JSON schema to the provider.
+    DeepSeek refused the `Artifact` schema and z.ai answered 1210 on the same request (2026-09-15), so a
+    three-tool worker fell through two tiers. `--tools` names the SET, derived from the allowlist."""
+    assert CS.builtin_tool_names(["Read", "Write", "Bash(/x/python -m nucleo.mem_cli:*)",
+                                  "Bash(python3 -m nucleo.nav_cli:*)"]) == ["Bash", "Read", "Write"]
+    assert CS.builtin_tool_names([]) == [], "no tools → `--tools \"\"`, which disables the whole set"
+
+
+def test_the_set_is_passed_beside_the_allowlist():
+    import inspect
+    src = inspect.getsource(CS)
+    i = src.index('cmd += ["--allowedTools"')
+    assert '"--tools"' in src[i:i + 900], "the allowlist travels and the built-in set does not"
