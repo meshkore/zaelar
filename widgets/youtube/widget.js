@@ -168,7 +168,7 @@ function injectStyles(){
   .hb-ytw-step{border:1px solid var(--hb-line,#eef1f6);border-radius:12px;padding:12px;
                display:flex;flex-direction:column;gap:8px;background:var(--hb-bg-soft,#fbfdff)}
   .hb-ytw-head{display:flex;align-items:center;gap:8px}
-  .hb-ytw-num{width:22px;height:22px;border-radius:50%;background:var(--hb-accent,#3D6FE0);color:#fff;
+  .hb-ytw-num{width:22px;height:22px;border-radius:50%;background:var(--hb-accent,#3D6FE0);color:var(--canvas,#101216);
               display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;
               flex:0 0 auto}
   .hb-ytw-title{font-size:13.5px;font-weight:700;color:var(--hb-ink,#0d1622)}

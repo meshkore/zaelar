@@ -25,7 +25,7 @@ function injectStyles(){
   .hbt-add input{flex:1 1 auto;min-width:0;font-size:.85rem;padding:.5rem .6rem;border-radius:8px;
                  border:1px solid var(--hb-line,#dde3ec);background:var(--hb-bg,#fff);color:var(--hb-ink,#0d1622)}
   .hbt-add button{font-size:.8rem;border:none;border-radius:8px;padding:.5rem .8rem;cursor:pointer;
-                  background:var(--hb-accent,#3b82f6);color:#fff;white-space:nowrap}
+                  background:var(--hb-accent,#3b82f6);color:var(--canvas,#101216);white-space:nowrap}
   .hbt-body{flex:1 1 auto;min-height:0;overflow:auto;padding:.7rem .9rem 1rem}
   .hbt-empty,.hbt-unavail{padding:1.4rem .5rem;text-align:center;color:var(--hb-muted,#8a95a5);font-size:.85rem}
   .hbt-sec{font-size:var(--fs-caption,.72rem);font-weight:650;text-transform:uppercase;letter-spacing:.04em;
@@ -56,7 +56,7 @@ function injectStyles(){
   .hbt-btn[disabled]{opacity:.35;cursor:default}
   .hbt-confirm{display:flex;align-items:center;gap:.4rem;font-size:.78rem;color:var(--hb-risk,#e5484d)}
   .hbt-confirm button{font-size:.76rem;border-radius:8px;padding:.25rem .55rem;cursor:pointer;border:1px solid var(--hb-line,#dde3ec);background:var(--hb-bg,#fff)}
-  .hbt-confirm button.yes{background:var(--hb-risk,#e5484d);border-color:var(--hb-risk,#e5484d);color:#fff}
+  .hbt-confirm button.yes{background:var(--hb-risk,#e5484d);border-color:var(--hb-risk,#e5484d);color:var(--canvas,#101216)}
 
   /* Hero: the one-download shape — keeps the original card's feel, larger and centered */
   .hbt-hero{display:flex;flex-direction:column;align-items:center;text-align:center;gap:.8rem;padding:2rem 1rem}

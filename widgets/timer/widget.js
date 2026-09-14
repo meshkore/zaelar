@@ -25,10 +25,10 @@ function injectStyles() {
                     border:1px solid var(--hb-line,#eef1f6);background:var(--hb-bg,#fff);
                     color:var(--hb-ink,#0d1622);cursor:pointer;transition:all .15s;min-width:72px}
   .hb-timer .ht-btn:hover{background:var(--hb-bg-soft,#f0f3f8);border-color:var(--hb-accent,#3D6FE0);color:var(--hb-accent,#3D6FE0)}
-  .hb-timer .ht-btn.primary{background:var(--hb-accent,#3D6FE0);color:#fff;border-color:var(--hb-accent,#3D6FE0)}
+  .hb-timer .ht-btn.primary{background:var(--hb-accent,#3D6FE0);color:var(--canvas,#101216);border-color:var(--hb-accent,#3D6FE0)}
   .hb-timer .ht-btn.primary:hover{opacity:.88}
   .hb-timer .ht-btn.danger{color:var(--hb-risk,#e5484d);border-color:var(--hb-risk,#e5484d)}
-  .hb-timer .ht-btn.danger:hover{background:var(--hb-risk,#e5484d);color:#fff}
+  .hb-timer .ht-btn.danger:hover{background:var(--hb-risk,#e5484d);color:var(--canvas,#101216)}
   .hb-timer .ht-empty{color:var(--hb-muted-2,#9aa7b8);font-size:14px;padding:20px 0;font-style:italic}
   @media(max-width:480px){.hb-timer .ht-digits.lg{font-size:56px}.hb-timer .ht-digits.md{font-size:44px}.hb-timer .ht-digits.sm{font-size:34px}}
   `; document.head.appendChild(s);

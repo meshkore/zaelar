@@ -71,7 +71,7 @@ function injectStyles(){
   #wrail button{width:44px;height:44px;flex:none;border-radius:var(--hb-r-m,10px);border:1px solid transparent;
     cursor:pointer;background:transparent;color:var(--hb-muted,#A7AFBC);
     display:flex;align-items:center;justify-content:center;
-    font:600 0.75rem/1 var(--sans,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif);
+    font:600 var(--fs-micro,0.75rem)/1 var(--sans,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif);
     overflow:hidden;padding:0;box-sizing:border-box;
     transition:background var(--hb-t-fast,120ms) ease,color var(--hb-t-fast,120ms) ease,
                border-color var(--hb-t-fast,120ms) ease}

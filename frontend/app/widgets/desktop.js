@@ -155,14 +155,14 @@ function injectStyles(){
     display:flex;align-items:center;justify-content:center;
     background:color-mix(in srgb,var(--hb-accent,#9B7CFF) 22%,transparent);color:var(--hb-accent,#9B7CFF);
     border:1px solid color-mix(in srgb,var(--hb-accent,#9B7CFF) 30%,transparent);
-    font:700 11px/1 var(--sans,system-ui);text-transform:uppercase;user-select:none}
+    font:700 12px/1 var(--sans,system-ui);text-transform:uppercase;user-select:none}
   .hb-name{pointer-events:auto;flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
     border:none;padding:0;cursor:pointer;background:transparent;color:var(--hb-ink,#F2F4F7);
     font:600 var(--fs-ui,0.875rem)/1.2 var(--sans,system-ui)}
   .hb-name:hover{color:var(--hb-accent,#9B7CFF)}
   .hb-cfg{pointer-events:auto;flex:none;border:none;border-radius:var(--hb-r-s,8px);cursor:pointer;
     width:24px;height:24px;padding:0;
-    display:flex;align-items:center;justify-content:center;font-size:12px;
+    display:flex;align-items:center;justify-content:center;font-size:13px;
     background:transparent;color:var(--hb-muted,#A7AFBC);opacity:0;
     transition:opacity var(--hb-t-fast,120ms) ease,color var(--hb-t-fast,120ms) ease}
   /* the aliases button is a POWER control: it appears when the card is hovered or focused, so it never
@@ -176,26 +176,26 @@ function injectStyles(){
     background:var(--hb-bg,#141d29);border:1px solid var(--hb-line,#232e3d);box-shadow:var(--hb-shadow-2,0 12px 40px rgba(0,0,0,.3));
     max-height:60%;overflow:auto;opacity:0;transform:translateY(-6px);transition:opacity .16s,transform .16s}
   .hb-aliases.in{opacity:1;transform:none}
-  .hb-al-t{font:600 11px/1.3 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;color:var(--hb-muted,#5b6b82);
+  .hb-al-t{font:600 13px/1.35 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;color:var(--hb-muted,#5b6b82);
     margin-bottom:8px;text-transform:uppercase;letter-spacing:.04em}
   .hb-al-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
   .hb-al-chip{display:inline-flex;align-items:center;gap:5px;padding:4px 8px;border-radius:8px;background:var(--hb-bubble,#1b2534);
-    color:var(--hb-ink,#e8edf5);font:500 12px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
+    color:var(--hb-ink,#e8edf5);font:500 13px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
   .hb-al-chip.name{background:color-mix(in srgb,var(--hb-accent,#3D6FE0) 22%,transparent);font-weight:600}
   .hb-al-chip button{border:none;background:transparent;color:var(--hb-muted,#9aa7b8);cursor:pointer;font-size:13px;padding:0;line-height:1}
   .hb-al-chip button:hover{color:var(--hb-risk,#e5484d)}
   .hb-al-add{display:flex;gap:6px}
   .hb-al-add input{flex:1;min-width:0;border:1px solid var(--hb-line,#232e3d);border-radius:8px;padding:6px 8px;
-    background:var(--hb-bg,#0f1621);color:var(--hb-ink,#e8edf5);font:12px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
+    background:var(--hb-bg,#0f1621);color:var(--hb-ink,#e8edf5);font:13px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
   .hb-al-add button{border:none;border-radius:8px;padding:6px 12px;cursor:pointer;background:var(--hb-accent,#3D6FE0);color:var(--canvas,#0B0D10);
-    font:600 12px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
-  .hb-al-err{color:var(--hb-risk,#e5484d);font:12px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;margin-top:7px}
+    font:600 13px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
+  .hb-al-err{color:var(--hb-risk,#e5484d);font:13px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;margin-top:7px}
   .hb-al-origin{margin-top:10px;padding-top:8px;border-top:1px solid var(--hb-line,#232e3d);}
   .hb-al-origin.top{margin:0 0 10px;padding:0 0 8px;border-top:none;border-bottom:1px solid var(--hb-line,#232e3d)}
   .hb-al-origin{
-    color:var(--hb-muted,#9aa7b8);font:11.5px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
+    color:var(--hb-muted,#9aa7b8);font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
   .hb-al-restore{margin-top:7px;border:1px solid var(--hb-accent,#3D6FE0);border-radius:8px;padding:6px 12px;cursor:pointer;
-    background:transparent;color:var(--hb-accent,#3D6FE0);font:600 12px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
+    background:transparent;color:var(--hb-accent,#3D6FE0);font:600 13px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
   .hb-al-restore:hover{background:color-mix(in srgb,var(--hb-accent,#3D6FE0) 14%,transparent)}
   .hb-load{width:72px;height:72px;border-radius:50%;
     background:conic-gradient(from 0deg,var(--hb-accent,#3D6FE0),var(--hb-accent2,#16B8A6),rgba(61,111,224,0) 78%);
@@ -207,7 +207,7 @@ function injectStyles(){
   @keyframes hbboop{0%{transform:scale(.9) translateY(12px);opacity:.5}58%{transform:scale(1.05) translateY(-3px)}100%{transform:scale(1) translateY(0);opacity:1}}
   .hb-win.boop{animation:hbboop .44s cubic-bezier(.2,.9,.3,1.35)}
   .hb-win.building{flex-direction:column;gap:10px}
-  .hb-cap{font:12px/1.35 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;color:var(--hb-muted-2,#7d8a9c);text-align:center;max-width:220px}
+  .hb-cap{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;color:var(--hb-muted-2,#7d8a9c);text-align:center;max-width:220px}
   .hb-cap.err{color:var(--hb-risk,#e5484d)}
   /* CONFIRM OVERLAY (host-level, generic for ANY widget — never touches its widget.js): irreversible action
      (delete) asks Yes/No ON the card. Fed by the confirm SSE events; resolves via POST /widgets/{id}/confirm. */

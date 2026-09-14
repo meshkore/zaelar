@@ -154,7 +154,7 @@ function injectStyles(){
   .hb-mus2-cbtn:disabled{opacity:.32;cursor:default;pointer-events:none}
   .hb-mus2-connect{display:flex;flex-direction:column;gap:8px}
   .hb-mus2-sub{font-size:12.5px;color:var(--hb-muted,#5b6b82);line-height:1.45}
-  .hb-mus2-btn{border:0;background:var(--hb-accent,#3D6FE0);color:#fff;border-radius:10px;padding:9px 13px;
+  .hb-mus2-btn{border:0;background:var(--hb-accent,#3D6FE0);color:var(--canvas,#101216);border-radius:10px;padding:9px 13px;
                font-size:13px;font-weight:700;cursor:pointer;line-height:1;align-self:flex-start}
   .hb-mus2-btn:disabled{opacity:.5;cursor:default}
   .hb-mus2-btn.ghost{background:var(--hb-bg-soft,#fbfdff);color:var(--hb-ink,#0d1622);border:1px solid var(--hb-line,#eef1f6)}

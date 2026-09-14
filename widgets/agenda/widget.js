@@ -38,9 +38,9 @@ const CATEGORY_HUE = {
 
 function injectStyles(){
   const prev = document.getElementById("hb-agenda-css");
-  if(prev && (prev.dataset||{}).v === "690") return;   // dataset is optional on a foreign node
+  if(prev && (prev.dataset||{}).v === "691") return;   // dataset is optional on a foreign node
   if(prev) prev.remove();                      // an older build's sheet would fight this one, silently
-  const s=document.createElement("style"); s.id="hb-agenda-css"; s.dataset.v="690"; s.textContent=`
+  const s=document.createElement("style"); s.id="hb-agenda-css"; s.dataset.v="691"; s.textContent=`
   /* The card decides the size (manifest.size); the widget fills it and scrolls INSIDE — the operator's
      report was «se muestra muy pequeño, se cortan las palabras de abajo». :has reaches the card chrome
      (.hb-scroll wraps the widget root) exactly as the video widget does since V2-636. */
@@ -56,7 +56,7 @@ function injectStyles(){
      Two full-weight lines a few pixels apart was the redundancy the operator was looking at. */
   .hb-agenda .agbar{display:flex;align-items:center;gap:var(--sp-2,8px);padding:0 0 var(--sp-3,12px);
     flex:0 0 auto;min-width:0}
-  .hb-agenda .agbrand{width:26px;height:26px;border-radius:8px;background:var(--hb-accent,#3D6FE0);color:#fff;
+  .hb-agenda .agbrand{width:26px;height:26px;border-radius:8px;background:var(--hb-accent,#3D6FE0);color:var(--canvas,#101216);
     display:flex;align-items:center;justify-content:center;flex:0 0 auto}
   .hb-agenda .agbrand svg{width:15px;height:15px;display:block}
   /* the range is the CONTENT's header, so it sits one step under the window title rather than over it —
@@ -87,12 +87,14 @@ function injectStyles(){
   /* V2-690 — SELECTED is said the same way everywhere in the product now (the chat's tabs, the tray's open
      panel, the dock's active app): an accent-tinted chip with an accent ring. The inverted near-white pill
      this used to be was a SECOND filled language on the screen, and the loudest thing on the card. */
-  .hb-agenda .agtab.on{background:color-mix(in srgb,var(--hb-accent,#9B7CFF) 16%,transparent);
-    color:var(--hb-accent,#9B7CFF);
-    box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--hb-accent,#9B7CFF) 40%,transparent)}
-  /* .4 of the secondary ink on the widget ground is under 2:1 — «disabled» has to read as unavailable,
-     not as absent (the tabs are still the map of where you are). */
-  .hb-agenda .agtab:disabled{opacity:.6;cursor:default;pointer-events:none}
+  .hb-agenda .agtab.on{background:color-mix(in srgb,var(--hb-accent,#AE90FF) 18%,transparent);
+    color:var(--hb-ink,#F2F4F7);font-weight:700;
+    box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--hb-accent,#AE90FF) 55%,transparent)}
+  /* «disabled» has to read as unavailable, not as absent — the tabs are still the map of where you are.
+     V2-691 MEASURED it on the connectors screen, which is the only place they are ever disabled and which
+     no audit had ever reached: at .6 the effective ink came out at 4.25:1, under the floor. .75 keeps a
+     clear step below an enabled tab (5.8:1 against 9.4:1) and stays over it. */
+  .hb-agenda .agtab:disabled{opacity:.75;cursor:default;pointer-events:none}
   /* Platform icons + Conectores button, ONE right-aligned cluster — mirroring the messaging widget's own
      header pattern (icons for every provider, a door into the connectors screen), per the operator's V2-679
      follow-up: «he dicho que hay un icono, un botón para conectores y luego a la izquierda los tres iconos». */
@@ -119,12 +121,12 @@ function injectStyles(){
     border-bottom:1px solid var(--hb-line,#e3e8f0)}
   .hb-agenda .agdh{padding:5px 4px 7px;text-align:center;min-width:0;border-left:1px solid var(--hb-line,#eef1f6)}
   .hb-agenda .agdh:first-child{border-left:0}
-  .hb-agenda .agdh .agdw{font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;
+  .hb-agenda .agdh .agdw{font-size:12px;text-transform:uppercase;letter-spacing:.07em;
     color:var(--hb-muted-2,#9aa7b8);font-weight:700}
   .hb-agenda .agdh .agdn{font-size:17px;font-weight:600;line-height:1.35;color:var(--hb-ink,#0d1622);
     width:29px;height:29px;margin:1px auto 0;border-radius:50%;display:flex;align-items:center;justify-content:center}
   .hb-agenda .agdh.today .agdw{color:var(--hb-accent,#3D6FE0)}
-  .hb-agenda .agdh.today .agdn{background:var(--hb-accent,#3D6FE0);color:#fff}
+  .hb-agenda .agdh.today .agdn{background:var(--hb-accent,#3D6FE0);color:var(--canvas,#101216)}
   .hb-agenda .agdh.pick{cursor:pointer}
   .hb-agenda .agdh.pick:hover .agdn{background:var(--hb-bg-soft,#f4f7fb)}
   .hb-agenda .agdh.today.pick:hover .agdn{background:var(--hb-accent,#3D6FE0)}
@@ -133,11 +135,11 @@ function injectStyles(){
   .hb-agenda .agallcell{padding:3px;display:flex;flex-direction:column;gap:2px;min-width:0;
     border-left:1px solid var(--hb-line,#eef1f6)}
   .hb-agenda .agallcell:first-child{border-left:0}
-  .hb-agenda .agalllb{font-size:10px;color:var(--hb-muted-2,#9aa7b8);text-transform:uppercase;
+  .hb-agenda .agalllb{font-size:12px;color:var(--hb-muted-2,#9aa7b8);text-transform:uppercase;
     letter-spacing:.06em;padding:5px 4px 0;text-align:right;font-weight:700}
   .hb-agenda .aggrid{display:grid;position:relative}
   .hb-agenda .aghours{position:relative}
-  .hb-agenda .aghour{position:absolute;right:6px;font-size:10.5px;color:var(--hb-muted-2,#9aa7b8);
+  .hb-agenda .aghour{position:absolute;right:6px;font-size:12px;color:var(--hb-muted-2,#9aa7b8);
     font-variant-numeric:tabular-nums;transform:translateY(-50%)}
   .hb-agenda .agcol{position:relative;border-left:1px solid var(--hb-line,#eef1f6);min-width:0}
   .hb-agenda .agline{position:absolute;left:0;right:0;border-top:1px solid var(--hb-line,#eef1f6)}
@@ -157,12 +159,12 @@ function injectStyles(){
   .hb-agenda .agev.planned{background:color-mix(in srgb, var(--evc,#3D6FE0) 8%, transparent);
     border-left-width:2px;opacity:.92}
   .hb-agenda .agev.sel{box-shadow:0 0 0 2px var(--evc,#3D6FE0)}
-  .hb-agenda .agevt{font-size:11.5px;font-weight:600;color:var(--hb-ink,#0d1622);white-space:nowrap;
+  .hb-agenda .agevt{font-size:13px;font-weight:600;color:var(--hb-ink,#0d1622);white-space:nowrap;
     overflow:hidden;text-overflow:ellipsis}
-  .hb-agenda .agevh{font-size:10.5px;color:var(--hb-muted,#5b6b82);font-variant-numeric:tabular-nums;
+  .hb-agenda .agevh{font-size:12px;color:var(--hb-muted,#5b6b82);font-variant-numeric:tabular-nums;
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:5px}
   .hb-agenda .agbadges{display:inline-flex;align-items:center;gap:5px;flex:0 0 auto}
-  .hb-agenda .agbadge{display:inline-flex;align-items:center;gap:2px;font-size:10px;color:var(--hb-muted,#5b6b82);
+  .hb-agenda .agbadge{display:inline-flex;align-items:center;gap:2px;font-size:12px;color:var(--hb-muted,#5b6b82);
     font-variant-numeric:tabular-nums}
   .hb-agenda .agbadge svg{width:10px;height:10px;display:block}
   .hb-agenda .agev.allday{position:static;min-height:0;padding:2px 6px}
@@ -170,7 +172,7 @@ function injectStyles(){
   /* ── MONTH ───────────────────────────────────────────────────────────────────────────────────────── */
   .hb-agenda .agmgrid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:0;height:100%;
     border-top:1px solid var(--hb-line,#e3e8f0);border-left:1px solid var(--hb-line,#e3e8f0)}
-  .hb-agenda .agmdow{font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;
+  .hb-agenda .agmdow{font-size:12px;text-transform:uppercase;letter-spacing:.07em;
     color:var(--hb-muted-2,#9aa7b8);text-align:center;font-weight:700;padding:5px 0}
   .hb-agenda .agmdows{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));flex:0 0 auto}
   .hb-agenda .agmcell{min-height:74px;border-right:1px solid var(--hb-line,#e3e8f0);
@@ -178,25 +180,25 @@ function injectStyles(){
     overflow:hidden;cursor:pointer;background:var(--hb-bg,#fff)}
   .hb-agenda .agmcell:hover{background:var(--hb-bg-soft,#f4f7fb)}
   .hb-agenda .agmcell.out{background:var(--hb-bg-soft,#fbfdff);opacity:.62}
-  .hb-agenda .agmn{font-size:11.5px;color:var(--hb-muted,#5b6b82);font-variant-numeric:tabular-nums;
+  .hb-agenda .agmn{font-size:13px;color:var(--hb-muted,#5b6b82);font-variant-numeric:tabular-nums;
     align-self:flex-start;width:20px;height:20px;border-radius:50%;display:flex;align-items:center;
     justify-content:center;flex:0 0 auto}
-  .hb-agenda .agmcell.today .agmn{background:var(--hb-accent,#3D6FE0);color:#fff;font-weight:700}
-  .hb-agenda .agmev{display:flex;align-items:center;gap:4px;font-size:10.5px;min-width:0;
+  .hb-agenda .agmcell.today .agmn{background:var(--hb-accent,#3D6FE0);color:var(--canvas,#101216);font-weight:700}
+  .hb-agenda .agmev{display:flex;align-items:center;gap:4px;font-size:12px;min-width:0;
     padding:1px 4px;border-radius:5px;background:color-mix(in srgb, var(--evc,#3D6FE0) 15%, transparent);
     cursor:pointer}
   .hb-agenda .agmev.pending{background:transparent;border:1px dashed var(--evc,#3D6FE0)}
   .hb-agenda .agmdot{width:6px;height:6px;border-radius:50%;background:var(--evc,#3D6FE0);flex:0 0 auto}
   .hb-agenda .agmt{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--hb-ink,#0d1622)}
   .hb-agenda .agmh{color:var(--hb-muted,#5b6b82);font-variant-numeric:tabular-nums;flex:0 0 auto}
-  .hb-agenda .agmore{font-size:10px;color:var(--hb-muted-2,#9aa7b8);padding-left:3px}
+  .hb-agenda .agmore{font-size:12px;color:var(--hb-muted-2,#9aa7b8);padding-left:3px}
 
   /* ── LIST (the classic Schedule view) ────────────────────────────────────────────────────────────── */
   .hb-agenda .aglist{display:flex;flex-direction:column;gap:0}
   .hb-agenda .agday{display:flex;gap:12px;padding:9px 2px;border-bottom:1px solid var(--hb-line,#eef1f6);min-width:0}
   .hb-agenda .agdaydate{width:58px;flex:0 0 auto;text-align:center}
   .hb-agenda .agdaydate .d{font-size:19px;font-weight:700;line-height:1.1}
-  .hb-agenda .agdaydate .w{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;
+  .hb-agenda .agdaydate .w{font-size:12px;text-transform:uppercase;letter-spacing:.06em;
     color:var(--hb-muted-2,#9aa7b8);font-weight:700}
   .hb-agenda .agday.today .agdaydate .d,.hb-agenda .agday.today .agdaydate .w{color:var(--hb-accent,#3D6FE0)}
   .hb-agenda .agdayevs{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:5px}
@@ -206,11 +208,11 @@ function injectStyles(){
   .hb-agenda .agrow:hover{background:color-mix(in srgb, var(--evc,#3D6FE0) 18%, transparent)}
   .hb-agenda .agrow.pending{background:transparent;border:1px dashed var(--evc,#3D6FE0);border-left-width:3px;
     border-left-style:solid}
-  .hb-agenda .agrowh{font-size:12px;color:var(--hb-muted,#5b6b82);font-variant-numeric:tabular-nums;
+  .hb-agenda .agrowh{font-size:13px;color:var(--hb-muted,#5b6b82);font-variant-numeric:tabular-nums;
     width:78px;flex:0 0 auto}
   .hb-agenda .agrowt{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
     flex:1 1 auto;min-width:0}
-  .hb-agenda .agrowm{font-size:11.5px;color:var(--hb-muted,#5b6b82);white-space:nowrap;overflow:hidden;
+  .hb-agenda .agrowm{font-size:13px;color:var(--hb-muted,#5b6b82);white-space:nowrap;overflow:hidden;
     text-overflow:ellipsis;flex:0 1 auto;max-width:38%}
   .hb-agenda .agempty{padding:26px 10px;text-align:center;color:var(--hb-muted-2,#9aa7b8);font-size:13px}
 
@@ -223,20 +225,20 @@ function injectStyles(){
     .hb-agenda .agside{width:auto;flex:0 0 auto}}
   .hb-agenda .agcard{border:1px solid var(--hb-line,#e3e8f0);border-radius:12px;padding:11px;
     background:var(--hb-bg-soft,#fbfdff);display:flex;flex-direction:column;gap:7px}
-  .hb-agenda .agk{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--hb-muted-2,#9aa7b8);
+  .hb-agenda .agk{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--hb-muted-2,#9aa7b8);
     font-weight:700}
   .hb-agenda .agtask{font-size:14.5px;font-weight:600}
   .hb-agenda .agcount{font-size:26px;font-variant-numeric:tabular-nums;color:var(--hb-accent2,#16B8A6);
     font-weight:600}
   .hb-agenda .agacts{display:flex;flex-wrap:wrap;gap:6px}
   .hb-agenda .agacts button{border:1px solid var(--hb-line,#e3e8f0);background:var(--hb-bg,#fff);
-    border-radius:9px;padding:7px 10px;font-size:12px;cursor:pointer;color:var(--hb-muted,#3a4757)}
+    border-radius:9px;padding:7px 10px;font-size:13px;cursor:pointer;color:var(--hb-muted,#3a4757)}
   .hb-agenda .agacts button:hover{border-color:var(--hb-accent,#3D6FE0);color:var(--hb-accent,#3D6FE0)}
   .hb-agenda .agacts .done{border-color:var(--hb-accent2,#16B8A6);color:#0f766e}
-  .hb-agenda .agnudge{font-size:12px;color:var(--hb-warn-ink,#9a6a00);background:var(--hb-warn-bg,#fff7e8);
+  .hb-agenda .agnudge{font-size:13px;color:var(--hb-warn-ink,#9a6a00);background:var(--hb-warn-bg,#fff7e8);
     border:1px solid var(--hb-warn-border,#f2dca6);border-radius:9px;padding:7px 9px}
-  .hb-agenda .agwarn{font-size:11.5px;color:var(--hb-muted-2,#7d8a9c)}
-  .hb-agenda .agchip{font-size:11.5px;border:1px solid var(--hb-line,#e3e8f0);border-radius:999px;
+  .hb-agenda .agwarn{font-size:13px;color:var(--hb-muted-2,#7d8a9c)}
+  .hb-agenda .agchip{font-size:13px;border:1px solid var(--hb-line,#e3e8f0);border-radius:999px;
     padding:3px 9px;color:var(--hb-muted,#3a4757);background:var(--hb-bg,#fff)}
   .hb-agenda .agchips{display:flex;gap:6px;flex-wrap:wrap}
 
@@ -252,11 +254,11 @@ function injectStyles(){
   .hb-agenda .agpx{border:0;background:none;color:var(--hb-muted-2,#9aa7b8);font-size:17px;cursor:pointer;
     line-height:1;padding:0 2px;flex:0 0 auto}
   .hb-agenda .agpx:hover{color:var(--hb-ink,#0d1622)}
-  .hb-agenda .agprow{display:flex;align-items:flex-start;gap:8px;font-size:12.5px;color:var(--hb-muted,#3a4757);
+  .hb-agenda .agprow{display:flex;align-items:flex-start;gap:8px;font-size:13px;color:var(--hb-muted,#3a4757);
     line-height:1.35;min-width:0}
   .hb-agenda .agprow svg{width:13px;height:13px;display:block;flex:0 0 auto;margin-top:2px;
     color:var(--hb-muted-2,#9aa7b8)}
-  .hb-agenda .agpstate{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;
+  .hb-agenda .agpstate{display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:600;
     border-radius:999px;padding:3px 10px;align-self:flex-start}
   /* V2-689 — a state pill reads its colour from the SEMANTIC tokens. These carried literal dark-teal/dark-amber
      ink over a translucent wash, which is legible on paper and invisible on the dark skin the product ships. */
@@ -266,7 +268,7 @@ function injectStyles(){
     color:var(--hb-warn,#EFC75E)}
   .hb-agenda .agpacts{display:flex;flex-wrap:wrap;gap:6px;margin-top:2px}
   .hb-agenda .agpacts button{border:1px solid var(--hb-line,#e3e8f0);background:var(--hb-bg,#fff);
-    border-radius:9px;padding:7px 11px;font-size:12px;cursor:pointer;color:var(--hb-muted,#3a4757)}
+    border-radius:9px;padding:7px 11px;font-size:13px;cursor:pointer;color:var(--hb-muted,#3a4757)}
   .hb-agenda .agpacts button:hover{border-color:var(--hb-accent,#3D6FE0);color:var(--hb-accent,#3D6FE0)}
   .hb-agenda .agpacts button.risk:hover{border-color:var(--hb-risk,#e5484d);color:var(--hb-risk,#e5484d)}
   /* V2-690 — ONE block per provider: the row, and whatever acts on it, indented to the row's own name
@@ -282,17 +284,20 @@ function injectStyles(){
   .hb-agenda .agcalico svg{width:15px;height:15px;display:block}
   .hb-agenda .agcalname{font-size:13px;font-weight:600;flex:1 1 auto;min-width:0;white-space:nowrap;
     overflow:hidden;text-overflow:ellipsis}
-  .hb-agenda .agcalst{font-size:11px;font-weight:600;border-radius:999px;padding:3px 9px;flex:0 0 auto;
-    background:var(--hb-bg-soft,#f4f7fb);color:var(--hb-muted-2,#7d8a9c)}
+  /* V2-691 — the ink was picked for the WIDGET's ground and this pill sits on a lighter rung, where the
+     tertiary step loses a point of contrast (5.38:1, the tightest thing left on the screen). A status a
+     provider row is ABOUT is not tertiary text anyway. */
+  .hb-agenda .agcalst{font-size:13px;font-weight:600;border-radius:999px;padding:3px 9px;flex:0 0 auto;
+    background:var(--hb-bg,#f4f7fb);color:var(--hb-muted,#5b6b82)}
   .hb-agenda .agcalst.on{background:color-mix(in srgb,var(--hb-ok,#5FD3A2) 15%,transparent);
     color:var(--hb-ok,#5FD3A2)}
-  .hb-agenda .agnote{font-size:11.5px;color:var(--hb-muted-2,#7d8a9c);line-height:1.4}
+  .hb-agenda .agnote{font-size:13px;color:var(--hb-muted-2,#7d8a9c);line-height:1.4}
   .hb-agenda .agcalst.unconf{background:color-mix(in srgb,var(--hb-warn,#EFC75E) 15%,transparent);
     color:var(--hb-warn,#EFC75E)}
   .hb-agenda .agcalbtn2{margin:6px 4px 2px;align-self:flex-start}
   .hb-agenda .agcaldef{display:flex;flex-direction:column;gap:5px;padding:4px 4px 2px}
-  .hb-agenda .agcaldeflabel{font-size:11.5px;font-weight:600;color:var(--hb-muted,#5b6b82)}
-  .hb-agenda .agcaldefrow{display:flex;align-items:center;gap:7px;font-size:12.5px;cursor:pointer}
+  .hb-agenda .agcaldeflabel{font-size:13px;font-weight:600;color:var(--hb-muted,#5b6b82)}
+  .hb-agenda .agcaldefrow{display:flex;align-items:center;gap:7px;font-size:13px;cursor:pointer}
   .hb-agenda .agcaldot{width:9px;height:9px;border-radius:50%;background:var(--hb-neutral,#c2ccda);flex:0 0 auto}
 
   /* ── CONNECTORS SCREEN — takes over the WHOLE content area (V2-679 follow-up), like the messaging
@@ -329,7 +334,7 @@ function injectStyles(){
     color:var(--hb-accent,#9B7CFF);
     background:color-mix(in srgb,var(--hb-accent,#9B7CFF) 18%,transparent)}
   .hb-agenda .agwtitle{font:600 15px/24px var(--sans,system-ui);color:var(--hb-ink,#0d1622);min-width:0}
-  .hb-agenda .agwcount{margin-left:auto;flex:0 0 auto;font-size:12px;color:var(--hb-muted-2,#9aa7b8)}
+  .hb-agenda .agwcount{margin-left:auto;flex:0 0 auto;font-size:13px;color:var(--hb-muted-2,#9aa7b8)}
   .hb-agenda .agwbody{font-size:14px;color:var(--hb-muted,#4a5a70);line-height:1.6}
   .hb-agenda .agwlink{display:inline-flex;align-items:center;gap:6px;margin:9px 9px 0 0;
     border:1px solid var(--hb-line,rgba(255,255,255,.10));color:var(--hb-ink,#F2F4F7);
@@ -337,10 +342,10 @@ function injectStyles(){
     padding:9px 14px;font-size:13px;font-weight:600;text-decoration:none}
   .hb-agenda .agwlink:hover{border-color:var(--hb-line-strong,rgba(255,255,255,.18));
     background:var(--hb-hover,#242A34)}
-  .hb-agenda .agwtip{margin-top:10px;font-size:12.5px;color:var(--hb-muted,#A7AFBC);
+  .hb-agenda .agwtip{margin-top:10px;font-size:13px;color:var(--hb-muted,#A7AFBC);
     background:var(--hb-bubble,#1D222A);border:1px solid var(--hb-line-subtle,rgba(255,255,255,.06));
     border-radius:var(--hb-r-m,10px);padding:9px 11px;line-height:1.55}
-  .hb-agenda .agwerr{margin-top:10px;font-size:12.5px;color:var(--hb-risk,#e5484d);line-height:1.5}
+  .hb-agenda .agwerr{margin-top:10px;font-size:13px;color:var(--hb-risk,#e5484d);line-height:1.5}
   /* A button is the size of its label. «flex:1 1 auto» made the primary swallow every spare pixel of the
      row — «un botón gigante» — which also destroyed the one thing a wizard's footer is for: the same
      control in the same place on every step. Natural width, a comfortable floor, and the pair sits under

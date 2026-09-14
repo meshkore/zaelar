@@ -27,7 +27,7 @@ function injectStyles(){
   .hb-nav-ic:disabled{opacity:.4;cursor:default}
   .hb-nav-url{flex:1;min-width:0;border:1px solid var(--hb-line,#e3e8f0);background:var(--hb-bg,#fff);color:var(--hb-ink,#0d1622);border-radius:9px;padding:7px 11px;font-size:13px}
   .hb-nav-url:focus{outline:none;border-color:var(--hb-accent,#3D6FE0)}
-  .hb-nav-go{border:0;background:var(--hb-accent,#3D6FE0);color:#fff;border-radius:9px;padding:0 14px;height:32px;font-size:13px;font-weight:600;cursor:pointer;flex:0 0 auto}
+  .hb-nav-go{border:0;background:var(--hb-accent,#3D6FE0);color:var(--canvas,#101216);border-radius:9px;padding:0 14px;height:32px;font-size:13px;font-weight:600;cursor:pointer;flex:0 0 auto}
   .hb-nav-go:hover{filter:brightness(1.06)}
   .hb-nav-view{position:relative;border:1px solid var(--hb-line,#e3e8f0);border-radius:12px;overflow:hidden;background:var(--hb-bg-soft,#f5f7fb);aspect-ratio:${VP.w} / ${VP.h}}
   .hb-nav-img{display:block;width:100%;height:100%;object-fit:cover;object-position:top;cursor:crosshair}
@@ -66,7 +66,7 @@ function injectStyles(){
   .hb-navt-done{width:14px;height:14px;flex:0 0 auto;color:var(--hb-accent2,#16B8A6)}
   .hb-navt-login{margin-top:8px;padding:10px;border-radius:9px;background:rgba(61,111,224,.1);border:1px solid rgba(61,111,224,.35)}
   .hb-navt-login-t{font-size:12.5px;color:var(--hb-ink,#0d1622);margin-bottom:8px}
-  .hb-navt-login-btn{border:0;background:var(--hb-accent,#3D6FE0);color:#fff;border-radius:8px;padding:8px 14px;font-size:12.5px;font-weight:600;cursor:pointer;width:100%}
+  .hb-navt-login-btn{border:0;background:var(--hb-accent,#3D6FE0);color:var(--canvas,#101216);border-radius:8px;padding:8px 14px;font-size:12.5px;font-weight:600;cursor:pointer;width:100%}
   .hb-navt-login-btn:hover{filter:brightness(1.06)}
   .hb-navt-urlline{font-size:10.5px;color:var(--hb-muted-2,#7d8a9c);margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .hb-navt-q{margin-top:8px;padding:8px 10px;border-radius:9px;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.4)}

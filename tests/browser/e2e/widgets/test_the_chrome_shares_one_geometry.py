@@ -128,7 +128,9 @@ _BUBBLES = """() => {
                       return {k, radius: c.borderTopLeftRadius, padding: c.padding,
                               maxWidth: c.maxWidth, fontSize: c.fontSize, bg: c.backgroundColor}; };
   const kinds = ['you', 'agent', 'peer', 'sys'].map(read);
-  return {kinds, gap: getComputedStyle(list).rowGap};
+  const root = getComputedStyle(document.documentElement);
+  const scale = [1,2,3,4,5,6].map(n => root.getPropertyValue('--sp-' + n).trim());
+  return {kinds, gap: getComputedStyle(list).rowGap, scale};
 }"""
 
 
@@ -286,7 +288,11 @@ def test_every_conversational_bubble_shares_one_geometry(measured):
     for prop in ("radius", "padding", "maxWidth", "fontSize"):
         assert len({k[prop] for k in turns}) == 1, \
             f"{prop} differs between bubbles: {[(k['k'], k[prop]) for k in turns]}"
-    assert b["gap"] == "12px", f"the transcript's vertical rhythm comes off the spacing scale: {b['gap']}"
+    # Read FROM the scale rather than pinned to a number: the claim is that the rhythm is a STEP of the
+    # scale (V2-691 moved it 12 -> 16 for reading comfort and the old literal caught that as a failure,
+    # which is the assertion measuring the wrong thing). The 12px floor is the operator's own rule.
+    assert b["gap"] in b["scale"], f"the vertical rhythm must be a step of --sp-*: {b['gap']} not in {b['scale']}"
+    assert float(b["gap"].rstrip("px")) >= 12, f"messages need room to separate: {b['gap']}"
 
 
 def test_the_operators_bubble_is_an_accent_and_not_the_accent(measured):

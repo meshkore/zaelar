@@ -185,7 +185,7 @@ function injectStyles(){
   .hb-msg .seg{display:inline-flex;border:1px solid var(--hb-line,#e3e8f0);border-radius:8px;overflow:hidden}
   .hb-msg .segbtn{border:0;background:var(--hb-bg,#fff);color:var(--hb-muted,#5b6b82);font-size:12px;padding:6px 13px;cursor:pointer}
   .hb-msg .segbtn+.segbtn{border-left:1px solid var(--hb-line,#e3e8f0)}
-  .hb-msg .segbtn.active{background:var(--hb-accent,#3D6FE0);color:#fff}
+  .hb-msg .segbtn.active{background:var(--hb-accent,#3D6FE0);color:var(--canvas,#101216)}
 
   /* COMPLETE profile (original). */
   .hb-msg .list{display:flex;flex-direction:column;gap:7px;max-height:52vh;overflow:auto}
@@ -326,7 +326,7 @@ function injectStyles(){
   .hb-msg .tbrow.out .tbstack{align-items:flex-end}
   .hb-msg .tbubble{padding:8px 12px;border-radius:16px;background:var(--hb-bubble,#eef1f6);color:var(--hb-ink,#0d1622)}
   .hb-msg .tbrow:not(.out) .tbubble{border-bottom-left-radius:4px}
-  .hb-msg .tbrow.out .tbubble{background:var(--hb-accent,#3D6FE0);color:#fff;border-bottom-right-radius:4px}
+  .hb-msg .tbrow.out .tbubble{background:var(--hb-accent,#3D6FE0);color:var(--canvas,#101216);border-bottom-right-radius:4px}
   .hb-msg .tbubble.urg{box-shadow:inset 3px 0 0 var(--hb-risk,#e5484d)}
   /* V2-616 F4 — WhatsApp reads as WhatsApp, Telegram as Telegram, email as email: his own reply's bubble and
      the compose button take the OPEN thread's platform color (.thread.plat-ID, set once in threadView/
@@ -362,7 +362,7 @@ function injectStyles(){
      derived from duration), a real drag-to-seek surface instead of the tiny native scrubber. */
   .hb-msg .maudio{display:flex;align-items:center;gap:8px;width:100%;min-width:220px;box-sizing:border-box}
   .hb-msg .mapbtn{flex:0 0 auto;width:32px;height:32px;border-radius:50%;border:0;cursor:pointer;
-    background:var(--hb-accent,#3D6FE0);color:#fff;font-size:12px;display:flex;align-items:center;justify-content:center}
+    background:var(--hb-accent,#3D6FE0);color:var(--canvas,#101216);font-size:12px;display:flex;align-items:center;justify-content:center}
   .hb-msg .mapbtn:hover{filter:brightness(1.08)}
   .hb-msg .mawave{flex:1 1 auto;min-width:0;height:30px;display:flex;align-items:center;gap:2.5px;cursor:pointer;touch-action:none}
   .hb-msg .mabar{flex:1 1 0;min-width:2px;max-width:4px;border-radius:2px;background:var(--hb-muted-2,#9aa7b8);opacity:.5}
@@ -432,7 +432,7 @@ function injectStyles(){
   .hb-msg .wlink{display:inline-flex;align-items:center;gap:6px;margin-top:11px;border:1px solid var(--hb-accent,#3D6FE0);
     color:var(--hb-accent,#3D6FE0);border-radius:9px;padding:9px 14px;font-size:13px;font-weight:600;
     text-decoration:none;background:transparent}
-  .hb-msg .wlink:hover{background:var(--hb-accent,#3D6FE0);color:#fff}
+  .hb-msg .wlink:hover{background:var(--hb-accent,#3D6FE0);color:var(--canvas,#101216)}
   .hb-msg .wtip{margin-top:10px;font-size:12.5px;color:var(--hb-muted,#5b6b82);background:var(--hb-bg-soft,#fbfdff);
     border:1px solid var(--hb-line,#eef1f6);border-radius:9px;padding:9px 11px;line-height:1.55}
   .hb-msg .wtip b{color:var(--hb-ink,#0d1622)}
@@ -464,11 +464,11 @@ function injectStyles(){
   .hb-msg .bt{height:38px;padding:0 18px;border-radius:10px;font-size:13.5px;font-weight:600;cursor:pointer;
     display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box}
   .hb-msg .bt:disabled{opacity:.6;cursor:default}
-  .hb-msg .bt-primary{border:0;color:#fff;background:var(--hb-accent,#3D6FE0)}
+  .hb-msg .bt-primary{border:0;color:var(--canvas,#101216);background:var(--hb-accent,#3D6FE0)}
   .hb-msg .bt-primary:hover:not(:disabled){filter:brightness(1.06)}
   .hb-msg .bt-ghost{border:1px solid var(--hb-line,#e3e8f0);background:transparent;color:var(--hb-muted,#5b6b82)}
   .hb-msg .bt-ghost:hover:not(:disabled){border-color:var(--hb-accent,#3D6FE0);color:var(--hb-accent,#3D6FE0)}
-  .hb-msg .bt-danger{border:0;color:#fff;background:var(--hb-risk,#e5484d)}
+  .hb-msg .bt-danger{border:0;color:var(--canvas,#101216);background:var(--hb-risk,#e5484d)}
   .hb-msg .wfoot{display:flex;gap:9px;margin-top:10px}
   .hb-msg .wfoot .bt-primary{flex:1 1 auto}
   /* Connector LIST screen (V2-570): a grid of icon boxes replaces the stacked rows, so the list stays
@@ -498,7 +498,7 @@ function injectStyles(){
   .hb-msg .ibox .ilabel{font-size:13px;font-weight:600;color:var(--hb-ink,#0d1622);text-align:center}
   .hb-msg .ibox .isub{font-size:11px;color:var(--hb-muted-2,#9aa7b8)}
   .hb-msg .ibox .iavatar{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;
-    font-size:16px;font-weight:700;color:#fff;background:var(--hb-accent,#3D6FE0)}
+    font-size:16px;font-weight:700;color:var(--canvas,#101216);background:var(--hb-accent,#3D6FE0)}
   /* Connected-status screen + disconnect confirmation (unscoped, no longer nested under a removed .chan row). */
   .hb-msg .cfm{margin-top:10px;font-size:12.5px;color:var(--hb-ink,#0d1622)}
   .hb-msg .cfm .row{display:flex;gap:8px;margin-top:8px}

@@ -21,12 +21,23 @@
    colour, it is a MONOTONE LADDER every surface picks a rung from, and it is the reason these five tokens are
    ordered and commented as one block rather than typed where each was first needed:
 
-       --canvas   0B0D10   the desk itself — the floor, and the only thing the wallpaper replaces
-       --hb-sidebar 0E1014 the side column / the system rails: adjacent to the desk, never equal to it
-       --hb-bg    12151A   SURFACE-1 — a widget, a panel, a modal: the objects that sit ON the desk
-       --hb-bg-soft 171B21 SURFACE-2 — a panel INSIDE one of those objects (a toolbar strip, a group box)
-       --hb-bubble 1D222A  SURFACE-3 — a card inside that panel, a chat bubble, a selected row
-       --hb-hover 242A34   the interaction rung — hover/active, one step above whatever it sits on
+       --canvas   16191E   the desk itself — the floor, and the only thing the wallpaper replaces
+       --hb-sidebar 1A1E24 the side column / the system rails: adjacent to the desk, never equal to it
+       --hb-bg    1F242B   SURFACE-1 — a widget, a panel, a modal: the objects that sit ON the desk
+       --hb-bg-soft 272D35 SURFACE-2 — a panel INSIDE one of those objects (a toolbar strip, a group box)
+       --hb-bubble 313740  SURFACE-3 — a card inside that panel, a chat bubble, a selected row
+       --hb-hover 3C434F   the interaction rung — hover/active, one step above whatever it sits on
+
+   V2-691 — THE WHOLE LADDER MOVED UP. The operator, after two passes of structure: «revisar si el fondo
+   general está demasiado negro… evitar una interfaz excesivamente negra, porque endurece mucho el contraste
+   visual y fatiga». It is the same six rungs in the same order and with the same ~1.4x luminance step
+   between them; what changed is where the bottom of the ladder sits — about THREE TIMES the luminance of
+   the old near-black floor, which puts the desk in the same country as an editor's dark theme rather than
+   below it. Nothing here is a light GREY. What it buys is the second half of his sentence — «endurece mucho
+   el contraste visual y fatiga»: the primary ink goes from 15.2:1 to 14.1:1 against the widget ground, which
+   is still far over the floor and is a softer pairing to sit in front of for hours, while every secondary
+   step MOVED UP rather than down (muted 8.6:1, secondary 6.0:1, accent 6.1:1). Raising a ground lowers every
+   ratio over it, so both ends moved; the numbers are measured by node 4.170 on every run, not asserted here.
 
    Two rules keep the ladder honest: NO PURE BLACK and NO PURE WHITE anywhere (both crush the steps at the ends),
    and a box never repeats its parent's rung — if you find yourself nesting a `--hb-bg` inside a `--hb-bg`, the
@@ -53,7 +64,7 @@
    `app/core/components.css` (the shared COMPONENT layer that reads these tokens) right after it.
    Add a token here, never in a shell. */
 :root{
-  --canvas:#0B0D10; --canvas-glow:#111419; --chrome-line:rgba(255,255,255,.10);
+  --canvas:#16191E; --canvas-glow:#1D222A; --chrome-line:rgba(255,255,255,.14);
   --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace;
   /* ONE UI family, best available first: SF on Apple, Inter/Geist when the operator has them installed,
      Segoe/Roboto elsewhere. No webfont — a widget must render with zero network (widgets/AGENTS.md). */
@@ -65,8 +76,14 @@
   /* type scale (V2-617): base 17px ≈ everything authored at 16 scales up ~6% — «fuentes más grandes en todo
      el escritorio» without touching a thousand declarations; the ⚙ size knob moves this one token. */
   --hb-fs-base:17px;
-  --fs-micro:.6875rem; --fs-caption:.78125rem; --fs-ui:.875rem; --fs-body:.9375rem;
+  /* V2-691 — the floor is REAL px, not a ratio: at the 17px root these are 12.75 / 13.8 / 14.9 / 15.9.
+     «metadata pequeña: no bajar de 12px» is what retires the old --fs-micro (11.7px), and with it every
+     hand-picked rem below it across the shell. LINE HEIGHT is a token now for the same reason a size is:
+     it was being guessed per component (1.2, 1.3, 1.35, 1.45) and the tight end is where reading gets
+     tiring over hours. */
+  --fs-micro:.75rem; --fs-caption:.8125rem; --fs-ui:.875rem; --fs-body:.9375rem;
   --fs-title:1.0625rem; --fs-display:1.375rem;
+  --hb-lh:1.55; --hb-lh-tight:1.35;
   /* V2-689 — radii come down a notch: 16px on a 300px panel reads as a toy, 10–12 as a window. */
   --hb-r-s:8px; --hb-r-m:10px; --hb-r-l:12px;
   /* V2-689 — THE SPACING SCALE. 4/8/12/16/24/32, nothing between. */
@@ -78,21 +95,27 @@
   --hb-t-fast:120ms; --hb-t:160ms; --hb-t-slow:180ms;
 
   /* THE ELEVATION LADDER (see the block comment above) */
-  --hb-bg:#12151A; --hb-bg-soft:#171B21; --hb-bg-a:rgba(18,21,26,.88);
-  --hb-sidebar:#0E1014;
-  --hb-bubble:#1D222A; --hb-hover:#242A34;
-  /* V2-690 — --hb-muted-2 measured 4.2:1 on the widget ground: under the 4.5 floor, and it is what the small
-     grey icons and every metadata line are painted with. Lifted to ~5.1:1. --hb-muted stays (it measured
-     8:1 already) so the two steps of the ladder do not collapse into one. */
-  --hb-ink:#F2F4F7; --hb-muted:#A7AFBC; --hb-muted-2:#808A97;
+  --hb-bg:#1F242B; --hb-bg-soft:#272D35; --hb-bg-a:rgba(31,36,43,.92);
+  --hb-sidebar:#1A1E24;
+  --hb-bubble:#313740; --hb-hover:#3C434F;
+  /* V2-691 — MEASURED again with the ladder lifted, because raising a ground lowers every ratio over it.
+     On --hb-bg: ink 15.2:1 · muted 9.3:1 · muted-2 6.5:1 (it was 5.2 on the darker ground and is now higher
+     on a lighter one, which is the whole point of moving both ends). The two secondary steps stay a real
+     step apart so «label» and «metadata» remain distinguishable — collapsing them would trade one
+     legibility problem for a hierarchy one. */
+  --hb-ink:#F2F4F7; --hb-muted:#BAC2CE; --hb-muted-2:#99A2AE;
   /* borders: alpha, so a hairline keeps its weight on every rung */
-  --hb-line:rgba(255,255,255,.10); --hb-line-subtle:rgba(255,255,255,.06); --hb-line-strong:rgba(255,255,255,.18);
+  --hb-line:rgba(255,255,255,.14); --hb-line-subtle:rgba(255,255,255,.09); --hb-line-strong:rgba(255,255,255,.24);
   --hb-neutral:#3A4049;
   /* ONE accent does all the interactive work; amber (--hb-update) only ever HIGHLIGHTS — never a button.
      --hb-accent2 is the INFO cyan: a second voice for links/echoes, deliberately rare. */
-  --hb-accent:#9B7CFF; --hb-accent2:#4CC9F0; --hb-risk:#FF6B75; --hb-risk-soft:rgba(255,107,117,.14);
+  /* V2-691 — the heliotrope, LIGHTENED. It is the identity and it was also the worst text colour on the
+     screen: as a small label on the widget ground it measured 4.7:1, and WHITE on top of it measured 3.1:1.
+     At #AE90FF it reads 6.6:1 as text and carries dark ink at 7.3:1, so the SAME token works in both
+     directions. The rule that goes with it: text on a lilac surface is always the DARK ink, never white. */
+  --hb-accent:#AE90FF; --hb-accent2:#6FD6F5; --hb-risk:#FF8A92; --hb-risk-soft:rgba(255,138,146,.16);
   /* semantic status colors: ok/warn share the risk/accent pattern — ONE value across themes. */
-  --hb-ok:#5FD3A2; --hb-warn:#EFC75E;
+  --hb-ok:#6FE0B0; --hb-warn:#F2CE6B;
   /* V2-689 — depth by LUMINANCE, borders and spacing; the shadows are only there to lift an object off the
      desk, never to draw attention. -1 = a resting widget · -2 = a modal/floating panel · -focus = the card
      the operator is working in (one step stronger than its neighbours, not a different design). */
@@ -111,18 +134,21 @@
   /* the accent as a LARGE FILLED surface (a chat bubble, a selected block) — one notch down from the pure
      accent, because a column of pure-accent boxes becomes the loudest thing on the screen and the accent
      stops meaning «this is interactive». Derived, so a profile that moves the accent moves this with it. */
-  --hb-accent-fill:color-mix(in srgb,var(--hb-accent) 88%,var(--hb-bubble));
+  /* V2-691 — it used to mix toward --hb-bubble, i.e. DARKER, which is what put the operator's own chat
+     bubble at 4.26:1 with dark ink on it. One notch toward the INK instead: slightly softer than the raw
+     accent (which is what «reduce the saturation» asks for) AND easier to read on, at 8.2:1. */
+  --hb-accent-fill:color-mix(in srgb,var(--hb-accent) 88%,var(--hb-ink));
   /* the window title bar's height, so the alias panel below it and any future header consumer agree */
   --hb-head-h:40px;
   /* keyboard focus: ONE ring, everywhere, never removed without a replacement */
   --hb-focus-ring:0 0 0 2px var(--canvas), 0 0 0 4px color-mix(in srgb,var(--hb-accent) 70%,transparent);
-  --hb-warn-bg:rgba(239,199,94,.10); --hb-warn-border:rgba(239,199,94,.28); --hb-warn-ink:#EFC75E;
+  --hb-warn-bg:rgba(242,206,107,.12); --hb-warn-border:rgba(242,206,107,.32); --hb-warn-ink:#F2CE6B;
   /* dark "console" surface for log-like views that deliberately stay dark regardless of theme (a terminal/log
      reads the same in light or dark mode by convention) — shared by the Hermes update log and DebugPanel. */
-  --hb-console-bg:#0B0D10; --hb-console-line:rgba(255,255,255,.10); --hb-console-ink:#F2F4F7; --hb-console-muted:#A7AFBC;
-  --hb-update:#EFC75E; --hb-update2:#E0A84E;
+  --hb-console-bg:#16191E; --hb-console-line:rgba(255,255,255,.14); --hb-console-ink:#F2F4F7; --hb-console-muted:#BAC2CE;
+  --hb-update:#F2CE6B; --hb-update2:#E6B45C;
   /* desktop ground layers (V2-617): dot-grid + accent halo painted by .canvas; profiles tune or zero them */
-  --desk-grid-a:.04; --desk-halo:rgba(155,124,255,.05); --desk-ember:rgba(239,199,94,.03);
+  --desk-grid-a:.045; --desk-halo:rgba(174,144,255,.05); --desk-ember:rgba(242,206,107,.03);
 }
 :root[data-theme="light"]{
   --canvas:#F4F5F7; --canvas-glow:#FBFBFC; --chrome-line:rgba(16,20,26,.10);
@@ -130,12 +156,14 @@
   --hb-bg:#FFFFFF; --hb-bg-soft:#F7F8FA; --hb-bg-a:rgba(255,255,255,.88);
   --hb-sidebar:#F0F1F4;
   --hb-bubble:#EDEFF3; --hb-hover:#E4E7EC;
-  --hb-ink:#12151A; --hb-muted:#5C6573; --hb-muted-2:#6F7886;   /* 3.1:1 on paper was worse than the dark side's */
-  --hb-line:rgba(16,20,26,.10); --hb-line-subtle:rgba(16,20,26,.06); --hb-line-strong:rgba(16,20,26,.20);
+  --hb-ink:#12151A; --hb-muted:#4E5765; --hb-muted-2:#626B79;
+  --hb-line:rgba(16,20,26,.14); --hb-line-subtle:rgba(16,20,26,.09); --hb-line-strong:rgba(16,20,26,.26);
   --hb-neutral:#C6CBD3;
-  --hb-accent:#7A5AF5;   /* the heliotrope needs more pigment on paper to keep contrast */
-  --hb-accent2:#1189C4; --hb-risk:#D93A45; --hb-risk-soft:rgba(217,58,69,.10);
-  --hb-ok:#1B9E6B; --hb-warn:#B4821A;
+  /* on paper the heliotrope goes the OTHER way — darker, not lighter: 4.6:1 as text was the same
+     borderline the dark theme had, arrived at from the opposite side. 5.5:1 now. */
+  --hb-accent:#6D4AE8;
+  --hb-accent2:#0E7BAE; --hb-risk:#C9303B; --hb-risk-soft:rgba(201,48,59,.10);
+  --hb-ok:#16875B; --hb-warn:#966C12;
   --hb-shadow-1:0 1px 2px rgba(16,20,26,.06), 0 4px 12px rgba(16,20,26,.07);
   --hb-shadow-2:0 2px 6px rgba(16,20,26,.08), 0 16px 40px rgba(16,20,26,.12);
   --hb-shadow-focus:0 2px 8px rgba(16,20,26,.10), 0 22px 52px rgba(16,20,26,.18);

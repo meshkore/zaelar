@@ -2054,6 +2054,23 @@ DOMAINS: list[dict] = [
             "ch": UNIT,
             "paths": ["tests/browser/e2e/widgets/test_a_design_profile_repaints_the_whole_desktop.py",
                       "tests/infrastructure/unit/config/test_appearance_settings.py"]},
+        # V2-691 — la TERCERA pasada, que ya no es de diseño sino de LEGIBILIDAD, y deja una regla en pie
+        # para todo lo que venga: «cuando haya conflicto entre estética minimalista y facilidad de lectura,
+        # priorizar facilidad de lectura». Este nodo es la versión que el navegador impone: recorre CADA
+        # texto visible del escritorio, del chat y de una tarjeta real, compone el fondo que el compositor
+        # puso de verdad detrás del glifo —incluidas todas las capas translúcidas y la cadena de `opacity`,
+        # que oscurece la TINTA— y calcula el ratio de WCAG. Nada se juzga: cada número tiene su derivación.
+        # ⚠️ El instrumento mintió primero, dos veces, y las dos están escritas dentro del fichero: un
+        # `color-mix()` resuelve a `color(srgb 0.54 …)` con componentes 0..1, así que leerlo con el parser de
+        # rgb() convierte un lila en casi negro e inventa un fallo de 1,06:1 justo en la superficie de la que
+        # se quejaba el operador; y el selector que abría la pantalla de conectores era `/onect/i`, que casa
+        # «Conectores» y NO «Connectors», de modo que esa pantalla no se había auditado NUNCA — al anclarla
+        # apareció un fallo real (las pestañas desactivadas a 4,25:1).
+        {"id": "4.170", "title": "Cada palabra de la pantalla se puede leer: suelo de contraste WCAG, suelo "
+                                 "de 12px, holgura en el peor caso y ninguna tinta blanca sobre un relleno "
+                                 "de acento",
+            "ch": UNIT,
+            "paths": ["tests/browser/e2e/widgets/test_every_word_on_the_screen_can_be_read.py"]},
         # V2-690 — la SEGUNDA pasada del operador sobre el sistema de diseño (14-sep), explícitamente
         # «polishing, no redesign»: el borde de la ventana un punto más contrastado con un anillo exterior de
         # UN píxel sin difuminar (una sombra mayor solo haría flotar la tarjeta), la barra de título como

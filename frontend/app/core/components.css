@@ -39,7 +39,7 @@
 .hb-btn{display:inline-flex;align-items:center;justify-content:center;gap:var(--sp-2);
   min-height:var(--hb-ctl-h);padding:0 var(--sp-4);box-sizing:border-box;
   border:1px solid transparent;border-radius:var(--hb-r-m);cursor:pointer;
-  font-family:var(--sans);font-size:var(--fs-ui);font-weight:600;line-height:1.2;text-decoration:none;
+  font-family:var(--sans);font-size:var(--fs-ui);font-weight:600;line-height:var(--hb-lh-tight,1.35);text-decoration:none;
   white-space:nowrap;
   transition:background var(--hb-t-fast) ease,border-color var(--hb-t-fast) ease,color var(--hb-t-fast) ease}
 .hb-btn svg{width:16px;height:16px;flex:none}
@@ -61,7 +61,7 @@
 .hb-btn--danger{background:transparent;border-color:var(--hb-line);color:var(--hb-muted)}
 .hb-btn--danger:hover{border-color:var(--hb-risk);color:var(--hb-risk);background:var(--hb-risk-soft)}
 /* the destructive action a dialog is ABOUT — solid red, deliberately rare */
-.hb-btn--danger.hb-btn--solid{background:var(--hb-risk);border-color:var(--hb-risk);color:#fff}
+.hb-btn--danger.hb-btn--solid{background:var(--hb-risk);border-color:var(--hb-risk);color:var(--canvas,#101216)}
 .hb-btn--danger.hb-btn--solid:hover{filter:brightness(1.08);background:var(--hb-risk)}
 
 /* ── ICON BUTTON. Square, quiet until hover, and sized so its HIT AREA is the same everywhere — the operator's
@@ -108,7 +108,7 @@
 .hb-panel-head{display:flex;align-items:center;gap:var(--sp-2);margin-bottom:var(--sp-3)}
 .hb-panel-title{font-size:var(--fs-ui);font-weight:600;color:var(--hb-ink);min-width:0;
   overflow:hidden;text-overflow:ellipsis}
-.hb-panel-note{font-size:var(--fs-caption);color:var(--hb-muted);line-height:1.5}
+.hb-panel-note{font-size:var(--fs-caption);color:var(--hb-muted);line-height:var(--hb-lh,1.55)}
 .hb-card{background:var(--hb-bubble);border:1px solid var(--hb-line-subtle);border-radius:var(--hb-r-m);
   padding:var(--sp-3);box-sizing:border-box;
   transition:border-color var(--hb-t-fast) ease,background var(--hb-t-fast) ease}
@@ -137,7 +137,9 @@
   transition:color var(--hb-t-fast) ease,border-color var(--hb-t-fast) ease}
 .hb-tab svg{width:16px;height:16px;flex:none}
 .hb-tab:hover:not(.is-on){color:var(--hb-ink)}
-.hb-tab.is-on{color:var(--hb-accent);border-bottom-color:var(--hb-accent)}
+/* the UNDERLINE carries the accent; the label carries the ink. Colour marks the position, weight and
+   contrast make it readable — the state survives a colourblind reader either way. */
+.hb-tab.is-on{color:var(--hb-ink);font-weight:700;border-bottom-color:var(--hb-accent)}
 
 /* ── BREADCRUMBS. Says where «back» goes — the one thing a step-by-step screen must never leave to guessing. */
 .hb-crumbs{display:flex;align-items:center;gap:var(--sp-2);flex-wrap:wrap;
@@ -156,13 +158,13 @@
   background:var(--hb-bg);border:1px solid var(--hb-line);border-radius:var(--hb-r-m);color:var(--hb-ink);
   font-family:var(--sans);font-size:var(--fs-ui);outline:none;
   transition:border-color var(--hb-t-fast) ease}
-.hb-textarea{padding:var(--sp-2) var(--sp-3);line-height:1.45;resize:vertical}
+.hb-textarea{padding:var(--sp-2) var(--sp-3);line-height:var(--hb-lh,1.55);resize:vertical}
 .hb-input::placeholder,.hb-textarea::placeholder{color:var(--hb-muted-2)}
 .hb-input:focus,.hb-select:focus,.hb-textarea:focus{border-color:var(--hb-accent)}
 .hb-input[disabled],.hb-select[disabled],.hb-textarea[disabled]{opacity:.5;cursor:default}
 .hb-field{display:flex;flex-direction:column;gap:var(--sp-1);min-width:0}
 .hb-label{font-size:var(--fs-caption);font-weight:600;color:var(--hb-ink)}
-.hb-hint{font-size:var(--fs-micro);color:var(--hb-muted-2);line-height:1.45}
+.hb-hint{font-size:var(--fs-micro);color:var(--hb-muted-2);line-height:var(--hb-lh,1.55)}
 
 /* ── STATUS BADGE. A pill that says a STATE, never an action. Colour is carried at low alpha so a row of badges
    does not out-shout the content they annotate. ─────────────────────────────────────────────────────────── */
@@ -187,7 +189,7 @@
    that is still loading — which is the failure this component exists to make impossible. ─────────────────── */
 .hb-empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:var(--sp-2);
   padding:var(--sp-6) var(--sp-4);text-align:center;color:var(--hb-muted-2);font-size:var(--fs-caption);
-  line-height:1.5}
+  line-height:var(--hb-lh,1.55)}
 
 /* ── REDUCED MOTION. The transitions above are 120-180ms and carry no information, so removing them costs
    nothing and is the honest answer to the preference. ───────────────────────────────────────────────────── */

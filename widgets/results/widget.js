@@ -360,7 +360,7 @@ function injectStyles(){
     background:color-mix(in srgb,var(--hb-accent,#3D6FE0) 8%,transparent);
     border:1px solid color-mix(in srgb,var(--hb-accent,#3D6FE0) 30%,transparent)}
   .hb-results .hr-login-t{font-size:var(--f-sm);margin-bottom:var(--s2)}
-  .hb-results .hr-login-btn{border:0;background:var(--hb-accent,#3D6FE0);color:#fff;border-radius:var(--r-sm);
+  .hb-results .hr-login-btn{border:0;background:var(--hb-accent,#3D6FE0);color:var(--canvas,#101216);border-radius:var(--r-sm);
     padding:var(--s2) var(--s3);font:600 var(--f-sm)/1 inherit;cursor:pointer;width:100%}
   .hb-results .hr-login-btn:hover{filter:brightness(1.06)}
   .hb-results .hr-login-btn[disabled]{opacity:.6;cursor:default}

@@ -12,29 +12,43 @@ widgets feel polished and consistent with the rest. These are HARD rules — fol
   **THE ELEVATION LADDER (V2-689) is the half that decides whether the screen reads as a product or as a flat
   sheet.** Five rungs, each one step lighter than the last, and **a box never repeats the rung of the box around
   it**. If you find yourself nesting a `--hb-bg` inside a `--hb-bg`, the inner one wants `--hb-bg-soft`:
-  - `--canvas` `#0B0D10` — the desk. You never paint this; it is what your card sits on.
-  - `--hb-bg` `#12151A` — **SURFACE-1, your card's ground.** The host already paints it: do not repaint it, and
+  - `--canvas` `#16191E` — the desk. You never paint this; it is what your card sits on.
+  - `--hb-bg` `#1F242B` — **SURFACE-1, your card's ground.** The host already paints it: do not repaint it, and
     do not draw your own outer border or shadow around everything (see «the CHROME belongs to the host»).
-  - `--hb-bg-soft` `#171B21` — **SURFACE-2**, a panel inside your widget: a toolbar strip, a group box, a step.
-  - `--hb-bubble` `#1D222A` — **SURFACE-3**, a card inside that panel, a row, a chat bubble, a selected item.
-  - `--hb-hover` `#242A34` — the interaction rung: hover/active, one step above whatever it sits on.
-  Borders are **alpha**, so a hairline keeps its weight on every rung: `--hb-line` (.10, the default),
-  `--hb-line-subtle` (.06, inside a panel), `--hb-line-strong` (.18, a focused or active edge).
+  - `--hb-bg-soft` `#272D35` — **SURFACE-2**, a panel inside your widget: a toolbar strip, a group box, a step.
+  - `--hb-bubble` `#313740` — **SURFACE-3**, a card inside that panel, a row, a chat bubble, a selected item.
+  - `--hb-hover` `#3C434F` — the interaction rung: hover/active, one step above whatever it sits on.
+  Borders are **alpha**, so a hairline keeps its weight on every rung: `--hb-line` (.14, the default),
+  `--hb-line-subtle` (.09, inside a panel), `--hb-line-strong` (.24, a focused or active edge).
   Text: `--hb-ink` primary · `--hb-muted` secondary (labels, timestamps) · `--hb-muted-2` tertiary (source
   attributions, metadata).
-  **Colour is for STATE, SELECTION and IMPORTANT ACTIONS — nothing else.** `--hb-accent` (`#9B7CFF`) does ALL the
-  interactive work; the rest appear rarely and only when they mean something: `--hb-ok` `#5FD3A2`, `--hb-warn`
-  `#EFC75E`, `--hb-risk` `#FF6B75` (destructive only), `--hb-accent2` `#4CC9F0` (info/echo). `--hb-neutral` is the
+  ⚠️ **A tertiary ink is chosen for SURFACE-1. On a lighter rung it loses about a point of contrast**, so on a
+  `--hb-bg-soft` panel or a `--hb-bubble` card, secondary text wants `--hb-muted`, not `--hb-muted-2`. Node
+  4.170 measures this on every run and names the element and the ground it got wrong.
+  **Colour is for STATE, SELECTION and IMPORTANT ACTIONS — nothing else.** `--hb-accent` (`#AE90FF`) does ALL the
+  interactive work; the rest appear rarely and only when they mean something: `--hb-ok` `#6FE0B0`, `--hb-warn`
+  `#F2CE6B`, `--hb-risk` `#FF8A92` (destructive only), `--hb-accent2` `#6FD6F5` (info/echo). `--hb-neutral` is the
   grey for an unset state (an unfilled bar, a dot with no category); `--hb-warn-bg`/`-border`/`-ink` are the amber
   nudge banner. **A state must never be said by colour ALONE** — pair it with a shape, an icon, a border or a word,
   or it disappears for a colourblind reader.
   **SELECTION is an accent-TINTED chip, never an inverted fill (V2-690).** The one shape for «this is the
-  active tab / row / view», everywhere in the product: `background: color-mix(in srgb, var(--hb-accent) 16%,
-  transparent)`, `color: var(--hb-accent)`, and an accent ring at ~40% as the second signal. An inverted block
+  active tab / row / view», everywhere in the product: `background: color-mix(in srgb, var(--hb-accent) 18%,
+  transparent)`, an accent ring at ~55%, and the LABEL in `var(--hb-ink)` at weight 700 — colour marks the
+  POSITION, weight and contrast make it readable (V2-691: the accent as a small label on its own tint was the
+  tightest text on the whole screen, and «no abusar del lila para texto pequeño» is the rule). An inverted block
   (ink ground, background-coloured text) is a SECOND filled language on the screen and becomes the loudest
   thing on the card — the agenda's view tabs were exactly that until this pass. When the accent has to be a
   large FILLED surface instead (a chat bubble, a highlighted block), use `--hb-accent-fill`, which is the
   accent one notch down: a column of pure-accent boxes stops the accent meaning «interactive».
+  ⚠️ **TEXT ON A FILLED TINT IS THE DARK INK, NEVER WHITE (V2-691).** The accent and the status colours are
+  LIGHT, so white on top of them measures ~2:1 and the dark ink measures ~7:1. Any `background:var(--hb-accent)`
+  (or `--hb-ok`/`--hb-warn`/`--hb-risk`/`--hb-accent2`) takes `color:var(--canvas)`. There is no case where a
+  filled tint in this product carries white text, and node 4.170 fails the build if one appears.
+  **TWO TYPE FLOORS, and they are the operator's (V2-691): UI text 13px, metadata never under 12px**, measured
+  in REAL px after the root-size knob — `--fs-micro` (12.75px) is the smallest step that exists and
+  `--fs-caption` (13.8px) is normal text. Line height comes from `--hb-lh` (1.55) for anything read in
+  sentences and `--hb-lh-tight` (1.35) for a single-line label. **When minimal styling and easy reading
+  disagree, reading wins** — a standing instruction from the operator, not a preference of one pass.
   **Geometry comes from tokens too**: spacing from the fixed scale `--sp-1`…`--sp-6` = 4/8/12/16/24/32 (nothing in
   between — an arbitrary 9px is how a dozen widgets end up almost-but-not-quite aligned); radii `--hb-r-s` 8 /
   `--hb-r-m` 10 / `--hb-r-l` 12; control heights `--hb-ctl-h` 36 / `--hb-ctl-h-sm` 32 / `--hb-icon-h` 28;
