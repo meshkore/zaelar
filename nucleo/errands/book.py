@@ -149,6 +149,42 @@ def book(errand: dict, decision: dict, party: str = "") -> dict:
     return {"ok": True, "link": link, "date": date, "time": start}
 
 
+def note_owed(errand: dict, date: str, start: str) -> dict:
+    """Remember that this errand agreed a VIDEO call and could not send the link yet (V2-692e).
+
+    It rides `done_when`, which is already a round-tripped JSON column and is already the answer to «what
+    closes this errand» — and a link that was promised IS part of being done. `verify._VERIFIERS` keys on
+    (widget, has) and ignores everything else, so the extra fields cost that verifier nothing.
+
+    Without this the errand has no way back: it agreed, wrote the meeting with no conference because the
+    calendar was not linked, and then sat in `agreed` until the deadline and announced it was never
+    confirmed — AFTER the operator had connected and Google had minted the link. Measured on the live run
+    (2026-09-14): «no he recibido el enlace», and he was right that an explanation is not a finish.
+    """
+    spec = dict(errand.get("done_when") or {})
+    spec.update({"at": f"{date} {start}", "link_owed": True})
+    return spec
+
+
+def link_owed(errand: dict) -> str:
+    """The conference link this errand promised and has not sent, once it exists. "" while it does not."""
+    spec = errand.get("done_when") or {}
+    if not isinstance(spec, dict) or not spec.get("link_owed"):
+        return ""
+    when = str(spec.get("at") or "")
+    got = _when(when)
+    if not got:
+        return ""
+    m = _meeting_at(*got)
+    return str((m or {}).get("meetLink") or (m or {}).get("hangoutLink") or "")
+
+
+def clear_owed(errand: dict) -> dict:
+    spec = dict(errand.get("done_when") or {})
+    spec.pop("link_owed", None)
+    return spec
+
+
 def _meeting_at(date: str, start: str) -> dict | None:
     """A meeting already standing in THIS slot, whatever it is called.
 

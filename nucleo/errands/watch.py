@@ -233,6 +233,12 @@ async def tick(now: float | None = None) -> None:
         _reconcile(now)
     except Exception as e:  # noqa: BLE001
         logger.debug(f"errands: reconciliación: {e!r}")
+    # After the reconcile, and for the same reason it goes last: `live()` sweeps expired errands as a side
+    # effect, and an errand that just paid its debt must not be read as still owing it on this same beat.
+    try:
+        _wake_for_owed_links(now)
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"errands: enlaces pendientes: {e!r}")
 
 
 async def _fire_wakes(now: float) -> None:
@@ -261,6 +267,31 @@ async def _fire_wakes(now: float) -> None:
         if not errand or errand.get("state") in ("closed", "abandoned", "blocked"):
             continue
         await _wake_mod.wake(errand, reason="inbound", inbound_id=str(row.get("inbound") or ""), now=now)
+
+
+def _wake_for_owed_links(now: float) -> None:
+    """An errand that PROMISED a video link can now send it (V2-692e).
+
+    The fourth way the world moves an errand, and the one the live run found missing. The other three are
+    somebody writing, the clock, and the operator pushing; this one is a CAPABILITY arriving — he links his
+    Google Calendar after the hour was already agreed, Google mints the conference on the meeting the
+    errand wrote, and until today nothing noticed. The errand sat in `agreed` until its deadline and then
+    announced it had never been confirmed, hours after the link existed. His words: «no he recibido el
+    enlace» — and an explanation of why is not a finish.
+
+    It queues a WAKE rather than sending a bare URL, deliberately: the message has to be written in the
+    PARTY's language, and the only thing in this house that knows that language is the turn that reads
+    their words. `wake()` appends the link to whatever it writes, exactly as it does for a fresh booking.
+    """
+    from . import book as _book, live
+    for row in live(now):
+        eid = str(row.get("id") or "")
+        if not eid or eid in _pending_wakes:
+            continue
+        if not _book.link_owed(row):
+            continue
+        logger.info(f"errands: {eid} ya tiene el enlace que prometió — lo mando")
+        _pending_wakes[eid] = {"at": 0.0, "inbound": ""}
 
 
 def _report_expired(now: float) -> None:

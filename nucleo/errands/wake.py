@@ -173,7 +173,8 @@ async def wake(errand: dict, *, reason: str = "inbound", inbound_id: str = "",
     # between one message and the next, and a promise made on a stale answer is paid by a stranger.
     from . import book as _book
     can_link = _book.can_mint_link()
-    system = _build_system(name, op, lang, can_link=can_link)
+    owed = _book.link_owed(errand)
+    system = _build_system(name, op, lang, can_link=can_link or bool(owed))
     dossier = _build_dossier(errand, party=party or platform, messages=msgs, brief=brief,
                              now_line=_now_line(), busy=busy)
     try:
@@ -215,16 +216,28 @@ async def wake(errand: dict, *, reason: str = "inbound", inbound_id: str = "",
     booked = {}
     if state == "agreed":
         booked = _book.book(errand, decision, party or platform)
-        if booked.get("ok"):
-            say = _with_link(say, str(booked.get("link") or ""))
-        elif booked.get("why"):
+        if not booked.get("ok") and booked.get("why"):
             logger.info(f"errands: {eid} acordó y no pude apuntarlo ({booked['why']})")
+
+    # The link that travels is EITHER the one this turn's booking just minted, or the one this errand has
+    # owed since a previous turn and Google has now created (V2-692e — the operator connected his calendar
+    # after the hour was agreed). One expression, because from the reader's side they are the same fact:
+    # «the link exists now», and which turn produced it is nobody's business.
+    link = str(booked.get("link") or "") or _book.link_owed(errand)
+    if link:
+        say = _with_link(say, link)
+    elif booked.get("ok") and booked.get("date"):
+        # Agreed, written, and no conference — record the debt so the beat can settle it the moment the
+        # link appears, instead of leaving the errand to expire announcing it was never confirmed.
+        update(eid, done_when=_book.note_owed(errand, booked["date"], booked["time"]))
 
     sent = False
     if say and platform and chat_id and not shadow():
         sent = _send(errand, platform, chat_id, say, party)
     _emit_decision(errand, decision, reason, sent=sent, booked=booked)
 
+    if link and (errand.get("done_when") or {}).get("link_owed"):
+        update(eid, done_when=_book.clear_owed(errand))      # paid: it went out in THIS message
     if state and state != errand.get("state"):
         update(eid, state=state)
     if ask_op:

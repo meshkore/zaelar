@@ -344,6 +344,106 @@ def test_ONE_errand_writes_ONE_meeting_whatever_it_is_called(env, monkeypatch):
     assert len(at_16) == 1, f"one appointment, not two: {[m['title'] for m in at_16]}"
 
 
+# ── 3c · the link that arrives LATE is still delivered ───────────────────────────────────────────────────
+def test_an_agreed_errand_REMEMBERS_the_link_it_could_not_send(env, monkeypatch):
+    """⚠️ The live run ended here and the operator said so: «no he recibido el enlace».
+
+    The hour was agreed, the meeting was written, and the calendar was not linked — so there was no
+    conference and no way back: the errand would have sat in `agreed` until its deadline and then announced
+    it was never confirmed, hours after the operator connected and Google minted the link. A capability
+    ARRIVING is the fourth way the world moves an errand, and nobody had built it.
+    """
+    from nucleo.errands import book
+    from widgets.agenda import gcal
+    monkeypatch.setattr(gcal, "connected", lambda: False)
+    row = _order(env)
+    env.bind("telegram", "987", row["id"], "c1")
+    _answer(monkeypatch, '{"say": "Cerrado, el martes a las 19:00.", "state": "agreed", '
+                         '"agreed": {"start": "2026-09-15 19:00", "medium": "meet"}}')
+
+    asyncio.run(_wake(row))
+
+    spec = env.get(row["id"])["done_when"]
+    assert spec.get("link_owed") is True, "the debt is written down, not hoped for"
+    assert spec.get("at") == "2026-09-15 19:00", "and it names the slot, so the link can be found later"
+    assert book.link_owed(env.get(row["id"])) == "", "nothing to send while there is no link"
+
+
+def test_the_beat_WAKES_it_the_moment_the_link_exists(env, monkeypatch):
+    """Queued as a WAKE and never sent as a bare URL: the message has to be written in the PARTY's
+    language, and the only thing here that knows it is the turn that reads their words."""
+    from nucleo.errands import watch
+    from widgets.agenda import data as agenda
+    from widgets import store
+    row = _order(env)
+    env.bind("telegram", "987", row["id"], "c1")
+    env.update(row["id"], state="agreed",
+               done_when={"widget": "agenda", "has": "meeting", "at": "2026-09-15 19:00",
+                          "link_owed": True})
+    watch._pending_wakes.clear()
+    watch._wake_for_owed_links(0.0)
+    assert not watch._pending_wakes, "nothing to deliver while Google has minted nothing"
+
+    db = agenda.load_db()
+    db.setdefault("meetings", []).append(
+        {"title": "Reunión", "date": "2026-09-15", "startTime": "19:00",
+         "meetLink": "https://meet.google.com/late-link"})
+    store.save(agenda.WIDGET_ID, db)
+
+    watch._wake_for_owed_links(0.0)
+    assert row["id"] in watch._pending_wakes
+    watch._pending_wakes.clear()
+
+
+def test_the_late_link_goes_out_and_the_DEBT_is_cleared(env, monkeypatch):
+    from connectors.messaging import store as msgstore
+    from widgets.agenda import data as agenda, gcal
+    from widgets import store
+    monkeypatch.setattr(gcal, "connected", lambda: False)
+    row = _order(env)
+    env.bind("telegram", "987", row["id"], "c1")
+    env.update(row["id"], state="agreed",
+               done_when={"widget": "agenda", "has": "meeting", "at": "2026-09-15 19:00",
+                          "link_owed": True})
+    db = agenda.load_db()
+    db.setdefault("meetings", []).append(
+        {"title": "Reunión", "date": "2026-09-15", "startTime": "19:00",
+         "meetLink": "https://meet.google.com/late-link"})
+    store.save(agenda.WIDGET_ID, db)
+    _answer(monkeypatch, '{"say": "Aquí lo tienes.", "state": "agreed"}')
+
+    asyncio.run(_wake(env.get(row["id"])))
+
+    queued = msgstore.load()["pending_send"]
+    assert queued and "https://meet.google.com/late-link" in queued[-1]["text"]
+    assert not (env.get(row["id"])["done_when"] or {}).get("link_owed"), \
+        "paid: it must not be sent a second time on the next beat"
+
+
+def test_a_link_in_hand_lets_the_model_speak_of_it_even_with_the_calendar_DOWN(env, monkeypatch):
+    """The two facts are different: «a link can be minted» and «a link exists». With the conference already
+    created, a disconnected connector must not gag the one message that carries it."""
+    from nucleo.errands import wake as wake_mod
+    from widgets.agenda import data as agenda, gcal
+    from widgets import store
+    monkeypatch.setattr(gcal, "connected", lambda: False)
+    row = _order(env)
+    env.bind("telegram", "987", row["id"], "c1")
+    env.update(row["id"], state="agreed",
+               done_when={"widget": "agenda", "has": "meeting", "at": "2026-09-15 19:00",
+                          "link_owed": True})
+    db = agenda.load_db()
+    db.setdefault("meetings", []).append(
+        {"title": "Reunión", "date": "2026-09-15", "startTime": "19:00",
+         "meetLink": "https://meet.google.com/late-link"})
+    store.save(agenda.WIDGET_ID, db)
+    seen = _answer(monkeypatch, '{"say": "Aquí va.", "state": "agreed"}')
+
+    asyncio.run(wake_mod.wake(env.get(row["id"])))
+
+    assert "NO PUEDES MANDARLE NINGÚN ENLACE" not in seen.seen["system"]
+
+
 # ── 4 · and now it can CLOSE by being achieved ──────────────────────────────────────────────────────────
 def test_the_agenda_STAMPS_the_day_a_meeting_was_written(env):
     """Without it `verify.meeting_exists` — «a row the errand itself could have produced has to SAY SO» —
