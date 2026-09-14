@@ -1,6 +1,6 @@
 <!-- Auto-rendered from .meshkore/public/AGENT_INSTRUCTIONS.md per
      MeshKore standard §17 (v18+). Edit the source, not this file.
-     Audience: Claude Code (Anthropic). -->
+     Audience: Gemini CLI (Google). -->
 
 <!-- MESHKORE_PREAMBLE_BEGIN — managed by the daemon, do not hand-edit -->
 

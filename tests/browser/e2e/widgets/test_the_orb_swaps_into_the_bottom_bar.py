@@ -194,11 +194,13 @@ def test_the_lids_corner_swap_hides_the_eye_and_parks_the_orb_in_the_bar(measure
 def test_the_lid_controls_flank_the_bar_orb_three_a_side(measured):
     """Operator, 2026-09-08: «el orbe tiene que estar en el centro y a los lados tiene que haber los tres
     iconos a un lado y los tres al otro… el icono de arrancar y parar en el centro del orbe». mic·spk·cap
-    left; chat·robot·swap right; ⏻ does NOT travel — the slot IS the switch (the V2-124 mobile pattern):
-    a BUTTON whose ⏻ face shows exactly while the agent is not live."""
+    left; robot·chat·swap right (reordered 2026-09-11, operator: immediately right of the orb comes the
+    wake-word/activation-mode toggle, then chat, then the swap back to the eye); ⏻ does NOT travel — the
+    slot IS the switch (the V2-124 mobile pattern): a BUTTON whose ⏻ face shows exactly while the agent is
+    not live."""
     b = measured["bar"]
     assert b["flankL"] == ["mic", "spk", "cap"], f"left flank must be the three voice-side controls: {b['flankL']}"
-    assert b["flankR"] == ["chat", "bot", "wr-swap"], f"right flank must be chat·robot·swap: {b['flankR']}"
+    assert b["flankR"] == ["bot", "chat", "wr-swap"], f"right flank must be robot·chat·swap: {b['flankR']}"
     assert b["slotTag"] == "BUTTON", f"the slot must be clickable — it is the power switch: {b['slotTag']}"
     assert "pwr" not in b["flankL"] + b["flankR"], "⏻ must never sit beside the orb — it IS the orb's click"
     # This preview has no live agent, so the switch must wear its ⏻ face over the (kept, hidden) canvas.

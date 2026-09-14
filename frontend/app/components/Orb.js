@@ -290,7 +290,9 @@ export function Orb() {
   // its slot exists.
   // The lid's own controls FLANK the bar orb, three a side (operator, 2026-09-08: «el orbe tiene que estar
   // en el centro y a los lados los tres iconos a un lado y los tres al otro»): mic·spk·captions left,
-  // chat·robot·(the bar's own swap) right. ⏻ does NOT travel: in bar mode the ORB IS THE SWITCH — the
+  // robot·chat·(the bar's own swap) right — order fixed 2026-09-11 at the operator's request: immediately
+  // right of the orb comes the wake-word/activation-mode toggle, then chat, then the swap that returns to
+  // the eye. ⏻ does NOT travel: in bar mode the ORB IS THE SWITCH — the
   // slot button forwards its click to the real ⏻ (data-ctl="pwr"), the exact V2-124 mobile-dock pattern.
   // The buttons are MOVED, never rebuilt, so every handler/signal binding travels with its element.
   // The buttons may live in the document (after mount) or still inside the detached wrapEl (the very first
@@ -310,7 +312,7 @@ export function Orb() {
       if (!slot || !l || !r) { _dockRaf = requestAnimationFrame(applyOrbDock); return; }
       if (orbEl.parentNode !== slot) slot.appendChild(orbEl);
       l.append(...ctls("mic", "spk", "cap"));
-      r.prepend(...ctls("chat", "bot"));                 // the bar's .wr-swap stays last
+      r.prepend(...ctls("bot", "chat"));                 // the bar's .wr-swap stays last
     } else {
       const ctl = wrapEl.querySelector(".orbctl");
       // append() re-inserts in canonical lid order — the slot count stays 7 and ⏻ keeps the apex.

@@ -36,16 +36,33 @@
 function injectStyles(){
   if(document.getElementById("hb-mus2-css")) return;
   const s = document.createElement("style"); s.id = "hb-mus2-css"; s.textContent = `
-  .hb-mus2-root{position:relative}
+  /* V2-678 — a real player has THREE bands that never trade places: a header band, a scrolling middle,
+     and a footer transport bar that is visually LIFTED off the content above it (Spotify/Amazon Music's
+     own shape) instead of reading as a stray line drawn across an otherwise flat, empty rectangle. The
+     mechanism is the same one already proven on the youtube widget's player tab: the widget's own root
+     fills the card (height:100%) and switches OFF the card's outer scroll (the :has() rule below), so an
+     internal region owns the overflow instead of the whole card growing past its frame. */
+  .hb-scroll:has(> .hb-mus2-root){overflow:hidden}
+  .hb-mus2-root{position:relative;height:100%;display:flex;flex-direction:column;overflow:hidden}
+  /* el._viewHost — a plain, otherwise unclassed div between root and the visible card (kept unrebuilt across
+     re-renders so the hidden YouTube/local-audio player never restarts, see render()) — needs its OWN place
+     in the height chain: with no rule of its own it defaults to auto height, and a percentage height on ITS
+     child (.hb-mus2) resolves against "auto" as though no height were set at all, which is exactly how the
+     three-zone pin silently no-opped the first time this was built. */
+  .hb-mus2-viewhost{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
   .hb-mus2{--sp-green:#1DB954;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
-           width:100%;box-sizing:border-box;background:var(--hb-bg,#fff);border:1px solid var(--hb-line,#eef1f6);
-           border-radius:16px;overflow:hidden;color:var(--hb-ink,#0d1622);display:flex;flex-direction:column}
-  .hb-mus2-scroll{padding:16px;display:flex;flex-direction:column;gap:18px;max-height:60vh;overflow:auto}
+           width:100%;height:100%;min-height:0;box-sizing:border-box;background:var(--hb-bg,#fff);
+           border:1px solid var(--hb-line,#eef1f6);border-radius:16px;overflow:hidden;
+           color:var(--hb-ink,#0d1622);display:flex;flex-direction:column}
+  .hb-mus2-headfix{flex:0 0 auto;background:var(--hb-bg-soft,rgba(127,127,127,.05));
+                   border-bottom:1px solid var(--hb-line,#eef1f6);padding:15px 18px 13px;
+                   display:flex;flex-direction:column;gap:14px}
+  .hb-mus2-scroll{flex:1 1 auto;min-height:0;overflow:auto;padding:16px 18px;display:flex;flex-direction:column;gap:18px}
   .hb-mus2 svg{display:block}
   .hb-mus2-art svg{width:38%;height:38%;color:rgba(255,255,255,.92)}
   .hb-mus2-new .hb-mus2-art svg{color:var(--hb-muted,#5b6b82)}
-  .hb-mus2-top{display:flex;align-items:center;gap:9px;padding-bottom:13px;border-bottom:1px solid var(--hb-line,#eef1f6)}
-  .hb-mus2-top b{font-size:17px;font-weight:800;letter-spacing:-.015em}
+  .hb-mus2-top{display:flex;align-items:center;gap:9px}
+  .hb-mus2-top b{font-size:18.5px;font-weight:800;letter-spacing:-.015em}
   .hb-mus2-prov{margin-left:auto;font-size:11px;color:var(--hb-muted,#5b6b82);border:1px solid var(--hb-line,#eef1f6);
                 border-radius:999px;padding:3px 9px;display:flex;align-items:center;gap:5px}
   .hb-mus2-dot{width:7px;height:7px;border-radius:50%;background:var(--hb-neutral,#c2ccda);flex:0 0 auto}
@@ -101,29 +118,40 @@ function injectStyles(){
   .hb-mus2-playfab svg{width:19px;height:19px}
   .hb-mus2-playfab:hover{transform:scale(1.07)}
   .hb-mus2-playfab:disabled{opacity:.4;cursor:default;box-shadow:none;transform:none}
-  .hb-mus2-bar{border-top:1px solid var(--hb-line,#eef1f6);background:var(--hb-bg-soft,#fbfdff);
-               padding:10px 13px;display:flex;align-items:center;gap:11px}
+  /* The transport bar is LIFTED off the content above it — its own background tone, a top divider PLUS a
+     soft upward shadow (the exact cue Spotify/Amazon Music use so the player never reads as "a stray line
+     drawn across a flat rectangle") — and never trades place with the header/scroll (flex:0 0 auto, always
+     the last child of the fixed-height root). */
+  .hb-mus2-bar{flex:0 0 auto;border-top:1px solid var(--hb-line,#eef1f6);background:var(--hb-bg-soft,rgba(127,127,127,.06));
+               box-shadow:0 -10px 24px -18px rgba(0,0,0,.55);padding:13px 18px;display:flex;align-items:center;gap:13px}
   .hb-mus2-barartwrap{position:relative;flex:0 0 auto}
-  .hb-mus2-bar .hb-mus2-art{width:46px;height:46px;box-shadow:none;flex:0 0 auto}
+  .hb-mus2-bar .hb-mus2-art{width:52px;height:52px;box-shadow:0 3px 10px rgba(0,0,0,.18);flex:0 0 auto}
+  .hb-mus2-bar.empty .hb-mus2-art{background:var(--hb-bg,#fff);border:1.5px dashed var(--hb-line,#eef1f6);
+                                  box-shadow:none;color:var(--hb-muted,#5b6b82)}
   .hb-mus2-areq{position:absolute;right:-3px;bottom:-3px;width:19px;height:19px;border-radius:50%;
                 background:var(--hb-ink,#0d1622);display:flex;align-items:center;justify-content:center;
                 box-shadow:0 0 0 2px var(--hb-bg-soft,#fbfdff)}
   .hb-mus2-areq .hb-mus2-eq{width:10px;height:9px}
   .hb-mus2-areq .hb-mus2-eq span{width:2px}
   .hb-mus2-barmeta{min-width:0;flex:1}
-  .hb-mus2-bart{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .hb-mus2-bara{font-size:11.5px;color:var(--hb-muted,#5b6b82);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .hb-mus2-barc{display:flex;align-items:center;gap:5px}
-  .hb-mus2-cbtn{border:0;background:none;color:var(--hb-ink,#0d1622);cursor:pointer;padding:7px;
+  /* Track title bumped 13px -> 15px per the operator's ask ("un pixel o dos más grande para que se vea
+     bien") — it is the single most-read line in the whole card. */
+  .hb-mus2-bart{font-size:15px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .hb-mus2-bara{font-size:12.5px;color:var(--hb-muted,#5b6b82);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .hb-mus2-baridle{font-size:13px;font-weight:600;color:var(--hb-muted,#5b6b82);font-style:italic}
+  .hb-mus2-barc{display:flex;align-items:center;gap:6px}
+  .hb-mus2-cbtn{border:0;background:none;color:var(--hb-ink,#0d1622);cursor:pointer;padding:8px;
                 border-radius:8px;line-height:1;display:flex}
-  .hb-mus2-cbtn svg{width:17px;height:17px}
+  .hb-mus2-cbtn svg{width:18px;height:18px}
   .hb-mus2-cbtn:hover{color:var(--hb-accent,#3D6FE0)}
   .hb-mus2-cbtn.fav{color:var(--sp-green)}
   .hb-mus2-cbtn.fav:hover{color:var(--sp-green);opacity:.8}
-  .hb-mus2-cbtn.main{width:36px;height:36px;border-radius:50%;background:var(--hb-ink,#0d1622);
-                     color:var(--hb-bg,#fff);align-items:center;justify-content:center;padding:0}
-  .hb-mus2-cbtn.main svg{width:15px;height:15px}
+  .hb-mus2-cbtn.main{width:40px;height:40px;border-radius:50%;background:var(--hb-ink,#0d1622);
+                     color:var(--hb-bg,#fff);align-items:center;justify-content:center;padding:0;
+                     box-shadow:0 4px 12px rgba(0,0,0,.28)}
+  .hb-mus2-cbtn.main svg{width:16px;height:16px}
   .hb-mus2-cbtn.main:hover{color:var(--hb-bg,#fff);opacity:.85}
+  .hb-mus2-cbtn:disabled{opacity:.32;cursor:default;pointer-events:none}
   .hb-mus2-connect{display:flex;flex-direction:column;gap:8px}
   .hb-mus2-sub{font-size:12.5px;color:var(--hb-muted,#5b6b82);line-height:1.45}
   .hb-mus2-btn{border:0;background:var(--hb-accent,#3D6FE0);color:#fff;border-radius:10px;padding:9px 13px;
@@ -463,8 +491,8 @@ function maybeEnrich(t, ctx){
 }
 
 function playbackBar(data, ctx){
-  const bar = h("div", "hb-mus2-bar");
   const np = nowPlaying(data);
+  const bar = h("div", "hb-mus2-bar" + (np ? "" : " empty"));
   const playing = !!(np && np.playing);
   if(np) maybeEnrich(np, ctx);
   const artWrap = h("div", "hb-mus2-barartwrap");
@@ -472,13 +500,20 @@ function playbackBar(data, ctx){
   if(playing){ const badge = h("div", "hb-mus2-areq"); badge.appendChild(eqIcon()); artWrap.appendChild(badge); }
   bar.appendChild(artWrap);
   const meta = h("div", "hb-mus2-barmeta");
-  meta.appendChild(h("div", "hb-mus2-bart", np ? (np.title || "Música") : "Nada sonando"));
-  meta.appendChild(h("div", "hb-mus2-bara", np ? (np.artist || (np.device ? np.device : "")) : "Dime «pon música» o abre una lista."));
+  // Two REAL states, never one row wearing a fake song title: an empty player is not a track called "Nada
+  // sonando" (the operator's own words) — it is a plain hint, italic, with no title/artist pair at all.
+  if(np){
+    meta.appendChild(h("div", "hb-mus2-bart", np.title || "Música"));
+    meta.appendChild(h("div", "hb-mus2-bara", np.artist || (np.device ? np.device : "")));
+  } else {
+    meta.appendChild(h("div", "hb-mus2-baridle", "Dime qué quieres escuchar"));
+  }
   bar.appendChild(meta);
   const ctrls = h("div", "hb-mus2-barc");
   const mkIcon = (svg, action, cls) => {                    // control = fire-and-forget; SSE re-renders
     const b = h("button", "hb-mus2-cbtn" + (cls ? " " + cls : ""));
     b.appendChild(svgEl(svg));
+    if(!np) b.disabled = true;
     b.onclick = () => ctx.action(action);
     return b;
   };
@@ -540,6 +575,7 @@ function trackRow(t, ctx, opts){
 // HOME: lists + top tracks + recent.
 function homeView(host, data, ctx){
   const wrap = h("div", "hb-mus2");
+  const head = h("div", "hb-mus2-headfix");
   const scroll = h("div", "hb-mus2-scroll");
   const np = nowPlaying(data);
 
@@ -550,7 +586,7 @@ function homeView(host, data, ctx){
   prov.appendChild(h("span", "hb-mus2-dot" + (connected || yt.videoId ? " on" : "")));
   prov.appendChild(h("span", null, connected ? "Spotify" : (yt.videoId ? "YouTube" : "Sin fuente")));
   top.appendChild(prov);
-  scroll.appendChild(top);
+  head.appendChild(top);
 
   if(!connected && !yt.videoId){
     const cx = h("div", "hb-mus2-connect");
@@ -595,6 +631,7 @@ function homeView(host, data, ctx){
     s.appendChild(g); scroll.appendChild(s);
   }
 
+  wrap.appendChild(head);
   wrap.appendChild(scroll);
   wrap.appendChild(playbackBar(data, ctx));
   host.appendChild(wrap);
@@ -623,11 +660,12 @@ function newListCard(lists, ctx){
 // PLAYLIST: cover (with the play button INSIDE it) + tracklist.
 function playlistView(host, data, ctx, pl){
   const wrap = h("div", "hb-mus2");
+  const headFix = h("div", "hb-mus2-headfix");
   const scroll = h("div", "hb-mus2-scroll");
 
   const back = h("button", "hb-mus2-back"); back.appendChild(svgEl(ICON_BACK)); back.appendChild(h("span", null, "Volver"));
   back.onclick = () => ctx.action("back");
-  scroll.appendChild(back);
+  headFix.appendChild(back);
 
   const tracks = pl.tracks || [];
   const n = tracks.length;
@@ -651,7 +689,7 @@ function playlistView(host, data, ctx, pl){
   subParts.push(`${n} ${n === 1 ? "canción" : "canciones"}`);
   hm.appendChild(h("div", "hb-mus2-plsub", subParts.join(" · ")));
   head.appendChild(hm);
-  scroll.appendChild(head);
+  headFix.appendChild(head);
 
   const g = h("div", "hb-mus2-grid");
   const np = nowPlaying(data);
@@ -668,6 +706,7 @@ function playlistView(host, data, ctx, pl){
   }
   scroll.appendChild(g);
 
+  wrap.appendChild(headFix);
   wrap.appendChild(scroll);
   wrap.appendChild(playbackBar(data, ctx));
   host.appendChild(wrap);
@@ -690,7 +729,7 @@ export function render(el, data, ctx){
   if(!el._hbInit){                    // hosts persistentes: la vista se reconstruye, el player oculto NO
     el.textContent = "";
     el.className = "hb-mus2-root";
-    el._viewHost = document.createElement("div");
+    el._viewHost = document.createElement("div"); el._viewHost.className = "hb-mus2-viewhost";
     el._ytHost = document.createElement("div"); el._ytHost.className = "hb-mus2-audio";
     el.append(el._viewHost, el._ytHost);
     el._hbInit = true;

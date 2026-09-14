@@ -1,20 +1,17 @@
 // ============================================================================
-// update/UpdateSurface.js — the two things a person sees of the update channel (V2-553).
+// update/UpdateSurface.js — the one thing a person sees of the update channel on the CANVAS (V2-553; the
+// always-visible version badge retired in V2-666).
 //
-// ONE system surface, TWO fixed elements, because the operator asked for two and they answer different
-// questions:
+// THE BAR (top, above everything). «Hay una versión nueva — pulsa para actualizar.» It appears only when
+// the engine is serving frontend bytes this tab is not running (`watch.js` decides), so a backend-only
+// update never interrupts anyone. Clicking anywhere on it reloads.
 //
-//   · THE BAR (top, above everything). «Hay una versión nueva — pulsa para actualizar.» It appears only
-//     when the engine is serving frontend bytes this tab is not running (`watch.js` decides), so a
-//     backend-only update never interrupts anyone. Clicking anywhere on it reloads.
-//   · THE BADGE (bottom of the left column). The build number, always visible, updated LIVE — «even if the
-//     browser has been open for three days, [the user] can see how that number has been going up». It is a
-//     signal, not a control; clicking it just forces a check now.
-//
-// WHY THE BADGE IS ITS OWN FIXED ELEMENT and not a chip inside `WidgetRail.js`, which is the bar it visually
-// belongs to: keeping it independent means this file needs no reference to the rail at all. (Historical: the
-// rail used to hide with an empty canvas and to fold to a sliver, and the badge had rules to follow both;
-// since V2-619 the rail NEVER hides and never folds, so the badge simply always sits in its column.)
+// V2-666 (operator, 2026-09-11): the always-on "v11" badge that used to sit at the bottom-left corner of
+// the desk was retired from the scene — «quítalo de la escena… puedes meter la versión dentro del apartado
+// de configuración». The build number is not gone, it moved: `ConfigPanel.js` reads the SAME `build`/`info`
+// signals this module still exports from `watch.js` and shows the version in its header, visible only while
+// Settings is open. This file keeps `startUpdateWatch()` running (unconditionally, below) so that signal
+// stays live whether or not Settings has ever been opened this session.
 //
 // WHY THE BAR OWNS `--banner-h`: that custom property already existed in `core/palette.css`, documented as
 // «height of the update banner when visible (0 when hidden) — top controls shift down by this», with `.tr`
@@ -26,7 +23,7 @@
 import { h } from "../core/dom.js?v=2";
 import { createEffect } from "../core/reactive.js?v=2";
 import { t } from "../core/i18n.js?v=1";
-import { build, stale, info, check, dismiss, applyUpdate, startUpdateWatch } from "./watch.js?v=1";
+import { stale, dismiss, applyUpdate, startUpdateWatch } from "./watch.js?v=1";
 
 const BAR_H = 36;
 
@@ -50,21 +47,11 @@ function injectStyles() {
   #hb-upd-bar .u-x{flex:none;border:none;background:transparent;color:rgba(255,255,255,.8);
     font:600 15px/1 inherit;cursor:pointer;padding:6px 4px}
   #hb-upd-bar .u-x:hover{color:#fff}
-  /* V2-623 — the version badge lives at the LEFT END of the bottom system bar (the bar pads itself 72px on
-     that side to make room), vertically centred in the band. Above the bar's own z so it always reads. */
-  #hb-upd-ver{position:fixed;left:0;bottom:0;width:64px;height:var(--wrail-h,64px);z-index:9003;
-    display:flex;align-items:center;justify-content:center;cursor:default;
-    font:600 10px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
-    color:var(--hb-muted-2,#7d8a9c);opacity:.75;user-select:none}
-  #hb-upd-ver:hover{opacity:1;color:var(--hb-ink,#e8edf5)}
   `;
   document.head.appendChild(s);
 }
 
-// `badge:false` is for the MOBILE shell: its bottom edge belongs to the dock, so a version chip pinned there
-// would sit on top of the controls. The phone gets the BAR — the surface most likely to be running stale code,
-// since a PWA can stay installed and backgrounded for days — and no badge until there is a right place for one.
-export function UpdateSurface({ badge: withBadge = true } = {}) {
+export function UpdateSurface() {
   injectStyles();
   startUpdateWatch();
 
@@ -93,22 +80,7 @@ export function UpdateSurface({ badge: withBadge = true } = {}) {
     } catch (_) { /* no CSSOM (harness): the bar still renders, the toolbar just does not shift */ }
   });
 
-  const badge = h("div", {
-    id: "hb-upd-ver",
-    title: () => {
-      const s = info() || {};
-      return t("update.version_title", { short: s.short || "?", deploy: s.deploy || "?" });
-    },
-    onClick: check,   // a signal, not a control — the only thing it does is ask again, now
-
-  }, () => {
-    const n = build();
-    if (n > 0) return "v" + n;
-    const s = info() || {};
-    return s.version ? "v" + s.version : "";
-  });
-
-  // A layout-neutral holder: both children are position:fixed, so this div occupies nothing wherever
-  // `main.js` mounts it. One entry in SYSTEM_SURFACES, two surfaces.
-  return h("div", { id: "hb-update", style: { display: "contents" } }, bar, withBadge ? badge : null);
+  // A layout-neutral holder: the bar is position:fixed, so this div occupies nothing wherever `main.js`
+  // mounts it. The version badge that used to live here moved into ConfigPanel.js (V2-666).
+  return h("div", { id: "hb-update", style: { display: "contents" } }, bar);
 }

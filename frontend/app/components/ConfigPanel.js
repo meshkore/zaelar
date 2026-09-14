@@ -14,6 +14,11 @@ import { t } from "../core/i18n.js?v=1";
 import { THEMES, FONT_SIZES, FONT_STACKS } from "../core/themes.js?v=1";
 import * as themeSvc from "../services/theme.js?v=2";
 import { theme as themeSignal, setTheme } from "../core/store.js?v=2";
+// V2-666 — the build-number badge that used to sit always-on at the bottom-left corner of the desk moved
+// HERE (operator, 2026-09-11: «quítalo de la escena… puedes meter la versión dentro del apartado de
+// configuración»): same signals `update/UpdateSurface.js` already read, so the number keeps updating live
+// while Settings is open instead of freezing at whatever it was on open.
+import { build as updBuild, info as updInfo, check as updCheck } from "../update/watch.js?v=1";
 
 const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const opt = (list, sel) => (list || []).map(o => `<option value="${esc(o.value != null ? o.value : o)}"${(o.value != null ? o.value : o) === sel ? " selected" : ""}>${esc(o.label != null ? o.label : o)}</option>`).join("");
@@ -467,7 +472,7 @@ export function ConfigPanel() {
     if (c.connected) {
       // ya conectado → button of desconectar/revocar
       const revoke = c.family === "infra" ? t("config.cx.revoke") : t("config.cx.disconnect_btn");
-      box = `<button class="cf-btn cf-cx-act" data-act="disconnect" data-id="${id}">${revoke}</button>`;
+      box = `<button class="cf-btn cf-cx-act" data-act="disconnect" data-id="${id}" data-fam="${fam}">${revoke}</button>`;
     } else if (id === "whatsapp") {
       box = `<button class="cf-btn cf-cx-act" data-act="connect" data-id="whatsapp">${t("config.cx.connect_qr")}</button>`;
     } else if (id === "telegram") {
@@ -492,13 +497,13 @@ export function ConfigPanel() {
         ${row("client_secret", `<input id="cx_cf_sec_${id}" type="password" placeholder="${t("config.cx.only_if_asked")}"/>`)}
         ${tiers ? row(t("config.cx.permission"), `<select id="cx_cf_tier_${id}">${tiers}</select>`) : ""}
         <button class="cf-btn cf-cx-act" data-act="cloudfiles-connect" data-id="${id}">${t("config.cx.connect")}</button>`;
-    } else if (fam === "fotos" || fam === "video") {
-      // Photos (V2-564) and video accounts (V2-597) share the cloud-files card shape: register your own
-      // OAuth app once, paste its client_id, connect. Photos had NO ⚙ card at all until V2-597 touched this
-      // seam (trap T3 lived: the registry rows existed and nobody rendered them, so there was nowhere to
-      // paste the client_id).
+    } else if (fam === "fotos" || fam === "video" || fam === "agenda") {
+      // Photos (V2-564), video accounts (V2-597) and calendar accounts (V2-679) share the cloud-files card
+      // shape: register your own OAuth app once, paste its client_id, connect. Photos had NO ⚙ card at all
+      // until V2-597 touched this seam (trap T3 lived: the registry rows existed and nobody rendered them,
+      // so there was nowhere to paste the client_id) — a new OAuth family must not repeat that.
       const cc = c.config || {};
-      const act2 = fam === "fotos" ? "photos-connect" : "video-connect";
+      const act2 = fam === "fotos" ? "photos-connect" : (fam === "video" ? "video-connect" : "calendar-connect");
       box = `${row("client_id", `<input id="cx_oa_id_${id}" type="text" placeholder="${cc.app_configured ? t("config.key.ph_saved") : t("config.cx.paste_client_id")}"/>`)}
         ${row("client_secret", `<input id="cx_oa_sec_${id}" type="password" placeholder="${t("config.cx.only_if_asked")}"/>`)}
         <button class="cf-btn cf-cx-act" data-act="${act2}" data-id="${id}">${t("config.cx.connect")}</button>`;
@@ -526,7 +531,8 @@ export function ConfigPanel() {
     if (!cs.length) return `<p class="cf-loading">${t("config.cx.load_error")}</p>`;
     const fams = [["mensajeria", t("config.cx.fam_messaging")], ["musica", t("config.cx.fam_music")],
                   ["archivos", t("config.cx.fam_files")], ["fotos", t("config.cx.fam_photos")],
-                  ["video", t("config.cx.fam_video")], ["infra", t("config.cx.fam_infra")]];
+                  ["video", t("config.cx.fam_video")], ["agenda", t("config.cx.fam_calendar")],
+                  ["infra", t("config.cx.fam_infra")]];
     return fams.map(([f, title]) => {
       const items = cs.filter(c => c.family === f);
       if (!items.length) return "";
@@ -550,6 +556,7 @@ export function ConfigPanel() {
         if (id === "gdrive" || id === "onedrive") { await api.cloudFilesDisconnect(id); msg(t("config.msg.disconnected", { id })); }
         else if (id === "google-photos") { await api.photosDisconnect(); msg(t("config.msg.disconnected", { id })); }
         else if (id === "youtube") { await api.videoDisconnect(id); msg(t("config.msg.disconnected", { id })); }
+        else if (btn.dataset.fam === "agenda") { await api.calendarDisconnect(id); msg(t("config.msg.disconnected", { id })); }
         else if (id === "spotify") { await disconnectSpotify(btn); }
         else if (id === "architect") { await api.architectDisconnect(); msg(t("config.msg.architect_revoked")); }
         else { await api.disconnectMessaging(id, {}); msg(t("config.msg.disconnected", { id })); }
@@ -562,10 +569,11 @@ export function ConfigPanel() {
         const r = await api.connectMessaging(id, payload);
         msg(r.ok ? t("config.msg.connecting", { id }) : ("✗ " + (r.error || t("config.msg.error"))));
         pollConnectors();
-      } else if (act === "photos-connect" || act === "video-connect") {
+      } else if (act === "photos-connect" || act === "video-connect" || act === "calendar-connect") {
         const payload = { client_id: val(`cx_oa_id_${id}`), client_secret: val(`cx_oa_sec_${id}`) };
-        if (act === "video-connect") payload.provider = id;
-        const r = act === "photos-connect" ? await api.photosConnect(payload) : await api.videoConnect(payload);
+        if (act === "video-connect" || act === "calendar-connect") payload.provider = id;
+        const r = act === "photos-connect" ? await api.photosConnect(payload)
+          : (act === "video-connect" ? await api.videoConnect(payload) : await api.calendarConnect(payload));
         if (r && r.ok && r.url) { window.open(r.url, "_blank", "noopener"); msg(t("config.msg.connecting", { id })); pollConnectors(); }
         else msg("✗ " + ((r && r.error) || t("config.msg.error")));
       } else if (act === "cloudfiles-connect") {
@@ -657,6 +665,19 @@ export function ConfigPanel() {
     h("div", { class: "cf-shell" },
       h("div", { class: "cf-head" },
         h("h3", {}, raw(GEAR_ICON), () => t("config.tab.settings")),
+        h("span", {
+          class: "cf-ver",
+          title: () => {
+            const s = updInfo() || {};
+            return t("update.version_title", { short: s.short || "?", deploy: s.deploy || "?" });
+          },
+          onClick: updCheck,   // a signal, not a control — the only thing it does is ask again, now
+        }, () => {
+          const n = updBuild();
+          if (n > 0) return "v" + n;
+          const s = updInfo() || {};
+          return s.version ? "v" + s.version : "";
+        }),
         h("span", { class: "cf-msg", ref: el => (msgEl = el) }),
         h("button", { class: "cf-x", onClick: close }, () => t("config.close")),
       ),

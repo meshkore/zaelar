@@ -56,10 +56,11 @@ export const MOBILE_SURFACES = [
   { id: "alert",           comp: Alert,             target: "body", phase: "overlay", label: "Hard notice banner", shared: true },
   { id: "boot",            comp: BootOverlay,       target: "body", phase: "overlay", label: "Startup veil", shared: true },
   { id: "lang-onboarding", comp: LanguageOnboarding, target: "body", phase: "overlay", label: "First-run language onboarding", shared: true },
-  // V2-553 — the update bar, and ONLY the bar: `badge:false`, because this shell's bottom edge belongs to the
-  // dock. An installed PWA is the surface most likely to be running code from days ago, so it is the one that
-  // most needs to be told. Where the build NUMBER belongs on a phone is still open (the menu sheet, probably).
-  { id: "update",          comp: () => UpdateSurface({ badge: false }), target: "body", phase: "overlay", label: "«New version — reload» bar", shared: true },
+  // V2-553 — the update bar. An installed PWA is the surface most likely to be running code from days ago,
+  // so it is the one that most needs to be told. `UpdateSurface` is bar-only now (V2-666 retired the
+  // always-on version badge from BOTH shells' canvas); where the build number belongs on a phone — this
+  // shell has no Settings screen yet — is still open.
+  { id: "update",          comp: UpdateSurface, target: "body", phase: "overlay", label: "«New version — reload» bar", shared: true },
 ];
 
 const _IDS = new Set(MOBILE_SURFACES.map((s) => s.id));

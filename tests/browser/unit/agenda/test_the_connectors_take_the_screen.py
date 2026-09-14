@@ -29,6 +29,14 @@ _ENGINE = pathlib.Path(__file__).resolve().parents[4]
 _CALS_OFF = [{"id": "google", "label": "Google Calendar", "status": "off"},
              {"id": "icloud", "label": "iCloud (Apple)", "status": "unavailable"},
              {"id": "caldav", "label": "CalDAV (Outlook, Fastmail…)", "status": "unavailable"}]
+#: No Google ACCOUNT registered yet — the only state in which this widget still teaches how to make one.
+#: Since V2-685 that app belongs to the Google account and lights six surfaces at once, so an operator who
+#: has one (status "off": registered, not linked) is shown the authorisation and nothing else.
+_CALS_UNCONF = [dict(_CALS_OFF[0], status="unconfigured"), _CALS_OFF[1], _CALS_OFF[2]]
+
+
+def _unconf(**over):
+    return _data(calendars=[dict(c) for c in _CALS_UNCONF], **over)
 
 
 def _free_port() -> int:
@@ -115,14 +123,16 @@ def _open_connectors(page, data=None, **kw):
     page.click(".agcalbtn")
 
 
-def _into_wizard(page, **kw):
-    _open_connectors(page, **kw)
+def _into_wizard(page, data=None, **kw):
+    _open_connectors(page, data, **kw)
     page.click(".agcalbtn2")                      # «Conectar Google Calendar» → the guide
 
 
-def _to_last_step(page, **kw):
-    _into_wizard(page, **kw)
-    for _ in range(3):                            # three instruction steps, then the one that connects
+def _to_last_step(page, data=None, **kw):
+    """Walk to the step that holds «Conectar Google Calendar», however many come before it — which now
+    depends on whether the Google account exists (none when it does, three when it does not)."""
+    _into_wizard(page, data, **kw)
+    while page.locator(".agwcount").count():      # a step counter only shows while there ARE earlier steps
         page.click(".agwfoot .agcalbtn2:not(.risk)")
 
 
@@ -200,7 +210,7 @@ def test_a_pushed_voice_view_leaves_the_connectors_screen(_page):
 # ── the wizard: instructions in the content area, with a way back at every step ─────────────────────────
 
 def test_connect_starts_the_GUIDE_and_does_not_fire_a_handshake_that_cannot_work(_page):
-    _open_connectors(_page)
+    _open_connectors(_page, _unconf())
     _page.click(".agcalbtn2")
     assert _page.locator(".agwstep").count() == 1
     assert _page.evaluate("window.__calls.length") == 0, \
@@ -208,8 +218,27 @@ def test_connect_starts_the_GUIDE_and_does_not_fire_a_handshake_that_cannot_work
     assert "1" in _page.locator(".agwcount").inner_text()
 
 
+def test_an_operator_who_ALREADY_has_a_google_account_is_shown_only_the_authorisation(_page):
+    """The complaint that opened this pass: «parece la versión anterior que no la has limpiado».
+
+    Until V2-685 every operator got the same four steps — create a Google Cloud project, create an OAuth
+    client, paste it into ⚙ — teaching them to register an app for the CALENDAR. That app now belongs to
+    the Google ACCOUNT and registering it once lights Gmail, Calendar, Meet, Drive, Photos and YouTube
+    together. For anyone who has it, those three steps are work already done by somebody else, and showing
+    them is the previous generation's flow.
+    """
+    _open_connectors(_page)                       # status "off": the app IS registered, just not linked
+    _page.click(".agcalbtn2")
+    assert _page.locator(".agwstep").count() == 1
+    assert _page.locator(".agwcount").count() == 0, "one screen is not «Paso 1 de N»"
+    assert _page.locator(".agwlink").count() == 0, "and it does not re-teach the Google Cloud console"
+    assert _page.evaluate("window.__calls.length") == 0, "opening it still connects nothing"
+    primary = _page.locator(".agwfoot .agcalbtn2:not(.risk)").inner_text()
+    assert "Google" in primary, f"the one screen is the one with the button: {primary!r}"
+
+
 def test_the_guide_walks_one_step_at_a_time_and_every_step_can_go_back(_page):
-    _into_wizard(_page)
+    _into_wizard(_page, _unconf())
     seen = []
     for _ in range(3):
         seen.append(_page.locator(".agwtitle").inner_text())
@@ -225,7 +254,7 @@ def test_the_guide_walks_one_step_at_a_time_and_every_step_can_go_back(_page):
 
 
 def test_the_guide_opens_the_real_google_pages_it_talks_about(_page):
-    _into_wizard(_page)
+    _into_wizard(_page, _unconf())
     hrefs = _page.locator(".agwlink").evaluate_all("els => els.map(e => e.href)")
     assert hrefs and all(h.startswith("https://console.cloud.google.com/") for h in hrefs), hrefs
     assert all(_page.locator(".agwlink").nth(i).get_attribute("target") == "_blank"
@@ -242,7 +271,7 @@ def test_the_breadcrumb_says_where_back_goes(_page):
 # ── the last step is the only one that connects — and it has to actually work ───────────────────────────
 
 def test_only_the_last_step_asks_google_for_permission(_page):
-    _to_last_step(_page)
+    _to_last_step(_page, data=_unconf())
     assert _page.evaluate("window.__calls.length") == 0, "three steps of instructions ask nobody for anything"
     _page.click(".agwfoot .agcalbtn2:not(.risk)")
     _page.wait_for_timeout(50)
@@ -315,7 +344,8 @@ def test_a_pushed_voice_connect_lands_on_the_step_that_has_the_button(_page):
     _mount(_page, _data(connect={"n": 1, "at": 9e9}))
     assert _page.locator(".agwstep").count() == 1, "the voice order did not open the guide"
     assert _page.locator(".agwfoot .agcalbtn2:not(.risk)").inner_text().strip() != "", "no button to press"
-    assert "4" in _page.locator(".agwcount").inner_text(), "it opened the guide at step one, not at the button"
+    assert _page.locator(".agwcount").count() == 0, \
+        "with the account already registered there is ONE screen, and it is the one with the button"
     assert _page.evaluate("window.__calls.length") == 0, \
         "the voice CANNOT ask Google for the permission: that belongs to the operator's click"
 

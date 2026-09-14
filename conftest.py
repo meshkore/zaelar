@@ -106,12 +106,16 @@ except Exception:                                  # if `widgets` is not importa
 # The rule is narrow on purpose: the suite may never use the DEFAULT path. A runner that deliberately
 # points at its own corpus (`tests/memory/e2e/memory_cron_tick.sh` exports a membot database) is honoured
 # — that is a test choosing its own state, which is the invariant, not a breach of it.
+#
+# The real path is spelled out here rather than asked of `memory.db`: this file runs before anything is
+# imported, that is the whole point of it, and reaching into the memory package's internals from the
+# harness is what `test_memory_boundary` exists to refuse. Its sibling assertion in `test_suite_isolation`
+# names the same path the same way.
 try:
-    from memory import db as _memdb
-
-    if not os.getenv("ZAELAR_DB") or _Path(os.environ["ZAELAR_DB"]) == _memdb.db_path():
+    _real_db = _Path(__file__).resolve().parent / "memory" / "_data" / "zaelar.db"
+    if not os.getenv("ZAELAR_DB") or _Path(os.environ["ZAELAR_DB"]).resolve() == _real_db:
         os.environ["ZAELAR_DB"] = str(_Path(tempfile.mkdtemp(prefix="zaelar-test-db-")) / "zaelar.db")
-except Exception:                                  # if `memory` is not importable, the suite continues as before
+except Exception:                                  # never let the harness's own guard stop the suite
     pass
 
 

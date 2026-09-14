@@ -1,19 +1,22 @@
-"""V2-553 — «hay una versión nueva, pulsa aquí» RENDERED, and the badge that keeps counting.
-
-The operator asked for two surfaces and one rule between them:
+"""V2-553 — «hay una versión nueva, pulsa aquí» RENDERED. V2-666 moved the always-on version badge off the
+canvas and into Settings, so this file's original two-surface premise («la barra vertical abajo del todo ver
+el número de versión») changed shape; what the operator now asks is stated in his own words below.
 
     «cuando se actualiza el código […] el frontend tiene que detectarlo y tiene que sacar una barra
      horizontal por encima de todo que diga que hay una nueva versión operativa, pulsa aquí para reiniciar
      el navegador […] obviamente en el caso de que los cambios requieran un reinicio del frontend; si solo
-     se ha tocado algo del backend obviamente no hace falta […] y en la barra vertical abajo del todo ver el
-     número de versión […] que el número de versión se actualice dinámicamente me parecería perfecto, para
-     que el usuario, aunque tenga el navegador abierto tres días, pueda ver cómo ha ido subiendo ese número.»
+     se ha tocado algo del backend obviamente no hace falta.» (V2-553)
 
-The rule is the interesting half, and it is the one only a browser can check: a release that moves the
-build number but not a single byte of frontend must move the NUMBER and show NO bar. The engine's side of
-that decision is unit-tested (`test_the_update_channel_tells_the_ui_from_the_engine.py`); what happens here
-is whether the tab acts on it — the bar's visibility, the `--banner-h` seam that shifts the top controls,
-the dismissal that lasts exactly one revision, and the reload.
+    «Lo de la versión […] quítalo de la escena. Puedes meter la versión dentro del apartado de
+     configuración, que haya que abrir el apartado de configuración para ver la versión.» (V2-666, 2026-09-11)
+
+The rule for the BAR is the interesting half, and it is the one only a browser can check: a release that
+moves the build number but not a single byte of frontend must move the NUMBER (now inside Settings) and show
+NO bar. The engine's side of that decision is unit-tested
+(`test_the_update_channel_tells_the_ui_from_the_engine.py`); what happens here is whether the tab acts on it
+— the bar's visibility, the `--banner-h` seam that shifts the top controls, the dismissal that lasts exactly
+one revision, and the reload — plus, separately, that the version number is genuinely gone from the bare
+canvas and genuinely reachable from Settings.
 
 The new versions are simulated by intercepting `/api/update`, so the test drives the REAL client code down
 the real path: a synthetic `visibilitychange` is what wakes the watcher, exactly as returning to a tab does.
@@ -46,7 +49,6 @@ uvicorn.run(app, host="127.0.0.1", port=%d, log_level="critical")
 
 _STATE = """() => {
   const bar = document.getElementById('hb-upd-bar');
-  const ver = document.getElementById('hb-upd-ver');
   const vis = el => { if (!el) return false; const r = el.getBoundingClientRect();
                       const cs = getComputedStyle(el);
                       return r.width > 0 && r.height > 0 && cs.display !== 'none' && cs.visibility !== 'hidden'; };
@@ -54,11 +56,24 @@ _STATE = """() => {
   return {
     barFound: !!bar, barOn: vis(bar),
     barText: bar ? (bar.querySelector('.u-msg') || {}).textContent || '' : '',
-    verFound: !!ver, verOn: vis(ver), verText: ver ? ver.textContent.trim() : '',
-    verTitle: ver ? (ver.getAttribute('title') || '') : '',
     banner: getComputedStyle(document.documentElement).getPropertyValue('--banner-h').trim(),
     trTop: tr ? Math.round(tr.getBoundingClientRect().top) : null,
     marker: window.__updMarker || null,
+  };
+}"""
+
+# V2-666 — the version number's own state, read wherever it now lives: nowhere on the bare canvas, and
+# inside the Settings header once opened.
+_VER_STATE = """() => {
+  const ver = document.querySelector('.cf-ver');
+  const vis = el => { if (!el) return false; const r = el.getBoundingClientRect();
+                      const cs = getComputedStyle(el);
+                      return r.width > 0 && r.height > 0 && cs.display !== 'none' && cs.visibility !== 'hidden'; };
+  return {
+    onCanvasById: !!document.getElementById('hb-upd-ver'),   // the retired always-on badge — must never exist
+    inSettings: !!ver, settingsOn: vis(ver),
+    settingsText: ver ? ver.textContent.trim() : '',
+    settingsTitle: ver ? (ver.getAttribute('title') || '') : '',
   };
 }"""
 
@@ -112,7 +127,7 @@ def _wake(pg):
     pg.wait_for_timeout(700)
 
 
-def test_the_bar_and_the_badge(run):
+def test_the_bar(run):
     import update as upd
     from playwright.sync_api import sync_playwright
 
@@ -130,22 +145,17 @@ def test_the_bar_and_the_badge(run):
 
         # ── a tab running exactly what the engine serves ────────────────────────────────────────────────
         s = pg.evaluate(_STATE)
-        assert s["barFound"] and s["verFound"], "the update surface did not mount at all"
+        assert s["barFound"], "the update surface did not mount at all"
         assert not s["barOn"], "a fresh load must NEVER offer a reload: nothing is stale yet"
-        assert s["verOn"], "the build number is always visible — that is the point of the badge"
-        assert s["verText"] == f"v{upd.build()}", f"badge shows {s['verText']!r}, engine says v{upd.build()}"
         assert s["banner"] in ("0px", "0"), f"--banner-h must be 0 with no bar (was {s['banner']!r})"
-        assert "update.version_title" not in s["verTitle"] and len(s["verTitle"]) > 8, \
-            f"the tooltip is showing a raw i18n key: {s['verTitle']!r}"
         top_clear = s["trTop"]
 
-        # ── A BACKEND-ONLY RELEASE: the number climbs, nobody is interrupted ────────────────────────────
-        # This is the operator's rule and the reason the payload carries two fields instead of one.
+        # ── A BACKEND-ONLY RELEASE: nobody is interrupted ───────────────────────────────────────────────
+        # This is the operator's rule and the reason the payload carries two fields instead of one. The
+        # number itself now lives in Settings (V2-666) and is checked separately below.
         _serve(pg, {**live, "build": live["build"] + 41})
         _wake(pg)
         s = pg.evaluate(_STATE)
-        assert s["verText"] == f"v{live['build'] + 41}", \
-            "the number has to climb live — «aunque tenga el navegador abierto tres días»"
         assert not s["barOn"], "the frontend did not change: offering a reload here is the nag he asked to avoid"
         assert s["trTop"] == top_clear, "nothing may move for a backend-only release"
 
@@ -166,7 +176,6 @@ def test_the_bar_and_the_badge(run):
         s = pg.evaluate(_STATE)
         assert not s["barOn"], "✕ must put the bar away"
         assert s["banner"] in ("0px", "0"), "dismissing has to release --banner-h, or the toolbar stays pushed down"
-        assert s["verOn"], "the badge is not part of the dismissal — it is not a notice"
 
         _wake(pg)
         s = pg.evaluate(_STATE)
@@ -191,28 +200,35 @@ def test_the_bar_and_the_badge(run):
         b.close()
 
 
-def test_the_number_never_hides_because_the_rail_never_folds(run):
-    """V2-619 retired the rail's fold (the operator: «la barrita vertical se queda siempre»), so the badge's
-    old hide-with-the-fold rule is gone WITH its trigger. The regression this pins: a STALE `wrail.folded`
-    key left in localStorage by a pre-V2-619 install must not resurrect the fold or hide the number."""
+def test_the_version_left_the_scene_and_lives_in_settings(run):
+    """V2-666, the operator: «Lo de la versión 11 quítalo de la escena […] puedes meter la versión dentro
+    del apartado de configuración, que haya que abrir el apartado de configuración para ver la versión.»
+    Two claims, both false until this shipped: (1) nothing on the bare canvas names the build number any
+    more — not the retired `#hb-upd-ver` id, not any visible text; (2) opening ⚙ Settings shows it, live,
+    reading the SAME `update/watch.js` signal the old badge read."""
+    import update as upd
     from playwright.sync_api import sync_playwright
 
     with sync_playwright() as p:
         b = p.chromium.launch()
         pg = b.new_page(viewport={"width": 1280, "height": 800})
-        pg.goto(run, wait_until="domcontentloaded")
-        pg.evaluate("() => localStorage.setItem('wrail.folded', '1')")   # a pre-V2-619 install's leftovers
         _boot(pg, run)
-        s = pg.evaluate(_STATE)
-        assert s["verFound"] and s["verOn"], f"the number must show regardless of the stale fold key: {s}"
-        assert not pg.evaluate("() => document.querySelector('#wrail').classList.contains('folded')"), \
-            "the rail must never come up folded — the fold no longer exists"
-        # And the bar itself is ALWAYS there — this page boots with ZERO widgets, which is exactly the state
-        # in which the rail used to remove itself («la barrita vertical se queda siempre», V2-619).
-        rail = pg.evaluate("""() => { const el = document.querySelector('#wrail');
-          const r = el.getBoundingClientRect();
-          return {on: el.classList.contains('on'), visible: getComputedStyle(el).display !== 'none',
-                  w: Math.round(r.width)}; }""")
-        assert rail["on"] and rail["visible"] and rail["w"] >= 40, \
-            f"the rail must be visible with an empty canvas: {rail}"
+
+        # ── the bare canvas: no version anywhere VISIBLE ────────────────────────────────────────────────
+        # (Settings' own overlay, `.cf-ver` included, mounts hidden at boot like every other system overlay
+        # — the claim is about what a person can SEE, not about the node existing off-screen in the DOM.)
+        gone = pg.evaluate(_VER_STATE)
+        assert not gone["onCanvasById"], "the retired #hb-upd-ver badge is back on the canvas"
+        assert not gone["settingsOn"], "the version must not be visible before Settings is opened"
+
+        # ── open ⚙ Settings: the version is right there, live ───────────────────────────────────────────
+        pg.click("#cfgBtn")
+        pg.wait_for_timeout(700)
+        s = pg.evaluate(_VER_STATE)
+        assert not s["onCanvasById"], "opening Settings must not resurrect the old badge id"
+        assert s["inSettings"] and s["settingsOn"], f"the version never rendered in Settings: {s}"
+        assert s["settingsText"] == f"v{upd.build()}", \
+            f"Settings shows {s['settingsText']!r}, engine says v{upd.build()}"
+        assert "update.version_title" not in s["settingsTitle"] and len(s["settingsTitle"]) > 8, \
+            f"the tooltip is showing a raw i18n key: {s['settingsTitle']!r}"
         b.close()

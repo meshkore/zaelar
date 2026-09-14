@@ -5,10 +5,10 @@
 // may be fully hidden without a visible trace — one small chip per open card, always on top, so covering or
 // minimizing a widget never makes it unknowable.
 //
-// LAYOUT (V2-623, his spec — supersedes V2-552's vertical column): a HORIZONTAL bar along the BOTTOM edge.
-// Chips of the open widgets flow on the LEFT half, the bar ORB sits at the true centre (swap button + the slot
-// the one #orb canvas is reparented into — Orb.js owns the move), and the tools mirror the chips on the RIGHT.
-// The tools are the same four gestures V2-552 named (plus the chat chevron):
+// LAYOUT (V2-623, his spec — supersedes V2-552's vertical column; left cluster reordered in V2-666): a
+// HORIZONTAL bar along the BOTTOM edge, L→R: the chat chevron + a running-PROCESS count, chips of the open
+// widgets, the bar ORB at the true centre (swap button + the slot the one #orb canvas is reparented into —
+// Orb.js owns the move), and the layout tools. The tools are the same four gestures V2-552 named:
 //   ⊟ hide all      — MINIMIZE, never close: the chips stay, so any single one can be brought back
 //   ⊞ show all      — bring back everything that was hidden
 //   ▦ repack        — close the gaps, KEEPING every card at the size he made it (`Desktop.compact`)
@@ -16,6 +16,14 @@
 // Hide/show are two buttons rather than one flipping toggle: a glyph that changes meaning under you has to be
 // read before it can be used. And the last two are genuinely different gestures — collapsing them meant
 // «optimiza los huecos» also flattened a sheet he had deliberately enlarged.
+//
+// THE LEFT CLUSTER (V2-666, operator 2026-09-11): the chevron that opens/closes the chat panel sits at the
+// bar's LEFT edge (it used to live among the right-side tools) — «la flechita que abre el menú de la
+// izquierda va a la izquierda». Right beside it, a live count of RUNNING PROCESSES (store.tasks(), the exact
+// feed the chat's own "Procesos" tab reads — NOT every widget show/close/minimize, which produces no
+// process at all): a bare number with a small pulsing bar, deliberately not a circle-plus-number badge,
+// which would read as a notification rather than a gauge of ongoing work. Clicking the chevron opens the
+// chat (same gesture as the 💬 icon on the eye's lid); clicking the count opens it straight onto Procesos.
 //
 // DOCKED, not floating: the bar OWNS the bottom edge — widgets get less vertical room while it is open, they
 // never slide under it (Desktop.railBand() reserves the band; this file only announces footprint changes with
@@ -35,18 +43,18 @@
 //  · Generic taskbar CONCEPT only: own glyphs and layout, no OS's trade dress is imitated.
 import { t } from "../core/i18n.js?v=1";
 import { createEffect } from "../core/reactive.js?v=2";
-import { chatOpen, setChatOpen, orbDock, setOrbDock, agentState, agentLive } from "../core/store.js?v=2";
+import { chatOpen, setChatOpen, setChatTab, orbDock, setOrbDock, agentState, agentLive, tasks } from "../core/store.js?v=2";
 
 function injectStyles(){
   if(document.getElementById("wrail-css")) return;
   const s=document.createElement("style"); s.id="wrail-css";
   s.textContent=`
   /* V2-623 — the system bar lives at the BOTTOM now (operator, 2026-09-08: «move the left bar to bottom.
-     orbe goes to center, left and right side contains the open widgets and the other icons»). Three zones:
-     chips (left, flex:1) · orb centre (fixed) · tools (right, flex:1) — the two flexible halves are equal so
-     the orb zone sits at the true middle. padding-left clears the version badge pinned at the corner. */
+     orbe goes to center, left and right side contains the open widgets and the other icons»). Zones, L→R:
+     the LEFT cluster (chat chevron + process count, V2-666) · chips (flex:1) · orb centre (fixed) · tools
+     (flex:1) — the two flexible halves are equal so the orb zone sits at the true middle. */
   #wrail{position:fixed;left:0;right:0;bottom:0;z-index:9002;display:none;box-sizing:border-box;
-    flex-direction:row;align-items:center;gap:8px;padding:0 12px 0 72px;height:var(--wrail-h,64px);overflow:hidden;
+    flex-direction:row;align-items:center;gap:8px;padding:0 12px;height:var(--wrail-h,64px);overflow:hidden;
     background:color-mix(in srgb,var(--hb-bg-soft,#121216) 92%,transparent);
     border-top:1px solid var(--hb-line,#26262E);backdrop-filter:blur(6px)}
   #wrail.on{display:flex}
@@ -60,10 +68,36 @@ function injectStyles(){
   #wrail button svg{width:21px;height:21px;flex:none}
   #wrail button:hover{background:var(--hb-hover,#24242C);color:var(--hb-ink,#F1EFEA)}
   #wrail button:disabled{opacity:.35;cursor:default;background:transparent}
+  /* V2-666 — chips carry the widget's NAME, not just its initials (operator, 2026-09-11: "vídeo", "música",
+     "archivos" have to fit, more or less, in five or six characters). Three fixed widths, same for every
+     chip at a given level — refresh() PICKS the level from the space actually left between the chips'
+     left edge and the orb zone, widest-that-fits first, falling back to 3 then 1 character when there are
+     too many open widgets to letter them out in full. */
   #wrail .wr-chip{border:1px solid var(--hb-line,#26262E);background:var(--hb-bg,#18181D);
-    color:var(--hb-ink,#F1EFEA);letter-spacing:.04em}
+    color:var(--hb-ink,#F1EFEA);letter-spacing:.04em;width:64px;flex:none}
+  #wrail .wr-chip.wr-lv3{width:42px}
+  #wrail .wr-chip.wr-lv1{width:30px;letter-spacing:0}
   #wrail .wr-chip:hover{border-color:var(--hb-accent,#A48FFF)}
   #wrail .wr-chip.min{opacity:.45;border-style:dashed}
+  /* V2-666 — the LEFT cluster (operator, 2026-09-11): the chevron that opens/closes the chat moves to the
+     left EDGE of the bar (it used to sit at the far right, mirroring the tools — he wants it where a "deploy
+     the side panel" control belongs), and right beside it a live count of RUNNING PROCESSES (background
+     flows a worker is actually carrying out — not every widget open/close, which produces none). Explicitly
+     NOT a circle-plus-number badge ("va a parecer que son notificaciones"): a bare number with a small bar
+     that pulses up and down beside it, the same idea as the ⏻ VU meter — motion reads as "alive", not "new".
+     Clicking the chevron opens the chat (same gesture as the 🤖/💬 icons on the eye's lid); clicking the
+     count opens it straight onto the Procesos tab. Hidden entirely at zero — an idle "0" is dead chrome. */
+  #wrail .wr-left{flex:none;display:flex;align-items:center;gap:2px}
+  #wrail .wr-proc{display:none;flex:none;align-items:center;gap:6px;height:44px;padding:0 10px 0 6px;
+    border-radius:11px;border:none;cursor:pointer;background:transparent;color:var(--hb-ink,#F1EFEA)}
+  #wrail .wr-proc.on{display:flex}
+  #wrail .wr-proc:hover{background:var(--hb-hover,#24242C)}
+  #wrail .wr-proc-n{font:700 0.9375rem/1 var(--sans,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif)}
+  #wrail .wr-proc-bar{width:3px;height:15px;border-radius:2px;background:var(--hb-line,#26262E);
+    position:relative;overflow:hidden;flex:none}
+  #wrail .wr-proc-bar i{position:absolute;left:0;right:0;bottom:0;height:100%;border-radius:2px;
+    background:var(--hb-accent,#A48FFF);transform-origin:50% 100%;animation:wrProcPulse 1.15s ease-in-out infinite}
+  @keyframes wrProcPulse{0%,100%{transform:scaleY(.28)}50%{transform:scaleY(1)}}
   /* chips flow LEFT→RIGHT and scroll among themselves; tools mirror them on the right */
   #wrail .wr-chips{display:flex;flex-direction:row;gap:6px;align-items:center;justify-content:flex-start;
     flex:1 1 0;min-width:0;overflow-x:auto;overflow-y:hidden;scrollbar-width:none}
@@ -92,10 +126,32 @@ function injectStyles(){
 
 function desk(){ return window.__zaelarDesktop || null; }
 
-function chipLabel(w, id){
-  // The card header already carries the canonical NAME (V2-082); the chip wears its first letters.
+// V2-666 — same width for every chip at a level; the widest level that fits wins. Matches the CSS widths
+// above (`.wr-chip`/`.wr-lv3`/`.wr-lv1`) and the gap the flex row lays chips out with.
+const CHIP_CHARS = [6, 3, 1];
+const CHIP_W = { 6: 64, 3: 42, 1: 30 };
+const CHIP_GAP = 6;
+const CHIP_LV_CLASS = { 6: "", 3: " wr-lv3", 1: " wr-lv1" };
+
+function chipLabel(w, id, chars){
+  // The card header already carries the canonical NAME (V2-082); the chip wears as much of it as its
+  // current level allows — 6 chars fits most system-widget names ("VÍDEO", "MÚSICA"), 3/1 are the
+  // fallback for a canvas with too many open widgets to letter them out in full.
   const name=(w && w.nameBtn && w.nameBtn.textContent || id).trim();
-  return name.slice(0, 2).toUpperCase() || "?";
+  return (name.slice(0, chars) || "?").toUpperCase();
+}
+
+// The widest level whose chips, all together, still fit the space actually left for them — measured
+// against the chips container's OWN width, which the flex layout already fixes independently of its
+// content (flex:1 1 0, min-width:0; the orb zone and the tools column are the siblings that box it in).
+function chipLevel(chipsEl, count){
+  if(!count) return CHIP_CHARS[0];
+  const avail = chipsEl ? chipsEl.clientWidth : 0;
+  for(const lvl of CHIP_CHARS){
+    const needed = count*CHIP_W[lvl] + (count-1)*CHIP_GAP;
+    if(needed <= avail) return lvl;
+  }
+  return CHIP_CHARS[CHIP_CHARS.length-1];
 }
 
 function topCardId(d){
@@ -131,13 +187,15 @@ function refresh(el){
     for(const cls of [".wr-hide",".wr-show"]){ const b=el.querySelector(cls); if(b) b.disabled=true; }
     announce(el); return;
   }
+  const level=chipLevel(chips, d.wins.size);
+  const lvClass=CHIP_LV_CLASS[level];
   chips.innerHTML="";
   d.wins.forEach((w,id)=>{
     const b=document.createElement("button");
-    b.className="wr-chip"+(d.isMinimized(id)?" min":"");
+    b.className="wr-chip"+lvClass+(d.isMinimized(id)?" min":"");
     b.dataset.wid=id;
     const name=(w && w.nameBtn && w.nameBtn.textContent || id).trim();
-    b.textContent=chipLabel(w,id);
+    b.textContent=chipLabel(w,id,level);
     b.title=name+(d.isMinimized(id)?" · "+t("rail.minimized"):"");
     // Taskbar semantics: minimized → bring it back on top; buried → bring it on top; already on top → minimize.
     b.onclick=()=>{ const dd=desk(); if(!dd) return;
@@ -181,6 +239,17 @@ export function WidgetRail(){
   const show=mk("wr-show",ICONS.show);   // bring back everything that was hidden
   const comp=mk("wr-compact",ICONS.comp);// close the gaps, KEEPING every card's size
   const fitA=mk("wr-fitall",ICONS.fit);  // shrink to fit: everything on screen at once
+  const left=document.createElement("div"); left.className="wr-left";
+  // V2-666 — the RUNNING-PROCESS count (background flows the brain is actually carrying out, not every
+  // widget open/close/minimize, which produces none — store.tasks() is exactly the "Procesos" tab's own
+  // feed, V2-608 F7). A bare number + a pulsing bar, never a circle: a circle+number reads as a
+  // notification, and this is a live gauge, not something to dismiss.
+  const proc=document.createElement("button"); proc.className="wr-proc";
+  const procN=document.createElement("span"); procN.className="wr-proc-n";
+  const procBar=document.createElement("span"); procBar.className="wr-proc-bar";
+  procBar.innerHTML="<i></i>";
+  proc.append(procN,procBar);
+  proc.onclick=(e)=>{ e.stopPropagation(); setChatTab("procesos"); setChatOpen(true); };
   const chips=document.createElement("div"); chips.className="wr-chips";
   const tools=document.createElement("div"); tools.className="wr-tools";
   // V2-623 — the bar's CENTRE: the swap button + the slot the ONE #orb canvas is reparented into (Orb.js owns
@@ -208,9 +277,11 @@ export function WidgetRail(){
   };
   swap.onclick=(e)=>{ e.stopPropagation(); setOrbDock(orbDock()==="bar"?"eye":"bar"); };
   createEffect(paintSwap);
-  // V2-619: the chevron collapses the CHAT COLUMN, never this bar (see the header comment). Reactive on
-  // store.chatOpen so the arrow always says what a click will do — whoever closed/opened the chat (the ×,
-  // the voice, a proactive push), the chevron follows.
+  // V2-619/666: the chevron collapses the CHAT COLUMN, never this bar (see the header comment) — it MOVED
+  // to the bar's left edge (operator, 2026-09-11: «la flechita que abre… el menú de la izquierda va a la
+  // izquierda»), same gesture as before (opens/closes the SAME chat the 💬 icon on the eye's lid opens).
+  // Reactive on store.chatOpen so the arrow always says what a click will do — whoever closed/opened the
+  // chat (the ×, the voice, a proactive push, the process count below), the chevron follows.
   const paintFold=()=>{
     const open=!!chatOpen();
     fold.innerHTML=open?ICONS.foldL:ICONS.foldR;
@@ -218,6 +289,13 @@ export function WidgetRail(){
   };
   fold.onclick=(e)=>{ e.stopPropagation(); setChatOpen(!chatOpen()); };
   createEffect(paintFold);
+  // V2-666 — hidden at zero (an idle "0" is dead chrome, and this is a gauge of REAL background work, not
+  // a decoration that is always there). Clicking it opens the chat straight onto Procesos, not just chat.
+  createEffect(()=>{
+    const n=(tasks()||[]).length;
+    proc.classList.toggle("on", n>0);
+    if(n>0){ procN.textContent=String(n); proc.title=t("rail.processes",{n}); }
+  });
   hide.onclick=()=>{ const d=desk(); if(d){ d.minimizeAll(); refresh(el); } };
   show.onclick=()=>{ const d=desk(); if(d){ d.revealAll();  refresh(el); } };
   // The two bulk layouts are DIFFERENT gestures and used to be one: `compact` closes the gaps and leaves every
@@ -225,10 +303,19 @@ export function WidgetRail(){
   // Collapsing them meant «optimiza los huecos» also flattened the sheet he had deliberately enlarged.
   comp.onclick=()=>{ const d=desk(); if(d){ d.compact(); refresh(el); } };
   fitA.onclick=()=>{ const d=desk(); if(d){ d.arrange(); refresh(el); } };
-  tools.append(hide,show,comp,fitA,fold);
-  el.append(chips,orbzone,tools);
+  left.append(fold,proc);
+  tools.append(hide,show,comp,fitA);
+  el.append(left,chips,orbzone,tools);
   el.classList.add("on");   // V2-619: visible from birth — the bar never hides, widgets or none
   document.addEventListener("hb:canvas-changed",()=>refresh(el));
+  // V2-666 — the chip level has to track the space actually LEFT for chips, not just the widget count: a
+  // narrower window (or a docked chat column eating into the bar) can shrink that space with the canvas
+  // itself unchanged. `chips` is flex:1 1 0/min-width:0, so its own width never grows from its content —
+  // safe to watch without the watch re-triggering itself.
+  try{
+    const ro=new ResizeObserver(()=>refresh(el));
+    ro.observe(chips);
+  }catch(_){ addEventListener("resize",()=>refresh(el)); }
   paintFold();
   // Tooltips read the i18n bundle, which loads async — repaint once shortly after mount so they land translated.
   const titles=()=>{ comp.title=t("rail.compact"); fitA.title=t("rail.fitAll");

@@ -271,7 +271,12 @@ function injectStyles(){
      widget's own connectors screen, instead of a small floating overlay. .agconnscreen overrides
      .agpanel's modal width (source-order wins at equal specificity) while keeping ".agpanel .agnote"
      reachable for anything that still queries the old selector. ─────────────────────────────────────── */
-  .hb-agenda .agconnscreen{width:100%;max-width:640px;margin:0 auto;box-shadow:none;border:0;padding:2px}
+  /* TOP-LEFT, never centred. «margin:0 auto» floated this column in the middle of a card that is often
+     1400px wide: the breadcrumb read as centred, the step box looked «metido ahí en el medio, suelto», and
+     the widget wasted the screen it had been given. Centring is also wrong for a GUIDE specifically —
+     every step is a different height, so a centred column jumps under the reader between steps. The
+     content anchors at the same x as the view tabs above it and stays there. */
+  .hb-agenda .agconnscreen{width:100%;max-width:720px;margin:0;box-shadow:none;border:0;padding:2px 0}
   .hb-agenda .agconnhead{display:flex;align-items:center;gap:10px;margin-bottom:4px}
   .hb-agenda .agconnback{cursor:pointer;color:var(--hb-accent,#3D6FE0);font-weight:600;font-size:13px;
     margin-left:auto;flex:0 0 auto}
@@ -299,9 +304,13 @@ function injectStyles(){
     background:var(--hb-bg-soft,#fbfdff);border:1px solid var(--hb-line,#eef1f6);border-radius:9px;
     padding:9px 11px;line-height:1.55}
   .hb-agenda .agwerr{margin-top:10px;font-size:12.5px;color:var(--hb-risk,#e5484d);line-height:1.5}
-  .hb-agenda .agwfoot{display:flex;gap:9px;margin-top:2px}
-  .hb-agenda .agwfoot .agcalbtn2{flex:1 1 auto;margin:0;text-align:center;justify-content:center}
-  .hb-agenda .agwfoot .agcalbtn2.risk{flex:0 0 auto}
+  /* A button is the size of its label. «flex:1 1 auto» made the primary swallow every spare pixel of the
+     row — «un botón gigante» — which also destroyed the one thing a wizard's footer is for: the same
+     control in the same place on every step. Natural width, a comfortable floor, and the pair sits under
+     the step box where the reader's eye already is. */
+  .hb-agenda .agwfoot{display:flex;gap:10px;margin-top:16px;align-items:center}
+  .hb-agenda .agwfoot .agcalbtn2{flex:0 0 auto;margin:0;min-width:104px;padding:9px 18px;font-size:13px;
+    text-align:center;justify-content:center}
   `; document.head.appendChild(s);
 }
 
@@ -817,7 +826,7 @@ function agWizardSteps(){
 }
 function agLink(href, label){
   const a = document.createElement("a"); a.className = "agwlink"; a.href = href;
-  a.target = "_blank"; a.rel = "noopener"; a.textContent = label + " ↗";
+  a.target = "_blank"; a.rel = "noopener"; a.textContent = label + " \u2197";
   return a;
 }
 function agStepBody(step){
@@ -859,7 +868,15 @@ function renderGoogleWizard(data, ctx, S, redraw){
   crumb.appendChild(el2("span","agwcur", "Google Calendar"));
   wrap.appendChild(crumb);
 
-  const steps = agWizardSteps();
+  // HOW MANY STEPS is decided by the ACCOUNT, not by a constant. Until V2-685 this was always a four-step
+  // tutorial — create a Google Cloud project, create an OAuth client, paste it into ⚙ — teaching the
+  // operator to register an app FOR THE CALENDAR. That app is now the Google ACCOUNT's, and registering it
+  // once lights Gmail, Calendar, Meet, Drive, Photos and YouTube together (`registry._google`). So when it
+  // is already registered — which is every operator who connected any other Google surface first — those
+  // three steps are somebody else's job already done, and showing them reads as the previous generation's
+  // flow. They stay for the operator who has NO account yet, because today nothing else teaches it.
+  const gcal = (data.calendars || []).find(c => c.id === "google") || {};
+  const steps = gcal.status === "unconfigured" ? agWizardSteps() : [];
   const total = steps.length + 1;                        // +1 = the step that actually connects
   const step = Math.min(Math.max(Number(S.wizStep) || 1, 1), total);
   S.wizStep = step;
@@ -870,7 +887,7 @@ function renderGoogleWizard(data, ctx, S, redraw){
   head.appendChild(el2("span","agwnum", String(step)));
   head.appendChild(el2("span","agwtitle", last ? tt("wiz4_title", null, "Autoriza tu cuenta de Google")
                                                : steps[step-1].title));
-  head.appendChild(el2("span","agwcount", tt("wiz_step_n", {n:step, total}, "Paso {n} de {total}")));
+  if(total > 1) head.appendChild(el2("span","agwcount", tt("wiz_step_n", {n:step, total}, "Paso {n} de {total}")));
   box.appendChild(head);
   if(last){
     box.appendChild(el2("div","agwbody", tt("wiz4_body", null,
@@ -895,6 +912,7 @@ function renderGoogleWizard(data, ctx, S, redraw){
     nextBtn.onclick = ()=>{ S.wizStep = step + 1; redraw(); };
     foot.appendChild(nextBtn);
   } else {
+
     const go = el2("button","agcalbtn2", S.connectBusy ? tt("cal_connecting", null, "Abriendo Google…")
                                                        : tt("cal_connect", null, "Conectar Google Calendar"));
     go.disabled = !!S.connectBusy;
@@ -972,8 +990,8 @@ export function render(el, data, ctx){
   if(pushedConn && pushedConn.n !== S.connN){
     S.connN = pushedConn.n;
     S.screen = "wizard";
-    S.wizStep = agWizardSteps().length + 1;              // the LAST step: the one with «Conectar Google Calendar»
-    S.connectErr = "";
+    S.wizStep = 99;            // the LAST step, whatever the count is — the wizard clamps it, and the count
+    S.connectErr = "";         // is no longer a constant (it depends on whether the Google account exists)
   }
   if(!S.anchor) S.anchor = today;
 

@@ -133,13 +133,15 @@ export const SYSTEM_SURFACES = [
   { id: "boot",       comp: BootOverlay,  target: "body", phase: "overlay", kind: "transient",
     toggle: "store.bootReady (startup veil)", label: "Startup splash",
     name: null, aliases: null },
-  // V2-553 — the UPDATE CHANNEL: the «there is a new version, click to reload» bar (top, above everything)
-  // and the build-number badge at the foot of the left column. Self-contained in `app/update/`: these two
-  // lines are the ONLY place the app knows it exists, which is the constraint the operator set for it.
-  // Not voice-addressable — «open the update» is not a thing to open; it is either there or it is not.
+  // V2-553 — the UPDATE CHANNEL: the «there is a new version, click to reload» bar (top, above everything).
+  // Self-contained in `app/update/`: this line is the ONLY place the app knows it exists, which is the
+  // constraint the operator set for it. Not voice-addressable — «open the update» is not a thing to open;
+  // it is either there or it is not. The always-on version badge that used to sit here too was retired from
+  // the scene in V2-666 («quítalo de la escena») — ConfigPanel.js now shows the build number, only while
+  // Settings is open, reading the same `update/watch.js` signals.
   { id: "update",     comp: UpdateSurface, target: "body", phase: "overlay", kind: "transient",
-    toggle: "auto (bar when the served frontend differs from the one running; badge always)",
-    label: "Update bar + version badge",
+    toggle: "auto (bar when the served frontend differs from the one running)",
+    label: "Update bar",
     name: null, aliases: null },
   // V2-101 (2026-08-16): first-run "which language?" blocking modal — the SECOND veil, right after the boot
   // veil lifts, shown only once (GET /api/i18n/state's `chosen` flag). Not voice-addressable — you can't "open"

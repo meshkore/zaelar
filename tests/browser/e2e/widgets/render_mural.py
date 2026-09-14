@@ -210,6 +210,48 @@ def run(url):
         check("the rail paints ABOVE the chat (a covered widget is never unknowable)",
               rail and rail["z"] > chat["z"], f"rail z={rail and rail['z']} chat z={chat['z']}")
 
+        # ── V2-666: chips carry the widget's NAME (up to 6 chars), not just two initials ───────────────────
+        labels = pg.evaluate("""() => [...document.querySelectorAll('#wrail .wr-chip')]
+            .map(c => ({wid: c.dataset.wid, text: c.textContent}))""")
+        by_wid = {c["wid"]: c["text"] for c in labels}
+        check("chips wear up to six letters of the widget's own NAME, not two initials",
+              by_wid.get(A) == "ALPHA" and by_wid.get("beta") == "BETA" and by_wid.get("gamma") == "GAMMA",
+              json.dumps(by_wid))
+
+        # ── V2-666: the LEFT cluster — chevron at the bar's edge, process count hidden with no tasks ────────
+        left_order = pg.evaluate("""() => [...document.querySelectorAll('#wrail > *')].map(e => e.className)""")
+        check("the chat chevron sits in the FIRST child of the bar, chips come after it",
+              left_order[0] == "wr-left" and left_order[1] == "wr-chips", json.dumps(left_order))
+        proc_idle = pg.evaluate("""() => { const p = document.querySelector('#wrail .wr-proc');
+          return { onClass: p.classList.contains('on'), visible: getComputedStyle(p).display !== 'none' }; }""")
+        check("the process count is HIDDEN when nothing is running (not a permanent zero)",
+              not proc_idle["onClass"] and not proc_idle["visible"], json.dumps(proc_idle))
+
+        # A real background flow (store.startTask, the SAME call the brain's own lifecycle events drive) —
+        # dynamic-imported at the URL main.js itself resolves to, so this is the ONE store instance the page
+        # already runs, not a copy.
+        pg.evaluate("""async () => { const m = await import('/static/app/core/store.js?v=2');
+          m.startTask('proc1', 'Buscando coches'); }""")
+        pg.wait_for_timeout(150)
+        proc_busy = pg.evaluate("""() => { const p = document.querySelector('#wrail .wr-proc');
+          return { onClass: p.classList.contains('on'), visible: getComputedStyle(p).display !== 'none',
+                   n: (p.querySelector('.wr-proc-n') || {}).textContent }; }""")
+        check("one running process shows as the number 1, visibly",
+              proc_busy["onClass"] and proc_busy["visible"] and proc_busy["n"] == "1", json.dumps(proc_busy))
+        # Clicking the count opens the chat straight onto the Procesos tab — not just "opens chat".
+        pg.evaluate("() => document.querySelector('#wrail .wr-proc').click()")
+        pg.wait_for_timeout(200)
+        panel = pg.evaluate("""async () => { const m = await import('/static/app/core/store.js?v=2');
+          return { open: m.chatOpen(), tab: m.chatTab() }; }""")
+        check("clicking the process count opens the chat on the Procesos tab",
+              panel["open"] and panel["tab"] == "procesos", json.dumps(panel))
+        # Clean up: settle the fake task so it does not bleed into later checks. The chat was ALREADY open
+        # (window.zaelar.panel('chat'), above) before this click, and every later check assumes it stays that
+        # way — the click only moved its TAB, so there is nothing to undo about openness here.
+        pg.evaluate("""async () => { const m = await import('/static/app/core/store.js?v=2');
+          m.endTask('proc1'); }""")
+        pg.wait_for_timeout(150)
+
         if not rail or not rail["on"] or len(rail["chips"]) < 3:
             check("rail usable for the interaction steps (skipping them)", False, json.dumps(rail))
             check("no page errors", not errors, " | ".join(errors[:4]))

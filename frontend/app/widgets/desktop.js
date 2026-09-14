@@ -709,6 +709,14 @@ export class Desktop {
       // the DATA itself (V2-613) so a language switch can re-render with the identical content, just re-translated.
       w._dataSig = JSON.stringify(data); w._mod = mod; w._ctx = ctx; w._lastData = data;
       this._persist();                                  // widget is up → remember it for next refresh
+      // A CHANGE THAT LANDED WHILE WE WERE MOUNTING IS NOT A CHANGE WE MISSED. `refreshData` returns early
+      // for a card that has no `_mod` yet, which is the whole of a mount — so any save during it was thrown
+      // away silently. That window is microseconds and ONE natural sentence hits it every time: «open my
+      // agenda and connect my Google Calendar» shows the card and, 8 ms later, writes the token that steers
+      // it to the connect screen. Measured on the operator's own session (2026-09-14, T5·ca89): the show,
+      // the action and the data event all fired correctly, the token was in the store, and the card came up
+      // on the calendar — «no parece darse por aludido». Postponed, never lost.
+      if(w._refreshPending){ w._refreshPending = false; this.refreshData(id); }
     }catch(e){ console.error("widget mount failed", id, e); this._mountError(w, baseId, String(e&&e.message||e)); }
   }
 
@@ -867,8 +875,11 @@ export class Desktop {
   // and re-render ONLY if the data actually changed (diff by JSON signature) and ONLY if the widget is open.
   async refreshData(id){
     const w = this.wins.get(id);
-    if(!w || !w._mod) return;              // not open, or hasn't finished its first render yet — nothing to do
-    if(w._refreshing) return;              // coalesce a burst of saves into whichever fetch is already in flight
+    if(!w) return;                         // not open at all — nothing to refresh
+    // STILL MOUNTING, or a fetch already in flight: both used to DROP the notice. Neither is safe, because
+    // the data that triggered it may be newer than whatever that in-flight fetch will return — so the
+    // change is remembered and re-read once the card can take it.
+    if(!w._mod || w._refreshing){ w._refreshPending = true; return; }
     w._refreshing = true;
     try{
       const data = await fetch(`/widgets/${w.base||id}/data`+(w.q?`?q=${encodeURIComponent(w.q)}`:"")).then(r=>r.json());
@@ -883,7 +894,10 @@ export class Desktop {
         this._applyLiveTitle(ww, ww.base || id, data);
       }
     }catch(_){}
-    finally{ w._refreshing = false; }
+    finally{
+      w._refreshing = false;
+      if(w._refreshPending){ w._refreshPending = false; this.refreshData(id); }
+    }
   }
 
   // V2-613 — the operator picks a language (first-run onboarding, or a later ⚙ switch) and every OPEN system

@@ -61,3 +61,38 @@
   FRESH load. A local first track keeps the old single-writer flow untouched. The dedupe half of the
   same incident (three explicit «reproduce la lista»/«dale al play» replays eaten as context-bleed)
   lives in `nucleo/flash/canvas_license.py::replay_license`.
+
+## 2026-09-12 — V2-678: the pinned-frame fix had to be REDONE, plus a real visual pass
+- The V2-667 fix (idle playback-bar state + pinned header/footer) described above never actually shipped:
+  its `widget.js` edit was uncommitted and got lost — the file on disk still carried the pre-fix code (no
+  `.hb-mus2-headfix`, `max-height:60vh` instead of a flex fill, "Nada sonando" still hardcoded), even though
+  the testmap entry and the test file survived. Rebuilt the same mechanism from scratch, this time landing
+  it (see the commit for this batch).
+- **A NEW bug found while rebuilding it, worth keeping**: the three-zone CSS looked complete
+  (`.hb-mus2-root{height:100%}`, `.hb-mus2{height:100%}`) and still silently no-opped — a 30-track playlist
+  in a 420px card rendered at its full, un-clipped ~1922px natural height. Cause: `render()`'s persistent
+  `el._viewHost` (kept unrebuilt across re-renders so the hidden YouTube/local-audio player never restarts)
+  is created as a bare, UNCLASSED `<div>` sitting between `.hb-mus2-root` and the visible `.hb-mus2` card.
+  With no rule of its own it defaults to `height:auto`, and a percentage height on its child resolves
+  against "auto" exactly as if no height were set — the fix was internally consistent and did nothing.
+  Fixed with `.hb-mus2-viewhost{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}` plus giving
+  that div the class in `render()`. Caught by a live Playwright layout probe (`getComputedStyle` at every
+  level of the chain), not by reading — reading the CSS gave no reason to suspect the one unclassed div in
+  the middle of it.
+- **Operator's second round of feedback, same widget, with a screenshot of a track actually playing**: the
+  bottom bar "looks bad" — a plain dark rectangle with a stray horizontal bar floating under a large empty
+  void, no visual structure "como Spotify o Amazon Music", and the track title needs to be "un pixel o dos"
+  bigger. Addressed as a visual pass on top of the (re-fixed) structural one:
+  - The transport bar is now visually LIFTED off the content above it — its own background tone
+    (`--hb-bg-soft`), a top divider, AND a soft upward `box-shadow` (the exact cue both reference apps use
+    so a player never reads as "a line drawn across a flat rectangle") — bigger padding, bigger cover art
+    (46px→52px), bigger round main button (36px→40px) with its own shadow.
+  - Track title 13px→15px per the operator's literal ask; artist line 11.5px→12.5px.
+  - The header band (`.hb-mus2-headfix`) gets a tonal background + bottom border of its own too, so the
+    screen reads as three distinct bands (header / scrolling middle / footer) instead of one undifferentiated
+    dark field with text floating on it — the operator's "tiene que haber diferentes apartados en la
+    pantalla".
+- Tests: same node 4.3 file, all 5 cases green; 3 of 5 disarmed red against the pre-redo widget.js (idle-bar
+  shape + both pin cases — the same disarm ratio as the original V2-667 attempt, now actually landed).
+  `make test-widgets` 15/15, musica unit suite 66/66, music connector suite 21/21.
+  **NOT verified live** — needs an engine restart and a page reload.
