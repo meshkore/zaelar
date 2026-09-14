@@ -36,6 +36,14 @@ TOOLS: list[dict] = [
             #    the provider's fault, as it executed only the FIRST escalation); and “not in the catalog” is not
             #    a reason: a widget that does not exist is exactly what gets built.
             # V2-402 — the NO-list directs video/music/podcast play/search to play_video/play_music, not the worker.
+            # V2-693 — ESCRIBIRLE A UNA PERSONA was never in the YES-list, so the gestión the whole errand
+            #   machinery exists for never started. Measured: «escríbele a Cryptonite y concierta una
+            #   videollamada» returned `chat` with zero tool calls and the answer «I'll reach out to
+            #   Cryptonite…» — the friction auditor flagged it in the same second («data-op fantasma»). The
+            #   model was not wrong to read the catalog: the nearest YES was «un compromiso real (reservar…)»
+            #   and the NO-list names «tocar la LISTA de un widget», which is what «apúntamela en la agenda»
+            #   looks like. Paid for by REPLACEMENT, as every change here is: «dar de baja» (cancelar already
+            #   carries undo), «puntual», «distintas», «corren», and «contenido que» for «lo que».
             # V2-457 — showing photos is also removed from the YES-list: it was a worker request (355 s and $1.96 measured
             # 2026-08-28) and is now a 3 s turn through `show_images`. What remains here is CURATING photos.
             "description": (
@@ -43,17 +51,18 @@ TOOLS: list[dict] = [
                 "SÍ: investigar/informe/comparativa a fondo; operar una web o marketplace "
                 "(anuncios→search_listings); "
                 "crear o arreglar el CÓDIGO de un widget; recordar algo de OTRAS sesiones "
-                "fuera de tu ESTADO; y HACER, cambiar o DESHACER un compromiso real "
-                "(reservar, cancelar, dar de baja, pagar) — el widget es solo su espejo. "
-                "NO: charla; un dato puntual del mundo (web_search); un aviso a una hora "
-                "o día ([[cron.create]]); tocar la LISTA de un widget (widget_data); MOSTRAR contenido que YA "
+                "fuera del ESTADO; ESCRIBIR a una persona o gestionar CON ella "
+                "(concertar, avisar); y HACER, cambiar o DESHACER un compromiso real "
+                "(reservar, cancelar, pagar) — el widget es solo su espejo. "
+                "NO: charla; un dato del mundo (web_search); un aviso a una hora "
+                "o día ([[cron.create]]); la LISTA de un widget (widget_data); MOSTRAR lo que YA "
                 "existe en un widget, aunque digas «el mensaje nuevo» (show_widget); poner/BUSCAR "
                 "vídeo/música/podcast (play_video/play_music, no la hoja); enseñar FOTOS aunque las pida "
                 "verificadas/de verdad (show_images). "
-                "VARIAS tareas distintas = una llamada por CADA UNA (corren a la vez). Y "
-                "no estar en el catálogo NO es motivo para negarte: se construye. Ante la duda, escala. "
-                "Si ya hay una tarea EN CURSO no la repitas: di que sigues "
-                "con ello; PREGUNTAR POR ELLA NO es encargarla: eso se lee de tu "
+                "VARIAS tareas = una llamada CADA UNA (a la vez) "
+                "y no estar en el catálogo NO es motivo para negarte: se construye. Ante la duda, escala. "
+                "Si hay una tarea EN CURSO no la repitas: di que sigues "
+                "con ello; PREGUNTAR POR ELLA NO es encargarla: se lee de tu "
                 "ESTADO, nunca se escala. Llámala YA en este turno; tu frase la acompaña, no la sustituye."
             ),
             "parameters": {

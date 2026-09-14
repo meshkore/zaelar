@@ -639,21 +639,30 @@ def test_the_party_turn_may_promise_the_link_and_may_never_WRITE_one(world, monk
     # automatically». A capability stated UNCONDITIONALLY is one the model promises unconditionally.
     from nucleo.errands import party as _party
 
+    # ⚠️ AND THE ARMED HALF WAS REWRITTEN AGAIN (V2-693), for the same class of reason one rung down. It
+    # used to read «puedes decirle que se lo pasas. Pero NUNCA lo escribas tú: no lo tienes, lo añade el
+    # sistema» — an instruction about OUR plumbing, and the model relayed it to a real person as an excuse:
+    # «I can't send the Google Meet link myself — it's generated automatically by the system», with the link
+    # appended right underneath by `_with_link`. A message that denies and delivers in the same breath.
+    # What the prompt must carry is the OUTCOME (the link is going out in this message, write like someone
+    # handing it over) and only then the mechanical limit (do not type the URL yourself).
     armed = _party.build_system("Johnny", "Ricart", "español", can_link=True)
-    assert "NUNCA lo escribas tú" in armed, "the half that is still impossible"
-    assert "lo añade el sistema" in armed, \
-        "a limit with no alternative is answered by inventing one — say who does supply it"
-    assert "puedes decirle que se lo pasas" in armed, \
+    assert "TECLEAR tú la URL" in armed, "the half that is still impossible"
+    assert "YA VA EN ESTE MISMO MENSAJE" in armed, \
+        "a limit with no alternative is answered by inventing one — say where the link actually is"
+    assert "ENTREGANDO" in armed, \
         "and the half it CAN do, or it argues the operator out of his own errand"
+    assert "no digas que no lo tienes" in armed and "ni expliques cómo se genera" in armed, \
+        "the sentence it actually sent to a real person is the one that has to be forbidden"
 
     dark = _party.build_system("Johnny", "Ricart", "español", can_link=False)
     assert "NO PUEDES MANDARLE NINGÚN ENLACE" in dark
     assert "NO se lo prometas" in dark and "no va a llegar" in dark, \
         "the sentence it actually said to a real person is the one that has to be forbidden"
-    assert "puedes decirle que se lo pasas" not in dark
+    assert "YA VA EN ESTE MISMO MENSAJE" not in dark
 
     system = model.calls[-1]["system"]
-    assert ("puedes decirle que se lo pasas" in system) ^ ("NO PUEDES MANDARLE" in system), \
+    assert ("YA VA EN ESTE MISMO MENSAJE" in system) ^ ("NO PUEDES MANDARLE" in system), \
         "and the live prompt carries exactly ONE of the two — never both, never neither"
 
 

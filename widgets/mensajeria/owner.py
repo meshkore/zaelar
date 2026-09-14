@@ -162,6 +162,15 @@ class _Owner:
             # reported his own reply never reaching the widget, and the whole pipeline was silent on success
             # end to end. This confirms the message actually landed in the store, not just that the bus saw it.
             logger.info(f"mensajeria: outbound {platform} message joined its thread ({ev.get('chatId')})")
+            # V2-693 — and the directory learns WHO that conversation is. The connector resolved a handle
+            # into a chat id to make this send; that mapping exists nowhere else, and dropping it is what
+            # let one person become two contacts.
+            if ev.get("contactId"):
+                try:
+                    from widgets import directory
+                    directory.note_reached(platform, ev.get("chatId"), str(ev.get("contactId")))
+                except Exception as e:  # noqa: BLE001
+                    logger.debug(f"mensajeria: no pude anotar el contacto del envío: {e}")
 
     def _apply_external_reads(self) -> None:
         for ev in self._drain(self._read_sub):

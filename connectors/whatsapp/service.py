@@ -198,6 +198,7 @@ async def _drain_sends() -> None:
             ingest.publish_msg_out(PLATFORM, {
                 "chatId": chat_id, "messageId": (res or {}).get("messageId") or f"sent:{_t.time():.0f}",
                 "ref": r.get("ref"), "from": "", "body": text, "timestamp": _t.time(),
+                "contactId": r.get("contactId") or "",
                 "chatName": r.get("name") or ""})
         except Exception as e:  # noqa: BLE001
             logger.warning(f"WhatsApp: enviado, pero no pude registrar la conversación: {e}")

@@ -185,11 +185,24 @@ def test_a_phone_becomes_the_id_whatsapp_addresses_people_by(box):
     assert _jid("") == ""
 
 
-def test_the_manifest_declares_it_and_asks_first(box):
+def test_the_manifest_declares_it_and_does_NOT_ask_again(box):
+    """⚠️ This gate was flipped in V2-692 and the test was not brought along — a red left standing since
+    2026-09-14, found by the next batch's full sweep.
+
+    The operator's rule, in his own words: «hay una regla de que no se contestan a mensajes, pero si yo
+    específicamente digo que se haga una acción y eso requiere mandar un mensaje, obviamente ese permiso
+    pasa ya por hecho». `reply` KEEPS its confirm — answering somebody who wrote to him is the engine
+    speaking on its own initiative. `send_to` is the opposite case by construction: it only exists because
+    he asked for the gestión, so asking again is asking twice, and the live run measured what that costs —
+    he had to drive every step by hand and the errand never started. The contract that replaces the gate is
+    `objective`: nothing goes out through this door without saying what it is trying to achieve.
+    """
     m = json.loads((ENGINE / "widgets" / "mensajeria" / "manifest.json").read_text(encoding="utf-8"))
     a = m["actions"]["send_to"]
-    assert a["confirm"] is True
+    assert a["confirm"] is False, "he already gave the order; a second ask is the one that stalled the errand"
     assert set(a["payload"]) >= {"contact", "text", "channel", "objective"}
+    assert m["actions"]["reply"]["confirm"] is True, \
+        "and the OTHER door keeps its gate — this is not a blanket opening of the mouth"
 
 
 def test_answering_a_conversation_still_works_exactly_as_before(box):

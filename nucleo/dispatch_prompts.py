@@ -262,7 +262,14 @@ def errand_block() -> str:
             "un ENCARGO durable, que el motor despierta solo cuando esa persona conteste, hoy o dentro de "
             "diez horas, y que apunta la cita y manda el enlace de Meet por su cuenta cuando se acuerde la "
             "hora. `send_to` es la puerta AUNQUE ya exista la conversación: lo que decide no es si te han "
-            "escrito antes, es si esto abre una gestión que hay que seguir. En cuanto salga el mensaje, "
+            "escrito antes, es si esto abre una gestión que hay que seguir. Y un mensaje ANTIGUO que "
+            "diga que algo ya se acordó NO es la prueba de que esté hecho: lo hecho se mira en la "
+            "AGENDA, nunca en la conversación (medido: el worker leyó un «confirming our call» suyo de "
+            "hace una hora, dijo «done, the call is set» y no había ninguna cita). Ese primer mensaje PROPONE: "
+            "no des por confirmada una hora que esa persona no ha dicho, no apuntes tú la cita y no "
+            "escribas tú ningún enlace de Meet — de las tres cosas se encarga el encargo cuando haya "
+            "acuerdo, y adelantarlas es cómo se le acaba mandando a un tercero una hora inventada o un "
+            "enlace de una cita que ya no existe (medido el 2026-09-14). En cuanto salga el mensaje, "
             "TERMINA y dilo — «le he escrito y sigo yo la conversación por ahí». Nada de `sleep`, ni "
             "bucles de `peek`, ni esperar la respuesta.")
 

@@ -241,6 +241,22 @@ async def tick(now: float | None = None) -> None:
         logger.debug(f"errands: enlaces pendientes: {e!r}")
 
 
+def _queued_at(row: dict, now: float) -> float:
+    """When this wake was queued. `0.0` means «due immediately» and MUST survive being read.
+
+    ⚠️ This existed as `float(row.get("at") or now)` and it silently disabled the owed-link waker on the
+    first live run that had something to pay (2026-09-14, 20:47): `_wake_for_owed_links` queues `at: 0.0`
+    precisely to mean «no coalesce window, send it now», `0.0` is falsy, the `or` swapped it for `now`, and
+    `now - now >= COALESCE_S` is False on every beat after. The wake sat in the queue forever — and because
+    the queue is also what stops the waker re-queueing, it never logged again either. A whole capability
+    looked implemented, tested and dead.
+
+    The lesson is the one this file keeps relearning: `or` is not a default, it is a truthiness test, and a
+    legitimate 0 is the value it eats."""
+    at = row.get("at")
+    return now if at is None else float(at)
+
+
 async def _fire_wakes(now: float) -> None:
     """One errand at a time, and only once the coalesce window has passed.
 
@@ -259,8 +275,7 @@ async def _fire_wakes(now: float) -> None:
             return                            # nothing is consumed: the same wake is due on the next beat
     except Exception:
         return                                # fails CLOSED, like every other reader of this switch
-    due = [(eid, row) for eid, row in _pending_wakes.items()
-           if now - float(row.get("at") or now) >= COALESCE_S]
+    due = [(eid, row) for eid, row in _pending_wakes.items() if now - _queued_at(row, now) >= COALESCE_S]
     for eid, row in due:
         _pending_wakes.pop(eid, None)
         errand = get(eid)

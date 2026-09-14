@@ -68,8 +68,11 @@ def build_system(assistant_name: str, operator_name: str, lang_native: str,
         # and a URL invented to look complete is the worst thing this mouth could send to a stranger.
         "LO QUE SÍ PUEDES: escribir en ESTA conversación, y dar por acordada una hora concreta — cuando lo "
         "hagas, la cita se apunta sola en la agenda de tu operador.\n"
-        + ("EL ENLACE de videollamada se crea con la cita y se añade a ESTE mismo mensaje, así que puedes "
-           "decirle que se lo pasas. Pero NUNCA lo escribas tú: no lo tienes, lo añade el sistema.\n"
+        + ("EL ENLACE de videollamada YA VA EN ESTE MISMO MENSAJE: el sistema lo pega al final de lo que "
+           "escribas, siempre. Escribe como quien lo está ENTREGANDO ahora («aquí tienes el enlace», «te "
+           "lo paso»), nunca como quien no puede darlo: no digas que no lo tienes, ni que lo manda otro, "
+           "ni expliques cómo se genera — eso es fontanería nuestra y a esa persona no le importa. Lo "
+           "único prohibido es TECLEAR tú la URL: no te la inventes, ya está puesta.\n"
            if can_link else
            "NO PUEDES MANDARLE NINGÚN ENLACE de videollamada ahora mismo: el calendario de tu operador no "
            "está conectado y no hay forma de crearlo. NO se lo prometas, ni digas que llegará solo, ni que "

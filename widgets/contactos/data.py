@@ -188,6 +188,30 @@ def _channels_in(payload: dict) -> list[dict]:
     return list(out.values())
 
 
+def _same_channel(a: dict, b: dict) -> bool:
+    """Do these two channel rows name the SAME account? Platform plus either identity, `@` and case aside."""
+    if _norm(a.get("platform")) != _norm(b.get("platform")):
+        return False
+    for k in ("chatId", "handle"):
+        for j in ("chatId", "handle"):
+            x, y = _norm(str(a.get(k) or "")).lstrip("@"), _norm(str(b.get(j) or "")).lstrip("@")
+            if x and x == y:
+                return True
+    return False
+
+
+def _owner_of_channel(contacts: list[dict], rows: list[dict]) -> dict | None:
+    """The contact who ALREADY holds one of these accounts, if any (V2-693).
+
+    An account is a stronger identity than a name: «Cryptonite» and «Pruebas Zaelar» are two names for one
+    Telegram user, and `add_contact` deduped on name+city alone — so the second name made a second row. The
+    operator found it himself: «¿cómo vamos a tener dos contactos que tienen el mismo nickname de Telegram?».
+    Two owners is not a merge, it is an ambiguity, and this answers None so the caller writes nothing."""
+    hits = [c for c in contacts
+            if any(_same_channel(ch, row) for ch in c.get("channels") or [] for row in rows)]
+    return hits[0] if len(hits) == 1 else None
+
+
 def _merge_channel(c: dict, row: dict) -> None:
     """Set one channel on a contact, keeping what the new row does not say (an operator fixing a handle must
     not erase the chatId the traffic already taught us, and vice versa)."""
@@ -356,9 +380,14 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
                              "tienes: kind person/place/company, group, city, phone), sin preguntarle nada al "
                              "operador si ya te los dijo"}
         city = str(payload.get("city") or "").strip()
+        groups = _groups_in(payload)
+        incoming = _channels_in(payload)
+        # Name+city first (the operator saying the same person again), then the ACCOUNT — one Telegram
+        # username can only belong to one contact, whatever it is called this time (V2-693).
         existing = next((c for c in contacts
                          if _norm(c.get("name")) == _norm(name) and _norm(c.get("city")) == _norm(city)), None)
-        groups = _groups_in(payload)
+        if existing is None and incoming:
+            existing = _owner_of_channel(contacts, incoming)
         if existing:
             # Same name+city = the same identity said again: UPDATE instead of duplicating (the directory
             # sibling of the agenda's V2-208 dedup — a silent duplicate is how two half-truths accumulate).
@@ -372,7 +401,7 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
                     existing.setdefault("groups", []).append(g)
             if payload.get("favorite") is not None:
                 existing["favorite"] = _truthy(payload.get("favorite"))
-            for row in _channels_in(payload):
+            for row in incoming:
                 _merge_channel(existing, row)
             if _platform(payload.get("preferred")):
                 existing["preferred"] = _platform(payload.get("preferred"))
@@ -386,7 +415,7 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
                  "email": str(payload.get("email") or "").strip(),
                  "notes": str(payload.get("notes") or "").strip(),
                  "groups": groups, "favorite": _truthy(payload.get("favorite")),
-                 "channels": _channels_in(payload), "preferred": _platform(payload.get("preferred")),
+                 "channels": incoming, "preferred": _platform(payload.get("preferred")),
                  "parentId": "", "created": now, "updated": now}
             db["next_id"] = int(db.get("next_id", 1)) + 1
             contacts.append(c)

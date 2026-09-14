@@ -448,6 +448,7 @@ async def _drain_sends() -> None:
                 ingest.publish_msg_out("telegram", {
                     "chatId": chat_id, "messageId": f"{chat_id}:{getattr(sent, 'id', 0)}",
                     "ref": r.get("ref"), "from": "", "body": text,
+                    "contactId": r.get("contactId") or "",
                     "timestamp": _sent_ts(sent), "chatName": r.get("name") or ""})
         except Exception as e:  # noqa: BLE001
             logger.warning(f"Telegram: enviado, pero no pude registrar la conversación: {e}")

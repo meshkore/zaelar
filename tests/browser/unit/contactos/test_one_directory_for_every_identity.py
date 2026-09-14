@@ -255,3 +255,80 @@ def test_the_open_card_digest_reaches_the_flash_prompt(ct):
     assert "contenido en pantalla" in abierto and "3 entradas" in abierto and "2 favoritas" in abierto
     cerrado = brief.for_prompt(open_ids=set(), query="mis restaurantes favoritos")
     assert "2 favoritas" not in cerrado
+
+
+# ── V2-693 · ONE TELEGRAM ACCOUNT BELONGS TO ONE CONTACT ─────────────────────────────────────────────────
+def test_a_second_NAME_for_an_account_we_already_hold_is_the_SAME_contact(ct):
+    """⚠️ The operator found this himself, live: «¿cómo vamos a tener dos contactos que tienen el mismo
+    nickname de Telegram?». `add_contact` deduped on name+city ALONE, so the same person under a second
+    name made a second row — and then `send_to` had two candidates for one human being.
+
+    An account is a stronger identity than a name: a name can be said two ways, a Telegram username belongs
+    to exactly one account."""
+    ct.apply_action("add_contact", _as_the_canvas_sends_it(
+        {"name": "Pruebas Zaelar", "channels": {"platform": "telegram", "handle": "@cryptonite_fund"}}))
+    res = ct.apply_action("add_contact", _as_the_canvas_sends_it(
+        {"name": "Cryptonite", "channels": {"platform": "telegram", "handle": "cryptonite_fund"}}))
+    assert res["ok"] and res["result"]["updated"] is True, res.get("result")
+    assert ct.view_data()["count"] == 1, "one Telegram account cannot be two contacts"
+
+
+def test_the_account_matches_through_the_id_the_traffic_taught_us(ct):
+    """The two halves of a Telegram identity are the handle the operator typed and the numeric id the
+    platform resolved. Either one is proof, in either direction."""
+    ct.apply_action("add_contact", _as_the_canvas_sends_it(
+        {"name": "Cryptonite", "channels": {"platform": "telegram", "handle": "@cryptonite_fund",
+                                            "chatId": "7477656357"}}))
+    ct.apply_action("add_contact", _as_the_canvas_sends_it(
+        {"name": "El de las cripto", "channels": {"platform": "telegram", "handle": "7477656357"}}))
+    assert ct.view_data()["count"] == 1
+
+
+def test_a_DIFFERENT_account_is_still_a_different_contact(ct):
+    """The guard must not collapse two people who simply both have Telegram."""
+    ct.apply_action("add_contact", _as_the_canvas_sends_it(
+        {"name": "Ana", "channels": {"platform": "telegram", "handle": "@ana"}}))
+    ct.apply_action("add_contact", _as_the_canvas_sends_it(
+        {"name": "Berta", "channels": {"platform": "telegram", "handle": "@berta"}}))
+    assert ct.view_data()["count"] == 2
+
+
+def test_an_AMBIGUOUS_account_writes_nothing_rather_than_guessing(ct, monkeypatch):
+    """Two contacts already holding one account is a finding, not a merge — the `note_inbound` rule
+    (V2-541), applied at the other door. It creates a new row instead of picking one of them."""
+    from widgets.contactos import data as d
+    ct.apply_action("add_contact", _as_the_canvas_sends_it(
+        {"name": "Uno", "channels": {"platform": "telegram", "handle": "@dup"}}))
+    db = d.load_db()
+    twin = dict(db["contacts"][0])
+    twin["id"] = "cX"
+    twin["name"] = "Dos"
+    db["contacts"].append(twin)
+    d.store.save(d.WIDGET_ID, db)
+    ct.apply_action("add_contact", _as_the_canvas_sends_it(
+        {"name": "Tres", "channels": {"platform": "telegram", "handle": "@dup"}}))
+    assert ct.view_data()["count"] == 3, "an ambiguity must not be silently resolved onto one of them"
+
+
+def test_the_id_the_connector_RESOLVED_is_written_back_to_the_contact(ct):
+    """⚠️ V2-693 — this mapping existed nowhere else and was thrown away, and that is what grew the twin.
+
+    The operator asks by name, the resolver hands the connector a HANDLE, the connector asks Telegram who
+    that is and gets a numeric chat id back. Without this, the same person's reply arrived as a stranger.
+    """
+    from widgets import directory
+    ct.apply_action("add_contact", _as_the_canvas_sends_it(
+        {"name": "Cryptonite", "channels": {"platform": "telegram", "handle": "@cryptonite_fund"}}))
+    cid = ct.view_data()["contacts"][0]["id"]
+    assert directory.note_reached("telegram", "7477656357", cid) is True
+    ch = ct.view_data()["contacts"][0]["channels"][0]
+    assert ch["chatId"] == "7477656357"
+    assert ch["handle"] == "@cryptonite_fund", "the operator's own handle is never overwritten by an id"
+    assert directory.note_reached("telegram", "7477656357", cid) is False, "nothing new: no write"
+
+
+def test_learning_an_id_for_a_contact_that_is_GONE_writes_nothing(ct):
+    from widgets import directory
+    ct.apply_action("add_contact", _as_the_canvas_sends_it({"name": "Nadie"}))
+    assert directory.note_reached("telegram", "999", "no-existe") is False
+    assert directory.note_reached("telegram", "", ct.view_data()["contacts"][0]["id"]) is False

@@ -40,6 +40,8 @@ import re
 import time
 import unicodedata
 
+from loguru import logger
+
 #: Platforms that can carry an outbound message today. Kept here (not imported from `connectors.messaging`)
 #: because the widget layer must not depend on a connector being installed to answer «who is this».
 PLATFORMS = ("whatsapp", "telegram", "email")
@@ -237,6 +239,46 @@ def note_inbound(platform: str, msg: dict) -> bool:
         row["volume"] = int(row.get("volume") or 0) + 1
         row["last_seen"] = float(msg.get("ts") or time.time())
         _cd.store.save(_cd.WIDGET_ID, db)
+        return True
+    except Exception:
+        return False
+
+
+def note_reached(platform: str, chat_id, contact_id: str) -> bool:
+    """A message we SENT resolved this contact to a real conversation id — learn it (V2-693).
+
+    ⚠️ Until today this was discovered and thrown away, and it is how the directory grew a twin. The
+    operator asks by name, `resolve_target` hands the connector a HANDLE («@cryptonite_fund»), the connector
+    asks the platform who that is and gets back a numeric chat id — the only place that id exists. Nobody
+    wrote it down. So when the same person answered, `_match_sender` had a numeric id on one side and an
+    `@handle` on the other, matched nothing, and the reply arrived as a stranger; a later `add_contact`
+    then created a SECOND row for one person with one Telegram account. His words: «¿cómo vamos a tener dos
+    contactos que tienen el mismo nickname de Telegram?».
+
+    Same rule as `note_inbound`: the chatId follows the traffic, the operator's own handle is never
+    overwritten. Never raises — a directory that cannot learn must not break a send that already happened.
+    """
+    try:
+        cid = str(chat_id or "").strip()
+        p = _norm(platform)
+        if not cid or not contact_id or p not in PLATFORMS:
+            return False
+        from .contactos import data as _cd
+        db = _cd.load_db()
+        c = next((x for x in db.get("contacts") or [] if str(x.get("id") or "") == str(contact_id)), None)
+        if c is None:
+            return False
+        chs = c.setdefault("channels", [])
+        row = next((ch for ch in chs if _norm(ch.get("platform")) == p), None)
+        if row is None:
+            row = {"platform": p, "handle": cid, "chatId": cid, "source": "observed", "volume": 0}
+            chs.append(row)
+        elif str(row.get("chatId") or "") == cid:
+            return False                      # already known — no write, no churn on every single send
+        else:
+            row["chatId"] = cid
+        _cd.store.save(_cd.WIDGET_ID, db)
+        logger.info(f"directory: {c.get('name')} → {p}:{cid}")
         return True
     except Exception:
         return False

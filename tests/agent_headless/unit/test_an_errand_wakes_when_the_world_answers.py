@@ -500,3 +500,52 @@ def test_an_expired_errand_is_TOLD_once(watcher, env, monkeypatch):
 async def _wake(row):
     from nucleo.errands import wake as wake_mod
     return await wake_mod.wake(row, reason="test")
+
+
+# ── V2-693 · A DEBT DUE NOW IS DUE NOW ───────────────────────────────────────────────────────────────────
+def test_a_wake_queued_as_DUE_NOW_actually_fires(watcher, env, monkeypatch):
+    """The owed-link waker queues `at: 0.0` to mean «no coalesce window, send it now».
+
+    ⚠️ This is the bug that made V2-692e's whole capability dead on arrival, measured live the first time
+    there was a debt to pay (2026-09-14, 20:47): the due test read `float(row.get("at") or now)`, `0.0` is
+    falsy, so `or` swapped the sentinel for `now` and `now - now >= COALESCE_S` was False on every beat
+    after. The wake sat in the queue forever — and since the queue is also what stops the waker from
+    re-queueing, nothing logged again either. The operator saw a Meet link that existed in his calendar and
+    never reached the person waiting for it.
+    """
+    from nucleo.errands import wake as wake_mod
+    woke = []
+
+    async def _fake(errand, **kw):
+        woke.append(errand["id"])
+        return {"ok": True}
+    monkeypatch.setattr(wake_mod, "wake", _fake)
+
+    row = _errand(env)
+    watcher._pending_wakes[row["id"]] = {"at": 0.0, "inbound": ""}
+    asyncio.run(watcher.tick(__import__("time").time()))
+    assert woke == [row["id"]], "a wake queued as «due now» must fire on the very next beat"
+    assert row["id"] not in watcher._pending_wakes
+
+
+def test_a_wake_queued_JUST_NOW_still_waits_its_coalesce(watcher, env, monkeypatch):
+    """The other side of the same read: the sentinel must not become «everything fires immediately».
+
+    The window exists because a burst of messages is ONE answer, and a fix that made 0.0 work by dropping
+    the arithmetic would have paid for the link by breaking that.
+    """
+    from nucleo.errands import wake as wake_mod
+    woke = []
+
+    async def _fake(errand, **kw):
+        woke.append(errand["id"])
+        return {"ok": True}
+    monkeypatch.setattr(wake_mod, "wake", _fake)
+
+    row = _errand(env)
+    now = __import__("time").time()
+    watcher._pending_wakes[row["id"]] = {"at": now, "inbound": "m1"}
+    asyncio.run(watcher.tick(now + 1))
+    assert woke == []
+    asyncio.run(watcher.tick(now + watcher.COALESCE_S + 1))
+    assert woke == [row["id"]]

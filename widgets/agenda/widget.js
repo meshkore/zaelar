@@ -1049,6 +1049,15 @@ export function render(el, data, ctx){
   // action threw a setup wizard over the week he was reading. The backend no longer pushes when connected;
   // this is the second half, because a token already in the store must not fire on the next mount either.
   const gcalOn = (data.calendars||[]).some(c => c.id === "google" && c.status === "connected");
+  // ⚠️ A WIZARD OVER A CONNECTED ACCOUNT IS A LIE (V2-693). The consent happens in Google's own popup, which
+  // closes itself — so the card stayed on «Authorize your Google account», with a Connect button, for an
+  // account that was already linked. The operator reported exactly that: «la ventana se ha abierto, se ha
+  // cerrado el pop-up, y en la agenda sigo viendo autoriza tu Google Account… si vuelvo atrás sí que se ve
+  // perfectamente conectado». Nothing was broken underneath; the screen simply never heard the news.
+  // It goes to the connectors LIST and not to the calendar on purpose: that screen is where the state he
+  // just changed is actually shown («connected», and the calendar to write into), so the step he completed
+  // gets an answer instead of just vanishing.
+  if(S.screen === "wizard" && gcalOn){ S.screen = "list"; S.connectBusy = false; S.connectErr = ""; S.wizStep = 1; }
   const pushedConn = gcalOn ? null : data.connect;
   if(pushedConn && pushedConn.n !== S.connN){
     S.connN = pushedConn.n;
