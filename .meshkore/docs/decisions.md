@@ -1,759 +1,17 @@
-<!-- Auto-rendered from .meshkore/public/AGENT_INSTRUCTIONS.md per
-     MeshKore standard §17 (v18+). Edit the source, not this file.
-     Audience: Cline (VSCode extension). -->
-
-<!-- MESHKORE_PREAMBLE_BEGIN — managed by the daemon, do not hand-edit -->
-
-# MeshKore — agent instructions (canonical preamble)
-
-> **Canonical URL** — the verbatim content of this file is what the
-> MeshKore daemon writes into the `MESHKORE_PREAMBLE` block of every
-> cluster's `.meshkore/public/AGENT_INSTRUCTIONS.md` (standard §17,
-> v18+). The rendered per-CLI files (`CLAUDE.md`, `AGENTS.md`,
-> `GEMINI.md`, …) inherit it transitively. Audience: any AI assistant
-> CLI walking into a MeshKore project for the first time.
-
-You're an AI assistant working inside a project that follows the
-MeshKore standard. Before doing anything substantial in this repo,
-take 30 seconds to read this preamble and skim
-`.meshkore/public/RESOURCES.md`. Both files are tiny on purpose; both
-exist so you don't have to re-discover the mesh from scratch every
-conversation.
-
-## The standard
-
-This project commits to the MeshKore standard. The canonical spec
-lives at:
-
-- Human-readable: <https://meshkore.com/standard>
-- Machine-readable: <https://meshkore.com/standard.json>
-
-The version this project pinned is in `.meshkore/STANDARD_VERSION`.
-The version currently published is at
-<https://meshkore.com/standard/version>. If the local is behind,
-follow `.meshkore/docs/conventions/standard-evolution.md` to catch up.
-
-## What the mesh gives you
-
-Quick reference: read `.meshkore/public/RESOURCES.md`. It catalogues
-every entry point — the Oracle (natural-language agent discovery),
-the hub directory (browse 90 K+ indexed agents), the canonical agent
-URL pattern, the deploy playbook, the daemon upgrade flow.
-
-The three operations you'll do most often:
-
-1. **"Use the agent at <URL>"** — the operator pastes
-   `https://meshkore.com/agent/<id>`. You fetch
-   `<URL>/.well-known/agent.json`, read the A2A Public Card (skills
-   with examples, the agent's live `url`, pricing, default I/O
-   modes), then HTTP straight to the agent. The MeshKore site does
-   NOT proxy skill calls — per manifesto, MeshKore is a router, not
-   a broker.
-
-   **How to build the call:** `POST <card.url>/v1/<skill-id>`, JSON in,
-   JSON out — standard §26. `<skill-id>` is the `id` from the card's
-   `skills[]`, verbatim. Never guess a path and never special-case one
-   agent: if it 404s, the agent is not serving what its card advertises,
-   and that is the agent's bug. Check `operational` (§27) before you
-   commit to a target — `online` is only a heartbeat.
-
-2. **"Find me an agent that does X"** — POST to the Oracle:
-
-   ```bash
-   curl -X POST https://meshkore-oracle.rjj.workers.dev/v1/search \
-     -H 'content-type: application/json' \
-     -d '{"prompt":"X"}'
-   ```
-
-   Returns ranked, live agents. Pick any `agent_id` and use it with
-   the canonical URL pattern above.
-
-3. **"Publish this agent"** — read
-   <https://meshkore.com/reference/agents/deploy-your-agent>. Three
-   calls (register once, push a slim DiscoveryCard, heartbeat every
-   ~5 min). The Oracle picks the agent up automatically.
-
-Standard agent protocols you'll encounter: **HTTP/JSON** (universal,
-mandatory baseline), **A2A** (the Card convention at
-`/.well-known/agent.json`, mandatory in the card), **MCP** (optional,
-for agents that double as Claude tools), streaming (SSE/WS, optional).
-
-## Conventions you must follow
-
-These are load-bearing rules of the MeshKore standard. Violations
-break the daemon's automation or the project's git contract.
-
-1. **Folder layout (§2).** Since v27 the git contract is a deny-list:
-   commit `.meshkore/public/`, `docs/`, `modules/`, and
-   `roadmap/initiatives/` (plus `STANDARD_VERSION`) — the project's
-   identity, instructions, plan and task history travel with the repo.
-   Do NOT commit runtime/secret/per-machine state — `.meshkore/.runtime/`,
-   `credentials/`, `agents/`, `timeline/`, `log/`, `queues/`, `uploads/`,
-   `snapshots/`, `state.json`, `roadmap/state.{json,js}`, `scripts/` —
-   they're deliberately gitignored (see §2.2).
-
-2. **Tasks (§4).** New tasks go under
-   `.meshkore/modules/<module>/tasks/` as markdown files with
-   frontmatter matching the `task_frontmatter` schema. The
-   `category` field MUST equal `<module>` (the parent folder).
-
-3. **Logs (§6).** Append every meaningful event to
-   `.meshkore/log/<YYYY-MM-DD>.md`. One file per day, append-only;
-   never rewrite past entries. Format is plain markdown — start each
-   entry with a `## <HH:MM> · <one-line summary>` heading. **One entry
-   per unit of work, not per agent** (v33): if you delegated parts of
-   it, you write a single entry covering the whole thing from your
-   children's reports; if you WERE delegated, you write none.
-
-4. **Commit attribution (§9.1, revised v21).** Every commit you
-   author MUST end with three trailers, in this order, after a blank
-   line:
-
-   ```
-   Agent: <agent-role>            # master, roadmap-architect, work-<I>-<T>, ...
-   Model: <model-id>              # claude-opus-4-7, claude-sonnet-4-6, ...
-   MeshKore: py-<X.Y.Z>           # the cluster's daemon version at commit time
-   ```
-
-   `MeshKore:` is the literal `DAEMON_VERSION` from the running
-   daemon — every subagent briefing embeds it, so you can quote it
-   verbatim without lookup. When your conv is bound to a team member,
-   `Agent:` is that **member id** (`developer`, `deployer`, …). Work
-   that another agent delegated to you adds a fourth trailer,
-   `Parent: <parent member id>@<parent conv>` (v33) — it is how a
-   reader reconstructs which agent tree produced a change.
-
-   **Do NOT add `Co-Authored-By:`** (removed in v21). The operator's
-   cross-repo convention is no-co-authoring; MeshKore is the
-   exception because the three semantic trailers above already
-   attribute the AI (role, model, runtime) far more usefully than a
-   display-name boilerplate would.
-
-   Full spec at
-   <https://meshkore.com/standard#91-commit-attribution--agent--model--meshkore-trailers-v12-revised-v21>.
-   The closure protocol embeds the same rule with extra context:
-   `.meshkore/docs/conventions/closure-protocol.md`.
-
-5. **Standard evolution (§11).** Bumping any of
-   `webapp/standard.json` / `standard.md` / `standard/CHANGELOG.md`
-   / `standard/version` requires bumping all four in the same
-   commit. Drift between these four files is the most common bug in
-   this area. Follow
-   `.meshkore/docs/conventions/standard-evolution.md` for the
-   pre-flight checklist and the five-step bump.
-
-6. **Cluster config.** Lives in `.meshkore/public/cluster.yaml`. The
-   schema is canonical at standard §3.
-
-7. **File snapshots (§20, v19+).** Before any tool call that **Writes
-   or Edits an EXISTING file**, POST the affected paths to the daemon
-   so it can copy them under `.meshkore/snapshots/`:
-
-   ```bash
-   curl -X POST -H "Authorization: Bearer $TOKEN" \
-        -H 'content-type: application/json' \
-        -d '{"paths":["apps/web/src/X.tsx","apps/api/src/y.ts"],
-             "agent_id":"<your agent_id>",
-             "agent_type":"<your agent_type>",
-             "conv":"<conv-slug>",
-             "note":"<one-line what you are about to do>"}' \
-        https://daemon.meshkore.com:<port>/snapshots
-   ```
-
-   The daemon writes a manifest + verbatim copies + appends a line to
-   `.meshkore/log/<YYYY-MM-DD>.md`. Newly-created files are exempt
-   (no prior content to preserve). Retention is bounded by
-   `cluster.yaml#snapshots.retention_days` (default 7). This is
-   non-negotiable: without it, the operator cannot inspect or restore
-   the pre-edit state between commits.
-
-8. **Initiative-anchored execution (§24, v23).** Every turn anchors to
-   an `(initiative, task)` pair — that anchor is what puts your work on
-   the cockpit roadmap and lets the daily log cross-reference it. If
-   your dispatch arrived WITHOUT one, your FIRST action is to locate
-   the matching initiative + task, or create them when none fits
-   (initiative at `.meshkore/roadmap/initiatives/<slug>.md`, task at
-   `.meshkore/modules/<module>/tasks/<id>-<slug>.md`), then continue.
-   Unanchored code work leaves no roadmap trace and breaks the
-   operator's live picture of the project. Full decision chain:
-   `.meshkore/docs/conventions/initiative-anchored-execution.md`.
-
-9. **The team, and delegation (§28, v33).** The project has a roster of
-   members at `.meshkore/team/*.md` — each card's `owns:` line says what
-   that member is the right choice for. Hand a step to one of them when,
-   and only when, the work crosses into another module, needs a
-   privileged role (deploys and releases belong to `deployer`), or is
-   long and opaque. Everything else is one agent's job.
-
-   If a conv is running inside the Architect, delegation is one call:
-   `POST <daemon>/chat/delegate {parent_conv, member, brief}` — then END
-   your turn; the daemon wakes you with the child's report. **If YOU were
-   delegated**, three duties follow: anchor to the `(initiative, task)`
-   your brief names (never mint a new one for a delegated step), end your
-   final reply with the `⟦report⟧` line, and add
-   `Parent: <parent member id>@<parent conv>` to your commit trailers.
-   Do not write a diary entry for a delegated step — the root of the unit
-   of work writes one entry for the whole thing. Full contract: §28.
-
-   Working from a plain CLI (VS Code, Cursor…) with no daemon conv? Then
-   you are the root: do the work yourself, anchor it, and write the diary
-   entry. The roster is still worth reading — it tells you which parts of
-   this project have an owner with standing instructions.
-
-## Where to dig deeper
-
-- `.meshkore/context/` (§3.5) — the project's standing, invariant
-  knowledge loaded into every spawn: `overview.md`, `product.md`,
-  `stack.md`, `architecture.md`, `constraints.md`, plus `decisions/`,
-  `glossary.md`, and `criteria/` (the base acceptance criteria your
-  work is judged against). Read this before designing anything.
-- `.meshkore/workflows/` (§14) — the cluster's reusable runbooks
-  (`INDEX.md` + the W-numbered procedures: bump-standard, deploy,
-  publish-repo, daemon-upgrade, daemon-release, verify). Follow the
-  matching W-runbook for multi-step operations instead of improvising:
-  releases and deploys have ordering rules that are not guessable from
-  the code. (Renamed from `protocols/` on 2026-06-21 — "protocol" is
-  reserved for wire protocols like A2A and MCP. A cluster that still has
-  a `protocols/` folder predates the rename.)
-- `.meshkore/docs/` — cross-cutting docs (architecture, product,
-  conventions, security, ops); start at its `INDEX.md` if present.
-- `.meshkore/docs/conventions/` — operational playbooks (close-out
-  flow, deploy-by-agent, component-repo split, etc.)
-- `https://meshkore.com/reference/` — public reference catalog
-  (stack templates, prompt templates, conventions catalogue).
-- `https://meshkore.com/reference/agents/` — agent-specific docs
-  (`addressing` for the URL contract, `deploy-your-agent` for the
-  operator playbook, `local-instructions` for the spec behind
-  THIS file).
-- `https://meshkore.com/roadmap` — what's shipping next.
-
-## Notes for the AI you are
-
-- **The daemon is ONE shared process per machine, NOT per-project.** It serves
-  every project from a single base URL, routed by the `X-MeshKore-Project:
-  <cluster-id>` header. This project has **no** `.meshkore/scripts/daemon.py`,
-  binds no port, and runs nothing — never create, download, or run a daemon, and
-  never bind `5570–5589`. A bare `/health` reporting a *different* `cluster_id`
-  is expected (it's the daemon's default project), not a fault. To adopt a repo,
-  add it in the Architect — the shared daemon onboards it (standard §10).
-- **Anything not on this page → start at `/standard` or `/reference`.**
-  These two trees cover every formal piece of MeshKore.
-- **Live state never lives in this file.** For online flags, message
-  counts, etc., query the API: `GET https://api.meshkore.com/v1/agents/<id>`.
-- **Don't proxy skill calls through `meshkore.com`.** Always HTTP
-  the agent's live `url` from its `.well-known/agent.json`.
-- **The OPERATOR_CONTENT block below this preamble is the operator's
-  project-specific rules.** They apply on top of this preamble; if
-  there's a conflict, the OPERATOR_CONTENT wins (it knows the
-  project better than MeshKore does).
-
----
-
-*Standard §17 — mandated as of v18, 2026-06-09. Updated alongside
-every standard bump that touches agent-side conventions.*
-
-<!-- MESHKORE_PREAMBLE_END -->
-
-<!-- OPERATOR_CONTENT_BEGIN — this is your project. Edit freely. -->
-
-# zaelar
-
-## Working language: English, everywhere inside `engine/`
-
-`engine/` is the PUBLIC repository. Anyone who clones it reads what is written here, so **everything a
-developer reads is English** — there is no half of this rule that is optional:
-
-- source-code comments and docstrings;
-- **test function names** and test docstrings (`def test_the_repair_says_when_it_could_not`, not `def
-  test_una_reparacion_que_no_pudo_lo_DICE`);
-- log, warning and exception messages;
-- technical documentation under `.meshkore/` — architecture, modules, ops playbooks, `V2-xxx`
-  initiatives — and this file;
-- **commit messages** of any commit that touches `engine/`.
-
-**This rule beats "write code that reads like the code around it".** Measured 2026-08-29: 777 of the
-1139 tracked `.py` files still carry Spanish comments — 16126 blocks, 68% of the repo. That is a
-**backlog under translation**, not the house register, and reading it as the local idiom is precisely
-how this rule kept losing to it. Do not translate your neighbours either: a separate pass owns that
-corpus and editing the same files concurrently only makes conflicts. Write **your** lines in English,
-leave the rest alone.
-
-Spanish that is **product data** is untouched by this rule and must stay Spanish: user-facing labels,
-voice replies, `i18n/bundles/*.json`, prompt text the operator's agent speaks, and the Spanish
-vocabulary inside detectors and regexes. Those answer to the i18n rules (`voice/engine/core/langs.py`,
-V2-089), not to this one. Our customers speaking Spanish has nothing to do with what language we
-develop in.
-
-The boundary stops at `engine/`: the workspace root `../.meshkore/` is the operator's private business
-context and stays in Spanish on purpose.
-
-> **`.meshkore/` es una CARPETA REAL de ESTE repo** (2026-07-28, antes era un symlink a `../.meshkore`). engine
-> es el repo PÚBLICO OSS y lleva SU propio `.meshkore/` con el contexto MeshKore Standard del MOTOR —
-> arquitectura, convenciones, módulos, seguridad, roadmap del motor, roles de agente (`team/`), `public/cluster.yaml`
-> y `STANDARD_VERSION`: quien clone el repo dice «carga el estándar MeshKore» y tiene todo el contexto y las tareas.
-> Lo que se ignora (`.gitignore`) es solo el estado runtime PRIVADO del self-hoster (`credentials/`, `logs/`,
-> `timeline/`, `snapshots/`, `.runtime/`, `agents/`) — sus propias claves/logs, nunca al repo.
-> **Lo que NO vive aquí:** la gestión de NEGOCIO/proyecto entero (cloud/GTM, `launch-readiness`, coordinación
-> engine+web+cloud) vive en `../.meshkore/` de la RAÍZ del workspace (repo aparte, privado) — ver `../CLAUDE.md`.
-
-> ⚠️ **NI NUESTRO PASADO NI NUESTRO FUTURO SE PUBLICAN** (2026-08-14, norma del operador). Este repo guarda lo
-> que ayuda a entender y correr el motor **HOY**. Lo que cuenta cómo llegamos o a dónde vamos existe en local
-> pero está **gitignoreado**, así que quien clone el repo NO lo tiene y muchas referencias de estos documentos
-> le apuntarán a carpetas vacías. Es deliberado, no un despiste:
->
-> | No se publica (existe en local) | Sí se publica |
-> |---|---|
-> | `.meshkore/roadmap/` — iniciativas y plan | `.meshkore/docs/` — arquitectura, convenciones, módulos, ops, seguridad |
-> | `.meshkore/modules/*/tasks/` y `*/logs/` — tareas y bitácoras | `.meshkore/public/cluster.yaml`, `STANDARD_VERSION` |
-> | `.meshkore/team/` — roles internos de nuestros agentes | `CLAUDE.md`, `README.md` |
-> | `tests/voice/e2e/agent/reports/` — informes de ejecuciones | `tests/README.md`, `tests/TESTMAP.md`, catálogo de escenarios |
->
-> El detonante fue una fuga real: los informes de la batería de voz son **transcripciones de sesiones**, y 110
-> de 186 llevaban dentro el nombre del operador y las tareas de su agenda. La regla general que deja: el
-> CATÁLOGO de qué se prueba es público y útil; el DIARIO de lo que se probó es nuestro. Igual con el roadmap —
-> saber cómo está construido el motor le sirve a quien lo clona; saber qué pensamos construir, no.
-
-## ⭐ Cómo se orienta CUALQUIER arreglo del agente (norma del operador, 2026-08-20)
-
-El agente debe ser capaz de resolver **cualquier** encargo: reservar un hotel o un restaurante, montar una
-investigación sobre la cultura griega del siglo II a.C., sacar los planos o la lista de tareas para construir un
-cohete, inventar un libro, buscar un vehículo en Wallapop, o buscar casas en la zona de Los Ángeles usando las
-webs que sean populares **allí**, empezando por la más popular. **No hay lista de encargos soportados y no puede
-haberla.**
-
-De ahí sale la regla que gobierna todo cambio en el lado del worker, y son DOS MITADES con tratamientos opuestos:
-
-- **RECURSOS (el core) → clavados, completos y probados.** El manejo del navegador, que el worker reciba EN
-  TIEMPO REAL todo lo que tiene que recibir, el parseo de los datos, las capturas de pantalla cuando hagan falta,
-  los puentes, la evidencia y la entrega. Aquí un fallo es un bug.
-- **RAZONAMIENTO (el encargo) → abierto y general.** La lógica, la investigación y la ejecución no se cablean:
-  se construye un sistema capaz de **encontrar la fórmula** que llega al resultado que espera el operador. Los
-  prompts de los Brain Workers llevan **fórmulas, recursos y maneras de resolver**, nunca un guion.
-
-**Lo prohibido es adaptarse al caso de uso.** Un arreglo que hace pasar ESE escenario y se cae cuando cambian un
-dato, una coma o una condición no es un arreglo: es andamio. La prueba, antes de escribir nada: *cambia una
-palabra del encargo —hotel→restaurante, Sevilla→Los Ángeles, «4 estrellas»→«menos de 80 €»— ¿sigue en pie?* Y:
-*¿sirve para un encargo que nadie ha escrito todavía?* Si la respuesta es no, está apuntando a la mitad
-equivocada.
-
-Un conocimiento cableado del mundo (el catálogo de sitios) puede decir **«empieza por aquí»**; nunca **«solo
-aquí»**. En cuanto un encargo fuera del catálogo tiene MENOS capacidad que uno de dentro, el catálogo dejó de ser
-un atajo y es una valla.
-
-**Duda razonable → es un problema de RECURSOS hasta que se demuestre lo contrario.** Ha sido cierto todas las
-veces hasta hoy: el worker muriendo aprendiendo su propio CLI a tientas (V2-219), el compositor que leía la
-cadena de proveedores y nunca la escribía —y dejaba a ciegas TODA investigación— (V2-225), lo que el navegador
-encontraba sin llegar a nadie (V2-223), y la nota empujada 3/3 contra la línea de prompt 0/13 (V2-222). Ninguno
-tenía forma de escenario, y el arreglo con forma de escenario los habría tapado a los cuatro.
-
-Doctrina completa, con el contrato de recursos y el procedimiento al recibir una ronda fallida:
-**`.meshkore/docs/architecture/zaelar-brain-worker-doctrine.md`**.
-
-Asistente personal por voz **multidioma** (**inglés por defecto**, y se pasa SOLO al idioma del operador en
-cuanto lo detecta — ver «Arranque idiomático» abajo), siempre activo. Arquitectura: STT →
-**cerebro propio «Colmena»** → TTS, sobre **LiveKit Agents**. El cerebro (`nucleo/`), la memoria (`memory/`) y la
-proactividad son **nuestros**: zaelar no depende de ningún agente externo.
-
-**Run**: `make run` (= `BRAIN=nucleo`) → levanta el stack LiveKit (servidor LiveKit **nativo, sin Docker** + web con
-worker EMBEBIDO) en http://localhost:43917 (Chrome). **El core NO requiere Docker**: usa el binario `livekit-server`
-(`make install-livekit`); Docker es solo fallback si falta el binario. `BRAIN=direct`/`BRAIN=local` = baselines de
-modelo pelado (sin memoria/tools). `make lk-server` / `make agent-worker` para depurar por separado.
-
-## MeshKore Standard v27
-
-Este repo sigue el **MeshKore Standard v27**. Toda la documentación, módulos y roadmap viven en `.meshkore/`.
-Los agentes DEBEN trabajar dentro de esta estructura — no crear `docs/` ni carpetas ad-hoc fuera de ella.
-
-### Documentación canónica (`.meshkore/docs/`)
-
-| Categoría | Archivo |
-|---|---|
-| Architecture | `.meshkore/docs/architecture/zaelar-architecture.md` |
-| **Modularidad / contratos de acoplamiento** | `.meshkore/docs/architecture/zaelar-modularity.md` |
-| **Memoria central** | `.meshkore/docs/architecture/zaelar-memory.md` |
-| **¿Por qué ESTOS modelos en la memoria?** (respuesta canónica) | `zaelar-memory.md §Modelos de la memoria` · denso: `zaelar-model-benchmarks.md §12.3/§12.4` · crudo: `tests/memory/e2e/bot/resultados/` |
-| **Canal de cluster — algoritmo de punta a punta** | `.meshkore/docs/architecture/zaelar-cluster-channel.md` |
-| **Red MeshKore — agentes vivos (oráculo) + clusters, y en qué estado está cada pieza** | `.meshkore/docs/architecture/zaelar-meshkore-network.md` |
-| **⭐ Doctrina de los Brain Workers — endurecer los RECURSOS, abrir el RAZONAMIENTO (orienta CUALQUIER fix)** | `.meshkore/docs/architecture/zaelar-brain-worker-doctrine.md` |
-| **Multidioma / i18n (arranque idiomático, generación de bundles)** | `.meshkore/docs/architecture/zaelar-i18n.md` |
-| **⭐ Prompt que pertenece a una FASE (context packs) — leer ANTES de añadir una frase al prompt del turno** | `.meshkore/docs/architecture/zaelar-context-packs.md` |
-| **El PRIMER ARRANQUE de punta a punta (idioma → carpeta → voz → saludo)** | `.meshkore/docs/modules/zaelar-first-run.md` |
-| Product / Context | `.meshkore/docs/product/zaelar-product.md` |
-| Deploy | `.meshkore/docs/deploy/zaelar-deploy.md` |
-| Ops / Setup | `.meshkore/docs/ops/zaelar-ops.md` |
-| Conventions | `.meshkore/docs/conventions/zaelar-conventions.md` |
-| Modules | `.meshkore/docs/modules/zaelar-modules.md` |
-| **Conectores — la LISTA (qué conectamos hoy, qué está declarado y dónde se cablea cada pieza)** | `.meshkore/docs/modules/zaelar-connectors-inventory.md` |
-| Security | `.meshkore/docs/security/zaelar-security.md` |
-| **Change protocol** | `.meshkore/docs/ops/zaelar-change-protocol.md` |
-| **Audit workflow** | `.meshkore/docs/ops/zaelar-audit-workflow.md` |
-| **Docs & structure sync** | `.meshkore/docs/ops/zaelar-docs-sync.md` |
-| **Widgets change workflow** | `.meshkore/docs/ops/zaelar-widgets-workflow.md` |
-| **⭐ Widget o conector NUEVO — el workflow completo** | `.meshkore/docs/ops/zaelar-new-widget-or-connector-workflow.md` |
-| **Memory change workflow** | `.meshkore/docs/ops/zaelar-memory-workflow.md` |
-| **Alignment review** | `.meshkore/docs/ops/zaelar-alignment-review.md` |
-| **Model/latency benchmarks** | `.meshkore/docs/ops/zaelar-model-benchmarks.md` |
-| **Changing a model (checklist + traps)** | `.meshkore/docs/ops/zaelar-model-change.md` |
-| **Testing playbook** | `.meshkore/docs/ops/zaelar-testing.md` |
-| **Monitorización de conversaciones de cluster** | `.meshkore/docs/ops/zaelar-cluster-conversation-monitoring.md` |
-| Observabilidad / debug | `.meshkore/docs/ops/zaelar-observability.md` |
-
-> Instalación / arranque para quien clona el repo: **[`README.md`](README.md)** en la raíz (multi-plataforma
-> macOS/Windows/Linux). Es la puerta de entrada; el detalle vive en `zaelar-ops.md`. Mantener ambos alineados.
-
-**Protocolo de cambio ("pasa el protocolo"):** cuando el operador dice *"pasa el protocolo"*, ejecutar la
-checklist de `zaelar-change-protocol.md` (reiniciar+verificar → versión → diario/iniciativa/contexto → commit →
-push si hay remote → deploy si hay prod). No hay que recordar los pasos de memoria: viven en ese doc.
-
-**Workflow de auditoría ("pasa la auditoría"):** cuando el operador dice *"pasa la auditoría"* / *"audita el
-sistema"*, ejecutar `zaelar-audit-workflow.md` — reconocimiento del contexto → fan-out en paralelo por 4 dominios
-(voz/cerebro/server · frontend/widgets · seguridad cluster · alineación docs) → síntesis → informe + plan P0-P3.
-Verifica que código, arquitectura, contexto y el módulo de seguridad siguen alineados cada vez que el proyecto crece.
-
-**Sync de docs/estructura (automático):** todo cambio que toque la **estructura** (módulos, layout, deps, instalación)
-o **decisiones/invariantes/seguridad** ejecuta `zaelar-docs-sync.md` — actualizar README (raíz, multi-plataforma),
-`CLAUDE.md`, `cluster.yaml`, la doc de categoría y el **diagrama de arquitectura**, con la regla de oro "que aparezca
-en contexto + docs + arquitectura". Es el paso de coherencia docs↔estructura dentro del change protocol.
-
-**Revisión de alineación ("pasa la revisión de alineación"):** al cerrar CUALQUIER cambio que toque arquitectura, un
-módulo, un flujo o una decisión/invariante, ejecutar `zaelar-alignment-review.md` — checklist reutilizable que
-verifica que **código ↔ contexto (CLAUDE.md) ↔ docs canónicas ↔ diagramas HTML (`/architecture`: pestañas
-Arquitectura/Memoria/FlashBrain/SlowBrain/Widgets + modelos-en-uso + sello "Actualizado") ↔ roadmap (tareas done +
-bitácora, servido al Architect por el daemon) ↔ tests** cuentan la MISMA historia (estado actual, sin dirty/legacy).
-Es la puerta de calidad de cada cambio; trae sondas `grep`/`node --check` y un template de informe.
-
-**Workflow de cambios en widgets ("pasa el workflow de widgets"):** cuando el operador dice **"pasa el workflow de
-widgets"** (o "revisa/cierra el cambio de widgets"), o al cerrar tú mismo un cambio ESTRUCTURAL del sistema de
-widgets (contrato de `manifest.json`/`data.py`/`widget.js`, protocolo de tags, despacho cerebro↔widget, storage,
-refresco, gate de validación), ejecutar `zaelar-widgets-workflow.md` — mapa "qué tocaste → qué actualizar" (contrato
-del generador, brief, prompt del FlashBrain, docs canónicas, **diagrama Y teoría** de `architecture.html`), repaso de
-impacto en widgets existentes, pruebas (`make test-widgets` + prueba en vivo si toca gobernanza), reinicio si hubo
-cambios `.py`, y commit/push SOLO si el operador lo pide. Un cambio trivial dentro de un solo widget (su propio
-`data.py`/`widget.js`) no lo dispara — solo actualiza el `notes.md` de ese widget.
-
-**Widget o conector NUEVO ("añade un conector de X" / "haz un widget de Y" / "pasa el workflow de widget
-nuevo"):** ejecutar `zaelar-new-widget-or-connector-workflow.md` — TODAS las acciones, en orden, para que una
-pieza nueva quede construida, cableada, probada, documentada y en el contexto. Es DISTINTO de
-`zaelar-widgets-workflow.md`, que gobierna cambios del SISTEMA de widgets; este gobierna piezas nuevas. Trae
-las cuatro decisiones previas (¿widget o conector? · ¿hace falta una tool nueva? casi siempre NO, las acciones
-declaradas SON las skills · ¿background? · ¿produce?), **la lista de los 14 puntos de cableado que fallan
-VACÍOS** (registro, routers, `_BUILTINS`, tarjeta Y familia del ⚙, `api.js`, i18n en+es, exención stdlib,
-testmap, manifiesto de catálogo, orden de familias del muro de chat, claves `chat.connFamily.*`, brief del
-cerebro, README de credenciales, la LISTA de conectores), la mitad de RUMBO que se olvida siempre (un
-conector añade ACCIONES y casi nunca las PALABRAS que llevan a ellas — V2-686), **§7-bis el ÚLTIMO METRO**
-(el consentimiento es un clic del operador; por voz la acción deja la tarjeta EN el paso del botón) y
-**§7-ter declararlo HECHO** (sacarlo de `planned`, alinear el id, la fila en la lista, el estado en el
-cerebro), el set de tests en sus cuatro clases —incluida la VIVA, que se construye entera aunque no haya
-credencial y SALTA con los pasos para habilitarla—, las fronteras que no se cruzan (la voz transporta
-intención y nunca una credencial; `widget.js` no toca la red; los widgets no se hablan entre sí) y una tabla
-de **diez traps medidos**. Nació del build de V2-557 y su razón de ser es que el siguiente sea corto.
-
-**Workflow de cambios en la memoria ("pasa el workflow de memoria"):** cuando el operador dice **"pasa el workflow
-de memoria"**, o al cerrar tú mismo un cambio ESTRUCTURAL de la memoria (schema/píldora, el CORAZÓN de escritura
-`mem_processor`/`memory_agent`, retriever/scoring, capas y velocidades de lectura, consolidador/olvido, cola/writer,
-observabilidad/visor), ejecutar `zaelar-memory-workflow.md` — **mapa de impacto "qué tocaste → qué revisar/notificar"**
-de TODOS los escritores (FlashBrain conv-buffer, `ingest_utterance`, `remember`, widgets/mensajería, reset, episódica)
-y lectores (`memory_cache`, `compose_recall`, `compose_context`, visor `/api/memory/map`) para verificar que sus
-interacciones (guardar Y leer) siguen alineadas con la versión nueva, + migración de schema, + docs (zaelar-memory.md,
-CLAUDE.md, diagrama Memoria de `/architecture`), + tests, + commit. Evita re-investigar cada vez a quién afecta un
-cambio de memoria. Termina SIEMPRE con la revisión de alineación.
-
-**CLOSING a batch ("cierra esto" / "documenta lo que has hecho" / "pasa el cierre"), and the MODULE LOG:** at
-the end of ANY batch that changes behaviour. The full eight steps live in the workspace ROOT's `.meshkore/`
-(`zaelar-initiative-closure.md`, PRIVATE repo — whoever clones this one does not have it, same as the roadmap);
-what belongs to THIS repo, and is therefore written here, are the three that keep being skipped:
-
-1. **The test with its NODE** in `tests/run_testmap.py`. Not in the map = it does not exist for «is everything
-   green?».
-2. **The decision in this file**, §Decisiones clave, with the WHY and the real failure that motivated it. It is
-   the only thing the next agent is certain to read.
-3. **The MODULE LOG** — `.meshkore/modules/<module>/logs/<YYYY-MM>/<PREFIX>-NNN-<slug>.md`. It is the only place
-   that keeps **the OPERATOR'S OWN WORDS for the request, what was MEASURED before touching anything, and the
-   COMMITS** that delivered it: the decision above says WHAT was decided and the initiative holds the detail, but
-   neither says where the task came from or which tree was walked to get there — which is exactly what is lost
-   when a session is cut short. Frontmatter `id/title/status/priority/owner/initiative/created/updated`, and a
-   table of commits at the end.
-   ⚠️ **`T-NNN` numbering is GLOBAL**, shared by EVERY module (frontend, voice, server…); the module-specific
-   prefixes run on their own (`N-` nucleo, `MK-` cluster, `S-` security, `TS-` tester, `C-` clusters). `ls` before
-   taking a number, exactly like an initiative.
-   ⚠️ **Gitignored on purpose** (the «neither our past nor our future gets published» rule): it lives on the
-   operator's machine and never travels with the repo. That is what makes it the place for the DIARY rather than
-   the catalogue — and why its entries are written in the operator's language, unlike everything else here.
-
-Measured 2026-09-11: the module log **was not on the closure checklist**, and the result was that it stalled at
-`2026-08` while the engine shipped through V2-669 — a month of batches with no record of the request, across two
-sessions that were lost. *A step that is not on the checklist is a step that does not get taken.*
-
-**Testing del bot ("lanza un test del bot"):** cuando el operador dice **"lanza un test del bot"**, **"lanza la
-batería (de escenarios)"** o **"prueba el bot en tuen"**, ejecutar `zaelar-testing.md` — el playbook autocontenido:
-**Paso 0 = ALINEACIÓN** (comprobar que `tests/voice/e2e/agent/scenarios.py` cubre los módulos principales y los cambios de las
-ÚLTIMAS 48 h — `git log --since` + decisiones `V2-0xx` nuevas; si falta, añadir el escenario ANTES de lanzar) →
-prioridades (latencia · coste bajo · memoria · búsqueda precisa · **navegación web profunda Wallapop/coches.net con
-extracción de datos reales, con/sin login** · robustez · multiidioma) → lanzar (`tests/voice/e2e/agent/run_battery.sh` con settle,
-o `cron_tick.sh`) → evaluar con el JUEZ distinguiendo **bug real (trace-confirmado) vs ruido de STT del tester vs
-rigidez del juez** (y comparación HUMANA de lo extraído en navegación) → arreglar código si hay bug → **archivar el
-informe del día en `tests/voice/e2e/agent/reports/<YYYYMMDD>-<desc>/`** (histórico consultable). Catálogo legible de escenarios en
-`tests/voice/e2e/agent/anexos/catalogo-escenarios.md`. No hay que recordar los pasos: viven en el playbook.
-
-**Contrato obligatorio para agentes de desarrollo:** antes de probar cualquier cambio, leer **`tests/README.md`**.
-Es la guía operativa corta compartida por Claude Code, Codex, humanos y CI; `zaelar-testing.md` conserva el
-diagnóstico profundo. La entrada preferida es `./.venv/bin/python -m tests run <suite> [--case ID] --no-open`:
-mantiene el exit code de terminal y, al mismo tiempo, publica cada ejecución en el **Test Observatory** estable de
-loopback **`http://127.0.0.1:8765`**. `--no-open` solo evita abrir una ventana: NO desactiva el visor, de modo que el
-operador puede observar mientras el agente trabaja. La aplicación real sigue en `http://127.0.0.1:43917`; no
-confundir ambos puertos. No ejecutar dos runs gestionados por el Observatory en paralelo, no probar contra la
-memoria real si existe fixture/corpus aislado y no recrear raíces `test/`/`tester/`: todo test nuevo vive bajo
-`tests/<suite>/`. Para cambios visuales, `browser` por sí solo cubre contratos deterministas; afirmar E2E visual
-requiere conducir Chromium/Playwright contra el Zaelar vivo. Para una capacidad nueva, mapear el caso en
-`suite.json`/provider y validar `tests/platform/tests`; cero casos `unmapped` es el objetivo.
-Los cambios que crucen memoria + conversación + widgets/workers/conectores se cierran además con
-`./.venv/bin/python -m tests run journey --no-open`: son 26 pasos sobre un único engine/DB/workspace aislado y cada
-caso posterior reconstruye su prefijo causal. Contrato y fronteras no cubiertas: `tests/journey/README.md`.
-
-> **Diagrama de arquitectura — MOVIDO al sitio público (2026-07-24):** `frontend/pages/architecture.html` y la
-> ruta `/architecture` de este repo se **retiraron** — ya no tenía sentido servir un panel interno (con editor de
-> modelos ⚙ en vivo) desde el propio motor. Los diagramas (Arquitectura general, FlashBrain, Brain Workers,
-> Memoria, Widgets) viven ahora como contenido **público, curado y en inglés** en `web/` bajo `/technology`
-> (`web/src/pages/technology/*.astro`), con las rutas de código internas, nombres de variable y detalle de
-> incidentes/costes RECORTADOS a propósito (audiencia externa, no engineering interno). **Ya NO es un espejo
-> automático del código** — es una foto seleccionada a mano. Si tocas topología/modelo/proveedor de forma
-> significativa, actualiza también los diagramas en `web/src/pages/technology/` como paso manual (no lo hace
-> ningún workflow todavía); la fuente de verdad DETALLADA sigue siendo `.meshkore/docs/architecture/` y este
-> `CLAUDE.md`. **Limpieza HECHA (2026-07-26, con autorización explícita del operador tras la auditoría):** los 5
-> workflows (`zaelar-docs-sync.md`, `zaelar-widgets-workflow.md`, `zaelar-memory-workflow.md`,
-> `zaelar-alignment-review.md`, `zaelar-audit-workflow.md`) ya apuntan a `web/src/pages/technology/*.astro` +
-> `web/src/lib/diagrams/*.ts` en vez del `architecture.html` retirado; las menciones que quedan son notas
-> históricas explícitas ("retirado el 2026-07-24"), no punteros activos a editar.
-
-### Módulos declarados (`.meshkore/public/cluster.yaml`)
-
-Antes de crear un módulo nuevo, declararlo en `.meshkore/public/cluster.yaml`. Raíz SIN `.py`/`.html` sueltos;
-arranque `make run` → `python -m server`.
-
-- `voice/` — **motor LiveKit** en `voice/engine/` (INI-012): `AgentSession` (streaming, turnos, VAD, barge-in,
-  preemptive-gen) + registry de providers + perfiles remote/local (`core/`, `speech/`, `llm/`, `pipeline/agent.py`
-  con `make_server()` embebible, `speech/voices.py`). El turn-taking/VAD/barge-in los gobierna LiveKit (VAD Silero +
-  turn-detector `MultilingualModel` + `allow_interruptions`). Nivel superior = contrato del cerebro **puro y
-  agnóstico del transporte**: `tag_protocol.py`, `speech.py`, `brain_notes.py`, `proactive.py`, `prompt.py`,
-  `health_state.py`, `llm_health.py`, `observer.py` (SSE), `attention.py` (gate de atención V2-015 — decide qué
-  turno va dirigido a zaelar; ambient vs atendiendo).
-- `nucleo/` — **cerebro propio «Colmena»**: FlashBrain ORQUESTADOR + workers Claude Code (V2-036; el "SlowBrain
-  cerebro aparte" se disolvió). Se expone al motor como provider
-  `livekit.agents.llm.LLM` (`voice/engine/llm/providers/nucleo.py`, `BRAIN=nucleo` = default). `nucleo/flash/` =
-  **FlashBrain** reflejo sub-segundo (`router.py` clasifica el input + `fast_client.py` cliente de modelo rápido
-  no-razonador **por invocación** + `frontend.py` gestor de frontend/widgets + `procs.py` lanzador de procesos +
-  `escalate.py` escalado + `prompt.py` [ensambla el prompt del turno V2-027: ESTADO compuesto + capa TERSA de
-  recursos, ~30 líneas] + `memory_cache.py` [cachea `memory.compose_state()` fuera del turno + siembra la misión] +
-  `prewarm.py` [calienta FlashBrain+browser en el arranque, V2-024] + `dialog.py` [estabilidad conversacional V2-032:
-  break-loop + poda de historial + anti-degeneración, COMPARTIDO por voz y probe] + `probe.py` [canal de PRUEBA
-  headless, 3ª forma de testing: `POST /api/flash/say`]). `nucleo/websearch.py` (hermano de `flash/`) = **búsqueda web COMPARTIDA** por los dos cerebros
-  (V2-022, ver decisión clave); `nucleo/browser_search.py` = capa **Google GRATIS vía Chromium persistente** (V2-024). **Latencia — la memoria NO está en el turno síncrono**
-  (V2-011): el bloque de ESTADO (nombre/trato/temas) sale de `memory_cache` (caché de sesión, TTL + refresco async
-  + invalidación por `memory.updated`), y el recall semántico (`prompt.compose_recall`) es **bajo demanda**
-  (`prompt.needs_recall`) y **fuera del event loop** (`asyncio.to_thread`) — el turno de charla nunca dispara el
-  retriever. `nucleo/loop.py` (~1 Hz) + `nucleo/scheduler.py` (**cron PROPIO** respaldado
-  por `memory.journal`) + `nucleo/cron_api.py` (`/api/cron`, panel ⏰) + `nucleo/sparks.py` (chispas doble-gate) =
-  **loop orquestador** (tareas programadas + proactividad + dispara el consolidador de memoria off-hot-path + reporta
-  por voz+UI; montado en el lifespan con `BRAIN=nucleo`). `nucleo/dispatch.py` (dispatcher: compone prompt
-  [contexto+tarea] → CodeAgent con modelo por invocación, consume `escalate.requested` del bus, entrega por voz+UI) +
-  `nucleo/memory_agent.py` ★ (agente de MEMORIA, único escritor a `memory/`; su `compose_context` = **dossier v2
-  multi-eje** del worker V2-056: perfil sin misión + reglas + ⚠️ críticos SIEMPRE + recall + `by_concepts` + agenda,
-  solo durables, `to_thread`) + `nucleo/mem_processor.py` ★ (el CORAZÓN de escritura V2-013:
-  **`deepseek/deepseek-v4-flash` DIRECTO** (`api.deepseek.com` desde 2026-08-16; antes vía AIMLAPI) por config
-  `§memory` desde 2026-08-09 — bench §12.3: iguala a
-  `gpt-4.1-mini` en completeness (98,5 vs 98,9%) y precisión (100%) por **−55% de coste**; `gpt-4o-mini` VETADO
-  (mete una alergia en inglés en `slot=operator.diet`, que la borraría al cambiar de dieta); key
-  POR ENDPOINT + salud con alerta por racha de fallos [incidente 2026-07-17/19: 2 días caído en silencio];
-  escribir puede ser lento, prioriza escribir BIEN — DESTILA cada turno en píldoras curadas — dato+metadatos,
-  decide DESCARTAR/ESTADO/CORTO/LARGO + importancia + `slot`; off-hot-path, fail-open a la heurística [que ya NO
-  ensucia: degrada a short+TTL]; **GATES de PRECISIÓN deterministas V2-033**:
-  descarta peticiones/preguntas/ack reificadas, no deja que un nombre garbleado del STT pise la identidad del `state`
-  —cuarentena— y no hace durable una preferencia efímera) + **`nucleo/workers/`** (**Brain Workers V2-038** —
-  sustrato AGNÓSTICO: `base.py` [`WorkerBackend`/`WorkerEvent`/`WorkerSpec`], `claude_session.py` [stream-json vivo],
-  `generator_session.py` [widgets, envuelve el generador matable], `codex_session.py` [Codex CLI, `exec --json`],
-  **`grok_session.py`** [Grok Build; HEREDA de `claude_session` porque su wire format es el MISMO, ver decisión clave],
-  `registry.py`
-  [`get_backend` por config, mezclable], `session.py` [`WorkerSession` + `SessionRecord`], **`providers.py`**
-  [CADENA de endpoints Anthropic-compatible + relevo por cuota agotada, ver decisión clave]) = capa de trabajo async
-  INTERACTIVA. `nucleo/agentes/` (interfaz `CodeAgent` one-shot V2-036 — `worker/web/web_cc/otros.py` **PARKEADOS**
-  en V2-038; solo se reutilizan sus helpers de detección de widget). **Puentes de los workers**: `nucleo/mem_cli.py`
-  (`hbmem` — memoria serial, recall/remember por HTTP) · `nucleo/agent_report.py`+`nucleo/agent_api.py` (`hbnote` —
-  reporte de fase al bus) · **`nucleo/worker_bridge.py`+`nucleo/worker_api.py`** (`hbask`/`hbact`/`hbsay` —
-  pregunta/pide-tool/dice al usuario, plano request/response V2-038, `/api/worker/act`, política + piggyback + token) ·
-  `nucleo/nav_cli.py`+`widgets/navegador/act_api.py` (`hbweb` — conducir el navegador) · **`nucleo/widget_cli.py`**
-  (`hbwidget` — LEER/OPERAR un widget del canvas: `read`/`data`/`show`/`close`, acción `widget_data` de
-  `/api/worker/act` con gate del catálogo canónico + provenance worker; V2-061, el PUENTE que refleja en los widgets
-  lo hecho en la realidad). `nucleo/danger.py` = gate de
-  acciones irreversibles. **`nucleo/susurro/`** (V2-053) = **auto-auditoría conversacional «Susurro»** — enchufado
-  SOLO por el bus (topic `turn.completed` + fricción), modelo potente configurable §susurro, correcciones de
-  catálogo cerrado (ver decisión clave). **`nucleo/homeostasis.py`** (V2-070) = **LATIDO AUTÓNOMO** — el tercer
-  nivel, HERMANO del cerebro (no parte de él): mantiene la MÁQUINA sana (recicla el motor LiveKit degradado cuando es
-  seguro, rota logs, evicta cápsulas muertas), determinista y SIN LLM, `start()/stop()` en el lifespan como los otros
-  supervisores; ver decisión clave «Homeostasis».
-- `memory/` — **memoria central** tipo humana, SUBSTRATO 100% local (los LLM de escritura van por API — ver
-  decisión clave), un solo fichero SQLite `zaelar.db` (WAL, en
-  `memory/_data/`): substrato compartido que escriben el FlashBrain, el agente de memoria y los widgets, y lee el
-  retriever en la ruta caliente (ms). **`memory.compose_state()`** (V2-027) compone el **ESTADO COMPARTIDO** que
-  ven los dos cerebros — misión (`state.mission`) + situacional + conversación reciente sintetizada — como lectura
-  DIRECTA (µs, sin LLM ni retriever); lo cachea `nucleo/flash/memory_cache` fuera del turno. Cada recuerdo es una
-  **PÍLDORA**: dato canónico (`text`) + metadatos (`slot`/`meta`, schema v2). **`slot`** = clave canónica del hecho singular (`operator.name`, `goal.current`…) →
-  el writer hace **supersede/dedup EXACTO sin LLM** ("el más reciente MANDA": mismo dato = refuerza; dato cambiado =
-  invalida TODOS los vigentes — auto-curativo). El **vocabulario de slots vive en el REGISTRO ÚNICO
-  `memory/slots.py`** (auditoría 2026-07-14): alias + campo de `state` + flag de identidad, consumido por writer
-  (`canon_slot`), memory_agent (gate P0b) y el prompt del procesador (catálogo GENERADO) — las tres capas no pueden
-  divergir; el consolidador añade `heal_slots()` (normaliza legacy + colapsa multi-vigentes en cada sueño). El
-  **contrato v2 del átomo** añade `value` (→ `state_patch` sintetizado MECÁNICAMENTE del registro) y `change:
-  none|update|correction` (señal de cambio del PROPIO procesador multilingüe → el gate anti-garble la consume; las
-  regex es/en quedan de backstop, no de mecanismo único). Tablas `state·memories·vec_memories·fts_memories·edges·episodic·journal` ·
-  cola + writer (único escritor, embeddings al insertar) · embeddings (embeddinggemma 768 vía Ollama, fallback
-  fastembed; provider configurable `memory.embed_*` + `memory/reembed.py` con firma de modelo) · retriever
-  (sqlite-vec + FTS5 → RRF k=60 → score α·rel+β·rec+γ·imp+δ·uso → **reranker** cross-encoder local `memory/rerank.py`
-  → graph_expand) · grafo ·
-  consolidador (sueño LIGERO: decay Ebbinghaus POR VENTANA + dedup + prune_invalid + eviction por peso, pinned
-  intocable) · **`memory/rem.py`** (V2-056: sueño PROFUNDO «fase REM» diario — repara vectores `embed_pending` +
-  dedup SEMÁNTICO por coseno + INSIGHTS por concepto [`slot=insight:<c>`, hook LLM inyectado desde
-  `nucleo/memllm.py`, **`deepseek-v4-flash` vía AIMLAPI** desde 2026-08-09 — bench §12.4] + higiene con alerta;
-  kill-switch `ZAELAR_REM`. ⚠️ Esta fase estuvo MUERTA semanas: `.format()` sobre un prompt con llaves literales
-  lanzaba `KeyError` y el `except` lo volvía un warning — ver la decisión «Memoria central») · capa **episódica** (absorbió el
-  antiguo `files/`: paste/drop → `memory/server_api.py` → `memory.write_episode`, binario + resumen buscable, carga
-  lazy) · fachada + señal `memory.updated` por el bus. `memory/seed_from_hermes.py` = importador one-shot que siembra
-  el perfil del operador desde `~/.hermes` si existe (best-effort, solo-lectura). **`memory/vault.py`** ★ (V2-060:
-  BÓVEDA de secretos del operador CIFRADOS — cripto asimétrica sealed box vía PyNaCl + sobre passphrase Argon2id +
-  passkeys WebAuthn PRF; tablas `vault_meta`/`vault_secrets`), **`memory/secrets.py`** (detección FAIL-CLOSED +
-  redacción) y **`memory/vault_api.py`** (`/api/vault/*`, loopback) — ver la decisión clave «Bóveda de secretos».
-  Diseño en `zaelar-memory.md`.
-- `observability/` — **QUIÉN · CUÁNDO · en qué FLUJO** (V2-090). Completa el registro de eventos (que ya contaba
-  QUÉ pasa) con los ejes para ANALIZARLO: `identity.py` (**`user_id`** estable por instalación —UUID4 aleatorio
-  en `config/identity.json` gitignored, con **INIT EXPLÍCITO en el lifespan del server** desde 2026-08-16 (antes
-  se generaba solo, la primera vez que CUALQUIER código llamara a `user_id()`; ahora queda creado y logueado en
-  el arranque, igual de visible que el `ZAELAR_USER_ID` que una Machine de nube ya trae puesto) — en la nube
-  MANDA ese `ZAELAR_USER_ID` del provisioner, `user_id()` lo prefiere sobre el fichero local— y **`session_id`**
-  por SESIÓN DE TRABAJO del operador: arranca al conectar, se cierra con ⏻ o al cerrar la pestaña, y una
-  reconexión NO la parte en dos) · `flows.py` (lectura por **CORRELATION ID**: flujos con duración real de punta
-  a punta, familias, actores, tokens y errores; detalle cronológico; sesiones; cobertura) · `api.py`
-  (`/api/observability/*`). **El correlation id NO es un id nuevo: es el `trace` de V2-044 PROMOVIDO** de campo
-  del JSON a columna indexada (`events.corr_id`) — un segundo id paralelo se habría separado del primero en la
-  primera costura cross-loop sin coser. Un flujo nuevo nace con cada petición del operador; lo que continúa un
-  flujo vivo hereda el suyo. **A correction spoken while a task is still live MERGES into that task's `corr_id`
-  instead of opening a new one** (2026-08-15): `send_to_worker`'s handler (`nucleo.py::_on_tool_call`) already
-  resolves its target via `dispatch.resolve_sessions()`; when that resolves to exactly one live session, this
-  turn adopts its `trace_id` (`dispatch.trace_of` + `trace.adopt`) instead of keeping the fresh one `trace.begin()`
-  opened at turn start. With several live sessions and no unambiguous match, nothing merges — a stray extra flow
-  beats guessing which task a correction belongs to. A flow's end is now also EXPLICIT (`kind="flow"`, emitted
-  where the worker session that spawned it finishes), not just inferred from silence. **A single utterance split
-  across several LiveKit turns also merges (2026-08-15):** LiveKit closes one turn per STT-final segment, so a
-  long sentence spoken without pauses used to open a fresh trace per fragment — `_begin_or_adopt_trace()`
-  (`nucleo.py`) checks the V2-096 accumulator's `pending()` instead: while a fragment chain is open, the next
-  turn ADOPTS its trace rather than opening one, cleared once the chain resolves. Known limit, not solved here: if
-  the accumulator judges a sentence complete (a closing period) and the operator keeps talking about the same
-  thing right after, that reopens as a NEW chain/trace — a real improvement, not a guarantee of one flow per
-  real-world task. **A pending confirmation's answer also merges into the turn that asked** (`widgets/
-  confirm.py::request()` captures `trace.current()`, `_resolve_confirm()` adopts it before executing/cancelling)
-  — the ask/answer/action of an irreversible confirm-gate now reads as one flow even across a barge-in-cancelled
-  reply attempt in between. `flows()`'s SQL exposes `origin` (the `trace.begin(origin=...)` argument: `turno`/
-  `kickoff`/`ui`/`cron`/`proactivo`/`cluster`/`probe`) and `title` (that root event's text) per flow — what the
-  master's column-board (`cloud/backoffice`, private repo) uses to tell a real task apart from session
-  initialization (kickoff greeting, canvas-restore reconciliation within the session's first ~10s) and to label
-  each column/rail item with more than a bare corr_id. **A plain conversational flow now closes EXPLICITLY too**
-  (2026-08-15): only a worker-spawned flow had an explicit close before this; the master could only guess
-  liveness from recency, and guessed wrong the instant a turn finished (reported live: "restarted the system…
-  still shows seven active flows"). `_run`'s success path (never the `CancelledError` branch — a barge-in
-  cancellation may still get continued by the next fragment) calls `_maybe_close_flow()`, which closes the
-  current trace UNLESS the V2-096 accumulator still expects more on it, a confirmation asked on it is still
-  pending, or a worker is still running on it (`dispatch.has_live_trace`, the reverse of `trace_of`) — that
-  worker owns the close instead. **A confirmation's "sí"/"no" is now resolved BEFORE any slow work, not only
-  after** (2026-08-15): the old deterministic backstop (`classify_reply` + resolve) only ran after the model's
-  full response streamed — a turn cancelled by barge-in before reaching it lost the answer in total silence,
-  leaving the confirmation pending forever with the widget untouched (reproduced live: operator confirmed
-  clearing the agenda by voice, the reply's turn got barge-in-cancelled, and the agenda never changed, with zero
-  trace of it in the log). A clear yes/no is now resolved right after the hard-interrupt check, before the model
-  is even called; ambiguous replies still fall through to the old late-stage backstop. **A widget can opt out of
-  the visual Sí/No overlay** (`"confirm_ui": false` in its manifest, `nucleo.py::_confirm_ui_paints`; e.g.
-  `widgets/agenda/manifest.json`, per an explicit operator request — "the agenda widget is voice-only"): the
-  confirmation itself, and voice resolution, are completely unchanged — only the SSE emit that paints the card
-  overlay is skipped. SOLO LECTURA: el único escritor de `events` sigue siendo
-  el sink del bus. Fase LOCAL entregada; nube + privacidad en `INI-021` (raíz del workspace).
-- `bus/` — **Sistema Nervioso**: pub/sub de señales in-process (asyncio, patrones fnmatch + `emit_sync`
-  loop-agnóstico vía `call_soon_threadsafe` para entrega cross-loop job-thread↔uvicorn). `bus/log.py` = log durable
-  de eventos en SQLite (`zaelar.db`, tabla `events`, WAL). `bus/sse.py` = puente SSE al frontend (`GET /events`).
-  Transporte HÍBRIDO: llamadas directas en la ruta caliente de voz + eventos para lo async/fan-out. **Nada de
-  Kafka/broker.**
-- `frontend/` — interfaz como app de **módulos ES sin build**, migrable a Solid (core reactivo + services +
-  components + widget desktop). Voz vía **cliente LiveKit** (`services/session-lk.js` + SDK vendorizado en
-  `frontend/vendor/`). Ver `zaelar-modules.md §Frontend`. **SUPERFICIES NATIVAS del frontend = «widgets de
-  SISTEMA», INTOCABLES** (V2-080): su LISTA CANÓNICA ÚNICA vive en **`frontend/app/core/system-surfaces.js`**
-  (`SYSTEM_SURFACES` + `isSystemSurface()`) — panal de actividad, cámara/mic, orbe, TopBar, estado de conexión,
-  chat (Chat/Procesos/Crons), panel de estado ◉, config ⚙, benchmarks, debug ◷, mapa de memoria 🧠, wizard 🧭,
-  bóveda 🔐, banner de aviso y splash de arranque. `main.js` las MONTA desde esa lista (sin duplicar). El
-  generador/`lifecycle` NUNCA las tocan (solo tocan `widgets/<id>/`). **Todo lo demás en pantalla son WIDGETS DE
-  USUARIO** (catálogo `widgets/<id>/`, full-stack `manifest.json`+`data.py`+`widget.js`), variables y creados
-  por/para el usuario **aunque se distribuyan de serie** — como los conectores. Añadir una superficie nativa nueva
-  = añadirla a `system-surfaces.js`. **V2-082:** cada superficie dirigible por voz lleva `name` + `aliases` FIJOS
-  (hardcodeados en el front, NO editables) — espejados en el backend `widgets/system_surfaces.py` (test de sincronía)
-  para que el resolver de nombres las conozca. Cada tarjeta de widget de usuario pinta un HEADER genérico (en
-  `desktop.js`, sin tocar su `widget.js`) con el NOMBRE + un ⚙ que despliega sus ALIAS editables.
-- `server/` — FastAPI app + routers + entrypoint (`server/__main__.py`); corre el **agent worker de LiveKit
-  EMBEBIDO** en el proceso (lifespan), y arranca en ese mismo lifespan el loop de `nucleo/`, el supervisor de
-  widgets `backed` y el consumidor de la cola de memoria. Routers: `livekit_api` (token + config + swap de
-  session.js), `voice_api`, `cron_api` (`/api/cron`), `wizard_api` (V2-040), `spotify_api` (V2-041), `config_api`
-  (V2-043: `/api/config*` — el área de configuración full-screen), **`memory/vault_api`** (V2-060: `/api/vault/*` —
-  bóveda de secretos, montado siempre), widgets, pages.
-- `widgets/` — widgets full-stack (`data.py` + `widget.js` por carpeta), generador, catálogo, runtime.
-  Dos *kinds* en `manifest.json`: `passive` (por defecto) y **`backed`**: un widget con proceso propio (`owner.py`)
-  supervisado por `widgets/supervisor.py` (mailbox + reinicio con backoff + desactivar tras N fallos, aislado de la
-  voz). Widgets backed = **`navegador`** (un navegador web real dentro de zaelar) y **`mensajeria`** (mensajería
-  unificada WhatsApp+Telegram; su owner triaja en el propio widget con un modelo LOCAL, gated `"gate":"nucleo"`).
-  **`widgets/background.py`** (V2-034) = planificador de **ejecución en BACKGROUND con ciclo**: un widget declara
-  `"background": {"every": "1m"}` y sigue trabajando OFF-SCREEN en su periodo (mínimo 1s) — `data.py:tick(ctx)` de
-  un passive corrido en un hilo, o un comando `tick` encolado a un owner backed — para refrescar datos y **volcar
-  a memoria** lo que el operador pueda preguntar por voz (ver decisión). `widgets/actions.py` = semántica de
-  acciones (V2-025); `widgets/refs.py` = resolución de referencias a items (V2-026).
-- `config/` — settings runtime gestionados por la UI (gitignored): `settings.json` (⚙ STT/TTS/voz/idioma),
-  `connectors.json` (flags+credenciales de conectores), `v2.json` (routing de modelos `fast`/`code_agent` +
-  **`memory`** [reranker + embedding, V2-030] + `active_brain()`), `meshkore.json`. Cada uno con su módulo dueño
-  (`settings.py`/`connectors.py`/`v2.py`) y **vista pública redactada** (secretos → `<clave>_set: bool`; cualquier
-  clave que termine en `api_key` se redacta). `profiles.py`+`doctor.py` = perfiles coordinados + detector (wizard
-  V2-040); `credentials.py` = único escritor del credential store. **`balances.py`** (V2-043) = saldo de APIs
-  externas (proactivo donde se expone —ElevenLabs—, reactivo por error clasificado para el resto). El **área de
-  configuración full-screen** (⚙, V2-043) se sirve por `server/config_api.py` (elige API/modelo por PIEZA) +
-  `frontend/app/components/ConfigPanel.js`; sus alertas de saldo salen en el diálogo de estado (◉).
-- `connectors/` — conectores externos; **`connectors/files/` = archivos en la NUBE** (Google Drive +
-  OneDrive, V2-557: registro tipado de proveedores + PKCE compartido + un cliente por proveedor tras la
-  **fachada agnóstica** `service.py`, que devuelve UNA forma normalizada — un tercer proveedor no toca el
-  widget; doc `zaelar-cloud-files.md`); `connectors/meshkore/` = canal nativo de clusters (3er I/O junto a voz+chat),
-  conducido por el **motor del FlashBrain en perfil UNTRUSTED** (V2-069: `brain.py` adapta el canal al motor →
-  `nucleo/flash/cluster.py`, tools off + system identidad-safe) con **cápsula** de conversación (`capsule.py`);
-  `connectors/architect/` = proveedor de código/proyectos sobre el
-  daemon MeshKore compartido (tags `[[architect.*]]`, operator-only); `connectors/whatsapp/` = WhatsApp personal
-  (bridge Baileys vendorizado); `connectors/telegram/` = Telegram personal (userbot Telethon); `connectors/email/` =
-  **email personal** (V2-051, IMAP/SMTP **stdlib puro**, lógica vendorizada del adaptador de Hermes — leer+triar+
-  **responder** por SMTP con threading; app-password + presets Gmail/Outlook/otro; el más limpio de los tres);
-  `connectors/messaging/` = **capa compartida** de mensajería (ahora con OUTBOUND: cola `pending_reply` + `msg.reply`
-  → tool `reply_message` con confirm-gate). Ver `zaelar-modules.md §Connectors`. Slots futuros: LinkedIn, X.
-  **Contactos como memoria + envío-a-persona (mándale un mensaje a X) + conectores Apple/Google + red de agentes =
-  iniciativa de DISEÑO `V2-052` (pendiente de OK del operador).**
-- `tests/agent_headless/harness/` — harness de evaluación conversacional sintética + juez.
-- `tests/voice/e2e/mic/` — self-test headless del transporte micrófono→STT por WebRTC.
-- `tests/voice/e2e/agent/` — tester de voz (INI-013): 2º participante LiveKit que HABLA con zaelar y un JUEZ que evalúa lo que HACE.
-
-`files/` quedó plegado en la capa episódica de `memory/` (shim de compatibilidad). Raíz (no-módulos): `README.md`,
-`Makefile`, `requirements.txt` + `.venv/`, `Dockerfile`/`fly.toml`/`.dockerignore`, `scripts/` (tooling de
-instalación por-OS), `CLAUDE.md`. **Logging → `.meshkore/logs/`** (no crear `logs/` en la raíz).
-
-### Roadmap e iniciativas (`.meshkore/roadmap/`)
-
-Las iniciativas activas están en `.meshkore/roadmap/initiatives/`. Anclar cada tarea a una iniciativa. El diseño del
-cerebro «Colmena» vive en `.meshkore/roadmap/EPIC-v2-colmena.md`.
-
-### Daemon (NO es por-proyecto)
-
-El daemon de MeshKore es un **servicio único compartido** (hospedado en `daemon.meshkore.com`), que da
-servicio a todos los proyectos del cluster. **Este repo NO arranca ni incluye un daemon propio.** La adopción
-del estándar se hace apuntando el front del Architect a la URL de la carpeta `.meshkore/` de zaelar; el daemon
-la lee, identifica el proyecto por `public/cluster.yaml` y lo onboarda (incluido el bloque `MESHKORE_PREAMBLE`).
-No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto 5570 desde aquí.
-
-## Decisiones clave
+# Decisiones clave — el diario del motor
+
+**Qué es esto.** Una entrada por tanda entregada: qué se decidió, POR QUÉ, y el fallo real que lo motivó.
+No son instrucciones — las instrucciones viven en `CLAUDE.md`, que es lo que todo agente carga al empezar.
+Esto se lee cuando hace falta: antes de tocar una pieza, para saber qué se intentó ya y qué se descartó.
+
+**Dónde está el resto.** Las entradas más antiguas viven, íntegras y en su orden original, en
+`.meshkore/docs/decisions-archive.md`; abajo queda su línea de índice. El detalle denso de cada una está en
+su iniciativa, bajo `.meshkore/roadmap/initiatives/` (gitignoreado a propósito: no publicamos el roadmap).
+
+**Cómo crece.** Al cerrar una tanda se añade la entrada AQUÍ, arriba del todo. Cuando este fichero pasa de su
+techo (`tests/infrastructure/unit/test_claude_md_ratchet.py`), se mueven las entradas más viejas al archivo
+dejando su línea de índice — **nunca se borra una cita**: el trinquete de cierre exige que toda iniciativa
+entregada siga citada aquí.
 
 > **Compaction policy (V2-601 T-18, 2026-09-06).** This log holds recent decisions VERBATIM and a one-line
 > citation index for everything older. The full text of every archived entry lives, untouched and in its
@@ -762,6 +20,293 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
 > when the size ratchet (`tests/infrastructure/unit/test_claude_md_ratchet.py`) trips, move the oldest
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
+
+- **An appointment says WHO convened it, and one that somebody else ASKS for waits for the operator
+  (V2-697, 2026-09-15)**: he opened the detail card for a real invitation — an intro convened by somebody at
+  zerohash — and put it beside Google's own popover for the same event. Ours showed a title, a date, one bare
+  address and a chip reading «Confirmed». Google's showed the Meet link, both guests with their answers, who
+  organized it, and buttons to say whether he was going. His priorities, verbatim: **«sobre todo el enlace, el
+  enlace a Google Meet, que es lo que más me importa, y nosotros no exponemos eso»** · «quién me ha convocado.
+  Porque a veces nosotros somos los que insertamos el ítem en la agenda, pero a veces es una invitación
+  externa que nosotros aceptamos». And what he explicitly did NOT want: the phone bridge, the PIN, «more
+  phone numbers» — «cosas que yo considero que son extras y absurdas» — nor proposing another time.
+  - **MEASURED before writing a line, and it reframed the whole batch: the data was already there.**
+    `connectors/calendar/google_calendar.py::event_to_meeting` has written `meetLink`, `organizer` and
+    `location` since the first import; `widget.js::eventsOf` simply never COPIED them into the object the
+    detail card reads. Connector and card were each individually correct, which is exactly why a source scan
+    does not find this — and why every case for it is RENDERED.
+  - ⚠️ **The chip was not merely missing information, it was MISLABELLED.** On a Google row `status` held the
+    OPERATOR's own `responseStatus` while the card said «sin confirmar por la otra parte», so an invitation he
+    had accepted read as though THEY had agreed — and on a locally dictated meeting the same field genuinely
+    did mean the other party. **One field, two meanings, decided by provenance.** Split: `status` is about the
+    other guests, `myRsvp` is his own answer, and both are shown. A guest whose answer Google does not report
+    leaves it **pending** on purpose — not knowing is not being confirmed.
+  - **`attendees` deliberately did NOT change shape.** Seven callers already read it as `list[str]` — the
+    voice payloads, the errand booker, the digest line, and the write direction that rebuilds Google bodies
+    from it — so the rich roster (`{name, email, rsvp, organizer}`) rides ALONGSIDE it under `guests`, written
+    from the same list in the same pass so the two cannot drift. Changing seven consumers to gain what a
+    second key gives free is a blast radius bought for nothing.
+  - ⚠️ **An RSVP is a READ-MODIFY-WRITE, and that is not belt-and-braces**: in the Google API `attendees` is an
+    array and **a PATCH carrying an array REPLACES it**, so answering by sending only our own row would delete
+    every other guest from the organizer's meeting — a silent, destructive 200. `service.rsvp` reads the live
+    roster back, edits OUR row alone (located by `selfEmail`, captured at import), and sends the whole list up
+    again. It deliberately does not reuse `patch_event`, which would rebuild the entire body from
+    `meeting_to_event` on an event we are a guest of and do not own. No new scope: the connector already holds
+    `auth/calendar`.
+  - ⚠️ **`meetLink` is attacker-controlled** — anybody who can send an invitation writes `conferenceData`, and
+    the card turns that string into an `href`. Only `http`/`https` survive the import, and the widget refuses
+    it again at the sink for rows stored before the guard existed. Only a **video** entry point is ever stored,
+    so the dial-in he called absurd cannot reach the card even by accident.
+  - **The second half — a cita can be born outside the operator.** An inbound message ALREADY became a
+    calendar entry (`errands/wake` → `book.book()`); what was missing is the branch where the errand has no
+    mandate to schedule: `may_schedule()` returned False and `book()` **returned**, so the other person had
+    agreed, the slot was in hand, and nobody was told. **Refusing to WRITE is right; refusing to ASK is not.**
+    The slot is parked ON THE ERRAND ROW — already durable, already expiring, already on his board, and
+    already holding the binding to the conversation the answer must travel back to — announced through
+    `brain_notes`, and offered on the agenda as a band that is deliberately NOT styled like an appointment,
+    because a row that looks like an entry is already making the claim. **Telegram and WhatsApp inherit it
+    with no code of their own; email is out by his own call** (a Gmail invite already lands in Calendar, so
+    treating it as a proposal would make the appointment twice).
+  - **The authorization criterion, and why «always manual» is not provisional.** He asked for the obvious
+    guard and floated an allowlist of authorized contacts. **A list like that would be worse than none
+    today**: a cluster peer's `handle` is SELF-DECLARED (`security.neutralize_identity` sanitizes the string,
+    it does not prove it), a cryptographic identity exists only for US (`identity.did_key`), and the allowlist
+    that does exist is per-CLUSTER, not per-person. So the name on a proposal is **a label he reads, never a
+    credential**; every proposal needs his explicit yes; **his yes IS the grant** (`accept` adds `schedule` to
+    the errand's mandate and calls the same `book.book()`, so nothing re-implements booking); and peer text
+    stays fenced DATA. The seam for auto-accept is left and the auto-accept is not built — it should not be
+    until a peer identity is something we can verify.
+  - `verify.meeting_exists` returns False while a proposal is parked, the `link_owed` shape one field over:
+    nothing is in the calendar, so a neighbouring meeting must not close the errand — and closing RELEASES the
+    conversation, leaving the person who asked waiting for an answer nobody will send.
+  - Nodes **4.175** (16 RENDERED), **3.50** (9) and **5.26** (7); the connector's own node grew 6. **Ten
+    disarms, every mutation asserted, all red** — the one that matters most turned 8 cases red at once: it
+    removed the field copy in `eventsOf`, which is the defect the operator photographed. One pre-existing test
+    pinned the OLD mixed-up `status` semantics and was **rewritten to the new contract with its claim intact**
+    (his unanswered invitation is still visible, now as `myRsvp`) plus a counterweight proving `status` still
+    moves — never relaxed.
+  - **NOT built, and named**: `cluster.propose` — `bridge.py::_CLUSTER_TURN_ALLOWED` still admits only
+    `send`/`done`/`pact`, so a peer turn has no verb that reaches this path and it is messaging-only for now.
+    **NOT verified live**: no real invitation has been answered and no real proposal has travelled the path.
+    Criterion and mechanism: `.meshkore/docs/modules/zaelar-appointment-proposals.md`.
+
+- **A messaging errand runs in the BACKGROUND — no browser card, no sheet, and the name as he says it
+  (V2-698, 2026-09-15)**: the operator's own test, read event by event before touching anything: «Coge
+  nuestro contacto Kryptonite y propone una reunión mañana a las 19 horas…». **The cycle CLOSED on its own at
+  00:47:39** — the contact answered «Yes, works», the errand booked `Meeting with Cryptonite` 16/09 19:00 on
+  Google with a `meetLink` and sent it — and what he saw on the way was four defects, the first one mine.
+  (1) «he iniciado la tarea y no ha hecho nada»: a `make restart` 36 s after the worker was born killed it
+  (`task | cancel · session | end`), and a second one landed while the errand was waiting (it survived only
+  because V2-683/684 rehydrate). (2) The **browser card**: `classify_kind` said `web` because `login_site`
+  resolved «Google Meet» to google.com and «send/add» are task verbs — but Calendar and Meet are linked
+  INSIDE the agenda (V2-685), the same class as music and messaging, which already had their guard;
+  `is_google_connector_service` joins them, and «busca en google» stays web. (3) The **results sheet**: the
+  provider relay relaunches with a context that carried `sheet` and NOT `surface`, so a «voz» errand was
+  reborn with the default surface — the exact hole V2-259's «both relaunches send the sheet» test closed,
+  one field over; both send the surface now. (4) «no tengo a Kryptonite en el directorio»: he dictates K,
+  the row (kept by V2-693's dedupe because it holds the Telegram account) says C; `directory.resolve` gains
+  a last resort where a UNIQUE near match resolves and two near matches stay a refusal — writing to the
+  wrong person is what this must never trade for. ⚠️ **And one thing NOT fixed, said plainly**: the worker
+  fell through three providers ($1.23) on `400 [1210]` (z.ai) and `400 Invalid schema for function
+  'Artifact'` (DeepSeek) on each first message; 55 minutes later the worker's EXACT argv reproduced neither,
+  with or without `--tools`. The relay did its job; `--tools` ships as a narrowing (only the allowed tools'
+  schemas travel), not as a proven fix. Seven disarms, every mutation asserted, all red. **NOT verified
+  live** — it needs a restart, and a restart is not made with the operator inside. His design ask stays
+  open and named in the initiative: the PULSE as the owner of an open errand, not a worker sitting in a
+  session.
+
+- **A NAME is a UI string, and the voice keeps answering to the one it shipped with (V2-694, 2026-09-14)**:
+  the operator, on a session he had deliberately started in English — «el título de los widgets es en
+  castellano… una vez está inicializada la sesión en inglés, se usa en inglés», and the rule that frames the
+  whole batch: **«todos los nombres, etiquetas, títulos, botones… todo es configurable cuando se inicializa un
+  idioma»**. **MEASURED before touching anything, because the first question was whether HE had broken it**:
+  nothing had switched. `config/settings.json` held `stt_language: "en"`, every turn's prompt said «Responde
+  ÚNICAMENTE en English», and `i18n.init.detect.should_detect()` is False the moment a language is persisted —
+  so speaking Castilian could not have moved it and a reset only would with `wipe_profile`, which he had not
+  ticked. **The Castilian was HARDCODED.** V2-613 built the seam (`ctx.t`/`ctx.lang`) and migrated two pilots;
+  the other thirteen widgets carried their text inside `widget.js`, and every card TITLE came from
+  `manifest.json`, which V2-082 had frozen on purpose because the voice resolver matches against it.
+  - **That freeze is the interesting half.** The name is now `widgets.<id>.name` / `surfaces.<id>.name`, read by
+    `widgets/registry.py::display_name`, so it follows the operator's language like every other label — and the
+    manifest's own name stays as the FALLBACK (a generated widget has no bundle row and still needs a name) and
+    **stays in `aliases`**. Translating it without keeping the original would have quietly retired half the
+    vocabulary of every install that has ever spoken Castilian: a regression with no error message anywhere.
+  - ⚠️ **`widgets/naming.py` (the worker's door) went through the registry and answered to the translated name
+    from the first minute; `widgets/runtime.py::identify` (the VOICE) built its own lexical index straight off
+    the manifests and did not.** Measured with the bundles in place and nothing else changed: «messages»,
+    «downloads» and «browser» resolved to None for the voice while resolving correctly one module over — an
+    English operator could READ «Messages» on the card and not be able to say it. Two doors into one namespace
+    (V2-555), found only because the test was written against the real doors instead of against the registry.
+  - **~480 strings across the catalog**, migrated as `tt("key", params, "<the literal>")` where the fallback is
+    byte for byte what was hardcoded — so a widget rendered outside the engine behaves exactly as before and the
+    change is reviewable line by line. ⚠️ **Ten module-level TABLES were the trap**: `const STATUS = {ok:
+    "Hecho"}` is built at IMPORT time, before any `ctx` exists, so its text freezes in whatever language loaded
+    first and survives every later switch; every one became a function resolved per paint. ⚠️ And **a whole class
+    was invisible to the first scan** — sentences written as template literals, and labels living inside a
+    `${…}` substitution (`${n === 1 ? "canción" : "canciones"}`) — so the scanner had to learn that a
+    substitution is CODE, not template text, and then that a regex literal can contain backticks
+    (`widgets/documento`'s `/`([^`]+)`/g` desynced it into reading every later comment as operator-facing text).
+  - **The ratchet is the deliverable.** The old one recognised only a FULL key, so with fourteen widgets migrated
+    it would still have been green having measured one — *a ratchet that cannot see the thing it ratchets reports
+    safety*. It now derives each widget's prefix from its own helper, and refuses: a key missing from either
+    bundle, an accented literal outside a translation call, and — **language-independently**, which is what made
+    it bite — ANY literal assigned to `textContent`/`title`/`placeholder`/`alt`/`ariaLabel`. That last half was
+    added because disarming `tt("seeds", …)` back to a bare `"Semillas"` left the accent check GREEN.
+  - **Changing language is MANUAL and never spoken** (his rule: «hay que hacer todas las traducciones de todos
+    los prompts, de todos los widgets… no es una cosa que vamos a permitir hacer con la voz»). No tool changes
+    the language and none is added. ⚠️ Measured: the desktop ⚙ had **no language control at all** — the picker
+    existed only in the first-run veil and the phone's sheet, so on this shell the answer to «I want it in
+    English» was a factory reset. ⚙ → Apariencia carries it now, posting to `/api/i18n/choose/{code}` and never
+    to the raw `stt_language` knob: that endpoint is what LOCKS the choice, generates the bundle for a language
+    we do not ship, realigns the TTS voice and speaks the confirmation — writing the setting directly would
+    leave a Swedish operator with a Swedish `stt_language` and an English interface. It asks **twice**.
+  - `config.settings.update` is the ONE seam both doors cross, so that is where `i18n.runtime.invalidate()` and
+    `registry.refresh_state()` live. On the client, `Desktop.relanguage()` re-rendered every widget's BODY since
+    V2-613 and left the card HEADER alone — fine while the title was a constant, wrong the moment it became a
+    translated string: it drops the registry and the compact-index caches and re-applies the names.
+  - Nodes **4.11** (widened), **4.172** and **4.173** (RENDERED: a source scan proves the fetch line exists and
+    proves nothing about whether the header changes); sixteen disarms, every mutation asserted, all red — ⚠️ and
+    **four came back GREEN first, each accusing the test**: two properties were held by a second, independent
+    guard (every shipped manifest already repeats its own name as its first alias; every surface's es/en word is
+    already in the FIXED alias table), one measured a REIMPORT instead of the in-process cache the ⚙ actually
+    hits, and one scanned raw source whose own COMMENT contained the words it was looking for (the V2-615 trap).
+    The surface case could only be closed with a THIRD language, so the batch ships a generated-bundle test.
+  - **NOT done, and named**: the per-widget `whenToUse` routing prose stays Castilian on purpose — it is an
+    INTERNAL note the model reads and the prompt says so; and the catalog line still names a widget by its `id`
+    rather than its label, which is defensible and would cost the shared per-turn budget (V2-526) to change.
+
+- **A proxy in front of a hardened thing is a SECOND front door (V2-575 P1, 2026-09-14)**: the daemon had five
+  guards and no way for a person to obtain it or point it at a folder. The engine now proxies it — a page over
+  https cannot call plain http, a direct call needs CORS headers the daemon must never send, and the bearer
+  token would have to reach JavaScript — and that proxy is the part worth writing down. It exposes `status`,
+  `grant` and `revoke` and **no file route, ever**: proxying `files.read` would hand every page that can reach
+  the engine the exact capability `daemon/security/guards.py` refuses, through our own credentials, and a
+  ratchet fixes the route set so a future one needs a threat model rather than a test edit. Cross-origin is
+  refused here too — without CORS a hostile page cannot READ the answer, but `grant` changes state, so fire and
+  forget already puts a folder on somebody's allowlist. The guard reads `Sec-Fetch-Site` first and compares
+  `Origin` against the request's OWN `Host`, never a configured hostname, because this engine is reached as
+  localhost, as local.zaelar.com and as whatever a cloud account resolves to; the counterweight is in the same
+  file, since our own page IS a browser. Three defects fell out of measuring rather than of reading: with no
+  `daemon.json` the engine answered `reachable: true` because `/health` needs no token — a green icon over a
+  daemon it cannot authenticate to; both CI runners uploaded `zaelar-daemon.pyz`, `manifest.json` and
+  `SHA256SUMS` under those names into one flattened release, so one platform silently overwrote the other; and
+  the first real Windows runner found `build.py` dying on `UnicodeEncodeError` printing `→` to a cp1252
+  console **after every artifact was written** — the build worked, the script died on its own success line.
+  The 🖥 icon is the one TopBar control not gated on `cloudProfile`: a cloud account is precisely the case
+  where the user's own machine is unreachable, so hiding it hides it from the only people who cannot solve it
+  another way — and that screen says outright that connecting a daemon to the cloud agent is still being
+  built. Nodes **7.44** (offered and governed) and **7.41** (the cp1252 console). (2026-09-14; V2-575)
+
+- **The errand FINISHES what it agreed — and a verifier reads ONE fact while an objective has several
+  (V2-692, 2026-09-14)**: the operator reviewed his own test session and reported it whole — «he pedido que
+  se organice una reunión… me ha pedido permiso para hacer el envío. Después el otro ha respondido, pero no
+  ha seguido procesando… le he tenido que decir yo, acepta el mensaje. Y aún así no hemos terminado ni
+  añadiendo el ítem a la agenda, ni tampoco creando el link de Google Meet.» Read from his own
+  observability before touching anything (session `16770007`, flow `T9·08d2`, 209 events): **four defects
+  stacked under one sentence, three of them silent by construction.**
+  - **`bind()` refuses and NOBODY read the refusal.** A conversation belongs to one errand — right, and two
+    objectives answering one person is how they get two different replies to one message. What was wrong is
+    what the caller did with it: nothing. Yesterday's errand was still live (it had reached `agreed` and
+    could never verify, see below), so it held his Telegram thread with a deadline sixteen hours past, and
+    the errand born from his new order got **ZERO conversations** — a row that showed on the board as
+    «esperando respuesta», rode the turn's context pack as an open gestión, and could not be woken by
+    anything. His contact's reply then woke YESTERDAY's errand, against yesterday's objective. `claim()`
+    takes the thread from a live incumbent — his newest word about this person is the current one — and the
+    hand-over is TOLD; an errand that cannot take its conversation is closed on the spot rather than left
+    to announce, in four hours, that nobody answered.
+  - **`party.parse` has always returned an `agreed` block and NOTHING has ever read it.** The errand reached
+    «hora acordada» and wrote nothing, anywhere. `errands/book.py` writes the meeting the ENGINE was told
+    about, inside the mandate (`schedule` is a separate grant from `message`), and the Meet link Google
+    mints as `conferenceData` (V2-685) is appended to the very reply that promises it — booking happens
+    BEFORE the send, which is the whole point of the ordering. Meanwhile the worker was driving a browser
+    into `accounts.google.com/signin`, twice, in two sessions.
+  - **`verify.meeting_exists` filters on a `created` stamp the agenda has NEVER written**, so no errand in
+    this house could close by being ACHIEVED — only by running out of time. Its own note records that the
+    unit test missed it by writing the field BY HAND. `commit_meeting` stamps it now.
+  - **His permission travels with his ORDER**: `send_to` stops being confirm-gated (the worker was gated
+    FOUR times on one order and he had to answer «I don't want you to ask» to get his own errand moving);
+    `reply` stays gated, because answering something that arrived on its own is nobody's order — his own
+    rule, quoted. And `errands.shadow` ships FALSE: it shipped true so autonomy toward real people is not
+    handed over on a green suite, and he has now read those rows and asked for the opposite. The bound does
+    not move: an errand only ever writes to the ONE conversation it was born in.
+  - **A gestión with a third party is HANDED OVER, never sat out.** Measured twice: the worker sent the
+    message and then waited inside its own session — 25 `peek` calls, `sleep 150/240/300/420`, a `Monitor`
+    loop the permission gate refused — ten minutes of paid session doing nothing, and then the session ended
+    and the task ended with it. The durable mechanism existed since V2-683; nobody had told the worker. It
+    also settles which door: an errand can only be born from `send_to`, so a follow-up with somebody who had
+    already written to us could never become one — **what decides is not whether they wrote first, it is
+    whether this message opens something that has to be followed.**
+  - **A worker could not READ a widget that grows.** `read agenda` answered with **59 955 bytes**, 55 666 of
+    them his whole calendar; the CLI persisted it and the worker was then refused the file twice («31 844
+    tokens exceeds maximum allowed 25 000»), reaching 111 282 tokens of context in three minutes. Both
+    worker doors hand back the digest the turn prompt has used since V2-576 — 975 bytes for that same
+    calendar — plus what is inside and how big, so it can ask a declared action for a slice. Nothing is ever
+    truncated: cut JSON reads as complete and is a different shape.
+  - ⚠️ **THE BATCH SHIPPED THREE DEFECTS OF ITS OWN AND ITS LIVE RUN CAUGHT EVERY ONE**, all in the same
+    family. (d) Lifting V2-683's «never promise a link» prohibition UNCONDITIONALLY, so with his calendar
+    unlinked it told a real person «the Google Meet link will be sent with the invitation — it gets added
+    automatically»: **a capability stated unconditionally is one the model promises unconditionally**, and
+    the gap is paid by a stranger. What it may promise is read from the connector per wake, and fails
+    CLOSED. (g) An anti-duplicate guard keyed on the SLOT and blind to the title — his calendar held five
+    «Dentista» at 17:00, so it read «already booked», wrote nothing and **reported success**; the row an
+    errand owns is the one IT wrote (`done_when.at`), a different slot MOVES the meeting, and an
+    appointment that merely shares the hour belongs to somebody else's day. (h) And the verifier then closed
+    it as «hecha y verificada» with the link debt outstanding — **closing RELEASES the conversation**, so
+    the link could never be delivered.
+  - **The class, worth more than the three cases: a verifier reads ONE fact and an objective can have
+    SEVERAL**, and the error always falls the same way — it says done, and the operator finds out from the
+    other person. Three times in one evening: a stamp nobody wrote, a neighbouring meeting in the same
+    window, and a promise still unkept. «Acordar la videollamada Y MANDARLE el enlace» is one errand with
+    two halves, and his condition reads literally — «la tarea no termina hasta que no está correctamente
+    programada esa reunión» — where *programada* includes what was promised about it.
+  - ⭐ **VERIFIED LIVE**: one order → worker → `send_to` with an objective → errand born and bound, **zero
+    confirmations**; the engine RESTARTED mid-gestión and the errand came back exactly where it was; his
+    reply at 20:27:03 woke it **eleven seconds later** and it decided, answered and booked on its own; and a
+    second round moved the meeting from 16:00 to 17:00 instead of duplicating it. **NOT completed, and the
+    reason is not code**: the Meet link needs the OAuth consent, a click in HIS browser on HIS account that
+    the popup only survives inside — so the debt is recorded and the beat pays it the moment the link
+    exists. The same click blocks deleting 23 test appointments: 22 live in his real Google Calendar with
+    their own `googleId`, so a local-only delete would return on the next sync.
+  - Nodes **3.47** (33 cases) and **3.48** (8). Twenty-eight disarms, every mutation asserted. Three came
+    back green: two were harness artifacts (a `"confirm": true` inserted at the head of a JSON object is
+    overridden by the real key later in it) and one accused the TEST — that property is held by the AGENDA's
+    own `_is_same_meeting` (V2-208), not by this code, and the case now says so instead of taking credit.
+
+- **A COMPOUND close does not swallow the rest of the sentence (V2-688, 2026-09-14)**: «close all, open
+  agenda, connect to my google calendar» cleared the canvas and did nothing else — his question was the one
+  anybody would ask, «why is this order not followed?». Read from his own observability before touching
+  anything (flow `T10·c053`), and the WHOLE event chain of that turn is four lines: `✋ interrupción dura
+  atendida · widget close · ⛔ vetaría close-drag · flow end`. **No tool, no model call, no reply.** Two
+  thirds of one sentence discarded in silence — and the canvas DID clear, which looks enough like obedience
+  to hide the two orders thrown away with it.
+  - **The mechanism was right and the outcome wrong.** `attention.hard_interrupt()` exists because a close
+    order once fell OUTSIDE the excerpt of a 14 000-char turn and simply never happened (T136); its
+    guarantee — executed deterministically, before any model, always — is worth keeping and is not weakened
+    here. What nobody had examined is the **`return` after it**: it treats «close» as the whole of what the
+    operator said, which is true of «cierra todo» and false of every compound order. **Speech is full of
+    compound orders** — that is how a person clears a desk before starting something.
+  - **The close keeps its guarantee and the rest of the sentence keeps its turn.** ⚠️ The closing clause is
+    **REMOVED** from what the model reads, not left in: handed «close all» against an already-empty canvas a
+    model re-emits it (the context-bleed shape V2-635 catalogued across four classes), and that second close
+    would land on whatever the very same sentence had just asked to open — turning one silent failure into
+    an intermittent one, which is worse. `close_all_remainder()` is conservative by construction: courtesy
+    («cierra todo, por favor»), timing («ya», «ahora mismo») and a single bare word all come back empty, and
+    the caller then behaves exactly as before. **The comma is the only difference between its splitter and
+    the one `_closes_the_whole_canvas` uses**, which stays comma-blind on purpose so an enumeration of
+    things to close («cierra el vídeo, la música y todo lo demás») keeps reading as ONE closing clause.
+  - The architecture ratchet went red (`nucleo.py` 3054 > 3043) and was paid by **EXTRACTING**, never by
+    raising the ceiling: the whole hard-interrupt decision — worker vs music vs canvas, and whether closing
+    was the entire request — moved to `nucleo/flash/hard_turn.py`, and nucleo.py ends at **3014**, below
+    where the batch started. Wiring guards anchor on the module that OWNS the block (V2-555). Also dropped a
+    dead re-export (`_action_is_negated`) that nothing in the repo reads and that had the ruff F401 gate red
+    on that file before this batch.
+  - **Deliberately NOT mirrored into the probe channel, and a test says so**: the probe never had this
+    defect — it calls the model with the full text and only LABELS the action afterwards — so there is
+    nothing to mirror, and stripping text before its model call would be a change with no defect behind it.
+    V2-252's rule is that a behaviour fixed in one channel is fixed in both; **the channel that always
+    worked is not the one to change**. Node **3.46** (20 cases); seven disarms, every mutation asserted, all
+    red. ⚠️ **NOT verified live by voice** — the engine restarted onto it (`3.26+61100472`), but only the
+    operator saying the sentence proves the whole path.
 
 - **Both doors ask Google for the SAME return address (V2-687, 2026-09-14)**: the operator's FIRST real
   Google connect, and it died at the last step — «Access blocked: This app's request is invalid ·
@@ -795,6 +340,34 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   - An origin in a payload is not a credential (V2-520) and cannot leak a code: Google only ever redirects
     to a URI the client has REGISTERED — the control this entire batch tripped over — and a malformed one
     falls back instead of travelling. Node **4.168**; five disarms, every mutation asserted, all red.
+  - ⚠️ **The retry failed too, and agreeing was never going to be enough (V2-687b, same afternoon).** The
+    engine probed Google's OWN authorize endpoint for every URI on the list — building the same URL the flow
+    builds, following none of it, consenting nothing — and all five answered `redirect_uri_mismatch` while
+    echoing the exact string we sent. So the client had **no redirect URI registered at all**, and **three
+    defects were stacked under one error message** with only the first found. **(2) The list asked him to
+    register five URIs Google will not accept.** `local.zaelar.com` is a DOMAIN — OURS, shipped as a DNS
+    alias of 127.0.0.1 so a local engine can be opened over TLS — and Google exempts only the LOOPBACK
+    address from domain ownership, so **no self-hoster can ever register it**. The remedy V2-687 reached for
+    — print TEN instead of five — therefore made half the list unregistrable, which is worse than the defect
+    it replaced. `app.normalize_origin()` collapses this engine's two local listeners onto loopback: same
+    process, same token store, and a callback page that reads nothing from the origin's session, so which of
+    the two Google returns to changes nothing the operator can observe. A genuinely remote origin is not one
+    of `served_origins()` and passes through untouched, so V2-603 stays true and the list is five again.
+    **(3) `CALLBACK_PATHS` named `/api/files/callback`, which this engine has NEVER served** — Drive answers
+    on `/api/cloudfiles/callback`, and `/api/files/*` belongs to `memory_routes`, which `server/__init__.py`
+    says in as many words. A wrong address on a list of five reads, to whoever pasted it, as «I did exactly
+    what it said». The test derives the truth from the MOUNTED routers instead of trusting the tuple, which
+    is the only one of the three a test could have caught the day it was written — and it declares the gap
+    it exposes: **`/api/email/callback` has no router at all** (`server/email_api.py`, named by
+    `connectors/email/oauth.py:7`, does not exist), so Gmail's OAuth door is dead and now says so.
+  - **`app.check_registered()` — ask Google instead of guessing.** Registering a redirect URI is the one
+    step of this setup that happens in somebody ELSE's console, and until today the only way to find out
+    whether it had worked was to run a whole consent flow and read `Error 400` at the end of it. It answers
+    **None, never False, when it cannot tell** — an offline machine must not be told its setup is broken,
+    because «could not tell» and «not registered» send the operator to two different places. ⚠️ The general
+    lesson, and the one worth more than this connector: **a list of addresses to register is only worth what
+    it is DERIVED from** — hand-typed, it drifts from the routes in silence, and the drift only ever
+    surfaces in the operator's browser, as HIS failure. Seven more disarms, every mutation asserted, all red.
 
 - **The LAST METRE of a connector: the agenda owns its own, and a voice order ends in front of the BUTTON
   (V2-686, 2026-09-14)**: the operator tried to connect Google Calendar by voice, twice, minutes after
@@ -3213,390 +2786,6 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     session's V2-608 F3–F7 work landed on `main` mid-build (its own commits, `3d74cd6`..`171d8b2`) — it
     correctly avoided this work's files, and its own initiative doc names this one back for the same reason.
 
-- **«Sal de pantalla completa» needs no name — the canvas knew which card and never said so (V2-609,
-  2026-09-07)**: session `4a492268`. «Sal de pantalla completa.» → «Hecho.» with **no tool call at all**;
-  nine seconds later «Quita la pantalla completa del vídeo» exited correctly. Three things were true and
-  only the third is a defect: `maximize()` IS a real toggle (so the second phrasing worked),
-  `attention.mentions_fullscreen` correctly stopped the close-backstop from closing the whole widget
-  (V2-600), and **`fullscreen_widget` REQUIRED `widget_id`** — described as «el widget a AMPLIAR», which is
-  one-directional prose on a two-directional toggle — while the sentence names no widget. Inventing an id
-  is forbidden (V2-026), so the model's only remaining moves were to call nothing or to confabulate, and it
-  did both.
-  - **The operator's reading was the correct one**: one card at full screen, almost nothing else open — the
-    target was not ambiguous, it was *obvious*. And the canvas KNEW it: `card._restore` is the maximize
-    marker, and the report that already travels on every `_persist()` carried `min` and not `max`. Same
-    shape as V2-603's connector: **given a verb and no state, the model narrates.** A verb whose object the
-    system can see and the model cannot is a verb the model declines to use.
-  - **The fix went in the ARGUMENT, not the prose.** The verb mapped fine — the very next turn proves it —
-    and the tool catalogue is paid on EVERY voice turn (INI-027) and had **three characters of headroom**.
-    `widget_id` stops being required, its description says VACÍO = the one at full screen, and the catalogue
-    came out **9 chars smaller** than before. Four seams: `desktop.js` reports `max`, `/api/canvas/state`
-    keeps `state.maximized_widget`, `widgets/brief` marks that row, and `show_target.fullscreen_target`
-    decides the target ONCE for both channels (the probe is a parallel impl by design — V2-252).
-  - **The dangerous half, found by a disarm.** With NOTHING at full screen and ONE widget open — the
-    operator's own most common canvas — `identify` happily resolved «sal de pantalla completa» to that
-    widget, and `fullscreen_widget` is a TOGGLE: acting on it would have put the card INTO full screen, the
-    exact opposite of the order. An empty argument now means «the one at full screen» and NOTHING else;
-    with none, the honest result is nothing and the caller asks. ⚠️ My first version of that test opened
-    TWO widgets, so the single-widget fallback walked straight through it — **the test has to stand in the
-    operator's canvas, not in a convenient one**.
-  - **Also true and NOT fixed here**: the «Hecho.» itself. `susurro/friction.py` detected it in the same
-    second — «data-op fantasma (charló y dijo que actuaba sobre un widget, sin ejecutar la tool)» — and was
-    **in cooldown, so nobody was told**. That detector is diagnostic, not corrective; a general "claimed
-    done, called nothing" repair is its own batch and is named, not built.
-  - **The number was already taken.** V2-605 belongs to the card-question initiative; `probe.py` carried its
-    references before this work started. Renumbered to 609 at closure — and the rename then clobbered seven
-    of those pre-existing references, which is the second half of the same trap: *reserve the number when
-    you TAKE it, and rename by hand.*
-  - Node **4.117** (16 cases, 12 verified disarms). **Verified live** on `3.26+3223c6a` in both directions.
-
-- **The video widget OWNS its library; the connector only EXTENDS it (V2-604, 2026-09-07)**: operator's
-  direction, verbatim in spirit — «it is more important to me that the video widget is responsible for
-  storing the data. We don't want external dependencies. Our core, our engine, our memory, our widget are
-  the ones who have control.» Followed channels, watch history, preferences/filters and saved lists moved
-  into `widgets/youtube/library.py` and the widget's own store. **Every test in node 4.116 runs with the
-  account connector ABSENT**, which is also its real state (V2-603 F2 hid it): nothing here may ask it
-  anything or degrade without it.
-  - **The history is ours BECAUSE WE PLAY THE VIDEO.** Recorded in the two places playback really starts
-    and nowhere else, so `add`/`search` — which never autoplay (V2-366) — never enter it; a replay MOVES
-    the row and bumps `plays`. It is not a copy of anything: the YouTube API's watch history has returned
-    empty for every account since 2016, so this is the one video fact a connector could never hand us. The
-    ownership argument and the capability argument point the same way, which is why the operator's instinct
-    here was the stronger architecture and not merely the more independent one.
-  - **A "minimum 720p" rule is only checkable at the PLAYER.** Measured, not assumed: the results page does
-    not publish definition — of ~20 hits only 4K carries a badge at all — so `_search_many` can never
-    enforce it. `widget.js` reports `availableQualityLevels` from the `infoDelivery` the player already
-    sends (once per video; that stream fires several times a second and each report is a store write), and
-    `player_quality` checks it. It **WARNS and never skips**: he asked for THIS video, and an explicit order
-    outranks a standing filter — the same line `block_channel` draws for a pasted link. Levels that carry
-    no information (`auto`/`default`) produce no verdict, because guessing from them would invent a
-    complaint about a video that may be fine.
-  - **A preference we cannot enforce is stored as a NOTE and says so.** Only `min_definition`, `captions`
-    and `volume` are applied; anything else lands in `prefs_notes` with an answer that states plainly it
-    will be honoured by judgement, not forced. Storing an unenforceable rule as though it were enforced is
-    exactly the "true sentence about the wrong mechanism" V2-603 already paid for. `captions` re-asserts on
-    every video; `volume` only when playback starts from nothing — a preference that undoes his last
-    explicit order is not a preference, it is a bug with a settings screen.
-  - **Two defects the tests caught, both mine.** (1) `_seed()` guarded only against sharing its LISTS, and
-    its own docstring records the V2-366 bug that put that guard there; `prefs` arrived as the first DICT
-    in the seed and went straight through, so a preference set in one session was still in the next
-    widget's "empty" state. **A guard written against one container type is not a guard against aliasing.**
-    (2) The preference VALUE was matched more strictly than the key — the table held `si`, the operator
-    says `sí` — so the first sentence anyone would speak in Spanish was refused. Both were found by writing
-    the test in his words rather than in the API's.
-  - **The action gate now follows one level of delegation** (`widgets/validator.py`). It read `data.py`
-    only, so V2-025's rule (a declared action needs a branch HERE) and the architecture ratchet (pay a
-    growing file by EXTRACTING a module) pulled in opposite directions — leaving "keep the whole dispatch
-    in one god file" as the only green option for every widget, forever. It still fails closed in both
-    directions, and anything it cannot resolve statically is simply not counted.
-  - Node **4.116** (29 cases, **13 verified disarms**). ⚠️ **One disarm came back GREEN**: removing the
-    delegate-following from the gate changed nothing, because the test read the manifest directly instead
-    of exercising the gate — a test that asserts the RESULT of a mechanism does not test the mechanism.
-  - **Verified live** on `3.26+7b80c5b`: the library fields serve, the four preference paths answer, and
-    the probe data was cleaned back out of the operator's real widget. ⚠️ **NOT verified live: the quality
-    readback itself** — that the IFrame API emits `availableQualityLevels` inside `infoDelivery` needs a
-    real browser with the agent running. The server side is covered; the wire is not.
-
-- **Two screens, ONE widget (V2-574, 2026-09-04)**: nobody had ever rendered a widget at phone width — 4.18
-  checks the shell's contract, 4.19 the dock's pixels, 4.87 the deck's navigation, and the CONTENTS of the cards
-  were never looked at. Worse, the house style every widget is built against (`widgets/AGENTS.md`, quoted into
-  every generation by `generator.py::_CONTRACT`) was pushing the wrong way: «prefer horizontal / grid layouts»,
-  «NEVER a tall single broken column», `width:min(620px,90vw)` — desktop advice written before the phone shell
-  existed, so an agent following it built for a desk. Measured across all 14 at 390px with real data: **widths
-  were fine** (no overflow, nothing off-screen) and the break was TOUCH — six widgets with 20-34px controls,
-  three with inputs at 11.5-13px (**below 16px iOS Safari zooms the page on focus and never recovers**). Fixed
-  in THREE layers: the guide + contract now say fluid sizing and that a single column is the right answer on a
-  phone; `validator.py` REJECTS a `min-width` over 360px (the one declaration no scroll container can absorb —
-  a wide `width` inside `overflow-x:auto` stays legal on purpose); and a HOST touch floor in
-  `frontend/mobile/app/styles.css` (44px controls, 16px inputs, scoped to `.zm-scroll` so the desktop is
-  untouched and widgets that do not exist yet are covered — checkbox/radio/range excepted, and
-  `.zm-scroll.zm-scroll` doubled instead of `!important` so a widget can still out-specify the floor).
-  ⚠️ **Two lessons paid**: the floor itself broke `archivos` (six icon buttons at 44px = 414px in a 366px card),
-  fixed with a wrap + `max-width:100%` on any box holding controls — after `:has(> button + button)` failed to
-  fire (a search box sits between them) and wrapping alone changed nothing (`flex:0 0 auto` means its width IS
-  its content). And **an empty widget cannot overflow**: nine of fourteen rendered their empty state, so the
-  first green run measured almost nothing — filled fixtures were added and `archivos` failed the moment it had
-  content. Node 4.111 prints which widgets were measured thin, so the claim never covers more than it measured.
-- **The voice SEES the open directory — a widget the operator is looking at publishes its truth (V2-576,
-  2026-09-04)**: session 0a93de06, favourites. Asked «¿cuántos restaurantes favoritos tenemos?» the brain
-  answered from stale memory pills («one») while the open contactos card showed FOUR — then, confronted,
-  CONFABULATED «la vista actual no lo muestra», and 18 s after a worker fixed the store to five it still said
-  «de los cuatro». The model had labels (`ref_index` → items line) but no meaning: nothing said «these ARE all
-  the favourites, four in total», and no tool reads the directory. Fixed with `contactos/data.py::
-  prompt_digest()` through the EXISTING `refs.prompt_digest` seam (open cards only): authoritative counts, the
-  current view filter, every row compact — and the block declares it outranks memory for counting/listing what
-  is stored, which is what kills the confabulation branch. Empty says EMPTY. Node 4.96 (+5, incl. end-to-end
-  through `brief.for_prompt`), disarm 5 red. **The chain behind it, measured and still partly open**: the
-  memory pills asserting widget-owned state (a favourite «in your list», an errand «still pending», a DELETED
-  widget's description) are never invalidated by widget events — yesterday that same stale pill made the add
-  flow SKIP El Fogón («que ya tenías») right after its real entry was deleted, and today it misled the fix
-  worker into trying the deleted widget first. That half is memory-domain work; the four measured pills were
-  manually superseded. Also open: the fast lane firing `show_view`+«Hecho.» on complaints/questions (x3), and
-  repair whispers hardcoding counts that anchor later turns.
-- **A widget event reaches the pills it outdates — the lifecycle chain (V2-577, 2026-09-04)**: closes V2-576
-  cause B for the class with a deterministic anchor. Lifecycle pills carry `[widget:<id>]` in their text (only
-  `widgets/lifecycle.py` writes them), and each new lifecycle write (created/deleted/restored) now passes the
-  widget's PRIOR anchored pills as `supersedes` — V2-565's plumbing applied at the writer chokepoint, so only
-  the newest chapter of a widget's story stays valid and recall stops serving a birth announcement next to its
-  own tombstone (measured: pill 1165's «was CREATED» sent the fix worker to a DELETED widget first). Targets
-  come from the new read-only door `memory.api.widget_trace_ids(wid)` (valid, slotless, `LIKE` with `_`
-  escaped — a legal slug char and a LIKE wildcard); the hook lives in `_mem_write(wid=...)`. The superseded
-  chain keeps created-at/deleted-at for auditing — history is never deleted, it is just no longer VALID. Pills
-  without the anchor (worker notes, distiller prose) are out of reach ON PURPOSE: matching by content invents
-  targets; the write-side rule (workers prefix their widget notes; a completion note supersedes its order pill
-  via the V2-565 offer) is proposed in the initiative, unbuilt. Node 1.3, three disarms (1/2/4 red). ⚠️ Three
-  `_mem_write` test doubles needed the new signature — and the first disarm round restored the UNCOMMITTED fix
-  with `git checkout`, wiping it: re-apply the edit, never checkout (V2-531's lesson, paid again).
-- **The sleep circuit review — five silent integrity holes in the REM process (V2-578, 2026-09-05)**: full
-  review of deep sleep (`rem.py`), light sleep (`consolidator.py`) and their writer/api seams, measured
-  against a copy of the live DB first. The healthy half stated (daily cadence holding, 8 valid insights,
-  0% heuristic writes); the five holes, none of which failed loudly: (1) a stale `embed_pending` marker on a
-  row that already CARRIES a vector was unclearable by construction (repair only selects vector-less rows) —
-  `hygiene()` counted it forever; the repair entrance clears them now. (2) **«unforget = flip the flag, no
-  reindexing» stopped being true the day `prune_invalid` was built**: a shell pruned >2d ago lost FTS +
-  vector + paraphrases, so revival produced a row no search could surface, with `meta.pruned=1` lying —
-  unforget re-adds the FTS row itself (recall works at once through the keyword half), drops the stamp, and
-  marks `embed_pending` so the nightly repair restores the vector. Only rows the pruner touched: FTS5
-  external-content has no upsert, re-inserting a still-indexed row would duplicate its entries. (3) pinned
-  invalid shells were never de-indexed (`pinned=0` filter) — pinned protects from DELETION, not de-indexing;
-  measured live, a superseded pinned profile shell held its vector 4 days and counting. (4) **the trust
-  boundary did not reach any dedup door**: exact dedup (writer + consolidator) and semantic dedup (writer
-  neighbor + rem cosine merge) all matched across trust classes — an untrusted verbatim echo could reinforce
-  a trusted pill, and worse, a trusted write could fold INTO a quarantined row where synthesis never sees it
-  again. Trust class is part of a fact's identity in all four doors now; slots stay `remember_external`'s
-  job. (5) `semantic_dedup`'s pair scan was pure Python holding the GIL — measured 24 µs/pair, **~28 s at
-  cap 1500** against a comment claiming "ms"; one numpy float32 matmul now (~70 ms, releases the GIL), with a
-  tested pure-Python fallback. Six disarms, mutations asserted, backups BEFORE the first mutation — and one
-  came back green because the retriever's LIKE rescue channel masked the missing FTS re-index: the sharpened
-  test asks the FTS INDEX itself (`MATCH` walks the index; a plain SELECT on external-content FTS5 returns
-  the content table's rows regardless, a measurement trap worth remembering). Suite: 646 passed.
-- **A voice fullscreen order must change the screen — requestFullscreen is gesture-gated and rejects in
-  SILENCE (V2-583, 2026-09-05)**: «Maximiza el video» routed perfectly twice (tool → `fullscreen` tag → SSE →
-  `desktop.fullscreen`) and nothing moved. `youtube` declares `fullscreen:"native"`, and the browser gates
-  `requestFullscreen()` on transient user activation — a voice order over SSE has none, so the call rejects
-  as a Promise AFTER the method returned true: the try/catch never saw it, no error anywhere, and the model
-  confabulated on top. Voice-driven native fullscreen never worked since its birth (2026-07-23). Fix in
-  `nativeFullscreen`: no activation → in-app `maximize()` (canvas filled, voice reachable, toggle restores);
-  no API or rejected promise → same fallback. Native stays for gesture-driven callers; exit needs no gesture.
-  ⚠️ **Why no test ever saw it**: Playwright's evaluate runs with CDP `userGesture:true` — the harness GRANTS
-  the activation a voice order never has, so the first version of the test passed `requestFullscreen` without
-  any gesture. Both refusal signals are simulated explicitly now (node 4.92, +3 checks; disarm 3 red, incl.
-  the unhandled rejection finally surfacing as a page error). Mobile Deck immune (its fullscreen just
-  navigates). Frontend-only: a page reload picks it up.
-- **The video widget gets an ACCOUNT — the video connector family, and the interior anchors to the parent
-  (V2-597, 2026-09-05)**: the operator's direction — replicate the MESSAGING pattern in the video widget
-  (platform icons in the header, a guided wizard when someone asks to connect, per-platform results never
-  mixed) and the HOME fed by his subscriptions under HIS filters. `connectors/video/` is the V2-557 family
-  shape (typed registry · PKCE oauth forked from photos · Data API v3 client · fail-safe facade ·
-  `/api/video/*`), one provider (YouTube, tier `readonly` ONLY — the write tier is deliberately not declared
-  until subscription management ships) but a FAMILY by design: adding a provider touches the registry + one
-  client, zero widget lines.
-  - **Quota facts that shaped the client**: `subscriptions.list` and `playlistItems.list` cost 1 unit/page;
-    a channel's uploads playlist is DERIVED (`UC…` → `UU…`), saving one `channels.list` per channel — a full
-    suggestions pull is ~26 of 10,000 free daily units.
-  - **The widget follows archivos, not mensajeria, for state**: youtube is PASSIVE, so every `apply_action`
-    branch must be declared — which is why credentials go through the ⚙ panel (`video-connect` card) and the
-    declared actions carry INTENT only (`open_connectors` the voice door with a timestamped `connect_focus`;
-    `connect_account` returns the consent URL, window opened synchronously on the click; `suggest` fills the
-    home band). `view_data` stays connector-free: platform rows are CACHED (`platforms_stale` computed from
-    age, the `needs_refresh` pattern) and the card asks for one `sync_platforms` when stale.
-  - **No background refresh, decided in writing** (V2-034 forces the decision): the operator's standing rule
-    is absolute control — the suggestions band fills when ASKED, never on a timer. `block_channel` sweeps
-    the band too, and a disconnect empties it.
-  - ⚠️ **Trap T3 found LIVED while wiring the ⚙ card**: the `fotos` family (V2-564) had registry rows and
-    NOBODY rendered them — no fams entry, no api.js helper, so there was nowhere to paste the Photos
-    client_id. Closed in the same seam (generic OAuth card for `fotos` + `video`).
-  - **The interior anchors to the parent card** (operator, live, with his screenshot: a maximized card kept
-    the widget at a fixed 680px hugging the left edge): `.hb-yt` is `width:100%` + `border-box` — the CARD
-    decides in every state — and the default footprint moved to `manifest.size` (680). And `maximize()` now
-    resolves a MISSING catalog meta lazily: a card restored on reload and maximized before the catalog fetch
-    answered never got its cinema class, so full-bleed silently depended on WHICH road opened the card.
-  - Nodes 5.13/5.14 (connector unit + LIVE roundtrip, skips with enable steps) and 4.4/4.53 additions; five
-    disarms, mutations asserted, all red; mural 4.92 green after the desktop.js change. **NOT verified live
-    against a real Google account** — the LIVE node is built whole and waits for the operator's OAuth client.
-    Doc: `.meshkore/docs/modules/zaelar-video-widget-and-account-connector.md`.
-
-- **A fullscreen order is about a SCREEN STATE, never a close — and cinema goes above everything (V2-600,
-  2026-09-05)**: the operator asked the video OUT of fullscreen and the widget CLOSED; reopening came back
-  «a pantalla completa pero dentro del escritorio». Read from his own observability (session `3050e623`),
-  three defects: (1) the STT rendered «cierra la pantalla completa» as «…completamente» — the hard-interrupt's
-  fullscreen guard demanded the exact bigram, missed, and «cierra»+«pantalla» fired close-ALL, once per glued
-  fragment; (2) the generic close backstop's only fullscreen guard was `fullscreen_widget in _tool_fired`, so
-  his complaint ABOUT the close («no que cerraras el widget del vídeo» — close verb + widget name, model called
-  nothing) closed `youtube` twice more; (3) the reopen looked «inside the desktop» because a voice order has no
-  user activation → V2-583's fallback gives in-app maximize+cinema, while his FIRST attempt rode a recent
-  click's activation window into true fullscreen — same order, two looks, a gesture RACE he cannot see.
-  - Fixes: `_FULLSCREEN_RE` tolerates «completamente» (a false veto hands the turn to the model; a miss
-    destroys the canvas); **`attention.mentions_fullscreen()` is the ONE copy** both close backstops (voice +
-    probe mirror) veto on — a turn mentioning fullscreen is never a whole-widget close for a backstop to
-    guess; **cinema covers the WHOLE viewport** (`position:fixed`+`!important` over maximize's inline
-    geometry, and `.hb-stage:has(.hb-cinema)` lifts the stage — its own z-index is a stacking context, so the
-    card alone could never beat the rail/chat); and **`_layout()` persists a maximized card at its `_restore`
-    geometry** — the full-canvas footprint was being saved as the card's normal size, so a close-while-maximized
-    reopened filling the desk.
-  - NOT seeded into the actionmap on purpose: `fullscreen` is a toggle and the map cannot see state; the exit
-    phrases name no widget. Nodes 3.x (+ wiring guard, comment-stripped, anchored on the backstop conditional)
-    and 4.92 (2 RENDERED checks). Five disarms, mutations asserted, all red. **Not verified live** — needs a
-    reload (frontend halves) and an engine restart (guard + vetoes).
-
-- **A stale connector error never greets a fresh open — and the state line OUTRANKS the window (V2-582,
-  2026-09-05)**: the operator opened the email connect screen days after a refused attempt and «No se pudo
-  conectar. Eso es un ENLACE…» was already on it; in the same session the agent claimed the email was
-  connected against `Email: error.` in its OWN prompt, and after the operator connected it live
-  (`Email: conectado.` from the next turn on) kept answering «no me ha quedado conectado», anchored on its
-  earlier sentences — the window beating the state line, both directions in five minutes (session
-  `e32b00f1`, read turn by turn before touching anything).
-  - **The banner belongs to the ATTEMPT, the status to the store.** `widgets/mensajeria/widget.js` keeps
-    module-lived `_attempted[platform]`: the error card renders only for a failure of THIS page session's
-    own connect attempt, and the connector list shows a stale-errored platform as plain «Sin conectar». The
-    store keeps `status:"error"` durably on purpose — the brain must keep knowing it is NOT connected.
-  - **A refusal ENDS the attempt** — found by RENDERING: `_busy` was only cleared on non-error advances, so
-    after a refusal the primary button sat disabled on «Conectando…» forever, with the banner's retry as the
-    only way out.
-  - **The state line speaks and RULES** (`connectors/messaging/brief.py`): `error` gets words («NO conectado
-    — el último intento falló») instead of the raw status the model filled in both directions, and the block
-    declares itself this turn's LIVE state that wins over the whole prior conversation, the model's own
-    claims named explicitly (V2-221: without the phrase inside, nothing to check itself against).
-  - **The worker knows the door** (`nucleo/dispatch_prompts.py`): the escalated worker invented
-    `nucleo.gmail_cli`, was denied a «gmail» tool, concluded — falsely — «no hay conector directo» and drove
-    the browser to webmail. The generic prompt now says messaging/email is read with
-    `widget_cli read mensajeria`, no gmail CLI or tool exists, and webmail-by-browser is the last resort.
-  - Design pass on the wizard (operator's ask): «Paso N de 3» into the step header, roomier boxes/inputs/
-    buttons, and outside-work steps label their own advance («Ya la tengo — continuar»). Nodes 4.106 (+3
-    cases incl. the exact incident and the counterweight: a THIS-session refusal stays visible) and 5.12;
-    five disarms, mutations asserted, all red. Open, named in the initiative: the bare «Hecho.» that
-    swallowed half a compound order (V2-567 family), and «cuántos SIN LEER» having no exact answer while the
-    widget holds triaged items, not a mailbox count.
-- **The daemon is the piece that reads somebody's disk, so it gets an attacker with a name (V2-575 P0 security
-  pass + P4, 2026-09-06)**: audited, split into `security/` (WHETHER: never-served names · a PURE admission
-  decision over headers · a refusal throttle) · `fs/` (WHAT: the one permission circuit · a TOCTOU-safe open ·
-  one module per capability, READ ONLY) · `http/` (the plumbing that joins them), with `permissions.py`,
-  `files.py` and `server.py` as re-export shims. Threat model and stated limits:
-  `.meshkore/docs/security/zaelar-daemon-security.md`; build/install/release:
-  `.meshkore/docs/ops/zaelar-daemon-build.md`.
-  - **The hole that mattered: the Origin check CANNOT SEE A REBIND.** A page on `evil.example` re-resolved to
-    127.0.0.1 makes a SAME-ORIGIN request, which carries no `Origin` header at all — so the guard rested
-    entirely on `Sec-Fetch-Site`, one header away from nothing. `Host` betrays it (the browser still names the
-    site it THINKS it is on), exact match against the loopback names AND this daemon's port — `startswith` is
-    satisfied by `127.0.0.1.evil.example`. Same class the engine already paid for in V2-601 T-14.
-  - **A body must be declared JSON**, which closes the browser vector ON ITS OWN: `text/plain`,
-    `x-www-form-urlencoded` and `multipart/form-data` are the only shapes a browser sends cross-origin with no
-    preflight, so requiring JSON forces a preflight that never succeeds.
-  - **Unauthorized attempts are AUDITED** — the old shape answered 401 before recording anything, so the single
-    most security-relevant signal there is left no trace in a log whose own docstring says refusals earn the
-    file — and COLLAPSED by a throttle, so a flood cannot push the interesting line off the end of a rotated
-    one. No lockout: every process here already runs as the user, so a ban is resettable by an attacker and
-    permanent for the person who mistyped their own token.
-  - **Every guard answers with the SAME 401 and sentence.** Naming which one fired turns «try things until
-    something works» into «read the error and adapt». The precise reason goes to the log.
-  - Also: a 500 no longer narrates its exception text (absolute paths, internal names) to the caller who most
-    wants it; `S_ISREG` + `O_NOFOLLOW` + the descriptor's OWN path re-checked against the boundary (`F_GETPATH`
-    / `/proc`, which catches a directory swapped MID-path — **Windows is a stated limit, not a solved
-    problem**); the never-served list grew what is actually on a disk (browser cookie stores, `.env.*`,
-    `.git/config`, shell history), normalized for case AND Unicode form because macOS stores names decomposed;
-    granting `$HOME` or a system folder is refused (a name list is not a boundary — home is the machine minus a
-    list); numbers off the wire are clamped instead of `int()`-ed into a 500; concurrency, body size and
-    connection lifetime are bounded.
-  - ⚠️ **The split cost a boot**: `fs/__init__.py` re-exported the FUNCTION `roots` over the SUBMODULE of the
-    same name, so `from ..fs import roots` handed a function to code that wanted the module — no import error,
-    a failure on the first attribute access, in whichever file wrote the shorter import. Guarded (7.40).
-  - **P4 — two artifacts, no administrator, and no self-updater.** A 50 KB stdlib `zipapp` (always buildable,
-    reproducible, zero build deps) beside a PyInstaller onefile; per-user LaunchAgent / scheduled task, so an
-    install never needs elevation — **a security property first**: a per-user daemon that needed it could then
-    reach every account. **Re-running the installer IS the upgrade path.** No auto-update on purpose: an update
-    channel that downloads and executes without a signed artifact is remote code execution by design, and this
-    is the worst possible daemon to put one on.
-  - **Verified where, because it is not everywhere.** macOS by hand end to end (built → installed into a temp
-    HOME → launchd ACCEPTED and ran the agent → it deferred to the already-running instance without
-    restart-looping → uninstalled, job gone). **The Windows half was written with no Windows and no PowerShell
-    on the machine**; `.github/workflows/daemon-artifacts.yml` is what turns that into a measurement, parse-
-    checking the scripts, building the .exe, and asserting a `Host: evil.example` request still gets a 401 —
-    the one regression that would ship a daemon which starts and defends nothing.
-  - Nodes **7.40** (hostile local process, seven disarms with each mutation ASSERTED before measuring) and
-    **7.41** (built, run from the artifact, installers name what the build produces, no elevation).
-
-- **The controls exist; a ROBOT runs them now — the audit remediation tier (V2-601 T-01..T-14, 2026-09-05/06)**:
-  the full-system audit's verdict on «this looks vibe-coded» was that the engineering controls were real and
-  UNOPERATED — the architecture ratchet sat RED on clean main and nobody saw, because nothing ran it. The
-  operator ordered the safe tier executed whole. What changed, one commit per task (`c95d8ee..217ac55`, each
-  with tests + verified disarms; full deterministic run 7473 green on the release tree, tagged v3.26/build 11):
-  · **CI on every push/PR** (`.github/workflows/ci.yml`): syntax sweep + ruff F/E9 + `tests/infrastructure`
-    (every ratchet). Its FIRST three runs caught a non-hermetic daemon e2e (it read the REAL `$HOME`) and then
-    caught the very session that created it (dispatch over its ceiling + a duplicate testmap id) — a robot
-    sees what a person running «their neighbourhood's suites» does not, which was the audit's whole point.
-  · **The red ratchet paid by extraction, never a ceiling**: `surface_ack.py`, `results/sheet_names.py`,
-    `probe_actionmap.py`, `providers/flow_lifecycle.py` — AST-identical moves with re-exports; the actionmap
-    wiring guards follow the CHANNEL (both files), per V2-555.
-  · **ruff F+E9 at the door** (no formatter — N agents share the tree; `tests/use_cases/` excluded whole,
-    arnés territory). Its first run found a REAL dead branch in the voice hot path: the V2-090
-    «a correction merges into the live task's flow» adopt call used `_trace` with the name never in scope —
-    it died as a NameError inside its own `except: pass` on EVERY firing since it shipped. The lint gate is
-    that class's regression guard now (the third paid instance after V2-348/V2-555).
-  · **A lockfile** (`constraints.txt` from the venv that runs the operator's engine — pinning to it is zero
-    behavior change by construction), the livekit-plugins stack pinned, a Python floor at the door.
-  · **Security seams closed, each with a reproduced test**: a peer's text can no longer ride the cluster
-    SYNTHESIS past the fence (neutralized at the write AND at the read, covering already-poisoned installs);
-    the originless same-origin GET from a DNS-rebound page is refused by the Host header (live-verified);
-    the widget generator runs from a SCRATCH cwd (the repo-root cwd shipped `engine/CLAUDE.md` AND the
-    private parent `CLAUDE.md` to the external provider on EVERY generation) with the dev-worker PreToolUse
-    jail reused as a MECHANICAL write-jail — probed first: acceptEdits happily writes an absolute path
-    outside the cwd, and path-scoped `Write(<dir>/**)` rules deny even matching paths, so cwd alone was
-    never confinement (la capacidad se MIDE, no se lee); the dev worker's jail fails CLOSED (no settings
-    file → ZERO tools, never unjailed) and its env is an ALLOWLIST (the process env carries every key
-    `.env` loads, and a peer-driven worker reads none of them now).
-  · **Correctness**: `create_app`'s broad except is gone — a configured brain whose routers fail to mount
-    RAISES where the release smoke can see it (V2-554's own prescription; the old shape booted «green» with
-    no probe, no worker plane, no browser bridge); `/api/cron` mounts only under the brain whose loop fires
-    the jobs (the V2-121 silent-alarm class); memory ingestion marshals to ONE home loop (its serializing
-    `asyncio.Lock` cannot span the engine's two loops — contended cross-loop it poisoned itself and lost
-    writes in silence); the client's close-all copy learned V2-600's fullscreen veto (the third handle);
-    `make test-widgets` is GREEN 14/14 (the results sheet's identity rides the payload instead of a fetch,
-    `results` sits in the curated `_STDLIB_EXEMPT` with its reason written, navegador's phantom golden
-    drift seeded away) — while it sat red, a NEW violation in any widget was invisible.
-  Still the operator's: the LICENSE (T-03 — the repo declares itself open source with no license file) and
-  this very file's compaction policy (T-18). The P2/P3 structural tier stays in V2-601.
-
-- **The A2A card names SKILLS, not a contact URL (V2-616, 2026-09-08)**: `parcelpilot` shipped, was
-  discoverable in both languages, and every errand 404'd — we posted to `/v1/search` while its card said
-  `skills: [{"id": "track-parcel"}]` and it served `/v1/track-parcel`. `_skill_path` read
-  `card["contact"]["http"]`, a field the current A2A card does not carry, and fell back to `/v1/search`. That
-  default only ever worked because the older agents keep `/v1/search` as a **legacy alias**; `parcelpilot` is
-  the first built without one, so **every new agent would have 404'd on arrival**, `placescout` included. The
-  contract was documented from day one («read the card, call `POST /v1/<skill-id>`») and never implemented —
-  the alias hid it. Now the skill id is the fallback, with an explicit `contact.http` still winning so nothing
-  that works today is rerouted. **The shape:** a default that is never exercised is not a default, it is an
-  untested branch — and the first new participant is what tests a compatibility path, by which time it is
-  production.
-
-- **An empty answer is not a served errand (V2-602, 2026-09-06)**: asked in English for sneakers, the mesh
-  answered `ok: True` with **zero rows** — `ebay-finder` ranks first, its eBay lane is a sandbox, and `serve`
-  took its `count: 0` and never reached `ybana`, which had twenty real offers. The same shape made my own
-  sweep wrong the day before: `compras → ebay-finder · 183B ok=True` was recorded as a working vertical, and
-  183 bytes is `{"count": 0, "offers": []}`. Now an empty `ok` is held back as a FALLBACK — still returned
-  when nobody does better, because «nobody has this» is a real result, but it no longer ends the search while
-  a candidate stands. `_is_empty_payload` treats anything it cannot recognise as NOT empty, so an unreadable
-  payload is never discarded. **And it undoes a regression V2-596 introduced**: `ybana` answers `{"error":
-  "missing_product", "detail": "body.product is required"}` — actionable, but under diagnostic keys, so the
-  new split called it «the agent broke». The two are separable by WORDING, not key: a missing field says
-  *missing* or *required*; a broken upstream calls what it got *invalid*. English shopping went 0 → 10.
-
-- **The engine is licensed: Sustainable Use License 1.0, fair-code (V2-601 T-03, 2026-09-06)**: operator
-  decision, checked against the competition per-artefact — Hermes Agent and OpenClaw both ship MIT, which
-  grants everyone the right to sell and sublicense, the opposite of the intent (use it and modify it for
-  yourself; don't commercialize it; commercial exploitation stays with Zaelar). `LICENSE.md` carries the SUL
-  1.0 verbatim (the n8n fair-code license) with the third-party carve-out named; the vendored WhatsApp bridge
-  finally has its upstream MIT text in `connectors/whatsapp/bridge/LICENSE` (Copyright 2025 Nous Research) —
-  the frame INI-027 §9 asked for, provenance untouched. This is source-available, NOT OSI open source: every
-  "open source" claim in README and on zaelar.com was corrected the same day (live-verified). Never
-  reintroduce "open source" or "MIT" wording for this repo.
-- **This file compacts by ARCHIVING, never by deleting (V2-601 T-18, 2026-09-06)**: at 869KB/~210k tokens no
-  agent could load the whole log, so every reader got a nondeterministic slice. Now recent decisions stay
-  verbatim, everything older moved — byte-for-byte, order preserved — to
-  `.meshkore/docs/decisions-archive.md`, leaving a one-line citation per entry in the index below (the
-  closure trinquete requires every delivered initiative to stay CITED here; verified: zero citations lost,
-  all 363 entries verbatim in one of the two files). The size ratchet
-  (`tests/infrastructure/unit/test_claude_md_ratchet.py`, ceiling 400KB) trips when the log regrows; the
-  procedure to pay it is written in the policy note at the top of this section.
 
 ### Archived decisions — index (full text: `.meshkore/docs/decisions-archive.md`)
 
@@ -3933,6 +3122,16 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
 - **A KNOWN phrase skips the model — the ACTION MAP (V2-539, 2026-09-01)** (2026-09-01; V2-095, V2-539, V2-545)
 
 #### Movidas el 2026-09-14
+- **A voice fullscreen order must change the screen — requestFullscreen is gesture-gated and rejects in SILENCE (V2-583, 2026-09-05)** (2026-09-05; V2-583)
+- **The video widget gets an ACCOUNT — the video connector family, and the interior anchors to the parent (V2-597, 2026-09-05)** (2026-09-05; V2-034, V2-557, V2-564, V2-597)
+- **A fullscreen order is about a SCREEN STATE, never a close — and cinema goes above everything (V2-600, 2026-09-05)** (2026-09-05; V2-583, V2-600)
+- **A stale connector error never greets a fresh open — and the state line OUTRANKS the window (V2-582, 2026-09-05)** (2026-09-05; V2-221, V2-567, V2-582)
+- **The daemon is the piece that reads somebody's disk, so it gets an attacker with a name (V2-575 P0 security pass + P4, 2026-09-06)** (2026-09-06; V2-575, V2-601)
+- **The controls exist; a ROBOT runs them now — the audit remediation tier (V2-601 T-01..T-14, 2026-09-05/06)** (2026-09-05; V2-090, V2-121, V2-348, V2-554, V2-555, V2-600, V2-601)
+- **The A2A card names SKILLS, not a contact URL (V2-616, 2026-09-08)** (2026-09-08; V2-616)
+- **An empty answer is not a served errand (V2-602, 2026-09-06)** (2026-09-06; V2-596, V2-602)
+- **The engine is licensed: Sustainable Use License 1.0, fair-code (V2-601 T-03, 2026-09-06)** (2026-09-06; INI-027, V2-601)
+- **This file compacts by ARCHIVING, never by deleting (V2-601 T-18, 2026-09-06)** (2026-09-06; V2-601)
 - **A catch-all category must not outrank a specific match (V2-599, 2026-09-05)** (2026-09-05; V2-599)
 - **A broken upstream is not a request for fields (V2-598, 2026-09-05)** (2026-09-05; V2-487, V2-598)
 - **The workflow table: what serves this kind of errand (V2-594, 2026-09-05)** (2026-09-05; V2-487, V2-594)
@@ -3960,171 +3159,15 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
 - **ARCHIVOS EN LA NUBE: el tramo de permiso es el DISEÑO, y un permiso que no puede listar no es un disco vacío (V2-557, 2026-09-02)** (2026-09-02; V2-507, V2-520, V2-526, V2-540, V2-541, V2-545, V2-557)
 - **A refusal has to name what you PASTED, and a retry has to move something (V2-559, 2026-09-03)** (2026-09-03; V2-559)
 
-## Testing y rueda de mejora (INI-013)
 
-zaelar se prueba **solo, sin micrófono humano**, con un agente tester independiente que HABLA con zaelar y un
-JUEZ que evalúa lo que zaelar HACE (no lo que dice). **El PLAYBOOK autocontenido de "cómo se prueba" (trigger "lanza
-un test del bot", Paso 0 de alineación, prioridades, evaluación, archivado) vive en
-`.meshkore/docs/ops/zaelar-testing.md`**; el catálogo legible de escenarios en `tests/voice/e2e/agent/anexos/catalogo-escenarios.md`
-y el histórico de informes por día en `tests/voice/e2e/agent/reports/<YYYYMMDD>-<desc>/`. Docs canónicas:
-**«¿funciona todo bien?» → `./.venv/bin/python tests/run_testmap.py`**: el MAPA DE TESTS navegable — todo el testing
-ordenado por **DOMINIO → CASO DE USO → CANAL** (9 dominios, nodos `N.M`), responde con el árbol numerado
-"1.1 ✅, 1.2 ✅, 2.1 ✅…" y marca aparte los nodos VIVOS (exigen `make run`). Es la fuente de verdad de qué fichero
-cubre cada caso; la narrativa/segunda-opinión (cobertura, huecos, duplicación) en `tests/TESTMAP.md`. Se extiende
-1000→10000 por hojas (añadir ficheros a un nodo o un nodo nuevo), sin reescribir la espina. Docs canónicas:
-`.meshkore/roadmap/initiatives/INI-013-voice-tester.md` (registro de pruebas + oleadas),
-`.meshkore/docs/ops/zaelar-observability.md` (cómo depurar por logs), `.meshkore/docs/ops/zaelar-model-benchmarks.md`
-(modelos/latencias). Cómo funciona:
+#### Movidas el 2026-09-14 (V2-694)
 
-> **TRES formas de testing** (el DETALLE completo — cómo lanzar, formatos, evaluación — vive en
-> **`.meshkore/docs/ops/zaelar-testing.md`**, no aquí): (1) **MEMORIA** (`tests/memory/e2e/bot/`, taxonomía A–X);
-> (2) **VOZ e2e** (INI-013, `tests/voice/e2e/agent/`) — realista, lento, con ruido de STT; (3) **canal de PRUEBA del FlashBrain por
-> TEXTO** (V2-032, el más RÁPIDO, headless) — **úsalo siempre que toques cerebro rápido / conversación / prompt /
-> memoria-estado / tools**: `make reset` → `make flash-serve` → `make flash T="…"` (ver el playbook para el resto).
+- **Two screens, ONE widget (V2-574, 2026-09-04)** (2026-09-04; V2-574)
+- **The voice SEES the open directory — a widget the operator is looking at publishes its truth (V2-576, 2026-09-04)** (2026-09-04; V2-311, V2-576)
+- **A widget event reaches the pills it outdates — the lifecycle chain (V2-577, 2026-09-04)** (2026-09-04; V2-577)
+- **The sleep circuit review — five silent integrity holes in the REM process (V2-578, 2026-09-05)** (2026-09-05; V2-578)
 
-Cómo funciona (canal de VOZ e2e, INI-013):
+#### Movidas el 2026-09-15 (V2-697)
 
-- **El tester** (`tests/voice/e2e/agent/`, `python -m tests.voice.e2e.agent.run`): se une a la MISMA sala LiveKit de zaelar como un **2º
-  participante**, **habla por TTS** y **escucha+transcribe con Deepgram STT**. Un cerebro **DRIVE** (DeepSeek vía
-  AIMLAPI) conduce el escenario/objetivo turno a turno. Uso: `./.venv/bin/python -m tests.voice.e2e.agent.run --scenario <id>` o
-  `--goal "..." --turns N`, `--no-open` para no abrir navegador. **Requiere zaelar ya arrancado** (`make run`). Bucle
-  nocturno: `tests/voice/e2e/agent/overnight.sh` + `tests/voice/e2e/agent/guard.sh`.
-- **El juez** (`tests/voice/e2e/agent/judge/`, GLM-4.6 vía Z.AI, fallback DeepSeek): se suscribe a `GET /events` (el bus del
-  observer) y evalúa el **comportamiento OBSERVABLE**: acciones de frontend (widgets `show`/`close`, navegador), tags
-  del cerebro, escalados, latencias reales. Escribe un informe por sesión en `tests/runs/agent/report_*.md` (+ `.json`,
-  versionados; los `.wav`/`.log` se ignoran).
-- **El prompt de iteración — el loop autónomo** (`/loop 20m <prompt>`, skill `loop`): re-invoca SIEMPRE el mismo
-  ciclo: **(1) guarda** (`curl /api/brain`; si no responde, `make run` y esperar) → **(2) prueba** la siguiente
-  oleada → **(3) arregla** en código si hay hallazgo → **(4) re-verifica** (reinicia si tocó `.py`) → **(5)
-  documenta** una entrada FECHADA nueva al final de INI-013 → **(6) repite**.
-- **Cron test→fix (cada 15 min) — el PROCEDIMIENTO ESTÁNDAR** (`tests/voice/e2e/agent/cron_tick.sh`, doc en INI-013 §Cron test→fix
-  loop): cada disparo prueba **UN caso de uso COMPLETO** (no saludos triviales) rotando por `tests/voice/e2e/agent/scenarios.py`
-  (mensajería · widgets · navegador/moto · conectores · memoria · búsqueda V2-022 · agenda · idea compleja…), el
-  JUEZ lo puntúa (`overall>=4` = PASS, `dispatch_dead`/null = INFRA), y el agente **arregla el código si falla**,
-  reinicia si tocó `.py`, **re-corre ese mismo escenario** y documenta. `cron_tick.sh` asegura zaelar UP, SALTA si el
-  operador está en vivo, rota con cursor y aplica watchdog. Se prueba contra la **cuenta viva del operador**
-  (autorizado: admin/pruebas; añadir/quitar datos reales OK, NUNCA crear perfiles ni romper).
-- **Oleadas de prueba (A-L)**, en INI-013: A=fiabilidad de escalada, B=directiva de estilo, C=memoria de arranque,
-  D=widgets, E/F=WhatsApp/Telegram, G=paste/ficheros, H=multilenguaje, I=latencia, J=regresión, K=widgets nuevos,
-  L=cron/proactividad.
-- **Evaluación A FONDO de la MEMORIA** (bot dedicado `tests/memory/e2e/bot/`): taxonomía de **24 dimensiones (A–X)**
-  anclada a los benchmarks del estado del arte (LongMemEval/LoCoMo/MemBench/MemoryAgentBench/MemConflict/BEAM/STALE/
-  Mem2ActBench) — alimenta la memoria incremental por el CAMINO REAL (`_brain_view`, sin LLM en la lectura) + pytest
-  de regresión + tester en vivo para lo que es del LLM. **Teoría canónica** en `zaelar-memory.md §Evaluación de la
-  memoria`; **mapa/cobertura** en `TAXONOMY.md`; **control de calidad cada 50 casos** en `EXIGENCIA.md`; oleadas
-  fechadas en INI-013. Fronteras abiertas (T175/T177/T178/T179/T181/T182/T183) y mejoras aplicadas en `V2-021`.
-- **Entrada primaria de memoria para agentes**: ejecutar
-  `./.venv/bin/python -m tests run memory --case memory::group::1.4::v4 --no-open`. Son 15 turnos naturales por el
-  gateway real CORAZÓN con extracción, descarte, slots/correcciones y recall; el operador los ve en `127.0.0.1:8765`.
-  Para aging/TTL/REM usar después `memory::group::1.4::timeline-6m` (966 pasos, 180 días, REM diario). Ninguna de
-  estas pruebas toca la memoria real del operador; todo caso tardío reconstruye su prefijo causal en una BD aislada.
-- **UN solo sistema de log** (`voice/observer.py::emit(kind,label,…)`): TODO evento —cerebro, widgets, transcripts,
-  `state`, `vad`/barge-in, `metric` STT/TTS/turno, `error`— se registra ahí y sale por SSE `GET /events` +
-  `.meshkore/logs/timeline-latest.jsonl` + `.meshkore/logs/sessions/<id>.jsonl` + el anillo de `/debug`. El motor de
-  voz (`agent.py`) llama a `emit()` directamente; `voice/engine/pipeline/instrument.py` **ya no** registra eventos —
-  solo el handshake de arranque (topic `vl2`, para el splash) y una grabación de mic OPCIONAL (`ZAELAR_RECORD_MIC`,
-  def OFF). El juez consume `GET /events`. Detalle en `zaelar-observability.md`. **Anti-flood (2026-07-12):** las
-  `VADMetrics` (y cualquier métrica sin latencias reales) NO se registran — se disparaban ~2/s de forma continua
-  (más con ruido de fondo), sin dato útil, y cada evento hacía 2 escrituras de fichero SÍNCRONAS en el hilo de voz
-  → floodeaban el SSE y sumaban latencia; se conservan STT/TTS/LLM/EOU con números. El puente `memory.updated`→SSE
-  va **coalescado** (trailing-debounce 400ms, `ZAELAR_MEM_SSE_COALESCE_MS`): una ráfaga de mutaciones de un turno =
-  UNA señal (el visor re-fetchea con debounce, no pierde reactividad). **Trazabilidad (V2-044,
-  `voice/trace.py`):** cada estímulo (frase del operador voz/chat, kickoff, probe, cron, chispa, tap de UI, peer
-  de cluster) nace con un **`trace` id** y TODA su cadena derivada (tools, tags, rails `span=rail:K`, workers
-  `span=worker:N`, navegador `span=web:tN`, memoria) llega sellada — ContextVar por `create_task`/`to_thread` +
-  costuras explícitas (payload de escalada→`SessionRecord.trace_id`, registro de tareas del navegador, run del
-  rail). El visor ◷ pinta un chip por fila (click→filtra la cadena) y el botón **⛓** alterna a la vista
-  **Trazas** (árbol frase→actor→eventos). Detalle en `zaelar-observability.md §Trazabilidad` + iniciativa V2-044.
-  **Filtro del visor = las PIEZAS del sistema, con inventario CERRADO (2026-08-09):** las familias son
-  **FlashBrain · Brain Workers · Memoria · Widgets · Sistema/Código · Pulso** (fuera «Principal», que era un cajón
-  de sastre), y **TODO `kind` emitido pertenece a una** — lo garantiza un test que recorre el código y falla si
-  alguien estrena un kind sin clasificarlo (`tests/infrastructure/unit/core/test_observer_categories.py`, nodo
-  7.6); antes caían filas que ningún chip gobernaba. Regla: **la familia dice QUÉ pasó, el `span`/`trace` dice
-  QUIÉN lo hizo** — la lectura de memoria de un worker es `memory`, no «worker»; para aislar por ACTOR está la
-  vista Trazas. **UN SOLO eje de filtro, el `kind`** (panel plegable «Filtros (N)» con el mapa COMPLETO de lo
-  filtrable —una fila por familia, su rótulo enciende/apaga la familia entera—, shift+click = solo ese) + cabecera
-  FIJA de columnas. **El último evento va ARRIBA (2026-08-10, decisión del operador): la lista crece por PREPEND y
-  el scroll es 100% manual** — eso RETIRA el «seguir el fondo» y toda su maquinaria (estado de seguimiento, ventana
-  de gesto, rAF, indicador): un estado que puede mentir sobre lo que estás viendo se elimina, no se blinda (falló
-  dos veces). Tabla completa en `zaelar-observability.md §El visor`. **Cada evento lleva
-  además `corr` (el FLUJO), `sid` (sesión de trabajo) y `uid` (instalación)**, y `bus/log.py` los sube a COLUMNAS
-  indexadas de `events` junto a `cat`/`kind`/`ms`/`model`/tokens → la observabilidad se CONSULTA por flujos en
-  vez de escanearse. Ver el módulo `observability/` y la iniciativa V2-090.
-- **Routing de modelos del tester**: DRIVE + juicio barato = **DeepSeek vía AIMLAPI**; juicio competente = **GLM-4.6
-  vía Z.AI**. Claves en `.env` + `.meshkore/credentials/tester.env` (gitignored).
-- **Docker SÍ se permite AQUÍ** (aislamiento, LiveKit dedicado del tester) — es la ÚNICA parte del proyecto donde
-  Docker es aceptable; el CORE de zaelar NUNCA depende de Docker.
-- **Limitaciones CONOCIDAS del arnés**: (a) `--goal` SIEMPRE usa canal VOZ; (b) el Deepgram STT del propio tester a
-  veces garbla/mezcla idiomas o "oye" el audio de zaelar → ante señal sucia, mirar `timeline-latest.jsonl`.
-
-## Deploy (producción)
-
-Ver `.meshkore/docs/deploy/zaelar-deploy.md` — instrucciones completas para Fly.io + CloudFlare TURN.
-Estado actual: **sin deploy en prod** (destruido por ahorro de costes).
-
-## Frontera PÚBLICO/PRIVADO — este repo es público (fair-code) y se lee desde fuera
-
-**`engine/` es el repo PÚBLICO.** Su código y su `.meshkore/` los lee cualquiera que clone zaelar. Por eso:
-
-- **NUNCA se documenta aquí nada de la NUBE ni del NEGOCIO**: control-plane, provisioner, facturación, backoffice,
-  tablas de la base central, precios, políticas de las cuentas de pago, decisiones de privacidad del producto
-  comercial. Eso vive en el `.meshkore/` de la RAÍZ del workspace (repo privado aparte) — ver `../CLAUDE.md`.
-- **El código puede tener costuras que un despliegue use y otro no** (una URL de servicio en una variable de
-  entorno, un id de usuario que venga del entorno). Lo que NO puede es NARRAR para qué sirven en un producto de
-  pago. La regla práctica: describe el MECANISMO («si `X_URL` está configurada, avisa a ese servicio; sin ella es
-  un no-op»), nunca el PRODUCTO («el provisioner inyecta esto en la Machine de cada cliente»).
-- Ante la duda, la pregunta es: *¿esto le sirve a alguien que se auto-hospeda?* Si la respuesta es no, no va aquí.
-
-⚠️ **Deuda conocida (2026-08-09):** este `CLAUDE.md` y varios docs de `.meshkore/` arrastran menciones a
-`INI-019`/`INI-020`, control-plane, provisioner y backoffice de ANTES de fijar esta regla, y el repo **ya está
-publicado**, así que el historial de git las conserva aunque se limpien hoy. Limpiar lo que queda es una tarea
-abierta (`V2-091`); a partir de ahora, no añadir más.
-
-## Hard rules
-
-- **COMMITEA PRONTO Y SIEMPRE — cada agente y cada sesión commitea SU propio trabajo.** En cuanto una tarea está
-  hecha se commitea, **incluso ANTES de probarla**: si algo sale mal se revierte (`git revert`/`reset`), pero perder
-  código NO es reversible. Con varios agentes/sesiones trabajando en paralelo, **un árbol de trabajo sin commitear
-  es la causa nº1 de pifostios irreparables** — un agente empieza a trastear encima de los cambios sin commitear de
-  otro y se lía un desaguisado que no entiende nadie. Reglas: (1) **trabajo terminado = trabajo commiteado**, con
-  mensaje claro de QUÉ y POR QUÉ; (2) **nunca cierres una sesión ni cambies de tarea dejando cambios sin commitear**;
-  (3) commitea en incrementos pequeños y coherentes, no un mega-commit al final; (4) si encuentras trabajo de OTRO
-  agente sin commitear, NO lo pises: commítealo aparte y atribuido, o pregunta. Tras commitear, **PUSHEA** (ver la
-  regla "Commitea Y PUSHEA siempre" más abajo — política del operador 2026-07-16). Barato deshacer un commit;
-  carísimo perder código.
-- **Con sesiones concurrentes, la protección NO está en cómo AÑADES sino en qué COMMITEAS: `git commit -- <rutas>`**
-  (2026-08-20, aprendido rompiendo el escritorio). La norma anterior —«stage fichero a fichero»— se siguió al pie de
-  la letra y no bastó: **`git commit` a secas commitea el ÍNDICE ENTERO, y el índice es COMPARTIDO** entre las
-  sesiones que trabajan en el mismo árbol. Ese día un commit del arnés se llevó dentro el borrado de un componente
-  que otra sesión tenía en el índice por un `git rm`, y HEAD quedó con un `import` apuntando a un fichero que ya no
-  existía: **el escritorio entero sin cargar**, y sin que fallara nada en el commit. Con pathspec se commitean solo
-  esas rutas desde el working tree y el resto del índice se ignora. La comprobación barata que lo acompaña:
-  **`git diff --cached --name-only` tiene que estar VACÍO antes de empezar** — si trae ficheros ajenos, alguien
-  llenó el índice y estás a un `git commit` de llevártelos. Y el detalle que se escapa siempre: en
-  `git status --short`, staged es `M ` (marca en la PRIMERA columna) y solo-modificado es ` M`; un espacio de
-  diferencia. **Si ya está pusheado, NO se reescribe `main` por una atribución**: el código no se pierde (un commit
-  no toca el working tree de nadie), solo queda mal atribuido, y reescribir historia compartida cuesta más de lo
-  que arregla.
-- No commitear `.env`, `.venv/`, `logs/`, `config/settings.json`, `config/connectors.json`, `config/v2.json`
-  (todos en `.gitignore`).
-- No commitear `~/.hermes/memories/USER.md` — es perfil personal (la memoria puede sembrarlo, solo-lectura), no va
-  en el repo.
-- **Nada que configure el usuario final se pone en `.env`.** Toda activación/credencial de un conector o integración
-  se maneja desde la UI (store `config/connectors.json`/`config/v2.json`, escrito por la UI; env solo fallback de
-  power-user). Un conector nuevo SIEMPRE trae su flujo de setup guiado en el widget.
-- **Commitea Y PUSHEA siempre** (política del operador, 2026-07-16): en cuanto una tarea/incremento está commiteado,
-  `git push origin <rama-actual>` para mantener origin al día. (Deroga la regla anterior "no push sin confirmación".)
-  Sigue en pie: NUNCA `pull`/`merge`/`reset`/`checkout` para traer una versión remota al local (el árbol local es la
-  verdad); nunca pushear `.env`/secretos/config gitignoreada; no mergear a `main` salvo que el operador lo pida.
-- **Cerebro de voz = NO-razonador** (regla dura): un razonador no cierra el turno a tiempo → zaelar se queda
-  lento/mudo. El FlashBrain (`nucleo/flash/`) usa solo modelos rápidos no-razonadores. **Modelo POR INVOCACIÓN**,
-  nunca una env global de modelo (concurrencia de sesiones). El routing (`fast` + `code_agent`) vive en `config/v2.py`
-  (gestionado por la UI).
-- No crear módulos sin declararlos en `.meshkore/public/cluster.yaml`.
-- No editar `.meshkore/roadmap/state.json` a mano — es un artefacto generado.
-- No crear carpetas `docs/` ad-hoc — toda la documentación va en `.meshkore/docs/<categoría>/`.
-- **El CORE de zaelar NO debe requerir Docker.** El servidor LiveKit corre desde el binario nativo `livekit-server`
-  (`make install-livekit`); Docker es solo un fallback opcional. El **sistema de testing (INI-013) SÍ puede usar
-  Docker** — esa es la única parte donde Docker es aceptable.
-
-<!-- OPERATOR_CONTENT_END -->
+- **«Sal de pantalla completa» needs no name — the canvas knew which card and never said so (V2-609, 2026-09-07)** (2026-09-07; V2-026, V2-540, V2-600, V2-609)
+- **The video widget OWNS its library; the connector only EXTENDS it (V2-604, 2026-09-07)** (2026-09-07; V2-366, V2-384, V2-603, V2-604)

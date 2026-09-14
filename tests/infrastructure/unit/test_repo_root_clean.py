@@ -30,11 +30,12 @@ ENGINE = Path(__file__).resolve().parents[3]
 # What the engine root is allowed to version: project entry points, packaging, and startup. No data.
 ALLOWED = {
     # LICENSE.md — Sustainable Use License 1.0, the repo's license (V2-601 T-03, 2026-09-06).
-    # .clinerules / GEMINI.md — the same class as AGENTS.md and CLAUDE.md, which were already here: the
-    # MeshKore daemon RENDERS one agent-instruction file per CLI from the one canonical preamble, and the set
-    # grows as CLIs are added. They are project entry points for an assistant, carry no data, and leaving them
-    # out would mean this guard goes red every time the daemon onboards another tool (2026-09-14).
-    ".clinerules", ".dockerignore", ".gitignore", "AGENTS.md", "CLAUDE.md", "Dockerfile", "GEMINI.md",
+    # AGENTS.md / CLAUDE.md — the TWO agent-instruction files, and there are two on purpose. There used to be
+    # five (`GEMINI.md`, `.clinerules`, `.cursor/rules/meshkore.mdc` too), one per CLI, each a 400KB copy of
+    # the same text — and on 2026-09-15 four of them were a batch behind, each ready to hand whoever read it a
+    # stale set of rules. `CLAUDE.md` holds the content (it is the one loaded automatically); `AGENTS.md` is a
+    # short pointer to it, for every other tool. A sixth file per new CLI is not the answer either.
+    ".dockerignore", ".gitignore", "AGENTS.md", "CLAUDE.md", "Dockerfile",
     "LICENSE.md", "Makefile", "README.md",
     "conftest.py", "constraints.txt", "fly.accounts.toml", "fly.toml", "requirements.txt", "ruff.toml",
     "version.py", "zaelar", "zaelar.ps1",

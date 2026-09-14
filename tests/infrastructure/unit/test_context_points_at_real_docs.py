@@ -25,13 +25,30 @@ import pytest
 
 ENGINE = Path(__file__).resolve().parents[3]
 CLAUDE = ENGINE / "CLAUDE.md"
+DECISIONS = ENGINE / ".meshkore" / "docs" / "decisions.md"
 
 # Paths as they appear in the file: inside backticks, under .meshkore/docs/, ending in .md
 _CITED = re.compile(r"`(\.meshkore/docs/[^`\s]+\.md)`")
 
+# THE MESHKORE PREAMBLE IS NOT OURS (2026-09-15). Everything above `MESHKORE_PREAMBLE_END` is written into this
+# file by the MeshKore daemon from its own canonical text, and it cites conventions docs (`closure-protocol`,
+# `initiative-anchored-execution`, `standard-evolution`) that this cluster does not ship. Fixing them here is
+# not a fix: the next daemon pass overwrites the block. The guard covers what WE write — the operator block of
+# CLAUDE.md, and the decision log that moved out of it — which is where a rotten pointer is our own doing.
+_PREAMBLE_END = "<!-- MESHKORE_PREAMBLE_END -->"
+
+
+def _ours() -> str:
+    body = CLAUDE.read_text(encoding="utf-8")
+    if _PREAMBLE_END in body:
+        body = body.split(_PREAMBLE_END, 1)[1]
+    if DECISIONS.is_file():
+        body += DECISIONS.read_text(encoding="utf-8")
+    return body
+
 
 def _cited() -> list[str]:
-    return sorted(set(_CITED.findall(CLAUDE.read_text(encoding="utf-8"))))
+    return sorted(set(_CITED.findall(_ours())))
 
 
 def test_there_are_pointers_at_all():
@@ -42,7 +59,7 @@ def test_there_are_pointers_at_all():
 @pytest.mark.parametrize("rel", _cited())
 def test_every_cited_doc_exists(rel):
     assert (ENGINE / rel).is_file(), (
-        f"CLAUDE.md manda leer `{rel}` y ese fichero no existe. O se movió (arregla la cita) o se borró "
+        f"nuestra documentación manda leer `{rel}` y ese fichero no existe. O se movió (arregla la cita) o se borró "
         f"(quita la cita): un puntero roto deja al siguiente agente trabajando sin el contexto que lo justifica.")
 
 

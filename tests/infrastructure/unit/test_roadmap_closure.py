@@ -37,6 +37,23 @@ import pytest
 
 ENGINE = Path(__file__).resolve().parents[3]
 ROADMAP = ENGINE / ".meshkore/roadmap/initiatives"
+# 2026-09-15 — the decision log moved OUT of CLAUDE.md (which is a rules file, loaded whole by every agent)
+# into `.meshkore/docs/decisions.md`. The property this guard protects is unchanged — «delivering without
+# writing the decision down is how the next agent repeats the work» — only where it is written. Both the live
+# log and its archive count: an archive pass leaves the citation in the live log's index, and a citation that
+# has aged into the archive is still a citation.
+_DOCS = ENGINE / ".meshkore" / "docs"
+
+
+def _decisions() -> str:
+    out = (ENGINE / "CLAUDE.md").read_text(encoding="utf-8")
+    for name in ("decisions.md", "decisions-archive.md"):
+        f = _DOCS / name
+        if f.is_file():
+            out += f.read_text(encoding="utf-8")
+    return out
+
+
 CLAUDE = ENGINE / "CLAUDE.md"
 
 _ID_RE = re.compile(r"\bV2-(\d{3})\b")
@@ -128,12 +145,12 @@ def test_el_frontmatter_coincide_con_el_nombre_del_fichero():
 def test_toda_decision_citada_en_CLAUDE_tiene_su_iniciativa():
     """The decision is written in `CLAUDE.md` and the file is forgotten — or vice versa. Either half
     on its own leaves the context telling half a story."""
-    body = CLAUDE.read_text(encoding="utf-8")
+    body = _decisions()
     files = _initiative_files()
     citados = {f"V2-{m}" for m in _ID_RE.findall(body)}
     faltan = sorted(i for i in citados if i not in files and i not in _DEUDA_SIN_INICIATIVA)
     assert not faltan, (
-        f"CLAUDE.md cita {faltan} y no existe su iniciativa en .meshkore/roadmap/initiatives/. "
+        f"el diario cita {faltan} y no existe su iniciativa en .meshkore/roadmap/initiatives/. "
         f"Cerrar una iniciativa son las DOS mitades — o añádela, o (si es deuda vieja de verdad) declárala en "
         f"_DEUDA_SIN_INICIATIVA con un motivo.")
 
@@ -152,9 +169,9 @@ def test_la_deuda_no_crece_ni_se_queda_rancia():
 def test_toda_iniciativa_entregada_esta_citada_en_CLAUDE(iid):
     """`delivered` without a citation in `CLAUDE.md` = completed work that the next agent will not find. That is how
     six versions of drift accumulated."""
-    body = CLAUDE.read_text(encoding="utf-8")
+    body = _decisions()
     assert iid in body, (
-        f"{iid} está entregada y no se menciona en CLAUDE.md — añade su decisión clave o baja el status")
+        f"{iid} está entregada y no se menciona en .meshkore/docs/decisions.md — añade su decisión clave o baja el status")
 
 
 # ── the verification task hangs off the CASE, not the fix (2026-08-20) ─────────────────────────────────────

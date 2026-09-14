@@ -126,4 +126,6 @@ def test_agent_context_points_to_the_canonical_testing_guide():
     assert guide.exists()
     assert "http://127.0.0.1:8765" in guide.read_text(encoding="utf-8")
     assert "tests/README.md" in (ENGINE / "CLAUDE.md").read_text(encoding="utf-8")
-    assert "tests/README.md" in (ENGINE / "AGENTS.md").read_text(encoding="utf-8")
+    assert "tests/README.md" in (ENGINE / "CLAUDE.md").read_text(encoding="utf-8")
+    # AGENTS.md is the pointer every other CLI finds; it has to lead somewhere (2026-09-15).
+    assert "CLAUDE.md" in (ENGINE / "AGENTS.md").read_text(encoding="utf-8")
