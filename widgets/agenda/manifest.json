@@ -53,7 +53,7 @@
   ],
   "entry": "widget.js",
   "dataSchemaRef": "schema:DB",
-  "usage": "Añade citas con add_meeting (title+date+startTime; opcionales attendees/location/category/notes/allDay; cada cita crea su aviso ~2h antes) y TAREAS sin hora con add_task. Cancela con cancel_meeting, MUEVE de día/hora con move_meeting (title + newDate/newTime) y cambia sus DETALLES con update_meeting (status confirmed/pending cuando la otra parte responda, attendees, location, category, notes, newTitle). set_reminder mueve el aviso de una cita, y SIN title + con date pone avisos a todas las citas de ese día. Estado de tareas: done/snooze/not_now/drop (taskId). Para VACIARLA ENTERA usa clear_all (confirma; nunca tires elementos de uno en uno). Para CAMBIAR LA VISTA («la agenda de hoy/mañana», «enséñame el jueves», «vista semanal», «vista de mes», «la lista de lo que viene») usa show_day con day=hoy|mañana|<día>|semana|mes|lista — es la ÚNICA forma de mover lo que se ve; reabrir el widget siempre abre por hoy. Los detalles de cada cita (hora, aviso, quién viene, si está confirmada, notas) los tienes en su digest cuando la agenda está abierta, así que contéstalos sin preguntar. Para ENLAZAR con Google Calendar usa connect: deja la tarjeta en el paso de conectar y tú le dices que pulse el botón — el permiso lo da él en la ventana de Google, tú no puedes.",
+  "usage": "Añade citas con add_meeting (title+date+startTime; opcionales attendees/location/category/notes/allDay; cada cita crea su aviso ~2h antes) y TAREAS sin hora con add_task. Cancela con cancel_meeting, MUEVE de día/hora con move_meeting (title + newDate/newTime) y cambia sus DETALLES con update_meeting (status confirmed/pending cuando la otra parte responda, attendees, location, category, notes, newTitle). set_reminder mueve el aviso de una cita, y SIN title + con date pone avisos a todas las citas de ese día. Estado de tareas: done/snooze/not_now/drop (taskId). Para VACIARLA ENTERA y para siempre usa clear_all (confirma; nunca tires elementos de uno en uno). Para limpiar UN TRAMO usa clear_range con from y to (fechas habladas valen: «hoy», «mañana», «el lunes») — «esta semana» es from=lunes to=domingo. Si dice «menos X» o «excepto X», eso va en keep, que admite un nombre suelto («el zerohash») o {title, date, time} cuando nombre una hora («lo de mañana a las 15h» → {date:«mañana», time:«15:00»}). clear_all NO sabe conservar nada: cualquier orden con una excepción es clear_range. Para CAMBIAR LA VISTA («la agenda de hoy/mañana», «enséñame el jueves», «vista semanal», «vista de mes», «la lista de lo que viene») usa show_day con day=hoy|mañana|<día>|semana|mes|lista — es la ÚNICA forma de mover lo que se ve; reabrir el widget siempre abre por hoy. Los detalles de cada cita (hora, aviso, quién viene, si está confirmada, notas) los tienes en su digest cuando la agenda está abierta, así que contéstalos sin preguntar. Para ENLAZAR con Google Calendar usa connect: deja la tarjeta en el paso de conectar y tú le dices que pulse el botón — el permiso lo da él en la ventana de Google, tú no puedes.",
   "actions": {
     "add_meeting": {
       "desc": "añade una cita/reunión al día — crea SOLA su aviso por defecto (~2h antes), no hace falta pedirlo; acepta también quién viene, dónde, categoría y notas",
@@ -118,10 +118,20 @@
       "confirm_q": "¿Congelo el proyecto «{item}» entero y descarto sus tareas pendientes?"
     },
     "clear_all": {
-      "desc": "VACÍA la agenda entera de una vez: descarta todas las tareas pendientes, congela todos los proyectos y borra todas las citas y bloques. Úsala cuando el operador pida dejarla vacía «del todo»/«por completo»/«hoy y siempre», en vez de ir tirando elementos uno a uno",
+      "desc": "VACÍA la agenda ENTERA y para siempre: todas las tareas, todos los proyectos y TODAS las citas, de cualquier fecha. Solo cuando pida dejarla vacía «del todo»/«por completo»/«hoy y siempre». Para limpiar UN TRAMO (esta semana, estos días), y sobre todo si dice «menos…» o «excepto…», usa clear_range: clear_all no sabe conservar nada",
       "payload": {},
       "confirm": true,
       "confirm_q": "¿Vacío la agenda entera? Es permanente."
+    },
+    "clear_range": {
+      "desc": "Borra las citas de UN TRAMO de fechas, conservando las que él nombre. Es la acción de «limpia esta semana», «quita todo lo de estos días» y, sobre todo, de cualquier orden con «menos» o «excepto». `from`/`to` admiten fechas habladas (hoy, mañana, el lunes); `keep` es lo que NO se toca, como nombre suelto o como {title, date, time}",
+      "payload": {
+        "from": "str",
+        "to": "str",
+        "keep": "list"
+      },
+      "confirm": true,
+      "confirm_q": "¿Borro las citas de ese tramo? Es permanente."
     },
     "show_day": {
       "desc": "CAMBIA EL DÍA O LA VISTA que se está viendo en la agenda («muéstrame mañana», «el jueves», «la semana», «el mes», «la lista»). No modifica ningún dato: solo mueve lo que se ve. Es obligatoria para eso — mostrar el widget de nuevo lo abre siempre por HOY",

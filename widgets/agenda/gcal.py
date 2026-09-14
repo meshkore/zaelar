@@ -12,6 +12,8 @@ from __future__ import annotations
 
 import time as _time
 
+from loguru import logger
+
 # CALENDAR CONNECTORS shown in the agenda's header (V2-540). Deliberately a READ of the real inventory, never
 # a hardcoded «off»: the day a calendar connector is registered under this family it lights up here with
 # nothing else to change. V2-679 built exactly one of the three (Google) — the honest answer for the other
@@ -115,16 +117,33 @@ def patch_google(m: dict) -> None:
         pass
 
 
-def delete_google(m: dict) -> None:
+def delete_google(m: dict) -> bool:
+    """Delete this meeting's Google event. True when it is really gone THERE, False when it is not.
+
+    ⚠️ This returned None and swallowed both the exception AND the service's own `{"ok": False}` (V2-693).
+    A refusal, a 404, an expired token and a network drop were all indistinguishable from success — so
+    `cancel_meeting` and `clear_range` removed the local row, reported «borradas: N», and the next sync
+    quietly pulled the survivors back from Google. Measured on the operator's own calendar the same day:
+    42 rows reported deleted, four of them still in Google afterwards with their `updated` stamp untouched
+    — proof they had never been asked to go. He had already said what that costs: «necesitamos un sistema
+    estable».
+
+    A row that is not `source: google` has nothing to delete there and answers True: there is no debt.
+    Still best-effort in the sense that it never raises — but the caller now LEARNS, and can say so."""
     if m.get("source") != "google":
-        return
+        return True
     s = svc()
     if s is None:
-        return
+        return False
     try:
-        s.delete_event(m)
-    except Exception:  # noqa: BLE001
-        pass
+        res = s.delete_event(m) or {}
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"agenda: no pude borrar «{m.get('title')}» de Google ({e!r})")
+        return False
+    if not res.get("ok"):
+        logger.warning(f"agenda: Google no borró «{m.get('title')}»: {res.get('error') or res}")
+        return False
+    return True
 
 
 # How long a pushed CONNECT screen stays fresh. Same shape as `data._VIEW_TTL_S` and shorter on purpose:

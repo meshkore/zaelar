@@ -2624,10 +2624,23 @@ class NucleoLLMStream(llm.LLMStream):
             except Exception:
                 pass
 
-        # Confirmación abierta este turno sin que el modelo formulara la pregunta → la decimos nosotros (nunca
-        # mudo; el overlay Sí/No ya está en la tarjeta). Cubre borrado y data-op irreversible (V2-025).
-        if confirm_state.get("opened") and not spoken_text and escalate_req["v"] is None \
-                and search_req["v"] is None:
+        # Confirmación abierta este turno → la pregunta la decimos NOSOTROS, gane lo que gane el modelo.
+        # Cubre borrado y data-op irreversible (V2-025).
+        #
+        # ⚠️ Esto exigía `not spoken_text` hasta V2-693, con el razonamiento de «si el modelo ya dijo algo,
+        # ya formuló él la pregunta». Medido el 2026-09-14 en su propia sesión: pidió «limpia todo los items
+        # de esta semana, menos lo de mañana a las 15h y el inicio de instituto»; el modelo llamó a
+        # `agenda:clear_all`, el gate abrió la confirmación REAL («¿Vacío la agenda entera? Es permanente.»)
+        # — y como el modelo había hablado, esa pregunta se calló. Lo único que él leyó fue «Clearing this
+        # week from your calendar — keeping tomorrow at 15:00…»: una acción NARRADA como hecha que ni
+        # siquiera se había despachado, y cuyo alcance real era el calendario entero, no la semana.
+        # Su reacción es la medida del coste: «no ha funcionado la orden… necesitamos un sistema estable».
+        #
+        # Es exactamente la lección que el bloque de `clarify` de abajo ya aprendió el 2026-07-22 y que
+        # este no heredó: una señal DETERMINISTA («esto no se ha hecho y necesito tu sí») no puede perder
+        # contra una frase que el modelo se inventó. Y sustituye, no acompaña: la frase del modelo habla de
+        # algo que no ha pasado, así que dejarla delante es dejar la mentira delante.
+        if confirm_state.get("opened") and escalate_req["v"] is None and search_req["v"] is None:
             spoken_text = confirm_state["opened"]
             send(speech.sanitize(spoken_text, drop_metadata=False))
 

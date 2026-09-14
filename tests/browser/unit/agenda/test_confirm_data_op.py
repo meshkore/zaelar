@@ -202,3 +202,173 @@ def test_confirm_q_esta_declarada_donde_se_pide_confirmacion():
     sin_pregunta = [n for n, s in (man.get("actions") or {}).items()
                     if s.get("confirm") and not str(s.get("confirm_q") or "").strip()]
     assert not sin_pregunta, f"acciones que piden confirmación sin pregunta humana: {sin_pregunta}"
+
+
+# ── V2-693 · «MENOS ESTOS DOS» ES OTRA ACCIÓN, Y LA PREGUNTA DICE CUÁNTAS SE LLEVA ──────────────────────
+
+def test_clear_range_borra_el_tramo_y_conserva_lo_que_el_NOMBRA(agenda):
+    """⚠️ Su orden, 2026-09-14: «limpia todo los items de esta semana, menos lo de mañana a las 15h y el
+    inicio de instituto de lunes». La única herramienta en bloque era `clear_all`, cuyo alcance es TODO y
+    para siempre — así que el modelo la eligió y describió un borrado selectivo que esa acción no sabe
+    hacer. De haberse confirmado, las dos citas que pidió CONSERVAR se habrían ido igual."""
+    from widgets.agenda import data as ag
+    from widgets import store
+    db = ag.load_db()
+    db["meetings"] = [
+        {"title": "Dentista", "date": "2026-09-15", "startTime": "17:00", "endTime": "18:00"},
+        {"title": "Dentista", "date": "2026-09-16", "startTime": "10:00", "endTime": "11:00"},
+        {"title": "Gavin/Ricart zerohash blockchain intro", "date": "2026-09-15", "startTime": "15:00"},
+        {"title": "Inicio curso instituto", "date": "2026-09-14"},
+        {"title": "Notario", "date": "2026-10-02", "startTime": "17:00"},   # FUERA del tramo
+    ]
+    store.save(ag.WIDGET_ID, db)
+
+    r = ag.apply_action("clear_range", {"from": "2026-09-14", "to": "2026-09-20",
+                                        "keep": [{"date": "2026-09-15", "time": "15:00"},
+                                                 {"title": "Inicio curso instituto"}]})
+
+    assert r["ok"] and r["result"]["removed"] == 2
+    left = sorted(m["title"] for m in ag.load_db()["meetings"])
+    assert left == ["Gavin/Ricart zerohash blockchain intro", "Inicio curso instituto", "Notario"], left
+
+
+def test_un_tramo_NUNCA_toca_lo_de_fuera(agenda):
+    """La diferencia entera con `clear_all`: una semana es una semana."""
+    from widgets.agenda import data as ag
+    from widgets import store
+    db = ag.load_db()
+    db["meetings"] = [{"title": "Dentro", "date": "2026-09-15", "startTime": "10:00"},
+                      {"title": "Antes", "date": "2026-09-13", "startTime": "10:00"},
+                      {"title": "Despues", "date": "2026-09-21", "startTime": "10:00"}]
+    store.save(ag.WIDGET_ID, db)
+    ag.apply_action("clear_range", {"from": "2026-09-14", "to": "2026-09-20"})
+    assert sorted(m["title"] for m in ag.load_db()["meetings"]) == ["Antes", "Despues"]
+
+
+def test_un_keeper_por_TITULO_encuentra_la_cita_aunque_el_nombre_sea_mas_largo(agenda):
+    """«el zerohash» tiene que encontrar «Gavin/Ricart zerohash blockchain intro» — se compara como en el
+    resto de este widget: sin acentos, sin mayúsculas y por contención."""
+    from widgets.agenda import data as ag
+    from widgets import store
+    db = ag.load_db()
+    db["meetings"] = [{"title": "Gavin/Ricart zerohash blockchain intro", "date": "2026-09-15",
+                       "startTime": "15:00"},
+                      {"title": "Dentista", "date": "2026-09-15", "startTime": "17:00"}]
+    store.save(ag.WIDGET_ID, db)
+    ag.apply_action("clear_range", {"from": "2026-09-14", "to": "2026-09-20", "keep": "el zerohash"})
+    assert [m["title"] for m in ag.load_db()["meetings"]] == ["Gavin/Ricart zerohash blockchain intro"]
+
+
+def test_un_keeper_con_HORA_no_salva_el_resto_de_su_dia(agenda):
+    """«mañana a las 15h» es una fecha Y una hora. Casar solo por la fecha conservaría el día entero, que es
+    justo lo contrario de lo que pidió."""
+    from widgets.agenda import data as ag
+    from widgets import store
+    db = ag.load_db()
+    db["meetings"] = [{"title": "Salvada", "date": "2026-09-15", "startTime": "15:00"},
+                      {"title": "Va fuera", "date": "2026-09-15", "startTime": "17:00"}]
+    store.save(ag.WIDGET_ID, db)
+    ag.apply_action("clear_range", {"from": "2026-09-15", "to": "2026-09-15",
+                                    "keep": [{"date": "2026-09-15", "time": "15:00"}]})
+    assert [m["title"] for m in ag.load_db()["meetings"]] == ["Salvada"]
+
+
+def test_la_pregunta_dice_CUANTAS_se_lleva_y_QUE_conserva(agenda):
+    """Una confirmación que no cuenta lo que se lleva por delante es una a la que se dice que sí sin mirar.
+    La enlatada decía «¿Vacío la agenda entera?» — verdad de la acción, y sin relación con lo que él pidió."""
+    from voice.engine.llm.providers.confirm_gate import _human_confirm_question
+    from widgets.agenda import data as ag
+    from widgets import store
+    db = ag.load_db()
+    db["meetings"] = [{"title": "Dentista", "date": "2026-09-15", "startTime": "17:00"},
+                      {"title": "Consejo", "date": "2026-09-16", "startTime": "10:00"},
+                      {"title": "Zerohash", "date": "2026-09-15", "startTime": "15:00"}]
+    store.save(ag.WIDGET_ID, db)
+
+    q = _human_confirm_question("agenda", "clear_range",
+                                {"from": "2026-09-14", "to": "2026-09-20", "keep": "Zerohash"})
+
+    assert "2 citas" in q, q
+    assert "«Zerohash»" in q, "lo que se conserva se NOMBRA, o no se puede comprobar antes de decir que sí"
+    assert "permanente" in q.lower() and q.strip().endswith("?")
+
+
+def test_un_tramo_VACIO_lo_dice_en_vez_de_pedir_permiso_para_nada(agenda):
+    from voice.engine.llm.providers.confirm_gate import _human_confirm_question
+    q = _human_confirm_question("agenda", "clear_range", {"from": "2027-01-01", "to": "2027-01-02"})
+    assert "No hay ninguna cita" in q
+
+
+def test_una_confirmacion_abierta_no_puede_quedarse_MUDA_bajo_la_frase_del_modelo():
+    """⚠️ Medido el 2026-09-14 en su sesión, y es la razón por la que creyó que la agenda se había limpiado.
+
+        él      «limpia todo los items de esta semana, mnos lo de mañana a las 15h y el inicio de instituto»
+        sistema  data:clear_all (mode=confirm) → abre «¿Vacío la agenda entera? Es permanente.»
+        zaelar  «Clearing this week from your calendar — keeping tomorrow at 15:00 and the school start…»
+        (nada se borró, y la pregunta no se dijo NUNCA)
+
+    La condición exigía `not spoken_text`, razonando «si el modelo ya dijo algo, ya formuló él la pregunta».
+    Aquí dijo una acción TERMINADA que ni se había despachado, y cuyo alcance real era el calendario entero.
+    Es exactamente la lección que el bloque de `clarify` aprendió el 2026-07-22 —una señal determinista no
+    puede perder contra una frase inventada— y que este no había heredado.
+
+    Ratchet de FUENTE porque el bloque vive dentro del turno del proveedor de voz, que no se monta aislado;
+    el mismo patrón que `test_both_channels_wire_the_repair`. Lo que congela es la condición, no el texto."""
+    src = (ENGINE / "voice/engine/llm/providers/nucleo.py").read_text(encoding="utf-8")
+    i = src.index('if confirm_state.get("opened")')
+    cond = src[i:src.index(":\n", i)]
+    assert "not spoken_text" not in cond, \
+        "la pregunta de una confirmación abierta vuelve a callarse cuando el modelo habla"
+    assert 'spoken_text = confirm_state["opened"]' in src[i:i + 400], \
+        "y SUSTITUYE lo que dijo el modelo: su frase habla de algo que no ha pasado"
+    j = src.index('if clarify["msg"]')
+    assert "not spoken_text" not in src[j:src.index(":\n", j)], \
+        "el hermano de esta guarda perdió la suya"
+
+
+def test_una_cita_que_GOOGLE_no_borra_se_QUEDA_y_se_dice(agenda, monkeypatch):
+    """⚠️ La causa de fondo del 2026-09-14, y la más cara porque MIENTE: `delete_google` se tragaba tanto la
+    excepción como el `{"ok": False}` del servicio, así que un rechazo, un 404, un token caducado y un corte
+    de red eran indistinguibles de un éxito. La fila local se iba igual, el resultado decía «borradas: 42» —
+    y la siguiente sincronización traía de vuelta las que Google nunca había perdido."""
+    from widgets.agenda import data as ag, gcal
+    from widgets import store
+    db = ag.load_db()
+    db["meetings"] = [
+        {"title": "Se va", "date": "2026-09-15", "startTime": "10:00", "source": "google",
+         "googleId": "g1", "googleCalendarId": "c"},
+        {"title": "No se deja", "date": "2026-09-15", "startTime": "11:00", "source": "google",
+         "googleId": "g2", "googleCalendarId": "c"},
+    ]
+    store.save(ag.WIDGET_ID, db)
+    monkeypatch.setattr(gcal, "delete_google", lambda m: m.get("googleId") != "g2")
+
+    r = ag.apply_action("clear_range", {"from": "2026-09-15", "to": "2026-09-15"})
+
+    assert r["ok"] is False, "un trabajo a medias no puede contestar «hecho»"
+    assert r["result"]["removed"] == 1 and r["result"]["failed"] == ["No se deja"]
+    assert "No se deja" in r["error"], "se NOMBRA la que no pudo, no se cuenta"
+    left = [m["title"] for m in ag.load_db()["meetings"]]
+    assert left == ["No se deja"], \
+        "la fila que Google conserva se QUEDA: tirarla aquí la resucita en la siguiente sincronización"
+
+
+def test_delete_google_distingue_el_exito_del_silencio(agenda, monkeypatch):
+    from widgets.agenda import gcal
+    row = {"source": "google", "googleId": "g", "googleCalendarId": "c", "title": "X"}
+
+    monkeypatch.setattr(gcal, "svc", lambda: type("S", (), {"delete_event": staticmethod(lambda m: {"ok": True})})())
+    assert gcal.delete_google(row) is True
+
+    monkeypatch.setattr(gcal, "svc", lambda: type("S", (), {
+        "delete_event": staticmethod(lambda m: {"ok": False, "error": "no existe"})})())
+    assert gcal.delete_google(row) is False, "el servicio ya lo decía; era el envoltorio quien lo tiraba"
+
+    def _boom(m):
+        raise RuntimeError("red caída")
+    monkeypatch.setattr(gcal, "svc", lambda: type("S", (), {"delete_event": staticmethod(_boom)})())
+    assert gcal.delete_google(row) is False
+
+    monkeypatch.setattr(gcal, "svc", lambda: None)
+    assert gcal.delete_google(row) is False, "sin conector no se puede afirmar que Google la haya perdido"
+    assert gcal.delete_google({"title": "local"}) is True, "una cita que no viene de Google no debe nada allí"

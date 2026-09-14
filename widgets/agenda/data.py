@@ -366,6 +366,56 @@ def _cancel_reminder(meeting: dict) -> None:
         pass
 
 
+def _keep_list(payload: dict) -> list[dict]:
+    """What the operator asked to KEEP, as rows of `{title?, date?, time?}` (V2-693).
+
+    Three shapes reach here and all three are how a person says it: a plain string («el zerohash»), a list of
+    strings, or rows carrying a date and an hour («mañana a las 15h»). Anything unreadable is dropped rather
+    than guessed — a keeper we cannot read must never silently become a deletion."""
+    raw = payload.get("keep")
+    if raw is None:
+        raw = payload.get("except")
+    if raw is None:
+        return []
+    rows = raw if isinstance(raw, (list, tuple)) else [raw]
+    out = []
+    for r in rows:
+        if isinstance(r, str) and r.strip():
+            out.append({"title": r.strip()})
+        elif isinstance(r, dict):
+            row = {}
+            if str(r.get("title") or "").strip():
+                row["title"] = str(r["title"]).strip()
+            if str(r.get("date") or "").strip():
+                row["date"] = _resolve_date(str(r["date"]))
+            t = str(r.get("time") or r.get("startTime") or "").strip()
+            if t:
+                row["time"] = t
+            if row:
+                out.append(row)
+    return out
+
+
+def _kept(m: dict, keep: list[dict]) -> bool:
+    """Does this appointment match ANY keeper? A keeper with several fields must match all of the ones it
+    names — «mañana a las 15h» is a date AND an hour, and matching on the date alone would keep the rest of
+    that day. Titles compare the way the rest of this widget compares them: accent- and case-insensitive,
+    by containment, so «el zerohash» finds «Gavin/Ricart zerohash blockchain intro»."""
+    for k in keep or []:
+        if "date" in k and str(m.get("date") or "") != k["date"]:
+            continue
+        if "time" in k and str(m.get("startTime") or "") != k["time"]:
+            continue
+        if "title" in k and not _titles_overlap(k["title"], m.get("title")):
+            # `_titles_overlap` and NOT plain containment: it is this widget's OWN judgement (V2-473 round 6,
+            # reused by the twin settlement), it drops the filler words a person says, and it is what makes
+            # «el zerohash» find «Gavin/Ricart zerohash blockchain intro». A containment test fails on that
+            # exact sentence, which is the one he actually said.
+            continue
+        return True
+    return False
+
+
 def _resolve_date(raw: str) -> str:
     """Convert a spoken relative date (tomorrow, today, the day after tomorrow, a weekday, or already 'YYYY-MM-DD') into
     'YYYY-MM-DD'. Sensible default: today. This keeps a relative-date appointment correctly placed even when the
@@ -620,6 +670,62 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
         if not _jid:
             return {"ok": False, "error": f"no pude programar el aviso: {_disp}"}
         m["reminder_id"], m["remindAt"] = _jid, _disp
+    elif action == "clear_range":
+        # CLEAR A WINDOW, KEEPING WHAT HE NAMES (V2-693). The sibling `clear_all` learned in 2026-08-14 that
+        # an intention with no action behind it cannot be gotten right by the model; this is the same lesson
+        # one size down, measured on 2026-09-14 in his own words: «limpia todo los items de esta semana,
+        # menos lo de mañana a las 15h y el inicio de instituto de lunes».
+        #
+        # The only bulk tool was `clear_all`, whose scope is EVERYTHING and forever, so the model reached for
+        # it and then described a selective deletion it could not perform — and had the confirmation been
+        # answered yes, the two appointments he asked to KEEP would have gone too, along with every future
+        # one. «Menos estos» is not a nuance of «todo»: it is a different action.
+        #
+        # IRREVERSIBLE → `confirm:true`, and the question this widget hands the gate NAMES the count and the
+        # keepers, so what he is agreeing to is on screen before he agrees to it.
+        lo = _resolve_date(str(payload.get("from") or payload.get("start") or ""))
+        hi = _resolve_date(str(payload.get("to") or payload.get("end") or "")) if (
+            payload.get("to") or payload.get("end")) else lo
+        if hi < lo:
+            lo, hi = hi, lo
+        keep = _keep_list(payload)
+        doomed = [m for m in db.get("meetings", [])
+                  if lo <= str(m.get("date") or "") <= hi and not _kept(m, keep)]
+        # A row Google REFUSED to delete stays here (V2-693). Dropping it locally anyway would report a
+        # deletion the cloud never made, and the next sync pulls it straight back — which is exactly what
+        # happened the first time this ran against his real calendar: 42 reported gone, four still there.
+        gone, stuck = [], []
+        for m in doomed:
+            if gcal.delete_google(m):
+                _cancel_reminder(m)
+                gone.append(m)
+            else:
+                stuck.append(m)
+        db["meetings"] = [m for m in db.get("meetings", []) if m not in gone]
+        for b in list(db.get("blocks", [])):
+            if lo <= str(b.get("date") or "") <= hi:
+                db["blocks"].remove(b)
+        db["currentPlan"] = compute_plan(db)
+        store.save(WIDGET_ID, db)
+        # `view_data()` with NO argument, like every other branch here: this widget's `apply_action` has no
+        # `q` in scope (that is the contacts widget's shape) and the first live call died on a NameError —
+        # after the deletion and the Google calls had already gone through, which is the worst place for a
+        # crash: the work was done and the caller was told it failed.
+        d = view_data()
+        res = {"removed": len(gone), "from": lo, "to": hi,
+               "kept": [m.get("title") for m in db.get("meetings", [])
+                        if lo <= str(m.get("date") or "") <= hi and _kept(m, keep)]}
+        if stuck:
+            # NAMED, not counted: «no pude con 4» is a number he can do nothing with. And it is an ERROR,
+            # so the turn reports it instead of answering «hecho» over a job half done.
+            res["failed"] = [m.get("title") for m in stuck]
+            d.update({"ok": False, "result": res,
+                      "error": f"Borré {len(gone)}, pero Google no me dejó borrar "
+                               f"{len(stuck)}: " + ", ".join(f"«{m.get('title')}»" for m in stuck[:4])})
+            return d
+        d.update({"ok": True, "result": res})
+        return d
+
     elif action == "clear_all":
         # EMPTY THE ENTIRE AGENDA in ONE action (2026-08-14, session b70a45d0).
         #

@@ -45,6 +45,37 @@ def _human_confirm_question(wid: str, action: str, payload: dict) -> str:
     MANIFEST — qué HACE la acción (`desc`) y sobre QUÉ item (etiqueta resuelta) — para que el operador vea si es
     MÁS de lo que pidió (p.ej. un PROYECTO entero en vez de una tarea). Genérico: sirve a cualquier widget. Fallback
     prudente si no hay manifest/desc."""
+    # V2-693 — BORRAR UN TRAMO DE AGENDA. Misma razón que las dos ramas de mensajería de abajo: la pregunta
+    # tiene que exponer el ALCANCE REAL, y aquí el alcance es un NÚMERO. Medido el 2026-09-14: pidió limpiar
+    # la semana conservando dos citas, el modelo llamó a `clear_all` (cuyo alcance es TODO y para siempre) y
+    # la pregunta enlatada decía «¿Vacío la agenda entera?» — que era verdad de la acción y no tenía nada que
+    # ver con lo que él había pedido. Una confirmación que no cuenta lo que se lleva por delante es una
+    # confirmación que se dice que sí sin mirar.
+    if wid == "agenda" and action == "clear_range":
+        try:
+            from widgets.agenda import data as _ag
+            lo = _ag._resolve_date(str((payload or {}).get("from") or (payload or {}).get("start") or ""))
+            _to = (payload or {}).get("to") or (payload or {}).get("end")
+            hi = _ag._resolve_date(str(_to)) if _to else lo
+            if hi < lo:
+                lo, hi = hi, lo
+            keep = _ag._keep_list(payload or {})
+            rows = [m for m in (_ag.load_db().get("meetings") or [])
+                    if lo <= str(m.get("date") or "") <= hi]
+            doomed = [m for m in rows if not _ag._kept(m, keep)]
+            kept = [m for m in rows if _ag._kept(m, keep)]
+        except Exception:  # noqa: BLE001
+            return "¿Borro las citas de ese tramo? Es permanente."
+        if not doomed:
+            return ("No hay ninguna cita que borrar en ese tramo"
+                    + (f", solo las {len(kept)} que quieres conservar" if kept else "") + ".")
+        span = f"del {lo}" + ("" if hi == lo else f" al {hi}")
+        head = f"Voy a borrar {len(doomed)} cita{'s' if len(doomed) != 1 else ''} {span}"
+        if kept:
+            names = ", ".join(f"«{m.get('title')}»" for m in kept[:3])
+            head += f", conservando {names}" + (f" y {len(kept) - 3} más" if len(kept) > 3 else "")
+        return head + ". Es permanente. ¿Las borro?"
+
     # V2-051: RESPONDER un mensaje → la confirmación LEE el borrador (destinatario + texto), no la jerga de la
     # acción. Así el operador oye exactamente qué se va a enviar antes de decir sí.
     if wid == "mensajeria" and action == "reply":
