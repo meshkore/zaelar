@@ -53,17 +53,16 @@ def _human_confirm_question(wid: str, action: str, payload: dict) -> str:
     # confirmación que se dice que sí sin mirar.
     if wid == "agenda" and action == "clear_range":
         try:
-            from widgets.agenda import data as _ag
-            lo = _ag._resolve_date(str((payload or {}).get("from") or (payload or {}).get("start") or ""))
-            _to = (payload or {}).get("to") or (payload or {}).get("end")
-            hi = _ag._resolve_date(str(_to)) if _to else lo
-            if hi < lo:
-                lo, hi = hi, lo
-            keep = _ag._keep_list(payload or {})
+            # The window and the keepers are read from the SAME module the action itself uses
+            # (`agenda/sweep.py`), never re-derived here: a question that counts differently from the
+            # deletion it gates is worse than no question.
+            from widgets.agenda import data as _ag, sweep as _sweep
+            lo, hi = _sweep.window(payload or {})
+            keep = _sweep.keep_list(payload or {})
             rows = [m for m in (_ag.load_db().get("meetings") or [])
                     if lo <= str(m.get("date") or "") <= hi]
-            doomed = [m for m in rows if not _ag._kept(m, keep)]
-            kept = [m for m in rows if _ag._kept(m, keep)]
+            doomed = [m for m in rows if not _sweep.kept(m, keep)]
+            kept = [m for m in rows if _sweep.kept(m, keep)]
         except Exception:  # noqa: BLE001
             return "¿Borro las citas de ese tramo? Es permanente."
         if not doomed:
