@@ -274,14 +274,55 @@ def test_the_panel_keeps_ONE_size_across_both_tabs(_pw, _url):
         ctx.close()
 
 
-def test_the_panel_is_HALF_AGAIN_as_tall_as_it_was(_pw, _url):
-    """«Dale un 50% más de alto.» Applied to the 390px that was actually measured on this page, not to
-    the 200-300 he estimated — so the bound is stated against the real number."""
+def test_the_form_FILLS_the_panel_with_no_dead_space(_pw, _url):
+    """⚠️ This case used to assert `570 <= h <= 600` — 390 × 1.5, the fixed height V2-681 gave the panel so
+    it would stop shrinking and springing back between tabs. That number was ours, and the operator's answer
+    when asked was «que lo pueda redimensionar yo» (V2-695), so the height is now a default and the grip
+    decides. What survives is the DURABLE property underneath it, which is also what he actually reported:
+    «use all size of the box… may be too big».
+
+    The cause was one missing declaration — `.fw-new` had no `flex:1 1 auto` inside a fixed-height column
+    flex parent, so the pane was sized by its own content and ~240px sat empty under the send button. The
+    measurement is the gap between the last control and the panel's floor: that is the dead space, and no
+    amount of re-picking a height would have closed it."""
     ctx, pg = _page(_pw, _url)
     try:
         _boot(pg, _url)
         _open_feedback(pg)
-        assert 570 <= _panel_h(pg) <= 600, _panel_h(pg)              # 390 * 1.5 = 585
+        gap = pg.evaluate(
+            """() => { const p = document.querySelector('.fw-panel').getBoundingClientRect();
+                       const r = document.querySelector('.fw-row').getBoundingClientRect();
+                       return Math.round(p.bottom - r.bottom); }""")
+        assert gap < 40, f"{gap}px of dead space under the last control"
+        ta = pg.evaluate("() => Math.round(document.querySelector('.fw-textarea').getBoundingClientRect().height)")
+        assert ta > 150, f"the textarea has to eat the slack, got {ta}"
+    finally:
+        ctx.close()
+
+
+def test_the_HEIGHT_is_his_and_it_comes_back(_pw, _url):
+    """«Que lo pueda redimensionar yo.» The grip is on the TOP edge because the panel is anchored
+    bottom-right, so pulling up is what makes it taller — and the gesture can never push the box off the
+    screen. What he sets has to survive closing it, or it is a nuisance rather than a setting."""
+    ctx, pg = _page(_pw, _url)
+    try:
+        _boot(pg, _url)
+        _open_feedback(pg)
+        before = _panel_h(pg)
+        grip = pg.locator(".fw-grip").first
+        box = grip.bounding_box()
+        pg.mouse.move(box["x"] + box["width"] / 2, box["y"] + box["height"] / 2)
+        pg.mouse.down()
+        pg.mouse.move(box["x"] + box["width"] / 2, box["y"] - 120, steps=6)
+        pg.mouse.up()
+        pg.wait_for_timeout(200)
+        taller = _panel_h(pg)
+        assert taller > before + 80, (before, taller)
+
+        pg.click(".fw-x")
+        pg.wait_for_timeout(200)
+        _open_feedback(pg)
+        assert abs(_panel_h(pg) - taller) <= 2, (taller, _panel_h(pg))
     finally:
         ctx.close()
 

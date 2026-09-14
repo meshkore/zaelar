@@ -28,6 +28,14 @@ from fastapi import APIRouter, Body
 router = APIRouter()
 
 _FEEDBACK_URL_DEFAULT = "https://zaelar-control-plane.rjj.workers.dev"
+#: What a report may SAY it is. Anything else becomes «issue» rather than travelling unrecognised.
+_KINDS = ("issue", "idea")
+#: The picture budget, and it is enforced HERE as well as in the browser: a client is not a guard, and
+#: this endpoint is reachable by anything that can speak HTTP to the loopback.
+_MAX_SHOTS = 3
+_MAX_SHOT_BYTES = 180_000
+_MAX_SHOTS_BYTES = 600_000
+_SHOT_MIMES = ("image/webp", "image/jpeg", "image/png", "image/gif")
 _MAX_EVIDENCE_EVENTS = 200
 # The ingestion endpoint rejects a bundle over 40_000 bytes with a flat 400 (`_MAX_EVIDENCE_BYTES` in
 # `cloud/control-plane/src/index.js`), and its comment there claimed "generous margin over the ~30KB the
@@ -49,6 +57,38 @@ def _control_plane_url() -> str:
 
 def _service_token() -> str:
     return (os.getenv("CONTROL_PLANE_SERVICE_TOKEN") or "").strip()
+
+
+def _fit_shots(shots) -> list[dict]:
+    """The pictures that may travel, in the order they were attached, inside the budget (V2-695).
+
+    Silent about what it drops ON PURPOSE at this layer: the browser already refused what did not fit and
+    SAID so, with the same numbers. What reaches here past that is either a client that lied or one that
+    is not ours, and neither earns an explanation — it earns a ceiling.
+    """
+    if not isinstance(shots, (list, tuple)):
+        return []
+    out: list[dict] = []
+    total = 0
+    for s in shots:
+        if len(out) >= _MAX_SHOTS:
+            break
+        if not isinstance(s, dict):
+            continue
+        data = s.get("data")
+        if not isinstance(data, str) or not data:
+            continue
+        mime = str(s.get("mime") or "")
+        if mime not in _SHOT_MIMES:
+            continue
+        # The BYTES the picture really weighs, not the number it claims to: base64 is 4 chars per 3 bytes.
+        size = (len(data) * 3) // 4
+        if size > _MAX_SHOT_BYTES or total + size > _MAX_SHOTS_BYTES:
+            continue
+        total += size
+        out.append({"name": str(s.get("name") or "captura")[:120], "mime": mime,
+                    "bytes": size, "data": data})
+    return out
 
 
 def _fit_evidence(summary: dict, events: list) -> dict | None:
@@ -122,6 +162,8 @@ async def submit_feedback(
     message: str = Body(..., embed=True),
     email: str = Body("", embed=True),
     include_session_evidence: bool = Body(False, embed=True),
+    kind: str = Body("issue", embed=True),
+    shots: list | None = Body(None, embed=True),
 ):
     from nucleo import cloud_account
     from observability import identity as _identity
@@ -137,6 +179,12 @@ async def submit_feedback(
     body: dict = {"message": message}
     if email.strip():
         body["email"] = email.strip()
+    # V2-695 — WHAT this is. A closed set, defaulting to «issue»: an unknown word here would reach the
+    # inbox as a category nobody filters by, which is the same as no category at all.
+    body["type"] = kind if str(kind or "").strip() in _KINDS else "issue"
+    pics = _fit_shots(shots)
+    if pics:
+        body["shots"] = pics
     if evidence is not None:
         body["session_evidence"] = evidence
 
@@ -158,15 +206,23 @@ async def submit_feedback(
         # (measured 2026-08-31: an oversized bundle turned every ticked submission into a flat 400 and the
         # text was lost). Only for a 4xx — a 5xx or a rate limit is not about the attachment, and retrying
         # those would just be a second knock at a door that is closed for another reason.
-        dropped_evidence = False
-        if resp.status_code in (400, 413, 422) and "session_evidence" in body:
-            retry_body = {k: v for k, v in body.items() if k != "session_evidence"}
+        # ⚠️ AND THE ORDER MATTERS (V2-695). Pictures go FIRST, because they are by far the heaviest
+        # thing in the body — shedding the 30 KB bundle while 600 KB of screenshots stay is a retry that
+        # fails again for the same reason. Each shed is its own attempt: a report refused for its images
+        # still arrives with its session, and only a second refusal costs the session too.
+        dropped = []
+        for key in ("shots", "session_evidence"):
+            if resp.status_code not in (400, 413, 422) or key not in body:
+                continue
+            dropped.append(key)
+            retry_body = {k: v for k, v in body.items() if k not in dropped}
             resp = await _post(retry_body)
-            dropped_evidence = resp.status_code < 400
         if resp.status_code >= 400:
             return {"ok": False, "error": "send_failed", "status": resp.status_code}
         out = {"ok": True, **(resp.json() or {})}
-        if dropped_evidence:
+        if "shots" in dropped:
+            out["shots_dropped"] = True             # the panel says the message went but the pictures did not
+        if "session_evidence" in dropped:
             out["evidence_dropped"] = True          # the panel says the message went but the session did not
         elif isinstance(evidence, dict) and evidence.get("truncated"):
             out["evidence_truncated"] = evidence["truncated"]

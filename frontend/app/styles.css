@@ -1302,7 +1302,7 @@ body.dbg-open .orbwrap{left:calc(50% - var(--dbg-w) / 2)}
    baja y sube… el tamaño debe ser fijo»). 585px is his +50% applied to the 390 that was actually there,
    not to the 200-300 he estimated. The max-height stays as a clamp for a short screen — a fixed height
    taller than the viewport would put the send button out of reach. */
-.fw-panel{position:fixed;right:20px;bottom:90px;z-index:9199;width:400px;height:585px;max-height:min(78vh,660px);
+.fw-panel{position:fixed;right:20px;bottom:90px;z-index:9199;width:400px;height:470px;max-height:min(90vh,900px);
   display:none;flex-direction:column;background:var(--hb-bg);border:1px solid var(--hb-line);border-radius:var(--hb-r-l);
   box-shadow:0 10px 30px rgba(0,0,0,.3);overflow:hidden;color:var(--hb-ink)}
 .fw-panel.open{display:flex}
@@ -1311,7 +1311,11 @@ body.dbg-open .orbwrap{left:calc(50% - var(--dbg-w) / 2)}
    UNMISSABLE here (his ask): full screen with no visible way out is the one state a person cannot
    escape, so the × gets a real 44px target and its own outlined box instead of a bare grey glyph. */
 @media (max-width:640px){
-  .fw-panel{right:0;bottom:0;left:0;top:0;width:auto;height:auto;max-height:100%;border-radius:0;z-index:9250}
+  /* `!important` on the height: the desktop grip writes an INLINE height, and an inline style beats a
+   stylesheet rule — without this, a panel the operator had dragged tall on his laptop came back as a
+   470px island floating on his phone. And the grip itself does not exist here: the panel is the screen. */
+  .fw-panel{right:0;bottom:0;left:0;top:0;width:auto;height:auto!important;max-height:100%;border-radius:0;z-index:9250}
+  .fw-grip{display:none}
   .fw-x{width:44px;height:44px;padding:0;border:1px solid var(--hb-line);border-radius:12px;
         color:var(--hb-ink);align-items:center;justify-content:center}
   .fw-x svg{width:20px;height:20px}
@@ -1328,17 +1332,61 @@ body.dbg-open .orbwrap{left:calc(50% - var(--dbg-w) / 2)}
   padding:0 14px;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px}
 .fw-tab:hover:not(.on){color:var(--hb-ink)}
 .fw-tab.on{color:var(--hb-accent);border-bottom-color:var(--hb-accent)}
-.fw-new,.fw-sent{display:none;flex-direction:column;gap:12px;padding:16px;overflow-y:auto}
+/* ⚠️ `flex:1 1 auto;min-height:0` — the one declaration whose ABSENCE was the whole «the box is too
+   big» report (V2-695). Inside a fixed-height column flex parent, a pane with no flex is sized by its
+   own content (~290px), so the other ~240px sat empty under the send button and the operator saw a
+   half-full panel. `min-height:0` goes with it or the pane refuses to shrink below its content and the
+   overflow scrolls the PANEL instead of the list. */
+.fw-new,.fw-sent{display:none;flex:1 1 auto;min-height:0;flex-direction:column;gap:12px;padding:16px;overflow-y:auto}
 .fw-panel.tab-new .fw-new{display:flex}
 .fw-panel.tab-sent .fw-sent{display:flex}
 /* the writing box is THE thing on this screen: body-size type, a clearly drawn field, room to write */
-.fw-textarea{width:100%;box-sizing:border-box;resize:vertical;min-height:140px;border:1.5px solid var(--hb-neutral);
+/* The textarea EATS THE SLACK: once the pane flexes, this is what grows, so the form fills the box at
+   any height the operator drags it to. `resize:none` because the PANEL is the thing that resizes now —
+   two resize gestures on top of each other fight, and the inner one wins and then loses on the next
+   repaint. */
+.fw-textarea{width:100%;box-sizing:border-box;resize:none;flex:1 1 auto;min-height:0;border:1.5px solid var(--hb-neutral);
   border-radius:var(--hb-r-m,12px);background:var(--hb-bg-soft);color:var(--hb-ink);font:inherit;
   font-size:var(--fs-body,0.9375rem);line-height:1.5;padding:12px 14px}
 .fw-textarea:focus{border-color:var(--hb-accent);outline:none}
 .fw-textarea::placeholder{color:var(--hb-muted)}
 /* V2-681 T-2 — the row now holds the MIC and the SEND button, side by side (his layout). .fw-check is
    gone with the checkbox it dressed: a rule for an element nobody renders is how dead CSS accumulates. */
+/* ── V2-695: the grip, the two options, the pictures ─────────────────────────────────────────────── */
+/* TOP edge, because the panel is anchored bottom-right: pulling up is what makes it taller, and the
+   gesture can never shove the box off the screen. 10px of target with a 3px visible bar. */
+.fw-grip{position:absolute;top:0;left:0;right:0;height:10px;cursor:ns-resize;z-index:2;
+  display:flex;align-items:center;justify-content:center}
+.fw-grip::after{content:"";width:34px;height:3px;border-radius:2px;background:var(--hb-line)}
+.fw-grip:hover::after{background:var(--hb-accent)}
+
+/* SELECTED is said the same way it is said everywhere else in this product since V2-690 — an
+   accent-tinted chip with an accent ring — never the filled-inverted pill, which V2-690 retired for
+   being a second filled language on the same screen. */
+.fw-kind{display:flex;gap:6px}
+.fw-kind-btn{flex:1 1 0;min-width:0;padding:8px 10px;border-radius:10px;cursor:pointer;
+  border:1px solid var(--hb-line);background:var(--hb-bg);color:var(--hb-muted);
+  font:600 var(--fs-ui,0.875rem) var(--sans);text-align:center;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fw-kind-btn:hover:not(.on){color:var(--hb-ink);border-color:var(--hb-neutral)}
+.fw-kind-btn.on{color:var(--hb-ink);border-color:transparent;
+  background:color-mix(in srgb, var(--hb-accent) 18%, transparent);
+  box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--hb-accent) 55%, transparent)}
+
+.fw-shots{display:flex;flex-wrap:wrap;gap:8px;flex:0 0 auto}
+.fw-shot{position:relative;width:64px;height:64px;border-radius:10px;overflow:hidden;
+  border:1px solid var(--hb-line);background:var(--hb-bg-soft)}
+.fw-shot-img{width:100%;height:100%;object-fit:cover;display:block}
+.fw-shot-x{position:absolute;top:2px;right:2px;width:20px;height:20px;padding:0;border:none;cursor:pointer;
+  border-radius:6px;background:rgba(0,0,0,.55);color:#fff;display:flex;align-items:center;justify-content:center}
+.fw-shot-x svg{width:13px;height:13px}
+.fw-shot-note{font-size:var(--fs-ui,0.875rem);color:var(--hb-muted);flex:0 0 auto}
+/* The picker exists but is never seen: the clip is the affordance, the input is the mechanism. */
+.fw-file{display:none}
+.fw-clip{width:38px;height:38px;flex:none;border-radius:10px;border:1px solid var(--hb-line);
+  background:var(--hb-bg);color:var(--hb-muted);cursor:pointer;display:flex;align-items:center;justify-content:center}
+.fw-clip svg{width:17px;height:17px}
+.fw-clip:hover{border-color:var(--hb-accent);color:var(--hb-accent)}
 .fw-row{display:flex;align-items:center;gap:10px}
 .fw-email{width:100%;box-sizing:border-box;padding:10px 13px;border:1px solid var(--hb-line);border-radius:10px;
   background:var(--hb-bg-soft);color:var(--hb-ink);font-size:var(--fs-ui,0.875rem)}

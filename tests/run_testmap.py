@@ -2373,12 +2373,12 @@ DOMAINS: list[dict] = [
                                   "tests/browser/unit/i18n/test_cold_start_floor.py",
                                   # V2-613: el ratchet de claves del CATÁLOGO DE WIDGETS — cada `ctx.t("widgets.…")`
                                   # tiene que existir en AMBOS bundles, hermano del que ya vigilaba solo el shell móvil.
-                                  # V2-694 lo ENSANCHA a los 15 widgets (antes solo veía la clave COMPLETA, así que
+                                  # V2-695 lo ENSANCHA a los 15 widgets (antes solo veía la clave COMPLETA, así que
                                   # con catorce migrados seguía verde habiendo medido uno) y le añade la mitad que
                                   # de verdad falta a un humano: NADA de texto visible sin envolver, ni con acento
                                   # ni en ASCII pelado cuando va a parar a textContent/title/placeholder/alt.
                                   "tests/browser/unit/i18n/test_widget_keys.py"]},
-        # V2-694 — el NOMBRE del widget también es cadena de UI. El operador, en una sesión que él mismo había
+        # V2-695 — el NOMBRE del widget también es cadena de UI. El operador, en una sesión que él mismo había
         # iniciado en inglés: «el título de los widgets es en castellano». No se había cambiado nada de idioma
         # (medido: `stt_language: en` en los dos sitios) — los nombres estaban CABLEADOS en cada `manifest.json`,
         # y V2-082 los había congelado a propósito porque el resolutor de voz casa contra ellos. Aquí se guarda
@@ -2994,7 +2994,14 @@ DOMAINS: list[dict] = [
                       # The engine capped by event COUNT and never by BYTES: 200 events → 212_037, past
                       # the endpoint's 40_000 ceiling, so every ticked submission was a flat 400 and the
                       # operator's text was lost with it.
-                      "tests/browser/unit/feedback/test_the_attachment_never_swallows_the_message.py"]},
+                      "tests/browser/unit/feedback/test_the_attachment_never_swallows_the_message.py",
+                      # V2-695 — the report now SAYS what kind it is («errors or desires», his words) and
+                      # can carry screenshots. Two properties ride here: the picture BUDGET, whose
+                      # arithmetic runs under Node so it can have a ratchet instead of a comment; and the
+                      # shed ORDER on a refusal — pictures first, because shedding a 30 KB session bundle
+                      # while 600 KB of screenshots stay is a retry that fails again for the same reason.
+                      "tests/browser/unit/feedback/test_a_report_says_what_kind_it_is.py",
+                      "tests/browser/unit/feedback/test_an_image_never_swallows_the_message.py"]},
         # RENDERS on purpose: 4.33 proves the decision and the wiring, and would still pass with the node in
         # the DOM and zero pixels — which is exactly how the thank-you shipped. This measures box, opacity and
         # that the text is the translation and not the key (a key is truthy and passes any source-level test).

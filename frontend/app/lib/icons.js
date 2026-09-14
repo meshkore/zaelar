@@ -32,6 +32,9 @@ export const BRAIN_ICON = `<svg ${S}><path d="M12 4.5a3 3 0 0 0-3 3 3 3 0 0 0-1.
 export const CPU_ICON = `<svg ${S}><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M9 2v2"/><path d="M15 2v2"/><path d="M9 20v2"/><path d="M15 20v2"/><path d="M20 9h2"/><path d="M20 15h2"/><path d="M2 9h2"/><path d="M2 15h2"/></svg>`;
 export const DATABASE_ICON = `<svg ${S}><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.66 3.58 3 8 3s8-1.34 8-3V5"/><path d="M4 11v6c0 1.66 3.58 3 8 3s8-1.34 8-3v-6"/></svg>`;
 export const MIC_ICON = `<svg ${S}><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><path d="M12 18v4"/><path d="M8 22h8"/></svg>`;
+// 📎 attach an IMAGE to a report (V2-695). A paperclip and not a picture frame on purpose: what the
+// button does is ATTACH, and the file picker behind it already says «images only».
+export const PAPERCLIP_ICON = `<svg ${S}><path d="M21.4 11.1 12.3 20.2a5.5 5.5 0 0 1-7.8-7.8l9.2-9.2a3.7 3.7 0 0 1 5.2 5.2l-9.1 9.2a1.8 1.8 0 0 1-2.6-2.6l8.5-8.5"/></svg>`;
 export const SEARCH_ICON = `<svg ${S}><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>`;
 export const MUSIC_ICON = `<svg ${S}><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>`;
 // 🖥 the LOCAL DAEMON (V2-575) — a desktop computer, because that is literally what the icon is about:

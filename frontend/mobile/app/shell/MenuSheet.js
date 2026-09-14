@@ -51,6 +51,10 @@ export function MenuSheet() {
   const [fbOpen, setFbOpen] = createSignal(false);
   const [fbMsg, setFbMsg] = createSignal("");
   const [fbDone, setFbDone] = createSignal("");
+  // V2-695 — the same two options as the desktop panel. A decision applied in one channel and not
+  // the other stops existing (V2-252): the desktop would learn to tell a broken thing from a wish
+  // and every report from a phone would arrive unlabelled.
+  const [fbKind, setFbKind] = createSignal("issue");
   let fbInput = null;
 
   const close = () => store.setMobileMenuOpen(false);
@@ -62,7 +66,7 @@ export function MenuSheet() {
     // includeSessionEvidence: true — on a phone the operator cannot copy a trace id or open the debug panel, so a
     // report without the evidence bundle is a report we cannot act on. The desktop makes this a checkbox; here it
     // is the default, and the row says so out loud rather than attaching it silently.
-    const r = await sendFeedback({ message: msg, includeSessionEvidence: true });
+    const r = await sendFeedback({ message: msg, includeSessionEvidence: true, kind: fbKind() });
     store.setFeedbackSending(false);
     // Same reading as the desktop panel, from the same module (V2-256). This surface HAD the failure
     // branch and the desktop did not — one rule in two places is how that happens, so now there is one.
@@ -137,9 +141,15 @@ export function MenuSheet() {
         raw(CHEV),
       ),
       h("div", { class: () => "zm-fb" + (fbOpen() ? " open" : "") },
+        h("div", { class: "zm-fb-kind" },
+          h("button", { class: () => "zm-fb-kind-b" + (fbKind() === "issue" ? " on" : ""),
+                        onClick: () => setFbKind("issue") }, () => t("feedback.kindIssue")),
+          h("button", { class: () => "zm-fb-kind-b" + (fbKind() === "idea" ? " on" : ""),
+                        onClick: () => setFbKind("idea") }, () => t("feedback.kindIdea")),
+        ),
         h("textarea", {
           ref: (el) => (fbInput = el), rows: "4",
-          placeholder: () => t("feedback.placeholder"),
+          placeholder: () => t(fbKind() === "idea" ? "feedback.placeholderIdea" : "feedback.placeholderIssue"),
           onInput: (e) => setFbMsg(e.target.value),
         }),
         h("small", null, () => t("mobile.feedback_evidence")),
