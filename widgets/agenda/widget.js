@@ -142,14 +142,25 @@ function injectStyles(){
   .hb-agenda .aghour{position:absolute;right:6px;font-size:12px;color:var(--hb-muted-2,#9aa7b8);
     font-variant-numeric:tabular-nums;transform:translateY(-50%)}
   .hb-agenda .agcol{position:relative;border-left:1px solid var(--hb-line,#eef1f6);min-width:0}
-  .hb-agenda .agline{position:absolute;left:0;right:0;border-top:1px solid var(--hb-line,#eef1f6)}
+  .hb-agenda .agline{position:absolute;left:0;right:0;border-top:1px solid var(--hb-line,#eef1f6);
+    pointer-events:none}
   .hb-agenda .agline.half{border-top-style:dotted;opacity:.55}
+  /* HALF-HOUR SLOTS — the empty calendar is a SURFACE, not a backdrop (V2-693). His ask: «asegúrate de que
+     el widget permite clicar en algún punto para añadir un ítem, y cuando pase el ratón por encima de los
+     cuadritos se pueden iluminar». They sit UNDER the chips (z-index) so an event still takes its own click,
+     and each one carries its own minute — no offsetY arithmetic that drifts when the row height changes. */
+  .hb-agenda .agslot{position:absolute;left:0;right:0;cursor:pointer;border-radius:5px}
+  .hb-agenda .agslot:hover{background:color-mix(in srgb, var(--hb-accent,#6c5ce7) 13%, transparent);
+    box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--hb-accent,#6c5ce7) 42%, transparent)}
+  .hb-agenda .agslot::after{content:"+";position:absolute;right:5px;top:50%;transform:translateY(-50%);
+    font-size:13px;font-weight:700;line-height:1;color:var(--hb-accent,#6c5ce7);opacity:0}
+  .hb-agenda .agslot:hover::after{opacity:.95}
   .hb-agenda .agnow{position:absolute;left:0;right:0;height:0;border-top:2px solid var(--hb-risk,#e5484d);z-index:4}
   .hb-agenda .agnow::before{content:"";position:absolute;left:-4px;top:-5px;width:8px;height:8px;
     border-radius:50%;background:var(--hb-risk,#e5484d)}
 
   /* ── EVENT CHIP: hue = category, INTENSITY = how settled it is ──────────────────────────────────── */
-  .hb-agenda .agev{position:absolute;box-sizing:border-box;border-radius:7px;padding:3px 6px;overflow:hidden;
+  .hb-agenda .agev{position:absolute;z-index:2;box-sizing:border-box;border-radius:7px;padding:3px 6px;overflow:hidden;
     cursor:pointer;border:1px solid transparent;border-left:3px solid var(--evc,#3D6FE0);
     background:color-mix(in srgb, var(--evc,#3D6FE0) 17%, transparent);min-height:20px;
     display:flex;flex-direction:column;gap:1px;line-height:1.2}
@@ -160,7 +171,25 @@ function injectStyles(){
     border-left-width:2px;opacity:.92}
   .hb-agenda .agev.sel{box-shadow:0 0 0 2px var(--evc,#3D6FE0)}
   .hb-agenda .agevt{font-size:13px;font-weight:600;color:var(--hb-ink,#0d1622);white-space:nowrap;
-    overflow:hidden;text-overflow:ellipsis}
+    overflow:hidden;text-overflow:ellipsis;min-width:0}
+  /* A SHORT EVENT GETS ONE LINE. A 30-minute chip is 21px tall and was being given a title line plus an
+     hour line — ~36px of content inside it — so overflow:hidden cut the second one through the middle of
+     its glyphs. That is the «texto pegado, se ven cosas raras» the operator photographed on a 15:00–15:30
+     appointment. The hour is already said by WHERE the chip is, and the tooltip carries it in full. */
+  .hb-agenda .agev.tight{padding:1px 6px;justify-content:center}
+  .hb-agenda .agev.tight .agevh{display:none}
+  .hb-agenda .agev.tiny .agevt{font-size:11px;letter-spacing:-.01em}
+  /* A NARROW chip cannot hold words; it can still hold its first letters, which is what he asked for
+     («solo se muestra un trozo o las tres primeras letras»). Below that the ellipsis itself is the content,
+     so the padding gets out of its way instead of eating it. */
+  .hb-agenda .agev.narrow{padding-left:3px;padding-right:2px;border-left-width:2px}
+  .hb-agenda .agev.narrow .agevt{font-size:11px;font-weight:700}
+  .hb-agenda .agev.narrow .agevh{display:none}
+  /* «+N» — the honest end of the lane budget. Below a readable width a chip is a coloured bar, so the
+     overflow says HOW MANY are hidden and takes you to the day view, where the column is the whole card. */
+  .hb-agenda .agev.more{background:var(--hb-bg-soft,#fbfdff);border:1px dashed var(--hb-line,#c9d3e0);
+    border-left:1px dashed var(--hb-line,#c9d3e0);align-items:center;justify-content:center}
+  .hb-agenda .agev.more .agevt{font-size:11px;font-weight:700;color:var(--hb-muted,#5b6b82)}
   .hb-agenda .agevh{font-size:12px;color:var(--hb-muted,#5b6b82);font-variant-numeric:tabular-nums;
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:5px}
   .hb-agenda .agbadges{display:inline-flex;align-items:center;gap:5px;flex:0 0 auto}
@@ -168,6 +197,19 @@ function injectStyles(){
     font-variant-numeric:tabular-nums}
   .hb-agenda .agbadge svg{width:10px;height:10px;display:block}
   .hb-agenda .agev.allday{position:static;min-height:0;padding:2px 6px}
+
+  /* ── NEW-APPOINTMENT COMPOSER (V2-693) ───────────────────────────────────────────────────────────── */
+  .hb-agenda .agaddp{gap:9px}
+  .hb-agenda .agfield{width:100%;box-sizing:border-box;font:inherit;font-size:13px;
+    color:var(--hb-ink,#0d1622);background:var(--hb-bg,#fff);
+    border:1px solid var(--hb-line,#d7dfea);border-radius:var(--hb-r-s,8px);padding:7px 9px}
+  .hb-agenda .agfield:focus{outline:none;border-color:var(--hb-accent,#6c5ce7);
+    box-shadow:0 0 0 2px color-mix(in srgb, var(--hb-accent,#6c5ce7) 22%, transparent)}
+  .hb-agenda .agfrow{display:flex;gap:7px}
+  .hb-agenda .agftime{flex:1 1 auto;min-width:0}
+  .hb-agenda .agfdur{flex:0 0 auto;width:104px}
+  .hb-agenda .agfcheck{display:flex;align-items:center;gap:7px;font-size:13px;
+    color:var(--hb-muted,#5b6b82);cursor:pointer}
 
   /* ── MONTH ───────────────────────────────────────────────────────────────────────────────────────── */
   .hb-agenda .agmgrid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:0;height:100%;
@@ -479,17 +521,48 @@ function layoutColumn(evs){
   });
   if(cur.length) groups.push(cur);
   const placed = [];
-  groups.forEach(g=>{
+  groups.forEach((g, gi)=>{
     const cols = [];                                    // greedy column packing inside the overlap group
     g.forEach(e=>{
       let ci = cols.findIndex(c => c[c.length-1].end <= e.start);
       if(ci < 0){ cols.push([e]); ci = cols.length-1; } else { cols[ci].push(e); }
-      placed.push({ev:e, col:ci});
+      placed.push({ev:e, col:ci, g:gi});
     });
     const n = cols.length;
     placed.slice(-g.length).forEach(p=>{ p.of = n; });
   });
   return placed;
+}
+
+// How many events may sit side by side before the column stops being readable. Measured on the operator's
+// own week: SIX appointments at 17:00 in a ~110px column is 18px each — not a truncated title, a coloured
+// bar. «No se puede dejar así de mal.» Past the budget the last lane becomes a «+N» that opens the day.
+//
+// It is a BUDGET, not a constant, and that is the half a first attempt got wrong: with one number for every
+// view, the «+N» in the week opened a day that still said «+N» — a dead end dressed as a way out. A day
+// column is the whole card, so it holds what a seventh of it cannot, and the overflow always has somewhere
+// wider to send you.
+function laneBudget(nDates){ return nDates > 1 ? 3 : 8; }
+
+// Trim each overlap group to the lane budget and hand back what has to be drawn: the chips that fit, plus
+// one overflow marker per group that had to hide something.
+function lanes(placed, budget){
+  const byGroup = new Map();
+  placed.forEach(p=>{ if(!byGroup.has(p.g)) byGroup.set(p.g, []); byGroup.get(p.g).push(p); });
+  const shown = [], more = [];
+  byGroup.forEach(items=>{
+    const of = items[0] && items[0].of || 1;
+    if(of <= budget){ items.forEach(p=>shown.push({...p, of})); return; }
+    const keep = items.filter(p=>p.col < budget-1);
+    const hid  = items.filter(p=>p.col >= budget-1);
+    keep.forEach(p=>shown.push({...p, of: budget}));
+    if(hid.length){
+      more.push({col: budget-1, of: budget, n: hid.length,
+                 start: Math.min(...hid.map(p=>p.ev.start)),
+                 end: Math.max(...hid.map(p=>p.ev.end))});
+    }
+  });
+  return {shown, more};
 }
 
 // ── one event chip, in the time grid ──────────────────────────────────────────────────────────────────
@@ -526,7 +599,7 @@ function hourRange(evs){
   return [lo, hi];
 }
 
-function renderGrid(host, dates, all, data, onPick, onDayPick){
+function renderGrid(host, dates, all, data, onPick, onDayPick, onSlot, onOverflow){
   const today = data.date || ymd(new Date());
   const visible = [];
   dates.forEach(d=>{ eventsOn(all, d).forEach(e=>visible.push(e)); });
@@ -578,6 +651,16 @@ function renderGrid(host, dates, all, data, onPick, onDayPick){
       const line = el2("div","agline" + (m%60?" half":""));
       line.style.top = ((m-lo)/60*HOUR_PX)+"px"; col.appendChild(line);
     }
+    // The empty half-hours, each one its own target. Drawn BEFORE the chips so an event keeps its click,
+    // and each carries the minute it represents rather than reading it back out of a mouse coordinate.
+    for(let m=lo; m<hi; m+=30){
+      const slot = el2("div","agslot");
+      slot.style.top = ((m-lo)/60*HOUR_PX)+"px";
+      slot.style.height = (HOUR_PX/2 - 1)+"px";
+      slot.title = tt("add_at", {at: hhmm(m)}, "Nueva cita a las {at}");
+      slot.onclick = ev => { ev.stopPropagation(); onSlot(d, m); };
+      col.appendChild(slot);
+    }
     if(d===today && data.now){
       const nowM = mins(data.now);
       if(nowM>=lo && nowM<=hi){
@@ -585,19 +668,36 @@ function renderGrid(host, dates, all, data, onPick, onDayPick){
         n.title = tt("now", null, "Ahora"); col.appendChild(n);
       }
     }
-    layoutColumn(eventsOn(all, d)).forEach(p=>{
+    const packed = lanes(layoutColumn(eventsOn(all, d)), laneBudget(dates.length));
+    packed.shown.forEach(p=>{
       const e = p.ev, of = p.of || 1;
-      const chip = el2("div", chipClasses(e));
+      const h = Math.max(20, (e.end-e.start)/60*HOUR_PX - 2);
+      // What the chip can HOLD decides what goes in it. Two lines need ~34px; one needs ~24. And a lane
+      // narrower than a word holds initials, not a sentence — the class is what the stylesheet reads.
+      const cls = chipClasses(e)
+        + (h < 34 ? " tight" : "") + (h < 24 ? " tiny" : "") + (of >= 3 ? " narrow" : "");
+      const chip = el2("div", cls);
       chip.style.setProperty("--evc", hueOf(e));
       chip.style.top = ((e.start-lo)/60*HOUR_PX)+"px";
-      chip.style.height = Math.max(20, (e.end-e.start)/60*HOUR_PX - 2)+"px";
+      chip.style.height = h+"px";
       chip.style.left = (p.col*100/of)+"%";
       chip.style.width = `calc(${100/of}% - 3px)`;
       chip.appendChild(el2("div","agevt", e.title));
-      const h = el2("div","agevh", hhmm(e.start));
-      h.appendChild(badges(e)); chip.appendChild(h);
+      const hr = el2("div","agevh", hhmm(e.start));
+      hr.appendChild(badges(e)); chip.appendChild(hr);
       chip.title = `${timeLabel(e)} · ${e.title}`;
       chip.onclick = ev => { ev.stopPropagation(); onPick(e); };
+      col.appendChild(chip);
+    });
+    packed.more.forEach(m=>{
+      const chip = el2("div","agev more");
+      chip.style.top = ((m.start-lo)/60*HOUR_PX)+"px";
+      chip.style.height = Math.max(20, (m.end-m.start)/60*HOUR_PX - 2)+"px";
+      chip.style.left = (m.col*100/m.of)+"%";
+      chip.style.width = `calc(${100/m.of}% - 3px)`;
+      chip.appendChild(el2("div","agevt", "+" + m.n));
+      chip.title = tt("more_n", {n: m.n}, "{n} citas más — ábrelas en el día");
+      chip.onclick = ev => { ev.stopPropagation(); onOverflow(d); };
       col.appendChild(chip);
     });
     grid.appendChild(col);
@@ -686,6 +786,84 @@ function renderList(host, anchor, all, data, onPick){
 }
 
 // ── DETAIL panel — what an event IS, and the few actions that are real ────────────────────────────────
+// ── NEW APPOINTMENT, from a click on an empty half-hour (V2-693) ────────────────────────────────────────
+// Until today the only way to put something in this calendar was to SAY it. His ask is the plain one every
+// calendar answers: «asegúrate de que el widget permite clicar en algún punto para añadir un ítem». It sends
+// `add_meeting` — a DECLARED data-op — and nothing else: a button that promises what the API cannot do is
+// the failure this widget's own history is made of (V2-540).
+function renderAdd(root, ctx, state, redraw){
+  const at = state.add || {};
+  const veil = el2("div","agveil");
+  const close = ()=>{ state.add = null; redraw(); };
+  veil.onclick = e => { if(e.target===veil) close(); };
+  const p = el2("div","agpanel agaddp");
+
+  const head = el2("div","agphead");
+  head.appendChild(el2("div","agpbar"));
+  head.appendChild(el2("div","agptitle", tt("new_meeting", null, "Nueva cita")));
+  const x = el2("button","agpx","×"); x.title = tt("close", null, "Cerrar"); x.onclick = close;
+  head.appendChild(x); p.appendChild(head);
+
+  const when = el2("div","agprow"); when.appendChild(svgEl(ICO_CLOCK));
+  when.appendChild(el2("span",null, fmtDate(parseYmd(at.date),
+    {weekday:"long",day:"numeric",month:"long"}, at.date)));
+  p.appendChild(when);
+
+  const title = el2("input","agfield");
+  title.type = "text"; title.placeholder = tt("what_is_it", null, "¿Qué es?");
+  title.value = at.title || "";
+  p.appendChild(title);
+
+  const row = el2("div","agfrow");
+  const start = el2("input","agfield agftime"); start.type = "time"; start.value = hhmm(at.start || 9*60);
+  const mins = el2("select","agfield agfdur");
+  [[30,"30 min"],[60,"1 h"],[90,"1 h 30"],[120,"2 h"]].forEach(([v,l])=>{
+    const o = el2("option",null,l); o.value = String(v); if(v===60) o.selected = true; mins.appendChild(o);
+  });
+  row.appendChild(start); row.appendChild(mins); p.appendChild(row);
+
+  const meetRow = el2("label","agfcheck");
+  const meet = el2("input"); meet.type = "checkbox";
+  meetRow.appendChild(meet);
+  meetRow.appendChild(el2("span",null, tt("with_meet", null, "Con videollamada de Google Meet")));
+  p.appendChild(meetRow);
+
+  const err = el2("div","agwarn"); err.hidden = true; p.appendChild(err);
+
+  const acts = el2("div","agpacts");
+  const save = el2("button","done", tt("save", null, "Guardar"));
+  save.onclick = ()=>{
+    const t = (title.value || "").trim();
+    if(!t){ err.textContent = tt("needs_title", null, "Ponle un nombre a la cita."); err.hidden = false;
+            title.focus(); return; }
+    const m = mins2(start.value);
+    if(m == null){ err.textContent = tt("needs_time", null, "Esa hora no la entiendo."); err.hidden = false;
+                   return; }
+    const dur = Number(mins.value) || 60;
+    state.add = null;
+    Promise.resolve(ctx.action("add_meeting", {
+      title: t, date: at.date, startTime: hhmm(m), endTime: hhmm(Math.min(24*60-1, m + dur)),
+      meet: meet.checked ? true : undefined,
+    })).then(nd => redraw(nd)).catch(()=>redraw());
+  };
+  const no = el2("button",null, tt("cancel", null, "Cancelar")); no.onclick = close;
+  acts.appendChild(save); acts.appendChild(no);
+  p.appendChild(acts);
+
+  veil.appendChild(p); root.appendChild(veil);
+  raf(()=>{ try{ title.focus(); }catch(_){} });
+}
+
+// "HH:MM" → minutes, or null when the field is empty or unreadable. An unreadable time must not silently
+// become midnight: an appointment nobody asked for at 00:00 is worse than a refusal that says so.
+function mins2(v){
+  const m = /^(\d{1,2}):(\d{2})$/.exec(String(v || "").trim());
+  if(!m) return null;
+  const h = Number(m[1]), mi = Number(m[2]);
+  if(h > 23 || mi > 59) return null;
+  return h*60 + mi;
+}
+
 function renderDetail(root, ev, ctx, state, redraw){
   const veil = el2("div","agveil");
   veil.onclick = e => { if(e.target===veil){ state.sel=null; state.confirmDel=false; redraw(); } };
@@ -1021,7 +1199,7 @@ export function render(el, data, ctx){
   // guided Google connect). It is a SCREEN and not an overlay: the operator asked for the whole content area,
   // «igual que en mensajería», where the same three-state machine has lived since V2-570.
   if(!el._ag) el._ag = {view:"week", anchor:today, sel:null, screen:null, wizStep:1, connectBusy:false,
-                        connectErr:"", confirmDel:false, viewN:null, connN:null};
+                        connectErr:"", confirmDel:false, viewN:null, connN:null, add:null};
   const S = el._ag;
 
   // A VIEW PUSHED FROM VOICE (`show_day`). Applied only when its token MOVES, so a plain refresh never
@@ -1147,6 +1325,13 @@ export function render(el, data, ctx){
   const body = el2("div","agbody");
   const pick = e => { S.sel = e.key; S.confirmDel = false; render(el, data, ctx); };
   const pickDay = ds => { S.view = "day"; S.anchor = ds; S.sel = null; render(el, data, ctx); };
+  const pickSlot = (ds, m) => { S.add = {date: ds, start: m, title: ""}; S.sel = null; render(el, data, ctx); };
+  // The way OUT of a crowded slot, and it always goes somewhere wider: the week sends you to the day, the
+  // day to the list, where a row is a row and nothing is hidden behind a count.
+  const overflow = ds => {
+    if(S.view === "day"){ S.view = "list"; } else { S.view = "day"; S.anchor = ds; }
+    S.sel = null; render(el, data, ctx);
+  };
 
   let active = null;
   if(S.screen === "list"){
@@ -1154,7 +1339,7 @@ export function render(el, data, ctx){
   } else if(S.screen === "wizard"){
     body.appendChild(renderGoogleWizard(data, ctx, S, ()=>render(el, data, ctx)));
   } else if(S.view === "week"){
-    renderGrid(body, dates, all, data, pick, pickDay);
+    renderGrid(body, dates, all, data, pick, pickDay, pickSlot, overflow);
   } else if(S.view === "month"){
     renderMonth(body, S.anchor, all, data, pick, pickDay);
   } else if(S.view === "list"){
@@ -1163,7 +1348,7 @@ export function render(el, data, ctx){
     // DAY = the hour grid plus the coach rail this widget has always had (Now + countdown + task actions).
     const wrap = el2("div","agday-wrap");
     const gridBox = el2("div","agday-grid");
-    renderGrid(gridBox, dates, all, data, pick, pickDay);
+    renderGrid(gridBox, dates, all, data, pick, pickDay, pickSlot, overflow);
     wrap.appendChild(gridBox);
 
     const isToday = S.anchor === today;
@@ -1215,6 +1400,7 @@ export function render(el, data, ctx){
     const ev = all.find(e=>e.key===S.sel);
     if(ev) renderDetail(el, ev, ctx, S, redraw); else S.sel = null;
   }
+  if(S.add) renderAdd(el, ctx, S, redraw);
   // Live countdown for the active block (today only).
   if(active){
     let rem = (active.remaining_min||0)*60;

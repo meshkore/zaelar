@@ -397,7 +397,13 @@ async def _drain_replies() -> None:
             continue
         reply_to = _tg_msg_id(r.get("messageId"))   # composite-aware: replies land THREADED, not loose
         try:
-            await _client.send_message(chat_id, text, reply_to=reply_to)
+            # ⚠️ PARSE_MODE=NONE, and it is not a detail (V2-693). Telethon's default is MARKDOWN, so it
+            # PARSES what we send: it consumes `_`, `*` and `` ` `` as formatting, and it hands Telegram a
+            # message with its own entity list — and a message that arrives carrying entities is one
+            # Telegram does NOT run its URL auto-detection over. The operator measured it on the Meet
+            # link: «sale el embedding conforme ha reconocido el link pero no es clicable». Our text is
+            # prose a model wrote for a human, never markup; an underscore in it is an underscore.
+            await _client.send_message(chat_id, text, reply_to=reply_to, parse_mode=None)
             logger.info(f"Telegram: respuesta enviada a {chat_id}")
             _note(f"[SISTEMA] Telegram enviado a {r.get('to') or chat_id}. Confírmaselo al operador de forma natural.")
         except Exception as e:  # noqa: BLE001
@@ -426,7 +432,7 @@ async def _drain_sends() -> None:
             # Telethon to resolve. Sending to the wrong peer because «600111222» was read as a user id is
             # exactly the mistake this door cannot make.
             peer = int(r["chatId"]) if str(r.get("chatId") or "").strip().lstrip("-").isdigit() else to
-            sent = await _client.send_message(peer, text)
+            sent = await _client.send_message(peer, text, parse_mode=None)   # see the drain above
         except Exception as e:  # noqa: BLE001
             logger.warning(f"Telegram: fallo al escribir a {to}: {e}")
             ingest.publish_send_failed(r, str(e))

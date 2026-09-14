@@ -21,6 +21,7 @@ people is not something to hand over on the strength of a green test suite.
 from __future__ import annotations
 
 import asyncio
+import re
 import time
 
 from loguru import logger
@@ -224,8 +225,7 @@ async def wake(errand: dict, *, reason: str = "inbound", inbound_id: str = "",
     # after the hour was agreed). One expression, because from the reader's side they are the same fact:
     # «the link exists now», and which turn produced it is nobody's business.
     link = str(booked.get("link") or "") or _book.link_owed(errand)
-    if link:
-        say = _with_link(say, link)
+    say = _with_link(say, link)
     if booked.get("ok") and booked.get("date"):
         # The booking is a FACT, and two things hang off it. It records the DEBT when the video link could
         # not be minted, so the beat can settle it the moment the link appears instead of letting the
@@ -262,6 +262,12 @@ async def wake(errand: dict, *, reason: str = "inbound", inbound_id: str = "",
             "booked": bool(booked.get("ok"))}
 
 
+#: Every conference URL shape this mouth could plausibly emit. Broad on purpose: a link we do not
+#: recognise is one that travels.
+_MEET_RE = re.compile(r"https?://\S*(?:meet\.google\.com|zoom\.us|teams\.(?:microsoft|live)\.com|"
+                      r"whereby\.com|meet\.jit\.si|webex\.com)\S*", re.I)
+
+
 def _with_link(say: str, link: str) -> str:
     """Append the conference link the ENGINE minted, on its own line and with no prose around it.
 
@@ -270,10 +276,24 @@ def _with_link(say: str, link: str) -> str:
     the V2-676 defect aimed outward, at somebody who is not even our operator. A bare URL reads correctly
     in every language there is. An empty `say` gets nothing: a link with no message is a stranger receiving
     a naked URL.
+
+    ⚠️ AND IT TAKES BACK ANY URL THE MODEL TYPED, unconditionally (V2-693). The prompt forbids writing one
+    — «lo único prohibido es TECLEAR tú la URL» — and on the live run of 2026-09-14 (21:33) the model did it
+    anyway: it copied `meet.google.com/ucn-tixn-mbj` out of the transcript above, a link belonging to a
+    meeting that had been deleted, and the engine then appended the real one underneath. One message, two
+    different Meet links, one of them dead. A rule the model can break is not a guard; the only URL that may
+    leave this house is the one the engine minted, so the stripping happens even when there is none to put
+    back — an invented link sent to a stranger is the worst thing this mouth can do.
     """
+    say = _MEET_RE.sub("", say or "")
+    say = re.sub(r"[ \t]{2,}", " ", say)
+    say = re.sub(r"[ \t]*([:\-–—])[ \t]*$", "", say.rstrip(), flags=re.M).rstrip()
     if not link or not say.strip() or link in say:
         return say
-    return say.rstrip() + "\n" + link
+    # A BLANK LINE, not a newline: the operator measured a link glued under the last sentence arriving
+    # unclickable on his phone, and a URL alone in its own paragraph is what every client — Telegram,
+    # WhatsApp, a mail reader — detects without help.
+    return say.rstrip() + "\n\n" + link
 
 
 def _send(errand: dict, platform: str, chat_id: str, text: str, party: str) -> bool:

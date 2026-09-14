@@ -88,11 +88,39 @@ def build_system(assistant_name: str, operator_name: str, lang_native: str,
         f"forma: {SHAPE}\n"
         "  · `say` es EXACTAMENTE lo que se le envía a esa persona (vacío = no le escribas nada ahora).\n"
         "  · `state` es cómo queda el encargo después de esto.\n"
-        "  · `agreed` solo cuando la otra persona haya CONFIRMADO una hora concreta.\n"
+        # ⚠️ Measured live (2026-09-14, 21:29): he wrote «Ok do it at 1700» and the errand answered by
+        # PROPOSING 16:00 or 17:00 — it had the hour and asked for it again. A rule that says «una hora
+        # concreta» without saying what one looks like is read as «a tidy one», and a person agreeing is
+        # the one moment this mouth must not hesitate: asking twice reads as not listening.
+        "  · `agreed` solo cuando la otra persona haya CONFIRMADO una hora concreta — y «a las 5», "
+        "«17h», «1700», «5pm» o «mañana a las cinco» SON horas concretas: si YA te la ha dicho, "
+        "ciérrala, no se la vuelvas a preguntar ni le ofrezcas opciones.\n"
         "  · `ask_operator` es una frase para TU operador cuando necesitas algo que solo él puede decidir "
         "(y entonces no le escribas nada a la otra persona todavía).\n"
         "  · `reason`: en una línea, por qué has decidido eso."
     )
+
+
+def _still_open(errand: dict, party: str, messages: list[dict]) -> list[str]:
+    """What is GENUINELY open — not the checklist the playbook wrote before anybody had spoken.
+
+    ⚠️ `unknowns` is stamped at birth from the kind and never touched again, and the dossier announced it on
+    every single wake. Measured live (2026-09-14, 21:29): mid-conversation with a named person about a video
+    call tomorrow, the model was still being told «TE FALTA POR SABER: con quién, ventana de fechas,
+    duración, medio» — four things sitting in the transcript printed three lines below it. Told it is still
+    gathering, it gathered: the party had just written «Ok do it at 1700» and it answered by proposing two
+    slots. A checklist that contradicts the conversation is worse than no checklist, because the model
+    believes the part of the prompt that sounds like an instruction.
+
+    So: the name is answered by the binding, and once that person has ANSWERED, the transcript is the source
+    — a list written before they spoke has nothing left to say about what they said.
+    """
+    open_ = [str(u) for u in (errand.get("unknowns") or []) if str(u).strip()]
+    if party:
+        open_ = [u for u in open_ if "quién" not in u.lower() and "quien" not in u.lower()]
+    if any(str(m.get("dir") or "") != "out" for m in messages or []):
+        return []
+    return open_
 
 
 def build_dossier(errand: dict, *, party: str, messages: list[dict], brief: str = "",
@@ -103,9 +131,9 @@ def build_dossier(errand: dict, *, party: str, messages: list[dict], brief: str 
     if party:
         lines.append(f"PERSONA con la que hablas: {party}.")
     lines.append(f"ESTADO ACTUAL del encargo: {errand.get('state') or 'contacting'}.")
-    unknowns = errand.get("unknowns") or []
+    unknowns = _still_open(errand, party, messages)
     if unknowns:
-        lines.append("TE FALTA POR SABER: " + ", ".join(str(u) for u in unknowns) + ".")
+        lines.append("TE FALTA POR SABER: " + ", ".join(unknowns) + ".")
     if now_line:
         lines.append(now_line)
     if busy:

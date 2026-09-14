@@ -330,3 +330,107 @@ def test_an_all_day_event_gets_its_own_band(_page):
     assert _page.locator(".agallday").count() == 1
     assert "Viaje a Madrid" in _page.locator(".agallday").inner_text()
     assert _page.locator(".agallday .agev").count() == 1, "an all-day event never sits in the hour grid"
+
+
+# ── V2-693 · THE TEXT FITS, OR IT IS CUT ON PURPOSE ─────────────────────────────────────────────────────
+
+def test_a_HALF_HOUR_event_does_not_spill_its_own_chip(_page):
+    """⚠️ Photographed by the operator on his own week: «se ven cosas raras ahí, el texto pegado». A
+    15:00–15:30 appointment is a 21px chip, and it was being given a title line PLUS an hour line — about
+    36px of content — so overflow:hidden cut the second one through the middle of its glyphs. His rule:
+    «si no caben todos pues solo se muestra un trozo o las tres primeras letras, pero no así de mal»."""
+    _mount(_page, _data(meetings=[_meet("Gavin/Ricart zerohash blockchain intro",
+                                        day=1, start="15:00", end="15:30")]))
+    geo = _page.evaluate(
+        """() => { const c = document.querySelector('.agev');
+                   const h = c.querySelector('.agevh');
+                   return {client: c.clientHeight, scroll: c.scrollHeight, tight: c.classList.contains('tight'),
+                           hourShown: !!(h && h.offsetHeight)}; }""")
+    assert geo["tight"], "a chip with no room for two lines has to know it"
+    assert not geo["hourShown"], "the hour is already said by WHERE the chip is"
+    assert geo["scroll"] <= geo["client"] + 1, \
+        f"nothing is clipped mid-glyph: {geo['scroll']}px of content in a {geo['client']}px chip"
+
+
+def test_a_long_title_is_CUT_with_an_ellipsis_never_spilled(_page):
+    _mount(_page, _data(meetings=[_meet("Reunión larguísima de seguimiento trimestral con todo el equipo",
+                                        day=1, start="10:00", end="11:00")]))
+    geo = _page.evaluate(
+        """() => { const t = document.querySelector('.agevt');
+                   return {over: getComputedStyle(t).textOverflow, wrap: getComputedStyle(t).whiteSpace,
+                           clipped: t.scrollWidth > t.clientWidth}; }""")
+    assert geo["over"] == "ellipsis" and geo["wrap"] == "nowrap"
+    assert geo["clipped"], "the fixture has to actually overflow, or this measures nothing"
+
+
+def test_SIX_events_at_one_hour_become_three_lanes_and_a_COUNT(_page):
+    """⚠️ His calendar really held six at 17:00, and 1/6 of a week column is an 18px coloured bar — not a
+    truncated title, no title at all. Past the lane budget the last lane says how many are hidden."""
+    _mount(_page, _data(meetings=[_meet(f"Dentista {i}", day=1, start="17:00", end="18:00")
+                                  for i in range(6)]))
+    geo = _page.evaluate(
+        """() => { const col=[...document.querySelectorAll('.agcol')].find(c=>c.querySelector('.agev'));
+                   const chips=[...col.querySelectorAll('.agev:not(.more)')];
+                   const more=col.querySelector('.agev.more');
+                   return {chips: chips.length, widths: chips.map(c=>c.offsetWidth),
+                           more: more ? more.textContent : null}; }""")
+    assert geo["chips"] == 2 and geo["more"] == "+4", \
+        f"two readable lanes and the rest counted, got {geo['chips']} and {geo['more']}"
+    assert min(geo["widths"]) > 30, f"what is drawn has to be wide enough to read, got {geo['widths']}"
+
+
+def test_the_COUNT_opens_the_day_where_they_all_fit(_page):
+    _mount(_page, _data(meetings=[_meet(f"Dentista {i}", day=1, start="17:00", end="18:00")
+                                  for i in range(6)]))
+    _page.locator(".agev.more").first.click()
+    assert _page.locator(".agtab.on").get_attribute("data-view") == "day"
+    assert _page.locator(".agev.more").count() == 0, "one full-width column holds all six"
+
+
+# ── V2-693 · THE EMPTY CALENDAR IS A SURFACE ────────────────────────────────────────────────────────────
+
+def test_an_empty_half_hour_LIGHTS_UP_and_is_clickable(_page):
+    """«Cuando pase el ratón por encima de los cuadritos se pueden iluminar», and clicking one adds."""
+    _mount(_page, _data())
+    slot = _page.locator(".agslot").nth(6)
+    before = slot.evaluate("s => getComputedStyle(s).backgroundColor")
+    slot.hover()
+    after = slot.evaluate("s => getComputedStyle(s).backgroundColor")
+    assert before != after, "hovering an empty slot has to show it is a target"
+    assert slot.evaluate("s => getComputedStyle(s).cursor") == "pointer"
+
+
+def test_clicking_an_empty_slot_opens_the_composer_AT_THAT_HOUR(_page):
+    _mount(_page, _data())
+    at = _page.evaluate(
+        """() => { const col=[...document.querySelectorAll('.agcol')][2];
+                   const slots=[...col.querySelectorAll('.agslot')];
+                   const s=slots[4]; s.click();
+                   return document.querySelector('.agaddp input[type=time]').value; }""")
+    assert _page.locator(".agaddp").count() == 1, "an empty slot opens the composer"
+    assert at and ":" in at, f"the hour comes from the slot that was clicked, got {at!r}"
+
+
+def test_the_composer_writes_through_the_DECLARED_action(_page):
+    _mount(_page, _data())
+    _page.evaluate("""() => { document.querySelectorAll('.agcol')[1]
+                                .querySelectorAll('.agslot')[4].click(); }""")
+    _page.fill(".agaddp input[type=text]", "Café con Ana")
+    _page.evaluate("""() => { document.querySelector('.agaddp input[type=checkbox]').checked = true; }""")
+    _page.locator(".agpacts button.done").click()
+    calls = _page.evaluate("() => window.__calls")
+    assert [c[0] for c in calls] == ["add_meeting"], calls
+    p = calls[0][1]
+    assert p["title"] == "Café con Ana" and p["meet"] is True
+    assert p["date"] and p["startTime"] and p["endTime"], p
+    assert p["endTime"] > p["startTime"], "an hour later, not an hour earlier"
+
+
+def test_a_nameless_appointment_is_REFUSED_not_invented(_page):
+    """V2-473's rule at the other door: a nameless row wearing the face of success is worse than an error."""
+    _mount(_page, _data())
+    _page.evaluate("""() => { document.querySelectorAll('.agcol')[1]
+                                .querySelectorAll('.agslot')[4].click(); }""")
+    _page.locator(".agpacts button.done").click()
+    assert _page.evaluate("() => window.__calls") == [], "nothing is written"
+    assert _page.locator(".agaddp").count() == 1, "and the composer stays open, saying what is missing"

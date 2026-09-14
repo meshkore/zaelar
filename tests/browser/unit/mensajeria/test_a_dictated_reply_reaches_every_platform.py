@@ -55,12 +55,14 @@ def test_telegram_sends_through_telethon(monkeypatch):
     monkeypatch.setattr(service, "_reply_inbox",
                         _Inbox([{"chatId": "777", "messageId": "42", "to": "Luis", "text": "hecho"}]))
     class _TG:
-        async def send_message(self, chat_id, text, reply_to=None):
-            sent.append({"chat_id": chat_id, "text": text, "reply_to": reply_to})
+        async def send_message(self, chat_id, text, reply_to=None, **kw):
+            sent.append({"chat_id": chat_id, "text": text, "reply_to": reply_to, **kw})
     monkeypatch.setattr(service, "_client", _TG())
     monkeypatch.setattr(service, "_note", notes.append)
     asyncio.run(service._drain_replies())
-    assert sent == [{"chat_id": 777, "text": "hecho", "reply_to": 42}]
+    # V2-693 — `parse_mode=None`: what the operator dictates is prose, not markup, and a message that
+    # reaches Telegram carrying Telethon's own entities is one Telegram never auto-links.
+    assert sent == [{"chat_id": 777, "text": "hecho", "reply_to": 42, "parse_mode": None}]
     assert notes and "enviado" in notes[0].lower()
 
 

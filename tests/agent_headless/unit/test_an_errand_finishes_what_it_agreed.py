@@ -232,7 +232,10 @@ def test_no_prose_of_OURS_travels_beside_the_link(env, monkeypatch):
 
     out = wake_mod._with_link("Alles klar, Dienstag um 19 Uhr.", "https://meet.google.com/x")
 
-    assert out == "Alles klar, Dienstag um 19 Uhr.\nhttps://meet.google.com/x"
+    # A BLANK LINE, not a newline (V2-693): the operator measured a link glued under the last sentence
+    # arriving unclickable on his phone — «sale el embedding pero no es clicable». A URL alone in its own
+    # paragraph is what every client detects without help.
+    assert out == "Alles klar, Dienstag um 19 Uhr.\n\nhttps://meet.google.com/x"
     del env
 
 
@@ -244,10 +247,36 @@ def test_an_empty_reply_never_becomes_a_naked_URL(env, monkeypatch):
     del env
 
 
-def test_a_link_already_in_the_reply_is_not_repeated(env):
+def test_a_link_the_MODEL_typed_is_taken_back_and_replaced_by_the_ENGINE_S(env):
+    """⚠️ V2-693 — the prompt forbids the model writing a URL, and on the live run of 2026-09-14 (21:33) it
+    wrote one anyway: it copied a Meet link out of the transcript above, belonging to a meeting that had
+    already been deleted, and the engine appended the real one underneath. One message, two different links,
+    one of them dead. A rule the model can break is not a guard."""
     from nucleo.errands import wake as wake_mod
-    say = "Te paso el enlace: https://meet.google.com/x"
-    assert wake_mod._with_link(say, "https://meet.google.com/x") == say
+    real = "https://meet.google.com/erp-tuzi-gog"
+    say = "Here's the Google Meet link for the call: https://meet.google.com/ucn-tixn-mbj"
+
+    out = wake_mod._with_link(say, real)
+
+    assert out.count("meet.google.com") == 1, "exactly one link leaves this house"
+    assert "ucn-tixn-mbj" not in out and out.endswith("\n\n" + real)
+    del env
+
+
+def test_an_invented_link_is_stripped_even_when_there_is_NONE_to_put_back(env):
+    """The worst case is not a stale link, it is a fabricated one reaching a stranger. So the stripping does
+    not depend on the engine having a replacement."""
+    from nucleo.errands import wake as wake_mod
+    out = wake_mod._with_link("Te paso el enlace: https://meet.google.com/aaa-bbbb-ccc", "")
+    assert "meet.google.com" not in out and out.strip()
+
+
+def test_other_conference_hosts_are_taken_back_too(env):
+    """A link we do not recognise is one that travels — so the shapes this mouth could plausibly emit are
+    all named, not just Google's."""
+    from nucleo.errands import wake as wake_mod
+    for bad in ("https://zoom.us/j/999", "https://teams.microsoft.com/l/x", "https://whereby.com/sala"):
+        assert "http" not in wake_mod._with_link(f"Nos vemos aquí: {bad}", "")
     del env
 
 

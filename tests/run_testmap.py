@@ -1558,6 +1558,20 @@ DOMAINS: list[dict] = [
         {"id": "3.48", "title": "Un worker puede LEER de verdad un widget grande", "ch": UNIT,
             "paths": ["tests/agent_headless/unit/"
                       "test_a_worker_can_actually_read_a_big_widget.py"]},
+        # V2-693 — medido en el ciclo completo del 2026-09-14, con él contestando desde su propio móvil:
+        #   · el enlace salió PEGADO bajo la última frase y llegó sin ser clicable («sale el embedding
+        #     conforme ha reconocido el link pero no es clicable»). La causa es un DEFECTO de Telethon:
+        #     parsea lo que mandamos como markdown, se come los `_` y entrega su propia lista de entidades —
+        #     y un mensaje que llega con entidades es uno sobre el que Telegram NO pasa su autodetección de
+        #     URLs. Lo que sale por esa puerta es prosa que un modelo escribió para una persona, nunca
+        #     marcado.
+        #   · y el modelo TECLEÓ una URL, que el prompt le prohíbe: copió del historial un enlace de Meet de
+        #     una cita ya borrada, y el motor añadió el bueno debajo. Un mensaje, dos enlaces distintos, uno
+        #     muerto. Una regla que el modelo puede saltarse no es una guarda: ahora el motor le quita
+        #     CUALQUIER URL de conferencia, incluso cuando no tiene ninguna que poner en su sitio.
+        {"id": "3.49", "title": "El enlace que mandamos se puede PULSAR, y el único que sale es el que "
+                                "acuñó el motor", "ch": UNIT,
+            "paths": ["tests/connectors/unit/telegram/test_a_link_we_send_is_clickable.py"]},
         # V2-676 — medido en su sesión INGLESA `af4429e0` (2026-09-11), dos fallos que viajaban juntos:
         #   · cinco búsquedas del tiempo en Nueva York, las cinco n:0 con `failure.kind = captcha`, y el modelo
         #     explicó el vacío con la única historia que tiene: «I don't have live internet access… my training

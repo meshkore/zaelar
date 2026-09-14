@@ -66,8 +66,8 @@ def test_telegram_sends_by_handle_and_echoes_the_id_it_resolved(bus, monkeypatch
             def timestamp():
                 return 1757700000.0
 
-    async def _send(peer, text):
-        sent["peer"], sent["text"] = peer, text
+    async def _send(peer, text, **kw):
+        sent["peer"], sent["text"], sent["kw"] = peer, text, kw
         return _Msg()
 
     monkeypatch.setattr(tg, "_send_inbox", _Inbox(dict(_ORDER)))
@@ -75,6 +75,10 @@ def test_telegram_sends_by_handle_and_echoes_the_id_it_resolved(bus, monkeypatch
     asyncio.run(tg._drain_sends())
 
     assert sent["peer"] == "@ivanm", "a handle must reach Telethon as a STRING for it to resolve"
+    # V2-693 — and VERBATIM: Telethon's default is markdown, which eats `_` and hands Telegram its own
+    # entities, and a message that arrives with entities is one Telegram does not auto-link. The operator
+    # measured it on a Meet link that arrived unclickable.
+    assert sent["kw"].get("parse_mode", "md") is None
     out = bus.of(ingest.TOPIC_MSG_OUT)
     assert len(out) == 1
     assert out[0]["ref"] == "s1-abc"
@@ -94,7 +98,7 @@ def test_telegram_addresses_by_the_id_only_when_it_IS_one(bus, monkeypatch, chat
     from connectors.telegram import service as tg
     seen = {}
 
-    async def _send(peer, text):
+    async def _send(peer, text, **kw):
         seen["peer"] = peer
         return type("M", (), {"id": 1, "chat_id": 4242, "date": None})()
 
@@ -111,7 +115,7 @@ def test_telegram_reports_a_refusal_once_and_does_not_retry(bus, monkeypatch):
     from connectors.telegram import service as tg
     calls = {"n": 0}
 
-    async def _boom(peer, text):
+    async def _boom(peer, text, **kw):
         calls["n"] += 1
         raise ValueError("Cannot find any entity corresponding to '+34600111222'")
 

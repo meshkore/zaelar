@@ -549,3 +549,49 @@ def test_a_wake_queued_JUST_NOW_still_waits_its_coalesce(watcher, env, monkeypat
     assert woke == []
     asyncio.run(watcher.tick(now + watcher.COALESCE_S + 1))
     assert woke == [row["id"]]
+
+
+# ── V2-693 · WHAT THE DOSSIER CLAIMS IS STILL OPEN ───────────────────────────────────────────────────────
+def test_a_checklist_written_before_anybody_spoke_is_not_read_over_their_answer(env):
+    """⚠️ Measured live (2026-09-14, 21:29). `unknowns` is stamped at birth from the kind and never touched
+    again, and the dossier announced it on EVERY wake. Mid-conversation with a named person about a video
+    call tomorrow, the model was still being told «TE FALTA POR SABER: con quién, ventana de fechas,
+    duración, medio» — four things sitting in the transcript printed three lines below. Told it was still
+    gathering, it gathered: the party had just written «Ok do it at 1700» and it answered by proposing two
+    slots, and the person had to write back «But i just said at 17h»."""
+    from nucleo.errands import party
+    row = {"unknowns": ["con quién", "ventana de fechas", "duración", "medio (presencial, videollamada…)"]}
+
+    assert "con quién" not in party._still_open(row, "Cryptonite", []), \
+        "the binding answers the name, from the very first message"
+    assert party._still_open(row, "Cryptonite", []) == [
+        "ventana de fechas", "duración", "medio (presencial, videollamada…)"]
+    assert party._still_open(row, "", []) == row["unknowns"], "with nobody named, nothing is assumed"
+
+    answered = [{"dir": "out", "body": "¿qué hora te va bien?"}, {"dir": "in", "body": "Ok do it at 1700"}]
+    assert party._still_open(row, "Cryptonite", answered) == [], \
+        "once they have answered, the transcript is the source — a list written before they spoke is noise"
+    del env
+
+
+def test_the_dossier_stops_printing_the_checklist_once_they_answer(env):
+    """The property at the surface that actually reaches the model, not only in the helper."""
+    from nucleo.errands import party
+    row = {"objective": "acordar una videollamada", "unknowns": ["duración"], "state": "negotiating"}
+    fresh = party.build_dossier(row, party="Cryptonite", messages=[])
+    after = party.build_dossier(row, party="Cryptonite",
+                                messages=[{"dir": "in", "body": "a las cinco"}])
+    assert "TE FALTA POR SABER" in fresh
+    assert "TE FALTA POR SABER" not in after
+    assert "a las cinco" in after, "and what they DID say is still there"
+    del env
+
+
+def test_the_brief_says_what_a_concrete_hour_LOOKS_like(env):
+    """«una hora concreta» without examples was read as «a tidy one»: «1700» was not enough to close on."""
+    from nucleo.errands import party
+    brief = party.build_system("Johnny", "Ricart", "español")
+    for form in ("1700", "17h", "5pm", "a las 5"):
+        assert form in brief, f"{form} is an hour a person really writes"
+    assert "no se la vuelvas a preguntar" in brief
+    del env
