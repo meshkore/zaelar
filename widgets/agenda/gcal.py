@@ -150,14 +150,29 @@ def clear_connect_screen(db: dict) -> None:
 
 
 def connected() -> bool:
-    """True when a Google Calendar account is linked RIGHT NOW. Fail-safe: an unreadable connector answers
-    False, which is the side that still lets the operator reach the connect button."""
+    """True when a Google Calendar account is linked RIGHT NOW.
+
+    ⚠️ `service.status()` answers `{"ok": …, "providers": [ … ]}` — a DICT, not the list of rows
+    `oauth.status()` returns. The first version of this function iterated the facade's answer directly, so
+    it walked the dict's KEYS, called `.get` on a string, raised, and its own `except` turned that into
+    `False` — **always**. It measured nothing, and the guard it feeds could never fire.
+
+    It stayed green because both fixtures that exercise it monkeypatch THIS function: a double with the
+    wrong shape is only caught by a case that refuses to use the double. `test_connected_reads_the_REAL_
+    facade_shape` is that case.
+
+    Fail-safe: an unreadable connector answers False, which is the side that still lets the operator reach
+    the connect button — refusing to connect is a worse failure than offering it twice.
+    """
     s = svc()
     if s is None:
         return False
     try:
-        rows = s.status() or []
-        return any(r.get("connected") for r in (rows if isinstance(rows, list) else [rows]))
+        raw = s.status()
+        rows = raw.get("providers") if isinstance(raw, dict) else raw
+        if not isinstance(rows, list):
+            rows = [rows] if isinstance(rows, dict) else []
+        return any(bool(r.get("connected")) for r in rows if isinstance(r, dict))
     except Exception:                                  # noqa: BLE001
         return False
 

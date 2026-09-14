@@ -37,3 +37,32 @@ def _scheduler_never_touches_the_live_journal(monkeypatch):
     monkeypatch.setattr(scheduler, "create", _create)
     monkeypatch.setattr(scheduler, "cancel", _cancel)
     return jobs
+
+
+@pytest.fixture(autouse=True)
+def _the_suite_never_touches_the_operators_real_google_account(tmp_path, monkeypatch):
+    """The CONNECTOR half of the same rule, and it cost the operator his first real connection (V2-689).
+
+    `test_the_agenda_owns_its_google_connector.py` calls `apply_action("disconnect")` as a counterweight —
+    a perfectly good test of the rule that disconnecting must not open a connect screen. What nobody noticed
+    is that it reached `connectors/calendar/oauth.forget()` against the REAL
+    `.meshkore/credentials/calendar_oauth.json`. The connector's OWN suite isolates that store on its first
+    line; these tests never did.
+
+    It was invisible for exactly one reason: until 2026-09-14 there was no Google account to delete, so
+    `forget()` removed nothing every single time. The hour he finally linked one, a routine run of this
+    directory unlinked it — and the failure looked like the connector dropping his token, which is the worst
+    possible place to go looking. The 233 orphan `pending` records his store had collected are from the same
+    source: every `connect` case here minted one in his real file.
+
+    ⚠️ **An unisolated test does not fail — it leaves something behind**, and what it leaves behind may be
+    the thing the operator spent an afternoon getting. Third payment of this class after V2-673 (`v2.json`)
+    and V2-684 (`zaelar.db`); the shape never changes, only which live store had not been reached yet.
+    """
+    for mod in ("connectors.calendar.oauth", "connectors.video.oauth", "connectors.photos.oauth",
+                "connectors.files.oauth", "connectors.email.oauth"):
+        try:
+            m = __import__(mod, fromlist=["oauth"])
+        except Exception:                              # noqa: BLE001 — a connector absent from this build
+            continue
+        monkeypatch.setattr(m, "STORE", tmp_path / f"{mod.split('.')[1]}_oauth.json", raising=False)

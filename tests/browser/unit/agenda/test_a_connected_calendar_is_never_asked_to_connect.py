@@ -216,3 +216,85 @@ def test_both_sentences_exist_in_BOTH_shipped_languages():
         es = getattr(langs.LANGUAGES["es"], field, "") or getattr(langs.LangSpec, field, "")
         en = getattr(langs.LANGUAGES["en"], field, "")
         assert es and en and es != en, f"{field}: {es!r} / {en!r}"
+
+
+# ── The double that measured nothing ─────────────────────────────────────────────────────────────────
+
+def test_connected_reads_the_REAL_facade_shape(monkeypatch):
+    """⚠️ The case that refuses to use the double, and the only one that could have caught this.
+
+    `connected()` first shipped iterating `service.status()` directly — but that facade answers
+    `{"ok": …, "providers": [ … ]}`, a DICT. Iterating it walks the KEYS, calls `.get` on a string, raises,
+    and the function's own `except` turns that into False. It returned False for a linked account, every
+    time, and the guard it feeds could never fire.
+
+    Every other case in this file monkeypatches `gcal.connected`, so all of them stayed green over a
+    function that measured nothing — «a test double with the wrong shape», paid again. This one patches the
+    CONNECTOR underneath instead, in the shape the real module actually returns."""
+    real = gcal.svc()
+    assert real is not None, "the calendar connector must be importable for this case to mean anything"
+
+    class _Facade:
+        answer: dict = {}
+
+        def status(self):
+            return self.answer
+
+    fake = _Facade()
+    monkeypatch.setattr(gcal, "svc", lambda: fake)
+
+    fake.answer = {"ok": True, "providers": [{"id": "google", "connected": True}]}
+    assert gcal.connected() is True, "a linked account read through the REAL facade shape"
+
+    fake.answer = {"ok": True, "providers": [{"id": "google", "connected": False}]}
+    assert gcal.connected() is False
+
+    fake.answer = {"ok": True, "providers": []}
+    assert gcal.connected() is False, "no providers is not a linked account"
+
+
+def test_the_bare_LIST_shape_still_works_too():
+    """`oauth.status()` answers a plain list of rows and is the shape a future caller may hand in. Accepting
+    both costs three lines and removes a whole class of the failure above."""
+    class _Rows:
+        def status(self):
+            return [{"id": "google", "connected": True}]
+
+    import pytest as _p
+    mp = _p.MonkeyPatch()
+    mp.setattr(gcal, "svc", lambda: _Rows())
+    try:
+        assert gcal.connected() is True
+    finally:
+        mp.undo()
+
+
+def test_an_unreadable_connector_answers_NOT_connected():
+    """Fail-safe direction, stated: refusing to offer the connect button to somebody who needs it is worse
+    than offering it to somebody who does not."""
+    class _Broken:
+        def status(self):
+            raise RuntimeError("boom")
+
+    import pytest as _p
+    mp = _p.MonkeyPatch()
+    mp.setattr(gcal, "svc", lambda: _Broken())
+    try:
+        assert gcal.connected() is False
+    finally:
+        mp.undo()
+    mp2 = _p.MonkeyPatch()
+    mp2.setattr(gcal, "svc", lambda: None)
+    try:
+        assert gcal.connected() is False
+    finally:
+        mp2.undo()
+
+
+def test_this_suite_cannot_reach_the_operators_real_token_store():
+    """The guard that has to exist because its absence cost him a real connection. A `disconnect` case in
+    this directory reached `oauth.forget()` against `.meshkore/credentials/calendar_oauth.json` and unlinked
+    the Google account he had just spent an afternoon getting — invisible until the day there was finally an
+    account to delete. Asserted here, permanently, instead of trusted to whoever writes the next case."""
+    from connectors.calendar import oauth
+    assert "credentials" not in str(oauth.STORE), f"the suite points at the REAL store: {oauth.STORE}"
