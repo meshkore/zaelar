@@ -147,6 +147,8 @@ updater safe, and it comes first.
 | The installed process does its whole job over real HTTP | Node **7.37** (boots a real `python -m daemon`) |
 | The guards hold against a hostile local process | Node **7.40**, seven disarms |
 | macOS install → launchd accepts, starts, defers to a running instance → uninstall leaves nothing | **By hand, 2026-09-06.** Built, installed into a temp `HOME`, `launchctl print` showed the job registered and correctly not restart-looping after it found the port taken; uninstalled and the job is gone |
-| Windows install | **Not verified by hand — there was no Windows and no PowerShell on the machine this was written on.** That is what the Windows CI job is for, and until it has run green the Windows path is written and unmeasured |
+| The Windows build, the installer syntax, and the guards surviving the build | **Measured, 2026-09-14** — first run of this workflow on `windows-latest`, tag `daemon-v0.2.0`. It found a real defect on its first try: `build.py` raised `UnicodeEncodeError` printing `→` to a cp1252 console **after every artifact was written**, so the build worked and the script died on its own success line. Fixed, re-tagged, green |
+| Windows install on a real desktop | **Still not done.** CI builds the `.exe`, starts it and confirms its guards; it does not run `install.ps1` against a live user session, so the scheduled task, the Startup-shortcut fallback and Mark-of-the-Web are reasoned, not observed |
+| The download links resolve | **Measured, 2026-09-14** — the release publishes all twelve assets under the platform-distinct names `server/daemon_api.py` builds its links from |
 
-The last row is the shape of this document: what is measured, and what is merely written.
+The last two rows are the shape of this document: what is measured, and what is merely written.

@@ -763,6 +763,28 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **A proxy in front of a hardened thing is a SECOND front door (V2-575 P1, 2026-09-14)**: the daemon had five
+  guards and no way for a person to obtain it or point it at a folder. The engine now proxies it — a page over
+  https cannot call plain http, a direct call needs CORS headers the daemon must never send, and the bearer
+  token would have to reach JavaScript — and that proxy is the part worth writing down. It exposes `status`,
+  `grant` and `revoke` and **no file route, ever**: proxying `files.read` would hand every page that can reach
+  the engine the exact capability `daemon/security/guards.py` refuses, through our own credentials, and a
+  ratchet fixes the route set so a future one needs a threat model rather than a test edit. Cross-origin is
+  refused here too — without CORS a hostile page cannot READ the answer, but `grant` changes state, so fire and
+  forget already puts a folder on somebody's allowlist. The guard reads `Sec-Fetch-Site` first and compares
+  `Origin` against the request's OWN `Host`, never a configured hostname, because this engine is reached as
+  localhost, as local.zaelar.com and as whatever a cloud account resolves to; the counterweight is in the same
+  file, since our own page IS a browser. Three defects fell out of measuring rather than of reading: with no
+  `daemon.json` the engine answered `reachable: true` because `/health` needs no token — a green icon over a
+  daemon it cannot authenticate to; both CI runners uploaded `zaelar-daemon.pyz`, `manifest.json` and
+  `SHA256SUMS` under those names into one flattened release, so one platform silently overwrote the other; and
+  the first real Windows runner found `build.py` dying on `UnicodeEncodeError` printing `→` to a cp1252
+  console **after every artifact was written** — the build worked, the script died on its own success line.
+  The 🖥 icon is the one TopBar control not gated on `cloudProfile`: a cloud account is precisely the case
+  where the user's own machine is unreachable, so hiding it hides it from the only people who cannot solve it
+  another way — and that screen says outright that connecting a daemon to the cloud agent is still being
+  built. Nodes **7.44** (offered and governed) and **7.41** (the cp1252 console). (2026-09-14; V2-575)
+
 - **The errand FINISHES what it agreed — and a verifier reads ONE fact while an objective has several
   (V2-692, 2026-09-14)**: the operator reviewed his own test session and reported it whole — «he pedido que
   se organice una reunión… me ha pedido permiso para hacer el envío. Después el otro ha respondido, pero no
