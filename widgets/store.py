@@ -9,6 +9,7 @@
 #
 import json
 import os
+import time
 import shutil
 import threading
 
@@ -120,6 +121,7 @@ def save(widget_id: str, data: dict) -> dict:
     with _lock:
         if _last_hash.get(widget_id) == h and os.path.exists(p):
             return data                                  # unchanged → skip write + skip emit (kills the poll flood)
+        _snapshot(widget_id, p)                      # V2-705: what is about to be overwritten survives
         tmp = p + ".tmp"
         with open(tmp, "w", encoding="utf-8") as f:
             f.write(body)
@@ -139,6 +141,64 @@ def save(widget_id: str, data: dict) -> dict:
     except Exception:
         pass
     return data
+
+
+# ── the pre-mutation SNAPSHOT (V2-705) ──────────────────────────────────────────────────────────────────
+# 2026-09-15: one `cancel_meeting {}` emptied the agenda store, and the operator's question «what was there?»
+# had no answer — the store kept nothing but its latest state. Every save now keeps the file it replaces
+# under `<widget>/history/<stamp>.json`, bounded to the last few. It is the operator's undo, and it is what
+# lets an incident be measured after the fact instead of reconstructed from memory. Cheap by construction:
+# `save` is already change-gated, so an idempotent poll never snapshots.
+HISTORY_KEEP = 5
+
+
+def _history_dir(widget_id: str) -> str:
+    return os.path.join(data_dir(widget_id), "history")
+
+
+def _snapshot(widget_id: str, path: str) -> None:
+    """Copy the CURRENT file aside before it is overwritten. Never raises: a failed snapshot must not cost
+    the write, and the lock is already held by the caller."""
+    try:
+        if not os.path.exists(path):
+            return
+        d = _history_dir(widget_id)
+        os.makedirs(d, exist_ok=True)
+        # Readable stamp + a nanosecond tail: two saves inside one millisecond are two snapshots, not one.
+        stamp = time.strftime("%Y%m%d-%H%M%S", time.localtime()) + f"-{time.time_ns() % 1_000_000_000:09d}"
+        with open(path, "rb") as src, open(os.path.join(d, stamp + ".json"), "wb") as dst:
+            dst.write(src.read())
+        for old in sorted(os.listdir(d))[:-HISTORY_KEEP]:
+            try:
+                os.remove(os.path.join(d, old))
+            except OSError:
+                pass
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def history(widget_id: str) -> list[str]:
+    """The snapshots kept for this widget, oldest first (file stems, usable with `restore`)."""
+    try:
+        return sorted(f[:-5] for f in os.listdir(_history_dir(widget_id)) if f.endswith(".json"))
+    except OSError:
+        return []
+
+
+def restore(widget_id: str, stamp: str) -> dict | None:
+    """Put a snapshot back as the live state (the current state is snapshotted first, so a restore is
+    itself undoable). Returns the restored data, or None when the stamp does not exist."""
+    src = os.path.join(_history_dir(widget_id), f"{stamp}.json")
+    if not os.path.exists(src):
+        return None
+    try:
+        data = json.load(open(src, encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        return None
+    if not isinstance(data, dict):
+        return None
+    forget(widget_id)
+    return save(widget_id, data)
 
 
 def exists(widget_id: str) -> bool:

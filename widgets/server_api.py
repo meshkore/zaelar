@@ -323,7 +323,25 @@ async def _dispatch(wid: str, action: str, payload: dict):
     3. **Exclusivity**: if it just took an exclusive channel (the speaker), silence the others on that channel. After
        applying it, because who occupies the channel is read from REAL state, not intent.
 
-    Steps 1 and 3 are best-effort: production-policy failure cannot crash a normal data-op."""
+    Steps 1 and 3 are best-effort: production-policy failure cannot crash a normal data-op.
+
+    Step 0 (V2-705): the CONTRACT. A destructive action whose selector arrives empty is refused here, for
+    every caller at once — the brain, the worker, a button, cron. `contract.py` carries the incident (a
+    `cancel_meeting {}` that deleted 100 events from the operator's Google Calendar) and the exact rule."""
+    try:
+        from . import contract
+        refused = contract.guard(wid, action, payload)
+        if refused is not None:
+            try:
+                from voice.observer import emit as _emit
+                _emit("widget", "action_refused", text=str(refused.get("message") or "")[:160],
+                      extra={"id": wid, "action": str(action), "error": str(refused.get("error") or ""),
+                             "field": str(refused.get("field") or ""), "is_error": True})
+            except Exception:
+                pass
+            return refused
+    except Exception:
+        pass
     try:
         from . import producers
         denied = producers.gate(wid, action)

@@ -59,6 +59,12 @@ class LangSpec:
     agenda_no_data: str = ("No he llegado a apuntar la cita: no me ha quedado claro el título, el día o "
                            "la hora.")
     agenda_no_title: str = "No la he apuntado porque no sé de qué es la cita. ¿Cómo la llamo?"
+    #: A DESTRUCTIVE widget action that arrived with no selector (V2-705, `widgets/contract.py`). The
+    #: operator hears this instead of «done» — and instead of losing everything, which is what an empty
+    #: `cancel_meeting` did to his Google Calendar on 2026-09-15. `{options}` is the widget's own menu.
+    widget_selector_missing: str = ("No he entendido cuál quitar, así que no he tocado nada. "
+                                    "¿Cuál de estos? {options}")
+    widget_selector_missing_bare: str = "No he entendido cuál quitar, así que no he tocado nada. ¿Cuál?"
     #: The TITLE an errand writes on the meeting it just agreed with a third party (V2-692). It lands in
     #: the operator's agenda and, through the connector, in his real Google Calendar — a row only HE can
     #: delete — so it is a text he reads and belongs here rather than in an f-string inside the errand.
@@ -517,6 +523,10 @@ LANGUAGES: dict[str, LangSpec] = {
         unverified_fact="I couldn't check that just now, so I'd rather not give you a made-up figure.",
         agenda_no_data="I haven't put the appointment in: I'm not sure about the title, the day or the time.",
         agenda_no_title="I haven't put it in because I don't know what it's for. What should I call it?",
+        widget_selector_missing="I couldn't tell which one to remove, so I left everything as it is. "
+                                "Which of these? {options}",
+        widget_selector_missing_bare="I couldn't tell which one to remove, so I left everything as it is. "
+                                     "Which one?",
         errand_meeting_title="Meeting with {name}",
         search_blocked=("I did search, but the search engine blocked me with an anti-bot check. It isn't that "
                         "I can't look things up — this time it wouldn't let me. Shall I try properly with the "
