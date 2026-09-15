@@ -108,8 +108,8 @@ PROVIDERS: dict[str, ContactsProvider] = {
         # Without access_type=offline + prompt=consent Google returns NO refresh_token at all (measured on
         # Drive, V2-557, paid again on video/photos) — the connection would silently die within the hour.
         extra_auth_params={"access_type": "offline", "prompt": "consent"},
-        note="Copia tus contactos de Google al directorio de zaelar. Es una importación, no una "
-             "sincronización: lo que edites aquí es tuyo y no vuelve a Google."),
+        note="Trae tus contactos de Google al directorio de zaelar. Con el permiso de solo lectura solo "
+             "los trae; con el de los dos sentidos, lo que cambies aquí también cambia en Google."),
 }
 
 #: Named, not requested — the same discipline as `connectors/google/services.py::FUTURE_SCOPES`.
