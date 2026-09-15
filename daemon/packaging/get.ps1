@@ -78,9 +78,12 @@ try {
   Invoke-WebRequest -Uri "$RawBase/windows/install.ps1" -OutFile $installer -UseBasicParsing
   & $installer (Join-Path $Work $Asset)
 
+  # `iex` cannot pass an argument to the script it runs, so the destructive variant needs the scriptblock
+  # form. Printing only the simple line would leave somebody guessing at a syntax that does not exist.
   Write-Host ''
   Write-Host '  To remove it later:'
   Write-Host "    irm $RawBase/windows/uninstall.ps1 | iex"
+  Write-Host "    & ([scriptblock]::Create((irm $RawBase/windows/uninstall.ps1))) -Purge   # and forget the folders you chose"
   Write-Host ''
 } finally {
   Remove-Item -Recurse -Force $Work -ErrorAction SilentlyContinue

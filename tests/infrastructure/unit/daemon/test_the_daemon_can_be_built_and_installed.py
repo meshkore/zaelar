@@ -172,6 +172,28 @@ def test_the_one_line_installer_survives_the_bash_that_macos_actually_ships(tmp_
     )
 
 
+def test_an_option_printed_next_to_a_pipe_is_one_the_pipe_can_carry():
+    """⚠️ MEASURED by typing it, 2026-09-15. `curl … | bash --purge` looks obviously right and is not: the
+    option is consumed by BASH, which answers with its own usage text and never runs the script — so the user
+    reads four screens of shell help and concludes the uninstaller is broken. The piped form needs `-s --`, and
+    `iex` cannot take an argument at all (it needs the scriptblock form).
+
+    A hint that only works when you already know the trick is a hint for somebody who did not need it."""
+    sh = (PACKAGING / "get.sh").read_text(encoding="utf-8")
+    # Comments are skipped: both scripts explain this trap in prose, and a check tripped by its own
+    # documentation is a check that teaches people to delete the documentation.
+    for line in (l for l in sh.splitlines() if not l.strip().startswith("#")):
+        if "| bash" in line and "--purge" in line:
+            assert "bash -s --" in line, f"a piped bash line passes an option bash will eat: {line.strip()}"
+    assert "bash -s -- --purge" in sh, "get.sh never shows how to uninstall destructively"
+
+    ps = (PACKAGING / "get.ps1").read_text(encoding="utf-8")
+    for line in (l for l in ps.splitlines() if not l.strip().startswith("#")):
+        if "| iex" in line and "-Purge" in line:
+            raise AssertionError(f"`iex` cannot take an argument: {line.strip()}")
+    assert "scriptblock]::Create" in ps, "get.ps1 never shows how to uninstall destructively"
+
+
 # ── the build tooling stays out of the daemon's own dependency set ────────────────────────────────────────
 
 def test_the_build_dependency_is_not_a_run_dependency():

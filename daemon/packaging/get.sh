@@ -84,5 +84,9 @@ curl -fsSL -o "$WORK/install.sh" "$RAW_BASE/macos/install.sh" || die "could not 
 chmod +x "$WORK/$ASSET"
 bash "$WORK/install.sh" "$WORK/$ASSET"
 
+# ⚠️ `| bash --purge` DOES NOT WORK and looks like it should: the option is read by bash, not by the script,
+# and bash answers with its own usage text. Anybody who wants the destructive variant will type the obvious
+# thing first, so the obvious thing has to be the one printed.
 printf '\n  To remove it later:\n'
-printf '    curl -fsSL %s/macos/uninstall.sh | bash\n\n' "$RAW_BASE"
+printf '    curl -fsSL %s/macos/uninstall.sh | bash\n' "$RAW_BASE"
+printf '    curl -fsSL %s/macos/uninstall.sh | bash -s -- --purge   # and forget the folders you chose\n\n' "$RAW_BASE"
