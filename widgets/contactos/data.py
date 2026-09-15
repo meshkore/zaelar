@@ -37,6 +37,19 @@ def load_db() -> dict:
     return store.load(WIDGET_ID, _seed(), version=DB_VERSION, migrate=_migrate)
 
 
+def _touch(c: dict, now: str = "") -> None:
+    """Mark a row as changed BY THE OPERATOR — the date he reads, and the clock the sync needs (V2-701).
+
+    ⚠️ `updated` is a DATE, and a date cannot say «he changed it after we last sent it»: it says «today»
+    for the rest of the day. That was survivable while syncing was a button he pressed now and then; with
+    a pass every minute it is a PATCH per edited contact per minute. `touchedAt` is the precise half, and
+    only local writes set it — an import filling in an empty field is Google's doing, not his, and stamping
+    it there would push Google's own value straight back at it in a loop.
+    """
+    c["updated"] = now or time.strftime("%Y-%m-%d")
+    c["touchedAt"] = time.time()
+
+
 def _norm(s) -> str:
     """Accent/case-insensitive comparable form, so «Elfo On» and «elfo ón» never pile up as duplicates."""
     s = unicodedata.normalize("NFD", str(s or ""))
@@ -460,7 +473,7 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
                 _merge_channel(existing, row)
             if _platform(payload.get("preferred")):
                 existing["preferred"] = _platform(payload.get("preferred"))
-            existing["updated"] = now
+            _touch(existing, now)
             c, updated = existing, True
         else:
             c = {"id": f"c{db.get('next_id', 1)}", "kind": _kind(payload.get("kind")),
@@ -471,7 +484,7 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
                  "notes": str(payload.get("notes") or "").strip(),
                  "groups": groups, "favorite": _truthy(payload.get("favorite")),
                  "channels": incoming, "preferred": _platform(payload.get("preferred")),
-                 "parentId": "", "created": now, "updated": now}
+                 "parentId": "", "created": now, "updated": now, "touchedAt": time.time()}
             db["next_id"] = int(db.get("next_id", 1)) + 1
             contacts.append(c)
             updated = False
@@ -510,7 +523,7 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
             _merge_channel(c, row)
         if _platform(payload.get("preferred")):
             c["preferred"] = _platform(payload.get("preferred"))
-        c["updated"] = now
+        _touch(c, now)
         store.save(WIDGET_ID, db)
         d = view_data(q)
         d.update({"ok": True, "result": {"contact": _public(c)}})
@@ -537,7 +550,7 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
             c["channels"] = [ch for ch in (c.get("channels") or []) if str(ch.get("platform")) != p]
             if str(c.get("preferred") or "") == p:
                 c["preferred"] = ""
-            c["updated"] = now
+            _touch(c, now)
             store.save(WIDGET_ID, db)
             d = view_data(q)
             d.update({"ok": True, "result": {"contact": _public(c), "removed_channel": p}})
@@ -553,7 +566,7 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
                              f"(su usuario, su teléfono o su dirección)"}
         if _truthy(payload.get("preferred"), default=True):
             c["preferred"] = p
-        c["updated"] = now
+        _touch(c, now)
         store.save(WIDGET_ID, db)
         d = view_data(q)
         d.update({"ok": True, "result": {"contact": _public(c), "channel": p}})
@@ -568,6 +581,16 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
             # Children never keep a pointer to a removed parent — a dangling link paints a dead breadcrumb.
             if x.get("parentId") == c["id"]:
                 x["parentId"] = ""
+        # V2-701 — the other half of the mirror. His model: «se modifica en un sitio o en otro, todo se
+        # sincroniza linealmente y es un espejo». A deletion is a change like any other, and it is the one
+        # a pull CANNOT carry: once the row is gone from here there is nothing left to compare, so the
+        # intention is written down now and spent by the next push. Queued even when the connection is
+        # read-only — the write permission may arrive before he next opens this card, and then it lands.
+        gid = str(c.get("googleId") or "").strip()
+        if gid:
+            pend = db.setdefault("sync", {}).setdefault("pendingDeletes", [])
+            if gid not in pend:
+                pend.append(gid)
         store.save(WIDGET_ID, db)
         d = view_data(q)
         d.update({"ok": True, "result": {"removed": _public(c)}})
@@ -578,7 +601,7 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
         if not c:
             return {"ok": False, "error": "no encuentro ese contacto — set_favorite necesita su `contactId`"}
         c["favorite"] = _truthy(payload.get("favorite"), default=True)
-        c["updated"] = now
+        _touch(c, now)
         store.save(WIDGET_ID, db)
         d = view_data(q)
         d.update({"ok": True, "result": {"contact": _public(c)}})
@@ -603,7 +626,7 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
                 seen.add(cur["parentId"])
                 cur = _find(db, cur["parentId"])
         c["parentId"] = pid
-        c["updated"] = now
+        _touch(c, now)
         store.save(WIDGET_ID, db)
         d = view_data(q)
         d.update({"ok": True, "result": {"contact": _public(c), "parentId": pid}})
@@ -648,10 +671,20 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
         d.update({"ok": bool(res.get("ok")), "result": res})
         return d
 
+    if action == "set_auto":
+        # V2-701 — «eso debería quedarse conectado de forma permanente». The switch is the state; the
+        # background tick reads it every pass, so turning it off stops the next one with nothing to cancel.
+        on = _truthy(payload.get("auto"), default=True)
+        db.setdefault("sync", {})["auto"] = on
+        store.save(WIDGET_ID, db)
+        d = view_data(q)
+        d.update({"ok": True, "result": {"auto": on}})
+        return d
+
     if action in ("sync_contacts", "import_google"):
         # `import_google` is kept as an alias: it shipped in the manifest for one build and a model that
         # learned it must not start getting «acción desconocida» for asking the same thing.
-        res = gcontacts.sync(db, merge=_merge_imported,
+        res = gcontacts.sync(db, merge=_merge_imported, remove=_drop_deleted,
                              since=float((db.get("sync") or {}).get("last") or 0.0))
         if not res.get("ok"):
             return {"ok": False, "error": str(res.get("error") or "no se pudo sincronizar")}
@@ -663,7 +696,7 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
     return {"ok": False, "error": f"acción desconocida: {action}"}
 
 
-def _merge_imported(db: dict, rows: list[dict]) -> dict:
+def _merge_imported(db: dict, rows: list[dict], *, authoritative: bool = False) -> dict:
     """Fold Google's side into ours. The MERGE lives here, not in the connector: this store is the only
     module that knows which fields the OPERATOR typed himself.
 
@@ -671,6 +704,14 @@ def _merge_imported(db: dict, rows: list[dict]) -> dict:
     fixed would silently undo the correction, and he would have no way to tell which of the two surfaces
     was lying. The other direction (his newer rows reaching Google) is `gcontacts.sync`'s push half, which
     has already run by the time this is called.
+
+    `authoritative` is the one case where Google may REPLACE a value instead of only filling a blank, and
+    it is narrow on purpose (V2-701): the row arrived through a SYNC TOKEN, which means Google is telling
+    us it changed since we last looked, AND our copy has nothing pending («whoever touched it last wins»,
+    the rule this connector has answered conflicts with since V2-699). A row he has edited and we have not
+    sent yet is still his — it is waiting its turn in the push half, and letting Google win here would
+    delete the edit before it ever left the house. A FULL re-read is never authoritative: there, «changed»
+    is unknown, and treating every row as fresh would undo his corrections wholesale on the first pass.
     """
     contacts = db.setdefault("contacts", [])
     now = time.strftime("%Y-%m-%d")
@@ -693,11 +734,18 @@ def _merge_imported(db: dict, rows: list[dict]) -> dict:
         # HIS EDITS WIN. Google only FILLS IN what is empty here — it never overwrites a field the
         # operator typed, because a second import would silently undo every correction he had made,
         # and he would have no way to tell which of the two surfaces was lying.
+        #
+        # …unless this row reached us through a sync token AND we have nothing pending on it: then Google
+        # touched it last and Google wins, which is what makes this a SYNC rather than a repeated import.
+        takes_over = authoritative and float(c.get("touchedAt") or 0.0) <= float(c.get("pushedAt") or 0.0)
         touched = False
         for k in ("city", "address", "phone", "email", "notes"):
-            if inc.get(k) and not str(c.get(k) or "").strip():
+            if inc.get(k) and (takes_over or not str(c.get(k) or "").strip()) and inc[k] != c.get(k):
                 c[k] = inc[k]
                 touched = True
+        if takes_over and inc.get("name") and inc["name"] != c.get("name"):
+            c["name"] = inc["name"]
+            touched = True
         for g in inc.get("groups") or []:
             if _norm(g) not in {_norm(x) for x in c.get("groups") or []}:
                 c.setdefault("groups", []).append(g)
@@ -711,9 +759,55 @@ def _merge_imported(db: dict, rows: list[dict]) -> dict:
             c["googleId"] = inc["googleId"]
             touched = True
         if touched:
+            # NOT `_touch`: Google filling in a blank is not the operator changing his mind, and stamping
+            # `touchedAt` here would make the next push send Google's own value straight back at it.
             c["updated"] = now
             updated_n += 1
         else:
             unchanged += 1
 
     return {"added": added, "updated": updated_n, "unchanged": unchanged, "read": len(rows or [])}
+
+
+#: A single pass may never remove more than this share of the address book, nor more than this many rows,
+#: whichever bites first. It is not a policy about how many contacts a person deletes in a minute — it is a
+#: circuit breaker around OUR OWN code: the failure mode of a sync token gone wrong is «everything looks
+#: deleted», and the difference between a bug and a catastrophe is whether anything acted on that.
+_DELETE_CAP_SHARE = 0.2
+_DELETE_CAP_ROWS = 25
+
+
+def _drop_deleted(db: dict, google_ids: list[str]) -> int:
+    """Mirror deletions Google reported, and ONLY the ones that are safe to mirror (V2-701).
+
+    A row he has edited here since we last sent it is not Google's to delete: he touched it last, which is
+    the same rule that decides every other conflict in this connector. Those are kept and simply unhooked
+    from the pass — they stay in the directory, still carrying their `googleId`, and a later edit will try
+    to push and report honestly if Google no longer has them.
+    """
+    ids = {str(g).strip() for g in (google_ids or []) if str(g).strip()}
+    if not ids:
+        return 0
+    contacts = db.get("contacts") or []
+    victims = [c for c in contacts
+               if str(c.get("googleId") or "") in ids
+               and float(c.get("touchedAt") or 0.0) <= float(c.get("pushedAt") or 0.0)]
+    if not victims:
+        return 0
+    cap = max(_DELETE_CAP_ROWS, int(len(contacts) * _DELETE_CAP_SHARE))
+    if len(victims) > cap:
+        db.setdefault("sync", {})["blockedDeletes"] = len(victims)
+        return 0
+    doomed = {c["id"] for c in victims}
+    db["contacts"] = [c for c in contacts if c.get("id") not in doomed]
+    for x in db["contacts"]:
+        if x.get("parentId") in doomed:
+            x["parentId"] = ""          # a dangling link paints a dead breadcrumb (same rule as remove_contact)
+    db.get("sync", {}).pop("blockedDeletes", None)
+    return len(victims)
+
+
+def tick(ctx) -> None:
+    """Keep the linked account in step (V2-701). The scheduler's contract needs this name in THIS file;
+    the body lives in `gcontacts.py`, the same extraction the agenda made for `gcal.tick`."""
+    gcontacts.tick(ctx)

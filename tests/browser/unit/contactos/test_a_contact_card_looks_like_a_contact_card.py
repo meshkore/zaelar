@@ -71,7 +71,8 @@ def _providers(google="connected"):
 
 
 def _sync(**over):
-    s = {"connected": True, "twoWay": False, "tier": "saved", "last": 0.0, "lastResult": {}, "auto": True}
+    s = {"connected": True, "twoWay": False, "tier": "saved", "last": 0.0, "lastResult": {}, "auto": True,
+         "every": 60, "blockedDeletes": 0}
     s.update(over)
     return s
 
@@ -435,10 +436,40 @@ def test_a_two_way_connection_says_so_in_one_line(_page):
     assert _page.locator(".ctsync input[type=checkbox]").count() == 0
 
 
-def test_the_sync_button_runs_the_sync(_page):
+def test_syncing_is_a_SWITCH_that_stays_on_not_an_errand(_page):
+    """His report: «el tema de la sincronización de contactos no es algo que deberíamos hacer de forma
+    puntual, deberíamos realmente marcar un botón de sincronización y eso debería quedarse conectado de
+    forma permanente.»
+
+    A button is a one-off by its grammar, whatever its label says. The control for a permanent state is a
+    switch, and what it shows is the STATE — on or off — not an errand waiting to be run.
+    """
     _mount(_page, _data())
     _page.locator(".ctconnbtn").click()
-    _page.locator(".ctsync .ctbtn", has_text="Sincronizar").click()
+    row = _page.locator(".ctswrow")
+    assert row.count() == 1
+    assert "on" in _classes(row), "connected and syncing is the default — he asked for permanent"
+    assert "cada" in row.inner_text(), "and it says how often, instead of leaving him wondering"
+    row.click()
+    assert ["set_auto", {"auto": False}] in _calls(_page), "the switch writes the STATE"
+
+
+def test_the_switch_reads_OFF_when_it_is_off(_page):
+    _mount(_page, _data(sync=_sync(auto=False)))
+    _page.locator(".ctconnbtn").click()
+    row = _page.locator(".ctswrow")
+    assert "on" not in _classes(row)
+    _page.locator(".ctswrow").click()
+    assert ["set_auto", {"auto": True}] in _calls(_page)
+
+
+def test_syncing_by_hand_is_still_there_but_QUIET(_page):
+    """Impatience deserves a door; it just must not be the one that looks like the feature. A primary
+    button beside a switch would go on teaching «syncing is something you do by hand»."""
+    _mount(_page, _data())
+    _page.locator(".ctconnbtn").click()
+    assert _page.locator(".ctsync .ctbtn.primary").count() == 0, "the switch is the control now"
+    _page.locator(".ctsync .ctquiet", has_text="Sincronizar ahora").click()
     assert ["sync_contacts", {}] in _calls(_page)
 
 

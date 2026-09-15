@@ -148,7 +148,28 @@ function injectStyles(){
     color:var(--hb-muted,#5b6b82)}
   .hb-contactos .ctsyncarrow{font-family:ui-monospace,Menlo,monospace;color:var(--hb-accent,#3D6FE0);
     font-weight:700;flex:0 0 auto}
+  /* THE SWITCH. A permanent state wears a switch, not a button: a button says «do it once» and that is
+     exactly the reading the operator rejected. Local to this widget for now — the day a second connector
+     panel needs one it gets promoted to components.css under the hb- prefix. */
+  .hb-contactos .ctswrow{display:flex;align-items:center;gap:10px;cursor:pointer;
+    border:0;background:none;padding:0;width:100%;text-align:left;color:inherit}
+  .hb-contactos .ctsw{width:34px;height:20px;flex:0 0 auto;border-radius:999px;position:relative;
+    background:var(--hb-line,#e3e8f0);transition:background .14s ease}
+  .hb-contactos .ctsw::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;
+    border-radius:50%;background:var(--hb-bg,#fff);transition:transform .14s ease;
+    box-shadow:0 1px 2px rgba(0,0,0,.3)}
+  .hb-contactos .ctswrow.on .ctsw{background:var(--hb-accent,#3D6FE0)}
+  .hb-contactos .ctswrow.on .ctsw::after{transform:translateX(14px)}
+  .hb-contactos .ctswrow[disabled]{opacity:.5;cursor:default}
+  .hb-contactos .ctswtx{font-size:13px;font-weight:600}
+  .hb-contactos .ctswsub{font-size:11.5px;color:var(--hb-muted-2,#7d8a9c);margin-left:auto;text-align:right}
   .hb-contactos .ctsyncfoot{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  /* ⚠️ NOT ctlink — that class already means «jump to a linked contact» further down this sheet, and a
+     second meaning on one surface loses to the first one silently (measured: the accent underline won). */
+  .hb-contactos .ctquiet{border:0;background:none;padding:0;font-size:12px;font-weight:600;cursor:pointer;
+    color:var(--hb-muted,#5b6b82)}
+  .hb-contactos .ctquiet:hover{color:var(--hb-accent,#3D6FE0);text-decoration:underline}
+  .hb-contactos .ctquiet[disabled]{opacity:.5;cursor:default;text-decoration:none}
   .hb-contactos .ctsyncwhen{font-size:11.5px;color:var(--hb-muted-2,#7d8a9c);margin-left:auto;text-align:right}
   .hb-contactos .ctwarn{font-size:11.5px;line-height:1.5;color:var(--hb-warn,#E0A23D);
     border-left:2px solid var(--hb-warn,#E0A23D);padding-left:9px}
@@ -586,6 +607,22 @@ function renderSyncBox(el, data, ctx, sync, redraw){
   top.appendChild(el2("b",null, tt("sync_title", null, "Sincronización")));
   box.appendChild(top);
 
+  // THE CONTROL IS A STATE, NOT AN ERRAND (V2-701). His words: «el tema de la sincronización de contactos
+  // no es algo que deberíamos hacer de forma puntual… eso debería quedarse conectado de forma permanente».
+  // A button is a one-off by its very grammar, so the button stopped being the control and became the
+  // switch that is either on or off — and while it is on, the engine keeps them in step on its own.
+  const on = sync.auto !== false;
+  const row = el2("button","ctswrow" + (on?" on":""));
+  row.appendChild(el2("span","ctsw"));
+  row.appendChild(el2("span","ctswtx", tt("sync_auto", null, "Mantener sincronizado con Google")));
+  const every = Math.max(1, Math.round((sync.every || 60)/60));
+  row.appendChild(el2("span","ctswsub", on
+    ? tt("sync_auto_on", {min: every}, every === 1 ? "comprueba cada minuto"
+                                                   : "comprueba cada " + every + " minutos")
+    : tt("sync_auto_off", null, "apagada")));
+  row.onclick = ()=>{ sync.auto = !on; redraw(null); ctx.action("set_auto", {auto: !on}).then(redraw); };
+  box.appendChild(row);
+
   // ONE state, said in one line — his own simplification: «quizás quieras simplificar esto de Google a
   // nosotros y nosotros a Google, quitando esas opciones y solo dejando la sincronización activa».
   const dir = el2("div","ctsyncdir");
@@ -605,8 +642,21 @@ function renderSyncBox(el, data, ctx, sync, redraw){
       + "Google Cloud.")));
   }
 
+  if(sync.blockedDeletes){
+    // Said out loud rather than swallowed: the engine REFUSED to mirror a deletion it did not believe, and
+    // a guard that protects silently is indistinguishable from one that is not there (V2-701).
+    const w = el2("div","ctwarn", tt("sync_blocked_deletes", {n: sync.blockedDeletes},
+      "Google decía que " + sync.blockedDeletes + " contactos se habían borrado. Eran demasiados de golpe, "
+      + "así que no he borrado ninguno. Revísalo en Google y vuelve a sincronizar."));
+    w.style.color = "var(--hb-danger,#D9534F)";
+    w.style.borderLeftColor = "var(--hb-danger,#D9534F)";
+    box.appendChild(w);
+  }
+
   const foot = el2("div","ctsyncfoot");
-  const go = el2("button","ctbtn primary", tt("sync_now", null, "Sincronizar contactos"));
+  // «Sincronizar ahora» is impatience, not the feature: the switch above is what keeps them in step. It
+  // stays a quiet link so nothing on this panel reads as «syncing is something you do by hand».
+  const go = el2("button","ctquiet", tt("sync_now", null, "Sincronizar ahora"));
   go.onclick = async()=>{
     go.disabled = true; go.textContent = tt("syncing", null, "Sincronizando…");
     redraw(await ctx.action("sync_contacts", {}));
@@ -618,10 +668,13 @@ function renderSyncBox(el, data, ctx, sync, redraw){
          "Última vez: " + new Date(sync.last*1000).toLocaleString())
     : tt("sync_never", null, "Todavía no se ha sincronizado")));
   const r = sync.lastResult || {};
-  if(sync.last){
+  if(r.error){
+    when.appendChild(el2("div",null, String(r.error)));
+  } else if(sync.last){
     const bits = [];
     if(r.added) bits.push(tt("sync_added", {n:r.added}, r.added + " nuevos"));
     if(r.updated) bits.push(tt("sync_updated", {n:r.updated}, r.updated + " completados"));
+    if(r.removed) bits.push(tt("sync_removed", {n:r.removed}, r.removed + " borrados"));
     if(r.pushed || r.created) bits.push(tt("sync_pushed", {n:(r.pushed||0)+(r.created||0)},
       ((r.pushed||0)+(r.created||0)) + " enviados a Google"));
     when.appendChild(el2("div",null, bits.length ? bits.join(" · ")

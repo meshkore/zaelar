@@ -22,6 +22,7 @@
     "favorites"
   ],
   "entry": "widget.js",
+  "background": { "every": "30s" },
   "size": { "w": 720, "h": 520 },
   "usage": "El directorio ÚNICO de contactos del operador: personas, sitios y empresas, con grupos libres («amigos del trabajo», «restaurantes»), ciudad y favoritos — un restaurante favorito ES una entrada de este directorio, nunca una lista aparte. Añade con add_contact (mismo nombre y ciudad ACTUALIZA, no duplica), cambia con update_contact, borra con remove_contact (pide confirmación), marca con set_favorite y conecta una persona con su sitio o empresa con link_contact. Para VER o CONSULTAR el directorio («mi restaurante favorito en Barcelona», «enséñame los fontaneros de Soria») usa show_view: filtra lo que se ve Y devuelve los que casan en `result.matches` para que contestes con sus nombres — mostrar el widget otra vez NO filtra nada, abre el directorio entero. La ficha de uno concreto es show_contact. POR DÓNDE se le escribe a alguien vive aquí: set_channel guarda su WhatsApp, Telegram o correo y cuál es el preferido — eso es lo que luego usa `send_to` de mensajería para escribirle sin preguntar.",
   "actions": {
@@ -101,6 +102,10 @@
     "import_google": {
       "desc": "ALIAS de sync_contacts, por compatibilidad. Usa sync_contacts.",
       "payload": { "provider": "opcional: google (el único hoy)" }
+    },
+    "set_auto": {
+      "desc": "ENCIENDE o APAGA la sincronización permanente con Google Contacts («mantén los contactos sincronizados», «deja de sincronizar con Google»). Encendida, el sistema comprueba Google solo y trae o manda los cambios sin que nadie pulse nada; apagada, solo se sincroniza cuando él lo pide. NO conecta la cuenta: si no está conectada, esto no hace nada visible.",
+      "payload": { "auto": "true para mantenerla encendida, false para apagarla" }
     },
     "connect": {
       "desc": "devuelve la URL de consentimiento para enlazar una fuente de contactos (hoy solo Google). El operador tiene que PULSAR: la ventana solo sobrevive dentro del gesto que la abre, así que por voz NO se puede completar — deja la tarjeta en Conectores y dile que pulse «Conectar Google Contacts».",

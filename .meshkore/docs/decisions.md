@@ -21,6 +21,53 @@ entregada siga citada aquí.
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **A sync that STAYS ON, and stays a mirror (V2-701, 2026-09-15)**: after a one-off pass brought 2 685
+  people in, he said «el tema de la sincronización de contactos no es algo que deberíamos hacer de forma
+  puntual, deberíamos realmente marcar un botón de sincronización y eso debería quedarse conectado de forma
+  permanente», and then defined what he means by synced: «se modifica en un sitio o en otro, todo se
+  sincroniza linealmente y es un espejo […] si eso está conectado a un teléfono y se modifica en el
+  teléfono, todo el sistema se sincronizará.»
+  **The control is a SWITCH, because a button is a one-off by its grammar** whatever its label says — a
+  primary «Sincronizar contactos» teaches that syncing is an errand you run. `sync.auto` is the state,
+  `set_auto` writes it (declared, so voice reaches it), and `widgets/background.py` calls `data.tick` on
+  the manifest's cycle. Doing it by hand survives as a quiet secondary. Written into the header standard.
+  **Three things had to become true for «permanente» to be honest, and each was a real defect waiting.**
+  (1) **A pass had to be cheap enough to repeat**: 2 685 contacts is six pages, and a full re-read every
+  minute is a request budget spent to learn that nothing happened. `list_people` now carries Google's SYNC
+  TOKEN, so a quiet minute is ONE round-trip — and the token is also what tells the merge that a row is one
+  Google CHANGED. Two of Google's rules are load-bearing and easy to break by editing one branch:
+  `sortOrder` may not be combined with a sync request, and «all other request parameters must match the
+  first call», so there is exactly ONE parameter set rather than a full one and an incremental one that can
+  drift. A TRUNCATED read throws its token away: a pass that stopped at `max_pages` never saw the last
+  pages, and a token stamped there makes everything it skipped invisible forever while the card honestly
+  reports «sin cambios» about a question it never asked.
+  (2) **The push had to know what it had already sent.** The old test was a DATE — `updated` is
+  `YYYY-MM-DD`, so «edited today» stays true until midnight. Harmless for a button pressed now and then;
+  **on a timer it is a PATCH per edited contact per minute, and nobody would ever have seen it**, because
+  every one of those writes succeeds and writes the same values. Now a local write stamps `touchedAt`, a
+  successful push stamps `pushedAt`, and «ours» is one comparison of two clocks; legacy rows fall back to
+  the date rule ONCE and the push that follows moves them onto the precise path. The mirror image of the
+  same trap: an import filling in a blank must NOT stamp `touchedAt`, or the next pass sends Google its own
+  value straight back, forever.
+  (3) **A mirror reflects deletions or it is not a mirror.** Google→here arrives through the token as a
+  person carrying `metadata.deleted` and nothing else — no name, no email — so handing it to the shaper
+  returns None and the deletion vanishes silently; `list_people` separates them out. Here→Google cannot ride
+  a pull at all (once the row is gone there is nothing left to compare), so `remove_contact` queues the
+  `googleId` in `sync.pendingDeletes` and the next push spends it — cleared only on a pass that actually
+  reached Google, or a refused push would lose the deletion and the next full read would resurrect the row.
+  A row he edited since we last sent it is **not Google's to delete**: he touched it last, the same rule
+  that decides every other conflict, applied to the direction that cannot be undone.
+  **And a circuit breaker around our own code**: the failure mode of a sync token gone wrong is «everything
+  looks deleted», so a pass may never remove more than 20 % of the address book (min 25 rows). When it
+  trips, nothing is removed and the card SAYS SO — a guard that protects silently is one he cannot trust.
+  Also settled here: a row that reached us through a token, with nothing pending locally, lets GOOGLE win
+  instead of only filling a blank. That is what makes his phone edit land. A full re-read is never
+  authoritative — there «changed» is unknown, and treating every row as fresh undoes his corrections
+  wholesale. 12 disarms, all red. Testmap **5.29**.
+  ⚠️ **Paid twice in one session**: a backtick inside the injected `<style>` template literal (`node
+  --check` green, module dead at runtime — V2-689's trap, already documented), and `.ctlink` redefined when
+  the sheet already used it for «jump to a linked contact», so the later rule won silently.
+
 - **Connecting an account opens a POPUP, and the card notices in real time (V2-700, 2026-09-15)**: he
   linked Google Contacts and reported two things — «se ha abierto en una pestaña nueva en lugar de en un
   pop-up […] no me ha gustado en la versión desktop que se me cambie de pestaña», and the bigger one:

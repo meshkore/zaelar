@@ -50,7 +50,11 @@ def test_every_capability_EXISTS_in_the_manifest_or_the_model_cannot_choose_it(c
                                  # endpoints, because an endpoint is a door the VOICE cannot open.
                                  # `import_google` is the retired name of `sync_contacts`, kept as an alias
                                  # so a model that learned it does not start getting «acción desconocida».
-                                 "sync_contacts", "import_google", "connect", "disconnect"}
+                                 "sync_contacts", "import_google", "connect", "disconnect",
+                                 # V2-701 — the permanent half. «Mantén los contactos sincronizados» is a
+                                 # state he can set BY VOICE; without it the switch would be reachable
+                                 # only by someone looking at the card.
+                                 "set_auto"}
 
 
 def test_the_view_action_speaks_the_everyday_phrasing_not_a_schema(ct):

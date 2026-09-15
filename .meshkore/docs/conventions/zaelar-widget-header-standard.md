@@ -89,9 +89,10 @@ Conectores                                              ‹ Contactos
 ┌────────────────────────────────────────────────────────────────┐
 │ [G]  Google Contacts        ● conectado      [ Desconectar ]   │
 ├────────────────────────────────────────────────────────────────┤
-│  ⟳  Sincronización                                             │
+│  ⟳  SINCRONIZACIÓN                                             │
+│     [●━]  Mantener sincronizado    comprueba cada minuto       │
 │     ⇄  Google y zaelar se mantienen iguales.                   │
-│     [ Sincronizar contactos ]        Última vez: … · 12 nuevos │
+│     Sincronizar ahora               Última vez: … · 12 nuevos  │
 └────────────────────────────────────────────────────────────────┘
 │ []  iCloud (Apple)          ○ aún no disponible                │   ← dimmed, no button
 ```
@@ -113,6 +114,24 @@ ratchet.
 ⚠️ **Two sentences saying one thing is not emphasis, it is noise.** The direction line already says the sync
 only brings; the warning beside it carries only what the line cannot — what unblocks it. Trimmed the day the
 card was nested.
+
+### A permanent state wears a SWITCH, not a button (V2-701)
+
+> «El tema de la sincronización de contactos no es algo que deberíamos hacer de forma puntual, deberíamos
+> realmente marcar un botón de sincronización y eso debería quedarse conectado de forma permanente.»
+
+**A button is a one-off by its grammar, whatever its label says.** «Sincronizar contactos» as a primary
+button teaches that syncing is an errand you run, which is precisely the reading he rejected. The control
+for anything a connector keeps doing — syncing, watching, importing on a cycle — is a switch that shows the
+STATE, and it says how often it runs beside it (read from the engine, never a number typed into a label).
+
+Doing it by hand stays available as a QUIET secondary (`.<pfx>quiet`), never a primary button beside the
+switch. The shape lives in `widgets/contactos/widget.js` (`.ctswrow` / `.ctsw`); the day a second connector
+panel needs one it gets promoted to `components.css` under the `hb-` prefix.
+
+⚠️ **Check the class name is not already taken in your own sheet.** `.ctlink` already meant «jump to a
+linked contact» further down; the second definition lost silently and the quiet link rendered as an accent
+underline. Two meanings on one surface, and the new one loses.
 
 ## Connecting: `ctx.connect(...)`, never a window of your own (V2-700)
 

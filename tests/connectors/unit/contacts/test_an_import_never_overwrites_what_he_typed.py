@@ -145,7 +145,7 @@ def ct(tmp_path, monkeypatch):
 def _imported(monkeypatch, rows):
     """Stand in for the network, at the SERVICE boundary — the merge is what is under test."""
     import connectors.contacts.service as svc
-    monkeypatch.setattr(svc, "fetch", lambda provider_id="google-contacts": {
+    monkeypatch.setattr(svc, "fetch", lambda provider_id="google-contacts", **kw: {
         "ok": True, "contacts": rows, "total": len(rows), "truncated": False, "included_other": False})
 
 
@@ -252,7 +252,7 @@ def test_two_people_with_the_same_name_are_never_folded_into_one(ct, monkeypatch
 
 def test_a_dormant_connector_says_so_instead_of_pretending(ct, monkeypatch):
     import connectors.contacts.service as svc
-    monkeypatch.setattr(svc, "fetch", lambda provider_id="google-contacts": {
+    monkeypatch.setattr(svc, "fetch", lambda provider_id="google-contacts", **kw: {
         "ok": False, "error": "no hay conexión con Google Contacts — pulsa «Conectar»"})
     res = ct.apply_action("import_google", {})
     assert res["ok"] is False and "Conectar" in res["error"]
@@ -312,11 +312,11 @@ def test_the_push_half_runs_BEFORE_the_pull_half(ct, monkeypatch):
     from widgets.contactos import gcontacts
     import connectors.contacts.service as svc
     order = []
-    monkeypatch.setattr(svc, "can_write", lambda provider_id="google-contacts": True)
-    monkeypatch.setattr(svc, "push", lambda rows, pid="google-contacts": (order.append("push"),
+    monkeypatch.setattr(svc, "can_write", lambda provider_id="google-contacts", **kw: True)
+    monkeypatch.setattr(svc, "push", lambda rows, pid="google-contacts", **kw: (order.append("push"),
                                                                  {"ok": True, "sent": 1, "created": 0,
                                                                   "failed": 0})[1])
-    monkeypatch.setattr(svc, "fetch", lambda provider_id="google-contacts": (order.append("fetch"),
+    monkeypatch.setattr(svc, "fetch", lambda provider_id="google-contacts", **kw: (order.append("fetch"),
                                                                     {"ok": True, "contacts": []})[1])
     ct.apply_action("add_contact", {"name": "Marta Ruiz"})
     ct.apply_action("sync_contacts", {})
@@ -328,9 +328,9 @@ def test_a_refused_push_does_not_cancel_the_pull(ct, monkeypatch):
     beats refusing everything and leaving him with nothing."""
     from widgets.contactos import gcontacts
     import connectors.contacts.service as svc
-    monkeypatch.setattr(svc, "can_write", lambda provider_id="google-contacts": True)
-    monkeypatch.setattr(svc, "push", lambda rows, pid="google-contacts": {"ok": False, "error": "solo lectura"})
-    monkeypatch.setattr(svc, "fetch", lambda provider_id="google-contacts": {
+    monkeypatch.setattr(svc, "can_write", lambda provider_id="google-contacts", **kw: True)
+    monkeypatch.setattr(svc, "push", lambda rows, pid="google-contacts", **kw: {"ok": False, "error": "solo lectura"})
+    monkeypatch.setattr(svc, "fetch", lambda provider_id="google-contacts", **kw: {
         "ok": True, "contacts": [{"name": "Gavin", "kind": "person", "email": "g@x.com", "phone": "",
                                   "city": "", "address": "", "notes": "", "groups": [],
                                   "favorite": False, "googleId": "people/c1"}]})
@@ -349,8 +349,8 @@ def test_a_contact_he_created_here_is_pushed_even_though_google_has_never_seen_i
 
 def test_the_sync_records_when_it_ran_so_the_box_is_not_guessing(ct, monkeypatch):
     import connectors.contacts.service as svc
-    monkeypatch.setattr(svc, "can_write", lambda provider_id="google-contacts": False)
-    monkeypatch.setattr(svc, "fetch", lambda provider_id="google-contacts": {"ok": True, "contacts": []})
+    monkeypatch.setattr(svc, "can_write", lambda provider_id="google-contacts", **kw: False)
+    monkeypatch.setattr(svc, "fetch", lambda provider_id="google-contacts", **kw: {"ok": True, "contacts": []})
     assert ct.view_data()["sync"]["last"] == 0.0
     ct.apply_action("sync_contacts", {})
     assert ct.view_data()["sync"]["last"] > 0
@@ -360,8 +360,8 @@ def test_the_retired_name_still_answers(ct, monkeypatch):
     """`import_google` shipped in the manifest for one build. A model that learned it must not start
     getting «acción desconocida» for asking the same thing."""
     import connectors.contacts.service as svc
-    monkeypatch.setattr(svc, "can_write", lambda provider_id="google-contacts": False)
-    monkeypatch.setattr(svc, "fetch", lambda provider_id="google-contacts": {"ok": True, "contacts": []})
+    monkeypatch.setattr(svc, "can_write", lambda provider_id="google-contacts", **kw: False)
+    monkeypatch.setattr(svc, "fetch", lambda provider_id="google-contacts", **kw: {"ok": True, "contacts": []})
     assert ct.apply_action("import_google", {})["ok"] is True
 
 

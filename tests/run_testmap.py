@@ -3287,6 +3287,13 @@ DOMAINS: list[dict] = [
         # un READ-MODIFY-WRITE y por eso estos casos miran lo que se ENVÍA, no lo que se contesta.
         # V2-700 — la mitad del SERVIDOR: la página de callback compartida (que es lo que avisa a la
         # tarjeta) y el evento `widget/data`, el mismo camino que mensajería ya usaba y que OAuth no tenía.
+        # V2-701 — la sincronización deja de ser un recado y pasa a ser un ESTADO. Lo que se fija es lo
+        # que hace que una pasada se pueda repetir cada minuto sin romper nada: el token de Google (una
+        # pasada tranquila es UNA petición, y además dice qué ha cambiado), el reloj que impide reenviar
+        # lo ya enviado, y el espejo completo — un borrado viaja en los dos sentidos, con un tope que se
+        # niega a creerse un borrado masivo.
+        {"id": "5.29", "title": "La sincronización de contactos se queda encendida y es un espejo",
+            "ch": UNIT, "paths": ["tests/connectors/unit/contacts/test_a_sync_that_stays_on.py"]},
         {"id": "5.28", "title": "Una cuenta conectada avisa a la tarjeta de que ha conectado",
             "ch": UNIT, "paths": [
                 "tests/connectors/unit/test_a_connected_account_tells_the_card_it_landed.py"]},

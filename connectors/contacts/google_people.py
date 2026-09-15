@@ -143,16 +143,43 @@ def contact_groups(client, api_base: str, token: str) -> dict:
     return out
 
 
-def list_people(client, api_base: str, token: str, *, other: bool = False, max_pages: int = 20) -> dict:
-    """Every connection (or every «other contact»), following `nextPageToken`.
+def is_expired_sync_token(res: dict) -> bool:
+    """Google refusing a sync token because it has aged out. Documented as a 429 carrying the reason
+    `EXPIRED_SYNC_TOKEN`; older deployments answered 410. Both mean the same thing and the same remedy:
+    throw the token away and read everything once."""
+    st = res.get("status")
+    body = str(res.get("error") or "")
+    return st == 410 or (st == 429 and "EXPIRED_SYNC_TOKEN" in body) or "EXPIRED_SYNC_TOKEN" in body
+
+
+def list_people(client, api_base: str, token: str, *, other: bool = False, max_pages: int = 20,
+                sync_token: str = "") -> dict:
+    """Every connection (or every «other contact»), following `nextPageToken` — or, with `sync_token`,
+    only what has CHANGED since that token was issued.
+
+    The incremental read is what makes a permanent sync affordable: an address book of 2 685 people is six
+    pages every pass, and a minute-by-minute poll of six pages is a request budget nobody should spend to
+    learn that nothing happened. With a token, a quiet minute is ONE round-trip that returns no people.
+
+    ⚠️ Two rules of Google's, both load-bearing here:
+      1. **`sortOrder` may not be combined with a sync request** — it is «only used if sync is not
+         requested». So it is gone from BOTH regimes rather than only from the incremental one, because…
+      2. …**«when the syncToken is specified, all other request parameters must match the first call»**.
+         Two parameter sets that drift apart are a token Google will refuse, so there is exactly one.
+    Ordering was never load-bearing for us: the merge matches on identity, not on arrival.
+
+    Deleted people come back as a person carrying `metadata.deleted` and nothing else — no name, no email —
+    so they are separated here into `deleted` instead of being handed to a shaper that would drop them.
 
     `max_pages` is a floor under a runaway loop, not a product limit: at 500 rows a page it is 10 000
     contacts, and a token that never stopped changing would otherwise pin the engine forever.
     """
     path, params = ("/otherContacts", {"readMask": OTHER_FIELDS, "pageSize": 200}) if other else \
-                   ("/people/me/connections", {"personFields": PERSON_FIELDS, "pageSize": 500,
-                                               "sortOrder": "LAST_MODIFIED_DESCENDING"})
-    rows, token_page, pages = [], "", 0
+                   ("/people/me/connections", {"personFields": PERSON_FIELDS, "pageSize": 500})
+    params["requestSyncToken"] = "true"
+    if sync_token:
+        params["syncToken"] = sync_token
+    rows, deleted, token_page, pages, next_sync = [], [], "", 0, ""
     while pages < max_pages:
         q = dict(params)
         if token_page:
@@ -161,15 +188,25 @@ def list_people(client, api_base: str, token: str, *, other: bool = False, max_p
         if not res.get("ok"):
             # A partial page already read is worth keeping: an import that reached 400 of 450 contacts and
             # then threw everything away because page 3 timed out helps nobody.
-            return {"ok": False, "error": res.get("error") or "", "status": res.get("status"), "people": rows}
+            return {"ok": False, "error": res.get("error") or "", "status": res.get("status"),
+                    "people": rows, "deleted": deleted, "expired": is_expired_sync_token(res)}
         body = res["body"]
-        rows += [p for p in (body.get("otherContacts") if other else body.get("connections")) or []
-                 if isinstance(p, dict)]
+        for p in (body.get("otherContacts") if other else body.get("connections")) or []:
+            if not isinstance(p, dict):
+                continue
+            if (p.get("metadata") or {}).get("deleted"):
+                gid = str(p.get("resourceName") or "").strip()[:80]
+                if gid:
+                    deleted.append(gid)
+                continue
+            rows.append(p)
         token_page = str(body.get("nextPageToken") or "")
+        next_sync = str(body.get("nextSyncToken") or "") or next_sync
         pages += 1
         if not token_page:
             break
-    return {"ok": True, "people": rows, "truncated": bool(token_page)}
+    return {"ok": True, "people": rows, "deleted": deleted, "truncated": bool(token_page),
+            "syncToken": next_sync}
 
 
 # ── WRITING BACK (V2-699) ───────────────────────────────────────────────────────────────────────────────
@@ -255,3 +292,26 @@ def create_person(client, api_base: str, token: str, contact: dict) -> dict:
         return {"ok": True, "person": r.json()}
     except Exception:
         return {"ok": True, "person": {}}
+
+
+def delete_person(client, api_base: str, token: str, resource_name: str) -> dict:
+    """Remove a person from Google (V2-701 — the other half of the mirror).
+
+    The operator's model, in his own words: «es un espejo nuestro sistema, así como Google Contacts […] si
+    eso está conectado a un teléfono y se modifica en el teléfono, todo el sistema se sincronizará». A
+    mirror that reflects every change except a deletion is not a mirror: the row he removed here comes
+    back on the next full re-read, and he has no way to tell why.
+
+    A person Google no longer has answers 404, and that is SUCCESS for us: the end state he asked for is
+    «it is not there», and it is not there.
+    """
+    rn = str(resource_name).strip().lstrip("/")
+    if not rn:
+        return {"ok": False, "error": "sin resourceName no se puede borrar en Google"}
+    r = client.delete(f"{api_base}/{rn}:deleteContact",
+                      headers={"Authorization": f"Bearer {token}"}, timeout=30)
+    if r.status_code == 404:
+        return {"ok": True, "already": True}
+    if r.status_code >= 400:
+        return {"ok": False, "status": r.status_code, "error": (r.text or "")[:300]}
+    return {"ok": True}

@@ -94,6 +94,10 @@ def sync_state(db: dict) -> dict:
         "last": float(s.get("last") or 0.0),
         "lastResult": s.get("lastResult") or {},
         "auto": bool(s.get("auto", True)),
+        # Said out loud so the card can promise the interval it actually runs at instead of a number
+        # somebody typed into a label and nobody kept in step with the scheduler.
+        "every": int(PERIOD),
+        "blockedDeletes": int(s.get("blockedDeletes") or 0),
     }
 
 
@@ -111,12 +115,17 @@ def disconnect() -> dict:
     return o.forget("google-contacts") if o else {"ok": False, "error": "el conector no está disponible"}
 
 
-def sync(db: dict, *, merge, since: float = 0.0) -> dict:
+def sync(db: dict, *, merge, since: float = 0.0, remove=None) -> dict:
     """ONE pass, both directions. `merge` is `data.py`'s own merger — this module never writes the store.
 
     Order matters and is deliberate: PUSH first, then PULL. Pushing our newer rows before reading means
     the pull sees what we just wrote and finds nothing to undo; the other order would fetch a stale
     Google row, merge it in, and then push the result back — laundering a stale value into a fresh one.
+
+    The pull half carries a SYNC TOKEN (V2-701), so a pass over a quiet address book is one round-trip
+    that returns nothing rather than six pages of 2 685 people. That is what makes a permanent sync
+    affordable at all — and it is also what lets the merge know whether a row it is looking at is
+    something Google CHANGED (`full=False`) or just something Google happens to hold.
     """
     sv = svc()
     if sv is None:
@@ -124,20 +133,27 @@ def sync(db: dict, *, merge, since: float = 0.0) -> dict:
 
     from . import data as _d                       # lazy: data.py imports THIS module at the top
     out: dict = {"pushed": 0, "created": 0, "failed": 0}
+    state = db.setdefault("sync", {})
 
     if sv.can_write("google-contacts"):
         mine = [c for c in db.get("contacts", []) if _is_ours(c, since)]
-        if mine:
-            res = sv.push(mine, "google-contacts")
+        gone = list(state.get("pendingDeletes") or [])
+        if mine or gone:
+            res = sv.push(mine, "google-contacts", gone=gone)
             if res.get("ok"):
                 out.update({"pushed": res.get("sent", 0), "created": res.get("created", 0),
-                            "failed": res.get("failed", 0), "problems": res.get("problems") or []})
+                            "failed": res.get("failed", 0), "problems": res.get("problems") or [],
+                            "deletedThere": res.get("removed", 0)})
+                _mark_pushed(mine)
+                # The queue is spent only on a pass that actually reached Google. Clearing it on a refused
+                # push would lose the deletion silently and let the next full read resurrect the row.
+                state["pendingDeletes"] = []
             else:
                 # A refused push is NOT a refused sync: the pull half still works and is still worth
                 # doing. It is reported, never swallowed.
                 out["pushError"] = str(res.get("error") or "")
 
-    got = sv.fetch("google-contacts")
+    got = sv.fetch("google-contacts", sync_token=str(state.get("token") or ""))
     if not got.get("ok"):
         if out.get("pushed") or out.get("created"):
             out["ok"] = True
@@ -145,31 +161,91 @@ def sync(db: dict, *, merge, since: float = 0.0) -> dict:
             return out
         return {"ok": False, "error": str(got.get("error") or "no se pudo leer Google Contacts")}
 
-    counts = merge(db, got.get("contacts") or [])
+    counts = merge(db, got.get("contacts") or [], authoritative=not got.get("full", True))
     out.update(counts)
+    if remove is not None:
+        out["removed"] = remove(db, got.get("deleted") or [])
     out["ok"] = True
     out["truncated"] = bool(got.get("truncated"))
-    db.setdefault("sync", {})["last"] = _time.time()
-    db["sync"]["lastResult"] = {k: v for k, v in out.items() if k != "problems"}
+    out["incremental"] = not got.get("full", True)
+    # A token is only worth keeping when the pass that produced it actually completed: a truncated read
+    # stopped at `max_pages` with people it never saw, and a token stamped there would make the pages it
+    # skipped invisible FOREVER. Dropping it costs one full re-read next pass.
+    state["token"] = "" if got.get("truncated") else str(got.get("syncToken") or "")
+    state["last"] = _time.time()
+    state["lastResult"] = {k: v for k, v in out.items() if k != "problems"}
     _ = _d                                          # the lazy import is the contract, not a use
     return out
 
 
-def _is_ours(c: dict, since: float) -> bool:
-    """A row the operator touched after the last completed sync — the only rows worth pushing.
+#: How often a linked account is polled while automatic sync is on. Not the widget's tick: the scheduler
+#: wakes this module far more often than it talks to Google, so the period can change here without
+#: touching the manifest, and a card reopening does not trigger a pass.
+PERIOD = 60.0
 
-    A contact with no `googleId` that he created here counts too: it does not exist on Google yet, so
-    «newer than the last sync» is trivially true of it.
+
+def tick(ctx) -> None:
+    """The permanent half (V2-701). The operator: «el tema de la sincronización de contactos no es algo que
+    deberíamos hacer de forma puntual… eso debería quedarse conectado de forma permanente».
+
+    It is a POLL because the People API has no push for a personal account — there is no webhook to
+    subscribe to, so «permanently connected» is, physically, a cheap question asked on a timer. The sync
+    token is what makes it cheap; without it this would be six pages a minute and would have to be a
+    button, which is exactly the shape he rejected.
+    """
+    sv, o = svc(), _oauth()
+    if sv is None or o is None or not o.tokens_present("google-contacts"):
+        return
+    from . import data as _d
+    db = _d.load_db()
+    s = db.get("sync") or {}
+    if not bool(s.get("auto", True)):
+        return
+    if (_time.time() - float(s.get("last") or 0.0)) < PERIOD:
+        return
+    res = sync(db, merge=_d._merge_imported, since=float(s.get("last") or 0.0), remove=_d._drop_deleted)
+    if not res.get("ok"):
+        # A pass that failed still moves `last`, or a dead token would make every tick retry forever and
+        # hammer Google from a loop nobody is watching. The error rides in `lastResult` for the card.
+        db.setdefault("sync", {})["last"] = _time.time()
+        db["sync"]["lastResult"] = {"error": str(res.get("error") or "")[:200]}
+        ctx.save(db)
+        return
+    ctx.save(db)
+
+
+def _mark_pushed(rows: list[dict]) -> None:
+    """Stamp the rows we have just sent, so the next pass does not send them again.
+
+    ⚠️ This is what turns a one-off button into something that can run every minute. The old test was a
+    DATE comparison, and a date says «edited today» for the rest of the day — harmless when the operator
+    pressed a button now and then, a PATCH per contact per minute once the same code runs on a timer.
+    """
+    now = _time.time()
+    for c in rows:
+        c["pushedAt"] = now
+        c.setdefault("touchedAt", now)   # a legacy row leaves the date regime the first time it is sent
+
+
+def _is_ours(c: dict, since: float) -> bool:
+    """A row the operator changed and Google has not been told about — the only rows worth pushing.
+
+    A contact with no `googleId` that he created here counts too: it does not exist on Google yet.
+
+    Precise where the record allows it: `touchedAt` is stamped by every local write and `pushedAt` by every
+    successful push, so «he changed it since we sent it» is one comparison of two clocks. Rows written
+    before either existed fall back to the original DATE rule — once, because a successful push stamps
+    them and moves them onto the precise path.
     """
     if not str(c.get("name") or "").strip():
         return False
     if not str(c.get("googleId") or "").strip():
         return True
+    touched, pushed = float(c.get("touchedAt") or 0.0), float(c.get("pushedAt") or 0.0)
+    if touched or pushed:
+        return touched > pushed
     try:
-        # `updated` is a DATE (YYYY-MM-DD), not a timestamp — it is what the store has always written.
-        # Comparing a date against a clock means a row edited today re-pushes on every pass of the same
-        # day. That is idempotent (the etag read-modify-write writes the same values) and it is the
-        # conservative direction: pushing twice costs a request, missing an edit loses it.
+        # `updated` is a DATE (YYYY-MM-DD), not a timestamp — it is what the store wrote before V2-701.
         stamp = _time.mktime(_time.strptime(str(c.get("updated") or "1970-01-01"), "%Y-%m-%d"))
     except Exception:
         return False
