@@ -3611,8 +3611,18 @@ DOMAINS: list[dict] = [
         # Y la junta de tres piezas que nadie prueba junta: la API nombra un fichero, el workflow lo produce
         # con nombre por plataforma (los dos runners subían `zaelar-daemon.pyz` y uno pisaba al otro) y el
         # instalador lo encuentra donde el navegador lo deja.
-        {"id": "7.44", "title": "Daemon local: se ofrece desde la interfaz y se gobierna desde ella — sin que el "
-                                "proxy del motor sea un atajo a los ficheros",
+        #
+        # LA ENTREGA EN UNA LÍNEA (2026-09-15). El operador eligió el terminal en vez de firmar, y funciona por
+        # un motivo que no es la comodidad: la cuarentena de macOS y el Mark of the Web los escribe quien
+        # GUARDA el fichero — un navegador sí, `curl`/`Invoke-WebRequest` no. Un binario sin firmar que llega
+        # así no pasa por Gatekeeper ni por SmartScreen. Lo que se fija: que los dos bootstraps verifiquen el
+        # SHA-256 ANTES de ejecutar nada (el orden ES el guarda; verificar después sería un comentario), que no
+        # pidan contraseña de administrador, que filtren los tags por `daemon-v` (`releases/latest` apunta a
+        # menudo a una release del motor sin artefactos de daemon), y que la pantalla lleve el comando delante
+        # con la descarga manual detrás, diciendo que ESA es la que cuesta un diálogo de seguridad. Más el
+        # Mac Intel, al que se le entregaba un binario de Apple Silicon que falla con «bad CPU type».
+        {"id": "7.44", "title": "Daemon local: se instala con UNA línea (sin aviso de seguridad) y se gobierna "
+                                "desde la interfaz — sin que el proxy del motor sea un atajo a los ficheros",
             "ch": UNIT,
             "paths": ["tests/infrastructure/unit/daemon/test_the_daemon_is_offered_and_governed_from_the_interface.py"]},
         # V2-638 — EL SISTEMA DE ARCHIVOS DEL AGENTE: un solo árbol que comparten todos los widgets, en vez de

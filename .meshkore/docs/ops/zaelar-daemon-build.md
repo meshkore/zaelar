@@ -40,6 +40,36 @@ installer possible at all.
 
 ## 2. Installing (and upgrading — the same command)
 
+### How an ordinary person installs it: one line
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/meshkore/zaelar/main/daemon/packaging/get.sh | bash    # macOS
+```
+```powershell
+irm https://raw.githubusercontent.com/meshkore/zaelar/main/daemon/packaging/get.ps1 | iex           # Windows
+```
+
+⚠️ **This is the main path, and not because terminals are nice.** macOS quarantine and the Windows Mark of the
+Web are written by whatever **saved** the file — a browser stamps them, `curl` and `Invoke-WebRequest` do not.
+So an **unsigned** build that arrives this way is never held by Gatekeeper and never raises "Windows protected
+your PC". That buys, for free and immediately, most of what a code-signing certificate would buy: no Apple
+Developer account, no Microsoft account, no notarization queue, nothing that expires, and no approval between
+a fix and the person who needs it.
+
+What the bootstrap does, in order: resolve the newest **`daemon-v*`** tag (never `releases/latest` — this repo
+also tags the engine), pick the build for `uname -m`, download it, **verify its SHA-256 against the published
+sums while it is still an inert file in a temp directory**, and only then run the installer, fetched from
+`main` so it shares the origin the user already trusted by running the line.
+
+Be exact about what that verification is: **two files from one release agreeing.** It catches a corrupt
+download and an altered mirror. It is **not provenance** — whoever can replace one can replace the other. That
+needs a signature, and it is still the work that comes before an updater.
+
+The direct download still works and the interface still offers it, in a `<details>` that says what it costs: a
+browser saved the file, so macOS asks the user to allow it in System Settings and Windows shows SmartScreen.
+
+### Installing from a checkout
+
 **macOS**
 
 ```bash
@@ -105,9 +135,21 @@ silently overwrote the other's. Each runner renames its own before uploading:
 
 | Published asset | Platform |
 |---|---|
-| `zaelar-daemon-macos`, `zaelar-daemon-macos.pyz` | macOS |
+| `zaelar-daemon-macos`, `zaelar-daemon-macos.pyz` | macOS, Apple Silicon |
+| `zaelar-daemon-macos-x86_64`, `zaelar-daemon-macos-x86_64.pyz` | macOS, Intel |
 | `zaelar-daemon-windows.exe`, `zaelar-daemon-windows.pyz` | Windows |
-| `zaelar-daemon-install-<os>.sh` / `.ps1`, `SHA256SUMS-<os>`, `manifest-<os>.json` | both |
+| `SHA256SUMS-<suffix>`, `manifest-<suffix>.json` | one per build job |
+| `get.sh`, `get.ps1`, `zaelar-daemon-(un)install-*` | published once, architecture-independent |
+
+⚠️ **Two Mac builds, not one.** A PyInstaller bundle carries a real interpreter compiled for one architecture
+and `macos-latest` has been arm64 since macos-14, so an Intel Mac used to be handed a binary that fails with
+"bad CPU type in executable" — which every user reads as a corrupt download. `get.sh` picks by `uname -m`,
+which is precisely what a download button cannot do: a user-agent does not say which Mac this is.
+
+⚠️ **`release_names.py` owns the rename, and it RECOMPUTES the digests.** `build.py` writes `SHA256SUMS` under
+the build names while the release publishes the architecture names — so `daemon-v0.2.0` shipped a checksum
+file listing two files nobody could download, and the one-line installer refused a binary it had fetched
+perfectly. Patching the names inside that file would have been the same lie in a better disguise.
 
 **These names are a contract.** `server/daemon_api.py` builds the download links from them, and both installers
 look for them (including in `~/Downloads`, which is where a browser actually puts them). Renaming an asset
