@@ -149,12 +149,16 @@ def test_an_installed_client_is_read_too_and_says_which_kind_it_is(tmp_path, mon
 
 def test_a_web_client_names_every_uri_that_must_be_registered(shipped):
     """Google refuses a redirect URI it has never seen, with `invalid_client`, at the END of a flow that
-    looked healthy the whole way up. The five callbacks are not unified into one path on purpose — that
-    would be a token-store migration wearing a redirect's clothes — so all five must be listed."""
+    looked healthy the whole way up. The callbacks are not unified into one path on purpose — that would be
+    a token-store migration wearing a redirect's clothes — so every one of them must be listed.
+
+    The count is a RATCHET, not a fact about Google: adding a connector without adding its callback here is
+    how a flow dies at its last step, so a new door has to come past this line deliberately.
+    """
     assert shipped.is_web_client() is True
     uris = shipped.redirect_uris("https://agent.example.com")
     assert uris == [f"https://agent.example.com{p}" for p in shipped.CALLBACK_PATHS]
-    assert len(uris) == 5
+    assert len(uris) == 6
     assert all(u.startswith("http://127.0.0.1:43917/") for u in shipped.redirect_uris())
 
 

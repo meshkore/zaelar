@@ -66,6 +66,7 @@ CALLBACK_PATHS: tuple[str, ...] = (
     "/api/video/callback",
     "/api/photos/callback",
     "/api/cloudfiles/callback",
+    "/api/contacts/callback",
 )
 
 #: Cache keyed by (path, mtime) so an edited credentials file is picked up without a restart, and a

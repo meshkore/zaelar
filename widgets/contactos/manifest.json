@@ -93,6 +93,24 @@
       "desc": "abre la FICHA de un contacto concreto: sus datos, sus etiquetas y su gente o sitios conectados",
       "payload": { "contactId": "string" },
       "view": true
+    },
+    "sync_contacts": {
+      "desc": "SINCRONIZA el directorio con Google Contacts («sincroniza mis contactos», «trae la agenda de Google», «importa mis contactos»). Trae lo que falta y, si la conexión lo permite, manda también lo que el operador ha cambiado aquí. NUNCA pisa un dato que él haya escrito. Devuelve cuántos ha añadido, completado y enviado. Si la cuenta no está conectada devuelve el error que lo dice: díselo y NO lo reintentes hasta que él la conecte.",
+      "payload": { "provider": "opcional: google (el único hoy)" }
+    },
+    "import_google": {
+      "desc": "ALIAS de sync_contacts, por compatibilidad. Usa sync_contacts.",
+      "payload": { "provider": "opcional: google (el único hoy)" }
+    },
+    "connect": {
+      "desc": "devuelve la URL de consentimiento para enlazar una fuente de contactos (hoy solo Google). El operador tiene que PULSAR: la ventana solo sobrevive dentro del gesto que la abre, así que por voz NO se puede completar — deja la tarjeta en Conectores y dile que pulse «Conectar Google Contacts».",
+      "payload": { "tier": "opcional: saved | saved+other | sync", "origin": "opcional, lo pone el navegador" }
+    },
+    "disconnect": {
+      "desc": "olvida la conexión con una fuente de contactos. Los contactos ya importados se quedan en el directorio: esto corta el enlace, no borra nada.",
+      "payload": { "provider": "opcional: google (el único hoy)" },
+      "confirm": true,
+      "confirm_q": "¿Desconecto Google Contacts? Los contactos ya importados se quedan."
     }
   },
   "name": "Contactos",

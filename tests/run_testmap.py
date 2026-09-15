@@ -2412,6 +2412,14 @@ DOMAINS: list[dict] = [
         # COPIABA al objeto que lee la ficha, cosa que un barrido del fuente no ve (conector y tarjeta eran
         # cada uno correcto por separado). RENDERIZADO por eso. Incluye la banda de PROPUESTAS: una cita que
         # ha pedido otro se pinta aparte del calendario, porque todavía no está en él.
+        # V2-699 — la ficha de contacto que PARECE una ficha (todos los campos básicos presentes aunque
+        # estén vacíos, los canales con su handle y el ★ del preferido) y el ESTÁNDAR de cabecera de la casa:
+        # dos barras, los iconos de cada fuente y el botón Conectores que abre su pantalla. El contrato del
+        # estándar vive en `.meshkore/docs/conventions/zaelar-widget-header-standard.md`.
+        {"id": "4.176", "title": "Una ficha de contacto parece una ficha, y el widget lleva la cabecera "
+                                 "estándar con su tira de conectores y su caja de sincronización",
+            "ch": UNIT, "paths": [
+                "tests/browser/unit/contactos/test_a_contact_card_looks_like_a_contact_card.py"]},
         {"id": "4.175", "title": "Una cita dice quién la convoca: enlace de Meet, organizador, invitados con "
                                  "su respuesta, responder sí/no, y las propuestas ajenas aparte",
             "ch": UNIT, "paths": [
@@ -3271,6 +3279,13 @@ DOMAINS: list[dict] = [
         # justamente lo peligroso: en la API de Google un PATCH que lleva un array lo REEMPLAZA. Mandar solo
         # nuestra fila borraría a todos los demás invitados de la reunión de otro, devolviendo 200. Por eso es
         # un READ-MODIFY-WRITE y por eso estos casos miran lo que se ENVÍA, no lo que se contesta.
+        # V2-699 — la agenda de Google entra en el directorio y, si el permiso lo permite, vuelve. Lo que
+        # se fija es la POLÍTICA: sus ediciones ganan, el ★ viaja en un solo sentido, una dirección de
+        # correo es una persona, y la máscara de campos nombra solo lo que se envía (lo listado se
+        # REEMPLAZA en Google, así que una constante borraría lo que aquí está vacío).
+        {"id": "5.27", "title": "Sincronizar con Google Contacts nunca pisa lo que el operador escribió",
+            "ch": UNIT, "paths": ["tests/connectors/unit/contacts/"
+                                  "test_an_import_never_overwrites_what_he_typed.py"]},
         {"id": "5.26", "title": "Responder a una invitación conserva al resto de invitados", "ch": UNIT,
             "paths": ["tests/connectors/unit/calendar/"
                       "test_answering_an_invitation_keeps_the_other_guests.py"]},

@@ -170,6 +170,33 @@ def _calendar() -> list[dict]:
                  "connected": False, "status": "error", "detail": str(e), "config": {}}]
 
 
+def _contacts() -> list[dict]:
+    """Address-book connectors (V2-699). family="contactos" on purpose: `widgets/contactos/gcontacts.py::
+    providers()` reads exactly this family, keyed by id "google" — matching
+    `connectors/contacts/providers.py`'s registry id so this row REPLACES the widget's own "not built yet"
+    placeholder instead of standing beside it. The same contract the calendar row settled in V2-679."""
+    try:
+        from connectors.contacts import oauth, providers
+        catalog = {c["id"]: c for c in providers.public_list()}
+        out = []
+        for st in oauth.status():
+            cat = catalog.get(st["id"], {})
+            connected = bool(st.get("connected"))
+            out.append({"id": st["id"], "label": st["label"], "family": "contactos", "auth": "oauth",
+                        "connected": connected,
+                        "status": "connected" if connected else ("off" if st.get("app_configured")
+                                                                 else "unconfigured"),
+                        "detail": st.get("note") or "",
+                        "config": {"app_configured": bool(st.get("app_configured")),
+                                   "tier": st.get("tier") or "", "tier_label": st.get("tier_label") or "",
+                                   "tiers": cat.get("tiers") or [],
+                                   "default_tier": cat.get("default_tier") or ""}})
+        return out
+    except Exception as e:
+        return [{"id": "google-contacts", "label": "Google Contacts", "family": "contactos", "auth": "oauth",
+                 "connected": False, "status": "error", "detail": str(e), "config": {}}]
+
+
 def _google() -> list[dict]:
     """The Google ACCOUNT row (V2-685) — the identity, not a sixth surface.
 
@@ -262,4 +289,4 @@ def descriptors() -> list[dict]:
     """Complete connector inventory with state + redacted config. Each source is isolated (a broken connector does
     not take down the registry)."""
     return [*_messaging(), *_music(), *_files(), *_photos(), *_videoaccounts(), *_calendar(),
-            *_google(), *_architect(), *_meshkore()]
+            *_contacts(), *_google(), *_architect(), *_meshkore()]

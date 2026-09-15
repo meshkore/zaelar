@@ -33,6 +33,7 @@ from connectors.meshkore.server_api import router as meshkore_router  # native c
 from connectors.messaging.server_api import router as messaging_router  # UI-managed connect/disconnect of connectors
 from connectors.files.server_api import router as cloudfiles_router  # V2-557: OAuth + state for Drive/OneDrive (/api/cloudfiles/*; NOT /api/files/*, taken by memory_routes)
 from connectors.photos.server_api import router as photos_router  # V2-564: Google Photos Picker (/api/photos/*)
+from connectors.contacts.server_api import router as contacts_router  # V2-699: Google Contacts import (/api/contacts/*)
 from connectors.video.server_api import router as videoacct_router  # V2-597: YouTube account OAuth (/api/video/*)
 from connectors.calendar.server_api import router as calendar_router  # V2-679: Google Calendar OAuth + sync (/api/calendar/*)
 from connectors.torrent.server_api import router as torrent_router  # V2-637: embedded torrent client + Range stream (/api/torrent/*)
@@ -554,7 +555,7 @@ def create_app() -> FastAPI:
     # Hermes' old /api/cron; the same frontend ⏰ panel consumes it.
     routers = [pages_router, voice_router, widgets_router, meshkore_router, messaging_router, files_router,
                vault_router, wizard_router, spotify_router, config_router, i18n_router,
-               obs_router, feedback_router, update_router, cloudfiles_router, photos_router,
+               obs_router, feedback_router, update_router, cloudfiles_router, photos_router, contacts_router,
                videoacct_router, calendar_router, torrent_router, library_router, daemon_router]
     # LiveKit control plane (token + connect config + session.js swap) — the default engine (INI-012).
     if os.getenv("ZAELAR_ENGINE", "livekit").lower() == "livekit":

@@ -13,6 +13,7 @@ import time
 import unicodedata
 
 from .. import store
+from . import gcontacts
 
 WIDGET_ID = "contactos"
 
@@ -241,6 +242,46 @@ def _reach(c: dict) -> list[dict]:
         return [ch for ch in (c.get("channels") or []) if ch.get("platform")]
 
 
+def _match_imported(contacts: list[dict], inc: dict) -> dict | None:
+    """Which existing contact this Google person IS, or None for somebody new (V2-699).
+
+    Three keys, in descending order of how much they PROVE — and the order is the whole point, because
+    every one of them can be right while the ones below it are wrong:
+
+      1. `googleId` — the same resource we imported last time. Survives him renaming the person here.
+      2. the email address, wherever it lives (the stored field OR an email channel). An address is an
+         account, so two rows sharing one are one person — the same rule V2-693 settled for Telegram.
+      3. name + city, normalized — `add_contact`'s own rule, so the two doors agree.
+      4. the name ALONE, but only when exactly ONE contact here carries it. This is what makes a second
+         import safe: `add_contact` can demand the city because the operator is looking at the answer,
+         while Google routinely knows a city he never typed — so «Marta Ruiz» with no city here and
+         «Marta Ruiz, Soria» there would otherwise import as a SECOND Marta every single time. When two
+         contacts share the name it stops: adding a duplicate he can merge beats silently folding two
+         people into one, which he cannot undo.
+    """
+    gid = str(inc.get("googleId") or "").strip()
+    if gid:
+        for c in contacts:
+            if str(c.get("googleId") or "").strip() == gid:
+                return c
+    mail = _norm(inc.get("email"))
+    if mail:
+        for c in contacts:
+            if _norm(c.get("email")) == mail:
+                return c
+            for ch in c.get("channels") or []:
+                if str(ch.get("platform")) == "email" and _norm(ch.get("handle")) == mail:
+                    return c
+    nm, city = _norm(inc.get("name")), _norm(inc.get("city"))
+    if not nm:
+        return None
+    for c in contacts:
+        if _norm(c.get("name")) == nm and _norm(c.get("city")) == city:
+            return c
+    same_name = [c for c in contacts if _norm(c.get("name")) == nm]
+    return same_name[0] if len(same_name) == 1 else None
+
+
 def _public(c: dict) -> dict:
     """The compact row an action RESULT carries back to the brain — enough to answer by voice, never the
     whole record (the full data travels in view_data, and a result is read inside a prompt)."""
@@ -283,6 +324,10 @@ def view_data(q: str = "") -> dict:
         "favorites_count": sum(1 for c in contacts if c.get("favorite")),
         "count": len(contacts),
         "view": _fresh_view(db),
+        # V2-699 — the subheader strip and the connectors screen, the agenda's own contract: which
+        # sources exist, which are linked, and what the sync can actually do right now.
+        "providers": gcontacts.providers(),
+        "sync": gcontacts.sync_state(db),
     }
 
 
@@ -360,6 +405,16 @@ def _find(db: dict, cid) -> dict | None:
 _FIELDS = ("name", "city", "address", "phone", "email", "notes")
 
 
+def _clear_in(payload: dict) -> list[str]:
+    """Which fields this call EMPTIES. A list, or one name, or a comma string — the card sends one, the
+    voice never sends this at all (see the note at the call site)."""
+    raw = payload.get("clear")
+    if raw is None:
+        return []
+    parts = raw if isinstance(raw, (list, tuple)) else str(raw).split(",")
+    return [str(p or "").strip().lower() for p in parts if str(p or "").strip()]
+
+
 def apply_action(action: str, payload: dict | None = None) -> dict:
     """Widget actions. Every payload may carry `q` — the instance the canvas stamps into every click
     (V2-540: it is always `q`, never anything else); this widget is single-instance, so it is accepted and
@@ -434,6 +489,13 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
         for k in _FIELDS:
             if payload.get(k) is not None and str(payload.get(k)).strip() != "":
                 c[k] = str(payload[k]).strip()
+        # V2-699 — EMPTYING a field is its own gesture, and it has to be, because the loop above ignores ""
+        # on purpose: a model that omits a field, or sends it blank because it did not hear it, must never
+        # wipe what the operator typed. The card is a deliberate hand on a deliberate field, so it names the
+        # field it is clearing instead of relying on an empty string nobody can tell from an accident.
+        for k in _clear_in(payload):
+            if k in _FIELDS and k != "name":   # a nameless contact cannot be found again by voice or by eye
+                c[k] = ""
         if payload.get("kind"):
             c["kind"] = _kind(payload["kind"])
         if payload.get("groups") is not None:
@@ -468,6 +530,18 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
                                           "(whatsapp, telegram o email)"}
         handle = str(payload.get("handle") or payload.get("address") or "").strip()
         chat_id = str(payload.get("chatId") or "").strip()
+        if _truthy(payload.get("remove")):
+            # V2-699 — the card's ✕. It drops the PREFERENCE with the channel: a preferred platform the
+            # contact no longer has is a promise the sending door cannot keep, and `channel_for` would fall
+            # back silently to a different one, which is the same wrong-recipient family `refs.py` guards.
+            c["channels"] = [ch for ch in (c.get("channels") or []) if str(ch.get("platform")) != p]
+            if str(c.get("preferred") or "") == p:
+                c["preferred"] = ""
+            c["updated"] = now
+            store.save(WIDGET_ID, db)
+            d = view_data(q)
+            d.update({"ok": True, "result": {"contact": _public(c), "removed_channel": p}})
+            return d
         if handle or chat_id:
             _merge_channel(c, {"platform": p, "handle": handle, "chatId": chat_id,
                                "source": "operator", "volume": 0, "last_seen": 0.0})
@@ -566,4 +640,80 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
         d.update({"ok": True, "result": {"contact": _public(c), "linked": kids}})
         return d
 
+    if action in ("connect", "disconnect"):
+        if action == "connect":
+            return gcontacts.connect(str(payload.get("tier") or ""), str(payload.get("origin") or ""))
+        res = gcontacts.disconnect()
+        d = view_data(q)
+        d.update({"ok": bool(res.get("ok")), "result": res})
+        return d
+
+    if action in ("sync_contacts", "import_google"):
+        # `import_google` is kept as an alias: it shipped in the manifest for one build and a model that
+        # learned it must not start getting «acción desconocida» for asking the same thing.
+        res = gcontacts.sync(db, merge=_merge_imported,
+                             since=float((db.get("sync") or {}).get("last") or 0.0))
+        if not res.get("ok"):
+            return {"ok": False, "error": str(res.get("error") or "no se pudo sincronizar")}
+        store.save(WIDGET_ID, db)
+        d = view_data(q)
+        d.update({"ok": True, "result": res})
+        return d
+
     return {"ok": False, "error": f"acción desconocida: {action}"}
+
+
+def _merge_imported(db: dict, rows: list[dict]) -> dict:
+    """Fold Google's side into ours. The MERGE lives here, not in the connector: this store is the only
+    module that knows which fields the OPERATOR typed himself.
+
+    **His edits win.** Google only FILLS IN what is empty here — a pass that overwrote a field he had
+    fixed would silently undo the correction, and he would have no way to tell which of the two surfaces
+    was lying. The other direction (his newer rows reaching Google) is `gcontacts.sync`'s push half, which
+    has already run by the time this is called.
+    """
+    contacts = db.setdefault("contacts", [])
+    now = time.strftime("%Y-%m-%d")
+    added = updated_n = unchanged = 0
+    for inc in rows or []:
+        c = _match_imported(contacts, inc)
+        if c is None:
+            cid = f"c{db.get('next_id', 1)}"
+            db["next_id"] = int(db.get("next_id", 1)) + 1
+            c = {"id": cid, "kind": inc.get("kind") or "person", "name": inc["name"],
+                 "city": inc.get("city", ""), "address": inc.get("address", ""),
+                 "phone": inc.get("phone", ""), "email": inc.get("email", ""),
+                 "notes": inc.get("notes", ""), "groups": list(inc.get("groups") or []),
+                 "favorite": bool(inc.get("favorite")), "channels": [], "preferred": "",
+                 "parentId": "", "created": now, "updated": now,
+                 "source": "google", "googleId": inc.get("googleId", "")}
+            contacts.append(c)
+            added += 1
+            continue
+        # HIS EDITS WIN. Google only FILLS IN what is empty here — it never overwrites a field the
+        # operator typed, because a second import would silently undo every correction he had made,
+        # and he would have no way to tell which of the two surfaces was lying.
+        touched = False
+        for k in ("city", "address", "phone", "email", "notes"):
+            if inc.get(k) and not str(c.get(k) or "").strip():
+                c[k] = inc[k]
+                touched = True
+        for g in inc.get("groups") or []:
+            if _norm(g) not in {_norm(x) for x in c.get("groups") or []}:
+                c.setdefault("groups", []).append(g)
+                touched = True
+        # A ★ only ever travels ONE way: starring in Google stars here, un-starring there never
+        # un-stars the favourite he set on this card.
+        if inc.get("favorite") and not c.get("favorite"):
+            c["favorite"] = True
+            touched = True
+        if inc.get("googleId") and not c.get("googleId"):
+            c["googleId"] = inc["googleId"]
+            touched = True
+        if touched:
+            c["updated"] = now
+            updated_n += 1
+        else:
+            unchanged += 1
+
+    return {"added": added, "updated": updated_n, "unchanged": unchanged, "read": len(rows or [])}

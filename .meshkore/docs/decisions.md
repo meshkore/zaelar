@@ -21,6 +21,45 @@ entregada siga citada aquí.
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **A contact card looks like a CONTACT CARD, the header is the house's, and Google Contacts is a
+  connector like any other (V2-699, 2026-09-15)**: he opened the card for his only contact — Cryptonite,
+  whom he messages on Telegram every day — and reported that it showed «que es una persona» and nothing
+  else: «no está estructurado, no muestra ni siquiera los campos básicos, aunque sean vacíos… no está
+  tampoco la cuenta de Telegram, que es lo único que tenemos de ese contacto», plus «un menú ahí suelto que
+  no está bien diferenciado del resto». He asked whether a restart would fix it.
+  **It would not, and the measurement is the whole story: the Telegram account WAS stored** — handle,
+  chatId, marked preferred — and `view_data` shipped the entire record to the browser. `renderDetail`
+  painted five fixed rows and `row()` returned early on an empty value, so a contact whose only datum is a
+  channel painted a name, the word «PERSON», and nothing more. **The same family as V2-697's `eventsOf`,
+  two days earlier**: the store and the card each correct on their own, which is exactly why a source scan
+  does not find it. Delivered: every basic field present even when empty and editable in place (with
+  `clear`, because `update_contact` ignores `""` on purpose so a model cannot wipe a field it did not hear);
+  «Cómo contactar» listing all three platforms always, with the ★ of the preferred one — and **mirroring
+  `directory.py`'s written asymmetry, a stored phone still never becomes a WhatsApp**; a real sidebar; the
+  duplicated ★ chip gone.
+  **Then he reframed it mid-build, and the second half is the bigger one**: «esto es un sistema operativo,
+  con lo cual esas barras ya tienen un formato estándar y nos llevan al sistema de conectores». So the
+  widget now wears the agenda's two bars verbatim — brand disc + 14/600 content title, then the band with
+  the provider icons (Google lit, iCloud and CardDAV visible and INERT) and the plug button opening a
+  connectors SCREEN, not an overlay. **The sidebar's «Importar de Google» was removed**: importing is a
+  connector gesture, and a second door to it is a second vocabulary for one idea. The standard is now a
+  rule with a checklist, `zaelar-widget-header-standard.md`, so the next widget does not re-invent it.
+  **He also overruled the one-way import, and his reason beat the objection**: Google Calendar is already
+  two-way in the agenda, so a one-way contacts connector would be the odd one out in his own product. «Who
+  wins» turned out to be answerable — **whoever touched the row last**, which `updated` has recorded since
+  V2-541 — so the sync PUSHES his newer rows and then PULLS, in that order (pulling first would fetch a
+  stale row, merge it, and push the result back, laundering a stale value into a fresh one), and the pull
+  never overwrites a non-empty local field. Two People API traps, both already paid for elsewhere: an
+  update needs the person's `etag` (read-modify-write, V2-697's RSVP shape) and `updatePersonFields` is a
+  whitelist where **anything listed is REPLACED**, so a constant mask would delete on Google every field
+  that happens to be empty here. **NOT done and said out loud:** the `sync` tier needs
+  `.../auth/contacts` declared on the OAuth app — until then the card says «solo puedo traer» instead of
+  promising what Google would refuse; there is no live link yet (the People API has no push for a personal
+  account, so it would be a `syncToken` poll); and nothing here has been verified against a real Google
+  address book. **Session incident:** `tests/run_testmap.py` with no arguments RUNS the whole map — it is
+  the forbidden broad sweep under another name, and `CLAUDE.md` was RECOMMENDING it as the answer to
+  «¿funciona todo bien?». Killed within a minute; the contradiction is now fixed in both places.
+
 - **An appointment says WHO convened it, and one that somebody else ASKS for waits for the operator
   (V2-697, 2026-09-15)**: he opened the detail card for a real invitation — an intro convened by somebody at
   zerohash — and put it beside Google's own popover for the same event. Ours showed a title, a date, one bare

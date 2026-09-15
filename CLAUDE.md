@@ -427,10 +427,12 @@ Los agentes DEBEN trabajar dentro de esta estructura — no crear `docs/` ni car
 | Modules | `.meshkore/docs/modules/zaelar-modules.md` |
 | **Conectores — la LISTA (qué conectamos hoy, qué está declarado y dónde se cablea cada pieza)** | `.meshkore/docs/modules/zaelar-connectors-inventory.md` |
 | **Una cita que pide OTRO — el criterio de autorización de las propuestas** | `.meshkore/docs/modules/zaelar-appointment-proposals.md` |
+| **Contactos — importar/sincronizar con Google, y quién gana un conflicto** | `.meshkore/docs/modules/zaelar-contacts-sync.md` |
 | Security | `.meshkore/docs/security/zaelar-security.md` |
 | **Change protocol** | `.meshkore/docs/ops/zaelar-change-protocol.md` |
 | **Audit workflow** | `.meshkore/docs/ops/zaelar-audit-workflow.md` |
 | **Docs & structure sync** | `.meshkore/docs/ops/zaelar-docs-sync.md` |
+| **⭐ ESTÁNDAR de cabecera de widget — las dos barras y la puerta a los conectores** | `.meshkore/docs/conventions/zaelar-widget-header-standard.md` |
 | **Widgets change workflow** | `.meshkore/docs/ops/zaelar-widgets-workflow.md` |
 | **⭐ Widget o conector NUEVO — el workflow completo** | `.meshkore/docs/ops/zaelar-new-widget-or-connector-workflow.md` |
 | **Memory change workflow** | `.meshkore/docs/ops/zaelar-memory-workflow.md` |
@@ -616,10 +618,17 @@ Al cerrar una tanda, la entrada se escribe allí, no aquí. Este fichero es de R
 compartida por Claude Code, Codex, humanos y CI. El playbook profundo —cómo se lanza cada batería, formatos,
 evaluación— vive en `.meshkore/docs/ops/zaelar-testing.md`, no aquí.
 
-**«¿funciona todo bien?»** → `./.venv/bin/python tests/run_testmap.py`: el MAPA DE TESTS, todo el testing
-ordenado por DOMINIO → CASO DE USO → CANAL (nodos `N.M`). Es la fuente de verdad de qué fichero cubre qué caso;
-marca aparte los nodos VIVOS (exigen `make run`). La segunda opinión —cobertura, huecos, duplicación— en
-`tests/TESTMAP.md`. **Un test que no está en el mapa no existe para «¿está todo verde?»**.
+**`tests/run_testmap.py` es el MAPA DE TESTS**: todo el testing ordenado por DOMINIO → CASO DE USO → CANAL
+(nodos `N.M`). Es la fuente de verdad de qué fichero cubre qué caso; marca aparte los nodos VIVOS (exigen
+`make run`). La segunda opinión —cobertura, huecos, duplicación— en `tests/TESTMAP.md`. **Un test que no está
+en el mapa no existe para «¿está todo verde?»**.
+
+⛔ **`./.venv/bin/python tests/run_testmap.py` SIN ARGUMENTOS LANZA EL MAPA ENTERO** — o sea, es la pasada
+ancha que prohíbe la primera de las «Hard rules», con otro nombre. Este párrafo la recomendaba como respuesta
+a «¿funciona todo bien?» y se pagó el 2026-09-15: un agente la lanzó por leer aquí, y hubo que matarla. Para
+LEER el mapa sin correrlo: `tests/run_testmap.py --list`. Para comprobar que tu test está en él, el fichero
+`tests/infrastructure/unit/test_a_test_outside_the_map_is_not_a_test.py` a solas. **«¿Funciona todo bien?» se
+la pides a ÉL.**
 
 **NO lances suites anchas en su máquina** — es la primera de las «Hard rules» de abajo y no se relaja: se
 corre el FICHERO que has tocado, como mucho su CARPETA, y los DESARMES. Una pasada ancha se la pides a él.
@@ -680,6 +689,9 @@ abierta (`V2-091`); a partir de ahora, no añadir más.
   pytest tests/infrastructure/unit      pytest tests/browser/unit      pytest tests/browser/e2e
   pytest tests/agent_headless/unit      pytest tests/connectors/unit   pytest tests/          (o cualquier
   combinación de varias de ellas en una sola invocación, con o sin `-q`, en foreground o en background)
+
+  ./.venv/bin/python tests/run_testmap.py       ← SIN ARGUMENTOS LANZA EL MAPA ENTERO. Es la misma pasada
+                                                  ancha con otro nombre. `--list` sí (solo imprime).
   ```
 
   **Lo que SÍ se hace** — y es suficiente para cerrar un cambio:
