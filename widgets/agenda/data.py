@@ -262,6 +262,10 @@ def ref_index() -> list[dict]:
     return out
 
 
+# A QUESTION is answered by SEARCHING, not by the summary below (`query.py`, V2-704).
+from .query import read_query  # noqa: F401,E402 — re-export
+
+
 def prompt_digest() -> str:
     """What the brain sees while the agenda card is OPEN (`refs.prompt_digest` contract, capped there).
 

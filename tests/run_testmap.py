@@ -1106,6 +1106,37 @@ DOMAINS: list[dict] = [
                                 "lee la tarjeta cerrada en el turno, en los dos canales",
             "ch": UNIT, "paths": [
                 "tests/agent_headless/unit/flash/test_a_question_about_a_widget_is_answered_by_the_widget.py"]},
+        # V2-704 — la MISMA puerta, contestando de verdad. `read_widget` tenía un argumento `question` que no
+        # usaba: `read(wid)` devolvía siempre el mismo digest, que es el resumen SIEMPRE-ACTIVO de la tarjeta y
+        # por tanto una primera página. Medido en la sesión 76270f41 (2026-09-15): pedido cuatro veces el
+        # Telegram de un contacto, el cerebro recibió cuatro veces 910 caracteres — 15 filas de 2.686 y
+        # plataformas SIN handles (el digest no lleva identificadores personales, y hace bien) — y contestó «no
+        # hay handle de Telegram guardado». El handle estaba, y `directory.resolve("Kryptonite")` —con la K que
+        # él dijo— lo encontraba a la primera. No fue una alucinación: el bloque afirma en su primera línea que
+        # «lo que no esté aquí NO está guardado».
+        # Dos raíles, los dos GENÉRICOS: la costura opcional `read_query(question)` en el `data.py` de cualquier
+        # widget (contactos, agenda y mensajería entraron por ella sin que el lector nombre a ninguno), y un
+        # prompt de segunda pasada que dice CUÁL de las dos cosas está mirando — con un resumen, una ausencia es
+        # «no lo he visto», nunca «no está guardado». La mensajería no publicaba NINGUNA de las dos: 0 caracteres
+        # con diez mensajes en el almacén.
+        # ⚠️ Lo que se desarma es el CABLEADO: los tests del `read_query` de cada widget pueden estar verdes
+        # mientras `prepare` tira la consulta al suelo. El caso que lo vigila afirma sobre el prompt de la
+        # segunda pasada, que es lo que el modelo recibe de verdad.
+        {"id": "2.57", "title": "La pregunta LLEGA al widget: read_query por contrato en contactos · agenda · "
+                                "mensajería, el handle en la respuesta, y un RESUMEN que ya no puede leerse "
+                                "como negación · el nombre de la pieza en el idioma del operador",
+            "ch": UNIT, "paths": [
+                "tests/browser/unit/contactos/test_a_question_about_a_person_is_answered_from_the_record.py"]},
+        # V2-704, la otra mitad de la misma sesión: a las 14:23 dijo «Contact» y «Contact to the kryptonite» y
+        # las DOS se tiraron como ruido de sala (`llm_ambient`). Había reconectado a una sesión parada 1.014 s,
+        # así que la ventana estaba fría y el cerebro aún no había hablado: `context` era "". La única fuerza
+        # medida de ese juez es el MARCO — la propia nota de `_DIRECTED_SYSTEM` registra que presentar la última
+        # frase de zaelar como «Zaelar acaba de decir …» es lo que voltea «¿me estás escuchando?» de ambiente a
+        # dirigido, 3/3. Sin marco no se le está haciendo la pregunta que se midió, así que su veredicto no
+        # puede DESCARTAR nada. La exposición dura hasta que el asistente habla una vez.
+        {"id": "2.58", "title": "Sin marco de diálogo no hay veredicto: la primera orden tras reconectar no se "
+                                "tira como ruido, y la observabilidad dice si el turno estaba caliente",
+            "ch": UNIT, "paths": ["tests/voice/unit/test_attention.py"]},
         # V2-669 — el relleno de entrada se elige a ciegas ~1,1 s dentro del turno; el hueco que NO cubre está al
         # otro lado de la costura de la herramienta. Medido en la observabilidad del operador (deepseek-v4-pro):
         # el turno de read_widget de la cita con Hacienda tardó 6.029 ms con `ttft_ms: 0` (el 1er pase devolvió

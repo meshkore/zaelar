@@ -15,6 +15,12 @@ import unicodedata
 from .. import store
 from . import gcontacts
 
+# A QUESTION about somebody is answered from the RECORD, through `widgets/directory.resolve` — not from the
+# summary below, which is a first page without handles by design (`widgets/contactos/lookup.py`, V2-704).
+# Re-exported because `read_query` is the seam `nucleo/flash/widget_read` looks for, on `data.py`, for every
+# widget.
+from .lookup import read_query  # noqa: F401,E402 — re-export
+
 WIDGET_ID = "contactos"
 
 # Store schema version (lazy migration on read — see store.load). Bump when the shape changes.

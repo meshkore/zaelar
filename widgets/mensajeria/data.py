@@ -172,6 +172,14 @@ def _visible_items(db: dict) -> list:
     return _renumber(out)
 
 
+# What this inbox tells the BRAIN: the always-on summary and the answer to a question
+# (`widgets/mensajeria/inbox_read.py`, V2-704). This widget published NEITHER — measured with ten real messages
+# in the store, both seams returned zero characters, so «¿me ha escrito alguien?» reached the model with an
+# empty block and an empty block answers «no». Re-exported here because `refs.prompt_digest` and
+# `nucleo/flash/widget_read` look for them on `data.py`, for every widget, by the same contract.
+from .inbox_read import prompt_digest, read_query  # noqa: F401,E402 — re-export
+
+
 def view_data(q: str = "") -> dict:
     db = load_db()
     items = _visible_items(db)

@@ -147,7 +147,8 @@ def test_evaluate_content_directed_when_the_judge_says_so():
         assert text == "cuánto vale un balón de fútbol"
         return True
     attention.set_directed_judge(_judge)
-    v = _run(attention.evaluate_content("cuánto vale un balón de fútbol"))
+    v = _run(attention.evaluate_content("cuánto vale un balón de fútbol",
+                                        context="Te he abierto la lista."))
     assert v.directed and v.reason == "always"
 
 
@@ -157,7 +158,8 @@ def test_evaluate_content_ambient_when_the_judge_says_so():
     async def _judge(text, context):
         return False
     attention.set_directed_judge(_judge)
-    v = _run(attention.evaluate_content("Mira donde tú quieras, pero dame el ya"))
+    v = _run(attention.evaluate_content("Mira donde tú quieras, pero dame el ya",
+                                        context="Te he abierto la lista."))
     assert not v.directed and v.reason == "llm_ambient"
 
 
@@ -353,7 +355,8 @@ def test_always_mode_cold_turn_is_still_judged():
     attention.set_directed_judge(_judge)
     now = 1000.0
     attention.note_directed(now=now)
-    v = _run(attention.evaluate_content("bla bla de fondo", now=now + attention.window_s() + 1))
+    v = _run(attention.evaluate_content("bla bla de fondo", context="¿Te ayudo con algo?",
+                                        now=now + attention.window_s() + 1))
     assert seen.get("called"), "a COLD turn does go through the judge"
     assert not v.directed and v.reason == "llm_ambient"
 
@@ -648,3 +651,65 @@ def test_settings_update_is_the_seam_and_only_a_REAL_change_wipes_the_window(mon
     assert attention.window_open(now=t + 1)
     cfg.update({"attention_mode": "always"})            # real change → wipes
     assert attention._state["last_directed"] == 0.0
+
+
+# ── V2-704 · WITHOUT A DIALOGUE FRAME THERE IS NO VERDICT ─────────────────────────────────────────────────
+# Measured live, session 08d9f6eb of 2026-09-15. The operator reconnected to a session idle for 1 014 s, so the
+# window was cold and the brain had not spoken yet: `context` was "". He said «Contact», then «Contact to the
+# kryptonite». Both came back `llm_ambient` and were dropped, and he spent three minutes talking to a wall.
+#
+# The judge's ONE measured strength is the frame: `_DIRECTED_SYSTEM`'s own note records that presenting the
+# assistant's last utterance as «Zaelar acaba de decir …» is what flips «¿me estás escuchando?» from ambient to
+# directed, 3/3, and that without it a second-person sentence reads as two people in a room. With no context
+# the model is shown a bare line of audio — that is not the judgement this gate was built on, so it may not
+# discard anything. The exposure is bounded and already priced by this module's own rule («ante la duda, marca
+# DIRIGIDO»): it ends the moment the assistant speaks once.
+
+def test_a_cold_turn_with_NO_frame_is_never_discarded():
+    async def _judge(text, context):
+        raise AssertionError("with no frame the judge must not even be consulted")
+    attention.set_directed_judge(_judge)
+    v = _run(attention.evaluate_content("Contact to the kryptonite", context=""))
+    assert v.directed and v.reason == "no_frame"
+
+
+def test_the_frame_returns_and_so_does_the_judge():
+    """The exposure is ONE turn: as soon as there is something to frame with, the gate is the gate again."""
+    seen = {}
+
+    async def _judge(text, context):
+        seen["ctx"] = context
+        return False
+    attention.set_directed_judge(_judge)
+    v = _run(attention.evaluate_content("bla bla de fondo", context="¿Te abro la agenda?"))
+    assert seen.get("ctx") == "¿Te abro la agenda?"
+    assert not v.directed and v.reason == "llm_ambient"
+
+
+def test_whitespace_is_not_a_frame():
+    async def _judge(text, context):
+        raise AssertionError("blank context is no context")
+    attention.set_directed_judge(_judge)
+    assert _run(attention.evaluate_content("Contact", context="   \n ")).reason == "no_frame"
+
+
+def test_the_incident_of_2026_09_15_cannot_repeat():
+    """Replay with the judge answering exactly what it answered live: false, both times."""
+    async def _judge(text, context):
+        return False
+    attention.set_directed_judge(_judge)
+    attention._state["last_directed"] = 0.0          # reconnection: the window is cold
+    for said in ("Contact", "Contact to the kryptonite"):
+        v = _run(attention.evaluate_content(said, context=""))
+        assert v.directed, f"«{said}» volvió a caer como ruido de sala"
+
+
+# ── and the observability says WHICH of the two things happened ───────────────────────────────────────────
+def test_warm_is_a_different_question_from_open():
+    """In `always` mode `window_open()` is permanently true — the microphone IS the window — so a discarded
+    turn was logged with `window_open: true` beside it and the log contradicted itself. `window_warm()` answers
+    the thing an incident needs: was anybody judging this turn at all."""
+    now = 1000.0
+    attention.note_directed(now=now)
+    assert attention.window_warm(now=now + 5) is True
+    assert attention.window_warm(now=now + attention.window_s() + 1) is False

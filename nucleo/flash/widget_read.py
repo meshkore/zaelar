@@ -69,11 +69,54 @@ def resolve(widget_arg: str, text: str = "") -> str | None:
     return None
 
 
+def lookup(wid: str, question: str) -> str:
+    """THE WIDGET ANSWERING THE QUESTION, or "" when it cannot (V2-704).
+
+    The defect this exists for, measured live on 2026-09-15 (session 76270f41). «Contact Kryptonite… you've got
+    my Telegram contact for them» — the model called this tool FOUR times and got, all four, the same 910-char
+    block: `prompt_digest`, which for a directory of 2 686 people is its first fifteen rows plus «… y 2671
+    entradas más», and which publishes PLATFORMS without handles by design (V2-683: a handle is personal data
+    and has no business riding every turn's prompt). The stored row held
+    `{"platform":"telegram","handle":"@cryptonite_fund","chatId":"7477656357"}`. The model answered «it's saved
+    with Telegram as the preferred channel, but there's no Telegram handle stored» — not a hallucination, an
+    accurate reading of a block that was built never to contain the answer, and whose own first line orders the
+    reader to treat an absence in it as authoritative.
+    The `question` argument existed and was never used: `read()` took only a widget id, so the same summary came
+    back whatever was asked. A tool with a decorative parameter is a tool that cannot answer a question about a
+    specific row of anything large, which is most of what a directory, an agenda or an inbox IS.
+
+    The seam is OPTIONAL and generic — any widget joins by exposing it, none is named here:
+
+        def read_query(question: str) -> str:
+            '''The rows this question is about, in full. "" when it resolves to nothing.'''
+
+    Two rules for whoever implements it, and both come from what the digest gets right:
+      · it answers with the RECORD, not a summary — this is a direct question, not context riding every turn,
+        so the fields the digest withholds for privacy belong here;
+      · it returns "" rather than a guess: an empty answer falls through to the digest, and `compose_system`
+        then tells the model it is looking at a summary, which is a different thing from "not stored".
+    """
+    wid, q = (wid or "").strip(), (question or "").strip()
+    if not wid or not q:
+        return ""
+    try:
+        import importlib
+        fn = getattr(importlib.import_module(f"widgets.{wid}.data"), "read_query", None)
+        if not callable(fn):
+            return ""
+        return str(fn(q) or "").strip()[:_MAX_BLOCK_CHARS]
+    except Exception:                                    # noqa: BLE001 — a widget that cannot answer says nothing
+        return ""
+
+
 def read(wid: str) -> str:
     """What the widget holds, as text the model can reason over. The seams the widgets already publish for the
     prompt, in order of richness: `prompt_digest` (the interior — agenda, contactos, archivos, results, youtube,
     fotos, documento), a `coach_context()` when `data.py` exposes one, `items_line` (labels). Bounded. Empty
-    string when the widget publishes nothing readable — the caller then says so instead of inventing."""
+    string when the widget publishes nothing readable — the caller then says so instead of inventing.
+
+    This is the SUMMARY half. What the question itself resolves to comes from `lookup()`, which runs first and
+    is placed above this block so a truncation eats context, never the answer."""
     wid = (wid or "").strip()
     if not wid:
         return ""
@@ -108,28 +151,61 @@ def read(wid: str) -> str:
 
 
 def title(wid: str) -> str:
+    """The piece's name IN THE OPERATOR'S LANGUAGE.
+
+    It used to read the manifest straight (`name` / `title`), and every manifest in this repo is written in
+    Castilian — so an English session heard «Let me check Contactos…» out loud (work cover, 2026-09-15 14:29:44)
+    and the second pass below was told it had read «el widget "Contactos"». The translated label has existed
+    since V2-694 (`widgets.contactos.name` → "Contacts" in `en.json`); this path simply never asked for it.
+    `registry.display_name` is the ONE place that resolves it, and it falls back to the manifest for a widget the
+    bundles have never heard of — a generated one, a fork — so nothing loses its name.
+    """
     try:
-        from widgets import runtime
+        from widgets import registry, runtime
         w = runtime.get(wid) or {}
-        return str(w.get("title") or w.get("name") or wid)
+        native = str(w.get("title") or w.get("name") or wid)
+        return registry.display_name("widgets", wid, native) or native
     except Exception:
         return wid
 
 
-def compose_system(lang_lock: str, operator_text: str, wid: str, question: str, block: str) -> str:
+def compose_system(lang_lock: str, operator_text: str, wid: str, question: str, block: str,
+                   answered: bool = False) -> str:
     """The second pass's system prompt: the widget's content is the ONLY source; an absence is stated, never
-    filled. Same doctrine as `recall`'s pass and V2-210 («no des un dato inventado»)."""
+    filled. Same doctrine as `recall`'s pass and V2-210 («no des un dato inventado»).
+
+    `answered` says WHICH of the two things the block is, and it changes what an absence in it means — the
+    distinction the whole V2-704 incident turned on:
+      · True  — the widget resolved the question and handed back the ROWS. An absence here is real: the datum
+                is not stored, and saying so is correct.
+      · False — all we have is the always-on SUMMARY, which for anything large is a first page. An absence here
+                means WE DID NOT SEE IT, and a summary's own «this is everything» line (`contactos` says
+                «lo que no esté aquí NO está guardado», written when the directory had a dozen rows and true
+                only while nothing is cut) must not be allowed to turn that into a denial. This is generic on
+                purpose: every widget whose digest can truncate — agenda, archivos, results — had the same
+                loaded gun pointed at it.
+    """
     head = (lang_lock or "").rstrip()
     src = block or "(este widget no tiene nada guardado que responda a eso)"
+    name = title(wid)
+    doctrine = (
+        "Esto es EL REGISTRO de lo que se te pregunta, resuelto contra el almacén: si un dato no figura aquí, "
+        "de verdad no está guardado, y decirlo es la respuesta correcta."
+        if answered else
+        "⚠️ Esto es un RESUMEN, no el registro completo — de una lista larga trae solo su primera página, y "
+        "algunos campos (identificadores, direcciones, teléfonos) no viajan en él por privacidad. Si lo que se "
+        "pregunta NO aparece aquí, di que no lo has podido ver o consultar, NUNCA que no está guardado: no "
+        "tienes delante nada que permita afirmar eso. Si el propio bloque dice que él lo es todo, ignóralo "
+        "cuando también diga que hay más entradas."
+    )
     return (
         f"{head}\n"
-        f"Necesitabas LEER lo que guarda el widget «{title(wid)}» ({wid}) para contestar; aquí está su contenido. "
+        f"Necesitabas LEER lo que guarda el widget «{name}» ({wid}) para contestar; aquí está su contenido. "
         "Responde a la pregunta del operador en 1-2 frases HABLADAS y naturales usando SOLO lo que hay aquí — el "
-        "dato exacto (hora, fecha, nombre) tal cual figura. Si lo que pregunta NO está, dilo con naturalidad y "
-        "no lo rellenes con nada. Nunca digas «widget», «datos» ni «leer»: hablas como quien simplemente lo "
-        "sabe.\n\n"
+        "dato exacto (hora, fecha, nombre) tal cual figura. Nunca digas «widget», «datos» ni «leer»: hablas "
+        f"como quien simplemente lo sabe.\n{doctrine}\n\n"
         f"PREGUNTA: {question or operator_text}\n\nPETICIÓN DEL OPERADOR: {operator_text}\n\n"
-        f"LO QUE GUARDA «{title(wid)}»:\n{src}"
+        f"LO QUE GUARDA «{name}»:\n{src}"
     )
 
 
@@ -156,19 +232,27 @@ async def prepare(args: dict, operator_text: str, lang_lock: str, emit, channel:
     wid = resolve(str(args.get("widget_id") or ""), operator_text)
     question = str(args.get("question") or "")
     t0 = time.time()
+    direct = summary = ""
     try:
-        block = await asyncio.to_thread(read, wid) if wid else ""
+        # The QUESTION first. It goes above the summary so the cap below eats context and never the answer.
+        direct = await asyncio.to_thread(lookup, wid, question or operator_text) if wid else ""
+        summary = await asyncio.to_thread(read, wid) if wid else ""
     except Exception:                                    # noqa: BLE001 — a broken widget never breaks the turn
-        block = ""
+        pass
+    block = "\n\n".join(p for p in (direct, summary) if p)[:_MAX_BLOCK_CHARS]
     try:
         emit("brain", "📖 lectura de widget (tool del modelo)", role="system",
              text=f"{wid or args.get('widget_id') or '?'} ← {question or operator_text[:80]}",
              extra={"cat": "flash", "widget": wid or "", "asked": str(args.get("widget_id") or ""),
                     "chars": len(block or ""), "read_ms": round((time.time() - t0) * 1000),
+                    # `answered` is the one field an incident is read by: it says whether the model was looking
+                    # at the record or at a first page, which is the difference between "not stored" and
+                    # "I did not see it".
+                    "answered": bool(direct), "hit_chars": len(direct),
                     "ev": (block or "")[:600], **({"channel": channel} if channel else {})})
     except Exception:                                    # noqa: BLE001
         pass
-    return compose_system(lang_lock, operator_text, wid or "", question, block)
+    return compose_system(lang_lock, operator_text, wid or "", question, block, answered=bool(direct))
 
 
 async def probe_answer(args: dict, operator_text: str, lang_lock: str, emit, spec, collect, sanitize) -> str:

@@ -162,9 +162,17 @@ def test_the_ambient_verdict_carries_the_window_so_the_client_can_keep_the_ring_
     from pathlib import Path
     src = Path(__file__).resolve().parents[3] / "voice/engine/llm/providers/attention_turn.py"
     text = re.sub(r"(?m)#.*$", "", src.read_text(encoding="utf-8"))
-    assert 'window = {"window_s": attention.window_s(), "window_open": attention.window_open()}' in text, (
-        "without `window_open` the client cannot tell «the window closed» from «somebody coughed», and it "
-        "darkened the ring for both — ambient sound must not touch the counters")
+    # The PROPERTY, not the spelling of one line: the verdict carries the window's own two facts. It used to be
+    # pinned byte for byte and V2-704 went red for ADDING two more fields to the same dict — the log now also
+    # says whether the turn was warm and whether the judge had a dialogue frame, which is what made a real
+    # incident readable. A test that breaks on a field being added is measuring a line, not a guarantee.
+    i = text.find("window = {")
+    assert i >= 0, "el veredicto ya no compone la ventana"
+    decl = text[i:text.find("}", i) + 1]
+    for fact in ("attention.window_s()", "attention.window_open()"):
+        assert fact in decl, (
+            f"sin `{fact}` el cliente no distingue «se cerró la ventana» de «alguien tosió», y oscurecía el "
+            "anillo por las dos — el sonido ambiente no toca los contadores")
     for face in ('"🙉 ambiente', '"👂 dirigido'):
         i = text.find(face)
         assert i >= 0 and "**window" in text[i:i + 300], (

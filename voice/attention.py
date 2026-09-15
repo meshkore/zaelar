@@ -353,6 +353,22 @@ async def evaluate_content(text: str, *, context: str = "", now: float | None = 
     now = time.time() if now is None else now
     if _state["last_directed"] and (_window_ref(now) - _state["last_directed"]) <= window_s():
         return Verdict(True, "active_window")
+    # WITHOUT A DIALOGUE FRAME THERE IS NO VERDICT (V2-704). The judge's one measured strength is the frame:
+    # `_DIRECTED_SYSTEM`'s own note records that presenting the assistant's last utterance as «Zaelar acaba de
+    # decir …» is what flips «¿me estás escuchando?» from ambient to directed, 3/3, and that without it a
+    # second-person sentence reads as two people in the room. When `context` is empty that frame does not
+    # exist — the model is shown a bare line of audio and asked to guess — so what comes back is not the
+    # judgement this gate was built on, and it must not be able to DISCARD anything.
+    #
+    # Measured 2026-09-15, session 08d9f6eb: the operator reconnected to a session that had been idle 1 014 s,
+    # so the window was cold and the brain had not spoken yet — `context` was "". He said «Contact» and then
+    # «Contact to the kryptonite»; both came back `llm_ambient` and were dropped. He spent three minutes
+    # talking to a wall, and the very first order of a session is the one most likely to arrive with no frame.
+    # The exposure this opens is bounded and already priced by this module's own rule («ante la duda, marca
+    # DIRIGIDO — dejar sin atender al operador es peor que procesar un poco de ruido»): it lasts until the
+    # assistant speaks once, after which every later turn is judged with the frame, exactly as before.
+    if not str(context or "").strip():
+        return Verdict(True, "no_frame")
     try:
         directed = await _directed_judge(t, context)
     except Exception as e:  # noqa: BLE001 — fail-open here ALSO covers an injected judge (set_directed_judge)
@@ -362,6 +378,22 @@ async def evaluate_content(text: str, *, context: str = "", now: float | None = 
     if directed is None:
         return Verdict(True, "always")     # fail-open: a broken judge must never leave the agent mute
     return Verdict(directed, "always" if directed else "llm_ambient")
+
+
+def window_warm(now: float | None = None) -> bool:
+    """Is a conversation ALREADY RUNNING — i.e. would this turn skip the judge entirely?
+
+    Different question from `window_open()`, and the difference is what made a real incident unreadable. In
+    `always` mode `window_open()` is `True` permanently (the microphone IS the window: that is the mode), so a
+    turn discarded as ambient was logged with `window_open: true` beside it, and the observability said the
+    conversation was open while the gate was treating the turn as cold. Both statements were correct about
+    different things and neither could be read on its own.
+    This one answers the thing an incident actually needs: warm → nobody judges (V2-534's rule); cold → the
+    verdict came from the judge, or from `no_frame` above. Exported so the emitter reports the same fact
+    `evaluate_content` decided by, and the two can never drift.
+    """
+    now = time.time() if now is None else now
+    return bool(_state["last_directed"]) and (_window_ref(now) - _state["last_directed"]) <= window_s()
 
 
 def window_open(now: float | None = None) -> bool:

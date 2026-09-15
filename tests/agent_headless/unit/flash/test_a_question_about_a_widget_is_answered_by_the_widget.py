@@ -98,9 +98,40 @@ def test_compose_system_makes_the_block_the_only_source():
                                       "hora cita Hacienda", "  · 2026-09-11 11:30 «Cita Agencia Tributaria»")
     assert sysp.startswith("LOCK")
     assert "11:30" in sysp and "Cita Agencia Tributaria" in sysp
-    assert "SOLO lo que hay aquí" in sysp and "no lo rellenes" in sysp
+    assert "SOLO lo que hay aquí" in sysp
     assert "PREGUNTA: hora cita Hacienda" in sysp
     assert "PETICIÓN DEL OPERADOR: ¿a qué hora tengo la cita con Hacienda?" in sysp
+
+
+def test_a_SUMMARY_may_not_be_read_as_a_denial():
+    """V2-704. The block is one of two things and an absence in it means opposite things.
+
+    `answered=False` is the always-on digest, which for anything large is a first page and withholds fields by
+    design. Measured 2026-09-15: asked four times for a contact's Telegram, the model got that digest — 15 rows
+    of 2 686, platforms without handles — and answered «there's no Telegram handle stored». The handle was
+    stored. The block's own first line («lo que no esté aquí NO está guardado», written when the directory had
+    a dozen rows) is what turned "I did not see it" into a denial, so the prompt now outranks it explicitly.
+    """
+    digest = widget_read.compose_system("LOCK", "¿tienes el Telegram de X?", "contactos", "Telegram de X",
+                                        "Directorio COMPLETO: 2686 entradas… lo que no esté aquí NO está "
+                                        "guardado.\n· X (canales: telegram (preferido))\n… y 2671 más.")
+    assert "RESUMEN" in digest
+    assert "no está guardado" in digest and "NUNCA" in digest, "the denial has to be forbidden in so many words"
+
+    record = widget_read.compose_system("LOCK", "¿tienes el Telegram de X?", "contactos", "Telegram de X",
+                                        "· «X» · telegram @equis ← CANAL PREFERIDO", answered=True)
+    assert "EL REGISTRO" in record
+    assert "RESUMEN" not in record, "a resolved lookup must not be hedged as if it were a first page"
+
+
+def test_the_piece_is_named_in_the_OPERATORS_language():
+    """Every manifest in this repo is written in Castilian, and this path read `name` straight from it — so an
+    English session heard «Let me check Contactos…» out loud and the second pass was told it had read «el widget
+    "Contactos"». The translated label has existed since V2-694; this is the call that was not asking for it."""
+    assert widget_read.title("contactos") == "Contacts"
+    assert widget_read.title("agenda") == "Calendar"
+    # …and a widget the bundles have never heard of still has a name, rather than losing one.
+    assert widget_read.title("no-such-widget-anywhere") == "no-such-widget-anywhere"
 
 
 def test_an_empty_block_is_declared_empty_never_filled():

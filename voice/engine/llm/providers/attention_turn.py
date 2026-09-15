@@ -38,7 +38,13 @@ async def judge(text: str, *, context: str, emit) -> tuple[bool, str, float]:
     t0 = time.time()
     verdict = await attention.evaluate_content(text, context=context)
     gate_ms = round((time.time() - t0) * 1000, 1)
-    window = {"window_s": attention.window_s(), "window_open": attention.window_open()}
+    # `window_open` is what the CLIENT's ring reads (in `always` it is permanently true — the microphone is the
+    # window). `warm` and `framed` are what an INCIDENT is read by: whether anybody judged this turn at all, and
+    # whether the judge had the dialogue frame its accuracy was measured with. Without those two, a discarded
+    # order looks identical to room noise in the log — which is how 2026-09-15's three silent minutes took a
+    # full session dump to explain (V2-704).
+    window = {"window_s": attention.window_s(), "window_open": attention.window_open(),
+              "warm": attention.window_warm(), "framed": bool(str(context or "").strip())}
 
     if not verdict.directed:
         emit("ambient", "🙉 ambiente — no dirigido a zaelar", text=text[:200], role="user",

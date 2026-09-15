@@ -21,6 +21,46 @@ entregada siga citada aquí.
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **Una pregunta se contesta desde el REGISTRO, y una orden sin marco no es ruido (V2-704, 2026-09-15)**:
+  una prueba manual que debía ser trivial —contactar con alguien, concertar la reunión, mandar el Meet— no llegó
+  a empezar. «Hay algo de fondo que no funciona», y lo había.
+  **El lector de widgets tenía un parámetro `question` decorativo.** `read_widget` llamaba a `read(wid)` con solo
+  el id, así que devolvía el mismo `prompt_digest` preguntases lo que preguntases — y un digest es el resumen
+  SIEMPRE-ACTIVO de la tarjeta: primera página y sin identificadores personales, las dos cosas correctas para lo
+  que es y letales en cuanto se le entrega a alguien que ha preguntado. Medido: cuatro llamadas pidiendo el
+  Telegram de un contacto, cuatro veces los mismos 910 caracteres (15 filas de 2.686, plataformas sin handles), y
+  la respuesta «no hay handle de Telegram guardado» con `@cryptonite_fund` en la fila. No alucinó: el bloque
+  afirma en su primera línea que «lo que no esté aquí NO está guardado». Por widget: contactos 15 de 2.686,
+  agenda truncada y solo hacia delante, **mensajería 0 caracteres** con diez mensajes dentro.
+  **La costura es `read_query(question)`** en el `data.py` de cualquier widget, hermana de `prompt_digest`, y el
+  lector la busca por contrato sin nombrar a ninguno. Contactos contesta a través de `directory.resolve` —la
+  MISMA puerta que usa el envío, así que lo que el cerebro dice de quién es alguien y lo que la puerta de
+  mensajes hace con esa persona ya no pueden ser dos respuestas—; la agenda busca el calendario entero y colapsa
+  las citas idénticas diciendo cuántas copias hay (así salieron 15 de «renovar el seguro» y 11 de «Dentist»); la
+  mensajería publica por fin las dos costuras.
+  **Y un RESUMEN ya no puede leerse como una negación.** El prompt de la segunda pasada dice cuál de las dos
+  cosas tiene delante: con una ficha resuelta, una ausencia es real; con el resumen, una ausencia es «no lo he
+  podido ver», NUNCA «no está guardado» — e ignora la línea del propio bloque que se declare completo mientras
+  también diga que hay más entradas. Esto protege a todo widget cuyo digest pueda truncar, no solo al que falló.
+  **Sin marco de diálogo no hay veredicto.** A las 14:23 dijo «Contact» y «Contact to the kryptonite» y las dos
+  se tiraron como ruido de sala: había reconectado a una sesión parada 1.014 s, la ventana estaba fría y el
+  cerebro aún no había hablado, así que el juez de atención recibió `context=""`. La única fuerza MEDIDA de ese
+  juez es el marco —su propia nota registra que presentar la última frase como «Zaelar acaba de decir …» voltea
+  «¿me estás escuchando?» de ambiente a dirigido, 3/3—, o sea que sin él no se le está haciendo la pregunta que
+  se midió y su veredicto no puede descartar nada. La exposición dura hasta que el asistente habla una vez, y ya
+  la tenía tasada el módulo: «ante la duda, marca DIRIGIDO».
+  **El nombre de la pieza, en el idioma del operador**: `widget_read.title()` leía el manifest (castellano en
+  todos), así que una sesión en inglés oía «Let me check Contactos…» y la segunda pasada leía «el widget
+  "Contactos"». Pasa por `registry.display_name`, que resuelve V2-694 y cae al manifest para un widget que los
+  bundles no conozcan.
+  **Y la observabilidad, que es lo que costó el diagnóstico:** la lectura lleva `answered` (¿registro o primera
+  página?) y el veredicto de atención lleva `warm` y `framed`. En modo `always` `window_open()` es `True`
+  permanentemente —el micrófono ES la ventana—, así que un turno descartado se registraba con `window_open: true`
+  al lado y el log se contradecía solo. **Un desarme encontró un agujero antes de que el test existiera**: poner
+  `direct = ""` en `prepare` no ponía nada rojo — todos los casos por widget podían estar verdes mientras el
+  cableado tiraba la consulta al suelo, que es justo lo que llevaba pasando. Trinquete pagado extrayendo
+  `widgets/contactos/lookup.py` (941 → 819).
+
 - **Una lista de resultados TIENE formato, y todo resultado tiene puerta a su ficha original (V2-702,
   2026-09-15)**: el operador buscó una olla, la búsqueda acertó, y se la enseñamos mal. Cuatro defectos de
   GEOMETRÍA medidos renderizando su hoja real, ninguno visible desde el fuente.
