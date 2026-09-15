@@ -139,6 +139,76 @@ def _spoken(menu: str) -> str:
     return text.replace("{options}", menu)
 
 
+# ── the payload the manifest DECLARES vs the payload the model SENDS (V2-705) ───────────────────────────
+# Measured 2026-09-15 20:32, driving the meeting workflow by hand: the model called `mensajeria.send_to`
+# with `{"contact": "Kryptonite", "message": "…", "objective": "…"}`. The manifest declares `text`, the
+# door refused «no me ha llegado el mensaje», and the message never left — over a payload that carried
+# the message, spelled with a synonym. `resolve_target` already tolerated two of these by hand (`to` for
+# `contact`, `platform` for `channel`) and that is the tell: the tolerance was being written one door at a
+# time, so every door that had not paid for its own incident still lost the call.
+#
+# So it lives HERE, at the single funnel, for every widget and every caller. The rule refuses to guess:
+#   · the target key must be DECLARED in that action's manifest payload (never invents a field);
+#   · it must be missing or empty in the call (never overwrites what the model did send);
+#   · the synonym must NOT itself be declared by that action (if an action declares both `text` and
+#     `subject`, they mean two different things there and nothing is folded);
+#   · and the table is a closed set of same-concept spellings, grown by MEASUREMENT, never by imagination.
+# A fold is announced on the observer line like any other door decision — a rename that nobody can see is
+# how a payload starts meaning something the operator never said.
+_ALIASES: dict[str, tuple[str, ...]] = {
+    "text": ("message", "msg", "body", "content", "mensaje", "texto"),
+    "message": ("text", "msg", "body", "mensaje"),
+    "contact": ("to", "recipient", "person", "who", "para", "destinatario"),
+    "channel": ("platform", "via", "canal"),
+    "title": ("name", "label", "summary", "titulo", "título"),
+    "name": ("title", "label", "nombre"),
+    "query": ("q", "search", "term", "busqueda", "búsqueda"),
+    "url": ("link", "href", "address", "enlace"),
+    "item": ("ref", "reference", "target"),
+    "date": ("day", "fecha", "dia", "día"),
+    "time": ("hour", "startTime", "hora"),
+    "startTime": ("time", "hour", "hora"),
+}
+
+
+def _declared(widget_id: str, action: str) -> dict:
+    payload = _spec(widget_id, action).get("payload")
+    return payload if isinstance(payload, dict) else {}
+
+
+def fold_aliases(widget_id: str, action: str, payload: dict | None) -> dict:
+    """The same call with the model's synonyms renamed to the keys the manifest declares. Never raises,
+    never invents a field, never overwrites one that arrived filled. Returns the payload unchanged when
+    there is nothing to fold (the overwhelming majority of calls)."""
+    pl = payload if isinstance(payload, dict) else {}
+    try:
+        declared = _declared(str(widget_id or "").strip().lower(), str(action or "").strip())
+        if not declared:
+            return pl
+        folded: dict = {}
+        for key in declared:
+            if str(pl.get(key) if pl.get(key) is not None else "").strip():
+                continue                      # the model sent it — its word wins over any synonym
+            for alt in _ALIASES.get(key, ()):
+                if alt in declared or alt == key:
+                    continue                  # this action gives `alt` its own meaning
+                val = pl.get(alt)
+                if val is not None and str(val).strip():
+                    folded[key] = val
+                    break
+        if not folded:
+            return pl
+        try:
+            from voice.observer import emit as _emit
+            _emit("widget", "\U0001fa79 payload con sinónimos → renombrado al manifiesto",
+                  extra={"id": widget_id, "action": action, "folded": ", ".join(sorted(folded))})
+        except Exception:  # noqa: BLE001
+            pass
+        return {**pl, **folded}
+    except Exception:  # noqa: BLE001
+        return pl
+
+
 def guard(widget_id: str, action: str, payload: dict | None) -> dict | None:
     """The refusal for this call, or None when the call may proceed. Never raises."""
     try:

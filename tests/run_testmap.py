@@ -1141,6 +1141,9 @@ DOMAINS: list[dict] = [
                                  "superficies) y un contacto nombrado conserva la familia messaging (V2-705 Niveles 1-2)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_writing_to_a_person_is_not_an_escalation.py",
                                       "tests/agent_headless/unit/flash/test_a_named_contact_keeps_the_messaging_family.py"]},
+        {"id": "2.60", "title": "Una propuesta de reunión ABRE su encargo aunque el modelo olvide etiquetarla, y "
+                                 "el playbook reconoce una propuesta llana («could we meet… Google Meet link»)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/test_a_meeting_proposal_opens_its_errand_even_unlabeled.py"]},
         # V2-669 — el relleno de entrada se elige a ciegas ~1,1 s dentro del turno; el hueco que NO cubre está al
         # otro lado de la costura de la herramienta. Medido en la observabilidad del operador (deepseek-v4-pro):
         # el turno de read_widget de la cita con Hacienda tardó 6.029 ms con `ttft_ms: 0` (el 1er pase devolvió
@@ -2261,6 +2264,13 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_a_destructive_action_needs_a_selector.py",
                                   "tests/browser/unit/agenda/test_cancelling_one_appointment_never_empties_the_calendar.py",
                                   "tests/browser/unit/widgets/test_the_store_keeps_a_snapshot_before_it_overwrites.py"]},
+        {"id": "4.182", "title": "UN solo buscador tolerante para contactos, agenda y mensajes (una C por una K) "
+                                 "y la puerta de envío resuelve un destinatario DECORADO (V2-705)",
+            "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_one_tolerant_matcher_for_every_lookup.py",
+                                  "tests/browser/unit/mensajeria/test_a_decorated_recipient_still_resolves.py"]},
+        {"id": "4.181", "title": "Un sinónimo en el payload NO es un campo que falta: la puerta única renombra "
+                                 "al manifiesto antes de juzgar («message» por «text» perdía el mensaje)",
+            "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_a_synonym_in_the_payload_never_loses_the_call.py"]},
         {"id": "4.178", "title": "Un resultado PARECE un resultado: la foto entera (no una banda recortada), foto "
                                  "izquierda y datos derecha, el enlace a la ficha original SIEMPRE EN LA FICHA "
                                  "(V2-703 lo movió), y el expediente se abre sin esperar al servidor",

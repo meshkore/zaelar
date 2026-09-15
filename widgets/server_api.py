@@ -330,6 +330,10 @@ async def _dispatch(wid: str, action: str, payload: dict):
     `cancel_meeting {}` that deleted 100 events from the operator's Google Calendar) and the exact rule."""
     try:
         from . import contract
+        # BEFORE the guard: a synonym must not look like a missing field. `fold_aliases` renames what the
+        # model spelled its own way onto the keys the manifest declares, so the contract judges the call the
+        # operator actually made (V2-705 — a `send_to` carrying `message` instead of `text` lost the message).
+        payload = contract.fold_aliases(wid, action, payload)
         refused = contract.guard(wid, action, payload)
         if refused is not None:
             try:
