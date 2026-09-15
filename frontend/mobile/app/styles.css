@@ -396,7 +396,13 @@ body {
    inside a wrapping bar, so its width IS its content's width and it never had a reason to wrap — measured, with
    `flex-wrap:wrap` computed and the box still 414px. A row may not be wider than the card that holds it.
 
-   THE DOUBLED `.zm-scroll.zm-scroll` IS DELIBERATE, and it is why there is no `!important` here. A widget
+   THE TRIPLED `.zm-scroll.zm-scroll.zm-scroll` IS DELIBERATE, and it is why there is no `!important` here.
+   ⚠️ It was DOUBLED (0,2,1) until 2026-09-15, and the same measurement that created this block caught the gap:
+   a widget rule of the shape `.hb-x .y button` / `.hb-x .y input` is ALSO (0,2,1), the widget's <style> is
+   injected AFTER this sheet, and a tie goes to the later rule — so agenda's `min-width:32px` nav buttons and
+   contactos' `font-size:13px` search box beat the floor and shipped in v3.27 at 32px wide and 13px. One more
+   class lifts the floor to (0,3,1): above every two-class widget rule, still below a three-class one, so the
+   relationship stays the same — a widget wins by being MORE specific, never by being later. A widget
    styles its own controls with two classes (`.hb-ct .ctq{font-size:11.5px}` = specificity 0,2,0), which beats a
    plain `.zm-scroll input` (0,1,1) — measured: contactos' search box stayed at 11.5px through the first version
    of this block, the only one of the nine failures that survived it. Repeating the class lifts the floor to
@@ -405,38 +411,38 @@ body {
    block doubles it, exceptions included — an exception at lower specificity than the rule it excepts is not an
    exception.
    ============================================================================================================ */
-.zm-scroll.zm-scroll button,
-.zm-scroll.zm-scroll [role="button"],
-.zm-scroll.zm-scroll a[href],
-.zm-scroll.zm-scroll input,
-.zm-scroll.zm-scroll select,
-.zm-scroll.zm-scroll textarea,
-.zm-scroll.zm-scroll label.zm-tap {
+.zm-scroll.zm-scroll.zm-scroll button,
+.zm-scroll.zm-scroll.zm-scroll [role="button"],
+.zm-scroll.zm-scroll.zm-scroll a[href],
+.zm-scroll.zm-scroll.zm-scroll input,
+.zm-scroll.zm-scroll.zm-scroll select,
+.zm-scroll.zm-scroll.zm-scroll textarea,
+.zm-scroll.zm-scroll.zm-scroll label.zm-tap {
   min-height: 44px;
   min-width: 44px;
 }
 /* Text inputs are the iOS-zoom rule, and it is not cosmetic: below 16px the page scales on focus and a fixed
    dock layout never comes back. Widgets set 11.5-13px because that reads well next to a mouse. */
-.zm-scroll.zm-scroll input,
-.zm-scroll.zm-scroll select,
-.zm-scroll.zm-scroll textarea {
+.zm-scroll.zm-scroll.zm-scroll input,
+.zm-scroll.zm-scroll.zm-scroll select,
+.zm-scroll.zm-scroll.zm-scroll textarea {
   font-size: 16px;
 }
 /* A checkbox/radio is a control whose SIZE is its meaning; blowing it up to 44px turns a tick into a slab. The
    row around it is the tap target on a phone, so these keep their intrinsic box. */
-.zm-scroll.zm-scroll input[type="checkbox"],
-.zm-scroll.zm-scroll input[type="radio"] {
+.zm-scroll.zm-scroll.zm-scroll input[type="checkbox"],
+.zm-scroll.zm-scroll.zm-scroll input[type="radio"] {
   min-height: 0;
   min-width: 0;
 }
 /* Same for a control that is deliberately a thin track (a seek bar, a volume slider): a 44px floor would make
    it a block. Its hit area is handled by the browser's own slider affordance. */
-.zm-scroll.zm-scroll input[type="range"] {
+.zm-scroll.zm-scroll.zm-scroll input[type="range"] {
   min-height: 0;
 }
 /* A ROW OF CONTROLS WRAPS instead of pushing the card sideways (see the ⚠️ above — measured on `archivos`). */
-.zm-scroll.zm-scroll :has(> button),
-.zm-scroll.zm-scroll :has(> a[href]) {
+.zm-scroll.zm-scroll.zm-scroll :has(> button),
+.zm-scroll.zm-scroll.zm-scroll :has(> a[href]) {
   flex-wrap: wrap;
   max-width: 100%;
 }
