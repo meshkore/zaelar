@@ -34,20 +34,35 @@ daemon.start();
 
 const PLATFORM_LABEL = { macos: "macOS", windows: "Windows" };
 
-// The install command, per platform. It is shown as text to copy rather than run for the user, because the
-// one thing this screen must never do is make an executable land and run without the person choosing it.
-function installCommand(platform) {
-  if (platform === "windows") {
-    return 'powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\\Downloads\\zaelar-daemon-install-windows.ps1"';
-  }
-  return 'bash ~/Downloads/zaelar-daemon-install-macos.sh';
-}
-
 export function DaemonSetup() {
   const [problem, setProblem] = createSignal("");
   const [busy, setBusy] = createSignal("");
   const [chosen, setChosen] = createSignal("");      // which platform's instructions are showing
+  const [copied, setCopied] = createSignal(false);
   let pathEl;
+
+  // `navigator.clipboard` needs a secure context, and this app is served over plain http on 43917 as well as
+  // https on 44317 — so on the http origin the modern API simply is not there. The old `execCommand` path is
+  // the fallback, and the button says what happened either way: a copy button that silently does nothing is
+  // worse than no button, because the user walks away believing they have the command.
+  const copy = async (text) => {
+    if (!text) return;
+    let ok = false;
+    try {
+      if (navigator.clipboard && window.isSecureContext) { await navigator.clipboard.writeText(text); ok = true; }
+    } catch (_) { ok = false; }
+    if (!ok) {
+      try {
+        const ta = document.createElement("textarea");
+        ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+        document.body.appendChild(ta); ta.select();
+        ok = document.execCommand("copy");
+        document.body.removeChild(ta);
+      } catch (_) { ok = false; }
+    }
+    if (ok) { setCopied(true); setTimeout(() => setCopied(false), 1800); }
+    api.uiEvent("daemon:copy_command", { ok });
+  };
 
   const close = () => { store.setDaemonSetupOpen(false); setProblem(""); };
 
@@ -73,24 +88,36 @@ export function DaemonSetup() {
     const all = daemon.platforms();
     const names = Object.keys(all);
     if (!names.length) return h("p", { class: "dsx-note" }, () => t("daemon.download.unavailable"));
+    const current = () => all[platform()] || {};
     return h("div", { class: "dsx-dl" },
+      // Which machine, not which file. The tabs pick the platform; the command below is the whole install.
       h("div", { class: "dsx-dl-row" }, ...names.map((name) =>
-        h("a", {
+        h("button", {
           class: () => "dsx-dl-btn" + (platform() === name ? " on" : ""),
-          href: all[name].artifact, download: "",
-          onClick: () => { setChosen(name); api.uiEvent("daemon:download", { platform: name }); },
+          onClick: () => { setChosen(name); api.uiEvent("daemon:platform", { platform: name }); },
         }, PLATFORM_LABEL[name] || name))),
-      h("ol", { class: "dsx-steps" },
-        h("li", {}, () => t("daemon.step.download"),
-          h("a", { class: "dsx-link", href: () => (all[platform()] || {}).installer || "#", download: "" },
-            () => t("daemon.step.installer"))),
-        h("li", {}, () => t("daemon.step.run"),
-          h("code", { class: "dsx-cmd" }, () => installCommand(platform()))),
-        h("li", {}, () => t("daemon.step.wait"))),
+      h("p", { class: "dsx-note" }, () => t("daemon.cmd.lead")),
+      h("div", { class: "dsx-cmd-row" },
+        h("code", { class: "dsx-cmd" }, () => current().command || ""),
+        h("button", { class: "dsx-copy",
+          onClick: () => copy(current().command || ""),
+        }, () => copied() ? t("daemon.cmd.copied") : t("daemon.cmd.copy"))),
+      h("p", { class: "dsx-note" }, () => t("daemon.cmd.why")),
       h("p", { class: "dsx-note" }, () => t("daemon.note.noadmin")),
-      h("p", { class: "dsx-note" }, () => t("daemon.note.checksums"),
-        h("a", { class: "dsx-link", href: () => (all[platform()] || {}).checksums || "#" },
-          () => t("daemon.note.checksums_link"))),
+      // The direct file stays reachable for somebody who would rather look at it first — and it is the path
+      // that COSTS a security dialog, because a browser is what marks a download as quarantined. Said here,
+      // quietly, instead of being the button everybody presses by default.
+      h("details", { class: "dsx-more" },
+        h("summary", {}, () => t("daemon.manual.summary")),
+        h("p", { class: "dsx-note" }, () => t("daemon.manual.body")),
+        h("p", { class: "dsx-note" },
+          h("a", { class: "dsx-link", href: () => current().artifact || "#", download: "" },
+            () => t("daemon.manual.artifact")), " · ",
+          h("a", { class: "dsx-link", href: () => current().installer || "#", download: "" },
+            () => t("daemon.manual.installer")), " · ",
+          h("a", { class: "dsx-link", href: () => current().checksums || "#" },
+            () => t("daemon.note.checksums_link"))),
+        h("p", { class: "dsx-note" }, () => t("daemon.manual.arch"))),
     );
   };
 

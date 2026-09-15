@@ -14,8 +14,10 @@ not cover Windows would read exactly like one that did.
 """
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import json
+import re
 import subprocess
 import sys
 import zipfile
@@ -120,6 +122,53 @@ def test_the_build_survives_a_console_that_is_not_utf_8(tmp_path):
                             capture_output=True, text=True, timeout=120, env=env, cwd=str(ENGINE))
     assert result.returncode == 0, (
         f"the build died on a non-UTF-8 console after doing its work:\n{result.stderr[-800:]}"
+    )
+
+
+def test_the_published_checksums_name_the_files_the_release_actually_contains(built):
+    """⚠️ MEASURED, 2026-09-15, and daemon-v0.2.0 shipped with it broken. `build.py` writes SHA256SUMS under the
+    BUILD names, and the release publishes the files under ARCHITECTURE names — so the sums file was published,
+    looked right, and listed two files nobody could download. The one-line installer refused to install a
+    binary it had downloaded perfectly, because it could not find that binary in its own checksums.
+
+    Renaming the files is therefore not enough, and patching the text of the sums file would be the same lie in
+    a better disguise: `release_names.py` recomputes the digests from the files as they will be published."""
+    spec = importlib.util.spec_from_file_location("daemon_release_names_under_test", PACKAGING / "release_names.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    dist = built["dist"]
+    published = module.rename_for("testarch", dist=dist)
+    assert published, "the rename produced nothing"
+
+    sums = (dist / "SHA256SUMS-testarch").read_text(encoding="utf-8").splitlines()
+    listed = {line.split(None, 1)[1] for line in sums if line.strip()}
+    on_disk = {a.name for a in published}
+    assert listed == on_disk, f"the sums name {listed} and the release carries {on_disk}"
+
+    for line in sums:
+        digest, name = line.split(None, 1)
+        actual = hashlib.sha256((dist / name).read_bytes()).hexdigest()
+        assert digest == actual, f"{name}: the published digest is not the file's"
+
+    assert not (dist / "SHA256SUMS").exists(), (
+        "the build-name checksums were left behind — three jobs uploading one `SHA256SUMS` into a flattened "
+        "release is the collision the suffixes exist to prevent"
+    )
+
+
+def test_the_one_line_installer_survives_the_bash_that_macos_actually_ships(tmp_path):
+    """⚠️ macOS ships bash 3.2, whose parser accepts a byte over 127 as part of a variable NAME — so
+    `$ASSET…` expanded as a variable called `ASSET\xe2`, and under `set -u` the install died on line 60 with
+    "unbound variable". `bash -n` does not catch it: it is a runtime expansion, not a syntax error. Measured on
+    2026-09-15 by running the real command.
+
+    Every `$VAR` immediately followed by a non-ASCII character must be braced."""
+    text = (PACKAGING / "get.sh").read_text(encoding="utf-8")
+    unbraced = re.findall(r"\$([A-Za-z_][A-Za-z0-9_]*)(?=[^\x00-\x7f])", text)
+    assert not unbraced, (
+        f"unbraced variables touching a non-ASCII character: {unbraced}. On macOS's bash 3.2 the name swallows "
+        f"the first byte of the character and the script dies with 'unbound variable'."
     )
 
 

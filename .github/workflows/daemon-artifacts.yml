@@ -33,10 +33,19 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # ⚠️ APPLE SILICON AND INTEL ARE TWO BINARIES. A PyInstaller bundle carries a real interpreter
+          # compiled for one architecture; there is no build that runs on both, and getting it wrong does not
+          # degrade — it fails with "bad CPU type in executable", which every user reads as a broken download.
+          # `macos-latest` has been arm64 since macos-14, so without this second job an Intel Mac got nothing.
           - os: macos-latest
             artifact: zaelar-daemon
+            suffix: macos
+          - os: macos-15-intel
+            artifact: zaelar-daemon
+            suffix: macos-x86_64
           - os: windows-latest
             artifact: zaelar-daemon.exe
+            suffix: windows
     runs-on: ${{ matrix.os }}
     timeout-minutes: 25
 
@@ -60,7 +69,7 @@ jobs:
         shell: pwsh
         run: |
           $failed = $false
-          foreach ($file in Get-ChildItem daemon/packaging/windows/*.ps1) {
+          foreach ($file in @(Get-ChildItem daemon/packaging/windows/*.ps1) + @(Get-Item daemon/packaging/get.ps1)) {
             $errors = $null
             [System.Management.Automation.Language.Parser]::ParseFile($file.FullName, [ref]$null, [ref]$errors) | Out-Null
             if ($errors) { $failed = $true; Write-Host "PARSE ERRORS in $($file.Name)"; $errors | ForEach-Object { Write-Host "  $($_.Message)" } }
@@ -70,7 +79,10 @@ jobs:
 
       - name: The shell installers parse
         if: runner.os == 'macOS'
-        run: bash -n daemon/packaging/macos/install.sh && bash -n daemon/packaging/macos/uninstall.sh
+        run: |
+          bash -n daemon/packaging/macos/install.sh
+          bash -n daemon/packaging/macos/uninstall.sh
+          bash -n daemon/packaging/get.sh
 
       # The portable build first, because it needs nothing: if this one fails, the failure is ours and not a
       # build tool's.
@@ -140,32 +152,30 @@ jobs:
       # downloaded artifact into one upload — had two files claiming each name and whichever landed second won.
       # The download surface needs a URL per platform that does not move between releases, which is the
       # difference between "the icon offers you the installer" and "the icon offers you a coin flip".
-      - name: Name the artifacts after the platform they are for (macOS)
-        if: runner.os == 'macOS'
+      # ⚠️ ONE SCRIPT FOR BOTH SHELLS, and it recomputes the digests rather than renaming a checksum file.
+      # `build.py` writes SHA256SUMS under the BUILD names, so renaming only the files leaves a published sums
+      # file that names things the release does not contain — which is what shipped in daemon-v0.2.0 and what
+      # made the one-line installer refuse to install.
+      - name: Name the artifacts after the platform they are for
+        run: python daemon/packaging/release_names.py ${{ matrix.suffix }}
+
+      # The installers and the one-line bootstraps are architecture-independent, so exactly ONE job publishes
+      # them. Copied from both Mac jobs they would be two files claiming one name in a flattened release, and
+      # the whole point of the suffixes above is that no such pair exists.
+      - name: Publish the scripts a person actually runs (once)
+        if: matrix.suffix == 'macos'
         run: |
           cd dist/daemon
-          mv zaelar-daemon zaelar-daemon-macos
-          mv zaelar-daemon.pyz zaelar-daemon-macos.pyz
-          mv manifest.json manifest-macos.json
-          mv SHA256SUMS SHA256SUMS-macos
           cp "$GITHUB_WORKSPACE/daemon/packaging/macos/install.sh" zaelar-daemon-install-macos.sh
           cp "$GITHUB_WORKSPACE/daemon/packaging/macos/uninstall.sh" zaelar-daemon-uninstall-macos.sh
-
-      - name: Name the artifacts after the platform they are for (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          Set-Location dist/daemon
-          Move-Item zaelar-daemon.exe zaelar-daemon-windows.exe
-          Move-Item zaelar-daemon.pyz zaelar-daemon-windows.pyz
-          Move-Item manifest.json manifest-windows.json
-          Move-Item SHA256SUMS SHA256SUMS-windows
-          Copy-Item "$env:GITHUB_WORKSPACE/daemon/packaging/windows/install.ps1" zaelar-daemon-install-windows.ps1
-          Copy-Item "$env:GITHUB_WORKSPACE/daemon/packaging/windows/uninstall.ps1" zaelar-daemon-uninstall-windows.ps1
+          cp "$GITHUB_WORKSPACE/daemon/packaging/windows/install.ps1" zaelar-daemon-install-windows.ps1
+          cp "$GITHUB_WORKSPACE/daemon/packaging/windows/uninstall.ps1" zaelar-daemon-uninstall-windows.ps1
+          cp "$GITHUB_WORKSPACE/daemon/packaging/get.sh" get.sh
+          cp "$GITHUB_WORKSPACE/daemon/packaging/get.ps1" get.ps1
 
       - uses: actions/upload-artifact@v4
         with:
-          name: zaelar-daemon-${{ runner.os }}
+          name: zaelar-daemon-${{ matrix.suffix }}
           path: |
             dist/daemon/*
           if-no-files-found: error

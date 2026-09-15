@@ -1462,8 +1462,16 @@ body.dbg-open .orbwrap{left:calc(50% - var(--dbg-w) / 2)}
 .dsx-dl-btn{display:inline-block;padding:9px 16px;border-radius:var(--hb-r-m);text-decoration:none;font-size:0.875rem;
   font-weight:600;color:var(--hb-ink);border:1px solid var(--hb-line);background:var(--hb-bg-soft)}
 .dsx-dl-btn.on{border-color:var(--hb-accent);color:var(--hb-accent)}
-.dsx-steps{margin:var(--sp-4) 0 0;padding-left:1.1rem;color:var(--hb-ink);font-size:0.875rem;line-height:1.7}
-.dsx-cmd{display:block;margin-top:6px;padding:8px 10px;border-radius:var(--hb-r-m);background:var(--hb-bg-soft);
+/* The install command is the main affordance on this screen, so it gets the weight: a full-width monospace
+   block with the copy button pinned to it. It scrolls sideways on its own rather than wrapping — a wrapped
+   shell command is a command somebody pastes broken. */
+.dsx-cmd-row{display:flex;align-items:stretch;gap:8px;margin-top:8px}
+.dsx-copy{flex:0 0 auto;background:var(--hb-accent);color:var(--canvas);border:none;border-radius:var(--hb-r-m);
+  padding:0 14px;font-size:0.8125rem;font-weight:600;cursor:pointer;white-space:nowrap}
+.dsx-more{margin-top:var(--sp-4);border-top:1px solid var(--hb-line);padding-top:var(--sp-3)}
+.dsx-more summary{cursor:pointer;color:var(--hb-muted);font-size:0.8125rem;list-style:revert}
+.dsx-more summary:hover{color:var(--hb-ink)}
+.dsx-cmd{display:block;flex:1;min-width:0;margin:0;align-content:center;padding:8px 10px;border-radius:var(--hb-r-m);background:var(--hb-bg-soft);
   border:1px solid var(--hb-line);color:var(--hb-ink);font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
   font-size:0.75rem;overflow-x:auto;white-space:pre}
 .dsx-link{color:var(--hb-accent)}

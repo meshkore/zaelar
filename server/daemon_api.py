@@ -57,6 +57,23 @@ _ASSETS = {
                 "checksums": "SHA256SUMS-windows"},
 }
 
+# ⚠️ THE ONE-LINE COMMAND IS THE MAIN PATH, and it is not a convenience for people who like terminals. macOS
+# quarantine and the Windows Mark of the Web are written by whatever SAVED the file — a browser stamps it,
+# `curl` and `Invoke-WebRequest` do not. So a daemon that arrives this way is never held by Gatekeeper and
+# never raises the SmartScreen panel, on unsigned artifacts, with no Apple or Microsoft account and nothing to
+# renew. The download buttons stay as a fallback for somebody who would rather see the file, and they are the
+# ones that cost a security dialog.
+#
+# ⚠️ AND THE ARCHITECTURE PROBLEM IS WHY A BUTTON CANNOT BE THE MAIN PATH. Apple Silicon and Intel need
+# different binaries, a user-agent does not reliably say which, and picking wrong fails with "bad CPU type in
+# executable". The script reads `uname -m` and is simply right.
+_BOOTSTRAP_BASE_DEFAULT = "https://raw.githubusercontent.com/meshkore/zaelar/main/daemon/packaging"
+
+_BOOTSTRAP = {
+    "macos": {"script": "get.sh", "command": "curl -fsSL {base}/get.sh | bash"},
+    "windows": {"script": "get.ps1", "command": "irm {base}/get.ps1 | iex"},
+}
+
 
 # ── where the daemon is, without creating anything ────────────────────────────────────────────────────────
 
@@ -165,11 +182,15 @@ def _downloads(version: str) -> dict:
     tag = f"daemon-v{version}" if version else ""
     if not base:
         base = f"{_RELEASE_BASE_DEFAULT}/{tag}" if tag else ""
+    boot = (os.getenv("ZAELAR_DAEMON_BOOTSTRAP_BASE") or _BOOTSTRAP_BASE_DEFAULT).rstrip("/")
     out: dict = {"tag": tag, "platforms": {}}
     if not base:
         return out
     for name, assets in _ASSETS.items():
-        out["platforms"][name] = {key: f"{base}/{filename}" for key, filename in assets.items()}
+        entry = {key: f"{base}/{filename}" for key, filename in assets.items()}
+        entry["bootstrap"] = f"{boot}/{_BOOTSTRAP[name]['script']}"
+        entry["command"] = _BOOTSTRAP[name]["command"].format(base=boot)
+        out["platforms"][name] = entry
     return out
 
 

@@ -11,6 +11,7 @@ ours. So each guard is checked with a hostile request AND with the ordinary one 
 """
 from __future__ import annotations
 
+import importlib.util
 import json
 import re
 from pathlib import Path
@@ -192,38 +193,140 @@ def test_the_refusal_the_daemon_wrote_is_the_one_the_user_reads(client, monkeypa
 
 # ── the build, the installer and the screen agree about the file names ────────────────────────────────────
 
-def test_the_release_gives_each_platform_its_own_file_names():
-    """Both runners produce `zaelar-daemon.pyz`, `manifest.json` and `SHA256SUMS` under those exact names, and
-    the release job flattens every downloaded artifact into one upload — so without a rename, one platform's
-    files silently overwrote the other's and the download link was a coin flip."""
+def _suffixes() -> list[str]:
     workflow = (ENGINE / ".github" / "workflows" / "daemon-artifacts.yml").read_text(encoding="utf-8")
-    for name in ("zaelar-daemon-macos", "zaelar-daemon-windows.exe",
-                 "SHA256SUMS-macos", "SHA256SUMS-windows",
-                 "zaelar-daemon-install-macos.sh", "zaelar-daemon-install-windows.ps1"):
-        assert name in workflow, f"the release never produces {name}, which the download screen links to"
+    return re.findall(r"suffix:\s*(\S+)", workflow)
 
 
-@pytest.mark.parametrize("script,names", [
-    ("macos/install.sh", ("zaelar-daemon-macos",)),
-    ("windows/install.ps1", ("zaelar-daemon-windows.exe",)),
-])
-def test_the_installer_finds_the_file_the_user_just_downloaded(script, names):
-    """The most demoralising install failure there is: "no artifact found", printed in a folder where the
-    artifact is sitting next to the script. The release asset is named for its platform, so the installer has
-    to know that name — and it has to look in Downloads, which is where a browser put it."""
-    text = (ENGINE / "daemon" / "packaging" / script).read_text(encoding="utf-8")
-    for name in names:
-        assert name in text, f"{script} does not know about the release asset {name}"
-    assert "Downloads" in text, f"{script} never looks where a browser actually put the file"
+def _published_names() -> set[str]:
+    """Every filename the release ends up carrying.
+
+    Built by joining the two halves that decide it — the workflow declares which suffixes exist, and
+    `release_names.py` owns the templates each build name is published under — rather than grepping the
+    workflow for literals it no longer contains. A test that grepped for a literal would pass just as happily
+    against a workflow that produced none of them."""
+    spec = importlib.util.spec_from_file_location(
+        "daemon_release_names_under_test", ENGINE / "daemon" / "packaging" / "release_names.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    names = set()
+    for suffix in _suffixes():
+        for _build_name, template in module._RENAMES:
+            names.add(template.format(suffix=suffix))
+        names.add(f"SHA256SUMS-{suffix}")
+    # The architecture-independent scripts, copied once by the workflow's own step.
+    workflow = (ENGINE / ".github" / "workflows" / "daemon-artifacts.yml").read_text(encoding="utf-8")
+    names |= set(re.findall(r"(zaelar-daemon-(?:un)?install-[\w.-]+)", workflow))
+    names |= set(re.findall(r"\b(get\.(?:sh|ps1))\b", workflow))
+    return names
+
+
+def test_the_release_gives_each_platform_its_own_file_names():
+    """Both runners used to produce `zaelar-daemon.pyz`, `manifest.json` and `SHA256SUMS` under those exact
+    names, and the release job flattens every downloaded artifact into one upload — so one platform's files
+    silently overwrote the other's. With three jobs now (Apple Silicon, Intel, Windows) the collision would be
+    three-way, which is why the names are generated from the suffix rather than written out."""
+    suffixes = _suffixes()
+    assert len(set(suffixes)) == len(suffixes), f"two build jobs claim the same suffix: {suffixes}"
+    assert {"macos", "macos-x86_64", "windows"} <= set(suffixes), (
+        f"a platform people install on is not built: {suffixes}"
+    )
+    names = _published_names()
+    for suffix in suffixes:
+        for template in ("zaelar-daemon-{s}", "SHA256SUMS-{s}", "manifest-{s}.json"):
+            assert template.format(s=suffix) in names, f"{template.format(s=suffix)} is never produced"
+
+
+def test_an_intel_mac_is_not_handed_an_apple_silicon_binary():
+    """⚠️ A PyInstaller bundle carries a real interpreter compiled for ONE architecture, and `macos-latest` has
+    been arm64 since macos-14. Without a second Mac job an Intel user downloaded a file that fails with "bad
+    CPU type in executable" — which reads as a corrupt download, not as a wrong build. The bootstrap picks by
+    `uname -m`, which is why it can be right where a user-agent cannot."""
+    script = (ENGINE / "daemon" / "packaging" / "get.sh").read_text(encoding="utf-8")
+    assert "uname -m" in script
+    assert "arm64)" in script and "x86_64)" in script
+    assert "zaelar-daemon-macos-x86_64" in script
 
 
 def test_every_asset_the_screen_links_to_is_one_the_release_publishes():
-    """The three-way join this node exists for: the API names an asset, the workflow produces it, the
-    installer accepts it. Any two of those agreeing is not enough."""
-    workflow = (ENGINE / ".github" / "workflows" / "daemon-artifacts.yml").read_text(encoding="utf-8")
+    """The three-way join this node exists for: the API names a file, the workflow produces it, the installer
+    accepts it. Any two of those agreeing is not enough."""
+    names = _published_names()
     for platform, assets in daemon_api._ASSETS.items():
         for filename in assets.values():
-            assert filename in workflow, f"{platform}: the screen offers {filename} and no release makes it"
+            assert filename in names, f"{platform}: the screen offers {filename} and no release makes it"
+
+
+# ── the one-line command, which is the path people actually take ──────────────────────────────────────────
+
+@pytest.mark.parametrize("script", ["get.sh", "get.ps1"])
+def test_the_bootstrap_the_command_runs_exists_and_asks_for_no_password(script):
+    """⚠️ The whole reason the command is the main path: macOS quarantine and the Windows Mark of the Web are
+    written by whatever SAVED the file, and `curl`/`Invoke-WebRequest` do not write them. A daemon that arrives
+    this way raises no Gatekeeper dialog and no SmartScreen panel, unsigned, with no developer account. That
+    property is worth nothing if the script then asks for an administrator password."""
+    text = (ENGINE / "daemon" / "packaging" / script).read_text(encoding="utf-8").lower()
+    for elevation in ("sudo ", "runas", "-verb runas", "requireadministrator"):
+        assert elevation not in text, f"{script} escalates ({elevation.strip()!r})"
+
+
+@pytest.mark.parametrize("script,hasher", [("get.sh", "shasum -a 256"), ("get.ps1", "Get-FileHash")])
+def test_nothing_is_executed_before_its_checksum_is_checked(script, hasher):
+    """⚠️ THE ORDER IS THE POINT, not the presence of a hash. Piping a script into a shell is as safe as its
+    origin and no safer, so the least this can do is prove the binary that arrived is the binary that was
+    built — while it is still an inert blob in a temp directory, BEFORE it is made executable, moved, or handed
+    to launchd. A checksum verified after the install would be a comment, not a control.
+
+    What it is NOT is provenance: two files from the same release agreeing catches a corrupt download and an
+    altered mirror, and whoever can replace one can replace the other. That needs a signature."""
+    text = (ENGINE / "daemon" / "packaging" / script).read_text(encoding="utf-8")
+    assert hasher in text, f"{script} never hashes what it downloaded"
+    verified_at = text.index(hasher)
+    invocation = 'bash "$WORK/install.sh"' if script == "get.sh" else "& $installer"
+    ran_at = text.index(invocation)
+    assert verified_at < ran_at, f"{script} runs the installer before checking the download"
+
+
+@pytest.mark.parametrize("script", ["get.sh", "get.ps1"])
+def test_the_bootstrap_installs_a_DAEMON_release_and_not_merely_the_latest(script):
+    """`releases/latest` follows whatever was released last, and this repository also tags the engine — so the
+    newest release regularly carries no daemon assets at all. Filtering tags by prefix is what stops the
+    command from failing on a perfectly healthy repository."""
+    text = (ENGINE / "daemon" / "packaging" / script).read_text(encoding="utf-8")
+    assert "daemon-v" in text, f"{script} does not filter releases by the daemon's tag prefix"
+    # The USAGE, not the word: both scripts explain in a comment why `releases/latest` is wrong, and a test
+    # that forbade the substring would be tripped by its own documentation.
+    assert "releases/latest/download" not in text, f"{script} builds a URL from the wrong release"
+
+
+def test_the_command_the_screen_shows_runs_the_script_the_repo_ships():
+    """The fourth joint: the words on screen have to be the file that exists. A command with a typo in its URL
+    is indistinguishable, to the user, from a product that does not work."""
+    downloads = daemon_api._downloads("0.2.0")["platforms"]
+    for platform, entry in downloads.items():
+        script = daemon_api._BOOTSTRAP[platform]["script"]
+        assert (ENGINE / "daemon" / "packaging" / script).is_file(), f"{script} is offered and does not exist"
+        assert script in entry["command"] and entry["bootstrap"].endswith(script)
+    assert downloads["macos"]["command"].startswith("curl ")
+    assert downloads["windows"]["command"].startswith("irm ")
+
+
+def test_the_screen_leads_with_the_command_and_not_with_a_download_button():
+    """The direct file still works and is still offered — but it is the path that COSTS a security dialog,
+    because a browser is what marks a download as quarantined. Leading with it would mean every user meets
+    "Windows protected your PC" on a product whose main claim is that it is careful with their machine."""
+    screen = (ENGINE / "frontend" / "app" / "components" / "DaemonSetup.js").read_text(encoding="utf-8")
+    # ⚠️ The command must be in the element that DISPLAYS it, not merely mentioned somewhere in the file. A
+    # first version of this check looked for `current().command` anywhere, and deleting the `<code>` block left
+    # it green — the copy button still referenced the same expression, so the test passed over a screen where
+    # the command was invisible and only copyable by a button labelled "Copy" with nothing above it.
+    shown = re.search(r'class:\s*"dsx-cmd"\s*\}\s*,\s*\(\)\s*=>\s*current\(\)\.command', screen)
+    assert shown, "the install command is not rendered in the block that shows it"
+    command_at = shown.start()
+    manual_at = screen.index('h("details"')
+    assert command_at < manual_at, "the manual download is shown above the command"
+    assert "daemon.manual.body" in screen, "the screen never warns that the manual path raises a dialog"
 
 
 # ── the interface: the icon, the screen, the words ────────────────────────────────────────────────────────

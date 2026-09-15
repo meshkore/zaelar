@@ -52,7 +52,12 @@ from __future__ import annotations
 # 0.2.0 — the security pass: Host-header check against DNS rebinding, JSON-only bodies, unauthorized attempts
 #         audited and throttled, a TOCTOU-safe open, a much longer never-served list, bounded concurrency, and
 #         internal error text kept out of responses.
-VERSION = "0.2.0"
+# 0.2.1 — DELIVERY, not behaviour: the daemon itself is unchanged. The one-line install is the main path
+#         now (a browser marks a download as quarantined; `curl` does not, so no Gatekeeper or
+#         SmartScreen dialog on an unsigned build), an Intel Mac finally gets a binary that runs on it,
+#         and the published SHA256SUMS names the files the release actually contains — it did not, which
+#         made the installer refuse to install what it had just downloaded correctly.
+VERSION = "0.2.1"
 
 # THE PORT. Fixed, so the engine and the wizard can both name it without discovery, and chosen deliberately:
 #   · not in /etc/services (verified 2026-09-04) — no known service to collide with;
