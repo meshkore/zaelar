@@ -57,7 +57,10 @@ Tu trabajo no acaba con encontrar el dato: acaba cuando se LEE de un vistazo. Re
   reparte el espacio según la forma de lo que le des, y lo hace mejor que una suposición a ciegas.
 · NADA IMPORTANTE AL FINAL DE UN CAMPO LARGO. Si una salvedad o un aviso importa, va en su propio `fact` o en su
   propia línea — nunca colgando del final de un párrafo que puede quedarse sin sitio.
-· MISMA FORMA PARA TODOS LOS ITEMS. Si uno lleva precio y horario, todos. Comparar exige columnas comparables."""
+· MISMA FORMA PARA TODOS LOS ITEMS. Si uno lleva precio y horario, todos. Comparar exige columnas comparables.
+· CADA RESULTADO LLEVA SU `url`: la página donde lo encontraste. Es la única puerta a la ficha COMPLETA, con los
+  cien campos que tú no has copiado, y sin ella el resultado es un callejón sin salida. Y su `image` si la hay:
+  la superficie la muestra entera, no hace falta que la recortes ni que elijas una apaisada."""
 
 
 def _manifest(widget_id: str) -> dict:
@@ -188,12 +191,24 @@ def audit(widget_id: str, payload: dict) -> list[str]:
         for p in (it.get("parts") or []):
             if isinstance(p, dict):
                 _check(f"item {n} · pieza «{str(p.get('kind') or '')[:12]}»", p.get("title"), "part_title")
-        shapes.append((bool(it.get("parts")), bool(it.get("price")), bool(it.get("facts"))))
+        shapes.append((bool(it.get("parts")), bool(it.get("price")), bool(it.get("facts")),
+                       bool(it.get("url"))))
 
     # Comparing requires comparable columns: if one item has a price and another does not, the mental table breaks.
     if len(shapes) > 1:
-        for idx, name in ((1, "price"), (2, "facts")):
+        for idx, name in ((1, "price"), (2, "facts"), (3, "url")):
             vals = {s[idx] for s in shapes}
             if len(vals) > 1:
                 out.append(f"los items no tienen la MISMA forma: unos traen `{name}` y otros no — no se pueden comparar")
+
+    # THE LINK OUT. A found result whose original page cannot be opened is a dead end: whatever the record shows
+    # is whatever we chose to copy, and the rest of the listing —the thousand fields we did not judge worth
+    # keeping— becomes unreachable. Operator, 2026-09-15: «asegúrate de que cuando un widget de resultados busca
+    # cosas SIEMPRE muestre los links a la página web original». Rendering it was the widget's half (it was
+    # dropping urls it had); SUPPLYING it is this one, and it is checked only where it makes sense — a sheet
+    # built from the web, which is what declaring `sources` means. A sheet of the operator's own files has no
+    # page to link to and is not accused of anything.
+    if items and payload.get("sources") and not any(isinstance(i, dict) and i.get("url") for i in items):
+        out.append("ningún resultado trae `url`: el operador no puede abrir la ficha original de ninguno — "
+                   "cada item necesita el enlace a la página donde lo encontraste")
     return out

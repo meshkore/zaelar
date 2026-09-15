@@ -156,9 +156,75 @@ function injectStyles(){
     background:var(--hb-bg-soft,#fbfdff)}
   .hb-results a.hr-card:hover,.hb-results .hr-card.choosable:hover{border-color:var(--hb-accent,#3D6FE0);
     box-shadow:var(--hb-shadow-1,0 8px 30px rgba(13,22,34,.12));transform:translateY(-1px)}
-  .hb-results .hr-img{display:block;width:100%;height:128px;object-fit:cover;border-radius:var(--r-md);
-    margin:0 0 var(--s3);background:var(--hb-bubble,#f1f4f9)}
-  .hb-results .hr-card.primary .hr-img{height:168px}
+  /* ── THE PHOTO ── a PLATE with a fixed aspect, and the image CONTAINED inside it ────────────────────────────
+     It used to be a 100%-wide box of 128 fixed pixels under 'object-fit:cover', i.e. a band whose aspect came from the CARD's width
+     and a constant. On a maximized sheet that band measured 1142x168 (6.8:1) and the photo of a pot is 320x251
+     (1.27:1): 'cover' scaled it to 1142x896 and cropped away 81% of its height, leaving a horizontal strip of
+     steel with no pot in it. The operator, with the screenshot: «estas fotos horizontales no sirven para nada
+     porque no se ve absolutamente nada».
+     'cover' is only safe when the box aspect is CLOSE to the photo's; it never is here, because the sheet is
+     resizable and the photos come from whatever shop the search landed on — portrait bottles, landscape cars,
+     square product shots. So: the box aspect is FIXED by the layout (not by the card width), and the image is
+     CONTAINED — whole, always, whatever its shape. The plate behind it is light on purpose: product photography
+     ships with a white background baked in, so a light tray is what makes it look seamless instead of a white
+     rectangle floating on a dark card. */
+  .hb-results .hr-shot{position:relative;display:grid;place-items:center;overflow:hidden;
+    border-radius:var(--r-md);background:#f4f6fa;border:1px solid rgba(13,22,34,.07)}
+  .hb-results .hr-shot img{display:block;max-width:100%;max-height:100%;width:auto;height:auto;
+    object-fit:contain}
+  .hb-results .hr-sec .hr-shot{width:100%;aspect-ratio:4/3;margin-bottom:var(--s3)}
+
+  /* ── THE FOUR LIST LAYOUTS ── the surface decides which, from the SHAPE of what it was given ────────────────
+     «me gustaría que la lista de resultados pueda tener de uno a cinco tipos de formato y que nos adaptemos a
+     cada tipo de artículo». They are PRESET here —not improvised per delivery— and chosen by 'layoutFor()'.
+     They are named after SHAPES and the sheet's optional 'kind' after THINGS, deliberately: the first draft
+     called this one 'media' and the vocabulary of kinds also has a 'media' (audio, video), which is two
+     meanings on one word in one file — the older one wins the argument and the newer one goes quietly wrong.
+       · split    photo LEFT, data RIGHT. The operator's explicit ask and the market standard for anything that
+                  is an ARTICLE (a pot, a car, a flat): the photo identifies it, the data decides it.
+       · gallery  photo on top, wide. For results where the image IS the answer (places, rooms, artwork).
+       · rows     no photo. A dense readable list for documents, quotes, links.
+       · compare  composite proposals side by side (the 'parts' card that already existed).
+     What is NOT preset is which FIELDS a card carries: those come from 'facts', filled per article type by
+     whoever ran the search — a car brings year/km/fuel and a pot brings capacity/diameter/lid. */
+  .hb-results .hr-card.split{display:grid;grid-template-columns:minmax(110px,var(--hr-shot-col,.32fr)) 1fr;
+    gap:var(--s4);align-items:start}
+  .hb-results .hr-card.split .hr-shot{width:100%;aspect-ratio:1/1}
+  .hb-results .hr-card.split.primary{--hr-shot-col:.38fr}
+  .hb-results .hr-card.gallery .hr-shot{width:100%;aspect-ratio:4/3;margin-bottom:var(--s3)}
+  .hb-results .hr-card.gallery.primary .hr-shot{aspect-ratio:16/9}
+  .hb-results .hr-body{min-width:0}
+  /* Below ~430px the two columns strangle both halves (a 110px photo next to a 7-em title). The photo goes back
+     on top — still a FIXED aspect plate with the image contained, never a band. */
+  @container (max-width: 430px){
+    .hb-results .hr-card.split{grid-template-columns:1fr}
+    .hb-results .hr-card.split .hr-shot{aspect-ratio:4/3;margin-bottom:var(--s2)}
+  }
+  .hb-results .hr-grid{container-type:inline-size}
+
+  /* ── THE LINK TO THE ORIGINAL PAGE ── on EVERY card that has one ────────────────────────────────────────────
+     «asegúrate de que cuando un widget de resultados busca cosas siempre muestre los links a la página web
+     original donde se puede ver la ficha súper ampliada». It used to be shown only when the card had NOTHING
+     else to offer: 'asLink = url && !hasDetail', so the richest results —the ones with a rating, facts and
+     photos, i.e. the ones worth opening— were exactly the ones whose link never reached the screen. Measured on
+     his own pot sheet: the item carried 'https://www.amazon.es/dp/B075WGKKGB' and the rendered list contained
+     ZERO anchors. It names the SITE, not the raw url: «Ver en amazon.es» says where the click lands. */
+  /* 'hr-open', not 'hr-src': the SOURCES tab already owns '.hr-src' (a full-width grid row) and got there
+     first, so a same-specificity rule declared later in this same sheet quietly won and stretched the link
+     across the whole card. One stylesheet, one namespace. */
+  .hb-results .hr-foot{display:flex;flex-wrap:wrap;align-items:center;gap:var(--s2);margin-top:var(--s3)}
+  .hb-results .hr-foot .hr-more{margin-top:0}
+  /* It wears the SAME shape as 'Ver detalle' (declared once, down in the '.hr-more' rule, which names both):
+     they are two controls in one row and the eye should read them as siblings. Only the deltas live here. */
+  .hb-results .hr-open{text-decoration:none;max-width:100%;overflow:hidden;text-overflow:ellipsis;
+    white-space:nowrap}
+  .hb-results .hr-open.wide{font-size:var(--f-body);padding:var(--s2) var(--s4);
+    background:color-mix(in srgb,var(--hb-accent,#3D6FE0) 12%,transparent);
+    border-color:color-mix(in srgb,var(--hb-accent,#3D6FE0) 40%,transparent)}
+  /* A view that could not be PERSISTED still painted. Saying so is the honest half: the screen is right, the
+     brain's copy of it may not be. */
+  .hb-results .hr-warn{font-size:var(--f-sm);color:var(--hb-warn-ink,#9a5b1b);margin-top:var(--s2)}
+
   .hb-results .hr-head{display:flex;align-items:baseline;justify-content:space-between;gap:var(--s1) var(--s2);
     flex-wrap:wrap}
   .hb-results .hr-t{font-size:var(--f-md);font-weight:650;line-height:1.3;letter-spacing:-.01em;
@@ -202,10 +268,11 @@ function injectStyles(){
     color:var(--hb-accent,#3D6FE0)}
   .hb-results .hr-pt{flex:1 1 7em;min-width:7em;color:var(--hb-ink,#0d1622);overflow-wrap:break-word}
   .hb-results .hr-pp{flex:0 0 auto;margin-left:auto;font-weight:600;color:var(--hb-ink,#0d1622);white-space:nowrap}
-  .hb-results .hr-more{margin-top:var(--s3);display:inline-flex;align-items:center;gap:5px;font:600 var(--f-sm)/1 inherit;
+  .hb-results .hr-more,.hb-results .hr-open{margin-top:var(--s3);display:inline-flex;align-items:center;gap:5px;
+    font:600 var(--f-sm)/1 inherit;
     color:var(--hb-accent,#3D6FE0);background:none;border:var(--line);border-radius:var(--r-sm);
     padding:6px 10px;cursor:pointer;transition:.14s}
-  .hb-results .hr-more:hover{border-color:var(--hb-accent,#3D6FE0);
+  .hb-results .hr-more:hover,.hb-results .hr-open:hover{border-color:var(--hb-accent,#3D6FE0);
     background:color-mix(in srgb,var(--hb-accent,#3D6FE0) 8%,transparent)}
   .hb-results .hr-more-err{color:var(--hb-danger,#d6455d);border-color:var(--hb-danger,#d6455d)}
 
@@ -269,8 +336,9 @@ function injectStyles(){
   .hb-results .hr-dprice{font-size:var(--f-md);font-weight:700;color:var(--hb-ink,#0d1622);margin-top:2px}
   .hb-results .hr-gal{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:var(--s1);
     margin:var(--s3) 0}
-  .hb-results .hr-gal img{width:100%;height:100px;object-fit:cover;border-radius:var(--r-md);
-    background:var(--hb-bubble,#f1f4f9)}
+  /* The record's gallery had the SAME band defect as the list (100px of 'cover'), and here it is worse: this is
+     the page the operator opens BECAUSE he wants to look at the thing. Aspect plate + contained image. */
+  .hb-results .hr-gal .hr-shot{width:100%;aspect-ratio:1/1}
   .hb-results .hr-sec{border:var(--line);border-radius:var(--r-lg);padding:var(--s3) var(--s4);
     margin-top:var(--s3);background:var(--hb-bg,#fff)}
   .hb-results .hr-sec .hr-pk{margin-bottom:var(--s1);display:inline-block}
@@ -467,6 +535,62 @@ function photo(url, alt, cls){
   return img;
 }
 
+// A photo inside a PLATE of fixed aspect. The plate is what holds the geometry (so a portrait bottle and a
+// landscape car both get the same tile and the grid stays a grid) and the image is CONTAINED inside it, so
+// nothing is ever cropped. A dead photo empties the plate rather than collapsing the card's layout — which is
+// why the plate keeps its size: a row where one tile vanished reflows every sibling.
+function photoPlate(url, alt){
+  const box=elem("div","hr-shot");
+  box.appendChild(photo(url, alt, ""));
+  return box;
+}
+
+// The SITE a link lands on, which is what the operator is deciding about when he clicks. A raw url is not an
+// answer to "where does this take me": `amazon.es` is.
+function hostOf(url){
+  try{ return new URL(String(url), "https://x.invalid").hostname.replace(/^www\./, ""); }
+  catch(_){ return ""; }
+}
+
+// The link to the ORIGINAL page, as a labelled control. `stopPropagation` because a card can be CHOOSABLE:
+// without it, opening the shop would also silently pick the result.
+function sourceLink(url, {wide=false}={}){
+  const u=String(url||""); if(!u) return null;
+  const host=hostOf(u);
+  const a=elem("a","hr-open"+(wide?" wide":""),
+               host ? tt("view_on", {site: host}, "Ver en " + host) : tt("view_source", null, "Ver la ficha original"));
+  a.href=u; a.target="_blank"; a.rel="noopener noreferrer";
+  a.title = tt("open_original", null, "Abrir la ficha original en una pestaña nueva") + " — " + u;
+  a.addEventListener("click", e=>e.stopPropagation());
+  return a;
+}
+
+// ── WHICH of the four list layouts ──────────────────────────────────────────────────────────────────────────
+// The surface decides, from the SHAPE of what it was given — `widgets/presentation.py` rule 1, which exists
+// because a guessed `columns:2` from outside once left three rich cards with an orphan. The sheet may declare
+// WHAT KIND OF THING it found (`kind`), which is content, not layout: saying "these are products" is a fact
+// about the results; saying "draw them in two columns" is a decision that belongs here.
+const LAYOUTS = ["split", "gallery", "rows", "compare"];
+function layoutFor(items, kind){
+  const arr = Array.isArray(items) ? items.filter(Boolean) : [];
+  if(arr.some(it => (it.parts||[]).length)) return "compare";
+  const k = String(kind||"").trim().toLowerCase();
+  if(k === "plan") return "compare";
+  const withImg = arr.filter(it => it.image || (it.images||[]).length).length;
+  if(!withImg) return "rows";                       // nothing to show: a photo column of empty plates is worse
+  if(k === "document" || k === "link") return "rows";
+  if(k === "place" || k === "media" || k === "photo") return "gallery";
+  // A DECLARED product list is photo-left even when this particular batch came back thin: what a result is does
+  // not change because one search forgot to bring prices, and a list that reflows between two formats as facts
+  // trickle in is worse than one that stays put.
+  if(k === "product") return "split";
+  // Does the card carry enough DATA to deserve a column of its own next to the photo? A result with a price, a
+  // rating or a spec sheet does; a bare titled thumbnail does not — that one reads better as a gallery tile.
+  const rich = arr.some(it => it.price || it.score || (it.facts||[]).length || (it.lines||[]).length > 1
+                              || (it.blocks||[]).length);
+  return rich ? "split" : "gallery";
+}
+
 function factsTable(facts){
   const box=elem("div","hr-facts");
   (Array.isArray(facts)?facts:[]).forEach(f=>{
@@ -603,7 +727,7 @@ function renderBlocks(blocks, {compact = false} = {}){
 // is and there is a column CAP so maximizing does not create eight confetti columns. Expressed in pure CSS
 // (`auto-fill` + `minmax` with a 100%/cap floor), so it reflows by itself when dragging the corner — without measuring
 // anything from JS or listening to resizes.
-function gridStyle(items, cap){
+function gridStyle(items, cap, layout){
   const rich = items.some(it => it && (
     (it.parts && it.parts.length) ||
     (it.blocks && it.blocks.length) ||
@@ -612,8 +736,10 @@ function gridStyle(items, cap){
     (it.lines && it.lines.length > 4)
   ));
   const medium = !rich && items.some(it => it && ((it.lines && it.lines.length) || it.image || it.facts));
-  const min = rich ? 400 : medium ? 300 : 230;
-  let maxCols = rich ? 2 : medium ? 3 : 4;
+  // A `split` card is two columns wide by construction (plate + data), so its floor is the one that has to grow;
+  // a `gallery` tile is a picture with a caption and packs tighter than the content heuristic would guess.
+  const min = layout === "split" ? 430 : layout === "gallery" ? 260 : rich ? 400 : medium ? 300 : 230;
+  let maxCols = layout === "split" ? 2 : layout === "gallery" ? 4 : rich ? 2 : medium ? 3 : 4;
   const n = Number(cap);
   if(Number.isFinite(n) && n >= 1) maxCols = Math.min(maxCols, Math.floor(n));
   maxCols = Math.max(1, maxCols);
@@ -626,36 +752,53 @@ function gridStyle(items, cap){
 }
 
 // ── one card ────────────────────────────────────────────────────────────────────────────────────────────────
-function makeCard(it, isPrimary, choose, ctx){
+function makeCard(it, isPrimary, choose, ctx, layout, nav){
   const parts = Array.isArray(it.parts) ? it.parts : [];
   const blocks = Array.isArray(it.blocks) ? it.blocks : [];
   const hasDetail = parts.length || blocks.length || it.score
                     || (Array.isArray(it.images) && it.images.length)
                     || (Array.isArray(it.facts) && it.facts.length);
   // A composite card owns interactive children (per-piece links, "ver detalle") so it can't be an <a> — nesting
-  // links/buttons inside an anchor is invalid and swallows their clicks into the outer navigation.
+  // links/buttons inside an anchor is invalid and swallows their clicks into the outer navigation. When it cannot
+  // be a link, the url is NOT dropped: it goes to the footer as an explicit control (see `sourceLink`).
   const asLink = it.url && !hasDetail;
   const card = document.createElement(asLink ? "a" : "div");
-  card.className = "hr-card" + (isPrimary ? " primary" : "");
+  const shot = (layout !== "rows" && it.image) ? photoPlate(it.image, it.title) : null;
+  // A card with no photo can never wear a PHOTO layout: `split` is a two-column grid, and applied to a card
+  // without its first column it would drop the title in the left track and the subtitle in the right one. The
+  // list may therefore be mixed, which is correct — and `presentation.audit` already flags items that do not
+  // share the same shape, because that is a defect of the DATA, not of the drawing.
+  const lay = shot ? (layout || "rows") : "rows";
+  card.className = "hr-card " + lay + (isPrimary ? " primary" : "");
   if(asLink){ card.href = it.url; card.target = "_blank"; card.rel = "noopener noreferrer"; }
-  if(it.image) card.appendChild(photo(it.image, it.title, "hr-img"));
+  if(shot) card.appendChild(shot);
+  // In `split` the data is a COLUMN beside the photo, so it needs its own box; in every other layout the card
+  // itself is that box and an extra wrapper would only add a nesting level.
+  const body = (lay === "split") ? elem("div","hr-body") : card;
   const head = elem("div","hr-head");
   head.appendChild(elem("div","hr-t", it.title || ""));
   const sc = scoreTag(it.score); if(sc) head.appendChild(sc);
   if(it.price) head.appendChild(elem("div","hr-price", it.price));
-  card.appendChild(head);
+  body.appendChild(head);
   // The BADGE goes with the title, not the footer. It is a label that QUALIFIES the result ("Best set"), and below it
   // ended up next to the detail button, where it read like a second button.
   const meta = elem("div","hr-metarow");
   if(it.subtitle) meta.appendChild(elem("span","hr-s", it.subtitle));
   if(it.badge) meta.appendChild(elem("span","hr-badge", it.badge));
-  if(meta.childElementCount) card.appendChild(meta);
+  if(meta.childElementCount) body.appendChild(meta);
   // 80 lines (data.py's cap) so a full block of text — e.g. a song's lyrics — fits in one item's body, not just
   // a handful of spec-sheet bullets (2026-08-03). In the list they are bounded: the full block belongs to the record.
   (Array.isArray(it.lines) ? it.lines : []).slice(0, hasDetail ? 3 : 80)
-    .forEach(l=>card.appendChild(elem("div","hr-ln", l)));
+    .forEach(l=>body.appendChild(elem("div","hr-ln", l)));
 
-  const bl = renderBlocks(blocks, {compact: true}); if(bl) card.appendChild(bl);
+  const bl = renderBlocks(blocks, {compact: true}); if(bl) body.appendChild(bl);
+
+  // In `split` the spec sheet is what fills the column beside the photo — and it is also the per-article-type
+  // half of this surface: a car brings year/km/fuel, a pot brings capacity/diameter/lid. Bounded here (the full
+  // table belongs to the record) so ten results stay comparable instead of ten different heights.
+  if(lay === "split" && Array.isArray(it.facts) && it.facts.length){
+    const ft = factsTable(it.facts.slice(0, 4)); if(ft) body.appendChild(ft);
+  }
 
   // the pieces of a composite result, so three proposals stay comparable at a glance
   if(parts.length){
@@ -667,28 +810,45 @@ function makeCard(it, isPrimary, choose, ctx){
       if(p.price) row.appendChild(elem("span","hr-pp", p.price));
       box.appendChild(row);
     });
-    card.appendChild(box);
+    body.appendChild(box);
   }
 
+  // ── the footer: open the record, and open the ORIGINAL page ──
+  const foot = elem("div","hr-foot");
   if(hasDetail && ctx){
     const btn=elem("button","hr-more",tt("see_detail", null, "Ver detalle →")); btn.type="button";
-    // A REFUSED action has to SHOW. Throwing away the response is what made a real backend error
-    // (`{ok:false, error:"no encuentro ese resultado en la hoja"}`, because the request was landing on the wrong
-    // sheet — V2-540) indistinguishable from a dead button: the operator clicked, nothing moved, nothing said
-    // why, and he reported it as «no es clic». The cause is fixed in `data.py`; this is so the NEXT one is
-    // legible instead of silent.
+    // NAVIGATE FIRST, PERSIST AFTER. This button used to do only the second half: it posted `detail` and waited
+    // for the server to push the new state back over SSE. The post landed (the sheet on disk says
+    // `view:"detail"`) and the screen never moved, because the push carried the STORAGE id (`results--7aadbb-1`)
+    // and the canvas indexes its cards by the CANVAS id (`results::7aadbb-1`) — so `refreshData` looked up a
+    // window that does not exist and returned. The operator read it as «el botón de ver los detalles no
+    // funciona», which is exactly what a working button looks like when nothing repaints.
+    // That id is fixed in `widgets/store.py`. This is the other half, and the one that makes the button
+    // independent of it: the tabs above have painted locally and persisted afterwards since V2-538 («the tab
+    // cannot blink while waiting for the server»), and opening a record is the same gesture. The item is
+    // already on screen, so there is nothing to fetch to draw it.
     btn.addEventListener("click", async (e)=>{ e.preventDefault(); e.stopPropagation();
+      if(nav) nav("detail", it.title || "");
       btn.disabled=true;
       const r = await ctx.action("detail", { title: it.title || "" });
       btn.disabled=false;
+      // A REFUSED action has to SHOW — but it no longer un-navigates. The record IS painted and correct; what
+      // failed is storing that the operator is looking at it, so the brain's copy and a reload would disagree.
+      // Saying that is honest; snatching the page back would not be.
       if(!r || r.ok===false){
-        btn.textContent = tt("see_detail_", null, "Ver detalle → ") + ((r && r.error) ? tt("open_failed", null, "no se pudo abrir") : tt("no_answer", null, "sin respuesta"));
-        btn.classList.add("hr-more-err");
-        btn.title = (r && r.error) ? String(r.error) : tt("engine_silent", null, "el motor no respondió a la acción");
+        const why = (r && r.error) ? String(r.error) : tt("engine_silent", null, "el motor no respondió a la acción");
+        if(nav) nav("detail", it.title || "", why);
+        else { btn.textContent = tt("see_detail_", null, "Ver detalle → ") + tt("open_failed", null, "no se pudo abrir");
+               btn.classList.add("hr-more-err"); btn.title = why; }
       }
     });
-    card.appendChild(btn);
+    foot.appendChild(btn);
   }
+  // ALWAYS, whenever there is one and the card is not itself the link.
+  if(!asLink){ const src = sourceLink(it.url); if(src) foot.appendChild(src); }
+  if(foot.childElementCount) body.appendChild(foot);
+
+  if(body !== card) card.appendChild(body);
 
   if(choose && !asLink){
     card.classList.add("choosable");
@@ -707,9 +867,11 @@ function makeCard(it, isPrimary, choose, ctx){
 // ── page 2: ONE item, in full ────────────────────────────────────────────────────────────────────────────────
 // This renders "show me proposal one in detail": every photo, every datum, THE RATING with its reason, the whole
 // dynamic record, and each package piece expanded with its price, times, and real link.
-function renderDetail(panel, it, ctx){
+function renderDetail(panel, it, ctx, nav, warn){
   const back=elem("button","hr-back",tt("back_list", null, "← Volver a la lista")); back.type="button";
-  back.addEventListener("click", async ()=>{ await ctx.action("list", {}); });
+  // Same rule as the detail button and the tabs: paint NOW, persist after. Going back to a list that is already
+  // in memory must not wait for a round trip either.
+  back.addEventListener("click", async ()=>{ if(nav) nav(null); await ctx.action("list", {}); });
   panel.appendChild(back);
 
   panel.appendChild(elem("div","hr-dt", it.title||""));
@@ -718,6 +880,13 @@ function renderDetail(panel, it, ctx){
   if(it.subtitle) dmeta.appendChild(elem("span","hr-s", it.subtitle));
   if(it.badge) dmeta.appendChild(elem("span","hr-badge", it.badge));
   if(dmeta.childElementCount) panel.appendChild(dmeta);
+  // The way OUT of our summary and into the full record, ABOVE the fold. The record we render is what the search
+  // found worth keeping; the shop's own page is where the thousand remaining fields live, and the operator asked
+  // for that door to be on every result. It was at the very bottom, after the whole spec table, printed as a raw
+  // url. Now it reads as what it is and sits where it is decided.
+  const top = sourceLink(it.url, {wide: true}); if(top) panel.appendChild(top);
+  if(warn) panel.appendChild(elem("div","hr-warn", tt("view_not_saved", null,
+    "Esta vista no se ha podido guardar en la hoja — la pantalla es correcta, pero al recargar volverá a la lista.")));
 
   // THE RATING goes ABOVE, before photos: it is the VERDICT. Below the gallery it read like one more datum at the end
   // of the record, when it is exactly what answers "why this one and not another?"
@@ -727,7 +896,7 @@ function renderDetail(panel, it, ctx){
   const gallery = Array.isArray(it.images) && it.images.length ? it.images : (it.image ? [it.image] : []);
   if(gallery.length){
     const g=elem("div","hr-gal");
-    gallery.forEach(u=>g.appendChild(photo(u, it.title, "")));
+    gallery.forEach(u=>g.appendChild(photoPlate(u, it.title)));
     panel.appendChild(g);
   }
 
@@ -736,10 +905,8 @@ function renderDetail(panel, it, ctx){
   const ft=factsTable(it.facts); if(ft) panel.appendChild(ft);
   const bl=renderBlocks(it.blocks); if(bl) panel.appendChild(bl);
 
-  if(it.url){
-    const a=elem("a","hr-link", it.url);
-    a.href=it.url; a.target="_blank"; a.rel="noopener noreferrer"; panel.appendChild(a);
-  }
+  // The item's own url is NOT repeated here as a bare string: it is the «Ver en <site>» control at the top of
+  // this page. Printing it twice —once as a button, once as 60 characters of url— was two controls for one door.
 
   (Array.isArray(it.parts)?it.parts:[]).forEach(p=>{
     const sec=elem("div","hr-sec");
@@ -747,13 +914,10 @@ function renderDetail(panel, it, ctx){
     sec.appendChild(elem("div","hr-sect", p.title||""));
     if(p.price) sec.appendChild(elem("div","hr-dprice", p.price));
     if(p.subtitle) sec.appendChild(elem("div","hr-s", p.subtitle));
-    if(p.image) sec.appendChild(photo(p.image, p.title, "hr-img"));
+    if(p.image) sec.appendChild(photoPlate(p.image, p.title));
     (Array.isArray(p.lines)?p.lines:[]).forEach(l=>sec.appendChild(elem("div","hr-ln", l)));
     const pf=factsTable(p.facts); if(pf) sec.appendChild(pf);
-    if(p.url){
-      const a=elem("a","hr-link", p.url);
-      a.href=p.url; a.target="_blank"; a.rel="noopener noreferrer"; sec.appendChild(a);
-    }
+    const ps = sourceLink(p.url); if(ps) sec.appendChild(ps);
     panel.appendChild(sec);
   });
 }
@@ -767,12 +931,12 @@ function findFocused(items, focus){
 }
 
 // ── TAB 1 · RESULTS ─────────────────────────────────────────────────────────────────────────────────────────
-function paintResults(panel, data, ctx){
+function paintResults(panel, data, ctx, nav){
   const items = Array.isArray(data.items) ? data.items : [];
 
   if(data.view === "detail"){
     const it = findFocused(items, data.focus);
-    if(it){ renderDetail(panel, it, ctx); return; }
+    if(it){ renderDetail(panel, it, ctx, nav, data.viewWarn); return; }
     // focus pointing at nothing (list replaced under it) → fall through to the list, never a blank screen
   }
 
@@ -786,20 +950,23 @@ function paintResults(panel, data, ctx){
   const primary = all.filter(it => it && it.primary);
   const rest = all.filter(it => !it || !it.primary);
   const choose = data.choosable ? { root: panel, ctx, chosenTitle: data.chosen } : null;
+  // ONE layout for the whole list, decided from ALL the items: choosing per card would put a photo column on
+  // some rows and not on others, which is precisely the ragged look the grid exists to prevent.
+  const lay = layoutFor(all, data.kind);
 
   // primary items: share the top row and decide width (one featured item occupies the whole sheet).
   if(primary.length){
     const pgrid = elem("div","hr-grid");
-    pgrid.style.gridTemplateColumns = gridStyle(primary, primary.length === 1 ? 1 : 2);
+    pgrid.style.gridTemplateColumns = gridStyle(primary, primary.length === 1 ? 1 : 2, lay);
     panel.appendChild(pgrid);
-    primary.forEach(it => pgrid.appendChild(makeCard(it, true, choose, ctx)));
+    primary.forEach(it => pgrid.appendChild(makeCard(it, true, choose, ctx, lay, nav)));
   }
 
   if(rest.length){
     const sgrid = elem("div","hr-grid");
-    sgrid.style.gridTemplateColumns = gridStyle(rest, primary.length ? 2 : data.columns);
+    sgrid.style.gridTemplateColumns = gridStyle(rest, primary.length ? 2 : data.columns, lay);
     panel.appendChild(sgrid);
-    rest.forEach(it => sgrid.appendChild(makeCard(it, false, choose, ctx)));
+    rest.forEach(it => sgrid.appendChild(makeCard(it, false, choose, ctx, lay, nav)));
   }
 
   // Faithful count: if the real pushed results exceed what we render, say so — never silently drop
@@ -835,7 +1002,14 @@ function paintSummary(panel, data){
   const add=(value, label, tone)=>{
     const box=elem("div","hr-stat"+(tone?" "+tone:""));
     box.appendChild(elem("b","", value));
-    box.appendChild(elem("span","", tallyLabel(k)));
+    // `label`, not `tallyLabel(k)`. There is no `k` in this scope: the call was copied from `paintHarvest`,
+    // where the labels come from a table of KEYS, and here every caller already passes the translated string.
+    // It went in with V2-694 (77640659) and has been throwing `ReferenceError: k is not defined` ever since —
+    // out of `add`, out of `paintSummary`, out of `render`, so the WHOLE sheet died the moment the Summary tab
+    // was the active one. `tests/browser/e2e/widgets/test_results_render.py` has been carrying it as an ERROR
+    // (not a failure) in its summary fixture, which is why it read as a broken harness rather than a broken
+    // widget. The operator's own pot sheet has a summary of 75 explored.
+    box.appendChild(elem("span","", label));
     stats.appendChild(box);
   };
   const noBreadth = s.explored == null;
@@ -1267,10 +1441,23 @@ export function render(el, data, ctx){
 
   const paint = (moved)=>{
     panel.textContent="";
-    (PAINT[cur] || paintResults)(panel, data, ctx);
+    (PAINT[cur] || paintResults)(panel, data, ctx, nav);
     bar.querySelectorAll(".hr-tab").forEach(b=>b.classList.toggle("on", b.dataset.tab===cur));
     if(moved && ctx && ctx.top) ctx.top();
   };
+
+  // LOCAL NAVIGATION between the list and a record. The page the operator is on is sheet state (so the brain
+  // knows what he is looking at, and a reload or «vuelve a la lista» by voice agrees with the screen) — but it
+  // does not have to travel to the server and back to be DRAWN: the item is already in `data`. This is the same
+  // shape the tabs have used since V2-538, and its absence here is what made «Ver detalle» look like a dead
+  // button for as long as the SSE id was wrong. `WHERE` sees the change too, so the record opens at the top
+  // instead of halfway down the page the button was at the bottom of.
+  function nav(view, focus, warn){
+    if(view === "detail"){ data.view = "detail"; data.focus = focus || ""; data.viewWarn = warn || ""; }
+    else { delete data.view; delete data.focus; delete data.viewWarn; }
+    cur = "results";
+    paint(navigated(el, data, cur));
+  }
 
   TABS.forEach(t=>{
     const b=elem("button","hr-tab"); b.type="button"; b.dataset.tab=t.id;

@@ -145,10 +145,21 @@ def test_the_gap_has_a_single_source_of_truth():
 
 
 def test_the_widget_really_delegates_the_layout():
+    """`data.columns` may only enter as the CAP argument of `gridStyle`, never as the distribution itself.
+
+    The assertion used to pin the call byte for byte, which made it a test of one line's spelling: V2-702 added a
+    third argument (the list layout, which also decides the track floor) and this went red while the property it
+    guards — the payload does not lay anything out — was untouched. What it means is that every mention of
+    `data.columns` sits inside a `gridStyle(` call.
+    """
+    import re
     src = (WIDGET / "widget.js").read_text()
     assert "function gridStyle(" in src
-    assert "gridStyle(rest, primary.length ? 2 : data.columns)" in src, \
-        "el grid debe pasar por la función, no por data.columns pelado"
+    calls = re.findall(r"gridStyle\([^)]*\)", src)
+    assert any("data.columns" in c for c in calls), "el grid ya no pasa por la función"
+    for m in re.finditer(r"data\.columns", src):
+        line = src[src.rfind("\n", 0, m.start()) + 1:src.find("\n", m.start())]
+        assert "gridStyle(" in line, f"`data.columns` fuera de gridStyle — el payload estaría maquetando: {line.strip()}"
     assert "Math.min(3, data.columns ||" not in src, "esa era la forma en la que el payload MANDABA"
     assert "auto-fill" in src, "el reparto lo hace el ancho REAL, no un número calculado al pintar"
 

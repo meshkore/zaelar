@@ -21,6 +21,45 @@ entregada siga citada aquí.
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **Una lista de resultados TIENE formato, y todo resultado tiene puerta a su ficha original (V2-702,
+  2026-09-15)**: el operador buscó una olla, la búsqueda acertó, y se la enseñamos mal. Cuatro defectos de
+  GEOMETRÍA medidos renderizando su hoja real, ninguno visible desde el fuente.
+  **La foto se veía al 19 %.** `.hr-img` era `width:100%;height:128px;object-fit:cover`, o sea que el aspecto
+  de la caja salía del ANCHO DE LA TARJETA y de una constante — y la hoja se redimensiona y se maximiza. En su
+  pantalla: caja 1142×168 (6,8:1) para una foto de 320×251 (1,27:1); `cover` la escala a 1142×896 y sobreviven
+  168 filas. «Estas fotos horizontales no sirven para nada porque no se ve absolutamente nada.» `cover` solo es
+  seguro cuando la caja se parece a la foto, y aquí nunca se parece: las fotos vienen de la tienda donde haya
+  caído la búsqueda. Ahora el aspecto lo fija el FORMATO y la imagen va contenida.
+  **El enlace faltaba justo donde más falta hacía.** La tarjeta se volvía `<a>` solo si `url && !hasDetail`, así
+  que los resultados con valoración, ficha y fotos —los que merece la pena abrir— eran exactamente los que
+  perdían su enlace. Su item llevaba la url de Amazon y la lista renderizada tenía CERO anclas. El motivo
+  original era bueno (no se anidan enlaces dentro de un `<a>`) y la conclusión era la mala: había que sacar la
+  url del `<a>`, no tirarla. La otra mitad tampoco la puede arreglar el widget — el ejemplo de `present` del
+  manifest, que es lo que un modelo copia, no llevaba `url`, y `presentation.audit` no mencionaba el campo.
+  **«Ver detalle» no estaba muerto: el canvas no escuchaba.** `widgets/store.py::save()` avisaba con la clave de
+  DISCO (`results--t1`, porque un directorio solo admite `[A-Za-z0-9_-]`) y el canvas indexa sus tarjetas por la
+  de CANVAS (`results::t1`), así que `refreshData` buscaba una ventana inexistente y se volvía callando. Se caía
+  al suelo TODO empujón de datos a una hoja instanciada — el `present` y el `append` de un worker incluidos; solo
+  llegaban los tics de progreso, que salen por `sheets.py` con el id bueno. En la línea de tiempo del incidente:
+  167 eventos con `::` contra 16 con `--`, y solo los 167 movieron un píxel. Arreglado en el único punto por el
+  que pasa todo, y el botón además pinta LOCAL y persiste después, como las pestañas desde V2-538.
+  **Cuatro formatos de lista preseteados** (`split` foto-izquierda · `gallery` · `rows` · `compare`) elegidos por
+  la superficie. La costura para adaptarse al tipo de artículo es `kind` —qué SON los resultados—, nunca un
+  nombre de formato: `presentation.py` regla 1 existe porque un `columns:2` adivinado desde fuera dejó tres
+  tarjetas ricas con una huérfana. Un test guarda esa frontera y ya sirvió: el primer borrador llamaba `media` al
+  formato de foto a la izquierda y `media` ya era un TIPO (audio, vídeo) — dos significados en una palabra dentro
+  del mismo fichero, donde el viejo gana y el nuevo se rompe callado.
+  **Y la pestaña de Sumario llevaba muerta desde V2-694**: `paintSummary` llamaba a `tallyLabel(k)` con una `k`
+  que no existe en ese ámbito, copiada de `paintHarvest`. Lanzaba `ReferenceError` fuera de `render`, o sea que
+  la hoja ENTERA moría al activar Sumario. El e2e lo arrastraba como ERROR de fixture, no como fallo, y por eso
+  se leía como arnés roto y no como widget roto.
+  **La lección del arnés, que costó una pasada:** la primera versión del test de la foto comparaba el
+  `getBoundingClientRect()` del `<img>` con el aspecto natural, y el desarme salió VERDE — devolver la banda no
+  lo puso rojo. El rectángulo de un `<img>` es su caja de MAQUETACIÓN; con `object-fit` los píxeles se pintan
+  fuera de ella y lo que se ve es lo que sobrevive al recorte del padre. La medida honesta es la FRACCIÓN de la
+  foto que llega al cristal, y vale sea cual sea el mecanismo CSS. Trinquete pagado extrayendo
+  `widgets/results/record.py` (1006 → 818).
+
 - **A sync that STAYS ON, and stays a mirror (V2-701, 2026-09-15)**: after a one-off pass brought 2 685
   people in, he said «el tema de la sincronización de contactos no es algo que deberíamos hacer de forma
   puntual, deberíamos realmente marcar un botón de sincronización y eso debería quedarse conectado de forma

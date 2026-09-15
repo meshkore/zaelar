@@ -2196,6 +2196,24 @@ DOMAINS: list[dict] = [
         {"id": "4.93", "title": "La hoja de RESULTADOS renderizada: cabecera fina, los ids de auditoría al pie "
                                 "del Sumario, y los resultados arriba del todo",
             "ch": UNIT, "paths": ["tests/browser/e2e/widgets/test_results_render.py"]},
+        # V2-702 — el operador buscó una olla, la búsqueda acertó, y se la enseñamos mal. Cuatro defectos de
+        # GEOMETRÍA, todos medibles en un DOM montado y ninguno visible desde el fuente: la foto se pintaba en
+        # una banda de 1142x168 con `cover` (se veía el 19% de una foto de 320x251, o sea acero sin olla); la
+        # tarjeta apilaba foto arriba y datos debajo en vez del estándar foto-izquierda/datos-derecha; el
+        # enlace a la ficha original solo se pintaba cuando la tarjeta NO tenía nada más que ofrecer, así que
+        # los resultados ricos —los que merece la pena abrir— eran justo los que lo perdían; y «Ver detalle»
+        # parecía muerto. Lo último no era el botón: `widgets/store.py` avisaba al canvas con la clave de DISCO
+        # (`results--t1`) y el canvas indexa por la de CANVAS (`results::t1`), así que se caía al suelo TODO
+        # empujón de datos a una hoja instanciada — el present y el append de un worker incluidos.
+        # ⚠️ La foto se mide por la FRACCIÓN VISIBLE, no por la caja del <img>: con `object-fit` los píxeles se
+        # pintan fuera de esa caja y lo que se ve es lo que sobrevive al recorte del padre. La primera versión
+        # comparaba la caja y el desarme salió VERDE — devolver la banda no la puso roja.
+        {"id": "4.178", "title": "Un resultado PARECE un resultado: la foto entera (no una banda recortada), foto "
+                                 "izquierda y datos derecha, el enlace a la ficha original SIEMPRE, y el "
+                                 "expediente se abre sin esperar al servidor · los cuatro formatos de lista",
+            "ch": UNIT, "paths": ["tests/browser/e2e/widgets/test_a_result_looks_like_a_result.py",
+                                  "tests/browser/unit/widgets/test_a_sheet_push_reaches_its_card.py",
+                                  "tests/browser/unit/widgets/test_a_result_without_a_link_is_a_dead_end.py"]},
         # V2-540 — LA AGENDA que contesta y no ejecuta. Medido en la sesión del propio operador (eventos
         # 873/931/995 del 2026-09-01 15:11): pidió ver MAÑANA tres veces, el cerebro contestó «te abro la
         # agenda con la vista de mañana» las tres, y lo único que se disparó fue un `show:agenda` pelado, que

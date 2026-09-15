@@ -29,6 +29,30 @@ def _safe_id(widget_id: str) -> str:
     return "".join(c for c in widget_id if c.isalnum() or c in "-_")
 
 
+#: The separator an INSTANCED widget uses on DISK. A directory name may only contain `[A-Za-z0-9_-]` (`_safe_id`
+#: above), so the canvas separator «::» cannot survive here and each instancing widget writes `base--instance`.
+_DISK_SEP = "--"
+
+
+def canvas_id(widget_id: str) -> str:
+    """The id the CANVAS knows this store by: `results--t1` on disk is the card `results::t1` on screen.
+
+    This exists because the two names were being mixed at the one place it mattered. `save()` notifies the canvas
+    with the key it just wrote — the DISK key — while `frontend/app/widgets/desktop.js` indexes its open cards by
+    the CANVAS id, so `refreshData("results--7aadbb-1")` looked up a window that does not exist and returned
+    silently. Every data push to an INSTANCED sheet was dropped: a search's `present`/`append`, a `choose`, and
+    the «Ver detalle» the operator reported as a dead button (2026-09-15 — the sheet on disk said
+    `view:"detail"` and the screen never moved). Only the progress ticks arrived, because `nucleo/sheets.py`
+    emits through `results.instance_id()`, which already speaks canvas.
+
+    Split on the FIRST separator only, and only when there is something on both sides: a widget legitimately
+    named `foo--bar` with no instance keeps its own name rather than being cut in half.
+    """
+    wid = str(widget_id or "")
+    base, sep, inst = wid.partition(_DISK_SEP)
+    return f"{base}::{inst}" if (sep and base and inst) else wid
+
+
 def data_dir(widget_id: str) -> str:
     """The widget's OWN data directory (widgets/_data/<id>/) — the sanctioned place for anything beyond
     state.json (media/, files/, a triage-criteria doc, whatever). Created on first use. A widget must never
@@ -108,7 +132,10 @@ def save(widget_id: str, data: dict) -> dict:
     try:
         from voice.observer import emit
         from widgets.provenance import who
-        emit("widget", "data", extra={"id": widget_id, "src": who(widget_id)})   # V2-039: WHO changed the data
+        # The CANVAS id, not the disk key — see `canvas_id()`. Provenance keeps looking itself up by the disk
+        # key, which is the name it is recorded under.
+        emit("widget", "data",
+             extra={"id": canvas_id(widget_id), "src": who(widget_id)})   # V2-039: WHO changed the data
     except Exception:
         pass
     return data
