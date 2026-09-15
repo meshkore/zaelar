@@ -13,7 +13,20 @@ import time
 
 # Semantic version of the engine — bump it by hand when closing a notable block of changes.
 #
-# Latest (3.19): THE WAIT SAYS WHAT IT IS DOING. The splash was a spinning ring under one fixed sentence,
+# Latest (3.27): THE PYRAMID, AND THE CIRCLE THAT CLOSES ITSELF. V2-705/V2-706, 2026-09-15, opened by the
+# operator halting the session — «arreglamos una cosa y estropeamos otra… debería funcionar de forma
+# piramidal» — after a `cancel_meeting {}` deleted 100 events from his real Google Calendar. One funnel for
+# every widget mutation (`widgets/contract.py`): a destructive action with an EMPTY selector is refused,
+# never widened to «all», and a payload spelled with a synonym is renamed to the manifest before it is
+# judged. ONE tolerant matcher for contacts, calendar and messages (`widgets/textmatch.py`). And the
+# meeting errand measured end to end: message → «Ok» → 20 s → real calendar row, Meet link minted, link
+# sent back — with a conversation that now REMEMBERS its gestión while the commitment is ahead, so the other
+# side can call it off and the row that errand wrote is unwritten without asking. Written where every spawn
+# reads it (`.meshkore/context/principles.md`): mechanisms, not rules — a rail on CONSEQUENCES stays, a rail
+# on JUDGEMENT goes. Also: voice metrics had been dead since 09-10 (a copied import), and the WhatsApp bridge
+# is now a sidecar `stop` owns and `restart` keeps.
+#
+# Previous (3.19): THE WAIT SAYS WHAT IT IS DOING. The splash was a spinning ring under one fixed sentence,
 # held until the app modules finished — tens of seconds on a cold account Machine, and an unattended spinner
 # is indistinguishable from a hang. V2-558 gives both shells ONE narration: an outer progress arc, a line
 # that changes every couple of seconds, and a wake-up story chosen by a real signal (`/healthz`), not a timer.
@@ -84,7 +97,7 @@ import time
 # received `event="end"` — and closing a row nothing opened updates nothing. `zaelar_user_sessions` held zero
 # rows for every account since the table was created, while every Machine's `POST /session` returned 200.
 #
-VERSION = "3.26"
+VERSION = "3.27"
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _CACHE: dict = {}
