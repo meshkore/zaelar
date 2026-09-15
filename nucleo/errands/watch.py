@@ -89,11 +89,39 @@ def _drain(name: str) -> list[dict]:
 
 
 # ── the three signals ───────────────────────────────────────────────────────────────────────────────────
+def _gestion_objective(ev: dict) -> str:
+    """The objective this outbound message OPENS, or "". The model's explicit `objective` wins; failing that,
+    a message that itself reads as a meeting proposal seeds one from its own text (V2-705 autonomy net).
+
+    Measured 2026-09-15: the agent sent «Hi! I'd like to propose a meeting tomorrow at 8am. I'll set up a
+    Google Meet link.» but the model dropped the `objective`, so this gate refused the birth, no errand
+    existed, and the operator's «Yes, I agree» on Telegram woke nothing — the meeting never booked itself.
+    The whole workflow's autonomy hung on the model remembering to label the send. The message text is the
+    gestión in the agent's own words, and `kind_for` reads it exactly as it reads an explicit objective;
+    restricted to `meeting` so an ordinary one-off message («running late, see you at 5») opens nothing."""
+    obj = str((ev or {}).get("objective") or "").strip()
+    if obj:
+        return obj
+    text = str((ev or {}).get("text") or "").strip()
+    if not text:
+        return ""
+    try:
+        from .playbooks import kind_for
+        if kind_for(text) == "meeting":
+            return text
+    except Exception:  # noqa: BLE001
+        pass
+    return ""
+
+
 def _note_births(now: float) -> None:
     for ev in _drain("send"):
         ref = str((ev or {}).get("ref") or "")
-        if ref and str(ev.get("objective") or "").strip():
-            _pending_births[ref] = {**ev, "_at": now}
+        if not ref:
+            continue
+        objective = _gestion_objective(ev)
+        if objective:
+            _pending_births[ref] = {**ev, "objective": objective, "_at": now}
     for ev in _drain("failed"):
         ref = str((ev or {}).get("ref") or "")
         if ref and _pending_births.pop(ref, None) is not None:
