@@ -1,0 +1,61 @@
+# _index.yaml — Zaelar knowledge-tree overlay (same shape as meshkore-main).
+# Overlay: nodes point at context/ invariants + the portable docs/ knowledge.
+version: 1
+nodes:
+  - id: project
+    title: "Proyecto"
+    desc: "Qué es zaelar, para quién y qué NO es."
+    load: skeleton
+  - id: project.idea
+    parent: project
+    title: "La idea"
+    desc: "Asistente personal de voz, con cerebro y memoria propios."
+    load: pinned
+    src: context/overview.md
+  - id: project.product
+    parent: project
+    title: "Producto"
+    desc: "Para quién, qué valor y anti-producto."
+    load: pinned
+    src: context/product.md
+  - id: architecture
+    title: "Arquitectura"
+    desc: "Voz+canvas, Colmena (nucleo/), cómputo atómico; capas independientes."
+    load: skeleton
+  - id: architecture.layers
+    parent: architecture
+    title: "Las tres capas"
+    desc: "Superficie de voz, cerebro propio, agente atómico por widget."
+    load: pinned
+    src: context/architecture.md
+  - id: architecture.full
+    parent: architecture
+    title: "Arquitectura completa"
+    desc: "Modelo mental portable completo + auditorías."
+    load: on-demand
+    src: docs/architecture/zaelar-architecture.md
+  - id: stack
+    title: "Stack"
+    desc: "Tecnología blindada: no cambia sin sign-off del operador."
+    load: pinned
+    src: context/stack.md
+  - id: constraints
+    title: "Restricciones"
+    desc: "Reglas duras: lo que nunca se hace y lo que siempre se hace."
+    load: pinned
+    src: context/constraints.md
+  - id: glossary
+    title: "Glosario"
+    desc: "Términos del dominio, uno por línea."
+    load: pinned
+    src: context/glossary.md
+  - id: conventions
+    title: "Convenciones"
+    desc: "Código, cerebro, módulos, frontend/design-system."
+    load: on-demand
+    src: docs/conventions/zaelar-conventions.md
+  - id: ops
+    title: "Operación"
+    desc: "Workflows: memoria, cambios, modelos, testing, observabilidad."
+    load: skeleton
+    src: docs/ops/zaelar-ops.md
