@@ -87,6 +87,8 @@ def test_a_plain_meeting_proposal_classifies_as_meeting(text):
 ])
 def test_a_friendly_line_is_not_a_meeting(text):
     """«meet» alone is too broad — «nice to meet you» is not a proposal. The match words stay specific:
-    «google meet», «meet link», «video call», not the bare verb."""
+    «meet link», «meet up», «video call», never the bare verb — and never a COMPANY either: «google meet»
+    was one of them for an hour, until `test_nothing_in_a_playbook_names_a_person_or_a_company` said so.
+    «meet link» catches «Google Meet link» without the playbook knowing who makes it."""
     from nucleo.errands.playbooks import kind_for
     assert kind_for(text) != "meeting", text

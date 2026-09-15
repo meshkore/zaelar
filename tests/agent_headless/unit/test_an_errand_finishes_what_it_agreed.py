@@ -557,10 +557,15 @@ def test_booking_REPAIRS_an_errand_that_had_no_closing_condition(env, monkeypatc
     `created` stamp, arriving through the vocabulary instead of through the data.
 
     Booking is a FACT and beats the guess. A row that has just written a meeting is a meeting errand.
+
+    ⚠️ The sentence this case was BORN with («…and send the Google Meet link») classifies correctly since
+    V2-705 widened the meeting vocabulary, so it stopped exercising the repair. The property is unchanged —
+    an objective the playbook cannot classify must still be repaired by the booking — so the case keeps it
+    with a sentence that is still entirely about a meeting and still says none of the words.
     """
     from widgets.agenda import gcal
     monkeypatch.setattr(gcal, "connected", lambda: False)
-    row = env.start("Confirm Tuesday 15 September 16:00 and send the Google Meet link",
+    row = env.start("Confirm Tuesday 15 September 16:00 with him and send him the address",
                     mandate={"parties": ["c1"], "channels": ["telegram"], "may": ["message", "schedule"]})
     assert not (row.get("done_when") or {}).get("widget"), \
         "this case is only meaningful over an objective the playbook could not classify"
