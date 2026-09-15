@@ -21,6 +21,40 @@ entregada siga citada aquí.
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **El círculo se cierra solo: la reunión del jueves, de punta a punta (V2-705, 2026-09-15 noche)**:
+  el operador pidió una última prueba conducida por él como usuario —«dile que se olvide del resto de reuniones,
+  empezamos de cero, una para el jueves a las 5»— y que se verificara que el sistema es autónomo «independientemente
+  de si contesto rápido o al cabo de una hora». **Se cerró**: mensaje enviado por Telegram, respuesta «Ok», y en
+  **20 s** el encargo despertó, escribió la cita del 2026-09-17 17:00 en el Google Calendar real, acuñó el enlace de
+  Meet y lo devolvió al contacto. El «empezamos de cero» se aplicó también por dentro sin pedirlo: el encargo nuevo
+  desalojó al del viernes vía `claim()` y lo cerró con motivo. Cuatro fallos medidos y cerrados por el camino, cada
+  uno en su puerta y no en su caso:
+  · **Un sinónimo no es un campo que falta.** El primer intento NO envió nada: el modelo puso `message` donde el
+  manifiesto declara `text` y la puerta lo rechazó. `widgets/contract.fold_aliases` renombra al manifiesto en el
+  EMBUDO ÚNICO (`server_api._dispatch`), antes del guarda destructivo — así una cancelación que nombra su objetivo
+  como `name` es una cancelación NOMBRADA, no un selector vacío. Se niega a adivinar: la clave destino debe estar
+  DECLARADA, debe llegar vacía, y el sinónimo no puede estar declarado también en esa acción.
+  · **Un playbook no nombra empresas.** El vocabulario ampliado la tanda anterior metió «google meet» en las
+  palabras de match, y el test de doctrina del propio repo lo cazó (`test_nothing_in_a_playbook_names_a_person_or_a_company`).
+  `«meet link»` sola cubre «Google Meet link» sin saber quién lo fabrica. Dos ficheros iban ROJOS desde `7a91a59a`.
+  · **La voz propia de un encargo no abre otro encargo.** La red de autonomía leyó la confirmación que el propio
+  encargo acababa de enviar («Here's the Google Meet link») como una propuesta nueva, abrió un SEGUNDO encargo y
+  `claim()` le quitó la conversación al primero. Cerró inofensivo solo porque la cita ya existía; un pulso antes
+  habría robado el hilo a un encargo VIVO — justo el fallo para el que se escribió `claim` en V2-692. El remitente
+  se lee del `ref` que estampa `wake._send` («<id>:<epoch>») preguntándole al STORE si ese id es un encargo real,
+  nunca fiándose de la forma de una cadena.
+  · **El manejador de métricas de voz no IMPORTABA.** La extracción del 2026-09-10 se llevó `from ..core.logging
+  import logger` «por paridad» a un módulo donde ese nombre no existe: cinco días sin líneas de métrica, sin
+  latencia STT/TTS remota y sin informes de consumo, con un `ERROR` por turno. El guarda que cubre el fichero lo
+  lee como TEXTO y siguió verde todo el tiempo — **leer un fichero no es ejecutarlo**.
+  **Y el diagnóstico que costó más que los cuatro:** el encargo se armaba bien y nunca se ejecutaba porque el
+  **interruptor ⏻ estaba apagado** desde las 18:07 (`{"state":"stopped","src":"operator"}`, puesto por él tras el
+  borrado de la agenda). `runstate.blocks_new_work()` falla CERRADO y corta en `watch._fire_wakes` *antes* de
+  consumir la cola —«aplazar, no perder», V2-684— sin dejar rastro en INFO. Un encargo parado con la respuesta ya
+  en el hilo: mirar el ⏻ antes que el código. El guardarraíl también se probó solo en vivo: el contacto pidió
+  «cancel the meet and appointment» por Telegram y **no movió nada** — un tercero no manda en el calendario del
+  operador.
+
 - **La pirámide: UNA decisión por turno, y ninguna acción destructiva sin selector (V2-705, 2026-09-15)**:
   el operador paró la sesión: «cada corrección al final no suma; arreglamos una cosa y estropeamos otra… debería
   funcionar de forma piramidal». Detonante medido (sesión 878b0122, 18:03): pidió «quita la cita de mañana a las
