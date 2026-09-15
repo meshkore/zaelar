@@ -39,7 +39,10 @@ def _schedule_reminder(title: str, date: str, start: str, at: str = "", before_m
         return "", "el instante ya pasó"
     stamp = _t.strftime("%Y-%m-%d %H:%M", _t.localtime(when))
     try:
-        from voice.engine.core import langs as _langs
+        # The LOW layer, not the motor's internals: `i18n.langs` is the facade every widget reads the
+        # language through (the direction ratchet, test_dependency_directions_only_improve). The byte-for-
+        # byte extraction from data.py carried the old reach along and CI went red on it (2026-09-15).
+        from i18n import langs as _langs
         _en = (_langs.current_code() or "es").lower() == "en"
     except Exception:  # noqa: BLE001
         _en = False
