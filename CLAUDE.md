@@ -362,6 +362,26 @@ context and stays in Spanish on purpose.
 > CATÁLOGO de qué se prueba es público y útil; el DIARIO de lo que se probó es nuestro. Igual con el roadmap —
 > saber cómo está construido el motor le sirve a quien lo clona; saber qué pensamos construir, no.
 
+## ⭐⭐ LO PRIMERO: mecanismos, no reglas (norma del operador, 2026-09-15)
+
+> «Necesitamos un sistema que no esté educado, es decir, que sea inteligente y que sepa qué hacer. Yo no
+> puedo decirte todo caso por caso. Eso sería un sistema de if-elses… Al final estamos creando un SISTEMA,
+> no una banda de reglas predefinidas o de carriles preseteados. **Lo único que tiene carriles son los
+> widgets.**»
+
+La línea que decide si un cambio entra en este motor: **¿lo que estoy añadiendo acota una CONSECUENCIA o
+acota un JUICIO?** Acotar la consecuencia es un mecanismo y se queda (`party.py` no ofrece NINGUNA tool y
+el motor ejecuta solo lo que permite el mandato; `contract.guard` rechaza una acción destructiva sin
+selector; `book.unbook` solo puede deshacer la fila que ese encargo escribió). Acotar el juicio es un
+carril y se quita («no discutas», «acúsale recibo en una frase», una tabla de verbos que decide intención).
+
+Y la tercera pregunta, después de las dos de la doctrina de abajo: **¿esto que escribo es una frase sobre
+cómo comportarse?** Si lo es, bórrala y busca el mecanismo que estaba sustituyendo.
+
+Completo, con la cita entera del operador, la tabla de las dos clases de carril y el **hueco abierto** (no
+existe un almacén de política POR OPERADOR que convierta su respuesta en el criterio de la próxima
+decisión): **`.meshkore/context/principles.md`**.
+
 ## ⭐ Cómo se orienta CUALQUIER arreglo del agente (norma del operador, 2026-08-20)
 
 El agente debe ser capaz de resolver **cualquier** encargo: reservar un hotel o un restaurante, montar una

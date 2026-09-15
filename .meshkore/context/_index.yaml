@@ -6,6 +6,12 @@ nodes:
     title: "Proyecto"
     desc: "Qué es zaelar, para quién y qué NO es."
     load: skeleton
+  - id: project.principles
+    parent: project
+    title: "El principio de todo"
+    desc: "Mecanismos, no reglas: el modelo decide, el motor acota la consecuencia. Los carriles son los widgets."
+    load: pinned
+    src: context/principles.md
   - id: project.idea
     parent: project
     title: "La idea"
