@@ -96,6 +96,17 @@ _TABS = ("process", "results", "summary", "sources", "criteria")
 #: or unknown, the shape of the items decides on its own, exactly as before.
 _KINDS = ("product", "place", "media", "photo", "document", "link", "plan")
 
+#: WHICH TEMPLATE the list is drawn with. V2-703, and a deliberate reversal of `presentation.py` rule 1 («the
+#: surface owns the layout»), by the operator's explicit decision: «tenemos varias [plantillas] que le ofrecemos
+#: al Brainworker para que elija la más adecuada para cada lista de resultados […] sí debe elegir ese formato y
+#: colocar dentro los datos que sean relevantes».
+#:
+#: The reason rule 1 existed has NOT gone away, so it survives as a guard instead of a veto. What the worker may
+#: send is a NAME out of this closed set — never a width, a column count or a pixel — and `widget.js` refuses one
+#: it cannot honour (a photo template over results with no photos) instead of drawing it badly. That is the line:
+#: the worker chooses the SHAPE and fills the slots; the surface still owns the geometry of each slot.
+_LAYOUTS = ("card", "tile", "row", "list", "compare", "split", "gallery", "rows")
+
 # A SOURCE is a website/origin that was attempted, with what HAPPENED there. Status is a closed vocabulary because
 # color depends on it and, above all, reading does: "could not enter" and "entered but was capped at 50" are VERY
 # different outcomes, yet until today both counted as "nothing".
@@ -610,6 +621,11 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
             data["kind"] = kind
         elif prev.get("kind") in _KINDS:
             data["kind"] = prev["kind"]        # a second `present` of the same hunt does not change WHAT it found
+        lay = str(payload.get("layout") or "").strip().lower()
+        if lay in _LAYOUTS:
+            data["layout"] = lay
+        elif prev.get("layout") in _LAYOUTS:
+            data["layout"] = prev["layout"]    # nor does it re-shuffle a list the operator is already reading
         # `columns` is preserved as a CAP (the surface decides distribution from content shape, see
         # widget.js::columnsFor), never as an order — a guessed 2 left 3 rich cards with one orphan.
         cols = payload.get("columns")
@@ -646,6 +662,9 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
         kind = str(payload.get("kind") or "").strip().lower()
         if kind in _KINDS:
             data["kind"] = kind
+        lay = str(payload.get("layout") or "").strip().lower()
+        if lay in _LAYOUTS:
+            data["layout"] = lay
         _merge_sections(data, payload)
         _save(data, sheet)
         return {"ok": True, "shown": len(data["items"]), "presentation": issues}

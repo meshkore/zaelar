@@ -2208,9 +2208,22 @@ DOMAINS: list[dict] = [
         # ⚠️ La foto se mide por la FRACCIÓN VISIBLE, no por la caja del <img>: con `object-fit` los píxeles se
         # pintan fuera de esa caja y lo que se ve es lo que sobrevive al recorte del padre. La primera versión
         # comparaba la caja y el desarme salió VERDE — devolver la banda no la puso roja.
+        # V2-703 — la LISTA es una lista. El botón de la tienda y la tabla de specs se van a la ficha, todas las
+        # cajitas miden lo mismo (y sus botones se alinean), y el destacado se MARCA en vez de INFLARSE — una
+        # tarjeta a todo el ancho era lo que le hacía preguntar «¿de qué me sirve la lista?». Y la plantilla la
+        # ELIGE el worker (card|tile|row|compare), con una guarda que degrada en vez de dibujar mal: es una
+        # enmienda a la regla 1 de `presentation.py`, decidida por él.
+        # ⚠️ El badge se mide por si se PINTA dentro de su tarjeta, no por si está en el DOM: recortarlo con un
+        # max-height lo deja donde estaba y contar elementos dio VERDE con el badge fuera de la caja.
+        # ⚠️ La decisión de layout se lee de `data-layout` de la rejilla, no de las clases de las tarjetas:
+        # `makeCard` degrada cada tarjeta por su cuenta, así que el dibujo sale bien corriera la guarda o no.
+        {"id": "4.179", "title": "Una lista de resultados es una LISTA: misma caja, sin specs ni enlace a la "
+                                 "tienda, el destacado marcado y no inflado · y la plantilla la elige el worker",
+            "ch": UNIT, "paths": ["tests/browser/e2e/widgets/test_a_results_list_is_a_list.py",
+                                  "tests/browser/unit/widgets/test_results_presentation.py"]},
         {"id": "4.178", "title": "Un resultado PARECE un resultado: la foto entera (no una banda recortada), foto "
-                                 "izquierda y datos derecha, el enlace a la ficha original SIEMPRE, y el "
-                                 "expediente se abre sin esperar al servidor · los cuatro formatos de lista",
+                                 "izquierda y datos derecha, el enlace a la ficha original SIEMPRE EN LA FICHA "
+                                 "(V2-703 lo movió), y el expediente se abre sin esperar al servidor",
             "ch": UNIT, "paths": ["tests/browser/e2e/widgets/test_a_result_looks_like_a_result.py",
                                   "tests/browser/unit/widgets/test_a_sheet_push_reaches_its_card.py",
                                   "tests/browser/unit/widgets/test_a_result_without_a_link_is_a_dead_end.py"]},

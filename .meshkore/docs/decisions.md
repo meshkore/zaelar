@@ -60,6 +60,45 @@ entregada siga citada aquí.
   foto que llega al cristal, y vale sea cual sea el mecanismo CSS. Trinquete pagado extrayendo
   `widgets/results/record.py` (1006 → 818).
 
+- **A results LIST is a list, and the templates are the worker's to choose (V2-703, 2026-09-15)**: the day
+  after V2-702 made a result look like a result, he sent the same sheet back: «los resultados aparecen en una
+  línea horizontal y cada cosa en su sitio. Son cajitas bien puestas, plantilladas […] el botón de ver en
+  Amazon es el que aparece en la ficha […] en las listas de resultados puede haber menos datos para que quepan
+  más resultados. Si un resultado solo ya ocupa toda la pantalla, ¿de qué me sirve la lista de resultados y
+  tener acceso a la ficha? Lo que queremos es los datos principales, la foto y un botón para entrar en la ficha
+  ampliada. Ni siquiera el botón de ver en Amazon en la propia lista.»
+  **The list gave up three things and got a formation back.** The spec table (four `facts` rows, each a full
+  sentence) and the outbound link both belong to the RECORD; the list row offers one way forward, which is to
+  open it. And the featured result is now MARKED, not INFLATED: `primary.length === 1 ? 1 : 2` drew his only
+  result across the whole sheet, and a second clamp held the rest to two columns so the featured one still
+  looked bigger. Both gone, one grid, the featured card first. Cards stretch to their row and the footer is
+  pushed to the bottom of each, so the «Ver detalle» buttons line up; every text field has a line budget.
+  **The templates are now the WORKER's to name** — `layout`: card | tile | row | compare — which is a
+  deliberate amendment to `presentation.py` rule 1 («the surface owns the layout»), by his decision: «esto no
+  es una página web, esto es un sistema dinámico e inteligente que tiene que soportar cualquier tipo de
+  resultado, tanto si buscamos barcos como cafeteras, como recetas, como eventos históricos de la Primera
+  Guerra Mundial». A boat puts its length where a recipe puts its time, and no heuristic here can know that.
+  The rule's REASON survives as a guard rather than a veto: a NAME, never a number; an impossible choice (a
+  photo template over results with no photos) falls back; an invented one is refused at `data.py`, where the
+  closed vocabulary lives. `columns` stays forbidden — that one really is geometry.
+  **Three measurement lessons, all paid in this batch.** (1) The width floor still came from the `rich`/
+  `medium` heuristic, which counts `facts`, `blocks` and `images` — none of which the list draws any more, so
+  it was sizing a card that is not on screen. Same defect class as V2-702's photo band, one level up. (2)
+  Counting the badge in the DOM said nothing about whether it is ON SCREEN: clipping it with a max-height
+  leaves the element exactly where it was, and the disarm came back GREEN with the badge outside its box.
+  It is now measured against the rectangle that clips it. (3) The layout DECISION had to be written down
+  (`data-layout` on the grid): `makeCard` degrades each card on its own, so the drawing looks right whether
+  the guard ran or not, and the disarm was green for that reason too.
+  ⚠️ **One V2-702 assertion was moved, not deleted.** It read «the link is on the CARD», written against a
+  list containing zero anchors. It now reads «the link always REACHES the operator», with the list asserted
+  empty and the record asserted to carry it. Pinning a button's LOCATION instead of the guarantee is what made
+  a test contradict him a day later.
+  ⚠️ **An injected stylesheet fails SILENTLY, and it cost three separate rounds here.** A comment paragraph
+  landed outside an already-closed comment, so prose was parsed as declarations and the parser ate the rules
+  after it — `node --check` green, `-webkit-line-clamp` declared and inert, titles four lines tall. The only
+  way it was found was reading the COMPUTED style back. Reading back a property you just set is how you learn
+  it never arrived. 14 disarms, all red. Testmap **4.179**.
+
 - **A sync that STAYS ON, and stays a mirror (V2-701, 2026-09-15)**: after a one-off pass brought 2 685
   people in, he said «el tema de la sincronización de contactos no es algo que deberíamos hacer de forma
   puntual, deberíamos realmente marcar un botón de sincronización y eso debería quedarse conectado de forma

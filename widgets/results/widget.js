@@ -187,13 +187,57 @@ function injectStyles(){
        · compare  composite proposals side by side (the 'parts' card that already existed).
      What is NOT preset is which FIELDS a card carries: those come from 'facts', filled per article type by
      whoever ran the search — a car brings year/km/fuel and a pot brings capacity/diameter/lid. */
-  .hb-results .hr-card.split{display:grid;grid-template-columns:minmax(110px,var(--hr-shot-col,.32fr)) 1fr;
-    gap:var(--s4);align-items:start}
+  .hb-results .hr-card.split{display:grid;grid-template-columns:minmax(96px,var(--hr-shot-col,.3fr)) 1fr;
+    gap:var(--s3);align-items:start}
   .hb-results .hr-card.split .hr-shot{width:100%;aspect-ratio:1/1}
-  .hb-results .hr-card.split.primary{--hr-shot-col:.38fr}
   .hb-results .hr-card.gallery .hr-shot{width:100%;aspect-ratio:4/3;margin-bottom:var(--s3)}
-  .hb-results .hr-card.gallery.primary .hr-shot{aspect-ratio:16/9}
-  .hb-results .hr-body{min-width:0}
+  .hb-results .hr-body{min-width:0;display:flex;flex-direction:column;height:100%}
+
+  /* ── EVERY BOX THE SAME BOX (V2-703) ────────────────────────────────────────────────────────────────────────
+     «son cajitas bien puestas, plantilladas […] asegúrate de que estos objetos plantillados soportan más o menos
+     contenido y que todo va a quedar siempre bien y que se controla cada tamaño de campo».
+     A template that only holds when the data cooperates is not a template. Two rules do the work:
+       1. the cards STRETCH to the tallest in their row, and the footer is pushed to the bottom of each, so the
+          «Ver detalle» buttons line up across the row instead of floating at nine different heights;
+       2. every text field has a LINE BUDGET and overflows into an ellipsis — a three-line title cannot push the
+          photo out of alignment, and a card with no subtitle does not collapse shorter than its neighbour. */
+  .hb-results .hr-grid{align-items:stretch}
+  .hb-results .hr-card{display:flex;flex-direction:column}
+  /* The card stretches to its row AND its data column stretches to the card, or the footer has nothing to be
+     pushed to the bottom OF. With 'align-items:start' the cards measured equal and the buttons still sat 11px
+     apart, because the column ended where its text ended. The PLATE keeps its own alignment: stretching a fixed
+     aspect-ratio box is how the photo band came back. */
+  .hb-results .hr-card.split{display:grid;align-items:stretch}
+  .hb-results .hr-card.split > .hr-shot{align-self:start}
+  /* ⚠️ '.hr-card .hr-foot', not '.hr-foot': the base rule sets 'margin-top:var(--s3)' and is declared FURTHER
+     DOWN this same sheet, so at equal specificity it wins and the footer stops being pushed anywhere. It looked
+     like it worked — the one card whose text happened to fill its body had its button at the bottom, and the
+     other two sat 11px higher. One stylesheet, one namespace, and order decides ties. */
+  .hb-results .hr-card .hr-foot{margin-top:auto;padding-top:var(--s3)}
+
+  /* The budget is the TEMPLATE's; WHAT GOES IN EACH SLOT is the worker's, and that is the whole point: «el worker
+     se supone que tiene que tener la inteligencia suficiente como para decidir qué datos ponemos en esas fichas
+     […] esto no es una página web, esto es un sistema dinámico e inteligente que tiene que soportar cualquier
+     tipo de resultado, tanto si buscamos barcos como cafeteras, como recetas, como eventos históricos». A boat
+     puts its length in the subtitle where a recipe puts its time and a battle puts its date; the card never
+     knows which, and never needs to. */
+  /* THE LINE BUDGET. It lives on a plain child ('.hr-cl'), not on '.hr-t' itself, so the box that carries the
+     flex behaviour and the box that carries the clamp are never the same box.
+     ⚠️ How this was found is worth more than the rule. A 58-character title kept rendering FOUR lines with the
+     clamp declared, and the computed style said display 'block' and orientation 'horizontal' — the declarations
+     were being DROPPED while '-webkit-line-clamp' survived. The cause was not CSS semantics at all: a comment
+     paragraph added above had landed OUTSIDE an already-closed comment, so several lines of prose were parsed as
+     a declaration block and the parser ate everything until it resynced. An injected stylesheet fails SILENTLY —
+     'node --check' is green, the sheet is a string — so the only way to see it is to read back the computed
+     style. Reading back a property you just set is how you learn it never arrived. */
+  .hb-results .hr-card .hr-cl{display:-webkit-box;-webkit-box-orient:vertical;overflow:hidden;
+    -webkit-line-clamp:2}
+  .hb-results .hr-card .hr-t .hr-cl{-webkit-line-clamp:2}
+  /* The badge is NOT squeezed by the subtitle's budget. It was, via a max-height on the row, and the very first
+     card that used both lines of subtitle lost its «ONLY 100% MATCH» — the one label that says why that result
+     leads the list. Its own line, always drawn. */
+  .hb-results .hr-card .hr-metarow{display:block}
+  .hb-results .hr-card .hr-metarow .hr-badge{margin-top:var(--s1)}
   /* Below ~430px the two columns strangle both halves (a 110px photo next to a 7-em title). The photo goes back
      on top — still a FIXED aspect plate with the image contained, never a band. */
   @container (max-width: 430px){
@@ -571,12 +615,37 @@ function sourceLink(url, {wide=false}={}){
 // WHAT KIND OF THING it found (`kind`), which is content, not layout: saying "these are products" is a fact
 // about the results; saying "draw them in two columns" is a decision that belongs here.
 const LAYOUTS = ["split", "gallery", "rows", "compare"];
-function layoutFor(items, kind){
+
+// ── THE TEMPLATES THE WORKER MAY ASK FOR (V2-703) ───────────────────────────────────────────────────────────
+// «tenemos varias que le ofrecemos al Brainworker para que elija la más adecuada para cada lista de resultados».
+//
+// This REVERSES presentation.py's rule 1 («the surface owns the layout»), by his explicit decision. The reason
+// the rule existed is still true, so it survives as a GUARD rather than as a veto: the worker names one of four
+// presets — never geometry, never a size — and an impossible choice falls back instead of breaking the screen.
+// The names are the worker's vocabulary; the classes below are the drawing. Keeping them separate is what lets
+// the sheet keep saying `card` the day the drawing changes.
+const TEMPLATES = {card: "split", tile: "gallery", row: "rows", list: "rows", compare: "compare",
+                   // the internal names are accepted too: sheets written before this vocabulary existed
+                   split: "split", gallery: "gallery", rows: "rows"};
+
+function askedLayout(layout){
+  return TEMPLATES[String(layout || "").trim().toLowerCase()] || "";
+}
+
+function layoutFor(items, kind, layout){
   const arr = Array.isArray(items) ? items.filter(Boolean) : [];
+  const withImg = arr.filter(it => it.image || (it.images||[]).length).length;
+  // WHAT THE WORKER ASKED FOR, if it can be honoured. A photo template over a list with no photos would draw a
+  // column of empty plates, so it falls to the dense one — and `makeCard` degrades per-card too, because one
+  // result missing its photo must not drag the other nine out of formation.
+  const want = askedLayout(layout);
+  if(want){
+    if(want === "compare" || want === "rows") return want;
+    return withImg ? want : "rows";
+  }
   if(arr.some(it => (it.parts||[]).length)) return "compare";
   const k = String(kind||"").trim().toLowerCase();
   if(k === "plan") return "compare";
-  const withImg = arr.filter(it => it.image || (it.images||[]).length).length;
   if(!withImg) return "rows";                       // nothing to show: a photo column of empty plates is worse
   if(k === "document" || k === "link") return "rows";
   if(k === "place" || k === "media" || k === "photo") return "gallery";
@@ -736,10 +805,15 @@ function gridStyle(items, cap, layout){
     (it.lines && it.lines.length > 4)
   ));
   const medium = !rich && items.some(it => it && ((it.lines && it.lines.length) || it.image || it.facts));
-  // A `split` card is two columns wide by construction (plate + data), so its floor is the one that has to grow;
-  // a `gallery` tile is a picture with a caption and packs tighter than the content heuristic would guess.
-  const min = layout === "split" ? 430 : layout === "gallery" ? 260 : rich ? 400 : medium ? 300 : 230;
-  let maxCols = layout === "split" ? 2 : layout === "gallery" ? 4 : rich ? 2 : medium ? 3 : 4;
+  // ⚠️ A PHOTO TEMPLATE'S FLOOR COMES FROM THE TEMPLATE, NOT FROM THE DATA (V2-703). The `rich`/`medium`
+  // heuristic above counts `facts`, `blocks` and `images` — none of which the list card draws any more, so
+  // asking it how wide a card needs to be is asking about a card that is not on screen. It is the same defect
+  // V2-702 fixed one level down (a box whose aspect came from anything but its content) and it is why his pot,
+  // carrying seven facts, was sized as if all seven were being painted. The floors below are the width at which
+  // a plate plus a two-line title still reads; the heuristic survives only for `rows`, which really does draw
+  // whatever text it is given.
+  const min = layout === "split" ? 300 : layout === "gallery" ? 220 : rich ? 400 : medium ? 300 : 230;
+  let maxCols = layout === "split" ? 4 : layout === "gallery" ? 5 : rich ? 2 : medium ? 3 : 4;
   const n = Number(cap);
   if(Number.isFinite(n) && n >= 1) maxCols = Math.min(maxCols, Math.floor(n));
   maxCols = Math.max(1, maxCols);
@@ -776,29 +850,33 @@ function makeCard(it, isPrimary, choose, ctx, layout, nav){
   // itself is that box and an extra wrapper would only add a nesting level.
   const body = (lay === "split") ? elem("div","hr-body") : card;
   const head = elem("div","hr-head");
-  head.appendChild(elem("div","hr-t", it.title || ""));
+  // The title's BOX carries the flex behaviour and its CHILD carries the line budget — a clamp declared on a
+  // flex item is dropped (see the .hr-cl note in the sheet). In the record there is no budget: the whole title.
+  const tEl = elem("div","hr-t"); tEl.appendChild(elem("div","hr-cl", it.title || ""));
+  head.appendChild(tEl);
   const sc = scoreTag(it.score); if(sc) head.appendChild(sc);
   if(it.price) head.appendChild(elem("div","hr-price", it.price));
   body.appendChild(head);
   // The BADGE goes with the title, not the footer. It is a label that QUALIFIES the result ("Best set"), and below it
   // ended up next to the detail button, where it read like a second button.
   const meta = elem("div","hr-metarow");
-  if(it.subtitle) meta.appendChild(elem("span","hr-s", it.subtitle));
+  if(it.subtitle){ const sEl = elem("div","hr-s"); sEl.appendChild(elem("div","hr-cl", it.subtitle)); meta.appendChild(sEl); }
   if(it.badge) meta.appendChild(elem("span","hr-badge", it.badge));
   if(meta.childElementCount) body.appendChild(meta);
   // 80 lines (data.py's cap) so a full block of text — e.g. a song's lyrics — fits in one item's body, not just
-  // a handful of spec-sheet bullets (2026-08-03). In the list they are bounded: the full block belongs to the record.
-  (Array.isArray(it.lines) ? it.lines : []).slice(0, hasDetail ? 3 : 80)
+  // a handful of spec-sheet bullets (2026-08-03). In the list they are bounded: the full block belongs to the
+  // record. A card WITH a photo is bounded harder still — see the budget note on the footer below.
+  (Array.isArray(it.lines) ? it.lines : []).slice(0, hasDetail ? (shot ? 2 : 6) : 80)
     .forEach(l=>body.appendChild(elem("div","hr-ln", l)));
 
-  const bl = renderBlocks(blocks, {compact: true}); if(bl) body.appendChild(bl);
+  if(!hasDetail){ const bl = renderBlocks(blocks, {compact: true}); if(bl) body.appendChild(bl); }
 
-  // In `split` the spec sheet is what fills the column beside the photo — and it is also the per-article-type
-  // half of this surface: a car brings year/km/fuel, a pot brings capacity/diameter/lid. Bounded here (the full
-  // table belongs to the record) so ten results stay comparable instead of ten different heights.
-  if(lay === "split" && Array.isArray(it.facts) && it.facts.length){
-    const ft = factsTable(it.facts.slice(0, 4)); if(ft) body.appendChild(ft);
-  }
+  // ⚠️ THE SPEC SHEET DOES NOT COME TO THE LIST (V2-703). It used to: four `facts` rows under the photo, which
+  // on his pot sheet was capacity + diameter + lid + induction, each a full sentence. His verdict: «en las
+  // listas de resultados puede haber menos datos para que quepan más resultados. Si un resultado solo ya ocupa
+  // toda la pantalla, ¿de qué me sirve la lista de resultados y tener acceso a la ficha? Lo que queremos es los
+  // datos principales, la foto y un botón para entrar en la ficha ampliada.»
+  // The table is the RECORD's job, and `renderDetail` already draws all of it.
 
   // the pieces of a composite result, so three proposals stay comparable at a glance
   if(parts.length){
@@ -844,8 +922,15 @@ function makeCard(it, isPrimary, choose, ctx, layout, nav){
     });
     foot.appendChild(btn);
   }
-  // ALWAYS, whenever there is one and the card is not itself the link.
-  if(!asLink){ const src = sourceLink(it.url); if(src) foot.appendChild(src); }
+  // ⚠️ THE OUTBOUND LINK IS THE RECORD'S, NOT THE LIST'S (V2-703). «El botón de ver en Amazon es el que aparece
+  // en la ficha. […] Ni siquiera el botón de ver en Amazon en la propia lista de resultados.» A list row offers
+  // ONE way forward — open the record — and the record is where every door out of it lives.
+  //
+  // The exception is not an exception to that: a result with no record to open has nowhere else to put its link,
+  // and there the whole card is already the anchor (`asLink`). So the rule is exactly «when there is a detail
+  // button, there is no second button», and a result can never end up with no way out at all (V2-702's defect,
+  // which this must not reintroduce).
+  if(!asLink && !hasDetail){ const src = sourceLink(it.url); if(src) foot.appendChild(src); }
   if(foot.childElementCount) body.appendChild(foot);
 
   if(body !== card) card.appendChild(body);
@@ -952,22 +1037,28 @@ function paintResults(panel, data, ctx, nav){
   const choose = data.choosable ? { root: panel, ctx, chosenTitle: data.chosen } : null;
   // ONE layout for the whole list, decided from ALL the items: choosing per card would put a photo column on
   // some rows and not on others, which is precisely the ragged look the grid exists to prevent.
-  const lay = layoutFor(all, data.kind);
+  const lay = layoutFor(all, data.kind, data.layout);
 
-  // primary items: share the top row and decide width (one featured item occupies the whole sheet).
-  if(primary.length){
-    const pgrid = elem("div","hr-grid");
-    pgrid.style.gridTemplateColumns = gridStyle(primary, primary.length === 1 ? 1 : 2, lay);
-    panel.appendChild(pgrid);
-    primary.forEach(it => pgrid.appendChild(makeCard(it, true, choose, ctx, lay, nav)));
-  }
-
-  if(rest.length){
-    const sgrid = elem("div","hr-grid");
-    sgrid.style.gridTemplateColumns = gridStyle(rest, primary.length ? 2 : data.columns, lay);
-    panel.appendChild(sgrid);
-    rest.forEach(it => sgrid.appendChild(makeCard(it, false, choose, ctx, lay, nav)));
-  }
+  // Primary items lead the list; they do NOT get a bigger box. It used to be `primary.length === 1 ? 1 : 2`,
+  // so a sheet whose only result was the recommended one drew ONE card across the whole sheet — which is what
+  // the operator was looking at when he asked «si un resultado solo ya ocupa toda la pantalla, ¿de qué me sirve
+  // la lista de resultados y tener acceso a la ficha?». The featured card is already told apart by its border,
+  // its ground and its badge (the decision recorded beside `.hr-card.primary`); size was a second, louder way
+  // of saying the same thing, and the one that broke the formation.
+  // ONE GRID, and the featured results simply come first. It used to be two grids stacked, which is what put
+  // his only result alone on a row of its own with two thirds of the sheet empty beside it — «si un resultado
+  // solo ya ocupa toda la pantalla, ¿de qué me sirve la lista de resultados?». A row is a row: every card the
+  // same track, the same height, the buttons aligned. The featured one is told apart by its border, its ground
+  // and its badge, which is the whole reason those exist.
+  const grid = elem("div","hr-grid");
+  grid.style.gridTemplateColumns = gridStyle(all, data.columns, lay);
+  // The DECISION, written down where a test (and a person debugging) can read it. Without it, asking
+  // «did the guard refuse an impossible template?» is unanswerable: makeCard degrades each card on its
+  // own, so the drawing looks right whether the guard ran or not.
+  grid.dataset.layout = lay;
+  panel.appendChild(grid);
+  primary.forEach(it => grid.appendChild(makeCard(it, true, choose, ctx, lay, nav)));
+  rest.forEach(it => grid.appendChild(makeCard(it, false, choose, ctx, lay, nav)));
 
   // Faithful count: if the real pushed results exceed what we render, say so — never silently drop
   // obtained data (the operator asked for a REAL search; the interface must reflect its true size).

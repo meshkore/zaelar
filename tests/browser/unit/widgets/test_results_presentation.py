@@ -777,3 +777,37 @@ def test_the_sticky_header_has_a_bounded_height():
     assert "-webkit-line-clamp:2" in src
     assert 'elem("div","hr-sub clamp2", data.subtitle)' in src
     assert "sub.title = data.subtitle" in src, "el texto completo no se pierde: va al tooltip"
+
+
+# ── THE TEMPLATE THE WORKER NAMES (V2-703) ──────────────────────────────────────────────────────────────────
+
+def test_the_worker_may_NAME_a_template_and_the_sheet_keeps_it():
+    """«Tenemos varias [plantillas] que le ofrecemos al Brainworker para que elija la más adecuada para cada
+    lista de resultados […] sí debe elegir ese formato y colocar dentro los datos que sean relevantes.»
+
+    This is the amendment to `presentation.py` rule 1, so it is pinned where that rule is enforced: a NAME
+    survives the round trip to the sheet, and the drawing half is `test_a_results_list_is_a_list.py`.
+    """
+    results.apply_action("present", {"title": "Ollas", "layout": "card",
+                                     "items": [{"title": "Una", "url": "https://a"}]})
+    assert results.view_data().get("layout") == "card"
+
+
+def test_a_template_NOBODY_offers_never_reaches_the_sheet():
+    """A name the surface does not know would arrive at `widget.js` as a class nobody wrote, or as a silent
+    no-op that looks like the worker's choice being ignored for some other reason. It is refused HERE, where
+    the closed vocabulary lives, exactly as `kind` has always been."""
+    results.apply_action("present", {"title": "Ollas", "layout": "carrusel-3d",
+                                     "items": [{"title": "Una", "url": "https://a"}]})
+    assert "layout" not in results.view_data() or results.view_data()["layout"] != "carrusel-3d"
+
+
+def test_a_second_push_of_the_same_hunt_does_not_RESHUFFLE_the_list():
+    """Same rule `kind` already follows: a worker that sends a second batch without repeating its choice must
+    not change the shape of a list the operator is in the middle of reading."""
+    results.apply_action("present", {"title": "Ollas", "layout": "tile",
+                                     "items": [{"title": "Una", "url": "https://a"}]})
+    results.apply_action("present", {"title": "Ollas",
+                                     "items": [{"title": "Una", "url": "https://a"},
+                                               {"title": "Dos", "url": "https://b"}]})
+    assert results.view_data().get("layout") == "tile"

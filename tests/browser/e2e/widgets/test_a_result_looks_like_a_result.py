@@ -233,13 +233,22 @@ def test_the_photo_is_on_the_LEFT_and_the_data_on_the_right(wide):
         "la foto no está a la izquierda de los datos — la tarjeta sigue apilada")
 
 
-def test_the_link_to_the_ORIGINAL_page_is_on_the_card(wide):
-    """DEFECT 3. And it names the SITE, because "where does this take me" is the question a link answers."""
+def test_the_link_to_the_ORIGINAL_page_always_REACHES_the_operator(wide):
+    """DEFECT 3, and the one assertion in this file the operator has moved (V2-703).
+
+    It used to read «the link is on the CARD», because the defect it was written against was a list containing
+    ZERO anchors while every item carried a url. A day later, looking at the fixed list: «el botón de ver en
+    Amazon es el que aparece en la ficha […] ni siquiera el botón de ver en Amazon en la propia lista de
+    resultados» — a row offers ONE way forward, and the record is where the doors out of it live.
+
+    What survives is the property both sentences are about: a result's url never goes nowhere. So the list is
+    asserted EMPTY of outbound links here, and `test_a_results_list_is_a_list.py` asserts the record carries it.
+    Pinning the button's location instead of the guarantee is what made this test contradict him.
+    """
     hrefs = [a["href"] for a in wide["anchors"]]
-    assert "https://www.amazon.es/dp/B075WGKKGB" in hrefs, (
-        f"el enlace a la ficha original no está en la lista: {wide['anchors']}")
-    label = next(a["text"] for a in wide["anchors"] if "amazon.es/dp" in a["href"])
-    assert "amazon.es" in label, f"el enlace no dice a dónde lleva: «{label}»"
+    assert "https://www.amazon.es/dp/B075WGKKGB" not in hrefs, (
+        f"la lista vuelve a ofrecer el enlace a la tienda: {wide['anchors']}")
+    assert wide["detail_btn"], "…y sin botón de ficha el enlace no llegaría a ninguna parte"
 
 
 def test_the_record_opens_WITHOUT_waiting_for_the_server():

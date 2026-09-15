@@ -14,9 +14,16 @@
 #
 # Hence this module's three rules:
 #
-#   1. THE SURFACE OWNS LAYOUT. The filler describes CONTENT; how many columns, how they are distributed, and what
-#      enters each row are decided by the widget from the SHAPE of the content. Layout is not a parameter to guess
-#      wrong from outside.
+#   1. THE SURFACE OWNS GEOMETRY; THE FILLER MAY CHOOSE A TEMPLATE (amended V2-703). How many columns there are,
+#      how wide a track is, how many lines a title gets — those stay here, because they are the things a model
+#      guesses wrong and cannot see. What the filler MAY now do is name one of a closed set of templates
+#      (`layout`: card | tile | row | compare) and decide WHICH datum goes in each slot. The operator's reason:
+#      «esto no es una página web, esto es un sistema dinámico e inteligente que tiene que soportar cualquier tipo
+#      de resultado, tanto si buscamos barcos como cafeteras, como recetas, como eventos históricos» — a boat puts
+#      its length where a recipe puts its time, and no heuristic here can know that.
+#      The old rule's reason survives as the GUARD: a name, never a number, and an impossible choice (a photo
+#      template over results with no photos) falls back instead of drawing badly. `columns` stays forbidden —
+#      that one really is geometry, and the incident below is what it cost.
 #   2. BUDGETS ARE DECLARED, NOT GUESSED. Each blank surface publishes in its manifest how much fits in each field,
 #      and that travels to the prompt of whoever will fill it. A model cannot respect a limit nobody told it.
 #   3. SILENT CLIPPING IS FORBIDDEN. If something does not fit, cut on a word boundary, mark it with "...", and record
