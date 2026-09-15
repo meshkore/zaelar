@@ -21,6 +21,30 @@ entregada siga citada aquí.
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **La pirámide: UNA decisión por turno, y ninguna acción destructiva sin selector (V2-705, 2026-09-15)**:
+  el operador paró la sesión: «cada corrección al final no suma; arreglamos una cosa y estropeamos otra… debería
+  funcionar de forma piramidal». Detonante medido (sesión 878b0122, 18:03): pidió «quita la cita de mañana a las
+  siete» y el cerebro llamó `agenda.cancel_meeting` con `payload {}`; el handler leyó «sin título y sin fecha»
+  como «todas» y mandó **147 DELETE al Google Calendar real en 60 s, 100 aceptados**. Y una sola orden la
+  ejecutaron DOS veces: el cerebro rápido (data-op local) y, tras él, un worker que el Susurro lanzó para
+  «cancelarla de verdad en la fuente externa» — porque tres prompts decían que los widgets son ESPEJOS mientras
+  el código dice que la agenda ES el calendario. Antes: «escríbele a X y concierta» fue a un worker de shell 6
+  minutos con 0 mensajes, porque el selector de tools podó `messaging` (ni «write» ni «contact» son semillas).
+  **Tres niveles, todos genéricos.**
+  **(0) Invariantes en CÓDIGO** (`widgets/contract.py`, en `server_api._dispatch`, la única puerta de cerebro,
+  worker, botón y cron): una acción destructiva cuyo selector declarado llega vacío se RECHAZA con el menú del
+  widget, nunca se ensancha a «todas»; reproducido sobre 14 días, rechaza SOLO las 3 llamadas que vaciaron el
+  calendario. `cancel_meeting` cancela UNA (título ambiguo = pregunta; duplicados idénticos juntos). `store.save`
+  guarda un snapshot de lo que sobrescribe.
+  **(1) UNA doctrina**: un widget con conector ES la fuente, dicho igual por la tool de escalado, `widget_data`,
+  el método del worker y el Susurro (que deja de tratar un data-op como riesgo). Escribir a una persona deja de
+  ser escalada.
+  **(2) Routing por ESTADO** (`nucleo/flash/addressed.py`): un turno que NOMBRA a un contacto del directorio
+  fuerza la familia `messaging` — el dato durable de «escríbele a X» es X, no el verbo. **El arnés del encargo de
+  reunión no estaba roto** (`errands/verify.py` ya lee la agenda y contempla el Meet pendiente); lo que estaba
+  roto era que el encargo no arrancaba por ir al camino equivocado. Pendiente: Nivel 3 (dieta de prompt).
+  Commits `dbc84b88`/`3aa1138f`/`e38bebdf`.
+
 - **Una pregunta se contesta desde el REGISTRO, y una orden sin marco no es ruido (V2-704, 2026-09-15)**:
   una prueba manual que debía ser trivial —contactar con alguien, concertar la reunión, mandar el Meet— no llegó
   a empezar. «Hay algo de fondo que no funciona», y lo había.

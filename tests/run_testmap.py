@@ -1137,6 +1137,10 @@ DOMAINS: list[dict] = [
         {"id": "2.58", "title": "Sin marco de diálogo no hay veredicto: la primera orden tras reconectar no se "
                                 "tira como ruido, y la observabilidad dice si el turno estaba caliente",
             "ch": UNIT, "paths": ["tests/voice/unit/test_attention.py"]},
+        {"id": "2.59", "title": "Una decisión por turno: un widget con conector ES la fuente (una doctrina, cuatro "
+                                 "superficies) y un contacto nombrado conserva la familia messaging (V2-705 Niveles 1-2)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_writing_to_a_person_is_not_an_escalation.py",
+                                      "tests/agent_headless/unit/flash/test_a_named_contact_keeps_the_messaging_family.py"]},
         # V2-669 — el relleno de entrada se elige a ciegas ~1,1 s dentro del turno; el hueco que NO cubre está al
         # otro lado de la costura de la herramienta. Medido en la observabilidad del operador (deepseek-v4-pro):
         # el turno de read_widget de la cita con Hacienda tardó 6.029 ms con `ttft_ms: 0` (el 1er pase devolvió
@@ -2252,6 +2256,11 @@ DOMAINS: list[dict] = [
                                  "tienda, el destacado marcado y no inflado · y la plantilla la elige el worker",
             "ch": UNIT, "paths": ["tests/browser/e2e/widgets/test_a_results_list_is_a_list.py",
                                   "tests/browser/unit/widgets/test_results_presentation.py"]},
+        {"id": "4.180", "title": "Una acción destructiva sin selector se RECHAZA (nunca «todas»); cancelar cita "
+                                 "cancela UNA; el store guarda snapshot de lo que sobrescribe (V2-705 Nivel 0)",
+            "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_a_destructive_action_needs_a_selector.py",
+                                  "tests/browser/unit/agenda/test_cancelling_one_appointment_never_empties_the_calendar.py",
+                                  "tests/browser/unit/widgets/test_the_store_keeps_a_snapshot_before_it_overwrites.py"]},
         {"id": "4.178", "title": "Un resultado PARECE un resultado: la foto entera (no una banda recortada), foto "
                                  "izquierda y datos derecha, el enlace a la ficha original SIEMPRE EN LA FICHA "
                                  "(V2-703 lo movió), y el expediente se abre sin esperar al servidor",
