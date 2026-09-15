@@ -255,9 +255,23 @@ def select_for_turn(tools: list[dict], *, turn_text: str, window=None, recent_fa
         open_now = (_mem.state() or {}).get("open_widgets") or []
     except Exception:  # noqa: BLE001
         open_now = []
-    return select(tools, turn_text=turn_text, open_widgets=open_now,
-                  carried_text=carried_from_window(window, exclude=turn_text),
-                  recent_families=recent_families, force=force)
+    carried = carried_from_window(window, exclude=turn_text)
+    # V2-705 — a NAMED CONTACT forces the messaging family (and, by `_IMPLIES`, widgets). This is STATE, not
+    # words: the directory is read the way `open_widgets` is, through the same `directory.resolve` the send
+    # door uses. Measured 2026-09-15: «write to my contact Kryptonite… organise a meeting» named no seed
+    # word, `messaging` was trimmed, and the only door left was a Brain Worker for what `send_to` does in one
+    # call. The request's one durable fact is the name; the verbs change every session (V2-682 patched the
+    # same failure with seeds three days earlier and it recurred with other words). Adding a family costs
+    # tokens, never a capability, so this only ever over-includes.
+    forced = set(force or ())
+    try:
+        from nucleo.flash import addressed
+        if addressed.contact_in(turn_text) or addressed.contact_in(carried):
+            forced.add("messaging")
+    except Exception:  # noqa: BLE001
+        pass
+    return select(tools, turn_text=turn_text, open_widgets=open_now, carried_text=carried,
+                  recent_families=recent_families, force=forced or None)
 
 
 def carried_from_window(window, exclude: str = "", n: int = 2) -> str:
