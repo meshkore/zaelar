@@ -7,7 +7,12 @@ remote STT/TTS forwarding — see the inline comments, which moved with the code
 from __future__ import annotations
 
 from ..core.config import SETTINGS
-from ..core.logging import logger  # noqa: F401  (kept for parity with agent.py's imports)
+# ⚠️ NO `from ..core.logging import logger` here. The 2026-09-10 extraction carried that line over from
+# `agent.py` «for parity», and this module does not live where agent.py lives: `voice.engine.core.logging`
+# exports `JsonlEventLog` and `setup_console_logging`, never a `logger`. So EVERY `metrics_collected`
+# event has raised ImportError ever since — no metric lines, no remote STT/TTS latency, no Energy
+# reports — and the guard that covers this file reads it as TEXT, so it never imported it and stayed
+# green for five days. Moving code byte for byte changes the globals it lands in.
 
 
 def metric_line(m) -> str:

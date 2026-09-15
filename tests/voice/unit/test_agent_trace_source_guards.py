@@ -66,6 +66,21 @@ def test_stt_metrics_never_read_active_but_tts_metrics_do():
     assert "on_metrics(ev, _emit)" in block, "the extraction is only real if the handler still calls it"
 
 
+def test_the_metrics_handler_actually_IMPORTS():
+    """⚠️ A source-level guard cannot see a broken import, and this one did not for five days.
+
+    The 2026-09-10 extraction carried `from ..core.logging import logger` over from `agent.py` «for
+    parity», and that module exports `JsonlEventLog` and `setup_console_logging`, never a `logger`. So
+    every `metrics_collected` event raised ImportError from 2026-09-10 to 2026-09-15 — no metric lines in
+    the observer, no remote STT/TTS latency forwarded, no Energy usage reports — while the guard above,
+    which READS this file as text, stayed green throughout. Moving code byte for byte changes the globals
+    it lands in; reading a file is not running it.
+    """
+    import importlib
+    tap = importlib.import_module("voice.engine.pipeline.metrics_tap")
+    assert callable(tap.on_metrics) and callable(tap.metric_line)
+
+
 def test_vad_speaking_onset_and_end_of_speech_never_read_active_but_barge_in_does():
     body = _body()
     i = body.index('@session.on("user_state_changed")')
