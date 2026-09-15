@@ -112,9 +112,13 @@ function injectStyles(){
   .hb-contactos .ctconnback{margin-left:auto;cursor:pointer;color:var(--hb-accent,#9B7CFF);font-weight:600;
     font-size:13px;border:0;background:none;padding:4px 2px}
   .hb-contactos .ctconnback:hover{text-decoration:underline}
-  .hb-contactos .ctsrc{display:flex;align-items:center;gap:11px;border:1px solid var(--hb-line,#e3e8f0);
-    border-radius:12px;padding:11px 13px;background:var(--hb-bg,#fff)}
-  .hb-contactos .ctsrc.dim{opacity:.55}
+  /* ONE CARD PER SOURCE. The account row and everything that source owns (its sync panel) live INSIDE the
+     same box — a panel floating beside its account reads as a second, unrelated feature. */
+  .hb-contactos .ctsrcbox{border:1px solid var(--hb-line,#e3e8f0);border-radius:12px;
+    background:var(--hb-bg,#fff);overflow:hidden}
+  .hb-contactos .ctsrcbox.dim{opacity:.55}
+  .hb-contactos .ctsrcbox.on{border-color:color-mix(in srgb,var(--hb-accent,#3D6FE0) 30%,var(--hb-line,#e3e8f0))}
+  .hb-contactos .ctsrc{display:flex;align-items:center;gap:11px;padding:11px 13px}
   .hb-contactos .ctsrcic{width:28px;height:28px;flex:0 0 auto;display:flex;align-items:center;justify-content:center}
   .hb-contactos .ctsrcic svg{width:19px;height:19px;display:block}
   .hb-contactos .ctsrctx{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1 1 auto}
@@ -133,15 +137,15 @@ function injectStyles(){
   .hb-contactos .ctbtn.danger:hover{border-color:var(--hb-danger,#D9534F);color:var(--hb-danger,#D9534F)}
   .hb-contactos .ctbtn[disabled]{opacity:.5;cursor:default;pointer-events:none}
 
-  /* ── THE SYNC BOX ──────────────────────────────────────────────────────────────────────────────── */
-  .hb-contactos .ctsync{border:1px solid var(--hb-line,#e3e8f0);border-radius:14px;padding:14px 15px;
-    background:var(--hb-bg-soft,#f6f8fb);display:flex;flex-direction:column;gap:10px}
-  .hb-contactos .ctsynctop{display:flex;align-items:center;gap:9px}
-  .hb-contactos .ctsynctop svg{width:16px;height:16px;display:block;color:var(--hb-accent,#3D6FE0)}
-  .hb-contactos .ctsynctop b{font-size:13.5px}
-  .hb-contactos .ctsyncdir{display:flex;align-items:center;gap:9px;font-size:12.5px;
-    color:var(--hb-muted,#5b6b82);background:var(--hb-bg,#fff);border:1px solid var(--hb-line,#eef1f6);
-    border-radius:10px;padding:9px 11px}
+  /* ── THE SYNC PANEL — the connected source's own half of its card, never a box of its own ──────── */
+  .hb-contactos .ctsync{border-top:1px solid var(--hb-line,#e3e8f0);padding:12px 13px 13px;
+    background:var(--hb-bg-soft,#f6f8fb);display:flex;flex-direction:column;gap:9px}
+  .hb-contactos .ctsynctop{display:flex;align-items:center;gap:8px}
+  .hb-contactos .ctsynctop svg{width:14px;height:14px;display:block;color:var(--hb-muted-2,#7d8a9c)}
+  .hb-contactos .ctsynctop b{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.09em;
+    color:var(--hb-muted-2,#7d8a9c)}
+  .hb-contactos .ctsyncdir{display:flex;align-items:flex-start;gap:9px;font-size:12.5px;line-height:1.5;
+    color:var(--hb-muted,#5b6b82)}
   .hb-contactos .ctsyncarrow{font-family:ui-monospace,Menlo,monospace;color:var(--hb-accent,#3D6FE0);
     font-weight:700;flex:0 0 auto}
   .hb-contactos .ctsyncfoot{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
@@ -506,7 +510,11 @@ function renderConnectors(el, host, data, ctx){
   (data.providers||[]).forEach(p=>{
     const live = !!LIVE_SOURCES[p.id];
     const on = p.status === "connected";
-    const row = el2("div","ctsrc" + (live?"":" dim"));
+    // The CARD is the source; the row is only its first line. Everything that belongs to this account —
+    // today the sync panel — goes inside this same box, so it reads as «what Google does here» instead of
+    // as a loose feature sitting next to it.
+    const box = el2("div","ctsrcbox" + (live?"":" dim") + (on?" on":""));
+    const row = el2("div","ctsrc");
     const ic = el2("div","ctsrcic");
     const spec = SRC_SVG[p.id];
     if(spec){ ic.style.color = spec.color; ic.appendChild(svgEl(spec.path,{fill:true})); }
@@ -553,13 +561,14 @@ function renderConnectors(el, host, data, ctx){
         row.appendChild(b);
       }
     }
-    wrap.appendChild(row);
+    box.appendChild(row);
     if(live && on){
       // A connection that just landed clears the «connecting» state with it — otherwise the button would
       // come back as «Abriendo Google…» on the very render that proves it worked.
       el._ctConnecting = null; el._ctConnErr = "";
-      wrap.appendChild(renderSyncBox(el, data, ctx, sync, redraw));
+      box.appendChild(renderSyncBox(el, data, ctx, sync, redraw));
     }
+    wrap.appendChild(box);
   });
   if(el._ctConnErr){
     const e = el2("div","ctwarn", String(el._ctConnErr));
@@ -589,9 +598,11 @@ function renderSyncBox(el, data, ctx, sync, redraw){
   box.appendChild(dir);
 
   if(!sync.twoWay){
+    // The direction line above already SAYS it only brings; repeating it here in a louder register is noise,
+    // so the warning carries only what the line cannot: what unblocks it.
     box.appendChild(el2("div","ctwarn", tt("sync_needs_write", null,
-      "Para que la sincronización vaya en los dos sentidos hace falta el permiso de escritura de contactos "
-      + "en la app de Google Cloud. Mientras no esté, esto solo trae.")));
+      "Para que vaya en los dos sentidos hace falta el permiso de escritura de contactos en la app de "
+      + "Google Cloud.")));
   }
 
   const foot = el2("div","ctsyncfoot");

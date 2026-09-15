@@ -920,7 +920,7 @@
  "widgets.contactos.src_soon": "not available yet",
  "widgets.contactos.sync_added": "{n} new",
  "widgets.contactos.sync_last": "Last time: {when}",
- "widgets.contactos.sync_needs_write": "Syncing in both directions needs the contacts write permission on the Google Cloud app. Until that is in place, this only brings contacts in.",
+ "widgets.contactos.sync_needs_write": "Syncing in both directions needs the contacts write permission on the Google Cloud app.",
  "widgets.contactos.sync_never": "Not synced yet",
  "widgets.contactos.sync_nothing": "no changes",
  "widgets.contactos.sync_now": "Sync contacts",

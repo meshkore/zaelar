@@ -920,7 +920,7 @@
  "widgets.contactos.src_soon": "aún no disponible",
  "widgets.contactos.sync_added": "{n} nuevos",
  "widgets.contactos.sync_last": "Última vez: {when}",
- "widgets.contactos.sync_needs_write": "Para que la sincronización vaya en los dos sentidos hace falta el permiso de escritura de contactos en la app de Google Cloud. Mientras no esté, esto solo trae.",
+ "widgets.contactos.sync_needs_write": "Para que vaya en los dos sentidos hace falta el permiso de escritura de contactos en la app de Google Cloud.",
  "widgets.contactos.sync_never": "Todavía no se ha sincronizado",
  "widgets.contactos.sync_nothing": "sin cambios",
  "widgets.contactos.sync_now": "Sincronizar contactos",

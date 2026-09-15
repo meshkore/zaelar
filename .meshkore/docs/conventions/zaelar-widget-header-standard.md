@@ -98,7 +98,21 @@ Conectores                                              ‹ Contactos
 
 - a back crumb that always says where «back» goes — to the widget, never out of it;
 - one row per source: mark, label, a status dot, and **at most one button**;
-- the connected source's own panel (sync box, default calendar, whatever it owns) directly under its row.
+- the connected source's own panel (sync box, default calendar, whatever it owns) **INSIDE that source's
+  own card**, as its lower half — one border, one radius, a hairline between the two halves and a softer
+  ground under the panel.
+
+⚠️ **The CARD is the source, not the row.** A panel in a box of its own under the account row reads as a
+second, unrelated feature, and a connectors screen's one job is to make obvious WHICH account a control acts
+on. His words, on seeing exactly that: «la cajita de sincronización va dentro del google connector box. no
+suelta». The shape is `.<pfx>srcbox` (the border) → `.<pfx>src` (the account row) + the panel; the panel
+carries no border or radius of its own, and its heading is a small uppercase label, not a second title
+competing with the account's name. `test_the_sync_panel_lives_INSIDE_the_account_it_belongs_to` is the
+ratchet.
+
+⚠️ **Two sentences saying one thing is not emphasis, it is noise.** The direction line already says the sync
+only brings; the warning beside it carries only what the line cannot — what unblocks it. Trimmed the day the
+card was nested.
 
 ## Connecting: `ctx.connect(...)`, never a window of your own (V2-700)
 

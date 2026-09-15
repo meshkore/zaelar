@@ -396,6 +396,24 @@ def test_the_sync_box_appears_only_for_a_linked_source(_page):
     assert _page.locator(".ctsync").count() == 1
 
 
+def test_the_sync_panel_lives_INSIDE_the_account_it_belongs_to(_page):
+    """His report: «la cajita de sincronización va dentro del google connector box. no suelta.»
+
+    A second bordered box under the account row reads as a second, unrelated feature — and the one thing a
+    connectors screen has to make obvious is WHICH account each control acts on. So the card is the source:
+    one box, the account row first, everything that source owns underneath it.
+    """
+    _mount(_page, _data())
+    _page.locator(".ctconnbtn").click()
+    boxes = _page.locator(".ctsrcbox")
+    assert boxes.count() == 3, "one card per source, and the card is the box"
+    assert boxes.first.locator(".ctsync").count() == 1, "the sync panel belongs to Google's own card"
+    assert _page.locator(".ctconnscreen > .ctsync").count() == 0, "never a sibling floating beside it"
+    # …and it is a SECTION of that card, not a box drawn inside a box.
+    assert _page.evaluate(
+        "getComputedStyle(document.querySelector('.ctsync')).borderBottomWidth") == "0px"
+
+
 def test_a_read_only_connection_SAYS_it_only_brings(_page):
     """The honest half. The write scope is not on the OAuth app yet, so a box promising two directions
     would be promising something Google will refuse."""
