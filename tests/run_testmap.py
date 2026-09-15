@@ -1141,6 +1141,10 @@ DOMAINS: list[dict] = [
                                  "superficies) y un contacto nombrado conserva la familia messaging (V2-705 Niveles 1-2)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_writing_to_a_person_is_not_an_escalation.py",
                                       "tests/agent_headless/unit/flash/test_a_named_contact_keeps_the_messaging_family.py"]},
+        {"id": "2.61", "title": "La otra parte puede ANULAR lo que acordó: la cita que escribió ese encargo "
+                                 "se borra sola y el operador decide el siguiente paso · y la conversación "
+                                 "RECUERDA la gestión mientras el compromiso esté por llegar (V2-706)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/test_the_other_side_can_call_off_what_it_agreed.py"]},
         {"id": "2.60", "title": "Una propuesta de reunión ABRE su encargo aunque el modelo olvide etiquetarla, y "
                                  "el playbook reconoce una propuesta llana («could we meet… Google Meet link»)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/test_a_meeting_proposal_opens_its_errand_even_unlabeled.py"]},

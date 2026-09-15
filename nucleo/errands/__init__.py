@@ -184,6 +184,15 @@ def bind(platform: str, chat_id, errand_id: str, contact_id: str = "") -> bool:
     """Give a conversation to an errand. False when another errand already holds it: a thread answered by
     two objectives is how the same person gets two different replies to one message."""
     ok = _memory().errand_bind_thread(platform, chat_id, errand_id, contact_id)
+    if not ok:
+        # A FINISHED incumbent is not an incumbent. Since V2-705 the binding OUTLIVES the close (see
+        # `close`), so the row a new errand collides with is routinely one that is already over — and
+        # refusing over it would leave the newborn with no conversation at all, which is the V2-692
+        # incident with the roles swapped. A LIVE holder still wins here; displacing one is `claim`'s
+        # decision, taken out loud, and never a side effect of binding.
+        held = last_for_thread(platform, chat_id)
+        if held and str(held.get("state") or "") in DONE:
+            ok = _memory().errand_rebind_thread(platform, chat_id, errand_id, contact_id)
     if ok:
         logger.info(f"errands: {errand_id} ahora es dueño de {platform}:{chat_id}")
     else:
@@ -227,6 +236,50 @@ def _tell(text: str) -> None:
         pass
 
 
+def last_for_thread(platform: str, chat_id) -> dict | None:
+    """The errand this conversation belongs to OR most recently belonged to, whatever its state (V2-705).
+
+    `for_thread` is the WAKE door and hides a finished errand on purpose. This is the CONTINUITY door: it
+    answers «has anything been arranged in this conversation?», which is a different question and must not
+    be answered by the same lookup — reading a closed errand as the owner is exactly how a message six
+    weeks later would wake something that is over."""
+    return _parse(_memory().errand_for_thread(platform, chat_id))
+
+
+def commitment_ahead(row: dict | None, now: float | None = None) -> bool:
+    """Does this errand hold a commitment that has not happened yet? The operator's own criterion for how
+    long a conversation should remember a gestión (2026-09-15): «mientras el compromiso esté por llegar».
+
+    The commitment is `done_when.at` — the slot the errand RECORDED when it booked, the same key `book`
+    uses to find its own row. No commitment means nothing is ahead: an errand that ended without arranging
+    anything leaves the conversation the moment it closes."""
+    at = str(((row or {}).get("done_when") or {}).get("at") or "").strip()
+    if not at:
+        return False
+    try:
+        return time.mktime(time.strptime(at, "%Y-%m-%d %H:%M")) > (time.time() if now is None else now)
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def _sweep_bindings(now: float | None = None) -> int:
+    """Retire the bindings of finished errands whose commitment has passed. Returns how many were retired.
+
+    This is the other half of «the binding outlives the close»: without it, every conversation would carry
+    a dead gestión for ever and `bind` would be displacing ghosts. A LIVE errand is never touched here —
+    only `close` ends one."""
+    n = 0
+    for row in (_memory().errands_where(DONE) or []):
+        parsed = _parse(row) or {}
+        if commitment_ahead(parsed, now):
+            continue
+        eid = str(parsed.get("id") or row.get("id") or "")
+        if eid and _memory().errand_threads(eid):
+            _memory().errand_unbind(eid)
+            n += 1
+    return n
+
+
 def for_thread(platform: str, chat_id) -> dict | None:
     """The errand a conversation belongs to, or None. Runs per inbound message, so it is ONE indexed read."""
     row = _parse(_memory().errand_for_thread(platform, chat_id))
@@ -267,8 +320,21 @@ def note_wake(errand_id: str, last_inbound: str = "") -> dict | None:
 
 
 def close(errand_id: str, outcome: str = "closed", why: str = "", now: float | None = None) -> dict | None:
-    """End an errand and RELEASE its conversations. Keeping the binding would let a message six weeks later,
-    about something else entirely, wake something that is over."""
+    """End an errand. Its conversations stop WAKING it and keep REMEMBERING it (V2-705).
+
+    ⚠️ This used to delete the binding, so that «a message six weeks later, about something else entirely»
+    could not wake something that is over. That danger is real and is still closed — by `for_thread`, which
+    hides a finished errand from the wake path, not by throwing the link away. Deleting it threw away the
+    FACT as well, and the operator paid for that on 2026-09-15: the meeting with Cryptonite was booked and
+    confirmed, the errand closed, and forty seconds later he wrote «Now cancel the meet and appointment»
+    from the other side. That message reached a conversation that no longer knew a gestión had ever
+    existed, so it woke nothing, connected to nothing, and died in an inbox whose notify policy is `never`.
+    In his words: «no es capaz de conectar una tarea con otra».
+
+    So the binding now outlives the close, and `_sweep_bindings` retires it when the COMMITMENT has passed —
+    his own criterion over a fixed window: a conversation remembers its gestión for as long as the thing it
+    arranged is still ahead, and goes back to being ordinary mail afterwards.
+    """
     row = get(errand_id)
     if not row:
         return None
@@ -277,9 +343,42 @@ def close(errand_id: str, outcome: str = "closed", why: str = "", now: float | N
     row["closed_at"] = int(now)
     row["outcome"] = (why or "")[:200]
     _memory().errand_put(row)
-    _memory().errand_unbind(errand_id)
+    # An errand that arranged NOTHING leaves its conversation on the way out, exactly as it always did —
+    # there is no commitment for the thread to remember, so keeping the row would only make a ghost that
+    # `_sweep_bindings` has to clean up later. The binding is kept ONLY where it means something.
+    if not commitment_ahead(row, now):
+        _memory().errand_unbind(errand_id)
     _emit("✅ encargo cerrado" if row["state"] == "closed" else "🕰 encargo terminado", row)
     return row
+
+
+def reopen(errand_id: str, why: str = "", now: float | None = None) -> dict | None:
+    """Bring a finished errand back because its conversation moved again (V2-705). None if there is none.
+
+    A gestión is not over while the thing it arranged is still ahead. The operator wrote «Now cancel the
+    meet and appointment» forty seconds after his meeting was booked and confirmed, and the errand that
+    had just arranged it was closed — so the one thing in the system that knew what «the meeting» meant
+    could not hear him. Reopening is what lets the existing wake machinery answer, with the same mandate
+    and the same conversation, instead of a new errand starting from nothing.
+
+    It also pushes the clock out: a row brought back with an expiry in the past is swept on the next beat,
+    which would look exactly like being ignored again.
+    """
+    row = get(errand_id)
+    if not row or str(row.get("state") or "") not in DONE:
+        return row
+    now = time.time() if now is None else now
+    out = update(errand_id, state="negotiating", outcome=(why or "reabierto: la conversación sigue")[:200],
+                 deadline=int(max(int(row.get("deadline") or 0), now + DEFAULT_WINDOW_S)),
+                 expires_at=int(max(int(row.get("expires_at") or 0), now + 24 * 3600)))
+    if out is not None:
+        try:
+            _memory().errand_put({**out, "closed_at": None})
+        except Exception:  # noqa: BLE001
+            pass
+        logger.info(f"errands: {errand_id} REABIERTO — su conversación sigue viva y la cita no ha pasado")
+        _emit("↩️ encargo reabierto", out)
+    return out
 
 
 def expiry_why(row: dict) -> str:
@@ -309,6 +408,12 @@ def sweep(now: float | None = None) -> list[dict]:
             closed = close(r["id"], "abandoned", expiry_why(parsed), now=now)
             if closed:
                 out.append(closed)
+    # LAST: a binding kept past its commitment is a ghost, and the errands closed just above are exactly
+    # the ones whose conversations must be released now (V2-705).
+    try:
+        _sweep_bindings(now)
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"errands: barrido de conversaciones: {e!r}")
     return out
 
 

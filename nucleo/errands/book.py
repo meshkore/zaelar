@@ -172,6 +172,54 @@ def book(errand: dict, decision: dict, party: str = "") -> dict:
     return {"ok": True, "link": link, "date": date, "time": start, "video": medium in _VIDEO}
 
 
+def unbook(errand: dict, party: str = "") -> dict:
+    """Undo the meeting THIS errand wrote, because the other side called it off. Returns
+    `{"ok", "date", "time", "why"}`. Never raises.
+
+    The operator's direction, 2026-09-15, verbatim: «no depende de mí que personas de un grupo, de una
+    llamada o de una cita quieran cancelar las cosas, con lo cual no hay que autorizar nada… depende
+    únicamente de nuestro interlocutor, que tiene potestad suficiente como para unilateralmente cancelar
+    eso. Entonces lo cancelas y lo borras de la agenda.» So this asks him nothing. What it DOES do is tell
+    him afterwards, because his next instruction — reschedule it, keep it as a pending note, drop it — is
+    the part that is his.
+
+    Two bounds make that safe, and neither is a sentence anyone has to remember:
+
+      · **It can only unwrite the row it wrote.** `_mine` finds the meeting by the slot this errand
+        RECORDED in its own `done_when.at` plus the title it uses — the same key `book` uses to decide
+        whether to move its own row. A dentist appointment that merely shares the hour is not `mine`, and
+        the five «Dentista» at 17:00 that broke V2-692d's slot check are the reason that key is the record
+        and not the clock.
+      · **It goes out through the agenda's own front door**, `cancel_meeting`, with the selector FILLED —
+        title and date. That is the V2-705 contract from the inside: the guard that refuses an empty
+        selector is the same guard that would refuse this call if the title ever arrived blank, so the
+        incident that started V2-705 cannot be re-entered through the door we built afterwards.
+
+    `schedule` is the grant, and deliberately not a new verb: the same permission already MOVES the row to
+    another day without asking (`_move`), which is the same destruction with a write after it. Splitting
+    «may move» from «may unwrite» would be a distinction the operator never made.
+    """
+    try:
+        if not may_schedule(errand):
+            return {"ok": False, "why": "el mandato no incluye agendar"}
+        title = _title(party)
+        mine = _mine(errand, title)
+        if mine is None:
+            return {"ok": False, "why": "este encargo no tiene ninguna cita escrita"}
+        date, start = str(mine.get("date") or ""), str(mine.get("startTime") or "")
+        from widgets.agenda import data as agenda
+        res = agenda.apply_action("cancel_meeting", {"title": mine.get("title"), "date": date})
+        if isinstance(res, dict) and res.get("ok") is False:
+            why = str(res.get("error") or res.get("message") or "la agenda no la quitó")
+            logger.warning(f"errands.book: {errand.get('id')} no pudo quitar su cita ({why})")
+            return {"ok": False, "why": why, "date": date, "time": start}
+        logger.info(f"errands.book: {errand.get('id')} → cita del {date} a las {start} CANCELADA por la otra parte")
+        return {"ok": True, "date": date, "time": start, "title": str(mine.get("title") or "")}
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"errands.book: no pude quitar la cita de {errand.get('id')}: {e!r}")
+        return {"ok": False, "why": "la agenda no aceptó quitarla"}
+
+
 def done_spec(errand: dict, date: str, start: str, *, owed: bool) -> dict:
     """What closes this errand, now that it has actually WRITTEN a meeting (V2-692e).
 

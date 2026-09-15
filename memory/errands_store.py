@@ -84,6 +84,20 @@ def errand_bind_thread(platform: str, chat_id, errand_id: str, contact_id: str =
         return False
 
 
+def errand_rebind_thread(platform: str, chat_id, errand_id: str, contact_id: str = "") -> bool:
+    """Hand this conversation to another errand, REPLACING whoever holds it. The caller decides whether the
+    incumbent may be displaced (`nucleo.errands.bind` only calls this over an errand that is already DONE);
+    the primary key still keeps «one errand per conversation» structural."""
+    try:
+        _db_mod.get_db().execute(
+            "INSERT OR REPLACE INTO errand_threads (platform, chat_id, errand_id, contact_id, bound_at) "
+            "VALUES (?,?,?,?,?)",
+            (str(platform), str(chat_id), str(errand_id), str(contact_id or ""), int(time.time())))
+        return True
+    except Exception:
+        return False
+
+
 def errand_for_thread(platform: str, chat_id) -> dict | None:
     """The errand this conversation belongs to, or None. ONE indexed lookup — it runs per inbound message."""
     try:

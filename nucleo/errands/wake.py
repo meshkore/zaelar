@@ -219,6 +219,16 @@ async def wake(errand: dict, *, reason: str = "inbound", inbound_id: str = "",
         booked = _book.book(errand, decision, party or platform)
         if not booked.get("ok") and booked.get("why"):
             logger.info(f"errands: {eid} acordó y no pude apuntarlo ({booked['why']})")
+    # THE OTHER SIDE CALLED IT OFF. The operator, 2026-09-15: «no depende de mí que personas de una cita
+    # quieran cancelar las cosas, con lo cual no hay que autorizar nada… lo cancelas y lo borras de la
+    # agenda». So it is UNWRITTEN here, without asking him — and he is told below, because the next step
+    # (move it, keep it as a pending note, drop it) is the half that is his. `unbook` can only remove the
+    # row THIS errand wrote, so a stranger's sentence still cannot reach anybody else's appointment.
+    cancelled = {}
+    if state == "cancelled":
+        cancelled = _book.unbook(errand, party or platform)
+        if not cancelled.get("ok") and cancelled.get("why"):
+            logger.info(f"errands: {eid} se canceló y no pude quitar la cita ({cancelled['why']})")
 
     # The link that travels is EITHER the one this turn's booking just minted, or the one this errand has
     # owed since a previous turn and Google has now created (V2-692e — the operator connected his calendar
@@ -256,10 +266,22 @@ async def wake(errand: dict, *, reason: str = "inbound", inbound_id: str = "",
             f"[SISTEMA] He cerrado «{str(errand.get('objective') or '')[:70]}» y he apuntado la cita, pero "
             f"NO he podido crear el enlace de videollamada: su Google Calendar no está conectado. Díselo al "
             f"operador en una frase y que lo conecte si quiere que el enlace salga solo.")
+    if state == "cancelled":
+        when = (f" del {cancelled['date']} a las {cancelled['time']}"
+                if cancelled.get("date") else "")
+        gone = ("y la he quitado de su agenda" if cancelled.get("ok")
+                else f"y NO he podido quitarla de su agenda ({cancelled.get('why') or 'motivo desconocido'})")
+        because = str(decision.get("reason") or "").strip()
+        _tell_operator(
+            f"[SISTEMA] {party or 'La otra persona'} ha cancelado la reunión{when} {gone}."
+            + (f" Dice: {because[:120]}." if because else "")
+            + " Cuéntaselo al operador en una frase y PREGÚNTALE qué quiere hacer: volver a proponerla más "
+              "adelante, dejarla apuntada como pendiente, o nada.")
+        close(eid, "closed", (because or "la otra parte canceló la reunión")[:200])
     if state in ("blocked", "abandoned"):
         close(eid, state, decision.get("reason") or "")
     return {"ok": True, "say": say, "sent": sent, "state": state, "shadow": shadow(),
-            "booked": bool(booked.get("ok"))}
+            "booked": bool(booked.get("ok")), "cancelled": bool(cancelled.get("ok"))}
 
 
 #: Every conference URL shape this mouth could plausibly emit. Broad on purpose: a link we do not

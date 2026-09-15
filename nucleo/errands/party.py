@@ -25,11 +25,14 @@ import re
 
 #: Everything the model may propose. The engine executes what the mandate allows and ignores the rest, so
 #: an unknown key is not a vulnerability — it is simply not read.
-SHAPE = ('{"say": "…", "state": "negotiating|agreed|blocked|abandoned", '
+SHAPE = ('{"say": "…", "state": "negotiating|agreed|cancelled|blocked|abandoned", '
          '"agreed": {"start": "YYYY-MM-DD HH:MM", "end": "YYYY-MM-DD HH:MM", "medium": "meet|phone|in_person"}, '
          '"ask_operator": "…", "reason": "…"}')
 
-_STATES = ("gathering", "contacting", "negotiating", "agreed", "blocked", "abandoned")
+#: `cancelled` is the OTHER side calling off something already agreed. It is the model's word about the
+#: WORLD, not an errand state — the engine maps it to unwriting the meeting and closing the errand, so the
+#: board's vocabulary (`DONE`, `LIVE`, the phase lines) is untouched by it.
+_STATES = ("gathering", "contacting", "negotiating", "agreed", "cancelled", "blocked", "abandoned")
 
 
 def build_system(assistant_name: str, operator_name: str, lang_native: str,
@@ -84,6 +87,21 @@ def build_system(assistant_name: str, operator_name: str, lang_native: str,
         "ESTILO: escribe como una persona educada y breve — un par de frases, sin relleno, sin repetir lo ya "
         "dicho y sin sonar a formulario.\n"
         "SI TE PIDE HABLAR CON ÉL: no insistas. Dile que se lo trasladas, y marca el encargo como `blocked`.\n"
+        # ⚠️ This declares a CAPABILITY and a FACT about authority; it deliberately does NOT script the
+        # behaviour. The operator's direction on 2026-09-15 was both halves at once: «no depende de mí que
+        # personas de una cita quieran cancelar las cosas… lo cancelas y lo borras de la agenda» AND
+        # «necesitamos un sistema que no esté educado, es decir, que sea inteligente y que sepa qué hacer…
+        # no una banda de reglas predefinidas». An undeclared capability is one the model narrates instead
+        # of using (V2-540); a scripted manner is a rail on its judgement. So: what it MAY do, said once —
+        # never «no discutas», «acúsale recibo en una frase», or any other sentence about how to behave.
+        # Measured the same night: he wrote «Now cancel the meet and appointment» from the other side and
+        # the reply was SILENCE — the errand had closed, its conversation had been unbound, and the message
+        # landed in an inbox whose notify policy is `never`. The party who agreed to a meeting is the party
+        # who may call it off; what needs the operator is the NEXT step, not this one.
+        "PUEDES DARLA POR CANCELADA: si esa persona se cae de una cita ya acordada, marca `cancelled` y la "
+        "cita se borra sola de la agenda de tu operador. Quien no puede venir decide por sí mismo — no hace "
+        "falta el permiso de tu operador, y a él se le avisa después. Qué le escribes, y cómo, lo decides "
+        "tú.\n"
         "RESPUESTA (regla dura): contesta SOLO con UN objeto JSON, sin nada antes ni después, con esta "
         f"forma: {SHAPE}\n"
         "  · `say` es EXACTAMENTE lo que se le envía a esa persona (vacío = no le escribas nada ahora).\n"

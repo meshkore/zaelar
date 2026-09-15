@@ -198,14 +198,23 @@ def _born_from_echo(now: float) -> list[dict]:
 
 
 def _note_inbound(now: float) -> None:
-    from . import for_thread
+    from . import commitment_ahead, for_thread, last_for_thread, reopen
     for ev in _drain("msg"):
         platform, chat_id = (ev or {}).get("platform"), (ev or {}).get("chatId")
         if not platform or chat_id is None:
             continue
         row = for_thread(platform, chat_id)
         if not row:
-            continue
+            # THE GESTIÓN IS OVER, THE COMMITMENT IS NOT (V2-705). Measured 2026-09-15: the meeting with
+            # Cryptonite was booked, confirmed and the errand closed — and forty seconds later «Now cancel
+            # the meet and appointment» arrived to a conversation that no longer knew any of it had
+            # happened. A message about something still ahead brings its errand back, with its mandate and
+            # its thread, so the machinery that arranged it is the machinery that answers about it.
+            last = last_for_thread(platform, chat_id)
+            if last and commitment_ahead(last, now):
+                row = reopen(str(last.get("id") or ""), "la otra parte ha vuelto a escribir", now=now)
+            if not row:
+                continue
         mid = str(ev.get("messageId") or "")
         if mid and mid == str(row.get("last_inbound") or ""):
             continue                          # already handled: a re-publication is not a second answer
@@ -230,6 +239,32 @@ def _newest_inbound(platform, chat_id, since: float) -> tuple[str, float]:
     return "", 0.0
 
 
+_DONE_STATES = ("closed", "abandoned", "blocked")
+
+
+def _watched(now: float) -> list[dict]:
+    """The errands the DURABLE half reconciles: every live one, plus the finished ones whose commitment has
+    not happened yet (V2-705).
+
+    The bus is an optimisation and this is the record — so the continuity `_note_inbound` gained has to
+    exist here too, or it is lost to exactly what `_reconcile` was written for: a restart, a ⏻ that was off
+    for longer than one process, a dropped event. A finished errand is only ever looked at while the thing
+    it arranged is still ahead; `_sweep_bindings` retires the rest.
+    """
+    from . import commitment_ahead, live
+    from .. import errands as _e
+    rows = list(live(now))
+    seen = {str(r.get("id") or "") for r in rows}
+    try:
+        for raw in (_e._memory().errands_where(_DONE_STATES) or []):
+            row = _e._parse(raw)
+            if row and str(row.get("id") or "") not in seen and commitment_ahead(row, now):
+                rows.append(row)
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"errands: no pude mirar los cerrados con cita por llegar: {e!r}")
+    return rows
+
+
 def _reconcile(now: float) -> None:
     """The DURABLE half of the wake queue: what the conversation already holds and the errand never answered.
 
@@ -248,8 +283,8 @@ def _reconcile(now: float) -> None:
     if now - _last_reconcile < RECONCILE_S:
         return
     _last_reconcile = now
-    from . import live, threads
-    for row in live(now):
+    from . import commitment_ahead, live, reopen, threads
+    for row in _watched(now):
         eid = str(row.get("id") or "")
         if not eid or eid in _pending_wakes:
             continue
@@ -260,6 +295,8 @@ def _reconcile(now: float) -> None:
             if mid and mid != seen:
                 logger.info(f"errands: {eid} tiene una respuesta sin atender en "
                             f"{t.get('platform')} — la recojo de la conversación")
+                if str(row.get("state") or "") in _DONE_STATES:
+                    reopen(eid, "hay una respuesta sin atender y la cita no ha pasado", now=now)
                 _pending_wakes[eid] = {"at": now, "inbound": mid}
                 break
 
