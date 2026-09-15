@@ -114,10 +114,40 @@ def _gestion_objective(ev: dict) -> str:
     return ""
 
 
+def _own_errand(ref: str) -> str:
+    """The id of the errand that SENT this message, or "" when a human order did.
+
+    `wake._send` stamps the queue ref as «<errand id>:<epoch>», so the sender is readable from the ref
+    itself — and it is read as STATE, by asking the store whether that id is a real errand, never by
+    trusting the shape of a string.
+
+    Measured 2026-09-15 20:46, on the run that finally closed the Thursday meeting end to end: the errand
+    booked the meeting, minted the Meet link and sent «Great! So we're set for Thursday… Here's the Google
+    Meet link» — and the autonomy net read its own confirmation as a fresh meeting proposal, opened a SECOND
+    errand, and `claim()` took the conversation off the first one. It closed harmlessly that time only
+    because the meeting it was about already existed. Sent one beat earlier — before the booking landed —
+    the newborn would have taken the thread from a LIVE errand and answered the same person against a
+    different objective, which is the exact failure `claim` was written for (V2-692).
+
+    An errand's own voice is not a new order from the operator."""
+    head = str(ref or "").split(":", 1)[0].strip()
+    if not head:
+        return ""
+    try:
+        from . import get
+        return head if get(head) else ""
+    except Exception:  # noqa: BLE001
+        return ""
+
+
 def _note_births(now: float) -> None:
     for ev in _drain("send"):
         ref = str((ev or {}).get("ref") or "")
         if not ref:
+            continue
+        owner = _own_errand(ref)
+        if owner:
+            logger.debug(f"errands: {ref} es la voz de {owner} — no abre encargo")
             continue
         objective = _gestion_objective(ev)
         if objective:
