@@ -493,7 +493,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
    slot — one canvas ever, never re-created (the 4.19 lesson). */
 body.hb-orb-bar .orbwrap .orbveil,body.hb-orb-bar .orbwrap .orbctl,
 body.hb-orb-bar .orbwrap .orbcore,body.hb-orb-bar .orbwrap .orbecg{display:none}
-.orbwrap{position:fixed;left:50%;bottom:calc(12px + var(--wrail-h,64px));transform:translateX(-50%);z-index:100000;display:flex;flex-direction:column;align-items:center}
+.orbwrap{position:fixed;left:50%;bottom:calc(12px + var(--wrail-h,58px));transform:translateX(-50%);z-index:100000;display:flex;flex-direction:column;align-items:center}
 /* OVAL VEIL behind the WHOLE eye cluster (icons + orb + ECG) — not just behind the orb canvas. Over a busy/bright
    background (a video playing in a widget, e.g.) the frameless icons and the thin ECG line were themselves
    nearly invisible, no matter how opaque the orb's own canvas fill was (operator 2026-07-22, 3rd pass: "no se ven
@@ -1288,7 +1288,7 @@ body.dbg-open .orbwrap{left:calc(50% - var(--dbg-w) / 2)}
    below the full-screen overlays (memmap/cfgfull/vault-modal, 9500-9600) so it never pokes through
    one of those, above the docked panels (chatwall/cronpanel/statuspanel, 9001). ─────────────────── */
 /* V2-623: the bottom system bar owns the bottom edge — the launcher floats just above it. */
-.fw-wrap{position:fixed;right:20px;bottom:calc(16px + var(--wrail-h,64px));z-index:9200}
+.fw-wrap{position:fixed;right:20px;bottom:calc(16px + var(--wrail-h,58px));z-index:9200}
 /* V2-619: the launcher wears the skin — the ACCENT, solid, like every interactive piece (the old
    accent→teal gradient was the last pre-V2-617 look on screen). */
 .fw-launcher{width:58px;height:58px;border-radius:50%;border:none;cursor:pointer;color:var(--canvas);

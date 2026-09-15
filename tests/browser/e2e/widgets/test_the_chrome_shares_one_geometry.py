@@ -107,6 +107,24 @@ _CHROME = """() => {
     chipMarkHeight: bar ? bar.height : null,
     chipMarkBg: bar ? bar.backgroundColor : null,
     chipBg: on ? cs(on).backgroundColor : null,
+    railH: h(document.querySelector('#wrail')),
+    railTokenH: root.getPropertyValue('--wrail-h').trim(),
+    railToolH: (() => { const b = document.querySelector('#wrail .wr-tools button'); return b ? h(b) : null; })(),
+    chipH: on ? h(on) : null,
+    chipWeightOn: on ? cs(on).fontWeight : null,
+    chipWeightRest: (() => { const c = chips.find(x => !x.classList.contains('on'));
+                             return c ? cs(c).fontWeight : null; })(),
+    // How close the PAINTED label gets to the chip's own edge. It is measured with the label FORCED to
+    // overflow, because that is the only state in which the answer means anything: a short name is centred
+    // and leaves slack on both sides whether or not the box has padding at all — a first version of this
+    // read a comfortable gap off a centred "Agenda" and stayed green with the padding deleted. Overflowing,
+    // the label fills the content box exactly, so the gap IS the padding. Restored immediately; this page is
+    // the harness's own throwaway render.
+    chipInkGap: (() => { if (!on) return null; const n = on.querySelector('.wr-chipn'); if (!n) return null;
+      const keep = n.textContent; n.textContent = 'M'.repeat(60);
+      const a = n.getBoundingClientRect(), b = on.getBoundingClientRect();
+      const gap = Math.round(Math.min(a.left - b.left, b.right - a.right));
+      n.textContent = keep; return gap; })(),
     chipRestBg: chips.filter(c => !c.classList.contains('on')).map(c => cs(c).backgroundColor)[0] || null,
     trBorder: cs(tr).borderTopColor, trShadow: cs(tr).boxShadow,
     trayHeights: ics.map(h).concat(reset ? [h(reset)] : []),
@@ -263,6 +281,30 @@ def test_the_active_chip_marker_lands_INSIDE_the_chip_that_clips_it(measured):
         bottom = m["chipMarkBottom"]
         assert bottom and not bottom.lstrip().startswith("-"), \
             f"a clipping chip ({m['chipOverflow']}) renders only what is inside it: bottom={bottom}"
+
+
+def test_a_dock_chip_is_a_LABEL_and_not_an_icon_square(measured):
+    """V2-692, the operator reading his own screenshot: «no sé si deberíamos reducir un 10% la altura de esta
+    barra, la veo como muy grande… fíjate que no hay padding lateral, el botón es muy alto, cosa que no tiene
+    sentido, parece un desperdicio de espacio».
+
+    All three of his complaints came from ONE inheritance: the chips are `#wrail button`, so they took the
+    44px square and the `padding:0` that an ICON wants, and then wore a word inside it. Measured before the
+    change: 31px of dead air inside a 44px box, and 4px of slack around a 56px run of letters. The rules that
+    replace it are checked on what is PAINTED, not on the declarations — a later rule can zero a padding
+    without removing it.
+    """
+    m = measured["chrome"]
+    assert m["railTokenH"] and m["railH"] <= 58, \
+        f"the band is chrome: every px it takes is a px the desk loses (h={m['railH']}, token={m['railTokenH']})"
+    assert m["chipH"] and m["railToolH"] and m["chipH"] < m["railToolH"], \
+        f"a chip holds a word, an icon button holds a glyph — they cannot be the same box: {m['chipH']} vs {m['railToolH']}"
+    assert m["chipInkGap"] is not None and m["chipInkGap"] >= 8, \
+        f"the label runs into the chip's own edge: {m['chipInkGap']}px of side room"
+    # The active state is said a third time in WEIGHT, which is the half a reader who cannot separate the
+    # accent from the ground still receives.
+    assert int(m["chipWeightOn"]) > int(m["chipWeightRest"]), \
+        f"active is carried by colour alone: {m['chipWeightOn']} vs {m['chipWeightRest']}"
 
 
 def test_the_system_tray_is_ONE_group_whose_members_share_a_geometry(measured):

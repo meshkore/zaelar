@@ -210,12 +210,15 @@ def run(url):
         check("the rail paints ABOVE the chat (a covered widget is never unknowable)",
               rail and rail["z"] > chat["z"], f"rail z={rail and rail['z']} chat z={chat['z']}")
 
-        # ── V2-666: chips carry the widget's NAME (up to 6 chars), not just two initials ───────────────────
+        # ── V2-666: chips carry the widget's NAME, not just two initials. V2-692 carries it WHOLE and in the
+        #    window title's own case — the six-character slice, and the upper-casing left over from the days
+        #    of two initials, both went; what does not fit is ellipsed by the box, which is the only cut that
+        #    knows how wide the letters really are.
         labels = pg.evaluate("""() => [...document.querySelectorAll('#wrail .wr-chip')]
             .map(c => ({wid: c.dataset.wid, text: c.textContent}))""")
         by_wid = {c["wid"]: c["text"] for c in labels}
-        check("chips wear up to six letters of the widget's own NAME, not two initials",
-              by_wid.get(A) == "ALPHA" and by_wid.get("beta") == "BETA" and by_wid.get("gamma") == "GAMMA",
+        check("chips wear the widget's own NAME whole, in the header's case, not two initials",
+              by_wid.get(A) == "Alpha" and by_wid.get("beta") == "Beta" and by_wid.get("gamma") == "Gamma",
               json.dumps(by_wid))
 
         # ── V2-666: the LEFT cluster — chevron at the bar's edge, process count hidden with no tasks ────────

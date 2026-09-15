@@ -60,22 +60,24 @@ function injectStyles(){
      small: this is a clean dark interface, not glass. */
   #wrail{position:fixed;left:0;right:0;bottom:0;z-index:9002;display:none;box-sizing:border-box;
     flex-direction:row;align-items:center;gap:var(--sp-2,8px);padding:0 var(--sp-3,12px);
-    height:var(--wrail-h,64px);overflow:hidden;
+    height:var(--wrail-h,58px);overflow:hidden;
     background:color-mix(in srgb,var(--hb-sidebar,#0E1014) 94%,transparent);
     border-top:1px solid var(--hb-line,rgba(255,255,255,.10));
     box-shadow:0 -1px 0 rgba(255,255,255,.02), 0 -6px 20px rgba(0,0,0,.28);
     backdrop-filter:blur(8px)}
   #wrail.on{display:flex}
-  /* V2-617 — orb-style silhouettes: 44px hit targets, 21px strokes, no box until you hover (the orb lid's
-     own language). The operator's report on the old 30px/11px buttons: «no logro entender ninguno». */
-  #wrail button{width:44px;height:44px;flex:none;border-radius:var(--hb-r-m,10px);border:1px solid transparent;
+  /* V2-617 — orb-style silhouettes: big hit targets, thick strokes, no box until you hover (the orb lid's
+     own language). The operator's report on the old 30px/11px buttons: «no logro entender ninguno».
+     V2-692 — 44/21 → 40/20 so the controls still breathe inside the shorter band (9px of air above and
+     below). 40 is the floor a pointer target may sit at, so this is the last px the band can give back. */
+  #wrail button{width:40px;height:40px;flex:none;border-radius:var(--hb-r-m,10px);border:1px solid transparent;
     cursor:pointer;background:transparent;color:var(--hb-muted,#A7AFBC);
     display:flex;align-items:center;justify-content:center;
     font:600 var(--fs-micro,0.75rem)/1 var(--sans,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif);
     overflow:hidden;padding:0;box-sizing:border-box;
     transition:background var(--hb-t-fast,120ms) ease,color var(--hb-t-fast,120ms) ease,
                border-color var(--hb-t-fast,120ms) ease}
-  #wrail button svg{width:21px;height:21px;flex:none}
+  #wrail button svg{width:20px;height:20px;flex:none}
   #wrail button:hover{background:var(--hb-hover,#242A34);color:var(--hb-ink,#F2F4F7)}
   #wrail button:active{background:var(--hb-bubble,#1D222A)}
   #wrail button:focus-visible{outline:none;box-shadow:var(--hb-focus-ring,0 0 0 2px var(--hb-accent,#9B7CFF))}
@@ -87,11 +89,31 @@ function injectStyles(){
      too many open widgets to letter them out in full. */
   /* a chip is a card ON the dock: the widget rung, so it stands out from the band the way a widget stands out
      from the desk — the same ladder, one level down. */
-  #wrail .wr-chip{border:1px solid var(--hb-line,rgba(255,255,255,.10));background:var(--hb-bg,#12151A);
-    color:var(--hb-ink,#F2F4F7);letter-spacing:.04em;width:64px;flex:none}
-  #wrail .wr-chip.wr-lv3{width:42px}
-  #wrail .wr-chip.wr-lv1{width:30px;letter-spacing:0}
-  #wrail .wr-chip:hover{background:var(--hb-hover,#242A34);border-color:var(--hb-line-strong,rgba(255,255,255,.18))}
+  /* V2-692 — a chip is a LABEL, not an icon (operator, on his own screenshot: «no hay padding lateral, el
+     botón es muy alto, cosa que no tiene sentido, parece un desperdicio de espacio»). It inherited the 44px
+     square of the icon buttons beside it and then wore 12px text inside it: 31px of dead air, and the word
+     ran edge to edge because the rule that zeroes padding for an icon also zeroed it for a word. So the chip
+     leaves the icon geometry and takes the product's own small-control height instead — the same
+     --hb-ctl-h-sm the tray icons and the widgets' own toolbars stand at, which is what makes it read as part
+     of one system rather than as a dock invention. Radius drops to --hb-r-s for the shorter box. */
+  #wrail .wr-chip{border:1px solid var(--hb-line,rgba(255,255,255,.14));background:var(--hb-bg,#1F242B);
+    color:var(--hb-ink,#F2F4F7);flex:none;
+    width:96px;height:var(--hb-ctl-h-sm,32px);padding:0 10px;border-radius:var(--hb-r-s,8px)}
+  /* The name is TRUNCATED BY THE PIXEL, not by a character count: the label carries the widget's whole name
+     and the box ellipses whatever does not fit. A hard slice produced "CONTAC", a word cut mid-syllable with
+     no mark, which reads as a rendering bug rather than as an abbreviation — and it also meant a chip could
+     hold six narrow letters or six wide ones and only one of those fit. The full name stays in textContent,
+     so anything reading the dock aloud still gets the real word. */
+  #wrail .wr-chip .wr-chipn{display:block;min-width:0;max-width:100%;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  /* Only the FIRST letter is forced up, never the whole string: a widget whose name never reached a manifest
+     falls back to its bare id, which is lower-case, and a chip reading "contactos" beside a header reading
+     "Contactos" is the kind of seam the eye finds immediately. capitalize would also re-case the rest. */
+  #wrail .wr-chip .wr-chipn::first-letter{text-transform:uppercase}
+  #wrail .wr-chip.wr-lv3{width:52px;padding:0 var(--sp-2,8px)}
+  /* one letter: no padding to give, and no ellipsis either — an initial is an abbreviation on purpose. */
+  #wrail .wr-chip.wr-lv1{width:32px;padding:0;letter-spacing:.04em}
+  #wrail .wr-chip:hover{background:var(--hb-hover,#3C434F);border-color:var(--hb-line-strong,rgba(255,255,255,.24))}
   /* MINIMIZED is said twice — dimmer AND dashed — so the state survives a colourblind reader (the operator's
      rule about never leaning on colour alone), and it is the one chip state that is not merely a hover. */
   #wrail .wr-chip.min{opacity:.45;border-style:dashed}
@@ -101,14 +123,24 @@ function injectStyles(){
      dock uses, and the half that survives a colourblind reader) plus a light accent wash. It is a DEGREE of
      the same chip, never a different chip — the card it points at is marked the same way, with .hb-focus.
      A minimized card is never the active one, so .min wins by coming after. */
-  #wrail .wr-chip.on{background:color-mix(in srgb,var(--hb-accent,#9B7CFF) 15%,var(--hb-bg,#12151A));
-    border-color:color-mix(in srgb,var(--hb-accent,#9B7CFF) 45%,transparent);color:var(--hb-ink,#F2F4F7);
-    position:relative}
+  /* V2-692 — what the underline MEANS, since the operator asked and could not tell from looking: it is not
+     "running" and not "open" (every chip on the bar is open — that is what being a chip is). It marks the one
+     card that is IN FRONT: the one a click lands on, the one a drag moves, the one the window border is
+     already marking with .hb-focus. His own objection is the reason it stays a whisper and not a badge —
+     voice reaches any widget by name whether or not it is in front, so this is a fact about the pointer, not
+     about which widget is listening. The hover tooltip now says it in words. Said three times so no single
+     channel carries it: accent wash, accent border, and the weight of the label itself — the last one is the
+     half that survives a reader who cannot separate the colours. */
+  #wrail .wr-chip.on{background:color-mix(in srgb,var(--hb-accent,#AE90FF) 15%,var(--hb-bg,#1F242B));
+    border-color:color-mix(in srgb,var(--hb-accent,#AE90FF) 45%,transparent);color:var(--hb-ink,#F2F4F7);
+    font-weight:700;position:relative}
   /* INSIDE the chip, not hanging below it: every button in this bar is overflow:hidden (chip labels are
      clipped rather than allowed to widen the bar), which clips at the PADDING box — so a marker at
-     bottom:-1px paints one of its two pixels and silently renders at half the weight it declares. */
-  #wrail .wr-chip.on::after{content:"";position:absolute;left:6px;right:6px;bottom:0;height:2px;
-    border-radius:2px 2px 0 0;background:var(--hb-accent,#9B7CFF)}
+     bottom:-1px paints one of its two pixels and silently renders at half the weight it declares.
+     Inset by the radius so it starts and ends where the chip's straight edge does, instead of running into
+     the corner curve — at the old 44px box nobody could see the difference; at 32px it is the whole look. */
+  #wrail .wr-chip.on::after{content:"";position:absolute;left:8px;right:8px;bottom:0;height:2px;
+    border-radius:2px 2px 0 0;background:var(--hb-accent,#AE90FF)}
   #wrail .wr-chip.on.min::after{display:none}
   /* V2-666 — the LEFT cluster (operator, 2026-09-11): the chevron that opens/closes the chat moves to the
      left EDGE of the bar (it used to sit at the far right, mirroring the tools — he wants it where a "deploy
@@ -119,7 +151,7 @@ function injectStyles(){
      Clicking the chevron opens the chat (same gesture as the 🤖/💬 icons on the eye's lid); clicking the
      count opens it straight onto the Procesos tab. Hidden entirely at zero — an idle "0" is dead chrome. */
   #wrail .wr-left{flex:none;display:flex;align-items:center;gap:2px}
-  #wrail .wr-proc{display:none;flex:none;align-items:center;gap:6px;height:44px;padding:0 10px 0 6px;
+  #wrail .wr-proc{display:none;flex:none;align-items:center;gap:6px;height:40px;padding:0 10px 0 6px;
     border-radius:var(--hb-r-m,10px);border:none;cursor:pointer;background:transparent;color:var(--hb-ink,#F2F4F7);
     transition:background var(--hb-t-fast,120ms) ease}
   #wrail .wr-proc.on{display:flex}
@@ -144,12 +176,12 @@ function injectStyles(){
   #wrail .wr-orb{flex:none;display:flex;align-items:center;gap:2px}
   #wrail .wr-orbl,#wrail .wr-orbr{display:flex;align-items:center;gap:2px}
   #wrail .wr-swap.on{color:var(--hb-accent,#9B7CFF);background:color-mix(in srgb,var(--hb-accent,#9B7CFF) 16%,transparent)}
-  #wrail .orbic{width:40px;height:40px}
-  #wrail .wr-orbslot{display:none;width:54px;height:54px;position:relative;border-radius:50%;flex:none}
+  #wrail .orbic{width:36px;height:36px}
+  #wrail .wr-orbslot{display:none;width:48px;height:48px;position:relative;border-radius:50%;flex:none}
   body.hb-orb-bar #wrail .wr-orbslot{display:flex}
-  #wrail .wr-orbslot #orb{position:absolute;inset:0;margin:auto;width:46px!important;height:46px!important;
+  #wrail .wr-orbslot #orb{position:absolute;inset:0;margin:auto;width:42px!important;height:42px!important;
     pointer-events:none}
-  #wrail .wr-orbslot .wr-orbpwr{position:absolute;inset:0;margin:auto;width:24px;height:24px;
+  #wrail .wr-orbslot .wr-orbpwr{position:absolute;inset:0;margin:auto;width:22px;height:22px;
     visibility:hidden;color:var(--hb-muted,#A7AFBC)}
   #wrail .wr-orbslot.off #orb{visibility:hidden}
   #wrail .wr-orbslot.off .wr-orbpwr{visibility:visible}
@@ -161,17 +193,30 @@ function desk(){ return window.__zaelarDesktop || null; }
 
 // V2-666 — same width for every chip at a level; the widest level that fits wins. Matches the CSS widths
 // above (`.wr-chip`/`.wr-lv3`/`.wr-lv1`) and the gap the flex row lays chips out with.
+// V2-692 — the widths grew with the padding the chips finally have, and the widest one grew again so a real
+// widget name lands whole: 96/52/32. A level is a WIDTH now, not a character budget (see chipLabel).
 const CHIP_CHARS = [6, 3, 1];
-const CHIP_W = { 6: 64, 3: 42, 1: 30 };
+const CHIP_W = { 6: 96, 3: 52, 1: 32 };
 const CHIP_GAP = 6;
 const CHIP_LV_CLASS = { 6: "", 3: " wr-lv3", 1: " wr-lv1" };
 
+function chipName(w, id){
+  // The card header already carries the canonical NAME (V2-082); the chip wears it whole, and in the SAME
+  // case the header wears it. V2-692 dropped the upper-casing: it was inherited from the days when a chip
+  // held two initials, and on a whole word it costs about a fifth of the width for text that is harder to
+  // read than the mixed case it replaced — which is the wrong side of the standing rule that reading wins.
+  // Written out, the chip is now the window title one size down, which is the point of a dock.
+  return (w && w.nameBtn && w.nameBtn.textContent || id).trim() || "?";
+}
+
 function chipLabel(w, id, chars){
-  // The card header already carries the canonical NAME (V2-082); the chip wears as much of it as its
-  // current level allows — 6 chars fits most system-widget names ("VÍDEO", "MÚSICA"), 3/1 are the
-  // fallback for a canvas with too many open widgets to letter them out in full.
-  const name=(w && w.nameBtn && w.nameBtn.textContent || id).trim();
-  return (name.slice(0, chars) || "?").toUpperCase();
+  // V2-692 — the label is no longer SLICED at levels 6 and 3: the box ellipses whatever does not fit, which
+  // is the only cut that knows how wide the letters actually are. A hard six-character slice produced
+  // "CONTAC" — a word broken mid-syllable with no mark, which reads as a rendering fault. The ONE level that
+  // still counts characters is the single initial, because an initial is an abbreviation by intent and
+  // "C…" would be a worse one.
+  const name=chipName(w, id);
+  return chars===1 ? name.slice(0,1).toUpperCase() : name;
 }
 
 // The widest level whose chips, all together, still fit the space actually left for them — measured
@@ -240,8 +285,16 @@ function refresh(el){
     b.className="wr-chip"+lvClass+(id===active?" on":"")+(d.isMinimized(id)?" min":"");
     b.dataset.wid=id;
     const name=(w && w.nameBtn && w.nameBtn.textContent || id).trim();
-    b.textContent=chipLabel(w,id,level);
-    b.title=name+(d.isMinimized(id)?" · "+t("rail.minimized"):"");
+    // The label goes in its OWN element: text-overflow needs a block to ellipse, and the chip itself is a
+    // centring flex box, where the text would be an anonymous item the property can never reach.
+    const lb=document.createElement("span"); lb.className="wr-chipn";
+    lb.textContent=chipLabel(w,id,level);
+    b.appendChild(lb);
+    // V2-692 — the tooltip SAYS what the accent underline means, because the operator looked at it and could
+    // not tell («esa barrita de color abajo entiendo que indica, bueno no sé lo que indica»). A marker whose
+    // meaning has to be guessed is decoration; one sentence on hover turns it back into information.
+    b.title=name
+      +(d.isMinimized(id)?" · "+t("rail.minimized"):(id===active?" · "+t("rail.inFront"):""));
     // Taskbar semantics: minimized → bring it back on top; buried → bring it on top; already on top → minimize.
     b.onclick=()=>{ const dd=desk(); if(!dd) return;
       if(dd.isMinimized(id)) dd.reveal(id);
