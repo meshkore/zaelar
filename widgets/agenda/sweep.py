@@ -117,16 +117,33 @@ def clear_range(db: dict, payload: dict) -> tuple[dict, list[dict]]:
 
 # ── cancelling ONE appointment (V2-705) ──────────────────────────────────────────────────────────────────
 def _matches(db: dict, payload: dict) -> list[dict]:
-    """The meetings the spoken reference names: title as a case/accent-insensitive substring, and the date
-    when he gave one. The same matching `cancel_meeting` always did — only what happens NEXT changed."""
+    """The meetings the spoken reference names: the title matched TOLERANTLY through the one shared matcher
+    (`widgets/textmatch`, V2-705) — so «renovar seguro coche» finds «Renovar el seguro del coche» and a
+    dropped letter is forgiven, the same intelligence contacts and messages get — plus the date when he
+    gave one. A meeting whose title is an accent-folded SUPERSTRING of the reference still counts (his words
+    are usually shorter than the calendar's), and above that, the tolerant score catches the rest."""
     from . import data as _data
+    from .. import textmatch
 
-    title = _data._strip_accents(str(payload.get("title") or "").strip().lower())
+    ref = str(payload.get("title") or "").strip()
+    if not ref:
+        return []
+    fref = textmatch.fold(ref)
     raw_date = str(payload.get("date") or "")
     date = _data._resolve_date(raw_date) if raw_date else ""
-    return [m for m in db.get("meetings", [])
-            if title and title in _data._strip_accents(str(m.get("title") or "").strip().lower())
-            and (not date or m.get("date") == date)]
+    out = []
+    for m in db.get("meetings", []):
+        if date and m.get("date") != date:
+            continue
+        ftitle = textmatch.fold(m.get("title") or "")
+        if not ftitle:
+            continue
+        # A folded substring (his phrasing is usually a slice of the real title) OR a tolerant score over the
+        # floor (a typo, a C for a K). Substring stays because a 3-word slice of a 6-word title can fall under
+        # the score floor on length alone, and a slice is a deliberate, precise reference.
+        if fref in ftitle or textmatch.score(ref, m.get("title") or "") >= 0.72:
+            out.append(m)
+    return out
 
 
 def cancel_meeting(db: dict, payload: dict) -> tuple[dict, list[dict]]:

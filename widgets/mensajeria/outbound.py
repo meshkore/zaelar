@@ -106,35 +106,19 @@ def enqueue_reply(db: dict, target: dict, text: str, cc: list | None = None) -> 
 
 
 def _resolve_recipient(who: str):
-    """Resolve a recipient reference to its directory contacts, tolerating DECORATION the model appends.
+    """Resolve a recipient reference to its directory contacts, tolerating the DECORATION the model appends.
 
-    Measured 2026-09-15 (manual meeting test): the model called `send_to` with the recipient as
-    «Kryptonite (Telegram @cryptonitefund)» — the whole descriptive string — and `directory.resolve`
-    requires every word to appear in a contact's name, so «Kryptonite» was lost inside its own annotation
-    and the send failed «no tengo a … en el directorio», over a contact that was right there. The name is
-    the durable part; the parenthetical, the «, my friend from the fund», the trailing channel note are not.
-
-    So try progressively cleaner spans — the whole reference first (an exact/near name still wins outright),
-    then without any «(…)» / «[…]», then the head before the first comma or dash, then its leading
-    capitalised run. The FIRST span that resolves wins, and its result is returned verbatim: a span that
-    resolves to SEVERAL contacts is still the answer (the caller asks which), never silently the first.
-    """
-    who = str(who or "").strip()
-    if not who:
-        return []
-    cands = [who]
-    no_paren = re.sub(r"\s*[\(\[].*?[\)\]]\s*", " ", who).strip()
-    if no_paren and no_paren != who:
-        cands.append(no_paren)
-    head = re.split(r"[,;:\u2013\u2014-]| - ", no_paren or who)[0].strip()
-    if head and head not in cands:
-        cands.append(head)
-    m = re.match(r"([A-Z\u00c1\u00c9\u00cd\u00d3\u00da\u00d1][\w\u00c1\u00c9\u00cd\u00d3\u00da\u00dc\u00d1\u00e1\u00e9\u00ed\u00f3\u00fa\u00fc\u00f1'-]+(?:\s+[A-Z\u00c1\u00c9\u00cd\u00d3\u00da\u00d1][\w\u00c1\u00c9\u00cd\u00d3\u00da\u00dc\u00d1\u00e1\u00e9\u00ed\u00f3\u00fa\u00fc\u00f1'-]+)*)", head or who)
-    if m and m.group(1).strip() and m.group(1).strip() not in cands:
-        cands.append(m.group(1).strip())
+    Measured 2026-09-15 (the manual meeting test): `send_to` was called with «Kryptonite (Telegram
+    @cryptonitefund)» — name plus its channel note — and the send failed «no tengo a … en el directorio»
+    over a contact that was right there. The name is the durable part; the parenthetical and trailing
+    clauses are decoration. Peeled through the ONE shared matcher (`widgets/textmatch.spans`, V2-705), so
+    «write to X (…)» resolves the same way «the meeting with X (…)» does. The FIRST span that resolves wins,
+    and its result is returned verbatim — a span matching SEVERAL contacts is still the answer (the caller
+    asks which), never silently the first."""
+    from .. import textmatch
     d = _directory()
-    for cand in cands:
-        hits = d.resolve(cand)
+    for span in textmatch.spans(who):
+        hits = d.resolve(span)
         if hits:
             return hits
     return []

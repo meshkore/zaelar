@@ -154,17 +154,15 @@ def resolve(name: str) -> list[dict]:
             out.append(c)
     if out:
         return out
-    # Last resort: the name as the operator SPELLS it, a letter off the name as it is filed (V2-698).
-    # Measured 2026-09-15: he dictates «Kryptonite», the row says «Cryptonite», and `send_to` refused with
-    # «no tengo a Kryptonite en el directorio» while the worker guessed its way to the right spelling. Same
-    # rule as the playlist garble (V2-650b): a UNIQUE near match resolves, two near matches stay a refusal —
-    # writing to the wrong person is the failure this must never trade for.
-    import difflib
-    scored = sorted(((difflib.SequenceMatcher(None, q, _norm(c.get("name"))).ratio(), c) for c in people
-                     if _norm(c.get("name"))), key=lambda t: -t[0])
-    if scored and scored[0][0] >= 0.8 and (len(scored) == 1 or scored[1][0] < 0.7):
-        return [scored[0][1]]
-    return out
+    # TOLERANT last resort, through the ONE shared matcher (`widgets/textmatch`, V2-705). The operator, 2026-09-15:
+    # «una C por una K, una letra que falta, una H… que sea flexible, preciso, pero inteligente», and «tiene que
+    # funcionar para cualquiera» — so contacts, calendar and messages all fall to the same primitive. Measured:
+    # he dictates «Kryptonite», the row says «Cryptonite». Every near match ABOVE the floor is returned, not just
+    # a unique one: two matches are an AMBIGUITY the caller asks about (the send door does), never a silent pick —
+    # writing to the wrong person is the one thing this must not trade for, and «pregúntale cuál» is the human move.
+    from . import textmatch
+    near = [c for _score, c in textmatch.rank(name, people, key=lambda c: c.get("name"), floor=0.8)]
+    return near or out
 
 
 def find_by_channel(platform: str, chat_id) -> dict | None:
