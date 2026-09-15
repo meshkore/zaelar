@@ -60,3 +60,33 @@ def test_the_births_gate_uses_the_seam(monkeypatch):
     born = set(w._pending_births)
     w._pending_births.clear()
     assert "labelled" in born and "proposal" in born and "oneoff" not in born, born
+
+
+# ── the meeting VOCABULARY must catch a plain proposal (V2-705) ──────────────────────────────────────────
+# Measured 2026-09-15: «Could we meet this Friday… Google Meet link» classified as GENERIC, so the errand
+# never opened — «meeting»/«reunión» were match words but the bare verb «meet» and «Google Meet» were not.
+
+import pytest
+
+
+@pytest.mark.parametrize("text", [
+    "Hi! Could we meet this Friday, September 18th, at 10am? I will set up a Google Meet link for us.",
+    "Hi! I'd like to propose a meeting tomorrow at 8am. I'll set up a Google Meet link.",
+    "Let's set up a video call on Friday",
+    "¿Quedamos el viernes para vernos?",
+])
+def test_a_plain_meeting_proposal_classifies_as_meeting(text):
+    from nucleo.errands.playbooks import kind_for
+    assert kind_for(text) == "meeting", text
+
+
+@pytest.mark.parametrize("text", [
+    "Nice to meet you!",
+    "Running late, see you at 5",
+    "Thanks, got it.",
+])
+def test_a_friendly_line_is_not_a_meeting(text):
+    """«meet» alone is too broad — «nice to meet you» is not a proposal. The match words stay specific:
+    «google meet», «meet link», «video call», not the bare verb."""
+    from nucleo.errands.playbooks import kind_for
+    assert kind_for(text) != "meeting", text

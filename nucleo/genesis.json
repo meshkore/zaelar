@@ -32,10 +32,18 @@
         "reuni",
         "meeting",
         "quedar",
+        "quedamos",
         "vernos",
+        "nos vemos",
         "cita con",
         "videollamada",
-        "llamada con"
+        "video call",
+        "videocall",
+        "llamada con",
+        "call with",
+        "google meet",
+        "meet link",
+        "meet up"
       ],
       "done_when": {
         "widget": "agenda",
