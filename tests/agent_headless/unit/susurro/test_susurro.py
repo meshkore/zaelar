@@ -55,9 +55,11 @@ def test_system_friction_map():
 
 
 def test_risky_decision_v2061():
-    # ITV case: a DATA-OP (agenda.drop → data_done) WITHOUT escalation on a real-world order → risk (audit)
-    assert friction.risky_decision({"data_done": True, "clarify": True})
-    assert friction.risky_decision({"data_done": True})
+    # V2-705: a widget DATA-OP is NOT a risk signal any more. The ITV doctrine («the agenda is a mirror»)
+    # contradicted the code (the agenda IS the calendar) and, measured 2026-09-15, made the auditor launch a
+    # second executor for an order the fast brain had already run — see `friction.risky_decision`.
+    assert not friction.risky_decision({"data_done": True, "clarify": True})
+    assert not friction.risky_decision({"data_done": True})
     # V2-081: a simple canvas SHOW/CLOSE (widget_acted WITHOUT data_done) is NOT a risk — opening/closing/showing a
     # widget is never a real-world action reflected locally (2026-08-01 incident: a close triggered Susurro →
     # it over-escalated a "show the message" request → junk widget). Only data MUTATION counts.
@@ -268,22 +270,18 @@ def test_engine_audit_cycle(monkeypatch, tmp_path):
     asyncio.run(run())
 
 
-def test_engine_risky_triggers_worker_action(monkeypatch, tmp_path):
-    # V2-061 e2e: RISK turn (widget action without escalation, WITHOUT operator complaint) → Susurro audits on its
-    # own and REROUTES with worker_action (the ITV case: «hay que cancelarlo» → calendar drop + false «hecho»).
+def test_engine_a_widget_data_op_never_opens_a_second_executor(monkeypatch, tmp_path):
+    # V2-705 — the INVERSE of the V2-061 case this test used to pin. Measured 2026-09-15 (session 878b0122):
+    # the fast brain ran `agenda.cancel_meeting`, `data_done` opened an audit on its own, the auditor launched
+    # «cancel it for real at the external source», and a worker drove a browser to Google Calendar while the
+    # widget had already deleted the row — ONE order, TWO executors. A widget with a connector IS the source,
+    # so a data-op is not a risk signal: no audit opens, nothing is dispatched, nothing is spoken.
     from nucleo import dispatch
     from nucleo.flash import escalate as _esc
     from nucleo.susurro import client
 
-    fake = {"assessment": "trató una cancelación real como un borrado de agenda",
-            "corrections": [
-                {"type": "worker_action", "request": "cancela la cita de la ITV en la web donde se reservó y "
-                 "bórrala luego de la agenda", "reason": "dijo hecho sin ejecutar la cancelación real"},
-                {"type": "repair_say", "text": "Perdona, me pongo a cancelar la ITV de verdad ahora."},
-            ]}
-
     async def fake_llm(doc):
-        return json.dumps(fake, ensure_ascii=False), {"model": "test", "ms": 1, "request": {"messages": []}}
+        raise AssertionError("the auditor must not even be consulted for a widget data-op")
 
     async def run():
         import bus
@@ -293,12 +291,10 @@ def test_engine_risky_triggers_worker_action(monkeypatch, tmp_path):
         brain_notes.drain()
         monkeypatch.setattr(engine, "_cfg", lambda: {"enabled": True, "cooldown_s": 0.0, "window_turns": 2,
                                                      "pulse_turns": 0, "model": "test", "audit_consequential": True})
-        # The conversation must exist AND ANCHOR the action: `worker_action` is the only correction that ACTS on the
-        # world, and since 2026-08-13 requires the request to mention something present in the window.
         from memory import api as _mapi
         monkeypatch.setattr(_mapi, "recent_window",
-                            lambda limit=8: [{"role": "user", "content": "hay que cancelar la cita de la ITV, la reservé en su web"},
-                                             {"role": "assistant", "content": "hecho, la he quitado de la agenda"}])
+                            lambda limit=8: [{"role": "user", "content": "remove the appointment tomorrow at seven"},
+                                             {"role": "assistant", "content": "I'll remove it right away"}])
         monkeypatch.setattr(client, "audit_llm", fake_llm)
         monkeypatch.setattr(sus_apply, "FINDINGS_PATH", str(tmp_path / "f.jsonl"))
         monkeypatch.setattr(dispatch, "active_sessions", lambda: [])
@@ -307,15 +303,12 @@ def test_engine_risky_triggers_worker_action(monkeypatch, tmp_path):
                             lambda req, **kw: dispatched.setdefault("req", req) and None or 99)
         engine.start()
         try:
-            bus.emit_sync("turn.completed", {"user": "hay que cancelarlo",
-                                             "decision": {"data_done": True, "clarify": True}, "trace": "Titv"})
-            for _ in range(40):
-                await asyncio.sleep(0.05)
-                if engine.status()["audits"] >= 1:
-                    break
-            assert engine.status()["audits"] == 1
-            assert "ITV" in dispatched.get("req", "")               # re-ruteó al worker correcto
-            assert any("cancelar la ITV" in n for n in brain_notes.drain())   # and notified the operator
+            bus.emit_sync("turn.completed", {"user": "remove the appointment tomorrow at seven",
+                                             "decision": {"data_done": True, "widget_acted": True}, "trace": "T14"})
+            await asyncio.sleep(0.4)
+            assert engine.status()["audits"] == 0
+            assert dispatched == {}, "a second executor was launched for an order the widget already ran"
+            assert brain_notes.drain() == []
         finally:
             await engine.stop()
             engine.reset()

@@ -114,8 +114,16 @@ def risky_decision(decision: dict | None) -> str:
     # canvas SHOW/CLOSE → spurious audit (2026-08-01 incident: a messaging close after a new WhatsApp triggered
     # Susurro, which over-escalated a "show the message" into a worker→generator→junk widget).
     # Opening/closing/showing a widget is NEVER a real-world action reflected locally.
-    if d.get("data_done"):
-        return "data-op sin escalar (¿reflejo local de una acción real no ejecutada?)"
+    # V2-705 — a widget DATA-OP is no longer a risk signal. The ITV rule this was built on («the agenda is
+    # a mirror; the real cancellation happens on the site») contradicted what the code does: the agenda IS
+    # the calendar (V2-643, two-way Google sync) and messaging IS the outbox. Measured 2026-09-15 (session
+    # 878b0122): the fast brain ran `cancel_meeting`, this signal opened an audit, the auditor launched a
+    # `worker_action` «cancel it for real at the external source», dedup folded it into the live worker as
+    # new instructions, and the worker drove a browser to Google Calendar — ONE order, TWO executors,
+    # opposite doctrines. The one case where the real action is elsewhere (a booking made on a third-party
+    # site) is the model's call at the tool, where the item itself says where it was made; an auditor that
+    # cannot see the item cannot judge it better. What stays: complaints, repeated requests, the phantom
+    # data-op (claimed without acting), and the periodic pulse.
     return ""
 
 

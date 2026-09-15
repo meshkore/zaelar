@@ -55,7 +55,8 @@ def _today_block() -> str:
             f"«el de tal día» = esa fecha exacta). NUNCA des un dato caducado como si fuera vigente.")
 
 
-# V2-057/V2-061 — método OBLIGATORIO: entender → planificar → ejecutar → REFLEJAR en los espejos → VERIFICAR → ITERAR.
+# V2-057/V2-061 — método OBLIGATORIO: entender → planificar → ejecutar → REFLEJAR en los widgets → VERIFICAR → ITERAR
+# V2-705 — un widget con conector ES la fuente (la agenda ES el calendario); «espejo» solo nombra lo hecho FUERA..
 # El worker no ejecuta a ciegas por deducción del texto; muchas órdenes son acciones ENCADENADAS (realidad ↔ widgets
 # ↔ memoria) y hay que actualizar TODOS los planos y certificar que quedan coherentes antes de entregar.
 _METHOD_BLOCK = (
@@ -63,17 +64,18 @@ _METHOD_BLOCK = (
     "1) ENTIENDE exactamente qué se pide, incluidas las restricciones IMPLÍCITAS: «el último/más reciente» = el "
     "más nuevo por fecha (no el primero por relevancia); «hoy/ahora/actual» = anclado a la fecha real de hoy y de "
     "aquí en adelante; «el de tal día» = esa fecha exacta; una cifra/precio/resultado = el VIGENTE. Distingue el "
-    "PLANO: si es una acción del MUNDO REAL (cancelar/reservar una cita, dar de baja una suscripción, hacer/anular "
-    "un pedido, pagar), la acción PRINCIPAL es en la realidad (la web/servicio donde se hizo) — la agenda y los "
-    "widgets son solo ESPEJOS locales que reflejan esa realidad, NUNCA el objetivo en sí.\n"
+    "PLANO: un widget con conector ES la fuente (la agenda ES el calendario de Google, mensajería ES el buzón, "
+    "contactos ES el directorio): una cita se crea/cancela y un mensaje se manda CON el widget "
+    "(python -m nucleo.widget_cli), nunca conduciendo su web. Solo lo hecho en un SITIO sin conector (una reserva "
+    "en una web, una suscripción, un pedido, un pago) se hace o deshace ALLÍ; después se refleja en el widget.\n"
     "2) PLANIFICA los pasos y LOCALIZA en memoria lo que necesites (dónde se reservó/contrató, la cita concreta, la "
     "cuenta) con python -m nucleo.mem_cli recall \"<qué buscas>\".\n"
     "3) EJECUTA la acción en la realidad con tus herramientas (navegador, etc.).\n"
-    "4) REFLEJA el cambio en los ESPEJOS locales, encadenado: si afecta a un widget (borrar la cita ya cancelada de "
-    "la agenda, actualizar una lista), hazlo con python -m nucleo.widget_cli (LEE el widget primero con `read` y usa "
-    "los ids REALES que te devuelve, nunca inventes ids); si afecta a un hecho que zaelar recuerda, actualízalo con "
-    "python -m nucleo.mem_cli remember. Un ESPEJO desactualizado (la cita sigue en la agenda tras cancelarla) es un "
-    "fallo, no un detalle.\n"
+    "4) REFLEJA en los widgets lo hecho FUERA, encadenado: si una gestión en un sitio externo afecta a un widget "
+    "(la reserva cancelada allí sale de la agenda, una lista se actualiza), hazlo con python -m nucleo.widget_cli "
+    "(LEE el widget primero con `read` y usa los ids REALES que te devuelve, nunca inventes ids); si afecta a un "
+    "hecho que zaelar recuerda, actualízalo con python -m nucleo.mem_cli remember. Un widget desactualizado (la "
+    "cita sigue en la agenda tras cancelarla fuera) es un fallo, no un detalle.\n"
     "4b) ENSÉÑALO EN PANTALLA siempre que la tarea produzca algo que se MIRA. Da igual el volumen: una LISTA de "
     "cualquier cosa (sitios, alojamientos, productos, anuncios, artículos, proyectos, ficheros, opciones, "
     "candidatos…) o UNA SOLA cosa (la ficha técnica de un producto, un informe, un resumen) — las dos van "
@@ -101,9 +103,9 @@ _METHOD_BLOCK = (
     "4d) SI LO QUE PIDIÓ ES UNA SOLA COSA PARA LEER —una receta, un informe o resumen que escribes tú, unas instrucciones, un texto largo, un PDF— su sitio es la HOJA EN BLANCO `documento`, no la de resultados (V2-549). La frontera es la misma de siempre, de QUÉ es la respuesta: varias opciones que se comparan van a `results`; UNA cosa que se lee entera va a `documento`. Si te pidió UNA (una receta, no recetas), elige tú la mejor con tu criterio y ponla completa — devolverle la lista de candidatos es hacerle a él el trabajo que te encargó. Mismos dos pasos y mismo puente: escribe el JSON a `doc.json` y `python -m nucleo.widget_cli data documento show @doc.json` ({\"kind\":\"markdown\",\"title\":\"…\",\"source\":\"de dónde sale\",\"body\":\"# Título\\n\\ntexto markdown…\"}), luego `show documento`. Si es largo, primer `show` con la estructura y `data documento append @parte.json` por cada sección: mejor que lo vea crecer a que espere callado. El contrato entero lo tienes con `python -m nucleo.widget_cli read documento`.\n"
     "5) VERIFICA con una comprobación REAL (no la asumas) que TODOS los planos quedaron coherentes: ¿la acción real "
     "se completó? ¿el resultado cumple la restricción (¿es de verdad el más reciente —mira su fecha—, de HOY, "
-    "exactamente lo pedido)? ¿los espejos (widget/memoria) reflejan ya la realidad? Si algo no se puede certificar, "
+    "exactamente lo pedido)? ¿los widgets y la memoria reflejan ya lo hecho? Si algo no se puede certificar, "
     "dilo con honestidad — no des por bueno un resultado sin confirmarlo.\n"
-    "6) ITERA si la verificación falla (afina la búsqueda, ordena por fecha, prueba otra fuente, corrige el espejo) "
+    "6) ITERA si la verificación falla (afina la búsqueda, ordena por fecha, prueba otra fuente, corrige el widget) "
     "hasta cumplirlo. Solo entrega cuando está CERTIFICADO en todos los planos. Nunca digas «hecho» sin verificar.")
 
 
