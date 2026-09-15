@@ -3286,7 +3286,9 @@ DOMAINS: list[dict] = [
         {"id": "5.5", "title": "WhatsApp: normalización y allowlist", "ch": UNIT, "paths": [
             "tests/connectors/unit/whatsapp/test_allowlist_contract.py",
             # V2-645: a group event carries the group's SUBJECT (bridge seam, comment-stripped source pin)
-            "tests/connectors/unit/whatsapp/test_a_group_event_carries_its_subject.py"]},
+            "tests/connectors/unit/whatsapp/test_a_group_event_carries_its_subject.py",
+            # 2026-09-15: the bridge is a SIDECAR — reused when it answers, owned by `stop`, kept by `restart`
+            "tests/connectors/unit/whatsapp/test_the_bridge_is_reused_never_duplicated.py"]},
         # V2-557 (2026-09-02) — archivos en la nube (Drive/OneDrive). Lo que se vigila NO es que la llamada
         # HTTP funcione (eso necesita una cuenta y vive en el 5.8) sino el razonamiento alrededor, que es donde
         # este conector puede estar equivocado CONTESTANDO 200: un permiso que NO PUEDE LISTAR devuelve una

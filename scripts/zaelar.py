@@ -59,7 +59,14 @@ PORTS = [
     # CAPTCHAs" — the browser is P2 and does not exist, so `./zaelar status` was announcing a capability
     # nobody could use, on the one screen a person checks when something is not working.
     (45817, "zaelar-daemon (the folders you allow it to read)"),
+    # The WhatsApp bridge (node, Baileys). Measured 2026-09-15: a bridge from 00:21 had outlived every
+    # `stop` of the day (this list did not name its port), so each `start` spawned a second one that died
+    # with EADDRINUSE while the orphan kept answering /health — WhatsApp worked through a process no
+    # restart controlled. Same class as the 44317 lesson above. Default mirrors connectors/whatsapp/config.py.
+    (int(os.getenv("WA_BRIDGE_PORT", "3111")), "whatsapp bridge (node — kept across a restart, like livekit)"),
 ]
+#: Sidecars a RESTART keeps warm and a full STOP ends: they hold a session worth not re-pairing.
+KEPT_ON_RESTART = {7880, int(os.getenv("WA_BRIDGE_PORT", "3111"))}
 APP_PORT = 43917
 HTTPS_PORT = 44317
 # Kept a literal on purpose: this file is standard-library-only and imports nothing from the engine, which is what
@@ -268,7 +275,7 @@ def cmd_stop(keep_livekit: bool = False, grace: float = 6.0) -> int:
     _warn_live_work()
     ok = True
     for port, role in PORTS:
-        if keep_livekit and port == 7880:
+        if keep_livekit and port in KEPT_ON_RESTART:
             continue
         ok = _stop_port(port, role, grace) and ok
 

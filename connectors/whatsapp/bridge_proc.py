@@ -20,6 +20,16 @@ class _Bridge:
         self.proc: asyncio.subprocess.Process | None = None
 
     async def start(self) -> None:
+        # A bridge that is ALREADY answering on the port is THE bridge — reuse it, never spawn a second.
+        # Measured 2026-09-15: one from 00:21 had outlived every `make stop` of the day, so every restart
+        # spawned a duplicate that died with EADDRINUSE while `wait_connected` went green on the orphan's
+        # /health — a process no restart controlled was the one carrying WhatsApp. Since that day `stop`
+        # owns the port and `restart` keeps the bridge warm on purpose (it holds the paired session, and
+        # re-pairing is a QR the operator has to scan), so «already up» is now the ORDINARY restart case.
+        if await self._already_up():
+            logger.info(f"WhatsApp bridge ya contesta en :{config.bridge_port()} — lo reutilizo, no lanzo otro")
+            self.proc = None
+            return
         if shutil.which("node") is None:
             raise RuntimeError("node no está en el PATH — el bridge Baileys lo necesita.")
         node_modules = config.bridge_dir() / "node_modules"
@@ -61,6 +71,16 @@ class _Bridge:
             env=env,
             # inherited stdout/stderr -> pairing QR is visible in the terminal.
         )
+
+    async def _already_up(self) -> bool:
+        """Is a bridge answering /health on our port right now? Its OWN shape (a dict with `status`), so a
+        stranger squatting the port is not mistaken for it. Any failure means «no»: spawning is the safe
+        default when nothing answers."""
+        try:
+            h = await client.health()
+        except Exception:  # noqa: BLE001
+            return False
+        return isinstance(h, dict) and "status" in h
 
     async def wait_connected(self, timeout: float = 180.0) -> bool:
         """Wait until the bridge reports 'connected' (after scanning the QR the first time)."""
