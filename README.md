@@ -60,6 +60,32 @@ Identical on macOS, Linux and Windows (use `.\zaelar.ps1` instead of `./zaelar` 
 
 Working on the code? `make start` / `make stop` / `make restart` / `make status` do the same thing.
 
+## Your own files
+
+Zaelar can read the folders you choose on your own computer. That is done by a small companion service, the
+**local daemon** — and if you are running Zaelar from this repository there is **nothing to install**: it is a
+Python package in `daemon/`, it has **no dependencies at all** (standard library only), and `./zaelar` starts
+it beside the engine on macOS, Linux and Windows alike.
+
+Open Zaelar, click the **🖥 icon at the top right**, and choose which folders it may read. It can read
+**nothing** until you do.
+
+| Command | What it does |
+|---|---|
+| `make daemon` | Run just the daemon in the foreground (equivalently `python -m daemon`). |
+| `python -m daemon status` | Is it up? Which folders are allowed? |
+| `python -m daemon allow ~/Documents` | Allow a folder from the terminal instead of the screen. |
+| `python -m daemon deny ~/Documents` | Stop reading it. |
+
+It is **read-only**, it listens on **127.0.0.1 only**, and keys, credential files, browser cookie stores and
+`.git` internals are never served **even inside a folder you allowed**. Every operation, allowed or refused,
+is written to an audit log you own. The threat model is written down in
+[`.meshkore/docs/security/zaelar-daemon-security.md`](.meshkore/docs/security/zaelar-daemon-security.md).
+
+> **Using Zaelar Cloud instead?** Then the daemon is the one piece that has to live on *your* computer, and the
+> 🖥 icon gives you a one-line install command for macOS and Windows. Nothing to download by hand, and no
+> security dialog to argue with.
+
 ## Requirements
 
 - **macOS, Windows or Linux.**

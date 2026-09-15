@@ -16,7 +16,17 @@ set -euo pipefail
 
 LABEL="com.zaelar.daemon"
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PREFIX="$HOME/Library/Application Support/Zaelar"
+# Where everything lands. The default is the platform's own place for this and needs no explanation; the
+# override exists because "somewhere else" is a legitimate answer — an encrypted volume, a synced folder
+# deliberately avoided, a machine whose home directory is small.
+#
+#   ZAELAR_DAEMON_PREFIX="/Volumes/Work/Zaelar" ./install.sh
+#
+# THE STATE FOLLOWS THE PROGRAM, with nothing to configure: the daemon resolves its own root from where its
+# binary sits (`<prefix>/bin/<program>` → `<prefix>`, see `daemon/paths.py::_install_root`). So a custom prefix
+# moves the token and the folder allowlist with it, launchd needs no environment block, and the DEFAULT prefix
+# resolves to exactly where the state has always been. Move the folder and you have moved everything.
+PREFIX="${ZAELAR_DAEMON_PREFIX:-$HOME/Library/Application Support/Zaelar}"
 BIN_DIR="$PREFIX/bin"
 LOG_DIR="$PREFIX/logs"
 AGENT="$HOME/Library/LaunchAgents/$LABEL.plist"
@@ -121,7 +131,7 @@ sleep 1
 VERSION="$("$TARGET" version 2>/dev/null || echo "?")"
 printf '\n✓ zaelar-daemon %s installed for %s\n' "$VERSION" "$USER"
 say "program:  $TARGET"
-say "state:    $PREFIX  (the token and the folders you allow)"
+say "state:    $PREFIX/config/daemon  (the token and the folders you allow)"
 say "log:      $LOG_DIR/daemon.log"
 say "starts:   at login, and now"
 printf '\n'

@@ -31,15 +31,52 @@ def _frozen() -> bool:
     return bool(getattr(sys, "frozen", False))
 
 
+def _install_root() -> Path | None:
+    """`<prefix>` when this process is an INSTALLED daemon, recognised by living in `<prefix>/bin/`.
+
+    This is what makes "install it somewhere else" work with no environment variable, no plist entry and no
+    scheduled-task wrapper: the state sits beside the program, so moving the folder moves everything. At the
+    default location it resolves to exactly where the state has always been, so nothing moves for anybody who
+    did not ask.
+
+    The `bin` check is the whole guard. Without it, a binary somebody ran straight out of `~/Downloads` would
+    claim `~` as its root — and, worse, an in-repo `python -m daemon` would resolve `sys.executable` to
+    `.venv/bin/python` and take the VIRTUALENV for its prefix."""
+    if _frozen():
+        program = Path(sys.executable).resolve()
+    elif _REPO_ROOT.is_file():
+        # A zipapp: `__file__` lives inside the archive, so `_REPO_ROOT` IS the archive rather than a directory.
+        program = _REPO_ROOT
+    else:
+        return None
+    parent = program.parent
+    return parent.parent if parent.name == "bin" else None
+
+
 def workspace_root() -> Path:
     """The per-tenant data root, with the SAME semantics as `nucleo.workspace.root()`.
 
     Kept byte-compatible with the engine's rule on purpose: a self-host user who sets `ZAELAR_WORKSPACE` for the
-    engine and not for the daemon would otherwise end up with two different config trees and no way to tell."""
+    engine and not for the daemon would otherwise end up with two different config trees and no way to tell.
+
+    ⚠️ `_frozen()` USED TO BE THE ONLY TEST FOR "installed", and a zipapp is not frozen. Measured 2026-09-15:
+    an installed `.pyz` resolved its state to `…/zaelar-daemon.pyz/config/daemon` — a path INSIDE the archive
+    file, so the directory could never be created. Every write failed, silently and by design (this module
+    never raises), which meant a fresh random token on every start and a folder allowlist that did not survive
+    a restart. The daemon answered `/health` and looked perfectly healthy while forgetting everything. The
+    archive is the fallback that exists so there is always a way to ship, so the failure hid where nobody was
+    looking."""
     env = (os.getenv("ZAELAR_WORKSPACE") or "").strip()
     if env:
         return Path(env)
-    return Path(_user_data_dir()) if _frozen() else _REPO_ROOT
+    install = _install_root()
+    if install is not None:
+        return install
+    # Installed somewhere unusual, or run straight from a download: the platform's user-data directory. Only an
+    # actual source tree — a real directory with the package in it — keeps the repo-root behaviour.
+    if _frozen() or _REPO_ROOT.is_file() or not (_REPO_ROOT / "daemon" / "__init__.py").is_file():
+        return Path(_user_data_dir())
+    return _REPO_ROOT
 
 
 def _user_data_dir() -> Path:

@@ -34,6 +34,15 @@ daemon.start();
 
 const PLATFORM_LABEL = { macos: "macOS", windows: "Windows" };
 
+// How a SELF-HOSTER starts it. Not a download: they already have the daemon — it is a Python package in this
+// repository, it has no dependencies at all, and the launcher starts it beside the engine on both platforms.
+// These are the repo's own verbs, so they live here rather than in a translation bundle: `./zaelar restart` is
+// not a phrase, it is a command, and translating it would break it.
+const SOURCE_COMMANDS = {
+  macos: "./zaelar restart",
+  windows: ".\\zaelar.ps1 restart",
+};
+
 export function DaemonSetup() {
   const [problem, setProblem] = createSignal("");
   const [busy, setBusy] = createSignal("");
@@ -169,10 +178,26 @@ export function DaemonSetup() {
         h("p", { class: "dsx-warn" }, () => t("daemon.remote.limit")),
         downloads());
     }
+    // ⚠️ A SELF-HOSTER IS NEVER OFFERED A DOWNLOAD. They cloned the repository; the daemon is already on their
+    // disk as a Python package with no dependencies, and the launcher starts it. Handing them an installer for
+    // a binary would be telling somebody who owns the source to go and fetch a copy of it — and it would put a
+    // second, differently-versioned daemon on the machine, competing for the same port. The download exists
+    // for exactly one audience: somebody whose Zaelar runs in the cloud, on a computer that is not theirs.
     if (!s.reachable) {
       return h("div", {},
-        h("p", { class: "dsx-lead" }, () => t("daemon.absent.lead")),
-        downloads(),
+        h("p", { class: "dsx-lead" }, () => t("daemon.local.lead")),
+        h("div", { class: "dsx-dl-row" }, ...Object.keys(SOURCE_COMMANDS).map((name) =>
+          h("button", {
+            class: () => "dsx-dl-btn" + (platform() === name ? " on" : ""),
+            onClick: () => { setChosen(name); api.uiEvent("daemon:platform", { platform: name }); },
+          }, PLATFORM_LABEL[name] || name))),
+        h("p", { class: "dsx-note" }, () => t("daemon.local.body")),
+        h("div", { class: "dsx-cmd-row" },
+          h("code", { class: "dsx-cmd" }, () => SOURCE_COMMANDS[platform()] || SOURCE_COMMANDS.macos),
+          h("button", { class: "dsx-copy",
+            onClick: () => copy(SOURCE_COMMANDS[platform()] || SOURCE_COMMANDS.macos),
+          }, () => copied() ? t("daemon.cmd.copied") : t("daemon.cmd.copy"))),
+        h("p", { class: "dsx-note" }, () => t("daemon.local.hint")),
         h("p", { class: "dsx-waiting" }, () => t("daemon.absent.waiting")));
     }
     return h("div", {},

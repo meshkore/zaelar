@@ -17,12 +17,22 @@ If PowerShell refuses to run this at all, it is the execution policy and not the
   powershell -ExecutionPolicy Bypass -File .\install.ps1
 #>
 [CmdletBinding()]
-param([string]$Artifact)
+param([string]$Artifact, [string]$Prefix)
 
 $ErrorActionPreference = 'Stop'
 $TaskName = 'ZaelarDaemon'
 $Here     = Split-Path -Parent $MyInvocation.MyCommand.Path
-$Prefix   = Join-Path $env:LOCALAPPDATA 'Zaelar'
+# Where everything lands. The default needs no explanation; the override exists because "somewhere else" is a
+# legitimate answer — an encrypted volume, a machine whose profile lives on a small disk.
+#
+#   .\install.ps1 -Prefix 'D:\Zaelar'      (or $env:ZAELAR_DAEMON_PREFIX)
+#
+# THE STATE FOLLOWS THE PROGRAM, with nothing to configure: the daemon resolves its own root from where its
+# binary sits (`<prefix>\bin\<program>` -> `<prefix>`, see `daemon/paths.py::_install_root`). So a custom
+# prefix moves the token and the folder allowlist with it — which matters here more than on macOS, because a
+# scheduled task cannot carry an environment variable and setting a USER-level one would repoint the engine's
+# own workspace as a side effect. The default prefix resolves to exactly where the state has always been.
+$Prefix   = if ($Prefix) { $Prefix } elseif ($env:ZAELAR_DAEMON_PREFIX) { $env:ZAELAR_DAEMON_PREFIX } else { Join-Path $env:LOCALAPPDATA 'Zaelar' }
 $BinDir   = Join-Path $Prefix 'bin'
 $LogDir   = Join-Path $Prefix 'logs'
 $Target   = Join-Path $BinDir 'zaelar-daemon.exe'

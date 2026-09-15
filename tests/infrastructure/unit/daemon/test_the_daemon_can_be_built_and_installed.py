@@ -18,6 +18,7 @@ import hashlib
 import importlib.util
 import json
 import re
+import shutil
 import subprocess
 import sys
 import zipfile
@@ -125,7 +126,7 @@ def test_the_build_survives_a_console_that_is_not_utf_8(tmp_path):
     )
 
 
-def test_the_published_checksums_name_the_files_the_release_actually_contains(built):
+def test_the_published_checksums_name_the_files_the_release_actually_contains(built, tmp_path):
     """⚠️ MEASURED, 2026-09-15, and daemon-v0.2.0 shipped with it broken. `build.py` writes SHA256SUMS under the
     BUILD names, and the release publishes the files under ARCHITECTURE names — so the sums file was published,
     looked right, and listed two files nobody could download. The one-line installer refused to install a
@@ -137,7 +138,10 @@ def test_the_published_checksums_name_the_files_the_release_actually_contains(bu
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
 
-    dist = built["dist"]
+    # A COPY of the build, because renaming is destructive and `built` is module-scoped: renaming the shared
+    # artifact left every later test in this file looking for a file that no longer had that name.
+    dist = tmp_path / "dist"
+    shutil.copytree(built["dist"], dist)
     published = module.rename_for("testarch", dist=dist)
     assert published, "the rename produced nothing"
 
@@ -192,6 +196,106 @@ def test_an_option_printed_next_to_a_pipe_is_one_the_pipe_can_carry():
         if "| iex" in line and "-Purge" in line:
             raise AssertionError(f"`iex` cannot take an argument: {line.strip()}")
     assert "scriptblock]::Create" in ps, "get.ps1 never shows how to uninstall destructively"
+
+
+# ── where an INSTALLED daemon keeps what it must not lose ─────────────────────────────────────────────────
+
+def _status(archive: Path, cwd: Path, home: Path) -> dict:
+    """Run the artifact's own `status` with a clean environment — no `ZAELAR_WORKSPACE`, which is what a real
+    installed daemon has and what every other test in this file sets."""
+    env = {"PATH": "/usr/bin:/bin", "HOME": str(home)}
+    result = subprocess.run([sys.executable, str(archive), "status"],
+                            capture_output=True, text=True, timeout=60, env=env, cwd=str(cwd))
+    assert result.returncode == 0, result.stderr
+    return json.loads(result.stdout)
+
+
+def test_an_installed_daemon_does_not_try_to_write_inside_its_own_archive(built, tmp_path):
+    """⚠️ MEASURED 2026-09-15, and it was silent. `_frozen()` was the only test for "installed" and a zipapp is
+    not frozen — so an installed `.pyz` resolved its root to the ARCHIVE FILE and its state to
+    `…/zaelar-daemon.pyz/config/daemon`, a directory that can never exist because its parent is a regular file.
+
+    Every write failed, and this module never raises on purpose, so nothing was reported. The consequences are
+    the two that matter most: a fresh random token on EVERY start, and a folder allowlist that does not survive
+    a restart — the user grants Documents, restarts, and it is gone. Meanwhile `/health` answered perfectly.
+
+    The portable archive is the fallback that exists so there is always a way to ship, which is exactly why
+    nobody was looking at it."""
+    prefix = tmp_path / "chosen"
+    (prefix / "bin").mkdir(parents=True)
+    installed = prefix / "bin" / built["archive"].name
+    installed.write_bytes(built["archive"].read_bytes())
+
+    reported = _status(installed, cwd=tmp_path, home=tmp_path / "home")
+    assert reported["state_dir"] == str(prefix / "config" / "daemon"), (
+        f"an installed archive resolved its state to {reported['state_dir']}"
+    )
+    assert ".pyz" not in reported["state_dir"], "the state directory is inside the archive file"
+
+
+def test_the_token_is_the_same_on_the_second_start(built, tmp_path):
+    """THE SYMPTOM, not the path. A state directory that cannot be created means the config is never written,
+    and a daemon that mints a new token every start is one the engine can never stay connected to — it would
+    reconnect once and be refused forever after."""
+    prefix = tmp_path / "chosen"
+    (prefix / "bin").mkdir(parents=True)
+    installed = prefix / "bin" / built["archive"].name
+    installed.write_bytes(built["archive"].read_bytes())
+    home = tmp_path / "home"
+
+    env = {"PATH": "/usr/bin:/bin", "HOME": str(home)}
+    first = subprocess.run([sys.executable, str(installed), "token"], capture_output=True, text=True,
+                           timeout=60, env=env, cwd=str(tmp_path))
+    second = subprocess.run([sys.executable, str(installed), "token"], capture_output=True, text=True,
+                            timeout=60, env=env, cwd=str(tmp_path))
+    assert first.returncode == 0 and second.returncode == 0, first.stderr + second.stderr
+    assert first.stdout.strip() and first.stdout.strip() == second.stdout.strip(), (
+        "the daemon minted a new token on its second start — its config is not being persisted"
+    )
+
+
+def test_a_file_run_straight_from_a_download_does_not_claim_the_folder_above_it(built, tmp_path):
+    """THE COUNTERWEIGHT to the rule above, and the reason it keys on a `bin` directory. "The state lives beside
+    the program" is right for an install and wrong for a file somebody double-clicked in `~/Downloads`, which
+    would otherwise claim the whole of `~` as its root."""
+    loose = tmp_path / "Downloads"
+    loose.mkdir()
+    copied = loose / built["archive"].name
+    copied.write_bytes(built["archive"].read_bytes())
+    home = tmp_path / "home"
+
+    reported = _status(copied, cwd=tmp_path, home=home)
+    assert str(loose) not in reported["state_dir"], "a loose download claimed its own folder"
+    assert str(home) in reported["state_dir"], (
+        f"a loose download should fall back to the user-data directory, got {reported['state_dir']}"
+    )
+
+
+def test_a_source_checkout_still_keeps_its_state_in_the_repo(tmp_path):
+    """The other counterweight, and the one that would hurt most: a self-hoster runs `python -m daemon` from
+    their clone and their token and allowlist live under the repo's `config/`. The install rule must not move
+    them — an "improvement" that silently relocates somebody's existing allowlist reads as it being wiped."""
+    from daemon import paths
+    root = paths.workspace_root()
+    assert root == ENGINE, f"an in-repo daemon resolved its root to {root}"
+    assert paths.state_dir() == ENGINE / "config" / "daemon"
+
+
+@pytest.mark.parametrize("script", ["macos/install.sh", "macos/uninstall.sh",
+                                    "windows/install.ps1", "windows/uninstall.ps1"])
+def test_the_folder_it_installs_into_can_be_chosen(script):
+    """"Somewhere else" is a legitimate answer — an encrypted volume, a small home directory. The UNINSTALLERS
+    need it just as much: one that only knows the default location removes the launch agent, reports success,
+    and leaves the program and the folder allowlist exactly where the user put them, while they believe it is
+    gone."""
+    text = (PACKAGING / script).read_text(encoding="utf-8")
+    # ⚠️ LIVE LINES ONLY. Every one of these scripts DOCUMENTS the variable in a comment, so looking for the
+    # name anywhere in the file stayed green with the actual assignment deleted — the third time today an
+    # assertion was satisfied by its own explanation. Block comments (`<# … #>`) are stripped first, then
+    # line comments.
+    text = re.sub(r"<#.*?#>", "", text, flags=re.S)
+    live = "\n".join(l for l in text.splitlines() if not l.strip().startswith("#"))
+    assert "ZAELAR_DAEMON_PREFIX" in live, f"{script} cannot be pointed at another folder"
 
 
 # ── the build tooling stays out of the daemon's own dependency set ────────────────────────────────────────

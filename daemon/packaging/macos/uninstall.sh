@@ -7,7 +7,10 @@
 set -euo pipefail
 
 LABEL="com.zaelar.daemon"
-PREFIX="$HOME/Library/Application Support/Zaelar"
+# The same override the installer takes. An uninstaller that only knows the default location would remove the
+# launch agent, report success, and leave the program and the folder allowlist sitting where the user put them
+# — which is the worst outcome: they believe it is gone.
+PREFIX="${ZAELAR_DAEMON_PREFIX:-$HOME/Library/Application Support/Zaelar}"
 AGENT="$HOME/Library/LaunchAgents/$LABEL.plist"
 
 say() { printf '  %s\n' "$*"; }

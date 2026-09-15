@@ -57,7 +57,13 @@ from __future__ import annotations
 #         SmartScreen dialog on an unsigned build), an Intel Mac finally gets a binary that runs on it,
 #         and the published SHA256SUMS names the files the release actually contains — it did not, which
 #         made the installer refuse to install what it had just downloaded correctly.
-VERSION = "0.2.1"
+# 0.2.2 — ⚠️ AN INSTALLED ARCHIVE COULD NOT KEEP ITS STATE. `_frozen()` was the only test for "installed"
+#         and a zipapp is not frozen, so it resolved its root to the .pyz FILE and its state to a
+#         directory inside it — impossible to create, so every write failed silently: a new token on
+#         every start and an allowlist that did not survive a restart, behind a perfectly healthy
+#         /health. The root is now taken from where the program sits (`<prefix>/bin/…` → `<prefix>`),
+#         which also makes installing into a chosen folder work with nothing to configure.
+VERSION = "0.2.2"
 
 # THE PORT. Fixed, so the engine and the wizard can both name it without discovery, and chosen deliberately:
 #   · not in /etc/services (verified 2026-09-04) — no known service to collide with;

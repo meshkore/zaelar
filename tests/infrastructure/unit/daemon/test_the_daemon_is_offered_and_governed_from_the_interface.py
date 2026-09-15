@@ -367,6 +367,59 @@ def test_no_label_on_the_daemon_screen_shows_a_raw_key():
         assert not missing, f"{lang}.json is missing {missing}"
 
 
+def test_a_self_hoster_is_never_offered_a_download():
+    """⚠️ THEY ALREADY HAVE IT. Somebody who cloned the repository has the daemon on their disk as a Python
+    package with no dependencies, started by the same launcher that starts the engine — on both platforms.
+    Handing them an installer would be telling the owner of the source to go and fetch a copy, and it would put
+    a SECOND daemon of a different version on the machine, competing for the same port.
+
+    The download exists for exactly one audience: somebody whose Zaelar runs in the cloud, on a computer that
+    is not theirs. So the whole download block must sit inside the `remote` branch and nowhere else."""
+    screen = (ENGINE / "frontend" / "app" / "components" / "DaemonSetup.js").read_text(encoding="utf-8")
+    remote_at = screen.index('s.state === "remote"')
+    local_at = screen.index("if (!s.reachable)")
+    calls = [m.start() for m in re.finditer(r"\n\s+downloads\(\)", screen)]
+    assert len(calls) == 1, f"the download block is rendered from {len(calls)} places"
+    assert remote_at < calls[0] < local_at, (
+        "the download block is reachable outside the cloud branch — a self-hoster would be offered an "
+        "installer for software they already have"
+    )
+    local_branch = screen[local_at:]
+    assert "SOURCE_COMMANDS" in local_branch, "the self-host branch does not tell them how to start it"
+    assert "daemon.local.lead" in local_branch
+
+
+def test_the_command_a_self_hoster_is_given_is_the_launcher_this_repo_ships():
+    """The words are translated; the command is not, and must not be — `./zaelar restart` is not a phrase. It
+    also has to be a verb the launcher actually has, on both platforms, or the screen sends somebody to a
+    terminal to type something that errors."""
+    screen = (ENGINE / "frontend" / "app" / "components" / "DaemonSetup.js").read_text(encoding="utf-8")
+    block = screen[screen.index("const SOURCE_COMMANDS"):screen.index("export function DaemonSetup")]
+    assert "./zaelar restart" in block and "zaelar.ps1 restart" in block
+    for launcher in ("zaelar", "zaelar.ps1"):
+        text = (ENGINE / launcher).read_text(encoding="utf-8")
+        assert "restart" in text, f"{launcher} has no `restart` verb and the screen tells people to use it"
+    # And that restart has to start the daemon, or the instruction is a dead end.
+    boot = (ENGINE / "scripts" / "zaelar.py").read_text(encoding="utf-8")
+    assert '"-m", "daemon"' in boot or "'-m', 'daemon'" in boot, (
+        "the cross-platform launcher does not start the daemon, so `restart` would not bring it back"
+    )
+
+
+def test_the_readme_tells_a_self_hoster_there_is_nothing_to_install():
+    """The front door of a public repository. Somebody cloning this has the daemon already, and the README is
+    where they find that out — otherwise the 🖥 icon appearing in their interface reads as "another thing to
+    set up" rather than "choose your folders". It also has to name the commands that exist: a README pointing
+    at `make daemon` when the Makefile has no such target is worse than saying nothing."""
+    readme = (ENGINE / "README.md").read_text(encoding="utf-8")
+    assert "make daemon" in readme and "python -m daemon" in readme
+    assert "nothing to install" in readme.lower()
+    makefile = (ENGINE / "Makefile").read_text(encoding="utf-8")
+    assert "\ndaemon:" in makefile, "the README promises `make daemon` and the Makefile has no such target"
+    # The two properties a reader most needs to judge it, and the one that is easiest to leave out.
+    assert "read-only" in readme.lower() and "127.0.0.1" in readme
+
+
 def test_the_screen_admits_what_it_cannot_do_from_the_cloud():
     """The conservative-documentation rule (INI-026 B5) applied to a product screen. A cloud user can download
     the daemon today; wiring it to the cloud agent is the relay, which is not built. A download screen that

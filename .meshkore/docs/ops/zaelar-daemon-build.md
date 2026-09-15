@@ -68,6 +68,35 @@ needs a signature, and it is still the work that comes before an updater.
 The direct download still works and the interface still offers it, in a `<details>` that says what it costs: a
 browser saved the file, so macOS asks the user to allow it in System Settings and Windows shows SmartScreen.
 
+### Where it lands, and how to put it somewhere else
+
+| | Default |
+|---|---|
+| macOS | `~/Library/Application Support/Zaelar` |
+| Windows | `%LOCALAPPDATA%\Zaelar` |
+
+`ZAELAR_DAEMON_PREFIX` (or `-Prefix` on Windows) moves it, and the **uninstallers take the same override** —
+one that only knew the default would remove the launch agent, report success, and leave the program and the
+folder allowlist exactly where the user put them.
+
+⚠️ **The state follows the program, and it is derived rather than configured.** The daemon takes its root from
+where its own binary sits: `<prefix>/bin/<program>` → `<prefix>`, so the token, the allowlist and the audit log
+land in `<prefix>/config/daemon`. That is why a custom prefix needs no environment variable in the launch
+agent and no wrapper around the Windows task — which matters on Windows, where a scheduled task cannot carry an
+environment variable and setting a user-level `ZAELAR_WORKSPACE` would repoint the **engine's** workspace as a
+side effect.
+
+The `bin` directory is the guard, not decoration. Without it a file somebody ran straight out of `~/Downloads`
+would claim `~` as its root, and an in-repo `python -m daemon` would resolve `sys.executable` to
+`.venv/bin/python` and take the **virtualenv** for its prefix.
+
+⚠️ **This is what `daemon-v0.2.2` fixes, and the bug was silent.** `_frozen()` used to be the only test for
+"installed" and a zipapp is not frozen, so an installed `.pyz` resolved its state to a directory *inside the
+archive file* — impossible to create. Every write failed, this module never raises, and so: a fresh random
+token on every start and a folder allowlist that did not survive a restart, behind a `/health` that answered
+perfectly. The archive is the fallback that exists so there is always a way to ship, which is precisely why
+nobody was looking at it.
+
 ### Installing from a checkout
 
 **macOS**

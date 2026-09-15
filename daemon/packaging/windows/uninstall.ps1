@@ -9,11 +9,14 @@ me set it all up again". -Purge is there for somebody who really means it, and i
   .\uninstall.ps1 -Purge
 #>
 [CmdletBinding()]
-param([switch]$Purge)
+param([switch]$Purge, [string]$Prefix)
 
 $ErrorActionPreference = 'Continue'
 $TaskName = 'ZaelarDaemon'
-$Prefix   = Join-Path $env:LOCALAPPDATA 'Zaelar'
+# The same override the installer takes. An uninstaller that only knows the default would remove the task,
+# report success, and leave the program and the allowlist where the user put them — and they would believe it
+# was gone.
+$Prefix   = if ($Prefix) { $Prefix } elseif ($env:ZAELAR_DAEMON_PREFIX) { $env:ZAELAR_DAEMON_PREFIX } else { Join-Path $env:LOCALAPPDATA 'Zaelar' }
 $Startup  = [Environment]::GetFolderPath('Startup')
 
 function Say { param($m) Write-Host "  $m" }
