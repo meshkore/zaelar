@@ -97,7 +97,7 @@ export function render(root, data, ctx) {
   root.appendChild(wrap);
 
   if (!d.connected) {
-    wrap.appendChild(connectPanel(d, act));
+    wrap.appendChild(connectPanel(d, act, ctx));
     return;
   }
 
@@ -105,7 +105,7 @@ export function render(root, data, ctx) {
   wrap.appendChild(gallery(d, act));
 }
 
-function connectPanel(d, act) {
+function connectPanel(d, act, ctx) {
   const box = el("div", "fts-cx");
   box.appendChild(el("p", "", d.app_configured
     ? tt("not_connected", null, "Google Photos no está conectado. Al pulsar se abrirá el consentimiento de Google.")
@@ -113,11 +113,12 @@ function connectPanel(d, act) {
   const b = el("button", "fts-btn", tt("connect", null, "Conectar Google Photos"));
   b.onclick = async () => {
     b.disabled = true;
-    const res = await act("connect", {});
-    if (res && res.ok && res.url) {
-      // Opened synchronously in the click handler, or the browser blocks the popup (rule §6.2).
-      window.open(res.url, "_blank", "noopener");
-    } else {
+    // ⚠️ V2-700 — this used to call window.open AFTER the await, under a comment claiming it did the
+    // opposite. That is outside the user gesture and every mainstream browser blocks it in SILENCE.
+    // `ctx.connect` opens it inside the click and then watches for the connection landing, so the card
+    // stops offering «Conectar» on its own.
+    const res = await ctx.connect("connect", {}, {family: "fotos", onDone: () => { b.disabled = false; }});
+    if (!(res && res.ok && res.url)) {
       box.appendChild(el("p", "fts-note bad", (res && res.error) || tt("picker_failed", null, "No se pudo abrir el selector.")));
     }
     b.disabled = false;

@@ -546,14 +546,12 @@ function renderConn(E, root, data, ctx){
   // needs no environment detection: one path that works on a self-hosted desktop, in the cloud and on the
   // PWA beats three that each need their own testing.
   const startConsent = async () => {
-    const w = window.open("", "_blank");
-    const r = await act("connect_account", {platform: pid});
+    // V2-700 — one window, one watcher, for every widget with a connector: `ctx.connect` opens it inside
+    // this click (a popup on the desktop, a tab on a narrow screen) and notices when the token lands.
+    const r = await ctx.connect("connect_account", {platform: pid}, {family: "video", name: pid});
     if(r && r.ok && r.url){
-      _connErr = "";
-      if(w){ w.location = r.url; _connUrl = ""; }
-      else { _connUrl = r.url; }                  // pop-up blocked → offer the link
+      _connErr = ""; _connUrl = "";
     } else {
-      if(w){ try{ w.close(); }catch(_e){} }
       _connUrl = "";
       _connErr = (r && (r.message || r.error)) || tt("connect_failed", null, "No pude empezar la conexión.");
     }

@@ -2412,6 +2412,12 @@ DOMAINS: list[dict] = [
         # COPIABA al objeto que lee la ficha, cosa que un barrido del fuente no ve (conector y tarjeta eran
         # cada uno correcto por separado). RENDERIZADO por eso. Incluye la banda de PROPUESTAS: una cita que
         # ha pedido otro se pinta aparte del calendario, porque todavía no está en él.
+        # V2-700 — conectar una cuenta: la VENTANA (pop-up en escritorio, pestaña en móvil) y, sobre todo,
+        # DARSE CUENTA de que ha conectado. Tres señales independientes, y todas acaban releyendo el estado
+        # al motor en vez de creerse un mensaje. Contrato en `ctx.connect` (frontend/app/widgets/desktop.js).
+        {"id": "4.177", "title": "Conectar una cuenta abre un pop-up y la tarjeta se entera en tiempo real",
+            "ch": UNIT, "paths": [
+                "tests/browser/unit/widgets/test_connecting_an_account_is_noticed.py"]},
         # V2-699 — la ficha de contacto que PARECE una ficha (todos los campos básicos presentes aunque
         # estén vacíos, los canales con su handle y el ★ del preferido) y el ESTÁNDAR de cabecera de la casa:
         # dos barras, los iconos de cada fuente y el botón Conectores que abre su pantalla. El contrato del
@@ -3279,6 +3285,11 @@ DOMAINS: list[dict] = [
         # justamente lo peligroso: en la API de Google un PATCH que lleva un array lo REEMPLAZA. Mandar solo
         # nuestra fila borraría a todos los demás invitados de la reunión de otro, devolviendo 200. Por eso es
         # un READ-MODIFY-WRITE y por eso estos casos miran lo que se ENVÍA, no lo que se contesta.
+        # V2-700 — la mitad del SERVIDOR: la página de callback compartida (que es lo que avisa a la
+        # tarjeta) y el evento `widget/data`, el mismo camino que mensajería ya usaba y que OAuth no tenía.
+        {"id": "5.28", "title": "Una cuenta conectada avisa a la tarjeta de que ha conectado",
+            "ch": UNIT, "paths": [
+                "tests/connectors/unit/test_a_connected_account_tells_the_card_it_landed.py"]},
         # V2-699 — la agenda de Google entra en el directorio y, si el permiso lo permite, vuelve. Lo que
         # se fija es la POLÍTICA: sus ediciones ganan, el ★ viaja en un solo sentido, una dirección de
         # correo es una persona, y la máscara de campos nombra solo lo que se envía (lo listado se

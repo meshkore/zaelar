@@ -1273,11 +1273,6 @@ function renderGoogleWizard(data, ctx, S, redraw){
                                                        : tt("cal_connect", null, "Conectar Google Calendar"));
     go.disabled = !!S.connectBusy;
     go.onclick = async ()=>{
-      // The popup is opened SYNCHRONOUSLY, inside the click — a window.open() that runs after an `await` is
-      // outside the user gesture and every mainstream browser blocks it in SILENCE, which is exactly why the
-      // previous version of this button «ni siquiera funciona»: the URL arrived, and nothing ever showed.
-      let popup = null;
-      try{ popup = window.open("", "gcal_connect", "width=520,height=760"); }catch(_){ popup = null; }
       S.connectBusy = true; S.connectErr = ""; redraw();
       // V2-687 — the ORIGIN travels. Two doors open this same consent and they were sending DIFFERENT
       // redirect_uris: the settings panel derives it from the request headers (V2-603), and this one sent
@@ -1286,17 +1281,22 @@ function renderGoogleWizard(data, ctx, S, redraw){
       // measured on the operator's first real connect, 2026-09-14. An origin is not a credential (V2-520),
       // and the engine validates it before it ever reaches a URL.
       let res;
+      // V2-700 — `ctx.connect` owns the window AND the noticing. It opens the popup SYNCHRONOUSLY inside
+      // this click (a window.open() after an `await` is outside the user gesture and every mainstream
+      // browser blocks it in SILENCE — the reason this button once «ni siquiera funciona»), and then
+      // watches: the callback page's message, the window closing, and a bounded poll. The card therefore
+      // stops offering «Conectar» the moment the token lands, which it did not do before: the operator had
+      // to make something else happen before the screen caught up.
+      //
       // `force` is a HUMAN pressing this button, and it is the only thing that sends it: re-linking a
       // different Google account has to stay possible, while a voice turn or a Brain Worker asking to
       // "connect" a calendar that is already connected gets told so instead of getting a wizard (V2-689).
-      try{ res = await ctx.action("connect", {provider:"google", origin: location.origin, force:true}); }
+      try{ res = await ctx.connect("connect", {provider:"google", origin: location.origin, force:true},
+                                   {family:"agenda", name:"gcal",
+                                    onDone: ()=>{ S.connectBusy = false; }}); }
       catch(_){ res = null; }
       S.connectBusy = false;
-      const url = res && res.url;
-      if(url && popup){ try{ popup.location = url; }catch(_){ try{ window.open(url, "gcal_connect"); }catch(_2){} } }
-      else if(url){ try{ window.open(url, "gcal_connect", "width=520,height=760"); }catch(_){} }
-      else {
-        if(popup){ try{ popup.close(); }catch(_){} }
+      if(!(res && res.url)){
         // A refusal SAYS what went wrong — the connector's own sentence when it has one («sin app OAuth
         // registrada…»), which is the step above this one still pending.
         S.connectErr = (res && res.error) || tt("cal_connect_failed", null,

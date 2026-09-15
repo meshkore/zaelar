@@ -100,20 +100,51 @@ Conectores                                              ‹ Contactos
 - one row per source: mark, label, a status dot, and **at most one button**;
 - the connected source's own panel (sync box, default calendar, whatever it owns) directly under its row.
 
-## Connecting is the operator's CLICK, always
-
-The consent window only survives inside the gesture that opened it. So:
+## Connecting: `ctx.connect(...)`, never a window of your own (V2-700)
 
 ```js
-const w = window.open("", "_blank");             // synchronous, inside the click
-ctx.action("connect", {origin: location.origin}).then(r => {
-  if (r && r.ok && r.url) { if (w) w.location = r.url; } else if (w) { w.close(); }
-});
+const r = await ctx.connect("connect", {origin: location.origin},
+                            {family: "contactos", onDone: () => { busy = false; }});
+if (!(r && r.ok)) showError(r && r.error);
 ```
 
-Awaiting the action first and opening the window afterwards is what a popup blocker eats (V2-603, paid
-once). **By voice this cannot be completed**: the action leaves the card ON the connectors screen and the
-manifest tells the model to say «pulsa Conectar» (V2-686).
+That is the whole of it. The canvas opens the window **inside the click** (a `window.open()` after an
+`await` is outside the user gesture and every mainstream browser blocks it in SILENCE — V2-603 paid for
+this), with a features string so it is a **popup on the desktop** and a **tab on a narrow screen**, and
+then it watches for the connection landing.
+
+⚠️ **Do NOT hand-roll this.** Five widgets did, and by 2026-09-15 they had drifted into two different
+behaviours for one idea — a popup in the agenda, a whole tab in contacts — which is exactly what the
+operator reported. `test_no_widget_hand_rolls_its_own_consent_window` is the ratchet: a `window.open("")`
+inside a `widget.js` fails the suite.
+
+### How the card NOTICES — three signals, and none of them is believed
+
+His report: *«cuando volvemos a la pantalla […] ya automáticamente desaparece la opción de conectar y se
+marca como conectado. Eso sigue sin suceder y se tiene que estar detectando en tiempo real. Si no, el
+usuario está confundido y podría volver a iniciar indefinidamente la conexión.»*
+
+1. **The callback page posts to its opener** (`connectors/oauth_callback.py`) — instant, and the only one
+   that fires while he is still looking at the window.
+2. **The server emits `widget/data`** for the family's widget (`oauth_callback.announce`) — this is the
+   path that already worked for everything else and that OAuth was missing. A widget's own store goes
+   through `widgets/store.py::save`, which emits it and makes the open card re-fetch itself; that is why
+   the messaging card notices a Telegram QR being scanned **with no polling at all**. OAuth tokens live in
+   a `SecureJsonStore`, which emits nothing.
+3. **A bounded poll** in `_watchConnect` — covers a window that was never ours to watch (a mobile tab with
+   no opener) and a message a reused window ate.
+
+⚠️ **Every one of them ends in `refreshData`, which re-reads state from the ENGINE.** The postMessage is a
+HINT to go and look, never the answer — which is what makes it safe to accept it loosely, and why a forged
+message buys a refresh and nothing more. A surface that believed the flag would paint «conectado» over an
+account that is not.
+
+**A new connector gets all of this for free** by returning `oauth_callback.page(..., family=...)` from its
+callback route and calling `oauth_callback.announce(family)` on success AND on disconnect — unlinking is a
+state change too, and a card that goes on saying «conectado» is the same lie in reverse.
+
+**By voice this cannot be completed**: the consent is a click. The action leaves the card ON the connectors
+screen and the manifest tells the model to say «pulsa Conectar» (V2-686).
 
 ## The checklist for the next widget
 

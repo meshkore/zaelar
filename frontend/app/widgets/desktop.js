@@ -763,6 +763,18 @@ export class Desktop {
           else if(where==="bottom") sc.scrollTop=sc.scrollHeight;
           else if(where==="up") sc.scrollTop=Math.max(0, sc.scrollTop-page);
           else sc.scrollTop=sc.scrollTop+page; },
+        // V2-700 — CONNECTING AN ACCOUNT, done once for every widget that has a connector.
+        //
+        // The operator: «cuando volvemos a la pantalla de nuestro agente personal ya automáticamente
+        // desaparece la opción de conectar y se marca como conectado. Eso sigue sin suceder […] Si no, el
+        // usuario está confundido y podría volver a iniciar indefinidamente la conexión.»
+        //
+        // It lives in `ctx` and not in each widget.js for the same reason `action` does: opening a window
+        // inside a user gesture, listening to it, and re-reading state are CANVAS concerns, and five
+        // hand-rolled copies had already drifted into two different behaviours (a popup in the agenda, a
+        // whole tab in contacts). `widget.js` never touches the network, and this does not change that —
+        // the widget still only names an action.
+        connect:(action, payload, opts)=>desk._connectFlow(id, action, payload, opts),
         // V2-092 — is the agent running? DELIBERATELY A GETTER: `ctx` is created once at mount and saved
         // (`w._ctx`) for re-renders, so a copied value would become stale. A widget that PLAYS something must check
         // it before starting on its own (see widgets/AGENTS.md, “produce”).
@@ -971,6 +983,108 @@ export class Desktop {
       w._refreshing = false;
       if(w._refreshPending){ w._refreshPending = false; this.refreshData(id); }
     }
+  }
+
+  // ── V2-700 · CONNECTING AN ACCOUNT, and NOTICING that it landed ────────────────────────────────────────
+  //
+  // Three ways of noticing, because each one alone has a hole:
+  //
+  //   1. the callback page POSTS to its opener (`connectors/oauth_callback.py`) — instant, and the only one
+  //      that fires while the operator is still looking at the window;
+  //   2. the window CLOSES — covers a consent finished in a tab the message could not reach, and a cancel;
+  //   3. a bounded POLL — covers a window that was never ours to watch (a mobile tab with no opener) and a
+  //      message eaten by a browser that reused an existing window.
+  //
+  // Every one of them ends in the same place: `refreshData`, which re-reads state from the ENGINE and
+  // re-renders only if it actually changed. That is what makes the postMessage safe to accept loosely — it
+  // is a HINT to go and look, never the answer itself, so a forged one buys a refresh and nothing more.
+  _connectOrigins(){
+    // Our own origin, plus the engine's two local listeners: the callback is normalized onto loopback
+    // (`connectors/google/app.py::normalize_origin`), so a card opened on `local.zaelar.com` receives its
+    // message from `127.0.0.1` — the frequent case, not the exotic one.
+    return (o)=>{ try{
+      if(o === location.origin) return true;
+      return /^https?:\/\/(127\.0\.0\.1|localhost|local\.zaelar\.com)(:\d+)?$/.test(String(o||""));
+    }catch(_){ return false; } };
+  }
+
+  async _connectFlow(id, action, payload, opts){
+    const o = opts || {};
+    const w = this.wins.get(id);
+    if(!w) return {ok:false, error:"card is gone"};
+
+    // THE WINDOW IS OPENED SYNCHRONOUSLY, inside the click. A window.open() that runs after an `await` is
+    // outside the user gesture and every mainstream browser blocks it in SILENCE (V2-679 paid for this).
+    //
+    // The FEATURES string is what makes it a popup rather than a tab, and the operator asked for exactly
+    // that on the desktop: «no me ha gustado en la versión desktop que se me cambie de pestaña». On a narrow
+    // screen a popup is not a thing the OS can honour, so there we ask for a tab on purpose.
+    const narrow = (window.innerWidth || 0) < 700;
+    const name = "zaelar_connect_" + (o.name || id);
+    let popup = null;
+    try{ popup = narrow ? window.open("", name) : window.open("", name, "width=520,height=760"); }
+    catch(_){ popup = null; }
+
+    let res = null;
+    try{ res = await w._ctx.action(action, payload || {}); }catch(_){ res = null; }
+    const url = res && res.ok !== false && res.url;
+    if(!url){
+      if(popup){ try{ popup.close(); }catch(_){} }
+      return res || {ok:false, error:"no url"};
+    }
+    if(popup){ try{ popup.location = url; }catch(_){ try{ window.open(url, name); }catch(_2){} } }
+    else { try{ window.open(url, name); }catch(_){} }   // blocked: a tab is better than nothing at all
+
+    this._watchConnect(id, popup, o);
+    return res;
+  }
+
+  _watchConnect(id, popup, o){
+    const w = this.wins.get(id);
+    if(!w) return;
+    if(w._connWatch){ try{ w._connWatch(); }catch(_){} }   // one watcher per card, never a pile of them
+
+    const startedSig = w._dataSig;
+    const deadline = Date.now() + (o.timeoutMs || 180000);
+    const ok = this._connectOrigins();
+    let stopped = false, closedSeen = 0;
+
+    const stop = ()=>{ if(stopped) return; stopped = true;
+      try{ window.removeEventListener("message", onMsg); }catch(_){}
+      clearInterval(timer);
+      const ww = this.wins.get(id); if(ww && ww._connWatch === stop) ww._connWatch = null; };
+
+    const look = async ()=>{
+      await this.refreshData(id);
+      const ww = this.wins.get(id);
+      // The state CHANGED — the card has already re-rendered itself, so there is nothing left to wait for.
+      if(ww && ww._dataSig !== startedSig){ stop(); if(o.onDone) { try{ o.onDone(true); }catch(_){} } return true; }
+      return false;
+    };
+
+    const onMsg = (e)=>{
+      if(!ok(e.origin)) return;
+      const d = e && e.data;
+      if(!d || typeof d !== "object" || d.zaelar !== "connector") return;
+      if(o.family && d.family && d.family !== o.family) return;
+      look();
+    };
+    window.addEventListener("message", onMsg);
+
+    const timer = setInterval(async ()=>{
+      if(!this.wins.get(id)){ stop(); return; }            // the card was closed: stop, quietly
+      if(Date.now() > deadline){ stop(); if(o.onDone) { try{ o.onDone(false); }catch(_){} } return; }
+      // A CLOSED WINDOW IS NOT AN ANSWER, it is a reason to look once more. The token is written by the
+      // callback before the page closes itself, but «closed» can also mean the operator gave up — so we
+      // look twice and then stop, instead of treating either reading as the outcome.
+      let closed = false;
+      try{ closed = !!(popup && popup.closed); }catch(_){ closed = false; }
+      if(closed) closedSeen++;
+      if(await look()) return;
+      if(closedSeen >= 2){ stop(); if(o.onDone) { try{ o.onDone(false); }catch(_){} } }
+    }, o.everyMs || 2000);
+
+    w._connWatch = stop;
   }
 
   // V2-613 — the operator picks a language (first-run onboarding, or a later ⚙ switch) and every OPEN system

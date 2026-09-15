@@ -422,9 +422,10 @@ function syncYtPlayer(el, data, ctx){
 // Spotify connection, intact from V2-041.
 async function doConnect(ctx, client_id, btn, adv){
   if(btn){ btn.disabled = true; btn.textContent = tt("opening_spotify", null, "Abriendo Spotify…"); }
-  const res = await ctx.action("connect", client_id ? {client_id} : {});
+  // V2-700 — the popup was already right here; what was missing is the NOTICING. `ctx.connect` watches
+  // for the connection landing and re-reads state, so the card stops asking to connect on its own.
+  const res = await ctx.connect("connect", client_id ? {client_id} : {}, {family: "musica", name: "spotify"});
   if(res && res.url){
-    window.open(res.url, "spotify_login", "width=520,height=760");
     if(btn) btn.textContent = tt("finish_login", null, "Termina el login en la ventana…");
   } else {
     if(btn){ btn.disabled = false; btn.textContent = client_id ? tt("connect_own_id", null, "Conectar con mi Client ID") : tt("connect_spotify", null, "Conectar Spotify"); }

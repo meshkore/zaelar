@@ -21,6 +21,35 @@ entregada siga citada aquí.
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **Connecting an account opens a POPUP, and the card notices in real time (V2-700, 2026-09-15)**: he
+  linked Google Contacts and reported two things — «se ha abierto en una pestaña nueva en lugar de en un
+  pop-up […] no me ha gustado en la versión desktop que se me cambie de pestaña», and the bigger one:
+  «cuando volvemos a la pantalla […] ya automáticamente desaparece la opción de conectar y se marca como
+  conectado. Eso sigue sin suceder y se tiene que estar detectando en tiempo real. Si no, el usuario está
+  confundido y podría volver a iniciar indefinidamente la conexión.»
+  **MEASURED: five widgets had five hand-rolled copies of «open a window and hope», and they had drifted
+  into two behaviours** — the agenda passed a features string (a popup), contacts and youtube passed
+  `"_blank"` (a tab). `fotos` was worse: it called `window.open` AFTER the `await`, under a comment
+  claiming it did the opposite, which is the silently-blocked-popup class V2-603 already paid for. And all
+  five shared the real defect: **the callback page told the OPERATOR it had worked and told the CARD
+  nothing.** The reason is exact and worth keeping: a widget's own store goes through
+  `widgets/store.py::save`, which emits ONE `widget/data` event that makes the open card re-fetch itself —
+  which is why the messaging card notices a Telegram QR being scanned **with no polling anywhere**. OAuth
+  tokens live in a `SecureJsonStore`, which emits nothing, so linking an account changed nothing the canvas
+  could see. Delivered: **`ctx.connect(...)` on the canvas** — it opens the window inside the click, with
+  features on the desktop and without on a narrow screen, and then watches three independent signals (the
+  callback page's `postMessage` to its opener; the new `widget/data` announcement from the server; a
+  bounded poll for a window that was never ours, like a mobile tab with no opener). ⚠️ **None of the three
+  is BELIEVED** — every one ends in `refreshData`, which re-reads state from the engine, which is what
+  makes accepting the message loosely safe (a forged one buys a refresh and nothing more) and what stops a
+  card painting «conectado» over an account that is not. One shared callback page
+  (`connectors/oauth_callback.py`) replaces the five copies, and `announce()` fires on disconnect too,
+  because a card that goes on saying «conectado» is the same lie in reverse. Six widgets converted
+  (contactos, agenda, fotos, youtube, archivos, musica) and a ratchet —
+  `test_no_widget_hand_rolls_its_own_consent_window` — fails the suite on a `window.open("")` inside any
+  `widget.js`, so the seventh connector cannot re-invent it. Eleven disarms, all red. **Not verified live:
+  no real consent has travelled the new path yet.**
+
 - **A contact card looks like a CONTACT CARD, the header is the house's, and Google Contacts is a
   connector like any other (V2-699, 2026-09-15)**: he opened the card for his only contact — Cryptonite,
   whom he messages on Telegram every day — and reported that it showed «que es una persona» and nothing

@@ -280,7 +280,7 @@ export function render(root, data, ctx) {
   ensureTierObserver(root);
 
   if (d.panel === "connect") {
-    root.appendChild(connectPanel(d, act));
+    root.appendChild(connectPanel(d, act, ctx));
     return;
   }
 
@@ -811,7 +811,7 @@ function footer(sel, act) {
 // The connect wizard, INSIDE the card — house rule: a widget's sub-flow never becomes a separate window. It
 // is its OWN screen with a persistent close (✕, top-right, reachable without scrolling) AND the original
 // "← Volver" at the bottom — the operator's own report was landing here with no way back out.
-function connectPanel(d, act) {
+function connectPanel(d, act, ctx) {
   const wrap = el("div", "arx-cxwrap");
 
   const top = el("div", "arx-cxtop");
@@ -877,7 +877,7 @@ function connectPanel(d, act) {
         card.appendChild(tnote);
       }
       const go = el("button", "arx-btn", tt("connect_", null, "Conectar ") + (p.label || p.id));
-      go.onclick = () => beginConsent(p.id, tierId, go, act);
+      go.onclick = () => beginConsent(p.id, tierId, go, act, ctx);
       card.appendChild(go);
     }
     box.appendChild(card);
@@ -890,24 +890,19 @@ function connectPanel(d, act) {
   return wrap;
 }
 
-async function beginConsent(provider, tier, btn, act) {
-  let win = null;
-  try { win = window.open("", "_blank", "noopener"); } catch (_) { win = null; }
+async function beginConsent(provider, tier, btn, act, ctx) {
   btn.disabled = true;
   const prev = btn.textContent;
   btn.textContent = tt("opening", null, "Abriendo…");
   try {
-    const r = await act("connect_provider", { provider, tier });
-    if (r && r.ok && r.url) {
-      if (win) win.location = r.url;
-      else window.open(r.url, "_blank", "noopener");
-    } else {
-      if (win) { try { win.close(); } catch (_) {} }
+    // V2-700 — the window AND the noticing belong to the canvas: a popup on the desktop, a tab when the
+    // screen is narrow, and a watcher that re-reads state so the card stops offering «Conectar» by itself.
+    const r = await ctx.connect("connect_provider", { provider, tier }, { family: "archivos", name: provider });
+    if (!(r && r.ok && r.url)) {
       btn.textContent = (r && r.error) ? String(r.error).slice(0, 110) : tt("open_failed", null, "No se pudo abrir");
       return;
     }
   } catch (_) {
-    if (win) { try { win.close(); } catch (_) {} }
     btn.textContent = tt("open_failed", null, "No se pudo abrir");
     return;
   } finally {

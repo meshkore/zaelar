@@ -527,14 +527,24 @@ function renderConnectors(el, host, data, ctx){
       // gesture that opened it, so the window is opened SYNCHRONOUSLY here and its location filled in
       // afterwards. Awaiting the action first and opening then is what a popup blocker eats (V2-603).
       if(!on){
-        const b = el2("button","ctbtn primary", tt("src_connect", null, "Conectar"));
-        b.onclick = ()=>{
-          const w = window.open("", "_blank");
-          ctx.action("connect", {origin: location.origin}).then(r=>{
-            if(r && r.ok && r.url){ if(w) w.location = r.url; }
-            else if(w){ w.close(); }
+        const busy = el._ctConnecting === p.id;
+        const b = el2("button","ctbtn primary", busy ? tt("src_connecting", null, "Abriendo Google…")
+                                                     : tt("src_connect", null, "Conectar"));
+        b.disabled = busy;
+        // `ctx.connect` owns the window AND the noticing (V2-700): it opens the popup inside this click,
+        // then watches for the callback page's message, for the window closing, and polls as a backstop —
+        // so the card stops offering «Conectar» the moment the token lands, without the operator touching
+        // anything. Doing it here by hand is what left two widgets with two different behaviours.
+        b.onclick = async ()=>{
+          el._ctConnecting = p.id; redraw(null);
+          const r = await ctx.connect("connect", {origin: location.origin},
+                                      {family: "contactos", onDone: ()=>{ el._ctConnecting = null; }});
+          if(!(r && r.ok)){
+            el._ctConnecting = null;
+            el._ctConnErr = (r && r.error) || tt("src_connect_failed", null,
+              "No pude abrir la ventana de Google. Revisa el conector en Configuración.");
             redraw(null);
-          });
+          }
         };
         row.appendChild(b);
       } else {
@@ -544,8 +554,19 @@ function renderConnectors(el, host, data, ctx){
       }
     }
     wrap.appendChild(row);
-    if(live && on) wrap.appendChild(renderSyncBox(el, data, ctx, sync, redraw));
+    if(live && on){
+      // A connection that just landed clears the «connecting» state with it — otherwise the button would
+      // come back as «Abriendo Google…» on the very render that proves it worked.
+      el._ctConnecting = null; el._ctConnErr = "";
+      wrap.appendChild(renderSyncBox(el, data, ctx, sync, redraw));
+    }
   });
+  if(el._ctConnErr){
+    const e = el2("div","ctwarn", String(el._ctConnErr));
+    e.style.color = "var(--hb-danger,#D9534F)";
+    e.style.borderLeftColor = "var(--hb-danger,#D9534F)";
+    wrap.appendChild(e);
+  }
   host.appendChild(wrap);
 }
 

@@ -55,6 +55,10 @@ async def callback(code: str = "", state: str = "", error: str = ""):
     if error:
         return HTMLResponse(_page(False, f"Google devolvió un error: {error}"), status_code=400)
     res = oauth.exchange_code(code, state)
+    # V2-700 — the CARD has to notice. See connectors/oauth_callback.announce().
+    if res.get("ok"):
+        from connectors import oauth_callback as _ocb
+        _ocb.announce("contactos")
     return HTMLResponse(
         _page(bool(res.get("ok")), "" if res.get("ok") else str(res.get("error") or "no se pudo completar")),
         status_code=200 if res.get("ok") else 400)
@@ -62,23 +66,19 @@ async def callback(code: str = "", state: str = "", error: str = ""):
 
 @router.post("/api/contacts/disconnect")
 async def disconnect():
-    return JSONResponse(oauth.forget("google-contacts"))
+    _r = oauth.forget("google-contacts")
+    # V2-700 — unlinking is a state change too: the card must stop saying «conectado».
+    from connectors import oauth_callback as _ocb
+    _ocb.announce("contactos")
+    return JSONResponse(_r)
 
 
 def _page(ok: bool, detail: str) -> str:
-    title = "Google Contacts conectado" if ok else "No se pudo conectar"
-    icon = "✅" if ok else "⚠️"
-    body = ("Vuelve a la tarjeta de Contactos y pulsa «Importar de Google». Puedes cerrar esta pestaña."
-            if ok else f"Detalle: {detail}. Cierra esta pestaña e inténtalo de nuevo desde el widget.")
-    return (
-        "<!doctype html><html lang='es'><head><meta charset='utf-8'>"
-        "<meta name='viewport' content='width=device-width,initial-scale=1'>"
-        f"<title>{title}</title>"
-        "<style>body{font-family:system-ui,-apple-system,sans-serif;background:#0f1115;color:#e6e6e6;"
-        "display:flex;min-height:100vh;align-items:center;justify-content:center;margin:0}"
-        ".c{max-width:28rem;text-align:center;padding:2rem}h1{font-size:1.3rem;margin:.5rem 0}"
-        "p{color:#9aa0aa;line-height:1.5}</style></head><body><div class='c'>"
-        f"<div style='font-size:3rem'>{icon}</div><h1>{title}</h1><p>{body}</p>"
-        "<script>setTimeout(function(){try{window.close()}catch(e){}},4000)</script>"
-        "</div></body></html>"
-    )
+    """The shared callback page (V2-700) — it is what tells the CARD the connection landed.
+
+    Hand-rolled here until V2-700, in five near-identical copies that all had the same defect: they
+    told the operator it had worked and told the widget nothing, so the card went on offering
+    «Conectar». See `connectors/oauth_callback.py`."""
+    from connectors import oauth_callback
+    return oauth_callback.page(ok, detail, family='contactos', label='Google Contacts',
+                               done='Vuelve a la tarjeta de Contactos y pulsa «Sincronizar contactos».')
