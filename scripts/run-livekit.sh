@@ -122,10 +122,11 @@ for _ in $(seq 1 60); do curl -sf -m1 -o /dev/null "http://127.0.0.1:7880/" 2>/d
 sleep 2   # settle: let the agent service finish coming up so worker registration lands (avoids the startup race)
 echo "  ws://127.0.0.1:7880 (devkey/secret)"
 
-# LOCAL DAEMON (V2-575): the user's files and the real browser that passes CAPTCHAs. Standard library only, so it
+# LOCAL DAEMON (V2-575): the folders the user allows it to read. (The browser that passes CAPTCHAs is P2 and is
+# NOT built — do not advertise it here.) Standard library only, so it
 # runs on the venv without installing anything. ADDITIVE — the engine keeps its own in-process browser, so if this
 # never comes up the product is exactly what it is today; that is why nothing below waits on it or checks it.
-echo "▶ zaelar-daemon (files + local browser)…"
+echo "▶ zaelar-daemon (the folders you allow it to read)…"
 ( cd "$HERE" && exec "$PY" -m daemon ) >"$HERE/.meshkore/logs/daemon.log" 2>&1 & DAEMON_PID=$!
 
 echo "▶ servidor web zaelar (worker LiveKit EMBEBIDO, BRAIN=$BRAIN)…"

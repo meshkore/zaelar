@@ -406,6 +406,36 @@ def test_the_command_a_self_hoster_is_given_is_the_launcher_this_repo_ships():
     )
 
 
+def test_nothing_user_facing_promises_the_browser_that_is_not_built():
+    """⚠️ THE DAEMON DOES NOT OPEN BROWSERS. `files.list/read/search` is the whole of it; the browser hand-off
+    that would pass a CAPTCHA on the user's screen is P2, and reaching the cloud agent through it is P3.
+
+    Both launchers announced it anyway — `./zaelar status` printed "files + the browser that passes CAPTCHAs",
+    on the one screen somebody reads when something is not working. A status line is not a roadmap: it names
+    what is running. This ratchet holds every user-facing surface to the same rule, so the day the browser
+    lands it is these strings that have to change, deliberately, rather than a promise that quietly became
+    true and was never checked."""
+    surfaces = {
+        "scripts/zaelar.py": ENGINE / "scripts" / "zaelar.py",
+        "scripts/run-livekit.sh": ENGINE / "scripts" / "run-livekit.sh",
+        "en.json": ENGINE / "i18n" / "bundles" / "en.json",
+        "es.json": ENGINE / "i18n" / "bundles" / "es.json",
+    }
+    for label, path in surfaces.items():
+        text = path.read_text(encoding="utf-8")
+        live = "\n".join(l for l in text.splitlines()
+                         if not l.strip().startswith("#") and not l.strip().startswith("//"))
+        for claim in ("passes CAPTCHAs", "pasa CAPTCHAs", "local browser", "navegador local"):
+            assert claim.lower() not in live.lower(), (
+                f"{label} advertises a browser capability the daemon does not have: {claim!r}"
+            )
+    # And the capability list the engine reports is the list the daemon really serves.
+    from server.daemon_api import _ASSETS  # noqa: F401  (import guard: the module loads)
+    routes = (ENGINE / "daemon" / "http" / "routes.py").read_text(encoding="utf-8")
+    declared = routes.split("CAPABILITIES = ")[1].split("]")[0]
+    assert "browser" not in declared, f"the daemon declares a browser capability: {declared}"
+
+
 def test_the_readme_tells_a_self_hoster_there_is_nothing_to_install():
     """The front door of a public repository. Somebody cloning this has the daemon already, and the README is
     where they find that out — otherwise the 🖥 icon appearing in their interface reads as "another thing to

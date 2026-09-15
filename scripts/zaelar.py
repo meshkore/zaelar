@@ -55,7 +55,10 @@ PORTS = [
     (43917, "app (HTTP — internal bridges talk to this one)"),
     (44317, "app (HTTPS — https://local.zaelar.com:44317)"),
     (7880, "livekit-server (voice signalling)"),
-    (45817, "zaelar-daemon (files + the browser that passes CAPTCHAs)"),
+    # ⚠️ NAMES WHAT IT DOES, not what it is FOR. This line used to read "files + the browser that passes
+    # CAPTCHAs" — the browser is P2 and does not exist, so `./zaelar status` was announcing a capability
+    # nobody could use, on the one screen a person checks when something is not working.
+    (45817, "zaelar-daemon (the folders you allow it to read)"),
 ]
 APP_PORT = 43917
 HTTPS_PORT = 44317
@@ -354,7 +357,8 @@ def cmd_start(wait: float = 180.0, brain: str = "nucleo") -> int:
     else:
         _say("livekit-server already up, reusing it.")
 
-    # The local daemon (V2-575): the user's files and the real browser that passes CAPTCHAs. ADDITIVE — the engine
+    # The local daemon (V2-575): the folders the user allows it to read (the browser hand-off is P2 and is not
+    # built). ADDITIVE — the engine
     # keeps its own in-process browser, so a daemon that fails to start costs today's product exactly nothing, and
     # that is why this never returns non-zero.
     if not port_busy(DAEMON_PORT):
