@@ -87,6 +87,21 @@ widgets feel polished and consistent with the rest. These are HARD rules — fol
     close/maximize/minimize/resize control, your own title bar, or your own outer border+shadow around
     everything** — that is a second frame inside the first. What a widget owns is the INSIDE. `ctx.close()` is
     there for content that means «I am done»; `ctx.top()` resets the scroll after you swap screens.
+  - **THE CARD CHANGES SHAPE UNDER YOU, and its widest shape is THE WHOLE SCREEN.** A double-click on the
+    header takes a card from its ~400px default to the full viewport and one more click takes it back — with
+    no remount, no event of your own and no warning, and the same goes for a drag-resize, the chat column
+    docking beside it and `arrange_canvas` retiling everything. So lay out by fraction and `minmax()`, never
+    by a width you measured once at mount. *The padding and the scrolling are the HOST's*: your root is
+    wrapped in a scroller that already carries `padding:var(--sp-4)`, so an outer padding of your own doubles
+    it, and a negative margin to break out of it misaligns at every other size.
+  - **Never escape the card**: no `position:fixed`, no `100vw`/`100vh`, no `z-index` above 5 on anything you
+    render. Those are the three ways a widget's CSS leaves the window it lives in and lands on top of the
+    desk's own chrome, and each of them looks right in a floating card and wrong the moment the operator
+    maximizes it. Covering the viewport is the HOST's gesture (the header's ⤢, the voice order, or
+    `"fullscreen":"native"` in the manifest for a media surface), never a style you write.
+    V2-693 was the other half of this rule being broken — the HOST was dropping the window's header, padding
+    and scrolling while maximized, so a maximized directory could not be scrolled and had no visible way out.
+    It took a screenshot from the operator to find, because nothing was checking what a maximized window is.
   - **Never a fixed `min-width` above 360px** — it is the one declaration no container can absorb, so the card
     ends up scrolling sideways and the operator has to drag the widget around to read it. *The validation gate
     rejects this* (`widgets/validator.py`). Sizes come from `%`, `minmax()`, `flex-wrap`, `grid-template-columns:

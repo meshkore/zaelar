@@ -117,21 +117,40 @@ function injectStyles(){
      untouched (V2-600: it covers the rail too, on purpose — full immersion is what "maximize the video"
      means there). NOTE: this whole block is a template literal — no backticks inside, ever (V2-559's trap,
      paid here once already: a backtick in a comment CLOSES the string and turns the rest into raw JS). */
-  .hb-win.hb-fullwide{position:fixed;top:0!important;left:0!important;width:100vw!important;height:100vh!important;
-    max-width:none!important;max-height:none!important;padding:0;background:var(--hb-bg,#12151A);border:0;border-radius:0}
+  /* V2-693 — A MAXIMIZED WINDOW IS STILL A WINDOW. V2-658 generalized cinema's treatment to every widget and
+     took cinema's two video-only decisions with it: the header hidden and the content run to the physical
+     screen edge. The operator double-clicked a header and reported the result: «no respeta márgenes, paddings
+     y sinceramente… desaparecen los botones, esto está fatal». It was worse than it looked — the same rule
+     also set overflow:hidden on the scroller, so a maximized directory of 2686 contacts could not be
+     scrolled, and the only control left was a floating exit button painted near-white on a light wash.
+     So fullwide now changes exactly ONE thing about the card, which is the only thing the gesture means: its
+     GEOMETRY. The header, the three controls, the padding and the scrolling are all the same object the
+     operator was using a second earlier. What it does drop is the resize handles, which have nothing left to
+     resize, and the floating exit button, whose job the restored header already does.
+     CINEMA (fullscreen:"native", the video) keeps the full-bleed chrome-less treatment: there the content IS
+     the window, and V2-600 asked for that by name.
+     The band at the bottom is RESERVED, not covered: the dock stays reachable on top (that is why fullwide
+     exists instead of cinema), so a window that ran under it was hiding its own last rows behind it. */
+  .hb-win.hb-fullwide{position:fixed;top:0!important;left:0!important;width:100vw!important;
+    height:calc(100vh - var(--wrail-h,58px))!important;
+    max-width:none!important;max-height:none!important;padding:0;background:var(--hb-bg,#12151A);
+    border:0;border-top:0;border-radius:0}
   .hb-stage:has(.hb-win.hb-fullwide){z-index:9001}
   .hb-win:fullscreen{padding:0}
   .hb-win.hb-cinema .hb-head,.hb-win.hb-cinema .hb-rz,
-  .hb-win.hb-fullwide .hb-head,.hb-win.hb-fullwide .hb-rz,
+  .hb-win.hb-fullwide .hb-rz,
   .hb-win:fullscreen .hb-head,.hb-win:fullscreen .hb-rz{display:none}
-  .hb-win.hb-cinema .hb-scroll,.hb-win.hb-fullwide .hb-scroll,.hb-win:fullscreen .hb-scroll{overflow:hidden;padding:0}
-  .hb-win.hb-cinema .hb-body,.hb-win.hb-fullwide .hb-body,.hb-win:fullscreen .hb-body{height:100%}
+  .hb-win.hb-cinema .hb-scroll,.hb-win:fullscreen .hb-scroll{overflow:hidden;padding:0}
+  .hb-win.hb-cinema .hb-body,.hb-win:fullscreen .hb-body{height:100%}
   .hb-cinexit{display:none;position:absolute;top:10px;right:10px;z-index:6;width:36px;height:36px;border:0;
     border-radius:10px;background:rgba(0,0,0,.55);color:#fff;font-size:16px;line-height:1;cursor:pointer;
     align-items:center;justify-content:center}
   .hb-cinexit:hover{background:rgba(0,0,0,.8)}
-  .hb-win.hb-fullwide .hb-cinexit{background:color-mix(in srgb,var(--hb-ink,#0d1622) 55%,transparent)}
-  .hb-win.hb-cinema .hb-cinexit,.hb-win.hb-fullwide .hb-cinexit,.hb-win:fullscreen .hb-cinexit{display:flex}
+  /* V2-693 — the floating exit is for the states that have NO header to come back to. In fullwide the header
+     is back, so a second, differently-shaped restore control beside it is one control too many; it was also
+     the only one left when the header was hidden, and it was painted near-white on a light wash, which is how
+     a screen could end up with no visible way out at all. */
+  .hb-win.hb-cinema .hb-cinexit,.hb-win:fullscreen .hb-cinexit{display:flex}
   .hb-win.loading{padding:22px;min-width:120px;min-height:120px;display:flex;align-items:center;justify-content:center}
   .hb-win.loading .hb-scroll,.hb-win.loading .hb-head,.hb-win.loading .hb-rz{display:none}
   /* Widget HEADER (V2-082, left-aligned since V2-616): the NAME used to open it + a config button that expands
@@ -1249,6 +1268,17 @@ export class Desktop {
         }).catch(()=>{});
       }
     }
+    // V2-693 — the header stays visible while maximized, so its ⤢ has to stop lying: the same button is now
+    // the RESTORE control, and says so. It is a toggle in the API already; until the header was hidden nobody
+    // could see that it never changed face.
+    try{
+      const mx = card.querySelector(".hb-max");
+      if(mx){
+        const maxed = !!card._restore;
+        mx.textContent = maxed ? "⤡" : "⤢";
+        mx.title = tr(maxed ? "desktop.restore_tooltip" : "desktop.maximize_tooltip");
+      }
+    }catch(_){}
     this._bringFront(card); this._persist(); this._uiAudit("maximize", id);
     return true;
   }

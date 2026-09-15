@@ -177,6 +177,38 @@ def _scan_widget_js(js: str) -> str | None:
                     f"small fixed element. If this is your root, it must be width:100%;box-sizing:border-box "
                     f"(the CARD decides the size, widgets/AGENTS.md); if it is a genuinely large fixed element, "
                     f"raise this threshold's exemption explicitly rather than silently passing it")
+
+    # A WIDGET THAT ESCAPES ITS OWN WINDOW (V2-693). A widget lives INSIDE a card the host owns, and the card
+    # is not always where it was at mount: one double-click on the header takes it to the full viewport, the
+    # chat column docks beside it, `arrange_canvas` retiles everything. These three declarations are the only
+    # ways a widget's CSS can leave that box, and each of them LOOKS CORRECT in a floating card — which is
+    # exactly why a source gate is the right instrument: the render that would catch it is the one nobody
+    # takes. `position:fixed` pins to the viewport instead of the card; a full-viewport size claims the screen
+    # instead of the room it was given; a big z-index climbs over the desk's own chrome (the dock is 9002,
+    # the chat 9001, the stage 12 — a widget has no business in that range).
+    # KNOWN GAP, named rather than papered over: a PARTIAL viewport cap (`max-height:56vh`) is the same fault
+    # measured smaller, and it is NOT gated here because six of them ship today — contactos (.ctside 56vh,
+    # .ctlist 46vh), mensajeria (.list 52vh, .tl 56vh, .qr-wrap img 78vw) and imagenes (min(52vh,380px)). Each
+    # one pins a pane to a fraction of the SCREEN inside a card that may be a quarter of it or all of it, which
+    # is exactly the "it does not know how to place itself" the operator reported. Converting them means giving
+    # each of those widgets a real fill-the-card flex column, one widget at a time with its own render check —
+    # a bounded follow-up, not something to fold into a gate that would simply turn the catalog red.
+    for kw, why in ((r"position\s*:\s*fixed",
+                     "position:fixed pins to the VIEWPORT, not to the card — it stays put while the window "
+                     "that owns it moves, resizes and maximizes"),
+                    (r"(?:width|height)\s*:\s*100v[wh]\b",
+                     "100vw/100vh sizes to the SCREEN, not to the card the widget was given — covering the "
+                     "viewport is the host's gesture (the header ⤢, the voice order, or fullscreen:native in "
+                     "the manifest), never a style")):
+        m = re.search(kw, style_text, re.I)
+        if m:
+            return (f"widget.js declares {m.group(0)!r} — {why}. A widget owns the INSIDE of its window "
+                    f"(widgets/AGENTS.md)")
+    for m in re.finditer(r"z-index\s*:\s*(\d+)", style_text, re.I):
+        if int(m.group(1)) > _WIDGET_Z_CEILING:
+            return (f"widget.js declares z-index:{m.group(1)} — above the widget's own stacking room "
+                    f"(the ceiling is {_WIDGET_Z_CEILING}). The desk's chrome lives above that: the dock at "
+                    f"9002, the chat at 9001. Stack INSIDE your card (widgets/AGENTS.md)")
     return None
 
 
@@ -188,6 +220,11 @@ _PHONE_SAFE_MIN_WIDTH_PX = 360
 # element. Measured across the whole catalog before choosing it (V2-615): the largest legitimate small element
 # is 320px (a `max-width`, already excluded), every genuine root cap sat between 440-920px.
 _ROOT_WIDTH_CAP_PX = 400
+
+# The highest z-index a widget may stack to inside its own card. Measured across the whole catalog before
+# choosing it (V2-693): the deepest legitimate stack any system widget builds is 5 (a sticky header over a
+# list); everything above that is a widget trying to climb over the window it lives in.
+_WIDGET_Z_CEILING = 20
 
 
 # data.py: stdlib-only. Allow the standard library, relative imports, and the widgets package (store/planner).

@@ -33,7 +33,8 @@ _HTML = """<!doctype html><html><head><meta charset="utf-8"><style>
   .hb-win.hb-cinema{position:fixed;top:0!important;left:0!important;width:100vw!important;height:100vh!important;
     max-width:none!important;max-height:none!important;padding:0;background:#000;border:0;border-radius:0}
   .hb-stage:has(.hb-win.hb-cinema){z-index:99900}
-  .hb-win.hb-fullwide{position:fixed;top:0!important;left:0!important;width:100vw!important;height:100vh!important;
+  .hb-win.hb-fullwide{position:fixed;top:0!important;left:0!important;width:100vw!important;
+    height:calc(100vh - 60px)!important;
     max-width:none!important;max-height:none!important;padding:0;background:#fff;border:0;border-radius:0}
   .hb-stage:has(.hb-win.hb-fullwide){z-index:9001}
 </style></head><body>
@@ -116,11 +117,17 @@ def test_a_non_native_widget_maximizes_full_viewport_below_the_rail(playwright_a
         w: cr.width, h: cr.height, top: cr.top, left: cr.left,
         stageZ: getComputedStyle(stage).zIndex,
         railZ: getComputedStyle(document.getElementById("wrail")).zIndex,
+        railTop: document.getElementById("wrail").getBoundingClientRect().top,
       };
     }""")
     assert not errors, errors
     assert "hb-fullwide" in out["classes"] and "hb-cinema" not in out["classes"], out["classes"]
-    assert out["w"] >= 1199 and out["h"] >= 799, f"must cover the full viewport: {out}"
+    # V2-693 — the band is RESERVED, not covered. The whole reason a normal widget gets fullwide instead of
+    # cinema is that the dock stays reachable on top of it; a card that ran to the viewport floor was simply
+    # hiding its own last rows behind the dock it was deliberately staying under.
+    assert out["w"] >= 1199, f"must cover the full width: {out}"
+    assert abs((out["top"] + out["h"]) - out["railTop"]) <= 1, (
+        f"a maximized window must END where the dock begins: bottom={out['top'] + out['h']} rail={out['railTop']}")
     assert out["top"] == 0 and out["left"] == 0
     assert int(out["stageZ"]) < int(out["railZ"]), (
         f"the fullwide stage must stay BELOW the bottom rail: stage={out['stageZ']} rail={out['railZ']}")
