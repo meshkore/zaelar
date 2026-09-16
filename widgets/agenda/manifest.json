@@ -238,31 +238,23 @@
     "w": 420,
     "h": 380
   },
+
   "collections": {
     "meetings": {
       "id": "title",
       "label": "title",
       "mirror": "google",
-      "via": {
-        "delete": "cancel_meeting",
-        "patch": "update_meeting",
-        "put": "add_meeting"
-      }
+      "via": { "delete": "cancel_meeting", "patch": "update_meeting", "put": "add_meeting" }
     },
     "tasks": {
       "id": "taskId",
       "label": "title",
-      "via": {
-        "delete": "drop",
-        "put": "add_task"
-      }
+      "via": { "delete": "drop", "put": "add_task" }
     },
     "projects": {
       "id": "projectId",
       "label": "name",
-      "via": {
-        "delete": "drop_project"
-      }
+      "via": { "delete": "drop_project" }
     }
   }
 }
