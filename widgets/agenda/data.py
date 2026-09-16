@@ -234,80 +234,14 @@ def _proposals() -> list[dict]:
         return []
 
 
-def ref_index() -> list[dict]:
-    """Items the brain can reference by voice (V2-026): live tasks (by title) and active projects (by name).
-    `field` is the payload key that identifies them in actions (`taskId` for a task, `projectId` for a project),
-    so `widgets/refs.py` resolves a spoken task reference to its id without the model guessing it.
-    Only current items are exposed; completed/dropped tasks are no longer referenceable."""
-    db = load_db()
-    out: list[dict] = []
-    for t in db.get("tasks", []):
-        if t.get("status") in ("done", "dropped"):
-            continue
-        out.append({"id": t["id"], "label": t.get("title") or t["id"], "field": "taskId",
-                    "hint": (t.get("startTime") or "") + ("" if t.get("status") in (None, "todo") else f" {t['status']}")})
-    for p in db.get("projects", []):
-        if p.get("status") == "frozen":
-            continue
-        out.append({"id": p["id"], "label": p.get("name") or p["id"], "field": "projectId", "hint": "proyecto"})
-    # V2-639 — meetings are referenceable too («la cita del dentista» -> payload.title), so set_reminder /
-    # cancel_meeting / move_meeting resolve a spoken reference without the model re-typing the title. Only
-    # today-or-future ones: a past appointment is history, not a target.
-    today = _today()
-    for m in db.get("meetings", []):
-        if str(m.get("date") or "") < today:
-            continue
-        label = m.get("title") or "Cita"
-        out.append({"id": label, "label": label, "field": "title",
-                    "hint": f"cita {m.get('date', '')} {m.get('startTime', '')}".strip()})
-    return out
+# The two views the brain reads of this card — WHAT CAN BE NAMED and WHAT IS INSIDE — live in
+# `index.py` and must agree on what comes next (V2-707 F0). Re-exported: `refs` reads them here.
+from .index import prompt_digest, ref_index  # noqa: F401,E402 — re-export
 
 
 # A QUESTION is answered by SEARCHING, not by the summary below (`query.py`, V2-704).
 from .query import read_query  # noqa: F401,E402 — re-export
 
-
-def prompt_digest() -> str:
-    """What the brain sees while the agenda card is OPEN (`refs.prompt_digest` contract, capped there).
-
-    V2-639 — the operator asks the AGENDA questions («¿qué tengo mañana?», «¿qué es esa cita del
-    dentista?») and the model could not answer them: `coach_context` only carries TODAY's plan, so every
-    meeting beyond today was invisible and the reply was a guess. Upcoming meetings with their date, hour,
-    reminder and notes ARE the interior of this widget — same seam as contactos/fotos (V2-544)."""
-    db = load_db()
-    today = _today()
-    meets = sorted((m for m in db.get("meetings", []) if str(m.get("date") or "") >= today),
-                   key=lambda m: (str(m.get("date") or ""), str(m.get("startTime") or "")))
-    lines: list[str] = []
-    for m in meets[:12]:
-        _hour = "todo el día" if m.get("allDay") else str(m.get("startTime") or "")
-        row = f"  · {m.get('date', '?')} {_hour} «{m.get('title', 'Cita')}»"
-        if m.get("location"):
-            row += f" en {str(m['location'])[:60]}"
-        # V2-643 — who is coming and whether they answered. «¿Cuántos somos el jueves?» and «¿me lo
-        # confirmaron?» are questions about THIS card; without these two fields the model had to guess.
-        _who = [w for w in (m.get("attendees") or []) if str(w).strip()]
-        _n = len(m.get("attendees") or [])
-        if _n:
-            row += f" · {_n} persona{'s' if _n != 1 else ''}"
-            if _who:
-                row += f" ({', '.join(_who[:6])})"
-        if m.get("status") == "pending":
-            row += " · SIN confirmar por la otra parte"
-        elif m.get("status") == "confirmed" and _n:
-            row += " · confirmada"
-        if m.get("remindAt"):
-            row += f" (aviso {m['remindAt']})"
-        if m.get("notes"):
-            row += f" — {str(m['notes'])[:120]}"
-        lines.append(row)
-    if len(meets) > 12:
-        lines.append(f"  · … y {len(meets) - 12} citas más")
-    pend = [t for t in db.get("tasks", []) if t.get("status") in (None, "todo", "in_progress")]
-    head = f"citas próximas ({len(meets)}) · tareas vivas ({len(pend)}):"
-    if not lines:
-        lines = ["  · sin citas apuntadas de hoy en adelante"]
-    return head + "\n" + "\n".join(lines)
 
 
 # Relative spoken date/time normalization (V2-026). English joined in V2-639: the engine is multilingual

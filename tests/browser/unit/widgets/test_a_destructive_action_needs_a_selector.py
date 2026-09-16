@@ -149,3 +149,60 @@ def test_the_contract_sits_before_the_production_gate_in_the_funnel():
     assert body.index("contract.guard(") < body.index("producers.gate("), (
         "the contract must run before the production gate: a refused action never reaches a policy that "
         "could let it through")
+
+
+# ── V2-707 F0 · the menu the refusal offers is ordered by WHAT COMES NEXT ──────────────────────────────
+# Measured 2026-09-16 (session cb0ac5da, i=7911): asked to remove a meeting today at five, the operator was
+# read back «¡Feliz cumpleaños! (cita 2027-08-19); Cristina Sergio Primo Raquel - Cumplea…» — birthdays
+# eleven months out, while the two meetings he could have meant sat further down. `_options` takes the
+# first eight rows of `ref_index`, and that index handed them back in Google-sync order. The model then
+# re-emitted the same empty selector, because nothing in the menu was usable. `prompt_digest` has always
+# sorted by (date, hour); the index that feeds the REFUSAL never did, so the brain's two views of the same
+# card disagreed about what comes next.
+
+def test_the_menu_starts_with_the_soonest_appointment(tmp_path, monkeypatch):
+    from widgets import store
+    monkeypatch.setattr(store, "DATA_DIR", str(tmp_path))
+    from widgets.agenda import data as ag
+    db = ag.load_db()
+    # The incident's own calendar: the two meetings he could have meant were TODAY and TOMORROW, the
+    # birthdays eleven months out. Stored in the order the store had them — the far birthday FIRST.
+    import datetime as _dt
+    today = _dt.date.today()
+    db["meetings"] = [
+        {"id": "b1", "title": "¡Feliz cumpleaños!", "date": str(today.replace(year=today.year + 1)),
+         "startTime": ""},
+        {"id": "b2", "title": "Cumpleaños de Cristina",
+         "date": str(today.replace(year=today.year + 1) - _dt.timedelta(days=48)), "startTime": ""},
+        {"id": "m1", "title": "Meeting with Cryptonite",
+         "date": str(today + _dt.timedelta(days=1)), "startTime": "17:00"},
+        {"id": "m0", "title": "Dentist", "date": str(today), "startTime": "17:00"},
+    ]
+    store.save(ag.WIDGET_ID, db)
+
+    menu = contract.guard("agenda", "cancel_meeting", {})["options"]
+    assert menu, "the refusal has to offer something"
+    assert "Dentist" in menu[0], f"the soonest appointment must lead the menu, got {menu}"
+    assert menu.index([o for o in menu if "Cryptonite" in o][0]) < \
+        menu.index([o for o in menu if "cumpleaños" in o.lower()][0]), \
+        f"a meeting next week cannot rank below a birthday next year: {menu}"
+
+
+def test_the_index_and_the_digest_agree_on_what_comes_next(tmp_path, monkeypatch):
+    """The two surfaces the brain reads about the SAME card. They disagreed, and the disagreement is what
+    the model had to resolve on its own — with the wrong half in front of it."""
+    from widgets import store
+    monkeypatch.setattr(store, "DATA_DIR", str(tmp_path))
+    from widgets.agenda import data as ag
+    db = ag.load_db()
+    year = int(ag._today()[:4]) + 9
+    db["meetings"] = [
+        {"id": "z", "title": "Zeta", "date": f"{year}-03-03", "startTime": "09:00"},
+        {"id": "a", "title": "Alfa", "date": f"{year}-01-01", "startTime": "08:00"},
+        {"id": "b", "title": "Beta", "date": f"{year}-01-01", "startTime": "20:00"},
+    ]
+    store.save(ag.WIDGET_ID, db)
+
+    from_index = [r["label"] for r in ag.ref_index() if r["field"] == "title"]
+    from_digest = [ln.split("«")[1].split("»")[0] for ln in ag.prompt_digest().splitlines() if "«" in ln]
+    assert from_index == from_digest == ["Alfa", "Beta", "Zeta"], (from_index, from_digest)

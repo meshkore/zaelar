@@ -1101,6 +1101,11 @@ class NucleoLLMStream(llm.LLMStream):
                 # V2-650: unless the turn ITSELF orders the production again — «reproduce la lista» /
                 # «dale al play» share zero words with {"playlist": "true-blue"}, so payload overlap
                 # alone ate three explicit replays of a playback that had failed in silence.
+                # V2-707 F0 — and it only guards a mutation that REALLY HAPPENED: the seal is stamped from the
+                # RESULT (see `_seal` below), never before dispatching. Until F0 a refused op was remembered as
+                # executed and its corrected retry was eaten here — deterministically, because an empty payload
+                # joins no values and `_word_overlap` is then 0 against any sentence, so the hatch never opens.
+                # The incident, turn by turn: `test_a_refused_action_is_not_remembered_as_done.py`.
                 _last = brain._last_dataop
                 if _last and _last[0] == wid and _last[1] == action_name and _last[2] == (payload or {}) \
                         and (time.time() - _last[3]) < 120 \
@@ -1108,20 +1113,30 @@ class NucleoLLMStream(llm.LLMStream):
                                           _bnotes.operator_half(text)) == 0 \
                         and not _canvas_lic.replay_license(wid, action_name, text):
                     emit("brain", "🛡️ data-op del turno anterior re-emitida — ignorada (context-bleed)",
-                         text=f"{wid}:{action_name}", role="system")
+                         # …and it SAYS what it threw away. The sibling guards in `_handle_widget_data_tool`
+                         # carry the discarded payload; this one carried only «agenda:cancel_meeting», so the
+                         # live incident could not be diagnosed from the timeline at all.
+                         text=f"{wid}:{action_name}", role="system",
+                         extra={"id": wid, "action": action_name, "payload": payload or {}})
                     deduped["v"] = True
                     return
                 acted["widget"] = True
                 data_done["v"] = True
                 _log_dataop("fast")
-                brain._last_dataop = (wid, action_name, dict(payload or {}), time.time())
                 try:
                     from widgets import provenance as _prov
                     _prov.note(wid, "flash")             # V2-039: el cambio de datos que viene = ordenado por FlashBrain
                 except Exception:
                     pass
+
+                def _seal(ok: bool, _w=wid, _a=action_name, _p=dict(payload or {})) -> None:
+                    """Remember this mutation ONLY if it happened. A refusal leaves no trace to drag."""
+                    if ok:
+                        brain._last_dataop = (_w, _a, _p, time.time())
+
                 try:
-                    _spawn(_data_ops.dispatch_and_report(wid, action_name, payload or {}), "widget-data")
+                    _spawn(_data_ops.dispatch_and_report(wid, action_name, payload or {}, seal=_seal),
+                           "widget-data")
                 except Exception:
                     pass
             elif mode == _wactions.CONFIRM:

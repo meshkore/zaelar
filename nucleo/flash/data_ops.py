@@ -119,9 +119,16 @@ async def report_failure(wid: str, action: str, res: dict) -> bool:
     # The note is an INSTRUCTION to correct, not a line to read out: the brain says it in the operator's
     # language and in its own voice. The raw detail rides along so it cannot be softened into «hubo un
     # problema» — the operator needs the actionable half («falta el client_id»), which is the whole point.
+    # V2-707 F0 — and it says that the CORRECTED call will run. `contract.guard` refuses a destructive action
+    # whose selector arrived empty and hands back the menu precisely so the next turn can name one; until now
+    # nothing here told the model that re-calling was the expected move, while the anti-drag guard was quietly
+    # eating the re-call. A retry instruction and a retry guard that contradict each other leave the model
+    # with no legal move at all — which is what the timeline of 2026-09-16 shows it concluding.
     note = (f"[SISTEMA] La acción «{action}» sobre «{wid}» NO se ejecutó. Motivo exacto: {detail}. "
             f"Dilo con naturalidad en tu PRÓXIMA respuesta, en el idioma del operador, y NO digas que está "
-            f"hecho. Si el motivo indica que falta un paso suyo, dile cuál es.")
+            f"hecho. Si el motivo indica que falta un paso suyo, dile cuál es. Si lo que falta es un dato que "
+            f"puedes poner tú (cuál de los items, un campo vacío), vuelve a llamar a «{action}» con ese dato "
+            f"relleno: la llamada corregida SÍ se ejecuta, no es una repetición.")
     told = False
     try:
         from voice import brain_notes
@@ -147,7 +154,7 @@ async def report_failure(wid: str, action: str, res: dict) -> bool:
     return told
 
 
-async def dispatch_and_report(wid: str, action_name: str, payload: dict) -> None:
+async def dispatch_and_report(wid: str, action_name: str, payload: dict, *, seal=None) -> None:
     """Dispatch a widget data-op AND announce it if it failed (V2-603).
 
     The dispatch itself stays detached — the turn must never wait on a widget's network call — but the RESULT
@@ -157,13 +164,22 @@ async def dispatch_and_report(wid: str, action_name: str, payload: dict) -> None
     act, and the operator was told «Hecho.» three times instead.
 
     `report_failure` owns the wording, the dedup and the rails; this is only the seam that lets it see the
-    result. Never raises: it runs in a detached task, where an exception would be logged nowhere useful."""
+    result. Never raises: it runs in a detached task, where an exception would be logged nowhere useful.
+
+    `seal` (V2-707 F0) is called with whether the op actually HAPPENED, and it is the only place that can
+    know: the caller dispatches and returns. The anti-drag guard's memory is written through it, so a
+    mutation the door refused is never remembered as executed — see the note at the call site."""
     import widgets
     try:
         res = await widgets.dispatch_tag(
             "widget.data", {"id": wid, "data": {"action": action_name, "payload": payload or {}}})
     except Exception:
         return
+    if callable(seal):
+        try:
+            seal(not (isinstance(res, dict) and res.get("ok") is False))
+        except Exception:
+            pass
     try:
         await report_failure(wid, action_name, res)
     except Exception:

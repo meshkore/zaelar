@@ -11,10 +11,38 @@ import re
 _DANGER_RE = re.compile(
     r"\b(comprar|compra|compre|pagar|paga|pague|pagó|finalizar compra|realizar pedido|tramitar pedido|"
     r"confirmar pedido|confirmar compra|proceder al pago|publicar|publica|publique|eliminar cuenta|"
-    r"borrar cuenta|eliminar|elimina|elimine|borrar|borra|borre|checkout|buy now|buy|pay|purchase|"
-    r"place order|confirm order|complete purchase|publish|delete account|delete)\b",
+    r"borrar cuenta|checkout|buy now|buy|pay|purchase|"
+    r"place order|confirm order|complete purchase|publish|delete account)\b",
     re.I,
 )
+
+# ── BORRAR gates on its OBJECT, never on the bare verb (V2-707 F0) ──────────────────────────────────────────
+# Every other verb in `_DANGER_RE` names something that is irreversible WHEREVER it happens: paying moves
+# money, publishing is outward-facing. «Borrar» is the one that does not — it means one thing on the
+# operator's bank account and another on a row of his own agenda, and until now the bare verb decided for
+# both. Measured 2026-09-16 (session cb0ac5da, i=7917→7923): «I want you to delete that meeting and notify
+# the other person» tripped `delete`, so `dispatch._run_session` PARKED the task before starting it and
+# spoke «Before I go on I need your OK: this could be irreversible». The Brain Worker — which had
+# `hbwidget read agenda`, the real row ids and `mensajeria.send_to`, i.e. everything the errand needed —
+# never ran a single step. The order took five minutes and ended undone.
+#
+# A widget row is not ungoverned: every mutation passes `widgets/server_api._dispatch`, where the V2-705
+# contract refuses a destructive action with an empty selector and `store.save` keeps a snapshot of what it
+# overwrites. That is a rail on CONSEQUENCE and it is the one that works. This gate is for what has NO
+# funnel — the open world the worker reaches through a browser — so it now asks the question that actually
+# separates the two: **what is being deleted**. The object list is closed and every entry names something
+# with no undo and no mirror of ours: an account, a profile, a subscription, a repository, a database, a
+# backup. `[^.!?]{0,24}` lets a determiner through («borra MI cuenta de Spotify»), which the old adjacent
+# `borrar cuenta` literal did not — so this is stricter than the bare verb and LOOSER than nothing on the
+# case the tests already pin («borra la cuenta» must keep stopping).
+_DESTROY_VERB = (r"borra|borrar|borre|borras|borrame|elimina|eliminar|elimine|eliminas|"
+                 r"delete|remove|wipe|erase|destroy|drop")
+_DESTROY_OBJECT = (r"cuenta|cuentas|perfil|usuario|suscripcion|suscripciones|repositorio|repo|"
+                   r"base de datos|copia de seguridad|respaldo|historial|disco duro|"
+                   r"account|accounts|profile|subscription|repository|database|backup|"
+                   r"hard drive|everything|all my data|my data")
+_DESTROY_OBJECT_RE = re.compile(
+    rf"\b(?:{_DESTROY_VERB})\b[^.!?]{{0,24}}?\b(?:{_DESTROY_OBJECT})\b", re.I)
 
 
 # translated implementation note
@@ -186,7 +214,7 @@ def is_dangerous(text: str) -> bool:
     order = _drop_amount_questions(_drop_lookup_adjuncts(_REMINDER_RE.sub(" ", _strip_accents(_order_text(text)))))
     return bool(_DANGER_RE.search(order) or _DANGER_CLITIC_RE.search(order)
                 or _DANGER_ASK_CLITIC_RE.search(order) or _DANGER_PROCLITIC_RE.search(order)
-                or _COMMITMENT_RE.search(order))
+                or _COMMITMENT_RE.search(order) or _DESTROY_OBJECT_RE.search(order))
 
 
 def _strip_accents(text: str) -> str:

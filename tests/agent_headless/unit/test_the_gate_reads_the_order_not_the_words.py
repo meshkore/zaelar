@@ -118,3 +118,64 @@ def test_the_counterweight_an_imperative_next_to_the_question_still_gates():
     for t in ("averigua cuánto es y págalo", "transfiere 100 euros al grupo",
               "paga la cuota del viaje", "renueva la suscripción"):
         assert danger.is_dangerous(t) or danger.moves_money(t), t
+
+
+# ── V2-707 F0 · «borrar» gates on its OBJECT, never on the bare verb ───────────────────────────────────
+# Same doctrine as everything above, applied to the one verb that had escaped it. Every other entry in
+# `_DANGER_RE` names something irreversible WHEREVER it happens — paying moves money, publishing is
+# outward-facing. «Borrar» does not: it means one thing on a bank account and another on a row of the
+# operator's own agenda, and the bare verb decided for both.
+#
+# Measured 2026-09-16 (session cb0ac5da, i=7917→7923): «I want you to delete that meeting and notify the
+# other person» tripped `delete`, so `dispatch._run_session` PARKED the task before starting anything and
+# spoke «Before I go on I need your OK: this could be irreversible». The Brain Worker — which had
+# `hbwidget read agenda`, the real row ids and `mensajeria.send_to` — never ran one step. Five minutes, undone.
+#
+# A widget row is not ungoverned: every mutation crosses `widgets/server_api._dispatch`, where the V2-705
+# contract refuses a destructive action with an empty selector and `store.save` snapshots what it
+# overwrites. This gate is for what has NO funnel — the open world reached through a browser — so it now
+# asks the question that separates them: WHAT is being deleted.
+
+_DELETES_SOMETHING_OURS = [
+    # the sentence from the incident, verbatim from the transcript
+    "So I can see there is an item today at five There's a meeting. I want you to delete that meeting. "
+    "And cancel that appointment. And notify the other person",
+    "borra la cita de manana a las cinco",
+    "delete the meeting tomorrow",
+    "elimina ese contacto de la lista",
+    "borra el recordatorio del dentista",
+    "remove that appointment from my calendar",
+]
+
+_DELETES_SOMETHING_IRREVERSIBLE = [
+    "borra la cuenta",
+    "borra mi cuenta de Spotify",
+    "elimina mi perfil de LinkedIn",
+    "delete my account",
+    "wipe my hard drive",
+    "borra el repositorio",
+    "elimina la base de datos",
+    "delete everything",
+]
+
+
+@pytest.mark.parametrize("order", _DELETES_SOMETHING_OURS)
+def test_deleting_a_row_we_own_does_not_park_the_worker(order):
+    """It has its own door — the contract, the confirm gate and the snapshot — and that one works."""
+    assert danger.is_dangerous(order) is False, order
+
+
+@pytest.mark.parametrize("order", _DELETES_SOMETHING_IRREVERSIBLE)
+def test_deleting_something_with_no_undo_still_stops(order):
+    """The half that must never weaken. Note «borra MI cuenta de Spotify»: the old adjacent literal
+    `borrar cuenta` never matched it, so this is STRICTER than what it replaced, not looser."""
+    assert danger.is_dangerous(order) is True, order
+
+
+def test_the_bare_verb_no_longer_decides_on_its_own():
+    """Structural, and the disarm target: putting `borrar`/`delete` back as a bare alternative re-opens
+    the incident. Read on the compiled pattern, not on the source, so a rename cannot hide it."""
+    from nucleo.danger import _DANGER_RE
+    for bare in ("borra", "borrar", "elimina", "eliminar", "delete"):
+        assert not _DANGER_RE.fullmatch(bare), f"«{bare}» is back as a bare irreversible verb"
+    assert _DANGER_RE.search("delete account"), "the NAMED object must stay in the pattern"

@@ -1145,6 +1145,17 @@ DOMAINS: list[dict] = [
                                  "se borra sola y el operador decide el siguiente paso · y la conversación "
                                  "RECUERDA la gestión mientras el compromiso esté por llegar (V2-706)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/test_the_other_side_can_call_off_what_it_agreed.py"]},
+        # V2-707 F0 — una orden, cinco decisores, y ninguno leyó al anterior. Medido en la sesión `cb0ac5da`
+        # (2026-09-16): `cancel_meeting {}` rechazado con menú (i=7911), la MISMA frase aparcando al Brain
+        # Worker en la puerta de irreversibles (i=7917) y, 37 s después, la re-emisión CORRECTA tirada como
+        # arrastre (i=8064) — tras lo cual el turno se quedó mudo y compuso «Got it — cancelling Meeting with
+        # Cryptonite» sobre una cita que sigue ahí. Los dos guardas que la mataron leen TEXTO (su frase, la
+        # forma de la re-emisión); el único que se portó bien lee CONSECUENCIA (el contrato de V2-705). Los
+        # nodos cubren la resta: el sello sigue al RESULTADO, y «borrar» se juzga por su OBJETO.
+        {"id": "2.62", "title": "Una acción que la puerta RECHAZÓ no se recuerda como hecha: el sello sigue al "
+                                "resultado, así que el reintento corregido —que el propio rechazo pide— sí corre",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/"
+                                  "test_a_refused_action_is_not_remembered_as_done.py"]},
         {"id": "2.60", "title": "Una propuesta de reunión ABRE su encargo aunque el modelo olvide etiquetarla, y "
                                  "el playbook reconoce una propuesta llana («could we meet… Google Meet link»)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/test_a_meeting_proposal_opens_its_errand_even_unlabeled.py"]},
