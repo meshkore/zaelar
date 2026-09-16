@@ -202,7 +202,17 @@ _UNLISTED_MAX = 900
 #: so prose ABOUT the pattern counts as the pattern. Caught the first time it mattered: the docstrings written
 #: to explain a retired mirror pushed the count from 19 back to 22, i.e. the celebration read as a regression.
 #: When you retire one, describe it without quoting the marker.
-_MIRROR_MAX = 15
+#:
+#: ⚠️ IT WAS COUNTING THE MARK NOBODY USES (V2-711 T0.6). This ratchet existed, sat GREEN at 13 against a
+#: ceiling of 15, and measured «impl PARALELA» — while the mark the two channels are ACTUALLY stitched with
+#: is «cablear en AMBOS», which stood at 29 and was invisible to it. Measured 2026-09-16 over the same files
+#: this ratchet already walks: `voice/…/nucleo.py` 3+5, `nucleo/flash/probe.py` 10+19,
+#: `nucleo/flash/probe_scheduling.py` 0+5. So every mirror written with the second spelling — the common one,
+#: the one `probe_scheduling.py`'s own docstring quotes — cost nothing and the number never moved. A ratchet
+#: that measures the less-used half of its own vocabulary is a ratchet that reports the wrong debt while
+#: passing. Both literals are counted now and frozen TOGETHER at what the tree holds today.
+_MIRROR_MARKS = ("impl PARALELA", "cablear en AMBOS")
+_MIRROR_MAX = 42
 
 _SKIP_DIRS = {".venv", "tests", "node_modules", "__pycache__", ".git", "frontend/vendor"}
 
@@ -253,15 +263,16 @@ def test_no_new_parallel_mirror():
     hits = []
     for rel, p in _engine_py_files():
         try:
-            n = p.read_text().count("impl PARALELA")
+            text = p.read_text()
         except Exception:
             continue
+        n = sum(text.count(m) for m in _MIRROR_MARKS)
         if n:
             hits.append((rel, n))
     total = sum(n for _r, n in hits)
     assert total <= _MIRROR_MAX, (
-        f"{total} marcas de «impl PARALELA» (techo {_MIRROR_MAX}). Un espejo NUEVO está vetado: si dos canales "
-        f"necesitan la misma decisión, se extrae a un módulo y ambos lo importan. Dónde están: {hits}")
+        f"{total} marcas de espejo {_MIRROR_MARKS} (techo {_MIRROR_MAX}). Un espejo NUEVO está vetado: si dos "
+        f"canales necesitan la misma decisión, se extrae a un módulo y ambos lo importan. Dónde están: {hits}")
 
 
 def test_every_testmap_node_id_is_unique():

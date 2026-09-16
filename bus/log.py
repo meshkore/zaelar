@@ -183,12 +183,42 @@ def drain(timeout: float = 2.0) -> None:
 _SKIP_TOPICS = {"loop.tick"}
 _SKIP_KINDS = {"pulse"}
 
+# A STATE topic earns a row when the state CHANGES, never on every poll (V2-711 T0.5). The reasoning above
+# for `loop.tick` applies word for word to `connector.status`, and nobody had applied it: each connector
+# re-publishes its state on every poll, so the table filled with rows that carry the same four fields as the
+# row before them. Measured 2026-09-16 over five days — the window retention keeps — 135 857 rows, of which
+# **66 271 (49 %) were `connector.status`**, ~13 000 a day, every one of them a repeat of «whatsapp ·
+# connected · null · null». It is not a cosmetic problem: this is the ONLY place events live, retention is
+# by age AND by a hard row cap, so a heartbeat that occupies half the table is a heartbeat that evicts the
+# other half. The CHANGES are what has record value; the current state is a live read, not history.
+_STATE_TOPICS = {"connector.status"}
+_state_sig: dict[str, str] = {}
+_suppressed = {"n": 0}          # repeats collapsed, reported by `stats()` so the saving is visible
+_insert_failed = {"n": 0}       # rows the writer thread could not persist (see `_write_now`)
+
+
+def _state_key(topic: str, p: dict) -> str:
+    return f"{topic}:{p.get('platform') or p.get('id') or p.get('connector') or ''}"
+
 
 def _worth_persisting(rec: dict) -> bool:
-    if str(rec.get("topic") or "") in _SKIP_TOPICS:
+    topic = str(rec.get("topic") or "")
+    if topic in _SKIP_TOPICS:
         return False
     p = rec.get("payload")
-    return not (isinstance(p, dict) and p.get("kind") in _SKIP_KINDS)
+    if isinstance(p, dict) and p.get("kind") in _SKIP_KINDS:
+        return False
+    if topic in _STATE_TOPICS and isinstance(p, dict):
+        try:
+            sig = json.dumps(p, sort_keys=True, default=str)
+        except Exception:  # noqa: BLE001 — an unserializable payload is stored, never silently dropped
+            return True
+        key = _state_key(topic, p)
+        if _state_sig.get(key) == sig:
+            _suppressed["n"] += 1
+            return False
+        _state_sig[key] = sig
+    return True
 
 
 def _write(rec: dict):
@@ -220,7 +250,12 @@ def _write_now(rec: dict):
             )
             conn.commit()
     except Exception:
-        pass
+        # BEST-EFFORT MEANS DEGRADE AND COUNT IT (V2-711 T0.5). This stayed a bare `pass`: a locked
+        # database, a disk that filled, a schema that drifted — every one of them lost rows in total
+        # silence, and the absence of a row is indistinguishable from nothing having happened, which is
+        # precisely what an audit reads it as. `memory/queue.py::_consume` is the module that already got
+        # this right; the counter is the cheap half of it, surfaced by `stats()` and by /api/status.
+        _insert_failed["n"] += 1
 
 
 # RETENTION (2026-08-09). The other reason the durable log was off: "unbounded zaelar.db growth". With the log on,
@@ -254,8 +289,13 @@ def prune() -> int:
 
 
 def stats() -> dict:
-    """Health of the log itself: how much exists, how much was dropped due to saturation, and how much remains queued."""
-    return {"rows": count(), "dropped": _dropped["n"], "queued": _q.qsize()}
+    """Health of the log itself: how much exists, how much was dropped due to saturation, and how much remains queued.
+
+    `insert_failed` and `suppressed` joined it in V2-711 T0.5 — the first is rows LOST (a real fault that
+    was silent until then), the second rows deliberately collapsed because a connector re-published an
+    unchanged state. They are opposite things and are reported apart on purpose."""
+    return {"rows": count(), "dropped": _dropped["n"], "queued": _q.qsize(),
+            "insert_failed": _insert_failed["n"], "suppressed": _suppressed["n"]}
 
 
 def attach(bus_mod=None):

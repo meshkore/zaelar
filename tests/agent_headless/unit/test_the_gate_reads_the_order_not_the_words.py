@@ -144,6 +144,24 @@ def test_spending_as_an_ACT_always_reaches_the_gate_that_parks_the_task(text):
 
 
 @pytest.mark.parametrize("text", [
+    "renueva el gráfico del widget",
+    "cancela la búsqueda que estabas haciendo",
+    "búscame un monitor barato de segunda mano",
+])
+def test_a_money_VERB_over_a_thing_that_costs_nothing_still_parks_nobody(text):
+    """⚠️ THE COUNTERWEIGHT THAT CAUGHT THE FIRST VERSION OF T0.4, and the reason the composition is only
+    the UNCONDITIONAL half. «renovar», «contratar» and «suscribir» are money verbs only NEXT TO a commitment
+    object — which is exactly why `_COMMITMENT_RE` demands VERB + OBJECT and says so in its own note — and
+    composing all of `_MONEY_ACT_RE` parked «renueva el gráfico del widget», an order to REFRESH A CHART.
+    A gate is widened by the SENTENCE that was measured, never by the pattern that happens to contain it.
+
+    ⚠️ The boundary, checked while writing this: «renueva la suscripción del gráfico» DOES gate, and that is
+    correct — `_COMMITMENT_RE` sees verb + commitment object, and renewing a subscription costs money
+    whatever the subscription is to. The case that must not gate is the one with no commitment object."""
+    assert danger.is_dangerous(text) is False, text
+
+
+@pytest.mark.parametrize("text", [
     "cuánto es la factura de la luz",
     "mira mi factura de la luz",
     "enséñame el importe del recibo",

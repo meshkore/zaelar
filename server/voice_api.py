@@ -349,6 +349,32 @@ async def status():
     else:
         items.append({"key": "cluster", "label": "Cluster MeshKore", "state": "off", "detail": "sin clusters"})
 
+    # ── Registro (V2-711 T0.5) — what the instrument could not keep ──────────────────────────────────────
+    # The durable log and the timeline writer are both BEST-EFFORT by design: bounded queues, dropped
+    # before voice is ever slowed. That trade is right and it was invisible — the bus counted its own
+    # saturation drops in `stats()` and NOBODY read them, while a failed INSERT and a full observer queue
+    # counted nothing at all. A silent loss is a fault that does not exist until an audit needs the rows,
+    # so the three numbers are here, in the panel the operator already opens when something feels wrong.
+    # WARN and never ERROR: losing log lines degrades the forensics, it does not break the product.
+    try:
+        from bus import log as _blog
+        from voice import observer as _obs
+        _ls = _blog.stats()
+        _ws = _obs.writer_stats()
+        _lost = int(_ls.get("dropped") or 0) + int(_ls.get("insert_failed") or 0) \
+            + int(_ws.get("queue_full") or 0) + int(_ws.get("write_failed") or 0)
+        _detail = f"{_ls.get('rows', 0)} eventos"
+        if _ls.get("suppressed"):
+            _detail += f" · {_ls['suppressed']} repeticiones de estado plegadas"
+        if _lost:
+            _detail += f" · ⚠️ {_lost} perdidos (cola llena o escritura fallida)"
+        items.append({"key": "eventlog", "label": "Registro · observabilidad",
+                      "state": "warn" if _lost else "ok", "detail": _detail,
+                      "extra": {"log": _ls, "timeline": _ws}})
+    except Exception as e:  # noqa: BLE001
+        items.append({"key": "eventlog", "label": "Registro · observabilidad",
+                      "state": "warn", "detail": f"no medido ({e})"})
+
     # Group items so the panel can show the CORE (what you boot from the terminal — must be up for zaelar to work)
     # above the fold, and SECONDARY features (proactivity, widgets, cluster) below in a quieter section.
     CORE = {"server", "brain", "voice", "llm", "memory", "stt", "tts", "sysaudio"}

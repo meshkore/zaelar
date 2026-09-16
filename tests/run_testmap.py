@@ -3549,6 +3549,19 @@ DOMAINS: list[dict] = [
         # ningún chip gobernaba).
         {"id": "7.6", "title": "Inventario de categorías del visor (ningún kind sin familia)", "ch": UNIT,
             "paths": ["tests/infrastructure/unit/core/test_observer_categories.py"]},
+        # V2-711 T0.5 — el registro durable es el ÚNICO sitio donde viven los eventos, y la retención va por
+        # edad Y por tope de filas: medido el 2026-09-16 sobre la BD del operador, `connector.status` era el
+        # 49% de la tabla (66.271 de 135.857 en cinco días), cada fila idéntica a la anterior. Un latido que
+        # ocupa media tabla es un latido que DESALOJA la otra media. Y tres descartes mudos: cola llena del
+        # bus (contaba y nadie lo leía), INSERT fallido y cola llena del observador (no contaban nada).
+        {"id": "7.45", "title": "Un latido no se come el registro, y lo que se pierde se CUENTA", "ch": UNIT,
+            "paths": ["tests/infrastructure/unit/core/test_a_heartbeat_does_not_eat_the_record.py"]},
+        # V2-711 T0.7 — el método de este repo ES que cada patrón lleve al lado el incidente que lo midió, y
+        # el lote de traducción de comentarios del 2026-08-31 (87874bd7) dejó 109 comentarios sustituidos por
+        # un marcador en TRES ficheros, `danger.py` entre ellos: el clasificador que leen los tres decisores.
+        # Que solo fueran tres de los 777 que recorrió es suerte, no diseño. Esto es el diseño.
+        {"id": "7.46", "title": "Un módulo crítico conserva la evidencia de por qué es como es", "ch": UNIT,
+            "paths": ["tests/infrastructure/unit/test_a_critical_module_keeps_its_evidence.py"]},
         # 2026-08-20: la captura forense de un turno guardaba `system[:8000]` de un prompt de ~19.000, y el
         # estado vivo se compone al FINAL — o sea que tiraba justo la mitad que responde «¿qué vio el modelo?».
         # Casi cuesta un diagnóstico falso: cinco turnos parecían no tener el bloque del navegador con el

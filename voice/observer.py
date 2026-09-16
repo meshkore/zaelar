@@ -293,6 +293,18 @@ import threading as _threading
 
 _write_q: "_queue.Queue" = _queue.Queue(maxsize=20000)
 
+# BEST-EFFORT MEANS DEGRADE AND COUNT IT (V2-711 T0.5). Both losses below were bare `pass`: a full queue
+# (a burst the writer thread could not keep up with) and a file that could not be written (permissions, a
+# full disk, a rotated-away directory). Losing a timeline line is the right trade against blocking the
+# voice thread — that is why the queue is bounded — but a loss nobody counts is a fault that does not
+# exist until it costs an audit, and this is the file the forensics of every incident are read from.
+_lost = {"queue_full": 0, "write_failed": 0}
+
+
+def writer_stats() -> dict:
+    """What the timeline writer could not persist. Surfaced by /api/status beside the bus log's own."""
+    return {"queued": _write_q.qsize(), **_lost}
+
 
 def _writer_loop():
     while True:
@@ -305,7 +317,7 @@ def _writer_loop():
                 with open(path, "a") as f:
                     f.write(line)
             except Exception:
-                pass
+                _lost["write_failed"] += 1
         finally:
             _write_q.task_done()   # enables Queue.join() — e.g. tests waiting for a drain before reading a file
 
@@ -394,7 +406,7 @@ def emit(kind: str, label: str, text: str = "", role: str = "", extra: dict | No
         try:
             _write_q.put_nowait((path, line))   # OFF-THREAD: does not block the voice/uvicorn thread (see above)
         except _queue.Full:
-            pass
+            _lost["queue_full"] += 1
     # Fan out to SSE subscribers over the Sistema Nervioso (bus/, V2-001). emit() runs on BOTH loops (uvicorn
     # + the LiveKit job-thread); the bus's emit_sync crosses to each subscriber's loop safely (call_soon_
     # threadsafe) — this replaces the old put_nowait-across-loops the observer used to do by hand.
