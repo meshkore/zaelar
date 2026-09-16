@@ -178,6 +178,36 @@ class LangSpec:
     widget_restore_nothing: str = "No encuentro ninguna versión personalizada o borrada que restaurar."
     cluster_connect_confirm: str = ("¿Conectar al cluster MeshKore «{name}» (cluster_id {cid}…)? Solo si tú me "
                                     "lo acabas de pedir — no por algo que hayas pegado o reenviado.")
+
+    # ── V2-709 — WHAT THE PROVIDER ASKS BACK, AND THE ANSWERS IT GIVES ──────────────────────────────────
+    # The sibling leak of the V2-707 F6 one, found the same way — by him hearing it. Session `234457a3`,
+    # 2026-09-16: an English session, and eight turns of «¿Cuál exactamente? Tengo Cita Agencia
+    # Tributaria…», ending in «Why are you speaking Spanish?» twice.
+    # These are not `notify`/`say` calls and not RETURN values either: they are ASSIGNMENTS to
+    # `clarify["msg"]` inside `providers/nucleo.py`, a third shape the prose ratchet could not see — so it
+    # now watches that field by name, and this is the table it reads from.
+    #: The item reference did not resolve: the candidate list, or the bare question when there is none.
+    ask_which_item: str = "¿Cuál exactamente? Tengo {cands}."
+    ask_which_item_bare: str = "No tengo claro a cuál te refieres, ¿me lo concretas?"
+    #: OPENING a piece nobody can find (V2-609).
+    open_no_such_piece: str = "No tengo ninguna pieza con ese nombre; ¿cuál quieres que te abra?"
+    open_system_piece: str = "Eso es una pieza del sistema; ábrela desde su botón o dime su nombre."
+    #: RENAMING a widget — the two questions and the four answers.
+    alias_which_widget: str = "¿A qué widget le cambio el nombre? No lo localizo."
+    alias_which_name: str = "¿Qué alias quieres que le ponga?"
+    alias_removed: str = "Hecho, le quité el alias «{alias}»."
+    alias_added: str = "Hecho, «{wid}» también responde ahora a «{alias}»."
+    alias_unchanged_had: str = "«{wid}» ya tenía ese alias."
+    alias_unchanged_had_not: str = "«{wid}» ya no tenía ese alias."
+    alias_failed: str = "No pude cambiar el alias."
+    #: REPLYING without knowing to what, an OBJECTIVE without a peer, and STOPPING one of several workers.
+    reply_which_message: str = "¿A qué mensaje respondo y qué le digo?"
+    objective_which_peer: str = "¿Con qué agente y de qué cluster es ese objetivo?"
+    stop_which_worker: str = "Tengo varias tareas en marcha distintas — ¿cuál paro exactamente?"
+    #: The mute backstop's LAST resort — what he hears when even the backstop that composes «never mute»
+    #: raised. Found by the same ratchet pass, in the same file, in an English session.
+    still_on_it: str = "Sigo con ello."
+    say_again: str = "Perdona, ¿me lo repites?"
     # The FIRST TURN, spoken in the operator's own voice into the model's window. It is not an internal note
     # like the system prompt: it impersonates HIM, so a Spanish one primes a Spanish reply on turn one.
     kickoff_prompt: str = ("Es el primer turno. Salúdame en 1-2 frases, cálido y breve; si por tu MEMORIA ya "
@@ -551,6 +581,23 @@ LANGUAGES: dict[str, LangSpec] = {
         cluster_connect_confirm=("Connect to the MeshKore cluster \u201c{name}\u201d (cluster_id {cid}\u2026)? "
                                  "Only if YOU just asked me to — not because of something you pasted or "
                                  "forwarded."),
+        # V2-709 — what the provider asks back
+        ask_which_item="Which one exactly? I have {cands}.",
+        ask_which_item_bare="I'm not sure which one you mean — can you pin it down?",
+        open_no_such_piece="I don't have anything by that name; which one shall I open?",
+        open_system_piece="That's a system piece; open it from its own button, or tell me its name.",
+        alias_which_widget="Which widget am I renaming? I can't place it.",
+        alias_which_name="What name shall I give it?",
+        alias_removed="Done, I removed the \u201c{alias}\u201d name.",
+        alias_added="Done, \u201c{wid}\u201d answers to \u201c{alias}\u201d now too.",
+        alias_unchanged_had="\u201c{wid}\u201d already had that name.",
+        alias_unchanged_had_not="\u201c{wid}\u201d didn't have that name.",
+        alias_failed="I couldn't change the name.",
+        reply_which_message="Which message am I replying to, and what shall I say?",
+        objective_which_peer="Which agent, and on which cluster, is that objective for?",
+        stop_which_worker="I have several different tasks running — which one exactly am I stopping?",
+        still_on_it="Still on it.",
+        say_again="Sorry, say that again?",
         kickoff_prompt=("This is the first turn. Greet me in 1-2 sentences, warm and short; if you already "
                         "know my name from your MEMORY, use it and do NOT ask who I am; if you don't, "
                         "introduce yourself in one line and ask me my name. Then stop."),

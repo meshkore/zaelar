@@ -249,23 +249,38 @@ def test_an_explicit_item_still_wins_over_his_sentence():
     assert r.payload["title"] == "renovar el seguro del coche", "`item` is the reference; `order` is a fallback"
 
 
-# ── 6 · two rows with the same label are two DIFFERENT things ───────────────────────────────────────────
+# ── 6 · an ambiguity with one answer is not an ambiguity ────────────────────────────────────────────────
 
-def test_a_duplicate_title_is_a_question_not_the_first_row():
-    """The exact-match shortcut returned the first hit silently. On the 29 rows titled «New» that arrived
-    that day, `cancel_meeting {"title": "New"}` resolved to one of them with no one asked."""
+def test_indistinguishable_rows_are_NOT_a_question():
+    """V2-709, and it corrects what V2-708 shipped two hours earlier. Making duplicate labels `ambiguous`
+    was half a thought: two rows that share their label AND their hint are interchangeable, so the question
+    collapses to ONE option and there is nothing he can answer.
+
+    Measured, session `234457a3`: two identical «Cita Agencia Tributaria…» and EIGHT turns of «Which one
+    exactly? I have Cita Agencia Tributaria…» — «delete one of those, I don't care which», «those are the
+    same», «Are you stupid or what?». The door exists so we never act on the WRONG item; when the rows are
+    interchangeable there is no wrong item, so asking IS the defect."""
     r = refs.resolve("agenda", "cancel_meeting", "New", {})
+    assert r.ok, "two rows that differ in nothing are one answer"
+    assert r.payload["title"] == "New"
+
+
+def test_rows_that_DO_differ_are_still_a_question(monkeypatch):
+    """The other half: the friction stays exactly where it can still pick the wrong one."""
+    monkeypatch.setattr(refs, "_ref_index", lambda _w: [
+        {"id": "a", "label": "Dentist", "field": "title", "hint": "cita 2026-09-17 17:00"},
+        {"id": "b", "label": "Dentist", "field": "title", "hint": "cita 2026-09-24 09:00"},
+    ])
+    r = refs.resolve("agenda", "cancel_meeting", "Dentist", {})
     assert not r.ok and r.needs == "ambiguous"
-    assert r.candidates, "and it must be able to SAY which ones"
-    assert len(r.candidates) == len(set(r.candidates)), "«which one: New, New, New?» is not a question"
+    assert len(r.candidates) == 2 and any("09-24" in c for c in r.candidates), \
+        "the hint is the only thing that tells them apart, so it has to travel"
 
 
-def test_candidates_carry_their_hint_when_the_labels_collide():
-    r = refs.resolve("agenda", "cancel_meeting", "New", {})
-    assert any("2026-09-18" in c for c in r.candidates), "the hint is the only thing that tells them apart"
-    r2 = refs.resolve("agenda", "cancel_meeting", "zzz nothing like this exists", {})
-    assert r2.candidates and all("(" not in c for c in r2.candidates[:2]), \
-        "distinct labels stay clean — the hint is only added when it is doing work"
+def test_candidates_stay_clean_when_the_labels_already_differ():
+    r = refs.resolve("agenda", "cancel_meeting", "zzz nothing like this exists", {})
+    assert r.candidates and all("(" not in c for c in r.candidates[:2]), \
+        "the hint is only added when it is doing work"
 
 
 # ── 7 · the wiring, and the event that hid this for a week ──────────────────────────────────────────────

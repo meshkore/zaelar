@@ -424,7 +424,15 @@ def resolve(widget_id: str, action: str, ref: str, payload: dict | None = None,
         return RefResult(False, needs="no_match", candidates=[i["label"] for i in idx][:6])
     if len(scored) > 1 and (best_score - second) < 0.5:       # tie → do not guess, ask
         close = [i for s, i in scored if best_score - s < 0.5][:4]
-        return RefResult(False, needs="ambiguous", candidates=_qualified(close))
+        options = _qualified(close)
+        # …unless the tied rows are INDISTINGUISHABLE, in which case there is no question to ask and
+        # nothing he could answer. Measured (V2-709, session `234457a3`): two identical duplicates of
+        # «Cita Agencia Tributaria…», and eight turns of «Which one exactly? I have Cita Agencia
+        # Tributaria…» offering ONE option — «delete one of those, I don't care which», «those are the
+        # same», «Are you stupid or what?». The door exists so we never act on the WRONG item; when the
+        # rows are interchangeable there is no wrong item, so asking is the defect and not the safeguard.
+        if len(options) > 1:
+            return RefResult(False, needs="ambiguous", candidates=options)
     payload[field] = best["id"]
     return RefResult(True, payload)
 

@@ -1247,8 +1247,8 @@ class NucleoLLMStream(llm.LLMStream):
             if not res.ok:
                 acted["widget"] = True                      # lo ATENDIMOS (preguntando) — no caer a escalate/fallback
                 cands = ", ".join(res.candidates[:3])
-                clarify["msg"] = (f"¿Cuál exactamente? Tengo {cands}." if cands
-                                  else "No tengo claro a cuál te refieres, ¿me lo concretas?")
+                clarify["msg"] = (_say().ask_which_item.format(cands=cands) if cands
+                                  else _say().ask_which_item_bare)
                 emit("brain", "❓ referencia de item sin resolver", role="system",
                      text=f"{wid}:{action_name}:{ref or '∅'}", extra={"needs": res.needs, "cands": res.candidates[:4]})
                 return
@@ -1482,9 +1482,8 @@ class NucleoLLMStream(llm.LLMStream):
                             # V2-082: NO se fabrica un widget cuando no hay match. Si nombró una pieza de sistema o
                             # nada reconocible → se PREGUNTA con naturalidad, jamás se escala al generador ni se abre
                             # el "más parecido". (Crear solo con crea/genera/hazme/modifica, ya filtrado arriba.)
-                            clarify["msg"] = ("No tengo ninguna pieza con ese nombre; ¿cuál quieres que te abra?"
-                                              if _sys is None else
-                                              "Eso es una pieza del sistema; ábrela desde su botón o dime su nombre.")
+                            clarify["msg"] = (_say().open_no_such_piece if _sys is None
+                                              else _say().open_system_piece)
                             emit("brain", "🤔 show_widget sin match → pregunto (no fabrico widget)",
                                  text=str(_sys or "—"), role="system")
             elif name == "show_panel":
@@ -1514,19 +1513,20 @@ class NucleoLLMStream(llm.LLMStream):
                     _rid = _awid if (_awid and _rt_al.get(_awid) is not None) else \
                         ((_rt_al.identify(_awid or text) or {}).get("match") or "")
                     if not _rid:
-                        clarify["msg"] = "¿A qué widget le cambio el nombre? No lo localizo."
+                        clarify["msg"] = _say().alias_which_widget
                     elif not _alias:
-                        clarify["msg"] = "¿Qué alias quieres que le ponga?"
+                        clarify["msg"] = _say().alias_which_name
                     else:
                         _res = (_al.remove if _op == "remove" else _al.add)(_rid, _alias)
                         acted["widget"] = True
                         if _res.get("ok") and not _res.get("unchanged"):
-                            clarify["msg"] = (f"Hecho, le quité el alias «{_alias}»." if _op == "remove"
-                                              else f"Hecho, «{_rid}» también responde ahora a «{_alias}».")
+                            clarify["msg"] = (_say().alias_removed.format(alias=_alias) if _op == "remove"
+                                              else _say().alias_added.format(wid=_rid, alias=_alias))
                         elif _res.get("unchanged"):
-                            clarify["msg"] = (f"«{_rid}» ya {'no tenía' if _op == 'remove' else 'tenía'} ese alias.")
+                            clarify["msg"] = (_say().alias_unchanged_had_not if _op == "remove"
+                                              else _say().alias_unchanged_had).format(wid=_rid)
                         else:
-                            clarify["msg"] = _res.get("error") or "No pude cambiar el alias."
+                            clarify["msg"] = _res.get("error") or _say().alias_failed
                         emit("brain", f"🏷️ manage_widget_alias {_op} → {_rid}", text=_alias, role="system")
             elif name == "fullscreen_widget":
                 # BUG 2026-07-23: sin tool, el modelo confabulaba éxito. Cuerpo (resolución V2-609 + licencia y
@@ -1558,7 +1558,7 @@ class NucleoLLMStream(llm.LLMStream):
                     if _n is not None and _rtext:
                         _apply_widget_data("mensajeria", "reply", {"n": _n, "text": _rtext})
                     else:
-                        clarify["msg"] = "¿A qué mensaje respondo y qué le digo?"
+                        clarify["msg"] = _say().reply_which_message
             elif name == "delete_widget":
                 _request_delete_confirm((args.get("widget_id") or "").strip(), text)
             elif name == "restore_widget":
@@ -1681,7 +1681,7 @@ class NucleoLLMStream(llm.LLMStream):
                             logger.warning(f"set_cluster_objective no persistido (voz sigue): {e}")
                     _spawn(_persist_objective(_ocluster, _opeer, _oobjective), "cluster-objective")
                 else:
-                    clarify["msg"] = "¿Con qué agente y de qué cluster es ese objetivo?"
+                    clarify["msg"] = _say().objective_which_peer
             elif name == "send_to_worker":
                 # V2-038 (↓): refina/amplía un worker vivo → INYECTA (no relanza). Fire-and-forget marshalado al
                 # loop del server (§v3·O: nunca await de una op de worker en el turno).
@@ -1756,7 +1756,7 @@ class NucleoLLMStream(llm.LLMStream):
                             if len(_match) == 1:
                                 _w = _match[0]
                             else:
-                                clarify["msg"] = ("Tengo varias tareas en marcha distintas — ¿cuál paro exactamente?")
+                                clarify["msg"] = _say().stop_which_worker
                                 worker_acted["v"] = "stop"      # atendido (preguntando), sin matar a ciegas
                                 emit("brain", "🛑 stop_worker(todo) RETENIDO (varias tareas distintas, sin 'todo' "
                                      "explícito)", text=text[:100], role="system")
@@ -2763,7 +2763,7 @@ class NucleoLLMStream(llm.LLMStream):
                 from voice.engine.core import langs                      # V2-603: the shared decision
                 spoken_text = _rg.mute_backstop(brain._window, langs.current_language(), _prev_pending)
             except Exception:
-                spoken_text = "Sigo con ello." if _prev_pending else "Perdona, ¿me lo repites?"
+                spoken_text = _say().still_on_it if _prev_pending else _say().say_again
             send(speech.sanitize(spoken_text, drop_metadata=False))
 
         # push_user (no append pelado): si el turno ANTERIOR se canceló por solape, su frase ya está registrada y

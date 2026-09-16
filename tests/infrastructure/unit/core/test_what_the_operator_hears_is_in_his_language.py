@@ -389,6 +389,13 @@ _PROSE_AT_DELIVERY = {
 _SPANISH = re.compile(r"\b(el|la|los|las|un|una|de|que|no|se|te|le|lo|por|para|con|está|estoy|he|"
                       r"hay|puedo|tengo|esa|ese|esto|eso|mi|tu|su|pero|ya)\b", re.I)
 _ACCENT = re.compile(r"[áéíóúñ¿¡]", re.I)
+#: INVERTED punctuation is Spanish and only Spanish — no English sentence opens with «¿» or «¡». It is a
+#: certainty, not a heuristic, so it short-circuits the word count (V2-709). It had to: the sentence he
+#: actually heard eight times, «¿Cuál exactamente? Tengo {cands}.», carries exactly ONE word from the
+#: stopword list and sits under the 25-character floor, so the detector could not see it even once the
+#: dict-slot shape was being scanned. Measured across nucleo/voice/widgets/server/connectors when it was
+#: added: it found one more live leak nothing else did — «Perdona, ¿me lo repites?».
+_INVERTED = re.compile(r"[¿¡]")
 # The calls that hand a sentence to the OPERATOR. `emit` is observability and `milestone` is the task log —
 # both are ours to read, not his, and both stay Spanish on purpose.
 _DELIVERS = {"notify", "send_operator", "say"}
@@ -405,10 +412,18 @@ _DELIVERS = {"notify", "send_operator", "say"}
 # (in `session.py` and `second_pass.py` they carry text for the MODEL, not for him, and a ratchet with false
 # positives is a ratchet that gets an allowlist instead of a fix).
 _SPOKEN_FIELDS = {"result_summary", "spoken", "spoken_text", "_ack_early"}
+#: …and the same thing written into a DICT SLOT, `<name>["<key>"]`. The third delivery shape, added by
+#: V2-709: `clarify["msg"]` is what the voice provider hands him when it has to ask something back, and it
+#: held thirteen Spanish sentences that neither the call scan nor the attribute scan could reach. He found
+#: them the way he found the RETURN ones — by hearing «¿Cuál exactamente? Tengo…» in an English session,
+#: eight times, and asking twice why it was speaking Spanish.
+_SPOKEN_SLOTS = {"clarify[msg]"}
 _SANITIZERS = {"sanitize"}
 
 
 def _spanishy(s: str) -> bool:
+    if _INVERTED.search(s):
+        return True
     if len(s) < 25:
         return False
     w = _SPANISH.findall(s)
@@ -433,6 +448,16 @@ def _flat(node) -> list[str]:
     return out
 
 
+def _slots(targets) -> set[str]:
+    """`<name>["<key>"]` targets, spelled `name[key]` — see `_SPOKEN_SLOTS`."""
+    out = set()
+    for t in targets:
+        if (isinstance(t, ast.Subscript) and isinstance(t.value, ast.Name)
+                and isinstance(t.slice, ast.Constant) and isinstance(t.slice.value, str)):
+            out.add(f"{t.value.id}[{t.slice.value}]")
+    return out
+
+
 def _prose_in(src: str) -> bool:
     """True when this source hands the operator a Spanish sentence at one of the watched delivery shapes."""
     try:
@@ -447,7 +472,7 @@ def _prose_in(src: str) -> bool:
                 carried = list(n.args) + [k.value for k in n.keywords]
         elif isinstance(n, ast.Assign):
             names = {getattr(t, "attr", None) or getattr(t, "id", None) for t in n.targets}
-            if names & _SPOKEN_FIELDS:
+            if names & _SPOKEN_FIELDS or _slots(n.targets) & _SPOKEN_SLOTS:
                 carried = [n.value]
         for a in carried:
             if any(_spanishy(t) for t in _flat(a)):
@@ -469,6 +494,16 @@ def _measure() -> set[str]:
 
 
 # The ratchet must be able to SEE each shape, or «no new prose» only means «no prose of the one shape I read».
+def test_the_ratchet_sees_a_sentence_written_into_a_dict_SLOT():
+    """The V2-709 shape. Both spellings of it, because the one that leaked was the interpolated one."""
+    assert _prose_in('clarify["msg"] = "No tengo claro a cuál te refieres, ¿me lo concretas?"')
+    assert _prose_in('clarify["msg"] = f"¿Cuál exactamente? Tengo {cands}."'), \
+        "the sentence he HEARD: one stopword, under the length floor — «¿» is the only thing that sees it"
+    assert not _prose_in('otro["msg"] = "No tengo claro a cuál te refieres, ¿me lo concretas?"'), \
+        "only the slots that reach his ears — a ratchet that reads every dict reads the whole repo"
+    assert not _prose_in('clarify["msg"] = _say().ask_which_item_bare'), "the table is the way out"
+
+
 def test_the_ratchet_sees_a_sentence_written_into_a_spoken_field():
     assert _prose_in('rec.result_summary = "El proveedor dejó de responder y he abortado la tarea entera."')
     assert _prose_in('rec.result_summary = f"El proveedor dejó de responder ({mins} min) y aborté la tarea."')
