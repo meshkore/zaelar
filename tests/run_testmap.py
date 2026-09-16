@@ -2329,7 +2329,7 @@ DOMAINS: list[dict] = [
         # V2-712 — el otro lado de 4.180: aquel rechaza una destructiva SIN selector, y este comprueba que
         # una CON selector resuelto deja de pedir una segunda confirmación que no añade información. Los dos
         # tienen que ser verdad a la vez; el reparto es «objetivo nombrado ejecuta, barrido pregunta».
-        {"id": "4.183", "title": "Una orden clara no se confirma dos veces: objetivo nombrado EJECUTA, barrido "
+        {"id": "4.188", "title": "Una orden clara no se confirma dos veces: objetivo nombrado EJECUTA, barrido "
                                  "PREGUNTA, y la diferencia está DECLARADA en el manifiesto (V2-712)",
             "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_a_clear_order_is_not_confirmed_twice.py"]},
         {"id": "4.182", "title": "UN solo buscador tolerante para contactos, agenda y mensajes (una C por una K) "
