@@ -89,7 +89,9 @@
     },
     "disconnect": {
       "desc": "desconecta la cuenta de Spotify (borra los tokens locales)",
-      "payload": {}
+      "payload": {},
+      "confirm": true,
+      "confirm_q": "¿Desconecto tu cuenta de Spotify? Tendrás que volver a enlazarla desde el widget."
     },
     "play": {
       "desc": "reproduce/reanuda la reproducción actual, o busca y reproduce si se da 'query'",

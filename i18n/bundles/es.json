@@ -1152,6 +1152,7 @@
  "widgets.musica.already_fav": "Ya está en Favoritos",
  "widgets.musica.ask_what": "Dime qué quieres escuchar",
  "widgets.musica.back": "Volver",
+ "widgets.musica.confirm.disconnect": "¿Desconecto tu cuenta de Spotify? Tendrás que volver a enlazarla desde el widget.",
  "widgets.musica.connect_hint": "Dime «pon música» o «ponme a Frank Sinatra» y suena gratis. Conecta tu Spotify (Premium) para tu biblioteca.",
  "widgets.musica.connect_own_id": "Conectar con mi Client ID",
  "widgets.musica.connect_spotify": "Conectar Spotify",

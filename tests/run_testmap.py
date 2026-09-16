@@ -3574,6 +3574,12 @@ DOMAINS: list[dict] = [
         # que se ejecuta y se tira.
         {"id": "7.47", "title": "Un modo sombra tiene lector (si no, es una función que se tira)", "ch": UNIT,
             "paths": ["tests/infrastructure/unit/core/test_a_shadow_mode_has_a_reader.py"]},
+        # V2-711 T2.2 — el trinquete de LOC mide mal ESTA deuda en dos direcciones opuestas: cuenta los
+        # COMENTARIOS (que este repo quiere: cada patrón lleva el incidente que lo midió) y se paga
+        # EXTRAYENDO, que mueve la prosa sin quitar una palabra. Medido: prompt.py se pagó dos veces a
+        # live_blocks.py y el total que lee el modelo SUBIÓ las dos. Esto congela la PROSA.
+        {"id": "7.48", "title": "La prosa que el modelo lee cada turno solo ENCOGE", "ch": UNIT,
+            "paths": ["tests/infrastructure/unit/test_the_prompt_prose_only_shrinks.py"]},
         # 2026-08-20: la captura forense de un turno guardaba `system[:8000]` de un prompt de ~19.000, y el
         # estado vivo se compone al FINAL — o sea que tiraba justo la mitad que responde «¿qué vio el modelo?».
         # Casi cuesta un diagnóstico falso: cinco turnos parecían no tener el bloque del navegador con el

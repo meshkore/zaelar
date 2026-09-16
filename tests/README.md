@@ -22,6 +22,20 @@ inside a broad sweep is not evidence about your code: reproduce it in the folder
 anything. ⚠️ The root cause is **not diagnosed**; until it is, this is a prohibition rather than advice. If a
 broad sweep is genuinely needed, ask the operator and let him run it.
 
+**Measured again 2026-09-16 — the same folder, and this time it was an agent who broke the rule.** A
+`tests/infrastructure/unit/` sweep, launched to «verify everything is aligned» at the end of V2-711, sat **half
+an hour producing nothing** and had to be killed by the operator; the session was blocked the whole time and
+the work it was closing nearly never landed. Two things worth keeping:
+
+  · the prohibition above **already named that exact folder** — it was not a grey area, it was a rule read and
+    then not applied, which is the failure mode this section exists to prevent;
+  · *«verifying the work»* is the moment it is most tempting, because a broad green looks like proof. It is
+    not: what proves the work is each new file run alone plus its disarm. A sweep that hangs proves nothing
+    about the code and costs the session.
+
+So, operationally: **wrap every pytest invocation in `timeout`** (`timeout 180 ./.venv/bin/python -m pytest
+<one file> -q`) so a hang costs three minutes instead of the session, and run **one file at a time**.
+
 ## One system, two interfaces
 
 The terminal and the browser are two controls over the same catalog and event stream:

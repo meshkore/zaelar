@@ -1152,6 +1152,7 @@
  "widgets.musica.already_fav": "Already in Favourites",
  "widgets.musica.ask_what": "Tell me what you want to listen to",
  "widgets.musica.back": "Back",
+ "widgets.musica.confirm.disconnect": "Shall I disconnect your Spotify account? You'll have to link it again from the widget.",
  "widgets.musica.connect_hint": "Say «play music» or «put on Frank Sinatra» and it plays free. Connect your Spotify (Premium) for your library.",
  "widgets.musica.connect_own_id": "Connect with my Client ID",
  "widgets.musica.connect_spotify": "Connect Spotify",

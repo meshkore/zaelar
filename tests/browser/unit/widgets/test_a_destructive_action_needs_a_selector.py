@@ -246,3 +246,48 @@ def test_the_index_and_the_digest_agree_on_what_comes_next(tmp_path, monkeypatch
     from_index = [r["label"] for r in ag.ref_index() if r["field"] == "title"]
     from_digest = [ln.split("«")[1].split("»")[0] for ln in ag.prompt_digest().splitlines() if "«" in ln]
     assert from_index == from_digest == ["Alfa", "Beta", "Zeta"], (from_index, from_digest)
+
+
+# ── V2-711 T2.5 · the census of destructive actions that run with NO friction ────────────────────────────
+# Walking the whole catalog: 24 actions are destructive by `contract`, and six of them were FAST. That list
+# was an accident of which manifest happened to carry `confirm: true`, not a decision — so it is written
+# down as one here, with the reason for each survivor beside it.
+
+_DESTRUCTIVE_AND_FAST = {
+    # DELIBERATE, and re-confirmed in V2-711: one row with a selector and a snapshot runs; N>1 asks by
+    # RADIUS (V2-707 F1). Making it CONFIRM reopens the five-minute case that motivated F0 — «borra la
+    # cita» parked a whole worker before it ran a single step.
+    ("agenda", "cancel_meeting"),
+    ("agenda", "drop"),                    # a task the operator drops; the store snapshots what it wrote
+    ("musica", "remove_from_playlist"),    # one track off a list he owns, re-addable by name
+    ("youtube", "remove"),                 # one row out of a queue
+    ("youtube", "unfollow_channel"),       # re-followable in one gesture; asking would be noise
+}
+
+
+def test_the_destructive_actions_without_friction_are_a_DECISION_not_an_accident():
+    from widgets import actions as _acts, runtime as _rt
+    live = set()
+    for w in _rt.catalog():
+        for name, spec in (w.get("actions") or {}).items():
+            if contract.is_destructive(spec, name) and _acts.classify(spec, name) != _acts.CONFIRM:
+                live.add((w["id"], name))
+    assert live == _DESTRUCTIVE_AND_FAST, (
+        "the set of destructive actions that run with no friction changed. Each one in this list has its "
+        "reason written beside it; add yours, or give the action `confirm: true` in its manifest:\n"
+        f"  new: {sorted(live - _DESTRUCTIVE_AND_FAST)}\n  gone: {sorted(_DESTRUCTIVE_AND_FAST - live)}")
+
+
+def test_disconnecting_an_account_ASKS_because_the_contract_cannot_see_it():
+    """`musica:disconnect` was destructive, FAST **and declared no selector**, so `contract.guard` never
+    looked at it: it unlinked the operator's Spotify account with no question anywhere in the path and no
+    way for the V2-705 refusal to reach it. Unlike the five above, it is not one row of his own data — it
+    is the account itself, and re-linking it means going back through an OAuth consent."""
+    from widgets import actions as _acts, runtime as _rt
+    spec = (_rt.get("musica") or {}).get("actions", {}).get("disconnect") or {}
+    assert contract.is_destructive(spec, "disconnect") is True
+    assert _acts.classify(spec, "disconnect") == _acts.CONFIRM
+    assert contract.selector_for("musica", "disconnect", spec) == "", (
+        "it declares no selector BY NATURE — there is nothing to name — which is exactly why the friction "
+        "has to come from its confirm flag and cannot come from the contract")
+    assert str(spec.get("confirm_q") or "").strip(), "and a confirmation the operator hears says what it does"
