@@ -35,6 +35,21 @@ from widgets.navegador import click_gate as G
 ENGINE = pathlib.Path(__file__).resolve().parents[4]
 
 
+@pytest.fixture
+def _knows_him(monkeypatch):
+    """The engine HAS his identity — which is the normal case and the one the operator is describing. The
+    facts live in `memory/slots.py` as `operator.name` / `.email` / `.phone` / `.address`."""
+    from memory import api as _mem
+    monkeypatch.setattr(_mem, "state", lambda: {
+        "operator.name": "Ricart", "operator.email": "r@example.com",
+        "operator.phone": "600000000", "operator.address": "Calle Falsa 1"})
+    # …and the PILL surface too: `operator.phone`/`.email`/`.address` have no `state_field`, so a reader
+    # that only stubbed `state()` would still hit the real memory DB and the case would pass or fail
+    # depending on whose machine ran it. A lab measures the product, not the machine (V2-502).
+    monkeypatch.setattr(_mem, "by_slot_prefix", lambda *a, **k: [])
+    yield
+
+
 def _sig(**kw):
     """`signals` is what `JS_SIGNALS` really emits: the space-joined VALUES of each field's autocomplete,
     name, id, type and placeholder — never `key=value` pairs. Writing the fixture the other way made a
@@ -69,11 +84,46 @@ def test_every_measured_button_on_a_payment_form_asks(label):
 
 
 @pytest.mark.parametrize("label", _LABELS_THAT_WALKED_THROUGH)
-def test_a_booking_form_asks_even_with_no_card_at_all(label):
-    """«Reservar» is the flagship case, and a booking form asks for a name, a phone and an email — never a
-    card. A rule that needs to see a card number would still miss the case this product exists for."""
+def test_a_booking_form_does_NOT_ask_for_permission(label, _knows_him):
+    """⚠️ REVERSED ON PURPOSE by V2-712, and this is the whole correction.
+
+    Yesterday this asserted that every one of these labels ASKS on a booking form. The operator read that
+    and said, 2026-09-16: «si te digo que reserves mesa en un restaurante, tú ya tienes que saber quién soy
+    yo, cuál es mi teléfono, cuál es mi email. Y si no lo sabes, obviamente preguntas. Pero una vez ya lo
+    sepas y lo tengas en el estado, no hace falta que preguntes otra vez.»
+
+    He is right, and `principles.md` names the class: a form asking for a name, a phone and an email is the
+    NORMAL shape of the order he just gave, so stopping on it is a rail on JUDGEMENT. What survives is the
+    mechanism it stood in for — `needs_facts`, tested below — and the rails that are about the CONSEQUENCE:
+    payment fields, a checkout URL, an unreadable element.
+    """
     ask, _ = G.decide(_sig(name=label, signals="email telefono nombre text"))
-    assert ask is True, f"{label!r} booked without asking"
+    assert ask is False, f"{label!r} still stops a booking he ordered"
+
+
+def test_but_the_same_form_asks_for_the_DATUM_when_the_engine_does_not_have_it(monkeypatch):
+    """«Y si no lo sabes, obviamente preguntas» — and what it asks for is the phone, not a yes/no."""
+    from memory import api as _mem
+    monkeypatch.setattr(_mem, "state", lambda: {"operator_name": "Ricart", "operator.email": "r@x.com"})
+    monkeypatch.setattr(_mem, "by_slot_prefix", lambda *a, **k: [])
+    missing = G.needs_facts(_sig(name="Reservar", signals="email telefono nombre text"))
+    assert missing == ["operator.phone"], "it must name the ONE thing it lacks, not re-ask for everything"
+    assert "teléfono" in G._say_missing(missing)
+
+
+def test_and_asks_for_NOTHING_once_every_datum_is_on_file(_knows_him):
+    assert G.needs_facts(_sig(name="Reservar", signals="email telefono nombre text")) == []
+
+
+def test_a_postal_address_is_only_required_when_the_form_actually_asks_for_one(monkeypatch):
+    """The counterweight to asking for facts: a question for a datum the form never wanted is the same
+    friction in a different coat."""
+    from memory import api as _mem
+    monkeypatch.setattr(_mem, "state", lambda: {"operator.name": "R", "operator.email": "e", "operator.phone": "6"})
+    monkeypatch.setattr(_mem, "by_slot_prefix", lambda *a, **k: [])
+    assert G.needs_facts(_sig(name="Reservar", signals="email telefono nombre")) == []
+    assert G.needs_facts(_sig(name="Comprar", signals="email telefono nombre direccion codigo_postal")) \
+        == ["operator.address"]
 
 
 def test_a_checkout_path_is_enough_on_its_own():
@@ -117,12 +167,13 @@ def test_a_login_form_asks_because_a_password_is_an_identity_field():
     assert ask is True
 
 
-def test_a_newsletter_box_on_an_ordinary_page_still_asks_and_that_is_accepted():
-    """Stated rather than hidden: an email field in a form is enough, so a newsletter signup asks too. A
-    question the operator can answer is a cheaper failure than a subscription he did not make, and the
-    alternative — deciding by the word «newsletter» — is the label rule that already failed 21 times."""
+def test_a_newsletter_box_no_longer_stops_the_turn_either(_knows_him):
+    """Yesterday this case was ACCEPTED collateral: «a question he can answer is cheaper than a subscription
+    he did not make». Measured against his actual complaint, that trade was wrong — the cost was paid on
+    every ordinary form, and the thing being protected was an email signup. The rails that remain are the
+    ones about money and about pages that cannot be read."""
     ask, _ = G.decide(_sig(name="Suscribirme", signals="email email"))
-    assert ask is True
+    assert ask is False
 
 
 # ── 4 · the third layer rides along without arming ──────────────────────────────────────────────────────

@@ -141,13 +141,45 @@ def decide(sig: dict | None) -> tuple[bool, str]:
         return True, "el formulario pide una contraseña o datos de pago"
     if submitish and _PAYMENT_FIELD_RE.search(haystack):
         return True, "el formulario pide datos de pago (tarjeta, IBAN, CVV)"
-    if submitish and _IDENTITY_FIELD_RE.search(haystack):
-        return True, "el formulario pide datos personales (identidad, contacto, dirección)"
-
+    # ⚠️ V2-712 — THE IDENTITY RULE NO LONGER ASKS FOR CONSENT, and the operator is right that it should not.
+    # «Si te digo que reserves mesa en un restaurante, tú ya tienes que saber quién soy yo, cuál es mi
+    # teléfono, cuál es mi email. Y si no lo sabes, obviamente preguntas. Pero una vez ya lo sepas y lo tengas
+    # en el estado, no hace falta que preguntes otra vez.» A booking form asking for a name, a phone and an
+    # email is the NORMAL shape of the order he just gave, so stopping on it was a rail on JUDGEMENT wearing
+    # a safety hat — `principles.md` says to delete it and find the mechanism it stood in for.
+    #
+    # The mechanism it stood in for is `needs_facts()` below: the honest question is not «shall I proceed»
+    # but «what is your phone», and it is only worth asking when the engine does not already have it.
     urls = _text(sig, "targetUrl", "pageUrl")
     if submitish and _CHECKOUT_URL_RE.search(urls):
         return True, "el destino es una página de compra, pedido o reserva"
     return False, ""
+
+
+def needs_facts(sig: dict | None) -> list[str]:
+    """Which of HIS OWN facts this form asks for and the engine does not have (V2-712).
+
+    This is what the identity rule became. A form that wants an email and a phone is not a reason to ask
+    permission — it is a reason to check we can fill it. When a datum is missing the caller asks for THAT
+    datum, which is help; when every datum is on file the form is filled and the task keeps going, which is
+    the whole complaint («no hace falta que preguntes otra vez»).
+
+    Empty when the page could not be read: `decide()` already stops on that, and asking for a phone number
+    over an unreadable form would be a question about nothing.
+    """
+    if not isinstance(sig, dict):
+        return []
+    haystack = _text(sig, "signals")
+    if not (bool(sig.get("isSubmit")) or bool(sig.get("inForm"))):
+        return []
+    if not _IDENTITY_FIELD_RE.search(haystack):
+        return []
+    from nucleo import consent as _consent
+    wants = ["operator.name", "operator.email", "operator.phone"]
+    if re.search(r"\b(?:street-address|postal-code|address-line1|direccion|codigo[_-]?postal|zip)\b",
+                 haystack, re.I):
+        wants.append("operator.address")
+    return _consent.missing_facts(wants)
 
 
 def shadow_reason(sig: dict | None) -> str:
@@ -167,6 +199,15 @@ def shadow_reason(sig: dict | None) -> str:
     if bool(sig.get("inForm")) and str(sig.get("method") or "").lower() == "post":
         return "un formulario que envía por POST"
     return ""
+
+
+def _say_missing(missing: list[str]) -> str:
+    """The sentence the operator hears when a form needs something about him we do not have. It names the
+    DATUM, because that is the only thing he can usefully answer — and once he answers it, the fact lands in
+    memory and no form of this shape ever asks again."""
+    names = {"operator.name": "tu nombre", "operator.email": "tu email", "operator.phone": "tu teléfono",
+             "operator.address": "tu dirección"}
+    return "Para rellenar este formulario me falta " + ", ".join(names.get(m, m) for m in missing)
 
 
 async def may_act(page, handle, at=None, *, confirm=None, task_id: str = "") -> tuple[bool, str]:
@@ -195,6 +236,13 @@ async def may_act(page, handle, at=None, *, confirm=None, task_id: str = "") -> 
         sig = None
     ask, why = decide(sig)
     if not ask:
+        # V2-712 — the only thing left to check before a form the operator ordered: can we FILL it. A missing
+        # datum stops the click and asks for the datum by name; nothing missing means it goes through, which
+        # is the difference between an agent that helps and one that keeps checking whether it may help.
+        missing = needs_facts(sig)
+        if missing and confirm is not None:
+            await confirm(_say_missing(missing))
+            return False, f"faltan datos del operador: {', '.join(missing)}"
         shadow = shadow_reason(sig)
         if shadow:
             try:

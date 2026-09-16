@@ -198,3 +198,31 @@ def test_asks_is_one_accessor_so_no_caller_re_derives_it():
     assert consent.asks(consent.decide(missing=["x"])) is True
     assert consent.asks(consent.decide(level="standard", radius=1, bounded=True)) is False
     assert consent.asks(consent.REFUSE) is True
+
+
+# ── 7 · a fact is looked for where it actually LIVES ────────────────────────────────────────────────────
+
+def test_a_slot_is_found_through_its_STATE_FIELD_not_its_slot_name(monkeypatch):
+    """⚠️ The defect this pins was real and mine. `memory/slots.py` reflects `operator.name` into the state
+    as `operator_name`, and the first version of the reader guessed the last path segment (`name`) — which
+    matches nothing. It would have asked him for a name the system had had all along."""
+    from memory import api as _mem
+    monkeypatch.setattr(_mem, "state", lambda: {"operator_name": "Ricart"})
+    monkeypatch.setattr(_mem, "by_slot_prefix", lambda *a, **k: [])
+    assert consent.missing_facts(["operator.name"]) == []
+
+
+def test_a_slot_with_NO_state_field_is_looked_for_in_the_pills(monkeypatch):
+    """`operator.phone`, `.email` and `.address` — the three a booking form actually wants — have no state
+    reflection at all. A reader that only looked at `state()` reported every one of them missing."""
+    from memory import api as _mem
+    monkeypatch.setattr(_mem, "state", lambda: {})
+    monkeypatch.setattr(_mem, "by_slot_prefix", lambda slot, **k: [{"slot": slot}] if "phone" in slot else [])
+    assert consent.missing_facts(["operator.phone", "operator.email"]) == ["operator.email"]
+
+
+def test_an_unreadable_memory_ASKS_rather_than_inventing_a_phone_number(monkeypatch):
+    """Fails toward asking, deliberately: the alternative is a made-up number in somebody's real booking."""
+    from memory import api as _mem
+    monkeypatch.setattr(_mem, "state", lambda: (_ for _ in ()).throw(RuntimeError("db down")))
+    assert consent.missing_facts(["operator.phone"]) == ["operator.phone"]

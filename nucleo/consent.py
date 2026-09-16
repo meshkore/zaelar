@@ -259,18 +259,44 @@ def missing_facts(requires) -> list[str]:
     if not names:
         return []
     try:
-        from memory import api as _mem
+        from memory import api as _mem, slots as _slots
         have = _mem.state() or {}
     except Exception:  # noqa: BLE001
         return names
     out = []
     for n in names:
-        val = have.get(n)
-        if val in (None, "", [], {}):
-            val = have.get(n.split(".")[-1])
-        if val in (None, "", [], {}):
-            out.append(n)
+        if _known(n, have, _mem, _slots):
+            continue
+        out.append(n)
     return out
+
+
+def _known(slot: str, have: dict, _mem, _slots) -> bool:
+    """Is this fact on file? Asked against the TWO surfaces a slot really lives in.
+
+    ⚠️ Measured 2026-09-16, and it is why this is not a one-liner: a slot is reflected in `state()` only when
+    `memory/slots.py` gives it a `state_field`, and the reflected name is not the slot name —
+    `operator.name` is stored as `operator_name`. The other identity slots this is FOR — `operator.phone`,
+    `operator.email`, `operator.address` — have NO state field at all and live as pills, so a reader that
+    only looked at `state()` reported every one of them missing and would have asked him for a phone number
+    he had told the system months ago. The first version of this function guessed the last path segment
+    (`operator.name` → `name`), which matches nothing in either surface.
+
+    Fails toward ASKING: an unreadable memory is a fact we do not have, and inventing a phone number into
+    somebody's real booking is the failure this whole initiative exists to avoid.
+    """
+    if str(have.get(slot) or "").strip():
+        return True
+    try:
+        field = _slots.state_field(slot)
+    except Exception:  # noqa: BLE001
+        field = None
+    if field and str(have.get(field) or "").strip():
+        return True
+    try:
+        return bool(_mem.by_slot_prefix(slot, limit=1))
+    except Exception:  # noqa: BLE001
+        return False
 
 
 def asks(verdict: dict | str) -> bool:
