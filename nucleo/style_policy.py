@@ -187,6 +187,45 @@ def retract_directive(text: str) -> dict:
     return released
 
 
+def max_sentences() -> int:
+    """Cuántas frases habla la capa rápida. 0 = sin límite (V2-713 R5)."""
+    try:
+        return max(0, int(policy().get("max_sentences", 2)))
+    except Exception:  # noqa: BLE001
+        return 2
+
+
+def one_action_per_turn() -> bool:
+    """Si ejecuta UNA acción por turno o puede encadenar varias (V2-713 R5)."""
+    return bool(policy().get("one_action_per_turn", True))
+
+
+def shape_line() -> str:
+    """La FORMA del turno, compuesta desde la política en vez de escrita en el prompt (V2-713 R5).
+
+    Dos frases del bloque `ops` eran preferencias con forma de receta: «Respondes SIEMPRE al instante en 1-2
+    frases» y «UNA ACCIÓN por turno». `principles.md` nombra la clase —carril sobre el JUICIO— y desde V2-633
+    hay dónde ponerlas, con el operador cambiándolas al decirlo en vez de con un despliegue.
+
+    Se compone, no se enumera: si él sube el límite a cinco frases, la línea lo dice; si quita el límite, la
+    mitad de la frase desaparece en vez de contradecir a la política.
+    """
+    partes = []
+    n = max_sentences()
+    if n:
+        # El plural entero, no solo el sustantivo: «en 1 frase habladas» se lee como una plantilla mal
+        # rellenada, y es de las costuras que hacen que el operador deje de creerse lo que lee.
+        _pl = "s" if n != 1 else ""
+        partes.append(f"Respondes al instante en {n} frase{_pl} hablada{_pl} como mucho")
+    if one_action_per_turn():
+        partes.append("UNA ACCIÓN por turno")
+    if not partes:
+        return ""
+    return (" · ".join(partes) + ". «Una» es de ACCIONES, no de RESPUESTAS: si en la misma frase te "
+            "preguntan DOS cosas, las contestas las dos en ese turno.") if one_action_per_turn() \
+        else (" · ".join(partes) + ".")
+
+
 def prompt_line() -> str:
     """One prompt line so the MODEL's own mouth matches the engine's: under silent-orders it must not say
     «Hecho.» itself (the backstops are gated, but the model's text is its own)."""

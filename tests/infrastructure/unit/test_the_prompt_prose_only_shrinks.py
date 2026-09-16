@@ -48,8 +48,26 @@ _PROSE_FLOOR = 40
 _PROSE_FILES = ("nucleo/flash/prompt.py", "nucleo/flash/live_blocks.py")
 
 #: Measured 2026-09-16. EDIT DOWNWARD ONLY — and the edit is the celebration.
-_MAX_PROSE = 42_486          # prompt.py 23_261 + live_blocks.py 19_225
-_MAX_TOTAL = 65_582          # …plus the tool catalog, 23_096
+_MAX_PROSE = 42_376          # prompt.py 23_151 + live_blocks.py 19_225   (V2-713 R5: 42_486 → 42_376)
+_MAX_TOTAL = 66_072          # …plus the tool catalog 23_096, plus the POLICY lines below, 600
+
+#: ⚠️ V2-713 R5 — A THIRD SOURCE, WHICH WAS ALWAYS THERE AND NEVER COUNTED. `style_policy` composes lines
+#: that ride into the turn beside the prompt (`style_directive.prompt_lines`), and this ratchet could not see
+#: them: 402 bytes of `prompt_line()` have been shipping on every turn since V2-633 without ever appearing in
+#: a number. Counting them RAISES `_MAX_TOTAL`, and that raise is the debt becoming visible, not prose
+#: growing — the same shape as the mirror ratchet counting the mark nobody used.
+#:
+#: The honest accounting of R5's own change, stated rather than rounded: moving «1-2 frases» and «UNA ACCIÓN
+#: por turno» out of `prompt.py` removed 110 bytes there and added 198 in `shape_line()`, so what the model
+#: reads grew by **88 bytes**. It is not sold as a reduction. What it buys is that two sentences which were
+#: constants fixed by whoever was working that day are now data the operator changes by speaking — and that
+#: `max_sentences: 0` makes half of that line disappear instead of contradicting the policy.
+#:
+#: It is measured as what the policy EMITS, not as the file's literals: `style_policy.py` holds 5_241 bytes
+#: of string constants and almost all of them are docstrings and regexes the model never sees. Counting the
+#: file would have inflated this by 5_000 bytes of documentation, which is the same dishonesty as the LOC
+#: proxy in the other direction.
+_MAX_POLICY = 600
 
 
 def _prose_bytes(rel: str) -> int:
@@ -61,6 +79,15 @@ def _prose_bytes(rel: str) -> int:
 def _catalog_bytes() -> int:
     from nucleo.flash import router_catalog as rc
     return len(json.dumps(rc.TOOLS, ensure_ascii=False))
+
+
+def _policy_bytes() -> int:
+    """What `style_policy` composes into the turn under the GENESIS defaults — deterministic by construction
+    (the defaults are committed in `nucleo/genesis.json`; a per-install override is the operator's machine,
+    not the product, exactly as V2-502 requires of a lab)."""
+    from nucleo import style_policy as sp
+    sp._reset_for_tests()
+    return len(sp.shape_line()) + len(sp.prompt_line())
 
 
 def test_the_prose_of_the_turn_prompt_only_shrinks():
@@ -82,9 +109,43 @@ def test_moving_prose_between_the_two_files_does_not_pay_anything():
     assert combined == sum({r: _prose_bytes(r) for r in _PROSE_FILES}.values())
 
 
+def test_the_policy_lines_are_counted_too_because_the_model_reads_them():
+    """The source this ratchet was blind to. A sentence that reaches the turn from a policy costs exactly the
+    same per turn as one typed into `prompt.py`; what differs is who can change it."""
+    n = _policy_bytes()
+    assert n <= _MAX_POLICY, (
+        f"las líneas compuestas por `style_policy` suman {n} bytes (techo {_MAX_POLICY}). Una política que "
+        f"crece en prosa es una receta con otro nombre: si hace falta decir más, mira si lo que falta es un "
+        f"MECANISMO.")
+    # ⚠️ Un SUELO, no un `> 0`. El desarme lo enseñó: con `_policy_bytes()` devolviendo 1 este caso seguía
+    # verde, porque solo comprobaba cotas y 1 cabe entre 0 y el techo. Un trinquete que pasa con la medición
+    # falsificada no mide nada — es la misma trampa que «un arnés puede FABRICAR un pass». El suelo solo lo
+    # cumple una lectura real de las dos líneas; si baja de aquí es que la política dejó de llegar al turno.
+    assert n >= 400, (
+        f"la política solo aporta {n} bytes al turno: o dejó de componerse, o alguien la vació. Las dos "
+        f"líneas juntas rondan los 600 desde V2-713.")
+
+
+def test_a_preference_that_is_turned_OFF_stops_costing_bytes():
+    """La prueba de que es una política y no una frase: apagarla la retira del turno. Una receta en el prompt
+    se paga aunque el operador no la quiera."""
+    from nucleo import style_policy as sp
+    sp._reset_for_tests()
+    completo = len(sp.shape_line())
+    sp._cache.update(path=None, mtime=None, data={})
+    real = sp.policy
+    sp.policy = lambda: {**real(), "max_sentences": 0, "one_action_per_turn": False}
+    try:
+        assert sp.shape_line() == "", "con las dos preferencias apagadas no debe quedar ni una palabra"
+    finally:
+        sp.policy = real
+        sp._reset_for_tests()
+    assert completo > 0
+
+
 def test_the_whole_thing_the_model_reads_is_counted_once():
-    """Prose + the tool catalog, which the provider receives beside it on the same turn."""
-    total = sum(_prose_bytes(r) for r in _PROSE_FILES) + _catalog_bytes()
+    """Prose + the tool catalog + the policy lines: everything that reaches the provider on one turn."""
+    total = sum(_prose_bytes(r) for r in _PROSE_FILES) + _catalog_bytes() + _policy_bytes()
     assert total <= _MAX_TOTAL, (
         f"what the fast turn ships grew to {total} bytes (ceiling {_MAX_TOTAL}). The catalog has its own "
         f"ceiling in `test_router`; this one exists so paying that one by moving text into the prompt, or "

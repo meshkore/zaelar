@@ -3614,6 +3614,15 @@ DOMAINS: list[dict] = [
                                 "— y lo que puede correr está DECLARADO, no adivinado",
             "ch": UNIT,
             "paths": ["tests/agent_headless/unit/flash/test_a_pure_show_vetoes_an_invented_write_not_an_activation.py"]},
+        # V2-713 R5: «1-2 frases» y «UNA ACCIÓN por turno» eran preferencias del operador escritas como prosa
+        # en el bloque `ops`. Pasan a `genesis.json` y las compone `style_policy.shape_line()`, la tubería que
+        # V2-633 ya había montado. Contabilidad honesta: el turno CRECIÓ 88 bytes (110 fuera de prompt.py, 198
+        # dentro de la política) y a cambio él las cambia hablando. Y al contarlas apareció una tercera fuente
+        # que el trinquete de prosa no veía: 402 bytes de `prompt_line()` en cada turno desde V2-633.
+        {"id": "7.52", "title": "La FORMA del turno es una política del operador, no una receta del prompt "
+                                "(y lo que la política emite también se cuenta)",
+            "ch": UNIT,
+            "paths": ["tests/voice/unit/test_the_shape_of_a_turn_is_a_policy_not_a_recipe.py"]},
         # 2026-08-20: la captura forense de un turno guardaba `system[:8000]` de un prompt de ~19.000, y el
         # estado vivo se compone al FINAL — o sea que tiraba justo la mitad que responde «¿qué vio el modelo?».
         # Casi cuesta un diagnóstico falso: cinco turnos parecían no tener el bloque del navegador con el

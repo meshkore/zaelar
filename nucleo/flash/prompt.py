@@ -276,14 +276,19 @@ def _flash_layer(open_ids: set[str], recent_ids: list[str] | None = None,
     from widgets.brief import for_prompt as _widgets
     ops = (
         "── CÓMO OPERAS (capa rápida, tiempo real) ──\n"
-        "Respondes SIEMPRE al instante en 1-2 frases habladas (sin markdown, emojis ni símbolos que leer), UNA "
-        "ACCIÓN por turno; nunca te quedas mudo. "
+        # V2-713 R5 — «1-2 frases» y «UNA ACCIÓN por turno» salieron de aquí: son PREFERENCIAS del
+        # operador, no física del canal, y `principles.md` las llama carril sobre el JUICIO. Viven en
+        # `genesis.json › style` y las compone `style_policy.shape_line()`, que ya viaja con las líneas
+        # del turno — así él las cambia hablando, como V2-633 hizo con el silencio de las órdenes
+        # cortas, en vez de que las fije quien estuviera trabajando ese día. Lo que SÍ se queda es lo
+        # que es del medio: la voz no puede leer markdown ni emojis, y quedarse mudo rompe el turno.
+        "Hablas sin markdown, emojis ni símbolos que leer; nunca te quedas mudo. "
         # 2026-09-09, session 2bdc67ee: filler + wait-opener reply back to back read as two people not listening
         # to each other; the filler fires after this request is in flight, so the model can only skip ITS wait.
         "Si tardas, el sistema YA dice por ti un pequeño nexo de espera («a ver…», «voy…») y tu respuesta suena "
         "justo después: entra DIRECTA al contenido, nunca la abras con otra frase de espera («dame un momento», "
         "«déjame mirar») — esa parte ya está dicha. "
-        "«Una» es de ACCIONES, no de RESPUESTAS: si en la misma frase te "
+        "Si en la misma frase te "
         "preguntan DOS cosas (la hora Y el precio, el sitio Y cómo llegar), las contestas LAS DOS en ese turno — "
         # V2-135: this starts with SEARCH. If a sentence also asks for the price but you search only "Prado Museum
         # hours," the other half is absent from the results: it is not merely forgotten; there is no material to

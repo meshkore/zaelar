@@ -96,6 +96,10 @@ def prompt_lines(mstate: dict) -> list[str]:
         sl = _stylep.prompt_line()
         if sl:
             lines.append(sl)
+        # V2-713 R5 — la FORMA del turno (cuántas frases, una acción o varias) compuesta desde la política.
+        shape = _stylep.shape_line()
+        if shape:
+            lines.append(shape)
     except Exception:
         pass
     return lines

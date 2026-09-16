@@ -3,7 +3,10 @@
   "version": 1,
   "style": {
     "confirm_short_actions": false,
-    "fillers": "smart"
+    "fillers": "smart",
+    "max_sentences": 2,
+    "one_action_per_turn": true,
+    "_V2_713": "Dos PREFERENCIAS que vivían como prosa en el bloque `ops` del prompt: cuántas frases habla y si ejecuta una acción por turno. `principles.md` las llama carril sobre el JUICIO — una receta de conducta —, y desde V2-633 hay dónde ponerlas: aquí, con el operador cambiándolas al decirlo. `max_sentences: 0` = sin límite; `one_action_per_turn: false` = puede encadenar."
   },
   "consent": {
     "_comment": "CONSENT (V2-712) — THE ONE RULE that decides act-or-ask, layered exactly like `style`: these are the factory defaults, the operator overrides any of them by SAYING so, and the override lands in <workspace>/config/consent.json applied on the very next decision. The rule itself is in nucleo/consent.py and asks four questions in order: is a FACT missing, is there DOUBT about what will be touched, does the RADIUS exceed what he named, and only then is the CLASS sensitive enough. Nothing here is hardcoded in code: a widget declares `security` (all shipped widgets: standard) and an action may declare `sensitivity`.",
