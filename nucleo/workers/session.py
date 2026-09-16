@@ -269,9 +269,17 @@ class WorkerSession:
             rec.context_full = {"text": d.get("text") or "", "tokens": int(d.get("tokens") or 0)}
             self._emit_chip("contexto agotado", f"{rec.context_full['tokens']:,} tokens".replace(",", "."), ok=False)
         elif ev.type == "provider_down":
+            # V2-713 R4 — THE LABEL SAYS WHICH FAULT IT WAS. It read «proveedor sin cuota» for every one of
+            # them, so a rejected credential and a rejected request both reached the operator as a quota
+            # problem — and what he DOES about each is opposite (wait vs. fix the key vs. neither). The cause
+            # arrives already classified from `providers.note_failure`; nothing here re-reads the error text,
+            # which would be the third classification of the same string.
             rec.provider_down = {"provider": d.get("provider") or "", "next": d.get("next") or "",
-                                 "text": d.get("text") or ""}
-            self._emit_chip("proveedor sin cuota", (d.get("provider") or "") +
+                                 "kind": d.get("kind") or "", "text": d.get("text") or ""}
+            titulo = {"exhausted": "proveedor sin cuota", "auth": "credencial rechazada",
+                      "broken": "el proveedor RECHAZA nuestras peticiones"}.get(
+                          str(d.get("kind") or ""), "proveedor caído")
+            self._emit_chip(titulo, (d.get("provider") or "") +
                             (f" → relevo a {d['next']}" if d.get("next") else " · sin relevo"), ok=False)
         elif ev.type == "progress":
             self._bus("worker.progress", {"id": rec.task_id, "pct": d.get("pct"), "note": d.get("note")})

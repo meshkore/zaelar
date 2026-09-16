@@ -1186,8 +1186,7 @@ class NucleoLLMStream(llm.LLMStream):
             # claramente CERRAR (verbo de cerrar, sin verbo de borrar, ≤5 palabras — sin más sustancia que el
             # pronombre/el widget) se redirige DETERMINISTA a la tag de canvas. Una frase larga con "cierra"
             # dentro ("cierra la sesión de spotify del widget") NO entra aquí (pasa a su data-op normal).
-            if (_router.looks_like_close(text) and len(text.split()) <= 5
-                    and runtime.get(wid) is not None):
+            if _closeg.is_short_close_order(text) and runtime.get(wid) is not None:   # V2-713 R3: extraída
                 emit("brain", "🙈 orden corta de CERRAR → close (no data-op)", text=f"{wid} (era {action_name})",
                      role="system")
                 _tag_emit("close", {"id": wid})
@@ -2336,7 +2335,7 @@ class NucleoLLMStream(llm.LLMStream):
             except Exception:
                 _cw = None
             # sin nombre resuelto: solo el caso corto genérico ("ciérralo") con un único widget abierto.
-            if not _cw and len(text.split()) <= 5 and len(_openw) == 1:
+            if not _cw and _closeg.is_short_order(text) and len(_openw) == 1:
                 _cw = _openw[0]
             if _cw:
                 _t = _close_target(_cw, text)

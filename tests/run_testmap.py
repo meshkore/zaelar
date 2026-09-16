@@ -3597,6 +3597,15 @@ DOMAINS: list[dict] = [
         # excede lo que nombró → pregunta; y solo entonces, la clase.
         {"id": "7.49", "title": "Una sola regla decide actuar o preguntar (y no es una tabla de verbos)",
             "ch": UNIT, "paths": ["tests/infrastructure/unit/core/test_one_rule_decides_act_or_ask.py"]},
+        # V2-713 (2026-09-16, segunda auditoría externa): el resumen de observabilidad contaba solo
+        # `kind IN ('error','alert')` y un worker que muere cierra como `task/end/ok=false` — medido sobre la
+        # base real del operador, **30 de 30 flujos con una tarea muerta reportaban errors=0**. Y la causa del
+        # fallo de proveedor se clasificaba dos veces: un `broken` SIN relevo ponía el escalón en cooldown y no
+        # emitía ningún chip, porque `classify_failure` no reconoce lo que sí reconoce `is_broken_request`.
+        {"id": "7.50", "title": "Una tarea que murió CUENTA como fallo, y la causa que la mató llega con su "
+                                "nombre (y la orden corta de cerrar la comparten los dos canales)",
+            "ch": UNIT,
+            "paths": ["tests/infrastructure/unit/core/test_a_dead_task_is_counted_and_its_cause_survives.py"]},
         # 2026-08-20: la captura forense de un turno guardaba `system[:8000]` de un prompt de ~19.000, y el
         # estado vivo se compone al FINAL — o sea que tiraba justo la mitad que responde «¿qué vio el modelo?».
         # Casi cuesta un diagnóstico falso: cinco turnos parecían no tener el bloque del navegador con el

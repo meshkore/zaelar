@@ -59,6 +59,18 @@ def flows(limit: int = 50, session_id: str = "", user_id: str = "") -> list[dict
                SUM(COALESCE(tokens_in, 0))        AS tokens_in,
                SUM(COALESCE(tokens_out, 0))       AS tokens_out,
                SUM(CASE WHEN kind IN ('error', 'alert') THEN 1 ELSE 0 END) AS errors,
+               -- V2-713 R2 — A TASK THAT DIED IS COUNTED AS A FAILURE, and it is counted APART.
+               -- `errors` above asks «did something raise or alert»; a worker closing with ok=false is
+               -- neither: `session.py::_finish` ends it as kind='task', label='end', ok=false, and `ok`
+               -- is not a bus COLUMN — it rides inside the (flat) payload. Measured on the operator's
+               -- real database 2026-09-16: **30 of 30 flows containing a dead task reported errors=0**.
+               -- Not «may omit the failure»: every one of them. Widening the IN above was the wrong fix —
+               -- it would blend a dead worker with an infrastructure alert and the summary would still
+               -- not say which happened. DISTINCT on the task id because a task can close more than once
+               -- (a retry, a handoff) and a flow with one dead task is one failure, not three.
+               COUNT(DISTINCT CASE WHEN kind = 'task' AND label = 'end'
+                                    AND json_extract(payload, '$.ok') = 0
+                                   THEN json_extract(payload, '$.id') END) AS failed_tasks,
                SUM(CASE WHEN kind = 'flow' AND label = 'end' THEN 1 ELSE 0 END) AS ended_events,
                -- The merge marker is EXCLUDED from origin/title: it records that this flow was ABSORBED, not why it
                -- was born. Today MAX() prefers 'turno' over 'merge' alphabetically, which is luck rather than a
@@ -120,7 +132,19 @@ def sessions(limit: int = 30, user_id: str = "") -> list[dict]:
                COUNT(DISTINCT corr_id)            AS flows,
                SUM(COALESCE(tokens_in, 0))        AS tokens_in,
                SUM(COALESCE(tokens_out, 0))       AS tokens_out,
-               SUM(CASE WHEN kind IN ('error', 'alert') THEN 1 ELSE 0 END) AS errors
+               SUM(CASE WHEN kind IN ('error', 'alert') THEN 1 ELSE 0 END) AS errors,
+               -- V2-713 R2 — A TASK THAT DIED IS COUNTED AS A FAILURE, and it is counted APART.
+               -- `errors` above asks «did something raise or alert»; a worker closing with ok=false is
+               -- neither: `session.py::_finish` ends it as kind='task', label='end', ok=false, and `ok`
+               -- is not a bus COLUMN — it rides inside the (flat) payload. Measured on the operator's
+               -- real database 2026-09-16: **30 of 30 flows containing a dead task reported errors=0**.
+               -- Not «may omit the failure»: every one of them. Widening the IN above was the wrong fix —
+               -- it would blend a dead worker with an infrastructure alert and the summary would still
+               -- not say which happened. DISTINCT on the task id because a task can close more than once
+               -- (a retry, a handoff) and a flow with one dead task is one failure, not three.
+               COUNT(DISTINCT CASE WHEN kind = 'task' AND label = 'end'
+                                    AND json_extract(payload, '$.ok') = 0
+                                   THEN json_extract(payload, '$.id') END) AS failed_tasks
         FROM events
         WHERE {' AND '.join(where)}
         GROUP BY session_id
@@ -147,6 +171,18 @@ def session(session_id: str) -> dict:
                SUM(COALESCE(tokens_in, 0))        AS tokens_in,
                SUM(COALESCE(tokens_out, 0))       AS tokens_out,
                SUM(CASE WHEN kind IN ('error', 'alert') THEN 1 ELSE 0 END) AS errors,
+               -- V2-713 R2 — A TASK THAT DIED IS COUNTED AS A FAILURE, and it is counted APART.
+               -- `errors` above asks «did something raise or alert»; a worker closing with ok=false is
+               -- neither: `session.py::_finish` ends it as kind='task', label='end', ok=false, and `ok`
+               -- is not a bus COLUMN — it rides inside the (flat) payload. Measured on the operator's
+               -- real database 2026-09-16: **30 of 30 flows containing a dead task reported errors=0**.
+               -- Not «may omit the failure»: every one of them. Widening the IN above was the wrong fix —
+               -- it would blend a dead worker with an infrastructure alert and the summary would still
+               -- not say which happened. DISTINCT on the task id because a task can close more than once
+               -- (a retry, a handoff) and a flow with one dead task is one failure, not three.
+               COUNT(DISTINCT CASE WHEN kind = 'task' AND label = 'end'
+                                    AND json_extract(payload, '$.ok') = 0
+                                   THEN json_extract(payload, '$.id') END) AS failed_tasks,
                GROUP_CONCAT(DISTINCT cat)         AS families,
                MAX(ver)                           AS ver
         FROM events WHERE session_id = ?

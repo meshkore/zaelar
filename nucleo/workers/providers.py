@@ -512,10 +512,26 @@ def _reset_epoch(text: str) -> float:
 
 
 def note_failure(text: str, tier: dict | None = None) -> dict | None:
-    """Un worker murió por el PROVEEDOR: marca el escalón, avisa, y devuelve el escalón de RELEVO (o None).
+    """Un worker murió por el PROVEEDOR: marca el escalón, avisa, y devuelve **la CAUSA con su relevo**.
 
     Es el punto que faltaba: hasta hoy este 429 se entregaba al operador como texto de resultado («API Error…»)
-    y moría ahí — ni alerta en el panel, ni cambio de proveedor, ni registro."""
+    y moría ahí — ni alerta en el panel, ni cambio de proveedor, ni registro.
+
+    ⚠️ V2-713 R4 — DEVUELVE `{"kind", "provider", "next", "detail"}`, no el escalón de relevo suelto. Antes
+    devolvía `nxt`, y el adaptador (`claude_session.py`) tenía que RECONSTRUIR la clasificación para decidir si
+    avisaba: `if nxt is not None or classify_failure(texto)`. Esa condición tiene un agujero medido — `broken`
+    lo reconoce `is_broken_request`, NO `classify_failure`, así que un `broken` **sin relevo** ponía el escalón
+    en cooldown y **no emitía ningún chip**: el operador veía morir al worker sin una sola palabra de por qué,
+    con la causa perfectamente conocida una capa más arriba. En la base real del operador hay filas exactamente
+    de esa forma (`API Error: 400 [1210]`, `ok:false`, `status:error`).
+
+    La causa se calcula UNA vez, aquí, y viaja. Nadie aguas abajo vuelve a mirar el texto: `session.py` rotula
+    por `kind`, que es dato, en vez de escribir siempre «proveedor sin cuota» — que era lo que hacía, incluso
+    cuando la causa era una credencial rechazada.
+
+    `None` solo cuando no hay nada que clasificar (rate-limit pasajero, licencia local): ausencia de causa, no
+    ausencia de relevo. Los dos se distinguen ahora, y antes no.
+    """
     kind = classify_failure(text) or ("broken" if is_broken_request(text) else "")
     if not kind:
         return None
@@ -570,7 +586,7 @@ def note_failure(text: str, tier: dict | None = None) -> dict | None:
                     "next": (nxt or {}).get("name", ""), "text": (text or "")[:300]})
     except Exception:
         pass
-    return nxt
+    return {"kind": kind, "provider": t["name"], "next": (nxt or {}).get("name", ""), "detail": detail}
 
 
 def _serving() -> set[str]:

@@ -472,7 +472,7 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
         try:
             from widgets import runtime as _rt
 
-            from . import frontend as _fe
+            from . import close_guards as _cg, frontend as _fe
             _wd = next(t for t in tool_calls if t["name"] == "widget_data")
             _wid = str(_wd["args"].get("widget_id") or "").strip().lower()
             _act = str(_wd["args"].get("action") or "").strip()
@@ -487,6 +487,10 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
             # through as `widget_data` (the rail runs it, and also shows the card).
             if _router.show_request_blocks_data_action(text, _wid, _act) and _rt.get(_wid) is not None:
                 action = f"canvas:show:{_wid}"
+            # V2-713 R3 — the short-close redirect, which had lived only in the voice rail. Shared as a
+            # FUNCTION, never copied; the incident and the reason are in `close_guards.is_short_close_order`.
+            elif _cg.is_short_close_order(text) and _rt.get(_wid) is not None:
+                action = f"canvas:close:{_wid}"
             elif _fe.action_mode(_wid, _act) is None:
                 _cv = _fe.canvas_verb(_act)
                 if _cv and _rt.get(_wid) is not None:
@@ -634,7 +638,7 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
     _already = action.startswith(("music", "video", "search", "widget_data", "canvas:fullscreen", "canvas:minimize"))
     if not _already and not any(t["action"] == "close" for t in tags):
         try:
-            from . import router as _router0
+            from . import close_guards as _closeg, router as _router0
             # AMPLIADO (sesión absurda 2026-07-19, espejo del provider): cerrar un widget NOMBRADO que está ABIERTO
             # cierra AQUÍ aunque el turno sea largo (una queja acompañaba «cierra el widget de música» → escaló a
             # modificar código y giró en bucle). Cerrar ≠ tarea de código.
@@ -658,7 +662,7 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
                         _cw = _idc.get("match")
                 except Exception:
                     _cw = None
-                if not _cw and len(text.split()) <= 5 and len(_ow) == 1:
+                if not _cw and _closeg.is_short_order(text) and len(_ow) == 1:
                     _cw = _ow[0]
                 if _cw:
                     tags.append({"action": "close", "extra": {"id": _cw, "backstop": True}})

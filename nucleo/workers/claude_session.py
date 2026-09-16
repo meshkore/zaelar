@@ -538,11 +538,17 @@ class ClaudeCodeSession(WorkerBackend):
                         yield self._ev("context_full", text=str(summary)[:300],
                                        tokens=int(getattr(self, "_ctx_tokens", 0) or 0))
                     else:
-                        nxt = _prov.note_failure(str(summary), self._tier)
-                        if nxt is not None or _prov.classify_failure(str(summary)):
+                        # V2-713 R4 — ONE classification, carried. This read `if nxt is not None or
+                        # classify_failure(summary)`, which had to guess what the layer above already knew —
+                        # and guessed wrong for `broken` (recognised by `is_broken_request`, not by
+                        # `classify_failure`): a rejected request with no relay put the tier on cooldown and
+                        # emitted NOTHING. `note_failure` now answers with the cause, so a cause is a chip.
+                        cause = _prov.note_failure(str(summary), self._tier)
+                        if cause:
                             yield self._ev("provider_down", text=str(summary)[:300],
-                                           provider=(self._tier or {}).get("name", ""),
-                                           next=(nxt or {}).get("name", ""))
+                                           provider=cause.get("provider", ""),
+                                           kind=cause.get("kind", ""),
+                                           next=cause.get("next", ""))
                 except Exception:
                     pass
             yield self._ev("result", summary=str(summary), ok=bool(ok), usage=usage,

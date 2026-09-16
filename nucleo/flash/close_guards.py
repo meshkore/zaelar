@@ -85,3 +85,45 @@ def show_contradicts_the_order(text: str) -> bool:
         return False
     n = _norm_txt(text)
     return not (_OPEN_VERB_RE.search(n) and not _NO_OPEN_RE.search(n))
+
+
+def is_short_close_order(text: str) -> bool:
+    """A SHORT order that is plainly «close this» — so a declared data-op must not answer it (V2-713 R3).
+
+    The incident it is made of, from the voice rail where it has lived alone since 2026-07-16: «Vale,
+    ciérralo» produced `widget_data(youtube, mute)` — a DECLARED action, so nothing else would stop it — and
+    the video ended up muted instead of closed, with the operator correcting by hand.
+
+    ⚠️ It was written INLINE in `voice/…/nucleo.py` and never reached `probe.py`, so the text channel — the one
+    the use-case harness drives — answered «ciérralo» differently from the product. That is the R3 class: not
+    a mirror that drifted, a rule that only ever existed on one side. Measured 2026-09-16: `looks_like_close`
+    appears at six voice sites and three probe sites, and this length-bounded redirect at exactly one.
+
+    It is EXTRACTED rather than copied on purpose. This repo's own ratchet says a new mirror is vetoed —
+    «si dos canales necesitan la misma regla, extrae primero» — and copying the condition would have cost a
+    marker while leaving two places to edit. Both channels now call this.
+
+    The length bound is the whole rule and it is deliberate: a short sentence carrying a close verb has no
+    room for anything else, while «cierra la sesión de spotify del widget» is a real data-op that happens to
+    contain «cierra» and must go through untouched.
+    """
+    return bool(looks_like_close(text)) and len((text or "").split()) <= _SHORT_ORDER_WORDS
+
+
+#: Five words, as the voice rail has used since 2026-07-16 — the pronoun plus the widget and nothing else.
+_SHORT_ORDER_WORDS = 5
+
+
+def is_short_order(text: str) -> bool:
+    """«¿Cabe algo más en esta frase?» — the length half of the close rules, on its own (V2-713 R3).
+
+    ⚠️ Found by the test written for the extraction above: the literal `len(text.split()) <= 5` was in THREE
+    places, not one. Two of them are the close BACKSTOP (voice and probe), a different guard from the redirect
+    but the same bound, unlabelled, sitting as a bare number in two channels that have to agree. A magic
+    number duplicated across the two channels is the R3 class in miniature: nothing makes them move together,
+    and nothing says what the 5 means.
+
+    No close verb is checked here — that is `looks_like_close`'s job and the backstop has already asked it a
+    different way. This answers only about LENGTH.
+    """
+    return len((text or "").split()) <= _SHORT_ORDER_WORDS
