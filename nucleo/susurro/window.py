@@ -98,6 +98,25 @@ def events_block(event_ring: list[dict]) -> str:
     return "\n".join(lines)
 
 
+def executed_block() -> str:
+    """WHAT ALREADY RAN on his data, for the auditor (V2-710).
+
+    The auditor reads the conversation and the event ring and decides whether the fast brain attended the
+    request. In session `7a22136c` it decided it had not — «petición repetida (no atendida)» — about a
+    `clear_range` that had run, been confirmed and been reported as done a hundred and fifty events
+    earlier, and then escalated a Brain Worker to do it again. Its diagnosis was not unreasonable from what
+    it could see; it simply could not see the one fact that settles it.
+
+    `live_blocks.done_ops_lines()` already puts this in the FAST brain's prompt (V2-707 F6). The auditor is
+    the other reader of the same question, and giving one of them the ledger and not the other is how they
+    came to disagree about whether the work happened."""
+    try:
+        from nucleo.flash import live_blocks as _lb
+        return _clip("\n".join(_lb.done_ops_lines()), 900)
+    except Exception:
+        return ""
+
+
 def state_block() -> str:
     try:
         from memory import api as memory
@@ -129,6 +148,9 @@ def compose_audit_window(*, reason: str, signals: list[str], turn_ring: list[dic
     eb = events_block(event_ring)
     if eb:
         parts += ["", "=== EVENTOS DEL SISTEMA (filtrados) ===", eb]
+    xb = executed_block()
+    if xb:
+        parts += ["", "=== YA EJECUTADO SOBRE SUS DATOS (hechos, no conversación) ===", xb]
     st = state_block()
     if st:
         parts += ["", "=== ESTADO ACTUAL (lo que el cerebro ve en su prompt) ===", st]

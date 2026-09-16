@@ -453,6 +453,19 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
                 if _jid:
                     _new["reminder_id"], _new["remindAt"] = _jid, _at
                 gcal.commit_meeting(db, _new)
+    elif action == "dedupe_meetings":
+        # «Simplify to one» (V2-710): keeps one of each identical group. Same persist/answer shape as
+        # `cancel_meeting`, and the duplicate KEY is shared with it so the two cannot disagree.
+        res, stuck = sweep.dedupe_meetings(db, payload)
+        if not res.get("ok"):
+            return {**view_data(), **res}
+        db["currentPlan"] = compute_plan(db)
+        store.save(WIDGET_ID, db)
+        d = view_data()
+        d.update({"ok": True, "result": res})
+        if stuck:
+            d.update({"ok": False, "error": f"Dejé una de cada, pero Google no me dejó borrar {len(stuck)}."})
+        return d
     elif action == "cancel_meeting":
         # ONE appointment, never «all of them» (V2-705): the decision lives in `sweep.py` next to
         # `clear_range` — an ambiguous title is a question back to him, not a bulk delete. Persist + answer here.

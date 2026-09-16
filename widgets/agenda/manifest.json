@@ -79,8 +79,18 @@
         "at": "HH:MM del día de la cita, o YYYY-MM-DD HH:MM"
       }
     },
+    "dedupe_meetings": {
+      "desc": "DEJA UNA de cada cita repetida y borra las copias («simplifica a una», «tengo dos iguales, quita la de sobra», «quita los duplicados»). NO es cancel_meeting: esa se lleva la cita entera con todas sus copias. Con title/date solo toca esas; sin nada, colapsa todos los duplicados del calendario",
+      "ref": "title",
+      "payload": {
+        "title": "string (título de la cita repetida, aunque sea parcial — OPCIONAL: sin él, todos los duplicados)",
+        "date": "YYYY-MM-DD o «hoy»/«mañana» (opcional, limita a ese día)"
+      },
+      "confirm": true,
+      "confirm_q": "¿Dejo una de cada cita repetida y borro las copias?"
+    },
     "cancel_meeting": {
-      "desc": "cancela/elimina una cita ya agendada",
+      "desc": "cancela/elimina una cita ya agendada por completo, con todas sus copias idénticas si las tiene. Para dejar UNA de varias repetidas, usa dedupe_meetings",
       "ref": "title",
       "payload": {
         "title": "string",

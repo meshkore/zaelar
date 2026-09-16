@@ -731,6 +731,7 @@
  "widgets.agenda.close": "Cerrar",
  "widgets.agenda.confirm.clear_all": "¿Vacío la agenda entera? Es permanente.",
  "widgets.agenda.confirm.clear_range": "¿Borro las citas de ese tramo? Es permanente.",
+ "widgets.agenda.confirm.dedupe_meetings": "¿Dejo una de cada cita repetida y borro las copias?",
  "widgets.agenda.confirm.disconnect": "¿Desconecto Google Calendar? Tus citas ya sincronizadas se quedan aquí, pero dejarán de actualizarse.",
  "widgets.agenda.confirm.drop_project": "¿Congelo el proyecto «{item}» entero y descarto sus tareas pendientes?",
  "widgets.agenda.connectors": "Conectores",

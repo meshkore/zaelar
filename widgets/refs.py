@@ -343,14 +343,21 @@ class RefResult:
 
 def _qualified(rows: list[dict]) -> list[str]:
     """Candidate labels, each carrying its `hint` when the labels alone do not tell them apart — asking «which
-    one: New, New, New?» is not a question."""
+    one: New, New, New?» is not a question.
+
+    EVERY candidate list goes through here, including the ones for `ref` and `no_match` (V2-710): those
+    passed the raw labels straight through and he heard «Which one exactly? I have renovar el seguro del
+    coche, renovar el seguro del coche, Dentist.» — the same row twice, in a menu of three."""
     labels = [str(i.get("label") or "") for i in rows]
-    if len(set(labels)) != len(labels):
-        labels = [(f"{i.get('label')} ({i.get('hint')})".strip() if str(i.get("hint") or "").strip()
-                   else str(i.get("label"))) for i in rows]
+    dup = {x for x in labels if labels.count(x) > 1}
     out: list[str] = []
-    for label in labels:                    # rows that are identical DOWN TO THE HINT are one question
-        if label not in out:
+    for i, label in zip(rows, labels):
+        hint = str(i.get("hint") or "").strip()
+        # The hint goes ONLY on the rows that actually collide: pinning it to every candidate turns a clean
+        # three-name menu into three sentences, and it is doing no work on the names that are already unique.
+        if label in dup and hint:
+            label = f"{label} ({hint})"
+        if label not in out:                # rows identical DOWN TO THE HINT are one question, not two
             out.append(label)
     return out
 
@@ -397,7 +404,7 @@ def resolve(widget_id: str, action: str, ref: str, payload: dict | None = None,
         if lenient:
             return RefResult(True, payload)
         if not query:
-            return RefResult(False, needs="ref", candidates=[i["label"] for i in idx][:6])
+            return RefResult(False, needs="ref", candidates=_qualified(idx)[:6])
         return RefResult(False, needs="no_match")
 
     exact = [i for i in idx if query == _norm(i["label"])]    # an EXACT title beats any reading of position
@@ -421,7 +428,7 @@ def resolve(widget_id: str, action: str, ref: str, payload: dict | None = None,
     if best_score < 1.0:
         if lenient:
             return RefResult(True, payload)
-        return RefResult(False, needs="no_match", candidates=[i["label"] for i in idx][:6])
+        return RefResult(False, needs="no_match", candidates=_qualified(idx)[:6])
     if len(scored) > 1 and (best_score - second) < 0.5:       # tie → do not guess, ask
         close = [i for s, i in scored if best_score - s < 0.5][:4]
         options = _qualified(close)

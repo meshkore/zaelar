@@ -1180,6 +1180,11 @@ DOMAINS: list[dict] = [
         # descartada, mientras se le abrían superficies en el canvas y él pedía explicaciones. El arreglo es
         # una RESTA en `danger.is_dangerous` —el clasificador que leen los TRES decisores— con la técnica que
         # ese módulo ya usa dos veces: recortar la cláusula antes de buscar el verbo.
+        {"id": "2.66", "title": "Lo que YA SE EJECUTÓ no es un encargo nuevo: el auditor VE las data-ops "
+                                "hechas y no escala un segundo worker para repetirlas · «all thirty one» son "
+                                "31, y una FECHA sigue sin contar como cuenta",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/"
+                                  "test_work_already_done_is_not_a_second_worker.py"]},
         {"id": "2.65", "title": "Una queja sobre lo ya hecho no es una orden de hacerlo: el clasificador que "
                                 "leen los tres decisores recorta la cláusula en pasado · y una queja que "
                                 "TERMINA en una orden conserva la orden",
@@ -2342,6 +2347,10 @@ DOMAINS: list[dict] = [
                                  "el modelo no nombra nada se lee SU FRASE",
             "ch": UNIT, "paths": ["tests/browser/unit/widgets/"
                                   "test_the_item_he_named_is_not_thrown_away.py"]},
+        {"id": "4.187", "title": "«Simplifica a una» DEJA una: dedupe_meetings colapsa cada grupo repetido "
+                                 "sin llevarse la cita, cancel_meeting sigue llevándose todas sus copias, y "
+                                 "las dos agrupan por la MISMA función",
+            "ch": UNIT, "paths": ["tests/browser/unit/agenda/test_simplify_to_one_keeps_one.py"]},
         {"id": "4.183", "title": "Una operación que NADIE declaró sigue siendo posible: la puerta genérica "
                                  "resuelve la expresión a filas y ejecuta la acción propia del widget en cada "
                                  "una · la fricción es el RADIO, no el verbo",

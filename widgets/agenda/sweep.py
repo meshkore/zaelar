@@ -146,6 +146,70 @@ def _matches(db: dict, payload: dict) -> list[dict]:
     return out
 
 
+def dup_key(m: dict) -> tuple[str, str, str]:
+    """WHAT MAKES TWO ROWS THE SAME APPOINTMENT: title, day, hour. One function, because two callers decide
+    opposite things from it — `cancel_meeting` calls a group ONE appointment (so it takes every copy and
+    never asks «which of the eleven?») and `dedupe_meetings` keeps one member of the group. If they ever
+    grouped differently, one of them would be deleting a row the other calls distinct."""
+    return (str(m.get("title") or "").strip().lower(), str(m.get("date") or ""),
+            str(m.get("startTime") or ""))
+
+
+def dedupe_meetings(db: dict, payload: dict) -> tuple[dict, list[dict]]:
+    """KEEP ONE of each identical group and remove the copies. The action «simplify to one» needed (V2-710).
+
+    Measured 2026-09-16, session `7a22136c`:
+
+        he      «Okay. I see two. Items today at the same time.»
+        zaelar  «You're right — two entries at 11:30 today… duplicates of the same appointment. Would you
+                 like me to remove one of them?»
+        he      «Yes, please. Simplify to one.»
+        engine  BOTH gone
+        he      «I said simplify to one, not delete both… the smart move would have been deleting one of
+                 those. But you just did delete the two of them.»
+
+    Nothing misread him. `cancel_meeting` removes every identical copy ON PURPOSE — eleven copies of one
+    «Dentist» are a sync artifact, not eleven appointments, and asking «which of the eleven?» would be the
+    absurd question. The model had no other action to reach for, so it reached for that one. The gap was in
+    the VOCABULARY, not in the resolution: there was no way to say «leave one».
+
+    `title`/`date` NARROW which groups are touched; with neither, every duplicate group in the calendar is
+    collapsed. A group is identical title + day + hour — the same key `cancel_meeting` calls one
+    appointment, so the two functions cannot disagree about what a duplicate is.
+    """
+    groups: dict[tuple, list[dict]] = {}
+    pool = _matches(db, payload) if str(payload.get("title") or "").strip() else list(db.get("meetings", []))
+    if not pool:
+        return {"ok": False, "error": "not_found", "detail": "no appointment matches that"}, []
+    from . import data as _data
+    raw_date = str(payload.get("date") or "")
+    date = _data._resolve_date(raw_date) if raw_date else ""
+    for m in pool:
+        if date and str(m.get("date") or "") != date:
+            continue
+        groups.setdefault(dup_key(m), []).append(m)
+    extra = [m for rows in groups.values() for m in rows[1:]]
+    if not extra:
+        return {"ok": True, "removed": 0, "kept": len(groups),
+                "detail": "no duplicates to collapse — nothing was touched"}, []
+    gone, stuck = [], []
+    for m in extra:                                        # the same order as `cancel_meeting`: Google first
+        if gcal.delete_google(m):
+            _data._cancel_reminder(m)
+            gone.append(m)
+        else:
+            stuck.append(m)
+    # BY IDENTITY, never by value: identical copies are EQUAL dicts, so `m not in gone` removes the one
+    # this action exists to keep. (`cancel_meeting` can use `in` because it wants every copy gone.)
+    _gone_ids = {id(m) for m in gone}
+    db["meetings"] = [m for m in db.get("meetings", []) if id(m) not in _gone_ids]
+    res = {"ok": True, "removed": len(gone), "kept": len(groups),
+           "titles": sorted({str(m.get("title") or "") for m in gone})[:6]}
+    if stuck:
+        res["failed"] = [m.get("title") for m in stuck]
+    return res, stuck
+
+
 def cancel_meeting(db: dict, payload: dict) -> tuple[dict, list[dict]]:
     """Cancel the ONE appointment the payload names, IN PLACE, and answer `(result, stuck)`.
 
@@ -171,8 +235,7 @@ def cancel_meeting(db: dict, payload: dict) -> tuple[dict, list[dict]]:
                 if str(m.get("date") or "") >= _data._today()][:8]
         return {"ok": False, "error": "not_found",
                 "detail": "no appointment matches that title" + (f" (upcoming: {'; '.join(soon)})" if soon else "")}, []
-    distinct = {(str(m.get("title") or "").strip().lower(), str(m.get("date") or ""), str(m.get("startTime") or ""))
-                for m in hits}
+    distinct = {dup_key(m) for m in hits}          # the SAME grouping `dedupe_meetings` keeps one of
     if len(distinct) > 1 and not str(payload.get("date") or "").strip():
         rows = sorted(distinct, key=lambda k: (k[1], k[2]))
         return {"ok": False, "error": "ambiguous",

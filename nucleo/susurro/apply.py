@@ -113,6 +113,57 @@ def _grounded(request: str, window: str) -> bool:
     return hits >= 2
 
 
+def _already_executed(request: str) -> dict | None:
+    """The mutation this `worker_action` asks for HAS ALREADY RUN in this session — so its whole premise is
+    false and launching a worker duplicates the work (V2-710).
+
+    Measured 2026-09-16, session `7a22136c`. The fast turn deleted Thursday the 17th (`clear_range`, 11
+    rows, confirmed at i=635) and said so; the operator agreed it was done («it's okay with me»). Then the
+    auditor fired on «petición repetida (no atendida)», concluded the fast brain was stuck in a confirmation
+    loop, and escalated «Delete every appointment on Thursday, September 17, 2026 from Richard's real
+    calendar…». The dedup below said it all in its own words: `dedup_miss — encargo NUEVO: no había ninguna
+    tarea viva contra la que comparar`. There wasn't: the work was DONE, and done work is not a live task.
+    For the next five hundred events a Brain Worker fought permission gates trying to delete a day that was
+    already empty, until he noticed it himself — «why do we have yet a process working in the system?».
+
+    `worker_action` exists for ONE premise: the fast brain failed to execute a consequential action. So the
+    question to ask is not WHICH day it was about (parsing a date out of prose is another guess); it is
+    whether a mutation ran at all. `done_ops` is that record, written in the single funnel and only when the
+    op really happened. If a destructive op landed on that widget inside the window, the premise is false —
+    and the fast path is still free to act, because this only ever cancels the SECOND worker.
+
+    ⚠️ The verb is read with `contract._DESTRUCTIVE_RE`, the WIDGET layer's own closed set, and not with
+    `danger.is_dangerous`: measured, that answers False for «Delete every appointment on Thursday…», and
+    correctly so — it judges real-world irreversibility (money, commitments), not widget rows. The op that
+    ran was stamped destructive by `contract`, so `contract` is the reader that has to agree with it. Two
+    readers of one question is the defect this whole week has been about.
+    """
+    try:
+        from nucleo import done_ops as _done
+        from widgets.contract import _DESTRUCTIVE_RE
+        rows = _done.destructive_since()
+        if not rows or not _DESTRUCTIVE_RE.search(request or ""):
+            return None
+        low = (request or "").lower()
+        for d in rows:
+            wid = str(d.get("wid") or "")
+            if not wid:
+                continue
+            names = {wid}
+            try:
+                from widgets import runtime as _rt
+                man = _rt.get(wid) or {}
+                names |= {str(man.get(k) or "").lower() for k in ("name", "title")}
+                names |= {str(a).lower() for a in (man.get("aliases") or [])}
+            except Exception:  # noqa: BLE001
+                pass
+            if any(n and n in low for n in names):
+                return d
+    except Exception:  # noqa: BLE001
+        pass
+    return None
+
+
 def apply_corrections(corrections: list[dict], *, reason: str, trace: str = "",
                       findings_path: str | None = None, window: str = "") -> list[dict]:
     """Apply F1 (repair_say + finding) + F2 (worker_action). Return one record per correction with
@@ -155,8 +206,20 @@ def apply_corrections(corrections: list[dict], *, reason: str, trace: str = "",
             dup = ""
             breaker = False
             ungrounded = False
+            ran: dict | None = None
             now = time.time()
-            if req and not _grounded(req, window):
+            if req and (ran := _already_executed(req)):
+                # Already DONE, not merely already running — see `_already_executed`. Degraded to a note so
+                # the turn can tell him what happened instead of doing it a second time.
+                try:
+                    from voice import brain_notes
+                    brain_notes.push(
+                        f"[SISTEMA] (susurro) «{ran['wid']}:{ran['action']}» ya se EJECUTÓ en esta sesión"
+                        + (f" ({ran['n']} fila/s)" if isinstance(ran.get("n"), int) else "")
+                        + ". No lo repitas: cuéntale qué se hizo y pregúntale si quiere algo más.")
+                except Exception:  # noqa: BLE001
+                    pass
+            elif req and not _grounded(req, window):
                 # The action does not concern anything in the window → it comes from outside the conversation. It is
                 # DEGRADED to a finding (recorded for the dev loop) instead of being executed.
                 ungrounded = True
@@ -202,8 +265,10 @@ def apply_corrections(corrections: list[dict], *, reason: str, trace: str = "",
                     except Exception:
                         ok = False
             rec = {"type": "worker_action", "ok": ok, "before": None, "after": req,
-                   "child": child, "dedup": bool(dup), "breaker": breaker, "ungrounded": ungrounded}
-            _emit(("🚫 worker_action DESCARTADA (no aparece en la ventana — probable invención)" if ungrounded else
+                   "child": child, "dedup": bool(dup) or bool(ran), "breaker": breaker,
+                   "ungrounded": ungrounded, "already_ran": bool(ran)}
+            _emit(("✅ worker_action DESCARTADA (eso YA se ejecutó en esta sesión — no se duplica)" if ran else
+                   "🚫 worker_action DESCARTADA (no aparece en la ventana — probable invención)" if ungrounded else
                    "🛑 worker_action (circuito ABIERTO, no escala — anti-bucle)" if breaker else
                    "🚀 worker_action → escalada" if ok else
                    ("🧵 worker_action (ya hay un worker vivo, no duplica)" if dup else

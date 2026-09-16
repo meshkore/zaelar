@@ -131,8 +131,9 @@ def test_ninguna_otra_accion_del_catalogo_cambia_de_respuesta():
     None, so the resolver threw away the item the model named and dispatched an empty payload — five
     `cancel_meeting {}` in one session over an index that held the appointment. No other widget moves:
     `contactos` already names its key `contactId`, and the rest declare `ref` explicitly. That is what this
-    list is for — if a sixth name ever appears here, somebody widened the reach of the resolver without
-    saying so."""
+    list is for — if a name ever appears here without a batch that explains it, somebody widened the reach
+    of the resolver without saying so. `dedupe_meetings` joined them in V2-710: «simplify to one» is a sixth
+    action on a meeting that already exists."""
     from widgets import runtime
 
     def sufijo_solo(wid: str, action: str):
@@ -148,8 +149,8 @@ def test_ninguna_otra_accion_del_catalogo_cambia_de_respuesta():
             if sufijo_solo(w, a) != refs.id_field_for_action(w, a):
                 cambian.append((w, a))
     assert sorted(cambian) == [
-        ("agenda", "cancel_meeting"), ("agenda", "move_meeting"), ("agenda", "rsvp_meeting"),
-        ("agenda", "set_reminder"), ("agenda", "update_meeting"),
+        ("agenda", "cancel_meeting"), ("agenda", "dedupe_meetings"), ("agenda", "move_meeting"),
+        ("agenda", "rsvp_meeting"), ("agenda", "set_reminder"), ("agenda", "update_meeting"),
         ("youtube", "move"), ("youtube", "play_item"), ("youtube", "remove"),
     ], cambian
 
