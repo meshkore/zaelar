@@ -14,6 +14,9 @@ suite
         ├── execution   ejecución ordenada del grupo
         └── cases[]
             ├── id      estable y único
+            ├── locale  "es" | "us" | ""   ← ÍNDICE PRIMARIO del visor
+            ├── theme   agrupador temático (casos de uso); "" si la suite no tiene
+            ├── plan[]  [{id,label}] lo que se va a hacer, en orden, ANTES de hacerlo
             ├── input / expected / verification
             ├── consumes[] / produces[]   productos causales para recorridos stateful
             ├── execution_path / source / raw
@@ -35,6 +38,15 @@ suite
    misma BD, por lo que nunca consulta datos que no hayan sido insertados previamente.
 7. Todo runner escribe el protocolo durable en `tests/runs/<run-id>/events.jsonl`. Los runners ricos deberían emitir
    `test.discovered`, `test.started`, `interaction.input/output`, `test.finished` y scores del juez.
+   Un runner cuyos casos son MÁS DE UNA ACCIÓN declara además un **plan** y lo va marcando (V2-709):
+   `plan` en `test.discovered`/`test.started`, `step.started` / `step.finished` (`{test_id, step, status}`)
+   según avanza, y `watchdog.verdict` para una opinión que no es el estado de un paso. Un paso que el caso
+   no ejecuta se marca `skipped`, nunca se omite: una casilla que falta deja de ser una lista.
+10. **El idioma es un índice, no un filtro.** `locale` selecciona un CONJUNTO de casos (`es` y `us` no son
+    el mismo producto: aquí Wallapop, allí otro mercado). Un caso sin `locale` — un nodo de pytest, un
+    corpus de memoria — pertenece a TODOS los conjuntos, que es lo correcto porque genuinamente es el mismo
+    test. El `theme` agrupa por DE QUÉ VA el caso; el `tier` sigue siendo dificultad y no agrupa nada.
+    Tabla de familias e idiomas: `tests/platform/families.py`; temas: `tests/use_cases/themes.py`.
 8. Cualquier pytest sin propietario aparece como paso `unmapped`; la auditoría de plataforma exige cero huecos.
 9. `--no-open` no desactiva el Observatory: únicamente evita que el proceso del agente abra el navegador. El run
    sigue disponible en el puerto fijo 8765 y conserva el mismo exit code.

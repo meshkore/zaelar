@@ -16,6 +16,7 @@ import sys
 import time
 import uuid
 
+from . import bus as busmod
 from . import config, driver as drivermod, judge as judgemod, probe_client, report as reportmod, scenarios as SC
 from . import initiative as initiativemod
 from . import llm as llmmod
@@ -129,6 +130,10 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
     probe_client.clear_read_failures()
     probe_client.reset(session)
     driver = drivermod.Driver(scenario, persona_name=config.PERSONA_NAME)
+    # The Observatory's window opens HERE, not when the report is written: everything below is the round
+    # happening, and until 2026-09-16 none of it left this process (see bus.py).
+    busmod.case_started(scenario, sandboxed=sandboxed, session=session)
+    busmod.step_finished(scenario, "engine", detail=config.ZAELAR_URL)
     transcript: list[dict] = []
     mute_turns: list[int] = []
     # WHAT THE BRAIN REQUESTED ON EACH TURN (V2-398). It arrived in the probe response —`tool_calls`,
@@ -155,13 +160,20 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
 
     def note(who: str, text: str) -> None:
         transcript.append({"who": who, "text": text, "at": round(time.time(), 2)})
+        # One hook for the four places that speak: the turn reaches the watcher as it is said, not as a
+        # replay of the transcript once the round is over.
+        busmod.turn(scenario, index=sum(1 for row in transcript if row["who"] == "tester"),
+                    who=who, text=text, budget=scenario.turns)
 
     # ── memory seeding (discovery cases only) ────────────────────────────────────────────────────────────────
     # It is sent through the probe with `ingest=True` in a SEPARATE session and checked with recall that it landed.
     # The separate session is the point: if the preferences were stated in the same thread, the agent would have
     # them in its conversation window and the case would no longer test memory.
     seed_report: dict = {}
+    if not getattr(scenario, "memory_seed", None):
+        busmod.step_finished(scenario, "seed", status="skipped", detail="el caso no declara siembra")
     if getattr(scenario, "memory_seed", None):
+        busmod.step_started(scenario, "seed", detail=f"{len(scenario.memory_seed)} preferencia(s)")
         seed_session = f"{session}-seed"
         probe_client.reset(seed_session)
         print(f"  ▸ sembrando {len(scenario.memory_seed)} preferencia(s) en memoria (sesión aparte)…")
@@ -178,8 +190,11 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
                                    waited=waited, probe=probe)
         print(f"    {'✓' if landed else '⚠️'} siembra {'verificada' if landed else 'NO verificada'} "
               f"en recall tras {waited:.0f}s")
+        busmod.step_finished(scenario, "seed", status="passed" if landed else "failed",
+                             detail=f"{'verificada' if landed else 'NO verificada'} en recall tras {waited:.0f}s")
         probe_client.reset(session)      # the real request starts with a CLEAN window
 
+    busmod.step_started(scenario, "turns", detail=f"presupuesto {scenario.turns} turnos")
     utterance = driver.opening()
     note("tester", utterance)
     print(f"  tester  · {utterance}")
@@ -257,6 +272,7 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
         verdict = watchdogmod.evaluate(scenario, transcript, mech_hint)
         if verdict["action"] != "continue":
             watchdog_log.append(verdict)
+            busmod.watchdog(scenario, verdict)
             print(f"  [watchdog] {verdict['health']}/{verdict['action']}: {verdict['reason']}")
         if verdict["action"] == "abandon":
             break
@@ -284,6 +300,9 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
         print(f"  tester  · {utterance}")
         turn += 1
 
+    busmod.step_finished(scenario, "turns",
+                         detail=f"{sum(1 for row in transcript if row['who'] == 'tester')} turnos")
+    busmod.step_started(scenario, "verify")
     if scenario.expected_signals:
         print("  verifying mechanism (this may wait for a background worker/browser task)…")
     # The observability session_id is a server-wide, one-at-a-time concept (see `current_session_id()`'s
@@ -649,6 +668,8 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
         run_data["memory_carryover"] = list(ran_before)
     if seed_report:
         run_data["memory_seed"] = seed_report
+    busmod.step_finished(scenario, "verify")
+    busmod.step_started(scenario, "judge")
     print("  judging…")
     try:
         verdict = judgemod.judge(scenario, run_data)
@@ -660,6 +681,8 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
         # attempts eating a 504. Three driven conversations thrown away for a missing HTTP call.
         # So the run is PARKED on disk and can be judged later without re-driving it (`--judge-pending`).
         # The exception still propagates: the round is honestly INFRA until somebody judges it.
+        busmod.step_finished(scenario, "judge", status="failed",
+                             detail="el juez no contestó — ronda APARCADA, se juzga con --judge-pending")
         _park_for_later(scenario, run_data, provisional=provisional)
         raise
 
@@ -667,6 +690,7 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
     # the titular runs out of funds (`llm.call`) — and a row measured with a different instrument is not
     # comparable with the earlier ones, so the instrument travels WITH the measurement instead of staying in
     # the run's log. Same reasoning for `code`: WHICH engine code produced this row (see `config.code_stamp`).
+    busmod.step_finished(scenario, "judge", detail=f"overall {verdict.get('overall')}")
     return {"scenario": scenario.id, "tier": scenario.tier, "channel": scenario.channel,
             "run": run_data, "verdict": verdict, "drive_model": llmmod.drive_model(),
             "code": config.code_stamp(), "machine": config.machine_stamp()}
@@ -760,6 +784,8 @@ def _run_batch(chosen: list, *, sandboxed: bool, args_no_file: bool = False,
     # consigo mismo; lo que rompe la comparación es que el contenido CAMBIE, con commit o sin él.
     _tree_at_start = config.engine_fingerprint()
     _head_at_start = config.current_head()
+    busmod.batch_discovered(chosen)
+    _case_started_at: dict[str, float] = {}
     for scenario in chosen:
         if results and not allow_dirty:
             if config.engine_moved(_tree_at_start, config.engine_fingerprint()):
@@ -774,6 +800,7 @@ def _run_batch(chosen: list, *, sandboxed: bool, args_no_file: bool = False,
                   f"correr — se retoman con --start-at {scenario.id}")
             break
         print(f"\n▶ scenario: {scenario.id} (tier {scenario.tier}, {scenario.locale}, {scenario.channel})")
+        _case_started_at[scenario.id] = time.time()
         # AISLAR los casos entre sí. Una tanda comparte UN sandbox (arrancar uno por caso costaría ~16s de boot
         # + prewarm cada vez), pero compartir el motor NO puede significar compartir el TRABAJO: medido el
         # 2026-08-19, en `find-theatre-tickets__es` el juez vio que «el sistema intentaba reservar un
@@ -869,10 +896,24 @@ def _run_batch(chosen: list, *, sandboxed: bool, args_no_file: bool = False,
         # thrown away, including the one that finally showed the CORRECT behaviour (admitting it cannot log
         # into the operator's account instead of pretending). In an unattended loop, batches run for tens of
         # minutes and an interruption is not exotic: it is a sleeping laptop, a killed tick, a crash.
+        _row: dict = {}
         try:
-            statusmod.record(results[-1:], sandboxed=sandboxed, provisional=provisional)
+            _led = statusmod.record(results[-1:], sandboxed=sandboxed, provisional=provisional)
+            _row = ((_led.get("scenarios") or {}).get(scenario.id)) or {}
         except Exception as e:
             print(f"  ⚠️ no pude anotar el veredicto de {scenario.id} en el marcador: {e}")
+        # The Observatory is told the scoreboard's OWN verdict, not a second opinion computed here. INFRA
+        # and CAPPED survive the trip: folding either into `failed` would paint a network timeout as a
+        # product defect, which is the exact merge `status.py` refuses to do.
+        busmod.step_finished(scenario, "verdict", status="passed" if _row else "failed",
+                             detail=str(_row.get("state") or ""))
+        _state = str(_row.get("state") or "")
+        busmod.case_finished(
+            scenario,
+            status={"PASS": "passed", "FAIL": "failed"}.get(_state, "skipped"),
+            state=_state, overall=_row.get("overall"), scores=_row.get("scores") or {},
+            turns=int(_row.get("turns_used") or 0), verdict=str(_row.get("verdict") or ""),
+            duration_ms=(time.time() - _case_started_at.get(scenario.id, time.time())) * 1000)
 
         last = (results[-1].get("verdict") or {}).get("overall")
         if last is not None and last < statusmod.PASS_THRESHOLD:

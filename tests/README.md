@@ -372,6 +372,10 @@ than killing it.
 2. Add deterministic paths to `tests/run_testmap.py`, or add a rich `catalog_provider` to the suite manifest.
 3. Give every rich case a stable ID, input, expected result, verification, execution path, source and declared
    execution action. Browser clients cannot submit arbitrary shell commands.
+   A case that belongs to a market declares `locale` (`es` | `us`) and a use case also declares `theme`
+   (`tests/use_cases/themes.py`). These are the Observatory's two index axes above the tier — the language
+   selects a SET of cases, the theme groups them — and a case that declares neither is shown under every
+   language, which is right for a pytest node and a catalog defect for a use case.
 4. Stateful cases must declare their ordering/replay policy explicitly.
 5. Rich runners launched by the platform receive:
 
@@ -383,6 +387,15 @@ than killing it.
    Use `tests.platform.events.EventWriter` to emit `test.discovered`, `test.started`,
    `interaction.input`, `interaction.output`, `test.finished` and judge scores. Put binary evidence in the run's
    `artifacts/` directory. Mark `nested_events:true` only when the child runner emits its own lifecycle events.
+
+   A runner whose cases are more than one action declares a **plan** and ticks it (V2-709): put
+   `plan: [{id,label}]` on `test.discovered`/`test.started`, then emit `step.started` / `step.finished`
+   (`{test_id, step, status}`) as it advances, and `watchdog.verdict` for an opinion that is not a step
+   status. The Observatory paints the plan as an unticked checklist before the run and ticks it live, so
+   «what is it doing right now» is a position in a list rather than an inference from the last printed
+   line. A step the case never runs is `skipped`, never absent. `tests/use_cases/plan.py` is the worked
+   example, and `tests/use_cases/e2e/agent/bus.py` the fail-soft bridge (no-op without
+   `ZAELAR_TEST_RUN_DIR`, so a terminal run behaves exactly as before).
 6. Validate:
 
 ```bash

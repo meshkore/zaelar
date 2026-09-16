@@ -55,33 +55,33 @@ _BLOCKED_DEPENDENCIES = (
 
 CASES: list[UseCase] = [
     # --- ES / tier 1: bounded single-site action -----------------------------------------
-    UseCase("restaurant-tonight-madrid", "es", 1, "Book a known restaurant tonight",
+    UseCase("restaurant-tonight-madrid", "es", 1, "Reservar mesa esta noche en un restaurante concreto",
             "Resérvame mesa para 2 esta noche a las 21:30 en Casa Lucio.",
             "A table for 2 is booked at Casa Lucio for 21:30 tonight — verified against real system state "
             "(worker signal), not just the agent's claim — see tests/use_cases/e2e/agent/scenarios.py.",
             status="promoted"),
-    UseCase("cancel-subscription-before-charge", "es", 1, "Cancel a subscription before renewal",
+    UseCase("cancel-subscription-before-charge", "es", 1, "Cancelar una suscripción antes de que se renueve",
             "Cancela mi suscripción a Netflix antes de que me cobren el día 15.",
             "The Netflix subscription is cancelled before the next billing date."),
-    UseCase("reorder-prescription", "es", 1, "Reorder a known prescription",
+    UseCase("reorder-prescription", "es", 1, "Volver a pedir una receta que ya tomaba",
             "Pide la reposición de mi receta de la farmacia de siempre.",
             "The usual prescription is reordered from the operator's regular pharmacy."),
-    UseCase("pay-known-bill", "es", 1, "Pay a known bill",
+    UseCase("pay-known-bill", "es", 1, "Pagar una factura conocida",
             "Paga la factura de la luz de este mes antes del día 5.",
             "This month's electricity bill is paid before the 5th."),
-    UseCase("renew-gym-membership", "es", 1, "Renew a known gym membership",
+    UseCase("renew-gym-membership", "es", 1, "Renovar la cuota del gimnasio",
             "Renueva mi cuota del gimnasio de este mes.",
             "This month's gym membership fee is renewed."),
-    UseCase("book-barber-slot", "es", 1, "Book the usual barber",
+    UseCase("book-barber-slot", "es", 1, "Pedir hora en la barbería de siempre",
             "Resérvame hora en la peluquería de siempre para el sábado por la mañana.",
             "A Saturday-morning slot is booked at the operator's usual barber."),
-    UseCase("book-hotel-night-known", "es", 1, "Book a specific hotel night",
+    UseCase("book-hotel-night-known", "es", 1, "Reservar una noche en un hotel concreto",
             "Resérvame una noche en el Hotel Palacio de la Merced para el {FECHA_FUTURA_CERCANA}.",
             "One night is booked at the named hotel for {NEAR_FUTURE_DATE}."),
-    UseCase("buy-known-product", "es", 1, "Buy a specific listed product",
+    UseCase("buy-known-product", "es", 1, "Comprar un producto concreto ya elegido",
             "Cómprame el libro que tengo en la lista de deseos de Casa del Libro.",
             "The wishlisted book is purchased from the named store."),
-    UseCase("find-theatre-tickets", "es", 1, "Buy tickets to a specific known show",
+    UseCase("find-theatre-tickets", "es", 1, "Comprar entradas para una obra concreta",
             "Consígueme dos entradas para el musical de El Rey León en Madrid para el sábado.",
             "Two tickets for the named show on Saturday are purchased."),
     # The three below were added 2026-08-18 to fix a REPRESENTATION gap, not to pad the count: every case
@@ -89,13 +89,13 @@ CASES: list[UseCase] = [
     # show shades of red and we learned nothing about the parts of the product that DO work. These are real
     # user needs that are also achievable end-to-end today — a fast in-turn answer, a widget the engine
     # builds itself, and a memory+agenda commitment — none of which need a login, a payment or a phone call.
-    UseCase("quick-fact-opening-hours", "es", 1, "Answer a real-world fact in the same turn",
+    UseCase("quick-fact-opening-hours", "es", 1, "Contestar un dato del mundo real en el mismo turno",
             "¿A qué hora abre mañana el Museo del Prado y cuánto cuesta la entrada general?",
             "Both facts (opening time + general admission price) are answered correctly IN THE SAME TURN via "
             "web_search, without spawning a browser task or making the operator wait — this is the "
             "'dato directo + síntesis' path (V2-022), and escalating it to a worker is itself the failure.",
             status="promoted"),
-    UseCase("build-workout-tracker-widget", "es", 1, "Build a small widget on request",
+    UseCase("build-workout-tracker-widget", "es", 1, "Construir un widget pequeño a petición",
             "Móntame un widget para ir apuntando mis entrenamientos, con el día y qué hice.",
             "A real widget is generated, passes the generator's own validation gate and appears on the canvas "
             "with usable actions — verified against the widget catalog and the live task registry, not just "
@@ -105,7 +105,7 @@ CASES: list[UseCase] = [
     # Added 2026-08-29 (INI-026, B1 front): the operator's agenda bar, LITERALLY. It differs from
     # `remember-and-remind-deadline` in the two things that case does not measure: the reminder must be
     # created BY DEFAULT (nobody asks for it), and the appointment must be MANIPULABLE by voice after creation.
-    UseCase("dentist-appointment-into-agenda", "es", 1, "A told appointment lands whole in the agenda",
+    UseCase("dentist-appointment-into-agenda", "es", 1, "Una cita dictada entra entera en la agenda",
             "Oye, apúntate que tenemos cita para llevar a los niños al dentista el {FECHA_FUTURA_CERCANA} "
             "a las tres de la tarde.",
             "The appointment exists in the agenda widget with its date and time; a reminder exists BY "
@@ -113,7 +113,7 @@ CASES: list[UseCase] = [
             "content; and a follow-up voice adjustment («mejor avísame a mediodía») is applied for real.",
             status="promoted"),
 
-    UseCase("remember-and-remind-deadline", "es", 1, "Record a commitment and set its reminder",
+    UseCase("remember-and-remind-deadline", "es", 1, "Apuntar un compromiso y dejar puesto su aviso",
             "Apúntame que el jueves tengo que renovar el seguro del coche, y recuérdamelo el miércoles.",
             "The commitment is stored durably AND a reminder exists for the day before — the two halves are "
             "different subsystems (memory vs agenda/cron) and a pass requires BOTH, since 'I'll remind you' "
@@ -123,28 +123,28 @@ CASES: list[UseCase] = [
     # that same day the operator reproduced the first one manually (the engine spoke an internal tag instead
     # of opening the widget, session acc5e85e). And the agenda had create+reminder (dentist), but not the rest
     # of the lifecycle.
-    UseCase("show-my-messages", "es", 1, "Show my messages — the most basic messaging behavior",
+    UseCase("show-my-messages", "es", 1, "Enseñarme mis mensajes: lo más básico de la mensajería",
             "¿Tengo mensajes nuevos de WhatsApp?",
             "The messaging card OPENS (a real widget/show), nothing internal reaches the voice, and the "
             "answer is honest about the real channel state (an unlinked WhatsApp is said, never invented "
             "messages).",
             status="promoted"),
-    UseCase("connect-email-by-voice", "es", 1, "Connect a channel by voice — guided initialization",
+    UseCase("connect-email-by-voice", "es", 1, "Conectar el correo hablando: alta guiada por voz",
             "Oye, conéctame el correo, que quiero ver mis emails aquí. Tengo Gmail.",
             "The channels panel opens on the email form (show + open_connectors), the user is guided on "
             "what the form will ask, and the credential NEVER travels by voice.",
             status="promoted"),
-    UseCase("dictate-a-reply-honestly", "es", 1, "A dictated reply is never faked",
+    UseCase("dictate-a-reply-honestly", "es", 1, "Una respuesta dictada nunca se da por enviada si no lo está",
             "Respóndele a Marta por WhatsApp que llego a las nueve, que no me espere para cenar.",
             "With WhatsApp unlinked and no such chat, the agent never claims 'sent' — it says the truth "
             "WITH an exit (offer to connect the channel). A faked send is the central failure.",
             status="promoted"),
-    UseCase("agenda-appointment-lifecycle", "es", 1, "Create, move and cancel an appointment for real",
+    UseCase("agenda-appointment-lifecycle", "es", 1, "Crear, mover y cancelar una cita de verdad",
             "Apúntame una revisión del coche en el taller el {FECHA_FUTURA_CERCANA} a las diez de la mañana.",
             "The appointment is created, MOVED without duplicating (one appointment at the new time, never "
             "two), and cancelled taking its default reminder with it — no orphan alarm survives (V2-473).",
             status="promoted"),
-    UseCase("what-does-my-week-look-like", "es", 1, "The agenda reads back the truth — also when it is 'nothing'",
+    UseCase("what-does-my-week-look-like", "es", 1, "La agenda contesta la verdad — también cuando no hay nada",
             "Apúntame dos cosas: dentista el {FECHA_FUTURA_CERCANA} a las nueve y media, y cena con Laura "
             "dos días después a las nueve de la noche.",
             "Both appointments from one sentence are written; asking what the week looks like recites BOTH "
@@ -162,7 +162,7 @@ CASES: list[UseCase] = [
     # the non-reasoning model grabbed `play_music` for «play the video of…», and the prose inside play_music did
     # not move it in three attempts; a dedicated tool was needed). A boundary that took three attempts to fix
     # deserves a permanent measure.
-    UseCase("play-music-and-build-playlist", "es", 1, "Put music on and curate a playlist",
+    UseCase("play-music-and-build-playlist", "es", 1, "Poner música y montar una lista sobre la marcha",
             "Ponme algo de música tranquila para trabajar.",
             "Sound ACTUALLY starts and then the operator's list is built: the mechanism report must show the "
             "`musica` widget live (its `active_when` is satisfied — either a Spotify device or the hidden "
@@ -176,7 +176,7 @@ CASES: list[UseCase] = [
             "lab, so this measures the fallback path the docs describe (`mode = spotify if connected else "
             "youtube`): saying honestly that there is no music account and using YouTube audio is a PASS; "
             "narrating a Spotify session that does not exist is the failure this case exists for."),
-    UseCase("watch-a-video-not-listen-to-it", "es", 1, "Watch a video, and control it",
+    UseCase("watch-a-video-not-listen-to-it", "es", 1, "Ver un vídeo, y poder manejarlo",
             "Pon el vídeo del tráiler de la última de Dune.",
             "The VIDEO path runs, not the music one: `play_video` (never `play_music`) opens the `youtube` "
             "widget with a real `videoId` loaded, and the follow-up transport request (lower the volume, "
@@ -187,26 +187,26 @@ CASES: list[UseCase] = [
             "request to queue several videos has no mechanism today and belongs in a finding, not here."),
 
     # --- ES / tier 2: search + compare + choose -------------------------------------------
-    UseCase("best-pediatric-dentists", "es", 2, "Find and book the best pediatric dentist",
+    UseCase("best-pediatric-dentists", "es", 2, "Encontrar y reservar el mejor dentista infantil",
             "Encuéntrame los 3 mejores dentistas infantiles cerca de mi casa en Madrid y resérvame "
             "con el mejor valorado.",
             "3 candidates are found and an appointment is booked with the top-rated one."),
-    UseCase("compare-flights-madrid-lisboa", "es", 2, "Compare and book the cheapest flight",
+    UseCase("compare-flights-madrid-lisboa", "es", 2, "Comparar y reservar el vuelo más barato",
             "Compárame vuelos Madrid–Lisboa para un fin de semana largo {EN_UNAS_SEMANAS} y coge el más barato con "
             "equipaje incluido.",
             "Flights are compared and the cheapest option with checked baggage is booked — verified "
             "against real system state (worker + browser signals), not just the agent's claim — see "
             "tests/use_cases/e2e/agent/scenarios.py.",
             status="promoted"),
-    UseCase("best-plumber-same-day", "es", 2, "Find a same-day plumber",
+    UseCase("best-plumber-same-day", "es", 2, "Encontrar un fontanero para hoy mismo",
             "Búscame un fontanero que pueda venir hoy mismo y el mejor valorado.",
             "Real plumbers who can come TODAY are found, each with its rating and a way to reach it (phone or "
             "booking page), and the best-rated one is named. The operator asked to FIND one, not to hire "
             "one — the shortlist with real data IS the deliverable."),
-    UseCase("compare-insurance-quotes", "es", 2, "Compare insurance quotes",
+    UseCase("compare-insurance-quotes", "es", 2, "Comparar presupuestos de seguro",
             "Compárame tres seguros de coche y dime cuál me conviene.",
             "Three car-insurance quotes are compared with a clear recommendation."),
-    UseCase("cheapest-monitor", "es", 2, "Find the cheapest well-reviewed monitor",
+    UseCase("cheapest-monitor", "es", 2, "Encontrar el monitor más barato con buenas reseñas",
             "Encuéntrame el monitor más barato de 27 pulgadas 4K que tenga buenas reseñas.",
             "The cheapest well-reviewed 27-inch 4K monitor is identified — verified against real system "
             "state (worker + browser signals), not just the agent's claim — see "
@@ -217,73 +217,73 @@ CASES: list[UseCase] = [
     # and it failed in TWO ways — it was slow (355 measured seconds, $1.96), and the photos ended up in the
     # GENERIC results SHEET, which is a table rather than a viewer. This case measures exactly that, so its
     # yardstick is NOT «how many candidates», but WHERE they appear and WHEN.
-    UseCase("show-real-photo-of-a-new-car", "es", 2, "Show a real photo of a just-released car",
+    UseCase("show-real-photo-of-a-new-car", "es", 2, "Enseñar una foto REAL de un coche recién salido",
             "Enséñame una foto real del Ferrari Amalfi, el nuevo que ha salido.",
             "Real photographs of the Ferrari Amalfi are ON SCREEN in the dedicated image viewer (widget "
             "`imagenes`) — not described in words, and not dumped into the generic results sheet — with the "
             "source of each photo visible. Speed is part of the outcome here: this is a lookup, not research."),
-    UseCase("best-rated-rental-car", "es", 2, "Find the best-rated rental car",
+    UseCase("best-rated-rental-car", "es", 2, "Encontrar el coche de alquiler mejor valorado",
             "Búscame el coche de alquiler mejor valorado en Málaga para el fin de semana.",
             "Real rental-car offers in Málaga for that weekend are found with price and rating, and the "
             "best-rated one is named. The operator asked to FIND it, not to rent it."),
-    UseCase("compare-broadband-plans", "es", 2, "Compare broadband/mobile plans",
+    UseCase("compare-broadband-plans", "es", 2, "Comparar tarifas de fibra y móvil",
             "Compárame las tarifas de fibra+móvil de los operadores y dime cuál me ahorra más.",
             "Broadband+mobile bundles are compared and the cheapest is recommended."),
-    UseCase("weekend-barber-availability", "es", 2, "Find weekend barber availability",
+    UseCase("weekend-barber-availability", "es", 2, "Encontrar hueco en la barbería el fin de semana",
             "Encuéntrame una peluquería con hueco este fin de semana cerca de mi casa.",
             "A nearby barber with a genuinely FREE slot this weekend is found, naming the day and time seen on "
             "the real page — availability read, never assumed. The operator asked to FIND one with an "
             "opening, not to book the appointment."),
-    UseCase("search-buy-used-car", "es", 2, "Search classifieds for a used car",
+    UseCase("search-buy-used-car", "es", 2, "Buscar un coche de segunda mano",
             "Búscame un coche de segunda mano, diésel, menos de 100.000 km y por debajo de "
             "12.000€, y dime los 3 mejores.",
             "Listings matching the criteria are found on classifieds sites and the top 3 are presented — "
             "verified against real system state (worker + browser signals), not just the agent's claim — "
             "see tests/use_cases/e2e/agent/scenarios.py.",
             status="promoted"),
-    UseCase("search-buy-motorcycle", "es", 2, "Search classifieds for a used motorcycle",
+    UseCase("search-buy-motorcycle", "es", 2, "Buscar una moto de segunda mano",
             "Búscame una moto de segunda mano de 125cc en buen estado por menos de 2.500€.",
             "Matching motorcycle listings are found and the best candidate is identified."),
-    UseCase("search-buy-bicycle", "es", 2, "Search classifieds for a used bicycle",
+    UseCase("search-buy-bicycle", "es", 2, "Buscar una bicicleta de segunda mano",
             "Encuéntrame una bici de montaña de segunda mano en buen estado, talla M, por menos "
             "de 300€.",
             "Matching bicycle listings are found and the best candidate is identified."),
-    UseCase("search-secondhand-monitor", "es", 2, "Search classifieds for a secondhand monitor",
+    UseCase("search-secondhand-monitor", "es", 2, "Buscar un monitor de segunda mano en anuncios",
             "Búscame un monitor de segunda mano de al menos 27 pulgadas por menos de 150€.",
             "Matching secondhand monitor listings are found and the best candidate is identified."),
-    UseCase("search-buy-book", "es", 2, "Find and buy a book at the cheapest store",
+    UseCase("search-buy-book", "es", 2, "Encontrar y comprar un libro en la tienda más barata",
             "Búscame el último libro de Fernando Aramburu y cómpramelo en la librería que sea "
             "más barata.",
             "The book's price is compared across stores and it's bought from the cheapest one."),
-    UseCase("search-buy-camera", "es", 2, "Search classifieds for a used camera",
+    UseCase("search-buy-camera", "es", 2, "Buscar una cámara de segunda mano",
             "Búscame una cámara réflex de segunda mano con pocos disparos, por menos de 400€.",
             "Matching camera listings are found and the best candidate is identified."),
-    UseCase("search-buy-guitar", "es", 2, "Search classifieds for a used guitar",
+    UseCase("search-buy-guitar", "es", 2, "Buscar una guitarra de segunda mano",
             "Encuéntrame una guitarra acústica de segunda mano para empezar, por menos de 150€.",
             "Matching guitar listings are found and the best candidate is identified."),
-    UseCase("find-best-hotel-city", "es", 2, "Find the best-rated hotel in a city",
+    UseCase("find-best-hotel-city", "es", 2, "Encontrar el hotel mejor valorado de una ciudad",
             "Búscame el mejor hotel en Sevilla para el fin de semana del 20, con buena "
             "valoración y menos de 120€ la noche.",
             "Real hotels in the city for that weekend are compared and the best-rated one UNDER the price cap "
             "is named with its real price and rating. The operator asked to FIND it, not to book it."),
-    UseCase("find-direct-flight-budget", "es", 2, "Find the cheapest direct flight",
+    UseCase("find-direct-flight-budget", "es", 2, "Encontrar el vuelo directo más barato",
             "Búscame un vuelo directo Madrid–Roma {DENTRO_DE_UN_MES}, lo más barato posible.",
             "Direct flights are compared and the cheapest one is identified."),
-    UseCase("rental-car-automatic-airport", "es", 2, "Find an automatic rental car at an airport",
+    UseCase("rental-car-automatic-airport", "es", 2, "Encontrar coche de alquiler automático en un aeropuerto",
             "Búscame un coche de alquiler automático en el aeropuerto de Málaga para la semana "
             "que viene.",
             "Automatic rental cars at the named airport are compared and the best one is found."),
-    UseCase("find-concert-tickets", "es", 2, "Find the cheapest tickets to a concert",
+    UseCase("find-concert-tickets", "es", 2, "Encontrar las entradas más baratas para un concierto",
             "Búscame entradas para un concierto de Rosalía en Madrid este mes, lo más baratas "
             "posible.",
             "Ticket options for the concert are compared and the cheapest is identified."),
-    UseCase("things-to-do-nearby-weekend", "es", 2, "Find things to do nearby this weekend",
+    UseCase("things-to-do-nearby-weekend", "es", 2, "Encontrar planes cerca para este fin de semana",
             "Busca planes para este fin de semana cerca de mi casa.",
             "A short list of nearby weekend plans/activities is found and presented."),
-    UseCase("kid-friendly-activity-nearby", "es", 2, "Find a kid-friendly activity nearby",
+    UseCase("kid-friendly-activity-nearby", "es", 2, "Encontrar un plan cerca para ir con niños",
             "Encuéntrame un plan con niños para este domingo cerca de casa.",
             "A kid-friendly activity near the operator's home is found for the given day."),
-    UseCase("hotel-under-15-days", "es", 2, "Find/book a hotel within 15 days (dynamic scenario)",
+    UseCase("hotel-under-15-days", "es", 2, "Buscar y reservar hotel para dentro de menos de 15 días",
             "Búscame un hotel para dentro de menos de 15 días, para dos personas, cuatro estrellas, "
             "cuatro noches.",
             "A real 4-star hotel candidate (or booking) for ~4 nights within 15 days is reached, verified "
@@ -298,78 +298,78 @@ CASES: list[UseCase] = [
     # of this file): the 30-case yardstick for the listing-search tier. Each case is a SAMPLE, never a
     # specification (operator's norm 2026-08-20) — a fix that teaches the engine one of these scenarios
     # is a finding, not a fix.
-    UseCase("search-buy-boat-multicountry", "es", 2, "Search boat listings across several countries",
+    UseCase("search-buy-boat-multicountry", "es", 2, "Buscar un barco en anuncios de varios países",
             "Búscame un catamarán Lagoon 440 de segunda mano por menos de 300.000 euros, en España, "
             "Francia o Italia.",
             "Real boat listings from more than one country's market are compared under the price cap, "
             "with year/length read from each listing, not from model knowledge.",
             notes="deep-nav: multi-country fan-out + marketplace filters + pagination"),
-    UseCase("search-buy-surfboard", "es", 2, "Search classifieds for a used surfboard",
+    UseCase("search-buy-surfboard", "es", 2, "Buscar una tabla de surf de segunda mano",
             "Búscame una tabla de surf de segunda mano, alrededor de 6 pies, por menos de 250 euros.",
             "Real second-hand surfboard listings matching size and price are presented with links.",
             notes="deep-nav: classifieds filters + pagination"),
-    UseCase("search-rent-apartment", "es", 2, "Search a rental listings portal with filters",
+    UseCase("search-rent-apartment", "es", 2, "Buscar piso de alquiler con filtros en un portal",
             "Búscame un piso de alquiler en Valencia, dos habitaciones, por menos de 1.100 euros al mes, "
             "que admita mascotas.",
             "Real rental listings with every filter applied are presented; rent and rooms come from each "
             "listing.",
             notes="deep-nav: portal filter controls + pagination; portals are heavily bot-walled"),
-    UseCase("search-buy-apartment", "es", 2, "Search a property portal for a flat to buy",
+    UseCase("search-buy-apartment", "es", 2, "Buscar piso en venta en un portal inmobiliario",
             "Búscame un piso para comprar en Zaragoza, tres habitaciones, por debajo de 180.000 euros.",
             "Real for-sale listings under the cap are compared with price and size from each listing.",
             notes="deep-nav: portal filters + pagination"),
-    UseCase("search-buy-laptop", "es", 2, "Find a specific laptop under a price cap",
+    UseCase("search-buy-laptop", "es", 2, "Encontrar un portátil concreto por debajo de un tope de precio",
             "Búscame un MacBook Pro M5 por menos de 1.800 euros, nuevo o reacondicionado.",
             "Real offers (new or refurbished) under the cap are compared across stores with links.",
             notes="deep-nav: store search + condition filter + several stores"),
-    UseCase("search-buy-phone", "es", 2, "Find a phone model at the best real price",
+    UseCase("search-buy-phone", "es", 2, "Encontrar un modelo de móvil al mejor precio real",
             "Búscame el mejor precio para un iPhone 17 de 256 GB, nuevo.",
             "Real store offers for that exact model/storage are compared; prices from the stores."),
-    UseCase("search-buy-tv", "es", 2, "Find a TV meeting size and price constraints",
+    UseCase("search-buy-tv", "es", 2, "Encontrar una tele que cumpla tamaño y precio",
             "Búscame una tele OLED de 55 pulgadas por menos de 900 euros.",
             "Real TV offers meeting size/tech/price are compared across stores."),
-    UseCase("search-buy-sofa", "es", 2, "Search second-hand furniture",
+    UseCase("search-buy-sofa", "es", 2, "Buscar muebles de segunda mano",
             "Búscame un sofá de tres plazas de segunda mano, en buen estado, por menos de 300 euros, "
             "que se pueda recoger cerca.",
             "Real classifieds with photos and pickup location are presented under the cap.",
             notes="deep-nav: classifieds + location filter + pagination"),
-    UseCase("search-buy-washing-machine", "es", 2, "Find an appliance by spec and price",
+    UseCase("search-buy-washing-machine", "es", 2, "Encontrar un electrodoméstico por características y precio",
             "Búscame una lavadora de 8 kilos, clase A, por menos de 400 euros.",
             "Real appliance offers matching capacity/efficiency/price are compared."),
-    UseCase("search-buy-watch", "es", 2, "Search a collectors' market for a watch",
+    UseCase("search-buy-watch", "es", 2, "Buscar un reloj en un mercado de coleccionistas",
             "Búscame un Seiko automático vintage por menos de 400 euros.",
             "Real watch listings from a collectors' marketplace are presented with year and condition.",
             notes="deep-nav: niche marketplace + condition reading"),
-    UseCase("search-buy-sneakers", "es", 2, "Find shoes by model, size and price",
+    UseCase("search-buy-sneakers", "es", 2, "Encontrar unas zapatillas por modelo, talla y precio",
             "Búscame unas Nike Pegasus, talla 44, por menos de 100 euros.",
             "Real offers with that size IN STOCK are found; size availability is checked inside the "
             "listing, not assumed from the search page.",
             notes="deep-nav: size filter lives INSIDE the product page"),
-    UseCase("search-buy-ski-gear", "es", 2, "Search seasonal sports gear",
+    UseCase("search-buy-ski-gear", "es", 2, "Buscar material de esquí de temporada",
             "Búscame unos esquís de travesía de segunda mano con fijaciones, por menos de 350 euros.",
             "Real second-hand listings for that gear are presented under the cap."),
-    UseCase("search-buy-camper", "es", 2, "Search vehicle classifieds for a camper van",
+    UseCase("search-buy-camper", "es", 2, "Buscar una camper en anuncios de vehículos",
             "Búscame una furgoneta camper de segunda mano, menos de 150.000 km, por debajo de "
             "25.000 euros.",
             "Real camper listings with mileage/price from each listing are compared.",
             notes="deep-nav: vehicle marketplace with its own filter controls"),
-    UseCase("search-restaurant-occasion", "es", 2, "Find a restaurant for an occasion by reviews",
+    UseCase("search-restaurant-occasion", "es", 2, "Encontrar restaurante para una ocasión, por reseñas",
             "Búscame un restaurante para un aniversario en Bilbao, con buenas reseñas, tranquilo, "
             "por unos 50 euros por persona.",
             "Real restaurants matching area/price/reviews are compared; reviews come from the sites.",
             notes="deep-nav: reviews + price band + area filtering"),
-    UseCase("search-buy-vinyl", "es", 2, "Search collectors' listings for records",
+    UseCase("search-buy-vinyl", "es", 2, "Buscar discos en anuncios de coleccionistas",
             "Búscame el vinilo original de 'The Dark Side of the Moon' en buen estado por menos de "
             "60 euros.",
             "Real vinyl listings with pressing/condition are presented under the cap."),
-    UseCase("search-buy-stroller", "es", 2, "Search second-hand baby gear",
+    UseCase("search-buy-stroller", "es", 2, "Buscar cosas de bebé de segunda mano",
             "Búscame un carrito de bebé de segunda mano, tipo trío, por menos de 250 euros.",
             "Real second-hand stroller listings are presented with condition and price."),
-    UseCase("search-buy-ebike", "es", 2, "Search e-bike listings by spec and price",
+    UseCase("search-buy-ebike", "es", 2, "Buscar una bici eléctrica por características y precio",
             "Búscame una bicicleta eléctrica de montaña, con batería de al menos 500 Wh, por menos de "
             "1.500 euros.",
             "Real e-bike offers matching battery/type/price are compared."),
-    UseCase("search-holiday-rental", "es", 2, "Search holiday rentals with hard constraints",
+    UseCase("search-holiday-rental", "es", 2, "Buscar alojamiento de vacaciones con condiciones duras",
             "Búscame una casa rural para 6 personas para {FIN_DE_SEMANA}, con piscina, por menos de "
             "600 euros el fin de semana.",
             "Real holiday rentals with availability for those dates and every filter are compared.",
@@ -394,7 +394,7 @@ CASES: list[UseCase] = [
     #      in observability (`navigate`, `dismiss_overlay`, `screenshot`, `🏁 milestone`, `click [29]`…):
     #      what is missing is serving them there, in reverse chronological order and live.
     #   3. The result arrived through `🔔 zaelar` at 17:28:47, and the operator never heard the figures.
-    UseCase("driving-time-with-traffic", "es", 3, "Real driving time between two cities, with traffic",
+    UseCase("driving-time-with-traffic", "es", 3, "Cuánto se tarda de verdad entre dos ciudades, con tráfico",
             "Dame la distancia y el tiempo en coche de Zaragoza a Valls, con tráfico, usando Google Maps.",
             "The time and distance come from a real maps source with live traffic — not a model estimate — "
             "and land in ONE results sheet the operator can read, while the process tab shows the steps as "
@@ -405,48 +405,48 @@ CASES: list[UseCase] = [
             "agente dice «2h08» y la hoja está vacía, el caso FALLA — es exactamente lo que pasó."),
 
     # --- ES / tier 3: multi-step single-domain task with a deadline -----------------------
-    UseCase("itv-before-deadline", "es", 3, "Book vehicle inspection before deadline",
+    UseCase("itv-before-deadline", "es", 3, "Pasar la ITV antes de que caduque",
             "Tengo que pasar la ITV antes del día 30 — búscame cita y avísame el día antes.",
             "An ITV appointment before the 30th is booked and a reminder fires the day before."),
-    UseCase("renew-passport-before-expiry", "es", 3, "Renew a soon-to-expire passport",
+    UseCase("renew-passport-before-expiry", "es", 3, "Renovar el pasaporte antes de que caduque",
             "Mi pasaporte caduca en dos meses — pide cita para renovarlo y recuérdamelo.",
             "A passport-renewal appointment is booked and a reminder is set."),
-    UseCase("track-package-reschedule", "es", 3, "Track a package and reschedule delivery",
+    UseCase("track-package-reschedule", "es", 3, "Seguir un paquete y cambiar la entrega",
             "Sigue el paquete que estoy esperando y, si no voy a estar, reprograma la entrega.",
             "The package is tracked and delivery is rescheduled if the operator will be out."),
-    UseCase("negotiate-lower-phone-bill", "es", 3, "Negotiate a lower phone bill",
+    UseCase("negotiate-lower-phone-bill", "es", 3, "Negociar una factura de móvil más baja",
             "Llama a mi operador y consigue que me bajen la tarifa del móvil.",
             "The phone carrier is contacted and a lower rate is negotiated."),
-    UseCase("file-expense-report", "es", 3, "File a trip expense report",
+    UseCase("file-expense-report", "es", 3, "Presentar la nota de gastos de un viaje",
             "Prepárame el informe de gastos del viaje de la semana pasada y envíalo a administración.",
             "An expense report is compiled from last week's trip and sent to accounting."),
-    UseCase("split-dinner-bill-friends", "es", 3, "Split a dinner bill with friends",
+    UseCase("split-dinner-bill-friends", "es", 3, "Repartir la cuenta de una cena entre amigos",
             "Divide la cuenta de la cena de anoche entre los cuatro y mándales el importe.",
             "Last night's bill is split four ways and each share is sent to the right person."),
 
     # --- ES / tier 4: cross-domain orchestration -------------------------------------------
-    UseCase("weekend-trip-san-sebastian", "es", 4, "Plan a weekend trip door-to-door",
+    UseCase("weekend-trip-san-sebastian", "es", 4, "Montar una escapada de fin de semana de puerta a puerta",
             "Organízame un fin de semana en San Sebastián: tren, hotel con desayuno y mesa el "
             "sábado noche.",
             "Train, breakfast-included hotel and a Saturday dinner reservation are all booked."),
-    UseCase("clean-and-reply-inbox", "es", 4, "Clean up and triage the inbox",
+    UseCase("clean-and-reply-inbox", "es", 4, "Ordenar y despachar la bandeja de entrada",
             "Limpia mi bandeja de entrada de las últimas dos semanas y responde solo lo urgente.",
             "The last two weeks of email are triaged; only genuinely urgent items get a reply."),
-    UseCase("archive-newsletters", "es", 4, "Archive a newsletter backlog",
+    UseCase("archive-newsletters", "es", 4, "Archivar el atasco de boletines",
             "Archívame las newsletters acumuladas y déjame solo lo que importa.",
             "Accumulated newsletters are archived, leaving only what matters in the inbox."),
-    UseCase("rebook-delayed-flight-now", "es", 4, "Rebook a flight that just got delayed",
+    UseCase("rebook-delayed-flight-now", "es", 4, "Recolocar un vuelo que acaba de retrasarse",
             "Mi vuelo se ha retrasado más de una hora — búscame otro y avísame.",
             "An alternative flight is found and booked; the operator is notified."),
-    UseCase("found-next-apartment", "es", 4, "Find an apartment and schedule viewings",
+    UseCase("found-next-apartment", "es", 4, "Encontrar piso y concertar las visitas",
             "Búscame piso de alquiler en Chamberí, máximo 1200€, y agenda las visitas que encajen "
             "con mi agenda.",
             "Matching listings are found and viewings are scheduled around the operator's calendar."),
-    UseCase("moms-birthday-flowers-onetime", "es", 4, "Order flowers for a birthday",
+    UseCase("moms-birthday-flowers-onetime", "es", 4, "Mandar flores por un cumpleaños",
             "Es el cumpleaños de mi madre pasado mañana — pide flores y que lleguen a su casa por "
             "la mañana.",
             "Flowers are ordered for morning delivery two days from now."),
-    UseCase("three-tasks-at-once", "es", 4, "Three concurrent tasks, interleaved conversation",
+    UseCase("three-tasks-at-once", "es", 4, "Tres tareas a la vez, con la conversación entrelazada",
             "Hazme un informe de coches eléctricos, búscame un monitor barato, y móntame un widget "
             "de un juego de plataformas tipo Super Mario.",
             "Three DIFFERENT tasks run CONCURRENTLY (a research report, a marketplace search and a "
@@ -462,65 +462,65 @@ CASES: list[UseCase] = [
             status="promoted"),
 
     # --- ES / tier 5: standing / reactive over time -----------------------------------------
-    UseCase("watch-flight-rebook-automatically", "es", 5, "Watch a flight and auto-rebook",
+    UseCase("watch-flight-rebook-automatically", "es", 5, "Vigilar un vuelo y recolocarlo solo",
             "Vigila mi vuelo a Barcelona; si se retrasa más de una hora, búscame otro sin "
             "preguntar y avísame.",
             "The flight is monitored; a delay over an hour triggers an automatic rebook + notice."),
-    UseCase("track-price-drop-buy", "es", 5, "Buy automatically on a price drop",
+    UseCase("track-price-drop-buy", "es", 5, "Comprar solo cuando baje de precio",
             "Vigila el precio de este monitor y cómpralo en cuanto baje de 250€.",
             "The price is tracked continuously and the purchase fires the moment it drops below €250."),
-    UseCase("cancel-trial-before-it-charges", "es", 5, "Auto-cancel an unused trial",
+    UseCase("cancel-trial-before-it-charges", "es", 5, "Cancelar solo una prueba gratuita que no se usa",
             "Tengo una prueba gratuita que se convierte en pago el viernes — cancélala tú antes "
             "si no he vuelto a usarla.",
             "The trial is cancelled before Friday's charge, conditional on no further use."),
-    UseCase("gym-membership-no-silent-renew", "es", 5, "Never auto-renew without asking",
+    UseCase("gym-membership-no-silent-renew", "es", 5, "No renovar nunca nada sin preguntar antes",
             "No dejes que la cuota del gimnasio se renueve sola sin decírmelo antes.",
             "The membership renewal is intercepted and confirmed with the operator before charging."),
-    UseCase("moms-birthday-flowers-recurring", "es", 5, "Recurring yearly birthday reminder + order",
+    UseCase("moms-birthday-flowers-recurring", "es", 5, "Acordarse cada año del cumpleaños y encargar las flores",
             "No olvides el cumpleaños de mi madre — pide flores el día antes, cada año.",
             "Flowers are ordered automatically the day before, every year, without being asked again."),
-    UseCase("grocery-restock-reactive", "es", 5, "Reactive grocery restock",
+    UseCase("grocery-restock-reactive", "es", 5, "Reponer la compra cuando se acaba, sin que se lo pidan",
             "Cuando vea que se acaba la leche o el café, pídelos otra vez sin que tenga que "
             "decírtelo.",
             "Milk/coffee are reordered automatically when consumption patterns say they're running low."),
 
     # --- ES / tier 6: multi-agent coordination over email -----------------------------------
-    UseCase("coordinate-lunch-with-pedro", "es", 6, "Coordinate lunch via a friend's agent",
+    UseCase("coordinate-lunch-with-pedro", "es", 6, "Cuadrar una comida a través del agente de un amigo",
             "Dile al agente de Pedro que quedamos el jueves a comer — que proponga sitio y hora "
             "y me lo confirmes.",
             "Pedro's agent proposes a place/time by email; the operator gets a confirmed plan."),
-    UseCase("split-airbnb-with-marta", "es", 6, "Split a shared stay via a friend's agent",
+    UseCase("split-airbnb-with-marta", "es", 6, "Repartir un alojamiento compartido con el agente de otra",
             "Coordina con el agente de Marta un apartamento compartido para el finde en Lisboa "
             "y divide la cuenta.",
             "A shared listing is agreed with Marta's agent by email and the cost is split."),
-    UseCase("reschedule-meetup-conflict", "es", 6, "Resolve a scheduling conflict between agents",
+    UseCase("reschedule-meetup-conflict", "es", 6, "Resolver un choque de agendas entre dos agentes",
             "El agente de Javi te va a proponer quedar el sábado — mira mi agenda y negocia una "
             "hora que me valga.",
             "An incoming proposal is checked against the operator's calendar and renegotiated by email."),
-    UseCase("confirm-restaurant-reservation-together", "es", 6, "Avoid a double-booking with another agent",
+    UseCase("confirm-restaurant-reservation-together", "es", 6, "Evitar una doble reserva hablando con otro agente",
             "Ponte de acuerdo con el agente de Ana para reservar mesa esta noche — que ninguno "
             "reserve dos veces.",
             "Only one reservation is made; the other agent's attempt is avoided/cancelled by email."),
-    UseCase("plan-joint-trip-with-friend", "es", 6, "Align a joint itinerary with a friend's agent",
+    UseCase("plan-joint-trip-with-friend", "es", 6, "Cuadrar un viaje conjunto con el agente de un amigo",
             "Habla con el agente de Laura y cuadrad un itinerario común para el viaje de "
             "septiembre.",
             "A shared itinerary is negotiated and agreed with Laura's agent by email."),
 
     # --- ES / tier 7: multi-agent coordination over WhatsApp/Telegram (BLOCKED) -------------
-    UseCase("coordinate-lunch-whatsapp", "es", 7, "Coordinate lunch over WhatsApp",
+    UseCase("coordinate-lunch-whatsapp", "es", 7, "Cuadrar una comida por WhatsApp",
             "Escríbele por WhatsApp al agente de Pedro y quedad para comer el jueves.",
             "Pedro's agent is reached over WhatsApp and a lunch plan is confirmed.",
             status="blocked", depends_on=_BLOCKED_DEPENDENCIES),
-    UseCase("split-trip-telegram", "es", 7, "Split a trip itinerary over Telegram",
+    UseCase("split-trip-telegram", "es", 7, "Repartir el itinerario de un viaje por Telegram",
             "Habla por Telegram con el agente de Marta y repartid el itinerario del viaje.",
             "Marta's agent is reached over Telegram and the itinerary is split and agreed.",
             status="blocked", depends_on=_BLOCKED_DEPENDENCIES),
-    UseCase("group-plan-three-friends", "es", 7, "Coordinate a group plan across three agents",
+    UseCase("group-plan-three-friends", "es", 7, "Cuadrar un plan de grupo entre tres agentes",
             "Coordínate con los agentes de Pedro, Marta y Javi por WhatsApp para quedar todos "
             "el sábado.",
             "Three agents are reached over WhatsApp and a single Saturday plan is agreed.",
             status="blocked", depends_on=_BLOCKED_DEPENDENCIES),
-    UseCase("realtime-eta-share", "es", 7, "Share a live ETA with a friend's agent",
+    UseCase("realtime-eta-share", "es", 7, "Compartir en directo la hora de llegada con el agente de un amigo",
             "Avisa por WhatsApp al agente de Ana en cuanto salga de casa, para que sepa a qué "
             "hora llego.",
             "Ana's agent is notified over WhatsApp the moment the operator leaves.",
@@ -764,12 +764,12 @@ CASES: list[UseCase] = [
     # What makes them hard is not the subject but the SHAPE — several filters that must all hold at once,
     # some of which live behind a site's own controls rather than in the text of a query, and a result that
     # has to be checked against every one of them before it is offered.
-    UseCase("hotel-many-filters-at-once", "es", 7, "Hotel search where every filter has to hold at once",
+    UseCase("hotel-many-filters-at-once", "es", 7, "Hotel donde TODOS los filtros tienen que cumplirse a la vez",
             "Búscame hotel en la costa para el puente, que tenga piscina, parking gratis, wifi decente "
             "y que acepten perro. Nada de interior.",
             "Candidates are offered only when ALL constraints hold, each one checked against the page "
             "rather than assumed, and any constraint that could not be verified is named as such."),
-    UseCase("used-car-search-wallapop", "es", 7, "Second-hand search on a marketplace with its own filters",
+    UseCase("used-car-search-wallapop", "es", 7, "Segunda mano en un marketplace con sus propios filtros",
             "Mírame coches de segunda mano en Wallapop, diésel, menos de 120.000 km, cambio manual y "
             "por debajo de 9.000 €, cerca de casa.",
             "Real listings are read from the marketplace with every filter applied, and price/mileage "
@@ -789,7 +789,7 @@ CASES: list[UseCase] = [
     # green must survive the noun changing.
     #
     # -- mensajería (the La Mella session, 2026-09-09 21:28-21:36, diagnosed end to end in V2-645) --
-    UseCase("messaging-group-amount-due", "es", 3, "Find what is owed from a group chat",
+    UseCase("messaging-group-amount-due", "es", 3, "Sacar de un grupo cuánto se debe",
             "Escúchame, hay un grupo en el que se habla del viaje este a la Mella. Revísalo y dime "
             "cuánto hay que pagar ahora.",
             "The amount is answered from the group's own messages (archive/peek), in the turn or near "
@@ -797,19 +797,19 @@ CASES: list[UseCase] = [
             notes="Measured 2026-09-09: the answer (100 EUR) sat in the communications archive while a "
                   "kind=web worker searched the internet and the money gate asked three times. Fixes: "
                   "V2-645 (read door, danger gate, errand kind); mechanism nodes 5.21."),
-    UseCase("messaging-school-wrote-last-month", "es", 2, "Who wrote from the school this month",
+    UseCase("messaging-school-wrote-last-month", "es", 2, "Quién ha escrito del colegio este mes",
             "¿Me han escrito del colegio de los niños en el último mes?",
             "Answered with senders and dates from the permanent archive; if coverage starts later than "
             "the window, the boundary is SAID («no indexo antes del X») — never «nadie te escribió».",
             notes="The operator's own audit use case (2026-09-09) that triggered V2-628. Deterministic: "
                   "tests/browser/unit/mensajeria/test_search_archive.py (node 5.21)."),
-    UseCase("messaging-did-we-reply", "es", 2, "When did it arrive and did we ever answer it",
+    UseCase("messaging-did-we-reply", "es", 2, "Cuándo llegó aquello y si llegamos a contestarlo",
             "¿Cuándo nos mandaron aquel mensaje del comedor? ¿Lo llegamos a contestar?",
             "The arrival date is named and the reply question is answered yes/no + when from the "
             "archive's outbound capture (check_reply), not from memory recall.",
             notes="V2-628 F2. Deterministic: test_search_archive.py::test_did_we_answer_it_is_a_join "
                   "(node 5.21)."),
-    UseCase("messaging-group-open-actions", "es", 3, "Anything I must do from this group",
+    UseCase("messaging-group-open-actions", "es", 3, "Qué tengo yo que hacer de todo lo de este grupo",
             "¿Tengo que hacer alguna acción del grupo de las familias? No quiero leerme los 200 "
             "mensajes.",
             "The open actions (a payment owed, a booking, a form) are named from the per-chat digest "
@@ -817,50 +817,50 @@ CASES: list[UseCase] = [
             "never answers «nada pendiente».",
             notes="V2-628 F3 (the 200-messages-unread promise). Deterministic: test_chat_digest.py + "
                   "test_digest.py (node 5.21)."),
-    UseCase("messaging-detail-inside-messages", "es", 2, "A detail buried in the conversation",
+    UseCase("messaging-detail-inside-messages", "es", 2, "Un detalle enterrado dentro de una conversación",
             "También voy a necesitar que me digas a qué email hay que mandar el comprobante.",
             "The email address is extracted from the group's messages (peek/search over the indexed "
             "chat, pulling that chat's past via load_more if coverage is short) and answered verbatim.",
             notes="The second half of the real La Mella errand (2026-09-09). Backfill teaching: V2-645 "
                   "(search_archive miss names load_more)."),
     # -- vídeo (sessions behind V2-586/V2-600/V2-609; widget redesigned in V2-632) --
-    UseCase("video-search-lands-in-player", "es", 1, "A video search plays in the widget",
+    UseCase("video-search-lands-in-player", "es", 1, "Una búsqueda de vídeo acaba reproduciéndose en el widget",
             "Búscame vídeos de recetas de paella.",
             "Results land in the video widget's own search band (V2-402/V2-632 dashboard), not in a "
             "results sheet and never via a Brain Worker rediscovering the widget's search data-op.",
             notes="Measured in V2-586: the plural seeds were missing and every media search escalated "
                   "(9+ min). Family-seed ratchet pins the class."),
-    UseCase("video-exit-fullscreen-unnamed", "es", 1, "Leave fullscreen without naming the widget",
+    UseCase("video-exit-fullscreen-unnamed", "es", 1, "Salir de pantalla completa sin nombrar el widget",
             "Sal de pantalla completa.",
             "The card at fullscreen exits to its normal size. Nothing closes, and the order needs no "
             "widget name — the canvas knows which card is maximized.",
             notes="Sessions 4a492268 + 3050e623 (V2-600/V2-609): the widget was CLOSED, then «Hecho.» "
                   "with no tool call. Deterministic: node 4.117."),
-    UseCase("video-blocked-channel-respected", "es", 2, "A blocked channel stays blocked in suggestions",
+    UseCase("video-blocked-channel-respected", "es", 2, "Un canal bloqueado sigue bloqueado en las sugerencias",
             "Bloquéame este canal, no me lo vuelvas a sugerir.",
             "The channel disappears from home/suggestions and stays out; an explicit pasted link from "
             "it still plays with a WARNING (an explicit order outranks a standing filter).",
             notes="V2-604's rule. The suggestions sweep shipped in V2-597/V2-632."),
     # -- música (the True Blue session, V2-612; widget rebuilt in V2-629) --
-    UseCase("music-playlist-reads-clean", "es", 1, "A playlist reads like a player, not a dump",
+    UseCase("music-playlist-reads-clean", "es", 1, "Una lista de reproducción se lee como un reproductor, no como un volcado",
             "Ponme la lista True Blue.",
             "Playback starts; a shared artist is said ONCE in the header, rows read clean (never "
             "«Madonna Papa Don't Preach» per row), and the sounding row is visibly marked.",
             notes="The operator's screenshot session (V2-612). Deterministic: node 4.3's rendered "
                   "cases."),
-    UseCase("music-save-what-is-sounding", "es", 1, "Save the song that is actually playing",
+    UseCase("music-save-what-is-sounding", "es", 1, "Guardar la canción que está sonando ahora mismo",
             "Guárdame esta canción en favoritas.",
             "What lands in the list is the PROVIDER's resolved title/artist/art (what is sounding), "
             "never the operator's raw spoken words.",
             notes="V2-629: _track_from_resolved stores what the provider resolved; the heart may later "
                   "distill the preference (domain-stores doctrine)."),
     # -- documentos / informes (the recipe complaint that created the sheet, V2-549; V2-644) --
-    UseCase("docs-single-recipe-not-a-list", "es", 1, "One thing to read is ONE document",
+    UseCase("docs-single-recipe-not-a-list", "es", 1, "Lo que hay que leer llega como UN documento, no como una lista",
             "Dame la receta de la carbonara.",
             "ONE readable document opens (the blank-sheet widget), not a results list of links — «pedí "
             "una receta y me trajo una lista de recetas» is the failure this case exists to keep dead.",
             notes="The operator's literal complaint that created V2-549. Deterministic: node 4.101."),
-    UseCase("docs-report-lands-as-document", "es", 2, "A commissioned report arrives as a document",
+    UseCase("docs-report-lands-as-document", "es", 2, "Un informe encargado llega como documento",
             "Hazme un informe sobre coches eléctricos para ciudad y ponlo en pantalla.",
             "The report is delivered on the document surface with its live process visible — never "
             "narrated as done with nothing on screen.",

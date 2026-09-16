@@ -88,10 +88,20 @@ def test_memory_gateway_is_primary_and_chronology_replays_its_prefix():
 
 
 def test_memory_primary_ui_action_runs_the_conversational_gateway():
+    """Pressing play on «Memoria» means the conversational gateway, not that suite's pile of unit tests.
+
+    This used to be pinned to a LITERAL in the dashboard's JavaScript
+    (`'memory':'memory::group::1.4::v4'`), which put the fact in the only place it could drift from the
+    manifest without anything noticing — and on 2026-09-16 a dashboard rewrite dropped the literal and
+    silently turned that button into «run every deterministic memory test». The fact now lives in
+    `memory/suite.json` like every other suite's, the server publishes it, and the UI reads it; what is
+    checked here is the CONTRACT plus the one line of UI that consumes it."""
+    assert SUITES["memory"].primary_case == "memory::group::1.4::v4"
+    assert find_case(build_suite_catalog("memory", []), SUITES["memory"].primary_case), (
+        "el caso principal de memoria no existe en su propio catálogo")
     dashboard = (ENGINE / "tests/platform/dashboard/index.html").read_text(encoding="utf-8")
-    assert "'memory':'memory::group::1.4::v4'" in dashboard
-    assert "▶ Ejecutar gateway · Memoria" in dashboard
-    assert "◇ Ejecutar componentes" in dashboard
+    assert "primary_case" in dashboard, "el visor ya no lee el caso principal de la suite"
+    assert "primary ? { suite, case_id: primary }" in dashboard
 
 
 def test_whole_system_journey_is_causal_mapped_and_primary():
@@ -117,8 +127,9 @@ def test_whole_system_journey_is_causal_mapped_and_primary():
     assert last["execution"]["replay_prefix"] is True
     assert SUITES["journey"].primary_case == "journey::group::10.1::whole-system-v1"
     assert SUITES["journey"].case_count == 29
-    dashboard = (ENGINE / "tests/platform/dashboard/index.html").read_text(encoding="utf-8")
-    assert "'journey':'journey::group::10.1::whole-system-v1'" in dashboard
+    # The ▶ of «Viaje integral» runs the 29-step story. Asserted on the manifest, which is where the
+    # fact belongs; the dashboard reads it from /api/families (see the memory test above).
+    assert find_case(catalog, SUITES["journey"].primary_case)
 
 
 def test_agent_context_points_to_the_canonical_testing_guide():

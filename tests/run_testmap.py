@@ -3509,7 +3509,10 @@ DOMAINS: list[dict] = [
         {"id": "7.1", "title": "Bus de eventos y log", "ch": UNIT, "paths": [
             "tests/infrastructure/unit/test_bus.py", "tests/infrastructure/unit/test_bus_log.py",
             "tests/platform/tests/test_events.py", "tests/platform/tests/test_catalog.py",
-            "tests/platform/tests/test_pytest_plugin.py"]},
+            "tests/platform/tests/test_pytest_plugin.py",
+            # V2-709 — the Observatory's spine (language → family → theme) and the wiring that makes a
+            # use case VISIBLE while it runs: the plan the catalog shows must be the plan run.py ticks.
+            "tests/platform/tests/test_the_spine_is_language_family_theme.py"]},
         # El motor DESECHABLE es uno solo y compartido (`journey` + `use_cases`, unificado el 2026-08-20).
         # `journey` levantaba el suyo y a esa copia le faltaba `ZAELAR_LOG_DIR`, así que sus eventos iban al
         # timeline REAL del operador — medido en vivo: 80 → 243 líneas en una corrida de 4 pasos.

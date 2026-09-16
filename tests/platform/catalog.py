@@ -110,10 +110,21 @@ def normalize_case(case: dict[str, Any], *, suite: str, step_id: str, group_id: 
         "title": str(case.get("title") or case["id"]),
         "type": str(case.get("type", "test")),
         "dimension": str(case.get("dimension", "")),
+        # The language a case belongs to — "" when it is not localized. This is the PRIMARY index of
+        # the Observatory (tests/platform/families.py): picking ES or US selects a different SET of
+        # cases, so it has to survive normalization instead of living only inside `raw`.
+        "locale": str(case.get("locale", "")),
+        # WHAT the case is about — the grouping between the language and the tier
+        # (tests/use_cases/themes.py). "" for a case whose suite has no themes.
+        "theme": str(case.get("theme", "")),
         "input": case.get("input", {}),
         "expected": case.get("expected", {}),
         "verification": str(case.get("verification", "finaliza correctamente")),
         "execution_path": list(case.get("execution_path", ())),
+        # The declared PLAN: [{id, label, optional}] in order. The Observatory paints it as an
+        # unticked checklist and a runner ticks it with `step.started`/`step.finished` carrying the
+        # same ids. Empty for a case that declares none — the UI then falls back to `execution_path`.
+        "plan": list(case.get("plan", ())),
         "source": str(case.get("source", "")),
         "note": str(case.get("note", "")),
         "raw": case.get("raw", {}),

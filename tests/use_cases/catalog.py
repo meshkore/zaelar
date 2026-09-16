@@ -11,9 +11,9 @@ from __future__ import annotations
 
 from typing import Any
 
+from tests.use_cases import plan, themes
 from tests.use_cases.cases_data import CASES, UseCase
 
-_LOCALE_LABELS = {"es": "Spain", "us": "United States"}
 
 
 def _case_dict(case: UseCase, ordinal: int) -> dict[str, Any]:
@@ -30,6 +30,14 @@ def _case_dict(case: UseCase, ordinal: int) -> dict[str, Any]:
         # per-row "USE-CASE" tag adds no information — only the tier does.
         "type": "",
         "dimension": f"Tier {case.tier}",
+        # The PRIMARY index of the Observatory. It was already here inside `raw`, where the UI could
+        # not index on it — which is why ES and US cases shared one list and one «7/24 verdes» that
+        # was a number about two different products (tests/platform/families.py).
+        "locale": case.locale,
+        # WHAT the person is trying to do (tests/use_cases/themes.py). The tier says how hard, the
+        # locale says which market; without this the rail lists twenty `search-buy-*` rows one by one
+        # and buries the fact that «vídeo» has four cases and «documentos» three.
+        "theme": themes.theme_of(case.id),
         "input": {"locale": case.locale, "tier": case.tier, "utterance": case.utterance},
         "expected": {"outcome": case.expected},
         "verification": "backlog entry — no runner wired yet, see tests/use_cases/CASES.md",
@@ -44,9 +52,13 @@ def _case_dict(case: UseCase, ordinal: int) -> dict[str, Any]:
         entry["verification"] = ("dynamic LLM-driven scenario: driver negotiates the goal over the "
                                  "probe channel, a watchdog detects drift, verify.py confirms the real "
                                  "worker/browser mechanism fired, a judge scores the outcome")
-        entry["execution_path"] = ["DRIVE model (probe channel, execute=true)", "FlashBrain",
-                                   "escalate_to_slowbrain", "Brain Worker + browser", "observability flow",
-                                   "watchdog", "judge"]
+        # The DECLARED plan — the same ids the runner ticks live (tests/use_cases/plan.py). It used to
+        # list the internal path the stimulus takes (FlashBrain → slowbrain → worker), which reads
+        # like an architecture diagram and never moves while the case runs. What the operator watches
+        # is the round's own agenda.
+        entry["execution_path"] = plan.labels()
+        entry["plan"] = [{"id": step["id"], "label": step["label"], "optional": bool(step.get("optional"))}
+                         for step in plan.STEPS]
         entry["execution"] = {
             "kind": "command",
             # `--sandbox` is NOT optional here. Without it, `python -m tests run use_cases` —the entry point
@@ -57,25 +69,37 @@ def _case_dict(case: UseCase, ordinal: int) -> dict[str, Any]:
             # `--lab` failure that was fixed hours earlier: isolation cannot depend on whoever launches it
             # remembering to request it.
             "argv": ["{python}", "-m", "tests.use_cases.e2e.agent.run", "--scenario", case.id, "--sandbox"],
-            "nested_events": False,
+            "nested_events": True,
             "requires_live": True,
         }
     return entry
 
 
 def case_groups() -> list[dict[str, Any]]:
+    """The catalog grouped by THEME, not by locale.
+
+    It used to be one group per locale, which made sense while the locale was just another column. It
+    is now the Observatory's primary index — the operator picks ES or US at the top and gets a different
+    SET — so grouping by it again below would be the same split twice, and it left the real question
+    («what KIND of thing is this hundred-row list testing?») unanswered.
+
+    Every group carries both locales' cases; the UI filters them by the selected one. That is deliberate:
+    a theme that exists in ES and not in US is a real gap in the American set, and it should be visible
+    as an empty group rather than as a group that does not exist.
+    """
+    ordered = {theme["id"]: [] for theme in themes.THEMES}
+    for case in sorted(CASES, key=lambda c: (c.tier, c.id, c.locale)):
+        ordered.setdefault(themes.theme_of(case.id), []).append(case)
     groups = []
-    for locale in ("es", "us"):
-        locale_cases = sorted(
-            (case for case in CASES if case.locale == locale),
-            key=lambda case: (case.tier, case.id),
-        )
-        cases = [_case_dict(case, index) for index, case in enumerate(locale_cases, start=1)]
+    for theme in themes.THEMES:
+        rows = ordered.get(theme["id"]) or []
+        if not rows and theme["id"] == "otros":
+            continue          # no unclassified cases is the healthy state, and an empty group says nothing
         groups.append({
-            "id": locale,
-            "label": _LOCALE_LABELS[locale],
-            "mode": "backlog · ordered by difficulty tier (1=easiest .. 7=hardest)",
-            "count": len(cases),
-            "cases": cases,
+            "id": theme["id"],
+            "label": theme["label"],
+            "mode": theme["hint"],
+            "count": len(rows),
+            "cases": [_case_dict(case, index) for index, case in enumerate(rows, start=1)],
         })
     return groups

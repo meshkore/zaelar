@@ -74,6 +74,9 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == "/events":
             self._events()
             return
+        if self.path == "/api/families":
+            self._families()
+            return
         if self.path.startswith("/api/catalog/"):
             self._catalog(self.path.removeprefix("/api/catalog/"))
             return
@@ -175,6 +178,74 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Content-Length", str(len(raw)))
             self.end_headers()
             self.wfile.write(raw)
+
+    def _families(self) -> None:
+        """The Observatory's spine: two locales × three families, with the real per-locale case count.
+
+        Counted from the CATALOG, never from a hand-kept number, and served even when a locale has
+        nothing in it — a family that reads `0 casos` is information; a family hidden because its
+        locale is empty is a lie by omission (tests/platform/families.py).
+
+        Deliberately cheap: it counts the rich catalog providers (use cases, journey, memory corpora)
+        and reports the deterministic families by their FILE count, which `suite_rows()` already knows
+        without a pytest collection. A family table must never be the thing that makes the dashboard
+        take two minutes to paint.
+        """
+        from tests.platform import families as fam
+        from tests.platform.catalog import SUITES, build_suite_catalog, suite_rows
+        counts: dict[str, dict[str, int]] = {entry.id: {} for entry in fam.FAMILIES}
+        files = {row["id"]: row["deterministic_files"] for row in suite_rows()}
+        for entry in fam.FAMILIES:
+            for locale in fam.LOCALE_IDS:
+                total = 0
+                for suite_id in entry.members:
+                    if suite_id not in SUITES:
+                        continue
+                    if entry.kind == "deterministic":
+                        total += int(files.get(suite_id, 0))
+                        continue
+                    try:
+                        catalog = build_suite_catalog(suite_id, [])
+                    except Exception:  # noqa: BLE001 — one broken provider must not blank the spine
+                        continue
+                    for step in catalog.get("steps", ()):
+                        for group in step.get("case_groups", ()):
+                            total += sum(1 for case in group.get("cases", ())
+                                         if fam.belongs_to(case, locale))
+                counts[entry.id][locale] = total
+        # The use-case THEMES with a real per-locale count, so the rail can say «Búsquedas y estudios ·
+        # 36» in ES and «· 14» in US instead of listing twenty `search-buy-*` rows one by one. A theme
+        # with nothing in this locale is kept and shown dimmed: an empty group is a visible gap in that
+        # market's set, which is information, and hiding it would make the two sets look equivalent.
+        theme_rows: list[dict] = []
+        try:
+            from tests.use_cases import themes as th
+            from tests.use_cases.cases_data import CASES as UC
+            for theme in th.THEMES:
+                by_locale = {loc: sum(1 for c in UC if c.locale == loc and th.theme_of(c.id) == theme["id"])
+                             for loc in fam.LOCALE_IDS}
+                if not sum(by_locale.values()) and theme["id"] == "otros":
+                    continue
+                theme_rows.append({**theme, "byLocale": by_locale})
+        except Exception:  # noqa: BLE001 — the spine must paint even if the use-case catalog is broken
+            theme_rows = []
+        payload = {
+            "schema": 1,
+            "locales": list(fam.LOCALES),
+            "default_locale": fam.DEFAULT_LOCALE,
+            "themes": theme_rows,
+            "families": fam.rows(counts),
+            # `primary_case` travels with the suite so the ▶ button does not have to carry a hardcoded
+            # map of "which case IS this suite" in the HTML. It used to (`'memory':'memory::group::1.4::v4'`),
+            # and a dashboard rewrite silently turned Memoria's ▶ from «the conversational gateway» into
+            # «every deterministic memory test» — a launch button that quietly means something else.
+            "suites": {suite.id: {"label": suite.label, "description": suite.description,
+                                  "primary_case": suite.primary_case}
+                       for suite in SUITES.values()},
+        }
+        raw = json.dumps(payload, ensure_ascii=False).encode()
+        self._headers("application/json", len(raw))
+        self.wfile.write(raw)
 
     def _catalog(self, suite: str) -> None:
         from tests.platform.catalog import SUITES
