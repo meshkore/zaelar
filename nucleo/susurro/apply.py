@@ -132,7 +132,7 @@ def _already_executed(request: str) -> dict | None:
     op really happened. If a destructive op landed on that widget inside the window, the premise is false —
     and the fast path is still free to act, because this only ever cancels the SECOND worker.
 
-    ⚠️ The verb is read with `contract._DESTRUCTIVE_RE`, the WIDGET layer's own closed set, and not with
+    ⚠️ The verb is read with `contract.names_a_removal`, the WIDGET layer's own closed set, and not with
     `danger.is_dangerous`: measured, that answers False for «Delete every appointment on Thursday…», and
     correctly so — it judges real-world irreversibility (money, commitments), not widget rows. The op that
     ran was stamped destructive by `contract`, so `contract` is the reader that has to agree with it. Two
@@ -140,9 +140,9 @@ def _already_executed(request: str) -> dict | None:
     """
     try:
         from nucleo import done_ops as _done
-        from widgets.contract import _DESTRUCTIVE_RE
+        from widgets.contract import names_a_removal
         rows = _done.destructive_since()
-        if not rows or not _DESTRUCTIVE_RE.search(request or ""):
+        if not rows or not names_a_removal(request or ""):
             return None
         low = (request or "").lower()
         for d in rows:

@@ -117,7 +117,45 @@ def test_the_counterweight_an_imperative_next_to_the_question_still_gates():
     from nucleo import danger
     for t in ("averigua cuánto es y págalo", "transfiere 100 euros al grupo",
               "paga la cuota del viaje", "renueva la suscripción"):
-        assert danger.is_dangerous(t) or danger.moves_money(t), t
+        assert danger.is_dangerous(t), t
+        # `or` used to be enough here, and that is precisely what let the two answers drift apart: a
+        # sentence that only `moves_money` caught passed this case while the gate that PARKS the task
+        # said no. V2-710 T0.4.
+
+
+# ── V2-710 T0.4 · the two answers of this module cannot contradict each other ───────────────────────────
+# Measured 2026-09-16 on the product: `moves_money("transfiere 500 euros a la cuenta de Iván")` was True
+# and `is_dangerous` was False, because `_DANGER_RE` is a list of verbs and «transferir» was not on it.
+# `dispatch._run_session:1022` reads `is_dangerous`, so the worker started without asking. The fix is
+# composition, NOT a longer list of verbs: every verb added to that list parks one more errand that did
+# not need parking (V2-707 F0 paid exactly that bill with «borra»).
+
+@pytest.mark.parametrize("text", [
+    "transfiere 500 euros a la cuenta de Iván",
+    "transfiere 100 euros al grupo",
+    "abona la cuota de este mes",
+    "recarga el móvil con 20 euros",
+])
+def test_spending_as_an_ACT_always_reaches_the_gate_that_parks_the_task(text):
+    assert danger.moves_money(text) is True, text
+    assert danger.is_dangerous(text) is True, (
+        f"the two functions of this module disagree about the same sentence, and the one that decides "
+        f"whether the task STOPS is the one saying no: {text}")
+
+
+@pytest.mark.parametrize("text", [
+    "cuánto es la factura de la luz",
+    "mira mi factura de la luz",
+    "enséñame el importe del recibo",
+    "cuál es el cargo de ayer",
+])
+def test_spending_as_a_SUBJECT_is_still_only_a_ROUTING_signal(text):
+    """The counterweight, and the reason the composition is by VERB and not by whole function. A bill
+    LOOKUP has to reach the browser (`router_guards.money_work_needs_a_browser` reads `moves_money` for
+    that), and it must NOT park an errand. Measured before shipping T0.4: composing the two functions
+    whole would have parked all four of these."""
+    assert danger.moves_money(text) is True, text
+    assert danger.is_dangerous(text) is False, f"a lookup about money is not an irreversible act: {text}"
 
 
 # ── V2-707 F0 · «borrar» gates on its OBJECT, never on the bare verb ───────────────────────────────────

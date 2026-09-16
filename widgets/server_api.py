@@ -328,24 +328,27 @@ async def _dispatch(wid: str, action: str, payload: dict):
     Step 0 (V2-705): the CONTRACT. A destructive action whose selector arrives empty is refused here, for
     every caller at once — the brain, the worker, a button, cron. `contract.py` carries the incident (a
     `cancel_meeting {}` that deleted 100 events from the operator's Google Calendar) and the exact rule."""
-    try:
-        from . import contract
-        # BEFORE the guard: a synonym must not look like a missing field. `fold_aliases` renames what the
-        # model spelled its own way onto the keys the manifest declares, so the contract judges the call the
-        # operator actually made (V2-705 — a `send_to` carrying `message` instead of `text` lost the message).
-        payload = contract.fold_aliases(wid, action, payload)
-        refused = contract.guard(wid, action, payload)
-        if refused is not None:
-            try:
-                from voice.observer import emit as _emit
-                _emit("widget", "action_refused", text=str(refused.get("message") or "")[:160],
-                      extra={"id": wid, "action": str(action), "error": str(refused.get("error") or ""),
-                             "field": str(refused.get("field") or ""), "is_error": True})
-            except Exception:
-                pass
-            return refused
-    except Exception:
-        pass
+    # NOT WRAPPED IN A try/except (V2-710 T0.3). It was, and that `except Exception: pass` was a second
+    # fail-open on top of the one inside `guard` itself: the guard could decide «refuse» and this frame
+    # could still swallow it and let the action run. `guard` and `fold_aliases` are both written not to
+    # raise, and `guard` now fails CLOSED for destructive actions — a decision this frame must not be able
+    # to override. The `emit` below keeps its own guard, because bookkeeping that fails must not turn a
+    # refusal into an execution either.
+    from . import contract
+    # BEFORE the guard: a synonym must not look like a missing field. `fold_aliases` renames what the
+    # model spelled its own way onto the keys the manifest declares, so the contract judges the call the
+    # operator actually made (V2-705 — a `send_to` carrying `message` instead of `text` lost the message).
+    payload = contract.fold_aliases(wid, action, payload)
+    refused = contract.guard(wid, action, payload)
+    if refused is not None:
+        try:
+            from voice.observer import emit as _emit
+            _emit("widget", "action_refused", text=str(refused.get("message") or "")[:160],
+                  extra={"id": wid, "action": str(action), "error": str(refused.get("error") or ""),
+                         "field": str(refused.get("field") or ""), "is_error": True})
+        except Exception:
+            pass
+        return refused
     # Step 0b (V2-707 F1): the GENERIC DATA DOOR. An operation the widget does not DECLARE — «delete every
     # meeting whose title contains crypto», «list what is before today» — is still possible, and it enters
     # here rather than through a file on disk. `rows.py` is a RESOLVER: it turns the expression into the rows
@@ -388,13 +391,21 @@ def _note_done(wid: str, action: str, payload: dict, res) -> None:
         if res is _MISSING or res is None:
             return
         from nucleo import done_ops as _done
-        from . import actions as _acts, runtime as _rt
+        from . import contract as _contract, runtime as _rt
         a = str(action or "")
         if a.startswith("rows."):
             mode_destructive = a.split(".", 1)[1] in ("delete", "patch")
         else:
+            # ASK THE QUESTION THE FIELD ASKS (V2-710 T0.1). This read `actions.classify(spec, a) ==
+            # CONFIRM`, which answers how much FRICTION an action carries — a different question from «did
+            # this remove something», and `agenda:cancel_meeting` is exactly where the two disagree. It is
+            # FAST on purpose (V2-707 F1: one row with a selector and a snapshot runs; N>1 asks by radius),
+            # so deleting a real Google Calendar event was written into the book as `destructive: False`
+            # and `live_blocks.done_ops_lines()` then emitted the mild instruction («cuéntalo como hecho»)
+            # instead of the hard one («si el operador dice que has borrado algo, TIENE RAZÓN»). That is the
+            # V2-707 F6 incident in its one-row form, which is the normal way of cancelling an appointment.
             spec = ((_rt.get(wid) or {}).get("actions") or {}).get(a) or {}
-            mode_destructive = _acts.classify(spec, a) == _acts.CONFIRM
+            mode_destructive = _contract.is_destructive(spec, a)
         n = res.get("done") if isinstance(res, dict) and isinstance(res.get("done"), int) else None
         _done.note(wid, a, payload or {}, n=n, destructive=mode_destructive)
     except Exception:  # noqa: BLE001

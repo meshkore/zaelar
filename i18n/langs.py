@@ -65,6 +65,12 @@ class LangSpec:
     widget_selector_missing: str = ("No he entendido cuál quitar, así que no he tocado nada. "
                                     "¿Cuál de estos? {options}")
     widget_selector_missing_bare: str = "No he entendido cuál quitar, así que no he tocado nada. ¿Cuál?"
+    #: The same guard when IT ITSELF failed (V2-710 T0.3). `contract.guard` used to answer «proceed» on any
+    #: internal error, so a destructive action whose contract could not be read ran with an empty selector —
+    #: the exact pre-V2-705 state, in silence. It now fails CLOSED for anything destructive, and this is what
+    #: the operator hears: the action did not run, and it is worth saying again rather than doing it blind.
+    widget_guard_error: str = ("No he podido comprobar esa acción antes de hacerla, así que no la he hecho. "
+                               "Dímelo otra vez y lo miro.")
     #: The TITLE an errand writes on the meeting it just agreed with a third party (V2-692). It lands in
     #: the operator's agenda and, through the connector, in his real Google Calendar — a row only HE can
     #: delete — so it is a text he reads and belongs here rather than in an f-string inside the errand.
@@ -522,6 +528,8 @@ LANGUAGES: dict[str, LangSpec] = {
                                 "Which of these? {options}",
         widget_selector_missing_bare="I couldn't tell which one to remove, so I left everything as it is. "
                                      "Which one?",
+        widget_guard_error="I couldn't check that action before running it, so I haven't run it. Tell me "
+                           "again and I'll take a look.",
         errand_meeting_title="Meeting with {name}",
         search_blocked=("I did search, but the search engine blocked me with an anti-bot check. It isn't that "
                         "I can't look things up — this time it wouldn't let me. Shall I try properly with the "

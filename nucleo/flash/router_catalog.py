@@ -236,19 +236,24 @@ TOOLS: list[dict] = [
             # data-MUTATION only and disowned "abrir" wholesale, while the catalogs its parameters cited
             # («Available widgets» / «ACCIONES POR WIDGET») do not exist under those names in the prompt.
             "description": (
-                "Ejecuta UNA acción declarada de un widget: NAVEGAR DENTRO (abrir un chat/elemento de su lista, "
-                "volver a su vista — mensajería: open {name:'Francisco'}, show_view) o cambiar sus DATOS (añadir "
-                "cita, marcar, aplazar, quitar…). Úsala siempre que pidan abrir o tocar algo DE DENTRO, no solo "
-                "decirlo. `widget_id` y `action` EXACTOS del catálogo de RECURSOS, no los inventes. No crea ni "
-                "cambia su CÓDIGO (escalate) ni abre/cierra el WIDGET ENTERO (show_widget / [[close:ID]]; no "
-                "existe acción 'show'). "
-                "add_meeting = evento con fecha/hora y crea su aviso (~2h antes): no dupliques con un cron; "
-                "aviso a OTRA hora = set_reminder, nunca otra add_meeting; [[cron.create]] solo para avisos "
-                "sin cita. Para un item "
-                "que ya existe, descríbelo en `item` en lenguaje natural, nunca con un id inventado; en `payload` "
-                "solo los datos nuevos. Un widget con conector ES la fuente: cancelar/mover una cita o escribir "
-                "a alguien se hace AQUÍ; solo una reserva hecha en un SITIO externo va a escalate_to_slowbrain. "
-                "Quitar exige nombrar el item: vacío no borra nada. PREGUNTAR qué guarda un widget es read_widget."
+                "Ejecuta UNA acción de un widget: NAVEGAR DENTRO (abrir un chat/elemento de su lista, volver a la "
+                "vista — open {name:'Francisco'}, show_view) o cambiar sus DATOS (añadir cita, marcar, "
+                "aplazar, quitar…). Siempre que pidan tocar algo DE DENTRO, no decirlo. `widget_id` "
+                "y `action` EXACTOS del catálogo. No cambia su CÓDIGO (escalate) ni abre/cierra "
+                "el WIDGET ENTERO (show_widget / [[close:ID]]; no existe 'show'). "
+                "add_meeting = evento con fecha/hora y su aviso (~2h antes): no lo dupliques con cron; "
+                "aviso a OTRA hora = set_reminder; [[cron.create]] solo sin cita. Un item existente va en `item` en "
+                "lenguaje natural, nunca con un id inventado; en `payload` solo lo nuevo. Un widget "
+                "con conector ES la fuente: cancelar/mover una cita o escribirle a alguien se hace AQUÍ; solo una "
+                "reserva en SITIO externo va a escalate. Quitar exige nombrar el item: vacío no borra nada. "
+                "Qué guarda: read_widget. "
+                # V2-710 T0.2 — THE GENERIC DOOR ANNOUNCED. `rows.*` (V2-707 F1) existed, was documented to the
+                # worker and reachable through this same funnel, and this description said «`action` EXACTOS del
+                # catálogo, no los inventes» without ever naming it — so for an operation nobody declared («borra
+                # todas las que digan crypto») the model had a capability it had been told it lacked, which is the
+                # V2-540/V2-692 class: it narrates it instead of using it. One line of CAPABILITY, not of conduct.
+                "Sin acción que lo cubra (varias filas por criterio): action='rows.list|put|patch|delete', payload "
+                "{collection, where:{campo, campo~, campo>=…}} (+set/row). Una fila se hace; varias preguntan."
             ),
             "parameters": {
                 "type": "object",

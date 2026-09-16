@@ -262,7 +262,16 @@ def is_dangerous(text: str) -> bool:
         _drop_amount_questions(_drop_lookup_adjuncts(_REMINDER_RE.sub(" ", _strip_accents(_order_text(text))))))
     return bool(_DANGER_RE.search(order) or _DANGER_CLITIC_RE.search(order)
                 or _DANGER_ASK_CLITIC_RE.search(order) or _DANGER_PROCLITIC_RE.search(order)
-                or _COMMITMENT_RE.search(order) or _DESTROY_OBJECT_RE.search(order))
+                or _COMMITMENT_RE.search(order) or _DESTROY_OBJECT_RE.search(order)
+                # TWO FUNCTIONS OF THIS MODULE USED TO DISAGREE ABOUT THE SAME SENTENCE, and the one that
+                # decides whether the task STOPS was the one saying no (V2-710 T0.4). Measured 2026-09-16:
+                # `moves_money("transfiere 500 euros a la cuenta de Iván")` was True and `is_dangerous` was
+                # False, so `dispatch._run_session` started the worker without asking. The cause is that
+                # `_DANGER_RE` is a list of verbs and «transferir» was not on it — which is the standing
+                # argument for NOT growing that list (every verb added parks one more errand that did not
+                # need parking). This is composition instead: whatever already counts as spending, counts
+                # as irreversible, and the two answers can no longer contradict each other.
+                or _MONEY_ACT_RE.search(order))
 
 
 def _strip_accents(text: str) -> str:
@@ -281,11 +290,19 @@ def _strip_accents(text: str) -> str:
 # translated implementation note
 # translated implementation note
 # translated implementation note
-_MONEY_RE = re.compile(
+# SPENDING AS AN ACT vs SPENDING AS A SUBJECT (V2-710 T0.4). The two halves used to be one regex, and
+# `moves_money` is right to fire on both: it answers «is this about money?», which is what
+# `router_guards.money_work_needs_a_browser` needs in order to hand the task a browser — a bill LOOKUP
+# belongs in the browser too. `is_dangerous` asks a different question — «does this END something» — and
+# only the first half can answer it. Measured 2026-09-16 before splitting them: composing the two whole
+# functions would have parked «cuánto es la factura de la luz» and «mira mi factura», which are lookups.
+_MONEY_ACT_RE = re.compile(
     r"\b(?:pagar|paga|pague|pagas|comprar|compra|compre|abonar|abona|transferir|transfiere|"
     r"recargar|recarga|renovar|renueva|renuev\w*|contratar|contrata|suscrib\w*|"
-    r"pay|buy|purchase|checkout|charge|renew|subscribe|top\s*up)\b"
-    r"|\b(?:cuota|factura|recibo|cargo|importe|mensualidad|abono|bill|invoice|fee)\b", re.I)
+    r"pay|buy|purchase|checkout|charge|renew|subscribe|top\s*up)\b", re.I)
+_MONEY_THING_RE = re.compile(
+    r"\b(?:cuota|factura|recibo|cargo|importe|mensualidad|abono|bill|invoice|fee)\b", re.I)
+_MONEY_RE = re.compile(_MONEY_ACT_RE.pattern + r"|" + _MONEY_THING_RE.pattern, re.I)
 
 
 # translated implementation note

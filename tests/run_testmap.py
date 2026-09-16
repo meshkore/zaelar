@@ -435,6 +435,11 @@ DOMAINS: list[dict] = [
             "tests/agent_headless/unit/agentes/test_web_cc_site_catalog.py",
             # V2-140: an allusion («¿y el del coche?») must reach the task it names — the punctuation
             # was glued to the word, the same defect V2-123 fixed in this file's sibling function.
+            # V2-711 T0.2: the GENERIC data door (`rows.*`, V2-707 F1) was built FOR the Brain Worker and
+            # `worker_policy.classify_act` answered DENY for all four ops, because `frontend.action_mode`
+            # resolves `None` for anything a manifest does not declare — and `rows.*` is undeclared BY
+            # DESIGN. Measured 2026-09-16: the door had no live caller at all.
+            "tests/agent_headless/unit/workers/test_the_generic_door_is_open_to_the_worker_it_was_built_for.py",
             "tests/agent_headless/unit/test_task_attribution.py", "tests/agent_headless/unit/workers/test_workers.py",
             # V2-139: the chain «móntame un widget» → code → GENERATOR backend → card on screen, walked.
             # V2-115 left this written down as its own primary open task: every link was tested in

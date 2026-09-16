@@ -48,8 +48,13 @@ def deny_reason(action: str, payload: dict) -> str:
         return (f"la tool «{tool}» no está en el catálogo prestable. Prestables: "
                 f"{', '.join(sorted(_PRESTABLE_TOOLS))}.")
     if a == "widget_data":
-        return ("data-op no permitida: o la acción no está DECLARADA en el manifest de ese widget, o el widget no "
-                "existe. LEE el widget primero (read_widget) y usa una de sus acciones declaradas.")
+        # The route out has to be one the worker can actually take (the V2-710 T0.2 lesson, and the same one
+        # `deny_reason` itself was written for): naming only the declared actions left a worker with an
+        # undeclared operation nowhere to go, while the generic door was right there.
+        return ("data-op no permitida: esa acción no está DECLARADA en el manifest de ese widget (o el widget no "
+                "existe). LEE el widget primero (read_widget) y usa una de sus acciones declaradas — y si lo que "
+                "necesitas no lo cubre ninguna, usa la puerta genérica: rows.list/patch/delete/put con "
+                "{collection, where:{…}} sobre las colecciones que te devuelve read_widget.")
     return "acción no permitida para un worker"
 
 
@@ -65,6 +70,24 @@ def classify_act(action: str, payload: dict) -> str:
     if a in ("read_widget", "show_widget", "close_widget"):
         return ALLOW
     if a == "widget_data":
+        # THE GENERIC DATA DOOR IS OPEN TO THE WORKER IT WAS BUILT FOR (V2-710 T0.2). `widgets/rows.py`
+        # (V2-707 F1) was born from a sentence about the Brain Worker — «puede perfectamente ver la
+        # estructura de los datos y borrarlo todo […] el resto también tiene que ser posible» — and every
+        # piece shipped except this wire: `widget_cli` documents `hbwidget rows`, `read_widget` hands over
+        # the collection schema to write the expression with, and then the branch below answered DENY for
+        # all four ops, because `frontend.action_mode` returns None for anything not DECLARED in the
+        # manifest and `rows.*` is not declared there BY DESIGN — it is the door for what nobody declared.
+        # The denial even told the worker to «read the widget and use one of its declared actions», advice
+        # it cannot follow. Measured 2026-09-16: the door had no live caller at all.
+        #
+        # ALLOW and not CONFIRM, deliberately: the friction of this door is the RADIUS, not the verb. One
+        # matching row runs (the store snapshots what it overwrites), several come back asking with the
+        # count and the names, and every row is executed through the widget's OWN declared action — so the
+        # V2-705 contract, the external mirror, the canvas refresh and the snapshot all still happen. A
+        # CONFIRM here would put a second question in front of a gate that already asks the right one, and
+        # would ask it on `rows.list`, which is a read.
+        if str((payload or {}).get("action") or "").strip().startswith("rows."):
+            return ALLOW
         # V2-061: DATA-OP on a widget (reflect in the local MIRROR what happened in reality — e.g. remove from the
         # agenda an appointment already canceled on the web). The gate is the CANONICAL CATALOG (widgets/actions.py
         # via frontend.action_mode), the SAME one as FlashBrain: FAST→ALLOW, CONFIRM(irreversible)→CONFIRM.

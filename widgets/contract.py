@@ -58,14 +58,28 @@ from .refs import _OPTIONAL_RE  # noqa: E402,F401
 
 #: The refusal's machine-readable reason. Stable: tests and the observability line read it.
 SELECTOR_MISSING = "selector_missing"
+#: The guard could not judge the call (V2-710 T0.3). Distinct from `selector_missing` on purpose: that one
+#: says «name which one», this one says «I could not check, so I did not do it» — a different thing for the
+#: caller to act on, and a different thing for the operator to hear.
+GUARD_ERROR = "guard_error"
 
 _MAX_OPTIONS = 8
 
 
+def _spec_strict(widget_id: str, action: str) -> dict:
+    """The declared spec, `{}` when the action is simply not declared — and RAISES when it could not be
+    read at all. The distinction is the whole point (V2-710 T0.3): `_spec` collapses «this widget declares
+    no such action» and «I could not look» into the same empty dict, and `guard` treats an empty spec as
+    «nothing to protect». So a runtime that throws — not loaded yet, a malformed manifest — used to read as
+    a harmless action and the destructive call went through with its selector empty."""
+    from . import runtime
+    return ((runtime.get(widget_id) or {}).get("actions") or {}).get(action) or {}
+
+
 def _spec(widget_id: str, action: str) -> dict:
+    """The tolerant read, for callers that only decorate (menus, modes). The GUARD uses the strict one."""
     try:
-        from . import runtime
-        return ((runtime.get(widget_id) or {}).get("actions") or {}).get(action) or {}
+        return _spec_strict(widget_id, action)
     except Exception:  # noqa: BLE001
         return {}
 
@@ -82,6 +96,18 @@ def is_destructive(spec: dict | None, name: str = "") -> bool:
     # filtro»), `create_playlist` («lista vacía») and `read` («quita el no-leído»), none of which removes a
     # thing. An action's name is the contract; its sentence is guidance about it.
     return bool(_DESTRUCTIVE_RE.search(str(name or "").replace("_", " ")))
+
+
+def names_a_removal(text: str) -> bool:
+    """Does this SENTENCE name a removal, in the widget layer's own closed vocabulary?
+
+    The public accessor for `_DESTRUCTIVE_RE` (V2-711 T0.2). `is_destructive` answers about a declared
+    ACTION; this answers about a free sentence — the question the susurro's auditor asks when it compares
+    what the operator said against what `done_ops` already recorded. It deliberately reads THIS module's
+    vocabulary and not `danger.is_dangerous`: that one judges real-world irreversibility (and correctly
+    answers False for «delete every appointment on Thursday»), while the op that ran was stamped by the
+    rules here, so the reader that has to agree with it is this one."""
+    return bool(_DESTRUCTIVE_RE.search(str(text or "").replace("_", " ")))
 
 
 def selector_for(widget_id: str, action: str, spec: dict | None = None) -> str:
@@ -130,9 +156,9 @@ def _options(widget_id: str, field: str) -> list[str]:
     return out
 
 
-def _spoken(menu: str) -> str:
+def _spoken(menu: str, field: str = "") -> str:
     """The refusal the operator HEARS, from the language table (the `agenda._spoken` shape, V2-689)."""
-    field = "widget_selector_missing" if menu else "widget_selector_missing_bare"
+    field = field or ("widget_selector_missing" if menu else "widget_selector_missing_bare")
     try:
         from i18n import langs as _langs
         text = str(getattr(_langs.spec(), field, "") or "")
@@ -219,11 +245,23 @@ def fold_aliases(widget_id: str, action: str, payload: dict | None) -> dict:
 
 
 def guard(widget_id: str, action: str, payload: dict | None) -> dict | None:
-    """The refusal for this call, or None when the call may proceed. Never raises."""
+    """The refusal for this call, or None when the call may proceed. Never raises.
+
+    FAILS CLOSED for anything destructive (V2-710 T0.3). This whole body used to sit under
+    `except Exception: return None`, and `server_api` wrapped the CALL in a second `try/except: pass`, so
+    any error inside `_spec`, `selector_for` or `_options` — a malformed manifest, a `refs` import that
+    throws, a runtime not yet loaded — meant «proceed»: the destructive action then ran with its selector
+    empty, which is exactly the pre-V2-705 state that sent 147 DELETE requests to the operator's real
+    calendar, only now in silence. The guard that protects the data was the one that failed open.
+
+    The direction is the one `show_request_blocks_data_action` already chose in this same module, with the
+    right argument: a show that does nothing is a smaller failure than a mutation nobody asked for. A
+    non-destructive action is still let through on error — refusing every read because the contract had a
+    bad day is a different kind of broken, and there is nothing to protect there."""
+    wid = str(widget_id or "").strip().lower()
+    act = str(action or "").strip()
     try:
-        wid = str(widget_id or "").strip().lower()
-        act = str(action or "").strip()
-        spec = _spec(wid, act)
+        spec = _spec_strict(wid, act)
         if not spec or not is_destructive(spec, act):
             return None
         field = selector_for(wid, act, spec)
@@ -247,5 +285,21 @@ def guard(widget_id: str, action: str, payload: dict | None) -> dict | None:
             "detail": (f"`{act}` on `{wid}` needs `{field}` and it arrived empty — an empty selector never "
                        f"means «all of them»; ask which one" + (f" (options: {menu})" if menu else "") + "."),
         }
-    except Exception:  # noqa: BLE001
-        return None
+    except Exception as e:  # noqa: BLE001
+        # The spec is what we failed to read, so the NAME is all we have left to judge by — and the name is
+        # the contract (`is_destructive`'s own rule). If it removes something, refuse; otherwise proceed.
+        try:
+            destructive = is_destructive(None, act)
+        except Exception:  # noqa: BLE001
+            destructive = True          # even the fallback failed: the safe answer is the closed one
+        if not destructive:
+            return None
+        return {
+            "ok": False,
+            "error": GUARD_ERROR,
+            "widget": wid,
+            "action": act,
+            "message": _spoken("", "widget_guard_error"),
+            "detail": (f"the contract for `{act}` on `{wid}` could not be evaluated ({type(e).__name__}: {e}), "
+                       f"and the action removes something — refused rather than run unchecked."),
+        }

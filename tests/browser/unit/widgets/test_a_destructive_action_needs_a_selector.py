@@ -116,7 +116,47 @@ def test_the_sentence_he_hears_comes_from_the_language_table(agenda, monkeypatch
 def test_the_guard_never_raises(monkeypatch):
     from widgets import runtime
     monkeypatch.setattr(runtime, "get", lambda wid: (_ for _ in ()).throw(RuntimeError("boom")))
-    assert contract.guard("agenda", "cancel_meeting", {}) is None
+    assert contract.guard("agenda", "cancel_meeting", {}) is not None    # it answers instead of raising
+
+
+# ── V2-710 T0.3 · and when the guard ITSELF fails, it fails CLOSED ──────────────────────────────────────
+# The body used to sit under `except Exception: return None` and `server_api` wrapped the call in a second
+# `try/except: pass`. Either one turned a broken contract into «proceed», so a destructive action ran with
+# an empty selector — the pre-V2-705 state that sent 147 DELETE requests to the real calendar — in silence.
+
+def test_a_destructive_action_is_REFUSED_when_the_contract_cannot_be_read(monkeypatch):
+    from widgets import runtime
+    monkeypatch.setattr(runtime, "get", lambda wid: (_ for _ in ()).throw(RuntimeError("boom")))
+    refused = contract.guard("agenda", "cancel_meeting", {"title": "Dentist"})
+    assert refused and refused["error"] == contract.GUARD_ERROR, refused
+    assert refused["message"], "and the operator hears a sentence, not a code"
+
+
+def test_a_harmless_action_still_goes_through_when_the_contract_cannot_be_read(monkeypatch):
+    """Refusing every read because the contract had a bad day is a different kind of broken, and there is
+    nothing to protect on a `show_view`."""
+    from widgets import runtime
+    monkeypatch.setattr(runtime, "get", lambda wid: (_ for _ in ()).throw(RuntimeError("boom")))
+    assert contract.guard("agenda", "add_meeting", {"title": "x"}) is None
+
+
+def test_the_funnel_cannot_swallow_the_refusal(agenda, monkeypatch):
+    """The guard's decision reaches the caller: no frame between it and the answer may drop it."""
+    from widgets import runtime, server_api
+    monkeypatch.setattr(runtime, "get", lambda wid: (_ for _ in ()).throw(RuntimeError("boom")))
+    res = asyncio.run(server_api.brain_action("agenda", "cancel_meeting", {"title": "Dentist"}))
+    assert res.get("ok") is False and res.get("error") == contract.GUARD_ERROR, res
+    assert len(agenda.load_db()["meetings"]) == 3, "and nothing was removed while the contract was blind"
+
+
+def test_the_sentence_for_a_blind_guard_comes_from_the_language_table(monkeypatch):
+    from i18n import langs
+    from widgets import runtime
+    monkeypatch.setattr(runtime, "get", lambda wid: (_ for _ in ()).throw(RuntimeError("boom")))
+    en = contract.guard("agenda", "cancel_meeting", {"title": "x"})["message"]
+    monkeypatch.setattr(langs, "spec", lambda code=None: langs.LangSpec())      # the Castilian defaults
+    es = contract.guard("agenda", "cancel_meeting", {"title": "x"})["message"]
+    assert en != es and en and es
 
 
 # ── through the funnel: the widget is NOT touched, and every caller is covered ─────────────────────────
