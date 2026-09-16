@@ -156,7 +156,7 @@ _CEILINGS: dict[str, tuple[int, int]] = {
     # hands last_status to every capture — the wall signal no needle can miss, measured on coches.net's two
     # bodies for the same 403). Inherent to the tab object (self/page); the WALL classification itself was
     # extracted instead (tasks.py → walls.py, 904→774, staying out of the table).
-    "widgets/navegador/owner.py": (1725, 44),
+    "widgets/navegador/owner.py": (1714, 43),
     # 2026-09-02: 1374 → 789, and 15 → 7 lazy imports. The ratchet asked for an extraction and got two:
     # `reminder_guards.py` (the 26 guards for a PROMISED dated notice — a closed set that nothing left
     # behind uses) and `text_norm.py` (the three text helpers BOTH halves need, which is why neither could

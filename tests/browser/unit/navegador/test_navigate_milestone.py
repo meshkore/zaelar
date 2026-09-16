@@ -22,6 +22,15 @@ from widgets.navegador import tasks as T
 class _FakePage:
     url = "https://www.booking.com/hotel/es/palacio-de-la-merced.es.html"
 
+    async def evaluate(self, _js, _arg=None):
+        """V2-711 T1 — the click gate asks the PAGE what the element is before the mouse moves, and it FAILS
+        CLOSED, so a double that cannot answer makes every click stop and ask the operator (which writes to
+        the task feed, which is what this file measures). The double answers the shape the product really
+        gets: an ordinary link outside any form, which is what «a click is not a milestone» is about."""
+        return {"name": "Ver hotel", "role": "link", "isSubmit": False, "inForm": False, "payment": False,
+                "identity": False, "method": "", "targetUrl": "", "pageUrl": self.url, "signals": "",
+                "fields": 0}
+
 
 @pytest.fixture
 def task_and_browser(monkeypatch):

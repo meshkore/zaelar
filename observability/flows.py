@@ -208,3 +208,54 @@ def stats() -> dict:
         (),
     )
     return r[0] if r else {}
+
+
+def shadow(kind: str = "", limit: int = 200, days: float = 7.0) -> dict:
+    """WHAT A SHADOW MECHANISM WOULD HAVE DONE, with its rules broken out (V2-711 T1.4).
+
+    Three mechanisms in this engine run in SHADOW — they decide, they log, and they change nothing:
+    the canvas arbiter (V2-653 F0, `kind="arbiter"`), errands (`nucleo/errands/wake.py`, shadow by
+    default) and, from T1.3, the browser's consequence-side click signal (`kind="gate_shadow"`).
+
+    None of them had a reader. That is not a phase, it is a function that runs and is thrown away: the
+    arbiter's own promotion gate is declared as «ZERO false vetoes over his real sessions, audited from the
+    shadow verdicts», and there was no way to evaluate the condition. This is that way — read-only, over the
+    events the bus already writes, grouped by the `rule` each verdict names, because «how many» is the
+    question and «which rule fired them» is the one that follows it.
+    """
+    import time as _t
+    since = (_t.time() - float(days) * 86400.0) * 1000.0
+    kinds = [k.strip() for k in str(kind or "").split(",") if k.strip()] or ["arbiter", "gate_shadow", "wake"]
+    marks = ", ".join("?" for _ in kinds)
+    rows = _rows(
+        f"""SELECT kind, payload, ts_ms FROM events
+            WHERE kind IN ({marks}) AND ts_ms >= ?
+            ORDER BY ts_ms DESC LIMIT ?""",
+        (*kinds, since, int(max(1, min(limit, 2000)))))
+    import json as _json
+    by_rule: dict[str, dict] = {}
+    out = []
+    for r in rows:
+        try:
+            p = _json.loads(r.get("payload") or "{}")
+        except Exception:  # noqa: BLE001
+            p = {}
+        extra = p.get("extra") if isinstance(p.get("extra"), dict) else {}
+        rule = str(extra.get("rule") or p.get("rule") or "—")
+        # `allow` is the arbiter's vocabulary; a gate_shadow row is a WOULD-HAVE-STOPPED by construction.
+        allow = extra.get("allow", p.get("allow"))
+        vetoed = (allow is False) or (r.get("kind") == "gate_shadow")
+        slot = by_rule.setdefault(rule, {"rule": rule, "n": 0, "would_have_stopped": 0})
+        slot["n"] += 1
+        slot["would_have_stopped"] += 1 if vetoed else 0
+        out.append({"kind": r.get("kind"), "rule": rule, "ts_ms": r.get("ts_ms"),
+                    "would_have_stopped": vetoed, "text": str(p.get("text") or "")[:200]})
+    return {
+        "kinds": kinds, "days": days, "n": len(out),
+        # ⚠️ NOT a reassuring zero over nothing: a window with no verdicts says so, because «the gate never
+        # fired» and «the gate never ran» look identical from a count and mean opposite things.
+        "measured": bool(out),
+        "would_have_stopped": sum(1 for r in out if r["would_have_stopped"]),
+        "by_rule": sorted(by_rule.values(), key=lambda d: -d["n"]),
+        "recent": out[:50],
+    }

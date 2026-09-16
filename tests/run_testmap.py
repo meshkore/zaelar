@@ -883,7 +883,12 @@ DOMAINS: list[dict] = [
         # la oferta se repetía turno tras turno. 49 de 334 rondas, con el operador ya habiendo contestado.
         {"id": "4.80", "title": "La oferta de PARAR se hace una vez — el hecho se queda",
             "ch": UNIT,
-            "paths": ["tests/browser/unit/navegador/test_la_oferta_de_parar_se_hace_una_vez.py"]},
+            "paths": [# V2-711 T1 — el ÚLTIMO raíl antes de pulsar un botón en una web real estaba en UNA de cuatro rutas
+            # (`click_at`, `press` y `--submit` no pasaban por él, y `nav_cli` RECOMIENDA la de visión),
+            # juzgaba el RÓTULO (21 de 30 etiquetas reales pasaban: «Reservar», «Firmar», «Send money») y
+            # fallaba ABIERTO si no se podía describir el elemento.
+            "tests/browser/unit/navegador/test_one_gate_in_front_of_an_irreversible_click.py",
+            "tests/browser/unit/navegador/test_la_oferta_de_parar_se_hace_una_vez.py"]},
         {"id": "4.79", "title": "Las filas de la hoja viajan aunque NO haya navegador",
             "ch": UNIT,
             "paths": ["tests/browser/unit/navegador/test_las_filas_viajan_aunque_no_haya_navegador.py"]},
@@ -3562,6 +3567,13 @@ DOMAINS: list[dict] = [
         # Que solo fueran tres de los 777 que recorrió es suerte, no diseño. Esto es el diseño.
         {"id": "7.46", "title": "Un módulo crítico conserva la evidencia de por qué es como es", "ch": UNIT,
             "paths": ["tests/infrastructure/unit/test_a_critical_module_keeps_its_evidence.py"]},
+        # V2-711 T1.4 — tres mecanismos corren en SOMBRA (árbitro del canvas V2-653 F0, encargos, y el nuevo
+        # gate_shadow del navegador) y NINGUNO tenía lector: ni ruta, ni informe, ni contador. La puerta de
+        # promoción del árbitro está declarada como «cero vetos falsos, auditado desde los veredictos en
+        # sombra» y la condición no se podía evaluar. Una sombra sin lector no es una fase: es una función
+        # que se ejecuta y se tira.
+        {"id": "7.47", "title": "Un modo sombra tiene lector (si no, es una función que se tira)", "ch": UNIT,
+            "paths": ["tests/infrastructure/unit/core/test_a_shadow_mode_has_a_reader.py"]},
         # 2026-08-20: la captura forense de un turno guardaba `system[:8000]` de un prompt de ~19.000, y el
         # estado vivo se compone al FINAL — o sea que tiraba justo la mitad que responde «¿qué vio el modelo?».
         # Casi cuesta un diagnóstico falso: cinco turnos parecían no tener el bloque del navegador con el

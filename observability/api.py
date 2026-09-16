@@ -138,6 +138,21 @@ async def raw_events(request: Request, session_id: str = "", corr_id: str = "",
                          "more": len(rows) == min(limit, 2000)})
 
 
+@router.get("/api/observability/shadow")
+async def shadow(request: Request, kind: str = "", limit: int = 200, days: float = 7.0):
+    """What a SHADOW mechanism would have done (V2-711 T1.4).
+
+    Three of them run in this engine deciding and changing nothing — the canvas arbiter (V2-653 F0), the
+    errands' shadow mode, and the browser's consequence-side click signal — and none had a reader, so the
+    arbiter's own promotion gate («zero false vetoes over his real sessions, audited from the shadow
+    verdicts») could not be evaluated at all. A shadow mode without a reader is not a phase: it is a
+    function that runs and is thrown away.
+    """
+    if not _allowed(request):
+        return _DENIED
+    return JSONResponse(_flows.shadow(kind=kind, limit=limit, days=days))
+
+
 @router.get("/api/observability/stats")
 async def stats(request: Request):
     if not _allowed(request):

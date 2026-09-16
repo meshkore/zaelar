@@ -28,6 +28,7 @@ from urllib.parse import quote_plus
 from loguru import logger
 
 from .. import store
+from . import click_gate as _click_gate
 from nucleo.errors import brief as _brief
 
 
@@ -1499,8 +1500,16 @@ class TaskBrowser:
                 await self._capture()
                 return True, "desplazado"
             if action == "press":
+                # V2-711 T1 — this pressed Enter with NO gate of any kind, and Enter inside a form is a
+                # submit: the same consequence as the click the gate next door was guarding. Gated on the
+                # FOCUSED element, which is what Enter acts on.
+                key = str(args.get("key", "Enter")) or "Enter"
+                if key.lower() in ("enter", "numpadenter", "return"):
+                    ok, why = await self._may_act(page, None)
+                    if not ok:
+                        return False, why
                 try:
-                    await page.keyboard.press(str(args.get("key", "Enter")) or "Enter")
+                    await page.keyboard.press(key)
                     await asyncio.sleep(0.5)
                 except Exception:
                     pass
@@ -1508,11 +1517,22 @@ class TaskBrowser:
                 return True, "tecla pulsada"
             if action in ("click_at", "type_at"):
                 x, y = float(args.get("x", 0)), float(args.get("y", 0))
+                # V2-711 T1 — the VISION route, which `nucleo/nav_cli.py` RECOMMENDS to the worker («VISION
+                # flow (robust for forms)»), reached the mouse with no gate at all: the recommended path was
+                # the unguarded one. The element under the pixel is resolved BEFORE the mouse moves.
+                if action == "click_at":
+                    ok, why = await self._may_act(page, None, at=(x, y))
+                    if not ok:
+                        return False, why
                 self._emit("vision_" + ("click" if action == "click_at" else "type"), f"{int(x)},{int(y)}")
                 await _human_click_at(page, x, y, self.mouse)
                 if action == "type_at":
                     await page.keyboard.type(str(args.get("text", "")), delay=random.randint(40, 120))
                     if bool(args.get("submit")):
+                        # `--submit` is an Enter, and an Enter in a form submits it. Same gate, same reason.
+                        ok, why = await self._may_act(page, None)
+                        if not ok:
+                            return True, "texto escrito; NO enviado: " + why
                         await asyncio.sleep(random.uniform(0.2, 0.5))
                         await page.keyboard.press("Enter")
                 await asyncio.sleep(0.7)
@@ -1532,22 +1552,30 @@ class TaskBrowser:
                 return False, _stale_ref_reason(ref, self.refs, getattr(self, "refs_url", ""),
                                                 getattr(page, "url", "") or "")
             if action == "click":
-                # CONFIRM-GATE (safety): if the button looks IRREVERSIBLE (buy/pay/publish/delete...), STOP and ask
-                # the operator for OK BEFORE clicking. The automator never buys/publishes/deletes blindly.
-                try:
-                    _, _name = await _describe_el(h)
-                except Exception:
-                    _name = ""
-                if _DANGER_RE.search((_name or "").lower()):
-                    if not await self._confirm(_name):
-                        return False, f"acción «{_name[:40]}» NO confirmada por el operador"
+                # CONFIRM-GATE (safety): if the click looks IRREVERSIBLE, STOP and ask the operator for OK
+                # BEFORE clicking. The automator never buys/publishes/deletes/books blindly.
+                # V2-711 T1: this used to be the ONLY gated route and it judged the LABEL alone — 21 of 30
+                # real button labels walked through it, «Reservar» and «Confirmar reserva» among them — and
+                # it failed OPEN when the element could not be described. All four routes share `_may_act`
+                # now, which reads the element's CONTEXT as well as its words and fails CLOSED.
+                ok, why = await self._may_act(page, h)
+                if not ok:
+                    return False, why
                 await _human_click_handle(page, h, self.mouse)
                 await asyncio.sleep(0.7)
                 await self._reap_popups()                     # TASK 3: absorb/close popups → no accumulated tabs
                 await self._capture()
                 return True, "clic hecho"
             if action == "type":
-                await _human_type_handle(page, h, str(args.get("text", "")), bool(args.get("submit")), self.mouse)
+                # Typing is harmless; `--submit` presses Enter inside the helper, which is not (V2-711 T1).
+                _submit = bool(args.get("submit"))
+                if _submit:
+                    ok, why = await self._may_act(page, h)
+                    if not ok:
+                        await _human_type_handle(page, h, str(args.get("text", "")), False, self.mouse)
+                        await self._capture()
+                        return True, "texto escrito; NO enviado: " + why
+                await _human_type_handle(page, h, str(args.get("text", "")), _submit, self.mouse)
                 await asyncio.sleep(0.6)
                 await self._capture()
                 return True, "texto escrito"
@@ -1573,6 +1601,11 @@ class TaskBrowser:
         except Exception as e:
             return False, f"{type(e).__name__}: {_brief(e, 120)}"
         return False, f"acción desconocida: {action}"
+
+    async def _may_act(self, page, handle, at: tuple[float, float] | None = None) -> tuple[bool, str]:
+        """THE ONE GATE in front of an irreversible click (V2-711 T1). All four routes that reach the mouse
+        or the keyboard consult it BEFORE moving anything; the decision itself lives in `click_gate`."""
+        return await _click_gate.may_act(page, handle, at, confirm=self._confirm, task_id=self.task_id)
 
     async def _confirm(self, label: str) -> bool:
         """Ask the operator for OK on an irreversible action and WAIT for the response (by voice, routed to this task).
