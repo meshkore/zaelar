@@ -21,6 +21,56 @@ entregada siga citada aquí.
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **El item que ÉL nombró llegaba a la basura, no al handler (V2-708, 2026-09-16)**: sesión `2fe99f15`,
+  nueve turnos y una sola orden. Dijo «A dentist», «At five o'clock in the afternoon», «Thursday,
+  seventeenth. Please delete that appointment» — y salieron **cinco `cancel_meeting {}` idénticos**, cada uno
+  rechazado por la puerta de V2-705 por selector vacío y cada uno contestado leyéndole su propia agenda. La
+  fila que pedía borrar, «Dentist (cita 2026-09-17 17:00)», **estaba en el menú que le recitó**. Su frase:
+  «no veo ningún gramo de inteligencia… esto en un prompt a mi perro y sería capaz de ejecutarlo».
+  · **La causa: `refs.resolve` nunca leía la referencia.** Su primera línea es
+  `field = id_field_for_action(...)` y `if not field: return RefResult(True, payload)` — «nada que resolver»,
+  con `ref` sin abrir. Y `field` era `None` porque esa función conocía solo dos formas de saber qué clave
+  nombra una fila: un `"ref"` declarado, o la convención de V2-026 (clave terminada en `id`). `cancel_meeting`
+  declara `title`/`date`.
+  · **Y la ausencia de `ref` NO era un descuido.** V2-643 se lo quitó a propósito, y su test lo decía: `ref`
+  era TAMBIÉN el interruptor del resolvedor POSICIONAL, y «la tercera» sobre un calendario que no numera nada
+  cancelaría una cita que nadie nombró. Una sola declaración cargaba dos decisiones sin relación —QUÉ CLAVE
+  nombra una fila, y SI contar filas significa algo— y el widget no podía tener la primera sin la segunda. Ese
+  acoplamiento es el fallo real, y es el que se ha roto: `"positional": false` es ahora su propia declaración.
+  · **La otra mitad del corte cierra la CLASE, no la ruta.** `id_field_for_action` lee también el `collections`
+  que el manifiesto ya traía (`meetings.id == "title"`, doscientas líneas por encima de la acción que lo
+  necesitaba), y solo para los verbos `via` que tocan una fila EXISTENTE — nunca `put`, que haría que
+  `add_meeting` rechazara toda cita con título nuevo. V2-595 arregló una ruta (`youtube`); esto cierra el
+  patrón. Precedente exacto de «arreglar una ruta no arregla la clase».
+  · **Las dos mitades de la misma máquina contestaban distinto.** `contract.selector_for` decía `title` (tiene
+  fallback a la primera clave del payload); `refs.id_field_for_action` decía `None` (no lo tiene). El hueco
+  entre las dos es donde se perdía la referencia, y el propio docstring de V2-705 ya describía el síntoma
+  («nothing between the model and the handler read that declaration») sin conectar el resolvedor. Ahora
+  comparten el lector de «¿este selector es opcional?» y un test recorre el catálogo entero exigiendo que no
+  discrepen.
+  · **El scorer castigaba la precisión.** Dividía por la longitud de la REFERENCIA, así que cada palabra de más
+  que él decía bajaba la puntuación de la fila correcta: «the Dentist appointment on Thursday the 17th» sacaba
+  0.8 contra «Dentist» —bajo el suelo de 1.0, `no_match`— y «Dentist» a secas sacaba 3.0. Cuanto mejor la
+  identificaba, menos resolvía. La cobertura se mide ahora **en los dos sentidos** y gana la mejor: una
+  etiqueta que la frase contiene ENTERA es un acierto, por mucho contexto que venga con ella.
+  · **Y si el modelo no nombra nada, se lee SU FRASE.** Último recurso, nunca por delante de `item`, y solo
+  para ENCONTRAR una fila que ya existe. Antes se estrellaba contra el menú teniendo en la frase todo lo
+  necesario, cinco veces. Se le quitan primero los días y los meses —clase cerrada, como `_ORDINALS`— porque
+  en una frase «del jueves» FECHA la petición: medido, «avisos para todas las citas del jueves» puntuaba lo
+  bastante alto la cita TITULADA «Jueves Santo» para ganar, y habría movido un aviso en vez de el día entero.
+  · **Dos filas con la misma etiqueta son dos cosas distintas.** El atajo de coincidencia exacta devolvía la
+  primera en silencio; con 29 filas tituladas «New» ese día, `cancel_meeting {"title": "New"}` resolvía a una
+  de ellas sin preguntar. Ahora caen al scorer, que las empata, y el desempate pregunta con el `hint` que las
+  distingue.
+  · **Y el evento de la data-op ya dice qué `item` se nombró.** Cinco filas de «payload: {}» sin `item` en
+  ninguna parte no pueden distinguir «el modelo no mandó nada» de «el resolvedor tiró lo que mandó», y se creyó
+  la primera lectura durante una semana. Esa ausencia de observabilidad es lo que hizo que el diagnóstico
+  costara siete días, no la complejidad del fallo.
+  Nodo 4.186. Once desarmes, los once rojos, control verde antes y después — y **tres salieron verdes primero y
+  acusaron a mis tests**: una guarda redundante (el desempate ya preguntaba, así que la rama se borró en vez de
+  taparse con un test), una fila de fixture con fecha PASADA que `ref_index()` no publica, y una identidad
+  (`contract._OPTIONAL_RE is refs._OPTIONAL_RE`) que no probaba que la PUERTA llamara al lector.
+
 - **La puerta CUENTA, lo hecho es un HECHO, y una queja no es un encargo (V2-707 F6, 2026-09-16)**:
   sesión `080b96a7`, con el aviso del propio operador de que el servidor vivo era anterior a F0/F1/F2 —cierto:
   corría `3.27+60dbdb98` contra HEAD `d65e593c`—. Reiniciado primero, **los cuatro fallos se reprodujeron en
