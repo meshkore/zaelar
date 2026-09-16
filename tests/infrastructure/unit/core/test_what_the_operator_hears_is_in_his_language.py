@@ -290,6 +290,88 @@ def test_a_language_with_no_spec_of_its_own_is_not_asked_either():
     assert L.spec("ja").treatment_question == L.LANGUAGES[L.current_code()].treatment_question
 
 
+# ── 4c · the DATA gate's own sentences (V2-707 F6, 2026-09-16) ─────────────────────────────────────────
+# V2-682 fixed the two gates in `nucleo/danger.py` and left the third one — the one that asks about a
+# widget's own DATA — composing its prose inside `voice/engine/llm/providers/confirm_gate.py`. Thirty
+# seconds after «Do not speak Spanish» (session 080b96a7, i=10599) the operator heard, in Castilian:
+#
+#   i=10765  «Voy a borrar 5 citas del 2026-09-17. Es permanente. ¿Las borro?»   ← composed in that module
+#   i=10600  «No hay ninguna cita que borrar en ese tramo»                        ← same module
+#   i=10427  «¿Vacío la agenda entera? Es permanente.»                            ← the manifest's confirm_q
+#
+# None of the three is a `notify`/`say` call nor an assignment to a spoken field: they are RETURN values,
+# the one shape the ratchet below still cannot see. So this section is the per-file measurement that stands
+# in for it — and it is where the next sentence of this class gets caught.
+
+def test_the_data_gate_asks_in_his_language():
+    from voice.engine.llm.providers import confirm_gate as cg
+    from widgets import store
+    from widgets.agenda import data as ag
+    db = ag.load_db()
+    db["meetings"] = [{"id": "x1", "title": "One", "date": "2035-03-03"},
+                      {"id": "x2", "title": "Two", "date": "2035-03-03"}]
+    store.save(ag.WIDGET_ID, db)
+    pl = {"from": "2035-03-03", "to": "2035-03-03"}
+    en = _in("en", lambda: cg._human_confirm_question("agenda", "clear_range", pl))
+    es = _in("es", lambda: cg._human_confirm_question("agenda", "clear_range", pl))
+    assert en != es
+    assert "2 appointments" in en and "permanent" in en.lower()
+    assert "2 citas" in es and "permanente" in es.lower()
+
+
+def test_an_empty_range_and_a_contradicted_scope_answer_in_his_language():
+    from voice.engine.llm.providers import confirm_gate as cg
+    empty = {"from": "2035-12-24", "to": "2035-12-25"}
+    assert "nothing to delete" in _in("en", lambda: cg._human_confirm_question("agenda", "clear_range", empty))
+    assert "No hay ninguna cita" in _in("es", lambda: cg._human_confirm_question("agenda", "clear_range", empty))
+    pl = {"from": "2035-03-03", "to": "2035-03-03"}
+    en = _in("en", lambda: cg.decide("agenda", "clear_range", pl, "delete the five"))
+    es = _in("es", lambda: cg.decide("agenda", "clear_range", pl, "borra las cinco"))
+    assert en["kind"] == es["kind"] == "mismatch"
+    assert "asked me for" in en["sentence"] and "pedido" in es["sentence"]
+
+
+def test_a_widgets_own_confirm_q_travels_to_the_operators_language():
+    """`clear_all`'s question lives in its MANIFEST — that is where a widget's rails belong — so the gate
+    looks the bundle up FIRST, exactly as V2-694 did for widget names."""
+    from voice.engine.llm.providers import confirm_gate as cg
+    en = _in("en", lambda: cg._human_confirm_question("agenda", "clear_all", {}))
+    es = _in("es", lambda: cg._human_confirm_question("agenda", "clear_all", {}))
+    assert en != es
+    assert "empty the whole agenda" in en.lower() and "Vacío la agenda entera" in es
+
+
+def test_every_confirm_GATED_action_of_every_shipped_widget_has_its_key():
+    """The measurement, not one example: a `confirm:true` action whose question is only in the manifest is
+    a sentence the operator hears in Castilian whatever language he chose."""
+    import json
+    keys = json.loads((ENGINE / "i18n/bundles/en.json").read_text(encoding="utf-8"))
+    es_keys = json.loads((ENGINE / "i18n/bundles/es.json").read_text(encoding="utf-8"))
+    from widgets import actions as wa
+    missing = []
+    for man in sorted((ENGINE / "widgets").glob("*/manifest.json")):
+        wid = man.parent.name
+        for name, spec in (json.loads(man.read_text(encoding="utf-8")).get("actions") or {}).items():
+            if wa.classify(spec, name) != wa.CONFIRM:
+                continue
+            k = f"widgets.{wid}.confirm.{name}"
+            if k not in keys or k not in es_keys:
+                missing.append(k)
+    assert not missing, f"a confirmation that cannot be translated: {missing}"
+
+
+def test_the_confirm_gate_holds_no_prose_of_its_OWN():
+    """The durable half. Every sentence in that module now comes from the table or from a bundle, so a new
+    literal there is a decision somebody makes on purpose rather than a leak nobody sees until he hears it."""
+    src = (ENGINE / "voice/engine/llm/providers/confirm_gate.py").read_text(encoding="utf-8")
+    import ast
+    leaks = []
+    for n in ast.walk(ast.parse(src)):
+        if isinstance(n, ast.Return) and n.value is not None:
+            leaks += [t for t in _flat(n.value) if _spanishy(t)]
+    assert not leaks, f"the gate is composing its own Castilian again: {leaks}"
+
+
 # ── 5 · THE RATCHET: prose at a delivery point only shrinks ─────────────────────────────────────────────
 # The operator's standing instruction: «intenta unificar todos los textos, labels, todo el contenido que
 # tiene que traducirse, que esté en un solo lugar». Two places qualify and both travel to any language:

@@ -128,6 +128,53 @@ _REMINDER_RE = re.compile(
     r"\b(?:apunta|apuntame|apuntalo|anota|anotame|recuerda|recuerdame|acuerdate|no\s+olvides|"
     r"remind\s+me|note\s+that|make\s+a\s+note)\b[^.!?;]*", re.I)
 
+# ── A COMPLAINT ABOUT WHAT ALREADY HAPPENED IS NOT AN ORDER (V2-707 F6) ─────────────────────────────────────
+# Measured in session 080b96a7 (2026-09-16). After two `clear_range` sweeps had run, he said, in this order:
+#
+#   i=10804  «No. You did delete all»                                        → task 2 opened
+#   i=10829  «No. You did delete all day, and I just set three of them.»      → task 3 opened
+#   i=10873  «Are you stupid? You just did delete.»                           → task 5 opened (deduped)
+#   i=11064  «…items that you did delete without my permission.»              → merged into a live task
+#
+# Three escalations to a Brain Worker while he was asking for an explanation, each one going on to park at
+# the irreversibles gate and be discarded. `is_dangerous` is the classifier that decides ALL of it — the
+# voice backstop (`providers/nucleo.py`), the probe's mirror, and `dispatch._run_session`'s own gate — and
+# it read «delete» in a sentence whose grammar says the act is already in the past and was not asked for.
+#
+# The fix is a SUBTRACTION of reach, not a new guard, and it uses the technique this module already relies
+# on twice: strip the clause, THEN look for the verb. `_REMINDER_RE` does it so «recuérdame pagar…» is not
+# an order to pay, and `_AMOUNT_QUESTION_RE` so «¿cuánto hay que pagar?» is not either. Same shape, third
+# case: an accusation in the past tense, and a question about whether it happened.
+#
+# The clause ends at the next `. ! ? ; ,` — deliberately at the COMMA too, so a turn that complains AND then
+# orders keeps its order: «you deleted my account without asking, now delete the other one» still stops.
+# «you have to pay» is untouched (the frame demands a past participle or `did`), and so is «can you pay?».
+_PAST_ACT_RE = re.compile(
+    r"\b(?:why\s+|who\s+|when\s+|how\s+)?did\s+you\b[^.!?;,]*"
+    r"|\byou\s+(?:just\s+|already\s+)?did\b[^.!?;,]*"
+    r"|\byou(?:'ve|\s+have)\s+(?:just\s+|already\s+)?\w+ed\b[^.!?;,]*"
+    r"|\byou\s+(?:just|already)\s+\w+ed\b[^.!?;,]*"
+    r"|\bi\s+(?:never|didn'?t|did\s+not)\s+(?:ask|asked|tell|told|say|said)\b[^.!?;,]*"
+    r"|\bpor\s+que\s+(?:me\s+|nos\s+|las?\s+|los?\s+)*(?:has|habeis|ha|han)\b[^.!?;,]*"
+    r"|\b(?:ya\s+)?(?:me\s+|nos\s+|te\s+|se\s+|las?\s+|los?\s+)*(?:has|habias)\s+\w+d[oa]s?\b[^.!?;,]*"
+    r"|\bacabas\s+de\s+\w+\b[^.!?;,]*"
+    r"|\bno\s+te\s+(?:he|hemos)\s+(?:dicho|pedido)\b[^.!?;,]*"
+    r"|\b(?:nunca|jamas)\s+te\s+(?:he|hemos)\s+(?:dicho|pedido)\b[^.!?;,]*",
+    re.I)
+
+
+def _drop_past_acts(order: str) -> str:
+    """Remove the clauses that TALK ABOUT an act instead of ordering one, before any verb is looked for."""
+    return _PAST_ACT_RE.sub(" ", order)
+
+
+def about_a_past_act(text: str) -> bool:
+    """True when the turn only DISCUSSES something already done — nothing left to gate once the accusation
+    is removed. Public so the timeline can say why a turn did not escalate."""
+    order = _strip_accents(_order_text(text))
+    return bool(_PAST_ACT_RE.search(order)) and not is_dangerous(text)
+
+
 _PAREN_RE = re.compile(r"\([^()]*\)")
 _NOUN_COMPOUND_RE = re.compile(
     r"\bcompra\s*[-/y]\s*venta\b|\bventa\s*[-/y]\s*compra\b|\bcompraventa\b|\bbuying\s+and\s+selling\b", re.I)
@@ -211,7 +258,8 @@ def is_dangerous(text: str) -> bool:
     # translated implementation note
     # translated implementation note
     # translated implementation note
-    order = _drop_amount_questions(_drop_lookup_adjuncts(_REMINDER_RE.sub(" ", _strip_accents(_order_text(text)))))
+    order = _drop_past_acts(
+        _drop_amount_questions(_drop_lookup_adjuncts(_REMINDER_RE.sub(" ", _strip_accents(_order_text(text))))))
     return bool(_DANGER_RE.search(order) or _DANGER_CLITIC_RE.search(order)
                 or _DANGER_ASK_CLITIC_RE.search(order) or _DANGER_PROCLITIC_RE.search(order)
                 or _COMMITMENT_RE.search(order) or _DESTROY_OBJECT_RE.search(order))
@@ -247,14 +295,16 @@ _MONEY_VERB_RE = re.compile(r"\b(?:pagar|comprar|abonar|transferir|adquirir|cont
 
 def ends_a_commitment(text: str) -> bool:
     """Documentation translated to English."""
-    return bool(_COMMITMENT_RE.search(_REMINDER_RE.sub(" ", _strip_accents(_order_text(text)))))
+    return bool(_COMMITMENT_RE.search(
+        _drop_past_acts(_REMINDER_RE.sub(" ", _strip_accents(_order_text(text))))))
 
 
 def moves_money(text: str) -> bool:
     """Documentation translated to English."""
     # translated implementation note
     # translated implementation note
-    order = _drop_amount_questions(_drop_lookup_adjuncts(_REMINDER_RE.sub(" ", _strip_accents(_order_text(text)))))
+    order = _drop_past_acts(
+        _drop_amount_questions(_drop_lookup_adjuncts(_REMINDER_RE.sub(" ", _strip_accents(_order_text(text))))))
     if _MONEY_RE.search(order):
         return True
     # translated implementation note

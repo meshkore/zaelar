@@ -354,8 +354,10 @@ async def _dispatch(wid: str, action: str, payload: dict):
     # same data. The friction is the RADIUS (one row runs, several ask), never the name of a verb.
     if str(action or "").startswith("rows."):
         from . import rows as _rows
-        return await _rows.apply(wid, str(action).split(".", 1)[1], payload,
-                                 confirmed=bool((payload or {}).get("confirmed")))
+        res = await _rows.apply(wid, str(action).split(".", 1)[1], payload,
+                                confirmed=bool((payload or {}).get("confirmed")))
+        _note_done(wid, action, payload, res)
+        return res
     try:
         from . import producers
         denied = producers.gate(wid, action)
@@ -364,12 +366,39 @@ async def _dispatch(wid: str, action: str, payload: dict):
     except Exception:
         pass
     res = await dispatch_raw(wid, action, payload)
+    # V2-707 F6 — AND THE LEDGER OF WHAT HAPPENED. Every mutation crosses this funnel, so this is the one
+    # place that can tell the NEXT turn what the engine actually did to his data. It records nothing when the
+    # door refused, exactly like F0's anti-drag seal: a refusal is not an event. See `nucleo/done_ops.py` for
+    # the two turns of 2026-09-16 that told him his calendar was intact while it was two sweeps lighter.
+    _note_done(wid, action, payload, res)
     try:
         from . import producers
         await producers.enforce_exclusive(wid, action)
     except Exception:
         pass
     return res
+
+
+def _note_done(wid: str, action: str, payload: dict, res) -> None:
+    """Write one executed mutation into the session ledger. Best-effort by contract: bookkeeping must never
+    turn a data-op into an error."""
+    try:
+        if isinstance(res, dict) and (res.get("ok") is False or res.get("error")):
+            return
+        if res is _MISSING or res is None:
+            return
+        from nucleo import done_ops as _done
+        from . import actions as _acts, runtime as _rt
+        a = str(action or "")
+        if a.startswith("rows."):
+            mode_destructive = a.split(".", 1)[1] in ("delete", "patch")
+        else:
+            spec = ((_rt.get(wid) or {}).get("actions") or {}).get(a) or {}
+            mode_destructive = _acts.classify(spec, a) == _acts.CONFIRM
+        n = res.get("done") if isinstance(res, dict) and isinstance(res.get("done"), int) else None
+        _done.note(wid, a, payload or {}, n=n, destructive=mode_destructive)
+    except Exception:  # noqa: BLE001
+        pass
 
 
 @router.post("/widgets/{wid}/action")

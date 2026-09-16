@@ -732,6 +732,42 @@ def harness_lines() -> list[str]:
         return []
 
 
+def done_ops_lines() -> list[str]:
+    """V2-707 F6 — WHAT THE ENGINE ALREADY DID TO HIS DATA, with its rule beside it (V2-453's lesson: the
+    fact alone changes nothing).
+
+    Measured 2026-09-16 (session 080b96a7, i=10817 and i=10853): two `clear_range` sweeps had run, nine rows
+    were gone, and the turn said «In this conversation I never confirmed a deletion, so nothing has been
+    removed from your calendar». That was a correct deduction from the only ledger it could see — the
+    PENDING confirmations — because nothing carried the EXECUTED ones. The instruction matters as much as the
+    fact: what he is disputing is not whether he said yes, it is whether it happened, and only one of those
+    two is a thing we know.
+
+    Zero lines when nothing ran, and fail-open: a ledger that cannot be read costs the prompt nothing.
+    """
+    try:
+        from nucleo import done_ops as _done
+        rows = _done.recent()
+        if not rows:
+            return []
+        import time as _t
+        bits = []
+        for d in rows:
+            ago = max(0, int(_t.time() - float(d.get("at") or _t.time())))
+            n = d.get("n")
+            bits.append(f"«{d['wid']}:{d['action']}»" + (f" ({n} fila/s)" if isinstance(n, int) else "")
+                        + f" hace {ago}s")
+        head = ("YA EJECUTADO SOBRE SUS DATOS en esta sesión (hechos del sistema, no de la conversación): "
+                + "; ".join(bits) + ".")
+        if any(d.get("destructive") for d in rows):
+            return [head + " Eso YA PASÓ. Si el operador dice que has borrado o cambiado algo, TIENE RAZÓN: "
+                    "no razones desde si hubo confirmación o no —eso es otra cosa— ni le digas que no se ha "
+                    "tocado nada. Dile QUÉ se ejecutó y ofrécele deshacerlo o revisarlo."]
+        return [head + " Si pregunta por ello, cuéntalo como hecho en vez de volver a hacerlo."]
+    except Exception:  # noqa: BLE001
+        return []
+
+
 from nucleo.flash.task_block import _short_note, pending_task_lines  # noqa: E402,F401 — re-export
 
 

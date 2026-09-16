@@ -21,6 +21,59 @@ entregada siga citada aquí.
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **La puerta CUENTA, lo hecho es un HECHO, y una queja no es un encargo (V2-707 F6, 2026-09-16)**:
+  sesión `080b96a7`, con el aviso del propio operador de que el servidor vivo era anterior a F0/F1/F2 —cierto:
+  corría `3.27+60dbdb98` contra HEAD `d65e593c`—. Reiniciado primero, **los cuatro fallos se reprodujeron en
+  HEAD**. Cuatro cortes, todos sobre la CONSECUENCIA:
+  · **Enunciar el número no es compararlo.** Pidió «clean the three» y la puerta dijo «Voy a borrar **5** citas
+  del 2026-09-17. Es permanente. ¿Las borro?»; su «Yes.» se llevó cinco filas. El número lo puso V2-693 a
+  propósito, porque «una confirmación que no cuenta lo que se lleva por delante es una a la que se dice que sí
+  sin mirar» — lo que faltaba es la RESTA. Tres y cinco no son una pregunta y su respuesta: son dos
+  afirmaciones sobre el mismo acto, y un «sí» a una contradicción no autoriza nada. Ahora `confirm_gate.decide`
+  mide las dos mitades —`nucleo/asked_count.named` lee el número que él dijo, `radius` el que dan los datos
+  desde `sweep`/`rows.plan`, los MISMOS que ejecutan— y ante el desajuste lo dice con los dos números y los
+  nombres, **sin registrar nada**. Igual para un radio de CERO, que antes abría una confirmación cuya
+  «pregunta» era la frase «No hay ninguna cita que borrar en ese tramo». Lo delicado no era comparar: era no
+  leer una FECHA como una cuenta («clean the 17th»), porque refusar ahí es el mismo fallo apuntando al otro
+  lado — de ahí que solo cuenten las palabras de número en marco de conteo, y un dígito solo con su
+  sustantivo contado.
+  · **Lo ejecutado tiene que ser un hecho del turno.** Habían corrido dos `clear_range` (i=10545, i=10780) y el
+  turno dijo «In this conversation I never confirmed a deletion, so nothing has been removed from your
+  calendar». Era una deducción CORRECTA del único registro que llevaba el prompt: el de confirmaciones
+  PENDIENTES. Nada le contaba lo EJECUTADO, así que razonó desde la ausencia de una confirmación hasta la
+  ausencia de un acto y le dijo a su dueño que su calendario estaba intacto con nueve filas menos. `nucleo/
+  done_ops.py` se escribe en el EMBUDO único (voz, botón, worker y cron caen en él) y solo cuando la op
+  ocurrió —la misma regla que F0 puso en el sello anti-arrastre—, y llega al turno CON su instrucción (V2-453):
+  la línea prohíbe por su nombre la frase que oyó.
+  · **Una queja sobre lo ya hecho no es un encargo.** Sus tres quejas abrieron tres tareas de Brain Worker, cada
+  una aparcada en la puerta de irreversibles y descartada, mientras se le abrían `navegador::t1` y
+  `results::b8ed90-4` en el canvas y él pedía explicaciones («Do not open a fucking widget for this»). El
+  arreglo es una RESTA en `danger.is_dangerous` —el clasificador que leen los TRES decisores, no el backstop,
+  porque no pueden discrepar sobre qué es una orden— con la técnica que ese módulo ya usa dos veces: recortar
+  la cláusula antes de buscar el verbo. La cláusula acaba en el siguiente `. ! ? ; ,`, **en la coma a
+  propósito**, para que una queja que TERMINA en una orden conserve la orden. La queja que él citó (`delete`
+  pelado) ya la cerraba F0 al juzgar «borrar» por su objeto; la CLASE seguía viva con los demás verbos
+  («Why did you buy that? I never asked you to.» = `True` en HEAD).
+  · **Las frases del confirm-gate no pasaban por la tabla de idioma.** Treinta segundos después de «Do not speak
+  Spanish» oyó «Voy a borrar 5 citas…», «No hay ninguna cita que borrar…» y «¿Vacío la agenda entera?».
+  Ninguna es un `notify`/`say` ni una asignación a un campo hablado: son RETURN, **la única forma que el
+  trinquete de prosa de V2-682 no ve**, y por eso el escape llevaba un mes invisible. 23 campos nuevos en
+  `i18n/langs.py` con su mitad inglesa —la frase del barrido en PIEZAS, porque el tramo, lo conservado y el
+  plural los decide el dato y un idioma que los ordene distinto tiene que poder decirlo—, y el `confirm_q` del
+  MANIFIESTO (donde van los carriles de un widget) se busca primero en el bundle,
+  `widgets.<id>.confirm.<acción>`, igual que V2-694 con los nombres: 18 claves × 2 idiomas, con un test que
+  exige la clave para TODA acción `confirm:true` de todo widget enviado.
+  · Enseñarle al trinquete a mirar los `return` encuentra **415 frases en 100 ficheros** y muchas son para el
+  MODELO (V2-652), así que no cabía en la tanda: en su lugar, un test por fichero sobre `confirm_gate.py`.
+  **Queda abierto como clase.**
+  · Bajo el trinquete de arquitectura: `i18n/phrasebooks.py` (los libros de frases, DATO puro leído en un solo
+  sitio, byte por byte — 911 → 824) y la narración de `_request_cluster_confirm` condensada, porque
+  `providers/nucleo.py` estaba clavado EXACTAMENTE en 3043.
+  · ⚠️ **Dos desarmes salieron VERDES y acusaron a mis tests**: uno usaba `cancel_meeting {}`, que el contrato
+  de V2-705 rechaza ANTES del embudo, así que nunca llegaba a la línea desarmada; el otro medía una frontera de
+  coma con una frase que no casaba ninguna cláusula en pasado. Los dos cerrados con casos que sí la ejercen.
+  10 desarmes, los 10 rojos, control verde antes y después. Nodos 2.64, 2.65, 4.185.
+
 - **El círculo se cierra solo: la reunión del jueves, de punta a punta (V2-705, 2026-09-15 noche)**:
   el operador pidió una última prueba conducida por él como usuario —«dile que se olvide del resto de reuniones,
   empezamos de cero, una para el jueves a las 5»— y que se verificara que el sistema es autónomo «independientemente

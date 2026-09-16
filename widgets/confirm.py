@@ -112,7 +112,8 @@ def request_restore(spoken: str) -> dict:
     wid = lifecycle.restorable_id(spoken)
     if not wid:
         return {}
-    question = f"¿Vuelvo el widget «{wid}» a la versión de sistema? Tu versión se descarta."
+    from i18n import langs as _lg
+    question = _lg.current_language().widget_restore_confirm.format(wid=wid)
     request("restore", wid, question, notify_ui=ui_paints(wid))
     return {"wid": wid, "question": question}
 

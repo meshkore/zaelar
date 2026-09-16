@@ -1165,6 +1165,25 @@ DOMAINS: list[dict] = [
                                 "con lo que falta · lo ilegible no acusa a nadie",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/"
                                   "test_a_task_does_not_end_because_the_worker_says_so.py"]},
+        # V2-707 F6 — LO EJECUTADO ES UN HECHO DEL TURNO. Habían corrido dos `clear_range` (i=10545, i=10780) y
+        # el turno dijo «In this conversation I never confirmed a deletion, so nothing has been removed from
+        # your calendar». Era una deducción CORRECTA del único registro que llevaba el prompt: el de
+        # confirmaciones PENDIENTES. Nada le contaba lo EJECUTADO. Se escribe en el embudo (voz, botón, worker
+        # y cron caen en él) y solo cuando la op ocurrió — la misma regla que F0 puso en el sello anti-arrastre.
+        {"id": "2.64", "title": "Una mutación que YA CORRIÓ es un hecho del turno siguiente, con su regla al "
+                                "lado: el embudo la escribe, un rechazo no, y el prompt prohíbe por su nombre "
+                                "la frase «no se ha tocado nada»",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/"
+                                  "test_what_already_ran_is_a_fact_of_the_turn.py"]},
+        # V2-707 F6 — UNA QUEJA SOBRE LO YA HECHO NO ES UN ENCARGO. Sus tres quejas abrieron tres tareas de
+        # Brain Worker (i=10820, i=10856, i=10918), cada una aparcada en la puerta de irreversibles y
+        # descartada, mientras se le abrían superficies en el canvas y él pedía explicaciones. El arreglo es
+        # una RESTA en `danger.is_dangerous` —el clasificador que leen los TRES decisores— con la técnica que
+        # ese módulo ya usa dos veces: recortar la cláusula antes de buscar el verbo.
+        {"id": "2.65", "title": "Una queja sobre lo ya hecho no es una orden de hacerlo: el clasificador que "
+                                "leen los tres decisores recorta la cláusula en pasado · y una queja que "
+                                "TERMINA en una orden conserva la orden",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/test_a_complaint_is_not_an_errand.py"]},
         {"id": "2.62", "title": "Una acción que la puerta RECHAZÓ no se recuerda como hecha: el sello sigue al "
                                 "resultado, así que el reintento corregido —que el propio rechazo pide— sí corre",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/"
@@ -2305,6 +2324,18 @@ DOMAINS: list[dict] = [
         # corriendo y no hay una segunda doctrina sobre los mismos datos. La fricción es el RADIO (una fila
         # corre, varias preguntan con la cuenta y los nombres), nunca el nombre de un verbo. 4.184 es la otra
         # mitad de su pregunta: nada comprobaba la superficie declarada contra las guardas que tiene delante.
+        # V2-707 F6 (2026-09-16, sesión 080b96a7) — LA PUERTA ENUNCIABA EL NÚMERO Y NO LO COMPARABA. Pidió
+        # «clean the three», la puerta dijo «Voy a borrar 5 citas del 2026-09-17. Es permanente. ¿Las borro?»
+        # y su «Yes.» se llevó cinco filas. El número lo puso V2-693 a propósito; lo que faltaba es la RESTA.
+        # Tres y cinco no son una pregunta y su respuesta: son dos afirmaciones sobre el mismo acto, y un «sí»
+        # a una contradicción no autoriza nada. El radio lo cuenta `sweep`/`rows.plan` (los mismos que ejecutan)
+        # y el número que él dijo lo lee `nucleo/asked_count.py` — que NUNCA lee una fecha como cuenta, porque
+        # eso sería el mismo fallo apuntando al otro lado.
+        {"id": "4.185", "title": "Un número que CONTRADICE la orden no es una confirmación: la puerta compara "
+                                 "el radio con lo que él contó, y ante el desajuste no registra nada · un "
+                                 "tramo VACÍO tampoco abre confirmación",
+            "ch": UNIT, "paths": ["tests/browser/unit/widgets/"
+                                  "test_a_number_that_contradicts_the_order_is_not_a_confirmation.py"]},
         {"id": "4.183", "title": "Una operación que NADIE declaró sigue siendo posible: la puerta genérica "
                                  "resuelve la expresión a filas y ejecuta la acción propia del widget en cada "
                                  "una · la fricción es el RADIO, no el verbo",

@@ -129,15 +129,28 @@ def test_the_question_names_WHO_by_WHICH_app_and_WHAT(box):
 
 
 def test_with_an_objective_the_question_IS_the_mandate(box):
-    """One yes authorises the exchange that follows, said out loud — instead of asking again per message."""
-    q = _q({"contact": "Iván", "text": "hola", "objective": "organizar una reunión esta tarde"})
+    """One yes authorises the exchange that follows, said out loud — instead of asking again per message.
+
+    V2-707 F6 moved this sentence into the language table, so the promise is asserted in BOTH shipped
+    languages: it was a Spanish literal, and an English operator heard it verbatim."""
+    from tests.lang import speaking
+    payload = {"contact": "Iván", "text": "hola", "objective": "organizar una reunión esta tarde"}
+    with speaking("es"):
+        q = _q(payload)
     assert "organizar una reunión esta tarde" in q
     assert "sigo yo la conversación" in q
+    with speaking("en"):
+        q_en = _q(payload)
+    assert "organizar una reunión esta tarde" in q_en, "the objective is HIS words, never translated"
+    assert "carry the conversation on" in q_en and "sigo yo" not in q_en
 
 
 def test_without_an_objective_it_promises_NOTHING_of_the_sort(box):
-    q = _q({"contact": "Iván", "text": "hola"})
-    assert "sigo yo" not in q
+    from tests.lang import speaking
+    with speaking("es"):
+        assert "sigo yo" not in _q({"contact": "Iván", "text": "hola"})
+    with speaking("en"):
+        assert "carry the conversation on" not in _q({"contact": "Iván", "text": "hola"})
 
 
 def test_the_question_never_recites_the_manifest_prose(box):

@@ -273,30 +273,44 @@ def test_un_keeper_con_HORA_no_salva_el_resto_de_su_dia(agenda):
     assert [m["title"] for m in ag.load_db()["meetings"]] == ["Salvada"]
 
 
-def test_la_pregunta_dice_CUANTAS_se_lleva_y_QUE_conserva(agenda):
-    """Una confirmación que no cuenta lo que se lleva por delante es una a la que se dice que sí sin mirar.
-    La enlatada decía «¿Vacío la agenda entera?» — verdad de la acción, y sin relación con lo que él pidió."""
+def test_the_question_says_HOW_MANY_it_takes_and_WHAT_it_keeps(agenda):
+    """A confirmation that does not count what it takes away is one you say yes to without looking. The
+    canned line used to say «¿Vacío la agenda entera?» — true of the action, unrelated to what he asked for.
+
+    V2-707 F6: the sentence now comes from the language table, so the assertion is made in each language
+    instead of against the Castilian that an English operator was being read (i=10765, 2026-09-16)."""
     from voice.engine.llm.providers.confirm_gate import _human_confirm_question
     from widgets.agenda import data as ag
     from widgets import store
+    from tests.lang import speaking
     db = ag.load_db()
     db["meetings"] = [{"title": "Dentista", "date": "2026-09-15", "startTime": "17:00"},
                       {"title": "Consejo", "date": "2026-09-16", "startTime": "10:00"},
                       {"title": "Zerohash", "date": "2026-09-15", "startTime": "15:00"}]
     store.save(ag.WIDGET_ID, db)
+    payload = {"from": "2026-09-14", "to": "2026-09-20", "keep": "Zerohash"}
 
-    q = _human_confirm_question("agenda", "clear_range",
-                                {"from": "2026-09-14", "to": "2026-09-20", "keep": "Zerohash"})
-
+    with speaking("es"):
+        q = _human_confirm_question("agenda", "clear_range", payload)
     assert "2 citas" in q, q
     assert "«Zerohash»" in q, "lo que se conserva se NOMBRA, o no se puede comprobar antes de decir que sí"
     assert "permanente" in q.lower() and q.strip().endswith("?")
 
+    with speaking("en"):
+        q_en = _human_confirm_question("agenda", "clear_range", payload)
+    assert "2 appointments" in q_en, q_en
+    assert "Zerohash" in q_en and "permanent" in q_en.lower() and q_en.strip().endswith("?")
+    assert "citas" not in q_en, "the operator asked, out loud, not to be spoken to in Spanish"
 
-def test_un_tramo_VACIO_lo_dice_en_vez_de_pedir_permiso_para_nada(agenda):
+
+def test_an_EMPTY_range_says_so_instead_of_asking_permission_for_nothing(agenda):
     from voice.engine.llm.providers.confirm_gate import _human_confirm_question
-    q = _human_confirm_question("agenda", "clear_range", {"from": "2027-01-01", "to": "2027-01-02"})
-    assert "No hay ninguna cita" in q
+    from tests.lang import speaking
+    payload = {"from": "2027-01-01", "to": "2027-01-02"}
+    with speaking("es"):
+        assert "No hay ninguna cita" in _human_confirm_question("agenda", "clear_range", payload)
+    with speaking("en"):
+        assert "nothing to delete" in _human_confirm_question("agenda", "clear_range", payload)
 
 
 def test_una_confirmacion_abierta_no_puede_quedarse_MUDA_bajo_la_frase_del_modelo():

@@ -35,7 +35,7 @@ from widgets import confirm as _wconfirm, lifecycle as _wlifecycle
 # The pending-confirmation pair moved to `confirm_gate.py` (2026-09-02 ratchet pass): they needed nothing
 # from this file, so the dependency runs one way. Imported back under their own names — every call site
 # in this module keeps working unchanged, and so does anything that reads them from here.
-from .confirm_gate import _human_confirm_question, _similar_pending  # noqa: F401 — re-export
+from .confirm_gate import _human_confirm_question, _similar_pending, decide as _confirm_decide  # noqa: F401
 
 _WINDOW_MAX = 10
 _TAG_TASKS: set = set()
@@ -983,9 +983,9 @@ class NucleoLLMStream(llm.LLMStream):
                     acted["widget"] = True
                     acted["closed"] = True
                     return
-                _wconfirm.request("delete", wid, "¿Seguro que quieres que borre este widget?",
+                _wconfirm.request("delete", wid, _say().widget_delete_confirm,
                                   notify_ui=_wconfirm.ui_paints(wid))
-                confirm_state["opened"] = f"¿Seguro que quieres que borre el widget «{wid}»?"
+                confirm_state["opened"] = _say().widget_delete_confirm_named.format(wid=wid)
                 emit("brain", "🗑️ confirmación de borrado pedida", text=wid, role="system")
             except Exception as e:  # noqa: BLE001
                 logger.warning(f"delete confirm request falló: {e}")
@@ -997,7 +997,7 @@ class NucleoLLMStream(llm.LLMStream):
             try:
                 r = _wconfirm.request_restore(widget_id or turn_text)
                 if not r:
-                    clarify["msg"] = "No encuentro ninguna versión personalizada o borrada que restaurar."
+                    clarify["msg"] = _say().widget_restore_nothing
                     emit("brain", "⚠️ restaurar: nada que restaurar con ese nombre",
                          text=(widget_id or turn_text)[:80], role="system")
                     return
@@ -1009,43 +1009,38 @@ class NucleoLLMStream(llm.LLMStream):
         def _request_data_confirm(widget_id: str, action_name: str, payload: dict) -> None:
             """El FlashBrain quiere ejecutar una data-op IRREVERSIBLE (`confirm:true` en el manifest, V2-025) →
             abre la CONFIRMACIÓN (overlay Sí/No en la tarjeta) guardando la MUTACIÓN; solo al decir "sí" se
-            despacha por `apply_action` — jamás se escala a código. Espejo de `_request_delete_confirm`."""
+            despacha por `apply_action` — jamás se escala a código. Espejo de `_request_delete_confirm`.
+
+            The VERDICT is `confirm_gate.decide` (V2-707 F6): a radius that contradicts the count in his
+            order, or a radius of zero, registers nothing at all — see that module for the measurement."""
             try:
-                wid = (widget_id or "").strip().lower()
-                if not wid:
+                d = _confirm_decide(widget_id, action_name, payload or {}, text)
+                if not d:
                     return
-                # COPY HUMANO (2026-07-15): antes el overlay decía «¿Confirmas «drop_project»?» — jerga interna que
-                # el operador leyó como "borra el widget entero". La confirmación debe exponer el ALCANCE REAL en
-                # lenguaje natural (qué HACE la acción + sobre QUÉ item), leído del manifest, para que el operador
-                # vea si es más de lo que pidió (aquí: un PROYECTO entero, no la tarea que nombró). Genérico.
-                q = _human_confirm_question(wid, (action_name or "").strip(), payload or {})
-                _wconfirm.request("data", wid, q,
-                                 op={"action": (action_name or "").strip(), "payload": payload or {}},
-                                 notify_ui=_wconfirm.ui_paints(wid))
-                confirm_state["opened"] = q
-                emit("brain", "⚠️ confirmación de acción irreversible pedida", text=f"{wid}:{action_name}",
-                     role="system")
+                if d["kind"] != "ask":
+                    clarify["msg"] = d["sentence"]
+                    emit("brain", "⛔ el alcance no es el que pidió — no abro confirmación"
+                         if d["kind"] == "mismatch" else "🫙 nada que borrar — no abro confirmación",
+                         text=f"{d['wid']}:{d['action']}", role="system",
+                         extra={"cat": "flash", "asked": d.get("asked"), "n": d.get("n")})
+                    return
+                _wconfirm.request("data", d["wid"], d["question"], op=d["op"],
+                                  notify_ui=_wconfirm.ui_paints(d["wid"]))
+                confirm_state["opened"] = d["question"]
+                emit("brain", "⚠️ confirmación de acción irreversible pedida",
+                     text=f"{d['wid']}:{d['action']}", role="system")
             except Exception as e:  # noqa: BLE001
                 logger.warning(f"data confirm request falló: {e}")
 
         def _request_cluster_confirm(name: str, cluster_id: str, token: str, handle: str | None,
                                      perms: dict | None = None, vis: str = "") -> None:
-            """V2-064, bug 2026-07-23: la sola DESCRIPCIÓN de la tool ('solo si el operador te lo pide') NO bastó —
-            un bloque de texto pegado que se limitaba a MENCIONAR un cluster_id/token (sin que el operador pidiera
-            nada aparte) hizo que el modelo llamara a `connect_cluster` igual, y encima confabuló "ya estoy
-            conectado". Abrir un socket real a un cluster desconocido no puede depender de que el modelo pequeño
-            distinga una orden de un texto que solo la menciona — así que, como con borrar un widget o una data-op
-            irreversible, se pide confirmación DETERMINISTA antes de tocar la red. Sin un «sí» explícito del
-            operador, nada se conecta.
-
-            V2-086: el Sí/No ya NO vive en una tarjeta del canvas (el widget `cluster-registro` se retiró: la red
-            es infraestructura del sistema, no un widget de usuario). Ahora se pinta en la pestaña NATIVA
-            «Clusters» del ChatWall, que además es donde el operador ve el resultado. Esto arregla de paso un
-            agujero real: la confirmación por BOTÓN nunca funcionó para conectar — `/widgets/{id}/confirm` solo
-            sabía resolver borrados, así que el único camino que cerraba el círculo era decir «sí» por voz."""
+            """Opening a real socket to an unknown cluster asks the operator FIRST, deterministically — the
+            tool's own description ('only if the operator asks') was not enough: a pasted block that merely
+            MENTIONED a cluster_id made the model connect anyway and then claim it already had. The Yes/No is
+            painted on the ChatWall's native «Clusters» tab, not on a card. Why, and the two bugs behind it:
+            `.meshkore/docs/decisions.md` (V2-086) and `decisions-archive.md` (V2-064)."""
             try:
-                q = (f"¿Conectar al cluster MeshKore «{name}» (cluster_id {cluster_id[:10]}…)? Solo si tú me lo "
-                     f"acabas de pedir — no por algo que hayas pegado o reenviado.")
+                q = _say().cluster_connect_confirm.format(name=name, cid=cluster_id[:10])
                 _payload = {"name": name, "cluster_id": cluster_id, "token": token, "handle": handle}
                 if vis:
                     _payload["vis"] = vis              # V2-086: cluster PÚBLICO (sin token) → viaja al connect
@@ -2950,6 +2945,11 @@ class NucleoLLMStream(llm.LLMStream):
                 if _danger_bk.is_dangerous(_op_text):
                     escalate_req["v"] = _op_text
                     emit("brain", "🛑 orden irreversible sin escalar → tarea (pasará por el confirm-gate)",
+                         text=_op_text[:120], role="system", extra={"cat": "flash"})
+                elif _danger_bk.about_a_past_act(_op_text):
+                    # V2-707 F6 — said out loud so the timeline shows WHY nothing escalated: on 2026-09-16
+                    # three of his complaints became three Brain Worker tasks, invisibly.
+                    emit("brain", "🗣️ queja sobre lo ya hecho — no es un encargo nuevo",
                          text=_op_text[:120], role="system", extra={"cat": "flash"})
             except Exception:
                 pass

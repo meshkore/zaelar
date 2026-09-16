@@ -127,6 +127,57 @@ class LangSpec:
     irreversible_confirm: str = ("Antes de seguir necesito tu OK: esto puede ser irreversible («{what}»). "
                                  "¿Confirmas que quieres que lo haga?")
     confirm_cancelled: str = "Vale, no toco nada."
+    # ── V2-707 F6 — THE CONFIRM GATE'S OWN SENTENCES ────────────────────────────────────────────────────
+    # V2-682 moved `danger.py`'s two gates here and left the OTHER gate — the one that asks about a widget's
+    # own data — composing its prose inside `voice/engine/llm/providers/confirm_gate.py`. Measured on
+    # 2026-09-16 (session 080b96a7): thirty seconds after «Do not speak Spanish», the operator heard «Voy a
+    # borrar 5 citas del 2026-09-17. Es permanente. ¿Las borro?» (i=10765) and, before that, «No hay ninguna
+    # cita que borrar en ese tramo» (i=10600). Neither is a `notify`/`say` call nor an assignment to a spoken
+    # field — they are RETURN values, which is the one shape V2-682's ratchet still cannot see, so the leak
+    # was invisible until he heard it.
+    #
+    # The sentences arrive in PIECES on purpose: the span («del 17» vs «del 17 al 20»), what is kept and the
+    # plural are all decided by the DATA, and a language that words them differently has to be able to say
+    # so. Composing them from fragments of this table is the only way that stays true in a language nobody
+    # in this repo speaks.
+    sweep_confirm_one: str = "Voy a borrar 1 cita {span}{keeping}. Es permanente. ¿La borro?"
+    sweep_confirm_many: str = "Voy a borrar {n} citas {span}{keeping}. Es permanente. ¿Las borro?"
+    sweep_span_one: str = "del {since}"
+    sweep_span_range: str = "del {since} al {until}"
+    sweep_keeping: str = ", conservando {names}"
+    sweep_keeping_more: str = " y {n} más"
+    sweep_nothing: str = "No hay ninguna cita que borrar en ese tramo."
+    sweep_nothing_keeping: str = ("No hay ninguna cita que borrar en ese tramo, solo las {n} que quieres "
+                                  "conservar.")
+    sweep_confirm_bare: str = "¿Borro las citas de ese tramo? Es permanente."
+    #: THE CONTRADICTION (V2-707 F6). The order named a number and the radius resolved to a different one, so
+    #: there is nothing to say yes to — see `confirm_gate.scope_mismatch`.
+    scope_mismatch: str = ("Me has pedido {asked} y ahí hay {n}: {names}. No toco nada hasta que me digas "
+                           "cuáles.")
+    #: The generic tail of any confirmation, when the manifest resolved which item it is about.
+    data_confirm_item: str = " («{item}»)"
+    #: A `confirm_q` from a manifest that is not phrased as a question already.
+    data_confirm_needs_q: str = "{q} ¿Lo confirmo?"
+    #: No `confirm_q`: the action's own one-line description is quoted instead.
+    data_confirm_from_desc: str = "Ojo, esto es permanente: «{what}»{item}. ¿Lo confirmo?"
+    #: Not even a description — the last-resort sentence, which names the raw action.
+    data_confirm_generic: str = "Ojo, la acción «{action}»{item} es permanente. ¿La confirmo?"
+    #: ANSWERING a message (V2-051) and WRITING to a person (V2-683): the confirmation reads the draft.
+    reply_confirm: str = "Voy a responder{dest}: «{draft}». ¿Lo envío?"
+    reply_confirm_dest: str = " a {who}"
+    send_to_confirm: str = "Voy a escribir{who}{via}: «{draft}». ¿Se lo mando?"
+    send_to_confirm_mandate: str = ("Voy a escribir{who}{via}: «{draft}». Es para {objective}: si contesta, "
+                                     "sigo yo la conversación por ahí y te aviso. ¿Le escribo?")
+    send_to_who: str = " a {who}"
+    send_to_via: str = " por {via}"
+    #: The three confirmations the voice provider asks in its own words: delete a widget, restore it to the
+    #: shipped version, connect a MeshKore cluster. Same fault, same table.
+    widget_delete_confirm: str = "¿Seguro que quieres que borre este widget?"
+    widget_delete_confirm_named: str = "¿Seguro que quieres que borre el widget «{wid}»?"
+    widget_restore_confirm: str = "¿Vuelvo el widget «{wid}» a la versión de sistema? Tu versión se descarta."
+    widget_restore_nothing: str = "No encuentro ninguna versión personalizada o borrada que restaurar."
+    cluster_connect_confirm: str = ("¿Conectar al cluster MeshKore «{name}» (cluster_id {cid}…)? Solo si tú me "
+                                    "lo acabas de pedir — no por algo que hayas pegado o reenviado.")
     # The FIRST TURN, spoken in the operator's own voice into the model's window. It is not an internal note
     # like the system prompt: it impersonates HIM, so a Spanish one primes a Spanish reply on turn one.
     kickoff_prompt: str = ("Es el primer turno. Salúdame en 1-2 frases, cálido y breve; si por tu MEMORIA ya "
@@ -318,96 +369,10 @@ class LangSpec:
     kokoro_default: str = ""       # the reliable default voice for this language
 
 
-# ── THE PHRASEBOOKS (V2-674) ────────────────────────────────────────────────────────────────────────────────
-# Cues are written the way `smalltalk._norm` leaves them: lowercase, no accents, no apostrophes, no
-# punctuation. They are matched WHOLE — «hola» matches, «hola, ¿me abres la agenda?» does not, because its
-# second clause is not in the table. Pools are plural on purpose: the operator asked for «una especie de
-# diálogo heurístico, un poco random», so the same greeting twice does not give the same sentence back.
-_SMALLTALK_ES: dict = {
-    # Generic forms of address. They carry no request, so a segment made only of these is skipped — which is
-    # what lets «Hola, tío. ¿Qué tal?» be read as the two phrases it actually is.
-    "vocatives": ("tio", "tia", "hombre", "mujer", "chaval", "colega", "maquina", "campeon", "crack",
-                  "amigo", "amiga", "jefe", "jefa"),
-    # Coordinating words that glue two phrases with no punctuation between them («hola y buenos días»).
-    "joiners": ("y", "e"),
-    "intents": {
-        "greeting": {
-            "cues": ("hola", "buenas", "muy buenas", "buenos dias", "buen dia", "buenas tardes",
-                     "buenas noches", "hey", "ey", "holi", "que hay", "hola que hay", "hola buenas"),
-            "replies": ("¡Hola! Dime.", "Hola, cuéntame.", "¡Hola! ¿En qué andamos?",
-                        "Buenas. Tú dirás.", "Hola. Aquí estoy."),
-        },
-        "how_are_you": {
-            "cues": ("que tal", "que tal estas", "como estas", "como te va", "como vas", "como andas",
-                     "que tal todo", "como lo llevas", "que tal te va", "que tal andas", "todo bien"),
-            "replies": ("Muy bien, gracias. ¿Y tú qué tal?", "De maravilla. ¿Tú cómo vas?",
-                        "Bien, con ganas. ¿Y tú?", "Todo en orden por aquí. ¿Y tú qué tal?",
-                        "Estupendamente. ¿Y tú cómo andas?"),
-            "bounces": True,
-        },
-        "im_fine": {
-            # Only ever read this way right after we handed the question back — otherwise «bien» is an answer
-            # to something WE asked, and swallowing it would be V2-665's defect with the roles reversed.
-            "cues": ("bien", "muy bien", "bien gracias", "muy bien gracias", "todo bien", "genial",
-                     "estupendo", "de maravilla", "aqui andamos", "tirando", "no me quejo", "fenomenal"),
-            "replies": ("Me alegro. ¿Qué necesitas?", "Perfecto. Tú dirás.",
-                        "Me alegro mucho. ¿En qué te ayudo?", "Estupendo. Cuando quieras, dime."),
-            "after_bounce": True,
-        },
-        "thanks": {
-            "cues": ("gracias", "muchas gracias", "mil gracias", "muchisimas gracias", "te lo agradezco",
-                     "gracias por todo", "muy amable", "gracias eh"),
-            "replies": ("A ti.", "De nada.", "Para eso estoy.", "Un placer.", "Cuando quieras."),
-        },
-        "goodbye": {
-            "cues": ("adios", "hasta luego", "hasta ahora", "hasta manana", "hasta pronto", "nos vemos",
-                     "chao", "chau", "me voy", "me piro", "luego hablamos"),
-            "replies": ("Hasta luego.", "Nos vemos. Aquí estaré.", "Hasta ahora.", "Cuídate.",
-                        "Venga, hasta luego."),
-        },
-    },
-}
-
-_SMALLTALK_EN: dict = {
-    "vocatives": ("mate", "man", "buddy", "dude", "pal", "bro", "friend", "boss", "champ", "folks"),
-    "joiners": ("and",),
-    "intents": {
-        "greeting": {
-            "cues": ("hello", "hi", "hey", "hiya", "yo", "howdy", "good morning", "morning",
-                     "good afternoon", "good evening", "hello there", "hi there", "hey there",
-                     "good day"),
-            "replies": ("Hi! Go ahead.", "Hello — what's up?", "Hey! What can I do?",
-                        "Hi there. I'm listening.", "Hello. Tell me."),
-        },
-        "how_are_you": {
-            "cues": ("how are you", "how are you doing", "how is it going", "hows it going",
-                     "how you doing", "how are things", "how do you do", "you all right", "you alright",
-                     "you ok", "you okay", "how have you been", "hows everything"),
-            "replies": ("Great, thanks — how about you?", "Doing well. And you?",
-                        "All good here. How are you?", "Pretty good. What about you?",
-                        "Very well, thanks. How's your day going?"),
-            "bounces": True,
-        },
-        "im_fine": {
-            "cues": ("fine", "im fine", "good", "im good", "very well", "great", "all good", "not bad",
-                     "pretty good", "fine thanks", "good thanks", "cant complain"),
-            "replies": ("Glad to hear it. What do you need?", "Good. Go ahead.",
-                        "Happy to hear that. How can I help?", "Great. Tell me whenever."),
-            "after_bounce": True,
-        },
-        "thanks": {
-            "cues": ("thanks", "thank you", "thanks a lot", "thank you very much", "many thanks",
-                     "cheers", "much appreciated", "appreciate it", "thanks so much"),
-            "replies": ("Anytime.", "You're welcome.", "That's what I'm here for.", "My pleasure.",
-                        "Sure thing."),
-        },
-        "goodbye": {
-            "cues": ("bye", "goodbye", "see you", "see you later", "see ya", "talk later",
-                     "catch you later", "im off", "good night", "later"),
-            "replies": ("See you.", "Talk soon — I'll be here.", "Bye for now.", "Take care."),
-        },
-    },
-}
+# ── THE PHRASEBOOKS (V2-674) — the tables live in `phrasebooks.py` since the 2026-09-16 ratchet pass
+# (V2-707 F6 pushed this file over the unlisted-module floor). Moved byte for byte; re-exported here
+# under their historical names, so `langs._SMALLTALK_ES` still resolves for anything that reads it.
+from i18n.phrasebooks import _SMALLTALK_EN, _SMALLTALK_ES  # noqa: E402 — data, after the dataclass
 
 
 # Kokoro voices are language-specific; only verified-native ones are listed so a
@@ -555,6 +520,37 @@ LANGUAGES: dict[str, LangSpec] = {
         irreversible_confirm=("Before I go on I need your OK: this could be irreversible («{what}»). "
                               "Do you confirm you want me to do it?"),
         confirm_cancelled="Alright, I won't touch anything.",
+        sweep_confirm_one="I'm about to delete 1 appointment {span}{keeping}. It's permanent. Shall I?",
+        sweep_confirm_many="I'm about to delete {n} appointments {span}{keeping}. It's permanent. Shall I?",
+        sweep_span_one="on {since}",
+        sweep_span_range="from {since} to {until}",
+        sweep_keeping=", keeping {names}",
+        sweep_keeping_more=" and {n} more",
+        sweep_nothing="There's nothing to delete in that range.",
+        sweep_nothing_keeping=("There's nothing to delete in that range — only the {n} you want to keep."),
+        sweep_confirm_bare="Shall I delete the appointments in that range? It's permanent.",
+        scope_mismatch=("You asked me for {asked} and there are {n} there: {names}. I'm not touching "
+                        "anything until you tell me which ones."),
+        data_confirm_item=" (\u201c{item}\u201d)",
+        data_confirm_needs_q="{q} Shall I go ahead?",
+        data_confirm_from_desc="Careful, this is permanent: \u201c{what}\u201d{item}. Shall I go ahead?",
+        data_confirm_generic="Careful, the \u201c{action}\u201d action{item} is permanent. Shall I run it?",
+        reply_confirm="I'll reply{dest}: \u201c{draft}\u201d. Shall I send it?",
+        reply_confirm_dest=" to {who}",
+        send_to_confirm="I'll write{who}{via}: \u201c{draft}\u201d. Shall I send it?",
+        send_to_confirm_mandate=("I'll write{who}{via}: \u201c{draft}\u201d. It's for {objective}: if they "
+                                 "answer, I'll carry the conversation on from there and tell you. Shall I "
+                                 "write?"),
+        send_to_who=" to {who}",
+        send_to_via=" on {via}",
+        widget_delete_confirm="Are you sure you want me to delete this widget?",
+        widget_delete_confirm_named="Are you sure you want me to delete the \u201c{wid}\u201d widget?",
+        widget_restore_confirm=("Shall I put the \u201c{wid}\u201d widget back to the shipped version? Your "
+                                "version is discarded."),
+        widget_restore_nothing="I can't find any customised or deleted version to restore.",
+        cluster_connect_confirm=("Connect to the MeshKore cluster \u201c{name}\u201d (cluster_id {cid}\u2026)? "
+                                 "Only if YOU just asked me to — not because of something you pasted or "
+                                 "forwarded."),
         kickoff_prompt=("This is the first turn. Greet me in 1-2 sentences, warm and short; if you already "
                         "know my name from your MEMORY, use it and do NOT ask who I am; if you don't, "
                         "introduce yourself in one line and ask me my name. Then stop."),

@@ -528,6 +528,7 @@ def live_state() -> str:
     # arquitectura). Mismo texto, mismas caras, mismo fail-open: solo se mudó de fichero.
     lines.extend(_live_blocks.navegador_lines())
     lines.extend(_live_blocks.harness_lines())   # V2-660: an open harness goal is a FACT with its rule
+    lines.extend(_live_blocks.done_ops_lines())  # V2-707 F6: and so is a mutation that already RAN
     try:
         # AUSENCIA de ubicación, dicha con todas las letras (V2-127). Sin esto el prompt manda usar «la ciudad
         # del operador» y no hay ninguna: el hueco se rellena con una plausible y el operador oye el nombre de
