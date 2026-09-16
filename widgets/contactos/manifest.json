@@ -19,7 +19,21 @@
     "sitios guardados",
     "contacts",
     "directory",
-    "favorites"
+    "favorites",
+    "contactos de telegram",
+    "contactos de whatsapp",
+    "telegram contacts",
+    "whatsapp contacts",
+    "mis grupos",
+    "grupos",
+    "grupo de",
+    "my groups",
+    "group chat",
+    "clusters",
+    "mis clusters",
+    "importar contactos",
+    "sincronizar contactos",
+    "libreta"
   ],
   "entry": "widget.js",
   "background": {
@@ -35,7 +49,7 @@
       "desc": "guarda un contacto nuevo (persona, sitio o empresa: un amigo, un restaurante, un fontanero…) — con el mismo nombre y ciudad ACTUALIZA el existente en vez de duplicar",
       "payload": {
         "name": "string",
-        "kind": "person | place | company",
+        "kind": "person | place | company | group (un chat de Telegram/WhatsApp o un cluster de MeshKore) | agent (un agente de un cluster)",
         "group": "etiqueta libre («restaurantes», «amigos del trabajo»); varias separadas por comas",
         "city": "string (opcional)",
         "phone": "string (opcional)",
@@ -97,6 +111,8 @@
       "desc": "CAMBIA LO QUE SE VE en el directorio y CONTESTA la consulta («mi restaurante favorito en Barcelona», «los fontaneros de Soria»): filtra por grupo, ciudad, favoritos o texto y devuelve los que casan. Es obligatoria para eso — mostrar el widget de nuevo NO filtra, enseña todo",
       "payload": {
         "group": "grupo/etiqueta («restaurantes», «fontaneros») (opcional)",
+        "kind": "person | place | company | group | agent — «enséñame mis grupos» es kind:group (opcional)",
+        "source": "telegram | whatsapp | meshkore | google — «mis contactos de Telegram» (opcional)",
         "city": "ciudad (opcional)",
         "favorites": "true para solo favoritos (opcional)",
         "query": "texto libre a buscar (opcional)"
@@ -107,6 +123,26 @@
       "desc": "abre la FICHA de un contacto concreto: sus datos, sus etiquetas y su gente o sitios conectados",
       "payload": {
         "contactId": "string"
+      },
+      "view": true
+    },
+    "sync_source": {
+      "desc": "IMPORTA los contactos y los GRUPOS de una plataforma al directorio («trae mis contactos de Telegram», «importa los de WhatsApp», «añade mis clusters»). Los funde con los que ya hay (mismo teléfono o mismo usuario = la misma persona) y NUNCA pisa nada de lo que él haya escrito: solo rellena huecos y añade formas nuevas de escribirle. Es SOLO importación: lo que se cambie o se borre aquí NO viaja a la plataforma, porque ninguna de las dos deja escribir en su libreta. Para dejarlo permanente, set_auto con esa misma source",
+      "payload": {
+        "source": "telegram | whatsapp | meshkore (los clusters de MeshKore, que son grupos de agentes)"
+      }
+    },
+    "hide_contact": {
+      "desc": "OCULTA un contacto o un grupo del directorio sin borrarlo («quita a este de la lista», «no quiero ver este grupo»), o lo devuelve con hidden:false. Sigue mapeado a su plataforma, así que la siguiente importación NO lo vuelve a traer. Prefiérela a remove_contact para algo que vino de una plataforma: borrarlo solo lo quita de aquí y la siguiente pasada lo trae otra vez",
+      "payload": {
+        "contactId": "string",
+        "hidden": "true para ocultar (por defecto), false para volver a mostrarlo"
+      }
+    },
+    "show_contact_members": {
+      "desc": "ENSEÑA QUIÉN ESTÁ en un grupo («quién está en el grupo de la familia», «los miembros del cluster commons»). Solo vale para entradas de tipo grupo. Un canal de difusión no puede enumerar a nadie y lo dice en vez de contestar «ninguno»",
+      "payload": {
+        "contactId": "string (el grupo)"
       },
       "view": true
     },
@@ -123,8 +159,9 @@
       }
     },
     "set_auto": {
-      "desc": "ENCIENDE o APAGA la sincronización permanente con Google Contacts («mantén los contactos sincronizados», «deja de sincronizar con Google»). Encendida, el sistema comprueba Google solo y trae o manda los cambios sin que nadie pulse nada; apagada, solo se sincroniza cuando él lo pide. NO conecta la cuenta: si no está conectada, esto no hace nada visible.",
+      "desc": "ENCIENDE o APAGA la sincronización permanente de una fuente («mantén los contactos sincronizados», «sincroniza Telegram siempre», «deja de sincronizar con Google»). Con `source` (telegram | whatsapp | meshkore) enciende la importación continua de ESA plataforma —trae contactos y grupos a la vez, no hay dos opciones— y hace una pasada al momento; SIN `source` es la de Google, que además manda de vuelta lo que él cambie aquí. NO conecta la cuenta: si no está conectada, esto no hace nada visible.",
       "payload": {
+        "source": "telegram | whatsapp | meshkore (opcional; sin él, Google Contacts)",
         "auto": "true para mantenerla encendida, false para apagarla"
       }
     },

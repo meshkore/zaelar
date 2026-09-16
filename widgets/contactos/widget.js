@@ -46,12 +46,23 @@ const SRC_SVG = {
   "google-contacts": {color:"#4285F4", path:"M12.545 10.239v3.821h5.445c-.712 2.315-2.647 3.972-5.445 3.972a6.033 6.033 0 1 1 0-12.064c1.498 0 2.866.549 3.921 1.453l2.814-2.814A9.969 9.969 0 0 0 12.545 2C7.021 2 2.543 6.477 2.543 12s4.478 10 10.002 10c8.396 0 10.249-7.85 9.426-11.748l-9.426-.013z"},
   icloud: {color:"#3693F3", path:"M13.762 4.29a6.51 6.51 0 0 0-5.669 3.332 3.571 3.571 0 0 0-1.558-.36 3.571 3.571 0 0 0-3.516 3A4.918 4.918 0 0 0 0 14.796a4.918 4.918 0 0 0 4.92 4.914 4.93 4.93 0 0 0 .617-.045h14.42c2.305-.272 4.041-2.258 4.043-4.589v-.009a4.594 4.594 0 0 0-3.727-4.508 6.51 6.51 0 0 0-6.511-6.27z"},
   carddav: {color:"var(--hb-muted,#6b7b92)", path:"M20 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zm-9 4a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5zm4.5 9h-9v-.75c0-1.5 3-2.32 4.5-2.32s4.5.82 4.5 2.32V17z"},
+  // V2-714 — «en el widget de contactos quiero que aparezcan los iconos de WhatsApp y de Telegram y que se
+  // vea si están conectados o no». They are message connectors AND contact sources now, and the same
+  // connector deliberately lives in both cards: «eso le da claridad al asunto».
+  telegram: {color:"#26A5E4", path:"M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"},
+  whatsapp: {color:"#25D366", path:"M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"},
+  meshkore: {color:"var(--hb-accent,#4f7cff)", path:"M12 2a3 3 0 0 1 1 5.83V10h4a3 3 0 0 1 3 3v1.17a3 3 0 1 1-2 0V13a1 1 0 0 0-1-1h-4v2.17a3 3 0 1 1-2 0V12H7a1 1 0 0 0-1 1v1.17a3 3 0 1 1-2 0V13a3 3 0 0 1 3-3h4V7.83A3 3 0 0 1 12 2z"},
 };
 
 //: The only source with a connector behind it today. Everything else stays VISIBLE but INERT — no button,
 //: no click handler — until it lands in `connectors/contacts/providers.py`. «No lo has enlazado» and «no lo
 //: hemos construido» are different sentences and the strip has to be able to say both.
-const LIVE_SOURCES = {"google-contacts": true};
+const LIVE_SOURCES = {"google-contacts": true, telegram: true, whatsapp: true, meshkore: true};
+
+//: Sources that IMPORT (V2-714). They carry one switch, not two: «no vamos a poner dos opciones… un botón
+//: de sincronizar que se queda activado». The switch brings contacts AND groups in the same pass, and the
+//: server refuses it when the connector is not linked, so the card never promises what it cannot do.
+const IMPORT_SOURCES = {telegram: true, whatsapp: true, meshkore: true};
 
 function injectStyles(){
   if(document.getElementById("hb-contactos-css"))return;
@@ -551,7 +562,16 @@ function renderConnectors(el, host, data, ctx){
                  : tt("src_off", null, "sin conectar")));
     tx.appendChild(st);
     row.appendChild(tx);
-    if(live){
+    if(live && IMPORT_SOURCES[p.id]){
+      // V2-714 — an IMPORT source. It is not connected from here (Telegram and WhatsApp are linked in
+      // Mensajería, MeshKore in its own tab), so this box carries the one thing that IS this card's
+      // business: whether its address book keeps coming in. The row says where to go when it is not.
+      if(!on){
+        const hint = el2("div","ctsrcst", tt("src_link_in_messages", null,
+          "Conéctalo en la tarjeta de Mensajes y vuelve aquí"));
+        row.appendChild(hint);
+      }
+    } else if(live){
       // A CONNECT is the operator's click and nothing else: the consent window only survives inside the
       // gesture that opened it, so the window is opened SYNCHRONOUSLY here and its location filled in
       // afterwards. Awaiting the action first and opening then is what a popup blocker eats (V2-603).
@@ -583,7 +603,9 @@ function renderConnectors(el, host, data, ctx){
       }
     }
     box.appendChild(row);
-    if(live && on){
+    if(live && on && IMPORT_SOURCES[p.id]){
+      box.appendChild(renderImportBox(el, data, ctx, p, redraw));
+    } else if(live && on){
       // A connection that just landed clears the «connecting» state with it — otherwise the button would
       // come back as «Abriendo Google…» on the very render that proves it worked.
       el._ctConnecting = null; el._ctConnErr = "";
@@ -598,6 +620,42 @@ function renderConnectors(el, host, data, ctx){
     wrap.appendChild(e);
   }
   host.appendChild(wrap);
+}
+
+// ── THE IMPORT SWITCH (V2-714) — one control, both halves, and an honest count ──────────────────────────
+// «No vamos a poner dos opciones, quieres sincronizar esto, lo otro. En el momento en que le damos a
+// conectar… un botón de sincronizar que se queda activado y se queda en modo sincronizando en tiempo real.»
+// So: ONE switch. It brings contacts AND groups, and turning it on runs a pass immediately rather than
+// promising one in fifteen minutes.
+function renderImportBox(el, data, ctx, p, redraw){
+  const st = (p.sync || {});
+  const on = !!st.on;
+  const box = el2("div","ctsync");
+  const top = el2("div","ctsynctop");
+  top.appendChild(svgEl(ICO_SYNC));
+  top.appendChild(el2("b", null, tt("import_title", null, "Contactos y grupos")));
+  box.appendChild(top);
+
+  const line = el2("div","ctsyncfoot");
+  const sw = el2("button","ctbtn" + (on ? " primary" : ""),
+                 on ? tt("import_on", null, "Sincronizando") : tt("import_off", null, "Sincronizar"));
+  sw.onclick = async ()=>{
+    sw.disabled = true;
+    sw.textContent = tt("import_working", null, "Trayendo…");
+    redraw(await ctx.action("set_auto", {source: p.id, auto: !on}));
+  };
+  line.appendChild(sw);
+  box.appendChild(line);
+
+  // WHAT IT BROUGHT, and — for the one platform that cannot be asked for everything — what that number
+  // does NOT mean. A count presented as a total when it is not is a promise the card cannot keep.
+  const bits = [];
+  if(st.last){ bits.push(tt("import_added", {n: st.added || 0}, (st.added || 0) + " nuevos en la última pasada")); }
+  if(p.id === "whatsapp"){ bits.push(tt("import_partial", null,
+    "WhatsApp va entregando su libreta a medida que el móvil la sincroniza: esto es lo conocido hasta ahora")); }
+  if(st.error){ bits.push(String(st.error)); }
+  if(bits.length){ box.appendChild(el2("div","ctsyncwhen", bits.join(" · "))); }
+  return box;
 }
 
 function renderSyncBox(el, data, ctx, sync, redraw){

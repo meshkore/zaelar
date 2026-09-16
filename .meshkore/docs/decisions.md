@@ -21,6 +21,49 @@ entregada siga citada aquí.
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **Todos sus contactos en un sitio: import-only, ocultables, y un grupo es un KIND (V2-714, 2026-09-16)**:
+  sesión `c20123ab`. Quiso escribir a un contacto suyo de Telegram y no pudo: el directorio le ofreció OTRO
+  Iván (el de Google, con su email), y al abrir la tarjeta de contactos vio «Google y Apple y otro. Pero no
+  WhatsApp ni Telegram». Sus reglas, dadas después: «hacemos solo import, idealmente continuo; en local son
+  editables y se pueden ocultar, se quedan mapeados, pero ya no se modifican más desde el conector» ·
+  «debemos soportar grupos… y los combinamos con los clusters de MeshKore, que también son grupos pero de
+  agentes» · «no me importa que el conector viva duplicado en varios widgets, eso le da claridad».
+  · **Una fuente puede servir a varias FAMILIAS.** `telegram` y `whatsapp` eran `family: "mensajeria"` y la
+  tira de Contactos filtraba por `"contactos"`: por eso no los veía. `family` sigue siendo un string —ninguna
+  vista del motor cambia— y `families` es la lista; `registry.serves(d, fam)` es el ÚNICO lector, para que
+  una tira y una pestaña de ajustes no puedan discrepar sobre si Telegram es una fuente de contactos.
+  · **El TELÉFONO es la clave que funde tres libretas.** Un JID de WhatsApp *es* un teléfono, Google lo
+  guarda y Telegram lo da para los contactos guardados — reducido a sus últimas nueve cifras (`phone_key`),
+  porque nadie escribe el mismo número igual dos veces. Bajo nueve cifras devuelve `""`, que no casa con
+  NADA en vez de casar con todo: fundir a dos desconocidos es lo que él no puede deshacer. El `notify` de
+  WhatsApp —el apodo que se pone el OTRO— rellena un nombre vacío y **nunca** decide una identidad.
+  · **Import-only, y eso SIMPLIFICA.** Sin push, sin `authoritative`, sin «el último que tocó gana»: ese es
+  el contrato de Google (V2-699) y se queda solo para Google. Importación continua = DESCUBRIMIENTO continuo:
+  cada pasada trae lo que no teníamos y **jamás** reescribe una fila que ya existe. Dos cosas sí se AÑADEN,
+  porque son información nueva y no ediciones suyas: un CANAL nuevo (sin él, «escríbele a Iván por Telegram»
+  se rompe el mes que Iván se abre Telegram, que es justo lo que esto arregla) y una PERTENENCIA a grupo.
+  · **Ocultar conserva el mapeo, y ese es el motivo entero.** Borrar es local por fuerza —ninguna de las dos
+  plataformas tiene API de escritura de libreta— y una fila borrada se queda sin mapa, así que la siguiente
+  pasada la resucita y él tendría que ocultarla para siempre. `data.visible()` es el único lector de
+  «hidden», para que la tarjeta, el digest del cerebro y el índice de voz no puedan discrepar.
+  · **Un grupo es un KIND, no una etiqueta.** `data.py` avisa desde V2-523 de esa confusión: un `kind` dice
+  lo que la entrada ES y una etiqueta dice cómo la archiva él. Un chat de Telegram, uno de WhatsApp y un
+  cluster de MeshKore tienen identidad, tienen MIEMBROS, vienen de una plataforma y **se les puede escribir**
+  — nada de lo cual tiene una etiqueta. `members` vive en el GRUPO porque ahí vive en las tres plataformas, y
+  `parentId` no servía: da UN padre y una persona está en muchos grupos. Los miembros se funden como personas
+  ANTES, con las mismas claves, así que el Iván del grupo es el Iván de su libreta. Un canal de difusión no
+  enumera a nadie y lo DICE (`membersKnown: false`): una lista vacía que significa «no podemos saberlo» no
+  puede parecerse a una que significa «nadie». Los clusters entran sin conector nuevo: el dato ya está en casa.
+  · **WhatsApp no se puede preguntar «dámelos todos».** El bridge (Baileys, vendorizado) no escuchaba
+  `contacts.upsert`/`contacts.update`; ahora los acumula y los sirve en `GET /contacts` marcados `partial`, y
+  la tarjeta dice «lo conocido hasta ahora» en vez de un total que no podemos cumplir.
+  Nodo 4.188. Doce desarmes, los doce rojos — **uno salió verde y acusó a mi test**: listar Telegram en la
+  tira no era la propiedad (`_SOURCES` lo nombra igual), la propiedad era su ESTADO, porque filtrar por
+  `family ==` deja un Telegram CONECTADO leyéndose como «aún no disponible».
+  ⚠️ **Y la extracción volvió a pagar «mover código byte por byte cambia sus globals»**: el merge de Google
+  salió de `data.py` a `gcontacts.py` para pagar el trinquete (926 LOC) y reventó con `NameError` en el
+  primer sync real — allí `time` se importa como `_time` y `store`/`_touch` no existen.
+
 - **El item que ÉL nombró llegaba a la basura, no al handler (V2-708, 2026-09-16)**: sesión `2fe99f15`,
   nueve turnos y una sola orden. Dijo «A dentist», «At five o'clock in the afternoon», «Thursday,
   seventeenth. Please delete that appointment» — y salieron **cinco `cancel_meeting {}` idénticos**, cada uno

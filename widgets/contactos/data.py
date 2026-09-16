@@ -63,13 +63,21 @@ def _norm(s) -> str:
     return re.sub(r"\s+", " ", s).strip().lower()
 
 
-# The three structural kinds (V2-523: one identity set, not per-kind silos). A group label like «restaurantes»
-# is NOT a kind — kinds say what the entry IS, groups say how the operator files it. Unknown values default to
+# The structural kinds (V2-523: one identity set, not per-kind silos). A group LABEL like «restaurantes» is
+# NOT a kind — kinds say what the entry IS, labels say how the operator files it. Unknown values default to
 # person rather than guessing from the label: inferring «place» from a group name would be exactly the kind of
 # hardcoded world-knowledge this house forbids.
+#
+# V2-714 added the fourth and fifth, and they are the same distinction one level up. A Telegram group, a
+# WhatsApp group and a MeshKore cluster have identity, have MEMBERS, come from a platform and can be
+# WRITTEN TO — none of which a label has, and all of which a `kind` is for. An `agent` is what a cluster has
+# instead of people: addressable, not a person, so it is not one.
 _KINDS = {"person": "person", "persona": "person", "people": "person",
           "place": "place", "lugar": "place", "sitio": "place",
-          "company": "company", "empresa": "company", "negocio": "company", "business": "company"}
+          "company": "company", "empresa": "company", "negocio": "company", "business": "company",
+          "group": "group", "grupo": "group", "chat": "group", "cluster": "group", "canal": "group",
+          "channel": "group",
+          "agent": "agent", "agente": "agent", "bot": "agent"}
 
 
 def _kind(v) -> str:
@@ -137,11 +145,21 @@ def _group_matches(want: str, contact: dict) -> bool:
     return False
 
 
-def _matches(contacts: list, *, group: str = "", city: str = "", favorites=None, query: str = "") -> list:
+def _matches(contacts: list, *, group: str = "", city: str = "", favorites=None, query: str = "",
+             kind: str = "", source: str = "") -> list:
     cw, qw = _norm(city), _norm(query)
+    kw = _kind(kind) if str(kind or "").strip() else ""
+    sw = _norm(source)
     out = []
     for c in contacts:
         if group and not _group_matches(group, c):
+            continue
+        # V2-714 — «enséñame mis grupos» and «mis contactos de Telegram». The kind is a closed set so this
+        # is a lookup; the source is compared against where the row CAME FROM and against the platform a
+        # group lives on, which for a group are the same answer said two ways.
+        if kw and _kind(c.get("kind")) != kw:
+            continue
+        if sw and sw not in (_norm(c.get("source")), _norm(c.get("platform"))):
             continue
         if cw:
             cn = _norm(c.get("city"))
@@ -261,46 +279,6 @@ def _reach(c: dict) -> list[dict]:
         return [ch for ch in (c.get("channels") or []) if ch.get("platform")]
 
 
-def _match_imported(contacts: list[dict], inc: dict) -> dict | None:
-    """Which existing contact this Google person IS, or None for somebody new (V2-699).
-
-    Three keys, in descending order of how much they PROVE — and the order is the whole point, because
-    every one of them can be right while the ones below it are wrong:
-
-      1. `googleId` — the same resource we imported last time. Survives him renaming the person here.
-      2. the email address, wherever it lives (the stored field OR an email channel). An address is an
-         account, so two rows sharing one are one person — the same rule V2-693 settled for Telegram.
-      3. name + city, normalized — `add_contact`'s own rule, so the two doors agree.
-      4. the name ALONE, but only when exactly ONE contact here carries it. This is what makes a second
-         import safe: `add_contact` can demand the city because the operator is looking at the answer,
-         while Google routinely knows a city he never typed — so «Marta Ruiz» with no city here and
-         «Marta Ruiz, Soria» there would otherwise import as a SECOND Marta every single time. When two
-         contacts share the name it stops: adding a duplicate he can merge beats silently folding two
-         people into one, which he cannot undo.
-    """
-    gid = str(inc.get("googleId") or "").strip()
-    if gid:
-        for c in contacts:
-            if str(c.get("googleId") or "").strip() == gid:
-                return c
-    mail = _norm(inc.get("email"))
-    if mail:
-        for c in contacts:
-            if _norm(c.get("email")) == mail:
-                return c
-            for ch in c.get("channels") or []:
-                if str(ch.get("platform")) == "email" and _norm(ch.get("handle")) == mail:
-                    return c
-    nm, city = _norm(inc.get("name")), _norm(inc.get("city"))
-    if not nm:
-        return None
-    for c in contacts:
-        if _norm(c.get("name")) == nm and _norm(c.get("city")) == city:
-            return c
-    same_name = [c for c in contacts if _norm(c.get("name")) == nm]
-    return same_name[0] if len(same_name) == 1 else None
-
-
 def _public(c: dict) -> dict:
     """The compact row an action RESULT carries back to the brain — enough to answer by voice, never the
     whole record (the full data travels in view_data, and a result is read inside a prompt)."""
@@ -325,22 +303,31 @@ def view_data(q: str = "") -> dict:
     """Everything the render needs: the full archive (the widget filters client-side), the derived group rail,
     the cities present, and the pushed view (if fresh)."""
     db = load_db()
-    contacts = db.get("contacts", [])
-    groups: dict[str, dict] = {}
+    contacts = visible(db)
+    labels: dict[str, dict] = {}
     cities: dict[str, str] = {}
     for c in contacts:
         for g in c.get("groups") or []:
             k = _norm(g)
-            e = groups.setdefault(k, {"id": g, "count": 0})
+            e = labels.setdefault(k, {"id": g, "count": 0})
             e["count"] += 1
         ct = str(c.get("city") or "").strip()
         if ct:
             cities.setdefault(_norm(ct), ct)
+    # V2-714 — the two senses of «group», kept apart on purpose. `groups` is the LABEL rail he files with;
+    # `circles` are the real groups: a Telegram or WhatsApp chat, a MeshKore cluster. They have members and
+    # you can write to them, so they are rows of the directory, not tags on it.
+    circles = [{"id": c["id"], "name": c.get("name"), "platform": c.get("platform") or c.get("source") or "",
+                "subtype": c.get("subtype") or "group", "members": len(c.get("members") or []),
+                "membersKnown": c.get("membersKnown", True)}
+               for c in contacts if c.get("kind") == "group"]
     return {
         "contacts": contacts,
-        "groups": sorted(groups.values(), key=lambda g: (-g["count"], _norm(g["id"]))),
+        "groups": sorted(labels.values(), key=lambda g: (-g["count"], _norm(g["id"]))),
+        "circles": sorted(circles, key=lambda g: (-g["members"], _norm(g["name"] or ""))),
         "cities": sorted(cities.values(), key=_norm),
         "favorites_count": sum(1 for c in contacts if c.get("favorite")),
+        "hidden_count": sum(1 for c in (db.get("contacts") or []) if c.get("hidden")),
         "count": len(contacts),
         "view": _fresh_view(db),
         # V2-699 — the subheader strip and the connectors screen, the agenda's own contract: which
@@ -361,7 +348,7 @@ def prompt_digest() -> str:
     the favourites, four in total». The digest states the authoritative counts and rows, and says out loud
     that it outranks memory, so speech about this card starts from what the operator is looking at."""
     db = load_db()
-    contacts = db.get("contacts", [])
+    contacts = visible(db)
     favs = sum(1 for c in contacts if c.get("favorite"))
     if not contacts:
         return ("Directorio VACÍO: 0 contactos, 0 favoritos. Si tu memoria dice otra cosa, MANDA este "
@@ -369,6 +356,15 @@ def prompt_digest() -> str:
     lines = [f"Directorio COMPLETO y real: {len(contacts)} entradas, {favs} favoritas (⭐). Para contar o "
              "listar lo guardado, MANDA este bloque sobre tu memoria y sobre la conversación: lo que no "
              "esté aquí NO está guardado."]
+    circles = [c for c in contacts if c.get("kind") == "group"]
+    if circles:
+        # The brain has to be able to answer «¿en qué grupos estoy?» and «escribe al grupo de la familia»
+        # from the card rather than from memory — the same reason the counts above are stated out loud.
+        lines.append("GRUPOS reales (chats y clusters, se les puede escribir): " + " · ".join(
+            f"«{g.get('name')}» ({g.get('platform') or g.get('source') or '?'}"
+            + (f", {len(g.get('members') or [])} miembros" if g.get("membersKnown", True)
+               else ", miembros no enumerables")
+            + ")" for g in circles[:8]) + ".")
     sel = ((_fresh_view(db) or {}).get("sel")) or {}
     if sel:
         bits = []
@@ -401,15 +397,32 @@ def prompt_digest() -> str:
     return "\n".join(lines)
 
 
+def visible(db: dict) -> list[dict]:
+    """The rows the operator is meant to SEE. One reader, because «hidden» has to mean the same thing in
+    the card, in the brain's digest, in the voice index and in whoever asks next (V2-714).
+
+    A hidden row keeps its `externalIds`, and that mapping is the whole reason hiding beats deleting: the
+    next import pass MATCHES it and leaves it alone, instead of bringing the person back and making him
+    hide them again forever."""
+    return [c for c in (db.get("contacts") or []) if not c.get("hidden")]
+
+
 def ref_index() -> list[dict]:
     """Items the brain can reference by voice (V2-026): every contact, by name (+city to disambiguate two
     «Juan»s). `field` is the payload key every action uses, so refs resolve without the model guessing ids."""
     out = []
-    for c in load_db().get("contacts", []):
+    for c in visible(load_db()):                  # hidden rows stay MAPPED and stop being referenceable
         label = str(c.get("name") or c.get("id"))
         if c.get("city"):
             label += f" ({c['city']})"
-        hint = ", ".join(c.get("groups") or []) or str(c.get("kind") or "")
+        if c.get("kind") == "group":
+            # …and a group says so, plus where it lives: «Familia» the WhatsApp chat and «Familia» the
+            # label he types are two different things, and the menu has to be able to tell them apart.
+            n = len(c.get("members") or [])
+            hint = " · ".join(x for x in (str(c.get("platform") or ""),
+                                          (f"{n} miembros" if n else "")) if x) or "grupo"
+        else:
+            hint = ", ".join(c.get("groups") or []) or str(c.get("kind") or "")
         out.append({"id": c["id"], "label": label, "field": "contactId", "hint": hint})
     return out
 
@@ -587,6 +600,10 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
             # Children never keep a pointer to a removed parent — a dangling link paints a dead breadcrumb.
             if x.get("parentId") == c["id"]:
                 x["parentId"] = ""
+            # …and neither does a GROUP keep a member who is gone (V2-714): the same rule, one relation
+            # over. A stale id would paint a member count nobody can open.
+            if c["id"] in (x.get("members") or []):
+                x["members"] = [m for m in x["members"] if m != c["id"]]
         # V2-701 — the other half of the mirror. His model: «se modifica en un sitio o en otro, todo se
         # sincroniza linealmente y es un espejo». A deletion is a change like any other, and it is the one
         # a pull CANNOT carry: once the row is gone from here there is nothing left to compare, so the
@@ -611,6 +628,32 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
         store.save(WIDGET_ID, db)
         d = view_data(q)
         d.update({"ok": True, "result": {"contact": _public(c)}})
+        return d
+
+    if action == "hide_contact":
+        # HIDE, not delete (V2-714). «En local los contactos son editables y se pueden ocultar, se quedan
+        # mapeados a las plataformas.» The mapping is the point: a hidden row still matches on the next
+        # import, so the person he took off his screen does not come back every pass. Deleting still
+        # exists and is still LOCAL — no platform here has an address-book write API.
+        c = _find(db, payload.get("contactId"))
+        if not c:
+            return {"ok": False, "error": "no encuentro ese contacto — hide_contact necesita su `contactId`"}
+        c["hidden"] = _truthy(payload.get("hidden"), default=True)
+        _touch(c, now)
+        store.save(WIDGET_ID, db)
+        d = view_data(q)
+        d.update({"ok": True, "result": {"contact": _public(c), "hidden": c["hidden"]}})
+        return d
+
+    if action == "sync_source":
+        # ONE pass of ONE source, on demand. The permanent half is `sources.tick`; this is «trae mis
+        # contactos de Telegram ahora».
+        from . import sources
+        res = sources.sync_now(str(payload.get("source") or "").strip().lower())
+        if not res.get("ok"):
+            return {**view_data(q), **res}
+        d = view_data(q)
+        d.update({"ok": True, "result": res})
         return d
 
     if action == "link_contact":
@@ -638,12 +681,22 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
         d.update({"ok": True, "result": {"contact": _public(c), "parentId": pid}})
         return d
 
+    if action == "show_contact_members":
+        c = _find(db, payload.get("contactId"))
+        if not c or c.get("kind") != "group":
+            return {"ok": False, "error": "eso no es un grupo — pide el grupo por su nombre"}
+        rows = [_public(x) for x in visible(db) if x["id"] in (c.get("members") or [])]
+        d = view_data(q)
+        d.update({"ok": True, "result": {"group": _public(c), "members": rows,
+                                         "membersKnown": c.get("membersKnown", True)}})
+        return d
+
     if action == "show_view":
         # THE VIEW IS AN ACTION (V2-540's lesson, applied at birth instead of after the incident): filtering
         # what is on screen has a NAME in the manifest, and the same call ANSWERS the query — the matches ride
         # in `result` so «¿cuál es mi restaurante favorito en Barcelona?» is one call, not a promise.
         sel = {}
-        for k in ("group", "city", "query"):
+        for k in ("group", "city", "query", "kind", "source"):
             v = str(payload.get(k) or "").strip()
             if v:
                 sel[k] = v
@@ -652,8 +705,9 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
             sel["favorites"] = _truthy(fav)
         _push_view(db, sel)
         store.save(WIDGET_ID, db)
-        found = _matches(contacts, group=sel.get("group", ""), city=sel.get("city", ""),
-                         favorites=sel.get("favorites"), query=sel.get("query", ""))
+        found = _matches(visible(db), group=sel.get("group", ""), city=sel.get("city", ""),
+                         favorites=sel.get("favorites"), query=sel.get("query", ""),
+                         kind=sel.get("kind", ""), source=sel.get("source", ""))
         d = view_data(q)
         d.update({"ok": True, "result": {"count": len(found), "matches": [_public(c) for c in found[:12]]}})
         return d
@@ -681,6 +735,16 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
         # V2-701 — «eso debería quedarse conectado de forma permanente». The switch is the state; the
         # background tick reads it every pass, so turning it off stops the next one with nothing to cancel.
         on = _truthy(payload.get("auto"), default=True)
+        # V2-714 — ONE switch per source, and the same switch for both halves of it: «no vamos a poner dos
+        # opciones… un botón de sincronizar que se queda activado». Naming a source routes to that source;
+        # naming none keeps meaning Google, which is what every existing caller means.
+        src = str(payload.get("source") or "").strip().lower()
+        if src:
+            from . import sources as _src
+            res = _src.set_auto(src, on)
+            d = view_data(q)
+            d.update({"ok": bool(res.get("ok")), "result": res} if res.get("ok") else res)
+            return d
         db.setdefault("sync", {})["auto"] = on
         store.save(WIDGET_ID, db)
         d = view_data(q)
@@ -690,7 +754,7 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
     if action in ("sync_contacts", "import_google"):
         # `import_google` is kept as an alias: it shipped in the manifest for one build and a model that
         # learned it must not start getting «acción desconocida» for asking the same thing.
-        res = gcontacts.sync(db, merge=_merge_imported, remove=_drop_deleted,
+        res = gcontacts.sync(db, merge=gcontacts.merge_imported, remove=gcontacts.drop_deleted,
                              since=float((db.get("sync") or {}).get("last") or 0.0))
         if not res.get("ok"):
             return {"ok": False, "error": str(res.get("error") or "no se pudo sincronizar")}
@@ -702,118 +766,18 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
     return {"ok": False, "error": f"acción desconocida: {action}"}
 
 
-def _merge_imported(db: dict, rows: list[dict], *, authoritative: bool = False) -> dict:
-    """Fold Google's side into ours. The MERGE lives here, not in the connector: this store is the only
-    module that knows which fields the OPERATOR typed himself.
-
-    **His edits win.** Google only FILLS IN what is empty here — a pass that overwrote a field he had
-    fixed would silently undo the correction, and he would have no way to tell which of the two surfaces
-    was lying. The other direction (his newer rows reaching Google) is `gcontacts.sync`'s push half, which
-    has already run by the time this is called.
-
-    `authoritative` is the one case where Google may REPLACE a value instead of only filling a blank, and
-    it is narrow on purpose (V2-701): the row arrived through a SYNC TOKEN, which means Google is telling
-    us it changed since we last looked, AND our copy has nothing pending («whoever touched it last wins»,
-    the rule this connector has answered conflicts with since V2-699). A row he has edited and we have not
-    sent yet is still his — it is waiting its turn in the push half, and letting Google win here would
-    delete the edit before it ever left the house. A FULL re-read is never authoritative: there, «changed»
-    is unknown, and treating every row as fresh would undo his corrections wholesale on the first pass.
-    """
-    contacts = db.setdefault("contacts", [])
-    now = time.strftime("%Y-%m-%d")
-    added = updated_n = unchanged = 0
-    for inc in rows or []:
-        c = _match_imported(contacts, inc)
-        if c is None:
-            cid = f"c{db.get('next_id', 1)}"
-            db["next_id"] = int(db.get("next_id", 1)) + 1
-            c = {"id": cid, "kind": inc.get("kind") or "person", "name": inc["name"],
-                 "city": inc.get("city", ""), "address": inc.get("address", ""),
-                 "phone": inc.get("phone", ""), "email": inc.get("email", ""),
-                 "notes": inc.get("notes", ""), "groups": list(inc.get("groups") or []),
-                 "favorite": bool(inc.get("favorite")), "channels": [], "preferred": "",
-                 "parentId": "", "created": now, "updated": now,
-                 "source": "google", "googleId": inc.get("googleId", "")}
-            contacts.append(c)
-            added += 1
-            continue
-        # HIS EDITS WIN. Google only FILLS IN what is empty here — it never overwrites a field the
-        # operator typed, because a second import would silently undo every correction he had made,
-        # and he would have no way to tell which of the two surfaces was lying.
-        #
-        # …unless this row reached us through a sync token AND we have nothing pending on it: then Google
-        # touched it last and Google wins, which is what makes this a SYNC rather than a repeated import.
-        takes_over = authoritative and float(c.get("touchedAt") or 0.0) <= float(c.get("pushedAt") or 0.0)
-        touched = False
-        for k in ("city", "address", "phone", "email", "notes"):
-            if inc.get(k) and (takes_over or not str(c.get(k) or "").strip()) and inc[k] != c.get(k):
-                c[k] = inc[k]
-                touched = True
-        if takes_over and inc.get("name") and inc["name"] != c.get("name"):
-            c["name"] = inc["name"]
-            touched = True
-        for g in inc.get("groups") or []:
-            if _norm(g) not in {_norm(x) for x in c.get("groups") or []}:
-                c.setdefault("groups", []).append(g)
-                touched = True
-        # A ★ only ever travels ONE way: starring in Google stars here, un-starring there never
-        # un-stars the favourite he set on this card.
-        if inc.get("favorite") and not c.get("favorite"):
-            c["favorite"] = True
-            touched = True
-        if inc.get("googleId") and not c.get("googleId"):
-            c["googleId"] = inc["googleId"]
-            touched = True
-        if touched:
-            # NOT `_touch`: Google filling in a blank is not the operator changing his mind, and stamping
-            # `touchedAt` here would make the next push send Google's own value straight back at it.
-            c["updated"] = now
-            updated_n += 1
-        else:
-            unchanged += 1
-
-    return {"added": added, "updated": updated_n, "unchanged": unchanged, "read": len(rows or [])}
-
-
-#: A single pass may never remove more than this share of the address book, nor more than this many rows,
-#: whichever bites first. It is not a policy about how many contacts a person deletes in a minute — it is a
-#: circuit breaker around OUR OWN code: the failure mode of a sync token gone wrong is «everything looks
-#: deleted», and the difference between a bug and a catastrophe is whether anything acted on that.
-_DELETE_CAP_SHARE = 0.2
-_DELETE_CAP_ROWS = 25
-
-
-def _drop_deleted(db: dict, google_ids: list[str]) -> int:
-    """Mirror deletions Google reported, and ONLY the ones that are safe to mirror (V2-701).
-
-    A row he has edited here since we last sent it is not Google's to delete: he touched it last, which is
-    the same rule that decides every other conflict in this connector. Those are kept and simply unhooked
-    from the pass — they stay in the directory, still carrying their `googleId`, and a later edit will try
-    to push and report honestly if Google no longer has them.
-    """
-    ids = {str(g).strip() for g in (google_ids or []) if str(g).strip()}
-    if not ids:
-        return 0
-    contacts = db.get("contacts") or []
-    victims = [c for c in contacts
-               if str(c.get("googleId") or "") in ids
-               and float(c.get("touchedAt") or 0.0) <= float(c.get("pushedAt") or 0.0)]
-    if not victims:
-        return 0
-    cap = max(_DELETE_CAP_ROWS, int(len(contacts) * _DELETE_CAP_SHARE))
-    if len(victims) > cap:
-        db.setdefault("sync", {})["blockedDeletes"] = len(victims)
-        return 0
-    doomed = {c["id"] for c in victims}
-    db["contacts"] = [c for c in contacts if c.get("id") not in doomed]
-    for x in db["contacts"]:
-        if x.get("parentId") in doomed:
-            x["parentId"] = ""          # a dangling link paints a dead breadcrumb (same rule as remove_contact)
-    db.get("sync", {}).pop("blockedDeletes", None)
-    return len(victims)
+#: The GOOGLE merge moved to `gcontacts.py` (V2-714). It belongs there: that module is already «the Google
+#: Contacts GLUE» and already holds the who-wins-a-conflict rule, and the day this file grew a SECOND
+#: importer — the import-only one in `imports.py` — keeping a Google-shaped merge in the middle of the data
+#: layer was what made the file unreadable. Names kept so every existing caller and test still finds them.
+_merge_imported = gcontacts.merge_imported
+_match_imported = gcontacts.match_imported
+_drop_deleted = gcontacts.drop_deleted
 
 
 def tick(ctx) -> None:
     """Keep the linked account in step (V2-701). The scheduler's contract needs this name in THIS file;
     the body lives in `gcontacts.py`, the same extraction the agenda made for `gcal.tick`."""
     gcontacts.tick(ctx)
+    from . import sources as _src           # V2-714: the import-only sources, on their own cadence
+    _src.tick(ctx)

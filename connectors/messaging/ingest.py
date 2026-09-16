@@ -39,6 +39,14 @@ TOPIC_HISTORY = "connector.history"    # the connector answers with them
 # is answered with connector.history events per chat, so everything it brings lands in threads as scrollback,
 # never in triage: pulling the past must not interrupt anybody.
 TOPIC_FETCH = "msg.fetch"
+# V2-714 — the operator asking a connector for its ADDRESS BOOK, not its messages: «quiero todos mis
+# contactos juntos en un sitio». Deliberately its own pair of topics rather than a flavour of `msg.fetch`:
+# that one is answered with `connector.history` per chat and lands in conversations, and a contact is not a
+# message. The connector answers `connector.contacts` with people and groups already normalised to the
+# shape `widgets/contactos/imports.py` folds in — and it NEVER writes to the store itself, which is the
+# same boundary `gcontacts.py` keeps.
+TOPIC_CONTACTS_ASK = "msg.contacts"
+TOPIC_CONTACTS = "connector.contacts"
 
 
 def v2_enabled() -> bool:
@@ -187,6 +195,34 @@ class SendInbox(_PlatformInbox):
 class HistoryAskInbox(_PlatformInbox):
     """Per-platform subscription to `msg.history` (V2-546): the widget asking for OLDER messages of one chat."""
     _TOPIC = TOPIC_HISTORY_ASK
+
+
+class ContactsInbox(_PlatformInbox):
+    """Per-platform subscription to `msg.contacts` (V2-714): the operator asking this connector to hand
+    over its address book. Answered once with a `connector.contacts` event carrying everything it can see;
+    a platform that can only see part of it says so in `partial` rather than pretending to a total."""
+    _TOPIC = TOPIC_CONTACTS_ASK
+
+
+def publish_contacts_ask(platform: str) -> None:
+    """Widget asks a connector for its contacts and groups."""
+    try:
+        bus.emit_sync(TOPIC_CONTACTS_ASK, {"platform": platform})
+    except Exception:
+        pass
+
+
+def publish_contacts(platform: str, contacts: list, groups: list, *, partial: bool = False,
+                     error: str = "") -> None:
+    """A connector answering with its address book, normalised. `partial` is not cosmetic: WhatsApp cannot
+    be asked for «everything», it can only report what its socket has told it so far, and a count presented
+    as a total when it is not is the class of promise this engine has already paid for three times."""
+    try:
+        bus.emit_sync(TOPIC_CONTACTS, {"platform": platform, "contacts": list(contacts or []),
+                                       "groups": list(groups or []), "partial": bool(partial),
+                                       "error": str(error or "")})
+    except Exception:
+        pass
 
 
 class FetchInbox(_PlatformInbox):

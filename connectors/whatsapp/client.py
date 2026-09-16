@@ -44,6 +44,12 @@ async def send_message(chat_id: str, text: str, reply_to: str | None = None) -> 
     return await _request("POST", "/send", body=body, timeout=45.0)
 
 
+async def get_contacts() -> dict:
+    """The address book the bridge has accumulated (V2-714). A SNAPSHOT, not a drain: WhatsApp cannot be
+    asked for everything, so the same rows come back every pass and the import is idempotent by design."""
+    return await _request("GET", "/contacts")
+
+
 async def get_reads() -> list[dict]:
     """Return (and clear) the chats the operator read on ANOTHER device since the last poll (V2-546). Each
     entry: {chatId, at}. WhatsApp gives a per-chat counter, not a per-message watermark, so the bridge only

@@ -2367,6 +2367,11 @@ DOMAINS: list[dict] = [
                                  "sin llevarse la cita, cancel_meeting sigue llevándose todas sus copias, y "
                                  "las dos agrupan por la MISMA función",
             "ch": UNIT, "paths": ["tests/browser/unit/agenda/test_simplify_to_one_keeps_one.py"]},
+        {"id": "4.188", "title": "TODOS sus contactos en un sitio: el TELÉFONO funde a la misma persona de "
+                                 "Google, Telegram y WhatsApp · import-only (nunca pisa lo que él escribió) "
+                                 "· ocultar CONSERVA el mapeo · un grupo es un KIND con miembros, no una "
+                                 "etiqueta · una fuente sirve a varias familias",
+            "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_all_my_contacts_in_one_place.py"]},
         {"id": "4.183", "title": "Una operación que NADIE declaró sigue siendo posible: la puerta genérica "
                                  "resuelve la expresión a filas y ejecuta la acción propia del widget en cada "
                                  "una · la fricción es el RADIO, no el verbo",

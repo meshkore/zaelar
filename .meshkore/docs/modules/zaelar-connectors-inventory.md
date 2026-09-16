@@ -39,12 +39,25 @@ for parking it disappeared.
 A `built` manifest whose id has no live row is **invisible everywhere but `search()`**. That is right for
 exactly two things today, and both say so in their own `notes`.
 
+## A source can serve MORE THAN ONE family (V2-714)
+
+`family` is still a single string and every view in the engine reads it unchanged; `families` is the full
+list and **`registry.serves(descriptor, family)` is the only reader**. Two connectors declare a second one
+today — Telegram and WhatsApp are contact sources as well as message channels — and they deliberately
+appear in BOTH cards, which is the operator's own call: «no me importa que el conector viva duplicado en
+varios widgets, eso le da claridad al asunto».
+
+What a contact source owes the Contactos card: a normalised `{contacts, groups}` payload published on
+`connector.contacts` when asked on `msg.contacts`, and NOTHING written to the store (`widgets/contactos/
+imports.py` folds it in). The contract is IMPORT-ONLY — no platform here has an address-book write API, so
+an edit or a deletion in zaelar never travels back, and the card says so.
+
 ## Live connectors
 
 | family | id | label | auth | widget | doc |
 |---|---|---|---|---|---|
-| mensajeria | `whatsapp` | WhatsApp | QR (Baileys bridge) | mensajeria | — |
-| mensajeria | `telegram` | Telegram | app password (Telethon) | mensajeria | — |
+| mensajeria **+ contactos** | `whatsapp` | WhatsApp | QR (Baileys bridge) | mensajeria, contactos | — |
+| mensajeria **+ contactos** | `telegram` | Telegram | app password (Telethon) | mensajeria, contactos | — |
 | mensajeria | `email` | Email (IMAP/SMTP) | app password / **Gmail OAuth** | mensajeria | — |
 | musica | `spotify` | Spotify | OAuth | musica | — |
 | musica | `youtube-audio` | YouTube (free audio) | none | musica | — |

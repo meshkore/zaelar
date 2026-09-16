@@ -285,8 +285,40 @@ def _meshkore() -> list[dict]:
 
 # Stable family order (messaging -> music -> files -> photos -> video -> agenda -> infra) for the tab.
 # Google leads `infra`: it is the account the five surfaces above authenticate against (V2-685).
+#: A source that serves MORE THAN ONE family (V2-714). `family` stays a single string — every view in the
+#: engine reads it and none of them changes — and `families` is the full list, first entry being that same
+#: `family`. Whoever asks «which sources are mine?» reads `families`.
+#:
+#: Why it exists, in his words: «quiero todos mis contactos juntos en un sitio… no me importa que el
+#: conector viva duplicado en varios widgets, eso le da claridad al asunto». Measured 2026-09-16 (session
+#: c20123ab): he opened the contacts card looking for Telegram and WhatsApp and saw «Google and Apple and
+#: another one», because the strip filters on `family == "contactos"` and those two are `mensajeria`.
+#: One DECLARATION read by whoever needs it, never two ids hardcoded into a widget's source list.
+_ALSO: dict[str, tuple[str, ...]] = {
+    "telegram": ("contactos",),
+    "whatsapp": ("contactos",),
+}
+
+
+def _with_families(rows: list[dict]) -> list[dict]:
+    for d in rows:
+        fam = str(d.get("family") or "")
+        extra = _ALSO.get(str(d.get("id") or ""), ())
+        d["families"] = [f for f in (fam, *extra) if f]
+    return rows
+
+
+def serves(d: dict, family: str) -> bool:
+    """Does this descriptor serve `family`? The ONE reader, so a strip and a settings tab can never
+    disagree about whether Telegram belongs in Contacts."""
+    fams = d.get("families")
+    if not isinstance(fams, list) or not fams:
+        fams = [str(d.get("family") or "")]
+    return str(family or "") in fams
+
+
 def descriptors() -> list[dict]:
     """Complete connector inventory with state + redacted config. Each source is isolated (a broken connector does
     not take down the registry)."""
-    return [*_messaging(), *_music(), *_files(), *_photos(), *_videoaccounts(), *_calendar(),
-            *_contacts(), *_google(), *_architect(), *_meshkore()]
+    return _with_families([*_messaging(), *_music(), *_files(), *_photos(), *_videoaccounts(), *_calendar(),
+                           *_contacts(), *_google(), *_architect(), *_meshkore()])

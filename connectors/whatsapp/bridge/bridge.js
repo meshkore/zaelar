@@ -220,6 +220,23 @@ let sock = null;
 // walked through it. Cached per chat: subjects are stable, and one lookup per group per process is the
 // right price. A failed lookup is NOT cached, so the next message retries.
 const groupSubjects = new Map();
+
+// ZAELAR-PATCH (V2-714): the ADDRESS BOOK. WhatsApp has no "give me every contact" call — Baileys learns
+// them from the socket (`contacts.upsert` on the linked device's initial sync, `contacts.update` after
+// that) and this is where they accumulate so `GET /contacts` can hand over what is known SO FAR. That
+// "so far" is reported honestly: a count presented as a total when it is not is a promise the card cannot
+// keep. Keyed by JID so an update refines the row rather than adding a second one.
+const contactBook = new Map();
+
+function rememberContact(c) {
+  if (!c || !c.id) return;
+  const prev = contactBook.get(c.id) || {};
+  const next = { ...prev };
+  for (const k of ['id', 'lid', 'phoneNumber', 'name', 'notify', 'verifiedName', 'imgUrl', 'status']) {
+    if (c[k] !== undefined && c[k] !== null && c[k] !== '') next[k] = c[k];
+  }
+  contactBook.set(c.id, next);
+}
 async function groupSubject(chatId) {
   if (groupSubjects.has(chatId)) return groupSubjects.get(chatId);
   try {
@@ -541,6 +558,12 @@ async function startSocket() {
   // It is a WHOLE-CHAT signal: WhatsApp reports the counter, not a per-message watermark, so this is only
   // emitted when the counter reaches zero — a partial drop cannot say WHICH messages were read, and guessing
   // would hide mail the operator has not seen.
+  // ZAELAR-PATCH (V2-714): both shapes. `contacts.upsert` is the bulk the device sends on sync;
+  // `contacts.update` is the drip afterwards, and it is PARTIAL — merging rather than replacing is what
+  // keeps a name we already had from being wiped by an update that only carries a status.
+  sock.ev.on('contacts.upsert', (rows) => { (rows || []).forEach(rememberContact); });
+  sock.ev.on('contacts.update', (rows) => { (rows || []).forEach(rememberContact); });
+
   sock.ev.on('chats.update', (updates) => {
     for (const u of updates || []) {
       const chatId = u?.id;
@@ -593,6 +616,21 @@ app.use((req, res, next) => {
 app.get('/messages', (req, res) => {
   const msgs = messageQueue.splice(0, messageQueue.length);
   res.json(msgs);
+});
+
+// ZAELAR-PATCH (V2-714): the address book known so far, plus the groups we have a subject for.
+//
+// NOT drained like /messages: this is a SNAPSHOT of what the socket has taught us, and the widget's import
+// is idempotent (it never overwrites a row that already exists), so handing the same rows twice costs
+// nothing and losing them to a drain would cost the whole book.
+app.get('/contacts', (req, res) => {
+  res.json({
+    contacts: Array.from(contactBook.values()),
+    groups: Array.from(groupSubjects.entries()).map(([id, subject]) => ({ id, subject })),
+    // What "partial" means here: WhatsApp cannot be ASKED for everything. Empty is not proof of an empty
+    // address book — it is proof the device has not synced one yet.
+    partial: true,
+  });
 });
 
 // ZAELAR-PATCH (V2-546): chats read on another device, since the last poll.

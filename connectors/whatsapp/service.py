@@ -116,6 +116,69 @@ async def _ingest_new() -> None:
         await notify.announce("WhatsApp", notice)
 
 
+_contacts_inbox = None           # V2-714: msg.contacts subscription
+
+
+def _wa_person(c: dict) -> dict | None:
+    """One WhatsApp contact as the normalised row `widgets/contactos/imports.py` folds in.
+
+    The NAME is the one HE saved (`name`); `notify` — the nickname the other person set for themselves —
+    only fills a blank. It is deliberately never an identity key either: it changes whenever they feel
+    like it and two strangers share it all the time (`imports.match` says the same thing from its side).
+    """
+    jid = str(c.get("id") or "").strip()
+    if not jid or "@g.us" in jid:
+        return None                      # a group arrives as a GROUP, not as a person
+    phone = str(c.get("phoneNumber") or "").strip() or jid.split("@")[0]
+    if phone and not phone.startswith("+"):
+        phone = f"+{phone}"
+    name = str(c.get("name") or "").strip() or str(c.get("verifiedName") or "").strip() \
+        or str(c.get("notify") or "").strip() or phone
+    if not name:
+        return None
+    row = {"name": name, "kind": "person", "phone": phone,
+           "channels": [{"platform": "whatsapp", "handle": phone, "chatId": jid}],
+           "externalIds": {"whatsapp": jid}}
+    if c.get("imgUrl") and str(c["imgUrl"]) != "changed":
+        row["avatar"] = str(c["imgUrl"])
+    return row
+
+
+async def _drain_contacts() -> None:
+    """Hand over the address book when the contacts widget asks (V2-714).
+
+    ⚠️ This platform cannot be asked for «everything» — the bridge reports what its socket has told it so
+    far and flags `partial`. The card says «sincronizando, N hasta ahora» rather than a total, because a
+    total we cannot know is the kind of promise this engine has already paid for three times."""
+    if _contacts_inbox is None:
+        return
+    for _order in _contacts_inbox.drain():
+        people, groups, err, partial = [], [], "", True
+        try:
+            got = await client.get_contacts()
+            for c in got.get("contacts") or []:
+                row = _wa_person(c)
+                if row:
+                    people.append(row)
+            for g in got.get("groups") or []:
+                subject = str(g.get("subject") or "").strip()
+                gid = str(g.get("id") or "").strip()
+                if not subject or not gid:
+                    continue
+                # Members are NOT enumerated here: the bridge knows a group's subject from its traffic,
+                # not its roster, and inventing an empty roster would read as «nobody is in it».
+                groups.append({"name": subject, "platform": "whatsapp", "subtype": "group",
+                               "externalIds": {"whatsapp": gid},
+                               "channels": [{"platform": "whatsapp", "chatId": gid}],
+                               "members": []})
+            partial = bool(got.get("partial", True))
+        except Exception as e:  # noqa: BLE001
+            err = f"WhatsApp no me dejó leer los contactos: {e}"
+            logger.warning(err)
+        ingest.publish_contacts("whatsapp", people, groups, partial=partial, error=err)
+        logger.info(f"WhatsApp contactos → {len(people)} personas, {len(groups)} grupos (parcial={partial})")
+
+
 async def _drain_reads() -> None:
     v2 = ingest.v2_enabled()
     keys = (_mark_inbox.drain() if _mark_inbox else []) if v2 else store.take_pending_read(PLATFORM)
@@ -271,8 +334,10 @@ def _note(text: str) -> None:
 
 
 async def _loop() -> None:
-    global _mark_inbox, _reply_inbox, _send_inbox, _history_inbox
+    global _mark_inbox, _reply_inbox, _send_inbox, _history_inbox, _contacts_inbox
     _set_status("starting", None)
+    if _contacts_inbox is None:
+        _contacts_inbox = ingest.ContactsInbox(PLATFORM)   # V2-714: the address book
     if ingest.v2_enabled() and _mark_inbox is None:
         _mark_inbox = ingest.MarkReadInbox(PLATFORM)     # subscription in THIS loop (server) -> direct delivery
         _reply_inbox = ingest.ReplyInbox(PLATFORM)       # V2-521: dictated replies, same delivery path
@@ -298,7 +363,8 @@ async def _loop() -> None:
                 await _drain_reads()
                 await _drain_replies()
                 for what, fn in (("sends", _drain_sends),
-                                 ("read marks", _drain_external_reads), ("history", _drain_history)):
+                                 ("read marks", _drain_external_reads), ("history", _drain_history),
+                                 ("contacts", _drain_contacts)):
                     try:
                         await fn()
                     except Exception as e:  # noqa: BLE001
