@@ -50,6 +50,13 @@ suite
 8. Cualquier pytest sin propietario aparece como paso `unmapped`; la auditoría de plataforma exige cero huecos.
 9. `--no-open` no desactiva el Observatory: únicamente evita que el proceso del agente abra el navegador. El run
    sigue disponible en el puerto fijo 8765 y conserva el mismo exit code.
+11. **El servidor está atado a la RAÍZ de runs, no a un run** (V2-709). `/api/runs` lista todos (vivos primero,
+    los abandonados marcados `stale`); `/events` multiplexa los VIVOS y etiqueta cada línea con su `run_id`;
+    `/events?run=<id>` sigue a uno solo. Un run nuevo se UNE al visor que ya está en pie — antes lo mataba, y con
+    dos agentes probando a la vez el segundo borraba al primero de la pantalla. `<id>` es un nombre de directorio
+    y nunca una ruta: `..` se rechaza.
+12. **El Observatory no lanza nada.** No hay botón de play ni endpoint de lanzamiento: los tests los conducen los
+    agentes. Pedir una corrida es pedírsela a un agente.
 10. Solo hay un Observatory activo por workspace. El handoff reemplaza el visor anterior; los agentes no deben
     solapar procesos de test porque ocultarían el run previo sin detener necesariamente su carga de trabajo.
 11. Un recorrido cronológico debe declarar `consumes`/`produces`, validar el orden antes de arrancar y comprobar

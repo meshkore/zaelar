@@ -32,33 +32,43 @@ def _free_port(preferred: int) -> int:
         return int(sock.getsockname()[1])
 
 
-def _stop_existing_dashboard(port: int) -> None:
-    """Stop our previous dashboard before reusing the stable local port."""
-    url = f"http://127.0.0.1:{port}"
+def _existing_dashboard(port: int) -> bool:
+    """Is an Observatory already listening on `port`?
+
+    It used to be `_stop_existing_dashboard`: every run KILLED the previous dashboard and started its
+    own, because the server was bound to one run directory. With two agents testing at once — which is
+    the normal case here, not the exotic one — the second agent's run erased the first agent's from the
+    operator's screen. The server now serves the whole runs root, so the right move is to leave a
+    healthy one alone and let the new run join its stream.
+
+    A port held by something that is NOT an Observatory is still a refusal, never a kill: 8765 is a
+    fixed local port and whatever else is on it belongs to somebody.
+    """
     try:
-        with urllib.request.urlopen(f"{url}/api/meta", timeout=0.35) as response:
-            meta = json.loads(response.read() or b"{}")
-        if "run_id" not in meta:
-            raise RuntimeError(f"El puerto {port} está ocupado por un servicio que no es Test Observatory")
-        request = urllib.request.Request(f"{url}/api/shutdown", data=b"{}", method="POST",
-                                         headers={"Content-Type": "application/json"})
-        urllib.request.urlopen(request, timeout=1).read()
+        with urllib.request.urlopen(f"http://127.0.0.1:{port}/api/runs", timeout=0.6) as response:
+            payload = json.loads(response.read() or b"{}")
     except urllib.error.URLError:
-        return
-    for _ in range(50):
-        with socket.socket() as sock:
-            if sock.connect_ex(("127.0.0.1", port)) != 0:
-                return
-        time.sleep(0.05)
-    raise RuntimeError(f"El dashboard anterior no liberó el puerto {port}")
+        return False
+    except Exception:  # noqa: BLE001 — a malformed answer is not ours either
+        raise RuntimeError(f"El puerto {port} está ocupado por un servicio que no es Test Observatory")
+    if "runs" not in payload:
+        raise RuntimeError(f"El puerto {port} está ocupado por un servicio que no es Test Observatory")
+    return True
 
 
 def _dashboard(run_dir: Path, port: int, *, open_browser: bool) -> str:
     port = _free_port(port)
-    _stop_existing_dashboard(port)
+    url = f"http://127.0.0.1:{port}"
+    if _existing_dashboard(port):
+        # Already watching this runs root. This run's events land in the same directory it is tailing,
+        # so it will pick them up within a second and show them next to whatever else is running.
+        if open_browser:
+            webbrowser.open(url)
+        return url
     log = (run_dir / "dashboard.log").open("ab")
     subprocess.Popen(
-        [sys.executable, "-m", "tests.platform.server", "--run-dir", str(run_dir), "--port", str(port)],
+        [sys.executable, "-m", "tests.platform.server", "--runs-root", str(run_dir.parent),
+         "--port", str(port)],
         cwd=ENGINE,
         stdin=subprocess.DEVNULL,
         stdout=log,
@@ -67,11 +77,10 @@ def _dashboard(run_dir: Path, port: int, *, open_browser: bool) -> str:
         close_fds=True,
     )
     log.close()
-    url = f"http://127.0.0.1:{port}"
     ready = False
     for _ in range(40):
         try:
-            urllib.request.urlopen(f"{url}/api/meta", timeout=0.2).read()
+            urllib.request.urlopen(f"{url}/api/runs", timeout=0.2).read()
             ready = True
             break
         except Exception:
@@ -298,8 +307,11 @@ def _replay(args: argparse.Namespace) -> int:
     if not (run_dir / "events.jsonl").exists():
         print(f"No existe el run {args.run_id}", file=sys.stderr)
         return 2
-    url = _dashboard(run_dir, args.port, open_browser=not args.no_open)
-    print(f"Replay: {url}")
+    url = _dashboard(run_dir, args.port, open_browser=False)
+    focused = f"{url}/?run={args.run_id}"
+    if not args.no_open:
+        webbrowser.open(focused)
+    print(f"Replay: {focused}")
     return 0
 
 

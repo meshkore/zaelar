@@ -53,12 +53,26 @@ The terminal and the browser are two controls over the same catalog and event st
 
 An agent does not need to interact with the browser. Running through the unified CLI preserves the normal exit
 code while starting the Observatory on loopback. Use `--no-open` to avoid opening a browser window; the server
-still runs and the operator can watch it. The web UI can launch the same server-validated suite, group or case
-when no agent is already testing.
+still runs and the operator can watch it.
 
-Port **8765 is fixed**. Starting or replaying a run performs a controlled handoff from the previous Observatory.
-Do not start two Observatory-managed runs concurrently: their test processes could overlap even though only the
-latest dashboard is visible.
+**The Observatory launches nothing.** It has no play button and no launch endpoint (V2-709): the agents drive
+the tests, and a spectator surface that can start a run is a second way to begin something nobody is reading the
+exit code of. It shows what tests exist, how they went last time, and what an agent is doing right now.
+
+**Several agents CAN test at once, and the operator sees all of them.** Port **8765 is fixed** and the server is
+bound to the whole `tests/runs/` root, so a new run JOINS the dashboard that is already up instead of replacing
+it — until 2026-09-16 every run killed the previous Observatory and the second agent silently erased the first
+from the screen. The page follows the run that started FIRST; a second one never steals focus, it blinks in the
+rail and gets a line in the agents box at the bottom left, one click away. Touching the page by hand stops the
+automatic following until you press resume.
+
+⚠️ Concurrency of the DASHBOARD is solved; concurrency of the TEST PROCESSES is not. Two broad runs on one
+checkout still fight over CPU, ports and Chromium (measured 2026-09-15: 1222 s and 1589 s for two sweeps that
+take 9 minutes alone). Seeing both is not permission to launch both.
+
+**Set `ZAELAR_TEST_ACTOR`.** It is the name the operator reads in the agents box — with it the row says
+`claude-code · voz`, without it `ricartjuncadella@/bin/zsh`, three times over, and he cannot tell which of his
+tabs is busy.
 
 ## Source of truth
 

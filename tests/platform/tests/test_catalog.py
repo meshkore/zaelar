@@ -99,9 +99,12 @@ def test_memory_primary_ui_action_runs_the_conversational_gateway():
     assert SUITES["memory"].primary_case == "memory::group::1.4::v4"
     assert find_case(build_suite_catalog("memory", []), SUITES["memory"].primary_case), (
         "el caso principal de memoria no existe en su propio catálogo")
-    dashboard = (ENGINE / "tests/platform/dashboard/index.html").read_text(encoding="utf-8")
-    assert "primary_case" in dashboard, "el visor ya no lee el caso principal de la suite"
-    assert "primary ? { suite, case_id: primary }" in dashboard
+    # And the door that ACTUALLY opens it: `python -m tests run memory`, which is what an agent types.
+    # The Observatory has no play button any more (the agents drive the tests), so the UI is no longer
+    # where this fact can be checked — nor where it can break.
+    source = (ENGINE / "tests/platform/cli.py").read_text(encoding="utf-8")
+    assert "requested_case = SUITES[args.suite].primary_case" in source, (
+        "`python -m tests run <suite>` ya no cae en el caso principal declarado por la suite")
 
 
 def test_whole_system_journey_is_causal_mapped_and_primary():

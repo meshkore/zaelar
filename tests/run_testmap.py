@@ -3531,7 +3531,10 @@ DOMAINS: list[dict] = [
             "tests/platform/tests/test_pytest_plugin.py",
             # V2-709 — the Observatory's spine (language → family → theme) and the wiring that makes a
             # use case VISIBLE while it runs: the plan the catalog shows must be the plan run.py ticks.
-            "tests/platform/tests/test_the_spine_is_language_family_theme.py"]},
+            "tests/platform/tests/test_the_spine_is_language_family_theme.py",
+            # V2-709 F6 — varios agentes probando a la vez y la pantalla siguiéndolos: el stream
+            # multiplexado, la guarda de travesía en `?run=`, y que el CLI REUTILICE el visor.
+            "tests/platform/tests/test_the_observatory_watches_every_agent_at_once.py"]},
         # El motor DESECHABLE es uno solo y compartido (`journey` + `use_cases`, unificado el 2026-08-20).
         # `journey` levantaba el suyo y a esa copia le faltaba `ZAELAR_LOG_DIR`, así que sus eventos iban al
         # timeline REAL del operador — medido en vivo: 80 → 243 líneas en una corrida de 4 pasos.
