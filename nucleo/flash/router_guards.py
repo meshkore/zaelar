@@ -102,75 +102,14 @@ _GOOGLE_CONNECTOR_SERVICES = ("google calendar", "google meet", "meet link", "en
                               "calendario de google", "google agenda")
 
 
-_SHOW_VERB_RE = _re.compile(r"\b(muestra|muestrame|ensena|ensename|abre|abreme|abrir|mostrar|ensenar|ver|"
-                            r"visualiza|saca|pon(?:me)? en pantalla)\b")
-# Match by STEM (without a final \b): 'anad' covers añade/añadir, 'apunt' covers apunta/apuntar, etc. (after
-# accent-stripping by _norm_txt).
-_CHANGE_VERB_RE = _re.compile(r"\b(anad|apunt|agreg|marca|quita|borr|elimin|cambi|aplaz|silenci|crea|edit|modific|"
-                              r"met[ae]|programa|reserv|pon(?!(?:me|nos|te)?\s*en\s*pantalla)|añad)")
-# Verbs that set something RUNNING. Neither showing nor changing data, so `_CHANGE_VERB_RE` never covered them —
-# and it should not: nothing here mutates a record. Kept SHORT and stem-based on purpose (`inici` is out: it also
-# matches the noun «el inicio», and a false positive here disarms a guard that exists to catch a hallucinated
-# `add_meeting`). `pon`/`ponlo` already belong to the change list, with its «en pantalla» carve-out.
-# `reanud` IS in: resuming playback is the same order as starting it, and its noun collision («la reanudación»,
-# sportscast vocabulary) is far rarer than `inici`'s «el inicio». `resum` is OUT for the same reason `inici` is:
-# «el resumen» and «la versión resumida» ride along with genuine show orders all the time.
-_ACTIVATE_VERB_RE = _re.compile(r"\b(arranc|reproduc|empiez|empez|reanud|play|start)")
-
-
-def is_pure_show_request(text: str) -> bool:
-    """True if the turn is purely about OPENING/SHOWING a widget (with no intent to CHANGE data or to SET
-    something RUNNING). Execution GUARD for widget_data: "abre/muéstrame el widget X" must NEVER execute a
-    data-op (the model sometimes slips in an invented 'unhide' action or HALLUCINATES an add_meeting) →
-    redirect it to showing the card. Deterministic, Spanish.
-
-    The third class is the fix (V2-595): «muéstrame el primero, ARRÁNCALO» carries a show verb and no *change*
-    verb — nothing in this list is about changing data, correctly — so it read as a pure show and the guard
-    discarded the `play_item` the model had chosen right. Measured live in session `abe9942b`: the card stayed
-    on «No hay ningún vídeo cargado» while the turn said «Aquí lo tienes». Starting playback is neither showing
-    a card nor mutating a record: it is ACTIVATION, and an order that names it is not a pure show.
-    """
-    n = _norm_txt(text)
-    if not _SHOW_VERB_RE.search(n):
-        return False
-    return not (_CHANGE_VERB_RE.search(n) or _ACTIVATE_VERB_RE.search(n))
-
-
-# Words that ride along with EVERY «abre la mensajería» and name no object of their own: articles,
-# possessives, clitics, prepositions and courtesy. They are dropped before asking WHAT the show verb points at.
-def show_request_blocks_data_action(text: str, wid: str, action: str) -> bool:
-    """True when a PURE show order must be answered by showing the CARD instead of running the data-op the
-    model chose (V2-545).
-
-    `is_pure_show_request` says «this is a show order with no intent to change anything». It cannot say what
-    the show order POINTS AT, and it never could: «ábreme la mensajería» (the card), «ábreme el Telegram» (a
-    lens inside it) and «abre el mensaje de Francisco» (an element inside it) are the same shape. The first
-    attempt (V2-544) tried to read the object out of the words, matching them against the widget's manifest
-    aliases — and mensajeria's aliases ARE its lens names, so «ábreme el Telegram» classified as the card and
-    the card, already on screen, did nothing (measured live 2026-09-01).
-
-    So the question moved off the text and onto the ACTION: the widget declares which of its actions are
-    display-only (`"view": true`, see `widgets/actions.py::is_view`). A pure show order may run one of those
-    and nothing else. Any other data-op on a pure show is the failure this guard was written for — «abre la
-    agenda» hallucinating an `add_meeting` — and still gets redirected to showing the card.
-
-    The caller does not choose between showing and applying: on a view action it does BOTH (bring the card up,
-    then apply the view), which is what «ábreme el Telegram» means and dissolves the card-vs-inside ambiguity
-    instead of guessing it.
-
-    Fails CLOSED (True = only show) if the catalog cannot be read: a show that does nothing is a smaller
-    failure than an invented mutation.
-    """
-    if not is_pure_show_request(text):
-        return False
-    try:
-        from widgets import runtime as _rt
-        if _rt.get(wid) is None:
-            return False                      # not a known widget — this guard has nothing to say about it
-        from nucleo.flash import frontend as _fe
-        return not _fe.action_is_view(wid, action)
-    except Exception:  # noqa: BLE001
-        return True
+# ── El guarda del «abre/muéstrame» puro vive en `show_guard.py` (V2-713 R1) ─────────────────────────────
+# Se extrajo entero —las tres clases de verbo, la decisión y su sombra— porque el trinquete de arquitectura
+# se paga extrayendo y porque es un concepto propio: este módulo mezclaba dinero, login, cierre y show. Los
+# nombres se re-exportan para que ningún llamante tenga que cambiar de sitio.
+from .show_guard import (  # noqa: E402,F401
+    _ACTIVATE_VERB_RE, _CHANGE_VERB_RE, _SHOW_VERB_RE,
+    is_pure_show_request, show_request_blocks_data_action,
+)
 
 
 def is_music_service(site: str = "", text: str = "") -> bool:

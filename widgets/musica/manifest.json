@@ -66,7 +66,9 @@
       "desc": "reproduce una lista entera (la 1ª suena ya, el resto a la cola)",
       "payload": {
         "playlist": "nombre de la lista"
-      }
+      },
+      "sensitivity": "routine",
+      "activation": true
     },
     "open_view": {
       "desc": "cambia lo que muestra la tarjeta (home o el detalle de una lista)",
@@ -99,7 +101,9 @@
       "desc": "reproduce/reanuda la reproducción actual, o busca y reproduce si se da 'query'",
       "payload": {
         "query": "opcional: canción/artista a poner"
-      }
+      },
+      "sensitivity": "routine",
+      "activation": true
     },
     "play_local": {
       "desc": "reproduce un audio que ya está en la biblioteca del agente (por su ruta)",
@@ -110,15 +114,21 @@
     },
     "pause": {
       "desc": "pausa la reproducción en curso",
-      "payload": {}
+      "payload": {},
+      "sensitivity": "routine",
+      "activation": true
     },
     "resume": {
       "desc": "reanuda la reproducción pausada",
-      "payload": {}
+      "payload": {},
+      "sensitivity": "routine",
+      "activation": true
     },
     "next": {
       "desc": "salta a la siguiente canción de la cola",
-      "payload": {}
+      "payload": {},
+      "sensitivity": "routine",
+      "activation": true
     },
     "previous": {
       "desc": "vuelve a la canción anterior",

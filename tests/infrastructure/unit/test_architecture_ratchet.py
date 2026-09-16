@@ -166,7 +166,11 @@ _CEILINGS: dict[str, tuple[int, int]] = {
     # 2026-09-03, same pass (V2-567): router_guards paid by extracting the V2-210 answer-source family to
     # answer_guards.py (811→762); probe paid by moving alias classification to show_target.py beside its
     # siblings (1152→1144). Both files sat EXACTLY at their ceilings — the ratchet working as designed.
-    "nucleo/flash/router_guards.py": (742, 5),
+    # V2-713 R1 — 742→666 pagado EXTRAYENDO `show_guard.py`: el guarda del «abre/muéstrame» puro (sus
+    # tres clases de verbo, la decisión y su sombra) era un concepto entero dentro de un cajón que
+    # mezclaba dinero, login y cierre. Los lazy bajan de 5 a 3 porque los nuevos se fueron con él.
+    "nucleo/flash/router_guards.py": (667, 3),
+    "nucleo/flash/show_guard.py": (165, 4),
     # probe.py 1168→1176 net: V2-300's grace/latency growth minus F1's confirm-gate retirement (−2 mirrors,
     # 2026-08-24); →1214/89 on 25-08 (49a7c81, 25d7ebd, 73daeac — the walk's fixes land in the same god
     # files they measure). Still F2's split target (`run_turn` into named phases).

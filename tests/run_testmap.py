@@ -3606,6 +3606,14 @@ DOMAINS: list[dict] = [
                                 "nombre (y la orden corta de cerrar la comparten los dos canales)",
             "ch": UNIT,
             "paths": ["tests/infrastructure/unit/core/test_a_dead_task_is_counted_and_its_cause_survives.py"]},
+        # V2-713 R1: «abre música y sigue con la pista» se leía como show puro y el guarda descartaba el
+        # `resume` correcto. La salida no era ampliar la tabla de verbos (lo que V2-712 acaba de retirar del
+        # consentimiento) sino que el widget DECLARE `activation: true`. Sin declarar = bloqueado, o sea el
+        # comportamiento de hoy. Dos heurísticas intermedias murieron contra `clear_all` y `navegador:open`.
+        {"id": "7.51", "title": "Un «abre X» puro puede vetar una ESCRITURA inventada, nunca una activación "
+                                "— y lo que puede correr está DECLARADO, no adivinado",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/flash/test_a_pure_show_vetoes_an_invented_write_not_an_activation.py"]},
         # 2026-08-20: la captura forense de un turno guardaba `system[:8000]` de un prompt de ~19.000, y el
         # estado vivo se compone al FINAL — o sea que tiraba justo la mitad que responde «¿qué vio el modelo?».
         # Casi cuesta un diagnóstico falso: cinco turnos parecían no tener el bloque del navegador con el

@@ -89,11 +89,15 @@
       "payload": {
         "item": "número 1-N o texto del título"
       },
-      "ref": "item"
+      "ref": "item",
+      "sensitivity": "routine",
+      "activation": true
     },
     "next": {
       "desc": "salta al siguiente vídeo de la lista",
-      "payload": {}
+      "payload": {},
+      "sensitivity": "routine",
+      "activation": true
     },
     "previous": {
       "desc": "vuelve al vídeo anterior de la lista (al principio, reinicia el actual)",
@@ -188,11 +192,15 @@
     },
     "play": {
       "desc": "reanuda/reproduce el vídeo",
-      "payload": {}
+      "payload": {},
+      "sensitivity": "routine",
+      "activation": true
     },
     "pause": {
       "desc": "pausa el vídeo",
-      "payload": {}
+      "payload": {},
+      "sensitivity": "routine",
+      "activation": true
     },
     "mute": {
       "desc": "silencia el audio",

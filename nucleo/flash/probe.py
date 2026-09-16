@@ -485,7 +485,8 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
             # does not carry a guard reports the decision the product does not take.
             # The blocked branch stops here exactly like the voice rail's early return; a VIEW action falls
             # through as `widget_data` (the rail runs it, and also shows the card).
-            if _router.show_request_blocks_data_action(text, _wid, _act) and _rt.get(_wid) is not None:
+            _pl = _wd["args"].get("payload") if isinstance(_wd["args"].get("payload"), dict) else {}
+            if _router.show_request_blocks_data_action(text, _wid, _act, _pl) and _rt.get(_wid) is not None:
                 action = f"canvas:show:{_wid}"
             # V2-713 R3 — the short-close redirect, which had lived only in the voice rail. Shared as a
             # FUNCTION, never copied; the incident and the reason are in `close_guards.is_short_close_order`.

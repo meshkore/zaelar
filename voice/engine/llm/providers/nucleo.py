@@ -1170,7 +1170,7 @@ class NucleoLLMStream(llm.LLMStream):
             # live turns of «ábreme el Telegram» → «Aquí lo tienes» over an unmoved card left no trace of WHAT
             # had been thrown away, and the model was suspected before the guard was.
             if _router.is_pure_show_request(text) and runtime.get(wid) is not None:
-                if _router.show_request_blocks_data_action(text, wid, action_name):
+                if _router.show_request_blocks_data_action(text, wid, action_name, payload):
                     emit("brain", "🪟 'abrir/mostrar' puro → show (no data-op inventada)",
                          text=f"{wid} (descartada {action_name})", role="system",
                          extra={"id": wid, "action": action_name, "payload": payload or {}})
