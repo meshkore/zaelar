@@ -1152,6 +1152,19 @@ DOMAINS: list[dict] = [
         # Cryptonite» sobre una cita que sigue ahí. Los dos guardas que la mataron leen TEXTO (su frase, la
         # forma de la re-emisión); el único que se portó bien lee CONSECUENCIA (el contrato de V2-705). Los
         # nodos cubren la resta: el sello sigue al RESULTADO, y «borrar» se juzga por su OBJETO.
+        # V2-707 F2 — EL ARNÉS UNIVERSAL. Su petición del 16-09: «tiene que saber identificar la tarea que ha
+        # propuesto el usuario y determinar cuál es la manera de medir el éxito… si no hemos llegado, es capaz
+        # de iterar hasta que lo consiga… muchas tareas no quedarían huérfanas o a medias». El motor tenía tres
+        # fragmentos y ningún todo: `harness.py` verifica UNA clase 5 min en RAM, `errands/verify.py` UNA
+        # condición escrita a mano, y el Brain Worker NADA — `_finish` cerraba con `rec.ok`, que lo pone el
+        # propio worker, mientras el prompt le pedía en PROSA «VERIFICA… ITERA» (carril sobre el juicio). Ahora
+        # el MODELO escribe la condición (`hbnote goal`) y el MOTOR la comprueba contra la verdad del producto.
+        # `None` (ilegible, o nada declarado) nunca es un fallo: la regla de V2-660, literal.
+        {"id": "2.63", "title": "Una tarea NO termina porque el worker lo diga: declara cómo se mide su éxito, "
+                                "el motor lo comprueba contra el producto, y si no se cumple lo relanza UNA vez "
+                                "con lo que falta · lo ilegible no acusa a nadie",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/"
+                                  "test_a_task_does_not_end_because_the_worker_says_so.py"]},
         {"id": "2.62", "title": "Una acción que la puerta RECHAZÓ no se recuerda como hecha: el sello sigue al "
                                 "resultado, así que el reintento corregido —que el propio rechazo pide— sí corre",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/"

@@ -75,33 +75,47 @@ def test_la_hoja_sellada_no_se_reescribe_nunca():
 
 # ── transport: the sheet must TRAVEL with the handoff ──────────────────────────────────────────────────────
 
-def test_los_dos_relanzamientos_mandan_la_hoja():
-    """Wiring guard, not a logic guard. `_sheet_open` can inherit perfectly and be useless if the relaunch does not
-    pass it the sheet—which is exactly what happened: the context carried `kind`, `trace`, `depth`, and
-    `relay_gen`, but not the sheet. There are TWO paths (provider handoff and resumption after context exhaustion),
-    and both had the same hole, so fixing only one leaves half of it alive."""
+#: Every seam that RELAUNCHES a worker session, with the `src` it stamps. Read from the source of whichever
+#: module owns it, so the guard survives a move — and grows with the family instead of silently shrinking.
+#: `goal_unmet` joined in V2-707 F2 (the harness: an errand that did not reach its declared end state), and
+#: the two below were extracted from `_finish` into `workers/relay.py` in the same batch.
+_RELAUNCHES = (("nucleo.workers.relay", '"src": "provider_failover"'),
+               ("nucleo.workers.relay", '"src": "context_handoff"'),
+               ("nucleo.workers.goal", '"src": "goal_unmet"'))
+
+
+def _relaunch_window(modname: str, marca: str, width: int = 600) -> str:
+    import importlib
     import inspect
-
-    from nucleo.workers import session as S
-    src = inspect.getsource(S.WorkerSession._finish)
-    for marca in ('"src": "provider_failover"', '"src": "context_handoff"'):
-        i = src.index(marca)
-        ventana = src[i:i + 400]
-        assert '"sheet"' in ventana, f"{marca}: el relanzamiento no manda la hoja del encargo"
+    src = inspect.getsource(importlib.import_module(modname))
+    assert marca in src, f"{modname} ya no relanza con {marca} — ¿se ha movido? apunta el guarda al sitio nuevo"
+    i = src.index(marca)
+    return src[i:i + width]
 
 
-def test_the_two_relaunches_send_the_surface_too():
+def test_todos_los_relanzamientos_mandan_la_hoja():
+    """Wiring guard, not a logic guard. `_sheet_open` can inherit perfectly and be useless if the relaunch does
+    not pass it the sheet—which is exactly what happened: the context carried `kind`, `trace`, `depth`, and
+    `relay_gen`, but not the sheet. There were TWO paths with the same hole, so fixing one left half alive;
+    there are THREE now, and a fourth added without the sheet must fail here on the day it is written."""
+    for modname, marca in _RELAUNCHES:
+        assert '"sheet"' in _relaunch_window(modname, marca), \
+            f"{marca}: el relanzamiento no manda la hoja del encargo"
+
+
+def test_todos_los_relanzamientos_mandan_tambien_la_superficie():
     """V2-698 — the hole beside the hole above. The sheet travelled; the SURFACE did not, so a «voz» errand
     relayed twice (z.ai → deepseek → licencia) was reborn with the default surface and opened a results sheet
     the operator never asked for (measured 2026-09-15, `results::40aa52-2` by `worker:2`)."""
-    import inspect
+    for modname, marca in _RELAUNCHES:
+        assert '"surface"' in _relaunch_window(modname, marca), \
+            f"{marca}: the relaunch does not carry the errand's surface"
 
-    from nucleo.workers import session as S
-    src = inspect.getsource(S.WorkerSession._finish)
-    for marca in ('"src": "provider_failover"', '"src": "context_handoff"'):
-        i = src.index(marca)
-        ventana = src[i:i + 600]
-        assert '"surface"' in ventana, f"{marca}: the relaunch does not carry the errand's surface"
+
+def test_el_relanzamiento_del_ARNES_manda_ademas_la_condicion():
+    """V2-707 F2 — and its own extra piece: a retry that forgot HOW SUCCESS IS MEASURED would be the last one
+    nobody checks, which is the half-done delivery the harness exists to stop."""
+    assert '"done_when"' in _relaunch_window("nucleo.workers.goal", '"src": "goal_unmet"')
 
 
 def test_the_dispatcher_reads_the_surface_from_the_context():

@@ -28,7 +28,8 @@ async def agent_report(tid: str = Body(..., embed=True), token: str = Body("", e
                        note: str = Body("", embed=True), plan: str = Body("", embed=True),
                        progress: str | None = Body(None, embed=True),
                        done: int | None = Body(None, embed=True), pct: int | None = Body(None, embed=True),
-                       considered: int | None = Body(None, embed=True), kept: int | None = Body(None, embed=True)):
+                       considered: int | None = Body(None, embed=True), kept: int | None = Body(None, embed=True),
+                       done_when: dict | None = Body(None, embed=True)):
     """Documentation translated to English."""
     orphan = _is_orphan(tid, token)
     if orphan:
@@ -53,6 +54,11 @@ async def agent_report(tid: str = Body(..., embed=True), token: str = Body("", e
             dispatch.session_progress(tid, (progress or "").strip(), done=done, pct=pct)
         if considered is not None or kept is not None:
             dispatch.session_considered(tid, considered=considered, kept=kept)
+        # V2-707 F2 — HOW SUCCESS IS MEASURED, declared by the worker itself at the start. `_finish` reads
+        # it against the product's own truth before delivering, so a task cannot end by SAYING it is done.
+        if isinstance(done_when, dict) and done_when:
+            from nucleo.workers.goal import session_goal
+            session_goal(tid, done_when)
     except Exception:
         pass
     if note.strip():

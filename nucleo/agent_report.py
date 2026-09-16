@@ -10,11 +10,23 @@ responder "¿cómo va?"), la UI (progreso) y el debug.
     python -m nucleo.agent_report plan      "leer la spec|editar data.py|reescribir widget.js|validar"
     python -m nucleo.agent_report progress  "widget.js reescrito" --done 3
     python -m nucleo.agent_report progress  "compilando"        --pct 80
+    python -m nucleo.agent_report goal '{"all":[{"widget":"agenda","collection":"meetings","where":{"title~":"Cryptonite"},"expect":"absent"}]}'
+
+DECLARA TU OBJETIVO AL EMPEZAR (`goal`). Es CÓMO SE MIDE que el encargo está hecho, leído contra la verdad
+del propio producto cuando termines: si no se cumple, se te relanza UNA vez diciéndote qué falta, en vez de
+entregar al operador algo a medias. Cerrado en OPERADORES, abierto en CONTENIDO — mira `nucleo/verify.py`.
 
 El id de la sesión sale del entorno `ZAELAR_TASK_ID` (lo inyecta el dispatcher al lanzar el agente) → el agente no
 tiene que conocerlo. Habla por HTTP con el server vivo (ZAELAR_BASE, def localhost:43917). Fail-soft.
 """
 from __future__ import annotations
+
+_GOAL_HELP = (
+    "forma: {\"all\": [{\"widget\": \"agenda\", \"collection\": \"meetings\", "
+    "\"where\": {\"title~\": \"Cryptonite\"}, \"expect\": \"present|absent\"}]}\n"
+    "  · `where` es la misma expresión de `hbwidget rows`: campo · campo~ (contiene) · campo>= <= > < · campo!\n"
+    "  · «all» exige todas; «any» con una basta; `count` admite un número o {\"min\": n, \"max\": m}\n"
+    "  · las colecciones y sus campos te los da `hbwidget read <widget>`")
 
 import json
 import os
@@ -58,6 +70,8 @@ def main(argv: list[str] | None = None) -> int:
     pr.add_argument("text", nargs="?", default="")
     pr.add_argument("--done", type=int, default=None)
     pr.add_argument("--pct", type=int, default=None)
+    go = sub.add_parser("goal", help="declara CÓMO SE MIDE el éxito de este encargo (JSON, o @fichero.json)")
+    go.add_argument("text")
     co = sub.add_parser("considered", help="AMPLITUD: cuántos candidatos has evaluado de verdad (--kept N finalistas)")
     co.add_argument("n", type=int)
     co.add_argument("--kept", type=int, default=None)
@@ -75,6 +89,22 @@ def main(argv: list[str] | None = None) -> int:
         if a.pct is not None:
             body["pct"] = a.pct
         return _post(body)
+    if a.cmd == "goal":
+        raw = a.text
+        if raw.startswith("@"):
+            try:
+                with open(raw[1:], encoding="utf-8") as f:
+                    raw = f.read()
+            except OSError as e:
+                print(f"no puedo leer el objetivo de {raw[1:]}: {e} — escríbelo primero con tu tool Write, "
+                      f"a una ruta RELATIVA de tu directorio de trabajo.")
+                return 2
+        try:
+            goal = json.loads(raw)
+        except Exception as e:  # noqa: BLE001
+            print(f"el objetivo no es JSON válido: {e}\n{_GOAL_HELP}")
+            return 2
+        return _post({"done_when": goal})
     if a.cmd == "considered":
         body = {"considered": a.n}
         if a.kept is not None:

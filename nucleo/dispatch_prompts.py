@@ -106,7 +106,15 @@ _METHOD_BLOCK = (
     "exactamente lo pedido)? ¿los widgets y la memoria reflejan ya lo hecho? Si algo no se puede certificar, "
     "dilo con honestidad — no des por bueno un resultado sin confirmarlo.\n"
     "6) ITERA si la verificación falla (afina la búsqueda, ordena por fecha, prueba otra fuente, corrige el widget) "
-    "hasta cumplirlo. Solo entrega cuando está CERTIFICADO en todos los planos. Nunca digas «hecho» sin verificar.")
+    "hasta cumplirlo. Solo entrega cuando está CERTIFICADO en todos los planos. Nunca digas «hecho» sin verificar.\n"
+    "1b) DECLARA CÓMO SE MEDIRÁ que está hecho, nada más entender el encargo, con "
+    "'python -m nucleo.agent_report goal @objetivo.json' — tú decides la condición, el motor la comprueba "
+    "solo contra la verdad del producto cuando termines, y si no se cumple te relanza UNA vez diciéndote qué "
+    "falta en vez de entregar algo a medias. Forma: "
+    "{\"all\":[{\"widget\":\"agenda\",\"collection\":\"meetings\",\"where\":{\"title~\":\"X\"},"
+    "\"expect\":\"present|absent\"}]} — «where» es la misma expresión que `hbwidget rows`, y las colecciones "
+    "y sus campos te los da `hbwidget read <widget>`. Si el encargo no acaba en un estado que se pueda leer "
+    "en un widget (una búsqueda, un informe), no declares nada: una condición ilegible no afirma ni niega.")
 
 
 # V2-167 · el navegador es el ÚLTIMO recurso, no el primero. Conducir un Chromium por una web de reservas es
