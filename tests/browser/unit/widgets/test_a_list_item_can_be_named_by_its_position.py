@@ -124,7 +124,15 @@ def test_el_campo_NO_depende_de_que_la_lista_tenga_datos(tmp_path, monkeypatch):
 def test_ninguna_otra_accion_del_catalogo_cambia_de_respuesta():
     """The measurement that made this safe to ship: 133 actions in the catalog, 3 change, and the 3 are the ones
     that were broken. Reimplementing the OLD heuristic here is the point — it is the baseline being compared
-    against, not a copy of the code under test."""
+    against, not a copy of the code under test.
+
+    V2-708 added FIVE more, and they are the whole blast radius of that batch: the agenda actions that act on
+    a meeting that already exists. Every one of them declared `title` (no key ends in `id`) and answered
+    None, so the resolver threw away the item the model named and dispatched an empty payload — five
+    `cancel_meeting {}` in one session over an index that held the appointment. No other widget moves:
+    `contactos` already names its key `contactId`, and the rest declare `ref` explicitly. That is what this
+    list is for — if a sixth name ever appears here, somebody widened the reach of the resolver without
+    saying so."""
     from widgets import runtime
 
     def sufijo_solo(wid: str, action: str):
@@ -139,7 +147,11 @@ def test_ninguna_otra_accion_del_catalogo_cambia_de_respuesta():
         for a in ((runtime.get(w) or {}).get("actions") or {}):
             if sufijo_solo(w, a) != refs.id_field_for_action(w, a):
                 cambian.append((w, a))
-    assert sorted(cambian) == [("youtube", "move"), ("youtube", "play_item"), ("youtube", "remove")], cambian
+    assert sorted(cambian) == [
+        ("agenda", "cancel_meeting"), ("agenda", "move_meeting"), ("agenda", "rsvp_meeting"),
+        ("agenda", "set_reminder"), ("agenda", "update_meeting"),
+        ("youtube", "move"), ("youtube", "play_item"), ("youtube", "remove"),
+    ], cambian
 
 
 # ── the two reference shapes that could not resolve for ANY widget ─────────────────────────────────────────

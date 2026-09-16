@@ -2336,6 +2336,12 @@ DOMAINS: list[dict] = [
                                  "tramo VACÍO tampoco abre confirmación",
             "ch": UNIT, "paths": ["tests/browser/unit/widgets/"
                                   "test_a_number_that_contradicts_the_order_is_not_a_confirmation.py"]},
+        {"id": "4.186", "title": "El item que ÉL nombró llega al handler: la acción dice QUÉ CLAVE nombra una "
+                                 "fila (y la colección del manifiesto la declaraba ya), la puerta y el "
+                                 "resolvedor no pueden discrepar, POSICIÓN es otra declaración distinta, y si "
+                                 "el modelo no nombra nada se lee SU FRASE",
+            "ch": UNIT, "paths": ["tests/browser/unit/widgets/"
+                                  "test_the_item_he_named_is_not_thrown_away.py"]},
         {"id": "4.183", "title": "Una operación que NADIE declaró sigue siendo posible: la puerta genérica "
                                  "resuelve la expresión a filas y ejecuta la acción propia del widget en cada "
                                  "una · la fricción es el RADIO, no el verbo",

@@ -38,6 +38,20 @@ _STOP = set("el la los las un una de del en al a y o que con para por mi tu su l
             "tarea tareas cita citas item proyecto la de lo eso esa ese esta este cosa asunto".split())
 
 
+# WHEN, never WHICH — a closed class, the same shape as `_ORDINALS` and `_POS_FILLER` and for the same
+# reason: resolving these is a lookup, not a judgement about intent. They are stripped from a reference that
+# came out of the OPERATOR'S SENTENCE rather than out of `item`, because in a sentence a day or a month is
+# the DATE of the thing, and the actions that need one declare their own `date` key for it.
+# Measured (V2-708): «avisos para todas las citas del jueves» asks for every meeting on Thursday, and it
+# scored the meeting TITLED «Jueves Santo» high enough to win — one reminder moved instead of the whole day.
+# It only ever applies to the fallback: «borra Jueves Santo» puts that title in `item`, and there it counts.
+_TEMPORAL = set("lunes martes miercoles jueves viernes sabado domingo monday tuesday wednesday thursday "
+                "friday saturday sunday enero febrero marzo abril mayo junio julio agosto septiembre "
+                "setiembre octubre noviembre diciembre january february march april may june july august "
+                "september october november december hoy ayer manana today tomorrow yesterday tonight "
+                "semana mes week month".split())
+
+
 def _ref_index(widget_id: str) -> list[dict]:
     try:
         import importlib
@@ -62,11 +76,64 @@ def _exposes_ref_index(widget_id: str) -> bool:
         return False
 
 
+_OPTIONAL_RE = re.compile(r"opcional|optional", re.I)
+
+
+def selector_is_optional(widget_id: str, action: str, key: str = "") -> bool:
+    """Does this action RUN without naming an item? Read from the manifest's own prose for that payload key
+    («opcional»/«optional»), which is the convention every manifest already follows.
+
+    It lives here, and `contract.selector_for` calls it, because those two functions answering the same
+    question differently is the defect V2-708 measured: `contract` said `agenda.cancel_meeting`'s selector was
+    `title` while `id_field_for_action` said the action had none. One reader, one answer.
+    """
+    try:
+        spec = ((runtime.get(widget_id) or {}).get("actions") or {}).get(action) or {}
+        payload = spec.get("payload")
+        if not isinstance(payload, dict):
+            return False
+        k = key or id_field_for_action(widget_id, action) or ""
+        return bool(k) and bool(_OPTIONAL_RE.search(str(payload.get(k) or "")))
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def _collection_id_field(widget_id: str, action: str, payload: dict) -> str | None:
+    """The id key of a COLLECTION this action mutates in place, when the collection declares it (V2-708).
+
+    A widget declares its rows once, at the top of its manifest:
+
+        "collections": {"meetings": {"id": "title", "via": {"delete": "cancel_meeting",
+                                                            "patch": "update_meeting",
+                                                            "put": "add_meeting"}}}
+
+    That `id` IS the answer to «which payload key names an existing row», and it is STATIC — the objection
+    that sank reading it from `ref_index()` (an empty list publishes no rows) does not apply to a
+    declaration. Only the verbs that touch a row that ALREADY exists count: `put`/`post` CREATE one, and
+    resolving their key against the live index would make `add_meeting` refuse every appointment whose title
+    is new — the opposite defect, and a louder one.
+    """
+    try:
+        cols = (runtime.get(widget_id) or {}).get("collections") or {}
+        for col in cols.values():
+            if not isinstance(col, dict):
+                continue
+            key = str(col.get("id") or "").strip()
+            if not key or key not in payload:
+                continue
+            via = col.get("via") if isinstance(col.get("via"), dict) else {}
+            if action in [v for k, v in via.items() if str(k).lower() not in ("put", "post")]:
+                return key
+    except Exception:  # noqa: BLE001
+        pass
+    return None
+
+
 def id_field_for_action(widget_id: str, action: str) -> str | None:
     """Payload key for this action that identifies an existing item, read from the manifest. None if the action
     does not operate on a preexisting item (e.g. `add_meeting`, which CREATES one) → there is nothing to resolve.
 
-    TWO ways to say it, and the second one is the fix (V2-595, measured 2026-09-05):
+    THREE ways to say it, and each one was added by an incident:
 
     1. `"ref": "<payload key>"` DECLARED in the action spec. Explicit, and the only one that works on a widget
        whose list happens to be empty right now.
@@ -81,7 +148,14 @@ def id_field_for_action(widget_id: str, action: str) -> str | None:
     `item_not_found`. Measured live in session `abe9942b`: «show me the first one, start it» → `play_item {}` →
     «I can't find that video in the list», over a list of five with the right rows in it.
 
-    ⚠️ The first version of this fix read the answer out of the widget's OWN `ref_index()`, which is where the
+    3. Failing both, the `id` a `collections` entry declares for the rows this action mutates in place — see
+       `_collection_id_field`. Added by V2-708, measured on the agenda: five voice turns naming «the Dentist
+       appointment on Thursday the 17th» produced five `cancel_meeting {}`, because `cancel_meeting` declares
+       `title`/`date` (no key ends in `id`) and the manifest never declared a `ref` — while the SAME manifest
+       already said `collections.meetings.id == "title"` two hundred lines up. The declaration existed; nobody
+       read it.
+
+    ⚠️ The first version of the V2-595 fix read the answer out of the widget's OWN `ref_index()`, which is where the
     field name genuinely lives — and it was WRONG, caught by its own test: that index is DATA, so an empty list
     publishes no rows and the action would quietly go back to being unresolvable exactly when the widget is
     empty. What identifies an item is a property of the ACTION, so it belongs in the manifest, which is static.
@@ -97,6 +171,7 @@ def id_field_for_action(widget_id: str, action: str) -> str | None:
         for k in payload:
             if str(k).lower().endswith("id"):
                 return k
+        return _collection_id_field(widget_id, action, payload)    # 3 · the collection's declared id (V2-708)
     except Exception:
         pass
     return None
@@ -136,6 +211,29 @@ _POS_FILLER = set("video videos clip clips cancion canciones tema temas pista pi
                   "lista listas playlist cola elemento elementos entrada entradas fila filas resultado "
                   "resultados foto fotos imagen imagenes mensaje mensajes list queue row rows result results "
                   "numero numeros number one ones thing things".split())
+
+
+def positional(widget_id: str, action: str = "") -> bool:
+    """May a reference to this widget be resolved BY POSITION («la tercera», «3»)? True unless the widget —or
+    the action— declares `"positional": false`.
+
+    This flag exists because V2-643 had no other way to say it (V2-708). The agenda deliberately declared NO
+    `ref` on its meeting actions, and its test says why: position needs a VISIBLE anchor — the youtube list
+    prints 1, 2, 3 beside its rows, no agenda view numbers anything, and «la tercera» over an unnumbered
+    calendar would cancel an appointment nobody named. But the same absence also meant
+    `id_field_for_action` answered None, so `resolve` threw away every reference the model gave and
+    dispatched an empty payload: five `cancel_meeting {}` in one measured session. One declaration was
+    carrying two unrelated decisions — WHICH KEY names a row, and WHETHER counting rows is meaningful — and
+    the widget could not have the first without the second. Now it can.
+    """
+    try:
+        man = runtime.get(widget_id) or {}
+        spec = (man.get("actions") or {}).get(action) or {}
+        if spec.get("positional") is False or man.get("positional") is False:
+            return False
+    except Exception:  # noqa: BLE001
+        pass
+    return True
 
 
 def _position_ref(query: str, n: int) -> "int | None":
@@ -190,22 +288,48 @@ def position_index(ref: str, n: int) -> "int | None":
     return _position_ref(_norm(ref or ""), n)
 
 
-def _score(ref_n: str, label_n: str) -> float:
-    if not ref_n or not label_n:
-        return 0.0
-    r_tokens = [t for t in ref_n.split() if t not in _STOP and len(t) > 2]
-    l_tokens = [t for t in label_n.split() if t not in _STOP]
-    if not r_tokens:
+def _covered(needles: list[str], hay: list[str]) -> float:
+    """Fraction of `needles` that `hay` accounts for — exact, substring, or a close typo."""
+    if not needles:
         return 0.0
     hits = 0.0
-    for t in r_tokens:
-        if t in l_tokens or any(t in lt or lt in t for lt in l_tokens):
+    for t in needles:
+        if t in hay or any(t in h or h in t for h in hay):
             hits += 1
-        elif difflib.get_close_matches(t, l_tokens, n=1, cutoff=0.82):
+        elif difflib.get_close_matches(t, hay, n=1, cutoff=0.82):
             hits += 0.8
-    token_score = hits / len(r_tokens)                       # fraction of the reference covered
+    return hits / len(needles)
+
+
+def _coverage(ref_n: str, label_n: str) -> float:
+    """The better of the two coverages, 0..1 — how much of the label he named, or of the reference the label
+    accounts for. `_score` weighs it against the raw ratio; on its own it is the FLOOR an unnamed reference
+    has to clear (see `resolve`)."""
+    r_tokens = [t for t in (ref_n or "").split() if t not in _STOP and len(t) > 2]
+    l_tokens = [t for t in (label_n or "").split() if t not in _STOP]
+    if not r_tokens:
+        return 0.0
+    return max(_covered(r_tokens, l_tokens), _covered([t for t in l_tokens if len(t) > 2], r_tokens))
+
+
+def _score(ref_n: str, label_n: str) -> float:
+    """How well a spoken reference names this label. Coverage counts BOTH WAYS (V2-708).
+
+    The one-way version divided by the length of the REFERENCE, so every extra word the operator said made
+    the right row score LOWER. Measured: «the Dentist appointment on Thursday the 17th» against the label
+    «Dentist» covers 1 of 4 reference tokens → 0.25·2 + 0.3 = 0.8, under the 1.0 floor → `no_match`, over an
+    index that held exactly that appointment. Said plainly: the more precisely he identified it, the less
+    likely it resolved — and «Dentist» alone worked. That is backwards.
+
+    A label the reference CONTAINS WHOLE is a match, however much context came with it. So the other
+    direction is measured too and the better of the two wins, which is also what keeps this from turning
+    into a rule about dates or filler words: nothing here knows what «Thursday» is, only that the label was
+    fully named.
+    """
+    if not ref_n or not label_n:
+        return 0.0
     ratio = difflib.SequenceMatcher(None, ref_n, label_n).ratio()
-    return token_score * 2.0 + ratio                          # token overlap weighs more than the raw ratio
+    return _coverage(ref_n, label_n) * 2.0 + ratio            # token overlap weighs more than the raw ratio
 
 
 # Result of reference resolution.
@@ -217,11 +341,36 @@ class RefResult:
         self.candidates = candidates or []   # candidate labels (to ask the operator)
 
 
-def resolve(widget_id: str, action: str, ref: str, payload: dict | None = None) -> RefResult:
+def _qualified(rows: list[dict]) -> list[str]:
+    """Candidate labels, each carrying its `hint` when the labels alone do not tell them apart — asking «which
+    one: New, New, New?» is not a question."""
+    labels = [str(i.get("label") or "") for i in rows]
+    if len(set(labels)) != len(labels):
+        labels = [(f"{i.get('label')} ({i.get('hint')})".strip() if str(i.get("hint") or "").strip()
+                   else str(i.get("label"))) for i in rows]
+    out: list[str] = []
+    for label in labels:                    # rows that are identical DOWN TO THE HINT are one question
+        if label not in out:
+            out.append(label)
+    return out
+
+
+def resolve(widget_id: str, action: str, ref: str, payload: dict | None = None,
+            order: str = "") -> RefResult:
     """Resolve a natural-language reference to the real item id for `action`. Returns a `RefResult`:
     - ok=True + payload (with the real id filled) if resolved, or if the action does not act on an existing item.
     - ok=False with `needs` ('ref'|'ambiguous'|'no_match') and `candidates` so the caller ASKS instead of inventing
-      an id. NEVER raises."""
+      an id. NEVER raises.
+
+    `order` is the OPERATOR'S OWN SENTENCE, and it is the reference of LAST RESORT (V2-708). The model is
+    asked to put an existing item in `item`; when it does not, everything needed to find the row is still
+    sitting in what he said, and refusing over it is the failure he measured five times in one session —
+    «Thursday, seventeenth. Please delete that appointment… A dentist.» answered with a recital of his
+    calendar. Last resort on purpose: an explicit `item` still wins, and the sentence is only ever used to
+    FIND a row that already exists, never to widen anything (the resolution either names one row or asks).
+    ⚠️ Pass HIS half of the turn, never the composed prompt: a `[SISTEMA]` note carries the candidate labels
+    themselves, so feeding it in here would make every reference ambiguous.
+    """
     payload = dict(payload or {})
     field = id_field_for_action(widget_id, action)
     if not field:
@@ -235,20 +384,34 @@ def resolve(widget_id: str, action: str, ref: str, payload: dict | None = None) 
         return RefResult(True, payload)
 
     # Text to search for: the model's explicit ref, or —if it did not give one— what it put in the id field (often an
-    # invented description/value that sometimes matches by text, e.g. the task title).
-    query = _norm(ref) or _norm(given)
-    if not query:
-        return RefResult(False, needs="ref", candidates=[i["label"] for i in idx][:6])
-    if not idx:
+    # invented description/value that sometimes matches by text, e.g. the task title), or his own words.
+    named = _norm(ref) or _norm(given)
+    query = named or _norm(order)
+    # An action the manifest itself calls optional RUNS without a selector («avisos para todas las citas del
+    # jueves» is `set_reminder` with a date and no title). It may still be pointed at one row, so it goes
+    # through the whole resolution — it just never REFUSES for lack of a name the operator never had to give.
+    lenient = selector_is_optional(widget_id, action, field) and not named
+    if not named:                                          # …and a sentence dates things — see `_TEMPORAL`
+        query = " ".join(t for t in query.split() if t not in _TEMPORAL)
+    if not query or not idx:
+        if lenient:
+            return RefResult(True, payload)
+        if not query:
+            return RefResult(False, needs="ref", candidates=[i["label"] for i in idx][:6])
         return RefResult(False, needs="no_match")
 
-    for i in idx:                                          # an EXACT title beats any reading of position
-        if query == _norm(i["label"]):
-            payload[field] = i["id"]
-            return RefResult(True, payload)
+    exact = [i for i in idx if query == _norm(i["label"])]    # an EXACT title beats any reading of position
+    if len(exact) == 1:
+        payload[field] = exact[0]["id"]
+        return RefResult(True, payload)
+    # Two rows with the SAME label are two DIFFERENT things, so more than one exact hit falls THROUGH to the
+    # scorer, which ties them and makes the tie-break ask. The old code iterated the index and returned the
+    # first match: measured on 29 rows all titled «New» that arrived in one day, `cancel_meeting` resolved
+    # to one of them with nobody asked. Deliberately not a branch of its own — a second place to decide the
+    # same thing is a second place for the two to disagree.
 
-    _pos = _position_ref(query, len(idx))                  # «the first one» / «3» — see `_position_ref`
-    if _pos is not None:
+    _pos = _position_ref(query, len(idx)) if positional(widget_id, action) else None
+    if _pos is not None:                                   # «the first one» / «3» — see `_position_ref`
         payload[field] = idx[_pos]["id"]
         return RefResult(True, payload)
 
@@ -256,10 +419,12 @@ def resolve(widget_id: str, action: str, ref: str, payload: dict | None = None) 
     best_score, best = scored[0]
     second = scored[1][0] if len(scored) > 1 else 0.0
     if best_score < 1.0:
+        if lenient:
+            return RefResult(True, payload)
         return RefResult(False, needs="no_match", candidates=[i["label"] for i in idx][:6])
     if len(scored) > 1 and (best_score - second) < 0.5:       # tie → do not guess, ask
-        close = [i["label"] for s, i in scored if best_score - s < 0.5][:4]
-        return RefResult(False, needs="ambiguous", candidates=close)
+        close = [i for s, i in scored if best_score - s < 0.5][:4]
+        return RefResult(False, needs="ambiguous", candidates=_qualified(close))
     payload[field] = best["id"]
     return RefResult(True, payload)
 

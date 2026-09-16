@@ -52,7 +52,9 @@ _DESTRUCTIVE_RE = re.compile(
     re.I,
 )
 
-_OPTIONAL_RE = re.compile(r"opcional|optional", re.I)
+#: Kept under its historical name: the reader itself lives in `refs` so this module and `refs.resolve`
+#: cannot answer «is this selector optional?» differently — the V2-708 defect, one layer down.
+from .refs import _OPTIONAL_RE  # noqa: E402,F401
 
 #: The refusal's machine-readable reason. Stable: tests and the observability line read it.
 SELECTOR_MISSING = "selector_missing"
@@ -97,8 +99,15 @@ def selector_for(widget_id: str, action: str, spec: dict | None = None) -> str:
         key = ""
     if not key or key not in payload:
         key = next(iter(payload))
-    if _OPTIONAL_RE.search(str(payload.get(key) or "")):
-        return ""
+    # V2-708: the SAME reader `refs.resolve` uses. These two functions disagreeing about the same manifest is
+    # how the agenda ended up with a door that demanded `title` and a resolver that said the action had no
+    # selector at all — one answer, in one place.
+    try:
+        from . import refs as _r
+        if _r.selector_is_optional(widget_id, action, key):
+            return ""
+    except Exception:  # noqa: BLE001
+        pass
     return key
 
 

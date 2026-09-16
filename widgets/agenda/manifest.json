@@ -72,14 +72,16 @@
     },
     "set_reminder": {
       "desc": "mueve el AVISO de una cita («avísame a mediodía»); SIN title y CON date pone avisos a TODAS las citas de ese día («avisos para todas las citas del jueves»)",
+      "ref": "title",
       "payload": {
-        "title": "string (título de la cita, aunque sea parcial)",
+        "title": "string (título de la cita, aunque sea parcial — OPCIONAL: sin él y con date, TODAS las citas de ese día)",
         "date": "YYYY-MM-DD o «mañana»/día de la semana (con title filtra; SIN title = todas las citas de ese día)",
         "at": "HH:MM del día de la cita, o YYYY-MM-DD HH:MM"
       }
     },
     "cancel_meeting": {
       "desc": "cancela/elimina una cita ya agendada",
+      "ref": "title",
       "payload": {
         "title": "string",
         "date": "YYYY-MM-DD (opcional, filtra por fecha)"
@@ -151,6 +153,7 @@
     },
     "move_meeting": {
       "desc": "MUEVE una cita existente a otro día y/u hora («pásame el dentista al jueves», «la reunión a las 10») — el aviso se mueve con ella",
+      "ref": "title",
       "payload": {
         "title": "string (título de la cita, aunque sea parcial)",
         "date": "YYYY-MM-DD (opcional, si hay varias con ese título)",
@@ -160,6 +163,7 @@
     },
     "update_meeting": {
       "desc": "cambia los DETALLES de una cita que ya existe: si la otra parte la ha confirmado («el dentista ya me lo ha confirmado» → status=confirmed), quién viene, dónde, categoría, notas o su título. NO mueve la fecha ni la hora — para eso está move_meeting",
+      "ref": "title",
       "payload": {
         "title": "string (título de la cita, aunque sea parcial)",
         "date": "YYYY-MM-DD (opcional, si hay varias con ese título)",
@@ -186,6 +190,7 @@
     },
     "rsvp_meeting": {
       "desc": "RESPONDE a una invitación que te ha enviado otra persona («acepta la reunión con Gavin», «di que no voy»). Viaja a Google Calendar y el organizador lo ve. NO es lo mismo que update_meeting con status, que es una nota tuya sobre si la OTRA parte confirmó. Solo vale para citas venidas de Google en las que figuras como invitado",
+      "ref": "title",
       "payload": {
         "title": "string (título de la cita, aunque sea parcial)",
         "date": "YYYY-MM-DD (opcional, si hay varias con ese título)",
@@ -239,6 +244,7 @@
     "h": 380
   },
 
+  "positional": false,
   "collections": {
     "meetings": {
       "id": "title",

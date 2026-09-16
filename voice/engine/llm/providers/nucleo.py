@@ -1063,7 +1063,7 @@ class NucleoLLMStream(llm.LLMStream):
                 acted["widget"] = True
             return resolved
 
-        def _apply_widget_data(wid: str, action_name: str, payload: dict) -> None:
+        def _apply_widget_data(wid: str, action_name: str, payload: dict, ref: str = "") -> None:
             """Ejecuta una data-op según su modo (V2-025): FAST → despacha ya (apply_action / mailbox del owner);
             CONFIRM → abre confirmación con la mutación guardada (se ejecuta al decir "sí"); ESCALATE/None (acción
             no declarada o vía de escape) → escala al SlowBrain. Punto de convergencia de la tool y el tag."""
@@ -1084,8 +1084,8 @@ class NucleoLLMStream(llm.LLMStream):
                 # V2-678 — HIS words, not the composed turn: this row is the audit trail that ties a wrong
                 # action to the sentence that produced it, and with the notes glued on it named ours.
                 emit("widget", f"data:{action_name}", text=_bnotes.operator_half(text).strip()[:160],
-                     extra={"id": wid, "action": action_name, "mode": m, "src": "flash",
-                            "payload": payload if isinstance(payload, dict) else {}})   # V2-653: the order's content, judged by the arbiter
+                     extra={"id": wid, "action": action_name, "mode": m, "src": "flash", "item": ref,
+                            "payload": payload if isinstance(payload, dict) else {}})   # V2-653: the order's content
 
             if mode == _wactions.FAST:
                 # GUARD anti context-bleed (round headless V2-038 #1): el modelo a veces RE-emite la data-op del
@@ -1214,7 +1214,7 @@ class NucleoLLMStream(llm.LLMStream):
                 if escalate_req["v"] is None:
                     escalate_req["v"] = text
                 return
-            res = refs.resolve(wid, action_name, ref, payload)
+            res = refs.resolve(wid, action_name, ref, payload, order=_bnotes.operator_half(text))
             # GUARD mis-ruteo por VERBO (2026-07-21, caso «hay que cancelarlo» tras «¿qué día tengo la ITV?»): el modelo
             # enganchó el verbo ("cancelar") con una data-op (agenda.drop) de un widget que NO está ABIERTO NI el
             # operador NOMBRÓ; el objeto era un PRONOMBRE SUELTO ("lo") cuyo antecedente vive en la CONVERSACIÓN, no en
@@ -1252,7 +1252,7 @@ class NucleoLLMStream(llm.LLMStream):
                 emit("brain", "❓ referencia de item sin resolver", role="system",
                      text=f"{wid}:{action_name}:{ref or '∅'}", extra={"needs": res.needs, "cands": res.candidates[:4]})
                 return
-            _apply_widget_data(wid, action_name, res.payload)
+            _apply_widget_data(wid, action_name, res.payload, ref)
 
         _tool_fired: set = set()
         _data_ops_hechas: list = []      # V2-391: las data-ops YA ejecutadas de este turno, en orden

@@ -292,11 +292,31 @@ def test_the_new_vocabulary_is_declared_and_fast():
     for name in ("add_task", "move_meeting"):
         assert name in acts
         assert wactions.classify(acts[name], name) == wactions.FAST
-    # V2-643 — the meeting actions deliberately do NOT declare `ref` (V2-595's positional resolver).
-    # Declaring it would let «la tercera» resolve BY POSITION, and unlike the video list — which prints 1, 2,
-    # 3 beside its rows, the visible anchor that made V2-595 safe there — no agenda view numbers anything.
-    # A positional guess with nothing on screen to point at would CANCEL or MOVE an appointment nobody named.
-    # The spoken title is resolved by `data.py` itself (accent- and case-insensitive), and when it cannot,
-    # it REFUSES naming what is missing instead of picking a neighbour.
+    # V2-643 — no agenda reference may resolve BY POSITION. Unlike the video list, which prints 1, 2, 3
+    # beside its rows (the visible anchor that made V2-595's positional resolver safe there), no agenda view
+    # numbers anything: «la tercera» over an unnumbered calendar would CANCEL or MOVE an appointment nobody
+    # named.
+    # V2-708 — that used to be asserted through a PROXY, the absence of `ref` on those actions, because `ref`
+    # was the only thing that turned the resolver on at all. The proxy cost five `cancel_meeting {}` in one
+    # measured session: with no `ref` and no key ending in `id`, `id_field_for_action` answered None and
+    # `resolve` discarded the item the model had named. The two decisions are separate declarations now, so
+    # this asserts the PROPERTY instead of the proxy — the actions name their key, and the WIDGET says its
+    # rows are not numbered.
+    from widgets import refs
+    assert manifest.get("positional") is False
+    assert refs.positional("agenda") is False
+    _rows = [{"id": "a", "label": "Alpha", "field": "title"},
+             {"id": "b", "label": "Beta", "field": "title"},
+             {"id": "c", "label": "Gamma", "field": "title"}]
     for name in ("move_meeting", "set_reminder", "cancel_meeting", "update_meeting"):
-        assert "ref" not in acts[name], f"{name} must not accept positional references"
+        assert acts[name].get("ref") == "title", f"{name} must say which key names the meeting"
+        assert refs.id_field_for_action("agenda", name) == "title"
+        _orig = refs._ref_index                      # …and position stays dead, whatever the index holds
+        refs._ref_index = lambda _w, _m=_rows: _m
+        try:
+            assert not refs.resolve("agenda", name, "la tercera").ok, \
+                f"{name} resolved «la tercera» by POSITION"
+            assert refs.resolve("agenda", name, "Beta").payload["title"] == "b", \
+                f"{name} must still resolve a meeting he NAMED"
+        finally:
+            refs._ref_index = _orig
