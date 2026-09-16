@@ -33,8 +33,16 @@ the work it was closing nearly never landed. Two things worth keeping:
     not: what proves the work is each new file run alone plus its disarm. A sweep that hangs proves nothing
     about the code and costs the session.
 
-So, operationally: **wrap every pytest invocation in `timeout`** (`timeout 180 ./.venv/bin/python -m pytest
-<one file> -q`) so a hang costs three minutes instead of the session, and run **one file at a time**.
+So, operationally: **put a hard wall-clock limit on every pytest invocation** and run **one file at a
+time**, so a hang costs three minutes instead of the session. ⚠️ macOS has **no `timeout`** (it is GNU
+coreutils) and this venv has **no `pytest-timeout`**, so the portable form — verified here, 2026-09-16 — is:
+
+```sh
+perl -e 'alarm shift; exec @ARGV' 180 ./.venv/bin/python -m pytest <ONE file> -q -p no:cacheprovider
+```
+
+Exit code **142** means it hit the wall: that is a hang, not a failure, and it is reported as such rather
+than retried wider.
 
 ## One system, two interfaces
 
