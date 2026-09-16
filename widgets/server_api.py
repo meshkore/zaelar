@@ -346,6 +346,16 @@ async def _dispatch(wid: str, action: str, payload: dict):
             return refused
     except Exception:
         pass
+    # Step 0b (V2-707 F1): the GENERIC DATA DOOR. An operation the widget does not DECLARE — «delete every
+    # meeting whose title contains crypto», «list what is before today» — is still possible, and it enters
+    # here rather than through a file on disk. `rows.py` is a RESOLVER: it turns the expression into the rows
+    # it matches and then runs the widget's OWN declared action once per row, so the Google mirror, the canvas
+    # refresh, the snapshot and the contract above all still happen and there is no second doctrine about the
+    # same data. The friction is the RADIUS (one row runs, several ask), never the name of a verb.
+    if str(action or "").startswith("rows."):
+        from . import rows as _rows
+        return await _rows.apply(wid, str(action).split(".", 1)[1], payload,
+                                 confirmed=bool((payload or {}).get("confirmed")))
     try:
         from . import producers
         denied = producers.gate(wid, action)

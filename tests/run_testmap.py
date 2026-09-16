@@ -2283,6 +2283,25 @@ DOMAINS: list[dict] = [
                                  "y la puerta de envío resuelve un destinatario DECORADO (V2-705)",
             "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_one_tolerant_matcher_for_every_lookup.py",
                                   "tests/browser/unit/mensajeria/test_a_decorated_recipient_still_resolves.py"]},
+        # V2-707 F1 — LA PUERTA GENÉRICA DE DATOS. Su pregunta del 16-09: «si el Brainworker puede acceder a
+        # los datos de la memoria de la agenda… puede perfectamente ver la estructura y borrarlo todo… los
+        # guardarraíles y las hash tables son para agilizar, pero el resto también tiene que ser posible».
+        # Tiene razón, y la forma que no rompe nada es que la puerta sea un RESOLVEDOR: convierte una
+        # expresión sobre los datos en las filas que casa y ejecuta la acción DECLARADA del widget en cada
+        # una — así el espejo de Google, el refresco del canvas, el snapshot y el contrato de V2-705 siguen
+        # corriendo y no hay una segunda doctrina sobre los mismos datos. La fricción es el RADIO (una fila
+        # corre, varias preguntan con la cuenta y los nombres), nunca el nombre de un verbo. 4.184 es la otra
+        # mitad de su pregunta: nada comprobaba la superficie declarada contra las guardas que tiene delante.
+        {"id": "4.183", "title": "Una operación que NADIE declaró sigue siendo posible: la puerta genérica "
+                                 "resuelve la expresión a filas y ejecuta la acción propia del widget en cada "
+                                 "una · la fricción es el RADIO, no el verbo",
+            "ch": UNIT, "paths": ["tests/browser/unit/widgets/"
+                                  "test_an_operation_nobody_declared_is_still_possible.py"]},
+        {"id": "4.184", "title": "ARNÉS DE CATÁLOGO: toda acción declarada por cualquier widget sigue "
+                                 "alcanzando su handler a través del embudo — 201 acciones de 12 widgets, y "
+                                 "una guarda que se coma una en silencio pone el nodo rojo",
+            "ch": UNIT, "paths": ["tests/browser/unit/widgets/"
+                                  "test_every_declared_action_is_still_reachable.py"]},
         {"id": "4.181", "title": "Un sinónimo en el payload NO es un campo que falta: la puerta única renombra "
                                  "al manifiesto antes de juzgar («message» por «text» perdía el mensaje)",
             "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_a_synonym_in_the_payload_never_loses_the_call.py"]},

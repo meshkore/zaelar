@@ -222,8 +222,16 @@ async def _exec_allow(action: str, payload: dict, rec) -> dict:
             # operator's whole calendar), the CLI persisted it, and the worker could then not read the file
             # it was handed. A widget that grows is one a worker structurally cannot read; the digest the
             # turn prompt already uses says the same thing in 975 bytes. Small widgets are untouched.
+            # V2-707 F1 — and the STRUCTURE of its data, which is what lets a worker express an operation
+            # nobody declared («delete every meeting whose title contains crypto») instead of being limited
+            # to the action list. Per collection: its id field, the fields its live rows carry, how many
+            # there are, and which of list/put/patch/delete it takes. Costs nothing when a widget declares
+            # no collections, which is most of them.
+            from widgets import rows as _rows
+            _schema = _rows.schema(wid)
             from nucleo.workers import widget_view as _wv
             return {"ok": True, "result": {"manifest": man,
+                                           **({"collections": _schema} if _schema else {}),
                                            **_wv.bounded(wid, None if data is MISSING else data)}}
         except Exception as e:  # noqa: BLE001
             return {"ok": False, "error": f"read_widget falló: {e}"}
@@ -296,7 +304,17 @@ async def _exec_allow(action: str, payload: dict, rec) -> dict:
             from widgets.server_api import brain_action
             res = await brain_action(wid, act, data_payload)
             if isinstance(res, dict) and res.get("error"):
-                return {"ok": False, "error": str(res.get("error"))}
+                # V2-707 F1 — the refusal has to say WHAT TO DO, not just fail. This returned the bare code,
+                # so a worker that hit the V2-705 contract read «selector_missing» with no menu, and one that
+                # hit the radius gate read «needs_confirm» with neither the count, nor the names, nor the fact
+                # that answering is the way through. Same lesson as V2-203/V2-644 at the bridge next door: for
+                # a worker, a message with no way out is a message that stops it. The diagnostic half travels.
+                out = {"ok": False, "error": str(res.get("error"))}
+                for k in ("detail", "message", "options", "names", "n", "collection", "field",
+                          "collections", "needs_confirm"):
+                    if res.get(k) not in (None, "", [], {}):
+                        out[k] = res[k]
+                return out
             # Same ceiling as `read_widget`, and for the same reason: several of the agenda's own actions
             # answer with the whole view, so the op would succeed and its ANSWER would be unreadable.
             from nucleo.workers import widget_view as _wv

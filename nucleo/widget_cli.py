@@ -9,6 +9,8 @@ change in the local MIRROR (deletes the appointment from the calendar), and veri
     python -m nucleo.widget_cli read agenda                      # READ the widget: manifest + data + ITEMS with their ids
     python -m nucleo.widget_cli data agenda drop '{"itemId":"m_itv_23jul"}'   # DATA-OP (uses REAL ids from `read`)
     python -m nucleo.widget_cli data results present @informe.json           # LARGE PAYLOAD: from a file
+    python -m nucleo.widget_cli rows agenda list '{"collection":"meetings","where":{"date<":"2026-09-16"}}'
+    python -m nucleo.widget_cli rows agenda delete '{"collection":"meetings","where":{"title~":"crypto"}}'
     python -m nucleo.widget_cli show agenda                      # shows the card on the canvas
     python -m nucleo.widget_cli close agenda                     # closes the card
 
@@ -19,7 +21,12 @@ command is no longer recognizable and waits for an approval that nobody will giv
 completed a flawless 9-minute search and the operator did not see a single result because of this).
 
 GOLDEN RULE: to operate an item, READ first (`read`) and use the REAL id it returns—NEVER invent ids or pass natural
-language here (that belongs to FlashBrain). The gate is the catalog's: a FAST action is applied immediately; an
+language here (that belongs to FlashBrain). AN OPERATION NOBODY DECLARED IS STILL POSSIBLE: `rows` takes an
+EXPRESSION over the widget's data («every meeting before today», «whose title contains crypto») — `read` gives
+you each collection's fields and id. The engine resolves it to rows and runs the widget's OWN action on each,
+so the external mirror and every guard still apply; the friction is the RADIUS, not the verb (one row runs,
+several come back asking, with the count and the names). The gate for a declared action is the catalog's:
+a FAST action is applied immediately; an
 IRREVERSIBLE (CONFIRM) action asks the operator for approval and returns a corr_id (wait for it with `python -m
 nucleo.worker_bridge wait <corr_id>`); an UNDECLARED action is DENIED (read it in the `read` manifest). Any response
 may carry ⟦NEW INSTRUCTIONS⟧ (piggyback, §v3·H).
@@ -82,6 +89,57 @@ def _report(res: dict) -> int:
 _AYUDA = ("--help", "-h", "help", "ayuda", "--ayuda", "-?", "/?")
 
 
+def _read_payload(raw: str):
+    """The JSON payload of a verb, from an argument, a `@file` or `-` (stdin). `None` means «already
+    explained why it could not be read»; `{}` means «none given». Extracted so `data` and `rows` answer an
+    unreadable payload with the SAME sentence — two bridges answering one question differently is exactly
+    how V2-379 happened, and this file already says so about `worker_bridge`."""
+    payload: dict = {}
+    raw = (raw or "").strip()
+    if raw:
+        src = "argumento"
+        if raw == "-":
+            raw, src = sys.stdin.read(), "stdin"
+        elif raw.startswith("@"):
+            path, src = raw[1:], f"fichero {raw[1:]}"
+            try:
+                with open(path, encoding="utf-8") as f:
+                    raw = f.read()
+            except OSError as e:
+                # V2-203 — this message used to be the bare OSError, and the worker read it as a dead end:
+                # measured on `cheapest-monitor` (round 21), `Exit code 2 cannot read the payload from
+                # informe.json: [Errno 2] No such file or directory` ended the task with nothing delivered.
+                # It says WHAT failed and nothing about what to do, which is the fault `nav_cli` already paid
+                # for (V2-186): the bridge is the worker's only view, so a message without a way out is a
+                # message that stops it. The two facts it needs are WHERE it is looking (the path is relative,
+                # and a worker that wrote to another directory cannot tell from the error) and WHAT is
+                # actually there — writing `resultados.json` and presenting `informe.json` is invisible
+                # otherwise.
+                print(f"no puedo leer el payload de {path}: {e}")
+                if not os.path.isabs(path):
+                    here = os.getcwd()
+                    print(f"   · ruta RELATIVA a tu directorio de trabajo: {here}")
+                    # MECHANISM SHARED with `worker_bridge` (same reason as `read_payload`): two bridges that
+                    # answer the same question differently diverge again, and that divergence is exactly what
+                    # led to V2-379.
+                    from nucleo import bridge_usage as _bu
+                    _hay = _bu.what_is_here()
+                    if _hay:
+                        print(f"   · {_hay}")
+                    print("   · son DOS pasos y este es el segundo: escribe primero el JSON con tu tool Write "
+                          f"a `{path}` (ruta relativa, sin /tmp/ ni rutas absolutas) y vuelve a lanzar esto.")
+                return None
+        try:
+            payload = json.loads(raw)
+        except Exception as e:  # noqa: BLE001
+            print(f"el payload ({src}) no es JSON válido: {e}")
+            return None
+        if not isinstance(payload, dict):
+            print("el payload debe ser un objeto JSON")
+            return None
+    return payload
+
+
 def main(argv: list[str]) -> int:
     if len(argv) < 2:
         print(__doc__)
@@ -105,6 +163,24 @@ def main(argv: list[str]) -> int:
             print("uso: hbwidget read <widget_id>")
             return 2
         return _report(_act("read_widget", {"id": argv[2]}))
+    if cmd == "rows":
+        # V2-707 F1 — the GENERIC data door. `read` tells you the collections and their fields; this operates
+        # over them with an EXPRESSION instead of a declared action, for the case nobody wrote an action for.
+        # The engine resolves the expression to rows and runs the widget's own action on each, so the external
+        # mirror and every guard still apply. One row runs; several come back asking, with the count and names.
+        if len(argv) < 4:
+            print("uso: hbwidget rows <widget_id> <list|put|patch|delete> [payload-json | @fichero.json]\n"
+                  "  payload: {\"collection\":\"meetings\", \"where\":{\"title~\":\"crypto\"}}\n"
+                  "  where:   campo (igual) · campo~ (contiene) · campo>= campo<= campo> campo< · campo! (distinto)\n"
+                  "           un valor de lista significa «cualquiera de estos»; sin `where` son TODAS las filas\n"
+                  "  patch lleva además {\"set\":{…}}; put lleva {\"row\":{…}}\n"
+                  "  si contesta needs_confirm, repite con \"confirmed\": true SOLO si el operador lo ha dicho")
+            return 2
+        wid, op = argv[2], argv[3]
+        body = _read_payload(argv[4] if len(argv) >= 5 else "")
+        if body is None:
+            return 2
+        return _report(_act("widget_data", {"widget_id": wid, "action": f"rows.{op}", "payload": body}))
     if cmd in ("show", "close"):
         if len(argv) < 3:
             print(f"uso: hbwidget {cmd} <widget_id>")
@@ -115,54 +191,15 @@ def main(argv: list[str]) -> int:
             print("uso: hbwidget data <widget_id> <action> [payload-json]")
             return 2
         wid, action = argv[2], argv[3]
-        payload = {}
-        raw = argv[4].strip() if len(argv) >= 5 else ""
-        if raw:
-            src = "argumento"
-            if raw == "-":
-                raw, src = sys.stdin.read(), "stdin"
-            elif raw.startswith("@"):
-                path, src = raw[1:], f"fichero {raw[1:]}"
-                try:
-                    with open(path, encoding="utf-8") as f:
-                        raw = f.read()
-                except OSError as e:
-                    # V2-203 — this message used to be the bare OSError, and the worker read it as a dead end:
-                    # measured on `cheapest-monitor` (round 21), `Exit code 2 cannot read the payload from
-                    # informe.json: [Errno 2] No such file or directory` ended the task with nothing delivered.
-                    # It says WHAT failed and nothing about what to do, which is the fault `nav_cli` already paid
-                    # for (V2-186): the bridge is the worker's only view, so a message without a way out is a
-                    # message that stops it. The two facts it needs are WHERE it is looking (the path is relative,
-                    # and a worker that wrote to another directory cannot tell from the error) and WHAT is
-                    # actually there — writing `resultados.json` and presenting `informe.json` is invisible
-                    # otherwise.
-                    print(f"no puedo leer el payload de {path}: {e}")
-                    if not os.path.isabs(path):
-                        here = os.getcwd()
-                        print(f"   · ruta RELATIVA a tu directorio de trabajo: {here}")
-                        # MECHANISM SHARED with `worker_bridge` (same reason as `read_payload`): two bridges that
-                        # answer the same question differently diverge again, and that divergence is exactly what
-                        # led to V2-379.
-                        from nucleo import bridge_usage as _bu
-                        _hay = _bu.what_is_here()
-                        if _hay:
-                            print(f"   · {_hay}")
-                        print("   · son DOS pasos y este es el segundo: escribe primero el JSON con tu tool Write "
-                              f"a `{path}` (ruta relativa, sin /tmp/ ni rutas absolutas) y vuelve a lanzar esto.")
-                    return 2
-            try:
-                payload = json.loads(raw)
-            except Exception as e:  # noqa: BLE001
-                print(f"el payload ({src}) no es JSON válido: {e}")
-                return 2
-            if not isinstance(payload, dict):
-                print("el payload debe ser un objeto JSON")
-                return 2
+        payload = _read_payload(argv[4] if len(argv) >= 5 else "")
+        if payload is None:
+            return 2
         return _report(_act("widget_data", {"widget_id": wid, "action": action, "payload": payload}))
     # …and a verb that does not exist SAYS which ones do, instead of leaving the asker to guess. It is the same
     # courtesy as `nav_cli._hint_for`: an error that does not show the way costs another full round.
     print(f"comando desconocido: {cmd}\n"
-          f"verbos: read <widget> · data <widget> <accion> [payload|@fichero|-] · show <widget> · close <widget>\n"
+          f"verbos: read <widget> · data <widget> <accion> [payload|@fichero|-] · "
+          f"rows <widget> <list|put|patch|delete> [payload] · show <widget> · close <widget>\n"
           f"ayuda:  python -m nucleo.widget_cli --help")
     return 2
 
