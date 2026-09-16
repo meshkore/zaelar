@@ -59,7 +59,9 @@
       "desc": "olvida la conexión con Google Photos",
       "payload": {},
       "confirm": true,
-      "confirm_q": "¿Desconecto Google Photos? Las fotos ya importadas se quedan, pero tendrás que volver a dar permiso para elegir más."
+      "confirm_q": "¿Desconecto Google Photos? Las fotos ya importadas se quedan, pero tendrás que volver a dar permiso para elegir más.",
+      "consent_class": "account.disconnect",
+      "singleton": true
     }
   },
   "name": "Fotos",
@@ -70,5 +72,6 @@
     "google photos"
   ],
   "origin": "builtin",
-  "confirm_ui": true
+  "confirm_ui": true,
+  "security": "standard"
 }

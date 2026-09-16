@@ -59,6 +59,17 @@ def set_config(db: dict, platform: str, text=None, hours=None, enabled=None) -> 
     elif text is not None and cur.get("text"):
         cur["enabled"] = True          # dictating a message IS asking for it, unless told otherwise
     db.setdefault(_KEY, {})[platform] = cur
+    # V2-712 — TURNING IT ON IS HIM CHANGING THE STANDING RULE. The genesis default is «never autorespond any
+    # message of any kind» and `owner._auto_reply` reads it as a floor under this switch; without this line
+    # that floor would silently kill a responder he had just enabled. This is the loop `principles.md` calls
+    # the known gap, closed for one class: his answer becomes the default the next decision reads.
+    if cur.get("enabled"):
+        try:
+            from nucleo import consent as _consent
+            if _consent.class_policy("messaging.autorespond") == "never":
+                _consent.set_class("messaging.autorespond", "allow")
+        except Exception:  # noqa: BLE001 — never let bookkeeping break a config save
+            pass
     return config_for(db, platform)
 
 

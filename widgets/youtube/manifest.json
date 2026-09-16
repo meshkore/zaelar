@@ -157,7 +157,9 @@
         "platform": "string opcional (youtube)"
       },
       "confirm": true,
-      "confirm_q": "¿Desconecto tu cuenta de YouTube? Tendrás que volver a autorizarla para recuperar las sugerencias."
+      "confirm_q": "¿Desconecto tu cuenta de YouTube? Tendrás que volver a autorizarla para recuperar las sugerencias.",
+      "consent_class": "account.disconnect",
+      "singleton": true
     },
     "suggest": {
       "desc": "llena/refresca la pantalla de INICIO con sugerencias: los vídeos recientes de las suscripciones de su cuenta conectada, con sus canales bloqueados ya filtrados. Úsala cuando pida sugerencias o que le llene el inicio",
@@ -378,5 +380,6 @@
       "paused": false,
       "player_error": false
     }
-  }
+  },
+  "security": "standard"
 }

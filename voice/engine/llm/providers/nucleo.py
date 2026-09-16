@@ -1070,7 +1070,7 @@ class NucleoLLMStream(llm.LLMStream):
             from widgets import actions as _wactions
             wid = (wid or "").strip().lower()
             action_name = (action_name or "").strip()
-            mode = _frontend.action_mode(wid, action_name)
+            mode = _frontend.action_mode_now(wid, action_name, payload)   # V2-712: decidido para ESTA llamada
 
             def _log_dataop(m: str) -> None:
                 """REGISTRO DE ACCIONES DE WIDGET (2026-08-09, petición del operador). Hasta ahora una data-op

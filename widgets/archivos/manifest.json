@@ -157,7 +157,9 @@
         "provider": "gdrive | onedrive"
       },
       "confirm": true,
-      "confirm_q": "¿Desconecto «{item}»? Tendrás que volver a darle permiso para leer tus archivos."
+      "confirm_q": "¿Desconecto «{item}»? Tendrás que volver a darle permiso para leer tus archivos.",
+      "consent_class": "account.disconnect",
+      "singleton": true
     }
   },
   "name": "Archivos",
@@ -173,5 +175,6 @@
     "el gestor de archivos"
   ],
   "origin": "builtin",
-  "live_title": true
+  "live_title": true,
+  "security": "standard"
 }

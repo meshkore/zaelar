@@ -24,7 +24,16 @@ from widgets.mensajeria import autorespond, data
 @pytest.fixture(autouse=True)
 def _isolated_store(tmp_path, monkeypatch):
     monkeypatch.setattr(wstore, "DATA_DIR", str(tmp_path))
+    # ⚠️ V2-712 — THE WORKSPACE TOO, and this was measured the hard way. Enabling the responder now releases
+    # the operator's standing «never autorespond» rule (`autorespond.set_config` → `consent.set_class`), so
+    # `_enable()` started writing `config/consent.json` into the REAL engine workspace: the file appeared,
+    # unignored, holding a policy change no human had made. A unit test never touches a live artifact — and
+    # the moment a helper gains a side effect, the fixture that was complete yesterday is not complete today.
+    monkeypatch.setenv("ZAELAR_WORKSPACE", str(tmp_path))
+    from nucleo import consent
+    consent._reset_for_tests()
     yield
+    consent._reset_for_tests()
 
 
 def _enable(platform="whatsapp", text="De vacaciones hasta el lunes", hours=None):
@@ -123,3 +132,39 @@ def test_the_original_message_stays_pending(monkeypatch):
     after = data.load_db()
     assert len(after.get("items") or []) == 1, "the pending item must survive the auto-reply"
     assert not (after.get("pending_read") or []), "no mark-read may be queued for it"
+
+
+# ── V2-712 · the operator's standing rule is a floor under the per-platform switch ───────────────────────
+
+def test_the_engine_never_autoresponds_while_his_standing_rule_says_never(monkeypatch):
+    """His words, 2026-09-16: «por defecto no autorrespondemos ningún mensaje de ningún tipo. Eso es una
+    regla de usuario que viene preseteada en el Génesis.» This is the engine writing to real people in his
+    name with nobody in the loop, so the rule is read at the MOUTH, not only where the switch is flipped."""
+    from nucleo import consent
+    assert consent.class_policy("messaging.autorespond") == "never", "the genesis default moved"
+    db = data.load_db()
+    autorespond.set_config(db, "whatsapp", text="De vacaciones", enabled=False)
+    db["autoresponder"]["whatsapp"]["enabled"] = True        # a switch left on, with the rule still «never»
+    wstore.save("mensajeria", db)
+    sent = []
+    from connectors.messaging import ingest
+    monkeypatch.setattr(ingest, "publish_reply", lambda r: sent.append(r))
+    item = {"platform": "whatsapp", "chatId": "111", "messageId": "w1", "from": "Jose", "body": "hola",
+            "isGroup": False, "dirigido_a_mi": True}
+    assert _owner_auto("whatsapp", [item]) == 0
+    assert sent == [], "the standing rule has to stop the mouth, not just the settings screen"
+
+
+def test_turning_it_on_IS_him_changing_the_rule_so_both_halves_ship_together(monkeypatch):
+    """A floor without its release is a feature silently killed. Enabling the responder writes `allow`, which
+    is `principles.md`'s known gap closed for one class: his answer becomes the default the next decision
+    reads — and the NEXT message actually gets the reply."""
+    from nucleo import consent
+    _enable()                                                 # goes through set_config with a text
+    assert consent.class_policy("messaging.autorespond") == "allow"
+    sent = []
+    from connectors.messaging import ingest
+    monkeypatch.setattr(ingest, "publish_reply", lambda r: sent.append(r))
+    item = {"platform": "whatsapp", "chatId": "111", "messageId": "w1", "from": "Jose", "body": "hola",
+            "isGroup": False, "dirigido_a_mi": True}
+    assert _owner_auto("whatsapp", [item]) == 1 and len(sent) == 1

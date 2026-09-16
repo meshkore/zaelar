@@ -127,7 +127,8 @@
         "projectId": "string"
       },
       "confirm": true,
-      "confirm_q": "¿Congelo el proyecto «{item}» entero y descarto sus tareas pendientes?"
+      "confirm_q": "¿Congelo el proyecto «{item}» entero y descarto sus tareas pendientes?",
+      "fans_out": true
     },
     "clear_all": {
       "desc": "VACÍA la agenda ENTERA y para siempre: todas las tareas, todos los proyectos y TODAS las citas, de cualquier fecha. Solo cuando pida dejarla vacía «del todo»/«por completo»/«hoy y siempre». Para limpiar UN TRAMO (esta semana, estos días), y sobre todo si dice «menos…» o «excepto…», usa clear_range: clear_all no sabe conservar nada",
@@ -219,7 +220,9 @@
         "provider": "string opcional (google)"
       },
       "confirm": true,
-      "confirm_q": "¿Desconecto Google Calendar? Tus citas ya sincronizadas se quedan aquí, pero dejarán de actualizarse."
+      "confirm_q": "¿Desconecto Google Calendar? Tus citas ya sincronizadas se quedan aquí, pero dejarán de actualizarse.",
+      "consent_class": "account.disconnect",
+      "singleton": true
     },
     "set_default_calendar": {
       "desc": "elige en qué calendario de Google se crean las citas nuevas cuando el operador tiene varios",
@@ -253,24 +256,33 @@
     "w": 420,
     "h": 380
   },
-
   "positional": false,
   "collections": {
     "meetings": {
       "id": "title",
       "label": "title",
       "mirror": "google",
-      "via": { "delete": "cancel_meeting", "patch": "update_meeting", "put": "add_meeting" }
+      "via": {
+        "delete": "cancel_meeting",
+        "patch": "update_meeting",
+        "put": "add_meeting"
+      }
     },
     "tasks": {
       "id": "taskId",
       "label": "title",
-      "via": { "delete": "drop", "put": "add_task" }
+      "via": {
+        "delete": "drop",
+        "put": "add_task"
+      }
     },
     "projects": {
       "id": "projectId",
       "label": "name",
-      "via": { "delete": "drop_project" }
+      "via": {
+        "delete": "drop_project"
+      }
     }
-  }
+  },
+  "security": "standard"
 }

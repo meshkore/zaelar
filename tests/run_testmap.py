@@ -2326,6 +2326,12 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_a_destructive_action_needs_a_selector.py",
                                   "tests/browser/unit/agenda/test_cancelling_one_appointment_never_empties_the_calendar.py",
                                   "tests/browser/unit/widgets/test_the_store_keeps_a_snapshot_before_it_overwrites.py"]},
+        # V2-712 — el otro lado de 4.180: aquel rechaza una destructiva SIN selector, y este comprueba que
+        # una CON selector resuelto deja de pedir una segunda confirmación que no añade información. Los dos
+        # tienen que ser verdad a la vez; el reparto es «objetivo nombrado ejecuta, barrido pregunta».
+        {"id": "4.183", "title": "Una orden clara no se confirma dos veces: objetivo nombrado EJECUTA, barrido "
+                                 "PREGUNTA, y la diferencia está DECLARADA en el manifiesto (V2-712)",
+            "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_a_clear_order_is_not_confirmed_twice.py"]},
         {"id": "4.182", "title": "UN solo buscador tolerante para contactos, agenda y mensajes (una C por una K) "
                                  "y la puerta de envío resuelve un destinatario DECORADO (V2-705)",
             "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_one_tolerant_matcher_for_every_lookup.py",
@@ -3583,6 +3589,14 @@ DOMAINS: list[dict] = [
         # live_blocks.py y el total que lee el modelo SUBIÓ las dos. Esto congela la PROSA.
         {"id": "7.48", "title": "La prosa que el modelo lee cada turno solo ENCOGE", "ch": UNIT,
             "paths": ["tests/infrastructure/unit/test_the_prompt_prose_only_shrinks.py"]},
+        # V2-712 (2026-09-16, corrección del operador en vivo): «estoy un poco hasta los huevos de tener que
+        # confirmar las cosas… si le digo borra una cita llamada tal, la borras y punto». El consentimiento se
+        # decidía por el VERBO (la bandera `confirm:true` del manifiesto) sin saber cuántas cosas iba a tocar,
+        # mientras `refs.resolve` ya había preguntado «¿cuál?» cuando había duda. Una regla para todo el
+        # sistema, que lee DATO DECLARADO: falta un dato → pide el dato; hay duda → pregunta cuál; el radio
+        # excede lo que nombró → pregunta; y solo entonces, la clase.
+        {"id": "7.49", "title": "Una sola regla decide actuar o preguntar (y no es una tabla de verbos)",
+            "ch": UNIT, "paths": ["tests/infrastructure/unit/core/test_one_rule_decides_act_or_ask.py"]},
         # 2026-08-20: la captura forense de un turno guardaba `system[:8000]` de un prompt de ~19.000, y el
         # estado vivo se compone al FINAL — o sea que tiraba justo la mitad que responde «¿qué vio el modelo?».
         # Casi cuesta un diagnóstico falso: cinco turnos parecían no tener el bloque del navegador con el

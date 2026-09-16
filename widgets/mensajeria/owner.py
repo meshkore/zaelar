@@ -265,6 +265,16 @@ class _Owner:
             import time as _time
             from datetime import datetime
             from . import autorespond
+            # V2-712 — THE OPERATOR'S STANDING RULE IS A FLOOR UNDER THE PER-PLATFORM SWITCH. His words,
+            # 2026-09-16: «por defecto no autorrespondemos ningún mensaje de ningún tipo. Eso es una regla de
+            # usuario que viene preseteada en el Génesis. Pero si el usuario decide cambiarla, que la cambie.»
+            # This is the engine writing to real people in his name with nobody in the loop, so the rule is
+            # read HERE and not only where the switch is flipped. The other half is in `autorespond.set_config`:
+            # enabling the responder IS him changing the rule, so it writes `allow` — both halves ship
+            # together, because a floor without its release silently kills a feature he already turned on.
+            from nucleo import consent as _consent
+            if _consent.class_policy("messaging.autorespond") == "never":
+                return 0
             db = msgstore.load()
             if not autorespond.config_for(db, platform)["enabled"]:
                 return 0

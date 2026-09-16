@@ -5,6 +5,20 @@
     "confirm_short_actions": false,
     "fillers": "smart"
   },
+  "consent": {
+    "_comment": "CONSENT (V2-712) — THE ONE RULE that decides act-or-ask, layered exactly like `style`: these are the factory defaults, the operator overrides any of them by SAYING so, and the override lands in <workspace>/config/consent.json applied on the very next decision. The rule itself is in nucleo/consent.py and asks four questions in order: is a FACT missing, is there DOUBT about what will be touched, does the RADIUS exceed what he named, and only then is the CLASS sensitive enough. Nothing here is hardcoded in code: a widget declares `security` (all shipped widgets: standard) and an action may declare `sensitivity`.",
+    "ask_at": "critical",
+    "_ask_at": "The lowest level that asks for consent EVEN with a clear order, a resolved target and complete data. `critical` means only money leaving his accounts stops by class; everything else is decided by radius and by whether the engine has what it needs. Operator, 2026-09-16: «si le digo borra una cita de la agenda llamada tal, la borras y punto».",
+    "unbounded_asks": true,
+    "_unbounded_asks": "A call that does not name WHAT it acts on, or that will touch more than one thing, asks regardless of level — V2-707's rail, born from 147 DELETE requests against his real calendar: «vacía la agenda» is not «borra la cita del dentista». This is a rail on the CONSEQUENCE and does not bend for convenience.",
+    "classes": {
+      "messaging.autorespond": "never",
+      "messaging.send_new": "allow",
+      "account.disconnect": "allow",
+      "payment.authorize": "ask"
+    },
+    "_classes": "Standing rules per class: never | ask | allow. PRESET, never hardcoded — each one is the operator's to change by speaking, and `consent.set_class()` is what writes it. His own example is the first line: «por defecto no autorrespondemos ningún mensaje de ningún tipo. Eso es una regla de usuario que viene preseteada en el Génesis. Pero si el usuario decide cambiarla, que la cambie.»"
+  },
   "library": {
     "_comment": "The agent's OWN filesystem (V2-638). One root, a folder per kind of thing. These are the FACTORY defaults; the operator renames a folder or moves the root by saying so, and the override lands in <workspace>/config/library.json. Every widget reads paths from here instead of inventing its own — that is the whole point.",
     "root": "library",

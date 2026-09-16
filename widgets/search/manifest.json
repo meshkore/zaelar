@@ -33,5 +33,6 @@
     "Búsqueda",
     "buscador",
     "panel de búsqueda"
-  ]
+  ],
+  "security": "standard"
 }

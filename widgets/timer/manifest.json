@@ -23,5 +23,6 @@
     "cuenta atrás",
     "countdown",
     "tiempo restante"
-  ]
+  ],
+  "security": "standard"
 }

@@ -22,8 +22,13 @@
     "favorites"
   ],
   "entry": "widget.js",
-  "background": { "every": "30s" },
-  "size": { "w": 720, "h": 520 },
+  "background": {
+    "every": "30s"
+  },
+  "size": {
+    "w": 720,
+    "h": 520
+  },
   "usage": "El directorio ÚNICO de contactos del operador: personas, sitios y empresas, con grupos libres («amigos del trabajo», «restaurantes»), ciudad y favoritos — un restaurante favorito ES una entrada de este directorio, nunca una lista aparte. Añade con add_contact (mismo nombre y ciudad ACTUALIZA, no duplica), cambia con update_contact, borra con remove_contact (pide confirmación), marca con set_favorite y conecta una persona con su sitio o empresa con link_contact. Para VER o CONSULTAR el directorio («mi restaurante favorito en Barcelona», «enséñame los fontaneros de Soria») usa show_view: filtra lo que se ve Y devuelve los que casan en `result.matches` para que contestes con sus nombres — mostrar el widget otra vez NO filtra nada, abre el directorio entero. La ficha de uno concreto es show_contact. POR DÓNDE se le escribe a alguien vive aquí: set_channel guarda su WhatsApp, Telegram o correo y cuál es el preferido — eso es lo que luego usa `send_to` de mensajería para escribirle sin preguntar.",
   "actions": {
     "add_contact": {
@@ -59,7 +64,9 @@
     },
     "remove_contact": {
       "desc": "borra un contacto del directorio para siempre",
-      "payload": { "contactId": "string" },
+      "payload": {
+        "contactId": "string"
+      },
       "confirm": true,
       "confirm_q": "¿Borro «{item}» del directorio? Es permanente."
     },
@@ -74,11 +81,17 @@
     },
     "set_favorite": {
       "desc": "marca o desmarca un contacto como favorito («mi restaurante favorito»)",
-      "payload": { "contactId": "string", "favorite": "true/false (true si se omite)" }
+      "payload": {
+        "contactId": "string",
+        "favorite": "true/false (true si se omite)"
+      }
     },
     "link_contact": {
       "desc": "conecta un contacto con otro — la persona que conoces EN un restaurante o empresa cuelga de él; parentId vacío lo desconecta",
-      "payload": { "contactId": "string", "parentId": "string (vacío = desconectar)" }
+      "payload": {
+        "contactId": "string",
+        "parentId": "string (vacío = desconectar)"
+      }
     },
     "show_view": {
       "desc": "CAMBIA LO QUE SE VE en el directorio y CONTESTA la consulta («mi restaurante favorito en Barcelona», «los fontaneros de Soria»): filtra por grupo, ciudad, favoritos o texto y devuelve los que casan. Es obligatoria para eso — mostrar el widget de nuevo NO filtra, enseña todo",
@@ -92,30 +105,45 @@
     },
     "show_contact": {
       "desc": "abre la FICHA de un contacto concreto: sus datos, sus etiquetas y su gente o sitios conectados",
-      "payload": { "contactId": "string" },
+      "payload": {
+        "contactId": "string"
+      },
       "view": true
     },
     "sync_contacts": {
       "desc": "SINCRONIZA el directorio con Google Contacts («sincroniza mis contactos», «trae la agenda de Google», «importa mis contactos»). Trae lo que falta y, si la conexión lo permite, manda también lo que el operador ha cambiado aquí. NUNCA pisa un dato que él haya escrito. Devuelve cuántos ha añadido, completado y enviado. Si la cuenta no está conectada devuelve el error que lo dice: díselo y NO lo reintentes hasta que él la conecte.",
-      "payload": { "provider": "opcional: google (el único hoy)" }
+      "payload": {
+        "provider": "opcional: google (el único hoy)"
+      }
     },
     "import_google": {
       "desc": "ALIAS de sync_contacts, por compatibilidad. Usa sync_contacts.",
-      "payload": { "provider": "opcional: google (el único hoy)" }
+      "payload": {
+        "provider": "opcional: google (el único hoy)"
+      }
     },
     "set_auto": {
       "desc": "ENCIENDE o APAGA la sincronización permanente con Google Contacts («mantén los contactos sincronizados», «deja de sincronizar con Google»). Encendida, el sistema comprueba Google solo y trae o manda los cambios sin que nadie pulse nada; apagada, solo se sincroniza cuando él lo pide. NO conecta la cuenta: si no está conectada, esto no hace nada visible.",
-      "payload": { "auto": "true para mantenerla encendida, false para apagarla" }
+      "payload": {
+        "auto": "true para mantenerla encendida, false para apagarla"
+      }
     },
     "connect": {
       "desc": "devuelve la URL de consentimiento para enlazar una fuente de contactos (hoy solo Google). El operador tiene que PULSAR: la ventana solo sobrevive dentro del gesto que la abre, así que por voz NO se puede completar — deja la tarjeta en Conectores y dile que pulse «Conectar Google Contacts».",
-      "payload": { "tier": "opcional: saved | saved+other | sync", "origin": "opcional, lo pone el navegador" }
+      "payload": {
+        "tier": "opcional: saved | saved+other | sync",
+        "origin": "opcional, lo pone el navegador"
+      }
     },
     "disconnect": {
       "desc": "olvida la conexión con una fuente de contactos. Los contactos ya importados se quedan en el directorio: esto corta el enlace, no borra nada.",
-      "payload": { "provider": "opcional: google (el único hoy)" },
+      "payload": {
+        "provider": "opcional: google (el único hoy)"
+      },
       "confirm": true,
-      "confirm_q": "¿Desconecto Google Contacts? Los contactos ya importados se quedan."
+      "confirm_q": "¿Desconecto Google Contacts? Los contactos ya importados se quedan.",
+      "consent_class": "account.disconnect",
+      "singleton": true
     }
   },
   "name": "Contactos",
@@ -130,12 +158,16 @@
     "durable": true,
     "why": "Lo que hay dentro NO es la salida de un trabajo: es el archivo REAL de contactos del operador — sus amigos, sus restaurantes, sus fontaneros, con sus teléfonos y sus favoritos. Un reset deja en blanco las superficies derivadas porque son reproducibles; borrar esto sería pérdida de datos, del mismo orden que borrar la memoria — y eso solo pasa si el operador marca su casilla en el diálogo del reset."
   },
-
   "collections": {
     "contacts": {
       "id": "contactId",
       "label": "name",
-      "via": { "delete": "remove_contact", "patch": "update_contact", "put": "add_contact" }
+      "via": {
+        "delete": "remove_contact",
+        "patch": "update_contact",
+        "put": "add_contact"
+      }
     }
-  }
+  },
+  "security": "standard"
 }

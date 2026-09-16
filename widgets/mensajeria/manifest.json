@@ -144,7 +144,8 @@
         "text": "string (el texto a enviar)"
       },
       "confirm": true,
-      "usage": "Úsala vía la tool reply_message del cerebro, que pide confirmación antes de enviar. Enviar no se deshace."
+      "usage": "Úsala vía la tool reply_message del cerebro, que pide confirmación antes de enviar. Enviar no se deshace.",
+      "consent_class": "messaging.send_new"
     },
     "draft": {
       "desc": "Escribe (o actualiza) el texto de respuesta en el CUADRO visible del widget, SIN enviarlo — dile al operador que se lo lees para que lo revise antes de que lo mande él (con 'send_draft' o el botón)",
@@ -163,7 +164,9 @@
         "messageId": "opcional, alternativa a n"
       },
       "confirm": true,
-      "usage": "El botón «Enviar» de la propia tarjeta hace exactamente esto. Por voz: primero 'draft' con el texto, luego (con su confirmación) 'send_draft'."
+      "usage": "El botón «Enviar» de la propia tarjeta hace exactamente esto. Por voz: primero 'draft' con el texto, luego (con su confirmación) 'send_draft'.",
+      "consent_class": "messaging.send_new",
+      "singleton": true
     },
     "send_to": {
       "desc": "Escribe a una PERSONA del directorio de contactos por su canal (el preferido si no dices cuál), ABRIENDO la conversación si no existía. Es lo que se usa para «mándale un mensaje a X», «escríbele a X», «contacta con X» — `reply` solo sirve para contestar a algo que YA llegó.",
@@ -247,7 +250,8 @@
         "enabled": "bool opcional (false = dejar configurado pero apagado)"
       },
       "confirm": true,
-      "confirm_q": "¿Activo el autorrespondedor con ese mensaje? Contestará él solo en tu nombre."
+      "confirm_q": "¿Activo el autorrespondedor con ese mensaje? Contestará él solo en tu nombre.",
+      "fans_out": true
     },
     "clear_autoresponder": {
       "desc": "Apaga y borra el autorrespondedor (de una plataforma, o de todas sin `platform`)",
@@ -297,12 +301,14 @@
     "outlook"
   ],
   "usage": "Para VER mensajes basta con mostrar la tarjeta. Para NAVEGARLA por voz: «vuelve a la lista principal / enséñame la lista general» → show_view {platform:'all'}; «ábreme/muéstrame/enséñame el WhatsApp | el Telegram | el correo» (lleve o no «solo los mensajes de») → show_view con esa plataforma: WhatsApp, Telegram y el correo NO son tarjetas, son VISTAS de ésta, así que mostrar el widget otra vez NO cambia nada (contesta con los chats que casan en result.chats); «abre el chat de X» → open {name:'X'}; «vuelve atrás» desde un chat → close. Marcar leído (read/readchat/clear) PROPAGA a la app real. Para CONECTAR un canal («conéctame el correo», «vincula mi Gmail», «añade WhatsApp») muestra la tarjeta Y llama a open_connectors con la plataforma: se entra directamente en la pantalla de ESE conector, con su asistente ya en marcha. Email cubre Gmail, Outlook/Hotmail y cualquier otro por IMAP — el asistente pregunta cuál, así que no lo preguntes tú.",
-
   "collections": {
     "items": {
       "id": "n",
       "label": "from",
-      "ops": ["list"]
+      "ops": [
+        "list"
+      ]
     }
-  }
+  },
+  "security": "standard"
 }

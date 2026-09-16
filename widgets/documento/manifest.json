@@ -67,5 +67,6 @@
     "h": 620
   },
   "live_title": true,
-  "fullscreen": "native"
+  "fullscreen": "native",
+  "security": "standard"
 }

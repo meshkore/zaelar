@@ -12,6 +12,12 @@ config/meshkore.json
 # enters in the messaging widget. Personal secrets → NEVER commit.
 config/connectors.json
 config/v2.json
+# Per-install POLICY overrides, written by the engine when the operator states a rule out loud —
+# `style.json` since V2-633 and `consent.json` since V2-712. They are his machine's answers, not the
+# product: the shipped defaults live in `nucleo/genesis.json`, which IS committed. Added 2026-09-16
+# after a unit test wrote `consent.json` into the live workspace and it turned up unignored.
+config/style.json
+config/consent.json
 # Identidad de ESTA instalación (UUID4 aleatorio + fecha). Runtime por-instalación, jamás al repo:
 # commitearlo haría que todo el que clone comparta user_id y la observabilidad mezclaría instalaciones.
 config/identity.json

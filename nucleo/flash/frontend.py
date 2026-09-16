@@ -89,6 +89,90 @@ def action_mode(widget_id: str, action: str) -> str | None:
         return None
 
 
+def action_verdict(widget_id: str, action: str, payload: dict | None = None) -> dict:
+    """What the ONE consent rule says about running this data-op RIGHT NOW (V2-712).
+
+    `action_mode` above answers «how much friction does this action carry», which is a property of the
+    action and knows nothing about the call. This answers the question the operator actually asked for —
+    «¿tengo la suficiente información como para ejecutar la tarea con garantías?» — and to do that it needs
+    the CALL: which item, whether the selector arrived filled, which facts the action declares it needs.
+
+    Everything it reads is DECLARED data: the widget's `security` (all shipped widgets: standard), the
+    action's `sensitivity` (or today's `confirm:true`, read as `sensitive`), its `requires` list and its
+    `consent_class`. No verb is matched anywhere in this path.
+
+    Fails toward the OLD behaviour: anything unreadable returns the verdict the manifest flag alone would
+    have produced, so a malformed widget loses the improvement rather than the guard.
+    """
+    from nucleo import consent
+    from widgets import actions as _wa, runtime
+    wid, name = (widget_id or "").strip().lower(), (action or "").strip()
+    man = runtime.get(wid) or {}
+    spec = (man.get("actions") or {}).get(name)
+    spec = spec if isinstance(spec, dict) else {}
+    level = consent.level_of(spec, widget_security=str(man.get("security") or ""), action=name)
+    bounded, radius = _scope(wid, name, spec, payload)
+    return consent.decide(level=level, missing=consent.missing_facts(spec.get("requires")),
+                          radius=radius, bounded=bounded,
+                          policy_key=str(spec.get("consent_class") or ""))
+
+
+def _scope(wid: str, name: str, spec: dict, payload: dict | None) -> tuple[bool, int | None]:
+    """Does this call NAME what it acts on, and how many things will it touch?
+
+    The V2-707 rail in its general form. `contract.selector_for` already owns the «which key names the item»
+    question (including the aliases a model spells its own way and the selectors a manifest itself calls
+    optional), so this reuses it rather than growing a second opinion about the same manifest — the V2-708
+    defect, one layer down, was exactly two layers disagreeing about whether a selector was optional.
+
+    An action that declares NO selector at all is a whole-wipe (`clear_all`, `dedupe_meetings`): unbounded by
+    construction, which is what keeps «vacía la agenda» asking.
+    """
+    try:
+        from widgets import contract as _contract
+        # An action may DECLARE that one selector fans out — `agenda:drop_project` names ONE project and
+        # discards every pending task in it. Its selector is filled and its radius is still not one, and
+        # only the manifest can know that, so it says so instead of this function guessing from the desc.
+        if spec.get("fans_out") is True:
+            return False, None
+        # …and the mirror image: an action with no selector because there is only ONE thing it can act on.
+        # `musica:disconnect` touches the one linked account; `agenda:clear_all` touches every appointment.
+        # Both declare no selector and they are opposite acts, so the manifest says which it is rather than
+        # this function reading «no selector» as «unbounded» and charging a sweep's friction to a singleton.
+        if spec.get("singleton") is True:
+            return True, 1
+        field = _contract.selector_for(wid, name, spec)
+        if not field:
+            return (not _contract.is_destructive(spec, name), None)
+        folded = _contract.fold_aliases(wid, name, payload) or {}
+        val = folded.get(field, (payload or {}).get(field))
+        if isinstance(val, (list, tuple, set)):
+            return (len(val) > 0, len(val))
+        return (str(val or "").strip() != "", 1 if str(val or "").strip() else None)
+    except Exception:  # noqa: BLE001
+        return True, 1
+
+
+def action_mode_now(widget_id: str, action: str, payload: dict | None = None) -> str | None:
+    """`action_mode`, but decided for THIS call instead of for the action in the abstract (V2-712).
+
+    The one seam the voice provider calls. A declared action whose target resolved to one thing, with the
+    data to act and nothing sensitive about its class, comes back `FAST` — it runs, with no second question
+    after the one `refs.resolve` already asked. Everything else comes back exactly what it came back before.
+
+    `ESCALATE` and «not declared» are untouched: this decides friction, never whether something is code work.
+    """
+    from nucleo import consent
+    from widgets import actions as _wa
+    mode = action_mode(widget_id, action)
+    if mode != _wa.CONFIRM:
+        return mode
+    try:
+        return _wa.CONFIRM if consent.asks(action_verdict(widget_id, action, payload)) else _wa.FAST
+    except Exception:  # noqa: BLE001 — an unreadable verdict keeps the friction it had
+        return _wa.CONFIRM
+
+
 def action_is_view(widget_id: str, action: str) -> bool:
     """True if the action is DECLARED by that widget and only changes what is DISPLAYED (V2-545).
 

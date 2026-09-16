@@ -227,5 +227,6 @@
     "w": 720,
     "h": 560
   },
-  "live_title": true
+  "live_title": true,
+  "security": "standard"
 }

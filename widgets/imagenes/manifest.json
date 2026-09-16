@@ -113,5 +113,6 @@
     "active_when": {
       "auto": true
     }
-  }
+  },
+  "security": "standard"
 }
