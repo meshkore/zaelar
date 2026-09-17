@@ -79,6 +79,60 @@ def enabled() -> bool:
     return delay_ms() > 0
 
 
+# ── The engine is answering fast right now: stop arming (V2-716) ──────────────────────────────────────────
+# The operator's second rule, 2026-09-17: «si las latencias de las contestaciones se están reduciendo a menos
+# de un segundo, y esa es la media de las últimas frases, quizás no haga falta meterlas de relleno; si las una,
+# dos o tres últimas se van más lejos de un segundo, entonces sí hay que volver a activar ese flag».
+#
+# The per-turn race (`delay_ms`) already silences a fast turn, so this does NOT change what the operator hears
+# on a turn that beats the deadline. What it removes is the other half of arming, which the race cannot: the
+# `[SISTEMA]` note `arm()` appends to the last user message, promising the model a cover phrase to continue.
+# On an engine that is answering in well under a second that note is pure prompt noise steering replies into
+# «Got it — …» continuations of a phrase that will never sound.
+#
+# Re-arming is deliberately TWITCHY in the slow direction: one recent turn over the deadline brings the cover
+# back. A missing cover on a slow turn is dead air, which is the failure this whole module exists to prevent;
+# an extra cover on a fast turn is one short word. Asymmetric on purpose.
+_RECENT_TTFT: list[int] = []
+_FAST_WINDOW = 3          # how many recent turns must ALL be fast before arming stops
+_stranded = False         # V2-716: the last generation sounded a cover and the model answered nothing
+
+
+def note_latency(ttft_ms) -> None:
+    """One turn's measured time-to-first-spoken-token. Called by the voice provider once the turn's own
+    metrics exist. `None` — a turn that produced no speakable text at all — is NOT a fast turn and is not a
+    slow one either: it is no evidence, and recording it either way would be a lie the next turn acts on."""
+    global _RECENT_TTFT
+    try:
+        v = int(ttft_ms)
+    except (TypeError, ValueError):
+        return
+    if v <= 0:
+        return
+    _RECENT_TTFT.append(v)
+    del _RECENT_TTFT[:-8]
+
+
+def _note_stranded(value: bool) -> None:
+    global _stranded
+    _stranded = bool(value)
+
+
+def stranded() -> bool:
+    """The previous generation's cover was the ONLY thing the operator heard on that turn."""
+    return _stranded
+
+
+def answering_fast() -> bool:
+    """True when the last `_FAST_WINDOW` measured turns ALL beat the cover deadline — the engine is fast
+    enough right now that the cover has nothing to cover. False until that much evidence exists, so a fresh
+    process, a reconnect or a model swap arms normally rather than guessing."""
+    d = delay_ms()
+    if d <= 0 or len(_RECENT_TTFT) < _FAST_WINDOW:
+        return False
+    return all(v < d for v in _RECENT_TTFT[-_FAST_WINDOW:])
+
+
 # ── What kind of turn is being covered (V2-572) ───────────────────────────────────────────────────────────
 # The operator heard «Déjame ver…» answer «cierra los mensajes» and named it: a thinking sound before an ORDER
 # TO ACT reads as incomprehension. The cover phrase is chosen BEFORE any model has spoken, so the class can
@@ -86,7 +140,15 @@ def enabled() -> bool:
 # front (leading interjections skipped — «a ver, cierra los mensajes» is his literal sentence) means the
 # action pool; a question mark vetoes it («¿puedes cerrarlo?» asks first); everything else keeps thinking.
 
-_LEADING_CHATTER_RE = re.compile(r"^(?:a ver|oye|mira|vale|venga|bueno|pues|por favor|ok|okay|hey|please)[,\s]+")
+# V2-716 — the RE-STATEMENT prefixes join the courtesy ones. Measured (sid 928c8761): «I said, hide the left
+# chat. Column.» and «So what I did say is, please, open the messages.» both classified NEUTRAL and got a
+# thinking cover, because the imperative underneath never reached `_ACTION_VERB_RE`. A re-statement is the one
+# turn where getting the class wrong is most expensive: the operator is already repeating himself.
+_LEADING_CHATTER_RE = re.compile(
+    r"^(?:a ver|oye|mira|vale|venga|bueno|pues|por favor|ok|okay|hey|please|"
+    r"(?:lo que )?(?:te )?(?:he |habia |acabo de )?dicho(?: es)?|te he dicho que|te digo que|"
+    r"i said|i just said|what i (?:did )?say(?: is)?|so what i (?:did )?say is|"
+    r"like i said|as i said|i told you(?: to)?|i'm telling you(?: to)?|again)[,\s]+")
 _ACTION_VERB_RE = re.compile(
     r"^(?:me\s+|lo\s+|la\s+|los\s+|las\s+)?(?:cierra\w*|abre\w*|quita\w*|muestra\w*|muestrame|ensename?\w*|"
     r"pon\w*|apaga\w*|enciende\w*|sube\w*|baja\w*|borra\w*|guarda\w*|manda\w*|envia\w*|arranca\w*|activa\w*|"
@@ -102,6 +164,24 @@ _ACTION_VERB_RE = re.compile(
     r"cancela\w*|elimina\w*|mueve\w*|"
     r"close|open|show|hide|dismiss|play|pause|mute|unmute|clear|turn|put|start|launch|send|save|delete|"
     r"resume|skip|next|previous|stop|replay|add|create|schedule|remind|set|cancel|remove|move)\b")
+
+
+# V2-716 — the INDIRECT imperative. `_ACTION_VERB_RE` anchors on a sentence that OPENS with the verb, which is
+# how an order is phrased when it is short. Half of this session's orders were not: «I want you to ask him if we
+# can arrange a meeting», «you need to tell him that you're Johnny», «you need to start over», «I wanna see my
+# WhatsApp». Every one of them classified NEUTRAL and got a thinking cover. Stripping the frame leaves the very
+# sentence the anchored regex was written for, so the class comes out right with no new verb list — and, in
+# `smart` mode, an ACTION turn gets no cover at all, which is the honest answer to an order.
+_INDIRECT_ORDER_RE = re.compile(
+    r"^(?:and |so |ok |okay |now )?(?:i (?:want|need) (?:you )?to|i wanna|i want to|i'd like you to|"
+    r"you (?:need|have) to|you must|"
+    r"(?:necesito|quiero) que(?: me)?|tienes que|hazme el favor de|"
+    r"lo que (?:quiero|necesito) es que)\s+(?:me\s+|le\s+|lo\s+|la\s+)?")
+
+# The verbs an indirect order reaches that a bare imperative rarely does — «I wanna SEE my WhatsApp» is an
+# order to show something, not a search. Kept separate from `_ACTION_VERB_RE` so the bare-imperative list
+# (which the action map also leans on) is not widened by this change.
+_INDIRECT_VERB_RE = re.compile(r"^(?:see|watch|view|listen to|tell|ask|arrange|start over|redo)\b")
 
 
 def _norm(text: str) -> str:
@@ -141,7 +221,19 @@ _SOCIAL_RE = re.compile(
     # errand. Asking what WE were saying is a question about the conversation, never a reason to look at
     # something; the same shape in Spanish was already covered by «de que me estas hablando».
     r"(?:you|we) (?:were|was) saying\b|what were you saying\b|go on\b|carry on\b|"
-    r"that makes no sense\b"
+    r"that makes no sense\b|"
+    # V2-716 — the English half was thin, and this session ran in English: 20 of 21 covers came out of the
+    # NEUTRAL pool, including every complaint. Measured shapes (sid 928c8761), each one a turn where a
+    # thinking sound reads as not having listened:
+    r"i'?m talking to you\b|^hello\??$|^hey\??$|anyone there\b|"
+    r"you did ?n'?t (?:get|understand|hear|answer|confirm|reply)\b|"
+    r"you did ?n'?t get the point\b|missed the point\b|"
+    r"i did ?n'?t (?:tell|ask) you\b|i never (?:told|asked) you\b|"
+    r"without my (?:request|permission|asking)\b|i did ?n'?t say\b|"
+    r"is it (?:done|correct|right|ok|okay|all correct)\b|are you (?:done|sure)\b|"
+    r"that (?:was|is) (?:correct|right|wrong)\b|"
+    r"there(?:'s| is) (?:another |a )?problem\b|it'?s not working\b|"
+    r"is there (?:any|a) problem\b|what'?s (?:the problem|going on|wrong)\b"
     r")")
 
 
@@ -177,16 +269,38 @@ def _strip_vocative(n: str) -> str:
     return n
 
 
-def filler_kind(text: str) -> str:
+def _answers_our_question(last_reply: str, text: str) -> bool:
+    """The turn ANSWERS a question WE just asked (V2-716). Deterministic and deliberately narrow: our last
+    reply with real content ended in a question mark, and what came back is SHORT and asks nothing itself.
+
+    Measured (sid 928c8761): we asked «Which one would you like me to contact?» and «the one in Telegram»
+    got «Good question…» — the operator's named absurdity. Nothing is being looked up on a turn like this
+    and nothing is being explained; the only sound that can't be contradicted by the reply is receipt."""
+    lr = (last_reply or "").strip()
+    if not lr.endswith("?"):
+        return False
+    t = (text or "").strip()
+    if not t or "?" in t:
+        return False
+    return len(_norm(t).split()) <= 8
+
+
+def filler_kind(text: str, last_reply: str = "") -> str:
     """"action" when any sentence opens with an imperative action verb and the turn asks nothing — an
     explicit order to act outranks everything, so a complaint that ENDS in «Quítalo inmediatamente» still
-    gets motion; "social" when the utterance is about the conversation/us (see `_SOCIAL_RE` — those turns
-    must never get a thinking sound); "neutral" otherwise (questions and statements keep the thinking
-    pool). Feeds `langs.pick_filler(kind=…)`.
+    gets motion; "ack" when the turn is a short ANSWER to a question we just asked (`last_reply`, V2-716);
+    "social" when the utterance is about the conversation/us (see `_SOCIAL_RE` — those turns must never get
+    a thinking sound); "neutral" otherwise (questions and statements keep the thinking pool). Feeds
+    `langs.pick_filler(kind=…)`.
 
     V2-652 — the imperative is judged per SENTENCE, with a leading vocative stripped: «…es lo que pedí.
     Johnny. Añade en la agenda mañana una cita» carries its order in the LAST sentence, and anchoring on
-    the whole utterance hid it (measured 2026-09-10, session 7f77e2cc)."""
+    the whole utterance hid it (measured 2026-09-10, session 7f77e2cc).
+
+    ORDER OF THE CLASSES, since three of them can fire on one sentence: an explicit order still outranks
+    everything (V2-652's rule, unchanged). `ack` comes next and before `social`, because a bare answer to
+    our own question («the one in Telegram») carries none of the complaint shapes anyway, and when it does
+    («I said, the Telegram one») the operator is answering us, not opening a conversation about us."""
     n = _norm(text)
     if "?" not in (text or ""):
         for part in re.split(r"[.!;]+", _strip_vocative(n)):
@@ -198,6 +312,13 @@ def filler_kind(text: str) -> str:
                 p = p2
             if p and _ACTION_VERB_RE.match(p):
                 return "action"
+            # V2-716: the same sentence with its indirect frame («I want you to…», «you need to…») removed.
+            # Tried only after the bare form, so nothing that classified before changes class now.
+            q = _INDIRECT_ORDER_RE.sub("", p, count=1)
+            if q != p and q and (_ACTION_VERB_RE.match(q) or _INDIRECT_VERB_RE.match(q)):
+                return "action"
+    if _answers_our_question(last_reply, text):
+        return "ack"
     if _SOCIAL_RE.search(n):
         return "social"
     return "neutral"
@@ -216,7 +337,14 @@ def arm(brain, text: str = "", messages: list | None = None) -> str:
     if _dangling_fragment(text):
         _arm = None                       # half a sentence gets no promise — V2-642
         return ""
-    kind = filler_kind(text)
+    if answering_fast():
+        _arm = None                       # the engine is beating the deadline on its own — V2-716
+        return ""
+    if _stranded:
+        _note_stranded(False)             # one turn of silence, then covers resume — V2-716
+        _arm = None
+        return ""
+    kind = filler_kind(text, last_reply=getattr(brain, "_last_reply", "") or "")
     phrase = ""
     try:
         from voice.engine.core import langs
@@ -417,6 +545,8 @@ async def llm_node_with_filler(agent, default_impl, chat_ctx, tools, model_setti
 
     pump = asyncio.create_task(_pump(), name="filler-llm-pump")
     get_t = asyncio.ensure_future(q.get())
+    fired_any = False       # V2-716: this generation sounded a cover (lead-in or work cover)
+    model_spoke = False     # V2-716: the model yielded at least one chunk of its own
     try:
         if wait_ms > 0:
             # The ARM and the deadline RACE, and the arm can lose: this node is entered before the brain's
@@ -468,6 +598,7 @@ async def llm_node_with_filler(agent, default_impl, chat_ctx, tools, model_setti
                     if phrase:
                         _announce(phrase)
                         mark_for_strip(phrase)
+                        fired_any = True
                         lead_at = now
                         yield phrase + " "
                         yield FlushSentinel()   # closes the segment → played on its own, right now
@@ -498,6 +629,7 @@ async def llm_node_with_filler(agent, default_impl, chat_ctx, tools, model_setti
                 if cover:
                     _announce(cover, cover=w_kind)
                     mark_for_strip(cover)
+                    fired_any = True
                     yield cover + " "
                     yield FlushSentinel()
         kind, val = await get_t
@@ -506,9 +638,17 @@ async def llm_node_with_filler(agent, default_impl, chat_ctx, tools, model_setti
                 raise val
             if kind == "end":
                 break
+            model_spoke = True
             yield val
             kind, val = await q.get()
     finally:
+        # V2-716 — did this generation STRAND its cover? A cover that sounded on a turn the model then never
+        # answered is the whole of what the operator heard, and the measure that named this is blunt: of the
+        # 21 covers in session 928c8761, FIFTEEN had no reply behind them (17 barge-in cancellations, 4 turns
+        # discarded with no text). His words: «yo le decía algo y él no me contestaba; sin embargo, sí me
+        # soltaba la puñetera palabra de relleno». One stranded cover is a stumble; the run of six in 32 s
+        # (740-772 s) is the conversation falling apart, so the NEXT turn is the one that must stay quiet.
+        _note_stranded(bool(fired_any) and not model_spoke)
         if not pump.done():
             pump.cancel()
 
@@ -539,3 +679,5 @@ def _reset_for_tests() -> None:
     _last_phrase = ""
     _last_fired_at = 0.0
     _pending_strip.clear()
+    _RECENT_TTFT.clear()      # V2-716 — a stale fast window would silence the NEXT test's cover
+    _note_stranded(False)

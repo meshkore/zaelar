@@ -323,24 +323,43 @@ class LangSpec:
     # ACTION («I'll check that now»), never a bare thinking sound — their explicit avoid-list («Hmm…»,
     # «Let me think…», «One moment while I process…») was literally our old pool, and the 19:27 session
     # showed why: a sound that promises nothing invites «¿a ver qué?» back.
+    #
+    # V2-716 (2026-09-17) — that doctrine went one step too far and the operator measured the cost: a cover
+    # that DESCRIBES an action states something, and a stated thing can be WRONG. Session 928c8761 heard
+    # «Good question…» answer «the one in Telegram» (an answer to OUR question) and «I'll check that now…»
+    # answer «close everything» — sentences that make the conversation absurd, not slow. His rule:
+    #
+    #     «palabras más cortas, en plan one second, yes, checking, ok — en español vale, sí, ajá».
+    #
+    # The two doctrines are NOT in conflict once the failure is named precisely. V2-642 banned sounds that
+    # promise NOTHING while SOUNDING like machinery («Mmm…», «A ver…») — they invite «¿a ver qué?». What
+    # survives here is the other kind of short phrase: an ACKNOWLEDGEMENT. «Vale…» / «One sec…» says «I
+    # heard you and I am on it», which is true of every turn regardless of where it ends up, so it can never
+    # be contradicted by the reply that follows. Length is the second half of the rule and its own argument:
+    # a cover cannot be cut mid-sentence, so its own length is latency (the operator's rule, 2026-09-11) —
+    # and 15 of this session's 21 covers were the ONLY thing that sounded on their turn, which makes every
+    # word of them a sentence the operator never got finished.
     fillers: tuple = (
-        "Voy a mirarlo…", "Ahora te digo…", "Te lo miro ahora…", "Un segundo, que lo compruebo…",
-        "Deja que lo mire…", "Ahora mismo lo miro…", "Vamos a verlo…", "Te lo compruebo…",
-        "A ver qué tenemos…", "Dame un segundo…", "Un momento, que lo busco…", "Buena pregunta…",
-        "Pues mira, te lo miro…", "Déjame que lo mire…",
+        "Vale…", "Un segundo…", "Sí…", "Ajá…", "Ya voy…", "Ahora…", "Un momento…", "Vale, sí…",
+        "Ya…", "Eso es…",
     )
     # Lead-ins for a turn that is an ORDER to act (V2-572). «Déjame ver…» before closing a widget reads as
     # incomprehension — the operator's own words. These commit to nothing either: they promise motion, not a
     # result, so a turn that ends up declining («no puedo cerrar eso, hay un encargo en marcha») still
     # continues them naturally.
-    fillers_action: tuple = ("Voy…", "Ahora mismo…", "Marchando…", "Voy a ello…", "Venga…",
-                             "Voy con ello…", "Ahora mismo voy…", "Venga, va…", "Voy, un segundo…")
+    fillers_action: tuple = ("Voy…", "Ahora mismo…", "Marchando…", "Venga…", "Vale…", "Sí…",
+                             "Ya voy…", "Venga, va…")
     # Lead-ins for a SOCIAL/META turn (V2-640) — the operator asks about the CONVERSATION itself or about us
     # («¿qué tal?», «¿de qué me estás hablando?», «¿qué quieres ver?»). A thinking sound here is what produced
     # the 19:27 besugos session: «Déjame ver…» answered «¿qué quieres ver?» and the operator asked what we
     # wanted to see, forever. These open an EXPLANATION or a presence, promise no looking, and the reply
     # continues them («Pues…» → «Pues te decía que…»).
-    fillers_social: tuple = ("Pues…", "Verás…", "Sí, mira…", "Te cuento…", "A ver, te explico…", "Eh, pues…")
+    fillers_social: tuple = ("Pues…", "Verás…", "Ya…", "Mira…", "Sí…", "Es que…", "Te cuento…")
+    # ACK (V2-716): the turn ANSWERS a question WE just asked («¿cuál de los dos?» → «el de Telegram»).
+    # Nothing is being looked up and nothing is being explained — the only honest sound is receipt. Measured
+    # 2026-09-17 (sid 928c8761): «The one in Telegram.» got «Good question…», which the operator named as the
+    # absurdity that made the whole dialogue read wrong.
+    fillers_ack: tuple = ("Vale…", "Perfecto…", "Entendido…", "Ya…", "Ajá…", "Muy bien…")
     # WORK COVERS (V2-669) — the SECOND cover, spoken at the TOOL SEAM, not before the model. A lead-in is a
     # blind guess made ~1.1 s in; by the time the router hands back a light route we KNOW what we are about to
     # do, and the measured hole is on the far side of that seam: with `deepseek-v4-pro` a web-search turn ends
@@ -482,12 +501,12 @@ LANGUAGES: dict[str, LangSpec] = {
         msg_notice_multi=("You have {count} messages on {platform} you might want to check, from {sender} "
                           "among others."),
         fillers=(
-            "I'll check that now…", "Let me look that up…", "One sec, checking…", "I'll take a look…",
-            "Let me pull that up…", "Give me a second, checking…", "Good question…",
-            "Let me see what we have…", "I'll find out now…", "Let me check that for you…",
+            "One sec…", "Sure…", "Okay…", "Right…", "Yeah…", "Got it…", "Checking…", "Hold on…",
+            "Just a sec…", "Yep…",
         ),
-        fillers_action=("On it…", "Right away…", "Sure…", "Doing it…", "On it now…", "Right, doing it…"),
-        fillers_social=("Well…", "So…", "Right, so…", "Let me explain…", "Okay, so…"),
+        fillers_action=("On it…", "Right away…", "Sure…", "Doing it…", "Okay…", "Yep…", "On it now…"),
+        fillers_social=("Well…", "So…", "Right…", "Yeah…", "Okay, so…", "Look…"),
+        fillers_ack=("Got it…", "Okay…", "Right…", "Perfect…", "Understood…", "Sure…"),
         covers_widget=("Checking {t}…", "One sec, checking {t}…", "Let me check {t}…", "Looking at {t}…"),
         covers_search=("Looking it up online…", "One sec, searching…", "Let me search for that…",
                        "Checking the web…"),
@@ -793,13 +812,16 @@ def pick_filler(last: str = "", code: str | None = None, kind: str = "neutral") 
     Shapes (V2-572 + V2-640): `kind="action"` draws from the action pool («Voy…») — a thinking sound before
     an order to act reads as incomprehension; `kind="social"` draws from the explanation-openers («Pues…») —
     a thinking sound answering a question about the conversation itself is what turned the 19:27 session
-    into a dialogue of besugos; anything else keeps the thinking pool. Anti-repetition is a small RECENT
-    window (depth {n}), not just the last phrase. Deterministic-agnostic: no pool → empty string → the
-    caller says nothing.""".format(n=_RECENT_MAX)
+    into a dialogue of besugos; `kind="ack"` draws from the receipt pool («Vale…») — the turn ANSWERS a
+    question we just asked, so nothing is being looked up and nothing is being explained (V2-716); anything
+    else keeps the thinking pool. Anti-repetition is a small RECENT window (depth {n}), not just the last
+    phrase. Deterministic-agnostic: no pool → empty string → the caller says nothing.""".format(n=_RECENT_MAX)
     if kind == "action":
         pool = list(getattr(spec(code), "fillers_action", ()) or ())
     elif kind == "social":
         pool = list(getattr(spec(code), "fillers_social", ()) or ())
+    elif kind == "ack":
+        pool = list(getattr(spec(code), "fillers_ack", ()) or ())
     else:
         pool = _generated_fillers(code or current_code())
         if not pool:

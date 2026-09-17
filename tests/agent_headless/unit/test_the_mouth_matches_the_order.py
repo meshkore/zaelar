@@ -80,12 +80,21 @@ def test_a_complaint_about_us_never_gets_a_thinking_cover(text):
     assert filler_audio.filler_kind(text) == "social"
 
 
-def test_the_action_pool_promises_motion_and_the_pools_do_not_mix():
+def test_the_action_pool_promises_motion_and_each_pool_keeps_phrases_of_its_own():
+    """V2-716 relaxed the DISJOINTNESS this asserted, and the reason belongs here rather than in a commit
+    message. When the pools were sentences («Voy a mirarlo…» vs «Voy a ello…») no phrase could honestly
+    serve two classes. Once the operator ruled them down to «vale», «sí», «un segundo», overlap is not a
+    bug but the shape of the vocabulary: «Vale…» is a truthful receipt AND a truthful start of motion.
+
+    What still has to hold is the thing disjointness was protecting — that the CLASS changes what is heard
+    at least some of the time. A pool that is a subset of another makes the classifier inaudible, and that
+    is what is asserted now."""
     for code in ("es", "en"):
         action = set(getattr(langs.spec(code), "fillers_action", ()) or ())
         thinking = set(getattr(langs.spec(code), "fillers", ()) or ())
         assert action, f"[{code}] no action fillers shipped"
-        assert not (action & thinking), f"[{code}] a phrase lives in both pools"
+        assert action - thinking, f"[{code}] the action pool says nothing the thinking pool does not"
+        assert thinking - action, f"[{code}] the thinking pool says nothing the action pool does not"
         for _ in range(20):
             assert langs.pick_filler(kind="action", code=code) in action
 
@@ -304,16 +313,35 @@ def test_the_closer_exists_in_both_languages_and_varies():
         assert langs.pick_closer(last, code=code) != last, "anti-repetition: never the same closer twice"
 
 
-def test_the_thinking_pool_describes_action_not_thought():
-    """OpenAI's realtime prompting guide — which the operator pointed at — bans the bare thinking sounds
-    («Hmm…», «Let me think…», «One moment while I process…»); our old pool was exactly that list. A cover
-    must describe motion toward an answer, so the banned exact phrases may never return."""
-    banned = {"Mmm…", "A ver…", "Espera…", "Un momentito…", "Veamos…", "Pues…", "Déjame ver…",
-              "Un segundo…", "Hmm…", "One sec…", "Hold on…", "Okay…", "Just a moment…", "One moment…"}
+def test_the_thinking_pool_is_a_receipt_and_never_a_machine_noise_or_a_verdict():
+    """V2-642 banned the bare thinking sounds from OpenAI's realtime guide («Hmm…», «Let me think…», «One
+    moment while I process…»), because our pool WAS that list and a sound promising nothing invites «¿a ver
+    qué?» back. V2-716 (2026-09-17) found it had overshot in the other direction, and the operator named
+    both halves of the correction himself:
+
+        «quiero palabras más cortas, en plan one second, yes, checking, ok … te digo que abras una ventana
+         y el sistema dice Good question, lo cual es totalmente absurdo».
+
+    So «One sec…» and «Un segundo…» — banned by the old list — are now the target, and what stays banned is
+    the two kinds that survived his complaint unchanged:
+
+      · MACHINE NOISE. A sound that is audibly the machine thinking, with no content at all. «Mmm…»,
+        «Hmm…», «Veamos…», «A ver…», «Déjame ver…». This is V2-642's finding and it is untouched: it is
+        why the fix was shorter ACKS and not shorter grunts.
+      · A VERDICT ON THE TURN. A cover is chosen before any model has read the sentence, so anything it
+        says ABOUT that sentence is a guess that can be wrong — and was, out loud: «Good question…»
+        answered «the one in Telegram», which was an answer to a question of OURS.
+    """
+    machine_noise = {"Mmm…", "Hmm…", "A ver…", "Veamos…", "Déjame ver…", "Un momentito…",
+                     "Let me think…", "One moment while I process…", "Uhm…", "Eh…"}
+    verdicts = {"Buena pregunta…", "Good question…", "Interesting…", "Interesante…",
+                "Qué buena pregunta…", "That's a good one…"}
     for code in ("es", "en"):
-        pool = set(getattr(langs.spec(code), "fillers", ()) or ())
-        assert pool, f"[{code}] empty thinking pool"
-        assert not (pool & banned), f"[{code}] bare thinking sounds returned: {pool & banned}"
+        for field in ("fillers", "fillers_action", "fillers_social", "fillers_ack"):
+            pool = set(getattr(langs.spec(code), field, ()) or ())
+            assert pool, f"[{code}] empty {field} pool"
+            assert not (pool & machine_noise), f"[{code}/{field}] machine noise returned: {pool & machine_noise}"
+            assert not (pool & verdicts), f"[{code}/{field}] a verdict on the turn returned: {pool & verdicts}"
 
 
 # ── V2-645 · a continuity claim over nothing ─────────────────────────────────────────────────────────────

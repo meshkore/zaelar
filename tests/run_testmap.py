@@ -105,6 +105,11 @@ DOMAINS: list[dict] = [
             # they CANNOT do (“cannot eat gluten”)—authorized by the operator, accepting the false positives
             # that this file measures and names.
             "tests/memory/unit/test_ingestion_limit_is_critical.py",
+            # V2-716 (2026-09-17, session 928c8761): the assistant's OWN name was the one identity fact with
+            # no slot, so a rename could only be remembered as PROSE — which recall feeds the model (it
+            # introduced itself as «Johnny» for days) while `state.assistant_name` stayed «Zaelar» and the
+            # wake word with it. Four minutes of «Johnny?» ruled 🙉 AMBIENT, in a live session.
+            "tests/memory/unit/test_the_assistant_answers_to_the_name_it_gives_you.py",
             "tests/memory/integration/test_seed_from_hermes.py"]},
         {"id": "1.7", "title": "API HTTP de memoria", "ch": HTTP, "paths": [
             "tests/memory/integration/test_api.py", "tests/memory/integration/test_vault_api.py",
@@ -1295,6 +1300,13 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/voice/unit/test_debug_stacks.py"]},
         {"id": "3.19", "title": "El nexo suena ANTES de la respuesta (audio en su locución) y solo si el turno tarda",
             "ch": UNIT, "paths": ["tests/voice/unit/test_filler_audio.py"]},
+        # V2-716 — measured in session 928c8761 (2026-09-17, English, 15 min): 21 covers, TWENTY of them out
+        # of the neutral pool and FIFTEEN with no reply behind them. «Good question…» answered «the one in
+        # Telegram» (an answer to OUR question) and «I'll check that now…» answered «close everything». The
+        # operator's rule: shorter words («one second, yes, checking, ok» / «vale, sí, ajá»), and stop adding
+        # them at all while the engine is answering under the deadline on its own.
+        {"id": "3.51", "title": "El nexo es CORTO, de la clase correcta, y se calla cuando no tiene nada que cubrir",
+            "ch": UNIT, "paths": ["tests/voice/unit/test_filler_is_short_classed_and_adaptive.py"]},
         # V2-538 — las CIFRAS se dicen como las dice una persona. El operador, oyendo una búsqueda de
         # catamaranes: todos los precios salían mal. «151.008 €» lo lee un TTS como «ciento cincuenta y uno
         # coma cero cero ocho» —ve un punto decimal— y el símbolo se salta o cae en orden de escritura. Ese

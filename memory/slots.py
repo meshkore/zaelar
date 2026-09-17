@@ -40,6 +40,28 @@ class SlotSpec:
 SLOTS: dict[str, SlotSpec] = {s.key: s for s in (
     SlotSpec("operator.name", "nombre del operador", state_field="operator_name", identity=True,
              aliases=("name", "nombre", "operator_name", "operator.nombre")),
+    # V2-716 — the assistant's OWN name was the one identity fact with no slot, and the cost was measured in
+    # session 928c8761 (2026-09-17). The engine had introduced itself as «Johnny» in every kickoff for days,
+    # because the name lived as PROSE («Quiere que el asistente cambie su nombre a Johnny») which recall feeds
+    # the model and the model obeys — while `state.assistant_name` still said «Zaelar» and `attention.wakewords()`
+    # therefore still answered only to «zaelar». The operator spent four minutes calling «Johnny?», «Zilar?»,
+    # «Zaylor?» into a microphone that ruled every one of them 🙉 AMBIENT, and had to type into the chat to be
+    # heard at all. One prompt, two contradictory identities: the model read one and the wake word the other.
+    #
+    # With no slot, a rename could only ever be remembered as prose, so there was no mechanism that COULD have
+    # carried it — `identity_actions` persists the slot, but only when the model calls the rename tool, and it
+    # has no reason to call it about a name it already believes is its own. A slot closes that: the processor
+    # routes the fact here, the writer supersedes the old lineage, `state` reflects it, `memory_cache` pushes
+    # it to `voice.attention` on the next refresh, and the agent answers to the name it just gave you — with
+    # no new rule anywhere, which is why it belongs in this table and not in a guard.
+    #
+    # `garble_guard=False`, like `operator.treatment`: a rename is a legitimate re-declaration that
+    # CONTRADICTS the previous value by design, and the P0b anti-garble gate would quarantine every one of
+    # them (the measured failure of that flag, audit 2026-07-19).
+    SlotSpec("assistant.name", "cómo quiere el operador que se llame el asistente (su nombre, no el de él)",
+             state_field="assistant_name", identity=True, garble_guard=False,
+             aliases=("assistant_name", "assistant.nombre", "agent_name", "agent.name", "bot_name",
+                      "nombre_asistente", "nombre del asistente", "zaelar.name", "my_name")),
     SlotSpec("operator.location", "dónde vive", state_field="location", identity=True,
              aliases=("location", "ubicacion", "ubicación", "city", "ciudad", "operator_location")),
     SlotSpec("operator.treatment", "trato preferido", state_field="treatment", identity=True, garble_guard=False,
