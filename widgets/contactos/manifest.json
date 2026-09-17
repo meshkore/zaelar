@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "title": "Contactos",
   "description": "El directorio único del operador: personas, sitios y empresas (amigos, restaurantes, fontaneros, cafeterías…) con grupos, ciudad, favoritos y conexiones entre ellos.",
-  "whenToUse": "Cuando el usuario pregunta por sus contactos o su directorio, por sus sitios o profesionales guardados, o por sus favoritos («mi restaurante favorito en Barcelona», «los fontaneros que tenemos en Soria»), o quiere añadir, cambiar, conectar o quitar uno.",
+  "whenToUse": "Cuando el usuario pregunta por sus contactos o su directorio, por sus sitios, empresas o profesionales guardados, por sus favoritos («mi restaurante favorito en Barcelona»), por los de UNA plataforma («mis contactos de Telegram»), o quiere añadir, cambiar, conectar o quitar uno.",
   "keywords": [
     "contactos",
     "contacto",

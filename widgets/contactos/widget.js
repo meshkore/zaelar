@@ -1,7 +1,10 @@
-// Contacts widget — client render module (V2-541, redesigned V2-699). Contract: render(el, data, ctx).
-// ONE directory for every identity: a sidebar with the groups, a list of entries, and a CARD that looks like
-// a contact card — every basic field present even when it is empty, and «how to reach this person» as a block
-// of its own. Self-contained: scoped styles, plain DOM, no innerHTML on data, no network, no polling.
+// Contacts widget — client render module (V2-541, redesigned V2-699, reorganised V2-715).
+// Contract: render(el, data, ctx).
+// ONE directory for every identity: ONE bar (the window chrome is the other), a RAIL derived from what the
+// directory actually holds — kinds, labels, cities, the hidden shelf — a list, and a CARD that looks like a
+// contact card: every basic field present even when empty, several phones and e-mails each with its label,
+// and «how to reach this person» as a block of its own. The provider icons in the bar are the PLATFORM
+// FILTER. Self-contained: scoped styles, plain DOM, no innerHTML on data, no network, no polling.
 
 const KICON = {person: "\u{1F464}", place: "\u{1F4CD}", company: "\u{1F3E2}"};
 
