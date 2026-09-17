@@ -287,6 +287,12 @@ def _is_ours(c: dict, since: float) -> bool:
 import time                                              # noqa: E402 — the moved block's own name for it
 
 
+def _model():
+    """The record shape, lazily — `model.py` is a leaf and this module is imported BY `data.py`."""
+    from . import model
+    return model
+
+
 def _norm(s):
     from .data import _norm as _n
     return _n(s)
@@ -378,8 +384,10 @@ def merge_imported(db: dict, rows: list[dict], *, authoritative: bool = False) -
                  "phone": inc.get("phone", ""), "email": inc.get("email", ""),
                  "notes": inc.get("notes", ""), "groups": list(inc.get("groups") or []),
                  "favorite": bool(inc.get("favorite")), "channels": [], "preferred": "",
+                 "phones": list(inc.get("phones") or []), "emails": list(inc.get("emails") or []),
                  "parentId": "", "created": now, "updated": now,
                  "source": "google", "googleId": inc.get("googleId", "")}
+            _model().normalize(c)
             contacts.append(c)
             added += 1
             continue
@@ -398,6 +406,15 @@ def merge_imported(db: dict, rows: list[dict], *, authoritative: bool = False) -
         if takes_over and inc.get("name") and inc["name"] != c.get("name"):
             c["name"] = inc["name"]
             touched = True
+        # V2-715 — the OTHER phones and addresses. An ADDITION, always, even when Google is authoritative:
+        # a number he typed here is his, and the failure the `takes_over` rule protects against («a second
+        # import silently undoes every correction») has exactly the same shape one field over. Google
+        # removing a number therefore never removes ours — the card's ✕ is the door for that.
+        m = _model()
+        for key in ("phones", "emails"):
+            for row in inc.get(key) or []:
+                if m.add_detail(c, key, row.get("value"), row.get("label") or ""):
+                    touched = True
         for g in inc.get("groups") or []:
             if _norm(g) not in {_norm(x) for x in c.get("groups") or []}:
                 c.setdefault("groups", []).append(g)

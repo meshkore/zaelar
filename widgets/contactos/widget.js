@@ -69,38 +69,24 @@ function injectStyles(){
   const s=document.createElement("style"); s.id="hb-contactos-css"; s.textContent=`
   .hb-contactos{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;color:var(--hb-ink,#0d1622);width:100%;box-sizing:border-box}
   .hb-contactos button{font-family:inherit}
-  .hb-contactos .cthd{display:flex;align-items:center;gap:12px;margin:0 0 12px;flex-wrap:wrap}
-  .hb-contactos .cthd b{font-size:18px;flex:0 0 auto}
-  .hb-contactos .cthd .ctn{font-size:12px;color:var(--hb-muted-2,#7d8a9c);font-family:ui-monospace,Menlo,monospace;flex:0 0 auto;margin-left:auto}
-  .hb-contactos .ctsearch{flex:1 1 200px;min-width:140px;display:flex;align-items:center;gap:6px;border:1px solid var(--hb-line,#e3e8f0);border-radius:999px;padding:5px 12px;background:var(--hb-bg,#fff)}
+  .hb-contactos .ctsearch{flex:1 1 200px;min-width:140px;max-width:380px;display:flex;align-items:center;gap:6px;border:1px solid var(--hb-line,#e3e8f0);border-radius:999px;padding:5px 12px;background:var(--hb-bg,#fff)}
   .hb-contactos .ctsearch:focus-within{border-color:var(--hb-accent,#3D6FE0)}
   .hb-contactos .ctsearch span{font-size:12px;color:var(--hb-muted-2,#7d8a9c);flex:0 0 auto}
   .hb-contactos .ctsearch input{border:none;outline:none;background:none;color:var(--hb-ink,#0d1622);font-size:13px;width:100%;padding:0}
-  .hb-contactos .ctcols{display:grid;grid-template-columns:170px 1fr;gap:14px;align-items:start}
+  .hb-contactos .ctcols{display:grid;grid-template-columns:188px 1fr;gap:14px;align-items:start}
   @media(max-width:600px){.hb-contactos .ctcols{grid-template-columns:1fr}}
 
-  /* ── HOUSE HEADER BAR — brand disc + content title + right slot (V2-699 standard) ──────────────── */
-  .hb-contactos .ctbar{display:flex;align-items:center;gap:var(--sp-2,8px);padding:0 0 var(--sp-3,12px);
-    flex:0 0 auto;min-width:0}
-  .hb-contactos .ctbrand{width:26px;height:26px;border-radius:8px;background:var(--hb-accent,#3D6FE0);
-    color:var(--canvas,#101216);display:flex;align-items:center;justify-content:center;flex:0 0 auto}
-  .hb-contactos .ctbrand svg{width:15px;height:15px;display:block}
-  .hb-contactos .cttitle{font-size:14px;font-weight:600;letter-spacing:-.01em;white-space:nowrap;flex:0 0 auto}
-
-  /* ── HOUSE SUBHEADER BAND — view tabs left, provider icons + Conectores right ──────────────────── */
-  .hb-contactos .ctviews{display:flex;align-items:center;gap:var(--sp-1,4px);flex-wrap:nowrap;overflow-x:auto;
+  /* ── THE ONE BAR (V2-715) ───────────────────────────────────────────────────────────────────────
+     Operator, 2026-09-17: «de estas tres líneas iniciales del widget —la barra negra, la barra de
+     búsqueda y la barra de selección de All People Places— todo eso hay que convertirlo en dos barras».
+     The window chrome the canvas draws is bar ONE and already says «Contactos» beside the widget's own
+     mark, so a brand disc and a title under it were the same sentence twice; the kind tabs moved into the
+     rail, where they are DERIVED from what the directory holds instead of being four fixed words. What is
+     left is the one row that could not live anywhere else: search, the sources, and the door to them. */
+  .hb-contactos .ctbar{display:flex;align-items:center;gap:var(--sp-2,8px);flex:0 0 auto;min-width:0;
     border-bottom:1px solid var(--hb-line-subtle,rgba(255,255,255,.06));
-    padding-bottom:var(--sp-2,8px);margin-bottom:var(--sp-3,12px);flex:0 0 auto;scrollbar-width:none}
-  .hb-contactos .ctviews::-webkit-scrollbar{display:none}
-  .hb-contactos .cttab{border:0;background:none;color:var(--hb-muted,#5b6b82);border-radius:999px;
-    padding:var(--sp-2,8px) var(--sp-3,12px);font-size:13px;font-weight:600;cursor:pointer;line-height:1.2;
-    white-space:nowrap;flex:0 0 auto}
-  .hb-contactos .cttab:hover{background:var(--hb-hover,#242A34);color:var(--hb-ink,#0d1622)}
-  .hb-contactos .cttab.on{background:color-mix(in srgb,var(--hb-accent,#AE90FF) 18%,transparent);
-    color:var(--hb-ink,#F2F4F7);font-weight:700;
-    box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--hb-accent,#AE90FF) 55%,transparent)}
-  .hb-contactos .cttab:disabled{opacity:.75;cursor:default;pointer-events:none}
-  .hb-contactos .ctviewsright{margin-left:auto;display:flex;align-items:center;gap:10px;flex:0 0 auto}
+    padding:0 0 var(--sp-2,8px);margin-bottom:var(--sp-3,12px)}
+  .hb-contactos .ctviewsright{margin-left:auto;display:flex;align-items:center;gap:8px;flex:0 0 auto}
   .hb-contactos .ctconnicons{display:flex;align-items:center;gap:4px}
   .hb-contactos .ctconnicon{width:var(--hb-icon-h,28px);height:var(--hb-icon-h,28px);border-radius:var(--hb-r-s,8px);
     border:0;background:none;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:.72}
@@ -108,6 +94,30 @@ function injectStyles(){
   .hb-contactos .ctconnicon:hover:not(:disabled){opacity:1;background:var(--hb-bg-soft,#f4f7fb)}
   .hb-contactos .ctconnicon.on{opacity:1}
   .hb-contactos .ctconnicon.off{opacity:.4;cursor:default}
+  /* SELECTED — the directory is showing only this platform. The accent ring is the same «this is the one
+     on screen» language the tabs used to wear, moved to the control that now owns that job. */
+  .hb-contactos .ctconnicon.sel{opacity:1;background:color-mix(in srgb,var(--hb-accent,#AE90FF) 18%,transparent);
+    box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--hb-accent,#AE90FF) 55%,transparent)}
+  /* The plug is an ICON, not a labelled button: the operator's «ocupa mucho espacio», and with the icons
+     beside it already saying «sources», the word was the third time this row said the same thing. */
+  .hb-contactos .ctplug{width:var(--hb-ctl-h-sm,32px);height:var(--hb-ctl-h-sm,32px);flex:0 0 auto;
+    border:1px solid var(--hb-line,#e3e8f0);background:var(--hb-bg,#fff);color:var(--hb-muted,#5b6b82);
+    border-radius:var(--hb-r-s,8px);cursor:pointer;display:flex;align-items:center;justify-content:center}
+  .hb-contactos .ctplug svg{width:15px;height:15px;display:block}
+  .hb-contactos .ctplug:hover,.hb-contactos .ctplug.on{border-color:var(--hb-accent,#3D6FE0);
+    color:var(--hb-accent,#3D6FE0)}
+
+  /* ── THE CRUMB — what is being filtered right now, and how to drop it ──────────────────────────── */
+  .hb-contactos .ctcrumb{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:11.5px;
+    color:var(--hb-muted-2,#7d8a9c)}
+  .hb-contactos .ctcrumb .ctcx{display:inline-flex;align-items:center;gap:6px;border-radius:999px;
+    border:1px solid var(--hb-accent,#3D6FE0);color:var(--hb-accent,#3D6FE0);background:none;
+    padding:2px 9px;font-size:11.5px;cursor:pointer;font-weight:600}
+  .hb-contactos .ctcount{margin-left:auto;font-family:ui-monospace,Menlo,monospace}
+  .hb-contactos .ctmore{border:1px dashed var(--hb-line,#d6dde8);background:none;border-radius:10px;
+    padding:8px;font-size:12px;cursor:pointer;color:var(--hb-muted,#5b6b82);width:100%}
+  .hb-contactos .ctmore:hover{border-color:var(--hb-accent,#3D6FE0);color:var(--hb-accent,#3D6FE0);
+    border-style:solid}
   .hb-contactos .ctconnbtn{border:1px solid var(--hb-line,#e3e8f0);background:var(--hb-bg,#fff);
     color:var(--hb-muted,#5b6b82);border-radius:var(--hb-r-s,8px);height:var(--hb-ctl-h-sm,32px);
     padding:0 var(--sp-3,12px);font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;
@@ -186,7 +196,11 @@ function injectStyles(){
     border-left:2px solid var(--hb-warn,#E0A23D);padding-left:9px}
 
   /* SIDEBAR — a real panel with a ground of its own, not four buttons floating on the canvas. */
-  .hb-contactos .ctside{display:flex;flex-direction:column;gap:3px;background:var(--hb-bg-soft,#f6f8fb);border:1px solid var(--hb-line,#e3e8f0);border-radius:12px;padding:7px;max-height:56vh;overflow:auto}
+  .hb-contactos .ctside{display:flex;flex-direction:column;gap:3px;background:var(--hb-bg-soft,#f6f8fb);border:1px solid var(--hb-line,#e3e8f0);border-radius:12px;padding:7px;max-height:62vh;overflow:auto}
+  .hb-contactos .ctside .ctgmore{border:0;background:none;color:var(--hb-muted-2,#9aa7b8);font-size:11.5px;
+    cursor:pointer;text-align:left;padding:3px 9px}
+  .hb-contactos .ctside .ctgmore:hover{color:var(--hb-accent,#3D6FE0)}
+  .hb-contactos .ctg .ctgi{flex:0 0 auto;font-size:12px;opacity:.85}
   .hb-contactos .ctg{display:flex;gap:6px;align-items:center;border:1px solid transparent;background:none;border-radius:8px;padding:6px 9px;font-size:12.5px;cursor:pointer;color:var(--hb-muted,#3a4757);text-align:left;width:100%;box-sizing:border-box}
   .hb-contactos .ctg:hover{background:var(--hb-bg,#fff);color:var(--hb-accent,#3D6FE0)}
   .hb-contactos .ctg.on{background:var(--hb-accent,#3D6FE0);border-color:var(--hb-accent,#3D6FE0);color:var(--canvas,#101216);font-weight:600}
@@ -255,6 +269,18 @@ function injectStyles(){
   .hb-contactos .cttag button:hover{color:var(--hb-danger,#D9534F)}
   .hb-contactos .ctaddtag{font-size:11px;border:1px dashed var(--hb-line,#d6dde8);border-radius:999px;padding:2px 9px;color:var(--hb-muted-2,#9aa7b8);cursor:pointer;background:none}
   .hb-contactos .ctaddtag:hover{border-color:var(--hb-accent,#3D6FE0);color:var(--hb-accent,#3D6FE0);border-style:solid}
+  /* A phone/e-mail ROW: the label is a chip, not a column — a contact may have three of them and a fixed
+     key column would push the number itself into a narrow strip. */
+  .hb-contactos .ctdrow{display:flex;gap:8px;align-items:center;padding:3px 0;font-size:13px;min-height:24px}
+  .hb-contactos .ctdrow .ctdl{flex:0 0 auto;font-size:10px;text-transform:uppercase;letter-spacing:.07em;
+    color:var(--hb-muted-2,#9aa7b8);border:1px solid var(--hb-line,#e3e8f0);border-radius:999px;
+    padding:1px 7px;cursor:pointer;background:none}
+  .hb-contactos .ctdrow .ctdl:hover{border-color:var(--hb-accent,#3D6FE0);color:var(--hb-accent,#3D6FE0)}
+  .hb-contactos .ctdrow .ctfv{font-family:ui-monospace,Menlo,monospace;font-size:12.5px}
+  .hb-contactos .ctdrow .ctchx{opacity:0}
+  .hb-contactos .ctdrow:hover .ctchx{opacity:1}
+  .hb-contactos .ctpick{border:1px solid var(--hb-line,#e3e8f0);border-radius:8px;padding:3px 7px;
+    font-size:12.5px;background:var(--hb-bg,#fff);color:var(--hb-ink,#0d1622);font-family:inherit;max-width:100%}
   .hb-contactos .ctnote{font-size:11.5px;color:var(--hb-muted-2,#9aa7b8);margin-top:7px;line-height:1.45}
   `; document.head.appendChild(s);
 }
@@ -302,20 +328,85 @@ function avatar(c, big){
   return a;
 }
 
-function filtered(data, st){
-  let out=(data.contacts||[]).slice();
-  // The subheader's KIND tab. Empty means «Todos»; an unknown stored kind reads as a person, mirroring
-  // `data.py::_kind`, so a row can never fall out of every tab at once.
-  if(st.kind) out=out.filter(c=>(String(c.kind||"person")||"person")===st.kind);
-  if(st.group==="__fav") out=out.filter(c=>c.favorite);
-  else if(st.group) out=out.filter(c=>groupMatch(st.group,c));
-  if(st.fav) out=out.filter(c=>c.favorite);
-  if(st.city){ const cw=normJs(st.city);
-    out=out.filter(c=>{const cn=normJs(c.city); return cn.includes(cw)||(cn&&cw.includes(cn));}); }
-  if(st.query){ const qn=normJs(st.query);
-    out=out.filter(c=>normJs([c.name,c.city,c.address,c.phone,c.email,c.notes,
-      (c.groups||[]).map(g=>g).join(" "),
-      (c.channels||[]).map(ch=>ch.handle||"").join(" ")].join(" ")).includes(qn)); }
+// ── WHICH CONTACTS ARE ON SCREEN (V2-715) ───────────────────────────────────────────────────────────────
+// Two independent axes, and they are independent on purpose: the RAIL picks ONE thing to look at (all,
+// favourites, a kind, a label, a city, the hidden ones), and the PLATFORM narrows whatever that is. His
+// own words for the second one: «cuando entramos en Telegram quiero ver solo los contactos de Telegram».
+// A mirror of `model.py::matches` / `model.py::source_matches`, marked as such — this one is the same
+// decision made client-side over a directory the card already holds whole, and the two must never drift.
+const KIND_ORDER = ["person", "company", "place", "group", "agent"];
+
+function kindOf(c){ const k=String(c.kind||"person"); return KIND_ORDER.indexOf(k)<0 ? "person" : k; }
+
+function srcKey(v){
+  const n=normJs(v);
+  return ({"google-contacts":"google","google contacts":"google","googlecontacts":"google","gmail":"google",
+           "google-people":"google","apple":"icloud"})[n] || n;
+}
+
+// Mirrors `model.source_matches`: where the row CAME FROM and where he can REACH the person. A contact he
+// typed here and later matched to a Telegram account is as much a Telegram contact as an imported one.
+function sourceMatch(c, source){
+  const s=srcKey(source);
+  if(!s) return true;
+  if(srcKey(c.source)===s || srcKey(c.platform)===s) return true;
+  for(const k in (c.externalIds||{})) if(srcKey(k)===s) return true;
+  if(s==="google" && String(c.googleId||"").trim()) return true;
+  return (c.channels||[]).some(ch=>srcKey(ch.platform)===s);
+}
+
+function cityMatch(want, c){
+  const cw=normJs(want), cn=normJs(c.city);
+  return cw ? (cn.includes(cw)||(!!cn&&cw.includes(cn))) : true;
+}
+
+function detailValues(c, key){
+  const rows=(c[key]||[]).map(r=>String((r&&r.value)||"")).filter(Boolean);
+  const head=String((key==="phones"?c.phone:c.email)||"").trim();
+  return rows.length ? rows : (head?[head]:[]);
+}
+
+function haystack(c){
+  return normJs([c.name,c.city,c.address,c.notes,(c.groups||[]).join(" "),
+    detailValues(c,"phones").join(" "), detailValues(c,"emails").join(" "),
+    (c.channels||[]).map(ch=>ch.handle||"").join(" ")].join(" "));
+}
+
+// ── THE FILTER: every axis at once, because the VOICE can set several ───────────────────────────────────
+// A click on the rail means «show me THIS», so it sets one axis and clears the others. A pushed
+// `show_view` does not: «mi restaurante favorito en Barcelona» is group + city + favourites in one
+// sentence, and the spoken answer is already computed over all three. A card that could hold only one
+// would show a different set from the one it had just read out — the two-surfaces-disagreeing failure
+// this widget's own digest exists to stop (V2-576). Measured: a single-axis rail broke exactly that case.
+const AXES = ["fav", "hidden", "kind", "group", "city"];
+
+function selOf(el){ return el._ctFilter || {}; }
+
+function selEmpty(f){ return !AXES.some(a=>f && f[a]); }
+
+function bySel(list, f){
+  if(!f) return list;
+  let out = list;
+  if(f.fav) out = out.filter(c=>c.favorite);
+  if(f.kind) out = out.filter(c=>kindOf(c)===f.kind);
+  if(f.group) out = out.filter(c=>groupMatch(f.group,c));
+  if(f.city) out = out.filter(c=>cityMatch(f.city,c));
+  return out;                                    // `hidden` chooses the POOL, not a predicate — see basePool
+}
+
+// The pool the RAIL counts over: everything the platform filter allows. Counting over the whole archive
+// instead would paint a rail whose numbers disagree with what a click on it actually shows.
+function basePool(data, el){
+  const hidden = !!selOf(el).hidden;
+  const list = (hidden ? (data.hidden_rows||[]) : (data.contacts||[])).slice();
+  const src = el._ctSource||"";
+  return src ? list.filter(c=>sourceMatch(c,src)) : list;
+}
+
+function rowsOf(data, el){
+  let out = bySel(basePool(data,el), selOf(el));
+  const q = normJs(el._ctQuery||"");
+  if(q) out = out.filter(c=>haystack(c).includes(q));
   out.sort((a,b)=>(a.favorite===b.favorite ? (normJs(a.name)<normJs(b.name)?-1:1) : (a.favorite?-1:1)));
   return out;
 }
@@ -360,6 +451,80 @@ function section(box, title){
   const s=el2("div","ctdsec"); s.appendChild(el2("h4",null,title)); box.appendChild(s); return s;
 }
 
+// ── SEVERAL phones, several e-mails, each with a free label (V2-715) ───────────────────────────────────
+// A company is not one number: a switchboard, a mobile and a billing line are three facts about the same
+// entry, and the label is what makes the difference sayable («el fijo», «la centralita»). Every gesture
+// sends the WHOLE list through `update_contact`, because `phone`/`email` are only the head of it and the
+// store keeps the two in step — writing one without the other would be undone on the next read.
+function detailRows(box, el, data, ctx, c, key, title, addLabel, ph){
+  const redraw=nd=>render(el,(nd&&nd.contacts)?nd:data,ctx);
+  const act=async(name,payload)=>redraw(await ctx.action(name,payload));
+  const rows=(c[key]||[]).slice();
+  const head=String((key==="phones"?c.phone:c.email)||"").trim();
+  const list=rows.length ? rows : (head ? [{value:head,label:""}] : []);
+  const put=(next)=>act("update_contact",{contactId:c.id,[key]:next});
+
+  const sec=el2("div","ctdsec");
+  const h=el2("h4",null,title); sec.appendChild(h);
+  list.forEach((rw,i)=>{
+    const r=el2("div","ctdrow");
+    const lb=el2("button","ctdl", String(rw.label||"").trim() || tt("label_add", null, "etiqueta"));
+    lb.title=tt("label_hint", null, "Pulsa para decir de qué es: móvil, centralita, trabajo…");
+    lb.onclick=()=>{
+      const inp=document.createElement("input"); inp.className="ctin"; inp.style.maxWidth="120px";
+      inp.value=String(rw.label||"");
+      let done=false;
+      const fin=(save)=>{ if(done)return; done=true;
+        if(!save) return redraw(null);
+        const next=list.map((x,j)=>j===i?{value:x.value,label:String(inp.value||"").trim()}:x);
+        put(next); };
+      inp.onkeydown=e=>{ if(e.key==="Enter"){e.preventDefault();fin(true);}
+                         else if(e.key==="Escape"){e.preventDefault();fin(false);} };
+      inp.onblur=()=>fin(true);
+      lb.replaceWith(inp); inp.focus(); inp.select();
+    };
+    r.appendChild(lb);
+    const v=el2("span","ctfv",String(rw.value||""));
+    v.title=tt("edit_hint", null, "Pulsa para editar");
+    editable(v, v, rw.value, val=>{
+      const t=String(val).trim();
+      if(t===String(rw.value||"")) return redraw(null);
+      const next=list.map((x,j)=>j===i?{value:t,label:x.label}:x).filter(x=>x.value);
+      put(next);
+    });
+    r.appendChild(v);
+    const x=el2("button","ctchx","✕");
+    x.title=tt("detail_remove", null, "Quitar");
+    x.onclick=()=>put(list.filter((_,j)=>j!==i));
+    r.appendChild(x);
+    sec.appendChild(r);
+  });
+  if(!list.length){
+    // EMPTY IS A ROW (V2-699's rule, kept): «no muestra ni siquiera los campos básicos, aunque sean
+    // vacíos, para que se vea que es una ficha de un contacto». A section that disappeared when there was
+    // nothing in it would make «no tengo su teléfono» and «esta ficha no enseña teléfonos» look alike.
+    const r=el2("div","ctdrow"); r.appendChild(el2("span","ctfv void","—")); sec.appendChild(r);
+  }
+  const add=el2("button","ctaddtag",addLabel);
+  add.onclick=()=>{
+    const inp=document.createElement("input"); inp.className="ctin"; inp.style.maxWidth="190px";
+    inp.placeholder=ph;
+    let done=false;
+    const fin=(save)=>{ if(done)return; done=true;
+      const t=String(inp.value||"").trim();
+      if(save && t) act("add_" + (key==="phones"?"phone":"email"),
+                        {contactId:c.id, [key==="phones"?"phone":"email"]:t});
+      else redraw(null); };
+    inp.onkeydown=e=>{ if(e.key==="Enter"){e.preventDefault();fin(true);}
+                       else if(e.key==="Escape"){e.preventDefault();fin(false);} };
+    inp.onblur=()=>fin(true);
+    add.replaceWith(inp); inp.focus();
+  };
+  sec.appendChild(add);
+  box.appendChild(sec);
+  return sec;
+}
+
 // `el` is always the widget ROOT (state + re-renders live there); `host` is where the panel is appended.
 // Passing the column as `el` would re-render the whole widget INSIDE it — V2-124's detached-canvas family.
 function renderDetail(el, host, data, ctx, c){
@@ -372,7 +537,19 @@ function renderDetail(el, host, data, ctx, c){
   const back=el2("button","ctback",tt("back", null, "← Volver"));
   back.onclick=()=>{ el._ctDetail=null; render(el,data,ctx); };
   bar.appendChild(back);
+  // HIDE, not delete (V2-714's rule, reachable at last): a row that came from a platform and is deleted
+  // here comes straight back on the next import, so «quítalo de la lista» has to be the hiding one — and
+  // the same button brings it back from the rail's «Ocultos».
+  const hid=!!c.hidden;
+  const hb=el2("button","ctdel", hid ? "◌ "+tt("unhide", null, "Devolver al directorio")
+                                     : "◌ "+tt("hide", null, "Ocultar"));
+  hb.title = hid ? tt("unhide_hint", null, "Vuelve a salir en el directorio")
+                 : tt("hide_hint", null, "Lo quita de la lista sin borrarlo, y la siguiente importación no lo vuelve a traer");
+  hb.onclick=()=>act("hide_contact",{contactId:c.id,hidden:!hid}).then(()=>{ el._ctDetail=null; });
+  hb.style.marginLeft="auto";
+  bar.appendChild(hb);
   const del=el2("button","ctdel",tt("delete", null, "Borrar"));
+  del.style.marginLeft="0";
   del.onclick=()=>act("remove_contact",{contactId:c.id}).then(()=>{ el._ctDetail=null; });
   bar.appendChild(del);
   box.appendChild(bar);
@@ -442,6 +619,14 @@ function renderDetail(el, host, data, ctx, c){
   }
 
   // ── THE BASIC FIELDS — all of them, empty or not ───────────────────────────────────────────────────────
+  // V2-715 — «varios teléfonos que estén vinculados a la misma empresa». Each list is its own section,
+  // ABOVE the single-valued fields: the list is the truth and the scalar is only its head
+  // (`model.normalize`), so the card always sends the WHOLE list — an edit that moved only the scalar
+  // would be undone by the next normalisation.
+  detailRows(box, el, data, ctx, c, "phones", tt("sec_phones", null, "Teléfonos"),
+             tt("add_phone", null, "+ teléfono"), tt("phone_ph", null, "número…"));
+  detailRows(box, el, data, ctx, c, "emails", tt("sec_emails", null, "Correos"),
+             tt("add_email", null, "+ correo"), tt("email_ph", null, "dirección…"));
   const dat=section(box, tt("sec_data", null, "Datos"));
   const setField=(key)=>(v)=>{ const t=String(v).trim();
     if(t===String(c[key]||"")) return redraw(null);
@@ -450,7 +635,6 @@ function renderDetail(el, host, data, ctx, c){
     // field cannot wipe it. The card is a deliberate gesture, so it says `clear` instead of relying on "".
     if(!t) p.clear=key; else p[key]=t;
     act("update_contact",p); };
-  fieldRow(dat, tt("phone", null, "Teléfono"), c.phone||"", setField("phone"));
   fieldRow(dat, tt("city", null, "Ciudad"), c.city||"", setField("city"));
   fieldRow(dat, tt("address", null, "Dirección"), c.address||"", setField("address"));
   fieldRow(dat, tt("notes", null, "Notas"), c.notes||"", setField("notes"));
@@ -486,40 +670,69 @@ function renderDetail(el, host, data, ctx, c){
   const byId={}; (data.contacts||[]).forEach(x=>byId[x.id]=x);
   const parent=c.parentId?byId[c.parentId]:null;
   const kids=(data.contacts||[]).filter(x=>x.parentId===c.id);
-  if(parent||kids.length){
-    const ln=section(box, tt("sec_links", null, "Conexiones"));
-    const jump=(t)=>{ const a=el2("span","ctlink",t.name||t.id);
-      a.onclick=()=>{ el._ctDetail=t.id; render(el,data,ctx); }; return a; };
-    if(parent){ const r=el2("div","ctfr"); r.appendChild(el2("span","ctfk",tt("linked_to", null, "Conectado a")));
-      r.appendChild(jump(parent)); ln.appendChild(r); }
-    if(kids.length){ const r=el2("div","ctfr"); r.appendChild(el2("span","ctfk",tt("linked", null, "Conectados")));
-      const wrap=el2("span",null,"");
-      kids.forEach((k,i)=>{ if(i)wrap.appendChild(document.createTextNode(" · "));
-        wrap.appendChild(jump(k)); });
-      r.appendChild(wrap); ln.appendChild(r); }
+  const ln=section(box, tt("sec_links", null, "Conexiones"));
+  const jump=(t)=>{ const a=el2("span","ctlink",t.name||t.id);
+    a.onclick=()=>{ el._ctDetail=t.id; render(el,data,ctx); }; return a; };
+  if(kids.length){ const r=el2("div","ctfr"); r.appendChild(el2("span","ctfk",tt("linked", null, "Conectados")));
+    const wrap=el2("span",null,"");
+    kids.forEach((k,i)=>{ if(i)wrap.appendChild(document.createTextNode(" · "));
+      wrap.appendChild(jump(k)); });
+    r.appendChild(wrap); ln.appendChild(r); }
+  // …and the link is EDITABLE from here (V2-715). `link_contact` existed from birth and had no control
+  // behind it, so «cuatro personas vinculadas a la misma empresa» was a sentence only the voice could say.
+  const lr=el2("div","ctfr");
+  lr.appendChild(el2("span","ctfk",tt("linked_to", null, "Conectado a")));
+  const pick=document.createElement("select");
+  pick.className="ctpick";
+  const none=document.createElement("option");
+  none.value=""; none.textContent=tt("link_none", null, "— sin conexión —");
+  pick.appendChild(none);
+  // Companies and places only: a person hangs from the company or the restaurant where you deal with her,
+  // never from another person — and a 2 688-row menu is not a chooser.
+  (data.contacts||[]).filter(x=>x.id!==c.id && (kindOf(x)==="company"||kindOf(x)==="place"))
+    .sort((a,b)=>normJs(a.name)<normJs(b.name)?-1:1).slice(0,300)
+    .forEach(x=>{ const o=document.createElement("option"); o.value=x.id;
+                  o.textContent=(x.name||x.id)+(x.city?" · "+x.city:""); pick.appendChild(o); });
+  if(parent && !Array.from(pick.options).some(o=>o.value===parent.id)){
+    const o=document.createElement("option"); o.value=parent.id; o.textContent=parent.name||parent.id;
+    pick.appendChild(o);
   }
+  pick.value=c.parentId||"";
+  pick.onchange=()=>act("link_contact",{contactId:c.id,parentId:pick.value});
+  lr.appendChild(pick);
+  ln.appendChild(lr);
 
   host.appendChild(box);
 }
 
-// ── THE PROVIDER ICONS in the subheader — the house standard (V2-699) ───────────────────────────────────
-// Every source visible at a glance: the live one in its own colour, the ones we have not built dimmed and
-// INERT. Operator: «el iconito de Google y el de Apple desactivado, para que la gente sepa que se pueden
-// conectar varias fuentes de contactos al sistema».
+// ── THE PROVIDER ICONS — a FILTER for a linked source, a door for one that is not (V2-715) ─────────────
+// The operator's correction, 2026-09-17: «cuando entramos en Telegram quiero ver solo los contactos de
+// Telegram… ya tenemos el botón de conectores para manejar la sincronización». So the icon stopped being
+// a second door to the connectors screen — which is what V2-699 made it, and what made two controls on
+// this row do one thing — and became the platform filter. It still opens the screen when the source is
+// LINKABLE but not linked, because there is nothing to filter and «conéctalo» is the only useful answer.
+//
+// Three states remain three different sentences (the house standard): full colour = linked, dimmed = built
+// and not linked, `.off` + disabled = no connector exists at all.
 function renderProviderIcons(providers, el, data, ctx){
   const wrap = el2("div","ctconnicons");
   (providers||[]).forEach(p=>{
     const live = !!LIVE_SOURCES[p.id];
     const on = p.status === "connected";
-    const btn = el2("button","ctconnicon" + (on?" on":"") + (live?"":" off"));
+    const sel = !!el._ctSource && srcKey(el._ctSource) === srcKey(p.id);
+    const btn = el2("button","ctconnicon" + (on?" on":"") + (live?"":" off") + (sel?" sel":""));
     const spec = SRC_SVG[p.id];
     if(spec){ btn.style.color = spec.color; btn.appendChild(svgEl(spec.path, {fill:true})); }
     else { btn.appendChild(svgEl(ICO_PEOPLE)); }
     btn.title = (p.label || p.id) + " — " + (!live ? tt("src_soon", null, "aún no disponible")
-                                                   : on ? tt("src_connected", null, "conectado")
-                                                        : tt("src_off", null, "sin conectar"));
+                                                   : !on ? tt("src_off_connect", null, "sin conectar — pulsa para conectarlo")
+                                                   : sel ? tt("src_filter_off", null, "quitar el filtro")
+                                                         : tt("src_filter_on", null, "ver solo estos contactos"));
     if(!live){ btn.disabled = true; }
-    else { btn.onclick = ()=>{ el._ctScreen = "conn"; el._ctDetail = null; render(el,data,ctx); }; }
+    else if(!on){ btn.onclick = ()=>{ el._ctScreen = "conn"; el._ctDetail = null; render(el,data,ctx); }; }
+    else { btn.onclick = ()=>{
+      el._ctSource = sel ? "" : p.id;
+      el._ctDetail = null; el._ctScreen = null; el._ctShown = 0; render(el,data,ctx); }; }
     wrap.appendChild(btn);
   });
   return wrap;
@@ -764,113 +977,138 @@ function kindLabel(kind){
     case "person":  return tt("kind_person", null, "persona");
     case "place":   return tt("kind_place", null, "sitio");
     case "company": return tt("kind_company", null, "empresa");
+    case "group":   return tt("kind_group", null, "grupo");
+    case "agent":   return tt("kind_agent", null, "agente");
     default:        return "";
   }
 }
 
-export function render(el, data, ctx){
-  _T = (ctx && typeof ctx.t === "function") ? ctx.t : null;
-  injectStyles();
+// The RAIL says them in the plural, because a rail row is a set and not an example.
+function kindPlural(kind){
+  switch(String(kind || "")){
+    case "person":  return tt("kind_people", null, "Personas");
+    case "place":   return tt("kind_places", null, "Sitios");
+    case "company": return tt("kind_companies", null, "Empresas");
+    case "group":   return tt("kind_groups", null, "Grupos");
+    case "agent":   return tt("kind_agents", null, "Agentes");
+    default:        return "";
+  }
+}
 
-  // A VIEW PUSHED FROM VOICE (`show_view`/`show_contact`). Applied only when its token MOVES — a plain data
-  // refresh never yanks the group the operator is reading, but asking twice for the same filter still lands,
-  // because the token is a counter and not the filter itself (the agenda's V2-540 contract).
-  const pushed=data.view;
-  if(pushed && pushed.n!==el._ctViewN){
-    el._ctViewN=pushed.n;
-    const sel=pushed.sel||{};
-    if(sel.contactId){ el._ctDetail=sel.contactId; }
-    else{
-      el._ctDetail=null;
-      el._ctGroup=sel.group||"";
-      el._ctCity=sel.city||"";
-      el._ctFav=!!sel.favorites;
-      el._ctQuery=sel.query||"";
+
+// ── THE RAIL — the directory's own map, derived from what it holds (V2-715) ─────────────────────────────
+// The operator, 2026-09-17: «en la barra lateral de la izquierda es donde vayamos a desarrollar de forma
+// dinámica todo lo que tenemos», and about the four fixed tabs that used to sit on top: «un contacto nunca
+// va a ser un lugar, con lo cual eso no tiene ningún sentido ahí».
+//
+// So nothing here is a fixed word. Every section is TALLIED from the rows on screen and a section with
+// nothing in it is not drawn — a directory of 2 688 people and no places never shows «Sitios (0)», and a
+// directory that grows its first cluster grows a «Grupos» row the same day. The counts are tallied over
+// the platform-filtered pool, so a number in the rail is a promise about what a click on it will show.
+function railSection(side, label){
+  side.appendChild(el2("div","ctsep"));
+  side.appendChild(el2("div","ctsidelbl", label));
+}
+
+function tally(list, keyOf){
+  const out = {};
+  list.forEach(c=>{
+    (keyOf(c)||[]).forEach(k=>{
+      const n = normJs(k);
+      if(!n) return;
+      const e = out[n] || (out[n] = {id: k, count: 0});
+      e.count++;
+    });
+  });
+  return Object.values(out).sort((a,b)=> b.count - a.count || (normJs(a.id) < normJs(b.id) ? -1 : 1));
+}
+
+//: How many labels / cities the rail shows before it offers the rest. A Google address book brings its own
+//: contact groups, so this list is long in real life and an unbounded rail would push «+ Nuevo contacto»
+//: off the bottom of every card.
+const RAIL_PAGE = 10;
+
+function renderRail(el, data, ctx){
+  const side = el2("div","ctside");
+  const sel = selOf(el);
+  const pool = basePool(data, el);
+  const hiddenN = (data.hidden_rows||[]).length;
+
+  const row = (axis, value, label, count, icon)=>{
+    const on = axis==="all" ? selEmpty(sel)
+             : (axis==="fav"||axis==="hidden") ? !!sel[axis]
+             : String(sel[axis]||"")===String(value||"");
+    const b = el2("button","ctg"+(on?" on":""));
+    if(icon) b.append(el2("span","ctgi", icon));
+    b.append(el2("span",null,label));
+    if(count!=null) b.append(el2("span","ctgc",String(count)));
+    // A CLICK means «show me this one thing», so it replaces the whole filter. Several axes at once is
+    // something only a sentence can ask for, and the pushed view is where that arrives.
+    b.onclick = ()=>{ el._ctFilter = axis==="all" ? {}
+                    : (axis==="fav"||axis==="hidden") ? {[axis]: true} : {[axis]: value};
+                      el._ctDetail=null; el._ctScreen=null; el._ctShown=0; render(el,data,ctx); };
+    side.appendChild(b);
+    return b;
+  };
+
+  // The count he asked for, where he asked for it: «con poner entre paréntesis al lado de las letras ALL
+  // el número de contactos, todo el mundo lo entiende de la misma manera».
+  row("all", "", tt("all", null, "Todos"),
+      selOf(el).hidden ? (data.contacts||[]).length : pool.length);
+  const favs = pool.filter(c=>c.favorite).length;
+  row("fav", "", tt("favs", null, "★ Favoritos"), favs);
+
+  const kinds = KIND_ORDER.map(k=>({k, n: pool.filter(c=>kindOf(c)===k).length})).filter(x=>x.n>0);
+  // ONE kind present is not a classification, it is the whole directory said twice.
+  if(kinds.length > 1){
+    railSection(side, tt("side_kinds", null, "Tipos"));
+    kinds.forEach(x=>row("kind", x.k, kindPlural(x.k), x.n, KICON[x.k]||""));
+  }
+
+  const labels = tally(pool, c=>c.groups||[]);
+  if(labels.length){
+    railSection(side, tt("side_groups", null, "Etiquetas"));
+    const open = !!el._ctAllGroups;
+    (open ? labels : labels.slice(0, RAIL_PAGE)).forEach(g=>row("group", g.id, g.id, g.count));
+    if(labels.length > RAIL_PAGE){
+      const more = el2("button","ctgmore", open ? tt("rail_less", null, "ver menos")
+        : tt("rail_more", {n: labels.length - RAIL_PAGE}, "ver " + (labels.length - RAIL_PAGE) + " más"));
+      more.onclick = ()=>{ el._ctAllGroups = !open; render(el,data,ctx); };
+      side.appendChild(more);
     }
   }
-  const st={group:el._ctGroup||"", city:el._ctCity||"", fav:!!el._ctFav, query:el._ctQuery||"",
-           kind:el._ctKind||""};
 
-  el.className="hb-contactos";
-  el.textContent="";                                          // reset (no innerHTML)
-
-  const contacts=data.contacts||[];
-  const redraw=nd=>render(el,(nd&&nd.contacts)?nd:data,ctx);
-
-  // ── HOUSE HEADER BAR — brand disc, content title, search, count ────────────────────────────────────────
-  const bar=el2("div","ctbar");
-  const brand=el2("div","ctbrand"); brand.appendChild(svgEl(ICO_PEOPLE)); bar.appendChild(brand);
-  bar.appendChild(el2("div","cttitle",tt("title", null, "Contactos")));
-  const sb=el2("div","ctsearch");
-  sb.appendChild(el2("span",null,"\u{1F50D}"));
-  const q=document.createElement("input");
-  q.placeholder=tt("search_ph", null, "Buscar por nombre, ciudad, etiqueta o cuenta…");
-  q.value=st.query;
-  q.oninput=()=>{ el._ctQuery=q.value; const keep=q.value; el._ctScreen=null; render(el,data,ctx);
-    const nq=el.querySelector(".ctsearch input");
-    if(nq){ nq.focus(); nq.setSelectionRange(keep.length,keep.length); } };
-  sb.appendChild(q);
-  bar.appendChild(sb);
-  bar.appendChild(el2("span","ctn",tt("count", {n: data.count||0}, (data.count||0)+" en el directorio")));
-  el.appendChild(bar);
-
-  // ── HOUSE SUBHEADER BAND — kind tabs left, provider icons + Conectores right ────────────────────────────
-  // The tabs filter by KIND; the sidebar filters by his own group labels. Two different axes on purpose —
-  // putting «Todos / ★ Favoritos» in both is the duplication he reported as «un menú ahí suelto».
-  const views=el2("div","ctviews");
-  [["", tt("all", null, "Todos")], ["person", tt("kind_people", null, "Personas")],
-   ["place", tt("kind_places", null, "Sitios")], ["company", tt("kind_companies", null, "Empresas")]]
-   .forEach(([id,label])=>{
-    // While the connectors screen owns the content NO tab is the one on screen, so none is lit and none is
-    // clickable. The chosen kind survives underneath and comes back when the screen closes (agenda V2-679).
-    const t=el2("button","cttab"+(!el._ctScreen && (el._ctKind||"")===id?" on":""),label);
-    t.dataset.kind=id; t.disabled=!!el._ctScreen;
-    t.onclick=()=>{ el._ctKind=id; el._ctDetail=null; render(el,data,ctx); };
-    views.appendChild(t);
-  });
-  const right=el2("div","ctviewsright");
-  right.appendChild(renderProviderIcons(data.providers||[], el, data, ctx));
-  const connBtn=el2("button","ctconnbtn"+(el._ctScreen?" on":""));
-  connBtn.appendChild(svgEl(ICO_PLUG));
-  connBtn.appendChild(el2("span",null,tt("connectors", null, "Conectores")));
-  connBtn.title=tt("connectors_hint", null, "Qué fuentes de contactos están conectadas");
-  connBtn.onclick=()=>{ el._ctScreen = el._ctScreen ? null : "conn"; el._ctDetail=null; render(el,data,ctx); };
-  right.appendChild(connBtn);
-  views.appendChild(right);
-  el.appendChild(views);
-
-  if(el._ctScreen === "conn"){
-    renderConnectors(el, el, data, ctx);
-    return;
+  const cities = tally(pool, c=>[String(c.city||"").trim()].filter(Boolean));
+  if(cities.length){
+    railSection(side, tt("side_cities", null, "Ciudades"));
+    const open = !!el._ctAllCities;
+    (open ? cities : cities.slice(0, RAIL_PAGE)).forEach(g=>row("city", g.id, g.id, g.count));
+    if(cities.length > RAIL_PAGE){
+      const more = el2("button","ctgmore", open ? tt("rail_less", null, "ver menos")
+        : tt("rail_more", {n: cities.length - RAIL_PAGE}, "ver " + (cities.length - RAIL_PAGE) + " más"));
+      more.onclick = ()=>{ el._ctAllCities = !open; render(el,data,ctx); };
+      side.appendChild(more);
+    }
   }
 
-  const cols=el2("div","ctcols");
-
-  // ── SIDEBAR ────────────────────────────────────────────────────────────────────────────────────────────
-  const side=el2("div","ctside");
-  const gbtn=(label,id,count)=>{ const b=el2("button","ctg"+((st.group||"")===id?" on":""));
-    b.append(el2("span",null,label)); if(count!=null)b.append(el2("span","ctgc",String(count)));
-    b.onclick=()=>{ el._ctGroup=id; el._ctDetail=null; el._ctCity=""; render(el,data,ctx); };
-    return b; };
-  const inKind=filtered(data,{group:"",city:"",fav:false,query:"",kind:st.kind});
-  side.appendChild(gbtn(tt("all", null, "Todos"),"",inKind.length));
-  side.appendChild(gbtn(tt("favs", null, "★ Favoritos"),"__fav",data.favorites_count||0));
-  const groups=data.groups||[];
-  if(groups.length){
-    side.appendChild(el2("div","ctsep"));
-    side.appendChild(el2("div","ctsidelbl",tt("side_groups", null, "Grupos")));
-    groups.forEach(g=>side.appendChild(gbtn(g.id,g.id,g.count)));
+  // HIDDEN — the rows he took off the directory. They were unreachable from the card until now, and a
+  // «quítalo de la lista» that cannot be undone from the same card is a delete wearing a softer word.
+  if(hiddenN){
+    railSection(side, tt("side_hidden", null, "Ocultos"));
+    row("hidden", "", tt("hidden_rows", null, "Ocultos"), hiddenN, "◌");
   }
+
   side.appendChild(el2("div","ctsep"));
-  const addB=el2("button","ctact","+ "+tt("new_contact", null, "Nuevo contacto"));
-  addB.onclick=()=>{
+  const addB = el2("button","ctact","+ "+tt("new_contact", null, "Nuevo contacto"));
+  addB.onclick = ()=>{
     const inp=document.createElement("input"); inp.className="ctin";
     inp.placeholder=tt("new_name_ph", null, "nombre…");
     let done=false;
     const fin=async(save)=>{ if(done)return; done=true;
       const t=String(inp.value||"").trim();
-      if(save && t){ const nd=await ctx.action("add_contact",{name:t}); redraw(nd); }
-      else redraw(null); };
+      if(save && t){ const nd=await ctx.action("add_contact",{name:t});
+                     render(el,(nd&&nd.contacts)?nd:data,ctx); }
+      else render(el,data,ctx); };
     inp.onkeydown=e=>{ if(e.key==="Enter"){e.preventDefault();fin(true);}
                        else if(e.key==="Escape"){e.preventDefault();fin(false);} };
     inp.onblur=()=>fin(true);
@@ -879,51 +1117,154 @@ export function render(el, data, ctx){
   side.appendChild(addB);
   // NO import button here. It lived in this rail for one build and the operator had it removed: importing
   // is a CONNECTOR gesture, and in this product every connector gesture is reached the same way — the plug
-  // button in the subheader. A second door to it would be a second place to keep in sync and a second
-  // vocabulary for the same idea.
-  cols.appendChild(side);
+  // button in the bar. A second door to it would be a second place to keep in sync.
+  return side;
+}
+
+// ── WHAT IS BEING FILTERED RIGHT NOW, and how to drop it ────────────────────────────────────────────────
+// Two of the three filters live somewhere the eye can miss (an icon in the bar, a row in a rail that
+// scrolls), and a list showing 412 of 2 688 rows with no visible reason is indistinguishable from a
+// directory that lost them. Each chip REMOVES its own filter, so the way out is where the surprise is.
+function renderCrumb(el, data, ctx, shown, total){
+  const bar = el2("div","ctcrumb");
+  const sel = selOf(el);
+  const chip = (label, clear)=>{
+    const b = el2("button","ctcx");
+    b.append(el2("span",null,label));
+    b.append(el2("span",null,"✕"));
+    b.title = tt("crumb_clear", null, "quitar este filtro");
+    b.onclick = ()=>{ clear(); el._ctDetail=null; el._ctShown=0; render(el,data,ctx); };
+    bar.appendChild(b);
+  };
+  if(el._ctSource){
+    const p = (data.providers||[]).find(x=>srcKey(x.id)===srcKey(el._ctSource));
+    chip((p && p.label) || el._ctSource, ()=>{ el._ctSource=""; });
+  }
+  const drop=(axis)=>()=>{ const f={...selOf(el)}; delete f[axis]; el._ctFilter=f; };
+  if(sel.hidden) chip(tt("hidden_rows", null, "Ocultos"), drop("hidden"));
+  if(sel.fav) chip(tt("favs", null, "★ Favoritos"), drop("fav"));
+  if(sel.kind) chip(kindPlural(sel.kind), drop("kind"));
+  if(sel.group) chip(String(sel.group), drop("group"));
+  if(sel.city) chip(String(sel.city), drop("city"));
+  if(el._ctQuery) chip("“"+String(el._ctQuery)+"”", ()=>{ el._ctQuery=""; });
+  bar.appendChild(el2("span","ctcount", shown < total
+    ? tt("shown_of", {n: shown, total: total}, shown + " de " + total)
+    : tt("shown_n", {n: total}, String(total))));
+  return bar;
+}
+
+//: How many rows are painted before «ver más». His own directory holds 2 688 and every one of them used to
+//: become a DOM node on every keystroke of the search box.
+const PAGE = 120;
+
+export function render(el, data, ctx){
+  _T = (ctx && typeof ctx.t === "function") ? ctx.t : null;
+  injectStyles();
+
+  // A VIEW PUSHED FROM VOICE (`show_view` / `show_contact` / `show_connectors`). Applied only when its
+  // token MOVES — a plain data refresh never yanks what the operator is reading, but asking twice for the
+  // same filter still lands, because the token is a counter and not the filter itself (V2-540).
+  const pushed=data.view;
+  if(pushed && pushed.n!==el._ctViewN){
+    el._ctViewN=pushed.n;
+    const sel=pushed.sel||{};
+    if(sel.screen==="connectors"){ el._ctScreen="conn"; el._ctDetail=null; }
+    else if(sel.contactId){ el._ctDetail=sel.contactId; el._ctScreen=null; }
+    else{
+      // ⚠️ `kind` and `source` were pushed by `show_view` and DROPPED here until V2-715: «enséñame mis
+      // empresas» filtered the spoken answer and left the card showing everything, which is the pair of
+      // disagreeing surfaces this widget's own digest exists to prevent.
+      el._ctDetail=null; el._ctScreen=null; el._ctShown=0;
+      el._ctSource=sel.source||"";
+      el._ctQuery=sel.query||"";
+      const f={};
+      if(sel.hidden) f.hidden=true;
+      if(sel.favorites) f.fav=true;
+      if(sel.kind) f.kind=String(sel.kind);
+      if(sel.group) f.group=String(sel.group);
+      if(sel.city) f.city=String(sel.city);
+      el._ctFilter=f;
+    }
+  }
+
+  el.className="hb-contactos";
+  el.textContent="";                                          // reset (no innerHTML)
+
+  const contacts=data.contacts||[];
+  const redraw=nd=>render(el,(nd&&nd.contacts)?nd:data,ctx);
+
+  // ── THE ONE BAR — search, the sources, and the door to them ───────────────────────────────────────────
+  const bar=el2("div","ctbar");
+  const sb=el2("div","ctsearch");
+  sb.appendChild(el2("span",null,"\u{1F50D}"));
+  const q=document.createElement("input");
+  q.placeholder=tt("search_ph", null, "Buscar…");
+  q.value=el._ctQuery||"";
+  q.oninput=()=>{ el._ctQuery=q.value; const keep=q.value; el._ctScreen=null; el._ctShown=0;
+    render(el,data,ctx);
+    const nq=el.querySelector(".ctsearch input");
+    if(nq){ nq.focus(); nq.setSelectionRange(keep.length,keep.length); } };
+  sb.appendChild(q);
+  bar.appendChild(sb);
+  const right=el2("div","ctviewsright");
+  right.appendChild(renderProviderIcons(data.providers||[], el, data, ctx));
+  const connBtn=el2("button","ctplug"+(el._ctScreen?" on":""));
+  connBtn.appendChild(svgEl(ICO_PLUG));
+  connBtn.title=tt("connectors_hint", null, "Qué fuentes de contactos están conectadas");
+  connBtn.setAttribute("aria-label", tt("connectors", null, "Conectores"));
+  connBtn.onclick=()=>{ el._ctScreen = el._ctScreen ? null : "conn"; el._ctDetail=null; render(el,data,ctx); };
+  right.appendChild(connBtn);
+  bar.appendChild(right);
+  el.appendChild(bar);
+
+  if(el._ctScreen === "conn"){
+    renderConnectors(el, el, data, ctx);
+    return;
+  }
+
+  const cols=el2("div","ctcols");
+  cols.appendChild(renderRail(el, data, ctx));
 
   const main=el2("div","ctmain");
-  const detail=el._ctDetail ? contacts.find(c=>c.id===el._ctDetail) : null;
+  const detail=el._ctDetail
+    ? (contacts.find(c=>c.id===el._ctDetail) || (data.hidden_rows||[]).find(c=>c.id===el._ctDetail))
+    : null;
 
-  if(!contacts.length){
+  if(!contacts.length && !(data.hidden_rows||[]).length){
     main.appendChild(el2("div","ctempty",
       tt("empty_1", null, "El directorio está vacío. Dile a Zaelar: «apúntame el restaurante Elfo On de Soria como favorito» ")+
       tt("empty_2", null, "o «añade a Marta, amiga del trabajo».")));
   } else if(detail){
     renderDetail(el,main,data,ctx,detail);
   } else {
-    // SUBHEADER — only the filters that vary with the selection. The favourites toggle is GONE: the sidebar
-    // already has «★ Favoritos» and two controls for one fact is how the old layout read as a loose menu.
-    const inGroup=filtered(data,{group:st.group,city:"",fav:false,query:"",kind:st.kind});
-    const cities={}; inGroup.forEach(c=>{ const ct=(c.city||"").trim(); if(ct)cities[normJs(ct)]=ct; });
-    const cityNames=Object.values(cities).sort();
-    if(cityNames.length>1){
-      const fil=el2("div","ctfil");
-      cityNames.forEach(ct=>{
-        const on=normJs(st.city)===normJs(ct);
-        const b=el2("button","ctchip"+(on?" on":""),ct);
-        b.onclick=()=>{ el._ctCity=on?"":ct; render(el,data,ctx); };
-        fil.appendChild(b);
-      });
-      main.appendChild(fil);
+    const sel=selOf(el);
+    const rows=rowsOf(data, el);
+    const shown=Math.min(rows.length, Math.max(PAGE, el._ctShown||0));
+    const filtering = !!(el._ctSource || el._ctQuery) || !selEmpty(sel);
+    if(filtering || rows.length>PAGE) main.appendChild(renderCrumb(el, data, ctx, shown, rows.length));
+    if(sel.hidden){
+      main.appendChild(el2("div","ctnote", tt("hidden_hint", null,
+        "Ocultos: no salen en el directorio y la siguiente importación NO los vuelve a traer. "
+        + "Pulsa ◌ en su ficha para devolverlos.")));
     }
 
-    const rows=filtered(data,st);
     const list=el2("div","ctlist");
     if(!rows.length){
       list.appendChild(el2("div","ctempty",tt("no_match", null, "Nada que casar con ese filtro.")));
     }
-    rows.forEach(c=>{
+    rows.slice(0, shown).forEach(c=>{
       const r=el2("div","ctrow");
       r.appendChild(avatar(c,false));
       const tx=el2("div","ctrtx");
       tx.appendChild(el2("span","ctnm",c.name||c.id));
-      const sub=preferredLine(c);
+      const sub=preferredLine(c) || detailValues(c,"phones")[0] || "";
       if(sub) tx.appendChild(el2("span","ctsub",sub));
       r.appendChild(tx);
       if(c.city)r.appendChild(el2("span","ctci",c.city));
       const gs=el2("span","ctgs");
+      // The KIND on the row, but only when it is not the obvious one: a directory of people that labelled
+      // every row «persona» would be spending its only free strip on a word that says nothing.
+      if(kindOf(c)!=="person") gs.appendChild(el2("span","ctpill",kindLabel(kindOf(c))));
       (c.groups||[]).slice(0,2).forEach(g=>gs.appendChild(el2("span","ctpill",g)));
       r.appendChild(gs);
       r.appendChild(favBtn(c,ctx,el,data));
@@ -931,6 +1272,12 @@ export function render(el, data, ctx){
       list.appendChild(r);
     });
     main.appendChild(list);
+    if(rows.length>shown){
+      const more=el2("button","ctmore",
+        tt("rows_more", {n: rows.length-shown}, "Ver más (" + (rows.length-shown) + ")"));
+      more.onclick=()=>{ el._ctShown=shown+PAGE; render(el,data,ctx); };
+      main.appendChild(more);
+    }
   }
 
   cols.appendChild(main);

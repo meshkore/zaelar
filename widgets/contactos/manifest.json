@@ -33,7 +33,15 @@
     "mis clusters",
     "importar contactos",
     "sincronizar contactos",
-    "libreta"
+    "libreta",
+    "empresas de",
+    "mis empresas",
+    "contactos de google",
+    "google contacts",
+    "teléfonos de",
+    "otro teléfono",
+    "companies",
+    "my companies"
   ],
   "entry": "widget.js",
   "background": {
@@ -43,7 +51,7 @@
     "w": 720,
     "h": 520
   },
-  "usage": "El directorio ÚNICO de contactos del operador: personas, sitios y empresas, con grupos libres («amigos del trabajo», «restaurantes»), ciudad y favoritos — un restaurante favorito ES una entrada de este directorio, nunca una lista aparte. Añade con add_contact (mismo nombre y ciudad ACTUALIZA, no duplica), cambia con update_contact, borra con remove_contact (pide confirmación), marca con set_favorite y conecta una persona con su sitio o empresa con link_contact. Para VER o CONSULTAR el directorio («mi restaurante favorito en Barcelona», «enséñame los fontaneros de Soria») usa show_view: filtra lo que se ve Y devuelve los que casan en `result.matches` para que contestes con sus nombres — mostrar el widget otra vez NO filtra nada, abre el directorio entero. La ficha de uno concreto es show_contact. POR DÓNDE se le escribe a alguien vive aquí: set_channel guarda su WhatsApp, Telegram o correo y cuál es el preferido — eso es lo que luego usa `send_to` de mensajería para escribirle sin preguntar.",
+  "usage": "El directorio ÚNICO de contactos del operador: personas, empresas, sitios, grupos y agentes, con etiquetas libres («amigos del trabajo», «restaurantes»), ciudad y favoritos — un restaurante favorito ES una entrada de este directorio, nunca una lista aparte. Una entrada puede llevar VARIOS teléfonos y correos (add_phone/add_email), y las personas cuelgan de su empresa o de su sitio con link_contact. Añade con add_contact (mismo nombre y ciudad ACTUALIZA, no duplica), cambia con update_contact, borra con remove_contact (pide confirmación) u oculta con hide_contact, y marca con set_favorite. Para VER o CONSULTAR («mi restaurante favorito en Barcelona», «las empresas de Madrid», «mis contactos de Telegram») usa show_view: filtra por tipo, plataforma, grupo o ciudad Y devuelve los que casan en `result.matches`. La ficha de uno concreto es show_contact; las fuentes y su sincronización, show_connectors. POR DÓNDE se le escribe a alguien vive aquí: set_channel guarda su WhatsApp, Telegram o correo y cuál es el preferido — eso es lo que luego usa `send_to` de mensajería para escribirle sin preguntar.",
   "actions": {
     "add_contact": {
       "desc": "guarda un contacto nuevo (persona, sitio o empresa: un amigo, un restaurante, un fontanero…) — con el mismo nombre y ciudad ACTUALIZA el existente en vez de duplicar",
@@ -58,7 +66,9 @@
         "notes": "string (opcional)",
         "favorite": "true/false (opcional)",
         "channels": "opcional: [{platform: whatsapp|telegram|email, handle: su usuario/teléfono/dirección}]",
-        "preferred": "opcional: el canal por el que se le escribe por defecto"
+        "preferred": "opcional: el canal por el que se le escribe por defecto",
+        "phones": "opcional: varios teléfonos, «900111222, 915550000» o [{value, label}] — una empresa no tiene un solo número",
+        "emails": "opcional: varios correos, igual que phones"
       }
     },
     "update_contact": {
@@ -73,7 +83,9 @@
         "phone": "string (opcional)",
         "email": "string (opcional)",
         "address": "string (opcional)",
-        "notes": "string (opcional)"
+        "notes": "string (opcional)",
+        "phones": "lista que SUSTITUYE los teléfonos (opcional)",
+        "emails": "lista que SUSTITUYE los correos (opcional)"
       }
     },
     "remove_contact": {
@@ -108,14 +120,15 @@
       }
     },
     "show_view": {
-      "desc": "CAMBIA LO QUE SE VE en el directorio y CONTESTA la consulta («mi restaurante favorito en Barcelona», «los fontaneros de Soria»): filtra por grupo, ciudad, favoritos o texto y devuelve los que casan. Es obligatoria para eso — mostrar el widget de nuevo NO filtra, enseña todo",
+      "desc": "CAMBIA LO QUE SE VE en el directorio y CONTESTA la consulta («mi restaurante favorito en Barcelona», «los fontaneros de Soria», «mis contactos de Telegram», «las empresas de Madrid»): filtra por tipo, plataforma, grupo, ciudad, favoritos o texto y devuelve los que casan. Es obligatoria para eso — mostrar el widget de nuevo NO filtra, enseña todo",
       "payload": {
         "group": "grupo/etiqueta («restaurantes», «fontaneros») (opcional)",
-        "kind": "person | place | company | group | agent — «enséñame mis grupos» es kind:group (opcional)",
-        "source": "telegram | whatsapp | meshkore | google — «mis contactos de Telegram» (opcional)",
+        "kind": "person | company | place | group | agent — «enséñame mis empresas» es kind:company, «mis grupos» es kind:group (opcional)",
+        "source": "telegram | whatsapp | google | meshkore — «mis contactos de Telegram» enseña SOLO los suyos: los que vinieron de ahí y aquellos a los que puedes escribir por ahí (opcional)",
         "city": "ciudad (opcional)",
         "favorites": "true para solo favoritos (opcional)",
-        "query": "texto libre a buscar (opcional)"
+        "query": "texto libre a buscar (opcional)",
+        "hidden": "true para enseñar los que OCULTÓ («los que quité de la lista») en vez del directorio (opcional)"
       },
       "view": true
     },
@@ -181,6 +194,29 @@
       "confirm_q": "¿Desconecto Google Contacts? Los contactos ya importados se quedan.",
       "consent_class": "account.disconnect",
       "singleton": true
+    },
+    "add_phone": {
+      "desc": "añade OTRO teléfono a un contacto sin tocar los que ya tiene («el fijo de la oficina de Telefónica es el 915550000») — `label` dice de cuál es («centralita», «móvil»); con `remove:true` quita ese número",
+      "payload": {
+        "contactId": "string",
+        "phone": "el número",
+        "label": "de qué es: centralita, móvil, casa… (opcional)",
+        "remove": "true para quitarlo (opcional)"
+      }
+    },
+    "add_email": {
+      "desc": "añade OTRO correo a un contacto sin tocar los que ya tiene; con `remove:true` lo quita",
+      "payload": {
+        "contactId": "string",
+        "email": "la dirección",
+        "label": "de qué es: trabajo, personal, facturación… (opcional)",
+        "remove": "true para quitarlo (opcional)"
+      }
+    },
+    "show_connectors": {
+      "desc": "ABRE la pantalla de Conectores del directorio («ábreme los conectores de contactos», «¿qué fuentes de contactos tengo conectadas?»): qué fuentes existen, cuáles están enlazadas y el interruptor de sincronización de cada una. Devuelve el estado de todas para que contestes sin inventarte ninguna",
+      "payload": {},
+      "view": true
     }
   },
   "name": "Contactos",

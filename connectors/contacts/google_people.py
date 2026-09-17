@@ -43,6 +43,32 @@ def _primary(items, key: str = "value") -> str:
     return str(rows[0].get(key))
 
 
+#: How many phones / e-mails one person may bring. A directory entry is not a phone book of its own, and
+#: the cap is what stops a pathological row (a shared mailbox with forty aliases) from riding into every
+#: prompt this contact ever appears in.
+_MAX_DETAILS = 6
+
+
+def _all(items, kind: str, key: str = "value") -> list[dict]:
+    """EVERY phone / e-mail Google holds for this person, primary first, each with the label Google gives it
+    (`type`: mobile, work, home…) — V2-715, «varios teléfonos vinculados a la misma empresa». Before this,
+    `_primary` was the whole import: a company with a switchboard, a mobile and a fax arrived as one number
+    and the other two did not exist on this side."""
+    rows = [r for r in (items or []) if isinstance(r, dict) and str(r.get(key) or "").strip()]
+    rows.sort(key=lambda r: 0 if (r.get("metadata") or {}).get("primary") else 1)
+    out, seen = [], set()
+    for r in rows:
+        value = _cap(r.get(key), kind)
+        ident = value.lower()
+        if not value or ident in seen:
+            continue
+        seen.add(ident)
+        out.append({"value": value, "label": _cap(r.get("formattedType") or r.get("type"), "group")})
+        if len(out) >= _MAX_DETAILS:
+            break
+    return out
+
+
 def _city_of(addresses) -> str:
     rows = [r for r in (addresses or []) if isinstance(r, dict)]
     for r in rows:
@@ -98,6 +124,8 @@ def person_to_contact(p: dict, group_names: dict | None = None) -> dict | None:
         "kind": "person",
         "email": email,
         "phone": _cap(_primary(p.get("phoneNumbers")), "phone"),
+        "phones": _all(p.get("phoneNumbers"), "phone"),
+        "emails": _all(p.get("emailAddresses"), "email"),
         "city": _cap(_city_of(p.get("addresses")), "city"),
         "address": _cap(_primary(p.get("addresses"), "formattedValue"), "address"),
         "notes": _cap(_primary(p.get("biographies")), "notes"),
@@ -231,10 +259,17 @@ def contact_to_person(c: dict) -> dict:
     body: dict = {}
     if str(c.get("name") or "").strip():
         body["names"] = [{"displayName": str(c["name"]).strip()}]
-    if str(c.get("email") or "").strip():
-        body["emailAddresses"] = [{"value": str(c["email"]).strip()}]
-    if str(c.get("phone") or "").strip():
-        body["phoneNumbers"] = [{"value": str(c["phone"]).strip()}]
+    # ALL of them, in our order, primary first — the same list the card edits (V2-715). Falls back to the
+    # scalar for a row written before the lists existed, so a legacy contact still pushes its one number.
+    for ours, theirs, kind in (("emails", "emailAddresses", "email"), ("phones", "phoneNumbers", "phone")):
+        rows = [{"value": str(r.get("value")).strip(), **({"type": str(r.get("label")).strip()}
+                                                          if str(r.get("label") or "").strip() else {})}
+                for r in (c.get(ours) or [])
+                if isinstance(r, dict) and str(r.get("value") or "").strip()]
+        if not rows and str(c.get(kind) or "").strip():
+            rows = [{"value": str(c[kind]).strip()}]
+        if rows:
+            body[theirs] = rows[:_MAX_DETAILS]
     addr = str(c.get("address") or "").strip()
     city = str(c.get("city") or "").strip()
     if addr or city:

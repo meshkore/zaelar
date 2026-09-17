@@ -172,6 +172,7 @@ def merge_contacts(db: dict, rows: list[dict], *, source: str) -> dict:
                  "hidden": False, "created": today, "updated": today,
                  "source": source, "externalIds": dict(_ext(inc))}
             contacts.append(c)
+            _d.model.normalize(c)            # V2-715: the scalar it just wrote becomes its phones/emails list
             for row in inc.get("channels") or []:
                 _d._merge_channel(c, _d._channel_row(row) or {})
             c["channels"] = [ch for ch in c.get("channels") or [] if ch.get("platform")]
@@ -181,6 +182,7 @@ def merge_contacts(db: dict, rows: list[dict], *, source: str) -> dict:
         for k in _FILLABLE:
             if inc.get(k) and not str(c.get(k) or "").strip():
                 c[k] = inc[k]
+                _d.model.normalize(c)        # a filled-in number joins the list, it does not sit beside it
                 touched = True
         # …and the two ADDITIONS the rule allows. A way to reach him is not a field he wrote.
         for row in inc.get("channels") or []:

@@ -1,7 +1,7 @@
 ---
 title: The widget header standard — two bars, and the door to the connectors
 category: conventions
-updated: 2026-09-15
+updated: 2026-09-17
 owner: ricart
 status: current
 ---
@@ -19,8 +19,63 @@ is also the reason:
 A desktop where every window invents its own chrome is a pile of demos. The bars are how the product says
 «this is one system», and the plug button is how a user learns, once, where every integration lives.
 
-**Reference implementations:** `widgets/agenda/widget.js` (V2-679) and `widgets/contactos/widget.js`
-(V2-699). Copy from those two; they are one-for-one on purpose.
+**Reference implementation:** `widgets/contactos/widget.js` (V2-715). `widgets/agenda/widget.js` (V2-679),
+`widgets/mensajeria/widget.js` and `widgets/youtube/widget.js` still carry the V2-699 shape — see the
+amendment below; they are a pending sweep, not a second standard.
+
+---
+
+## ⚠️ AMENDMENT (V2-715, 2026-09-17): the WINDOW is bar one
+
+> «Nuestro sistema de widgets, al ser esto un sistema operativo, coloca una barra arriba del todo, pero si
+> te fijas la barra del sistema parece un espacio desaprovechado. Entonces, debajo, fíjate que me vuelves a
+> repetir, un icono de contactos, el nombre de contactos, un texto gigante para buscar, un número de
+> contactos con demasiado texto. […] De estas tres líneas iniciales del widget —la barra negra, la barra de
+> búsqueda y la barra de selección de All People Places— todo eso hay que convertirlo en dos barras.»
+
+**Two bars means TWO ON SCREEN, and the canvas already drew one.** `desktop.js` gives every card a header
+carrying the widget's mark, its name and its ⚙ — so a brand disc and a content title under it are the same
+sentence said twice, and V2-699 was counting from the wrong zero. **A widget adds ONE bar of its own.**
+
+What that one bar holds is what could not live anywhere else: the widget's own control (a search box, a
+date range), then `margin-left:auto`, then the provider icons, then the plug. Everything that was a fixed
+TAB STRIP moves into the content — for a widget with a rail, into the rail, where it is DERIVED from the
+data instead of being four words nobody can change:
+
+> «El hecho de que arriba me pongas todos, personas, lugares o compañías, no sé si es la selección más
+> adecuada. Por eso te pedí que en la barra lateral de la izquierda es donde vayamos a desarrollar de forma
+> dinámica todo lo que tenemos. Obviamente, un contacto nunca va a ser un lugar.»
+
+And the count goes WITH its row: «Todos (2 688)» in the rail, never a sentence in the bar — «con poner
+entre paréntesis al lado de las letras ALL el número de contactos, todo el mundo lo entiende de la misma
+manera».
+
+**A widget with no rail** (the agenda, messaging) still needs its view switcher somewhere; for those the
+band survives as bar two and the brand/title half is what comes off. The invariant is the one the operator
+stated: **nothing the window chrome already says gets said again.**
+
+### The plug loses its word, and the provider icons become the FILTER
+
+> «Veo que tenemos un botón de conectores explícitamente […] ocupa mucho espacio y al menos en contactos
+> veo una incoherencia y creo que yo lo solicité mal pero debemos cambiarlo. Cuando entramos en Telegram
+> quiero ver solo los contactos de Telegram, cuando entramos en WhatsApp quiero ver los contactos que solo
+> están en WhatsApp […] Ya tenemos el botón de conectores para manejar la sincronización, el wizard de
+> conexión y todo eso, igual que hacemos con los mensajes.»
+
+| State | Looks like | Clicks |
+|---|---|---|
+| `connected` | full colour, `.on` | **FILTERS** the content to that source; clicking again clears it, and while it is on the icon wears the accent ring (`.sel`) |
+| `off` (built, not linked) | brand colour, dimmed | → the connectors screen (there is nothing to filter yet, and «conéctalo» is the only useful answer) |
+| `unavailable` (no connector) | `.off`, `disabled` | nothing |
+
+The plug button is an ICON (`.<pfx>plug`, no label; `aria-label` + `title` carry the word): with the source
+icons beside it already saying «sources», the word was the third thing in that row saying the same thing.
+
+**Whatever the icon filters, the VOICE must be able to ask for too** — the filter is a payload key on the
+widget's view action (`show_view {source}`), and the pushed view has to APPLY it. Measured in V2-715:
+`show_view` had carried `kind` and `source` since V2-714 and the card read neither, so the spoken answer
+and the screen showed different sets. And the plug itself needs an action (`show_connectors`), because a
+button with no name is a button the voice cannot press.
 
 ---
 

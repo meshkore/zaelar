@@ -160,10 +160,16 @@ def test_every_channel_is_present_even_when_it_is_empty(_page):
 def test_every_basic_field_is_present_even_when_it_is_empty(_page):
     _open_card(_page)
     labels = [t.strip() for t in _page.locator(".ctdsec .ctfr .ctfk").all_inner_texts()]
-    for expected in ("Teléfono", "Ciudad", "Dirección", "Notas"):
+    for expected in ("Ciudad", "Dirección", "Notas"):
         assert expected in labels, f"{expected} has to be on the card of a contact who has no {expected}"
+    # V2-715 — phones and e-mails became SECTIONS of their own (a contact may have several of each),
+    # and the rule survives the move: the section is there, showing «—», on a contact who has none.
+    heads = [t.strip() for t in _page.locator(".ctdsec h4").all_inner_texts()]
+    assert "TELÉFONOS" in [h.upper() for h in heads], heads
+    assert "CORREOS" in [h.upper() for h in heads], heads
+    assert _page.locator(".ctdrow .ctfv.void").count() >= 2, "empty is a ROW, not an absent section"
     voids = _page.locator(".ctdsec .ctfr .ctfv.void")
-    assert voids.count() == 4, "an empty field reads as empty, it does not disappear"
+    assert voids.count() == 3, "an empty field reads as empty, it does not disappear (phone left Datos)"
 
 
 def test_the_kind_reads_as_a_word_and_not_as_a_database_field(_page):
@@ -191,7 +197,7 @@ def test_a_stored_phone_never_becomes_a_whatsapp(_page):
     """
     _open_card(_page, _cryptonite(phone="+34600111222"))
     assert _row_for(_page, "WhatsApp").locator(".ctfv").inner_text().strip() == "—"
-    assert "+34600111222" in _page.locator(".ctdsec").filter(has_text="Datos").inner_text()
+    assert "+34600111222" in _page.locator(".ctdsec").filter(has_text="Teléfonos").inner_text()
 
 
 def test_a_stored_email_IS_the_email_channel(_page):
@@ -264,22 +270,18 @@ def test_the_sidebar_is_a_panel_and_not_loose_buttons(_page):
     assert bg not in ("rgba(0, 0, 0, 0)", "transparent"), "a menu with no ground is the loose menu he saw"
 
 
-def test_the_favourites_control_is_not_duplicated(_page):
+def test_every_filter_the_directory_offers_lives_in_ONE_place(_page):
     """It used to be BOTH a sidebar entry and a chip over the list — two surfaces for one fact, and half
-    of the «menú ahí suelto» he reported.
-
-    ⚠️ Measured against a directory with TWO cities on purpose. The filter strip only exists when there is
-    more than one city to choose between, so asserting «no favourites chip» on a one-contact fixture
-    passes without measuring anything — a disarm that put the chip straight back stayed GREEN until this
-    fixture changed.
+    of the «menú ahí suelto» he reported. V2-715 finished the move: the city strip that still floated over
+    the list joined the rail, so there is exactly one map of the directory and it is the rail.
     """
     _mount(_page, _data([_cryptonite(city="Soria"),
                          _cryptonite(id="c2", name="Marta", city="Barcelona", channels=[], preferred="")]))
-    strip = _page.locator(".ctfil")
-    assert strip.count() == 1, "the fixture has to actually render the strip for this to measure anything"
+    assert _page.locator(".ctfil").count() == 0, "no second filter strip over the list"
     assert _page.locator(".ctside .ctg", has_text="Favoritos").count() == 1
-    assert _page.locator(".ctfil .ctchip", has_text="favoritos").count() == 0
-    assert sorted(_page.locator(".ctfil .ctchip").all_inner_texts()) == ["Barcelona", "Soria"]
+    rail = _page.locator(".ctside .ctg").all_inner_texts()
+    assert any(r.startswith("Soria") for r in rail), rail
+    assert any(r.startswith("Barcelona") for r in rail), rail
 
 
 def test_the_search_is_in_the_header(_page):
@@ -309,12 +311,16 @@ def test_every_row_carries_a_face(_page):
 # sistema de conectores.» The contract lives in
 # `.meshkore/docs/conventions/zaelar-widget-header-standard.md`; these cases are what holds it.
 
-def test_the_widget_wears_the_house_header_and_subheader(_page):
+def test_the_widget_adds_ONE_bar_and_it_does_not_repeat_the_window(_page):
+    """V2-715 — his correction to the V2-699 shape he had asked for himself: «la barra del sistema parece
+    un espacio desaprovechado… me vuelves a repetir un icono de contactos, el nombre de contactos». The
+    window chrome is bar one; the widget adds bar two and nothing else."""
     _mount(_page, _data())
-    assert _page.locator(".ctbar .ctbrand svg").count() == 1, "brand disc with the widget's own mark"
-    assert _page.locator(".ctbar .cttitle").inner_text().strip() == "Contactos"
-    assert _page.locator(".ctviews").count() == 1, "the subheader band"
-    assert _page.locator(".ctviews .ctviewsright .ctconnbtn").count() == 1, "the plug button, right-aligned"
+    assert _page.locator(".ctbar").count() == 1, "one bar of our own"
+    assert _page.locator(".ctbar .ctbrand, .ctbar .cttitle").count() == 0, "the window already says it"
+    assert _page.locator(".ctviews").count() == 0, "the subheader band is gone with the kind tabs"
+    assert _page.locator(".ctbar .ctviewsright .ctplug").count() == 1, "the plug, right-aligned"
+    assert _page.locator(".ctbar .ctplug").inner_text().strip() == "", "an icon, not a word"
 
 
 def test_the_subheader_shows_every_contact_source(_page):
@@ -354,15 +360,15 @@ def test_there_is_no_import_button_in_the_sidebar_any_more(_page):
 
 def test_the_plug_button_opens_the_connectors_screen_over_the_content(_page):
     _mount(_page, _data())
-    _page.locator(".ctconnbtn").click()
+    _page.locator(".ctplug").click()
     assert _page.locator(".ctconnscreen").count() == 1
     assert _page.locator(".ctcols").count() == 0, "a SCREEN, not an overlay floating on the list"
-    assert _page.locator(".cttab").first.is_disabled(), "no tab is the one on screen while it is open"
+    assert _page.locator(".ctplug.on").count() == 1, "the plug says it is the one on screen"
 
 
 def test_the_connectors_screen_lists_the_sources_with_their_state(_page):
     _mount(_page, _data())
-    _page.locator(".ctconnbtn").click()
+    _page.locator(".ctplug").click()
     rows = _page.locator(".ctsrc")
     assert rows.count() == 3
     assert "conectado" in rows.first.inner_text()
@@ -371,10 +377,10 @@ def test_the_connectors_screen_lists_the_sources_with_their_state(_page):
 
 def test_a_connected_source_offers_DISCONNECT_and_an_unlinked_one_offers_CONNECT(_page):
     _mount(_page, _data())
-    _page.locator(".ctconnbtn").click()
+    _page.locator(".ctplug").click()
     assert _page.locator(".ctsrc .ctbtn", has_text="Desconectar").count() == 1
     _mount(_page, _data(providers=_providers(google="off")))
-    _page.locator(".ctconnbtn").click()
+    _page.locator(".ctplug").click()
     assert _page.locator(".ctsrc .ctbtn", has_text="Conectar").count() == 1
 
 
@@ -382,7 +388,7 @@ def test_a_source_we_have_not_built_offers_no_button_at_all(_page):
     """Showing «Conectar» on iCloud would promise a flow that does not exist — the same class of lie as
     promising a view (V2-540)."""
     _mount(_page, _data())
-    _page.locator(".ctconnbtn").click()
+    _page.locator(".ctplug").click()
     assert _page.locator(".ctsrc").nth(1).locator(".ctbtn").count() == 0
 
 
@@ -390,10 +396,10 @@ def test_a_source_we_have_not_built_offers_no_button_at_all(_page):
 
 def test_the_sync_box_appears_only_for_a_linked_source(_page):
     _mount(_page, _data(providers=_providers(google="off"), sync=_sync(connected=False)))
-    _page.locator(".ctconnbtn").click()
+    _page.locator(".ctplug").click()
     assert _page.locator(".ctsync").count() == 0
     _mount(_page, _data())
-    _page.locator(".ctconnbtn").click()
+    _page.locator(".ctplug").click()
     assert _page.locator(".ctsync").count() == 1
 
 
@@ -405,7 +411,7 @@ def test_the_sync_panel_lives_INSIDE_the_account_it_belongs_to(_page):
     one box, the account row first, everything that source owns underneath it.
     """
     _mount(_page, _data())
-    _page.locator(".ctconnbtn").click()
+    _page.locator(".ctplug").click()
     boxes = _page.locator(".ctsrcbox")
     assert boxes.count() == 3, "one card per source, and the card is the box"
     assert boxes.first.locator(".ctsync").count() == 1, "the sync panel belongs to Google's own card"
@@ -419,7 +425,7 @@ def test_a_read_only_connection_SAYS_it_only_brings(_page):
     """The honest half. The write scope is not on the OAuth app yet, so a box promising two directions
     would be promising something Google will refuse."""
     _mount(_page, _data())
-    _page.locator(".ctconnbtn").click()
+    _page.locator(".ctplug").click()
     assert _page.locator(".ctsyncarrow").inner_text().strip() == "→"
     assert _page.locator(".ctwarn").count() == 1
     assert "escritura" in _page.locator(".ctwarn").inner_text()
@@ -429,7 +435,7 @@ def test_a_two_way_connection_says_so_in_one_line(_page):
     """His own simplification: «quitando esas opciones y solo dejando la sincronización activa», so there
     are no direction checkboxes to get wrong — one state, said once."""
     _mount(_page, _data(sync=_sync(twoWay=True, tier="sync")))
-    _page.locator(".ctconnbtn").click()
+    _page.locator(".ctplug").click()
     assert _page.locator(".ctsyncarrow").inner_text().strip() == "⇄"
     assert _page.locator(".ctwarn").count() == 0
     assert "también cambia en Google" in _page.locator(".ctsyncdir").inner_text()
@@ -445,7 +451,7 @@ def test_syncing_is_a_SWITCH_that_stays_on_not_an_errand(_page):
     switch, and what it shows is the STATE — on or off — not an errand waiting to be run.
     """
     _mount(_page, _data())
-    _page.locator(".ctconnbtn").click()
+    _page.locator(".ctplug").click()
     row = _page.locator(".ctswrow")
     assert row.count() == 1
     assert "on" in _classes(row), "connected and syncing is the default — he asked for permanent"
@@ -456,7 +462,7 @@ def test_syncing_is_a_SWITCH_that_stays_on_not_an_errand(_page):
 
 def test_the_switch_reads_OFF_when_it_is_off(_page):
     _mount(_page, _data(sync=_sync(auto=False)))
-    _page.locator(".ctconnbtn").click()
+    _page.locator(".ctplug").click()
     row = _page.locator(".ctswrow")
     assert "on" not in _classes(row)
     _page.locator(".ctswrow").click()
@@ -467,7 +473,7 @@ def test_syncing_by_hand_is_still_there_but_QUIET(_page):
     """Impatience deserves a door; it just must not be the one that looks like the feature. A primary
     button beside a switch would go on teaching «syncing is something you do by hand»."""
     _mount(_page, _data())
-    _page.locator(".ctconnbtn").click()
+    _page.locator(".ctplug").click()
     assert _page.locator(".ctsync .ctbtn.primary").count() == 0, "the switch is the control now"
     _page.locator(".ctsync .ctquiet", has_text="Sincronizar ahora").click()
     assert ["sync_contacts", {}] in _calls(_page)
@@ -476,26 +482,34 @@ def test_syncing_by_hand_is_still_there_but_QUIET(_page):
 def test_the_box_says_when_it_last_ran_and_what_it_did(_page):
     _mount(_page, _data(sync=_sync(last=1789426047.0,
                                    lastResult={"added": 12, "updated": 3, "pushed": 2})))
-    _page.locator(".ctconnbtn").click()
+    _page.locator(".ctplug").click()
     txt = _page.locator(".ctsyncwhen").inner_text()
     assert "12 nuevos" in txt and "3 completados" in txt and "2 enviados a Google" in txt
 
 
 def test_a_directory_that_has_never_synced_does_not_claim_a_date(_page):
     _mount(_page, _data())
-    _page.locator(".ctconnbtn").click()
+    _page.locator(".ctplug").click()
     assert "Todavía no" in _page.locator(".ctsyncwhen").inner_text()
 
 
-# ── the kind tabs ───────────────────────────────────────────────────────────────────────────────────────
+# ── the kinds: a rail section now, and only when the directory HAS more than one ────────────────────────
 
-def test_the_kind_tabs_filter_and_do_not_duplicate_the_sidebar(_page):
-    """Two different axes on purpose: the band filters by KIND, the rail by his own group labels. Putting
-    «Todos / ★ Favoritos» in both is the duplication he called «un menú ahí suelto»."""
+def test_the_kinds_are_a_rail_section_and_they_filter(_page):
+    """V2-715 — «un contacto nunca va a ser un lugar, con lo cual eso no tiene ningún sentido ahí». The
+    four fixed tabs are gone; the kinds are tallied from the rows and live in the rail with everything
+    else the directory actually holds."""
     _mount(_page, _data([_cryptonite(),
                          _cryptonite(id="c2", name="Elfo On", kind="place", channels=[], preferred="")]))
     assert _page.locator(".ctrow").count() == 2
-    _page.locator(".cttab[data-kind='place']").click()
+    assert _page.locator(".ctsidelbl", has_text="Tipos").count() == 1
+    _page.locator(".ctside .ctg", has_text="Sitios").click()
     assert _page.locator(".ctrow").count() == 1
     assert _page.locator(".ctrow .ctnm").inner_text() == "Elfo On"
-    assert _page.locator(".ctviews .cttab", has_text="Favoritos").count() == 0
+
+
+def test_a_directory_of_ONE_kind_does_not_grow_a_kind_section(_page):
+    """One kind present is not a classification: it is the whole directory said twice, and it would push
+    the sections that DO divide it further down a rail that already scrolls."""
+    _mount(_page, _data([_cryptonite(), _cryptonite(id="c2", name="Marta", channels=[], preferred="")]))
+    assert _page.locator(".ctsidelbl", has_text="Tipos").count() == 0

@@ -21,6 +21,67 @@ entregada siga citada aquí.
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **The directory ORGANISES ITSELF, a platform icon is a FILTER, and a company has several numbers
+  (V2-715, 2026-09-17)**: his redesign order over the card open on his **2 688 real contacts**, two days
+  after he had asked for the two-bar header himself. Four asks, and the first three are one idea.
+  - **«Dos barras» means two ON SCREEN, and the canvas already drew one.** «La barra del sistema parece un
+    espacio desaprovechado… me vuelves a repetir un icono de contactos, el nombre de contactos, un texto
+    gigante para buscar, un número de contactos con demasiado texto.» The window chrome carries the
+    widget's mark, its name and its ⚙, so the brand disc and the content title under it were the same
+    sentence twice: **V2-699 was counting from the wrong zero**. The widget now adds ONE bar — search ·
+    provider icons · plug — the kind tab strip is gone, and the count went where he put it: «Todos (2 688)»
+    on its own rail row. The house standard was AMENDED rather than quietly broken, and it names the three
+    widgets (`agenda`, `mensajeria`, `youtube`) still carrying the old shape as a pending sweep — a
+    reference implementation that disagrees with the rule is how a standard becomes decoration.
+  - **The rail is TALLIED, never a fixed vocabulary.** «El hecho de que arriba me pongas todos, personas,
+    lugares o compañías, no sé si es la selección más adecuada… en la barra lateral es donde vayamos a
+    desarrollar de forma dinámica todo lo que tenemos. Obviamente, un contacto nunca va a ser un lugar.»
+    Kinds, labels, cities and the hidden shelf are counted from the rows on screen: a section with nothing
+    in it is not drawn, **one kind present is not a classification** (it is the whole directory said twice),
+    and the counts are tallied over the platform-filtered pool so a number in the rail is a promise about
+    what a click on it will show.
+  - **A linked source icon FILTERS; an unlinked one still opens the screen.** His own correction of what he
+    had asked for: «creo que yo lo solicité mal pero debemos cambiarlo. Cuando entramos en Telegram quiero
+    ver solo los contactos de Telegram… ya tenemos el botón de conectores para manejar la sincronización.»
+    Belonging is BOTH halves (`model.source_matches`) — where the row came from AND where he can reach the
+    person — because somebody typed here and later matched to a Telegram account is as much a Telegram
+    contact as an imported one, and a tab showing only the imported half would hide the people he talks to
+    most. The three states of the house standard survive: unlinked → the connectors screen (there is
+    nothing to filter and «conéctalo» is the only useful answer), no connector at all → visible and inert.
+    The plug lost its word and kept its `aria-label`.
+  - **The record grew, and the scalar did not move.** «Varios teléfonos que estén vinculados a la misma
+    empresa.» `phones`/`emails`, several per entry, each with a free label — and `phone`/`email` stay as
+    the PRIMARY, kept in step with the head of the list in BOTH directions by `model.normalize`, because
+    four modules outside this widget read the scalar (`widgets/directory.py` resolves a spoken number with
+    it, `google_people.py` pushes it). A list that silently replaced it would have made every one of them
+    read an empty field on a contact holding three numbers. A number's identity is its DIGITS, or «+34 91
+    555 00 00» and «915550000» become two rows and two pushes to Google. ⚠️ **The migration runs row by row
+    inside its own `try`**: `store.load` degrades a migration that RAISES to the seed, which here is an
+    EMPTY address book, and the next save would persist it over 2 688 real rows.
+  - **Two defects the measurement found before the redesign did.** `show_view` had carried `kind` and
+    `source` since V2-714 and **`widget.js` read neither**, so «enséñame mis empresas» filtered the spoken
+    answer and left the card showing everything — the two-surfaces-disagreeing failure this widget's own
+    `prompt_digest` exists to prevent, arriving through the pushed view instead. And `link_contact` had
+    existed **with no control behind it since V2-541**: «cuatro personas vinculadas a la misma empresa» was
+    a sentence only the voice could say. Both have a door now, and the plug got one too
+    (`show_connectors`) — a button with no name is a button the voice cannot press, which is the other half
+    of his «que los botones funcionen, tanto si se hace clic como si el usuario los pide por voz».
+  - ⚠️ **A click and a sentence are not the same filter**, and the first cut got it wrong: a rail click
+    means «show me THIS» and replaces the whole selection, while «mi restaurante favorito en Barcelona» is
+    group + city + favourites at once. A single-axis rail broke exactly that case, and an existing test
+    caught it — the card holds every axis now and only a click clears the others.
+  - ⚠️ **Two contacts tests and one testmap node were RED on a clean tree before this batch began**: the
+    capability list went stale when V2-714 shipped three actions, `test_two_near_names_stay_a_refusal`
+    measured a rule V2-705 deliberately changed (the tolerant matcher returns EVERY near match so the
+    caller can ask «¿cuál?» — the property is «never exactly ONE», not «nothing»), and node **4.188 was
+    duplicated** by V2-712 and V2-714. All three fixed here.
+  - Node **4.190** (17 cases) plus the card and render nodes rewritten to the new contract (39 and 21);
+    the list is capped at 120 rows with «ver más», because every one of his 2 688 rows used to become a DOM
+    node on every keystroke of the search box. **Eighteen disarms, every mutation asserted before
+    measuring, all red.** **NOT verified live**: the v1 → v2 migration has never been seen running over his
+    own 2 688-row store, which is exactly why it is written row by row. Telegram, WhatsApp and MeshKore
+    stay import-only and the card says so — none of the three exposes an address-book write API.
+
 - **Todos sus contactos en un sitio: import-only, ocultables, y un grupo es un KIND (V2-714, 2026-09-16)**:
   sesión `c20123ab`. Quiso escribir a un contacto suyo de Telegram y no pudo: el directorio le ofreció OTRO
   Iván (el de Google, con su email), y al abrir la tarjeta de contactos vio «Google y Apple y otro. Pero no

@@ -70,6 +70,21 @@ def _same_phone(a, b) -> bool:
     return da.endswith(db) or db.endswith(da)
 
 
+def _phones(contact: dict) -> list[str]:
+    """EVERY number this contact holds, not just the primary (V2-715). A company keeps its switchboard, its
+    mobile and its billing line; a resolver that only ever read `phone` would fail to recognise the very
+    number the operator dictated, on a row that holds it."""
+    out = [str(r.get("value") or "") for r in (contact.get("phones") or []) if isinstance(r, dict)]
+    head = str(contact.get("phone") or "").strip()
+    return out or ([head] if head else [])
+
+
+def _emails(contact: dict) -> list[str]:
+    out = [str(r.get("value") or "") for r in (contact.get("emails") or []) if isinstance(r, dict)]
+    head = str(contact.get("email") or "").strip()
+    return out or ([head] if head else [])
+
+
 def _contacts() -> list[dict]:
     try:
         from .contactos import data as _cd
@@ -104,7 +119,7 @@ def channel_for(contact: dict, platform: str = "") -> dict | None:
             return hit
         # He NAMED whatsapp and we hold a phone: try it (see the module's asymmetry note). Never the reverse.
         if want == "whatsapp":
-            tel = str(contact.get("phone") or "").strip()
+            tel = next((t for t in _phones(contact) if _digits(t)), "")
             if _digits(tel):
                 return {"platform": "whatsapp", "handle": tel, "chatId": "", "source": "field",
                         "last_seen": 0.0, "volume": 0}
@@ -148,9 +163,9 @@ def resolve(name: str) -> list[dict]:
         return out
     # An address or a number said out loud instead of a name.
     for c in people:
-        if "@" in q and _norm(c.get("email")) == q:
+        if "@" in q and any(_norm(a) == q for a in _emails(c)):
             out.append(c)
-        elif _same_phone(q, c.get("phone")):
+        elif any(_same_phone(q, tel) for tel in _phones(c)):
             out.append(c)
     if out:
         return out
@@ -194,11 +209,11 @@ def _match_sender(people: list[dict], platform: str, msg: dict) -> list[dict]:
     if by_id:
         return by_id
     if p == "email" and "@" in sender:
-        hit = [c for c in people if _norm(c.get("email")) == _norm(sender)]
+        hit = [c for c in people if any(_norm(a) == _norm(sender) for a in _emails(c))]
         if hit:
             return hit
     if p in ("whatsapp", "telegram") and _digits(sender or chat_id):
-        hit = [c for c in people if _same_phone(sender or chat_id, c.get("phone"))]
+        hit = [c for c in people if any(_same_phone(sender or chat_id, tel) for tel in _phones(c))]
         if hit:
             return hit
     if name:

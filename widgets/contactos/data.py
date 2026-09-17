@@ -10,10 +10,10 @@
 # so the eventual memory/state integration is a projection, not a rewrite.
 import re
 import time
-import unicodedata
 
 from .. import store
 from . import gcontacts
+from . import model
 
 # A QUESTION about somebody is answered from the RECORD, through `widgets/directory.resolve` — not from the
 # summary below, which is a first page without handles by design (`widgets/contactos/lookup.py`, V2-704).
@@ -24,7 +24,10 @@ from .lookup import read_query  # noqa: F401,E402 — re-export
 WIDGET_ID = "contactos"
 
 # Store schema version (lazy migration on read — see store.load). Bump when the shape changes.
-DB_VERSION = 1
+#   1 → 2 (V2-715): `phones` / `emails` — several per contact, each with a free label («centralita»,
+#   «móvil»), because a company is not one number. `phone` / `email` stay as the PRIMARY and are kept in
+#   step by `model.normalize`, so the four modules outside this widget that read the scalar keep reading it.
+DB_VERSION = 2
 
 
 def _seed() -> dict:
@@ -34,6 +37,20 @@ def _seed() -> dict:
 
 
 def _migrate(db: dict, from_v: int) -> dict:
+    """Lift the scalar `phone`/`email` into their lists (v1 → v2).
+
+    ⚠️ **Row by row, each inside its own `try`.** `store.load` degrades a migration that RAISES to the seed
+    — which here is an EMPTY directory, and the next save would persist it. This runs over the operator's
+    real address book (2 688 rows the day it was written), so one malformed row must cost that row's
+    normalisation and nothing else: a directory that loses everything to a stray value is the worst failure
+    this widget has available to it.
+    """
+    if from_v < 2:
+        for c in db.get("contacts") or []:
+            try:
+                model.normalize(c)
+            except Exception:                              # noqa: BLE001 — see the warning above
+                continue
     return db
 
 
@@ -56,61 +73,24 @@ def _touch(c: dict, now: str = "") -> None:
     c["touchedAt"] = time.time()
 
 
-def _norm(s) -> str:
-    """Accent/case-insensitive comparable form, so «Elfo On» and «elfo ón» never pile up as duplicates."""
-    s = unicodedata.normalize("NFD", str(s or ""))
-    s = "".join(ch for ch in s if unicodedata.category(ch) != "Mn")
-    return re.sub(r"\s+", " ", s).strip().lower()
-
-
-# The structural kinds (V2-523: one identity set, not per-kind silos). A group LABEL like «restaurantes» is
-# NOT a kind — kinds say what the entry IS, labels say how the operator files it. Unknown values default to
-# person rather than guessing from the label: inferring «place» from a group name would be exactly the kind of
-# hardcoded world-knowledge this house forbids.
-#
-# V2-714 added the fourth and fifth, and they are the same distinction one level up. A Telegram group, a
-# WhatsApp group and a MeshKore cluster have identity, have MEMBERS, come from a platform and can be
-# WRITTEN TO — none of which a label has, and all of which a `kind` is for. An `agent` is what a cluster has
-# instead of people: addressable, not a person, so it is not one.
-_KINDS = {"person": "person", "persona": "person", "people": "person",
-          "place": "place", "lugar": "place", "sitio": "place",
-          "company": "company", "empresa": "company", "negocio": "company", "business": "company",
-          "group": "group", "grupo": "group", "chat": "group", "cluster": "group", "canal": "group",
-          "channel": "group",
-          "agent": "agent", "agente": "agent", "bot": "agent"}
-
-
-def _kind(v) -> str:
-    return _KINDS.get(_norm(v), "person")
-
-
-def _truthy(v, default: bool = False) -> bool:
-    if isinstance(v, bool):
-        return v
-    n = _norm(v)
-    if n in ("true", "si", "sí", "yes", "1", "favorito", "favorita", "on"):
-        return True
-    if n in ("false", "no", "0", "off"):
-        return False
-    return default
-
-
-def _groups_in(payload: dict) -> list[str]:
-    """Group labels from a payload: `groups` (list or comma string) or `group` (one, possibly comma-separated).
-    Trimmed, original casing kept, deduped by normalized form."""
-    raw = payload.get("groups")
-    if raw is None:
-        raw = payload.get("group")
-    if raw is None:
-        return []
-    parts = raw if isinstance(raw, (list, tuple)) else str(raw).split(",")
-    out, seen = [], set()
-    for p in parts:
-        p = re.sub(r"\s+", " ", str(p or "")).strip()
-        if p and _norm(p) not in seen:
-            seen.add(_norm(p))
-            out.append(p)
-    return out
+# ── the RECORD SHAPE lives in `model.py` (V2-715) ───────────────────────────────────────────────────────
+# This file is the STORE and the action table; what a directory entry IS — kinds, group labels, channels,
+# phones, e-mails, and the predicate every filter asks — is a layer underneath both, and it is asked by the
+# card, by `show_view` and by the digest alike. The private names are kept as aliases because they are what
+# every existing caller and test in this house already reaches for.
+_norm = model.norm
+_kind = model.kind
+_truthy = model.truthy
+_groups_in = model.groups_in
+_group_matches = model.group_matches
+_matches = model.matches
+_platform = model.platform
+_PLATFORMS = model.PLATFORMS
+_channel_row = model.channel_row
+_channels_in = model.channels_in
+_same_channel = model.same_channel
+_owner_of_channel = model.owner_of_channel
+_merge_channel = model.merge_channel
 
 
 # How long a pushed view stays worth OBEYING (same contract as the agenda's `show_day`, V2-540): the canvas
@@ -130,142 +110,6 @@ def _fresh_view(db: dict) -> dict | None:
 
 def _push_view(db: dict, sel: dict) -> None:
     db["view"] = {"sel": sel, "n": int((db.get("view") or {}).get("n", 0)) + 1, "at": time.time()}
-
-
-def _group_matches(want: str, contact: dict) -> bool:
-    """A spoken group matches a stored label loosely in BOTH directions («fontanero» ↔ «fontaneros»,
-    «amigos» ↔ «amigos del trabajo») — containment over normalized forms, never a synonym table."""
-    w = _norm(want)
-    if not w:
-        return True
-    for g in contact.get("groups") or []:
-        gn = _norm(g)
-        if w in gn or gn in w:
-            return True
-    return False
-
-
-def _matches(contacts: list, *, group: str = "", city: str = "", favorites=None, query: str = "",
-             kind: str = "", source: str = "") -> list:
-    cw, qw = _norm(city), _norm(query)
-    kw = _kind(kind) if str(kind or "").strip() else ""
-    sw = _norm(source)
-    out = []
-    for c in contacts:
-        if group and not _group_matches(group, c):
-            continue
-        # V2-714 — «enséñame mis grupos» and «mis contactos de Telegram». The kind is a closed set so this
-        # is a lookup; the source is compared against where the row CAME FROM and against the platform a
-        # group lives on, which for a group are the same answer said two ways.
-        if kw and _kind(c.get("kind")) != kw:
-            continue
-        if sw and sw not in (_norm(c.get("source")), _norm(c.get("platform"))):
-            continue
-        if cw:
-            cn = _norm(c.get("city"))
-            if not (cw in cn or (cn and cn in cw)):
-                continue
-        if favorites and not c.get("favorite"):
-            continue
-        if qw:
-            hay = _norm(" ".join(str(c.get(k) or "") for k in ("name", "city", "address", "phone", "email", "notes"))
-                        + " " + " ".join(c.get("groups") or []))
-            if qw not in hay:
-                continue
-        out.append(c)
-    # Favorites first, then by name — the answer to «¿cuál es mi favorito…?» should lead the list.
-    out.sort(key=lambda c: (not c.get("favorite"), _norm(c.get("name"))))
-    return out
-
-
-# V2-683 — CHANNELS. A contact carries how to REACH them, per platform, so «escríbele a Iván» has an
-# answer that is not a guess. Shape and the rules for choosing one live in `widgets/directory.py` (the layer
-# module every outbound door asks); this file only stores and validates what it is told.
-_PLATFORMS = ("whatsapp", "telegram", "email")
-
-
-def _platform(v) -> str:
-    n = _norm(v)
-    return n if n in _PLATFORMS else ""
-
-
-def _channel_row(raw) -> dict | None:
-    """One channel from whatever shape the caller used. A row with no platform, or with neither a handle nor
-    a chatId, is not a channel: it carries no way to reach anybody and storing it would make
-    `channel_for` answer «yes, by Telegram» over nothing."""
-    if not isinstance(raw, dict):
-        return None
-    p = _platform(raw.get("platform"))
-    if not p:
-        return None
-    handle = str(raw.get("handle") or raw.get("address") or raw.get("phone") or "").strip()
-    chat_id = str(raw.get("chatId") or "").strip()
-    if not handle and not chat_id:
-        return None
-    row = {"platform": p, "handle": handle, "chatId": chat_id,
-           "source": str(raw.get("source") or "operator").strip() or "operator",
-           "volume": int(raw.get("volume") or 0)}
-    try:
-        row["last_seen"] = float(raw.get("last_seen") or 0)
-    except (TypeError, ValueError):
-        row["last_seen"] = 0.0
-    return row
-
-
-def _channels_in(payload: dict) -> list[dict]:
-    """`channels` as a list of rows, or a single `{platform, handle}` — deduped by platform, last one wins."""
-    raw = payload.get("channels")
-    if raw is None:
-        return []
-    rows = raw if isinstance(raw, (list, tuple)) else [raw]
-    out: dict[str, dict] = {}
-    for r in rows:
-        row = _channel_row(r)
-        if row:
-            out[row["platform"]] = row
-    return list(out.values())
-
-
-def _same_channel(a: dict, b: dict) -> bool:
-    """Do these two channel rows name the SAME account? Platform plus either identity, `@` and case aside."""
-    if _norm(a.get("platform")) != _norm(b.get("platform")):
-        return False
-    for k in ("chatId", "handle"):
-        for j in ("chatId", "handle"):
-            x, y = _norm(str(a.get(k) or "")).lstrip("@"), _norm(str(b.get(j) or "")).lstrip("@")
-            if x and x == y:
-                return True
-    return False
-
-
-def _owner_of_channel(contacts: list[dict], rows: list[dict]) -> dict | None:
-    """The contact who ALREADY holds one of these accounts, if any (V2-693).
-
-    An account is a stronger identity than a name: «Cryptonite» and «Pruebas Zaelar» are two names for one
-    Telegram user, and `add_contact` deduped on name+city alone — so the second name made a second row. The
-    operator found it himself: «¿cómo vamos a tener dos contactos que tienen el mismo nickname de Telegram?».
-    Two owners is not a merge, it is an ambiguity, and this answers None so the caller writes nothing."""
-    hits = [c for c in contacts
-            if any(_same_channel(ch, row) for ch in c.get("channels") or [] for row in rows)]
-    return hits[0] if len(hits) == 1 else None
-
-
-def _merge_channel(c: dict, row: dict) -> None:
-    """Set one channel on a contact, keeping what the new row does not say (an operator fixing a handle must
-    not erase the chatId the traffic already taught us, and vice versa)."""
-    chs = c.setdefault("channels", [])
-    old = next((ch for ch in chs if ch.get("platform") == row["platform"]), None)
-    if old is None:
-        chs.append(row)
-        return
-    for k in ("handle", "chatId"):
-        if row.get(k):
-            old[k] = row[k]
-    old["source"] = row.get("source") or old.get("source") or "operator"
-    if row.get("volume"):
-        old["volume"] = row["volume"]
-    if row.get("last_seen"):
-        old["last_seen"] = row["last_seen"]
 
 
 def _reach(c: dict) -> list[dict]:
@@ -327,6 +171,10 @@ def view_data(q: str = "") -> dict:
         "circles": sorted(circles, key=lambda g: (-g["members"], _norm(g["name"] or ""))),
         "cities": sorted(cities.values(), key=_norm),
         "favorites_count": sum(1 for c in contacts if c.get("favorite")),
+        # The hidden ones travel TOO (V2-715). `contacts` is what he is meant to see, and hiding stays the
+        # right default; but a row he can neither see nor reach is a row he cannot bring back, and «quita
+        # este de la lista» must be undoable from the same card that did it.
+        "hidden_rows": [c for c in (db.get("contacts") or []) if c.get("hidden")],
         "hidden_count": sum(1 for c in (db.get("contacts") or []) if c.get("hidden")),
         "count": len(contacts),
         "view": _fresh_view(db),
@@ -378,7 +226,13 @@ def prompt_digest() -> str:
         extra = [str(c.get("kind") or "")] if c.get("kind") not in (None, "", "person") else []
         extra += [str(c.get("city") or "")] if c.get("city") else []
         extra += [", ".join(c.get("groups") or [])] if c.get("groups") else []
-        extra += [f"tel {c['phone']}"] if c.get("phone") else []
+        # The primary number, and HOW MANY more there are — never all of them: this block rides every turn
+        # while the card is open, and a company with six lines would spend the budget on one row. «+2 más»
+        # is what stops «tel 900111222» reading as «that is the only number we hold» (the whole list is one
+        # `read_query` away, which is the door a question about somebody goes through).
+        tels = model.values(c, "phones") or ([c["phone"]] if c.get("phone") else [])
+        if tels:
+            extra.append(f"tel {tels[0]}" + (f" (+{len(tels) - 1} más)" if len(tels) > 1 else ""))
         # V2-683 — by WHICH channel he can be written to, and which one is his. Platforms only (a handle is
         # personal data and the sending door reads it from the store, not from here). Asked through
         # `directory` rather than read raw, so a stored address counts as the email channel it is — the
@@ -490,8 +344,12 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
                 existing["favorite"] = _truthy(payload.get("favorite"))
             for row in incoming:
                 _merge_channel(existing, row)
+            for key in ("phones", "emails"):
+                for row in model.details_in(payload, key) or []:
+                    model.add_detail(existing, key, row["value"], row.get("label") or "")
             if _platform(payload.get("preferred")):
                 existing["preferred"] = _platform(payload.get("preferred"))
+            model.normalize(existing)
             _touch(existing, now)
             c, updated = existing, True
         else:
@@ -503,7 +361,10 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
                  "notes": str(payload.get("notes") or "").strip(),
                  "groups": groups, "favorite": _truthy(payload.get("favorite")),
                  "channels": incoming, "preferred": _platform(payload.get("preferred")),
+                 "phones": model.details_in(payload, "phones") or [],
+                 "emails": model.details_in(payload, "emails") or [],
                  "parentId": "", "created": now, "updated": now, "touchedAt": time.time()}
+            model.normalize(c)
             db["next_id"] = int(db.get("next_id", 1)) + 1
             contacts.append(c)
             updated = False
@@ -528,6 +389,10 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
         for k in _clear_in(payload):
             if k in _FIELDS and k != "name":   # a nameless contact cannot be found again by voice or by eye
                 c[k] = ""
+                # …and the LIST goes with it. `normalize` keeps the scalar in step with the head of its
+                # list, so emptying only the scalar would have the next read put the number straight back.
+                if k in ("phone", "email"):
+                    c[k + "s"] = []
         if payload.get("kind"):
             c["kind"] = _kind(payload["kind"])
         if payload.get("groups") is not None:
@@ -540,8 +405,16 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
             c["favorite"] = _truthy(payload.get("favorite"))
         for row in _channels_in(payload):
             _merge_channel(c, row)
+        # `phones`/`emails` REPLACE the list (that is what the card's ✕ and its editor send); `add_phone`
+        # and `add_email` are the other half, for a sentence that only names one more number.
+        for key in ("phones", "emails"):
+            rows = model.details_in(payload, key)
+            if rows is not None:
+                c[key] = rows
+                c[model._DETAIL_KEYS[key]] = rows[0]["value"] if rows else ""
         if _platform(payload.get("preferred")):
             c["preferred"] = _platform(payload.get("preferred"))
+        model.normalize(c)
         _touch(c, now)
         store.save(WIDGET_ID, db)
         d = view_data(q)
@@ -589,6 +462,46 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
         store.save(WIDGET_ID, db)
         d = view_data(q)
         d.update({"ok": True, "result": {"contact": _public(c), "channel": p}})
+        return d
+
+    if action in ("add_phone", "add_email"):
+        # V2-715 — «varios teléfonos que estén vinculados a la misma empresa». One action per kind of
+        # detail, both directions in one gesture (`remove: true`), the shape `set_channel` already uses:
+        # a second action whose only job is to undo the first is a second thing to remember.
+        key = "phones" if action == "add_phone" else "emails"
+        field = "phone" if action == "add_phone" else "email"
+        c = _find(db, payload.get("contactId"))
+        if not c:
+            return {"ok": False, "error": f"no encuentro ese contacto — {action} necesita su `contactId` "
+                                          "(pásame el nombre en `item` y lo resuelvo yo)"}
+        value = str(payload.get(field) or payload.get("value") or payload.get("handle") or "").strip()
+        if not value:
+            return {"ok": False,
+                    "error": f"no me ha llegado el dato — vuelve a llamar a {action} con `{field}` "
+                             f"(y `label` si te dijo de qué es: «centralita», «móvil»…)"}
+        if _truthy(payload.get("remove")):
+            changed = model.drop_detail(c, key, value)
+        else:
+            changed = model.add_detail(c, key, value, str(payload.get("label") or "").strip())
+        if changed:
+            _touch(c, now)
+            store.save(WIDGET_ID, db)
+        d = view_data(q)
+        d.update({"ok": True, "result": {"contact": _public(c), field + "s": model.values(c, key),
+                                         "changed": changed}})
+        return d
+
+    if action == "show_connectors":
+        # The plug button, by voice (V2-715). Every control on this card has to be reachable both ways —
+        # «ábreme los conectores de contactos» used to have no action at all, so the model's only move was
+        # to show the widget and describe a button the operator was already looking at.
+        _push_view(db, {"screen": "connectors"})
+        store.save(WIDGET_ID, db)
+        d = view_data(q)
+        d.update({"ok": True, "result": {"screen": "connectors",
+                                         "sources": [{"id": p_["id"], "label": p_.get("label"),
+                                                      "status": p_.get("status")}
+                                                     for p_ in (d.get("providers") or [])]}})
         return d
 
     if action == "remove_contact":
@@ -703,13 +616,21 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
         fav = payload.get("favorites")
         if fav is not None and str(fav).strip() != "":
             sel["favorites"] = _truthy(fav)
+        # The HIDDEN shelf, by voice (V2-715). It is the one rail section that reads a different pool, and
+        # without this «enséñame los que oculté» had no answer at all — which is what makes hiding feel
+        # like a delete with a softer word.
+        hid = _truthy(payload.get("hidden"))
+        if hid:
+            sel["hidden"] = True
+        pool = [c for c in (db.get("contacts") or []) if c.get("hidden")] if hid else visible(db)
         _push_view(db, sel)
         store.save(WIDGET_ID, db)
-        found = _matches(visible(db), group=sel.get("group", ""), city=sel.get("city", ""),
+        found = _matches(pool, group=sel.get("group", ""), city=sel.get("city", ""),
                          favorites=sel.get("favorites"), query=sel.get("query", ""),
                          kind=sel.get("kind", ""), source=sel.get("source", ""))
         d = view_data(q)
-        d.update({"ok": True, "result": {"count": len(found), "matches": [_public(c) for c in found[:12]]}})
+        d.update({"ok": True, "result": {"count": len(found), "matches": [_public(c) for c in found[:12]],
+                                         **({"hidden": True} if hid else {})}})
         return d
 
     if action == "show_contact":

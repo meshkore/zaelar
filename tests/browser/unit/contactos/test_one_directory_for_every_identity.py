@@ -46,6 +46,11 @@ def test_every_capability_EXISTS_in_the_manifest_or_the_model_cannot_choose_it(c
                                  "link_contact", "show_view", "show_contact",
                                  # V2-683 — by WHICH channel this person is written to, and which is his.
                                  "set_channel",
+                                 # V2-714 — the import-only sources, the hidden shelf and who is in a group.
+                                 "sync_source", "hide_contact", "show_contact_members",
+                                 # V2-715 — several phones / e-mails per entry («varios teléfonos
+                                 # vinculados a la misma empresa»), and the plug button by voice.
+                                 "add_phone", "add_email", "show_connectors",
                                  # V2-699 — the Google Contacts link. Declared rather than left as HTTP
                                  # endpoints, because an endpoint is a door the VOICE cannot open.
                                  # `import_google` is the retired name of `sync_contacts`, kept as an alias
@@ -354,11 +359,20 @@ def test_a_name_one_letter_off_resolves_when_it_is_the_only_near_match(ct):
 
 
 def test_two_near_names_stay_a_refusal_never_a_guess(ct):
-    """Writing to the wrong person is the failure the fuzzy match must never trade for."""
+    """Writing to the wrong person is the failure the fuzzy match must never trade for.
+
+    ⚠️ What «refusal» means here changed with V2-705 and this test did not follow it — it was RED on a
+    clean tree until V2-715 found it. The tolerant matcher returns EVERY near match above the floor
+    precisely so the caller can ask «¿cuál?»; what must never happen is ONE row coming back, because a
+    single answer is what the sending door acts on without asking. So the property is «never exactly one»,
+    not «nothing at all» — and the second half of it is that neither of the two is picked.
+    """
     from widgets import directory
     ct.apply_action("add_contact", _as_the_canvas_sends_it({"name": "Marta", "phone": "+34600000001"}))
     ct.apply_action("add_contact", _as_the_canvas_sends_it({"name": "Marto", "phone": "+34600000002"}))
-    assert directory.resolve("Marte") == []
+    hits = directory.resolve("Marte")
+    assert len(hits) != 1, "one row is what gets written to without asking"
+    assert {c["name"] for c in hits} <= {"Marta", "Marto"}
 
 
 def test_a_name_that_is_simply_not_there_still_resolves_to_nobody(ct):

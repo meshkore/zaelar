@@ -89,9 +89,20 @@ def _full_row(c: dict) -> str:
         bits.append(str(c["kind"]))
     if c.get("favorite"):
         bits.append("favorito ⭐")
-    for label, key in (("tel", "phone"), ("email", "email"), ("ciudad", "city"), ("dirección", "address")):
+    # EVERY phone and EVERY address, each with its label (V2-715). The scalar is only the primary, and a
+    # company that answers «tel 900111222» when the operator asked for its switchboard has answered with
+    # the first of three — which is indistinguishable, to him, from us not holding the other two.
+    for label, key in (("tel", "phones"), ("email", "emails")):
+        for row in c.get(key) or []:
+            tag = str(row.get("label") or "").strip()
+            bits.append(f"{label} {row.get('value')}" + (f" ({tag})" if tag else ""))
+    for label, key in (("ciudad", "city"), ("dirección", "address")):
         if c.get(key):
             bits.append(f"{label} {c[key]}")
+    if not (c.get("phones") or c.get("emails")):        # a row written before the lists existed
+        for label, key in (("tel", "phone"), ("email", "email")):
+            if c.get(key):
+                bits.append(f"{label} {c[key]}")
     if c.get("groups"):
         bits.append("grupos: " + ", ".join(str(g) for g in c["groups"]))
     pref = str(c.get("preferred") or "")
