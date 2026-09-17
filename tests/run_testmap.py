@@ -445,6 +445,11 @@ DOMAINS: list[dict] = [
             # resolves `None` for anything a manifest does not declare — and `rows.*` is undeclared BY
             # DESIGN. Measured 2026-09-16: the door had no live caller at all.
             "tests/agent_headless/unit/workers/test_the_generic_door_is_open_to_the_worker_it_was_built_for.py",
+            # V2-719 (2026-09-17, session 923f0adc): the worker composed the one correct `agenda.invite` for
+            # ivan@charms.dev and the gate parked it on «¿Lo autorizas?» — `action_mode` reads the manifest
+            # flag in the abstract, while the voice channel's `action_mode_now` answers FAST for the same
+            # call. One consent rule for both mouths, decided per CALL.
+            "tests/agent_headless/unit/workers/test_the_worker_gate_is_the_same_consent_rule_as_the_voice.py",
             "tests/agent_headless/unit/test_task_attribution.py", "tests/agent_headless/unit/workers/test_workers.py",
             # V2-139: the chain «móntame un widget» → code → GENERATOR backend → card on screen, walked.
             # V2-115 left this written down as its own primary open task: every link was tested in

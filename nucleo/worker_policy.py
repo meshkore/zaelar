@@ -93,11 +93,21 @@ def classify_act(action: str, payload: dict) -> str:
         # via frontend.action_mode), the SAME one as FlashBrain: FAST→ALLOW, CONFIRM(irreversible)→CONFIRM.
         # ESCALATE/None (undeclared action) → DENY: a worker does not escalate a data-op or invent actions — have it
         # READ the widget first.
+        # V2-719 — decided for THIS CALL, by the same rule the voice channel uses (`action_mode_now`, V2-712),
+        # not for the action in the abstract. Measured 2026-09-17 21:26 (session 923f0adc, task «Invite Ivan
+        # via Gmail»): the worker had read the chat, found «send me a calendar invite to: ivan@charms.dev»,
+        # composed `agenda.invite {who: ivan@charms.dev, meeting: Ivan, date: 2026-09-17}` — and this branch
+        # parked it on «¿Lo autorizas?» because `action_mode` reads the manifest flag alone. The voice channel,
+        # asked the same call, answers FAST: level standard, one named recipient, no class rule. Two answers
+        # to one call is exactly what «una sola regla de consentimiento» forbade; the operator, who had said
+        # «asegúrate de que termine sin intervención humana», was the one the question went to.
         try:
-            from nucleo.flash.frontend import action_mode
+            from nucleo.flash.frontend import action_mode_now
             from widgets import actions as _wa
-            m = action_mode(str((payload or {}).get("widget_id") or (payload or {}).get("id") or ""),
-                            str((payload or {}).get("action") or ""))
+            _inner = (payload or {}).get("payload")
+            m = action_mode_now(str((payload or {}).get("widget_id") or (payload or {}).get("id") or ""),
+                                str((payload or {}).get("action") or ""),
+                                _inner if isinstance(_inner, dict) else {})
         except Exception:
             m = None
         if m == _wa.FAST:
