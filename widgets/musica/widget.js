@@ -73,7 +73,10 @@ function injectStyles(){
   .hb-mus2-scroll{flex:1 1 auto;min-height:0;overflow:auto;padding:16px 18px;display:flex;flex-direction:column;gap:18px}
   /* A screen with ONE thing on it centres that thing instead of pinning it to the top-left corner of a big
      empty card, which is what «se ve tan vacia» was describing. */
-  .hb-mus2-scroll.mid{justify-content:center;align-items:center}
+  /* safe center, and not plain center: a flex column that centres CLIPS what overflows, at both ends and
+     with no scrollbar to reach it — measured on the empty library, whose disc was being cut in half by the
+     bar above it. The safe keyword falls back to start exactly when that would happen. */
+  .hb-mus2-scroll.mid{justify-content:safe center;align-items:center}
   .hb-mus2 svg{display:block}
   .hb-mus2-art svg{width:38%;height:38%;color:rgba(255,255,255,.92)}
   .hb-mus2-new .hb-mus2-art svg{color:var(--hb-muted,#5b6b82)}
@@ -261,8 +264,8 @@ function injectStyles(){
 
   /* ── V2-717 · an empty screen still has something to say ───────────────────────────────────────────────
      «se ve tan vacia... estas un poco triste». The chips are REAL: each one plays. */
-  .hb-mus2-hero{display:flex;flex-direction:column;align-items:center;text-align:center;gap:13px;margin:auto;
-                padding:14px 0;max-width:340px}
+  .hb-mus2-hero{display:flex;flex-direction:column;align-items:center;text-align:center;gap:12px;margin:auto;
+                padding:10px 0;max-width:340px}
   .hb-mus2-herod{position:relative;width:76px;height:76px;border-radius:50%;flex:0 0 auto;
                  display:flex;align-items:center;justify-content:center;
                  background:linear-gradient(135deg,var(--hb-accent,#3D6FE0),var(--hb-accent2,#16B8A6));
@@ -278,6 +281,11 @@ function injectStyles(){
                 color:var(--hb-ink,#0d1622);border-radius:999px;padding:6px 12px;font-size:12px;font-weight:600;
                 cursor:pointer;font-family:inherit;line-height:1.2}
   .hb-mus2-chip:hover{border-color:var(--hb-accent,#3D6FE0);color:var(--hb-accent,#3D6FE0)}
+  /* The way into a new list stays in reach on the empty screen, but at the size of an afterthought: a
+     112px dashed square under the hero made the whole thing taller than the band it lives in. */
+  .hb-mus2-hero .hb-mus2-pl{width:auto;align-items:center;gap:5px}
+  .hb-mus2-hero .hb-mus2-new .hb-mus2-art{width:46px;height:46px;border-radius:12px}
+  .hb-mus2-hero .hb-mus2-plname{font-size:11.5px;color:var(--hb-muted,#5b6b82)}
   `; document.head.appendChild(s);
 }
 

@@ -159,4 +159,10 @@ is down, and a drag asks the player ONCE, on release.
 - ⚠️ **A flex column that CENTRES its content overflows at both ends, and that overflow is CLIPPED, not
   scrollable** — `scrollHeight` stays equal to `clientHeight` while the ficha is being cut in half. The
   geometry test measures CONTAINMENT (the cover's top, the scrubber's bottom) for that reason; the first
-  version of it passed against a layout that was losing both ends of the screen.
+  version of it passed against a layout that was losing both ends of the screen. The EMPTY library had the
+  same bug and no test saw it — found by rendering the three faces and LOOKING at them, with the hero disc
+  sliced in half by the bar above it. Both centred regions use `justify-content: safe center` now, which
+  falls back to start exactly when centring would clip, and the case is guarded.
+- ⚠️ And the oldest trap in this file, met again while writing the comment that explains the fix above: a
+  BACKTICK inside the injected `<style>` template ends the literal and kills the whole module. Two of them,
+  in prose quoting a CSS keyword. `node --check` catches it; nothing at runtime does.

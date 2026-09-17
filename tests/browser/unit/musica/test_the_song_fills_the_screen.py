@@ -349,6 +349,19 @@ def test_an_empty_library_has_something_to_say_and_something_to_press(_page):
     assert _page.query_selector(".hb-mus2-new") is not None, "and the way to start a list stays in reach"
 
 
+def test_the_empty_library_is_never_cut_off_by_the_bar_above_it(_page):
+    """Found by LOOKING at it, after the geometry case above was already green: a flex column that centres
+    its content clips what overflows — at BOTH ends, with no scrollbar to reach it — so the hero disc was
+    being sliced in half by the bar. `safe center` falls back to start exactly when that would happen."""
+    for w, h in ((360, 400), (468, 540)):
+        _mount(_page, _data(), card_w=w, card_h=h)
+        geo = _page.evaluate(
+            """() => { const s = document.querySelector('.hb-mus2-scroll').getBoundingClientRect();
+                       const d = document.querySelector('.hb-mus2-herod').getBoundingClientRect();
+                       return {head: d.top - s.top}; }""")
+        assert geo["head"] >= -1, f"the empty screen is cut off the top at {w}x{h} (by {-geo['head']:.0f}px)"
+
+
 def test_a_library_with_something_in_it_is_still_the_library(_page):
     """The hero must not over-fire: one playlist and the shelves are back."""
     _mount(_page, _data(playlists=[{"id": "p", "name": "Disco", "art": "", "tracks": [_track("A")]}]))
