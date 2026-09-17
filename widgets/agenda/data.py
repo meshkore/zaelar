@@ -337,6 +337,15 @@ def consent_scope(action: str, payload: dict | None = None) -> dict:
         return {}
 
 
+def radius(action: str, payload: dict | None = None) -> int | None:
+    """How many appointments THIS call would delete (V2-720) — the widget counting its own rows, for the
+    consent rule. The counting lives in `sweep.py`; this is the seam `frontend._scope` looks for."""
+    try:
+        return sweep.radius(str(action or ""), dict(payload or {}), load_db())
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def apply_action(action: str, payload: dict | None = None) -> dict:
     """Widget actions (HANDOFF §9.3): mark done / not now / snooze / drop / replan. Mutates the isolated store."""
     payload = payload or {}
@@ -552,6 +561,13 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
         # IRREVERSIBLE -> `confirm:true`, and the question this widget hands the gate NAMES the count and the
         # keepers, so what he is agreeing to is on screen before he agrees to it.
         res, stuck = sweep.clear_range(db, payload)
+        if res.get("ok") is False:
+            # A keeper that names nothing (V2-720): nothing was touched and nothing is persisted. The turn
+            # reports WHICH one was not there and what the window really holds, so the retry aims at a real
+            # title instead of repeating the sweep that would delete everything.
+            d = view_data()
+            d.update({"ok": False, "result": res, "error": res.get("detail") or res.get("error")})
+            return d
         db["currentPlan"] = compute_plan(db)
         store.save(WIDGET_ID, db)
         # `view_data()` with NO argument, like every other branch here: this widget's `apply_action` has no

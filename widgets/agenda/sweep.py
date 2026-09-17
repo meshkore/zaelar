@@ -83,6 +83,54 @@ def window(payload: dict) -> tuple[str, str]:
     return (hi, lo) if hi < lo else (lo, hi)
 
 
+def in_window(db: dict, payload: dict) -> list[dict]:
+    """The appointments the window covers, kept and doomed alike — what any decision about this sweep has to
+    be measured against, and the list the refusal below reads its options from."""
+    lo, hi = window(payload)
+    return [m for m in db.get("meetings", []) if lo <= str(m.get("date") or "") <= hi]
+
+
+def unmatched(rows: list[dict], keep: list[dict]) -> list[dict]:
+    """The keepers that match NOTHING in the window (V2-720).
+
+    Measured 2026-09-17 22:01, session `e22cdba8`. «Can you delete all the items but the meeting with Ivan?
+    Please do not delete the meeting with Ivan» arrived as:
+
+        clear_range {from: "hoy", to: "hoy", keep: {title: "Approval rules: who signs off"}}
+
+    A real keeper, correctly shaped, naming an appointment that WAS NOT THERE. `kept()` answered False for
+    every row, so the exception silently evaporated and the day went — Ivan's ten o'clock included, the one
+    thing he had said twice not to touch. The model then told him the tool «didn't let me specify an
+    exception», which was never true: it had specified one, at a phantom.
+
+    An exception that matches nothing is NOT the same call minus the exception — it is a call built on a
+    wrong belief about the data, and the one thing that must never follow from it is the full deletion. So
+    it refuses and hands back what the window really holds, which is the list the keeper should have been
+    picked from. Same rule as `rows.plan`'s `nothing_matched`, one floor down: on a destructive op, «nothing
+    matched» never quietly means «no change», and here it must never mean «everything»."""
+    return [k for k in (keep or []) if not any(kept(m, [k]) for m in rows)]
+
+
+def radius(action: str, payload: dict, db: dict) -> int | None:
+    """How many appointments this call would actually delete — the widget's own answer to «how much does
+    this touch», read by `nucleo/flash/frontend._scope` before the consent rule decides (V2-720).
+
+    The rail was already written («the gate is the RADIUS, not the verb», V2-707) and this sweep walked
+    straight past it: `clear_range`'s selector is `from`, a DATE, so a filled `from` read as «names one
+    thing» and a whole day of deletions was charged the friction of a single appointment — `confirm: true`
+    in the manifest, `fast` in the call, no question asked, while the operator was in the middle of saying
+    «and ask me for confirmation». A window is not an item, and only the widget can count what its own
+    window holds. `None` means «I cannot count this one», and the caller keeps whatever it decided before."""
+    try:
+        if action in ("clear_range", "clear"):
+            return len([m for m in in_window(db, payload) if not kept(m, keep_list(payload))])
+        if action == "clear_all":
+            return len(db.get("meetings", []) or []) + len(db.get("tasks", []) or [])
+    except Exception:  # noqa: BLE001 — an uncountable radius is not a smaller one
+        return None
+    return None
+
+
 def clear_range(db: dict, payload: dict) -> tuple[dict, list[dict]]:
     """Run the sweep over `db` IN PLACE and answer `(result, stuck)`.
 
@@ -93,8 +141,19 @@ def clear_range(db: dict, payload: dict) -> tuple[dict, list[dict]]:
 
     lo, hi = window(payload)
     keep = keep_list(payload)
-    doomed = [m for m in db.get("meetings", [])
-              if lo <= str(m.get("date") or "") <= hi and not kept(m, keep)]
+    rows = in_window(db, payload)
+    missing = unmatched(rows, keep)
+    if missing:
+        # NOTHING is deleted and nothing is written: the caller answers the refusal, the operator hears which
+        # keeper did not exist, and the next call is aimed at a title that is really there.
+        have = [str(m.get("title") or "") for m in rows if str(m.get("title") or "")]
+        names = ", ".join(f"«{k.get('title') or k.get('date') or '?'}»" for k in missing[:3])
+        return {"ok": False, "error": "keep_not_found", "removed": 0, "from": lo, "to": hi,
+                "missing": [k.get("title") or k.get("date") or "?" for k in missing],
+                "options": have[:12],
+                "detail": (f"No he borrado nada: {names} no está en ese tramo, así que no podía conservarlo. "
+                           f"Ahí hay: {'; '.join(have[:12]) or '(nada)'}.")}, []
+    doomed = [m for m in rows if not kept(m, keep)]
     gone, stuck = [], []
     for m in doomed:
         if gcal.delete_google(m):

@@ -49,6 +49,17 @@ suffix: `title~` contains, `date>=` / `date<=` / `date>` / `date<` compare as st
 correctly), `status!` is not-equal, a bare key is equality, and a list value means «any of these». String
 comparison folds case and accents, because the operator says «cryptonite» about a row spelled «Cryptonite».
 Nothing here parses natural language: that is the model's half, and it has the schema to do it with.
+
+## Saying «all of these EXCEPT those» (V2-720)
+
+`where` alone can only say «these». The sentence a person actually speaks is «clear today except Ivan's
+meeting», and until an exception had its own key it had to be smuggled into `where` as a not-equal — which
+reads correctly for one name and INVERTS for a list. So the expression has three clauses: `where` takes,
+`not`/`except` (one clause or several) leaves out, and `ids` — the id field as `rows.list` handed it back —
+names the exact rows. That last one is the whole «prepare a group and work with it» shape: list what is
+really there, pick from THAT, act on precisely those, one row at a time through the widget's own action.
+The exception is applied last and wins over `ids`, because the safe reading of a contradiction on a
+destructive call is the one that touches less.
 """
 from __future__ import annotations
 
@@ -133,7 +144,12 @@ def _split(key: str) -> tuple[str, str]:
 
 def _one(value, op: str, want) -> bool:
     if isinstance(want, (list, tuple, set)):
-        return any(_one(value, op, w) for w in want)
+        # A list is «any of these» — except under a NEGATIVE operator, where it is «none of these» (V2-720).
+        # `any()` there answered True for every row (every value differs from at least one of three names),
+        # so `{"title!": [a, b, c]}` — «delete the day except those three» — selected the whole day, the three
+        # keepers included. A group expression that quietly means its own opposite on a delete is the shape
+        # that cost Ivan's ten o'clock; the two readings must not share a code path.
+        return all(_one(value, op, w) for w in want) if op == "!=" else any(_one(value, op, w) for w in want)
     a, b = _fold(value), _fold(want)
     if op == "=":
         return a == b
@@ -172,6 +188,48 @@ def _rows(widget_id: str, collection: str) -> list[dict]:
         return []
 
 
+def excluded(row: dict, nots) -> bool:
+    """Does this row match ANY of the exclusion clauses? Each clause is a `where` of its own, so «everything
+    today except the meeting with Ivan and the dentist» is two clauses, not one impossible one."""
+    for clause in (nots if isinstance(nots, (list, tuple)) else [nots]):
+        if isinstance(clause, dict) and clause and matches(row, clause):
+            return True
+    return False
+
+
+def group(widget_id: str, collection: str, payload: dict | None) -> list[dict]:
+    """The rows an expression names — THE GROUP (V2-720).
+
+    Three clauses, and a person's sentence usually needs two of them at once:
+
+      · `where`  — what to take («date: today»). Empty takes the collection.
+      · `not` / `except` — what to leave out of it, as one clause or several. This is the half that was
+        missing: `where` alone can only say «these», and «all of today EXCEPT Ivan's» is the shape the
+        operator actually speaks. Expressing it through `title!` worked for one name and inverted itself
+        for a list, so the exception now has its own key and reads the same for one name or five.
+      · `ids` — the exact rows, by the collection's declared id field, as `rows.list` handed them back.
+        This is «prepare a group and then work with it»: list, pick, act on precisely those, one by one.
+
+    `ids` narrows what `where` took; the exclusions are applied last, so an id that is also excluded stays
+    out — the exception always wins, because on a destructive call the safe reading of a contradiction is
+    the one that touches less."""
+    pl = payload if isinstance(payload, dict) else {}
+    coll = str(pl.get("collection") or pl.get("coll") or "").strip()
+    where = pl.get("where") if isinstance(pl.get("where"), dict) else {}
+    nots = pl.get("not") if pl.get("not") is not None else (
+        pl.get("except") if pl.get("except") is not None else pl.get("without"))
+    ids = pl.get("ids") if isinstance(pl.get("ids"), (list, tuple)) else None
+    idf = str(spec(widget_id, coll).get("id") or "id")
+
+    out = [r for r in _rows(widget_id, coll) if matches(r, where)]
+    if ids is not None:
+        wanted = [str(i) for i in ids]
+        out = [r for r in out if any(_one(r.get(idf), "=", w) or _one(r.get("id"), "=", w) for w in wanted)]
+    if nots:
+        out = [r for r in out if not excluded(r, nots)]
+    return out
+
+
 def select(widget_id: str, collection: str, where: dict | None) -> list[dict]:
     return [r for r in _rows(widget_id, collection) if matches(r, where)]
 
@@ -208,8 +266,7 @@ def plan(widget_id: str, op: str, payload: dict | None) -> dict:
                        f"«{coll}» no admite «{op}» (admite {', '.join(ops_for(wid, coll))}).")
 
     cspec = cols[coll]
-    where = pl.get("where") if isinstance(pl.get("where"), dict) else {}
-    rows = select(wid, coll, where)
+    rows = group(wid, coll, {**pl, "collection": coll})
 
     if op == "list":
         return {"ok": True, "op": op, "collection": coll, "n": len(rows),
@@ -283,15 +340,18 @@ async def apply(widget_id: str, op: str, payload: dict | None, *, confirmed: boo
         from . import store
         db = store.load(wid, {})
         rows = [r for r in (db.get(p["collection"]) or []) if isinstance(r, dict)]
-        where = pl.get("where") if isinstance(pl.get("where"), dict) else {}
+        # THE ROWS THE PLAN RESOLVED, never the expression re-read here (V2-720): re-filtering on `where`
+        # alone dropped the exclusions and the id list, so the confirm question described one group and this
+        # branch deleted a larger one.
+        doomed = p["rows"]
         if op == "delete":
-            keep = [r for r in rows if not matches(r, where)]
+            keep = [r for r in rows if r not in doomed]
             done = len(rows) - len(keep)
             db[p["collection"]] = keep
         elif op == "patch":
             sets = pl.get("set") if isinstance(pl.get("set"), dict) else {}
             for r in rows:
-                if matches(r, where):
+                if r in doomed:
                     r.update(sets)
                     done += 1
             db[p["collection"]] = rows

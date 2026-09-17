@@ -252,8 +252,15 @@ TOOLS: list[dict] = [
                 # catálogo, no los inventes» without ever naming it — so for an operation nobody declared («borra
                 # todas las que digan crypto») the model had a capability it had been told it lacked, which is the
                 # V2-540/V2-692 class: it narrates it instead of using it. One line of CAPABILITY, not of conduct.
+                # V2-720 — the EXCEPTION and the explicit GROUP. Measured 2026-09-17: «delete all today but
+                # Ivan's meeting» became a sweep with a keeper aimed at a title that did not exist, and the
+                # whole day went. What that sentence needs is a door where «except» is a clause and the rows
+                # are picked from the ones that are really there: list, then act on exactly those.
                 "Sin acción que lo cubra (varias filas por criterio): action='rows.list|put|patch|delete', payload "
-                "{collection, where:{campo, campo~, campo>=…}} (+set/row). Una fila se hace; varias preguntan."
+                "{collection, where:{campo, campo~, campo>=…}} (+set/row). Una fila se hace; varias preguntan. "
+                "«Todo X MENOS Y» va aquí: where={lo de coger} + not={lo que se queda} (o varias cláusulas en "
+                "lista). Si no estás seguro de qué hay, rows.list PRIMERO y luego actúa sobre esos mismos con "
+                "ids:[…] — nunca nombres de memoria lo que vas a conservar."
             ),
             "parameters": {
                 "type": "object",

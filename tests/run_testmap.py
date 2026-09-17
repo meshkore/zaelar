@@ -1956,6 +1956,17 @@ DOMAINS: list[dict] = [
             # tick de fondo agenda un aviso propio para una cita recién sincronizada; on_calendar_connected
             # migra citas locales futuras sin duplicar lo que Google ya tiene.
             "tests/browser/unit/agenda/test_google_calendar_sync.py"]},
+        # V2-720 (2026-09-17, session e22cdba8): «delete all the items but the meeting with Ivan» deleted the
+        # day, Ivan's included — the keeper named a title that was not in the day, so the exception evaporated
+        # and nobody noticed; the sweep never asked, because its selector is a DATE and a filled date read as
+        # «names one thing»; and «all of these except those» could not be said through the generic door at all.
+        {"id": "4.191", "title": "Una excepción que no existe NO es un borrado: `clear_range` con un keeper que "
+                                 "no está en el tramo se niega y enseña lo que hay · el RADIO de una barrida son "
+                                 "sus filas (el widget las cuenta) y más de una pregunta · grupos por la puerta "
+                                 "genérica: where + not/except (una cláusula o varias) + ids de un rows.list, y "
+                                 "el borrado va fila a fila por la acción declarada del widget",
+         "ch": UNIT, "paths": [
+             "tests/browser/unit/agenda/test_all_of_these_except_that_one_never_means_all_of_them.py"]},
         # V2-085 — la garantía de ESCALA: el prompt es O(K) y no O(N) por muchos widgets que haya. Nodo propio (no
         # dentro de 4.1) porque lo que prueba no es el contrato de UN widget sino el del CATÁLOGO: sintéticos de
         # 100/1.000/10.000, promoción del widget nombrado desde la cola, e índice compacto del endpoint.

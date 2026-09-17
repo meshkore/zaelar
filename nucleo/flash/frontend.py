@@ -153,6 +153,19 @@ def _policy_key(wid: str, name: str, spec: dict, payload: dict | None) -> str:
         return declared
 
 
+def _declared_radius(wid: str, name: str, payload: dict | None) -> int | None:
+    """What the widget says this call will touch, or None (V2-720). Same shape as `_policy_key`'s hook."""
+    try:
+        import importlib
+        hook = getattr(importlib.import_module(f"widgets.{wid}.data"), "radius", None)
+        if not callable(hook):
+            return None
+        n = hook(name, dict(payload or {}))
+        return int(n) if isinstance(n, int) and not isinstance(n, bool) and n >= 0 else None
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def _scope(wid: str, name: str, spec: dict, payload: dict | None) -> tuple[bool, int | None]:
     """Does this call NAME what it acts on, and how many things will it touch?
 
@@ -166,6 +179,17 @@ def _scope(wid: str, name: str, spec: dict, payload: dict | None) -> tuple[bool,
     """
     try:
         from widgets import contract as _contract
+        # THE WIDGET MAY COUNT ITS OWN ROWS (V2-720). Everything below reads the CALL — which selector the
+        # manifest names, whether it arrived filled — and for a call whose selector is a WINDOW that is not
+        # a measure of anything: `agenda:clear_range`'s selector is `from`, so «clear today» with the date
+        # filled read as «names one thing» and a day of deletions was charged one appointment's friction —
+        # `confirm:true` in the manifest, `fast` in the call, measured 2026-09-17 while the operator was
+        # saying «and ask me for confirmation». Only the widget holds the rows to answer how many there are,
+        # so it may expose `radius(action, payload) -> int | None` and say. Like `consent_scope`, it REFINES:
+        # `None` (no hook, unreadable, or a call it does not count) keeps exactly the answer this had before.
+        n = _declared_radius(wid, name, payload)
+        if n is not None:
+            return (n <= 1, n)
         # An action may DECLARE that one selector fans out — `agenda:drop_project` names ONE project and
         # discards every pending task in it. Its selector is filled and its radius is still not one, and
         # only the manifest can know that, so it says so instead of this function guessing from the desc.

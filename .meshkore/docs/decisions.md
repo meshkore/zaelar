@@ -21,6 +21,30 @@ entregada siga citada aquí.
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **«All of these EXCEPT that one» never means all of them (V2-720, 2026-09-17)**: session `e22cdba8`, and he
+  said it three times — «can you delete all the items but the meeting with Ivan?», «please do not delete the
+  meeting with Ivan», «delete the others and ask me for confirmation». What ran, with no question asked, was
+  `clear_range {from: hoy, to: hoy, keep: {title: "Approval rules: who signs off"}}`: a real exception,
+  correctly shaped, **aimed at an appointment that was not in the day**. `kept()` answered False for every
+  row, the keeper evaporated, and the day went with his ten o'clock inside it. Then the model told him the
+  tool «didn't let me specify an exception» — it had specified one, at a phantom — and escalated a Brain
+  Worker task to build the capability that already existed, whose first step DELETED the agenda widget
+  (`hidden.json`; restored by hand). Three mechanisms, no rule about conduct: **(1)** a keeper that matches
+  nothing REFUSES and hands back what the window really holds — the same thing `rows.plan` has said since
+  V2-707 («nothing matched» on a destructive op is a misunderstanding, never a silent no-op), which one floor
+  down was letting it mean «everything». **(2)** the RADIUS of a sweep is its ROWS, and only the widget can
+  count them: `data.radius(action, payload)` is a hook `frontend._scope` consults before the consent rule, in
+  the shape of `consent_scope` — absent or unreadable keeps the old verdict. Until it existed, `_scope` read
+  `clear_range`'s selector, `from`, found the DATE filled and answered «names one thing», so a day of
+  deletions was charged one appointment's friction: `confirm:true` in the manifest, `fast` in the call. The
+  rail was already written (V2-707: more than one asks); nobody was counting. **(3)** the sentence he speaks
+  is now sayable: the generic door takes `where` + `not`/`except` (one clause or several) + `ids` from a
+  `rows.list`, and a negated LIST finally means «none of these» instead of «any of these» — it inverted, so a
+  three-name exception selected the whole collection, the three keepers included. That last clause is what he
+  asked for in his own words: list what is really there, pick from THAT, and delete the rest one by one,
+  every row through the widget's own `cancel_meeting`, so the Google mirror and the V2-705 contract still run.
+  Nodo 4.191, cinco desarmes rojos.
+
 - **Una invitación que no LLEGA, y el criterio de a qué se pide permiso (V2-718, 2026-09-17)**: su asistente
   había negociado una reunión con Ivan por Telegram, acordado la hora, creado el enlace de Meet y escrito la
   cita en Google Calendar — y el último mensaje de Ivan, «can you send me a calendar invite to:
