@@ -18,9 +18,13 @@
       "messaging.autorespond": "never",
       "messaging.send_new": "allow",
       "account.disconnect": "allow",
-      "payment.authorize": "ask"
+      "payment.authorize": "ask",
+      "calendar.invite_agreed": "allow",
+      "calendar.invite_new_party": "ask",
+      "calendar.reschedule_committed": "ask"
     },
-    "_classes": "Standing rules per class: never | ask | allow. PRESET, never hardcoded — each one is the operator's to change by speaking, and `consent.set_class()` is what writes it. His own example is the first line: «por defecto no autorrespondemos ningún mensaje de ningún tipo. Eso es una regla de usuario que viene preseteada en el Génesis. Pero si el usuario decide cambiarla, que la cambie.»"
+    "_classes": "Standing rules per class: never | ask | allow. PRESET, never hardcoded — each one is the operator's to change by speaking, and `consent.set_class()` is what writes it. His own example is the first line: «por defecto no autorrespondemos ningún mensaje de ningún tipo. Eso es una regla de usuario que viene preseteada en el Génesis. Pero si el usuario decide cambiarla, que la cambie.»",
+    "_classes_calendar": "V2-718 — the operator's own criterion, made into DATA instead of a rule in code: «esto que no nos hace ningún daño no necesita permiso; añadir a otra persona, cambiar de hora o hacer otras cosas sí que obviamente necesitan permiso». Sending the invitation for a meeting to the person it was agreed WITH, at an address they gave us themselves, adds nothing and takes nothing back: allow. Putting a THIRD person in the room, or moving an hour somebody else has already blocked, changes what was agreed with them: ask. WHICH of the two a call is belongs to the widget that holds the guest list (widgets/agenda/data.py::consent_scope), and the operator can flip either of these by saying so."
   },
   "library": {
     "_comment": "The agent's OWN filesystem (V2-638). One root, a folder per kind of thing. These are the FACTORY defaults; the operator renames a folder or moves the root by saying so, and the override lands in <workspace>/config/library.json. Every widget reads paths from here instead of inventing its own — that is the whole point.",

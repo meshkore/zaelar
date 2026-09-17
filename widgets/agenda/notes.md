@@ -219,3 +219,68 @@ navegación para volver atrás… Ahora este botón de conectar a Google Calenda
   bundle dice «aún no disponible», y `test_the_panel_tells_the_TRUTH_that_none_is_built_yet` llevaba fallando
   por esa discrepancia; las claves nuevas del asistente están en los dos bundles (`MANIFEST_VERSION` 10 → 11).
 - **NO verificado en vivo** — sigue necesitando el alta del cliente OAuth de Google y una recarga de página.
+
+## 2026-09-17 — V2-718: la agenda sabe INVITAR, y qué invitación necesita permiso
+
+Su encargo con Ivan había salido bien de punta a punta —negociado por Telegram, hora acordada, enlace de
+Meet creado, cita escrita y sincronizada con Google— y el último mensaje de Ivan era «can you send me a
+calendar invite to: ivan@charms.dev». No pasó nada: **la agenda podía crear una cita, editarla, responder a
+la invitación de otro y borrarla, y no tenía forma de invitar a nadie a la suya.**
+
+### La trampa que hacía imposible resolverlo aunque el verbo hubiera existido
+
+`sendUpdates` **no aparecía en todo el repo**. El valor por defecto de la API de Google es `none`, así que
+añadir a alguien a `attendees` devuelve 200, lo pone en el evento y **no le manda nada**. Es exactamente la
+misma clase de fallo silencioso que `conferenceDataVersion` —documentado una función más abajo en el mismo
+fichero— una llamada más allá: un parámetro ausente, un 200, y una funcionalidad que no ocurrió.
+
+### Dos peldaños de UNA escalera, y los elige la CITA, nunca el destinatario
+
+1. **La cita vive en un calendario nuestro** → se añade al invitado ahí y lo manda el calendario
+   (`connectors/calendar/service.invite`, con `sendUpdates=all`). Lo que recibe es una invitación iCalendar
+   de verdad, que su propio calendario enseña con Aceptar/Rechazar **sea Gmail, iCloud u Outlook**, y su
+   respuesta vuelve al evento. Es siempre el mejor peldaño cuando existe: la cita y la invitación son el
+   mismo objeto.
+2. **No hay calendario detrás** → la construimos nosotros (`connectors/calendar/ics.py`) y la mandamos por
+   correo como parte `text/calendar; method=REQUEST` más un `invite.ics` adjunto
+   (`mailbox.send_invitation`), que es el estándar que lee cualquier cliente.
+
+⚠️ **El peldaño lo decide la cita, no la dirección.** «Esta parece de Apple» es una afirmación sobre el
+correo de otra persona que no se puede saber, y sería falsa la primera vez que una empresa aloja su dominio
+en Google. Y un calendario que RECHAZA no cae al segundo peldaño: pondría una segunda copia desvinculada en
+el calendario del invitado cuya respuesta no vería nadie.
+
+### Qué necesita permiso y qué no (V2-712 llevado a su sitio)
+
+El criterio es suyo, literal: «esto que no nos hace ningún daño no necesita permiso; añadir a otra persona,
+cambiar de hora o hacer otras cosas sí». La regla única de consentimiento ya existía y ya era dato
+declarado — lo que no podía hacer era distinguir estos dos casos, porque **la diferencia no está en el
+verbo, ni en las claves del payload, ni en las palabras de la petición**: está en si la llamada se queda
+dentro de un compromiso ya adquirido con quien ya estaba dentro. Eso solo lo sabe el widget que tiene la
+lista de invitados, así que ahora puede decirlo (`data.py::consent_scope`, leído por
+`nucleo/flash/frontend._policy_key`) y la respuesta es una CLASE de genesis que el operador puede cambiar
+hablando.
+
+- `calendar.invite_agreed` → **allow**: la persona con la que se acordó la reunión, en una dirección que
+  ella misma escribió en la conversación.
+- `calendar.invite_new_party` → **ask**: cualquier otro.
+- `calendar.reschedule_committed` → **ask**: mover una hora que otro ya tiene bloqueada.
+
+«Quién ya estaba dentro» sale de dos datos: los contactos que el título de la cita nombra (resueltos con el
+matcher de la casa, y **solo si son inequívocos**) y las direcciones que esas personas nos han escrito
+(archivo de mensajería, solo entrantes).
+
+⚠️ Recorrer el directorio buscando cualquier nombre que sea subcadena del título es exactamente cómo
+«Meeting with Ivan Mikushin» adoptó en silencio a otro contacto llamado solo «Ivan» — y adoptar a la persona
+equivocada aquí es el daño que toda esta pregunta existe para evitar. Dos contactos que encajan son DUDA, y
+la duda no es pertenencia.
+
+⚠️ Y el límite, dicho en vez de escondido: una cita cuyo título no nombra a nadie («café», «reunión») no
+produce partes, así que todo invitado se lee como nuevo y la invitación pregunta. Esa es la dirección segura.
+
+### Un test unitario tocó un artefacto vivo, otra vez
+
+`consent.set_class` PERSISTE —es su razón de ser— y escribe en `<workspace>/config/consent.json`, que en la
+máquina del operador son sus reglas reales. La primera corrida de
+`test_what_needs_permission_and_what_does_not.py` le metió dos clases de calendario en su config y hubo que
+sacarlas a mano. El fichero de overrides vive en `tmp_path` desde entonces.

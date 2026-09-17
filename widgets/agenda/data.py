@@ -322,6 +322,21 @@ _STATUS = ("confirmed", "pending")
 # WORD BOUNDARIES, not substrings, and PENDING is tested first — «sigue pendiente» read as confirmed
 # because «si» lives inside «sigue» (caught by this module's own test before it shipped). A negated
 # confirmation («sin confirmar», «no me lo ha confirmado») is pending, so it has to win the race.
+def consent_scope(action: str, payload: dict | None = None) -> dict:
+    """Which consent CLASS a call belongs to, when the manifest alone cannot say (V2-718).
+
+    Read by `nucleo/flash/frontend._policy_key` before anything runs. The agenda has two calls whose
+    friction depends on the CALL and not on the verb, and both were named by the operator: inviting
+    somebody who is already in the meeting is free, inviting a third party is his to grant; moving an hour
+    nobody else has committed to is free, moving one somebody else already agreed is his to grant.
+    """
+    try:
+        from . import invite as _invite
+        return _invite.consent_scope(str(action or ""), dict(payload or {}), load_db())
+    except Exception:  # noqa: BLE001
+        return {}
+
+
 def apply_action(action: str, payload: dict | None = None) -> dict:
     """Widget actions (HANDOFF §9.3): mark done / not now / snooze / drop / replan. Mutates the isolated store."""
     payload = payload or {}
@@ -679,6 +694,18 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
         if _nt:
             m["title"] = _nt[:160]
         gcal.patch_google(m)   # V2-679: an edited Google-origin meeting is patched on Google too
+    elif action == "invite":
+        # V2-718 — «¿me puedes mandar el enlace por mail?» / «mándale la invitación». The verb the agenda
+        # never had: it could create a meeting, edit it, answer somebody else's and delete it, and had no
+        # way to invite anyone to its own. Two rungs (the calendar sends it when the meeting lives there,
+        # an .ics by mail when it does not) live in `invite.py`, which also answers the consent question.
+        from . import invite as _invite
+        _res = _invite.run(db, payload)
+        if not _res.get("ok"):
+            return {"ok": False, "error": str(_res.get("error") or "no pude mandar la invitación")}
+        store.save(WIDGET_ID, db)
+        return {**view_data(), "ok": True, "message": _res.get("message", ""),
+                "invited": _res.get("invited") or [], "how": _res.get("how", "")}
     elif action == "rsvp_meeting":
         # V2-697 — ANSWER an invitation somebody else convened. Distinct from `update_meeting`'s `status`,
         # which is a note the operator takes about the OTHER party («el dentista ya me lo ha confirmado»);

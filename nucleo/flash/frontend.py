@@ -114,7 +114,37 @@ def action_verdict(widget_id: str, action: str, payload: dict | None = None) -> 
     bounded, radius = _scope(wid, name, spec, payload)
     return consent.decide(level=level, missing=consent.missing_facts(spec.get("requires")),
                           radius=radius, bounded=bounded,
-                          policy_key=str(spec.get("consent_class") or ""))
+                          policy_key=_policy_key(wid, name, spec, payload))
+
+
+def _policy_key(wid: str, name: str, spec: dict, payload: dict | None) -> str:
+    """Which consent CLASS this call belongs to, letting the widget refine its own manifest (V2-718).
+
+    The manifest names the class an action belongs to IN THE ABSTRACT, and for most actions that is the
+    whole truth. For some it is not, and the operator said exactly where the line falls:
+
+    > «Esto por ejemplo que no nos hace ningún daño no necesita permiso. Añadir a otra persona, cambiar de
+    > hora o hacer otras cosas sí que obviamente necesitan permiso.»
+
+    That distinction cannot be read from the action's name, from its payload keys, or from the words of the
+    request: it is whether THIS call stays inside a commitment already made with the people already in it.
+    Only the widget holds the data to answer — its own guest list, its own roster — so a widget's data
+    module may expose `consent_scope(action, payload, db) -> {"class": ...}` and say so. It REFINES, never
+    invents: a widget that does not offer the hook, or whose hook raises, keeps the manifest's own class,
+    which is the behaviour every action had before this seam existed.
+    """
+    declared = str((spec or {}).get("consent_class") or "")
+    try:
+        import importlib
+        mod = importlib.import_module(f"widgets.{wid}.data")
+        hook = getattr(mod, "consent_scope", None)
+        if not callable(hook):
+            return declared
+        out = hook(name, dict(payload or {}))
+        key = str((out or {}).get("class") or "").strip()
+        return key or declared
+    except Exception:  # noqa: BLE001
+        return declared
 
 
 def _scope(wid: str, name: str, spec: dict, payload: dict | None) -> tuple[bool, int | None]:

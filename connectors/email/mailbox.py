@@ -26,6 +26,8 @@ import uuid
 def _b64(raw: bytes) -> str:
     return base64.b64encode(raw).decode("ascii")
 from email.header import decode_header
+from email.mime.application import MIMEApplication
+from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.utils import formatdate
 
@@ -751,6 +753,68 @@ class Mailbox:
             raise
         except (socket.timeout, TimeoutError, ConnectionError, OSError):
             return _do(ipv4=True)          # IPv4 retry (unreachable IPv6)
+
+    def send_invitation(self, to_addr: str, subject: str, body: str, ics_text: str,
+                        method: str = "REQUEST", cc: list | None = None) -> tuple[bool, str]:
+        """Send a meeting invitation the recipient's CALENDAR can accept, not a link in a paragraph (V2-718).
+
+        This is the second rung of the ladder described in `connectors/calendar/ics.py`: the first is adding
+        the person as a guest on a calendar account we hold, where Google mails the invitation itself. Here
+        there is no calendar behind the meeting, so the invitation has to be built and carried by us.
+
+        The SHAPE is what makes a mail an invitation rather than a mail with a file stuck to it, and every
+        part of it is load-bearing:
+
+          · `multipart/alternative` holding `text/plain` AND `text/calendar; method=REQUEST` — this is what
+            Apple Mail, Outlook and Gmail read to show Accept / Decline inline. A client that understands
+            neither still shows the plain text, which is why the text is written to stand alone.
+          · the same object AGAIN as an `.ics` attachment, because several clients (older Outlook, most
+            webmail on mobile) only offer «add to calendar» from a file.
+          · `method=REQUEST` on the Content-Type, not only inside the object: a part typed
+            `text/calendar` with no method is treated as a published calendar, which is a different thing
+            and shows no buttons at all.
+
+        ⚠️ The ORGANIZER inside `ics_text` must be THIS mailbox. A REQUEST that claims to come from somebody
+        else is both the shape spam filters reject and a reply routed to an address nobody is reading.
+        """
+        to_addr = (to_addr or "").strip()
+        if not to_addr:
+            return False, "sin destinatario"
+        if not str(ics_text or "").strip():
+            return False, "sin invitación que mandar"
+        alt = MIMEMultipart("alternative")
+        alt.attach(MIMEText(body or "", "plain", "utf-8"))
+        cal = MIMEText(ics_text, "calendar", "utf-8")
+        cal.replace_header("Content-Type", f'text/calendar; charset="utf-8"; method={method}')
+        alt.attach(cal)
+        msg = MIMEMultipart("mixed")
+        msg.attach(alt)
+        att = MIMEApplication(ics_text.encode("utf-8"), _subtype="ics", name="invite.ics")
+        att.add_header("Content-Disposition", "attachment", filename="invite.ics")
+        msg.attach(att)
+        msg["From"] = self.address
+        msg["To"] = to_addr
+        cc_list = [str(a).strip() for a in (cc or []) if str(a).strip() and str(a).strip().lower() != to_addr.lower()]
+        if cc_list:
+            msg["Cc"] = ", ".join(cc_list)
+        msg["Subject"] = subject or "Invitación"
+        msg["Date"] = formatdate(localtime=True)
+        domain = self.address.split("@")[-1] if "@" in self.address else "zaelar.local"
+        mid = f"<zaelar-{uuid.uuid4().hex[:12]}@{domain}>"
+        msg["Message-ID"] = mid
+        try:
+            s = self._connect_smtp()
+            try:
+                self._smtp_login(s)
+                s.send_message(msg)
+            finally:
+                try:
+                    s.quit()
+                except Exception:
+                    s.close()
+            return True, mid
+        except Exception as e:
+            return False, str(e)
 
     def send_reply(self, to_addr: str, subject: str, body: str, in_reply_to: str = "",
                    cc: list | None = None) -> tuple[bool, str]:

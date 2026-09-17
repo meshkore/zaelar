@@ -49,7 +49,16 @@
     "google connector",
     "calendar connector",
     "sincronizar calendario",
-    "sync calendar"
+    "sync calendar",
+    "mándale la invitación",
+    "mandale la invitacion",
+    "invita a",
+    "invitación de calendario",
+    "invitacion de calendario",
+    "manda el enlace por mail",
+    "calendar invite",
+    "añade a la reunión",
+    "anade a la reunion"
   ],
   "entry": "widget.js",
   "dataSchemaRef": "schema:DB",
@@ -170,7 +179,9 @@
         "date": "YYYY-MM-DD (opcional, si hay varias con ese título)",
         "newDate": "«mañana», un día de la semana o YYYY-MM-DD",
         "newTime": "HH:MM (opcional — conserva la hora si no viene)"
-      }
+      },
+      "consent_class": "calendar.reschedule_committed",
+      "confirm_q": "¿Muevo «{title}»? Hay alguien más contando con esa hora y habrá que avisarle."
     },
     "update_meeting": {
       "desc": "cambia los DETALLES de una cita que ya existe: si la otra parte la ha confirmado («el dentista ya me lo ha confirmado» → status=confirmed), quién viene, dónde, categoría, notas o su título. NO mueve la fecha ni la hora — para eso está move_meeting",
@@ -186,6 +197,17 @@
         "newTitle": "para renombrarla",
         "meet": "true si la cita lleva videollamada de Google Meet — se crea el enlace con la cita y se ve en la tarjeta (solo si el calendario de Google está conectado)"
       }
+    },
+    "invite": {
+      "desc": "MANDA LA INVITACIÓN de una reunión a alguien por correo — «¿me puedes mandar el enlace por mail?», «mándale la invitación a Ivan», «invita a marta@empresa.com». Si la cita está en el calendario, la invitación la manda el propio calendario y le llega como una invitación que puede ACEPTAR desde el suyo (Gmail, Apple o el que use); si no, se le manda por correo con el fichero .ics adjunto. `who` admite una dirección tal cual, el nombre de un contacto, o varios",
+      "payload": {
+        "who": "a quién: una dirección de correo, el nombre de un contacto, o varios separados por comas",
+        "meeting": "título de la reunión (si no lo dices, la última que hay en la agenda)",
+        "date": "fecha de la reunión, si hay varias con el mismo título",
+        "message": "una línea propia para el cuerpo del correo (opcional)"
+      },
+      "consent_class": "calendar.invite_new_party",
+      "confirm_q": "¿Invito a {who} a «{meeting}»? Verá la hora y el enlace de la reunión."
     },
     "accept_proposal": {
       "desc": "ACEPTA una cita que otra persona (o el agente de otro, por el cluster) ha propuesto y que está esperando el visto bueno del operador. Al aceptarla se crea de verdad en el calendario y se le confirma a quien la pidió. Nunca se acepta sola: siempre la acepta él",

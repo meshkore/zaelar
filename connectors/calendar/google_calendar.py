@@ -267,13 +267,33 @@ def list_events(client, api_base: str, token: str, calendar_id: str, sync_token:
     return {"ok": True, "events": events, "deleted": deleted, "next_sync_token": next_token}
 
 
-def insert_event(client, api_base: str, token: str, calendar_id: str, body: dict) -> dict:
+#: What Google does about TELLING the guests (V2-718). It is the same class of trap as
+#: `conferenceDataVersion` one function below, and it cost the same kind of silence: the API's default is
+#: `sendUpdates=none`, so adding somebody to `attendees` returns 200, puts them on the event, and sends them
+#: NOTHING. The invitation the other person receives — the one their own calendar can accept, whether they
+#: are on Gmail, iCloud or Outlook, because Google mails a real iCalendar REQUEST — only exists if this
+#: parameter says so. Never defaulted here: a caller that has a roster to notify says `all` deliberately.
+SEND_UPDATES = ("all", "externalOnly", "none")
+
+
+def _params(body: dict, send_updates: str = "") -> "dict | None":
+    p = {}
+    if wants_conference(body):
+        p["conferenceDataVersion"] = 1
+    su = str(send_updates or "").strip()
+    if su in SEND_UPDATES:
+        p["sendUpdates"] = su
+    return p or None
+
+
+def insert_event(client, api_base: str, token: str, calendar_id: str, body: dict,
+                 send_updates: str = "") -> dict:
     try:
         # ⚠️ `conferenceDataVersion=1` is REQUIRED for `conferenceData` to be honoured. Without it Google
         # returns 200 with the event created and the conference silently DROPPED — no error, no link, and
         # an agent that just told the operator it made them a Meet. Sent only when the body asks for one,
         # so an ordinary appointment keeps the exact request it had before.
-        params = {"conferenceDataVersion": 1} if wants_conference(body) else None
+        params = _params(body, send_updates)
         r = client.post(f"{api_base}/calendars/{_q(calendar_id)}/events", json=body, params=params,
                         headers={"Authorization": f"Bearer {token}"}, timeout=_TIMEOUT)
         if r.status_code not in (200, 201):
@@ -297,9 +317,10 @@ def get_event(client, api_base: str, token: str, calendar_id: str, event_id: str
         return {"ok": False, "error": f"no pude leer la cita en Google Calendar: {e}"[:200]}
 
 
-def patch_event(client, api_base: str, token: str, calendar_id: str, event_id: str, body: dict) -> dict:
+def patch_event(client, api_base: str, token: str, calendar_id: str, event_id: str, body: dict,
+                send_updates: str = "") -> dict:
     try:
-        params = {"conferenceDataVersion": 1} if wants_conference(body) else None
+        params = _params(body, send_updates)
         r = client.patch(f"{api_base}/calendars/{_q(calendar_id)}/events/{_q(event_id)}", json=body,
                          params=params, headers={"Authorization": f"Bearer {token}"}, timeout=_TIMEOUT)
         if r.status_code != 200:

@@ -21,6 +21,37 @@ entregada siga citada aquí.
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **Una invitación que no LLEGA, y el criterio de a qué se pide permiso (V2-718, 2026-09-17)**: su asistente
+  había negociado una reunión con Ivan por Telegram, acordado la hora, creado el enlace de Meet y escrito la
+  cita en Google Calendar — y el último mensaje de Ivan, «can you send me a calendar invite to:
+  ivan@charms.dev», se quedó sin contestar. El operador: «lógicamente si tenemos el conector de email y las
+  acciones deberíamos ejecutar esa petición […] pero no crees un guardarraíl o un workflow solo para eso».
+  **La agenda podía crear una cita, editarla, responder a la invitación de otro y borrarla, y no tenía forma
+  de invitar a nadie a la suya** — y, aunque el verbo hubiera existido, no habría funcionado: `sendUpdates`
+  no aparecía en todo el repo, y el valor por defecto de la API de Google es `none`, así que añadir a alguien
+  a `attendees` devuelve 200, lo pone en el evento y **no le manda nada**. La misma clase de fallo silencioso
+  que `conferenceDataVersion` ya documentaba una función más abajo en el mismo fichero.
+  **Dos peldaños de UNA escalera, y los elige la CITA, nunca el destinatario**: si la cita vive en un
+  calendario nuestro, se añade al invitado ahí y la manda el calendario —lo que recibe es una invitación
+  iCalendar real que su propio calendario enseña con Aceptar/Rechazar, sea Gmail, iCloud u Outlook, y cuya
+  respuesta vuelve al evento—; si no hay calendario detrás, la construimos (`connectors/calendar/ics.py`) y
+  la mandamos como parte `text/calendar; method=REQUEST` más `invite.ics` adjunto, que es lo que hace que un
+  cliente enseñe los botones en vez de un fichero suelto. Adivinar el proveedor por la dirección («esta
+  parece de Apple») sería una afirmación sobre el correo de otra persona que no se puede saber.
+  **Y el criterio de consentimiento, que es lo que pidió de verdad**: «esto que no nos hace ningún daño no
+  necesita permiso; añadir a otra persona, cambiar de hora sí». La regla única de V2-712 ya era dato
+  declarado y no podía distinguirlos, porque la diferencia no está en el verbo, ni en las claves del payload,
+  ni en las palabras de la petición: está en **si la llamada se queda dentro de un compromiso ya adquirido
+  con quien ya estaba dentro**. Solo el widget que tiene la lista de invitados lo sabe, así que ahora puede
+  decirlo (`consent_scope`, leído por `nucleo/flash/frontend._policy_key`) y la respuesta es una CLASE de
+  genesis que él cambia hablando: `calendar.invite_agreed` allow, `calendar.invite_new_party` ask,
+  `calendar.reschedule_committed` ask. El seam REFINA, nunca inventa: un widget sin el hook, o cuyo hook
+  revienta, conserva la clase de su manifiesto.
+  ⚠️ «Quién ya estaba dentro» sale de datos —los contactos que el título nombra, resueltos con el matcher de
+  la casa y **solo si son inequívocos**, y las direcciones que esas personas nos han escrito— porque recorrer
+  el directorio buscando subcadenas es cómo «Meeting with Ivan Mikushin» adoptó en silencio a otro contacto
+  llamado solo «Ivan», y adoptar a la persona equivocada aquí es el daño que la pregunta existe para evitar.
+  Nodos 5.30 y 2.36; 11 desarmes, los 11 rojos. **Preparado y NO ejecutado**: el encargo lo termina él.
 - **El widget ES la ventana, y la canción ES la pantalla (V2-717, 2026-09-17)**: con la tarjeta de música
   abierta y una canción sonando, el operador: «has puesto como un contenedor exterior con el título y los
   botones del sistema, y dentro has metido otra caja como si eso fuera el widget de música. Yo solo quiero

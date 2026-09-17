@@ -302,7 +302,15 @@ async def _drain_sends(mb) -> None:
         if lines:
             text = text.rstrip("\n") + "\n\n-- \n" + "\n".join(lines)
         subject = str(r.get("subject") or "").strip() or "Hola"
-        ok, info = await asyncio.to_thread(mb.send_reply, to, subject, text, "", None)
+        # V2-718 — the same queue carries an INVITATION when the order brings one: the difference is not the
+        # recipient or the words, it is that the message has a calendar object inside it that the other
+        # person's client can accept. Anything without `ics` takes the byte-identical path it always took.
+        ics = str(r.get("ics") or "")
+        if ics.strip():
+            ok, info = await asyncio.to_thread(mb.send_invitation, to, subject, text, ics,
+                                               str(r.get("ics_method") or "REQUEST"), None)
+        else:
+            ok, info = await asyncio.to_thread(mb.send_reply, to, subject, text, "", None)
         if ok:
             logger.info(f"Email: mensaje enviado a {to} (ref {r.get('ref')})")
             import time as _t

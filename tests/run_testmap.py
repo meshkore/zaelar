@@ -2659,7 +2659,13 @@ DOMAINS: list[dict] = [
         {"id": "4.175", "title": "Una cita dice quién la convoca: enlace de Meet, organizador, invitados con "
                                  "su respuesta, responder sí/no, y las propuestas ajenas aparte",
             "ch": UNIT, "paths": [
-                "tests/browser/unit/agenda/test_an_appointment_says_who_convened_it.py"]},
+                "tests/browser/unit/agenda/test_an_appointment_says_who_convened_it.py",
+                # V2-718 — el criterio del operador para actuar-o-preguntar, hecho mecánico: «esto que no
+                # nos hace ningún daño no necesita permiso; añadir a otra persona, cambiar de hora sí».
+                # La regla única de V2-712 no podía distinguirlos porque la diferencia no está en el verbo
+                # ni en el payload, sino en si la llamada se queda DENTRO de un compromiso ya adquirido con
+                # quien ya estaba dentro — y eso solo lo sabe el widget que tiene la lista de invitados.
+                "tests/browser/unit/agenda/test_what_needs_permission_and_what_does_not.py"]},
         {"id": "4.174", "title": "Un aviso de datos durante el montaje de la tarjeta se aplaza, no se pierde",
             "ch": UNIT, "paths": ["tests/browser/e2e/widgets/test_a_data_push_during_a_mount_is_not_lost.py"]},
         # V2-613 — los DOS widgets piloto del seam ctx.t/ctx.lang: timer (strings propias, `add_to_playlist`-style
@@ -3539,6 +3545,16 @@ DOMAINS: list[dict] = [
         {"id": "5.26", "title": "Responder a una invitación conserva al resto de invitados", "ch": UNIT,
             "paths": ["tests/connectors/unit/calendar/"
                       "test_answering_an_invitation_keeps_the_other_guests.py"]},
+        # V2-718 — «¿me puedes mandar el enlace por mail?». Lo que se fija es el PARÁMETRO que hace que la
+        # invitación exista: `sendUpdates` no estaba en el repo, así que añadir un invitado devolvía 200,
+        # lo ponía en el evento y no le mandaba NADA — la misma trampa silenciosa que `conferenceDataVersion`
+        # ya documentaba una función más abajo. Y el segundo peldaño: la invitación como objeto iCalendar
+        # (hora en UTC, ORGANIZER, RSVP) dentro de un correo con la parte `text/calendar; method=REQUEST`,
+        # que es lo que hace que un cliente enseñe Aceptar/Rechazar en vez de un adjunto suelto.
+        {"id": "5.30", "title": "Una invitación LLEGA al invitado: el calendario la manda, o la mandamos "
+                                "nosotros en formato iCalendar", "ch": UNIT,
+            "paths": ["tests/connectors/unit/calendar/"
+                      "test_an_invitation_actually_reaches_the_guest.py"]},
         # V2-637 — el cliente BitTorrent embebido: la red MeshKore da el magnet, el cliente lo baja y lo
         # transmite (HTTP Range) al <video> mientras se descarga, y todo degrada a palabras si falta el wheel.
         # La sesión libtorrent no se toca en unit; se fija la extracción del magnet, la aritmética de Range,

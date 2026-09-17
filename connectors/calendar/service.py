@@ -264,6 +264,56 @@ def rsvp(meeting: dict, answer: str, provider_id: str = _DEFAULT_PROVIDER) -> di
     return {"ok": True, "meeting": enriched}
 
 
+def invite(meeting: dict, emails: list, provider_id: str = _DEFAULT_PROVIDER) -> dict:
+    """Add guests to an event WE own and have Google send them the invitation (V2-718).
+
+    This is the answer to «can you send me a calendar invite», and it is not an email with a link in it: a
+    guest added here receives Google's own iCalendar REQUEST, which their calendar shows with Accept /
+    Decline whether they are on Gmail, iCloud or Outlook, and whose answer comes back into this event. The
+    link-in-an-email version is the fallback for when there is no calendar account at all
+    (`connectors/calendar/ics.py` + the mail connector), not the first choice.
+
+    ⚠️ READ-MODIFY-WRITE, for the same reason `rsvp` above is one and with the same teeth: in the Google API
+    `attendees` is an array and a PATCH carrying an array REPLACES it. Sending just the new guest would
+    silently delete every other guest from the meeting, with a 200 and no way to notice.
+
+    ⚠️ And `send_updates="all"` is not decoration. Without it the guest is added and told NOTHING — the
+    exact shape of the `conferenceDataVersion` trap, one parameter over, and the whole point of the ask.
+    """
+    import httpx
+    gid, cid = meeting.get("googleId"), meeting.get("googleCalendarId")
+    if not gid or not cid:
+        return {"ok": False, "error": "esta cita no está en Google Calendar"}
+    want = []
+    for e in emails or []:
+        a = str(e or "").strip()
+        if a and "@" in a and a.lower() not in [w.lower() for w in want]:
+            want.append(a)
+    if not want:
+        return {"ok": False, "error": "necesito una dirección de correo a la que mandar la invitación"}
+    p, tok, err = _prepared(provider_id)
+    if err:
+        return err
+    with httpx.Client() as client:
+        live = _gc.get_event(client, p.api_base, tok, cid, gid)
+        if not live.get("ok"):
+            return live
+        roster = [a for a in (live["event"].get("attendees") or []) if isinstance(a, dict)]
+        have = {str(a.get("email") or "").strip().lower() for a in roster}
+        added = [a for a in want if a.lower() not in have]
+        if not added:
+            # Already on the list: re-patching would re-notify everybody for nothing.
+            return {"ok": True, "added": [], "already": want, "meeting": meeting}
+        roster += [{"email": a} for a in added]
+        res = _gc.patch_event(client, p.api_base, tok, cid, gid, {"attendees": roster}, send_updates="all")
+    if not res.get("ok"):
+        return res
+    enriched = _gc.event_to_meeting(res["event"], cid, meeting.get("calendarColor", ""))
+    if not enriched:
+        return {"ok": False, "error": "Google Calendar guardó los invitados pero no pude leerlos de vuelta"}
+    return {"ok": True, "added": added, "already": [a for a in want if a not in added], "meeting": enriched}
+
+
 def delete_event(meeting: dict, provider_id: str = _DEFAULT_PROVIDER) -> dict:
     import httpx
     gid, cid = meeting.get("googleId"), meeting.get("googleCalendarId")
