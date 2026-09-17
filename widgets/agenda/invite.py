@@ -100,23 +100,48 @@ def resolve_guests(payload: dict) -> dict:
     return {"emails": mails, "names": names, "missing_email": missing, "ambiguous": ambiguous}
 
 
-def find_meeting(db: dict, payload: dict) -> "dict | None":
-    """The meeting this is about. Falls back to the one meeting the card is SHOWING, and — when nothing at
-    all is named — to the next one that still has a guest to invite, which is what «mándale la invitación»
-    means right after agreeing one."""
+def _hits(db: dict, payload: dict) -> list:
+    """The meetings a payload NAMES — the same matcher `data.py` uses for move/update/cancel, so the consent
+    question and the action that follows it can never be about two different meetings. `date` is resolved
+    the way the agenda resolves it («mañana», a weekday, YYYY-MM-DD), not compared raw."""
     from .details import _strip_accents  # the house matcher, so a title resolves the same way everywhere
+    from . import data as _data
     ms = db.get("meetings") or []
     title = _strip_accents(str(payload.get("meeting") or payload.get("title") or "").strip().lower())
-    date = str(payload.get("date") or "").strip()
-    hits = [m for m in ms
+    raw_date = str(payload.get("date") or "").strip()
+    date = _data._resolve_date(raw_date) if raw_date else ""
+    return [m for m in ms
             if (not title or title in _strip_accents(str(m.get("title") or "").strip().lower()))
             and (not date or m.get("date") == date)]
-    if title and not hits:
+
+
+def find_meeting(db: dict, payload: dict) -> "dict | None":
+    """The meeting an invitation is about. Named → that one (the latest when several share the title).
+    Nothing named at all → the NEXT meeting still ahead that has an hour, which is what «mándale la
+    invitación» means right after agreeing one.
+
+    ⚠️ Not «the last meeting in the agenda»: measured on the operator's real data, that was a public holiday
+    in 2027 — the agenda holds birthdays and holidays as all-day entries years out, and an invitation to one
+    of those is exactly the wrong action this door exists to avoid. An all-day entry is never the fallback,
+    and neither is a meeting that has already ended."""
+    from . import data as _data
+    title = str(payload.get("meeting") or payload.get("title") or "").strip()
+    hits = _hits(db, payload)
+    if title:
+        if not hits:
+            return None
+        return hits[0] if len(hits) == 1 else \
+            sorted(hits, key=lambda m: (m.get("date") or "", m.get("startTime") or ""))[-1]
+    if hits and str(payload.get("date") or "").strip():
+        hits = [m for m in hits if not m.get("allDay")] or hits
+        return sorted(hits, key=lambda m: (m.get("date") or "", m.get("startTime") or ""))[0]
+    today, now = _data._today(), _data._now()
+    ahead = [m for m in (db.get("meetings") or [])
+             if m.get("date") and not m.get("allDay") and m.get("startTime")
+             and (m["date"] > today or (m["date"] == today and str(m.get("endTime") or m["startTime"]) >= now))]
+    if not ahead:
         return None
-    if hits:
-        return hits[0] if len(hits) == 1 else sorted(hits, key=lambda m: (m.get("date") or "", m.get("startTime") or ""))[-1]
-    open_ = sorted([m for m in ms if m.get("date")], key=lambda m: (m.get("date") or "", m.get("startTime") or ""))
-    return open_[-1] if open_ else None
+    return sorted(ahead, key=lambda m: (m.get("date") or "", m.get("startTime") or ""))[0]
 
 
 def consent_scope(action: str, payload: dict, db: dict) -> dict:
@@ -138,7 +163,10 @@ def consent_scope(action: str, payload: dict, db: dict) -> dict:
         # The other half of the same criterion, and the operator named it in the same breath: «cambiar de
         # hora». An hour only he is holding is his to move without asking; an hour somebody ELSE has already
         # blocked was agreed with them, and moving it is a change to that agreement.
-        m = find_meeting(db, payload) or {}
+        # The SAME lookup `data.py` performs a moment later (title required, first hit), so the class is
+        # measured on the meeting that will actually move — never on a fallback the action itself rejects.
+        hits = _hits(db, payload) if str(payload.get("title") or payload.get("meeting") or "").strip() else []
+        m = hits[0] if hits else {}
         # «Somebody else is holding this hour» is not only the guest list: a meeting negotiated with
         # somebody is agreed with them whether or not they ended up on the event's roster. Same membership
         # test as the invitation half, so the two answers can never disagree about who is in a meeting.
@@ -235,7 +263,7 @@ def run(db: dict, payload: dict) -> dict:
             return {"ok": False, "error": f"no tengo el correo de {who}. Si te lo han dado en la conversación, "
                                           f"guárdalo con contactos/set_channel y vuelve a invitarle; si no, "
                                           f"pídeselo."}
-        return {"ok": False, "error": "díme a qué dirección mando la invitación"}
+        return {"ok": False, "error": "dime a qué dirección mando la invitación"}
 
     note = str(payload.get("message") or payload.get("text") or "").strip()
     # RUNG 1 — the meeting has a calendar behind it: the calendar sends the invitation.

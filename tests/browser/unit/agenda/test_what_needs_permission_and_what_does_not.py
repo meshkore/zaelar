@@ -74,8 +74,38 @@ def test_sending_the_invitation_to_the_address_he_gave_us_just_happens(monkeypat
 
 
 def test_moving_an_hour_only_he_is_holding_just_happens(monkeypatch):
+    """⚠️ The VERDICT, not the hook's answer. The first version of this test asserted `consent_scope == {}`
+    and passed while every move asked, his dentist included: the manifest declared the «ask» class and
+    `_policy_key` falls back to the declared class whenever the hook says nothing. A class declared in the
+    manifest is a floor the hook cannot lower — so an action that is free by default declares none."""
     _world(monkeypatch, meeting={"title": "Dentist", "date": "2026-09-17", "startTime": "17:00"})
-    assert ad.consent_scope("move_meeting", {"meeting": "Dentist"}) == {}
+    assert ad.consent_scope("move_meeting", {"title": "Dentist"}) == {}
+    assert _verdict({"title": "Dentist", "newTime": "10:00"}, action="move_meeting")["verdict"] == consent.RUN
+
+
+def test_with_no_meeting_named_the_invitation_goes_to_the_next_one_ahead_never_to_a_holiday(monkeypatch):
+    """Measured on the operator's real agenda: «the last meeting» was a public holiday in 2027. Birthdays and
+    holidays live years out as all-day entries, and an invitation to one of those is the wrong action."""
+    import datetime as _dt
+    import widgets.store as store
+    from widgets.agenda import invite
+    today = _dt.date.today()
+    later = (today + _dt.timedelta(days=3)).isoformat()
+    _world(monkeypatch)
+    db = ad.load_db()
+    db["meetings"] = [
+        {"title": "Día de la Hispanidad", "date": f"{today.year + 1}-10-12", "allDay": True},
+        {"title": "Dentist", "date": (today - _dt.timedelta(days=1)).isoformat(), "startTime": "17:00",
+         "endTime": "18:00"},
+        {"title": "Meeting with Ivan Mikushin", "date": later, "startTime": "22:00", "endTime": "23:00"},
+        {"title": "Comité", "date": (today + _dt.timedelta(days=9)).isoformat(), "startTime": "09:00"},
+    ]
+    store.save(ad.WIDGET_ID, db)
+    picked = invite.find_meeting(ad.load_db(), {})
+    assert picked and picked["title"] == "Meeting with Ivan Mikushin", picked
+    # Naming it still wins, and a spoken date resolves the way the agenda resolves it.
+    assert invite.find_meeting(ad.load_db(), {"meeting": "Comité"})["title"] == "Comité"
+    assert invite.find_meeting(ad.load_db(), {"meeting": "nope"}) is None
 
 
 # ── what DOES need permission ─────────────────────────────────────────────────────────────────────────────
@@ -91,6 +121,10 @@ def test_moving_an_hour_somebody_else_agreed_asks(monkeypatch):
     _world(monkeypatch)
     assert ad.consent_scope("move_meeting", {"meeting": "Meeting with Ivan"})["class"] == \
         "calendar.reschedule_committed"
+    # Nothing named → the hook says NOTHING. The move half reads the same lookup the action performs (a
+    # title is required), never the invitation's «next meeting ahead» fallback: otherwise «muévela» with no
+    # title would be answered with «hay alguien más contando con esa hora» about a meeting he never named.
+    assert ad.consent_scope("move_meeting", {"newTime": "10:00"}) == {}
 
 
 def test_an_address_nobody_ever_gave_us_is_a_stranger_even_with_the_right_name(monkeypatch):

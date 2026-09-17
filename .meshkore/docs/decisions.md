@@ -51,7 +51,7 @@ entregada siga citada aquí.
   la casa y **solo si son inequívocos**, y las direcciones que esas personas nos han escrito— porque recorrer
   el directorio buscando subcadenas es cómo «Meeting with Ivan Mikushin» adoptó en silencio a otro contacto
   llamado solo «Ivan», y adoptar a la persona equivocada aquí es el daño que la pregunta existe para evitar.
-  Nodos 5.30 y 2.36; 11 desarmes, los 11 rojos. **Preparado y NO ejecutado**: el encargo lo termina él.
+  Nodos 5.30 y 2.36; 11 desarmes, los 11 rojos. **Preparado y NO ejecutado**: el encargo lo termina él. **Revisado el mismo día:** una clase declarada en el manifest es un SUELO que el hook no puede bajar (`move_meeting` la declaraba y toda cita preguntaba, el dentista incluido, con el test mirando el hook y no el veredicto); y «la última cita de la agenda» como fallback era un festivo de 2027 — ahora la PRÓXIMA con hora, nunca una de día entero.
 - **El widget ES la ventana, y la canción ES la pantalla (V2-717, 2026-09-17)**: con la tarjeta de música
   abierta y una canción sonando, el operador: «has puesto como un contenedor exterior con el título y los
   botones del sistema, y dentro has metido otra caja como si eso fuera el widget de música. Yo solo quiero

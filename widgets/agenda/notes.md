@@ -284,3 +284,16 @@ produce partes, así que todo invitado se lee como nuevo y la invitación pregun
 máquina del operador son sus reglas reales. La primera corrida de
 `test_what_needs_permission_and_what_does_not.py` le metió dos clases de calendario en su config y hubo que
 sacarlas a mano. El fichero de overrides vive en `tmp_path` desde entonces.
+
+**Revisión del mismo día (dos defectos medidos en sus datos, arreglados).** (1) `move_meeting` declaraba
+`consent_class: calendar.reschedule_committed` en el manifest y `_policy_key` cae a la clase declarada cuando
+el hook calla → TODA cita preguntaba, el dentista incluido; el test miraba la respuesta del hook (`{}`) y
+nunca el veredicto. Regla que sale de aquí: una clase declarada en el manifest es un SUELO que el hook no
+puede bajar, así que una acción libre por defecto no declara ninguna y deja que el hook la añada. (2)
+`find_meeting` sin nada nombrado devolvía «la última cita de la agenda» = el Día de la Hispanidad de 2027 (los
+festivos y cumpleaños viven años por delante como entradas de día entero): ahora es la PRÓXIMA cita con hora
+que aún no ha terminado, nunca una de día entero; y la mitad de mover usa la misma búsqueda que `data.py`
+(título obligatorio, primer acierto) para que la clase se mida sobre la cita que de verdad se mueve. Los
+tres desarmes rojos; el tercero costó un caso más porque un mundo con una sola cita no distingue «la
+nombrada» de «la del fallback». Nota, no arreglo: `confirm_q` no lo lee ningún módulo — la pregunta que él
+oye sale de `desc` (`_human_confirm_question`); queda como documentación en los manifests.

@@ -180,7 +180,6 @@
         "newDate": "«mañana», un día de la semana o YYYY-MM-DD",
         "newTime": "HH:MM (opcional — conserva la hora si no viene)"
       },
-      "consent_class": "calendar.reschedule_committed",
       "confirm_q": "¿Muevo «{title}»? Hay alguien más contando con esa hora y habrá que avisarle."
     },
     "update_meeting": {

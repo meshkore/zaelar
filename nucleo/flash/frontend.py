@@ -132,6 +132,12 @@ def _policy_key(wid: str, name: str, spec: dict, payload: dict | None) -> str:
     module may expose `consent_scope(action, payload, db) -> {"class": ...}` and say so. It REFINES, never
     invents: a widget that does not offer the hook, or whose hook raises, keeps the manifest's own class,
     which is the behaviour every action had before this seam existed.
+
+    ⚠️ Which way the manifest leans decides what the hook can do. A class DECLARED there is the floor the
+    hook cannot lower — `_policy_key` falls back to it — so an action that is free by default and asks only
+    in some calls (moving an hour: free when only he holds it) must declare NO class and let the hook add
+    one. Measured 2026-09-17: `move_meeting` declared the «ask» class and every move asked, his dentist
+    included, while its test checked the hook's answer and never the verdict.
     """
     declared = str((spec or {}).get("consent_class") or "")
     try:
