@@ -181,6 +181,27 @@ async def mute_cover_repair(operator_text: str, window: list, spec) -> str:
         return ""
 
 
+async def promise_repair(operator_text: str, reply: str, window: list, spec, emit, channel: str = "") -> str:
+    """The fourth sibling (V2-717): the reply PROMISED to look («Let me check your Telegram…») and the turn
+    looked at nothing. The repair is the look itself, not a better sentence: the widget the promise NAMES is
+    read through the seam `read_widget` already owns (`widget_read.prepare` — resolve, read, observe,
+    compose) and the operator's sentence is the question. That is what the model should have called, so the
+    turn ends with the thing it said it was doing. Returns "" when the promise names no widget we can read,
+    or the read comes back empty — the caller then speaks the deterministic retraction, because a promise
+    that stays in the air is the one outcome that cannot happen."""
+    try:
+        from nucleo.flash import dialog, prompt as _prompt, widget_read as _wread
+        wid = _wread.resolve("", reply or "") or _wread.resolve("", operator_text or "")
+        if not wid:
+            return ""
+        sys2 = await _wread.prepare({"widget_id": wid, "question": operator_text}, operator_text,
+                                    _prompt._lang_lock(), emit, channel=channel)
+        raw = await collect(sys2, operator_text, spec, max_tokens=220)
+        return dialog.sanitize_reply(raw).strip()
+    except Exception:  # noqa: BLE001
+        return ""
+
+
 def continuity_truth() -> str:
     """The honest sentence for «are you still on it?» when nothing runs (V2-645) — DETERMINISTIC, never
     composed: the state is ours to say, and a second model pass over the same window that produced the lie
@@ -221,6 +242,10 @@ async def probe_hollow_repairs(operator_text: str, spoken: str, window: list, sp
             return (spoken + " " + continuity_truth()).strip()    # V2-645 mirror
         if _ag.an_empty_wait_answers_a_question(operator_text, spoken, acted=False, anything_running=running):
             return (await empty_wait_repair(operator_text, _dialog.prune_window(window), spec)) or spoken
+        if _ag.a_promise_left_hanging(operator_text, spoken, acted=False, anything_running=running):
+            rep = await promise_repair(operator_text, spoken, _dialog.prune_window(window), spec,
+                                       lambda *a, **k: None, channel="probe")      # V2-717 mirror
+            return (spoken + " " + (rep or getattr(spec, "promise_retracted", "") or "")).strip()
     except Exception:  # noqa: BLE001
         pass
     return spoken
@@ -273,6 +298,17 @@ async def hollow_repairs(text: str, spoken_text: str, window: list, spec, *,
             emit("brain", "🚧 pregunta contestada con una espera VACÍA (nada en marcha) — compongo la "
                  "respuesta que falta", text=text[:160], role="system", extra={"cat": "flash"})
             rep = await empty_wait_repair(text, list(window), spec)
+            if rep:
+                speak(rep)
+                return (spoken_text + " " + rep).strip()
+        elif _ag.a_promise_left_hanging(text, spoken_text, acted=did_act, anything_running=running):
+            # V2-717 — «Let me check your Telegram…» over NOTHING, three turns in a row (session c502d3ff).
+            # The repair is the look the sentence promised; failing that, the honest retraction — never air.
+            emit("brain", "🚧 prometió mirar y no miró — hago la lectura que dijo, o lo retiro",
+                 text=spoken_text[:160], role="system", extra={"cat": "flash"})
+            rep = await promise_repair(text, spoken_text, list(window), spec, emit, channel="voice")
+            if not rep:
+                rep = getattr(spec, "promise_retracted", "") or ""
             if rep:
                 speak(rep)
                 return (spoken_text + " " + rep).strip()

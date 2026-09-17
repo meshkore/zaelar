@@ -1307,6 +1307,13 @@ DOMAINS: list[dict] = [
         # them at all while the engine is answering under the deadline on its own.
         {"id": "3.51", "title": "El nexo es CORTO, de la clase correcta, y se calla cuando no tiene nada que cubrir",
             "ch": UNIT, "paths": ["tests/voice/unit/test_filler_is_short_classed_and_adaptive.py"]},
+        # V2-717 — session c502d3ff (2026-09-17 20:57): «Let me check your Telegram to see what Ivan asked» three
+        # turns in a row with NOTHING behind it — the re-emitted `mensajeria:open` was eaten as context-bleed
+        # (a lens has an empty payload, so the guard's hatch could never open) while the promise went out by
+        # TTS. Operator: «nunca podemos dejar al aire las conversaciones, y menos cuando el agente dice que lo
+        # está mirando». A lens is never a drag; a promise to look is repaired by the look, or retracted.
+        {"id": "3.52", "title": "Una promesa de mirar se cumple con la lectura o se retira — y una lente nunca es arrastre",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_promise_to_look_is_kept_or_retracted.py"]},
         # V2-538 — las CIFRAS se dicen como las dice una persona. El operador, oyendo una búsqueda de
         # catamaranes: todos los precios salían mal. «151.008 €» lo lee un TTS como «ciento cincuenta y uno
         # coma cero cero ocho» —ve un punto decimal— y el símbolo se salta o cae en orden de escritura. Ese

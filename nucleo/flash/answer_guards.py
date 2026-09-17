@@ -332,3 +332,42 @@ def a_reply_denies_the_screen(reply: str) -> bool:
     if _OUTSIDE_THE_APP_RE.search(r):
         return False
     return bool(_DENIES_THE_SCREEN_RE.search(r))
+
+
+# ── A PROMISE TO LOOK, WITH NO LOOK BEHIND IT (V2-717) ──────────────────────────────────────────────────────
+# Session c502d3ff (2026-09-17, 20:57). «Are you continuing the conversation?» → «Let me check your Telegram to
+# see what Ivan asked.» → nothing. «…sending the email as he requested. Or not.» → «Let me open Telegram to see
+# what Ivan asked about.» → nothing. «I don't think you're checking anything. Are you?» → «You're right to call
+# that out, Richard. Let me actually open Telegram now and check Ivan's conversation.» → nothing. Three turns,
+# three promises, zero tools, zero reads — the op the model emitted was eaten upstream and the sentence went
+# out alone. The operator's rule, verbatim: «si nos hace una petición la tenemos que resolver o cancelar o
+# avisar al usuario, pero nunca podemos dejar al aire las conversaciones, y menos cuando el agente nos dice
+# específicamente que lo estamos mirando».
+#
+# The shape is the reply's, not the operator's: a first-person, present/near-future LOOK («let me check», «I'll
+# open», «voy a mirar», «déjame que lo compruebe», «ahora lo miro»). It is a cover in words — the same promise
+# `a_cover_left_hanging` guards in audio — and like that one it is only a lie when the turn ran nothing and
+# nothing is running. A promise on a turn that opened a card, escalated, searched or read is kept by the act.
+_PROMISE_TO_LOOK_RE = _re.compile(
+    r"\b(?:let\s+me\s+(?:actually\s+|just\s+|go\s+)?(?:check|open|look|see|take\s+a\s+look|pull\s+(?:that|it|this)\s+up|"
+    r"find\s+out|have\s+a\s+look|read|review|verify|dig)\b|"
+    r"i(?:'ll|\s+will|\s+am\s+going\s+to|'m\s+going\s+to)\s+(?:check|open|look|take\s+a\s+look|find\s+out|read|"
+    r"review|verify|pull\s+(?:that|it|this)\s+up)\b|"
+    r"(?:voy|vamos)\s+a\s+(?:mirar|comprobar|abrir|revisar|buscar|verlo|ver|leer|consultar)\w*\b|"
+    r"d[eé]ja(?:me)?\s+(?:que\s+)?(?:lo\s+|la\s+|los\s+|las\s+)?(?:mire|compruebe|abra|revise|busque|vea|lea|consulte)\b|"
+    r"ahora\s+(?:mismo\s+)?(?:lo|la|te\s+lo|te\s+la)\s+(?:miro|compruebo|reviso|busco|abro|leo|consulto)\b|"
+    r"(?:lo|la|te\s+lo)\s+(?:miro|compruebo|reviso|busco|abro|leo|consulto)\s+(?:ahora|ya|enseguida)\b)", _re.I)
+
+
+def a_promise_left_hanging(operator_text: str, reply: str, *, acted: bool, anything_running: bool) -> bool:
+    """Did the reply PROMISE to look at something while this turn ran nothing and nothing is running?
+
+    `acted` = the turn executed something visible (a widget op, a read, a search, an escalation, a confirm);
+    `anything_running` = a worker is live (a promise over live work is honest). A question in the reply is
+    left alone — «shall I open Telegram?» asks, it does not promise."""
+    if acted or anything_running:
+        return False
+    a = _fold(reply or "").strip()
+    if not a or "?" in a:
+        return False
+    return bool(_PROMISE_TO_LOOK_RE.search(a))

@@ -55,8 +55,13 @@ def test_the_declaration_is_read_not_hardcoded():
 # ── 2 · the voice provider consults the license inside the dedupe guard ──────────────────────────────────
 
 def test_the_dedupe_guard_consults_the_replay_license():
+    """V2-717 moved the predicate out of the provider into `data_ops.is_context_bleed` (the file-size
+    ratchet, and so a lens could be exempted in one place). The provider must call it, and the predicate
+    must still ask the replay license before eating an identical data-op."""
     src = (ENGINE / "voice/engine/llm/providers/nucleo.py").read_text(encoding="utf-8")
-    m = re.search(r"_last = brain\._last_dataop.*?deduped\[\"v\"\] = True", src, re.S)
+    m = re.search(r"_data_ops\.is_context_bleed\(brain\._last_dataop.*?deduped\[\"v\"\] = True", src, re.S)
     assert m, "the dedupe guard block moved — re-anchor this test"
-    assert "replay_license(wid, action_name, text)" in m.group(0), \
+    pred = (ENGINE / "nucleo/flash/data_ops.py").read_text(encoding="utf-8")
+    body = pred[pred.index("def is_context_bleed("):]
+    assert "replay_license(wid, action, said)" in body, \
         "the guard must ask the replay license before eating an identical data-op"

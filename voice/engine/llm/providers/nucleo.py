@@ -1101,12 +1101,8 @@ class NucleoLLMStream(llm.LLMStream):
                 # executed and its corrected retry was eaten here — deterministically, because an empty payload
                 # joins no values and `_word_overlap` is then 0 against any sentence, so the hatch never opens.
                 # The incident, turn by turn: `test_a_refused_action_is_not_remembered_as_done.py`.
-                _last = brain._last_dataop
-                if _last and _last[0] == wid and _last[1] == action_name and _last[2] == (payload or {}) \
-                        and (time.time() - _last[3]) < 120 \
-                        and _word_overlap(" ".join(str(v) for v in (payload or {}).values()),
-                                          _bnotes.operator_half(text)) == 0 \
-                        and not _canvas_lic.replay_license(wid, action_name, text):
+                # V2-717: the predicate lives in `data_ops.is_context_bleed` — and a VIEW-op is never a drag.
+                if _data_ops.is_context_bleed(brain._last_dataop, wid, action_name, payload, _bnotes.operator_half(text)):
                     emit("brain", "🛡️ data-op del turno anterior re-emitida — ignorada (context-bleed)",
                          # …and it SAYS what it threw away. The sibling guards in `_handle_widget_data_tool`
                          # carry the discarded payload; this one carried only «agenda:cancel_meeting», so the
@@ -2833,13 +2829,7 @@ class NucleoLLMStream(llm.LLMStream):
         # salida) + cold/warm. Con esto distinguimos «lento por el modelo» de «lento por prompt gigante» y «frío por
         # cold-start». El desglose de QUÉ infla el prompt (system/memoria/reciente/recall/recursos) va en `timings`.
         _fast_ms = round((time.time() - t0) * 1000)
-        # V2-716: the ONE place a turn's real TTFT is known feeds the cover's adaptive flag. `first_ms` is
-        # None on a turn that spoke nothing, and `note_latency` refuses it — no evidence, not a fast turn.
-        try:
-            from voice.engine.speech import filler_audio as _fa_lat
-            _fa_lat.note_latency(first_ms)
-        except Exception:
-            pass
+        _filler_audio.note_latency(first_ms)   # V2-716: feeds the cover's adaptive flag; None is refused there
         _reply_extra = {
             # Who resolved this turn. The map stamps `origin: actionmap` on its own event (V2-539); a model
             # turn says so here, so counting turns by origin is one field on both surfaces instead of a

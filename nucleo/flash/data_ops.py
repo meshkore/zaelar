@@ -184,3 +184,62 @@ async def dispatch_and_report(wid: str, action_name: str, payload: dict, *, seal
         await report_failure(wid, action_name, res)
     except Exception:
         pass
+
+
+# ── Is this data-op a DRAG from the previous turn? (V2-038 guard, extracted V2-717) ─────────────────────────
+
+def word_overlap(a: str, b: str) -> int:
+    wa = {w for w in (a or "").lower().split() if len(w) > 3}
+    wb = {w for w in (b or "").lower().split() if len(w) > 3}
+    return len(wa & wb)
+
+
+def is_view_op(wid: str, action: str) -> bool:
+    """A LENS, by the widget's own declaration (`"view": true`, V2-545) — the same predicate the canvas arbiter
+    reads. Nothing here infers from the name."""
+    if not (wid and action):
+        return False
+    try:
+        from widgets import actions as _wactions, runtime
+        spec = ((runtime.get(wid.split("::", 1)[0]) or {}).get("actions") or {}).get(action)
+        return _wactions.is_view(spec, action)
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def is_context_bleed(last, wid: str, action: str, payload: dict | None, said: str, *, now: float | None = None) -> bool:
+    """The V2-038 anti-drag rule, unchanged for what it was built for: a MUTATION identical to the one that
+    just ran (<120 s), whose content the turn does not even mention, is the model dragging the previous
+    turn's op («borra el reloj» dragged the dentist's `add_meeting` → a duplicate appointment). The hatches —
+    the sentence names the payload's content, or explicitly orders the replay (V2-650) — stay as they were.
+
+    V2-717 — a VIEW-op is never a drag. Session c502d3ff (2026-09-17): `mensajeria:open {}` ran at 55 s; at
+    125 s, 131 s and 171 s the model re-emitted it — «Let me check your Telegram to see what Ivan asked»,
+    «Let me open Telegram…», «Let me actually open Telegram now…» — and this guard ate all three as bleed.
+    The sentence went out; the act did not. Three promises in a row with nothing behind them, until the
+    120 s window simply expired at 197 s and the op went through. It could not be otherwise: the hatch is
+    payload-word overlap and a lens carries an empty payload, so for `open`/`show_view`/`close` the hatch can
+    never open, whatever the operator says. The guard exists to stop a duplicated WRITE; a lens writes
+    nothing and re-opening what is open costs nothing — there is no harm for it to prevent there."""
+    import time as _t
+    if not last:
+        return False
+    try:
+        l_wid, l_action, l_payload, l_ts = last
+    except (TypeError, ValueError):
+        return False
+    if l_wid != wid or l_action != action or l_payload != (payload or {}):
+        return False
+    if ((now if now is not None else _t.time()) - l_ts) >= 120:
+        return False
+    if is_view_op(wid, action):
+        return False
+    if word_overlap(" ".join(str(v) for v in (payload or {}).values()), said) > 0:
+        return False
+    try:
+        from nucleo.flash import canvas_license as _lic
+        if _lic.replay_license(wid, action, said):
+            return False
+    except Exception:  # noqa: BLE001
+        pass
+    return True

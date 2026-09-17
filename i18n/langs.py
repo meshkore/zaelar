@@ -324,21 +324,12 @@ class LangSpec:
     # «Let me think…», «One moment while I process…») was literally our old pool, and the 19:27 session
     # showed why: a sound that promises nothing invites «¿a ver qué?» back.
     #
-    # V2-716 (2026-09-17) — that doctrine went one step too far and the operator measured the cost: a cover
-    # that DESCRIBES an action states something, and a stated thing can be WRONG. Session 928c8761 heard
-    # «Good question…» answer «the one in Telegram» (an answer to OUR question) and «I'll check that now…»
-    # answer «close everything» — sentences that make the conversation absurd, not slow. His rule:
-    #
-    #     «palabras más cortas, en plan one second, yes, checking, ok — en español vale, sí, ajá».
-    #
-    # The two doctrines are NOT in conflict once the failure is named precisely. V2-642 banned sounds that
-    # promise NOTHING while SOUNDING like machinery («Mmm…», «A ver…») — they invite «¿a ver qué?». What
-    # survives here is the other kind of short phrase: an ACKNOWLEDGEMENT. «Vale…» / «One sec…» says «I
-    # heard you and I am on it», which is true of every turn regardless of where it ends up, so it can never
-    # be contradicted by the reply that follows. Length is the second half of the rule and its own argument:
-    # a cover cannot be cut mid-sentence, so its own length is latency (the operator's rule, 2026-09-11) —
-    # and 15 of this session's 21 covers were the ONLY thing that sounded on their turn, which makes every
-    # word of them a sentence the operator never got finished.
+    # V2-716 (2026-09-17) — that doctrine overshot, and the operator measured it: a cover that DESCRIBES an
+    # action states something, and a stated thing can be WRONG («Good question…» answered «the one in
+    # Telegram»; «I'll check that now…» answered «close everything»). His rule: «palabras más cortas, en plan
+    # one second, yes, checking, ok — en español vale, sí, ajá». No conflict once named precisely: V2-642
+    # banned MACHINE NOISE («Mmm…», «A ver…»); what survives is the ACKNOWLEDGEMENT («Vale…», «One sec…»),
+    # true of every turn and never contradicted by the reply. Length is latency (a cover cannot be cut).
     fillers: tuple = (
         "Vale…", "Un segundo…", "Sí…", "Ajá…", "Ya voy…", "Ahora…", "Un momento…", "Vale, sí…",
         "Ya…", "Eso es…",
@@ -391,6 +382,10 @@ class LangSpec:
     # V2-642 — the HONEST closer for a turn that produced no answer after a sounded cover. The operator's
     # rule: «igual no tenía respuesta, pero igualmente hay que cerrar las conversaciones» — a conversation
     # may end without an answer, never without an ending.
+    # V2-717 — spoken when the reply PROMISED to look and the turn looked at nothing we can read: honest, and
+    # it names the state (nothing running) so the operator is not left waiting on a look that never started.
+    promise_retracted: str = ("Perdona — en realidad no lo he mirado todavía y no hay nada en marcha. Dime qué "
+                              "quieres que compruebe y lo hago ahora.")
     closers_no_answer: tuple = ("Pues ahora mismo no tengo una buena respuesta a eso.",
                                 "Esa no te la sé contestar ahora, la verdad.",
                                 "Ahí me he quedado sin respuesta — pregúntamelo de otra forma si quieres.")
@@ -517,6 +512,8 @@ LANGUAGES: dict[str, LangSpec] = {
         presence_busy=("I'm here — still on your task, I'll tell you in a moment.",
                        "Yes, still here, working on what you asked.",
                        "Still here, on it."),
+        promise_retracted=("Sorry — I haven't actually looked at that yet, and nothing is running. Tell me what "
+                           "to check and I'll do it right now."),
         closers_no_answer=("I don't have a good answer to that right now.",
                            "Honestly, that one's beyond me at the moment.",
                            "I came up empty there — try asking me another way."),
