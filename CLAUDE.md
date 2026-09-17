@@ -178,19 +178,29 @@ break the daemon's automation or the project's git contract.
    operator's live picture of the project. Full decision chain:
    `.meshkore/docs/conventions/initiative-anchored-execution.md`.
 
-9. **The team, and delegation (§28, v33).** The project has a roster of
-   members at `.meshkore/team/*.md` — each card's `owns:` line says what
-   that member is the right choice for. Hand a step to one of them when,
-   and only when, the work crosses into another module, needs a
+9. **The team, and delegation (§28, v33, revised v34).** The project has
+   a roster of members at `.meshkore/team/*.md` — each card's `owns:` line
+   says what that member is the right choice for. Hand a step to one of
+   them when, and only when, the work crosses into another module, needs a
    privileged role (deploys and releases belong to `deployer`), or is
    long and opaque. Everything else is one agent's job.
 
    If a conv is running inside the Architect, delegation is one call:
    `POST <daemon>/chat/delegate {parent_conv, member, brief}` — then END
-   your turn; the daemon wakes you with the child's report. **If YOU were
-   delegated**, three duties follow: anchor to the `(initiative, task)`
-   your brief names (never mint a new one for a delegated step), end your
-   final reply with the `⟦report⟧` line, and add
+   your turn; the daemon wakes you when that member reports, naming your
+   `request_id`. **A member is ONE session** (§28.6, v34): your brief goes
+   to the `deployer` that already exists, the same one other agents are
+   handing deploys to, and it is merged into that session's next turn. You
+   do not get a private copy, and that is the point — it is how three
+   frontend changes become one deploy instead of three agents racing in
+   the same tree.
+
+   **If YOU are the member holding briefs**, you will see the whole batch:
+   read it together, merge what collapses into one piece of work, and name
+   every request id you answered in the report's `"for"` field. **If YOU
+   were delegated**, three duties follow: anchor to the `(initiative,
+   task)` your brief names (never mint a new one for a delegated step),
+   end your final reply with the `⟦report⟧` line, and add
    `Parent: <parent member id>@<parent conv>` to your commit trailers.
    Do not write a diary entry for a delegated step — the root of the unit
    of work writes one entry for the whole thing. Full contract: §28.

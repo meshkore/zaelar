@@ -165,3 +165,22 @@ library/documents/
 library/video/
 library/audio/
 library/images/
+
+# ── The per-CLI COPIES of the agent instructions (2026-09-17) ───────────────────────────────────────────
+# `bba7aac8` collapsed five byte-identical 400 KB files — `CLAUDE.md`, `AGENTS.md`, `GEMINI.md`,
+# `.clinerules`, `.cursor/rules/meshkore.mdc` — into two, because four of them were already a batch behind
+# and each one was ready to hand old rules to whoever read it. It edited the RENDERS and not the SOURCE,
+# so the MeshKore daemon, which renders all five from `.meshkore/public/AGENT_INSTRUCTIONS.md`, put them
+# straight back on 2026-09-16 at 400 KB each — the split undone by a process, in one pass, silently.
+#
+# Fixed at the source instead (2026-09-17): the operator content in `AGENT_INSTRUCTIONS.md` IS the split
+# one now, so every render the daemon writes is small and current, and none of them can fall behind —
+# that was the whole point of collapsing them. `CLAUDE.md` and `AGENTS.md` stay tracked because a clone
+# has to carry the rules for both audiences; the other three are ignored, because the daemon will keep
+# writing them and the repo does not need five copies of one file to say one thing.
+#
+# ⚠️ All of these are RENDERS. If you find yourself editing one, edit `.meshkore/public/AGENT_INSTRUCTIONS.md`
+# — anything else is undone by the next daemon pass, which is exactly what happened here.
+GEMINI.md
+.clinerules
+.cursor/

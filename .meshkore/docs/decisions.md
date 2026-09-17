@@ -21,6 +21,42 @@ entregada siga citada aquí.
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **Una partición que edita el RENDER la deshace el daemon en una pasada (estabilización del repo,
+  2026-09-17)**: el operador, mirando un árbol sucio que dos sesiones seguidas habían marcado como «no mío»
+  sin tocarlo: «toma el control y estabiliza el repo».
+  **La causa era de dos días antes y de una clase que este motor ya ha pagado por otros caminos.**
+  `bba7aac8` partió `CLAUDE.md` —el diario a `.meshkore/docs/decisions.md`, el inventario denso a
+  `.meshkore/docs/modules/zaelar-module-map.md`— y pasó las cinco copias por CLI a dos, con toda la razón:
+  400 KB que carga entero cada agente en cada sesión, y cuatro de las cinco copias ya iban una tanda por
+  detrás. Editó **los renders y no la fuente**: `.meshkore/public/AGENT_INSTRUCTIONS.md` conservaba el
+  bloque `OPERATOR_CONTENT` viejo, y el daemon de MeshKore renderiza los cinco ficheros DESDE ahí. Su
+  siguiente pasada —2026-09-16, 14:09— deshizo la partición entera: `CLAUDE.md` 57 KB → 402 KB con el diario
+  dentro otra vez, `AGENTS.md` de puntero a copia, y `GEMINI.md`, `.clinerules` y `.cursor/rules/`
+  resucitados. Nadie falló: el trinquete del tamaño se puso rojo y se quedó rojo dos días mientras todo lo
+  demás seguía verde.
+  **La lección, que es la de V2-687 una capa más arriba**: un arreglo que vive en el CONSUMIDOR lo reaplica
+  cada consumidor que llegue después — y cuando el consumidor es un PROCESO, no lo reaplica nadie y encima
+  te lo deshace. Si un fichero dice «auto-rendered from X», editarlo es escribir en la salida de otro.
+  **Lo que se comprobó antes de reescribir nada**, porque el riesgo real era perder texto: de las 3 874
+  líneas del bloque viejo, todas tienen casa en el nuevo ∪ el diario ∪ el archivo ∪ el mapa de módulos salvo
+  103, y esas 103 son prosa REESCRITA más compacta — verificado concepto a concepto (`run_testmap`,
+  `make run`, `BRAIN=nucleo`, LiveKit, INI-013, Colmena…), no por igualdad de líneas, que es lo que hacía
+  parecer que faltaban 311. Copia de seguridad de los seis ficheros fuera del repo antes del primer `write`.
+  **El arreglo va en la fuente** y el preámbulo del daemon se respeta verbatim (el suyo era MÁS NUEVO —
+  §28 v34, delegación—, así que restaurar `CLAUDE.md` a HEAD habría tirado una actualización legítima: lo
+  correcto era el MERGE, preámbulo nuevo + contenido partido). ⚠️ **El daemon reescribió `AGENTS.md`
+  mientras esta tanda corría**, ya con el contenido bueno: se acepta como render en vez de restaurar el
+  puntero, porque con la fuente correcta ninguna copia puede quedarse atrás —que era todo el objetivo— y un
+  árbol permanentemente sucio es lo contrario de estable. Las otras tres se borran y se gitignoran con el
+  porqué escrito al lado.
+  **Y los dos trinquetes que llevaban días rojos sin que nadie los mirara**: `.meshkore/team/tester.md`
+  arrancaba a su agente con `refs: [.meshkore/workflows/INDEX.md]`, un directorio que **no ha existido nunca
+  en este repo** (apunta a `tests/README.md` y al playbook, y la ficha dice que aquí no hay W10 — que es
+  justo el caso que su propio cuerpo ya contemplaba); y el diario citaba **V2-700, V2-701 y V2-703 sin su
+  fichero de iniciativa**, tandas entregadas que el roadmap no sabía que existían. Reconstruidas desde su
+  entrada del diario y **marcadas como reconstruidas**: el plan previo y lo medido antes de empezar no se
+  pueden recuperar sin inventarlos, y no se inventan. `tests/infrastructure/` entero: 1085 verdes.
+
 - **The directory ORGANISES ITSELF, a platform icon is a FILTER, and a company has several numbers
   (V2-715, 2026-09-17)**: his redesign order over the card open on his **2 688 real contacts**, two days
   after he had asked for the two-bar header himself. Four asks, and the first three are one idea.
