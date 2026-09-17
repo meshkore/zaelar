@@ -76,3 +76,40 @@ def test_now_playing_parses_state(prov, monkeypatch):
                         lambda: {"is_playing": True, "item": _TRACK, "device": {"name": "iPhone", "volume_percent": 40}})
     np = prov.now_playing()
     assert np.playing and np.track.title == "Fly Me to the Moon" and np.device == "iPhone" and np.volume == 40
+
+
+# ── V2-717 · the playhead ────────────────────────────────────────────────────────────────────────────────
+
+def test_now_playing_carries_where_the_song_is(prov, monkeypatch):
+    """A progress bar for a device that is not here needs the photograph AND the length."""
+    monkeypatch.setattr(spclient, "playback_state",
+                        lambda: {"is_playing": True, "item": _TRACK, "progress_ms": 61000,
+                                 "device": {"name": "Salón", "volume_percent": 40}})
+    np = prov.now_playing()
+    assert np.progress_ms == 61000 and np.track.duration_ms == 148000
+
+
+def test_seek_to_a_position_asks_spotify_once_and_says_the_time(prov, monkeypatch):
+    seen = {}
+    monkeypatch.setattr(spclient, "seek", lambda ms, device_id="": seen.setdefault("ms", ms))
+    monkeypatch.setattr(spclient, "playback_state", lambda: pytest.fail("an absolute seek needs no reading"))
+    r = prov.seek(125)
+    assert r.ok and seen["ms"] == 125000
+    assert "2:05" in r.message, r.message
+
+
+def test_a_relative_seek_reads_the_position_first_because_there_is_no_local_clock(prov, monkeypatch):
+    """The device is in another room: «adelanta medio minuto» cannot be answered without asking where we are."""
+    seen = {}
+    monkeypatch.setattr(spclient, "playback_state",
+                        lambda: {"is_playing": True, "item": _TRACK, "progress_ms": 30000, "device": {}})
+    monkeypatch.setattr(spclient, "seek", lambda ms, device_id="": seen.setdefault("ms", ms))
+    assert prov.seek(30, relative=True).ok
+    assert seen["ms"] == 60000
+
+
+def test_a_relative_seek_with_nothing_playing_refuses_instead_of_seeking_to_zero(prov, monkeypatch):
+    monkeypatch.setattr(spclient, "playback_state", lambda: {})
+    monkeypatch.setattr(spclient, "seek", lambda ms, device_id="": pytest.fail("nothing to move"))
+    r = prov.seek(30, relative=True)
+    assert r.ok is False and r.reason == "no_track"

@@ -56,9 +56,10 @@ def available() -> "list[str]":
     return [p.name for p in registry.available()]
 
 
-def control(action: str, query: str = "", uri: str = "", percent: int = 0, prefer: str = "") -> MusicResult:
+def control(action: str, query: str = "", uri: str = "", percent: int = 0, prefer: str = "",
+            seconds: float = 0.0, relative: bool = False) -> MusicResult:
     """Execute ONE music action against the active provider. `action`: play|pause|resume|next|previous|stop|
-    volume_up|volume_down|set_volume. FlashBrain facade — fail-safe, never raises."""
+    volume_up|volume_down|set_volume|seek. FlashBrain facade — fail-safe, never raises."""
     action = (action or "play").strip().lower()
     prov = active_provider(prefer)
     if prov is None:
@@ -90,6 +91,8 @@ def control(action: str, query: str = "", uri: str = "", percent: int = 0, prefe
             return prov.set_volume(max(0, cur - 15))
         if action == "set_volume":
             return prov.set_volume(max(0, min(100, int(percent or 0))))
+        if action == "seek":                        # V2-717: to a position, or by a number of seconds
+            return prov.seek(float(seconds or 0.0), bool(relative))
     except Exception as e:  # noqa: BLE001 — a provider failure never breaks voice
         logger.warning(f"music.control({action}) falló: {e!r}")
         return MusicResult(ok=False, provider=prov.name, action=action, reason="error",

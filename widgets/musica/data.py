@@ -87,9 +87,15 @@ def _now_playing() -> "dict | None":
         if not np:
             return None
         t = np.track
+        # V2-717 — where the song IS, so the card can draw a progress bar for a device that is not here.
+        # `progress_ms` is a photograph taken at THIS read (the card advances it with its own clock) and
+        # `duration_ms` is what makes it meaningful; either at 0 means «this provider does not say», and the
+        # card then draws no bar at all rather than one pinned at zero.
         return {"playing": bool(np.playing), "device": np.device or "", "volume": np.volume,
                 "title": (t.title if t else ""), "artist": (t.artist if t else ""),
-                "album": (t.album if t else ""), "art": (t.art if t else "")}
+                "album": (t.album if t else ""), "art": (t.art if t else ""),
+                "progress_ms": int(getattr(np, "progress_ms", 0) or 0),
+                "duration_ms": int(t.duration_ms if t else 0)}
     except Exception:
         return None
 
@@ -678,7 +684,13 @@ def apply_action(action: str, payload: dict = None) -> dict:
 
     if action == "open_view":
         kind = (p.get("kind") or "home").strip().lower()
-        if kind not in ("home", "playlist", "album", "artist", "nowplaying"):
+        # V2-717 — `home` is the ADAPTIVE face (the song when something sounds, the library when not) and the
+        # two explicit ones exist so a click or a sentence can cross over and STAY there. «nowplaying» was
+        # the spelling declared in V2-058 and never implemented; it is kept as an alias so an old data-op,
+        # or a model that learned it, lands on the screen it was always asking for.
+        if kind in ("nowplaying", "now_playing", "song", "track"):
+            kind = "now"
+        if kind not in ("home", "library", "now", "playlist", "connect"):
             kind = "home"
         db = _load_db()
         vid = str(p.get("id") or "").strip()
@@ -708,6 +720,41 @@ def apply_action(action: str, payload: dict = None) -> dict:
             _push_recent(db, t)
         _persist(db)
         return r
+
+    # V2-717 — move the playhead, by voice or by dragging the card's own bar.
+    #
+    # Two of the three sources play INSIDE the operator's page (the hidden YouTube iframe and a local file's
+    # <audio>), and the only clock that knows where the song is lives there. So for those this writes an
+    # INTENTION into the store — a numbered command the widget applies on the next render — instead of
+    # pretending the server can move a playhead it has never held. Spotify plays on a device somewhere else
+    # and is the opposite case: it is a round trip through the connector.
+    if action == "seek":
+        to, by = p.get("to"), p.get("by")
+        if to is None and by is None:                       # «adelanta» with no number means a nudge forward
+            to, by = None, p.get("seconds", 30)
+        try:
+            secs = float(to if to is not None else by)
+        except (TypeError, ValueError):
+            return {"ok": False, "error": "bad_position", "message": "Dime a qué punto de la canción voy."}
+        relative = to is None
+        db = _load_db()
+        loc = dict(db.get("local") or {})
+        if loc.get("src"):
+            prev = dict(loc.get("seek") or {})
+            cmd = {"n": int(prev.get("n") or 0) + 1}
+            cmd["by" if relative else "to"] = secs if relative else max(0.0, secs)
+            loc["seek"] = cmd
+            db["local"] = loc
+            _persist(db)
+            return {"ok": True, "message": "", "reason": ""}
+        try:
+            from connectors import music
+            r = music.control("seek", seconds=secs, relative=relative)
+            _save_view()
+            return {"ok": bool(getattr(r, "ok", False)), "message": getattr(r, "message", ""),
+                    "reason": getattr(r, "reason", "")}
+        except Exception as e:  # noqa: BLE001
+            return {"ok": False, "error": str(e)[:120]}
 
     # Playback control from card buttons. Voice uses play_music. Converges on the same seam.
     # `ended` (V2-047 F4): fired by the widget when the song ends; the seam advances the queue.

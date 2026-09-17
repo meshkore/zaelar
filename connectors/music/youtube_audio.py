@@ -40,12 +40,14 @@ _MSG = {
            "no_track": "No he encontrado «{q}».", "done": "Hecho.",
            "no_next": "No hay más canciones en la cola; dime qué pongo.",
            "no_prev": "No hay canción anterior a la que volver.",
-           "already": "Ya está sonando {label}.", "queued": "Vale, después pongo {label}."},
+           "already": "Ya está sonando {label}.", "queued": "Vale, después pongo {label}.",
+           "seek": "Ahí va.", "seek_to": "En el {t}."},
     "en": {"play": "Now playing {label}.", "pause": "Paused.", "resume": "Resuming.", "volume": "Volume at {n} percent.",
            "no_track": "I couldn't find \"{q}\".", "done": "Done.",
            "no_next": "Nothing else queued; tell me what to play.",
            "no_prev": "There is no previous track to go back to.",
-           "already": "{label} is already playing.", "queued": "Got it, I'll play {label} next."},
+           "already": "{label} is already playing.", "queued": "Got it, I'll play {label} next.",
+           "seek": "There you go.", "seek_to": "At {t}."},
 }
 
 
@@ -67,6 +69,12 @@ def _lang() -> str:
 
 def _t(key: str, **kw) -> str:
     return _MSG[_lang()][key].format(**kw)
+
+
+def _clock(seconds: float) -> str:
+    """«2:07» — a position said the way a player writes it, never in raw seconds."""
+    total = max(0, int(seconds))
+    return f"{total // 60}:{total % 60:02d}"
 
 
 # ── query resolution -> (videoId, title) ─────────────────────────────────────────────────────────────────
@@ -186,6 +194,11 @@ def _save_yt(yt: dict) -> None:
 def _bump(yt: dict, cmd: str) -> dict:
     yt["last_cmd"] = cmd
     yt["cmd_seq"] = int(yt.get("cmd_seq") or 0) + 1
+    # V2-717 — «load» means a DIFFERENT song is now in the player, so a seek that was never applied belonged
+    # to the previous one and must not follow it across. The local player's block is rebuilt from scratch on
+    # every play and needs no equivalent; this one is updated in place, which is where a stale command hides.
+    if cmd == "load":
+        yt.pop("seek", None)
     _save_yt(yt)
     return yt
 
@@ -342,6 +355,35 @@ class YouTubeAudioProvider(MusicProvider):
                            track=Track(id=vid, uri=f"yt:{vid}", title=yt["title"], art=yt["art"]),
                            message=_t("play", label=yt["title"] or "la música"),
                            extra={"surface": "widget", "widget": _WID, "videoId": vid})
+
+    def seek(self, seconds: float = 0.0, relative: bool = False) -> MusicResult:
+        """Move the playhead (V2-717) — by leaving an INTENTION in the store, not by moving anything here.
+
+        This provider is the odd one: the sound is made by a hidden iframe inside the operator's page, and
+        the only clock that knows where the song is lives there too. So a seek travels the same road every
+        other command on this provider travels — written into the `yt` block, noticed by the widget on the
+        next SSE render, applied by the player that actually has the playhead.
+
+        It carries a counter of its OWN (`seek.n`) rather than riding on `cmd_seq`: a seek that re-applied
+        itself every time a later pause or volume command bumped the shared sequence would be a song that
+        jumps backwards whenever you touch the volume.
+        """
+        yt = _load_yt()
+        if not yt.get("videoId"):
+            return MusicResult(ok=False, provider=self.name, action="seek", reason="no_track",
+                               message=_t("no_track", q=""))
+        secs = float(seconds or 0.0)
+        prev = dict(yt.get("seek") or {})
+        cmd = {"n": int(prev.get("n") or 0) + 1}
+        if relative:
+            cmd["by"] = secs
+        else:
+            cmd["to"] = max(0.0, secs)
+        yt["seek"] = cmd
+        _bump(yt, "seek")
+        msg = _t("seek") if relative else _t("seek_to", t=_clock(max(0.0, secs)))
+        return MusicResult(ok=True, provider=self.name, action="seek", message=msg,
+                           extra={"surface": "widget", "widget": _WID})
 
     def set_volume(self, percent: int) -> MusicResult:
         pct = max(0, min(100, int(percent or 0)))

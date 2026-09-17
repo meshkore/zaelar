@@ -19,9 +19,10 @@ is also the reason:
 A desktop where every window invents its own chrome is a pile of demos. The bars are how the product says
 «this is one system», and the plug button is how a user learns, once, where every integration lives.
 
-**Reference implementation:** `widgets/contactos/widget.js` (V2-715). `widgets/agenda/widget.js` (V2-679),
-`widgets/mensajeria/widget.js` and `widgets/youtube/widget.js` still carry the V2-699 shape — see the
-amendment below; they are a pending sweep, not a second standard.
+**Reference implementations:** `widgets/contactos/widget.js` (V2-715, a card that lists many things) and
+`widgets/musica/widget.js` (V2-717, a card whose content can be ONE thing). `widgets/agenda/widget.js`
+(V2-679), `widgets/mensajeria/widget.js` and `widgets/youtube/widget.js` still carry the V2-699 shape — see
+the amendment below; they are a pending sweep, not a second standard.
 
 ---
 
@@ -76,6 +77,36 @@ widget's view action (`show_view {source}`), and the pushed view has to APPLY it
 `show_view` had carried `kind` and `source` since V2-714 and the card read neither, so the spoken answer
 and the screen showed different sets. And the plug itself needs an action (`show_connectors`), because a
 button with no name is a button the voice cannot press.
+
+### The second widget through it (V2-717, música): the widget IS the window
+
+> «Fíjate que has puesto como un contenedor exterior en el que hay un título arriba del todo que pone music
+> y los botones del sistema operativo de minimizar, ampliar o cerrar. Y dentro has metido otra caja como si
+> eso fuera el widget de música. Y yo solo quiero UNA caja encima del escritorio en la que todo el contenido
+> sea el propio widget.»
+
+The amendment above says the window is bar one. This says the window is also the FRAME. A widget root that
+draws its own `border` + `border-radius` + `background` paints a card on top of the card the canvas already
+drew — two frames, two radii, a gutter of dead space between them. **A widget adds no box of its own**; the
+three bands (bar / content / footer) are separated by TONE and a hairline, never by a frame.
+
+It also adds the case contacts did not have: **a card whose content is a single object**. When a music card
+has a song playing, the song is the content — cover, title, artist, facts, scrubber, centred and filling the
+band — and the strip at the foot keeps the transport. The rule that generalises:
+
+- the DEFAULT face is adaptive (`home` = the object when there is one, the library when there is not), and
+  the two explicit faces exist so a click or a sentence can pin either;
+- the switch between them is DERIVED — drawn only while there is somewhere to switch to, the same rule the
+  contacts rail follows for a section with nothing in it;
+- an EMPTY face still says something and offers something real to press. «Está un poco triste al verse tan
+  vacía» is a bug report about a screen that had nothing but a heading and a dashed square.
+
+⚠️ **Sizing a hero by WIDTH alone puts a scrollbar on the one screen meant to be calm**, and a flex column
+that centres its content does not scroll when it overflows — it CLIPS, at both ends, with `scrollHeight`
+none the wiser. Size the object against the height that is actually there and let it shrink; test
+CONTAINMENT (is the top of the cover and the bottom of the scrubber inside the band?), never `scrollHeight`.
+
+Still pending the same sweep: `agenda`, `mensajeria`, `youtube`.
 
 ---
 

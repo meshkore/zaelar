@@ -113,5 +113,10 @@ def set_volume(percent: int, device_id: str = "") -> dict:
                     params={"volume_percent": max(0, min(100, int(percent))), "device_id": device_id or None})
 
 
+def seek(position_ms: int, device_id: str = "") -> dict:
+    return _request("PUT", "/me/player/seek",
+                    params={"position_ms": max(0, int(position_ms)), "device_id": device_id or None})
+
+
 def playback_state() -> dict:
     return _request("GET", "/me/player") or {}

@@ -96,3 +96,67 @@
   shape + both pin cases — the same disarm ratio as the original V2-667 attempt, now actually landed).
   `make test-widgets` 15/15, musica unit suite 66/66, music connector suite 21/21.
   **NOT verified live** — needs an engine restart and a page reload.
+
+## 2026-09-17 — V2-717: ONE box, and the song IS the screen
+
+His order, with a screenshot of the card open while a track was playing and the whole middle of it empty:
+
+1. **One box.** «Has puesto como un contenedor exterior en el que hay un título arriba del todo que pone
+   music y los botones del sistema operativo… y dentro has metido otra caja como si eso fuera el widget de
+   música. Y yo solo quiero UNA caja encima del escritorio.» `.hb-mus2` lost its border, its radius and its
+   background: the canvas window IS the frame. What separates the three bands is tone and a hairline.
+2. **One bar.** The V2-715 amendment applied here: the window already says «Música», so «Tu música» under
+   it was the same sentence twice. What is left is the row that could not live anywhere else — the view
+   switch and the source chip. The switch is DERIVED, like the contacts rail: «Sonando» is only drawn while
+   something sounds, because a switch with one side is a label.
+3. **AHORA SUENA.** «Me gustaría ver la canción en toda la pantalla del widget… la imagen de la música más
+   grande, el nombre de la canción, el nombre del artista, la duración, una barra de progreso para que yo
+   la pueda mover… y sin nada más, es decir, la canción igualmente la manejo abajo.» So the middle is the
+   ficha and the transport stays at the foot — the duplication is his, asked for out loud. `home` is the
+   ADAPTIVE face: the song when something sounds, the library when nothing does; `now`/`library` pin either.
+4. **An empty library says something.** «Está un poco triste al verse tan vacía.» A hero with three chips
+   that actually play, and the way into a new list still in reach.
+5. **The sources screen.** The Spotify block used to sit in the middle of the library, first thing the eye
+   met on a card nobody had asked anything yet. It is behind the source chip now (`open_view {kind:connect}`).
+
+### The playhead belongs to whoever makes the sound
+
+There is no position in the store, and there must not be one. A local file and the hidden YouTube iframe
+play in the operator's PAGE and hold their own clock — the card reads them directly and a drag seeks them
+with no server in the loop. Spotify plays on a device in another room, so its `progress_ms` is a photograph
+the card advances with its own clock and a drag is a round trip (`connectors/spotify` gained `seek` +
+`progress_ms`; the contract's `MusicProvider.seek` is deliberately NOT abstract, so a provider that can do
+neither keeps the honest «unsupported»).
+
+A seek asked by VOICE travels the other way: `seek {to|by}` leaves a numbered command in the store
+(`yt.seek` / `local.seek`) and the page applies it. Three things that are load-bearing there:
+
+- ⚠️ **the counter is the seek's OWN, never `cmd_seq`** — riding the shared sequence would re-apply the last
+  seek on the next pause or volume command, i.e. a song that jumps backwards when you touch the volume;
+- ⚠️ **`_bump(yt, "load")` drops a pending seek** — a new video is loaded IN PLACE in the same block, so an
+  unapplied command would cross over and move the NEXT song by the seconds meant for the last one (the local
+  block is rebuilt from scratch on every play and needs no equivalent);
+- ⚠️ **a seek must not bump `local.seq`** — `seq` means «start this file again» (V2-638), so a seek that
+  bumped it would restart the very song it was asked to move inside.
+
+### The clock the free player already had
+
+The `listening` handshake that has delivered onReady/ENDED since V2-047 also delivers `infoDelivery` frames
+with `currentTime` and `duration`. Nothing extra is asked of the embed and no request of ours is involved.
+Kept as a STAMPED sample so the bar interpolates between frames instead of stepping, thrown away when the
+video changes, and filtered by the handshake id — the youtube widget's player emits on the same window
+(the V2-366 cross-talk), and without the filter its clock would become this card's position.
+
+Until a frame arrives there is NO scrubber: a bar pinned at zero that cannot be moved is worse than no bar
+(his own rule for the batch — what is not finished looks disabled, is absent, or is clear). It appears on
+its own when the clock lands, through the card's 250 ms local tick; the tick never repaints while the finger
+is down, and a drag asks the player ONCE, on release.
+
+### Two things measured, not reasoned
+
+- ⚠️ **A rail asking for `width:100%` of a slot with no width of its own is 0 pixels wide** — present in the
+  DOM, correct-looking, and impossible to drag. In a centred flex column a bare div shrinks to its content.
+- ⚠️ **A flex column that CENTRES its content overflows at both ends, and that overflow is CLIPPED, not
+  scrollable** — `scrollHeight` stays equal to `clientHeight` while the ficha is being cut in half. The
+  geometry test measures CONTAINMENT (the cover's top, the scrubber's bottom) for that reason; the first
+  version of it passed against a layout that was losing both ends of the screen.

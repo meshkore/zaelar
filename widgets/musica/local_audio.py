@@ -81,5 +81,10 @@ def display(db: dict) -> dict:
     loc = dict(db.get("local") or {})
     if not loc.get("src"):
         return {}
-    return {"src": loc.get("src", ""), "title": loc.get("title", ""), "artist": loc.get("artist", ""),
-            "art": loc.get("art", ""), "paused": bool(loc.get("paused")), "seq": int(loc.get("seq") or 0)}
+    out = {"src": loc.get("src", ""), "title": loc.get("title", ""), "artist": loc.get("artist", ""),
+           "art": loc.get("art", ""), "paused": bool(loc.get("paused")), "seq": int(loc.get("seq") or 0)}
+    # V2-717 — a pending seek travels with the block it belongs to. It is NOT folded into `seq`: `seq` means
+    # «start this file again», and a seek that bumped it would restart the song it was asked to move inside.
+    if loc.get("seek"):
+        out["seek"] = dict(loc["seek"])
+    return out

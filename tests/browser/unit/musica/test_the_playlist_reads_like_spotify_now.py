@@ -213,11 +213,14 @@ def test_a_suffix_match_still_requires_the_artist_to_agree(mounted):
 
 
 def test_the_playing_track_is_also_marked_in_top_and_recent_on_the_home_screen(mounted):
+    # V2-717 — the library is now an explicit face: with something sounding, `home` IS the song filling the
+    # card («me gustaría ver la canción en toda la pantalla del widget»), and the track lists live one click
+    # away under «Tu música». The row indicator this case guards is unchanged; only the door to it moved.
     page, mount = mounted
     mount(_data(top=[_track("Hit One", artist="X"), _track("Hit Two", artist="Y")],
                 recent=[_track("Hit Two", artist="Y")],
                 now_playing={"title": "Hit Two", "artist": "Y", "playing": True},
-                view={"kind": "home", "id": ""}))
+                view={"kind": "library", "id": ""}))
     rows = page.query_selector_all(".hb-mus2-tr")
     playing_titles = [r.query_selector(".hb-mus2-trt").text_content() for r in rows
                       if "playing" in r.get_attribute("class")]

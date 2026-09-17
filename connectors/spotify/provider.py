@@ -24,6 +24,7 @@ _M = {
         "next": "Siguiente.",
         "previous": "Anterior.",
         "volume": "Volumen al {n} por ciento.",
+        "seek": "En el {t}.",
         "no_track": "No he encontrado «{q}» en Spotify.",
         "no_device": ("No veo ningún dispositivo de Spotify activo. Abre Spotify en el móvil o el ordenador y te "
                       "lo pongo enseguida."),
@@ -38,6 +39,7 @@ _M = {
         "next": "Next track.",
         "previous": "Previous track.",
         "volume": "Volume at {n} percent.",
+        "seek": "At {t}.",
         "no_track": "I couldn't find \"{q}\" on Spotify.",
         "no_device": "I don't see an active Spotify device. Open Spotify on your phone or computer and I'll play it.",
         "premium": "Controlling Spotify playback needs a Premium account.",
@@ -58,6 +60,12 @@ def _lang() -> str:
 
 def _t(key: str, **kw) -> str:
     return _M[_lang()][key].format(**kw)
+
+
+def _clock(ms: int) -> str:
+    """«2:07» — a position said the way it is written on a player, not in raw seconds."""
+    total = max(0, int(ms) // 1000)
+    return f"{total // 60}:{total % 60:02d}"
 
 
 def _track_from(item: dict) -> "Track | None":
@@ -166,6 +174,19 @@ class SpotifyProvider(MusicProvider):
         pct = max(0, min(100, int(percent or 0)))
         return self._run(lambda dev: client.set_volume(pct, device_id=dev), "volume", None, {"n": pct})
 
+    def seek(self, seconds: float = 0.0, relative: bool = False) -> MusicResult:
+        """Move the playhead (V2-717). A RELATIVE move needs to know where we are, and here that is one
+        extra read — the device is not in this process, so there is no local clock to add to."""
+        target = float(seconds or 0.0)
+        if relative:
+            np = self.now_playing()
+            if np is None or not np.track:
+                return MusicResult(ok=False, provider=self.name, action="seek", reason="no_track",
+                                   message=_t("no_track", q=""))
+            target = max(0.0, (np.progress_ms / 1000.0) + target)
+        ms = max(0, int(round(target * 1000)))
+        return self._run(lambda dev: client.seek(ms, device_id=dev), "seek", None, {"t": _clock(ms)})
+
     # ── status ─────────────────────────────────────────────────────────────────────────────────────────
     def now_playing(self) -> "NowPlaying | None":
         try:
@@ -181,6 +202,7 @@ class SpotifyProvider(MusicProvider):
             device=dev.get("name", ""),
             volume=dev.get("volume_percent"),
             provider=self.name,
+            progress_ms=int(st.get("progress_ms") or 0),
         )
 
     def status(self) -> dict:

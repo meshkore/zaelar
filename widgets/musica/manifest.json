@@ -1,8 +1,8 @@
 {
   "id": "musica",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "title": "Música",
-  "description": "Tu música estilo Spotify por voz y a mano. Crea listas, añade canciones, reproduce una lista, y controla la reproducción (pausa, siguiente, volumen). Conecta tu Spotify (un clic) o suena gratis desde YouTube-audio. Home con Tus listas · Más escuchadas · Recientes, y barra de reproducción.",
+  "description": "Tu música por voz y a mano. La canción que suena OCUPA la tarjeta —portada grande, título, artista y una barra de progreso que se puede arrastrar—, y tu biblioteca guarda listas, más escuchadas y recientes. Conecta tu Spotify (un clic) o suena gratis desde YouTube-audio.",
   "whenToUse": "Para CONECTAR Spotify ('conéctame Spotify' se hace AQUÍ, en su tarjeta — NUNCA por el navegador/authenticate_web), y para ESCUCHAR y ORGANIZAR música: listas, poner una canción o artista, controlar la reproducción. Con la tarjeta abierta se resuelven contra ella con data-ops.",
   "keywords": [
     "música",
@@ -29,10 +29,16 @@
     "pausa la música",
     "guárdamela en una lista",
     "crea una lista",
-    "lista que se llame"
+    "lista que se llame",
+    "adelanta la canción",
+    "ponla en el minuto",
+    "vuelve atrás la canción",
+    "qué canción es esta",
+    "qué estoy escuchando",
+    "enséñame la canción"
   ],
   "entry": "widget.js",
-  "usage": "CARA + LISTAS del conector de música (connectors/music + connectors/spotify). Conexión desde la tarjeta (botón Conectar → login de Spotify en una ventana; avanzado: pega tu propio client_id). REPRODUCCIÓN: poner una canción/artista suelto sigue yendo por la tool play_music del FlashBrain; para LISTAS propias usa data-ops de este widget: crear una lista → create_playlist{name}; añadir una canción → add_to_playlist{playlist,query,title,artist} (playlist = nombre de la lista en lenguaje natural; si conoces el artista, pásalo en `artist` SEPARADO de `title` — nunca los dos juntos en un solo campo, la tarjeta los enseña por separado); quitar una canción → remove_from_playlist{playlist,item} (item = título o nº); reproducir una lista entera → play_playlist{playlist}; guardar la canción que suena AHORA en favoritos → favorite_current{} (sin payload; crea 'Favoritos de Manolo' si no existe). Navegar la tarjeta: open_view{kind,id} (kind=home|playlist, id=nombre/id de lista) y back (volver a home). connect/disconnect gestionan la cuenta de Spotify. Curar una lista con muchas canciones ('hazme una lista random de disco') es una escalada a worker (Fase posterior), no una data-op. Guardar en LISTAS con nombre: una sola llamada — add_to_playlist con {playlist} crea la lista si no existe y sin canción explícita guarda la que suena ahora; create_playlist solo hace falta para estrenar una lista vacía.",
+  "usage": "CARA + LISTAS del conector de música (connectors/music + connectors/spotify). Conexión desde la tarjeta (la pastilla de fuente arriba a la derecha → Conectar Spotify; avanzado: pega tu propio client_id). REPRODUCCIÓN: poner una canción/artista suelto sigue yendo por la tool play_music del FlashBrain; para LISTAS propias usa data-ops de este widget: crear una lista → create_playlist{name}; añadir una canción → add_to_playlist{playlist,query,title,artist} (playlist = nombre de la lista en lenguaje natural; si conoces el artista, pásalo en `artist` SEPARADO de `title` — nunca los dos juntos en un solo campo, la tarjeta los enseña por separado); quitar una canción → remove_from_playlist{playlist,item} (item = título o nº); reproducir una lista entera → play_playlist{playlist}; guardar la canción que suena AHORA en favoritos → favorite_current{} (sin payload; crea 'Favoritos' si no existe). MOVER LA CANCIÓN: «ponla en el minuto dos» → seek{to:120}; «adelanta medio minuto» → seek{by:30}; «vuelve atrás diez segundos» → seek{by:-10}. Navegar la tarjeta: open_view{kind,id} — kind=now enseña la canción a pantalla completa, kind=library la biblioteca, kind=playlist con id el detalle de una lista, kind=connect las fuentes — y back (volver). connect/disconnect gestionan la cuenta de Spotify. Curar una lista con muchas canciones ('hazme una lista random de disco') es una escalada a worker (Fase posterior), no una data-op. Guardar en LISTAS con nombre: una sola llamada — add_to_playlist con {playlist} crea la lista si no existe y sin canción explícita guarda la que suena ahora; create_playlist solo hace falta para estrenar una lista vacía.",
   "actions": {
     "create_playlist": {
       "desc": "crea una lista de reproducción vacía y la abre",
@@ -71,10 +77,10 @@
       "activation": true
     },
     "open_view": {
-      "desc": "cambia lo que muestra la tarjeta (home o el detalle de una lista)",
+      "desc": "cambia la cara de la tarjeta: la canción que suena a pantalla completa (now), la biblioteca (library), el detalle de una lista (playlist) o las fuentes de música (connect)",
       "payload": {
-        "kind": "home|playlist",
-        "id": "nombre/id de la lista (si kind=playlist)"
+        "kind": "now|library|playlist|connect|home (home = la canción si suena algo, la biblioteca si no)",
+        "id": "nombre/id de la lista (solo si kind=playlist)"
       },
       "view": true
     },
@@ -129,6 +135,14 @@
       "payload": {},
       "sensitivity": "routine",
       "activation": true
+    },
+    "seek": {
+      "desc": "mueve el punto de reproducción de la canción que suena: a un momento concreto (to, en segundos) o hacia delante/atrás (by, en segundos, negativo para retroceder)",
+      "payload": {
+        "to": "segundos desde el principio de la canción (p. ej. 125 para «ponla en el minuto dos»)",
+        "by": "segundos a saltar, negativo para retroceder (p. ej. 30 para «adelanta medio minuto»)"
+      },
+      "sensitivity": "routine"
     },
     "previous": {
       "desc": "vuelve a la canción anterior",

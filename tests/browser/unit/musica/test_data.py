@@ -198,3 +198,86 @@ def test_create_playlist_con_algo_sonando_ENSEÑA_el_siguiente_paso(monkeypatch)
     monkeypatch.setattr(md, "_current_track", lambda db: None)
     r = md.apply_action("create_playlist", {"name": "Vacia"})
     assert r["ok"] is True and "hint" not in r
+
+
+# ── V2-717 · moving the playhead ─────────────────────────────────────────────────────────────────────────
+# The operator asked for a progress bar he can DRAG, and — the house rule since the contacts batch — a control
+# on the card must also have a spoken door. The tricky half is that for two of the three sources the server
+# has no playhead at all: the sound is made inside his page.
+
+def test_a_voice_seek_on_the_free_source_becomes_a_numbered_command_not_a_position():
+    """YouTube-audio plays in the page. The server cannot move that playhead, so it leaves an INTENTION —
+    and the counter is its own, never `cmd_seq`: a seek that rode the shared sequence would re-apply itself
+    on the next pause or volume command, which is a song that jumps backwards when you touch the volume."""
+    import widgets.store as store
+    store.save("musica", {"yt": {"videoId": "VID00000001", "title": "x", "cmd_seq": 4}})
+    assert md.apply_action("seek", {"to": 125})["ok"] is True
+    yt = md._load_db()["yt"]
+    assert yt["seek"] == {"n": 1, "to": 125.0}
+    assert yt["cmd_seq"] == 5, "the widget still has to notice the command arrived"
+
+    assert md.apply_action("seek", {"by": -10})["ok"] is True
+    yt = md._load_db()["yt"]
+    assert yt["seek"] == {"n": 2, "by": -10.0}, "a relative move says BY, and the counter advances"
+    assert "to" not in yt["seek"], "an absolute position left behind would win over the relative ask"
+
+
+def test_a_seek_with_nothing_playing_is_a_refusal_not_a_silent_ok():
+    r = md.apply_action("seek", {"to": 30})
+    assert r["ok"] is False and r.get("reason") == "no_track"
+
+
+def test_a_seek_on_a_file_we_hold_never_restarts_the_file():
+    """`seq` means «start this file again» (V2-638). A seek that bumped it would restart the very song it
+    was asked to move inside — measured as the design of the local player, not guessed."""
+    import widgets.store as store
+    store.save("musica", {"local": {"src": "/api/library/audio/x.mp3", "rel": "audio/x.mp3",
+                                    "title": "X", "paused": False, "seq": 3}})
+    assert md.apply_action("seek", {"to": 42})["ok"] is True
+    loc = md._load_db()["local"]
+    assert loc["seek"] == {"n": 1, "to": 42.0} and loc["seq"] == 3
+    assert md.view_data()["local"]["seek"] == {"n": 1, "to": 42.0}, "the command has to reach the page"
+
+
+def test_a_seek_with_no_number_at_all_nudges_forward_instead_of_failing():
+    """«adelanta» with no amount is a real sentence. Thirty seconds forward is an answer; an error is not."""
+    import widgets.store as store
+    store.save("musica", {"yt": {"videoId": "VID00000001", "title": "x", "cmd_seq": 1}})
+    assert md.apply_action("seek", {})["ok"] is True
+    assert md._load_db()["yt"]["seek"] == {"n": 1, "by": 30.0}
+
+
+def test_the_card_is_told_where_the_spotify_song_is_and_how_long_it_lasts(monkeypatch):
+    """Spotify plays on a device that is not here, so the card cannot read a clock: it needs the photograph
+    (`progress_ms`) AND the length, or it draws no bar at all rather than one pinned at zero."""
+    from connectors.music.base import NowPlaying, Track
+    monkeypatch.setattr(auth, "status", lambda: {"logged_in": True, "can_connect": True})
+    np = NowPlaying(playing=True, device="Salón", volume=40, provider="spotify", progress_ms=61000,
+                    track=Track(title="Song", artist="A", album="Alb", duration_ms=214000))
+    monkeypatch.setattr("connectors.music.now_playing", lambda *a, **k: np)
+    vd = md.view_data()
+    assert vd["now_playing"]["progress_ms"] == 61000
+    assert vd["now_playing"]["duration_ms"] == 214000
+
+
+def test_the_song_screen_is_reachable_by_voice_under_the_name_it_was_born_with():
+    """`nowplaying` was declared in V2-058 and never implemented; a model that learned it — or an old
+    data-op — must land on the screen it was always asking for rather than silently on the library."""
+    assert md.apply_action("open_view", {"kind": "nowplaying"})["view"]["kind"] == "now"
+    assert md.apply_action("open_view", {"kind": "library"})["view"]["kind"] == "library"
+    assert md.apply_action("open_view", {"kind": "connect"})["view"]["kind"] == "connect"
+    assert md.apply_action("open_view", {"kind": "album"})["view"]["kind"] == "home", "unknown → the adaptive one"
+
+
+def test_a_seek_never_follows_the_song_it_was_asked_of():
+    """A new video is loaded IN PLACE in the same block, so an unapplied seek would cross over and move the
+    next song by the seconds meant for the last one."""
+    import widgets.store as store
+    store.save("musica", {"yt": {"videoId": "VID00000001", "title": "x", "cmd_seq": 1}})
+    md.apply_action("seek", {"to": 90})
+    assert md._load_db()["yt"]["seek"]["to"] == 90.0
+    from connectors.music import youtube_audio as ya
+    yt = ya._load_yt()
+    yt["videoId"] = "VID00000002"
+    ya._bump(yt, "load")
+    assert "seek" not in md._load_db()["yt"], "the next song starts where it starts"

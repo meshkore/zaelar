@@ -40,6 +40,11 @@ class NowPlaying:
     device: str = ""
     volume: "int | None" = None
     provider: str = ""
+    #: Milliseconds into the track, as of the moment this was read (V2-717). It is a PHOTOGRAPH, never a
+    #: clock: whoever paints a progress bar with it advances it from the instant it arrived. 0 means «this
+    #: provider does not say», which is not the same as «the song is at the start» — the caller draws no
+    #: progress bar at all rather than one pinned at zero.
+    progress_ms: int = 0
 
 
 @dataclass
@@ -69,6 +74,17 @@ class MusicProvider(ABC):
 
     @abstractmethod
     def search(self, query: str, limit: int = 5) -> "list[Track]": ...
+
+    def seek(self, seconds: float = 0.0, relative: bool = False) -> MusicResult:
+        """Move the playhead (V2-717): to `seconds`, or BY `seconds` when `relative`.
+
+        Deliberately NOT abstract. A provider that plays out of process can do this over its API; one that
+        plays inside the page cannot be asked from here at all — it can only leave an intention behind for
+        the page to apply. Anything that implements neither keeps the honest default: unsupported, said
+        plainly, instead of an ok that moved nothing.
+        """
+        return MusicResult(ok=False, provider=self.name, action="seek", reason="unsupported",
+                           message="")
 
     @abstractmethod
     def play(self, query: str = "", uri: str = "") -> MusicResult:

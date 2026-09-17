@@ -21,6 +21,41 @@ entregada siga citada aquí.
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **El widget ES la ventana, y la canción ES la pantalla (V2-717, 2026-09-17)**: con la tarjeta de música
+  abierta y una canción sonando, el operador: «has puesto como un contenedor exterior con el título y los
+  botones del sistema, y dentro has metido otra caja como si eso fuera el widget de música. Yo solo quiero
+  UNA caja encima del escritorio» · «me gustaría ver la canción en toda la pantalla del widget: la imagen
+  más grande, el nombre, el artista, la duración, una barra de progreso para que yo la pueda mover» ·
+  «está un poco triste al verse tan vacía».
+  **Tres cosas, y la primera generaliza el estándar de cabecera.** (1) Un widget que dibuja su propio
+  `border`+`radius`+`background` pinta una tarjeta encima de la que el canvas ya dibujó: dos marcos, dos
+  radios y un pasillo muerto entre ellos. Un widget NO añade caja — las tres bandas se separan por TONO y
+  una línea de pelo. (2) La cara por defecto es ADAPTATIVA: `home` es la canción cuando suena algo y la
+  biblioteca cuando no; `now`/`library` la fijan por clic o por voz, y el conmutador entre ellas se DIBUJA
+  SOLO si hay a dónde ir (la misma regla del raíl de contactos: una sección sin nada no se dibuja). (3) La
+  pantalla vacía dice algo y ofrece algo real que pulsar.
+  **El cabezal de reproducción es de quien hace el sonido, y por eso NO hay posición en el store.** Un
+  fichero local y el iframe oculto de YouTube suenan EN SU PÁGINA y tienen su propio reloj: la tarjeta los
+  lee directamente y arrastrar la barra los mueve sin servidor de por medio. Spotify suena en un aparato de
+  otra habitación, así que su `progress_ms` es una FOTOGRAFÍA que la tarjeta adelanta con su reloj y
+  arrastrar es una ida y vuelta (`MusicProvider.seek` se añadió deliberadamente NO abstracto: quien no pueda
+  ninguna de las dos cosas conserva el «unsupported» honesto). Un seek pedido por VOZ viaja al revés — una
+  orden NUMERADA en el store que aplica la página. Tres detalles que sostienen eso: el contador es propio y
+  nunca `cmd_seq` (montarlo sobre la secuencia compartida hace que la canción salte atrás cada vez que tocas
+  el volumen); `_bump(yt,"load")` descarta un seek pendiente (si no, cruza a la canción SIGUIENTE); y un
+  seek no toca `local.seq`, que significa «vuelve a empezar este fichero».
+  **El reloj del reproductor gratis ya estaba ahí**: el mismo handshake `listening` que da onReady/ENDED
+  desde V2-047 entrega `infoDelivery` con `currentTime` y `duration` — cero llamadas nuevas. Se guarda como
+  muestra SELLADA (para interpolar entre tramas en vez de dar saltos), se tira al cambiar de vídeo y se
+  filtra por id de handshake: el reproductor del widget de youtube emite en la misma ventana (el cruce de
+  V2-366) y sin el filtro su reloj se convertiría en la posición de esta tarjeta. Hasta que llega una trama
+  NO se dibuja barra: una barra clavada en cero que no se puede mover es peor que ninguna barra.
+  **Dos cosas medidas, no razonadas** (y las dos pasaron por verde antes de medirlas): un carril que pide
+  `width:100%` de un hueco sin anchura propia mide 0 píxeles — está en el DOM, se lee bien y no se puede
+  arrastrar; y una columna flex que CENTRA su contenido no hace scroll al desbordar, lo RECORTA por los dos
+  extremos con `scrollHeight` sin enterarse, así que el test de geometría mide CONTENCIÓN (dónde está el
+  borde de la portada y el del carril) y no `scrollHeight`. Nodo 4.3 ampliado con
+  `test_the_song_fills_the_screen.py` (18 casos); 26 desarmes en rojo.
 - **Una partición que edita el RENDER la deshace el daemon en una pasada (estabilización del repo,
   2026-09-17)**: el operador, mirando un árbol sucio que dos sesiones seguidas habían marcado como «no mío»
   sin tocarlo: «toma el control y estabiliza el repo».

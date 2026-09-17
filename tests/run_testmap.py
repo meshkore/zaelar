@@ -1862,7 +1862,22 @@ DOMAINS: list[dict] = [
                                                                  # ONLY the middle scrolls) — mounted inside the REAL
                                                                  # card chrome (.hb-win > .hb-scroll), the V2-608
                                                                  # fixture lesson.
-                                                                 "tests/browser/unit/musica/test_the_player_pins_header_and_footer.py"]},
+                                                                 "tests/browser/unit/musica/test_the_player_pins_header_and_footer.py",
+                                                                 # V2-717 (operator, 2026-09-17): the card was
+                                                                 # a box drawn inside the window's own box, and
+                                                                 # a song that was PLAYING lived in a strip at
+                                                                 # the foot while the middle sat empty («me
+                                                                 # gustaría ver la canción en toda la pantalla
+                                                                 # del widget»). Now: one box, one bar, the
+                                                                 # ficha filling the card — cover, title,
+                                                                 # artist, facts — and a scrubber he can DRAG.
+                                                                 # All of it render-only: whether a second
+                                                                 # frame is drawn, whether the ficha fits the
+                                                                 # card it declares, what a drag asks of the
+                                                                 # player, and the clock the YouTube embed
+                                                                 # sends as a postMessage that exists only in
+                                                                 # a browser.
+                                                                 "tests/browser/unit/musica/test_the_song_fills_the_screen.py"]},
         {"id": "4.4", "title": "Widget de YouTube", "ch": UNIT,
          "paths": ["tests/browser/unit/youtube/test_youtube.py",
                    # V2-596: blocked channels — the filter the operator educates by voice; every NAME-search
