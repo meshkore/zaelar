@@ -187,6 +187,34 @@ def test_the_turn_that_restarted_the_music_licenses_nothing_now():
     assert lic.video_license("Okay. What if", "Now playing Bruce Springsteen - Hungry Heart.") is False
 
 
+def test_a_yes_to_an_unrelated_question_licenses_nothing():
+    """V2-724, the audit's adjacent correction: «we previously asked something» is necessary and NOT
+    sufficient. Bound only to «a question existed», a «sí» to «¿te apunto la cita del dentista?» still
+    licensed a video load — one proposal's answer spending another proposal's authority."""
+    for offer in ("¿Te apunto la cita del dentista para el jueves?",
+                  "¿Quieres que le escriba a Ivan?",
+                  "Do you want me to delete the rest?"):
+        assert lic.video_license("sí", offer) is False, offer
+        assert lic.offer_of_media(offer) is False, offer
+
+
+def test_the_proposals_class_is_read_from_the_widgets_own_words():
+    """No table of ours: the certainty resolver first, then the vocabulary the PRODUCING widgets publish
+    about themselves. A fork that adds a player brings its own words with it."""
+    for offer in ("What kind of music, Richard? Give me a vibe or an artist.",
+                  "¿Busco de nuevo el vídeo?",
+                  "Shall I put the playlist back on?",
+                  "¿Te pongo otra canción?"):
+        assert lic.offer_of_media(offer) is True, offer
+        assert lic.video_license("sí", offer) is True, offer
+
+
+def test_a_statement_is_not_a_proposal():
+    """Both halves are required: the class AND a question actually pending."""
+    assert lic.offer_of_media("Now playing Bruce Springsteen - Hungry Heart.") is False
+    assert lic.offer_of_media("") is False
+
+
 def test_a_yes_still_answers_our_own_offer():
     """The escape exists for this and keeps working — that is why it is not simply deleted."""
     assert lic.video_license("sí", "¿Te busco otra vez el vídeo?") is True
@@ -201,12 +229,18 @@ def test_an_order_with_a_verb_never_needed_the_escape():
         assert lic.video_license(said) is True, said
 
 
-def test_the_reopen_license_asks_the_same_question():
-    """Same fact, same answer: a just-closed card does not reopen on a «vale» nobody asked for."""
+def test_the_reopen_license_binds_to_a_proposal_about_that_card():
+    """Same correction, the other effect: a «vale» reopens a just-closed card only when the pending
+    proposal was about THAT card. «¿Lo vuelvo a abrir?» names nothing, so it authorizes nothing — the safe
+    direction, since the alternative is a card resurrected over an answer to something else."""
     lic.note_operator_close("youtube")
     try:
         assert lic.reopen_license("youtube", "vale") is False
-        assert lic.reopen_license("youtube", "vale", last_reply="¿Lo vuelvo a abrir?") is True
+        assert lic.reopen_license("youtube", "vale", last_reply="¿Te apunto la cita?") is False
+        assert lic.reopen_license("youtube", "vale", last_reply="¿Lo vuelvo a abrir?") is False
+        assert lic.reopen_license("youtube", "vale", last_reply="¿Vuelvo a abrir el vídeo?") is True
+        # …and his own words still reopen it with no proposal at all, exactly as before.
+        assert lic.reopen_license("youtube", "abre otra vez el vídeo de YouTube") is True
     finally:
         lic._RECENT_CLOSES.clear()
 

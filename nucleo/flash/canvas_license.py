@@ -122,16 +122,88 @@ def answered_an_offer(last_reply: str) -> bool:
     return "?" in r or "¿" in r
 
 
+def _producing_vocabulary() -> tuple[str, ...]:
+    """The words the widgets that DECLARE production call themselves — their own aliases and keywords, no
+    table of ours. Cached by nobody on purpose: `runtime` already caches the catalog, and a fork that adds
+    a player brings its vocabulary with it."""
+    out: list[str] = []
+    try:
+        from widgets import producers, runtime
+        for w in runtime.catalog():
+            wid = str(w.get("id") or "")
+            if not wid or not producers.spec(wid):
+                continue
+            man = runtime.get(wid) or {}
+            for v in list(man.get("aliases") or []) + list(man.get("keywords") or []):
+                v = _norm_txt(str(v))
+                if len(v) >= 4:
+                    out.append(v)
+    except Exception:  # noqa: BLE001
+        return ()
+    return tuple(out)
+
+
+def bare_affirmative(text: str) -> bool:
+    """A SHORT yes and nothing else — the shape that can only mean «do the thing you just proposed»."""
+    n = _NEG_MEDIA_RE.sub(" ", _norm_txt(_his_words(text)))
+    return len(n.split()) <= 4 and bool(_AFFIRM_RE.search(n))
+
+
+def offer_about(wid: str, last_reply: str) -> bool:
+    """Was OUR still-pending question a proposal about THIS widget? (V2-724)
+
+    The sibling of `offer_of_media` for the other effect a “yes” can authorize: putting a card back. Same
+    correction behind both — an affirmative answers ONE proposal, so the proposal has to be the one whose
+    effect is about to be spent — and the same declared source, the certainty resolver every show uses."""
+    w = str(wid or "").split("::", 1)[0].strip().lower()
+    if not w or not answered_an_offer(last_reply):
+        return False
+    try:
+        from widgets import runtime
+        return str((runtime.identify(str(last_reply)) or {}).get("match") or "").split("::", 1)[0] == w
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def offer_of_media(last_reply: str) -> bool:
+    """Was OUR still-pending question a proposal to PLAY something? (V2-724)
+
+    The audit's adjacent correction, and it is right: «we previously asked something» is necessary and not
+    sufficient. With only that, a «sí» to «¿te apunto la cita del dentista?» still licensed a video load —
+    an answer to one proposal spending the authority of another. So the affirmative is bound to the
+    proposal's own effect class, and the class is read from DECLARED data twice over: the certainty
+    resolver every show already uses, and failing that the vocabulary the producing widgets publish about
+    themselves. Both halves are the widgets' own words; neither is a verb table of ours.
+
+    Its known limit, written down rather than patched with more words: an offer that names no medium at all
+    («want me to play something else?») is not recognised, so a bare «sure» to it licenses nothing and he
+    has to say it with a noun. That is the safe direction — the failure of this predicate costs a repeat,
+    and its false positive costs music nobody asked for."""
+    r = str(last_reply or "")
+    if not answered_an_offer(r):
+        return False
+    try:
+        from widgets import producers, runtime
+        wid = str((runtime.identify(r) or {}).get("match") or "").split("::", 1)[0]
+        if wid and producers.spec(wid):
+            return True
+    except Exception:  # noqa: BLE001
+        pass
+    folded = _norm_txt(r)
+    return any(v in folded for v in _producing_vocabulary())
+
+
 def video_license(text: str, last_reply: str = "") -> bool:
     """True when the turn ASKS for media — the words that may carry a `play_video` (a load that replaces
     whatever is playing). Chatter, praise, insults and complaints about a past change license nothing.
 
-    A bare affirmative licenses media only as the ANSWER to something we asked (`answered_an_offer`); with
-    no reply to read, it licenses nothing, which is the safe direction: he can always say it with a verb."""
+    A bare affirmative licenses media only as the answer to a still-pending proposal that was ITSELF about
+    playing something (`offer_of_media`); with no reply to read, it licenses nothing, which is the safe
+    direction: he can always say it with a verb."""
     n = _NEG_MEDIA_RE.sub(" ", _norm_txt(_his_words(text)))
     if _MEDIA_REQ_RE.search(n):
         return True
-    return len(n.split()) <= 4 and bool(_AFFIRM_RE.search(n)) and answered_an_offer(last_reply)
+    return len(n.split()) <= 4 and bool(_AFFIRM_RE.search(n)) and offer_of_media(last_reply)
 
 
 def close_license(text: str) -> bool:
@@ -231,6 +303,10 @@ def reopen_license(wid: str, text: str, open_ids=None, recent_ids=None, last_rep
     if not ts or (_time.time() - ts) > _REOPEN_WINDOW_S:
         return True
     if video_license(text, last_reply):
+        return True
+    # …and an affirmative answering a proposal about THIS card reopens it: that proposal's own effect is
+    # the presentation, which media's grammar has no reason to recognise (V2-724).
+    if bare_affirmative(text) and offer_about(w, last_reply):
         return True
     try:
         from widgets import runtime

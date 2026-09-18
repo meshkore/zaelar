@@ -21,6 +21,30 @@ entregada siga citada aquí.
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **A «yes» answers ONE proposal, and spends only that proposal's authority (V2-724, 2026-09-18)**: the
+  audit's correction to V2-723's own down payment, and it landed on a hole opened hours earlier. Requiring
+  that we «previously asked something» is necessary and NOT sufficient: with only that, a «sí» to «¿te
+  apunto la cita del dentista?» still licensed a video load — one proposal's answer spending another
+  proposal's authority. The affirmative is now bound to the proposal's EFFECT CLASS, and the class is read
+  from declared data twice over: the certainty resolver every show already uses, and failing that the
+  vocabulary the producing widgets publish about themselves (`musica` lists «canción», `youtube` lists
+  «clip»). No verb table of ours, and a forked player brings its own words. Its sibling covers the other
+  effect a yes can spend: a just-closed card reopens on «vale» only when the pending proposal was about
+  THAT card — «¿lo vuelvo a abrir?» names nothing and now authorizes nothing. Known limit, written down
+  instead of patched with more words: an offer naming no medium («want me to play something else?») is not
+  recognised, so it costs a repeat — the failure direction we want. Same node 3.54, two more disarms.
+  ⚠️ **The envelope the audit specifies is the real fix and is NOT built**: a turn/task authority narrowed
+  into a per-action GRANT (originating turn or continuing task · action + resolved targets or an authorized
+  selection scope · allowed effects · expiry and revocation · execution identity), children narrowing and
+  never expanding; enforcement at BOTH ends (dispatch validates the grant before work starts, each effect
+  door enforces the actual effect as it happens) with ONE policy evaluator; a delayed worker deriving a
+  FRESH grant from persisted task authority rather than reusing an old turn's or re-reading its own
+  free-text description; and three outcomes instead of one — suppress-and-trace an incidental effect, PAUSE
+  the dependent work and request authorization for an essential one (`awaiting_authorization`, never by
+  opening a card or speaking to ask), stop and explain a prohibited one, and never report full success when
+  suppression prevented completion. Also on the record: the emitter ratchet prevents regression, it does
+  **not** establish coverage while the twenty-one legacy bypasses remain.
+
 - **An action does not manufacture permission for its own side effects (V2-723, 2026-09-18)**: an external
   audit of this layer read the catalog, the single dispatch and the browser-owned canvas as sound boundaries
   and put the weak point exactly where the month's incidents live — «authorizing an action is not the same as
