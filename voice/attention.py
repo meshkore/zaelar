@@ -50,11 +50,15 @@ _SMART_WINDOW_MAX_S = 5.0  # hard ceiling for smart mode, applied AFTER the env 
 _DEFAULT_WAKEWORDS = ("zaelar",)
 
 # ── process state ───────────────────────────────────────────────────────────────────────────────────
+_UNANSWERED_OPENS_AT = 2   # consecutive unanswered speeches that force the next cold turn open (fix01)
+_UNANSWERED_WITHIN_S = 60.0  # ...provided they happened within this long — one stray sentence an hour ago is not him talking to a wall
+
 _state = {"last_directed": 0.0, "ptt": False, "assistant_name": "", "bot_hold": False,
           "window_hint": 0.0,      # per-reply dynamic window (attention_window.hint); 0 = use the mode default
           "recent_directed": [],   # timestamps of recent directed turns → dialogue depth for the hint
           "spotted_at": 0.0,       # last instant wake-word spot (interim STT) — dedupe for the orb signal
           "ambient_tail": [],      # (ts, text) of recently-DISCARDED ambient turns — reclaimed by a wake word
+          "unanswered": [],        # timestamps of CONSECUTIVE discards with nobody answering — fix01 below
           "typed_at": 0.0,         # V2-646: last TYPED (chat/paste) turn — a typed message is never ambient
           "typed_pending": False,  # V2-654: that typed turn has not been handled yet — the mic gate's exemption
           "bot_addressed": 0.0,    # V2-655: the utterance about to be spoken is ADDRESSED to him — see note_addressed_speech
@@ -353,6 +357,18 @@ async def evaluate_content(text: str, *, context: str = "", now: float | None = 
     now = time.time() if now is None else now
     if _state["last_directed"] and (_window_ref(now) - _state["last_directed"]) <= window_s():
         return Verdict(True, "active_window")
+    # fix01 — NOBODY JUDGES THE THIRD UNANSWERED SPEECH. Measured 2026-09-18, session 6d19df41: the cold-start
+    # judge returned `llm_ambient` on «Hey, Tony. Open my messages.», then on «Are you copying?» — an explicit
+    # order and a direct second-person check-in, back to back, both dropped in silence. The pattern is the
+    # signal the judge keeps missing: one discard may be room noise, but speech that keeps coming while nobody
+    # answers is him talking to a wall. After `_UNANSWERED_OPENS_AT` consecutive discards the next cold turn
+    # is directed WITHOUT consulting the coin-flip — bounded to `_UNANSWERED_WITHIN_S` so a stray sentence
+    # from an hour ago never opens anything, and cleared by the first handled turn (`note_directed`) or any
+    # deliberate reset. The priced cost is honest and already priced by this module's own rule: sustained
+    # background chatter now runs one turn in three instead of none — better to process some noise than to
+    # leave the operator repeating himself into silence.
+    if unanswered_streak(now) >= _UNANSWERED_OPENS_AT:
+        return Verdict(True, "unanswered_repeat")
     # WITHOUT A DIALOGUE FRAME THERE IS NO VERDICT (V2-704). The judge's one measured strength is the frame:
     # `_DIRECTED_SYSTEM`'s own note records that presenting the assistant's last utterance as «Zaelar acaba de
     # decir …» is what flips «¿me estás escuchando?» from ambient to directed, 3/3, and that without it a
@@ -426,6 +442,7 @@ def note_directed(now: float | None = None) -> None:
     _state["_prev_anchor"] = (_state["last_directed"], list(_state["recent_directed"]),
                               _state.get("window_hint") or 0.0)
     _state["last_directed"] = now
+    _state["unanswered"] = []    # fix01: somebody answered — the streak is over, whatever it counted
     rd = [t for t in _state["recent_directed"] if now - t <= 90.0]
     rd.append(now)
     _state["recent_directed"] = rd[-10:]
@@ -575,6 +592,16 @@ def note_ambient(text: str, now: float | None = None) -> None:
         return
     now = time.time() if now is None else now
     _state["ambient_tail"] = ([(ts, x) for ts, x in _state["ambient_tail"] if now - ts <= 12.0] + [(now, t)])[-4:]
+    # fix01: every real discard is also one more unanswered speech in a row — the streak `evaluate_content`
+    # reads before consulting the judge. Repetition-after-silence is the signal the judge keeps missing.
+    _state["unanswered"] = [ts for ts in _state["unanswered"] if now - ts <= _UNANSWERED_WITHIN_S] + [now]
+
+
+def unanswered_streak(now: float | None = None) -> int:
+    """How many consecutive speeches went unanswered within `_UNANSWERED_WITHIN_S` — the count the cold path
+    opens on. Exported so the emitter and the tests read the same fact the gate decides by."""
+    now = time.time() if now is None else now
+    return sum(1 for ts in _state["unanswered"] if now - ts <= _UNANSWERED_WITHIN_S)
 
 
 def reclaim_ambient_tail(text: str, now: float | None = None, within_s: float = 10.0) -> str:
@@ -620,6 +647,7 @@ def _wipe_window() -> None:
     _state["spotted_at"] = 0.0
     _state["recent_directed"] = []
     _state["_prev_anchor"] = None
+    _state["unanswered"] = []    # fix01: a deliberate reset (silence order, mode flip) ends the streak too
 
 
 def close_window(src: str = "voice-order") -> None:
@@ -677,6 +705,7 @@ def reset() -> None:
     _state["speech_onset"] = 0.0
     _state["speech_rise"] = 0.0
     _state["speech_end"] = 0.0
+    _state["unanswered"] = []
 
 
 # ── HARD interruption (T136): STOP always handled, BYPASSES the gate, DETERMINISTIC (does not depend on the LLM) ────
