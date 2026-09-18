@@ -2133,7 +2133,8 @@ DOMAINS: list[dict] = [
                                  "espera a que la petición esté contestada",
             "ch": UNIT, "paths": [
                 "tests/browser/unit/widgets/test_an_order_names_its_target.py",
-                "tests/voice/unit/providers/test_a_notice_waits_its_turn.py"]},
+                "tests/voice/unit/providers/test_a_notice_waits_its_turn.py",
+                "tests/voice/unit/providers/test_a_consumed_note_does_not_live_in_the_window.py"]},
         # V2-672 — el selector de primer arranque, RENDERIZADO. La pantalla no lleva ni una palabra nuestra:
         # una marca de persona hablando, y una fila por idioma con su bandera y su nombre nativo. El fuente
         # no puede verlo — la primera corrida cazó que el icono se montaba con `innerHTML` en vez de `html`,

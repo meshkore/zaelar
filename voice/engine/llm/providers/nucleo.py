@@ -2767,7 +2767,13 @@ class NucleoLLMStream(llm.LLMStream):
 
         # push_user (no append pelado): si el turno ANTERIOR se canceló por solape, su frase ya está registrada y
         # ésta suele ser su versión acumulada por el STT → se sustituye en vez de duplicar el prefijo.
-        _dialog.push_user(brain._window, text)
+        # fix08 (6d19df41): the window keeps HIS words (`operator_text`, captured before the notes), NOT the
+        # composed turn. Notes are ONE-SHOT (`brain_notes.drain`): the model sees them THIS turn and the reply
+        # records what was said; persisting them in the window turned them into permanent context, and every later
+        # turn re-read them as pending news ("meanwhile, on the Scarborough search..." with the worker at 0%). The
+        # barge-in path above still stores the composed text: that turn never answered, so its notes were never
+        # consumed and must stay visible.
+        _dialog.push_user(brain._window, operator_text)
         if spoken_text:
             # Guarda la respuesta SANEADA (anti-degeneración V2-032): si el modelo empalmó/repitió, no reinyectamos
             # esa basura al turno siguiente → cortamos el bucle de realimentación que degrada al modelo pequeño.
