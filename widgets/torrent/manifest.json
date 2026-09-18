@@ -27,7 +27,7 @@
       "desc": "busca un torrent por la red y empieza a descargarlo",
       "payload": {
         "query": "qué buscar (título de la peli o el vídeo)",
-        "keep": "opcional: true para guardarlo aunque no sea reproducible"
+        "keep": "opcional: este widget descarga cualquier formato por defecto; pasa false para rechazar lo no reproducible"
       },
       "view": true
     },
@@ -35,7 +35,7 @@
       "desc": "añade un enlace magnet concreto y empieza a descargarlo",
       "payload": {
         "magnet": "enlace magnet:?...",
-        "keep": "opcional: true para guardarlo aunque no sea reproducible"
+        "keep": "opcional: este widget descarga cualquier formato por defecto; pasa false para rechazar lo no reproducible"
       },
       "view": true
     },

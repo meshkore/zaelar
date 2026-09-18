@@ -3639,7 +3639,8 @@ DOMAINS: list[dict] = [
         {"id": "5.22", "title": "Torrent embebido: el magnet viene de la red, el cliente lo transmite, y "
                                 "todo falla a salvo",
             "ch": UNIT, "paths": [
-                "tests/connectors/unit/torrent/test_the_torrent_addon_finds_streams_and_fails_safe.py"]},
+                "tests/connectors/unit/torrent/test_the_torrent_addon_finds_streams_and_fails_safe.py",
+                "tests/browser/unit/torrent/test_the_torrent_widget_downloads_any_format.py"]},
     ]},
     {"id": "6", "name": "CLUSTER (meshkore)", "nodes": [
         {"id": "6.1", "title": "Cápsula / framing (una sola mente)", "ch": PEER, "paths": [

@@ -199,7 +199,9 @@ def apply_action(action: str, payload: dict = None) -> dict:
         query = str(payload.get("query") or "").strip()
         if not query:
             return {"ok": False, "error": "dime qué peli o vídeo busco"}
-        keep = bool(payload.get("keep"))
+        # This widget IS the explicit "I want the file" surface: downloading is its whole job, so it
+        # takes any format (an .mkv film downloads fine) and playability is enforced only at `open`.
+        keep = bool(payload.get("keep", True))
         res = _svc().search_and_play(query, keep=keep)
         db = _load()
         if res.get("ok"):
@@ -212,7 +214,7 @@ def apply_action(action: str, payload: dict = None) -> dict:
 
     if action == "add_magnet":
         magnet = str(payload.get("magnet") or "").strip()
-        keep = bool(payload.get("keep"))
+        keep = bool(payload.get("keep", True))
         res = _svc().add_magnet(magnet, keep=keep)
         db = _load()
         if res.get("ok"):
