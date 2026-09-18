@@ -2614,7 +2614,10 @@ DOMAINS: list[dict] = [
                       "tests/browser/unit/mensajeria/test_an_open_thread_paints_in_every_profile.py",
                       "tests/browser/e2e/mensajeria/test_mensajeria_render.py",
                       "tests/connectors/unit/messaging/test_media_travel_to_the_store.py",
-                      "tests/connectors/unit/email/test_attachments_and_disposal.py"]},
+                      "tests/connectors/unit/email/test_attachments_and_disposal.py",
+                      # 2026-09-18 (sesión 6d19df41, fix07): los botones de acción eran emoji y una fuente
+                      # los dibujó como sinsentidos («subwoofer»); ahora son SVG inline, mismo orden y acciones.
+                      "tests/browser/unit/mensajeria/test_action_buttons_render_svg_icons.py"]},
         # V2-546: the widget FOLLOWS the real apps instead of drifting from them. Two measured facts behind it:
         # all three connectors were wired INBOUND-ONLY (the WhatsApp bridge saw the operator's outgoing
         # messages and dropped them with an explicit `continue`; Telethon subscribed to `incoming=True` only;
@@ -2654,7 +2657,10 @@ DOMAINS: list[dict] = [
         {"id": "4.99", "title": "MENSAJERÍA: el widget sigue a la app real (respuestas desde el móvil, leído "
                                 "fuera, historial de conversación)",
             "ch": UNIT,
-            "paths": ["tests/browser/unit/mensajeria/test_the_widget_follows_the_real_app.py"]},
+            "paths": ["tests/browser/unit/mensajeria/test_the_widget_follows_the_real_app.py",
+                      # 2026-09-18 (sesión 6d19df41, fix06): abrir un chat limpiaba el hilo pero no el
+                      # punto local de «no leído» de Raquel; `open` ahora marca leído el hilo.
+                      "tests/browser/unit/mensajeria/test_opening_a_chat_clears_the_local_unread_dot.py"]},
         # i18n de la UI (V2-089). Estaba SIN mapear: `test_bundles.py` guarda los presets (mismas claves en/es,
         # español no vacío, placeholders alineados) y `test_bundle_reactivity.py` el contrato RUNTIME —
         # `t()` re-renderiza cuando el bundle gana claves, no solo cuando cambia el idioma (fallo 2026-08-09:
@@ -2793,7 +2799,12 @@ DOMAINS: list[dict] = [
         {"id": "4.149", "title": "Un widget recién cerrado no se reabre por charla, y un garble de la lista "
                                  "se resuelve o se niega nombrando lo que hay",
             "ch": UNIT, "paths": [
-                "tests/voice/unit/test_a_just_closed_widget_does_not_reopen_on_chatter.py"]},
+                "tests/voice/unit/test_a_just_closed_widget_does_not_reopen_on_chatter.py",
+                # 2026-09-18 (sesión 6d19df41, fix04): la MISMA puerta en el otro sentido — lo que el worker
+                # encarga SÍ se abre, pero en SEGUNDO PLANO: el `documento` de un encargo fantasma tapó su
+                # flujo de email («why are you open the documents right now?»). `sse.js` marca `background`
+                # por `src: worker:*`; desktop salta `_bringFront`, el Deck salta `_goTo`.
+                "tests/browser/unit/widgets/test_worker_show_opens_in_background.py"]},
         # V2-651 F0 (2026-09-10): identify the OPERATOR's voice. The cost lives in the BROWSER (operator
         # directive): the fingerprint of every speech segment is computed client-side and only a tiny label would
         # ever cross to the backend. F0 is SHADOW MEASUREMENT — zero behaviour change: fingerprint + multi-profile

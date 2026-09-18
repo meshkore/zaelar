@@ -179,7 +179,10 @@ export class Deck {
   capabilities() { return { open: this.list(), canDrag: false, fullscreenAlways: true, paging: "two-finger" }; }
 
   // ── the host contract, part 2: showing ───────────────────────────────────────────────────────────────────
-  async show(rawId, { q = "", data: providedData = null } = {}) {
+  async show(rawId, { q = "", data: providedData = null, background = false } = {}) {
+    // `background` (worker-commissioned shows, see app/services/sse.js): the card is mounted and
+    // queued in the deck, but the visible card stays where the operator left it — same rule as
+    // desktop, where background work opens beside, never over. Session 6d19df41.
     let baseId, id, wq;
     if (rawId && String(rawId).includes("::")) { const p = String(rawId).split("::"); baseId = p[0]; id = rawId; wq = p[1] || q; }
     else { baseId = await this._resolve(rawId); id = baseId; wq = q; }
@@ -194,7 +197,7 @@ export class Deck {
       this.cards.set(id, w);
       this.order.push(id);
     }
-    this._goTo(this.order.indexOf(id), 0);
+    if (!background) this._goTo(this.order.indexOf(id), 0);
     if (!fresh && providedData === null && q === w.q) return;   // already up, same query, no pushed data → just surface it
     w.q = q;
     await this._load(w, baseId, q, providedData, fresh);

@@ -617,6 +617,7 @@ export class Desktop {
     } else if((e.origin||"user")==="builtin"){
       org.textContent=tr("desktop.origin_system",{id:w.base});
     } else {
+      if(!background) this._bringFront(w.card);
       org.textContent=tr("desktop.origin_yours");
     }
     panel.appendChild(org);
@@ -660,7 +661,11 @@ export class Desktop {
     e.textContent=msg;
   }
 
-  async show(rawId, {q="", data:providedData=null, pos=null}={}){
+  async show(rawId, {q="", data:providedData=null, pos=null, background=false}={}){
+    // `background` (worker-commissioned shows, see sse.js): the card still OPENS — placed in free
+    // space, data rendering as usual — but it must not take focus (no _bringFront, no hb-focus steal)
+    // over whatever the operator is looking at. Session 6d19df41: a ghost errand's `documento`
+    // covered his email flow. Background work opens beside, never over.
     // TASK INSTANCE: an id such as `navegador::t3` = multiple cards for the SAME base widget. base = code+data
     // (`navegador`), q = task id (for /data?q= and ctx.action), and the card is indexed by the COMPLETE id
     // (instance) → N independent browser cards, one per tab/task. A normal id behaves the same way.
@@ -713,8 +718,9 @@ export class Desktop {
       this._addHandles(card);
       if(pos && pos.left){                              // restored: honor the SAVED position instead of auto-placing
         card.style.left=pos.left; card.style.top=pos.top;
-        const pz=parseInt(pos.z)||0; if(pz){ card.style.zIndex=pz; this.z=Math.max(this.z, pz); } else this._bringFront(card);
-      } else { this._place(card); this._bringFront(card); }   // fit into free space without overlapping anything
+        const pz=parseInt(pos.z)||0; if(pz){ card.style.zIndex=pz; this.z=Math.max(this.z, pz); } else if(!background) this._bringFront(card);
+      } else {
+      if(!background) this._bringFront(w.card); this._place(card); if(!background) this._bringFront(card); }   // fit into free space without overlapping anything
       if(pos && (pos.w || pos.h)) this._applyGeom(card, pos.w, pos.h);   // …y con el tamaño que le dejó el operador
       if(pos && pos.min) card.classList.add("hb-minned");                // V2-537: minimized survives a reload
       this._wireDrag(card);
@@ -736,7 +742,7 @@ export class Desktop {
       // to load still occupies the canvas, and a card on the canvas without a chip is exactly what the rail forbids.
       try{ document.dispatchEvent(new CustomEvent("hb:canvas-changed")); }catch(_){}
     } else {
-      this._bringFront(w.card);
+      if(!background) this._bringFront(w.card);
       // Already open, no new data pushed, same query → just surface it (no re-fetch, no re-render, no flicker).
       if(providedData === null && q === w.q) return;
     }
@@ -894,6 +900,7 @@ export class Desktop {
         this._ids=null; this._meta=null;                      // refresh the catalog so the new widget is known
         await this.show(r.id||id, {q:spec});
       } else {
+      if(!background) this._bringFront(w.card);
         const l=card.querySelector(".hb-load"); if(l)l.remove();
         cap.className="hb-cap err"; cap.textContent=tr("desktop.create_failed", { error: (r&&r.error)||"error" });
         setTimeout(()=>{card.classList.remove("in");setTimeout(()=>card.remove(),200);},4000);
@@ -1242,6 +1249,7 @@ export class Desktop {
       card.style.left=r.left; card.style.top=r.top; card.style.width=r.w; card.style.height=r.h;
       card.style.maxWidth=r.mw; card.style.maxHeight=r.mh;
     } else {
+      if(!background) this._bringFront(w.card);
       card._restore = {left:card.style.left, top:card.style.top, w:card.style.width, h:card.style.height,
                        mw:card.style.maxWidth, mh:card.style.maxHeight};
       this._maximizeTo(card);                            // V2-538 rail + V2-608 chat column: see canvas()

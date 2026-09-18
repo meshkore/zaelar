@@ -93,7 +93,12 @@ export function openSSE(desktop) {
       // is not an order**, and the sender is precisely the one who has nothing to do with it.
       const _eco = d.src === "user";
       if (d.label === "show" && d.id && !_eco) {
-        desktop.show(d.id, { data: d.data });       // brain shows it (with pushed data, if any)
+        // A worker-commissioned card opens WITHOUT taking focus: session 6d19df41, the ghost
+        // "Scarborough" errand's `documento` sheet came to the front over the operator's email
+        // flow ("why are you open the documents right now? I said open my email"). What the
+        // operator is looking at is his; background work opens visibly beside it, never over it.
+        const _bg = /^worker:/.test(d.src || "");
+        desktop.show(d.id, { data: d.data, background: _bg });   // brain shows it (with pushed data, if any)
         // V2-464 — in showcase, each opening rearranges the grid automatically, so an unattended recording
         // remains aligned without hands. Showcase only: auto-arrangement would move things for a normal operator.
         if (_SHOWCASE) { clearTimeout(_arrT); _arrT = setTimeout(() => desktop.arrange && desktop.arrange(), 700); }
