@@ -1,15 +1,13 @@
 """server/wizard_api.py — first-run WIZARD API (V2-040, Phase 2).
 
 Serves the wizard web overlay (Phase 3) and shares the DETECTOR with the `python -m config.doctor` CLI. The server
-is LOCAL, so it can (a) RE-RUN the detector live ("re-analyze" button), (b) apply a coordinated PROFILE
-(local/cloud), (c) save CREDENTIALS in the store (chmod 600, redacted), and (d) RUN project-scoped installers
+is LOCAL, so it can (a) RE-RUN the detector live ("re-analyze" button), (b) save CREDENTIALS in the store (chmod 600, redacted), and (c) RUN project-scoped installers
 (pip/playwright/ollama pull) or RETURN the command for system-level ones (brew/apt/npm). Operator decisions
 2026-07-15: web + system script; automate installation where possible, commands otherwise.
 
 Endpoints (all under /api/wizard):
   GET  /state                → {first_run, active_profile, profiles[], report, installers[]}
   POST /report   {refresh}   → re-analyzes the system (doctor) and returns the report
-  POST /profile  {name}      → applies the coordinated profile (settings+v2) and returns its requirements
   POST /credential {key|provider, value} → saves/updates an API key (redacted; empty value = delete)
   POST /install  {id, model?} → launches an executable installer (background job) or returns the command
   GET  /install/{job}        → installation job status
@@ -134,12 +132,12 @@ async def report(refresh: bool = Body(True, embed=True)) -> dict:
     return await asyncio.to_thread(doctor.report, refresh)   # the detector does I/O (Ollama/http) → off the loop
 
 
-@router.post("/api/wizard/profile")
-async def profile(name: str = Body(..., embed=True)) -> dict:
-    from config import profiles
-    res = profiles.apply(name)
-    res["requirements"] = profiles.requirements(name)
-    return res
+# NO `POST /api/wizard/profile` (V2-725). The panel's profile screen is gone — «cuando se instala el local
+# siempre va a ser local y cuando se instala en la nube siempre va a ser en la nube» — and this endpoint was its
+# only caller. Retiring it with the screen is the half that matters: `profiles.apply()` writes settings.json AND
+# config/v2.json as one coordinated lever, so as long as a route existed to fire it from a browser, the engine
+# kept a way to have its model routing replaced by a click nobody could undo. The deployment's profile is READ
+# from `config/profiles.py`; nothing writes it from the UI.
 
 
 @router.post("/api/wizard/credential")

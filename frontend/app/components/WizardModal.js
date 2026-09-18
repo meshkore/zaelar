@@ -1,6 +1,20 @@
-// WizardModal — asistente of primer arranque (V2-040): elige perfil LOCAL/CLOUD (con the detector recomendando),
-// resuelve the HUECOS (instala with un clic lo of the proyecto, or da the comando for lo of sistema) and valida las
-// CREDENCIALES. Se auto-abre when the config no está validada (first_run) and es reabrible from the TopBar (🧭).
+// WizardModal — the SETUP panel, reachable from the TopBar (🧭). Two screens: what is MISSING on this machine
+// (installs the project-scoped pieces with one click, hands over the command for the system-level ones) and the
+// API KEYS that go with it.
+//
+// V2-725 — IT NO LONGER ASKS WHERE IT IS RUNNING. The panel used to open on a LOCAL/CLOUD profile choice, and
+// the operator, on his own install: «esto no tiene sentido, porque cuando se instala el local siempre va a ser
+// local y cuando se instala en la nube siempre va a ser en la nube». He had said the same thing once before —
+// V2-671 is the commit that stopped it firing at first boot, and it stopped there, leaving the screen reachable
+// on the theory that choosing to run models on your own machine is a legitimate thing to want. It is; asking a
+// human to arbitrate it out of nowhere is not, and the screen was the whole of the panel's front door.
+//
+// The profile is still READ (it decides which gaps and which keys are worth showing), it is simply never asked
+// and never named: `S.active_profile` comes from the canonical table in `config/profiles.py`. The lever that
+// APPLIED one is gone with the screen, and that half matters more than the screen did — `profiles.apply()`
+// rewrites settings.json AND config/v2.json together, which is how this panel once silently replaced the
+// operator's model routing twenty seconds after a factory reset had deliberately preserved it (V2-671).
+//
 // Estilo with the variables --hb-* (tema dark/light). Render by innerHTML + wiring by id, as SettingsModal.
 import { h } from "../core/dom.js?v=2";
 import { createEffect } from "../core/reactive.js?v=2";
@@ -10,12 +24,13 @@ import { CHEVRON_LEFT_ICON, CHEVRON_RIGHT_ICON, REFRESH_ICON } from "../lib/icon
 import { t } from "../core/i18n.js?v=1";
 
 const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-const ok = b => b ? "✓" : "✗";
 
 export function WizardModal() {
   let S = null;          // state cacheado of the server (/api/wizard/state)
-  let chosen = "";       // perfil elegido
-  let step = "perfil";   // perfil | huecos | credenciales
+  // The deployment's own profile, READ and never chosen (V2-725). It is a filter for what is worth showing,
+  // not a setting: nothing in this panel writes it back.
+  let active = "";
+  let step = "huecos";   // huecos | credenciales
   let bodyEl, titleEl, ovl;
   const jobs = {};       // id-instalador → job en curso (poll)
 
@@ -25,8 +40,8 @@ export function WizardModal() {
     bodyEl.innerHTML = '<p class="wiz-hint">' + t("wizard.analyzing") + '</p>';
     try {
       S = await api.wizardState();
-      chosen = S.active_profile || (S.report && S.report.recommend && S.report.recommend.profile) || "local";
-      step = "perfil";
+      active = S.active_profile || "";
+      step = "huecos";
       render();
     } catch (e) {
       bodyEl.innerHTML = '<p class="wiz-hint">' + t("wizard.loadError") + '</p>';
@@ -40,45 +55,15 @@ export function WizardModal() {
   }
 
   function render() {
-    titleEl.textContent = { perfil: t("wizard.stepPerfilTitle"), huecos: t("wizard.stepHuecosTitle"), credenciales: t("wizard.stepCredencialesTitle") }[step] || t("wizard.title");
-    if (step === "perfil") return renderPerfil();
-    if (step === "huecos") return renderHuecos();
+    titleEl.textContent = { huecos: t("wizard.stepHuecosTitle"), credenciales: t("wizard.stepCredencialesTitle") }[step] || t("wizard.title");
     if (step === "credenciales") return renderCreds();
+    return renderHuecos();
   }
 
-  // ── ① PERFIL ──────────────────────────────────────────────────────────────────────────────────────────
-  function renderPerfil() {
-    const rec = (S.report && S.report.recommend) || {};
-    const hw = (S.report && S.report.hardware) || {};
-    const cards = (S.profiles || []).map(p => {
-      const isRec = rec.profile === p.name;
-      const v = p.voice || {}, f = p.fast || {};
-      return `<div class="wiz-card${isRec ? " rec" : ""}" data-profile="${esc(p.name)}">
-        <div class="wiz-card-h"><b>${esc(p.label)}</b>${isRec ? '<span class="wiz-badge">' + t("wizard.recommended") + '</span>' : ""}</div>
-        <div class="wiz-sub">${esc(p.summary)}</div>
-        <div class="wiz-fix">${t("wizard.providerLine", { stt: esc(v.stt_provider || "?"), tts: esc(v.tts_provider || "?"), brain: esc(f.provider || "?") })}</div>
-        <button class="wiz-btn pick" data-profile="${esc(p.name)}">${t("wizard.choose")}</button>
-      </div>`;
-    }).join("");
-    bodyEl.innerHTML = `
-      <p class="wiz-hint">${t("wizard.machineLine", { platform: esc(hw.platform || "?"), arch: esc(hw.arch || "?"), apple: hw.apple_silicon ? " · " + t("wizard.appleSilicon") : "", metal: ok(hw.metal), ollama: ok(S.report && S.report.ollama && S.report.ollama.reachable) })}
-      ${rec.why ? t("wizard.suggestion", { profile: esc(rec.profile), why: esc(rec.why) }) : ""}</p>
-      <div class="wiz-cards">${cards}</div>
-      <div class="wiz-foot"><button class="wiz-btn ghost" id="wizReanalyze">${REFRESH_ICON}${t("wizard.reanalyze")}</button><span class="wiz-msg" id="wizMsg"></span></div>`;
-    bodyEl.querySelectorAll(".pick").forEach(b => b.onclick = async () => {
-      chosen = b.dataset.profile;
-      b.disabled = true; b.textContent = t("wizard.applying");
-      try { await api.wizardProfile(chosen); } catch (_) {}
-      step = "huecos"; render();
-    });
-    const rb = bodyEl.querySelector("#wizReanalyze");
-    if (rb) rb.onclick = () => reanalyze(rb);
-  }
-
-  // ── ② HUECOS ──────────────────────────────────────────────────────────────────────────────────────────
+  // ── ① WHAT IS MISSING ──────────────────────────────────────────────────────────────────────────────────────────
   function gaps() {
     const r = S.report || {}, t2 = r.tooling || {}, oll = r.ollama || {}, hw = r.hardware || {};
-    const prof = (S.profiles || []).find(p => p.name === chosen) || {};
+    const prof = (S.profiles || []).find(p => p.name === active) || {};
     const needOllama = (prof.fast && prof.fast.provider === "ollama") || (prof.memory && prof.memory.embed_provider === "ollama");
     const out = [];
     if (needOllama && !oll.reachable) out.push({ id: "ollama", label: t("wizard.gapOllamaDown"), runnable: false });
@@ -96,7 +81,7 @@ export function WizardModal() {
     if (!t2.claude_cli) out.push({ id: "claude_cli", label: t("wizard.gapClaudeCli"), runnable: false });
     if (!t2.playwright_chromium) out.push({ id: "playwright", label: t("wizard.gapPlaywright"), runnable: true });
     if (!t2.livekit_server) out.push({ id: "livekit", label: t("wizard.gapLivekit"), runnable: false });
-    if (chosen === "local" && !hw.metal && !hw.cuda) out.push({ id: "_accel", label: t("wizard.gapNoAccel"), runnable: false, note: true });
+    if (active === "local" && !hw.metal && !hw.cuda) out.push({ id: "_accel", label: t("wizard.gapNoAccel"), runnable: false, note: true });
     return out;
   }
 
@@ -113,10 +98,9 @@ export function WizardModal() {
       return `<div class="wiz-row" data-row="${i}"><div class="wiz-row-l"><span>${esc(x.label)}</span>${cmd}</div><div class="wiz-row-r" id="wizr${i}">${right}</div></div>`;
     }).join("") : '<p class="wiz-hint">' + t("wizard.allSet") + '</p>';
     bodyEl.innerHTML = `
-      <p class="wiz-hint">${t("wizard.huecosIntro", { profile: esc(chosen) })}</p>
+      <p class="wiz-hint">${t("wizard.huecosIntro")}</p>
       <div class="wiz-rows">${rows}</div>
-      <div class="wiz-foot"><button class="wiz-btn ghost" id="wizBack">${CHEVRON_LEFT_ICON}${t("wizard.backToProfile")}</button><button class="wiz-btn ghost" id="wizReanalyze">${REFRESH_ICON}${t("wizard.reanalyze")}</button><button class="wiz-btn" id="wizNext">${CHEVRON_RIGHT_ICON}${t("wizard.continue")}</button></div>`;
-    bodyEl.querySelector("#wizBack").onclick = () => { step = "perfil"; render(); };
+      <div class="wiz-foot"><button class="wiz-btn ghost" id="wizReanalyze">${REFRESH_ICON}${t("wizard.reanalyze")}</button><button class="wiz-btn" id="wizNext">${CHEVRON_RIGHT_ICON}${t("wizard.continue")}</button></div>`;
     bodyEl.querySelector("#wizReanalyze").onclick = (e) => reanalyze(e.target);
     bodyEl.querySelector("#wizNext").onclick = () => { step = "credenciales"; render(); };
     bodyEl.querySelectorAll(".copy").forEach(b => b.onclick = () => { navigator.clipboard && navigator.clipboard.writeText(b.dataset.cmd); b.textContent = t("wizard.copied"); });
@@ -145,18 +129,18 @@ export function WizardModal() {
     setTimeout(() => pollInstall(job, i), 2000);   // without Date.now: intervalo fijo
   }
 
-  // ── ③ CREDENCIALES ─────────────────────────────────────────────────────────────────────────────────────
+  // ── ② API KEYS ─────────────────────────────────────────────────────────────────────────────────────
   function renderCreds() {
-    const creds = ((S.report && S.report.credentials) || []).filter(c => (c.profiles || []).includes(chosen));
+    const creds = ((S.report && S.report.credentials) || []).filter(c => (c.profiles || []).includes(active));
     const rows = creds.length ? creds.map(c => `
       <div class="wiz-row">
         <div class="wiz-row-l"><span>${esc(c.key)} ${c.set ? '<span class="wiz-badge ok">' + t("wizard.set") + '</span>' : ""}</span><span class="wiz-sub">${esc(c.enables)}</span></div>
         <div class="wiz-row-r"><input class="wiz-inp" type="password" placeholder="${c.set ? t("wizard.credChange") : t("wizard.credPaste")}" id="cred_${esc(c.key)}"/><button class="wiz-btn save" data-key="${esc(c.key)}">${t("wizard.save")}</button></div>
       </div>`).join("") : '<p class="wiz-hint">' + t("wizard.noKeys") + '</p>';
     bodyEl.innerHTML = `
-      <p class="wiz-hint">${t("wizard.credsIntro", { profile: esc(chosen) })}</p>
+      <p class="wiz-hint">${t("wizard.credsIntro")}</p>
       <div class="wiz-rows">${rows}</div>
-      <div class="wiz-foot"><button class="wiz-btn ghost" id="wizBack">${CHEVRON_LEFT_ICON}${t("wizard.back")}</button><button class="wiz-btn done" id="wizDone">${t("wizard.enterZaelar")}</button><span class="wiz-msg" id="wizMsg"></span></div>`;
+      <div class="wiz-foot"><button class="wiz-btn ghost" id="wizBack">${CHEVRON_LEFT_ICON}${t("wizard.back")}</button><button class="wiz-btn done" id="wizDone">${t("wizard.finish")}</button><span class="wiz-msg" id="wizMsg"></span></div>`;
     bodyEl.querySelector("#wizBack").onclick = () => { step = "huecos"; render(); };
     bodyEl.querySelector("#wizDone").onclick = finish;
     bodyEl.querySelectorAll(".save").forEach(b => b.onclick = async () => {

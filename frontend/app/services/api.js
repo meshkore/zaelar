@@ -141,7 +141,6 @@ export const workersHistory = () => fetch("/api/workers/history").then(json).cat
 // ---- wizard de primer arranque (perfiles local/cloud + detector de capacidades, V2-040) ----
 export const wizardState = () => fetch("/api/wizard/state", { cache: "no-store" }).then(json);
 export const wizardReport = (refresh = true) => postJSON("/api/wizard/report", { refresh }).then(json);
-export const wizardProfile = (name) => postJSON("/api/wizard/profile", { name }).then(json);
 export const wizardCredential = (body) => postJSON("/api/wizard/credential", body).then(json);
 export const wizardInstall = (body) => postJSON("/api/wizard/install", body).then(json);
 export const wizardInstallStatus = (job) => fetch("/api/wizard/install/" + encodeURIComponent(job)).then(json);

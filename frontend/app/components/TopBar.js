@@ -1,4 +1,5 @@
-// TopBar — top-right PROJECT controls: ◉ status · ◷ debug · ⚙ settings · 🧭 wizard · Reset.
+// TopBar — top-right PROJECT controls, left to right: ◉ status · ◷ debug · 🖥 daemon · 👤 account (cloud) ·
+// 🧠 memory · ☾ theme · 🧭 setup · ⚙ settings · Reset.
 // These are the project's tools; zaelar's OWN things (voice, memory, captions, crons, attention, power, theme)
 // live on the EYE's upper lid over the orb (Orb.js, V2-039 “ojo”). ⏰ cron moved there in V2-014; ☾/☀ theme moved
 // there in V2-039. The voice session is ALWAYS ON (auto-connects, main.js) — the ⏻ icon on the eye is the one
@@ -36,13 +37,6 @@ export function TopBar() {
       id: "debugBtn", title: () => t("topbar.debug.title"),
       onClick: () => { const v = !store.debugOpen(); store.setDebugOpen(v); api.uiEvent("topbar:debug", { state: v ? "open" : "close" }); },
     }, raw(BUG_ICON)),
-    // ☾/☀ theme MOVED to the orb's upper lid (V2-039 “ojo” — generic/personal control, helps close the eye shape).
-    // Badge rojo (2026-08-03): store.apiAlerts() ya alimenta the ◉ of estado; the mismo dato here porque ⚙ es donde
-    // the operador mira the detalle by proveedor (workers/cluster relevados, saldo agotado…) — no un aviso nuevo.
-    () => store.cloudProfile() ? null : h("button", { class: () => "ic" + (store.configOpen() ? " on" : ""), id: "cfgBtn",
-      title: () => t("topbar.settings.title"),
-      onClick: () => { const v = !store.configOpen(); store.setConfigOpen(v); api.uiEvent("topbar:settings", { state: v ? "open" : "close" }); } },
-      raw(GEAR_ICON), () => ((store.apiAlerts() || []).length ? h("span", { class: "ic-badge" }) : null)),
     // ☾ tema: MOVIDO here from the ojo (Orb.js, 2026-08-09) — junto a ⚙, a operator request. ONE icon (moon),
     // blue=dark/grey=light — mismo lenguaje on/off that the resto of controles, nunca se cambia by un icono of sol.
     // LA PILA of Energy, pegada a the IZQUIERDA of the 👤 (EnergyGauge.js, 2026-08-13). Se gatea sola by the `cloud` de
@@ -73,11 +67,22 @@ export function TopBar() {
     h("button", { class: () => "ic" + (store.theme() === "dark" ? " on" : ""), id: "themeBtn",
       title: () => (store.theme() === "dark" ? t("topbar.theme_light") : t("topbar.theme_dark")),
       onClick: () => { toggleTheme(); api.uiEvent("topbar:theme", { state: store.theme() }); } }, raw(MOON_ICON)),
-    // 🧭 Wizard of config (V2-040): perfil local/cloud + detector of the system + credenciales. Se auto-abre en el
-    // primer arranque; this icono lo reabre when the operador quiera revalidar/cambiar the perfil.
+    // 🧭 Setup panel (V2-040): what is MISSING on this machine + its API keys. It no longer asks where it is
+    // running and no longer fires on its own at first boot (V2-671, V2-725) — this icon is its only door.
     () => store.cloudProfile() ? null : h("button", { class: () => "ic" + (store.wizardOpen() ? " on" : ""), id: "wizBtn",
       title: () => t("topbar.wizard.title"),
       onClick: () => { const v = !store.wizardOpen(); store.setWizardOpen(v); api.uiEvent("topbar:wizard", { state: v ? "open" : "close" }); } }, raw(COMPASS_ICON)),
+    // ⚙ SETTINGS — the LAST icon of the row, immediately left of Reset (V2-725, operator: «pon el icono de
+    // configuración a la derecha del todo como en todas las aplicaciones del mundo… el siguiente icono que
+    // aparece a su lado a la izquierda debe ser el de configuración»). It used to sit third from the left,
+    // between the bug and the daemon, which put the one control people look for by habit in the middle of a
+    // row of controls they do not. Reset is the only thing to its right, and Reset is temporary chrome.
+    // Badge rojo (2026-08-03): store.apiAlerts() ya alimenta the ◉ of estado; the mismo dato here porque ⚙ es donde
+    // the operador mira the detalle by proveedor (workers/cluster relevados, saldo agotado…) — no un aviso nuevo.
+    () => store.cloudProfile() ? null : h("button", { class: () => "ic" + (store.configOpen() ? " on" : ""), id: "cfgBtn",
+      title: () => t("topbar.settings.title"),
+      onClick: () => { const v = !store.configOpen(); store.setConfigOpen(v); api.uiEvent("topbar:settings", { state: v ? "open" : "close" }); } },
+      raw(GEAR_ICON), () => ((store.apiAlerts() || []).length ? h("span", { class: "ic-badge" }) : null)),
     // Reset = DESTRUCTIVO: for todos the procesos of fondo and limpia the canvas. Pide confirmación primero.
     () => store.cloudProfile() ? null : h("button", { class: "reset", id: "reset", title: () => t("topbar.reset.title"),
       onClick: () => { api.uiEvent("topbar:reset", { state: "prompt" }); store.setResetConfirmOpen(true); } }, () => t("topbar.reset")),

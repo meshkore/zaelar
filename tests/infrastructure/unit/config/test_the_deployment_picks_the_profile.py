@@ -104,6 +104,71 @@ def test_the_wizard_no_longer_opens_itself_at_boot():
     assert "wizardState()" not in code, "boot must not even ask the wizard whether this is a first run"
 
 
+# ── V2-725: the SCREEN is gone too, not only its auto-open ────────────────────────────────────────────────
+# V2-671 stopped the question firing at boot and left the screen reachable, on the theory that choosing to run
+# models on your own machine is a legitimate thing to want. The operator, looking at that screen five days
+# later: «esto no tiene sentido, porque cuando se instala el local siempre va a ser local y cuando se instala
+# en la nube siempre va a ser en la nube. Así que puedes borrar esta selección y este apartado.» Twice asked is
+# a rule, so it is written down here rather than left to the next reader's judgement.
+
+def test_no_route_can_apply_a_profile_from_a_browser():
+    """The half that matters more than the screen. `profiles.apply()` writes settings.json AND config/v2.json
+    as ONE coordinated lever, so while a POST route existed the engine kept a way to have its model routing
+    replaced by a click — which is exactly the damage V2-671 measured. The screen was the only caller; the
+    route leaving with it is what makes the fix structural instead of cosmetic."""
+    import ast
+    tree = ast.parse(WIZARD_API.read_text(encoding="utf-8"))
+    # PARSED, not grepped: this module explains the V2-671 defect in its own prose, so a text scan for the
+    # lever's name reads the explanation and calls it the crime. A call is a call node.
+    routes = [a.args[0].value for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)
+              for a in n.decorator_list
+              if isinstance(a, ast.Call) and a.args and isinstance(a.args[0], ast.Constant)]
+    assert not [r for r in routes if "profile" in str(r)], (
+        f"a route that applies a profile is a route that can rewrite the operator's model routing: {routes}")
+    calls = [ast.unparse(n.func) for n in ast.walk(tree) if isinstance(n, ast.Call)]
+    assert "profiles.apply" not in calls, "nothing served over HTTP may fire the coordinated profile lever"
+
+
+def test_the_setup_panel_never_asks_where_it_is_running():
+    """The deployment KNOWS. The panel may still READ the active profile to decide which gaps and which keys
+    are worth showing — that is a filter — but it may not offer it, name it, or write it back."""
+    wiz = (ROOT / "frontend" / "app" / "components" / "WizardModal.js").read_text(encoding="utf-8")
+    code = "\n".join(ln.split("//")[0] for ln in wiz.splitlines())
+    for gone in ("renderPerfil", "wizardProfile", "wizard.choose", "wizard.stepPerfilTitle",
+                 "wizard.recommended", "wizard.suggestion"):
+        assert gone not in code, f"the profile chooser is back in the setup panel: {gone}"
+    assert "active_profile" in code, (
+        "the panel must still READ the deployment's profile — without it, it offers every gap and every key")
+
+
+def test_no_word_on_the_setup_panel_offers_a_local_or_cloud_choice():
+    """Checked on the STRINGS, in both bundles, because the screen can come back as copy long before it comes
+    back as code: a hint that still says «Perfil local» is the same question asked in prose."""
+    import json
+    for lang in ("es", "en"):
+        b = json.loads((ROOT / "i18n" / "bundles" / f"{lang}.json").read_text(encoding="utf-8"))
+        offenders = {k: v for k, v in b.items()
+                     if (k.startswith("wizard.") or k == "topbar.wizard.title")
+                     and ("perfil" in v.lower() or "profile" in v.lower())}
+        assert not offenders, f"{lang}: the setup panel still talks about profiles: {offenders}"
+
+
+def test_settings_is_the_last_icon_before_reset():
+    """Operator, same breath: «pon el icono de configuración a la derecha del todo como en todas las
+    aplicaciones del mundo… el siguiente icono que aparece a su lado a la izquierda debe ser el de
+    configuración». ⚙ used to sit third from the left, which put the one control people reach for by habit in
+    the middle of a row of controls they do not. Read by ORDER OF APPEARANCE in the row's source, which is the
+    order the DOM gets — the row is one flat h() call with no reordering anywhere."""
+    src = (ROOT / "frontend" / "app" / "components" / "TopBar.js").read_text(encoding="utf-8")
+    row = src[src.index('h("div", { class: "tr" }'):src.index("ResetConfirm(),")]
+    cfg, reset = row.index('id: "cfgBtn"'), row.index('id: "reset"')
+    assert cfg < reset, "settings must come before Reset in the row"
+    later = [tok for tok in ('id: "statusBtn"', 'id: "debugBtn"', 'id: "daemonBtn"', 'id: "acctBtn"',
+                             'id: "memBtn"', 'id: "themeBtn"', 'id: "wizBtn"')
+             if tok in row and row.index(tok) > cfg]
+    assert not later, f"these icons sit to the RIGHT of settings, and only Reset may: {later}"
+
+
 # ── the reset cannot reach the installation's configuration ───────────────────────────────────────────────
 
 def test_the_first_run_marker_is_installation_setup_not_agent_identity():
