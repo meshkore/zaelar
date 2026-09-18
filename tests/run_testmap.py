@@ -1373,6 +1373,19 @@ DOMAINS: list[dict] = [
                                 "árbitro juzga por la MISMA declaración: un montaje no es arrastre",
             "ch": UNIT, "paths": [
                 "tests/agent_headless/unit/flash/test_a_card_opens_only_for_what_declares_production.py"]},
+        # V2-723 (2026-09-18) — la auditoría externa de la capa de widgets: «authorizing an action is not the
+        # same as authorizing all its effects». Trece sitios emitían `show` por su cuenta y ninguno decía por
+        # qué; una acción autorizada se gastaba una segunda autorización sin que nadie lo viera. Ahora los
+        # efectos son VOCABULARIO derivado de lo que el widget ya declara, la presentación pasa por UNA puerta
+        # con motivo declarado (y la afirmación se comprueba contra la declaración, no se cree), una supresión
+        # se EMITE, y un trinquete impide que nazca otro `show` anónimo. Más el pago a cuenta: un «sí» suelto
+        # solo licencia media si de verdad preguntamos algo.
+        {"id": "3.54", "title": "Un efecto de presentación lo autoriza alguien: vocabulario de efectos "
+                                "derivado del manifiesto · UNA puerta con motivo declarado y comprobado · "
+                                "la supresión se ve · trinquete de `show` anónimos · un «sí» contesta a una "
+                                "pregunta que existió",
+            "ch": UNIT, "paths": [
+                "tests/agent_headless/unit/flash/test_a_presentation_is_an_effect_somebody_authorized.py"]},
         # V2-654 — the engine half of the microphone switch (its frontend door is node 4.152). The whole
         # point is the GATE's position: it runs ABOVE the attention gate, because a closed mic is not an
         # opinion about who was being addressed, so neither a wake word nor an open conversation window may

@@ -59,6 +59,79 @@ def is_open(widget_id: str, *, known=None) -> bool:
     return bool(wid) and wid in ids
 
 
+#: WHY a card is being put on screen. A presentation effect is spent by some authorization, and the emitter
+#: is the only one who knows which — so it says so, in a closed vocabulary, and the door checks what it can
+#: check. This is the audit's «explicit, scoped effects as the contract» at its smallest useful size: not a
+#: permission system, but the end of anonymous side effects, and the reason travels into the trace.
+REASONS = {
+    # the operator's own hands on the canvas — the frontend reports these, they are never judged
+    "operator-hands",
+    # this turn's words asked for this card; the caller has already run the license that says so
+    "turn-order",
+    # the action's own output CANNOT happen off screen (the player's hidden iframe). Checked below against
+    # the widget's declaration: a caller claiming this over an action that declares no mount is refused.
+    "producer-mount",
+    # a worker or errand delivering what its task was opened for
+    "task-owned",
+    # one widget handing over to another's surface (a torrent handing its file to the library)
+    "widget-handoff",
+    # boot, restore, and the rest of the lifecycle
+    "lifecycle",
+}
+
+
+def present(widget_id: str, *, reason: str, action: str = "", src: str = "flash",
+            known=None, emit=None) -> bool:
+    """THE ONE DOOR a card goes through to appear (V2-723). True when the show was emitted.
+
+    Three mechanical refusals, and each one is a measured incident rather than a policy:
+
+      · **no reason** — an anonymous show is an effect nobody authorized. Before this door there were
+        thirteen call sites emitting `show` directly and the canvas could not tell them apart.
+      · **a claim the declaration does not back** — «producer-mount» is only true if the widget says the
+        action makes it produce (V2-721). A caller that says it over `pause` is refused, not believed.
+      · **already open** — a `show` on an open card raises and refocuses it, jumping in front of whatever
+        the operator was reading. Nothing to open means nothing to do.
+
+    A refusal is EMITTED, not swallowed: «suppressed effects» are the half of a trace that explains why
+    the screen did not change, and without them this door would be a new silence."""
+    wid = str(widget_id or "").split("::", 1)[0].strip().lower()
+    why = str(reason or "").strip()
+
+    def _emit(kind, label, extra):
+        fn = emit
+        if fn is None:
+            try:
+                from voice.observer import emit as fn  # type: ignore[no-redef]
+            except Exception:  # noqa: BLE001
+                return
+        try:
+            fn(kind, label, extra=extra)
+        except Exception:  # noqa: BLE001
+            pass
+
+    def _suppress(detail: str) -> bool:
+        _emit("widget", "🚫 presentación suprimida",
+              {"id": wid, "src": src, "action": action, "reason": why, "detail": detail, "cat": "widget"})
+        return False
+
+    if not wid:
+        return False
+    if why not in REASONS:
+        return _suppress("sin motivo declarado")
+    if why == "producer-mount":
+        try:
+            from widgets import effects as _fx
+            if not _fx.carries(wid, action, _fx.PRESENT_MOUNT):
+                return _suppress("la acción no declara que su salida necesite la tarjeta")
+        except Exception:  # noqa: BLE001
+            return _suppress("no se pudo leer la declaración del widget")
+    if is_open(wid, known=known):
+        return _suppress("ya está abierta")
+    _emit("widget", "show", {"id": wid, "src": src, "action": action, "reason": why})
+    return True
+
+
 def mount_needed(extra: dict | None, action: str, *, known=None) -> bool:
     """Does this result need its widget's card ON SCREEN, and is it not there already?
 

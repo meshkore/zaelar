@@ -41,10 +41,19 @@ def test_a_real_request_licenses_the_load():
 
 
 def test_a_short_bare_yes_answers_the_models_own_offer():
-    """«Si quieres, busco de nuevo el vídeo» → «Sí» must keep working; a long conditional must not."""
-    assert lic.video_license("Sí") is True
-    assert lic.video_license("vale, hazlo") is True
-    assert lic.video_license("si te soy sincero no me gusta mucho este canal la verdad") is False
+    """«Si quieres, busco de nuevo el vídeo» → «Sí» must keep working; a long conditional must not.
+
+    V2-723 made the offer a REQUIREMENT rather than an assumption. The name of this test was already the
+    whole rule — «answers the model's OWN OFFER» — and it passed with no offer anywhere, which is how
+    «Okay. What if» licensed a `resume` and restarted music the operator had paused by hand (session
+    c553a1e0, 2026-09-17). A «yes» is an answer only where there was a question."""
+    offer = "¿Busco de nuevo el vídeo?"
+    assert lic.video_license("Sí", offer) is True
+    assert lic.video_license("vale, hazlo", offer) is True
+    assert lic.video_license("si te soy sincero no me gusta mucho este canal la verdad", offer) is False
+    # …and the same words with nobody having asked anything license nothing at all.
+    assert lic.video_license("Sí") is False
+    assert lic.video_license("Okay. What if", "Now playing Bruce Springsteen.") is False
 
 
 def test_a_close_needs_a_close_verb_in_the_turn():
@@ -162,7 +171,10 @@ def test_the_voice_provider_gates_model_closes_and_delegates_the_bodies():
 def test_the_probe_channel_mirrors_all_three_guards():
     src = (ENGINE / "nucleo/flash/probe.py").read_text(encoding="utf-8")
     assert "close_guards" in src and 'if action == "close":' in src, "probe must drop unlicensed closes"
-    assert "video_license(text)" in src, "probe must gate play_video on the same license"
+    # V2-723: the probe passes the previous assistant line too — a bare «yes» licenses media only as the
+    # answer to something we asked, and a fact only one channel reads is a mirror that drifts.
+    assert "video_license(text, _last_assistant_line(sess.window))" in src, \
+        "probe must gate play_video on the same license, with the same offer fact"
     assert "fullscreen_license(text)" in src, "probe must route the fullscreen direction the same way"
 
 

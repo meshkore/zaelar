@@ -161,12 +161,15 @@ def test_the_operators_own_hands_are_never_judged_by_this_rule():
 
 # ── 3 · the wiring, so the two can agree at all ──────────────────────────────────────────────────────────
 
-def test_the_voice_lane_asks_before_it_shows_and_names_the_action():
+def test_the_voice_lane_goes_through_the_door_and_names_its_reason():
+    """V2-723 moved the gate INTO the door: the lane no longer emits a show at all, it asks to present and
+    says why. The claim is then checked against the widget's declaration inside `present`."""
     src = (ENGINE / "voice/engine/llm/providers/nucleo.py").read_text(encoding="utf-8")
-    m = re.search(r"_cvis\.mount_needed\(_extra, mq\.get\(\"action\"\).*?\n\s*emit\(\"widget\", \"show\","
-                  r" extra=\{[^}]*\"action\": mq\.get\(\"action\"\)", src, re.S)
-    assert m, ("the music lane must gate its show on `canvas_visibility.mount_needed` AND pass the action, "
-               "or the arbiter cannot tell a mount from a drag")
+    m = re.search(r'_cvis\.present\(str\(_extra\.get\("widget"\).*?reason="producer-mount".*?'
+                  r'action=mq\.get\("action"\)', src, re.S)
+    assert m, "the music lane must present through the door, declaring `producer-mount` and its action"
+    assert 'emit("widget", "show"' not in src, \
+        "no anonymous show may be left in the voice provider — everything goes through the door"
 
 
 def test_the_shadow_tap_carries_the_action_of_a_show():

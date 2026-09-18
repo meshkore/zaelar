@@ -108,13 +108,30 @@ def asks_for_media(text: str) -> bool:
     return bool(_MEDIA_REQ_RE.search(_NEG_MEDIA_RE.sub(" ", _norm_txt(_his_words(text)))))
 
 
-def video_license(text: str) -> bool:
+def answered_an_offer(last_reply: str) -> bool:
+    """Did OUR previous turn actually put a question to him? (V2-723)
+
+    The bare-affirmative escape below exists to answer the model's own offer — «¿busco de nuevo el vídeo?»
+    → «Sí» — and until now nothing checked that an offer had been made. Measured 2026-09-17 in a live
+    session: «Okay. What if» (three words, one «okay», the operator starting an unrelated sentence) was
+    licensed as a media request, and the music he had PAUSED BY HAND resumed. That is the second
+    interpretation engine the audit warned about — a keyword gate quietly disagreeing with the model — and
+    the cheapest way to stop it is not more words in the table but the fact that gives the table its
+    meaning: a «yes» is an answer only where there was a question."""
+    r = str(last_reply or "")
+    return "?" in r or "¿" in r
+
+
+def video_license(text: str, last_reply: str = "") -> bool:
     """True when the turn ASKS for media — the words that may carry a `play_video` (a load that replaces
-    whatever is playing). Chatter, praise, insults and complaints about a past change license nothing."""
+    whatever is playing). Chatter, praise, insults and complaints about a past change license nothing.
+
+    A bare affirmative licenses media only as the ANSWER to something we asked (`answered_an_offer`); with
+    no reply to read, it licenses nothing, which is the safe direction: he can always say it with a verb."""
     n = _NEG_MEDIA_RE.sub(" ", _norm_txt(_his_words(text)))
     if _MEDIA_REQ_RE.search(n):
         return True
-    return len(n.split()) <= 4 and bool(_AFFIRM_RE.search(n))
+    return len(n.split()) <= 4 and bool(_AFFIRM_RE.search(n)) and answered_an_offer(last_reply)
 
 
 def close_license(text: str) -> bool:
@@ -199,7 +216,7 @@ def note_operator_close(wid: str) -> None:
         pass
 
 
-def reopen_license(wid: str, text: str, open_ids=None, recent_ids=None) -> bool:
+def reopen_license(wid: str, text: str, open_ids=None, recent_ids=None, last_reply: str = "") -> bool:
     """False only when the model shows a widget the operator JUST ordered closed and the turn's words
     ask for nothing of the kind. Measured live 2026-09-10 (sid 3d394…): «Johnny, cierra el widget de
     YouTube» closed it, and eight seconds later room chatter («Avisando de… cuidado, que aquí está
@@ -213,7 +230,7 @@ def reopen_license(wid: str, text: str, open_ids=None, recent_ids=None) -> bool:
     ts = _RECENT_CLOSES.get(w)
     if not ts or (_time.time() - ts) > _REOPEN_WINDOW_S:
         return True
-    if video_license(text):
+    if video_license(text, last_reply):
         return True
     try:
         from widgets import runtime

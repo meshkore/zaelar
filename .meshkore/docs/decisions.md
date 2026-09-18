@@ -21,6 +21,37 @@ entregada siga citada aquí.
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **An action does not manufacture permission for its own side effects (V2-723, 2026-09-18)**: an external
+  audit of this layer read the catalog, the single dispatch and the browser-owned canvas as sound boundaries
+  and put the weak point exactly where the month's incidents live — «authorizing an action is not the same as
+  authorizing all its effects». It is the same sentence V2-721 had just paid for one widget at a time:
+  `musica:pause` was an action the operator asked for, and running it spent a SECOND authorization (present
+  the card) that nobody had given. **Three pieces, and the first is the one that makes the other two
+  possible.** (1) `widgets/effects.py` — the effect vocabulary (`data.read/write`, `present.mount`,
+  `output.start/stop`, `external.send`), DERIVED from the four declarations that already existed and never
+  agreed with each other: `actions.classify`, `actions.is_view`, `runtime.produce/suspend/output`, plus what
+  a manifest declares outright. Nothing new to keep in sync, and the one thing that is NOT derivable —
+  `external.send`, because a `consent_class` says an action is sensitive, not that it leaves the machine —
+  is written down as a hole instead of guessed from names. (2) `canvas_visibility.present()` — ONE door, with
+  a declared REASON from a closed set (`operator-hands`, `turn-order`, `producer-mount`, `task-owned`,
+  `widget-handoff`, `lifecycle`). The claim is CHECKED, not believed: a caller saying `producer-mount` over
+  `pause` is refused by the manifest. An open card is never raised again. And a refusal is EMITTED — the
+  audit's «include suppressed effects», without which this door would just be a new silence. Thirteen call
+  sites emitted `show` anonymously; the voice provider now holds zero, and a ratchet freezes the twenty-one
+  remaining (workers, sheets, the action map) so the next one cannot be born anonymous. It also retired a
+  hand-written verb list in the probe's music mirror that said `stop/pause/close` and knew nothing about
+  `volume_up` or `seek`. (3) The down payment on the audit's sharpest point — «grammar licenses are
+  misplaced if they are keyword gates»: `video_license` licensed ANY turn of ≤4 words containing an
+  affirmative, an escape written for «¿busco de nuevo el vídeo?» → «sí» with nothing checking that an offer
+  existed. Measured 2026-09-17: «Okay. What if» licensed a `resume` and restarted music he had paused by
+  hand. The table was not widened — the FACT it depends on is now required, in both channels and in the
+  arbiter's tap. Nodo 3.54, cinco desarmes rojos. ⚠️ What the audit asks for and is NOT done: the execution
+  envelope (originating turn, permitted effects, resolved targets, expiry, execution identity) that would
+  retire these grammar licenses instead of tightening them, and canvas revisions/acknowledgements so
+  «requested open», «actually open» and «unknown after disconnect» stop being one flag. Its other correction
+  stands on the record: **the shadow arbiter is not to become the enforcement boundary** (V2-653 F1 was
+  planned the other way round) — deterministic doors enforce, the arbiter reports disagreement.
+
 - **A card opens only for what the widget DECLARES as production (V2-721, 2026-09-17)**: session
   `c553a1e0`, demoing to a guest. Music was playing; he paused it, asked for his agenda, closed everything —
   and four minutes later, mid-sentence about his headphones, the music card came back on screen three times

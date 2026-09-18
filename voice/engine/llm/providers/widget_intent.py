@@ -15,6 +15,8 @@ from __future__ import annotations
 
 from loguru import logger
 
+from nucleo.flash import canvas_visibility as _cvis   # V2-723: ONE door to present
+
 def _action_is_negated(n: str) -> bool:
     """True si la frase NIEGA la acción de widget ("no necesito que abras nada", "no me muestres", "no cierres
     nada", "don't open") — para que el fallback NO dispare un show/close cuando el operador dice EXPLÍCITAMENTE que
@@ -131,9 +133,9 @@ def _widget_fallback(text: str, emit, ask=None, last_spoken: str = "") -> bool:
                         return True
                     # No channel to ask through: SHOW the base, exactly as before. Staying silent here would
                     # turn a slightly-wrong card into a turn where nothing happens at all.
-                    emit("widget", "show", extra={"id": wid, "src": "flash"})
+                    _cvis.present(wid, reason="turn-order", src="flash", emit=emit)
                     return True
-                emit("widget", "show", extra={"id": _t.get("id") or wid, "src": "flash"})
+                _cvis.present(str(_t.get("id") or wid), reason="turn-order", src="flash", emit=emit)
                 return True
     except Exception as e:  # noqa: BLE001
         logger.warning(f"widget fallback skipped: {e}")

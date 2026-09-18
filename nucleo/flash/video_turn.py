@@ -178,21 +178,23 @@ def _lang() -> str:
         return "es"
 
 
-def voice_execute(args: dict, text: str, emit, apply_widget_data, deduped: dict) -> None:
+def voice_execute(args: dict, text: str, emit, apply_widget_data, deduped: dict,
+                  last_reply: str = "") -> None:
     """The voice provider's whole `play_video` branch body (extracted paying the architecture ratchet,
     V2-635), now carrying the LICENSE the session demanded: «Muy bien, señora.» and «¿Pero por qué lo has
     cambiado otra vez?» each RELOADED the playing video (2026-09-09, session 34386d8f) — the model dragging
     its previous call into a turn that asked for nothing. A discarded drag counts as handled (`deduped`):
     silence over chatter is design (V2-633), not a void for the mute backstop to apologize over."""
-    from nucleo.flash import canvas_license as _lic
+    from nucleo.flash import canvas_license as _lic, canvas_visibility as _cvis
     q = (args.get("query") or "").strip()
-    if not _lic.video_license(text):
+    if not _lic.video_license(text, last_reply):
         emit("brain", "🛡️ play_video ignorado — el turno no pide ningún vídeo (context-bleed)",
              text=(text or "")[:120], role="system",
              extra={"cat": "flash", "kind_diag": "video_without_order", "query": q[:80]})
         deduped["v"] = True
         return
-    emit("widget", "show", extra={"id": "youtube", "src": "flash"})
+    # V2-723 — the license checked just above is this presentation's authorization, and it says so.
+    _cvis.present("youtube", reason="turn-order", src="flash", emit=emit)
     # V2-402 — a media SEARCH (action=list) fills the player's LIST, never the results sheet.
     op, lbl = voice_dispatch(args.get("action"))
     apply_widget_data("youtube", op, {"query": q} if q else {})

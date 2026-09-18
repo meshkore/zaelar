@@ -24,6 +24,7 @@ from livekit.agents.llm import ChatChunk, ChoiceDelta
 
 from .. import registry
 from nucleo.flash import (canvas_license as _canvas_lic,                       # V2-650: a replay can be an order
+                          canvas_visibility as _cvis,                          # V2-723: ONE door to present
                           close_guards as _closeg,                             # V2-635: close needs the words
                           data_ops as _data_ops, escalation_guard as _eguard,  # V2-391 / V2-677
                           image_turn as _image_turn,                           # V2-402
@@ -943,6 +944,7 @@ class NucleoLLMStream(llm.LLMStream):
                 if _sid and _sid in _shown_ids:
                     return
                 _shown_ids.add(_sid)
+                extra["reason"] = "turn-order"       # V2-723: the guards above ARE the turn's license
             acted["widget"] = True
             if action == "close":
                 acted["closed"] = True                   # el backstop de cierre corto no re-cierra (ver post-stream)
@@ -1401,14 +1403,15 @@ class NucleoLLMStream(llm.LLMStream):
                 # señora.» recargaba el que sonaba) en `video_turn.voice_execute` — una impl, ambos canales.
                 if "play_video" not in _tool_fired:
                     _tool_fired.add("play_video")
-                    _video_turn.voice_execute(args, text, emit, _apply_widget_data, deduped)
+                    _video_turn.voice_execute(args, text, emit, _apply_widget_data, deduped,
+                                              last_reply=brain._last_reply or "")
             elif name == "show_images":
                 # V2-457: FOTOS = visor `imagenes` (VER), tercera hermana de play_music/play_video. Una por
                 # turno; se EJECUTA tras el stream (buscar es red) y se dice allí si el modelo calló.
                 if "show_images" not in _tool_fired:
                     _tool_fired.add("show_images")
                     images_req["v"] = _image_turn.request_from([{"name": name, "args": args}])
-                    emit("widget", "show", extra={"id": "imagenes", "src": "flash"})
+                    _cvis.present("imagenes", reason="turn-order", src="flash", emit=emit)
                     emit("brain", "🖼️ fotos → visor imagenes", text=images_req["v"]["query"][:80], role="system")
             elif name == "show_widget":
                 # MOSTRAR un widget (incl. JUEGOS) como TOOL de 1ª clase — más fiable que el tag [[show]] cuando la
@@ -1584,13 +1587,13 @@ class NucleoLLMStream(llm.LLMStream):
                     # INVARIANTE (2026-07-16): un servicio de MÚSICA (Spotify) se conecta en el widget `musica`
                     # (su tarjeta OAuth), NUNCA por el navegador. El routing del titular anterior insistía en authenticate_web
                     # para "conéctame a mi cuenta de Spotify" pese a la descripción → el guard lo redirige aquí.
-                    emit("widget", "show", extra={"id": "musica", "src": "flash"})
+                    _cvis.present("musica", reason="turn-order", src="flash", emit=emit)
                     emit("brain", "🎵 conectar música → tarjeta del widget musica (no navegador)", text=_site or text[:60], role="system")
                 elif _kind_v == _wa_v.KIND_MESSAGING:
                     # INVARIANTE (V2-045, espejo del guard de música): WhatsApp/Telegram se VINCULAN por QR DENTRO
                     # del widget `mensajeria`, NUNCA por login de navegador. 'conéctame/abre WhatsApp' → mostrar el
                     # widget (ahí está el QR), no abrir un Chromium en whatsapp.com.
-                    emit("widget", "show", extra={"id": "mensajeria", "src": "flash"})
+                    _cvis.present("mensajeria", reason="turn-order", src="flash", emit=emit)
                     emit("brain", "💬 conectar mensajería → QR del widget mensajeria (no navegador)", text=_site or text[:60], role="system")
                 elif _kind_v == _wa_v.KIND_TASK:
                     if escalate_req["v"] is None:
@@ -2153,7 +2156,7 @@ class NucleoLLMStream(llm.LLMStream):
                 escalate_req["v"] = None
                 search_req["v"] = None
                 acted["widget"] = True
-                emit("widget", "show", extra={"id": _guard_wid, "src": "flash"})
+                _cvis.present(_guard_wid, reason="turn-order", src="flash", emit=emit)
                 emit("brain", "🪟 show por guard determinista (tool espuria evitada)",
                      text=f"{_guard_wid} ({'search' if _was_search else 'escalate'}→show)", role="system")
                 if not spoken_text:
@@ -2259,7 +2262,7 @@ class NucleoLLMStream(llm.LLMStream):
                 if _pw:
                     acted["widget"] = True
                     _shown_ids.add(_pw)          # V2-660: a shown card is an end state the harness verifies
-                    emit("widget", "show", extra={"id": _pw, "src": "flash"})
+                    _cvis.present(_pw, reason="turn-order", src="flash", emit=emit)
                     emit("brain", "🪟 show por backstop de promesa (prometió mostrar sin tool)", text=_pw, role="system")
             elif _router.promises_music(spoken_text):     # 'voy a poner algo de rock' sin tool → reproduce
                 music_req["v"] = {"query": _op_text, "action": "play"}
@@ -2529,10 +2532,11 @@ class NucleoLLMStream(llm.LLMStream):
                         "ok": ok, "reason": getattr(res, "reason", ""), "surface": _extra.get("surface", ""),
                         "resolved_from": _extra.get("resolved_from", ""),
                         "ms": round((time.time() - _t_m) * 1000)})
-            # V2-721 — `surface` says WHERE the audio is, never what must be on SCREEN: the flag moves only
-            from nucleo.flash import canvas_visibility as _cvis     # …for a DECLARED producer, and not if open
-            if ok and _cvis.mount_needed(_extra, mq.get("action") or ""):
-                emit("widget", "show", extra={"id": _extra["widget"], "src": "flash", "action": mq.get("action")})
+            # V2-721/V2-723 — `surface` says WHERE the audio is, never what must be on SCREEN. The door
+            # checks the claim against the widget's own declaration and refuses to raise an open card.
+            if ok and str(_extra.get("surface") or "") == "widget":
+                _cvis.present(str(_extra.get("widget") or ""), reason="producer-mount",
+                              action=mq.get("action") or "", src="flash", emit=emit)
             # No re-anunciar un no-op (F5): si la reproducción fue "ya suena eso", el modelo ya habló; no encajes
             # el "ya está sonando" salvo que el modelo callara.
             _is_noop = bool(_extra.get("noop"))

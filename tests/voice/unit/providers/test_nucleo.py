@@ -32,7 +32,9 @@ def test_widget_fallback_emits_show(monkeypatch):
     events = []
     nucleo._widget_fallback("enséñame la agenda", lambda kind, action, extra=None: events.append((action, extra)))
     # V2-039: widget events carry provenance (`src`) — the provider fallback marks them as 'flash'.
-    assert ("show", {"id": "agenda", "src": "flash"}) in events
+    # V2-723: …and the REASON that spent this presentation, because an anonymous show is an effect nobody
+    # authorized. The fallback's reason is the operator's own order in this turn.
+    assert ("show", {"id": "agenda", "src": "flash", "action": "", "reason": "turn-order"}) in events
 
 
 def test_widget_fallback_close_all(monkeypatch):
