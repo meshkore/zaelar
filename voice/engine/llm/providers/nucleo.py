@@ -2392,8 +2392,13 @@ class NucleoLLMStream(llm.LLMStream):
                 and reveal_req["v"] is None and read_req["v"] is None:
             from nucleo.flash import second_pass as _second_v
             _cover_work("recall")
-            await _second_v.recall_spoken(text, recall_req["v"], spec, emit, speak)
+            _recall_empty_thread = await _second_v.recall_spoken(text, recall_req["v"], spec, emit, speak)
             spoken_text = "".join(spoken).strip()
+            if _recall_empty_thread == "empty_thread" and not acted["widget"] and not data_done["v"]:
+                # fix02: the pills came back empty on a LIVE-thread question — the compose would have narrated
+                # the void as no-access. The deterministic which-message question replaces it at the clarify
+                # gate below (V2-026: a hard "I don't know what you mean" never loses to invented prose).
+                clarify["msg"] = _say().ask_which_item_bare
 
         # BÚSQUEDA WEB FACTUAL (V2-022): ruta LIGERA — se resuelve EN ESTE turno (NO es el navegador pesado del
         # SlowBrain). La búsqueda es I/O de red → FUERA del event loop (to_thread). La EXTRACCIÓN reusa el MISMO

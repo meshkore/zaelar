@@ -75,6 +75,29 @@ def _norm(text: str) -> str:
     return n.replace("'", "").replace("’", "")
 
 
+# A THREAD POSITION, not a durable memory — "four messages behind", "previous messages", "ese mensaje".
+# fix02 (session 6d19df41): «Can you reveal the tongue? It's four messages behind.» sent the recall tool
+# after durable pills for something that lives in the LIVE thread, and the empty result came back
+# narrated as no-access («I can't reveal any hidden message... secret information»). Pills can never
+# answer a thread position, so composing from their emptiness only manufactures refusals: the recall
+# second passes skip the compose there instead (voice asks which message, probe keeps its reply).
+# Structural (cardinal/ordinal + message + positional, or a demonstrative message), es/en — never a verb
+# list, never the topic (tongues, hotels and restaurants all pass through the same door).
+_THREAD_POS_RE = _re.compile(
+    r"\b(\d+|one|two|three|four|five|few|couple|un|una|dos|tres|cuatro|cinco|par|couple)\s+"
+    r"(messages?|mensajes?)\s+(behind|back|ago|down|before|atras|antes|anteriores?)\b"
+    r"|\b(previous|last|that|those|anteriores?|es[eo]s?)\s+(messages?|mensajes?)\b"
+    r"|\bmensajes?\s+(anteriores?|previos?|de\s+antes)\b"
+    r"|\b(ese|esa|aquel|aquella)\s+mensaje\b", _re.I)
+
+
+def names_thread_position(text: str) -> bool:
+    """True when the turn points at a position in the LIVE message thread — something durable memory
+    can never resolve. See `_THREAD_POS_RE` (fix02)."""
+    n = _norm(text or "")
+    return bool(n.strip()) and bool(_THREAD_POS_RE.search(n))
+
+
 # Saludos / asentimientos / charla trivial — NUNCA disparan recall (no hay nada que recordar).
 _TRIVIAL_RE = _re.compile(
     r"^\s*[¿¡]?\s*("

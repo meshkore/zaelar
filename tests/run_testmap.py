@@ -1387,6 +1387,15 @@ DOMAINS: list[dict] = [
                                 "pregunta que existió",
             "ch": UNIT, "paths": [
                 "tests/agent_headless/unit/flash/test_a_presentation_is_an_effect_somebody_authorized.py"]},
+        # fix02 (session 6d19df41): «Can you reveal the tongue? It's four messages behind.» sent the
+        # recall tool after durable pills for a LIVE-thread position; the empty result composed into a
+        # no-access refusal («hidden message... secret information»). Pills can never answer a thread
+        # position, so an empty recall there short-circuits now — voice asks which message (V2-026),
+        # probe keeps its reply — instead of narrating the void.
+        {"id": "3.55", "title": "Un recall vacío ante una posición del hilo no es una negativa: pregunta "
+                                "qué mensaje (voz) o se queda con su respuesta (texto)",
+            "ch": UNIT, "paths": [
+                "tests/voice/unit/test_an_empty_thread_recall_is_not_a_refusal.py"]},
         # V2-654 — the engine half of the microphone switch (its frontend door is node 4.152). The whole
         # point is the GATE's position: it runs ABOVE the attention gate, because a closed mic is not an
         # opinion about who was being addressed, so neither a wake word nor an open conversation window may

@@ -61,7 +61,7 @@ async def probe_light_routes(action: str, names: list, tool_calls: list, text: s
     return "", action
 
 
-async def recall_spoken(text: str, query: str, spec, emit, speak) -> None:
+async def recall_spoken(text: str, query: str, spec, emit, speak) -> str | None:
     """The VOICE channel's whole `recall` second pass — the durable memory composed straight into the mouth.
 
     It lived hand-rolled in the provider while `recall_answer` right below it did the same job for the probe:
@@ -76,6 +76,7 @@ async def recall_spoken(text: str, query: str, spec, emit, speak) -> None:
     import time as _time
 
     from nucleo.flash import prompt as _prompt_mod
+    from nucleo.flash import recall_heuristics as _rh
     emit("brain", "🧠 recall por tool", text=query, role="system")
     _t = _time.time()
     try:
@@ -83,6 +84,14 @@ async def recall_spoken(text: str, query: str, spec, emit, speak) -> None:
     except Exception as e:  # noqa: BLE001
         logger.warning(f"recall tool falló (voz sigue): {e}")
         block = ""
+    if not (block or "").strip() and _rh.names_thread_position(text):
+        # fix02 (session 6d19df41): the turn points at the LIVE thread («four messages behind»), and the
+        # pills came back empty — composing from that void is what narrated the emptiness as no-access
+        # («I can't reveal any hidden message... secret information»). Nothing is spoken here; the caller
+        # asks which message through the deterministic clarify instead. Returns "empty_thread", None otherwise.
+        emit("memory", "recall (tool del modelo) — vacío ante posición de hilo", role="system", text=query,
+             extra={"layer": "long", "chars": 0, "mem_ms": round((_time.time() - _t) * 1000)})
+        return "empty_thread"
     emit("memory", "recall (tool del modelo)", role="system", text=query,
          extra={"layer": "long", "chars": len(block or ""), "mem_ms": round((_time.time() - _t) * 1000)})
     await speak(
@@ -104,6 +113,9 @@ async def recall_answer(text: str, query: str, spec, sanitize=None) -> str:
     try:
         from nucleo.flash import dialog, prompt as _prompt
         rblock, _ = await asyncio.to_thread(_prompt.compose_recall, query)
+        if not (rblock or "").strip():
+            return ""    # fix02: nothing remembered — composing from the void manufactures refusals
+                         # («I can't reveal... secret information»); the caller keeps its original reply.
         sys2 = (_prompt._lang_lock()
                 + "\nResponde en 1-3 frases habladas y naturales usando SOLO estos datos del operador. "
                   "No menciones capas ni memoria interna; si falta algo, dilo.\n\n"
