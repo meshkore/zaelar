@@ -743,6 +743,11 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
                     (it.get("platform"), str(it.get("chatId"))) == (key_[0], str(key_[1]))
                     for it in db.get("items", [])):
                 db["active_chat"] = {"platform": key_[0], "chatId": key_[1]}
+                # Opening IS reading, locally: he sees the whole conversation on screen, so the
+                # thread-store flags flip here (the activity lens dot reads them). Local ONLY —
+                # nothing is enqueued to pending_read: marking read in the real app stays an
+                # explicit `read`, never a side effect of navigating.
+                _th.mark_read(db, key_[0], key_[1])
                 store.save(WIDGET_ID, db)
                 return view_data()
             return {"ok": False, "error": "no tengo esa conversación guardada", **view_data()}
@@ -761,6 +766,9 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
                     **view_data()}
         if match:
             db["active_chat"] = {"platform": match["platform"], "chatId": match["chatId"]}
+            # Same as the identity branch above: opening is reading, locally only.
+            from . import thread as _th
+            _th.mark_read(db, match["platform"], match["chatId"])
             store.save(WIDGET_ID, db)
         return view_data()
 
