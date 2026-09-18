@@ -292,3 +292,26 @@ def test_both_fill_actions_are_audited(action):
     src = inspect.getsource(rd.apply_action)
     body = src[src.index(f'if action == "{action}"'):]
     assert "_audit(payload)" in body[:400], f"{action} debe auditar su payload"
+
+
+def test_an_overlong_item_is_stored_clipped_but_reported(monkeypatch):
+    """Session 6d19df41: 5 «el payload rompe la tarjeta» warnings while the overlong titles were persisted
+    verbatim — the audit saw it, the card still broke. What is stored must fit the card slots (word boundary,
+    marked); the issue is still reported back so the worker can fix the source."""
+    from widgets import presentation, store
+    from widgets.results import data as rd
+
+    saved = {}
+    monkeypatch.setattr(store, "save", lambda wid, d: saved.setdefault(wid, d) or d)
+    monkeypatch.setattr(rd.store, "save", lambda wid, d: saved.setdefault(wid, d) or d)
+
+    out = rd.apply_action("present", dict(REAL_PAYLOAD))
+    assert out["ok"] is True
+    assert out["presentation"], "the worker must still be told its payload breaks the card"
+    budgets = presentation.contract("results")
+    item = saved["results"]["items"][0]
+    for key in ("title", "subtitle", "price", "badge"):
+        assert len(item[key]) <= budgets[key], f"stored {key} must fit the card ({item[key]!r})"
+    assert item["title"].endswith("…"), "a cut has to SHOW"
+    part = item["parts"][0]
+    assert len(part["title"]) <= budgets["part_title"]

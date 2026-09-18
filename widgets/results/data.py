@@ -145,6 +145,20 @@ def _clip(text, key: str) -> str:
         return "" if text is None else str(text)[:220]
 
 
+# Card slots the audit measures (presentation.audit): what is stored must fit them, or the card wraps and
+# breaks no matter what the worker was told (session 6d19df41: 5 «el payload rompe la tarjeta» warnings while
+# the overlong titles were persisted verbatim). The audit still runs on the RAW payload and reports the issue
+# back to the worker — this only bounds what reaches the card, on a word boundary and marked with "…".
+_SLOT_CLIP_KEYS = {"title": "title", "subtitle": "subtitle", "price": "price", "badge": "badge"}
+
+
+def _clip_slot(text, key: str) -> str:
+    clipped = _clip(text, key)
+    if clipped:
+        return clipped
+    return "" if text is None else str(text)[:300]
+
+
 def _audit(payload: dict) -> list[str]:
     try:
         from widgets import presentation
@@ -175,6 +189,8 @@ def _clean_part(raw: dict) -> dict | None:
             f = _clean_facts(v)
             if f:
                 p[k] = f
+        elif k == "title":
+            p[k] = _clip_slot(v, "part_title")
         else:
             p[k] = str(v)[:300]
     return p if p.get("title") else None      # a piece with no name can't be shown or talked about
@@ -223,6 +239,8 @@ def _clean_item(raw: dict) -> dict | None:
             s = _clean_score(v)
             if s:
                 it[k] = s
+        elif k in _SLOT_CLIP_KEYS:
+            it[k] = _clip_slot(v, _SLOT_CLIP_KEYS[k])
         else:
             it[k] = str(v)[:300]
     return it if it.get("title") else None       # a card with no title is not a result, it is noise
