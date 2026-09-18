@@ -229,6 +229,10 @@ function injectStyles(){
   .hb-msg .tacts{display:flex;gap:2px;flex:0 0 auto;opacity:.3;transition:opacity .12s}
   .hb-msg .tacts button{border:0;background:transparent;border-radius:7px;width:26px;height:24px;font-size:12.5px;cursor:pointer;color:var(--hb-muted,#5b6b82);line-height:1}
   .hb-msg .tacts button:hover{background:var(--hb-hover,#eef3f9);color:var(--hb-ink,#0d1622)}
+  /* Action buttons carry inline SVG (never emoji): a glyph font renders each emoji
+     differently per machine (the operator read the mute button as a subwoofer). */
+  .hb-msg .acts button,.hb-msg .tacts button{display:inline-flex;align-items:center;justify-content:center}
+  .hb-msg .acts button svg,.hb-msg .tacts button svg{width:14px;height:14px;display:block}
 
   /* EMAIL default view (V2-610): a Gmail-style compact row — sender + subject in two lines, no body — and
      its detail screen. Reuses .tlead/.thd/.tacts from the shapes above so urgency, the back-crumb and the
@@ -543,6 +547,48 @@ function platformChip(platform){
 
 // Real brand icon for the header connection state. `on` only changes opacity (dimmed = disconnected); brand color
 // always remains, so the app stays recognizable even when unlinked.
+// Action icons are inline SVG (same self-contained pattern as BRAND_SVG above):
+// the row of per-message buttons used to be emoji text, and one emoji font drew
+// the mute glyph as something the operator read as a subwoofer (live report,
+// 2026-09-18: "an okay flag, then an x, then a subwoofer"). Stroke style matches
+// the app icon language (24px grid, currentColor). Same five actions, same order.
+const ACTION_SVG = {
+  check:   [["path", {d: "M20 6 9 17l-5-5"}]],
+  close:   [["path", {d: "M18 6 6 18"}], ["path", {d: "m6 6 12 12"}]],
+  archive: [["rect", {x: "2", y: "3", width: "20", height: "5", rx: "1"}],
+            ["path", {d: "M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"}],
+            ["path", {d: "M10 12h4"}]],
+  trash:   [["path", {d: "M3 6h18"}],
+            ["path", {d: "M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"}],
+            ["path", {d: "M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"}],
+            ["path", {d: "M10 11v6"}], ["path", {d: "M14 11v6"}]],
+  mute:    [["path", {d: "M11 5 6 9H2v6h4l5 4V5z"}],
+            ["path", {d: "m22 9-6 6"}], ["path", {d: "m16 9 6 6"}]],
+};
+function actionIcon(name){
+  const svg=document.createElementNS(SVG_NS,"svg");
+  svg.setAttribute("viewBox","0 0 24 24"); svg.setAttribute("width","14"); svg.setAttribute("height","14");
+  svg.setAttribute("fill","none"); svg.setAttribute("stroke","currentColor");
+  svg.setAttribute("stroke-width","2"); svg.setAttribute("stroke-linecap","round");
+  svg.setAttribute("stroke-linejoin","round"); svg.setAttribute("aria-hidden","true");
+  for(const [tag, attrs] of (ACTION_SVG[name]||[])){
+    const s=document.createElementNS(SVG_NS,tag);
+    for(const k of Object.keys(attrs)) s.setAttribute(k,attrs[k]);
+    svg.appendChild(s);
+  }
+  return svg;
+}
+function iconButton(name, title, cls){
+  const b=document.createElement("button");
+  b.type="button"; if(cls)b.className=cls;
+  b.title=title; b.setAttribute("aria-label",title);
+  b.appendChild(actionIcon(name));
+  return b;
+}
+// Busy feedback that keeps the icon: disabling + dimming blocks a second press
+// without wiping the button's SVG (the old textContent="…" replaced the glyph).
+function markBusy(btn){ btn.disabled=true; btn.style.opacity=".45"; }
+
 function brandIcon(platform, on){
   const p=PLAT[platform]||{label:platform||"?",bg:"var(--hb-muted,#6b7b92)"};
   const spec=BRAND_SVG[platform];
@@ -1057,10 +1103,10 @@ function richList(items, ctx){
     row.appendChild(body);
 
     const acts = el("div","acts");
-    const read=el("button",null,"✓"); read.title=tt("mark_read", null, "Marcar como leído"); read.onclick=()=>ctx.action("read",{n:it.n});
-    const dis=el("button",null,"✕"); dis.title=tt("dismiss", null, "Descartar (no marcar leído)"); dis.onclick=()=>ctx.action("dismiss",{n:it.n});
-    const mute=el("button","mute","🔇"); mute.title=tt("mute_channel_long", null, "Silenciar este canal (no volverán a salir sus mensajes)");
-    mute.onclick=()=>{ mute.textContent="…"; ctx.action("hide",{n:it.n}); };
+    const read=iconButton("check",tt("mark_read", null, "Marcar como leído")); read.onclick=()=>ctx.action("read",{n:it.n});
+    const dis=iconButton("close",tt("dismiss", null, "Descartar (no marcar leído)")); dis.onclick=()=>ctx.action("dismiss",{n:it.n});
+    const mute=iconButton("mute",tt("mute_channel_long", null, "Silenciar este canal (no volverán a salir sus mensajes)"),"mute");
+    mute.onclick=()=>{ markBusy(mute); ctx.action("hide",{n:it.n}); };
     acts.append(read,dis,mute); row.appendChild(acts);
     list.appendChild(row);
   });
@@ -1068,7 +1114,7 @@ function richList(items, ctx){
 }
 
 // Single message row: borderless vertical timeline, used inside an open thread in simple profile.
-// V2-610 — the row of ✓/✕/🗄/🗑/🔇 buttons, extracted so the flat list AND the new email detail screen
+// V2-610 — the row of check/close/archive/trash/mute buttons, extracted so the flat list AND the new email detail screen
 // wire the SAME five actions instead of two copies that drift (the row's copy predates this; the detail
 // screen is what forced the split). `actionable` stays the caller's call: a row of buttons on a message
 // that cannot be acted on (an outgoing message, or history with no `n`) would be a lie about what pressing
@@ -1201,20 +1247,20 @@ function composeBar(ctx, data, targetPayload, activeChat, rerender, mailItem){
 
 function messageActions(it, ctx){
   const acts = el("div","tacts");
-  const read=el("button",null,"✓"); read.title=tt("mark_read", null, "Marcar como leído"); read.onclick=()=>ctx.action("read",{n:it.n});
-  const dis=el("button",null,"✕"); dis.title=tt("dismiss", null, "Descartar (no marcar leído)"); dis.onclick=()=>ctx.action("dismiss",{n:it.n});
+  const read=iconButton("check",tt("mark_read", null, "Marcar como leído")); read.onclick=()=>ctx.action("read",{n:it.n});
+  const dis=iconButton("close",tt("dismiss", null, "Descartar (no marcar leído)")); dis.onclick=()=>ctx.action("dismiss",{n:it.n});
   acts.append(read,dis);
   if(it.platform==="email"){
     // Email-only affordances (V2-543): they act on the REAL mailbox, which is the whole point of the widget
     // being a substitute — other platforms have no archive/delete API and get no fake buttons.
-    const arc=el("button",null,"🗄"); arc.title=tt("archive", null, "Archivar en tu buzón real");
-    arc.onclick=()=>{ arc.textContent="…"; ctx.action("archive",{n:it.n}); };
-    const del=el("button",null,"🗑"); del.title=tt("trash", null, "Borrar en tu buzón real (pide confirmación)");
+    const arc=iconButton("archive",tt("archive", null, "Archivar en tu buzón real"));
+    arc.onclick=()=>{ markBusy(arc); ctx.action("archive",{n:it.n}); };
+    const del=iconButton("trash",tt("trash", null, "Borrar en tu buzón real (pide confirmación)"));
     del.onclick=()=>ctx.action("trash",{n:it.n});
     acts.append(arc,del);
   }
-  const mute=el("button",null,"🔇"); mute.title=tt("mute_channel", null, "Silenciar este canal");
-  mute.onclick=()=>{ mute.textContent="…"; ctx.action("hide",{n:it.n}); };
+  const mute=iconButton("mute",tt("mute_channel", null, "Silenciar este canal"));
+  mute.onclick=()=>{ markBusy(mute); ctx.action("hide",{n:it.n}); };
   acts.append(mute);
   return acts;
 }
@@ -1492,10 +1538,10 @@ function chatList(chats, ctx){
     row.onclick = ()=> { ctx.top(); ctx.action("open", {n:c.n}); };
 
     const acts = el("div","tacts");
-    const read=el("button",null,"✓"); read.title=tt("read_whole_chat", null, "Marcar todo el chat como leído");
+    const read=iconButton("check",tt("read_whole_chat", null, "Marcar todo el chat como leído"));
     read.onclick=(ev)=>{ ev.stopPropagation(); ctx.action("readchat",{n:c.n}); };
-    const mute=el("button",null,"🔇"); mute.title=tt("mute_channel", null, "Silenciar este canal");
-    mute.onclick=(ev)=>{ ev.stopPropagation(); mute.textContent="…"; ctx.action("hide",{n:c.n}); };
+    const mute=iconButton("mute",tt("mute_channel", null, "Silenciar este canal"));
+    mute.onclick=(ev)=>{ ev.stopPropagation(); markBusy(mute); ctx.action("hide",{n:c.n}); };
     acts.append(read,mute);
     row.appendChild(acts);
 
