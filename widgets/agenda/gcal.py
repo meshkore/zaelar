@@ -88,7 +88,16 @@ def commit_meeting(db: dict, m: dict) -> dict:
                 res = s.create_event(m, default_cal)
                 if res.get("ok"):
                     enriched = res["meeting"]
-                    for k in ("reminder_id", "remindAt"):
+                    # V2-722 — `created` TRAVELS WITH THE ROW, like the reminder does. The stamp above is
+                    # the only thing that distinguishes a row this engine just wrote from one that has been
+                    # in his calendar for weeks, and Google's answer does not carry it: this loop copied
+                    # two fields and dropped it, so for a CONNECTED operator — which is the only kind that
+                    # reaches this branch — the V2-692 stamp never survived the write. Measured 2026-09-18:
+                    # 0 of his 71 meetings had one, so `errands/verify.meeting_exists` could only ever
+                    # answer False and no errand could close by being ACHIEVED — every one of them ran to
+                    # its deadline and died «abandoned» a day later. Two were still showing as running on
+                    # his process bar twelve hours after the meeting they announced had happened.
+                    for k in ("reminder_id", "remindAt", "created"):
                         if k in m:
                             enriched[k] = m[k]
                     m = enriched

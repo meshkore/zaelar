@@ -1966,6 +1966,15 @@ DOMAINS: list[dict] = [
             # tick de fondo agenda un aviso propio para una cita recién sincronizada; on_calendar_connected
             # migra citas locales futuras sin duplicar lo que Google ya tiene.
             "tests/browser/unit/agenda/test_google_calendar_sync.py"]},
+        # V2-722 (2026-09-18): the `created` stamp (V2-692) was dropped by the Google enrichment, so for a
+        # CONNECTED operator it never survived the write — 0 of his 71 meetings had one. `verify.meeting_exists`
+        # skips a stamp-less row, so NO errand could close by being achieved and every one died «abandoned»
+        # at its deadline; two were still `running` on his bar twelve hours after the meeting they announced.
+        {"id": "4.192", "title": "El día en que escribimos la fila SOBREVIVE a Google (`created` viaja con "
+                                 "`reminder_id`), y con él un encargo puede cerrarse por ESTAR HECHO en vez "
+                                 "de por caducar — sin aflojar el guarda de V2-684",
+         "ch": UNIT, "paths": [
+             "tests/browser/unit/agenda/test_the_day_a_row_was_written_survives_google.py"]},
         # V2-720 (2026-09-17, session e22cdba8): «delete all the items but the meeting with Ivan» deleted the
         # day, Ivan's included — the keeper named a title that was not in the day, so the exception evaporated
         # and nobody noticed; the sweep never asked, because its selector is a DATE and a filled date read as
