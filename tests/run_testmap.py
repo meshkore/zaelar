@@ -1363,6 +1363,16 @@ DOMAINS: list[dict] = [
                                 "conformidad con los incidentes medidos, y la sombra que solo mide",
             "ch": UNIT, "paths": [
                 "tests/agent_headless/unit/test_the_canvas_arbiter_judges_every_mutation.py"]},
+        # V2-721 (2026-09-17, session c553a1e0, with a guest watching): «ha habido como un baile de abrir y
+        # cerrar widgets sin mi permiso». The music card re-opened on every `pause`, `volume_up` and `stop`,
+        # because the connector's result says `surface: "widget"` — a fact about where the AUDIO is, read by
+        # the voice lane as an instruction about the screen. The open/closed flag already existed and was
+        # authoritative (`memory.state().open_widgets`); what nobody owned was who may MOVE it.
+        {"id": "3.53", "title": "El flag de visibilidad solo lo mueve una acción que el widget DECLARA como "
+                                "producción (`runtime.produce`), y nunca sobre una tarjeta ya abierta — el "
+                                "árbitro juzga por la MISMA declaración: un montaje no es arrastre",
+            "ch": UNIT, "paths": [
+                "tests/agent_headless/unit/flash/test_a_card_opens_only_for_what_declares_production.py"]},
         # V2-654 — the engine half of the microphone switch (its frontend door is node 4.152). The whole
         # point is the GATE's position: it runs ABOVE the attention gate, because a closed mic is not an
         # opinion about who was being addressed, so neither a wake word nor an open conversation window may

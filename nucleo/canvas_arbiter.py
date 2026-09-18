@@ -130,6 +130,15 @@ def _decide(op, wid, src, *, action, payload, text, turn_credit, model_acted,
             return _v(True, "turn-mention")
         if _lic.video_license(text):
             return _v(True, "media-or-show-request")
+        # A MOUNT is not a drag (V2-721). When a widget's output lives in its own card — the music player's
+        # hidden iframe — an action the widget DECLARES as production cannot happen off screen, so the show
+        # that follows it is part of the playback, not a second decision about the canvas. Without this the
+        # shadow was counting the honest mount as a drag too: of the six `show-drag` verdicts over the music
+        # card in twelve real sessions, FIVE were a `pause`/`stop`/`volume_up` putting the card back on his
+        # screen (what V2-721 stops emitting) and ONE was the card going up so the play he had just asked
+        # for could be heard. Arming the arbiter without this rule would have answered that one with silence.
+        if _mounts_production(wid, action):
+            return _v(True, "producer-mount")
         return _v(False, "show-drag")
 
     if op == "data":
@@ -157,6 +166,18 @@ def _mentions_widget(wid: str, text: str, open_ids, recent_ids) -> bool:
         from widgets import runtime
         m = runtime.identify(text, open_ids=list(open_ids or []), recent_ids=list(recent_ids or [])) or {}
         return (m.get("match") or "").split("::", 1)[0] == wid.split("::", 1)[0]
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def _mounts_production(wid: str, action: str) -> bool:
+    """Does the widget DECLARE that this action makes it produce? Same `runtime.produce` the replay license
+    reads (V2-650) and `canvas_visibility` gates the emit with — one declaration, never two opinions."""
+    if not (wid and action):
+        return False
+    try:
+        from widgets import producers
+        return bool(producers.starts_production(wid.split("::", 1)[0], action))
     except Exception:  # noqa: BLE001
         return False
 
@@ -232,7 +253,7 @@ def shadow_tap(kind: str, label: str, text: str, role: str, extra: dict | None) 
             return
         op, action = "", ""
         if label in _SHOW_LABELS:
-            op = "show"
+            op, action = "show", str(ex.get("action") or "")   # V2-721: a mount names the action that produces
         elif label in _CLOSE_LABELS:
             op = "close"
         elif isinstance(label, str) and label.startswith("data:"):

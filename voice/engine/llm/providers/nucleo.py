@@ -2529,10 +2529,10 @@ class NucleoLLMStream(llm.LLMStream):
                         "ok": ok, "reason": getattr(res, "reason", ""), "surface": _extra.get("surface", ""),
                         "resolved_from": _extra.get("resolved_from", ""),
                         "ms": round((time.time() - _t_m) * 1000)})
-            # Audio EN EL NAVEGADOR (fallback YouTube): la reproducción vive en el widget `musica` → hay que
-            # MOSTRARLO para que su iframe oculto se monte y suene (Spotify no lo necesita: suena en el dispositivo).
-            if ok and _extra.get("surface") == "widget" and _extra.get("widget"):
-                emit("widget", "show", extra={"id": _extra["widget"], "src": "flash"})
+            # V2-721 — `surface` says WHERE the audio is, never what must be on SCREEN: the flag moves only
+            from nucleo.flash import canvas_visibility as _cvis     # …for a DECLARED producer, and not if open
+            if ok and _cvis.mount_needed(_extra, mq.get("action") or ""):
+                emit("widget", "show", extra={"id": _extra["widget"], "src": "flash", "action": mq.get("action")})
             # No re-anunciar un no-op (F5): si la reproducción fue "ya suena eso", el modelo ya habló; no encajes
             # el "ya está sonando" salvo que el modelo callara.
             _is_noop = bool(_extra.get("noop"))

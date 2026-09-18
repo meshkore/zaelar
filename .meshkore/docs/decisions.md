@@ -21,6 +21,33 @@ entregada siga citada aquí.
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **A card opens only for what the widget DECLARES as production (V2-721, 2026-09-17)**: session
+  `c553a1e0`, demoing to a guest. Music was playing; he paused it, asked for his agenda, closed everything —
+  and four minutes later, mid-sentence about his headphones, the music card came back on screen three times
+  and the player woke up. «Ha habido como un baile de abrir y cerrar widgets sin mi permiso […] los widgets
+  no dejan de ser un catálogo y deben tener un flag de si están abiertos o cerrados.» **The flag existed and
+  was authoritative** (`/api/canvas/state` → `memory.state().open_widgets`, written by the frontend, which
+  owns the canvas); what nobody owned was **who may move it**. The voice lane opened the card on EVERY
+  successful music action, because the connector's result says `surface: "widget"` — and `pause`,
+  `volume_up`, `seek` and `queue` say it too. That field answers «where does the sound come from» (a hidden
+  iframe in the card, versus a Spotify device): a fact about AUDIO, read as an instruction about the screen.
+  The same complaint is on record a day earlier (`928c8761`, 772 s, on a `stop`): «I did pause it manually,
+  and you did start it without my request.» **The rule, and it is declared data, not a verb table:** an
+  action may open a card only if the widget's manifest lists it in `runtime.produce` — the same declaration
+  `producers.py` has owned since V2-092 and the replay license reads since V2-650 — and never if the card is
+  already open, because a `show` on an open card raises and refocuses it, which was the other half of the
+  dance. `musica` declares play/resume/next/previous/play_playlist/ended; pause, volume and seek are not
+  there and now change nothing about the screen. The canvas arbiter learned the SAME rule (`producer-mount`
+  beats `show-drag`), and that mattered more than it looks: of its six `show-drag` verdicts over the music
+  card in twelve real sessions, five were the control shows this removes — but ONE was the honest mount of a
+  play he had just asked for, so **arming the arbiter (V2-653 F1) as it stood would have answered him with
+  silence**. Nodo 3.53, cinco desarmes rojos. ⚠️ Two things this did NOT fix, both measured in the same
+  session and left as findings: the model issued `resume` on «Okay. What if» because `video_license` licenses
+  any turn of ≤4 words containing an affirmative (an escape written for «shall I search again?» → «yes», with
+  nothing checking that anything was asked); and the accumulator closed the turn «…play us some music?»
+  WITHOUT the «Maybe Bruce Springsteen» fragment that had arrived four seconds earlier, so the agent asked
+  which artist he wanted after he had named one.
+
 - **«All of these EXCEPT that one» never means all of them (V2-720, 2026-09-17)**: session `e22cdba8`, and he
   said it three times — «can you delete all the items but the meeting with Ivan?», «please do not delete the
   meeting with Ivan», «delete the others and ask me for confirmation». What ran, with no question asked, was
