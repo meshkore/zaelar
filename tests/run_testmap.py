@@ -1397,6 +1397,15 @@ DOMAINS: list[dict] = [
                                 "qué mensaje (voz) o se queda con su respuesta (texto)",
             "ch": UNIT, "paths": [
                 "tests/voice/unit/test_an_empty_thread_recall_is_not_a_refusal.py"]},
+        # fix03 (session 6d19df41): spelling «Carwow» across STT fragments — «Scarborough.» -> «It is» ->
+        # «car. W o w» — commissioned a web-research Brain Worker for the fragment «It is», a ghost the
+        # operator had to kill by voice. A 1–3 word turn with no directive (no verb of any guarded family,
+        # no question) cannot describe an errand, so the provider annuls a direct escalation on it; real
+        # tasks come back through the window backstops (V2-132).
+        {"id": "3.56", "title": "Un fragmento de 1–3 palabras sin directiva no encarga un worker: la escalada "
+                                "directa se anula y la tarea real vuelve por la ventana",
+            "ch": UNIT, "paths": [
+                "tests/voice/unit/test_a_fragment_cannot_commission_a_worker.py"]},
         # V2-654 — the engine half of the microphone switch (its frontend door is node 4.152). The whole
         # point is the GATE's position: it runs ABOVE the attention gate, because a closed mic is not an
         # opinion about who was being addressed, so neither a wake word nor an open conversation window may

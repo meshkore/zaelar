@@ -664,3 +664,66 @@ from .reminder_guards import (  # noqa: F401 — re-export, not a local use
     dated_note_backstop, dated_reminder_backstop, holding_line, note_asked_in_window,
     promises_a_dated_reminder, reminder_before, safe_reminder_prompt, safe_reminder_schedule, strip_note_lead,
 )
+
+
+# A TURN TOO THIN TO COMMISSION A WORKER (fix03, session 6d19df41, 2026-09-18).
+# Measured: the operator spelled «Carwow» across STT fragments — «Scarborough.» → «It is» → «car. W o w…».
+# The segmenter passes single content words ON PURPOSE («Cancélalo» must never be held), so the fragment
+# reached the model as a whole turn, and the model commissioned a web-research Brain Worker for it
+# («Find and present information about "Scarborough" related to "car"…») — a ghost the operator had to
+# kill by voice («Stop this task immediately», then «Did you cancel the task?»).
+# A 1–3 word turn with no directive in it (no verb of any guarded family, no question) cannot describe an
+# errand: the model can only commission one by inventing the verbs itself. The provider annuls a direct
+# escalation on such a turn; anything real comes back through the window backstops (V2-132), which read
+# the request the operator actually made a few turns back.
+# Conservative by construction: anything it cannot judge (longer, a question, any known verb, a real-work
+# shape) behaves exactly as before. It composes existing verb lists — never a new topic table.
+_RESEARCH_VERB_RE = _re.compile(
+    r"\b(investig\w*|compar\w*|analiz\w*|analis\w*|averigu\w*|indag\w*|research\w*|investigat\w*|"
+    r"compar\w*|analy[sz]e\w*)\b", _re.I)
+# English directive verbs with no Spanish-guarded equivalent (verb_forms.py V2-677: the English side of every
+# grammar guard is a bare-stem list the operator actually outgrows). Spanish «abre/muéstrame» is guarded;
+# English «open/show» was not — and «open my messages» is one of the operator's most frequent orders.
+# Verbs only, never topics: what may commission a worker, not what it is about.
+_EN_DIRECTIVE_RE = _re.compile(
+    r"\b(open|show|close|clos|shut|stop|call|search|find|bring|give|tell)\b", _re.I)
+
+
+def too_thin_to_commission(text: str) -> bool:
+    """True when `text` is a fragment that cannot commission a Brain Worker — 1–3 words with no directive.
+
+    «Directive» is read structurally, from the verb lists the guards already keep: task verbs, show/activate/
+    change verbs, close orders, login intent, search/navigation verbs, research verbs, the English directives
+    with no Spanish-guarded equivalent («open/show/close/…»), and the single words that are also orders
+    (`segmenter._ALSO_A_VERB`: «para», «sigue», «pon»…). A question («¿…?») always directs, and so does
+    anything `_needs_real_work` recognises (marketplace/report errands, money, commitments).
+    """
+    raw = (text or "").strip()
+    if not raw:
+        return False                      # nothing to judge → behave as before
+    if "?" in raw or "¿" in raw:
+        return False                      # a question directs, however short
+    n = _norm_txt(raw)
+    if len(n.split()) > 3:
+        return False
+    if _needs_real_work(raw):
+        return False
+    if _TASK_VERB_RE.search(n):
+        return False
+    if _SHOW_VERB_RE.search(n) or _ACTIVATE_VERB_RE.search(n) or _CHANGE_VERB_RE.search(n):
+        return False
+    if _LOGIN_INTENT_RE.search(n):
+        return False
+    if _MKT_VERB_RE.search(n) or _REPORT_RE.search(n) or _RESEARCH_VERB_RE.search(n):
+        return False
+    if _EN_DIRECTIVE_RE.search(n):
+        return False
+    if looks_like_close(raw):
+        return False                       # «cierra eso» is an order however short
+    try:
+        from nucleo.flash.segmenter import _ALSO_A_VERB as _ALSO_VERB
+        if any(w in _ALSO_VERB for w in n.split()):
+            return False                  # «para»/«sigue»/«pon» alone are orders, never fragments
+    except Exception:
+        pass
+    return True

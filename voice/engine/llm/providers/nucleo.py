@@ -2171,6 +2171,18 @@ class NucleoLLMStream(llm.LLMStream):
                         spoken_text = "Aquí lo tienes."
                     send(speech.sanitize(spoken_text, drop_metadata=False))
 
+        # GHOST-WORKER guard (fix03, session 6d19df41): a 1–3 word turn with no directive in it is a fragment
+        # of a longer utterance (a spelling, a dictation tail), not an errand — the model can only escalate it
+        # by inventing the order («Find and present information about "Scarborough"…» for «It is»). Annulled
+        # here, same shape as the show-guard override above; a REAL task comes back through the window
+        # backstops below, which read what the operator actually asked a few turns back.
+        if escalate_req["v"] is not None and _router.too_thin_to_commission(operator_text):
+            emit("brain", "🧭 escalada anulada — el turno es un fragmento, no un encargo",
+                 text=f"{(operator_text or '')[:80]} → {(escalate_req['v'] or '')[:80]}", role="system",
+                 extra={"cat": "flash"})
+            escalate_req["v"] = None
+            escalate_req["more"] = []
+
         # BACKSTOP PROMESA-SIN-ACCIÓN UNIFICADO 2026-07-19 (mar de testing): ante fraseo CORTÉS/subjuntivo
         # («¿podrías…?», «deberías…», «sería genial que hicieras…», «me haría falta…») el modelo CHARLA una promesa
         # («me pongo con ello», «te lo abro», «voy a poner…») SIN llamar a la tool → causa nº1 de "dice que lo hace y
