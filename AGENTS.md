@@ -293,6 +293,8 @@ se incumple.
 - **No lances suites anchas de pytest en su máquina.** Ver la primera de las «Hard rules».
 - **Commitea con pathspec** (`git commit -- <rutas>`), tras comprobar que `git diff --cached --name-only` está
   VACÍO. Hay varias sesiones sobre el MISMO checkout y el índice es compartido. Ver «Hard rules».
+- **Los commits llevan `Co-Authored-By`.** Override del operador a §9.1 del preámbulo (que lo prohíbe): cada commit añade, tras los trailers MeshKore, `Co-Authored-By: <quién escribió el cambio>` (el agente/CLI que redactó el commit). El operador lo daba por supuesto desde el principio (2026-09-19).
+- **Los commits llevan `Co-Authored-By`.** Override del operador a §9.1 del preámbulo (que lo prohíbe): cada commit añade, tras los trailers MeshKore, `Co-Authored-By: <quién escribió el cambio>` (el agente/CLI que redactó el commit). El operador lo daba por supuesto desde el principio (2026-09-19).
 - **Si encuentras trabajo sin commitear de otra sesión, no lo pises ni lo commitees.** Ni siquiera para pagar
   un trinquete: extraer del fichero en vuelo de otro es peor que dejar la deuda.
 - **Nada de pasadas de diseño autónomas.** Un cambio visual se acuerda antes; no se «mejora» la interfaz por
