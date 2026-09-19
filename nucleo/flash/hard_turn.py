@@ -85,9 +85,19 @@ async def handle(text: str, hard: str, emit) -> str | None:
             rest = _att.close_all_remainder(text)
         except Exception:                      # noqa: BLE001 — unreadable remainder = the old behaviour
             rest = ""
+    if hard == "stop":
+        # Session 6d19df41 — the stop twin of V2-688 above: «No. So no. Stop it. Okay. Show me the
+        # WhatsApp messages.» ended here and the WhatsApp order died in silence. A bare stop still ends
+        # the turn; anything else the sentence ordered keeps it.
+        try:
+            from voice import attention as _att1
+            rest = _att1.stop_remainder(text)
+        except Exception:                      # noqa: BLE001 — unreadable remainder = the old behaviour
+            rest = ""
     if not rest:
         return None                            # 'stop' → the barge-in already cut the TTS; we do not reply
 
-    emit("ambient", "✋ cierre hecho · sigue el resto de la orden", text=rest[:160],
-         role="system", extra={"reason": "hard_interrupt_remainder"})
+    emit("ambient", ("✋ cierre hecho · sigue el resto de la orden"
+                     if hard == "close" else "✋ stop hecho · sigue el resto de la orden"),
+         text=rest[:160], role="system", extra={"reason": "hard_interrupt_remainder"})
     return rest

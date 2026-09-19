@@ -903,6 +903,42 @@ def close_all_remainder(text: str) -> str:
     return rest if len(rest.split()) >= 2 else ""
 
 
+#: A clause that is only a negation interjection carries no request. Without this, «No. So no. Stop it.
+#: Okay. Show me the WhatsApp messages» would come back with «No, So no» glued to the order — and a model
+#: reading «No … show me» hears the cancellation, not the order. Anchored like `_COURTESY_CLAUSE_RE`: a
+#: clause that SAYS something («no abras eso») is never this.
+_NEGATION_CLAUSE_RE = re.compile(r"^(?:no|nah|nope|non|nein|so\s+no|oh\s+no|no\s+no)$", re.I)
+
+
+def stop_remainder(text: str) -> str:
+    """What the operator asked for BESIDES silence, or "" when stopping was the whole request.
+
+    The stop twin of `close_all_remainder` (V2-688 fixed the close branch; the stop branch kept the same
+    hole). Measured live in session 6d19df41: «No. So no. Stop it. Okay. Show me the WhatsApp messages.»
+    ended the turn on the stop — the WhatsApp order died in silence, the operator repeated it, and the
+    model blamed the Carwow email instead: the dropped order left no trace, so the stale context was all
+    it had.
+
+    The stop keeps its guarantee (the barge-in already cut the voice; a bare stop still ends the turn);
+    the rest of the sentence keeps its turn. Conservative like its twin: an unparseable remainder comes
+    back "", and the caller behaves exactly as before.
+    """
+    if hard_interrupt(text) != "stop":
+        return ""                              # not a bare stop at all: nothing for this to split
+    kept: list[str] = []
+    for clause in _REST_SPLIT_RE.split(text or ""):
+        c = (clause or "").strip(" \t,;.")
+        if not c:
+            continue
+        n = _norm(c)
+        if (hard_interrupt(c) == "stop" or _COURTESY_CLAUSE_RE.match(n.strip())
+                or _NEGATION_CLAUSE_RE.match(n.strip())):
+            continue
+        kept.append(c)
+    rest = ", ".join(kept).strip(" ,;.")
+    return rest if len(rest.split()) >= 2 else ""
+
+
 # ── bounded turn end + command preservation (T135) ───────────────────────────────────────────────
 # Explicit command clause (open/close/show/stop…), so a length-based truncation NEVER loses it.
 _COMMAND_RE = re.compile(
