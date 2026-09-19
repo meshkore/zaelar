@@ -2834,7 +2834,11 @@ DOMAINS: list[dict] = [
                 # encarga SÍ se abre, pero en SEGUNDO PLANO: el `documento` de un encargo fantasma tapó su
                 # flujo de email («why are you open the documents right now?»). `sse.js` marca `background`
                 # por `src: worker:*`; desktop salta `_bringFront`, el Deck salta `_goTo`.
-                "tests/browser/unit/widgets/test_worker_show_opens_in_background.py"]},
+                "tests/browser/unit/widgets/test_worker_show_opens_in_background.py",
+                # 2026-09-19: ese mismo fix rompió TODA apertura (TypeError `w.card` con `w` undefined en la
+                # rama fresh de show() + `background` sin declarar en _renderAliases/createWidget/maximize).
+                # El pin clava las dos prohibiciones en el propio desktop.js.
+                "tests/browser/unit/widgets/test_a_fresh_show_needs_no_stored_card.py"]},
         # V2-651 F0 (2026-09-10): identify the OPERATOR's voice. The cost lives in the BROWSER (operator
         # directive): the fingerprint of every speech segment is computed client-side and only a tiny label would
         # ever cross to the backend. F0 is SHADOW MEASUREMENT — zero behaviour change: fingerprint + multi-profile
