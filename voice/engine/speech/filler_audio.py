@@ -61,6 +61,8 @@ _ARM_POLL_S = 0.05
 _WORK_GRACE_S = 0.35
 _COVER_MIN_GAP_S = 1.6
 _arm: tuple[float, object, str] | None = None   # (monotonic ts, brain, filler kind)
+_jev_pending: tuple[float, object] | None = None  # (monotonic ts, jev handle) — the async request-type
+                                                  # verdict racing this turn's deadline; consumed at fire time
 _work: tuple[float, object, str, str] | None = None   # (monotonic ts, brain, work kind, target title)
 _last_phrase = ""
 _pending_strip: list[str] = []             # phrases emitted as fillers, awaiting removal from the transcript
@@ -353,6 +355,15 @@ def arm(brain, text: str = "", messages: list | None = None) -> str:
     except Exception:
         phrase = ""
     _arm = (time.monotonic(), brain, kind, phrase)
+    # Jev races the filler deadline on its own thread: the regex class above is already promised to the
+    # model, and the fire site below swaps the pool only when Jev lands confident (nucleo/jev.py).
+    global _jev_pending
+    try:
+        from nucleo import jev as _jev
+        _jev_pending = (time.monotonic(), _jev.request_async(
+            text, last_reply=getattr(brain, "_last_reply", "") or ""))
+    except Exception:
+        _jev_pending = None
     if phrase and messages and isinstance(messages[-1], dict) and messages[-1].get("role") == "user":
         messages[-1] = {**messages[-1], "content": str(messages[-1].get("content") or "") + (
             f"\n\n[SISTEMA] Si tu respuesta tarda, sonará antes «{phrase}» en tu voz. Que tu primera "
@@ -370,6 +381,22 @@ def _consume_arm():
     if time.monotonic() - ts > _ARM_TTL_S:
         return None
     return brain, kind, phrase
+
+
+def _consume_jev_kind(fallback: str) -> tuple[str, dict | None]:
+    """Fire-time Jev verdict, never blocking. Returns (pool kind, info): Jev's pool when its thread
+    landed before the deadline AND confident, else the regex fallback. Consumed once per turn, so a
+    late verdict cannot leak into the next turn — it still emits its observability event for review."""
+    global _jev_pending
+    pending, _jev_pending = _jev_pending, None
+    if pending is None:
+        return fallback, None
+    _, handle = pending
+    try:
+        from nucleo import jev as _jev
+        return _jev.resolve_kind(handle, fallback)
+    except Exception:
+        return fallback, None
 
 
 def _pick_phrase(brain, kind: str = "neutral", phrase: str = "") -> str:
@@ -584,6 +611,16 @@ async def llm_node_with_filler(agent, default_impl, chat_ctx, tools, model_setti
                         continue
                     lead_settled = True
                     brain, kind, armed_phrase = armed
+                    # Jev re-class: a confident verdict for a different pool re-picks the phrase from
+                    # THAT pool. The [SISTEMA] note promised the regex phrase conditionally ("si tarda"),
+                    # and all covers are equally short continuations — a wrong-class cover is the worse
+                    # failure (the operator's "Good question" for an order).
+                    try:
+                        _jev_kind, _ = _consume_jev_kind(kind)
+                        if _jev_kind != kind:
+                            kind, armed_phrase = _jev_kind, ""
+                    except Exception:
+                        pass
                     # V2-633: the style policy rules the fire. Genesis "smart" drops the cover on ACTION
                     # turns («reproduce el vídeo» + «Un segundo…» measured as pure annoyance, session
                     # 6c715232); "off" (operator rule) drops it everywhere. Checked at fire time, so a
@@ -673,8 +710,9 @@ async def transcription_node_without_filler(agent, default_impl, text, model_set
 
 
 def _reset_for_tests() -> None:
-    global _arm, _last_phrase, _work, _last_fired_at
+    global _arm, _last_phrase, _work, _last_fired_at, _jev_pending
     _arm = None
+    _jev_pending = None
     _work = None
     _last_phrase = ""
     _last_fired_at = 0.0

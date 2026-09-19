@@ -1314,6 +1314,8 @@ DOMAINS: list[dict] = [
         # them at all while the engine is answering under the deadline on its own.
         {"id": "3.51", "title": "El nexo es CORTO, de la clase correcta, y se calla cuando no tiene nada que cubrir",
             "ch": UNIT, "paths": ["tests/voice/unit/test_filler_is_short_classed_and_adaptive.py"]},
+        {"id": "3.58", "title": "Jev names the request type before the deadline; the cover matches it or the regex stands",
+            "ch": UNIT, "paths": ["tests/voice/unit/test_jev_request_type.py"]},
         # V2-717 — session c502d3ff (2026-09-17 20:57): «Let me check your Telegram to see what Ivan asked» three
         # turns in a row with NOTHING behind it — the re-emitted `mensajeria:open` was eaten as context-bleed
         # (a lens has an empty payload, so the guard's hatch could never open) while the promise went out by
