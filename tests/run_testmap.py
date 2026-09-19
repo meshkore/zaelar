@@ -2953,7 +2953,8 @@ DOMAINS: list[dict] = [
         {"id": "4.152", "title": "El interruptor del micrófono tiene UNA puerta: un solo escritor mueve icono, "
                                  "almacenamiento, pista de audio y motor a la vez",
             "ch": UNIT,
-            "paths": ["tests/browser/unit/mic/test_the_mic_state_has_one_door.py"]},
+            "paths": ["tests/browser/unit/mic/test_the_mic_state_has_one_door.py",
+                      "tests/browser/unit/mic/test_the_mic_glows_while_capturing.py"]},
         # V2-626 — the sibling half of the node above, and it can only be seen RENDERED: the operator asked
         # for his mail, the email dot lit, and the WhatsApp connector screen stayed underneath it. The filter
         # had moved and the screen had not. A source read sees the assignment either way; only a render sees

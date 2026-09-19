@@ -621,6 +621,12 @@ canvas#orb.frozen{opacity:.32;filter:grayscale(1)}
    a lit one. The meter still swells with his voice; it just starts from LIT. */
 .orbic.vu svg{transform:scale(calc(1 + var(--vu, 0) * .28));opacity:calc(.88 + var(--vu, 0) * .12);
   transition:transform .07s linear,opacity .07s linear}
+/* MIC CAPTURE GLOW (operator 2026-09-19: «cuando hablo, que el micro se ilumine en un color»). The mic already
+   GREW with the voice; now it also GLOWS — operator green (--hb-ok), so the three voices stay apart: GREEN =
+   the operator capturing, warm ORANGE = the orb listening (visualizer.js), HELIOTROPE = system on/active
+   (.orbic.on). The blur IS the meter: calc(var(--vu) * 10px) is 0px at silence (invisible, base halo only)
+   and 10px at full level. Muted/stopped never glows — Orb.js writes --vu 0 there. */
+.orbic[data-ctl="mic"].vu{filter:drop-shadow(0 0 4px currentColor) drop-shadow(0 0 calc(var(--vu, 0) * 10px) var(--hb-ok))}
 @media (prefers-reduced-motion:reduce){ .orbic.vu svg{transform:none} }
 .orbic.pwr-stalled{color:var(--hb-warn);opacity:1;animation:pwrAlert 1.6s ease-in-out infinite}
 .orbic.pwr-starting{color:var(--hb-muted);opacity:.85;animation:pwrBoot 1.4s ease-in-out infinite}
