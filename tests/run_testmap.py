@@ -1406,6 +1406,15 @@ DOMAINS: list[dict] = [
                                 "directa se anula y la tarea real vuelve por la ventana",
             "ch": UNIT, "paths": [
                 "tests/voice/unit/test_a_fragment_cannot_commission_a_worker.py"]},
+        # fix10 (session 6d19df41): 14 streamed turns murdered mid-sentence by the next fragment (13
+        # pre-token) plus 3 pre-stream drops — nobody's verdict can tell a doomed turn from a live one
+        # (every fragment reads complete standalone), so survival is entirely downstream: the stream's
+        # CancelledError handler preserves the operator's words (prefix-coalesced), flags, and reports
+        # with metrics; the wrapper's backstop stays silent on the re-raise and is idempotent elsewhere.
+        {"id": "3.57", "title": "Un stream asesinado conserva las palabras del operador exactamente una vez: "
+                                "el handler preserva-marca-informa y la envoltura calla o cubre idempotente",
+            "ch": UNIT, "paths": [
+                "tests/voice/unit/providers/test_a_murdered_stream_keeps_its_words_once.py"]},
         # V2-654 — the engine half of the microphone switch (its frontend door is node 4.152). The whole
         # point is the GATE's position: it runs ABOVE the attention gate, because a closed mic is not an
         # opinion about who was being addressed, so neither a wake word nor an open conversation window may
