@@ -72,6 +72,17 @@ def test_compose_block_lists_open_widgets_and_activity(fresh_db):
     assert "Tareas en marcha" in block and "agenda" in block
 
 
+def test_compose_block_states_empty_screen_when_nothing_open(fresh_db):
+    # 2026-09-19: an empty desktop composed NO screen line, and the model filled the silence
+    # from recent_widgets + rails («already open on screen» with nothing open). Emptiness must
+    # travel as a fact — without the «Widgets ABIERTOS» head the empty-canvas cases pin absent.
+    from nucleo.flash import memory_cache
+    memory_cache.reset()
+    memapi.set_state({"mission": "m", "open_widgets": [], "recent_widgets": ["youtube"]})
+    block, _op = memory_cache._compose()
+    assert "VACÍA" in block and "Widgets ABIERTOS" not in block
+
+
 # ── 4. breaking an identify tie in favor of the OPEN widget ───────────────────────────────────────────────────────
 def test_identify_prefers_open_widget_on_tie(monkeypatch):
     from widgets import runtime

@@ -125,8 +125,10 @@ def compose_state(*, mission_fallback: str = "") -> tuple[str, str, dict]:
         if isinstance(v, (str, int, float)) and str(v).strip():
             sit.append(f"{k.capitalize().replace('_', ' ')}: {v}.")
     open_w = [str(w).strip() for w in (st.get("open_widgets") or []) if str(w).strip()]
+    _screen_listed = False
     if open_w:
         sit.append("Widgets ABIERTOS ahora en su pantalla: " + ", ".join(open_w[:12]) + ".")
+        _screen_listed = True
     # PROCESOS/SESIONES VIVAS del SlowBrain (V2-036, P4): id + objetivo + fase, para que el orquestador (FlashBrain)
     # ASOCIE cada pregunta/orden del operador a la sesión correcta ("¿cómo va la moto?", "y el estudio del universo?",
     # "para la tarea del mercado…"). Rico (sesiones) si lo hay; si no, cae a las etiquetas de `activity`.
@@ -219,6 +221,14 @@ def compose_state(*, mission_fallback: str = "") -> tuple[str, str, dict]:
         pass
     stats["short_count"] = len(convo)
     stats["short_chars"] = short_chars
+
+    if not _screen_listed and (mission or sit or salient or errands or convo):
+        # An empty canvas says so out loud. Silence let the model fill the gap from recently-used
+        # widgets and background rails and claim a card was on screen (2026-09-19: «already open»
+        # with an empty desktop). Worded without the «Widgets ABIERTOS» head the empty-canvas
+        # cases pin as absent; the blank-state contract below stays untouched.
+        sit.append("Pantalla VACÍA ahora: ningún widget a la vista.")
+        stats["state_fields"] = len(sit)
 
     if not (mission or sit or salient or errands or convo):
         return "", op, stats
