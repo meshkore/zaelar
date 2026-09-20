@@ -90,10 +90,16 @@ def test_the_questions_are_enumerated_from_DECLARED_actions(wire):
     assert all(k == "none" or k.startswith("musica:") for k in crit)
 
 
-def test_nothing_open_asks_nothing_about_the_screen(wire):
-    """A question with no candidates is not asked — an empty enumeration is a coin flip."""
+def test_nothing_open_asks_nothing_about_the_SCREEN(wire):
+    """A question with no candidates is not asked — an empty enumeration is a coin flip.
+
+    Since A4 the screen question has a twin for exactly this case (`catalog_widget`: which widget of
+    the catalogue is being NAMED), so what must be absent is the one about what is ON SCREEN, which
+    is nothing. The two are never asked together — see `test_the_two_screen_questions_...`.
+    """
     _settle(tb.ask("¿qué hora es?", open_ids=[]))
-    assert set(wire.calls[0]["questions"]) == {tb.CANVAS_KEY, tb.REQUEST_KEY, tb.ESCALATE_KEY}
+    assert tb.TARGET_KEY not in wire.calls[0]["questions"]
+    assert {tb.CANVAS_KEY, tb.REQUEST_KEY, tb.ESCALATE_KEY} <= set(wire.calls[0]["questions"])
 
 
 def test_an_empty_turn_asks_nothing_at_all(wire):
@@ -313,3 +319,163 @@ def test_the_probe_channel_KEEPS_its_blocking_fallback(wire, monkeypatch):
     assert kind == "repair" and val == declared[0]
     assert single == ["widget_action"], "the probe channel must still be able to ask"
     assert wire.calls == [], "and it does not go through the brief transport"
+
+
+# ── A4 · the screen question knows WHICH card, not just which widget ─────────────────────────────
+def test_two_cards_of_the_SAME_widget_are_two_candidates(wire):
+    """The measurement that decides this design (V2-726 §4-bis, five open cards): «enséñame el
+    tercero» came back `youtube:play_result` at 0.70 — confident and WRONG, with the third row
+    sitting in an open `results` card. Keying by widget TYPE meant a verdict could not name which of
+    two cards it meant, so the only failure mode the plan requires to be zero was structural."""
+    _settle(tb.ask("enséñame el tercero", open_ids=["results::t7", "results::t9"]))
+    keys = [k for k in wire.calls[0]["questions"][tb.TARGET_KEY]["criteria"] if k != "none"]
+    owners = {k.rpartition(":")[0] for k in keys}
+    assert owners == {"results::t7", "results::t9"}, owners
+
+
+def test_a_verdict_names_its_own_instance_and_the_sibling_gets_nothing(wire):
+    """Two cards of a kind declare the same actions, so the instance is the whole disambiguation."""
+    declared = list((fe.declared_actions("results") or {}))
+    assert declared, "this test needs a widget that declares actions"
+    act = declared[0]
+    wire.answers[tb.TARGET_KEY] = (f"results::t7:{act}", 0.95)
+    h = _settle(tb.ask("enséñame el tercero", open_ids=["results::t7", "results::t9"]))
+    assert fe.repair_action_from_brief("results::t7", h) == act
+    assert fe.repair_action_from_brief("results::t9", h) is None, (
+        "the verdict for one card was read as a repair for its sibling")
+
+
+def test_each_candidate_carries_what_ITS_card_is_showing(wire, monkeypatch):
+    """The live rail. «reproduce» chose `musica` over `youtube` with nothing to justify it — both
+    declare `play` and `next`, and the question carried only the list of what was open. What each
+    card is SHOWING is the fact that separates them, and only the card can say it."""
+    from widgets import instances as inst
+    faces = {"musica": {"label": "sonando: Bohemian Rhapsody"},
+             "youtube": {"label": "pausado: receta de paella"}}
+    monkeypatch.setattr(inst, "card_face", lambda wid: faces.get(wid, {}))
+    _settle(tb.ask("siguiente", open_ids=["musica", "youtube"]))
+    crit = wire.calls[0]["questions"][tb.TARGET_KEY]["criteria"]
+    blob = " ".join(crit.values())
+    assert "sonando: Bohemian Rhapsody" in blob and "pausado: receta de paella" in blob, (
+        "the question cannot tell the two cards apart: it carries no live state for either")
+
+
+def test_a_card_that_cannot_describe_itself_still_gets_its_candidates(wire, monkeypatch):
+    """Refines DOWNWARDS only. A widget with no `card_face` (or one that raises) must not vanish
+    from its own screen — the fallback is the id, which is exactly what the question carried
+    before A4: never worse, often better."""
+    from widgets import instances as inst
+
+    def _boom(wid):
+        raise RuntimeError("this widget cannot describe itself")
+    monkeypatch.setattr(inst, "card_face", _boom)
+    _settle(tb.ask("dale al play", open_ids=["musica"]))
+    keys = [k for k in wire.calls[0]["questions"][tb.TARGET_KEY]["criteria"] if k != "none"]
+    assert keys and all(k.startswith("musica:") for k in keys)
+
+
+def test_an_action_that_needs_a_row_is_not_offered_when_there_are_no_rows(wire, monkeypatch):
+    """«Play the third one» on an empty list is not a capability the operator lacks — it is a target
+    that does not exist, and offering it is how a chooser becomes confidently wrong. Fewer and more
+    pertinent candidates is also what brings the measured 15 KB of criteria down."""
+    from widgets import refs
+    declared = list((fe.declared_actions("results") or {}))
+    needs_row = [a for a in declared if refs.id_field_for_action("results", a)]
+    assert needs_row, "this test needs an action that names an EXISTING row"
+    act = needs_row[0]
+
+    field = refs.id_field_for_action("results", act)
+    monkeypatch.setattr(refs, "_exposes_ref_index", lambda wid: True)
+
+    # BASELINE, and it is half the test: with a row present the action IS offered. Without it, the
+    # assertion below would hold for an action that is simply never offered at all.
+    monkeypatch.setattr(refs, "_ref_index",
+                        lambda wid: [{"id": "r1", "label": "una fila", "field": field}])
+    _settle(tb.ask("abre el tercero", open_ids=["results"]))
+    assert f"results:{act}" in wire.calls[0]["questions"][tb.TARGET_KEY]["criteria"], (
+        f"«{act}» is not offered even with rows present — this test would prove nothing")
+
+    wire.calls.clear()
+    monkeypatch.setattr(refs, "_ref_index", lambda wid: [])
+    _settle(tb.ask("abre el tercero", open_ids=["results"]))
+    keys = list(wire.calls[0]["questions"][tb.TARGET_KEY]["criteria"])
+    assert f"results:{act}" not in keys, "an action with nothing to act on was offered as a target"
+    assert len(keys) > 1, "the whole card vanished instead of one impossible action"
+
+
+def test_an_action_that_CREATES_something_is_always_possible(wire, monkeypatch):
+    """The defect the first version of the filter shipped, caught by a test that picked the first
+    declared action and found it gone. `contract.selector_for` answers «which key identifies this
+    call» — for `create_playlist` that is `name`, the name of a list that does not exist YET. Asking
+    it here deleted every creation action from an empty widget: «crea una lista Rock» had nothing to
+    be aimed at. The right question is `refs.id_field_for_action`: which key names an EXISTING row."""
+    from widgets import refs
+    monkeypatch.setattr(refs, "_ref_index", lambda wid: [])
+    monkeypatch.setattr(refs, "_exposes_ref_index", lambda wid: True)
+    _settle(tb.ask("crea una lista que se llame Rock", open_ids=["musica"]))
+    keys = list(wire.calls[0]["questions"][tb.TARGET_KEY]["criteria"])
+    assert "musica:create_playlist" in keys, (
+        "a creation action was filtered out because the widget has no rows yet")
+
+
+def test_a_verdict_about_an_instance_that_closed_is_stale(wire, monkeypatch):
+    """A sibling staying open does not save it: the card he was looking at is gone, and the other
+    one is a different card with different rows."""
+    declared = list((fe.declared_actions("results") or {}))
+    wire.answers[tb.TARGET_KEY] = (f"results::t7:{declared[0]}", 0.95)
+    h = _settle(tb.ask("enséñame el tercero", open_ids=["results::t7", "results::t9"]))
+    from memory import api as memapi
+    monkeypatch.setattr(memapi, "state", lambda: {"open_widgets": ["results::t9"]})
+    assert fe.repair_action_from_brief("results::t7", h) is None
+
+
+# ── A4 · with nothing open, the question is WHICH WIDGET — asked with the words he uses ──────────
+def test_nothing_open_asks_which_widget_of_the_catalogue(wire):
+    _settle(tb.ask("ábreme el vídeo", open_ids=[]))
+    asked = set(wire.calls[0]["questions"])
+    assert tb.CATALOG_KEY in asked and tb.TARGET_KEY not in asked
+
+
+def test_the_two_screen_questions_are_never_asked_together(wire):
+    """With cards open the ACTION is what disambiguates (0.94 vs 0.26 measured); asking both would
+    put two answers about the same order in one brief, and nothing decides between them."""
+    _settle(tb.ask("dale al play", open_ids=["musica"]))
+    asked = set(wire.calls[0]["questions"])
+    assert tb.TARGET_KEY in asked and tb.CATALOG_KEY not in asked
+
+
+def test_the_catalogue_question_carries_the_words_he_CALLS_them(wire):
+    """V2-726 §4-bis: criteria from the `desc` alone got 6/9; «Name» + the same desc got 8/9. The
+    alias table (V2-082) already existed and was never handed to the chooser — which is why the
+    operator's own example «ábreme el vídeo» answered `none` at 0.52-0.61, confidently wrong, when
+    the word «vídeo» is declared right there in YouTube's aliases."""
+    _settle(tb.ask("ábreme el vídeo", open_ids=[]))
+    crit = wire.calls[0]["questions"][tb.CATALOG_KEY]["criteria"]
+    assert "youtube" in crit and "none" in crit
+    assert "«YouTube»" in crit["youtube"], "the widget's NAME is not in its own criterion"
+    # An alias the DESCRIPTION does not contain, or this proves nothing: YouTube's own prose says
+    # «reproduce el vídeo de verdad», so asserting on «vídeo» alone stayed green with the alias list
+    # deleted. A disarm that stays green accuses the test.
+    import json as _json
+    import pathlib as _pathlib
+    man = _json.loads((_pathlib.Path(__file__).resolve().parents[3] / "widgets" / "youtube"
+                       / "manifest.json").read_text(encoding="utf-8"))
+    desc = str(man.get("description") or "").lower()
+    only_alias = next((a for a in (man.get("aliases") or []) if a.lower() not in desc), "")
+    assert only_alias, "YouTube declares no alias that is absent from its description"
+    assert only_alias.lower() in crit["youtube"].lower(), (
+        f"«{only_alias}» is in YouTube's declared aliases and did not reach the question — the "
+        f"alias table is the product surface of this decision (V2-726 §4-bis)")
+
+
+def test_an_oversized_catalogue_is_retrieval_not_a_bigger_question(wire, monkeypatch):
+    """INI-027 §7, the operator's own rule: an index narrows, a model chooses. Past the cap the
+    answer is not a longer enumeration — so the question is simply not asked, and the turn keeps
+    exactly what it does today."""
+    from widgets import runtime
+    monkeypatch.setattr(runtime, "catalog",
+                        lambda: [{"id": f"w{i}", "name": f"W{i}"}
+                                 for i in range(tb.MAX_CATALOG_CANDIDATES + 1)])
+    assert tb.catalog_question() is None
+    _settle(tb.ask("ábreme el vídeo", open_ids=[]))
+    assert tb.CATALOG_KEY not in wire.calls[0]["questions"]

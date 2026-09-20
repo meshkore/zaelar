@@ -155,12 +155,20 @@ def repair_action_from_brief(widget_id: str, brief) -> str | None:
     wid = (widget_id or "").strip().lower()
     if not choice or ":" not in str(choice):
         return None
-    owner, _, name = str(choice).partition(":")
-    if owner != wid:
+    # The key is `<instance>:<action>` since V2-726 A4, and an instance id carries its own separator
+    # (`results::t7:open_row`), so the ACTION is what comes after the LAST colon and everything before
+    # it is the card. Splitting on the first one read «results» as the owner of «:t7:open_row».
+    owner, _, name = str(choice).rpartition(":")
+    if not owner or not name:
+        return None
+    if owner != wid and _tb._base_of(owner) != wid:
         return None                      # the order was aimed at ANOTHER open card: not a repair
     if not _tb.owner_still_open(brief, owner):
         return None                      # it was open when we asked and is not now: a stale verdict
-    return name if name in (declared_actions(widget_id) or {}) else None
+    # Actions are declared by the BASE widget; the instance is one card of it. `results::t7` has no
+    # manifest of its own, so checking the id verbatim answered «declares nothing» for every card of
+    # an instantiating widget — which is exactly the half A4 exists to reach.
+    return name if name in (declared_actions(_tb._base_of(wid)) or {}) else None
 
 
 def resolve_undeclared_action(widget_id: str, action: str, text: str,
