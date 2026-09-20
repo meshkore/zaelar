@@ -1324,6 +1324,15 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/voice/unit/test_jev_action.py"]},
         {"id": "3.62", "title": "Jev second opinion annuls a surviving commission only when confident it is no errand; anything else keeps today's escalate",
             "ch": UNIT, "paths": ["tests/voice/unit/test_jev_escalate.py"]},
+        # V2-726 (auditoría 2026-09-20) — los cinco nodos de arriba son VERDES y uno de ellos (3.60) cubre una
+        # integración que no ha hecho una sola llamada en su vida: cada caso construye el handle A MANO, así que
+        # prueba el mapeo y nunca el cableado, y el único que toca la puerta real asserta `is None`, que es
+        # justo lo que devuelve el bug. Este nodo es la clase que faltaba: falsea el TRANSPORTE y asserta que
+        # hubo llamada. Más el trinquete de las llamadas BLOQUEANTES (`choose_sync` congela el event loop del
+        # turno de voz hasta 900 ms), congeladas en dos para que no puedan crecer.
+        {"id": "3.63", "title": "Cada integración de Jev está CABLEADA: su puerta real llega al transporte — y ningún llamador bloqueante nuevo",
+            "ch": UNIT, "paths": ["tests/voice/unit/test_every_jev_integration_is_actually_wired.py",
+                                  "tests/voice/unit/test_no_new_blocking_jev_call.py"]},
         # V2-717 — session c502d3ff (2026-09-17 20:57): «Let me check your Telegram to see what Ivan asked» three
         # turns in a row with NOTHING behind it — the re-emitted `mensajeria:open` was eaten as context-bleed
         # (a lens has an empty payload, so the guard's hatch could never open) while the promise went out by
