@@ -257,6 +257,92 @@ def test_the_first_screen_marks_ONE_language_and_a_click_moves_the_mark(playwrig
     assert not m["errors"], f"page errors: {m['errors']}"
 
 
+# ── the preparing screen, RENDERED (V2-731) ───────────────────────────────────────────────────────────────
+
+_BAR_READ = """() => {
+  const bar = document.querySelector(".lang-onb-bar");
+  const fill = document.querySelector(".lang-onb-bar-fill");
+  const text = document.querySelector(".lang-onb-loading-text");
+  const rb = bar ? bar.getBoundingClientRect() : null;
+  const rf = fill ? fill.getBoundingClientRect() : null;
+  const probe = document.createElement("span");
+  probe.style.color = getComputedStyle(document.documentElement).getPropertyValue("--hb-accent").trim();
+  document.body.appendChild(probe);
+  const accent = getComputedStyle(probe).color;
+  probe.remove();
+  return {
+    spinner: !!document.querySelector(".lang-onb-spinner"),
+    barInk: !!rb && rb.width > 100 && rb.height >= 4,
+    fillRatio: rb && rf && rb.width > 0 ? Math.round((rf.width / rb.width) * 100) : null,
+    fillPainted: !!fill && getComputedStyle(fill).backgroundColor === accent,
+    indeterminate: !!bar && bar.classList.contains("indet"),
+    text: text ? text.textContent : "",
+    cardOnScreen: (() => { const c = document.querySelector(".lang-onb-card");
+                           return !!c && c.getBoundingClientRect().height > 40; })(),
+  };
+}"""
+
+
+def _run_bar(after_detected="", can_choose=False):
+    """Drive a PRESET language the way the engine does: detected (with its denominator), then whatever
+    `after_detected` replays. `can_choose=False` keeps the folder question out of the way — this is the
+    loading screen, not step two."""
+    async def go():
+        from playwright.async_api import async_playwright
+        async with async_playwright() as pw:
+            b, pg, errors = await _boot(pw)
+            # registered last, so it wins over _boot's handler
+            await pg.route("http://zaelar.test/api/library/base", lambda r: asyncio.ensure_future(
+                r.fulfill(status=200, content_type="application/json",
+                          body=json.dumps({"ok": True, "can_choose": can_choose}))))
+            await pg.click('.lang-onb-pinned .lang-onb-row[lang="es"]')
+            await pg.evaluate("""() => {
+              window.__store.setLangOnboardPhase("detected");
+              window.__store.setLangOnboardLoading("Preparando espanol…");
+              window.__store.setLangOnboardProgress({ done: 0, total: 3 });
+            }""")
+            await pg.wait_for_function("() => !!document.querySelector('.lang-onb-bar')")
+            if after_detected:
+                await pg.evaluate(after_detected)
+            await pg.wait_for_timeout(450)          # let the width transition land
+            out = await pg.evaluate(_BAR_READ)
+            out["errors"] = errors
+            await b.close()
+            return out
+    return asyncio.run(go())
+
+
+def test_the_preparing_screen_carries_a_bar_that_paints_and_fills(playwright_available):
+    """«Si hay un loader o una pantalla tiene que tener un progress bar o algo.» The spinner it replaces
+    said only that something was happening — and on a preset language it said it for about 200 ms."""
+    m = _run_bar()
+    assert not m["errors"], f"page errors: {m['errors']}"
+    assert not m["spinner"], "the bare spinner is gone — it is what he could not read"
+    assert m["barInk"], "the bar has to actually paint, not merely exist in the source"
+    assert m["fillPainted"], "an unpainted fill is a bar that never moves"
+    assert m["text"] == "Preparando espanol…", "and the screen says what it is doing, in his language"
+    assert not m["indeterminate"], "the engine sent a denominator — the bar must be determinate"
+    # 0 of 3 is a visible sliver, not an empty track: `pct()` floors at 8 so the bar reads as started
+    # rather than broken. What it must never be is full.
+    assert 4 <= m["fillRatio"] <= 15, f"0 of 3 steps: {m['fillRatio']}%"
+
+    m = _run_bar('() => window.__store.setLangOnboardProgress({ done: 2, total: 3 })')
+    assert 55 <= m["fillRatio"] <= 75, f"two of three steps: {m['fillRatio']}%"
+
+    m = _run_bar('() => window.__store.setLangOnboardPhase("ready")')
+    assert m["fillRatio"] >= 96, (
+        f"a bar stopped short on a screen that says it is done is a screen that lies: {m['fillRatio']}%")
+    assert m["cardOnScreen"], "and «ready» does not snatch it away — the floor is still holding it"
+
+
+def test_with_no_word_from_the_engine_the_bar_sweeps_instead_of_inventing_a_number(playwright_available):
+    """An older engine, or a lost event: `null` progress is «I cannot say how far», and a made-up
+    percentage would be the kind of state that lies this codebase keeps paying for."""
+    m = _run_bar('() => window.__store.setLangOnboardProgress(null)')
+    assert m["indeterminate"], "with nothing to count, the bar must sweep"
+    assert m["barInk"] and m["fillPainted"], m
+
+
 # ── step two: where the files go (V2-672) ─────────────────────────────────────────────────────────────────
 
 _FOLDER_READ = """() => {

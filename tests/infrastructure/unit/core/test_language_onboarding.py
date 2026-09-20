@@ -62,8 +62,17 @@ def test_onboarding_lock_for_a_preset_language_skips_translation_and_alias_gener
     assert translate_calls == [], "must not translate a PRESET language"
     assert alias_calls == [], "must not generate an alias pack for a PRESET language"
     phases = [kw.get("extra", {}).get("phase") for _, kw in events]
-    assert phases == ["detected", "ready"], "onboarding must emit detected THEN ready, in that order"
+    # V2-731 — the preparing screen reports the engine's own steps, so a preset emits its ONE step in
+    # between. The order still has to be detected → … → ready: the bar cannot move before it exists.
+    assert phases == ["detected", "progress", "ready"], f"wrong order: {phases}"
     assert events[0][1]["extra"]["loading"] == "Preparando el agente, la interfaz y las comunicaciones en tu idioma…"
+    assert events[0][1]["extra"]["total"] == 1, (
+        "a PRESET language only has its bundle to prepare — a denominator of 3 would leave the bar "
+        "stopped at a third on a screen that is already done")
+    assert events[1][1]["extra"] == {"phase": "progress", "done": 1, "total": 1}, events[1][1]["extra"]
+    assert "code" not in events[1][1]["extra"], (
+        "sse.js re-applies the language on any language event carrying a code — a progress report with "
+        "one refetches the bundle once per step")
 
 
 def test_onboarding_lock_for_a_new_language_translates_the_loading_line_before_the_full_bundle(monkeypatch):
@@ -108,7 +117,13 @@ def test_onboarding_lock_for_a_new_language_translates_the_loading_line_before_t
     assert order == ["priority", "prepare", "aliases"], "must translate the loading line BEFORE the slow full prepare"
     assert res["confirm_text"] == "準備完了です。"
     phases = [kw.get("extra", {}).get("phase") for _, kw in events]
-    assert phases == ["detected", "ready"]
+    assert phases[0] == "detected" and phases[-1] == "ready", f"wrong order: {phases}"
+    # V2-731 — a language we have to BUILD is three steps (bundle, alias pack, phrasebook), and this is
+    # exactly the case where the wait is real and the bar is worth having.
+    assert events[0][1]["extra"]["total"] == 3, events[0][1]["extra"]
+    steps = [kw["extra"]["done"] for _, kw in events if kw.get("extra", {}).get("phase") == "progress"]
+    assert steps == sorted(set(steps)) and steps[:2] == [1, 2], (
+        f"the steps must arrive once each and in order, never jumping backwards: {steps}")
     assert events[0][1]["extra"]["loading"] == "準備しています…"
     assert events[0][1]["extra"]["strings"]["onboarding.folder.skip"] == "スキップ", (
         "the folder step runs DURING this wait, so its words have to travel with the same event")

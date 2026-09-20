@@ -210,9 +210,27 @@ export function LanguageOnboarding() {
     );
   };
 
+  // V2-731 — how full the bar is. The server counts its OWN steps (bundle, alias pack, phrasebook) and
+  // sends them; `null` means it said nothing, and then the bar sweeps instead of inventing a number.
+  // "ready" is 100 by definition — the last step and the ready event are the same instant, and a bar that
+  // stops at two thirds on a screen that says it is done is a screen that lies.
+  const pct = () => {
+    if (store.langOnboardPhase() === "ready") return 100;
+    const p = store.langOnboardProgress();
+    if (!p || !(p.total > 0)) return null;
+    return Math.max(8, Math.min(100, Math.round((p.done / p.total) * 100)));
+  };
+
+  // The spinner it replaces said only «something is happening», and for a preset language it said it for
+  // about 200 ms. The operator: *«si hay un loader o una pantalla tiene que tener un progress bar o algo,
+  // pero como mínimo debe durar dos segundos para que la gente lo vea»*. The floor is the store's
+  // (LANG_LOADER_FLOOR_MS); this is the part he can read while it lasts.
   const loadingView = () => h("div", { class: "lang-onb-loading" },
-    h("div", { class: "lang-onb-spinner" }),
     h("div", { class: "lang-onb-loading-text" }, () => store.langOnboardLoading() || "…"),
+    h("div", { class: () => "lang-onb-bar" + (pct() === null ? " indet" : "") },
+      h("div", { class: "lang-onb-bar-fill",
+                 style: { width: () => (pct() === null ? "" : pct() + "%") } }),
+    ),
   );
 
   const view = () => {

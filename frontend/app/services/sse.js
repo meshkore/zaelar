@@ -219,6 +219,11 @@ export function openSSE(desktop) {
       else if (d.window_open === false) store.clearAttentionHit();
       else if (d.window_open === true && !store.attentionHit()) store.pulseAttentionHit(d.window_s || _attnWinS);
       settleHeldTurns(desktop, d.text || "", !!d.directed);                        // V2-647: and the wall obeys it
+    } else if (d.kind === "language" && d.phase === "progress") {
+      // V2-731 — a STEP of the first-run preparation finished. Handled before everything else in this branch
+      // and carrying no `code` on purpose: it must not re-run applyLang, which would refetch the bundle once
+      // per step for a screen that is only reporting how far along it is.
+      store.setLangOnboardProgress({ done: d.done | 0, total: d.total | 0 });
     } else if (d.kind === "language") {                                          // V2-089 P3: detected/changed language → the entire UI changes LIVE
       if (d.code) applyLang(d.code);                                             // fetches whatever the bundle has now — presets instant, a generating one falls back to English for missing keys until "ready"
       // V2-101: the first-run onboarding modal tracks phases on TOP of the plain applyLang above — "detected"
@@ -229,6 +234,10 @@ export function openSSE(desktop) {
         store.setLangOnboardPhase("detected");
         store.setLangOnboardLoading(d.loading || "");
         store.setLangOnboardStrings(d.strings || {});             // V2-672: the folder step's own words, early
+        // V2-731 — the preparing screen is about to appear: hold the veil for its floor. Without this,
+        // a preset language makes "ready" land in the same breath and the screen is a flicker.
+        if (d.total) store.setLangOnboardProgress({ done: 0, total: d.total | 0 });
+        store.beginLangOnboardLoading();
       } else if (d.phase === "ready") {
         store.setLangOnboardPhase("ready");
         // V2-672 — the modal is NOT unmounted here any more. The folder step (where to keep the files) runs

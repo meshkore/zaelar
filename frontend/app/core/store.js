@@ -431,11 +431,27 @@ export const [langOnboardLoading, setLangOnboardLoading] = createSignal(""); // 
 // i18n/init/detect.py's priority pass, because everything the operator sees after choosing a language has
 // to be in that language — including the screen that runs WHILE the rest of it is being generated.
 export const [langOnboardStrings, setLangOnboardStrings] = createSignal({});
-// A step of the first-run flow is still WAITING for an answer (today: the folder question). The language
-// being ready is no longer enough to close the veil — a bundle finishing while somebody is half-way through
-// choosing a folder must not take the question off the screen. Two facts, both required to close.
+// Something in the first-run flow is still holding the veil open. It started as one fact (the folder
+// question is unanswered) and is now a SET OF REASONS, because there is more than one thing that can be
+// true at once and whoever releases one must not release the others. The language being ready is not
+// enough to close: a bundle finishing while somebody is half-way through choosing a folder must not take
+// the question off the screen, and the same bundle finishing 200 ms after the loader appeared must not
+// take the loader off the screen before anybody has read it.
 export const [langOnboardHold, setLangOnboardHold] = createSignal(false);
+const _langHolds = new Set();
 let _langReady = false;
+
+// V2-731 — how long the preparing screen stays up, at minimum, once it has appeared. The operator, after
+// choosing a language: «ha salido como una pequeña pantalla que ha durado un segundo o dos y no sé qué
+// era… como mínimo debe durar dos segundos para que la gente lo vea». For a preset language `prepare()` is
+// instant, so "detected" and "ready" land back to back and the screen was a flicker with no information
+// in it. A screen nobody can read is a screen that did not happen.
+export const LANG_LOADER_FLOOR_MS = 2200;
+let _floorArmed = false;
+
+// How far the preparation has got: {done, total} from the server's own steps, or null when it has not said
+// (an older engine, or the event lost) — the bar is indeterminate then rather than inventing a number.
+export const [langOnboardProgress, setLangOnboardProgress] = createSignal(null);
 
 function _maybeCloseLangOnboard() {
   if (!_langReady || langOnboardHold()) return;
@@ -447,9 +463,19 @@ export function requestLangOnboardClose() {
   _maybeCloseLangOnboard();
 }
 
-export function holdLangOnboard(on) {
-  setLangOnboardHold(!!on);
+export function holdLangOnboard(on, reason = "step") {
+  if (on) _langHolds.add(reason); else _langHolds.delete(reason);
+  setLangOnboardHold(_langHolds.size > 0);
   if (!on) _maybeCloseLangOnboard();
+}
+
+/** The preparing screen just appeared: hold the veil for its floor, whatever else happens. Idempotent —
+ *  a second "detected" (a retry, a reconnect) must not restart the clock the operator is already watching. */
+export function beginLangOnboardLoading() {
+  if (_floorArmed) return;
+  _floorArmed = true;
+  holdLangOnboard(true, "floor");
+  setTimeout(() => holdLangOnboard(false, "floor"), LANG_LOADER_FLOOR_MS);
 }
 
 // ---- MOBILE SHELL (V2-124) — signals owned by the mobile PWA shell (frontend/mobile/), never read by the

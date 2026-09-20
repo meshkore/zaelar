@@ -77,10 +77,17 @@
 .lang-onb-fbtn.primary{border-color:var(--hb-accent);background:var(--hb-bubble);color:var(--hb-accent)}
 .lang-onb-fbtn[disabled]{opacity:.5;cursor:default}
 .lang-onb-loading{display:flex;flex-direction:column;align-items:center;gap:16px;padding:10px 4px}
-.lang-onb-spinner{width:30px;height:30px;border-radius:50%;border:3px solid var(--hb-line);
-  border-top-color:var(--hb-accent);animation:lang-onb-spin 0.85s linear infinite}
-@keyframes lang-onb-spin{to{transform:rotate(360deg)}}
 .lang-onb-loading-text{font-size:0.8438rem;color:var(--hb-muted);text-align:center;line-height:1.4}
+/* V2-731 — a BAR, not a spinner. A spinner says «something is happening»; on a preset language it said it
+   for about 200 ms and the operator could not tell what the screen had been. The fill is the server's own
+   step count when it sends one; `.indet` sweeps when it does not, which is an honest «I cannot say how
+   far» rather than an invented percentage. The floor that keeps it on screen long enough to read is
+   store.js's LANG_LOADER_FLOOR_MS. */
+.lang-onb-bar{width:100%;height:6px;border-radius:999px;background:var(--hb-bg-soft);overflow:hidden}
+.lang-onb-bar-fill{height:100%;width:0;border-radius:999px;background:var(--hb-accent);
+  transition:width 320ms ease}
+.lang-onb-bar.indet .lang-onb-bar-fill{width:40%;animation:lang-onb-sweep 1.15s ease-in-out infinite}
+@keyframes lang-onb-sweep{0%{transform:translateX(-110%)}100%{transform:translateX(260%)}}
 
 .alert{position:fixed;top:0;left:0;right:0;background:var(--hb-risk);color:#fff;padding:11px 16px;font-size:0.875rem;text-align:center;z-index:60;cursor:pointer;display:none}
 .alert.show{display:block}

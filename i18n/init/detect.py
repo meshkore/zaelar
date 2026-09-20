@@ -262,12 +262,34 @@ async def lock(code: str, *, onboarding: bool = False) -> dict:
         logger.warning(f"i18n.detect: could not set the memory's canonical language: {e}")
 
     early: dict = {}
+    # V2-731 — how many steps the preparing screen has to report. A preset only has its bundle (already on
+    # disk); a new language also generates the alias pack and the phrasebook. The count travels WITH the
+    # first event so the bar has a denominator from the moment it appears, rather than growing one as it
+    # goes and jumping backwards.
+    from i18n import runtime as _rt              # local, like every other runtime touch in this module
+    steps_total = 1 if code in _rt.PRESET else 3
+    steps_done = 0
+
+    def _step() -> None:
+        """One step of the preparation finished. Carries NO `code`: the frontend re-applies the language on
+        any language event that has one, and this event is a progress report, not a language change."""
+        nonlocal steps_done
+        steps_done += 1
+        if not onboarding:
+            return
+        try:
+            from voice.observer import emit
+            emit("language", "progress", role="system",
+                 extra={"phase": "progress", "done": steps_done, "total": steps_total})
+        except Exception:
+            pass
+
     if onboarding:
         early = await _priority_translate(code)
         try:
             from voice.observer import emit
             emit("language", "detected", role="system",
-                 extra={"code": code, "phase": "detected",
+                 extra={"code": code, "phase": "detected", "total": steps_total,
                         "loading": early.get("onboarding.loading"), "strings": early})
         except Exception:
             pass
@@ -277,6 +299,7 @@ async def lock(code: str, *, onboarding: bool = False) -> dict:
         await _init.prepare(code)                   # generate/upgrade the UI bundle (preset → instant)
     except Exception as e:  # noqa: BLE001
         logger.warning(f"i18n.detect: prepare('{code}') failed: {e}")
+    _step()
     # Alias-pack generation (V2-101) is scoped to ONBOARDING only, not every lock() — a plain ⚙ switch or a
     # repeat background detection must stay exactly as cheap as it always was; this is deliberately not
     # "whenever the language changes" but "as part of the first-run setup ceremony".
@@ -286,8 +309,10 @@ async def lock(code: str, *, onboarding: bool = False) -> dict:
             if code not in _rt.PRESET:
                 from i18n.init import aliases as _aliases
                 await _aliases.ensure_aliases(code)      # the widget-name voice-command pack
+                _step()
                 from i18n.init import smalltalk as _smalltalk
                 await _smalltalk.ensure_smalltalk(code)  # the phrasebook (V2-674) — greetings, thanks, goodbye
+                _step()
         except Exception as e:  # noqa: BLE001
             logger.warning(f"i18n.detect: language packs for '{code}' failed: {e}")
 
