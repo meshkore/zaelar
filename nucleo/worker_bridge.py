@@ -182,33 +182,30 @@ def _hint_for(prog: str) -> str:
         return '   · `say` lleva el mensaje entre comillas: `say "voy a tardar un poco más, sigo filtrando"`.'
     if prog.endswith("wait"):
         return '   · `wait` lleva el `corr_id` que te devolvió el `ask` que lanzaste antes: `wait <corr_id>`.'
-    return ("   · Los subcomandos son `ask` / `wait` / `act` / `say`, y TODOS llevan su argumento entre "
+    if prog.endswith("decide"):
+        return "   · " + _hint_decide()
+    return ("   · Los subcomandos son `ask` / `wait` / `act` / `say` / `decide`, y TODOS llevan su argumento entre "
             "comillas. Ninguno funciona a secas.")
 
 
-def _cmd_decide(purpose: str, candidates: str, evidence: str, deadline: float) -> int:
-    """`decide`: which of these candidates fits? (V2-726 A1)
+def _hint_decide() -> str:
+    """What `decide` is FOR, printed when a worker gets its shape wrong.
 
-    For the choices a worker makes constantly and that do not need a reasoner: which of these five
-    parsed results meets the criteria, which of these declared methods fits the task, which row the
-    operator meant. One round trip for all of them at once is what the chooser is FOR — ask about
-    the whole batch, not one candidate per call.
-
-    Fail-soft like every other bridge: a malformed payload, a chooser that is switched off or a
-    network that is down all come back as a status the worker can read and route around, never as a
-    crash. `status` is the field to branch on, and `selected` is the only one with a `chosen` in it.
+    Same two steps as every other payload on this bridge — write the JSON to a RELATIVE file with
+    your Write tool, then pass `@that-file.json` — and for the same measured reason: our own
+    permission gate rejects an argument containing braces and quotes, so an inline JSON never
+    reaches the command at all (V2-379). A capability the worker cannot invoke is a capability it
+    will narrate instead of using.
     """
-    try:
-        cands = json.loads(candidates)
-    except Exception:
-        print(json.dumps({"ok": False, "error": "candidates tiene que ser JSON: "
-                                                '{"id": "descripción", …} o ["…", …]'},
-                         ensure_ascii=False))
-        return 2
-    payload = {"purpose": purpose, "candidates": cands, "evidence": evidence}
-    if deadline and deadline > 0:
-        payload["deadline_s"] = deadline
-    return _cmd_act("decide", json.dumps(payload, ensure_ascii=False))
+    return ('python -m nucleo.worker_bridge decide @elige.json  ·  el fichero lleva\n'
+            '   {"purpose": "cuál de estos pisos cumple los criterios",\n'
+            '    "evidence": "menos de 1000 €, 2 habitaciones, Chamberí",\n'
+            '    "candidates": {"r1": "piso en Malasaña, 1200 €", "r2": "piso en Chamberí, 900 €"}}\n'
+            '   · `candidates` admite también una LISTA; los ids serán 1, 2, 3…\n'
+            '   · responde {"status", "chosen", "confidence"}: `selected` trae la elección, '
+            '`abstained` es «ninguno encaja»,\n'
+            '     y `unavailable`/`disabled` significan que NADIE eligió — no que no haya candidato '
+            'bueno.')
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -225,10 +222,7 @@ def main(argv: list[str] | None = None) -> int:
     ps = sub.add_parser("say", help="dile algo al usuario (se relata por voz con atribución)")
     ps.add_argument("text")
     pd = sub.add_parser("decide", help="elige entre candidatos que YA tienes (rápido y barato, sin razonador)")
-    pd.add_argument("purpose", help="qué se está decidiendo, en una línea")
-    pd.add_argument("candidates", help='JSON: {"id": "descripción", …} o ["…", …]')
-    pd.add_argument("--evidence", default="", help="el estado contra el que se decide")
-    pd.add_argument("--deadline", type=float, default=0.0, help="segundos máximos de espera")
+    pd.add_argument("payload", help='@fichero.json con {"purpose", "candidates", "evidence"}')
     a = ap.parse_args(argv)
     if a.cmd == "ask":
         return _cmd_ask(a.question)
@@ -239,7 +233,7 @@ def main(argv: list[str] | None = None) -> int:
     if a.cmd == "say":
         return _cmd_say(a.text)
     if a.cmd == "decide":
-        return _cmd_decide(a.purpose, a.candidates, a.evidence, a.deadline)
+        return _cmd_act("decide", a.payload)
     return 1
 
 

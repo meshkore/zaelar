@@ -244,10 +244,39 @@ def test_a_malformed_worker_payload_is_an_ANSWER_not_a_crash(wire):
     assert res["ok"] is True and res["result"]["status"] == jev.EMPTY
 
 
-def test_the_bridge_cli_refuses_a_non_json_candidate_list_without_asking_the_network(wire):
+def test_the_worker_reaches_it_the_SAME_WAY_it_reaches_every_other_payload(wire, tmp_path,
+                                                                             monkeypatch):
+    """`@file.json`, not inline JSON — and this is not a style choice.
+
+    The worker's own prompt says it in capitals, from a measured incident (V2-379): our permission
+    gate rejects an argument containing braces and quotes, so an inline JSON never reaches the
+    command at all. The first version of this subcommand took the candidates inline, which would
+    have made it unusable by the only process it was built for — a capability a worker cannot invoke
+    is one it narrates instead of using. Caught by reading the prompt that teaches the bridges.
+    """
     from nucleo import worker_bridge as wb
-    assert wb.main(["decide", "which one?", "not json at all"]) == 2
-    assert wire.calls == []
+    import json as _json
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "elige.json").write_text(_json.dumps(
+        {"purpose": "cuál cumple", "evidence": "menos de 1000 €", "candidates": CANDS}),
+        encoding="utf-8")
+    sent = {}
+    monkeypatch.setattr(wb, "_post", lambda path, payload: sent.update(payload) or {"ok": True})
+    monkeypatch.setenv("ZAELAR_TASK_ID", "task-11")
+    monkeypatch.setenv("ZAELAR_TASK_TOKEN", "tok")
+    assert wb.main(["decide", "@elige.json"]) == 0
+    assert sent["action"] == "decide"
+    assert sent["payload"]["candidates"] == CANDS
+
+
+def test_the_worker_PROMPT_declares_the_door(wire):
+    """A door nobody is told about is a door nobody uses. The prompt that teaches `ask`/`act`/`say`
+    teaches this one too, with the shape and with what the statuses mean."""
+    import pathlib as _p
+    src = (_p.Path(__file__).resolve().parents[3] / "nucleo" / "dispatch_prompts.py").read_text(
+        encoding="utf-8")
+    assert "worker_bridge decide" in src, "the worker is never told the bounded-decision door exists"
+    assert "abstained" in src, "…nor what «none of these fits» looks like when it answers"
 
 
 def test_a_worker_deadline_is_bounded_by_us(wire):

@@ -1378,6 +1378,22 @@ DOMAINS: list[dict] = [
                                   # tarea, y eso no lo afirmaba nadie.
                                   "tests/agent_headless/unit/test_the_flat_hunt_he_told_me_about.py",
                                   ]},
+        # V2-726 A4/A6b (2026-09-21) — la clase que faltaba entera: la EFECTIVIDAD. Todo lo demás falsea el
+        # transporte, o sea prueba el cableado y la paridad, y un veredicto falseado no dice NADA sobre si las
+        # respuestas son buenas. El texto de los criterios ES la superficie de producto de estas decisiones
+        # (medido: solo `desc` → 6/9; «Nombre» + la misma desc → 8/9), y una superficie de producto sin número
+        # de regresión se degrada sin que nadie se entere. LIVE y opt-in (`ZAELAR_JEV_BENCH=1`): gasta red y
+        # dinero, y su rojo no es un rojo de código. La métrica NO es el acierto — «ábreme el vídeo» fallaba
+        # 0/8 con 0,52-0,61, o sea POR ENCIMA del umbral, que es cuando el motor actúa: el número es
+        # **equivocado-y-seguro** y su objetivo es CERO. El informe archiva el ENUNCIADO que midió, porque dos
+        # corridas solo se comparan si midieron el mismo texto (8/9 y 6/9 en la misma auditoría, por eso).
+        {"id": "3.68", "title": "El banco de EFECTIVIDAD contra la API real: acierto, confianza, latencia y —lo que gobierna— equivocado-y-seguro = 0",
+            # NO es un nodo `live` y el trinquete del mapa tiene razón en pedirlo así: el fichero se ejecuta
+            # en CADA pasada —cuesta 0,02 s y tres SKIP— y por tanto un error de import o de colección suyo
+            # sale en la corrida normal, que es justo lo que un nodo live se pierde. Lo que no corre sin
+            # pedirlo es su CONTENIDO: `ZAELAR_JEV_BENCH=1 ./.venv/bin/python -m pytest -q -s tests/voice/bench`.
+            "ch": UNIT,
+            "paths": ["tests/voice/bench/test_the_screen_question_against_the_real_api.py"]},
         # V2-726 A1 (2026-09-21) — «una capacidad de decisión barata disponible en TODA Colmena cuando un
         # proceso puede elegir entre opciones disponibles» (objetivo del operador). Estaba disponible en
         # Python y era INALCANZABLE justo donde más hay que elegir: `nucleo/workers/`, `nucleo/errands/` y
