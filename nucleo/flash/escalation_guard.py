@@ -184,3 +184,41 @@ def reply_promises(reply: str, *, acted: bool = False, anything_running: bool = 
         return bool(_rg.unnegated_match(_ag._PROMISE_TO_LOOK_RE, r.lower())) and "?" not in r
     except Exception:  # noqa: BLE001
         return False
+
+
+def settle_commission(escalate_req: dict, *, brief, operator_text: str, reply: str,
+                      acted: bool, anything_running: bool, emit) -> dict:
+    """Read the gate, decide the DISPOSITION, record it, and clear only if it was earned.
+
+    The whole of V2-726 A3's gate, in the module that owns the decision rather than in the voice
+    provider — which the architecture ratchet lists as a god file, and whose answer to «this block
+    grew» is «extract a module, do not raise the ceiling». The provider keeps the one thing that is
+    genuinely its own: the turn state it is holding (did anything act, is a worker running).
+
+    Never raises and never annuls on an error: `escalate` is the safe side of this gate, and the
+    backstops below it in the turn all already handle a commission that is still there.
+    """
+    try:
+        # V2-726 F2 — READ, never call: `judge_escalation` blocks its thread on urlopen, and the
+        # voice path runs on the event loop STT, TTS and barge-in share.
+        choice = judge_escalation_from_brief(brief)
+    except Exception:  # noqa: BLE001
+        choice = "escalate"
+    try:
+        verdict = annulment_verdict(choice, reply=reply, acted=acted,
+                                    anything_running=anything_running)
+    except Exception:  # noqa: BLE001 — the gate may never break the turn
+        verdict = {"annul": False, "disposition": DELEGATED, "why": "verdict-error"}
+    try:
+        emit("brain", f"🧭 comisión → {verdict['disposition']}",
+             text=f"{(operator_text or '')[:80]} → {(escalate_req.get('v') or '')[:80]}",
+             role="system",
+             extra={"cat": "flash", "by": "jev", "jev": choice,
+                    "disposition": verdict["disposition"], "why": verdict["why"],
+                    "commissions": 1 + len(escalate_req.get("more") or [])})
+    except Exception:  # noqa: BLE001
+        pass
+    if verdict["annul"]:
+        escalate_req["v"] = None
+        escalate_req["more"] = []
+    return verdict

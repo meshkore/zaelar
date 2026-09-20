@@ -103,11 +103,24 @@ def test_the_voice_provider_names_no_blocking_jev_call():
 
 def test_the_brief_readers_are_what_it_uses_instead():
     """The other half: F2 is not «stopped calling», it is «reads instead». Both must be true, or a
-    silent removal of the gate would pass the check above."""
+    silent removal of the gate would pass the check above.
+
+    The escalate gate is read one step away now: V2-726 A7 moved the block into
+    `escalation_guard.settle_commission`, because the provider is a god file and the architecture
+    ratchet's answer to «this block grew» is «extract a module». So the chain is what is asserted —
+    the provider goes through the gate, and the gate is what reads the brief. Asserting only on the
+    provider's own text would have gone red for a refactor that changed no behaviour, and asserting
+    nothing would have let the reader disappear.
+    """
     src = _PROVIDER.read_text(encoding="utf-8")
-    assert "judge_escalation_from_brief(" in src, "the escalate gate lost its brief reader"
     assert "turn_brief" in src, "the provider no longer fires the turn brief at all"
     assert "brief=_brief" in src, "the action repair no longer receives the brief"
+    assert "settle_commission(" in src, "the provider no longer settles its commissions"
+
+    import inspect
+    from nucleo.flash import escalation_guard as eg
+    assert "judge_escalation_from_brief(" in inspect.getsource(eg.settle_commission), (
+        "the escalate gate lost its brief reader")
 
 
 def test_the_async_path_is_the_supported_one():

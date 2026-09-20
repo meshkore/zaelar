@@ -1387,7 +1387,7 @@ DOMAINS: list[dict] = [
         # 0/8 con 0,52-0,61, o sea POR ENCIMA del umbral, que es cuando el motor actúa: el número es
         # **equivocado-y-seguro** y su objetivo es CERO. El informe archiva el ENUNCIADO que midió, porque dos
         # corridas solo se comparan si midieron el mismo texto (8/9 y 6/9 en la misma auditoría, por eso).
-        {"id": "3.68", "title": "El banco de EFECTIVIDAD contra la API real: acierto, confianza, latencia y —lo que gobierna— equivocado-y-seguro = 0",
+        {"id": "3.71", "title": "El banco de EFECTIVIDAD contra la API real: acierto, confianza, latencia y —lo que gobierna— equivocado-y-seguro = 0",
             # NO es un nodo `live` y el trinquete del mapa tiene razón en pedirlo así: el fichero se ejecuta
             # en CADA pasada —cuesta 0,02 s y tres SKIP— y por tanto un error de import o de colección suyo
             # sale en la corrida normal, que es justo lo que un nodo live se pierde. Lo que no corre sin
@@ -1402,7 +1402,7 @@ DOMAINS: list[dict] = [
         # puente nuevo, no un modelo dentro del worker—, y el contrato nombra los desenlaces: `selected ·
         # no_match · abstained · unavailable · disabled · empty · expired · too_big`, donde tres son
         # RESPUESTAS y el resto AUSENCIAS y piden conductas opuestas.
-        {"id": "3.67", "title": "Una decisión acotada se alcanza desde el turno, desde la memoria y desde un worker autenticado — con desenlaces distinguibles, cotas, y el turno de voz nunca en cola",
+        {"id": "3.70", "title": "Una decisión acotada se alcanza desde el turno, desde la memoria y desde un worker autenticado — con desenlaces distinguibles, cotas, y el turno de voz nunca en cola",
             "ch": UNIT, "paths": ["tests/voice/unit/test_a_bounded_decision_is_reachable_from_anywhere.py"]},
         # V2-726 A6a (2026-09-20) — la auditoría preguntó lo único que decide si todo esto vale su viaje
         # («¿qué veredicto cambió qué desenlace?») y el motor no podía contestar: el evento del brief
@@ -1412,7 +1412,7 @@ DOMAINS: list[dict] = [
         # `select_many` devolvía `[]` para «nada encaja», «sin clave», «sin red» y «apagado», que son dos
         # respuestas y dos ausencias y piden conductas opuestas. Este nodo fija que cada una deja un
         # registro DISTINTO y acotado. No afirma que los veredictos sean buenos: eso es A6b.
-        {"id": "3.66", "title": "Una decisión de Jev es atribuible, y el registro dice si se USÓ: call_id + turno, confianza por pregunta, un evento por lectura, y «nada encaja» ≠ «no contestó nadie»",
+        {"id": "3.69", "title": "Una decisión de Jev es atribuible, y el registro dice si se USÓ: call_id + turno, confianza por pregunta, un evento por lectura, y «nada encaja» ≠ «no contestó nadie»",
             "ch": UNIT, "paths": ["tests/voice/unit/test_a_jev_verdict_says_whether_it_was_used.py"]},
         {"id": "3.65", "title": "Jev SELECCIONA sobre datos parseados en un viaje (identidad dentro de cada pregunta) — y la llamada deja de tirar trabajo pagado",
             "ch": UNIT, "paths": ["tests/voice/unit/test_jev_selects_over_data.py"]},

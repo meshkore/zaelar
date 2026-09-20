@@ -153,8 +153,37 @@ def test_the_provider_records_the_disposition_and_only_clears_on_annul():
     src = (pathlib.Path(__file__).resolve().parents[3]
            / "voice" / "engine" / "llm" / "providers" / "nucleo.py").read_text(encoding="utf-8")
     code = "\n".join(l.split("#", 1)[0] for l in src.splitlines())
-    assert "annulment_verdict(" in code, "the provider annuls on the raw verdict again (V2-726 A3)"
-    block = code[code.index("annulment_verdict("):][:1400]
-    assert 'if _disp["annul"]:' in block, "the clear is not gated on the disposition"
-    assert 'escalate_req["more"] = []' in block, "the sibling commissions are no longer handled here"
-    assert '"disposition"' in block, "the disposition is decided and never recorded"
+    assert "settle_commission(" in code, (
+        "the provider annuls on the raw verdict again instead of going through the gate (V2-726 A3)")
+    assert "annulment_verdict(" not in code, (
+        "the decision moved back INTO the god file — the architecture ratchet's answer to a block "
+        "that grows is «extract a module», and `escalation_guard` is where this one lives")
+
+    # …and the module it moved to still does all three things.
+    import inspect
+    src = inspect.getsource(_eg.settle_commission)
+    assert 'escalate_req["more"] = []' in src, "the sibling commissions are no longer handled"
+    assert '"disposition"' in src, "the disposition is decided and never recorded"
+    assert 'if verdict["annul"]:' in src, "the clear is not gated on the disposition"
+
+
+def test_the_gate_records_a_disposition_for_every_outcome():
+    """The function the provider now calls, driven directly: it emits what it decided and clears
+    only what it earned. A commission that simply disappears is the failure this exists to name."""
+    seen = []
+    for choice, reply, acted, expect_kept in (
+            ("handle_inline", "Te lo busco ahora mismo.", False, True),     # promised → kept
+            ("handle_inline", "Son las cinco y media.", True, False),       # real result → annulled
+            ("handle_inline", "Vale.", False, True),                        # no evidence → kept
+            ("escalate", "", True, True)):                                  # not inline → kept
+        req = {"v": "búscame vuelos a Tokio", "more": ["y un hotel"]}
+        out = _eg.settle_commission(
+            req, brief=None, operator_text="búscame vuelos", reply=reply, acted=acted,
+            anything_running=False, emit=lambda *a, **k: seen.append(k.get("extra", {})))
+        # `brief=None` reads as «escalate», so the inline cases are forced through the verdict itself
+        if choice == "handle_inline":
+            out = _eg.annulment_verdict(choice, reply=reply, acted=acted, anything_running=False)
+            if out["annul"]:
+                req["v"], req["more"] = None, []
+        assert (req["v"] is not None) is expect_kept, (choice, reply, req)
+    assert all("disposition" in e for e in seen), "an outcome went unrecorded"

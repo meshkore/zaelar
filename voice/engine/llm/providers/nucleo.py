@@ -377,19 +377,13 @@ class NucleoLLMStream(llm.LLMStream):
                     return
                 text = _cont
 
-        # (V2-726 A2) The Jev TURN BRIEF used to be fired HERE, and that was the defect: this line
-        # runs before echo suppression and before the accumulator, so the classifier judged whatever
-        # fragment had just arrived while the model was handed `text = _merged` further down. Two
-        # different requests, one verdict. It now fires at the admitted sentence — search this file
-        # for «JEV TURN BRIEF». Nothing is lost by waiting: the prompt is assembled 3 ms after
-        # admission and every reader of the brief is 2-4 s away, behind the model's own TTFT.
+        # (V2-726 A2) The turn brief is NOT fired here any more — this line runs before echo
+        # suppression and before the accumulator, so it classified a fragment. Search for
+        # «JEV TURN BRIEF» below; the why is in `nucleo/flash/turn_brief.py`'s docstring.
         _brief = canvas_h = None
 
-        # (V2-726 A5) The Jev ROUTE pre-choice used to be fired here, beside the brief. It is gone:
-        # F0a measured that a full STABLE tool catalog beats trimming (the per-turn trim cost 12
-        # points of prefix cache for a prefill cheaper than the trip), so the question it answered no
-        # longer exists — and the call itself had never once reached the wire, its TypeError eaten by
-        # its own `except`. Removing it is the whole of A5; the history is in V2-726 §3.1.
+        # (V2-726 A5) The Jev ROUTE pre-choice was fired here and is gone; its epitaph, with the
+        # measurement that retired the question, is at the end of `nucleo/flash/tool_selection.py`.
 
         # SUPRESIÓN DE ECO (FASE 2, 2026-07-14): con el micro SIEMPRE abierto y sin AEC perfecto, el mic capta el
         # TTS de zaelar y el STT lo transcribe como si fuera el operador → zaelar "se responde a sí mismo" (las
@@ -548,19 +542,12 @@ class NucleoLLMStream(llm.LLMStream):
             _resolve_acc_chain(brain)    # el trace pasa a GRACIA, no se tira (V2-116)
             text = _merged
 
-        # JEV TURN BRIEF (V2-726 F1, moved here by A2): ONE call with every question this turn reads
-        # AFTER the model — the canvas verb, the escalate pair, which declared action of what is on
-        # screen an order means, and what KIND of turn it is (which the filler used to ask on a
-        # second socket of its own, same turn, same words).
-        #
-        # It fires HERE and not sooner because here is where the operator's sentence is FINAL: past
-        # the hard interrupt, past echo suppression, past the accumulator that merges «ponme música»
-        # with «de los ochenta» three seconds later. Firing earlier classified a fragment and handed
-        # the model something else. And not LATER either: the readers are 2-4 s away (TTFT alone is
-        # 1.9 s) and the verdict takes ~800 ms, so this is exactly the overlap that makes it free.
-        #
-        # Everything about it is fail-soft: assembly, bounds, worker/screen state and the `None` for
-        # «Jev off» live in `turn_brief`. Nobody waits — readers `peek`.
+        # JEV TURN BRIEF (V2-726 F1, moved here by A2): ONE call carrying every question this turn
+        # reads AFTER the model — canvas verb, escalate pair, which action of which open card, and
+        # what KIND of turn it is (which the filler used to ask on a second socket of its own).
+        # HERE because here the sentence is FINAL: past the hard interrupt, past echo suppression,
+        # past the accumulator. Not later either — the readers are 2-4 s away and this takes ~800 ms,
+        # which is the overlap that makes it free. Assembly, bounds and fail-soft: `turn_brief`.
         from nucleo.flash import turn_brief as _turn_brief
         _brief = canvas_h = _turn_brief.ask_for_turn(
             text, running_goals=_show_target._running_goals(),
@@ -2267,29 +2254,11 @@ class NucleoLLMStream(llm.LLMStream):
         # `escalation_guard.annulment_verdict`; every commission ends with a DISPOSITION, emitted,
         # because one that simply disappears is the failure this whole gate was meant to prevent.
         if escalate_req["v"] is not None:
-            try:
-                # V2-726 F2 — READ, never call: `judge_escalation` blocks this coroutine on urlopen
-                # for up to the timeout, and it is the gate that times out most (28% of its calls).
-                _jev_esc = _eguard.judge_escalation_from_brief(_brief)
-            except Exception:
-                _jev_esc = "escalate"
-            try:
-                _disp = _eguard.annulment_verdict(
-                    _jev_esc, reply=("".join(spoken) or ""), acted=bool(acted["widget"] or data_done["v"]
-                                                                  or listing_req["v"] or music_req["v"]
-                                                                  or search_req["v"]),
-                    anything_running=bool(_has_workers))
-            except Exception:  # noqa: BLE001 — the gate may never break the turn
-                _disp = {"annul": False, "disposition": "delegated", "why": "verdict-error"}
-            emit("brain", f"🧭 comisión → {_disp['disposition']}",
-                 text=f"{(operator_text or '')[:80]} → {(escalate_req['v'] or '')[:80]}",
-                 role="system",
-                 extra={"cat": "flash", "by": "jev", "jev": _jev_esc,
-                        "disposition": _disp["disposition"], "why": _disp["why"],
-                        "commissions": 1 + len(escalate_req["more"])})
-            if _disp["annul"]:
-                escalate_req["v"] = None
-                escalate_req["more"] = []
+            _eguard.settle_commission(
+                escalate_req, brief=_brief, operator_text=operator_text, reply="".join(spoken),
+                acted=bool(acted["widget"] or data_done["v"] or listing_req["v"]
+                           or music_req["v"] or search_req["v"]),
+                anything_running=bool(_has_workers), emit=emit)
 
         # BACKSTOP PROMESA-SIN-ACCIÓN UNIFICADO 2026-07-19 (mar de testing): ante fraseo CORTÉS/subjuntivo
         # («¿podrías…?», «deberías…», «sería genial que hicieras…», «me haría falta…») el modelo CHARLA una promesa

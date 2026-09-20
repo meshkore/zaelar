@@ -1,4 +1,4 @@
-"""Node 3.67 — one bounded-decision door, reachable from the turn, from memory AND from a worker.
+"""Node 3.70 — one bounded-decision door, reachable from the turn, from memory AND from a worker.
 
 V2-726 A1, and the operator's own objective: «a cheap decision capability available throughout
 Colmena whenever a process can choose among available options». It was available in Python and
