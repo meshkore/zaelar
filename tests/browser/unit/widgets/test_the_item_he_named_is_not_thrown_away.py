@@ -47,6 +47,7 @@ the second. That is the defect this file pins, in four parts:
 """
 from __future__ import annotations
 
+import datetime as _dt
 import inspect
 import json
 import pathlib
@@ -60,23 +61,41 @@ ENGINE = pathlib.Path(__file__).resolve().parents[4]
 # His calendar that morning, reduced to what the resolution has to survive: one row he named, two long
 # titles, and the duplicate pair — 29 rows shared the title «New» that day, which is what makes an exact
 # match a question rather than an answer.
+#
+# ⚠️ THE DATES ARE RELATIVE, and they have to be (V2-726 A4 T0, 2026-09-21). They were written as the
+# literal days of the session — 2026-09-16/17/18, «tomorrow» at the time — and `agenda.index.ref_index`
+# only publishes meetings from TODAY forward, because a past appointment is history and not a target.
+# So on 2026-09-21 every row in this fixture fell out of the index, the resolver answered `no_match`
+# to «la cita del dentista», and twelve tests went red four days after they were written — with nothing
+# wrong in the product. A fixture dated by hand is a test with an expiry date nobody wrote down.
+#
+# The SHAPE is what these cases are about (one named row · two long titles · an exact-title duplicate
+# pair), never the particular day, so the shape is preserved and the days are anchored to the run.
+_D0 = _dt.date.today()
+_DAY0 = _D0.isoformat()                     # the day of the session
+_DAY1 = (_D0 + _dt.timedelta(days=1)).isoformat()    # «tomorrow», his own word for the dentist
+_DAY2 = (_D0 + _dt.timedelta(days=2)).isoformat()    # the duplicate pair
+_WEEKDAY1 = _dt.date.fromisoformat(_DAY1).strftime("%A")
+_ORDINAL1 = _dt.date.fromisoformat(_DAY1).day
+
 FIXTURE = {
     "mission": "", "projects": [], "tasks": [], "ideas": [], "recurring": [],
     "user": {"workStart": "09:00", "workEnd": "18:00", "lunchStart": "13:00", "lunchEnd": "14:00",
              "energy": "medium", "wantsExercise": False, "notes": ""},
     "meetings": [
-        {"title": "Cita Agencia Tributaria - certificado de persona jurídica", "date": "2026-09-16",
+        {"title": "Cita Agencia Tributaria - certificado de persona jurídica", "date": _DAY0,
          "startTime": "11:30"},
-        {"title": "renovar el seguro del coche", "date": "2026-09-17"},
-        {"title": "Dentist", "date": "2026-09-17", "startTime": "17:00"},
-        {"title": "New", "date": "2026-09-18", "startTime": "10:00"},
-        {"title": "New", "date": "2026-09-18", "startTime": "10:00"},
+        {"title": "renovar el seguro del coche", "date": _DAY1},
+        {"title": "Dentist", "date": _DAY1, "startTime": "17:00"},
+        {"title": "New", "date": _DAY2, "startTime": "10:00"},
+        {"title": "New", "date": _DAY2, "startTime": "10:00"},
     ],
 }
 
-#: The turn as it reached the brain — his half, run together the way the transcript did.
+#: The turn as it reached the brain — his half, run together the way the transcript did. The weekday and
+#: the ordinal follow the fixture for the same reason the dates do: he was naming TOMORROW out loud.
 HIS_ORDER = ("Good. Now, please. Delete. There's an appointment tomorrow. A dentist. At five o'clock in "
-             "the afternoon. Thursday, seventeenth. Please delete that appointment.")
+             f"the afternoon. {_WEEKDAY1}, {_ORDINAL1}. Please delete that appointment.")
 
 
 @pytest.fixture(autouse=True)
@@ -97,7 +116,7 @@ def isolated_agenda(tmp_path, monkeypatch):
     ("la cita del dentista", ""),                              # and in his other language
     ("dentista", ""),
     ("", HIS_ORDER),                                           # …and with nothing in `item` at all
-    ("", "I was talking on Thursday, the seventeenth, And I did specify dentist."),
+    ("", f"I was talking on {_WEEKDAY1}, the {_ORDINAL1}, And I did specify dentist."),
 ])
 def test_the_appointment_he_named_reaches_the_handler(ref, order):
     r = refs.resolve("agenda", "cancel_meeting", ref, {}, order=order)

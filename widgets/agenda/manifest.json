@@ -205,6 +205,7 @@
         "date": "fecha de la reunión, si hay varias con el mismo título",
         "message": "una línea propia para el cuerpo del correo (opcional)"
       },
+      "confirm": true,
       "consent_class": "calendar.invite_new_party",
       "confirm_q": "¿Invito a {who} a «{meeting}»? Verá la hora y el enlace de la reunión."
     },

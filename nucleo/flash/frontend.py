@@ -301,7 +301,16 @@ def _scope(wid: str, name: str, spec: dict, payload: dict | None) -> tuple[bool,
         # `None` (no hook, unreadable, or a call it does not count) keeps exactly the answer this had before.
         n = _declared_radius(wid, name, payload)
         if n is not None:
-            return (n <= 1, n)
+            # ZERO IS NOT «ONE NAMED THING» (V2-726 A4 T0). `n <= 1` folded «this call names exactly one
+            # row» together with «the widget currently holds nothing», and those are opposite facts about
+            # the call. Measured in the suite's own sandbox, where the agenda is legitimately empty:
+            # «vacía la agenda» came back FAST — the sweep that V2-707 and V2-720 exist to keep asking,
+            # downgraded by the absence of rows. It is the same shape live whenever a widget's count is
+            # unavailable or stale for a moment. A no-op deletion that asks costs a question; a sweep that
+            # does not ask is the incident. So an empty count refines NOTHING and falls through to the
+            # declaration below, which is where `confirm: true` already lives.
+            if n > 0:
+                return (n <= 1, n)
         # An action may DECLARE that one selector fans out — `agenda:drop_project` names ONE project and
         # discards every pending task in it. Its selector is filled and its radius is still not one, and
         # only the manifest can know that, so it says so instead of this function guessing from the desc.
