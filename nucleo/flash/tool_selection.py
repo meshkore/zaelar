@@ -158,9 +158,29 @@ _family_of: dict[str, str] = {name: fam for fam, names in FAMILIES.items() for n
 
 
 def enabled() -> bool:
-    """First-class kill switch. A change that affects ROUTING must be switchable off without deploying code:
-    `ZAELAR_TOOL_SELECTION=0` restores the behavior of sending the entire catalog."""
-    return (os.getenv("ZAELAR_TOOL_SELECTION", "1") or "").strip().lower() not in ("0", "false", "no", "off")
+    """OFF by default since V2-726 F0 (2026-09-20) — trimming per turn costs MORE than it saves.
+
+    This module was built to keep a «hello» from carrying the whole catalog, and the saving was
+    counted in tokens sent. What nobody had counted was the PREFIX CACHE: the fast lane is DeepSeek
+    direct, caching system → tools → messages, so a catalog that changes shape every turn invalidates
+    itself and everything after it. Measured over one conversation run six times (72 real calls,
+    `scratchpad/bench_f0_tool_cache.py`, raw JSON beside it):
+
+        arm                         effective input cost   uncached tok/turn   cache < 90%   TTFT p50
+        per-turn trim (this)                  2686 (ref)                1566        11/22    1614 ms
+        whole catalog, every turn             1744  (-35%)               114         7/22    1473 ms
+
+    Fourteen times the uncached tokens to send four thousand fewer. **TTFT is indistinguishable**
+    (51% of pairs — noise), so this is not a latency claim: the full catalog is not faster, it is
+    cheaper, and it stops the model from ever losing a capability it had.
+
+    That also retires the `need_capability` round trips this module's own escape hatch exists to
+    make measurable, and it is why the Jev route pre-choice (V2-726 §3.1) is not worth repairing:
+    the question it answered was «what may I trim», and the answer is «nothing».
+
+    `ZAELAR_TOOL_SELECTION=1` puts the trim back — the switch survives so the decision can be
+    re-measured on another provider, another model, or a catalog big enough to change the sign."""
+    return (os.getenv("ZAELAR_TOOL_SELECTION", "0") or "").strip().lower() not in ("0", "false", "no", "off")
 
 
 def select(tools: list[dict], *, turn_text: str = "", open_widgets=None,

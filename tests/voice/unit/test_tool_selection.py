@@ -24,6 +24,15 @@ from tests.agent_headless.e2e.prompt_cost.bench_fast_model import CASES
 FULL = router.TOOLS
 
 
+@pytest.fixture
+def trimming_on(monkeypatch):
+    """The trim is OFF by default since V2-726 F0 — it costs 35% MORE than sending everything,
+    because a catalog that changes shape per turn invalidates DeepSeek's prefix cache (72 measured
+    calls; see `tool_selection.enabled`). The MECHANISM is intact and switchable, so the tests that
+    describe how it trims switch it on; `test_el_defecto_es_no_recortar` below pins the default."""
+    monkeypatch.setenv("ZAELAR_TOOL_SELECTION", "1")
+
+
 def _names(tools):
     return {(t.get("function") or {}).get("name") for t in tools}
 
@@ -39,7 +48,7 @@ def test_ningun_caso_real_se_queda_sin_tool_aceptable():
     assert not malos, f"casos sin ninguna tool aceptable tras recortar: {malos}"
 
 
-def test_el_recorte_ahorra_de_verdad():
+def test_el_recorte_ahorra_de_verdad(trimming_on):
     """If it does not save anything, all this risk is not worth taking. Measured: −51.4% across the 14 cases."""
     antes = sum(len(json.dumps(FULL)) for _ in CASES)
     despues = sum(len(json.dumps(ts.select(FULL, turn_text=t)[0])) for _, t, _, _ in CASES)
@@ -55,7 +64,7 @@ def test_las_familias_imprescindibles_nunca_se_recortan(fam):
             assert n in got, f"{n} ({fam}) se recortó en un turno de charla"
 
 
-def test_charla_no_arrastra_widgets_ni_media():
+def test_charla_no_arrastra_widgets_ni_media(trimming_on):
     """The operator's literal case."""
     sel, rep = ts.select(FULL, turn_text="hola, ¿qué tal todo?")
     got = _names(sel)
@@ -63,7 +72,7 @@ def test_charla_no_arrastra_widgets_ni_media():
     assert len(sel) < len(FULL) and rep["omitted"]
 
 
-def test_la_escotilla_aparece_SOLO_si_se_recorto():
+def test_la_escotilla_aparece_SOLO_si_se_recorto(trimming_on):
     sel, _ = ts.select(FULL, turn_text="hola")
     assert "need_capability" in _names(sel), "se recortó y no se ofreció salida"
     sel2, _ = ts.select(FULL, turn_text="hola",
@@ -90,6 +99,17 @@ def test_una_orden_de_parar_conserva_las_tools_de_worker():
     `stop_worker`, the operator would not be able to stop what they launched."""
     got = _names(ts.select(FULL, turn_text="para eso")[0])
     assert "stop_worker" in got
+
+
+def test_el_defecto_es_no_recortar(monkeypatch):
+    """V2-726 F0, medido: recortar por turno cuesta un 35 % MÁS de entrada efectiva (1.566 tokens
+    sin cachear por turno frente a 114) y el TTFT es indistinguible (51 % de los pares). El defecto
+    pasó a NO recortar el 2026-09-20; este test es lo que impide que vuelva sin volver a medirlo."""
+    monkeypatch.delenv("ZAELAR_TOOL_SELECTION", raising=False)
+    assert ts.enabled() is False
+    out, report = ts.select(FULL, turn_text="hola, ¿qué tal?")
+    assert out is FULL or _names(out) == _names(FULL), "el catálogo entero viaja tal cual"
+    assert report == {"selection": "off"}
 
 
 def test_el_kill_switch_devuelve_el_catalogo_entero(monkeypatch):
@@ -151,7 +171,7 @@ def test_buscar_VIDEOS_en_plural_conserva_la_tool_del_reproductor():
             f"«{phrase}» pierde play_video — la búsqueda de vídeos vuelve a escalar a un worker: {report}"
 
 
-def test_y_la_charla_sigue_sin_arrastrar_la_familia_de_fotos():
+def test_y_la_charla_sigue_sin_arrastrar_la_familia_de_fotos(trimming_on):
     """Arreglar una recuperación no es dejar de recuperar. Las palabras nuevas son SEMILLAS, no un clasificador
     de intención: un turno que no habla de imágenes sigue sin cargar `media`."""
     for phrase in ("hola, ¿qué tal?", "¿qué tiempo hace mañana?", "apunta cena con Ana el jueves"):
@@ -220,7 +240,7 @@ def test_pedir_la_familia_messaging_trae_tambien_su_puerta_de_lectura():
     assert "widget_data" in got and "reply_message" in got
 
 
-def test_la_implicacion_no_hace_ruido_en_la_charla():
+def test_la_implicacion_no_hace_ruido_en_la_charla(trimming_on):
     """The counterweight: small talk still drags neither widgets nor messaging — the implication only fires
     when messaging itself was named/forced/recent, never on its own."""
     got = _names(ts.select(FULL, turn_text="hola, ¿qué tal estás?")[0])

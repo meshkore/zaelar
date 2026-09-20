@@ -41,10 +41,16 @@ def test_the_route_catalog_offers_exactly_the_six_declared_kinds():
     assert list(tsel.ROUTE_KINDS) == ["chat", "search", "show", "widget_data", "escalate", "other"]
 
 
-def test_a_confident_show_forces_widgets_retrieval_misses():
+def test_a_confident_show_forces_widgets_retrieval_misses(monkeypatch):
     """The behavior this wiring adds: «display that thing» names no seed word, so retrieval trims
     the widgets family away; a confident Jev show verdict forces it back. Removing the force union
-    turns this red."""
+    turns this red.
+
+    ⚠️ V2-726 F0 turned trimming OFF by default (it costs 35% more — see `tool_selection.enabled`),
+    so there is no longer a retrieval miss to rescue on the shipped path: this case now describes
+    the mechanism with the trim switched on, and the route pre-choice itself is dead code pending
+    V2-726 §3.1. Kept rather than deleted because the union rule is what a future trim would reuse."""
+    monkeypatch.setenv("ZAELAR_TOOL_SELECTION", "1")
     tools = _router.tools(None)
     text = "display that thing"
     bare, _ = tsel.select(tools, turn_text=text)

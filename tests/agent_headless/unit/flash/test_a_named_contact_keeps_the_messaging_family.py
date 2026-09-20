@@ -20,6 +20,17 @@ import pytest
 
 
 @pytest.fixture
+def trimming_on(monkeypatch):
+    """The three cases below describe what the TRIM does, and V2-726 F0 turned it off by default on
+    2026-09-20: sending the whole catalog every turn costs 35% LESS, because a catalog that changes
+    shape invalidates DeepSeek's prefix cache (72 measured calls; `tool_selection.enabled`). The
+    mechanism and this `state → forced family` rule are untouched, so they are measured with the
+    switch on. What ships now never trims, which is a stronger version of the same guarantee: the
+    messaging family cannot be lost because nothing is removed."""
+    monkeypatch.setenv("ZAELAR_TOOL_SELECTION", "1")
+
+
+@pytest.fixture
 def directory_with_kryptonite(tmp_path, monkeypatch):
     from widgets import store
     monkeypatch.setattr(store, "DATA_DIR", str(tmp_path))
@@ -71,7 +82,7 @@ def _select(turn_text):
     return tsel.select_for_turn(tools, turn_text=turn_text, window=None)
 
 
-def test_the_measured_turn_keeps_messaging_and_the_widget_door(directory_with_kryptonite):
+def test_the_measured_turn_keeps_messaging_and_the_widget_door(directory_with_kryptonite, trimming_on):
     out, rep = _select("write to my contact Kryptonite and organise a meeting for tomorrow")
     assert "messaging" in rep["kept"], rep
     assert "widgets" in rep["kept"], "messaging IMPLIES widgets — send_to's read door lives there (V2-645)"
@@ -79,12 +90,12 @@ def test_the_measured_turn_keeps_messaging_and_the_widget_door(directory_with_kr
     assert "widget_data" in names, "the tool that carries send_to must be in the catalog"
 
 
-def test_a_turn_with_no_contact_still_trims_messaging(directory_with_kryptonite):
+def test_a_turn_with_no_contact_still_trims_messaging(directory_with_kryptonite, trimming_on):
     _, rep = _select("play some jazz")
     assert "messaging" in rep["omitted"], "the rail only adds families, it never keeps them for nothing"
 
 
-def test_the_contact_forces_the_family_even_from_a_carried_fragment(directory_with_kryptonite):
+def test_the_contact_forces_the_family_even_from_a_carried_fragment(directory_with_kryptonite, trimming_on):
     """The request is routinely spread over turns: the name may sit in a previous fragment, and the closing
     sentence («do this») names nothing. The carried window feeds the same reader."""
     from nucleo.flash import router, tool_selection as tsel

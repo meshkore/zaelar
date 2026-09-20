@@ -8307,3 +8307,129 @@ Fourteen FULL entries moved out of `CLAUDE.md` when it reached its 400 KB ceilin
     the probe data was cleaned back out of the operator's real widget. ⚠️ **NOT verified live: the quality
     readback itself** — that the IFrame API emits `availableQualityLevels` inside `infoDelivery` needs a
     real browser with the agent running. The server side is covered; the wire is not.
+
+## Moved on 2026-09-20
+
+Archive pass paid by the V2-726 F0 entry tripping the diary ceiling. Oldest full
+entries out, their one-line index left in `decisions.md`; nothing edited on the way.
+
+- **A card question the operator cannot answer is asked forever — and the captcha handoff nobody offered
+  (V2-605, 2026-09-07)**: session `43b7bf79`, read turn by turn before touching anything. «Tienes 2 abiertas:
+  ¿cuál te enseño, "t1" o "navegador"?» was spoken FIVE times in 93 seconds while he answered it («uno está
+  vacío y el otro tiene la web del…»), rephrased it, protested and gave up — and his actual request, «ábreme el
+  navegador para que te confirme el captcha», reached nothing.
+  - **The sentence is not the model's.** It comes from `instances.resolve_show` and enters through
+    `clarify["msg"]`, which **REPLACES** `spoken_text`. So when the model finally said the right thing at
+    11:06:33 («The Fork nos ha bloqueado… confirmes tú el captcha»), the canned question was glued onto it
+    instead of losing to it, and the `ROMPE EL BUCLE` nudge — which fired in four of those turns — was
+    reprimanding the model for a sentence the model does not write.
+  - **The question named IDS.** `_label` could only title a `results` sheet; every other piece fell through to
+    the instance suffix and the base id — the dump the module's OWN docstring already forbade. A card is now
+    named by WHAT IT SHOWS (`data.card_face`, implemented by the only two instantiating pieces), and a browser
+    card **by its HOST**: found by a test of mine, «Reserva en los mejores restaurantes de España | TheFork»
+    capped to a speakable length drops «TheFork» — a page title is marketing prose with the brand LAST.
+  - **A BLANK card was a candidate**, and his reply is the specification. Showing only: `resolve_close` keeps
+    asking, because there the blank one is the cheap mistake and the full one is somebody's work. Same input,
+    opposite risk, opposite default.
+  - **Asked ONCE.** With `last_spoken`, a repeat CHOOSES and says which — the V2-530 lesson one axis over: he
+    had answered, with a description (`la que tiene la web`) the resolver had no way to express.
+  - **`authenticate_web` was declared LOGIN-only** while being exactly the mechanism he asked for (it opens the
+    REAL browser window on his machine). It was in the tool list of every one of those turns. *An undeclared
+    capability is one the model NARRATES* (V2-540) — declared for half its job is the same failure. The wall
+    note said «que entre él», which names an outcome, not a mechanism, and never named the SITE, so
+    `web_auth.start("")` would have opened nothing by design. Both now carried.
+  - ⚠️ **The thing it was NOT, and I nearly reported it.** The state block WAS in every prompt:
+    `observer._prompt_excerpt` keeps head 6000 + tail 7000, the prompt grew 27k→38k at 11:02:43, and the block
+    fell into the elided middle — **the exact trap that function's own docstring documents**. Measured instead
+    of deduced, three steps from blaming healthy plumbing.
+  - Ratchet paid by EXTRACTING: sheet naming → `results/sheet_names.py`, show-instance resolution →
+    `flash/show_target.py` (which also single-sources what the two channels did twice). The tool-catalogue
+    ceiling is SHARED and paid on every voice turn (V2-526): three drafts went up to 500 chars over and the
+    DECLARATION was compressed, never the ceiling.
+  - Nodes **4.118**/**4.119**, ten disarms, every mutation ASSERTED. ⚠️ **Three came back GREEN first time**:
+    two were no-op mutations of mine (`"" or X` is `X`; and «captcha» survived in the example sentence), and one
+    was a REAL gap — I claimed to have MOVED the sheet's naming into the widget and no test opened a sheet, so
+    deleting it whole stayed green. *A move is only safe if the destination is measured.* And the extraction
+    turned the older show-decision wiring guard RED because it was pinned to `probe.py`: repointed at the
+    CHANNEL, per V2-555.
+  - **FOUR doors show a card, and they only become visible ONE AT A TIME.** The tool path was fixed in both
+    channels first; then driving the LIVE engine showed «Enséñame el navegador» never touches it. F2: the model
+    called no tool and emitted no tag — a deterministic backstop produced the show with the base id, because in
+    `_widget_fallback` the CLOSE branch has consulted the instance since V2-259 and the SHOW branch never did.
+    F3, after F2 still did not narrow: the turn returned in under a second with no model call at all — it is
+    the **ACTION MAP** (V2-539), since «Enséñame el navegador» is a SEEDED phrase (V2-567's grids). *The two
+    doors fixed first are the SLOW ones; this is the lane a real operator actually hits.* One chokepoint
+    (`instances.show_id`, narrow-only — these lanes are silent and cannot ask), not four patches, which is the
+    doctrine written at the top of that same file for closing since V2-259. A test now COUNTS the doors.
+  - ⚠️ **A measurement trap, paid twice**: `/api/flash/say` without `execute: true` DESCRIBES the action without
+    running it, and `describe()` prints the STORED name — so the live check was reading the label, not the
+    event. What counts is `widget/show` in observability.
+  - **And the deepest one: our repeated sentence was DELETING his (F4).** Across the failing stretch the
+    conversation window collapsed **10 → 8 → 6 → 4 → 2 messages in four turns**, so by the time he said «te he
+    dicho que quiero un navegador en MI ordenador» the model was answering on two messages of history. His own
+    diagnosis — «le falta lo que estamos haciendo en este momento» — was right. `dialog.prune_window` collapses
+    near-identical ASSISTANT replies (correct, V2-032) and ALSO deleted the USER turn in front of the twin it
+    removed, against what its own docstring has promised since the day it was written. Because the repeated
+    sentence was OURS — a canned clarify he never provoked — **every repetition ate one of his**: four of his
+    sentences went in and ONE came out, «¿no has entendido lo que te he dicho?», the least informative of the
+    four. The mechanism that exists to stop degeneration was amplifying it, leaving the model less to escape
+    with on every turn. What repeats is the reply; what he says never repeats and is exactly what is needed.
+    Node **4.120**, two disarms.
+  - **VERIFIED LIVE** on `3.26+69efaf4`: «ábreme el navegador para que te confirme el captcha» → `authenticate_web`
+    (was `show_widget` + the question), and «enséñame el navegador» → `widget/show id=navegador::t1 src=actionmap`
+    (was the bare, empty box). **NOT verified live**: the blank-card filter with a REAL worker-created browser
+    task, which needs a live errand. **Open and named**: the GHOST CARD — the canvas began reporting a
+    bare `navegador` with **no `widget/show` behind it**, the stray box the browser task registry's own
+    comment already calls the «ghost card»; this makes it harmless to show, it does not remove it. Also open: `clarify` overriding a good reply in its 13
+    other faces, 18 identical «Dentist» notices in one kickoff prompt, and a browser block that said «la web
+    BLOQUEÓ» twelve lines above «YA HA ENCONTRADO ALGO».
+- **Messaging navigation gets unstuck, and email defaults to a classic list (V2-610, 2026-09-07)**:
+  diagnosed from the operator's own local session. Clicking a platform icon while Conectores was open never
+  cleared `_screen`, so the click's own effect stayed hidden underneath it — «no se va la vista de
+  conectores». The «Mensajería» title now returns to the unified dashboard from anywhere (his own words: it
+  is «la única que voy a querer mirar en principio»). Email's default view stops being the same
+  inline-clamp shape as a WhatsApp thread — asked, by voice, four times in one session, to compact it to
+  «el asunto y la hora, como en cualquier cliente de correo electrónico», and no action existed to do it
+  (`show_view` only ever moved the LENS, never the density). It ships as the hardcoded default now, never a
+  toggle — his own words close that door: a fork can change it.
+  - `_openMail` keys by the item's `messageId`, never its positional `n`: `n` is REASSIGNED on every save
+    (`_renumber`), so a bare `n` pointer would resolve to whatever mail inherits that number next and
+    silently show the WRONG one — caught by a test built around exactly that reuse before it shipped.
+  - `messageActions()` extracted so the compact row and the new detail screen share one set of five buttons
+    instead of drifting into two.
+  - Node 4.122, 10 new + 8 updated cases, 8 verified disarms. **Found live, at closure**: the working tree
+    also carried substantial UNRELATED uncommitted work (`desktop.js`, `ChatWall.js`, `Orb.js`, `styles.css`,
+    i18n bundles, two chat-wall/canvas-refit e2e tests) that predates this change and was left untouched —
+    it has its own currently-failing test. `git stash`/`pop` preserved it faithfully; committed only the
+    four files this change actually touched, by explicit path.
+- **Reply from the widget with review-first draft/send, and a real email signature (V2-611, 2026-09-07)**:
+  three pieces the operator asked for together. **Redesign**: bigger, real-button header icons (26px→34px
+  hit targets, hover backgrounds) and a border separating the header band from the content below —
+  regression caught before shipping: the wider icons overflowed a 375px card, fixed with `flex-wrap` on the
+  header row rather than shrinking the icons back down. **Compose bar**: `draft` writes the visible text
+  without sending, `send_draft` sends exactly what the box shows — never a value cached from an earlier
+  keystroke — reusing the EXISTING `pending_reply` drain untouched, so all three platforms send through the
+  same path `reply` already used.
+  - `_resolve_target`/`_enqueue_reply` are NEW, used only by draft/send_draft — `reply` keeps its ORIGINAL,
+    separately-tested resolution (chat-list numbering when no thread is open) byte-for-byte, because the new
+    actions' contract is deliberately different: the widget always hands over a concrete `n`+`messageId` for
+    a single email, sidestepping the ambiguity `reply`'s legacy fallback has rather than trying to fix it
+    for a caller it was never written for.
+  - **Two real bugs, both found by tests before shipping.** `_resolve_target`'s n-lookup skipped
+    `_renumber()` — `n` only exists once that runs (data.py:128), a raw stored item never carries one — so
+    it would never have matched anything against REAL storage; only my own test fixtures, which pre-set `n`
+    for readability, hid it. And `_enqueue_reply`'s "is this a live item to remove" check used
+    `target.get("n")`, which is ALSO absent on `reply`'s own chat-grouping-resolved targets (they never go
+    through `_renumber` either) — fixed by checking `messageId` instead, the one field every real item
+    actually carries, ingested by every connector without exception.
+  - **Signature, after checking rather than assuming.** No real Gmail signature to import — it lives behind
+    the `gmail.settings.basic` OAuth scope, which this IMAP/SMTP connector doesn't request and structurally
+    cannot use. No double-signature risk either — a raw SMTP send never goes through Gmail's own compose UI,
+    so its auto-append never fires on anything sent this way. Appended exactly once, in `_drain_replies` —
+    the one place a real send happens — read fresh from `config/connectors.py`, the SAME store the connect
+    wizard already writes account credentials to; voice sets it line by line (`set_signature_line`).
+  - `widgets/validator.py`: `mensajeria` added to `_STDLIB_EXEMPT` — reading the signature needs
+    `connectors.email.config`, lazily, exactly like `youtube`'s own `_svc()` reaches its connector.
+  - Nodes 4.124/4.125 + 5.18, 30 cases, 17 verified disarms. **Found at closure, not caused here**: another
+    session's V2-608 F3–F7 work landed on `main` mid-build (its own commits, `3d74cd6`..`171d8b2`) — it
+    correctly avoided this work's files, and its own initiative doc names this one back for the same reason.
