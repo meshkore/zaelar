@@ -210,21 +210,25 @@ def session_events(session_id: str, *, limit: int = 4000) -> list[dict] | None:
 
 
 def live_tasks() -> list[dict]:
-    """The engine's LIVE worker-session registry (`GET /api/tasks` → `dispatch.active_sessions()`, the RAM
-    registry that is the source of truth for the Procesos tab). Each entry carries `id`/`kind`/`goal`/
-    `phase`/`status`.
+    """The engine's LIVE commissions (`GET /api/tasks?scope=live` → `nucleo/tasks.py::board`, the durable
+    rows with the RAM detail merged on top). Each entry carries `id`/`kind`/`goal`/`phase`/`state`.
 
     This is the only honest way to prove CONCURRENCY for a multi-flow scenario: the durable event stream can
     show afterwards that N tasks existed, but not that two were ever in flight at the same MOMENT — for that
     you have to look while it's happening. `tests/journey/runner.py` polls the same endpoint for the same
-    reason. Note it returns only live (`queued`/`running`) sessions — finished ones move to the ledger
-    (the `tasks` table, `nucleo/tasks.py::board`), so a task that already completed correctly disappears from here rather than
-    lingering as a false "still working"."""
-    data = _get("/api/tasks")
+    reason. Only LIVE rows come back; a task that already completed moves to `?scope=done` rather than
+    lingering here as a false "still working".
+
+    ⚠️ THE KEY IS `tasks`, AND IT USED TO BE `sessions`. V2-728 turned this route into a query and renamed
+    the envelope; this reader kept asking for `sessions`, got `None`, and returned `[]` from its own
+    fallback — so every concurrency measurement silently read ZERO while the runs stayed green. The `scope`
+    is now explicit for the same reason: a default that changes meaning is the next version of this bug.
+    """
+    data = _get("/api/tasks?scope=live")
     if not isinstance(data, dict):
         return []
-    sessions = data.get("sessions")
-    return sessions if isinstance(sessions, list) else []
+    rows = data.get("tasks")
+    return rows if isinstance(rows, list) else []
 
 
 def navegador_task(task_id: str) -> dict:

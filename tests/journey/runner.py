@@ -81,9 +81,14 @@ class Journey:
         return _request(self.base, path, body=body, timeout=timeout)
 
     def _workers(self) -> dict[str, Any]:
-        active = self._get("/api/tasks")[1].get("sessions", [])
-        history = self._get("/api/workers/history")[1].get("history", [])
-        return {"sessions": active, "history": history}
+        # V2-728 — ONE table, two scopes. Both halves of this were silently wrong: `/api/tasks` stopped
+        # answering under the key `sessions` when it became a query over the durable rows, and
+        # `/api/workers/history` is retired outright. Neither failed loudly — the first returned `[]` from a
+        # `.get` with a default and the second would 404 into the same empty list — so a journey checkpoint
+        # would have gone on asserting over two empty lists while reporting a healthy run.
+        live = self._get("/api/tasks?scope=live")[1].get("tasks", [])
+        done = self._get("/api/tasks?scope=done")[1].get("tasks", [])
+        return {"sessions": live, "history": done}
 
     def execute(self, case: dict[str, Any]) -> tuple[bool, str, Any]:
         missing = [item for item in case.get("consumes", []) if item not in self.products]
@@ -143,7 +148,7 @@ class Journey:
         elif op == "checkpoint":
             output = {
                 "tasks": self._get("/api/tasks")[1], "debug": self._get("/api/debug")[1],
-                "history": self._get("/api/workers/history")[1],
+                "history": self._get("/api/tasks?scope=done")[1],
                 "agenda": self._get("/widgets/agenda/data")[1],
                 "connectors": self._get("/api/connectors")[1],
                 "memory": self._post("/api/memory/recall", {
@@ -276,8 +281,11 @@ class Journey:
         if expected.get("agenda_contains") and not _contains_all(output.get("agenda"), [expected["agenda_contains"]]):
             failures.append(f"checkpoint agenda sin {expected['agenda_contains']!r}")
         if expected.get("max_motorbike_tasks") is not None:
-            workers = {"sessions": output.get("tasks", {}).get("sessions", []),
-                       "history": output.get("history", {}).get("history", [])}
+            # Both keys are `tasks` now (V2-728): the checkpoint's two snapshots are the SAME route at two
+            # scopes. The old `sessions`/`history` keys returned nothing and the count came out 0, which
+            # passes a «no more than N» assertion for the wrong reason.
+            workers = {"sessions": output.get("tasks", {}).get("tasks", []),
+                       "history": output.get("history", {}).get("tasks", [])}
             count = len(_matching(_unique_tasks(workers)))
             if count > int(expected["max_motorbike_tasks"]):
                 failures.append(f"checkpoint tareas de moto={count}")
