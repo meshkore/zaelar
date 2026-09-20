@@ -13,7 +13,13 @@ import time
 
 # Semantic version of the engine — bump it by hand when closing a notable block of changes.
 #
-# Latest (3.27): THE PYRAMID, AND THE CIRCLE THAT CLOSES ITSELF. V2-705/V2-706, 2026-09-15, opened by the
+# Latest (3.28): JEV GOES GENERIC, AND THE CANVAS GETS A VERB. nucleo/jev.py generalizes from the single
+# hardcoded request_type question to a reusable Choice primitive (choose_sync/ask_async/resolve_choice)
+# with the filler API kept as a thin wrapper — node 3.58 passes unchanged. On top, show_target.py asks one
+# canvas question per turn (show/close/neither) through a resolver both channels will share; no provider or
+# probe wiring yet, so the hot path is bit-identical and no restart is required for this commit.
+#
+# Previous (3.27): THE PYRAMID, AND THE CIRCLE THAT CLOSES ITSELF. V2-705/V2-706, 2026-09-15, opened by the
 # operator halting the session — «arreglamos una cosa y estropeamos otra… debería funcionar de forma
 # piramidal» — after a `cancel_meeting {}` deleted 100 events from his real Google Calendar. One funnel for
 # every widget mutation (`widgets/contract.py`): a destructive action with an EMPTY selector is refused,
@@ -97,7 +103,7 @@ import time
 # received `event="end"` — and closing a row nothing opened updates nothing. `zaelar_user_sessions` held zero
 # rows for every account since the table was created, while every Machine's `POST /session` returned 200.
 #
-VERSION = "3.27"
+VERSION = "3.28"
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _CACHE: dict = {}

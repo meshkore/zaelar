@@ -1,4 +1,4 @@
-"""nucleo/jev.py — Jev (TypeSafe System One) request-type classifier, the single integration point.
+"""nucleo/jev.py — Jev (TypeSafe System One) Choice client, the single integration point.
 
 The voice filler has ~1.1 s (ZAELAR_FILLER_MS) between the arm (model start) and the moment a cover
 may sound. The regex classifier in `voice/engine/speech/filler_audio.py` answers instantly but only
@@ -15,9 +15,11 @@ Key resolution (names only, never values): TYPESAFE_API_KEY from the environment
 `zaelar.env`, since `server/common.py` loads that store into the environment at startup — else the
 bare key in `.meshkore/credentials/jev.md` (gitignored, read here so it is never duplicated).
 
-Non-blocking by construction: `request_async()` fires a daemon thread at arm time and returns a
-handle; `resolve_kind()` peeks at fire time without ever waiting. Jev is advisory — a slow, failed
-or unsure call leaves the regex verdict untouched, so the filler never depends on the network.
+Non-blocking by construction: `ask_async()` fires a daemon thread at arm time and returns a
+handle; `resolve_choice()` peeks at fire time without ever waiting. Jev is advisory — a slow, failed
+or unsure call leaves the local verdict untouched, so no caller ever depends on the network.
+The request-type classifier (`classify_sync` / `request_async` / `resolve_kind`) is the first
+caller, kept as a thin wrapper over the generic Choice primitive below.
 
 Observability: every completed call emits one `brain` event (`jever request-type`) with the
 utterance, the verdict, the confidence distribution and the milliseconds it took, so the timeline
@@ -101,17 +103,22 @@ def enabled() -> bool:
     return bool(_read_key())
 
 
-def _post(state: str, timeout_s: float) -> dict:
-    """One blocking Jev call. Separated so tests can fake the wire without touching threads."""
+_RT_INSTRUCTIONS = "What kind of turn is the user's message"
+
+
+def _post_question(answer_key: str, state: str, instructions: str, criteria: dict,
+                   timeout_s: float) -> dict:
+    """One blocking Jev call for an arbitrary Choice question. `_post` below is its
+    request-type specialization — the seam the committed filler test fakes."""
     body = json.dumps(
         {
             "state": state,
             "model": MODEL,
             "questions": {
-                "request_type": {
+                answer_key: {
                     "type": "choice",
-                    "instructions": "What kind of turn is the user's message",
-                    "criteria": REQUEST_TYPES,
+                    "instructions": instructions,
+                    "criteria": criteria,
                 }
             },
         }
@@ -126,71 +133,137 @@ def _post(state: str, timeout_s: float) -> dict:
         return json.loads(resp.read().decode("utf-8"))
 
 
-def _parse(payload: dict) -> tuple[str, float, dict]:
-    ans = (payload.get("answers") or {}).get("request_type") or {}
+def _post(state: str, timeout_s: float) -> dict:
+    """One blocking request-type call — the exact seam the committed filler test fakes.
+    Thin specialization of `_post_question`; signature frozen at two positional args."""
+    return _post_question("request_type", state, _RT_INSTRUCTIONS, REQUEST_TYPES, timeout_s)
+
+
+def _parse(payload: dict, *, answer_key: str = "request_type",
+           allowed: dict | None = None) -> tuple[str, float, dict]:
+    allowed = REQUEST_TYPES if allowed is None else allowed
+    ans = (payload.get("answers") or {}).get(answer_key) or {}
     choice = str(ans.get("choice") or "")
     try:
         confidence = float(ans.get("confidence") or 0.0)
     except (TypeError, ValueError):
         confidence = 0.0
     probs = ans.get("probabilities") or {}
-    if choice not in REQUEST_TYPES:
+    if choice not in allowed:
         choice = ""
     return choice, confidence, dict(probs)
 
 
 def _emit(text: str, *, choice: str, confidence: float, probs: dict,
-          latency_ms: int, error: str = "") -> None:
+          latency_ms: int, error: str = "", question_id: str = "request-type",
+          pool: str = "") -> None:
     try:
         from voice.observer import emit
         emit(
-            "brain", "jev request-type",
+            "brain", f"jev {question_id}",
             text=f"{text[:100]} -> {choice or 'none'} ({confidence:.2f}, {latency_ms} ms)"
             + (f" [error: {error[:80]}]" if error else ""),
             role="system",
             extra={"cat": "flash", "choice": choice, "confidence": round(confidence, 3),
                    "probabilities": probs, "latency_ms": latency_ms,
-                   "pool": KIND_MAP.get(choice, ""), "error": error[:80]},
+                   "pool": pool or KIND_MAP.get(choice, ""), "error": error[:80]},
         )
     except Exception:
         pass
 
 
-def classify_sync(text: str, *, last_reply: str = "", timeout_s: float | None = None) -> dict | None:
-    """Blocking verdict, for tests and manual probes. None when disabled or on any failure."""
+def choose_sync(answer_key: str, text: str, *, instructions: str, criteria: dict,
+                allowed: dict | None = None, context: str = "",
+                timeout_s: float | None = None,
+                question_id: str = "") -> dict | None:
+    """Blocking Choice verdict for an arbitrary per-call enumerated question.
+
+    Returns {"choice", "confidence", "probs", "latency_ms"}, or None when disabled or on any
+    failure. The confidence gate lives with the CALLER (resolve_choice): an unsure verdict is
+    returned, not hidden, so the caller can log the doubt and keep its local verdict."""
     text = (text or "").strip()
     if not text or not enabled():
         return None
     state = text
-    if (last_reply or "").strip():
-        state += f"\n[Our previous reply: {last_reply.strip()[:200]}]"
+    if (context or "").strip():
+        state += f"\n{context.strip()[:200]}"
     t0 = time.monotonic()
     try:
-        choice, confidence, probs = _parse(_post(state, _timeout_s() if timeout_s is None else timeout_s))
-    except Exception as e:  # noqa: BLE001 — the voice path must never break on a classifier
+        # The request-type question keeps going through `_post` with exactly two positional
+        # args — that is the seam the committed filler test fakes. Any other Choice question
+        # goes through the generic wire call, which newer tests fake instead.
+        timeout = _timeout_s() if timeout_s is None else timeout_s
+        if answer_key == "request_type":
+            payload = _post(state, timeout)
+        else:
+            payload = _post_question(answer_key, state, instructions, criteria, timeout)
+        choice, confidence, probs = _parse(
+            payload, answer_key=answer_key, allowed=criteria if allowed is None else allowed)
+    except Exception as e:  # noqa: BLE001 — no caller may ever break on a classifier
         _emit(text, choice="", confidence=0.0, probs={},
-              latency_ms=int((time.monotonic() - t0) * 1000), error=f"{type(e).__name__}: {e}")
+              latency_ms=int((time.monotonic() - t0) * 1000), error=f"{type(e).__name__}: {e}",
+              question_id=question_id or answer_key)
         return None
     latency_ms = int((time.monotonic() - t0) * 1000)
-    _emit(text, choice=choice, confidence=confidence, probs=probs, latency_ms=latency_ms)
-    return {"type": choice, "kind": KIND_MAP.get(choice, ""),
-            "confidence": confidence, "probs": probs, "latency_ms": latency_ms}
+    _emit(text, choice=choice, confidence=confidence, probs=probs, latency_ms=latency_ms,
+          question_id=question_id or answer_key)
+    return {"choice": choice, "confidence": confidence, "probs": probs,
+            "latency_ms": latency_ms}
 
 
-def request_async(text: str, *, last_reply: str = "") -> dict | None:
-    """Fire-and-forget verdict for the hot path. Returns a handle, or None when there is nothing
-    to wait for (disabled, no key, empty text) — the caller keeps its local verdict either way."""
+def classify_sync(text: str, *, last_reply: str = "", timeout_s: float | None = None) -> dict | None:
+    """Blocking request-type verdict, for tests and manual probes. Thin wrapper over choose_sync."""
+    ctx = ""
+    if (last_reply or "").strip():
+        ctx = f"[Our previous reply: {last_reply.strip()[:200]}]"
+    verdict = choose_sync("request_type", text, instructions=_RT_INSTRUCTIONS,
+                          criteria=REQUEST_TYPES, context=ctx, timeout_s=timeout_s,
+                          question_id="request-type")
+    if not verdict:
+        return None
+    return {"type": verdict["choice"], "kind": KIND_MAP.get(verdict["choice"], ""),
+            "confidence": verdict["confidence"], "probs": verdict["probs"],
+            "latency_ms": verdict["latency_ms"]}
+
+
+def ask_async(text: str, *, run, name: str = "jev") -> dict | None:
+    """Fire-and-forget Choice verdict for the hot path. `run` is a zero-arg callable returning a
+    verdict dict or None (typically a `choose_sync` partial); the handle shape is the same one
+    `peek` reads. None when there is nothing to wait for — the caller keeps its local verdict."""
     text = (text or "").strip()
     if not text or not enabled():
         return None
     handle: dict = {"event": threading.Event(), "result": None}
 
     def _run() -> None:
-        handle["result"] = classify_sync(text, last_reply=last_reply)
+        try:
+            handle["result"] = run()
+        except Exception:
+            handle["result"] = None
         handle["event"].set()
 
-    threading.Thread(target=_run, name="jev-classify", daemon=True).start()
+    threading.Thread(target=_run, name=name, daemon=True).start()
     return handle
+
+
+def request_async(text: str, *, last_reply: str = "") -> dict | None:
+    """Fire-and-forget request-type verdict for the hot path. Thin wrapper over ask_async."""
+    text = (text or "").strip()
+    if not text or not enabled():
+        return None
+    return ask_async(text, run=lambda: classify_sync(text, last_reply=last_reply),
+                     name="jev-classify")
+
+
+def resolve_choice(handle: dict | None, fallback, *, min_confidence: float = MIN_CONFIDENCE):
+    """Fire-time decision over a generic Choice handle: Jev's choice when it is ready AND sure,
+    else the fallback. Same gate shape as `resolve_kind`, over {"choice", ...} verdicts."""
+    verdict = peek(handle)
+    if not verdict or not verdict.get("choice"):
+        return fallback, verdict
+    if verdict.get("confidence", 0.0) < min_confidence:
+        return fallback, {**verdict, "used": False}
+    return verdict["choice"], {**verdict, "used": True}
 
 
 def peek(handle: dict | None) -> dict | None:

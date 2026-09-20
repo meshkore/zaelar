@@ -257,3 +257,48 @@ def fullscreen_dispatch(args: dict, text: str, tag_emit, emit, deduped: dict) ->
     tag_emit("show", {"id": rid})     # por si no estaba abierto todavía
     tag_emit("fullscreen", {"id": rid})
     emit("brain", "⛶ fullscreen_widget → canvas", text=rid, role="system")
+
+
+# ── Jev canvas verdict (T-jev-show-close): the VERB before the model writes text ──
+#
+# Division of labor, read before wiring a second caller: Jev names ONLY the verb
+# (show / close / neither) — one cheap Choice call, fired early, resolved at the backstop.
+# The TARGET stays where it already lives: `resolve_show` above (+ `_identify_ctx`) for opens,
+# `close_guards` + `canvas_license` for closes. No new judgement rails: a confident "neither"
+# never vetoes the deterministic grammar (a close verb on the turn beats a cheap model's shrug),
+# and a confident verb never opens/closes anything by itself — the existing executor does that,
+# through the same tags, license and guards as today's path.
+CANVAS_INSTRUCTIONS = ("Does the user's turn ask to change what is visible on the widget canvas? "
+                        "SHOW means putting a widget or card on screen; CLOSE means taking one off. "
+                        "Anything else — questions, chatter, orders that act without showing — is neither.")
+CANVAS_VERBS = {
+    "show": "the turn asks to show, open, display or bring up a widget or card",
+    "close": "the turn asks to close, hide or remove a widget or card from the screen",
+    "neither": "the turn asks for nothing about showing or closing widgets",
+}
+
+
+def ask_canvas_async(text: str, *, context: str = "") -> dict | None:
+    """Fire-and-forget canvas-verb verdict for the hot path. Same handle shape `peek` reads;
+    None when there is nothing to wait for — the caller keeps today's path either way."""
+    import functools
+
+    from nucleo import jev as _jev
+    text = (text or "").strip()
+    if not text or not _jev.enabled():
+        return None
+    return _jev.ask_async(
+        text,
+        run=functools.partial(_jev.choose_sync, "canvas", text,
+                              instructions=CANVAS_INSTRUCTIONS, criteria=CANVAS_VERBS,
+                              context=context, question_id="canvas"),
+        name="jev-canvas")
+
+
+def resolve_canvas_verb(handle: dict | None, *, min_confidence: float | None = None):
+    """Fire-time canvas verb shared by BOTH channels (voice provider and probe read this, never
+    a second implementation): Jev's verb when ready AND sure, else "neither" — i.e. today's path,
+    bit-for-bit. Returns `(verb, verdict)`; verdict carries `used` for the observability trail."""
+    from nucleo import jev as _jev
+    mc = _jev.MIN_CONFIDENCE if min_confidence is None else min_confidence
+    return _jev.resolve_choice(handle, "neither", min_confidence=mc)
