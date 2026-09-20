@@ -193,6 +193,10 @@ SEGMENTS: dict[str, Segment] = {
     "search-buy-camera": _done(),
     "search-buy-guitar": _done(),
     "search-secondhand-monitor": _done(),
+    # V2-728 — asking for the report of an errand that already finished. COMPLETABLE with no asterisk: it
+    # needs no account, no card and nothing we have not built. Everything it touches is ours (the durable
+    # task row, its snapshotted report, the lexical index) and it can run to the end against real state.
+    "flat-hunt-recall-the-report": _done(),
     "cheapest-monitor": _done(),
     # DEEP_SEARCH_SET additions (V2-556, operator 2026-09-02) — every one asks to FIND on a real
     # marketplace with its own filters and pagination; nothing to reserve, pay or sign into, so the

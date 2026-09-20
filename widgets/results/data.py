@@ -119,6 +119,19 @@ _MAX_DETAIL_CHARS = 200
 # working (only they know how many candidates were truly looked at); what can be derived is derived and labeled as
 # derived, never confused (see `_counts`).
 _SUMMARY_NUMS = ("explored", "selected", "discarded", "round")
+
+# THE ONES THAT DID NOT MAKE IT, by name (V2-728). Operator, 2026-09-20: *«me encuentra los 5 mejores y
+# otros 50 que ha descartado, pues todo eso tiene que quedar vinculado»*. Until now `discarded` was a COUNT
+# and nothing else, so «¿por qué no este?» and «enséñame los que tiraste» had no answer anywhere in the
+# system — the work had been done and thrown away. A rejection is worth keeping precisely when it is
+# ARGUED: the row is (what it was, where, why it lost), and a row with no `why` is not stored, because a
+# list of names with no reasons is not an audit, it is a longer list.
+#
+# Capped well above the kept list on purpose: discarding is most of the work, and the cap exists to bound
+# the sheet on disk, not to express an opinion about how much looking is enough.
+_REJECTED_FIELDS = ("title", "url", "why", "source")
+_MAX_REJECTED = 120
+_MAX_WHY_CHARS = 180
 _SUMMARY_TEXT = ("state", "note")
 _MAX_STEPS = 24          # logbook of what was done: milestones, not every click
 _MAX_STEP_CHARS = 160
@@ -295,6 +308,28 @@ def _clean_sources(raw) -> list[dict]:
         if s:
             out.append(s)
     return out[:_MAX_SOURCES]
+
+
+def _clean_rejected(raw) -> list[dict]:
+    """Candidates that were LOOKED AT and left out, each with its reason. Same posture as `_clean_source`:
+    a row that cannot be named, or that does not say why it lost, is dropped rather than half-stored."""
+    if isinstance(raw, dict):
+        raw = [raw]
+    if not isinstance(raw, (list, tuple)):
+        return []
+    out = []
+    for r in raw:
+        if not isinstance(r, dict):
+            continue
+        row: dict = {}
+        for k in _REJECTED_FIELDS:
+            v = r.get(k)
+            if v is None or v == "":
+                continue
+            row[k] = str(v)[:_MAX_WHY_CHARS if k == "why" else 300]
+        if row.get("title") and row.get("why"):
+            out.append(row)
+    return out[:_MAX_REJECTED]
 
 
 def _clean_summary(raw) -> dict:
@@ -594,6 +629,18 @@ def _merge_sections(data: dict, payload: dict) -> None:
         cur = dict(data.get("criteria") or {})
         cur.update(crit)
         data["criteria"] = cur
+    # The rejected pile GROWS across rounds (a worker reports as it goes) and dedupes on url-or-title, by
+    # the same rule `append` uses for the kept list: the same finding reported twice is one finding.
+    rej = _clean_rejected(payload.get("rejected"))
+    if rej:
+        cur = list(data.get("rejected") or [])
+        seen = {(x.get("url") or x.get("title") or "").strip().lower() for x in cur}
+        for r in rej:
+            key = (r.get("url") or r.get("title") or "").strip().lower()
+            if key and key not in seen:
+                seen.add(key)
+                cur.append(r)
+        data["rejected"] = cur[:_MAX_REJECTED]
 
 
 # present/append/clear = how the result set is delivered. `choose` lets the operator PICK one of the shown items
@@ -629,7 +676,10 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
         # deleting sources and summary already reported on each one would lose data that took minutes of browsing.
         # They are emptied by `clear`, or at the start of a NEW investigation (`criteria` with another objective) —
         # two explicit moments, not a side effect.
-        for k in ("sources", "summary", "criteria"):
+        # `rejected` survives a `present` for the same reason as the three below, and one more: the FINAL
+        # present is exactly the moment a worker replaces its provisional picks, which is when the pile of
+        # what it rejected is most complete and most expensive to have lost.
+        for k in ("sources", "summary", "criteria", "rejected"):
             if prev.get(k):
                 data[k] = prev[k]
         if prev.get("tab") in _TABS:
@@ -776,6 +826,33 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
         data["sources"] = cur[:_MAX_SOURCES]
         _save(data, sheet)
         return {"ok": True, "sources": len(data["sources"])}
+
+    if action == "rejected":
+        # WHAT WAS LOOKED AT AND LEFT OUT, with its reason. Reported as it goes, like `sources`, because a
+        # rejection is decided at the moment of rejecting and reconstructing fifty of them at the end is how
+        # they stopped being reported at all. Additive and deduped on url-or-title: the same candidate seen
+        # on two portals is one rejection, not two.
+        add = _clean_rejected(payload.get("rejected") if payload.get("rejected") is not None else payload)
+        if not add:
+            return {"ok": False, "error": "rejected necesita {title, why} por candidato descartado"}
+        data = view_data(sheet)
+        cur = list(data.get("rejected") or [])
+        seen = {(x.get("url") or x.get("title") or "").strip().lower() for x in cur}
+        for r in add:
+            key = (r.get("url") or r.get("title") or "").strip().lower()
+            if key and key not in seen:
+                seen.add(key)
+                cur.append(r)
+        data["rejected"] = cur[:_MAX_REJECTED]
+        # The COUNT and the ROWS are the same fact seen twice, so the count follows the rows rather than
+        # waiting for a separate `progress` the worker may never send. It only ever goes up to the number of
+        # rows we actually hold: a summary that claims 50 over a list of 3 is the discrepancy this replaces.
+        summ = dict(data.get("summary") or {})
+        if int(summ.get("discarded") or 0) < len(data["rejected"]):
+            summ["discarded"] = len(data["rejected"])
+            data["summary"] = summ
+        _save(data, sheet)
+        return {"ok": True, "rejected": len(data["rejected"])}
 
     if action == "progress":
         upd = _clean_summary(payload.get("summary") if isinstance(payload.get("summary"), dict) else payload)

@@ -101,9 +101,14 @@ def test_consolidation_triggers_off_hot_path(fresh_db, monkeypatch):
 
     asyncio.run(run())
     assert len(calls) == 1, "consolidation must fire once per overdue cycle"
-    assert callable(calls[0].get("prune_workers_fn")), (
-        "the loop stopped injecting the ledger cleanup: memory has not done it on its own since 2026-08-23, "
-        "so the Brain Workers ledger would grow without limit and nothing would fail")
+    hook = calls[0].get("prune_workers_fn")
+    assert callable(hook), (
+        "the loop stopped injecting the finished-task cleanup: memory has not done it on its own since "
+        "2026-08-23, so the task table would grow without limit and nothing would fail")
+    # …and it must ACCEPT WHAT THE CONSOLIDATOR SENDS. `consolidate` calls `prune_workers_fn(now=now)` inside
+    # a `try/except` that logs at DEBUG, so a hook with the wrong arity does not fail — it silently stops
+    # pruning, forever, while every test stays green. Asserting `callable` alone never saw that (V2-728).
+    assert hook(now=1_700_000_000.0) is not None, "the hook must answer the call the consolidator makes"
 
 
 def test_spark_fires_when_gate_allows(fresh_db, monkeypatch):

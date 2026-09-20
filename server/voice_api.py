@@ -5,6 +5,7 @@ The WebRTC transport, ICE/TURN negotiation and the audio pipeline are owned by t
 HTTP surface the front still needs: user name, the SSE event stream (observer), debug/status/providers panels,
 the ⚙ settings + voice catalog, and client-log ingestion. No Pipecat, no /api/offer, no /api/ice-servers.
 """
+import asyncio
 import json
 import os
 import time
@@ -665,45 +666,6 @@ async def energy():
                             headers={"Cache-Control": "no-cache"})
     except Exception:
         return JSONResponse({"cloud": False, "known": False}, headers={"Cache-Control": "no-cache"})
-
-
-@router.get("/api/tasks")
-async def tasks(scope: str = "live", all: str = ""):
-    """The operator's TASK BOARD — one query over the durable `tasks` table (V2-728).
-
-    This used to be two things stitched together at this route: `dispatch.active_sessions()` (a RAM dict, so a
-    restart emptied it) plus `errands.board_rows()` (a second row shape, synthesised per request). They had
-    different ids, different lifetimes and different notions of «finished», which is how the Processes tab and
-    the Flows board came to disagree about the same work. Both now write the same table, and the read —rows
-    plus the live detail merged on top— belongs to `nucleo.tasks.board()`, not to this route.
-
-    `scope` picks the sub-tab: `live` (En curso) · `done` (Hechas) · `recurring` (Periódicas) · `scheduled`
-    (Programadas). `all=1` is the `⚙ todo` switch — it adds the engine's own internal escalations, which the
-    operator needs during a manual test and nowhere else. Read-only, no-cache.
-    """
-    try:
-        from nucleo import tasks as _tasks
-        show_all = str(all or "").strip().lower() in ("1", "true", "yes", "si", "sí")
-        rows = _tasks.board(scope, show_all=show_all)
-    except Exception:  # noqa: BLE001
-        return JSONResponse({"tasks": [], "scope": scope}, headers={"Cache-Control": "no-cache"})
-    return JSONResponse({"tasks": rows, "scope": scope}, headers={"Cache-Control": "no-cache"})
-
-
-@router.get("/api/workers/history")
-async def workers_history():
-    """FINISHED work — kept as a THIN ALIAS over `/api/tasks?scope=done` (V2-728).
-
-    V2-079 served this from `nucleo/workers/ledger.py`, a JSON blob in `sys_kv` capped at 50 entries and
-    fenced by hand against a reset race. The durable table has neither limit nor fence, so the ledger stops
-    being the source here. The route survives one version for anything still calling it and retires with F3;
-    the shape it answers in is the old one, on purpose — an alias that changed its shape would not be one.
-    """
-    try:
-        from nucleo import tasks as _tasks
-        return JSONResponse({"history": _tasks.history()}, headers={"Cache-Control": "no-cache"})
-    except Exception:
-        return JSONResponse({"history": []}, headers={"Cache-Control": "no-cache"})
 
 
 @router.post("/api/workers/pause")

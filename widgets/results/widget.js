@@ -442,6 +442,15 @@ function injectStyles(){
   .hb-results .hr-steps li:last-child::after{display:none}
   .hb-results .hr-steps li:last-child::before{background:var(--hb-accent,#3D6FE0);
     box-shadow:0 0 0 3px color-mix(in srgb,var(--hb-accent,#3D6FE0) 18%,transparent)}
+  /* V2-728 — the rejected pile. Deliberately DIM and dense: it is an audit trail, not a second results list,
+     and it is long (the cap is 120). The reason is the load-bearing half, so it gets its own line rather
+     than a parenthesis after the name, which is unreadable once a name wraps. */
+  .hb-results .hr-rejected{list-style:none;margin:var(--s2) 0 0;padding:0;display:grid;gap:var(--s2)}
+  .hb-results .hr-rejected li{display:flex;flex-direction:column;gap:1px;padding-left:var(--s3);
+    border-left:2px solid var(--hb-line,#e3e8f0)}
+  .hb-results .hr-rej-t{color:var(--hb-muted,#5f6b7c);font-weight:600;text-decoration:none}
+  .hb-results a.hr-rej-t:hover{text-decoration:underline}
+  .hb-results .hr-rej-w{color:var(--hb-muted-2,#8b98ac);font-size:var(--f-sm,12px)}
 
   /* ── PROCESS · EMBEDDED BROWSER (V2-571) ─────────────────────────────────────────────────────────────────
      The operator's redesign: the browser and the sheet are ONE flow, so the capture renders INSIDE the process
@@ -1121,6 +1130,29 @@ function paintSummary(panel, data){
     panel.appendChild(elem("div","hr-cgt",tt("what_was_done", null, "Lo que se ha hecho")));
     const ul=elem("ul","hr-steps");
     s.steps.forEach(st=>ul.appendChild(elem("li","", st)));
+    panel.appendChild(ul);
+  }
+
+  // V2-728 — WHAT WAS THROWN OUT, and why. This tab already answered «how many did you discard»; the number
+  // on its own was never the useful half. It goes HERE rather than in a tab of its own because it is the
+  // same question at one more level of detail, and because the results list must keep meaning «the
+  // selection»: a rejected candidate on it would be exactly the confusion the worker guide forbids.
+  const rej = Array.isArray(data.rejected) ? data.rejected : [];
+  if(rej.length){
+    panel.appendChild(elem("div","hr-cgt", tt("discarded_title", null, "Descartados, y por qué")));
+    const ul=elem("ul","hr-rejected");
+    rej.forEach(r=>{
+      const li=elem("li","");
+      const name = r && r.title ? String(r.title) : "";
+      if(r && r.url){
+        const a=elem("a","hr-rej-t", name); a.href=String(r.url); a.target="_blank"; a.rel="noopener noreferrer";
+        li.appendChild(a);
+      } else {
+        li.appendChild(elem("span","hr-rej-t", name));
+      }
+      if(r && r.why) li.appendChild(elem("span","hr-rej-w", String(r.why)));
+      ul.appendChild(li);
+    });
     panel.appendChild(ul);
   }
   panel.appendChild(identityStrip(data.identity));   // audit ids, moved here from the sticky header (V2-538)

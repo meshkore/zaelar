@@ -193,3 +193,42 @@ def test_the_ambiguity_reaches_the_caller_as_names_it_can_read_aloud(fresh_db, m
     out = tr.recall_and_reopen("lo del piso")
     assert out["ok"] is False
     assert {x["title"] for x in out["ask"]} == {"piso en Gràcia", "piso en Sants"}
+
+# ── the sheet cap stopped being a data-loss cap, and stopped reaching live work ──────────────────────────
+def test_a_LIVE_errands_sheet_is_never_pruned_however_old_it_is(fresh_db, own_sheets):
+    """Recency is a PROXY for «still in use», and this is the case where the proxy is wrong: a worker three
+    hours into a hard errand while the operator runs a dozen quick searches beside it. There the sheet is
+    not a view that can be rebuilt — it is the box the worker is WRITING INTO, and its snapshot does not
+    exist yet because the errand has not closed. So the question is asked of the task table, not the clock.
+    """
+    from widgets.results import data as sheetdata
+    from widgets.results import sheet_names
+    from widgets import store
+
+    ts.task_put({"id": "slow", "title": "buscando piso en Gràcia", "goal": "buscando piso en Gràcia",
+                 "state": "running", "mode": "now", "visible": True, "sheet": "slow", "created_at": 1})
+    sheetdata.apply_action("present", {"sheet": "slow", "title": "en curso", "items": [{"title": "uno"}]})
+    for n in range(sheet_names._MAX_SHEETS + 3):          # …and the operator keeps searching beside it
+        sheetdata.apply_action("present", {"sheet": f"q{n}", "title": f"otra {n}", "items": [{"title": "x"}]})
+        sheet_names.prune_sheets()
+
+    assert store.exists(sheet_names.sheet_key("slow")), (
+        "the running errand's sheet was pruned out from under its own worker — the findings it writes from "
+        "now on land in a box nobody is reading, and nothing errors")
+
+
+def test_but_a_FINISHED_errands_sheet_is_pruned_like_any_other(fresh_db, own_sheets):
+    """The counterweight. Without it, «never prune a live one» could be implemented as «never prune», the
+    cap would stop meaning anything, and nothing would say so."""
+    from widgets.results import data as sheetdata
+    from widgets.results import sheet_names
+    from widgets import store
+
+    ts.task_put({"id": "over", "title": "lo de ayer", "goal": "lo de ayer", "state": "done", "mode": "now",
+                 "visible": True, "sheet": "over", "created_at": 1, "finished_at": 2})
+    sheetdata.apply_action("present", {"sheet": "over", "title": "terminado", "items": [{"title": "uno"}]})
+    for n in range(sheet_names._MAX_SHEETS + 3):
+        sheetdata.apply_action("present", {"sheet": f"q{n}", "title": f"otra {n}", "items": [{"title": "x"}]})
+        sheet_names.prune_sheets()
+
+    assert not store.exists(sheet_names.sheet_key("over")), "the cap stopped capping anything"

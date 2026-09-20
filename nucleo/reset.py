@@ -172,14 +172,16 @@ def reset_all() -> dict:
     out = abandon_work(source="reset")
     frozen_n, killed, ts = out["frozen"], out["killed"], out["when"]
     blanked = {}
-    # V2-084: clear the Process HISTORY (worker ledger) → processes are LEFT BLANK after reset
-    # («empezamos de cero»). ONLY reset: the VOICE command «para todo» deliberately preserves the history — what
-    # it just cancelled must be VISIBLE there as `cancelled`, which differs from starting from zero.
+    # V2-084: clear the TASK BOARD → processes are LEFT BLANK after reset («empezamos de cero»). ONLY reset:
+    # the VOICE command «para todo» deliberately preserves the history — what it just cancelled must be
+    # VISIBLE there as `cancelled`, which differs from starting from zero.
+    # V2-728: the board is the `tasks` table. Standing commitments (crons, «la semana que viene…») are NOT
+    # touched — a reset of the work in progress never meant forgetting what he asked us to remember.
     try:
-        from nucleo.workers import ledger as _ledger
-        killed["ledger"] = _ledger.clear()
+        from nucleo import tasks as _tasks
+        killed["ledger"] = _tasks.board_cleared()
     except Exception as e:  # noqa: BLE001
-        logger.warning(f"reset_all: clear ledger falló: {e}")
+        logger.warning(f"reset_all: clear task board falló: {e}")
     # REHYDRATION (2026-08-12): delete the trail of live sessions and web continuity. Without this, the operator
     # presses Reset «para empezar de cero», kills the work manually… and the next startup RESURRECTS it because
     # the trail said it was in flight. A reset is an order, not a crash.

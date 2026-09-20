@@ -273,8 +273,14 @@ def next_cron(expr: str, after: float) -> float | None:
 
 # ── CRUD for scheduled tasks (backed by memory.journal) ───────────────────────────────────────────
 def create(prompt: str, schedule: str, name: str = "", repeat: str = "",
-           now: float | None = None) -> dict:
-    """Schedule a task. Return {'ok':bool,'id':int|None,'schedule':dict|None,'error':str|None,'display':str}."""
+           now: float | None = None, origin: str = "cron") -> dict:
+    """Schedule a task. Return {'ok':bool,'id':int|None,'schedule':dict|None,'error':str|None,'display':str}.
+
+    `origin` says WHO asked for the clock, and it travels because two readers need to tell them apart
+    (V2-728). An appointment's own notice is created by the agenda (`origin="agenda"`) and the agenda must
+    NOT paint it back as a system task — it is already on screen as the appointment it belongs to. Everything
+    else defaults to `cron`: the operator said «avísame cada lunes» and there is nothing else showing it.
+    """
     now = time.time() if now is None else now
     # `repeat` inherited from the Hermes brief: if provided, force interval recurrence.
     spec = schedule
@@ -286,7 +292,8 @@ def create(prompt: str, schedule: str, name: str = "", repeat: str = "",
                 "error": f"schedule no reconocido: {schedule!r}", "display": ""}
     title = (name or prompt or "recordatorio").strip()[:120]
     detail = {"kind": _KIND, "schedule": sch, "prompt": (prompt or "").strip(),
-              "name": (name or "").strip(), "fire_count": 0}
+              "name": (name or "").strip(), "fire_count": 0,
+              "origin": (origin or "cron").strip().lower() or "cron"}
     jid = _journal.add(title, status="pending", detail=detail)
     _board(jid)
     return {"ok": True, "id": jid, "schedule": sch, "error": None, "display": sch.get("display", "")}

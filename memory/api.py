@@ -33,7 +33,7 @@ DEFAULT_BUDGET_TOKENS = 1200
 # import internals (memory.db/writer/queue/slots/…) outside tests.
 __all__ = [
     "start", "stop",
-    "write", "write_now", "ingest_message", "correction_targets", "widget_trace_ids", "reinforce", "reinforce_ids_for", "pin", "unpin", "link",
+    "write", "write_now", "ingest_message", "correction_targets", "widget_trace_ids", "task_trace_ids", "reinforce", "reinforce_ids_for", "pin", "unpin", "link",
     "forget", "unforget", "clear_conversation", "clear_slot_prefix",
     "state", "set_state", "compose_state", "add_user_rule", "remove_user_rule",
     "kv_get", "kv_set",
@@ -132,15 +132,37 @@ def widget_trace_ids(widget_id: str, limit: int = 4) -> list[int]:
     it are out of reach on purpose: matching by content invents targets. `_` is escaped (a LIKE wildcard, a
     legal slug character). Capped to the writer's own supersede cap; the chain keeps the valid set at ~1, so
     the cap never truncates in practice."""
-    wid = (widget_id or "").strip().lower()
-    if not wid:
+    return _anchored_ids("widget", widget_id, limit)
+
+
+def task_trace_ids(task_id: str, limit: int = 4) -> list[int]:
+    """The valid pills anchored to a TASK — ids of `[task:<id>]`-prefixed rows, newest first (V2-728).
+
+    Same door, same reason as `widget_trace_ids` above. A commission can close more than once — a relay hands
+    the baton back, a re-dispatch reopens it — and each closing writes its pill. Without the supersede chain
+    recall would serve «terminó sin encontrar nada» next to «encontró 5 pisos» for the same errand, with no
+    way to tell which chapter is the current one; that failure is not hypothetical, it is V2-576 cause B with
+    a different prefix."""
+    return _anchored_ids("task", task_id, limit)
+
+
+def _anchored_ids(prefix: str, ref: str, limit: int) -> list[int]:
+    """Valid pills whose text opens with `[<prefix>:<ref>]`, newest first.
+
+    ONE implementation for both anchors: they differ in a word, and two copies of a LIKE-escape rule are two
+    chances to escape it differently. Matching is by the TEXT PREFIX because it is the only deterministic
+    handle those pills carry — matching by content invents targets. `_` is escaped (a LIKE wildcard that is
+    also a legal slug character)."""
+    r = (ref or "").strip().lower()
+    if not r:
         return []
     db = _db.get_db()
-    pat = "[widget:" + wid.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "]%"
+    esc = r.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
     rows = db.query(
         "SELECT id FROM memories WHERE valid=1 AND slot IS NULL AND kind != 'conv' "
-        "AND text LIKE ? ESCAPE '\\' ORDER BY created DESC, id DESC LIMIT ?", (pat, int(limit)))
-    return [int(r["id"]) for r in rows]
+        "AND text LIKE ? ESCAPE '\\' ORDER BY created DESC, id DESC LIMIT ?",
+        (f"[{prefix}:{esc}]%", int(limit)))
+    return [int(r0["id"]) for r0 in rows]
 
 
 def ingest_message(source: str, entity: str | None, text: str, *, group: str | None = None,

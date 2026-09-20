@@ -159,21 +159,25 @@ def test_the_trace_is_consumed_once(fresh_db):
 
 
 def test_a_clean_boot_is_a_silent_no_op(fresh_db):
-    """The normal case —nothing was in flight— costs neither an event nor a line in the ledger."""
-    from nucleo.workers import ledger
+    """The normal case —nothing was in flight— costs neither an event nor a row on the board."""
+    from nucleo import tasks
     out = R.at_boot(schedule=False)
     assert out == {"found": 0, "resume": [], "buried": []}
-    assert ledger.history() == []
+    assert tasks.board("done") == []
 
 
 def test_interrupted_work_shows_up_in_the_operators_process_list(fresh_db):
-    """What was lost must be VISIBLE (operator rule: a state that can mislead must be visible)."""
-    from nucleo.workers import ledger
+    """What was lost must be VISIBLE (operator rule: a state that can mislead must be visible).
+
+    V2-728: the row is a `tasks` row, not a `sys_kv` ledger entry — so unlike before it also survives the
+    NEXT restart, which is precisely the failure this whole path was written for."""
+    from nucleo import tasks
     R.remember([_live()])
     R.at_boot(schedule=False)
-    hist = ledger.history()
+    hist = tasks.board("done")
     assert len(hist) == 1
-    assert hist[0]["status"] == "interrumpido" and hist[0]["ok"] is False
+    assert hist[0]["state"] == "failed", "a cut task is not a finished one and must never paint as ✓"
+    assert "interrump" in hist[0]["outcome"]
     assert "Wallapop" in hist[0]["goal"]
 
 

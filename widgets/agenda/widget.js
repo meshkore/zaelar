@@ -25,6 +25,10 @@ const HUES = {
   exercise: "#E8973A",
   break:    "#8B98AC",
   buffer:   "#8B98AC",
+  // V2-728 — work the SYSTEM does at a moment, not an appointment the operator keeps. Its own hue because
+  // it is its own kind of thing: nobody is meeting anybody, and colouring it like a meeting would put a
+  // commitment on his calendar that he never made.
+  system:   "#9A6BFF",
 };
 // Dictated category → hue key. Spanish and English, because the category is PRODUCT DATA the operator speaks.
 const CATEGORY_HUE = {
@@ -169,6 +173,10 @@ function injectStyles(){
     border:1px dashed var(--evc,#3D6FE0);border-left-width:3px;border-left-style:solid}
   .hb-agenda .agev.planned{background:color-mix(in srgb, var(--evc,#3D6FE0) 8%, transparent);
     border-left-width:2px;opacity:.92}
+  /* V2-728 — the SYSTEM's own work. Read at a glance as «something will happen here», never as «you have
+     an appointment here»: a dotted edge is the calendar convention for a mark that is not a commitment. */
+  .hb-agenda .agev.system{background:color-mix(in srgb, var(--evc,#9A6BFF) 10%, transparent);
+    border:1px dotted var(--evc,#9A6BFF);border-left-width:3px;border-left-style:solid}
   .hb-agenda .agev.sel{box-shadow:0 0 0 2px var(--evc,#3D6FE0)}
   .hb-agenda .agevt{font-size:13px;font-weight:600;color:var(--hb-ink,#0d1622);white-space:nowrap;
     overflow:hidden;text-overflow:ellipsis;min-width:0}
@@ -547,6 +555,17 @@ function eventsOf(data){
       guests:Array.isArray(m.guests)?m.guests:[], organizer:m.organizer||"",
       myRsvp:m.myRsvp||"", meetLink:m.meetLink||"", htmlLink:m.htmlLink||"", source:m.source||""});
   });
+  // V2-728 — the SYSTEM's own timed work, read from the task table (`data.systemTasks`, never copied into
+  // `meetings`). One event at the next moment it will happen: a recurring job has no single date, and its
+  // next run is the one instant a calendar can place without inventing the rest.
+  (data.systemTasks||[]).forEach((s,i)=>{
+    if(!s || !s.date) return;
+    const start = mins(s.startTime||"");
+    out.push({key:"s"+i, kind:"system", date:String(s.date).slice(0,10), allDay:false,
+      start, end:start+30, title:s.title!=null?String(s.title):"", notes:s.every||"", location:"",
+      attendees:[], status:"planned", category:"", remindAt:"", system:true,
+      recurring:!!s.recurring, taskId:s.id||""});
+  });
   (data.days||[]).forEach(d=>{
     ((d.plan||{}).blocks||[]).forEach((b,i)=>{
       if(b.kind === "meeting") return;                 // already here, richer, from `meetings`
@@ -633,6 +652,7 @@ function badges(ev){
   return box;
 }
 function chipClasses(ev){
+  if(ev.system) return "agev system";
   return "agev" + (ev.planned ? " planned" : (ev.status==="pending" ? " pending" : ""));
 }
 function timeLabel(ev){
@@ -1063,6 +1083,13 @@ function renderDetail(root, ev, ctx, state, redraw){
       acts.appendChild(b);
     }
     p.appendChild(acts);
+  } else if(ev.system){
+    // What it IS, said plainly, because the one thing that must not happen is him reading it as a meeting.
+    p.appendChild(el2("div","agnote", ev.recurring
+      ? tt("system_task_every", {every: ev.notes || ""},
+           "Tarea del sistema: se repite {every}. No es una cita tuya.")
+      : tt("system_task_note", null,
+           "Tarea del sistema: zaelar la hará a esta hora. No es una cita tuya.")));
   } else if(ev.planned){
     p.appendChild(el2("div","agnote",
       tt("planned_note", null, "Bloque planificado por tu agenda, no una cita: se recoloca solo al replanificar.")));

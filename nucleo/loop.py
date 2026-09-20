@@ -509,13 +509,13 @@ class OrchestratorLoop:
         self._last_consolidate = now
         try:
             from memory import api as memory
-            # Brain Worker ledger cleanup is INJECTED (audit 2026-08-23): it is CORE hygiene
-            # CORE hygiene that uses the same sleep sweep, not a memory task — until now memory reached it by
-            # importing `nucleo.workers`, thereby ceasing to be autonomous because of this. Same pattern and
-            # same caller as the `rem.run(...)` hooks a few lines below.
-            from nucleo.workers import ledger as _wledger
+            # Finished-task cleanup is INJECTED (audit 2026-08-23): it is CORE hygiene that uses the same
+            # sleep sweep, not a memory task — memory used to reach it by importing `nucleo.workers`, and so
+            # stopped being autonomous. Same pattern and same caller as the `rem.run(...)` hooks below.
+            # V2-728: the target is the `tasks` table, not the retired `sys_kv` worker ledger.
+            from nucleo import tasks as _tasks
             rep = await asyncio.to_thread(                       # synchronous sqlite → outside the hot path
-                lambda: memory.consolidate(prune_workers_fn=_wledger.prune))
+                lambda: memory.consolidate(prune_workers_fn=_tasks.pruned))
             _emit("loop.consolidated", {k: rep.get(k) for k in ("deduped", "evicted", "promoted")})
             logger.info(f"consolidación (sueño): {rep}")
         except Exception as e:  # noqa: BLE001

@@ -104,6 +104,10 @@ DECLARED_SURFACE = {
     # 2026-09-04 (V2-577, a widget event reaches the pills it outdates): the deterministic door that resolves
     # the `[widget:<id>]` text anchor, so widget lifecycle writes can supersede the widget's prior story.
     "widget_trace_ids",
+    # V2-728 — the same deterministic anchor door, for `[task:<id>]` pills. Declared deliberately: a closed
+    # commission writes one pill per closing, and without the supersede chain recall would serve «found
+    # nothing» next to «found five flats» for the same errand (V2-576 cause B, different prefix).
+    "task_trace_ids",
     "forget", "unforget",
     # 2026-08-31 (V2-528, stopping means discarding): the reset invalidates the conversational buffer ("the chat
     # is erased" includes the SEEDING of the window) and the `task.*` slots (the "we are doing X" pills). Soft

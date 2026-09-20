@@ -2497,8 +2497,8 @@ class NucleoLLMStream(llm.LLMStream):
                         operator_text, 220, "read_widget compose")
             spoken_text = "".join(spoken).strip()
 
-        # V2-728 — RECUPERAR UN ENCARGO TERMINADO. Toda la decisión (índice léxico → Jev → pregunta si hay
-        # varios) vive en `nucleo/flash/task_recall.py`; aquí solo se ejecuta, fuera del event loop.
+        # V2-728 — RECUPERAR UN ENCARGO TERMINADO. La decisión ENTERA (índice léxico → Jev → preguntar si hay
+        # varios) y su descripción viven en `task_recall.voice_turn`; aquí solo lo propio del canal.
         if reopen_req["v"] is not None and escalate_req["v"] is None:
             _re = await asyncio.to_thread(_trecall.voice_turn, reopen_req["v"])
             acted["widget"] = True          # lo ATENDIMOS (abriendo o preguntando) — no cae a escalate
@@ -2506,10 +2506,7 @@ class NucleoLLMStream(llm.LLMStream):
                 _tag_emit("show", {"id": _re["show"]})
             elif _re["ask"]:
                 clarify["msg"] = _say().ask_which_item.format(cands=_re["ask"])
-            emit("brain", "🗂️ encargo recuperado" if _re["show"] else
-                 ("❓ varios encargos parecidos" if _re["ask"] else "🗂️ ningún encargo parecido"),
-                 role="system", text=str(_re["title"] or reopen_req["v"])[:120],
-                 extra={"id": _re["show"] or "", "rebuilt": _re["rebuilt"], "cands": _re["ask"] or ""})
+            emit("brain", _re["label"], role="system", text=_re["text"], extra=_re["extra"])
 
         if recall_req["v"] is not None and escalate_req["v"] is None and search_req["v"] is None \
                 and reveal_req["v"] is None and read_req["v"] is None:

@@ -135,8 +135,11 @@ export const cronList = () => fetch("/api/cron").then(json).catch(() => ({ jobs:
 export const cronAction = (action, ref) => postJSON("/api/cron/" + action, { ref }).then(json).catch(() => ({ ok: false }));
 export const cronCreate = (body) => postJSON("/api/cron/create", body).then(json).catch(() => ({ ok: false }));
 
-// ---- historial de Brain Workers terminados (V2-079, ledger durable) ----
-export const workersHistory = () => fetch("/api/workers/history").then(json).catch(() => ({ history: [] }));
+// ---- el TABLERO DE TAREAS (V2-728) — «ver resultados» de una tarea terminada ----
+// The board itself is fetched by `core/store.js` (it owns the four scopes and the ⚙ switch); this is the one
+// ACTION a row can take. The reply is `{ok, instance, title, rebuilt}` and the card is NOT opened here: the
+// route emits the same `widget/show` the brain emits, which is what reaches the mobile shell too.
+export const taskReopen = (id) => postJSON("/api/tasks/reopen", { id }).then(json).catch(() => ({ ok: false }));
 
 // ---- wizard de primer arranque (perfiles local/cloud + detector de capacidades, V2-040) ----
 export const wizardState = () => fetch("/api/wizard/state", { cache: "no-store" }).then(json);

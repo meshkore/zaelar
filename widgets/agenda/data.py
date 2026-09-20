@@ -220,6 +220,12 @@ def view_data(q: str = "") -> dict:
         # claim this whole path exists to avoid making.
         "proposals": _proposals(),
 
+        # V2-728 — work the SYSTEM will do at a given moment: «la semana que viene haz esto», «mírame esto
+        # cada lunes». Operator, 2026-09-20: *«se puede ver perfectamente en la agenda, aunque es una tarea
+        # no para nosotros, sino para el sistema»*. They are NOT meetings and never become one — nobody is
+        # meeting anybody — so they travel in their own key and the render gives them their own mark.
+        "systemTasks": _system_tasks(),
+
         "warnings": plan.get("warnings", []),
         "coaching": plan.get("coaching", []),
     }
@@ -241,6 +247,10 @@ from .index import prompt_digest, ref_index  # noqa: F401,E402 — re-export
 
 # A QUESTION is answered by SEARCHING, not by the summary below (`query.py`, V2-704).
 from .query import read_query  # noqa: F401,E402 — re-export
+
+
+# The SYSTEM's own timed work (V2-728) — extracted like `reminders.py`, re-exported as the known seam.
+from .system_tasks import system_tasks as _system_tasks  # noqa: F401,E402 — re-export
 
 
 

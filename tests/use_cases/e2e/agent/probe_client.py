@@ -218,7 +218,7 @@ def live_tasks() -> list[dict]:
     show afterwards that N tasks existed, but not that two were ever in flight at the same MOMENT — for that
     you have to look while it's happening. `tests/journey/runner.py` polls the same endpoint for the same
     reason. Note it returns only live (`queued`/`running`) sessions — finished ones move to the ledger
-    (`nucleo/workers/ledger.py`), so a task that already completed correctly disappears from here rather than
+    (the `tasks` table, `nucleo/tasks.py::board`), so a task that already completed correctly disappears from here rather than
     lingering as a false "still working"."""
     data = _get("/api/tasks")
     if not isinstance(data, dict):

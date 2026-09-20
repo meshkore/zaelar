@@ -295,18 +295,20 @@ def consolidate(limit: int = DEFAULT_LIMIT, lam: float = DECAY_LAMBDA_PER_DAY, s
     expired = expire_ttl(now=now)
     pruned = prune_invalid(now=now)
     evicted = evict(limit=limit)
-    # V2-079: el mismo barrido del sueño limpia el LEDGER de Brain Workers — borra ejecuciones terminadas viejas
-    # (>7d por defecto), como el decay/evict de la memoria; las ligadas a un cron activo (recurrentes) no caducan.
+    # V2-079 → V2-728: el mismo barrido del sueño limpia las TAREAS TERMINADAS viejas (>30 d por defecto),
+    # como el decay/evict de la memoria. Lo que se borra es la fila y sus artefactos; la píldora que la tarea
+    # escribió al cerrarse NO se toca — esa envejece por el decay de la memoria, que es el mecanismo que
+    # decide qué sigue mereciendo saberse.
     #
     # INYECTADO (auditoría de arquitectura 2026-08-23), no importado. El comentario que había aquí decía «la
-    # memoria no importa `nucleo/*`» y a la línea siguiente importaba `nucleo.workers.ledger` — perezoso y
+    # memoria no importa `nucleo/*`» y a la línea siguiente importaba `nucleo.workers.ledger` (retirado en V2-728; hoy el hook poda la tabla `tasks`) — perezoso y
     # fail-open, pero un import inverso igual: el paquete dejaba de ser autónomo por una tarea de higiene que ni
     # siquiera es suya. Es el patrón que `rem.py` ya vive con sus hooks de LLM, y el llamante que lo inyecta
     # (`nucleo/loop.py`) es el mismo que inyecta aquéllos.
     #
     # **Sin hook, `workers_pruned` es None y NO 0**: cero dice «miré y no había nada que limpiar», None dice
     # «nadie me dio con qué mirar». Son hechos distintos y confundirlos es cómo una función se pierde en
-    # silencio — un llamante que olvide inyectar vería un informe perfectamente normal mientras el ledger crece
+    # silencio — un llamante que olvide inyectar vería un informe perfectamente normal mientras la tabla crece
     # sin límite. Fail-open se mantiene: un hook que reviente no tumba el ciclo de consolidación.
     workers_pruned = None
     if prune_workers_fn is not None:

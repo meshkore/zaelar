@@ -107,15 +107,22 @@ def recall_and_reopen(query: str) -> dict:
 def voice_turn(query: str) -> dict:
     """The whole gesture as ONE verdict the voice turn can act on without deciding anything itself.
 
-        {"show": "results::<id>"|None, "ask": "a, b, c"|None, "title": str, "rebuilt": bool}
+        {"show": …|None, "ask": "a, b, c"|None, "title", "rebuilt", "label", "text", "extra"}
 
-    It lives here rather than in the provider because that file is 114 lines over its own architecture
-    ceiling and the ratchet's answer to that is «extract a module, do not raise the ceiling». Everything
-    below is a decision, and none of it is about speaking.
+    It lives here rather than in the provider because that file is over its own architecture ceiling and the
+    ratchet's answer to that is «extract a module, do not raise the ceiling». Everything below is a decision
+    or a description OF one, and none of it is about speaking — the provider keeps exactly the two things
+    that are its own: emitting the canvas tag and phrasing the question in the operator's language.
     """
     out = recall_and_reopen(query)
     if out.get("ok") and out.get("instance"):
-        return {"show": out["instance"], "ask": None, "rebuilt": bool(out.get("rebuilt")),
-                "title": str((out.get("task") or {}).get("title") or "")}
-    names = ", ".join(str(x.get("title") or "")[:60] for x in (out.get("ask") or [])[:3])
-    return {"show": None, "ask": names or None, "rebuilt": False, "title": ""}
+        v = {"show": out["instance"], "ask": None, "rebuilt": bool(out.get("rebuilt")),
+             "title": str((out.get("task") or {}).get("title") or "")}
+    else:
+        names = ", ".join(str(x.get("title") or "")[:60] for x in (out.get("ask") or [])[:3])
+        v = {"show": None, "ask": names or None, "rebuilt": False, "title": ""}
+    v["label"] = ("🗂️ encargo recuperado" if v["show"]
+                  else "❓ varios encargos parecidos" if v["ask"] else "🗂️ ningún encargo parecido")
+    v["text"] = str(v["title"] or query)[:120]
+    v["extra"] = {"id": v["show"] or "", "rebuilt": v["rebuilt"], "cands": v["ask"] or ""}
+    return v

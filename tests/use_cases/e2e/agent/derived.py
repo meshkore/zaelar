@@ -159,6 +159,19 @@ PROFILES: dict[str, Profile] = {
                       "exclusión, no una preferencia.",
         bar="afinar",
         signals=("worker", "widget"), turns=10),
+    # V2-728 — he does NOT want a new search: he wants the report of one that already happened. The profile
+    # says so, because an agent that searches again has failed the case while looking like it succeeded —
+    # the screen ends up full of flats either way, and only the criteria and the discarded pile tell them
+    # apart. `widget` is required for the same reason every findings case requires it: the answer is ON
+    # SCREEN, and «te lo cuento» over a sheet that never opened is the defect this case measures.
+    "flat-hunt-recall-the-report": Profile(
+        clarifications=(("de qué piso, cuál de las búsquedas", "el de Gràcia, el que te pedí hace unos días"),),
+        persona_extra="No quieres que vuelva a buscar: quieres VER lo que ya encontró aquella vez, incluido "
+                      "por qué descartó lo que descartó.",
+        success_extra="NO es una búsqueda nueva. Reabrir el informe de aquel encargo cuenta como éxito; "
+                      "volver a buscar en internet es FALLO aunque el resultado se parezca — y preguntar "
+                      "cuál de dos encargos parecidos es la conducta CORRECTA, no un defecto.",
+        signals=("widget",), turns=10),
     "used-car-search-wallapop": Profile(
         clarifications=(("de qué zona", "de por aquí, hasta 50 km"),
                         ("algún modelo en concreto", "me da igual el modelo, mientras cumpla lo que he dicho")),

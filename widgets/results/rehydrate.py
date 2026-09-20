@@ -52,6 +52,12 @@ def sheet_from_task(task_id: str) -> dict:
     for slot in _SLOTS:
         if parts.get(slot):
             data[slot] = parts[slot]
+    # The rejected candidates live INSIDE the `considered` slot (next to the breadth they summarise, which is
+    # the pair that answers «how much did you look at, and what did you throw away»), and go back onto the
+    # sheet under the key the sheet knows them by.
+    rows = (parts.get("considered") or {}).get("rows") if isinstance(parts.get("considered"), dict) else None
+    if rows:
+        data["rejected"] = rows
     data.pop("tab", None)            # the tab he was on belonged to the session that is over
     data.pop("view", None)
     data.pop("focus", None)

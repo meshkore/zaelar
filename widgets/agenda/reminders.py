@@ -50,7 +50,10 @@ def _schedule_reminder(title: str, date: str, start: str, at: str = "", before_m
               if _en else f"Recuérdale al operador: «{title}» el {date} a las {start}.")
     try:
         from nucleo import scheduler as _sched
-        r = _sched.create(prompt, stamp, name=f"aviso: {title[:80]}")
+        # `origin="agenda"` keeps this notice OUT of the calendar's system-task band (V2-728): it already
+        # has a place on screen — the appointment it belongs to — and painting it again would show the
+        # operator two things where he wrote one.
+        r = _sched.create(prompt, stamp, name=f"aviso: {title[:80]}", origin="agenda")
     except Exception as e:  # noqa: BLE001 — the scheduler must never lose the agenda WRITE
         return "", str(e)
     if not (r or {}).get("ok"):

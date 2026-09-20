@@ -35,7 +35,11 @@ def fake_sched(monkeypatch):
     from nucleo import scheduler
     calls = {"created": [], "cancelled": []}
 
-    def _create(prompt, stamp, name=""):
+    def _create(prompt, stamp, name="", origin="cron"):
+        # `origin` (V2-728) says WHO put the clock on it — «agenda» for an appointment's own notice. Kept in
+        # the signature rather than swallowed by `**kwargs`: a double that accepts anything cannot notice
+        # that the real function changed shape, and `_schedule_reminder` catches the TypeError, so the
+        # symptom would be «no reminder was created» with nothing naming the cause.
         calls["created"].append((prompt, stamp, name))
         return {"ok": True, "id": f"job{len(calls['created'])}"}
 

@@ -73,6 +73,10 @@ def _assign(theme: str, *ids: str) -> None:
 
 
 _assign("search",
+        # V2-728 — no es una búsqueda nueva: es volver a ABRIR el informe de una que ya se hizo. Vive en
+        # «Búsquedas» porque lo que entrega es exactamente eso (la lista, con sus descartados y sus
+        # criterios) y porque el fallo que mide es de ese tema: que la vuelva a buscar en vez de recuperarla.
+        "flat-hunt-recall-the-report",
         "search-buy-apartment", "search-buy-bicycle", "search-buy-boat-multicountry", "search-buy-book",
         "search-buy-camera", "search-buy-camper", "search-buy-ebike", "search-buy-guitar",
         "search-buy-laptop", "search-buy-motorcycle", "search-buy-phone", "search-buy-ski-gear",

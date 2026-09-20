@@ -103,3 +103,42 @@ def test_a_timed_job_never_shows_up_in_the_live_list(fresh_db):
     """«En curso» is what the agent is doing RIGHT NOW. A weekly job that is not running is not that."""
     scheduler.create("mira los conciertos", "every 7d", name="conciertos")
     assert T.board("live") == []
+
+
+# ── and the CALENDAR sees them, without seeing an appointment twice ─────────────────────────────────────
+def test_the_calendar_marks_the_systems_own_timed_work(fresh_db):
+    """«Si te digo la semana que viene, haz esto… se puede ver perfectamente en la agenda, aunque es una
+    tarea no para nosotros, sino para el sistema» (operator, 2026-09-20)."""
+    from widgets.agenda import system_tasks as ST
+    scheduler.create("mira el precio del monitor", "every 7d", name="precio del monitor")
+    rows = ST.system_tasks(db={"meetings": []})
+    assert [r["title"] for r in rows] == ["precio del monitor"]
+    assert rows[0]["recurring"] is True and rows[0]["date"] and rows[0]["startTime"]
+
+
+def test_an_APPOINTMENTS_OWN_NOTICE_is_not_marked_a_second_time(fresh_db):
+    """The subtlety that makes the band usable. Every meeting schedules its own alarm, which is a scheduled
+    task like any other — drawn here it would put a second mark on a day that already shows the appointment.
+
+    The filter is the RELATIONSHIP, not a flag: the meeting stores the job id it got back as `reminder_id`,
+    so the join already exists in the data and does not depend on anybody having remembered to declare
+    anything. Measured against the operator's real database while this was being written: NINE «aviso:
+    Dentist» rows predate `scheduler.create(origin=…)` entirely and carry no origin at all — a filter built
+    on the flag alone would have marked every one of his appointments twice.
+    """
+    from widgets.agenda import system_tasks as ST
+    r = scheduler.create("Recuérdale la cita", "2026-09-28 09:00", name="aviso: Dentista", origin="agenda")
+    scheduler.create("mira el precio del monitor", "every 7d", name="precio del monitor")
+
+    # (a) the flag path, for jobs created from today on
+    assert [x["title"] for x in ST.system_tasks(db={"meetings": []})] == ["precio del monitor"]
+
+    # (b) the JOIN path, which is what covers every job written before the flag existed
+    legacy = scheduler.create("Recuérdale la otra cita", "2026-09-29 09:00", name="aviso: Médico")
+    db = {"meetings": [{"title": "Médico", "reminder_id": str(legacy["id"])}]}
+    titles = [x["title"] for x in ST.system_tasks(db=db)]
+    assert "aviso: Médico" not in titles, (
+        "a legacy notice with no declared origin was marked on the calendar — the appointment it belongs "
+        "to is already there, and this is the duplication the join exists to prevent")
+    assert "precio del monitor" in titles, "…and a real standing cron must still be marked"
+    assert r["ok"]

@@ -179,8 +179,9 @@ def to_prompt_block(brief: dict, min_candidates_floor: int = 25) -> str:
              f"por candidato.\n"
              f"  · Al entregar, un `present` FINAL con las {nfin} definitivas y verificadas, que REEMPLAZA lo "
              f"provisional. Lo que quede en pantalla al acabar tiene que ser exactamente tu selección.\n"
-             f"  · Si al final descartas algo que habías publicado, que desaparezca: la hoja no es un historial, es "
-             f"el estado ACTUAL de tu trabajo.")
+             f"  · Si al final descartas algo que habías publicado, que desaparezca DE LA LISTA: la hoja no es un "
+             f"historial, es el estado ACTUAL de tu trabajo. Pero repórtalo abajo con `rejected` — desaparecer de "
+             f"la pantalla y perderse no son lo mismo.")
     # THE OTHER THREE TABS (2026-08-12). The sheet is no longer just the list: it includes SUMMARY, SOURCES, and
     # CRITERIA. Sources are the missing piece that lets the operator AUDIT the work: until now, a website that
     # kept us out (login, limit of 50, block) and a website with no results looked exactly the same —«I found
@@ -195,12 +196,24 @@ def to_prompt_block(brief: dict, min_candidates_floor: int = 25) -> str:
              "operador que ahí SÍ había algo y que él sí puede entrar.\n"
              "  · SUMARIO: `… data results progress` con `{\"state\":\"…\",\"explored\":N,\"discarded\":N,"
              "\"steps\":[\"…\"]}` cada vez que haya avance de verdad (no un mensaje por candidato).\n"
+             # V2-728 — the count was ALL that survived a rejection, so «¿y por qué no este?» had no answer
+             # anywhere in the system: fifty candidates looked at and fifty reasons thrown away. Reported as
+             # you go, for the reason `sources` is: a decision is written down when it is taken, and a worker
+             # asked to reconstruct fifty of them at the end reports none.
+             "  · DESCARTADOS: `… data results rejected @descartados.json` → `{\"rejected\":[{\"title\":…,"
+             "\"url\":…,\"why\":…,\"source\":…}]}`, CADA candidato real que miraste y dejaste fuera, con su "
+             "motivo. `why` es obligatorio y es el valor de la fila: «1.450 €, por encima del tope de 1.200» se "
+             "puede discutir, «no encaja» no. No sale en la lista —la lista es tu selección— pero queda vinculado "
+             "a la tarea, y es lo que le permite al operador preguntar «¿y por qué descartaste ese?» días "
+             "después, en vez de que le repitamos la búsqueda entera.\n"
              "  · CRITERIOS: ya están sembrados con este brief; solo los tocas (`… data results criteria` con "
              "`{\"changes\":[\"…\"]}`) si el operador te corrige a mitad de camino.")
     L.append(f"AMPLITUD REPORTADA: cuando entregues, di cuántos candidatos has considerado DE VERDAD y con qué "
              f"criterio has cortado, y repórtalo también con "
              f"`python -m nucleo.agent_report considered <nº> --kept {nfin}`. Es lo que le permite al operador "
-             f"saber si la selección es sólida o si conviene seguir buscando.")
+             f"saber si la selección es sólida o si conviene seguir buscando. Ese número es el RESUMEN de los "
+             f"`rejected` que ya has ido reportando, no un sustituto: el número dice cuánto miraste, las filas "
+             f"dicen qué miraste.")
     L.append("NO COMPROMETAS NADA: tu trabajo acaba en PROPONER. No reserves, no compres, no pagues, no contrates "
              "ni envíes nada en nombre del operador —aunque encuentres la opción perfecta y aunque parezca el "
              "siguiente paso obvio—: esa decisión es suya y la toma al ver las propuestas.")

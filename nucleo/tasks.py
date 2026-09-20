@@ -125,13 +125,23 @@ def closed(rec, *, outcome: str = "") -> None:
     uid = str(getattr(rec, "uid", "") or "")
     if not uid:
         return
+    # THE FENCE. A reset kills the live workers and then wipes the board; a kill is a signal, so the dying
+    # worker's finish path lands MILLISECONDS LATER and used to write its own tombstone onto the fresh slate
+    # — the operator reset, and the one thing «Hechas» showed was the search his reset had just cancelled
+    # (seen live 2026-08-31, V2-084). The ledger fenced that with a stored «cleared at» timestamp and a
+    # comparison in every writer. Here the question is asked directly instead: does this task still exist?
+    # A row the reset deleted is not one to be closed, and reordering the reset would only narrow the
+    # window, never shut it, because the worker's death is not ours to sequence.
+    if _ts.task_get(uid) is None:
+        return
     state = state_of(rec)
     if state in ("running", "pending", "waiting"):
         _ts.task_patch(uid, state=state)
         return
-    _ts.task_patch(uid, state=state, finished_at=int(time.time()),
-                   outcome=(outcome or str(getattr(rec, "result_summary", "") or ""))[:400])
+    said = (outcome or str(getattr(rec, "result_summary", "") or ""))[:400]
+    _ts.task_patch(uid, state=state, finished_at=int(time.time()), outcome=said)
     kept_result(rec)
+    remembered(rec, state=state, outcome=said)
 
 
 def kept_result(rec) -> None:
@@ -147,11 +157,10 @@ def kept_result(rec) -> None:
     and `task_uid` compose the same string by construction (see `task_uid`), so the two are the same object
     seen from either side and no id has to be threaded through the widget layer.
 
-    ⚠️ WHAT THIS DOES NOT CAPTURE, and it is the half the operator asked for by name: the candidates that were
-    DISCARDED. A worker reports them as a COUNT (`hbnote considered N --kept M`, V2-059) and never as rows, so
-    «los 50 que descartó» do not exist anywhere to be copied. Recording them is a change to what the worker
-    reports, not to where it is stored, and it is written down as open in V2-728 rather than implied by this
-    function's name.
+    THE DISCARDED ONES ARE HERE TOO, and getting them here was a change to what the WORKER REPORTS, not to
+    where anything is stored: until V2-728 a rejection survived only as a count (`hbnote considered N --kept
+    M`, V2-059), so «los 50 que descartó» existed nowhere to be copied. The sheet now has a `rejected` list
+    of argued rows (`widgets/results/data.py`, action `rejected`) and they travel with the rest.
     """
     uid = str(getattr(rec, "uid", "") or "")
     sheet = str(getattr(rec, "sheet", "") or "")
@@ -167,14 +176,72 @@ def kept_result(rec) -> None:
     # The report itself, whole. Split by SLOT so «enséñame los descartados» need not load the kept ones, and
     # so the criteria —what `jev.select_many` scores a later question against— can be read on their own.
     _ts.artifact_put(uid, "result", {k: v for k, v in payload.items()
-                                     if k not in ("criteria", "sources", "process")})
+                                     if k not in ("criteria", "sources", "process", "rejected")})
     for slot in ("criteria", "sources", "process"):
         if payload.get(slot):
             _ts.artifact_put(uid, slot, payload[slot])
-    # …and the breadth, which is all we have of what was rejected.
+    # …and what was REJECTED: the rows with their reasons, plus the breadth the worker reported. Both, and
+    # they are not the same number: `considered` counts everything it looked at (including what it never
+    # bothered to write down), `rows` is what it argued about. Stored even when the rows are empty, because
+    # «mirados 50, guardados 5, y no dijo por qué de ninguno» is itself a true and readable answer.
+    rows = payload.get("rejected") if isinstance(payload.get("rejected"), list) else []
     considered, kept = int(getattr(rec, "considered", -1) or -1), int(getattr(rec, "kept", -1) or -1)
-    if considered >= 0 or kept >= 0:
-        _ts.artifact_put(uid, "considered", {"considered": considered, "kept": kept, "rows": []})
+    if considered >= 0 or kept >= 0 or rows:
+        _ts.artifact_put(uid, "considered",
+                         {"considered": considered, "kept": kept, "rows": rows})
+
+
+def remembered(rec, *, state: str = "done", outcome: str = "") -> None:
+    """Write the closed commission into CENTRAL MEMORY as one pill: `[task:<uid>] <title> — <outcome>`.
+
+    WHY A SECOND RECORD AT ALL, when `tasks` already holds the row. The two answer different questions and
+    only one of them is asked mid-sentence. `task_search` is a lexical index: it answers «which task do these
+    WORDS name», which is what `task_recall` needs once the operator has already said he means a task. Recall
+    answers «what do I know that bears on what he just said», and it runs on every turn without being asked.
+    Before this the tasks were invisible to it, so «¿encontraste algo de pisos?» —a question that never uses
+    the word *tarea*— retrieved the conversation about flats and not the errand that went and found five.
+
+    The pill is a NORMAL pill and that is the point: it goes through `memory.write` like everything else, so
+    the writer embeds it, indexes it and —because `concepts` is left empty— derives its graph edges with the
+    same deterministic `derive_concepts` backstop every other durable pill gets. «Que todo eso quede
+    vinculado» is that edge set, not a bespoke join table: a task about flats hangs off the same concept hub
+    as everything else the operator knows about flats, and `expand()` reaches it from either side.
+
+    SUPERSEDE, not append. A commission can close more than once (a relay hands the baton back, a re-dispatch
+    reopens it). `task_trace_ids` hands over the earlier chapters so only the newest stays valid — the
+    lesson of V2-577, where a widget's birth announcement outlived its own tombstone and the next worker
+    believed the wrong one.
+
+    `meta.task_id` is what makes the pill actionable rather than merely readable: whoever recall hands it to
+    can reopen the report itself (`widgets/results/rehydrate.sheet_from_task`). It is also the only durable
+    join between the two records, and it is a field rather than an `edges` row for the honest reason that an
+    edge joins two MEMORY ids and a task is not one.
+    """
+    uid = str(getattr(rec, "uid", "") or "")
+    if not uid:
+        return
+    title = str(getattr(rec, "title", "") or "").strip()
+    goal = str(getattr(rec, "goal", "") or "").strip()
+    name = title or goal
+    if not name:
+        return
+    verb = {"done": "terminó", "failed": "falló", "cancelled": "se canceló"}.get(state, "terminó")
+    when = time.strftime("%Y-%m-%d", time.localtime())
+    line = f"[task:{uid}] El encargo «{name[:160]}» {verb} el {when}."
+    if outcome and outcome.strip() != name:
+        line += f" Resultado: {outcome.strip()[:240]}"
+    if title and goal and goal != title:
+        # The operator's OWN words are what a later reference paraphrases; the composed name is a summary of
+        # them and does not always share a single content word with what he actually said.
+        line += f" Lo pidió así: «{goal[:200]}»."
+    try:
+        from memory import api as _memory
+        _memory.write(line, kind="event", level="mid", importance=0.55,
+                      supersedes=_memory.task_trace_ids(uid) or None,
+                      meta={"source": "task", "task_id": uid,
+                            "task_kind": str(getattr(rec, "kind", "") or ""), "task_state": state})
+    except Exception:  # noqa: BLE001 — a commission that finished is not undone by a memory that did not
+        return
 
 
 # ── errands (V2-683) ─────────────────────────────────────────────────────────────────────────────────────
@@ -265,8 +332,20 @@ def board(scope: str = "live", *, show_all: bool = False) -> list[dict]:
         phases = errands.live_phases()      # «esperando respuesta · quedan 2 h» — derived from a clock
     except Exception:  # noqa: BLE001
         pass
+    # Does this finished row have a report to reopen? Only the «Hechas» list draws that button, and only it
+    # pays for the question — one `task_artifacts` lookup per row. A button that opens nothing is worse than
+    # no button, so it is not drawn on a guess: `has_results` is the answer, not an assumption about `kind`.
+    reopenable = None
+    if scope == "done":
+        try:
+            from widgets.results import rehydrate as _rehy
+            reopenable = _rehy.has_results
+        except Exception:  # noqa: BLE001 — no rehydrate module, no buttons; the list still reads
+            reopenable = None
     out = []
     for r in rows:
+        if reopenable is not None:
+            r = {**r, "has_results": bool(reopenable(str(r.get("id") or "")))}
         det = live.get(str(r.get("id") or ""))
         if det:
             r = {**r, "phase": det.get("phase", ""), "note": det.get("note", ""),
@@ -282,17 +361,53 @@ def board(scope: str = "live", *, show_all: bool = False) -> list[dict]:
     return out
 
 
-def history(limit: int = 60) -> list[dict]:
-    """Finished work in the shape `/api/workers/history` has always answered in (V2-079), read from the table.
+def interrupted(entry: dict) -> None:
+    """A worker that a RESTART cut in half. Recorded as `failed`, with its own wording (V2-259/rehydrate).
 
-    The shape is deliberately the OLD one while that route survives as an alias: an alias that changed its
-    shape would not be one.
+    What must not happen is the thing that used to: the session vanished with the process and NOTHING said
+    so — no event, no row, no word to the operator, who kept waiting for an answer that had stopped being on
+    its way. A cut task is not a finished one and is not painted as one: `histRow` gives an interrupted row
+    its own «✂» precisely so a restart can never read as a success.
     """
-    rows = _ts.tasks_where(states=_ts.DONE_STATES, modes=("now",), limit=int(limit), newest_first=True)
-    return [{"id": r["id"], "kind": r["kind"], "goal": r["title"] or r["goal"],
-             "status": {"done": "done", "failed": "error", "cancelled": "cancelled"}.get(r["state"], r["state"]),
-             "ok": r["state"] == "done", "started_at": r.get("started_at"),
-             "finished_at": r.get("finished_at"), "trace_id": r.get("trace_id") or ""} for r in rows]
+    tid = str((entry or {}).get("id") or "").strip()
+    if not tid:
+        return
+    uid = task_uid(tid)
+    now = int(time.time())
+    if _ts.task_get(uid) is None:
+        _ts.task_put({"id": uid, "title": str(entry.get("goal") or ""), "goal": str(entry.get("goal") or ""),
+                      "kind": str(entry.get("kind") or "generic"), "mode": "now", "state": "failed",
+                      "visible": True, "origin": "voz", "created_at": int(entry.get("started_at") or now),
+                      "started_at": int(entry.get("started_at") or 0) or now, "finished_at": now,
+                      "outcome": "interrumpido por un reinicio del motor"})
+        return
+    _ts.task_patch(uid, state="failed", finished_at=now,
+                   outcome="interrumpido por un reinicio del motor")
+
+
+def board_cleared() -> int:
+    """«Empezamos de cero»: the reset wipes the operator's board. Returns how many rows went.
+
+    BOTH halves, because both are «work in progress» from where he sits: what already finished, and what the
+    reset itself just killed a second ago. Standing commitments (`scheduled`/`recurring`) are deliberately
+    left alone — see `tasks_store.tasks_clear`.
+
+    ONLY the reset button does this. The spoken «para todo» keeps the history on purpose: what it cancelled
+    must be VISIBLE there as `cancelled`, which is a different thing from starting from zero.
+    """
+    return _ts.tasks_clear(states=_ts.DONE_STATES + _ts.LIVE_STATES, modes=("now",))
+
+
+def pruned(max_age_days: float = 30.0, now: float | None = None) -> int:
+    """Sleep-time hygiene, injected into the consolidator by `nucleo/loop.py`. See `tasks_store.tasks_prune`.
+
+    Injected rather than imported by the consolidator for the reason the audit of 2026-08-23 fixed once
+    already: `memory/` must not reach into `nucleo/`, and a lazy import inside a function is that reach with
+    the evidence hidden one line lower. `now` is part of the HOOK's signature (the consolidator passes the
+    sweep's clock so a sweep is reproducible), so it is accepted here even though the default is fine —
+    a hook whose signature does not match its caller fails silently into the caller's `except`.
+    """
+    return _ts.tasks_prune(max_age_days, now=now)
 
 
 # ── scheduled work (V2-005) ──────────────────────────────────────────────────────────────────────────────
@@ -336,7 +451,10 @@ def scheduled_mirrored(entry: dict) -> None:
         # A closed ONE-SHOT has done its job; a closed recurring one was cancelled. The list says which.
         "state": ("done" if mode == "scheduled" else "cancelled") if closed else "pending",
         "visible": True,
-        "origin": "cron",
+        # WHO put the clock on it (`scheduler.create(origin=…)`). An appointment's notice says `agenda`, and
+        # that is the one value the agenda's own reader filters out — otherwise every meeting would appear
+        # twice on the calendar: once as the appointment and once as its own alarm.
+        "origin": str(d.get("origin") or "cron"),
         "schedule": {"type": sch.get("type"), "display": sch.get("display") or "",
                      "next_run": int(nxt) if isinstance(nxt, (int, float)) else None,
                      "fire_count": int(d.get("fire_count") or 0)},

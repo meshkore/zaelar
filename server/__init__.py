@@ -27,6 +27,7 @@ class RevalidatingStatics(StaticFiles):
 
 from . import common  # noqa: F401  (loads .env + sys.path before the rest)
 from .pages import router as pages_router
+from .tasks_api import router as tasks_router      # V2-728: the task board, extracted from voice_api
 from .voice_api import router as voice_router
 from widgets.server_api import router as widgets_router  # isolated widget layer (does not touch the voice core)
 from connectors.meshkore.server_api import router as meshkore_router  # native cluster I/O channel (always on)
@@ -556,7 +557,8 @@ def create_app() -> FastAPI:
     routers = [pages_router, voice_router, widgets_router, meshkore_router, messaging_router, files_router,
                vault_router, wizard_router, spotify_router, config_router, i18n_router,
                obs_router, feedback_router, update_router, cloudfiles_router, photos_router, contacts_router,
-               videoacct_router, calendar_router, torrent_router, library_router, daemon_router]
+               videoacct_router, calendar_router, torrent_router, library_router, daemon_router,
+               tasks_router]
     # LiveKit control plane (token + connect config + session.js swap) — the default engine (INI-012).
     if os.getenv("ZAELAR_ENGINE", "livekit").lower() == "livekit":
         from .livekit_api import router as livekit_router

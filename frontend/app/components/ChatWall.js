@@ -214,8 +214,24 @@ export function ChatWall() {
         (outcome && outcome !== (e.title || e.goal)) ? h("div", { class: "cw-proc-note" }, outcome) : null,
         h("div", { class: "cw-proc-meta" }, meta + (e.cron ? t("chat.fromCron", { name: e.cron }) : "")),
       ),
+      // V2-728 — «le da el botón y ve los datos derivados». Drawn ONLY when the server said this row still
+      // has a report (`has_results`, one `task_artifacts` lookup per finished row): a button that opens
+      // nothing is worse than no button, and before the task owned its result that was every older row,
+      // because the sheet cap of eight had already deleted it.
+      e.has_results ? h("div", { class: "cron-btns" },
+        h("button", { class: "cron-b hb-icbtn", title: () => t("chat.taskResults"),
+                      onClick: () => taskShowResults(e) }, () => t("chat.taskResults")),
+      ) : null,
     );
   };
+  // Reopening is the SERVER's job all the way down: it rebuilds the sheet from the task if the sheet is gone
+  // and then emits `widget/show`, so the card appears through the same door as every other card. Nothing here
+  // reaches into the canvas — the chat wall has no desktop reference, and giving it one to open a card would
+  // be a second way of doing something that already has one.
+  //
+  // The wall is deliberately NOT closed: where his panel sits is his arrangement, and moving it because he
+  // clicked a button inside it would be a design change nobody asked for.
+  const taskShowResults = (task) => api.taskReopen(String(task.id || ""));
   // V2-728 — a PERIODIC task's row. Its second line is its cadence and its next moment, because that is the
   // only pair of facts that answers «is this still going to happen, and when»; the prompt it fires is below,
   // dimmed, for the times the name is not enough.

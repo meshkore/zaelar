@@ -141,6 +141,60 @@ def task_forget(task_id: str) -> None:
         pass
 
 
+def tasks_clear(states: tuple = DONE_STATES, modes: tuple = ("now",)) -> int:
+    """Drop whole task rows (and everything hanging off them). Returns how many went.
+
+    This is the RESET's door and nothing else's. `modes=("now",)` is not a detail: a `scheduled` or
+    `recurring` row is a standing commitment of the operator's — «avísame cada lunes» — and a reset of the
+    work in progress has never meant «forget what I asked you to remember». Deleting those would also be
+    pointless, since they are mirrors of the scheduler's own rows and `scheduler.reconcile_board()` would
+    put them straight back, which is the worst of both: destructive AND ineffective.
+    """
+    if not states:
+        return 0
+    where = ["state IN (%s)" % ",".join("?" for _ in states)]
+    args: list = list(states)
+    if modes:
+        where.append("mode IN (%s)" % ",".join("?" for _ in modes))
+        args.extend(modes)
+    cond = " AND ".join(where)
+    try:
+        db = _db_mod.get_db()
+        rows = db.query(f"SELECT id FROM tasks WHERE {cond}", tuple(args))
+        ids = [r["id"] for r in rows]
+        for tid in ids:
+            task_forget(tid)
+        return len(ids)
+    except Exception:  # noqa: BLE001
+        return 0
+
+
+def tasks_prune(max_age_days: float = 30.0, now: float | None = None) -> int:
+    """Sleep-time hygiene: forget FINISHED work older than `max_age_days`. Returns how many went.
+
+    The ledger this replaces had to prune at seven days because it was a 50-entry JSON blob re-serialised on
+    every write. A table has neither problem, so the window is a month and the reason for having one at all
+    is different: `task_artifacts` holds whole reports, and a year of them is real disk. What is pruned is
+    the ROW and its artifacts; the memory pill written when the task closed is not touched here — that one
+    ages by the memory's own decay, which is the mechanism for deciding what is still worth knowing.
+
+    Nothing LIVE is ever pruned, whatever its age. A task still running after a month is a task that needs
+    looking at, not one that needs deleting.
+    """
+    cutoff = int((time.time() if now is None else now) - max(0.0, float(max_age_days)) * 86400.0)
+    try:
+        db = _db_mod.get_db()
+        rows = db.query(
+            "SELECT id FROM tasks WHERE state IN (%s) AND COALESCE(finished_at, created_at) < ?"
+            % ",".join("?" for _ in DONE_STATES), (*DONE_STATES, cutoff))
+        ids = [r["id"] for r in rows]
+        for tid in ids:
+            task_forget(tid)
+        return len(ids)
+    except Exception:  # noqa: BLE001
+        return 0
+
+
 # ── read ─────────────────────────────────────────────────────────────────────────────────────────────────
 def task_get(task_id: str) -> dict | None:
     try:

@@ -323,9 +323,9 @@ export const fetchTaskScope = async (scope) => {
   } catch (_) {}
 };
 
-// V2-079: HISTORY of COMPLETED Brain Workers (durable ledger) — the ChatWall «Processes» tab renders it
-// below the live ones (store.tasks) to provide perspective on what was done today/yesterday/days ago. It refreshes when the
-// tab opens and when a task ends (SSE task:end).
+// V2-079 → V2-728: FINISHED commissions — the «Hechas» sub-tab. It used to come from a 50-entry JSON blob
+// («the worker ledger»); it is the same durable table the live list reads, so the two cannot disagree about
+// whether something ended. Refreshes when the tab opens and when a task ends (SSE task:end).
 export const [workerHistory, setWorkerHistory] = createSignal([]);  // [{id,kind,goal,status,finished_at,...}]
 
 // CURRENT WORK SESSION (2026-08-10). A deliberate Reset opens a NEW session in the backend
@@ -337,9 +337,8 @@ export const [sessionEpoch, bumpSessionEpoch] = createSignal(0);
 export const newSession = () => bumpSessionEpoch(n => n + 1);
 export const fetchWorkerHistory = async () => {
   try {
-    // V2-728 — the FINISHED list is now `/api/tasks?scope=done`, the same table the live one reads. The old
-    // `/api/workers/history` survives as a thin alias for one version; this side stops calling it so the two
-    // cannot drift while it does.
+    // One door. `/api/workers/history` and the `sys_kv` ledger behind it were retired with V2-728 F2; this
+    // is the same query the live sub-tab makes, with another scope.
     const r = await fetch("/api/tasks?scope=done", { cache: "no-cache" });
     const d = await r.json();
     setWorkerHistory(Array.isArray(d.tasks) ? d.tasks : []);

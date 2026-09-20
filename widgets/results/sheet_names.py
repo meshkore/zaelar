@@ -25,7 +25,13 @@ WIDGET_ID = "results"
 # `meteo-soria:weather:soria` coexisted with `valid=1`). What must be watched —and has a test— is that no WRITER
 # remains unaware of its sheet: it would write to nobody's while the operator watches theirs.
 _INSTANCE_SEP = "--"          # `widgets/store._safe_id` allows only [A-Za-z0-9_-]: «::» would not survive on disk
-_MAX_SHEETS = 8               # limit on stored instantiated sheets; see `prune_sheets()`
+# WHAT THIS CAP IS, AND WHAT IT STOPPED BEING (V2-728). It was 8, and it was a DATA-LOSS cap: the sheet was
+# the only copy of a report, so the ninth search deleted the first one's findings for good — the operator's
+# «error de borrar búsquedas», and a contradiction with this file's own reason for existing. Since the task
+# owns its report (`nucleo/tasks.kept_result` → `task_artifacts`), a sheet is a VIEW: pruning one costs a
+# rebuild (`widgets/results/rehydrate.sheet_from_task`), not a report. So the number can be generous —
+# what it bounds now is disk and the instance list, not what the operator is allowed to remember.
+_MAX_SHEETS = 40              # limit on stored instantiated sheets; see `prune_sheets()`
 
 
 def _safe_sheet(sheet) -> str:
@@ -66,16 +72,41 @@ def sheets() -> list[str]:
 def prune_sheets(keep: int = _MAX_SHEETS) -> int:
     """Limit on stored sheets. The sheet PERSISTS deliberately, so N instances would grow without end; the `keep`
     most recent and the default sheet are retained (it belongs to no task, so nobody should delete it).
-    Returns how many were discarded, so pruning can be COUNTED instead of discovered later."""
+    Returns how many were discarded, so pruning can be COUNTED instead of discovered later.
+
+    A LIVE TASK'S SHEET IS NEVER PRUNED, whatever its age (V2-728). Recency is a decent proxy for «still in
+    use» and it is only a proxy: a worker three hours into a hard errand, while the operator runs a dozen
+    quick searches beside it, is exactly the case where the proxy is wrong — and there the sheet is not a
+    view that can be rebuilt but the box the worker is WRITING INTO, whose snapshot does not exist yet
+    because the errand has not closed. Asked of the task table, which is the only thing that knows.
+    """
     inst = [s for s in sheets() if s]
+    live = _live_sheets()
     dropped = 0
     for sid in inst[:max(0, len(inst) - max(1, keep))]:
+        if sid in live:
+            continue
         try:
             if store.delete(sheet_key(sid)):
                 dropped += 1
         except Exception:  # noqa: BLE001
             pass
     return dropped
+
+
+def _live_sheets() -> set:
+    """Sheets belonging to a commission that is still running. Fail-soft: an unreadable table prunes as
+    before rather than refusing to prune at all — the old behaviour, not a new failure mode."""
+    try:
+        from nucleo import tasks as _tasks
+        out = set()
+        for r in _tasks.board("live", show_all=True):
+            sh = str(r.get("sheet") or "")
+            if sh:
+                out.add(_safe_sheet(sh))
+        return out
+    except Exception:  # noqa: BLE001
+        return set()
 
 
 def instance_id(sheet: str = "") -> str:

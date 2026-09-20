@@ -25,10 +25,16 @@ def _scheduler_never_touches_the_live_journal(monkeypatch):
     jobs: dict[str, dict] = {}
     seq = {"n": 0}
 
-    def _create(prompt, schedule, name="", repeat="", now=None):
+    # The signature is FIXED on purpose — a `**kwargs` double accepts anything and stops being able to
+    # notice that the real function changed shape. It earned that keep on 2026-09-20 (V2-728): `origin` was
+    # added to `scheduler.create` and this double raised TypeError, which `_schedule_reminder` swallows in
+    # its own `except Exception` — so NINE tests went red on «no reminder was created», with nothing
+    # anywhere naming the cause. `origin` is recorded rather than ignored, so the distinction it carries
+    # (an appointment's own notice vs a standing cron) is assertable here.
+    def _create(prompt, schedule, name="", repeat="", now=None, origin="cron"):
         seq["n"] += 1
         jid = f"test-{seq['n']}"
-        jobs[jid] = {"prompt": prompt, "schedule": schedule, "name": name}
+        jobs[jid] = {"prompt": prompt, "schedule": schedule, "name": name, "origin": origin}
         return {"ok": True, "id": jid, "schedule": schedule, "error": None, "display": schedule}
 
     def _cancel(ref):

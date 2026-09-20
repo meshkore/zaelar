@@ -497,12 +497,14 @@ DOMAINS: list[dict] = [
             # sin dejar rastro — ni evento, ni ledger, ni aviso. Aquí se fija qué se reanuda solo, qué se reporta y
             # por qué, y que un reset NO resucite el trabajo que el operador acaba de mandar parar.
             "tests/agent_headless/unit/test_rehydrate.py",
-            # LA VALLA del ledger (2026-08-31, visto en vivo): el reset limpiaba el histórico (V2-084) y aun así
-            # el operador vio UNA entrada tras resetear — la lápida de la tarea que el propio reset mató, escrita
-            # milisegundos DESPUÉS del barrido (el kill es una señal; el cierre del worker es asíncrono).
-            # `clear()` sella cuándo barrió y un registro NACIDO antes de ese instante se descarta llegue cuando
-            # llegue — reordenar reset_all solo encogería la ventana, nunca la cierra.
-            "tests/agent_headless/unit/test_ledger_reset_fence.py",
+            # LA VALLA del tablero (2026-08-31, visto en vivo): el reset limpiaba el histórico (V2-084) y aun
+            # así el operador vio UNA entrada tras resetear — la lápida de la tarea que el propio reset mató,
+            # escrita milisegundos DESPUÉS del barrido (el kill es una señal; el cierre del worker es
+            # asíncrono). Reordenar reset_all solo encogería la ventana, nunca la cierra. V2-728 cambió el
+            # MECANISMO: el ledger la sellaba con una marca de tiempo guardada que cada escritor tenía que
+            # recordar comparar; ahora se pregunta directamente «¿existe todavía esta tarea?», y una fila que
+            # el reset borró no es una fila que cerrar — ni su resultado ni su píldora de memoria se escriben.
+            "tests/agent_headless/unit/test_a_reset_leaves_the_board_blank.py",
             # PARAR ES DESCARTAR (2026-08-31, deroga la secuencia «congelar para reanudar» de 2026-07-10). Tras
             # su reset, el PRIMER saludo de la sesión nueva dijo «sigo con lo del digestólogo» sin un worker
             # vivo: el estado llevaba `trabajo_interrumpido` con la escalada congelada, quedaban slots `task.*`,
@@ -1360,7 +1362,16 @@ DOMAINS: list[dict] = [
                                   "tests/memory/unit/test_task_seam.py",
                                   "tests/memory/unit/test_scheduled_tasks_reach_the_board.py",
                                   "tests/memory/unit/test_task_recall_finds_the_errand_he_means.py",
-                                  "tests/agent_headless/unit/test_a_commission_leaves_a_durable_row.py"]},
+                                  "tests/agent_headless/unit/test_a_commission_leaves_a_durable_row.py",
+                                  # EL CASO DE USO, la cadena entera: encargo → fila viva con su hora →
+                                  # informe con sus 5 guardados y sus 50 descartados CON MOTIVO → se cierra
+                                  # y queda vinculado a la tarea y a la memoria → OCHO búsquedas más podan su
+                                  # hoja del disco → «enséñame lo del piso que te dije» la reabre reconstruida.
+                                  # Cada pieza tenía ya su test y todos estaban verdes con la cadena rota: es
+                                  # en la cadena donde las piezas tienen que estar de acuerdo sobre la MISMA
+                                  # tarea, y eso no lo afirmaba nadie.
+                                  "tests/agent_headless/unit/test_the_flat_hunt_he_told_me_about.py",
+                                  ]},
         {"id": "3.65", "title": "Jev SELECCIONA sobre datos parseados en un viaje (identidad dentro de cada pregunta) — y la llamada deja de tirar trabajo pagado",
             "ch": UNIT, "paths": ["tests/voice/unit/test_jev_selects_over_data.py"]},
         # V2-717 — session c502d3ff (2026-09-17 20:57): «Let me check your Telegram to see what Ivan asked» three

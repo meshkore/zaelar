@@ -171,7 +171,7 @@ def test_an_empty_payload_writes_nothing_and_says_why(agenda):
 def sched_log(monkeypatch):
     from nucleo import scheduler as S
     calls = {"created": [], "cancelled": []}
-    monkeypatch.setattr(S, "create", lambda prompt, schedule, name="", repeat="", now=None: (
+    monkeypatch.setattr(S, "create", lambda prompt, schedule, name="", repeat="", now=None, origin="cron": (
         calls["created"].append({"prompt": prompt, "schedule": schedule, "name": name})
         or {"ok": True, "id": len(calls["created"]), "schedule": {"display": schedule}, "display": schedule}))
     monkeypatch.setattr(S, "cancel", lambda ref: calls["cancelled"].append(str(ref)) or True)

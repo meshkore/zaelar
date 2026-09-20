@@ -212,15 +212,15 @@ def at_boot(*, now: float | None = None, schedule: bool = True, delay: float | N
     plan = classify(sessions, at=float(snap.get("at") or now), now=now, marks=_marks(now))
     plan["found"] = len(sessions)
 
-    # (1) VISIBLE, sin excepción: todo lo que estaba en vuelo queda en el ledger como `interrumpido` → el operador
-    # lo ve en «Procesos» en vez de encontrarse un hueco donde había una tarea.
+    # (1) VISIBLE, sin excepción: todo lo que estaba en vuelo queda registrado como interrumpido → el operador
+    # lo ve en «Tareas · Hechas» en vez de encontrarse un hueco donde había una tarea. V2-728: la fila es la de
+    # `tasks`, no el blob del ledger, así que sobrevive al siguiente reinicio igual que a este.
     try:
-        from nucleo.workers import ledger as _ledger
+        from nucleo import tasks as _tasks
         for ent in plan["buried"] + plan["resume"]:
-            _ledger.record_finish(id=str(ent["id"]), kind=ent.get("kind", ""), goal=ent.get("goal", ""),
-                                  status="interrumpido", started_at=None,
-                                  finished_at=float(snap.get("at") or now), ok=False)
-    except Exception:
+            _tasks.interrupted({"id": ent["id"], "kind": ent.get("kind", ""), "goal": ent.get("goal", ""),
+                                "started_at": float(snap.get("at") or now)})
+    except Exception:  # noqa: BLE001
         pass
 
     # (2) un evento por decisión — el operador puede leer QUÉ se reanuda y POR QUÉ lo demás no.

@@ -461,6 +461,24 @@ CASES: list[UseCase] = [
             "tests/use_cases/e2e/agent/scenarios.py.",
             status="promoted"),
 
+    # V2-728. The operator's own sentence, and the one case that is about MEMORY of a commission rather than
+    # about carrying one out: the errand finishes, EIGHT more searches prune its sheet off disk, and days
+    # later he refers to it by what it was ABOUT. Registered here for the live battery — whether the agent
+    # understands the reference is a question only a real turn answers. The MACHINERY behind it (durable
+    # row → snapshotted report → lexical narrowing without a model → sheet rebuilt from the task) is pinned
+    # deterministically by `tests/agent_headless/unit/test_the_flat_hunt_he_told_me_about.py`, which is what
+    # localises the break; this one only tells us whether the sentence reaches it.
+    UseCase("flat-hunt-recall-the-report", "es", 3, "Volver a abrir el informe de un encargo viejo",
+            "Enséñame lo del piso que te dije.",
+            "The flat-hunting errand from days ago is identified WITHOUT asking (lexical index → ≤5 "
+            "candidates → Jev chooses among those, never a model doing the narrowing), and its results "
+            "sheet comes back on the canvas with the kept candidates, the discarded ones AND their reasons "
+            "— rebuilt from `task_artifacts` even though the 8-sheet cap deleted the sheet itself. With two "
+            "equally plausible errands it must ASK, naming them, and never open one silently.",
+            depends_on=("a finished commission with a results sheet, e.g. search-buy-bicycle__es",),
+            notes="V2-728. Ambiguity is the half most likely to regress: opening the WRONG report looks "
+                  "exactly like opening the right one, and he would read it before noticing."),
+
     # --- ES / tier 5: standing / reactive over time -----------------------------------------
     UseCase("watch-flight-rebook-automatically", "es", 5, "Vigilar un vuelo y recolocarlo solo",
             "Vigila mi vuelo a Barcelona; si se retrasa más de una hora, búscame otro sin "

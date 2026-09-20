@@ -221,7 +221,7 @@ def active_sessions() -> list[dict]:
     legitima) and `/api/tasks` alimenta the chips of the tab «Procesos» of the operator, that pinta each fila como
     «in curso» — or sea that a task acabada could verse trabajando. Es the desalineacion PROCESOS↔FLUJOS that
     reporto the operator: the tablero of flujos decia «ningun flujo activo» and Procesos seguia diciendo «creando a
-    widget… in curso». Lo TERMINADO is reads of the ledger (`nucleo/workers/ledger.py`), that es su site."""
+    widget… in curso». Lo TERMINADO is read from the `tasks` table (`nucleo/tasks.py::board`), that es su site."""
     now = time.time()
     out = []
     for r in _SESSIONS.values():
@@ -1295,26 +1295,18 @@ f"dispatch: could not write the confinement jail for {key} — dev worker starts
                                 and (_prev_count + 1) < _RESUME_CAP and not _handoff)
             # …but the ENCARGO continua in the two ways, so that it that mira «¿esto is ha acabado?» mira esto.
             _continues = bool(_will_resume or _handoff)
-            # V2-079: rastro DURABLE of the ejecucion that is va (the record live is purge here and desaparecia). El
-            # ledger preserves the historico for the tab «Procesos» of the ChatWall. Best-effort, outside of the hot-path.
-            try:
-                from nucleo.workers import ledger as _ledger
-                _ledger.record_finish(id=str(key), kind=str(kind or ""), goal=str(req or "")[:160],
-                                      status=str(rec.status or "done"), started_at=getattr(rec, "started", None),
-                                      trace_id=str(getattr(rec, "trace_id", "") or ""), ok=bool(rec.ok))
-            except Exception:
-                pass
-            # V2-728 — and the DURABLE row, which is what survives the 50-entry cap and the restart. The
-            # ledger above is still written while F2 keeps `/api/workers/history` alive as a thin alias; it
-            # retires with that route, not before.
+            # V2-079 → V2-728: the DURABLE trace of the execution that is ending (the live record is popped
+            # right here and used to simply disappear). It was a 50-entry JSON blob in `sys_kv`; it is now a
+            # row in `tasks`, with no cap, no hand-rolled reset fence and its RESULT hanging off it.
+            # Best-effort and off the hot path, as it always was.
             try:
                 from nucleo import tasks as _tasks
                 _tasks.closed(rec)
             except Exception:  # noqa: BLE001
                 pass
             # EXPLICIT flow-close signal (observability, V2-090): without this a flow only ever looks "closed" by
-            # the ABSENCE of new events — an inference from silence, never a fact. The ledger above already records
-            # this worker session's own end; this event is for the FLOW (`corr_id`) that spawned it, so the
+            # the ABSENCE of new events — an inference from silence, never a fact. The task row above already
+            # records this worker session's own end; this event is for the FLOW (`corr_id`) that spawned it, so the
             # master's board can mark the column closed for real instead of guessing from recency.
             if getattr(rec, "trace_id", ""):
                 try:
