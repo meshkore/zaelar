@@ -12,6 +12,7 @@ import * as session from "./services/session.js?v=3";
 import * as mic from "./services/mic.js?v=1";
 import { openSSE } from "./services/sse.js?v=4";
 import * as store from "./core/store.js?v=2";
+import * as firstRun from "./core/first-run.js?v=1";
 import { startStatusPolling } from "./services/status.js?v=2";
 import { initTheme } from "./services/theme.js?v=2";
 import { initI18n, t } from "./core/i18n.js?v=1";
@@ -111,7 +112,15 @@ createEffect(() => {
   if (_langOnboardChecked || !store.bootReady()) return;
   _langOnboardChecked = true;
   fetch("/api/i18n/state", { cache: "no-store" }).then(r => r.json()).then(s => {
-    if (s && s.chosen === false) store.setLangOnboardOpen(true);
+    if (!s || s.chosen !== false) return;
+    // V2-735 — this is a FIRST RUN, and the browser may still be wearing the previous install's shape:
+    // `hb_orb_dock=bar` docks the orb in the bottom bar, `hb_power_off=1` comes up with the voice off,
+    // `hb_desktop` restores somebody else's cards. A factory reset starts the AGENT over and cannot
+    // reach localStorage. Wipe our namespace and reload — see first-run.js for why it is a wipe and not
+    // a list of signals to re-apply. Returns true only when the page is on its way out.
+    if (firstRun.takeoverOnFirstRun({ local: localStorage, session: sessionStorage,
+                                      reload: () => location.reload() })) return;
+    store.setLangOnboardOpen(true);
   }).catch(() => {});
 });
 

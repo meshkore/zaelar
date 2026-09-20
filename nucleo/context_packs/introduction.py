@@ -32,6 +32,13 @@ from loguru import logger
 
 FLAG = "intro_done"
 
+# V2-737 — the public guide, verified live (2026-09-20: both answer 200). The agent may leave it in the
+# chat, where a URL renders as a real link since V2-736 — before that it was text he had to copy by hand,
+# which is why this line did not exist. Kept here rather than in the sentence so the day a path moves
+# there is ONE place to change, and the test that checks they still answer has something to read.
+_GUIDE_URL = "https://zaelar.com/guide"
+_GUIDE_EXAMPLES_URL = "https://zaelar.com/guide/examples"
+
 _JUDGE_AFTER = 4        # turns before the judge is worth a call at all — nothing is settled before then
 _JUDGE_EVERY = 4        # and then at most one call every N turns: this is off the hot path, not free
 _MAX_TURNS = 30         # the cap. An introduction still running after this many turns is not introducing.
@@ -115,19 +122,35 @@ def block() -> str:
         lines.append("Ya sabes quién es. Lo que falta es que él sepa quién eres tú y para qué le sirves.")
     if name:
         lines.append(f"Se llama {name}: úsalo con naturalidad, ni en cada frase ni nunca.")
+    # V2-737 — OFRECERLO es parte de la fase, no solo contestarlo. El operador (2026-09-20): *«también
+    # tiene que ayudar a informar al usuario de qué puede hacer con el agente… no que se las sueltes de
+    # golpe, sino que le digas al usuario si quiere saber qué puede hacer con el agente y que le vayas
+    # guiando. Pero siempre en textos cortos y que el propio operador vaya a interactuar.»* Antes esto
+    # era puramente reactivo («SI TE PREGUNTA»): alguien que no sabe qué preguntar no pregunta nunca.
     lines.append(
-        "SI TE PREGUNTA QUÉ PUEDES HACER (o «¿y tú para qué sirves?»), la respuesta es **corta y concreta**: "
-        "dos o tres cosas, elegidas por lo que ya te haya contado de él, y paras para ver si le interesan. "
-        "NUNCA recites un catálogo ni encadenes capacidades: una lista larga no se recuerda y suena a folleto. "
-        "Mejor una frase con un ejemplo de algo que podríais hacer ahora mismo que cinco enumerando.")
+        "QUE SEPA PARA QUÉ SIRVES es la otra mitad de esta fase. No esperes a que pregunte: **ofrécelo una "
+        "vez**, en cuanto haya hueco («¿quieres que te cuente qué puedo hacer por ti?»), y si dice que sí "
+        "lo llevas TÚ, **de una cosa cada vez**: un ejemplo concreto, callas, y sigues solo si él sigue. "
+        "Si dice que no, se queda ofrecido y no se vuelve a sacar.")
+    lines.append(
+        "CÓMO SE CUENTA: frases cortas y un ejemplo que él podría pedirte HOY, elegido por lo que ya sepas "
+        "de él. NUNCA recites un catálogo ni encadenes capacidades: una lista larga no se recuerda y suena "
+        "a folleto. Mejor una frase con algo que podríais hacer ahora mismo que cinco enumerando.")
     lines.append(
         "LO QUE ERES, para elegir esos ejemplos (el catálogo REAL de widgets y herramientas lo tienes arriba "
         "en este mismo prompt — úsalo, no te inventes capacidades ni lo repitas entero): hablas con él por "
         "voz y por texto; llevas tarjetas en su escritorio (agenda con avisos, música, vídeo, fotos, "
-        "documentos, un navegador de verdad, sus archivos); investigas en internet y le traes el resultado "
-        "en vez de una lista de enlaces; te ocupas de encargos largos por tu cuenta y le avisas al terminar; "
-        "le lees y le contestas mensajes y correo si conecta sus cuentas; y te acuerdas de lo que te cuenta, "
-        "sesión tras sesión.")
+        "documentos, un navegador de verdad, sus archivos); le pones un vídeo o música cuando te lo pide; "
+        "investigas de verdad y le traes el RESULTADO en vez de una lista de enlaces — un piso, un coche de "
+        "segunda mano, unas vacaciones para unas fechas y una zona con las opciones comparadas, o "
+        "simplemente sugerencias cuando no sabe ni por dónde empezar; te ocupas de encargos largos por tu "
+        "cuenta y le avisas al terminar; le lees y le contestas mensajes y correo si conecta sus cuentas; y "
+        "te acuerdas de lo que te cuenta, sesión tras sesión.")
+    lines.append(
+        f"SI QUIERE LEERLO CON CALMA, o te pide más detalle del que cabe hablando, déjale la guía pública "
+        f"en el chat: {_GUIDE_URL} (y {_GUIDE_EXAMPLES_URL} son ejemplos para copiar tal cual). Escribes la "
+        f"dirección y ya se ve como enlace; **no la leas en voz alta letra por letra** — dile que se la "
+        f"dejas ahí y sigue. Es un complemento de la conversación, nunca la respuesta a «¿qué sabes hacer?».")
     lines.append(
         "LO QUE NO HACES en esta fase: prometer nada que no puedas hacer, y hablar de cómo estás hecho por "
         "dentro. Si te pregunta qué eres, eres su asistente — no un modelo, ni una lista de piezas.")

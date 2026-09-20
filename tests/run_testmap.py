@@ -1697,7 +1697,8 @@ DOMAINS: list[dict] = [
         # la volvería inmejorable— sino lo que hace que una fase sea una FASE: que no cueste nada apagada,
         # que se pueda apagar, y que apagada no vuelva.
         {"id": "3.38", "title": "Un tramo de la relación tiene su propio prompt — y desaparece cuando termina "
-                                "(paquetes de contexto)",
+                                "(paquetes de contexto); la presentación OFRECE el tour en vez de esperar la "
+                                "pregunta, con los ejemplos que él nombró y la guía dejada en el chat (V2-737)",
             "ch": UNIT,
             "paths": ["tests/infrastructure/unit/core/"
                       "test_a_phase_of_the_relationship_has_its_own_prompt.py"]},
@@ -2267,6 +2268,15 @@ DOMAINS: list[dict] = [
         {"id": "4.168", "title": "Las dos puertas le piden a Google la MISMA dirección de vuelta",
             "ch": UNIT, "paths": [
                 "tests/browser/unit/agenda/test_both_doors_ask_google_for_the_SAME_return_address.py"]},
+        {"id": "4.196", "title": "Un enlace en la conversación ES un enlace — y nada más lo es: solo http(s) "
+                                 "se convierte en ancla, el escapado va primero y el ancla tiene UNA forma "
+                                 "(V2-736)",
+            "ch": UNIT, "paths": ["tests/browser/unit/chat/test_a_link_in_the_conversation_is_a_link.py"]},
+        {"id": "4.195", "title": "Un primer arranque no lleva puesta la instalación anterior: el orbe "
+                                 "desplegado y la voz encendida son el DEFAULT, y el estado del navegador "
+                                 "que sobrevive al reset se limpia una vez (V2-735)",
+            "ch": UNIT, "paths": [
+                "tests/browser/unit/arranque/test_a_first_run_does_not_wear_the_previous_install.py"]},
         {"id": "4.194", "title": "Un idioma YA inicializado no enseña ninguna pantalla (V2-732) — y cuando "
                                  "el trabajo es real, suelo de 2,2 s armado por el SSE, barra con el "
                                  "contador de pasos DEL MOTOR, y sin denominador barre en vez de "

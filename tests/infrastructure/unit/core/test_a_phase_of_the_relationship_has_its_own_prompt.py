@@ -205,6 +205,59 @@ def test_packs_are_ordered_by_their_declared_order():
         context_packs._REGISTRY = [p for p in context_packs._REGISTRY if p.id != "zzz"]
 
 
+# ── what the phase has to make happen (V2-737) ──────────────────────────────────────────────────────────
+
+def test_the_tour_is_OFFERED_and_not_only_answered(running):
+    """The operator (2026-09-20): *«también tiene que ayudar a informar al usuario de qué puede hacer con
+    el agente… no que se las sueltes de golpe, sino que le digas al usuario si quiere saber qué puede
+    hacer con el agente y que le vayas guiando»*.
+
+    It used to be purely reactive — «SI TE PREGUNTA QUÉ PUEDES HACER» — and somebody who does not know
+    what to ask never asks. Offering it once is a goal of the phase; guiding one thing at a time, and
+    dropping it when he says no, is what stops that becoming a monologue.
+    """
+    b = introduction.block()
+    assert "ofrécelo una vez" in b.lower() or "ofrécelo" in b, b
+    assert "de una cosa cada vez" in b, "guided means one thing per turn, not a list"
+    assert "si dice que no" in b.lower(), "an offer he declines must not come back"
+    assert "no se vuelve a sacar" in b
+
+
+def test_the_examples_are_the_ones_he_named(running):
+    """«Podemos reproducir vídeo, música, ayudar a hacer búsquedas complejas, por el piso, de un coche, de
+    unas vacaciones, preparar un estudio de las mejores vacaciones para una fecha en una determinada zona,
+    buscar sugerencias.» These are what a first conversation is supposed to reach for — and they are
+    FAMILIES of what the agent does, not a second catalog: the live one is in the same prompt, above."""
+    b = introduction.block().lower()
+    for word in ("vídeo", "música", "piso", "coche", "vacaciones", "sugerencias"):
+        assert word in b, f"the first conversation has no example of «{word}»"
+    assert "catálogo real" in b, "and the REAL catalog is still the live one above, not this text"
+
+
+def test_the_guide_is_left_in_the_chat_and_never_read_out(running):
+    """«Puedes publicar el enlace de la web en el chat… te dejo ahí la web para que veas más información o
+    acceso a la documentación pública.» A URL renders as a real link since V2-736; reading one aloud,
+    character by character, is the opposite of help."""
+    b = introduction.block()
+    assert introduction._GUIDE_URL in b and introduction._GUIDE_EXAMPLES_URL in b, b
+    assert "no la leas en voz alta" in b, "a spoken URL is unusable"
+    assert "nunca la respuesta" in b, "a link is a complement to the conversation, never a substitute"
+
+
+def test_the_guide_addresses_are_real():
+    """A link that 404s is worse than no link. These two were verified live (2026-09-20, both 200) and the
+    shape is pinned here so a typo cannot ship — the reachability itself belongs to the web repo."""
+    for url in (introduction._GUIDE_URL, introduction._GUIDE_EXAMPLES_URL):
+        assert url.startswith("https://zaelar.com/guide"), url
+        assert " " not in url and url == url.strip()
+
+
+def test_the_block_stays_something_a_turn_can_carry(running):
+    """It rides EVERY turn of the phase. V2-726 measured what a prompt that grows costs on a cached
+    prefix; a pack that doubles is a pack nobody notices paying for."""
+    assert len(introduction.block()) < 4000, len(introduction.block())
+
+
 def test_the_section_declares_itself_TEMPORARY(running):
     """Without a header saying so, the model reads a phase instruction as a permanent fact about who it is —
     the one thing a pack must never become."""
