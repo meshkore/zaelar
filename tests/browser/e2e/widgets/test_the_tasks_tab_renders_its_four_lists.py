@@ -43,12 +43,15 @@ ROWS = {
              {"id": "a2", "title": "mesa para 4 el sábado", "goal": "resérvame mesa", "kind": "encargo",
               "state": "waiting", "visible": True, "started_at": 1700000000,
               "phase": "esperando respuesta · quedan 2 h", "mode": "now"}],
+    # …and one of the two finished rows HAS a stored report while the other does not (`has_results`), which
+    # is what decides whether «Ver resultados» is drawn at all. Both shapes, because a button drawn always
+    # and a button drawn never both pass a test that only looks at one row.
     "done": [{"id": "b1", "title": "informe de la empresa", "goal": "investígame esta empresa", "kind": "web",
-              "state": "done", "visible": True, "finished_at": 1700000000,
+              "state": "done", "visible": True, "finished_at": 1700000000, "has_results": True,
               "outcome": "5 fuentes, sin incidencias", "mode": "now"},
              {"id": "b2", "title": "entradas del concierto", "goal": "búscame entradas", "kind": "web",
               "state": "failed", "visible": True, "finished_at": 1700000000, "outcome": "agotadas",
-              "mode": "now"}],
+              "has_results": False, "mode": "now"}],
     "recurring": [{"id": "c1", "title": "conciertos de Shakira", "goal": "avísame si hay concierto",
                    "kind": "web", "state": "pending", "visible": True, "mode": "recurring",
                    "schedule": {"display": "cada semana", "next_run": 1700600000, "type": "interval"}}],
@@ -60,6 +63,7 @@ ROWS = {
 # The stub. It RECORDS every scope asked for, so «the sub-tab fetches its own list» is measured and not assumed.
 STUB = """(rows) => {
   window.__asked = [];
+  window.__reopened = [];
   const real = window.fetch.bind(window);
   window.fetch = async (url, opts) => {
     const u = String(url);
@@ -67,6 +71,10 @@ STUB = """(rows) => {
       const sc = new URL(u, location.origin).searchParams.get('scope') || 'live';
       const all = new URL(u, location.origin).searchParams.get('all') === '1';
       window.__asked.push(sc + (all ? ':all' : ''));
+      if (u.startsWith('/api/tasks/reopen')) {
+        window.__reopened.push(JSON.parse((opts && opts.body) || '{}').id);
+        return { ok: true, json: async () => ({ ok: true, instance: 'results::b1' }) };
+      }
       return { ok: true, json: async () => ({ tasks: rows[sc] || [], scope: sc }) };
     }
     return real(url, opts);
@@ -94,6 +102,8 @@ READ = """() => {
     empty: (document.querySelector('.cw-tasks .cw-empty') || {}).textContent || '',
     railCount: (document.querySelector('.wr-proc-n') || {}).textContent || '',
     asked: window.__asked || [],
+    resultBtns: [...document.querySelectorAll('.cw-tasklist .cw-proc-row.hist .cron-b')].map(e => e.textContent.trim()),
+    reopened: window.__reopened || [],
   };
 }"""
 
@@ -158,6 +168,13 @@ def seen(run):
             }""", scope)
             pg.wait_for_timeout(400)
             out[scope] = pg.evaluate(READ)
+            if scope == "done":
+                # …and the button is CLICKED, because a drawn button that calls nothing looks identical.
+                btn = pg.query_selector(".cw-tasklist .cw-proc-row.hist .cron-b")
+                if btn:
+                    btn.click()
+                    pg.wait_for_timeout(300)
+                out["done"]["reopened"] = pg.evaluate("() => window.__reopened || []")
 
         # …and an empty list must SAY something rather than leave a blank panel. Emptied at the SERVER and
         # then refetched, not by writing the signal: an effect refreshes the visible scope whenever the live
@@ -227,6 +244,24 @@ def test_a_finished_task_says_HOW_it_ended_and_a_failure_is_not_a_tick(seen):
     assert "5 fuentes, sin incidencias" in seen["done"]["rowNotes"], seen["done"]["rowNotes"]
     assert "agotadas" in seen["done"]["rowNotes"], seen["done"]["rowNotes"]
     assert "✓" in seen["done"]["glyphs"] and "✕" in seen["done"]["glyphs"], seen["done"]["glyphs"]
+
+
+def test_only_a_finished_task_WITH_a_report_offers_to_reopen_it(seen):
+    """«Se va a esa lista, le da el botón y ve los datos derivados» (operator, 2026-09-20).
+
+    ONE button for two finished rows: the one whose report was kept. A button that opens nothing is worse
+    than no button, and before the task owned its result that was every older row — the 8-sheet cap had
+    already deleted it. Drawn off `has_results`, which the board answers per row."""
+    btns = seen["done"]["resultBtns"]
+    assert len(btns) == 1, f"one row has a report and the other does not; buttons drawn: {btns}"
+    assert btns[0].strip(), "the button has no label — a missing i18n key renders as an empty button"
+
+
+def test_and_clicking_it_asks_the_server_to_reopen_THAT_task(seen):
+    """The other half. A rendered button that calls nothing looks exactly like one that works, which is the
+    V2-690 lesson with a mouse: it is clicked here, and what the page SENT is what is asserted."""
+    assert seen["done"].get("reopened") == ["b1"], (
+        f"the click did not reach POST /api/tasks/reopen with the row's own id: {seen['done'].get('reopened')}")
 
 
 def test_a_recurring_task_shows_its_cadence_and_its_next_moment(seen):
