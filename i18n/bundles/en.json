@@ -746,6 +746,7 @@
  "widgets.agenda.close": "Close",
  "widgets.agenda.confirm.clear_all": "Shall I empty the whole agenda? It's permanent.",
  "widgets.agenda.confirm.clear_range": "Shall I delete the appointments in that range? It's permanent.",
+ "widgets.agenda.confirm.invite": "Shall I invite {who} to “{meeting}”? They will see the time and the meeting link.",
  "widgets.agenda.confirm.dedupe_meetings": "Shall I keep one of each duplicate appointment and delete the copies?",
  "widgets.agenda.confirm.disconnect": "Shall I disconnect Google Calendar? The appointments already synced stay here, but they'll stop updating.",
  "widgets.agenda.confirm.drop_project": "Shall I freeze the whole “{item}” project and drop its pending tasks?",
