@@ -458,6 +458,7 @@ Los agentes DEBEN trabajar dentro de esta estructura — no crear `docs/` ni car
 | Modules | `.meshkore/docs/modules/zaelar-modules.md` |
 | **Conectores — la LISTA (qué conectamos hoy, qué está declarado y dónde se cablea cada pieza)** | `.meshkore/docs/modules/zaelar-connectors-inventory.md` |
 | **Una cita que pide OTRO — el criterio de autorización de las propuestas** | `.meshkore/docs/modules/zaelar-appointment-proposals.md` |
+| **⭐ El MODELO DE DECISIÓN — el primitivo de elección acotada, dónde puede sentarse y por qué (leer ANTES de añadir un llamador)** | `.meshkore/docs/modules/zaelar-decision-model.md` |
 | **La TAREA — el registro durable de un encargo: la tabla, el resultado que sobrevive a su hoja, y cómo se vuelve a encontrar («lo del piso que te dije»)** | `.meshkore/docs/modules/zaelar-user-tasks.md` |
 | **Contactos — importar/sincronizar con Google, y quién gana un conflicto** | `.meshkore/docs/modules/zaelar-contacts-sync.md` |
 | Security | `.meshkore/docs/security/zaelar-security.md` |

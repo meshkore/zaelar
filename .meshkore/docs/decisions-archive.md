@@ -8641,3 +8641,116 @@ entries out, their one-line index left in `decisions.md`; nothing edited on the 
     the listeners never registered and the test measured nothing. Registering them in the test would have proved
     the test works, not the product, so the wiring came out as `_watchCanvas()`, the seam the constructor calls.
     Same move, same reason, as `seed_from_mailbox` in V2-606.
+
+## Moved on 2026-09-21 (V2-726 closure — the living log crossed its 400 KB ceiling)
+
+- **Messaging reads like a chat, and the card chrome stops looking like two headers (V2-618, 2026-09-08)**:
+  two operator reports in the same session. (1) A 1:1 WhatsApp thread repeated the contact's name on EVERY
+  bubble, and his own replies had no left/right shape (*"solo necesito ver a la izquierda los mensajes de
+  [él] y a la derecha los míos"*). (2) The card chrome: *"me disgusta profundamente el que parece que hay dos
+  headers"* — a redundant grip button, a centered outer title, and the widget's own header undifferentiated
+  from it.
+  - **Bubbles, sender name shown only in a GROUP.** The 1:1 header already names the other party once, so
+    repeating it per bubble was pure noise. The group flag had nowhere durable to live: `thread.py::_norm`
+    never kept `isGroup` on a stored message, and `data.py` only re-attached it from a still-UNREAD item — a
+    mostly-read group thread would silently look 1:1. Fixed by persisting `isGroup` on the **thread itself**
+    (`thread.py::append`, set once, never cleared), never a per-message copy.
+  - **The outbound-capture path was audited whole, not blindly patched.** His own reply not appearing sent me
+    through the entire chain — the bridge already forwards `fromMe` messages, the connector already publishes
+    them, the owner already writes them to the thread and clears pending items. Every seam checked out. The
+    live store held **zero outbound messages, ever, across every thread** — consistent with either a real,
+    narrow bug the source can't show or this path genuinely never having been exercised by an independent
+    live reply since it shipped (V2-546's own verification used a scripted case). Neither draining the
+    bridge's queue (destructive — steals the connector's own next poll) nor sending a real WhatsApp message as
+    a test (externally visible, hard to reverse, against a real contact) were safe ways to force a
+    reproduction. **Shipped instead**: two INFO log lines, one at each end of the same trace (the connector
+    confirming the bridge handed over the message, the owner confirming it reached the store) — both ends
+    were silent on success before. The next real occurrence is one grep away from diagnosable.
+  - **Confirmed NOT the problem**: the SSE push mechanism. An open card already re-renders live on a backend
+    store change (`sse.js`'s `data` handler → `desktop.refreshData`) — "más activo" was never a transport gap;
+    if a message never appears, it never reached the store, which the new logging will now show.
+  - **The redundant grip, retired.** `.hb-head` has been a full drag handle since V2-608 F6 — the code's own
+    comment already said so — so the separate nine-dot `.hb-grip` button had nothing left to do. Removed
+    system-wide (`desktop.js`): the button, its CSS, `NINE_DOTS`, its `DRAG_HANDLES` entry, every
+    cinema/fullscreen/loading selector hiding it, the orphaned `desktop.move_tooltip` i18n key. `.hb-head`
+    defaults to left-aligned now (previously centered, with a separate `.live` override that is simply the
+    default everywhere now) — generic chrome, every widget's outer bar changes.
+  - **The widget's own header, renamed and regrouped.** Inner title "Mensajería" (the catalog name, already
+    said once by the outer bar) → **"Mensajes"**, the operator's own suggestion for what the screen actually
+    is. The platform-icon row and the connectors/settings cluster are now two visually distinct groups
+    (`.hdactions`, its own divider) instead of four icons sharing one gap.
+  - Node **4.129** (2 new files, 7 cases). Two disarms verified red (thread-level `isGroup` persistence, the
+    name-suppression rule). Full sweep across `tests/browser/`, `tests/connectors/unit/messaging/`, the
+    roadmap/CLAUDE.md ratchets, and `make test-widgets` (14/14) all green.
+  - **Deliberately NOT done**: the outbound-capture bug is instrumented, not fixed — no code path was found
+    broken, and confirming or fixing it needs a real occurrence with the new logging live, which needs the
+    operator's own phone. No timestamp dividers, read-receipt ticks, or avatars were asked for either.
+
+- **A widget's root actually uses the width of the card it is given (V2-615, 2026-09-08)**: the operator,
+  looking at mensajería's email detail — a long tracking URL wrapping across 4-5 lines while the 900px card
+  around it sat mostly empty. *"Para este y TODOS los widgets deben ser auto-escalables."*
+  - **Nine of fourteen system widgets** (`mensajeria`, `agenda`, `contactos`, `musica`, `clock`, `timer`,
+    `search`, `imagenes`, `navegador`) hardcoded their root at `width:min(<N>px,<M>vw)` — a desktop-era cap
+    `widgets/AGENTS.md` itself already half-retracted for mobile (V2-574) but never actually swept from
+    desktop. `frontend/app/widgets/desktop.js` mounts a widget's root directly into a fully fluid,
+    drag-resizable card, so the cap was 100% the widget's own CSS refusing space the operator handed it. Fixed
+    to `width:100%;box-sizing:border-box` — the pattern `youtube`/`results`/`documento` already used.
+  - **A second occurrence of the SAME pattern, different syntax, found only by RENDERING**: `navegador`'s
+    per-task mini-browser card (`.hb-navt`, a SECOND root class) carried `width:560px;max-width:92vw` — a
+    grep for the `min()` idiom alone would have missed it entirely.
+  - **Taught forward**: `widgets/AGENTS.md` and `widgets/generator.py::_CONTRACT` both gained an explicit rule
+    naming the root by its exact contract clause (`el.className` in `render(el,...)`), not just an implied
+    "write it fluid." A new static gate (`widgets/validator.py`, sibling of V2-574's `min-width>360px` check)
+    rejects both shapes going forward, threshold chosen by measuring the whole catalog first (every legitimate
+    small element ≤320px, every real cap 440-920px).
+  - ⚠️ **A false positive found before shipping**: the fix's own explanatory CSS comments (documenting the OLD
+    capped value) contain the literal banned pattern as prose — the gate's first version scanned comments
+    too, so the fix commit tripped its own rule. Fixed by stripping `/* ... */` before either width check runs.
+  - ⚠️ **Two bugs in the new TEST harness itself, both caught before trusting it**: an `#id` selector on the
+    mount point out-specificities any class rule the widget declares (the test could never fail regardless of
+    the widget's CSS — the card's size now lives on a separate wrapper); and measuring
+    `host.firstElementChild` (copied from the mobile phone-render script's DOM shape) instead of `host` itself
+    picked up a shrink-to-fit flex ITEM's width on `clock`/`timer` (`align-items:center`) instead of the fluid
+    root around it.
+  - Node **4.128** (2 new files, content-independent by design — a widget's root class is set before any
+    data-dependent branch, so even an EMPTY state exercises the rule). `make test-widgets` green 14/14 before
+    AND after. Two disarms verified red. Full per-widget suites + the V2-574 phone-render script all green —
+    no mobile regression from dropping the `vw` clamp term.
+  - **Verified live** on `3.26+7c41646`: the engine restarted onto this build and the served
+    `widgets/mensajeria/widget.js` carries `width:100%;box-sizing:border-box` on `.hb-msg`. An already-open
+    browser tab needs a reload to pick up the new ES module (cached per page load, same as any widget update).
+
+- **A Reset does not leave a CONNECTED mailbox mute (V2-614, 2026-09-08)**: the operator's screenshot — the
+  mensajería widget open on "Nada que atender ahora ✓" right after asking to see his Gmail messages, and his
+  framing that Reset must never disconnect a connector. Measured live before touching anything: Gmail **was**
+  connected (`config/connectors.json`, `state.json` both said so) with **1081 real unread messages** — his
+  fear (Reset disconnects the connector) was false, and the real failure is narrower and easier to miss.
+  - **The bug: connected, polling, and permanently mute.** `connectors/email/service.py`'s `_seen`/`_published`
+    (populated once at connect by `seed_from_mailbox`, V2-606, and again on every real delivery) are cleared
+    ONLY by a full `stop()`. Reset (`widgets/reset.py` → `mensajeria/data.py::blank()`) wipes the widget's
+    `items` AND its durable `taken` ledger (V2-607) — but that is WIDGET-side, and never touches a
+    connector's own process state. So a message the connector already handed over once stays "already
+    delivered" forever from ITS point of view, even after Reset erases every trace of it from the widget:
+    `fetch_new(seen=_seen, ...)` skips it on every future poll. Measured: `taken` held zero `email:*` entries
+    at all — consistent with an earlier backfill delivered once, then orphaned by a Reset.
+  - **`reseed()`** (new) releases the most recent `BACKFILL`-sized (=30) currently-unread slice from
+    `_seen`/`_published` — the SAME shape a fresh connect already produces (V2-606), so this cannot flood the
+    widget with the whole backlog at once. `connectors/messaging/reseed.py::reseed_all()` fans out to every
+    connector that has one (today: only email); `nucleo/reset.py::reset_all()` fires it fire-and-forget,
+    wrapped in its own try/except, ONLY when mensajería actually had a store to blank.
+  - **WhatsApp/Telegram checked and deliberately NOT touched**: both are live-push, drain-once architectures
+    (a bridge queue drained server-side, a Telethon event fired once) with no durable "still unread on the
+    server" reservoir to re-poll — clearing their dedup sets would be a no-op, since the message is gone from
+    the transport, not merely masked by a Python set. Their own version of this problem (a Reset losing an
+    undelivered message with no recovery path) is real and harder, and stays open, not silently forgotten.
+  - **A second, separate cause in the same incident, NOT fixed here**: the model's tool call that turn was a
+    bare `show_widget(mensajeria)`, never the second `widget_data(show_view, {platform:"email"})` call the
+    manifest already declares and documents — a live routing/model-reasoning gap on one turn, not a missing
+    mechanism.
+  - **The dashboard default was checked and deliberately left alone**: the operator's own follow-up — for
+    direct (non-group) chats, "unread" and "directed at me" are nearly the same set, so V2-607's `highlight:
+    "direct"` default already covers most of what he described; not worth reopening yesterday's decision.
+  - Node **5.19** (12 cases across three files), full regression sweep of the touched area green (154 passed).
+  - **NOT verified live** — needs an engine restart. First check: with the real 1081-unread backlog still
+    orphaned, press Reset and confirm a fresh backlog lands on the next poll tick with no manual restart.
+
