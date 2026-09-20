@@ -6,15 +6,16 @@
 // era. Si hay un loader o una pantalla tiene que tener un progress bar o algo,
 // pero como mínimo debe durar dos segundos para que la gente lo vea».
 //
-// THE MECHANISM: for a preset language `prepare()` is instant, so the engine's
-// "detected" and "ready" events land in the same breath and the veil closed
-// 550 ms later — a flicker with nothing readable in it. `sse.js` now arms a
-// FLOOR on "detected" (store.LANG_LOADER_FLOOR_MS) and the veil cannot close
-// while it holds, however fast the language is ready.
+// AND HIS CORRECTION, the same evening, once it had a floor and a bar: «si no
+// hay que hacer nada para idiomas inicializados, mejor no mostrar NADA en ese
+// caso». Which is the better rule, and it is the one measured first here: for a
+// language that is already initialized the engine counts ZERO steps, and then
+// there is no screen, no floor and nothing to read — the picker he is looking
+// at simply fades. The floor is for a wait that is real.
 //
-// This MOUNTS the real sse.js handler over the real store.js, because the
-// floor is only worth anything if the transport actually arms it: a test that
-// called `beginLangOnboardLoading()` itself would pass with the wiring cut.
+// This MOUNTS the real sse.js handler over the real store.js, because both
+// halves are only worth anything if the transport actually decides them: a test
+// that called `beginLangOnboardLoading()` itself would pass with the wiring cut.
 //
 // Run: node tests/browser/unit/onboarding/test_the_preparing_screen_lasts_long_enough_to_read.mjs
 // ============================================================================
@@ -48,43 +49,57 @@ const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 assert.ok(store.LANG_LOADER_FLOOR_MS >= 2000,
   `«como mínimo debe durar dos segundos»: the floor is ${store.LANG_LOADER_FLOOR_MS} ms`);
 
-// ── the operator's own case: a PRESET language, ready in the same breath ─────────────────────────────────
+// ── 1. an ALREADY-INITIALIZED language: nothing to do, so nothing is shown ───────────────────────────────
 store.setLangOnboardOpen(true);
-const t0 = Date.now();
-push({ kind: "language", label: "detected", phase: "detected", code: "en", total: 1,
+push({ kind: "language", label: "detected", phase: "detected", code: "en", total: 0,
        loading: "Preparing English…", strings: {} });
 
-assert.equal(store.langOnboardPhase(), "detected");
-assert.equal(store.langOnboardLoading(), "Preparing English…", "the screen has to SAY what it is doing");
-assert.ok(store.langOnboardHold(), "THE BUG: nothing held the veil, so a fast language closed it instantly");
-assert.deepEqual(store.langOnboardProgress(), { done: 0, total: 1 },
+assert.equal(store.langOnboardPreparing(), false,
+  "THE BUG: a language with nothing to prepare still drew a preparing screen");
+assert.equal(store.langOnboardHold(), false,
+  "and held the veil open for two seconds to show it — «mejor no mostrar NADA en ese caso»");
+assert.equal(store.langOnboardProgress(), null, "there is no progress to report on no work");
+
+push({ kind: "language", label: "ready", phase: "ready", code: "en" });
+await sleep(700);
+assert.equal(store.langOnboardOpen(), false,
+  "with nothing to watch, the veil goes as soon as the language is ready");
+
+// ── 2. a language it has to BUILD: the screen appears, and it is readable ────────────────────────────────
+store.setLangOnboardOpen(true);
+const t0 = Date.now();
+push({ kind: "language", label: "detected", phase: "detected", code: "ja", total: 3,
+       loading: "準備しています…", strings: {} });
+
+assert.equal(store.langOnboardPreparing(), true, "a real wait earns a screen");
+assert.equal(store.langOnboardLoading(), "準備しています…", "the screen has to SAY what it is doing");
+assert.ok(store.langOnboardHold(), "THE BUG: nothing held the veil, so a fast finish closed it instantly");
+assert.deepEqual(store.langOnboardProgress(), { done: 0, total: 3 },
   "the bar needs its denominator from the first event, not once the steps start arriving");
 
 const before = fetched.length;
-push({ kind: "language", label: "progress", phase: "progress", done: 1, total: 1 });
-assert.deepEqual(store.langOnboardProgress(), { done: 1, total: 1 }, "a step must move the bar");
+push({ kind: "language", label: "progress", phase: "progress", done: 1, total: 3 });
+assert.deepEqual(store.langOnboardProgress(), { done: 1, total: 3 }, "a step must move the bar");
 assert.equal(fetched.length, before,
   "a progress report is not a language change: it must not refetch the bundle");
 
-push({ kind: "language", label: "ready", phase: "ready", code: "en" });
-assert.equal(store.langOnboardPhase(), "ready");
-
-// ready + the 550 ms fade would have unmounted it by now. It must still be up.
+// even if the rest finishes at once, the screen stays long enough to be read
+push({ kind: "language", label: "progress", phase: "progress", done: 3, total: 3 });
+push({ kind: "language", label: "ready", phase: "ready", code: "ja" });
 await sleep(900);
 assert.ok(store.langOnboardOpen(),
   `THE BUG: the screen was gone after ${Date.now() - t0} ms — «no sé qué era»`);
 assert.ok(store.langOnboardHold(), "and it is the floor holding it, not an accident of timing");
 
-// ── the floor expires on its own and the veil goes ───────────────────────────────────────────────────────
 await sleep(store.LANG_LOADER_FLOOR_MS - (Date.now() - t0) + 900);
 assert.equal(store.langOnboardHold(), false, "the floor must release itself");
 assert.equal(store.langOnboardOpen(), false,
   `the veil must close once it has been readable: ${Date.now() - t0} ms after the screen appeared`);
 assert.ok(Date.now() - t0 >= store.LANG_LOADER_FLOOR_MS, "and never before the floor");
 
-// ── a reconnect must not restart the clock he is already watching ────────────────────────────────────────
-push({ kind: "language", label: "detected", phase: "detected", code: "en", total: 1,
-       loading: "Preparing English…", strings: {} });
+// ── 3. a reconnect must not restart the clock he is already watching ─────────────────────────────────────
+push({ kind: "language", label: "detected", phase: "detected", code: "ja", total: 3,
+       loading: "準備しています…", strings: {} });
 assert.equal(store.langOnboardHold(), false, "a second «detected» must not re-arm a floor already served");
 
-console.log("ok: the preparing screen lasts long enough to read, and the bar has a real denominator");
+console.log("ok: nothing is shown for nothing, and a real wait is readable");

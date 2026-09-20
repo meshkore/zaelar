@@ -234,10 +234,15 @@ export function openSSE(desktop) {
         store.setLangOnboardPhase("detected");
         store.setLangOnboardLoading(d.loading || "");
         store.setLangOnboardStrings(d.strings || {});             // V2-672: the folder step's own words, early
-        // V2-731 — the preparing screen is about to appear: hold the veil for its floor. Without this,
-        // a preset language makes "ready" land in the same breath and the screen is a flicker.
-        if (d.total) store.setLangOnboardProgress({ done: 0, total: d.total | 0 });
-        store.beginLangOnboardLoading();
+        // V2-731/V2-732 — the engine counted what it actually has to GENERATE. Zero means this language is
+        // already initialized and there is nothing to watch: no screen, no floor, and the picker he is
+        // looking at simply fades when the language is ready. Only a real wait earns a screen, and a screen
+        // that appears gets the floor that makes it readable.
+        if ((d.total | 0) > 0) {
+          store.setLangOnboardProgress({ done: 0, total: d.total | 0 });
+          store.setLangOnboardPreparing(true);
+          store.beginLangOnboardLoading();
+        }
       } else if (d.phase === "ready") {
         store.setLangOnboardPhase("ready");
         // V2-672 — the modal is NOT unmounted here any more. The folder step (where to keep the files) runs

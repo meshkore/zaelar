@@ -452,6 +452,12 @@ let _floorArmed = false;
 // (an older engine, or the event lost) — the bar is indeterminate then rather than inventing a number.
 export const [langOnboardProgress, setLangOnboardProgress] = createSignal(null);
 
+// Is there anything to WATCH? False for a language that is already initialized — the engine says so by
+// counting zero steps — and then no preparing screen is drawn at all and no floor is armed. The operator,
+// after V2-731 showed him one for two seconds with nothing behind it: «si no hay que hacer nada para
+// idiomas inicializados, mejor no mostrar NADA en ese caso». The floor is for a wait that is real.
+export const [langOnboardPreparing, setLangOnboardPreparing] = createSignal(false);
+
 function _maybeCloseLangOnboard() {
   if (!_langReady || langOnboardHold()) return;
   setTimeout(() => setLangOnboardOpen(false), 550);   // let the CSS fade (.gone) play, then unmount

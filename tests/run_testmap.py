@@ -2267,15 +2267,17 @@ DOMAINS: list[dict] = [
         {"id": "4.168", "title": "Las dos puertas le piden a Google la MISMA dirección de vuelta",
             "ch": UNIT, "paths": [
                 "tests/browser/unit/agenda/test_both_doors_ask_google_for_the_SAME_return_address.py"]},
-        {"id": "4.194", "title": "La pantalla de preparación dura lo suficiente para leerla: suelo de 2,2 s "
-                                 "armado por el SSE, barra con el contador de pasos DEL MOTOR, y sin "
-                                 "denominador barre en vez de inventarse un número (V2-731)",
+        {"id": "4.194", "title": "Un idioma YA inicializado no enseña ninguna pantalla (V2-732) — y cuando "
+                                 "el trabajo es real, suelo de 2,2 s armado por el SSE, barra con el "
+                                 "contador de pasos DEL MOTOR, y sin denominador barre en vez de "
+                                 "inventarse un número (V2-731)",
             "ch": UNIT, "paths": [
                 "tests/browser/unit/onboarding/test_the_preparing_screen_lasts_long_enough_to_read.py"]},
         {"id": "4.162", "title": "El selector de idioma no instruye en ningún idioma: la marca pinta, en/es "
                                  "arriba y destacados, 40 filas que caben, el acento marca UN solo idioma "
                                  "— un clic lo MUEVE (V2-730) — y la pantalla de preparación trae una "
-                                 "barra que PINTA y se llena (V2-731)",
+                                 "barra que PINTA y se llena (V2-731), o no sale en absoluto si no hay "
+                                 "nada que preparar (V2-732)",
             "ch": UNIT, "paths": [
                 "tests/browser/e2e/onboarding/test_the_language_picker_has_no_words_of_ours.py"]},
         {"id": "4.161", "title": "El contrato del generador no contradice a su puerta, y una puerta en rojo "

@@ -15,7 +15,10 @@
 // alphabetical by native name. A spoken answer still works: the mic is live and the server classifies it the
 // same as any turn (i18n/init/detect.py), which is why this modal is an escape hatch and not the only door.
 //
-// Phases (store.langOnboardPhase): "ask" → "detected" → "ready".
+// Phases (store.langOnboardPhase): "ask" → "detected" → "ready". The phase is the ENGINE's account of
+// where the language is; what is on the card is decided by `view()` below, and since V2-732 the two are
+// not the same thing — a language that is already initialized runs through all three phases without ever
+// drawing a preparing screen, because there is nothing to prepare.
 //
 // Once a language is chosen the bundle and the alias pack generate in the background — instant for en/es, a
 // real wait for anything else. V2-672 puts the SECOND question in that gap, which is the operator's own
@@ -233,10 +236,18 @@ export function LanguageOnboarding() {
     ),
   );
 
+  // V2-732 — WHAT IS ON THE CARD, in order of who has the better claim to it.
+  //
+  // The order used to be keyed on the PHASE, which meant the folder question could only appear once the
+  // engine had said "detected" — an accident, not a rule — and, worse, that anything past "ask" fell
+  // through to the preparing screen. An already-initialized language has nothing to prepare, so that
+  // screen had nothing to say and said it anyway. Now: the question if it is ours to ask, the preparing
+  // screen only when there is real work to watch, and otherwise the picker he is already looking at, with
+  // his choice marked, until the veil fades. Nothing new is ever shown for nothing.
   const view = () => {
-    if (store.langOnboardPhase() === "ask") return askView();
     if (store.langOnboardHold() && folder()) return folderView();
-    return loadingView();
+    if (store.langOnboardPreparing()) return loadingView();
+    return askView();
   };
 
   return h("div", {

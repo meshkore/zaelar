@@ -29,18 +29,59 @@ def test_a_fast_language_still_leaves_a_screen_somebody_can_read():
     assert r.returncode == 0, (r.stdout or "") + (r.stderr or "")
 
 
-def test_the_engine_counts_its_own_preparation_steps():
-    """The denominator is the engine's, not a guess in the frontend.
+def test_an_already_initialized_language_has_nothing_to_prepare():
+    """«Si no hay que hacer nada para idiomas inicializados, mejor no mostrar NADA en ese caso.»
 
-    A preset only has its bundle; a new language also generates the alias pack
-    and the phrasebook — three steps, and the count travels WITH the first event
-    so the bar never grows its own scale halfway through.
+    Measured against the real module, not its source: a preset is zero steps by
+    construction, and a language we would have to build is not.
+    """
+    from i18n import runtime as rt
+    from i18n.init import aliases, detect, fillers
+
+    assert detect._pending_steps("en") == [], "en is initialized — there is nothing to show a screen for"
+    assert detect._pending_steps("es") == [], "es likewise"
+    assert "en" in rt.PRESET and "es" in rt.PRESET, "and they are zero by CONSTRUCTION, not by disk state"
+
+    # The opposite case is stated, not sampled: `i18n/generated/` is NOT sandboxed by the root conftest
+    # (measured 2026-09-20), so asking the disk here would make the verdict depend on which languages this
+    # machine happens to have tried.
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(rt, "missing_keys", lambda code: ["boot.encendiendo"])
+        mp.setattr(aliases, "read", lambda code: {})
+        mp.setattr(fillers, "read_smalltalk", lambda code: {})
+        assert detect._pending_steps("ja") == ["bundle", "aliases", "smalltalk"], \
+            "a language with no bundle, no alias pack and no phrasebook is three real pieces of work"
+        mp.setattr(rt, "missing_keys", lambda code: [])
+        mp.setattr(aliases, "read", lambda code: {"agenda": ["yotei"]})
+        assert detect._pending_steps("ja") == ["smalltalk"], \
+            "and one that only lacks its phrasebook is ONE — the count is of work, not of languages"
+
+
+def test_each_check_mirrors_the_early_return_of_the_step_it_stands_for():
+    """The count cannot claim work that will not happen, and cannot miss work that will.
+
+    Each `ensure_*` returns immediately when its artefact is already on disk;
+    `_pending_steps` asks the same question with the same reader. If one of them
+    grows a second reason to no-op, this is the test that should fail.
     """
     src = DETECT.read_text(encoding="utf-8")
-    assert "steps_total = 1 if code in _rt.PRESET else 3" in src, \
-        "the step count must follow what the preparation actually does"
+    body = src[src.index("def _pending_steps("):src.index("async def lock(")]
+    assert "_rt.PRESET" in body and "missing_keys" in body, "the bundle's own early returns"
+    assert "_aliases.read(" in body, "the alias pack is asked whether it exists"
+    assert "read_smalltalk" in body, "so is the phrasebook"
+    # an unreadable store means UNKNOWN, and unknown means we are going to work — never the other way
+    assert body.count("steps.append") == 6, \
+        "every check appends on failure too: a missed step is a wait with no screen"
     assert '"phase": "progress"' in src, "each finished step has to be reported"
     assert '"total": steps_total' in src, "the first event carries the denominator"
+
+
+def test_a_step_that_was_not_pending_is_never_reported_as_progress():
+    """A no-op that returns in a millisecond is not progress; counting it would put a bar on a screen
+    with nothing behind it."""
+    src = DETECT.read_text(encoding="utf-8")
+    assert "if not onboarding or name not in pending:" in src, \
+        "only PENDING steps may move the bar"
 
 
 def test_a_progress_report_never_carries_the_language_code():
@@ -50,7 +91,7 @@ def test_a_progress_report_never_carries_the_language_code():
     screen whose only job is to say how far along it is.
     """
     body = DETECT.read_text(encoding="utf-8")
-    start = body.index("    def _step() -> None:")
+    start = body.index("    def _step(name: str) -> None:")
     end = body.index("    if onboarding:", start)
     assert '"code"' not in body[start:end], \
         "the progress event must not carry `code` — see sse.js's applyLang"

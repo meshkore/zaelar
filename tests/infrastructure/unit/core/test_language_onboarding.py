@@ -62,17 +62,13 @@ def test_onboarding_lock_for_a_preset_language_skips_translation_and_alias_gener
     assert translate_calls == [], "must not translate a PRESET language"
     assert alias_calls == [], "must not generate an alias pack for a PRESET language"
     phases = [kw.get("extra", {}).get("phase") for _, kw in events]
-    # V2-731 — the preparing screen reports the engine's own steps, so a preset emits its ONE step in
-    # between. The order still has to be detected → … → ready: the bar cannot move before it exists.
-    assert phases == ["detected", "progress", "ready"], f"wrong order: {phases}"
+    assert phases == ["detected", "ready"], f"wrong order: {phases}"
     assert events[0][1]["extra"]["loading"] == "Preparando el agente, la interfaz y las comunicaciones en tu idioma…"
-    assert events[0][1]["extra"]["total"] == 1, (
-        "a PRESET language only has its bundle to prepare — a denominator of 3 would leave the bar "
-        "stopped at a third on a screen that is already done")
-    assert events[1][1]["extra"] == {"phase": "progress", "done": 1, "total": 1}, events[1][1]["extra"]
-    assert "code" not in events[1][1]["extra"], (
-        "sse.js re-applies the language on any language event carrying a code — a progress report with "
-        "one refetches the bundle once per step")
+    # V2-732 — and it says there is NOTHING to prepare, which is what stops the frontend drawing a
+    # preparing screen at all. The operator: «si no hay que hacer nada para idiomas inicializados, mejor
+    # no mostrar NADA en ese caso». A step reported here would be a screen with nothing behind it.
+    assert events[0][1]["extra"]["total"] == 0, events[0][1]["extra"]
+    assert "progress" not in phases, "a no-op that returns in a millisecond is not progress"
 
 
 def test_onboarding_lock_for_a_new_language_translates_the_loading_line_before_the_full_bundle(monkeypatch):
@@ -118,12 +114,22 @@ def test_onboarding_lock_for_a_new_language_translates_the_loading_line_before_t
     assert res["confirm_text"] == "準備完了です。"
     phases = [kw.get("extra", {}).get("phase") for _, kw in events]
     assert phases[0] == "detected" and phases[-1] == "ready", f"wrong order: {phases}"
-    # V2-731 — a language we have to BUILD is three steps (bundle, alias pack, phrasebook), and this is
-    # exactly the case where the wait is real and the bar is worth having.
-    assert events[0][1]["extra"]["total"] == 3, events[0][1]["extra"]
+    # V2-731/V2-732 — a language we have to BUILD is where the wait is real and the bar is worth having.
+    # The denominator is whatever this language actually lacks; what is pinned is that it is NOT zero, that
+    # it travels with the first event, and that every step reported matches it. (The exact number is not
+    # asserted on purpose: `i18n/generated/` is not sandboxed by the root conftest — measured 2026-09-20 —
+    # so a literal here would pass or fail on which languages this machine has tried before.)
+    total = events[0][1]["extra"]["total"]
+    assert total == len(detect._pending_steps("ja")) >= 1, events[0][1]["extra"]
     steps = [kw["extra"]["done"] for _, kw in events if kw.get("extra", {}).get("phase") == "progress"]
-    assert steps == sorted(set(steps)) and steps[:2] == [1, 2], (
+    assert steps == list(range(1, len(steps) + 1)), (
         f"the steps must arrive once each and in order, never jumping backwards: {steps}")
+    assert all(kw["extra"]["total"] == total for _, kw in events
+               if kw.get("extra", {}).get("phase") == "progress"), "the scale must never move mid-run"
+    assert all("code" not in kw["extra"] for _, kw in events
+               if kw.get("extra", {}).get("phase") == "progress"), (
+        "sse.js re-applies the language on any language event carrying a code — a progress report with "
+        "one refetches the bundle once per step")
     assert events[0][1]["extra"]["loading"] == "準備しています…"
     assert events[0][1]["extra"]["strings"]["onboarding.folder.skip"] == "スキップ", (
         "the folder step runs DURING this wait, so its words have to travel with the same event")

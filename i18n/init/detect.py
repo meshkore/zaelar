@@ -223,6 +223,45 @@ async def _priority_translate(code: str) -> dict:
         return {}
 
 
+def _pending_steps(code: str) -> list[str]:
+    """What locking `code` will actually have to GENERATE — the list is the preparing screen's reason to
+    exist (V2-731/V2-732).
+
+    Empty means the language is already initialized and locking it is bookkeeping: settings, the memory's
+    canonical language and an SSE event, all of which take a millisecond. The operator must then see NO
+    screen at all — his words, after being shown one for two seconds with nothing behind it: *«si no hay
+    que hacer nada para idiomas inicializados, mejor no mostrar NADA en ese caso»*.
+
+    Every check here is a cheap read that mirrors the early return of the step it stands for, so the count
+    cannot claim work that will not happen: `ensure_language` returns immediately for a PRESET or a bundle
+    with no missing keys, `ensure_aliases` when a pack is already on disk, `ensure_smalltalk` when a
+    phrasebook is. Asking each of them is a file read; getting it wrong is a screen that lies.
+    """
+    from i18n import runtime as _rt
+
+    if code in _rt.PRESET:
+        return []
+    steps: list[str] = []
+    try:
+        if _rt.missing_keys(code):
+            steps.append("bundle")
+    except Exception:  # noqa: BLE001 — unreadable means unknown, and unknown means we ARE going to work
+        steps.append("bundle")
+    try:
+        from i18n.init import aliases as _aliases
+        if not _aliases.read(code):
+            steps.append("aliases")
+    except Exception:  # noqa: BLE001
+        steps.append("aliases")
+    try:
+        from i18n.init import fillers as _fillers
+        if not (_fillers.read_smalltalk(code) or {}).get("intents"):
+            steps.append("smalltalk")
+    except Exception:  # noqa: BLE001
+        steps.append("smalltalk")
+    return steps
+
+
 async def lock(code: str, *, onboarding: bool = False) -> dict:
     """Commit the detected language: persist it, prepare its UI bundle (+ alias pack for non-preset languages,
     V2-101), and tell the frontend to switch. Idempotent enough — once persisted, should_detect() goes False so
@@ -262,21 +301,25 @@ async def lock(code: str, *, onboarding: bool = False) -> dict:
         logger.warning(f"i18n.detect: could not set the memory's canonical language: {e}")
 
     early: dict = {}
-    # V2-731 — how many steps the preparing screen has to report. A preset only has its bundle (already on
-    # disk); a new language also generates the alias pack and the phrasebook. The count travels WITH the
-    # first event so the bar has a denominator from the moment it appears, rather than growing one as it
-    # goes and jumping backwards.
-    from i18n import runtime as _rt              # local, like every other runtime touch in this module
-    steps_total = 1 if code in _rt.PRESET else 3
+    # V2-731 — what this language actually has to GENERATE, counted BEFORE anything runs. The count travels
+    # with the first event so the bar has a denominator from the moment it appears instead of growing one
+    # as it goes; and **zero means the operator is shown nothing at all** (V2-732, his correction: «si no
+    # hay que hacer nada para idiomas inicializados, mejor no mostrar NADA en ese caso»). A preset is zero
+    # by construction — `ensure_language` returns on its first line for one — and the two packs are asked
+    # whether they exist, which is a file read each.
+    pending = _pending_steps(code)
+    steps_total = len(pending)
     steps_done = 0
 
-    def _step() -> None:
-        """One step of the preparation finished. Carries NO `code`: the frontend re-applies the language on
-        any language event that has one, and this event is a progress report, not a language change."""
+    def _step(name: str) -> None:
+        """One step of the preparation finished. Reports only steps that were PENDING: a no-op that returns
+        in a millisecond is not progress, and counting it would put a bar on a screen with nothing behind
+        it. Carries NO `code` — the frontend re-applies the language on any language event that has one,
+        and this is a progress report, not a language change."""
         nonlocal steps_done
-        steps_done += 1
-        if not onboarding:
+        if not onboarding or name not in pending:
             return
+        steps_done += 1
         try:
             from voice.observer import emit
             emit("language", "progress", role="system",
@@ -299,7 +342,7 @@ async def lock(code: str, *, onboarding: bool = False) -> dict:
         await _init.prepare(code)                   # generate/upgrade the UI bundle (preset → instant)
     except Exception as e:  # noqa: BLE001
         logger.warning(f"i18n.detect: prepare('{code}') failed: {e}")
-    _step()
+    _step("bundle")
     # Alias-pack generation (V2-101) is scoped to ONBOARDING only, not every lock() — a plain ⚙ switch or a
     # repeat background detection must stay exactly as cheap as it always was; this is deliberately not
     # "whenever the language changes" but "as part of the first-run setup ceremony".
@@ -309,10 +352,10 @@ async def lock(code: str, *, onboarding: bool = False) -> dict:
             if code not in _rt.PRESET:
                 from i18n.init import aliases as _aliases
                 await _aliases.ensure_aliases(code)      # the widget-name voice-command pack
-                _step()
+                _step("aliases")
                 from i18n.init import smalltalk as _smalltalk
                 await _smalltalk.ensure_smalltalk(code)  # the phrasebook (V2-674) — greetings, thanks, goodbye
-                _step()
+                _step("smalltalk")
         except Exception as e:  # noqa: BLE001
             logger.warning(f"i18n.detect: language packs for '{code}' failed: {e}")
 

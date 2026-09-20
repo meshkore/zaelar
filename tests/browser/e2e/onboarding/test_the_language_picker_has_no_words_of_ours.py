@@ -246,6 +246,11 @@ def test_the_first_screen_marks_ONE_language_and_a_click_moves_the_mark(playwrig
         "the two shipped rows cannot look identical — one of them is the chosen one")
 
     async def click_spanish(pg):
+        # keep step two out of the way: since V2-732 the folder question appears as soon as the server says
+        # this deployment may choose a folder, and this test is about the picker.
+        await pg.route("http://zaelar.test/api/library/base", lambda r: asyncio.ensure_future(
+            r.fulfill(status=200, content_type="application/json",
+                      body=json.dumps({"ok": True, "can_choose": False}))))
         await pg.click('.lang-onb-pinned .lang-onb-row[lang="es"]')
         await pg.wait_for_function(
             '() => document.querySelector(\'.lang-onb-row[lang="es"]\').classList.contains("sel")')
@@ -300,6 +305,7 @@ def _run_bar(after_detected="", can_choose=False):
               window.__store.setLangOnboardPhase("detected");
               window.__store.setLangOnboardLoading("Preparando espanol…");
               window.__store.setLangOnboardProgress({ done: 0, total: 3 });
+              window.__store.setLangOnboardPreparing(true);   // sse.js does this only when total > 0
             }""")
             await pg.wait_for_function("() => !!document.querySelector('.lang-onb-bar')")
             if after_detected:
@@ -310,6 +316,48 @@ def _run_bar(after_detected="", can_choose=False):
             await b.close()
             return out
     return asyncio.run(go())
+
+
+def test_a_language_with_nothing_to_prepare_shows_no_screen_at_all(playwright_available):
+    """The operator's correction, once the screen had a floor and a bar (2026-09-20): *«si no hay que hacer
+    nada para idiomas inicializados, mejor no mostrar NADA en ese caso»*.
+
+    The engine counts ZERO steps for a language it does not have to generate, and then nothing new is
+    drawn: he keeps looking at the picker, with the choice he just made marked on it, until the veil fades.
+    """
+    async def go():
+        from playwright.async_api import async_playwright
+        async with async_playwright() as pw:
+            b, pg, errors = await _boot(pw)
+            await pg.route("http://zaelar.test/api/library/base", lambda r: asyncio.ensure_future(
+                r.fulfill(status=200, content_type="application/json",
+                          body=json.dumps({"ok": True, "can_choose": False}))))
+            await pg.click('.lang-onb-pinned .lang-onb-row[lang="es"]')
+            # exactly what sse.js does for total 0: the phases move, nothing is armed, nothing is set
+            await pg.evaluate("""() => {
+              window.__store.setLangOnboardPhase("detected");
+              window.__store.setLangOnboardPhase("ready");
+            }""")
+            await pg.wait_for_timeout(300)
+            out = await pg.evaluate("""() => ({
+              bar: !!document.querySelector(".lang-onb-bar"),
+              spinner: !!document.querySelector(".lang-onb-spinner"),
+              loading: !!document.querySelector(".lang-onb-loading"),
+              folder: !!document.querySelector(".lang-onb-folder"),
+              rows: document.querySelectorAll(".lang-onb-row").length,
+              marked: [...document.querySelectorAll(".lang-onb-row")]
+                        .filter(x => x.classList.contains("sel")).map(x => x.getAttribute("lang")),
+            })""")
+            out["errors"] = errors
+            await b.close()
+            return out
+    m = asyncio.run(go())
+    assert not m["errors"], f"page errors: {m['errors']}"
+    assert not m["bar"] and not m["spinner"] and not m["loading"], (
+        f"nothing to prepare must show NO preparing screen: {m}")
+    assert not m["folder"], "and this deployment cannot choose a folder either"
+    assert m["rows"] >= 40, "he is still looking at the picker — nothing new appeared and nothing vanished"
+    assert m["marked"] == ["es"], "with the choice he just made still marked on it"
 
 
 def test_the_preparing_screen_carries_a_bar_that_paints_and_fills(playwright_available):
