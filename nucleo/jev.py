@@ -48,12 +48,15 @@ shows when Jev was asked, how long it took and what it answered.
 """
 from __future__ import annotations
 
+import itertools
 import json
 import os
 import threading
 import time
 import urllib.request
 from pathlib import Path
+
+_PROC_TAG = f"{int(time.time()) % 100000:05d}"
 
 ENDPOINT = "https://api.typesafe.ai/v1/systemone"
 MODEL = "jev-latest"
@@ -83,6 +86,17 @@ KIND_MAP: dict[str, str] = {
 }
 
 MIN_CONFIDENCE = 0.5  # below this the verdict is a shrug: keep the regex class, log the doubt
+
+_CALL_SEQ = itertools.count(1)
+
+
+def new_call_id() -> str:
+    """A short id for ONE round trip, so the ASK and every READ of it can be joined.
+
+    V2-726's audit could only attribute two events in a real session to the same turn by their
+    timestamps — «temporal, not a durable join», which is not evidence. Monotonic per process and
+    prefixed with the process start, because two engines write into the same timeline."""
+    return f"{_PROC_TAG}-{next(_CALL_SEQ)}"
 
 
 def _engine_root() -> Path:
@@ -231,17 +245,22 @@ def _parse(payload: dict, *, answer_key: str = "request_type",
 
 def _emit(text: str, *, choice: str, confidence: float, probs: dict,
           latency_ms: int, error: str = "", question_id: str = "request-type",
-          pool: str = "") -> None:
+          pool: str = "", per_question: dict | None = None, call_id: str = "") -> None:
     try:
         from voice.observer import emit
+        extra = {"cat": "flash", "choice": choice, "confidence": round(confidence, 3),
+                 "probabilities": probs, "latency_ms": latency_ms,
+                 "pool": pool or KIND_MAP.get(choice, ""), "error": error[:80]}
+        if per_question:
+            extra["per_question"] = per_question
+        if call_id:
+            extra["call_id"] = call_id
         emit(
             "brain", f"jev {question_id}",
             text=f"{text[:100]} -> {choice or 'none'} ({confidence:.2f}, {latency_ms} ms)"
             + (f" [error: {error[:80]}]" if error else ""),
             role="system",
-            extra={"cat": "flash", "choice": choice, "confidence": round(confidence, 3),
-                   "probabilities": probs, "latency_ms": latency_ms,
-                   "pool": pool or KIND_MAP.get(choice, ""), "error": error[:80]},
+            extra=extra,
         )
     except Exception:
         pass
@@ -297,27 +316,37 @@ def choose_many_sync(state: str, questions: dict, *, timeout_s: float | None = N
         raise JevBriefTooBig(f"{len(questions)} questions > MAX_QUESTIONS ({MAX_QUESTIONS})")
     if len(state) > MAX_STATE_CHARS:
         raise JevBriefTooBig(f"state is {len(state)} chars > MAX_STATE_CHARS ({MAX_STATE_CHARS})")
+    call_id = new_call_id()
     t0 = time.monotonic()
     try:
         payload = _post_many(state, questions, _timeout_s() if timeout_s is None else timeout_s)
     except Exception as e:  # noqa: BLE001 — no caller may ever break on a classifier
         _emit(state, choice="", confidence=0.0, probs={},
               latency_ms=int((time.monotonic() - t0) * 1000),
-              error=f"{type(e).__name__}: {e}", question_id=question_id)
+              error=f"{type(e).__name__}: {e}", question_id=question_id, call_id=call_id)
         _note_failure()
         return None
     _note_success()
     latency_ms = int((time.monotonic() - t0) * 1000)
-    out: dict = {"_latency_ms": latency_ms}
+    out: dict = {"_latency_ms": latency_ms, "_call_id": call_id, "_ready_at": time.time()}
     for key, q in questions.items():
         choice, confidence, probs = _parse(payload, answer_key=key, allowed=q["criteria"])
         out[key] = {"choice": choice, "confidence": confidence, "probs": probs}
     # ONE event for the whole brief: N events for one trip would read like N trips in the timeline,
     # which is exactly the fact this design exists to change.
+    #
+    # ⚠️ The `confidence` field used to be `max()` over the questions, and V2-726's audit found that
+    # it cannot answer the only question the event exists for: whether an individual consumer's
+    # verdict crossed ITS threshold. One sure canvas verb hid three unsure ones behind a 0.99. The
+    # maximum stays in the headline number (the event schema has one), but every question's own
+    # confidence now travels in `extra.per_question`, which is what a report reads.
     _emit(state, choice=",".join(f"{k}={out[k]['choice'] or '-'}" for k in questions),
           confidence=max((out[k]["confidence"] for k in questions), default=0.0),
           probs={k: out[k]["probs"] for k in questions}, latency_ms=latency_ms,
-          question_id=f"{question_id} ({len(questions)}q)")
+          question_id=f"{question_id} ({len(questions)}q)",
+          per_question={k: {"choice": out[k]["choice"],
+                            "confidence": round(out[k]["confidence"], 3)} for k in questions},
+          call_id=out["_call_id"])
     return out
 
 
@@ -355,9 +384,31 @@ def select_many(candidates, criteria: str, *, key=None, label=None,
     else in this module. Raises `JevBriefTooBig` past `MAX_QUESTIONS` rather than truncating, so a
     caller with a thousand rows pages them instead of silently scoring the first hundred.
     """
+    return select_many_status(candidates, criteria, key=key, label=label, timeout_s=timeout_s,
+                              min_confidence=min_confidence)[0]
+
+
+#: What a selection round can END as. `[]` said all five of these at once, and the caller could not
+#: tell «nothing fits» (a real answer, act on it) from «the service was not there» (no answer, ask).
+#: V2-726 A6a gives them names; A1 generalises them to every bounded decision in the engine.
+SELECTED, NO_MATCH, UNAVAILABLE, DISABLED, EMPTY = (
+    "selected", "no_match", "unavailable", "disabled", "empty")
+
+
+def select_many_status(candidates, criteria: str, *, key=None, label=None,
+                       timeout_s: float | None = None,
+                       min_confidence: float = MIN_CONFIDENCE) -> tuple[list, str]:
+    """`select_many` plus the STATUS of the round: `(rows, status)`.
+
+    The audit's finding 8, and it is the difference between two opposite behaviours: with nothing to
+    offer, `task_recall` must SAY «nothing like it» when the chooser ran and rejected everything, and
+    must ASK when the chooser never ran. Both looked like `[]`.
+    """
     items = list(candidates or [])
-    if not items or not (criteria or "").strip() or not enabled():
-        return []
+    if not items or not (criteria or "").strip():
+        return [], EMPTY
+    if not enabled():
+        return [], DISABLED
     _label = label or (lambda c: str(c))
     _key = key or (lambda c: items.index(c))
     questions = {}
@@ -373,7 +424,7 @@ def select_many(candidates, criteria: str, *, key=None, label=None,
         }
     verdicts = choose_many_sync(criteria, questions, timeout_s=timeout_s, question_id="select")
     if not verdicts:
-        return []
+        return [], UNAVAILABLE          # network, timeout, open breaker: the chooser never ran
     out = []
     for qid, cand in index.items():
         v = verdicts.get(qid) or {}
@@ -381,7 +432,7 @@ def select_many(candidates, criteria: str, *, key=None, label=None,
             out.append({"key": _key(cand), "candidate": cand, "fit": "strong",
                         "confidence": v.get("confidence", 0.0)})
     out.sort(key=lambda r: -r["confidence"])
-    return out
+    return out, (SELECTED if out else NO_MATCH)
 
 
 def ask_many(state: str, questions: dict, *, name: str = "jev-brief",
@@ -399,16 +450,71 @@ def read(handle: dict | None, key: str, fallback, *, min_confidence: float = MIN
     Never waits — a brief still in flight, failed, disabled, or missing this key reads as the
     fallback, which is today's path. Returns `(choice, info)`; `info["used"]` says which it was,
     so the observability trail can attribute a misfire to the reader rather than to the model.
+
+    AND IT SAYS SO OUT LOUD (V2-726 A6a). `info["used"]` existed and every consumer in the engine
+    threw it away, so the timeline recorded that Jev was ASKED and never whether the answer was
+    used — the one fact needed to say whether any of this is worth its round trip. One bounded
+    event per (call_id, key), with WHY: used · unsure · absent · in_flight · off.
     """
     verdict = peek(handle)
     if not verdict or key not in verdict:
+        why = "in_flight" if (handle and not _is_ready(handle)) else ("absent" if handle else "off")
+        _emit_read(handle, key, used=False, why=why, confidence=0.0, choice="")
         return fallback, None
     ans = verdict[key] or {}
     if not ans.get("choice"):
+        _emit_read(handle, key, used=False, why="no_choice", confidence=0.0, choice="")
         return fallback, ans
     if ans.get("confidence", 0.0) < min_confidence:
+        _emit_read(handle, key, used=False, why="unsure",
+                   confidence=ans.get("confidence", 0.0), choice=ans["choice"])
         return fallback, {**ans, "used": False}
+    _emit_read(handle, key, used=True, why="used",
+               confidence=ans.get("confidence", 0.0), choice=ans["choice"])
     return ans["choice"], {**ans, "used": True}
+
+
+def _is_ready(handle) -> bool:
+    try:
+        return bool(handle["event"].is_set())
+    except Exception:  # noqa: BLE001
+        return False
+
+
+_READ_SEEN: set = set()          # (call_id, key) — one event per verdict per reader, never a loop
+_READ_SEEN_MAX = 512
+
+
+def _emit_read(handle, key: str, *, used: bool, why: str, confidence: float, choice: str) -> None:
+    """One bounded event per verdict READ. Bounded twice: deduped on (call_id, key), and the set of
+    seen pairs is capped — a reader in a loop must not be able to fill the operator's timeline."""
+    try:
+        call_id = (handle or {}).get("_call_id") or ""
+        if not call_id:
+            v = peek(handle) or {}
+            call_id = v.get("_call_id") or ""
+        turn_id = (handle or {}).get("turn_id") or ""
+        seen_key = (call_id, key)
+        if call_id:
+            if seen_key in _READ_SEEN:
+                return
+            if len(_READ_SEEN) >= _READ_SEEN_MAX:
+                _READ_SEEN.clear()
+            _READ_SEEN.add(seen_key)
+        from voice.observer import emit
+        emit("brain", f"jev read {key}",
+             text=f"{choice or '-'} -> {'USED' if used else why} ({confidence:.2f})",
+             role="system",
+             extra={"cat": "flash", "call_id": call_id, "turn_id": turn_id, "question": key,
+                    "used": bool(used), "why": why, "confidence": round(confidence, 3),
+                    "choice": choice})
+    except Exception:  # noqa: BLE001 — observability may never break a turn
+        pass
+
+
+def reset_read_events() -> None:
+    """Tests: forget which verdicts have already been reported."""
+    _READ_SEEN.clear()
 
 
 def choose_sync(answer_key: str, text: str, *, instructions: str, criteria: dict,

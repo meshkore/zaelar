@@ -1372,6 +1372,16 @@ DOMAINS: list[dict] = [
                                   # tarea, y eso no lo afirmaba nadie.
                                   "tests/agent_headless/unit/test_the_flat_hunt_he_told_me_about.py",
                                   ]},
+        # V2-726 A6a (2026-09-20) — la auditoría preguntó lo único que decide si todo esto vale su viaje
+        # («¿qué veredicto cambió qué desenlace?») y el motor no podía contestar: el evento del brief
+        # reportaba la confianza MÁXIMA de todas sus preguntas (una segura tapaba tres inseguras), los dos
+        # lectores tiraban el `info["used"]` que ya calculaban, ningún handle llevaba id —así que dos
+        # eventos de una sesión real solo se podían atribuir al mismo turno por sus relojes— y
+        # `select_many` devolvía `[]` para «nada encaja», «sin clave», «sin red» y «apagado», que son dos
+        # respuestas y dos ausencias y piden conductas opuestas. Este nodo fija que cada una deja un
+        # registro DISTINTO y acotado. No afirma que los veredictos sean buenos: eso es A6b.
+        {"id": "3.66", "title": "Una decisión de Jev es atribuible, y el registro dice si se USÓ: call_id + turno, confianza por pregunta, un evento por lectura, y «nada encaja» ≠ «no contestó nadie»",
+            "ch": UNIT, "paths": ["tests/voice/unit/test_a_jev_verdict_says_whether_it_was_used.py"]},
         {"id": "3.65", "title": "Jev SELECCIONA sobre datos parseados en un viaje (identidad dentro de cada pregunta) — y la llamada deja de tirar trabajo pagado",
             "ch": UNIT, "paths": ["tests/voice/unit/test_jev_selects_over_data.py"]},
         # V2-717 — session c502d3ff (2026-09-17 20:57): «Let me check your Telegram to see what Ivan asked» three

@@ -30,6 +30,9 @@ from nucleo import tasks as _tasks
 #: is also the point past which ASKING stops being usable: a question listing eight reports is not a question.
 MAX_CANDIDATES = 5
 
+#: The chooser ran and rejected every candidate — an ANSWER, not an absence. See `resolve`.
+_JEV_NO_MATCH = "no_match"
+
 
 def candidates(query: str, limit: int = MAX_CANDIDATES) -> list[dict]:
     """The finished commissions this phrase could be about. Lexical only — no model, no network."""
@@ -66,21 +69,28 @@ def resolve(query: str, *, limit: int = MAX_CANDIDATES) -> dict:
         return {"ok": True, "task": rows[0], "how": "único"}
     try:
         from nucleo import jev as _jev
-        picked = _jev.select_many(
+        picked, status = _jev.select_many_status(
             rows,
             criteria=(f"El operador se refiere a una tarea que ya le encargó antes y dice: «{q}». "
                       f"¿Es ESTE el encargo del que habla?"),
             key=lambda r: r["id"], label=_label)
     except Exception:  # noqa: BLE001 — the chooser is advisory; without it we ask, which is the safe answer
-        picked = []
+        picked, status = [], "unavailable"
     if len(picked) == 1:
         chosen = next((r for r in rows if r["id"] == picked[0]["key"]), None)
         if chosen:
-            return {"ok": True, "task": chosen, "how": "jev", "confidence": picked[0].get("confidence")}
+            return {"ok": True, "task": chosen, "how": "jev", "status": status,
+                    "confidence": picked[0].get("confidence")}
     # Nobody fits, or several do equally well. Both are questions, and the SHORTLIST is what makes the
     # question answerable — if Jev narrowed it at all, ask about those and not about all five.
+    #
+    # ⚠️ V2-726 A6a: `status` is why the shortlist can be trusted. `[]` used to mean BOTH «the chooser
+    # looked and rejected all five» and «the chooser never ran» (no key, open breaker, network down),
+    # and those call for opposite answers — the first has been narrowed, the second has not been
+    # looked at at all. `how` now says which happened, so the phrasing above it can too.
     shortlist = [r for r in rows if any(p["key"] == r["id"] for p in picked)] or rows
-    return {"ok": False, "ask": shortlist, "how": "jev" if picked else "índice"}
+    how = "jev" if picked else ("índice" if status == _JEV_NO_MATCH else "sin-chooser")
+    return {"ok": False, "ask": shortlist, "how": how, "status": status}
 
 
 def reopen(task: dict) -> dict:
