@@ -103,3 +103,84 @@ def escalation_text(operator_text: str, turn_text: str) -> str:
     if _router.looks_like_marketplace_nav(words) or _router.looks_like_modify_widget(words):
         return words
     return ""
+
+
+# ── V2-726 A3 · a commission is RESOLVED, never silently cleared ─────────────────────────────────
+#: What became of a commission the model proposed. Every one of them ends as exactly one of these,
+#: and the disposition is emitted — a commission that simply disappears is the engine's oldest
+#: failure («it says it will and it doesn't»), and until now an annulled one left one log line.
+DELEGATED = "delegated"                  # a worker was launched: the task row of V2-728 owns it
+HANDLED_INLINE = "handled_inline"        # the turn produced a concrete result of its own
+PROMISED = "promised"                    # the reply committed to it: it may NOT be annulled
+UNRESOLVED = "unresolved"                # nothing acted, nothing promised: kept, which escalates
+
+
+def annulment_verdict(jev_choice: str, *, reply: str, acted: bool,
+                      anything_running: bool) -> dict:
+    """May a confident `handle_inline` annul this commission? `{annul, disposition, why}`.
+
+    THE DEFECT THIS EXISTS FOR (V2-726 audit, finding 4). The gate ran AFTER the model had answered
+    and after speech had usually started, and a confident `handle_inline` cleared `v` and every
+    entry of `more`. But a turn that carried an escalation normally REPLIED with a promise — «te lo
+    busco», «me pongo con ello» — so annulling it produced the exact shape this engine has spent
+    three initiatives closing: a promise the operator heard, with nothing on the board behind it.
+    `handle_inline` means «this needs no worker». It does not mean «this is already done».
+
+    So the annulment now needs EVIDENCE, and the evidence is local and deterministic — no second
+    model, no reasoner asked to referee, nothing the audit warned against:
+
+      · the reply PROMISED something (`promises_action` / `promises_music` / `looks_like_show_strict`
+        over a promise, or `a_promise_left_hanging`) → the commission stays. A promise is a debt.
+      · the turn ACTED (a widget op, a data read, a search, a listing) or a worker is already
+        running → there IS an inline result, and `handle_inline` is describing it correctly.
+      · neither → the commission stays. That is today's path and the safe side of this gate, which
+        its own instructions already state: «a missed errand is worse than a wasted question».
+
+    Note the direction: this can only make the gate MORE conservative — it never annuls something
+    that survives today. That is why it enforces immediately instead of shadowing. A shadow is for a
+    change that can newly DO something; this one only declines to undo.
+    """
+    if (jev_choice or "") != "handle_inline":
+        return {"annul": False, "disposition": DELEGATED, "why": "verdict-keeps-it"}
+    if reply_promises(reply, acted=acted, anything_running=anything_running):
+        return {"annul": False, "disposition": PROMISED, "why": "reply-promised"}
+    if acted or anything_running:
+        return {"annul": True, "disposition": HANDLED_INLINE,
+                "why": "acted" if acted else "worker-running"}
+    return {"annul": False, "disposition": UNRESOLVED, "why": "no-evidence"}
+
+
+def reply_promises(reply: str, *, acted: bool = False, anything_running: bool = False) -> bool:
+    """Did OUR reply commit to something that is NOT already covered? The three existing detectors.
+
+    They are reused rather than re-implemented (V2-252's parallel-implementation rule), and each
+    already carries the incident that shaped it: `promises_action` (polite/subjunctive turns where
+    the model chatted a promise and called no tool), `promises_music` («te pongo algo de rock» with
+    no player touched) and `a_promise_left_hanging` («déjame que lo mire» with nothing running).
+
+    ⚠️ COVERED is the load-bearing word, and the engine's own rule, not a new one:
+    `a_promise_left_hanging` already exonerates a promise when the turn ACTED or a worker is
+    running, because a promise over live work is honest — «sigo con ello» while a worker runs is a
+    true statement, not a debt. Passing the real flags through keeps the two gates agreeing instead
+    of inventing a stricter local variant.
+
+    ⚠️ And negation is applied HERE to the look-promise regex. `promises_action` runs through
+    `unnegated_match` (V2-534 §1); `a_promise_left_hanging` does not, so «no voy a buscarlo, no hace
+    falta» reads as a promise to it. Measured while writing this gate's tests. The shared backstop is
+    left alone — for ITS purpose a false positive only costs a nudge — and this gate applies the
+    engine's existing negation rule to the same pattern rather than editing a detector three other
+    consumers depend on.
+    """
+    r = (reply or "").strip()
+    if not r:
+        return False
+    if acted or anything_running:
+        return False                    # the promise is covered by real work: nothing is owed
+    try:
+        from nucleo.flash import router_guards as _rg
+        if _rg.promises_action(r) or _rg.promises_music(r):
+            return True
+        from nucleo.flash import answer_guards as _ag
+        return bool(_rg.unnegated_match(_ag._PROMISE_TO_LOOK_RE, r.lower())) and "?" not in r
+    except Exception:  # noqa: BLE001
+        return False

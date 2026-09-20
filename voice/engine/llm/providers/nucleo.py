@@ -2259,6 +2259,13 @@ class NucleoLLMStream(llm.LLMStream):
         # same shape as the ghost-worker guard above; a confident `escalate`, an unsure/slow/failed
         # call, or Jev off keep `v` untouched. Only ever CLEARS — every backstop below (marketplace
         # re-escalation, worker-response, STOP) already handles `None`, so their precedence is intact.
+        #
+        # V2-726 A3 — AND IT NEEDS EVIDENCE NOW. We are past the model and usually past the start of
+        # speech: the reply the operator just heard normally PROMISED this errand. `handle_inline`
+        # says «no worker needed», not «already done», and clearing `v` on it alone produced a
+        # promise with nothing behind it. The rule and the three promise detectors it reuses live in
+        # `escalation_guard.annulment_verdict`; every commission ends with a DISPOSITION, emitted,
+        # because one that simply disappears is the failure this whole gate was meant to prevent.
         if escalate_req["v"] is not None:
             try:
                 # V2-726 F2 — READ, never call: `judge_escalation` blocks this coroutine on urlopen
@@ -2266,10 +2273,21 @@ class NucleoLLMStream(llm.LLMStream):
                 _jev_esc = _eguard.judge_escalation_from_brief(_brief)
             except Exception:
                 _jev_esc = "escalate"
-            if _jev_esc == "handle_inline":
-                emit("brain", "🧭 escalada anulada por Jev — no es un encargo",
-                     text=f"{(operator_text or '')[:80]} → {(escalate_req['v'] or '')[:80]}",
-                     role="system", extra={"cat": "flash", "by": "jev"})
+            try:
+                _disp = _eguard.annulment_verdict(
+                    _jev_esc, reply=("".join(spoken) or ""), acted=bool(acted["widget"] or data_done["v"]
+                                                                  or listing_req["v"] or music_req["v"]
+                                                                  or search_req["v"]),
+                    anything_running=bool(_has_workers))
+            except Exception:  # noqa: BLE001 — the gate may never break the turn
+                _disp = {"annul": False, "disposition": "delegated", "why": "verdict-error"}
+            emit("brain", f"🧭 comisión → {_disp['disposition']}",
+                 text=f"{(operator_text or '')[:80]} → {(escalate_req['v'] or '')[:80]}",
+                 role="system",
+                 extra={"cat": "flash", "by": "jev", "jev": _jev_esc,
+                        "disposition": _disp["disposition"], "why": _disp["why"],
+                        "commissions": 1 + len(escalate_req["more"])})
+            if _disp["annul"]:
                 escalate_req["v"] = None
                 escalate_req["more"] = []
 

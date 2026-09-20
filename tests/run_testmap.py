@@ -1322,7 +1322,13 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/voice/unit/test_jev_show_close.py"]},
         {"id": "3.61", "title": "Jev repairs an invented widget action to a declared one (or abstains); canvas verbs keep their boundary, unsure keeps today's escalate",
             "ch": UNIT, "paths": ["tests/voice/unit/test_jev_action.py"]},
-        {"id": "3.62", "title": "Jev second opinion annuls a surviving commission only when confident it is no errand; anything else keeps today's escalate",
+        # V2-726 A3 (2026-09-20) — el gate corre DESPUÉS del modelo y casi siempre después de que la voz
+        # haya empezado, y un turno que llevaba escalada normalmente RESPONDIÓ prometiendo el encargo. Un
+        # `handle_inline` confiado borraba `v` y todos los `more` sin más, o sea producía el fallo más
+        # viejo del motor: una promesa que el operador oyó y nada detrás. `handle_inline` significa «no
+        # hace falta worker», no «ya está hecho». Ahora la anulación exige EVIDENCIA (local y
+        # determinista, sin segundo modelo) y toda comisión acaba en una DISPOSICIÓN con nombre.
+        {"id": "3.62", "title": "Jev second opinion annuls a surviving commission only when confident it is no errand AND the reply promised nothing that is not already covered; every commission ends in a named disposition",
             "ch": UNIT, "paths": ["tests/voice/unit/test_jev_escalate.py"]},
         # V2-726 (auditoría 2026-09-20) — los cinco nodos de Jev eran VERDES y uno de ellos cubría una
         # integración que no había hecho una sola llamada en su vida: cada caso construía el handle A MANO, así
