@@ -157,3 +157,68 @@ def test_a_negated_close_vetoes_even_a_confident_jev():
     """The load-bearing veto (V2-678 shape): «do not close» + a Jev false-positive must still
     discard. Removing the veto turns this red."""
     assert st.close_has_order("Do not close the widgets.", _sure_close_handle()) == (False, "none")
+
+
+# ── show_from_verb: the license half (verb WITHOUT a target executes nothing) ──────────
+def _sure_show_handle(confidence=0.9) -> dict:
+    return _ready_handle({"choice": "show", "confidence": confidence,
+                          "probs": {"show": confidence}, "latency_ms": 120})
+
+
+@pytest.fixture
+def _isolated(monkeypatch):
+    monkeypatch.setattr(st, "_ctx_ids", lambda: ([], []))
+    yield
+
+
+def _fake_catalogue(monkeypatch, match: str | None):
+    import widgets.runtime as _rt
+    monkeypatch.setattr(_rt, "identify",
+                        lambda q, open_ids=None, recent_ids=None: {"match": match} if match else {})
+    monkeypatch.setattr(_rt, "get", lambda wid: {"id": wid} if wid and wid == match else None)
+
+
+def test_a_confident_show_with_a_real_target_licenses_it(_isolated, monkeypatch):
+    """The behavior this wiring adds: the Spanish-stem grammar never sees the English verb in
+    «show me the agenda», Jev independently reads a show order with confidence, and the existing
+    catalogue resolves it → license. Removing the license branch turns this red."""
+    assert st._show_target("show me the agenda") is None  # the grammar miss this rescues
+    _fake_catalogue(monkeypatch, "agenda")
+    assert st.show_from_verb("show me the agenda", _sure_show_handle()) == ("agenda", "jev")
+
+
+def test_create_vetoes_even_a_confident_show(_isolated, monkeypatch):
+    """Creating is not showing: «créame un widget…» + a Jev false-positive must still license
+    nothing. Removing the veto turns this red."""
+    _fake_catalogue(monkeypatch, "tiempo")
+    assert st.show_from_verb("créame un widget del tiempo", _sure_show_handle()) == (None, "none")
+
+
+def test_a_negated_show_vetoes_even_a_confident_show(_isolated, monkeypatch):
+    """«no me abras la agenda» is not an order. Removing the veto turns this red."""
+    _fake_catalogue(monkeypatch, "agenda")
+    assert st.show_from_verb("no me abras la agenda", _sure_show_handle()) == (None, "none")
+
+
+def test_a_show_verb_without_a_target_executes_nothing(_isolated, monkeypatch):
+    """A confident verb with no resolvable target is not a license to invent one."""
+    _fake_catalogue(monkeypatch, None)
+    assert st.show_from_verb("display the thingamajig", _sure_show_handle()) == (None, "none")
+
+
+def test_an_unsure_show_or_a_missing_handle_keeps_todays_path(_isolated, monkeypatch):
+    _fake_catalogue(monkeypatch, "agenda")
+    unsure = _ready_handle({"choice": "show", "confidence": 0.2,
+                            "probs": {"show": 0.2}, "latency_ms": 50})
+    assert st.show_from_verb("show me the agenda", unsure) == (None, "none")
+    assert st.show_from_verb("show me the agenda", None) == (None, "none")
+
+
+def test_a_disabled_jev_is_grammar_only(_isolated, monkeypatch):
+    """Off-parity: with ZAELAR_JEV=0 there is never a handle, so the license never fires and the
+    grammar path below runs exactly as before the change."""
+    monkeypatch.setattr(jev, "_read_key", lambda: "k")
+    monkeypatch.setenv("ZAELAR_JEV", "0")
+    assert st.ask_canvas_async("show me the agenda") is None
+    _fake_catalogue(monkeypatch, "agenda")
+    assert st.show_from_verb("show me the agenda", None) == (None, "none")

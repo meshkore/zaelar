@@ -2168,6 +2168,16 @@ class NucleoLLMStream(llm.LLMStream):
         # de show-promesa-en-charla la captura el Susurro, no un guard sobre-amplio.)
         if (escalate_req["v"] is not None or search_req["v"] is not None) and not acted["widget"]:
             _guard_wid = _show_guard_target(text, brain._window, brain._last_action)
+            _guard_src = "grammar" if _guard_wid else "none"
+            if not _guard_wid:
+                # Jev show license (T-jev-show-close, shared reader `show_target.show_from_verb`):
+                # a confident "show" + a real identify hit rescues a grammar miss (e.g. English
+                # "show me X", whose verb the Spanish-stem grammar never sees). Anything else —
+                # vetoed, unsure, unresolvable, Jev off — keeps the path below untouched.
+                try:
+                    _guard_wid, _guard_src = _show_target.show_from_verb(text, canvas_h)
+                except Exception:
+                    _guard_wid, _guard_src = None, "none"
             if _guard_wid:
                 _was_search = search_req["v"] is not None
                 escalate_req["v"] = None
@@ -2175,7 +2185,8 @@ class NucleoLLMStream(llm.LLMStream):
                 acted["widget"] = True
                 _cvis.present(_guard_wid, reason="turn-order", src="flash", emit=emit)
                 emit("brain", "🪟 show por guard determinista (tool espuria evitada)",
-                     text=f"{_guard_wid} ({'search' if _was_search else 'escalate'}→show)", role="system")
+                     text=f"{_guard_wid} ({'search' if _was_search else 'escalate'}→show"
+                          f"{', licencia Jev' if _guard_src == 'jev' else ''})", role="system")
                 if not spoken_text:
                     try:
                         # V2-209 (impl PARALELA — cablear en AMBOS): abrir una tarjeta no es entregar un

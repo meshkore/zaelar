@@ -32,17 +32,48 @@ def _identify_ctx(rt, query: str) -> str | None:
     return (rt.identify(query, open_ids=_o, recent_ids=_r) or {}).get("match")
 
 
+# The three verb shapes `_show_target` reads, as constants so the Jev show-license below vetoes
+# on the SAME shapes instead of a second copy that drifts (a "créame" Jev false-positive must die
+# on the same pattern the grammar dies on).
+_NEGATED_SHOW_RE = r"\b(no|sin|tampoco|nunca|ni)\b[^.?!]{0,18}\b(abr|muestr|ensen|pon|saca|sube|ver)"
+_CREATE_RE = r"\b(crea|crear|cree|haz|hacer|genera|generar|nuev|construy|dise|monta|make|create|build|new)"
+_SHOW_VERB_RE = r"\b(abr|muestr|ensen|pon|saca|sube)|quiero ver|ver mi|ense"
+
+
+def _norm_ascii(text: str) -> str:
+    import unicodedata
+    return "".join(c for c in unicodedata.normalize("NFKD", text or "") if not unicodedata.combining(c)).lower()
+
+
+def _vetoed_show(text: str) -> bool:
+    """True when the turn can never license a show: creating is not showing, and a negated show
+    ("no me abras") is not an order — a cheap model's opinion never beats either. Same two shapes
+    `_show_target` returns None on, so the license and the grammar agree on what is not a show."""
+    import re
+    n = _norm_ascii(text)
+    if re.search(_NEGATED_SHOW_RE, n):
+        return True
+    if re.search(_CREATE_RE, n):
+        return True
+    try:
+        from . import router as _router
+        if _router.looks_like_create_widget(text):
+            return True
+    except Exception:
+        pass
+    return False
+
+
 def _show_target(text: str, context: list[dict] | None = None, last_action: str = "") -> str | None:
     """Same criterion as `providers/nucleo.py::_show_guard_target` (PARALLEL implementation — keep in sync): a
     SHOW verb + NO create + `runtime.identify` resolves an existing widget → the real turn converts it to show."""
     import re
-    import unicodedata
-    n = "".join(c for c in unicodedata.normalize("NFKD", text or "") if not unicodedata.combining(c)).lower()
-    if re.search(r"\b(no|sin|tampoco|nunca|ni)\b[^.?!]{0,18}\b(abr|muestr|ensen|pon|saca|sube|ver)", n):
+    n = _norm_ascii(text)
+    if re.search(_NEGATED_SHOW_RE, n):
         return None
-    if re.search(r"\b(crea|crear|cree|haz|hacer|genera|generar|nuev|construy|dise|monta|make|create|build|new)", n):
+    if re.search(_CREATE_RE, n):
         return None
-    if not re.search(r"\b(abr|muestr|ensen|pon|saca|sube)|quiero ver|ver mi|ense", n):
+    if not re.search(_SHOW_VERB_RE, n):
         return None
     try:
         from widgets import runtime
@@ -324,3 +355,31 @@ def close_has_order(text: str, canvas_handle: dict | None = None) -> tuple[bool,
     if verb == "close" and (info or {}).get("used"):
         return True, "jev"
     return False, "none"
+
+
+def show_from_verb(text: str, canvas_handle: dict | None = None) -> tuple[str | None, str]:
+    """The ONE Jev show-license reader for both channels' show backstops (voice provider guard +
+    probe escalate/search backstop — never a second implementation).
+
+    Grammar already missed (the caller read its own guard first and got nothing): a confident Jev
+    "show" verdict LICENSES resolving the target through the existing `runtime.identify`
+    (open > recent > catalogue, same narrowing as `_show_target`). A verb WITHOUT a resolvable
+    target executes nothing — (None, "none") — and so do the vetoes (create / negated show),
+    an unsure verdict, and a missing handle (Jev off/slow/failed, `ZAELAR_JEV=0` included):
+    every one of those keeps today's path bit-for-bit. Returns `(widget_id_or_None, source)`
+    with source "jev" | "none" — the emit trail says which reader moved, so a misfire is
+    attributable. Grammar hits never reach this function (the caller returns those as "grammar").
+    """
+    verb, info = resolve_canvas_verb(canvas_handle)
+    if verb != "show" or not (info or {}).get("used"):
+        return None, "none"
+    if _vetoed_show(text):
+        return None, "none"
+    try:
+        from widgets import runtime as _rt
+        wid = _identify_ctx(_rt, text)
+        if wid and _rt.get(wid) is not None:
+            return wid, "jev"
+    except Exception:
+        pass
+    return None, "none"

@@ -575,6 +575,15 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
     # resolvieron); _show_target exige verbo de show + identify real.
     if action in ("escalate", "search"):
         wid = _show_target(text, sess.window, sess.last_action)
+        if not wid:
+            # Jev show license (T-jev-show-close, lector COMPARTIDO `show_target.show_from_verb`,
+            # nunca una segunda implementación): un "show" seguro + identify real rescata un fallo
+            # de la gramática; lo demás deja el camino de hoy intacto.
+            from nucleo.flash import show_target as _st_show
+            try:
+                wid, _show_src = _st_show.show_from_verb(text, canvas_h)
+            except Exception:
+                wid, _show_src = None, "none"
         if wid:
             # V2-605 F2 — mirror of the voice fallback: resolve the CARD, not just the piece. This backstop has
             # no channel to ask through, so it only ever narrows (`instances.show_id`).
