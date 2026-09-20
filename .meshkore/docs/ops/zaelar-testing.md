@@ -218,6 +218,33 @@ verifica la INTELIGENCIA de conducción (no re-presentarse, fase, objetivo prese
 
 ---
 
+## La pasada ANCHA de pytest — con vigilante (V2-727, 2026-09-20)
+
+Del 2026-09-15 al 2026-09-20 pasar la suite entera estuvo **prohibido**: colgaba la máquina del operador y
+nadie sabía qué test lo hacía. Está **levantada**, porque la causa ya está diagnosticada y era **un** test:
+`tests/infrastructure/unit/config/test_model_policy.py` barría el árbol con una **lista negra** de sufijos
+binarios, `.mkv` no estaba en ella, y `library/downloads/` es la carpeta de descargas REAL del operador — así
+que llamaba a `read_text()` sobre un **vídeo de 84 GB**. 90.348 MB de lecturas para un grep sobre 10.000
+ficheros. Ahora pregunta a `git ls-files` qué es el árbol: de colgarse a **0,84 s**.
+
+```sh
+./.venv/bin/python tests/watchdog.py                          # todo lo determinista (~7 min)
+./.venv/bin/python tests/watchdog.py tests/voice/unit         # una carpeta
+./.venv/bin/python tests/watchdog.py --impacted origin/main   # solo lo que tu diff alcanza
+```
+
+Medido tras el arreglo: **57 chunks, 10.909 verdes, 385 s, cero cuelgues** (47 rojos preexistentes).
+
+Tres capas cazan un cuelgue: el volcado de `faulthandler` —ya dentro de pytest, **sin dependencias nuevas**—
+**nombra** fichero, línea y función del test colgado y corta en segundos; un muro de reloj por chunk cubre lo
+que el volcado no ve (un import o una colección que bloquean); y se mata el **GRUPO** de procesos, porque el
+incidente del 2026-09-15 dejó **71 Chromium huérfanos** y matar pytest solo los deja donde estaban. Un cerrojo
+impide dos pasadas ANCHAS a la vez sobre el mismo checkout (midieron 1222 s y 1589 s para 9 minutos de
+trabajo); las rutas explícitas no llevan cerrojo, a propósito, para que se puedan anidar.
+
+El contrato completo vive en `engine/tests/README.md`; el nodo **7.53** vigila al vigilante. ⚠️ Sigue fuera
+`tests/run_testmap.py` **sin argumentos**: es la misma pasada ancha sin vigilante ni cerrojo.
+
 ## Cómo se LANZA
 
 - **Batería completa** (todos los escenarios, con settle entre ellos para no saturar el worker THREAD):
