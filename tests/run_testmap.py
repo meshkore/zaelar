@@ -1378,6 +1378,16 @@ DOMAINS: list[dict] = [
                                   # tarea, y eso no lo afirmaba nadie.
                                   "tests/agent_headless/unit/test_the_flat_hunt_he_told_me_about.py",
                                   ]},
+        # V2-726 A1 (2026-09-21) — «una capacidad de decisión barata disponible en TODA Colmena cuando un
+        # proceso puede elegir entre opciones disponibles» (objetivo del operador). Estaba disponible en
+        # Python y era INALCANZABLE justo donde más hay que elegir: `nucleo/workers/`, `nucleo/errands/` y
+        # `research.py` no mencionan Jev, porque un Brain Worker es un subproceso y solo habla con el motor
+        # por `/api/worker/act`. La puerta es UNA acción nueva en ese endpoint —no un cliente nuevo, no un
+        # puente nuevo, no un modelo dentro del worker—, y el contrato nombra los desenlaces: `selected ·
+        # no_match · abstained · unavailable · disabled · empty · expired · too_big`, donde tres son
+        # RESPUESTAS y el resto AUSENCIAS y piden conductas opuestas.
+        {"id": "3.67", "title": "Una decisión acotada se alcanza desde el turno, desde la memoria y desde un worker autenticado — con desenlaces distinguibles, cotas, y el turno de voz nunca en cola",
+            "ch": UNIT, "paths": ["tests/voice/unit/test_a_bounded_decision_is_reachable_from_anywhere.py"]},
         # V2-726 A6a (2026-09-20) — la auditoría preguntó lo único que decide si todo esto vale su viaje
         # («¿qué veredicto cambió qué desenlace?») y el motor no podía contestar: el evento del brief
         # reportaba la confianza MÁXIMA de todas sus preguntas (una segura tapaba tres inseguras), los dos

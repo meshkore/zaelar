@@ -62,6 +62,15 @@ def classify_act(action: str, payload: dict) -> str:
     a = (action or "").strip()
     if a == "ask_user":
         return ALLOW
+    if a == "decide":
+        # V2-726 A1 — a BOUNDED CHOICE among candidates the worker already holds. ALLOW without
+        # confirmation because it is the least consequential act on this list: it reads nothing new,
+        # writes nothing, reaches no widget and no connector. It returns which of the strings the
+        # worker itself supplied fits best, and the worker still has to go and DO something through
+        # one of the doors below — every one of which keeps its own policy. Denying it would only
+        # push the same choice back into a reasoning round trip, which is the cost V2-726 exists to
+        # remove: «find the formula», not «follow a script» (the Brain Worker doctrine).
+        return ALLOW
     if a == "use_tool":
         tool = (payload or {}).get("tool", "")
         if tool in _DENY_TOOLS:

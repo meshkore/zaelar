@@ -186,6 +186,31 @@ def _hint_for(prog: str) -> str:
             "comillas. Ninguno funciona a secas.")
 
 
+def _cmd_decide(purpose: str, candidates: str, evidence: str, deadline: float) -> int:
+    """`decide`: which of these candidates fits? (V2-726 A1)
+
+    For the choices a worker makes constantly and that do not need a reasoner: which of these five
+    parsed results meets the criteria, which of these declared methods fits the task, which row the
+    operator meant. One round trip for all of them at once is what the chooser is FOR — ask about
+    the whole batch, not one candidate per call.
+
+    Fail-soft like every other bridge: a malformed payload, a chooser that is switched off or a
+    network that is down all come back as a status the worker can read and route around, never as a
+    crash. `status` is the field to branch on, and `selected` is the only one with a `chosen` in it.
+    """
+    try:
+        cands = json.loads(candidates)
+    except Exception:
+        print(json.dumps({"ok": False, "error": "candidates tiene que ser JSON: "
+                                                '{"id": "descripción", …} o ["…", …]'},
+                         ensure_ascii=False))
+        return 2
+    payload = {"purpose": purpose, "candidates": cands, "evidence": evidence}
+    if deadline and deadline > 0:
+        payload["deadline_s"] = deadline
+    return _cmd_act("decide", json.dumps(payload, ensure_ascii=False))
+
+
 def main(argv: list[str] | None = None) -> int:
     import argparse
     ap = argparse.ArgumentParser(prog="worker_bridge", description="Puentes del Brain Worker (ask/act/say/wait)")
@@ -199,6 +224,11 @@ def main(argv: list[str] | None = None) -> int:
     pc.add_argument("payload", nargs="?", default="")
     ps = sub.add_parser("say", help="dile algo al usuario (se relata por voz con atribución)")
     ps.add_argument("text")
+    pd = sub.add_parser("decide", help="elige entre candidatos que YA tienes (rápido y barato, sin razonador)")
+    pd.add_argument("purpose", help="qué se está decidiendo, en una línea")
+    pd.add_argument("candidates", help='JSON: {"id": "descripción", …} o ["…", …]')
+    pd.add_argument("--evidence", default="", help="el estado contra el que se decide")
+    pd.add_argument("--deadline", type=float, default=0.0, help="segundos máximos de espera")
     a = ap.parse_args(argv)
     if a.cmd == "ask":
         return _cmd_ask(a.question)
@@ -208,6 +238,8 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_act(a.action, a.payload)
     if a.cmd == "say":
         return _cmd_say(a.text)
+    if a.cmd == "decide":
+        return _cmd_decide(a.purpose, a.candidates, a.evidence, a.deadline)
     return 1
 
 

@@ -45,6 +45,18 @@ _ACTS: dict[str, dict] = {}
 from nucleo.runtime_ids import next_seq as _next_seq
 
 
+def _decide_deadline(payload: dict) -> float | None:
+    """Seconds a worker is willing to wait for a bounded decision, bounded by us (V2-726 A1).
+
+    A worker has no latency budget of its own, but it does have a Bash timeout, and an unbounded
+    wait here would show up as a worker that died mid-errand with nothing to report."""
+    try:
+        d = float((payload or {}).get("deadline_s") or 0)
+    except (TypeError, ValueError):
+        return None
+    return max(0.5, min(d, 20.0)) if d > 0 else None
+
+
 def _new_corr(task_id: str, action: str) -> str:
     """UNPREDICTABLE corr_id: re-polling (`GET /act/{corr_id}`) carries no token — the corr IS the capability. A
     sequential one would be guessable (read the operator's response + steal the injection piggyback, §v2·D)."""
@@ -100,6 +112,36 @@ def _safe_reminder_prompt(text: str) -> str:
 
 async def _exec_allow(action: str, payload: dict, rec) -> dict:
     payload = payload or {}
+    if action == "decide":
+        # V2-726 A1 — the bounded-decision door for a headless worker. `nucleo/workers/`,
+        # `nucleo/errands/` and `research.py` are the places in this engine with the MOST choosing to
+        # do and no latency budget at all, and they were the only ones that could not reach the
+        # chooser: a worker is a subprocess and talks to the engine only through this endpoint.
+        #
+        # ONE action, not a new bridge: the authentication, the piggyback and the policy are already
+        # here and already audited. It runs in a thread because `decide` is a blocking round trip and
+        # this is a coroutine — the same rule the voice path learned the hard way (V2-726 F2).
+        from nucleo import jev as _jev
+        cands = (payload or {}).get("candidates") or {}
+        if not isinstance(cands, dict):
+            cands = {str(i + 1): str(c) for i, c in enumerate(cands)}
+        try:
+            decision = await asyncio.to_thread(
+                _jev.decide,
+                str((payload or {}).get("purpose") or ""),
+                str((payload or {}).get("evidence") or ""),
+                cands,
+                abstain=bool((payload or {}).get("abstain", True)),
+                source=f"worker:{getattr(rec, 'task_id', '')}",
+                task_id=str(getattr(rec, "task_id", "")),
+                deadline_s=_decide_deadline(payload),
+                effect_class=str((payload or {}).get("effect_class") or "view"))
+        except Exception as e:  # noqa: BLE001 — a chooser may never break a worker
+            return {"ok": False, "error": f"decide falló: {type(e).__name__}"}
+        # The worker sees the DECISION and nothing else: no credentials, no other task's data, no
+        # engine state it did not supply. `decide` returns only its own verdict, so this is the
+        # shape by construction rather than by filtering — which is the version that cannot rot.
+        return {"ok": True, "result": dict(decision)}
     if action == "use_tool" and payload.get("tool") == "web_search":
         # V2-644 — the query key is forgiving, but an EMPTY query refuses loudly. Measured 2026-09-09: a worker
         # sent its query under another key, got back `{"results": [], "source": "none"}` twice, concluded «the
