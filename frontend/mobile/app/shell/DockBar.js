@@ -161,6 +161,10 @@ export function DockBar() {
     h("div", { class: "zm-side" },
       h("button", {
         class: () => cls(store.agentLive() && !store.micMuted()),
+        // `data-ctl="mic"` is what the CAPTURE GLOW is scoped to, the same marker the desktop orb bar uses.
+        // Without it the glow rule could only key off `.zm-ic.on`, which is ALSO the chat and dashboards
+        // buttons — three buttons carrying a filter meant for one (2026-09-20 review).
+        "data-ctl": "mic",
         // The icon IS the level meter (2026-08-10, same request that put the VU on the desktop mic): it scales with
         // the REAL mic RMS through a CSS custom property, so it costs no re-render. With the mic muted or the agent
         // stopped there is no effect, because there is no level — the meter can only move when we are truly hearing.

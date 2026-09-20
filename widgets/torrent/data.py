@@ -192,6 +192,18 @@ def _remember_title(db: dict, rid: str, title: str) -> None:
             titles.pop(k, None)
 
 
+def _keep(payload: dict) -> bool:
+    """Whether to keep a download whatever its format — default TRUE, this widget's whole job.
+
+    `payload.get("keep", True)` was not enough: a model that emits the key with a null value
+    (`{"query": "...", "keep": null}`) got `None`, and `bool(None)` is False — the refusing behaviour
+    this fix removed, back through the door, for the callers most likely to use it. Absent OR null
+    means default; only an explicit false refuses.
+    """
+    v = payload.get("keep")
+    return True if v is None else bool(v)
+
+
 def apply_action(action: str, payload: dict = None) -> dict:
     payload = payload or {}
 
@@ -201,7 +213,7 @@ def apply_action(action: str, payload: dict = None) -> dict:
             return {"ok": False, "error": "dime qué peli o vídeo busco"}
         # This widget IS the explicit "I want the file" surface: downloading is its whole job, so it
         # takes any format (an .mkv film downloads fine) and playability is enforced only at `open`.
-        keep = bool(payload.get("keep", True))
+        keep = _keep(payload)
         res = _svc().search_and_play(query, keep=keep)
         db = _load()
         if res.get("ok"):
@@ -214,7 +226,7 @@ def apply_action(action: str, payload: dict = None) -> dict:
 
     if action == "add_magnet":
         magnet = str(payload.get("magnet") or "").strip()
-        keep = bool(payload.get("keep", True))
+        keep = _keep(payload)
         res = _svc().add_magnet(magnet, keep=keep)
         db = _load()
         if res.get("ok"):

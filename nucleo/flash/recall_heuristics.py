@@ -83,11 +83,14 @@ def _norm(text: str) -> str:
 # second passes skip the compose there instead (voice asks which message, probe keeps its reply).
 # Structural (cardinal/ordinal + message + positional, or a demonstrative message), es/en — never a verb
 # list, never the topic (tongues, hotels and restaurants all pass through the same door).
+# `anterior(es)?`, never `anteriores?` — the latter is "anteriore"+optional s and can only ever match the
+# PLURAL. Measured 2026-09-20 reviewing this guard: «el mensaje anterior», the most natural Spanish way to
+# point one message back, fell straight through it while «mensajes anteriores» was caught.
 _THREAD_POS_RE = _re.compile(
-    r"\b(\d+|one|two|three|four|five|few|couple|un|una|dos|tres|cuatro|cinco|par|couple)\s+"
-    r"(messages?|mensajes?)\s+(behind|back|ago|down|before|atras|antes|anteriores?)\b"
-    r"|\b(previous|last|that|those|anteriores?|es[eo]s?)\s+(messages?|mensajes?)\b"
-    r"|\bmensajes?\s+(anteriores?|previos?|de\s+antes)\b"
+    r"\b(\d+|one|two|three|four|five|few|couple|un|una|dos|tres|cuatro|cinco|par)\s+"
+    r"(messages?|mensajes?)\s+(behind|back|ago|down|before|atras|antes|anterior(?:es)?)\b"
+    r"|\b(previous|last|that|those|anterior(?:es)?|es[eo]s?)\s+(messages?|mensajes?)\b"
+    r"|\bmensajes?\s+(anterior(?:es)?|previos?|de\s+antes)\b"
     r"|\b(ese|esa|aquel|aquella)\s+mensaje\b", _re.I)
 
 

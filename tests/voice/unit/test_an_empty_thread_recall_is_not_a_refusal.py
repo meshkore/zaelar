@@ -38,6 +38,11 @@ def _run(coro):
     "enseñame ese mensaje",
     "los mensajes anteriores",
     "esta cuatro mensajes atras",
+    # `anteriores?` is "anteriore"+optional s: it matched the PLURAL and never the singular, so the most
+    # natural Spanish way to point one message back walked straight through the guard (review 2026-09-20).
+    "el mensaje anterior",
+    "leeme el mensaje anterior",
+    "dos mensajes anterior",
 ])
 def test_thread_positions_match(txt):
     assert _rh.names_thread_position(txt), txt
@@ -117,21 +122,50 @@ def test_recall_spoken_still_composes_empty_non_thread(monkeypatch):
     assert len(said) == 1
 
 
-# ── probe: empty pills → "" so the caller keeps its reply ──
-def test_recall_answer_empty_means_caller_keeps_reply(monkeypatch):
+# ── probe: the SAME rule as the voice half, and no wider ──
+#
+# The first version of this pair was two bugs in one (review 2026-09-20):
+#   · `recall_answer` returned "" on ANY empty recall, not just a thread position — so on «¿qué talla
+#     uso?» with nothing remembered, the model's pre-memory improvisation stood in place of the honest
+#     "no tengo ese dato" the compose produces. Two channels, one fact, two different answers.
+#   · the test could not have caught it: it asserted by RAISING inside `collect`, and `recall_answer`
+#     ends in a bare `except Exception` that swallows an AssertionError into the very "" being asserted.
+#     It passed with the gate, without the gate, and with the function deleted down to `return ""`.
+# Both halves are pinned here with a flag the swallow cannot eat.
+def _no_pills_with_spy(monkeypatch):
+    """compose_recall returns nothing; `composed` records whether the second pass ran anyway."""
     import nucleo.flash.prompt as _prompt
+    composed = []
 
     def _no_pills(query):  # sync: recall_answer runs it via to_thread
         return "", []
 
+    async def _spy(*a, **k):
+        composed.append(True)
+        return "lo que fuera que compusiera el modelo"
+
     monkeypatch.setattr(_prompt, "compose_recall", _no_pills)
+    monkeypatch.setattr(_sp, "collect", _spy)
+    return composed
 
-    async def _boom(*a, **k):
-        raise AssertionError("no compose on empty — the caller keeps what it had")
 
-    monkeypatch.setattr(_sp, "collect", _boom)
-    out = _run(_sp.recall_answer("anything", "anything", spec=None))
-    assert out == ""
+def test_recall_answer_on_a_thread_position_keeps_the_callers_reply(monkeypatch):
+    composed = _no_pills_with_spy(monkeypatch)
+    out = _run(_sp.recall_answer("show me the tongue, it's four messages behind", "tongue", spec=None))
+    assert out == "", "empty pills on a thread position must hand the turn back untouched"
+    assert not composed, "nothing may be composed from the void — that is what narrated the refusal"
+
+
+def test_recall_answer_on_a_normal_question_still_composes(monkeypatch):
+    """An empty recall is not a thread position by default — the compose says «no tengo ese dato» itself.
+
+    Skipping it here would hand the turn back to a reply the model wrote BEFORE consulting the memory,
+    which is the invention this seam exists to prevent (V2-1xx, auditoría 2026-08-17).
+    """
+    composed = _no_pills_with_spy(monkeypatch)
+    out = _run(_sp.recall_answer("¿qué talla uso?", "talla", spec=None))
+    assert composed, "an ordinary empty recall must still compose — the void is the ANSWER, not a skip"
+    assert out, "and the composed answer is what the caller gets"
 
 
 # ── provider seam: the flag becomes the deterministic question ──

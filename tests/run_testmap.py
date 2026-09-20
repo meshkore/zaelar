@@ -2848,7 +2848,14 @@ DOMAINS: list[dict] = [
                 # 2026-09-19: ese mismo fix rompió TODA apertura (TypeError `w.card` con `w` undefined en la
                 # rama fresh de show() + `background` sin declarar en _renderAliases/createWidget/maximize).
                 # El pin clava las dos prohibiciones en el propio desktop.js.
-                "tests/browser/unit/widgets/test_a_fresh_show_needs_no_stored_card.py"]},
+                "tests/browser/unit/widgets/test_a_fresh_show_needs_no_stored_card.py",
+                # 2026-09-20 (revisión de la tanda): los DOS de arriba pasaron VERDES mientras el producto
+                # estaba roto — el .mjs monta `sse.js` sobre un host de mentira y el otro es grep del fuente,
+                # así que el único fichero que el fix tocaba era el único que nadie EJECUTABA. Éste monta el
+                # Desktop REAL en chromium y lo usa: abrir, abrir en segundo plano, re-abrir, maximizar,
+                # minimizar y el panel ⚙, con `pageerror` como aserción. Desarmado contra los tres hunks
+                # originales: los tres lo ponen rojo.
+                "tests/browser/unit/widgets/test_the_canvas_opens_cards_for_real.py"]},
         # V2-651 F0 (2026-09-10): identify the OPERATOR's voice. The cost lives in the BROWSER (operator
         # directive): the fingerprint of every speech segment is computed client-side and only a tiny label would
         # ever cross to the backend. F0 is SHADOW MEASUREMENT — zero behaviour change: fingerprint + multi-profile

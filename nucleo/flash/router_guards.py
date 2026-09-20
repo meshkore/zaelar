@@ -680,13 +680,13 @@ from .reminder_guards import (  # noqa: F401 — re-export, not a local use
 # shape) behaves exactly as before. It composes existing verb lists — never a new topic table.
 _RESEARCH_VERB_RE = _re.compile(
     r"\b(investig\w*|compar\w*|analiz\w*|analis\w*|averigu\w*|indag\w*|research\w*|investigat\w*|"
-    r"compar\w*|analy[sz]e\w*)\b", _re.I)
+    r"analy[sz]e\w*)\b", _re.I)
 # English directive verbs with no Spanish-guarded equivalent (verb_forms.py V2-677: the English side of every
 # grammar guard is a bare-stem list the operator actually outgrows). Spanish «abre/muéstrame» is guarded;
 # English «open/show» was not — and «open my messages» is one of the operator's most frequent orders.
 # Verbs only, never topics: what may commission a worker, not what it is about.
 _EN_DIRECTIVE_RE = _re.compile(
-    r"\b(open|show|close|clos|shut|stop|call|search|find|bring|give|tell)\b", _re.I)
+    r"\b(open|show|close|shut|stop|call|search|find|bring|give|tell)\b", _re.I)
 
 
 def too_thin_to_commission(text: str) -> bool:

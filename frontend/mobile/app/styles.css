@@ -137,8 +137,10 @@ body {
    move when we are truly listening. */
 .zm-ic.on svg { transform: scale(calc(1 + (var(--vu, 0) * .22))); transition: transform .08s linear; }
 /* MIC CAPTURE GLOW, mobile (operator 2026-09-19, same pass as desktop): operator green (--hb-ok) with the blur
-   driven by --vu — 0px at silence, 10px at full level. --vu is only ever non-zero on the mic button. */
-.zm-ic.on { filter: drop-shadow(0 0 calc(var(--vu, 0) * 10px) var(--hb-ok)); }
+   driven by --vu — 0px at silence, 10px at full level. Scoped to the MIC button by `data-ctl`, exactly like the
+   desktop rule: `.zm-ic.on` alone is also the chat and dashboards buttons, and giving all three a filter for a
+   variable only one of them sets is a stacking context and a paint each, on the wrong elements (2026-09-20). */
+.zm-ic[data-ctl="mic"].on { filter: drop-shadow(0 0 calc(var(--vu, 0) * 10px) var(--hb-ok)); }
 @media (prefers-reduced-motion: reduce) {
   .zm-ic.on svg { transform: none; }
   .zm-orb-btn.pwr-starting, .zm-orb-btn.pwr-stalled, .zm-orb-btn.pwr-pausing { animation: none; }

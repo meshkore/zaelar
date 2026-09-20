@@ -111,11 +111,17 @@ async def recall_answer(text: str, query: str, spec, sanitize=None) -> str:
     post-processor (the probe passes speech+dialog's), so this module never reaches into the motor for one —
     the dependency-direction ratchet (7.32) caught exactly that import here on its second day of life."""
     try:
-        from nucleo.flash import dialog, prompt as _prompt
+        from nucleo.flash import dialog, prompt as _prompt, recall_heuristics as _rh
         rblock, _ = await asyncio.to_thread(_prompt.compose_recall, query)
-        if not (rblock or "").strip():
-            return ""    # fix02: nothing remembered — composing from the void manufactures refusals
-                         # («I can't reveal... secret information»); the caller keeps its original reply.
+        if not (rblock or "").strip() and _rh.names_thread_position(text):
+            # fix02, SAME rule as the voice half above and no wider (review 2026-09-20): the turn points at
+            # the LIVE thread and the pills came back empty, so composing from that void only manufactures
+            # a refusal — the caller keeps its original reply instead.
+            # It is gated on the classifier ON PURPOSE. Ungated, ANY empty recall kept the model's first
+            # reply, and that reply was written BEFORE the memory was consulted: on «¿qué talla uso?» with
+            # nothing remembered, the honest "no tengo ese dato" the compose produces was being replaced by
+            # whatever the model had already improvised — the invention this whole seam exists to prevent.
+            return ""
         sys2 = (_prompt._lang_lock()
                 + "\nResponde en 1-3 frases habladas y naturales usando SOLO estos datos del operador. "
                   "No menciones capas ni memoria interna; si falta algo, dilo.\n\n"

@@ -41,9 +41,23 @@ def test_desktop_glow_is_invisible_at_silence():
 def test_mobile_mic_carries_the_same_glow():
     """Same pass on the mobile dock — one meter, two shells."""
     css = MOBILE.read_text(encoding="utf-8")
-    bodies = re.findall(r"\.zm-ic\.on\s*\{([^}]*)\}", css)
-    assert bodies, "missing rule .zm-ic.on"
+    bodies = re.findall(r"\.zm-ic\[data-ctl=\"mic\"\]\.on\s*\{([^}]*)\}", css)
+    assert bodies, 'missing rule .zm-ic[data-ctl="mic"].on'
     assert any("--hb-ok" in b and "--vu" in b for b in bodies)
+
+
+def test_mobile_glow_reaches_only_the_mic():
+    """The chat and dashboards buttons are `.zm-ic.on` too — the glow is the MIC's (review 2026-09-20).
+
+    A bare `.zm-ic.on { filter: ... }` put a drop-shadow on all three: inert while `--vu` is only ever
+    set on the mic, but a stacking context and a paint on two buttons that never asked for one, and one
+    inherited `--vu` away from lighting the wrong control in the operator's green.
+    """
+    css = MOBILE.read_text(encoding="utf-8")
+    unscoped = [b for b in re.findall(r"(?<!\])\.zm-ic\.on\s*\{([^}]*)\}", css) if "filter" in b]
+    assert not unscoped, f"a filter on every active dock icon, not just the mic: {unscoped}"
+    dock = (MOBILE.parent / "shell" / "DockBar.js").read_text(encoding="utf-8")
+    assert '"data-ctl": "mic"' in dock, "the mic button must carry the marker the CSS is scoped to"
 
 
 def test_orb_listening_color_untouched():
