@@ -514,11 +514,16 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
             elif _cg.is_short_close_order(text) and _rt.get(_wid) is not None:
                 action = f"canvas:close:{_wid}"
             elif _fe.action_mode(_wid, _act) is None:
-                _cv = _fe.canvas_verb(_act)
-                if _cv and _rt.get(_wid) is not None:
-                    action = f"canvas:{_cv}:{_wid}"
+                # ESPEJO de la voz (misma decisión compartida, `frontend.resolve_undeclared_action` — cablear
+                # en AMBOS): verbo de canvas → tag; reparación Jev a una acción DECLARADA → el rail la ejecuta
+                # (sigue siendo `widget_data`); sin veredicto → la voz escala.
+                _kind, _val = _fe.resolve_undeclared_action(_wid, _act, text)
+                if _kind == "canvas":
+                    action = f"canvas:{_val}:{_wid}"
+                elif _kind == "repair":
+                    action = "widget_data"
                 else:
-                    action = "escalate"          # acción inventada sin verbo de canvas → la voz escala
+                    action = "escalate"          # acción inventada sin verbo de canvas ni reparación → escala
             # ESPEJO del guard del provider (2026-07-21, caso «hay que cancelarlo»): un PRONOMBRE SUELTO como item
             # ("lo/eso") sobre un widget que NO está abierto NI se nombra en el turno = mis-ruteo por verbo (el
             # antecedente vive en la conversación) → escala con contexto en vez de operar un widget cerrado.

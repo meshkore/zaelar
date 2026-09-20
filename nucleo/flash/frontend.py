@@ -89,6 +89,82 @@ def action_mode(widget_id: str, action: str) -> str | None:
         return None
 
 
+ACTION_INSTRUCTIONS = (
+    "Name the widget action the user wants. "
+    "The assistant guessed an action the widget does not declare; "
+    "pick the declared action the user's message means, or none."
+)
+
+
+def declared_actions(widget_id: str) -> dict:
+    """The widget's DECLARED manifest actions (name -> spec), {} when unknown.
+
+    The same cached catalog `action_mode` reads, so a repair candidate can never be an
+    invented action. Read-only; any error yields {} (fail-safe toward today's path)."""
+    try:
+        from widgets import runtime
+        wid = (widget_id or "").strip().lower()
+        if not wid:
+            return {}
+        return dict((runtime.get(wid) or {}).get("actions") or {})
+    except Exception:  # noqa: BLE001
+        return {}
+
+
+def repair_action(widget_id: str, invented_action: str, text: str,
+                  *, timeout_s: float | None = None) -> str | None:
+    """Jev Choice over the widget's DECLARED actions (+ `none`) for an action name the model
+    invented (T-jev-action). Returns the declared winner, else None — `none`, unsure, slow,
+    failed, disabled, or unknown widget all keep today's path (escalate).
+
+    The winner must be a criteria key, so an invented name can never come back: `_parse`
+    constrains the verdict to the keys enumerated here. Fires ONLY on the invented-action
+    path, never per turn, so the common path pays no latency."""
+    from nucleo import jev as _jev
+    declared = declared_actions(widget_id)
+    if not declared or not _jev.enabled():
+        return None
+    criteria = {name: str((spec if isinstance(spec, dict) else {}).get("desc") or name)[:160]
+                for name, spec in declared.items()}
+    criteria["none"] = "none of the declared actions matches what the user asked"
+    verdict = _jev.choose_sync(
+        "widget_action", text, instructions=ACTION_INSTRUCTIONS, criteria=criteria,
+        context=f"widget {(widget_id or '').strip().lower()}; "
+                f"the assistant guessed undeclared action {(invented_action or '').strip()!r}",
+        timeout_s=timeout_s, question_id="widget-action")
+    if not verdict:
+        return None
+    choice = str(verdict.get("choice") or "")
+    if not choice or choice == "none" or choice not in declared:
+        return None
+    if float(verdict.get("confidence") or 0.0) < _jev.MIN_CONFIDENCE:
+        return None
+    return choice
+
+
+def resolve_undeclared_action(widget_id: str, action: str, text: str,
+                              *, timeout_s: float | None = None) -> tuple[str, str | None]:
+    """The ONE decision for an action the manifest does NOT declare, shared by the voice rail
+    and the probe mirror (parallel implementations must not drift).
+
+    Returns ("canvas", verb) — the existing boundary rule, a canvas verb smuggled in as a data
+    op maps to the deterministic canvas tag; ("repair", declared_action) — Jev named the declared
+    action the user means, so the call continues through the normal mode flow (FAST / CONFIRM /
+    ESCALATE, confirm gates untouched); or ("escalate", None) — today's path, unchanged."""
+    from widgets import runtime
+    wid = (widget_id or "").strip().lower()
+    name = (action or "").strip()
+    if not wid or not name or runtime.get(wid) is None:
+        return ("escalate", None)
+    verb = canvas_verb(name)
+    if verb:
+        return ("canvas", verb)
+    fixed = repair_action(wid, name, text, timeout_s=timeout_s)
+    if fixed:
+        return ("repair", fixed)
+    return ("escalate", None)
+
+
 def action_verdict(widget_id: str, action: str, payload: dict | None = None) -> dict:
     """What the ONE consent rule says about running this data-op RIGHT NOW (V2-712).
 

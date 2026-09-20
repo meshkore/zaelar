@@ -1225,21 +1225,30 @@ class NucleoLLMStream(llm.LLMStream):
                      text=(text or "")[:120], role="system", extra={"cat": "flash", "kind_diag": "close_without_order", "id": wid})
                 deduped["v"] = True
                 return
-            if _frontend.action_mode(wid, action_name) is None:   # acción no declarada → ¿verbo de canvas o escala?
+            if _frontend.action_mode(wid, action_name) is None:   # acción no declarada → canvas, reparación Jev o escala
                 # GUARD frontera CANVAS vs DATOS (diag sesiones-largas 2026-07-15): a profundidad, el modelo a
                 # veces cuela el SHOW/CLOSE como pseudo data-op (`widget_data(clock, action="show")` ante
                 # "muéstrame un reloj"). Antes se curaba por el DESVÍO no-declarada→escalate→show-guard (frágil y
                 # caro); ahora se mapea DIRECTO a la tag de canvas — misma ruta que [[show]]/[[close]] (dedup,
                 # guards anti-clutter/meta, ack "nunca mudo"). Solo si el widget existe de verdad.
-                _cv = _frontend.canvas_verb(action_name)
-                if _cv and runtime.get(wid) is not None:
+                # La DECISIÓN vive en `frontend.resolve_undeclared_action` (compartida con el espejo del probe):
+                # verbo de canvas → tag; si no, Jev elige entre las acciones DECLARADAS y la llamada sigue su
+                # flujo normal (modos FAST/CONFIRM/ESCALATE intactos); sin veredicto → escala como hoy.
+                _kind, _val = _frontend.resolve_undeclared_action(wid, action_name, text)
+                if _kind == "canvas":
                     emit("brain", "🪟 widget_data con verbo de CANVAS → tag determinista",
-                         text=f"{wid}:{action_name}→{_cv}", role="system")
-                    _tag_emit(_cv, {"id": wid})
+                         text=f"{wid}:{action_name}→{_val}", role="system")
+                    _tag_emit(_val, {"id": wid})
                     return
-                if escalate_req["v"] is None:
-                    escalate_req["v"] = text
-                return
+                if _kind == "repair":
+                    emit("brain", "🔧 acción inventada reparada por Jev → declarada",
+                         text=f"{wid}:{action_name}→{_val}", role="system",
+                         extra={"id": wid, "action": _val, "invented": action_name})
+                    action_name = _val
+                else:
+                    if escalate_req["v"] is None:
+                        escalate_req["v"] = text
+                    return
             res = refs.resolve(wid, action_name, ref, payload, order=_bnotes.operator_half(text))
             # GUARD mis-ruteo por VERBO (2026-07-21, caso «hay que cancelarlo» tras «¿qué día tengo la ITV?»): el modelo
             # enganchó el verbo ("cancelar") con una data-op (agenda.drop) de un widget que NO está ABIERTO NI el
