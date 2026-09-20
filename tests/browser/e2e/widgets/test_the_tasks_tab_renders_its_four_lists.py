@@ -64,6 +64,8 @@ ROWS = {
 STUB = """(rows) => {
   window.__asked = [];
   window.__reopened = [];
+  window.__opened = [];
+  document.addEventListener('hb:open-card', e => window.__opened.push((e.detail || {}).id));
   const real = window.fetch.bind(window);
   window.fetch = async (url, opts) => {
     const u = String(url);
@@ -104,6 +106,7 @@ READ = """() => {
     asked: window.__asked || [],
     resultBtns: [...document.querySelectorAll('.cw-tasklist .cw-proc-row.hist .cron-b')].map(e => e.textContent.trim()),
     reopened: window.__reopened || [],
+    opened: window.__opened || [],
   };
 }"""
 
@@ -175,6 +178,7 @@ def seen(run):
                     btn.click()
                     pg.wait_for_timeout(300)
                 out["done"]["reopened"] = pg.evaluate("() => window.__reopened || []")
+                out["done"]["opened"] = pg.evaluate("() => window.__opened || []")
 
         # …and an empty list must SAY something rather than leave a blank panel. Emptied at the SERVER and
         # then refetched, not by writing the signal: an effect refreshes the visible scope whenever the live
@@ -262,6 +266,13 @@ def test_and_clicking_it_asks_the_server_to_reopen_THAT_task(seen):
     V2-690 lesson with a mouse: it is clicked here, and what the page SENT is what is asserted."""
     assert seen["done"].get("reopened") == ["b1"], (
         f"the click did not reach POST /api/tasks/reopen with the row's own id: {seen['done'].get('reopened')}")
+    # …and the CARD is asked for. The server deliberately emits no `show` (a click is the operator's hands,
+    # and the presentation door collapses `results::b1` and `results::b2` into one «results», which would
+    # suppress the second report while the first is open). The wall asks the desktop through the house
+    # `hb:*` document event instead — asserted here, because a POST that opens nothing is a dead button
+    # with a green network tab.
+    assert seen["done"].get("opened") == ["results::b1"], (
+        f"the reply came back and no card was asked for: {seen['done'].get('opened')}")
 
 
 def test_a_recurring_task_shows_its_cadence_and_its_next_moment(seen):

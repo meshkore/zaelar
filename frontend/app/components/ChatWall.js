@@ -231,7 +231,11 @@ export function ChatWall() {
   //
   // The wall is deliberately NOT closed: where his panel sits is his arrangement, and moving it because he
   // clicked a button inside it would be a design change nobody asked for.
-  const taskShowResults = (task) => api.taskReopen(String(task.id || ""));
+  const taskShowResults = async (task) => {
+    const r = await api.taskReopen(String(task.id || ""));
+    if (!r || !r.ok || !r.instance) return;   // nothing was kept: the row says so rather than opening a blank
+    try { document.dispatchEvent(new CustomEvent("hb:open-card", { detail: { id: r.instance } })); } catch (_) {}
+  };
   // V2-728 — a PERIODIC task's row. Its second line is its cadence and its next moment, because that is the
   // only pair of facts that answers «is this still going to happen, and when»; the prompt it fires is below,
   // dimmed, for the times the name is not enough.

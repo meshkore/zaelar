@@ -313,6 +313,20 @@ export class Desktop {
     document.addEventListener("hb:rail-resized", refit);
     document.addEventListener("hb:canvas-resized", refit);
     addEventListener("resize", refit);
+    // V2-728 — a NATIVE surface asking for a card. «Ver resultados» on a finished task lives in the chat
+    // wall, which has no desktop reference and should not get one; this is the same `hb:*` document-event
+    // seam the rail and the wall already use in the other direction.
+    //
+    // WHY THE FRONTEND AND NOT THE SERVER, which was the first version: a click is the OPERATOR'S HANDS,
+    // the one case `canvas_visibility.REASONS` says is never judged — and routing it through the server's
+    // `show` would have made it a judged presentation, where `is_open` collapses `results::b1` and
+    // `results::b2` to «results is already open» and suppresses the second. Two sheets is the normal case
+    // for an errand (V2-259), so the door would have turned the button dead exactly when he has one report
+    // open and asks for another.
+    document.addEventListener("hb:open-card", (e) => {
+      const id = String(((e || {}).detail || {}).id || "");
+      if (id) this.show(id);
+    });
   }
 
   // WHERE THE CARDS ACTUALLY LIVE (V2-608 F3). `#wstage` is a CHILD of `#desk`, and `#desk` carries

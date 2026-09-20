@@ -18,8 +18,6 @@ from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 from loguru import logger
 
-from voice.observer import emit
-
 router = APIRouter()
 
 
@@ -57,9 +55,15 @@ async def tasks_reopen(payload: dict | None = None):
 
     The sheet may be long gone — eight is the cap and a busy week passes it — so this REBUILDS it from
     `task_artifacts` when it has to (`widgets/results/rehydrate.py`, idempotent: a sheet still on disk is left
-    exactly as it is, with anything added since). Then it emits the same `widget/show` the brain emits, rather
-    than answering with an id for the caller to open: that one event reaches the desktop AND the mobile shell,
-    and it puts the opening on the observability timeline like every other card that appears on screen.
+    exactly as it is, with anything added since), and answers with the instance to open.
+
+    IT DOES NOT EMIT A `show`, and that is deliberate rather than an omission. A click is the OPERATOR'S
+    HANDS — the one entry `canvas_visibility.REASONS` marks as never judged — and pushing it through the
+    server's presentation door would have made it a judged one, where `is_open` collapses `results::b1` and
+    `results::b2` into «results is already open» and suppresses the second. Two sheets at once is the NORMAL
+    case for errands (V2-259), so the door would have made the button dead exactly when he already has one
+    report open and asks for another. The frontend opens it (`hb:open-card` → `desktop.show`), which is the
+    same path every other click takes and the one the canvas audit already records as `src: "user"`.
     """
     tid = str((payload or {}).get("id") or "").strip()
     if not tid:
@@ -70,11 +74,6 @@ async def tasks_reopen(payload: dict | None = None):
     except Exception as e:  # noqa: BLE001
         logger.warning(f"tasks_reopen({tid}) failed: {e}")
         return JSONResponse({"ok": False, "error": "no se pudo reabrir"}, status_code=500)
-    if out.get("ok") and out.get("instance"):
-        # `src` is neither «user» (the SSE client drops those as its own echo) nor `worker:…` (which opens
-        # the card in the background, deliberately, so unattended work never steals focus). This one IS the
-        # operator asking, so it comes to the front.
-        emit("widget", "show", extra={"id": out["instance"], "src": "tasks"})
     return JSONResponse(out, headers={"Cache-Control": "no-cache"})
 
 
