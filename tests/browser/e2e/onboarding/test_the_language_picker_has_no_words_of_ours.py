@@ -192,6 +192,71 @@ def test_typing_narrows_the_list_and_clicking_a_row_locks_that_language(playwrig
     assert not m["errors"], f"page errors: {m['errors']}"
 
 
+# ── one mark, one language (V2-730) ───────────────────────────────────────────────────────────────────────
+
+# Read the ACCENT as the browser resolves it, then ask every row what colour its border actually is. A
+# class check would pass with the rule deleted from the stylesheet; this measures the paint.
+_MARK_READ = """() => {
+  const probe = document.createElement("span");
+  probe.style.color = getComputedStyle(document.documentElement).getPropertyValue("--hb-accent").trim();
+  document.body.appendChild(probe);
+  const accent = getComputedStyle(probe).color;
+  probe.remove();
+  const rows = [...document.querySelectorAll(".lang-onb-row")];
+  return {
+    accent,
+    marked: rows.filter(b => getComputedStyle(b).borderTopColor === accent).map(b => b.getAttribute("lang")),
+    pressed: rows.filter(b => b.getAttribute("aria-pressed") === "true").map(b => b.getAttribute("lang")),
+    pinnedBorders: [...document.querySelectorAll(".lang-onb-pinned .lang-onb-row")]
+      .map(b => [b.getAttribute("lang"), getComputedStyle(b).borderTopColor]),
+  };
+}"""
+
+
+def _run_mark(steps=()):
+    async def go():
+        from playwright.async_api import async_playwright
+        async with async_playwright() as pw:
+            b, pg, errors = await _boot(pw)
+            for step in steps:
+                await step(pg)
+            out = await pg.evaluate(_MARK_READ)
+            out["errors"] = errors
+            await b.close()
+            return out
+    return asyncio.run(go())
+
+
+def test_the_first_screen_marks_ONE_language_and_a_click_moves_the_mark(playwright_available):
+    """The operator, on a fresh install (2026-09-20): *«cuando esto arranca… te quedan seleccionados los dos
+    idiomas. Tienes que seleccionar solo uno y entonces el usuario puede clicar otro, pero no los dos a la
+    vez.»*
+
+    «Destacados arriba» had been drawn with the accent border — the same colour that means *chosen*
+    everywhere else in the product — so both shipped rows read as already picked, and a click had nothing
+    left to change on screen. Prominence is now the stronger neutral line; the accent marks exactly one row.
+    """
+    m = _run_mark()
+    assert not m["errors"], f"page errors: {m['errors']}"
+    assert m["marked"] == ["en"], (
+        f"exactly one language may wear the accent at boot, got {m['marked']}")
+    assert m["pressed"] == ["en"], f"and it must say so to a screen reader, got {m['pressed']}"
+    borders = dict(m["pinnedBorders"])
+    assert borders["en"] != borders["es"], (
+        "the two shipped rows cannot look identical — one of them is the chosen one")
+
+    async def click_spanish(pg):
+        await pg.click('.lang-onb-pinned .lang-onb-row[lang="es"]')
+        await pg.wait_for_function(
+            '() => document.querySelector(\'.lang-onb-row[lang="es"]\').classList.contains("sel")')
+
+    m = _run_mark([click_spanish])
+    assert m["marked"] == ["es"], (
+        f"the mark must MOVE, never accumulate — got {m['marked']} after clicking Espanol")
+    assert m["pressed"] == ["es"], m["pressed"]
+    assert not m["errors"], f"page errors: {m['errors']}"
+
+
 # ── step two: where the files go (V2-672) ─────────────────────────────────────────────────────────────────
 
 _FOLDER_READ = """() => {

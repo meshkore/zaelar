@@ -2257,7 +2257,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": [
                 "tests/browser/unit/agenda/test_both_doors_ask_google_for_the_SAME_return_address.py"]},
         {"id": "4.162", "title": "El selector de idioma no instruye en ningún idioma: la marca pinta, en/es "
-                                 "arriba y destacados, 40 filas que caben",
+                                 "arriba y destacados, 40 filas que caben, y el acento marca UN solo idioma "
+                                 "— un clic lo MUEVE (V2-730)",
             "ch": UNIT, "paths": [
                 "tests/browser/e2e/onboarding/test_the_language_picker_has_no_words_of_ours.py"]},
         {"id": "4.161", "title": "El contrato del generador no contradice a su puerta, y una puerta en rojo "

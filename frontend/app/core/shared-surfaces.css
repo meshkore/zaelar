@@ -41,9 +41,15 @@
 .lang-onb-row{display:flex;align-items:center;gap:10px;width:100%;box-sizing:border-box;text-align:left;
   border:1px solid var(--hb-line);background:var(--hb-bg-soft);color:var(--hb-ink);
   padding:10px 12px;border-radius:12px;cursor:pointer;font-size:0.875rem;font-weight:600;min-height:44px}
-.lang-onb-row:hover{border-color:var(--hb-accent);color:var(--hb-accent)}
 .lang-onb-row[disabled]{opacity:.5;cursor:default}
-.lang-onb-row.pinned{border-color:var(--hb-accent);background:var(--hb-bubble);font-size:0.9375rem}
+/* V2-730 — «destacados arriba» is PROMINENCE, not choice: the two shipped rows get the stronger line and
+   the raised surface, and nothing more. The ACCENT belongs to exactly one row, the language the engine is
+   actually running in. Drawing «destacado» with the accent made the very first screen of the product show
+   two languages already chosen at once. Ordered after .pinned so the mark wins wherever it lands, and
+   hover skips the marked row so its own accent is never restated. */
+.lang-onb-row.pinned{border-color:var(--hb-line-strong);background:var(--hb-bubble);font-size:0.9375rem}
+.lang-onb-row.sel{border-color:var(--hb-accent);background:var(--hb-bubble);color:var(--hb-accent)}
+.lang-onb-row:hover:not(.sel){border-color:var(--hb-accent);color:var(--hb-accent)}
 .lang-onb-flag{font-size:1.25rem;line-height:1;flex:0 0 auto}
 .lang-onb-name{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .lang-onb-search{display:flex;align-items:center;gap:8px;border:1px solid var(--hb-line);border-radius:10px;

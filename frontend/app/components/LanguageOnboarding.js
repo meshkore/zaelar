@@ -62,12 +62,20 @@ export function LanguageOnboarding() {
   const [filter, setFilter] = createSignal("");
   const [folder, setFolder] = createSignal(null);     // null = not asked yet / not applicable
   const [problem, setProblem] = createSignal("");
+  // V2-730 — which row wears the accent. ONE, always: the language the engine is actually running in
+  // ("en" until /api/i18n/state says otherwise). Until this signal existed the accent was baked into
+  // `.pinned`, so the first screen of a fresh install showed English AND Spanish already chosen, and
+  // there was no way to tell which one a click had just changed.
+  const [active, setActive] = createSignal("en");
 
   // The catalog is fetched once, when the component is built. main.js only mounts this after bootReady(),
   // and the same endpoint already had to answer for the modal to open at all.
   fetch("/api/i18n/state", { cache: "no-store" })
     .then(r => r.json())
-    .then(s => { if (s && Array.isArray(s.picker) && s.picker.length) setRows(s.picker); })
+    .then(s => {
+      if (s && Array.isArray(s.picker) && s.picker.length) setRows(s.picker);
+      if (s && s.active) setActive(String(s.active).toLowerCase());
+    })
     .catch(() => {});
 
   // The early strings travel with the SSE "detected" event, already in the chosen language. `k` is the
@@ -76,6 +84,7 @@ export function LanguageOnboarding() {
 
   const pick = async (code) => {
     if (busy()) return;
+    setActive(code);                                  // the mark follows the finger, not the round-trip
     setBusy(true);
     await api.chooseLanguage(code).catch(() => {});
     setBusy(false);
@@ -161,9 +170,11 @@ export function LanguageOnboarding() {
   };
 
   const row = (r) => h("button", {
-    class: "lang-onb-row" + (r.pinned ? " pinned" : ""),
+    // A function, so moving the mark repaints two borders instead of re-rendering forty rows.
+    class: () => "lang-onb-row" + (r.pinned ? " pinned" : "") + (active() === r.code ? " sel" : ""),
     disabled: () => busy(),
     lang: r.code,
+    "aria-pressed": () => (active() === r.code ? "true" : "false"),
     title: r.name || r.native,
     onClick: () => pick(r.code),
   },
