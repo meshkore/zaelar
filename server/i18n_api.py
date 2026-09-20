@@ -37,6 +37,13 @@ async def i18n_state():
     # answers "is this a language we can offer" on the server side too, and two copies of a 40-row list is
     # how one of them goes stale.
     state["picker"] = _catalog.picker()
+    # V2-734 — which regional variant is active, so the picker can mark the row the operator is actually
+    # on. Without it the mark falls back to the first variant of the active language, which is a guess.
+    try:
+        from config import settings as _settings
+        state["region"] = str(_settings.get("language_region") or "").strip().upper()
+    except Exception:  # noqa: BLE001
+        state["region"] = ""
     return state
 
 

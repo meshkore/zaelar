@@ -128,6 +128,32 @@ _TTS_LABELS = {"cartesia": "Cartesia Sonic (cloud)", "kokoro_local": "Kokoro loc
                "elevenlabs": "ElevenLabs (cloud · voz nativa por idioma)"}
 
 
+def _current_locale() -> str:
+    """The language knob's current value: the full code when a region was chosen («es-ES»), else the bare
+    language. It has to be one of the dropdown's own option values or nothing looks selected."""
+    lang = os.getenv("ZAELAR_LANGUAGE", "") or ""
+    if not lang:
+        try:
+            from voice.engine.core.config import SETTINGS as _S
+            lang = _S.language
+        except Exception:  # noqa: BLE001
+            lang = "en"
+    lang = str(lang).strip().lower()
+    region = str(_read().get("language_region") or "").strip().upper()
+    if region:
+        return f"{lang}-{region}"
+    # No region stored (a fresh install, or one from before the variants existed): point at the first
+    # variant of this language, which is also the one whose voice is already the default.
+    try:
+        from i18n.catalog import picker
+        hit = next((r for r in picker() if r.get("base") == lang and r.get("region")), None)
+        if hit:
+            return hit["code"]
+    except Exception:  # noqa: BLE001
+        pass
+    return lang
+
+
 def _ui_languages() -> list[dict]:
     """The language rows the ⚙ offers. Falls back to the two shipped ones if the catalog cannot be read —
     a settings panel that renders an EMPTY language dropdown is worse than one with two entries."""
@@ -185,7 +211,10 @@ def effective() -> dict:
         # have a verified NATIVE Kokoro voice for — which is the right rule for THAT module and the wrong
         # list for this dropdown. `langs.spec()` falls back to English for the parts that genuinely need a
         # native voice, exactly as it already does for a language chosen at onboarding.
-        knob("stt_language", "Idioma", os.getenv("ZAELAR_LANGUAGE", SETTINGS.language),
+        # V2-734 — the value is the FULL code («es-ES»), because the options are regional variants now and
+        # a dropdown whose current value matches none of its options shows the operator a blank where
+        # their own choice should be. `update()` splits it again on the way back in.
+        knob("stt_language", "Idioma", _current_locale(),
              [(f"{row['flag']} {row['native']}", row["code"]) for row in _ui_languages()], "session",
              "multilingüe; al cambiar, STT, voz TTS y respuestas se re-alinean al idioma (aplica al reconectar)"),
         knob("attention_mode", "Atención · micro abierto", os.getenv("ZAELAR_ATTENTION", "always"),
@@ -273,6 +302,24 @@ def update(payload: dict) -> dict:
     """Validate + persist + apply. Returns {ok, applied, needs_reconnect, note}."""
     d = _read()
     applied, needs_reconnect = [], False
+    # V2-734 — a picker row may be a REGIONAL variant («es-419», «en-GB»). Split it HERE, before anything
+    # persists or exports it: `stt_language` and `ZAELAR_LANGUAGE` have always been a bare language code
+    # and every reader downstream depends on that, while the region is a preference about the VOICE and
+    # nothing else. Both doors into this function (the first-run lock and the ⚙) go through this line, so
+    # neither has to remember.
+    if str(payload.get("stt_language") or "").strip():
+        try:
+            from i18n.catalog import split_locale
+            _base, _region = split_locale(str(payload["stt_language"]))
+        except Exception:  # noqa: BLE001
+            _base, _region = str(payload["stt_language"]).strip().lower(), ""
+        if _base:
+            payload = dict(payload, stt_language=_base)
+            if _region and d.get("language_region") != _region:
+                d["language_region"] = _region
+                applied.append("language_region")
+            elif _region:
+                d["language_region"] = _region
     # Appearance (V2-617) — applies LIVE on the client, never needs a reconnect.
     if "theme_profile" in payload:
         prof = str(payload.get("theme_profile") or "").strip()
@@ -340,8 +387,12 @@ def update(payload: dict) -> dict:
                                                      voices_for)
             prov = str(payload.get("tts_provider", "")).strip().lower() or tts_provider()
             lang = str(d.get("stt_language") or "").strip().lower()
-            want = default_voice_for(prov, lang)
-            if want and not voice_is_aligned(prov, str(d.get("assistant_voice") or ""), lang):
+            # V2-734 — with the region, «español de España» gets a peninsular voice and «español latino» a
+            # Latin-American one. Without it both got whichever native voice happened to be first in the
+            # account, which is how a Peruvian voice came to read the operator's Castilian.
+            region = str(d.get("language_region") or "").strip().upper()
+            want = default_voice_for(prov, lang, region)
+            if want and not voice_is_aligned(prov, str(d.get("assistant_voice") or ""), lang, region):
                 d["assistant_voice"] = want
                 try:
                     from server import state as S

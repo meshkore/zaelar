@@ -157,8 +157,9 @@ def test_the_screen_says_what_it_wants_without_a_single_word(playwright_availabl
 
 def test_the_two_shipped_languages_are_the_first_rows_and_look_different(playwright_available):
     m = _run()
-    assert [p["lang"] for p in m["pinned"]] == ["en", "es"], m["pinned"]
-    assert [p["name"] for p in m["pinned"]] == ["English", "Español"]
+    assert [p["lang"] for p in m["pinned"]] == ["en-US", "en-GB", "es-ES", "es-419"], m["pinned"]
+    assert [p["name"] for p in m["pinned"]] == ["English (US)", "English (UK)",
+                                                "Español (España)", "Español (Latinoamérica)"]
     assert all(p["flag"].strip() for p in m["pinned"])
     rest = m["firstRest"]
     assert rest, "the rest of the catalog must render below"
@@ -238,11 +239,11 @@ def test_the_first_screen_marks_ONE_language_and_a_click_moves_the_mark(playwrig
     """
     m = _run_mark()
     assert not m["errors"], f"page errors: {m['errors']}"
-    assert m["marked"] == ["en"], (
+    assert m["marked"] == ["en-US"], (
         f"exactly one language may wear the accent at boot, got {m['marked']}")
-    assert m["pressed"] == ["en"], f"and it must say so to a screen reader, got {m['pressed']}"
+    assert m["pressed"] == ["en-US"], f"and it must say so to a screen reader, got {m['pressed']}"
     borders = dict(m["pinnedBorders"])
-    assert borders["en"] != borders["es"], (
+    assert borders["en-US"] != borders["es-ES"], (
         "the two shipped rows cannot look identical — one of them is the chosen one")
 
     async def click_spanish(pg):
@@ -251,14 +252,14 @@ def test_the_first_screen_marks_ONE_language_and_a_click_moves_the_mark(playwrig
         await pg.route("http://zaelar.test/api/library/base", lambda r: asyncio.ensure_future(
             r.fulfill(status=200, content_type="application/json",
                       body=json.dumps({"ok": True, "can_choose": False}))))
-        await pg.click('.lang-onb-pinned .lang-onb-row[lang="es"]')
+        await pg.click('.lang-onb-pinned .lang-onb-row[lang="es-ES"]')
         await pg.wait_for_function(
-            '() => document.querySelector(\'.lang-onb-row[lang="es"]\').classList.contains("sel")')
+            '() => document.querySelector(\'.lang-onb-row[lang="es-ES"]\').classList.contains("sel")')
 
     m = _run_mark([click_spanish])
-    assert m["marked"] == ["es"], (
+    assert m["marked"] == ["es-ES"], (
         f"the mark must MOVE, never accumulate — got {m['marked']} after clicking Espanol")
-    assert m["pressed"] == ["es"], m["pressed"]
+    assert m["pressed"] == ["es-ES"], m["pressed"]
     assert not m["errors"], f"page errors: {m['errors']}"
 
 
@@ -300,7 +301,7 @@ def _run_bar(after_detected="", can_choose=False):
             await pg.route("http://zaelar.test/api/library/base", lambda r: asyncio.ensure_future(
                 r.fulfill(status=200, content_type="application/json",
                           body=json.dumps({"ok": True, "can_choose": can_choose}))))
-            await pg.click('.lang-onb-pinned .lang-onb-row[lang="es"]')
+            await pg.click('.lang-onb-pinned .lang-onb-row[lang="es-ES"]')
             await pg.evaluate("""() => {
               window.__store.setLangOnboardPhase("detected");
               window.__store.setLangOnboardLoading("Preparando espanol…");
@@ -332,7 +333,7 @@ def test_a_language_with_nothing_to_prepare_shows_no_screen_at_all(playwright_av
             await pg.route("http://zaelar.test/api/library/base", lambda r: asyncio.ensure_future(
                 r.fulfill(status=200, content_type="application/json",
                           body=json.dumps({"ok": True, "can_choose": False}))))
-            await pg.click('.lang-onb-pinned .lang-onb-row[lang="es"]')
+            await pg.click('.lang-onb-pinned .lang-onb-row[lang="es-ES"]')
             # exactly what sse.js does for total 0: the phases move, nothing is armed, nothing is set
             await pg.evaluate("""() => {
               window.__store.setLangOnboardPhase("detected");
@@ -357,7 +358,7 @@ def test_a_language_with_nothing_to_prepare_shows_no_screen_at_all(playwright_av
         f"nothing to prepare must show NO preparing screen: {m}")
     assert not m["folder"], "and this deployment cannot choose a folder either"
     assert m["rows"] >= 40, "he is still looking at the picker — nothing new appeared and nothing vanished"
-    assert m["marked"] == ["es"], "with the choice he just made still marked on it"
+    assert m["marked"] == ["es-ES"], "with the choice he just made still marked on it"
 
 
 def test_the_preparing_screen_carries_a_bar_that_paints_and_fills(playwright_available):

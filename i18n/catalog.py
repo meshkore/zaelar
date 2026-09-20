@@ -85,11 +85,70 @@ LANGUAGES: tuple[Language, ...] = (
 # the picker cannot promise "instant" for a language we stopped shipping.
 PINNED: tuple[str, ...] = ("en", "es")
 
+
+@dataclass(frozen=True)
+class Variant:
+    """A REGIONAL variant of a shipped language (V2-734).
+
+    The operator, after hearing a Peruvian voice read his Castilian (2026-09-20): *«no es lo mismo el
+    español de España que el español latino. Así que si quieres, en la selección de idiomas pon inglés de
+    Estados Unidos, inglés de Reino Unido, español de España o español latino. Eso nos ayudará a elegir
+    por defecto la voz más adecuada.»* — which is exactly what it is for, and the whole of what it is for.
+
+    A variant is NOT a language here. It shares the bundle, the STT code, the memory's canonical language
+    and everything else with its `base`; the only thing it decides is which ACCENT the default voice
+    should have. Making it a language would mean a second Spanish UI to generate and keep in step, for a
+    difference the interface does not have.
+    """
+    code: str        # "es-419" — what the picker sends back and what identifies the row
+    base: str        # "es" — the language everything downstream uses, unchanged
+    region: str      # "419" — resolved to a set of accents by the VOICE catalog, not by this module
+    name: str        # English name, for logs
+    native: str      # what a speaker calls it — the only label on the picker
+    flag: str
+
+
+# Only the SHIPPED languages have variants, and only where the difference is one a listener hears
+# immediately. The flag follows this module's existing compromise — an icon for finding your row, not a
+# claim about where a language belongs — so Latin America carries the flag of its largest population
+# rather than a globe nobody scans as "Spanish".
+VARIANTS: tuple[Variant, ...] = (
+    Variant("en-US", "en", "US",  "English (United States)", "English (US)", "🇺🇸"),
+    Variant("en-GB", "en", "GB",  "English (United Kingdom)", "English (UK)", "🇬🇧"),
+    Variant("es-ES", "es", "ES",  "Spanish (Spain)", "Español (España)", "🇪🇸"),
+    Variant("es-419", "es", "419", "Spanish (Latin America)", "Español (Latinoamérica)", "🇲🇽"),
+)
+
 _BY_CODE = {lang.code: lang for lang in LANGUAGES}
+_VARIANTS_BY_BASE: dict[str, list[Variant]] = {}
+for _v in VARIANTS:
+    _VARIANTS_BY_BASE.setdefault(_v.base, []).append(_v)
+
+
+def split_locale(code: str) -> tuple[str, str]:
+    """`"es-419"` → `("es", "419")`, `"es"` → `("es", "")`.
+
+    THE ONE PLACE that knows a picker code may carry a region. Everything downstream — the bundle, the STT
+    language, `ZAELAR_LANGUAGE`, the memory's canonical language — takes the base and has never needed to
+    know the rest; the region is persisted beside it and read only when a voice is being chosen.
+    """
+    raw = (code or "").strip()
+    if "-" not in raw:
+        return raw.lower(), ""
+    base, _, region = raw.partition("-")
+    return base.strip().lower(), region.strip().upper()
 
 
 def get(code: str) -> Language | None:
-    return _BY_CODE.get((code or "").strip().lower())
+    """The language for a code, accepting a regional variant (`es-419` resolves to Spanish)."""
+    base, _ = split_locale(code)
+    return _BY_CODE.get(base)
+
+
+def variant(code: str) -> Variant | None:
+    """The variant row for a full code, or None for a bare language."""
+    raw = (code or "").strip()
+    return next((v for v in VARIANTS if v.code.lower() == raw.lower()), None)
 
 
 def picker() -> list[dict]:
@@ -98,10 +157,16 @@ def picker() -> list[dict]:
     Sorted by the NATIVE name because that is the only label on screen, and sorting by our English name
     would produce an order that looks random to the person reading it.
     """
-    pinned = [lang for code in PINNED if (lang := _BY_CODE.get(code))]
+    # V2-734 — a shipped language is offered as its REGIONAL VARIANTS, because that is the choice that
+    # decides which voice speaks to you. A language with no variants declared is offered as itself.
+    pinned: list[object] = []
+    for code in PINNED:
+        pinned.extend(_VARIANTS_BY_BASE.get(code) or [lang for lang in [_BY_CODE.get(code)] if lang])
     rest = sorted((lang for lang in LANGUAGES if lang.code not in PINNED), key=lambda x: x.native.lower())
     return [{"code": x.code, "name": x.name, "native": x.native, "flag": x.flag,
-             "pinned": x.code in PINNED} for x in pinned + rest]
+             "base": getattr(x, "base", "") or x.code, "region": getattr(x, "region", ""),
+             "pinned": (getattr(x, "base", "") or x.code) in PINNED} for x in pinned + rest]
 
 
-__all__ = ["Language", "LANGUAGES", "PINNED", "get", "picker"]
+__all__ = ["Language", "LANGUAGES", "PINNED", "Variant", "VARIANTS", "get", "variant",
+           "split_locale", "picker"]

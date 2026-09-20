@@ -77,7 +77,9 @@ export function LanguageOnboarding() {
     .then(r => r.json())
     .then(s => {
       if (s && Array.isArray(s.picker) && s.picker.length) setRows(s.picker);
-      if (s && s.active) setActive(String(s.active).toLowerCase());
+      // V2-734 — the row is a regional variant now, so the mark follows the full code («en-GB»), and the
+      // region comes from the same answer rather than being guessed from the language.
+      if (s && s.active) setActive(String(s.active).toLowerCase() + (s.region ? "-" + s.region : ""));
     })
     .catch(() => {});
 
@@ -172,12 +174,26 @@ export function LanguageOnboarding() {
                            (r.code || "").toLowerCase() === q);
   };
 
+  // Which row wears the mark. The active language may be a bare code («en») while every row it could
+  // match is a variant («en-US», «en-GB»): on a fresh install nobody has chosen a region yet, and marking
+  // nothing at all is how V2-730's fix would quietly come undone. So an exact match wins, and failing
+  // that the language's FIRST variant carries it — which is also the one whose voice is the default.
+  const markedCode = () => {
+    const want = String(active() || "").toLowerCase();
+    const all = rows();
+    if (all.some(r => String(r.code).toLowerCase() === want)) return want;
+    const base = want.split("-")[0];
+    const hit = all.find(r => String(r.base || r.code).toLowerCase() === base);
+    return hit ? String(hit.code).toLowerCase() : want;
+  };
+
   const row = (r) => h("button", {
     // A function, so moving the mark repaints two borders instead of re-rendering forty rows.
-    class: () => "lang-onb-row" + (r.pinned ? " pinned" : "") + (active() === r.code ? " sel" : ""),
+    class: () => "lang-onb-row" + (r.pinned ? " pinned" : "") +
+                 (markedCode() === String(r.code).toLowerCase() ? " sel" : ""),
     disabled: () => busy(),
     lang: r.code,
-    "aria-pressed": () => (active() === r.code ? "true" : "false"),
+    "aria-pressed": () => (markedCode() === String(r.code).toLowerCase() ? "true" : "false"),
     title: r.name || r.native,
     onClick: () => pick(r.code),
   },

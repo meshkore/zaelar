@@ -200,11 +200,50 @@ def for_language(lang: str) -> list[dict]:
     return out
 
 
-def default_voice(lang: str) -> str:
-    """The voice this language should speak with when the operator has not picked one. '' when we know
-    nothing — the TTS builder then keeps the plugin's own default rather than a wrong-language id."""
+# V2-734 — which ACCENTS a region means, in the vocabulary the Voice Library actually uses. Measured
+# against his own cached catalog (2026-09-20): es returns `peninsular`, `latin american`, `argentine`,
+# `peruvian`; en returns `american`, `british`, `australian`. The operator: *«no es lo mismo el español de
+# España que el español latino»* — and before this, `es` handed him `Elena (peruvian)` because she happens
+# to be first in his account, while `Sara Martin 1 (peninsular)` sat second.
+#
+# A region lists its accents in PREFERENCE order and nothing else: an accent nobody in the list matches
+# falls through to the plain «first native» rule, which is what a language with no regional split gets.
+_REGION_ACCENTS: dict[str, tuple[str, ...]] = {
+    "ES":  ("peninsular", "castilian", "spanish", "european"),
+    "419": ("latin american", "mexican", "colombian", "argentine", "chilean", "peruvian", "neutral"),
+    "US":  ("american", "us", "north american"),
+    "GB":  ("british", "english", "uk", "received pronunciation", "irish"),
+}
+
+
+def accents_for(region: str) -> tuple[str, ...]:
+    """The accents a region prefers, best first. Empty for a region we do not split."""
+    return _REGION_ACCENTS.get((region or "").strip().upper(), ())
+
+
+def default_voice(lang: str, region: str = "") -> str:
+    """The voice this language should speak with when the operator has not picked one.
+
+    With a `region`, a NATIVE voice whose accent the region prefers wins — that is the entire reason
+    regional variants exist in the picker (V2-734). Preference is ordered, so «peninsular» beats
+    «castilian» beats nothing, and a region whose accents are all absent degrades to the plain rule rather
+    than to a wrong-accent voice chosen on purpose.
+
+    '' when we know nothing — the TTS builder then keeps the plugin's own default rather than a
+    wrong-language id.
+    """
     rows = for_language(lang)
-    return rows[0]["voice"] if rows else ""
+    if not rows:
+        return ""
+    wanted = accents_for(region)
+    if wanted:
+        lang = (lang or "").strip().lower()
+        natives = [v for v in rows if v.get("lang") == lang and lang]
+        for accent in wanted:
+            hit = next((v for v in natives if (v.get("accent") or "").strip().lower() == accent), None)
+            if hit:
+                return hit["voice"]
+    return rows[0]["voice"]
 
 
-__all__ = ["for_language", "default_voice", "refresh"]
+__all__ = ["for_language", "default_voice", "accents_for", "refresh"]

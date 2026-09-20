@@ -84,30 +84,57 @@ def kokoro_default_voice(lang: str | None = None) -> str:
     return langs.spec(lang).kokoro_default
 
 
+def picked_region() -> str:
+    """The REGION the operator chose with their language — "ES", "419", "GB"… '' when they picked a plain
+    language or an older install never had one (V2-734).
+
+    Read from `config/settings.json` the same way `_picked_voice()` reads the voice, and for the same
+    reason: the engine's frozen SETTINGS cannot see a value written after import, and this one is written
+    by the very act (locking a language) whose effect has to be visible immediately.
+    """
+    try:
+        p = ZAELAR_ROOT / "config" / "settings.json"
+        r = json.loads(p.read_text(encoding="utf-8")).get("language_region")
+        if r:
+            return str(r).strip().upper()
+    except Exception:
+        pass
+    return os.getenv("ZAELAR_LANGUAGE_REGION", "").strip().upper()
+
+
 def elevenlabs_voices(lang: str | None = None) -> list:
     """ElevenLabs voices for a language (active language if None) — native ones first, multilingual last."""
     from .elevenlabs_voices import for_language
     return for_language(lang or langs.current_code())
 
 
-def elevenlabs_default_voice(lang: str | None = None) -> str:
-    """The voice ElevenLabs should speak this language with when the operator has not picked one."""
+def elevenlabs_default_voice(lang: str | None = None, region: str | None = None) -> str:
+    """The voice ElevenLabs should speak this language with when the operator has not picked one.
+
+    `region` (V2-734) narrows it to an accent: «español de España» and «español latino» are the same
+    language, the same bundle and the same STT — and two voices a listener tells apart instantly. None
+    means "whatever the operator chose with their language"; '' explicitly means no preference.
+    """
     from .elevenlabs_voices import default_voice
-    return default_voice(lang or langs.current_code())
+    return default_voice(lang or langs.current_code(),
+                         picked_region() if region is None else region)
 
 
-def default_voice_for(provider: str | None = None, lang: str | None = None) -> str:
-    """The right voice for (provider, language) when nothing has been chosen — the seam the language
-    onboarding and the ⚙'s realignment both use, so neither has to know which providers are per-language."""
+def default_voice_for(provider: str | None = None, lang: str | None = None,
+                      region: str | None = None) -> str:
+    """The right voice for (provider, language, region) when nothing has been chosen — the seam the
+    language onboarding and the ⚙'s realignment both use, so neither has to know which providers are
+    per-language."""
     p = _catalog_key(provider) if provider else tts_provider()
     if p == "kokoro":
-        return kokoro_default_voice(lang)
+        return kokoro_default_voice(lang)     # local voices have one accent each; a region cannot narrow it
     if p == "elevenlabs":
-        return elevenlabs_default_voice(lang)
+        return elevenlabs_default_voice(lang, region)
     return ""                    # Cartesia's voices are multilingual — one voice speaks any language
 
 
-def voice_is_aligned(provider: str | None, voice: str, lang: str | None = None) -> bool:
+def voice_is_aligned(provider: str | None, voice: str, lang: str | None = None,
+                     region: str | None = None) -> bool:
     """Is `voice` a sound choice for `lang` under `provider`? The question a LANGUAGE CHANGE has to ask.
 
     "Is it in the list" is NOT the same question, and using it was a real defect (V2-672): the ElevenLabs
@@ -127,9 +154,38 @@ def voice_is_aligned(provider: str | None, voice: str, lang: str | None = None) 
     if p == "kokoro":
         return any(v["voice"] == voice for v in kokoro_voices(lang))
     if p == "elevenlabs":
-        natives = [v for v in elevenlabs_voices(lang) if v.get("native")]
-        return True if not natives else any(v["voice"] == voice for v in natives)
+        rows = elevenlabs_voices(lang)
+        natives = [v for v in rows if v.get("native")]
+        if not natives:
+            return True
+        if not any(v["voice"] == voice for v in natives):
+            return False
+        # V2-734 — and being native is not enough once a REGION has been chosen. «Español de España» and
+        # «español latino» are both native Spanish, so without this a switch between them would look
+        # aligned and change nothing — which is the same shape of defect as the one above, one level in.
+        wanted = _accents_for(region)
+        if not wanted:
+            return True
+        here = next((v for v in rows if v["voice"] == voice), {})
+        accent = (here.get("accent") or "").strip().lower()
+        # An accent we cannot read is not evidence of a wrong one: only a KNOWN, non-preferred accent
+        # loses the operator's voice.
+        if not accent or not any((v.get("accent") or "").strip().lower() in wanted for v in natives):
+            return True
+        return accent in wanted
     return True                  # Cartesia: one multilingual voice speaks every catalog language
+
+
+def _accents_for(region: str | None) -> tuple[str, ...]:
+    """The accents a region prefers — asked of the ElevenLabs catalog, which is where the vocabulary is."""
+    reg = picked_region() if region is None else (region or "")
+    if not reg:
+        return ()
+    try:
+        from .elevenlabs_voices import accents_for
+        return accents_for(reg)
+    except Exception:  # noqa: BLE001
+        return ()
 
 
 def voices_for(provider: str | None = None, lang: str | None = None) -> list:

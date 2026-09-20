@@ -4261,8 +4261,9 @@ DOMAINS: list[dict] = [
         # la otra mitad: una única voz castellana cableada para TODOS los idiomas, así que el inglés salía con
         # acento español. El selector ya no lleva ni una palabra nuestra y la voz la elige el idioma.
         {"id": "8.6", "title": "Nadie habla hasta elegir idioma: el selector sin palabras, la voz de "
-                               "ElevenLabs la decide el idioma — y la voz realineada alcanza la sesión que "
-                               "YA está hablando, sin reconexión (V2-733)",
+                               "ElevenLabs la decide el idioma — la voz realineada alcanza la sesión que "
+                               "YA está hablando, sin reconexión (V2-733), y la REGIÓN elige el acento: "
+                               "es-ES ≠ es-419, en-US ≠ en-GB (V2-734)",
             "ch": UNIT,
             "paths": ["tests/infrastructure/unit/core/test_nothing_speaks_before_a_language_is_chosen.py"]},
         # V2-672 F4 — el paso DOS del arranque: dónde guarda el agente sus ficheros. Es una costura de

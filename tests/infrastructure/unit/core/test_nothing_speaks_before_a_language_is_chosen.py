@@ -15,7 +15,9 @@ These tests never touch the network: every catalog read is fed a fake cache.
 """
 from __future__ import annotations
 
+import asyncio
 import json
+import os
 import tokenize
 from io import StringIO
 from pathlib import Path
@@ -77,23 +79,32 @@ def test_the_catalog_offers_forty_languages_with_a_flag_and_their_own_name():
         assert r["name"].strip()
 
 
-def test_the_two_shipped_languages_come_first_and_are_marked():
-    """«Estarán destacados arriba los dos idiomas que ya tenemos montados y debajo estará el resto.» Those
-    two are also the only ones that need no generation, so the claim has to stay true."""
+def test_the_shipped_languages_come_first_as_their_REGIONAL_VARIANTS():
+    """«Estarán destacados arriba los dos idiomas que ya tenemos montados y debajo estará el resto» —
+    and, since V2-734, each of those two is offered as the regional variants a listener tells apart:
+    *«no es lo mismo el español de España que el español latino… eso nos ayudará a elegir por defecto la
+    voz más adecuada»*. The variants are the same language underneath, which is what `base` says.
+    """
     from i18n import catalog
     from i18n import runtime
     rows = catalog.picker()
-    assert [r["code"] for r in rows[:2]] == list(catalog.PINNED)
-    assert all(r["pinned"] for r in rows[:2])
-    assert not any(r["pinned"] for r in rows[2:])
+    head = [r for r in rows if r["pinned"]]
+    assert [r["code"] for r in head] == ["en-US", "en-GB", "es-ES", "es-419"], [r["code"] for r in head]
+    assert rows[:len(head)] == head, "the shipped ones come FIRST, not merely marked"
+    assert {r["base"] for r in head} == set(catalog.PINNED), (
+        "a variant is not a new language: its base is what the bundle and the STT use")
     assert set(catalog.PINNED) == set(runtime.PRESET), (
         "pinned promises «instant»; it must be exactly what the repo ships")
+    assert all(r["region"] for r in head), "and each one says WHICH region, or it cannot pick a voice"
 
 
 def test_the_rest_are_ordered_by_the_only_label_on_screen():
     from i18n import catalog
-    rest = [r["native"].lower() for r in catalog.picker()[2:]]
+    rows = catalog.picker()
+    rest = [r["native"].lower() for r in rows if not r["pinned"]]
     assert rest == sorted(rest), "sorting by our English names produces an order the reader cannot follow"
+    assert not any(r["region"] for r in rows if not r["pinned"]), (
+        "only a language we SHIP is split by region — the rest have one voice to offer at best")
 
 
 def test_the_state_endpoint_serves_the_picker(monkeypatch):
@@ -188,8 +199,8 @@ def test_the_language_realignment_covers_every_provider_not_only_kokoro(monkeypa
     monkeypatch.setattr(st, "SETTINGS_FILE", f)
     from voice.engine.speech import voices as V
     monkeypatch.setattr(V, "tts_provider", lambda: "elevenlabs")
-    monkeypatch.setattr(V, "default_voice_for", lambda prov, lang: f"voice-for-{lang}")
-    monkeypatch.setattr(V, "voice_is_aligned", lambda prov, voice, lang=None: False)
+    monkeypatch.setattr(V, "default_voice_for", lambda prov, lang, region="": f"voice-for-{lang}")
+    monkeypatch.setattr(V, "voice_is_aligned", lambda prov, voice, lang=None, region=None: False)
     monkeypatch.setattr(V, "voices_for", lambda prov, lang=None: [{"voice": f"voice-for-{lang}"}])
     # `settings.update()` writes ZAELAR_LANGUAGE into the PROCESS env — correct in production (the store
     # overrides the env) and a suite-wide leak here: without this, every test after these two measured a
@@ -197,6 +208,132 @@ def test_the_language_realignment_covers_every_provider_not_only_kokoro(monkeypa
     with speaking("en"):
         st.update({"stt_language": "de"})
         assert json.loads(f.read_text(encoding="utf-8"))["assistant_voice"] == "voice-for-de"
+
+
+# ── the region decides the accent (V2-734) ────────────────────────────────────────────────────────────────
+
+_ES_ACCOUNT = [
+    {"voice": "elena", "label": "Elena", "gender": "f", "lang": "es", "accent": "peruvian"},
+    {"voice": "sara",  "label": "Sara",  "gender": "f", "lang": "es", "accent": "peninsular"},
+]
+_ES_LIBRARY = [
+    {"voice": "brian", "label": "Brian", "gender": "m", "lang": "es", "accent": "latin american"},
+]
+
+
+def test_spain_and_latin_america_are_not_the_same_voice(monkeypatch):
+    """The operator, hearing his Castilian read by a Peruvian voice (2026-09-20): *«no es lo mismo el
+    español de España que el español latino… pon inglés de Estados Unidos, inglés de Reino Unido, español
+    de España o español latino. Eso nos ayudará a elegir por defecto la voz más adecuada»*.
+
+    This is his own account, in miniature: `Elena (peruvian)` happens to be first, so «the first native
+    voice» — correct until now — handed Peruvian Spanish to a Castilian operator while `Sara (peninsular)`
+    sat one row below.
+    """
+    ev = _fake_catalog(monkeypatch, account=_ES_ACCOUNT, library=_ES_LIBRARY, lang="es")
+    assert ev.default_voice("es", "ES") == "sara", "«español de España» is the peninsular one"
+    assert ev.default_voice("es", "419") == "brian", "«español latino» is not"
+    assert ev.default_voice("es") == "elena", (
+        "with no region stated, nothing changes — the rule is a preference, not a new default")
+
+
+def test_a_region_whose_accent_nobody_has_falls_back_instead_of_choosing_wrong(monkeypatch):
+    """A region is a preference over what EXISTS. Inventing a match would be worse than not having one."""
+    ev = _fake_catalog(
+        monkeypatch,
+        account=[{"voice": "de1", "label": "Lennard", "gender": "m", "lang": "de", "accent": "standard"}],
+        library=[], lang="de")
+    assert ev.default_voice("de", "ES") == "de1", "no peninsular German exists; the native one still wins"
+    assert ev.accents_for("ZZ") == (), "a region we do not split has no opinion"
+
+
+def test_switching_region_realigns_even_though_BOTH_voices_are_native(monkeypatch):
+    """The trap one level in, and the same shape as the one `voice_is_aligned` was built for.
+
+    A Castilian voice IS a native Spanish voice, so «is it native» answers yes for an operator who has
+    just switched to «español latino» — and the switch would change nothing, which is exactly the symptom
+    that started all of this.
+    """
+    _fake_catalog(monkeypatch, account=_ES_ACCOUNT, library=_ES_LIBRARY, lang="es")
+    from voice.engine.speech import voices as V
+    monkeypatch.setattr(V, "picked_region", lambda: "")
+    assert V.voice_is_aligned("elevenlabs", "sara", "es", "ES") is True
+    assert V.voice_is_aligned("elevenlabs", "sara", "es", "419") is False, (
+        "THE TRAP: native is not the same question as native TO THIS REGION")
+    assert V.voice_is_aligned("elevenlabs", "sara", "es", "") is True, (
+        "and with no region chosen the operator's voice is left exactly where it is")
+
+
+def test_a_regional_code_never_reaches_the_language_itself(monkeypatch, tmp_path):
+    """`stt_language` and `ZAELAR_LANGUAGE` have always been a bare language code and every reader
+    downstream depends on that. The region is persisted BESIDE it, by the one door both callers use."""
+    from config import settings as st
+    f = tmp_path / "settings.json"
+    f.write_text("{}", encoding="utf-8")
+    monkeypatch.setattr(st, "SETTINGS_FILE", f)
+    from voice.engine.speech import voices as V
+    monkeypatch.setattr(V, "tts_provider", lambda: "elevenlabs")
+    monkeypatch.setattr(V, "default_voice_for", lambda prov, lang, region="": f"voice-{lang}-{region}")
+    monkeypatch.setattr(V, "voice_is_aligned", lambda prov, voice, lang=None, region=None: False)
+    monkeypatch.setattr(V, "voices_for", lambda prov, lang=None: [])
+    with speaking("en"):
+        st.update({"stt_language": "es-419"})
+        saved = json.loads(f.read_text(encoding="utf-8"))
+        assert saved["stt_language"] == "es", f"the language is bare: {saved['stt_language']!r}"
+        assert saved["language_region"] == "419", saved
+        assert os.environ["ZAELAR_LANGUAGE"] == "es", (
+            "the env the whole engine reads must never carry a region")
+        assert saved["assistant_voice"] == "voice-es-419", (
+            "and the realignment has to ASK with the region, or the variants decide nothing")
+
+
+def test_the_lock_accepts_a_regional_code_and_works_on_the_language(monkeypatch):
+    """`lock("es-419")` prepares Spanish, not a language called «es-419» — and hands the FULL code to the
+    one door that knows how to split it."""
+    from i18n.init import detect
+    calls = []
+    monkeypatch.setattr(detect, "_pending_steps", lambda code: calls.append({"pending": code}) or [])
+    from config import settings as _st
+    monkeypatch.setattr(_st, "update", lambda payload: calls.append(dict(payload)) or {"applied": []})
+    from memory import api as _mem
+    monkeypatch.setattr(_mem, "set_state", lambda d: None)
+    from i18n import init as init_pkg
+
+    async def _prep(code):
+        calls.append({"prepare": code})
+        return {}
+    monkeypatch.setattr(init_pkg, "prepare", _prep)
+    from i18n import runtime as rt
+    monkeypatch.setattr(rt, "strings", lambda code: {})
+    from voice import observer
+    monkeypatch.setattr(observer, "emit", lambda *a, **kw: None)
+
+    with speaking("en"):
+        res = asyncio.run(detect.lock("es-419", onboarding=False))
+    assert res["ok"] is True and res["code"] == "es", res
+    assert {"stt_language": "es-419"} in calls, f"the FULL code goes to the door that splits it: {calls}"
+    assert {"prepare": "es"} in calls, f"and everything else works on the language: {calls}"
+    assert {"pending": "es"} in calls
+
+
+def test_a_code_that_is_not_a_language_is_refused(monkeypatch):
+    """And a trailing dash is not a region — it normalises to the plain language rather than being
+    treated as one, because «es-» is a typo, not a request for an accent."""
+    from i18n.init import detect
+    from i18n.catalog import split_locale
+    monkeypatch.setattr(detect, "_pending_steps", lambda code: [])
+    from config import settings as _st
+    monkeypatch.setattr(_st, "update", lambda payload: {"applied": []})
+    from memory import api as _mem
+    monkeypatch.setattr(_mem, "set_state", lambda d: None)
+    from voice import observer
+    monkeypatch.setattr(observer, "emit", lambda *a, **kw: None)
+
+    assert split_locale("es-") == ("es", "")
+    with speaking("en"):
+        for bad in ("-ES", "e", "es-TOOLONG", "123", ""):
+            res = asyncio.run(detect.lock(bad, onboarding=False))
+            assert res["ok"] is False, f"{bad!r} must not lock anything"
 
 
 class _FakeTTS:
@@ -227,8 +364,8 @@ def test_the_realigned_voice_reaches_the_session_that_is_ALREADY_SPEAKING(monkey
     monkeypatch.setattr(st, "SETTINGS_FILE", f)
     from voice.engine.speech import voices as V
     monkeypatch.setattr(V, "tts_provider", lambda: "elevenlabs")
-    monkeypatch.setattr(V, "default_voice_for", lambda prov, lang: f"voice-for-{lang}")
-    monkeypatch.setattr(V, "voice_is_aligned", lambda prov, voice, lang=None: False)
+    monkeypatch.setattr(V, "default_voice_for", lambda prov, lang, region="": f"voice-for-{lang}")
+    monkeypatch.setattr(V, "voice_is_aligned", lambda prov, voice, lang=None, region=None: False)
     monkeypatch.setattr(V, "voices_for", lambda prov, lang=None: [{"voice": f"voice-for-{lang}"}])
 
     fake = _FakeTTS()
@@ -256,8 +393,8 @@ def test_the_language_lock_is_locked_too_not_only_the_voice(monkeypatch, tmp_pat
     monkeypatch.setattr(st, "SETTINGS_FILE", f)
     from voice.engine.speech import voices as V
     monkeypatch.setattr(V, "tts_provider", lambda: "elevenlabs")
-    monkeypatch.setattr(V, "default_voice_for", lambda prov, lang: "v")
-    monkeypatch.setattr(V, "voice_is_aligned", lambda prov, voice, lang=None: False)
+    monkeypatch.setattr(V, "default_voice_for", lambda prov, lang, region="": "v")
+    monkeypatch.setattr(V, "voice_is_aligned", lambda prov, voice, lang=None, region=None: False)
     monkeypatch.setattr(V, "voices_for", lambda prov, lang=None: [{"voice": "v"}])
     fake = _FakeTTS()
     live_tts.attach(fake, "elevenlabs")
@@ -280,8 +417,8 @@ def test_with_no_session_speaking_the_save_is_exactly_what_it_always_was(monkeyp
     monkeypatch.setattr(st, "SETTINGS_FILE", f)
     from voice.engine.speech import voices as V
     monkeypatch.setattr(V, "tts_provider", lambda: "elevenlabs")
-    monkeypatch.setattr(V, "default_voice_for", lambda prov, lang: "v")
-    monkeypatch.setattr(V, "voice_is_aligned", lambda prov, voice, lang=None: False)
+    monkeypatch.setattr(V, "default_voice_for", lambda prov, lang, region="": "v")
+    monkeypatch.setattr(V, "voice_is_aligned", lambda prov, voice, lang=None, region=None: False)
     monkeypatch.setattr(V, "voices_for", lambda prov, lang=None: [{"voice": "v"}])
     with speaking("en"):
         res = st.update({"stt_language": "es"})
@@ -333,8 +470,8 @@ def test_a_voice_that_already_suits_the_new_language_is_left_alone(monkeypatch, 
     monkeypatch.setattr(st, "SETTINGS_FILE", f)
     from voice.engine.speech import voices as V
     monkeypatch.setattr(V, "tts_provider", lambda: "elevenlabs")
-    monkeypatch.setattr(V, "default_voice_for", lambda prov, lang: "other")
-    monkeypatch.setattr(V, "voice_is_aligned", lambda prov, voice, lang=None: voice == "mine")
+    monkeypatch.setattr(V, "default_voice_for", lambda prov, lang, region="": "other")
+    monkeypatch.setattr(V, "voice_is_aligned", lambda prov, voice, lang=None, region=None: voice == "mine")
     monkeypatch.setattr(V, "voices_for", lambda prov, lang=None: [{"voice": "mine"}, {"voice": "other"}])
     with speaking("en"):
         st.update({"stt_language": "de"})

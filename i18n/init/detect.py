@@ -274,10 +274,18 @@ async def lock(code: str, *, onboarding: bool = False) -> dict:
     to speak out loud. Plain language switches (⚙, or repeat detection) skip the priority translate — the UI
     already has SOMETHING to show (the previous language) so there's no blocking modal waiting on it."""
     global _should_cache
-    code = (code or "").strip().lower()
-    if not re.fullmatch(r"[a-z]{2,3}", code):
-        return {"ok": False, "code": code}
-    logger.info(f"i18n.detect: locking operator language → '{code}'" + (" (onboarding)" if onboarding else ""))
+    # V2-734 — the picker may send a REGIONAL variant («es-419», «en-GB»). The region is a preference
+    # about the VOICE; everything in this function works on the bare language, which is what the bundle,
+    # the STT, `ZAELAR_LANGUAGE` and the memory's canonical language have always been. `settings.update()`
+    # is the one place that splits and persists it, so the full code is what goes in there — and `code`
+    # is the base from here down.
+    full = (code or "").strip()
+    from i18n.catalog import split_locale as _split
+    code, region = _split(full)
+    if not re.fullmatch(r"[a-z]{2,3}", code) or (region and not re.fullmatch(r"[A-Z0-9]{2,3}", region)):
+        return {"ok": False, "code": full}
+    logger.info(f"i18n.detect: locking operator language → '{code}'"
+                + (f" ({region})" if region else "") + (" (onboarding)" if onboarding else ""))
     try:
         from config import settings as _s
         # THE VOICE FOLLOWS FROM HERE (V2-672). `settings.update()` realigns `assistant_voice` whenever the
@@ -285,7 +293,9 @@ async def lock(code: str, *, onboarding: bool = False) -> dict:
         # deliberately NOT duplicated in this module: a second alignment would reach into the motor's voice
         # catalog from i18n (the dependency ratchet, node 7.32, refuses exactly that, and caught this very
         # attempt) and would then have to be kept in step with the ⚙'s copy forever.
-        _s.update({"stt_language": code})          # persist + env (voice realigns on next reconnect)
+        # The FULL code goes in: `settings.update()` splits it, persists the region beside the language,
+        # and realigns the voice to that region's accent — the whole reason the variants exist.
+        _s.update({"stt_language": f"{code}-{region}" if region else code})
     except Exception as e:  # noqa: BLE001
         logger.warning(f"i18n.detect: settings.update failed: {e}")
     _should_cache = False                           # stop detecting
