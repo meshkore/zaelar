@@ -23,6 +23,13 @@ Both were `for _ in range(300): await asyncio.sleep(0.05)`. Two defects in that 
 
 ## What this ratchet does, and what it deliberately does not
 
+⚠️ IT PARSES, IT DOES NOT GREP, and that is this file's own scar twice over. The first version matched a
+line at a time and counted the testmap note that EXPLAINS the bad shape; skipping `#` comments fixed that
+and left the same bug one layer down — the prose in THIS module's docstring and in `tests/waiting.py`'s,
+both of which quote `for _ in range(300): sleep(0.05)` to say do not do this, were counted as two more
+offences. **A detector that fires on the sentence describing it teaches people to stop writing the
+sentence.** An `ast` walk cannot see inside a string, so the class is closed rather than patched again.
+
 It COUNTS the loops of that shape and refuses to let the number grow. It does not fail them one by one,
 because most of the 58 are honest: an e2e file waiting for its preview server with `range(60)` +
 `sleep(0.5)` really is bounded at thirty seconds — there, the sleep IS the cost of an iteration. Failing
@@ -33,6 +40,7 @@ what a call costs, which no regex knows — so the number is the signal, and a n
 """
 from __future__ import annotations
 
+import ast
 import pathlib
 import re
 import subprocess
@@ -43,7 +51,8 @@ ENGINE = pathlib.Path(__file__).resolve().parents[3]
 #: EDIT DOWNWARD ONLY — converting one to `tests/waiting.until` is the celebration.
 MAX_ITERATION_BOUNDED_WAITS = 58
 
-_POLL = re.compile(r"for\s+_\w*\s+in\s+range\(\s*(\d+)\s*\)\s*:")
+#: Does this loop's body SLEEP? A `range()` loop that does not is an ordinary loop, not a wait.
+_SLEEPS = re.compile(r"\bsleep\s*\(")
 
 
 def _waits() -> list[tuple[str, int, int]]:
@@ -60,20 +69,26 @@ def _waits() -> list[tuple[str, int, int]]:
         if not rel:
             continue
         try:
-            lines = (ENGINE / rel).read_text(encoding="utf-8").splitlines()
-        except OSError:
+            src = (ENGINE / rel).read_text(encoding="utf-8")
+            tree = ast.parse(src)
+        except (OSError, SyntaxError):
             continue
-        for i, line in enumerate(lines):
-            # …and NOT inside a comment. Caught on this very file's first run: the testmap note that
-            # EXPLAINS the bad shape quotes `for _ in range(300): sleep(0.05)` in prose, and the sweep
-            # counted its own documentation. A detector that fires on the sentence describing it teaches
-            # people to stop writing the sentence.
-            if line.lstrip().startswith("#"):
+        lines = src.splitlines()
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.For) or not isinstance(node.target, ast.Name):
                 continue
-            m = _POLL.search(line)
-            # a `range()` loop is only a WAIT if it sleeps; the rest are ordinary loops
-            if m and "sleep(" in "\n".join(lines[i:i + 8]):
-                out.append((rel, i + 1, int(m.group(1))))
+            if not node.target.id.startswith("_"):
+                continue
+            call = node.iter
+            if not (isinstance(call, ast.Call) and isinstance(call.func, ast.Name)
+                    and call.func.id == "range" and len(call.args) == 1
+                    and isinstance(call.args[0], ast.Constant)
+                    and isinstance(call.args[0].value, int)):
+                continue
+            # A `range()` loop is only a WAIT if it SLEEPS; the rest are ordinary loops.
+            body = "\n".join(lines[node.body[0].lineno - 1:(node.end_lineno or node.lineno)])
+            if _SLEEPS.search(body):
+                out.append((rel, node.lineno, int(call.args[0].value)))
     return out
 
 
@@ -84,6 +99,34 @@ def test_no_new_wait_is_bounded_by_an_iteration_count():
         "A new one turns a broken precondition into a hang — use `tests/waiting.py::until`, which waits "
         "against a clock and names what never happened:\n  "
         + "\n  ".join(f"range({n}) {f}:{ln}" for f, ln, n in sorted(waits, key=lambda x: -x[2])[:10]))
+
+
+def test_the_detector_cannot_be_fooled_by_PROSE_about_the_bad_shape(tmp_path):
+    """The bug this file had twice: counting the sentence that describes the offence.
+
+    Both halves are asserted, because a detector that stopped seeing real loops would also pass the first
+    half. The generated file carries the shape in a docstring, in a `#` comment AND for real."""
+    import ast as _ast
+    src = tmp_path / "t_probe.py"
+    src.write_text(
+        '"""Never write `for _ in range(300): sleep(0.05)` — it reads as 15 s and is not."""\n'
+        "import time\n"
+        "# also forbidden: for _ in range(300): time.sleep(0.05)\n"
+        "def test_x():\n"
+        "    for _ in range(7):\n"
+        "        time.sleep(0.1)\n", encoding="utf-8")
+    tree = _ast.parse(src.read_text(encoding="utf-8"))
+    lines = src.read_text(encoding="utf-8").splitlines()
+    hits = []
+    for node in _ast.walk(tree):
+        if (isinstance(node, _ast.For) and isinstance(node.target, _ast.Name)
+                and node.target.id.startswith("_") and isinstance(node.iter, _ast.Call)
+                and getattr(node.iter.func, "id", "") == "range"):
+            body = "\n".join(lines[node.body[0].lineno - 1:(node.end_lineno or node.lineno)])
+            if _SLEEPS.search(body):
+                hits.append(node.iter.args[0].value)
+    assert hits == [7], (
+        f"the detector must see the ONE real loop and neither of the two written ABOUT it; saw {hits}")
 
 
 def test_the_two_that_actually_hung_now_wait_on_a_clock():
