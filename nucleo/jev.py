@@ -2,9 +2,19 @@
 
 The voice filler has ~1.1 s (ZAELAR_FILLER_MS) between the arm (model start) and the moment a cover
 may sound. The regex classifier in `voice/engine/speech/filler_audio.py` answers instantly but only
-knows shapes it was taught; Jev answers in 70-500 ms with a calibrated verdict over request types,
-so it can name the class before the deadline instead of after the release. This module is the ONLY
-place that talks to Jev — the filler is its first caller, later ones reuse it.
+knows shapes it was taught; Jev names the class with a calibrated verdict, so it can answer before
+the deadline instead of after the release. This module is the ONLY place that talks to Jev — the
+filler is its first caller, later ones reuse it.
+
+MEASURED LATENCY (2026-09-20, V2-726 — this docstring previously claimed «70-500 ms», which no call
+has ever taken): p50 **800 ms**, p95 910 ms, over 312 real calls in the operator's sessions plus a
+live round against the API. The default timeout is 900 ms, so the engine currently discards 5% of
+its canvas calls and 28% of its escalate-gate calls AFTER paying for them.
+
+AND THE FACT THAT SHOULD SHAPE EVERY NEW CALLER: the cost is the ROUND TRIP, not the questions. The
+`questions` field is a MAP — 1 question takes 800 ms, 10 take 817 ms, 100 take 1041 ms. Anything
+that needs several verdicts in one turn must ask them in ONE call, not N. This module does not yet
+expose that (one question per request); V2-726 F1/F4 is where it gets added.
 
 Protocol (verified against https://docs.typesafe.ai, 2026-09-20):
   POST https://api.typesafe.ai/v1/systemone, Bearer key, JSON {state, model: "jev-latest",
@@ -15,13 +25,21 @@ Key resolution (names only, never values): TYPESAFE_API_KEY from the environment
 `zaelar.env`, since `server/common.py` loads that store into the environment at startup — else the
 bare key in `.meshkore/credentials/jev.md` (gitignored, read here so it is never duplicated).
 
-Non-blocking by construction: `ask_async()` fires a daemon thread at arm time and returns a
+Non-blocking WHEN ASKED ASYNC: `ask_async()` fires a daemon thread at arm time and returns a
 handle; `resolve_choice()` peeks at fire time without ever waiting. Jev is advisory — a slow, failed
 or unsure call leaves the local verdict untouched, so no caller ever depends on the network.
+
+⚠️ `choose_sync()` is NOT that, and it is not safe from a coroutine: `urllib.request.urlopen` blocks
+the calling thread for up to the timeout. Two callers do exactly that today from inside the voice
+provider's `async def _run_inner` — `escalation_guard.judge_escalation` and
+`frontend.repair_action` — which freezes the event loop STT, TTS and barge-in all share. Measured
+and written up in V2-726 §3.2; the fix is to read those verdicts from the turn-start brief instead.
+Until then: do NOT add a `choose_sync` caller on the voice path.
+
 The request-type classifier (`classify_sync` / `request_async` / `resolve_kind`) is the first
 caller, kept as a thin wrapper over the generic Choice primitive below.
 
-Observability: every completed call emits one `brain` event (`jever request-type`) with the
+Observability: every completed call emits one `brain` event (`jev <question-id>`) with the
 utterance, the verdict, the confidence distribution and the milliseconds it took, so the timeline
 shows when Jev was asked, how long it took and what it answered.
 """
