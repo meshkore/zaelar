@@ -272,7 +272,10 @@ window.zaelar = {
   retrain: () => session.retrain(),
   orb: (s) => session.setOrb(s),
   vault: (mode = "manage") => store.openVault(mode),   // 🔐 secrets vault (V2-060): create/unlock/manage
-  panel: (tab = "chat") => { store.setChatTab(["chat", "procesos", "crons"].includes(tab) ? tab : "chat"); store.setChatOpen(true); },  // V2-079: opens the native panel (chat/procesos/crons)
+  // V2-079 · V2-728: opens the native panel. No whitelist here any more — `store.setChatTab` is the ONE
+  // door that normalises (it maps the old `procesos`/`crons` onto «Tareas» and its sub-tab, and falls back
+  // to «Chat» for anything it does not know). A second list in this file is a second thing to update.
+  panel: (tab = "chat") => { store.setChatTab(tab); store.setChatOpen(true); },
 };
 
 // ---- files: paste an image / drop a file → lands in the central memory's EPISODIC layer (V2-003); the brain

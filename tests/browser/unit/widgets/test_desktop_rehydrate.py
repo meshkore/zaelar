@@ -180,9 +180,14 @@ def test_a_layout_report_without_geometry_still_works(fresh_db):
 def test_interrupted_work_is_not_painted_as_a_success():
     """Previously ANY unknown state fell back to "done" with a ✓: a dead task looked properly completed."""
     src = CHATWALL.read_text(encoding="utf-8")
-    row = src[src.index("const histRow"):src.index("const procBody")]
+    # V2-728 — `procBody` was replaced by the four sub-tabs, so the slice ends at the next helper instead.
+    # What is measured has not changed: the row that reports a FINISHED task must keep a glyph of its own for
+    # «a restart cut this in half», because folding it into ✓ is the lie this case exists to stop.
+    row = src[src.index("const histRow"):src.index("const schedRow")]
     assert '"interrumpido"' in row
     assert '"✂"' in row or "'✂'" in row
+    # …and the fallback for an UNKNOWN state must not be the success one either (it was "done" until V2-728).
+    assert '"done" : "cut"' in row, "an unrecognised ending still paints as a success"
 
 
 # ── 5. ESCALAR la tarjeta a mano y que el esfuerzo no se pierda (2026-08-12) ─────────────────────────────────

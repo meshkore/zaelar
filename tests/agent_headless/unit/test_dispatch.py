@@ -17,6 +17,7 @@ from memory import db as memdb
 from memory import embeddings as mememb
 from nucleo import dispatch
 from nucleo.workers.base import WorkerBackend, WorkerEvent, WorkerSpec
+from tests.waiting import until
 
 
 @pytest.fixture(autouse=True)
@@ -259,12 +260,13 @@ def test_dispatch_stores_result_in_memory(fresh_db, fake_backend):
         try:
             task = dispatch.Task(id="t3", request="calcula algo", kind="generic", trusted=True)
             await dispatch.dispatch(task)
-            for _ in range(50):
-                out = memapi.query("calcula algo", reinforce_used=False)
-                if any("RESULTADO" in m["text"] for m in out["memories"]):
-                    return True
-                await asyncio.sleep(0.02)
-            return False
+            try:
+                await until(lambda: any("RESULTADO" in m["text"]
+                                        for m in memapi.query("calcula algo", reinforce_used=False)["memories"]),
+                            "the worker's result to reach memory", timeout_s=5)
+                return True
+            except AssertionError:
+                return False
         finally:
             await memapi.stop()
     assert asyncio.run(run()) is True
@@ -426,14 +428,19 @@ def test_listener_consumes_escalate_requested(fresh_db, fake_backend):
         task = asyncio.create_task(dispatch.run_listener(stop))
         await asyncio.sleep(0.05)               # let it subscribe
         tid = escalate.escalate_to_slowbrain("busca un piso")   # publishes escalate.requested on the bus
-        # wait for the listener to dispatch it and mark it resolved. Generous margin: since the
-        # compose_context fix (2026-07-14 audit), dispatch performs a REAL recall (~2s with the local reranker).
+        # Wait for the listener to dispatch it and mark it resolved — against a CLOCK, because
+        # `range(300)` READS as fifteen seconds and is not: since the compose_context fix (2026-07-14 audit)
+        # dispatch performs a REAL recall (~2 s with the local reranker), so the budget counts iterations
+        # whose cost is unbounded. Measured 2026-09-20: with a leftover session in `dispatch._SESSIONS` the
+        # dedup absorbed this escalation and this loop sat for **fifteen minutes** before failing on
+        # «assert done is True» — an assertion that says nothing about having waited. See `tests/waiting.py`.
         done = False
-        for _ in range(300):
-            if not any(p["id"] == tid for p in escalate.pending()):
-                done = True
-                break
-            await asyncio.sleep(0.05)
+        try:
+            await until(lambda: not any(p["id"] == tid for p in escalate.pending()),
+                        "the listener to dispatch «busca un piso» and resolve it")
+            done = True
+        except AssertionError:
+            done = False
         stop.set()
         await asyncio.sleep(0.05)
         task.cancel()

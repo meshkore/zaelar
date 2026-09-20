@@ -248,7 +248,24 @@ export const setTaskProgress = (id, note, pct, done, total) => setTasks(xs => {
 // (`dispatch.active_sessions` filters them), but this side cannot depend on that: every row entering here is rendered «in progress»,
 // so a leaked `done` would resurrect the ghost chip we had just fixed — and would also COVER its own ✓ history row (ChatWall
 // discards from history the ids that are alive). Two guards for the same truth, on both sides of the seam.
-const _isLive = (s) => !s || !s.status || s.status === "queued" || s.status === "running";
+// V2-728 — the field is `state` (the task vocabulary) where it used to be `status` (the worker's). Keeping
+// the OLD name working matters: the SSE path and an older server both still speak it, and a guard that
+// silently stopped recognising a state would pass everything through — which is the ghost chip this line
+// exists to stop, reintroduced by a rename.
+const _LIVE_STATES = new Set(["pending", "running", "waiting", "queued"]);
+const _isLive = (s) => {
+  if (!s) return true;
+  const st = s.state || s.status;
+  return !st || _LIVE_STATES.has(st);
+};
+// The START, from whichever of the two shapes arrived. The durable row (V2-728) carries `started_at` in
+// epoch SECONDS; the old RAM projection carried `age_s`, an elapsed count. Both still reach here — the
+// route answers the first, an SSE-built chip neither — so this is the ONE place that reads the hour.
+const _startedAt = (s, fallback) => {
+  if (s && typeof s.started_at === "number" && s.started_at > 0) return s.started_at * 1000;
+  if (s && typeof s.age_s === "number" && s.age_s >= 0) return Date.now() - s.age_s * 1000;
+  return fallback;
+};
 export const reconcileTasks = (sessions) => {
   const live = new Map((sessions || []).filter(_isLive).map(s => [String(s.id), s]));
   setTasks(xs => {
@@ -260,28 +277,49 @@ export const reconcileTasks = (sessions) => {
       // Precedence: the server's settled NAME → the name this side already holds → the brief as last resort.
       // `s.goal` before `t.title` would let a server row that has not named the errand yet CLOBBER the name the
       // 🏷️ event already delivered — caught by the mounted test before it shipped.
-      return s ? { ...t, title: s.title || t.title || s.goal, note: s.phase || t.note,
-                   startedAt: s.age_s >= 0 ? Date.now() - s.age_s * 1000 : t.startedAt,
-                   waiting: (s.waiting_on === "user"), paused: !!s.paused } : t;
+      return s ? { ...t, title: s.title || t.title || s.goal, note: s.phase || s.note || t.note,
+                   startedAt: _startedAt(s, t.startedAt), internal: s.visible === false,
+                   waiting: (s.waiting_on === "user" || s.state === "waiting"), paused: !!s.paused } : t;
     });
     const known = new Set(kept.map(t => String(t.id)));
     const added = [];
     let i = kept.filter(t => !t.done).length;
     for (const [id, s] of live) {
       if (known.has(id)) continue;
-      added.push({ id, title: s.title || s.goal || "", note: s.phase || "", done: false,
-                   startedAt: s.age_s >= 0 ? Date.now() - s.age_s * 1000 : Date.now(),
+      added.push({ id, title: s.title || s.goal || "", note: s.phase || s.note || "", done: false,
+                   startedAt: _startedAt(s, Date.now()), internal: s.visible === false,
                    side: (i++ % 2 === 0) ? "l" : "r", delay: 0, hue: 0,
-                   waiting: (s.waiting_on === "user"), paused: !!s.paused });
+                   waiting: (s.waiting_on === "user" || s.state === "waiting"), paused: !!s.paused });
     }
     return [...kept, ...added];
   });
 };
 export const fetchTasks = async () => {
   try {
-    const r = await fetch("/api/tasks", { cache: "no-cache" });
+    // V2-728 — the route answers `tasks` (a durable row per commission) where it used to answer `sessions`
+    // (a RAM projection plus errand rows synthesised beside it). The chips still want only what is LIVE, so
+    // this asks for that scope and nothing else; the other three feed the ChatWall's own sub-tabs below.
+    const r = await fetch("/api/tasks?scope=live", { cache: "no-cache" });
     const d = await r.json();
-    reconcileTasks(d.sessions || []);
+    reconcileTasks(d.tasks || []);
+  } catch (_) {}
+};
+
+// V2-728 — the FOUR lists behind the «Tareas» tab. One signal each rather than one shared list filtered four
+// ways: they are four different queries against the table (live · finished · recurring · scheduled) with
+// different lifetimes, and a single cache would make switching sub-tabs show the previous one's rows for a
+// frame. `taskShowAll` is the `⚙ todo` switch — it adds the engine's internal escalations, which the operator
+// needs while testing by hand and never otherwise.
+export const [taskRows, setTaskRows]   = createSignal({ live: [], done: [], recurring: [], scheduled: [] });
+export const [taskScope, setTaskScope] = createSignal("live");
+export const [taskShowAll, setTaskShowAll] = createSignal(false);
+export const fetchTaskScope = async (scope) => {
+  const sc = String(scope || "live");
+  try {
+    const q = "/api/tasks?scope=" + encodeURIComponent(sc) + (taskShowAll() ? "&all=1" : "");
+    const r = await fetch(q, { cache: "no-cache" });
+    const d = await r.json();
+    setTaskRows(x => ({ ...x, [sc]: Array.isArray(d.tasks) ? d.tasks : [] }));
   } catch (_) {}
 };
 
@@ -299,9 +337,12 @@ export const [sessionEpoch, bumpSessionEpoch] = createSignal(0);
 export const newSession = () => bumpSessionEpoch(n => n + 1);
 export const fetchWorkerHistory = async () => {
   try {
-    const r = await fetch("/api/workers/history", { cache: "no-cache" });
+    // V2-728 — the FINISHED list is now `/api/tasks?scope=done`, the same table the live one reads. The old
+    // `/api/workers/history` survives as a thin alias for one version; this side stops calling it so the two
+    // cannot drift while it does.
+    const r = await fetch("/api/tasks?scope=done", { cache: "no-cache" });
     const d = await r.json();
-    setWorkerHistory(Array.isArray(d.history) ? d.history : []);
+    setWorkerHistory(Array.isArray(d.tasks) ? d.tasks : []);
   } catch (_) {}
 };
 
@@ -488,7 +529,27 @@ export const [debugWidth, setDebugWidth] = createSignal(Math.max(300, parseInt(l
 
 // ---- chat wall (text channel to the agent) ----
 export const [chatOpen, setChatOpen]   = createSignal(false);  // chat wall panel visible?
-export const [chatTab, setChatTab]     = createSignal("chat");  // V2-079/086/561: "chat"|"procesos"|"crons"|"clusters"|"conectores"
+// V2-728 — FOUR tabs, down from five: "chat" | "tareas" | "clusters" | "conectores". «Procesos» and «Crons»
+// were the same object seen twice (a commission the brain is carrying out, and a commission with a clock on
+// it), split across two tabs because they were built at different times and stored in different places.
+//
+// The OLD NAMES still arrive, from three directions that cannot be changed at once: the voice router
+// (`nucleo/flash/router._canon_panel` answers `procesos`/`crons`), the action map, and the localStorage of
+// every operator who left the wall on one of them. So this setter NORMALISES instead of the callers doing
+// it — a rule each caller has to remember is a rule that ends up missing from one of them, which is the
+// same lesson the signup doors cost. `crons` lands on «Tareas ▸ Periódicas», which is where it now lives.
+const [chatTab, _setChatTab] = createSignal("chat");
+export { chatTab };
+const _TAB_ALIAS = { procesos: ["tareas", "live"], workers: ["tareas", "live"], tasks: ["tareas", "live"],
+                     crons: ["tareas", "recurring"], cron: ["tareas", "recurring"],
+                     programadas: ["tareas", "scheduled"], scheduled: ["tareas", "scheduled"] };
+const _TABS = ["chat", "tareas", "clusters", "conectores"];
+export const setChatTab = (tab) => {
+  const raw = String(tab || "chat");
+  const alias = _TAB_ALIAS[raw];
+  if (alias) { setTaskScope(alias[1]); _setChatTab(alias[0]); return; }
+  _setChatTab(_TABS.includes(raw) ? raw : "chat");
+};
 const [chatMsgs, _setChatMsgs]         = createSignal([]);     // [{ role:"you"|"agent", text }]
 export { chatMsgs };
 // CAP (2026-07-23, operator request): without a limit, a long thread (e.g. hours talking with a

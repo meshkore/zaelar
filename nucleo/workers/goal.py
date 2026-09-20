@@ -66,7 +66,9 @@ def check_and_relay(rec, relay_cap: int) -> None:
                                  "surface": str(getattr(rec, "surface", "") or ""),
                                  "done_when": dict(rec.done_when),
                                  "depth": int(rec.depth or 0),
-                                 "relay_gen": int(rec.relay_gen or 0) + 1})
+                                 "relay_gen": int(rec.relay_gen or 0) + 1,
+                                 # V2-728 — the same commission, iterating; not a second task.
+                                 "task_uid": str(getattr(rec, "uid", "") or "")})
                     rec.result_summary = ""       # sin entrega: la retoma el relevo, sin ruido
                     rec.ok = False
                     rec.handoff = f"objetivo sin cumplir → retomada ({falta[:80]})"

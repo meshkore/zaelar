@@ -29,6 +29,7 @@ from nucleo.flash import (canvas_license as _canvas_lic,                       #
                           data_ops as _data_ops, escalation_guard as _eguard,  # V2-391 / V2-677
                           image_turn as _image_turn,                           # V2-402
                           listing_turn as _lt, show_target as _show_target,    # V2-609: one target decision
+                          task_recall as _trecall,                             # V2-728: «lo del piso que te dije»
                           video_turn as _video_turn)                           # V2-556 / V2-457: no cycles
 # V2-515 (ratchet): ONE import replaces eight lazy `from widgets import confirm` — confirm.py never imports voice.
 from voice import brain_notes as _bnotes          # V2-678: his words, never the composed turn
@@ -743,6 +744,7 @@ class NucleoLLMStream(llm.LLMStream):
         listing_req = {"v": None}        # V2-556: la pasada rápida de anuncios (nucleo/flash/listing_turn.py)
         recall_req = {"v": None}         # V2-056: el modelo pidió RECORDAR (tool recall) — se resuelve tras el stream
         read_req = {"v": None}           # V2-668: el modelo pidió LEER un widget (read_widget) — hermana de recall
+        reopen_req = {"v": None}         # V2-728: el modelo pidió RECUPERAR el resultado de un encargo terminado
         reveal_req = {"v": None}         # V2-060: el operador pidió un SECRETO (reveal_secret) — valor OUT-OF-BAND
         music_req = {"v": None, "followup": None}  # V2-041: {'query','action'}; 'followup' = 2ª acción de CONTROL
         images_req = {"v": None}                   # V2-457: {'query','n'} de `show_images`, ejecutado tras el stream
@@ -1403,6 +1405,10 @@ class NucleoLLMStream(llm.LLMStream):
                 if read_req["v"] is None:
                     read_req["v"] = {"widget_id": (args.get("widget_id") or "").strip(),
                                      "question": (args.get("question") or "").strip()}
+            elif name == "reopen_task":
+                # V2-728: «lo del piso que te dije» — SQLite + un viaje a Jev, así que tras el stream.
+                if reopen_req["v"] is None:
+                    reopen_req["v"] = (args.get("query") or "").strip() or text
             elif name == "reveal_secret":
                 # V2-060: el operador pide un SECRETO guardado. Se resuelve tras el stream; el valor NUNCA entra en
                 # un prompt del modelo → el provider lo entrega OUT-OF-BAND (voz/pantalla). Aquí solo se captura QUÉ.
@@ -2490,6 +2496,20 @@ class NucleoLLMStream(llm.LLMStream):
             await speak(await _wread.prepare(read_req["v"] or {}, operator_text, _prompt_mod._lang_lock(), emit),
                         operator_text, 220, "read_widget compose")
             spoken_text = "".join(spoken).strip()
+
+        # V2-728 — RECUPERAR UN ENCARGO TERMINADO. Toda la decisión (índice léxico → Jev → pregunta si hay
+        # varios) vive en `nucleo/flash/task_recall.py`; aquí solo se ejecuta, fuera del event loop.
+        if reopen_req["v"] is not None and escalate_req["v"] is None:
+            _re = await asyncio.to_thread(_trecall.voice_turn, reopen_req["v"])
+            acted["widget"] = True          # lo ATENDIMOS (abriendo o preguntando) — no cae a escalate
+            if _re["show"]:
+                _tag_emit("show", {"id": _re["show"]})
+            elif _re["ask"]:
+                clarify["msg"] = _say().ask_which_item.format(cands=_re["ask"])
+            emit("brain", "🗂️ encargo recuperado" if _re["show"] else
+                 ("❓ varios encargos parecidos" if _re["ask"] else "🗂️ ningún encargo parecido"),
+                 role="system", text=str(_re["title"] or reopen_req["v"])[:120],
+                 extra={"id": _re["show"] or "", "rebuilt": _re["rebuilt"], "cands": _re["ask"] or ""})
 
         if recall_req["v"] is not None and escalate_req["v"] is None and search_req["v"] is None \
                 and reveal_req["v"] is None and read_req["v"] is None:

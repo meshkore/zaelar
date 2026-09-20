@@ -1348,6 +1348,19 @@ DOMAINS: list[dict] = [
         # compartido contestó `strong` a las diez, Vespa de 125 incluida, con 0,82-0,89 de confianza.
         # Más la higiene de la llamada: timeout 900→2000 (descartaba el 5-28 % ya pagado), cortacircuitos
         # para que una caída no cueste un hilo por turno, y la clave leída del disco una sola vez.
+        # V2-728 — «cada vez que hago un test manual encuentro muchos errores… si le digo resérvame hora en un
+        # restaurante, ya no quiero ir a nada más». El olvido solo funciona si alguien más se acuerda, y nadie
+        # se acordaba por mucho tiempo: los workers vivos en un dict de RAM que un reinicio vacía, los acabados
+        # en un blob JSON con tope de 50, los encargos en su tabla, los crons en `journal`, y el RESULTADO en
+        # una hoja de widget con tope DURO de 8 que la novena búsqueda borraba. `/api/tasks` cosía DOS formas
+        # de fila a mano. Ahora hay UNA fila durable por encargo, y `reopen_task` es el primer consumidor en
+        # producción de `jev.select_many`: el índice léxico acota a ≤5 SIN modelo y Jev elige entre esos.
+        {"id": "3.66", "title": "La tarea es la unidad: una fila durable por encargo, su resultado colgando, y «lo del piso que te dije» la encuentra",
+            "ch": UNIT, "paths": ["tests/memory/unit/test_tasks_store.py",
+                                  "tests/memory/unit/test_task_seam.py",
+                                  "tests/memory/unit/test_scheduled_tasks_reach_the_board.py",
+                                  "tests/memory/unit/test_task_recall_finds_the_errand_he_means.py",
+                                  "tests/agent_headless/unit/test_a_commission_leaves_a_durable_row.py"]},
         {"id": "3.65", "title": "Jev SELECCIONA sobre datos parseados en un viaje (identidad dentro de cada pregunta) — y la llamada deja de tirar trabajo pagado",
             "ch": UNIT, "paths": ["tests/voice/unit/test_jev_selects_over_data.py"]},
         # V2-717 — session c502d3ff (2026-09-17 20:57): «Let me check your Telegram to see what Ivan asked» three
@@ -2891,6 +2904,13 @@ DOMAINS: list[dict] = [
         # unsuppressed TTS segment can be auto-enrolled AS the operator) and every verdict carries a CONTINUOUS
         # distance — the 3-criteria vote returns only three distinct values over 60 voices, useless to threshold
         # against, and picking F1's threshold is the whole point of the shadow phase.
+        # V2-728 — la pestaña «Tareas» y sus cuatro sub-pestañas. RENDERIZA: cada pieza de esto falla igual
+        # —sin error, con el panel vacío o invisible— si la regla CSS nombra la clase de ayer o si la puerta
+        # del store deja de mapear el nombre viejo. Un grep sobre el fuente no distingue una pestaña que se ve
+        # de una que no (V2-690), y la primera versión de este test contaba NODOS: pasaba con cuatro etiquetas
+        # en blanco, que es exactamente lo que produce una clave i18n que falta.
+        {"id": "4.193", "title": "La pestaña Tareas se PINTA con sus cuatro listas, y el numerito cuenta los encargos del operador",
+            "ch": UNIT, "paths": ["tests/browser/e2e/widgets/test_the_tasks_tab_renders_its_four_lists.py"]},
         {"id": "4.150", "title": "The operator's voice (F0, shadow): browser-side fingerprint, multi-profile "
                                  "classification, self-voice suppression and a continuous distance — logged, "
                                  "never gated",
@@ -3865,6 +3885,17 @@ DOMAINS: list[dict] = [
         # sí mismo correr junto a otra pasada ancha. Este nodo vigila al vigilante: cuelga un test a propósito
         # y exige que lo NOMBRE, que lo corte en segundos y no al muro del chunk, que se lleve a los hijos por
         # delante, y que un test lento pero vivo NO se declare colgado.
+        # V2-728, a petición del operador (2026-09-20): «marca los tests que se cuelgan para apartarlos o
+        # arreglarlos». MEDIDO el mismo día: con las suites sanas NADA pasa de 3,5 s, así que no hay un test
+        # lento que apartar — hay una FORMA que convierte una precondición rota en un cuelgue.
+        # `test_listener_consumes_escalate_requested` tarda 1,3 s sano y estuvo **15 MINUTOS** colgado con una
+        # sesión huérfana en `dispatch._SESSIONS`; los casos del encargo durable, 2,8 s sanos y 114 s con el
+        # mecanismo desarmado. Los dos eran `for _ in range(300): sleep(0.05)`, que SE LEE como quince
+        # segundos y no lo es: el presupuesto cuenta iteraciones y el coste de una iteración es un recall
+        # real. `tests/waiting.py` espera contra un RELOJ y nombra lo que no llegó.
+        {"id": "7.54", "title": "Una espera se acota por RELOJ, no por número de vueltas — y cuando se agota dice qué esperaba",
+         "ch": UNIT,
+         "paths": ["tests/infrastructure/unit/test_a_wait_is_bounded_by_a_clock.py"]},
         {"id": "7.53", "title": "El detector de cuelgues nombra al test que cuelga, se lleva a sus hijos, y no "
                                 "acusa a un test lento que sigue vivo",
          "ch": UNIT,

@@ -80,13 +80,29 @@ def test_server_voice_toggle_is_not_labelled_as_chat_mode():
 
 # ── the panel routing knows the four tabs ───────────────────────────────────────────────────────────────────
 def test_panel_routing_whitelist_covers_every_tab():
-    """The backend canonicalizes to chat|processes|crons|clusters; if the frontend whitelist is too short,
-    the server routes correctly and the client drops it by opening «Chat» (that happened to `clusters` at birth)."""
+    """Whatever the backend can route to, the frontend must accept — or the server routes it correctly and the
+    client drops it by opening «Chat» (that happened to `clusters` at birth, V2-086).
+
+    V2-728 — the whitelist MOVED. It lived in `sse.js`, which is one of five callers of `setChatTab`, so each
+    of the others had its own idea of the vocabulary and `main.js` carried a third, shorter list. It is now
+    the setter itself, which is the only place every caller goes through. The rule is unchanged and the
+    reason it exists is unchanged; what is tested is where it actually lives.
+    """
     from nucleo.flash import router
+    from pathlib import Path
+    store = (Path(__file__).resolve().parents[4] / "frontend/app/core/store.js").read_text(encoding="utf-8")
+    door = store.split("export const setChatTab")[1].split("\n};")[0]
+    alias = store.split("_TAB_ALIAS = ")[1].split("};")[0]
+    tabs = store.split("const _TABS = ")[1].split(";")[0]
+    # every destination `_canon_panel` can answer must be known to the door, as itself or as an alias
+    for word in ("chat", "tareas", "crons", "programadas", "clusters", "conectores", "procesos"):
+        canon = router._canon_panel(word)
+        assert f'"{canon}"' in tabs or f"{canon}:" in alias, f"el frontend no acepta la pestaña «{canon}»"
+    # …and the door is what normalises, so `sse.js` must NOT have grown a second list of its own again
     branch = SSE.split('d.kind === "panel"')[1].split("else if")[0]
-    for tab in ("procesos", "crons", "clusters"):
-        assert f'"{tab}"' in branch, f"el frontend no acepta la pestaña «{tab}»"
-        assert router._canon_panel(tab) == tab
+    assert "includes(d.tab)" not in branch, "la lista blanca ha vuelto a sse.js: vuelve a haber dos"
+    assert "setChatTab(d.tab)" in branch
+    assert "_TAB_ALIAS" in door or "alias" in door
 
 
 def test_the_panel_can_be_closed_by_voice_not_only_opened():

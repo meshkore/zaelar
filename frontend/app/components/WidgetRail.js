@@ -347,6 +347,8 @@ export function WidgetRail(){
   const procBar=document.createElement("span"); procBar.className="wr-proc-bar";
   procBar.innerHTML="<i></i>";
   proc.append(procN,procBar);
+  // V2-728 — one click lands on «Tareas ▸ En curso», which is what the number counts. `setChatTab` picks
+  // the sub-tab itself (it is the one door that knows the vocabulary), so this does not name it twice.
   proc.onclick=(e)=>{ e.stopPropagation(); setChatTab("procesos"); setChatOpen(true); };
   const chips=document.createElement("div"); chips.className="wr-chips";
   const tools=document.createElement("div"); tools.className="wr-tools";
@@ -389,8 +391,12 @@ export function WidgetRail(){
   createEffect(paintFold);
   // V2-666 — hidden at zero (an idle "0" is dead chrome, and this is a gauge of REAL background work, not
   // a decoration that is always there). Clicking it opens the chat straight onto Procesos, not just chat.
+  // V2-728 — the count is the OPERATOR's commissions and nothing else. The server already filters (the
+  // board's `visible` gate), but this side cannot depend on that: a leaked internal row would inflate the
+  // one number he uses to decide whether the agent is busy, which is the whole reason the gauge exists.
+  // Two guards for the same truth, on both sides of the seam — the rule `reconcileTasks` already follows.
   createEffect(()=>{
-    const n=(tasks()||[]).length;
+    const n=(tasks()||[]).filter(x=>!x.internal).length;
     proc.classList.toggle("on", n>0);
     if(n>0){ procN.textContent=String(n); proc.title=t("rail.processes",{n}); }
   });

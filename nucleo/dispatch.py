@@ -229,6 +229,10 @@ def active_sessions() -> list[dict]:
             continue
         out.append({
             "id": r.task_id, "kind": r.kind, "backend": r.backend, "goal": r.goal[:120],
+            # V2-728 — the DURABLE id of the commission this session serves. `id` above is the per-process
+            # session counter and is what every existing consumer keys on, so it stays; this is what joins
+            # the hot detail to the row in `tasks`, and a relay carries the same one as its parent.
+            "uid": str(getattr(r, "uid", "") or ""),
             # V2-530 — the NAME, beside the brief and never instead of it: `goal` still carries the
             # operator's own words (dedup compares them, the Master audits them) and `title` is what a
             # human reads or hears. Falls back to the brief, so a consumer can use it unconditionally.
@@ -775,6 +779,11 @@ def _name_errand(rec) -> None:
                 _sheet_retitle(rec)
             elif surfaces.opens_doc(getattr(rec, "surface", "")):
                 _docsheet.doc_retitle(rec)
+            try:
+                from nucleo import tasks as _tasks
+                _tasks.retitled(rec)   # V2-728 — the durable row carries the name the operator will search by
+            except Exception:  # noqa: BLE001
+                pass
             sync_state()
 
         _t = asyncio.ensure_future(_go())
@@ -1295,6 +1304,14 @@ f"dispatch: could not write the confinement jail for {key} — dev worker starts
                                       trace_id=str(getattr(rec, "trace_id", "") or ""), ok=bool(rec.ok))
             except Exception:
                 pass
+            # V2-728 — and the DURABLE row, which is what survives the 50-entry cap and the restart. The
+            # ledger above is still written while F2 keeps `/api/workers/history` alive as a thin alias; it
+            # retires with that route, not before.
+            try:
+                from nucleo import tasks as _tasks
+                _tasks.closed(rec)
+            except Exception:  # noqa: BLE001
+                pass
             # EXPLICIT flow-close signal (observability, V2-090): without this a flow only ever looks "closed" by
             # the ABSENCE of new events — an inference from silence, never a fact. The ledger above already records
             # this worker session's own end; this event is for the FLOW (`corr_id`) that spawned it, so the
@@ -1587,6 +1604,15 @@ async def run_listener(stop: "asyncio.Event | None" = None) -> None:
             elif surfaces.opens_doc(getattr(rec, "surface", "")):   # a REPORT opens the DOCUMENT sheet (V2-644)
                 _docsheet.doc_open(rec)
             _SESSIONS[key] = rec
+            # V2-728 — the DURABLE row. `_SESSIONS` is RAM and a restart empties it, so the commission the
+            # operator just handed over would stop existing the moment the engine bounced. Written HERE, at
+            # the one point every door into the dispatcher passes through, for the same reason the surface is
+            # sealed here. Best-effort and off the hot path: a store that failed must not lose the worker.
+            try:
+                from nucleo import tasks as _tasks
+                _tasks.opened(rec, ctx)
+            except Exception:  # noqa: BLE001
+                logger.debug("dispatch: no pude registrar la tarea durable", exc_info=True)
             _name_errand(rec)          # V2-530 — asynchronous; the sheet is already open under its brief
 
             rec.task = asyncio.create_task(_run_session(task), name=f"worker-session-{key}")

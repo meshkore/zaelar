@@ -209,19 +209,33 @@ def test_with_nobody_known_it_still_reads_as_a_sentence(er, monkeypatch):
 # ── the operator can SEE it ──────────────────────────────────────────────────────────────────────────────
 
 def test_an_open_errand_gets_a_row_in_PROCESOS(er):
-    """An errand talking to people for hours with no visible row is the state that lies (V2-582)."""
+    """An errand talking to people for hours with no visible row is the state that lies (V2-582).
+
+    V2-728 — the row is no longer SYNTHESISED at the HTTP route (`board_rows`, retired): an errand is
+    mirrored into the same `tasks` table a worker commission writes to, so the board has one row shape
+    instead of two stitched together. What the clock derives —«esperando respuesta · quedan 2 h»— still
+    cannot be a stored column, so it stays computed, and `live_phases()` is what is left of that function.
+    """
+    from nucleo import tasks as _tasks
     a = _one(er)
-    rows = er.board_rows()
-    assert len(rows) == 1 and rows[0]["id"] == a["id"] and rows[0]["kind"] == "encargo"
-    assert "esperando respuesta" in rows[0]["phase"]
-    # the shape the board already speaks, so the frontend needs no second case
-    assert set(rows[0]) >= {"id", "kind", "title", "phase", "status", "age_s", "surface", "plan", "pct"}
+    rows = _tasks.board("live")
+    assert len(rows) == 1
+    row = rows[0]
+    assert row["id"] == _tasks.errand_uid(a["id"]) and row["kind"] == "encargo"
+    assert row["state"] == "running" and row["visible"] is True
+    assert "esperando respuesta" in row["phase"]
 
 
-def test_a_closed_errand_leaves_the_board(er):
+def test_a_closed_errand_leaves_the_live_board_and_lands_in_the_finished_one(er):
+    """…and it LANDS somewhere. Before this it simply vanished from the board with no record of the ending."""
+    from nucleo import tasks as _tasks
     a = _one(er)
-    er.close(a["id"])
-    assert er.board_rows() == []
+    er.close(a["id"], why="mesa para 4 el sábado")
+    assert _tasks.board("live") == []
+    done = _tasks.board("done")
+    assert len(done) == 1 and done[0]["id"] == _tasks.errand_uid(a["id"])
+    assert done[0]["state"] == "done" and done[0]["outcome"] == "mesa para 4 el sábado"
+    assert done[0]["finished_at"] and done[0]["finished_at"] > 0
 
 
 def test_an_errand_never_enters_the_WORKER_projection(er):

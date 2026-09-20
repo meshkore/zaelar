@@ -157,9 +157,24 @@ def start(objective: str, *, kind: str = "", mandate: dict | None = None, title:
         "deadline": int(deadline), "expires_at": int(min(deadline + grace, now + ceiling)),
         "created_at": int(now), "updated_at": int(now), "closed_at": 0, "outcome": "",
     }
-    _memory().errand_put(row)
+    _save(row)
     _emit("🎯 encargo abierto", row)
     return row
+
+
+def _save(row: dict) -> None:
+    """Persist an errand AND mirror it onto the operator's task board (V2-728).
+
+    One function rather than five call sites of `errand_put`, for the reason the board needed rebuilding in
+    the first place: a rule each writer has to remember is a rule that ends up missing from one of them.
+    The mirror is best-effort — a board that failed to update must never lose the errand itself.
+    """
+    _memory().errand_put(row)
+    try:
+        from nucleo import tasks as _tasks
+        _tasks.errand_mirrored(row)
+    except Exception:  # noqa: BLE001
+        logger.debug("errands: no pude reflejar el encargo en el tablero de tareas", exc_info=True)
 
 
 def get(errand_id: str) -> dict | None:
@@ -302,7 +317,7 @@ def update(errand_id: str, **fields) -> dict | None:
         if k in ("state", "title", "objective", "kind", "last_inbound", "wake_count", "unknowns",
                  "done_when", "mandate", "deadline", "expires_at", "outcome"):
             row[k] = v
-    _memory().errand_put(row)
+    _save(row)
     return row
 
 
@@ -315,7 +330,7 @@ def note_wake(errand_id: str, last_inbound: str = "") -> dict | None:
     row["wake_count"] = int(row.get("wake_count") or 0) + 1
     if last_inbound:
         row["last_inbound"] = str(last_inbound)
-    _memory().errand_put(row)
+    _save(row)
     return row
 
 
@@ -342,7 +357,7 @@ def close(errand_id: str, outcome: str = "closed", why: str = "", now: float | N
     row["state"] = outcome if outcome in DONE else "closed"
     row["closed_at"] = int(now)
     row["outcome"] = (why or "")[:200]
-    _memory().errand_put(row)
+    _save(row)
     # An errand that arranged NOTHING leaves its conversation on the way out, exactly as it always did —
     # there is no commitment for the thread to remember, so keeping the row would only make a ghost that
     # `_sweep_bindings` has to clean up later. The binding is kept ONLY where it means something.
@@ -373,7 +388,7 @@ def reopen(errand_id: str, why: str = "", now: float | None = None) -> dict | No
                  expires_at=int(max(int(row.get("expires_at") or 0), now + 24 * 3600)))
     if out is not None:
         try:
-            _memory().errand_put({**out, "closed_at": None})
+            _save({**out, "closed_at": None})
         except Exception:  # noqa: BLE001
             pass
         logger.info(f"errands: {errand_id} REABIERTO — su conversación sigue viva y la cita no ha pasado")
@@ -418,25 +433,21 @@ def sweep(now: float | None = None) -> list[dict]:
 
 
 # ── what the operator and the brain get to see ──────────────────────────────────────────────────────────
-def board_rows(now: float | None = None) -> list[dict]:
-    """The open errands in the shape the «Procesos» board already speaks. An errand talking to somebody for
-    hours with no visible row is exactly the state that lies (the V2-582 class), so it gets one beside the
-    workers' — merged at the HTTP route and NOT inside `dispatch.active_sessions()`, because that projection
-    feeds the stall detector, the susurro's dedup and the worker ledger, and an errand is not a process:
-    waiting three hours for somebody to answer is this thing working correctly, and a «silent worker» to
-    every one of them."""
+def live_phases(now: float | None = None) -> dict:
+    """`{task id → the errand's readable second line}` for the open ones, e.g. «esperando respuesta · quedan 2 h».
+
+    V2-728 — what is left of `board_rows()`. That function SYNTHESISED a whole worker-shaped row per errand so
+    the board could show it, which is how the board came to have two row shapes stitched together at the HTTP
+    route. The row itself is now mirrored into `tasks` when the errand is written (`_save`), and the only
+    thing left that cannot be a stored column is this line: it is derived from a clock, so it is computed
+    when read, exactly like a worker's `phase` is.
+    """
     now = time.time() if now is None else now
-    out = []
+    from nucleo import tasks as _tasks
+    out = {}
     for r in live(now):
         left = max(0, int(r.get("deadline") or 0) - int(now))
-        out.append({
-            "id": r["id"], "kind": "encargo", "backend": "", "goal": (r.get("objective") or "")[:120],
-            "title": r.get("title") or r.get("objective") or "", "phase": _phase_line(r, left),
-            "status": "running", "age_s": int(now - float(r.get("created_at") or now)), "paused": False,
-            "surface": "voz", "silent_s": 0, "waiting_on": "", "ask": "",
-            "plan": [], "done": 0, "total": 0, "pct": 0, "note": "", "steps": [],
-            "considered": -1, "kept": -1,
-        })
+        out[_tasks.errand_uid(r["id"])] = _phase_line(r, left)
     return out
 
 

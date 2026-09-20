@@ -47,6 +47,9 @@ def relay_out_of_fuel(rec, relay_cap: int) -> None:
                 # V2-698 — and so does the SURFACE. Without it the relaunch was born with the default one
                 # and opened a results sheet over a «voz» errand (measured 2026-09-15, provider relay ×2).
                 "surface": str(getattr(rec, "surface", "") or ""),
+                # V2-728 — and so does the TASK. A relay continues the SAME commission; without this
+                # the operator sees one errand that changed provider twice as three things he asked for.
+                "task_uid": str(getattr(rec, "uid", "") or ""),
                 "depth": int(rec.depth or 0), "relay_gen": int(rec.relay_gen or 0) + 1})
             rec.result_summary = ""       # sin entrega: la retoma el worker nuevo, sin ruido
             rec.ok = False
@@ -73,6 +76,9 @@ def relay_out_of_fuel(rec, relay_cap: int) -> None:
                 # V2-698 — and so does the SURFACE. Without it the relaunch was born with the default one
                 # and opened a results sheet over a «voz» errand (measured 2026-09-15, provider relay ×2).
                 "surface": str(getattr(rec, "surface", "") or ""),
+                # V2-728 — and so does the TASK. A relay continues the SAME commission; without this
+                # the operator sees one errand that changed provider twice as three things he asked for.
+                "task_uid": str(getattr(rec, "uid", "") or ""),
                     "depth": int(rec.depth or 0), "relay_gen": int(rec.relay_gen or 0) + 1})
                 rec.result_summary = ""          # sin entrega: la retoma el worker de relevo, sin ruido
                 rec.ok = False

@@ -37,7 +37,14 @@ EMBED_DIM = 768
 #   would never be replaced by the new `meteo-soria:weather:soria`: two live lineages of the same fact, the old
 #   one frozen forever and still competing in recall. This renames them in place, using `meta.widget` (which the
 #   old writer already stamped, so the author is known for every one of them).
-SCHEMA_VERSION = 6
+#   v6 → v7 (V2-728, 2026-09-20): THE TASK IS THE UNIT. `tasks` + `task_artifacts` + `fts_tasks`. Before this a
+#   "process" was five stores and none of them the whole truth: live workers in a RAM dict (lost on restart),
+#   finished ones in a 50-capped JSON blob inside `sys_kv`, third-party errands in their own table, crons as
+#   `journal` rows, and the RESULT inside a widget sheet that a hard cap of 8 deleted on the ninth. `/api/tasks`
+#   had to stitch two row shapes by hand. A durable row per task —with its result hanging off it and an FTS
+#   index over what it was about— is what lets the operator hand a commission over and forget it, and lets the
+#   brain answer «the flat-hunting task I told you about» weeks later. Purely additive: IF NOT EXISTS, no ALTER.
+SCHEMA_VERSION = 7
 
 
 # ── Tablas base (siempre) ──────────────────────────────────────────────────────────────────────────────────
@@ -348,7 +355,89 @@ ERRANDS_INDEXES = [
 ]
 
 
+# V2-728 · TASKS — the durable record of a user commission.
+#
+# Operator, 2026-09-20: «si le digo resérvame hora en un restaurante, ya no quiero ir a nada más… ya me olvido
+# de esa tarea». Forgetting requires the task to be ONE thing that survives the turn, the worker and the
+# restart. What existed instead was five stores (see the v6→v7 note above), so the same commission had a
+# different identity depending on who was asking.
+#
+# The split of responsibilities is deliberate and is the whole design:
+#
+#   · this table holds what is TRUE ABOUT THE TASK and changes rarely — its name, what was asked, its state,
+#     when it started and ended, where its result landed;
+#   · `dispatch._SESSIONS` keeps the worker's HOT detail (phase, steps, pct) in RAM, because it churns every
+#     second and none of it is worth a disk write;
+#   · `errands` keeps the third-party state machine, and gains `task_id` rather than being absorbed: an
+#     errand's silence is not a stalled worker, and merging them would erase that distinction.
+#
+# `id` is TEXT and must be STABLE ACROSS RESTARTS. `escalate._seq` starts at 0 in every process, so ids repeat
+# between runs — that is exactly the defect V2-259 hit when a fresh errand landed in the previous session's
+# sheet and deleted it. A row that outlives the process cannot be keyed by a counter that does not.
+TASKS = """
+CREATE TABLE IF NOT EXISTS tasks (
+  id          TEXT PRIMARY KEY,
+  title       TEXT,                           -- the NAME (V2-530): provisional first, composed when ready
+  goal        TEXT NOT NULL,                  -- the operator's own words, verbatim (dedup compares THESE)
+  kind        TEXT NOT NULL DEFAULT 'generic',-- web | code | generic | memory | dev | errand | reminder ...
+  mode        TEXT NOT NULL DEFAULT 'now',    -- 'now' | 'scheduled' (fires once) | 'recurring' (a cron)
+  state       TEXT NOT NULL DEFAULT 'pending',-- pending | running | waiting | done | failed | cancelled
+  visible     INTEGER NOT NULL DEFAULT 1,     -- is this the OPERATOR's commission? (see `origin`)
+  origin      TEXT NOT NULL DEFAULT 'voz',    -- voz | susurro | agenda | api | worker | cron | cluster
+  schedule    TEXT,                           -- JSON {type, spec, next_run, display, fire_count} when timed
+  surface     TEXT,                           -- nucleo/surfaces.py closed vocabulary, sealed once
+  sheet       TEXT,                           -- the results sheet this task writes into, if any
+  trace_id    TEXT,
+  parent_id   TEXT,                           -- a RELAY continues its parent instead of opening a second task
+  outcome     TEXT,                           -- one human line saying how it ended
+  created_at  INTEGER NOT NULL,
+  started_at  INTEGER,
+  due_at      INTEGER,                        -- next fire time for scheduled/recurring (mirrors schedule.next_run)
+  finished_at INTEGER
+)
+"""
+
+# The RESULT belongs to the task, not to the widget sheet (operator, 2026-09-20). The sheet under
+# `widgets/_data/results--N/` is capped at 8 and pruned by file mtime, so the ninth search silently deleted the
+# report the operator had already paid for. Here the payload outlives the sheet, and `results` renders it back.
+#
+# One row per SLOT rather than one blob, because the parts are asked for separately: «enséñame los descartados»
+# must not have to load the kept ones, and the criteria are what `jev.select_many` scores a later question
+# against.
+TASK_ARTIFACTS = """
+CREATE TABLE IF NOT EXISTS task_artifacts (
+  task_id    TEXT NOT NULL,
+  slot       TEXT NOT NULL,                   -- 'result' | 'considered' | 'criteria' | 'sources'
+  payload    TEXT NOT NULL,                   -- JSON
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY (task_id, slot)
+)
+"""
+
+TASKS_INDEXES = [
+    # The hot read is the tab: «live, mine, in this mode». Composite for the same reason `idx_mem_lvu` is —
+    # three single-column indexes do not serve one composite query.
+    "CREATE INDEX IF NOT EXISTS idx_tasks_live ON tasks(state, mode, visible)",
+    # The loop asks «what is overdue» once a second. Without this it is a full scan of every task ever.
+    "CREATE INDEX IF NOT EXISTS idx_tasks_due ON tasks(due_at)",
+    "CREATE INDEX IF NOT EXISTS idx_tasks_finished ON tasks(finished_at DESC)",
+    "CREATE INDEX IF NOT EXISTS idx_tasks_parent ON tasks(parent_id)",
+    "CREATE INDEX IF NOT EXISTS idx_task_artifacts_task ON task_artifacts(task_id)",
+]
+
+# STANDALONE FTS5, not `content='tasks'` like `fts_memories`. External-content tables need a writer that keeps
+# them in sync on every UPDATE, and `tasks` is updated from several places (the dispatcher, the worker, the
+# scheduler); an index that silently drifts is worse here than one extra copy of two short strings. It is what
+# turns «the flat-hunting task I told you about» into ≤5 candidates WITHOUT a model — the lexical half of the
+# rule the operator set in INI-027 §7.
+FTS_TASKS = (
+    "CREATE VIRTUAL TABLE IF NOT EXISTS fts_tasks "
+    "USING fts5(task_id UNINDEXED, title, goal, tokenize=\"unicode61 remove_diacritics 2\")"
+)
+
+
 BASE_DDL = [STATE, MEMORIES, *MEMORIES_INDEXES, EDGES, *EDGES_INDEXES, EPISODIC, JOURNAL, SYS_KV,
             VAULT_META, VAULT_SECRETS, PARAPHRASE_INDEX, *PARAPHRASE_INDEXES,
             ACTION_MAP, *ACTION_MAP_INDEXES, WORKFLOWS, *WORKFLOWS_INDEXES,
-            ERRANDS, ERRAND_THREADS, *ERRANDS_INDEXES]
+            ERRANDS, ERRAND_THREADS, *ERRANDS_INDEXES,
+            TASKS, TASK_ARTIFACTS, *TASKS_INDEXES]

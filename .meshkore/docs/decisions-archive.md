@@ -8433,3 +8433,211 @@ entries out, their one-line index left in `decisions.md`; nothing edited on the 
   - Nodes 4.124/4.125 + 5.18, 30 cases, 17 verified disarms. **Found at closure, not caused here**: another
     session's V2-608 F3–F7 work landed on `main` mid-build (its own commits, `3d74cd6`..`171d8b2`) — it
     correctly avoided this work's files, and its own initiative doc names this one back for the same reason.
+
+#### Movidas el 2026-09-20 (V2-728)
+
+- **A connected mailbox that shows nothing, forever — the inbox was declared already-seen (V2-606,
+  2026-09-07)**: the operator, with the widget open on «Email — Conectado. Tus mensajes llegan aquí
+  automáticamente.» and an empty list: «the Gmail thing doesn't work, the messages are not shown». Measured
+  against his real mailbox before touching anything: **1110 in INBOX, 1088 UNSEEN, 22 read**.
+  - **`service._loop` seeded `_seen` with `mailbox.all_uids()`** — every UID in INBOX — under the comment «only
+    triage email that arrives AFTER connecting». So all 1110 were declared already-seen on connect and the
+    widget could never surface one of his 1088 unread. The connector was not broken: it authenticated, polled
+    every 20 s and did exactly what it was told. And `_seen` lives in MEMORY and is cleared on stop, so every
+    restart moved that line forward again — anything arriving while the engine was down went invisible too.
+  - **The line is drawn where HE already draws it**: mail he has READ is dealt with and does not come back;
+    mail he has NOT read is the thing he is asking to see. `mailbox.inbox_split()` (two IMAP searches, no flag
+    written, no body fetched) + `seed_from_mailbox`.
+  - **A triage surface is not a mailbox** — 1088 is not a list anybody reads, so only the most recent
+    `BACKFILL` unread are handed over. **Which is exactly why the TOTAL is recorded and travels to the brain**:
+    silently hiding the other 1058 is the failure being replaced. Before, `brief` said «Email: conectado.» and
+    nothing else, so with a connected flag and an empty card the model had only one explanation available and
+    invented it — «Es que no tienes mensajes nuevos sin leer, por eso sale vacío», over 1088. It was not lying;
+    it was missing the fact. The line now carries the count and NAMES the forbidden sentence (V2-221).
+  - **`-1` is not `0`**: «not measured» must never render as «you have none», which is the sentence this exists
+    to make impossible. And the split fails soft in the SAFE direction — a connector that cannot tell read from
+    unread keeps the old whole-inbox seeding rather than dumping a mailbox into a triage widget.
+  - **VERIFIED LIVE**: the first email in the widget's history landed, and «¿cuántos correos sin leer tengo?» →
+    «Tienes 1.088 correos sin leer en Gmail» naming the urgent one, while «demuéstrame que el conector funciona»
+    → «El correo está conectado y funcionando: tienes 1.088 sin leer. El widget filtra y muestra los más
+    recientes» (was: «Hecho.»).
+  - Node **5.16**, six disarms. ⚠️ **Three came back GREEN**: the test RE-IMPLEMENTED the seeding instead of
+    calling it — *a mirror proves the mirror works, not the product* — so `seed_from_mailbox` was extracted out
+    of `_loop` (which connects to a real server, and is therefore untestable in place) and the IMAP half got its
+    own fake. ⚠️ **And a stale `.pyc` survived a restore**: disarm 5's mutation (`n < 0`→`False`,
+    `n == 0`→`n <= 0`) was byte-length IDENTICAL, and Python invalidates on (mtime, size), so a restore inside
+    the same second reused the mutated bytecode and the clean tree stayed red. The disarm harness clears
+    `__pycache__` every run now.
+  - **Open and named**: the triage keeps **1 of 30** (measured three times — the rest are judged not «for you»),
+    which is right for a notification surface and arguable for «show me my unread», and is a product decision;
+    and **a VIEW data-op's RESULT is still discarded** — `show_view` returns its matches and the prompt orders
+    «contesta con sus nombres», but `dispatch_and_report` is fire-and-forget, so V2-603 wired the FAILURE case
+    and success-with-content still ends in the canned ack.
+
+- **Storing is not notifying — nothing interrupts by default, and the summary is not the mailbox (V2-607,
+  2026-09-07)**: the operator's direction, the same day, right on top of V2-606: the «notify me on a new
+  message» flag must be **OFF by default** and live in the widget's state; each channel's section holds what
+  arrived unread; and the **summary tab highlights only what meets his criterion — by default, what is
+  addressed to him**. «We can even be reading the messages that are arriving.»
+  - **The trap that made this more than a default change.** `notify.surface` decided BOTH what got STORED and
+    what INTERRUPTED — one gate, two questions. Flipping the notification default to silence through it would
+    have emptied the widget completely: the exact failure V2-606 had just fixed, arriving from the other side.
+    So the four ingest paths (the v2 owner + the three direct-path connectors) now ask them in order: **what is
+    NEW goes into its channel's section whatever the policy says**, and only then, **what may interrupt**.
+  - **Two knobs where there was one**: `notify` (default `never`) and `highlight` (default `direct`). `highlight`
+    has **no «never» level** — an empty main tab is a broken screen, not a policy. The historical predicate
+    stays exactly reachable (`notify: important`), and `_matches` single-sources the ladder both read, because
+    writing it twice is how the two would drift apart.
+  - **A durable ledger, because the in-memory one could not keep the promise it made.** MEASURED on the live
+    engine straight after V2-606: the same email (uid 219719, «Pago rechazado» from Amazon) announced **THREE
+    times in fourteen minutes** — 12:29:39, 12:38:21, 12:43:17, one per restart, each on a different build.
+    Nothing was malfunctioning: the mail is still UNREAD in Gmail, so every connect re-delivers it, correctly and
+    forever, while the only thing remembering it was a `set()` built in `__init__`. That set even carried the
+    comment «do not resurrect what the operator removed», which it could not keep for the same reason — he
+    dismisses a message, the engine restarts, IMAP still calls it unread, and it walks back in. `store.taken_ids`
+    / `new_among`, capped at 4000, oldest-first. **An in-memory guard cannot dedupe against a durable source.**
+  - **The brain is told the split.** It holds every chat; his first tab does not. Two surfaces over one dataset
+    that disagree is precisely how V2-606 produced «no tienes correos sin leer» over 1088 of them, so `brief`
+    marks each chat with where he can see it, states the remainder, and names the forbidden sentence.
+  - **`notify.surface` was DELETED**, not left with no callers: a dead function carrying the old coupling is how
+    the coupling comes back.
+  - **The fork that would have swallowed all of it.** `widgets/_user/mensajeria/` — a fork taken 2026-09-05 from
+    engine 3.25 — **shadows the built-in** (`paths.roots()`, generated root first), and every file in it was
+    **byte-identical to HEAD**; only `manifest.json` differed, by `origin` and `forked_from`. Zero user work, and
+    it froze his messaging widget at 3.25: every fix shipped to `widgets/mensajeria/` from that day on would have
+    reached nobody, silently. Removed (backup kept outside the repo). ⚠️ **A fork with no user content is not
+    free — it is a shadow**, and the widget lifecycle should not leave one behind.
+  - **VERIFIED LIVE** on his engine at `3.26+f04daa7`: all three channels effective at `notify: never,
+    highlight: direct`; two further emails (Plaid, Amazon) taken in **silently** after the restart, recorded in
+    the durable ledger, **zero notices emitted since the process came up**.
+  - Node **5.17**, six verified disarms, all caught. ⚠️ **Found on the way**:
+    `tests/browser/unit/mensajeria/test_notification_policy.py` isolated its store by patching
+    `wstore._DATA_DIR` — an attribute that does not exist — behind a `hasattr` guard that made the whole fixture
+    a **silent no-op**. What actually isolated the module was an accident of import order (`DATA_DIR` is computed
+    at import time, so the first test froze it), and the cases leaked policy into each other. The leak was
+    invisible because **the value that leaked equalled the default they asserted**; inverting the default is what
+    made it show.
+  - **Open and named**: whether the WhatsApp and Telegram bridges hand over UNREAD on connect the way email now
+    does is **not measured** — nothing in their code paths pulls a backlog (WhatsApp's `history` branch is
+    on-demand scrollback), and settling it needs a live re-link of both accounts, not a reading.
+
+- **The desk shrank underneath the cards and nobody told them (V2-608, 2026-09-07)**: operator's screenshot —
+  he dragged the chat wall to the left edge, it docked correctly into a full-height column, and **not one widget
+  moved**. One card ended up behind the chat, the one on the right was cut off by the window edge and
+  unreachable. «Todos tienen que estar dentro de ese espacio visible. Autofit + autoresize, respetando el
+  mínimo de alto y ancho por widget.»
+  - **Two coordinate systems that stopped agreeing.** `#desk` follows `--chatdock-l/r` in CSS, but the cards
+    live on `.hb-stage`, which is `inset:0` — so they are placed in VIEWPORT coordinates and clamped against
+    `innerWidth`/`innerHeight`, which stopped being the canvas the day the chat wall could take a column of it.
+  - **The rectangle already existed, in exactly one place.** `arrange()` computed the dock-aware bounds INLINE,
+    and was therefore the only gesture on the whole canvas that knew a chat column could be there. It is
+    `canvas()` now and every clamp reads it: placement, drag, drag-resize, voice `resize`, `move`, `maximize`,
+    `_applyPreferred`, the ResizeObserver guard, `compact` and `arrange`. (Same shape as
+    *[[La propiedad de la puerta]]*: the good calculation was already being made, one caller away.)
+  - **Three ways the canvas changes shape; only one said anything.** The rail announces `hb:rail-resized`, but
+    its listener only ever shoved cards RIGHTWARDS — it never resized an oversized card and never pulled one
+    back from the right edge. The chat dock announced **nothing**. A window resize was **not listened to
+    anywhere**. All three run one autofit pass now, coalesced on a frame because a dock drag fires continuously.
+  - **Autofit AND autoresize**: a card too wide for what is left is SHRUNK, never merely moved — down to that
+    widget's own minimum (`manifest.min`, falling back to the 240×150 floor the drag handles already enforced),
+    so a narrow canvas makes a card scroll instead of collapsing into a sliver. A maximized card is
+    **re-maximized to the new canvas**, not clamped: it is deliberately canvas-sized, so clamping the old
+    footprint would leave it hanging over the column it was told to avoid. **A card that is already legal is
+    left exactly alone** — refitting is a repair, not a layout engine; a «tidy» that also undoes where he put
+    things is a second bug.
+  - **Two more defects, measured on the real page while testing this one**: (1) a **DOCKED wall did not come
+    back docked** — `hb_chat_dock` was written on every dock and never read back on restore, so `floatGeo`
+    (which `applyDock` does not clear) always won; measured: dock left, reload, returns at `left:18 w:320` with
+    the key still holding `{side:"left",w:420}`. V2-550 fixed «it does not come back where it was» for the
+    FLOATING wall; this was the same report for the docked one, which is the shape he actually uses. (2) **the
+    reserved strip did not match the column it reserves** — `setReserve` measured `offsetWidth`, which is 0
+    while the wall is unlaid-out (the restore path exactly), so it reserved the 340px default for a 420px column
+    and left an 80px band of desk hidden under the chat.
+  - ⚠️ **The first cut of this was a REGRESSION and he caught it the same day**: «simplemente le he dicho que
+    abra el chat. No lo hemos pegado a la barra de la izquierda para que se haga una columna, y ha movido el
+    resto de objetos a la derecha. Eso no había pasado nunca.» `canvas()` had inherited `arrange()`'s test —
+    the wall's own bounding rect, comment and all («docked/floating on the LEFT»). For a deliberate «ordénalo
+    todo» that is a nicety; for a refit that runs on EVERY canvas change it means merely OPENING the chat
+    rebuilds the desktop. **The rule is his**: only a docked column shrinks the desk. It reads `--chatdock-l/r`
+    now — published only for a wall that is open AND docked, and the exact values `#desk` is inset by — so the
+    rectangle IS the desk and there is no second opinion to drift from it. A floating wall stays what it always
+    was: an obstacle in `_obstacles()`. **Generalisable**: a calculation written for a DELIBERATE gesture is not
+    automatically right for a CONTINUOUS one, and copying it is how a nicety becomes a defect.
+  - ⚠️ **And the defect underneath his screenshot**, reproduced headless: the wall's `class` is a REACTIVE
+    binding (`"chatwall tab-" + tab + (open ? " open" : "")`) that rewrites the WHOLE className, while
+    `docked`/`dock-left` are set IMPERATIVELY by `applyDock`. Any tab or open change wiped them and left
+    `dockSide` still set — so the wall rendered as a floating panel at `left:0` (`top:232 h:480`) **and still
+    reserved a 420px column**, pushing the whole desk right for a column that was no longer there. Measured
+    verbatim: classes `chatwall tab-chat open`, `--chatdock-l: 420px`. Pre-existing (a tab change while docked
+    did it too); restoring the saved dock made it reachable on every load. **Two writers on one className, one
+    reactive and one imperative, is the shape** — the reactive one must reproduce what the imperative one set.
+  - ⚠️ **AND THE ROOT CAUSE WAS UNDERNEATH ALL OF IT** (F3, same day, four more reports): `#wstage` is a CHILD
+    of `#desk`, and `#desk` carries `transform: translate3d(0,0,0)` — which makes it the **containing block for
+    every `position:fixed` descendant**, `.hb-stage{inset:0}` included. So a card's `style.left` is measured from
+    the DESK, and the stage slides on its own when a column insets `#desk`. Deliberate and documented since
+    V2-062 (`main.js:33`): the orb and camera travel with the desk. **MEASURED**: a card at `style.left:100px`
+    renders at viewport 115 undocked and at **535** with a 420px column, `style.left` untouched. Every clamp
+    comparing `style.left` against a VIEWPORT number was wrong by exactly the column width — **and silently right
+    whenever nothing was docked**, which is how it survived. It is also the other half of his report: `_wireDrag`
+    took the grab offset from `getBoundingClientRect()` and wrote it into `style.left`, so the card jumped
+    sideways the instant he grabbed it («la manita aparece desplazada 100 o 200 píxeles»). One `_toDesk()`
+    conversion now feeds `canvas()`, `_obstacles()`, `_watchSize()`, the drag and the drag-resize.
+  - ⚠️ **My fixture built `#wstage` as a SIBLING of `#desk`**, so `position:fixed` resolved against the window
+    and the two coordinate systems coincided. Twelve green tests over a DOM the product does not have. **A
+    harness whose DOM differs from the product's measures a different product** — when a UI fixture hand-writes
+    the scaffold, copy the real rule verbatim, `transform` included.
+  - **The orb** was already centred on the desk (`left:50%` resolves against `#desk`) — the first attempt added
+    the dock offset and pushed it half a column off-centre, the same double-count again. What needed fixing is a
+    DRAGGED orb: its inline `left` is a desk pixel valid for the old desk WIDTH, so it is remapped by the
+    FRACTION of the band it sat at — «la misma posición relativa, en el nuevo tamaño de la zona visible».
+  - **A docked column must always offer a way out.** It can be opened by the AGENT (a proactive push showing the
+    cluster list), so it arrives docked without him docking it — and he had TWO independent reasons he could not
+    close it: `--banner-h` was honoured by `.me` and `.tr` and **nothing else**, so the update banner buried the
+    column's own header; and the column's east resize strip sat **on top of** the close button
+    (`elementFromPoint` over the × returned `DIV.hb-rz hb-rz-e`). Plus a visible undock button that returns the
+    floating chat panel — «se minimiza la barra y vuelve a aparecer el widget del chat».
+  - **The whole header drags**, like any OS title bar, for every widget. `Desktop.DRAG_HANDLES` is the single
+    declaration of what drags a card — read from the CARD, so a test can ask the product which parts are handles
+    instead of choosing for it. Clicks survive on a 4px threshold, and the move/up listeners live on the
+    **window**: on a 26px grip, handle-bound listeners stop firing the moment the pointer leaves it (measured:
+    0px for a 120px drag), and capturing instead would retarget the click and kill the title button.
+  - **F7 — the «Procesos» row's title mutated with every phase** (operator, same day): it began as «leyendo
+    brickset.com…» and cycled through progress paragraphs until updates stopped. Two causes, one per layer: the
+    store kept ONE `text` that four writers overwrote in turn, and **there is no `start` lifecycle event
+    anywhere in the backend** — chips are BORN from their first `phase`, so the mutable activity text WAS the
+    title; the one-time naming event («🏷️ encargo nombrado», V2-530), which carries exactly the settled name,
+    was not even listened to in SSE. Now `title` (start seeds it, 🏷️ settles it, nothing else touches it) and
+    `note` (phase/plan/progress) are separate fields; reconcile takes the server's `title` and real `age_s`,
+    precedence settled-name → held-name → brief — **the mounted test caught the goal clobbering a settled name
+    before it shipped**. Row = name · activity (2-line clamp) · «en curso · 1/5 · 20% · lleva 4 min · desde las
+    19:42». Node **4.122**, seven disarms.
+  - **F8 — a RESET sends the orb home** (operator, same day: «cuando se hace un reset, quiero que el orbe
+    vuelva a su posición inicial»). Reset cleared canvas/log/chat and left a dragged orb where the drag put
+    it — with `hb_pos_orb` restoring that spot on every future page load. `resetDraggable()`
+    (lib/draggable.js) is makeDraggable's undo: forget the persisted key AND drop the inline styles, so
+    `.orbwrap`'s own CSS centres it on the DESK again (with a docked column, the centre of the shrunk desk,
+    not the window). Wired through the client-side deterministic reset path: `_clearCanvasAndLog()`
+    announces `hb:canvas-reset`, Orb.js answers. Node **4.126**, four disarms, rendered with the real
+    draggable.js and pointer gestures.
+  - **F9 — the orb's drag was still in the WRONG coordinate space** (operator, 2026-09-08, next day: «cuando
+    pincho en el orbe, el ratón se va… se desplaza unos 200 píxeles; la segunda vez el orbe se me ha movido
+    fuera de la pantalla»). F3 fixed viewport-vs-desk for the CARDS (desktop.js); the orb/camera/status
+    chrome drags through `makeDraggable` (lib/draggable.js), which still took the grab origin from
+    `getBoundingClientRect()` (viewport) and wrote it into a `style.left` that resolves against `#desk` —
+    so with a column docked every drag added the column width once: first click a ~200px jump, second
+    off-screen, and a position persisted while docked came back shifted on every later load. Everything now
+    converts through `containerBox(el)` — the element's REAL containing block, found by walking to the
+    nearest transformed ancestor — so desk children drag in desk pixels, the clamp is the container's edge
+    («the orb never leaves the visible desk»), the persisted position travels in container space, and
+    elements mounted outside `#desk` (feedback button, floating chat) get the viewport box and are
+    byte-for-byte unchanged. ⚠️ **The hard-drag test then caught a SECOND live defect**: the move/up
+    listeners were handle-bound, so a fast drag whose first pointer sample already left the orb simply DIED
+    — `styleLeft` empty, nothing persisted, the drag never happened. The F6 grip lesson, paid again in the
+    OTHER drag path: per-drag window listeners now, no capture (a tap must keep firing the handle's click).
+    Node 4.121 (+1 file, 5 rendered cases, real pointer gestures), four verified disarms.
+  - Node **4.121**, twenty verified disarms, all caught. **RENDERED, not read**: a source test says the listener
+    exists; only layout says the card ended up inside. ⚠️ The first version of the test built the Desktop with
+    `Object.create(prototype)` to skip a constructor that ends in `restore()` (which talks to the server) — so
+    the listeners never registered and the test measured nothing. Registering them in the test would have proved
+    the test works, not the product, so the wiring came out as `_watchCanvas()`, the seam the constructor calls.
+    Same move, same reason, as `seed_from_mailbox` in V2-606.

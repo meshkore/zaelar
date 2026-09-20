@@ -288,11 +288,44 @@ def create(prompt: str, schedule: str, name: str = "", repeat: str = "",
     detail = {"kind": _KIND, "schedule": sch, "prompt": (prompt or "").strip(),
               "name": (name or "").strip(), "fire_count": 0}
     jid = _journal.add(title, status="pending", detail=detail)
+    _board(jid)
     return {"ok": True, "id": jid, "schedule": sch, "error": None, "display": sch.get("display", "")}
 
 
 def _scheduled(entries: list[dict]) -> list[dict]:
     return [e for e in entries if (e.get("detail") or {}).get("kind") == _KIND]
+
+
+# ── the operator's BOARD (V2-728) ─────────────────────────────────────────────────────────────────────────
+# A scheduled job is a commission with a clock on it, and it belongs in the same list as every other one.
+# `nucleo/tasks.py` owns the translation; this file owns WHEN. One function rather than a line at each of the
+# four mutation points, for the reason the errand ledger needed the same: a rule every writer has to remember
+# is the rule that ends up missing from one of them.
+def _board(jid) -> None:
+    try:
+        from nucleo import tasks as _tasks
+        entry = _journal.get(int(jid))
+        if entry:
+            _tasks.scheduled_mirrored(entry)
+    except Exception:  # noqa: BLE001 — a board that failed to update must never lose the reminder
+        pass
+
+
+def reconcile_board() -> int:
+    """Put every PENDING job on the board. Returns how many, so it can be counted rather than assumed.
+
+    Called once at startup. Two things need it: the jobs that already existed before the board did (the
+    operator's standing reminders, which would otherwise be invisible until they next fired), and any write
+    whose mirror failed — this is the self-heal, and it is why the mirror is allowed to fail soft.
+    """
+    n = 0
+    try:
+        for e in _scheduled(_journal.list_entries(status="pending")):
+            _board(e["id"])
+            n += 1
+    except Exception:  # noqa: BLE001
+        return n
+    return n
 
 
 def list_jobs(active_only: bool = True) -> list[dict]:
@@ -347,9 +380,11 @@ def mark_fired(entry: dict, now: float | None = None) -> dict | None:
     if nxt is None:
         d["schedule"] = sch
         _journal.update(entry["id"], status="done", detail=d)
+        _board(entry["id"])
         return None
     d["schedule"] = nxt
     _journal.update(entry["id"], status="pending", detail=d)
+    _board(entry["id"])
     return nxt
 
 
@@ -364,5 +399,6 @@ def cancel(ref: str) -> bool:
         if str(e["id"]) == ref or (d.get("name") or "").strip().lower() == ref.lower() \
                 or (e.get("title") or "").strip().lower() == ref.lower():
             _journal.update(e["id"], status="done", detail=d)
+            _board(e["id"])
             hit = True
     return hit

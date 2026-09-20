@@ -8,7 +8,7 @@ def test_tools_are_openai_functions():
     assert names == {"escalate_to_slowbrain", "set_style_directive", "show_widget", "show_panel", "fullscreen_widget", "restore_widget",
                      "manage_widget_alias", "widget_data", "delete_widget", "arrange_canvas",
                      "confirm_widget_delete", "authenticate_web", "login_done", "web_search", "search_listings",
-                     "recall", "read_widget",
+                     "recall", "read_widget", "reopen_task",
                      "reveal_secret", "play_music", "play_video", "show_images", "reply_message", "connect_cluster",
                      "cluster_send", "set_cluster_objective", "send_to_worker", "stop_worker", "answer_worker"}
     for t in router.tools():
@@ -63,7 +63,7 @@ def test_show_panel_routes_the_clusters_tab():
     # …and it has not broken routing for the others.
     assert router._canon_panel("crons") == "crons"
     assert router._canon_panel("chat") == "chat"
-    assert router._canon_panel("workers") == "procesos"
+    assert router._canon_panel("workers") == "tareas"       # V2-728: «Procesos» is now «Tareas»
 
 
 def test_capability_tools_are_situational():
@@ -141,7 +141,16 @@ def test_tool_catalog_is_constant_sized(monkeypatch):
 # cost a 355 s worker now serves the turn or self-escalates), plus the two boundary rewrites in web_search and
 # escalate_to_slowbrain that point ad hunts at it. Compacted first (params to one line each); what remains is
 # the negative rules — «never ALSO call escalate for the same hunt» is the two-workers-racing defect (c480413b).
-MAX_CATALOG_CHARS = 23_100
+# V2-728 raised 23_100 → 23_600: one genuinely NEW tool (reopen_task), and it buys the capability the
+# operator asked for by name — *«de la tarea de buscar piso que te dije antes… quiero ver cómo ha terminado»*.
+# Nothing in the engine could answer that: disambiguation reached only what is on screen (`widgets/instances`)
+# or the six-entry `recent_widgets` MRU, and the report itself was deleted by the eight-sheet cap. Without a
+# tool the turn's two available moves are both wrong and both silent — open the default sheet, or search the
+# web again for something already paid for. Compacted from +583 to +479 before raising (the examples went
+# from three to two, and the two «eso es …» glosses became bare tool names); what remains is the pair of
+# negative boundaries against `web_search` and `show_widget`, which are exactly the two it would be
+# confused with, and the instruction to ASK on an ambiguity rather than open the wrong report.
+MAX_CATALOG_CHARS = 23_600
 
 
 # ── "muéstrame una foto de X" must NOT be described in words (real incident 2026-08-03) ─────────────────────
@@ -425,17 +434,32 @@ def test_stop_work_bulk_and_false_positive():
 
 
 def test_show_panel_decision_and_canon():
-    # V2-079: the show_panel tool opens the native side panel (chat/processes/crons) by voice.
-    d = router.decide("show_panel", {"panel": "procesos"})
-    assert d.kind == router.PANEL and d.payload.get("panel") == "procesos"
+    # V2-079: the show_panel tool opens the native side panel by voice. V2-728: four tabs, and «Tareas» has
+    # four sub-tabs — the canon answers one string and the frontend's one door maps it to tab + sub-tab.
+    d = router.decide("show_panel", {"panel": "tareas"})
+    assert d.kind == router.PANEL and d.payload.get("panel") == "tareas"
     # _canon_panel normalizes synonyms the model may produce in the ARGUMENT (not in the request):
-    assert router._canon_panel("crons") == "crons"
     assert router._canon_panel("chat") == "chat"
-    assert router._canon_panel("workers") == "procesos"
-    assert router._canon_panel("brain workers") == "procesos"
-    assert router._canon_panel("tareas programadas") == "crons"
+    assert router._canon_panel("workers") == "tareas"
+    assert router._canon_panel("brain workers") == "tareas"
     assert router._canon_panel("muro de texto") == "chat"
-    assert router._canon_panel("") == "procesos"           # default: the most requested case
+    assert router._canon_panel("") == "tareas"             # default: the most requested case
+    # The OLD name keeps working: stored action-map rows and the operator's own localStorage carry it.
+    assert router._canon_panel("procesos") == "procesos"
+
+
+def test_a_recurring_list_and_a_scheduled_one_are_not_the_same_list():
+    """V2-728 — «enséñame las tareas programadas» used to open the list of things that REPEAT.
+
+    `programad` and `cron` both used to land on `crons`, so the one-shot list had no way to be asked for and
+    the wrong one came up with no error to notice it by. A recurring job IS scheduled, which is why the
+    narrower word has to be tested first — and why this case is written down rather than left to the order
+    of two `if`s nobody would think to check.
+    """
+    for word in ("crons", "periódicas", "periodicas", "cada semana", "semanal", "lo que se repite"):
+        assert router._canon_panel(word) == "crons", word
+    for word in ("programadas", "tareas programadas", "agendadas", "la semana que viene", "un recordatorio"):
+        assert router._canon_panel(word) == "programadas", word
     # show_panel is in the catalog of tools offered to the model
     assert any(t["function"]["name"] == "show_panel" for t in router.TOOLS)
 

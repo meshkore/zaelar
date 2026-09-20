@@ -668,36 +668,40 @@ async def energy():
 
 
 @router.get("/api/tasks")
-async def tasks():
-    """Brain Worker sessions LIVE now — reads dispatch's IN-MEMORY REGISTRY (the SOURCE OF TRUTH, §v2·C), not the
-    projected STATE. The frontend RECONCILES its chips against this on (re)connect → no more orphan chips (V2-038).
-    Read-only, no-cache."""
+async def tasks(scope: str = "live", all: str = ""):
+    """The operator's TASK BOARD — one query over the durable `tasks` table (V2-728).
+
+    This used to be two things stitched together at this route: `dispatch.active_sessions()` (a RAM dict, so a
+    restart emptied it) plus `errands.board_rows()` (a second row shape, synthesised per request). They had
+    different ids, different lifetimes and different notions of «finished», which is how the Processes tab and
+    the Flows board came to disagree about the same work. Both now write the same table, and the read —rows
+    plus the live detail merged on top— belongs to `nucleo.tasks.board()`, not to this route.
+
+    `scope` picks the sub-tab: `live` (En curso) · `done` (Hechas) · `recurring` (Periódicas) · `scheduled`
+    (Programadas). `all=1` is the `⚙ todo` switch — it adds the engine's own internal escalations, which the
+    operator needs during a manual test and nowhere else. Read-only, no-cache.
+    """
     try:
-        from nucleo import dispatch
-        sessions = dispatch.active_sessions()
-    except Exception:
-        return JSONResponse({"sessions": []}, headers={"Cache-Control": "no-cache"})
-    # V2-683 — the ERRANDS with a third party ride the same board, and they are merged HERE rather than
-    # inside `active_sessions()` on purpose. That projection is read by the stall detector, the susurro's
-    # dedup and the worker ledger, all of which reason about a PROCESS: an errand has none, it survives
-    # restarts, and it can legitimately sit silent for hours waiting for somebody to answer — a row like
-    # that inside their input is a false «stuck worker» three different ways. The brain does not learn
-    # about errands here either; it has its own seam (the context pack). This is the OPERATOR's board.
-    try:
-        from nucleo import errands
-        sessions = sessions + errands.board_rows()
-    except Exception:  # noqa: BLE001 — the errand ledger must never empty the task board
-        pass
-    return JSONResponse({"sessions": sessions}, headers={"Cache-Control": "no-cache"})
+        from nucleo import tasks as _tasks
+        show_all = str(all or "").strip().lower() in ("1", "true", "yes", "si", "sí")
+        rows = _tasks.board(scope, show_all=show_all)
+    except Exception:  # noqa: BLE001
+        return JSONResponse({"tasks": [], "scope": scope}, headers={"Cache-Control": "no-cache"})
+    return JSONResponse({"tasks": rows, "scope": scope}, headers={"Cache-Control": "no-cache"})
 
 
 @router.get("/api/workers/history")
 async def workers_history():
-    """V2-079: HISTORY of FINISHED Brain Workers (durable ledger) — for the ChatWall «Processes» tab, which gives
-    PERSPECTIVE on what was done today/yesterday/days ago (live ones go through /api/tasks). Read-only, no-cache."""
+    """FINISHED work — kept as a THIN ALIAS over `/api/tasks?scope=done` (V2-728).
+
+    V2-079 served this from `nucleo/workers/ledger.py`, a JSON blob in `sys_kv` capped at 50 entries and
+    fenced by hand against a reset race. The durable table has neither limit nor fence, so the ledger stops
+    being the source here. The route survives one version for anything still calling it and retires with F3;
+    the shape it answers in is the old one, on purpose — an alias that changed its shape would not be one.
+    """
     try:
-        from nucleo.workers import ledger
-        return JSONResponse({"history": ledger.history()}, headers={"Cache-Control": "no-cache"})
+        from nucleo import tasks as _tasks
+        return JSONResponse({"history": _tasks.history()}, headers={"Cache-Control": "no-cache"})
     except Exception:
         return JSONResponse({"history": []}, headers={"Cache-Control": "no-cache"})
 

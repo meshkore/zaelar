@@ -29,7 +29,9 @@ _ALLOWED: dict[str, tuple[str, ...]] = {
     "widget_data": ("widget", "action"),   # FAST-classified declared ops only, checked at execute
 }
 
-_PANEL_TABS = ("chat", "procesos", "crons", "clusters")
+# V2-728 — `tareas` (the merged tab) and `programadas` (its one-shot sub-tab) join the vocabulary;
+# `procesos` stays because stored action-map rows already carry it and the frontend maps it.
+_PANEL_TABS = ("chat", "tareas", "procesos", "crons", "programadas", "clusters", "conectores")
 _MOVE_WHERE = ("left", "right", "center", "top", "bottom")
 
 

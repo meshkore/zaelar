@@ -21,7 +21,8 @@ STORE = (FRONTEND / "core" / "store.js").read_text(encoding="utf-8")
 SSE = (FRONTEND / "services" / "sse.js").read_text(encoding="utf-8")
 STYLES = (FRONTEND.parent / "app" / "styles.css").read_text(encoding="utf-8")
 
-TABS = ("chat", "procesos", "crons", "clusters")
+# V2-728 — four tabs, not five: «Procesos» and «Crons» merged into «Tareas» with four sub-tabs.
+TABS = ("chat", "tareas", "clusters", "conectores")
 
 
 # ── voice routing: the tab opens like the other three ─────────────────────────────────────────────────────────
@@ -33,12 +34,15 @@ def test_show_panel_knows_the_clusters_tab():
 
 
 def test_show_panel_still_routes_the_other_tabs():
-    """Network routing must not have broken Processes/Crons/Chat."""
+    """Network routing must not have broken Tasks/Chat."""
     from nucleo.flash import router
     assert router._canon_panel("crons") == "crons"
-    assert router._canon_panel("recordatorios programados") == "crons"
+    # V2-728 — «recordatorios programados» now lands on the SCHEDULED list, not the recurring one. A
+    # reminder fires once; it never belonged with the things that repeat, and until the two lists were
+    # separate there was no way to say so.
+    assert router._canon_panel("recordatorios programados") == "programadas"
     assert router._canon_panel("chat") == "chat"
-    assert router._canon_panel("workers") == "procesos"
+    assert router._canon_panel("workers") == "tareas"
 
 
 def test_the_tool_description_mentions_the_tab():
@@ -59,7 +63,7 @@ def test_chatwall_has_the_four_tabs(tab):
 def test_every_tab_has_a_css_rule_that_shows_it(tab):
     """Without the `.chatwall.tab-X .cw-X{display:flex}` rule, the tab exists but remains invisible — a silent failure
     that breaks nothing and is not visible until the tab is opened."""
-    panel = "list" if tab == "chat" else ("proc" if tab == "procesos" else tab)
+    panel = {"chat": "list", "tareas": "tasks", "conectores": "conn"}.get(tab, tab)
     assert re.search(rf"\.chatwall\.tab-{tab}\s+\.cw-{panel}\s*\{{", STYLES), f"la pestaña «{tab}» no se muestra"
 
 

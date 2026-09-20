@@ -76,14 +76,17 @@ export const SYSTEM_SURFACES = [
   // The two selectors moved to ⚙ → Voz, where a device choice belongs; only reply latency lost its chip, and
   // the real per-turn timings live in ◷ with far more detail than «resp — ms».
   // ── PANELES / OVERLAYS / MODALES (a nivel de body, por encima del escritorio) ──
-  // OJO: el chat tiene 4 pestañas (Chat/Procesos/Crons/Clusters). "abre el chat" → pestaña Chat; "procesos",
-  // "crons" y "clusters" (la RED MeshKore, V2-086) son las OTRAS, ruteadas por la tool show_panel
-  // (router._canon_panel) — sus sinónimos viven ahí, no aquí, para no duplicar. Estos alias abren la superficie
-  // del chat (pestaña por defecto). La red es NATIVA a propósito: es infraestructura del sistema (la conexión al
-  // exterior), no un widget de usuario — por eso vive junto a Procesos/Crons y no en el catálogo.
+  // NOTE: the wall has FOUR tabs (Chat / Tareas / Clusters / Conectores). V2-728 merged the former
+  // «Procesos» and «Crons» into «Tareas» with four sub-tabs (En curso · Hechas · Periódicas · Programadas):
+  // they were the same object seen twice, a commission the brain is carrying out and one with a clock on it.
+  // "abre el chat" → the Chat tab; «tareas», «procesos», «crons» and «clusters» (the MeshKore NETWORK,
+  // V2-086) are the others, routed by the `show_panel` tool (`router._canon_panel`) — its synonyms live
+  // there and not here, so there is one list. The old names still work: `store.setChatTab` maps them onto
+  // «Tareas» and the right sub-tab. The network is NATIVE on purpose: it is system infrastructure (the link
+  // to the outside), not a user widget — which is why it sits beside Tareas and not in the catalog.
   { id: "chat",       comp: ChatWall,     target: "body", phase: "overlay", kind: "panel",
-    toggle: "store.chatOpen + store.chatTab (Chat/Processes/Crons/Clusters)",
-    label: "Chat + Processes + Crons + Clusters (4 tabs)",
+    toggle: "store.chatOpen + store.chatTab (Chat/Tasks/Clusters/Connectors)",
+    label: "Chat + Tasks + Clusters + Connectors (4 tabs)",
     name: "Chat", aliases: ["chat", "muro", "muro de texto", "muro de chat", "escribirte", "hablarte por texto",
       "conversacion", "conversación", "el chat contigo", "wall", "text wall", "chat wall"] },
   { id: "status",     comp: StatusPanel,  target: "body", phase: "overlay", kind: "panel",

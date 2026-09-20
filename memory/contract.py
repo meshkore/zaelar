@@ -140,6 +140,11 @@ BLESSED_INTERNAL_IMPORTS: dict[str, str] = {
     # decision visible instead of leaving the boundary test red for a reason nobody wrote down. Closeable
     # the day `api.py` has room: re-export from there and delete this line.
     "memory.errands_store": "errand ledger — a facade the size ratchet forced OUT of api.py (V2-683)",
+    # V2-728: the task ledger, for exactly the same reason and under the same rule — the `tasks`/
+    # `task_artifacts` tables and nothing else, with `nucleo/tasks.py` owning every decision. ONE
+    # importer in production, on purpose: the HTTP layer asks `nucleo.tasks.board()` rather than
+    # reaching in here, so blessing this costs the boundary one line and not a route.
+    "memory.tasks_store": "task ledger — same shape as errands_store, one production importer (V2-728)",
     "memory.writer": "the single writer — touched by memory_agent, which IS the writer",
     "memory.rerank": "reranker state for the config panel",
     "memory.embeddings": "backend state/dimension for the config panel and boot",

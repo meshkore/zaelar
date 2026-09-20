@@ -154,9 +154,15 @@ def test_it_comes_back_IN_THE_SAME_PLACE(measured):
 
 
 def test_it_comes_back_ON_THE_SAME_TAB(measured):
-    """Finding «Chat» after leaving it on «Procesos» is the same loss one level down."""
+    """Finding «Chat» after leaving it on the tab he was reading is the same loss one level down.
+
+    V2-728 — the fixture still ASKS for «procesos», on purpose: that is the name the voice router answers and
+    the name sitting in the localStorage of anyone who used the wall before today. What it must come back on
+    is «tareas», the tab that absorbed it. Pinning the old string here would pin the migration instead of the
+    behaviour, and would go green the day the mapping broke.
+    """
     saved = measured["after"]["saved"] or {}
-    assert saved.get("tab") == "procesos", saved
+    assert saved.get("tab") == "tareas", saved
 
 
 # ── V2-608: docking the wall must ANNOUNCE that the canvas changed shape ────────────────────────────────────

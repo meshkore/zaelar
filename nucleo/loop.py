@@ -127,6 +127,16 @@ class OrchestratorLoop:
             reembed.check()
         except Exception:
             pass
+        # V2-728 — put the standing reminders on the operator's board. Without this the jobs that existed
+        # BEFORE the board did are invisible until they next fire, which for a weekly one is a week of a
+        # «Periódicas» tab that lies by being empty. It is also the self-heal for a write-time mirror that
+        # failed: the board is rebuilt from the scheduler, which is the side that owns the truth.
+        try:
+            n = _scheduler.reconcile_board()
+            if n:
+                logger.info(f"Orchestrator loop: {n} scheduled job(s) put on the task board")
+        except Exception:
+            pass
         self._task = asyncio.create_task(self._run(), name="nucleo:orchestrator-loop")
         logger.info(f"Orchestrator loop started · tick {self.tick_s:.1f}s · consolidates every "
                     f"{self.consolidate_every_s:.0f}s")

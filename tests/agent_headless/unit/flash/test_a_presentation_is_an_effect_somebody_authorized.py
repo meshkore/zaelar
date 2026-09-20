@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import pathlib
 import re
+import subprocess
 
 import pytest
 
@@ -148,18 +149,37 @@ def test_every_reason_in_the_vocabulary_is_one_the_door_can_act_on():
 #: MIGRATION, not a defect — each has a real authorization, it is simply not written down yet. The number
 #: may only go down. The browser's own echo in `server/voice_api.py` is not one of these: that is the canvas
 #: telling the engine what the operator did, the opposite direction.
-_ANONYMOUS_SHOWS_MAX = 21
+# V2-728: 21 → 19. Asking git instead of the disk (see `_direct_show_sites`) showed the real count was
+# already 19; the extra two were slack left over from presentations that had been closed without
+# lowering the ceiling. A ratchet with slack does not bite the next addition, which is its whole job.
+_ANONYMOUS_SHOWS_MAX = 19
 
 
 def _direct_show_sites() -> list[str]:
+    """Every direct `emit("widget", "show")` in the PRODUCTION tree, asked of git rather than of the disk.
+
+    V2-728 — this used to `rglob` the checkout, which counts whatever the operator happens to keep in it.
+    Measured the day this changed: `.meshkore/snapshots/` (GITIGNORED, the §20 pre-edit copies the daemon
+    writes before an agent edits a file) holds verbatim copies of production modules, so editing one file
+    twice added two phantom call sites and put the ratchet red over code that does not exist. Same shape and
+    same fix as V2-727's model-name sweep: a rule about what the ENGINE does is a rule about what is
+    COMMITTED, and asking git is both the correct question and the one that cannot reach his own files.
+    """
+    done = subprocess.run(["git", "ls-files", "-z", "*.py"], cwd=str(ENGINE),
+                          capture_output=True, timeout=60)
+    assert done.returncode == 0, "the sweep needs git to know what the tree IS"
     out = []
-    for p in ENGINE.rglob("*.py"):
-        rel = p.relative_to(ENGINE).as_posix()
-        if rel.startswith(("tests/", ".venv/")) or rel.endswith("canvas_visibility.py"):
+    for rel in done.stdout.decode("utf-8", errors="ignore").split("\0"):
+        if not rel or rel.startswith(("tests/", ".venv/")) or rel.endswith("canvas_visibility.py"):
             continue
         if rel == "server/voice_api.py":
             continue
-        for i, line in enumerate(p.read_text(encoding="utf-8").splitlines(), 1):
+        p = ENGINE / rel
+        try:
+            lines = p.read_text(encoding="utf-8").splitlines()
+        except OSError:                      # tracked but not in the working tree
+            continue
+        for i, line in enumerate(lines, 1):
             if re.search(r'emit\("widget", "show"', line):
                 out.append(f"{rel}:{i}")
     return out

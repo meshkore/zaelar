@@ -49,6 +49,10 @@ class SessionRecord:
     by `dispatch.active_sessions()`; handles (session/task) do not travel to STATE or /api/tasks."""
     task_id: str
     goal: str
+    # V2-728 — the DURABLE id of the commission this session serves, in `tasks`. NOT `task_id`: that one is
+    # `escalate._seq`, which returns to 0 every restart, so it names a session and never an errand. A RELAY
+    # inherits this value, which is what keeps one commission one row across a change of provider.
+    uid: str = ""
     title: str = ""               # V2-530 — the NAME, beside the BRIEF; readers fall back to `goal`
     kind: str = "generic"
     backend: str = ""

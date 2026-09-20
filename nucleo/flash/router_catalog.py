@@ -130,17 +130,17 @@ TOOLS: list[dict] = [
             "name": "show_panel",
             "description": (
                 "Abre o CIERRA el PANEL lateral NATIVO del operador — es UI fija, NUNCA show_widget ni "
-                "[[show]]. `panel`: 'procesos' (brain workers y tareas, en marcha e histórico) | 'crons' (lo "
-                "que tiene programado) | 'chat' (el muro de texto, para escribirte) | 'clusters' (la red "
-                "MeshKore: quién hay y cuánto tráfico). Solo cuando quiera VER esa lista; un dato suelto se "
-                "responde hablando. Con `action:'close'` lo CIERRA: «cierra el "
-                "chat», «quita los procesos». El chat NO es un widget, así que [[close]] no lo cierra — es ESTA."
+                "[[show]]. `panel`: 'tareas' (lo que hace ahora) | 'crons' (periódicas: cada semana) | "
+                "'programadas' (una vez, más adelante) | 'chat' (el muro de texto) | 'clusters' (la red "
+                "MeshKore) | 'conectores' (sus cuentas). Solo cuando quiera VER la lista; un dato suelto se "
+                "responde hablando. Con `action:'close'` lo CIERRA: «cierra el chat», «quita las tareas». "
+                "El chat NO es un widget, así que [[close]] no lo cierra — es ESTA."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
                     "panel": {"type": "string",
-                              "description": "cuál: 'chat' | 'procesos' | 'crons' | 'clusters' (elige por lo que pide el operador)"},
+                              "description": "cuál: 'tareas'|'crons'|'programadas'|'chat'|'clusters'|'conectores'"},
                     "action": {"type": "string",
                                "description": "'open' (por defecto) o 'close' si pide cerrarlo/quitarlo"},
                 },
@@ -405,6 +405,24 @@ TOOLS: list[dict] = [
                     }
                 },
                 "required": ["widget_id"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "reopen_task",
+            "description": (
+                "Recupera el RESULTADO de un encargo que YA TERMINÓ, por lo que era: «lo del piso que te "
+                "dije», «la búsqueda del dentista». No busca nada nuevo (web_search) ni abre una tarjeta que "
+                "está en pantalla (show_widget). Si hay varios parecidos devuelve la lista: PREGUNTA cuál."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "lo que dijo el operador, con sus palabras"}
+                },
+                "required": ["query"],
             },
         },
     },

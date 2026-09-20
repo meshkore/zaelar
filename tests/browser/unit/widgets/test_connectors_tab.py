@@ -26,11 +26,12 @@ FEEDBACK_JS = (FRONTEND / "services" / "feedback-api.js").read_text(encoding="ut
 STYLES = (FRONTEND.parent / "app" / "styles.css").read_text(encoding="utf-8")
 ENGINE = Path(__file__).resolve().parents[4]
 
-TABS = ("chat", "procesos", "crons", "clusters", "conectores")
+# V2-728 — four, not five: «Procesos»+«Crons» became «Tareas» with four sub-tabs.
+TABS = ("chat", "tareas", "clusters", "conectores")
 
 
 # ── frontend: the tab button, its panel, and the CSS that shows it ─────────────────────────────────────
-def test_chatwall_has_the_five_tabs():
+def test_chatwall_has_the_four_tabs():
     for tab in TABS:
         assert f'store.setChatTab("{tab}")' in CHATWALL, f"missing the «{tab}» tab button"
 

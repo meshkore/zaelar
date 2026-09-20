@@ -49,7 +49,12 @@ _PROSE_FILES = ("nucleo/flash/prompt.py", "nucleo/flash/live_blocks.py")
 
 #: Measured 2026-09-16. EDIT DOWNWARD ONLY — and the edit is the celebration.
 _MAX_PROSE = 42_376          # prompt.py 23_151 + live_blocks.py 19_225   (V2-713 R5: 42_486 → 42_376)
-_MAX_TOTAL = 66_072          # …plus the tool catalog 23_096, plus the POLICY lines below, 600
+#: V2-728: 66_072 → 66_555. The PROSE ceiling above did not move — this one tracks prose PLUS the tool
+#: catalog, and the catalog grew by exactly the one new tool (`reopen_task`, +479 after compacting),
+#: whose own ceiling and whose reason are in `test_router.MAX_CATALOG_CHARS`. That is precisely the
+#: accounting this number exists for: paying one ceiling by moving text into the other shows up here
+#: as what it is, and here it does not happen — nothing moved, one tool was added.
+_MAX_TOTAL = 66_555          # …plus the tool catalog 23_579, plus the POLICY lines below, 600
 
 #: ⚠️ V2-713 R5 — A THIRD SOURCE, WHICH WAS ALWAYS THERE AND NEVER COUNTED. `style_policy` composes lines
 #: that ride into the turn beside the prompt (`style_directive.prompt_lines`), and this ratchet could not see

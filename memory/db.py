@@ -114,6 +114,7 @@ class Database:
                 self.conn.execute(_schema.vec_paraphrases_ddl(_emb.dim()))  # V2-031 T2
             if self.fts_available:
                 self.conn.execute(_schema.FTS_MEMORIES)
+                self.conn.execute(_schema.FTS_TASKS)     # V2-728 — standalone, see schema.py
             # v1->v2 (V2-013): memory is a PILL — add `slot`/`meta` if missing (idempotent, non-destructive ALTER;
             # SQLite has no ADD COLUMN IF NOT EXISTS -> inspect existing columns first).
             cols = {r[1] for r in self.conn.execute("PRAGMA table_info(memories)").fetchall()}

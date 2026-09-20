@@ -139,10 +139,11 @@ export function openSSE(desktop) {
       // it with the ✕. The chat is NATIVE UI, not a card: [[close]] does not touch it.
       if (d.label === "close") { store.setChatOpen(false); }
       else {
-        // The whitelist MUST include every tab that `router._canon_panel` can return, or the backend routes it
-        // correctly and the frontend drops it by opening «Chat» (this happened to `clusters` at birth, V2-086).
-        const tab = ["procesos", "crons", "clusters"].includes(d.tab) ? d.tab : "chat";
-        store.setChatTab(tab);
+        // V2-728 — the whitelist LIVED HERE and it is why `clusters` was silently dropped at birth (V2-086):
+        // the backend routed it correctly and this line turned it into «Chat». It now belongs to
+        // `store.setChatTab`, the one door that knows the vocabulary — including the old `procesos`/`crons`
+        // the router still answers, which land on «Tareas» and the right sub-tab.
+        store.setChatTab(d.tab);
         store.setChatOpen(true);
       }
     } else if (d.kind === "filler" && d.text) {

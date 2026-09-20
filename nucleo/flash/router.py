@@ -47,6 +47,7 @@ IMAGES = "images"      # V2-457: displays PHOTOS in the `imagenes` viewer (show_
 SHOW = "show"          # SHOW/OPEN a canvas widget (show_widget) — first-class tool, converges on [[show:id]]
 PANEL = "panel"        # V2-079: opens the native side PANEL (chat/processes/crons) in a tab (show_panel)
 ALIAS = "alias"        # V2-082: adds/removes a widget NAME/ALIAS (manage_widget_alias) — manifest write
+REOPEN = "reopen"      # V2-728: re-opens the RESULT of a task that already finished, found by what it was about
 ESCALATE = "escalate"  # the turn requests memory/tools/reasoning → a Brain Worker is LAUNCHED asynchronously
 INJECT = "inject"      # V2-038: refines/expands an ACTIVE Brain Worker (send_to_worker) → injects, does not relaunch
 STOP = "stop"          # V2-038: kills an ACTIVE Brain Worker (stop_worker)
@@ -56,7 +57,7 @@ ANSWER = "answer"      # V2-038: answers the question of a waiting Brain Worker 
 # (if the operator asks to stop AND something else, stop first); ANSWER/INJECT outrank ESCALATE (refine/respond to a
 # live worker before opening another). MUSIC follows the lightweight routes (SEARCH), below worker routes.
 _PRIORITY = {CHAT: 0, STYLE: 1, SEARCH: 2, LISTINGS: 2, RECALL: 2, READ_WIDGET: 2, REVEAL: 2, MUSIC: 3, VIDEO: 3, IMAGES: 3, SHOW: 3,
-             PANEL: 3, ALIAS: 3,
+             PANEL: 3, ALIAS: 3, REOPEN: 3,
              ANSWER: 4, INJECT: 5, ESCALATE: 6, STOP: 7}
 
 
@@ -82,7 +83,7 @@ FAMILIES: dict[str, tuple[str, ...]] = {
     "messaging": ("reply_message",),
     "media":     ("play_music", "play_video", "show_images"),
     "web":       ("web_search", "search_listings", "authenticate_web", "login_done"),
-    "memory":    ("recall", "reveal_secret", "read_widget"),   # V2-668: never trimmed — a question announces nothing
+    "memory":    ("recall", "reveal_secret", "read_widget", "reopen_task"),   # V2-668: never trimmed — a question announces nothing
 }
 
 
@@ -204,25 +205,9 @@ def _canon_panel_action(v) -> str:
     return "open"
 
 
-def _canon_panel(v) -> str:
-    """Normalizes the `show_panel` `panel` to a canonical ChatWall tab (chat|procesos|crons|clusters).
-    Accepts synonyms the model may produce in the argument (workers→procesos, cron→crons, text/wall→chat,
-    network/mesh→clusters). This is only for the ARGUMENT already chosen by the model — the 'when' (synonyms in
-    the request) lives in the tool description, not here. Default 'procesos' (the most requested case)."""
-    p = str(v or "").strip().lower()
-    if p in ("chat", "procesos", "crons", "clusters"):
-        return p
-    # 'clusters' BEFORE 'crons': "cluster" contains the substring "clus", not "cron", but the order makes
-    # explicit that the network is evaluated first — and prevents a future ambiguous synonym from landing on the wrong side.
-    if any(k in p for k in ("cluster", "meshkore", "mesh", "red", "malla", "peer", "network", "conexion", "conexión")):
-        return "clusters"
-    if any(k in p for k in ("cron", "programad", "recordatorio", "agendad")):
-        return "crons"
-    if any(k in p for k in ("chat", "texto", "muro", "escrib", "message", "mensaj")):
-        return "chat"
-    if any(k in p for k in ("proces", "worker", "tarea", "trabajo", "encarg", "activ")):
-        return "procesos"
-    return "procesos"
+# V2-728 — the panel canon moved to its own module (see `panel_canon.py`); re-imported under the same
+# private name so every call site in this file, and its tests, keep working unchanged.
+from nucleo.flash.panel_canon import canon_panel as _canon_panel
 
 
 # Tools whose WHOLE decision is «these string arguments, stripped» — six branches of one shape, folded when the
@@ -232,7 +217,8 @@ def _canon_panel(v) -> str:
 _STR_ARGS: dict[str, tuple[str, tuple[str, ...]]] = {
     "escalate_to_slowbrain": (ESCALATE, ("request", "surface")), "web_search": (SEARCH, ("query",)),
     "recall": (RECALL, ("query",)), "read_widget": (READ_WIDGET, ("widget_id", "question")),
-    "reveal_secret": (REVEAL, ("label",)), "show_widget": (SHOW, ("widget_id",))}
+    "reveal_secret": (REVEAL, ("label",)), "show_widget": (SHOW, ("widget_id",)),
+    "reopen_task": (REOPEN, ("query",))}
 
 
 def decide(name: str, args: dict | None = None) -> Decision:

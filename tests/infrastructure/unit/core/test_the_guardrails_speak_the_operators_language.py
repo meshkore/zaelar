@@ -290,8 +290,22 @@ def test_arranging_the_canvas_can_be_asked_for_in_english():
 
 
 def test_the_shared_catalog_ceiling_is_paid_by_compressing_never_by_raising():
-    """This catalog is paid on EVERY voice turn (INI-027), so English coverage buys its own room."""
-    assert len(json.dumps(rc.TOOLS, ensure_ascii=False)) <= 23_100
+    """This catalog is paid on EVERY voice turn (INI-027), so English coverage buys its own room.
+
+    V2-728 — the number is READ from `test_router.MAX_CATALOG_CHARS` instead of being written here too. It
+    was the same ceiling spelled twice, which is the defect this suite keeps finding elsewhere: the canonical
+    one carries the raise procedure and one line per raise saying what it bought, and a hardcoded copy
+    silently disagrees with it the first time somebody follows that procedure. What this case still asserts
+    is its OWN rule and the reason it exists — that English coverage pays for itself by compressing, never by
+    moving the ceiling — and the ceiling it measures against is now the only one there is.
+    """
+    import importlib.util
+    import pathlib
+    _rt = pathlib.Path(__file__).resolve().parents[3] / "agent_headless/unit/flash/test_router.py"
+    _spec = importlib.util.spec_from_file_location("_router_ceiling", _rt)
+    _mod = importlib.util.module_from_spec(_spec)
+    _spec.loader.exec_module(_mod)
+    assert len(json.dumps(rc.TOOLS, ensure_ascii=False)) <= _mod.MAX_CATALOG_CHARS
 
 
 # ── H · A generated widget is told about all THREE sizes and told the chrome is not its job ───────────────
