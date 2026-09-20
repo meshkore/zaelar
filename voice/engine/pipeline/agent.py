@@ -211,6 +211,15 @@ async def entrypoint(ctx: JobContext) -> None:
                 f"/{stt_device}" if stt_device else "", boot.dir)
 
     tts = ctx.proc.userdata.get("tts") or build_tts()  # reuse warm TTS (Metal Kokoro loaded in prewarm)
+    # V2-733 — hand the live TTS to the one place that can re-point it mid-session. The voice is chosen
+    # once, HERE, when the pipeline is built; without this handle a language locked DURING a session leaves
+    # the operator listening to the previous language's voice until something reconnects, and at first run
+    # that voice speaks the very first sentence he ever hears.
+    try:
+        from ..speech import live_tts as _live_tts
+        _live_tts.attach(tts, SETTINGS.tts_provider)
+    except Exception as e:  # noqa: BLE001 — never let bookkeeping stop a session from coming up
+        logger.warning("live_tts: could not register the live TTS (%s)", e)
     turn_detection = build_turn_detection() or "vad"   # None (disabled) → VAD-based EOU (no ML InferenceRunner)
     # tap the session VAD ONLY to record the mic (ZAELAR_RECORD_MIC); otherwise use the bare VAD directly.
     vad_session = tapped_vad(vad_plain, boot) if boot.recording else vad_plain

@@ -108,6 +108,10 @@ def test_onboarding_lock_for_a_new_language_translates_the_loading_line_before_t
     from voice import observer
     monkeypatch.setattr(observer, "emit", lambda *a, **kw: events.append((a, kw)))
 
+    # BEFORE the lock: `_pending_steps` answers what is still missing, and locking is what stops it being
+    # missing. Asking afterwards compares the denominator against a tree the lock has already changed.
+    expected_total = len(detect._pending_steps("ja"))
+
     res = asyncio.run(detect.lock("ja", onboarding=True))
 
     assert order == ["priority", "prepare", "aliases"], "must translate the loading line BEFORE the slow full prepare"
@@ -120,7 +124,7 @@ def test_onboarding_lock_for_a_new_language_translates_the_loading_line_before_t
     # asserted on purpose: `i18n/generated/` is not sandboxed by the root conftest — measured 2026-09-20 —
     # so a literal here would pass or fail on which languages this machine has tried before.)
     total = events[0][1]["extra"]["total"]
-    assert total == len(detect._pending_steps("ja")) >= 1, events[0][1]["extra"]
+    assert total == expected_total >= 1, events[0][1]["extra"]
     steps = [kw["extra"]["done"] for _, kw in events if kw.get("extra", {}).get("phase") == "progress"]
     assert steps == list(range(1, len(steps) + 1)), (
         f"the steps must arrive once each and in order, never jumping backwards: {steps}")

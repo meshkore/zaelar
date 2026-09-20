@@ -199,6 +199,131 @@ def test_the_language_realignment_covers_every_provider_not_only_kokoro(monkeypa
         assert json.loads(f.read_text(encoding="utf-8"))["assistant_voice"] == "voice-for-de"
 
 
+class _FakeTTS:
+    """A plugin that CAN be re-pointed, shaped like the installed ElevenLabs one (measured 2026-09-20:
+    `update_options(*, voice_id, voice_settings, model, language, …)`)."""
+
+    def __init__(self):
+        self.calls = []
+
+    def update_options(self, *, voice_id=None, language=None):
+        self.calls.append({"voice_id": voice_id, "language": language})
+
+
+def test_the_realigned_voice_reaches_the_session_that_is_ALREADY_SPEAKING(monkeypatch, tmp_path):
+    """V2-733 — the operator, arriving in Spanish on a fresh install: «me sale la voz del señor inglés
+    intentando hablar español, con lo cual lo hace muy mal».
+
+    Everything above this line already worked: the language locks, the voice realigns, the right id lands
+    in settings.json. What did not exist is the last metre. The TTS is constructed when the pipeline is
+    built and reads its voice once, so the correct voice sat on disk waiting for a reconnect that
+    onboarding never asks for — and the session went on speaking the new language in the old language's
+    voice, starting with `onboarding.confirmSpoken`, which IS the first sentence he ever hears.
+    """
+    from config import settings as st
+    from voice.engine.speech import live_tts
+    f = tmp_path / "settings.json"
+    f.write_text("{}", encoding="utf-8")
+    monkeypatch.setattr(st, "SETTINGS_FILE", f)
+    from voice.engine.speech import voices as V
+    monkeypatch.setattr(V, "tts_provider", lambda: "elevenlabs")
+    monkeypatch.setattr(V, "default_voice_for", lambda prov, lang: f"voice-for-{lang}")
+    monkeypatch.setattr(V, "voice_is_aligned", lambda prov, voice, lang=None: False)
+    monkeypatch.setattr(V, "voices_for", lambda prov, lang=None: [{"voice": f"voice-for-{lang}"}])
+
+    fake = _FakeTTS()
+    live_tts.attach(fake, "elevenlabs")
+    try:
+        with speaking("en"):
+            res = st.update({"stt_language": "de"})
+    finally:
+        live_tts.detach(fake)
+
+    assert json.loads(f.read_text(encoding="utf-8"))["assistant_voice"] == "voice-for-de"
+    assert fake.calls == [{"voice_id": "voice-for-de", "language": "de"}], (
+        f"THE BUG: the live session never heard about the new voice — {fake.calls}")
+    assert "assistant_voice(en vivo)" in res["applied"], (
+        "and the save has to SAY it went live, or nobody can tell this from the old behaviour")
+
+
+def test_the_language_lock_is_locked_too_not_only_the_voice(monkeypatch, tmp_path):
+    """A multilingual model drifts in accent on short text when it is not told which language it is
+    speaking (V2-035). Re-pointing the voice without the language would fix half the complaint."""
+    from config import settings as st
+    from voice.engine.speech import live_tts
+    f = tmp_path / "settings.json"
+    f.write_text("{}", encoding="utf-8")
+    monkeypatch.setattr(st, "SETTINGS_FILE", f)
+    from voice.engine.speech import voices as V
+    monkeypatch.setattr(V, "tts_provider", lambda: "elevenlabs")
+    monkeypatch.setattr(V, "default_voice_for", lambda prov, lang: "v")
+    monkeypatch.setattr(V, "voice_is_aligned", lambda prov, voice, lang=None: False)
+    monkeypatch.setattr(V, "voices_for", lambda prov, lang=None: [{"voice": "v"}])
+    fake = _FakeTTS()
+    live_tts.attach(fake, "elevenlabs")
+    try:
+        with speaking("en"):
+            st.update({"stt_language": "es"})
+    finally:
+        live_tts.detach(fake)
+    assert fake.calls and fake.calls[0]["language"] == "es", fake.calls
+
+
+def test_with_no_session_speaking_the_save_is_exactly_what_it_always_was(monkeypatch, tmp_path):
+    """Nothing about this may depend on a session existing: the ⚙ is used with the voice off, and the
+    cloud provisions a Machine before anybody connects to it."""
+    from config import settings as st
+    from voice.engine.speech import live_tts
+    live_tts.detach()
+    f = tmp_path / "settings.json"
+    f.write_text("{}", encoding="utf-8")
+    monkeypatch.setattr(st, "SETTINGS_FILE", f)
+    from voice.engine.speech import voices as V
+    monkeypatch.setattr(V, "tts_provider", lambda: "elevenlabs")
+    monkeypatch.setattr(V, "default_voice_for", lambda prov, lang: "v")
+    monkeypatch.setattr(V, "voice_is_aligned", lambda prov, voice, lang=None: False)
+    monkeypatch.setattr(V, "voices_for", lambda prov, lang=None: [{"voice": "v"}])
+    with speaking("en"):
+        res = st.update({"stt_language": "es"})
+    assert json.loads(f.read_text(encoding="utf-8"))["assistant_voice"] == "v"
+    assert "assistant_voice(en vivo)" not in res["applied"], "and it must not CLAIM it went live"
+
+
+def test_a_plugin_that_cannot_be_repointed_degrades_instead_of_raising():
+    """Every failure here ends as «it applies on the next connect», never as an exception: a voice that
+    could not be swapped must not take down the settings save that was otherwise fine."""
+    from voice.engine.speech import live_tts
+
+    class _Deaf:                      # no update_options at all
+        pass
+
+    class _Strange:                   # has one, but names the voice something else entirely
+        def update_options(self, *, timbre=None):
+            raise AssertionError("must not be called with a voice it cannot take")
+
+    class _Angry:
+        def update_options(self, *, voice_id=None, language=None):
+            raise RuntimeError("the socket is gone")
+
+    for obj in (_Deaf(), _Strange(), _Angry()):
+        live_tts.attach(obj, "elevenlabs")
+        try:
+            assert live_tts.apply_voice("v", "es") is False, f"{type(obj).__name__} must report failure"
+        finally:
+            live_tts.detach(obj)
+    assert live_tts.apply_voice("v", "es") is False, "and with nothing attached there is nothing to do"
+
+
+def test_the_pipeline_hands_over_the_tts_it_just_built():
+    """The seam is worthless if nobody registers the live TTS, and that call lives in the one place that
+    has it: right where `entrypoint()` acquires it, before the session is constructed."""
+    src = (ROOT / "voice" / "engine" / "pipeline" / "agent.py").read_text(encoding="utf-8")
+    i_build = src.index('tts = ctx.proc.userdata.get("tts") or build_tts()')
+    i_attach = src.index("live_tts.attach(tts,", i_build)
+    i_session = src.index("session = AgentSession(", i_build)
+    assert i_build < i_attach < i_session, "attach between building the TTS and building the session"
+
+
 def test_a_voice_that_already_suits_the_new_language_is_left_alone(monkeypatch, tmp_path):
     """The counterweight, and the reason `voice_is_aligned` exists as its own question: realigning a voice
     that is ALREADY right for the language would throw away a deliberate choice for nothing."""

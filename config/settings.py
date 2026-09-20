@@ -351,6 +351,19 @@ def update(payload: dict) -> dict:
                 except Exception:
                     pass
                 applied.append("assistant_voice(realineada al idioma)")
+                # V2-733 — AND SAY IT TO THE SESSION THAT IS SPEAKING. Writing the right voice here was
+                # never the missing part; the TTS is built once, at connect, so the realigned voice used
+                # to sit in settings.json waiting for a reconnect nobody asks for during onboarding —
+                # while the live session spoke the new language in the old language's voice, starting
+                # with `onboarding.confirmSpoken`, which is the first sentence the operator ever hears.
+                # A reconnect cannot be the answer here: the confirmation is spoken the instant lock()
+                # returns and would land in the session being torn down.
+                try:
+                    from voice.engine.speech import live_tts
+                    if live_tts.apply_voice(want, lang):
+                        applied.append("assistant_voice(en vivo)")
+                except Exception as e:  # noqa: BLE001
+                    logger.warning(f"update: la voz nueva no alcanzó la sesión viva ({e})")
         except Exception as e:
             logger.warning(f"update: no pude realinear la voz al idioma ({e})")
 
