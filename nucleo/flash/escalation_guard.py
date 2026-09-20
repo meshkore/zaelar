@@ -13,6 +13,54 @@ when the turn neither escalated nor touched another tool, it escalates.
 """
 from __future__ import annotations
 
+ESCALATE_INSTRUCTIONS = (
+    "Decide whether this turn needs a background worker. "
+    "A worker costs minutes and money: answer handle_inline ONLY for what is clearly not an "
+    "errand (a dictation fragment, a spelling, a reaction, chatter, something answerable on "
+    "the spot). When in doubt, escalate — a missed errand is worse than a wasted question."
+)
+
+ESCALATE_CHOICE = {
+    "handle_inline": "The turn needs no background worker: a fragment, a reaction, chatter, "
+                     "or something answerable right now",
+    "escalate": "The turn commissions real background work: research, navigation, building, "
+                "or any multi-step errand",
+}
+
+
+def judge_escalation(operator_text: str, *, running_goals: list | None = None,
+                     has_workers: bool = False, ask_pending: bool = False,
+                     timeout_s: float | None = None) -> str:
+    """Jev second opinion on a would-be worker commission (T-jev-escalate): "handle_inline"
+    annuls it the way the provider annulment does, anything else keeps today's path.
+
+    The verdict is read over the operator's words plus STATE FACTS — which goals are already
+    in flight, whether workers run, whether one is waiting for the operator — the same class
+    of input the situational gates already use, never a new word list. Returns "escalate" on
+    every non-verdict: unsure, slow, failed, disabled, or an empty turn. Fires ONLY where a
+    commission survived the grammar guards, never per turn."""
+    from nucleo import jev as _jev
+    words = (operator_text or "").strip()
+    if not words or not _jev.enabled():
+        return "escalate"
+    goals = [g for g in (running_goals or []) if str(g or "").strip()]
+    context = ("Goals already in flight: "
+               + ("; ".join(str(g)[:120] for g in goals[:3]) if goals else "none")
+               + f"\nWorkers active now: {'yes' if has_workers else 'no'}"
+               + f"\nA worker is waiting for the operator's answer: {'yes' if ask_pending else 'no'}")
+    verdict = _jev.choose_sync(
+        "escalate_or_inline", words, instructions=ESCALATE_INSTRUCTIONS,
+        criteria=ESCALATE_CHOICE, context=context,
+        timeout_s=timeout_s, question_id="escalate-gate")
+    if not verdict:
+        return "escalate"
+    choice = str(verdict.get("choice") or "")
+    if choice != "handle_inline":
+        return "escalate"
+    if float(verdict.get("confidence") or 0.0) < _jev.MIN_CONFIDENCE:
+        return "escalate"
+    return "handle_inline"
+
 
 def escalation_text(operator_text: str, turn_text: str) -> str:
     """The errand to escalate, or "" — read from the OPERATOR'S WORDS, never the composed turn.

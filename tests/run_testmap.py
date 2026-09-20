@@ -1322,6 +1322,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/voice/unit/test_jev_route.py"]},
         {"id": "3.61", "title": "Jev repairs an invented widget action to a declared one (or abstains); canvas verbs keep their boundary, unsure keeps today's escalate",
             "ch": UNIT, "paths": ["tests/voice/unit/test_jev_action.py"]},
+        {"id": "3.62", "title": "Jev second opinion annuls a surviving commission only when confident it is no errand; anything else keeps today's escalate",
+            "ch": UNIT, "paths": ["tests/voice/unit/test_jev_escalate.py"]},
         # V2-717 — session c502d3ff (2026-09-17 20:57): «Let me check your Telegram to see what Ivan asked» three
         # turns in a row with NOTHING behind it — the re-emitted `mensajeria:open` was eaten as context-bleed
         # (a lens has an empty payload, so the guard's hatch could never open) while the promise went out by

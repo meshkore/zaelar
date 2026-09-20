@@ -2255,6 +2255,25 @@ class NucleoLLMStream(llm.LLMStream):
             escalate_req["v"] = None
             escalate_req["more"] = []
 
+        # JEV ESCALATE GATE (T-jev-escalate): a commission that SURVIVED the grammar guards gets a
+        # cheap second opinion before it spends money. A confident `handle_inline` annuls it in the
+        # same shape as the ghost-worker guard above; a confident `escalate`, an unsure/slow/failed
+        # call, or Jev off keep `v` untouched. Only ever CLEARS — every backstop below (marketplace
+        # re-escalation, worker-response, STOP) already handles `None`, so their precedence is intact.
+        if escalate_req["v"] is not None:
+            try:
+                _jev_esc = _eguard.judge_escalation(
+                    operator_text, running_goals=_show_target._running_goals(),
+                    has_workers=bool(_has_workers), ask_pending=bool(_ask_pending))
+            except Exception:
+                _jev_esc = "escalate"
+            if _jev_esc == "handle_inline":
+                emit("brain", "🧭 escalada anulada por Jev — no es un encargo",
+                     text=f"{(operator_text or '')[:80]} → {(escalate_req['v'] or '')[:80]}",
+                     role="system", extra={"cat": "flash", "by": "jev"})
+                escalate_req["v"] = None
+                escalate_req["more"] = []
+
         # BACKSTOP PROMESA-SIN-ACCIÓN UNIFICADO 2026-07-19 (mar de testing): ante fraseo CORTÉS/subjuntivo
         # («¿podrías…?», «deberías…», «sería genial que hicieras…», «me haría falta…») el modelo CHARLA una promesa
         # («me pongo con ello», «te lo abro», «voy a poner…») SIN llamar a la tool → causa nº1 de "dice que lo hace y
