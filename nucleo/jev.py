@@ -8,13 +8,15 @@ filler is its first caller, later ones reuse it.
 
 MEASURED LATENCY (2026-09-20, V2-726 — this docstring previously claimed «70-500 ms», which no call
 has ever taken): p50 **800 ms**, p95 910 ms, over 312 real calls in the operator's sessions plus a
-live round against the API. The default timeout is 900 ms, so the engine currently discards 5% of
-its canvas calls and 28% of its escalate-gate calls AFTER paying for them.
+live round against the API. The timeout is 2 s since F5: with the brief fired at turn start and read
+2-4 s later, a slow call costs a daemon thread and nothing else — at 900 ms the engine was cancelling
+5% of its canvas calls and 28% of its escalate-gate ones AFTER paying for them.
 
 AND THE FACT THAT SHOULD SHAPE EVERY NEW CALLER: the cost is the ROUND TRIP, not the questions. The
 `questions` field is a MAP — 1 question takes 800 ms, 10 take 817 ms, 100 take 1041 ms. Anything
-that needs several verdicts in one turn must ask them in ONE call, not N. This module does not yet
-expose that (one question per request); V2-726 F1/F4 is where it gets added.
+that needs several verdicts in one turn must ask them in ONE call, not N. `choose_many_sync` /
+`ask_many` (F1) and `select_many` (F4) are that call; a new caller uses one of them, never a loop
+over the single-question door.
 
 Protocol (verified against https://docs.typesafe.ai, 2026-09-20):
   POST https://api.typesafe.ai/v1/systemone, Bearer key, JSON {state, model: "jev-latest",
@@ -30,11 +32,12 @@ handle; `resolve_choice()` peeks at fire time without ever waiting. Jev is advis
 or unsure call leaves the local verdict untouched, so no caller ever depends on the network.
 
 ⚠️ `choose_sync()` is NOT that, and it is not safe from a coroutine: `urllib.request.urlopen` blocks
-the calling thread for up to the timeout. Two callers do exactly that today from inside the voice
-provider's `async def _run_inner` — `escalation_guard.judge_escalation` and
-`frontend.repair_action` — which freezes the event loop STT, TTS and barge-in all share. Measured
-and written up in V2-726 §3.2; the fix is to read those verdicts from the turn-start brief instead.
-Until then: do NOT add a `choose_sync` caller on the voice path.
+the calling thread for up to the timeout, freezing the event loop STT, TTS and barge-in all share.
+Two callers used to do exactly that from inside the voice provider's `async def _run_inner`
+(`escalation_guard.judge_escalation` and `frontend.repair_action`); F2 replaced both with brief
+readers, and `test_no_new_blocking_jev_call.py` is the ratchet that keeps the count at zero. The two
+blocking functions remain for the probe/text channel, which has no event loop to freeze. Do NOT add
+a `choose_sync` caller on the voice path: ask the question in the turn brief and `peek` the answer.
 
 The request-type classifier (`classify_sync` / `request_async` / `resolve_kind`) is the first
 caller, kept as a thin wrapper over the generic Choice primitive below.
