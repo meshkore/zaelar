@@ -171,6 +171,17 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
     # voz (nucleo.py). El recall busca por esto, nunca por el turno con la nota pegada delante.
     operator_text = text
 
+    # JEV CANVAS VERDICT (T-jev-show-close, ESPEJO del provider): una pregunta Choice barata
+    # (show/close/neither) en su propio hilo mientras se monta el prompt y corre el modelo, lista en los
+    # guardas de canvas. Consultiva: un "close" seguro licencia un [[close]] que la gramática no ve;
+    # lo demás mantiene el camino de hoy. Nunca rompe el turno (None = solo gramática).
+    canvas_h = None
+    try:
+        from nucleo.flash import show_target as _st_cnv
+        canvas_h = _st_cnv.ask_canvas_async(operator_text)
+    except Exception:
+        canvas_h = None
+
     # (a2) DRENA brain_notes como el provider (paridad voz/probe, V2-053): las notas [SISTEMA] pendientes
     # (SlowBrain, proactive, Susurro repair_say) se anteponen al turno — sin esto el canal de prueba no podía
     # verificar el circuito nota→respuesta y las notas se quedaban esperando a un turno de VOZ.
@@ -219,11 +230,21 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
 
     def _tag_emit(action: str, extra: dict) -> None:
         if action == "close":
-            # V2-635 (espejo del guarda del provider): un [[close]] del modelo sin verbo de cerrar en el
-            # turno del operador es arrastre de contexto, no obediencia — se descarta.
-            from nucleo.flash import close_guards as _closeg
-            if not _closeg.looks_like_close(text):
+            # V2-635 (espejo del guarda del provider) + licencia Jev (T-jev-show-close, lector COMPARTIDO
+            # `show_target.close_has_order`, nunca una segunda implementación): un [[close]] sin orden se
+            # descarta; un "close" seguro de Jev lo licencia (dos lectores de acuerdo).
+            from nucleo.flash import show_target as _st_close
+            _has_order, _order_src = _st_close.close_has_order(text, canvas_h)
+            if not _has_order:
                 return
+            if _order_src == "jev":
+                try:
+                    from voice.observer import emit as _emit_lic
+                    _emit_lic("brain", "🔓 close licenciado por Jev (espejo del provider)",
+                              text=(text or "")[:120], role="system",
+                              extra={"cat": "flash", "kind_diag": "close_jev_licensed"})
+                except Exception:
+                    pass
         if action == "show":
             contextual = _show_target(text, sess.window, sess.last_action)
             if contextual:

@@ -129,3 +129,31 @@ def test_the_async_handle_resolves_through_the_shared_resolver(monkeypatch):
     verb, info = st.resolve_canvas_verb(h)
     assert (verb, info["used"]) == ("show", True)
     assert info["latency_ms"] >= 0
+
+
+# ── close_has_order: the one reader both [[close]] guards share ──────────────────────────
+def _sure_close_handle(confidence=0.9) -> dict:
+    return _ready_handle({"choice": "close", "confidence": confidence,
+                          "probs": {"close": confidence}, "latency_ms": 120})
+
+
+def test_grammar_close_needs_no_jev():
+    assert st.close_has_order("cierra el widget de música") == (True, "grammar")
+
+
+def test_a_confident_jev_close_licenses_a_grammar_miss():
+    """The behavior this wiring adds: the model said [[close]], the grammar sees no close verb,
+    Jev independently reads a close order → let it through. Removing the license turns this red."""
+    assert st.close_has_order("please put that away", _sure_close_handle()) == (True, "jev")
+
+
+def test_an_unsure_jev_keeps_the_discard():
+    h = _ready_handle({"choice": "close", "confidence": 0.2, "probs": {}, "latency_ms": 50})
+    assert st.close_has_order("please put that away", h) == (False, "none")
+    assert st.close_has_order("please put that away", None) == (False, "none")
+
+
+def test_a_negated_close_vetoes_even_a_confident_jev():
+    """The load-bearing veto (V2-678 shape): «do not close» + a Jev false-positive must still
+    discard. Removing the veto turns this red."""
+    assert st.close_has_order("Do not close the widgets.", _sure_close_handle()) == (False, "none")

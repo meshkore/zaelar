@@ -13,7 +13,13 @@ import time
 
 # Semantic version of the engine — bump it by hand when closing a notable block of changes.
 #
-# Latest (3.28): JEV GOES GENERIC, AND THE CANVAS GETS A VERB. nucleo/jev.py generalizes from the single
+# Latest (3.29): THE CLOSE LICENSE GOES LIVE IN BOTH CHANNELS. show_target.close_has_order is the one
+# close-order reader the voice provider and the probe share: grammar first, a confident Jev "close"
+# licenses a model [[close]] the grammar misses, a negated/narrated close vetoes even a confident Jev,
+# anything else keeps the V2-635 discard bit-for-bit (the source-shape ratchet still passes unchanged).
+# The ask fires once per turn, fail-soft to grammar-only. Restart required (hot path).
+#
+# Previous (3.28): JEV GOES GENERIC, AND THE CANVAS GETS A VERB. nucleo/jev.py generalizes from the single
 # hardcoded request_type question to a reusable Choice primitive (choose_sync/ask_async/resolve_choice)
 # with the filler API kept as a thin wrapper — node 3.58 passes unchanged. On top, show_target.py asks one
 # canvas question per turn (show/close/neither) through a resolver both channels will share; no provider or
@@ -103,7 +109,7 @@ import time
 # received `event="end"` — and closing a row nothing opened updates nothing. `zaelar_user_sessions` held zero
 # rows for every account since the table was created, while every Machine's `POST /session` returned 200.
 #
-VERSION = "3.28"
+VERSION = "3.29"
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _CACHE: dict = {}

@@ -376,6 +376,16 @@ class NucleoLLMStream(llm.LLMStream):
                     return
                 text = _cont
 
+        # JEV CANVAS VERDICT (T-jev-show-close): one cheap Choice call (show/close/neither) on its own
+        # thread while the turn assembles + runs the model, so it is ready at the canvas guards. Advisory:
+        # a confident "close" licenses a model [[close]] the grammar misses; anything else keeps today's
+        # path. Never breaks the turn — fail-soft to None means grammar only (`ZAELAR_JEV=0` included).
+        canvas_h = None
+        try:
+            canvas_h = _show_target.ask_canvas_async(text)
+        except Exception:
+            canvas_h = None
+
         # SUPRESIÓN DE ECO (FASE 2, 2026-07-14): con el micro SIEMPRE abierto y sin AEC perfecto, el mic capta el
         # TTS de zaelar y el STT lo transcribe como si fuera el operador → zaelar "se responde a sí mismo" (las
         # respuestas ZOMBIE / la frase del tiempo re-emitida del test). Si el turno se PARECE MUCHO a lo que zaelar
@@ -915,10 +925,17 @@ class NucleoLLMStream(llm.LLMStream):
             # un [[close]] que NADIE pidió (34386d8f). Gramática (looks_like_close ya excluye negaciones y
             # narraciones): sin verbo de cerrar EN el turno del operador, el close del modelo es arrastre.
             if action == "close" and not _closeg.looks_like_close(text):
-                emit("brain", "🛡️ close ignorado — el operador no ha pedido cerrar nada (context-bleed)",
-                     text=(text or "")[:120], role="system", extra={"cat": "flash", "kind_diag": "close_without_order"})
-                deduped["v"] = True
-                return
+                # ...unless the shared reader licenses it: Jev independently reads a close order with
+                # confidence (T-jev-show-close) — two readers agreeing forgives a grammar miss. A "neither"
+                # or unsure verdict keeps the discard below, bit-for-bit.
+                _has_order, _order_src = _show_target.close_has_order(text, canvas_h)
+                if not _has_order:
+                    emit("brain", "🛡️ close ignorado — el operador no ha pedido cerrar nada (context-bleed)",
+                         text=(text or "")[:120], role="system", extra={"cat": "flash", "kind_diag": "close_without_order"})
+                    deduped["v"] = True
+                    return
+                emit("brain", "🔓 close licenciado por Jev (la gramática no veía orden, dos lectores de acuerdo)",
+                     text=(text or "")[:120], role="system", extra={"cat": "flash", "kind_diag": "close_jev_licensed"})
             if action == "show":
                 contextual = _show_guard_target(text, brain._window, brain._last_action)
                 if contextual:

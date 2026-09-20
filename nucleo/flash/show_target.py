@@ -302,3 +302,25 @@ def resolve_canvas_verb(handle: dict | None, *, min_confidence: float | None = N
     from nucleo import jev as _jev
     mc = _jev.MIN_CONFIDENCE if min_confidence is None else min_confidence
     return _jev.resolve_choice(handle, "neither", min_confidence=mc)
+
+
+def close_has_order(text: str, canvas_handle: dict | None = None) -> tuple[bool, str]:
+    """The ONE close-order reader for both channels' [[close]] guards (V2-635 and its probe mirror).
+
+    Grammar first: `looks_like_close` saying yes ends the question. A deterministic NEGATED or
+    NARRATED close ("do not close", "you've closed") ends it the other way — it vetoes even a
+    confident Jev, because a cheap model's opinion never beats the operator's own "don't".
+    Otherwise a confident Jev "close" LICENSES the model's [[close]] (two independent readers
+    agreeing forgives a grammar miss); anything else keeps the discard. Returns `(has_order,
+    source)` with source one of "grammar" | "jev" | "none" — the emit trail says which reader
+    moved, so a misfire is attributable.
+    """
+    from . import close_guards as _cg
+    if _cg.looks_like_close(text):
+        return True, "grammar"
+    if _cg.is_negated_or_narrated(text):
+        return False, "none"
+    verb, info = resolve_canvas_verb(canvas_handle)
+    if verb == "close" and (info or {}).get("used"):
+        return True, "jev"
+    return False, "none"
