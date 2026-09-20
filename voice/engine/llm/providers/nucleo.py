@@ -386,6 +386,18 @@ class NucleoLLMStream(llm.LLMStream):
         except Exception:
             canvas_h = None
 
+        # JEV ROUTE PRE-CHOICE (T-jev-router): one cheap Choice call (chat/search/show/widget_data/
+        # escalate/other) on its own thread while the turn assembles, resolved where the tool catalog
+        # is built. Advisory: a confident verdict only ADDS families (or, for high-confidence pure
+        # chat in a quiet state, offers no tools); anything else keeps today's path. Never breaks
+        # the turn — fail-soft to no-force means retrieval only (`ZAELAR_JEV=0` included).
+        _route_h = None
+        try:
+            from nucleo.flash import tool_selection as _tsel_route
+            _route_h = _tsel_route.ask_route_async(text)
+        except Exception:
+            _route_h = None
+
         # SUPRESIÓN DE ECO (FASE 2, 2026-07-14): con el micro SIEMPRE abierto y sin AEC perfecto, el mic capta el
         # TTS de zaelar y el STT lo transcribe como si fuera el operador → zaelar "se responde a sí mismo" (las
         # respuestas ZOMBIE / la frase del tiempo re-emitida del test). Si el turno se PARECE MUCHO a lo que zaelar
@@ -1927,19 +1939,42 @@ class NucleoLLMStream(llm.LLMStream):
         # invariante de V2-085. Medido sobre los 14 casos del nodo 2.13: **−51,4% de chars de catálogo** y CERO
         # casos que se queden sin ninguna tool aceptable.
         _tool_report: dict = {}
+        # JEV ROUTE RESOLVE (T-jev-router): the pre-choice fired at turn start lands here. A confident
+        # verdict UNIONs families into the retrieval force set (never removes — the state gates above
+        # already ran); high-confidence pure chat in a quiet state offers no tools at all. Anything
+        # unsure/off/other keeps this block exactly as it was. The emit says which reader moved, so a
+        # misfire stays attributable in observability.
+        _route_force: set = set()
+        _route_bare = False
+        try:
+            from nucleo.flash import tool_selection as _tsel_route2
+            _route_force, _route_bare = _tsel_route2.resolve_route(
+                _route_h, quiet_state=not (_has_workers or _ask_pending
+                                           or had_pending_confirm or _auth_pending))
+        except Exception:
+            _route_force, _route_bare = set(), False
         if not first_turn:
-            try:
-                from nucleo.flash import tool_selection as _tsel
-                _turn_tools, _tool_report = _tsel.select_for_turn(
-                    _turn_tools, turn_text=text, window=getattr(brain, "_window", None),
-                    recent_families=getattr(brain, "_recent_tool_families", None),
-                    force=getattr(self, "_force_families", None))
-                if _tool_report.get("omitted"):
-                    emit("brain", "🎯 tools recortadas al rumbo del turno", role="system",
-                         extra={"cat": "flash", **_tool_report})
-            except Exception as e:  # noqa: BLE001
-                emit("brain", "⚠️ selección de tools falló — catálogo completo", role="system",
-                     extra={"cat": "flash", "err": repr(e)[:120]})
+            if _route_bare:
+                _turn_tools = []
+                emit("brain", "🎯 ruta Jev: charla sin tools", role="system",
+                     extra={"cat": "flash", "route": "chat"})
+            else:
+                try:
+                    from nucleo.flash import tool_selection as _tsel
+                    _force_fams = set(getattr(self, "_force_families", None) or ()) | _route_force
+                    _turn_tools, _tool_report = _tsel.select_for_turn(
+                        _turn_tools, turn_text=text, window=getattr(brain, "_window", None),
+                        recent_families=getattr(brain, "_recent_tool_families", None),
+                        force=_force_fams or None)
+                    if _route_force:
+                        emit("brain", f"🎯 ruta Jev: +{','.join(sorted(_route_force))}", role="system",
+                             extra={"cat": "flash", "route_force": sorted(_route_force)})
+                    if _tool_report.get("omitted"):
+                        emit("brain", "🎯 tools recortadas al rumbo del turno", role="system",
+                             extra={"cat": "flash", **_tool_report})
+                except Exception as e:  # noqa: BLE001
+                    emit("brain", "⚠️ selección de tools falló — catálogo completo", role="system",
+                         extra={"cat": "flash", "err": repr(e)[:120]})
         # OBSERVABILIDAD del presupuesto de tools (V2-085): no solo cuántas — cuánto ocupan, qué familias entraron
         # y cuáles se podaron. Junto a los `sz_*`/`widgets_*` del prompt cierra el desglose completo del turno.
         try:

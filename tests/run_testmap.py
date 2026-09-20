@@ -1318,6 +1318,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/voice/unit/test_jev_request_type.py"]},
         {"id": "3.59", "title": "Jev names the canvas verb (show/close/neither) through one shared resolver; anything unsure is neither",
             "ch": UNIT, "paths": ["tests/voice/unit/test_jev_show_close.py"]},
+        {"id": "3.60", "title": "Jev route pre-choice forces tool families (or offers no tools for pure chat); anything unsure keeps today's catalog",
+            "ch": UNIT, "paths": ["tests/voice/unit/test_jev_route.py"]},
         # V2-717 — session c502d3ff (2026-09-17 20:57): «Let me check your Telegram to see what Ivan asked» three
         # turns in a row with NOTHING behind it — the re-emitted `mensajeria:open` was eaten as context-bleed
         # (a lens has an empty payload, so the guard's hatch could never open) while the promise went out by

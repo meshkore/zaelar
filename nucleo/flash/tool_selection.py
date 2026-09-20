@@ -305,3 +305,65 @@ def carried_from_window(window, exclude: str = "", n: int = 2) -> str:
 def families_used(names) -> set[str]:
     """Families to which called tools belong — to populate the `recent` layer of the next turn."""
     return {_family_of[n] for n in (names or ()) if n in _family_of}
+
+
+# ── Jev route pre-choice (T-jev-router) ──────────────────────────────────────────────────────────
+# A cheap second opinion on which tool family the turn needs, asked at turn start (own thread) and
+# resolved where the tool catalog is assembled. It only ever ADDS (forced families are a UNION into
+# the retrieval `keep` set — a capability can never be removed this way) or, for high-confidence
+# pure chat in a quiet state, offers NO tools at all (the kickoff precedent: a greeting needs no
+# schemas, and ~22 KB of tools is pure noise). Situational state gates still run first, so a forced
+# family whose tools are state-gated out stays out. Each family maps AT MOST once: Jev names the
+# route, this table names the families — a second implementation of the mapping is the drift this
+# module exists to prevent. The probe channel deliberately keeps the full catalog (it classifies
+# with everything offered); this narrowing is a voice-path cost optimization.
+QUESTION_ID = "route-choice-v1"
+MIN_CONFIDENCE = 0.5          # addition needs a confident verdict; anything less keeps today's path
+CHAT_BARE_CONFIDENCE = 0.8    # REMOVAL needs stronger evidence than addition (stripping tools is riskier)
+ROUTE_KINDS = ("chat", "search", "show", "widget_data", "escalate", "other")
+_ROUTE_TO_FAMILIES: dict[str, frozenset] = {
+    "chat": frozenset(), "search": frozenset({"web"}), "show": frozenset({"widgets"}),
+    "widget_data": frozenset({"widgets"}), "escalate": frozenset(), "other": frozenset(),
+}
+ROUTE_INSTRUCTIONS = (
+    "Classify the operator's turn by which tool family it needs. 'chat' is pure conversation "
+    "that needs NO tool (greetings, thanks, small talk, opinions). 'search' needs a quick web "
+    "fact lookup. 'show' wants a widget opened on the canvas. 'widget_data' acts on an open "
+    "widget's data. 'escalate' is a task for a headless worker (research, errands, anything "
+    "that takes minutes). 'other' is everything else — music, video, photos, messages, memory "
+    "questions, secrets, panels. When the turn fits none of the first five, answer 'other'; "
+    "when torn between two, answer 'other'."
+)
+
+
+def ask_route_async(text: str):
+    """Fire the route pre-choice; resolve later with `resolve_route`. Never breaks the turn:
+    fail-soft to None means retrieval only (`ZAELAR_JEV=0` included)."""
+    try:
+        from nucleo import jev as _jev
+        if not _jev.enabled():
+            return None
+        return _jev.ask_async(QUESTION_ID, ROUTE_INSTRUCTIONS, ROUTE_KINDS, text)
+    except Exception:
+        return None
+
+
+def resolve_route(canvas_handle, *, quiet_state: bool = False) -> tuple[set[str], bool]:
+    """Resolve a fired route ask into `(forced_families, bare_chat)`.
+
+    · unsure / missing / off / 'other' / 'escalate' → `(set(), False)`: today's path, bit-identical.
+    · confident search/show/widget_data → `(families, False)`: UNION into the retrieval force set.
+    · confident chat (≥0.8) in a quiet state → `(set(), True)`: offer NO tools this turn.
+    · confident chat with pending obligations → `(set(), False)`: the model keeps every tool it may
+      need to answer/stop/confirm. `quiet_state` is STATE facts only (no workers asking, nothing
+      pending) — never the turn's words."""
+    try:
+        from nucleo import jev as _jev
+        verdict, info = _jev.resolve_choice(canvas_handle, MIN_CONFIDENCE)
+    except Exception:
+        return set(), False
+    if verdict == "chat":
+        if quiet_state and (info or {}).get("confidence", 0) >= CHAT_BARE_CONFIDENCE:
+            return set(), True
+        return set(), False
+    return set(_ROUTE_TO_FAMILIES.get(verdict, frozenset())), False
