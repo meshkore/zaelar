@@ -29,6 +29,17 @@ from nucleo.actionmap.normalize import normalize
 from nucleo.actionmap.store import _pack_entries
 from nucleo.flash import tool_selection as tsel
 
+
+@pytest.fixture
+def trimming_on(monkeypatch):
+    """The `carried` layer only means anything while the catalog is TRIMMED, and V2-726 F0 turned
+    trimming off by default on 2026-09-20: sending the whole catalog every turn costs 35% LESS,
+    because a catalog that changes shape invalidates DeepSeek's prefix cache (72 measured calls;
+    see `tool_selection.enabled`). The layer and its window are untouched, so these cases switch
+    the trim on to describe them. On what ships, the media tool is never trimmed off a media turn
+    for the stronger reason that nothing is trimmed at all."""
+    monkeypatch.setenv("ZAELAR_TOOL_SELECTION", "1")
+
 SEEDS = Path(__file__).resolve().parents[4] / "nucleo" / "actionmap" / "seeds"
 
 
@@ -105,7 +116,7 @@ def _names(out):
     return {(t.get("function") or {}).get("name") for t in out}
 
 
-def test_without_the_carried_layer_the_media_tool_is_trimmed_off_a_media_turn():
+def test_without_the_carried_layer_the_media_tool_is_trimmed_off_a_media_turn(trimming_on):
     """The incident, reproduced: the request is two turns back and the turn that reaches the model names
     nothing, so the only door left is the escalation."""
     out, rep = tsel.select(list(_tools(*CATALOG)), turn_text="Do you understand?")
@@ -113,7 +124,7 @@ def test_without_the_carried_layer_the_media_tool_is_trimmed_off_a_media_turn():
     assert "media" in rep["omitted"]
 
 
-def test_the_request_two_turns_back_keeps_the_media_tool():
+def test_the_request_two_turns_back_keeps_the_media_tool(trimming_on):
     out, rep = tsel.select(
         list(_tools(*CATALOG)), turn_text="Do you understand?",
         carried_text="I wanna see a video of Neil Armstrong walking over the moon")
@@ -121,13 +132,13 @@ def test_the_request_two_turns_back_keeps_the_media_tool():
     assert "media" in rep["carried"]
 
 
-def test_it_works_the_same_in_spanish():
+def test_it_works_the_same_in_spanish(trimming_on):
     out, _ = tsel.select(list(_tools(*CATALOG)), turn_text="¿Me entiendes?",
                          carried_text="quiero ver un vídeo de Neil Armstrong en la luna")
     assert "play_video" in _names(out)
 
 
-def test_the_carried_layer_does_not_keep_a_family_alive_for_ever():
+def test_the_carried_layer_does_not_keep_a_family_alive_for_ever(trimming_on):
     """A turn whose neighbourhood says nothing about media still trims it — otherwise the whole point of
     the selector (−51% of catalog chars) is lost to one mention half a conversation ago."""
     out, rep = tsel.select(list(_tools(*CATALOG)), turn_text="Do you understand?",
@@ -185,7 +196,7 @@ def test_the_voice_channel_goes_through_the_seam_that_carries_the_window():
         "the selector is called with the turn's words only — the incident's exact shape"
 
 
-def test_the_seam_itself_carries_the_window():
+def test_the_seam_itself_carries_the_window(trimming_on):
     """And the seam is not a hollow wrapper: it is what feeds the carried layer."""
     out, rep = tsel.select_for_turn(
         list(_tools(*CATALOG)), turn_text="Do you understand?",

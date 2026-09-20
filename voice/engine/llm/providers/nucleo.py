@@ -380,11 +380,11 @@ class NucleoLLMStream(llm.LLMStream):
         # thread while the turn assembles + runs the model, so it is ready at the canvas guards. Advisory:
         # a confident "close" licenses a model [[close]] the grammar misses; anything else keeps today's
         # path. Never breaks the turn — fail-soft to None means grammar only (`ZAELAR_JEV=0` included).
-        canvas_h = None
-        try:
-            canvas_h = _show_target.ask_canvas_async(text)
-        except Exception:
-            canvas_h = None
+        # JEV TURN BRIEF (V2-726 F1): ONE call with every question this turn reads AFTER the model.
+        # The cost is the trip, not the questions, so the readers below `peek` instead of opening
+        # their own blocking socket here. Assembly, bounds and fail-soft live in `turn_brief`.
+        from nucleo.flash import turn_brief as _turn_brief
+        _brief = canvas_h = _turn_brief.ask_for_turn(text, running_goals=_show_target._running_goals())
 
         # JEV ROUTE PRE-CHOICE (T-jev-router): one cheap Choice call (chat/search/show/widget_data/
         # escalate/other) on its own thread while the turn assembles, resolved where the tool catalog
@@ -1234,7 +1234,7 @@ class NucleoLLMStream(llm.LLMStream):
                 # La DECISIÓN vive en `frontend.resolve_undeclared_action` (compartida con el espejo del probe):
                 # verbo de canvas → tag; si no, Jev elige entre las acciones DECLARADAS y la llamada sigue su
                 # flujo normal (modos FAST/CONFIRM/ESCALATE intactos); sin veredicto → escala como hoy.
-                _kind, _val = _frontend.resolve_undeclared_action(wid, action_name, text)
+                _kind, _val = _frontend.resolve_undeclared_action(wid, action_name, text, brief=_brief)
                 if _kind == "canvas":
                     emit("brain", "🪟 widget_data con verbo de CANVAS → tag determinista",
                          text=f"{wid}:{action_name}→{_val}", role="system")
@@ -2262,9 +2262,9 @@ class NucleoLLMStream(llm.LLMStream):
         # re-escalation, worker-response, STOP) already handles `None`, so their precedence is intact.
         if escalate_req["v"] is not None:
             try:
-                _jev_esc = _eguard.judge_escalation(
-                    operator_text, running_goals=_show_target._running_goals(),
-                    has_workers=bool(_has_workers), ask_pending=bool(_ask_pending))
+                # V2-726 F2 — READ, never call: `judge_escalation` blocks this coroutine on urlopen
+                # for up to the timeout, and it is the gate that times out most (28% of its calls).
+                _jev_esc = _eguard.judge_escalation_from_brief(_brief)
             except Exception:
                 _jev_esc = "escalate"
             if _jev_esc == "handle_inline":

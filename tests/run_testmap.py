@@ -1333,6 +1333,14 @@ DOMAINS: list[dict] = [
         {"id": "3.63", "title": "Cada integración de Jev está CABLEADA: su puerta real llega al transporte — y ningún llamador bloqueante nuevo",
             "ch": UNIT, "paths": ["tests/voice/unit/test_every_jev_integration_is_actually_wired.py",
                                   "tests/voice/unit/test_no_new_blocking_jev_call.py"]},
+        # V2-726 F1+F2 (2026-09-20) — medido que el coste de Jev es el VIAJE y no las preguntas (1 → 800 ms,
+        # 4 → 708-826, 100 → 1041), mientras el TTFT del modelo es 1,9 s. El turno pasa a hacer UN brief con
+        # todas las preguntas que se leen DESPUÉS del modelo, y los dos llamadores que abrían su propio socket
+        # BLOQUEANTE dentro del `async def` del proveedor (hasta 900 ms de event loop congelado, compartido con
+        # STT/TTS/barge-in) pasan a LEER. Nadie espera nunca: `peek`, nunca `wait` — 56 de 87 turnos dirigidos
+        # reales mueren por barge-in antes de acabar.
+        {"id": "3.64", "title": "El turno pregunta a Jev UNA vez, y el camino de voz no bloquea: brief en t0, lectores que hacen peek",
+            "ch": UNIT, "paths": ["tests/voice/unit/test_the_turn_asks_jev_once.py"]},
         # V2-717 — session c502d3ff (2026-09-17 20:57): «Let me check your Telegram to see what Ivan asked» three
         # turns in a row with NOTHING behind it — the re-emitted `mensajeria:open` was eaten as context-bleed
         # (a lens has an empty payload, so the guard's hatch could never open) while the promise went out by

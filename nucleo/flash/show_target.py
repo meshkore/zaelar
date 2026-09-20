@@ -327,6 +327,20 @@ def ask_canvas_async(text: str, *, context: str = "") -> dict | None:
 
 
 def resolve_canvas_verb(handle: dict | None, *, min_confidence: float | None = None):
+    """(see below) — since V2-726 F1 the handle may be the TURN BRIEF, which carries this verdict
+    under its own key alongside the turn's other questions instead of on a second round trip. A
+    single-question handle still reads exactly as before, so both channels and every existing test
+    keep working; the brief is simply the shape the voice path now passes in."""
+    from nucleo import jev as _jev
+    mc = _jev.MIN_CONFIDENCE if min_confidence is None else min_confidence
+    verdict = _jev.peek(handle)
+    if isinstance(verdict, dict) and "_latency_ms" in verdict:      # a brief, not a lone question
+        from nucleo.flash import turn_brief as _tb
+        return _jev.read(handle, _tb.CANVAS_KEY, "neither", min_confidence=mc)
+    return _resolve_canvas_verb_single(handle, min_confidence=mc)
+
+
+def _resolve_canvas_verb_single(handle: dict | None, *, min_confidence: float | None = None):
     """Fire-time canvas verb shared by BOTH channels (voice provider and probe read this, never
     a second implementation): Jev's verb when ready AND sure, else "neither" — i.e. today's path,
     bit-for-bit. Returns `(verb, verdict)`; verdict carries `used` for the observability trail."""

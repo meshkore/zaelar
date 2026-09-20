@@ -142,8 +142,27 @@ def repair_action(widget_id: str, invented_action: str, text: str,
     return choice
 
 
+def repair_action_from_brief(widget_id: str, brief) -> str | None:
+    """The invented-action repair READ from the turn's brief (V2-726 F2) — no socket, no wait.
+
+    The brief's `screen_action` question is already enumerated over the declared actions of every
+    OPEN widget, keyed `widget:action`, so a verdict for THIS widget is exactly the repair that
+    `repair_action` below opens its own blocking call to get. Returns the declared action name, or
+    None for anything else: a verdict about another open card, `none`, unsure, or no brief at all.
+    """
+    from nucleo.flash import turn_brief as _tb
+    choice, _info = _tb.read(brief, _tb.TARGET_KEY, "")
+    wid = (widget_id or "").strip().lower()
+    if not choice or ":" not in str(choice):
+        return None
+    owner, _, name = str(choice).partition(":")
+    if owner != wid:
+        return None                      # the order was aimed at ANOTHER open card: not a repair
+    return name if name in (declared_actions(widget_id) or {}) else None
+
+
 def resolve_undeclared_action(widget_id: str, action: str, text: str,
-                              *, timeout_s: float | None = None) -> tuple[str, str | None]:
+                              *, timeout_s: float | None = None, brief=None) -> tuple[str, str | None]:
     """The ONE decision for an action the manifest does NOT declare, shared by the voice rail
     and the probe mirror (parallel implementations must not drift).
 
@@ -159,7 +178,11 @@ def resolve_undeclared_action(widget_id: str, action: str, text: str,
     verb = canvas_verb(name)
     if verb:
         return ("canvas", verb)
-    fixed = repair_action(wid, name, text, timeout_s=timeout_s)
+    # The brief (voice path) answers without a trip; `repair_action` is the blocking fallback the
+    # probe/text channel and the tests still use, and it only runs when there is no brief to read.
+    fixed = repair_action_from_brief(wid, brief) if brief is not None else None
+    if not fixed and brief is None:
+        fixed = repair_action(wid, name, text, timeout_s=timeout_s)
     if fixed:
         return ("repair", fixed)
     return ("escalate", None)

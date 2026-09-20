@@ -28,6 +28,22 @@ ESCALATE_CHOICE = {
 }
 
 
+def judge_escalation_from_brief(brief) -> str:
+    """The escalate verdict READ from the turn's brief — no socket, no thread, no wait (V2-726 F2).
+
+    `judge_escalation` below does the same job with its own blocking call, and that call sits inside
+    the voice provider's `async def`: up to 900 ms of frozen event loop, on the loop STT, TTS and
+    barge-in share, and measured the gate that times out most often (28% of its calls). The brief is
+    fired when the turn starts and read here after the model has answered, which is 2-4 s later.
+
+    Returns "escalate" for everything that is not a confident `handle_inline` — an unsure verdict, a
+    brief still in flight, a failed or disabled one: today's path, unchanged.
+    """
+    from nucleo.flash import turn_brief as _tb
+    choice, _info = _tb.read(brief, _tb.ESCALATE_KEY, "escalate")
+    return "handle_inline" if choice == "handle_inline" else "escalate"
+
+
 def judge_escalation(operator_text: str, *, running_goals: list | None = None,
                      has_workers: bool = False, ask_pending: bool = False,
                      timeout_s: float | None = None) -> str:
@@ -38,7 +54,11 @@ def judge_escalation(operator_text: str, *, running_goals: list | None = None,
     in flight, whether workers run, whether one is waiting for the operator — the same class
     of input the situational gates already use, never a new word list. Returns "escalate" on
     every non-verdict: unsure, slow, failed, disabled, or an empty turn. Fires ONLY where a
-    commission survived the grammar guards, never per turn."""
+    commission survived the grammar guards, never per turn.
+
+    ⚠️ BLOCKING, and therefore no longer for the voice path (V2-726 F2): the voice provider reads
+    `judge_escalation_from_brief` instead. This stays for the probe/text channel and for tests,
+    which have no brief to read and no event loop to freeze."""
     from nucleo import jev as _jev
     words = (operator_text or "").strip()
     if not words or not _jev.enabled():

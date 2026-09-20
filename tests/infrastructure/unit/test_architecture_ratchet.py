@@ -218,7 +218,13 @@ _UNLISTED_MAX = 900
 _MIRROR_MARKS = ("impl PARALELA", "cablear en AMBOS")
 _MIRROR_MAX = 42
 
-_SKIP_DIRS = {".venv", "tests", "node_modules", "__pycache__", ".git", "frontend/vendor"}
+# `.meshkore` holds no product code — docs, roadmap, and the daemon's `snapshots/`, which are
+# VERBATIM COPIES of the very files this ratchet measures (standard §20 writes one before each edit).
+# Counting them multiplied every god file by however many snapshots the operator's machine happened
+# to hold: measured 2026-09-20, the parallel-mirror count read 124 against a ceiling of 42 while the
+# real files summed to exactly 42. A ratchet that reads a developer's local runtime state is not
+# measuring the repo, and its red says nothing about the code (V2-726).
+_SKIP_DIRS = {".venv", "tests", "node_modules", "__pycache__", ".git", "frontend/vendor", ".meshkore"}
 
 
 def _engine_py_files():

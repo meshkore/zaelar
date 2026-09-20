@@ -79,6 +79,37 @@ def test_the_declared_blocking_debt_only_goes_down():
         f"KNOWN_BLOCKING — a ratchet that over-declares stops catching anything.")
 
 
+# The voice provider's coroutine, and the functions that would freeze it if it named them.
+_PROVIDER = _ENGINE / "voice" / "engine" / "llm" / "providers" / "nucleo.py"
+BLOCKING_NAMES = ("judge_escalation", "repair_action", "choose_sync", "classify_sync")
+
+
+def test_the_voice_provider_names_no_blocking_jev_call():
+    """V2-726 F2's actual metric: 2 → 0. Not «does a blocking function exist» (it does, the probe
+    channel uses it) but «can the voice turn reach one».
+
+    The `_from_brief` readers are the supported door, and they share a prefix with the blocking ones
+    on purpose — so this check strips the `_from_brief` spellings first and whatever remains is a
+    real call. A new one here is a new way to freeze STT, TTS and barge-in for up to the timeout.
+    """
+    src = _PROVIDER.read_text(encoding="utf-8")
+    code = "\n".join(l.split("#", 1)[0] for l in src.splitlines())
+    code = code.replace("judge_escalation_from_brief", "").replace("repair_action_from_brief", "")
+    hits = sorted({n for n in BLOCKING_NAMES if f"{n}(" in code})
+    assert not hits, (
+        f"the voice provider calls {hits} — those block the event loop on urlopen. Ask the question "
+        f"in the turn brief (`nucleo/flash/turn_brief.py`) and read the verdict with `_from_brief`.")
+
+
+def test_the_brief_readers_are_what_it_uses_instead():
+    """The other half: F2 is not «stopped calling», it is «reads instead». Both must be true, or a
+    silent removal of the gate would pass the check above."""
+    src = _PROVIDER.read_text(encoding="utf-8")
+    assert "judge_escalation_from_brief(" in src, "the escalate gate lost its brief reader"
+    assert "turn_brief" in src, "the provider no longer fires the turn brief at all"
+    assert "brief=_brief" in src, "the action repair no longer receives the brief"
+
+
 def test_the_async_path_is_the_supported_one():
     """The non-blocking door exists and is what every hot-path caller is expected to use."""
     from nucleo import jev

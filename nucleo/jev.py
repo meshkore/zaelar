@@ -190,6 +190,105 @@ def _emit(text: str, *, choice: str, confidence: float, probs: dict,
         pass
 
 
+# ── MANY questions, ONE trip (V2-726 F1) ────────────────────────────────────────────────────────────
+# The API's `questions` field is a MAP, and measured 2026-09-20 the cost is the ROUND TRIP, not the
+# questions: 1 question 800 ms, 4 heterogeneous 708-826 ms, 10 identical 817 ms, 100 candidates
+# 1041 ms. Everything a turn needs to ask therefore belongs in ONE call — the engine was making two.
+#
+# Bounded on purpose. A malformed caller that enumerates a whole database would turn one cheap
+# classifier into a slow expensive one, and the failure mode would be a silently truncated verdict
+# set rather than an error. So both limits are checked HERE, where the only wire call lives.
+MAX_QUESTIONS = 120           # 100 candidates measured fine; the margin is for the turn's own keys
+MAX_STATE_CHARS = 60_000      # ~15k tokens of state; past this the caller is asking the wrong way
+
+
+class JevBriefTooBig(ValueError):
+    """Raised by `choose_many_sync` when a caller exceeds the bounds above — never on the wire."""
+
+
+def _post_many(state: str, questions: dict, timeout_s: float) -> dict:
+    """One blocking call carrying N Choice questions. The multi-question sibling of `_post_question`,
+    kept separate so the single-question seam the committed filler test fakes stays frozen."""
+    body = json.dumps(
+        {"state": state, "model": MODEL,
+         "questions": {k: {"type": "choice", "instructions": q["instructions"],
+                           "criteria": q["criteria"]} for k, q in questions.items()}}
+    ).encode("utf-8")
+    req = urllib.request.Request(
+        ENDPOINT, data=body,
+        headers={"Authorization": f"Bearer {_read_key()}", "Content-Type": "application/json"},
+        method="POST")
+    with urllib.request.urlopen(req, timeout=timeout_s) as resp:
+        return json.loads(resp.read().decode("utf-8"))
+
+
+def choose_many_sync(state: str, questions: dict, *, timeout_s: float | None = None,
+                     question_id: str = "brief") -> dict | None:
+    """Blocking verdicts for N enumerated questions in ONE trip.
+
+    `questions` is `{key: {"instructions": str, "criteria": {option: description}}}`. Returns
+    `{key: {"choice", "confidence", "probs"}}` plus `"_latency_ms"`, or None when disabled or on
+    any failure — the caller then keeps whatever it had, exactly as with a single question.
+
+    The confidence gate lives with the caller (`read`), never here: an unsure verdict is returned
+    so the caller can log the doubt instead of silently inheriting a shrug.
+    """
+    state = (state or "").strip()
+    if not state or not questions or not enabled():
+        return None
+    if len(questions) > MAX_QUESTIONS:
+        raise JevBriefTooBig(f"{len(questions)} questions > MAX_QUESTIONS ({MAX_QUESTIONS})")
+    if len(state) > MAX_STATE_CHARS:
+        raise JevBriefTooBig(f"state is {len(state)} chars > MAX_STATE_CHARS ({MAX_STATE_CHARS})")
+    t0 = time.monotonic()
+    try:
+        payload = _post_many(state, questions, _timeout_s() if timeout_s is None else timeout_s)
+    except Exception as e:  # noqa: BLE001 — no caller may ever break on a classifier
+        _emit(state, choice="", confidence=0.0, probs={},
+              latency_ms=int((time.monotonic() - t0) * 1000),
+              error=f"{type(e).__name__}: {e}", question_id=question_id)
+        return None
+    latency_ms = int((time.monotonic() - t0) * 1000)
+    out: dict = {"_latency_ms": latency_ms}
+    for key, q in questions.items():
+        choice, confidence, probs = _parse(payload, answer_key=key, allowed=q["criteria"])
+        out[key] = {"choice": choice, "confidence": confidence, "probs": probs}
+    # ONE event for the whole brief: N events for one trip would read like N trips in the timeline,
+    # which is exactly the fact this design exists to change.
+    _emit(state, choice=",".join(f"{k}={out[k]['choice'] or '-'}" for k in questions),
+          confidence=max((out[k]["confidence"] for k in questions), default=0.0),
+          probs={k: out[k]["probs"] for k in questions}, latency_ms=latency_ms,
+          question_id=f"{question_id} ({len(questions)}q)")
+    return out
+
+
+def ask_many(state: str, questions: dict, *, name: str = "jev-brief",
+             question_id: str = "brief") -> dict | None:
+    """Fire-and-forget multi-question brief for the hot path. Same handle shape `peek` reads."""
+    if not (state or "").strip() or not questions or not enabled():
+        return None
+    return ask_async(state, name=name,
+                     run=lambda: choose_many_sync(state, questions, question_id=question_id))
+
+
+def read(handle: dict | None, key: str, fallback, *, min_confidence: float = MIN_CONFIDENCE):
+    """One verdict out of a brief: the choice when it is READY and SURE, else `fallback`.
+
+    Never waits — a brief still in flight, failed, disabled, or missing this key reads as the
+    fallback, which is today's path. Returns `(choice, info)`; `info["used"]` says which it was,
+    so the observability trail can attribute a misfire to the reader rather than to the model.
+    """
+    verdict = peek(handle)
+    if not verdict or key not in verdict:
+        return fallback, None
+    ans = verdict[key] or {}
+    if not ans.get("choice"):
+        return fallback, ans
+    if ans.get("confidence", 0.0) < min_confidence:
+        return fallback, {**ans, "used": False}
+    return ans["choice"], {**ans, "used": True}
+
+
 def choose_sync(answer_key: str, text: str, *, instructions: str, criteria: dict,
                 allowed: dict | None = None, context: str = "",
                 timeout_s: float | None = None,
