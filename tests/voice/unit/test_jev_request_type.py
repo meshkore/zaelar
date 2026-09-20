@@ -138,21 +138,53 @@ class _Brain:
     _last_filler = ""
 
 
-def test_a_confident_jev_verdict_reclasses_the_armed_turn(monkeypatch):
-    h = _ready_handle({"type": "order", "kind": "action", "confidence": 0.9,
-                       "probs": {}, "latency_ms": 80})
-    monkeypatch.setattr("nucleo.jev.request_async", lambda text, last_reply="": h)
-    fa.arm(_Brain(), "is it done?")
-    assert fa._jev_pending is not None
+def _ready_brief(choice, confidence=0.9):
+    """A turn brief that has already landed, carrying one request-type verdict.
+
+    Shape-compatible with what `jev.ask_many` returns, because that is what `arm` is handed now:
+    since V2-726 A2 the filler does not ask anything — the turn's brief carries its question.
+    """
+    ev = threading.Event()
+    ev.set()
+    return {"event": ev, "result": {"request_type": {"choice": choice, "confidence": confidence,
+                                                     "probs": {}}, "_latency_ms": 80}}
+
+
+def test_a_confident_verdict_in_the_BRIEF_reclasses_the_armed_turn():
+    fa.arm(_Brain(), "is it done?", brief=_ready_brief("order"))
+    assert fa._jev_brief is not None
     _, kind, _ = fa._consume_arm()
     new_kind, info = fa._consume_jev_kind(kind)
     assert (new_kind, info["used"]) == ("action", True)
     assert fa._consume_jev_kind("neutral") == ("neutral", None), "one turn, one verdict"
 
 
-def test_without_jev_the_fire_path_is_byte_identical(monkeypatch):
-    monkeypatch.setattr("nucleo.jev.request_async", lambda text, last_reply="": None)
-    fa.arm(_Brain(), "is it done?")
+def test_the_filler_opens_NO_socket_of_its_own(monkeypatch):
+    """V2-726 A2, and the reason this question moved: `arm` used to call `jev.request_async` about a
+    second after the brief was fired — same turn, same words, a second round trip for a verdict read
+    at the same deadline. Two trips per turn was the measured cost; this is the test that keeps it
+    at one. A `request_async` that fires here again turns this red."""
+    fired: list = []
+    monkeypatch.setattr("nucleo.jev.request_async",
+                        lambda *a, **k: fired.append(a) or None)
+    fa.arm(_Brain(), "is it done?", brief=_ready_brief("order"))
+    assert fired == [], "the filler asked Jev on its own instead of reading the turn's brief"
+    _, kind, _ = fa._consume_arm()
+    assert fa._consume_jev_kind(kind)[0] == "action", "…and it still got its verdict"
+
+
+def test_an_unsure_verdict_in_the_brief_keeps_the_regex_class():
+    """The gate is where it always was: below MIN_CONFIDENCE the cover keeps the class the model was
+    promised. A wrong-class cover is the worse failure (the operator's «Good question» for an order)."""
+    fa.arm(_Brain(), "is it done?", brief=_ready_brief("order", confidence=0.3))
+    _, kind, _ = fa._consume_arm()
+    assert fa._consume_jev_kind(kind)[0] == kind
+
+
+def test_without_a_brief_the_fire_path_is_byte_identical():
+    """Jev off, no key, an open breaker, a brief that failed to build: all of them arrive here as
+    `brief=None`, and all of them must be today's path."""
+    fa.arm(_Brain(), "is it done?", brief=None)
     _, kind, phrase = fa._consume_arm()
     assert fa._consume_jev_kind(kind) == (kind, None)
     assert phrase != ""

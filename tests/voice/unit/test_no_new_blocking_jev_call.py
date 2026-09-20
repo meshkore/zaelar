@@ -114,3 +114,58 @@ def test_the_async_path_is_the_supported_one():
     """The non-blocking door exists and is what every hot-path caller is expected to use."""
     from nucleo import jev
     assert callable(jev.ask_async) and callable(jev.peek) and callable(jev.resolve_choice)
+
+
+# ── V2-726 A2 · WHERE the brief is fired, and that the voice door cannot block ───────────────────
+# Static, for the same reason the ratchet above is: proving at runtime that the brief was fired on
+# the merged sentence needs a live turn, a real accumulator and a network — the condition nobody can
+# reproduce on demand. What CAN be pinned is the order of the two lines in the file, and that is the
+# whole defect: the fire sat 170 lines above the merge, so it classified a fragment.
+
+def test_the_brief_is_fired_AFTER_the_sentence_is_admitted():
+    """Audit finding 1. The brief used to be fired before echo suppression and before the
+    accumulator, while the model was handed `text = _merged` further down: two different requests,
+    one verdict. «Ponme música» fired it; «de los ochenta» arrived three seconds later.
+
+    Overlap is not the reason it was early — the prompt is assembled 3 ms after admission and every
+    reader is 2-4 s away — so there is nothing to trade off. It fires where the sentence is final.
+    """
+    src = _PROVIDER.read_text(encoding="utf-8")
+    code = "\n".join(l.split("#", 1)[0] for l in src.splitlines())
+    assert code.count("_turn_brief.ask_for_turn(") == 1, "the brief is fired in more than one place"
+    fire = code.index("_turn_brief.ask_for_turn(")
+    merge = code.index("text = _merged")
+    assert merge < fire, (
+        "the turn brief is fired BEFORE the accumulator merges the operator's fragments, so it "
+        "classifies a fragment while the model gets the merged sentence (V2-726 A2, finding 1)")
+    echo = code.index("_last_spoken")
+    assert echo < fire, "the brief is fired before echo suppression: it may classify our own voice"
+
+
+def test_the_voice_provider_cannot_reach_the_blocking_repair():
+    """Audit finding 9. With no brief, `resolve_undeclared_action` falls through to `repair_action`,
+    a synchronous `urlopen` — called from inside the provider's `async def`. The ratchet above
+    cannot see it: the provider names the wrapper, not the blocking function inside it."""
+    src = _PROVIDER.read_text(encoding="utf-8")
+    code = "\n".join(l.split("#", 1)[0] for l in src.splitlines())
+    assert "resolve_undeclared_action(" in code, "the provider lost its undeclared-action door"
+    call = code[code.index("resolve_undeclared_action("):][:220]
+    assert "blocking_ok=False" in call, (
+        "the voice provider calls `resolve_undeclared_action` without `blocking_ok=False`, so a "
+        "turn whose brief failed to build can freeze the event loop on urlopen (V2-726 A2)")
+
+
+def test_the_filler_reads_the_brief_instead_of_asking(monkeypatch):
+    """A2's trip count, pinned where it can regress: the cover's class rides in the turn's brief.
+
+    `filler_audio` opening `request_async` again would not fail anything — it would just quietly
+    cost a second round trip per turn, which is exactly how it got there in the first place.
+    """
+    filler = _ENGINE / "voice" / "engine" / "speech" / "filler_audio.py"
+    code = "\n".join(l.split("#", 1)[0] for l in filler.read_text(encoding="utf-8").splitlines())
+    assert "request_async(" not in code, (
+        "`filler_audio` asks Jev on its own socket again — the turn brief already carries "
+        "`request_type` (V2-726 A2)")
+    src = _PROVIDER.read_text(encoding="utf-8")
+    assert "brief=_brief" in src.split("_filler_audio.arm(")[1][:120], (
+        "the provider arms the filler without handing it the brief, so its verdict is unreachable")

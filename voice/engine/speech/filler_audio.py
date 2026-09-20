@@ -61,8 +61,10 @@ _ARM_POLL_S = 0.05
 _WORK_GRACE_S = 0.35
 _COVER_MIN_GAP_S = 1.6
 _arm: tuple[float, object, str] | None = None   # (monotonic ts, brain, filler kind)
-_jev_pending: tuple[float, object] | None = None  # (monotonic ts, jev handle) — the async request-type
-                                                  # verdict racing this turn's deadline; consumed at fire time
+_jev_brief: object | None = None           # the TURN's brief handle (V2-726 A2), handed in by `arm` and
+                                           # read once at fire time. It used to be `_jev_pending`, a second
+                                           # Jev socket this module opened for itself — same turn, same
+                                           # words, two round trips. The brief already carries the question.
 _work: tuple[float, object, str, str] | None = None   # (monotonic ts, brain, work kind, target title)
 _last_phrase = ""
 _pending_strip: list[str] = []             # phrases emitted as fillers, awaiting removal from the transcript
@@ -326,7 +328,7 @@ def filler_kind(text: str, last_reply: str = "") -> str:
     return "neutral"
 
 
-def arm(brain, text: str = "", messages: list | None = None) -> str:
+def arm(brain, text: str = "", messages: list | None = None, brief=None) -> str:
     """Called by the voice provider once per eligible turn, right where the model is about to be paid.
     `text` is the operator's utterance — it picks which filler POOL covers this turn (V2-572). Since V2-640
     the PHRASE is chosen here too, so the model can be told which cover may sound before its reply («que las
@@ -355,15 +357,12 @@ def arm(brain, text: str = "", messages: list | None = None) -> str:
     except Exception:
         phrase = ""
     _arm = (time.monotonic(), brain, kind, phrase)
-    # Jev races the filler deadline on its own thread: the regex class above is already promised to the
-    # model, and the fire site below swaps the pool only when Jev lands confident (nucleo/jev.py).
-    global _jev_pending
-    try:
-        from nucleo import jev as _jev
-        _jev_pending = (time.monotonic(), _jev.request_async(
-            text, last_reply=getattr(brain, "_last_reply", "") or ""))
-    except Exception:
-        _jev_pending = None
+    # The turn's brief already asked what KIND of turn this is (V2-726 A2): it was fired when the
+    # sentence was admitted, ~1 s before this deadline, and it carries the same question this module
+    # used to open its own socket for. The regex class above is what was promised to the model; the
+    # fire site swaps the pool only when the brief's verdict lands confident and DIFFERENT.
+    global _jev_brief
+    _jev_brief = brief
     if phrase and messages and isinstance(messages[-1], dict) and messages[-1].get("role") == "user":
         messages[-1] = {**messages[-1], "content": str(messages[-1].get("content") or "") + (
             f"\n\n[SISTEMA] Si tu respuesta tarda, sonará antes «{phrase}» en tu voz. Que tu primera "
@@ -384,17 +383,23 @@ def _consume_arm():
 
 
 def _consume_jev_kind(fallback: str) -> tuple[str, dict | None]:
-    """Fire-time Jev verdict, never blocking. Returns (pool kind, info): Jev's pool when its thread
-    landed before the deadline AND confident, else the regex fallback. Consumed once per turn, so a
-    late verdict cannot leak into the next turn — it still emits its observability event for review."""
-    global _jev_pending
-    pending, _jev_pending = _jev_pending, None
-    if pending is None:
+    """Fire-time verdict out of the TURN BRIEF, never blocking. Returns (pool kind, info).
+
+    The brief's `request_type` answer when it has landed AND is confident, else the regex fallback —
+    the same gate `jev.resolve_kind` applied when this module asked on its own. Consumed once per
+    turn, so a late verdict cannot leak into the next one.
+    """
+    global _jev_brief
+    brief, _jev_brief = _jev_brief, None
+    if brief is None:
         return fallback, None
-    _, handle = pending
     try:
         from nucleo import jev as _jev
-        return _jev.resolve_kind(handle, fallback)
+        from nucleo.flash import turn_brief as _tb
+        choice, info = _tb.read(brief, _tb.REQUEST_KEY, "")
+        if not choice:
+            return fallback, info
+        return _jev.KIND_MAP.get(choice, fallback) or fallback, info
     except Exception:
         return fallback, None
 
@@ -710,9 +715,9 @@ async def transcription_node_without_filler(agent, default_impl, text, model_set
 
 
 def _reset_for_tests() -> None:
-    global _arm, _last_phrase, _work, _last_fired_at, _jev_pending
+    global _arm, _last_phrase, _work, _last_fired_at, _jev_brief
     _arm = None
-    _jev_pending = None
+    _jev_brief = None
     _work = None
     _last_phrase = ""
     _last_fired_at = 0.0

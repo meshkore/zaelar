@@ -377,15 +377,13 @@ class NucleoLLMStream(llm.LLMStream):
                     return
                 text = _cont
 
-        # JEV CANVAS VERDICT (T-jev-show-close): one cheap Choice call (show/close/neither) on its own
-        # thread while the turn assembles + runs the model, so it is ready at the canvas guards. Advisory:
-        # a confident "close" licenses a model [[close]] the grammar misses; anything else keeps today's
-        # path. Never breaks the turn — fail-soft to None means grammar only (`ZAELAR_JEV=0` included).
-        # JEV TURN BRIEF (V2-726 F1): ONE call with every question this turn reads AFTER the model.
-        # The cost is the trip, not the questions, so the readers below `peek` instead of opening
-        # their own blocking socket here. Assembly, bounds and fail-soft live in `turn_brief`.
-        from nucleo.flash import turn_brief as _turn_brief
-        _brief = canvas_h = _turn_brief.ask_for_turn(text, running_goals=_show_target._running_goals())
+        # (V2-726 A2) The Jev TURN BRIEF used to be fired HERE, and that was the defect: this line
+        # runs before echo suppression and before the accumulator, so the classifier judged whatever
+        # fragment had just arrived while the model was handed `text = _merged` further down. Two
+        # different requests, one verdict. It now fires at the admitted sentence — search this file
+        # for «JEV TURN BRIEF». Nothing is lost by waiting: the prompt is assembled 3 ms after
+        # admission and every reader of the brief is 2-4 s away, behind the model's own TTFT.
+        _brief = canvas_h = None
 
         # (V2-726 A5) The Jev ROUTE pre-choice used to be fired here, beside the brief. It is gone:
         # F0a measured that a full STABLE tool catalog beats trimming (the per-turn trim cost 12
@@ -549,6 +547,25 @@ class NucleoLLMStream(llm.LLMStream):
             brain._acc_gen += 1          # cadena resuelta — un aviso pendiente para ella queda obsoleto
             _resolve_acc_chain(brain)    # el trace pasa a GRACIA, no se tira (V2-116)
             text = _merged
+
+        # JEV TURN BRIEF (V2-726 F1, moved here by A2): ONE call with every question this turn reads
+        # AFTER the model — the canvas verb, the escalate pair, which declared action of what is on
+        # screen an order means, and what KIND of turn it is (which the filler used to ask on a
+        # second socket of its own, same turn, same words).
+        #
+        # It fires HERE and not sooner because here is where the operator's sentence is FINAL: past
+        # the hard interrupt, past echo suppression, past the accumulator that merges «ponme música»
+        # with «de los ochenta» three seconds later. Firing earlier classified a fragment and handed
+        # the model something else. And not LATER either: the readers are 2-4 s away (TTFT alone is
+        # 1.9 s) and the verdict takes ~800 ms, so this is exactly the overlap that makes it free.
+        #
+        # Everything about it is fail-soft: assembly, bounds, worker/screen state and the `None` for
+        # «Jev off» live in `turn_brief`. Nobody waits — readers `peek`.
+        from nucleo.flash import turn_brief as _turn_brief
+        _brief = canvas_h = _turn_brief.ask_for_turn(
+            text, running_goals=_show_target._running_goals(),
+            last_reply=getattr(brain, "_last_reply", "") or "",
+            turn_id=f"{id(brain):x}-{getattr(brain, '_acc_gen', 0)}")
 
         # V2-013: el "corazón" (agente de memoria) clasifica en background lo que dijo el operador y, si es
         # perfil (nombre/ubicación/trato/hardware/coche) o deseo durable, lo lleva a `state`/`long` sin
@@ -1230,7 +1247,8 @@ class NucleoLLMStream(llm.LLMStream):
                 # La DECISIÓN vive en `frontend.resolve_undeclared_action` (compartida con el espejo del probe):
                 # verbo de canvas → tag; si no, Jev elige entre las acciones DECLARADAS y la llamada sigue su
                 # flujo normal (modos FAST/CONFIRM/ESCALATE intactos); sin veredicto → escala como hoy.
-                _kind, _val = _frontend.resolve_undeclared_action(wid, action_name, text, brief=_brief)
+                _kind, _val = _frontend.resolve_undeclared_action(
+                    wid, action_name, text, brief=_brief, blocking_ok=False)
                 if _kind == "canvas":
                     emit("brain", "🪟 widget_data con verbo de CANVAS → tag determinista",
                          text=f"{wid}:{action_name}→{_val}", role="system")
@@ -1989,7 +2007,7 @@ class NucleoLLMStream(llm.LLMStream):
         try:
             from voice.engine.speech import filler_audio as _filler_audio
             if _filler_audio.enabled() and not first_turn:
-                _filler_audio.arm(brain, text, messages=messages)   # V2-640: cover noted into THIS turn
+                _filler_audio.arm(brain, text, messages=messages, brief=_brief)  # V2-640 cover, V2-726 A2 verdict
         except Exception:
             pass
         self._phase = "generando la respuesta"

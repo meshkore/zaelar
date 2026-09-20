@@ -1,13 +1,19 @@
-"""Node 3.64 — the turn asks Jev ONCE, and the voice path never blocks on it (V2-726 F1+F2).
+"""Node 3.64 — the turn asks Jev ONCE, on the ADMITTED sentence, and never blocks on it.
 
 Measured 2026-09-20: Jev's cost is the ROUND TRIP, not the questions — 1 question 800 ms, 4
 heterogeneous 708-826 ms, 100 candidates 1041 ms — and the engine was making two trips per turn for
 two questions, with two more callers opening their own BLOCKING socket from inside the voice
 provider's `async def` (up to 900 ms of frozen event loop, shared with STT, TTS and barge-in).
 
-So: one brief, fired when the turn starts, carrying every question that is read AFTER the model
+So: one brief, fired when the turn is ADMITTED, carrying every question that is read AFTER the model
 answers; and the readers `peek` it instead of calling. What this file pins is the half that keeps
-being assumed rather than tested — that the wire is reached exactly once, and that nobody waits.
+being assumed rather than tested — that the wire is reached exactly once, that it is reached with
+the sentence the MODEL gets and not a fragment of it, that the state the questions carry is true,
+and that nobody waits.
+
+V2-726 A2 added the last three. The first version of this file proved «one trip» while the brief was
+still fired before echo suppression and before the accumulator, and while the filler opened a second
+socket a second later — so «one trip» was true of the code under test and false of the turn.
 """
 from __future__ import annotations
 
@@ -57,7 +63,7 @@ def test_the_whole_brief_is_one_call(wire):
     _settle(tb.ask("dale al play", open_ids=["musica", "results"]))
     assert len(wire.calls) == 1, f"the brief made {len(wire.calls)} trips, not one"
     asked = set(wire.calls[0]["questions"])
-    assert asked == {tb.CANVAS_KEY, tb.ESCALATE_KEY, tb.TARGET_KEY}, asked
+    assert asked == {tb.CANVAS_KEY, tb.REQUEST_KEY, tb.ESCALATE_KEY, tb.TARGET_KEY}, asked
 
 
 def test_the_canvas_verb_travels_in_the_brief_and_reads_the_same(wire):
@@ -87,7 +93,7 @@ def test_the_questions_are_enumerated_from_DECLARED_actions(wire):
 def test_nothing_open_asks_nothing_about_the_screen(wire):
     """A question with no candidates is not asked — an empty enumeration is a coin flip."""
     _settle(tb.ask("¿qué hora es?", open_ids=[]))
-    assert set(wire.calls[0]["questions"]) == {tb.CANVAS_KEY, tb.ESCALATE_KEY}
+    assert set(wire.calls[0]["questions"]) == {tb.CANVAS_KEY, tb.REQUEST_KEY, tb.ESCALATE_KEY}
 
 
 def test_an_empty_turn_asks_nothing_at_all(wire):
@@ -184,3 +190,126 @@ def test_an_oversized_brief_is_refused_before_the_wire(wire):
         jev.choose_many_sync("x" * (jev.MAX_STATE_CHARS + 1),
                              {"q": {"instructions": "x", "criteria": {"a": "a"}}})
     assert wire.calls == [], "nothing oversized may reach the wire"
+
+
+# ── A2 · the sentence it judges is the sentence the model gets ───────────────────────────────────
+def test_the_filler_question_travels_in_the_SAME_brief(wire):
+    """A2's headline number: 2 trips → 1. The cover's class used to be its own socket.
+
+    `filler_audio.arm` fired `jev.request_async` about one second after the brief, over the same
+    words, for a verdict read at the same deadline. Nothing about it was pre-model: the cover sounds
+    ~1.1 s in, which is after the brief lands. It is a question, so it belongs in the question set.
+    """
+    _settle(tb.ask("ponme música de los ochenta", open_ids=["musica"]))
+    assert len(wire.calls) == 1
+    assert tb.REQUEST_KEY in wire.calls[0]["questions"], "the filler's question is not in the brief"
+    crit = wire.calls[0]["questions"][tb.REQUEST_KEY]["criteria"]
+    assert set(crit) == set(jev.REQUEST_TYPES), "the request-type options drifted from jev.REQUEST_TYPES"
+
+
+def test_the_previous_reply_rides_in_its_OWN_question(wire):
+    """«enduro» after we asked «¿enduro o cross?» is an ANSWER, not an order — and that verdict is
+    the only thing the previous reply is for. A brief has ONE shared state and N instruction blocks,
+    so a fact belonging to one question must travel inside it or it colours the others."""
+    _settle(tb.ask("enduro", open_ids=[], last_reply="¿la prefieres de enduro o de cross?"))
+    qs = wire.calls[0]["questions"]
+    assert "enduro o de cross" in qs[tb.REQUEST_KEY]["instructions"]
+    assert "enduro o de cross" not in qs[tb.ESCALATE_KEY]["instructions"], (
+        "the previous reply leaked into the escalate question, which judges a different thing")
+    assert "enduro o de cross" not in wire.calls[0]["state"], "it must not sit in the shared state"
+
+
+def test_the_escalate_question_carries_the_TRUE_worker_state(wire, monkeypatch):
+    """Audit finding 2. `ask_for_turn` never passed these, so the question said «Workers active now:
+    no. A worker is waiting for the operator's answer: no» on every turn — including the turns where
+    one WAS waiting, which is exactly the shape that must not become a second worker."""
+    import nucleo.dispatch as dispatch
+    import nucleo.worker_api as wapi
+    monkeypatch.setattr(dispatch, "has_active", lambda: True)
+    monkeypatch.setattr(wapi, "has_pending_ask", lambda: True)
+    _settle(tb.ask_for_turn("enduro"))
+    ins = wire.calls[0]["questions"][tb.ESCALATE_KEY]["instructions"]
+    assert "Workers active now: yes" in ins
+    assert "waiting for the operator's answer: yes" in ins
+
+
+def test_unknown_worker_state_reads_as_no_and_never_raises(wire, monkeypatch):
+    """Fail-soft direction: «no» is the answer that keeps the commission, and escalating is the safe
+    side of this gate («a missed errand is worse than a wasted question»)."""
+    import nucleo.dispatch as dispatch
+    def _boom():
+        raise RuntimeError("dispatch is not up")
+    monkeypatch.setattr(dispatch, "has_active", _boom)
+    _settle(tb.ask_for_turn("búscame vuelos a Tokio"))
+    assert "Workers active now: no" in wire.calls[0]["questions"][tb.ESCALATE_KEY]["instructions"]
+
+
+# ── A2 · a verdict cannot outlive what it was about ──────────────────────────────────────────────
+def test_a_verdict_about_a_card_that_CLOSED_is_not_a_repair(wire, monkeypatch):
+    """The brief enumerates what is open at fire time; the reader acts 2-4 s later. In between the
+    operator can close the card — and then the verdict names something that is not on screen."""
+    declared = list((fe.declared_actions("musica") or {}))
+    wire.answers[tb.TARGET_KEY] = (f"musica:{declared[0]}", 0.95)
+    h = _settle(tb.ask("dale al play", open_ids=["musica"]))
+    assert fe.repair_action_from_brief("musica", h) == declared[0], "still open: the repair stands"
+
+    from memory import api as memapi
+    monkeypatch.setattr(memapi, "state", lambda: {"open_widgets": ["agenda"]})
+    assert fe.repair_action_from_brief("musica", h) is None, (
+        "a verdict about a card that is no longer open was used as a repair")
+
+
+def test_the_brief_says_which_turn_it_belongs_to(wire):
+    """Without a turn id, same-turn attribution is temporal rather than a join — which is all the
+    audit could say about two events in a real session. A6a builds its events on this stamp."""
+    h = _settle(tb.ask("dale al play", open_ids=["musica"], turn_id="turn-7"))
+    assert h["turn_id"] == "turn-7"
+    assert h["open_ids"] == ["musica"]
+
+
+# ── A2 · finding 9: the voice channel can never reach the blocking door ──────────────────────────
+def test_a_voice_turn_without_a_brief_does_NOT_open_a_blocking_call(wire, monkeypatch):
+    """Audit finding 9. `resolve_undeclared_action(brief=None)` falls through to `repair_action`,
+    which is a synchronous `urlopen` — and the voice provider calls it from inside its `async def`.
+
+    The hole only opens when the brief failed to build while Jev is still enabled, which is why the
+    static ratchet never saw it: the provider names no blocking function, it names the one that
+    contains it. `blocking_ok=False` is the voice channel saying it cannot afford to wait.
+
+    ⚠️ It watches `_post_question`, the SINGLE-question transport, and that is the whole test. The
+    first version asserted on `wire.calls` — the brief's transport — and stayed GREEN when the guard
+    was deleted, because the blocking call goes out the other door and merely FAILED (no network in
+    a unit test) instead of being blocked. A disarm that stays green accuses the test.
+    """
+    blocking: list = []
+    monkeypatch.setattr(jev, "_post_question",
+                        lambda *a, **k: blocking.append(a) or {"answers": {}})
+    kind, val = fe.resolve_undeclared_action(
+        "musica", "una_accion_inventada", "dale al play", brief=None, blocking_ok=False)
+    assert (kind, val) == ("escalate", None)
+    assert blocking == [], (
+        "the voice path reached `repair_action`'s synchronous urlopen with no brief to read — "
+        "from inside the provider's `async def` that is a frozen event loop (V2-726 A2, finding 9)")
+    assert wire.calls == [], "and it did not go through the brief transport either"
+
+
+def test_the_probe_channel_KEEPS_its_blocking_fallback(wire, monkeypatch):
+    """The other half: `blocking_ok` defaults to True because the probe/text channel has no brief
+    and no event loop to freeze. Removing the fallback outright would silently downgrade it.
+
+    It fakes the SINGLE-question transport, which is the door `repair_action` uses — proof in itself
+    that the two channels take different paths to the same verdict.
+    """
+    declared = list((fe.declared_actions("musica") or {}))
+    single: list = []
+
+    def _one(answer_key, state, instructions, criteria, timeout_s):
+        single.append(answer_key)
+        return {"answers": {answer_key: {"choice": declared[0], "confidence": 0.95,
+                                         "probabilities": {declared[0]: 0.95}}}}
+
+    monkeypatch.setattr(jev, "_post_question", _one)
+    kind, val = fe.resolve_undeclared_action("musica", "una_accion_inventada", "dale al play")
+    assert kind == "repair" and val == declared[0]
+    assert single == ["widget_action"], "the probe channel must still be able to ask"
+    assert wire.calls == [], "and it does not go through the brief transport"

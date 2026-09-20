@@ -158,18 +158,30 @@ def repair_action_from_brief(widget_id: str, brief) -> str | None:
     owner, _, name = str(choice).partition(":")
     if owner != wid:
         return None                      # the order was aimed at ANOTHER open card: not a repair
+    if not _tb.owner_still_open(brief, owner):
+        return None                      # it was open when we asked and is not now: a stale verdict
     return name if name in (declared_actions(widget_id) or {}) else None
 
 
 def resolve_undeclared_action(widget_id: str, action: str, text: str,
-                              *, timeout_s: float | None = None, brief=None) -> tuple[str, str | None]:
+                              *, timeout_s: float | None = None, brief=None,
+                              blocking_ok: bool = True) -> tuple[str, str | None]:
     """The ONE decision for an action the manifest does NOT declare, shared by the voice rail
     and the probe mirror (parallel implementations must not drift).
 
     Returns ("canvas", verb) — the existing boundary rule, a canvas verb smuggled in as a data
     op maps to the deterministic canvas tag; ("repair", declared_action) — Jev named the declared
     action the user means, so the call continues through the normal mode flow (FAST / CONFIRM /
-    ESCALATE, confirm gates untouched); or ("escalate", None) — today's path, unchanged."""
+    ESCALATE, confirm gates untouched); or ("escalate", None) — today's path, unchanged.
+
+    ⚠️ `blocking_ok=False` is the VOICE channel, and it is not a preference (V2-726 A2, audit
+    finding 9). With no brief to read, the `repair_action` fallback below opens a synchronous
+    `urlopen` — from inside the provider's `async def`, that is up to two seconds of frozen event
+    loop shared with STT, TTS and barge-in. The voice path normally HAS a brief, which is why the
+    static ratchet never saw this: the hole only opens when `turn_brief.ask` returned None with Jev
+    still enabled (an exception swallowed during assembly), and then the fallback looks like an
+    ordinary local call. A caller that cannot afford to block says so, and gets today's escalate.
+    """
     from widgets import runtime
     wid = (widget_id or "").strip().lower()
     name = (action or "").strip()
@@ -179,9 +191,10 @@ def resolve_undeclared_action(widget_id: str, action: str, text: str,
     if verb:
         return ("canvas", verb)
     # The brief (voice path) answers without a trip; `repair_action` is the blocking fallback the
-    # probe/text channel and the tests still use, and it only runs when there is no brief to read.
+    # probe/text channel and the tests still use, and it only runs when there is no brief to read
+    # AND the caller can afford to block.
     fixed = repair_action_from_brief(wid, brief) if brief is not None else None
-    if not fixed and brief is None:
+    if not fixed and brief is None and blocking_ok:
         fixed = repair_action(wid, name, text, timeout_s=timeout_s)
     if fixed:
         return ("repair", fixed)
