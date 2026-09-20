@@ -290,10 +290,9 @@ se incumple.
   últimos eventos de `.meshkore/logs/sessions/` (si hay `transcript`/`brain` recientes, hay alguien hablando)
   y `curl -s localhost:43917/api/tasks` (si `sessions` no está vacío, hay trabajo en vuelo). Un reinicio mata
   su sesión de LiveKit y cancela los workers en curso. Pagado dos veces: 2026-07-14 y 2026-09-15.
-- **No lances suites anchas de pytest en su máquina.** Ver la primera de las «Hard rules».
+- **Una pasada ancha se lanza con `tests/watchdog.py`, no con `pytest` a pelo.** Ver la primera de las «Hard rules».
 - **Commitea con pathspec** (`git commit -- <rutas>`), tras comprobar que `git diff --cached --name-only` está
   VACÍO. Hay varias sesiones sobre el MISMO checkout y el índice es compartido. Ver «Hard rules».
-- **Los commits llevan `Co-Authored-By`.** Override del operador a §9.1 del preámbulo (que lo prohíbe): cada commit añade, tras los trailers MeshKore, `Co-Authored-By: <quién escribió el cambio>` (el agente/CLI que redactó el commit). El operador lo daba por supuesto desde el principio (2026-09-19).
 - **Los commits llevan `Co-Authored-By`.** Override del operador a §9.1 del preámbulo (que lo prohíbe): cada commit añade, tras los trailers MeshKore, `Co-Authored-By: <quién escribió el cambio>` (el agente/CLI que redactó el commit). El operador lo daba por supuesto desde el principio (2026-09-19).
 - **Si encuentras trabajo sin commitear de otra sesión, no lo pises ni lo commitees.** Ni siquiera para pagar
   un trinquete: extraer del fichero en vuelo de otro es peor que dejar la deuda.
@@ -662,8 +661,9 @@ LEER el mapa sin correrlo: `tests/run_testmap.py --list`. Para comprobar que tu 
 `tests/infrastructure/unit/test_a_test_outside_the_map_is_not_a_test.py` a solas. **«¿Funciona todo bien?» se
 la pides a ÉL.**
 
-**NO lances suites anchas en su máquina** — es la primera de las «Hard rules» de abajo y no se relaja: se
-corre el FICHERO que has tocado, como mucho su CARPETA, y los DESARMES. Una pasada ancha se la pides a él.
+**La pasada ancha se lanza con `tests/watchdog.py`** (primera de las «Hard rules»): detecta y NOMBRA el test
+que se cuelga, mata el grupo de procesos y no admite dos barridos a la vez. Mientras iteras sigue siendo el
+FICHERO que has tocado y su DESARME; `pytest` a pelo sobre el árbol, nunca.
 
 **Un rojo que no se reproduce en aislamiento es contaminación entre tests, no un fallo de tu código.** La
 causa es siempre la misma familia: algo que toca estado compartido y no lo devuelve. El `conftest.py` raíz
@@ -711,47 +711,56 @@ abierta (`V2-091`); a partir de ahora, no añadir más.
 
 ## Hard rules
 
-- ⛔ **NO LANCES SUITES ANCHAS DE PYTEST EN LA CONSOLA — dejan la máquina del operador colgada** (norma del
-  operador, 2026-09-15, dicha ya DOS veces y en dos sesiones distintas: «todos estos tests que estás lanzando
-  en consola dejan al sistema colgado… no quiero que los lances»).
+- ⚠️ **UNA PASADA ANCHA SE LANZA CON EL VIGILANTE, NUNCA CON `pytest` A PELO.** Del 2026-09-15 al 2026-09-20
+  esto fue una PROHIBICIÓN: una pasada ancha le colgaba la máquina al operador y nadie sabía qué test lo hacía.
+  La regla se escribió con la causa **sin diagnosticar** —que era lo honesto— pero dejaba al motor sin poder
+  contestar «¿sigue pasando todo?». Corrección del operador (2026-09-20): *«todos los tests se pueden pasar…
+  había unos que se quedaban colgados… hay que buscar algún mecanismo de ejecución de tests que detecte si se
+  han colgado o no»*.
 
-  **PROHIBIDO**, sin excepción y sin pedir permiso para saltárselo:
+  **LA CAUSA, MEDIDA EL 2026-09-20.** UN test —`tests/infrastructure/unit/config/test_model_policy.py`— barre
+  el árbol buscando un nombre de modelo prohibido. Lo hacía con `os.walk` y una **lista negra** de sufijos
+  binarios; `.mkv` no estaba en ella, y `library/downloads/` es la carpeta de descargas REAL del operador: el
+  barrido llamaba a `read_text()` sobre **un vídeo de 84 GB**. 90 GB de lecturas para un grep sobre 10.000
+  ficheros, sin una línea de salida, hasta que la máquina se rendía. Dos defectos en una línea, los dos
+  arreglados: una lista negra de formatos binarios es la lista de los que alguien SE ACORDÓ, y falla
+  **colgándose**, no dando error; y estaba leyendo contenido gitignoreado del operador, contra la propia regla
+  de la suite de que un test nunca toca su estado real. Ahora le pregunta a `git ls-files` qué es el árbol:
+  **0,8 s**, y no puede alcanzar sus descargas.
 
+  Con esa línea arreglada, **la suite determinista entera son ~7 minutos y no se cuelga en ningún sitio**
+  (medido: 57 chunks, 10.828 verdes).
+
+  **Cómo se lanza:**
+
+  ```sh
+  ./.venv/bin/python tests/watchdog.py                           # todo lo determinista
+  ./.venv/bin/python tests/watchdog.py tests/voice/unit          # una carpeta
+  ./.venv/bin/python tests/watchdog.py --impacted origin/main    # solo lo que tu diff alcanza
   ```
-  pytest tests/infrastructure/unit      pytest tests/browser/unit      pytest tests/browser/e2e
-  pytest tests/agent_headless/unit      pytest tests/connectors/unit   pytest tests/          (o cualquier
-  combinación de varias de ellas en una sola invocación, con o sin `-q`, en foreground o en background)
 
-  ./.venv/bin/python tests/run_testmap.py       ← SIN ARGUMENTOS LANZA EL MAPA ENTERO. Es la misma pasada
-                                                  ancha con otro nombre. `--list` sí (solo imprime).
-  ```
+  Tres capas cazan un cuelgue: el volcado de `faulthandler` (ya dentro de pytest, sin dependencias nuevas)
+  **nombra** fichero, línea y función del test colgado y corta en segundos; un muro de reloj por chunk cubre lo
+  que el volcado no ve (un import o una colección que bloquean); y se mata el **GRUPO** de procesos, no el
+  proceso — el incidente del 2026-09-15 dejó **71 Chromium huérfanos**, y matar pytest solo los habría dejado
+  exactamente donde estaban. El nodo **7.53** vigila al vigilante.
 
-  **Lo que SÍ se hace** — y es suficiente para cerrar un cambio:
-  1. el FICHERO de test que has escrito o tocado: `pytest tests/<...>/test_lo_tuyo.py -q`;
-  2. como mucho la CARPETA de la pieza que has tocado (`tests/browser/unit/agenda`, `tests/connectors/unit/calendar`);
-  3. `make test-widgets` cuando el cambio sea de widgets;
-  4. los DESARMES (romper el producto y ver el test rojo), que son lo que de verdad demuestra que mides algo.
+  **Lo que NO ha cambiado:**
+  1. mientras iteras, el FICHERO que has tocado y su DESARME — eso es lo que demuestra que mides algo;
+  2. antes de commitear, `--impacted <base>`: elige por los imports que el test DECLARA, no por un mapa de
+     carpetas escrito a mano que se pudre en cuanto un módulo se mueve;
+  3. **nunca dos pasadas anchas a la vez sobre este checkout** — el corredor coge un cerrojo y se niega. Dos
+     barridos simultáneos midieron 1222 s y 1589 s para lo que solo tarda 9 minutos (2026-09-15). Las pasadas
+     estrechas y explícitas no llevan cerrojo: son baratas y tienen que poder anidarse.
+  4. `./.venv/bin/python tests/run_testmap.py` **sin argumentos** sigue siendo una pasada ancha a pelo, sin
+     vigilante y sin cerrojo. `--list` sí (solo imprime).
 
-  **Medido en esta misma máquina** el 2026-09-15, que es lo único que se afirma aquí: una pasada de
-  `tests/browser/unit` se quedó **7+ minutos clavada al 22%** y hubo que matarla, mientras había **71 procesos
-  Chromium huérfanos** vivos y **dos pytest de otra sesión** llevando 40 minutos sobre el mismo checkout. La
-  MISMA carpeta acusada, lanzada sola y en aislamiento, pasó **216/216 en 10 segundos**. Así que un fallo o un
-  cuelgue en una pasada ancha **no es una señal sobre tu código**: reprodúcelo en la carpeta sola antes de
-  tocar nada.
-
-  **Dos de las tres causas están medidas (2026-09-15, V2-696), y la regla NO se relaja por eso.**
-  (1) Los ~230 rojos que aparecían en cualquier pasada ancha y NUNCA en aislamiento eran contaminación:
-  un test purgaba `sys.modules` de todo `widgets*`/`i18n*` y no devolvía la tabla, así que el siguiente
-  importador recibía un `widgets.store` recién construido —sandbox del conftest perdido, la suite escribiendo
-  en los datos REALES del operador— y los dos últimos venían de `widgets/hidden.py`, que leía qué widgets ha
-  borrado ÉL. Arreglado, con trinquete. (2) La lentitud es CONCURRENCIA: dos barridos a la vez tardan el doble
-  (1222 s y 1589 s, medidos) y dejan Chromium huérfanos de los e2e. Sola y limpia, la suite entera son
-  **9 minutos y 9696 verdes**.
-
-  ⚠️ **Lo que sigue SIN diagnosticar es el CUELGUE** —una pasada clavada al 22 % durante 7 minutos con 71
-  Chromium huérfanos vivos— y, sobre todo, la regla no era nunca sobre el resultado: es sobre la CARGA en la
-  máquina que él está usando. No la relajes porque «esta vez es corta» ni la esquives lanzándola en background.
-  Si de verdad hace falta una pasada ancha, se la pides a ÉL.
+  **Y lo que ya estaba medido sigue en pie (2026-09-15, V2-696):** los ~230 rojos que aparecían en cualquier
+  pasada ancha y NUNCA en aislamiento eran contaminación —un test purgaba `sys.modules` de todo
+  `widgets*`/`i18n*` sin devolver la tabla, así que el siguiente importador recibía un `widgets.store` recién
+  construido, con el sandbox del conftest perdido y la suite escribiendo en los datos REALES del operador—.
+  Arreglado, con trinquete. Así que un rojo dentro de una pasada ancha sigue mereciendo reproducirse en la
+  carpeta sola antes de tocar nada.
 
 - **COMMITEA PRONTO Y SIEMPRE — cada agente y cada sesión commitea SU propio trabajo.** En cuanto una tarea está
   hecha se commitea, **incluso ANTES de probarla**: si algo sale mal se revierte (`git revert`/`reset`), pero perder

@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import os
 import re
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -33,23 +34,55 @@ BANNED = ("hai" + "ku",)
 # Directories that are ARCHIVES of measurements already taken, not instructions to anyone: raw benchmark reports
 # keep whichever model ids the run actually swept, and rewriting them would falsify the record. Nothing reads them
 # to decide what to call.
-SKIP_DIRS = {".git", ".venv", "node_modules", "__pycache__", "resultados", "snapshots", "timeline",
-             ".runtime", "logs", "_data", "vendor", "certs", "dist", "build",
+SKIP_DIRS = {"resultados", "snapshots", "timeline", "logs", "_data", "vendor", "certs", "dist", "build",
              # Artifacts from completed runs (logs, events): they record the model that ACTUALLY ran that
              # day. Rewriting them would falsify the evidence, just like the benchmark reports.
              "runs"}
 SKIP_SUFFIXES = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".wav", ".mp3", ".pdf", ".ico", ".woff", ".woff2",
-                 ".onnx", ".bin", ".so", ".dylib", ".zip", ".gz"}
+                 ".onnx", ".bin", ".so", ".dylib", ".zip", ".gz", ".mkv", ".mp4", ".mov", ".webm"}
+
+# Nothing this sweep reads may be bigger than this. A name cannot hide in a file nobody can open, and a
+# blacklist of binary suffixes is a list of the formats somebody REMEMBERED — see below.
+MAX_BYTES = 4_000_000
 
 
 def _files():
-    for root, dirs, names in os.walk(ENGINE):
-        dirs[:] = [d for d in dirs if d not in SKIP_DIRS and not d.startswith(".venv")]
-        for n in names:
-            p = Path(root) / n
-            if p.suffix.lower() in SKIP_SUFFIXES:
+    """Only what git TRACKS — which is what «anywhere in the tree» means for a norm about this repo.
+
+    ⚠️ This used to be an `os.walk` of the checkout with a blacklist of binary suffixes, and on
+    2026-09-20 that combination was measured as the cause of the whole-suite hang that had had this
+    repo's wide pytest sweep FORBIDDEN since 2026-09-15 with its root cause undiagnosed. `.mkv` was
+    not on the blacklist, the operator's own `library/downloads/` is a real media folder, and the
+    sweep called `read_text()` on an **84 GB video file** — 90 GB of reads for a grep over 10.000
+    files, on the operator's machine, with no output until the machine gave up.
+
+    Two things were wrong and both are fixed here:
+
+      · a blacklist of binary formats is a list of the ones somebody thought of, and it fails
+        silently — by hanging, not by erroring — the first time a format nobody listed appears;
+      · `library/downloads/` is GITIGNORED operator content. The suite's own rule is that a test
+        never touches the operator's real state, and this one was reading his downloads.
+
+    Asking git for the file list satisfies the norm exactly (a banned name matters when it is
+    COMMITTED) and can never reach into anything he happens to keep in the checkout.
+    """
+    done = subprocess.run(["git", "ls-files", "-z"], cwd=str(ENGINE),
+                          capture_output=True, timeout=60)
+    assert done.returncode == 0, "the sweep needs git to know what the tree IS"
+    for rel in done.stdout.decode("utf-8", errors="ignore").split("\0"):
+        if not rel:
+            continue
+        path = ENGINE / rel
+        if any(part in SKIP_DIRS for part in path.parts):
+            continue
+        if path.suffix.lower() in SKIP_SUFFIXES:
+            continue
+        try:
+            if path.stat().st_size > MAX_BYTES:
                 continue
-            yield p
+        except OSError:
+            continue
+        yield path
 
 
 def test_no_banned_model_name_anywhere_in_the_tree():

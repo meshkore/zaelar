@@ -3,46 +3,71 @@
 This is the first document to read before testing a change. It applies equally to Codex, Claude Code, local
 developers, CI and the Test Observatory web UI.
 
-## ⛔ Never launch a BROAD pytest sweep in the console
+## The wide sweep: allowed, and hang-aware
 
-Operator's rule, 2026-09-15, after saying it twice across two sessions: a whole-tree or whole-suite pytest run
-**hangs his machine**, so no agent launches one — not in the foreground, not in the background, not «just this
-once because it is short». `tests/infrastructure/unit`, `tests/browser/unit`, `tests/browser/e2e`,
-`tests/agent_headless/unit`, `tests/connectors/unit`, bare `tests/`, and any combination of them in one
-invocation are all out.
+From 2026-09-15 to 2026-09-20 a whole-tree pytest run was **forbidden** here, because it hung the
+operator's machine and nobody could say which test did it. The prohibition was honest about its own
+limit — it shipped with the root cause **undiagnosed** — but a prohibition is not a diagnosis, and it
+left the engine unable to answer *«does everything still pass?»*. The operator lifted it on
+2026-09-20: some tests hang, not all of them, and what was missing was a runner that DETECTS a hang.
 
-Run instead: **the test file you wrote**, at most **the folder of the piece you touched**, `make test-widgets`
-for a widget change, and the **disarms** — breaking the product and watching the test go red is what proves a
-test measures anything, and it costs one narrow run each.
+**The cause, measured 2026-09-20.** One test —
+`tests/infrastructure/unit/config/test_model_policy.py` — greps the tree for a banned model name. It
+walked the checkout with a *blacklist* of binary suffixes, `.mkv` was not on it, and
+`library/downloads/` is the operator's real media folder: the sweep called `read_text()` on an
+**84 GB video file**. 90 GB of reads for a grep over 10.000 files, no output, and the machine gave
+up. Two defects in one line, both now fixed: a blacklist of binary formats is a list of the ones
+somebody *remembered*, and it fails by HANGING rather than erroring; and the sweep was reading
+gitignored operator content, against this suite's own rule that a test never touches his real state.
+It now asks `git ls-files` what the tree is — 0.8 s, and it cannot reach his downloads.
 
-Measured here on 2026-09-15, which is all that is claimed: a `tests/browser/unit` sweep sat **7+ minutes stuck
-at 22%** with **71 orphaned Chromium processes** alive and **two pytest runs from another session** 40 minutes
-deep on the same checkout — while the accused folder, run alone, passed **216/216 in 10 seconds**. So a failure
-inside a broad sweep is not evidence about your code: reproduce it in the folder alone before touching
-anything. ⚠️ The root cause is **not diagnosed**; until it is, this is a prohibition rather than advice. If a
-broad sweep is genuinely needed, ask the operator and let him run it.
+With that one line fixed, **the whole deterministic suite is ~7 minutes and hangs nowhere.**
 
-**Measured again 2026-09-16 — the same folder, and this time it was an agent who broke the rule.** A
-`tests/infrastructure/unit/` sweep, launched to «verify everything is aligned» at the end of V2-711, sat **half
-an hour producing nothing** and had to be killed by the operator; the session was blocked the whole time and
-the work it was closing nearly never landed. Two things worth keeping:
-
-  · the prohibition above **already named that exact folder** — it was not a grey area, it was a rule read and
-    then not applied, which is the failure mode this section exists to prevent;
-  · *«verifying the work»* is the moment it is most tempting, because a broad green looks like proof. It is
-    not: what proves the work is each new file run alone plus its disarm. A sweep that hangs proves nothing
-    about the code and costs the session.
-
-So, operationally: **put a hard wall-clock limit on every pytest invocation** and run **one file at a
-time**, so a hang costs three minutes instead of the session. ⚠️ macOS has **no `timeout`** (it is GNU
-coreutils) and this venv has **no `pytest-timeout`**, so the portable form — verified here, 2026-09-16 — is:
+### How to run it
 
 ```sh
-perl -e 'alarm shift; exec @ARGV' 180 ./.venv/bin/python -m pytest <ONE file> -q -p no:cacheprovider
+./.venv/bin/python tests/watchdog.py                    # every deterministic directory
+./.venv/bin/python tests/watchdog.py tests/voice/unit   # one folder
+./.venv/bin/python tests/watchdog.py --impacted origin/main   # only what your diff can reach
+./.venv/bin/python tests/watchdog.py --impacted HEAD~1 --explain   # …and why, without running it
 ```
 
-Exit code **142** means it hit the wall: that is a hang, not a failure, and it is reported as such rather
-than retried wider.
+It runs chunk by chunk, serially, and prints a line per chunk as it goes. Exit code is 0 only when
+nothing failed and nothing hung. A JSON report lands in `tests/runs/watchdog-*.json`.
+
+### What catches a hang
+
+1. **`faulthandler_timeout`** (already inside pytest — no new dependency). A test over
+   `--test-timeout` dumps every thread's stack to fd 2, unbuffered, naming file, line and function.
+   The runner watches for that dump and kills the chunk the moment it appears, so a hang costs
+   seconds and arrives **identified**.
+2. **A wall clock per chunk** (`--chunk-timeout`), for hangs `faulthandler` cannot see because they
+   happen outside a test item — an import or a collection that blocks.
+3. **The process GROUP, not the process.** Each chunk runs in its own session, so the kill takes its
+   children with it. The 2026-09-15 incident left **71 orphaned Chromium processes**; killing pytest
+   alone would leave them exactly where they were.
+
+Node **7.53** watches the watcher: it hangs a test on purpose and requires the runner to name it,
+cut it at the test wall rather than the chunk wall, reap its children, and NOT accuse a slow-but-alive
+test. Two of those four were disarm-proved against real bugs found while building it.
+
+### When to run which
+
+A wide sweep is cheap now, but it is still not the answer to every change:
+
+- **While iterating** — the test file you wrote, and its disarm. Breaking the product and watching the
+  test go red is what proves a test measures anything.
+- **Before you commit** — `--impacted <base>`. It selects tests by the imports they actually declare
+  (a test that names `nucleo.flash.turn_brief` is a test your change can break), not by a hand-written
+  folder map that rots the first time a module moves. What a grep cannot see — a fixture reaching
+  production through a string, a template, a JS bundle — is exactly why this is a pre-check.
+- **Before handing work over, and after anything that crosses two domains** — the full sweep.
+- **Never twice at once on this checkout.** The runner takes a lock and refuses; two sweeps sharing
+  one checkout measured 1222 s and 1589 s for runs that take 9 minutes alone (2026-09-15). Narrow,
+  explicit runs are not locked — they are cheap and must stay nestable.
+
+`python -m tests run <suite>` is unchanged and is still the interface when you want a suite published
+to the Observatory. The watchdog is the wide regression sweep, and it is safe to launch.
 
 ## One system, two interfaces
 

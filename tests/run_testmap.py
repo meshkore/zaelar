@@ -3856,6 +3856,19 @@ DOMAINS: list[dict] = [
         {"id": "7.17", "title": "Un test fuera del mapa no es un test (trinquete de las TRES formas de desaparecer)",
          "ch": UNIT,
          "paths": ["tests/infrastructure/unit/test_a_test_outside_the_map_is_not_a_test.py"]},
+        # 2026-09-20: del 15 al 20 de septiembre una pasada ancha de pytest estuvo PROHIBIDA aquí porque le
+        # colgaba la máquina al operador — con la causa sin diagnosticar, que era lo honesto entonces y dejaba
+        # al motor sin poder contestar «¿sigue pasando todo?». Corrección del operador: se cuelgan ALGUNOS
+        # tests, no todos, y lo que falta es un corredor que DETECTE el cuelgue en vez de una regla que evite
+        # la pregunta. `tests/watchdog.py` lo detecta con el volcado de `faulthandler` (nombra fichero, línea
+        # y función), mata el GRUPO de procesos —el incidente dejó 71 Chromium huérfanos— y solo se prohíbe a
+        # sí mismo correr junto a otra pasada ancha. Este nodo vigila al vigilante: cuelga un test a propósito
+        # y exige que lo NOMBRE, que lo corte en segundos y no al muro del chunk, que se lleve a los hijos por
+        # delante, y que un test lento pero vivo NO se declare colgado.
+        {"id": "7.53", "title": "El detector de cuelgues nombra al test que cuelga, se lleva a sus hijos, y no "
+                                "acusa a un test lento que sigue vivo",
+         "ch": UNIT,
+         "paths": ["tests/infrastructure/unit/test_the_watchdog_names_what_hangs.py"]},
         # V2-492 (2026-08-29): los perfiles de `.meshkore/team/` arrancan a cada agente con una lista de
         # documentos, y **12 de esas rutas estaban muertas** en 8 de los 9 perfiles — escritas contra un
         # `.meshkore/context/` y un `.meshkore/workflows/` que ya no existen. No falla nada: el agente
