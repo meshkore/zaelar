@@ -1341,6 +1341,15 @@ DOMAINS: list[dict] = [
         # reales mueren por barge-in antes de acabar.
         {"id": "3.64", "title": "El turno pregunta a Jev UNA vez, y el camino de voz no bloquea: brief en t0, lectores que hacen peek",
             "ch": UNIT, "paths": ["tests/voice/unit/test_the_turn_asks_jev_once.py"]},
+        # V2-726 F4+F5 — la capacidad que pidió el operador («mándale los 100 resultados parseados y los
+        # criterios y que diga cuáles encajan»): medido en vivo, 100 candidatos en UNA petición, 1.161 ms,
+        # $0,0005, recall 3/3 y CERO falsos positivos con el umbral puesto. La trampa que clava el nodo: la
+        # identidad del candidato va DENTRO de su pregunta — con diez preguntas idénticas sobre un `state`
+        # compartido contestó `strong` a las diez, Vespa de 125 incluida, con 0,82-0,89 de confianza.
+        # Más la higiene de la llamada: timeout 900→2000 (descartaba el 5-28 % ya pagado), cortacircuitos
+        # para que una caída no cueste un hilo por turno, y la clave leída del disco una sola vez.
+        {"id": "3.65", "title": "Jev SELECCIONA sobre datos parseados en un viaje (identidad dentro de cada pregunta) — y la llamada deja de tirar trabajo pagado",
+            "ch": UNIT, "paths": ["tests/voice/unit/test_jev_selects_over_data.py"]},
         # V2-717 — session c502d3ff (2026-09-17 20:57): «Let me check your Telegram to see what Ivan asked» three
         # turns in a row with NOTHING behind it — the re-emitted `mensajeria:open` was eaten as context-bleed
         # (a lens has an empty payload, so the guard's hatch could never open) while the promise went out by

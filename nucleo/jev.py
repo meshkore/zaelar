@@ -86,11 +86,24 @@ def _engine_root() -> Path:
     return Path(__file__).resolve().parents[1]
 
 
+_KEY_CACHE: dict = {"env": None, "value": ""}
+
+
 def _read_key() -> str:
-    """TYPESAFE_API_KEY from the environment (covers zaelar.env), else the bare key file."""
+    """TYPESAFE_API_KEY from the environment (covers zaelar.env), else the bare key file.
+
+    The FILE read is cached (V2-726 F5). `enabled()` calls this on every single Jev touch and
+    `_post_*` calls it again to build the header, so on a machine where the key lives in
+    `credentials/jev.md` rather than the environment — which is this one — every verdict was
+    opening and parsing a file twice, on the voice turn's thread. The cache is keyed on the env var
+    so exporting it still takes effect immediately, and a key ROTATED in the file is picked up by
+    the restart that any credential change already needs.
+    """
     env = (os.getenv("TYPESAFE_API_KEY") or "").strip()
     if env:
         return env
+    if _KEY_CACHE["env"] == "" and _KEY_CACHE["value"]:
+        return _KEY_CACHE["value"]
     try:
         for line in (_engine_root() / ".meshkore" / "credentials" / "jev.md").read_text(
             encoding="utf-8"
@@ -101,23 +114,64 @@ def _read_key() -> str:
             if "=" in line and not line.startswith("apikey_"):
                 _, _, line = line.partition("=")
             if line.strip():
-                return line.strip()
+                _KEY_CACHE["env"], _KEY_CACHE["value"] = "", line.strip()
+                return _KEY_CACHE["value"]
     except Exception:
         pass
     return ""
 
 
 def _timeout_s() -> float:
+    """2 s since V2-726 F5, up from 900 ms.
+
+    900 against a measured p50 of 800 was the engine cancelling its own calls at the edge: 5% of the
+    canvas verdicts and **28% of the escalate gate's** crossed it and were dropped AFTER being paid
+    for. That timeout only made sense while a caller blocked on the answer; since F1 the brief is
+    fired at t0 and read by `peek` 2-4 s later, so a slow call costs a daemon thread and nothing
+    else — and the turn that would have thrown the verdict away now uses it."""
     try:
-        return max(0.1, int(os.getenv("ZAELAR_JEV_TIMEOUT_MS", "900")) / 1000.0)
+        return max(0.1, int(os.getenv("ZAELAR_JEV_TIMEOUT_MS", "2000")) / 1000.0)
     except Exception:
-        return 0.9
+        return 2.0
+
+
+# ── circuit breaker (V2-726 F5) ──────────────────────────────────────────────────────────────────
+# A provider outage used to cost a thread and a full timeout on EVERY turn, for a verdict that was
+# never going to arrive — and with the timeout now at 2 s that is 2 s of daemon thread per turn,
+# forever, while the operator keeps talking. After `_BREAK_AFTER` consecutive failures the module
+# stops dialling for `_BREAK_FOR_S`; the first call after that window is a probe, and one success
+# closes it. Advisory all the way down: an open breaker reads exactly like a slow call — today's path.
+_BREAK_AFTER = 3
+_BREAK_FOR_S = 60.0
+_breaker: dict = {"fails": 0, "open_until": 0.0}
+
+
+def _breaker_open(now: float | None = None) -> bool:
+    return (time.monotonic() if now is None else now) < _breaker["open_until"]
+
+
+def _note_failure() -> None:
+    _breaker["fails"] += 1
+    if _breaker["fails"] >= _BREAK_AFTER:
+        _breaker["open_until"] = time.monotonic() + _BREAK_FOR_S
+
+
+def _note_success() -> None:
+    _breaker["fails"] = 0
+    _breaker["open_until"] = 0.0
+
+
+def reset_breaker() -> None:
+    """Tests and the `/debug` surface: forget the outage."""
+    _note_success()
 
 
 def enabled() -> bool:
     """False silences the whole module: no thread, no HTTP, callers keep their local verdict."""
     if (os.getenv("ZAELAR_JEV", "") or "").strip().lower() in ("0", "off", "no", "false"):
         return False
+    if _breaker_open():
+        return False                      # the provider is down: no thread, no socket, today's path
     return bool(_read_key())
 
 
@@ -247,7 +301,9 @@ def choose_many_sync(state: str, questions: dict, *, timeout_s: float | None = N
         _emit(state, choice="", confidence=0.0, probs={},
               latency_ms=int((time.monotonic() - t0) * 1000),
               error=f"{type(e).__name__}: {e}", question_id=question_id)
+        _note_failure()
         return None
+    _note_success()
     latency_ms = int((time.monotonic() - t0) * 1000)
     out: dict = {"_latency_ms": latency_ms}
     for key, q in questions.items():
@@ -259,6 +315,69 @@ def choose_many_sync(state: str, questions: dict, *, timeout_s: float | None = N
           confidence=max((out[k]["confidence"] for k in questions), default=0.0),
           probs={k: out[k]["probs"] for k in questions}, latency_ms=latency_ms,
           question_id=f"{question_id} ({len(questions)}q)")
+    return out
+
+
+# ── SELECTION over parsed data (V2-726 F4) ──────────────────────────────────────────────────────
+# The operator's case: «si le mandamos a Jev los datos parseados de los 100 resultados y la lista de
+# criterios, nos puede decir cuáles son los que mejor encajan, en una sola request». Measured
+# 2026-09-20 against 100 synthetic listings: ONE trip, 1041 ms, $0,0005, and it found all three rows
+# that met every criterion (recall 3/3). The three false positives all came back under 0.33
+# confidence while the three hits sat at 0.64-0.94, so the gate separates them cleanly.
+#
+# ⚠️ THE TRAP, and it cost a measurement to find: the candidate's identity must travel INSIDE its own
+# question, not only in the shared `state`. Ten identical questions over a shared state answered
+# `strong` to all ten — including a 125cc Vespa in a search for motocross bikes — at 0.82-0.89
+# confidence. Confidently wrong, which is the worst failure this module has. `select_many` below
+# therefore builds each question around its own candidate, and no caller can get that wrong.
+FIT = {
+    "strong": "meets every criterion",
+    "partial": "meets some criteria but fails at least one",
+    "no": "fails the core criteria",
+}
+
+
+def select_many(candidates, criteria: str, *, key=None, label=None,
+                timeout_s: float | None = None, min_confidence: float = MIN_CONFIDENCE) -> list:
+    """Score N candidates against `criteria` in ONE trip. Off the voice path by design.
+
+    `candidates` is any sequence; `label(c)` renders one as text (default `str`) and `key(c)` names
+    it in the result (default its index). Returns the ones that fit, best first:
+
+        [{"key", "candidate", "fit", "confidence"}]
+
+    Only `strong` verdicts at or above `min_confidence` are returned — «partial» is a shrug and an
+    unsure «strong» is the false-positive band the measurement found. Returns [] when disabled, on
+    any failure, or when nothing fits: the caller keeps whatever it would have done, as everywhere
+    else in this module. Raises `JevBriefTooBig` past `MAX_QUESTIONS` rather than truncating, so a
+    caller with a thousand rows pages them instead of silently scoring the first hundred.
+    """
+    items = list(candidates or [])
+    if not items or not (criteria or "").strip() or not enabled():
+        return []
+    _label = label or (lambda c: str(c))
+    _key = key or (lambda c: items.index(c))
+    questions = {}
+    index = {}
+    for n, cand in enumerate(items, 1):
+        qid = f"cand_{n}"
+        index[qid] = cand
+        questions[qid] = {
+            # The identity goes HERE, in this candidate's own question — see the trap above.
+            "instructions": f"CANDIDATE {n}: «{_label(cand)}». Against the criteria in the state, "
+                            f"how well does THIS candidate fit?",
+            "criteria": dict(FIT),
+        }
+    verdicts = choose_many_sync(criteria, questions, timeout_s=timeout_s, question_id="select")
+    if not verdicts:
+        return []
+    out = []
+    for qid, cand in index.items():
+        v = verdicts.get(qid) or {}
+        if v.get("choice") == "strong" and v.get("confidence", 0.0) >= min_confidence:
+            out.append({"key": _key(cand), "candidate": cand, "fit": "strong",
+                        "confidence": v.get("confidence", 0.0)})
+    out.sort(key=lambda r: -r["confidence"])
     return out
 
 
@@ -320,7 +439,9 @@ def choose_sync(answer_key: str, text: str, *, instructions: str, criteria: dict
         _emit(text, choice="", confidence=0.0, probs={},
               latency_ms=int((time.monotonic() - t0) * 1000), error=f"{type(e).__name__}: {e}",
               question_id=question_id or answer_key)
+        _note_failure()
         return None
+    _note_success()
     latency_ms = int((time.monotonic() - t0) * 1000)
     _emit(text, choice=choice, confidence=confidence, probs=probs, latency_ms=latency_ms,
           question_id=question_id or answer_key)
