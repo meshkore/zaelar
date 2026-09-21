@@ -637,6 +637,28 @@ del estándar se hace apuntando el front del Architect a la URL de la carpeta `.
 la lee, identifica el proyecto por `public/cluster.yaml` y lo onboarda (incluido el bloque `MESHKORE_PREAMBLE`).
 No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto 5570 desde aquí.
 
+## A REPORT IS NOT FILED BEFORE THE WORK (operator rule, 2026-09-21)
+
+Two rules from the same round, and they are opposite halves of one thing — what the agent is allowed to
+CLAIM. His words:
+
+> «Ese arnés debería haberse dado cuenta que tenía que revisar tanto la memoria como el widget de la pantalla
+> y **no haber dicho que está hecho hasta que estuviera todo terminado**. Incluso previamente le tenía que
+> avisar al usuario, **me pongo a hacerlo ahora mismo y te aviso**.»
+
+1. **A «yes» is answered with a START, never with a completion.** The confirm gate speaks `work_started`.
+   The outcome arrives later, from `nucleo/flash/op_receipt.py`, when the work actually settles — and a
+   POOL TIMEOUT is not an outcome (`widgets/server_api` gives up after 8 s; the thread keeps running and
+   usually finishes). The receipt witnesses those against the widget's own `view_data()`, compared to a
+   signature taken before the op: one read covers both halves he named, because the view is the screen and
+   it is derived from the store. `unknown` is a real third answer and it never claims success.
+
+2. **A TRANSACTIONAL op does not enter the user-visible task list.** Deleting or adding an agenda item,
+   sending a message — those are transactional. The task list is for work that takes time and that he may
+   want to come back and consult: *«coordíname una reunión con tal persona»*, *«búscame un restaurante para
+   mañana»*. He CONFIRMED current behaviour is right; it is written here so nobody «improves» it into a task
+   registry. V2-743.
+
 ## Decisiones clave — están en su propio fichero
 
 El diario del motor (una entrada por tanda: qué se decidió, por qué, y el fallo real que lo motivó) vive en
