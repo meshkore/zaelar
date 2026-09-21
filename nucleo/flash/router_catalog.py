@@ -470,11 +470,11 @@ TOOLS: list[dict] = [
         "function": {
             "name": "set_style_directive",
             "description": (
-                "Guarda una REGLA de comportamiento que te da el operador —cómo tratarle o responder de ahora en "
-                "adelante: tono, ritmo, longitud, tutear/usted, si narrar los pasos—. Se aplica ya y persiste entre "
-                "sesiones (la verás en tu ESTADO como REGLAS DEL OPERADOR): no la escales ni la apuntes aparte. "
-                "QUITAR una regla: pasa en `directive` la regla a retirar. Una "
-                "orden puntual ('ponme música') NO es una regla; una regla habla de CÓMO comportarte en general."
+                "Guarda una REGLA de comportamiento del operador —cómo tratarle o responder desde ya: tono, "
+                "ritmo, longitud, tutear/usted, narrar los pasos—. Persiste entre sesiones (la verás en tu "
+                "ESTADO como REGLAS DEL OPERADOR): no la escales ni la apuntes aparte. TU NOMBRE va aquí: si "
+                "te pide llamarte de otra forma, PUEDES. QUITAR una regla: pásala en `directive`. Una orden "
+                "puntual ('ponme música') NO lo es: una regla habla de CÓMO comportarte en general."
             ),
             "parameters": {
                 "type": "object",

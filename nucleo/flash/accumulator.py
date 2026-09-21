@@ -61,6 +61,7 @@ from __future__ import annotations
 import os
 import re
 import time
+import unicodedata
 from dataclasses import dataclass, field
 
 # ── VÁLVULAS ────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -112,6 +113,62 @@ def _grows(prev: str, cur: str) -> bool:
     return bool(p) and len(c) > len(p) and c.startswith(p)
 
 
+#: The shortest run of words whose IMMEDIATE repetition is read as the STT restating itself rather than as
+#: the operator saying something twice. Three, from the measurement below: two-word echoes are ordinary
+#: Spanish («de la de la casa» is a hesitation, «que no que no» is emphasis) and collapsing them would edit
+#: what he said; three identical words in a row at a segment seam is the acoustic layer, not a person.
+_ECHO_MIN_WORDS = 3
+
+
+def _deduped(text: str) -> str:
+    """`text` with an IMMEDIATELY repeated run of `_ECHO_MIN_WORDS`+ words collapsed to one (V2-747).
+
+    The acoustic layer can finalize a segment early and then reopen it, and the words on the seam arrive in
+    BOTH segments. LiveKit concatenates its finals faithfully, so what reaches us is his sentence with a
+    stutter that he never said. Measured in session 981dd54c:
+
+        final 1  «Pero no deberías escucharme, ¿no? Porque no he dicho»
+        final 2  «no he dicho la palabra Johnny,»
+        turn     «Pero no deberías escucharme, ¿no? Porque NO HE DICHO NO HE DICHO la palabra Johnny,»
+
+    …and that string is what went to the prompt, to Jev, to the memory processor («Cambiar no en cualquier
+    momento» is the title of a real task born of one) and to his chat wall. Longest run wins, so a doubled
+    six-word seam collapses once rather than three times. Comparison ignores case and accents (the STT is not
+    consistent about either across a seam); the cut is made on the RAW words, so nothing he said is rewritten
+    — only a duplicate is removed.
+    """
+    w = (text or "").split()
+    n = len(w)
+    if n < _ECHO_MIN_WORDS * 2:
+        return text
+    key = [_strip_marks(x) for x in w]
+    for k in range(n // 2, _ECHO_MIN_WORDS - 1, -1):
+        for i in range(0, n - 2 * k + 1):
+            if key[i:i + k] == key[i + k:i + 2 * k]:
+                return " ".join(w[:i + k] + w[i + 2 * k:])
+    return text
+
+
+def _strip_marks(w: str) -> str:
+    n = unicodedata.normalize("NFKD", (w or "").lower())
+    return "".join(c for c in n if not unicodedata.combining(c) and (c.isalnum() or c == "ñ"))
+
+
+def _drop_prefix(consumed: str, incoming: str) -> str:
+    """`incoming` with the words already ANSWERED removed, when it is the same growing turn (V2-747).
+
+    Word-by-word and exact (modulo case and accents), never fuzzy: this decides whether a sentence gets
+    answered twice, and a near-match is not evidence of anything. Returns `incoming` untouched the moment
+    the prefix stops matching — which is exactly how a genuinely NEW turn keeps all of its words.
+    """
+    cw, iw = (consumed or "").split(), (incoming or "").split()
+    if not cw or len(iw) < len(cw):
+        return incoming
+    if [_strip_marks(x) for x in iw[:len(cw)]] != [_strip_marks(x) for x in cw]:
+        return incoming
+    return " ".join(iw[len(cw):])
+
+
 # ── LA MARCA DE AGUA ───────────────────────────────────────────────────────────────────────────────────────────
 # Operator, 2026-08-21: «si de esas últimas tres palabras una era para concluir la frase anterior y otras dos para
 # empezar una nueva, no pasa nada: seteamos un punto en el tiempo y le pasamos ese texto a partir de ahí al
@@ -156,6 +213,17 @@ class Accumulator:
     #: `clear()`: it is a fact about the timeline, not part of the buffer. It is what lets a caller say «lo de
     #: antes de aquí ya se contestó» instead of guessing from the text.
     consumed_at: float = 0.0
+    #: The words of the CURRENT growing turn that have already been ANSWERED (V2-747). Its companion,
+    #: `consumed_at`, records WHEN; this records WHAT, and the peel is why it has to exist. `_deliver` can
+    #: hand back a head and keep the dangling tail as the buffer — but the acoustic layer keeps that turn
+    #: OPEN and the next `offer` arrives with the whole thing again, head included. Without this, the buffer
+    #: (a SUFFIX of what just arrived) is prepended to it: his sentence comes back doubled and with the half
+    #: already answered at the END. Measured verbatim in session 981dd54c, and what the brain, Jev, the
+    #: memory processor and his chat wall all received:
+    #:     «Porque no he dicho no he dicho la palabra Johnny, Pero no deberías escucharme, ¿no?»
+    #: Cleared the moment an incoming no longer starts with it — that is a different turn, and every word
+    #: of a different turn is new.
+    consumed_head: str = ""
 
     # ── consulta ────────────────────────────────────────────────────────────────────────────────────────────
     def pending(self) -> bool:
@@ -179,11 +247,13 @@ class Accumulator:
         self.consumed_at = now
         if not head:
             self.clear()
+            self.consumed_head = candidate            # the whole turn is answered — see the field's note
             return "act", candidate, reason, dropped
         # The tail SURVIVES as the next buffer, and its clock restarts here: it was said just now, so the gap
         # valve must measure from this instant and not from whenever the sentence it trailed had begun.
         self.fragments[:] = [tail]
         self.first_at = self.last_at = now
+        self.consumed_head = (self.consumed_head + " " + head).strip() if self.consumed_head else head
         return "act", head, reason, dropped
 
     # ── la decisión ─────────────────────────────────────────────────────────────────────────────────────────
@@ -217,6 +287,20 @@ class Accumulator:
         incoming = (incoming or "").strip()
         if not incoming:
             return "act", incoming, "", ""
+
+        # THE SAME SENTENCE, ONCE AND IN ORDER (V2-747) — both repairs are about the acoustic layer handing
+        # the SAME turn back bigger, and both have to run before any decision reads the text.
+        #   · what was already answered comes off the front, so it is not answered a second time and the
+        #     buffered tail is not prepended to it (which is what reversed his sentence);
+        #   · a seam the STT restated collapses, so «no he dicho no he dicho» is the once he said it.
+        incoming = _deduped(incoming)
+        stripped = _drop_prefix(self.consumed_head, incoming)
+        if stripped is not incoming:
+            incoming = stripped                       # same growing turn: what is left is tail + delta
+            if not incoming:
+                return "hold", "", "nada nuevo en el turno", ""
+        else:
+            self.consumed_head = ""                   # a different turn — nothing of it has been answered
 
         # Un hueco enorme rompe la cadena: lo de antes era otra cosa. Se DESCARTA en vez de pegarse — y se dice,
         # porque perder texto del operador en silencio es peor que responder raro.

@@ -23,17 +23,58 @@ from loguru import logger
 
 _STALL_S = float(os.getenv("ZAELAR_WORKER_STALL_S", "300"))
 
+#: How often the wait looks up to ask whether the silence is still the PROVIDER'S. Short enough that a
+#: stop/start is noticed well inside the budget, long enough to cost nothing (one `runstate.stopped()`, which
+#: is an in-process cache read, every few seconds of an otherwise idle wait).
+_TICK_S = 5.0
+
+
+def _hibernating() -> bool:
+    """Is the operator's switch OFF? Then this worker is SIGSTOPped and its silence is OURS (V2-747).
+
+    Measured in his own session, 2026-09-21: he pressed ⏻ at 20:13:20 with one job in flight, `runstate`
+    froze it as designed — and at **20:18:20**, five minutes later to the second, this watchdog declared
+    «sin respuesta del proveedor en 5 min» and aborted it. Then it pushed him a notification about a task it
+    had killed itself. His rule for the switch, verbatim: *«no borrar ni detener, sino sería algo así como
+    una hibernación»* — and the freeze is exactly that, so the clock that outlived it turned hibernation
+    into a five-minute execution. A frozen process cannot emit; counting that against the provider is
+    measuring our own hand.
+
+    Fail-OPEN on purpose: if the switch cannot be read, the wait keeps counting, because a watchdog that
+    stops watching on any doubt is the failure this module was built for (V2-645).
+    """
+    try:
+        from nucleo import runstate
+        return runstate.stopped()
+    except Exception:  # noqa: BLE001
+        return False
+
 
 async def bounded_next(it) -> tuple[str, object]:
-    """One step of the backend event stream, bounded: ("ev", event) | ("end", None) | ("stalled", None)."""
+    """One step of the backend event stream, bounded: ("ev", event) | ("end", None) | ("stalled", None).
+
+    The bound counts only the time the agent was RUNNING (see `_hibernating`). The read itself is started
+    ONCE and waited on in slices — `wait_for` cancels the awaitable it times out on, so re-issuing
+    `__anext__()` per slice would drop whatever the provider sent during the slice that expired.
+    """
+    task = asyncio.ensure_future(it.__anext__())
     try:
-        if _STALL_S > 0:
-            return "ev", await asyncio.wait_for(it.__anext__(), timeout=_STALL_S)
-        return "ev", await it.__anext__()
+        waited = 0.0
+        while True:
+            slice_s = _TICK_S if _STALL_S > 0 else None
+            done, _ = await asyncio.wait({task}, timeout=slice_s)
+            if done:
+                return "ev", task.result()
+            if _hibernating():
+                continue                      # frozen time is not provider silence — the clock waits too
+            waited += _TICK_S
+            if waited >= _STALL_S:
+                return "stalled", None
     except StopAsyncIteration:
         return "end", None
-    except asyncio.TimeoutError:
-        return "stalled", None
+    finally:
+        if not task.done():
+            task.cancel()
 
 
 def mark_stalled(rec, emit_chip) -> None:

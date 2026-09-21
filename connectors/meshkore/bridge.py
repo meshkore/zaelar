@@ -830,11 +830,34 @@ class ClusterBridge:
                 cluster, f"[cluster:{cluster} · evaluación de la conversación]\n{capsule.PACE_HANDBACK}", peer=peer,
                 origin="pulso"))
 
+    @staticmethod
+    def _agent_stopped() -> bool:
+        """The operator's ⏻, asked the same way every other loop in the engine asks it (V2-747).
+
+        This bridge had NO reference to `runstate` at all, and it is the one connector that spends a model
+        call on its own initiative. Measured in his own session: ⏻ off at 20:13:20 — `run stop`, the
+        observability session closed, one worker frozen — and then a full brain turn at **20:14:15, 20:15:55,
+        20:17:35, 20:19:15, 20:20:55, 20:22:35**, every 100 s, sessionless, still going when the database was
+        read. His words: *«si he decidido pararlo para que no gaste tokens, para que no haga nada, el sistema
+        se tiene que paralizar»*.
+
+        Only the SELF-STARTED work is gated — the nudge and the conversation evaluator, the two things this
+        loop decides to do on its own. An inbound peer message is not our initiative and keeps its existing
+        path: dropping what a peer sent us would lose it, and losing a message is not hibernating.
+        """
+        try:
+            from nucleo import runstate
+            return runstate.stopped()
+        except Exception:  # noqa: BLE001 — an unreadable switch never silences a live cluster
+            return False
+
     # ── heartbeat: nudge on idle-with-peers-present (human-like follow-up), never spam ──────────────────────
     async def _heartbeat(self):
         while True:
             try:
                 await asyncio.sleep(TICK_SECS)
+                if self._agent_stopped():
+                    continue            # hibernating: no nudges, no evaluations, no model calls
                 now = self._now()
                 for cluster, engaged in list(self._engaged.items()):
                     if not engaged:

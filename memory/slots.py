@@ -32,6 +32,7 @@ class SlotSpec:
     garble_guard: bool = True         # False = PREFERENCIA que evoluciona reformulándose (trato…): el gate P0b no
     #                                   la cuarentena (auditoría 2026-07-19: operator.treatment acabó 4 filas /
     #                                   0 vigentes — cada reformulación legítima "contradecía" a la anterior)
+    about_operator: bool = True       # ¿el hecho habla DEL OPERADOR? (V2-747) — ver la nota de `assistant.name`
     aliases: tuple = field(default_factory=tuple)   # variantes que emiten los modelos → colapsan al canónico
 
 
@@ -58,8 +59,18 @@ SLOTS: dict[str, SlotSpec] = {s.key: s for s in (
     # `garble_guard=False`, like `operator.treatment`: a rename is a legitimate re-declaration that
     # CONTRADICTS the previous value by design, and the P0b anti-garble gate would quarantine every one of
     # them (the measured failure of that flag, audit 2026-07-19).
+    # V2-747 — …and it still could not be renamed, because it is the one identity slot that is NOT about him.
+    # `memory_agent/ingest` only honours a self-declared `change` on an identity slot when the turn TALKS
+    # ABOUT THE OPERATOR — a guard written for `operator.location`, where a sentence naming a third party's
+    # city must never overwrite where HE lives. A sentence renaming the assistant never talks about the
+    # operator, by definition, so that test could not be passed and the write was refused every single time.
+    # Measured in session 981dd54c: «quiero que te cambies el nombre a Johnny, ahora mismo» → `slot
+    # assistant.name: self-declared change IGNORED — the turn is not about the operator`. He then spent four
+    # turns on it: a flat refusal («no puedo cambiarme el nombre»), an admission, a promise with no tool
+    # behind it, and a background job that died. `about_operator=False` is what the guard was always asking
+    # and had no way to be told.
     SlotSpec("assistant.name", "cómo quiere el operador que se llame el asistente (su nombre, no el de él)",
-             state_field="assistant_name", identity=True, garble_guard=False,
+             state_field="assistant_name", identity=True, garble_guard=False, about_operator=False,
              aliases=("assistant_name", "assistant.nombre", "agent_name", "agent.name", "bot_name",
                       "nombre_asistente", "nombre del asistente", "zaelar.name", "my_name")),
     SlotSpec("operator.location", "dónde vive", state_field="location", identity=True,
@@ -157,6 +168,14 @@ def state_field(slot: str | None) -> str | None:
 def slot_for_state_field(fld: str) -> str | None:
     """Inverso: slot canónico de un campo de `state` (para la heurística de perfil del agente)."""
     return _FIELD_TO_SLOT.get((fld or "").strip())
+
+
+def slots_about_the_operator() -> frozenset:
+    """Identity slots whose subject IS the operator — the only ones the self-declaration guard can judge.
+
+    A guard that asks «does this turn talk about him?» is meaningless over a fact that is not about him, and
+    applying it there does not protect anything: it refuses everything. See `assistant.name`."""
+    return frozenset(k for k, sp in SLOTS.items() if sp.identity and sp.about_operator)
 
 
 def garble_guard_slots() -> frozenset:

@@ -750,6 +750,31 @@ const _normAgent = s => String(s || "").replace(_CHAT_MARKERS, "").trim();
 // (A session-wide «have we ever seen a caption» flag lived here first and its disarm came back GREEN —
 // the per-line counter already covered every case it did. Two guards for one thing, one of them
 // unmeasurable, so it went.)
+// ── …AND IT SAYS IT WHILE IT IS BEING SAID (V2-747) ───────────────────────────────────────────────────
+// V2-745 painted the whole line and trimmed it afterwards. He watched that happen and asked for the other
+// order, twice — it was his stated IDEAL there, and in session 981dd54c it became the request:
+//
+//   «Pones todo el bloque de texto y asumimos que ese bloque ya es el definitivo. Pero si te corto, te corto
+//    el output, y tú luego rectificas el audio y solo dejas lo que has llegado a decir. ¿Ese mismo principio
+//    de los subtítulos se puede aplicar al chat, y solo ir mostrando las palabras a medida que las vas
+//    diciendo? Y si yo te corto, te paras en ese momento y ya no imprimes más.»
+//
+// So `voicedLine` publishes the line the voice currently OWES and how much of it has been heard; the wall
+// renders that much and no more. The message row itself still holds the full text — the trim on settle
+// below is unchanged and is what makes the HISTORY honest — this only governs what is on screen while the
+// voice is mid-sentence. The two halves have to agree, which is why one signal drives both.
+//
+// ⚠️ THE GRACE WINDOW IS THE FALLBACK, and without it this would be a regression for every build with no
+// audio-synced captions: with no channel to stream from, an unstreamed line would sit invisible until the
+// NEXT reply settled it. If not one segment has arrived `_VOICE_GRACE_MS` after the line was painted, the
+// wall goes back to showing it whole — which is exactly what it did before this existed. Same doctrine as
+// the removal guard below: silence on a channel is never read as evidence about the voice.
+const _VOICE_GRACE_MS = 1200;
+let _voiceTimer = null;
+export const [voicedLine, _setVoicedLine] = createSignal(null);   // { full, heard, streaming } | null
+
+const _endVoiceStream = () => { clearTimeout(_voiceTimer); _voiceTimer = null; _setVoicedLine(null); };
+
 let _pendingVoiced = null;     // { full, heard, capAt } — the line the voice still owes us
 
 /** One audio-synced caption segment: what the operator is HEARING, cumulative, `final` at the end of the
@@ -759,12 +784,16 @@ export const noteSpokenAloud = (text, final) => {
   const heard = _normAgent(text);
   if (!heard || !_normAgent(_pendingVoiced.full).startsWith(heard)) return;   // not this line's speech
   _pendingVoiced.heard = heard;
+  // The channel IS alive, so the grace window has nothing to fall back from: cancel it and stream.
+  clearTimeout(_voiceTimer); _voiceTimer = null;
+  _setVoicedLine({ full: _pendingVoiced.full, heard, streaming: true });
   if (final) settleAgentSpoken();
 };
 
 /** The line stops being owed: trim it to what was heard, or remove it if nothing was. */
 export const settleAgentSpoken = () => {
   const p = _pendingVoiced; _pendingVoiced = null;
+  _endVoiceStream();               // the line is no longer being said: the wall shows whatever it ends as
   if (!p) return;
   const full = _normAgent(p.full), heard = _normAgent(p.heard);
   if (!full || heard === full) return;                       // it said all of it
@@ -808,7 +837,18 @@ export const pushAgentChat = (text, opts) => {
     return _capChat([...xs, { role: "agent", text }]);
   });
   // Marked AFTER the write, so a line merged into its predecessor is owed under its final wording.
-  if (o.voiced) _pendingVoiced = { full: text, heard: "", capAt: _capSeq };
+  if (!o.voiced) return;
+  _pendingVoiced = { full: text, heard: "", capAt: _capSeq };
+  // Nothing has been SAID yet, so nothing is shown yet — «el texto que no has dicho no quiero que exista»
+  // applies while it is being said, not only afterwards. The grace window above is what keeps a build with
+  // no caption channel from showing an empty bubble for ever.
+  clearTimeout(_voiceTimer);
+  _setVoicedLine({ full: text, heard: "", streaming: true });
+  _voiceTimer = setTimeout(() => {
+    _voiceTimer = null;
+    const v = voicedLine();
+    if (v && v.streaming && !v.heard) _setVoicedLine({ ...v, streaming: false });
+  }, _VOICE_GRACE_MS);
 };
 
 // Convenience helpers used across services (mirror the old showAlert/hideAlert/setConn).

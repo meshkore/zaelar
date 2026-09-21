@@ -22,7 +22,8 @@ from loguru import logger
 from nucleo.memory_agent.classify import classify
 from nucleo.memory_agent.dossier import _state_lines  # noqa: F401
 from nucleo.memory_agent.gates import (  # noqa: F401
-    _memslots,    _GARBLE_GUARD_SLOTS, _IDENTITY_SLOTS, _PATCH_TO_SLOT, _SLOT_TO_STATE_FIELD, _atom_is_nonfact,
+    _memslots,    _GARBLE_GUARD_SLOTS, _IDENTITY_SLOTS, _OPERATOR_IDENTITY_SLOTS, _PATCH_TO_SLOT,
+    _SLOT_TO_STATE_FIELD, _atom_is_nonfact,
     _atom_value_invalid, _established_slot_value, _plausibility_demote, _precision_reject_atom,
     _is_ephemeral_directive, _is_vague_request, _report_self_declared_change_ignored, _slot_for_patch,
     _slot_supersede_guard, _writer_canon)
@@ -288,7 +289,11 @@ async def _ingest_utterance_locked(text: str, *, role: str = "operator") -> dict
             # vale si el turno habla de él — que es lo que hace toda mudanza legítima, en cualquier idioma, y lo
             # que NO hace una aclaración de tercero. No toca el caso sano: «ara visc a Girona» sigue pasando por
             # `change` como antes, que es justo lo que el comentario de arriba protege.
-            if a.get("slot") in _IDENTITY_SLOTS and not _talks_about_the_operator(t):
+            # V2-747 — …over the slots the question is ABOUT. `_IDENTITY_SLOTS` holds one whose subject is
+            # the ASSISTANT (`assistant.name`), and «does this turn talk about the operator?» can never be
+            # true of a sentence renaming it — so the guard did not protect that slot, it sealed it. The
+            # registry now says which slots the question applies to; see `memory/slots.slots_about_the_operator`.
+            if a.get("slot") in _OPERATOR_IDENTITY_SLOTS and not _talks_about_the_operator(t):
                 if a_corr and not _is_corr:          # solo cuando la autodeclaración era la ÚNICA prueba
                     _report_self_declared_change_ignored(str(a.get("slot")), t)
                 a_corr = _is_corr

@@ -38,10 +38,14 @@ const j = store.indexOf("// Convenience helpers used across services");
 assert.ok(i > 0 && j > i, "pushAgentChat not found in store.js—was it renamed?");
 
 // reactive dependencies are replaced with a plain array: what is tested is the merge RULE
+// V2-747 — `createSignal` joined that list when the slice grew a signal of its own (`voicedLine`, the line
+// the voice is currently saying). Stubbing it keeps this file measuring the ONE thing it was built for —
+// the merge rule — instead of turning into a second copy of the store's reactivity.
 const shim = `
 let msgs = [];
 const setChatMsgs = (fn) => { msgs = fn(msgs); };
 const _capChat = (xs) => xs;
+const createSignal = (v) => { let _v = v; return [() => _v, (n) => { _v = n; }]; };
 ${store.slice(i, j)}
 export const reset = () => { msgs = []; };
 export const push = (role, text) => { msgs = [...msgs, { role, text }]; };

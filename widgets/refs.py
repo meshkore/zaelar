@@ -225,11 +225,22 @@ def positional(widget_id: str, action: str = "") -> bool:
     dispatched an empty payload: five `cancel_meeting {}` in one measured session. One declaration was
     carrying two unrelated decisions — WHICH KEY names a row, and WHETHER counting rows is meaningful — and
     the widget could not have the first without the second. Now it can.
+
+    ⚠️ THE ACTION DECIDES OVER ITS WIDGET, in both directions (V2-747). This used to read «False anywhere
+    wins», and that made a card that numbers HALF of itself unsayable: the agenda declares
+    `positional: false` for the reason above — no calendar view numbers an appointment — and V2-744 then gave
+    it a TASKS section that prints 1, 2, 3 beside every row and a manifest that documents «su número en la
+    lista («2»)» on five actions. Measured in session 16a39050: «modifica la tarea número tres» over three
+    numbered tasks he was looking at, answered with «No tengo claro a cuál te refieres». One flag was again
+    carrying two decisions, this time for two halves of one card — so the specific declaration wins over the
+    general one, and the widget-level flag stays the DEFAULT it always was for every action that is silent.
     """
     try:
         man = runtime.get(widget_id) or {}
         spec = (man.get("actions") or {}).get(action) or {}
-        if spec.get("positional") is False or man.get("positional") is False:
+        if isinstance(spec.get("positional"), bool):
+            return spec["positional"]
+        if man.get("positional") is False:
             return False
     except Exception:  # noqa: BLE001
         pass
@@ -270,6 +281,73 @@ def _position_ref(query: str, n: int) -> "int | None":
     if pos < 0:
         return n - 1
     return pos if pos < n else None
+
+
+def _pos_token(toks: list[str]) -> "tuple[int, list[str]] | None":
+    """`(number, the tokens that are NOT the number)` for a reference that carries a position word, else None.
+
+    1-based as every manifest declares it, and it accepts the same three spellings `_position_ref` does: a
+    bare digit, a digit with an ordinal suffix («3º» arrives as «3o»), and a word («tres», «third»). Only ONE
+    may appear — two numbers in a reference is not a position, it is a title.
+    """
+    found, rest = None, []
+    for t in toks:
+        m = re.fullmatch(r"(\d+)(?:o|a|er|ro|do|to|mo|vo|no|st|nd|rd|th)?", t)
+        # A DIGIT IS ALREADY THE PRINTED NUMBER; a WORD comes out of `_ORDINALS`, which is 0-based because
+        # its other reader indexes a list with it. Mixing the two conventions here made «la tarea número
+        # tres» resolve to the row numbered 2 — the one place where being off by one is indistinguishable
+        # from working, since both rows exist.
+        n = int(m.group(1)) if m else (None if _ORDINALS.get(t) is None else _ORDINALS[t] + 1)
+        if n is None or n < 1:                        # «el último» has no printed number to look up
+            rest.append(t)
+            continue
+        if found is not None:
+            return None
+        found = n
+    return None if found is None else (found, rest)
+
+
+def _numbered_ref(query: str, idx: list[dict]) -> "tuple[list[dict], bool] | None":
+    """`(rows, ambiguous)` for a reference that names a row BY THE NUMBER PRINTED BESIDE IT, else None (V2-747).
+
+    `_position_ref` above resolves a position against the INDEX ORDER, which is the right answer for a single
+    flat list (a search result, a queue) and the wrong one for a card that prints several numbered lists: the
+    agenda's tasks restart at #1 in every list, so «la tarea 3» over «General: 2 · Obra: 3» would land on the
+    flat third row — Obra #1 — and silently modify the wrong task. A number that means two things is the
+    cheapest possible way to touch the wrong item, which is the one thing this module exists to prevent.
+
+    So a widget that NUMBERS ITS ROWS publishes the number (`no`) and the section it prints it under
+    (`group`), and the lookup is exact:
+      · the reference must carry ONE position word and nothing else but, optionally, the group's name;
+      · leftover tokens that match no group are CONTENT — «el episodio 12 de Artemis» falls through to the
+        fuzzy matcher, which is the V2-026 distinction `_POS_FILLER` already draws;
+      · one row with that number → resolved; several (same number in two lists, no group named) → ASK,
+        with the groups as the menu, because he can answer that in three words.
+
+    Returns None whenever the index does not publish numbers, so every widget that does not is untouched.
+    """
+    rows = [i for i in idx if isinstance(i.get("no"), int)]
+    if not rows:
+        return None
+    toks = [t for t in (query or "").split() if t not in _STOP and t not in _POS_FILLER]
+    got = _pos_token(toks)
+    if not got:
+        return None
+    want, rest = got
+    hit = [i for i in rows if i["no"] == want]
+    if not hit:
+        return None                                   # no row carries that number → let the matcher try
+    if rest:
+        groups = {str(i.get("group") or "") for i in rows if i.get("group")}
+        named = [g for g in groups if _covered(rest, _norm(g).split()) >= 1.0]
+        if len(named) > 1:
+            return [], True                           # he named a group and it matched two: ask
+        if not named:
+            return None                               # the leftovers are CONTENT, not a group → fuzzy match
+        hit = [i for i in hit if str(i.get("group") or "") == named[0]]
+        if not hit:
+            return [], True                           # that list has no row with that number
+    return hit, len(hit) > 1
 
 
 def position_index(ref: str, n: int) -> "int | None":
@@ -417,10 +495,21 @@ def resolve(widget_id: str, action: str, ref: str, payload: dict | None = None,
     # to one of them with nobody asked. Deliberately not a branch of its own — a second place to decide the
     # same thing is a second place for the two to disagree.
 
-    _pos = _position_ref(query, len(idx)) if positional(widget_id, action) else None
-    if _pos is not None:                                   # «the first one» / «3» — see `_position_ref`
-        payload[field] = idx[_pos]["id"]
-        return RefResult(True, payload)
+    if positional(widget_id, action):
+        # THE PRINTED NUMBER FIRST, when the widget publishes one (V2-747) — a card with several numbered
+        # lists cannot be counted flat. `None` means «this index does not number its rows», so every widget
+        # that does not keeps the flat reading below, unchanged.
+        _num = _numbered_ref(query, idx)
+        if _num is not None:
+            _rows, _amb = _num
+            if _amb:
+                return RefResult(False, needs="ambiguous", candidates=_qualified(_rows or idx)[:6])
+            payload[field] = _rows[0]["id"]
+            return RefResult(True, payload)
+        _pos = _position_ref(query, len(idx))
+        if _pos is not None:                               # «the first one» / «3» — see `_position_ref`
+            payload[field] = idx[_pos]["id"]
+            return RefResult(True, payload)
 
     scored = sorted(((_score(query, _norm(i["label"])), i) for i in idx), key=lambda s: -s[0])
     best_score, best = scored[0]

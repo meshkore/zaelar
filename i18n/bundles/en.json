@@ -568,6 +568,8 @@
  "rail.orbHere": "Activate the bar orb",
  "rail.orbToEye": "Return the orb to the desk",
  "rail.processes": "{n} running — click to see the processes",
+ "rail.processesHeld": "{n} hibernating — the agent is stopped and they stay where they were",
+ "rail.processesStopping": "Stopping… {n} still running, waiting for the turn to finish",
  "rail.showAll": "Show all widgets",
  "rail.showChat": "Show the chat panel",
  "reset.confirm.body": "All running processes will be STOPPED (browser searches, Brain Workers, widget creation), the desktop will be left blank and the widgets emptied: results, reports, charts and messaging content start from zero. Your memory, your credentials and connections (WhatsApp/Telegram/browser/email), your calendar —projects, tasks and appointments—, your language and the files the agent has saved are KEPT, unless you tick the boxes below.",

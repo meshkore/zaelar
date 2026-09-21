@@ -30,7 +30,8 @@ from nucleo.memory_agent.dossier import (  # noqa: F401
     _llm_expand_query, _state_lines, compose_context)
 from nucleo.memory_agent.external import remember, remember_external  # noqa: F401
 from nucleo.memory_agent.gates import (  # noqa: F401
-    _GARBLE_GUARD_SLOTS, _IDENTITY_SLOTS, _PATCH_TO_SLOT, _SLOT_TO_STATE_FIELD, _atom_is_nonfact,
+    _GARBLE_GUARD_SLOTS, _IDENTITY_SLOTS, _OPERATOR_IDENTITY_SLOTS, _PATCH_TO_SLOT, _SLOT_TO_STATE_FIELD,
+    _atom_is_nonfact,
     _atom_value_invalid, _established_slot_value, _is_ephemeral_directive, _is_vague_request,
     _plausibility_demote, _precision_reject_atom, _report_self_declared_change_ignored, _report_slot_guard,
     _same_entity_refinement, _slot_for_patch, _slot_supersede_guard, _writer_canon)

@@ -117,6 +117,7 @@
       }
     },
     "done": {
+      "positional": true,
       "desc": "marca una tarea como HECHA. Identifícala por su número en la lista («la 2 de la compra»), por su nombre, o por taskId si lo tienes",
       "payload": {
         "taskId": "string — lo que `refs` resuelve de un nombre hablado; si lo tienes, úsalo",
@@ -125,18 +126,21 @@
       }
     },
     "drop": {
+      "positional": true,
       "desc": "descarta una tarea del plan sin borrarla ni marcarla hecha (queda fuera de la vista). Para QUITARLA de la lista de verdad es delete_task",
       "payload": {
         "taskId": "string"
       }
     },
     "snooze": {
+      "positional": true,
       "desc": "aplaza una tarea a otro momento",
       "payload": {
         "taskId": "string"
       }
     },
     "not_now": {
+      "positional": true,
       "desc": "el operador la evita ahora (señal de coaching, no la quita)",
       "payload": {
         "taskId": "string"
@@ -175,6 +179,7 @@
       "view": true
     },
     "add_task": {
+      "positional": true,
       "desc": "apunta una TAREA del operador (no una cita, no un proceso tuyo): algo que él tiene que hacer. Sin `list` va a la lista «General»; con `list` (número o nombre) va a esa. `date`/`time` solo si los dice — una tarea sin hora es normal y no se planifica sola",
       "payload": {
         "title": "string — lo que hay que hacer, tal como lo dijo",
@@ -267,6 +272,7 @@
       }
     },
     "update_task": {
+      "positional": true,
       "desc": "CAMBIA una tarea que ya existe: renombrarla (newTitle), ponerle o quitarle día/hora, moverla a otra lista (newList) o volver a dejarla pendiente. Identifícala por su NÚMERO en la lista o por su nombre",
       "ref": "task",
       "payload": {
@@ -280,6 +286,7 @@
       }
     },
     "delete_task": {
+      "positional": true,
       "desc": "BORRA una tarea de su lista para siempre («quita el pan de la compra», «borra el ítem 2»). No es marcarla hecha: para eso está done",
       "ref": "task",
       "payload": {
@@ -296,6 +303,7 @@
       "confirm": false
     },
     "rename_list": {
+      "positional": true,
       "desc": "cambia el NOMBRE de una lista de tareas",
       "ref": "list",
       "payload": {
@@ -304,6 +312,7 @@
       }
     },
     "clear_list": {
+      "positional": true,
       "desc": "VACÍA una lista de tareas: se lleva todos sus ítems y la lista se queda. «Vacía la compra», «bórralo todo de la lista 2». Nunca sin decir CUÁL",
       "ref": "list",
       "payload": {
@@ -313,6 +322,7 @@
       "confirm_q": "¿Vacío la lista «{item}»? Se van todos sus ítems."
     },
     "delete_list": {
+      "positional": true,
       "desc": "BORRA una lista de tareas ENTERA, con sus ítems. La lista «General» no se borra: se vacía",
       "ref": "list",
       "payload": {
@@ -322,6 +332,7 @@
       "confirm_q": "¿Borro la lista «{item}» entera, con todo lo que tiene dentro?"
     },
     "show_tasks": {
+      "positional": true,
       "desc": "ABRE la sección de TAREAS de la tarjeta, y en la lista que él nombre («ábreme las tareas», «enséñame la lista de la compra», «la lista 3»). No cambia ningún dato: solo mueve lo que se ve. Es obligatoria para eso — mostrar el widget lo abre siempre por la AGENDA",
       "payload": {
         "list": "número o nombre de la lista; sin él, la sección de tareas con la que estuviera"

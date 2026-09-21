@@ -424,14 +424,38 @@ def digest(db: dict, cap: int = 12) -> str:
     return "\n".join(out)
 
 
+#: The payload keys through which the manifest names an EXISTING task / an existing list. A row is published
+#: once per key, because `refs.id_field_for_action` answers with the key the ACTION declares and there is more
+#: than one: `done`/`drop`/`snooze`/`not_now` take `taskId` (the V2-026 suffix convention), while
+#: `update_task`/`delete_task` declare `ref: "task"` — the key the operator's own sentence fills («la 2»).
+#:
+#: V2-747, measured in session 16a39050: he said «modifica la tarea número tres con crear la nueva cuenta…»,
+#: the model picked `agenda:update_task` with the reference «la tarea 3 de la lista Obra» — both right — and
+#: the resolution returned `no_match` with an EMPTY candidate list, so he got «No tengo claro a cuál te
+#: refieres» over three tasks that were sitting in the card. The index published `taskId` only, so for the two
+#: actions that CHANGE a task there was not one row to match against: not a bad match, no rows at all.
+_TASK_FIELDS = ("taskId", "task")
+_LIST_FIELDS = ("list",)
+
+
 def ref_rows(db: dict) -> list[dict]:
-    """Rows for `index.ref_index`: a task the operator can name, with its number and its list in the hint so
-    a refusal's menu reads the way the screen does."""
+    """Rows for `index.ref_index`: everything the operator can name by voice, with the number the SCREEN shows
+    beside it (`no`) and the list it is printed under (`group`).
+
+    `no`/`group` are what make «la tarea 3 de la lista Obra» resolvable — see `refs._numbered_ref`. They are
+    NOT the fuzzy matcher's business: the number he says is the number he is reading, so it is looked up, and
+    a bare number that means two different rows in two lists is a QUESTION, never a guess."""
     out = []
     for l in lists(db):
         for r in items(db, l["id"]):
             if r["status"] == "done":
                 continue
-            out.append({"id": r["id"], "label": r["title"], "field": "taskId",
-                        "hint": f"{l['name']} #{r['no']}" + (f" {r['date']}" if r["date"] else "")})
+            hint = f"{l['name']} #{r['no']}" + (f" {r['date']}" if r["date"] else "")
+            for f in _TASK_FIELDS:
+                out.append({"id": r["id"], "label": r["title"], "field": f, "hint": hint,
+                            "no": r["no"], "group": l["name"]})
+    for l in lists(db):
+        hint = f"#{l['no']} · {l['done']}/{l['total']}"
+        for f in _LIST_FIELDS:
+            out.append({"id": l["id"], "label": l["name"], "field": f, "hint": hint, "no": l["no"]})
     return out

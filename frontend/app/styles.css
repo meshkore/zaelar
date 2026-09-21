@@ -193,6 +193,22 @@ body.chatdock-r .statuspanel,body.chatdock-r .cronpanel{right:calc(18px + var(--
 .cw-msg.cw-live{background:transparent;color:var(--hb-ink);border:1px dashed var(--hb-accent);
   border-bottom-right-radius:var(--sp-1);opacity:.85}
 .cw-list > .cw-msg.cw-live{opacity:.85}
+/* V2-747 — the agent line being SPOKEN right now, growing word by word as the voice says it. Operator,
+   2026-09-21: «¿podrías poner ese texto un poco más grisáceo, más pálido? O el fondo del mensaje en otro
+   color, que destaque, que en este momento es lo que estás leyendo». He offered both and they mean opposite
+   things; the HIGHLIGHT is the one that survives the rest of the change. Paler meant «provisional, he may
+   not end up saying this», and there is no longer anything provisional on screen — the words only appear
+   once they have sounded. What is left to say is «this line, right here, is the one you are hearing», and
+   that is a mark that stands out, not one that recedes. A soft accent wash plus a leading edge: the same
+   vocabulary as the dictation bubble above, on the agent's side of the wall.
+   The caret is the crawl's own signal — it says the sentence has not finished, which is the difference
+   between a line that was cut and a line still arriving, and it costs nothing when it disappears. */
+.cw-msg.agent.cw-speaking{background:var(--hb-accent-soft,rgba(155,124,255,.13));
+  border-color:var(--hb-accent,#9B7CFF);box-shadow:inset 3px 0 0 0 var(--hb-accent,#9B7CFF)}
+.cw-msg.agent.cw-speaking .cw-msg-body::after{content:"▍";margin-left:.12em;color:var(--hb-accent,#9B7CFF);
+  animation:cwSpeakCaret 1s step-end infinite}
+@keyframes cwSpeakCaret{0%,49%{opacity:1}50%,100%{opacity:0}}
+@media (prefers-reduced-motion:reduce){.cw-msg.agent.cw-speaking .cw-msg-body::after{animation:none}}
 /* the composer sits on its own band, separated from the transcript above it by a real edge */
 .chatwall.docked .cw-input,.chatwall.docked .cw-tabs{background:var(--hb-sidebar)}
 .cw-msg-from{font-size:var(--fs-micro);font-weight:700;letter-spacing:.02em;color:var(--hb-accent2);

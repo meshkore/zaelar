@@ -760,12 +760,21 @@ export function ChatWall() {
     ? t("chat.earlierAt", { when: ago(restoredAt / 1000) })
     : t("chat.earlier"));
 
+  // Same normalisation the store matches lines with, so the two cannot disagree about whether the bubble
+  // on screen IS the line the voice owes — the whole streaming decision hangs on that one comparison.
+  const _CHAT_MARKERS = /^(?:🔔|💬)\s*/;
+  const _sameLine = (a, b) => String(a || "").replace(_CHAT_MARKERS, "").trim()
+                           === String(b || "").replace(_CHAT_MARKERS, "").trim();
+
   createEffect(() => {
     const msgs = store.chatMsgs(); if (!listEl) return;
     // V2-743 — the caption of the open microphone, appended after the history and never part of it. It is a
     // dependency of this effect on purpose, so a new partial repaints the wall the moment it arrives; that
     // immediacy is the whole feature, and the wall is rebuilt wholesale anyway.
     const live = store.liveChat();
+    // V2-747 — the line the voice is saying RIGHT NOW, and how much of it has been heard. A dependency of
+    // this effect on purpose: each caption segment repaints the wall, which is the crawl he asked for.
+    const say = store.voicedLine();
     // The cap trims from the OLDEST end, so the restored block can only shrink, never move.
     if (restoredLeft > msgs.length) restoredLeft = msgs.length;
     const rows = [];
@@ -780,6 +789,20 @@ export function ChatWall() {
         bubble.appendChild(h("div", { class: "cw-msg-from" }, m.cluster ? `${who} · ${m.cluster}` : who));
       } else if (m.role === "peer") {
         bubble.appendChild(h("div", { class: "cw-msg-from" }, "🛰"));
+      }
+      // V2-747 — WHILE THE VOICE IS SAYING IT, the bubble shows what has actually been said and stops
+      // there. His words: «solo ir mostrando las palabras a medida que las vas diciendo, y si yo te corto,
+      // te paras en ese momento y ya no imprimes más». The stored message keeps the full text; the trim
+      // that makes the HISTORY honest happens on settle, in the store. Plain text, not markdown, for the
+      // same reason the dictation bubble below is: a half-said sentence routinely holds an unclosed `*`.
+      const speaking = !!(say && say.streaming && m.role === "agent" && i === msgs.length - 1
+                          && _sameLine(m.text, say.full));
+      if (speaking) {
+        if (!say.heard) return;                 // not one word of it has sounded — so it is not on screen
+        bubble.classList.add("cw-speaking");
+        bubble.appendChild(h("div", { class: "cw-msg-body" }, say.heard));
+        rows.push(bubble);
+        return;
       }
       bubble.appendChild(raw(`<div class="cw-msg-body">${renderMarkdownLite(m.text)}</div>`));
       rows.push(bubble);

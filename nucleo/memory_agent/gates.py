@@ -299,6 +299,8 @@ _PATCH_TO_SLOT = _memslots.patch_to_slot()
 # one must not overwrite state in a single unconfirmed mention — STT garble).
 _SLOT_TO_STATE_FIELD = {v: k for k, v in _PATCH_TO_SLOT.items()}
 _IDENTITY_SLOTS = _memslots.identity_slots()
+#: …of those, the ones the SELF-DECLARATION guard can meaningfully judge — the ones about HIM (V2-747).
+_OPERATOR_IDENTITY_SLOTS = _memslots.slots_about_the_operator()
 _GARBLE_GUARD_SLOTS = _memslots.garble_guard_slots()   # P0b: garble-able identity (reformulable preferences NO)
 
 

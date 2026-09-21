@@ -568,6 +568,8 @@
  "rail.orbHere": "Activar el orbe en la barra",
  "rail.orbToEye": "Devolver el orbe al escritorio",
  "rail.processes": "{n} en marcha — pulsa para ver los procesos",
+ "rail.processesHeld": "{n} en hibernación — el agente está parado y siguen donde estaban",
+ "rail.processesStopping": "Parando… {n} sigue en marcha, espero a que termine el turno",
  "rail.showAll": "Mostrar todos los widgets",
  "rail.showChat": "Mostrar el panel del chat",
  "reset.confirm.body": "Se DETENDRÁN todos los procesos en marcha (búsquedas del navegador, Brain Workers, creación de widgets), el escritorio quedará en blanco y los widgets se vaciarán: resultados, informes, gráficas y el contenido de mensajería empiezan de cero. Se CONSERVAN tu memoria, tus credenciales y conexiones (WhatsApp/Telegram/navegador/correo), tu agenda —proyectos, tareas y citas—, tu idioma y los ficheros que el agente ha guardado, salvo que marques las casillas de abajo.",

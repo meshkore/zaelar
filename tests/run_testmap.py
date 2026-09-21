@@ -3041,6 +3041,21 @@ DOMAINS: list[dict] = [
                                  "el subtítulo no pierde lo ya dicho, y lo que no sonó no se queda escrito",
             "ch": UNIT,
             "paths": ["tests/browser/unit/chat/test_the_wall_is_a_transcript_of_the_voice.py"]},
+        # V2-747 — la sesión 16a39050: «modifica la tarea número TRES» sobre tres tareas que estaba
+        # leyendo, contestado con «No tengo claro a cuál te refieres». Tres causas: `positional:false`
+        # silenciaba la mitad que SÍ numera, el índice no publicaba la clave que declaran las acciones
+        # que CAMBIAN una tarea, y la posición se contaba PLANA sobre una tarjeta con varias listas.
+        {"id": "4.204", "title": "El número que LEE es el número que DICE: «la tarea 3 de la lista Obra» "
+                                 "llega a esa fila, y un número que significa dos cosas PREGUNTA",
+            "ch": UNIT,
+            "paths": ["tests/browser/unit/agenda/test_the_number_he_reads_is_the_number_he_says.py"]},
+        # V2-747 — la sesión 981dd54c: «¿ese mismo principio de los subtítulos se puede aplicar al chat,
+        # y solo ir mostrando las palabras a medida que las vas diciendo? Y si yo te corto, te paras en
+        # ese momento y ya no imprimes más».
+        {"id": "4.205", "title": "El muro escribe la línea MIENTRAS la voz la dice y se para donde ella se "
+                                 "para — con el mensaje que está leyendo marcado, y su red si no hay canal",
+            "ch": UNIT,
+            "paths": ["tests/browser/unit/chat/test_the_wall_says_it_while_it_is_being_said.py"]},
         {"id": "4.203", "title": "La mitad de TAREAS son dos paneles delimitados con una tabla dentro — y el ＋ "
                                  "de «nueva lista» no puede irse de la pantalla con 100 listas",
             "ch": UNIT,
@@ -4423,6 +4438,30 @@ DOMAINS: list[dict] = [
                                 "levanta con el primer fotograma de audio (no cuando el motor está MONTADO)",
             "ch": UNIT,
             "paths": ["tests/voice/unit/test_a_greeting_that_has_not_sounded_cannot_be_cut.py"]},
+        # V2-747 — la sesión 981dd54c: una frase suya volvió DEL REVÉS y duplicada («Porque no he dicho
+        # no he dicho la palabra Johnny, Pero no deberías escucharme, ¿no?»), y esa cadena llegó al
+        # prompt, a Jev, al procesador de memoria y a su muro. Dos causas: la cola pelada se volvía a
+        # pegar DELANTE del turno que ya la traía, y la costura que el STT repitió no se colapsaba.
+        {"id": "8.12", "title": "Su frase vuelve UNA vez y en el orden en que la dijo: lo ya contestado no "
+                                "se re-contesta, y la costura que el STT repitió se colapsa",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/flash/"
+                      "test_a_sentence_comes_back_in_the_order_he_said_it.py"]},
+        # V2-747 — medido en su base de datos: tras `run stop` a las 20:13:20, el pulso del cluster siguió
+        # gastando un turno de cerebro cada 100 s, y a las 20:18:20 el vigilante abortó su encargo por
+        # «sin respuesta del proveedor en 5 min» — la congelación que debía PRESERVARLO fue lo que lo mató.
+        {"id": "8.13", "title": "Parar es HIBERNAR: con el ⏻ apagado el pulso no gasta y el reloj del "
+                                "vigilante no corre — el trabajo se congela, no se mata",
+            "ch": UNIT,
+            "paths": ["tests/infrastructure/unit/core/test_stopping_is_hibernation_not_execution.py"]},
+        # V2-747 — la sesión 981dd54c: cuatro turnos para un renombrado que nunca ocurrió. La memoria lo
+        # vetaba SIEMPRE (el guarda de autodeclaración pregunta si el turno habla DEL OPERADOR, y el
+        # nombre del asistente es el único slot de identidad que no habla de él), el catálogo no declaraba
+        # la capacidad, y el patrón no casaba con cómo lo dijo.
+        {"id": "8.14", "title": "El renombrado que pide OCURRE: el slot no está sellado, la tool lo declara "
+                                "sin subir el techo, y el nombre nuevo pasa a ser palabra de activación",
+            "ch": UNIT,
+            "paths": ["tests/memory/unit/test_the_rename_he_asks_for_actually_happens.py"]},
         {"id": "8.10", "title": "El trabajo del agente se llama PROCESO (job): ninguna etiqueta del frontend "
                                 "lo llama «tarea», y el id de la pestaña se mudó con el rótulo",
             "ch": UNIT,

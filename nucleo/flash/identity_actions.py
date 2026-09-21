@@ -17,8 +17,10 @@ gets is a parallel implementation that quietly stops working the day only that o
 
 No new tool: the router catalog had 12 chars of headroom (23088/23100,
 `tests/agent_headless/unit/flash/test_router.py::test_tool_catalog_stays_compact`) — nowhere near a new tool's
-declaration, so this rides the existing `set_style_directive` catalog entry ("cómo tratarle o responder de ahora
-en adelante" already covers both asks in spirit) instead of raising that ceiling.
+declaration, so this rides the existing `set_style_directive` catalog entry instead of raising that ceiling.
+Since V2-747 that entry NAMES the rename ("TU NOMBRE va por aquí: si te pide llamarte de otra forma, PUEDES y
+es esta llamada") — it used to cover it only "in spirit", and the measured cost of the difference was the
+model answering «no puedo cambiarme el nombre a Johnny» to a capability it has had since V2-716.
 """
 from __future__ import annotations
 
@@ -30,7 +32,10 @@ from .text_norm import _norm_txt
 _NAME_CHANGE_RE = _re.compile(
     r"(?:el asistente(?: (?:se|debe|deber[ií]a) llamarse| se llama)|"
     r"(?:te|tu) llamas|ll[aá]mate|tu nombre (?:ahora )?es|"
-    r"c[aá]mbia(?:te)? (?:tu |el )?nombre a|"
+    # V2-747 — the clitic can come FIRST and the verb can be a subjunctive: «quiero que TE CAMBIES el
+    # nombre a Johnny» is how he actually said it, and `c[aá]mbia(?:te)?` only matched the imperative, so
+    # the one real rename request measured in this engine did not match its own pattern.
+    r"(?:te )?c[aá]mbi\w+ (?:tu |el )?nombre a|"
     r"the assistant(?: should| must)?(?: be)? (?:called|named)|the assistant('?s| is) name is|"
     r"you(?:'re| are)(?: now)? call(?:ed)?|your name is|call yourself)"
     r"\s+(.+)$",

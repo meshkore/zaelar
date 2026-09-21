@@ -21,8 +21,8 @@ from i18n import store as _store
 # Coarse cache-buster for the browser's localStorage bundle cache. Bump when the SET of keys or their English
 # text changes. (Per-key upgrade diffing uses the English snapshot stored in each generated bundle — see
 # i18n.init.ensure; this version is just the frontend cache signal.)
-MANIFEST_VERSION = 14   # 2026-09-21: V2-744 — the assistant's work is a PROCESS/JOB, and the agenda
-                        # grew a TAREAS section of its own (the operator's numbered lists)
+MANIFEST_VERSION = 15   # 2026-09-21: V2-747 — the wall writes the agent's line WHILE the voice says it,
+                        # and the process gauge says when a stop is on its way (two new `rail.*` strings)
 
 PRESET = ("en", "es")            # shipped in the repo; never generated
 BASE = "en"                      # the manifest language every other bundle is translated FROM
