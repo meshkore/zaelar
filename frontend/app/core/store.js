@@ -741,17 +741,20 @@ const _normAgent = s => String(s || "").replace(_CHAT_MARKERS, "").trim();
 // generated. Matching is by CONTENT, never by timing: a caption belongs to this line only if the line
 // starts with it, so a filler sounding over a cancelled reply can never be mistaken for it.
 //
-// ⚠️ IT CANNOT ERASE ON ABSENCE OF EVIDENCE. `_captionSeen` arms the whole mechanism the first time that
-// channel speaks in this session; until then — a build where the synchronizer is off, a transport that
-// never forwards it — nothing is trimmed and the behaviour is exactly what it was. Deleting every agent
-// line because a channel went quiet is a worse failure than the one being fixed.
-let _pendingVoiced = null;     // { full, heard } — the line the voice still owes us
-let _captionSeen = false;      // the audio-synced channel has proven itself in THIS session
+// ⚠️ IT CANNOT ERASE ON ABSENCE OF EVIDENCE, and that guard is PER LINE rather than per session: a line
+// is only removed when the caption counter has MOVED since it was painted — i.e. the voice demonstrably
+// said something else. On a build where the synchronizer is off, or a transport that never forwards it,
+// the counter never moves and nothing is ever trimmed. Deleting every agent line because a channel went
+// quiet would be a worse failure than the one being fixed.
+//
+// (A session-wide «have we ever seen a caption» flag lived here first and its disarm came back GREEN —
+// the per-line counter already covered every case it did. Two guards for one thing, one of them
+// unmeasurable, so it went.)
+let _pendingVoiced = null;     // { full, heard, capAt } — the line the voice still owes us
 
 /** One audio-synced caption segment: what the operator is HEARING, cumulative, `final` at the end of the
  *  utterance (including an utterance cut short — that is the whole point). */
 export const noteSpokenAloud = (text, final) => {
-  _captionSeen = true;
   if (!_pendingVoiced) return;
   const heard = _normAgent(text);
   if (!heard || !_normAgent(_pendingVoiced.full).startsWith(heard)) return;   // not this line's speech
@@ -762,9 +765,15 @@ export const noteSpokenAloud = (text, final) => {
 /** The line stops being owed: trim it to what was heard, or remove it if nothing was. */
 export const settleAgentSpoken = () => {
   const p = _pendingVoiced; _pendingVoiced = null;
-  if (!p || !_captionSeen) return;
+  if (!p) return;
   const full = _normAgent(p.full), heard = _normAgent(p.heard);
   if (!full || heard === full) return;                       // it said all of it
+  // REMOVAL NEEDS EVIDENCE THE VOICE WAS BUSY ELSEWHERE, not merely a silent channel. If not one caption
+  // segment has arrived since this line was painted, we cannot tell «it was never said» from «nobody
+  // told us», and the two have opposite right answers. In the measured case the distinction is real: the
+  // cancelled reply at +157.1 s was followed by the filler «Sí…» and by the next turn's own speech, so
+  // the counter had moved several times over.
+  if (!heard && _capSeq === p.capAt) return;
   setChatMsgs(xs => {
     const k = xs.findIndex(m => m.role === "agent" && _normAgent(m.text) === full);
     if (k < 0) return xs;                                    // already replaced by the spoken transcript
@@ -792,14 +801,14 @@ export const pushAgentChat = (text, opts) => {
       }
       if (a && b && a.startsWith(b)) return xs;                        // a shorter re-send of the same line
       if (a && b && b.startsWith(a)) {                                 // the new one EXTENDS what is rendered → replace
-        if (_pendingVoiced && _normAgent(_pendingVoiced.full) === a) _pendingVoiced.full = text;
+        if (_pendingVoiced && _normAgent(_pendingVoiced.full) === a) _pendingVoiced.full = text;   // same line, longer
         return _capChat([...xs.slice(0, -1), { role: "agent", text }]);
       }
     }
     return _capChat([...xs, { role: "agent", text }]);
   });
   // Marked AFTER the write, so a line merged into its predecessor is owed under its final wording.
-  if (o.voiced) _pendingVoiced = { full: text, heard: "" };
+  if (o.voiced) _pendingVoiced = { full: text, heard: "", capAt: _capSeq };
 };
 
 // Convenience helpers used across services (mirror the old showAlert/hideAlert/setConn).

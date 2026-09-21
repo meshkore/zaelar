@@ -78,15 +78,28 @@ const reset = () => store.setChatMsgs(() => []);
 // earlier, so the utterance was cancelled before its first frame — and the wall kept the whole thing.
 {
   reset();
-  store.pushCaptionSeg("seg-a", "Sí…", true);                       // the channel proves it works (a filler)
   store.pushAgentChat("Me alegra que lo veas mejor, y tienes razón en lo de las dos frases.",
                       { voiced: true });
   assert.equal(agentLines().length, 1, "it is painted at once — that speed is what V2-116 bought");
 
-  store.pushAgentChat("Te tomo nota de las dos cosas.", { voiced: true });   // the NEXT reply settles it
+  store.pushCaptionSeg("seg-filler", "Sí…", true);                  // +161.9 s: the NEXT turn's filler sounds
+  store.pushAgentChat("Te tomo nota de las dos cosas.", { voiced: true });   // …and its reply settles this
   assert.deepEqual(agentLines(), ["Te tomo nota de las dos cosas."],
     "THE BUG: «no ha llegado ni a sonar» and it stayed on the wall anyway. A line the voice never opened " +
     "its mouth for must not exist");
+}
+
+// ══ 3b · …BUT SILENCE ON THE CHANNEL IS NOT PROOF THAT NOTHING WAS SAID ═════════════════════════════
+// The distinction that keeps group 3 from becoming a way to lose replies: if not one caption segment has
+// arrived since the line was painted, «it was never said» and «nobody told us» are indistinguishable, and
+// they have opposite right answers. Removal needs evidence that the voice was busy elsewhere.
+{
+  reset();
+  store.pushAgentChat("Una respuesta sobre la que no llega ni una sola pista.", { voiced: true });
+  store.pushAgentChat("La siguiente.", { voiced: true });
+  assert.deepEqual(agentLines(), ["Una respuesta sobre la que no llega ni una sola pista.", "La siguiente."],
+    "with no caption movement at all since it was painted, the line stays: absence of evidence is not " +
+    "evidence of absence");
 }
 
 // ══ 4 · A LINE CUT IN HALF IS KEPT AT THE POINT THE VOICE STOPPED ═══════════════════════════════════
@@ -125,16 +138,18 @@ const reset = () => store.setChatMsgs(() => []);
   assert.deepEqual(agentLines(), [said], "a complete reply keeps its text, with no ellipsis and no trim");
 }
 
-// ══ 7 · IT CANNOT ERASE ON ABSENCE OF EVIDENCE ══════════════════════════════════════════════════════
+// ══ 7 · A WHOLE SESSION WITH NO CAPTION CHANNEL IS UNTOUCHED ═══════════════════════════════════════
 // The failure mode that would be worse than the one being fixed: a build where the synchronizer is off,
-// or a transport that never forwards it, must keep every line exactly as it does today.
+// or a transport that never forwards it, must keep every line exactly as it does today. Group 3b proves
+// the per-line half of this; here it is the whole session, in a module that never sees one segment.
 {
   const fresh = await import("../../../../frontend/app/core/store.js?no-captions=1");
   fresh.setChatMsgs(() => []);
-  fresh.pushAgentChat("Una respuesta entera que nadie va a poder confirmar.", { voiced: true });
-  fresh.pushAgentChat("La siguiente.", { voiced: true });
+  for (const line of ["Una respuesta entera.", "Otra.", "Y otra más."]) {
+    fresh.pushAgentChat(line, { voiced: true });
+  }
   const lines = fresh.chatMsgs().filter(m => m.role === "agent").map(m => m.text);
-  assert.deepEqual(lines, ["Una respuesta entera que nadie va a poder confirmar.", "La siguiente."],
+  assert.deepEqual(lines, ["Una respuesta entera.", "Otra.", "Y otra más."],
     "with no caption channel ever heard from, NOTHING is trimmed — silence is not proof that nothing " +
     "was said, and erasing the wall on it would be the worse bug");
 }
@@ -149,4 +164,4 @@ const reset = () => store.setChatMsgs(() => []);
     "a notification or a text-channel reply is not a promise of speech and must never be swept");
 }
 
-console.log("ok — the wall is a transcript of the voice (8 groups)");
+console.log("ok — the wall is a transcript of the voice (9 groups)");
