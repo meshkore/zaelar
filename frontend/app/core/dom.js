@@ -15,6 +15,18 @@ function bind(v, apply) {
 function toNode(v) {
   if (v == null || v === false) return null;
   if (v instanceof Node) return v;
+  // A FUNCTION here is a wiring mistake, and it used to be a SILENT one: `String(fn)` is the function's own
+  // source, so the panel painted its render code at the operator and nothing threw, nothing logged, and every
+  // test of that panel stayed green (2026-09-21, the «Tareas» tab — V2-738). A function is a reactive binding
+  // only as a DIRECT child of `h()`; returned inside an array it arrives here, where there is no anchor to
+  // own a nested region and no disposer to retire it on the next run, so it cannot simply be made reactive.
+  // It is refused LOUDLY instead: wrap it in its own element and let `h()` bind it, which is the shape that
+  // already works — and `pageerror`/console is where a browser test can see it.
+  if (typeof v === "function") {
+    console.error("dom.js: a FUNCTION reached toNode(). Wrap it in its own h() so it becomes a reactive "
+                  + "child instead of being painted as source:", v);
+    return null;
+  }
   return document.createTextNode(String(v));
 }
 

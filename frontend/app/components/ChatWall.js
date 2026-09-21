@@ -305,7 +305,13 @@ export function ChatWall() {
     // Creating a periodic task BY HAND stays available under the sub-tab it belongs to. The normal way is
     // to say it out loud — the agent proposes the cadence and says it back — but a form the operator can
     // reach is what makes an agent-proposed cadence correctable without a conversation.
-    () => (store.taskScope() === "recurring" || store.taskScope() === "scheduled"
+    // It is wrapped in a slot rather than returned as a bare function from this array: `dom.js` treats a
+    // function as a reactive binding only as a DIRECT child of `h()`. Inside an array it reaches `toNode`,
+    // which ends in `String(v)` — and the operator spent a session looking at this arrow's SOURCE CODE
+    // printed across the bottom of his panel (2026-09-21 02:22). The slot also keeps the re-render where it
+    // belongs: switching sub-tab rebuilds this form, not the list and the sub-tab bar above it.
+    h("div", { class: "cron-slot" },
+      () => (store.taskScope() === "recurring" || store.taskScope() === "scheduled"
       ? h("div", { class: "cron-add" },
           h("input", { ref: el => (schedEl = el), class: "cron-in", placeholder: () => t("chat.cronWhenPlaceholder") }),
           h("input", { ref: el => (cnameEl = el), class: "cron-in", placeholder: () => t("chat.cronNamePlaceholder") }),
@@ -313,7 +319,7 @@ export function ChatWall() {
             placeholder: () => t("chat.cronPromptPlaceholder") }),
           h("button", { class: "cron-create", onClick: cronAdd }, () => t("chat.scheduleBtn")),
         )
-      : null),
+      : null)),
   ];
 
   // ── creating a PERIODIC/SCHEDULED task by hand (V2-728: the former Crons tab's form, under its sub-tab) ──

@@ -21,6 +21,7 @@ entregada siga citada aquí.
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **Un panel que pinta su propio código fuente — y una sesión que medía un motor de hace catorce commits (V2-738, 2026-09-21)**: el operador, tras una sesión local: *«no se transcribe el texto en el chat, parece que hay algún error de entendimiento, no se abren los widgets, el sistema ahora mismo está muy roto»*. Tres quejas, y **el hallazgo que más vale es que dos de las tres medían código que no estaba corriendo**. Los 312 eventos de esa sesión están estampados `ver: 3.33+eacc5381`; el disco estaba en `89bc8eca`, **catorce commits después**. Un proceso de Python carga sus módulos una vez; el **frontend se sirve del disco en cada petición** (`RevalidatingStatics`, `cache-control: no-cache`), así que su navegador tenía el JavaScript de HOY hablando con un motor de hacía cuatro horas. Ese desfase no es un detalle: *«y tú hablas en latino»* —una de sus quejas de esa misma sesión— es literalmente el asunto de **V2-734**, uno de los commits que el proceso vivo no tenía. Y el motor, turno a turno, estaba limpio: los ocho turnos emitieron su `transcript` **y** su veredicto `ambient`, **los ocho `directed: true`**; `widget/show youtube` salió tres veces y el auditor susurro registró `widget_acted=True, shown_ids=['youtube']`. **El defecto que SÍ era real** está en el cliente y es de clase: `dom.js` acepta una función como hijo y la trata como enlace reactivo, pero **solo como hijo DIRECTO de `h()`**; devuelta dentro de un ARRAY llega a `toNode`, cuya última línea era `createTextNode(String(v))`. `ChatWall.js` (V2-728) devuelve exactamente eso, así que la pestaña «Tareas» **pintaba el código fuente de la flecha** a lo ancho del panel. No lanzaba nada, no registraba nada — y **el nodo 4.193 renderiza ese panel, entra en las dos sub-pestañas donde ocurre, recoge `pageerror` y pasaba**, porque asertaba sobre las cuatro listas y nunca sobre el formulario que la flecha debía construir: *una aserción apuntada a la costura equivocada no puede fallar*, la misma clase que la ruta muerta con la que empezó V2-726. Arreglado envolviendo el condicional en su propio `h("div")` —la forma que `dom.js` ya enlaza— y, sobre todo, **`toNode` ahora RECHAZA una función en voz alta** (`console.error`, nada pintado) en vez de convertirla: deliberadamente NO se vuelve reactiva ahí, porque un elemento de array no tiene ancla que posea una región anidada ni desechador que la retire en la siguiente pasada, y «hazla reactiva» cambiaría un fallo visible por efectos que se fugan. ⚠️ **Lo que NO se afirma**: las otras dos quejas NO están reproducidas. La cadena del cliente en disco pinta bien un turno dirigido — eso es lo que mide el **nodo 4.197 nuevo**, que conduce la página REAL con sus cuatro frases reales y lee el DOM, y que está desarmado (quitando el `pushChat` del `deliver` de `sse.js` caen tres de sus cinco). `attention_hold.js` estaba bien cubierto, pero allí «entregado» significa «se llamó al callback», y el callback es un doble: de ahí a una burbuja pintada hay cuatro costuras más que fallan todas en silencio. ⚠️ **Y una trampa del propio cierre, por segunda noche seguida**: archivar por bloques se tragó dos encabezados del índice, porque el límite de un bloque no está donde parece — va hasta el siguiente `- **` **o hasta cualquier encabezado**. Lo cazó el trinquete, y se rehízo desde el snapshot §20 verificado por sha. ⚠️ **Y el agujero que esto encontró y no cierra**: **una excepción de JavaScript en el cliente es invisible para la observabilidad** — no hay puente de `window.onerror`/`unhandledrejection` a `emit`, así que la línea de tiempo de una sesión no distingue «al cliente no le llegó» de «el cliente petó». Tres de las cuatro quejas de esa noche hubo que resolverlas leyendo código porque el único sitio que las habría contestado en una línea no existe. Merece su propio cambio.
 - **A decision model is only worth its round trip where the ROUND TRIP is free — V2-726's audit, executed (2026-09-21)**: an outside audit (Astra 6) of where Jev sits, re-checked line by line against the code: **nine findings, nine confirmed**, two sharpened and one blocker corrected. What it found was not a broken integration but a set of things that were true of the CODE and false of the TURN. **(1) The brief classified a FRAGMENT.** It was fired at the top of the turn — before echo suppression, before the accumulator — while the model was handed `text = _merged` a hundred and seventy lines later. «Ponme música» fired it; «de los ochenta» arrived three seconds afterwards. It fires at the ADMITTED sentence now, and nothing is lost by waiting: the prompt is assembled 3 ms after admission and every reader is 2-4 s away behind the model's own TTFT. **(2) The state it carried was false**: `has_workers`/`ask_pending` were never passed, so the escalate question said «no worker is waiting» on every turn — including the turns where one was, which is exactly the shape that must not become a second worker. **(3) The filler opened a SECOND socket** for the same words, one second later, read at the same deadline: two trips per turn became one. **(4) A confident `handle_inline` cleared the commission with no completion evidence** — and by then the operator had HEARD a reply that usually promises the errand, so the gate built to prevent wasted work was producing the oldest failure in this engine: a promise with nothing on the board. It needs evidence now (an uncovered promise vetoes; a real inline result allows; neither keeps it), every commission ends in a NAMED disposition, and no second model referees. **(5) The route pre-choice was REMOVED, not repaired**: it never reached the wire once in 312 real calls (four positional args into a one-positional signature, eaten by its own `except`), and F0a had already measured its question away — a full stable catalog beats trimming, because the trim breaks the prefix cache to save a prefill cheaper than the trip. Repairing it would have reinstated a cancelled design. **(6) The screen question is keyed by INSTANCE**, carries what each card is SHOWING and only actions POSSIBLE NOW; with nothing open its twin asks which widget of the catalogue is NAMED, using the alias table (V2-082) that already existed and had never been handed to the chooser — the direct cause of «ábreme el vídeo» scoring 0/8 at 0.52-0.61, which is ABOVE the gate and therefore acted on. **(7) Nothing recorded whether a verdict was USED**: `jev.read` computed `info["used"]` and every consumer threw it away, the brief event reported `max()` confidence across its questions, and no handle carried an id — so «these two events are the same turn» was a claim about clocks. Every trip has a `call_id`, every read leaves one bounded event with WHY, and `select_many` stopped answering `[]` to «nothing fits», «no key», «network down» and «switched off» alike. **(8) A worker could not reach any of it**: `nucleo/workers/`, `errands/` and `research.py` mention Jev nowhere, because a Brain Worker is a subprocess that talks to the engine only through `/api/worker/act`. One new allowed action — not a second client, not a new bridge, not a model inside the worker — plus `jev.decide()` with eight statuses where three are ANSWERS and five ABSENCES. **(9) A voice turn whose brief failed to build could still reach a blocking `urlopen`** from inside the provider's `async def`; the static ratchet could not see it because the provider names the wrapper, not the call inside it. ⚠️ **The rule this whole pass turns on**: Jev serves what is decided AFTER the model. Nothing decided before it can wait 800 ms for a verdict when the catalog is settled at 381 — so «put the classifier in front» is not a smaller version of this design, it is the opposite one. ⚠️ **And the testing lesson, paid for four times in one night**: a disarm that stays GREEN accuses the TEST. Four did — one asserted on the brief's transport while the blocking call goes out the single-question door; one asserted an action `results` never offers at all; one asserted a word YouTube's own description also contains, so deleting the alias list changed nothing; and one aimed at `decide`'s membership check when `_parse` already blanks an invented id one layer down. Same class as the dead route the audit started from: an assertion aimed at the wrong seam cannot fail. ⚠️ **Three defects the tests found while being written**: a negated promise («no voy a buscarlo») read as a commitment, because `promises_action` runs through `unnegated_match` and `a_promise_left_hanging` does not; the possible-now filter asked «which key identifies this call» instead of «which key names an EXISTING row», which deleted every CREATION action from an empty widget; and `worker_bridge decide` first took inline JSON, which the worker's own prompt says in capitals our permission gate rejects — the door would have been unusable by the only process it was built for. ⚠️ **And a live call escaped during development**: a three-line smoke test of `decide` hit the real API and wrote an event into the operator's timeline, removed by hand. A smoke test is a test. Nodes 3.61-3.65 and 3.69-3.71; 16 red widget tests triaged to 1 (twelve were a fixture with an expiry date nobody wrote down, two were `radius == 0` read as «names one thing», one was a confirmation decided by heuristic instead of declaration). **What is NOT claimed**: the pilot's A/B against the old path and the effectiveness bench have not been run — both need live, paid runs, and the first numbers become the baseline everything after is compared to.
 
 - **Every piece was green while the CHAIN was broken — the use case is what closed V2-728 (2026-09-20)**: the five things left open the same morning, done. The one that mattered is the test: `tasks_store` stored, the seam translated, `task_recall` narrowed, the tab rendered — four green files, and nobody was asserting that they agreed about the same task. `test_the_flat_hunt_he_told_me_about.py` walks the operator's own sentence end to end (commission → live row with its start time → report with five kept and fifty rejected → close → the sheet cap prunes it off disk → «enséñame lo del piso que te dije» rebuilds it), and it found two real breaks on its first run: without a declared `surface` the errand seals no sheet, so there was nothing to snapshot; and a worker does not carry its sheet in its spec — it resolves it from its own task id, which the test had to do too or it would have been writing into a box the product never reads. **Four more closures.** (1) **The memory pill.** `tasks` answers «which task do these WORDS name» and is only consulted once he has said he means a task; recall answers «what bears on what he just said» and runs every turn unasked. Before the pill, «¿encontraste algo de pisos?» — a sentence that never says *tarea* — retrieved the conversation and not the errand that went and found five. It is a NORMAL pill, so the writer derives its graph edges with the same `derive_concepts` backstop every durable pill gets: «que todo eso quede vinculado» is that edge set, not a bespoke join. It supersedes its own earlier chapters (`memory.api.task_trace_ids`), because a commission can close twice and recall would otherwise serve «no encontró nada» beside «encontró 5 pisos» — V2-577's failure with a different prefix. And `meta.task_id` is a FIELD and not an `edges` row for the honest reason that an edge joins two MEMORY ids and a task is not one. (2) **The button.** «Le da el botón y ve los datos derivados» had nowhere to call — a voice tool is not reachable from a click. `POST /api/tasks/reopen` rebuilds the sheet and then emits the same `widget/show` the brain emits, rather than answering with an id: one door, so it reaches the mobile shell and lands on the observability timeline. The row draws it only when the board says `has_results`, because a button that opens nothing is worse than no button. (3) **The discarded ones**, which the operator asked for by name and which the earlier pass declared out of reach: it was a change to what the worker REPORTS, and that is a prompt and a widget action (`rejected`, `{title, url, why, source}`, reported as it goes, `why` mandatory — a list of names with no reasons is not an audit, it is a longer list). They never enter the results LIST, which is the selection; they render under the count that was already in the Summary tab. (4) **The calendar** now READS the task table instead of anything being copied into it (`_system_tasks`), dotted and in its own hue — never as a meeting, because nobody is meeting anybody. The subtlety is the filter: every appointment schedules its own notice, which is a scheduled task like any other and would mark the calendar twice for one meeting, so `scheduler.create` now carries an `origin`. ⚠️ **And the worker ledger is retired** — `nucleo/workers/ledger.py`, `/api/workers/history` and `workersHistory()` are gone. The interesting part is its FENCE: `clear()` stamped «wiped at T» into `sys_kv` and every writer had to remember to compare against it, because a reset kills the workers and the dying one writes its tombstone onto the fresh slate milliseconds later (seen live 2026-08-31). A rule each writer has to remember is not a rule. The table lets the question be asked directly — **does this task still exist?** — and a row the reset deleted is not one to be closed, so nothing downstream runs either: no orphan report, no memory pill about a commission he just erased. **The sheet cap stopped being a data-loss cap** (8 → 40) and gained the guard recency only approximates: a LIVE errand's sheet is never pruned, because there the sheet is not a rebuildable view but the box the worker is writing into, whose snapshot does not exist yet. The ratchets did their job twice: `memory.api.__all__` refused `task_trace_ids` until it was declared with its reason, and the loop's injection test passed a hook with the wrong arity — `consolidate` calls it inside a `try/except` that logs at DEBUG, so a mismatched signature does not fail, it silently stops pruning forever; the assert now CALLS the hook the way the consolidator does. Node 3.66 grew the chain test; the fence test moved to `test_a_reset_leaves_the_board_blank.py`. Seven disarms, all red. **Still open, and unchanged**: the scheduler's storage.
@@ -2935,140 +2936,9 @@ entregada siga citada aquí.
   moved off the boundary (1440×900). ⚠️ A sweep also showed 19 transient reds from another session
   mid-WRITE on mensajería's widget.js — non-reproducible, its 181 green on re-run.
 
-- **The skin is DATA: design profiles in ⚙ Apariencia, custom knobs, and the graphite default (V2-617,
-  2026-09-08)**: the operator's direction after approving the visual pitch — not one theme but a SYSTEM:
-  selectable profiles where the LLM config lives, everything customizable (accent, type size, typeface),
-  applied INTEGRALLY («no lo apliques en unas cajitas sí, en otras no») with user widgets adopting it by
-  default. What sized the job: styles.css already made 402 token reads and every widget + both shells link
-  ONE `core/palette.css` — so the whole ask is three data layers, not a rewrite.
-  - **palette.css** ships the new default («grafito»: warm near-black, four real elevation levels,
-    heliotrope accent, amber highlights-only, light re-derived as warm paper) plus new tokens: root size
-    `--hb-fs-base`, the `--fs-*` scale, radii, and the desktop ground layers. **core/themes.js** is the
-    profile catalog — `grafito` (an EMPTY override map: the stylesheet is the profile, one source of truth),
-    `clasico` (the exact old navy, kept whole so nobody loses today's look), `ambar` — plus `customVars()`
-    for the knobs. **services/theme.js** writes profile+custom as inline custom properties on `<html>`
-    (inline beats the stylesheet → one swap repaints every token reader, generated widgets included), tracks
-    applied keys so a profile never BLEEDS into the next, and persists two layers: localStorage (instant
-    paint) and the ACCOUNT's copy in settings.json via /api/settings, which wins on the boot reconcile.
-  - **The sanitizer is a security seam, not tidiness**: the stored theme dict is echoed into inline CSS on
-    every client that loads the account, so `settings.py` shape-checks slug/hex/enum on write AND read —
-    stored style injection is the attack.
-  - **The desktop**: `html{font-size:var(--hb-fs-base)}` + all 174 `font-size` declarations converted to rem
-    (scripted), so the S/M/L knob scales everything; token-driven ground (masked dot grid + accent halo);
-    chat tabs at UI scale wearing the accent; the composer at body scale; the **widget rail's tools became
-    21px silhouette SVGs in 44px targets** — the orb lid's language; his report on the 30px/11px text glyphs
-    was «no logro entender ninguno». ⚠️ The bigger tabs overflowed the 420px docked header and buried the
-    ⧉/× buttons — the V2-608 suite caught it (that exact unreachable-close test), fixed with
-    `min-width:0` + own overflow scroll. The generator contract + widgets/AGENTS.md now bind NEW widgets to
-    `var(--sans)` and rem, so the knobs reach them by default.
-  - Node **4.130** (8 rendered cases mounting the REAL modules served from disk — the probe asserts the
-    RESOLVED color of a token consumer, which catches an override key drifting from a token name — + 4
-    backend). Six disarms, all red. ⚠️ Two test traps paid: Playwright consults routes LAST-registered-first
-    (the catch-all swallowed /api/settings), and the first fixture hand-wrote the `html{font-size}` rule it
-    existed to test — the real styles.css is linked now. Sweeps: tests/browser 1577 + mensajería 152, green.
-  - **Open, named**: per-widget custom skins and desktop wallpaper images (user freedom on top of the
-    system); the hand re-scale of legacy micro-type to the `--fs-*` steps; the 14 shipped widgets still
-    hardcode their font stacks (new ones are bound; the sweep is its own pass).
-
-- **The music widget goes pro — a shared artist is said ONCE, and the play button lives on the art
-  (V2-612, 2026-09-07)**: operator's screenshot, a real playlist ("True Blue") where every row read
-  literally "Madonna Papa Don't Preach" — the artist baked into `title` with no separator, `artist` empty on
-  every row. Root cause: `add_to_playlist{query}` (V2-384's "one call is all the model gets") falls back to
-  `title = query` when neither field is given explicitly, and a free-text search string has no reliable
-  machine boundary between artist and song — nothing here has music metadata to resolve it from.
-  - **`deriveArtistInfo(tracks)`** (`widgets/musica/widget.js`, RENDER-side only, data never touched): when
-    every track in a playlist shares the same artist — either a proper `artist` field, uniformly, or (the
-    legacy shape) the same leading word(s) in every `title` with something real left over after them — the
-    artist is said ONCE in the header ("Madonna · 3 canciones") and dropped from every row. Mixed metadata
-    quality or a genuinely mixed-artist playlist never triggers a guess: showing the data exactly as given
-    beats inventing a wrong split with false confidence.
-  - **The play button moved INSIDE the cover-art square** (`.hb-mus2-artwrap` + a circular fab anchored to
-    its corner), per the operator's literal words — not below the header as a separate pill. Every track row
-    (playlist, "Más escuchadas", "Recientes") now carries a `playing` state: a tint, an accent-colored
-    title, and an animated three-bar equalizer replacing the track number — the visible "is this the one
-    making sound" signal the operator asked for, everywhere a track can appear, not only the bottom bar
-    (which grew the same badge). **Click SELECTS a row (visual only, no `ctx.action`); double-click PLAYS
-    it** — a deliberate behavior change from single-click-plays, matching a desktop Spotify tracklist.
-  - **Forward fix, not a repair of what's already stored**: `_track_from_payload` (`data.py`) now splits an
-    EXPLICIT delimiter ("Artist - Title") into separate fields; plain concatenation with no delimiter is
-    left untouched on purpose. `manifest.json` now tells the model explicitly to pass `artist` in its own
-    field, never concatenated — teaching, not a hardcoded table.
-  - ⚠️ **A real, pre-existing grammar bug surfaced by the new tests, unrelated to the ask**: `canción` +
-    `"es"` produced "canciónes" (should drop the accent — "canciones") in both the list-card subtitle and
-    the playlist header; fixed because the tests asserted the literal rendered string.
-  - **i18n was raised mid-build by the operator** (this widget's UI is hardcoded Spanish, like every other
-    widget) and deliberately NOT touched here: confirmed via grep and this file's own V2-603 entry below
-    that the widget layer has zero `t()` seam anywhere, offered the operator a scoped choice, and the
-    operator chose to keep música consistent with the rest of the catalog for now — the seam itself is a
-    separate, real initiative (wiring `t()` into a bare-URL `import()`-ed module, its own render-test
-    harness support, bundle keys), not a drop-in fix inside a visual redesign.
-  - ⚠️ **Caught on the live visual check, not by reading**: a legacy merged-title row playing through a
-    CONNECTED provider never lit up — the provider reports its own clean, real title ("Papa Don't Preach"),
-    which never equals the stored merged one ("Madonna Papa Don't Preach"), so the ONE scenario the redesign
-    exists to fix was exactly the one the naive equality missed. `nowPlayingMatches` now also accepts a
-    SUFFIX match when the stored track has no separate artist field, requiring the leftover prefix to agree
-    with the now-playing artist (when known) so two unrelated songs sharing an ending cannot false-positive.
-  - Node 4.3 (+1 file, 17 RENDERED cases) + 3 data.py cases, six disarms verified red (artist derivation,
-    the click/dblclick split, the playing-row marker in both the playlist and the home lists, the suffix
-    match). `make test-widgets` stays green 14/14. **Verified live** on `3.26+60ce513`: rendered the exact
-    reported shape (a "True Blue" playlist with merged Madonna titles) against the real widget.js — header
-    says "Madonna · 5 canciones" once, rows read clean, the play button sits inside the cover art, and the
-    playing row lights up green with the equalizer, matching the bottom bar.
-
-- **Connecting an account is ONE step, and a failed data-op corrects the claim it already made (V2-603,
-  2026-09-06)**: session `e1acdcca` — nine minutes trying to connect YouTube, three browser windows, and the
-  account never connected. `video_oauth.json` did not exist and `/api/video/status` said
-  `app_configured: false`, so **every path was closed before the first word** and nothing said so. Between
-  11:19:19 and 11:20:47 the agent made **four claims of success and emitted one widget action**.
-  - **The brain had the VERBS and never the STATE.** `widgets/brief.py` shipped `connect_account` /
-    `open_connectors` every turn and never the fact that no app was registered. `_connector_briefs` injects
-    live state for **messaging only** — and its own docstring records that it exists because the brain
-    «invented "you have no important messages" while the widget was closed». Video is the third connector
-    family and never got the equivalent. Given a verb and no fact, the model narrates.
-  - **A failed data-op was DISCARDED.** `dispatch_tag` did `await brain_action(...)` and threw the value
-    away, so `connect_account`'s exact reason («sin app OAuth registrada») existed in-process, reached
-    observability as `widget/action_failed`, and reached nobody. Structural, not a slip: data-ops are
-    fire-and-forget, so **the turn speaks first and the op resolves after** — when it fails the sentence is
-    already wrong and nothing revisits it. Now `dispatch_and_report` announces it on the rails a finished
-    worker already uses, deduped 90 s, with a note that FORBIDS the claim rather than merely reporting.
-  - **A true sentence about the WRONG mechanism is the worst failure shape.** A worker drove the browser to
-    `accounts.google.com/signin` in the Playwright profile and the agent reported «la sesión se guardó en el
-    perfil del navegador» — true about that profile, and it produces no OAuth token. `brain_state` names
-    that trap explicitly, because a model cannot be expected to know the difference.
-  - **The redirect could only work on one machine**: hardcoded to `127.0.0.1:43917`, which on a managed
-    deployment is the OPERATOR's own computer. It follows the request origin now (validated
-    `scheme://host[:port]` — it is a header, so untrusted input landing in a URL we hand to Google) and
-    **rides under the OAuth state**, because the exchange must return the redirect that was authorized.
-  - **The wizard's first two steps were a Google Cloud project**, and step 2 was a dead end that told the
-    operator to go find ⚙ → Conectores himself. A shipped `builtin_client_id` (EMPTY until the operator
-    registers one — the connector still works, just the long way) makes it a single consent step; the
-    operator's own client always wins, which is what keeps the fair-code self-host story honest. **No
-    client_id field in the card**, deliberately: `widget.js` never touches the network (V2-557) and a
-    data-op never carries a credential (V2-520) — the fix was never to move the field, it was to stop
-    making him navigate. The callback refreshes the card itself, so the mandatory «Comprobar» is gone.
-  - **No environment detection**, though the ask was framed that way: the consent tries a pop-up and
-    degrades to a tappable link. One path that works self-hosted, in the cloud and on the PWA beats three
-    that each need their own testing.
-  - **«Perdona, ¿me lo repites?» ×4** — two faults in one string: it repeats (the sibling branch got
-    anti-repetition in V2-189 after the identical measured symptom) and it **blames the operator's speech
-    for a turn the model returned empty**. `mute_backstop` owns both branches so the two channels share the
-    decision instead of mirroring it, rotates, and after every variant admits it is stuck.
-  - **Routing**: `conecta` seeded `cluster` (MeshKore peers) and nothing else, so the most natural Spanish
-    word for linking an account retrieved peer-to-peer tools. And the widget's routing line was rewritten
-    **to fit** V2-547's 300-char budget — the first draft mentioned connecting only in its last sentence and
-    the trim ate exactly the half that routes this errand.
-  - Node **5.15** (22 cases, six disarms) + the V2-597 render tests updated to the new wizard (+3, two more
-    disarms). ⚠️ **One disarm came back GREEN and accused the TEST**: it only hit `dispatch_tag`'s guard
-    clause and never the real path. ⚠️ **And the first version polluted `sys.modules`** — `from voice import
-    brain_notes` reads the PACKAGE attribute, so a fake under the module name is ignored once anything else
-    imported the real one; it passed alone and failed in the full run. The architecture ratchet went red and
-    was paid by **extracting**: `nucleo.py` 3068→**3038**, `probe.py` 1144→**1137**.
-  - **NOT verified live** (needs a restart) and **the shipped client does not exist yet** — registering a
-    Google OAuth app owned by Zaelar is a business action and belongs in the workspace root's private repo.
-  - Left open and named: widget i18n (no `t()` seam exists in the widget layer at all — every widget's
-    strings are hardcoded, mensajería's wizard included), and the double browser for one intent, which is
-    V2-570's linear-gate family, not this one.
-
+- **The skin is DATA: design profiles in ⚙ Apariencia, custom knobs, and the graphite default (V2-617, 2026-09-08)** (2026-09-08; V2-617)
+- **The music widget goes pro — a shared artist is said ONCE, and the play button lives on the art (V2-612, 2026-09-07)** (2026-09-07; V2-612)
+- **Connecting an account is ONE step, and a failed data-op corrects the claim it already made (V2-603, 2026-09-06)** (2026-09-06; V2-603)
 ### Archived decisions — index (full text: `.meshkore/docs/decisions-archive.md`)
 
 #### Movidas el 2026-09-21 (V2-726)

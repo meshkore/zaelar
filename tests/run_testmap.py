@@ -2981,8 +2981,17 @@ DOMAINS: list[dict] = [
         # del store deja de mapear el nombre viejo. Un grep sobre el fuente no distingue una pestaña que se ve
         # de una que no (V2-690), y la primera versión de este test contaba NODOS: pasaba con cuatro etiquetas
         # en blanco, que es exactamente lo que produce una clave i18n que falta.
-        {"id": "4.193", "title": "La pestaña Tareas se PINTA con sus cuatro listas, y el numerito cuenta los encargos del operador",
+        {"id": "4.193", "title": "La pestaña Tareas se PINTA con sus cuatro listas, el numerito cuenta los encargos "
+                                 "del operador — y el panel NUNCA pinta su propio código fuente (V2-738)",
             "ch": UNIT, "paths": ["tests/browser/e2e/widgets/test_the_tasks_tab_renders_its_four_lists.py"]},
+        # V2-738 — «no se transcribe el texto en el chat» (operador, 2026-09-21 02:22). El motor era inocente:
+        # los ocho turnos emitieron su `transcript` y su veredicto `ambient`, y los ocho decían `directed: true`.
+        # Lo que NADIE medía era el resto de la cadena en el cliente: el `deliver` de attention_hold está probado
+        # con un doble, y de ahí a la burbuja pintada hay cuatro costuras más (pushChat → señal → efecto →
+        # replaceChildren) que fallan todas en silencio. Renderiza la página REAL y lee el DOM.
+        {"id": "4.197", "title": "Un turno DIRIGIDO llega a la pared pintada — y el de la habitación no (la cadena "
+                                 "entera del cliente, no el doble de `deliver`)",
+            "ch": UNIT, "paths": ["tests/browser/e2e/chat/test_a_directed_turn_reaches_the_painted_wall.py"]},
         {"id": "4.150", "title": "The operator's voice (F0, shadow): browser-side fingerprint, multi-profile "
                                  "classification, self-voice suppression and a continuous distance — logged, "
                                  "never gated",

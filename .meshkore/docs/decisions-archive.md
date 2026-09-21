@@ -8754,3 +8754,138 @@ entries out, their one-line index left in `decisions.md`; nothing edited on the 
   - **NOT verified live** — needs an engine restart. First check: with the real 1081-unread backlog still
     orphaned, press Reset and confirm a fresh backlog lands on the next poll tick with no manual restart.
 
+## Moved on 2026-09-21 (V2-738 — the living log crossed its ceiling again)
+
+- **The skin is DATA: design profiles in ⚙ Apariencia, custom knobs, and the graphite default (V2-617,
+  2026-09-08)**: the operator's direction after approving the visual pitch — not one theme but a SYSTEM:
+  selectable profiles where the LLM config lives, everything customizable (accent, type size, typeface),
+  applied INTEGRALLY («no lo apliques en unas cajitas sí, en otras no») with user widgets adopting it by
+  default. What sized the job: styles.css already made 402 token reads and every widget + both shells link
+  ONE `core/palette.css` — so the whole ask is three data layers, not a rewrite.
+  - **palette.css** ships the new default («grafito»: warm near-black, four real elevation levels,
+    heliotrope accent, amber highlights-only, light re-derived as warm paper) plus new tokens: root size
+    `--hb-fs-base`, the `--fs-*` scale, radii, and the desktop ground layers. **core/themes.js** is the
+    profile catalog — `grafito` (an EMPTY override map: the stylesheet is the profile, one source of truth),
+    `clasico` (the exact old navy, kept whole so nobody loses today's look), `ambar` — plus `customVars()`
+    for the knobs. **services/theme.js** writes profile+custom as inline custom properties on `<html>`
+    (inline beats the stylesheet → one swap repaints every token reader, generated widgets included), tracks
+    applied keys so a profile never BLEEDS into the next, and persists two layers: localStorage (instant
+    paint) and the ACCOUNT's copy in settings.json via /api/settings, which wins on the boot reconcile.
+  - **The sanitizer is a security seam, not tidiness**: the stored theme dict is echoed into inline CSS on
+    every client that loads the account, so `settings.py` shape-checks slug/hex/enum on write AND read —
+    stored style injection is the attack.
+  - **The desktop**: `html{font-size:var(--hb-fs-base)}` + all 174 `font-size` declarations converted to rem
+    (scripted), so the S/M/L knob scales everything; token-driven ground (masked dot grid + accent halo);
+    chat tabs at UI scale wearing the accent; the composer at body scale; the **widget rail's tools became
+    21px silhouette SVGs in 44px targets** — the orb lid's language; his report on the 30px/11px text glyphs
+    was «no logro entender ninguno». ⚠️ The bigger tabs overflowed the 420px docked header and buried the
+    ⧉/× buttons — the V2-608 suite caught it (that exact unreachable-close test), fixed with
+    `min-width:0` + own overflow scroll. The generator contract + widgets/AGENTS.md now bind NEW widgets to
+    `var(--sans)` and rem, so the knobs reach them by default.
+  - Node **4.130** (8 rendered cases mounting the REAL modules served from disk — the probe asserts the
+    RESOLVED color of a token consumer, which catches an override key drifting from a token name — + 4
+    backend). Six disarms, all red. ⚠️ Two test traps paid: Playwright consults routes LAST-registered-first
+    (the catch-all swallowed /api/settings), and the first fixture hand-wrote the `html{font-size}` rule it
+    existed to test — the real styles.css is linked now. Sweeps: tests/browser 1577 + mensajería 152, green.
+  - **Open, named**: per-widget custom skins and desktop wallpaper images (user freedom on top of the
+    system); the hand re-scale of legacy micro-type to the `--fs-*` steps; the 14 shipped widgets still
+    hardcode their font stacks (new ones are bound; the sweep is its own pass).
+
+- **The music widget goes pro — a shared artist is said ONCE, and the play button lives on the art
+  (V2-612, 2026-09-07)**: operator's screenshot, a real playlist ("True Blue") where every row read
+  literally "Madonna Papa Don't Preach" — the artist baked into `title` with no separator, `artist` empty on
+  every row. Root cause: `add_to_playlist{query}` (V2-384's "one call is all the model gets") falls back to
+  `title = query` when neither field is given explicitly, and a free-text search string has no reliable
+  machine boundary between artist and song — nothing here has music metadata to resolve it from.
+  - **`deriveArtistInfo(tracks)`** (`widgets/musica/widget.js`, RENDER-side only, data never touched): when
+    every track in a playlist shares the same artist — either a proper `artist` field, uniformly, or (the
+    legacy shape) the same leading word(s) in every `title` with something real left over after them — the
+    artist is said ONCE in the header ("Madonna · 3 canciones") and dropped from every row. Mixed metadata
+    quality or a genuinely mixed-artist playlist never triggers a guess: showing the data exactly as given
+    beats inventing a wrong split with false confidence.
+  - **The play button moved INSIDE the cover-art square** (`.hb-mus2-artwrap` + a circular fab anchored to
+    its corner), per the operator's literal words — not below the header as a separate pill. Every track row
+    (playlist, "Más escuchadas", "Recientes") now carries a `playing` state: a tint, an accent-colored
+    title, and an animated three-bar equalizer replacing the track number — the visible "is this the one
+    making sound" signal the operator asked for, everywhere a track can appear, not only the bottom bar
+    (which grew the same badge). **Click SELECTS a row (visual only, no `ctx.action`); double-click PLAYS
+    it** — a deliberate behavior change from single-click-plays, matching a desktop Spotify tracklist.
+  - **Forward fix, not a repair of what's already stored**: `_track_from_payload` (`data.py`) now splits an
+    EXPLICIT delimiter ("Artist - Title") into separate fields; plain concatenation with no delimiter is
+    left untouched on purpose. `manifest.json` now tells the model explicitly to pass `artist` in its own
+    field, never concatenated — teaching, not a hardcoded table.
+  - ⚠️ **A real, pre-existing grammar bug surfaced by the new tests, unrelated to the ask**: `canción` +
+    `"es"` produced "canciónes" (should drop the accent — "canciones") in both the list-card subtitle and
+    the playlist header; fixed because the tests asserted the literal rendered string.
+  - **i18n was raised mid-build by the operator** (this widget's UI is hardcoded Spanish, like every other
+    widget) and deliberately NOT touched here: confirmed via grep and this file's own V2-603 entry below
+    that the widget layer has zero `t()` seam anywhere, offered the operator a scoped choice, and the
+    operator chose to keep música consistent with the rest of the catalog for now — the seam itself is a
+    separate, real initiative (wiring `t()` into a bare-URL `import()`-ed module, its own render-test
+    harness support, bundle keys), not a drop-in fix inside a visual redesign.
+  - ⚠️ **Caught on the live visual check, not by reading**: a legacy merged-title row playing through a
+    CONNECTED provider never lit up — the provider reports its own clean, real title ("Papa Don't Preach"),
+    which never equals the stored merged one ("Madonna Papa Don't Preach"), so the ONE scenario the redesign
+    exists to fix was exactly the one the naive equality missed. `nowPlayingMatches` now also accepts a
+    SUFFIX match when the stored track has no separate artist field, requiring the leftover prefix to agree
+    with the now-playing artist (when known) so two unrelated songs sharing an ending cannot false-positive.
+  - Node 4.3 (+1 file, 17 RENDERED cases) + 3 data.py cases, six disarms verified red (artist derivation,
+    the click/dblclick split, the playing-row marker in both the playlist and the home lists, the suffix
+    match). `make test-widgets` stays green 14/14. **Verified live** on `3.26+60ce513`: rendered the exact
+    reported shape (a "True Blue" playlist with merged Madonna titles) against the real widget.js — header
+    says "Madonna · 5 canciones" once, rows read clean, the play button sits inside the cover art, and the
+    playing row lights up green with the equalizer, matching the bottom bar.
+
+- **Connecting an account is ONE step, and a failed data-op corrects the claim it already made (V2-603,
+  2026-09-06)**: session `e1acdcca` — nine minutes trying to connect YouTube, three browser windows, and the
+  account never connected. `video_oauth.json` did not exist and `/api/video/status` said
+  `app_configured: false`, so **every path was closed before the first word** and nothing said so. Between
+  11:19:19 and 11:20:47 the agent made **four claims of success and emitted one widget action**.
+  - **The brain had the VERBS and never the STATE.** `widgets/brief.py` shipped `connect_account` /
+    `open_connectors` every turn and never the fact that no app was registered. `_connector_briefs` injects
+    live state for **messaging only** — and its own docstring records that it exists because the brain
+    «invented "you have no important messages" while the widget was closed». Video is the third connector
+    family and never got the equivalent. Given a verb and no fact, the model narrates.
+  - **A failed data-op was DISCARDED.** `dispatch_tag` did `await brain_action(...)` and threw the value
+    away, so `connect_account`'s exact reason («sin app OAuth registrada») existed in-process, reached
+    observability as `widget/action_failed`, and reached nobody. Structural, not a slip: data-ops are
+    fire-and-forget, so **the turn speaks first and the op resolves after** — when it fails the sentence is
+    already wrong and nothing revisits it. Now `dispatch_and_report` announces it on the rails a finished
+    worker already uses, deduped 90 s, with a note that FORBIDS the claim rather than merely reporting.
+  - **A true sentence about the WRONG mechanism is the worst failure shape.** A worker drove the browser to
+    `accounts.google.com/signin` in the Playwright profile and the agent reported «la sesión se guardó en el
+    perfil del navegador» — true about that profile, and it produces no OAuth token. `brain_state` names
+    that trap explicitly, because a model cannot be expected to know the difference.
+  - **The redirect could only work on one machine**: hardcoded to `127.0.0.1:43917`, which on a managed
+    deployment is the OPERATOR's own computer. It follows the request origin now (validated
+    `scheme://host[:port]` — it is a header, so untrusted input landing in a URL we hand to Google) and
+    **rides under the OAuth state**, because the exchange must return the redirect that was authorized.
+  - **The wizard's first two steps were a Google Cloud project**, and step 2 was a dead end that told the
+    operator to go find ⚙ → Conectores himself. A shipped `builtin_client_id` (EMPTY until the operator
+    registers one — the connector still works, just the long way) makes it a single consent step; the
+    operator's own client always wins, which is what keeps the fair-code self-host story honest. **No
+    client_id field in the card**, deliberately: `widget.js` never touches the network (V2-557) and a
+    data-op never carries a credential (V2-520) — the fix was never to move the field, it was to stop
+    making him navigate. The callback refreshes the card itself, so the mandatory «Comprobar» is gone.
+  - **No environment detection**, though the ask was framed that way: the consent tries a pop-up and
+    degrades to a tappable link. One path that works self-hosted, in the cloud and on the PWA beats three
+    that each need their own testing.
+  - **«Perdona, ¿me lo repites?» ×4** — two faults in one string: it repeats (the sibling branch got
+    anti-repetition in V2-189 after the identical measured symptom) and it **blames the operator's speech
+    for a turn the model returned empty**. `mute_backstop` owns both branches so the two channels share the
+    decision instead of mirroring it, rotates, and after every variant admits it is stuck.
+  - **Routing**: `conecta` seeded `cluster` (MeshKore peers) and nothing else, so the most natural Spanish
+    word for linking an account retrieved peer-to-peer tools. And the widget's routing line was rewritten
+    **to fit** V2-547's 300-char budget — the first draft mentioned connecting only in its last sentence and
+    the trim ate exactly the half that routes this errand.
+  - Node **5.15** (22 cases, six disarms) + the V2-597 render tests updated to the new wizard (+3, two more
+    disarms). ⚠️ **One disarm came back GREEN and accused the TEST**: it only hit `dispatch_tag`'s guard
+    clause and never the real path. ⚠️ **And the first version polluted `sys.modules`** — `from voice import
+    brain_notes` reads the PACKAGE attribute, so a fake under the module name is ignored once anything else
+    imported the real one; it passed alone and failed in the full run. The architecture ratchet went red and
+    was paid by **extracting**: `nucleo.py` 3068→**3038**, `probe.py` 1144→**1137**.
+  - **NOT verified live** (needs a restart) and **the shipped client does not exist yet** — registering a
+    Google OAuth app owned by Zaelar is a business action and belongs in the workspace root's private repo.
+  - Left open and named: widget i18n (no `t()` seam exists in the widget layer at all — every widget's
+    strings are hardcoded, mensajería's wizard included), and the double browser for one intent, which is
+    V2-570's linear-gate family, not this one.

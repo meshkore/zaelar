@@ -714,6 +714,9 @@ canvas#orb.frozen{opacity:.32;filter:grayscale(1)}
 .cron-prompt{font-size:0.75rem;color:var(--hb-muted);margin-top:4px;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 .cron-btns{display:flex;gap:5px;flex:0 0 auto}
 .cron-b.danger{color:var(--hb-risk);border-color:rgba(229,72,77,.4)}
+/* The slot exists so the form can be a reactive child of its own element (V2-738). It must not be the
+   flex item that gives way when the list is long: the list scrolls, the form stays whole. */
+.cron-slot{flex:0 0 auto}
 .cron-add{border-top:1px solid var(--hb-line);padding:10px 12px;display:flex;flex-direction:column;gap:7px}
 .cron-in{width:100%;border:1px solid var(--hb-line);border-radius:9px;padding:7px 9px;font-size:0.7812rem;font-family:var(--sans);background:var(--hb-bg);color:var(--hb-ink);resize:none}
 .cron-in:focus{border-color:var(--hb-accent);outline:none}

@@ -107,6 +107,21 @@ READ = """() => {
     resultBtns: [...document.querySelectorAll('.cw-tasklist .cw-proc-row.hist .cron-b')].map(e => e.textContent.trim()),
     reopened: window.__reopened || [],
     opened: window.__opened || [],
+    // V2-738 — the form for creating one BY HAND lives under these two sub-tabs, and it is the one piece of
+    // this panel that is not a list. Counted rather than assumed: it is built by a conditional whose two
+    // branches look identical from the source.
+    cronInputs: document.querySelectorAll('.cw-tasks .cron-add .cron-in').length,
+    cronButton: !!document.querySelector('.cw-tasks .cron-create'),
+    // …and the failure mode that put this here: a function handed to the DOM layer where a node was expected
+    // is converted with String(), so the panel paints its SOURCE CODE. Nothing throws, so `errors` stays
+    // empty and every list above still passes — the operator is the one who finds it, on screen.
+    sourceLeak: (() => {
+      const txt = ((panel && panel.innerText) || '');
+      // Two signatures that cannot occur in a task's title, note or cadence but appear in the FIRST LINE of
+      // any of this file's render functions: an arrow, and a call to the hyperscript factory.
+      const m = txt.match(/(\\(\\s*\\)\\s*=>|\\bh\\(\"\\w)[^]{0,100}/);
+      return m ? m[0].replace(/\\s+/g, ' ') : '';
+    })(),
   };
 }"""
 
@@ -297,3 +312,31 @@ def test_an_empty_list_says_so_instead_of_showing_a_blank_panel(seen):
 # ── the counter counts HIS commissions ──────────────────────────────────────────────────────────────────
 def test_the_rail_counter_matches_the_live_list(seen):
     assert seen["live"]["railCount"] == "2", seen["live"]["railCount"]
+
+
+# ── V2-738: the panel that paints its own source ────────────────────────────────────────────────────────
+# What the operator saw on 2026-09-21 02:22, on the «En curso» sub-tab, filling the bottom of the panel:
+#
+#     () => (store.taskScope() === "recurring" || store.taskScope() === "scheduled" ? h("div", { class: …
+#
+# `dom.js` accepts a function as a child and treats it as a reactive binding — but only as a DIRECT child of
+# `h()`. Returned inside an ARRAY from a reactive child, each item goes through `toNode`, whose last line is
+# `document.createTextNode(String(v))`: a function becomes its own source. It throws nothing, it logs nothing,
+# and every assertion above this line stayed green while it was on his screen.
+def test_the_panel_never_paints_its_own_source(seen):
+    for scope in ("live", "done", "recurring", "scheduled", "blank"):
+        assert not seen[scope]["sourceLeak"], (
+            f"the «{scope}» sub-tab is painting JavaScript at the operator: {seen[scope]['sourceLeak']!r}. "
+            "A function reached the DOM layer where a node was expected and was String()-ed.")
+
+
+def test_creating_a_periodic_task_BY_HAND_is_reachable(seen):
+    """And the other half of the same defect: what the stringified function was SUPPOSED to build. The form
+    is offered only under the two sub-tabs that have a clock, which is why «it is drawn» and «it is drawn in
+    the right place» are one assertion and not two."""
+    for scope in ("recurring", "scheduled"):
+        assert seen[scope]["cronInputs"] == 3, (
+            f"«{scope}» must offer when / name / prompt, got {seen[scope]['cronInputs']} fields")
+        assert seen[scope]["cronButton"], f"«{scope}» draws no button to create it"
+    for scope in ("live", "done"):
+        assert seen[scope]["cronInputs"] == 0, f"«{scope}» has no clock and must not offer a schedule form"
