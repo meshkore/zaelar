@@ -661,6 +661,20 @@ export const setChatMsgs = (v) => {
 };
 export const pushChat = (m) => setChatMsgs(xs => _capChat([...xs, m]));
 
+// ── V2-743: THE LINE HE IS SAYING RIGHT NOW ────────────────────────────────────────────────────────────
+// A spoken turn does not reach the wall until the attention gate rules on it, and the gate waits for the
+// endpointer, which waits for him to stop talking. Measured 2026-09-21 (session bcd4aba1): from his first
+// VAD edge to the line appearing, MEDIAN 3.45 s, p90 10.1 s, worst 19.0 s — his words, in his own words,
+// «la actualización de esta columna de chat va bastante lenta».
+//
+// So the wall now carries ONE provisional line, fed by the live interim transcript, rendered apart from the
+// history and NEVER persisted: it is a caption of the microphone, not something he said. It is replaced by
+// the real bubble when the verdict releases the turn, and removed when the verdict discards it — which is
+// what keeps V2-647 intact (a conversation with somebody else still leaves no trace on his wall).
+export const [liveChat, _setLiveChat] = createSignal("");
+export const setLiveChat  = (text) => _setLiveChat(String(text || "").slice(0, CHAT_MAX_TEXT));
+export const clearLiveChat = () => _setLiveChat("");
+
 if (_restoredChat.msgs.length) _setChatMsgs(_restoredChat.msgs);   // restore without re-writing what we read
 // A tab being closed can happen inside the debounce window — flush what is PENDING rather than lose the
 // last thing he said. `pagehide` fires where `beforeunload` is unreliable (mobile Safari, bfcache).

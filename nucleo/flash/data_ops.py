@@ -27,6 +27,8 @@ from __future__ import annotations
 
 import json as _json
 
+from nucleo.flash import op_receipt as _receipt
+
 #: Techo of data-ops by turn. Cinco enlaces pegados of a vez es a request; cincuenta es a model roto.
 MAX_DATA_OPS = 5
 
@@ -99,7 +101,16 @@ async def report_failure(wid: str, action: str, res: dict) -> bool:
     one would be worse than the original."""
     import time as _time
 
-    if not isinstance(res, dict) or res.get("ok") is not False:
+    # V2-743 — `error` counts too, and a POOL TIMEOUT does not. Until today this line read only `ok is False`,
+    # so `{"error": "widget 'agenda' timed out after 8s"}` — which carries no `ok` at all — returned here and
+    # the operator was never told anything (measured 2026-09-21, session bcd4aba1: the timeout reached the
+    # timeline and never reached him). `server_api.brain_action` had always read the same result as
+    # `error or ok is False` for its `action_failed` event; the two readers disagreed and the quieter one won.
+    # The timeout is excluded on purpose: the hook keeps running after the wait gives up, so it is not a
+    # verdict — `op_receipt` witnesses those against the widget's own view.
+    if not isinstance(res, dict):
+        return False
+    if _receipt.is_pool_timeout(res) or not _receipt.failed(res):
         return False
     detail = str(res.get("message") or res.get("error") or "").strip()
     if not detail:
@@ -154,7 +165,7 @@ async def report_failure(wid: str, action: str, res: dict) -> bool:
     return told
 
 
-async def dispatch_and_report(wid: str, action_name: str, payload: dict, *, seal=None) -> None:
+async def dispatch_and_report(wid: str, action_name: str, payload: dict, *, seal=None, receipt: bool = False) -> None:
     """Dispatch a widget data-op AND announce it if it failed (V2-603).
 
     The dispatch itself stays detached — the turn must never wait on a widget's network call — but the RESULT
@@ -170,6 +181,10 @@ async def dispatch_and_report(wid: str, action_name: str, payload: dict, *, seal
     know: the caller dispatches and returns. The anti-drag guard's memory is written through it, so a
     mutation the door refused is never remembered as executed — see the note at the call site."""
     import widgets
+    # V2-743 — the WITNESS is taken BEFORE the op or it witnesses nothing. Only on the `receipt` path (an
+    # irreversible action a human already confirmed): paying an extra widget read on every fast data-op would
+    # buy nothing and slow the common turn.
+    before = await _receipt.read_signature(wid) if receipt else ""
     try:
         res = await widgets.dispatch_tag(
             "widget.data", {"id": wid, "data": {"action": action_name, "payload": payload or {}}})
@@ -180,6 +195,14 @@ async def dispatch_and_report(wid: str, action_name: str, payload: dict, *, seal
             seal(not (isinstance(res, dict) and res.get("ok") is False))
         except Exception:
             pass
+    if receipt:
+        # The receipt OWNS the outcome on this path — success, failure and the unknown a pool timeout leaves
+        # behind — so `report_failure` must not also speak about the same op.
+        try:
+            await _receipt.settle(wid, action_name, res, before=before)
+        except Exception:
+            pass
+        return
     try:
         await report_failure(wid, action_name, res)
     except Exception:

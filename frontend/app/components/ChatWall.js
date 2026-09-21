@@ -762,6 +762,10 @@ export function ChatWall() {
 
   createEffect(() => {
     const msgs = store.chatMsgs(); if (!listEl) return;
+    // V2-743 — the caption of the open microphone, appended after the history and never part of it. It is a
+    // dependency of this effect on purpose, so a new partial repaints the wall the moment it arrives; that
+    // immediacy is the whole feature, and the wall is rebuilt wholesale anyway.
+    const live = store.liveChat();
     // The cap trims from the OLDEST end, so the restored block can only shrink, never move.
     if (restoredLeft > msgs.length) restoredLeft = msgs.length;
     const rows = [];
@@ -785,6 +789,13 @@ export function ChatWall() {
     // at all, and the whole history read as current: the exact thing the divider exists to prevent.
     if (restoredLeft > 0 && restoredLeft === msgs.length) {
       rows.push(h("div", { class: "cw-earlier" }, _whenLabel()));
+    }
+    if (live) {
+      // Plain text, NOT markdown: a half-dictated sentence routinely holds an unclosed `*` or `_`, and
+      // rendering it would make the bubble flicker between styles as he keeps talking.
+      const b = h("div", { class: "cw-msg you cw-live" });
+      b.appendChild(h("div", { class: "cw-msg-body" }, live));
+      rows.push(b);
     }
     listEl.replaceChildren(...rows);
     listEl.scrollTop = listEl.scrollHeight;

@@ -187,6 +187,24 @@ def evaluate(text: str, *, now: float | None = None) -> Verdict:
         return Verdict(True, "active_window")
     if _state["last_directed"] and (_window_ref(now) - _state["last_directed"]) <= window_s():
         return Verdict(True, "active_window")
+    # V2-743 — NOBODY IGNORES HIM THREE TIMES IN A ROW, IN *EITHER* MODE. `note_ambient` has been feeding
+    # `unanswered` since fix01, and the hatch that reads it was installed only on `evaluate_content`'s
+    # `always` branch — which this function returns to `evaluate_content` BEFORE ever reaching. So in `smart`,
+    # the operator's own mode, the streak was recorded every single time and read by nobody: live
+    # instrumentation wired to nothing.
+    #
+    # Measured 2026-09-21, session bcd4aba1. Six discards, every one of them the operator, alone, talking
+    # straight at the agent, every one of them already carrying `framed: True`:
+    #     «Vale, ¿ahora me escuchas? No.» · «A ver, quiero que me muestres la agenda.»
+    #     «Bueno, yo las sigo viendo en el widget de la agenda. ¿Qué le pasa?»
+    #     «¿Por qué no transcribes el audio que estoy dictando?» · «¿Hola?»
+    # Four of them consecutive, right after the agent claimed a deletion was done and fell silent — so the
+    # complaint about the false «done» was swallowed by the same 5 s timer, and he ended up asking an empty
+    # room whether it could hear him. The cost is the one this module already priced twice, in its own words:
+    # better to process some noise than to leave the operator unattended. The 5 s window itself is HIS rule
+    # (2026-09-10) and is untouched; what changes is that expiring it three times over is not a verdict.
+    if unanswered_streak(now) >= _UNANSWERED_OPENS_AT:
+        return Verdict(True, "unanswered_repeat")
     return Verdict(False, "ambient")
 
 

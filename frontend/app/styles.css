@@ -185,6 +185,14 @@ body.chatdock-r .statuspanel,body.chatdock-r .cronpanel{right:calc(18px + var(--
   font-style:italic;font-size:var(--fs-micro);padding:var(--sp-2) var(--sp-3);max-width:92%}
 .cw-msg.peer{align-self:flex-start;background:var(--hb-bg-soft);border-color:var(--hb-line);color:var(--hb-ink);
   border-bottom-left-radius:var(--sp-1)}
+/* V2-743 — the line he is saying RIGHT NOW. Same bubble as his own, deliberately unfinished-looking: hollow
+   instead of filled, with a dashed leading edge, so it never reads as something already said and recorded.
+   `opacity` alone would not do it — the wall already fades older bubbles, and two meanings on one channel is
+   how the new signal loses (the dimmer lesson). It is replaced by a real bubble the moment the turn is
+   released, or removed when the gate rules the words were not for us. */
+.cw-msg.cw-live{background:transparent;color:var(--hb-ink);border:1px dashed var(--hb-accent);
+  border-bottom-right-radius:var(--sp-1);opacity:.85}
+.cw-list > .cw-msg.cw-live{opacity:.85}
 /* the composer sits on its own band, separated from the transcript above it by a real edge */
 .chatwall.docked .cw-input,.chatwall.docked .cw-tabs{background:var(--hb-sidebar)}
 .cw-msg-from{font-size:var(--fs-micro);font-weight:700;letter-spacing:.02em;color:var(--hb-accent2);

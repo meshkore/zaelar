@@ -1396,6 +1396,12 @@ DOMAINS: list[dict] = [
         # V2-741 — la escalera tenía DOS peldaños («contesta» o «un worker de 5 minutos») y el motor
         # caía al caro habiendo nombrado el barato: el brief dijo `youtube:search` a 0,97, una tabla
         # de verbos sin «preparar» se comió la tool, y el worker tardó 195 s en llegar a esa acción.
+        {"id": "3.75", "title": "Nadie le ignora tres veces seguidas: la escapatoria de la racha llega al modo "
+                                 "SMART, que es el suyo (el contador se escribía y no lo leía nadie)",
+            "ch": UNIT, "paths": ["tests/voice/unit/test_nobody_ignores_him_three_times_in_a_row.py"]},
+        {"id": "3.74", "title": "«Hecho.» es un PARTE, y no se dice antes de que el trabajo exista: el sí "
+                                 "se contesta con un comienzo, y el desenlace lo atestigua la pantalla",
+            "ch": UNIT, "paths": ["tests/voice/unit/test_nothing_is_done_until_the_screen_says_so.py"]},
         {"id": "3.73", "title": "Una acción DECLARADA antes que un worker de cinco minutos — y los tres "
                                 "guardas que le llevaban la contraria al veredicto que ya pagamos",
             "ch": UNIT,
@@ -3012,6 +3018,9 @@ DOMAINS: list[dict] = [
                                  "deja de borrar el catálogo, y la orden gana al salto automático",
             "ch": UNIT,
             "paths": ["tests/browser/unit/youtube/test_the_voice_can_reach_the_cards_own_faces.py"]},
+        {"id": "4.199", "title": "La pared pinta lo que está diciendo MIENTRAS lo dice — y lo que era de la "
+                                 "habitación no deja rastro cuando el veredicto lo descarta",
+            "ch": UNIT, "paths": ["tests/browser/e2e/chat/test_the_wall_shows_the_line_he_is_saying.py"]},
         {"id": "4.197", "title": "Un turno DIRIGIDO llega a la pared pintada — y el de la habitación no (la cadena "
                                  "entera del cliente, no el doble de `deliver`)",
             "ch": UNIT, "paths": ["tests/browser/e2e/chat/test_a_directed_turn_reaches_the_painted_wall.py"]},

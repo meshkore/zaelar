@@ -30,7 +30,11 @@
 // the tests drive THIS module — not a copy of it (the re-implemented-test lesson).
 export const HOLD_MS = 9000;
 
-export function createAttentionHold({ mode, deliver, holdMs = HOLD_MS,
+// V2-743 — `settled` fires once per batch that LEAVES the hold, in either direction: delivered, or dropped
+// by a verdict that ruled the room. The live caption on the wall (store.liveChat) is what listens to it, so
+// the provisional line disappears exactly when its turn stops being provisional — without this module
+// learning anything about the chat, which is the separation it was extracted for.
+export function createAttentionHold({ mode, deliver, settled = () => {}, holdMs = HOLD_MS,
                                       setTimer = setTimeout, clearTimer = clearTimeout }) {
   let held = [];
   let timer = null;
@@ -39,12 +43,16 @@ export function createAttentionHold({ mode, deliver, holdMs = HOLD_MS,
     const batch = held; held = [];
     clearTimer(timer); timer = null;
     for (const h of batch) deliver(h.text, h.isFinal, judged);
+    if (batch.length) settled("delivered");
   };
 
   return {
     /** A spoken turn arrived. Held until the gate rules on it (or delivered at once with no gate). */
     spoken(text, isFinal) {
-      if (mode() === "always") return deliver(text, isFinal, true);   // no gate to wait for: it IS the verdict
+      if (mode() === "always") {
+        deliver(text, isFinal, true);                                 // no gate to wait for: it IS the verdict
+        return settled("delivered");
+      }
       held.push({ text, isFinal });
       if (!timer) timer = setTimer(() => release(false), holdMs);     // V2-664: a timeout judged nothing
     },
@@ -55,8 +63,10 @@ export function createAttentionHold({ mode, deliver, holdMs = HOLD_MS,
       if (!held.length) return;
       if (directed) return release(true);
       const hay = (verdictText || "").toLowerCase();
+      const before = held.length;
       held = held.filter(h => !(!hay || hay.includes((h.text || "").toLowerCase().trim())));
       if (!held.length) { clearTimer(timer); timer = null; }
+      if (held.length < before) settled("dropped");
     },
     /** Testing/diagnostics only: how many turns are waiting on a verdict right now. */
     pending() { return held.length; },

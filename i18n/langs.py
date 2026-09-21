@@ -262,6 +262,14 @@ class LangSpec:
     # this table exists. `delivery.py` and `reminder_guards.py` read them from here now.
     not_on_screen_yet: str = "Perdona — todavía no está en pantalla. Te lo estoy preparando."
     data_ack: str = "Hecho."       # short "done" when a widget data-op ran with no spoken content of its own (V2-026)
+    # V2-743 — the three beats of a CONFIRMED irreversible op. `work_started` replaces `data_ack` at the
+    # moment the operator says yes: until today the gate answered «Hecho.» 0.86 s after DISPATCHING the
+    # deletion and 7 s before any outcome existed. His own words for the beat he wanted: «me pongo a hacerlo
+    # ahora mismo y te aviso». The other two are what the receipt says when it settles — and `op_unknown` is
+    # the one that did not exist at all, which is why a pool timeout could only be reported as nothing.
+    work_started: str = "Me pongo a ello y te aviso."
+    op_failed: str = "No he podido completarlo."
+    op_unknown: str = "Lo he lanzado, pero no he podido confirmar que quedara hecho."
     # data-op ack variants (V2-038, post-P1/P2 test): two consecutive data-ops with the SAME "Done." triggered
     # the loop detector (LOOP×2) → consecutive functional responses are phrased differently. The provider chooses one
     # that does NOT repeat the previous one. Localized copy (lives in the language catalog, not test data).
@@ -656,6 +664,9 @@ LANGUAGES: dict[str, LangSpec] = {
         not_on_screen_yet="Sorry — it's not on screen yet. I'm getting it ready for you.",
         data_ack="Done.",
         data_acks=("Done.", "There you go.", "All set.", "Got it.", "Noted."),
+        work_started="On it — I'll tell you when it's done.",
+        op_failed="I couldn't get that done.",
+        op_unknown="I started it, but I couldn't confirm it went through.",
         secret_reveal="Your {label}: {value}",
         secret_shown="Here's your {label}, showing it on screen.",
         secret_locked="I need your vault passphrase to give you that. Enter it and I'll show you.",

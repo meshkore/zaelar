@@ -180,8 +180,11 @@ def _resolve_pending_confirm(ok: bool) -> bool:
                 pass
         elif p.get("action") == "data" and isinstance(p.get("op"), dict):
             try:
+                # V2-743 — `receipt=True`: this is the CONFIRMED path, the one where a false «done» costs
+                # something, so the outcome is witnessed against the widget's own view before anything is said.
                 _spawn(_data_ops.dispatch_and_report(p["widget_id"], str(p["op"].get("action") or ""),
-                                                     p["op"].get("payload") or {}), "widget-data-confirmed")
+                                                     p["op"].get("payload") or {}, receipt=True),
+                       "widget-data-confirmed")
                 emit("brain", "✅ acción irreversible confirmada", role="system",
                      text=f"{p['widget_id']}:{p['op'].get('action')}")
             except Exception:
@@ -819,7 +822,14 @@ class NucleoLLMStream(llm.LLMStream):
                 _verdict_early = None
             if _verdict_early:
                 if _resolve_pending_confirm(_verdict_early == "yes"):
-                    _ack_early = (_say().data_ack if _verdict_early == "yes" else _say().confirm_cancelled)
+                    # V2-743 — A YES IS ANSWERED WITH A START, NEVER WITH A COMPLETION. `data_ack` is
+                    # «Hecho.», and this branch fires the instant the operator agrees: measured 2026-09-21
+                    # (session bcd4aba1) it was spoken 0.86 s after the deletion was DISPATCHED and 7 s
+                    # before any outcome existed — the op then outlived the widget pool's 8 s ceiling and
+                    # finished anyway, so he heard «Hecho.», watched 47 rows sit there, and had to discover
+                    # both the delay and the truth himself. The outcome now arrives from `op_receipt` when
+                    # the work actually settles; this line only promises that it has begun.
+                    _ack_early = (_say().work_started if _verdict_early == "yes" else _say().confirm_cancelled)
                     send(speech.sanitize(_ack_early, drop_metadata=False))
                     return
 

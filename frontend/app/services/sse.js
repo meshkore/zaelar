@@ -34,10 +34,17 @@ const _hold = createAttentionHold({
     if (judged) handleWidgetVoice(_holdDesk, text, isFinal);
     store.pushChat({ role: "you", text });
   },
+  // V2-743 — the provisional caption lives exactly as long as the hold does: it becomes a real bubble on
+  // delivery and vanishes on a discard. Clearing on BOTH is the point — a line left behind after a dropped
+  // turn would be V2-647 coming back through the caption.
+  settled: () => store.clearLiveChat(),
 });
 let _holdDesk = null;   // the canvas the delivery acts on, captured per event (sse.js has no module-level desktop)
 
 export function holdSpokenTurn(desktop, text, isFinal) { _holdDesk = desktop; _hold.spoken(text, isFinal); }
+// V2-743 — the interim seam, the same shape as the two above: a thin exported door the `interim` branch of
+// `onmessage` calls, so the test drives the PRODUCTION path instead of a copy of it (node 4.199).
+export function captionPartial(text) { store.setLiveChat(text); }
 export function settleHeldTurns(desktop, verdictText, directed) { _holdDesk = desktop; _hold.verdict(verdictText, directed); }
 
 let es = null;
@@ -50,6 +57,18 @@ export function openSSE(desktop) {
   es.onopen = () => { try { store.fetchTasks(); } catch (_) {} };
   es.onmessage = ev => {
     let d; try { d = JSON.parse(ev.data); } catch (_) { return; }
+    routeEvent(desktop, d);
+  };
+}
+
+// V2-743 — the router is its OWN exported function, and the subscription above is three lines that parse
+// and hand off. It used to be one 325-line arrow inside `openSSE`, reachable only through a live
+// `EventSource`, so every test of this channel had to drive one of the thin seams BELOW it (`holdSpokenTurn`,
+// `settleHeldTurns`) — which proves the mapping and never the wiring. Its own disarm caught that: deleting
+// the whole `interim` branch left node 4.199 green, because the test was calling `captionPartial` directly.
+// Nothing about the routing changed; it only became reachable.
+export function routeEvent(desktop, d) {
+    if (!d) return;
     if (d.kind === "bot_speech") {                              // gate person-voice visuals + drive live captions + latency
       // LiveKit engine emits label "speaking"/"idle" (+ a `speaking` bool); the older engine used "started"/"stopped".
       // Prefer the explicit bool, fall back to either label vocabulary.
@@ -154,6 +173,14 @@ export function openSSE(desktop) {
       // depending on LiveKit's own conversation-item timing — the exact mechanism that caused the original bug
       // (a filler showing up AFTER an already-resolved reply).
       store.pushAgentChat("💬 " + d.text);
+    } else if (d.kind === "interim" && d.text && d.role === "user") {
+      // V2-743 — LIVE partial transcript → the wall's provisional line. This is the only thing in the chat
+      // that does not wait for the attention gate, and it is allowed to because it is a CAPTION of the open
+      // microphone, marked as such, never persisted, and it drives nothing: the canvas fast-path and the
+      // history both stay behind the verdict (V2-647/V2-664). Without it his words reached the wall a median
+      // 3.45 s after he started saying them, and p90 10.1 s (session bcd4aba1) — and raising the endpointer's
+      // ceiling to 3.0 s the day before (V2-742) had made that wait longer, not shorter.
+      captionPartial(d.text);
     } else if (d.kind === "transcript" && d.text) {
       if (d.role === "assistant") {
         // zaelar's FINAL turn text → chat wall (the HISTORY). The LIVE caption over the orb does NOT come from here
@@ -174,7 +201,13 @@ export function openSSE(desktop) {
         // of them still landed in the chat as if he had said it). So a spoken turn is HELD until the verdict
         // says it was for us; typed text bypasses the hold, being directed by construction.
         if (typed) { handleWidgetVoice(desktop, d.text, isFinal); store.pushChat({ role: "you", text: d.text }); }
-        else holdSpokenTurn(desktop, d.text, isFinal);
+        else {
+          // The FINAL text firms up the caption while the verdict is still pending — the interim stream has
+          // stopped by now, so without this the line would freeze on the last partial (often a word short of
+          // what he actually said) for as long as the hold lasts.
+          store.setLiveChat(d.text);
+          holdSpokenTurn(desktop, d.text, isFinal);
+        }
       }
     } else if (d.kind === "alert") {                                              // hard notice (e.g. no LLM credit) → red banner
       store.showAlert(d.label || t("sse.llm_problem"));
@@ -359,7 +392,6 @@ export function openSSE(desktop) {
       // that list; there is no conversation.
       if (store.chatOpen() && store.chatTab() === "clusters") store.fetchClusters();
     }
-  };
 }
 
 // The stream lives as long as the APPLICATION does (main.js opens it at startup), not as long as the voice session:
