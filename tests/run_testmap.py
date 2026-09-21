@@ -3041,6 +3041,10 @@ DOMAINS: list[dict] = [
                                  "el subtítulo no pierde lo ya dicho, y lo que no sonó no se queda escrito",
             "ch": UNIT,
             "paths": ["tests/browser/unit/chat/test_the_wall_is_a_transcript_of_the_voice.py"]},
+        {"id": "4.203", "title": "La mitad de TAREAS son dos paneles delimitados con una tabla dentro — y el ＋ "
+                                 "de «nueva lista» no puede irse de la pantalla con 100 listas",
+            "ch": UNIT,
+            "paths": ["tests/browser/unit/agenda/test_the_tasks_half_is_two_delimited_panes.py"]},
         {"id": "4.199", "title": "La pared pinta lo que está diciendo MIENTRAS lo dice — y lo que era de la "
                                  "habitación no deja rastro cuando el veredicto lo descarta",
             "ch": UNIT, "paths": ["tests/browser/e2e/chat/test_the_wall_shows_the_line_he_is_saying.py"]},

@@ -442,94 +442,226 @@ function injectStyles(){
     border-top:1px solid var(--hb-line-subtle,rgba(255,255,255,.06))}
   .hb-agenda .agwfoot .agcalbtn2{flex:0 0 auto;margin:0;min-width:104px}
 
-  /* ── V2-744 · THE TWO SECTIONS ────────────────────────────────────────────────────────────────────
-     One card, two things: the calendar and the operator's own numbered task lists. The selector is the
-     first row of the card, above the calendar's own toolbar, because it chooses WHAT you are looking at
-     and everything under it belongs to that choice — a segmented control, not another tab in the view
-     band (those pick a lens over the SAME data, and these do not). */
-  .hb-agenda .agsec{display:flex;gap:2px;flex:0 0 auto;margin:0 0 var(--sp-3,12px);padding:3px;
-    border-radius:999px;background:var(--hb-bg-soft,#171B21);align-self:flex-start;
+  /* ── V2-744/V2-746 · THE SUBHEADER ────────────────────────────────────────────────────────────────
+     One card, two things: the calendar and the operator's own numbered task lists.
+
+     V2-746 — the operator, 2026-09-21: «esa barra segunda que pone agenda y tareas, quizás debería ser una
+     línea de subheader más consistente. Por si hay que crear algo más ahí». It was a pill floating on the
+     card's own background, which reads as a control someone dropped on top of the content rather than as a
+     part of the window. It is now a full-width band with a rule under it — the second line of chrome under
+     the title bar — with a right-hand slot that is EMPTY on the calendar and carries the counts on tasks.
+     The band is what makes room for whatever goes there next; the slot exists so the next thing does not
+     need a new band.
+
+     The active tab stays a FILLED accent chip (accent ground, "--canvas" ink) and not an underline with
+     accent text: V2-691 measured that pairing at 6.1:1 against the dark canvas, and the underline variant
+     would put small accent text on a lighter step, which is where the tertiary ink already loses a point.
+     A design change is not allowed to spend the contrast that audit bought. */
+  .hb-agenda .agsub{display:flex;align-items:center;gap:var(--sp-3,12px);flex:0 0 auto;min-width:0;
+    margin:0 0 var(--sp-3,12px);padding:0 0 var(--sp-2,8px);
+    border-bottom:1px solid var(--hb-line,rgba(255,255,255,.14))}
+  .hb-agenda .agsec{display:flex;gap:2px;flex:0 0 auto;padding:3px;
+    border-radius:999px;background:var(--hb-bg-soft,#171B21);
     border:1px solid var(--hb-line-subtle,rgba(255,255,255,.06))}
   .hb-agenda .agsecb{border:0;background:none;color:var(--hb-muted,#5b6b82);border-radius:999px;
     padding:6px var(--sp-4,16px);font:600 13px/1.2 var(--sans,system-ui);cursor:pointer;white-space:nowrap}
   .hb-agenda .agsecb:hover{color:var(--hb-ink,#0d1622)}
   .hb-agenda .agsecb.on{background:var(--hb-accent,#3D6FE0);color:var(--canvas,#fff)}
-
-  /* ── TAREAS: the lists on the left, the chosen list on the right ──────────────────────────────── */
-  .hb-agenda .agt{display:flex;gap:var(--sp-4,16px);flex:1 1 auto;min-height:0;min-width:0}
-  .hb-agenda .agt-side{flex:0 0 218px;display:flex;flex-direction:column;gap:var(--sp-2,8px);
-    min-height:0;overflow:auto;padding-right:2px}
-  .hb-agenda .agt-main{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:var(--sp-3,12px);
-    min-height:0}
-  .hb-agenda .agt-list{display:flex;align-items:center;gap:var(--sp-2,8px);width:100%;text-align:left;
-    border:1px solid var(--hb-line,rgba(255,255,255,.10));background:var(--hb-bg,#fff);
-    border-radius:var(--hb-r-m,10px);padding:9px 11px;cursor:pointer;font-family:var(--sans,system-ui);
-    color:var(--hb-ink,#0d1622);flex:0 0 auto}
-  .hb-agenda .agt-list:hover{border-color:var(--hb-accent,#3D6FE0)}
-  .hb-agenda .agt-list.on{border-color:var(--hb-accent,#3D6FE0);background:var(--hb-bubble,#1D222A)}
-  /* THE NUMBER IS THE HANDLE. He says «ábreme la lista número 3», so the numeral is not decoration: it is
-     the thing he reads before he speaks, and it has to be the first thing on the row and impossible to
-     miss. Same badge as the wizard's step numeral — one numbering language in this card. */
-  .hb-agenda .agt-no{width:22px;height:22px;flex:0 0 auto;border-radius:50%;display:inline-flex;
-    align-items:center;justify-content:center;font:700 12px/22px var(--sans,system-ui);
-    color:var(--hb-accent,#3D6FE0);background:color-mix(in srgb,var(--hb-accent,#3D6FE0) 18%,transparent)}
-  .hb-agenda .agt-lname{flex:1 1 auto;min-width:0;font-size:13px;font-weight:600;
+  /* The slot. "margin-left:auto" and not a spacer element, so an empty slot costs no node at all. */
+  .hb-agenda .agsub-meta{margin-left:auto;flex:0 1 auto;min-width:0;display:flex;align-items:center;
+    gap:var(--sp-2,8px);font:600 12px/1 var(--sans,system-ui);color:var(--hb-muted,#BAC2CE);
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .hb-agenda .agt-count{flex:0 0 auto;font-size:12px;color:var(--hb-muted-2,#9aa7b8)}
-  .hb-agenda .agt-prog{height:4px;border-radius:999px;background:var(--hb-bg-soft,#171B21);overflow:hidden}
-  .hb-agenda .agt-prog span{display:block;height:100%;border-radius:999px;background:var(--hb-accent,#3D6FE0)}
-  .hb-agenda .agt-head{display:flex;align-items:center;gap:var(--sp-2,8px);flex:0 0 auto;min-width:0}
-  .hb-agenda .agt-title{font:600 15px/1.3 var(--sans,system-ui);min-width:0;overflow:hidden;
+  .hb-agenda .agsub-meta b{font-weight:700;color:var(--hb-ink,#F2F4F7)}
+
+  /* ── TAREAS: two delimited PANES, and inside each one a table ─────────────────────────────────────
+     V2-746, the operator's brief, verbatim: «que tuviera un poco más aspecto tipo Excel… que se delimiten
+     mejor las listas de tareas de la izquierda, a la derecha también todo el formato de la lista, los
+     botones… delimitando bien lo que es la columna de la izquierda, cada uno de los cuadrados».
+
+     What was there: free-floating rounded cards on the card's own background, separated by gaps. Nothing
+     said where the left column ended and the right one began, and «Nueva lista» sat UNDER the list of
+     lists — his objection, and the correct one: «cuando tengamos 100 listas no se va a ver».
+
+     Three moves, and the spreadsheet feel is all three together rather than any one of them:
+       · each half is a PANE — its own surface off the elevation ladder, a hairline border, a header bar;
+       · rows are CONTIGUOUS and separated by hairlines instead of by air, with a quiet zebra, so the eye
+         reads a column of cells and not a stack of chips;
+       · the numeric columns are MONOSPACE and right-aligned, so «1/3» under «12/40» lines up on the slash.
+     No new colour enters: every surface below is a step of the ladder V2-689 defined and every ink is a
+     token. «Manteniendo colores, tipos de fuente y estilos básicos» was half the brief. */
+  /* The tasks body has to BE a flex column, or the panes below size to their content and the left one
+     stops being a column at all — it was 258px tall inside a 620px card, which is exactly the «no se
+     delimita» he is looking at. The calendar half keeps the scrolling body it needs. */
+  .hb-agenda .agbody.tasks{display:flex;flex-direction:column;overflow:hidden}
+  .hb-agenda .agt{display:flex;gap:var(--sp-3,12px);flex:1 1 auto;min-height:0;min-width:0}
+
+  /* Shared pane chrome — the two halves are the same object at two widths. */
+  .hb-agenda .agt-side,.hb-agenda .agt-main{display:flex;flex-direction:column;min-height:0;
+    border:1px solid var(--hb-line,rgba(255,255,255,.14));border-radius:var(--hb-r-m,10px);
+    overflow:hidden}
+  .hb-agenda .agt-side{flex:0 0 232px;background:var(--hb-sidebar,#1A1E24)}
+  .hb-agenda .agt-main{flex:1 1 auto;min-width:0;background:var(--hb-bg,#1F242B)}
+
+  /* A pane's header bar: one step lighter than the pane, ruled off from the rows under it. The left one is
+     STICKY by construction (it is a flex sibling of the scroller, not a row inside it), which is the whole
+     answer to «con 100 listas no se va a ver»: the ＋ cannot scroll away because it never scrolls. */
+  .hb-agenda .agt-sidehead,.hb-agenda .agt-head{display:flex;align-items:center;gap:var(--sp-2,8px);
+    flex:0 0 auto;min-width:0;padding:0 var(--sp-2,8px) 0 var(--sp-3,12px);min-height:40px;
+    background:var(--hb-bg-soft,#272D35);
+    border-bottom:1px solid var(--hb-line,rgba(255,255,255,.14))}
+  .hb-agenda .agt-sidetitle{flex:1 1 auto;min-width:0;font:700 12px/1 var(--sans,system-ui);
+    letter-spacing:.08em;text-transform:uppercase;color:var(--hb-muted,#BAC2CE);
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  /* The ＋ as an icon button in the header, and the inline «name it» form taking the header's whole width
+     when it opens. ".agt-newl" keeps its name because it keeps its job — it is the new-list affordance,
+     wherever it sits. */
+  .hb-agenda .agt-newl{display:flex;align-items:center;gap:var(--sp-1,4px);flex:0 0 auto;min-width:0}
+  .hb-agenda .agt-newl.open{flex:1 1 auto}
+  .hb-agenda .agt-plus{width:26px;height:26px;flex:0 0 auto;border-radius:var(--hb-r-s,8px);
+    border:1px solid var(--hb-line,rgba(255,255,255,.14));background:var(--hb-bg,#1F242B);
+    color:var(--hb-ink,#F2F4F7);cursor:pointer;display:inline-flex;align-items:center;
+    justify-content:center;font:600 15px/1 var(--sans,system-ui);padding:0}
+  .hb-agenda .agt-plus:hover{border-color:var(--hb-accent,#AE90FF);color:var(--hb-accent,#AE90FF)}
+
+  /* The rows. "gap:0" and a hairline per row is the whole difference between a list of chips and a table. */
+  .hb-agenda .agt-rows{flex:1 1 auto;min-height:0;overflow:auto}
+  .hb-agenda .agt-list{display:grid;grid-template-columns:26px 1fr 52px;align-items:center;
+    column-gap:var(--sp-2,8px);row-gap:5px;width:100%;text-align:left;border:0;
+    border-left:3px solid transparent;
+    border-bottom:1px solid var(--hb-line-subtle,rgba(255,255,255,.09));background:none;
+    padding:9px var(--sp-3,12px) 9px 9px;cursor:pointer;font-family:var(--sans,system-ui);
+    color:var(--hb-ink,#F2F4F7)}
+  .hb-agenda .agt-rows .agt-list:nth-child(even){background:color-mix(in srgb,var(--hb-ink,#F2F4F7) 3%,transparent)}
+  .hb-agenda .agt-list:hover{background:var(--hb-hover,#3C434F)}
+  /* Selection: tinted ground + an accent EDGE + the label in primary ink at 700 — V2-691's shape, because
+     the accent used as small text over its own tint was the tightest thing on that screen. */
+  .hb-agenda .agt-list.on,.hb-agenda .agt-rows .agt-list.on:nth-child(even){
+    background:color-mix(in srgb,var(--hb-accent,#AE90FF) 16%,transparent);
+    border-left-color:var(--hb-accent,#AE90FF)}
+  .hb-agenda .agt-list.on .agt-lname{font-weight:700;color:var(--hb-ink,#F2F4F7)}
+  /* THE NUMBER IS THE HANDLE. He says «ábreme la lista número 3», so the numeral is not decoration: it is
+     the thing he reads before he speaks. A square monospace cell rather than a circle — it is a column of a
+     table now, and a two-digit list has to fit in it without the badge changing shape.
+
+     ⚠️ Its ink is PRIMARY, not the accent, and that is measured rather than chosen. Accent glyphs on an
+     accent tint measured 4.79:1 on a plain row and 3.67:1 on the selected one — under AA — because the
+     selected row is itself an accent tint and the badge was then accent on accent. It is the exact pairing
+     V2-691 called the tightest thing on that screen, and the shape it prescribed is the one used here:
+     tinted ground, primary ink at 700, and the accent carried by the ROW (its left edge and its tint)
+     rather than by the small text sitting on it. Selected, the badge flips to the filled-accent pairing the
+     same pass proved — accent ground, "--canvas" ink — which reads at 9:1 and makes the handle he is about
+     to speak the brightest thing in the column. */
+  .hb-agenda .agt-no{width:26px;height:22px;flex:0 0 auto;border-radius:var(--hb-r-s,8px);
+    display:inline-flex;align-items:center;justify-content:center;
+    font:700 12px/1 ui-monospace,SFMono-Regular,Menlo,monospace;
+    color:var(--hb-ink,#F2F4F7);background:color-mix(in srgb,var(--hb-ink,#F2F4F7) 12%,transparent)}
+  .hb-agenda .agt-list.on .agt-no,.hb-agenda .agt-head .agt-no{
+    color:var(--canvas,#16191E);background:var(--hb-accent,#AE90FF)}
+  .hb-agenda .agt-lname{min-width:0;font-size:13px;font-weight:600;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  /* Monospace and right-aligned so «1/3» sits under «12/40» on the slash. The brighter ink is deliberate:
+     this is a column of the table now, not a caption, and V2-691 measured the tertiary ink losing a point
+     on every step above surface-1 — which is exactly where the zebra puts half these cells. */
+  .hb-agenda .agt-count{text-align:right;font:600 12px/1 ui-monospace,SFMono-Regular,Menlo,monospace;
+    color:var(--hb-muted,#BAC2CE);font-variant-numeric:tabular-nums;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+  /* The meter. Two pixels and not three: five of these stacked in a column were the loudest thing on the
+     screen and they were competing with the selection for the same purple. A FINISHED list turns green —
+     the one place this pass adds colour, and it adds it because it says something: «Regalos 2/2» used to
+     be a full purple bar, which is what a selected row also looks like out of the corner of an eye. */
+  .hb-agenda .agt-prog{grid-column:2 / -1;height:2px;border-radius:999px;
+    background:color-mix(in srgb,var(--hb-ink,#F2F4F7) 12%,transparent);overflow:hidden}
+  .hb-agenda .agt-prog span{display:block;height:100%;border-radius:999px;
+    background:color-mix(in srgb,var(--hb-accent,#AE90FF) 82%,transparent)}
+  .hb-agenda .agt-prog.full span{background:var(--hb-ok,#6FE0B0)}
+
+  /* The right pane's header carries the identity of the list and everything you can do TO the list. */
+  .hb-agenda .agt-title{flex:1 1 auto;font:700 14px/1.2 var(--sans,system-ui);min-width:0;overflow:hidden;
     text-overflow:ellipsis;white-space:nowrap}
   /* The list's IDENTIFIER, shown rather than hidden: it is what he will hand to another agent over the
      MeshKore cluster, and an id you cannot see is an id you cannot share. */
-  .hb-agenda .agt-id{font:500 11px/1 ui-monospace,SFMono-Regular,Menlo,monospace;
-    color:var(--hb-muted-2,#9aa7b8);background:var(--hb-bg-soft,#171B21);
-    border:1px solid var(--hb-line-subtle,rgba(255,255,255,.06));border-radius:6px;padding:4px 7px;
+  .hb-agenda .agt-id{font:500 12px/1 ui-monospace,SFMono-Regular,Menlo,monospace;
+    color:var(--hb-muted,#BAC2CE);background:var(--hb-bg,#1F242B);
+    border:1px solid var(--hb-line-subtle,rgba(255,255,255,.09));border-radius:6px;padding:4px 7px;
     flex:0 0 auto;cursor:pointer}
-  .hb-agenda .agt-acts{margin-left:auto;display:flex;gap:4px;flex:0 0 auto}
-  .hb-agenda .agt-b{border:1px solid var(--hb-line,#e3e8f0);background:var(--hb-bg,#fff);
-    color:var(--hb-muted,#5b6b82);border-radius:var(--hb-r-s,8px);height:var(--hb-ctl-h-sm,32px);
+  /* The actions as a SEGMENTED group: one outline around the set, hairlines between the members. Three
+     separate outlined buttons read as three unrelated decisions; they are one toolbar. */
+  .hb-agenda .agt-acts{margin-left:auto;display:flex;flex:0 0 auto;
+    border:1px solid var(--hb-line,rgba(255,255,255,.14));border-radius:var(--hb-r-s,8px);overflow:hidden}
+  .hb-agenda .agt-acts .agt-b{border:0;border-left:1px solid var(--hb-line,rgba(255,255,255,.14));
+    border-radius:0;background:var(--hb-bg,#1F242B)}
+  .hb-agenda .agt-acts .agt-b:first-child{border-left:0}
+  .hb-agenda .agt-b{border:1px solid var(--hb-line,rgba(255,255,255,.14));background:var(--hb-bg,#1F242B);
+    color:var(--hb-muted,#BAC2CE);border-radius:var(--hb-r-s,8px);height:var(--hb-ctl-h-sm,32px);
     padding:0 var(--sp-3,12px);font:600 12px/1 var(--sans,system-ui);cursor:pointer}
-  .hb-agenda .agt-b:hover{border-color:var(--hb-accent,#3D6FE0);color:var(--hb-accent,#3D6FE0)}
-  .hb-agenda .agt-b.danger:hover{border-color:var(--hb-risk,#e5484d);color:var(--hb-risk,#e5484d)}
-  .hb-agenda .agt-b.on{background:var(--hb-accent,#3D6FE0);color:var(--canvas,#fff);border-color:transparent}
-  .hb-agenda .agt-items{flex:1 1 auto;min-height:0;overflow:auto;display:flex;flex-direction:column;gap:4px}
-  .hb-agenda .agt-item{display:flex;align-items:center;gap:var(--sp-2,8px);
-    border:1px solid var(--hb-line-subtle,rgba(255,255,255,.06));border-radius:var(--hb-r-m,10px);
-    padding:8px 10px;flex:0 0 auto}
-  .hb-agenda .agt-item:hover{border-color:var(--hb-line,rgba(255,255,255,.10))}
-  .hb-agenda .agt-check{width:20px;height:20px;flex:0 0 auto;border-radius:6px;cursor:pointer;
-    border:1.5px solid var(--hb-line-strong,#c6cedb);background:none;display:inline-flex;
-    align-items:center;justify-content:center;color:var(--canvas,#fff);padding:0}
-  .hb-agenda .agt-check.on{background:var(--hb-accent,#3D6FE0);border-color:var(--hb-accent,#3D6FE0)}
-  .hb-agenda .agt-check svg{width:12px;height:12px;display:block}
-  .hb-agenda .agt-ino{flex:0 0 auto;min-width:18px;text-align:right;
-    font:600 12px/1 var(--sans,system-ui);color:var(--hb-muted-2,#9aa7b8)}
-  .hb-agenda .agt-text{flex:1 1 auto;min-width:0;font-size:13.5px;overflow:hidden;text-overflow:ellipsis;
+  .hb-agenda .agt-b:hover{background:var(--hb-hover,#3C434F);color:var(--hb-ink,#F2F4F7)}
+  .hb-agenda .agt-b.danger:hover{background:var(--hb-risk-soft,rgba(255,138,146,.16));
+    color:var(--hb-risk,#FF8A92)}
+  .hb-agenda .agt-b.on{background:var(--hb-accent,#AE90FF);color:var(--canvas,#16191E);border-color:transparent}
+  .hb-agenda .agt-b.on:hover{background:var(--hb-accent,#AE90FF);color:var(--canvas,#16191E)}
+
+  /* The table's own header row — the label line a spreadsheet has and a list of chips does not. */
+  .hb-agenda .agt-cols{display:grid;grid-template-columns:20px 26px 1fr 108px 56px;align-items:center;
+    gap:var(--sp-2,8px);flex:0 0 auto;padding:6px var(--sp-3,12px);
+    background:color-mix(in srgb,var(--hb-ink,#F2F4F7) 4%,transparent);
+    border-bottom:1px solid var(--hb-line,rgba(255,255,255,.14));
+    font:700 12px/1 var(--sans,system-ui);letter-spacing:.09em;text-transform:uppercase;
+    color:var(--hb-muted,#BAC2CE)}
+  .hb-agenda .agt-cols i{font-style:normal;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .hb-agenda .agt-cols i.n{text-align:right;padding-right:2px}
+
+  .hb-agenda .agt-items{flex:1 1 auto;min-height:0;overflow:auto}
+  .hb-agenda .agt-item{display:grid;grid-template-columns:20px 26px 1fr 108px 56px;align-items:center;
+    gap:var(--sp-2,8px);border:0;
+    border-bottom:1px solid var(--hb-line-subtle,rgba(255,255,255,.09));
+    padding:8px var(--sp-3,12px)}
+  .hb-agenda .agt-items .agt-item:nth-child(even){background:color-mix(in srgb,var(--hb-ink,#F2F4F7) 3%,transparent)}
+  .hb-agenda .agt-item:hover{background:var(--hb-hover,#3C434F)}
+  .hb-agenda .agt-check{width:18px;height:18px;flex:0 0 auto;border-radius:5px;cursor:pointer;
+    border:1.5px solid var(--hb-line-strong,rgba(255,255,255,.24));background:none;display:inline-flex;
+    align-items:center;justify-content:center;color:var(--canvas,#16191E);padding:0}
+  .hb-agenda .agt-check.on{background:var(--hb-accent,#AE90FF);border-color:var(--hb-accent,#AE90FF)}
+  .hb-agenda .agt-check svg{width:11px;height:11px;display:block}
+  .hb-agenda .agt-ino{text-align:right;padding-right:2px;font-variant-numeric:tabular-nums;
+    font:600 12px/1 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--hb-muted,#BAC2CE)}
+  .hb-agenda .agt-text{min-width:0;font-size:13.5px;overflow:hidden;text-overflow:ellipsis;
     white-space:nowrap}
-  .hb-agenda .agt-item.done .agt-text{text-decoration:line-through;color:var(--hb-muted-2,#9aa7b8)}
-  .hb-agenda .agt-when{flex:0 0 auto;font-size:11.5px;color:var(--hb-muted-2,#9aa7b8);
-    background:var(--hb-bg-soft,#171B21);border-radius:6px;padding:3px 7px}
-  .hb-agenda .agt-ib{border:0;background:none;color:var(--hb-muted-2,#9aa7b8);cursor:pointer;
+  .hb-agenda .agt-item.done .agt-text{text-decoration:line-through;color:var(--hb-muted,#BAC2CE)}
+  .hb-agenda .agt-when{justify-self:stretch;text-align:right;font:500 12px/1 ui-monospace,SFMono-Regular,Menlo,monospace;
+    color:var(--hb-muted,#BAC2CE);background:color-mix(in srgb,var(--hb-ink,#F2F4F7) 7%,transparent);
+    border-radius:5px;padding:4px 7px;white-space:nowrap}
+  /* The row's own controls live in a fixed last column, so they line up down the table instead of drifting
+     with the length of each title — and they are always there rather than appearing on hover, because a
+     control that only exists while the pointer is over it cannot be found by somebody looking for it. */
+  .hb-agenda .agt-ops{grid-column:5;justify-self:end;display:flex;gap:2px}
+  .hb-agenda .agt-ib{border:0;background:none;color:var(--hb-muted,#BAC2CE);cursor:pointer;
     padding:4px;border-radius:6px;flex:0 0 auto;display:inline-flex;font-size:12px;font-weight:600}
-  .hb-agenda .agt-ib:hover{color:var(--hb-ink,#0d1622);background:var(--hb-hover,#242A34)}
-  .hb-agenda .agt-ib.danger:hover{color:var(--hb-risk,#e5484d)}
-  .hb-agenda .agt-add,.hb-agenda .agt-newl{display:flex;gap:var(--sp-2,8px);flex:0 0 auto}
-  .hb-agenda .agt-in{flex:1 1 auto;min-width:0;border:1px solid var(--hb-line,#e3e8f0);
-    background:var(--hb-bg,#fff);color:var(--hb-ink,#0d1622);border-radius:var(--hb-r-s,8px);
+  .hb-agenda .agt-ib:hover{color:var(--hb-ink,#F2F4F7);background:var(--hb-bg-soft,#272D35)}
+  .hb-agenda .agt-ib.danger:hover{color:var(--hb-risk,#FF8A92);background:var(--hb-risk-soft,rgba(255,138,146,.16))}
+  /* An item being renamed spans the columns its text and its controls occupied — the row must not reflow. */
+  .hb-agenda .agt-item > .agt-in{grid-column:3 / -1}
+  /* The pane's footer — the «new row» line of the spreadsheet, ruled off from the rows above it. */
+  .hb-agenda .agt-add{display:flex;gap:var(--sp-2,8px);flex:0 0 auto;align-items:center;
+    padding:var(--sp-2,8px) var(--sp-3,12px);background:var(--hb-bg-soft,#272D35);
+    border-top:1px solid var(--hb-line,rgba(255,255,255,.14))}
+  .hb-agenda .agt-in{flex:1 1 auto;min-width:0;border:1px solid var(--hb-line,rgba(255,255,255,.14));
+    background:var(--hb-bg,#1F242B);color:var(--hb-ink,#F2F4F7);border-radius:var(--hb-r-s,8px);
     height:var(--hb-ctl-h-sm,32px);padding:0 10px;font:400 13px/1 var(--sans,system-ui)}
-  .hb-agenda .agt-in:focus{outline:none;border-color:var(--hb-accent,#3D6FE0)}
-  .hb-agenda .agt-empty{font-size:13px;color:var(--hb-muted-2,#9aa7b8);padding:var(--sp-4,16px) 0}
+  .hb-agenda .agt-in:focus{outline:none;border-color:var(--hb-accent,#AE90FF)}
+  .hb-agenda .agt-sidehead .agt-in{height:26px;font-size:12px}
+  .hb-agenda .agt-sidehead .agt-b{height:26px;padding:0 var(--sp-2,8px)}
+  .hb-agenda .agt-empty{font-size:13px;color:var(--hb-muted,#BAC2CE);
+    padding:var(--sp-5,24px) var(--sp-3,12px);text-align:center}
   .hb-agenda .agt-ask{display:flex;align-items:center;gap:var(--sp-2,8px);flex:0 0 auto;font-size:13px;
-    color:var(--hb-ink,#0d1622);background:var(--hb-bubble,#1D222A);border-radius:var(--hb-r-m,10px);
-    border:1px solid var(--hb-line,rgba(255,255,255,.10));padding:9px 11px}
-  /* Narrow card: the lists become a strip over the items instead of a column that squeezes them. */
+    color:var(--hb-ink,#F2F4F7);background:var(--hb-risk-soft,rgba(255,138,146,.16));
+    border-bottom:1px solid var(--hb-line,rgba(255,255,255,.14));padding:9px var(--sp-3,12px)}
+  .hb-agenda .agt-ask span{flex:1 1 auto;min-width:0}
+  /* Narrow card: the panes stack, the left one stops being a column and becomes a short scrolling strip.
+     It keeps its border and its header — the delimitation is the point and it does not get cheaper here. */
   @media (max-width: 640px){
     .hb-agenda .agt{flex-direction:column}
-    .hb-agenda .agt-side{flex:0 0 auto;flex-direction:row;overflow-x:auto;padding-bottom:4px}
-    .hb-agenda .agt-list{width:auto;flex:0 0 auto}
-    .hb-agenda .agt-list .agt-count{display:none}
+    .hb-agenda .agt-side{flex:0 0 auto;max-height:168px}
+    .hb-agenda .agt-main{min-height:240px}
   }
   `; document.head.appendChild(s);
 }
@@ -1464,27 +1596,42 @@ function renderTasks(host, data, ctx, S, redraw){
   const wrap = el2("div","agt");
 
   // ── the lists, each with its number and its progress ───────────────────────────────────────────────
+  // V2-746 — the column is a PANE with its own header, and the header is where "＋ Nueva lista" lives now.
+  // The operator: «el botón de nueva lista, pues abajo no está bien porque cuando tengamos 100 listas no se
+  // va a ver». It sat after the rows, so it scrolled with them; a control that leaves the screen when the
+  // data grows is a control that stops existing exactly when it is most needed. It is a flex SIBLING of the
+  // scroller now, which is stickiness by construction rather than by a `position` nobody can see is load
+  // bearing.
   const side = el2("div","agt-side");
+  const shead = el2("div","agt-sidehead");
+  shead.appendChild(el2("span","agt-sidetitle", tt("tasks_lists", null, "Listas")));
+  side.appendChild(shead);
+  const rows = el2("div","agt-rows");
   lists.forEach(l => {
     const b = el2("button","agt-list" + (cur && l.id === cur.id ? " on" : ""));
     b.dataset.list = l.id; b.dataset.no = String(l.no);
+    // V2-746 — the row's cells are DIRECT children of the row, because the row is a grid and a grid only
+    // places its own children. They used to live inside two nested inline-styled divs, so every row sized
+    // its own count cell to its own digits: twelve lists landed on six different right edges, and «1/3»
+    // under «12/40» is exactly the alignment this pass is for. The nesting also left `.agt-prog` outside
+    // the grid, where the rule that spans it across the row could never apply.
     b.appendChild(el2("span","agt-no", String(l.no)));
-    const col = el2("div", null); col.style.cssText = "flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:5px";
-    const row = el2("div", null); row.style.cssText = "display:flex;align-items:center;gap:8px;min-width:0";
     // The BUILT-IN list keeps a translated label while it carries its untouched default name; once he
     // renames it, the name he chose wins — it is his data from that moment on.
     const name = (l.builtin && String(l.name) === "General") ? tt("tasks_general", null, "General") : String(l.name || "");
-    row.appendChild(el2("span","agt-lname", name));
-    row.appendChild(el2("span","agt-count", `${l.done}/${l.total}`));
-    col.appendChild(row);
-    const bar = el2("div","agt-prog"); const fill = el2("span");
+    b.appendChild(el2("span","agt-lname", name));
+    b.appendChild(el2("span","agt-count", `${l.done}/${l.total}`));
+    const bar = el2("div","agt-prog" + (l.total && l.done >= l.total ? " full" : "")); const fill = el2("span");
     fill.style.width = (l.total ? Math.round(100 * l.done / l.total) : 0) + "%";
-    bar.appendChild(fill); col.appendChild(bar);
-    b.appendChild(col);
+    bar.appendChild(fill); b.appendChild(bar);
     b.onclick = () => { S.tl = l.id; S.tlEdit = false; S.tlAsk = ""; redraw(); };
-    side.appendChild(b);
+    rows.appendChild(b);
   });
-  const newl = el2("div","agt-newl");
+  if(!lists.length) rows.appendChild(el2("div","agt-empty", tt("tasks_no_lists", null, "Ninguna lista todavía.")));
+  side.appendChild(rows);
+  // `.agt-newl` keeps its class because it keeps its JOB — it is the new-list affordance, and where it sits
+  // is a layout decision, not an identity one. Open, it takes the header's width; closed, it is one ＋.
+  const newl = el2("div","agt-newl" + (S.tlNew ? " open" : ""));
   if(S.tlNew){
     const inp = el2("input","agt-in"); inp.type = "text";
     inp.placeholder = tt("tasks_list_name", null, "Nombre de la lista");
@@ -1495,12 +1642,16 @@ function renderTasks(host, data, ctx, S, redraw){
     newl.appendChild(inp); newl.appendChild(ok);
     raf(() => { try{ inp.focus(); }catch(_){} });
   } else {
-    const add = el2("button","agt-b", "＋ " + tt("tasks_new_list", null, "Nueva lista"));
+    // The ＋ carries its words in the tooltip, not on its face: in a 40px header bar a full label would push
+    // the column title out, and the label is what the pointer asks for rather than what the eye scans.
+    const add = el2("button","agt-plus", "＋");
     add.dataset.a2 = "newlist";
+    add.title = tt("tasks_new_list", null, "Nueva lista");
+    add.setAttribute("aria-label", add.title);
     add.onclick = () => { S.tlNew = true; redraw(); };
     newl.appendChild(add);
   }
-  side.appendChild(newl);
+  shead.appendChild(newl);
   wrap.appendChild(side);
 
   // ── the chosen list ────────────────────────────────────────────────────────────────────────────────
@@ -1561,6 +1712,18 @@ function renderTasks(host, data, ctx, S, redraw){
       main.appendChild(ask);
     }
 
+    // The table's label line. It carries no data and it is what turns a stack of rows into columns — the
+    // one thing a spreadsheet has that a list of chips does not.
+    if(items.length){
+      const cols = el2("div","agt-cols");
+      cols.appendChild(el2("i", null, ""));
+      cols.appendChild(el2("i","n", "Nº"));
+      cols.appendChild(el2("i", null, tt("tasks_col_task", null, "Tarea")));
+      cols.appendChild(el2("i", null, tt("tasks_col_when", null, "Cuándo")));
+      cols.appendChild(el2("i", null, ""));
+      main.appendChild(cols);
+    }
+
     const box = el2("div","agt-items");
     if(!items.length) box.appendChild(el2("div","agt-empty", tt("tasks_empty", null, "Esta lista está vacía.")));
     items.forEach(it => {
@@ -1585,14 +1748,18 @@ function renderTasks(host, data, ctx, S, redraw){
       } else {
         row.appendChild(el2("span","agt-text", String(it.title || "")));
         const when = taskWhen(it);
-        if(when) row.appendChild(el2("span","agt-when", when));
+        // The "Cuándo" cell is ALWAYS present, empty or not: a grid column that some rows skip is a grid
+        // whose later columns slide left on those rows, and the alignment is the whole point of the change.
+        row.appendChild(when ? el2("span","agt-when", when) : el2("span", null, ""));
+        const ops = el2("div","agt-ops");
         const ed = el2("button","agt-ib", "✎"); ed.title = tt("tasks_edit", null, "Editar");
         ed.dataset.a2 = "edititem";
         ed.onclick = () => { S.tlItem = it.id; redraw(); };
         const rm = el2("button","agt-ib danger", "✕"); rm.title = tt("tasks_delete", null, "Borrar");
         rm.dataset.a2 = "deleteitem";
         rm.onclick = () => act("delete_task", {list: cur.id, task: it.id});
-        row.appendChild(ed); row.appendChild(rm);
+        ops.appendChild(ed); ops.appendChild(rm);
+        row.appendChild(ops);
       }
       box.appendChild(row);
     });
@@ -1729,9 +1896,15 @@ export function render(el, data, ctx){
   el.className = "hb-agenda";
   el.textContent = "";                                   // reset (never innerHTML)
 
-  // ── V2-744 · SECTION selector — the first row of the card ──────────────────────────────────────────
+  // ── V2-744/V2-746 · SECTION selector — the card's SUBHEADER ────────────────────────────────────────
   // «Arriba del todo un selector que separe lo que es agenda de tareas». It sits above the calendar's own
   // toolbar because it chooses WHAT you are looking at: everything below belongs to whichever half is lit.
+  //
+  // V2-746 — it is a BAND now and not a floating pill: «quizás debería ser una línea de subheader más
+  // consistente. Por si hay que crear algo más ahí». The band spans the card and closes on a rule, and it
+  // carries a right-hand slot that the tasks half fills with its counts and the calendar leaves empty. The
+  // slot is the point of the change: whatever goes there next does not need a second band invented for it.
+  const sub = el2("div","agsub");
   const secs = el2("div","agsec");
   [["agenda", tt("sec_agenda", null, "Agenda")], ["tasks", tt("sec_tasks", null, "Tareas")]].forEach(([id,label])=>{
     const b = el2("button","agsecb" + (S.sec === id ? " on" : ""), label);
@@ -1739,10 +1912,29 @@ export function render(el, data, ctx){
     b.onclick = ()=>{ S.sec = id; S.sel = null; S.screen = null; S.tlAsk = ""; render(el, data, ctx); };
     secs.appendChild(b);
   });
-  el.appendChild(secs);
+  sub.appendChild(secs);
+  el.appendChild(sub);
 
   if(S.sec === "tasks"){
-    const tbody = el2("div","agbody");
+    // The slot, filled with what the half is actually holding. Counts and not a title: the title is the
+    // window's, and repeating it here would spend the one line of chrome on something already on screen.
+    const _T0 = (data && data.tasks) || {};
+    const _ls = Array.isArray(_T0.lists) ? _T0.lists : [];
+    const _open = _ls.reduce((n,l)=> n + Math.max(0, (l.total|0) - (l.done|0)), 0);
+    const meta = el2("div","agsub-meta");
+    meta.dataset.meta = "tasks";
+    const _b1 = el2("b", null, String(_ls.length));
+    meta.appendChild(_b1);
+    meta.appendChild(el2("span", null, _ls.length === 1 ? tt("tasks_list_one", null, "lista")
+                                                        : tt("tasks_list_many", null, "listas")));
+    meta.appendChild(el2("span", null, "·"));
+    const _b2 = el2("b", null, String(_open));
+    meta.appendChild(_b2);
+    meta.appendChild(el2("span", null, _open === 1 ? tt("tasks_open_one", null, "pendiente")
+                                                   : tt("tasks_open_many", null, "pendientes")));
+    sub.appendChild(meta);
+
+    const tbody = el2("div","agbody tasks");
     renderTasks(tbody, data, ctx, S, redraw);
     el.appendChild(tbody);
     return;                       // the calendar's toolbar, views and overlays belong to the other half

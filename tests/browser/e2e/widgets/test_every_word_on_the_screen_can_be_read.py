@@ -78,6 +78,25 @@ def _agenda_data():
         "calendars": [{"id": "google", "label": "Google Calendar", "status": "unconfigured"},
                       {"id": "icloud", "label": "iCloud (Apple)", "status": "unavailable"},
                       {"id": "caldav", "label": "CalDAV (Outlook, Fastmail…)", "status": "unavailable"}],
+        # V2-746 — and the tasks half, which the audit now walks into. Without rows the pane renders its
+        # header and nothing else, so every label this pass exists to measure would go unmeasured while the
+        # pass reported a clean sweep: an audit over an empty table is the shape of a green test measuring
+        # air. Two lists so the zebra's even row is on screen, one finished item so the struck-through ink
+        # is measured too, and one carrying a date so the «Cuándo» cell exists.
+        "tasks": {
+            "lists": [{"id": "general", "name": "General", "no": 1, "builtin": True, "total": 1, "done": 0},
+                      {"id": "tl_obra", "name": "Obra", "no": 2, "builtin": False, "total": 3, "done": 1}],
+            "items": {
+                "general": [{"id": "t1", "no": 1, "title": "Llamar al banco", "status": "todo",
+                             "date": "", "time": "", "planned": False}],
+                "tl_obra": [
+                    {"id": "t2", "no": 1, "title": "Cerrar acuerdo", "status": "done",
+                     "date": "", "time": "", "planned": False},
+                    {"id": "t3", "no": 2, "title": "Transferencia", "status": "todo",
+                     "date": "", "time": "", "planned": False},
+                    {"id": "t4", "no": 3, "title": "Crear la cuenta nueva", "status": "todo",
+                     "date": _day(1), "time": "17:00", "planned": False}]},
+            "view": None},
         "warnings": [], "coaching": []}
 
 
@@ -239,6 +258,19 @@ def measured():
             # by its label: the first version matched /onect/i, which finds «Conectores» and misses
             # «Connectors», so under the shell's default language this pass silently re-measured the
             # calendar. `.agcalbtn` is the header's own door into that screen and there is exactly one.
+            # V2-746 — the agenda's OTHER half. The audit has only ever seen the calendar, and the memory
+            # this test left behind said so in as many words: «extender 4.170 por widget seguramente
+            # encuentre más tipografía bajo 12px». It did — four labels of the tasks table were under the
+            # floor the moment they were written, and nothing would have said so. Reached by the section
+            # button's `data-sec`, which is language-independent, for the same reason the connectors screen
+            # below is reached by class: matching a LABEL re-measures the previous screen in silence.
+            pg.evaluate("""() => { const b = document.querySelector('.agsecb[data-sec="tasks"]');
+                                   if (b) b.click(); }""")
+            pg.wait_for_timeout(500)
+            rows += [dict(r, screen="agenda+tasks") for r in pg.evaluate(_AUDIT)]
+            pg.evaluate("""() => { const b = document.querySelector('.agsecb[data-sec="agenda"]');
+                                   if (b) b.click(); }""")
+            pg.wait_for_timeout(400)
             pg.evaluate("""() => { const b = document.querySelector('.agcalbtn'); if (b) b.click(); }""")
             pg.wait_for_timeout(500)
             rows += [dict(r, screen="connectors") for r in pg.evaluate(_AUDIT)]
@@ -283,6 +315,17 @@ def test_the_audit_actually_saw_the_screen(measured):
     assert has(desk, "cw-tabname"), "the chat wall never opened"
     assert has(conn, "agcalname"), \
         "the connectors screen never opened — that pass measured the calendar again"
+    # V2-746 — the tasks half, anchored the same way: `agt-list` is a row of the lists table and exists on
+    # no other screen, so this cannot go green over a pass that re-measured the calendar.
+    tasks = [r for r in rows if r["screen"] == "agenda+tasks"]
+    # Anchored on elements that carry their OWN text: this audit walks leaf text (`own.length < 2` is
+    # skipped), so `.agt-list` and `.agt-cols` are containers it can never record and an anchor on either
+    # would fail over a screen that rendered perfectly. `.agt-lname` is a row of the lists pane and
+    # `.agt-ino` a numbered row of the items table — one from each half, both of them rows and not chrome,
+    # so an empty table cannot pass this either.
+    assert has(tasks, "agt-lname"), \
+        "the tasks half never opened — that pass measured the calendar again"
+    assert has(tasks, "agt-ino"), "the items table rendered no rows — its type went unmeasured"
 
 
 def test_no_text_on_the_screen_is_under_its_contrast_floor(measured):
