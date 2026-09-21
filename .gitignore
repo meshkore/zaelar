@@ -184,3 +184,8 @@ library/images/
 GEMINI.md
 .clinerules
 .cursor/
+
+# macOS junk. It is not an artefact of anything we build — Finder writes it when a directory is
+# opened, so it can appear under any folder of the repo and turns up as untracked work that is not
+# work. The workspace rule is «raíz limpia»; this is the same rule one level in.
+.DS_Store
