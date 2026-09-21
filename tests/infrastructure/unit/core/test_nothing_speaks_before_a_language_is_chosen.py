@@ -49,13 +49,18 @@ def test_the_first_run_branch_returns_before_it_can_generate_a_reply():
     shape the V2-101 module records). What is asserted is the only thing that matters: on the onboarding
     path control leaves the function before `session.generate_reply` is reachable."""
     src = AGENT.read_text(encoding="utf-8")
-    head, _, tail = src.partition("if _onboarding_kickoff:")
+    # V2-745 moved the DECISION to `first_air.silent_first_run()` (with the operator's own words behind it)
+    # and left the branch here; the guard follows it, which is what its own message asked for.
+    head, _, tail = src.partition("if silent_first_run():")
     assert tail, "the first-run branch is gone — if it moved, move this guard with it"
-    branch, _, rest = tail.partition("\n    else:")
+    branch, _, rest = tail.partition("\n    kickoff_text =")
     assert branch.strip().endswith("return"), (
         "the first-run branch must RETURN: nothing may be spoken before a language exists")
     assert "generate_reply" not in branch, "the first-run branch must not generate anything"
     assert "generate_reply" in rest, "the normal kickoff must still greet"
+    # …and the boot veil must come down on that path too, or a first run stares at the splash for ever
+    # while the picker it is supposed to be using sits underneath it (V2-745).
+    assert "_air.lift()" in branch, "a silent first run must lift the veil: nothing is going to sound"
 
 
 def test_no_utterance_is_composed_in_a_language_nobody_chose():

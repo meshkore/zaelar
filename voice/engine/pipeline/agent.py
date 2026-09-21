@@ -38,6 +38,7 @@ from ..core.logging import setup_console_logging
 from ..core.state import State, StateMachine
 from ..llm import build_llm
 from ..speech import build_stt, build_tts, build_turn_detection, build_vad
+from .first_air import FirstAir, greeting_prompt, kickoff_recent, mark_kickoff, silent_first_run
 from .instrument import BootChannel, tapped_vad
 
 logger = logging.getLogger("zaelar.agent")
@@ -114,22 +115,9 @@ def prewarm(proc: JobProcess) -> None:
     logger.info("prewarm() DONE — warm executor ready (userdata: %s)", sorted(proc.userdata.keys()))
 
 
-# GUARD: one kickoff per room (V2-047 F8): room → timestamp of the last greeting. A 2nd job for the SAME room in a
-# short window does not greet again (LiveKit double dispatch / rapid frontend reconnection).
-_KICKOFF_SEEN: dict = {}
-_KICKOFF_WINDOW_S = 8.0
-
-
-def _kickoff_recent(room: str) -> bool:
-    t = _KICKOFF_SEEN.get(room or "")
-    return t is not None and (time.time() - t) < _KICKOFF_WINDOW_S
-
-
-def _mark_kickoff(room: str) -> None:
-    now = time.time()
-    _KICKOFF_SEEN[room or ""] = now
-    for k in [k for k, v in _KICKOFF_SEEN.items() if now - v > 300]:   # prune old entries
-        _KICKOFF_SEEN.pop(k, None)
+# GUARD: one kickoff per room (V2-047 F8) — moved to `first_air.py` with V2-745, re-exported under the
+# historical private names so every call site and test here reads unchanged.
+_kickoff_recent, _mark_kickoff = kickoff_recent, mark_kickoff
 
 
 def _endpointing_opts() -> dict:
@@ -238,10 +226,16 @@ async def entrypoint(ctx: JobContext) -> None:
     _ONSET_MAX_S = 30.0        # past this the "speaking" edge belongs to a proactive delivery, not to an answer
     _onset = {"voice_ended": 0.0}
 
+    # V2-745 — the FIRST AUDIO FRAME: it hands interruption back to a greeting that has finally made a
+    # sound, and it is what lifts the boot veil. Both halves, and the session, are in `first_air.py`.
+    _air = FirstAir(ready=boot.ready, emit=_emit)
+
     def on_state_change(state: State) -> None:
         logger.info("STATE -> %s", state.value)
         speaking = (getattr(state, "value", state) == "speaking")
         _busy["bot"] = speaking
+        if speaking:
+            _air.on_speaking()
         # RESPONSE ONSET (V2-535) — the clock the PERSON lives: from the moment their voice ends to the moment
         # audio actually sounds. Both edges were already emitted, in two different handlers, and nobody paired
         # them: TTFT and the TTS ttfb each measure a leg, and neither is the wait. Reported ONCE per wait (the
@@ -757,57 +751,29 @@ async def entrypoint(ctx: JobContext) -> None:
     from .session_health import on_session_alive
     on_session_alive()   # a session that just STARTED supersedes any recorded death
 
-    # BOOT SEQUENCE — INIT then PROCESS. The voice must NOT run under the splash: we report the ordered backend
-    # milestones over the "vl2" channel (the frontend's «Colmena» splash lights one cluster per phase), emit the
-    # `ready` BARRIER, and ONLY THEN hand the brain its greeting. The heavy startup cost (mic permission, room
-    # connect, Whisper warm) is already paid and the central memory is persisted (V2-011, precomposed above via
-    # memory_cache.prime) → these are quick; the tiny sleeps are a deliberate ~0.5s sweep, not a fake wait.
+    # BOOT SEQUENCE — the ordered backend milestones go over the "vl2" channel and the frontend's «Colmena»
+    # splash lights one cluster per phase. The heavy startup cost (mic permission, room connect, Whisper
+    # warm) is already paid and the memory is precomposed above, so these are quick; the tiny sleeps are a
+    # deliberate ~0.5 s sweep, not a fake wait.
     boot.boot("memoria")   # central-memory state block precomposed (memory_cache.prime, above)
     await asyncio.sleep(0.25)
     boot.boot("reflejo")   # STT/TTS warm + FlashBrain provider live → the reflex is ready to serve
     await asyncio.sleep(0.25)
-    # BARRIER: init done — voice session live, memory composed, warm. The splash lifts and IMPLODES into the orb
-    # NOW, BEFORE zaelar speaks, so the greeting lands as the orb appears — never buried under the loading screen.
-    # Room-scoped signal (not the global /events SSE) so it ties to exactly the room this browser just joined.
-    boot.ready()
+    # …and the BARRIER is no longer here (V2-745): it lifts on the first audio frame, because the phase
+    # above has always ASSERTED a warmth the first model call does not have. Bounded; see `first_air.py`.
+    _air.arm_safety_net()
 
-    # KICKOFF — only AFTER `ready`. V2-027: we do NOT re-inject the verbose capabilities brief here (widgets/
-    # meshkore/cron/architect/messaging). The per-turn system prompt already carries the STATE + the CONCISE
-    # resources (`build_flash_system` → `_flash_layer`), so dumping it again in the kickoff was the OLD dump that bloated
-    # the FIRST turn (the most latency-sensitive). The greeting only needs the memory-aware first-turn instruction:
-    # the brain already greets by name from central memory.
-    # FIRST-RUN LANGUAGE ONBOARDING (V2-101, INVERTED by V2-672): on a brand-new install NOTHING IS SAID.
-    #
-    # This branch used to greet and ask the question OUT LOUD, deliberately, "in English (the product
-    # default)". The operator's rule, 2026-09-11, is the opposite and he is right: *«me pide los idiomas,
-    # pero por detrás está hablando ya en un idioma por defecto. Eso no es correcto… no quiero que la gente
-    # hable hasta que no hayamos seleccionado el idioma»*. Half the people who see that screen do not speak
-    # the language it is spoken in, so the one utterance they cannot understand is the one asking them which
-    # language they understand — and the modal that blocks the UI already asks it, with flags, wordlessly.
-    #
-    # The voice session still STARTS (the mic has to be live to hear a spoken answer, and `_lang_detect`
-    # stays armed for it); it simply says nothing until a language exists. The first thing the operator ever
-    # hears is `onboarding.confirmSpoken`, in the language they just chose, spoken by `i18n_api` after the
-    # lock — which is also the greeting.
-    _onboarding_kickoff = False
-    try:
-        from i18n.init import detect as _d_kickoff
-        _onboarding_kickoff = _d_kickoff.should_detect()
-    except Exception:
-        _onboarding_kickoff = False
-    if _onboarding_kickoff:
+    # KICKOFF — and it is the LAST thing, after the phases and with the veil still up. What to say, and
+    # whether to say anything at all on a brand-new install, live in `first_air.py` with the operator's
+    # own words behind the decision.
+    if silent_first_run():
         _lang_detect["onboarding"] = True
         _mark_kickoff(ctx.room.name)
         _emit("brain", "🤐 kickoff en silencio — no hay idioma elegido todavía (el selector manda)",
               role="system")
+        _air.lift()              # nothing is going to sound: the language picker owns this screen
         return
-    else:
-        kickoff_text = (f"[The operator's selected interface language is {_lang.native} — SPEAK "
-                        f"{_lang.name}.]\n"
-                        "I just connected. FIRST turn — SHORT and warm. CHECK YOUR MEMORY first: if you "
-                        "already know me (my name), greet me BY NAME and pick up naturally — do NOT ask my "
-                        f"name again. If you do NOT know me yet, introduce yourself in one line and ask my name. "
-                        f"Reply in {_lang.name}. Two sentences max. Then stop and wait for me.")
+    kickoff_text = greeting_prompt(_lang)
     # GUARD: only ONE kickoff per room (V2-047 F8, 23:15 session: TWO “voice engine up” events at 23:15:45 and :46 → two
     # generated greetings). A quick frontend reconnection / LiveKit double dispatch starts two jobs for the SAME
     # room; the second must NOT greet again (the operator heard the greeting repeated). Deterministic, per room,
@@ -827,15 +793,21 @@ async def entrypoint(ctx: JobContext) -> None:
         _last_conv_age = None
     if _kickoff_recent(ctx.room.name):
         _emit("brain", "🚫 kickoff duplicado evitado (otra sesión ya saludó esta sala)", role="system")
+        _air.lift()              # the other job is greeting; this one has nothing to wait for
     elif _last_conv_age is not None and _last_conv_age < _resume_window:
         # IN-PROGRESS session: resume without greeting (the operator is continuing the conversation; do not interrupt with a hello)
         _mark_kickoff(ctx.room.name)
         _emit("brain", f"↩️ kickoff omitido — reconexión a sesión en curso (último turno hace {int(_last_conv_age)}s), "
                        "retomando en silencio", role="system")
+        _air.lift()              # a resumed conversation says nothing: there is no greeting to wait for
     else:
         _mark_kickoff(ctx.room.name)
         _emit("brain", "kickoff (saludo memory-aware vía cerebro)", role="system")
-        await session.generate_reply(user_input=kickoff_text)
+        # UNINTERRUPTIBLE UNTIL IT SOUNDS (V2-745): the same edge hands interruption back and lifts the
+        # splash, so the veil lasts exactly as long as the cold handshake and lifts onto the agent talking.
+        _greeting = session.generate_reply(user_input=kickoff_text, allow_interruptions=False)
+        _air.park(_greeting, on_air=_air.lift)
+        await _greeting
 
 
 async def request_fnc(req: JobRequest) -> None:

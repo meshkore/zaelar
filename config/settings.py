@@ -410,7 +410,7 @@ def update(payload: dict) -> dict:
                 # A reconnect cannot be the answer here: the confirmation is spoken the instant lock()
                 # returns and would land in the session being torn down.
                 try:
-                    from voice.engine.speech import live_tts
+                    from voice.engine.speech import live_tts   # noqa: F401 — see the reach table
                     if live_tts.apply_voice(want, lang):
                         applied.append("assistant_voice(en vivo)")
                 except Exception as e:  # noqa: BLE001

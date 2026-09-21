@@ -28,11 +28,15 @@ let _voiceActive = false;   // V2-661b: his VAD is ON — his silence has not st
 // arrives just after. See that module for the measured session this comes from.
 const _hold = createAttentionHold({
   mode: () => store.attentionMode(),
-  deliver: (text, isFinal, judged) => {
+  // V2-745 — `whole` says WHICH of the two halves of a release this call is. The fragments drive the
+  // CANVAS (V2-664 tuned that path against fragments); the joined paragraph is the one line that reaches
+  // the wall, because «lo conviertes en dos frases separadas cuando es el mismo párrafo» was the STT's
+  // segmentation showing through a surface that should only ever show his sentence.
+  deliver: (text, isFinal, judged, whole) => {
+    if (whole) return void store.pushChat({ role: "you", text });
     // V2-664: the canvas fast-path acts only on speech the GATE ruled directed. A fail-open release still
     // paints the wall (never lose a word) but may not open, close or move a card — see attention_hold.js.
     if (judged) handleWidgetVoice(_holdDesk, text, isFinal);
-    store.pushChat({ role: "you", text });
   },
   // V2-743 — the provisional caption lives exactly as long as the hold does: it becomes a real bubble on
   // delivery and vanishes on a discard. Clearing on BOTH is the point — a line left behind after a dropped
@@ -44,7 +48,17 @@ let _holdDesk = null;   // the canvas the delivery acts on, captured per event (
 export function holdSpokenTurn(desktop, text, isFinal) { _holdDesk = desktop; _hold.spoken(text, isFinal); }
 // V2-743 — the interim seam, the same shape as the two above: a thin exported door the `interim` branch of
 // `onmessage` calls, so the test drives the PRODUCTION path instead of a copy of it (node 4.199).
-export function captionPartial(text) { store.setLiveChat(text); }
+//
+// V2-745 — …and it shows THE WHOLE TURN SO FAR, not the fragment being typed. The operator: «cuando paso
+// de tres, cuatro o cinco palabras, las antiguas desaparecen y empiezas a escribir las nuevas… parece que
+// se está perdiendo texto». Nothing was lost — Deepgram had closed a segment and opened a new one, and the
+// caption was a mirror of the newest segment alone. The words it dropped are exactly the ones the hold is
+// already keeping for this turn, so the caption reads them from there instead of from nowhere.
+export function captionPartial(text) {
+  const said = _hold.spokenSoFar();
+  const now = String(text || "").trim();
+  store.setLiveChat(said && now ? said + " " + now : (said || now));
+}
 export function settleHeldTurns(desktop, verdictText, directed) { _holdDesk = desktop; _hold.verdict(verdictText, directed); }
 
 let es = null;
@@ -186,7 +200,9 @@ export function routeEvent(desktop, d) {
         // zaelar's FINAL turn text → chat wall (the HISTORY). The LIVE caption over the orb does NOT come from here
         // (this fires once, late): it's driven by LiveKit's audio-synced transcription in session-lk.js. And it must
         // NOT hit the voice-command fast-path — zaelar saying "cierro la agenda" is not the operator asking to close.
-        store.pushAgentChat(d.text);
+        // V2-745 — `spoken`: this is the record of what LiveKit actually VOICED. A strict prefix of what is
+        // on screen means a barge-in cut it there, and the short one is now the one that survives.
+        store.pushAgentChat(d.text, { spoken: true });
       } else {
         // isFinal gates the CLOSE fast-path (never close on a revisable guess). Voice: "transcript" = final,
         // "interim" = partial. TYPED chat/paste ("text-injected …") is DEFINITIVELY final — treat it as such, or a
@@ -205,8 +221,11 @@ export function routeEvent(desktop, d) {
           // The FINAL text firms up the caption while the verdict is still pending — the interim stream has
           // stopped by now, so without this the line would freeze on the last partial (often a word short of
           // what he actually said) for as long as the hold lasts.
-          store.setLiveChat(d.text);
+          // ORDER MATTERS (V2-745): hold FIRST, then read the caption back out of it. This segment is part
+          // of the turn now, so `spokenSoFar()` already includes it — setting the caption to `d.text` alone
+          // beforehand is precisely the reset that made his earlier words blink out.
           holdSpokenTurn(desktop, d.text, isFinal);
+          captionPartial("");
         }
       }
     } else if (d.kind === "alert") {                                              // hard notice (e.g. no LLM credit) → red banner
@@ -346,9 +365,11 @@ export function routeEvent(desktop, d) {
       // entire response: 5.4 s and 12.2 s measured in session b403c979, experienced by the operator as «I heard
       // it by voice and the text took a minute to appear». Here the text is already generated and complete, so
       // the wall renders it as soon as it exists; the later `transcript` is merged by prefix in `pushAgentChat` (and if
-      // a barge-in truncated it, the complete version wins). SUBTITLES are untouched: they still come from
-      // audio-synchronized transcription (session-lk.js), which is correct for something accompanying voice.
-      if (d.text && d.role === "assistant") store.pushAgentChat(d.text);
+      // a barge-in truncated it, the SPOKEN version now wins — V2-745, see `pushAgentChat`). SUBTITLES are
+      // untouched: they still come from audio-synchronized transcription (session-lk.js), which is correct
+      // for something accompanying voice — and since V2-745 they are also what trims this line back to what
+      // the operator actually heard.
+      if (d.text && d.role === "assistant") store.pushAgentChat(d.text, { voiced: true });
     } else if (d.kind === "status") {                                             // server nudged us to re-read status
       refreshStatus();
     } else if (d.kind === "energy") {                                             // Energy balance → the BATTERY drops LIVE

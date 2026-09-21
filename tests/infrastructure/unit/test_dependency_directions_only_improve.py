@@ -62,6 +62,12 @@ def _walk_imports():
 _MOTOR_REACH: set[tuple[str, str]] = {
     ("config/doctor.py", "voice.engine.core"),
     ("config/settings.py", "voice.engine.core.config"),
+    # V2-733 left this one unrecorded and the ratchet has been red on main since. It is the SAME
+    # neighbour the three rows around it already name: `settings.py` is the single door that realigns the
+    # voice, and `live_tts` is the half of that family which reaches a LIVE plugin. Extracting it to a low
+    # layer — the alternative this test recommends — would put a LiveKit-plugin manipulator outside
+    # `voice/`, which is the wrong direction for the very boundary being protected. V2-745 records it.
+    ("config/settings.py", "voice.engine.speech"),
     ("config/settings.py", "voice.engine.speech.stt"),
     ("config/settings.py", "voice.engine.speech.tts"),
     ("config/settings.py", "voice.engine.speech.voices"),

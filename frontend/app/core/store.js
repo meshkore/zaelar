@@ -153,7 +153,11 @@ export const setOrbDock = (v) => { const m = v === "bar" ? "bar" : "eye"; setOrb
 export const [captionsOn, setCaptionsOn] = createSignal(localStorage.getItem("hb_captions_on") !== "0");
 export const [captionSeg, setCaptionSeg] = createSignal(null);
 let _capSeq = 0;
-export const pushCaptionSeg = (id, text, final) => setCaptionSeg({ id, text: text || "", final: !!final, seq: ++_capSeq });
+export const pushCaptionSeg = (id, text, final) => {
+  setCaptionSeg({ id, text: text || "", final: !!final, seq: ++_capSeq });
+  // V2-745 — the same segments are the wall's record of what was HEARD; see `noteSpokenAloud` below.
+  try { noteSpokenAloud(text, final); } catch (_) {}
+};
 export const toggleCaptions = () => {
   const next = !captionsOn(); setCaptionsOn(next); localStorage.setItem("hb_captions_on", next ? "1" : "0");
   return next;
@@ -712,19 +716,90 @@ try {
 // it arrives TRUNCATED — exact equality would produce two bubbles, one complete and one partial. The longer one
 // is kept (what the agent intended to say), as it is the useful history.
 const _CHAT_MARKERS = /^(?:🔔|💬)\s*/;
-export const pushAgentChat = (text) => {
-  const norm = s => (s || "").replace(_CHAT_MARKERS, "").trim();
+const _normAgent = s => String(s || "").replace(_CHAT_MARKERS, "").trim();
+
+// ── V2-745 · THE WALL KEEPS WHAT WAS SAID, NOT WHAT WAS MEANT ───────────────────────────────────────────
+//
+// The operator, session 8fc3e1c9 (2026-09-21):
+//
+//   «Este texto que has puesto ahí, de "me alegra que lo veas mejor", NO HA LLEGADO NI A SONAR… la gente
+//    que esté mirando el chat y esté escuchando a la vez dirá: y esta frase no la ha llegado a pronunciar.
+//    Si hay una locución y estás hablándome y a mitad del texto corto, EL TEXTO QUE NO HAS DICHO NO QUIERO
+//    QUE EXISTA… para que el chat realmente refleje la conversación de voz que estamos teniendo.»
+//
+// Measured in that session, three times over. At +157.1 s the model produced «Me alegra que lo veas
+// mejor…», ElevenLabs synthesised **14.05 s of audio** at +157.4 s, and `bot_speech` never left `idle` —
+// he had started his next sentence 2 s earlier, so the utterance was cancelled before its first frame. The
+// wall had already painted the whole thing. At +48.7 s and +163.1 s the same thing happened halfway
+// through, and there the spoken record DID arrive («...tienes», «Te tomo nota de las dos cosas: el texto
+// que parece borrarse») — and was thrown away, because the rule written right here said the longer version
+// wins, «what the agent intended to say, as it is the useful history». That was a deliberate decision and
+// it is the one he is overruling: a chat beside a voice is a transcript of the voice.
+//
+// The reconciliation reads the AUDIO-SYNCED caption (`pushCaptionSeg` ← LiveKit's TextSynchronizer, paced
+// to the actual playout), because it is the only channel that says what was HEARD rather than what was
+// generated. Matching is by CONTENT, never by timing: a caption belongs to this line only if the line
+// starts with it, so a filler sounding over a cancelled reply can never be mistaken for it.
+//
+// ⚠️ IT CANNOT ERASE ON ABSENCE OF EVIDENCE. `_captionSeen` arms the whole mechanism the first time that
+// channel speaks in this session; until then — a build where the synchronizer is off, a transport that
+// never forwards it — nothing is trimmed and the behaviour is exactly what it was. Deleting every agent
+// line because a channel went quiet is a worse failure than the one being fixed.
+let _pendingVoiced = null;     // { full, heard } — the line the voice still owes us
+let _captionSeen = false;      // the audio-synced channel has proven itself in THIS session
+
+/** One audio-synced caption segment: what the operator is HEARING, cumulative, `final` at the end of the
+ *  utterance (including an utterance cut short — that is the whole point). */
+export const noteSpokenAloud = (text, final) => {
+  _captionSeen = true;
+  if (!_pendingVoiced) return;
+  const heard = _normAgent(text);
+  if (!heard || !_normAgent(_pendingVoiced.full).startsWith(heard)) return;   // not this line's speech
+  _pendingVoiced.heard = heard;
+  if (final) settleAgentSpoken();
+};
+
+/** The line stops being owed: trim it to what was heard, or remove it if nothing was. */
+export const settleAgentSpoken = () => {
+  const p = _pendingVoiced; _pendingVoiced = null;
+  if (!p || !_captionSeen) return;
+  const full = _normAgent(p.full), heard = _normAgent(p.heard);
+  if (!full || heard === full) return;                       // it said all of it
+  setChatMsgs(xs => {
+    const k = xs.findIndex(m => m.role === "agent" && _normAgent(m.text) === full);
+    if (k < 0) return xs;                                    // already replaced by the spoken transcript
+    // A cut line keeps an ellipsis: it is the honest mark that the sentence stopped where the voice did.
+    return heard ? [...xs.slice(0, k), { role: "agent", text: heard + "…" }, ...xs.slice(k + 1)]
+                 : [...xs.slice(0, k), ...xs.slice(k + 1)];
+  });
+};
+
+export const pushAgentChat = (text, opts) => {
+  const o = opts || {};
+  if (o.voiced) settleAgentSpoken();          // the previous line is no longer owed: whatever it got, it got
   setChatMsgs(xs => {
     const last = xs[xs.length - 1];
     if (last && last.role === "agent") {
-      const a = norm(last.text), b = norm(text);
-      if (a && b && (a === b || a.startsWith(b))) return xs;          // already present (or the new one is a shorter version)
+      const a = _normAgent(last.text), b = _normAgent(text);
+      if (a && b && a === b) return xs;                                // already present, byte for byte
+      // THE SPOKEN RECORD WINS (V2-745). `transcript` carries what LiveKit actually voiced, so when it is a
+      // strict PREFIX of what is rendered the speech was cut there — and the short one is the true one.
+      // This is the fallback for a build with no audio-synced captions; with them, the line is usually
+      // already trimmed by `settleAgentSpoken` and this collapses to the equality above.
+      if (a && b && o.spoken && a.startsWith(b)) {
+        _pendingVoiced = null;
+        return _capChat([...xs.slice(0, -1), { role: "agent", text: text + "…" }]);
+      }
+      if (a && b && a.startsWith(b)) return xs;                        // a shorter re-send of the same line
       if (a && b && b.startsWith(a)) {                                 // the new one EXTENDS what is rendered → replace
+        if (_pendingVoiced && _normAgent(_pendingVoiced.full) === a) _pendingVoiced.full = text;
         return _capChat([...xs.slice(0, -1), { role: "agent", text }]);
       }
     }
     return _capChat([...xs, { role: "agent", text }]);
   });
+  // Marked AFTER the write, so a line merged into its predecessor is owed under its final wording.
+  if (o.voiced) _pendingVoiced = { full: text, heard: "" };
 };
 
 // Convenience helpers used across services (mirror the old showAlert/hideAlert/setConn).

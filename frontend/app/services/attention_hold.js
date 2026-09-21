@@ -34,6 +34,31 @@ export const HOLD_MS = 9000;
 // by a verdict that ruled the room. The live caption on the wall (store.liveChat) is what listens to it, so
 // the provisional line disappears exactly when its turn stops being provisional — without this module
 // learning anything about the chat, which is the separation it was extracted for.
+// ── V2-745 · ONE UTTERANCE IS ONE BUBBLE, AND THE CAPTION KEEPS WHAT HE ALREADY SAID ────────────────────
+//
+// The operator, session 8fc3e1c9 (2026-09-21), watching his own words land:
+//
+//   «mientras vas escribiendo, va componiendo la frase, y en el momento en que la vas a consolidar, LA
+//    CONVIERTES EN DOS FRASES SEPARADAS. Cuando es el mismo párrafo y se entiende perfectamente que es el
+//    mismo párrafo.»
+//
+//   «cuando paso de tres, cuatro o cinco palabras, LAS ANTIGUAS DESAPARECEN y empiezas a escribir las
+//    nuevas… no se pierde texto, pero mientras estoy dictando parece que sí.»
+//
+// Both are the same fact seen from two sides: **the STT segments a paragraph, and the wall was treating a
+// segment as a turn.** Measured in that session — one of his sentences arrived as eleven `transcript`
+// events («Vale, te he oído la voz al» · «cabo de» · «cinco o diez segundos, o sea, perdón, al cabo de
+// diez o quince segundos,» · «lo cual no entiendo.» …), each one released on its own and painted as its
+// own bubble, and the caption reset to the newest fragment every time one closed.
+//
+// The hold ALREADY had the right unit and was not using it: everything waiting on one verdict IS one turn,
+// because the gate rules on the accumulated phrase and not on the fragments. So the batch is joined into
+// ONE line on release, and `spokenSoFar()` exposes the same accumulation to the caption, which prepends it
+// to the partial being typed. The canvas fast-path keeps receiving the fragments one by one — that half
+// reads verbs and has been tuned against fragments since V2-664, and widening its input is a different
+// change that nobody measured.
+const _joinSpoken = (parts) => parts.map(s => String(s || "").trim()).filter(Boolean).join(" ");
+
 export function createAttentionHold({ mode, deliver, settled = () => {}, holdMs = HOLD_MS,
                                       setTimer = setTimeout, clearTimer = clearTimeout }) {
   let held = [];
@@ -42,7 +67,9 @@ export function createAttentionHold({ mode, deliver, settled = () => {}, holdMs 
   const release = (judged) => {
     const batch = held; held = [];
     clearTimer(timer); timer = null;
-    for (const h of batch) deliver(h.text, h.isFinal, judged);
+    // The CANVAS still sees every fragment (V2-664 tuned it that way); the WALL sees the paragraph.
+    for (const h of batch) deliver(h.text, h.isFinal, judged, false);
+    if (batch.length) deliver(_joinSpoken(batch.map(h => h.text)), true, judged, true);
     if (batch.length) settled("delivered");
   };
 
@@ -50,7 +77,8 @@ export function createAttentionHold({ mode, deliver, settled = () => {}, holdMs 
     /** A spoken turn arrived. Held until the gate rules on it (or delivered at once with no gate). */
     spoken(text, isFinal) {
       if (mode() === "always") {
-        deliver(text, isFinal, true);                                 // no gate to wait for: it IS the verdict
+        deliver(text, isFinal, true, false);                          // no gate to wait for: it IS the verdict
+        deliver(text, isFinal, true, true);                           // …and it is a batch of exactly one
         return settled("delivered");
       }
       held.push({ text, isFinal });
@@ -68,6 +96,10 @@ export function createAttentionHold({ mode, deliver, settled = () => {}, holdMs 
       if (!held.length) { clearTimer(timer); timer = null; }
       if (held.length < before) settled("dropped");
     },
+    /** What he has said SO FAR in the turn still waiting for its verdict — the caption's left half, so the
+     *  words he already finished do not vanish while the next fragment is being typed. Empty between turns,
+     *  which is what makes the caption fall back to the partial alone. */
+    spokenSoFar() { return _joinSpoken(held.map(h => h.text)); },
     /** Testing/diagnostics only: how many turns are waiting on a verdict right now. */
     pending() { return held.length; },
   };

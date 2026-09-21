@@ -12,29 +12,39 @@
 import assert from "node:assert/strict";
 import { createAttentionHold, HOLD_MS } from "../../../../frontend/app/services/attention_hold.js";
 
+// V2-745 — a release now has TWO halves and the harness keeps them apart, because they answer different
+// questions: `delivered` is what the CANVAS fast-path sees (one call per STT fragment, the shape V2-664
+// tuned), and `wall` is the one line that reaches the chat (the fragments joined, because one paragraph he
+// dictated is one message — see attention_hold.js's own header for the measured session).
 function harness(mode = "smart", holdMs = 40) {
-  const delivered = [];
-  const hold = createAttentionHold({ mode: () => mode, holdMs,
-                                     deliver: (text, isFinal, judged) => delivered.push({ text, isFinal, judged }) });
-  return { hold, delivered, texts: () => delivered.map(d => d.text) };
+  const delivered = [], wall = [];
+  const hold = createAttentionHold({
+    mode: () => mode, holdMs,
+    deliver: (text, isFinal, judged, whole) =>
+      (whole ? wall : delivered).push({ text, isFinal, judged }),
+  });
+  return { hold, delivered, wall, texts: () => delivered.map(d => d.text),
+           wallTexts: () => wall.map(d => d.text) };
 }
 
 // ── his own measured session: two fragments of the room's conversation, one ambient verdict ──
 {
-  const { hold, texts } = harness();
+  const { hold, texts, wallTexts } = harness();
   hold.spoken("Pero", true);
   hold.spoken("este, si es el contable del cartel, está vigilado", true);
   hold.verdict("Pero este, si es el contable del cartel, está vigilado", false);
   assert.deepEqual(texts(), [], "room speech judged ambient must never be delivered (wall OR canvas)");
+  assert.deepEqual(wallTexts(), [], "…and nothing of it may reach the wall either");
   assert.equal(hold.pending(), 0, "and must not stay queued either");
 }
 
 // ── a turn that WAS for him arrives the same way and must land, whole and instantly ──
 {
-  const { hold, texts, delivered } = harness();
+  const { hold, texts, delivered, wallTexts } = harness();
   hold.spoken("Johnny, ponme la agenda", true);
   hold.verdict("Johnny, ponme la agenda", true);
   assert.deepEqual(texts(), ["Johnny, ponme la agenda"], "a directed turn must be delivered");
+  assert.deepEqual(wallTexts(), ["Johnny, ponme la agenda"], "…and painted on the wall, once");
   assert.equal(delivered[0].isFinal, true, "and its isFinal must survive the hold — the close fast-path reads it");
 }
 
@@ -51,9 +61,10 @@ function harness(mode = "smart", holdMs = 40) {
 
 // ── `always` mode has no gate to wait for: nothing is ever held ──
 {
-  const { hold, texts } = harness("always");
+  const { hold, texts, wallTexts } = harness("always");
   hold.spoken("lo que sea", true);
   assert.deepEqual(texts(), ["lo que sea"], "in always mode every turn is directed by design");
+  assert.deepEqual(wallTexts(), ["lo que sea"], "…and it still reaches the wall exactly once");
   assert.equal(hold.pending(), 0);
 }
 
@@ -78,7 +89,7 @@ function harness(mode = "smart", holdMs = 40) {
   hold.spoken("Le he dicho que haga una acción, que ha sido", true);
   hold.spoken("poner un vídeo,", true);
   await new Promise(r => setTimeout(r, 90));
-  assert.equal(delivered.length, 2, "both fragments still reach the wall — no word is lost");
+  assert.equal(delivered.length, 2, "both fragments still reach the canvas seam — no word is lost");
   assert.ok(delivered.every(d => d.judged === false),
     "none of them may drive the canvas: nobody ruled them directed");
   // and the verdict that finally lands says ambient, which is what actually happened
@@ -113,8 +124,11 @@ function harness(mode = "smart", holdMs = 40) {
   assert.ok(src.includes("settleHeldTurns(desktop, d.text || \"\", !!d.directed)"),
     "the gate's verdict must settle what is held");
   // V2-664: the delivery must SPLIT — the wall always, the canvas only when judged.
-  assert.ok(/deliver:\s*\(text,\s*isFinal,\s*judged\)\s*=>/.test(src),
-    "sse.js must receive the verdict flag the hold now hands it");
+  // V2-745 adds the second axis: `whole` says which half of the release this call is.
+  assert.ok(/deliver:\s*\(text,\s*isFinal,\s*judged,\s*whole\)\s*=>/.test(src),
+    "sse.js must receive both flags the hold now hands it");
+  assert.ok(/if\s*\(whole\)\s*return void store\.pushChat/.test(src),
+    "the JOINED paragraph is the only thing that may reach the wall — one sentence, one bubble");
   assert.ok(/if\s*\(judged\)\s*handleWidgetVoice\(_holdDesk, text, isFinal\);/.test(src),
     "the canvas fast-path must be gated on a real verdict, never on a fail-open release");
   assert.ok(!/handleWidgetVoice\(desktop, d\.text, isFinal\);\s*\n\s*\/\/ kind "transcript"/.test(src),

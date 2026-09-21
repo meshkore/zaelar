@@ -3031,6 +3031,16 @@ DOMAINS: list[dict] = [
             "ch": UNIT,
             "paths": ["tests/browser/unit/agenda/"
                       "test_the_card_has_two_sections_and_the_tasks_one_is_numbered.py"]},
+        # V2-745 — la sesión 8fc3e1c9 entera, de un agente recién creado: el muro pintaba lo que el
+        # modelo GENERÓ, no lo que la voz DIJO. Tres pruebas en la misma sesión: una respuesta con 14,05 s
+        # de audio sintetizado que nunca tuvo flanco `speaking`, y dos cortadas a media frase cuyo registro
+        # hablado llegaba y se tiraba porque «la versión larga es la útil». Su regla: «el texto que no has
+        # dicho no quiero que exista». Y la otra mitad: un párrafo dictado llegó en ONCE segmentos de STT
+        # y el muro trataba cada segmento como un turno.
+        {"id": "4.202", "title": "El muro es la TRANSCRIPCIÓN de la voz: un párrafo dictado es UN mensaje, "
+                                 "el subtítulo no pierde lo ya dicho, y lo que no sonó no se queda escrito",
+            "ch": UNIT,
+            "paths": ["tests/browser/unit/chat/test_the_wall_is_a_transcript_of_the_voice.py"]},
         {"id": "4.199", "title": "La pared pinta lo que está diciendo MIENTRAS lo dice — y lo que era de la "
                                  "habitación no deja rastro cuando el veredicto lo descarta",
             "ch": UNIT, "paths": ["tests/browser/e2e/chat/test_the_wall_shows_the_line_he_is_saying.py"]},
@@ -4401,6 +4411,14 @@ DOMAINS: list[dict] = [
         # V2-744 — el renombrado es un TRINQUETE, no una edición: hay ~1.500 claves por bundle y la
         # palabra «tarea» es la natural para un estado vacío nuevo. La lista de excepciones (lo que SÍ es
         # una tarea del operador) es la mitad interesante: una clave nueva que quiera entrar se argumenta.
+        # V2-745 — el saludo del primer arranque se sintetizó (6,77 s de audio) y se tiró 30 ms después de
+        # existir el texto, porque él llevaba cuatro segundos en silencio y habló. Lo primero que oyó fue
+        # un relleno a los 22 s. Un barge-in es cortar algo que ESTÁS OYENDO, y el propio flanco de VAD lo
+        # decía: `over_agent: false`.
+        {"id": "8.11", "title": "Un saludo que no ha sonado no se puede cortar, y el velo de arranque se "
+                                "levanta con el primer fotograma de audio (no cuando el motor está MONTADO)",
+            "ch": UNIT,
+            "paths": ["tests/voice/unit/test_a_greeting_that_has_not_sounded_cannot_be_cut.py"]},
         {"id": "8.10", "title": "El trabajo del agente se llama PROCESO (job): ninguna etiqueta del frontend "
                                 "lo llama «tarea», y el id de la pestaña se mudó con el rótulo",
             "ch": UNIT,
