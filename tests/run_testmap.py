@@ -3018,6 +3018,19 @@ DOMAINS: list[dict] = [
                                  "deja de borrar el catálogo, y la orden gana al salto automático",
             "ch": UNIT,
             "paths": ["tests/browser/unit/youtube/test_the_voice_can_reach_the_cards_own_faces.py"]},
+        # V2-744 — la agenda pasa a albergar DOS cosas: el calendario y las TAREAS personales del
+        # operador, en listas numeradas que él crea. El número no es adorno: es lo que dice en voz alta
+        # («la lista 3, el ítem 2»), así que la pantalla y el digest que lee el cerebro lo sacan de la
+        # MISMA función — dos numeraciones de un mismo cromo es el desacuerdo que fundó `index.py`.
+        {"id": "4.200", "title": "La agenda alberga TAREAS en listas numeradas: crear/llenar/vaciar/borrar "
+                                 "listas e ítems, y «la 2 de la compra» llega al ítem que se ve",
+            "ch": UNIT,
+            "paths": ["tests/browser/unit/agenda/test_a_task_list_is_addressed_by_its_number.py"]},
+        {"id": "4.201", "title": "RENDERIZADO: el selector de sección separa Agenda de Tareas, cada lista "
+                                 "lleva su número y su progreso, y cada gesto llega a su acción declarada",
+            "ch": UNIT,
+            "paths": ["tests/browser/unit/agenda/"
+                      "test_the_card_has_two_sections_and_the_tasks_one_is_numbered.py"]},
         {"id": "4.199", "title": "La pared pinta lo que está diciendo MIENTRAS lo dice — y lo que era de la "
                                  "habitación no deja rastro cuando el veredicto lo descarta",
             "ch": UNIT, "paths": ["tests/browser/e2e/chat/test_the_wall_shows_the_line_he_is_saying.py"]},
@@ -4385,6 +4398,13 @@ DOMAINS: list[dict] = [
                                "deja el idioma cambiado falla ÉL",
             "ch": UNIT,
             "paths": ["tests/infrastructure/unit/core/test_the_suite_speaks_one_language_at_a_time.py"]},
+        # V2-744 — el renombrado es un TRINQUETE, no una edición: hay ~1.500 claves por bundle y la
+        # palabra «tarea» es la natural para un estado vacío nuevo. La lista de excepciones (lo que SÍ es
+        # una tarea del operador) es la mitad interesante: una clave nueva que quiera entrar se argumenta.
+        {"id": "8.10", "title": "El trabajo del agente se llama PROCESO (job): ninguna etiqueta del frontend "
+                                "lo llama «tarea», y el id de la pestaña se mudó con el rótulo",
+            "ch": UNIT,
+            "paths": ["tests/infrastructure/unit/core/test_the_agents_own_work_is_called_a_process.py"]},
         {"id": "8.3", "title": "Política de modelos: un solo titular, sin proveedores retirados",
             "ch": UNIT, "paths": ["tests/infrastructure/unit/config/test_model_policy.py"]},
         {"id": "8.2", "title": "Perfiles / v2 / doctor / credenciales", "ch": UNIT, "paths": [

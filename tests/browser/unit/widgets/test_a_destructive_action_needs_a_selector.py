@@ -259,6 +259,11 @@ _DESTRUCTIVE_AND_FAST = {
     # cita» parked a whole worker before it ran a single step.
     ("agenda", "cancel_meeting"),
     ("agenda", "drop"),                    # a task the operator drops; the store snapshots what it wrote
+    # V2-744 — ONE item out of one of his own lists («borra el ítem 2 de la compra»), and the whole point
+    # of a checklist is that crossing things off it is cheap. It declares `ref: "task"`, so `contract.guard`
+    # still refuses it with an empty selector: an empty one never means «all of them». Emptying the LIST is
+    # the action that asks (`clear_list`), and so is deleting the list itself.
+    ("agenda", "delete_task"),
     ("musica", "remove_from_playlist"),    # one track off a list he owns, re-addable by name
     ("youtube", "remove"),                 # one row out of a queue
     ("youtube", "unfollow_channel"),       # re-followable in one gesture; asking would be noise

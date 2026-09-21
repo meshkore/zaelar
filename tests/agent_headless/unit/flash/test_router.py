@@ -63,7 +63,7 @@ def test_show_panel_routes_the_clusters_tab():
     # …and it has not broken routing for the others.
     assert router._canon_panel("crons") == "crons"
     assert router._canon_panel("chat") == "chat"
-    assert router._canon_panel("workers") == "tareas"       # V2-728: «Procesos» is now «Tareas»
+    assert router._canon_panel("workers") == "procesos"     # V2-744: and «Tareas» is Procesos again
 
 
 def test_capability_tools_are_situational():
@@ -436,14 +436,17 @@ def test_stop_work_bulk_and_false_positive():
 def test_show_panel_decision_and_canon():
     # V2-079: the show_panel tool opens the native side panel by voice. V2-728: four tabs, and «Tareas» has
     # four sub-tabs — the canon answers one string and the frontend's one door maps it to tab + sub-tab.
+    # V2-744 — «tareas» still LANDS on this panel, because an action-map row the operator recorded
+    # before that day carries the word and meant this panel when he recorded it. What changed is the
+    # NAME: his own tasks are the agenda's numbered lists now, so nothing offers this one under it.
     d = router.decide("show_panel", {"panel": "tareas"})
-    assert d.kind == router.PANEL and d.payload.get("panel") == "tareas"
+    assert d.kind == router.PANEL and d.payload.get("panel") == "procesos"
     # _canon_panel normalizes synonyms the model may produce in the ARGUMENT (not in the request):
     assert router._canon_panel("chat") == "chat"
-    assert router._canon_panel("workers") == "tareas"
-    assert router._canon_panel("brain workers") == "tareas"
+    assert router._canon_panel("workers") == "procesos"
+    assert router._canon_panel("brain workers") == "procesos"
     assert router._canon_panel("muro de texto") == "chat"
-    assert router._canon_panel("") == "tareas"             # default: the most requested case
+    assert router._canon_panel("") == "procesos"           # default: the most requested case
     # The OLD name keeps working: stored action-map rows and the operator's own localStorage carry it.
     assert router._canon_panel("procesos") == "procesos"
 

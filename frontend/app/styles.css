@@ -254,10 +254,10 @@ body.chatdock-r .statuspanel,body.chatdock-r .cronpanel{right:calc(18px + var(--
 .chatwall.tab-chat .cw-wconfirm{display:block}
 .chatwall.tab-chat .cw-list{display:flex}
 .chatwall.tab-chat .cw-input{display:flex}
-.chatwall.tab-tareas .cw-tasks{display:flex}
+.chatwall.tab-procesos .cw-tasks{display:flex}
 .chatwall.tab-clusters .cw-clusters{display:flex}
 .chatwall.tab-conectores .cw-conn{display:flex}
-/* V2-728 — the four sub-tabs of «Tareas». A quieter row than the top tabs on purpose: they divide ONE
+/* V2-728 — the four sub-tabs of «Procesos». A quieter row than the top tabs on purpose: they divide ONE
    subject, so they must not compete with the four that divide the panel. */
 .cw-subtabs{display:flex;gap:2px;padding:8px 10px 0;flex:0 0 auto;align-items:center}
 .cw-subtab{flex:1 1 auto;padding:5px 6px;border:0;border-radius:var(--r-sm,6px);background:transparent;

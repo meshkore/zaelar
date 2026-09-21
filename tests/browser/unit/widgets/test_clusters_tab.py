@@ -22,7 +22,10 @@ SSE = (FRONTEND / "services" / "sse.js").read_text(encoding="utf-8")
 STYLES = (FRONTEND.parent / "app" / "styles.css").read_text(encoding="utf-8")
 
 # V2-728 — four tabs, not five: «Procesos» and «Crons» merged into «Tareas» with four sub-tabs.
-TABS = ("chat", "tareas", "clusters", "conectores")
+# V2-744 — the tab is «Procesos», id included: «tareas» now means the operator's OWN lists,
+# which live in the agenda widget. The id moved with the label because the id IS what a voice
+# order carries, and while this one answered to «tareas» that order opened the wrong thing.
+TABS = ("chat", "procesos", "clusters", "conectores")
 
 
 # ── voice routing: the tab opens like the other three ─────────────────────────────────────────────────────────
@@ -42,7 +45,12 @@ def test_show_panel_still_routes_the_other_tabs():
     # separate there was no way to say so.
     assert router._canon_panel("recordatorios programados") == "programadas"
     assert router._canon_panel("chat") == "chat"
-    assert router._canon_panel("workers") == "tareas"
+    assert router._canon_panel("workers") == "procesos"
+    # V2-744 — «tareas» still LANDS here, because an action-map row the operator recorded
+    # before today carries that word and meant this panel. What changed is that nothing
+    # steers the model here with it any more: the tool description and the agenda's own
+    # `whenToUse` now tell his tasks and the agent's jobs apart in prose.
+    assert router._canon_panel("tareas") == "procesos"
 
 
 def test_the_tool_description_mentions_the_tab():
@@ -63,7 +71,7 @@ def test_chatwall_has_the_four_tabs(tab):
 def test_every_tab_has_a_css_rule_that_shows_it(tab):
     """Without the `.chatwall.tab-X .cw-X{display:flex}` rule, the tab exists but remains invisible — a silent failure
     that breaks nothing and is not visible until the tab is opened."""
-    panel = {"chat": "list", "tareas": "tasks", "conectores": "conn"}.get(tab, tab)
+    panel = {"chat": "list", "procesos": "tasks", "conectores": "conn"}.get(tab, tab)
     assert re.search(rf"\.chatwall\.tab-{tab}\s+\.cw-{panel}\s*\{{", STYLES), f"la pestaña «{tab}» no se muestra"
 
 

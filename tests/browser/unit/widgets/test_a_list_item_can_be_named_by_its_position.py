@@ -133,7 +133,14 @@ def test_ninguna_otra_accion_del_catalogo_cambia_de_respuesta():
     `contactos` already names its key `contactId`, and the rest declare `ref` explicitly. That is what this
     list is for — if a name ever appears here without a batch that explains it, somebody widened the reach
     of the resolver without saying so. `dedupe_meetings` joined them in V2-710: «simplify to one» is a sixth
-    action on a meeting that already exists."""
+    action on a meeting that already exists.
+
+    V2-744 added FIVE more, and they are one batch again: the agenda's TASKS section. A task is named by
+    its number in a list («la 2 de la compra») or by its title, and a LIST by its number or its name, so
+    neither selector can be a key ending in `id` — they declare `ref` for exactly the reason the meeting
+    actions above did. `done` is deliberately NOT among them: it keeps `taskId` and the V2-026 suffix
+    convention, because `refs` has been resolving «márcame hecha la del daemon» into that key since the
+    convention existed, and there was nothing there to fix."""
     from widgets import runtime
 
     def sufijo_solo(wid: str, action: str):
@@ -149,8 +156,10 @@ def test_ninguna_otra_accion_del_catalogo_cambia_de_respuesta():
             if sufijo_solo(w, a) != refs.id_field_for_action(w, a):
                 cambian.append((w, a))
     assert sorted(cambian) == [
-        ("agenda", "cancel_meeting"), ("agenda", "dedupe_meetings"), ("agenda", "move_meeting"),
-        ("agenda", "rsvp_meeting"), ("agenda", "set_reminder"), ("agenda", "update_meeting"),
+        ("agenda", "cancel_meeting"), ("agenda", "clear_list"), ("agenda", "dedupe_meetings"),
+        ("agenda", "delete_list"), ("agenda", "delete_task"), ("agenda", "move_meeting"),
+        ("agenda", "rename_list"), ("agenda", "rsvp_meeting"), ("agenda", "set_reminder"),
+        ("agenda", "update_meeting"), ("agenda", "update_task"),
         ("youtube", "move"), ("youtube", "play_item"), ("youtube", "remove"),
     ], cambian
 

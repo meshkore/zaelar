@@ -27,7 +27,10 @@ STYLES = (FRONTEND.parent / "app" / "styles.css").read_text(encoding="utf-8")
 ENGINE = Path(__file__).resolve().parents[4]
 
 # V2-728 — four, not five: «Procesos»+«Crons» became «Tareas» with four sub-tabs.
-TABS = ("chat", "tareas", "clusters", "conectores")
+# V2-744 — the tab is «Procesos», id included: «tareas» now means the operator's OWN lists,
+# which live in the agenda widget. The id moved with the label because the id IS what a voice
+# order carries, and while this one answered to «tareas» that order opened the wrong thing.
+TABS = ("chat", "procesos", "clusters", "conectores")
 
 
 # ── frontend: the tab button, its panel, and the CSS that shows it ─────────────────────────────────────

@@ -36,9 +36,9 @@ const connFamilyRank = (f) => { const i = CONN_FAMILY_ORDER.indexOf(f); return i
 const SEND_SVG = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>`;
 // V2-621 — the ONE map from a tab id to its label key: the header's standing name (`.cw-tabname`) and each
 // tab button's own label read the same entry, so they cannot drift apart.
-const TAB_LABEL = { chat: "chat.tabChat", tareas: "chat.tabTasks",
+const TAB_LABEL = { chat: "chat.tabChat", procesos: "chat.tabTasks",
                     clusters: "chat.tabClusters", conectores: "chat.tabConnectors" };
-// V2-728 — the FOUR sub-tabs of «Tareas», in the order the operator reads them: what is happening now, what
+// V2-728 — the FOUR sub-tabs of «Procesos», in the order the operator reads them: what is happening now, what
 // is over, what repeats, what is waiting for its moment. Same ONE-map rule as TAB_LABEL above: the button,
 // the empty state and the fetch all key off this, so they cannot drift.
 const SUBTABS = [
@@ -465,7 +465,7 @@ export function ChatWall() {
       // over — V2-619/V2-621. Never a clipped word.
       h("div", { class: "cw-tabs" },
         h("button", { class: () => "cw-tab" + (store.chatTab() === "chat" ? " on" : ""), title: () => t("chat.tabChat"), onClick: () => store.setChatTab("chat") }, raw(MESSAGE_SQUARE_ICON), h("span", { class: "cw-tab-label" }, () => t("chat.tabChat"))),
-        h("button", { class: () => "cw-tab" + (store.chatTab() === "tareas" ? " on" : ""), title: () => t("chat.tabTasks"), onClick: () => store.setChatTab("tareas") }, raw(ACTIVITY_ICON), h("span", { class: "cw-tab-label" }, () => t("chat.tabTasks"))),
+        h("button", { class: () => "cw-tab" + (store.chatTab() === "procesos" ? " on" : ""), title: () => t("chat.tabTasks"), onClick: () => store.setChatTab("procesos") }, raw(ACTIVITY_ICON), h("span", { class: "cw-tab-label" }, () => t("chat.tabTasks"))),
         h("button", { class: () => "cw-tab" + (store.chatTab() === "clusters" ? " on" : ""), title: () => t("chat.tabClusters"), onClick: () => store.setChatTab("clusters") }, raw(SERVER_ICON), h("span", { class: "cw-tab-label" }, () => t("chat.tabClusters"))),
         h("button", { class: () => "cw-tab" + (store.chatTab() === "conectores" ? " on" : ""), title: () => t("chat.tabConnectors"), onClick: () => store.setChatTab("conectores") }, raw(LINK_ICON), h("span", { class: "cw-tab-label" }, () => t("chat.tabConnectors"))),
       ),
@@ -494,7 +494,7 @@ export function ChatWall() {
             h("button", { class: "cl-b", onClick: () => store.widgetConfirmResolve(false) }, () => t("chat.no")),
           ))
       : null),
-    // TAREAS (V2-728) — one tab, four sub-tabs. The old «Procesos» and «Crons» were the same object seen
+    // PROCESOS (V2-728 · renamed V2-744) — one tab, four sub-tabs. The old «Procesos» and «Crons» were the same object seen
     // twice: a commission the brain is carrying out, and a commission with a clock on it.
     h("div", { class: "cw-tasks" }, tasksBody),
     // CLUSTERS (V2-086) — the native NETWORK. Connection administration, not conversation: clusters have their
@@ -540,17 +540,17 @@ export function ChatWall() {
   createEffect(() => {
     const t = store.chatTab();
     if (!store.chatOpen()) return;
-    if (t === "tareas") { store.fetchTasks(); store.fetchTaskScope(store.taskScope()); }
+    if (t === "procesos") { store.fetchTasks(); store.fetchTaskScope(store.taskScope()); }
     else if (t === "clusters") store.fetchClusters();
     else if (t === "conectores") refreshConnectors();
   });
   // When live processes change (a task finishes) while we are viewing “Processes”, refresh the history so
   // the task that just finished moves from the "running" block to "history".
-  // When the live set changes (a task finished) while «Tareas» is open, refresh the sub-tab being looked at
+  // When the live set changes (a job finished) while «Procesos» is open, refresh the sub-tab being looked at
   // — the one that just lost a row and the one that just gained it are two different queries.
   createEffect(() => {
     store.tasks();
-    if (store.chatOpen() && store.chatTab() === "tareas") store.fetchTaskScope(store.taskScope());
+    if (store.chatOpen() && store.chatTab() === "procesos") store.fetchTaskScope(store.taskScope());
   });
 
   // CHAT and VOICE are INDEPENDENT (V2-088). Opening this panel does NOT affect the speaker, and muting the speaker does not affect

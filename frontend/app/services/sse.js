@@ -161,7 +161,7 @@ export function routeEvent(desktop, d) {
         // V2-728 — the whitelist LIVED HERE and it is why `clusters` was silently dropped at birth (V2-086):
         // the backend routed it correctly and this line turned it into «Chat». It now belongs to
         // `store.setChatTab`, the one door that knows the vocabulary — including the old `procesos`/`crons`
-        // the router still answers, which land on «Tareas» and the right sub-tab.
+        // the router still answers, which land on «Procesos» and the right sub-tab.
         store.setChatTab(d.tab);
         store.setChatOpen(true);
       }

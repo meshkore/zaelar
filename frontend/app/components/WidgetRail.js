@@ -347,7 +347,7 @@ export function WidgetRail(){
   const procBar=document.createElement("span"); procBar.className="wr-proc-bar";
   procBar.innerHTML="<i></i>";
   proc.append(procN,procBar);
-  // V2-728 — one click lands on «Tareas ▸ En curso», which is what the number counts. `setChatTab` picks
+  // V2-728 — one click lands on «Procesos ▸ En curso», which is what the number counts. `setChatTab` picks
   // the sub-tab itself (it is the one door that knows the vocabulary), so this does not name it twice.
   proc.onclick=(e)=>{ e.stopPropagation(); setChatTab("procesos"); setChatOpen(true); };
   const chips=document.createElement("div"); chips.className="wr-chips";

@@ -5,6 +5,8 @@
 #
 from datetime import datetime
 
+from .tasklists import plannable as _plannable
+
 
 def _m(hhmm: str) -> int:
     h, m = str(hhmm or "0:0").split(":")[:2]
@@ -100,10 +102,14 @@ def plan_day(db: dict, date: str = "", now: str = "", lang: str = "") -> dict:
         gaps.append([cursor, we])
 
     # 4) candidate tasks ordered by priority → ROI → energy (deep last if low energy)
+    # V2-744 — …and ONLY the ones that say how long they take. The same `tasks` array now holds the
+    # operator's checklist items («pan», «leche»), and this loop turns every candidate into a block of the
+    # working day at an INVENTED 30 minutes: a shopping list would have buried his afternoon under rows he
+    # never asked to schedule. `tasklists.plannable` is the whole rule — a duration, an hour, or a project.
     low = user.get("energy") == "low"
     cand = [t for t in db.get("tasks", [])
             if t.get("status") in (None, "todo", "in_progress") and not t.get("fixed")
-            and not t.get("snoozedUntil")]
+            and not t.get("snoozedUntil") and _plannable(t)]
 
     def keyfn(t):
         roi = project_roi(projects.get(t.get("projectId"), {}))

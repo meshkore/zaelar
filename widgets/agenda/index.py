@@ -27,15 +27,14 @@ def ref_index() -> list[dict]:
     `field` is the payload key that identifies them in actions (`taskId` for a task, `projectId` for a project),
     so `widgets/refs.py` resolves a spoken task reference to its id without the model guessing it.
     Only current items are exposed; completed/dropped tasks are no longer referenceable."""
+    from . import tasklists
     from .data import _today, load_db
 
     db = load_db()
-    out: list[dict] = []
-    for t in db.get("tasks", []):
-        if t.get("status") in ("done", "dropped"):
-            continue
-        out.append({"id": t["id"], "label": t.get("title") or t["id"], "field": "taskId",
-                    "hint": (t.get("startTime") or "") + ("" if t.get("status") in (None, "todo") else f" {t['status']}")})
+    # V2-744 — a task is named by its LIST and its NUMBER as often as by its title («la 2 de la compra»),
+    # so the rows come from the same function the section renders with. `tasklists.ref_rows` already skips
+    # what is done or dropped, which is the rule this index has always had.
+    out: list[dict] = list(tasklists.ref_rows(db))
     for p in db.get("projects", []):
         if p.get("status") == "frozen":
             continue
@@ -67,6 +66,7 @@ def prompt_digest() -> str:
     dentista?») and the model could not answer them: `coach_context` only carries TODAY's plan, so every
     meeting beyond today was invisible and the reply was a guess. Upcoming meetings with their date, hour,
     reminder and notes ARE the interior of this widget — same seam as contactos/fotos (V2-544)."""
+    from . import tasklists
     from .data import _today, load_db
 
     db = load_db()
@@ -102,6 +102,10 @@ def prompt_digest() -> str:
     head = f"citas próximas ({len(meets)}) · tareas vivas ({len(pend)}):"
     if not lines:
         lines = ["  · sin citas apuntadas de hoy en adelante"]
-    return head + "\n" + "\n".join(lines)
+    # V2-744 — the TAREAS section is the other half of this card, and a digest that only described the
+    # calendar is why «¿qué me falta de la compra?» had to be guessed. Built by `tasklists.digest` from the
+    # very numbering the render shows: two views of one card that disagree is the defect this file exists for.
+    _tasks = tasklists.digest(db)
+    return head + "\n" + "\n".join(lines) + (("\n" + _tasks) if _tasks else "")
 
 

@@ -1,9 +1,9 @@
 {
   "id": "agenda",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "title": "Agenda",
-  "description": "Tu calendario completo: vistas de día, semana, mes y lista, con las citas coloreadas por categoría, su aviso, quién asiste y si la otra parte ha confirmado. Además planifica tu día con las tareas y hace de coach de productividad.",
-  "whenToUse": "Cuando el usuario pide su agenda, su día, qué hacer ahora, a qué ponerse, su planning o coaching de productividad, sus citas o reuniones. TAMBIÉN es la agenda —no mensajería— quien tiene el conector de GOOGLE CALENDAR: conectarlo, vincularlo, desconectarlo o decir si está conectado.",
+  "description": "Dos secciones en una tarjeta. AGENDA: tu calendario completo con vistas de día, semana, mes y lista, las citas coloreadas por categoría, su aviso, quién asiste y si la otra parte ha confirmado. TAREAS: las tareas personales del operador en listas NUMERADAS que él crea («la compra», «casa»), cada una con su progreso y su identificador. Además planifica el día y hace de coach de productividad.",
+  "whenToUse": "Cuando pide su agenda, su día, sus citas, su planning o coaching. TAMBIÉN sus TAREAS y sus LISTAS («ábreme las tareas», «la lista de la compra»): las personales del operador viven aquí, no en Procesos. Y la agenda —no mensajería— tiene el conector de GOOGLE CALENDAR.",
   "confirm_ui": false,
   "background": {
     "every": "10s"
@@ -58,11 +58,21 @@
     "manda el enlace por mail",
     "calendar invite",
     "añade a la reunión",
-    "anade a la reunion"
+    "anade a la reunion",
+    "lista",
+    "listas",
+    "lista de la compra",
+    "mis tareas",
+    "to-do",
+    "todo list",
+    "checklist",
+    "task list",
+    "shopping list",
+    "pendientes"
   ],
   "entry": "widget.js",
   "dataSchemaRef": "schema:DB",
-  "usage": "Añade citas con add_meeting (title+date+startTime; opcionales attendees/location/category/notes/allDay; cada cita crea su aviso ~2h antes) y TAREAS sin hora con add_task. Cancela con cancel_meeting, MUEVE de día/hora con move_meeting (title + newDate/newTime) y cambia sus DETALLES con update_meeting (status confirmed/pending cuando la otra parte responda, attendees, location, category, notes, newTitle). set_reminder mueve el aviso de una cita, y SIN title + con date pone avisos a todas las citas de ese día. Estado de tareas: done/snooze/not_now/drop (taskId). Para VACIARLA ENTERA y para siempre usa clear_all (confirma; nunca tires elementos de uno en uno). Para limpiar UN TRAMO usa clear_range con from y to (fechas habladas valen: «hoy», «mañana», «el lunes») — «esta semana» es from=lunes to=domingo. Si dice «menos X» o «excepto X», eso va en keep, que admite un nombre suelto («el zerohash») o {title, date, time} cuando nombre una hora («lo de mañana a las 15h» → {date:«mañana», time:«15:00»}). clear_all NO sabe conservar nada: cualquier orden con una excepción es clear_range. Para CAMBIAR LA VISTA («la agenda de hoy/mañana», «enséñame el jueves», «vista semanal», «vista de mes», «la lista de lo que viene») usa show_day con day=hoy|mañana|<día>|semana|mes|lista — es la ÚNICA forma de mover lo que se ve; reabrir el widget siempre abre por hoy. Los detalles de cada cita (hora, aviso, quién viene, si está confirmada, notas) los tienes en su digest cuando la agenda está abierta, así que contéstalos sin preguntar. Para ENLAZAR con Google Calendar usa connect: deja la tarjeta en el paso de conectar y tú le dices que pulse el botón — el permiso lo da él en la ventana de Google, tú no puedes.",
+  "usage": "Añade citas con add_meeting (title+date+startTime; opcionales attendees/location/category/notes/allDay; cada cita crea su aviso ~2h antes) y TAREAS sin hora con add_task. Cancela con cancel_meeting, MUEVE de día/hora con move_meeting (title + newDate/newTime) y cambia sus DETALLES con update_meeting (status confirmed/pending cuando la otra parte responda, attendees, location, category, notes, newTitle). set_reminder mueve el aviso de una cita, y SIN title + con date pone avisos a todas las citas de ese día. Estado de tareas: done/snooze/not_now/drop (taskId). Para VACIARLA ENTERA y para siempre usa clear_all (confirma; nunca tires elementos de uno en uno). Para limpiar UN TRAMO usa clear_range con from y to (fechas habladas valen: «hoy», «mañana», «el lunes») — «esta semana» es from=lunes to=domingo. Si dice «menos X» o «excepto X», eso va en keep, que admite un nombre suelto («el zerohash») o {title, date, time} cuando nombre una hora («lo de mañana a las 15h» → {date:«mañana», time:«15:00»}). clear_all NO sabe conservar nada: cualquier orden con una excepción es clear_range. Para CAMBIAR LA VISTA («la agenda de hoy/mañana», «enséñame el jueves», «vista semanal», «vista de mes», «la lista de lo que viene») usa show_day con day=hoy|mañana|<día>|semana|mes|lista — es la ÚNICA forma de mover lo que se ve; reabrir el widget siempre abre por hoy. Los detalles de cada cita (hora, aviso, quién viene, si está confirmada, notas) los tienes en su digest cuando la agenda está abierta, así que contéstalos sin preguntar. Para ENLAZAR con Google Calendar usa connect: deja la tarjeta en el paso de conectar y tú le dices que pulse el botón — el permiso lo da él en la ventana de Google, tú no puedes. ▸ TAREAS (la otra sección de esta tarjeta, la personal del operador — NO los procesos del agente): add_task(title[, list, date, time]) apunta una; sin `list` va a «General». Las listas se crean con add_list(name) y se nombran por NÚMERO o por nombre indistintamente: «la lista 2», «la compra». Dentro de una lista, cada ítem tiene su NÚMERO tal como lo ve en pantalla, así que «el ítem 2 de la compra» es task='2' + list='la compra' — el digest de esta tarjeta te da esos números, úsalos. done/delete_task/update_task(newTitle|date|time|newList|status) operan sobre un ítem; clear_list VACÍA una lista (confirma) y delete_list se la lleva entera (confirma); rename_list la renombra. Para ABRIR la sección de tareas o una lista concreta usa show_tasks(list) — es la única forma, reabrir el widget abre por la agenda.",
   "actions": {
     "add_meeting": {
       "desc": "añade una cita/reunión al día — crea SOLA su aviso por defecto (~2h antes), no hace falta pedirlo; acepta también quién viene, dónde, categoría y notas",
@@ -107,13 +117,15 @@
       }
     },
     "done": {
-      "desc": "marca una tarea como hecha",
+      "desc": "marca una tarea como HECHA. Identifícala por su número en la lista («la 2 de la compra»), por su nombre, o por taskId si lo tienes",
       "payload": {
-        "taskId": "string"
+        "taskId": "string — lo que `refs` resuelve de un nombre hablado; si lo tienes, úsalo",
+        "task": "su número en la lista («2») o su nombre, cuando no tengas el id",
+        "list": "en qué lista está (opcional)"
       }
     },
     "drop": {
-      "desc": "quita/descarta una tarea (no la marca hecha)",
+      "desc": "descarta una tarea del plan sin borrarla ni marcarla hecha (queda fuera de la vista). Para QUITARLA de la lista de verdad es delete_task",
       "payload": {
         "taskId": "string"
       }
@@ -163,12 +175,14 @@
       "view": true
     },
     "add_task": {
-      "desc": "añade una TAREA (no una cita): algo que hacer sin hora obligatoria; el planificador la coloca en el día",
+      "desc": "apunta una TAREA del operador (no una cita, no un proceso tuyo): algo que él tiene que hacer. Sin `list` va a la lista «General»; con `list` (número o nombre) va a esa. `date`/`time` solo si los dice — una tarea sin hora es normal y no se planifica sola",
       "payload": {
-        "title": "string",
-        "estimateMinutes": "int (opcional, 30 por defecto)",
-        "priority": "int 1-5 (opcional, 3)",
-        "startTime": "HH:MM (opcional — la fija a esa hora)"
+        "title": "string — lo que hay que hacer, tal como lo dijo",
+        "list": "número o nombre de la lista («2», «la compra»); sin él, General",
+        "date": "«mañana», un día de la semana o YYYY-MM-DD (opcional)",
+        "time": "HH:MM (opcional — solo si la tarea tiene hora fija)",
+        "estimateMinutes": "int (opcional — SOLO si él dice cuánto le llevará; es lo que la mete en el plan del día)",
+        "priority": "int 1-5 (opcional)"
       }
     },
     "move_meeting": {
@@ -251,6 +265,68 @@
       "payload": {
         "calendarId": "string — el id del calendario elegido"
       }
+    },
+    "update_task": {
+      "desc": "CAMBIA una tarea que ya existe: renombrarla (newTitle), ponerle o quitarle día/hora, moverla a otra lista (newList) o volver a dejarla pendiente. Identifícala por su NÚMERO en la lista o por su nombre",
+      "ref": "task",
+      "payload": {
+        "task": "su número en la lista («2») o su nombre («el pan»)",
+        "list": "en qué lista está (número o nombre); sin él, la que está abierta",
+        "newTitle": "para renombrarla",
+        "date": "«mañana», un día de la semana o YYYY-MM-DD",
+        "time": "HH:MM",
+        "newList": "para MOVERLA a otra lista (número o nombre)",
+        "status": "hecha | pendiente"
+      }
+    },
+    "delete_task": {
+      "desc": "BORRA una tarea de su lista para siempre («quita el pan de la compra», «borra el ítem 2»). No es marcarla hecha: para eso está done",
+      "ref": "task",
+      "payload": {
+        "task": "su número en la lista («2») o su nombre",
+        "list": "en qué lista está (número o nombre); sin él, la que está abierta"
+      },
+      "confirm": false
+    },
+    "add_list": {
+      "desc": "CREA una lista de tareas nueva («hazme una lista de la compra», «una lista para el viaje»). Queda numerada y con su propio identificador; si ya existe una con ese nombre, devuelve esa",
+      "payload": {
+        "name": "cómo la llama él: «la compra», «casa», «viaje a Roma»"
+      },
+      "confirm": false
+    },
+    "rename_list": {
+      "desc": "cambia el NOMBRE de una lista de tareas",
+      "ref": "list",
+      "payload": {
+        "list": "cuál: su número o su nombre actual",
+        "newName": "el nombre nuevo"
+      }
+    },
+    "clear_list": {
+      "desc": "VACÍA una lista de tareas: se lleva todos sus ítems y la lista se queda. «Vacía la compra», «bórralo todo de la lista 2». Nunca sin decir CUÁL",
+      "ref": "list",
+      "payload": {
+        "list": "cuál: su número o su nombre"
+      },
+      "confirm": true,
+      "confirm_q": "¿Vacío la lista «{item}»? Se van todos sus ítems."
+    },
+    "delete_list": {
+      "desc": "BORRA una lista de tareas ENTERA, con sus ítems. La lista «General» no se borra: se vacía",
+      "ref": "list",
+      "payload": {
+        "list": "cuál: su número o su nombre"
+      },
+      "confirm": true,
+      "confirm_q": "¿Borro la lista «{item}» entera, con todo lo que tiene dentro?"
+    },
+    "show_tasks": {
+      "desc": "ABRE la sección de TAREAS de la tarjeta, y en la lista que él nombre («ábreme las tareas», «enséñame la lista de la compra», «la lista 3»). No cambia ningún dato: solo mueve lo que se ve. Es obligatoria para eso — mostrar el widget lo abre siempre por la AGENDA",
+      "payload": {
+        "list": "número o nombre de la lista; sin él, la sección de tareas con la que estuviera"
+      },
+      "view": true
     }
   },
   "name": "Agenda",
@@ -294,7 +370,8 @@
       "id": "taskId",
       "label": "title",
       "via": {
-        "delete": "drop",
+        "delete": "delete_task",
+        "patch": "update_task",
         "put": "add_task"
       }
     },
@@ -303,6 +380,15 @@
       "label": "name",
       "via": {
         "delete": "drop_project"
+      }
+    },
+    "taskLists": {
+      "id": "list",
+      "label": "name",
+      "via": {
+        "delete": "delete_list",
+        "patch": "rename_list",
+        "put": "add_list"
       }
     }
   },

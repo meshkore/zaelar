@@ -6,17 +6,17 @@ import json
 import os
 import re
 import time
-import unicodedata
 
 from .. import store
 from . import gcal, sweep
 from .reminders import _cancel_reminder, _schedule_reminder  # noqa: F401  (V2-705)
 from .details import _apply_details, _norm_attendees, _norm_status  # noqa: F401
-from . import planner
+from . import planner, tasklists
 
 
-def _strip_accents(s: str) -> str:
-    return "".join(c for c in unicodedata.normalize("NFKD", s or "") if not unicodedata.combining(c))
+# `_strip_accents` travelled with the spoken-date resolver it serves (V2-744); re-exported under its
+# historical name because `_title_key` below and half this widget's tests reach it here.
+from .when import _strip_accents  # noqa: E402
 
 # ── THE SAME COMMITMENT WRITTEN TWICE (V2-208) ────────────────────────────────────────────────────────────────
 # Measured on `remember-and-remind-deadline` (2026-08-20 14:39), from the sandbox's own `state.json`:
@@ -81,12 +81,14 @@ def _seed() -> dict:
 
 # Store schema version (lazy migration on read — see store.load). Bump when the shape of agenda.json changes
 # and handle the upgrade in _migrate(); old files upgrade the first time the new code reads them.
-DB_VERSION = 1
+DB_VERSION = 2
 
 
 def _migrate(db: dict, from_v: int) -> dict:
     # v0 → v1: pre-versioning files are already the current shape; just adopt the version field.
-    return db
+    # v1 → v2 (V2-744): tasks live in NUMBERED LISTS. Every task without a `listId` joins «General», and
+    # the list itself is created if it is not there — see `tasklists.migrate` for why it also runs on read.
+    return tasklists.migrate(db)
 
 
 def load_db() -> dict:
@@ -226,6 +228,10 @@ def view_data(q: str = "") -> dict:
         # meeting anybody — so they travel in their own key and the render gives them their own mark.
         "systemTasks": _system_tasks(),
 
+        # V2-744 — the TAREAS section: the operator's own lists, numbered as the screen numbers them.
+        # Everything at once because a widget cannot fetch, so switching list is client-side.
+        "tasks": tasklists.view(db),
+
         "warnings": plan.get("warnings", []),
         "coaching": plan.get("coaching", []),
     }
@@ -254,73 +260,10 @@ from .system_tasks import system_tasks as _system_tasks  # noqa: F401,E402 — r
 
 
 
-# Relative spoken date/time normalization (V2-026). English joined in V2-639: the engine is multilingual
-# (V2-613) and an EN operator says «tomorrow»/«monday» — a resolver that only hears Spanish silently files
-# their appointment TODAY, which is the same class of lie as the defaulted write.
-_WEEKDAYS = {"lunes": 0, "martes": 1, "miercoles": 2, "miércoles": 2, "jueves": 3, "viernes": 4,
-             "sabado": 5, "sábado": 5, "domingo": 6,
-             "monday": 0, "tuesday": 1, "wednesday": 2, "thursday": 3, "friday": 4,
-             "saturday": 5, "sunday": 6}
-
-
-def _m2(hhmm) -> int:
-    """'HH:MM' -> minutes; tolerant of junk (0)."""
-    try:
-        h, m = str(hhmm or "0:0").split(":")[:2]
-        return int(h) * 60 + int(m)
-    except Exception:  # noqa: BLE001
-        return 0
-
-
-def _resolve_date(raw: str) -> str:
-    """Convert a spoken relative date (tomorrow, today, the day after tomorrow, a weekday, or already 'YYYY-MM-DD') into
-    'YYYY-MM-DD'. Sensible default: today. This keeps a relative-date appointment correctly placed even when the
-    model does not calculate the date itself."""
-    import time as _t
-    s = (raw or "").strip().lower()
-    if not s:
-        return _today()
-    if len(s) >= 8 and s[:4].isdigit() and "-" in s:      # already comes as YYYY-MM-DD
-        return s[:10]
-    n = _strip_accents(s)
-    today = _t.localtime()
-    base = _t.mktime(today)
-    day = 86400
-    if "pasado manana" in n or "day after tomorrow" in n:
-        return _t.strftime("%Y-%m-%d", _t.localtime(base + 2 * day))
-    if "manana" in n or "tomorrow" in n:
-        return _t.strftime("%Y-%m-%d", _t.localtime(base + day))
-    if "hoy" in n or "today" in n:
-        return _today()
-    for name, wd in _WEEKDAYS.items():
-        nn = _strip_accents(name)
-        if nn in n:
-            delta = (wd - today.tm_wday) % 7
-            delta = delta or 7                             # weekday references mean the next matching day, not today
-            return _t.strftime("%Y-%m-%d", _t.localtime(base + delta * day))
-    return _today()
-
-
-def _resolve_time(raw: str, default: str = "17:00") -> str:
-    """Normalize a spoken time (natural language hour, meridiem, '17h', or '17:00') into 'HH:MM'. Defaults 1-7 without an
-    explicit meridiem to afternoon, because appointments are more often requested for evening than early morning."""
-    s = (raw or "").strip().lower()
-    if not s:
-        return default
-    m = re.search(r"(\d{1,2})[:h\.](\d{2})", s)
-    if m:
-        return f"{int(m.group(1)):02d}:{m.group(2)}"
-    m = re.search(r"\b(\d{1,2})\b", s)
-    if m:
-        h = int(m.group(1))
-        pm = any(w in s for w in ("tarde", "noche", "pm", "afternoon", "evening", "night"))
-        am = any(w in s for w in ("manana", "mañana", "madrugada", "am", "morning"))
-        if pm and h < 12:
-            h += 12
-        elif not am and 1 <= h <= 7:                       # bare 1-7 without am/pm -> afternoon
-            h += 12
-        return f"{h % 24:02d}:00"
-    return default
+# Relative spoken date/time normalization — extracted to `when.py` (V2-744, the 900-line ceiling).
+# Re-exported under the historical private names: `invite.py`, `sweep.py` and this module's own tests
+# reach them as `data._resolve_date` / `data._resolve_time`, and a rename would be a change nobody asked for.
+from .when import _m2, _resolve_date, _resolve_time, _WEEKDAYS  # noqa: F401,E402 — re-export
 
 
 # V2-643 — WHAT an appointment is made of, beyond a title and an hour. The operator's spec for a real
@@ -360,18 +303,19 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
     """Widget actions (HANDOFF §9.3): mark done / not now / snooze / drop / replan. Mutates the isolated store."""
     payload = payload or {}
     db = load_db()
-    tid = payload.get("taskId")
-    tasks = {t["id"]: t for t in db.get("tasks", [])}
 
-    if action == "done" and tid in tasks:
-        tasks[tid]["status"] = "done"; tasks[tid]["updatedAt"] = _today()
-    elif action == "not_now" and tid in tasks:                     # "ahora no me apetece" -> avoidance++ (coaching)
-        tasks[tid]["avoidance"] = int(tasks[tid].get("avoidance", 0)) + 1
-    elif action == "snooze" and tid in tasks:
-        tasks[tid]["snoozedUntil"] = _today()
-    elif action == "drop" and tid in tasks:
-        tasks[tid]["status"] = "dropped"
-    elif action == "drop_project":
+    # V2-744 — every TASK verb, and the numbered lists they now live in, belong to `tasklists.py`. ONE
+    # branch instead of five: «hecha» on a shopping item and «hecha» on a project task are the same verb,
+    # and splitting them across two files is how the two halves drift apart.
+    if action in tasklists.ACTIONS:
+        res = tasklists.apply(action, payload, db)
+        if not res.get("ok"):
+            return res
+        db["currentPlan"] = compute_plan(db)
+        store.save(WIDGET_ID, db)
+        return {**view_data(), **res}
+
+    if action == "drop_project":
         pid = payload.get("projectId")
         for p in db.get("projects", []):
             if p["id"] == pid:
@@ -626,29 +570,6 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
         # (`lunchStart`/`lunchEnd`), not from anything the operator scheduled. Deleting it when asking for an empty
         # agenda would leave the schedule broken tomorrow without explaining why. Changing the frame is «cambia mi horario».
 
-    elif action == "add_task":
-        # V2-639 — add_meeting existed with no sibling for TASKS, so «apúntame revisar el contrato» could
-        # only land as a fake appointment with an invented hour. Same write discipline as add_meeting: a
-        # payload with no real title is an error that names the expected keys, never a defaulted row.
-        title = str(payload.get("title") or payload.get("task") or "").strip()
-        if not title:
-            return {"ok": False,
-                    "error": "no me ha llegado la tarea — vuelve a llamar a add_task con `title` "
-                             "(y opcionalmente estimateMinutes, priority 1-5, startTime HH:MM si es a hora fija)"}
-        tid = "t_" + re.sub(r"\W+", "_", _strip_accents(title).lower())[:40].strip("_")
-        if tid in tasks:
-            tid = f"{tid}_{int(time.time()) % 100000}"     # same slug twice is a second task, not a lost write
-        _t = {"id": tid, "title": title, "status": "todo",
-              "estimateMinutes": int(payload.get("estimateMinutes") or 30),
-              "priority": int(payload.get("priority") or 3)}
-        if payload.get("deep"):
-            _t["deep"] = True
-        if payload.get("projectId"):
-            _t["projectId"] = str(payload["projectId"])
-        _raw_start = str(payload.get("startTime") or payload.get("time") or "").strip()
-        if _raw_start:
-            _t["fixed"], _t["startTime"] = True, _resolve_time(_raw_start)
-        db.setdefault("tasks", []).append(_t)
     elif action == "move_meeting":
         # V2-639 — moving an appointment had NO name: the only path was cancel + re-add, two turns the model
         # never chains (the clear_all lesson: a frequent intention with no action cannot be gotten right).

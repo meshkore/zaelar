@@ -42,9 +42,9 @@ const CATEGORY_HUE = {
 
 function injectStyles(){
   const prev = document.getElementById("hb-agenda-css");
-  if(prev && (prev.dataset||{}).v === "691") return;   // dataset is optional on a foreign node
+  if(prev && (prev.dataset||{}).v === "744") return;   // dataset is optional on a foreign node
   if(prev) prev.remove();                      // an older build's sheet would fight this one, silently
-  const s=document.createElement("style"); s.id="hb-agenda-css"; s.dataset.v="691"; s.textContent=`
+  const s=document.createElement("style"); s.id="hb-agenda-css"; s.dataset.v="744"; s.textContent=`
   /* The card decides the size (manifest.size); the widget fills it and scrolls INSIDE — the operator's
      report was «se muestra muy pequeño, se cortan las palabras de abajo». :has reaches the card chrome
      (.hb-scroll wraps the widget root) exactly as the video widget does since V2-636. */
@@ -441,6 +441,96 @@ function injectStyles(){
     margin:var(--sp-4,16px) 0 0;padding-top:var(--sp-4,16px);
     border-top:1px solid var(--hb-line-subtle,rgba(255,255,255,.06))}
   .hb-agenda .agwfoot .agcalbtn2{flex:0 0 auto;margin:0;min-width:104px}
+
+  /* ── V2-744 · THE TWO SECTIONS ────────────────────────────────────────────────────────────────────
+     One card, two things: the calendar and the operator's own numbered task lists. The selector is the
+     first row of the card, above the calendar's own toolbar, because it chooses WHAT you are looking at
+     and everything under it belongs to that choice — a segmented control, not another tab in the view
+     band (those pick a lens over the SAME data, and these do not). */
+  .hb-agenda .agsec{display:flex;gap:2px;flex:0 0 auto;margin:0 0 var(--sp-3,12px);padding:3px;
+    border-radius:999px;background:var(--hb-bg-soft,#171B21);align-self:flex-start;
+    border:1px solid var(--hb-line-subtle,rgba(255,255,255,.06))}
+  .hb-agenda .agsecb{border:0;background:none;color:var(--hb-muted,#5b6b82);border-radius:999px;
+    padding:6px var(--sp-4,16px);font:600 13px/1.2 var(--sans,system-ui);cursor:pointer;white-space:nowrap}
+  .hb-agenda .agsecb:hover{color:var(--hb-ink,#0d1622)}
+  .hb-agenda .agsecb.on{background:var(--hb-accent,#3D6FE0);color:var(--canvas,#fff)}
+
+  /* ── TAREAS: the lists on the left, the chosen list on the right ──────────────────────────────── */
+  .hb-agenda .agt{display:flex;gap:var(--sp-4,16px);flex:1 1 auto;min-height:0;min-width:0}
+  .hb-agenda .agt-side{flex:0 0 218px;display:flex;flex-direction:column;gap:var(--sp-2,8px);
+    min-height:0;overflow:auto;padding-right:2px}
+  .hb-agenda .agt-main{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:var(--sp-3,12px);
+    min-height:0}
+  .hb-agenda .agt-list{display:flex;align-items:center;gap:var(--sp-2,8px);width:100%;text-align:left;
+    border:1px solid var(--hb-line,rgba(255,255,255,.10));background:var(--hb-bg,#fff);
+    border-radius:var(--hb-r-m,10px);padding:9px 11px;cursor:pointer;font-family:var(--sans,system-ui);
+    color:var(--hb-ink,#0d1622);flex:0 0 auto}
+  .hb-agenda .agt-list:hover{border-color:var(--hb-accent,#3D6FE0)}
+  .hb-agenda .agt-list.on{border-color:var(--hb-accent,#3D6FE0);background:var(--hb-bubble,#1D222A)}
+  /* THE NUMBER IS THE HANDLE. He says «ábreme la lista número 3», so the numeral is not decoration: it is
+     the thing he reads before he speaks, and it has to be the first thing on the row and impossible to
+     miss. Same badge as the wizard's step numeral — one numbering language in this card. */
+  .hb-agenda .agt-no{width:22px;height:22px;flex:0 0 auto;border-radius:50%;display:inline-flex;
+    align-items:center;justify-content:center;font:700 12px/22px var(--sans,system-ui);
+    color:var(--hb-accent,#3D6FE0);background:color-mix(in srgb,var(--hb-accent,#3D6FE0) 18%,transparent)}
+  .hb-agenda .agt-lname{flex:1 1 auto;min-width:0;font-size:13px;font-weight:600;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .hb-agenda .agt-count{flex:0 0 auto;font-size:12px;color:var(--hb-muted-2,#9aa7b8)}
+  .hb-agenda .agt-prog{height:4px;border-radius:999px;background:var(--hb-bg-soft,#171B21);overflow:hidden}
+  .hb-agenda .agt-prog span{display:block;height:100%;border-radius:999px;background:var(--hb-accent,#3D6FE0)}
+  .hb-agenda .agt-head{display:flex;align-items:center;gap:var(--sp-2,8px);flex:0 0 auto;min-width:0}
+  .hb-agenda .agt-title{font:600 15px/1.3 var(--sans,system-ui);min-width:0;overflow:hidden;
+    text-overflow:ellipsis;white-space:nowrap}
+  /* The list's IDENTIFIER, shown rather than hidden: it is what he will hand to another agent over the
+     MeshKore cluster, and an id you cannot see is an id you cannot share. */
+  .hb-agenda .agt-id{font:500 11px/1 ui-monospace,SFMono-Regular,Menlo,monospace;
+    color:var(--hb-muted-2,#9aa7b8);background:var(--hb-bg-soft,#171B21);
+    border:1px solid var(--hb-line-subtle,rgba(255,255,255,.06));border-radius:6px;padding:4px 7px;
+    flex:0 0 auto;cursor:pointer}
+  .hb-agenda .agt-acts{margin-left:auto;display:flex;gap:4px;flex:0 0 auto}
+  .hb-agenda .agt-b{border:1px solid var(--hb-line,#e3e8f0);background:var(--hb-bg,#fff);
+    color:var(--hb-muted,#5b6b82);border-radius:var(--hb-r-s,8px);height:var(--hb-ctl-h-sm,32px);
+    padding:0 var(--sp-3,12px);font:600 12px/1 var(--sans,system-ui);cursor:pointer}
+  .hb-agenda .agt-b:hover{border-color:var(--hb-accent,#3D6FE0);color:var(--hb-accent,#3D6FE0)}
+  .hb-agenda .agt-b.danger:hover{border-color:var(--hb-risk,#e5484d);color:var(--hb-risk,#e5484d)}
+  .hb-agenda .agt-b.on{background:var(--hb-accent,#3D6FE0);color:var(--canvas,#fff);border-color:transparent}
+  .hb-agenda .agt-items{flex:1 1 auto;min-height:0;overflow:auto;display:flex;flex-direction:column;gap:4px}
+  .hb-agenda .agt-item{display:flex;align-items:center;gap:var(--sp-2,8px);
+    border:1px solid var(--hb-line-subtle,rgba(255,255,255,.06));border-radius:var(--hb-r-m,10px);
+    padding:8px 10px;flex:0 0 auto}
+  .hb-agenda .agt-item:hover{border-color:var(--hb-line,rgba(255,255,255,.10))}
+  .hb-agenda .agt-check{width:20px;height:20px;flex:0 0 auto;border-radius:6px;cursor:pointer;
+    border:1.5px solid var(--hb-line-strong,#c6cedb);background:none;display:inline-flex;
+    align-items:center;justify-content:center;color:var(--canvas,#fff);padding:0}
+  .hb-agenda .agt-check.on{background:var(--hb-accent,#3D6FE0);border-color:var(--hb-accent,#3D6FE0)}
+  .hb-agenda .agt-check svg{width:12px;height:12px;display:block}
+  .hb-agenda .agt-ino{flex:0 0 auto;min-width:18px;text-align:right;
+    font:600 12px/1 var(--sans,system-ui);color:var(--hb-muted-2,#9aa7b8)}
+  .hb-agenda .agt-text{flex:1 1 auto;min-width:0;font-size:13.5px;overflow:hidden;text-overflow:ellipsis;
+    white-space:nowrap}
+  .hb-agenda .agt-item.done .agt-text{text-decoration:line-through;color:var(--hb-muted-2,#9aa7b8)}
+  .hb-agenda .agt-when{flex:0 0 auto;font-size:11.5px;color:var(--hb-muted-2,#9aa7b8);
+    background:var(--hb-bg-soft,#171B21);border-radius:6px;padding:3px 7px}
+  .hb-agenda .agt-ib{border:0;background:none;color:var(--hb-muted-2,#9aa7b8);cursor:pointer;
+    padding:4px;border-radius:6px;flex:0 0 auto;display:inline-flex;font-size:12px;font-weight:600}
+  .hb-agenda .agt-ib:hover{color:var(--hb-ink,#0d1622);background:var(--hb-hover,#242A34)}
+  .hb-agenda .agt-ib.danger:hover{color:var(--hb-risk,#e5484d)}
+  .hb-agenda .agt-add,.hb-agenda .agt-newl{display:flex;gap:var(--sp-2,8px);flex:0 0 auto}
+  .hb-agenda .agt-in{flex:1 1 auto;min-width:0;border:1px solid var(--hb-line,#e3e8f0);
+    background:var(--hb-bg,#fff);color:var(--hb-ink,#0d1622);border-radius:var(--hb-r-s,8px);
+    height:var(--hb-ctl-h-sm,32px);padding:0 10px;font:400 13px/1 var(--sans,system-ui)}
+  .hb-agenda .agt-in:focus{outline:none;border-color:var(--hb-accent,#3D6FE0)}
+  .hb-agenda .agt-empty{font-size:13px;color:var(--hb-muted-2,#9aa7b8);padding:var(--sp-4,16px) 0}
+  .hb-agenda .agt-ask{display:flex;align-items:center;gap:var(--sp-2,8px);flex:0 0 auto;font-size:13px;
+    color:var(--hb-ink,#0d1622);background:var(--hb-bubble,#1D222A);border-radius:var(--hb-r-m,10px);
+    border:1px solid var(--hb-line,rgba(255,255,255,.10));padding:9px 11px}
+  /* Narrow card: the lists become a strip over the items instead of a column that squeezes them. */
+  @media (max-width: 640px){
+    .hb-agenda .agt{flex-direction:column}
+    .hb-agenda .agt-side{flex:0 0 auto;flex-direction:row;overflow-x:auto;padding-bottom:4px}
+    .hb-agenda .agt-list{width:auto;flex:0 0 auto}
+    .hb-agenda .agt-list .agt-count{display:none}
+  }
   `; document.head.appendChild(s);
 }
 
@@ -1341,6 +1431,188 @@ function renderGoogleWizard(data, ctx, S, redraw){
   return wrap;
 }
 
+// ── V2-744 · TAREAS — the operator's own lists, numbered as he reads them ─────────────────────────────
+//
+// Operator, 2026-09-21: «arriba del todo un selector que separe lo que es agenda de tareas… una lista
+// general y que el usuario pueda generar una lista para varias cosas… asegúrate de que todo está bastante
+// numerado para que cuando yo vea una lista le diga: ábreme la lista número 3, coge el ítem número 2 y
+// modifícalo por esto».
+//
+// So the NUMBER is a first-class part of the render and not an afterthought: every list row and every item
+// row leads with the position the voice will name, and those positions come from the server's own
+// `tasks.lists`/`tasks.items` — the same arrays `tasklists.digest()` builds the brain's view from. Two
+// numberings of one screen would mean «the second one» points at different rows depending on who is asked,
+// which is exactly the disagreement `index.py` was written to end.
+function taskWhen(it){
+  if(!it.date && !it.time) return "";
+  const d = it.date ? parseYmd(it.date) : null;
+  const day = d ? fmtDate(d, {day:"numeric", month:"short"}, it.date) : "";
+  return (day + (it.time ? " " + it.time : "")).trim();
+}
+
+function renderTasks(host, data, ctx, S, redraw){
+  const T = (data && data.tasks) || {};
+  const lists = Array.isArray(T.lists) ? T.lists : [];
+  const byId = (T.items && typeof T.items === "object") ? T.items : {};
+  const cur = lists.find(l => l.id === S.tl) || lists[0] || null;
+  const items = (cur && byId[cur.id]) || [];
+
+  // Every mutation goes through the host, like the coach rail does: the widget never writes, it ASKS, and
+  // the fresh data comes back as the new render. `act` re-renders with the answer rather than guessing it.
+  const act = async (name, payload) => { redraw(await ctx.action(name, payload || {})); };
+
+  const wrap = el2("div","agt");
+
+  // ── the lists, each with its number and its progress ───────────────────────────────────────────────
+  const side = el2("div","agt-side");
+  lists.forEach(l => {
+    const b = el2("button","agt-list" + (cur && l.id === cur.id ? " on" : ""));
+    b.dataset.list = l.id; b.dataset.no = String(l.no);
+    b.appendChild(el2("span","agt-no", String(l.no)));
+    const col = el2("div", null); col.style.cssText = "flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:5px";
+    const row = el2("div", null); row.style.cssText = "display:flex;align-items:center;gap:8px;min-width:0";
+    // The BUILT-IN list keeps a translated label while it carries its untouched default name; once he
+    // renames it, the name he chose wins — it is his data from that moment on.
+    const name = (l.builtin && String(l.name) === "General") ? tt("tasks_general", null, "General") : String(l.name || "");
+    row.appendChild(el2("span","agt-lname", name));
+    row.appendChild(el2("span","agt-count", `${l.done}/${l.total}`));
+    col.appendChild(row);
+    const bar = el2("div","agt-prog"); const fill = el2("span");
+    fill.style.width = (l.total ? Math.round(100 * l.done / l.total) : 0) + "%";
+    bar.appendChild(fill); col.appendChild(bar);
+    b.appendChild(col);
+    b.onclick = () => { S.tl = l.id; S.tlEdit = false; S.tlAsk = ""; redraw(); };
+    side.appendChild(b);
+  });
+  const newl = el2("div","agt-newl");
+  if(S.tlNew){
+    const inp = el2("input","agt-in"); inp.type = "text";
+    inp.placeholder = tt("tasks_list_name", null, "Nombre de la lista");
+    const save = () => { const v = inp.value.trim(); S.tlNew = false;
+                         if(v) act("add_list", {name: v}); else redraw(); };
+    inp.onkeydown = e => { if(e.key === "Enter") save(); if(e.key === "Escape"){ S.tlNew = false; redraw(); } };
+    const ok = el2("button","agt-b on", tt("tasks_add", null, "Añadir")); ok.onclick = save;
+    newl.appendChild(inp); newl.appendChild(ok);
+    raf(() => { try{ inp.focus(); }catch(_){} });
+  } else {
+    const add = el2("button","agt-b", "＋ " + tt("tasks_new_list", null, "Nueva lista"));
+    add.dataset.a2 = "newlist";
+    add.onclick = () => { S.tlNew = true; redraw(); };
+    newl.appendChild(add);
+  }
+  side.appendChild(newl);
+  wrap.appendChild(side);
+
+  // ── the chosen list ────────────────────────────────────────────────────────────────────────────────
+  const main = el2("div","agt-main");
+  if(!cur){ main.appendChild(el2("div","agt-empty", tt("tasks_empty", null, "Esta lista está vacía."))); }
+  else {
+    const head = el2("div","agt-head");
+    head.appendChild(el2("span","agt-no", String(cur.no)));
+    if(S.tlEdit){
+      const inp = el2("input","agt-in"); inp.type = "text"; inp.value = String(cur.name || "");
+      const save = () => { const v = inp.value.trim(); S.tlEdit = false;
+                           if(v && v !== cur.name) act("rename_list", {list: cur.id, newName: v}); else redraw(); };
+      inp.onkeydown = e => { if(e.key === "Enter") save(); if(e.key === "Escape"){ S.tlEdit = false; redraw(); } };
+      inp.onblur = save;
+      head.appendChild(inp);
+      raf(() => { try{ inp.focus(); inp.select(); }catch(_){} });
+    } else {
+      const nm = (cur.builtin && String(cur.name) === "General") ? tt("tasks_general", null, "General") : String(cur.name || "");
+      head.appendChild(el2("div","agt-title", nm));
+      const id = el2("span","agt-id", cur.id);
+      id.title = tt("tasks_share_id", null, "Identificador de la lista — para compartirla");
+      // No clipboard permission, no network: selecting the text is what a widget is allowed to do, and it
+      // is enough for him to read it out or copy it by hand.
+      id.onclick = () => { try{ const r = document.createRange(); r.selectNodeContents(id);
+                                const s = window.getSelection(); s.removeAllRanges(); s.addRange(r); }catch(_){} };
+      head.appendChild(id);
+    }
+    const acts = el2("div","agt-acts");
+    const ren = el2("button","agt-b", tt("tasks_rename", null, "Renombrar"));
+    ren.dataset.a2 = "rename"; ren.onclick = () => { S.tlEdit = true; redraw(); };
+    const clr = el2("button","agt-b danger", tt("tasks_clear", null, "Vaciar"));
+    clr.dataset.a2 = "clear"; clr.onclick = () => { S.tlAsk = "clear"; redraw(); };
+    acts.appendChild(ren); acts.appendChild(clr);
+    if(!cur.builtin){
+      const del = el2("button","agt-b danger", tt("tasks_delete_list", null, "Borrar lista"));
+      del.dataset.a2 = "deletelist"; del.onclick = () => { S.tlAsk = "delete"; redraw(); };
+      acts.appendChild(del);
+    }
+    head.appendChild(acts);
+    main.appendChild(head);
+
+    // The confirmation is IN the card with Yes/No — the house rule (no popups), the same shape the
+    // appointment's own «¿la cancelo?» uses two hundred lines above.
+    if(S.tlAsk){
+      const ask = el2("div","agt-ask");
+      const del = S.tlAsk === "delete";
+      ask.appendChild(el2("span", null, (del ? tt("tasks_confirm_delete", {name: cur.name},
+                                                  `¿Borro la lista «${cur.name}» entera?`)
+                                             : tt("tasks_confirm_clear", {name: cur.name},
+                                                  `¿Vacío «${cur.name}»?`))));
+      const yes = el2("button","agt-b on", del ? tt("tasks_delete_yes", null, "Sí, bórrala")
+                                               : tt("tasks_clear_yes", null, "Sí, vacíala"));
+      yes.dataset.a2 = del ? "deleteyes" : "clearyes";
+      yes.onclick = () => { S.tlAsk = ""; act(del ? "delete_list" : "clear_list", {list: cur.id}); };
+      const no = el2("button","agt-b", tt("cancel", null, "Cancelar"));
+      no.onclick = () => { S.tlAsk = ""; redraw(); };
+      ask.appendChild(yes); ask.appendChild(no);
+      main.appendChild(ask);
+    }
+
+    const box = el2("div","agt-items");
+    if(!items.length) box.appendChild(el2("div","agt-empty", tt("tasks_empty", null, "Esta lista está vacía.")));
+    items.forEach(it => {
+      const row = el2("div","agt-item" + (it.status === "done" ? " done" : ""));
+      row.dataset.task = it.id; row.dataset.no = String(it.no);
+      const chk = el2("button","agt-check" + (it.status === "done" ? " on" : ""));
+      chk.title = tt("done", null, "Hecha");
+      if(it.status === "done") chk.appendChild(svgEl(ICO_CHECK));
+      chk.onclick = () => act(it.status === "done" ? "update_task" : "done",
+                              {list: cur.id, task: it.id, taskId: it.id, status: "pendiente"});
+      row.appendChild(chk);
+      row.appendChild(el2("span","agt-ino", it.no + "."));
+      if(S.tlItem === it.id){
+        const inp = el2("input","agt-in"); inp.type = "text"; inp.value = String(it.title || "");
+        const save = () => { const v = inp.value.trim(); S.tlItem = "";
+                             if(v && v !== it.title) act("update_task", {list: cur.id, task: it.id, newTitle: v});
+                             else redraw(); };
+        inp.onkeydown = e => { if(e.key === "Enter") save(); if(e.key === "Escape"){ S.tlItem = ""; redraw(); } };
+        inp.onblur = save;
+        row.appendChild(inp);
+        raf(() => { try{ inp.focus(); inp.select(); }catch(_){} });
+      } else {
+        row.appendChild(el2("span","agt-text", String(it.title || "")));
+        const when = taskWhen(it);
+        if(when) row.appendChild(el2("span","agt-when", when));
+        const ed = el2("button","agt-ib", "✎"); ed.title = tt("tasks_edit", null, "Editar");
+        ed.dataset.a2 = "edititem";
+        ed.onclick = () => { S.tlItem = it.id; redraw(); };
+        const rm = el2("button","agt-ib danger", "✕"); rm.title = tt("tasks_delete", null, "Borrar");
+        rm.dataset.a2 = "deleteitem";
+        rm.onclick = () => act("delete_task", {list: cur.id, task: it.id});
+        row.appendChild(ed); row.appendChild(rm);
+      }
+      box.appendChild(row);
+    });
+    main.appendChild(box);
+
+    const add = el2("div","agt-add");
+    const inp = el2("input","agt-in"); inp.type = "text"; inp.dataset.add = "task";
+    inp.placeholder = tt("tasks_add_item", null, "Añadir tarea…");
+    const push = () => { const v = inp.value.trim(); if(!v) return; inp.value = "";
+                         act("add_task", {title: v, list: cur.id}); };
+    inp.onkeydown = e => { if(e.key === "Enter") push(); };
+    const ok = el2("button","agt-b on", tt("tasks_add", null, "Añadir"));
+    ok.dataset.a2 = "additem"; ok.onclick = push;
+    add.appendChild(inp); add.appendChild(ok);
+    main.appendChild(add);
+  }
+  wrap.appendChild(main);
+  host.appendChild(wrap);
+}
+
 // ── the render ────────────────────────────────────────────────────────────────────────────────────────
 // V2-697 — the proposals band. Each row says WHO asked, WHEN, and what for, and offers exactly two answers.
 // There is no «propose another time» by the operator's own scoping, and no auto-accept at all: the name on a
@@ -1384,8 +1656,12 @@ export function render(el, data, ctx){
   // `screen` is the CONNECTORS area (null = the calendar itself, "list" = every provider, "wizard" = the
   // guided Google connect). It is a SCREEN and not an overlay: the operator asked for the whole content area,
   // «igual que en mensajería», where the same three-state machine has lived since V2-570.
+  // V2-744 — `sec` is WHICH OF THE TWO THINGS this card is showing (the calendar or his task lists), and
+  // it is a different axis from `view` (day/week/month/list), which is a lens over the calendar alone.
+  // `tl` is the list being read; `tlN` is the push counter of the last voice order that moved it.
   if(!el._ag) el._ag = {view:"week", anchor:today, sel:null, screen:null, wizStep:1, connectBusy:false,
-                        connectErr:"", confirmDel:false, viewN:null, connN:null, add:null};
+                        connectErr:"", confirmDel:false, viewN:null, connN:null, add:null,
+                        sec:"agenda", tl:"", tlN:null, tlNew:false, tlEdit:false, tlItem:"", tlAsk:""};
   const S = el._ag;
 
   // A VIEW PUSHED FROM VOICE (`show_day`). Applied only when its token MOVES, so a plain refresh never
@@ -1400,7 +1676,22 @@ export function render(el, data, ctx){
     S.sel = null;
     // A pushed view is a NAVIGATION order: it has to leave the connectors screen, or the day it asked for
     // renders underneath a setup screen and the order looks ignored (V2-626's lesson, one widget over).
+    // V2-744 — …and it has to leave the TASKS section for the same reason: «enséñame el jueves» answered
+    // while the card sits on the shopping list would be a day nobody can see.
     S.screen = null;
+    S.sec = "agenda";
+  }
+
+  // THE TASKS SECTION, PUSHED FROM VOICE (V2-744, `show_tasks`). Same token rule as the day above: it lands
+  // when the counter MOVES, so a refresh never drags him out of what he is reading, and asking twice for
+  // the same list still works — the counter changes even when the list does not.
+  const pushedT = (data.tasks || {}).view;
+  if(pushedT && pushedT.n !== S.tlN){
+    S.tlN = pushedT.n;
+    S.sec = "tasks";
+    S.screen = null;
+    if(pushedT.list) S.tl = String(pushedT.list);
+    S.sel = null; S.tlEdit = false; S.tlItem = ""; S.tlAsk = "";
   }
 
   // A CONNECT PUSHED FROM VOICE (V2-686). «Conecta mi Google Calendar» cannot finish here — the consent
@@ -1437,6 +1728,25 @@ export function render(el, data, ctx){
 
   el.className = "hb-agenda";
   el.textContent = "";                                   // reset (never innerHTML)
+
+  // ── V2-744 · SECTION selector — the first row of the card ──────────────────────────────────────────
+  // «Arriba del todo un selector que separe lo que es agenda de tareas». It sits above the calendar's own
+  // toolbar because it chooses WHAT you are looking at: everything below belongs to whichever half is lit.
+  const secs = el2("div","agsec");
+  [["agenda", tt("sec_agenda", null, "Agenda")], ["tasks", tt("sec_tasks", null, "Tareas")]].forEach(([id,label])=>{
+    const b = el2("button","agsecb" + (S.sec === id ? " on" : ""), label);
+    b.dataset.sec = id;
+    b.onclick = ()=>{ S.sec = id; S.sel = null; S.screen = null; S.tlAsk = ""; render(el, data, ctx); };
+    secs.appendChild(b);
+  });
+  el.appendChild(secs);
+
+  if(S.sec === "tasks"){
+    const tbody = el2("div","agbody");
+    renderTasks(tbody, data, ctx, S, redraw);
+    el.appendChild(tbody);
+    return;                       // the calendar's toolbar, views and overlays belong to the other half
+  }
 
   // ── toolbar ────────────────────────────────────────────────────────────────────────────────────────
   const bar = el2("div","agbar");

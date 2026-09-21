@@ -305,7 +305,7 @@ export const fetchTasks = async () => {
   } catch (_) {}
 };
 
-// V2-728 — the FOUR lists behind the «Tareas» tab. One signal each rather than one shared list filtered four
+// V2-728 — the FOUR lists behind the «Procesos» tab. One signal each rather than one shared list filtered four
 // ways: they are four different queries against the table (live · finished · recurring · scheduled) with
 // different lifetimes, and a single cache would make switching sub-tabs show the previous one's rows for a
 // frame. `taskShowAll` is the `⚙ todo` switch — it adds the engine's internal escalations, which the operator
@@ -560,21 +560,31 @@ export const [debugWidth, setDebugWidth] = createSignal(Math.max(300, parseInt(l
 
 // ---- chat wall (text channel to the agent) ----
 export const [chatOpen, setChatOpen]   = createSignal(false);  // chat wall panel visible?
-// V2-728 — FOUR tabs, down from five: "chat" | "tareas" | "clusters" | "conectores". «Procesos» and «Crons»
-// were the same object seen twice (a commission the brain is carrying out, and a commission with a clock on
-// it), split across two tabs because they were built at different times and stored in different places.
+// V2-728 — FOUR tabs, down from five: "chat" | "procesos" | "clusters" | "conectores". «Procesos» and
+// «Crons» were the same object seen twice (a commission the brain is carrying out, and a commission with a
+// clock on it), split across two tabs because they were built at different times and stored in different
+// places.
+//
+// V2-744 — …and the tab is called PROCESOS again, id included, because the word «tarea» was reassigned by
+// the operator: *«a las tareas que yo hago las llamo procesos (jobs en inglés) y las separo de las tareas
+// personales del operador que van en su agenda»*. That is not a label change with an internal id left
+// behind: `tareas` is the string a voice order carries («ábreme las tareas»), and while this door answered
+// to it, that order opened the agent's own work instead of his shopping list. The id IS part of the
+// routing, so it moved with the label.
 //
 // The OLD NAMES still arrive, from three directions that cannot be changed at once: the voice router
-// (`nucleo/flash/router._canon_panel` answers `procesos`/`crons`), the action map, and the localStorage of
-// every operator who left the wall on one of them. So this setter NORMALISES instead of the callers doing
-// it — a rule each caller has to remember is a rule that ends up missing from one of them, which is the
-// same lesson the signup doors cost. `crons` lands on «Tareas ▸ Periódicas», which is where it now lives.
+// (`nucleo/flash/panel_canon`), the action map, and the localStorage of every operator who left the wall on
+// one of them. So this setter NORMALISES instead of the callers doing it — a rule each caller has to
+// remember is a rule that ends up missing from one of them, which is the same lesson the signup doors cost.
+// `crons` lands on «Procesos ▸ Periódicos», which is where it now lives. `tareas` is kept here, and ONLY
+// here, for the rows an operator's own action map already stored: it is the same object he meant then.
 const [chatTab, _setChatTab] = createSignal("chat");
 export { chatTab };
-const _TAB_ALIAS = { procesos: ["tareas", "live"], workers: ["tareas", "live"], tasks: ["tareas", "live"],
-                     crons: ["tareas", "recurring"], cron: ["tareas", "recurring"],
-                     programadas: ["tareas", "scheduled"], scheduled: ["tareas", "scheduled"] };
-const _TABS = ["chat", "tareas", "clusters", "conectores"];
+const _TAB_ALIAS = { tareas: ["procesos", "live"], tasks: ["procesos", "live"], jobs: ["procesos", "live"],
+                     workers: ["procesos", "live"], crons: ["procesos", "recurring"],
+                     cron: ["procesos", "recurring"],
+                     programadas: ["procesos", "scheduled"], scheduled: ["procesos", "scheduled"] };
+const _TABS = ["chat", "procesos", "clusters", "conectores"];
 export const setChatTab = (tab) => {
   const raw = String(tab || "chat");
   const alias = _TAB_ALIAS[raw];
