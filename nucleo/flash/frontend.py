@@ -171,6 +171,156 @@ def repair_action_from_brief(widget_id: str, brief) -> str | None:
     return name if name in (declared_actions(_tb._base_of(wid)) or {}) else None
 
 
+#: What the brief's screen verdict must clear to move an order from the card the model named to another
+#: one. It is the module's own gate — a verdict below it is «I do not know», which is the ASK branch.
+def which_card(widget_id: str, action: str, *, open_ids=(), brief=None) -> tuple[str, object]:
+    """Which OPEN CARD a declared data-op belongs to, when more than one can do it (V2-740).
+
+    THE SITUATION, in the operator's words (2026-09-21): *«si tengo dos widgets que tienen las mismas
+    tools con los mismos nombres, el motor va a dar un 50% de ejecutar un play en un widget o en otro. Y
+    cuando eso pase, el flashbrain tendrá que decir: tienes dos tipos de reproductores abiertos y me
+    tienes que especificar cuál quieres. Si por contexto sabe identificarlo, perfecto.»*
+
+    And he is right that this is not a defect in the widgets: `youtube` and `musica` share NINE action
+    names by design (play, pause, next, previous, volume_up, volume_down, set_volume, play_local, ended).
+    Sharing a vocabulary is what makes them both players. What was missing is what happens at that point.
+
+    WHAT WAS ALREADY THERE AND WENT UNREAD. The turn brief has been asking exactly this question since
+    V2-726 A4 — `screen_action`, keyed `<instance>:<action>`, enumerated over every open card, carrying
+    each card's LIVE rail as its label («youtube — Apolo 11 · pausado»). With two players open it offers
+    68 options and tells `youtube:play` from `musica:play`. But the only consumer was
+    `repair_action_from_brief`, which fires *«ONLY on the invented-action path»* — so when the model
+    picked a card for a DECLARED action, nothing checked it. The verdict was paid for and thrown away.
+
+    THE SHAPE, which is the operator's third sentence and not a new mechanism:
+
+      · **Not ambiguous** → `("keep", None)`. One card can do it, or none but the named one. Nothing is
+        read, nothing is asked, no latency: the common path is untouched.
+      · **Ambiguous and the brief knows** → `("card", wid)`. The verdict is read with `peek`, never a
+        wait, and only a verdict naming THIS SAME ACTION on an open card can move it. A verdict about a
+        different action is a different question and is ignored here.
+      · **Ambiguous and the brief does not know** → `("ask", [labels])`, which is exactly
+        `consent.ASK_WHICH` — the second of the four questions V2-712 already asks, with the count and
+        the names. It is not a hardcoded question: the rule is the one the whole system uses, and what
+        changes is that the thing in doubt can now be a CARD and not only a row inside one.
+
+    ⚠️ It NEVER changes the action, only the card. «Pausa» stays «pausa»; what it decides is whose.
+    Widening it to repair the verb would put two decisions behind one verdict, and the confident-and-wrong
+    one would then be twice as expensive.
+    """
+    from nucleo.flash import turn_brief as _tb
+    wid = (widget_id or "").strip().lower()
+    name = (action or "").strip()
+    if not wid or not name:
+        return ("keep", None)
+    # The open set defaults to the one the BRIEF enumerated, which is the right one twice over: it is
+    # exactly the set Jev was offered candidates from, and reading it here keeps the assembly beside the
+    # questions instead of adding a state read to the provider the architecture ratchet already lists.
+    if not open_ids and isinstance(brief, dict):
+        open_ids = brief.get("open_ids") or ()
+    # Who else on screen could do this? `_possible_now` is the same downward refinement the question
+    # itself uses, so the candidates here are exactly the candidates Jev was offered — asking about a
+    # card the question never carried would make the ASK branch offer an option nobody can choose.
+    cards: list[str] = []
+    for other in (open_ids or []):
+        other = str(other or "").strip().lower()
+        if not other:
+            continue
+        if name not in (declared_actions(_tb._base_of(other)) or {}):
+            continue
+        if not _tb._possible_now(other, name):
+            continue
+        if other not in cards:
+            cards.append(other)
+    if wid not in cards:
+        cards.append(wid)          # the model's own choice is always a candidate, open set or not
+    if len(cards) < 2:
+        return ("keep", None)
+
+    # ⚠️ NO SYNCHRONOUS FALLBACK HERE, and the absence is the design. The text channel fires no brief, so
+    # it reaches this with nothing to read — and the obvious repair (ask the question synchronously, «the
+    # probe has no event loop to freeze») adds a THIRD blocking `choose_sync` to the engine. Node 3.61
+    # freezes those at two and says what to do instead: put the question in the brief. A channel without
+    # one therefore ASKS, which is not a degraded answer — it is the behaviour the operator described for
+    # exactly this case, and it costs nothing and cannot be wrong. Giving the probe its own brief is a
+    # cost decision (one call per text turn to serve a rare ambiguity), and it is his, not this file's.
+    choice, _info = _tb.read(brief, _tb.TARGET_KEY, "")
+    owner, _, verdict_action = str(choice or "").rpartition(":")
+    if owner and verdict_action == name and owner in cards and _tb.owner_still_open(brief, owner):
+        return ("keep", None) if owner == wid else ("card", owner)
+    return ("ask", [_tb._card_label(c) for c in cards])
+
+
+def absent_widget_misroute(widget_id: str, action: str, item: str, *,
+                           resolved: bool = True, named_widget: str = "") -> bool:
+    """A LOOSE PRONOUN as the item, on a card that is neither open nor named → the verb mis-routed.
+
+    The incident (2026-07-21, «hay que cancelarlo»): the model hooked the verb «cancelar» to `agenda.drop`
+    on a widget that was NOT on screen and that the turn never named, while the pronoun's antecedent lived
+    in the CONVERSATION (an ITV appointment). Acting there operates a closed card; the turn is escalated
+    RAW instead, so the worker gets the recent window verbatim and resolves it with context.
+
+    ⚠️ And the bug that shipped with the first version, twice: `looks_like_bare_ref("")` is True BY DESIGN
+    (an empty ref IS bare), so the guard fired on every CREATE action — `add_meeting` never carries an item
+    — and escalated «añade una cita con el dentista mañana» whenever the agenda was not already open. It
+    only makes sense where the action REALLY points at an existing row, which is what a declared `*Id`
+    field says.
+
+    EXTRACTED because it was written TWICE, and the probe's copy says so in its own comment («ESPEJO del
+    guard del provider … mismo fix que nucleo.py»). That is the R3 class this repo has a rule against: if
+    two channels need the same rule, extract it — a copy costs a marker and leaves two places to edit, and
+    both copies had to be fixed separately when the CREATE bug was found.
+    """
+    from nucleo.flash import router as _router
+    from widgets import refs as _refs
+    wid = (widget_id or "").strip().lower()
+    # `resolved=False` is the voice rail's other half: a reference that did not resolve AT ALL reaches the
+    # same question. The probe never resolves one, so it passes the default and only the pronoun path runs.
+    bare = (bool(_refs.id_field_for_action(wid, (action or "").strip()))
+            and _router.looks_like_bare_ref(str(item or "")))
+    if resolved and not bare:
+        return False                                  # nothing to point AT: a creation is never a misroute
+    try:
+        from memory import api as _memapi
+        open_now = {str(w).strip().lower() for w in ((_memapi.state() or {}).get("open_widgets") or [])}
+    except Exception:  # noqa: BLE001
+        open_now = set()
+    return wid not in open_now and (named_widget or "").strip().lower() != wid
+
+
+def card_decision(widget_id: str, action: str, *, brief=None, ask_phrase: str = "") -> dict:
+    """`which_card`, shaped into what a CALL SITE does with it — so neither channel grows to hold this.
+
+    Both callers live in files the architecture ratchet lists (the voice provider and `probe.py`), and its
+    rule is «extract a module, do not raise the ceiling». Ten lines of routing and its archaeology in each
+    of them is the shape that made them god files in the first place, so the decision AND its consequences
+    are assembled here and each call site spends four lines applying a plan.
+
+    Returns `{card, ask, label, text, extra}` — `card` is the widget to act on (unchanged when nothing
+    moved), `ask` is the sentence to say INSTEAD of acting (empty when there is nothing to ask), and the
+    rest is one observability event or nothing. It writes no state and speaks to nobody: the caller does.
+    """
+    wid = (widget_id or "").strip().lower()
+    route, alt = which_card(wid, action, brief=brief)
+    if route == "card":
+        return {"card": str(alt), "ask": "",
+                "label": "🎯 la orden era de OTRA tarjeta — la reubica el veredicto de pantalla",
+                "text": f"{wid}→{alt}:{action}",
+                "extra": {"id": str(alt), "from": wid, "action": action, "src": "jev"}}
+    if route == "ask":
+        # ONE question, ONE phrase. `ask_which_item` («¿Cuál exactamente? Tengo {cands}») is already the
+        # sentence for consent's ASK_WHICH, and this IS that verdict — the thing in doubt is a card rather
+        # than a row, which `consent.decide` does not distinguish either. A second string for the same
+        # question would be a second thing to translate, to keep in step, and to get out of step.
+        names = [str(c) for c in (alt or [])]
+        return {"card": wid,
+                "ask": (ask_phrase or "").format(cands=", ".join(names[:3])) or "",
+                "label": "❓ varias tarjetas pueden hacer eso — pregunto en cuál",
+                "text": f"{wid}:{action}",
+                "extra": {"id": wid, "action": action, "cands": names[:4]}}
+    return {"card": wid, "ask": "", "label": "", "text": "", "extra": {}}
+
+
 def resolve_undeclared_action(widget_id: str, action: str, text: str,
                               *, timeout_s: float | None = None, brief=None,
                               blocking_ok: bool = True) -> tuple[str, str | None]:

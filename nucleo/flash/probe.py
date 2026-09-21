@@ -524,23 +524,18 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
                     action = "widget_data"
                 else:
                     action = "escalate"          # acción inventada sin verbo de canvas ni reparación → escala
-            # ESPEJO del guard del provider (2026-07-21, caso «hay que cancelarlo»): un PRONOMBRE SUELTO como item
-            # ("lo/eso") sobre un widget que NO está abierto NI se nombra en el turno = mis-ruteo por verbo (el
-            # antecedente vive en la conversación) → escala con contexto en vez de operar un widget cerrado.
-            # BUG real (maratón 2026-07-22, mismo fix que nucleo.py): `looks_like_bare_ref("")` es True por
-            # diseño → disparaba en TODA acción de CREAR (add_meeting…) que nunca lleva `item`. Solo aplica
-            # cuando la acción REALMENTE referencia un item existente (tiene un campo `*Id` declarado).
-            from widgets import refs as _refs
-            _needs_item = bool(_refs.id_field_for_action(_wid, _act))
-            if action == "widget_data" and _needs_item and _router.looks_like_bare_ref(str(_wd["args"].get("item") or "")):
-                try:
-                    from memory import api as _memapi
-                    _ow = set((_memapi.state() or {}).get("open_widgets") or [])
-                except Exception:
-                    _ow = set()
-                _named = _identify_ctx(_rt, text)
-                if _wid not in _ow and _named != _wid:
-                    action = "escalate"
+            # V2-740 — ESPEJO de la voz, misma FUNCIÓN (nunca copiada). Sin brief que leer, la duda
+            # se PREGUNTA: la segunda pregunta de V2-712, no una nueva.
+            if action == "widget_data":
+                _cd = _fe.card_decision(_wid, _act)
+                _wd["args"]["widget_id"] = _wid = _cd["card"]
+                if _cd["ask"]:
+                    action = "clarify"
+            # …y el mis-ruteo por pronombre suelto, que vivía COPIADO aquí y en el provider: el porqué y
+            # las dos veces que hubo que arreglarlo por separado están en `frontend.absent_widget_misroute`.
+            if action == "widget_data" and _fe.absent_widget_misroute(
+                    _wid, _act, str(_wd["args"].get("item") or ""), named_widget=_identify_ctx(_rt, text)):
+                action = "escalate"
         except Exception:
             pass
     elif "delete_widget" in names:

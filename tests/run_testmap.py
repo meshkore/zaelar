@@ -1387,6 +1387,15 @@ DOMAINS: list[dict] = [
         # 0/8 con 0,52-0,61, o sea POR ENCIMA del umbral, que es cuando el motor actúa: el número es
         # **equivocado-y-seguro** y su objetivo es CERO. El informe archiva el ENUNCIADO que midió, porque dos
         # corridas solo se comparan si midieron el mismo texto (8/9 y 6/9 en la misma auditoría, por eso).
+        # V2-740 — el operador, 2026-09-21, corrigiendo el encuadre que llamaba «defecto» a esto: «si tengo
+        # dos widgets que tienen las mismas tools con los mismos nombres, el motor va a dar un 50% […] y
+        # cuando eso pase, el flashbrain tendrá que decir: tienes dos reproductores abiertos y me tienes que
+        # especificar cuál. Si por contexto sabe identificarlo, perfecto». El brief ya preguntaba
+        # exactamente eso desde A4 (68 opciones con los dos abiertos) y el veredicto solo lo leía la
+        # reparación de acciones INVENTADAS — pagado cada turno y tirado.
+        {"id": "3.72", "title": "Dos reproductores abiertos y una palabra que vale para los dos: el veredicto "
+                                "de pantalla decide DE QUIÉN es la orden, y si no sabe se PREGUNTA",
+            "ch": UNIT, "paths": ["tests/voice/unit/test_two_players_open_and_one_word_for_both.py"]},
         {"id": "3.71", "title": "El banco de EFECTIVIDAD contra la API real: acierto, confianza, latencia y —lo que gobierna— equivocado-y-seguro = 0",
             # NO es un nodo `live` y el trinquete del mapa tiene razón en pedirlo así: el fichero se ejecuta
             # en CADA pasada —cuesta 0,02 s y tres SKIP— y por tanto un error de import o de colección suyo

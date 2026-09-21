@@ -1251,35 +1251,18 @@ class NucleoLLMStream(llm.LLMStream):
                         escalate_req["v"] = text
                     return
             res = refs.resolve(wid, action_name, ref, payload, order=_bnotes.operator_half(text))
-            # GUARD mis-ruteo por VERBO (2026-07-21, caso «hay que cancelarlo» tras «¿qué día tengo la ITV?»): el modelo
-            # enganchó el verbo ("cancelar") con una data-op (agenda.drop) de un widget que NO está ABIERTO NI el
-            # operador NOMBRÓ; el objeto era un PRONOMBRE SUELTO ("lo") cuyo antecedente vive en la CONVERSACIÓN, no en
-            # ese widget. Cuando el item no ancla (pronombre suelto o no resuelve) Y el widget no está en pantalla NI se
-            # nombra en el turno → el destino es erróneo: escalamos el turno CRUDO → el worker recibe la ventana
-            # reciente verbatim (la ITV) y lo resuelve con contexto, en vez de operar/clarificar items de un widget
-            # cerrado. NOTA: NO cubre el caso EXPLÍCITO con item que sí casa ("cancela la cita de la ITV" cuando la
-            # agenda tiene ese appointment) — eso exige entender que es una acción del mundo real (capa de inteligencia,
-            # ver V2-061); aquí solo se ataja el mis-ruteo por pronombre/ítem-ausente.
-            # BUG real (maratón de testing 2026-07-22): `looks_like_bare_ref("")` es True por diseño (ref vacía =
-            # "bare"), así que esta guarda disparaba en TODA acción de CREAR (add_meeting…) que nunca lleva `ref` —
-            # escalaba "añade una cita con el dentista mañana" cada vez que la agenda no estaba ya abierta en
-            # pantalla, aunque `res.ok` fuera True (refs.resolve ya distingue "nada que resolver" para estas
-            # acciones). Solo tiene sentido mirar `ref` cuando la acción REALMENTE apunta a un item existente.
-            _needs_item = bool(refs.id_field_for_action(wid, action_name))
-            if (not res.ok or (_needs_item and _router.looks_like_bare_ref(ref))):
-                try:
-                    from memory import api as _memapi
-                    _openw = set((_memapi.state() or {}).get("open_widgets") or [])
-                except Exception:
-                    _openw = set()
-                if wid not in _openw and _identify(text) != wid:
-                    emit("brain", "🧭 data-op en widget ausente/no-nombrado (pronombre/ítem sin anclar) → escala con contexto",
-                         role="system", text=f"{wid}:{action_name}:{ref or '∅'}",
-                         extra={"needs": res.needs, "bare": _router.looks_like_bare_ref(ref), "open": sorted(_openw)})
-                    acted["widget"] = True
-                    if escalate_req["v"] is None:
-                        escalate_req["v"] = text
-                    return
+            # El mis-ruteo por PRONOMBRE SUELTO (o una referencia que no resuelve) sobre un widget que ni
+            # está en pantalla ni se nombra: el incidente, la trampa de las acciones de CREAR y la razón de
+            # escalar el turno CRUDO están en `frontend.absent_widget_misroute` — la MISMA función que usa
+            # el probe, donde vivía copiada y hubo que arreglarla dos veces por separado.
+            if _frontend.absent_widget_misroute(wid, action_name, ref, resolved=res.ok,
+                                                named_widget=_identify(text)):
+                emit("brain", "🧭 data-op en widget ausente/no-nombrado (pronombre/ítem sin anclar) → escala con contexto",
+                     role="system", text=f"{wid}:{action_name}:{ref or '∅'}", extra={"needs": res.needs})
+                acted["widget"] = True
+                if escalate_req["v"] is None:
+                    escalate_req["v"] = text
+                return
             if not res.ok:
                 acted["widget"] = True                      # lo ATENDIMOS (preguntando) — no caer a escalate/fallback
                 cands = ", ".join(res.candidates[:3])
@@ -1288,7 +1271,14 @@ class NucleoLLMStream(llm.LLMStream):
                 emit("brain", "❓ referencia de item sin resolver", role="system",
                      text=f"{wid}:{action_name}:{ref or '∅'}", extra={"needs": res.needs, "cands": res.candidates[:4]})
                 return
-            _apply_widget_data(wid, action_name, res.payload, ref)
+            # V2-740 — ¿de QUIÉN era la orden, con dos tarjetas que saben hacer lo mismo? El porqué y la
+            # forma del plan, en `frontend.card_decision`; el probe toma la misma por la misma función.
+            _cd = _frontend.card_decision(wid, action_name, brief=_brief, ask_phrase=_say().ask_which_item)
+            if _cd["label"]:
+                emit("brain", _cd["label"], role="system", text=_cd["text"], extra=_cd["extra"])
+            if _cd["ask"]:
+                acted["widget"] = True; clarify["msg"] = _cd["ask"]; return
+            _apply_widget_data(_cd["card"], action_name, res.payload, ref)
 
         _tool_fired: set = set()
         _data_ops_hechas: list = []      # V2-391: las data-ops YA ejecutadas de este turno, en orden
