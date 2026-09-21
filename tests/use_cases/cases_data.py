@@ -182,9 +182,46 @@ CASES: list[UseCase] = [
             "widget with a real `videoId` loaded, and the follow-up transport request (lower the volume, "
             "pause) lands as a data-op on THAT widget. Picking `play_music` here is the exact regression "
             "V2-045 was built to stop, so it is scored as a mechanism failure however natural the reply "
-            "reads. Note the asymmetry, and do not invent around it: the video widget has NO playlist "
-            "actions (load/play/pause/mute/volume/restart/close) — lists exist only in `musica`, so a "
-            "request to queue several videos has no mechanism today and belongs in a finding, not here."),
+            "reads. And the queue IS a mechanism: V2-366/V2-467 gave this player `add`, `play_item`, `next`, "
+            "`previous`, `remove`, `move`, `sort_list`, `name_list`, `save_list` and `open_list`, so "
+            "«ponme tres y salta al segundo» is judged, never waved off. \u26a0 This sentence said the "
+            "OPPOSITE until 2026-09-21 — written 2026-08-26, one day before `8861c929` shipped those "
+            "actions — and it spent 26 days telling the judge to score a correct queue as out of scope. "
+            "An expectation is a claim about the product and rots exactly like a comment does."),
+
+    # --- V2-739: ROUTING with several cards on the canvas (operator directive, 2026-09-21) -------------
+    # «Un use case puede tener abiertos tres widgets e intentar manejar los tres a la vez. Así sabremos si
+    #  los enrutamientos funcionan bien […] no un test que diga "abre el widget de vídeo, carga el vídeo
+    #  llamado…". Eso está claro que va a funcionar. Necesito lo otro: dinámico, variable, humano.»
+    #
+    # A checklist of a widget's declared actions passes by construction and proves the MAPPING. What is
+    # genuinely unknown is the REFERENCE: which card a sentence is about when three are open and he names
+    # none. Measured, and it is why this is a real question: `youtube` and `musica` declare NINE actions
+    # under the same name (play/pause/next/previous/volume_up/volume_down/set_volume/play_local/ended), so
+    # «baja el volumen» with both playing is undecidable at the level of the action name.
+    UseCase("tres-tarjetas-y-el-video-por-alusion", "es", 3,
+            "Tres tarjetas abiertas y órdenes sin nombrar cuál",
+            "Ponme el tráiler de Dune, y de fondo algo de música tranquila. Ah, y ábreme la agenda que "
+            "quiero ver cómo tengo la semana.",
+            "Judged on ROUTING, never on which trailer came up. `open_widgets_by_turn.max_open` (live canvas "
+            "reading) must reach 3; a PRECISE order («pausa el vídeo») landing on another card is a grave "
+            "failure, and so is one that is clear from CONTEXT («pausa eso» right after talking about the "
+            "trailer). The genuinely ambiguous one («baja el volumen», both playing) is CORRECTLY answered by "
+            "asking which — choosing in silence and getting it right is luck, not skill. Answering the agenda "
+            "must not lose the other two cards. And it is a rail: escalating this to a Brain Worker is a "
+            "mechanism failure by excess.",
+            status="promoted"),
+    UseCase("la-cola-de-video-con-palabras-imprecisas", "es", 3,
+            "Manejar la cola del reproductor sin nombrar nada con precisión",
+            "Ponme unos cuantos vídeos de Maradona, que los quiero ver seguidos.",
+            "The queue is handled by IMPRECISE reference — «ponme el segundo», «quita el del gol», «ese "
+            "súbelo», «llámala Maradona y guárdamela» — and each one must land on THAT row (cross "
+            "`widget_ops_by_turn` with what was asked). The vocabulary exists: `add`, `play_item`, `next`, "
+            "`previous`, `remove`, `move`, `sort_list`, `name_list`, `save_list`, `open_list` (V2-366/V2-467), "
+            "so «no puedo hacer listas aquí» is a mechanism failure. A mid-sentence correction («quita el… no, "
+            "el otro») is resolved or asked about, never executed halfway — deleting the item he just "
+            "discarded in the same breath is the worst possible outcome.",
+            status="promoted"),
 
     # --- ES / tier 2: search + compare + choose -------------------------------------------
     UseCase("best-pediatric-dentists", "es", 2, "Encontrar y reservar el mejor dentista infantil",

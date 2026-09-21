@@ -4389,6 +4389,20 @@ DOMAINS: list[dict] = [
         # SEGMENTACIÓN del catálogo: qué caso se puede llevar de inicio a fin hoy y quién desbloquea el resto.
         # Inventario CERRADO — un caso nuevo sin clasificar no falla con ruido, se queda fuera de la lista
         # ejecutable en silencio o se juzga contra la vara equivocada.
+        # V2-739 — el operador, 2026-09-21: «no un test que diga "abre el widget de vídeo, carga el vídeo
+        # llamado…". Eso está claro que va a funcionar. Necesito lo otro: dinámico, variable, humano». Lo
+        # que faltaba para poder medirlo era la OTRA concurrencia: `task_registry.max_concurrent` cuenta
+        # encargos de fondo, y no dice nada de cuántas TARJETAS tenía delante cuando habló — que es lo que
+        # decide a cuál se refería.
+        {"id": "10.129", "title": "Cuántas tarjetas había abiertas en cada turno (la otra concurrencia: lo "
+                                  "que el operador VE, no lo que corre de fondo)",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_cuantas_tarjetas_habia_abiertas.py"]},
+        # …y el guarda de la rancidez que lo destapó: `watch-a-video-not-listen-to-it` pasó 26 días
+        # diciéndole al juez que el reproductor no tenía acciones de lista, un día después de que
+        # `8861c929` las entregara. Un juez no puede notar que la vara que le dan tiene la medida mal.
+        {"id": "10.130", "title": "Una expectativa NO le niega al juez una acción que el widget ya declara "
+                                  "(la vara de medir también se pudre)",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_an_expectation_does_not_deny_a_shipped_action.py"]},
         {"id": "10.3", "title": "Segmentos completable/credentials/capability (inventario cerrado)",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_segments.py"]},
         # La COLA del bucle continuo. Los dos fallos que guarda no se ponen rojos solos: lanzar casos que no

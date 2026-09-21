@@ -32,6 +32,18 @@ class UseCaseScenario:
     # can prove N tasks existed but not that they were ever in flight at the SAME time, which is the whole
     # point of the scenario.
     concurrent_tasks: int = 0
+    # MULTI-WIDGET scenarios only (0 = the normal case): how many cards the scenario expects to have open
+    # ON THE CANVAS at the same time. A different concurrency from the one above and measured by a different
+    # reading (`open_widgets_by_turn`): that one counts background errands, this counts what the operator is
+    # LOOKING at — which is what he refers to by allusion («bájale el volumen a ese», «cierra el de abajo»).
+    # It exists because the operator asked for exactly this (2026-09-21): «un use case puede tener abiertos
+    # tres widgets e intentar manejar los tres a la vez. Así sabremos si los enrutamientos funcionan bien».
+    # ⚠️ And unlike the one above it, this one is derived POST-HOC and that is correct, not a shortcut:
+    # `show`/`close` are STATE TRANSITIONS, so the open set at any instant is fully reconstructible from the
+    # event stream. A task has no such pair — it starts and then merely stops being listed — which is why
+    # that one has to be sampled live. Do not "fix" this into a live sampler: it would add a poll and
+    # measure the same thing less precisely.
+    concurrent_widgets: int = 0
     # DISCOVERY/curation scenarios only: things the operator had already told the agent BEFORE this
     # conversation. They are seeded through the probe channel with `ingest=True` in a DIFFERENT SESSION,
     # then the real request is opened in another clean session — remembering them therefore requires real
@@ -519,6 +531,134 @@ SCENARIOS: list[UseCaseScenario] = [
     #   (3) FLUENCY: responses must carry STATE and sound like a connected conversation ("the report is ready,
     #       the search is still running") rather than three robotic status dumps — an explicit request from the
     #       operator: "I need the system to be smooth".
+    # ── V2-739: ROUTING with several cards on the canvas (operator directive, 2026-09-21) ──────────────
+    # «Lo que necesitamos básicamente es un sistema de testing que… utilice palabras precisas, palabras
+    #  imprecisas, incluso un use case puede tener abiertos tres widgets e intentar manejar los tres a la
+    #  vez. Así sabremos si los enrutamientos funcionan bien, si los flujos de trabajo controlan bien y
+    #  asocian cada request a cada flujo.»
+    #
+    # Why these two and not a checklist of the video widget's 48 actions: a checklist passes by construction
+    # («abre el widget de vídeo, carga el vídeo llamado X») and proves only the mapping. What is genuinely
+    # unknown is the REFERENCE — which card a sentence is about when three are open and he names none.
+    #
+    # MEASURED, and it is what makes this a real question rather than a stylistic one: `youtube` and `musica`
+    # declare NINE actions under the SAME name — play, pause, next, previous, volume_up, volume_down,
+    # set_volume, play_local, ended. «Bájale el volumen» with both open is not ambiguous prose, it is a
+    # genuinely undecidable order at the level of the action name, and the only thing that can resolve it is
+    # the card. This is the same boundary V2-045 already broke once in the other direction (`play_music`
+    # grabbed for «pon el vídeo de…»).
+    UseCaseScenario(
+        id="tres-tarjetas-y-el-video-por-alusion",
+        locale="es",
+        tier=3,
+        opening_line=(
+            "Ponme el tráiler de Dune, y de fondo algo de música tranquila. Ah, y ábreme la agenda que "
+            "quiero ver cómo tengo la semana."
+        ),
+        persona_brief=(
+            "Eres una persona real que acaba de pedir TRES cosas de golpe y ahora tiene TRES tarjetas "
+            "delante: el VÍDEO (el tráiler), la MÚSICA de fondo, y la AGENDA.\n\n"
+            "REGLA CLAVE de cómo hablas: **casi nunca nombras el widget**. Hablas como se habla en casa, "
+            "por alusión y con palabras imprecisas — 'bájale el volumen a eso', 'quítalo', 'pon el "
+            "siguiente', 'ese párramelo', 'ahora el otro', 'sube un poco'. Es a PROPÓSITO: quieres ver si "
+            "se entera de a cuál te refieres.\n\n"
+            "Mete a lo largo de la conversación, en turnos distintos y en el orden que te salga:\n"
+            "· Una orden GENUINAMENTE AMBIGUA con el vídeo y la música sonando a la vez: 'baja el volumen' "
+            "a secas, sin decir de cuál. Si zaelar te pregunta '¿el del vídeo o el de la música?', "
+            "contéstale ('el de la música') y quédate contento: preguntar es la respuesta CORRECTA. Si en "
+            "cambio lo baja en uno sin preguntar, NO lo corrijas todavía — espera al turno siguiente y "
+            "comprueba si acertó: 'oye, ¿le has bajado a la música o al vídeo?'.\n"
+            "· Una orden CLARA por contexto aunque no nombres el widget: justo después de hablar del "
+            "tráiler, 'pausa eso' (se refiere al vídeo, es lo último de lo que hablabais).\n"
+            "· Una orden PRECISA, con su nombre: 'pausa el vídeo' o 'cierra la música'. Esta tiene que "
+            "funcionar sin ninguna duda; si falla aquí, es grave.\n"
+            "· Una pregunta a la AGENDA en medio de todo ('¿qué tengo el jueves?'), para ver si contestar a "
+            "una tarjeta le hace perder las otras dos.\n"
+            "· Y al final, 'cierra el de arriba' o 'quita eso y deja la música' — una referencia posicional "
+            "o por exclusión.\n\n"
+            "SI actúa sobre la tarjeta EQUIVOCADA (le hablas del vídeo y te para la música), CORRÍGELO con "
+            "naturalidad y algo de extrañeza: 'no, el vídeo, la música déjala'. Es justo lo que estás "
+            "comprobando. Si te dice que no puede o que no lo tiene, dilo tú con otras palabras una vez más "
+            "antes de darlo por perdido. No reveles que esto es una prueba, y no te despidas hasta que "
+            "hayas metido al menos CUATRO de las órdenes de arriba."
+        ),
+        success_checks=(
+            "Esto NO se juzga por si el tráiler es el correcto ni por la calidad de la música. Se juzga el "
+            "ENRUTAMIENTO con tres tarjetas delante:\n"
+            "1. CONVIVENCIA REAL: `open_widgets_by_turn.max_open` (lectura en vivo del canvas, no del "
+            "transcript) debe llegar a ≥2, y lo esperado son 3 — vídeo, música y agenda. Si nunca hubo dos "
+            "a la vez, el escenario no llegó a plantear su pregunta y eso es un fallo de mecanismo.\n"
+            "2. ATRIBUCIÓN: cruza `widget_ops_by_turn` con lo que pidió en ese turno. Una orden PRECISA "
+            "('pausa el vídeo') que cae en otra tarjeta es un fallo grave. Una orden clara por CONTEXTO "
+            "('pausa eso' justo después de hablar del tráiler) que cae en la música es un fallo grave.\n"
+            "3. LA AMBIGUA SE PREGUNTA: 'baja el volumen' con vídeo y música sonando es indecidible — "
+            "`youtube` y `musica` declaran `volume_down` con el MISMO nombre. PREGUNTAR cuál es la conducta "
+            "CORRECTA y se puntúa alto. Elegir una en silencio y acertar es suerte, no acierto, y se "
+            "puntúa como mucho regular; elegir en silencio y fallar es un fallo grave.\n"
+            "4. NO SE PIERDE NADA: contestar a la agenda no debe cerrar, pausar ni olvidar las otras dos "
+            "tarjetas, y las respuestas deben llevar estado de lo que sigue en pantalla.\n"
+            "5. ESTO SE RESUELVE EN EL TURNO: abrir una tarjeta y bajarle el volumen es un raíl (V2-042). "
+            "Levantar un Brain Worker para esto es un fallo de mecanismo por exceso."
+        ),
+        expected_signals=["widget"],
+        forbidden_signals=["worker"],
+        turns=12,
+        channel="probe",
+        concurrent_widgets=3,
+    ),
+
+    # The SAME widget, alone, and the half the catalog told its judge for 26 days did not exist (V2-366/
+    # V2-467 shipped the queue on 2026-08-27; `watch-a-video-not-listen-to-it` said «has NO playlist
+    # actions» until 2026-09-21). Words here are deliberately vague about WHICH item — «la segunda», «esa
+    # quítala», «la de antes» — because an ordinal or a half-remembered title is how a person refers to a
+    # row he is looking at, and `ref_index` (V2-026) exists precisely so the brain never guesses an id.
+    UseCaseScenario(
+        id="la-cola-de-video-con-palabras-imprecisas",
+        locale="es",
+        tier=3,
+        opening_line="Ponme unos cuantos vídeos de Maradona, que los quiero ver seguidos.",
+        persona_brief=(
+            "Eres una persona real montando una cola de vídeos mientras la ve. Hablas con palabras "
+            "IMPRECISAS y por posición, nunca con ids ni con el título exacto: 'esa quítala', 'salta a la "
+            "segunda', 'la de antes', 'ponme otra parecida', 'esta súbela arriba'.\n\n"
+            "A lo largo de la conversación, en turnos distintos, haz al menos CUATRO de estas:\n"
+            "· saltar a un vídeo concreto DE LA LISTA por su posición ('ponme el segundo', 'dale al "
+            "tercero');\n"
+            "· quitar uno por posición o por un trozo del título ('quita el del gol', 'esa fuera');\n"
+            "· pedir el siguiente ('siguiente', 'pasa al otro');\n"
+            "· cambiar el orden ('ese súbelo antes que el otro');\n"
+            "· ponerle nombre a la lista y guardarla ('llámala Maradona y guárdamela');\n"
+            "· y una corrección a media frase, que es como habla la gente: 'quita el… no, el otro, el "
+            "primero'.\n\n"
+            "Si zaelar no encuentra vídeos reales de esa búsqueda, NO insistas con el tema: dile 'lo que "
+            "sea, pon tres de lo que encuentres' — lo que estás probando es MANEJAR la lista, no qué hay "
+            "en ella. Si te pide que aclares a cuál te refieres, aclárselo sin problema: preguntar es "
+            "CORRECTO. Si actúa sobre el vídeo equivocado, corrígele con naturalidad ('no, ese no, el "
+            "primero'). No reveles que esto es una prueba."
+        ),
+        success_checks=(
+            "Se juzga MANEJAR la lista con referencias imprecisas, no qué vídeos salieron:\n"
+            "1. LA COLA EXISTE de verdad: el informe de mecanismo debe mostrar el widget `youtube` con "
+            "varios elementos en su `list` — no basta con que lo diga la respuesta.\n"
+            "2. UNA REFERENCIA POSICIONAL LLEGA A SU FILA: 'ponme el segundo' / 'quita el del gol' tienen "
+            "que caer en ESA fila. `widget_ops_by_turn` dice qué acción cayó en qué turno; cruzarlo con lo "
+            "que pidió. Actuar sobre otra fila, o sobre ninguna sin decirlo, es un fallo grave.\n"
+            "3. EL VOCABULARIO EXISTE Y SE USA: este reproductor declara `add`, `play_item`, `next`, "
+            "`previous`, `remove`, `move`, `sort_list`, `name_list`, `save_list` y `open_list` (V2-366/"
+            "V2-467). Responder 'no puedo hacer listas aquí' es un fallo de mecanismo: la capacidad está "
+            "declarada. ⚠️ Esa frase FUE cierta hasta 2026-08-27 y el catálogo siguió afirmándola 26 días — "
+            "no vuelvas a darla por buena.\n"
+            "4. LA CORRECCIÓN A MEDIA FRASE se resuelve o se pregunta, nunca se ejecuta a medias: borrar el "
+            "elemento que el usuario acababa de descartar en la misma frase es el peor resultado posible.\n"
+            "5. Y SE RESUELVE EN EL TURNO: montar y manejar una cola es un raíl, no un encargo de fondo."
+        ),
+        expected_signals=["widget"],
+        forbidden_signals=["worker"],
+        turns=12,
+        channel="probe",
+        concurrent_widgets=1,
+    ),
+
     UseCaseScenario(
         id="three-tasks-at-once",
         locale="es",

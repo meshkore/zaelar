@@ -154,6 +154,12 @@ SEGMENTS: dict[str, Segment] = {
     # but gating it when the mechanism is ALREADY there would under-measure.
     "build-a-video-playlist-from-links": _done(),
     "find-videos-on-a-topic-no-ai-slop": _done(),
+    # V2-739 (2026-09-21). Same single question of the opening line: putting a trailer on, music behind
+    # it and the agenda up needs no credential, card or call, and neither does reordering a queue. What
+    # they measure is ROUTING with several cards in front, which is completable by construction — the
+    # wall these cases can hit is ours, never a third party's.
+    "tres-tarjetas-y-el-video-por-alusion": _done(),
+    "la-cola-de-video-con-palabras-imprecisas": _done(),
     # Messaging as the primary widget + calendar lifecycle (V2-521/V2-473, 2026-08-31). All five are
     # `completable` under this module’s SINGLE question, asked of the opening line: none requests a credential
     # missing to JUDGE IT — precisely because their checks judge behavior against the studio’s real state
@@ -372,6 +378,11 @@ FINDINGS_EXEMPT = {
     # · build-a-video-playlist-from-links → what is delivered is a LIST WITHIN the video widget, which is already
     #   the surface; a results sheet beside it would be a second screen counting the same thing.
     "build-a-video-playlist-from-links",
+    # · tres-tarjetas-y-el-video-por-alusion / la-cola-de-video-con-palabras-imprecisas → what is
+    #   delivered is the CARDS BEHAVING: the right one obeying, the queue in the right order. The
+    #   surfaces ARE the widgets, so a results sheet would be a second screen counting nothing.
+    "tres-tarjetas-y-el-video-por-alusion",
+    "la-cola-de-video-con-palabras-imprecisas",
     # · show-real-photo-of-a-new-car → what is delivered is the PHOTO, and its surface is the `imagenes` viewer.
     #   It is the same boundary as the line above, one medium further (V2-402 set it for video, V2-457 for the
     #   image): what you SEE has its widget, while the sheet is for INFORMATION. Giving it the findings contract

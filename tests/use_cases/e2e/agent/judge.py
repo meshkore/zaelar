@@ -62,6 +62,33 @@ max_concurrent` del informe de mecanismo — es una lectura EN VIVO del registro
 transcript; si es <2 las tareas nunca corrieron a la vez y eso SÍ es un fallo de mecanismo), atribución de
 cada mensaje a su tarea, independencia entre tareas, y fluidez del hilo."""
 
+# EXTRA dimensions for MULTI-WIDGET scenarios (`concurrent_widgets > 0`). Same two names as the multi-flow
+# pair on purpose — it is the same question, «did the message reach the right thing» — but the thing is a
+# CARD ON SCREEN, not a background errand, and the evidence is a different reading of the mechanism report.
+MULTIWIDGET_RUBRIC = """
+- atribucion: con VARIAS tarjetas abiertas, ¿cada petición fue a la CORRECTA? Cuenta sobre todo cuando el
+  usuario habla por ALUSIÓN y sin nombrar el widget («bájale el volumen a ese», «ese quítalo», «ahora el
+  otro», «ponlo en pausa»). Cruza lo que dijo con `open_widgets_by_turn` (qué tarjetas había ese turno) y
+  con `widget_ops_by_turn` (en qué widget cayó la acción de ese turno): actuar sobre la tarjeta equivocada,
+  actuar sobre DOS, o tragarse la orden sin acusar recibo = fallo grave. PREGUNTAR «¿cuál de los dos?»
+  cuando es genuinamente ambiguo NO es fallo: es la conducta correcta y se puntúa BIEN.
+- fluidez: ¿la conversación mantiene ESTADO de lo que hay en pantalla («el vídeo sigue en pausa, la música
+  la bajé»), o cada turno trata la pantalla como si acabara de llegar? Penaliza aquí perder de vista una
+  tarjeta que sigue abierta, aunque el mecanismo del turno sea correcto.
+- ⚠️ Una palabra IMPRECISA no es una petición inválida. «Quita eso», «ponme otra», «el de la lista» son
+  cómo habla la gente: si zaelar resuelve la referencia bien, eso es un ACIERTO grande, no lo normal. Y si
+  no puede resolverla, lo correcto es preguntar — nunca elegir una al azar y seguir."""
+
+MULTIWIDGET_NOTE = """
+⚠️ ESTE ES UN ESCENARIO MULTI-WIDGET. Lo que se juzga NO es que complete una tarea larga, sino el
+ENRUTAMIENTO con varias tarjetas delante: que cada frase caiga en la tarjeta que tocaba, que una no pise a
+la otra, y que la conversación mantenga el estado de la pantalla.
+· `open_widgets_by_turn.max_open` es una lectura EN VIVO de cuántas tarjetas llegaron a estar abiertas a la
+  vez. Si es <2, las tarjetas nunca convivieron y eso SÍ es un fallo de mecanismo — el escenario no llegó a
+  plantear la pregunta que existe para hacer.
+· `widget_ops_by_turn` dice en qué widget cayó cada acción, turno a turno. Es la evidencia de la atribución:
+  no la deduzcas del transcript, que es justo lo que está bajo prueba."""
+
 SEARCH_DEGRADED_NOTE = """
 ⚠️ EL ENTORNO ESTABA AVERIADO EN ESTA CORRIDA: la capa de BÚSQUEDA WEB no funcionaba ({why}). Lo dice el
 informe de mecanismo (`search_health`), no zaelar. Cómo tienes que juzgar con eso:
@@ -1006,6 +1033,22 @@ def mechanism_facts(mech: dict) -> str:
                      f"cae en el turno donde el operador lo PIDIÓ («ponla», «pasa al siguiente») es una "
                      f"orden suya, no un autoplay de `add`: compara el turno de la op con lo que el "
                      f"operador dijo en ESE turno antes de archivar una violación de diseño.")
+    # V2-739 — y QUÉ TARJETAS había delante en cada turno. Sin esto, la atribución solo se puede deducir
+    # del transcript, que es exactamente lo que el escenario multi-widget pone a prueba: un juez al que se
+    # le da una conclusión que no puede contrastar contra nada, desconfía de la conclusión (medido tres
+    # rondas seguidas en `play-music-and-build-playlist`).
+    _abi = mech.get("open_widgets_by_turn") or {}
+    if _abi.get("by_turn"):
+        _vista = " · ".join(f"{t}: {', '.join(v) or '(nada)'}" for t, v in sorted(
+            _abi["by_turn"].items(), key=lambda kv: int(kv[0][1:]) if kv[0][1:].isdigit() else 0))
+        lines.append(
+            f"· 🗂 TARJETAS ABIERTAS POR TURNO (lectura EN VIVO del canvas, no del transcript): {_vista}. "
+            f"Máximo a la vez: {_abi.get('max_open', 0)} ({', '.join(_abi.get('kinds') or []) or 'ninguna'}). "
+            f"Cruza esto con las OPS POR TURNO de arriba para juzgar la ATRIBUCIÓN: qué había delante cuando "
+            f"habló, y en qué tarjeta cayó lo que pidió. ⚠️ `youtube` y `musica` declaran NUEVE acciones con "
+            f"el MISMO nombre (play, pause, next, previous, volume_up/down, set_volume, play_local, ended), "
+            f"así que con los dos abiertos una orden de transporte sin dueño es INDECIDIBLE por el nombre: "
+            f"preguntar cuál es la conducta correcta, y acertar en silencio es suerte, no acierto.")
     # V2-463 — las BÚSQUEDAS DE IMÁGENES son viajes reales al mundo exterior (un Chromium caliente carga
     # Google/Bing y parsea el payload vivo), y hasta hoy el juez no las veía: la ronda que entregó 12 fotos
     # de ferrari.com en 3 s se puntuó 2/5 como «alucinación visual» por «cero evidencias externas». Se
@@ -1234,6 +1277,7 @@ def judge(scenario, run: dict, model: str | None = None) -> dict:
     mech = run.get("mechanism_report", {})
     watchdog_events = run.get("watchdog_log", [])
     multiflow = bool(getattr(scenario, "concurrent_tasks", 0))
+    multiwidget = bool(getattr(scenario, "concurrent_widgets", 0))
     # Tell the judge the search layer was down BEFORE it reasons, rather than annotating the verdict
     # afterwards. Post-hoc annotation is what the first batch needed by hand, and it does not scale: the note
     # has to reach the model that is about to decide whether "answered without searching" is a defect.
@@ -1274,9 +1318,9 @@ def judge(scenario, run: dict, model: str | None = None) -> dict:
             "\nQue zaelar dé por sabido un dato de ese perfil (su ciudad, su nombre) SIN preguntar es la "
             "memoria funcionando — NO lo puntúes como asunción indebida ni como falta de transparencia. Solo "
             "es fallo si CONTRADICE el perfil, o si la persona lo corrige y zaelar insiste.")
-    rubric = RUBRIC + (MULTIFLOW_RUBRIC if multiflow else "")
+    rubric = RUBRIC + (MULTIFLOW_RUBRIC if multiflow else "") + (MULTIWIDGET_RUBRIC if multiwidget else "")
     schema = SCHEMA
-    if multiflow:
+    if multiflow or multiwidget:
         schema = SCHEMA.replace(
             '"eficiencia":n}', '"eficiencia":n,"atribucion":n,"fluidez":n}')
     sys = _SYS
@@ -1288,7 +1332,7 @@ Petición inicial del usuario: {scenario.opening_line}
 Qué cuenta como éxito: {scenario.success_checks}
 
 {_time_note()}
-{MULTIFLOW_NOTE if multiflow else ''}
+{MULTIFLOW_NOTE if multiflow else ''}{MULTIWIDGET_NOTE if multiwidget else ''}
 {search_note}
 {carry_note}
 {seed_note}

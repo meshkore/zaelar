@@ -300,6 +300,63 @@ def widget_ops_by_turn(all_events: list[dict], transcript: list[dict]) -> dict:
     return out
 
 
+def open_widgets_by_turn(all_events: list[dict], transcript: list[dict]) -> dict:
+    """WHICH cards were on the canvas at each operator turn, and the most that were open at once.
+
+    The analogue of `task_registry.max_concurrent`, for the OTHER concurrency. That one counts background
+    errands; this counts what the operator can SEE and therefore what he can talk about by allusion («baja
+    el volumen a ese», «cierra el de abajo»). A scenario that opens three cards and then operates them one
+    by one is measuring routing — and without this reading the judge can only take the transcript's word
+    for how many were open, which is the thing under test.
+
+    Derived from the `widget` stream the canvas already emits (V2-039): `show` adds, `close` removes, a
+    `close` with no id is closeAll. Instances collapse to their base (`youtube::t2` → `youtube`), because
+    the question here is «how many KINDS of card was he looking at» — `sheets_opened` is the reader for
+    the opposite question and says so.
+
+    The canvas's own audit echo (`src="user"`) is NOT filtered out here, unlike in the command path: for
+    «what was open» a report of what already happened is the best evidence there is, and dropping it would
+    make a card the operator opened with the mouse invisible to the count.
+    """
+    marcas = [float(t.get("at") or 0) * 1000.0 for t in (transcript or [])
+              if isinstance(t, dict) and t.get("who") != "zaelar"]
+    if not marcas:
+        return {}
+    eventos = []
+    for e in (all_events or []):
+        if not isinstance(e, dict):
+            continue
+        f = _fields(e)
+        cat = f.get("cat") if f.get("cat") is not None else e.get("cat")
+        if cat != "widget":
+            continue
+        label = str((f.get("label") if f.get("label") is not None else e.get("label")) or "")
+        if label not in ("show", "close"):
+            continue
+        wid = str((f.get("id") if f.get("id") is not None else e.get("id")) or "").split("::", 1)[0]
+        ts = float((f.get("t_ms") if f.get("t_ms") is not None else e.get("t_ms")) or 0)
+        eventos.append((ts, label, wid))
+    eventos.sort(key=lambda x: x[0])
+
+    abierto: set[str] = set()
+    por_turno: dict[str, list] = {}
+    pico = 0
+    i = 0
+    for idx, marca in enumerate(marcas):
+        siguiente = marcas[idx + 1] if idx + 1 < len(marcas) else float("inf")
+        while i < len(eventos) and eventos[i][0] < siguiente:
+            _, label, wid = eventos[i]
+            if label == "show" and wid:
+                abierto.add(wid)
+            elif label == "close":
+                abierto.discard(wid) if wid else abierto.clear()
+            pico = max(pico, len(abierto))
+            i += 1
+        por_turno[f"t{idx}"] = sorted(abierto)
+    return {"by_turn": por_turno, "max_open": pico,
+            "kinds": sorted({w for v in por_turno.values() for w in v})}
+
+
 def widget_ops(all_events: list[dict]) -> dict:
     """Which WIDGET each data-op touched, and how many — the half of the mechanism nobody could see.
 

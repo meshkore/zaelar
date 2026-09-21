@@ -339,6 +339,13 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
         mech["widget_ops_by_turn"] = verifymod.widget_ops_by_turn(all_events, transcript)
     except Exception:  # noqa: BLE001
         pass
+    # V2-739 — and WHICH cards were open in each turn. `task_registry.max_concurrent` counts background
+    # errands; this counts what the operator can SEE, which is what he refers to by allusion. Without it a
+    # multi-widget scenario can only be graded on the transcript's own word about how many were up.
+    try:
+        mech["open_widgets_by_turn"] = verifymod.open_widgets_by_turn(all_events, transcript)
+    except Exception:  # noqa: BLE001
+        pass
     # V2-400 — the RAW stream against the reader's ceiling, BEFORE the time filter (the filter hides the
     # truncation). It has never hit (historical maximum 1,128 of 4,000), but the day it does it would be invisible:
     # families, widget_ops, and the entire audit would come from a truncated stream without anything saying so.

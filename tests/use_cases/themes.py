@@ -114,6 +114,8 @@ _assign("messaging",
 _assign("media",
         "watch-a-video-not-listen-to-it", "video-search-lands-in-player", "video-blocked-channel-respected",
         "build-a-video-playlist-from-links", "play-music-and-build-playlist", "music-save-what-is-sounding",
+        # V2-739 — routing with several cards in front, and a queue handled by imprecise reference.
+        "tres-tarjetas-y-el-video-por-alusion", "la-cola-de-video-con-palabras-imprecisas",
         "music-playlist-reads-clean")
 
 _assign("files",
