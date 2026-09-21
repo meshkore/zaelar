@@ -9095,3 +9095,134 @@ one-line index behind in the live log. Nothing below was edited or summarized on
 - **A prohibition is not a diagnosis: the wide sweep hung on ONE line, and it hung on the operator's own 84 GB video (V2-727, 2026-09-20)**: from 2026-09-15 a whole-tree pytest run was forbidden here because it hung the operator's machine, and the rule shipped saying so — root cause **undiagnosed**, which was honest and still left the engine unable to answer «does everything pass?». Operator's correction: *«todos los tests se pueden pasar… había unos que se quedaban colgados… hay que buscar algún mecanismo que detecte si se han colgado o no»*. The cause is **one test**. `tests/infrastructure/unit/config/test_model_policy.py` greps the tree for a retired model name, and it walked the checkout with a **blacklist** of binary suffixes: `.mkv` was not on it, `library/downloads/` is his real media folder, and the sweep called `read_text()` on an **84 GB video file** — 10.009 files, **90.348 MB** of reads for a grep, with no output until the machine gave up. Two defects in one line: **a blacklist of binary formats is the list of the ones somebody remembered**, and it fails by HANGING rather than erroring; and it was reading gitignored operator content, against this suite's own rule that a test never touches his real state. It now asks `git ls-files` what the tree IS — which is also what the norm means by «anywhere», since a banned name matters when it is COMMITTED — and goes from hanging to **0,84 s**, disarmed both ways (the name in a tracked file goes red; the same name in an untracked one stays green, which is the new boundary said out loud). With that line fixed the deterministic suite is **57 chunks, 10.828 green, 414 s, zero hangs**. The runner that proves it is `tests/watchdog.py`: `faulthandler_timeout` — already inside pytest, **no new dependency** — dumps every thread to unbuffered fd 2 and NAMES the hung test, so a hang arrives identified and costs seconds; a per-chunk wall clock covers what the dump cannot see (a blocking import or collection); and the kill goes to the process **GROUP**, because the 2026-09-15 incident left **71 orphaned Chromium** and killing pytest alone leaves them exactly where they were. A lock refuses two WIDE sweeps on one checkout (measured 1222 s and 1589 s for 9 minutes of work) and deliberately does not apply to an explicit narrow path, which has to stay nestable. Selection is `--impacted <base>`, chosen by **the imports a test declares** rather than a hand-written folder map that rots when a module moves — its first version matched the bare leaf name and selected 14 tests for `tests/watchdog.py` because `use_cases` describes a «mid-scenario watchdog» in prose: **a word in a docstring is not a dependency**. Node 7.53 watches the watcher. ⚠️ The trap that nearly shipped it blind: pytest prints its progress character on the same line the dump starts (`.Timeout (0:00:04)!`), the first regex was anchored to the line start and saw NOTHING — every hang fell through to the chunk wall — and the test meant to catch that generated a file with ONE test, where the banner lands in column 0 and the broken detector passes. The disarm exposed it by going red on one case and green on the other. **The rule this leaves: a guard that enumerates what to EXCLUDE fails silently the first time the world shows it something nobody listed — enumerate what to include.**
 
 - **Jev SELECTS over parsed data in one trip, and the call stopped throwing away work it had paid for (V2-726 F4+F5, 2026-09-20)**: the operator's own case — «si le mandamos a Jev los datos parseados de los 100 resultados y la lista de criterios, nos puede decir cuáles son los que mejor encajan, en una sola request». Measured live against 100 listings: **ONE trip, 1161 ms, $0,0005, recall 3/3 with ZERO false positives** once the confidence gate is applied. `jev.select_many(candidates, criteria)` is that capability, off the voice path by design — the Brain Worker has minutes, and `nucleo/workers`, `errands` and `research.py` were the only places with real selection to do and no Jev at all. ⚠️ **The trap, and it took a measurement to find: the candidate's identity has to travel INSIDE its own question, not only in the shared `state`.** Ten identical questions over one state answered `strong` to all ten — a 125 cc Vespa included, in a search for motocross bikes — at 0.82-0.89 confidence. Confidently wrong is the worst failure this module has, and it is invisible to a test that only checks the happy path, so `select_many` builds each question around its own candidate and no caller can get it wrong. Only confident `strong` comes back: `partial` is a shrug, and an unsure `strong` is exactly the false-positive band the measurement found (the three real hits sat at 0.64-0.94, the three false ones all under 0.33). Past `MAX_QUESTIONS` it raises instead of truncating, so a caller with a thousand rows pages them rather than silently scoring the first hundred. **F5, the hygiene the same measurements demanded**: the timeout goes 900 ms → 2 s, because 900 against a measured p50 of 800 was the engine cancelling its own calls at the edge — 5 % of canvas verdicts and **28 % of the escalate gate's** were dropped AFTER being paid for — and since F1 nobody blocks on the answer, so a slow call costs a daemon thread and nothing else. A **circuit breaker** (3 consecutive failures → 60 s quiet, one success closes it) stops a provider outage from costing a thread and a full timeout on every turn forever, which the longer timeout would otherwise have made worse. And the key file is read ONCE: `enabled()` runs on every Jev touch and `_post_*` reads it again for the header, so on a machine where the key lives in `credentials/jev.md` rather than the environment — which is this one — every verdict was opening and parsing a file twice on the turn's thread. Node 3.65, five disarms red.
+
+#### Movidas el 2026-09-21 (V2-747)
+
+- **The music widget brings real cover art, fast first, then enhancements (V2-629, 2026-09-09)**: the
+  operator asked for a nicer design in "our line" of icons, real album/song art, and a player better than the
+  competition — with a hard ordering constraint: music has to SOUND fast, art can arrive after, and whatever
+  is fetched gets cached. Two speeds: (1) FREE and instant — a track played through YouTube-audio already has
+  a resolved `videoId`, so `connectors/music/youtube_audio.py::_yt_thumb(id)` derives the video's own
+  thumbnail URL with zero extra network call of ours; wired into every `Track(...)` and the persisted `yt`
+  block. Same fix let `widgets/musica/data.py::_track_from_resolved` store what the PROVIDER resolved (real
+  title/artist/art) into Recent/Top instead of the operator's raw spoken words, and `_clean_yt_title`/
+  `_yt_display` strip upload boilerplate ("(Official Video)"…) and split an explicit "Artist - Title"
+  delimiter for DISPLAY only — the stored title never changes. (2) SLOW and CACHED — a track never actually
+  played (typed into a list, a legacy row) gets a lazy, once-per-song iTunes Search API lookup
+  (`_enrich_art`/`_itunes_lookup`, free, no key), cached forever on a hit / 14 days on a miss, backfilling
+  every occurrence of that song across Recent/Top/every playlist. The widget asks for it AFTER the row is
+  already painted with its fallback (`widget.js::maybeEnrich`, deduped per page life, defensively tolerant of
+  a `ctx.action` that returns anything other than a Promise) — never on the play path. `art_cache` rides
+  along in `_compose` (which `_persist` also uses to write the disk file whole) but is stripped by
+  `view_data()` before it crosses the wire, so the cache survives while the payload stays light. Every emoji
+  control (⏮⏸▶⏭🔉🔊♥) became an inline SVG matching the app shell's own visual language (duplicated locally —
+  `widget.js` cannot import app-shell code, V2-557's rule); the heart is a STATE indicator now
+  (`data.fav_current`, filled when the playing track is already saved) and a dead cover URL degrades to the
+  placeholder icon via `img.onerror` instead of a broken-image glyph.
+  **A real bug the render tests caught, not reading**: `ICON_PLAY`/`ICON_PAUSE` were built as the outline
+  base (`fill="none"`) plus an APPENDED `fill="currentColor"` on the same tag — the HTML parser keeps the
+  FIRST duplicate attribute, so `fill` stayed `"none"` and the "solid" icons rendered as hairline outlines;
+  invisible in a screenshot at icon size, caught only by asserting the resolved attribute. Fixed with a
+  second, clean attribute set for solid icons, never an override on top of the outline one. Node 4.3
+  (+1 file, 10 RENDERED cases + 4 connector-level), seven disarms, each mutation verified red. Two
+  pre-existing tests needed fixing, not weakening: one asserted an empty call list that the new (correct)
+  background enrichment now legitimately populates (filtered to exclude `enrich_art`); another's mock
+  `ctx.action` returns `undefined`, so `maybeEnrich` was made defensive against any shape, matching the
+  `try{...}catch(_){}` caution the same file already takes for `ended`. `make test-widgets` 14/14 (golden
+  re-recorded — `fav_current` is a new key). **Coordination, per the operator's explicit split**: a message
+  went to `memoria-dev` over the MeshKore dev cluster describing this build and asking about the in-progress
+  memory upgrade, to align a FUTURE listening-preference ingestion path — no memory code was touched here;
+  that is memory's call, briefed separately. Detail: the V2-629 initiative.
+
+- **⏻ ON took two presses: two right fixes from the same day, racing (V2-627, 2026-09-09)**: the operator
+  reported that the first press on a stopped agent «se sombrea un poco pero no arranca». His own observability
+  had it — `orb:power on`, `agent:state starting`, `agent:state off`, all in the same second, and a SECOND
+  `orb:power on` five seconds later (two consecutive `on` is the proof that `powerOff` had gone back to true).
+  Cause: the 2026-08-31 pair. Orb.js was sequenced server-first (`runStart().then(session.start)`), and
+  main.js gained an effect that revives the voice when `powerOff` drops from outside this tab — but
+  `setPowerOff(false)` runs SYNCHRONOUSLY inside the click, so that effect started a session before
+  `POST /api/run/start` was even sent; its ⏻ gate asked the server, was told STOPPED (true for a few more
+  ms), aborted and set `powerOff` back to true, and the click's own `start()` then found `starting` still
+  true and no-opped. The ordering fix was bypassed, not broken. Fix: a HANDOFF (`store.powerOnAt`) — while a
+  ⏻ ON is in flight the click owns the startup and no other road may open a session; the guard lives INSIDE
+  `ensureVoice`, so all three of its roads (boot, `pointerdown`, the effect) are covered at once, and the
+  gate treats an in-flight ⏻ ON as history too. A TIMESTAMP with a 15 s expiry, never a boolean: a reply that
+  never comes must not wedge the voice shut. Counterweight (a regression the fix could have introduced): EVERY
+  press drops the handoff before branching and only ON takes it again — ON then OFF inside the window would
+  otherwise have let the ON's still-scheduled `then(...)` bring the voice up over an agent just stopped. Two observability changes ship with it — every ⏻ press names
+  itself and the state it was pressed in (`[zaelar] ⏻ ON — agent was off`, his request), and **the gate's
+  abort stopped being silent** (`console.warn` + `voice:refused` on the server timeline): it is a legitimate
+  outcome, but an invisible decision is the expensive kind. Node **4.136** — the handoff state machine is
+  exercised by loading the REAL `core/store.js` in Chromium (it depends only on `reactive.js` and
+  `localStorage`), the wiring is structural like its neighbour 4.91; six disarms red. Detail: the V2-627
+  initiative.
+
+- **Choosing a channel is ONE state transition, not a filter assignment (V2-626, 2026-09-09)**: the operator
+  asked for his mail; the email dot lit and the WhatsApp connector screen stayed underneath it. `render()`
+  applied a pushed view by assigning `_platFilter` alone, while the body is gated on
+  `showChannels = !!_screen || …`, which returns EARLY — so the lens never rendered. The click path had no
+  such bug: V2-610 had taught it, INLINE, to clear `_screen`/`_openMail`/`_confirmDisconnect`. That is the
+  whole lesson — the behaviour lived in the CALLER, so each new caller had to remember it and the voice path
+  never did. Now `selectPlatform(pl)` is the ONLY writer of `_platFilter` and owns the whole transition; the
+  header dot, the title and the brain's pushed view all go through it. `connect_focus` resolves AFTER the
+  pushed view on purpose: when one payload carries both, the SPECIFIC request (open this connector) survives.
+  His framing is the rule to keep: *«toda esa mecánica del widget es mecánica… gestiones de estados. Por lo
+  tanto, no puede ser que eso falle»* — and a rule every caller has to remember is not a rule.
+  Node **4.135**, RENDERED (source cannot see it: the assignment is identical either way, only the screen on
+  top differs), five disarms red. Two of them were green at first and the TEST was wrong, not the code: an
+  open mail only yields visibly when the SAME channel is re-asked (otherwise the platform guard hides it),
+  and a pending disconnect confirmation only renders back inside that connector's own screen.
+  The class, checked in the siblings: `contactos` already clears its detail; `agenda` has no blocking screen;
+  **`youtube` has the same latent defect** (`.hb-yt-connmode` hides the player/list/home, `_screen` is
+  module-lived, nothing clears it) — unreachable today because INI-032 leaves `accounts_enabled` false, and
+  named in the V2-626 initiative so reactivating accounts carries it. Detail: the V2-626 initiative.
+
+- **Messaging pro: fetch on demand, per-platform view criteria, `peek` for analysis, and the autoresponder
+  (V2-624, 2026-09-09)**: the operator's directive after driving the widget live (sid `952fcf2f`) and
+  hitting two honest refusals — «todas las conversaciones con actividad en las últimas 72 horas» had no
+  criterion anywhere, and «¿puedes ir al conector y chupar más mensajes?» had no door. His governing
+  constraint: strictly incremental — «respeta lo que ya funciona y añade lo nuevo… no alterar los circuitos
+  de memoria». Detail: the V2-624 initiative. Four additive capabilities, zero rewrites:
+  - **`fetch_now {platform, since_hours}`** — a platform-wide pull through the connector, the same
+    queue→bus round-trip shape as `load_more` (`msg.fetch` topic, per-platform `FetchInbox`). Telegram
+    walks its own dialogs (a stale one is SKIPPED, never a reason to stop — Telegram floats PINNED dialogs
+    to the head of the list, and an early exit on the first stale one answered 0 over a live account whose
+    newest message was 12 minutes old; the walk is bounded by a 60-dialog cap instead, `3627978`. Broadcast
+    channels excluded — a feed is not a conversation); email searches IMAP `SINCE` (day-granular — the service trims to the
+    hour by each message's own timestamp). Everything lands in the CONVERSATIONS as read scrollback via
+    the existing `connector.history` seam, never in triage: pulling the past must not interrupt anybody.
+    **WhatsApp refuses honestly, naming what IS possible** (realtime + per-chat `load_more`) — its bridge
+    has no bulk door, and offering one that cannot work is worse. `publish_history` gained optional
+    `name`/`isGroup` so a thread BORN from a pull is labeled correctly (a group named after whichever
+    member spoke first reads as a different conversation); a name a live message already wrote wins.
+  - **`show_view {window_h}`** — the per-platform view CRITERION, persisted until changed (his words:
+    criteria are per-platform state, not per-utterance; a plain `show_view` keeps it, `0` clears it). With
+    one set, that platform's lens lists conversations from the THREAD store with movement in the window —
+    «movimiento» includes what he read and what he sent — under a VISIBLE bar (label + ✕ + a «traer del
+    conector» button exactly where the transport can serve it). Without one, the lens stays byte-for-byte
+    the classic pending view. Activity rows carry no `n` on purpose (they open by identity,
+    platform+chatId — a second numbering space colliding with the chat list's would open wrong chats).
+  - **`peek {name|limit}`** — a conversation handed WHOLE to the brain (≤40 msgs, per-body and total
+    budget, newest win), so the model summarizes/extracts IN the turn: «dame lo relevante del grupo del
+    viaje», «la esencia de esos correos». Read-only by construction: the thread store IS the segregated
+    data his storage doctrine describes; analysis is a READ of it, never an index into memory — the memory
+    circuits (`kind='msg'` short-level ingestion, unchanged) were deliberately not touched.
+  - **The autoresponder** — the «Phase 4» `connectors/whatsapp/client.py` has named since INI-014, now
+    with its go-ahead. `set_autoresponder {platform|all, text, hours?}` (confirm-gated: it speaks for
+    him), decision whole in `autorespond.py` (zero-import, the policy.py placement): NEVER a group, email
+    only when `dirigido_a_mi`, hours window with wrap-around («22:00-08:00»), once per chat per 24 h
+    against a DURABLE ledger (V2-607: an in-memory guard cannot dedupe a durable source). The send rides
+    the EXISTING `msg.reply` seam — each connector's tested send path, echoed into the thread by the
+    existing outbound-capture seams; the original item is NOT marked read: an automatic «estoy fuera» does
+    not deal with the message. State is VISIBLE (settings panel chip + a brief line for the brain — an
+    undeclared capability is one the model narrates, V2-540) and **survives a Reset** (`blank()` preserves
+    `autoresponder`/`lens_criteria`: config is not «messages and queues»).
+  - The architecture ratchet fired on `data.py` (1184 > 900) and was paid by EXTRACTING `views.py` (the
+    read side: name resolution, thread/activity views, peek, previews, `_group_chats`) — one-directional
+    seam, lazy back-imports, 892/313 after. ⚠️ One disarm came back GREEN on its first anchor: the
+    mutation hit the `answer_action` PREVIEW instead of the `apply_action` branch — the same code shape
+    exists twice (preview computes what the owner will persist), so a disarm must anchor on something
+    unique to the function it claims to disarm (the V2-571 lesson, paid again).
+  - Nodes **4.134** (4 files: criteria/fetch/peek/autoresponder + the RENDERED activity lens) and
+    **5.20** (the two connector fetch drains, faked at the transport). Six disarms red. Sweeps:
+    mensajería+connectors 445, infrastructure 648, `make test-widgets` 14/14.
