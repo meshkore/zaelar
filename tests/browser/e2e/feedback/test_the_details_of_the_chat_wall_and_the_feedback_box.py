@@ -68,7 +68,10 @@ def _url():
         [sys.executable, "-c", PREVIEW % (ENGINE, os.path.join(ENGINE, "frontend"), port)],
         cwd=ENGINE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     try:
-        for _ in range(60):
+        # V2-743 — a CLOCK, not an iteration count: `range(60)` reads as thirty seconds and is not, because
+        # the budget counts iterations and an iteration costs whatever it costs.
+        deadline = time.time() + 30.0
+        while time.time() < deadline:
             try:
                 socket.create_connection(("127.0.0.1", port), timeout=0.5).close()
                 break

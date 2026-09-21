@@ -170,7 +170,10 @@ async def settle(wid: str, action: str, res, *, before: str) -> str:
               f"prometerla; si él pregunta, confirma que está hecha.")
         return out
     try:
-        from voice.engine.core import langs as _langs
+        # `i18n.langs`, NOT the `voice.engine.core.langs` shim its neighbours here still use: that shim exists
+        # because reaching into the motor for one sentence is the debt V2-676 moved the table to pay, and the
+        # dependency ratchet counts a NEW reach — correctly — as the debt growing back. Same object either way.
+        from i18n import langs as _langs
         _lang = _langs.current_language()
     except Exception:  # noqa: BLE001
         _lang = None

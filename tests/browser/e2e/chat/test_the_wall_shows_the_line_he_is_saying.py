@@ -82,13 +82,18 @@ def run():
     port = _free_port()
     proc = subprocess.Popen([sys.executable, "-c", PREVIEW % (ENGINE, os.path.join(ENGINE, "frontend"), port)],
                             cwd=ENGINE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    for _ in range(60):
+    # A CLOCK, not an iteration count (`tests/waiting.py`'s lesson, enforced by
+    # `test_a_wait_is_bounded_by_a_clock`): `range(60)` READS as thirty seconds and is not — the budget counts
+    # iterations and an iteration costs whatever it costs, so the wall clock is unbounded exactly when
+    # something is wrong. Copied from node 4.197 with the defect; the ratchet caught it at 61 over 58.
+    deadline = time.time() + 30.0
+    while time.time() < deadline:
         try:
             socket.create_connection(("127.0.0.1", port), timeout=0.5).close(); break
         except OSError:
             time.sleep(0.5)
     else:  # pragma: no cover
-        proc.terminate(); pytest.skip("preview server never came up")
+        proc.terminate(); pytest.skip("preview server never came up in 30 s")
     time.sleep(1.0)
     yield f"http://127.0.0.1:{port}/"
     proc.terminate()
