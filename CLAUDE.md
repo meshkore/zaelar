@@ -659,6 +659,21 @@ CLAIM. His words:
    mañana»*. He CONFIRMED current behaviour is right; it is written here so nobody «improves» it into a task
    registry. V2-743.
 
+3. **LA AGENDA VA DIRECTA — un borrado de tarea no pregunta (regla del operador, 2026-09-21).** Sus
+   palabras: *«No quiero que me pida confirmación para borrar tareas. Añade esto ya como una regla por
+   defecto. La agenda va directa. Cuando digo borrar esto, lo borras sin preguntar. Otra cosa es que guardes
+   un rastro de lo que había, por si me he equivocado, y te digo restáuralo»*. Las dos mitades son una sola
+   regla y ninguna se instala sin la otra: `delete_task`/`add_task` no llevan `confirm`, y la agenda guarda
+   una papelera acotada con acción `restore` que devuelve la fila a SU HUECO (el número es la forma entera
+   en que él se dirige a una tarea). Lo que sí sigue preguntando, porque él habló de «esto» —un ítem— y no
+   de barridos: `clear_list`, `delete_list`, `clear_all`, `clear_range`.
+
+   ⚠️ **Y el gate de irreversibles no lee el CONTENIDO de una fila de la agenda.** «Añade una tarea que sea
+   comprar el pan» no es una orden de comprar nada. `nucleo/danger.py` se repara **RESTANDO** la cláusula
+   —nunca añadiendo un patrón— y el backstop de la voz no dispara con una data-op ya despachada: una
+   mutación de widget tiene embudo (`widgets/server_api._dispatch`, el contrato de V2-705, el snapshot de
+   `store.save`), y ese gate es para lo que NO lo tiene. V2-748.
+
 ## Decisiones clave — están en su propio fichero
 
 El diario del motor (una entrada por tanda: qué se decidió, por qué, y el fallo real que lo motivó) vive en
