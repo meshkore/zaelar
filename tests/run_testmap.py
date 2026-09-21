@@ -3075,6 +3075,15 @@ DOMAINS: list[dict] = [
                                  "lista entera y su lista contenedora incluidas",
             "ch": UNIT,
             "paths": ["tests/browser/unit/agenda/test_a_deleted_task_comes_back_when_he_says_so.py"]},
+        # V2-748 — «asegúrate de que todo funciona bien y de que todas las órdenes posibles se interpretan
+        # correctamente». QUÉ acción elige una frase lo decide el modelo y se mide en vivo; esto es la otra
+        # mitad, determinista y que nadie medía: que cada verbo declarado, llamado con el payload que
+        # declara, ATERRIZA en un almacén real o se niega con una frase que nombra lo que falta.
+        {"id": "4.207", "title": "Las 30 órdenes que declara la tarjeta de agenda aterrizan de verdad — y "
+                                 "un selector que no nombra nada PREGUNTA en vez de acertar por vecindad",
+            "ch": UNIT,
+            "paths": ["tests/browser/unit/agenda/"
+                      "test_every_order_the_card_declares_actually_lands.py"]},
         {"id": "4.203", "title": "La mitad de TAREAS son dos paneles delimitados con una tabla dentro — y el ＋ "
                                  "de «nueva lista» no puede irse de la pantalla con 100 listas",
             "ch": UNIT,
