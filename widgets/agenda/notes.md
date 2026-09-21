@@ -317,3 +317,28 @@ oye sale de `desc` (`_human_confirm_question`); queda como documentación en los
 - Manifest 0.2.0 → 0.3.0: nine actions for the section, `done`/`drop` re-described, `whenToUse` rewritten
   to 267 chars so it reaches the model whole.
 - Module doc: `.meshkore/docs/modules/zaelar-agenda-task-lists.md`. Nodes 4.200 · 4.201 · 8.10.
+
+## Session 2026-09-21b: the number was DERIVED and still unsayable (V2-747)
+
+V2-744 numbered every row and the numbering did not reach the brain. Measured one day later, session
+`16a39050`: «modifica la tarea número TRES» over three tasks on screen → `❓ referencia de item sin
+resolver · agenda:update_task:la tarea 3 de la lista Obra`, **with an empty candidate list**. Right
+action, right reference, no rows to match against. Three causes, all in the seam between this card and
+`widgets/refs.py`:
+
+- **`positional: false` covers the whole manifest.** It is right for the calendar (V2-643: no agenda view
+  numbers an appointment) and wrong for the half V2-744 added, which numbers everything. Eleven task
+  actions now carry `"positional": true`; an action's own declaration beats its widget's, in both
+  directions. If you add a task action, it needs that flag or its number is unsayable.
+- **`ref_index` must publish a row per KEY the manifest declares**, not per item. `refs` answers with the
+  key the ACTION declares and this card has three: `taskId` (done/drop/snooze/not_now, the V2-026 suffix
+  convention), `task` (update_task/delete_task) and `list`. `_TASK_FIELDS`/`_LIST_FIELDS` in `tasklists.py`
+  are that list — a new action with a new key needs its entry, or it resolves against nothing.
+- **Position may not be counted flat here.** Every list restarts at #1, so the flat index is a different
+  number from the one on screen. Rows publish `no` (what is PRINTED) and `group` (the list), and `refs`
+  looks the number up instead of counting; a bare number that matches two lists is a QUESTION.
+
+⚠️ `show_tasks` deliberately declares no selector, so `refs` hands it the raw `list` string and
+`tasklists.pick_list` resolves it (it understands «2», «la 2», «la compra»). That is why «ábreme la lista
+número 3» answers «no tienes ninguna lista número 3 — tienes 2: 1. General; 2. Obra» rather than refusing
+blankly. Verified live against the operator's own store, read-only.
