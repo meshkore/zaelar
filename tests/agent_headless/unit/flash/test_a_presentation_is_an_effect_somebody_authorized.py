@@ -272,5 +272,7 @@ def test_both_channels_hand_over_what_we_said():
     probe = (ENGINE / "nucleo/flash/probe.py").read_text(encoding="utf-8")
     arb = (ENGINE / "nucleo/canvas_arbiter.py").read_text(encoding="utf-8")
     assert "last_reply=brain._last_reply" in prov
-    assert "video_license(text, _last_assistant_line(sess.window))" in probe
+    # V2-741 — the call gained the turn's brief so a verdict can overrule the verb table. This
+    # channel fires no brief yet, so the argument is what keeps the two from drifting apart.
+    assert "video_license(text, _last_assistant_line(sess.window), brief=" in probe
     assert 'role == "assistant"' in arb and "last_reply=str(_last_turn" in arb

@@ -27,6 +27,7 @@ from nucleo.flash import (canvas_license as _canvas_lic,                       #
                           canvas_visibility as _cvis,                          # V2-723: ONE door to present
                           close_guards as _closeg,                             # V2-635: close needs the words
                           data_ops as _data_ops, escalation_guard as _eguard,  # V2-391 / V2-677
+                          direct_action as _direct_action,                     # V2-741: the third rung
                           image_turn as _image_turn,                           # V2-402
                           listing_turn as _lt, show_target as _show_target,    # V2-609: one target decision
                           task_recall as _trecall,                             # V2-728: «lo del piso que te dije»
@@ -1437,7 +1438,7 @@ class NucleoLLMStream(llm.LLMStream):
                 if "play_video" not in _tool_fired:
                     _tool_fired.add("play_video")
                     _video_turn.voice_execute(args, text, emit, _apply_widget_data, deduped,
-                                              last_reply=brain._last_reply or "")
+                                              last_reply=brain._last_reply or "", brief=_brief)
             elif name == "show_images":
                 # V2-457: FOTOS = visor `imagenes` (VER), tercera hermana de play_music/play_video. Una por
                 # turno; se EJECUTA tras el stream (buscar es red) y se dice allí si el modelo calló.
@@ -2219,23 +2220,22 @@ class NucleoLLMStream(llm.LLMStream):
                         spoken_text = "Aquí lo tienes."
                     send(speech.sanitize(spoken_text, drop_metadata=False))
 
-        # GHOST-WORKER guard (fix03, session 6d19df41): a 1–3 word turn with no directive in it is a fragment
-        # of a longer utterance (a spelling, a dictation tail), not an errand — the model can only escalate it
-        # by inventing the order («Find and present information about "Scarborough"…» for «It is»). Annulled
-        # here, same shape as the show-guard override above; a REAL task comes back through the window
-        # backstops below, which read what the operator actually asked a few turns back.
-        if escalate_req["v"] is not None and _router.too_thin_to_commission(operator_text):
-            emit("brain", "🧭 escalada anulada — el turno es un fragmento, no un encargo",
-                 text=f"{(operator_text or '')[:80]} → {(escalate_req['v'] or '')[:80]}", role="system",
-                 extra={"cat": "flash"})
-            escalate_req["v"] = None
-            escalate_req["more"] = []
+        # GHOST-WORKER guard, plus the «Sí» that has no directive either — in `escalation_guard`.
+        _eguard.drop_if_fragment(escalate_req, operator_text=operator_text, brief=_brief,
+                                 last_reply=brain._last_reply or "", emit=emit)
+
+        # V2-741 · THE THIRD RUNG — a declared action BEFORE anything may cost minutes: a catalogue of
+        # videos became a worker that took 195 s to reach the `youtube:search` the brief had named.
+        if escalate_req["v"] is not None and not acted["widget"] and not data_done["v"]:
+            if _direct_action.take_rung(escalate_req, brief=_brief, operator_text=operator_text,
+                                        emit=emit, present=_cvis.present,
+                                        apply_widget_data=_apply_widget_data):
+                acted["widget"] = True
 
         # JEV ESCALATE GATE (T-jev-escalate): a commission that SURVIVED the grammar guards gets a
         # cheap second opinion before it spends money. A confident `handle_inline` annuls it in the
-        # same shape as the ghost-worker guard above; a confident `escalate`, an unsure/slow/failed
-        # call, or Jev off keep `v` untouched. Only ever CLEARS — every backstop below (marketplace
-        # re-escalation, worker-response, STOP) already handles `None`, so their precedence is intact.
+        # same shape as the ghost-worker guard above; anything else keeps `v`. Only ever CLEARS —
+        # every backstop below already handles `None`, so their precedence is intact.
         #
         # V2-726 A3 — AND IT NEEDS EVIDENCE NOW. We are past the model and usually past the start of
         # speech: the reply the operator just heard normally PROMISED this errand. `handle_inline`

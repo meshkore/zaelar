@@ -1393,6 +1393,13 @@ DOMAINS: list[dict] = [
         # especificar cuál. Si por contexto sabe identificarlo, perfecto». El brief ya preguntaba
         # exactamente eso desde A4 (68 opciones con los dos abiertos) y el veredicto solo lo leía la
         # reparación de acciones INVENTADAS — pagado cada turno y tirado.
+        # V2-741 — la escalera tenía DOS peldaños («contesta» o «un worker de 5 minutos») y el motor
+        # caía al caro habiendo nombrado el barato: el brief dijo `youtube:search` a 0,97, una tabla
+        # de verbos sin «preparar» se comió la tool, y el worker tardó 195 s en llegar a esa acción.
+        {"id": "3.73", "title": "Una acción DECLARADA antes que un worker de cinco minutos — y los tres "
+                                "guardas que le llevaban la contraria al veredicto que ya pagamos",
+            "ch": UNIT,
+            "paths": ["tests/voice/unit/test_a_declared_action_before_a_five_minute_worker.py"]},
         {"id": "3.72", "title": "Dos reproductores abiertos y una palabra que vale para los dos: el veredicto "
                                 "de pantalla decide DE QUIÉN es la orden, y si no sabe se PREGUNTA",
             "ch": UNIT, "paths": ["tests/voice/unit/test_two_players_open_and_one_word_for_both.py"]},

@@ -285,10 +285,28 @@ def _warn_wrong_space() -> None:
     if now - _wrong_space_last < _WRONG_SPACE_GAP_S:
         return
     _wrong_space_last = now
+    # V2-741 — TELL THE TWO CAUSES APART, because they call for opposite fixes and this line used to
+    # merge them. Measured live (session 092569ab, 2026-09-21) it printed «active embedding space
+    # (cloud:text-embedding-3-small:768) does not match the indexed one
+    # (cloud:text-embedding-3-small:768)» — the SAME string twice — and then offered «or the embed
+    # degraded in flight» as an alternative. The spaces matched perfectly; the embedder was returning
+    # nothing, because the OpenAI account had no credits left. A reader sent to look for a migration
+    # would have found the two signatures identical and concluded the diagnostic was broken, which is
+    # worse than no diagnostic: it spends the reader's trust on the wrong file.
+    #
+    # So the signatures are COMPARED here rather than printed side by side, and the sentence names
+    # what was actually found. «The embedder is down» is a credential or a quota; «the spaces differ»
+    # is a re-index. One line, one cause.
     try:
         from . import reembed as _reembed
-        detail = (f"recall on FTS only: active embedding space ({_reembed.signature()}) does not match the "
-                  f"indexed one ({_reembed.stored_signature()}) or the embed degraded in flight")
+        active, stored = str(_reembed.signature() or ""), str(_reembed.stored_signature() or "")
+        if active and stored and active == stored:
+            detail = (f"recall on FTS only: the embedder returned nothing this time — the space "
+                      f"({active}) is the indexed one, so this is the EMBEDDER (key, quota or "
+                      f"network), not a migration")
+        else:
+            detail = (f"recall on FTS only: active embedding space ({active or '?'}) is not the "
+                      f"indexed one ({stored or '?'}) — the index needs re-embedding")
     except Exception:  # noqa: BLE001
         detail = "recall on FTS only: the query's embedding space is not the indexed one"
     try:

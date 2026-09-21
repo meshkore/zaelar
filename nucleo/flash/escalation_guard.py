@@ -105,6 +105,64 @@ def escalation_text(operator_text: str, turn_text: str) -> str:
     return ""
 
 
+def is_a_fragment(operator_text: str, *, brief=None, last_reply: str = "") -> bool:
+    """`router_guards.too_thin_to_commission`, minus the one shape the brief already tells us about.
+
+    THE DEFECT (live session 092569ab, 2026-09-21, the very first turn). The engine offered to deal
+    with an AliExpress email. The operator said «Sí.» — and the ghost-worker guard, which annuls a
+    1-3 word turn with no directive in it, annulled the commission as «un fragmento, no un encargo».
+    Nothing happened, and twelve seconds later he said «pues nada, olvídalo».
+
+    A confirmation is SHORT BY NATURE. «Sí», «vale», «hazlo» carry no directive verb because the
+    directive was in OUR sentence, not in his — so a guard that reads only his words is structurally
+    unable to tell a dictation tail from a yes. That is why it needs the fact it does not have, and
+    the fact is already bought: the turn brief's `request_type` has a verdict spelled «the user
+    answers a question WE just asked», and on this very turn it returned `answer` at **1.00**.
+
+    Both halves are required. The verdict says the turn is an answer; `answered_an_offer` says there
+    was a question to answer — the same pairing `canvas_license.offer_of_media` documents, and for
+    the same reason: a «yes» is an answer only where there was a question. Without a brief this is
+    `too_thin_to_commission` verbatim, which is today's path.
+    """
+    from . import router_guards as _rg
+    if not _rg.too_thin_to_commission(operator_text):
+        return False
+    try:
+        from nucleo.flash import canvas_license as _lic, turn_brief as _tb
+        kind, _info = _tb.read(brief, _tb.REQUEST_KEY, "")
+        if str(kind or "") == "answer" and _lic.answered_an_offer(last_reply):
+            return False                  # he is answering us: the errand is ours, not his to repeat
+    except Exception:  # noqa: BLE001 — a classifier may never break a turn
+        pass
+    return True
+
+
+def drop_if_fragment(escalate_req: dict, *, operator_text: str, brief=None,
+                     last_reply: str = "", emit=None) -> bool:
+    """Annul a commission the turn could not have made, and say so. `True` when it was annulled.
+
+    The guard's whole body, in the module that owns the decision rather than in the voice provider —
+    the architecture ratchet's standing answer to «this block grew» (V2-726 A7, V2-740, V2-741). The
+    provider keeps the call; both channels get the same rule, `is_a_fragment`'s exception included.
+
+    Never raises: a guard that throws would take the turn with it, and the safe side of this one is
+    leaving the commission exactly where it is.
+    """
+    try:
+        if not escalate_req.get("v") or not is_a_fragment(operator_text, brief=brief,
+                                                          last_reply=last_reply):
+            return False
+        if emit:
+            emit("brain", "🧭 escalada anulada — el turno es un fragmento, no un encargo",
+                 text=f"{(operator_text or '')[:80]} → {(escalate_req.get('v') or '')[:80]}",
+                 role="system", extra={"cat": "flash"})
+        escalate_req["v"] = None
+        escalate_req["more"] = []
+        return True
+    except Exception:  # noqa: BLE001
+        return False
+
+
 # ── V2-726 A3 · a commission is RESOLVED, never silently cleared ─────────────────────────────────
 #: What became of a commission the model proposed. Every one of them ends as exactly one of these,
 #: and the disposition is emitted — a commission that simply disappears is the engine's oldest
@@ -115,8 +173,42 @@ PROMISED = "promised"                    # the reply committed to it: it may NOT
 UNRESOLVED = "unresolved"                # nothing acted, nothing promised: kept, which escalates
 
 
+def covered_by_live_work(commission: str, *, anything_running: bool) -> bool:
+    """Is a task ALREADY RUNNING **this very** commission? Not «is any task running».
+
+    THE DEFECT (live session 092569ab, 2026-09-21). The operator asked for ten restaurants near the
+    Torre del Oro while an unrelated Apollo-11 worker was still going. The gate read
+    `anything_running=True`, annulled the commission as `handled_inline / worker-running`, and the
+    model had just said «voy a lanzar de una la búsqueda de los diez restaurantes ahora mismo».
+    Nobody ever searched for a restaurant. The errand did not fail — **it was never born**, and the
+    only trace was one log line saying a worker was running, which was true and irrelevant.
+
+    `anything_running` answers «is the engine busy». The question this gate needs is «is what he
+    just asked for already being done», and the engine has answered that one since V2-507: the
+    dispatch dedup, which compares content words against the goals of the LIVE errands and carries
+    its evidence with its verdict. It is reused here rather than re-derived, which is the whole of
+    V2-252's parallel-implementation rule: a second copy of a similarity rule drifts, and then two
+    gates disagree about whether two sentences are the same errand.
+
+    The `kind` handed over is the neutral one on purpose. `code`/`generic` unlock a shortcut that
+    dedups by TARGET WIDGET, and two different errands about the same card are still two errands —
+    exactly the over-matching this function exists to stop.
+    """
+    if not anything_running:
+        return False                      # nothing is running: there is nothing to be covered BY
+    words = str(commission or "").strip()
+    if not words:
+        return False
+    try:
+        from nucleo import dispatch as _dispatch
+        dup, _ev = _dispatch.dedup_scan(words, "web")
+        return bool(dup)
+    except Exception:  # noqa: BLE001 — the gate may never break the turn
+        return False
+
+
 def annulment_verdict(jev_choice: str, *, reply: str, acted: bool,
-                      anything_running: bool) -> dict:
+                      anything_running: bool, commission: str = "") -> dict:
     """May a confident `handle_inline` annul this commission? `{annul, disposition, why}`.
 
     THE DEFECT THIS EXISTS FOR (V2-726 audit, finding 4). The gate ran AFTER the model had answered
@@ -144,9 +236,12 @@ def annulment_verdict(jev_choice: str, *, reply: str, acted: bool,
         return {"annul": False, "disposition": DELEGATED, "why": "verdict-keeps-it"}
     if reply_promises(reply, acted=acted, anything_running=anything_running):
         return {"annul": False, "disposition": PROMISED, "why": "reply-promised"}
-    if acted or anything_running:
-        return {"annul": True, "disposition": HANDLED_INLINE,
-                "why": "acted" if acted else "worker-running"}
+    if acted:
+        return {"annul": True, "disposition": HANDLED_INLINE, "why": "acted"}
+    # V2-741 — a worker running SOMETHING ELSE is not evidence that THIS was handled. See
+    # `covered_by_live_work` for the errand that was never born because of the old spelling.
+    if covered_by_live_work(commission, anything_running=anything_running):
+        return {"annul": True, "disposition": HANDLED_INLINE, "why": "covered-by-live-work"}
     return {"annul": False, "disposition": UNRESOLVED, "why": "no-evidence"}
 
 
@@ -206,7 +301,8 @@ def settle_commission(escalate_req: dict, *, brief, operator_text: str, reply: s
         choice = "escalate"
     try:
         verdict = annulment_verdict(choice, reply=reply, acted=acted,
-                                    anything_running=anything_running)
+                                    anything_running=anything_running,
+                                    commission=str(escalate_req.get("v") or ""))
     except Exception:  # noqa: BLE001 — the gate may never break the turn
         verdict = {"annul": False, "disposition": DELEGATED, "why": "verdict-error"}
     try:

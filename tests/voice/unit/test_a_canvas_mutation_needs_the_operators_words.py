@@ -173,8 +173,11 @@ def test_the_probe_channel_mirrors_all_three_guards():
     assert "close_guards" in src and 'if action == "close":' in src, "probe must drop unlicensed closes"
     # V2-723: the probe passes the previous assistant line too — a bare «yes» licenses media only as the
     # answer to something we asked, and a fact only one channel reads is a mirror that drifts.
-    assert "video_license(text, _last_assistant_line(sess.window))" in src, \
-        "probe must gate play_video on the same license, with the same offer fact"
+    # V2-741 adds the third argument: the turn's brief, so a verdict can overrule the verb table.
+    # This channel fires no brief yet, so the grammar still decides here — the parameter is asserted
+    # anyway, because a mirror that is missing an argument is exactly how the two channels drift.
+    assert "video_license(text, _last_assistant_line(sess.window), brief=" in src, \
+        "probe must gate play_video on the same license, with the same offer fact AND the same brief"
     assert "fullscreen_license(text)" in src, "probe must route the fullscreen direction the same way"
 
 

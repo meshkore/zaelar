@@ -193,17 +193,50 @@ def offer_of_media(last_reply: str) -> bool:
     return any(v in folded for v in _producing_vocabulary())
 
 
-def video_license(text: str, last_reply: str = "") -> bool:
+def verdict_grants(brief, widget_id: str, action: str = "") -> bool:
+    """Does the turn's OWN verdict point at this card? Then the grammar's veto is overruled (V2-741).
+
+    THE DEFECT (live session 092569ab, 2026-09-21). «¿Me podrías preparar un catálogo de vídeos sobre el
+    Apollo once?» is a plain, polite request for videos. The model read it correctly and called
+    `play_video(query="Apollo 11 documentales")`. `_MEDIA_REQ_RE` has no «preparar» and no «podrías», so
+    this module called a real order context-bleed and ate the call — and the turn ended as a promise with
+    nothing behind it, which the friction auditor then repaired with a five-minute worker.
+
+    A conjugated-verb table cannot be completed, and every attempt to complete it is in the comments
+    above: `poner`'s infinitive (V2-664), the English stems (V2-677), `sacar` for the fullscreen exit.
+    Each one was a real order eaten in a real session, found only because somebody was watching. This is
+    the other direction: the turn brief already ASKS which declared action of what is on screen the order
+    means, it is enumerated from the manifests rather than from words, it is calibrated, and **we pay for
+    it on every single turn**. Where the table and the verdict disagree, the verdict is the one that was
+    asked the question.
+
+    ONLY EVER GRANTS. A call the grammar already licensed is untouched, so this can add a permitted call
+    and can never remove one — the same direction `annulment_verdict` takes, and for the same reason: a
+    gate that newly FORBIDS needs a shadow round, a gate that only declines to forbid does not.
+    """
+    try:
+        from nucleo.flash import direct_action as _da
+        return _da.endorses(brief, widget_id, action)
+    except Exception:  # noqa: BLE001 — a classifier may never break a turn
+        return False
+
+
+def video_license(text: str, last_reply: str = "", *, brief=None) -> bool:
     """True when the turn ASKS for media — the words that may carry a `play_video` (a load that replaces
     whatever is playing). Chatter, praise, insults and complaints about a past change license nothing.
 
     A bare affirmative licenses media only as the answer to a still-pending proposal that was ITSELF about
     playing something (`offer_of_media`); with no reply to read, it licenses nothing, which is the safe
-    direction: he can always say it with a verb."""
+    direction: he can always say it with a verb.
+
+    `brief` is the turn's Jev brief. When it names an action of the player, the grammar table is not the
+    last word — see `verdict_grants` for the sentence that proved it has to be that way."""
     n = _NEG_MEDIA_RE.sub(" ", _norm_txt(_his_words(text)))
     if _MEDIA_REQ_RE.search(n):
         return True
-    return len(n.split()) <= 4 and bool(_AFFIRM_RE.search(n)) and offer_of_media(last_reply)
+    if len(n.split()) <= 4 and bool(_AFFIRM_RE.search(n)) and offer_of_media(last_reply):
+        return True
+    return verdict_grants(brief, "youtube")
 
 
 def close_license(text: str) -> bool:

@@ -1,0 +1,209 @@
+"""nucleo/flash/direct_action.py — the rung between «answer it» and «spend five minutes on it».
+
+THE DEFECT THIS EXISTS FOR (live session 092569ab, 2026-09-21). The operator asked for a catalogue
+of Apollo 11 videos. The turn brief answered `screen_action = youtube:search` at 0.97 — the right
+card and the right action, the cheap one, already paid for. The model then called the global
+`play_video` tool with `query="Apollo 11 documentales"`, which was also right. A grammar license read
+the sentence, found no verb from its table («preparar» and «podrías» are not in it), called the call
+context-bleed and ATE it. With no tool fired the reply became a promise with nothing behind it, the
+friction auditor noticed, and its repair was a generic `claude_code` worker. That worker took
+**195 seconds to reach its first `youtube:search`** — the same action the brief had named before the
+model even answered.
+
+So the ladder had two rungs, «answer inline» and «a background worker», and the engine fell to the
+expensive one having already named the cheap one out loud. This module is the missing middle.
+
+WHAT IT DECIDES, AND WHAT IT REFUSES TO DECIDE. It answers one question — «is there a DECLARED
+action that serves this commission, and can we fill its payload?» — and it answers it from two
+sources that already exist, never from a table of ours:
+
+  · WHICH action: the turn brief's `screen_action` verdict (`turn_brief.TARGET_KEY`), enumerated per
+    call from the manifests of what is on screen and re-validated against what is STILL on screen.
+    That is the same verdict `frontend.which_card` reads for the other half of the same question —
+    V2-740 wired WHICH CARD, this wires WHICH ACTION, and neither invents an action the model did
+    not mean.
+  · WHICH payload: the action's own declared `payload` block. Exactly one key may be filled from
+    words (the others must be declared «(opcional)»), and that key may not be a selector naming a
+    row that already exists — `refs.id_field_for_action` is the narrower question and it is the one
+    this needs, the same trap `turn_brief._possible_now` documents one layer over.
+
+ITS LIMIT, WRITTEN DOWN RATHER THAN HIDDEN. When the model produced no tool at all, the words that
+fill the payload are the operator's own sentence, and a sentence is not always a good query. So the
+fill is BOUNDED: past `MAX_QUERY_WORDS` this module declines and the commission escalates exactly as
+it does today. A long, rambling errand IS worker work; a short one that names a declared action is
+not. The bound is the honest part — it is not a claim that a sentence is a query, it is a refusal to
+pretend it is when it plainly is not.
+
+AND IT NEVER ACTS. Like `frontend.card_decision`, it returns a decision and the channel spends it,
+so voice and text cannot diverge (V2-252's parallel-implementation rule, applied rather than
+maintained). Never raises: an unreadable manifest, a stale verdict or a brief still in flight all
+read as «no rung», which is today's path bit for bit.
+"""
+from __future__ import annotations
+
+#: The declared marker for «this payload key may be left out». Both spellings, because the manifests
+#: are product data and carry the operator's language as well as the engine's.
+_OPTIONAL_MARKS = ("(opcional)", "(optional)")
+
+#: Past this, the operator's sentence is an errand and not a query. See the module docstring: this is
+#: a refusal, not a heuristic dressed up as one.
+MAX_QUERY_WORDS = 14
+
+
+def _optional(desc) -> bool:
+    d = str(desc or "").lower()
+    return any(m in d for m in _OPTIONAL_MARKS)
+
+
+def _base_of(widget_id: str) -> str:
+    from nucleo.flash import turn_brief as _tb
+    return _tb._base_of(widget_id)
+
+
+def fillable_key(widget_id: str, action: str) -> str:
+    """The ONE payload key that words may fill for this action, or "" when there is not exactly one.
+
+    «Exactly one» is the whole rule and it is deliberately strict: two required keys mean the action
+    needs a DATUM we do not have, and that is a question to ask (V2-712's ASK_FACT), not a call to
+    make. Zero required keys is fine and returns "" too — the caller fires with an empty payload,
+    which is what a no-argument action wants.
+    """
+    try:
+        from nucleo.flash import frontend as _fe
+        from widgets import refs as _refs
+        base = _base_of(widget_id)
+        spec = (_fe.declared_actions(base) or {}).get(action) or {}
+        payload = spec.get("payload") if isinstance(spec, dict) else None
+        if not isinstance(payload, dict):
+            return ""
+        required = [k for k, v in payload.items() if not _optional(v)]
+        if len(required) != 1:
+            return ""
+        key = str(required[0])
+        # A key that names an item ALREADY ON the card is a selector, not a query: filling it with a
+        # sentence would ask the widget to play a row that does not exist.
+        if (_refs.id_field_for_action(base, action) or "") == key:
+            return ""
+        return key
+    except Exception:  # noqa: BLE001
+        return ""
+
+
+def from_brief(brief) -> tuple:
+    """`(widget_id, action)` the turn's own verdict points at, or `("", "")`.
+
+    Re-validated against what is still open, for the reason `turn_brief.owner_still_open` exists: the
+    brief enumerates the screen at fire time and this is read 2-4 s later. A stale verdict is no
+    verdict.
+    """
+    if not brief:
+        # NOT an optimisation. `turn_brief.read` emits one `brain` read-attribution event per call
+        # (V2-726 A6a) so the timeline can say whether a verdict was USED — and with no brief there
+        # is no verdict to attribute. Asking anyway printed a `jev read screen_action → off` line on
+        # every video turn of a channel that fires no brief at all, which is noise in the one place
+        # that has to stay readable. Caught by the flow test that counts a turn's events by kind.
+        return ("", "")
+    try:
+        from nucleo.flash import turn_brief as _tb
+        choice, _info = _tb.read(brief, _tb.TARGET_KEY, "")
+        raw = str(choice or "").strip()
+        if not raw or raw == "none":
+            return ("", "")
+        owner, sep, name = raw.rpartition(":")
+        if not sep or not owner or not name:
+            return ("", "")
+        if not _tb.owner_still_open(brief, owner):
+            return ("", "")
+        return (owner, name)
+    except Exception:  # noqa: BLE001
+        return ("", "")
+
+
+def resolve(commission: str, *, brief=None, swallowed=None, operator_text: str = "") -> dict:
+    """The whole rung in one call. `{}` when there is none — every caller's fallback is today's path.
+
+    `swallowed` is the arguments of a tool the model DID emit and a guard then ate. When it carries a
+    payload we use it verbatim: the model had already read the turn and produced the right words, and
+    the measured incident is precisely a guard throwing those words away. Only when there is no such
+    call do we fall back to the operator's own sentence, under the bound above.
+
+    Returns `{widget, action, payload, key, source, label}`.
+    """
+    wid, action = from_brief(brief)
+    if not wid or not action:
+        return {}
+    key = fillable_key(wid, action)
+
+    # 1 · the model's own arguments, which a guard swallowed. The best source there is: they were
+    #     written by the model that had just read the whole turn.
+    args = swallowed if isinstance(swallowed, dict) else {}
+    if args:
+        payload = {k: v for k, v in args.items() if str(v or "").strip()}
+        if payload:
+            return {"widget": wid, "action": action, "payload": payload, "key": key,
+                    "source": "swallowed-tool",
+                    "label": f"{wid}:{action} ← la tool que el guarda se comió"}
+
+    # 2 · no tool at all. The words are the operator's, and only if they are short enough to BE the
+    #     thing the payload key asks for.
+    if not key:
+        return {}
+    words = (operator_text or commission or "").strip()
+    if not words or len(words.split()) > MAX_QUERY_WORDS:
+        return {}
+    return {"widget": wid, "action": action, "payload": {key: words}, "key": key,
+            "source": "operator-words",
+            "label": f"{wid}:{action} ← el veredicto de pantalla"}
+
+
+def endorses(brief, widget_id: str, action: str = "") -> bool:
+    """Does the turn's verdict point at THIS card (and optionally this action)?
+
+    The predicate a grammar license consults before vetoing a tool. `video_license` and its family
+    read a table of conjugated verbs, and the table cannot be complete — it had no «preparar» and no
+    «podrías», so a plain, polite Spanish request for videos read as context-bleed. The verdict is
+    enumerated from the manifests and calibrated; where the two disagree the verdict is the one that
+    was asked the question.
+
+    Narrow on purpose: it only ever GRANTS. A license that the grammar already granted is untouched,
+    so this can add a permitted call and can never remove one.
+    """
+    wid, name = from_brief(brief)
+    if not wid:
+        return False
+    if _base_of(wid) != _base_of(widget_id):
+        return False
+    return (not action) or name == action
+
+
+def take_rung(escalate_req: dict, *, brief, operator_text: str, emit, present,
+              apply_widget_data) -> bool:
+    """Try the rung and SPEND it. `True` when a declared action took the commission's place.
+
+    The body lives here and not in the voice provider for the reason the architecture ratchet keeps
+    giving: that file is a god file and the answer to «this block grew» is «extract a module, do not
+    raise the ceiling» (V2-726 A7, V2-740). It also means the text channel gets the identical rung
+    the day it fires a brief of its own, instead of a hand-mirrored copy — V2-252's rule.
+
+    The caller owns the two facts this cannot know: that a commission survived every guard above, and
+    that nothing in the turn acted. Those are the whole precondition — this rung may only ever
+    replace *spending minutes*, never a result the turn already produced.
+    """
+    try:
+        rung = resolve(str(escalate_req.get("v") or ""), brief=brief, operator_text=operator_text)
+    except Exception:  # noqa: BLE001 — a classifier may never break a turn
+        return False
+    if not rung:
+        return False
+    try:
+        present(rung["widget"], reason="turn-order", src="flash", emit=emit)
+        apply_widget_data(rung["widget"], rung["action"], rung["payload"])
+        emit("brain", "🎯 acción declarada en vez de un worker", text=rung["label"][:120],
+             role="system",
+             extra={"cat": "flash", "widget": rung["widget"], "action": rung["action"],
+                    "source": rung["source"], "instead_of": str(escalate_req.get("v") or "")[:120]})
+    except Exception:  # noqa: BLE001
+        return False
+    escalate_req["v"] = None
+    escalate_req["more"] = []
+    return True

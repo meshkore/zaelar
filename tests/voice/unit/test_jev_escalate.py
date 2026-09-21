@@ -115,10 +115,31 @@ def test_a_real_inline_result_lets_the_annulment_through():
     assert v["annul"] is True and v["disposition"] == _eg.HANDLED_INLINE
 
 
-def test_a_live_worker_counts_as_the_work_being_under_way():
-    v = _eg.annulment_verdict("handle_inline", reply="Sigo con ello.",
-                             acted=False, anything_running=True)
+def test_a_live_worker_counts_as_the_work_being_under_way_ONLY_IF_IT_IS_THIS_WORK(monkeypatch):
+    """⚠️ THIS TEST USED TO ENCODE THE DEFECT, and it was green the whole time it was costing errands.
+
+    It asserted that ANY live worker annulled ANY commission, and it passed — the code did exactly
+    what it said. Measured live (session 092569ab, 2026-09-21): the operator asked for ten
+    restaurants near the Torre del Oro while an unrelated Apollo-11 worker was still going. The
+    commission was annulled as `handled_inline / worker-running`, the model had just said «voy a
+    lanzar de una la búsqueda de los diez restaurantes ahora mismo», and **nobody ever searched for
+    a restaurant**. The errand did not fail; it was never born.
+
+    `anything_running` answers «is the engine busy». The question the gate needs is «is what he just
+    asked for already being done», and that one has an owner since V2-507 — the dispatch dedup. Both
+    directions are pinned below, because «never annul» would re-open the duplicate workers that dedup
+    exists to stop.
+    """
+    monkeypatch.setattr(_eg, "covered_by_live_work", lambda *a, **k: True)
+    v = _eg.annulment_verdict("handle_inline", reply="Sigo con ello.", acted=False,
+                              anything_running=True, commission="lo mismo que ya corre")
     assert v["annul"] is True and v["disposition"] == _eg.HANDLED_INLINE
+
+    monkeypatch.setattr(_eg, "covered_by_live_work", lambda *a, **k: False)
+    v = _eg.annulment_verdict("handle_inline", reply="Sigo con ello.", acted=False,
+                              anything_running=True, commission="diez restaurantes en Sevilla")
+    assert v["annul"] is False and v["disposition"] == _eg.UNRESOLVED, (
+        "an unrelated worker is annulling a commission again — this is how the restaurants died")
 
 
 def test_no_evidence_either_way_KEEPS_the_commission():

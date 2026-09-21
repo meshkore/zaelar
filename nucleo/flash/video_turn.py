@@ -179,7 +179,7 @@ def _lang() -> str:
 
 
 def voice_execute(args: dict, text: str, emit, apply_widget_data, deduped: dict,
-                  last_reply: str = "") -> None:
+                  last_reply: str = "", *, brief=None) -> None:
     """The voice provider's whole `play_video` branch body (extracted paying the architecture ratchet,
     V2-635), now carrying the LICENSE the session demanded: «Muy bien, señora.» and «¿Pero por qué lo has
     cambiado otra vez?» each RELOADED the playing video (2026-09-09, session 34386d8f) — the model dragging
@@ -187,7 +187,9 @@ def voice_execute(args: dict, text: str, emit, apply_widget_data, deduped: dict,
     silence over chatter is design (V2-633), not a void for the mute backstop to apologize over."""
     from nucleo.flash import canvas_license as _lic, canvas_visibility as _cvis
     q = (args.get("query") or "").strip()
-    if not _lic.video_license(text, last_reply):
+    # V2-741 — the turn's own verdict is consulted BEFORE the veto, not after. The grammar table had
+    # no «preparar» and ate a real order; the brief had already answered `youtube:search` at 0.97.
+    if not _lic.video_license(text, last_reply, brief=brief):
         emit("brain", "🛡️ play_video ignorado — el turno no pide ningún vídeo (context-bleed)",
              text=(text or "")[:120], role="system",
              extra={"cat": "flash", "kind_diag": "video_without_order", "query": q[:80]})

@@ -402,7 +402,7 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
         music_req = _music_turn.request_from(tool_calls)
     elif "play_video" in names:
         from nucleo.flash import canvas_license as _lic_v
-        if _lic_v.video_license(text, _last_assistant_line(sess.window)):
+        if _lic_v.video_license(text, _last_assistant_line(sess.window), brief=getattr(sess, "brief", None)):
             action = "canvas:show:youtube"   # V2-045: VER → widget youtube (show + data-op load); espejo del provider
             video_req = _video_turn.request_from(tool_calls)   # V2-383: y se EJECUTA abajo, como la música
         else:
