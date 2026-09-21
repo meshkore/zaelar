@@ -351,6 +351,13 @@
     "clear_search": {
       "desc": "quita la banda de resultados de búsqueda del inicio",
       "view": true
+    },
+    "show_tab": {
+      "desc": "CAMBIA de pantalla dentro del reproductor SIN tocar lo que está sonando. 'inicio' es el catálogo/dashboard donde están los resultados de la búsqueda para elegir OTRO vídeo — es lo que responde a «vuelve al catálogo», «a la página de inicio», «enséñame otra vez la lista para cambiar»; 'player' el vídeo que se está viendo; 'cola' la lista de reproducción; 'listas' las listas guardadas; 'subs' las suscripciones. NO borra nada: para quitar la banda de resultados está clear_search, que es lo contrario de volver a ella.",
+      "payload": {
+        "tab": "inicio | player | cola | listas | subs"
+      },
+      "view": true
     }
   },
   "name": "YouTube",

@@ -49,6 +49,13 @@ _OPTIONAL_MARKS = ("(opcional)", "(optional)")
 #: a refusal, not a heuristic dressed up as one.
 MAX_QUERY_WORDS = 14
 
+#: How a manifest spells «this key takes ONE OF THESE», e.g. `"tab": "inicio | player | cola"` or
+#: `"by": "'title' o 'added'"`. A key like that is a CHOICE, and a sentence is not one of its values.
+#: Found while declaring `youtube:show_tab` (V2-742): its payload is an enumeration, and without this
+#: the rung would have filled it with «vuelve al catálogo de vídeos» and the widget would have
+#: refused an order the operator had given perfectly well.
+_ENUM_MARKS = (" | ", "' o '", "' or '", '" o "', '" or "')
+
 
 def _optional(desc) -> bool:
     d = str(desc or "").lower()
@@ -83,6 +90,9 @@ def fillable_key(widget_id: str, action: str) -> str:
         # A key that names an item ALREADY ON the card is a selector, not a query: filling it with a
         # sentence would ask the widget to play a row that does not exist.
         if (_refs.id_field_for_action(base, action) or "") == key:
+            return ""
+        # Nor is a sentence one of an enumeration's values (V2-742).
+        if any(m in str(payload.get(key) or "") for m in _ENUM_MARKS):
             return ""
         return key
     except Exception:  # noqa: BLE001

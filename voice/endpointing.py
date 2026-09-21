@@ -13,7 +13,24 @@ import re
 # After speech pauses, wait THIS long before committing the turn. Longer utterances get a longer hold (a person
 # mid-ramble pauses to think; a short command wants a snappy answer). Values in seconds.
 HOLD_BASE = float(os.getenv("TURN_HOLD_BASE", "1.2"))
-HOLD_MAX = float(os.getenv("TURN_HOLD_MAX", "2.2"))
+# V2-742 — 2.2 → 3.0, and it is the CEILING of a moving average, not a fixed wait.
+#
+# Measured in one live session (891f2091, 2026-09-21): 54 spoken fragments, a MEDIAN of 3 words and
+# 46% of two or fewer, with a median gap between consecutive fragments of 1.59 s. The 19 gaps that
+# fell under `HOLD_BASE` did merge — it is the rest that cut him mid-thought — and every EOU the
+# session reported was pinned at 2.20, i.e. the average had SATURATED at this ceiling and wanted
+# more room. The operator's own words: «estoy hablando más o menos normal y el chat no capta las
+# frases o los párrafos enteros, sino que cada una o dos palabras las transcribe de manera
+# diferente… dándole una cierta tolerancia de milisegundos o lo que sea para que haya más fluidez».
+#
+# WHY THE CEILING AND NOT THE FLOOR. LiveKit runs this as `mode: "dynamic"` — a moving average of
+# the pauses it actually observes, bounded by these two. Raising HOLD_BASE makes EVERY short command
+# wait longer, including «pausa» and «para». Raising the ceiling costs nothing while he speaks
+# fluidly, because the average stays low; it only spends time when his own recent pauses have been
+# long. That is also why he is right that this will partly fix itself: he attributes the halting
+# speech to his machine being saturated by a local 27B model, and when it recovers the average
+# drops back on its own. A number is not the mechanism here — the average is, and this gives it room.
+HOLD_MAX = float(os.getenv("TURN_HOLD_MAX", "3.0"))
 HOLD_GROWTH = float(os.getenv("TURN_HOLD_GROWTH", "0.15"))    # extra hold per second of speech so far
 # If the browser's stop never arrived (data channel drop / tab throttled), commit anyway after this EXTRA wait —
 # replaces the old fixed 3s stuck-turn rescue with the same self-healing, now integrated in the hold logic.

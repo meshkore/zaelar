@@ -11,6 +11,7 @@ from voice.endpointing import (
     voiced_run_ms,
     BARGE_GAP_MS,
     HOLD_BASE,
+    HOLD_GROWTH,
     HOLD_MAX,
     NO_STOP_EXTRA,
 )
@@ -35,9 +36,29 @@ def test_short_command_commits_fast():
 
 
 def test_long_ramble_gets_more_patience():
-    """Dictating a long thought (10s+) earns the max hold — pauses to think don't chop it."""
-    assert hold_secs(10.0) == HOLD_MAX
-    assert not should_commit(silence_secs=HOLD_MAX - 0.3, utterance_secs=10.0, browser_stopped=True)
+    """Dictating a long thought earns the max hold — pauses to think don't chop it.
+
+    V2-742 raised the ceiling from 2.2 to 3.0, so the utterance that REACHES it is longer than the
+    10 s this used to hardcode. Derived from the constants rather than restated, because a literal
+    here is a second copy of the rule and it is the copy that rots: this test went red for a change
+    that made the hold strictly MORE patient, which is the direction it exists to protect.
+    """
+    long_enough = (HOLD_MAX - HOLD_BASE) / HOLD_GROWTH + 1.0
+    assert hold_secs(long_enough) == HOLD_MAX
+    assert not should_commit(silence_secs=HOLD_MAX - 0.3, utterance_secs=long_enough,
+                             browser_stopped=True)
+
+
+def test_the_ceiling_has_room_for_HIS_measured_pauses():
+    """V2-742's actual metric. Live session 891f2091: 54 spoken fragments, median 3 words, and a
+    MEDIAN GAP of 1.59 s between consecutive fragments — every EOU the session reported was pinned at
+    the old 2.20 ceiling, i.e. the moving average had saturated and wanted more room.
+
+    Pinned as a BOUND and not as a number: the ceiling must sit clear of his median pause, and the
+    floor must stay where it is, because raising the floor taxes every short command instead.
+    """
+    assert HOLD_MAX >= 2.8, "the dynamic average has no room above his measured 1.59 s median pause"
+    assert HOLD_BASE <= 1.2, "the floor grew: «pausa» and «para» now wait longer for no reason"
 
 
 def test_lost_browser_stop_still_commits():

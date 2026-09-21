@@ -344,6 +344,9 @@ let _tab = "";
 // Ids only: the LABEL is resolved per paint (`tabLabel`), because a module-level table is built once, at IMPORT
 // time, so its text would freeze in whatever language was active the first time this module loaded (V2-694).
 const _TABS = ["inicio", "player", "cola", "subs", "listas"];
+// V2-742 — the last `show_tab` order this card has already obeyed. A SEQUENCE and not a flag:
+// he can ask for the same face twice in a row, and a flag the card consumed cannot fire again.
+let _gotoSeq = 0;
 function tabLabel(id){
   switch(id){
     case "inicio": return tt("tab_home", null, "Inicio");
@@ -1305,5 +1308,21 @@ export function render(root, data, ctx){
   if(seq !== root._hbYt.seq){
     applyCmd(PL, data, ctx);
     root._hbYt.seq = seq;
+  }
+
+  // V2-742 — «VUELVE AL CATÁLOGO», answered. It lives HERE, at the end of every render, and not up in
+  // the rebuild branch: that branch only runs when the VIDEO changes, so an order given while the same
+  // video keeps playing — which is the whole case, he is watching one and wants the list back — would
+  // never have been read. Measured: written there first, three of this card's tests went red.
+  //
+  // It runs LAST on purpose, after the auto-jump to the player that a video's arrival triggers. Placed
+  // before it, the jump would quietly undo every order he gives: a no-op that reports success.
+  //
+  // `selectTab` is the ONE transition (V2-626) and the card already exposes it, so this drives the same
+  // rail his click drives rather than a second way to navigate.
+  const _goto = data.goto_tab;
+  if(_goto && _goto.seq && _goto.seq !== _gotoSeq){
+    _gotoSeq = _goto.seq;                       // consumed — a re-render must not fight his hands
+    if(_TABS.indexOf(_goto.tab) >= 0 && root._hbYtSelectTab) root._hbYtSelectTab(_goto.tab);
   }
 }

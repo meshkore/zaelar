@@ -15,6 +15,10 @@ from . import account, library
 
 WID = "youtube"
 
+#: The card's own faces (V2-632). Mirrored in `widget.js` as `_TABS`; a test pins the two lists
+#: equal, because a tab that exists on one side only is an order that silently does nothing.
+_TABS = ("inicio", "player", "cola", "subs", "listas")
+
 # Seed: BLANK player by default (no video) until the operator requests one.
 _SEED = {
     "videoId": "",
@@ -658,6 +662,30 @@ def apply_action(action: str, payload: dict = None) -> dict:
             positions.append(len(lst))
         store.save(WID, db)
         return {"ok": True, "added": added, "positions": positions, "count": len(lst)}
+
+    if action == "show_tab":
+        # V2-742 — THE CARD HAD FIVE FACES AND THE VOICE COULD REACH NONE OF THEM.
+        #
+        # Measured live (session 891f2091, 2026-09-21). He said «vuelve al catálogo» four times, in
+        # four different wordings. The model picked the nearest-sounding declared action each time:
+        # `clear_search` twice — whose own desc is «quita la banda de resultados del inicio», i.e.
+        # it DESTROYS the list he was asking to go back to — then `show_history`, then nothing at
+        # all while the reply said «Te llevo al inicio de la lista». It never routed badly: there
+        # was no action that meant what he said, and the closest one did the opposite.
+        #
+        # `selectTab` has been the card's one navigation surface since V2-632 and nothing outside
+        # the card could call it. So this declares what already exists rather than building a
+        # second way to navigate — the tab list is the widget's own, and an unknown one is refused
+        # instead of guessed, because a silent no-op is how «it says it will and it doesn't» starts.
+        tab = str((p or {}).get("tab") or "").strip().lower()
+        if tab not in _TABS:
+            return {"ok": False, "error": "unknown_tab", "tab": tab, "tabs": list(_TABS)}
+        # A SEQUENCE, not a flag: he can ask for the same face twice in a row («no, al inicio» after
+        # the card already believes it is there), and a flag the card has consumed cannot fire again.
+        prev = db.get("goto_tab") if isinstance(db.get("goto_tab"), dict) else {}
+        db["goto_tab"] = {"tab": tab, "seq": int(prev.get("seq") or 0) + 1}
+        store.save(WID, db)
+        return {"ok": True, "tab": tab}
 
     if action == "clear_search":
         db["search_results"], db["search_query"], db["searched_at"] = [], "", 0

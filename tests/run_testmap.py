@@ -3005,6 +3005,13 @@ DOMAINS: list[dict] = [
         # Lo que NADIE medía era el resto de la cadena en el cliente: el `deliver` de attention_hold está probado
         # con un doble, y de ahí a la burbuja pintada hay cuatro costuras más (pushChat → señal → efecto →
         # replaceChildren) que fallan todas en silencio. Renderiza la página REAL y lee el DOM.
+        # V2-742 — el reproductor tiene CINCO caras y la voz no podía llegar a ninguna: «vuelve al
+        # catálogo» disparó `clear_search`, cuya propia descripción dice que BORRA la banda de
+        # resultados a la que quería volver. No enrutó mal; la acción no existía.
+        {"id": "4.198", "title": "La voz alcanza las CINCO caras del reproductor — «vuelve al catálogo» "
+                                 "deja de borrar el catálogo, y la orden gana al salto automático",
+            "ch": UNIT,
+            "paths": ["tests/browser/unit/youtube/test_the_voice_can_reach_the_cards_own_faces.py"]},
         {"id": "4.197", "title": "Un turno DIRIGIDO llega a la pared pintada — y el de la habitación no (la cadena "
                                  "entera del cliente, no el doble de `deliver`)",
             "ch": UNIT, "paths": ["tests/browser/e2e/chat/test_a_directed_turn_reaches_the_painted_wall.py"]},
