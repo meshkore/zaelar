@@ -1,4 +1,17 @@
-# The task — one durable record of a commission
+# The JOB — one durable record of a commission
+
+> ⚠️ **Vocabulary, fixed by the operator on 2026-09-21 (V2-744).** What this document describes is the
+> work the AGENT does, and its name is a **proceso** in Spanish and a **job** in English — never a
+> «tarea». A TASK is now the operator's own: a line in one of the numbered lists inside his agenda widget
+> (`zaelar-agenda-task-lists.md`). The two were called the same thing until that day, and the cost was not
+> cosmetic — the ChatWall tab's id was literally `tareas`, so «ábreme las tareas», routed correctly by
+> every layer, opened the agent's job list instead of his shopping list.
+>
+> The CODE still says `tasks` throughout (`nucleo/tasks.py`, the `tasks` table, `/api/tasks`): renaming a
+> schema and its API to follow a label is churn with a migration attached, and the rule the operator set
+> is about what he READS. This file was `zaelar-user-tasks.md` until that day, which was the one name
+> that got it exactly backwards.
+
 
 **Modules:** `nucleo/tasks.py` (the decisions) · `memory/tasks_store.py` (the storage) ·
 `nucleo/flash/task_recall.py` (finding one again) · `widgets/results/rehydrate.py` (putting it back)

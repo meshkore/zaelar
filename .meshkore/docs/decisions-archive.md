@@ -8976,3 +8976,118 @@ entries out, their one-line index left in `decisions.md`; nothing edited on the 
 - **Trimming the tool catalog per turn costs 35% MORE than sending all of it (V2-726 F0, 2026-09-20)**: `tool_selection` was built on an operator request — «when someone says hello we are not going to send them every widget, every tool» — and its saving was counted in tokens SENT. What nobody had counted was the PREFIX CACHE. The fast lane is DeepSeek direct, which caches system → tools → messages, so a catalog that changes shape every turn invalidates itself **and everything after it**. Measured over one 12-turn conversation run six times (72 real calls, `scratchpad/bench_f0_tool_cache.py`): the per-turn trim leaves **1.566 uncached tokens per turn against 114** for the whole catalog — fourteen times the misses to send four thousand fewer tokens — for an effective input cost of **2686 vs 1744, −35 %**. **TTFT is indistinguishable** (51 % of pairs; the medians 1614 vs 1473 ms look like a difference and are not), so this is a cost decision, not a latency one. The default is now OFF; `ZAELAR_TOOL_SELECTION=1` restores the trim so the sign can be re-measured on another provider or a catalog big enough to flip it. Three consequences. (1) The `need_capability` extra trips the escape hatch exists to make measurable **stop happening**, and a capability can no longer be silently withheld — nothing is removed. (2) The Jev route pre-choice (born dead, V2-726 §3.1) **is not worth repairing**: the question it answered was «what may I trim», and the answer is «nothing»; its `xfail(strict)` at node 3.63 stays as the record. (3) Building the prompt exposed a SECOND cache break the logs could not separate: the system message is 31.792 chars and only its first **14.164 (44 %)** are stable between turns — the tail is the widget resource layer, which V2-085 reorders whenever the operator NAMES a widget, invalidating the rest of the system message and all 24 KB of tools behind it. Measured as 7 turns of 22 below 90 % cache against 1 of 22 with the layer held still; smaller than the tool effect and **left open**. The rule this leaves: **on a cached prefix, what you remove to save tokens you pay for in misses — measure the cache before trimming anything that sits early in the request.**
 
 - **A fix whose only changed file is the one no test executes ships green (review of the voice-session-fixes batch, 2026-09-20)**: the operator asked for the whole batch to be re-read against the code as it now stands rather than against its diffs. Nine of the ten fixes hold up — `stop_remainder`, the unanswered-speech streak, the ghost-worker guard, the one-shot notes, the results clipping and the unread dot were each re-run live and do what they claim. The exception is the one that already cost an incident, and its lesson is the general one. `adb76984` pasted `if(!background) this._bringFront(w.card)` into FOUR branches of `desktop.js`: the fresh branch of `show()`, where `w` is undefined, plus `_renderAliases`, `createWidget`'s error path and `maximize`, where `background` is not a name at all — a TypeError on every new card and a ReferenceError on three everyday gestures. **No widget could be opened**, and it shipped GREEN, because its test mounts the real `sse.js` over a STUB host and greps the source: the one file the fix changed was the one file nothing ran. `21496dc8`/`db498677` repaired it and pinned the shape; what was still missing was execution, so node 4.149 now carries `test_the_canvas_opens_cards_for_real.py` — the real `Desktop` in chromium, driven through open / open-in-background / re-open / maximize / minimize / the ⚙ panel, with `pageerror` as the assertion. Disarmed against the three original hunks: three reds. Four more defects were found by reading and are fixed here. (1) `_THREAD_POS_RE` spelled the Spanish plural as `anteriores?`, which is `anteriore` + optional `s` and can never match the SINGULAR — «el mensaje anterior» walked straight through the guard while «mensajes anteriores» was caught. (2) The probe half of the same fix skipped the compose on ANY empty recall instead of only a thread position, so on «¿qué talla uso?» with nothing remembered the model's pre-memory improvisation stood in place of the honest «no tengo ese dato» — two channels, one fact, two answers; it is now gated on the same classifier the voice half uses. Its test could not have caught that: it asserted by RAISING inside `collect`, and `recall_answer` ends in a bare `except Exception` that swallows an AssertionError into the very `""` being asserted — it passed with the gate, without it, and with the function deleted. (3) The torrent widget's `payload.get("keep", True)` returns `None` for a model that emits the key as null, and `bool(None)` is the refusing behaviour the fix had just removed. (4) The mobile mic glow was keyed on `.zm-ic.on`, which is also the chat and dashboards buttons. **The rule this pass leaves**: a fix to a file is not covered by a test that never loads that file, however green it is and however much of its source it quotes.
+
+## Moved on 2026-09-21 (V2-744)
+
+Paid by the V2-744 pass: the diary crossed its 400 000-byte ceiling the moment that entry went in,
+and the ceiling is only ever paid by moving the OLDEST full entries here, verbatim, leaving their
+one-line index behind in the live log. Nothing below was edited or summarized on the way out.
+
+- **A redundant media label, and a thread/mail screen stops stacking the dashboard header above its own
+  (V2-622, 2026-09-08)**: two operator reports in the same message. (1) A voice-note bubble printed "🎵
+  Audio" as a text line right above its own player — *"no hace falta poner 'audio', ya se ve no?"* (2) On a
+  hard page refresh with a thread open, the FULL dashboard header (inbox count, every platform dot,
+  connectors/settings/clear) rendered stacked above the thread's own header — *"ojo a como veo el widget al
+  refrescar page."*
+  - **`isBareMediaLabel(body)`** (new): a message whose body is empty or the literal `[<type> received]`
+    placeholder carries no REAL caption — only what `displayBody()` invented to have something to print. The
+    three call sites that render BOTH a text line and a `mediaBlock()` for the same item (`richList`,
+    `messageRow`, `mailDetail`) now skip the text line once the real media block renders and the body is
+    bare. A genuine caption typed alongside media is untouched — the placeholder regex requires the ENTIRE
+    body to match, so a real sentence never gets swallowed.
+  - **An open thread/mail is its own screen now, checked BEFORE the dashboard header is even built** — not
+    after, with an early return. Both screens already carry a full header of their own (platform chip +
+    contact/subject + "← Volver", since V2-620); the dashboard header sitting above it was never actually
+    reachable from inside a thread (only `ctx.action("close")` clears `active_chat`, and none of the header's
+    controls call it), so it was dead chrome, not a second control surface. Same precedence order as before
+    (`showChannels` > `activeChat` > `openMail` > the list shapes) — only WHERE the check runs moved.
+  - **Deliberately left alone**: the connectors/wizard screen has the identical stacking (its own
+    `.chanhead` under the dashboard `hd`) but was not what was reported, and touching it risks the
+    already-tested V2-561 wizard flow for no reported gain.
+  - Node **4.132** (1 file, 2 new + 1 rewritten case). Two disarms verified red (the label-suppression guard,
+    the early-return header-skip). `make test-widgets` stays green 14/14; full sweep
+    `tests/browser/{unit,e2e}/mensajeria/`: 162 passed.
+  - **Not yet verified live** — needs an engine restart, plus a reload for any already-open tab.
+
+- **The system bar rotates to the BOTTOM, the orb swaps into its centre, and 🧠 moves upstairs (V2-623,
+  2026-09-08)**: the operator's redesign — «move the left bar to bottom. orbe goes to center, left and right
+  side contains the open widgets and the other icons»; «quita el icono de la memoria del orbe. ponlo arriba
+  a la derecha»; and the follow-up that settled ⏻: «no sé si poner el icono de arrancar y parar en el centro
+  del orbe» → YES, the orb IS the switch in bar mode — V2-124's mobile-dock pattern, now shared by both
+  shells. `#wrail` = horizontal bottom band (`--wrail-h` replaces `--wrail-w`): chips left · orb centre ·
+  tools right, version badge at the bar's left end, feedback launcher floated above it, the eye orb's
+  resting place raised over the band. `store.orbDock` (persisted) + Orb.js's `applyOrbDock` REPARENT the one
+  `#orb` canvas into the bar's slot and move the lid controls by `data-ctl` handles — mic·spk·cap | orb |
+  chat·bot·swap, 3|3, buttons MOVED never rebuilt so handlers travel; "eye" re-appends all seven in
+  canonical order (⏻ keeps the apex). The slot is a BUTTON whose ⏻ face and canvas alternate by VISIBILITY
+  (the 4.19 lesson) and whose click forwards to the real `[data-ctl="pwr"]` — one owner of the power logic.
+  Desktop: `railBand()` reserves the BOTTOM in `canvas()`, `minX()` is a 0 shim; V2-619's outside-the-rail
+  grip offset retired WITH its trigger (the east grip returns to the wall's edge). `#activity` and the flash
+  label survive bar mode on purpose — a transient notice must not die with the eye. Node **4.133** (7
+  rendered cases), five disarms asserted and red (the bottom-band one caught by the mural's maximize check);
+  the mural's five left-rail checks and V2-619's grip test rewritten to the new geometry; 130 widget-e2e +
+  mural + infrastructure green. ⚠️ This batch first took the number V2-622 and the CONCURRENT session
+  claimed it mid-build — renumbered at closure, and the blind rename clobbered ONE foreign citation in the
+  testmap before being caught: reserve the number by creating the file when you TAKE it, and rename by hand.
+  **Fix 2026-09-09**: the first `applyOrbDock` runs before the orb is mounted, `byCtl` queried only
+  `document`, and `Element.append(null)` doesn't throw — it prints the LITERAL text "null" (seven of them
+  beside the orb, found via an operator screenshot after two suites had passed). `byCtl` now falls back to
+  the detached `wrapEl` and every lid move goes through a null-filtering `ctls()`; the swap test measures
+  stray text in all four states (its 8th case), red before the fix.
+  Open, named: captions hidden in bar mode; the slot's forwarding asserted structurally, not by a live
+  power cycle.
+
+- **The chat header names its tab, wide tabs keep their icons, and the ⧉ toggles BOTH ways (V2-621,
+  2026-09-08)**: the operator's follow-up on V2-619's icon tabs — «nombre tab (fix min width) | 5 icons |
+  2 icons at right», the same header in the floating box (whose lone × offered no way to BECOME a column),
+  and «si se amplían los anchos se ve el icon y la desc al lado». Header now: `.cw-tabname` (the active
+  tab's name, reactive, FIXED min-width so the icon strip holds still, hidden whenever the wall is not
+  `cw-narrow`) | five icon tabs (wide mode keeps the icon BESIDE the label — the old `svg{display:none}`
+  deleted, threshold 580→660 to pay for the ~24px each icon adds) | the ⧉ **mode toggle, visible in both
+  shapes**: docked → float (unchanged), floating → `applyDock` on the last dock side; its face (⧉/◫ +
+  title) is reactive through an `isDocked` SIGNAL written only by `setReserve` — `dockSide` is a plain
+  variable a reactive binding would read exactly once, the V2-608 lesson applied instead of re-paid. New
+  `chat.dock` key both bundles. Chat-wall suite grew to 17 (standing-name shown/retired, wide icon+label,
+  box shows both buttons and the ⧉ docks it back); three disarms, mutations asserted, all red; version-bar,
+  canvas-refit and the mural green after.
+
+- **A screen change resets the scroller, "Volver" becomes a real button, each platform gets its own color,
+  and a voice note can actually be dragged (V2-620, 2026-09-08)**: the operator's follow-up screenshot on
+  V2-618 — opening a WhatsApp thread while the chat list behind it sat scrolled down left the thread's own
+  "← Volver · contact" header rendered past the visible viewport on first paint (*"se ha metido como por
+  debajo el header del otro"*), plus three redesign asks in the same message.
+  - **The bug: `ctx.top()` existed and was never called, on ANY of this widget's screen swaps.** Its own
+    comment already says "opening a record, changing tabs, returning to the list" — a chat list left
+    scrolled down handed the fresh thread's shorter subtree a stale `scrollTop`, so its own header rendered
+    scrolled past the viewport. His own scroll gesture only "fixed" it by forcing a reflow that happened to
+    reveal it. Added to every real transition (open/close thread, open/close mail detail, the connectors
+    toggle, a platform-lens click, a wizard open/step, the dashboard title) — verified against a SPY `ctx.top`
+    in a rendered test, not a source read.
+  - **"Volver" moves to the far right as a real bordered chip**, never a bare underlined link — the SAME
+    visual language `.chanhead`'s own back link already used elsewhere in this widget, applied consistently
+    instead of two languages for one affordance.
+  - **Each platform keeps its own color now.** `PLAT.telegram.bg` and `PLAT.email.bg` both silently shared
+    the SAME generic accent blue as everything else — indistinguishable at a glance, exactly what he
+    noticed. Real hex for each (Telegram `#2AABEE`, email `#D8452D`, WhatsApp kept its `#16B8A6`) fixed the
+    header dots and every chip avatar for free (`PLAT.bg` was already their one source), and a new
+    `.thread.plat-<id>` class extends it to the outgoing bubble, the compose send button and its textarea's
+    focus border. Literal hex, not a shared global theme var — deliberately never touching
+    `frontend/app/core/palette.css`, mid-redesign in the same shared tree, uncommitted, the same day.
+  - **The audio player actually scrubs now.** Native `<audio controls>` replaced by a custom play button +
+    fixed-count (28) bar waveform + time label, still driven by the same hidden `<audio>` element.
+    **The bars are decorative, not real amplitude — said plainly**: a real waveform needs the file's raw
+    samples via `decodeAudioData`, which needs `fetch()`/`XMLHttpRequest` — both BANNED sinks in `widget.js`
+    on purpose (the "no network from the client" boundary V2-557 drew, checked before writing a line). The
+    `<audio>` element loads its own `src` through the browser's OWN media pipeline — the one legitimate way
+    media reaches this widget. **Fixed width regardless of duration is structural, not tuned**: the bar
+    COUNT is fixed, never derived from length, so a 1-minute and a 2-hour clip both render the same total
+    width — his exact worry ("un audio de dos horas no va a caber el ancho") cannot happen by construction.
+  - ⚠️ **A real defect, found only by driving actual playback**: the first test version mocked the asset
+    route as a flat body-echo with no `Range`/`206` support — Chromium reported the clip's `seekable` as
+    `[[0,0]]` FOREVER, even fully downloaded, and silently discarded every `currentTime =` assignment. The
+    REAL route (`widgets/server_api.py`, Starlette's `FileResponse`) answers `Range:` with `206` on its own —
+    the fix was in the TEST (a Range-aware mock matching what `FileResponse` actually does), not the product.
+  - Node **4.131** (2 new files + 1 updated), three disarms verified red. Full sweep of
+    `tests/browser/{unit,e2e}/mensajeria/`: 161 passed.
+  - **Deliberately not done**: a true amplitude-accurate waveform (needs server-side peak extraction at
+    ingest time — its own, larger initiative); per-platform theming anywhere outside the open thread itself.

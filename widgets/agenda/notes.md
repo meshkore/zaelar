@@ -297,3 +297,23 @@ que aún no ha terminado, nunca una de día entero; y la mitad de mover usa la m
 tres desarmes rojos; el tercero costó un caso más porque un mundo con una sola cita no distingue «la
 nombrada» de «la del fallback». Nota, no arreglo: `confirm_q` no lo lee ningún módulo — la pregunta que él
 oye sale de `desc` (`_human_confirm_question`); queda como documentación en los manifests.
+
+## Session 2026-09-21: the card holds TWO sections — the calendar and his TASK LISTS (V2-744)
+
+- A selector at the very top splits **Agenda | Tareas**. The tasks half is the operator's own: a built-in
+  «General» list plus any he creates, each numbered, with its progress and a readable identifier
+  (`tl_la_compra`) he can hand to another agent over the cluster.
+- **One array, not two**: a list item and a planner task share `db["tasks"]` and carry a `listId`. Schema
+  v1 → v2, migrated lazily AND defensively on every read of the lists (a task with no `listId` would have
+  been invisible in a section built around them).
+- **The planner now places only what says how long it takes** (`tasklists.plannable`). It used to invent
+  `estimateMinutes: 30`, which with a shopping list in the same array would have filled his working day
+  with «Pan» and «Leche».
+- **The number is the screen position**, derived on every read; `tasklists.digest()` builds the brain's
+  view from the same function the render reads, so «la 2 de la compra» means one row and not two.
+- New module `tasklists.py` owns every task verb (`data.py` delegates in one branch); `when.py` is the
+  spoken-date resolver EXTRACTED byte for byte to pay the 900-line ceiling (899 → 820) instead of raising
+  it. Every historical name is re-exported, so `invite.py`, `sweep.py` and the tests are untouched.
+- Manifest 0.2.0 → 0.3.0: nine actions for the section, `done`/`drop` re-described, `whenToUse` rewritten
+  to 267 chars so it reaches the model whole.
+- Module doc: `.meshkore/docs/modules/zaelar-agenda-task-lists.md`. Nodes 4.200 · 4.201 · 8.10.

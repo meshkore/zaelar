@@ -22,6 +22,9 @@ import pytest
 pytest.importorskip("playwright.sync_api")
 from playwright.sync_api import sync_playwright
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[4]))   # the engine root, so `tests.` resolves
+from tests.waiting import until_sync  # noqa: E402
+
 _ENGINE = pathlib.Path(__file__).resolve().parents[4]
 
 
@@ -79,12 +82,19 @@ def _page():
     port = _free_port()
     srv = subprocess.Popen([sys.executable, "-m", "http.server", str(port), "--bind", "127.0.0.1"],
                            cwd=_ENGINE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    for _ in range(50):
+
+    def _listening():
         try:
             socket.create_connection(("127.0.0.1", port), 0.2).close()
-            break
+            return True
         except OSError:
-            time.sleep(0.1)
+            return False
+
+    # Against a CLOCK, not an iteration count: `range(50)` reads as five seconds and is not — the budget
+    # counts attempts and each one can block for its own 0.2 s, so the wall time is unbounded exactly when
+    # the server never comes up. `tests/waiting.py` exists for this, and its own ratchet counts the ones
+    # still written the old way (the neighbouring agenda fixtures are on that list).
+    until_sync(_listening, f"the static server on 127.0.0.1:{port} to accept a connection", timeout_s=15)
     try:
         with sync_playwright() as pw:
             browser = pw.chromium.launch()
