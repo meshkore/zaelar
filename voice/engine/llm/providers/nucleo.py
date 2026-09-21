@@ -3049,8 +3049,8 @@ class NucleoLLMStream(llm.LLMStream):
         # además pasa por el confirm-gate, que es la conducta que estos casos puntúan BIEN. Apuntarla en la
         # agenda no la ejecuta y deja al operador creyendo que sí.
         # `danger.is_dangerous` es el MISMO clasificador que decide el gate, así que backstop y puerta no pueden
-        # discrepar; y ya recorta los recados («recuérdame pagar…» NO es una orden de pagar).
-        if (escalate_req["v"] is None and not worker_acted["v"] and not confirm_state.get("opened")):
+        # discrepar; y ya recorta los recados («recuérdame pagar…» NO es una orden de pagar). …AND `data_done` IS WHY IT NO LONGER OVERRULES THE SCREEN (V2-748, session 48e85cd5): the turn escalated on the word «comprar» — inside the TITLE of the row it was writing — had ALREADY dispatched `agenda:add_task`, arbiter and all. A data-op is not the open world; it went through `widgets/server_api._dispatch`, the V2-705 contract and `store.save`'s snapshot. The gate is for what has NO funnel, which `danger.py` says next to `_DESTROY_OBJECT_RE` and nothing enforced until now; and unlike the pattern half of this repair, this half does not depend on any pattern being right.
+        if escalate_req["v"] is None and not worker_acted["v"] and not confirm_state.get("opened") and not data_done["v"]:
             try:
                 from nucleo import danger as _danger_bk
                 if _danger_bk.is_dangerous(_op_text):

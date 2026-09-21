@@ -287,11 +287,18 @@
     },
     "delete_task": {
       "positional": true,
-      "desc": "BORRA una tarea de su lista para siempre («quita el pan de la compra», «borra el ítem 2»). No es marcarla hecha: para eso está done",
+      "desc": "BORRA una tarea de su lista («quita el pan de la compra», «borra el ítem 2»). Se hace SIN preguntar y al momento; queda en la papelera, así que un error se arregla con restore. No es marcarla hecha: para eso está done",
       "ref": "task",
       "payload": {
         "task": "su número en la lista («2») o su nombre",
         "list": "en qué lista está (número o nombre); sin él, la que está abierta"
+      },
+      "confirm": false
+    },
+    "restore": {
+      "desc": "DEVUELVE lo último que se borró de las tareas («restáuralo», «deshaz eso», «vuelve a ponerme la lista de la compra»). Sin argumentos deshace el último borrado; con `what` el más reciente que se llame así. Devuelve la fila tal cual estaba, con su mismo número",
+      "payload": {
+        "what": "(opcional) nombre de la tarea o de la lista que quiere de vuelta; sin él, lo último borrado"
       },
       "confirm": false
     },

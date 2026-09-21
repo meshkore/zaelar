@@ -246,6 +246,61 @@ def _drop_amount_questions(order: str) -> str:
     return _AMOUNT_QUESTION_RE.sub(" ", order)
 
 
+# ── WHAT SITS INSIDE AN AGENDA ROW IS ITS TITLE, NOT AN ORDER (V2-748) ─────────────────────────────────────
+# Measured live, session 48e85cd5 (2026-09-21). Two turns, both of them plain agenda work:
+#
+#   «Y ahora anade una nueva tarea, que sea comprar el pan.»   -> is_dangerous True  (bare «comprar»)
+#   «Borra la tarea. Cuatro de compra del pan.»                -> is_dangerous True  (bare «compra»)
+#
+# Neither orders a purchase. The first writes a ROW whose title happens to say «comprar el pan»; the second
+# names that same row in order to delete it. Both escalated to a Brain Worker and both were read back to him
+# as «Esto mueve dinero (...) y no hago ningun cargo sin tu OK» — a question about a charge nobody proposed,
+# asked over writing a line on his own list. And because `moves_money` runs the SAME subtraction chain,
+# `errand_kind` then sent the errand through `router_guards.money_work_needs_a_browser` to a kind="web"
+# worker: his «si» opened the BROWSER card, titled «Comprar el pan», and started searching the web for
+# bread. One misread clause, and the distance between what he asked and what happened is a whole widget.
+#
+# The repair is this module's own technique and it is a SUBTRACTION, never a new detection: strip the clause,
+# THEN look for the verb. `_REMINDER_RE` already does it so «recuerdame pagar...» is not an order to pay,
+# `_AMOUNT_QUESTION_RE` so «cuanto hay que pagar?» is not either, `_PAST_ACT_RE` so an accusation is not.
+# This is the fourth case and the same shape: an agenda write NAMES its row, and a row's title is data.
+#
+# It stops at the next `. ! ? ;` — and also at a bare `y` / `e` / `and`, which the reminder clip does not do.
+# That is deliberate and it is the whole safety of the drop: «pon la lista de la compra y paga la factura»
+# keeps its payment, while «anade una tarea que sea comprar pan y leche» loses only « leche», which carries
+# nothing. A clause that costs money is never inside the half that gets removed.
+#
+# The object list is CLOSED and every entry names a row of something WE own, with a funnel underneath it:
+# every widget mutation goes through `widgets/server_api._dispatch`, the V2-705 contract refuses a
+# destructive action with an empty selector, `store.save` snapshots what it overwrites, and since V2-748 the
+# agenda keeps a trash the voice can undo. That is a rail on CONSEQUENCE. This gate is for the open world.
+# «cuenta», «suscripcion», «repositorio» are NOT in the list, so «borra mi cuenta» still stops.
+_AGENDA_WRITE_VERB = (r"anade|anademe|anadele|agrega|agregame|apunta|apuntame|pon|ponme|ponle|crea|creame|"
+                      r"mete|meteme|borra|borrame|elimina|eliminame|quita|quitame|tacha|marca|desmarca|"
+                      r"cambia|modifica|renombra|mueve|muevela|muevelo|vacia|vaciame|"
+                      r"add|create|put|delete|remove|rename|move|mark|unmark|clear|empty|cross\s+off|"
+                      r"tick|check\s+off")
+_AGENDA_NOUN = (r"tarea|tareas|lista|listas|item|items|entrada|entradas|linea|lineas|punto|puntos|"
+                r"recordatorio|recordatorios|aviso|avisos|nota|notas|evento|eventos|cita|citas|"
+                r"reunion|reuniones|"
+                r"task|tasks|list|lists|entry|entries|reminder|reminders|note|notes|"
+                r"event|events|meeting|meetings|appointment|appointments|to-?do|to-?dos|todos")
+_AGENDA_ITEM_RE = re.compile(
+    rf"\b(?:{_AGENDA_WRITE_VERB})\b[^.!?;]{{0,20}}?\b(?:{_AGENDA_NOUN})\b"
+    rf"(?:(?!\s+(?:y|e|and)\s)[^.!?;])*", re.I)
+
+# And «compra» AFTER «de» is the NOUN — the shopping — never the imperative. «la tarea cuatro DE COMPRA del
+# pan», «la lista DE LA COMPRA»: the form `_DANGER_RE` is actually for is the bare imperative, «compra el
+# pan». Narrow to the two measured shapes on purpose: «confirma la compra» and «finalizar compra» are
+# checkout and keep stopping, which a broader «any determiner» version would have disarmed.
+_SHOPPING_NOUN_RE = re.compile(r"\bde\s+(?:la\s+)?compras?\b", re.I)
+
+
+def _drop_agenda_items(order: str) -> str:
+    """Remove what an agenda write NAMES — its row — before any verb is looked for."""
+    return _SHOPPING_NOUN_RE.sub(" ", _AGENDA_ITEM_RE.sub(" ", order))
+
+
 def _drop_lookup_adjuncts(order: str) -> str:
     """Inside a LOOKUP, a phrase that names buying describes what is being looked for. Gated on the head, so
     «ve a la tienda para comprar leche» keeps its order."""
@@ -284,7 +339,8 @@ def is_dangerous(text: str) -> bool:
     # «resérvame» in site_catalog and «renuévame» in this very file: the form the operator SAYS is exactly
     # the one an unnormalised pattern cannot see.
     order = _drop_past_acts(
-        _drop_amount_questions(_drop_lookup_adjuncts(_REMINDER_RE.sub(" ", _strip_accents(_order_text(text))))))
+        _drop_agenda_items(_drop_amount_questions(_drop_lookup_adjuncts(
+            _REMINDER_RE.sub(" ", _strip_accents(_order_text(text)))))))
     return bool(_DANGER_RE.search(order) or _DANGER_CLITIC_RE.search(order)
                 or _DANGER_ASK_CLITIC_RE.search(order) or _DANGER_PROCLITIC_RE.search(order)
                 or _COMMITMENT_RE.search(order) or _DESTROY_OBJECT_RE.search(order)
@@ -379,7 +435,8 @@ def moves_money(text: str) -> bool:
     # Accents off BEFORE the note is clipped — the same order as `is_dangerous`, and for the same reason:
     # `_REMINDER_RE` is written without accents and «recuérdame» is the form that gets spoken.
     order = _drop_past_acts(
-        _drop_amount_questions(_drop_lookup_adjuncts(_REMINDER_RE.sub(" ", _strip_accents(_order_text(text))))))
+        _drop_agenda_items(_drop_amount_questions(_drop_lookup_adjuncts(
+            _REMINDER_RE.sub(" ", _strip_accents(_order_text(text)))))))
     if _MONEY_RE.search(order):
         return True
     # Same gap as in `is_dangerous` (V2-141): «¿puedes pagarLA?» carries no bare form of the verb. Without

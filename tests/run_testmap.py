@@ -584,6 +584,17 @@ DOMAINS: list[dict] = [
             # vacía para siempre. Un confirmado es una CONTINUACIÓN, como el relevo de proveedor.
             "tests/agent_headless/unit/test_a_confirmed_errand_keeps_its_sheet.py", "tests/agent_headless/unit/test_escalate_hygiene.py",
             "tests/agent_headless/unit/flash/test_frontend.py", "tests/agent_headless/unit/flash/test_memory_cache.py"]},
+        # V2-748 — la sesión 48e85cd5: «añade una nueva tarea, que sea comprar el pan» y «borra la tarea
+        # cuatro de compra del pan». El gate de irreversibles leyó el TÍTULO de la fila como la orden, así
+        # que dos escrituras de agenda se aparcaron pidiéndole un OK para un cargo que nadie proponía; y
+        # como `moves_money` corre la misma cadena de restas, su «sí» abrió el NAVEGADOR a buscar pan en
+        # internet. El backstop de la voz, además, disparó con la data-op YA despachada. Más ancho que el
+        # incidente: TODA frase sobre «la compra» —la lista de la compra, el ejemplo del propio widget—
+        # era un encargo de dinero para un navegador.
+        {"id": "2.67", "title": "Ninguna de las 30 órdenes de la agenda es una compra: ni irreversible, ni "
+                                "dinero, ni trabajo de navegador — y el backstop no desmiente a la pantalla",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/test_a_row_of_his_own_list_is_not_a_purchase.py"]},
         {"id": "2.7", "title": "Susurro (auto-reparación)", "ch": UNIT, "paths": [
             "tests/agent_headless/unit/susurro/test_susurro.py",
             "tests/agent_headless/unit/susurro/test_phantom_dataop.py",
@@ -3056,6 +3067,14 @@ DOMAINS: list[dict] = [
                                  "para — con el mensaje que está leyendo marcado, y su red si no hay canal",
             "ch": UNIT,
             "paths": ["tests/browser/unit/chat/test_the_wall_says_it_while_it_is_being_said.py"]},
+        # V2-748 — su regla del 2026-09-21: «la agenda va directa. Cuando digo borrar esto, lo borras sin
+        # preguntar (…) otra cosa es que guardes un rastro de lo que había, por si me he equivocado, y te
+        # digo restáuralo». Las dos mitades: el borrado no pregunta, y la papelera devuelve la fila en su
+        # MISMO hueco — el número es la forma entera en que él se dirige a una tarea.
+        {"id": "4.206", "title": "Borrar una tarea no pregunta, y «restáuralo» la devuelve a su hueco — la "
+                                 "lista entera y su lista contenedora incluidas",
+            "ch": UNIT,
+            "paths": ["tests/browser/unit/agenda/test_a_deleted_task_comes_back_when_he_says_so.py"]},
         {"id": "4.203", "title": "La mitad de TAREAS son dos paneles delimitados con una tabla dentro — y el ＋ "
                                  "de «nueva lista» no puede irse de la pantalla con 100 listas",
             "ch": UNIT,
