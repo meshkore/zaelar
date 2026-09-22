@@ -58,11 +58,29 @@
 // arriving half-reclaimed.
 export const PREROLL_S = 10;
 
-// A spot is only believed from a FINAL local result. An interim one is revised
-// as the sentence grows, and a name heard in a fragment that the recogniser
-// then rewrites would open the tap on a word that was never said.
+// ⚠️ THE SPOT LIVES ON THE INTERIM STREAM, AND THAT IS NOT A DETAIL.
+// The first build only believed a FINAL result — the safe choice against a
+// fragment the recogniser later rewrites. But Chrome only finalises when you
+// STOP TALKING. Measured 2026-09-22 (session 5789bad4): the operator kept
+// speaking, and his five «Johnny»s arrived as ONE final **33.5 s after the
+// session started**. His words: «he estado diciendo la palabra Johnny mucho
+// tiempo y la primera vez le ha costado mucho… si dicen Johnny cuatro veces
+// después de darle el botón de Start y no funciona se van a preocupar.» The
+// latency of a finals-only spot is not a number; it is «however long he talks».
+//
+// So the two concerns are split rather than traded. The INTERIM opens the tap
+// and the window — cheap, reversible, and a false one costs a few seconds of
+// STT, never a wrong action. The FINAL is only a BACKSTOP, for the case the
+// spot alone leaves silent: he said the name and nothing else, so the paid STT,
+// which came up mid-word, has nothing to answer.
 const _MAX_TAIL = 4;             // same bound as the server's tail: 4 entries
 const _RESTART_MS = 400;         // the recogniser stops by itself constantly (silence); this is the rearm
+// …and this is how long its absence is FORGIVEN before the tap is told. A continuous recogniser ends and
+// restarts on its own every few seconds of quiet; reporting each of those as «the ear is down» would
+// unpark and re-park the microphone on that same rhythm — audio flapping, a paid stream opening and
+// closing for nothing, and a timeline of noise that hides the one outage that matters. The cost of the
+// grace is bounded and stated: a name said inside a restart gap can be missed, once, and he says it again.
+const _GRACE_MS = 1500;
 const _FATAL = new Set(["not-allowed", "service-not-allowed", "audio-capture"]);
 
 // Lowercase, accent-free — byte-for-byte the rule `voice/attention.py::_norm`
@@ -140,21 +158,66 @@ export function takeTail(now = Date.now()) {
   return keep.join(" ").trim();
 }
 
-// One finalized local utterance. Exported so the test drives the real decision
-// rather than a transcript of it.
-export function offer(text, { now = Date.now() } = {}) {
-  const t = String(text || "").trim();
-  if (!t) return null;
-  const names = (_deps && _deps.getNames && _deps.getNames()) || [];
-  if (!spotIn(t, names)) { _push(t); return null; }
-  const spot = { text: t, before: takeTail(now) };
+let _spotted = false;    // the name already fired for the utterance being spoken RIGHT NOW
+
+function _fire(spot) {
   if (_deps && _deps.onSpot) { try { _deps.onSpot(spot); } catch (_) {} }
   return spot;
 }
 
+// A GROWING partial of the utterance he is saying right now. Fires at most once
+// per utterance: the recogniser repeats and extends its partials, and a second
+// spot would re-open a tap that is already open and re-anchor the window from
+// the middle of his sentence.
+export function offerInterim(text, { now = Date.now() } = {}) {
+  if (_spotted) return null;
+  const t = String(text || "").trim();
+  if (!t) return null;
+  const names = (_deps && _deps.getNames && _deps.getNames()) || [];
+  if (!spotIn(t, names)) return null;
+  _spotted = true;
+  // Everything he has said up to here — earlier utterances still inside the
+  // window, plus this partial, which is where the name lives. The paid STT
+  // takes over from this instant, so this is the last thing it will not hear.
+  const tail = takeTail(now);
+  return _fire({ phase: "spot", text: "", before: tail ? tail + " " + t : t });
+}
+
+// One finalized local utterance. Exported so the test drives the real decision
+// rather than a transcript of it.
+export function offer(text, { now = Date.now() } = {}) {
+  const t = String(text || "").trim();
+  const spotted = _spotted;
+  _spotted = false;                       // the utterance is over either way
+  if (!t) return null;
+  if (spotted) {
+    // The tap has been open since the interim. This is the backstop only, and
+    // the engine drops it when the paid STT already produced a turn.
+    return _fire({ phase: "final", text: t, before: "" });
+  }
+  const names = (_deps && _deps.getNames && _deps.getNames()) || [];
+  if (!spotIn(t, names)) { _push(t); return null; }
+  // The name only surfaced when the recogniser settled (a short utterance, or
+  // a partial that read as something else): the browser owns this turn whole.
+  return _fire({ phase: "final", text: t, before: takeTail(now) });
+}
+
+let _graceT = null;
+
+// Both notifiers fire on the TRANSITION only. `onArmed` drives a park and a line in the timeline, and a
+// callback that repeats its own state turns both into noise.
 function _disarm(why) {
+  clearTimeout(_graceT); _graceT = null;
+  if (!_armed) return;
   _armed = false;
   if (_deps && _deps.onArmed) { try { _deps.onArmed(false, why); } catch (_) {} }
+}
+
+function _arm() {
+  clearTimeout(_graceT); _graceT = null;
+  if (_armed) return;
+  _armed = true;
+  if (_deps && _deps.onArmed) { try { _deps.onArmed(true, "started"); } catch (_) {} }
 }
 
 export function install(deps) { _deps = deps || null; }
@@ -173,16 +236,13 @@ function _spin() {
   try { r = new SR(); } catch (_) { _dead = true; _disarm("construct-failed"); return; }
   r.lang = (_deps.getLang && _deps.getLang()) || "es-ES";
   r.continuous = true;
-  r.interimResults = false;          // only finals reach `offer` — see the note above
-  r.onstart = () => {
-    _armed = true;
-    if (_deps.onArmed) { try { _deps.onArmed(true, "started"); } catch (_) {} }
-  };
+  r.interimResults = true;           // the spot lives here — see the note above `_MAX_TAIL`
+  r.onstart = _arm;
   r.onresult = e => {
     for (let i = e.resultIndex; i < e.results.length; i++) {
       const res = e.results[i];
-      if (!res.isFinal) continue;
-      offer((res[0] && res[0].transcript) || "");
+      const text = (res[0] && res[0].transcript) || "";
+      if (res.isFinal) offer(text); else offerInterim(text);
     }
   };
   r.onerror = ev => {
@@ -202,8 +262,11 @@ function _spin() {
   };
   r.onend = () => {
     _rec = null;
-    _disarm("ended");                // unparked while it is down — a gap is cheaper than deafness
-    if (!_wantRunning || _dead) return;
+    if (!_wantRunning || _dead) { _disarm("ended"); return; }
+    // A routine end. Rearm at once and only call it an outage if the rearm does not arrive — see
+    // `_GRACE_MS`. An outage that outlives the grace unparks, because a gap is cheaper than deafness.
+    clearTimeout(_graceT);
+    _graceT = setTimeout(() => _disarm("down"), _GRACE_MS);
     clearTimeout(_restartT);
     _restartT = setTimeout(_spin, _RESTART_MS);
   };
@@ -213,6 +276,7 @@ function _spin() {
 
 export function stop() {
   _wantRunning = false;
+  _spotted = false;
   clearTimeout(_restartT); _restartT = null;
   _tail = [];
   _disarm("stopped");
@@ -222,6 +286,7 @@ export function stop() {
 // Test seam: the module holds session state, and a test that cannot clear it
 // reads the previous case's tail. Never called by the app.
 export function _reset() {
-  _rec = null; _armed = false; _dead = false; _tail = []; _deps = null;
+  _rec = null; _armed = false; _dead = false; _tail = []; _deps = null; _spotted = false;
   _wantRunning = false; clearTimeout(_restartT); _restartT = null;
+  clearTimeout(_graceT); _graceT = null;
 }

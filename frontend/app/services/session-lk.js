@@ -669,31 +669,50 @@ try {
 // up exactly as the engine behaved before this existed.
 let _wakeWired = false;
 function _armWakeEar() {
-  if (_wakeWired) return;
-  _wakeWired = true;
+  // Re-INSTALL on every start, and create the effect once. Measured 2026-09-22: session `b41925f6` was a
+  // reconnect in the same tab, `_wakeWired` was already true, and no `grifo aparcado` was ever logged —
+  // the mode silently fell back to paying for everything, and the only reason it LOOKED fine is that the
+  // paid STT was running. A feature that degrades into the old behaviour without saying so is the one
+  // shape of failure nobody reports.
   wake.install({
     getLang: () => store.lang && store.lang() ? String(store.lang()).slice(0, 2) === "es" ? "es-ES" : store.lang() : "es-ES",
     getNames: () => wake.wakeNames(store.assistantName && store.assistantName()),
     onSpot: (spot) => {
-      // Open the tap BEFORE handing the sentence over: what he says next is the conversation, and it should
-      // reach the good STT rather than this one. The engine's verdict on the injected turn re-anchors the
-      // window a moment later, which is what HOLDS it open.
-      setTapParked(false);
-      store.pulseAttentionHit(8);
+      // The SPOT (an interim) is the one that has to be instant: open the tap and light the ring before
+      // anything travels, so what he says next reaches the good STT and he can SEE that he was heard.
+      // «si dicen Johnny cuatro veces después de darle el botón de Start y no funciona se van a
+      // preocupar» — the ring is the answer to that, and it costs nothing to be early.
+      // The FINAL is a backstop the engine may well discard; it must not touch the tap, or a late packet
+      // would re-open a tap the window has already closed.
+      if (spot.phase !== "final") { setTapParked(false); store.pulseAttentionHit(8); }
       sendWake(spot);
     },
     // `armed` is NOT a signal — it flips inside the recogniser's own callbacks, which no effect is
     // subscribed to. So the arming pushes the decision instead of waiting to be read: the same function
     // the effect calls, so the two can never reach different conclusions.
-    onArmed: () => _applyPark(),
+    onArmed: (ok, why) => {
+      // The ear's own state, in the timeline. Without this line the only evidence it ever ran is whether
+      // the tap happened to park, which is exactly how the reconnect above went unnoticed.
+      try { api.clientLog(ok ? "👂 oído local armado" : "👂 oído local caído",
+                          { state: ok ? "armed" : "down", raw: String(why || "") }); } catch (_) {}
+      _applyPark();
+    },
     log: (m) => { try { api.clientLog(m, {}); } catch (_) {} },
   });
+  if (_wakeWired) { _applyEar(); return; }    // a reconnect: the effect exists, the recogniser does not
+  _wakeWired = true;
   createEffect(() => {
-    const wakeMode = _wakeMode(), live = store.agentLive(), muted = store.micMuted();
+    store.attentionMode(); store.agentLive(); store.micMuted();
     store.attentionHit();                       // read INSIDE the effect: this is what re-runs it
-    if (wakeMode && live && !muted) wake.start(); else wake.stop();
-    _applyPark();
+    _applyEar();
   });
+}
+// The ONE place that decides whether the ear runs and whether the tap is closed. Called by the effect and
+// by every `start()` — a reconnect must not depend on an effect happening to re-fire, which is exactly how
+// session `b41925f6` came up with no ear and nobody noticed.
+function _applyEar() {
+  if (_wakeMode() && store.agentLive() && !store.micMuted()) wake.start(); else wake.stop();
+  _applyPark();
 }
 function _wakeMode() { return store.attentionMode() === "smart" || store.attentionMode() === "wakeword"; }
 function _applyPark() {
@@ -871,10 +890,12 @@ export function sendText(text) {
 export function sendWake(spot) {
   if (!room || room.state !== ConnectionState.Connected) return false;
   const text = ((spot && spot.text) || "").trim();
-  if (!text) return false;
+  const before = ((spot && spot.before) || "").trim();
+  const phase = (spot && spot.phase) || "final";
+  if (!text && !before) return false;      // a spot carries `before`, a final carries `text`
   try {
     const payload = new TextEncoder().encode(JSON.stringify(
-      { t: "zaelar-wake", text, before: ((spot && spot.before) || "").trim() }));
+      { t: "zaelar-wake", phase, text, before }));
     room.localParticipant.publishData(payload, { reliable: true, topic: "zaelar-wake" });
     return true;
   } catch (_) { return false; }

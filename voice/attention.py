@@ -661,6 +661,13 @@ def note_preroll(text: str, now: float | None = None) -> None:
     _state["ambient_tail"] = ([(ts, x) for ts, x in _state["ambient_tail"] if now - ts <= 12.0] + [(now, t)])[-4:]
 
 
+def drop_preroll() -> None:
+    """Throw away the pending tail. Used by the wake backstop (V2-749b): when the browser's own final is
+    injected as the turn, its text ALREADY contains the pre-roll that was sent on the spot, and letting
+    `reclaim_ambient_tail` prepend it again would stutter the first half of his sentence back at him."""
+    _state["ambient_tail"] = []
+
+
 def unanswered_streak(now: float | None = None) -> int:
     """How many consecutive speeches went unanswered within `_UNANSWERED_WITHIN_S` — the count the cold path
     opens on. Exported so the emitter and the tests read the same fact the gate decides by."""

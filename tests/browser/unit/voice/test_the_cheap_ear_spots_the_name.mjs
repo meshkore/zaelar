@@ -24,7 +24,7 @@ import assert from "node:assert/strict";
 // about WHEN it is trusted, so the lifecycle has to be drivable.
 class FakeSR {
   constructor() { FakeSR.last = this; this.started = false; }
-  start() { this.started = true; queueMicrotask(() => this.onstart && this.onstart()); }
+  start() { this.started = true; if (FakeSR.blockStart) return; queueMicrotask(() => this.onstart && this.onstart()); }
   stop() { this.started = false; if (this.onend) this.onend(); }
   // drive: one FINAL result
   say(text) { this.onresult && this.onresult({ resultIndex: 0, results: [Object.assign([{ transcript: text }], { isFinal: true })] }); }
@@ -35,6 +35,7 @@ globalThis.window = { SpeechRecognition: FakeSR };
 
 const wake = await import("../../../../frontend/app/services/wakeword.js");
 const tick = () => new Promise(r => setTimeout(r, 0));
+const wait = ms => new Promise(r => setTimeout(r, ms));
 
 // ══ 1 · THE NAME IS WHATEVER HE RENAMED IT TO, AND «zaelar» KEEPS WORKING ════════════════════════════
 // V2-747: he renames the assistant by voice, mid-session. A spotter with the word compiled in would stop
@@ -124,14 +125,50 @@ assert.deepEqual(armedLog.at(-1), [true, "started"],
   "the arming PUSHES its own news: `armed()` is not a signal, so nothing is subscribed to it and an effect " +
   "that only polled it would park a beat late or never");
 
-// An interim result is never a spot: the recogniser revises them as the sentence grows, and a name heard
-// in a fragment it then rewrites would open the tap on a word that was never said.
+// ⚠️ THE SPOT LIVES ON THE INTERIM STREAM. Measured 2026-09-22 (session 5789bad4): a finals-only spot
+// waits for Chrome to decide the utterance ended, and Chrome decides that when he STOPS TALKING — his
+// five «Johnny»s arrived as one final 33.5 s into the session. «Si dicen Johnny cuatro veces después de
+// darle el botón de Start y no funciona se van a preocupar.»
 spots = [];
 wake.install({ getNames: () => ["johnny"], onSpot: s => spots.push(s) });
-FakeSR.last.partial("Johnny");
-assert.deepEqual(spots, [], "interim results are guesses");
-FakeSR.last.say("Johnny, abre la agenda");
-assert.equal(spots.length, 1);
+FakeSR.last.partial("entonces me estás escuchando");
+assert.deepEqual(spots, [], "no name in it — nothing travels, nothing is paid for");
+FakeSR.last.partial("entonces me estás escuchando Johnny");
+assert.equal(spots.length, 1, "the instant his name appears in a PARTIAL, before he has stopped talking");
+assert.equal(spots[0].phase, "spot");
+assert.equal(spots[0].before, "entonces me estás escuchando Johnny",
+  "…carrying everything up to the name: the paid ear was not listening for any of it");
+
+// Once per utterance. The recogniser repeats and extends its partials, and a second spot would re-anchor
+// the window from the middle of his sentence.
+FakeSR.last.partial("entonces me estás escuchando Johnny, no me oyes");
+assert.equal(spots.length, 1, "the tap is already open — saying so again moves the window backwards");
+
+// The FINAL of a spotted utterance is a BACKSTOP, not the turn: the engine discards it when the paid STT
+// already produced one. It exists for «he said the name and nothing else», where that STT came up
+// mid-word and has nothing to answer.
+FakeSR.last.say("entonces me estás escuchando Johnny, no me oyes verdad");
+assert.equal(spots.length, 2);
+assert.equal(spots[1].phase, "final");
+// NOTE ON WHAT IS *NOT* ASSERTED HERE. The backstop sends `before: ""` deliberately, but a test of that
+// value cannot bite: the spot already consumed the tail, so anything the final could read is empty
+// anyway (its disarm came back green and said so). The duplication guard that DOES bite is the engine's
+// `drop_preroll()` before it injects — asserted in `test_the_parked_tap_is_wired_to_the_ear.py`.
+assert.ok(!spots[1].before, "the pre-roll went with the spot");
+
+// …and the next utterance spots again: the flag belongs to an utterance, not to the session.
+FakeSR.last.partial("Johnny otra vez");
+assert.equal(spots.length, 3);
+assert.equal(spots[2].phase, "spot");
+
+// A short utterance whose name only surfaces when the recogniser settles: no spot fired, so the browser
+// owns the turn outright, which is the path the first build had.
+wake._reset();
+spots = [];
+wake.install({ getNames: () => ["johnny"], onSpot: s => spots.push(s) });
+wake.offer("Johnny");
+assert.equal(spots[0].phase, "final");
+assert.equal(spots[0].text, "Johnny");
 
 // A FATAL error disarms for good. Permission refused or no capture device has no recovery, and pretending
 // otherwise leaves the tap parked over an ear that is not there.
@@ -139,17 +176,51 @@ FakeSR.last.fail("not-allowed");
 assert.equal(wake.armed(), false, "denied: unpark and stay unparked");
 assert.equal(wake.start(), false, "and never try again this session");
 
-// A TRANSIENT end is not the same thing: it disarms (so the tap opens — a gap is cheaper than deafness)
-// and it rearms on its own.
+// ⚠️ A ROUTINE END IS NOT AN OUTAGE. A continuous recogniser stops and restarts by itself every few
+// seconds of quiet. Reporting each of those would unpark and re-park the microphone on that rhythm —
+// audio flapping, a paid stream opening and closing for nothing, and a timeline of noise hiding the one
+// outage that matters. So the absence is forgiven for a grace period and only then called down.
 wake._reset();
+globalThis.window = { SpeechRecognition: FakeSR };
+const armEvents = [];
+wake.install({ getNames: () => ["johnny"], onSpot: () => {}, onArmed: (ok, why) => armEvents.push([ok, why]) });
+wake.start();
+await tick();
+assert.equal(wake.armed(), true);
+assert.equal(armEvents.length, 1, "one transition, one notification");
+FakeSR.last.stop();                                   // Chrome ending a quiet stretch
+assert.equal(wake.armed(), true, "still armed through the gap — the tap must not flap on silence");
+// Long enough for the rearm to actually HAPPEN (its `onstart` fires again) and still inside the grace.
+// Waiting only a few ms would assert nothing: no restart would have run yet, and the count would be 1
+// for the wrong reason — its disarm came back green on exactly that.
+await wait(900);
+assert.equal(wake.armed(), true);
+assert.equal(armEvents.length, 1,
+  "it went down and came back with no transition either way, so neither was reported");
+
+// …and it really DID come back, rather than merely not being reported yet. Past the grace, an ear that
+// never restarted would have been called down — so surviving this wait is the proof that the rearm ran.
+// (Waiting only inside the grace proves nothing: that disarm came back green.)
+await wait(1800);
+assert.equal(wake.armed(), true, "the recogniser restarted on its own and the tap never moved");
+assert.equal(armEvents.length, 1);
+
+// ⚠️ AN OUTAGE THAT OUTLIVES THE GRACE DOES UNPARK — a gap is cheaper than deafness, and an ear that is
+// not coming back must never keep the microphone closed behind it.
+FakeSR.blockStart = true;                             // it ends, and this time nothing comes back
+FakeSR.last.stop();
+await wait(1800);
+assert.equal(wake.armed(), false, "past the grace the tap has to open: nobody is listening for the name");
+assert.deepEqual(armEvents.at(-1), [false, "down"]);
+FakeSR.blockStart = false;
+
+// stop() is final and leaves nothing behind for the next session to read.
+wake._reset();
+globalThis.window = { SpeechRecognition: FakeSR };
 wake.install({ getNames: () => ["johnny"], onSpot: () => {} });
 wake.start();
 await tick();
 assert.equal(wake.armed(), true);
-FakeSR.last.stop();
-assert.equal(wake.armed(), false, "while it is down the agent hears EVERYTHING, which is the safe side");
-
-// stop() is final and leaves nothing behind for the next session to read.
 wake.stop();
 assert.equal(wake.armed(), false);
 

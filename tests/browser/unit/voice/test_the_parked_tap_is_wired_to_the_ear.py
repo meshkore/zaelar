@@ -54,8 +54,38 @@ def test_parking_is_gated_on_the_recogniser_having_actually_started():
 
 def test_the_arming_pushes_the_decision_because_it_is_not_a_signal():
     s = _src(SESSION)
-    assert "onArmed: () => _applyPark()" in s, \
+    armed = s.split("onArmed: (ok, why) => {", 1)[1].split("\n    },", 1)[0]
+    assert "_applyPark()" in armed, \
         "`armed()` flips inside the recogniser's own callbacks; an effect alone is subscribed to nothing"
+    assert "clientLog(" in armed, \
+        "and it SAYS so: session b41925f6 came up with no ear and the only clue was a missing park"
+
+
+def test_a_reconnect_re_arms_the_ear_without_waiting_for_an_effect():
+    # Measured 2026-09-22: `b41925f6` was a reconnect in the same tab, `_wakeWired` was already true, and
+    # no `grifo aparcado` was ever logged — the mode silently fell back to paying for everything and it
+    # LOOKED fine because the paid STT was running. Degrading into the old behaviour without saying so is
+    # the one shape of failure nobody reports.
+    s = _src(SESSION)
+    assert "function _applyEar()" in s, "one place starts the ear, or a reconnect depends on luck"
+    ear = s.split("function _applyEar()", 1)[1].split("\n}", 1)[0]
+    assert "wake.start()" in ear and "wake.stop()" in ear and "_applyPark()" in ear
+    assert "if (_wakeWired) { _applyEar(); return; }" in s, \
+        "the early return of a second start() must still bring the recogniser back up"
+
+
+def test_the_spot_opens_the_tap_and_the_final_does_not():
+    # The two phases are not interchangeable. The SPOT (an interim) is what has to be instant — measured
+    # 2026-09-22: a finals-only spot waited 33.5 s because Chrome only finalises when he stops talking.
+    # The FINAL is a backstop the engine may discard, and a late one must not re-open a tap the window
+    # has already closed.
+    s = _src(SESSION)
+    body = s.split("onSpot: (spot) => {", 1)[1].split("\n    },", 1)[0]
+    assert 'spot.phase !== "final"' in body, "the phase has to be READ, or both do the same thing"
+    line = next(l for l in body.splitlines() if 'phase !== "final"' in l)
+    assert "setTapParked(false)" in line and "pulseAttentionHit" in line, \
+        "opening the tap and lighting the ring both belong to the spot"
+    assert "sendWake(spot)" in body
 
 
 def test_a_stopped_session_leaves_the_tap_open():
@@ -85,6 +115,40 @@ def test_the_engine_answers_the_wake_topic():
     block = after.split("if topic ==", 1)[0]          # up to the next topic branch, not the first `return`
     assert "note_preroll(" in block, "the words before the name are the point of the whole design"
     assert "generate_reply(" in block, "…and the turn still has to be answered"
+    assert '_phase == "spot"' in block, "the two phases mean different things — see the note above them"
+    assert "note_directed()" in block, \
+        "the spot is PERMISSION: without a window, whatever he says next is transcribed into a discard"
+
+
+def test_the_backstop_does_not_answer_a_turn_the_paid_ear_already_owns():
+    # Both can land within a few hundred ms of each other, and answering twice is worse than answering
+    # once a second later.
+    s = _src(AGENT)
+    assert "_wake_backstop" in s
+    bs = s.split("async def _wake_backstop", 1)[1].split("\n                    if _wake[", 1)[0]
+    assert "asyncio.sleep(" in bs, "deciding immediately loses the race it exists to arbitrate"
+    assert '_wake["last_user_final"] > spot_at' in bs, "the condition is a FACT, not a guess"
+    assert "drop_preroll()" in bs, \
+        "the backstop's text already contains what the spot sent as `before` — reclaiming it stutters"
+
+
+def test_the_engine_records_when_the_paid_ear_last_finished_a_turn():
+    # The fact the backstop reads. Stop writing it and the backstop answers everything twice.
+    s = _src(AGENT)
+    assert '_wake = {"last_user_final": 0.0, "spot_at": 0.0}' in s
+    assert '_wake["last_user_final"] = time.time()' in s
+
+
+def test_the_greeting_is_not_asked_into_a_parked_microphone():
+    # The greeting ends in a question and `attention` deliberately kept the kickoff from opening a window
+    # — right for an always-open microphone, wrong once the tap parks: the agent asks somebody who pressed
+    # Start a second ago and then cannot hear the answer. Measured 2026-09-22 (session 5789bad4): greeting
+    # at +4 s, first thing the engine heard at +33 s.
+    s = _src(AGENT)
+    block = s.split('_emit("brain", "kickoff (saludo memory-aware vía cerebro)", role="system")', 1)[1][:1200]
+    assert "note_addressed_speech()" in block, "an agent that asks has to be able to hear the answer"
+    assert "_has_wake_recovery()" in block, \
+        "scoped to the modes that park — in `always` the microphone is open anyway and nothing changes"
 
 
 def test_the_browser_publishes_on_the_topic_the_engine_listens_on():

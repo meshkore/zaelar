@@ -268,7 +268,9 @@ async def entrypoint(ctx: JobContext) -> None:
         _emit("bot_speech", "speaking" if speaking else "idle",
               extra={"speaking": speaking, **({"trace": _tid} if _tid else {})})
         # Wake-word window: zaelar's own speech holds/re-anchors an OPEN conversation window, so `window_s()`
-        # measures real silence after its last word (2026-09-09; never opens one — kickoff stays gated).
+        # measures real silence after its last word (2026-09-09). It only OPENS one for an utterance that
+        # `note_addressed_speech` armed — which, since V2-749b, includes the kickoff greeting in the modes
+        # where the tap parks: there the greeting asks a question into a microphone nobody would open.
         try:
             from voice import attention as _attn
             _attn.note_bot_speech(speaking)
@@ -455,9 +457,16 @@ async def entrypoint(ctx: JobContext) -> None:
         except RuntimeError:
             _lang_detect["busy"] = False
 
+    # V2-749b — WHEN THE PAID EAR LAST PRODUCED A FINISHED TURN. Read by the wake backstop to tell «he
+    # only said the name and stopped» (nothing arrived, so the browser's own text is all there is) from
+    # «he kept talking» (Deepgram has it, and injecting would answer him twice). `spot_at` is stamped by
+    # the interim spot and cleared by the final that consumes it.
+    _wake = {"last_user_final": 0.0, "spot_at": 0.0}
+
     @session.on("user_input_transcribed")
     def _on_transcript(ev) -> None:
         if ev.is_final:
+            _wake["last_user_final"] = time.time()
             # → observer/SSE: chat wall + the front-end voice-command fast-path (show/close widgets) consume this.
             _emit("transcript", "🗣", text=ev.transcript, role="user")
             _maybe_detect_language(ev.transcript)
@@ -665,28 +674,69 @@ async def entrypoint(ctx: JobContext) -> None:
                 except Exception:
                     pass
                 return
-            # THE CHEAP EAR SPEAKS (V2-749). In wake-word mode the paid STT is PARKED: no audio leaves the
-            # browser until a free, browser-local recogniser hears the assistant's own name
-            # (`frontend/app/services/wakeword.js`). When it does, the browser sends the utterance it already
-            # has — for free — on this topic, and the paid tap opens for whatever he says next.
+            # THE CHEAP EAR SPEAKS (V2-749). In a wake-word mode the paid STT is PARKED: no audio leaves
+            # the browser until a free, browser-local recogniser hears the assistant's own name
+            # (`frontend/app/services/wakeword.js`). It arrives in TWO phases, and the split is the whole
+            # difference between a wake word that works and one that looks broken.
             #
-            # `before` is the half of the sentence that came BEFORE the name and is the whole point of doing
-            # it this way rather than like a smart speaker: «muéstrame el tiempo, Johnny» must not arrive as
-            # «Johnny». It is fed to `note_ambient`, which is the mechanism that ALREADY reclaims exactly
-            # this (`attention.reclaim_ambient_tail`, 10 s) — the wake-word turn right behind it glues the
-            # two back together, and the gate needs no new branch to understand the result.
+            # ⚠️ WHY TWO (measured 2026-09-22, session 5789bad4). The first build only believed a FINAL
+            # result — the safe choice against a fragment the recogniser later rewrites. But Chrome only
+            # finalises when you STOP TALKING, so the operator, who kept going, had his five «Johnny»s
+            # delivered as ONE final **33.5 s after the session started**: «he estado diciendo la palabra
+            # Johnny mucho tiempo y la primera vez le ha costado mucho… si dicen Johnny cuatro veces
+            # después de darle el botón de Start y no funciona se van a preocupar». The latency of a
+            # finals-only spot is not a number, it is «however long he keeps speaking».
             #
-            # `text` carries the name, so the gate rules it DIRECTED on its own. Nothing here decides that:
-            # a browser that lies about having heard the word buys the same turn a browser that types it
-            # into the chat already buys, which is the exposure this seam already had.
+            # `spot` (from an INTERIM) is cheap and reversible: it opens the tap and the window, and the
+            # ring lights AT ONCE. A false one costs a few seconds of STT, never a wrong action.
+            # `final` is the BACKSTOP for the one case the spot alone leaves silent — he said the name and
+            # nothing else, so the paid STT, which only came up mid-word, heard nothing to answer.
+            #
+            # `before` is the half of the sentence that came BEFORE the name and is the point of doing it
+            # this way rather than like a smart speaker: «muéstrame el tiempo, Johnny» must not arrive as
+            # «Johnny». It feeds `note_preroll`, which is the tail `reclaim_ambient_tail` (10 s) already
+            # reclaims — the turn right behind it glues the two back together with no new branch.
+            #
+            # A browser that lies about having heard the word buys the same turn a browser that types it
+            # into the chat already buys: the exposure this seam already had.
             if topic == "zaelar-wake":
                 try:
                     _d = _json.loads(bytes(packet.data).decode("utf-8"))
+                    _phase = (_d.get("phase") or "final").strip()
                     _txt = (_d.get("text") or "").strip()
                     _before = (_d.get("before") or "").strip()
+                    from voice import attention as _attn_wake
+                    if _phase == "spot":
+                        if _before:
+                            _attn_wake.note_preroll(_before)
+                        # This is PERMISSION, not a hint: the tap is open now and whatever he says next
+                        # must land inside a window, or the paid STT would transcribe it into a discard.
+                        _attn_wake.note_directed()
+                        _emit("ambient", "👂 palabra de activación (oído local)",
+                              extra={"directed": True, "reason": "wakeword_spot",
+                                     "window_s": _attn_wake.window_s(), "before": _before[:200]})
+                        _wake["spot_at"] = time.time()
+                        return
                     if not _txt:
                         return
-                    from voice import attention as _attn_wake
+                    # The backstop decides LATE on purpose: the paid STT's own transcript of the tail of
+                    # this utterance can land either side of this packet, and answering twice is worse
+                    # than answering once a second later.
+                    async def _wake_backstop(text: str, spot_at: float):
+                        await asyncio.sleep(1.2)
+                        if _wake["last_user_final"] > spot_at:
+                            _emit("brain", "🤐 respaldo de palabra descartado — el STT de pago ya tiene el turno",
+                                  text=text[:120], role="system")
+                            return
+                        _attn_wake.drop_preroll()   # `text` already carries what the spot sent as `before`
+                        _emit("brain", "📥 respaldo de palabra de activación (oído local)", text=text, role="user")
+                        session.generate_reply(user_input=text)
+                    if _wake["spot_at"]:
+                        asyncio.create_task(_wake_backstop(_txt, _wake["spot_at"]))
+                        _wake["spot_at"] = 0.0
+                        return
+                    # No spot ever fired for this utterance (the name only surfaced in the final): the
+                    # browser owns the turn outright, exactly as the first build did.
                     if _before:
                         _attn_wake.note_preroll(_before)
                     _emit("brain", "📥 palabra de activación (oído local)", text=_txt, role="user",
@@ -834,6 +884,20 @@ async def entrypoint(ctx: JobContext) -> None:
     else:
         _mark_kickoff(ctx.room.name)
         _emit("brain", "kickoff (saludo memory-aware vía cerebro)", role="system")
+        # V2-749b — …AND IT IS NOT ASKED INTO A PARKED MICROPHONE. The greeting ends in a question
+        # («¿Quieres que te cuente en qué puedo ayudarte?») and `attention` deliberately kept the kickoff
+        # outside `note_addressed_speech`, so it opened no window: right for an always-open microphone,
+        # where a free window at boot means answering a whole room. With the wake-word tap PARKED it means
+        # something else entirely — the agent asks somebody who pressed Start one second ago, and then
+        # cannot hear the answer. Measured 2026-09-22 (session 5789bad4): greeting at +4 s, and the first
+        # thing the engine heard was at +33 s.
+        # Scoped to the modes that park: in `always` the microphone is open anyway and nothing changes.
+        try:
+            from voice import attention as _attn_kick
+            if _attn_kick._has_wake_recovery():
+                _attn_kick.note_addressed_speech()
+        except Exception:  # noqa: BLE001
+            pass
         # UNINTERRUPTIBLE UNTIL IT SOUNDS (V2-745): the same edge hands interruption back and lifts the
         # splash, so the veil lasts exactly as long as the cold handshake and lifts onto the agent talking.
         _greeting = session.generate_reply(user_input=kickoff_text, allow_interruptions=False)
