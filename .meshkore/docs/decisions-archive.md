@@ -9226,3 +9226,104 @@ one-line index behind in the live log. Nothing below was edited or summarized on
   - Nodes **4.134** (4 files: criteria/fetch/peek/autoresponder + the RENDERED activity lens) and
     **5.20** (the two connector fetch drains, faked at the transport). Six disarms red. Sweeps:
     mensajería+connectors 445, infrastructure 648, `make test-widgets` 14/14.
+
+- **The genesis rules govern the engine's OWN mouths — a short order runs in silence, and a spoken rule
+  rules the very next turn (V2-633, 2026-09-09)**: the operator's session (6c715232) proved the style
+  mechanism worked and still failed him: his rule («al recibir órdenes no responder nada») was captured and
+  persisted by `set_style_directive` at 16:40:41 — and «Reproduce el vídeo» still got «Déjame ver…» +
+  «Hecho.», twice, after the model had agreed. Cause: THREE mouths speak without the model and none
+  consulted any rule — the fast lane's ack (V2-572, born from his own earlier opposite order), the
+  never-mute backstops (the model OBEYED and said nothing; the engine injected «Hecho.» into its mouth),
+  and the lead-in filler (whose `filler_kind` did not even know «reproduce» as an action verb). Now:
+  `nucleo/genesis.json` ships the base rules (silent short orders; fillers "smart" — never covering a turn
+  that is itself a short order), `nucleo/style_policy.py` layers per-install overrides written by the
+  directive handler IN the same turn (`<workspace>/config/style.json`, mtime-cached read per use — a rule
+  given by voice or chat governs the next utterance, and survives restarts; retraction restores genesis),
+  and all three mouths consult it: the fast-lane ack is opt-in («confírmame las órdenes» brings it back),
+  the data-op/show backstops gate on `_ack_allowed` (clarify/confirm stay never-mute — they are questions,
+  not confirmations), and the filler checks `filler_allowed(kind)` at fire time. VOICE mouths only, stated
+  in the module: chat keeps its text acks (an empty chat bubble looks broken; a written «Hecho.» interrupts
+  nobody) — which is also why the probe's ack faces are untouched while a chat-given rule still moves the
+  flags. `prompt_line()` teaches the MODEL's own mouth the same manners, only while the policy says silent.
+  The missing seeds shipped too: «reproduce el video»/«dale al play»/… → youtube play (es+en, packs v5) —
+  the session's exact phrase resolves in the deterministic lane now, like «pausa» always did. The ratchet
+  fired twice and was paid by extracting `nucleo/flash/style_directive.py` — the WHOLE set_style_directive
+  path for both channels (`handle`/`handle_probe`) plus `prompt_lines()` (wake-word + silent-orders: the
+  tool's teaching and its handler in one place); wiring guards repointed to the CHANNEL (V2-555). Node
+  **3.22** (15 cases, isolated workspace, two disarms red). Detail: the V2-633 initiative.
+
+- **The video widget becomes a real player: tabs, a dashboard that carries the search, and the honest
+  shelf of sources (V2-632, 2026-09-09)**: the operator's full redesign, triggered by his screenshot — the
+  card opened EMPTY and small («reproduce un vídeo» opened the card before the video existed; V2-630's
+  freeze pinned the footprint the missing manifest height produced). What was already built stayed the
+  foundation (V2-366 queue · V2-597 account layer · V2-604 library); this pass reorganizes the SURFACE and
+  the search's destination:
+  · **Top TABS** (Inicio · Reproductor · Cola · Suscripciones · Listas) replace the home↔player toggle.
+    `selectTab` is the ONE writer and clears the connectors screen — the V2-626 rule applied at birth
+    instead of paid later (this widget's latent copy of that bug was already named in the V2-626 entry).
+    A video ARRIVING on an empty card auto-jumps to Reproductor; a disarm proved the tab-close claim had
+    to be measured ACROSS a re-render, not at the click (clearing pixels while `_screen` survives
+    resurrects the shelf on the first SSE repaint).
+  · **The SEARCH lands on the DASHBOARD, never in the queue** (`search_results` — numbered band, replaces
+    the previous search; the queue only receives what he sends in): `play_result{item}` /
+    `add_results{items:"1,3"|"all"}` / `clear_search` steer it, `prompt_digest()` (V2-576's seam) hands
+    the numbered rows to the brain so «reproduce el tercero» resolves against what he SEES.
+    `play_video(action=list)`'s whole chain updated (tool text · `video_turn` spoken face with real
+    singular/plural · manifest `view:true` per V2-547's lesson) — the shared tool-catalog ceiling tripped
+    at +60 chars and was paid by compacting the same description, never raised.
+  · **Placeholder** on the player tab («Sin vídeo» title + the 16:9 frame kept and marked), queue rows
+    with thumbnails, Suscripciones/Listas as real tabs over V2-604's data, and `follow_channel` with no
+    name follows the CURRENT video's author (a required argument the sentence never fills, V2-609 class).
+  · **The 🔌 SHELF** (messaging igrid language, local copy per V2-557): every video source with its truth —
+    YouTube disabled naming INI-032's reason, Vimeo/Dailymotion/Twitch as shut doors from the V2-526
+    catalog (`connector_shelf` composed server-side, fail-soft). A disabled box never fires a connect.
+  · **Manifest sizes made honest** for the two width-only declarations the V2-630 freeze exposed:
+    youtube 680×560, musica 468×540.
+  · Data per the domain-stores doctrine (2026-09-09): everything in the widget's own store, ZERO rows into
+    memory; the inferred channel preference is REM/heart's lane. Coordinated over the dev cluster with
+    memoria-dev (heads-up + exact key inventory sent for the doctrine's Video section).
+  Node **4.138** (9 rendered cases) + 4.4/4.52/4.53/4.116 files realigned to the new faces; golden
+  re-recorded (40 keys); seven disarms, mutations asserted, all red after one test was hardened.
+  ⚠️ Caught by SCREENSHOT, not by reading: the connmode CSS block sat BEFORE the per-tab rules and lost by
+  order at equal specificity — the queue rendered underneath the shelf. Detail: the V2-632 initiative.
+
+- **A card's size never follows its content (V2-630, 2026-09-09)**: the operator, with two screenshots of
+  the same musica card at two widths — «el tamaño de los widgets debe ser fijo; si el texto no cabe, se
+  acorta; el usuario decidirá si lo hace más grande o más pequeño». Mechanism: `.hb-win` has no width of its
+  own (shrink-to-fit), musica declared no `manifest.size`, and the playback bar's nowrap title propagated
+  its max-content width into the card — so the card's width was a function of the current song title. Fixed
+  at CLASS level in the canvas: `desktop.js::_freezeSize` runs once per fresh card, right after
+  `_applyPreferred`, and writes any still-auto dimension as explicit px (snapped, canvas-clamped, floored at
+  the widget's `_minSize`; a minimized card and operator-set dimensions are untouched) — from then on
+  content truncates or scrolls INSIDE the card, and only the operator's gestures and the canvas's own `_fit`
+  change its size. Companions: musica declares `"size":{"w":468}` (deterministic first footprint — the
+  freeze alone would pin whatever the current title happened to measure), and `/api/canvas/state`'s
+  whitelist keeps `w`/`h` (the server fallback restore silently dropped the size half of «where he left
+  it»). Node **4.137**, RENDERED with the real desktop.js and a CONTROL case proving an unfrozen card
+  genuinely grows (without it the other cases measure air); two disarms red. Frontend-only: a page reload
+  picks it up. Detail: the V2-630 initiative.
+
+- **The free source CAN skip, and a narrated close is not an order (V2-631, 2026-09-09)**: the operator's
+  session review (7be94951), each link verified in observability. (1) «Pasa a la siguiente canción» met
+  `youtube_audio.py::next()` returning `unsupported` with a canned «Con esta fuente gratis no puedo saltar
+  de canción» — spoken three times, twice right after AGREEING with him — while he skipped by hand through
+  the very queue `on_ended()` already advances. `next()` now delegates to that same advance (empty queue =
+  the honest refusal, naming the queue), `previous()` works off a new bounded `history` and requeues the
+  current track at the front, the canned string is DELETED from both language tables, and the skip phrases
+  are SEEDED in the action map (es+en) — the deterministic lane pause/resume already had. (2) The musica
+  card closed itself TWICE — killing the audio, which lives inside it: `looks_like_close` matched «¿Van a
+  cerrar anuncios?» (infinitive, third-person future) and «has cerrado el widget de música» (a complaint
+  narrating the FIRST wrongful close) — the second one both fired the close backstop AND made
+  `show_contradicts_the_order` discard the `show_widget` the model had correctly called to reopen it: one
+  wrong True, three symptoms. Grammar, not intent: `_NARRATED_CLOSE_RE` STRIPS (never vetoes) participles
+  after «haber»/«you've» and «va(n) a <infinitivo>» before testing — an imperative beside a narrated close
+  still closes. The `action_map` was checked and NOT poisoned (zero learned rows). The ratchet fired on
+  `router_guards.py` and was paid by extracting the whole close-order grammar to
+  `nucleo/flash/close_guards.py` (AST-identical, re-exported). (3) The source catalog he asked for is the
+  honest version: priority already existed (`music/registry._BUILTIN`: connected Spotify first,
+  YouTube-audio always) — what was missing was VISIBILITY: `registry._music()` now lists youtube-audio as a
+  live always-connected row, and the V2-526 shelf gains the music family (apple-music `planned` with its
+  real gate; amazon-music/deezer/soundcloud/tidal/youtube-music `not-possible`, each naming why) — showing
+  what we do NOT have on purpose, instead of narrating an Amazon integration that cannot exist. Nodes 5.11
+  (+1 file) and the router/actionmap/music suites; six disarms red. NOT verified live (needs an engine
+  restart). Detail: the V2-631 initiative.
