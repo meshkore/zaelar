@@ -665,6 +665,37 @@ async def entrypoint(ctx: JobContext) -> None:
                 except Exception:
                     pass
                 return
+            # THE CHEAP EAR SPEAKS (V2-749). In wake-word mode the paid STT is PARKED: no audio leaves the
+            # browser until a free, browser-local recogniser hears the assistant's own name
+            # (`frontend/app/services/wakeword.js`). When it does, the browser sends the utterance it already
+            # has — for free — on this topic, and the paid tap opens for whatever he says next.
+            #
+            # `before` is the half of the sentence that came BEFORE the name and is the whole point of doing
+            # it this way rather than like a smart speaker: «muéstrame el tiempo, Johnny» must not arrive as
+            # «Johnny». It is fed to `note_ambient`, which is the mechanism that ALREADY reclaims exactly
+            # this (`attention.reclaim_ambient_tail`, 10 s) — the wake-word turn right behind it glues the
+            # two back together, and the gate needs no new branch to understand the result.
+            #
+            # `text` carries the name, so the gate rules it DIRECTED on its own. Nothing here decides that:
+            # a browser that lies about having heard the word buys the same turn a browser that types it
+            # into the chat already buys, which is the exposure this seam already had.
+            if topic == "zaelar-wake":
+                try:
+                    _d = _json.loads(bytes(packet.data).decode("utf-8"))
+                    _txt = (_d.get("text") or "").strip()
+                    _before = (_d.get("before") or "").strip()
+                    if not _txt:
+                        return
+                    from voice import attention as _attn_wake
+                    if _before:
+                        _attn_wake.note_preroll(_before)
+                    _emit("brain", "📥 palabra de activación (oído local)", text=_txt, role="user",
+                          extra={"before": _before[:200], "src": "browser-spotter"})
+                    session.generate_reply(user_input=_txt)
+                except Exception as we:  # noqa: BLE001
+                    _emit("alert", "zaelar-wake falló", text=str(we)[:160])
+                    logger.warning("zaelar-wake handler: %s", we)
+                return
             # SILENCE = OPERATOR decision (V2-054 · redefined in V2-088). The frontend publishes {audio:false}
             # when the operator MUTES with the 🔊 icon, and {audio:true} when re-enabled. With audio_enabled=False
             # the LiveKit pipeline does NOT invoke TTS (agent_activity: audio_output=None → text-only branch) → ZERO

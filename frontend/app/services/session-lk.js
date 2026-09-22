@@ -28,6 +28,8 @@ import { openSSE } from "./sse.js?v=4";
 import { clearDebugBuffer } from "./debugbus.js?v=2";
 import { startVisualizer } from "./visualizer.js?v=2";
 import { SpeakerID } from "../lib/speaker-id.js?v=1";
+import * as wake from "./wakeword.js?v=1";
+import { createEffect } from "../core/reactive.js?v=1";
 import { t } from "../core/i18n.js?v=1";
 
 let room = null, stream = null, videoEl = null, botAudioEl = null;
@@ -272,12 +274,33 @@ export function isActive() { return started; }
 // try/catch that wrapped it (a sync catch cannot see an async rejection), so a failed publish change was a
 // silent divergence between icon and microphone. Caught explicitly now — and the track's own `enabled` flag is
 // set regardless, because that one is synchronous and is what actually makes the wire go quiet.
+//
+// V2-749 — THE TAP IS A SECOND AXIS, AND IT COMPOSES HERE. `voice/mic_input.py` carries a standing rule from
+// 2026-09-10: the microphone switch and the attention mode «may never be written in terms of each other» —
+// one is the operator's own hand, the other is what the agent does with what it hears. The wake-word PARK is
+// neither: it is the transport asking «is anybody going to read this audio?», and answering no while the
+// agent is cold. So it never writes `mic.setMuted`, it is never persisted, and it never reaches
+// `POST /api/mic`. It meets the switch at exactly one place — this line — where the audio either goes out or
+// does not, and the switch keeps its veto: a closed microphone stays closed whatever the tap wants.
+let _tapParked = false;
 function _applyMicTransport(want) {
-  if (stream) stream.getAudioTracks().forEach(t => t.enabled = !want);
+  const off = want || _tapParked;
+  if (stream) stream.getAudioTracks().forEach(t => t.enabled = !off);
   if (room && room.localParticipant) {
-    try { Promise.resolve(room.localParticipant.setMicrophoneEnabled(!want)).catch(() => {}); } catch (_) {}
+    try { Promise.resolve(room.localParticipant.setMicrophoneEnabled(!off)).catch(() => {}); } catch (_) {}
   }
 }
+// Park/unpark WITHOUT touching the switch: re-assert through the same transport so there is still one place
+// that moves the audio. A no-op when the value has not changed — this is driven by a reactive effect.
+export function setTapParked(parked) {
+  const next = !!parked;
+  if (next === _tapParked) return _tapParked;
+  _tapParked = next;
+  _applyMicTransport(mic.muted());
+  try { api.clientLog(next ? "🔇 grifo aparcado (modo palabra)" : "🔊 grifo abierto", { state: next ? "parked" : "open" }); } catch (_) {}
+  return _tapParked;
+}
+export function tapParked() { return _tapParked; }
 export function applyMic() { mic.applyNow("session"); }
 export function applyCam() { if (stream) stream.getVideoTracks().forEach(t => t.enabled = !store.camOff()); }
 export function toggleMic() { mic.toggle("orb"); }
@@ -583,6 +606,7 @@ export async function start() {
     // shows. This is the reconnect hole: the mute survived in localStorage and on screen, the new publication
     // came up open, and nothing re-asserted it.
     mic.useTransport(_applyMicTransport);
+    _armWakeEar();
     applyCam();
     openSSE(window.__zaelarDesktop);   // backend→UI events (widgets, bot_speech, transcript, alerts) — same as before
     _startHeartbeat();                 // keep the single-session lock while alive
@@ -628,8 +652,60 @@ try {
   });
 } catch (_) {}
 
+// ── V2-749 · THE CHEAP EAR, AND WHEN THE TAP IS ALLOWED TO CLOSE ───────────────────────────────────────
+//
+// One effect, reading facts that already exist rather than inventing a state to keep in step:
+//   mode        → a wake-word mode is the only one where being cold means «say my name»; `always` has no
+//                 word to wait for and `ptt` has a button, so neither may ever park.
+//   attentionHit→ the SAME signal the orb paints its colour from (store.pulseAttentionHit, fed by the
+//                 engine's own verdicts with their `window_s`). Using it means the audio and the orb can
+//                 never disagree: while the ring says «te escucho», the tap is open, full stop.
+//   mic.muted   → his hand. A closed microphone is already silent; parking on top of it would only make
+//                 the un-mute race the effect.
+//   wake.armed  → the recogniser's `onstart` actually fired. Without this the tap could close over an ear
+//                 that is not listening, which is the one failure worse than the bill (see wakeword.js).
+//
+// Nothing here is persisted and nothing here writes the switch: a reload with the spotter unavailable comes
+// up exactly as the engine behaved before this existed.
+let _wakeWired = false;
+function _armWakeEar() {
+  if (_wakeWired) return;
+  _wakeWired = true;
+  wake.install({
+    getLang: () => store.lang && store.lang() ? String(store.lang()).slice(0, 2) === "es" ? "es-ES" : store.lang() : "es-ES",
+    getNames: () => wake.wakeNames(store.assistantName && store.assistantName()),
+    onSpot: (spot) => {
+      // Open the tap BEFORE handing the sentence over: what he says next is the conversation, and it should
+      // reach the good STT rather than this one. The engine's verdict on the injected turn re-anchors the
+      // window a moment later, which is what HOLDS it open.
+      setTapParked(false);
+      store.pulseAttentionHit(8);
+      sendWake(spot);
+    },
+    // `armed` is NOT a signal — it flips inside the recogniser's own callbacks, which no effect is
+    // subscribed to. So the arming pushes the decision instead of waiting to be read: the same function
+    // the effect calls, so the two can never reach different conclusions.
+    onArmed: () => _applyPark(),
+    log: (m) => { try { api.clientLog(m, {}); } catch (_) {} },
+  });
+  createEffect(() => {
+    const wakeMode = _wakeMode(), live = store.agentLive(), muted = store.micMuted();
+    store.attentionHit();                       // read INSIDE the effect: this is what re-runs it
+    if (wakeMode && live && !muted) wake.start(); else wake.stop();
+    _applyPark();
+  });
+}
+function _wakeMode() { return store.attentionMode() === "smart" || store.attentionMode() === "wakeword"; }
+function _applyPark() {
+  setTapParked(_wakeMode() && store.agentLive() && !store.attentionHit() && !store.micMuted() && wake.armed());
+}
+
 export async function stop() {
   _gen++;   // invalidates any `start()` in flight — see the SESSION GENERATION note above
+  // V2-749 — a stopped session never leaves the tap parked. A park that outlives its session is an agent
+  // that comes back deaf, and from the outside that looks like a broken microphone, not like a bug.
+  wake.stop();
+  setTapParked(false);
   const a = botAudioEl;
   try { if (a) { a.pause(); a.srcObject = null; a.removeAttribute("src"); a.load(); } } catch (_) {}
   _stopHeartbeat();   // stop renewing the lock; the server TTL releases it, or `pagehide` does when the tab closes
@@ -789,6 +865,21 @@ export function sendText(text) {
 // With audio OFF, the LiveKit pipeline does NOT invoke TTS (text-only branch) → no synthesis latency or cost;
 // la respuesta sigue apareciendo en el ChatWall por SSE. Best-effort: si no hay sesión, no-op (al conectar el
 // efecto de ChatWall lo re-aplica).
+// V2-749 — the sentence the cheap ear heard, on its own topic. `text` carries the wake word, so the engine's
+// gate rules it directed by itself; `before` is what he said in the seconds ahead of the name and is fed to
+// `attention.note_preroll()` so the turn behind it arrives whole.
+export function sendWake(spot) {
+  if (!room || room.state !== ConnectionState.Connected) return false;
+  const text = ((spot && spot.text) || "").trim();
+  if (!text) return false;
+  try {
+    const payload = new TextEncoder().encode(JSON.stringify(
+      { t: "zaelar-wake", text, before: ((spot && spot.before) || "").trim() }));
+    room.localParticipant.publishData(payload, { reliable: true, topic: "zaelar-wake" });
+    return true;
+  } catch (_) { return false; }
+}
+
 export function setVoiceOutput(enabled) {
   if (!room || room.state !== ConnectionState.Connected) return false;
   try {

@@ -3079,6 +3079,25 @@ DOMAINS: list[dict] = [
         # correctamente». QUÉ acción elige una frase lo decide el modelo y se mide en vivo; esto es la otra
         # mitad, determinista y que nadie medía: que cada verbo declarado, llamado con el payload que
         # declara, ATERRIZA en un almacén real o se niega con una frase que nombra lo que falta.
+        # V2-749 — medido en la sesión 48394dd0 (2026-09-22) con el 🤖 puesto y `stt_provider=deepgram`:
+        # cada frase de la habitación se publicaba, se transcribía y se PAGABA antes de que el gate la
+        # tirara. «Me llamo Paco.» transcrita tres veces, «Vale, vamos a centrarnos en arreglar» transcrita
+        # y descartada. Sus palabras: «si yo lo tengo todo el día escuchando como si fuera un Alexa… me va
+        # a consumir la energía, los créditos, y en realidad no lo vamos a llegar a utilizar ni una sola
+        # vez». Y la otra mitad, la que lo distingue de un altavoz inteligente: «lo que no puede ser es que
+        # el sistema empiece a escuchar A PARTIR de la palabra clave».
+        {"id": "4.208", "title": "El oído barato: el navegador oye el nombre gratis, lo que dijo ANTES viaja "
+                                 "con él, y el grifo de pago solo se cierra sobre un oído que está vivo",
+            "ch": UNIT,
+            "paths": ["tests/browser/unit/voice/test_the_cheap_ear_spots_the_name.py"]},
+        # …y la mitad que falla en SILENCIO: los tres cables que convierten un detector correcto en un
+        # micrófono más barato. Cada módulo seguiría funcionando perfectamente con el código nuevo presente
+        # y sin alcanzar, y el único síntoma sería una factura que no baja.
+        {"id": "4.209", "title": "Los tres cables del grifo aparcado: el muro PREGUNTA antes de pintar, el "
+                                 "aparcado exige un oído armado y nunca escribe el interruptor del micro, y "
+                                 "el motor contesta al tema que el navegador publica",
+            "ch": UNIT,
+            "paths": ["tests/browser/unit/voice/test_the_parked_tap_is_wired_to_the_ear.py"]},
         {"id": "4.207", "title": "Las 30 órdenes que declara la tarjeta de agenda aterrizan de verdad — y "
                                  "un selector que no nombra nada PREGUNTA en vez de acertar por vecindad",
             "ch": UNIT,
@@ -4490,6 +4509,16 @@ DOMAINS: list[dict] = [
                                 "sin subir el techo, y el nombre nuevo pasa a ser palabra de activación",
             "ch": UNIT,
             "paths": ["tests/memory/unit/test_the_rename_he_asks_for_actually_happens.py"]},
+        # V2-749 — en la misma sesión 48394dd0, el agente contestó «Me llamo Paco.» a la tercera con
+        # `reason: unanswered_repeat`, sin que sonara ninguna palabra de activación. Él: «hay que ser
+        # estrictos. Si hay palabra de activación, el agente debe quedarse quieto». La escotilla es de
+        # V2-743 (del día anterior) y sigue donde se midió que hacía falta: en `always`, donde no hay
+        # ninguna palabra con la que volver a entrar.
+        {"id": "8.15", "title": "En un modo con palabra de activación nada abre un turno EN FRÍO sin ella — "
+                                "y lo que el navegador oyó antes del nombre llega pegado al turno, sin "
+                                "contar como una frase sin contestar",
+            "ch": UNIT,
+            "paths": ["tests/voice/unit/test_the_word_is_the_only_way_in.py"]},
         {"id": "8.10", "title": "El trabajo del agente se llama PROCESO (job): ninguna etiqueta del frontend "
                                 "lo llama «tarea», y el id de la pestaña se mudó con el rótulo",
             "ch": UNIT,

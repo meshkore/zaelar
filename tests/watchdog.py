@@ -123,7 +123,11 @@ def impacted_targets(base: str) -> tuple[list[Path], list[str]]:
 
     for rel in changed_files(base):
         path = ENGINE / rel
-        if rel.startswith("tests/") and path.name.startswith("test_") and path.exists():
+        # ⚠️ `.py` ONLY (V2-749). A changed `test_*.mjs` was handed to pytest, which cannot collect it and
+        # exits 4 — a RED in the pre-commit sweep that means nothing, on every batch that adds a browser
+        # contract. Those files are already covered: each one has a `.py` runner beside it that subprocesses
+        # node, and that runner is picked up by the line below like any other changed test.
+        if rel.startswith("tests/") and path.name.startswith("test_") and rel.endswith(".py") and path.exists():
             picked.add(path)
             why.append(f"{rel} → itself (a changed test runs)")
             continue

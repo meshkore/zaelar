@@ -599,6 +599,19 @@ canvas#orb.frozen{opacity:.32;filter:grayscale(1)}
   -webkit-mask-image:linear-gradient(to top,#000 0%,#000 50%,transparent 100%);
           mask-image:linear-gradient(to top,#000 0%,#000 50%,transparent 100%)}
 .orbcap.show{display:flex}
+/* V2-749 — THE WAKE-WORD NOTE. Same place as the captions (above the orb, where he is already looking when
+   he expects words to appear) and deliberately a DIFFERENT colour and weight from the crawl: the crawl is a
+   transcript of speech, this is the system telling him what to say. Three seconds, then gone — a notice that
+   stays becomes furniture. Operator, 2026-09-22: «podría aparecer una nota, quizás en otro color, que dijera
+   durante tres segundos». */
+.orbhint{position:absolute;bottom:100%;left:50%;transform:translateX(-50%) translateY(6px);
+  margin-bottom:64px;width:min(560px,88vw);padding:10px 16px;border-radius:14px;text-align:center;
+  font-size:.9375rem;font-weight:600;letter-spacing:.2px;line-height:1.35;
+  color:var(--hb-accent2);background:var(--hb-bg-a);border:1px solid var(--hb-line);
+  -webkit-backdrop-filter:blur(9px);backdrop-filter:blur(9px);
+  pointer-events:none;opacity:0;transition:opacity .25s ease,transform .25s ease}
+.orbhint.show{opacity:1;transform:translateX(-50%) translateY(0)}
+@media (prefers-reduced-motion:reduce){.orbhint{transition:opacity .01s linear}}
 .orbcap-inner{display:flex;flex-direction:column;justify-content:flex-end;width:100%;
   transform:rotateX(16deg);transform-origin:50% 100%}
 /* one crawl line: enters collapsed + below + transparent → grows to full, pushing the stack up smoothly. UPPERCASE,

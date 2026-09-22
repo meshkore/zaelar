@@ -10,6 +10,7 @@ import { createAttentionHold } from "./attention_hold.js?v=1";
 import { refreshStatus } from "./status.js?v=2";
 import * as vault from "./vault.js?v=1";
 import { t, applyLang } from "../core/i18n.js?v=1";
+import { paintsProvisional } from "./wakeword.js?v=1";
 import { setWallpaper } from "./theme.js?v=2";
 
 // V2-464 — SHOWCASE mode: ?showcase=1 in the URL. The use-case recorder (recorder.py) uses it to keep the chat
@@ -194,7 +195,18 @@ export function routeEvent(desktop, d) {
       // history both stay behind the verdict (V2-647/V2-664). Without it his words reached the wall a median
       // 3.45 s after he started saying them, and p90 10.1 s (session bcd4aba1) — and raising the endpointer's
       // ceiling to 3.0 s the day before (V2-742) had made that wait longer, not shorter.
-      captionPartial(d.text);
+      // V2-749 — …AND NOT ONE WORD OF IT WHILE THE AGENT IS PARKED. In a wake-word mode a cold turn is
+      // going to be discarded, so painting it means writing his sentence onto the wall and then rubbing it
+      // out in front of him. Operator, 2026-09-22: «veo que intenta en el chat, va escribiendo el texto y
+      // luego lo borra… ese texto jamás debe aparecer ahí. Si estamos en Word Mode, solamente hay que estar
+      // esperando a que se diga la palabra.»
+      //
+      // The condition is the ring, not the mode: `attentionHit` is lit by the engine's own DIRECTED
+      // verdicts, and the instant wake-word spot (`wakeword_interim`, emitted off the interim stream before
+      // the turn even ends) is one of them. So the line starts being written the moment his name is HEARD,
+      // and never before — which is also why this cannot be «suppress the caption in wake-word mode»: that
+      // would take the caption away from the turns it was built for.
+      if (paintsProvisional(store.attentionMode(), store.attentionHit())) captionPartial(d.text);
     } else if (d.kind === "transcript" && d.text) {
       if (d.role === "assistant") {
         // zaelar's FINAL turn text → chat wall (the HISTORY). The LIVE caption over the orb does NOT come from here

@@ -203,9 +203,25 @@ def evaluate(text: str, *, now: float | None = None) -> Verdict:
     # room whether it could hear him. The cost is the one this module already priced twice, in its own words:
     # better to process some noise than to leave the operator unattended. The 5 s window itself is HIS rule
     # (2026-09-10) and is untouched; what changes is that expiring it three times over is not a verdict.
-    if unanswered_streak(now) >= _UNANSWERED_OPENS_AT:
+    # …BUT NOT WHERE A WORD CAN RE-OPEN THE FRONT DOOR (V2-749). The hatch is right in `always`, where he has
+    # NO way to insist and saying it again is the only signal left. In `smart` he has one and it costs two
+    # syllables — this module said so itself setting the 5 s window («recovery there is cheap: say the name»).
+    # Measured 2026-09-22 (session 48394dd0): with the 🤖 on he answered «Me llamo Paco.» three times and the
+    # third was handled as `unanswered_repeat`, no wake word in the session — «se ha puesto a escuchar pero
+    # sin que sonara la palabra de activación… hay que ser estrictos». A mode that promises silence until its
+    # name may not have a back door into a COLD turn; the window a wake word opens is not one — that is a
+    # conversation he started. (With the browser spotter parked the tap this is unreachable anyway: nothing is
+    # transcribed, so nothing is discarded. It is the rule for the builds where parking is not available.)
+    if unanswered_streak(now) >= _UNANSWERED_OPENS_AT and not _has_wake_recovery():
         return Verdict(True, "unanswered_repeat")
     return Verdict(False, "ambient")
+
+
+def _has_wake_recovery() -> bool:
+    """Can the operator re-open attention by SPEAKING, without touching anything? True in the modes where a
+    wake word is honoured. `ptt` is not one of them: its recovery is a button, not a word, and its gate is
+    already an explicit act per turn."""
+    return mode() in ("smart", "wakeword")
 
 
 def note_speech_onset(now: float | None = None) -> None:
@@ -578,9 +594,24 @@ def note_bot_speech(speaking: bool, now: float | None = None) -> None:
         _state["bot_hold"] = (_state["bot_hold"] or _addressed_armed(now) or
                               bool(_state["last_directed"]) and (now - _state["last_directed"]) <= window_s())
     elif _state["bot_hold"]:
+        armed = _addressed_armed(now)
         _state["bot_hold"] = False
         _state["last_directed"] = now
         _state["bot_addressed"] = 0.0   # consumed: this arm licensed THIS utterance, never the next one
+        # V2-749 — AND THE CLIENT HAS TO BE TOLD, because it can no longer find out by itself: it learned a
+        # window was open from the verdict on the next thing it HEARD, which needs audio, which needs the
+        # tap, which is parked while the agent is cold. An agent that ASKS him something opens a window from
+        # nothing, so without this the ring stays dark, the tap stays parked and his answer reaches nobody —
+        # the deadlock version of 2026-09-10, where it asked «¿Sigo?» and then refused to hear the reply.
+        # ONLY for the armed case: a reply inside a conversation he started already has a lit ring, and
+        # re-announcing on every utterance would let the agent's own mouth hold the tap open forever.
+        if armed:
+            try:
+                from voice.observer import emit
+                emit("ambient", "👂 te he preguntado — ventana abierta",
+                     extra={"directed": True, "reason": "addressed_reply", "window_s": window_s()})
+            except Exception:
+                pass
 
 
 def note_wakeword_spotted(now: float | None = None) -> None:
@@ -613,6 +644,21 @@ def note_ambient(text: str, now: float | None = None) -> None:
     # fix01: every real discard is also one more unanswered speech in a row — the streak `evaluate_content`
     # reads before consulting the judge. Repetition-after-silence is the signal the judge keeps missing.
     _state["unanswered"] = [ts for ts in _state["unanswered"] if now - ts <= _UNANSWERED_WITHIN_S] + [now]
+
+
+def note_preroll(text: str, now: float | None = None) -> None:
+    """The words said BEFORE the wake word, handed over by the browser's own free recogniser while the paid
+    tap was parked (V2-749, topic `zaelar-wake`). Feeds the SAME tail `note_ambient` fills, so the wake-word
+    turn right behind it reclaims the sentence whole — «muéstrame el tiempo» + «Johnny».
+
+    What it deliberately does NOT do is count an unanswered speech: `note_ambient` counts one because a
+    discard means nobody answered him, and this is the first half of a turn about to BE answered. Counting it
+    would let a spotted wake word inflate the very streak that opens a cold turn without one."""
+    t = (text or "").strip()
+    if not t:
+        return
+    now = time.time() if now is None else now
+    _state["ambient_tail"] = ([(ts, x) for ts, x in _state["ambient_tail"] if now - ts <= 12.0] + [(now, t)])[-4:]
 
 
 def unanswered_streak(now: float | None = None) -> int:

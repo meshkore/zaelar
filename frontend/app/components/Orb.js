@@ -28,7 +28,7 @@
 // activity rail (#activity) is owned by the desktop. Captions are LIVE only (last 3 lines) — the chat wall keeps
 // the history.
 import { h, raw } from "../core/dom.js?v=2";
-import { createEffect } from "../core/reactive.js?v=2";
+import { createEffect, createSignal } from "../core/reactive.js?v=2";
 import * as store from "../core/store.js?v=2";
 import * as session from "../services/session.js?v=3";
 import * as api from "../services/api.js?v=2";
@@ -81,6 +81,25 @@ export function Orb() {
     const next = wakeOn() ? "always" : "smart";
     store.setAttentionMode(next);                               // optimistic; reflects immediately
     api.saveSettings({ attention_mode: next }).catch(() => store.setAttentionMode(prev));   // revert on failure
+    // V2-749 — SAY THE WORD OUT LOUD, WHERE HE IS LOOKING. Turning this on changes whether the agent answers
+    // at all, and until now the only place that said so was a tooltip nobody hovers after clicking. The
+    // operator: «cuando el usuario lo clique, podría aparecer en el sitio de los subtítulos… una nota, quizás
+    // en otro color, que dijera durante tres segundos: para activar, di la palabra, y ponemos ahí la palabra
+    // entre comillas». It carries the CURRENT name, because that is the thing he cannot know — he renamed it
+    // by voice and the word changed with it (V2-747).
+    showWakeHint(next === "always" ? t("orb.wake_hint_off")
+                                   : t("orb.wake_hint_on", { name: store.assistantName() }));
+  };
+
+  // The note lives where the subtitles live and expires on its own. Deliberately NOT a line of the crawl:
+  // the crawl is a transcript of what was SAID, and writing our own notice into it would make the agent
+  // appear to have spoken it.
+  const [wakeHint, setWakeHint] = createSignal("");
+  let _hintT = null;
+  const showWakeHint = (text) => {
+    setWakeHint(String(text || ""));
+    clearTimeout(_hintT);
+    _hintT = setTimeout(() => setWakeHint(""), 3000);
   };
 
   // ⏻ STOPPED dims the whole lid (operator request): a stopped agent can't use mic/speaker/captions — and
@@ -246,6 +265,8 @@ export function Orb() {
       }, raw(CHAT_ICON)),
       h("button", { "data-ctl": "bot",
         class: () => lidClass(wakeOn()),
+        // The tooltip answers the one question this button raises — «what do I have to say?» — with the word
+        // ITSELF, in the operator's language and with today's name in it (V2-749).
         title: () => wakeOn() ? t("orb.wake_on", { name: store.assistantName() }) : t("orb.wake_off", { name: store.assistantName() }),
         onClick: () => { toggleWake(); api.uiEvent("orb:attention", { state: store.attentionMode() }); },
       }, raw(BOT_ICON)),
@@ -258,6 +279,9 @@ export function Orb() {
       h("div", { class: "orbcap", ref: el => (capEl = el) },
         h("div", { class: "orbcap-inner", ref: el => (capInnerEl = el) }),
       ),
+      // V2-749 — the wake-word note, in the captions' own place and in its own colour so it never reads as
+      // something the agent said.
+      h("div", { class: () => "orbhint" + (wakeHint() ? " show" : "") }, () => wakeHint()),
       // `frozen` (2026-08-10): with the agent stopped, the orb turns off and remains STILL. It is the piece that most
       // “personifies” zaelar, so seeing it ripple with the agent stopped is the most misleading signal on the whole
       // screen. The visualizer also stops advancing its phase, so it is not merely grey: it does not move.
