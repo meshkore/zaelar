@@ -297,6 +297,18 @@ async def _ingest_utterance_locked(text: str, *, role: str = "operator") -> dict
                 if a_corr and not _is_corr:          # solo cuando la autodeclaración era la ÚNICA prueba
                     _report_self_declared_change_ignored(str(a.get("slot")), t)
                 a_corr = _is_corr
+            # V2-752 — …AND THE ONE IDENTITY SLOT THAT IS NOT ABOUT HIM NEEDS ITS OWN QUESTION. V2-747
+            # excused `assistant.name` from the guard above (rightly: a rename never talks about the
+            # operator) and from the anti-garble gate (rightly: a rename contradicts the old value by
+            # design) — and between the two excusals it became an identity slot writable on the small
+            # model's signature alone. Measured live: «He dicho, Apollo once.» — a correction of a video
+            # search — renamed his assistant to «Apollo 11» and moved the wake word with it, in silence
+            # and across sessions. The question it was never asked is asked here; see `rename_decision`.
+            if a.get("slot") == "assistant.name":
+                from nucleo.memory_agent import rename_decision as _rn
+                if not _rn.renames_the_assistant(t):
+                    _report_self_declared_change_ignored("assistant.name", t)
+                    continue
             a = _plausibility_demote(a, state=st, is_correction=a_corr)
             # (P0d) …and the same question one layer down: P0b guards the `state`, this guards the SLOT supersede,
             # which destroys the operator's own pill even when `state` survives. Applied ONLY on this path — the
