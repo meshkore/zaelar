@@ -129,66 +129,93 @@ def test_el_relevo_es_VISIBLE(monkeypatch):
 
 
 # ── the default chains ──────────────────────────────────────────────────────────────────────────────────────────
-def test_en_self_host_NO_hay_relevo_por_defecto(monkeypatch):
-    """Self-hosting users pay for their own APIs. Having the agent switch on its own to another provider would spend
-    their money somewhere they did not choose. It is enabled by setting `fast.providers` in their config."""
-    from nucleo import cloud_account
-    monkeypatch.setattr(cloud_account, "is_cloud_account", lambda: False)
+def test_sin_credencial_del_suplente_NO_hay_relevo(monkeypatch):
+    """⚠️ EL GATE CAMBIÓ DE PREGUNTA (V2-750, 2026-09-22), y el docstring de aquí abajo ya avisaba de esta
+    forma exacta de fallo: «un test puede volverse el sitio donde sobrevive una decisión derogada».
+
+    Hasta hoy esto se llamaba `test_en_self_host_NO_hay_relevo_por_defecto` y vaciaba la cadena leyendo
+    `is_cloud_account`. La protección que buscaba es legítima y sigue en pie —quien se autohospeda paga sus
+    APIs y no puede llevarse la sorpresa de que el agente se pase a un proveedor que él no eligió—, pero la
+    pregunta era la equivocada: medido el 2026-09-22 en la máquina del operador, ese gate dejaba SU motor sin
+    ningún relevo mientras la tabla decía lo contrario, y la avería fue total cuando el titular cayó.
+
+    La pregunta honesta es si LA CREDENCIAL ESTÁ. Sin ella el escalón no existe («sin credencial no es un
+    escalón, es un espejismo»), que es la misma protección aplicada al hecho que de verdad importa — y no
+    castiga al que sí eligió un suplente."""
+    monkeypatch.undo()                                           # el fixture stubea `chain`; aquí se prueba la de verdad
+    monkeypatch.setattr(pc, "_token_for", lambda t: "")          # ninguna clave resuelve
+    from nucleo.flash import fast_client
+    monkeypatch.setattr(fast_client, "spec_from_config",
+                        lambda: fast_client.ModelSpec(model="m", base_url="https://x/v1", api_key="k"))
+    nombres = [t["name"] for t in pc.chain(pc.ROLE_VOICE)]
+    assert "relevo" not in nombres, f"un escalón sin credencial no puede estar en la cadena: {nombres}"
+
+
+def test_con_la_credencial_puesta_el_suplente_SÍ_está(monkeypatch):
+    """El caso que el gate viejo rompía: el operador eligió un suplente y puso su clave."""
+    monkeypatch.undo()
     monkeypatch.setattr(pc, "_token_for", lambda t: "k")
     from nucleo.flash import fast_client
     monkeypatch.setattr(fast_client, "spec_from_config",
                         lambda: fast_client.ModelSpec(model="m", base_url="https://x/v1", api_key="k"))
-    nombres = [t["name"] for t in pc._voice_chain()]
-    assert nombres == ["titular"], f"self-host no puede traer relevos de fábrica: {nombres}"
+    nombres = [t["name"] for t in pc.chain(pc.ROLE_VOICE)]
+    assert nombres[:2] == ["titular", "relevo"], nombres
 
 
-def test_en_la_nube_la_cadena_es_barata_y_rapida(monkeypatch):
-    """The order is NOT by quality; it is by (speed to first token, entry price). With input dominating 14:1 in
-    this brain, the only thing that matters is the entry price.
+def test_la_cadena_es_titular_mas_UN_suplente_de_OTRO_proveedor(monkeypatch):
+    """El orden NO es por calidad, es por (rapidez al primer token, precio de entrada) — con el input
+    dominando 14:1 en este cerebro, lo único que cuenta es el precio de entrada.
 
-    ⚠️ This test REQUIRED `grok-4-fast` in the chain until 2026-08-30. It stopped being a guarantee and became the
-    contradiction: the table removed xAI after measuring (`403 used all available credits`), and this test required
-    keeping it, so removing it from the code turned the suite red. A test can become the place where a repealed
-    decision survives, and then defend exactly what must be removed (V2-504).
+    ⚠️ Este test EXIGIÓ `grok-4-fast` en la cadena hasta el 2026-08-30. Dejó de ser una garantía y pasó a ser
+    la contradicción: la tabla retiró xAI tras medirlo (`403 used all available credits`) y este test exigía
+    conservarlo, así que quitarlo del código ponía la suite en rojo (V2-504).
 
-    What is fixed now is the property that remains valid: **a single, cheap, fast failover**, and none of the
-    expensive ones rejected by measurement.
-    """
-    from nucleo import cloud_account
-    monkeypatch.setattr(cloud_account, "is_cloud_account", lambda: True)
+    Y volvió a pasar el 2026-09-22: exigía `deepseek-v4-pro` como relevo «el mismo cerebro por el endpoint
+    directo», que es precisamente lo que hacía la escalera decorativa — MISMO PROVEEDOR que el titular, o sea
+    una segunda puerta a la misma avería. Lo que se fija ahora es la propiedad que sí sigue siendo válida:
+    **titular + UN suplente, y el suplente es de OTRA casa**."""
     monkeypatch.setattr(pc, "_token_for", lambda t: "k")
     from nucleo.flash import fast_client
     monkeypatch.setattr(fast_client, "spec_from_config",
-                        lambda: fast_client.ModelSpec(model="m", base_url="https://x/v1", api_key="k"))
-    modelos = [str(t.get("model")) for t in pc._voice_chain()]
+                        lambda: fast_client.ModelSpec(model="m", base_url="https://api.deepseek.com", api_key="k"))
+    cadena = pc._voice_chain()
+    assert len(cadena) == 2, f"titular + UN relevo, norma del operador — la cadena trae {len(cadena)}"
+    from urllib.parse import urlparse
+    hosts = [urlparse(t.get("base_url") or "").netloc for t in cadena]
+    assert hosts[0] != hosts[1], f"el suplente vive en la misma casa que el titular: {hosts}"
+    modelos = [str(t.get("model")) for t in cadena]
+    # Los caros que la medición rechazó: `grok-4.5` estaría a 14× el titular y ninguno puede volver por
+    # defecto. ⚠️ La comprobación era por SUBCADENA y «gpt-4.1» casa con «gpt-4.1-mini», que es el escalón
+    # barato que el operador eligió de suplente el 2026-09-22 — una lista de prohibidos por subcadena acaba
+    # prohibiendo al pariente barato del prohibido. Se comparan nombres COMPLETOS.
+    CAROS = {"grok-4.5", "grok-4.6", "gpt-4.1", "gpt-4o", "claude-opus-4", "claude-sonnet-4"}
+    for m in modelos:
+        assert m not in CAROS, f"un escalón de {m} no puede ser el defecto"
 
-    assert len(modelos) == 2, f"titular + UN relevo, norma del operador — la cadena trae {len(modelos)}: {modelos}"
-    assert "deepseek-v4-pro" in modelos, "el relevo es el MISMO cerebro por el endpoint directo (V2-097)"
-    # The expensive ones rejected by measurement. `grok-4.5` would be 14× the primary; none may return by default.
-    for caro in ("grok-4.5", "grok-4.6", "gpt-4.1", "claude"):
-        assert not any(caro in m for m in modelos), f"un escalón de {caro} no puede ser el defecto"
 
+def test_el_suplente_no_vive_en_la_misma_casa_que_el_titular(monkeypatch):
+    """⚠️ ESTE TEST DEFENDÍA EL DEFECTO (V2-750). Exigía que el relevo fuera `deepseek-directo` /
+    `deepseek-v4-pro` con un argumento de ENRUTADO perfectamente medido (42 turnos por brazo, 2026-08-15:
+    Flash directo fallaba `mostrar widget` 3 de 3, 38/42 contra 41/42) — y ese argumento sigue siendo cierto
+    sobre el enrutado. Lo que no miraba es a QUIÉN se releva: ese escalón apuntaba a `api.deepseek.com`, que
+    es donde ya vivía el titular, así que una caída de DeepSeek se llevaba los dos y la cadena no tenía a
+    dónde ir. Medido el 2026-09-22: el motor del operador se quedó mudo con un suplente en la lista.
 
-def test_el_primer_escalon_de_relevo_es_el_que_pasa_la_puerta_de_enrutado(monkeypatch):
-    """Latency failover activates on DIFFICULT turns, so the tier cannot route worse than the primary
-    “because after all, it is only the failover”.
-
-    Medido el 2026-08-15 (nodo 2.13, 3 rondas × 14 casos = 42 turnos por brazo): `deepseek-v4-flash` DIRECTO,
-    which was this tier, failed `mostrar widget` **3 out of 3**—38/42 versus the primary's 41/42. A 3-out-of-3
-    failure is not variance; it is a defect. `deepseek-v4-pro` through the same endpoint matches the primary (41/42)
-    with 224 ms more TTFT, and is still 7.5× below the primary for first token. This test fixes that decision: if
-    someone puts Flash here again to save money, they will learn what it costs."""
-    from nucleo import cloud_account
-    monkeypatch.setattr(cloud_account, "is_cloud_account", lambda: True)
+    Un relevo por LATENCIA puede compartir proveedor (releva a un endpoint lento, no a uno caído). Un relevo
+    por AVERÍA no puede, y esta cadena es la de avería. La propiedad que se fija es esa."""
+    monkeypatch.undo()
     monkeypatch.setattr(pc, "_token_for", lambda t: "k")
+    from urllib.parse import urlparse
     from nucleo.flash import fast_client
     monkeypatch.setattr(fast_client, "spec_from_config",
-                        lambda: fast_client.ModelSpec(model="m", base_url="https://x/v1", api_key="k"))
-    relevos = [t for t in pc._voice_chain() if t["name"] != "titular"]
-    assert relevos, "en la nube tiene que haber relevo"
-    assert relevos[0]["name"] == "deepseek-directo"
-    assert relevos[0]["model"] == "deepseek-v4-pro", \
-        "el escalón directo va en V4 Pro: Flash falla `mostrar widget` 3 de 3 (38/42 contra 41/42)"
+                        lambda: fast_client.ModelSpec(model="m", base_url="https://api.deepseek.com", api_key="k"))
+    cadena = pc._voice_chain()
+    relevos = [t for t in cadena if t["name"] != "titular"]
+    assert relevos, "tiene que haber relevo cuando su credencial está"
+    casa_titular = urlparse(cadena[0].get("base_url") or "").netloc
+    for r in relevos:
+        assert urlparse(r.get("base_url") or "").netloc != casa_titular, \
+            f"«{r['name']}» releva al mismo host que el titular ({casa_titular}) — una avería se lleva los dos"
 
 
 def test_el_operador_manda_sobre_la_cadena(monkeypatch):

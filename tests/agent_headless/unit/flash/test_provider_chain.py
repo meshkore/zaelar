@@ -40,6 +40,13 @@ def _clean(monkeypatch):
 def _cfg(monkeypatch, providers=None):
     import config.v2 as v2
     monkeypatch.setattr(v2, "get", lambda k: {"providers": providers or []} if k == "cluster" else {})
+    # V2-750 — STATE THE PREMISE instead of inheriting it from whatever is in the ambient environment. Every
+    # test below says «with these keys and no others», and until the table gave `voice_brain` a stand-in
+    # there happened to be no OTHER key that could add a rung, so nobody noticed the premise was implicit.
+    # The moment one existed, these tests passed alone and failed together — which reads like contamination
+    # and is really a test that never said what it assumed.
+    for var in ("OPENAI_API_KEY", "XAI_API_KEY", "GROQ_API_KEY", "GEMINI_API_KEY", "MISTRAL_API_KEY"):
+        monkeypatch.delenv(var, raising=False)
 
 
 # ── zero-config: the default chain uses the credentials present, in the SAME order as before ──────────
@@ -395,41 +402,32 @@ def test_en_self_host_la_cadena_de_voz_es_SOLO_el_titular(monkeypatch):
     assert all(t["name"] != "xai-fast" for t in pc._voice_chain())
 
 
-def test_un_escalon_CALLADO_con_credencial_y_sano_se_puede_nombrar(monkeypatch):
+def test_un_suplente_DECLARADO_SIN_credencial_se_puede_nombrar(monkeypatch):
+    """⚠️ ESTA FUNCIÓN SE INVIRTIÓ (V2-750), y la frase que la justificaba apunta ahora a la otra mitad del
+    mismo problema. Nombraba los escalones que la regla de self-host CALLABA teniendo su clave puesta —
+    «callar un escalón es legítimo; callar QUE LO ESTÁS CALLANDO deja al operador sin la única frase que le
+    habría dicho qué hacer». Ese gate ya no existe: si la clave resuelve, el escalón está EN la cadena, así
+    que ese caso no puede darse.
+
+    Lo que queda es el espejo, y es el que le pasó de verdad el 2026-09-22: la tabla declara un suplente, el
+    motor no tiene su clave, y la voz se queda muda diciendo «SIN RELEVO disponible» sin nombrar nunca lo que
+    lo habría arreglado."""
     _sin_lista_explicita(monkeypatch)
     monkeypatch.setattr(pc._store, "_cooldown", {})
     monkeypatch.setattr(pc._store, "_loaded", True)
-    monkeypatch.setenv("DEEPSEEK_API_KEY", "k")
-    assert "deepseek-directo" in pc.suppressed_relays()
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    nombrados = pc.suppressed_relays()
+    assert nombrados, "un suplente declarado y sin clave tiene que poder nombrarse"
+    assert any("OPENAI_API_KEY" in n for n in nombrados), \
+        f"y la frase tiene que NOMBRAR la clave que falta, o no dice qué hacer: {nombrados}"
 
 
-def test_un_escalon_SIN_credencial_no_esta_callado_sino_que_NO_EXISTE(monkeypatch):
-    """Naming it would send the operator to activate something for which they have no account."""
+def test_un_suplente_CON_su_credencial_no_se_nombra(monkeypatch):
+    """No hay nada que contarle: ese escalón está en la cadena y relevará solo."""
     _sin_lista_explicita(monkeypatch)
     monkeypatch.setattr(pc._store, "_cooldown", {})
     monkeypatch.setattr(pc._store, "_loaded", True)
-    for var in ("XAI_API_KEY", "GROQ_API_KEY", "DEEPSEEK_API_KEY"):
-        monkeypatch.delenv(var, raising=False)
-    assert pc.suppressed_relays() == []
-
-
-def test_un_escalon_YA_EN_COOLDOWN_no_se_ofrece_como_salida(monkeypatch):
-    """The REAL case from 2026-08-21: `deepseek-directo` uses the SAME account that ran out of balance. Offering it
-    as a remedy sends the operator to check a provider that is also down."""
-    _sin_lista_explicita(monkeypatch)
-    monkeypatch.setattr(pc._store, "_loaded", True)
-    monkeypatch.setattr(pc._store, "_cooldown", {"deepseek-directo": time.time() + 3600})
-    monkeypatch.setenv("DEEPSEEK_API_KEY", "k")
-    for var in ("XAI_API_KEY", "GROQ_API_KEY"):
-        monkeypatch.delenv(var, raising=False)
-    assert pc.suppressed_relays() == []
-
-
-def test_en_la_NUBE_no_hay_nada_callado(monkeypatch):
-    """There the chain does include failovers, so a «silent tier» would be a false statement."""
-    from nucleo import cloud_account
-    monkeypatch.setattr(cloud_account, "is_cloud_account", lambda: True, raising=False)
-    monkeypatch.setenv("DEEPSEEK_API_KEY", "k")
+    monkeypatch.setenv("OPENAI_API_KEY", "k")
     assert pc.suppressed_relays() == []
 
 

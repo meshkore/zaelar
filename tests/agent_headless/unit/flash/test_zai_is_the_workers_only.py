@@ -94,5 +94,10 @@ def test_el_catalogo_por_defecto_encabeza_con_DEEPSEEK_DIRECTO(monkeypatch):
     # sigue vetado aquí por LA NORMA QUE ESTE FICHERO DEFIENDE, así que no queda candidato a relevo. Lo que este
     # test protege —que Z.AI no se cuele en la voz— vale igual, y ahora con más motivo: sin relevo, la tentación
     # de tapar una caída con la cartera del worker es justo lo que hay que seguir impidiendo.
-    assert names == ["deepseek-directo"], (
-        f"la cadena de voz tiene que ser titular + UN failover, y es {names} — norma del operador 2026-08-30")
+    # ⚠️ 2026-09-22 (V2-750): vuelve a haber relevo, y es el que el operador eligió midiendo —
+    # `gpt-4.1-mini` nativo de OpenAI. La norma que este test protege no se toca; lo que no puede aparecer
+    # es Z.AI. Sin relevo, la tentación de tapar una caída con la cartera del worker era justo lo que había
+    # que impedir; con uno declarado, ya no hay excusa para mirar a esa cartera.
+    assert len(names) == 2, f"un titular y UN suplente, norma del operador — y es {names}"
+    assert not any("zai" in n.lower() or "z.ai" in n.lower() for n in names), (
+        f"Z.AI es SOLO del Brain Worker y se ha colado en la voz: {names}")

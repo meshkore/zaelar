@@ -110,7 +110,11 @@ def test_the_fast_layer_defaults_to_the_titular_ON_ITS_OWN_ENDPOINT():
     exactly how the workers' DeepSeek rung shipped broken, invisible because a relay rung only runs once the
     titular is already down."""
     from nucleo.flash import model_spec as M
-    assert M._FALLBACK_MODEL == "deepseek-v4-pro"
+    # V2-750 — read the TABLE instead of pinning a name here. This literal has had to be edited on every
+    # promotion, and an assertion that gets edited to stay green stops being read (the note this file
+    # already makes about pinning full lists). What the test is FOR is the endpoint/prefix pairing.
+    from config import models as _tabla
+    assert M._FALLBACK_MODEL == _tabla.titular("voice_brain")["model"]
     assert M._FALLBACK_BASE == "https://api.deepseek.com"
     assert not M._FALLBACK_MODEL.startswith("deepseek/"), "ese prefijo es el catálogo del BROKER, no el nativo"
 
@@ -167,8 +171,15 @@ def test_the_browser_loop_defaults_to_the_titular():
 _OPENAI_RE = re.compile(r"\bopenai/|\bgpt-[0-9]", re.I)
 
 
-def test_no_relay_rung_runs_an_openai_model():
-    """The rungs run on their OWN: no one chooses them; they are reached because the previous one failed."""
+def test_openai_appears_ONLY_as_a_stand_in():
+    """⚠️ INVERTED 2026-09-22 (V2-750). This asserted the 2026-08-21 norm — «no OpenAI model on a relay
+    rung» — and the operator reversed it in as many words: «OpenAI siempre tiene que ser failover; tenemos
+    modelos baratos como titulares, los más potentes a nuestra disposición». So the rule is now the OTHER
+    way round and this test carries it: OpenAI may ONLY appear as a stand-in, never as a titular.
+
+    The half that did NOT change, and is the reason the old norm existed: OpenAI at the head of a task is
+    what makes a cheap engine expensive without anybody deciding to. Now it is the rung that costs money
+    only when the cheap one is already down, which is the arrangement he asked for."""
     from nucleo import memllm
 
     culpables = []
@@ -176,7 +187,7 @@ def test_no_relay_rung_runs_an_openai_model():
         for url, modelo in escalones:
             if _OPENAI_RE.search(str(modelo)):
                 culpables.append(f"{tarea} → {modelo}")
-    assert not culpables, f"escalones de relevo con modelo de OpenAI: {culpables}"
+    assert culpables, "OpenAI dejó de ser el suplente de las tareas de memoria — es la regla de 2026-09-22"
 
 
 def test_no_config_default_runs_an_openai_model():

@@ -19,6 +19,10 @@ from nucleo import memllm
 
 _AIML = "https://api.aimlapi.com/v1"
 _DS = "https://api.deepseek.com"
+#: V2-750 — the ONE stand-in of every memory task since 2026-09-22. It used to be DeepSeek direct with the
+#: broker third; the operator cut the ladder to one and made it NATIVE, and moved OpenAI out of the titular
+#: seats in the same breath: «OpenAI siempre tiene que ser failover».
+_OAI = "https://api.openai.com/v1"
 
 
 # ── credentials: absent ≠ "local" ─────────────────────────────────────────────────────────────────────────────
@@ -36,21 +40,32 @@ def test_a_cloud_endpoint_resolving_to_the_sentinel_has_NO_credential():
 
 
 # ── the order, and who gets dropped ───────────────────────────────────────────────────────────────────────────
-def test_the_chain_is_titular_then_direct_then_broker(monkeypatch):
-    """The ORDER fixed here is the operator's 2026-09-10 directive: for the MEMORY tasks the titular is
-    OpenAI DIRECT, the stand-in is DeepSeek DIRECT, and the broker is at most the THIRD rung — never the
-    titular of anything, and no ladder exceeds three levels.
+def test_the_chain_is_a_cheap_titular_then_ONE_native_stand_in(monkeypatch):
+    """⚠️ INVERTED 2026-09-22 (V2-750), and this assertion has now flipped three times — which is the reason
+    to write down what each flip was FOR rather than just the new order.
 
-    History of this assertion matters because it has flipped twice: it once pinned OpenAI as the LAST rung,
-    then the 2026-08-21 no-OpenAI norm made it assert the opposite. That norm was SCOPED on 2026-09-10 —
-    the operator chose OpenAI direct as the memory titular after the DeepSeek titular returned an empty 200
-    every REM cycle with AIMLAPI's wallet dry behind it, killing the whole ladder silently."""
+      · it once pinned OpenAI LAST;
+      · the 2026-08-21 no-OpenAI norm flipped it to the opposite;
+      · 2026-09-10 SCOPED that norm and made OpenAI the memory TITULAR, after the DeepSeek titular returned an
+        empty 200 every REM cycle with AIMLAPI's wallet dry behind it, killing the whole ladder silently;
+      · today it is inverted again by a rule that outranks the 2026-09-10 one because it is general:
+        «OpenAI siempre tiene que ser failover; tenemos modelos baratos como titulares, los más potentes a
+        nuestra disposición», plus «solo quiero un modelo principal y un failover» and «siempre por
+        proveedores nativos… hay más posibilidades de que se caiga IML que que se caiga el proveedor
+        original».
+
+    What makes today's inversion survivable where 2026-09 was not: the empty-200 trap is still real, but the
+    titular is no longer the REASONER that fell into it (`deepseek-flash` measured 1.77 s on a vision prompt
+    where `deepseek-v4-pro` returned '' in 7.47 s), and an empty 200 now falls THROUGH to a stand-in that
+    exists. In 2026-09 the rung below was a broker with a dry wallet, which is why the silence was total."""
     monkeypatch.setattr(memllm, "_endpoint_key", lambda url: "k")
     hosts = [u for u, _m, _k, _dt in memllm.chain("rem")]
-    assert hosts[0] == "https://api.openai.com/v1", "OpenAI DIRECT is the memory titular (operator, 2026-09-10)"
-    assert hosts[1:] == [_DS, _AIML], "stand-in DeepSeek direct, broker third and last"
+    assert hosts[0] == _DS, "the titular is the CHEAP one (operator, 2026-09-22)"
+    assert hosts[1:] == ["https://api.openai.com/v1"], \
+        f"exactly ONE stand-in, and it is native — the broker rung is gone: {hosts}"
+    assert _AIML not in hosts, "AIMLAPI is a last resort, not a rung of the default ladder"
     models = [m for _u, m, _k, _dt in memllm.chain("rem")]
-    assert models[0] == "gpt-4.1-mini", models
+    assert models[0] == "deepseek-flash", models
 
 
 def test_no_ladder_exceeds_three_levels(monkeypatch):
@@ -78,24 +93,29 @@ def test_a_rung_the_config_already_promoted_is_not_tried_twice(monkeypatch):
     fail every time a rung is added for an unrelated reason (it did, when DeepSeek direct became the first
     fallback), and a test that has to be edited to stay green stops being read."""
     monkeypatch.setattr(memllm, "_endpoint_key", lambda url: "k")
-    promoted = (_AIML, "deepseek/deepseek-v4-flash")
+    promoted = (_OAI, "gpt-4.1-mini")
     rungs = memllm.failover_rungs("rem", titular=promoted)
     assert promoted not in [(u, m) for u, m, _k, _dt in rungs]
-    assert rungs, "quitar el titular de la lista no puede dejar la cadena sin escalones"
+    # V2-750 — the old assertion here was «removing the titular cannot leave the chain without rungs», and it
+    # was true of a THREE-rung ladder. With one stand-in, promoting that stand-in legitimately leaves none:
+    # the endpoint is already the titular, so there is nothing left to relay TO, and pretending otherwise
+    # would mean trying the same dead endpoint twice. What still has to hold is that `chain()` never comes
+    # back empty — the titular survives even uncredentialed, so the real error reaches the log and the ◉.
+    assert memllm.chain("rem"), "chain() may never be empty — that hides the cause behind «0 rungs exhausted»"
 
 
 def test_an_uncredentialed_fallback_is_dropped(monkeypatch):
     monkeypatch.setattr(memllm, "_endpoint_key", lambda url: "local")
-    assert memllm.failover_rungs("rem", titular=(_DS, "deepseek-v4-flash")) == []
+    assert memllm.failover_rungs("rem", titular=(_OAI, "gpt-4.1-mini")) == []
 
 
 def test_the_titular_SURVIVES_a_missing_credential(monkeypatch):
     """Deliberate asymmetry. Dropping the titular would silently substitute a different model for the one the
     config names — turning a visible misconfiguration into a wrong-model-answered-fine, the harder bug to notice."""
     monkeypatch.setattr(memllm, "_endpoint_key", lambda url: "local")
-    monkeypatch.setattr(memllm, "resolve", lambda t: (_DS, "deepseek-v4-flash", "local", False))
+    monkeypatch.setattr(memllm, "resolve", lambda t: (_DS, "deepseek-flash", "local", False))
     chain = memllm.chain("rem")
-    assert len(chain) == 1 and chain[0][1] == "deepseek-v4-flash"
+    assert len(chain) == 1 and chain[0][1] == "deepseek-flash"
 
 
 # ── the two traps that make a plausible rung useless ──────────────────────────────────────────────────────────
@@ -137,18 +157,18 @@ def _stub_attempts(monkeypatch, outcomes: dict[str, str | Exception]):
 
 def test_chat_sync_relays_past_a_dead_titular(monkeypatch):
     monkeypatch.setattr(memllm, "_endpoint_key", lambda url: "k")
-    monkeypatch.setattr(memllm, "resolve", lambda t: (_DS, "deepseek-v4-flash", "k", False))
-    seen = _stub_attempts(monkeypatch, {"deepseek/deepseek-v4-flash": "OK"})
+    monkeypatch.setattr(memllm, "resolve", lambda t: (_DS, "deepseek-flash", "k", False))
+    seen = _stub_attempts(monkeypatch, {"gpt-4.1-mini": "OK"})
     assert memllm.chat_sync("rem", "s", "u") == "OK"
-    assert seen[:2] == ["deepseek-v4-flash", "deepseek/deepseek-v4-flash"]
+    assert seen[:2] == ["deepseek-flash", "gpt-4.1-mini"]
 
 
 def test_a_relay_is_VISIBLE_in_the_health_state(monkeypatch):
     """Three incidents in this module were a failure that stayed in a `logger.warning`. A relay means the titular
     is DOWN, which is exactly what the ◉ exists to show."""
     monkeypatch.setattr(memllm, "_endpoint_key", lambda url: "k")
-    monkeypatch.setattr(memllm, "resolve", lambda t: (_DS, "deepseek-v4-flash", "k", False))
-    _stub_attempts(monkeypatch, {"deepseek/deepseek-v4-flash": "OK"})
+    monkeypatch.setattr(memllm, "resolve", lambda t: (_DS, "deepseek-flash", "k", False))
+    _stub_attempts(monkeypatch, {"gpt-4.1-mini": "OK"})
     recorded: list[tuple] = []
     from voice import health_state
     monkeypatch.setattr(health_state, "record", lambda *a, **k: recorded.append(a))
@@ -158,7 +178,7 @@ def test_a_relay_is_VISIBLE_in_the_health_state(monkeypatch):
 
 def test_every_rung_failing_reports_an_OUTAGE_and_fails_open(monkeypatch):
     monkeypatch.setattr(memllm, "_endpoint_key", lambda url: "k")
-    monkeypatch.setattr(memllm, "resolve", lambda t: (_DS, "deepseek-v4-flash", "k", False))
+    monkeypatch.setattr(memllm, "resolve", lambda t: (_DS, "deepseek-flash", "k", False))
     _stub_attempts(monkeypatch, {})
     recorded: list[tuple] = []
     from voice import health_state
@@ -172,8 +192,8 @@ def test_a_PINNED_model_never_relays(monkeypatch):
     and a silent relay would make the declaration a LIE: the report would say it measured with one model while
     having measured with another. Failing open is the honest outcome there."""
     monkeypatch.setattr(memllm, "_endpoint_key", lambda url: "k")
-    monkeypatch.setattr(memllm, "resolve", lambda t: (_DS, "deepseek-v4-flash", "k", False))
-    seen = _stub_attempts(monkeypatch, {"deepseek/deepseek-v4-flash": "OK"})
+    monkeypatch.setattr(memllm, "resolve", lambda t: (_DS, "deepseek-flash", "k", False))
+    seen = _stub_attempts(monkeypatch, {"gpt-4.1-mini": "OK"})
     out = memllm.chat_sync("rem", "s", "u", model_override="openai/gpt-4.1-mini", url_override=_AIML)
     assert out is None, "un modelo pinchado que falla devuelve None, no la respuesta de OTRO modelo"
     assert seen == ["openai/gpt-4.1-mini"], f"no debió tocar ningún otro escalón: {seen}"
@@ -196,15 +216,15 @@ def test_the_heart_keeps_its_own_titular_at_the_front(monkeypatch):
     monkeypatch.setattr(MP, "_model", lambda: "qwen2.5:7b-instruct")
     rungs = MP._rung_chain()
     assert rungs[0] == ("http://localhost:11434/v1", "qwen2.5:7b-instruct")
-    assert rungs[1] == (_DS, "deepseek-v4-flash"), "y el failover del operador va justo detrás"
+    assert rungs[1] == (_OAI, "gpt-4.1-mini"), "y el failover del operador va justo detrás"
 
 
 def test_the_heart_still_writes_when_the_fallback_catalog_explodes(monkeypatch):
     """A bad day for the fallback catalog must not become a bad day for every memory write."""
     monkeypatch.setattr(MP, "_url", lambda: _DS)
-    monkeypatch.setattr(MP, "_model", lambda: "deepseek-v4-flash")
+    monkeypatch.setattr(MP, "_model", lambda: "deepseek-flash")
     monkeypatch.setattr(memllm, "failover_rungs", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("nope")))
-    assert MP._rung_chain() == [(_DS, "deepseek-v4-flash")]
+    assert MP._rung_chain() == [(_DS, "deepseek-flash")]
 
 
 # ── an EMPTY answer is a failure, not an answer ────────────────────────────────────────────────────────────────
@@ -229,7 +249,7 @@ def test_an_empty_answer_from_a_rung_is_treated_as_a_FAILURE(monkeypatch, conten
 
     monkeypatch.setattr("urllib.request.urlopen", lambda *a, **k: _Resp())
     with pytest.raises(Exception):
-        memllm._attempt(_DS, "deepseek-v4-flash", "k", False, system="s", user="u",
+        memllm._attempt(_DS, "deepseek-flash", "k", False, system="s", user="u",
                         max_tokens=8, temperature=0, timeout=5)
 
 
@@ -256,13 +276,13 @@ def _tags(names: list[str]):
     return fake, calls
 
 
-def test_deepseek_direct_is_the_FIRST_fallback_of_every_memory_task():
+def test_the_ONE_fallback_of_every_memory_task_is_native_openai():
     """The rule names DeepSeek V4 Flash **through its provider** as the failover. Before this it was only ever the
     TITULAR, so pointing the titular at a local Ollama silently left the direct endpoint out of the chain and the
     first fallback became the broker — the opposite of the stated order."""
     for task in ("distill", "rem", "paraphrase"):
         first = memllm._FAILOVER[task][0]
-        assert first == (_DS, "deepseek-v4-flash"), f"{task} no empieza por el directo: {first}"
+        assert first == (_OAI, "gpt-4.1-mini"), f"{task} no releva al suplente nativo: {first}"
 
 
 def test_a_local_endpoint_is_recognised_and_a_cloud_one_is_not():
@@ -328,13 +348,15 @@ def test_the_verdict_is_cached_but_NEVER_latched(monkeypatch):
     assert len(calls) == 2, "tras invalidar la caché debe volver a sondear"
 
 
-def test_a_DEAD_local_titular_is_stepped_over_and_the_chain_starts_at_deepseek(monkeypatch):
+def test_a_DEAD_local_titular_is_stepped_over_and_the_chain_starts_at_the_titular(monkeypatch):
     memllm.reset_local_probe()
     monkeypatch.setattr(memllm, "_endpoint_key", lambda url: "k")
     monkeypatch.setattr(memllm, "resolve", lambda t: ("http://localhost:11434/v1", "qwen2.5:7b-instruct", "local", False))
     monkeypatch.setattr(memllm, "local_titular_ready", lambda *a: False)
     chain = memllm.chain("rem")
-    assert chain[0][0] == _DS and chain[0][1] == "deepseek-v4-flash", chain
+    # A local model that is not there is an ordinary fact of a self-hosted machine, so it is stepped over and
+    # the chain starts at what is left — which since V2-750 is the ONE native stand-in.
+    assert chain[0][0] == _OAI and chain[0][1] == "gpt-4.1-mini", chain
 
 
 def test_a_LIVE_local_titular_stays_in_front(monkeypatch):
@@ -343,7 +365,7 @@ def test_a_LIVE_local_titular_stays_in_front(monkeypatch):
     monkeypatch.setattr(memllm, "resolve", lambda t: ("http://localhost:11434/v1", "qwen2.5:7b-instruct", "local", False))
     monkeypatch.setattr(memllm, "local_titular_ready", lambda *a: True)
     chain = memllm.chain("rem")
-    assert chain[0][1] == "qwen2.5:7b-instruct" and chain[1][0] == _DS, chain
+    assert chain[0][1] == "qwen2.5:7b-instruct" and chain[1][0] == _OAI, chain
 
 
 def test_the_chain_is_NEVER_empty(monkeypatch):
@@ -361,7 +383,7 @@ def test_the_HEART_steps_over_a_dead_local_titular_only_if_there_is_somewhere_to
     monkeypatch.setattr(MP, "_model", lambda: "qwen2.5:7b-instruct")
     monkeypatch.setattr(memllm, "local_titular_ready", lambda *a: False)
     monkeypatch.setattr(memllm, "_endpoint_key", lambda url: "k")
-    assert MP._rung_chain()[0] == (_DS, "deepseek-v4-flash")
+    assert MP._rung_chain()[0] == (_OAI, "gpt-4.1-mini")
     # No credentialed fallback anywhere → the local titular is all there is, and it must still be attempted.
     monkeypatch.setattr(memllm, "_endpoint_key", lambda url: "local")
     assert MP._rung_chain() == [("http://localhost:11434/v1", "qwen2.5:7b-instruct")]
@@ -397,7 +419,7 @@ def test_the_HEART_skips_the_impossible_pair_instead_of_paying_the_404(monkeypat
     monkeypatch.setattr(MP, "_model", lambda: "qwen2.5:3b")
     rungs = MP._rung_chain()
     assert (_AIML, "qwen2.5:3b") not in rungs, "un par imposible no se intenta, se salta"
-    assert rungs[0] == (_DS, "deepseek-v4-flash"), "y la escritura entra por el failover del operador"
+    assert rungs[0] == (_OAI, "gpt-4.1-mini"), "y la escritura entra por el failover del operador"
 
 
 def test_the_impossible_pair_is_KEPT_when_there_is_nowhere_to_relay(monkeypatch):

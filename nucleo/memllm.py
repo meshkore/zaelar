@@ -41,7 +41,13 @@ _DEFAULTS = {
     # §12.2 measured at 100% on this task, and it does not reason, so the empty-200 trap that killed REM on
     # the DeepSeek titular (reasoning ate max_tokens every cycle, 2026-09-09/10) cannot happen here. Measured
     # live before the switch: 200 on chat/completions with the house key.
-    "rem": ("https://api.openai.com/v1", "gpt-4.1-mini", False),
+    # V2-750 — INVERTED 2026-09-22. «OpenAI siempre tiene que ser failover; tenemos modelos baratos como
+    # titulares, los mas potentes a nuestra disposicion.» The two models swap seats and nothing else changes:
+    # `gpt-4.1-mini` is one rung below, so the empty-200 trap that cost DeepSeek this seat in 2026-09 now falls
+    # THROUGH to it instead of killing the cycle — which is what a stand-in is for, and what was missing then.
+    # And the reasoner is no longer the titular: `deepseek-flash` is V4.1-Flash, measured 2026-09-22 answering
+    # a vision prompt in 1.77 s where `deepseek-v4-pro` returned an empty body in 7.47 s.
+    "rem": ("https://api.deepseek.com", "deepseek-flash", True),
     # i18n (V2-089): translation of the UI into a new language during INITIALIZATION (i18n/init). Off-hot-path,
     # quality matters (non-Latin scripts: Arabic, Chinese, Japanese…) → strong model. Override in config §memory.
     #
@@ -106,7 +112,10 @@ _DEFAULTS = {
     # disable), which is exactly the property that made it the only viable broker rung here before 2026-08-21.
     # The flag stays True so a relay to the DeepSeek rung still disables reasoning there — that flag is what
     # keeps the fallback from returning an empty 200 (measured 2026-08-18).
-    "paraphrase": ("https://api.openai.com/v1", "gpt-4.1-mini", True),
+    # V2-750 — inverted with the rest (see `rem`). The reasoning-OFF constraint this task lives under is
+    # met by the FLAG, which the direct endpoint obeys (the broker accepts and ignores it — that is why the
+    # broker was banned from this row), and `gpt-4.1-mini` one rung below meets it natively.
+    "paraphrase": ("https://api.deepseek.com", "deepseek-flash", True),
 }
 
 # ── FAILOVER: the operator's provider ORDER, as data ──────────────────────────────────────────────────────────
@@ -132,41 +141,47 @@ _AIML = "https://api.aimlapi.com/v1"
 # a LOCAL Ollama, say. Before this it was only ever the titular, so pointing the titular at Ollama silently left
 # the direct endpoint out of the chain entirely and the first fallback became the broker.
 _DS = "https://api.deepseek.com"
+# V2-750 — the ONE stand-in of every memory task, and the only OpenAI seat left in this module: he moved it
+# OUT of the titular chairs the same day he made it the universal relay («OpenAI siempre tiene que ser
+# failover; tenemos modelos baratos como titulares, los más potentes a nuestra disposición»).
+_OAI = "https://api.openai.com/v1"
 
 _FAILOVER: dict[str, tuple[tuple[str, str], ...]] = {
-    # rem — titular is OpenAI DIRECT (see `_DEFAULTS`); the stand-in is DeepSeek DIRECT and the broker's
-    # DeepSeek closes the ladder at three levels (operator, 2026-09-10). The gemini rung that used to sit
-    # fourth is gone — a fourth level violates the ≤3 rule, and it was never measured on this task anyway.
-    # ⚠️ The DeepSeek rung carries the measured trap that lost it the titular seat: as a reasoner it can eat
-    # `max_tokens` on real REM prompts and return an EMPTY 200 (every cycle, 2026-09-09/10).
-    "rem": ((_DS, "deepseek-v4-flash"), (_AIML, "deepseek/deepseek-v4-flash")),
-    # distill — the WRITE HEART. `nucleo/mem_processor.py` makes the call AND resolves its own TITULAR (its config
-    # keys are the historical `mem_processor_*`, with env fallbacks, and that name is synchronized across three
-    # deploy sites — `config/v2.py`, `fly.accounts.toml`, the cloud provisioner). What lives HERE is only its
-    # ORDER of FALLBACKS, so there is exactly one list of them; it reads them via `failover_rungs`, not `chain`.
-    # The rungs are the ones §12.3 already named after sweeping 21 candidates × 34 cases. ⛔ NOT `gpt-4o-mini`:
-    # cheaper and VETOED (puts an allergy stated in English into `slot=operator.diet`, which a later diet change
-    # would erase).
-    # 2026-09-10: titular is OpenAI DIRECT `gpt-4.1-mini` (the table row `memory_writer` — operator directive,
-    # superseding the 2026-08-21 no-OpenAI removal for memory). The ladder closes at three levels: OpenAI →
-    # DeepSeek direct → broker DeepSeek. The gemini fourth rung is trimmed per the ≤3 rule.
-    "distill": ((_DS, "deepseek-v4-flash"), (_AIML, "deepseek/deepseek-v4-flash")),
-    # paraphrase — NO DeepSeek rung on the broker, deliberately. This task only works with reasoning OFF (measured
-    # 2026-08-18: with it on the entire budget goes to reasoning and `content` comes back EMPTY at every budget
-    # tried) and the broker ACCEPTS `thinking:disabled` while ignoring it. That rung would answer 200 with nothing
-    # in it, and a rung that reports success while delivering silence is worse than no rung. Non-reasoners only.
-    # ⚠️ DeepSeek DIRECT is the only rung here and the broker's DeepSeek is absent — because this task needs
-    # reasoning OFF and only the direct endpoint obeys the flag (see below). 2026-09-10: the titular moved to
-    # OpenAI DIRECT `gpt-4.1-mini` (see `_DEFAULTS`), which satisfies the reasoning-OFF constraint natively, so
-    # this task has a real two-level ladder again — titular that cannot reason, stand-in with the flag honored.
-    "paraphrase": ((_DS, "deepseek-v4-flash"),),
-    # i18n — titular DeepSeek DIRECT (operator rule 2026-08-19, unchanged by the 2026-09-10 memory directive:
-    # i18n is UI translation, not a memory service), so its rung is the SAME model on the broker. One is
-    # enough to stop a lost batch from meaning 50 English strings in the UI. It used to be `openai/gpt-4.1`,
-    # never measured for placeholder fidelity on non-Latin scripts, which is the whole point of §12.5. ⚠️ On the broker
-    # `thinking:disabled` is accepted and IGNORED (V2-097), so this rung may reason a lot and be slow — tolerable
-    # here, where the task is paid ONCE per language and a lost batch is the only real failure.
-    "i18n": ((_AIML, "deepseek/deepseek-v4-pro"),),
+    # ⚠️ ONE STAND-IN PER TASK, AND THE BROKER IS OUT (operator, 2026-09-22). This table held THREE rungs for
+    # the memory tasks — OpenAI → DeepSeek direct → AIMLAPI's DeepSeek — under the ≤3 rule of 2026-09-10. He
+    # tightened it to one: «yo solo quiero un modelo principal o una API principal y un failover… vamos a
+    # depurar todos esos sistemas para que solo haya un titular y un secundario». And the rung that went is
+    # the BROKER, by his other rule of the same day: «yo prefiero que vayas siempre por proveedores nativos,
+    # para evitar latencia adicional y que el proveedor este se caiga — hay más posibilidades de que se caiga
+    # IML que que se caiga el proveedor original».
+    #
+    # The titulars moved the other way at the same time: OpenAI is no longer at the head of the memory
+    # services («OpenAI siempre tiene que ser failover; tenemos modelos baratos como titulares, los más
+    # potentes a nuestra disposición»), so DeepSeek leads and `gpt-4.1-mini` is the one rung below it. See
+    # `config/models.default.json` §memory_writer, which is where that swap is written down and why.
+    #
+    # ⚠️ THE TRAP THAT LOST DEEPSEEK THE SEAT IN THE FIRST PLACE IS STILL REAL and is now above the line: as a
+    # reasoner it can eat `max_tokens` on a real REM prompt and return an EMPTY 200 (every cycle,
+    # 2026-09-09/10). What makes it survivable is that `deepseek-flash` is not that reasoner — measured
+    # 2026-09-22, it answers a vision prompt in 1.77 s where `deepseek-v4-pro` returned '' in 7.47 s — and
+    # that an empty 200 falls through to the stand-in, which is exactly what a stand-in is for.
+    "rem": ((_OAI, "gpt-4.1-mini"),),
+    # distill — the WRITE HEART. `nucleo/mem_processor.py` makes the call AND resolves its own TITULAR (its
+    # config keys are the historical `mem_processor_*`). What lives HERE is only its ORDER of FALLBACKS, so
+    # there is exactly one list of them; it reads them via `failover_rungs`, not `chain`.
+    # ⛔ NOT `gpt-4o-mini`: cheaper and VETOED (puts an allergy stated in English into `slot=operator.diet`,
+    # which a later diet change would erase).
+    "distill": ((_OAI, "gpt-4.1-mini"),),
+    # paraphrase — this task only works with reasoning OFF (measured 2026-08-18: with it on the whole budget
+    # goes to reasoning and `content` comes back EMPTY at every budget tried), which is why the broker's
+    # DeepSeek was already banned from this row: it ACCEPTS `thinking:disabled` and ignores it, so it would
+    # answer 200 with nothing in it, and a rung that reports success while delivering silence is worse than
+    # no rung. `gpt-4.1-mini` satisfies the constraint natively.
+    "paraphrase": ((_OAI, "gpt-4.1-mini"),),
+    # i18n — UI translation, not a memory service, and its titular stays DeepSeek DIRECT (2026-08-19). Its one
+    # rung used to be the SAME model on the broker; under the native-only rule it is the stand-in everything
+    # else uses. One is enough to stop a lost batch from meaning 50 English strings in the UI.
+    "i18n": ((_OAI, "gpt-4.1-mini"),),
 }
 
 

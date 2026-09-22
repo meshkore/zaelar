@@ -22,13 +22,31 @@ export function StatusPanel() {
   createEffect(() => { if (store.statusOpen()) refreshStatus(); });   // fresh read whenever it opens
   let panelEl, gripEl;
 
-  const row = (it, secondary) => h("div", { class: "st-row st-" + (it.state || "unknown") + (secondary ? " st-2" : "") },
-    h("span", { class: "st-dot " + (DOT_CLS[it.state] || "") }),
-    h("div", { class: "st-main" },
-      h("div", { class: "st-name" }, it.label || it.key),
-      h("div", { class: "st-detail" }, it.detail || ""),
-    ),
-  );
+  // V2-750 — a row may carry TWO facts, and they are not the same colour. Operator, 2026-09-22: «este no
+  // responde, lo marcaría en rojo, y debajo marcaría otro en verde que dice: ahora estás funcionando a
+  // través de este otro modelo». It reads the structured `extra` the server sends and writes the sentence
+  // here, in his language — a line he reads belongs in the i18n table, not composed server-side.
+  const modelName = (m) => m ? ((m.model || "?") + (m.provider ? " · " + m.provider : "")) : "";
+  const llmLines = (it) => {
+    const x = it && it.extra;
+    if (!x || !x.titular) return null;
+    const out = [{ txt: t("status.llm_titular_down", { model: modelName(x.titular) }), tone: "bad" }];
+    if (x.serving) out.push({ txt: t("status.llm_serving", { model: modelName(x.serving) }), tone: "good" });
+    else if (x.standby) out.push({ txt: t("status.llm_standby", { model: modelName(x.standby) }), tone: "warn" });
+    return out;
+  };
+
+  const row = (it, secondary) => {
+    const lines = it.key === "llm" ? llmLines(it) : null;
+    return h("div", { class: "st-row st-" + (it.state || "unknown") + (secondary ? " st-2" : "") },
+      h("span", { class: "st-dot " + (DOT_CLS[it.state] || "") }),
+      h("div", { class: "st-main" },
+        h("div", { class: "st-name" }, it.label || it.key),
+        ...(lines ? lines.map(l => h("div", { class: "st-detail st-line-" + l.tone }, l.txt))
+                  : [h("div", { class: "st-detail" }, it.detail || "")]),
+      ),
+    );
+  };
   const sec = (txt, cls) => h("div", { class: "st-sec" + (cls ? " " + cls : "") }, txt);
 
   const panel = h("div", { class: () => "statuspanel" + (store.statusOpen() ? " open" : ""), ref: (el) => (panelEl = el) },

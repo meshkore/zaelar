@@ -252,7 +252,10 @@ def test_the_model_belongs_to_its_tier_not_to_the_global_config(monkeypatch):
     monkeypatch.setenv("DEEPSEEK_API_KEY", "k2")
     by_name = {t["name"]: t for t in prov.chain()}
     assert by_name["z.ai"]["model"] == "glm-5.3"          # el de la tabla
-    assert by_name["deepseek"]["model"] == "deepseek-v4-flash"   # el suplente lleva EL SUYO, de la tabla
+    # V2-750 — leído DE la tabla, no clavado aquí: es la misma lección que el propio fichero cuenta sobre
+    # fijar listas completas, y este literal ya se quedó atrás en la promoción de V4.1-Flash.
+    from config import models as _tabla
+    assert by_name["deepseek"]["model"] == _tabla.failover("brain_worker")["model"]
     assert by_name["licencia-claude"]["model"] == ""      # la licencia → el default del CLI
 
 

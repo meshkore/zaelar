@@ -113,7 +113,13 @@ def _known_chain() -> list[dict]:
     explicit = bool(os.getenv("LLM_API_KEY") or os.getenv("LLM_BASE_URL"))
     override_model = (os.getenv("MESHKORE_MISSION_MODEL") or os.getenv("ASSISTANT_LLM_MODEL")
                       or os.getenv("LLM_MODEL") or "")
-    escalones = _tabla.chain_for("voice_brain", names=("deepseek-directo", "aimlapi-failover"))
+    # ⚠️ EL NOMBRE DEL ESCALÓN ES UNA ETIQUETA HISTÓRICA, NO SU PROVEEDOR (V2-750). El segundo se llamaba
+    # «aimlapi-failover» y desde el 2026-09-22 apunta a OpenAI, así que el panel y los avisos habrían
+    # nombrado a un proveedor que no interviene — la misma clase de mentira que el rótulo «Modo Wake
+    # Word» sobre un modo que no lo era. Y el nombre NO puede ser «relevo» a secas: el cooldown se
+    # guarda POR NOMBRE y es compartido entre roles (`_KV`), así que repetir el de la cadena de voz
+    # haría que una avería del cerebro de cluster enfriara el titular de la voz.
+    escalones = _tabla.chain_for("voice_brain", names=("deepseek-directo", "relevo-nativo"))
     if override_model:
         for e in escalones:
             e["model"] = override_model
@@ -126,53 +132,38 @@ def _known_chain() -> list[dict]:
 
 
 def _VOICE_RELAYS() -> list[dict]:
-    """The voice-chain relay tiers, kept separate so they can be NAMED when the self-host rule suppresses them
-    (V2-244). The list and its reasons do not change: see `_voice_chain`."""
-    return [
-    # PRIMER escalón desde 2026-08-14, y es el MISMO MODELO que el titular por OTRO endpoint — que suena raro
-    # hasta que se ve el número. El titular va por el broker AIMLAPI, que ACEPTA `thinking:{"type":"disabled"}`
-    # y razona igual; `api.deepseek.com` lo OBEDECE. Medido con el prompt real de voz, 6 turnos por brazo:
-    #
-    #   AIMLAPI → TTFT p50 4,24 s · peor 14,71 s · 2.138 tokens de razonamiento
-    #   DIRECTO → TTFT p50 1,01 s · peor  1,30 s ·     0
-    #
-    # O sea que el relevo por LATENCIA ideal no es un modelo distinto: es el mismo sin el razonamiento oculto
-    # que el broker no deja apagar. Y encaja con el criterio de esta cadena mejor que nada: **no encarece** (es
-    # la misma tarifa por token, sin el ×1,4 de Grok Fast ni el ×4,2 de Groq) y es el más rápido al primer token.
-    #
-    # **El modelo del escalón es V4 PRO, no Flash, y eso se decidió MIDIENDO** (2026-08-15, nodo 2.13 a 3
-    # rondas × 14 casos = 42 turnos por brazo, que es lo que hacía falta para distinguir defecto de ruido):
-    #
-    #   brazo                        enrutado  graves   TTFT p50   peor turno
-    #   AIMLAPI deepseek-v4-flash      41/42       0     8.659 ms   12.025 ms   ← titular
-    #   DIRECTO deepseek-v4-PRO        41/42       1     1.158 ms    5.582 ms   ← este escalón
-    #   DIRECTO deepseek-v4-flash      38/42       1       934 ms    2.344 ms   ← lo que había aquí
-    #   AIMLAPI (titular anterior)     31/42       0     1.297 ms    2.352 ms
-    #
-    # Flash DIRECTO fallaba `mostrar widget` **3 de 3** — o sea un defecto de enrutado reproducible, no mala
-    # suerte. Pro iguala el enrutado del titular (41/42) por 224 ms más de TTFT, así que el relevo deja de
-    # costar precisión: el intercambio que este comentario declaraba antes («enrutado algo peor a cambio de
-    # que el turno llegue») ya no hay que pagarlo. Cuesta ×2 el input, y por eso es RELEVO y no titular — un
-    # relevo tiene techo de turnos y solo actúa tras dos turnos lentos seguidos.
-    #
-    # Sigue sin ser TITULAR: el broker marca 0 graves en 42 turnos y los dos brazos directos marcan 1. El
-    # grave es `pregunta memoria → widget_data`, exactamente el fallo que baneó a grok del FlashBrain, y con
-    # el razonamiento apagado se pierde justo esa discriminación pregunta/orden. Promoverlo es decisión del
-    # operador porque además dobla el coste de CADA turno de voz (V2-097 §1).
-    {"name": "deepseek-directo", "base_url": "https://api.deepseek.com", "env": ["DEEPSEEK_API_KEY"],
-     "model": os.getenv("ZAELAR_VOICE_RELAY_DEEPSEEK_MODEL", "deepseek-v4-pro"), "provider": "aimlapi",
-     "plan": "DeepSeek directo V4 Pro (enrutado del titular, TTFT ×7,5 mejor)"},
-    # xAI (`grok-4-fast`) y Groq (`llama-3.3-70b-versatile`) ESTUVIERON AQUÍ y se fueron el 2026-08-30 (V2-504).
-    # V2-500 los retiró del catálogo por medición —xAI devuelve `403 used all available credits` y el modelo de
-    # Groq ya no existe, `404 model_not_found`— pero los quitó de UNA cadena y hay DOS: esta, la de relevo por
-    # LATENCIA, siguió nombrándolos. No hacía daño, porque en self-host esta lista sale vacía y ninguno de los
-    # tres motores la usaba; hacía algo peor a medio plazo: era el documento donde el reparto seguía diciendo
-    # otra cosa, y cada vez que alguien lo leía volvía a abrirse la misma discusión.
-    #
-    # Norma del operador, y aquí es donde se aplica: **un solo failover por servicio**. El relevo por latencia
-    # tiene UN escalón, el de arriba, que además es el mismo cerebro por otro endpoint — o sea que relevar ya
-    # no cambia el modelo bajo medición, que era el otro motivo por el que una escalera larga estorbaba.
-]
+    """The voice brain's stand-in, READ FROM THE TABLE (`config/models.default.json` §voice_brain.failover).
+
+    V2-750 — it used to be a hardcoded list here, and that is what made the ladder decorative. Two faults, both
+    measured 2026-09-22:
+
+      · THE ONE TIER IT NAMED WAS THE SAME PROVIDER AS THE TITULAR. `deepseek-directo` pointed at
+        `api.deepseek.com`, which is where the titular already lives — so a DeepSeek outage took both rungs and
+        the chain could not relay to anything. A stand-in that shares a provider with its titular is a second
+        door into the same outage.
+      · AND IT WAS DEAD IN SELF-HOST ANYWAY. `_relays_suppressed()` emptied this list off `is_cloud_account`,
+        so the operator's own machine had NO relay at all while the table said otherwise. Two documents, one
+        of them wrong, and the wrong one was the code.
+
+    The gate is no longer WHO IS RUNNING but WHETHER THE KEY IS THERE: `chain()` already drops any tier whose
+    credential does not resolve («sin credencial no es un escalón, es un espejismo»), which is the same
+    protection the cloud gate was reaching for — a self-hoster with no OpenAI key gets no relay and is never
+    moved onto a provider he did not set up — and it is honest about the one case the cloud gate got wrong,
+    the operator who DID choose one.
+
+    ⚠️ ONE stand-in. `models.chain_for` returns titular + at most one failover by the reader's own rule, and
+    the titular is dropped here because `_voice_chain()` takes it from config, which is the FlashBrain's own
+    truth and not this module's to decide.
+    """
+    try:
+        from config import models as _tabla
+        filas = _tabla.chain_for("voice_brain", names=("titular", "relevo"))[1:]
+    except Exception as e:  # noqa: BLE001 — a broken table must never take the titular down with it
+        logger.warning(f"provider_chain(voice): no pude leer la tabla de modelos: {e!r}")
+        return []
+    for f in filas:
+        f["plan"] = f"relevo de voz ({f.get('provider')}/{f.get('model')})"
+    return filas
 
 
 def _voice_chain() -> list[dict]:
@@ -201,40 +192,30 @@ def _voice_chain() -> list[dict]:
     except Exception as e:  # noqa: BLE001
         logger.warning(f"provider_chain(voice): no pude resolver el titular: {e!r}")
 
-    relevos = _VOICE_RELAYS()
-    # SOLO EN LA NUBE hay relevo por defecto (ver el docstring). `is_cloud_account` es el mismo gate de siempre.
-    if _relays_suppressed():
-        relevos = []
-    return ([titular] if titular else []) + relevos
-
-
-def _relays_suppressed() -> bool:
-    """True en self-host, donde la cadena de voz es SOLO el titular (regla del operador, ver `_voice_chain`)."""
-    try:
-        from nucleo import cloud_account
-        return not cloud_account.is_cloud_account()
-    except Exception:
-        return True
+    # V2-750 — NO cloud gate here any more. The relay is whatever the table declares, and `chain()` drops it
+    # when its credential does not resolve: that is the same protection, applied to the fact that actually
+    # matters. See `_VOICE_RELAYS`.
+    return ([titular] if titular else []) + _VOICE_RELAYS()
 
 
 def suppressed_relays() -> list[str]:
-    """Voice tiers suppressed by the self-host rule **and for which a credential DOES exist**.
+    """The stand-in this engine DECLARES but cannot use, because its credential is not there.
 
-    V2-244 — la regla es del operador y no se toca: quien se autohospeda paga sus APIs y no puede llevarse la
-    sorpresa de que el agente se pase solo a un proveedor que él no eligió. Pero esa regla se escribió sobre el
-    relevo por LATENCIA (todo el docstring de `_voice_chain` habla de TTFT y de coste), y lo que se midió el
-    2026-08-21 es otra cosa: el titular MUERTO (402) deja el producto entero mudo **con una clave viva sin usar**.
-    El arnés lo aisló en dos líneas seguidas del log — `memllm[i18n]` relevó a AIMLAPI y siguió; el cerebro de voz
-    dijo «SIN RELEVO disponible» en el mismo segundo.
-    Callar un escalón es legítimo; callar QUE LO ESTÁS CALLANDO deja al operador sin la única frase que le habría
-    dicho qué hacer. Esto no releva: solo permite NOMBRARLO.
+    ⚠️ V2-750 INVERTED THIS FUNCTION, and it is the same sentence pointing at the other half of the problem.
+    It used to name the tiers the self-host rule SILENCED while their key was present — «callar un escalón es
+    legítimo; callar QUE LO ESTÁS CALLANDO deja al operador sin la única frase que le habría dicho qué
+    hacer». That gate is gone (see `_VOICE_RELAYS`), so that case can no longer exist: if the key resolves,
+    the rung is simply IN the chain.
+
+    What is left is the mirror case, and it is the one he actually hit on 2026-09-22: the table declares a
+    stand-in, the engine has no key for it, and the voice goes mute saying «SIN RELEVO disponible» without
+    ever naming what would have fixed it. Naming it is the whole point — and it still does not relay,
+    because a rung without a credential is not a rung.
     """
-    if not _relays_suppressed():
-        return []
     try:
         from config import v2
         if (v2.get("fast") or {}).get("providers"):
-            return []                      # el operador ya puso su lista explícita: no hay nada callado
+            return []                      # el operador puso su lista explícita: lo que falte es cosa suya
     except Exception:
         pass
     out = []
@@ -242,14 +223,10 @@ def suppressed_relays() -> list[str]:
         name = str(t.get("name") or "")
         if not name:
             continue
-        if not ((t.get("api_key") or "").strip() or _token_for(t)):
-            continue                       # sin credencial no es un escalón callado, es un escalón inexistente
-        if not _store.available(name):
-            continue                       # y uno YA en cooldown no es una salida: nombrarlo mandaría al
-            #                                operador a mirar un proveedor que también está caído. El caso real
-            #                                del 2026-08-21: `deepseek-directo` usa la MISMA cuenta que se quedó
-            #                                sin saldo, así que ofrecerlo como remedio sería mentirle.
-        out.append(name)
+        if (t.get("api_key") or "").strip() or _token_for(t):
+            continue                       # lo tiene: no hay nada que contarle
+        env = ", ".join(t.get("env") or []) or (t.get("provider") or "")
+        out.append(f"{name} ({env})")
     return out
 
 

@@ -233,7 +233,38 @@ async def status():
         state = "warn"; llm_detail += " · falta API key"
     else:
         state = "ok"; llm_detail += " · key ✓"
-    items.append({"key": "llm", "label": "Modelo LLM", "state": state, "detail": llm_detail})
+    # V2-750 — AMBER IS NOT RED, AND THE BOX SAYS WHO IS ANSWERING. Operator, 2026-09-22: «más que ponerse en
+    # rojo, me pondría por ejemplo en amarillo y diría: ahora mismo el modelo principal está caído y está
+    # actuando el segundo modelo. Y sacaría en esa cajita dos líneas — este no responde, en rojo, y debajo en
+    # verde: ahora estás funcionando a través de este otro modelo».
+    #
+    # The distinction is real and the old row could not make it: a titular down WITH a stand-in answering is a
+    # degraded system that works, and a titular down WITHOUT one is an agent that cannot think. Painting both
+    # red taught him to read red as «probably still fine», which is how a light stops being a light.
+    #
+    # The two lines travel as DATA (`extra.titular` / `extra.serving`), not as a composed sentence: the panel
+    # writes them in the operator's own language from the i18n table, which is where a sentence he reads
+    # belongs (the V2-676 lesson — this row's own `detail` is still a Spanish literal, older debt, untouched).
+    llm_extra = None
+    if state in ("error", "warn"):
+        try:
+            from nucleo.flash import provider_chain as _pc
+            _ch = _pc.chain(_pc.ROLE_VOICE)
+            _serving = _pc.pick(_pc.ROLE_VOICE)
+            if _ch and _serving and _serving.get("name") != _ch[0].get("name"):
+                # A stand-in is answering: degraded, not down.
+                state = "warn"
+                llm_extra = {"titular": {"model": _ch[0].get("model"), "provider": _ch[0].get("provider")},
+                             "serving": {"model": _serving.get("model"), "provider": _serving.get("provider")}}
+            elif _ch and len(_ch) > 1:
+                llm_extra = {"titular": {"model": _ch[0].get("model"), "provider": _ch[0].get("provider")},
+                             "standby": {"model": _ch[1].get("model"), "provider": _ch[1].get("provider")}}
+        except Exception:  # noqa: BLE001 — a status row must never be the thing that breaks
+            llm_extra = None
+    _llm_item = {"key": "llm", "label": "Modelo LLM", "state": state, "detail": llm_detail}
+    if llm_extra:
+        _llm_item["extra"] = llm_extra
+    items.append(_llm_item)
 
     # ── Memory · write HEART (V2-066, operator request: no banner, only the status ◉) ─────────────────────────
     try:

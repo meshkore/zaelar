@@ -21,7 +21,12 @@ from nucleo.workers import providers
 
 # The only two names `api.deepseek.com` admits, on both its OpenAI-compatible and its Anthropic-compatible
 # surfaces. Probed directly (GET /models and a real POST): there is no alias family.
-DEEPSEEK_MODELS = {"deepseek-v4-flash", "deepseek-v4-pro"}
+# V2-750 — re-measured 2026-09-22 against both gateways, because V4.1-Flash arrived and the two surfaces
+# do NOT agree. The OpenAI-compatible `/models` lists exactly {deepseek-flash, deepseek-v4-pro}, and
+# `deepseek-v4.1-flash` 400s there with «The supported API model names are…». The ANTHROPIC gateway this
+# rung uses accepts all THREE, including the unlisted `deepseek-v4-flash` alias — which is why the table
+# moved to the listed name: an alias the catalogue does not name is the Groq failure waiting to happen.
+DEEPSEEK_MODELS = {"deepseek-flash", "deepseek-v4-flash", "deepseek-v4-pro"}
 
 # Aliases that LOOK plausible and are rejected. Kept explicit so nobody "restores" one of them from the old comment.
 REJECTED = {"sonnet", "opus", "claude-sonnet-4", "claude-sonnet-4.5"}

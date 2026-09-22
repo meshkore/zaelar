@@ -107,7 +107,7 @@ class ModelSpec:
 # momento en que la config no se puede leer: se nota en la calidad de las respuestas y en la factura, nunca en un
 # error. `_FALLBACK_BASE` va pegado al nombre porque el catálogo del broker y el de la API nativa NO coinciden
 # (el broker prefija `deepseek/`, la nativa no) — separarlos deja un 400 esperando.
-_FALLBACK_MODEL = "deepseek-v4-pro"
+_FALLBACK_MODEL = "deepseek-flash"
 _FALLBACK_BASE = "https://api.deepseek.com"
 
 

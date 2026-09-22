@@ -402,6 +402,17 @@ async def _lifespan(app: FastAPI):
             app.state.prewarm_task = asyncio.create_task(flash_prewarm.run())
         except Exception as e:
             logger.warning(f"prewarm skipped (voice/chat unaffected): {e}")
+    # V2-750 — THE ONLY PIECE THAT ASKS A PROVIDER HOW IT IS. Everything else here learns by failing (see the
+    # note in `voice/health_state.py`), which is right for cost but leaves the light stuck: one bad turn painted
+    # the panel red for 600 s and only a successful VOICE turn could repaint it. Measured 2026-09-22 — the panel
+    # read «no responde» for six minutes while DeepSeek answered in 1.2 s. Idle and network-free while healthy.
+    try:
+        import asyncio
+        from nucleo.flash import titular_watch
+        if _first_lifespan_entry:
+            app.state.titular_watch_task = asyncio.create_task(titular_watch.run())
+    except Exception as e:
+        logger.warning(f"titular watch skipped (the light may stay stale): {e}")
     # ENERGY LEASE (ADR-0005) — request it at boot, alongside the rest of the warm-up and BEFORE the user can speak,
     # which is when they are already waiting anyway. Instant no-op on self-host. It is a TASK, not an `await`: if the
     # control plane is slow, boot does not hang — without a lease `allowed()` already says no, so waiting here would

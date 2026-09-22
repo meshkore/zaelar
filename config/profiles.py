@@ -21,6 +21,19 @@ from __future__ import annotations
 
 # Profile → coordinated package. `voice` = what the engine sees (materialized as ZAELAR_* through settings.json).
 # `v2` = patch by config/v2.py section. An EMPTY value means "provider default" (we do not force it).
+def _fast_from_table() -> dict:
+    """The voice titular, straight from `config/models.default.json`. Fails SOFT on purpose: a profile that
+    cannot be built must not take the wizard down with it, and an empty dict here simply leaves the live
+    default alone — which is the safe side, since the live default comes from the same table."""
+    try:
+        from config import models as _tabla
+        t = _tabla.titular("voice_brain")
+        return {"provider": t.get("provider", ""), "model": t.get("model", ""),
+                "base_url": t.get("base_url", ""), "api_key": ""}
+    except Exception:  # noqa: BLE001
+        return {}
+
+
 _PROFILES: dict[str, dict] = {
     "local": {
         "label": "Local · privado y gratis",
@@ -66,8 +79,12 @@ _PROFILES: dict[str, dict] = {
             # endpoint and the provisioner started passing `DEEPSEEK_API_KEY` — so re-applying the profile
             # kept writing a stale broker label into the operator's `config/v2.json`, and observability
             # printed that name on every turn while the traffic went elsewhere.
-            "fast": {"provider": "deepseek", "model": "deepseek-v4-pro",
-                     "base_url": "https://api.deepseek.com", "api_key": ""},
+            # V2-750 — READ from the table, not copied from it. The comment above says «aligned to the
+            # canonical model table» and it was aligned by HAND, so it drifted the moment the table moved:
+            # promoting V4.1-Flash left this profile writing `deepseek-v4-pro` into the operator's
+            # `config/v2.json` on every re-apply, which is the exact failure the two paragraphs above
+            # describe, one model later. A copy of a fact is a fact that will disagree.
+            "fast": _fast_from_table(),
             "memory": {"embed_provider": "fastembed", "embed_model": "",
                        "rerank_provider": "local", "mem_processor_model": ""},
         },

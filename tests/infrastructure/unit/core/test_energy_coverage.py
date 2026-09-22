@@ -41,6 +41,12 @@ _FUERA = ("tests/", ".venv/", "node_modules/", "widgets/_data/", "vendor/", "scr
 # EXEMPTIONS, each with its reason. Adding one is a decision, not a formality: if the reason cannot be
 # written in one honest line, the file probably needs to meter usage.
 _EXENTOS: dict[str, str] = {
+    "nucleo/flash/titular_watch.py":
+        "Un PING de vida, no un turno. `max_tokens: 1`, sin leer la respuesta, y solo mientras el titular "
+        "está caído — con la escalera 10 s → 60 s → 3 min por techo. Cuesta del orden de diez tokens por "
+        "intento y existe precisamente para dejar de pagar el escalón caro antes: medirlo con el contador "
+        "de Energy costaría más prosa que el gasto que declara. Si algún día sondeara con un prompt real, "
+        "esta exención deja de valer y hay que reportarlo.",
     "nucleo/energy_meter.py":
         "ES el contador: aquí viven las tarifas, no un llamante que deba usarlas.",
     "config/v2.py":

@@ -4554,6 +4554,23 @@ DOMAINS: list[dict] = [
                                 "lo llama «tarea», y el id de la pestaña se mudó con el rótulo",
             "ch": UNIT,
             "paths": ["tests/infrastructure/unit/core/test_the_agents_own_work_is_called_a_process.py"]},
+        # V2-750 — medido el 2026-09-22 en su motor: el panel decía «deepseek-v4-pro · DeepSeek · no
+        # responde» mientras DeepSeek, sondeado ese mismo minuto, contestaba /models 200, $2,77 de saldo y
+        # un chat en 1,22 s. Dos fallos a la vez: `voice_brain` no tenía relevo (documentado como riesgo
+        # conocido a la espera de una decisión suya), y la cadena que debía relevar nombraba UN escalón que
+        # apuntaba al MISMO host que el titular.
+        {"id": "8.16", "title": "Un titular y UN suplente, y el suplente es otra puerta: nunca el mismo "
+                                "proveedor, nunca OpenAI en el primer asiento, y el id tiene que ser uno "
+                                "que la API sirva de verdad",
+            "ch": UNIT,
+            "paths": ["tests/infrastructure/unit/config/test_one_headline_and_one_stand_in.py"]},
+        # …y la otra mitad: una luz con muchos escritores y UN solo apagador se queda roja sobre un
+        # proveedor sano. Solo el primer trozo de un turno de VOZ la apagaba, así que sin micrófono abierto
+        # nada podía repintarla antes de los 600 s de TTL.
+        {"id": "8.17", "title": "La luz PREGUNTA en vez de esperar: re-chequeo 10 s → 60 s → 3 min hasta "
+                                "recuperar el titular, y el sondeo solo puede poner verde, nunca rojo",
+            "ch": UNIT,
+            "paths": ["tests/infrastructure/unit/core/test_the_light_asks_instead_of_waiting.py"]},
         {"id": "8.3", "title": "Política de modelos: un solo titular, sin proveedores retirados",
             "ch": UNIT, "paths": ["tests/infrastructure/unit/config/test_model_policy.py"]},
         {"id": "8.2", "title": "Perfiles / v2 / doctor / credenciales", "ch": UNIT, "paths": [

@@ -32,7 +32,11 @@ def test_defaults(v2):
     # ~1 Energy, and that was the missing PRICING decision, not another measurement.
     # Primary-model history: an Anthropic model via broker (V2-034, 2026-07-12) → deepseek-v4-flash via broker (2026-08-14) →
     # this. The previous two remain valid broker options.
-    assert fast["model"] == "deepseek-v4-pro"
+    # V2-750 — leído DE la tabla. Este literal ha tenido que editarse en cada promoción (broker →
+    # v4-flash → v4-pro → V4.1-Flash), y un assert que se edita para seguir verde deja de leerse. Lo que
+    # este test defiende es que el default SALE de la tabla, no cuál es el modelo de hoy.
+    from config import models as _tabla
+    assert fast["model"] == _tabla.titular("voice_brain")["model"]
     assert fast["base_url"] == "https://api.deepseek.com", "the primary model goes DIRECT, not through the broker"
     # The fallback chain remains EMPTY by default and the rule does not change that: empty = primary + AUTOMATIC chain
     # (in the cloud, direct → broker; in SELF-HOST, only the primary, because whoever self-hosts pays for their APIs and

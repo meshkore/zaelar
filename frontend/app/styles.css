@@ -797,6 +797,12 @@ canvas#orb.frozen{opacity:.32;filter:grayscale(1)}
 .st-dot{flex:0 0 auto;width:9px;height:9px;border-radius:50%;background:var(--hb-muted-2)}
 .st-dot.st-dot-ok{background:var(--hb-ok)}
 .st-dot.st-dot-warn{background:var(--hb-warn)}
+/* V2-750 — the two facts of a degraded model, each in its own colour. The row's own border already says
+   AMBER (degraded, still working); these say WHICH one fell and WHICH one is answering. Operator,
+   2026-09-22: «este no responde, lo marcaría en rojo, y debajo marcaría otro en verde». */
+.st-line-bad{color:var(--hb-risk)}
+.st-line-good{color:var(--hb-ok)}
+.st-line-warn{color:var(--hb-warn)}
 .st-dot.st-dot-error{background:var(--hb-risk)}
 .st-main{flex:1 1 auto;min-width:0}
 .st-name{font-weight:700;font-size:0.8438rem;color:var(--hb-ink);line-height:1.25}
