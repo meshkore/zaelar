@@ -9330,3 +9330,100 @@ one-line index behind in the live log. Nothing below was edited or summarized on
 
 
 - **A «process» was five stores and none of them the whole truth — the TASK is the unit now (V2-728, 2026-09-20)**: the operator, after a manual test: *«cada vez que hago un test manual encuentro muchos errores… si le digo resérvame hora en un restaurante, ya no quiero ir a nada más. Una vez tiene todos los criterios, ya me olvido de esa tarea»*. **Forgetting only works if somebody else remembers**, and nobody did for long. Live Brain Workers sat in `dispatch._SESSIONS`, a RAM dict a restart empties; finished ones in a **50-capped JSON blob** inside `sys_kv`, fenced by hand against a reset race; third-party errands in their own table; crons as `journal` rows; and the RESULT inside a widget sheet with a **hard cap of 8**, pruned by file mtime — so the ninth search deleted the report of the first, in a file whose own header says it persists precisely so «the operator does not lose a report he already paid for». One cap contradicted the other. `/api/tasks` had to STITCH two row shapes by hand, which is why the Processes tab and the Flows board once disagreed about the same work. And nothing could answer *«de la tarea de buscar piso que te dije antes»*: disambiguation reaches only what is on screen (`widgets/instances.py`) or the six-entry `recent_widgets` MRU. Now there is ONE durable row per commission (`tasks` + `task_artifacts` + an accent-insensitive `fts_tasks`, schema v7, purely additive), the RAM record keeps only the hot detail that churns every second and writes on TRANSITIONS, `/api/tasks` is a query, and `errands.board_rows()` is gone. **Four decisions the operator made**: one «Tareas» tab with four sub-tabs (the top level drops 5→4, «Crons» becomes «Periódicas»); the RESULT belongs to the task, not the sheet, so pruning destroys nothing and `results` becomes a rebuildable view — a narrowing of V2-604, not a contradiction, since a library is the widget's and an errand's result is the task's; the agent PROPOSES a recurring cadence and says it out loud; and only his own commissions are listed, behind a deterministic `visible` gate with a `⚙ todo` switch for manual testing. **`reopen_task` is the first production consumer of `jev.select_many`**, built and measured under V2-726 and until now called by nothing but its own test: a lexical FTS5 index narrows to ≤5 with NO model (the operator's rule, INI-027 §7) and Jev chooses among those — and with several equally good candidates nobody chooses, it ASKS, because opening the wrong report looks exactly like opening the right one and he would read it before noticing. ⚠️ **Two traps this pass paid for.** The tab rename touched five frontend files, each of which carried **its own whitelist** of tab names — `sse.js` had three, `main.js` a shorter three — which is how `clusters` was silently dropped at birth (V2-086); the list now lives in `store.setChatTab`, the one door every caller goes through, and a test pins that `sse.js` has not grown a second one. And the render test earned its place immediately: its first version asserted «four sub-tabs exist» by COUNTING nodes, which passes on four blank labels — exactly what a missing i18n key produces. **What was NOT done in that pass and was written down rather than implied**: the scheduler still STORES in `journal` and is MIRRORED onto the board (moving live standing reminders risks the one failure nobody notices until the day it fails to sound, V2-121) — still true; and the DISCARDED candidates — closed the same day, see the entry above. Nodes 4.150/3.66, disarms red at every wiring point — including one that found `tasks.retitled` disconnected from the dispatcher with the whole file still green.
+
+- **A canvas mutation needs the operator's words — and a known order survives the wake word (V2-635,
+  2026-09-09)**: one live session (34386d8f) measured four classes of the same failure, the model dragging
+  its PREVIOUS tool call into a turn that licensed nothing: «Johnny pausa el vídeo» became fullscreen (the
+  verbatim «pausa el video» seed missed because the phrase carried the agent's name — the map's exact
+  whole-utterance lookup was dead in wake-word use), «minimiza el vídeo» became fullscreen TWICE (the
+  toggle was the model's only route, and on a non-maximized card the toggle does the exact opposite),
+  «Johnny eres tonto» and «¿Y por qué lo has quitado?» each CLOSED the widget nobody asked to close (the
+  first emptied the loaded video, so «Continúa el vídeo» honestly died with «No hay ningún vídeo»), and
+  «Muy bien, señora.» / «¿Pero por qué lo has cambiado otra vez?» each RELOADED the playing video. The
+  remedy is grammar, never intent (V2-095), the stop_worker GUARD 2 posture: `nucleo/flash/
+  canvas_license.py` (shared, BOTH channels) — `close_license` (looks_like_close: a model [[close]] or a
+  widget_data «close» without a close verb in the turn is drag, discarded), `video_license` (conjugated
+  request forms only — a participle narrates the past; «otro/otra» only NEXT TO a media noun, because
+  «otra vez» in a complaint was the measured false positive; a short bare «Sí» keeps answering the
+  model's own offer), and `fullscreen_license` (no screen-size words = drag, discarded; shrink words
+  route to the new first-class `minimize` canvas order — executor + SSE + `desktop.shrink(id)`: exit
+  fullscreen → restore maximize → rail chip — never the toggle backwards). A guarded discard counts as
+  HANDLED (`deduped`), so the V2-633 silence never falls into the mute apology. And the fast lane retries
+  its lookup with the leading VOCATIVE stripped (`attention.strip_leading_wakeword` +
+  `actionmap.match_spoken`, both channels): only the known wake words come off — normalize.py's
+  no-courtesy-stripping doctrine stands. Seed packs v6 add the session's missing phrases (minimiza /
+  pantalla completa / cierra el vídeo, es+en). The provider ratchet was paid by extracting the play_video
+  and fullscreen_widget branch BODIES into `video_turn.voice_execute` / `show_target.fullscreen_dispatch`
+  (where the licenses live once for both channels). Node **3.23** (16 cases); eight disarms, mutations
+  asserted, all red. Detail: the V2-635 initiative.
+
+- **The video widget dresses like the product (V2-636, 2026-09-09)**: the operator's redesign order with
+  his screenshot — he grew the card with the mouse and the control buttons were CLIPPED under its bottom
+  edge; the tabs read as a second title line; title and date burned two rows; the controls were text
+  buttons («no sé si es necesario el texto Play en un botón de play»). Now: the PLAYER tab is a flex
+  column that FILLS the card (`:has` on the real card chrome — `.hb-scroll` overflow hidden, root
+  height 100% — the frame takes every spare pixel and YouTube letterboxes inside the iframe, so the icon
+  bar below is pinned and visible at ANY card size; every other tab keeps its scroll); the tab strip is a
+  DEFINED band (bottom border, nowrap) behind a red brand mark, with the active tab an INVERTED chip
+  (ink↔bg — the operator's «color de fondo y el texto invertido», which is also YouTube's own dark-mode
+  chip); title left + channel·date right on ONE line (`.hb-yt-tline`); the controls are SVG icon buttons
+  (⏮ ▶/⏸ ⏭ · vol−/vol+ · mute) in the music widget's `.hb-mus2-cbtn` language — local copies per V2-557 —
+  with the main play/pause a red round toggle whose face says what a click will DO, and the volume
+  readout as the bar's only text («70%», «—» muted); playing markers wear #f03; the voice hint only
+  teaches over an EMPTY player. Node 4.4 (+1 file, 10 RENDERED cases — the clipping case mounts the REAL
+  card structure per the V2-608 fixture lesson). Frontend-only: a page reload picks it up. Detail: the
+  V2-636 initiative.
+
+- **An embedded torrent client, so a magnet becomes a video playing INSIDE the agent (V2-637, 2026-09-09)**:
+  the operator asked whether Zaelar could carry its own torrent client as an add-on — the mesh already has a
+  search agent that returns a magnet, and he wanted the other half: find the movie AND play it in the agent,
+  the same promise as the embedded browser, working on cloud and self-host, «part of our code package, nothing
+  installed on the system». Measured before designing anything: `libtorrent` (the qBittorrent core) installs
+  as a pure-Python wheel (2.1.1, py3.12) with zero system deps, and a public-domain magnet resolved its
+  torrent metadata over the real network in ~4 s. So it ships in `requirements.txt` and the whole feature is
+  in-package. `connectors/torrent/` mirrors the `connectors/video` family shape: `session.py` is the ONLY
+  file that imports libtorrent (a LAZY process singleton — built on first use, never in the ASGI lifespan,
+  which runs twice), `search.py` gets the magnet through `mesh_agents.serve` (free agents only, a 402 is a
+  fact never paid, «nobody does this» is a spoken reason — the search itself is a network agent, not ours),
+  `service.py` is the fail-safe facade whose `available()` is DERIVED from the wheel importing (V2-603 rule —
+  a machine without it hides the connector, never shows-and-breaks), and `server_api.py` serves
+  `/api/torrent/*`. The one hard part is streaming a file that is still DOWNLOADING: `FileResponse` stats once
+  and is useless, so `stream` hand-rolls a `206` — parses `Range:`, reports `Content-Range` against the FULL
+  size a `<video>` needs to seek, and streams through `session.iter_range`, which reads from DISK (a completed
+  piece is checked and flushed there by default storage) after prioritizing (`set_piece_deadline`) and
+  awaiting (`have_piece`) the pieces it is about to serve; sequential download + a per-file priority delivers
+  the front first, so «play while it downloads» works. A chunk that never arrives raises and CLOSES the stream
+  (a browser re-requests a Range better than it survives a hung socket). The `torrent` widget (`Descargas`)
+  builds its `<video>` ONCE and only updates it on re-render (the V2-124/4.19 rule), showing the player only
+  when `streamable` (metadata + first ~4 MB down), progress until then — its declared actions ARE the skills
+  (V2-544), driven by the generic `widget_data` tool. **The FlashBrain model-tool wiring (a dedicated
+  `stream_torrent` in the 5-file router core) was DEFERRED on purpose** — the V2-561 precedent: a
+  self-contained feature does not also touch the sensitive, well-tested tool-routing core in the same commit;
+  the agent already operates it through `widget_data` like `documento`/`archivos`. Node **5.22** (16 cases,
+  three disarms verified red — the stream_url gate, the search-miss-must-not-download guard, the Range clamp);
+  `make test-widgets` 15/15, connectors unit 299 green. Data lands under `widgets/_data/` (a declared
+  workspace root). **NOT verified live end-to-end**: the metadata path is proven, the byte streaming of a real
+  payload is not exercised in the suite (a unit test opens no session, reaches no network). Detail:
+  `.meshkore/docs/modules/zaelar-torrent-addon.md`.
+
+- **An unplayable video is swapped, not served — and the silent turn must not apologize (V2-634,
+  2026-09-09)**: the operator, with LaLiga's «Video unavailable» on the card. We use the NATIVE YouTube
+  IFrame embed, so embedding restrictions are per-video, set by the rights holder — the video plays on
+  youtube.com and refuses every embed. The widget HAD reported it (`player_error`, one second after the
+  load) and nothing consumed the report. His rule, now mechanism (`widgets/youtube/availability.py`,
+  extracted paying the newborn ceiling — data.py sits at 900 exactly): a fatal code (101/150 embed
+  disabled, 100 removed, 2/5 broken) puts the video on a BLOCKLIST no search or swap ever re-offers, and
+  **provenance decides the rest** — a video WE resolved (query, search band, queue) is silently swapped
+  for the next playable candidate (queue after pos → search band → the stored `last_query` re-resolved
+  through the injected `_search_id`), while a link HE pasted gets the honest copyright message EVERY time
+  («swapping what he explicitly asked for would be a different lie»). The onError report now names its
+  `videoId`, so a late report for an already-replaced video never blames the successor. The card SAYS it
+  (`.hb-yt-blockmsg`, via the V2-613 `ctx.t` seam, keys in both bundles, interpolated fallback) and the
+  brain is told through `prompt_digest` (AVISO DEL REPRODUCTOR + the forbidden moves). **The same session
+  also measured a one-hour-old V2-633 regression**: the model understood «ponme un vídeo de Ronaldinho»
+  every time and called the tool every time — but with the ack gated, an acted-but-silent turn fell into
+  the MUTE backstop and APOLOGIZED («se me ha ido» ×3) over turns that had worked, reading as
+  not-understanding; and the context-bleed guard's correct swallows left those turns looking void. The
+  backstop is gated on `_tool_handled` (hoisted above it) and a dedupe now marks the turn as handled.
+  Node 4.4 (+11 cases) · 4.138 (+1 rendered) · 3.22 (+1); seven disarms red, one repeated against the
+  MOVED code after the extraction. Detail: the V2-634 initiative.
