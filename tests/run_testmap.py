@@ -1421,6 +1421,15 @@ DOMAINS: list[dict] = [
         # V2-750 — la mitad determinista: la REGLA y su cableado. Que el guarda pregunta a la
         # decisión y no a la regex, que el veto solo puede NEGAR trabajo, que construir exige un
         # veredicto positivo Y ninguna tarjeta nombrada, y que toda ausencia deja la ruta de hoy.
+        # V2-750 — «hay que ir depurando las cosas que no tengan sentido ya, y dejar una fuente de
+        # verdad resumida y actualizada» (operador, 2026-09-22). El §8 de la arquitectura se declara
+        # CANÓNICO del catálogo de tools y listaba 20 mientras `router.TOOLS` tenía 29: nueve
+        # capacidades que el documento que se lee para saber qué sabe hacer el motor no conocía.
+        # Una afirmación en prosa no falla nunca; ésta pasa a medirse, en los DOS sentidos.
+        {"id": "3.77", "title": "El catálogo de tools que el documento llama CANÓNICO lo es de verdad — "
+                                "ni una tool sin fila ni una fila sin tool",
+            "ch": UNIT,
+            "paths": ["tests/infrastructure/unit/test_the_canonical_tool_catalog_is_canonical.py"]},
         {"id": "3.76", "title": "La gramática PROPONE y el veredicto DECIDE: «vamos a hacer una cosa» "
                                 "no es una orden de construir un widget",
             "ch": UNIT, "paths": ["tests/voice/unit/test_a_verb_table_is_not_a_router.py",

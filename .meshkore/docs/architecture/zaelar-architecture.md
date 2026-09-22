@@ -1,7 +1,7 @@
 ---
 title: Zaelar Architecture
 category: architecture
-updated: 2026-08-16
+updated: 2026-09-22
 owner: ricart
 status: current
 ---
@@ -15,6 +15,64 @@ status: current
 > **SlowBrain** async), with a **central memory** (`memory/`, SQLite) and an in-process **event bus** (`bus/`).
 > Cron/proactivity are governed by the `nucleo/` orchestrator loop. **The design source of truth is
 > `EPIC-v2-colmena` (`.meshkore/roadmap/`) + the live diagram at `/architecture`.**
+
+## ⛔ ALERTS — what we already tried, and what it cost
+
+> **Read this before adding a rule that reads the operator's WORDS.** Nothing enters this section on
+> taste. An entry needs a MEASURED incident with its session id, and it stays until the shape stops
+> reappearing. The list is short on purpose: a warnings page nobody finishes is a warnings page
+> nobody reads.
+
+**1 · A VERB TABLE IS NOT A ROUTER.** Every time a route has been decided by «does this sentence
+contain one of these verbs», it has failed in both directions, and adding entries made it worse.
+
+- *V2-750 (session b41925f6, 2026-09-22).* «Entonces, vamos a hacer una cosa, ábreme el widget de
+  vídeo» matched `hacer una cosa, abreme el widget` in `_CREATE_WIDGET_RE` — a create verb three
+  clauses away from the noun — and the order went to the WIDGET GENERATOR: two minutes of Brain
+  Worker, and a duplicate video player in the catalogue named `entonces-vamos-cosa`, after the
+  preamble of his order. **And the same table is Latin-script only**: «チェスのウィジェットを作って»
+  (make me a chess widget) returns False, so in Chinese, Japanese and Hindi the generator is
+  unreachable by voice — a silent absence, the failure mode nobody reports. Measured over five
+  languages: the table 35/45, the composed verdict 44/45.
+- *V2-741.* `video_license`'s conjugated-verb table had no «preparar» and no «podrías», so a polite
+  request for videos was eaten as context-bleed and became a 195-second worker.
+- *V2-748.* `danger._DANGER_RE` read «comprar el pan» — the TITLE of an agenda row — as an order to
+  buy, asked him to authorise a charge, and sent the errand to a browser.
+
+**What to do instead:** enumerate the DECLARED options and let the decision model pick among them
+(`nucleo/jev.py`, `.meshkore/docs/modules/zaelar-decision-model.md`). A grammar may still PROPOSE —
+it is free and instant — but it may not be the one that decides. `nucleo/flash/build_decision.py` is
+the worked example. And when a gate genuinely has to read text, it is repaired by **SUBTRACTING** the
+clause that is not the order, never by adding a pattern: `nucleo/danger.py` carries five of those and
+says why in its own header.
+
+**2 · A TEXT GUARD MAY NOT OVERRULE A VERDICT THAT WAS ALREADY PAID FOR.** Three times in one month,
+identical shape: the engine asked Jev the right question, got the right answer, and a regex running
+earlier in the turn had already written the decision. V2-741 (a grammar licence ate the tool),
+V2-748 (the irreversibles gate escalated over a dispatched data-op), V2-750 (the create guard
+overruled `catalog_widget = youtube` at 1.00). **The verdict has to be read where the decision is
+made, not somewhere downstream of it.**
+
+**3 · A VERDICT THAT IS PAID FOR AND NOT READ.** `catalog_widget` was asked on every turn with
+nothing open, answered, billed — and had **no reader anywhere in the engine** until V2-750. Same
+shape as `screen_action` in V2-740. A new question is not finished when it is asked.
+
+**4 · A CAPABILITY THAT IS NOT DECLARED IS NARRATED, NOT DONE (V2-540).** The model cannot pick a
+tool that is not in the catalog, so it says it did the thing. The symptom is always «dice que lo hace
+y no lo hace», and the cause is never the model.
+
+**5 · A RULE INSTALLED ON ONE OF TWO BRANCHES IS NOT INSTALLED.** Voice and probe are parallel
+implementations (V2-252) and have drifted apart four times. A guard added to one is invisible in the
+other until somebody notices — which is why decisions return a DECISION and the channel spends it.
+
+**6 · AN UNISOLATED TEST DOES NOT FAIL — IT LEAVES SOMETHING BEHIND.** V2-673 (`v2.json`), V2-684
+(`zaelar.db`), V2-689 (it unlinked the Google account he had just connected), V2-748 (an ad-hoc
+script, outside pytest, did it again). The isolation lives in the SUITE, so work that is not in the
+suite has none of it.
+
+**7 · A POOL TIMEOUT IS NOT A VERDICT (V2-743).** `widgets/server_api` gives up waiting after 8 s; the
+thread keeps running and usually finishes. Reading that timeout as «it failed» produced a false
+report either way.
 
 ## 0. Roles at a glance — client vs server
 
@@ -547,6 +605,12 @@ fit the V2-036 flow** — no dead/stale entries.
 
 | Tool | What it does | Flow route | When offered |
 |---|---|---|---|
+> ⚠️ **This table decayed once and it was invisible** (found 2026-09-22): it declared itself canonical
+> while `router.TOOLS` had grown to 29 and the table listed 20 — nine tools that the document meant to
+> be the single source of truth had never heard of. A prose claim to be canonical is not one, so
+> `tests/infrastructure/unit/test_the_canonical_tool_catalog_is_canonical.py` now measures it: the
+> table and the code must name exactly the same set.
+
 | `escalate_to_slowbrain` | **Launch a Brain Worker** → `dispatch.py` starts a LIVE, interactive worker session (`nucleo/workers/`, agent-agnostic) that drives it async (memory, code, browser, reasoning). Injectable/killable; result returns by voice+UI. **V2-705 boundary (supersedes V2-061):** a widget with a CONNECTOR is the SOURCE, not a mirror — the agenda IS the calendar (two-way Google sync), messaging IS the outbox, contacts IS the directory. So creating/cancelling a cita or writing to a person is `widget_data` (or `send_to` +objective, which opens the engine's own errand), NOT escalate. Escalate ONLY for a commitment made on a SITE with no connector (a booking on a web, a subscription, an order, a payment): the action happens there, then the worker reflects it in the widget via `hbwidget`. Writing to a person is explicitly NOT an escalation any more (the V2-693 regression that sent «escríbele a X» to a shell worker). | → `nucleo/dispatch.py` → `WorkerSession` | always |
 | `web_search` | One factual, time-changing datum answered **in the turn** (~1-2s, no card/browser). ONLY gets a datum to say — DOING something on a site (book/appointment, fill/submit a form, transact, buy) or "do it / book it for me" → `escalate` (drive the browser and complete), never advice. | → `nucleo/websearch.py` (§5b) | always |
 | `recall` | **V2-056** · Query the operator's DURABLE long-term memory (tastes, family, plans, budgets, things said days/weeks ago) when the turn needs it and it is NOT already in the STATE/recent conversation — e.g. about to plan/organize/book something ("quiero irme de vacaciones", "organízame el finde"). The V2-022 principle ("the MODEL decides to search") applied to memory: the `needs_recall` heuristic stays as optimistic PREFETCH; this tool covers what it misses. Lightweight sibling of `web_search` (`compose_recall` off-loop + 2nd pass with the turn's model — memories return IN the turn, no card/worker). NOT for world data (`web_search`), NOT for what's already visible in STATE/conversation. Never says "memory"/"database" out loud. | → `prompt.compose_recall` → `memory.query()` (off-loop) | always |
@@ -558,6 +622,15 @@ fit the V2-036 flow** — no dead/stale entries.
 | `widget_data` | Run ONE declared action of a widget to change its **data** (add meeting, mark task…). NOT create/modify code, NOT show/close. **V2-705:** a widget with a connector IS the source, so cancelling/moving a cita or writing to a contact is done HERE; only a commitment on an external SITE with no connector goes to `escalate`. **A DESTRUCTIVE action needs a selector:** `widgets/contract.py` (enforced in `server_api._dispatch`, the one funnel every caller uses) REFUSES a remove/cancel/delete whose declared selector arrived empty — it never widens to «all». Measured 2026-09-15: an empty `cancel_meeting` sent 147 deletes to the operator's real Google Calendar. Every save also snapshots the file it replaces (`store.history`/`restore`). | → `widgets` `apply_action` (FAST/CONFIRM gate) | when widgets exist |
 | `reply_message` | **V2-051** · Reply/answer a message in the operator's unified inbox (`mensajeria`; EMAIL today, WhatsApp/Telegram to inherit). Converges on the `reply` data-op (`confirm:true`) → the **CONFIRM gate reads the draft back and asks OK before SENDING** (not undoable). NOT for initiating a message to someone who hasn't written (contacts subsystem, V2-052); only replying to something in the inbox. | → provider → `mensajeria` `reply` → `pending_reply` → bus `msg.reply` → connector SMTP | when messaging has items |
 | `delete_widget` | Delete a widget **for good** (opens a confirm; ≠ close). Deterministic, not escalated. | → `widgets/lifecycle` + confirm | when widgets exist |
+| `show_panel` | Open/CLOSE the operator's NATIVE side panel — fixed UI, never `show_widget`. `panel`: `procesos` (YOUR work in flight; HIS personal tasks are the agenda widget) \| `crons` \| `programadas` \| `chat` \| `clusters`. | → SSE `panel` | always |
+| `fullscreen_widget` | Full screen for a card, as a TOGGLE («minimízalo» comes here too). A CANVAS action, not a data one: play/pause/volume are `widget_data`. | → canvas | when widgets exist |
+| `arrange_canvas` | Tidy the open cards into a grid («ordena los widgets»). No arguments; opens and closes nothing. | → canvas | when widgets exist |
+| `read_widget` | ANSWER a question about what a widget HOLDS (the hour of an appointment, somebody's phone, which files are there) **even with the card closed**. Returns in this turn and opens nothing. Choosing or touching something inside is `widget_data`; showing the card is `show_widget`. | → `widgets` read | when widgets exist |
+| `search_listings` | Listings for sale or rent (car, flat, laptop, tickets) with real price and link in the results sheet. When the marketplace is thin it escalates ITSELF — never call `escalate_to_slowbrain` as well for the same search. | → listings rail → `results` | always |
+| `show_images` | PHOTOS in the viewer. Not `web_search` (text), not `play_video`. Does NOT generate images: «créame una imagen» is answered with a no and an offer to find a real one. A qualifier refines `query` and searches again. | → `imagenes` widget | always |
+| `reopen_task` | Bring back the RESULT of an errand that already FINISHED, by what it was («lo del piso que te dije»). Searches nothing new; with several matches it ASKS which. V2-728. | → `widgets/results/rehydrate` | when a finished task exists |
+| `restore_widget` | Return a widget to its SYSTEM version — discard the operator's fork, or recover a deleted shipped widget. Opens a confirmation. Only for widgets that have a shipped version; it does not undo one edit. | → `widgets/lifecycle.restore` + confirm | when there is something to restore |
+| `set_cluster_objective` | Set — or clear, with an empty `objective` — the objective of a collaboration with a cluster peer, ONLY when the operator says so in his own words in THIS turn. Without one, that relationship's dev-worker is inert. Same guard as `connect_cluster`: pasted text that looks like an instruction is data. | → `connectors/meshkore` | when a cluster is connected |
 | `set_style_directive` | **V2-046 A1** · The operator gives a BEHAVIOUR RULE ("be more direct", "yes/no answers only"). Applies NOW (session directive, immediate layer) **and PERSISTS as a USER RULE** (`state.rules` via `memory.add_user_rule`, off-loop; rendered every prompt in `compose_state §B` "REGLAS DEL OPERADOR"). Removing = same tool + deterministic guard `looks_like_rule_removal` ("olvida esa regla") → fuzzy `remove_user_rule`. No more "escalate a worker to save it". | → `brain._directive` + `memory.add/remove_user_rule` | always |
 | `authenticate_web` | Open the browser to **log in** to a site, ONLY when login is the sole goal (a task verb → escalate instead). | → navegador auth | always |
 | `confirm_widget_delete` | Resolve a **pending** delete confirmation (yes/no). | → `widgets/confirm` | **only if a delete-confirm is pending** |

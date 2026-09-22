@@ -674,6 +674,42 @@ CLAIM. His words:
    mutación de widget tiene embudo (`widgets/server_api._dispatch`, el contrato de V2-705, el snapshot de
    `store.save`), y ese gate es para lo que NO lo tiene. V2-748.
 
+## UNA TABLA DE VERBOS NO ES UN ENRUTADOR (regla del operador, 2026-09-22)
+
+Medido tres veces en un mes, siempre igual: una ruta decidida por «¿contiene esta frase uno de estos verbos?»
+falla en los DOS sentidos, y ampliar la lista lo empeora. V2-741 (la licencia de gramática se comió la tool),
+V2-748 (el gate leyó el título de una fila de la agenda), V2-750 («vamos a hacer una cosa» construyó un widget
+duplicado). **Y ninguna de esas tablas sabe leer un alfabeto no latino**: medido, `looks_like_create_widget`
+devuelve `False` para «hazme un widget de ajedrez» en chino, japonés e hindi — o sea que ahí el generador es
+inalcanzable por voz, en silencio.
+
+**La regla:** enumerar las opciones DECLARADAS y que el modelo de decisión elija entre ellas
+(`nucleo/jev.py`, `.meshkore/docs/modules/zaelar-decision-model.md`). Una gramática puede **PROPONER** —es
+gratis e instantánea— pero no puede ser la que decide, y **no puede desmentir a un veredicto que ya se ha
+pagado**. El ejemplo trabajado es `nucleo/flash/build_decision.py`. Cuando un guarda sí tiene que leer texto,
+se repara **RESTANDO** la cláusula que no es la orden, nunca añadiendo un patrón: `nucleo/danger.py` lleva
+cinco restas y explica por qué en su propia cabecera.
+
+⛔ **Las alertas completas —lo que ya se ha probado y lo que costó— viven en
+`.meshkore/docs/architecture/zaelar-architecture.md`, sección «ALERTS», arriba del todo.** Se lee ANTES de
+escribir una regla que lea las PALABRAS del operador. Una entrada entra ahí con su incidente medido y su id de
+sesión, nunca por criterio.
+
+### Y un clasificador ANTES del modelo está AUTORIZADO cuando aporte (decisión suya, 2026-09-22)
+
+> «Jev es un modelo que tiene una latencia mínima y por lo tanto no nos retrasa especialmente. Allí donde
+> consideres que eso puede aportarnos claridad y eficiencia, puedes considerar ponerlo.»
+
+Esto **relaja** la regla de emplazamiento de V2-726, que decía «sirve a lo que se decide DESPUÉS del modelo».
+No la borra: el número sigue siendo el número. Un brief disparado al admitir el turno aterriza a **785 ms**; el
+prompt se ensambla a los **3 ms** y el catálogo de tools a los **381 ms**. Así que un clasificador delante del
+modelo **cuesta ~780 ms de espera al turno entero** — no es gratis, es un PRECIO.
+
+Criterio para pagarlo: solo cuando la decisión **no se pueda leer después** y la alternativa cueste más que
+ese segundo. El guarda de V2-750 corre a mitad de stream (pasados los 1.919 ms del primer token), así que
+**ahí no hacía falta** y no se ha puesto delante. Para una decisión que dé forma al catálogo de tools —que se
+cierra a los 381 ms— sí habría que pagarlo, y entonces se mide antes de cablearlo.
+
 ## Decisiones clave — están en su propio fichero
 
 El diario del motor (una entrada por tanda: qué se decidió, por qué, y el fallo real que lo motivó) vive en
