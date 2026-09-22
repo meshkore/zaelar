@@ -105,6 +105,14 @@ against 0.26 for «which widget» over descriptions). The widget falls out of th
 the targeting scored 6/9; from «Name» + aliases + the same desc, 8/9. The words a widget answers to
 are the widget's own declaration, not a table in the engine.
 
+⚠️ **And only the part of a declaration that ARRIVES can decide anything** (V2-753). `screen_action`
+truncates each action's `desc` at `turn_brief.MAX_DESC_CHARS`, and while that bound was 90 it cut
+`youtube:show_tab` mid-word — throwing away the clause V2-742 had written into the manifest so that
+«vuelve al catálogo» would be routable at all. Measured against the real API: `none` 0.77 at 90
+chars, `youtube:show_tab` **0.96** at 200, with `pause` 1.00, `next` 0.94 and `search` 0.99 unmoved
+and no latency change (47 candidates, 4.7 KB → 5.8 KB, ~850 ms both). **When an action is never
+chosen, read what the question actually said about it before blaming the model.**
+
 ## The rules that do not move
 
 1. **`nucleo/jev.py` is the only module that talks to it.** One endpoint, one key, one timeout.

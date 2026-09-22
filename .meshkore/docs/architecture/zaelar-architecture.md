@@ -38,6 +38,11 @@ contain one of these verbs», it has failed in both directions, and adding entri
   request for videos was eaten as context-bleed and became a 195-second worker.
 - *V2-748.* `danger._DANGER_RE` read «comprar el pan» — the TITLE of an agenda row — as an order to
   buy, asked him to authorise a charge, and sent the errand to a browser.
+- *V2-753 (session 46dcfcb4, 2026-09-22).* «Páralo, y vuelve al inicio» over a playing video. The
+  model emitted the RIGHT call — `youtube:close` is declared as «lo detiene de verdad y lo quita del
+  reproductor» — and the V2-635 close guard found no verb from `_CLOSE_VERB_RE` («parar» is not a
+  close verb and must never be one) and ate it **five times in ninety seconds**, under a voice that
+  kept saying «lo paro y vuelvo al inicio».
 
 **What to do instead:** enumerate the DECLARED options and let the decision model pick among them
 (`nucleo/jev.py`, `.meshkore/docs/modules/zaelar-decision-model.md`). A grammar may still PROPOSE —
@@ -64,13 +69,24 @@ y no lo hace», and the cause is never the model.
 **5 · A RULE INSTALLED ON ONE OF TWO BRANCHES IS NOT INSTALLED.** Voice and probe are parallel
 implementations (V2-252) and have drifted apart four times. A guard added to one is invisible in the
 other until somebody notices — which is why decisions return a DECISION and the channel spends it.
+**And «two branches» is not only two channels**: in V2-753 the Jev escape hatch on the canvas
+`[[close]]` guard had existed since V2-635 and never reached the DATA-OP close eleven hundred lines
+below it — the branch that fires on a real player. When a guard goes in two places, the list of
+places is part of the guard (`looks_like_close`: six voice sites, three probe sites).
 
 **6 · AN UNISOLATED TEST DOES NOT FAIL — IT LEAVES SOMETHING BEHIND.** V2-673 (`v2.json`), V2-684
 (`zaelar.db`), V2-689 (it unlinked the Google account he had just connected), V2-748 (an ad-hoc
 script, outside pytest, did it again). The isolation lives in the SUITE, so work that is not in the
 suite has none of it.
 
-**7 · A POOL TIMEOUT IS NOT A VERDICT (V2-743).** `widgets/server_api` gives up waiting after 8 s; the
+**7 · A TRUNCATED DECLARATION ROUTES NOTHING (V2-753).** `screen_action` enumerates each open card's
+declared actions and cut every `desc` at 90 characters, which decapitated the very clause V2-742 had
+written into `youtube:show_tab` so «vuelve al catálogo» would be routable. Measured: `none` 0.77 at
+90 chars, `show_tab` 0.96 at 200, nothing else moved, no latency change. **When an action is never
+chosen, read what the question actually said about it before blaming the model** —
+`turn_brief.MAX_DESC_CHARS`.
+
+**8 · A POOL TIMEOUT IS NOT A VERDICT (V2-743).** `widgets/server_api` gives up waiting after 8 s; the
 thread keeps running and usually finishes. Reading that timeout as «it failed» produced a false
 report either way.
 
