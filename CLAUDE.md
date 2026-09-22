@@ -710,6 +710,30 @@ ese segundo. El guarda de V2-750 corre a mitad de stream (pasados los 1.919 ms d
 **ahí no hacía falta** y no se ha puesto delante. Para una decisión que dé forma al catálogo de tools —que se
 cierra a los 381 ms— sí habría que pagarlo, y entonces se mide antes de cablearlo.
 
+### Y el veredicto solo puede elegir lo que LLEGA a la pregunta (V2-753, 2026-09-23)
+
+Cuarta vez con la misma forma, y esta añade una mitad nueva. «Páralo, y vuelve al inicio» sobre un vídeo
+sonando: el modelo emitió `widget_data(youtube, close)` —declarada como «lo detiene de verdad y lo quita del
+reproductor», las dos mitades de la orden— y el guarda de V2-635 no encontró verbo de cerrar («parar» no lo
+es, y no debe serlo) y se la comió **cinco veces en noventa segundos**, mientras la voz decía «lo paro y
+vuelvo al inicio».
+
+Tres cosas que dejar escritas:
+
+1. **Un guarda que se instala en dos ramas lleva la lista de ramas dentro.** El escape de Jev del `[[close]]`
+   de canvas existía desde V2-635 y nunca llegó a la data-op `close`, que es la que dispara sobre el
+   reproductor de verdad. `looks_like_close` aparece en seis puntos de voz y tres del probe.
+2. **⭐ Un descriptor RECORTADO no enruta nada.** `turn_brief` cortaba cada `desc` declarado a 90 caracteres,
+   y eso decapitaba justo la frase que V2-742 metió en el manifiesto para que «vuelve al catálogo» fuera
+   alcanzable. Medido contra la API real: `none` 0,77 a 90 chars → `youtube:show_tab` **0,96** a 200, sin
+   cambio de latencia. Antes de acusar al modelo de decisión de no elegir una acción, mirar **cuánto de su
+   descriptor llega a la pregunta** — `turn_brief.MAX_DESC_CHARS`.
+3. **Un backstop no contradice un veredicto ya pagado.** La promesa vacía que dejó ese guarda disparó una
+   escalada FORZADA a un worker `claude_code` con navegador headless, cuatro minutos, sobre un brief que
+   decía `escalate_or_inline = handle_inline` a 1,00. Un backstop existe para cuando NO hay información;
+   cuando la hay, la lee. Y una promesa que vaciamos nosotros no es un encargo: es un bug, y gastar minutos
+   en él lo convierte en dos.
+
 ## Decisiones clave — están en su propio fichero
 
 El diario del motor (una entrada por tanda: qué se decidió, por qué, y el fallo real que lo motivó) vive en

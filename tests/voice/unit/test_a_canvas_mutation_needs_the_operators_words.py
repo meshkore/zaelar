@@ -162,7 +162,13 @@ def test_the_voice_provider_gates_model_closes_and_delegates_the_bodies():
     src = (ENGINE / "voice/engine/llm/providers/nucleo.py").read_text(encoding="utf-8")
     assert 'if action == "close" and not _closeg.looks_like_close(text):' in src, \
         "a model-emitted [[close]] with no close order in the turn is drag (the «eres tonto» close)"
-    assert 'if action_name == "close" and not _router.looks_like_close(text):' in src, \
+    # V2-753 — the data-op close keeps needing a license; what changed is WHO grants it. The bare
+    # verb table was the sole decider here and it ate «Páralo, y vuelve al inicio» five times in one
+    # session, so the call now goes through the shared reader (grammar first, then the turn's paid
+    # `screen_action` verdict, and the operator's «no» vetoing both). The claim is unchanged — an
+    # unlicensed close must not reach the player — so this is re-anchored, not relaxed: node 2.72
+    # owns the licence's own behaviour and this line owns the WIRING.
+    assert 'if action_name == "close" and not _closeg.dataop_close_licensed(' in src, \
         "the widget_data close (which EMPTIES the loaded video) needs the same license"
     assert "_video_turn.voice_execute(" in src and "_show_target.fullscreen_dispatch(" in src, \
         "the branch bodies live in the shared modules — one impl, both channels"

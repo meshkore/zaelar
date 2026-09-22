@@ -45,7 +45,7 @@ def committed(spoken_text: str) -> bool:
 
 
 def run(spoken_text: str, *, did_act: bool, op_text: str, prev_pending: list,
-        emit, escalate, similar_pending) -> None:
+        emit, escalate, similar_pending, brief=None) -> None:
     """Fire the backstop for a turn that promised and did nothing. Best-effort: never raises into the turn."""
     if not spoken_text or did_act or not committed(spoken_text):
         return
@@ -67,6 +67,19 @@ def run(spoken_text: str, *, did_act: bool, op_text: str, prev_pending: list,
             from nucleo import dispatch as _disp_bk
             _disp_bk.inject_soon(op_text, op_text)
             emit("brain", "↪️ promesa→inyección a worker vivo (backstop)", text=op_text[:120], role="system")
+            return
+        # V2-753 — and it does not overrule the turn's own paid verdict. Live session 46dcfcb4: a guard ate
+        # the model's `youtube:close`, the reply became «te lo hago ahora mismo» with nothing behind it, and
+        # THIS backstop forced a `claude_code` worker that opened a headless browser for four minutes to stop
+        # a video — over a brief that had answered `escalate_or_inline = handle_inline` at 1.00. The operator
+        # had to say «yo no te he pedido que hagas nada… páralo inmediatamente». A promise left empty by one
+        # of OUR guards is not an errand; it is a bug, and spending minutes on it makes it two. Only a
+        # CONFIDENT handle_inline stops the escalation — no verdict, an unsure one or a brief still in flight
+        # all keep today's path bit-for-bit, because a missed errand is still worse than a wasted question.
+        from nucleo.flash import escalation_guard as _eg_bk
+        if _eg_bk.judge_escalation_from_brief(brief) == "handle_inline":
+            emit("brain", "🚫 promesa→escalada ANULADA por el veredicto (handle_inline)", text=op_text[:120],
+                 role="system", extra={"cat": "flash", "kind_diag": "promise_inline"})
             return
         # THE KIND IS THE CLASSIFIER'S CALL, never this backstop's (2026-08-14, session b70a45d0). Pinned to
         # `"web"` it turned a LOCAL data-op into a browser errand: «lees lo que hay en la agenda, lo borras y

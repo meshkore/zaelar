@@ -742,6 +742,12 @@ export function render(root, data, ctx){
     // and leaving the dashboard up while it plays underneath is the confusion the redesign exists to end.
     if(!_tab) _tab = hasVid ? "player" : "inicio";
     if(hasVid && st && !st.key.slice(2) && !loading) _tab = "player";
+    // V2-753 — and the MIRROR, which was never written: a video LEAVING a card that had one goes back
+    // to the catalog. «Páralo, y vuelve al inicio» is one order, and `close` only did the first half —
+    // the player emptied and the card sat on the now-blank Reproductor tab, which is exactly what he
+    // reported twice: «y tampoco vuelves al inicio a ver el catálogo». Gated on the TRANSITION for the
+    // same reason the jump above is: clicking «Reproductor» on an empty card is his choice and stands.
+    if(!hasVid && st && st.key.slice(2) && !loading && _tab === "player") _tab = "inicio";
     applyTabClass(root);
 
     const nav = el("div", "hb-yt-nav");

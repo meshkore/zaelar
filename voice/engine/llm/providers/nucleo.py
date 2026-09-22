@@ -1208,7 +1208,9 @@ class NucleoLLMStream(llm.LLMStream):
             # live turns of «ábreme el Telegram» → «Aquí lo tienes» over an unmoved card left no trace of WHAT
             # had been thrown away, and the model was suspected before the guard was.
             if _router.is_pure_show_request(text) and runtime.get(wid) is not None:
-                if _router.show_request_blocks_data_action(text, wid, action_name, payload):
+                # …salvo que el veredicto nombre esta acción: lo elegido del manifiesto no es inventado (V2-753).
+                if _router.show_request_blocks_data_action(text, wid, action_name, payload) \
+                        and not _direct_action.endorses(_brief, wid, action_name):
                     emit("brain", "🪟 'abrir/mostrar' puro → show (no data-op inventada)",
                          text=f"{wid} (descartada {action_name})", role="system",
                          extra={"id": wid, "action": action_name, "payload": payload or {}})
@@ -1229,11 +1231,9 @@ class NucleoLLMStream(llm.LLMStream):
                      role="system")
                 _tag_emit("close", {"id": wid})
                 return
-            # GUARD V2-635 (espejo del de [[close]] en _tag_emit): la data-op «close» VACÍA contenido (en
-            # youtube borra el vídeo cargado y el «Continúa el vídeo» siguiente muere). Sin verbo de cerrar = arrastre.
-            if action_name == "close" and not _router.looks_like_close(text):
-                emit("brain", "🛡️ data-op close ignorada — el operador no ha pedido cerrar nada (context-bleed)",
-                     text=(text or "")[:120], role="system", extra={"cat": "flash", "kind_diag": "close_without_order", "id": wid})
+            # GUARD V2-635 (espejo del de [[close]] en _tag_emit): la data-op «close» VACÍA contenido. Sin verbo
+            # de cerrar = arrastre, salvo que el veredicto de pantalla nombre esta acción (V2-753, 46dcfcb4).
+            if action_name == "close" and not _closeg.dataop_close_licensed(text, wid, brief=_brief, emit=emit):
                 deduped["v"] = True
                 return
             if _frontend.action_mode(wid, action_name) is None:   # acción no declarada → canvas, reparación Jev o escala
@@ -3142,7 +3142,7 @@ class NucleoLLMStream(llm.LLMStream):
         from voice.engine.llm.providers import promise_backstop as _promise_backstop
         _promise_backstop.run(spoken_text, did_act=_did_act, op_text=_op_text, prev_pending=_prev_pending,
                               emit=emit, escalate=_escalate_mod.escalate_to_slowbrain,
-                              similar_pending=_similar_pending)
+                              similar_pending=_similar_pending, brief=_brief)
 
 
 # ── Los LECTORES DETERMINISTAS de intención de widget viven en `widget_intent.py` desde la pasada del

@@ -126,6 +126,40 @@ def test_a_video_arriving_still_takes_him_to_the_player(_page):
     assert "hb-yt-t-player" in _cls(_page)
 
 
+def test_a_video_LEAVING_takes_him_back_to_the_catalogue(_page):
+    """V2-753 — the MIRROR of the jump above, which was never written.
+
+    Live session 46dcfcb4 (2026-09-22): «Uf, me he equivocado. Páralo, y vuelve al inicio.» That is ONE
+    order, and `close` only ever did the first half — it empties the player (`videoId = ""`) and the
+    card stayed sitting on the now-blank Reproductor tab, because `_tab` is module-lived and only the
+    ARRIVAL of a video ever moved it. What he saw is what he said, twice, in two different sessions:
+    «y tampoco vuelves al inicio a ver el catálogo».
+    """
+    _mount(_page, _watching_with_a_catalogue_behind(_page))
+    assert "hb-yt-t-player" in _cls(_page)
+    _remount(_page, _data(search_results=_RESULTS, search_query="Apolo 11"))    # close: the video is gone
+    assert "hb-yt-t-inicio" in _cls(_page), "the card stayed on an empty player"
+    nums = _page.eval_on_selector_all(".hb-yt-rnum", "els => els.map(e => e.textContent)")
+    assert nums == ["1", "2", "3"], "…and the catalogue he wanted back has to still be there"
+
+
+def test_choosing_the_empty_player_by_HAND_still_stands(_page):
+    """The bound on the line above: it fires on the TRANSITION, not on every render without a video.
+    Clicking «Reproductor» on an emptied card is his choice and nothing may snap it back — the same
+    rule the arrival jump obeys, and the reason both are gated on `st.key` rather than on `hasVid`."""
+    _mount(_page, _watching_with_a_catalogue_behind(_page))
+    _remount(_page, _data(search_results=_RESULTS, search_query="Apolo 11"))
+    _page.click(".hb-yt-tab[data-tab=player]")
+    assert "hb-yt-t-player" in _cls(_page)
+    # A REBUILD, not just a re-render: `render` only rewrites the card when the key or `loading`
+    # moves, so a cosmetic remount cannot reach the line under test — the first version of this
+    # assertion used one and stayed GREEN with the bound removed, which accused the test, not the
+    # code. Starting a search is the everyday rebuild that happens with no video loaded.
+    _remount(_page, _data(search_results=_RESULTS, search_query="Apolo 11",
+                          loading=True, loading_query="Boeing 747"))
+    assert "hb-yt-t-player" in _cls(_page), "a rebuild fought his hands"
+
+
 def test_SHOW_TAB_INICIO_takes_him_back_to_the_catalogue(_page):
     """«Vuelve al catálogo», answered. The whole defect in one assertion."""
     _mount(_page, _watching_with_a_catalogue_behind(_page))

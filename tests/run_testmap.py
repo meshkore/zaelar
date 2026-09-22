@@ -3128,6 +3128,11 @@ DOMAINS: list[dict] = [
                                 "identidad que no habla de él tiene su propia pregunta",
             "ch": UNIT,
             "paths": ["tests/memory/unit/test_a_search_term_does_not_rename_the_assistant.py"]},
+        {"id": "2.72", "title": "«Páralo, y vuelve al inicio» ES una orden sobre el reproductor — la "
+                                "gramática de cerrar propone, el veredicto de pantalla decide, y el "
+                                "descriptor que lo hace enrutable llega ENTERO a la pregunta",
+            "ch": UNIT,
+            "paths": ["tests/voice/unit/test_stopping_the_video_is_not_a_close_verb.py"]},
         {"id": "2.71", "title": "«No te he dicho que lo cerraras» NO es una orden de cerrar — el "
                                 "veredicto del turno manda sobre la tabla de verbos del backstop",
             "ch": UNIT,

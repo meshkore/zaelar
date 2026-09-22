@@ -127,3 +127,53 @@ def is_short_order(text: str) -> bool:
     different way. This answers only about LENGTH.
     """
     return len((text or "").split()) <= _SHORT_ORDER_WORDS
+
+
+def dataop_close_licensed(text: str, widget_id: str, *, brief=None, emit=None) -> bool:
+    """May the model's `widget_data(<card>, "close")` run, when the close GRAMMAR saw no close verb?
+
+    THE INCIDENT (live session 46dcfcb4, 2026-09-22). The operator said «Uf, me he equivocado. Páralo,
+    y vuelve al inicio.» The model answered with exactly the right call — `youtube:close` is declared
+    as «PARA el vídeo de verdad y lo quita del reproductor», which is both halves of that order — and
+    the V2-635 guard read the sentence, found no verb from `_CLOSE_VERB_RE` («parar» is not a close
+    verb and never should be), called it context-bleed and ATE it. Five times in ninety seconds, while
+    the engine said «lo paro y vuelvo al inicio» over a video that never stopped. The operator watched
+    it and said: «veo que es incapaz de pararlo».
+
+    The guard is not wrong to exist — a `close` data-op EMPTIES the player, and V2-635 measured the
+    model dragging one into «Johnny eres tonto». What is wrong is that a VERB TABLE was left as the
+    sole decider of a route, which is the rule the operator has stated three times and that
+    [[feedback_una_tabla_de_verbos_no_es_un_enrutador]] carries: a grammar may PROPOSE, never decide,
+    and it may never contradict a paid verdict.
+
+    And the repair for exactly this already existed ONE BRANCH OVER: the canvas [[close]] guard in the
+    voice provider has consulted `show_target.close_has_order` since V2-635 — grammar first, a
+    confident Jev second. This branch, the DATA-OP close, never got the escape hatch. The same rule
+    installed on one of two branches is [[feedback_una_regla_instalada_en_una_sola_de_dos_ramas]], and
+    here the un-repaired branch is the one that fires on a real player.
+
+    The second reader is the turn's OWN paid verdict — `screen_action`, enumerated from the manifests
+    of what is on screen and already bought for this turn — read through `direct_action.endorses`, the
+    same predicate `video_license` consults. It must name THIS card and THIS action; a verdict aimed
+    at another action of the same card grants nothing, because «pausa el vídeo» must stay a pause.
+
+    Grammar hit → True with no verdict read. A deterministic NEGATED or NARRATED close («no lo
+    cierres», «has cerrado el vídeo») → False even against a confident verdict, exactly as
+    `close_has_order` vetoes: a cheap model's opinion never beats the operator's own «no». Emits are
+    optional so the pure decision stays testable; the caller passes the turn's `emit`.
+    """
+    if looks_like_close(text):
+        return True
+    if is_negated_or_narrated(text):
+        return False
+    from nucleo.flash import direct_action as _da
+    licensed = _da.endorses(brief, widget_id, "close")
+    if emit is not None:
+        emit("brain",
+             "🔓 data-op close licenciada por el veredicto de pantalla (la gramática no veía orden)"
+             if licensed else
+             "🛡️ data-op close ignorada — el operador no ha pedido cerrar nada (context-bleed)",
+             text=(text or "")[:120], role="system",
+             extra={"cat": "flash", "id": widget_id,
+                    "kind_diag": "close_jev_licensed" if licensed else "close_without_order"})
+    return licensed

@@ -108,6 +108,19 @@ def request_question(last_reply: str = "") -> dict:
 #: cap below it and the two are different decisions.
 MAX_OPEN_CARDS = 8
 
+#: How much of a declared action's `desc` reaches the question. It was 90, and 90 DECAPITATED the
+#: sentence that made an action routable (V2-753, live session 46dcfcb4). `youtube:show_tab` declares
+#: «CAMBIA de pantalla dentro del reproductor SIN tocar lo que está sonando. 'inicio' es el catálogo…
+#: es lo que responde a «vuelve al catálogo», «a la página de inicio»» — V2-742 wrote that second
+#: sentence INTO the manifest precisely so the decision could find the action, and the cut fell at
+#: «'inicio' es el ca». Measured against the real API over the operator's own words: «vuelve al
+#: catálogo» → `none` 0.77 at 90 chars, `youtube:show_tab` **0.96** at 200; «y tampoco vuelves al
+#: inicio a ver el catálogo» 0.32 → 0.83. Nothing else moved (pause 1.00, next 0.94, search 0.99).
+#: The price is +1.1 KB on a 4.7 KB question and no measurable latency (47 candidates, ~850 ms both).
+#: ⚠️ This is the cheap half of a two-part rule: a description is product data and the place to
+#: repair a routing miss (V2-726 §4-bis) — but only the part of it that ARRIVES can decide anything.
+MAX_DESC_CHARS = 200
+
 
 def target_question(open_ids) -> dict | None:
     """One enumerated question over what is on screen, keyed by INSTANCE, or None when nothing is.
@@ -144,7 +157,7 @@ def target_question(open_ids) -> dict | None:
         for name, spec in (_fe.declared_actions(_base_of(wid)) or {}).items():
             if not _possible_now(wid, name):
                 continue
-            desc = str((spec if isinstance(spec, dict) else {}).get("desc") or name)[:90]
+            desc = str((spec if isinstance(spec, dict) else {}).get("desc") or name)[:MAX_DESC_CHARS]
             criteria[f"{wid}:{name}"] = f"[{face}] {desc}"
     if not criteria:
         return None

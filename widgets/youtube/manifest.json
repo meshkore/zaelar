@@ -233,11 +233,11 @@
       }
     },
     "restart": {
-      "desc": "reinicia el vídeo desde el principio",
+      "desc": "vuelve al segundo 0 del vídeo que está sonando y SIGUE reproduciéndolo («ponlo otra vez desde el principio», «vuelve al inicio DEL VÍDEO»). No para nada y no cambia de pantalla",
       "payload": {}
     },
     "close": {
-      "desc": "cierra el vídeo: lo detiene de verdad y lo quita del reproductor (vuelve al estado sin vídeo)",
+      "desc": "PARA el vídeo de verdad y lo quita del reproductor: deja de sonar y la tarjeta se queda sin vídeo. Responde a «párralo», «quita el vídeo», «basta ya» y a «párralo y vuelve al inicio»",
       "payload": {}
     },
     "show_history": {
