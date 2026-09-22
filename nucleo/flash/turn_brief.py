@@ -259,10 +259,15 @@ def build(operator_text: str, *, open_ids=None, running_goals=None, has_workers:
     """The questions this turn will need after the model answers. Empty dict = nothing to ask."""
     if not (operator_text or "").strip():
         return {}
-    from nucleo.flash import show_target as _st
+    from nucleo.flash import build_decision as _bd, show_target as _st
     qs: dict[str, dict] = {
         CANVAS_KEY: {"instructions": _st.CANVAS_INSTRUCTIONS, "criteria": dict(_st.CANVAS_VERBS)},
         REQUEST_KEY: request_question(last_reply),
+        # V2-750 — build a NEW card, or use one that exists. Asked on EVERY turn because a question
+        # costs nothing inside a brief (1 question 800 ms, 100 questions 1041 ms) and because the
+        # decision it serves is the most expensive one a turn can get wrong: a false create is two
+        # minutes of a Brain Worker and a duplicate widget in his catalogue. See `build_decision`.
+        _bd.BUILD_KEY: _bd.build_question(),
         ESCALATE_KEY: escalate_question(
             running_goals=running_goals, has_workers=has_workers, ask_pending=ask_pending)}
     target = target_question(open_ids)

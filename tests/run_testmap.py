@@ -595,6 +595,17 @@ DOMAINS: list[dict] = [
                                 "dinero, ni trabajo de navegador — y el backstop no desmiente a la pantalla",
             "ch": UNIT,
             "paths": ["tests/agent_headless/unit/test_a_row_of_his_own_list_is_not_a_purchase.py"]},
+        # V2-750 — la sesión b41925f6: «Entonces, vamos a hacer una cosa, ábreme el widget de vídeo».
+        # `looks_like_create_widget` casó `hacer una cosa, abreme el widget` y mandó la orden al
+        # GENERADOR: dos minutos de Brain Worker y un reproductor de vídeo duplicado en su catálogo
+        # llamado `entonces-vamos-cosa`. Este nodo es la EVALUACIÓN que pidió — el mismo corpus en
+        # cinco idiomas contra el Jev real: la gramática saca 35/45 (zh/ja/hi 6/9 cada uno, ciega a
+        # un create genuino), la decisión compuesta 44-45/45. Y contesta a «¿hay que traducir al
+        # inglés?»: no — los criterios siguen en castellano y puntúan igual en tres alfabetos.
+        {"id": "2.68", "title": "El enrutamiento decide igual en cualquier alfabeto — es · en · zh · ja · hi, "
+                                "con los criterios sin traducir", "ch": UNIT, "live": True,
+            "paths": ["tests/voice/unit/test_the_router_decides_in_any_script.py"],
+            "cmd": "ZAELAR_LIVE_JEV=1 ./.venv/bin/pytest -q -s tests/voice/unit/test_the_router_decides_in_any_script.py"},
         {"id": "2.7", "title": "Susurro (auto-reparación)", "ch": UNIT, "paths": [
             "tests/agent_headless/unit/susurro/test_susurro.py",
             "tests/agent_headless/unit/susurro/test_phantom_dataop.py",
@@ -1407,6 +1418,17 @@ DOMAINS: list[dict] = [
         # V2-741 — la escalera tenía DOS peldaños («contesta» o «un worker de 5 minutos») y el motor
         # caía al caro habiendo nombrado el barato: el brief dijo `youtube:search` a 0,97, una tabla
         # de verbos sin «preparar» se comió la tool, y el worker tardó 195 s en llegar a esa acción.
+        # V2-750 — la mitad determinista: la REGLA y su cableado. Que el guarda pregunta a la
+        # decisión y no a la regex, que el veto solo puede NEGAR trabajo, que construir exige un
+        # veredicto positivo Y ninguna tarjeta nombrada, y que toda ausencia deja la ruta de hoy.
+        {"id": "3.76", "title": "La gramática PROPONE y el veredicto DECIDE: «vamos a hacer una cosa» "
+                                "no es una orden de construir un widget",
+            "ch": UNIT, "paths": ["tests/voice/unit/test_a_verb_table_is_not_a_router.py",
+                                  # El fichero del 2.68 cuelga TAMBIÉN de aquí, como `test_attention.py`
+                                  # del suyo: un nodo `live` no aporta rutas a la corrida determinista, y
+                                  # un fichero declarado que la corrida no toca es un fichero que no corre.
+                                  # Sin `ZAELAR_LIVE_JEV=1` se SALTA, que es la respuesta honesta.
+                                  "tests/voice/unit/test_the_router_decides_in_any_script.py"]},
         {"id": "3.75", "title": "Nadie le ignora tres veces seguidas: la escapatoria de la racha llega al modo "
                                  "SMART, que es el suyo (el contador se escribía y no lo leía nadie)",
             "ch": UNIT, "paths": ["tests/voice/unit/test_nobody_ignores_him_three_times_in_a_row.py"]},

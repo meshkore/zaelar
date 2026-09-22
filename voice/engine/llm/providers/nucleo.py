@@ -23,7 +23,7 @@ from livekit.agents import DEFAULT_API_CONNECT_OPTIONS, llm, utils
 from livekit.agents.llm import ChatChunk, ChoiceDelta
 
 from .. import registry
-from nucleo.flash import (canvas_license as _canvas_lic,                       # V2-650: a replay can be an order
+from nucleo.flash import (build_decision as _build_decision, canvas_license as _canvas_lic,  # V2-750 grammar only proposes / V2-650 a replay can be an order
                           canvas_visibility as _cvis,                          # V2-723: ONE door to present
                           close_guards as _closeg,                             # V2-635: close needs the words
                           data_ops as _data_ops, escalation_guard as _eguard,  # V2-391 / V2-677
@@ -1468,16 +1468,16 @@ class NucleoLLMStream(llm.LLMStream):
                     # contactos» → el modelo llamó show_widget(mensajeria); contactos lo cerró el backstop, así que
                     # UNA orden produjo DOS mutaciones. El probe ya tenía la regla escrita («un canvas:show ESPURIO
                     # en un turno de cerrar SÍ debe corregirse») y este canal no la aplicaba. El show se descarta y
-                    # el backstop de cierre de más abajo hace el cierre — una orden, una mutación.
+                    # el backstop de cierre de más abajo hace el cierre — una orden, una mutación. V2-750 — AND THE GRAMMAR ONLY PROPOSES BELOW. Measured (session b41925f6): «vamos a HACER una cosa, ábreme el WIDGET de vídeo» matched `hacer una cosa, abreme el widget` and built a duplicate video player called `entonces-vamos-cosa`, while this same turn's verdict said `catalog_widget=youtube` at 1.00 and nobody read it. `build_decision` composes that verdict with `build_or_use`: it VETOES a create over a card we already have, and REACHES the generator where no table of ours can read the script (zh/ja/hi 6/9 → 9/9, node 2.68).
                     if _router.show_contradicts_the_order(text):
                         emit("brain", "🚧 show_widget descartado: la orden dice CERRAR, no abrir",
                              text=(_wid or "?")[:40], role="system")
                     # GUARD: CREAR un widget nuevo NO es show → escala al generador (el modelo elige show_widget para
                     # 'créame un widget de X' e `identify` devuelve un widget EXISTENTE equivocado). Backstop determinista.
-                    elif _router.looks_like_create_widget(text):
+                    elif (_bd := _build_decision.decide(text, brief=_brief, proposed=_router.looks_like_create_widget(text)))[0]:
                         if escalate_req["v"] is None:
                             escalate_req["v"] = text
-                        emit("brain", "🏗️ show_widget→CREATE: se escala al generador (no es un show)", role="system")
+                        emit("brain", "🏗️ show_widget→CREATE: se escala al generador (no es un show)", text=_bd[1][:60], role="system")
                     else:
                         from widgets import runtime
                         # Resolver CON CERTEZA (V2-082) — the whole resolution lives in
