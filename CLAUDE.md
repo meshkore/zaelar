@@ -882,4 +882,44 @@ abierta (`V2-091`); a partir de ahora, no añadir más.
   (`make install-livekit`); Docker es solo un fallback opcional. El **sistema de testing (INI-013) SÍ puede usar
   Docker** — esa es la única parte donde Docker es aceptable.
 
+
+## LA COLUMNA DEL CHAT ES LA CONVERSACIÓN (norma del operador, 2026-09-22)
+
+> «La columna del chat tiene que ser algo que funcione al microsegundo y que funcione sin ningún tipo de
+> error. El motor de la conversación es una de las bases de nuestro proyecto… **no puede dar la sensación de
+> que se pierden cosas en el limbo y no puede ser, porque yo las veo en pantalla: eso es que las has
+> procesado.**»
+
+Tres reglas que salen de V2-752 y que gobiernan todo lo que se escriba en el muro:
+
+1. **Una línea de voz se DEBE, no se escribe.** Llega al muro cuando el motor dice que la locución empezó
+   (`bot_speech speaking`), nunca al generarse ni al expirar un temporizador. Medido: 9 de 24 respuestas se
+   pintaron y no sonaron, y la siguiente las borraba — *pintar y borrar delante de él*. La evidencia de que
+   la voz habló es un EVENTO, no la ausencia de otro.
+2. **La identidad de una línea es el `trace` de su turno**, no su posición. El registro hablado llega con
+   mediana 7,3 s (máx 20,8 s) de retraso: comparándolo contra la última fila, cualquier frase suya en medio
+   lo convertía en una burbuja duplicada debajo de la suya.
+3. **Un fragmento retenido solo se pega al siguiente si el siguiente lo CONTINÚA.** Pegar por adyacencia
+   temporal produjo «quita este vídeo y vamos otra vez al No me estás oyendo», que Jev leyó como una orden
+   de cerrar (0,93). La pregunta la contesta `nucleo/flash/continuation.py` y **cuesta ~780 ms, solo en los
+   turnos con fragmento pendiente** (10 de 28 medidos) — es el precio que él autorizó, no un almuerzo gratis.
+
+### Y una queja sobre lo RECIÉN hecho es una orden de rehacerlo
+
+`request_type=complaint` se leía solo como «no empieces nada nuevo». Dos correcciones suyas correctas en el
+modelo murieron en un guarda mientras el agente decía en voz alta que las atendía. `nucleo/flash/redo_decision.py`
+pregunta, con lo que REALMENTE se hizo delante (`nucleo/done_ops.py`), y **solo concede la licencia de la op
+que corrige**. Corolario: cuando la acción fallida la hace una tarjeta con una llamada, la reparación es la
+LLAMADA — el susurro ya no arranca un worker de código para una búsqueda (4 minutos y cero resultados, medido).
+
+### El único slot de identidad que NO habla de él necesita su propia pregunta
+
+`assistant.name` está exento de la guarda «¿habla del operador?» y del anti-garble, **y ambas exenciones son
+correctas** (V2-747). Entre las dos lo dejaron escribible con la sola firma del modelo pequeño: «He dicho,
+Apollo once» renombró su asistente a «Apollo 11» y se llevó la palabra de activación, en silencio y entre
+sesiones. La pregunta que faltaba la contesta un veredicto, **nunca una regex** — una hermana de
+`_talks_about_the_operator` sería una tabla de verbos, y además ciega fuera del alfabeto latino.
+⚠️ Aquí la dirección de fallo es **CERRADA** (ausente/inseguro → no renombra), al revés que el resto: negar
+de más cuesta repetir un renombrado, conceder de más cuesta una identidad que él nunca dio.
+
 <!-- OPERATOR_CONTENT_END -->
