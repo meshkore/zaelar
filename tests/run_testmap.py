@@ -3124,6 +3124,10 @@ DOMAINS: list[dict] = [
         # …y la mitad que falla en SILENCIO: los tres cables que convierten un detector correcto en un
         # micrófono más barato. Cada módulo seguiría funcionando perfectamente con el código nuevo presente
         # y sin alcanzar, y el único síntoma sería una factura que no baja.
+        {"id": "2.69", "title": "Un fragmento retenido solo se pega al siguiente si el siguiente lo CONTINÚA "
+                                "— y un trozo que el STT devuelve más largo REEMPLAZA, no se duplica",
+            "ch": UNIT,
+            "paths": ["tests/voice/unit/test_a_fragment_is_not_glued_to_whatever_comes_next.py"]},
         {"id": "4.210", "title": "Una línea que la voz NUNCA dijo no se escribe — y el registro hablado, que "
                                  "llega hasta 20,8 s tarde, encuentra SU fila por trace en vez de duplicarla",
             "ch": UNIT,

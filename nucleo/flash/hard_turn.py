@@ -43,6 +43,16 @@ async def handle(text: str, hard: str, emit) -> str | None:
     the observer cannot be imported), and reaching for a second one here would give this module a different
     observability failure mode from the turn it belongs to.
     """
+    # 0 · A STOP HUSHES THE OUT-OF-BAND CHANNEL. Measured in session fce3eff3: four seconds after «y ahora
+    #     vas a parar aquí y no vas a hacer nada más», the accumulator's drop notice spoke on its own —
+    #     «Perdona, no cogí bien lo que dijiste antes de la pausa» — because the only thing that channel
+    #     checks before speaking is whether he is mid-word. A stop is not «quiet for this turn».
+    try:
+        from voice import proactive as _pro_hush
+        _pro_hush.note_hush()
+    except Exception:  # noqa: BLE001
+        pass
+
     # 1 · A short STOP with live workers and words about WORK is not silence — it is «stop the errand». The
     #     turn continues so the model can call `stop_worker` (with its deterministic post-stream backstop).
     worker_stop = False

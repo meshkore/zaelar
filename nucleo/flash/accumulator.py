@@ -311,11 +311,53 @@ class Accumulator:
 
         # See `_grows`: if what just arrived already CONTAINS what's buffered as a prefix, it's the SAME sentence
         # the acoustic layer handed back longer — REPLACE, don't append on top (or it gets double-counted).
-        grows = bool(self.fragments) and _grows(self.text(), incoming)
-        if grows or not self.fragments:
+        #
+        # V2-752 — …AND IT CAN GROW FROM THE LAST FRAGMENT RATHER THAN FROM THE WHOLE BUFFER. Measured in
+        # session fce3eff3 at +182.3 s: the buffer held ["y no son los que yo quería,", "Te acabo de decir lo
+        # que estaba pensando,"] and the acoustic layer returned "Te acabo de decir lo que estaba pensando,
+        # que no lo has entendido." — the SECOND fragment, longer. `_grows` compares against `text()`, the
+        # whole buffer, so it saw no growth and appended, and the prompt, Jev, the memory processor and his
+        # chat wall all received his sentence with a clause said twice:
+        #     «y no son los que yo quería, Te acabo de decir lo que estaba pensando, Te acabo de decir lo que
+        #      estaba pensando, que no lo has entendido.»
+        # (Row 19 of his real `memories` table still holds it.) Which fragment grew decides what to replace.
+        grows_tail = bool(self.fragments) and _grows(self.fragments[-1], incoming)
+        grows = bool(self.fragments) and (_grows(self.text(), incoming) or grows_tail)
+        if not self.fragments:
+            candidate = incoming
+        elif grows_tail and not _grows(self.text(), incoming):
+            candidate = (" ".join(self.fragments[:-1]) + " " + incoming).strip()
+        elif grows:
             candidate = incoming
         else:
-            candidate = (self.text() + " " + incoming).strip()
+            # …AND THE SECOND FRAGMENT MUST BELONG TO THE FIRST. `continuation` is the only reader that asks;
+            # everything else judges the merge after it exists. A confident «separate» means these are two
+            # turns: the held one is delivered if it can stand alone, discarded (audibly) if it cannot, and
+            # the new one starts a chain of its own. See that module for the measured incident and the price.
+            from nucleo.flash import continuation as _cont
+            glue, _cont_why = _cont.continues(self.text(), incoming)
+            if not glue:
+                # The held half goes out as DISCARDED, and that is the whole handling: at a seam it is by
+                # construction a fragment layer 1 refused to deliver, so it CANNOT stand alone («…vamos otra
+                # vez al» — «al» what?). A branch here for «but what if it was complete?» would be dead code
+                # (a complete fragment is delivered on arrival and never reaches a seam) and each path
+                # through this function is one more that can forget the watermark.
+                #
+                # Discarded is not lost: `_speak_acc_drop` acknowledges it out loud AND gives it to the judge,
+                # which pushes a `[SISTEMA]` note when there really was a request inside. Losing his words in
+                # silence is the one outcome this module exists to prevent, and splitting must not become a
+                # new way to do it.
+                dropped = (dropped + " " + self.text()).strip() if dropped else self.text()
+                self.clear()
+                self.consumed_head = ""
+            candidate = (self.text() + " " + incoming).strip() if self.fragments else incoming
+        # ⚠️ NOT DEDUPED ACROSS THE JOIN, and that is a decision rather than an omission (V2-752). Running
+        # `_deduped` on the JOINED text was tried the same day: it collapses a run repeated across the seam,
+        # but it also collapses a person repeating themselves across two fragments — and it broke the size
+        # valve outright (`test_la_valvula_de_TAMANO_tambien_corta`, whose whole premise is the same clause
+        # offered over and over). The measured duplication of session fce3eff3 is the `_grows` one above,
+        # already fixed there, and V2-747's seam case arrives as ONE incoming string, which `_deduped
+        # (incoming)` still covers. Editing his words is the expensive direction; this one stays unpaid.
 
         if _complete(candidate):
             return self._deliver(candidate, now, "", dropped)
@@ -339,7 +381,7 @@ class Accumulator:
         if not self.fragments:
             self.first_at = now
         if grows:
-            self.fragments[:] = [incoming]     # replaces the whole growing tail, doesn't double it up
+            self.fragments[:] = [candidate]    # replaces the whole growing tail, doesn't double it up
         else:
             self.fragments.append(incoming)
         self.last_at = now

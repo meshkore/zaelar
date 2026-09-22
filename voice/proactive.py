@@ -62,6 +62,28 @@ def user_speaking() -> bool:
         return False
 
 
+# ── V2-752 · «Y AHORA VAS A PARAR AQUÍ Y NO VAS A HACER NADA MÁS» ────────────────────────────────────────
+# Session fce3eff3, +435.3 s. Four seconds later the agent said, unprompted: «Perdona, no cogí bien lo que
+# dijiste antes de la pausa. ¿Me lo repites?» — the accumulator's drop notice, firing on a chain the stop
+# had just ended. It is not a reply to anything; it is this module's out-of-band channel, and the ONLY
+# thing it checks before speaking is whether he happens to be mid-word.
+#
+# A stop is not «be quiet for this turn», it is «be quiet». So it HUSHES the out-of-band channel for a
+# window, and the notices consult it. It deliberately does not touch `notify()` or the reply path: an
+# answer he is waiting for is not the thing he was stopping, and silencing that would be the opposite bug.
+_HUSH_S = 20.0
+_hushed_at = [0.0]
+
+
+def note_hush() -> None:
+    """The operator ordered a stop. Out-of-band notices hold their tongue for `_HUSH_S`."""
+    _hushed_at[0] = time.monotonic()
+
+
+def hushed() -> bool:
+    return (time.monotonic() - _hushed_at[0]) < _HUSH_S
+
+
 def register_bot_probe(fn) -> None:
     """The live session registers whether the BOT is speaking (TTS in progress) RIGHT NOW — distinct from the busy
     probe (bot OR user) because `nucleo.py::_maybe_close_flow` (2026-08-16) specifically needs to know whether ITS

@@ -21,6 +21,8 @@ if TYPE_CHECKING:                  # runtime import would be circular; the annot
     from voice.engine.llm.providers.nucleo import NucleoLLM
 
 _ACC_NUDGE_S = float(os.getenv("ZAELAR_ACC_NUDGE_S", "8.0"))
+#: The breath between «he is not speaking» and speaking over him. See `_schedule_acc_nudge`.
+_ACC_SETTLE_S = float(os.getenv("ZAELAR_ACC_SETTLE_S", "0.9"))
 
 
 def _acc_notice_plan(action: str, dropped: str, n_before: int) -> tuple[bool, bool]:
@@ -83,7 +85,9 @@ async def _speak_acc_drop(dropped: str) -> None:
     try:
         from voice import proactive
         speak = proactive.speaker()
-        if speak is None or proactive.user_speaking() or not text:
+        # V2-752 — …and not over a stop, either. The CONTENT is already rescued above, so holding the
+        # tongue here loses nothing: the note surfaces on his next turn instead of talking over his order.
+        if speak is None or proactive.user_speaking() or proactive.hushed() or not text:
             return        # nothing to say it WITH; the content is already safe above
         r = speak(text)
         if asyncio.iscoroutine(r):
@@ -108,7 +112,19 @@ def _schedule_acc_nudge(brain: "NucleoLLM", gen: int) -> None:
         try:
             from voice import proactive
             speak = proactive.speaker()
-            if speak is None or proactive.user_speaking():
+            if speak is None or proactive.user_speaking() or proactive.hushed():
+                return
+            # V2-752 — HE WAS DRAWING BREATH. Measured in session fce3eff3: this fired at +250.2 s and his
+            # voice came back at +250.7 s, half a second later, so «Sigo aquí, cuando quieras sigue» landed
+            # on top of him — and what he said was «No me estás oyendo». `user_speaking()` is an instant,
+            # and the pause between two halves of a sentence is longer than an instant. A short settle,
+            # re-checked, costs nothing (nobody is waiting on a reassurance ping) and covers the gap this
+            # missed by 500 ms. It is not a fix for a person who pauses for a full second — that one still
+            # gets talked over, and the honest answer there is that the nudge is optional and he is not.
+            await asyncio.sleep(_ACC_SETTLE_S)
+            if getattr(brain, "_acc_gen", None) != gen or not brain._acc.pending():
+                return
+            if proactive.user_speaking() or proactive.hushed():
                 return
             from voice.engine.core import langs
             r = speak(langs.current_language().acc_still_listening)
