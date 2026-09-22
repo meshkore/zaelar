@@ -2400,7 +2400,7 @@ class NucleoLLMStream(llm.LLMStream):
         # he was describing the first wrongful close. A turn that MENTIONS fullscreen is about a screen state
         # (leaving it, or narrating it), never a whole-widget close order for a backstop to guess at; if the
         # operator really wants it closed the model can still emit [[close]] itself.
-        if (not acted.get("closed")) and _router.looks_like_close(text) \
+        if (not acted.get("closed")) and _canvas_lic.close_license(text, brief=_brief) \
                 and not _router.looks_like_create_widget(text) \
                 and not music_req["v"] and not data_done["v"] \
                 and "fullscreen_widget" not in _tool_fired \

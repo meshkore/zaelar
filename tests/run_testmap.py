@@ -3124,6 +3124,14 @@ DOMAINS: list[dict] = [
         # …y la mitad que falla en SILENCIO: los tres cables que convierten un detector correcto en un
         # micrófono más barato. Cada módulo seguiría funcionando perfectamente con el código nuevo presente
         # y sin alcanzar, y el único síntoma sería una factura que no baja.
+        {"id": "2.71", "title": "«No te he dicho que lo cerraras» NO es una orden de cerrar — el "
+                                "veredicto del turno manda sobre la tabla de verbos del backstop",
+            "ch": UNIT,
+            "paths": ["tests/voice/unit/test_a_denial_of_a_close_is_not_a_close_order.py"]},
+        {"id": "2.70", "title": "Una queja sobre lo RECIÉN hecho es una orden de rehacerlo bien — y una "
+                                "búsqueda que hace una tarjeta no arranca un agente de código",
+            "ch": UNIT,
+            "paths": ["tests/voice/unit/test_a_complaint_about_the_last_thing_is_an_order_to_redo_it.py"]},
         {"id": "2.69", "title": "Un fragmento retenido solo se pega al siguiente si el siguiente lo CONTINÚA "
                                 "— y un trozo que el STT devuelve más largo REEMPLAZA, no se duplica",
             "ch": UNIT,

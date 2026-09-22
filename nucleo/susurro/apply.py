@@ -113,6 +113,54 @@ def _grounded(request: str, window: str) -> bool:
     return hits >= 2
 
 
+def _a_card_already_does_this(request: str) -> str:
+    """The card of ours that already does what this `worker_action` asks for — "" when none does.
+
+    V2-752, measured live in session fce3eff3. The fast turn promised «Voy con Apollo 11 — te la saco» and
+    fired no tool (a guard had eaten it — see `nucleo/flash/redo_decision.py`). The auditor saw the promise
+    with nothing behind it, concluded correctly that a consequential action had failed, and escalated:
+
+        «Lanza en YouTube una búsqueda de la misión Apollo 11 (NASA, 1969) y refresca el widget de vídeos»
+
+    A full Claude Code worker opened. It ran for FOUR MINUTES, drove a real browser, clicked into the
+    comments of a video, asked twice for a widget called `videos` (which does not exist — the card is
+    `youtube`), and died with the session having delivered nothing. That is the operator's standing
+    complaint, arriving through a door V2-750 did not look at: «no es normal que para hacer una simple
+    búsqueda de vídeos arranquemos un brainworker».
+
+    `worker_action` exists for ONE premise — the fast brain failed to execute a consequential action. When
+    the action in question is a DECLARED action of a card, the repair that premise asks for is the call,
+    not a coding agent: the worker is for what does not fit in a turn. So the request is degraded to a note
+    and the turn makes the call itself.
+
+    The reader is the widget runtime's own resolver, never a word list: the card is identified from what
+    each widget DECLARES about itself (CLAUDE.md, «UNA TABLA DE VERBOS NO ES UN ENRUTADOR»). No card, an
+    ambiguous match, or any failure → "" and today's path, which escalates.
+
+    ⚠️ AND NAMING A CARD IS NOT ENOUGH, which is the first version of this and it was too wide. «Búscame
+    un restaurante para mañana y apúntalo en la agenda» names `agenda` and is exactly the shape a Brain
+    Worker exists for; degrading it would have taken the worker away from the errands that need one. So
+    the second condition is the PREMISE itself: the same card must have run an op in the last minutes.
+    That is what «the fast brain was already working on this and failed to fire» looks like from here, it
+    is true of the measured incident (the youtube search had run 70 s earlier), and it is false of every
+    cold errand. Refusing to degrade costs a worker that was going to run anyway; degrading wrongly costs
+    the operator an errand that never starts, so the gate leans towards escalating.
+    """
+    try:
+        from widgets import runtime
+        seen = runtime.identify(request or "") or {}
+        if seen.get("ambiguous"):
+            return ""
+        card = str(seen.get("match") or "").strip()
+        if not card:
+            return ""
+        from nucleo.flash import redo_decision as _redo
+        op = _redo.last_op()
+        return card if op and str(op.get("wid") or "").strip().lower() == card.lower() else ""
+    except Exception:  # noqa: BLE001
+        return ""
+
+
 def _already_executed(request: str) -> dict | None:
     """The mutation this `worker_action` asks for HAS ALREADY RUN in this session — so its whole premise is
     false and launching a worker duplicates the work (V2-710).
@@ -208,7 +256,19 @@ def apply_corrections(corrections: list[dict], *, reason: str, trace: str = "",
             ungrounded = False
             ran: dict | None = None
             now = time.time()
-            if req and (ran := _already_executed(req)):
+            if req and (card := _a_card_already_does_this(req)):
+                # ONE CALL, NOT A CODING AGENT — see `_a_card_already_does_this`. Handed to the turn as a
+                # note so the fast brain makes the call it should have made, which is the repair the premise
+                # actually asks for.
+                try:
+                    from voice import brain_notes
+                    brain_notes.push(
+                        f"[SISTEMA] (susurro) esto lo hace la tarjeta «{card}» con una sola llamada, y no se "
+                        f"llegó a hacer: «{req[:160]}». Hazlo ahora con su acción, sin arrancar nada de fondo.")
+                except Exception:  # noqa: BLE001
+                    pass
+                ran = {"wid": card, "action": "(tarjeta)", "n": None}
+            elif req and (ran := _already_executed(req)):
                 # Already DONE, not merely already running — see `_already_executed`. Degraded to a note so
                 # the turn can tell him what happened instead of doing it a second time.
                 try:

@@ -236,13 +236,54 @@ def video_license(text: str, last_reply: str = "", *, brief=None) -> bool:
         return True
     if len(n.split()) <= 4 and bool(_AFFIRM_RE.search(n)) and offer_of_media(last_reply):
         return True
-    return verdict_grants(brief, "youtube")
+    if verdict_grants(brief, "youtube"):
+        return True
+    # V2-752 — A CORRECTION BORROWS THE LICENCE OF WHAT IT CORRECTS. «He dicho, Apollo once.» carries no
+    # media verb and no media noun, and `screen_action` answered `none` at 0.92 — both readers right, both
+    # reading the sentence alone. It is a correction of the search that had just run on the wrong words, and
+    # the model had already emitted the right call; this only stops the guard from eating it. Measured live
+    # in session fce3eff3, where the same correction was swallowed TWICE in a row while the agent said out
+    # loud that it was acting on it. Scoped to the widget the corrected op ran on: see `redo_decision`.
+    from nucleo.flash import redo_decision as _redo
+    return _redo.corrects(brief, "youtube")
 
 
-def close_license(text: str) -> bool:
-    """True when the turn ORDERS a close — `close_guards.looks_like_close` verbatim (negations and
-    narrated closes already excluded there). A model-emitted [[close]] without it is drag, not obedience."""
-    return looks_like_close(_his_words(text))
+def close_license(text: str, *, brief=None) -> bool:
+    """True when the turn ORDERS a close — `close_guards.looks_like_close` (negations and narrated closes
+    already excluded there), UNLESS the turn's own canvas verdict says it is not a close at all.
+
+    THE DEFECT (live session fce3eff3, 2026-09-22). The grammar closed his video card THREE times, twice
+    of them on sentences where he was COMPLAINING about the first close:
+
+        +255.1 s  «quita este vídeo y vamos otra vez al No me estás oyendo.»   → closed  (garbled text —
+                  the accumulator glued two unrelated fragments; repaired in `accumulator.py`)
+        +284.4 s  «He dicho que vuelvas al inicio del widget de vídeo, Yo no te he dicho en ningún
+                   momento que CERRARAS el widget de vídeo.»                   → closed AGAIN
+        +288.2 s  «Yo no te he dicho en ningún momento que CERRARAS el widget de vídeo.»  → and AGAIN
+
+    The verb table matched «quita» and «cerraras» and never asked whether the sentence ORDERS a close or
+    DENIES one. On both of the last two the turn's own `canvas` verdict said `neither` — the question had
+    been asked and answered, and nobody read it. This is CLAUDE.md's «UNA TABLA DE VERBOS NO ES UN
+    ENRUTADOR» with a third door: the grammar PROPOSES, the verdict decides.
+
+    ⚠️ THIS ONE NEWLY FORBIDS, which is the direction `verdict_grants` deliberately does not take, so it
+    carries its own justification rather than that one's. What it forbids is a CLOSE — the mutation whose
+    wrong direction he has now paid for three times in one conversation, and whose cheap direction is a
+    card that stays open one turn too long. And it forbids only on a CONFIDENT verdict: absent, unsure or
+    anything but a clear `neither` leaves today's behaviour untouched, so a brief that never lands can
+    never make the engine deaf to «ciérralo».
+    """
+    if not looks_like_close(_his_words(text)):
+        return False
+    if brief is not None:
+        try:
+            from nucleo.flash import show_target as _st, turn_brief as _tb
+            verb, _info = _tb.read(brief, _tb.CANVAS_KEY, "")
+            if str(verb or "") == "neither" and "neither" in _st.CANVAS_VERBS:
+                return False
+        except Exception:  # noqa: BLE001
+            pass
+    return True
 
 
 def fullscreen_license(text: str) -> str:
