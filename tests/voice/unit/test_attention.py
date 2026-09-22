@@ -391,9 +391,16 @@ def test_both_close_backstops_are_wired_to_the_fullscreen_veto():
     """WIRING guard (V2-600): the veto lives once (`mentions_fullscreen`) and BOTH generic close backstops —
     the voice provider's and the probe mirror's — must consult it, or the next «cierra la pantalla completa»
     complaint closes the widget again in whichever channel lost the line (the V2-252 drift, measured here on
-    2026-09-05). Anchored on the backstop's own conditional (`looks_like_close` + `looks_like_create_widget`
+    2026-09-05). Anchored on the backstop's own conditional (the close test + `looks_like_create_widget`
     in one statement), never on the whole file; comments are stripped first so a comment naming the helper
-    cannot stand in for the call (the V2-573 trap)."""
+    cannot stand in for the call (the V2-573 trap).
+
+    V2-752 — the two channels now spell that close test DIFFERENTLY and the anchor accepts both. The voice
+    provider asks `canvas_license.close_license(text, brief=…)`, so the turn's own canvas verdict can refuse
+    a close the grammar proposed — it closed his card three times in session fce3eff3, twice while he was
+    complaining about the first one. The probe mirror still calls `looks_like_close` bare, and that is not
+    drift being papered over: **the text channel fires no brief at all**, so it has no verdict to read. The
+    day it does, this anchor is where the two spellings meet again."""
     import pathlib
     import re
 
@@ -402,7 +409,7 @@ def test_both_close_backstops_are_wired_to_the_fullscreen_veto():
              root / "nucleo" / "flash" / "probe.py"]
     for path in files:
         src = "\n".join(line.split("#", 1)[0] for line in path.read_text().splitlines())
-        spans = [m.start() for m in re.finditer(r"looks_like_close\(text\)", src)
+        spans = [m.start() for m in re.finditer(r"(?:looks_like_close|close_license)\(text[,)]", src)
                  if "looks_like_create_widget" in src[m.start():m.start() + 400]]
         assert spans, f"the close backstop's conditional was not found in {path.name} — re-anchor this guard"
         for s in spans:
