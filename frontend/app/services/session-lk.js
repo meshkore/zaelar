@@ -23,6 +23,8 @@ import { Room, RoomEvent, LocalAudioTrack, ConnectionState } from "../../vendor/
 import * as store from "../core/store.js?v=2";
 import * as audio from "./audio.js?v=2";
 import * as api from "./api.js?v=2";
+
+let _capSeen = false;   // V2-752: the audio-synced caption channel has been heard from this session
 import * as mic from "./mic.js?v=1";
 import { openSSE } from "./sse.js?v=4";
 import { clearDebugBuffer } from "./debugbus.js?v=2";
@@ -591,6 +593,11 @@ export async function start() {
     // to the live caption overlay — the operator's own STT (local participant) is handled via SSE, not here.
     room.on(RoomEvent.TranscriptionReceived, (segments, participant) => {
       if (participant && participant.isLocal) return;
+      // V2-752 — SAY ONCE, TO THE ENGINE, THAT THIS CHANNEL IS ALIVE. Auditing session fce3eff3 the chat wall
+      // behaved exactly as it would with the crawl disabled, and there was no way to tell «no captions arrived»
+      // from «captions arrived and the wall ignored them» — a whole fix was planned around a guess. One line
+      // per session, the first segment only, so the next audit reads it instead of guessing.
+      if (!_capSeen) { _capSeen = true; api.clientLog("📝 subtítulos sincronizados VIVOS", { text: "TranscriptionReceived" }); }
       for (const s of (segments || [])) store.pushCaptionSeg(s.id, s.text, s.final);
     });
 

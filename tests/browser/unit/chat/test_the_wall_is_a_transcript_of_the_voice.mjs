@@ -76,14 +76,22 @@ const reset = () => store.setChatMsgs(() => []);
 // +157.14 s: the reply «Me alegra que lo veas mejor…» is generated · +157.42 s: ElevenLabs synthesises
 // 14.05 s of audio · `bot_speech` never leaves `idle`. He had started his next sentence two seconds
 // earlier, so the utterance was cancelled before its first frame — and the wall kept the whole thing.
+// V2-752 — THE SAME RULE, ONE STEP EARLIER. This group used to assert the line was PAINTED AT ONCE and
+// then removed on settle, and that intermediate step is the one the operator saw and named a year of
+// sessions later: «vas poniendo de golpe un montón de un párrafo lleno de mensajes y luego lo borras»
+// (session fce3eff3, where 9 of 24 replies ended this way). The line is now OWED until the engine reports
+// the utterance started, so the cancelled one is never written at all and there is nothing to delete. The
+// measurement above is unchanged and so is the rule it proves; only the moment of writing moved.
 {
   reset();
   store.pushAgentChat("Me alegra que lo veas mejor, y tienes razón en lo de las dos frases.",
-                      { voiced: true });
-  assert.equal(agentLines().length, 1, "it is painted at once — that speed is what V2-116 bought");
+                      { voiced: true, trace: "T-cancelled" });
+  assert.equal(agentLines().length, 0,
+    "not painted at all: `bot_speech` never left idle for this utterance, so it never reached the wall");
 
   store.pushCaptionSeg("seg-filler", "Sí…", true);                  // +161.9 s: the NEXT turn's filler sounds
-  store.pushAgentChat("Te tomo nota de las dos cosas.", { voiced: true });   // …and its reply settles this
+  store.pushAgentChat("Te tomo nota de las dos cosas.", { voiced: true, trace: "T-next" });
+  store.noteVoiceStarted("T-next");
   assert.deepEqual(agentLines(), ["Te tomo nota de las dos cosas."],
     "THE BUG: «no ha llegado ni a sonar» and it stayed on the wall anyway. A line the voice never opened " +
     "its mouth for must not exist");
@@ -93,10 +101,14 @@ const reset = () => store.setChatMsgs(() => []);
 // The distinction that keeps group 3 from becoming a way to lose replies: if not one caption segment has
 // arrived since the line was painted, «it was never said» and «nobody told us» are indistinguishable, and
 // they have opposite right answers. Removal needs evidence that the voice was busy elsewhere.
+// V2-752 — and the evidence that the voice WAS speaking is now `bot_speech`, which is a statement rather
+// than the absence of one. Both lines sounded; neither caption channel said a word about either.
 {
   reset();
-  store.pushAgentChat("Una respuesta sobre la que no llega ni una sola pista.", { voiced: true });
-  store.pushAgentChat("La siguiente.", { voiced: true });
+  store.pushAgentChat("Una respuesta sobre la que no llega ni una sola pista.", { voiced: true, trace: "T-a" });
+  store.noteVoiceStarted("T-a");
+  store.pushAgentChat("La siguiente.", { voiced: true, trace: "T-b" });
+  store.noteVoiceStarted("T-b");
   assert.deepEqual(agentLines(), ["Una respuesta sobre la que no llega ni una sola pista.", "La siguiente."],
     "with no caption movement at all since it was painted, the line stays: absence of evidence is not " +
     "evidence of absence");
@@ -142,11 +154,15 @@ const reset = () => store.setChatMsgs(() => []);
 // The failure mode that would be worse than the one being fixed: a build where the synchronizer is off,
 // or a transport that never forwards it, must keep every line exactly as it does today. Group 3b proves
 // the per-line half of this; here it is the whole session, in a module that never sees one segment.
+// V2-752 — the line still arrives whole; what carries it is the engine's `bot_speech speaking` rather
+// than a 1200 ms timer. That is the point of the swap: a build with no captions is served by a statement
+// about the voice instead of by the expiry of a guess about it.
 {
   const fresh = await import("../../../../frontend/app/core/store.js?no-captions=1");
   fresh.setChatMsgs(() => []);
   for (const line of ["Una respuesta entera.", "Otra.", "Y otra más."]) {
-    fresh.pushAgentChat(line, { voiced: true });
+    fresh.pushAgentChat(line, { voiced: true, trace: line });
+    fresh.noteVoiceStarted(line);
   }
   const lines = fresh.chatMsgs().filter(m => m.role === "agent").map(m => m.text);
   assert.deepEqual(lines, ["Una respuesta entera.", "Otra.", "Y otra más."],

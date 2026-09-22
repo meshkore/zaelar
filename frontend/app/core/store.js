@@ -764,18 +764,81 @@ const _normAgent = s => String(s || "").replace(_CHAT_MARKERS, "").trim();
 // below is unchanged and is what makes the HISTORY honest — this only governs what is on screen while the
 // voice is mid-sentence. The two halves have to agree, which is why one signal drives both.
 //
-// ⚠️ THE GRACE WINDOW IS THE FALLBACK, and without it this would be a regression for every build with no
-// audio-synced captions: with no channel to stream from, an unstreamed line would sit invisible until the
-// NEXT reply settled it. If not one segment has arrived `_VOICE_GRACE_MS` after the line was painted, the
-// wall goes back to showing it whole — which is exactly what it did before this existed. Same doctrine as
-// the removal guard below: silence on a channel is never read as evidence about the voice.
-const _VOICE_GRACE_MS = 1200;
-let _voiceTimer = null;
-export const [voicedLine, _setVoicedLine] = createSignal(null);   // { full, heard, streaming } | null
+// ⚠️ A build with no audio-synced captions must not lose the line, and that fallback used to be a 1200 ms
+// GRACE WINDOW: with no segment by then, the wall showed the line whole. V2-752 replaced the timer with the
+// engine's own `bot_speech speaking` — see below. Same doctrine, better evidence: silence on a channel is
+// still never read as a statement about the voice, but now there is a channel that states it outright.
+// ── …AND IT IS NOT WRITTEN AT ALL UNTIL THE VOICE STARTS IT (V2-752) ─────────────────────────────────
+// Session fce3eff3 (2026-09-22), measured over its 1401 events: of 24 replies the model generated, **9 were
+// painted on the wall and never sounded** — including the one he read out loud as evidence («este mensaje de
+// "un momento", si ahora mismo no llevas ningún widget»). His words:
+//
+//   «vas poniendo de golpe un montón de un párrafo lleno de mensajes y luego lo borras… estás soltando
+//    chorradas que realmente no estás verbalizando… es como que no va sincronizado con tu cabeza.»
+//
+// Two mechanisms produced exactly that, and both are above:
+//   1. The crawl was the privilege of the LAST message (`i === msgs.length - 1` in ChatWall). Three replies
+//      generated inside 3 s — 285.9/289.2/291.5 in that session — meant the first two rendered WHOLE and at
+//      once, which is «de golpe un párrafo entero».
+//   2. When a barge-in cancelled the utterance before its first audio frame, no caption ever arrived, the
+//      1200 ms grace window expired, and the wall painted a paragraph that was NEVER SAID. The next reply's
+//      `settleAgentSpoken` then deleted it. Paint-then-delete, in front of him.
+//
+// THE GRACE WINDOW IS GONE, and what replaces it is not a longer timer: it is EVIDENCE. `bot_speech
+// speaking` is the engine's own statement that this utterance reached the speaker, it carries the turn's
+// `trace`, and it is independent of the caption transport — so a build with no audio-synced captions still
+// paints (the case the grace window existed for) while a cancelled reply paints NOTHING, because the event
+// never comes. A line is owed, not written; it is written when the voice starts it.
+//
+// And the line is keyed by TRACE rather than by position. `brain reply`, `transcript zaelar`, `bot_speech`
+// and `state interrupted` all carry the same `trace` for one turn (verified in that session's log), which is
+// what lets the late spoken record — median 7.3 s behind, max 20.8 s — find the row it belongs to instead of
+// adding a second bubble underneath whatever he typed or said in between. That was the other half of his
+// complaint: «en el chat estás duplicando mensajes, me los estás intercalando entre los míos».
+export const [voicedLine, _setVoicedLine] = createSignal(null);   // { full, heard, streaming, trace } | null
 
-const _endVoiceStream = () => { clearTimeout(_voiceTimer); _voiceTimer = null; _setVoicedLine(null); };
+const _endVoiceStream = () => { _setVoicedLine(null); };
 
-let _pendingVoiced = null;     // { full, heard, capAt } — the line the voice still owes us
+let _pendingVoiced = null;     // { full, heard, capAt, trace, painted } — the line the voice still owes us
+
+/** The voice STARTED this line (`bot_speech speaking`, or the first caption of it) → now it may be written.
+ *  Until this, an owed line exists nowhere the operator can see, which is the whole point. */
+const _paintOwed = () => {
+  const p = _pendingVoiced;
+  if (!p || p.painted) return;
+  p.painted = true;
+  setChatMsgs(xs => _capChat([...xs, { role: "agent", text: p.full, trace: p.trace || "" }]));
+  _setVoicedLine({ full: p.full, heard: p.heard, streaming: true, trace: p.trace || "" });
+};
+
+/** `bot_speech speaking` — the engine says this utterance reached the speaker. */
+export const noteVoiceStarted = (trace) => {
+  const p = _pendingVoiced;
+  if (!p || p.painted) return;
+  if (trace && p.trace && trace !== p.trace) return;   // somebody else's utterance
+  _paintOwed();
+};
+
+/** The turn was cancelled (`state interrupted`, `flow end` with no speech). A line the voice never began is
+ *  dropped without a trace on screen — it was never said, so it never existed (his rule, V2-745). One that is
+ *  already painted is NOT touched here: it sounded, and `settleAgentSpoken` owns trimming it to what he heard. */
+export const dropUnspokenLine = (trace) => {
+  const p = _pendingVoiced;
+  if (!p || p.painted) return;
+  if (trace && p.trace && trace !== p.trace) return;
+  if (p.trace) _mute(p.trace);
+  _pendingVoiced = null;
+  _endVoiceStream();
+};
+
+// THE SPOKEN RECORD OF A CANCELLED TURN ARRIVES ANYWAY, and up to 20,8 s later (measured). By then the owed
+// line is long gone, so «is it still owed?» cannot be the question — the turn has to stay refused by NAME.
+// A short ring is the whole memory needed: the record follows its own reply within seconds, and remembering
+// a turn for ever would be a leak with no reader. Caught by node 4.210's own disarm, not by reasoning.
+const _MUTED_MAX = 16;
+const _muted = [];
+const _mute = (trace) => { _muted.push(trace); if (_muted.length > _MUTED_MAX) _muted.shift(); };
+const _isMuted = (trace) => !!trace && _muted.indexOf(trace) >= 0;
 
 /** One audio-synced caption segment: what the operator is HEARING, cumulative, `final` at the end of the
  *  utterance (including an utterance cut short — that is the whole point). */
@@ -784,9 +847,10 @@ export const noteSpokenAloud = (text, final) => {
   const heard = _normAgent(text);
   if (!heard || !_normAgent(_pendingVoiced.full).startsWith(heard)) return;   // not this line's speech
   _pendingVoiced.heard = heard;
-  // The channel IS alive, so the grace window has nothing to fall back from: cancel it and stream.
-  clearTimeout(_voiceTimer); _voiceTimer = null;
-  _setVoicedLine({ full: _pendingVoiced.full, heard, streaming: true });
+  // A caption IS the voice speaking, so it paints the line too — `bot_speech` is the primary evidence and
+  // this is the second one. Whichever arrives first wins; neither is required for the other to work.
+  if (!_pendingVoiced.painted) { _paintOwed(); }
+  _setVoicedLine({ full: _pendingVoiced.full, heard, streaming: true, trace: _pendingVoiced.trace || "" });
   if (final) settleAgentSpoken();
 };
 
@@ -795,6 +859,9 @@ export const settleAgentSpoken = () => {
   const p = _pendingVoiced; _pendingVoiced = null;
   _endVoiceStream();               // the line is no longer being said: the wall shows whatever it ends as
   if (!p) return;
+  // NEVER PAINTED = never said, and there is nothing on screen to trim: the line simply does not exist.
+  // This is the 9-in-24 case of session fce3eff3, and it is now free — no counter, no window, no guess.
+  if (!p.painted) return;
   const full = _normAgent(p.full), heard = _normAgent(p.heard);
   if (!full || heard === full) return;                       // it said all of it
   // REMOVAL NEEDS EVIDENCE THE VOICE WAS BUSY ELSEWHERE, not merely a silent channel. If not one caption
@@ -802,19 +869,81 @@ export const settleAgentSpoken = () => {
   // told us», and the two have opposite right answers. In the measured case the distinction is real: the
   // cancelled reply at +157.1 s was followed by the filler «Sí…» and by the next turn's own speech, so
   // the counter had moved several times over.
+  // (Since V2-752 a painted line HAS started sounding — `bot_speech speaking` is what painted it — so this
+  // only ever decides between «trim to what he heard» and «leave it whole». It stays because the caption
+  // channel can still go quiet mid-utterance, and a silent channel is not a statement about the voice.)
   if (!heard && _capSeq === p.capAt) return;
   setChatMsgs(xs => {
-    const k = xs.findIndex(m => m.role === "agent" && _normAgent(m.text) === full);
+    const k = _rowOf(xs, p.trace, full);
     if (k < 0) return xs;                                    // already replaced by the spoken transcript
     // A cut line keeps an ellipsis: it is the honest mark that the sentence stopped where the voice did.
-    return heard ? [...xs.slice(0, k), { role: "agent", text: heard + "…" }, ...xs.slice(k + 1)]
+    const t = xs[k].trace || "";
+    return heard ? [...xs.slice(0, k), { role: "agent", text: heard + "…", trace: t }, ...xs.slice(k + 1)]
                  : [...xs.slice(0, k), ...xs.slice(k + 1)];
   });
+};
+
+/** Where this turn's agent line lives. BY TRACE when there is one — the identity of a line is the turn that
+ *  produced it, not its position — falling back to the text for anything minted before traces existed (a
+ *  restored history) or by a channel that carries none (a proactive push, a filler). */
+const _rowOf = (xs, trace, full) => {
+  if (trace) {
+    const k = xs.findIndex(m => m.role === "agent" && m.trace === trace);
+    if (k >= 0) return k;
+  }
+  return xs.findIndex(m => m.role === "agent" && _normAgent(m.text) === full);
 };
 
 export const pushAgentChat = (text, opts) => {
   const o = opts || {};
   if (o.voiced) settleAgentSpoken();          // the previous line is no longer owed: whatever it got, it got
+  // A LINE THE VOICE IS GOING TO SAY IS OWED, NOT WRITTEN (V2-752). It reaches the wall in `_paintOwed`, when
+  // the engine reports the utterance actually started. Everything below — the dedupe ladder against the last
+  // row — is for the channels that are NOT the voice's own line: the late spoken record, a filler, a cron's
+  // proactive push, the probe's text turn.
+  if (o.voiced) {
+    _pendingVoiced = { full: text, heard: "", capAt: _capSeq, trace: o.trace || "", painted: false };
+    _setVoicedLine(null);
+    return;
+  }
+  // The SPOKEN record of a line that was never painted is the record of something he never heard: the utterance
+  // was cancelled before its first frame. Dropping it here is what stops it from arriving 7-20 s late (measured
+  // median/max in session fce3eff3) as a fresh bubble UNDER whatever he said in between.
+  // A SPOKEN RECORD IS ITSELF PROOF THE VOICE SAID IT — LiveKit closes the conversation item with what it
+  // actually voiced, never with what was cancelled. So when it arrives for a line still owed and unpainted,
+  // that line DID sound and simply never got a `bot_speech` we could match (an untraced build, a dropped
+  // event): it is written now, as the spoken version. This is the no-caption fallback of V2-745 §5, and
+  // without it such a build loses the trim and shows the untruncated line. Found by that test, not by me.
+  if (o.spoken && _pendingVoiced && !_pendingVoiced.painted && !_isMuted(o.trace || "")
+      && (!o.trace || !_pendingVoiced.trace || o.trace === _pendingVoiced.trace)
+      && _normAgent(_pendingVoiced.full).startsWith(_normAgent(text)) && _normAgent(text)) {
+    const owed = _normAgent(_pendingVoiced.full), said = _normAgent(text), tr = _pendingVoiced.trace || "";
+    _pendingVoiced = null;
+    _endVoiceStream();
+    setChatMsgs(xs => _capChat([...xs, { role: "agent", text: owed === said ? text : text + "…", trace: tr }]));
+    return;
+  }
+  if (o.spoken && o.trace && (_isMuted(o.trace)
+      || (_pendingVoiced && _pendingVoiced.trace === o.trace && !_pendingVoiced.painted))) {
+    if (_pendingVoiced && _pendingVoiced.trace === o.trace) { _mute(o.trace); _pendingVoiced = null; }
+    return;
+  }
+  // …and when it DOES belong to a row on screen, it replaces that row wherever it is, instead of being compared
+  // only against the last one. His words: «estás duplicando mensajes, me los estás intercalando entre los míos».
+  if (o.spoken && o.trace) {
+    let hit = false;
+    setChatMsgs(xs => {
+      const k = xs.findIndex(m => m.role === "agent" && m.trace === o.trace);
+      if (k < 0) return xs;
+      hit = true;
+      const a = _normAgent(xs[k].text), b = _normAgent(text);
+      if (!b || a === b || a.startsWith(b) === false && b.startsWith(a) === false) return xs;
+      // A strict PREFIX of what is rendered means the speech was cut there, and the short one is the true one.
+      const keep = a.startsWith(b) ? text + "…" : text;
+      return [...xs.slice(0, k), { role: "agent", text: keep, trace: o.trace }, ...xs.slice(k + 1)];
+    });
+    if (hit) { if (_pendingVoiced && _pendingVoiced.trace === o.trace) _pendingVoiced = null; return; }
+  }
   setChatMsgs(xs => {
     const last = xs[xs.length - 1];
     if (last && last.role === "agent") {
@@ -834,21 +963,8 @@ export const pushAgentChat = (text, opts) => {
         return _capChat([...xs.slice(0, -1), { role: "agent", text }]);
       }
     }
-    return _capChat([...xs, { role: "agent", text }]);
+    return _capChat([...xs, { role: "agent", text, trace: o.trace || "" }]);
   });
-  // Marked AFTER the write, so a line merged into its predecessor is owed under its final wording.
-  if (!o.voiced) return;
-  _pendingVoiced = { full: text, heard: "", capAt: _capSeq };
-  // Nothing has been SAID yet, so nothing is shown yet — «el texto que no has dicho no quiero que exista»
-  // applies while it is being said, not only afterwards. The grace window above is what keeps a build with
-  // no caption channel from showing an empty bubble for ever.
-  clearTimeout(_voiceTimer);
-  _setVoicedLine({ full: text, heard: "", streaming: true });
-  _voiceTimer = setTimeout(() => {
-    _voiceTimer = null;
-    const v = voicedLine();
-    if (v && v.streaming && !v.heard) _setVoicedLine({ ...v, streaming: false });
-  }, _VOICE_GRACE_MS);
 };
 
 // Convenience helpers used across services (mirror the old showAlert/hideAlert/setConn).

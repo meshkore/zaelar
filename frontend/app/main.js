@@ -26,6 +26,22 @@ import * as api from "./services/api.js?v=2";
 
 import { Desktop } from "./widgets/desktop.js?v=5";
 
+// ---- V2-752 · AN EXCEPTION IN THE BROWSER IS INVISIBLE FROM HERE, and that is an instrument we lacked ----
+// Auditing session fce3eff3 the question «did the audio-synced caption channel fire at all?» could not be
+// answered from the engine's own log: the wall, the captions and every widget run in a process that reports
+// nothing back. A JS exception takes a module out silently (V2-738 caught one the same way, by hand), and
+// without this the next audit is blind to the same class again. `/api/client-log` already existed and lands
+// in the same debug stream the operator reads — this only makes the two global handlers use it.
+// Fire-and-forget and defensive on purpose: diagnostics must never be able to break the page they diagnose.
+try {
+  window.addEventListener("error", (e) => {
+    api.clientLog("⚠️ JS error", { text: String((e && e.message) || e), raw: String((e && e.filename) || "") + ":" + String((e && e.lineno) || 0) });
+  });
+  window.addEventListener("unhandledrejection", (e) => {
+    api.clientLog("⚠️ promesa sin capturar", { text: String((e && e.reason && (e.reason.message || e.reason)) || e) });
+  });
+} catch (_) {}
+
 // ---- theme (dark/light) — apply before mounting anything, so nothing flashes the wrong palette ----
 initTheme();
 // ---- active UI language (V2-089): the store is seeded instantly from the localStorage mirror; reconcile with the

@@ -90,6 +90,11 @@ export function routeEvent(desktop, d) {
       const speaking = typeof d.speaking === "boolean" ? d.speaking
                      : /speaking|started/.test(String(d.label));
       store.setBotSpeaking(speaking);
+      // V2-752 — THE ENGINE SAYING «this utterance reached the speaker» IS WHAT PAINTS THE LINE. It carries
+      // the turn's trace and it does not depend on the caption transport, so a build with no audio-synced
+      // transcription still writes the wall, and a reply cancelled before its first audio frame writes
+      // nothing at all — the 9-in-24 phantom paragraphs of session fce3eff3. See `store.pushAgentChat`.
+      if (speaking) store.noteVoiceStarted(d.trace || "");
       // The ring mirrors the REAL window (2026-09-09, session 0071d30e): the backend holds an open window
       // while zaelar talks and re-anchors it at its last word (attention.note_bot_speech) — but the ring's
       // timer only knew the last directed turn, so it died mid-reply and the operator read «no veo el círculo
@@ -97,6 +102,12 @@ export function routeEvent(desktop, d) {
       // window on idle; a ring already off stays off (the bot's own speech never OPENS one).
       if (store.attentionHit()) store.pulseAttentionHit(speaking ? BOT_HOLD_S : _attnWinS);
       if (d.ttfa_ms != null) store.setLatency(d.ttfa_ms + " ms");
+    } else if (d.kind === "state" && d.state === "interrupted") {
+      // V2-752 — THE TURN WAS CUT. A reply the voice had not begun is dropped here and never reaches the
+      // wall: it was generated, it was not said, so it did not happen. Measured in session fce3eff3 —
+      // 9 of 24 replies ended this way and every one of them was painted and then deleted in front of him.
+      // A line already sounding is NOT touched: `settleAgentSpoken` trims that one to what he heard (V2-745).
+      store.dropUnspokenLine(d.trace || "");
     } else if (d.kind === "vad" && d.edge) {
       // V2-661 — the window measures the operator's SILENCE, and his silence has not started while he is
       // talking. Measured 2026-09-11 (session 1cdcb08e): he spoke for 47 s without a pause and the ring went
@@ -214,7 +225,7 @@ export function routeEvent(desktop, d) {
         // NOT hit the voice-command fast-path — zaelar saying "cierro la agenda" is not the operator asking to close.
         // V2-745 — `spoken`: this is the record of what LiveKit actually VOICED. A strict prefix of what is
         // on screen means a barge-in cut it there, and the short one is now the one that survives.
-        store.pushAgentChat(d.text, { spoken: true });
+        store.pushAgentChat(d.text, { spoken: true, trace: d.trace || "" });
       } else {
         // isFinal gates the CLOSE fast-path (never close on a revisable guess). Voice: "transcript" = final,
         // "interim" = partial. TYPED chat/paste ("text-injected …") is DEFINITIVELY final — treat it as such, or a
@@ -381,7 +392,7 @@ export function routeEvent(desktop, d) {
       // untouched: they still come from audio-synchronized transcription (session-lk.js), which is correct
       // for something accompanying voice — and since V2-745 they are also what trims this line back to what
       // the operator actually heard.
-      if (d.text && d.role === "assistant") store.pushAgentChat(d.text, { voiced: true });
+      if (d.text && d.role === "assistant") store.pushAgentChat(d.text, { voiced: true, trace: d.trace || "" });
     } else if (d.kind === "status") {                                             // server nudged us to re-read status
       refreshStatus();
     } else if (d.kind === "energy") {                                             // Energy balance → the BATTERY drops LIVE

@@ -37,8 +37,15 @@ const reset = () => { store.setChatMsgs(() => []); store.settleAgentSpoken(); };
 const REPLY = "Me alegra que lo veas mejor, y te tomo nota de las dos cosas.";
 
 // ══ 1 · NOTHING IS ON SCREEN BEFORE IT HAS SOUNDED ══════════════════════════════════════════════════
+// V2-752 — «before it has sounded» now starts EARLIER than it did here. The line is OWED from the moment
+// the model produces it and published only when the engine reports the utterance actually started
+// (`bot_speech speaking`), so nothing is on screen and nothing is streamable until then. Measured cost of
+// the old shape, session fce3eff3: 9 of 24 replies were painted and never sounded.
 reset();
-store.pushAgentChat(REPLY, { voiced: true });
+store.pushAgentChat(REPLY, { voiced: true, trace: "T1" });
+assert.equal(store.voicedLine(), null, "owed, not yet published: the voice has not begun it");
+assert.deepEqual(agentLines(), [], "…and nothing is on the wall either");
+store.noteVoiceStarted("T1");
 let v = store.voicedLine();
 assert.ok(v, "a voiced line must publish what the voice owes, or the wall has nothing to stream");
 assert.equal(v.full, REPLY);
@@ -62,7 +69,7 @@ assert.deepEqual(agentLines(), ["Me alegra que lo veas mejor,…"],
 
 // ══ 4 · A LINE THAT SOUNDED WHOLE KEEPS EVERY WORD ══════════════════════════════════════════════════
 reset();
-store.pushAgentChat(REPLY, { voiced: true });
+store.pushAgentChat(REPLY, { voiced: true, trace: "T4" });
 store.pushCaptionSeg("s2", REPLY, true);
 assert.equal(store.voicedLine(), null);
 assert.deepEqual(agentLines(), [REPLY], "no ellipsis, no trim: it said all of it");
@@ -70,29 +77,35 @@ assert.deepEqual(agentLines(), [REPLY], "no ellipsis, no trim: it said all of it
 // ══ 5 · A LINE THAT NEVER SOUNDED AT ALL ════════════════════════════════════════════════════════════
 // The +157.1 s case: 14.05 s of audio synthesised, `bot_speech` never left idle. The voice then went on
 // to say something ELSE, which is the evidence V2-745 requires before removing anything.
+// V2-752 — it is now never WRITTEN either, which is the step the operator asked for after watching this
+// one work: «vas poniendo de golpe un párrafo… y luego lo borras».
 reset();
-store.pushAgentChat(REPLY, { voiced: true });
+store.pushAgentChat(REPLY, { voiced: true, trace: "T5" });
 store.pushCaptionSeg("s3", "Sí…", true);                 // the next turn's filler — a different line
-assert.equal(store.voicedLine().heard, "", "a caption that is not this line's speech never streams it");
-store.pushAgentChat("Un segundo.", { voiced: true });    // the next reply settles the owed one
-assert.ok(!agentLines().includes(REPLY), "a line the voice never began does not stay written");
+assert.equal(store.voicedLine(), null, "a caption that is not this line's speech never streams it");
+assert.ok(!agentLines().includes(REPLY), "a line the voice never began is not on the wall at all");
+store.pushAgentChat("Un segundo.", { voiced: true, trace: "T5b" });    // the next reply settles the owed one
+assert.ok(!agentLines().includes(REPLY), "…and settling does not resurrect it");
 
 // ══ 6 · NO CAPTION CHANNEL AT ALL → THE WALL BEHAVES AS IT DID ══════════════════════════════════════
 // Silence on a channel is never read as evidence about the voice — the same doctrine as V2-745's removal
-// guard. Without this the line would be invisible until the NEXT reply arrived.
+// guard. V2-752 replaced the 1200 ms grace window that used to serve this case with `bot_speech speaking`,
+// the engine's own statement that the utterance reached the speaker: it does not expire, it does not
+// depend on the caption transport, and it is not a guess. The line reaches the wall WHOLE, exactly as it
+// did before V2-747 — that has not changed and must not.
 reset();
-store.pushAgentChat(REPLY, { voiced: true });
+store.pushAgentChat(REPLY, { voiced: true, trace: "T6" });
+assert.deepEqual(agentLines(), [], "…but not before the voice has begun it");
+store.noteVoiceStarted("T6");
 assert.equal(store.voicedLine().streaming, true, "it starts hopeful: the channel may be there");
-await new Promise(r => setTimeout(r, 1500));             // longer than the grace window
-assert.equal(store.voicedLine().streaming, false,
-  "no segment arrived: the wall falls back to showing the whole line, as it did before V2-747");
-assert.deepEqual(agentLines(), [REPLY], "…and the stored line is untouched, so nothing was lost");
+assert.equal(store.voicedLine().heard, "", "not one caption segment has arrived");
+assert.deepEqual(agentLines(), [REPLY], "no segment, and the line is on the wall whole — nothing is lost");
 
-// ══ 7 · THE GRACE WINDOW IS CANCELLED THE MOMENT THE CHANNEL SPEAKS ═════════════════════════════════
+// ══ 7 · A LIVE CHANNEL IS NOT GIVEN UP ON HALFWAY THROUGH A SENTENCE ════════════════════════════════
 reset();
-store.pushAgentChat(REPLY, { voiced: true });
+store.pushAgentChat(REPLY, { voiced: true, trace: "T7" });
 store.pushCaptionSeg("s4", "Me alegra", false);
-await new Promise(r => setTimeout(r, 1500));
+await new Promise(r => setTimeout(r, 1500));             // longer than the window that used to exist
 const after = store.voicedLine();
 assert.ok(after && after.streaming === true && after.heard === "Me alegra",
   "a live channel must not be given up on halfway through a sentence");
@@ -112,8 +125,12 @@ const wall = await fs.readFile(new URL("../../../../frontend/app/components/Chat
 assert.ok(wall.includes("store.voicedLine()"), "the wall must read the line the voice owes");
 assert.ok(wall.includes('bubble.classList.add("cw-speaking")'),
   "«que destaque, que en este momento es lo que estás leyendo» — the line being read carries its own mark");
-assert.ok(/if \(!say\.heard\) return;/.test(wall),
-  "a line with nothing heard yet is not drawn at all");
+// V2-752 — a line with nothing HEARD yet is drawn WHOLE, not skipped. It is on the wall because the voice
+// started it (`bot_speech speaking`), and the caption channel may simply not exist on this build; skipping
+// it there left the row invisible until the next reply. What must never be drawn is a line the voice never
+// began, and that one is not in `chatMsgs` at all — see node 4.210.
+assert.ok(/if \(!say\.heard\) \{/.test(wall),
+  "a line already sounding but with no caption yet is shown whole, never skipped");
 assert.ok(/h\("div", \{ class: "cw-msg-body" \}, say\.heard\)/.test(wall),
   "it renders what was HEARD, as plain text — a half-said sentence routinely holds an unclosed `*`");
 const css = await fs.readFile(new URL("../../../../frontend/app/styles.css", import.meta.url), "utf8");

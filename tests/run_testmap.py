@@ -3124,6 +3124,10 @@ DOMAINS: list[dict] = [
         # …y la mitad que falla en SILENCIO: los tres cables que convierten un detector correcto en un
         # micrófono más barato. Cada módulo seguiría funcionando perfectamente con el código nuevo presente
         # y sin alcanzar, y el único síntoma sería una factura que no baja.
+        {"id": "4.210", "title": "Una línea que la voz NUNCA dijo no se escribe — y el registro hablado, que "
+                                 "llega hasta 20,8 s tarde, encuentra SU fila por trace en vez de duplicarla",
+            "ch": UNIT,
+            "paths": ["tests/browser/unit/chat/test_a_line_the_voice_never_said_is_never_written.py"]},
         {"id": "4.209", "title": "Los tres cables del grifo aparcado: el muro PREGUNTA antes de pintar, el "
                                  "aparcado exige un oído armado y nunca escribe el interruptor del micro, y "
                                  "el motor contesta al tema que el navegador publica",

@@ -795,10 +795,22 @@ export function ChatWall() {
       // te paras en ese momento y ya no imprimes más». The stored message keeps the full text; the trim
       // that makes the HISTORY honest happens on settle, in the store. Plain text, not markdown, for the
       // same reason the dictation bubble below is: a half-said sentence routinely holds an unclosed `*`.
-      const speaking = !!(say && say.streaming && m.role === "agent" && i === msgs.length - 1
-                          && _sameLine(m.text, say.full));
+      // V2-752 — …AND THE CRAWL IS NOT THE PRIVILEGE OF THE LAST ROW. The `i === msgs.length - 1` this used
+      // to carry is why three replies generated inside 3 s (session fce3eff3, +285.9/+289.2/+291.5) rendered
+      // the first two WHOLE AND AT ONCE while only the third crawled: «en seco pegas un párrafo entero».
+      // The line the voice owes is identified the way every other surface now identifies it — by the turn's
+      // trace — with the text match kept for rows that carry none (a restored history, a proactive push).
+      const speaking = !!(say && say.streaming && m.role === "agent"
+                          && (say.trace && m.trace ? m.trace === say.trace : _sameLine(m.text, say.full)));
       if (speaking) {
-        if (!say.heard) return;                 // not one word of it has sounded — so it is not on screen
+        // Painted means the voice STARTED it (`bot_speech speaking`), so it belongs on screen even before the
+        // first caption lands — that is what replaced the 1200 ms grace window. With no caption channel at all
+        // the row simply shows whole, which is what this wall did before the crawl existed.
+        if (!say.heard) {
+          bubble.appendChild(raw(`<div class="cw-msg-body">${renderMarkdownLite(m.text)}</div>`));
+          rows.push(bubble);
+          return;
+        }
         bubble.classList.add("cw-speaking");
         bubble.appendChild(h("div", { class: "cw-msg-body" }, say.heard));
         rows.push(bubble);
