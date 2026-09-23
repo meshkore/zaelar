@@ -271,9 +271,22 @@ def test_an_unknown_face_is_REFUSED_and_names_the_real_ones(tmp_path, monkeypatc
     """A silent `ok` for a tab nobody has is how «it says it will and it doesn't» starts. Refusing
     with the list is also what lets the reply be honest about it instead of inventing a success."""
     from widgets.youtube import data as ydata
-    r = ydata.apply_action("show_tab", {"tab": "dashboard"})
+    r = ydata.apply_action("show_tab", {"tab": "lateral"})
     assert r.get("ok") is False and r.get("error") == "unknown_tab"
     assert sorted(r.get("tabs") or []) == sorted(ydata._TABS), "the refusal must name what DOES exist"
+
+
+def test_a_DECLARED_ALIAS_of_a_face_is_the_face(tmp_path, monkeypatch):
+    """V2-754 — live session 3afe34a8: the model wrote `tab: "home"` for «vuelve al inicio del widget de
+    vídeo» and this refused it: a correct order, a correct action, thrown away over vocabulary. The
+    faces' aliases are declared in the manifest next to the ids (`inicio (home, dashboard, …)`), so
+    the model reads the same words the widget accepts — and «dashboard», the word the first version
+    of the test above used as its UNKNOWN example, is now one of them on purpose."""
+    from widgets.youtube import data as ydata
+    for word in ("home", "Dashboard", "catálogo", "reproductor", "queue"):
+        r = ydata.apply_action("show_tab", {"tab": word})
+        assert r.get("ok") is True and r.get("tab") in ydata._TABS, (word, r)
+    assert ydata.apply_action("show_tab", {"tab": "home"}).get("tab") == "inicio"
 
 
 def test_the_stored_order_CARRIES_A_SEQUENCE_that_grows():

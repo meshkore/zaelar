@@ -734,6 +734,34 @@ Tres cosas que dejar escritas:
    cuando la hay, la lee. Y una promesa que vaciamos nosotros no es un encargo: es un bug, y gastar minutos
    en él lo convierte en dos.
 
+### EL VEREDICTO COMPLETA AL MODELO, NUNCA LO DESMIENTE (V2-754, 2026-09-23)
+
+Sesión `3afe34a8`, cuatro órdenes para volver al catálogo de vídeos: el brief dijo `show_tab` (0,96 y 0,88)
+donde el modelo llamó `play_item` sobre un ítem inexistente y luego nada; el modelo llamó `show_tab` donde el
+brief dijo `restart` a 0,99. **Cada lector acertó exactamente donde el otro falló, y nadie los cruzaba.** El
+papel de Jev era una segunda opinión leída por guardas sueltos; no un enrutador. Y no puede serlo solo: a 0,99
+habría reiniciado el vídeo que él pedía dejar.
+
+**La regla** (`nucleo/flash/direct_action.complete`), en el único sentido que la evidencia permite:
+
+1. Una llamada VÁLIDA y resoluble del modelo corre siempre. Si el veredicto discrepa, se registra
+   (`⚖️ el modelo y el veredicto discrepan`) — esa es la medición que dirá a quién creer.
+2. Donde el modelo dejó el turno VACÍO o su llamada no resolvió, la acción del veredicto sobre la tarjeta
+   abierta rellena el hueco — por `apply_widget_data`, la misma puerta `action_mode_now` que toda llamada.
+   **Nada nuevo ejecuta; algo declarado deja de quedarse sin ejecutar.**
+3. El turno vacío solo se completa si el brief lo leyó como ORDEN o RESPUESTA. Un comentario que nombra una
+   acción no mueve nada. Sin veredicto, inseguro, tarjeta cerrada, Jev apagado → la ruta de hoy bit a bit.
+
+Dos cosas más que dejar dichas: **un alias declarado es dato de producto y lo leen los dos lados** —
+`inicio (home, dashboard, catálogo) | player (reproductor) | …` en el manifiesto, `widgets/enums.py` el único
+parser, el widget acepta cualquiera y el modelo ve las palabras que puede usar (un `unknown_tab` sobre `home`
+era una orden correcta tirada por vocabulario). Y **la palabra que él usa para una pantalla no puede vivir en
+el descriptor de otra acción**: «vuelve al inicio DEL VÍDEO» en `restart`, escrito la noche anterior para
+separarlo de `show_tab`, puso `restart` a 0,99 sobre «inicio del widget de vídeo». Se mide antes y después.
+
+**Valorado y retirado**: tolerar muletillas en la tabla hash (V2-539). Su doctrina escrita lo prohíbe y era
+exactamente la pieza de más.
+
 ## Decisiones clave — están en su propio fichero
 
 El diario del motor (una entrada por tanda: qué se decidió, por qué, y el fallo real que lo motivó) vive en

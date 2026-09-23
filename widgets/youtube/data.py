@@ -19,6 +19,17 @@ WID = "youtube"
 #: equal, because a tab that exists on one side only is an order that silently does nothing.
 _TABS = ("inicio", "player", "cola", "subs", "listas")
 
+
+def _tab_alias(word: str) -> str:
+    """The face a declared alias names («home», «dashboard», «reproductor» …), read from the manifest's
+    own `show_tab` payload text through `widgets.enums` — one declaration, both readers (V2-754)."""
+    try:
+        from .. import enums as _enums, runtime as _rt
+        spec = ((((_rt.get(WID) or {}).get("actions") or {}).get("show_tab") or {}).get("payload") or {}).get("tab")
+        return _enums.resolve(str(spec or ""), word)
+    except Exception:  # noqa: BLE001
+        return ""
+
 # Seed: BLANK player by default (no video) until the operator requests one.
 _SEED = {
     "videoId": "",
@@ -678,6 +689,11 @@ def apply_action(action: str, payload: dict = None) -> dict:
         # second way to navigate — the tab list is the widget's own, and an unknown one is refused
         # instead of guessed, because a silent no-op is how «it says it will and it doesn't» starts.
         tab = str((p or {}).get("tab") or "").strip().lower()
+        if tab not in _TABS:
+            # V2-754 — the model wrote `home` for «inicio» and this refused it: a correct order, a correct
+            # action, thrown away over vocabulary (session 3afe34a8). The faces' aliases are declared in
+            # the manifest next to the ids, so the model reads the same words the widget accepts.
+            tab = _tab_alias(tab) or tab
         if tab not in _TABS:
             return {"ok": False, "error": "unknown_tab", "tab": tab, "tabs": list(_TABS)}
         # A SEQUENCE, not a flag: he can ask for the same face twice in a row («no, al inicio» after

@@ -1276,6 +1276,12 @@ class NucleoLLMStream(llm.LLMStream):
                 return
             if not res.ok:
                 acted["widget"] = True                      # lo ATENDIMOS (preguntando) — no caer a escalate/fallback
+                # V2-754 — antes de preguntar «¿cuál?»: si el veredicto nombra OTRA acción de esta tarjeta, la duda
+                # era la acción, no el ítem (`play_item` sobre «volver al catálogo» con `show_tab` a 0,96 en el brief).
+                if _direct_action.complete(_brief, operator_text=_bnotes.operator_half(text), emit=emit,
+                                           present=_cvis.present, apply_widget_data=_apply_widget_data,
+                                           widget_id=wid, instead_of=action_name, require_order=False):
+                    return
                 cands = ", ".join(res.candidates[:3])
                 clarify["msg"] = (_say().ask_which_item.format(cands=cands) if cands
                                   else _say().ask_which_item_bare)
@@ -1289,6 +1295,12 @@ class NucleoLLMStream(llm.LLMStream):
                 emit("brain", _cd["label"], role="system", text=_cd["text"], extra=_cd["extra"])
             if _cd["ask"]:
                 acted["widget"] = True; clarify["msg"] = _cd["ask"]; return
+            # V2-754 — una llamada VÁLIDA del modelo corre aunque el veredicto discrepe (a 0,99 habría REINICIADO el
+            # vídeo); la discrepancia se registra, que es lo que permitirá medir a quién creer.
+            if (_dis := _direct_action.completes(_brief, _cd["card"], model_action=action_name)):
+                emit("brain", "⚖️ el modelo y el veredicto discrepan — corre el modelo", role="system",
+                     text=f"{_cd['card']}: modelo={action_name} · veredicto={_dis}",
+                     extra={"cat": "flash", "id": _cd["card"], "model": action_name, "verdict": _dis})
             _apply_widget_data(_cd["card"], action_name, res.payload, ref)
 
         _tool_fired: set = set()
@@ -2316,6 +2328,12 @@ class NucleoLLMStream(llm.LLMStream):
         _no_tool = (not acted["widget"] and not data_done["v"] and not music_req["v"] and not worker_acted["v"]
                     and escalate_req["v"] is None and search_req["v"] is None)
         _op_text = _router.operator_words(operator_text, text)   # a note is CONTEXT, never the errand
+        # V2-754 — sin tool del modelo y con una ORDEN sobre una tarjeta abierta en el brief («Sí, el catálogo» →
+        # `show_tab` 0,88 y «te dejo el catálogo» sobre nada): el veredicto completa el turno por la misma puerta.
+        if _no_tool and not clarify["msg"] and _direct_action.complete(
+                _brief, operator_text=_op_text, emit=emit, present=_cvis.present, apply_widget_data=_apply_widget_data):
+            acted["widget"] = True
+            _no_tool = False
         if (_no_tool and spoken_text and _router.promises_action(spoken_text)
                 and not _router.asks_for_missing_detail(spoken_text)):
             _win_goal = ""

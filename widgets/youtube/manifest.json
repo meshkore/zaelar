@@ -233,7 +233,7 @@
       }
     },
     "restart": {
-      "desc": "vuelve al segundo 0 del vídeo que está sonando y SIGUE reproduciéndolo («ponlo otra vez desde el principio», «vuelve al inicio DEL VÍDEO»). No para nada y no cambia de pantalla",
+      "desc": "reproduce OTRA VEZ el mismo vídeo desde el segundo 0 y sigue sonando («ponlo otra vez desde el principio», «repítelo»). No para nada y no cambia de pantalla",
       "payload": {}
     },
     "close": {
@@ -353,9 +353,9 @@
       "view": true
     },
     "show_tab": {
-      "desc": "CAMBIA de pantalla dentro del reproductor SIN tocar lo que está sonando. 'inicio' es el catálogo/dashboard donde están los resultados de la búsqueda para elegir OTRO vídeo — es lo que responde a «vuelve al catálogo», «a la página de inicio», «enséñame otra vez la lista para cambiar»; 'player' el vídeo que se está viendo; 'cola' la lista de reproducción; 'listas' las listas guardadas; 'subs' las suscripciones. NO borra nada: para quitar la banda de resultados está clear_search, que es lo contrario de volver a ella.",
+      "desc": "CAMBIA de pantalla dentro del reproductor SIN tocar lo que suena. 'inicio' = el dashboard/home/catálogo con la lista de resultados para elegir OTRO vídeo — responde a «vuelve al catálogo», «al inicio del widget», «al dashboard», «enséñame otra vez la lista»; 'player' el vídeo que se está viendo; 'cola' la lista de reproducción; 'listas' las guardadas; 'subs' las suscripciones. NO borra nada: para quitar la banda de resultados está clear_search, que es lo contrario de volver a ella",
       "payload": {
-        "tab": "inicio | player | cola | listas | subs"
+        "tab": "inicio (home, dashboard, catálogo, la lista de resultados, el catálogo de vídeos) | player (reproductor, el vídeo) | cola (queue, lista de reproducción) | listas (guardadas, mis listas) | subs (suscripciones, canales)"
       },
       "view": true
     }

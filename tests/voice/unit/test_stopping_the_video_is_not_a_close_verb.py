@@ -130,10 +130,14 @@ def test_close_declares_that_it_STOPS_and_restart_declares_that_it_does_not():
     acts = json.loads((_ENGINE / "widgets/youtube/manifest.json").read_text(encoding="utf-8"))["actions"]
     close, restart = acts["close"]["desc"].lower(), acts["restart"]["desc"].lower()
     assert "para" in close and "sin vídeo" in close, "close has to SAY that it stops it for real"
-    assert "sigue reproduci" in restart, (
+    assert "sigue sonando" in restart or "sigue reproduci" in restart, (
         "restart has to say it KEEPS PLAYING — «reinicia el vídeo desde el principio» is what made "
         "«Páralo, y vuelve al inicio» come back as `restart`")
-    assert "del vídeo" in restart, "…and that its «inicio» is the video's, not the card's screen"
+    # V2-754 — and it must NOT say «inicio» at all. The first repair wrote «vuelve al inicio DEL VÍDEO»
+    # into it to split it from `show_tab`, and «vuelve al inicio del widget de vídeo» then came back as
+    # `restart` at 0.99 (session 3afe34a8): the word he uses for the card's home screen cannot live in
+    # the description of the action that rewinds the video.
+    assert "inicio" not in restart, "«inicio» is the card's home screen in his mouth, not the video's second 0"
 
 
 # ── 3 · THE GRAMMAR PROPOSES; THE PAID VERDICT DECIDES ────────────────────────────────────────────

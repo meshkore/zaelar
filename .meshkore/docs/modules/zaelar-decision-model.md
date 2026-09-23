@@ -118,8 +118,12 @@ chosen, read what the question actually said about it before blaming the model.*
 1. **`nucleo/jev.py` is the only module that talks to it.** One endpoint, one key, one timeout.
 2. **Every answer is enumerated per call from DECLARED capabilities** — manifest actions of what is
    open, the escalate pair, the catalogue. Never free text, never a table of domain verbs of ours.
-3. **Nothing it says executes anything.** A confident verdict maps onto a path that already exists
-   and is already gated (`action_mode_now`, `contract.guard`, the consent flow).
+3. **Nothing it says executes anything on its own.** A confident verdict maps onto a path that already
+   exists and is already gated (`action_mode_now`, `contract.guard`, the consent flow). Since V2-754 it
+   may COMPLETE a turn — fire a declared action of an open card through that same gate — but only where
+   the model left the turn empty or its own call could not resolve, and never over a valid call: the
+   verdict completes the model, it does not overrule it (`direct_action.complete`). Measured reason: in
+   one session each reader was right exactly where the other was wrong.
 4. **Every call leaves one event, and every READ leaves one too** — with `call_id`, the turn, and
    whether the verdict was used or why it was not.
 5. **`ZAELAR_JEV=0`** — and a missing key, an open breaker, a slow or unsure call — is the engine

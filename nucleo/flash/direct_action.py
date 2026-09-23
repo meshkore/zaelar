@@ -156,14 +156,129 @@ def resolve(commission: str, *, brief=None, swallowed=None, operator_text: str =
 
     # 2 · no tool at all. The words are the operator's, and only if they are short enough to BE the
     #     thing the payload key asks for.
-    if not key:
-        return {}
     words = (operator_text or commission or "").strip()
+    if not key:
+        # V2-754 — two payload shapes the first version could not fill, and both were the incident:
+        #   · an action with NO payload at all (`pause`, `close`, `next`) — nothing to invent, so it fires
+        #     bare. An action whose keys are all OPTIONAL is not this case (`load` wants the model's own
+        #     arguments, and «which of four to stuff» is the invention this module refuses);
+        #   · ONE required key that is a declared CHOICE — filled only by an alias the operator SAID
+        #     (`widgets.enums`), never by the sentence. «Vuelve al dashboard» names `inicio`.
+        if no_payload(wid, action):
+            return {"widget": wid, "action": action, "payload": {}, "key": "",
+                    "source": "no-payload", "label": f"{wid}:{action} ← el veredicto de pantalla (sin payload)"}
+        filled = enum_fill(wid, action, words)
+        if filled:
+            return {"widget": wid, "action": action, "payload": filled, "key": next(iter(filled)),
+                    "source": "enum-alias", "label": f"{wid}:{action} ← el veredicto de pantalla (alias)"}
+        return {}
     if not words or len(words.split()) > MAX_QUERY_WORDS:
         return {}
     return {"widget": wid, "action": action, "payload": {key: words}, "key": key,
             "source": "operator-words",
             "label": f"{wid}:{action} ← el veredicto de pantalla"}
+
+
+def _payload_spec(widget_id: str, action: str) -> dict:
+    try:
+        from nucleo.flash import frontend as _fe
+        spec = (_fe.declared_actions(_base_of(widget_id)) or {}).get(action) or {}
+        payload = spec.get("payload") if isinstance(spec, dict) else None
+        return payload if isinstance(payload, dict) else {}
+    except Exception:  # noqa: BLE001
+        return {}
+
+
+def no_payload(widget_id: str, action: str) -> bool:
+    """Declared with NO payload keys at all — the only shape that may fire bare. Undeclared reads as no."""
+    try:
+        from nucleo.flash import frontend as _fe
+        spec = (_fe.declared_actions(_base_of(widget_id)) or {}).get(action)
+        if not isinstance(spec, dict):
+            return False
+        payload = spec.get("payload")
+        return payload is None or (isinstance(payload, dict) and not payload)
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def enum_fill(widget_id: str, action: str, words: str) -> dict:
+    """`{key: value}` when the action's ONE required key is a declared choice and the operator's words
+    name exactly one of its values or aliases; `{}` otherwise. See `widgets.enums`."""
+    try:
+        from widgets import enums as _enums
+        payload = _payload_spec(widget_id, action)
+        required = [k for k, v in payload.items() if not _optional(v)]
+        if len(required) != 1:
+            return {}
+        key = str(required[0])
+        value = _enums.resolve(str(payload.get(key) or ""), "", words)
+        return {key: value} if value else {}
+    except Exception:  # noqa: BLE001
+        return {}
+
+
+def completes(brief, widget_id: str, *, model_action: str = "") -> str:
+    """The verdict's action on THIS card when it is confident, still open and NOT what the model
+    called; "" otherwise. The narrow question both arbitration sites ask (V2-754)."""
+    wid, name = from_brief(brief)
+    if not wid or not name or _base_of(wid) != _base_of(widget_id):
+        return ""
+    return "" if name == (model_action or "") else name
+
+
+def complete(brief, *, operator_text: str, emit, present, apply_widget_data,
+             widget_id: str = "", instead_of: str = "", require_order: bool = True) -> str:
+    """THE ARBITER'S ONE RULE, spent (V2-754): the verdict COMPLETES the model, it never overrules it.
+
+    Live session 3afe34a8 (2026-09-23), four orders to get back to the video catalogue. The brief
+    answered `screen_action = youtube:show_tab` at 0.96 and 0.88 — right both times — while the model
+    called `play_item` on a row that does not exist (→ «¿a cuál te refieres?») and then called nothing
+    at all (→ «te dejo otra vez el catálogo», over nothing). Two turns later the brief said `restart`
+    at 0.99 — WRONG — while the model called `show_tab` correctly. Each reader was right exactly where
+    the other was wrong, and nobody crossed them. This crosses them, in the only direction that is
+    safe on that evidence:
+
+      · a VALID, resolvable call from the model runs, whatever the verdict says (T4 would have
+        restarted the video on a 0.99);
+      · where the model left the turn EMPTY or its call could not resolve, the verdict's action on
+        the still-open card fills the gap — with a payload it can fill honestly (`resolve`), through
+        `apply_widget_data`, i.e. the same `action_mode_now` gate (FAST / CONFIRM / ESCALATE) every
+        model call goes through. Nothing new executes; something declared stops going unrun.
+
+    `require_order`: for the empty-turn site, only a turn the brief read as an ORDER or an ANSWER may
+    be completed — a comment or a complaint that happens to name an action («¿el siguiente es de la
+    NASA?» → `next`) must not move the player. The unresolved-call site skips the gate: the model had
+    already decided this was an order on this card. Returns the action fired, or "". Never raises.
+    """
+    try:
+        from nucleo.flash import turn_brief as _tb
+        if require_order:
+            kind, _i = _tb.read(brief, _tb.REQUEST_KEY, "")
+            if kind not in ("order", "answer"):
+                return ""
+        wid, name = from_brief(brief)
+        if not wid or not name:
+            return ""
+        if widget_id and _base_of(wid) != _base_of(widget_id):
+            return ""
+        if instead_of and name == instead_of:
+            return ""
+        rung = resolve(operator_text, brief=brief, operator_text=operator_text)
+    except Exception:  # noqa: BLE001
+        return ""
+    if not rung:
+        return ""
+    try:
+        present(rung["widget"], reason="turn-order", src="flash", emit=emit)
+        apply_widget_data(rung["widget"], rung["action"], rung["payload"])
+        emit("brain", "🎯 el veredicto completa al modelo" + (" (su llamada no resolvía)" if instead_of else " (sin tool)"),
+             text=rung["label"][:120], role="system",
+             extra={"cat": "flash", "widget": rung["widget"], "action": rung["action"],
+                    "source": rung["source"], "instead_of": instead_of, "said": (operator_text or "")[:120]})
+    except Exception:  # noqa: BLE001
+        return ""
+    return rung["action"]
 
 
 def endorses(brief, widget_id: str, action: str = "") -> bool:
