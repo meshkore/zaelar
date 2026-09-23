@@ -3128,6 +3128,11 @@ DOMAINS: list[dict] = [
                                 "identidad que no habla de él tiene su propia pregunta",
             "ch": UNIT,
             "paths": ["tests/memory/unit/test_a_search_term_does_not_rename_the_assistant.py"]},
+        {"id": "2.74", "title": "«Vale, para el vídeo» es una PAUSA, una orden de reproducir trae la cara "
+                                "del reproductor, y el arnés no declara VACÍA una tarjeta que no ha "
+                                "verificado",
+            "ch": UNIT,
+            "paths": ["tests/voice/unit/test_an_order_to_play_shows_the_player.py"]},
         {"id": "2.73", "title": "El veredicto COMPLETA al modelo, nunca lo desmiente — un turno vacío o "
                                 "una llamada que no resuelve la rellena la acción declarada que el brief "
                                 "nombró, por la misma puerta; y una cara del reproductor se acepta por su alias",

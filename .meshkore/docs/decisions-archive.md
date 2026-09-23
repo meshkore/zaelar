@@ -9584,3 +9584,56 @@ one-line index behind in the live log. Nothing below was edited or summarized on
   screen, V2-526) teaches the action instead. Node **4.141** (e2e paints a fresh browser from the mocked
   account settings + sanitizer unit); disarm of the CSS rule verified red.
 - **Covers that LISTEN, and the presence fast lane (V2-640, 2026-09-09)** — texto íntegro en `decisions-archive.md`
+
+- **The room is not the operator (V2-647, 2026-09-09)**: «todo lo que voy diciendo en mi conversación en la
+  sala está siendo captado y transcrito en el chat». The GATE was never wrong — every line of that
+  conversation was correctly judged `ambient` and answered with silence, and the grey orb correctly meant
+  «hearing, not attending». The FRONTEND was wrong, twice: the gate's verdict travels as its own event and
+  arrives just AFTER the transcript, so `sse.js` painted every user transcript into the wall and learned the
+  verdict second — and never unlearned; and that same ungated transcript drove `handleWidgetVoice`, so room
+  speech carrying «cierra» could close his widgets — V2-015's premise bypassed by a client-side shortcut
+  older than it. `services/attention_hold.js` now HOLDS a spoken turn until the gate rules: directed →
+  released whole (wall + canvas, `isFinal` intact), ambient → the turns that verdict COVERS are dropped,
+  uncovered fragments keep waiting for their own ruling. It FAILS OPEN (no verdict in 2.5 s → release:
+  showing an ambient line is a nuisance, swallowing a real one is the bug) and holds nothing in `always`
+  mode; typed text bypasses it, directed by construction. Node **4.145**, six groups against the REAL module
+  (not a copy of its logic), three disarms red. ⚠️ Two traps paid: `node --check` said OK on an sse.js with a
+  stray `}` (the ES-module trap — the browser boot is the real gate and caught it), and `wallpaper_clear`
+  wrote to the store with nothing to clear, which made a contract test that calls every declared action touch
+  the suite's real settings file. Clearing nothing writes nothing.
+- **A typed message is never lost (V2-646, 2026-09-09)**: two defects, one promise. **(A)** With ⏻ OFF the
+  composer swallowed messages: `sendText` queues the text and calls `start()`, whose own gate against the
+  server's truth refuses — so the queue never flushed, while the wall showed «sent» and `send()` had already
+  cleared the box («la primera lo ha mandado al vacío… he tenido que escribir dos veces»). `canSend()` =
+  `agentState() !== "off"` now gates the button (disabled + a dead style + a title saying why) AND `send()`
+  itself, because Enter bypasses a button's `disabled`; `starting` stays open (there the queue does flush).
+  **(B)** Measured 22:30:39: a TYPED «puedes ponermela en youtube o de alguna forma?» spent its 51 tokens on
+  a `play_video` the canvas license vetoed as context-bleed, `deduped` marked the turn handled, and the mute
+  backstop stayed quiet — `completion_chars: 0`, a written question answered with nothing. The V2-633/634
+  silence exemptions are for AMBIENT room speech; a sentence somebody sat down and WROTE can never be that.
+  New fact `attention.note_typed()/was_typed()` (stamped by the chat/paste handler beside `note_directed()`),
+  and on a typed turn a vetoed/deduped action stops counting as «handled». V2-634's source guard was narrowed
+  by exactly one state, with the reason in the assertion — a deduped duplicate still counts on SPOKEN turns.
+  Node **4.144**; four disarms verified red. Left open on purpose: the license refused «ponermela» because the
+  request is ANAPHORIC (it points at «la peli de minions» from earlier), which is a licensing-vocabulary
+  decision, not a silence bug.
+- **A cover never ends the turn, and covers describe MOTION (V2-642, 2026-09-09)**: session 651c25ac,
+  20:51:49 — «¿Por qué la vista semanal no tiene una columna para cada día?» → «Déjame que mire…» → a reply
+  with `completion_tokens=84` but `completion_chars=0` (the model spent the turn re-emitting a stale data-op
+  the context-bleed guard rightly ignored) → silence forever. The operator's rule: «igual no tenía
+  respuesta, pero igualmente hay que cerrar las conversaciones». Four changes. **(1)** third hollow-turn
+  guard `a_cover_left_hanging` (mute completion after a sounded cover, or over an information question —
+  but an uncovered mute STATEMENT stays legitimate silence, V2-633) + `mute_cover_repair` composes the
+  missing answer; failing even that, `langs.pick_closer()` speaks the honest deterministic closer («pues
+  ahora mismo no tengo una buena respuesta a eso») — the turn ALWAYS closes. **(2)** the three repairs
+  (V2-572 bare ack · V-587 empty wait · this) consolidated in `second_pass.hollow_repairs` — ONE seam,
+  called by the voice channel with `covered = filler fired after this turn's stream began` (monotonic
+  stamp); the extraction also paid nucleo.py's ceiling (3024/3043). **(3)** the filler pools follow
+  OpenAI's realtime prompting doctrine, which the operator pointed at: a cover DESCRIBES THE ACTION («Voy
+  a mirarlo…», «Te lo compruebo…»), never a bare thinking sound — their explicit avoid-list («Hmm…», «Let
+  me think…», «One moment while I process…») was literally our old pool, and a source-level test bans
+  those exact phrases from returning. **(4)** a DANGLING fragment arms NO cover («Ahora quiero» got «A ver
+  qué tenemos…» at 20:51:26 — half a sentence gets no promise; suppression needs POSITIVE evidence, an
+  empty text still arms). Tests ride existing nodes 3.19 + the mouth file; three disarms verified red
+  (the first mute-guard disarm came back GREEN — both branches caught the case — and was replaced by the
+  real one: «empty reply never repairs», the pre-fix world).

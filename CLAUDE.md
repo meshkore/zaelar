@@ -762,6 +762,39 @@ separarlo de `show_tab`, puso `restart` a 0,99 sobre «inicio del widget de víd
 **Valorado y retirado**: tolerar muletillas en la tabla hash (V2-539). Su doctrina escrita lo prohíbe y era
 exactamente la pieza de más.
 
+### UN DESCRIPTOR LE ROBA LA PALABRA AL VECINO (V2-755, 2026-09-23)
+
+Tercera vez con esta forma exacta, y las tres son mías. Sesión `665e666a`: «**Vale, para el vídeo**» volvió
+`none` 0,65 y hubo que decirlo dos veces. `pause` estaba declarado en cuatro palabras y `close`, engordado
+en V2-753 para ganar «Páralo, y vuelve al inicio», abría con «**PARA** el vídeo de verdad». Igual que V2-754
+con «inicio» dentro de `restart`.
+
+1. **⭐ Al tocar un descriptor se mide el VECINDARIO, no la frase que se persigue.** Engordar al ganador de
+   una frase desangra a su vecino y el síntoma aparece dos días después en otra sesión. La medición mínima
+   son las frases de las acciones que comparten vocabulario, antes y después: «Vale, para el vídeo» `none`
+   0,67 → `pause` **0,98**, con close 0,89-1,00 y restart 1,00 sin moverse.
+2. **Un homógrafo se cierra NOMBRÁNDOLO.** «para» es verbo y preposición: «Vale, para el vídeo.» se lee «OK,
+   for the video.». Citar las frases sin explicar eso daba `none` 0,47; decir «ahí «para» es el verbo, no la
+   preposición» da 0,98. La declaración es dato de producto y puede hablar de la lengua.
+3. **Escribir por encima del corte es escribir para nadie.** V2-753 subió `MAX_DESC_CHARS` a 200; el
+   `show_tab` de V2-754 tiene 485, así que «al inicio del widget de vídeo» nunca llegó y su frase volvía
+   `restart`. **48 de 220** acciones estaban por encima; quedan **45**, con trinquete (nodo 2.74).
+4. **Un vídeo que LLEGA y un vídeo que se CAMBIA no son lo mismo.** La tarjeta solo veía el primero
+   (`!st.key.slice(2)`), así que «ponme el vídeo número seis» desde el catálogo cargó el sexto **sin mover la
+   pantalla**, dos veces, y el tercer intento lo comió —con razón— el guarda de re-emisión. Una orden de
+   reproducir declara la cara del reproductor en la **capa de datos**, por el raíl `goto_tab` de V2-742; el
+   avance automático al terminar un vídeo NO, porque leer la cola mientras suena uno es cosa suya.
+5. **⭐ No afirmes en el prompt lo que no has verificado.** El arnés de encargos llevaba tres minutos
+   diciéndole al modelo «la hoja `youtube` sigue VACÍA» sobre seis resultados y un vídeo sonando: `verify`
+   devolvía «ilegible» y se callaba —como manda el docstring del módulo— pero `prompt_lines` imprimía todo
+   objetivo abierto como vacío sin preguntarle. La regla estaba instalada en la rama que nadie lee. Ahora el
+   prompt solo habla de lo que un verificador encontró incumplido, la tarjeta de vídeo declara `empty`, y una
+   tarjeta ilegible deja una línea (`🫥 arnés: objetivo NO verificable`) en vez de silencio.
+
+**No tocado a propósito**: la tabla de verbos del backstop de promesas («le doy al pause» no casa
+`_COMMITTED_RE`) — sería la quinta del mes. Y queda anotado que el árbitro **vetó en sombra un `pause`
+legítimo** (`data-drag`): es un falso veto en sesión real, que es justo el portón F0→F1 de V2-653.
+
 ## Decisiones clave — están en su propio fichero
 
 El diario del motor (una entrada por tanda: qué se decidió, por qué, y el fallo real que lo motivó) vive en

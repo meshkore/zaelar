@@ -140,7 +140,14 @@ def test_a_data_op_this_turn_is_trusted_over_the_stale_store(monkeypatch):
 
 
 def test_a_met_goal_closes_on_the_sweep_and_leaves_the_prompt(monkeypatch):
-    harness.note_goal(harness.KIND_WIDGET_CONTENT, "documento", "la declaración")
+    g = harness.note_goal(harness.KIND_WIDGET_CONTENT, "documento", "la declaración")
+    # V2-755 — a goal nobody has VERIFIED yet says nothing. This line used to assert the prompt spoke
+    # the moment the goal was born, and that is the defect: over a widget that cannot declare emptiness
+    # the sentence «la hoja sigue VACÍA» was never true and never went away (three minutes of it over a
+    # full video card, session 665e666a). So the goal is verified UNMET first, and what this pins — a
+    # met goal closes on the sweep and leaves the prompt — is unchanged.
+    _fake_view(monkeypatch, {"documento": {"empty": True}}, opened={"documento"})
+    assert asyncio.run(harness.verify(g)) is False
     assert harness.prompt_lines() and "VACÍA" in harness.prompt_lines()[0]
     _fake_view(monkeypatch, {"documento": {"empty": False}}, opened={"documento"})
     closed = asyncio.run(harness.sweep())

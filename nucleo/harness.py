@@ -124,17 +124,26 @@ def _card_is_open(wid: str) -> bool | None:
 
 
 async def verify(goal: dict) -> bool | None:
-    """True = met · False = unmet · None = this goal's truth cannot be read (the harness stays silent)."""
+    """True = met · False = unmet · None = this goal's truth cannot be read (the harness stays silent).
+
+    The verdict is REMEMBERED on the goal (`last`) because the prompt cannot await one: see `prompt_lines`.
+    """
     goal["checks"] = int(goal.get("checks") or 0) + 1
+    out: bool | None = None
     if goal["kind"] == KIND_WIDGET_CONTENT:
         view = await _widget_view(goal["target"])
         if not view or "empty" not in view or "error" in view:
-            return None                      # a widget that does not declare emptiness is unverifiable
-        if view.get("empty"):
-            return False
-        opened = _card_is_open(goal["target"])
-        return True if opened is None else bool(opened)
-    return None
+            out = None                       # a widget that does not declare emptiness is unverifiable
+            if goal.get("last_seen") != "unreadable":
+                _emit("🫥 arnés: objetivo NO verificable — la tarjeta no declara si está vacía", goal)
+        elif view.get("empty"):
+            out = False
+        else:
+            opened = _card_is_open(goal["target"])
+            out = True if opened is None else bool(opened)
+    goal["last"] = out
+    goal["last_seen"] = {True: "met", False: "unmet"}.get(out, "unreadable")
+    return out
 
 
 async def sweep(now: float | None = None) -> list[dict]:
@@ -178,10 +187,25 @@ def rescue_request(goal: dict) -> str:
 
 
 def prompt_lines(now: float | None = None) -> list[str]:
-    """The open goals as the live state sees them — a FACT with its RULE (V2-453), zero lines when empty."""
+    """The open goals as the live state sees them — a FACT with its RULE (V2-453), zero lines when empty.
+
+    V2-755 — and only the goals a VERIFIER actually found unmet. This function used to print every open
+    goal as «la hoja sigue VACÍA», which is the one thing this module's own rule forbids: «a widget whose
+    truth cannot be read yields None (unverifiable) and the harness stays silent about it — a wrong "you
+    did not deliver" over a delivered card is worse than none». `verify` honoured it; the prompt did not,
+    and the prompt is the half the model reads.
+
+    Measured live (session 665e666a, 2026-09-23): `youtube.view_data()` declared no `empty` key, so the
+    goal born at «Vale, muéstrame el widget de vídeo» was UNVERIFIABLE — it could never be met, never
+    closed, and for three minutes every single turn carried «la hoja `youtube` sigue VACÍA. No digas que
+    está hecho ni "aquí lo tienes"» over a card holding six numbered results and a playing video.
+
+    Sync on purpose (the prompt is built synchronously), so it reads the verdict `verify` left behind on
+    the goal rather than taking one of its own: unverified means silent, which is the honest default.
+    """
     out: list[str] = []
     for g in open_goals(now):
-        if g["kind"] == KIND_WIDGET_CONTENT:
+        if g["kind"] == KIND_WIDGET_CONTENT and g.get("last") is False:
             out.append(f"OBJETIVO ABIERTO (arnés): «{g['text'][:120]}» → la hoja `{g['target']}` sigue VACÍA. "
                        "No digas que está hecho ni «aquí lo tienes» hasta que el contenido esté cargado: "
                        "entrégalo con widget_data show/append, o escala con superficie documento.")

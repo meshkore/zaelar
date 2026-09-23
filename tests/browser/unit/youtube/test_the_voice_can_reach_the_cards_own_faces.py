@@ -160,6 +160,35 @@ def test_choosing_the_empty_player_by_HAND_still_stands(_page):
     assert "hb-yt-t-player" in _cls(_page), "a rebuild fought his hands"
 
 
+def test_a_video_SWAPPING_while_he_is_on_the_catalogue_shows_it(_page):
+    """V2-755 — the case the arrival jump above cannot see, because the card already HAD a video.
+
+    Live session 665e666a (2026-09-23): back on the catalogue with the second video still loaded, he
+    said «Vale, ahora ponme el vídeo número seis». `play_result` fired, the sixth swapped in, and the
+    screen did not move — `!st.key.slice(2)` is false when a video is being REPLACED. He said «No lo
+    estás poniendo», gave the order again, and the third try was eaten as a re-emit of an action that
+    had already run twice, invisibly. The data layer now declares the order on the `goto_tab` rail.
+    """
+    _mount(_page, _watching_with_a_catalogue_behind(_page, seq=1, tab="inicio"))
+    assert "hb-yt-t-inicio" in _cls(_page), "he is on the catalogue, with a video still loaded"
+    swapped = _watching_with_a_catalogue_behind(_page, seq=2, tab="player")
+    swapped["videoId"] = "AAAAAAAAAA3"                      # the SIXTH result takes the player
+    _remount(_page, swapped)
+    assert "hb-yt-t-player" in _cls(_page), (
+        "the order ran and the card did not move — that is «No lo estás poniendo»")
+
+
+def test_a_STALE_order_never_parks_him_on_an_EMPTY_player(_page):
+    """The bound on the line above. `goto_tab` is stored and the consumed sequence is module-lived, so
+    a reload replays the last order — and with the video gone that is a blank Reproductor, which is
+    the dead end V2-753 spent an initiative getting him out of."""
+    _mount(_page, _data(search_results=_RESULTS, search_query="Apolo 11",
+                        goto_tab={"tab": "player", "seq": 7}))
+    assert "hb-yt-t-inicio" in _cls(_page), "an empty player is not a place to send him"
+    nums = _page.eval_on_selector_all(".hb-yt-rnum", "els => els.map(e => e.textContent)")
+    assert nums == ["1", "2", "3"], "…and the catalogue is what he gets instead"
+
+
 def test_SHOW_TAB_INICIO_takes_him_back_to_the_catalogue(_page):
     """«Vuelve al catálogo», answered. The whole defect in one assertion."""
     _mount(_page, _watching_with_a_catalogue_behind(_page))

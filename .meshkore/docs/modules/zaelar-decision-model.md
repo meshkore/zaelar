@@ -113,6 +113,23 @@ chars, `youtube:show_tab` **0.96** at 200, with `pause` 1.00, `next` 0.94 and `s
 and no latency change (47 candidates, 4.7 KB → 5.8 KB, ~850 ms both). **When an action is never
 chosen, read what the question actually said about it before blaming the model.**
 
+⚠️ **Raising the bound did not end that class — writing past it is the same defect** (V2-755). The
+`youtube:show_tab` description written the day the bound moved to 200 is **485 characters**, so «al
+inicio del widget de vídeo» never arrived and the phrase came back `restart` 0.69 in the next live
+session; rewritten to 199 it measures `show_tab` **0.94**. Across this house **48 of 220** declared
+actions were over the bound, reaching the question beheaded with nothing saying so; 45 remain, as
+declared debt with a ratchet (node 2.74). A declaration has to FIT the channel that decides with it.
+
+⚠️ **Touching one description changes its NEIGHBOURS, so measure the neighbourhood** (V2-755). Three
+times running, fattening the winner of one phrase starved the action next to it, and the symptom
+surfaced two days later in another session: «PARA el vídeo de verdad» added to `close` made «Vale,
+para el vídeo» stop being a pause (`none` 0.65, said twice); «vuelve al inicio DEL VÍDEO» added to
+`restart` made «inicio del widget de vídeo» a rewind (0.99). The minimum measurement is every phrase
+belonging to the actions that share vocabulary, before and after — never only the phrase being chased.
+And a HOMOGRAPH is closed by NAMING it, not by listing more synonyms: «para» is also a preposition,
+so «Vale, para el vídeo.» reads as «OK, for the video.» — quoting his wordings scored `none` 0.47,
+adding «ahí «para» es el verbo, no la preposición» scored `pause` **0.98**, in the same 200 characters.
+
 ## The rules that do not move
 
 1. **`nucleo/jev.py` is the only module that talks to it.** One endpoint, one key, one timeout.

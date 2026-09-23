@@ -340,6 +340,12 @@ def view_data(q: str = "") -> dict:
     out["connector_shelf"] = _sources.connector_shelf(db)
     # V2-638 — a download being watched while it fills; {} for every other source, so the card shows nothing.
     out["download"] = _sources.live_status(db)
+    # V2-755 — does this card HOLD anything? The errand harness asks every widget this and takes silence as
+    # «unverifiable»; this one never answered, so the goal born at «muéstrame el widget de vídeo» could never
+    # be met and the prompt carried «la hoja `youtube` sigue VACÍA» over six results and a playing video for
+    # three minutes (session 665e666a). Anything the operator can SEE counts: what is in the player, the
+    # numbered search band, and the queue — the three surfaces the card renders.
+    out["empty"] = not (db.get("videoId") or db.get("src") or db.get("search_results") or db.get("list"))
     return out
 
 
@@ -405,6 +411,27 @@ def ref_index() -> list:
     return out
 
 
+def _goto(db: dict, tab: str) -> None:
+    """Order the card to bring a face forward — the SAME rail `show_tab` writes (V2-742): a sequence, so the
+    card obeys it once and a re-render never fights the operator's hands.
+
+    V2-755. Measured live (session 665e666a, 2026-09-23): he went back to the catalog with a video still
+    loaded and then said «Vale, ahora ponme el vídeo número seis». `play_result` fired, the sixth video
+    swapped into the player — and the card stayed on the catalog, because the auto-jump in `widget.js` only
+    fires when the card had NO video before (`!st.key.slice(2)`). Nothing on screen changed. He said «No lo
+    estás poniendo», then «Coge el vídeo número seis y reprodúcelo», then «No lo consigues», and the third
+    attempt was eaten by the re-emit guard because the action HAD run, twice, invisibly.
+
+    So the rule the redesign already stated («a video ARRIVING means watching it, leaving the dashboard up
+    while it plays underneath is the confusion this exists to end») is declared HERE, where the order is
+    known, instead of being inferred in the card from a state transition that cannot tell a swap from an
+    arrival. The automatic advance at the end of a video does NOT write it: he may be reading the queue
+    while one plays, and yanking his view on a track change is the same defect with the sign flipped.
+    """
+    prev = db.get("goto_tab") if isinstance(db.get("goto_tab"), dict) else {}
+    db["goto_tab"] = {"tab": tab, "seq": int(prev.get("seq") or 0) + 1}
+
+
 def _bump(db: dict, cmd: str) -> dict:
     db["last_cmd"] = cmd
     db["cmd_seq"] = int(db.get("cmd_seq") or 0) + 1
@@ -413,7 +440,7 @@ def _bump(db: dict, cmd: str) -> dict:
             "volume": db.get("volume"), "muted": db.get("muted"), "paused": db.get("paused")}
 
 
-def _play_pos(db: dict, i: int, cmd: str) -> dict:
+def _play_pos(db: dict, i: int, cmd: str, *, watch: bool = True) -> dict:
     """Make list item i the CURRENT video and play it. The card fields (title/channel/published) become the
     item's own, so the on-screen verification (V2-057) keeps working when the list drives playback."""
     it = db["list"][i]
@@ -434,6 +461,8 @@ def _play_pos(db: dict, i: int, cmd: str) -> dict:
     db["paused"] = False
     library.record_play(db, it)                          # V2-604: we are the ones playing it, so the history is ours
     library.apply_prefs(db, fresh=False)
+    if watch:
+        _goto(db, "player")                              # V2-755: he asked to watch it, so show it
     r = _bump(db, cmd)
     r["position"] = i + 1
     return r
@@ -508,6 +537,7 @@ def apply_action(action: str, payload: dict = None) -> dict:
         db["paused"] = False
         library.record_play(db, {"videoId": vid, "title": db["title"], "channel": channel, "url": db["url"]})
         library.apply_prefs(db, fresh=not had_video)
+        _goto(db, "player")                              # V2-755: he asked to watch it, so show it
         return _bump(db, "load")
 
     if action == "add":
@@ -634,6 +664,7 @@ def apply_action(action: str, payload: dict = None) -> dict:
                     "message": f"Solo hay {len(res)} resultados."}
         it = res[i]
         _swap_to(db, it)   # V2-634: the shared field-set (pick_explicit=False and queue position inside)
+        _goto(db, "player")                              # V2-755: he asked to watch it, so show it
         r = _bump(db, "load")
         r["position"] = i + 1
         return r
@@ -698,8 +729,7 @@ def apply_action(action: str, payload: dict = None) -> dict:
             return {"ok": False, "error": "unknown_tab", "tab": tab, "tabs": list(_TABS)}
         # A SEQUENCE, not a flag: he can ask for the same face twice in a row («no, al inicio» after
         # the card already believes it is there), and a flag the card has consumed cannot fire again.
-        prev = db.get("goto_tab") if isinstance(db.get("goto_tab"), dict) else {}
-        db["goto_tab"] = {"tab": tab, "seq": int(prev.get("seq") or 0) + 1}
+        _goto(db, tab)
         store.save(WID, db)
         return {"ok": True, "tab": tab}
 
@@ -856,7 +886,8 @@ def apply_action(action: str, payload: dict = None) -> dict:
         lst = db.get("list") or []
         nxt = int(db.get("pos", -1)) + 1
         if 0 <= nxt < len(lst):
-            return _play_pos(db, nxt, "next")
+            # V2-755: automatic, so it does NOT move his view — see `_goto`.
+            return _play_pos(db, nxt, "next", watch=False)
         db["paused"] = True                             # end of the list: stop honestly, do not loop
         return _bump(db, "ended")
 

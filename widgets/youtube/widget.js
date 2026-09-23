@@ -1326,9 +1326,16 @@ export function render(root, data, ctx){
   //
   // `selectTab` is the ONE transition (V2-626) and the card already exposes it, so this drives the same
   // rail his click drives rather than a second way to navigate.
+  //
+  // V2-755 — and since the data layer now writes this rail for «ponme el sexto» too (a video SWAPPING
+  // is an arrival the transition above cannot see), the order is refused in ONE case: the player's face
+  // with nothing in it. `goto_tab` is stored, `_gotoSeq` is module-lived, so a reload replays the last
+  // order against a card whose video is gone — and an empty Reproductor is exactly the dead end V2-753
+  // spent an initiative getting him out of.
   const _goto = data.goto_tab;
   if(_goto && _goto.seq && _goto.seq !== _gotoSeq){
     _gotoSeq = _goto.seq;                       // consumed — a re-render must not fight his hands
-    if(_TABS.indexOf(_goto.tab) >= 0 && root._hbYtSelectTab) root._hbYtSelectTab(_goto.tab);
+    const stale = _goto.tab === "player" && !hasVid;
+    if(_TABS.indexOf(_goto.tab) >= 0 && root._hbYtSelectTab && !stale) root._hbYtSelectTab(_goto.tab);
   }
 }

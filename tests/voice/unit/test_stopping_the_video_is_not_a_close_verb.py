@@ -129,7 +129,13 @@ def test_close_declares_that_it_STOPS_and_restart_declares_that_it_does_not():
     — the decision model, the prompt catalogue and the probe — instead of one of them."""
     acts = json.loads((_ENGINE / "widgets/youtube/manifest.json").read_text(encoding="utf-8"))["actions"]
     close, restart = acts["close"]["desc"].lower(), acts["restart"]["desc"].lower()
-    assert "para" in close and "sin vídeo" in close, "close has to SAY that it stops it for real"
+    # V2-755 — the anchor was the literal «PARA» and that literal is what swallowed «Vale, para el
+    # vídeo»: `close` opened with «PARA el vídeo de verdad», `pause` was declared in four words, and
+    # the bare verb belonged to nobody (`none` 0.65, live session 665e666a). The competitor now is
+    # `pause`, so this pins the CLAIM instead: close says it stops for real AND leaves the card empty,
+    # which is the half `pause` does not do. His compound order still measures `close` 0.89.
+    assert "deja de sonar" in close and "sin vídeo" in close, "close has to SAY that it stops it for real"
+    assert "párralo y vuelve al inicio" in close, "…and V2-753's own sentence stays declared"
     assert "sigue sonando" in restart or "sigue reproduci" in restart, (
         "restart has to say it KEEPS PLAYING — «reinicia el vídeo desde el principio» is what made "
         "«Páralo, y vuelve al inicio» come back as `restart`")

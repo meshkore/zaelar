@@ -197,7 +197,7 @@
       "activation": true
     },
     "pause": {
-      "desc": "pausa el vídeo",
+      "desc": "PARA el vídeo y lo deja cargado: congelado en pantalla, listo para seguir con play. «Vale, para el vídeo», «páralo», «páralo un momento», «detenlo», «pausa» — «para» es el verbo, no la preposición",
       "payload": {},
       "sensitivity": "routine",
       "activation": true
@@ -237,7 +237,7 @@
       "payload": {}
     },
     "close": {
-      "desc": "PARA el vídeo de verdad y lo quita del reproductor: deja de sonar y la tarjeta se queda sin vídeo. Responde a «párralo», «quita el vídeo», «basta ya» y a «párralo y vuelve al inicio»",
+      "desc": "QUITA el vídeo del reproductor: deja de sonar y la tarjeta se queda sin vídeo, de vuelta al catálogo. «quita el vídeo», «cierra el vídeo», «basta ya», «párralo y vuelve al inicio». Congelarlo es pause",
       "payload": {}
     },
     "show_history": {
@@ -353,7 +353,7 @@
       "view": true
     },
     "show_tab": {
-      "desc": "CAMBIA de pantalla dentro del reproductor SIN tocar lo que suena. 'inicio' = el dashboard/home/catálogo con la lista de resultados para elegir OTRO vídeo — responde a «vuelve al catálogo», «al inicio del widget», «al dashboard», «enséñame otra vez la lista»; 'player' el vídeo que se está viendo; 'cola' la lista de reproducción; 'listas' las guardadas; 'subs' las suscripciones. NO borra nada: para quitar la banda de resultados está clear_search, que es lo contrario de volver a ella",
+      "desc": "CAMBIA de pantalla dentro del reproductor SIN tocar lo que suena. «vuelve al catálogo», «al inicio del widget de vídeo», «al dashboard», «enséñame la lista» → tab inicio; y player, cola, listas, subs",
       "payload": {
         "tab": "inicio (home, dashboard, catálogo, la lista de resultados, el catálogo de vídeos) | player (reproductor, el vídeo) | cola (queue, lista de reproducción) | listas (guardadas, mis listas) | subs (suscripciones, canales)"
       },

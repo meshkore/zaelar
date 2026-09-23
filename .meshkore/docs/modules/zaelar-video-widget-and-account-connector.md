@@ -30,6 +30,23 @@ A REAL embedded YouTube player (`<iframe>`, IFrame API over postMessage — no l
   actions decline with one shared sentence. The gate is DERIVED, so it re-appears by itself the day a
   client_id lands — a door that cannot open is worse than no door.
 
+**WHO MOVES THE FACE.** `selectTab` is the card's ONE navigation transition (V2-626) and `goto_tab` — a
+SEQUENCE, so the same face can be asked for twice — is the only way in from outside it (V2-742). Three
+writers, and the distinction between them is the whole of V2-755:
+
+- the declared `show_tab` action, for «vuelve al catálogo» (its faces' ALIASES live in the manifest payload
+  and `widgets/enums.py` is the only parser, so the model reads the same words the widget accepts, V2-754);
+- **an ORDER to play** (`load`, `play_result`, `play_item`, an explicit `next`/`previous`) writes
+  `goto_tab → player`, because «ponme el sexto» means watching it. The card's own transition cannot do this:
+  it sees a video ARRIVING on an empty card, not one being SWAPPED, so an order given from the catalog ran
+  twice with nothing on screen changing (live session 665e666a);
+- **the automatic advance when a video ends writes nothing** — he reads the queue while one plays, and
+  yanking his view on a track change is the same defect with the sign flipped.
+
+And the card refuses one stored order: the player's face with no video in it. `goto_tab` is persisted and
+the consumed sequence is module-lived, so a reload replays the last order — onto a blank Reproductor, which
+is the dead end V2-753 exists to prevent.
+
 **Anchored to the parent** (operator's rule, 2026-09-05): `.hb-yt` is `width:100%` + `border-box` — the CARD
 decides the width in every state (maximize, manual resize, arrange); the default footprint is declared in
 `manifest.size` (680), not in the CSS.
