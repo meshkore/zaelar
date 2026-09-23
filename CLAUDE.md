@@ -795,6 +795,54 @@ con «inicio» dentro de `restart`.
 `_COMMITTED_RE`) — sería la quinta del mes. Y queda anotado que el árbitro **vetó en sombra un `pause`
 legítimo** (`data-drag`): es un falso veto en sesión real, que es justo el portón F0→F1 de V2-653.
 
+### UN NÚMERO QUE ÉL HA DICHO NO ES UNA INVENCIÓN (V2-756, 2026-09-23)
+
+Sesión `74be8e9a`, sobre el build de V2-755 — que aguantó (el catálogo obedece, el arnés cierra sus
+objetivos, el veredicto completa turnos vacíos y registra discrepancias). Cinco capas nuevas:
+
+1. **⭐ Una pregunta hecha dos veces no puede cambiar su respuesta.** «ponme el vídeo número tres» volvió
+   como `play_video(action=list)` —una búsqueda— tres turnos seguidos, y cada una re-descargaba y
+   RENUMERABA la banda a la que sus números se referían: «Bueno, ponme el vídeo dos, que los has
+   cambiado». La misma query sobre la misma banda ahora se responde (`unchanged`), no se re-ejecuta. Con
+   su límite, que cazó un test vecino y no yo: si la banda lleva algo que él ha rechazado desde entonces,
+   repetir NO es la misma pregunta.
+2. **⭐ Un número que ÉL ha dicho es una LECTURA, no una invención.** V2-741 se niega a inventar un payload
+   y tiene razón; «el vídeo número tres» sobre una banda numerada no es inventar — misma clase que el
+   alias declarado del veredicto. Y destapó un defecto viejo: `resolve` metía la frase entera en `item`, y una
+   clave de índice no es una query.
+3. **Una capacidad que no se puede DECIR no existe.** «Bórrame los tres últimos de la cola» borró UNA fila:
+   `remove` tomaba un `item` mientras su espejo `add_results` acepta «1,3» desde hace un año, y la regla es una
+   acción por turno. El modelo lo había entendido («quito el 4, el 5 y el 6»). Acabó en «Eso es absurdo,
+   no estás entendiendo la tarea». Declarado el plural: `remove` 0,98-1,00 sobre sus frases, con
+   `clear_list` 0,94 sobre «vacía la cola entera», intacto.
+4. **Reparar una omisión no es editar una decisión.** `show_tab` sin `tab` volvía `unknown_tab` sobre una
+   frase que nombra la cara. `fill_missing` solo AÑADE una clave vacía, y solo por un alias declarado o un
+   número dicho. De paso: **un alias que casa con casi todas las frases no desambigua nada** — `player`
+   declaraba «el vídeo» en una tarjeta de VÍDEO.
+5. **⭐ Inseguro ≠ ausente, y un lector inseguro no veta a uno casi seguro.** «Para el vídeo» midió
+   `screen_action = pause` **0,95** con `request_type` partido (answer 0,49 / comment 0,39) y no pasó nada:
+   el gate exigía una orden CONFIADA. Ahora es una lista de rechazo (`comment`/`question`/`greeting`), y el
+   motivo está medido: la pregunta de pantalla contesta `none` **0,87-0,99** para toda observación
+   ambiental, así que los dos guardas coinciden donde importa y solo éste se equivocaba. `complaint` queda
+   fuera de la lista a propósito (V2-750). Sin respuesta ninguna se sigue fallando cerrado.
+
+**Observabilidad, las dos mitades que él pidió mirar.** El registro del prompt guardaba cabeza y cola y
+omitía el CENTRO — donde `widgets/brief` escribe lo que hay EN PANTALLA; para saber si el modelo veía la
+banda hubo que reconstruir el digest a mano contra un almacén que ya había cambiado (tercera vez que este
+recorte cuesta un diagnóstico). Y una discrepancia con una tool GLOBAL no dejaba rastro,
+porque el `⚖️` solo vivía dentro de la rama de `widget_data`.
+
+**⚠️⚠️ Un DESARME puede dejar bytecode rancio.** El arnés restaura con `cp`, y si eso cae en el mismo
+SEGUNDO en que se escribió el `.pyc` compilado desde la versión desarmada, Python da la caché por válida
+(mtime con granularidad de un segundo) y todo proceso posterior ejecuta el código DESARMADO — una pasada
+ancha entera corrió así sin que nada lo dijera. El síntoma es «rojo en la pasada, verde suelto»; se
+confirma con `fn.__code__.co_names`, NO con `inspect.getsource`, que lee el fichero y siempre enseña lo
+nuevo. El arnés de desarme debe borrar `__pycache__` al restaurar.
+
+**⚠️ Una medición contra el conjunto de candidatos equivocado ACUSA al arreglo**: medí «los tres últimos»
+con los candidatos de otra sesión, donde `remove` ni estaba, y parecía que lo empeoraba. El conjunto se
+saca del `probabilities` del turno que se arregla.
+
 ## Decisiones clave — están en su propio fichero
 
 El diario del motor (una entrada por tanda: qué se decidió, por qué, y el fallo real que lo motivó) vive en

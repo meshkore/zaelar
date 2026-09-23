@@ -150,9 +150,41 @@ def _prompt_excerpt(system: str) -> str:
     """
     if len(system) <= _HEAD_CHARS + _TAIL_CHARS:
         return system
-    dropped = len(system) - _HEAD_CHARS - _TAIL_CHARS
+    middle = _on_screen_block(system[_HEAD_CHARS:-_TAIL_CHARS])
+    dropped = len(system) - _HEAD_CHARS - _TAIL_CHARS - len(middle)
     return (f"{system[:_HEAD_CHARS]}\n\n… [{dropped} caracteres OMITIDOS del centro del prompt; "
-            f"el estado vivo va al final y sí está abajo] …\n\n{system[-_TAIL_CHARS:]}")
+            f"lo que hay EN PANTALLA y el estado vivo NO se omiten] …\n\n{middle}"
+            f"{system[-_TAIL_CHARS:]}")
+
+
+#: What the operator has IN FRONT OF HIM, as `widgets/brief.for_prompt` writes it. It lives in the middle
+#: of the prompt, between the persona (head) and the live state (tail), and the head/tail excerpt dropped
+#: it whole.
+_ON_SCREEN_MARK = "items ahora (de lo ABIERTO"
+_ON_SCREEN_MAX = 2500
+
+
+def _on_screen_block(middle: str) -> str:
+    """The on-screen slice of the omitted middle, or "".
+
+    V2-756, and the third time this function has cost a diagnosis. V2-195 kept only the head and lost the
+    live state; V2-255 widened the head for the memory; and the middle that was left to drop turned out to
+    hold the one block that answers «did the model know what was on the screen?» — the numbered band of the
+    open card, which `widgets/brief` writes as «items ahora (de lo ABIERTO …) · <widget> (contenido en
+    pantalla)». Live session 74be8e9a (2026-09-23): the model re-ran the same video search three turns
+    running instead of playing the number he asked for, and the record could not say whether it had the
+    band in front of it — the answer had to be reconstructed by calling `refs.prompt_digest` by hand,
+    against a store that had moved on since.
+
+    Bounded on purpose (`_ON_SCREEN_MAX`): this is the excerpt, not the prompt. A long screen is cut with
+    its own marker rather than swallowing the budget of the head and the tail.
+    """
+    i = middle.find(_ON_SCREEN_MARK)
+    if i < 0:
+        return ""
+    block = middle[i:i + _ON_SCREEN_MAX]
+    cut = "" if len(middle) - i <= _ON_SCREEN_MAX else "\n… [pantalla recortada] …"
+    return block + cut + "\n\n"
 
 
 def turn_detail(*, system: str, window: list | None = None, tools: list | None = None,

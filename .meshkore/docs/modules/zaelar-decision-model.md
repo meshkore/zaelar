@@ -130,6 +130,28 @@ And a HOMOGRAPH is closed by NAMING it, not by listing more synonyms: «para» i
 so «Vale, para el vídeo.» reads as «OK, for the video.» — quoting his wordings scored `none` 0.47,
 adding «ahí «para» es el verbo, no la preposición» scored `pause` **0.98**, in the same 200 characters.
 
+⚠️ **An UNSURE answer has no opinion; an ABSENT one still fails closed** (V2-756). The gate that lets
+the verdict complete an empty turn used to require a confident `order`/`answer` on `request_type`, and
+read «unsure» the same as «no answer» — so a torn reader vetoed a near-certain one: «Para el vídeo»
+measured `screen_action = youtube:pause` **0.95** with `request_type` split between answer 0.49 and
+comment 0.39, nothing fired, and the operator said «He dicho que pares el vídeo. Que no me has oído.»
+
+It is a REFUSAL list now (`direct_action.NOT_AIMED_AT_THE_SCREEN`), and the reason is measured: the
+SCREEN question already answers `none` at **0.87-0.99** for every ambient remark tested, so the two
+guards agree exactly where it matters and only the request-type one was ever wrong.
+
+    «¿el siguiente es de la NASA?»   question 1.00  · screen_action none 0.95
+    «ese vídeo es antiguo»           comment  0.82  · screen_action none 0.96
+    «hoy juega el Barça»             comment  1.00  · screen_action none 0.87
+    «Bórrame los tres últimos…»      order    1.00  · screen_action remove 0.98
+
+⚠️ **Measure against the candidate set of the turn you are repairing** (V2-756). The screen question is
+enumerated PER CALL from what was open and possible at that moment, so a set borrowed from another
+session is a different question. «Bórrame los tres últimos de la cola» measured `clear_list` 0.59
+against a set that had no `remove` in it (the queue was empty then, so `_possible_now` had dropped it)
+and `remove` **0.98** against the set of the turn that actually failed. The candidate list is in the
+`probabilities` of that turn's brief event — take it from there, never from a neighbouring session.
+
 ## The rules that do not move
 
 1. **`nucleo/jev.py` is the only module that talks to it.** One endpoint, one key, one timeout.

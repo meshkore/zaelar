@@ -199,5 +199,21 @@ def voice_execute(args: dict, text: str, emit, apply_widget_data, deduped: dict,
     _cvis.present("youtube", reason="turn-order", src="flash", emit=emit)
     # V2-402 — a media SEARCH (action=list) fills the player's LIST, never the results sheet.
     op, lbl = voice_dispatch(args.get("action"))
+    # V2-756 — y si el veredicto nombraba OTRA acción de la misma tarjeta, que quede escrito. Sesión
+    # 74be8e9a: «Ahora quiero que me pongas el vídeo número tres» sobre una banda ya numerada volvió como
+    # `play_video(action=list)` —una búsqueda— tres turnos seguidos, con el brief diciendo
+    # `youtube:play_result` a 0,95/0,90/0,86. La llamada del modelo corre igual (V2-754: una llamada
+    # válida manda), pero la discrepancia SOLO se registraba dentro de la rama de `widget_data`, así que
+    # cuando el modelo elige una tool global no quedaba ni rastro de que los dos lectores discrepaban.
+    # Sin esta línea, «¿a quién hay que creer aquí?» no se puede contestar con datos.
+    try:
+        from nucleo.flash import direct_action as _da
+        if (_dis := _da.completes(brief, "youtube", model_action=op)):
+            emit("brain", "⚖️ el modelo y el veredicto discrepan — corre el modelo", role="system",
+                 text=f"youtube: modelo=play_video/{op} · veredicto={_dis}",
+                 extra={"cat": "flash", "id": "youtube", "model": f"play_video/{op}", "verdict": _dis,
+                        "said": (text or "")[:120]})
+    except Exception:  # noqa: BLE001
+        pass
     apply_widget_data("youtube", op, {"query": q} if q else {})
     emit("brain", lbl, text=q[:80], role="system")

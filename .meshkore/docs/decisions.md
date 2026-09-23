@@ -21,6 +21,51 @@ entregada siga citada aquí.
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **Un número que él ha dicho no es una invención (V2-756, 2026-09-23)**: sesión `74be8e9a`, sobre el
+  build de V2-755 — que AGUANTÓ (el catálogo obedece, el arnés abre objetivos y los CIERRA, el veredicto
+  completa turnos vacíos y registra discrepancias, «Pausa el vídeo» la resolvió la tabla hash sin modelo).
+  Cinco capas nuevas. **(1)** ⭐ «Ahora quiero que me pongas el vídeo número tres» volvió como
+  `play_video(action=list)` —una BÚSQUEDA— tres turnos seguidos, con el brief diciendo `play_result` 0,95;
+  y cada búsqueda re-descargaba y **renumeraba** la banda a la que sus números se referían: *«Bueno, ponme
+  el vídeo dos, que los has cambiado»*. **Una pregunta hecha dos veces no puede cambiar su respuesta**: la
+  misma query sobre la misma banda se responde (`unchanged`), no se re-ejecuta. Con su límite, que cazó un
+  test vecino y no yo — si la banda lleva algo que él ha rechazado desde entonces, repetir NO es la misma
+  pregunta (V2-634). **(2)** ⭐ «Bórrame los tres últimos de la cola» borró UNA fila: `remove` tomaba un
+  `item` mientras su espejo `add_results` acepta «1,3» desde V2-632, y la regla es una acción por turno.
+  El modelo lo había entendido —la voz dijo «quito el 4, el 5 y el 6»— y el veredicto, sin nada mejor,
+  llegó a contestar `clear_list`, que vacía la cola ENTERA (patrón V2-742). Acabó en *«Eso es absurdo, no
+  estás entendiendo la tarea»*. Declarado el plural: `remove` 0,98-1,00 sobre sus frases y `clear_list`
+  0,94 sobre «vacía la cola entera», intacto. **(3)** ⭐ **Un número que ÉL ha dicho es una lectura, no una
+  invención** — V2-741 se niega a inventar y tiene razón, pero «el vídeo número tres» sobre una banda
+  numerada no es inventar; misma clase que el alias declarado de V2-754. Destapó un defecto viejo:
+  `resolve` metía la frase ENTERA en `item`, y una clave de índice no es una query. **(4)** `show_tab` sin
+  `tab` volvía `unknown_tab` sobre una frase que nombra la cara, y él preguntó *«¿Has ignorado la orden que
+  te he dado?»*: `fill_missing` solo AÑADE una clave vacía, por un alias declarado o un número dicho —
+  repara una omisión, nunca edita una decisión. Y **un alias que casa con casi todas las frases no
+  desambigua nada**: `player` declaraba «el vídeo» en una tarjeta de VÍDEO. **(5)** ⭐ **Inseguro ≠ ausente**:
+  «Para el vídeo» midió `pause` **0,95** en la pregunta de pantalla con `request_type` partido (answer 0,49
+  / comment 0,39) y no pasó nada, porque el gate exigía una orden CONFIADA — un lector inseguro vetando a
+  uno casi seguro. Ahora es lista de RECHAZO (comment/question/greeting) y el motivo está medido: la
+  pregunta de pantalla contesta `none` **0,87-0,99** para toda observación ambiental, así que los dos
+  guardas coinciden donde importa y solo éste se equivocaba; `complaint` queda fuera a propósito (V2-750);
+  sin respuesta ninguna se sigue fallando cerrado. **Observabilidad, sus dos mitades**: el registro del
+  prompt guardaba cabeza y cola y omitía el CENTRO —donde va lo que hay EN PANTALLA—, así que para saber si
+  el modelo veía la banda hubo que reconstruir el digest a mano contra un almacén que ya había cambiado
+  (tercera vez que este recorte cuesta un diagnóstico: V2-195, V2-255); y una discrepancia con una tool
+  GLOBAL no dejaba rastro, porque el `⚖️` solo vivía dentro de la rama de `widget_data`. **⚠️ Una medición
+  contra el conjunto de candidatos EQUIVOCADO acusa al arreglo**: medí «los tres últimos» con los
+  candidatos de otra sesión, donde `remove` ni estaba, y parecía que lo empeoraba. Nodo 2.75 · 10 desarmes, 10 rojos ·
+  **⭐⭐ y una trampa que vale más que los arreglos: un desarme puede dejar BYTECODE RANCIO.** El arnés
+  restaura con `cp`, y si eso cae en el MISMO SEGUNDO en que se escribió el `.pyc` compilado desde la
+  versión desarmada, Python da la caché por buena (mtime con granularidad de un segundo) y todo proceso
+  posterior ejecuta el código DESARMADO: cuatro tests míos salieron rojos en la pasada ancha y verdes
+  sueltos, y una pasada entera corrió contra código desarmado sin que nada lo dijera. Se ve en
+  `fn.__code__.co_names`, no en `inspect.getsource`, que lee el fichero. El arnés ahora borra
+  `__pycache__` al restaurar. · una regresión real cazada por un test vecino y un desarme verde por el motivo equivocado,
+  ambos escritos. ABIERTO y dicho: por qué el modelo eligió `play_video` no se ha medido (la elección de
+  tool es del modelo rápido, no de Jev), y el árbitro vetó en sombra SIETE acciones legítimas en esta
+  sesión — el portón F0→F1 de V2-653 es «cero falsos vetos en sesiones reales».
+
 - **Un descriptor le roba la palabra al vecino (V2-755, 2026-09-23)**: sesión `665e666a`, sobre el build de
   V2-754 — que aguantó: «Vuelve, por favor, al inicio. Al catálogo inicial.» → `show_tab` **0,97** y el alias
   `home` resuelto. Lo que falló fueron tres capas apiladas en noventa segundos. **(1)** «**Vale, para el
@@ -2194,89 +2239,14 @@ entregada siga citada aquí.
   4.148's musica file); four disarms, mutations asserted, all red — run AFTER committing the fix,
   which is the V2-531 lesson applied instead of re-paid. Detail: the V2-650 initiative.
 
-- **A replayed play order is an order — and the playlist keeps the playback it started (V2-650,
-  2026-09-10)**: the operator's morning session (aed0736c, the «True Blue» errand), read event by event.
-  The worker did its job — refused the torrent as protected, confirmed the real album (Flash had escalated
-  «"Blue" de Madonna (es un álbum de versiones de blues/jazz)», an invented gloss), built the 9-track list
-  and verified it on screen. Then the music died twice, silently. **(1)**
-  `widgets/musica/data.py::play_playlist` loaded its store snapshot, called the provider — which resolved
-  track 1 and wrote `yt.videoId` + an 8-track queue into the store through its own load/save, exactly the
-  read-modify-write contract the file's own header declares — and then persisted the STALE snapshot,
-  erasing the playback it had just started: nothing sounded, the action reported `ok: True`, and the live
-  store still held `yt: {}` as the evidence (the write landed 0.6 s after the action — too fast for the
-  resolutions the clobber then discarded). The V2-611 class again: a stale snapshot is never written back
-  over a store a collaborator writes to. A non-local first track now gets NO db (the connector owns the
-  store during play/queue) and the final persist runs on a fresh load; a local first track keeps the old
-  single-writer flow. **(2)** The operator then ordered the play THREE times («Vale, pues reproduce la
-  lista», «Vamos, dale al play, a la primera canción») and the data-op dedupe guard (V2-038) ate every
-  one as context-bleed: its only escape measures word overlap against the PAYLOAD, and no natural play
-  order names `{"playlist": "true-blue"}` — one turn even ended with `completion_chars=0` over his
-  explicit command. New `canvas_license.replay_license` (V2-635 doctrine — declared data + grammar, never
-  intent): an identical re-emission passes the dedupe only when the action is one the widget DECLARES as
-  starting production (`runtime.produce` — agenda-class ops declare none, so the founding dentist
-  duplicate stays dead) AND the turn carries a conjugated media request. Verified against the session's
-  own four turns: exactly the two real orders pass, the two drag turns stay deduped. Node **4.148**;
-  three disarms, mutations asserted, all red. ⚠️ The V2-531 lesson was paid AGAIN mid-build: a
-  `git checkout` after a disarm restored HEAD and silently wiped the uncommitted fix in all three files —
-  re-apply the edit or commit BEFORE disarming, never checkout over uncommitted work. Open, named in the
-  initiative: the same session's «¿Qué tiempo va a hacer hoy en Soria?» (and the complaint after it) was
-  classified `llm_ambient` in `always` mode and never answered — an attention-gate classifier miss, not
-  touched here; Flash's invented album gloss in the escalation brief and the errand title frozen on
-  «Blue» after the worker confirmed «True Blue» (the V2-644 title class, for widget-surface errands).
-
-- **A REPORT is delivered as a DOCUMENT — the `informe` surface (V2-644, 2026-09-09)**: the operator's
-  order after the Juncal research (session adc8a7c7, read event by event before touching anything): a report
-  errand must open «el visor simple» — a process tab while the work runs, then ONE white-paper document —
-  never the results sheet, whose card list «queda un poco ridículo» for a report. What the forensics showed:
-  STT heard «la empresa junca de ella Salvador SL» (= Juncadella Salvador SL, the operator's own surname),
-  Flash guessed «Juncal de El Salvador» and the errand title froze on the guess even after the worker
-  CONFIRMED the real name and NIF (21:14:30); the surface was `lista`, so the browser's page-extract pushed
-  einforma's own trust badges («Cero CO2», «Confianza Online», «Tarifas») into Resultados as findings; the
-  worker sent its web_search query under a key the bridge did not read, got a SILENT
-  `{"results": [], "source": "none"}` twice, concluded «el puente no devuelve nada» and drove the browser
-  for four minutes; and the report never landed anywhere (cancelled by a restart). Four changes:
-  **(1)** a SIXTH surface value `informe` (`surfaces.DOC`, aliases informe/documento/report/dossier;
-  offered in the escalation tool's enum — the shared catalog ceiling was paid by compacting, ending UNDER
-  the old 23_100). Deliberately NOT in `SHEET`: every `opens_sheet` caller branches, so a report errand
-  never rides the results-sheet path. **(2)** commission opens the `documento` widget bound to the task
-  (`nucleo/docsheet.py`: doc_open/doc_retitle/doc_close — the sheet's own three gestures, sibling module),
-  criteria seeding is guarded off, `sheet_for_delivery` skips doc-surface errands (the badge-junk path),
-  and the worker prompt gains `DOC_SURFACE_BLOCK`: deliver via `documento` (4d), results is NOT open, first
-  `show` early + `append` per section, say «Elaborando el informe…» before writing, and the document title
-  carries the TRUE confirmed name — not the errand's phonetic guess. **(3)** the widget grows a live
-  process view: `view_data().process` derived per read from the new `dispatch.task_progress(tid)`
-  (`sheets.task_progress`, task-keyed sibling of `sheet_progress`), persisted at finish; Proceso|Documento
-  tabs only when a process exists, and the document is PAPER — a white page whatever the host theme.
-  **(4)** the `use_tool web_search` gate refuses an EMPTY query loudly naming the exact form, and accepts
-  the sibling keys (`q`/`text`/`search`/`consulta`) a worker actually writes. Node **4.143** (17 headless +
-  4 bridge + 6 rendered cases); seven disarms, mutations asserted, all red — TWO came back green first and
-  the TESTS were wrong: nothing measured the finished-empty default tab (the alive safety net covered the
-  mutation), and the bare harness defined no theme vars, so `var(--hb-bg,#fff)` resolved white and a
-  regression to theme-following was invisible — the fixture now mounts a hostile dark host theme.
-  ⚠️ NOT verified live end-to-end: a real informe errand needs a worker run; the engine restart +
-  served-code checks are the shipped verification. Detail: the V2-644 initiative.
-
-- **The orb answers ONE question, and a stopped mic is crossed out (V2-648, 2026-09-10)**: three things
-  were painting on the same surface and nobody had reconciled them since the orb's colour became the
-  LISTENING signal (2026-09-09). **(A)** The claim ignored the microphone: `_listeningNow()` read powerOff +
-  attention mode, so a muted mic left the orb glowing «te escucho» over a shut input. The rule moved out of
-  the draw loop into `services/listening.js` (dependency-free, so the test drives it and not a copy) and
-  now reads `agentLive()` → mic → mode, in that order; an unreadable store answers NO, because a false grey
-  is a nuisance and a false orange is the reported bug. **(B)** `canvas#orb.muted{opacity:.5;grayscale(.45)}`
-  predated the signal and desaturated the orange into a dull brown whenever he silenced zaelar's voice —
-  «el altavoz no tiene ningún efecto sobre el color del orbe». Rule and class deleted; what they carried
-  MOVED to the 🔊 control beside it, which already paints itself crossed and grey. `frozen` stays. **(C)**
-  Grey alone was saying «mic off», and grey is also what a disabled control looks like: `MIC_OFF` now adds a
-  slash (the speaker's own off-face language), and the lit state gained a halo + heavier stroke so ON reads
-  as LIT, without dimming OFF further — the muted mic must stay legible, its slash IS the message. The VU
-  meter's RESTING floor went .72 → .88 in the same pass: a live, unmuted mic between words sat closer to a
-  disabled control than to a lit one, which is why the icon he singled out was the one that read wrong. Nodes
-  **4.146** (e2e: the slash measured by its RENDERED ink, both swap directions, ON-vs-OFF weight through the
-  real cascade, and the orb's painting identical either side of a speaker click) and **4.147** (unit: the
-  real `isListening`). Three disarms red. Detail: the V2-648 initiative.
-
 - **The desktop wallpaper is a SPOKEN property (V2-641, 2026-09-09)** — texto íntegro en `decisions-archive.md`
 ### Archived decisions — index (full text: `.meshkore/docs/decisions-archive.md`)
+
+#### Movidas el 2026-09-23 (V2-756)
+
+- **A replayed play order is an order — and the playlist keeps the playback it started (V2-650, 2026-09-10)**
+- **A REPORT is delivered as a DOCUMENT — the `informe` surface (V2-644, 2026-09-09)**
+- **The orb answers ONE question, and a stopped mic is crossed out (V2-648, 2026-09-10)**
 
 #### Movidas el 2026-09-23 (V2-755)
 

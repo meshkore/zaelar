@@ -35,7 +35,10 @@ def test_and_the_gap_is_NAMED_so_a_hole_is_not_read_as_an_absence():
     """That is the entire lesson of the finding: I read a gap as an absence. If the excerpt says how much is
     missing and where the state is, nobody else will make that mistake."""
     ex = observer._prompt_excerpt(_prompt())
-    assert "OMITIDOS" in ex and "el estado vivo va al final" in ex
+    # V2-756 — the sentence changed with the rule: the excerpt no longer drops the middle whole, it
+    # keeps what is ON SCREEN too, so promising only «el estado vivo va al final» had become a lie.
+    # Anchored on the claim — the hole is NAMED — instead of on the words that named it.
+    assert "OMITIDOS" in ex and "no se omiten" in ex.lower()
 
 
 def test_a_short_prompt_is_kept_whole():

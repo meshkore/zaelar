@@ -9637,3 +9637,85 @@ one-line index behind in the live log. Nothing below was edited or summarized on
   empty text still arms). Tests ride existing nodes 3.19 + the mouth file; three disarms verified red
   (the first mute-guard disarm came back GREEN — both branches caught the case — and was replaced by the
   real one: «empty reply never repairs», the pre-fix world).
+
+- **A replayed play order is an order — and the playlist keeps the playback it started (V2-650,
+  2026-09-10)**: the operator's morning session (aed0736c, the «True Blue» errand), read event by event.
+  The worker did its job — refused the torrent as protected, confirmed the real album (Flash had escalated
+  «"Blue" de Madonna (es un álbum de versiones de blues/jazz)», an invented gloss), built the 9-track list
+  and verified it on screen. Then the music died twice, silently. **(1)**
+  `widgets/musica/data.py::play_playlist` loaded its store snapshot, called the provider — which resolved
+  track 1 and wrote `yt.videoId` + an 8-track queue into the store through its own load/save, exactly the
+  read-modify-write contract the file's own header declares — and then persisted the STALE snapshot,
+  erasing the playback it had just started: nothing sounded, the action reported `ok: True`, and the live
+  store still held `yt: {}` as the evidence (the write landed 0.6 s after the action — too fast for the
+  resolutions the clobber then discarded). The V2-611 class again: a stale snapshot is never written back
+  over a store a collaborator writes to. A non-local first track now gets NO db (the connector owns the
+  store during play/queue) and the final persist runs on a fresh load; a local first track keeps the old
+  single-writer flow. **(2)** The operator then ordered the play THREE times («Vale, pues reproduce la
+  lista», «Vamos, dale al play, a la primera canción») and the data-op dedupe guard (V2-038) ate every
+  one as context-bleed: its only escape measures word overlap against the PAYLOAD, and no natural play
+  order names `{"playlist": "true-blue"}` — one turn even ended with `completion_chars=0` over his
+  explicit command. New `canvas_license.replay_license` (V2-635 doctrine — declared data + grammar, never
+  intent): an identical re-emission passes the dedupe only when the action is one the widget DECLARES as
+  starting production (`runtime.produce` — agenda-class ops declare none, so the founding dentist
+  duplicate stays dead) AND the turn carries a conjugated media request. Verified against the session's
+  own four turns: exactly the two real orders pass, the two drag turns stay deduped. Node **4.148**;
+  three disarms, mutations asserted, all red. ⚠️ The V2-531 lesson was paid AGAIN mid-build: a
+  `git checkout` after a disarm restored HEAD and silently wiped the uncommitted fix in all three files —
+  re-apply the edit or commit BEFORE disarming, never checkout over uncommitted work. Open, named in the
+  initiative: the same session's «¿Qué tiempo va a hacer hoy en Soria?» (and the complaint after it) was
+  classified `llm_ambient` in `always` mode and never answered — an attention-gate classifier miss, not
+  touched here; Flash's invented album gloss in the escalation brief and the errand title frozen on
+  «Blue» after the worker confirmed «True Blue» (the V2-644 title class, for widget-surface errands).
+
+- **A REPORT is delivered as a DOCUMENT — the `informe` surface (V2-644, 2026-09-09)**: the operator's
+  order after the Juncal research (session adc8a7c7, read event by event before touching anything): a report
+  errand must open «el visor simple» — a process tab while the work runs, then ONE white-paper document —
+  never the results sheet, whose card list «queda un poco ridículo» for a report. What the forensics showed:
+  STT heard «la empresa junca de ella Salvador SL» (= Juncadella Salvador SL, the operator's own surname),
+  Flash guessed «Juncal de El Salvador» and the errand title froze on the guess even after the worker
+  CONFIRMED the real name and NIF (21:14:30); the surface was `lista`, so the browser's page-extract pushed
+  einforma's own trust badges («Cero CO2», «Confianza Online», «Tarifas») into Resultados as findings; the
+  worker sent its web_search query under a key the bridge did not read, got a SILENT
+  `{"results": [], "source": "none"}` twice, concluded «el puente no devuelve nada» and drove the browser
+  for four minutes; and the report never landed anywhere (cancelled by a restart). Four changes:
+  **(1)** a SIXTH surface value `informe` (`surfaces.DOC`, aliases informe/documento/report/dossier;
+  offered in the escalation tool's enum — the shared catalog ceiling was paid by compacting, ending UNDER
+  the old 23_100). Deliberately NOT in `SHEET`: every `opens_sheet` caller branches, so a report errand
+  never rides the results-sheet path. **(2)** commission opens the `documento` widget bound to the task
+  (`nucleo/docsheet.py`: doc_open/doc_retitle/doc_close — the sheet's own three gestures, sibling module),
+  criteria seeding is guarded off, `sheet_for_delivery` skips doc-surface errands (the badge-junk path),
+  and the worker prompt gains `DOC_SURFACE_BLOCK`: deliver via `documento` (4d), results is NOT open, first
+  `show` early + `append` per section, say «Elaborando el informe…» before writing, and the document title
+  carries the TRUE confirmed name — not the errand's phonetic guess. **(3)** the widget grows a live
+  process view: `view_data().process` derived per read from the new `dispatch.task_progress(tid)`
+  (`sheets.task_progress`, task-keyed sibling of `sheet_progress`), persisted at finish; Proceso|Documento
+  tabs only when a process exists, and the document is PAPER — a white page whatever the host theme.
+  **(4)** the `use_tool web_search` gate refuses an EMPTY query loudly naming the exact form, and accepts
+  the sibling keys (`q`/`text`/`search`/`consulta`) a worker actually writes. Node **4.143** (17 headless +
+  4 bridge + 6 rendered cases); seven disarms, mutations asserted, all red — TWO came back green first and
+  the TESTS were wrong: nothing measured the finished-empty default tab (the alive safety net covered the
+  mutation), and the bare harness defined no theme vars, so `var(--hb-bg,#fff)` resolved white and a
+  regression to theme-following was invisible — the fixture now mounts a hostile dark host theme.
+  ⚠️ NOT verified live end-to-end: a real informe errand needs a worker run; the engine restart +
+  served-code checks are the shipped verification. Detail: the V2-644 initiative.
+
+- **The orb answers ONE question, and a stopped mic is crossed out (V2-648, 2026-09-10)**: three things
+  were painting on the same surface and nobody had reconciled them since the orb's colour became the
+  LISTENING signal (2026-09-09). **(A)** The claim ignored the microphone: `_listeningNow()` read powerOff +
+  attention mode, so a muted mic left the orb glowing «te escucho» over a shut input. The rule moved out of
+  the draw loop into `services/listening.js` (dependency-free, so the test drives it and not a copy) and
+  now reads `agentLive()` → mic → mode, in that order; an unreadable store answers NO, because a false grey
+  is a nuisance and a false orange is the reported bug. **(B)** `canvas#orb.muted{opacity:.5;grayscale(.45)}`
+  predated the signal and desaturated the orange into a dull brown whenever he silenced zaelar's voice —
+  «el altavoz no tiene ningún efecto sobre el color del orbe». Rule and class deleted; what they carried
+  MOVED to the 🔊 control beside it, which already paints itself crossed and grey. `frozen` stays. **(C)**
+  Grey alone was saying «mic off», and grey is also what a disabled control looks like: `MIC_OFF` now adds a
+  slash (the speaker's own off-face language), and the lit state gained a halo + heavier stroke so ON reads
+  as LIT, without dimming OFF further — the muted mic must stay legible, its slash IS the message. The VU
+  meter's RESTING floor went .72 → .88 in the same pass: a live, unmuted mic between words sat closer to a
+  disabled control than to a lit one, which is why the icon he singled out was the one that read wrong. Nodes
+  **4.146** (e2e: the slash measured by its RENDERED ink, both swap directions, ON-vs-OFF weight through the
+  real cascade, and the orb's painting identical either side of a speaker click) and **4.147** (unit: the
+  real `isListening`). Three disarms red. Detail: the V2-648 initiative.
+

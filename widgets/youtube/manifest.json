@@ -108,9 +108,10 @@
       "payload": {}
     },
     "remove": {
-      "desc": "quita un vídeo de la lista (por número o título)",
+      "desc": "quita vídeos de la COLA: uno con item (número 1-N o título), o VARIOS con items=\"4,5,6\" («bórrame los tres últimos» → items:\"4,5,6\"). Para vaciarla entera está clear_list",
       "payload": {
-        "item": "número 1-N o texto del título"
+        "item": "número 1-N o texto del título",
+        "items": "varios números separados por comas, p. ej. \"4,5,6\" (opcional)"
       },
       "ref": "item"
     },
@@ -355,7 +356,7 @@
     "show_tab": {
       "desc": "CAMBIA de pantalla dentro del reproductor SIN tocar lo que suena. «vuelve al catálogo», «al inicio del widget de vídeo», «al dashboard», «enséñame la lista» → tab inicio; y player, cola, listas, subs",
       "payload": {
-        "tab": "inicio (home, dashboard, catálogo, la lista de resultados, el catálogo de vídeos) | player (reproductor, el vídeo) | cola (queue, lista de reproducción) | listas (guardadas, mis listas) | subs (suscripciones, canales)"
+        "tab": "inicio (home, dashboard, catálogo, la lista de resultados, el catálogo de vídeos) | player (reproductor, la pantalla del vídeo) | cola (queue, lista de reproducción) | listas (guardadas, mis listas) | subs (suscripciones, canales)"
       },
       "view": true
     }

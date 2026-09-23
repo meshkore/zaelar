@@ -363,8 +363,13 @@ def prompt_digest() -> str:
     if not res:
         return "\n".join(lines)
     q = str(db.get("search_query") or "").strip()
+    # V2-756 — the NEGATIVE belongs here too. «ponme el vídeo número tres» over this band came back as
+    # `play_video(action=list)`, a fresh search, three turns running. This block costs prompt only while
+    # the card is open (V2-526's pattern), which is exactly when the sentence is true.
     lines += [f"BÚSQUEDA DE VÍDEOS EN PANTALLA («{q}», {len(res)} resultados numerados — "
-              "«el tercero» = el 3; reproducir: play_result{item:N} · a la cola: add_results{items:\"1,3\"|\"all\"}):"]
+              "«el tercero» = el 3; reproducir: play_result{item:N} · a la cola: add_results{items:\"1,3\"|\"all\"}"
+              " · quitar varios de la cola: remove{items:\"4,5,6\"}. Elegir uno de ESTOS por número NO es "
+              "play_video: volver a buscar RENUMERA esta lista):"]
     for i, r in enumerate(res, 1):
         bits = [str(r.get("title") or "")[:70]]
         if r.get("channel"):
@@ -430,6 +435,24 @@ def _goto(db: dict, tab: str) -> None:
     """
     prev = db.get("goto_tab") if isinstance(db.get("goto_tab"), dict) else {}
     db["goto_tab"] = {"tab": tab, "seq": int(prev.get("seq") or 0) + 1}
+
+
+def _index_list(raw, n: int) -> list:
+    """`"4,5,6"` / `[4, 5, 6]` / `"all"` → ZERO-based indices inside a list of `n`, deduped; [] when the
+    payload names no number. The shape `add_results` has accepted since V2-632, read once so `remove`
+    cannot drift from it (V2-756)."""
+    if raw is None or n <= 0:
+        return []
+    if isinstance(raw, list):
+        nums = [int(x) for x in raw if str(x).strip().lstrip("-").isdigit()]
+    else:
+        t = str(raw).strip().lower()
+        if not t:
+            return []
+        if t in ("all", "todos", "todas", "*"):
+            return list(range(n))
+        nums = [int(x) for x in re.findall(r"\d+", t)]
+    return sorted({i - 1 for i in nums if 1 <= i <= n})
 
 
 def _bump(db: dict, cmd: str) -> dict:
@@ -613,6 +636,27 @@ def apply_action(action: str, payload: dict = None) -> dict:
         q = str(p.get("query") or p.get("q") or "").strip()
         if not q:
             return {"ok": False, "error": "no_query", "message": "Dime qué vídeos busco."}
+        # V2-756 — THE NUMBERS UNDER HIS FEET. Live session 74be8e9a (2026-09-23): «Ahora quiero que me
+        # pongas el vídeo número tres» came back as `play_video(action=list)` — a SEARCH — three turns
+        # running, and each one re-fetched the same query and rebuilt the band. He said it himself:
+        # «Bueno, ponme el vídeo dos, que los has cambiado.» A search is the question «what is there?»,
+        # and asking it twice cannot be allowed to change the answer he is already reading off the
+        # screen. So the same question over the same band is ANSWERED, not re-run: nothing renumbers,
+        # nothing is re-fetched, and the turn says out loud that it changed nothing (`unchanged`) so
+        # the channel can tell a real search from one that did nothing at all.
+        prev = db.get("search_results") or []
+        # …but NOT when the band now holds something the operator has since refused: V2-634's rule is that
+        # the refused never come back, and a video that failed to play (`player_error`) is blocklisted
+        # between one search and the next. Re-asking then is not the same question.
+        _stale = bool(prev) and (
+            any(r.get("videoId") in _blocked_ids(db) for r in prev)
+            or bool(_drop_blocked(list(prev), db.get("blocked_channels") or [])[1]))
+        if prev and not _stale and _norm(q) == _norm(str(db.get("search_query") or "")):
+            db["adding"] = ""
+            store.save(WID, db)
+            return {"ok": True, "unchanged": True, "count": len(prev), "query": q,
+                    "results": [r.get("title") for r in prev],
+                    "message": "Esos resultados ya están en pantalla, numerados."}
         try:
             n = int(p.get("n") or 6)
         except Exception:
@@ -786,6 +830,23 @@ def apply_action(action: str, payload: dict = None) -> dict:
 
     if action == "remove":
         lst = db.get("list") or []
+        # V2-756 — «Bórrame los tres últimos de la cola» removed ONE (live session 74be8e9a). The reply
+        # even said «quito el 4, el 5 y el 6», because the model had understood perfectly; there was no
+        # declared way to say it, and one action per turn is the rule. He spent seventy seconds and three
+        # complaints getting three rows deleted, ending on «Eso es absurdo, no estás entendiendo la
+        # tarea.» And the paid verdict, with nothing better to reach for, answered `clear_list` at 0.56 —
+        # the action that empties the WHOLE queue (V2-742's pattern: the nearest declared action does
+        # something worse). `add_results` has taken «1,3» since V2-632; its mirror just never did.
+        many = _index_list(p.get("items"), len(lst))
+        if many:
+            gone, pos = [], int(db.get("pos", -1))
+            for i in sorted(many, reverse=True):          # highest first: an earlier pop shifts the rest
+                gone.append((lst.pop(i) or {}).get("title"))
+                if i <= pos:
+                    pos -= 1
+            db["pos"] = pos
+            store.save(WID, db)
+            return {"ok": True, "removed": [t for t in gone if t][::-1], "count": len(lst)}
         idx = _resolve_item(lst, p.get("item"))
         if idx is None:
             return {"ok": False, "error": "item_not_found", "item": p.get("item"),

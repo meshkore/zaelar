@@ -30,6 +30,18 @@ A REAL embedded YouTube player (`<iframe>`, IFrame API over postMessage — no l
   actions decline with one shared sentence. The gate is DERIVED, so it re-appears by itself the day a
   client_id lands — a door that cannot open is worse than no door.
 
+**THE NUMBERED BAND IS A PROMISE.** «el tercero» only means anything while row three stays row three,
+so a SEARCH is a question and asking it twice does not change the answer: the same query over the band
+already on screen is answered (`unchanged: True`), not re-fetched and not renumbered. The operator read
+the defect out loud — «Bueno, ponme el vídeo dos, que los has cambiado» (V2-756). One bound: a band
+holding something he has since refused (a video that failed to play is blocklisted) is NOT the same
+question, and the search is re-run so the refused stays out.
+
+**AND THE QUEUE TAKES SEVERAL.** `remove` accepts `items="4,5,6"` as well as a single `item`, the shape
+`add_results` has had since V2-632. Without it «bórrame los tres últimos» deleted ONE row — the rule is
+one action per turn, so a plural the manifest cannot express is a capability that does not exist, and
+the paid verdict reached instead for `clear_list`, which empties the whole queue.
+
 **WHO MOVES THE FACE.** `selectTab` is the card's ONE navigation transition (V2-626) and `goto_tab` — a
 SEQUENCE, so the same face can be asked for twice — is the only way in from outside it (V2-742). Three
 writers, and the distinction between them is the whole of V2-755:

@@ -129,23 +129,44 @@ def test_T4_a_VALID_model_call_is_not_overruled_by_a_confident_wrong_verdict(on_
 
 @pytest.mark.parametrize("kind,why", [
     ("comment", "a comment that names an action must not move the player"),
-    ("complaint", "«pero veo que es incapaz de pararlo» is about US, not an order to pause"),
     ("question", "«¿el siguiente es de la NASA?» is not «next»"),
     ("greeting", "phatic contact"),
 ])
-def test_the_empty_turn_half_needs_an_ORDER_or_an_ANSWER(on_screen, kind, why):
+def test_a_CONFIDENT_remark_never_completes_an_empty_turn(on_screen, kind, why):
+    # V2-756 — `complaint` left this list. It was here on the reading that «pero veo que es incapaz de
+    # pararlo» is about US, but V2-750 (node 2.70) had already ruled the other way: a complaint about
+    # what was just done IS an order to do it properly, and a complaint with nothing to redo answers
+    # `none` on the screen question anyway («Vale, hasta aquí bien, aunque te ha costado bastante» →
+    # none 0.92, measured). The case that pays for it is one row down.
     fired, s = _complete(_brief({_tb.TARGET_KEY: ("youtube:pause", 0.97),
                                  _tb.REQUEST_KEY: (kind, 0.9)}), "Pero veo que es incapaz de pararlo.")
     assert fired == "" and s.applied == [], why
 
 
-def test_without_a_request_verdict_the_empty_turn_is_left_alone(on_screen):
-    """No `request_type` at all (an unsure one reads the same): the gate fails CLOSED."""
+def test_a_COMPLAINT_about_what_we_just_failed_to_do_IS_an_order(on_screen):
+    """V2-756, live session 74be8e9a: «He dicho que pares el vídeo. Que no me has oído.» — complaint,
+    and the only thing he wants is the pause he already asked for."""
+    fired, _s = _complete(_brief({_tb.TARGET_KEY: ("youtube:pause", 0.97),
+                                  _tb.REQUEST_KEY: ("complaint", 0.9)}),
+                          "He dicho que pares el vídeo. Que no me has oído.")
+    assert fired == "pause"
+
+
+def test_without_a_request_verdict_at_all_the_empty_turn_is_left_alone(on_screen):
+    """No `request_type` answer: the gate still fails CLOSED, exactly as V2-754 promised."""
     fired, _s = _complete(_brief({_tb.TARGET_KEY: ("youtube:pause", 0.97)}), "páralo")
     assert fired == ""
+
+
+def test_an_UNSURE_request_type_is_not_a_veto(on_screen):
+    """V2-756 — this used to read the same as «absent» and fail closed, which let an unsure reader
+    veto a near-certain one: «Para el vídeo» measured `screen_action = youtube:pause` 0.95 with
+    `request_type` torn (answer 0.49 / comment 0.39), nothing fired, and he had to say «He dicho que
+    pares el vídeo. Que no me has oído.». An answer below the bar has NO opinion; an answer that never
+    came still fails closed (the test above)."""
     fired, _s = _complete(_brief({_tb.TARGET_KEY: ("youtube:pause", 0.97),
-                                  _tb.REQUEST_KEY: ("order", 0.3)}), "páralo")
-    assert fired == ""
+                                  _tb.REQUEST_KEY: ("comment", 0.3)}), "Para el vídeo")
+    assert fired == "pause"
 
 
 def test_an_unsure_or_absent_screen_verdict_completes_nothing(on_screen):
@@ -229,5 +250,11 @@ def test_the_provider_completes_an_EMPTY_turn_and_logs_a_disagreement():
     body = _PROVIDER.read_text(encoding="utf-8")
     i = body.index("_no_tool = (")
     assert "_direct_action.complete(" in body[i:i + 900], "the empty-turn site"
+    # V2-756 — anchored on ORDER, not on a byte distance: the repair of a key the model left empty
+    # (`fill_missing`) now sits between the two, and a window measured in characters made a correct
+    # wiring look broken.
     j = body.index('_apply_widget_data(_cd["card"], action_name, res.payload, ref)')
-    assert "_direct_action.completes(" in body[j - 700:j], "the disagreement is logged where the model's call runs"
+    k = body.index("_direct_action.completes(")
+    assert k < j, "the disagreement is logged where the model's call runs"
+    assert body.index("_direct_action.fill_missing(", k, j) > k, (
+        "and the empty key is repaired before the call is applied, not after (V2-756)")

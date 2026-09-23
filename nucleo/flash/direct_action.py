@@ -172,6 +172,12 @@ def resolve(commission: str, *, brief=None, swallowed=None, operator_text: str =
             return {"widget": wid, "action": action, "payload": filled, "key": next(iter(filled)),
                     "source": "enum-alias", "label": f"{wid}:{action} ← el veredicto de pantalla (alias)"}
         return {}
+    # V2-756 — an INDEX key is not a query. Before this, `play_result` got the whole sentence stuffed
+    # into `item` («Ahora quiero que me pongas el vídeo número tres»), which the widget can only read as
+    # a title and never match. A number he SAID is a reading, not an invention (see `number_fill`).
+    if (n := number_fill(wid, action, words)):
+        return {"widget": wid, "action": action, "payload": n, "key": next(iter(n)),
+                "source": "said-number", "label": f"{wid}:{action} ← el veredicto de pantalla (nº dicho)"}
     if not words or len(words.split()) > MAX_QUERY_WORDS:
         return {}
     return {"widget": wid, "action": action, "payload": {key: words}, "key": key,
@@ -218,6 +224,96 @@ def enum_fill(widget_id: str, action: str, words: str) -> dict:
         return {}
 
 
+#: Request types that REFUSE to let the verdict complete an EMPTY turn. It used to be the mirror —
+#: only a confident `order`/`answer` passed — and that let an UNSURE reader veto a near-certain one:
+#: «Para el vídeo» came back `screen_action = youtube:pause` at 0.95 with `request_type` torn between
+#: answer 0.49 and comment 0.39, so nothing happened and he said «He dicho que pares el vídeo. Que no
+#: me has oído.» (live session 74be8e9a, 2026-09-23).
+#:
+#: Measured against the real API over that session's own candidates, and the numbers are why this is a
+#: REFUSAL list and not an allow list — the screen question already answers `none` for everything not
+#: aimed at the screen, so both guards agree where it matters and only this one was ever wrong:
+#:
+#:     «¿el siguiente es de la NASA?»   question 1.00  · screen_action none 0.95
+#:     «ese vídeo es antiguo»           comment  0.82  · screen_action none 0.96
+#:     «me gusta mucho este documental» comment  0.95  · screen_action none 0.99
+#:     «hoy juega el Barça»             comment  1.00  · screen_action none 0.87
+#:     «Bórrame los tres últimos…»      order    1.00  · screen_action remove 0.98
+#:     «Para el vídeo»                  comment  0.45 ← unsure, and the turn IS an order
+#:
+#: `complaint` is deliberately NOT here: a complaint about what was just done IS an order to do it
+#: properly (V2-750, node 2.70), and one with nothing to redo answers `none` on the screen question
+#: anyway («Vale, hasta aquí bien, aunque te ha costado bastante» → none 0.92).
+NOT_AIMED_AT_THE_SCREEN = ("comment", "question", "greeting")
+
+#: Spoken numbers reach us as words — Deepgram writes «el vídeo número tres», never «el vídeo 3».
+_SPELLED = {"un": 1, "uno": 1, "una": 1, "primero": 1, "primera": 1, "dos": 2, "segundo": 2,
+            "segunda": 2, "tres": 3, "tercero": 3, "tercera": 3, "cuatro": 4, "cuarto": 4,
+            "cuarta": 4, "cinco": 5, "quinto": 5, "quinta": 5, "seis": 6, "sexto": 6, "sexta": 6,
+            "siete": 7, "septimo": 7, "ocho": 8, "octavo": 8, "nueve": 9, "noveno": 9, "diez": 10}
+
+
+def _spell(m) -> str:
+    import unicodedata as _ud
+    w = "".join(c for c in _ud.normalize("NFKD", m.group(0).lower()) if not _ud.combining(c))
+    return str(_SPELLED.get(w, m.group(0)))
+
+
+def _word_numbers_re():
+    import re as _re
+    return _re.compile("|".join(r"\b%s\b" % w for w in sorted(_SPELLED, key=len, reverse=True)),
+                       _re.IGNORECASE)
+
+
+_WORD_NUMBERS = _word_numbers_re()
+
+
+def number_fill(widget_id: str, action: str, words: str) -> dict:
+    """`{key: n}` when the action's ONE fillable key is a 1-based INDEX and he said exactly one number.
+
+    The sibling of `enum_fill` and the same rule: a value he SAID is read, never invented (V2-741).
+    «Ahora quiero que me pongas el vídeo número tres» over a band of six is a 3. Two different numbers,
+    or none, is not a fill — it is a question to ask.
+    """
+    try:
+        import re as _re
+        key = fillable_key(widget_id, action)
+        if not key:
+            return {}
+        spec = str(_payload_spec(widget_id, action).get(key) or "").lower()
+        if not any(m in spec for m in ("1-based", "1-n", "número del resultado", "numero del resultado")):
+            return {}
+        nums = [int(x) for x in _re.findall(r"\b(\d{1,2})\b", _WORD_NUMBERS.sub(_spell, words or ""))]
+        nums = [n for n in nums if 1 <= n <= 99]
+        return {key: nums[0]} if len(set(nums)) == 1 else {}
+    except Exception:  # noqa: BLE001
+        return {}
+
+
+def fill_missing(widget_id: str, action: str, payload: dict, words: str) -> dict:
+    """What the MODEL's own call left out and his words can supply honestly, or `{}`.
+
+    V2-756. «Pausa el vídeo. Vuelve al catálogo.» → the model called `widget_data(youtube, show_tab)`
+    with an EMPTY payload and the widget answered `unknown_tab`: a correct order, the correct action,
+    refused over one missing key whose value was sitting in his sentence («al catálogo» is `inicio`,
+    declared right there in the manifest). He asked «¿Has ignorado la orden que te he dado?».
+
+    Only ever ADDS a key the call left empty, and only from the two readings that are not inventions:
+    a declared ALIAS of an enumerated value (V2-754) or a number he said. A call that already carries
+    its key is untouched — this repairs an omission, it never edits a decision.
+    """
+    try:
+        spec = _payload_spec(widget_id, action)
+        required = [k for k, v in spec.items() if not _optional(v)]
+        if len(required) != 1:                       # zero or several: nothing single to repair
+            return {}
+        if str((payload or {}).get(required[0]) or "").strip():
+            return {}                                # the call carries its key — not this function's business
+        return enum_fill(widget_id, action, words) or number_fill(widget_id, action, words)
+    except Exception:  # noqa: BLE001
+        return {}
+
+
 def completes(brief, widget_id: str, *, model_action: str = "") -> str:
     """The verdict's action on THIS card when it is confident, still open and NOT what the model
     called; "" otherwise. The narrow question both arbitration sites ask (V2-754)."""
@@ -246,17 +342,19 @@ def complete(brief, *, operator_text: str, emit, present, apply_widget_data,
         `apply_widget_data`, i.e. the same `action_mode_now` gate (FAST / CONFIRM / ESCALATE) every
         model call goes through. Nothing new executes; something declared stops going unrun.
 
-    `require_order`: for the empty-turn site, only a turn the brief read as an ORDER or an ANSWER may
-    be completed — a comment or a complaint that happens to name an action («¿el siguiente es de la
-    NASA?» → `next`) must not move the player. The unresolved-call site skips the gate: the model had
-    already decided this was an order on this card. Returns the action fired, or "". Never raises.
+    `require_order`: for the empty-turn site, a turn the brief reads CONFIDENTLY as not aimed at the
+    screen is refused — see `NOT_AIMED_AT_THE_SCREEN`. The unresolved-call site skips the gate: the
+    model had already decided this was an order on this card. Returns the action fired, or "".
+    Never raises.
     """
     try:
         from nucleo.flash import turn_brief as _tb
         if require_order:
-            kind, _i = _tb.read(brief, _tb.REQUEST_KEY, "")
-            if kind not in ("order", "answer"):
-                return ""
+            kind, _info = _tb.read(brief, _tb.REQUEST_KEY, "")
+            if _info is None:
+                return ""                       # no answer at all → fail closed, as V2-754 promised
+            if kind in NOT_AIMED_AT_THE_SCREEN:
+                return ""                       # a CONFIDENT remark moves nothing (see the constant)
         wid, name = from_brief(brief)
         if not wid or not name:
             return ""

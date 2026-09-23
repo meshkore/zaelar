@@ -1301,6 +1301,15 @@ class NucleoLLMStream(llm.LLMStream):
                 emit("brain", "⚖️ el modelo y el veredicto discrepan — corre el modelo", role="system",
                      text=f"{_cd['card']}: modelo={action_name} · veredicto={_dis}",
                      extra={"cat": "flash", "id": _cd["card"], "model": action_name, "verdict": _dis})
+            # V2-756 — y lo que el modelo dejó VACÍO se rellena con sus palabras antes de que el widget lo
+            # rechace: «Pausa el vídeo. Vuelve al catálogo.» llamó a `show_tab` sin `tab` y volvió
+            # `unknown_tab`. Solo AÑADE una clave ausente, y solo por un alias declarado o un número dicho.
+            if (_fill := _direct_action.fill_missing(_cd["card"], action_name, res.payload,
+                                                     _bnotes.operator_half(text))):
+                res.payload.update(_fill)
+                emit("brain", "🧩 el modelo dejó la clave vacía — la rellenan sus palabras", role="system",
+                     text=f"{_cd['card']}:{action_name} {_fill}", extra={"cat": "flash", "id": _cd["card"],
+                     "action": action_name, "fill": _fill})
             _apply_widget_data(_cd["card"], action_name, res.payload, ref)
 
         _tool_fired: set = set()

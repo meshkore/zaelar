@@ -155,6 +155,17 @@ El formato y **el presupuesto** viven en `observability/evidence.py`, y sus regl
 - **Techo por evento, y `omitted`.** Si no caben todos, entran los primeros y se dice cuántos quedaron fuera. Un
   recorte silencioso es peor que el recorte: quien audita creería que eso era todo lo que había.
 
+- **Lo que el modelo TENÍA DELANTE no se omite** (V2-756). El registro forense del turno guarda el
+  system prompt por cabeza y cola (`voice/observer._prompt_excerpt`), y el centro —22,7 KB en un turno
+  normal— es justo donde `widgets/brief` escribe «items ahora (de lo ABIERTO)» con lo que hay en
+  pantalla: la banda numerada de la tarjeta abierta. Es la tercera vez que ese recorte cuesta un
+  diagnóstico, y la que lo hizo evidente fue una sesión en la que el modelo repitió la misma búsqueda de
+  vídeos tres turnos seguidos en vez de reproducir el número que le pedían: **el registro no podía decir
+  si tenía la lista delante**, y la respuesta hubo que reconstruirla a mano llamando a
+  `refs.prompt_digest` contra un almacén que ya había cambiado. Ahora ese bloque sobrevive al recorte,
+  acotado y con su propia marca. Regla general: **un recorte por posición asume que el centro es
+  relleno**, y en un prompt compuesto el centro es donde vive el estado.
+
 El mismo camino está en el **probe** (`nucleo/flash/probe.py`), que es una implementación paralela del turno: sin
 eso, auditar dependía de por dónde hubiera entrado la frase — el punto ciego exacto que esta capa existe para no
 tener.
