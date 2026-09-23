@@ -110,7 +110,11 @@ def test_dispatch_composes_prompt_with_memory_context(fresh_db, fake_backend, mo
     for _var in {e for t in _prov.KNOWN for e in t.get("env", ())}:
         monkeypatch.delenv(_var, raising=False)
 
-    task = dispatch.Task(id="t1", request="arregla el bug de arranque", kind="code", trusted=True)
+    # `confirmed` because V2-757 parks every `kind="code"` errand until the operator says yes — a card of
+    # his is not built or rewritten by a turn he did not aim at us. This test is about PROMPT COMPOSITION,
+    # so it starts from the state a confirmed errand is in; the gate itself has node 2.76.
+    task = dispatch.Task(id="t1", request="arregla el bug de arranque", kind="code", trusted=True,
+                         context={"confirmed": True})
     asyncio.run(dispatch.dispatch(task))
     b = fake_backend["last"]
     assert "arregla el bug de arranque" in b.seen_prompt    # the task enters the prompt

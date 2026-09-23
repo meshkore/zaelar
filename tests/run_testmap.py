@@ -3128,6 +3128,11 @@ DOMAINS: list[dict] = [
                                 "identidad que no habla de él tiene su propia pregunta",
             "ch": UNIT,
             "paths": ["tests/memory/unit/test_a_search_term_does_not_rename_the_assistant.py"]},
+        {"id": "2.76", "title": "Construir o reescribir una tarjeta suya SE LE PREGUNTA antes — y un id "
+                                "que no existe no se monta, una búsqueda se VE, la cola de una frase no "
+                                "es una orden, y el orbe se aparta de la pantalla completa",
+            "ch": UNIT,
+            "paths": ["tests/voice/unit/test_touching_a_card_of_his_is_asked_first.py"]},
         {"id": "2.75", "title": "Un número que ÉL ha dicho no es una invención — repetir una búsqueda no "
                                 "renumera su banda, «los tres últimos» borra tres, y un lector inseguro "
                                 "no veta a uno casi seguro",

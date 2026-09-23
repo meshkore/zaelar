@@ -9719,3 +9719,531 @@ one-line index behind in the live log. Nothing below was edited or summarized on
   real cascade, and the orb's painting identical either side of a speaker click) and **4.147** (unit: the
   real `isListening`). Three disarms red. Detail: the V2-648 initiative.
 
+## Moved on 2026-09-23 (V2-757)
+
+
+- **A question about what a widget HOLDS is answered by the widget (V2-668, 2026-09-11)**: session 53de97d4,
+  10:58:33 → 11:00:03. «¿a qué hora tengo la cita con Hacienda?» → «no la tengo con hora, solo que tienes que
+  ir próximamente» — while the agenda held `11:30–12:30 · Cita Agencia Tributaria` in ONE line. Six turns
+  later, after he opened the card BY HAND, the model said «hoy a las once y media» **calling no tool**: a
+  widget's interior only ever reached the prompt while the card was OPEN (`widgets/brief.py`, `if wid in
+  opened`), and NO tool read a closed one — `widget_data` EXECUTES a declared action, `recall` reads his
+  long-term memory («no es para datos del mundo»), `web_search` reads the world. A question about his own
+  widget's store had no route and was answered from a memory pill, a race the susurro itself filed
+  (`[P1·memoria] La memoria durable se inyecta DESPUÉS de responder`). His verdict: «si yo le tengo que
+  explicar cómo llegar a los datos, pierdo menos tiempo buscándolos yo». **`read_widget`
+  (`nucleo/flash/widget_read.py`) is the fourth door**, `recall`'s sibling in shape — a LIGHT two-pass route
+  resolved IN the turn, no card opened, no worker — reading through the seams the widgets already publish for
+  the prompt (`refs.prompt_digest` → `coach_context()` → `refs.items_line`), so every widget that can be
+  reasoned about while open can be asked about while closed; the second pass has the widget's content as its
+  ONLY source and states an absence rather than filling it (V2-210). It lives in the `memory` family, which
+  `tool_selection` never trims — that module's docstring already named this exact case («when is the vehicle
+  inspection appointment?») and pointed it at `recall`, the wrong store. `web_search`, `widget_data` and
+  `recall` now point at it for his own data. Both channels call the module (V2-252). Keyword routing was
+  measured and rejected: «¿a qué hora tengo la cita?» hits the CLOCK's keywords, not the agenda's. The 23 100
+  catalog ceiling — paid on every voice turn — was met by compacting nine descriptions, never raised. Node
+  **2.52**.
+
+- **An order NAMES its target, and a notice waits its turn (V2-666, 2026-09-11)**: the same session, three
+  rails each correct in intent and wrong on one sentence. **(1)** «ponme un gráfico de la evolución del
+  Bitcoin» → the model escalated, and the show guard STOLE it and opened YouTube with «Aquí lo tienes»:
+  `runtime.identify` returned the only OPEN card «by context» (score 0.0, zero candidates) and the guard read
+  that as a NAME — a blind open of whatever was on screen, the thing `identify`'s own docstring says it never
+  does. `identify_named()` (alias/name only, context breaks ties, never a fallback) is what a SHOW asks now, in
+  both channels; with no name and no antecedent the guard resolves to NOTHING and the escalation stands.
+  **(2)** «Mírame, ábreme la agenda inmediatamente» opened the SEARCH card: the article «la» is a bare deictic
+  token for `looks_like_bare_ref` (right about «cancélala»), so one article made the whole sentence
+  «muéstramelo»-shaped, the noun he actually said was discarded, and the fallback «the previous route was a web
+  search» chose for him. A sentence that NAMES its widget is never deictic — the name wins first. **(3)**
+  «¿a qué hora tengo la cita con Hacienda?» arrived BEHIND three `[SISTEMA]` notes about a dead Bitcoin task
+  (`text = "\n".join(notes) + "\n\n" + text`), two of them ordering «Díselo en ESTE turno», and the reply
+  opened «Primero, Ricardo, te debo una cosa pendiente…». The operator's rule is the inverse and it is the
+  rule of any assistant: the order is served first, the news waits until it is answered. `brain_notes.
+  compose_turn` puts his words FIRST and the notes AFTER under a header that says when they may be spoken; the
+  two writers now say «DESPUÉS de contestar». A model reads what comes first as the frame of its answer; the
+  frame is his. Node **4.160**. Named, not done: the arbiter (V2-653) VETOED the blank `results` card that
+  same turn (`show-drag`) and ALLOWED the YouTube blind open — still in shadow, and it cannot arbitrate the
+  second class until it consults `identify_named`.
+
+- **The generator's contract never contradicts its gate, and a red gate gets ONE repair (V2-667,
+  2026-09-11)**: «ha intentado preparar un widget, ha fallado varias veces, cosa que me preocupa; es un
+  widget muy sencillo, quizás ha fallado a la hora de obtener los datos». Not the data: two builds of a
+  Bitcoin chart died 17 minutes apart, ~3 min and ~1 $ each, on the SAME error — `data.py imports non-stdlib
+  'memory' (data.py must be stdlib-only)`. `generator.py::_CONTRACT` said both things in one block: the
+  `data.py` bullet «STDLIB ONLY», the BACKGROUND bullet «`from memory import api as memory; memory.write(…)`».
+  A price chart classifies itself as data that changes on its own → the agent followed the second line → the
+  gate (the stricter one) killed the widget after the money was spent. `widgets/AGENTS.md:88` had carried the
+  corrected form (`ctx.remember(...)` — «so data.py stays stdlib-only, no import memory») and
+  `background.TickCtx` is the sanctioned door; the prompt was left behind by that refactor, and it hid because
+  it fails late, expensively, and looks like the model's fault. Two changes: the contract agrees with the gate
+  (`tick(ctx=None)`, memory through `ctx`, the prohibition spelled out), and **`_repair_once`** — a freshly
+  built widget that fails the gate gets the gate's own error and one bounded edit in place before `_discard`;
+  a second failure reports the NEW error, what stood after the repair. Create path only; modify has its
+  rollback. Node **4.161**.
+
+- **A SEARCH is not irreversible, a confirmation never recites our tool prose, and a bare name is not an
+  errand (V2-665, 2026-09-11)**: the operator, with a screenshot — «sólo le he dicho que abra el widget de
+  vídeo y que me ponga un vídeo y me ha abierto el chat en la columna de la izquierda, me ha soltado mensajes
+  que creo que son de sistema en la interface del usuario, no ha puesto el vídeo… simplifiquemos todo esto y
+  arreglémoslo de una vez». **Three symptoms, ONE cause.** At 10:07:07 the model called `widget_data(youtube,
+  search)` and `actions.classify` answered CONFIRM, so the irreversible-action gate fired: V2-518 puts
+  confirmations in the chat (the column that opened), the question was composed from the action's `desc` —
+  text written FOR THE MODEL, which he read as «Ojo, esto es permanente: "BUSCAR vídeos para elegir: pinta
+  hasta n resultados NUMERADOS en el INICIO del widget…"» — and the overlay covered the card. **The video had
+  LOADED** (`videoId 16AhQaStWxg`, «Apolo 11: cómo fue la llegada del hombre a la Luna»), dimmed behind a
+  modal he could not get past; it is visible in his own screenshot. Why CONFIRM: `_IRREVERSIBLE_RE` matched
+  «manda» inside «…add_results los manda a la cola» — prose describing a SIBLING action, inside an action
+  declared `view: true`, which writes nothing at all. **The catalog audit is the finding**: across 15 widgets
+  the heuristic produced TWO hits, both false positives (`youtube:search`, `torrent:open` — both `view: true`,
+  both on «manda»), and ZERO true positives; all 15 genuine confirmations carry an explicit flag. Three fixes,
+  most general first: **(1) a `view` action can never be irreversible** — the flag means it only changes what
+  is displayed and «writes nothing the operator would have to undo and nothing outside the app» (the generator
+  contract, verbatim), so the two are mutually exclusive by definition and only the guess put them together;
+  an explicit `confirm: true` still wins. **(2) The heuristic reads the action's OWN clause**, not the usage
+  guidance after the first period — the same boundary `confirm_gate._human_confirm_question` already draws
+  when it quotes a desc, applied one level earlier, to the DECISION instead of to the sentence. **(3) A
+  confirmation carries the sentence he hears**: NINE of seventeen confirming actions had no `confirm_q`, so
+  reciting tool prose was the NORMAL path, not the rare one — the seven still bare now have one, and
+  `widgets/validator.py` refuses both a bare confirmation and the `view`+`confirm` contradiction, because a
+  rule each widget author has to remember is not a rule. **And the trigger**: that search came off a bare
+  «Johnny.» — the wake word alone, reaching the model with a memory pill about the video he had asked for the
+  night before, so it answered «Voy a buscar el vídeo del Apolo 11» and acted; six seconds later a second bare
+  «Johnny.» got «Dime, Ricardo.», which is the right answer. The most frequent utterance in wake-word mode was
+  non-deterministic and half the time it invented an errand. `presence.is_summons` makes it its own class
+  beside the presence knock (a leading interjection and a trailing courtesy allowed — they carry no request
+  either; anything else is a real turn), answered from the same honest pools with no model and no tool, in
+  BOTH channels (V2-252/V2-539). The engine's own susurro had filed it at 10:07:40: «[P2·routing] Una
+  locución de wake-up suelta se convierte en consulta de widget y en promesa de acción». Node **4.159** (21
+  cases, including the whole-catalog ratchet that keeps the heuristic from ever DECIDING again); five disarms,
+  mutations asserted, all red — and the `confirm_q` disarm also turns `make test-widgets` red, which is the
+  gate biting rather than a test agreeing with itself. Open and named in the initiative: the turn that loaded
+  the video returned `completion_chars: 0` and a susurro repair spoke 23 s later over work that had already
+  succeeded; the fragment accumulator DUPLICATED his sentence around the summons; and the shadow arbiter
+  vetoed both the correct load and the spurious search, so it still cannot arbitrate this class.
+  **V2-665b, same day, found by DRIVING the live engine rather than by reading**: «Johnny.» through the probe
+  still reached the model, because `fast_lane.presence` and `presence.mirror` both resolved his name with
+  `config.settings.get("assistant_name")` — **a key nobody writes**. A rename lands in MEMORY state and is
+  pushed into `voice.attention` by `memory_cache`; the settings file has held `None` the whole time. So this
+  is a defect OLDER than the batch that found it: the vocative strip that recognises «Johnny, ¿sigues ahí?»
+  as a knock has been dead for a renamed assistant since V2-640 shipped, and the summons check would have
+  been born dead the same way — **passing its own unit tests, because those handed the name in by hand**.
+  `presence.assistant_names()` is the single source now and asks the authority (`attention.wakewords()`, the
+  same list the gate itself consults: default + env + rename); both callers stop reading the settings file,
+  and `is_presence_check` strips every name it should, longest first. The node grew an end-to-end drive of the
+  REAL probe mirror, and its guard is anchored on the IMPORT rather than on the words — both files explain
+  this defect in prose, and a scan its own explanation trips is a scan that gets weakened instead of believed.
+  Sixth disarm red.
+
+- **An order about DATA is not an order about the CANVAS — and «me vas a poner el vídeo» is an order
+  (V2-664, 2026-09-11)**: the operator drove his own session and reported three things: the Apollo 11 video
+  never played, «borra los datos de la agenda» **closed every widget he had open**, and twenty seconds later
+  the YouTube card **reopened by itself, empty**. He then asked the question that shaped the batch — are the
+  GUARDRAILS failing, or the errand harness we have just been adding? **Session eedf7f9b contains ZERO
+  harness events**: no goal was born, no `false_claim` ran, nothing escalated. V2-660/661 did not fire once.
+  All three are rails, each correct in intent and wrong on one sentence.
+  **(1) The media grammar does not know how Spanish asks for a video.** «Bien, me vas a poner el vídeo del
+  Apolo 11 llegando a la luna» → the model DID call `play_video(query="Apolo 11 llegando a la luna")` and
+  `canvas_license.video_license` ate it as context-bleed: the pattern spells out the infinitive of every verb
+  it knows (cargar, buscar, reproducir, abrir, cambiar, repetir) except the commonest one —
+  `pon(?:me|te|le|lo|la|gas?|ed)?` **cannot reach «poner»**, because after «pon» come word characters and the
+  `\b` fails. The periphrastic form («me vas a poner…», «¿puedes ponerme…?») is how a person actually asks,
+  and it was the one shape the guard could not see; the turn ended promising «Y ahora te pongo el vídeo del
+  Apolo 11» over a player that never loaded. Fixed by adding the infinitive/gerund/future stems (plus
+  `mostrar`/`ensenar`, missing for the same reason); V2-635's participle rule is untouched. Second-order and
+  worth recording: the veto marks the turn `deduped`, so the promise backstop stayed quiet over it too.
+  **(2) A bare quantifier is not the canvas until it says so.** `hard_interrupt` fired close-ALL on *(a close
+  verb ANYWHERE) AND (a quantifier ANYWHERE)* — his sentence carries «quita» in one clause and «todas esas
+  entradas» fifteen words later in ANOTHER, so an order to delete ROWS INSIDE the agenda wiped the desktop,
+  twice (the glued fragments re-fired it). The rule is now structural and needs no lexicon of intentions —
+  grammar, never intent (V2-095): look at what the quantifier **governs**. Nothing («cierra todo»), a
+  particle («ciéralo todo ya») or a card noun («todos los widgets») is the canvas; any other noun («todas
+  esas entradas», «todos los datos») is a thing inside a widget. Implemented in BOTH copies, because the
+  decision genuinely exists twice (`voice/attention.py::_quantifies_the_canvas` and the client fast lane's
+  `quantifiesTheCanvas` — V2-252/V2-555, with a test reading both). V2-600's fullscreen veto and V2-584's
+  stop-object rule are untouched.
+  **(3) The fail-open release was driving the canvas.** V2-647 holds a spoken turn until the gate rules and
+  fails open after `HOLD_MS`, on the stated rationale that *showing an ambient line is a nuisance, swallowing
+  a real one is the bug*. Two things were wrong: **2.5 s is shorter than the verdict it waits for** (the
+  accumulator holds an unfinished sentence for as long as he keeps talking — his verdict landed 2.86 s after
+  the first held fragment, so the hold was in practice not holding), and **the release delivered BOTH
+  halves**. At 09:40:24 it fired 0.36 s before the verdict while he was describing this very failure out loud
+  («…que ha sido poner un vídeo…», every fragment correctly ruled AMBIENT) and the fast lane opened the card
+  he had closed. The two halves are not equally reversible: `deliver(text, isFinal, judged)` now carries
+  whether a verdict actually ruled directed, the CHAT still fails open, and the CANVAS never does.
+  Nodes **3.36** and **4.158** (the client half drives the REAL `voiceCommands.js`), plus five new groups on
+  4.145. **Six disarms, each mutation asserted before measuring, all red.** ⚠️ 4.158's own trap: the fast lane
+  dedupes an identical action signature for 2.5 s, so two `closeAll` cases in a row measure the DEDUPE and not
+  the rule. ⚠️ Renumbered at closure: the concurrent session had already PUSHED the two numbers below this
+  one, and what is pushed wins — the initiative file is created when the number is TAKEN, not at the end. **NOT verified live**: needs an engine restart and a page reload. Open and named in the
+  initiative: four duplicate «dentista» crons injected as four identical notes into one turn, and the product
+  question of a reminder riding the turn it interrupts (V2-607's design, his call).
+
+- **The window measures SILENCE, not speech — and a text the agent produces is FILED in the library
+  (V2-661, 2026-09-11)**: «prioridad absoluta: le digo la palabra, hablo de forma continua sin pausas de 3 o
+  5 segundos, y me desactiva el micro — se apaga el color del orbe y yo no he terminado la frase». Session
+  1cdcb08e, 00:46: with the window open he spoke for **47 s** with no gap over 1.1 s — eleven VAD rising
+  edges, the STT holding the sentence as «frase a medias», no verdict possible mid-sentence — and the whole
+  sentence was judged AMBIENT at :52. V2-660 had made the window measure from the speech ONSET, but every
+  rising edge re-stamped that onset, so the sentence was measured from its LAST breath, 33 s after the
+  anchor: the fix for «judged at the end» had moved the reference to the wrong start. The ring died 5 s in,
+  because its client timer only knows the last DIRECTED verdict. His rule (V2-655): three or four seconds
+  **of silence**. Now an utterance is a CHAIN of VAD segments: `note_speech_onset` keeps the chain's first
+  onset when a rising edge follows the falling edge (`note_speech_end`, new) by less than the window;
+  `note_directed` moves the onset ONTO the anchor when a fragment's verdict lands while he is still talking;
+  `_window_ref`/`window_open` answer `now` once his voice stopped and the silence outlasted the window; a
+  180 s cap bounds a missed falling edge. Both VAD events carry `edge: on|off` and `sse.js` holds a LIT ring
+  while his voice is active, re-arming a full window when it stops — never lighting one from off. **The
+  file**: «¿has guardado la declaración en mis archivos?» → the worker fetched and verified the text and
+  wrote a perfect `.md` into `widgets/_data/navegador/` — the browser task's directory, the only path it had
+  ever been told — then saw the `archivos` shelf empty and spent three minutes trying to download a PDF.
+  Resource, not reasoning: `library/index.save_text` (one safe leaf, `.md` when the name has no document
+  extension, collisions suffixed), `archivos.save_document {name,text}` (lands the card on the shelf with the
+  file selected, returns `where` + absolute `path`), `documento.save_to_library` (the text ON SCREEN becomes a
+  file — one data-op, no worker), and `dispatch_prompts.library_block()` appended to every trusted worker
+  prompt: the root, the shelves, the filing action, and the wrong place it actually wrote to. Nodes **3.34**
+  and **4.154**; four disarms, mutations asserted, all red. A sibling session owns the other half of that
+  night (`reveal_local_file`: a double-click must not download a second copy). ⚠️ The ring holding through a
+  long sentence is NOT verified live yet.
+
+- **The errand HARNESS closes the circle, and the window measures silence from speech ONSET (V2-660,
+  2026-09-11)**: the operator's directive — «cuando obtiene permiso para realizar una acción falta terminar
+  de cerrar el círculo… un arnés dinámico que comprueba que lo pedido se ha conseguido y solo entonces se
+  informa». Session 0141a72a, two defects in one minute. **(1)** «Johnny.» opened a 5 s window; he began
+  «Enséñame la declaración…» 2 s later and the STT finalized it 6 s later — judged at the END it fell
+  outside the window and three directed turns became room noise. The window measures his SILENCE, which
+  ends when he opens his mouth: `attention.note_speech_onset()` (VAD rising edge, `pipeline/agent.py`) and
+  `_window_ref()` measure against the onset when it fell inside the standing window (a stale onset older
+  than the anchor grants nothing). **(2)** After his «Adelante» the model said «aquí tienes el texto
+  completo…» having run ONE web_search — `documento` open and EMPTY — and nothing compared the claim with
+  the screen: `promise_backstop` reads promises, not completion claims; `_no_tool` was False because the
+  search fired; the susurro caught it 40 s later. **`nucleo/harness.py`**: a ledger of GOALS `(kind,
+  target, his words)` born from what the turn TOUCHED (every card shown, incl. the promise-backstop show),
+  verified by readers of the product's own truth (the widget's `view_data()` `empty` flag + the open-cards
+  state; a widget that does not declare emptiness → unverifiable, and the harness stays SILENT — a wrong
+  «you did not deliver» over a delivered card is worse than none). Three seams: turn end in BOTH channels
+  (`claims_done` over an unmet goal with no data-op this turn — the V2-603 fire-and-forget race is trusted
+  — → the honest follow-up is spoken, V2-572 shape, and the errand escalates with the doc surface quoting
+  his words); the prompt's live state (an open goal is a FACT with its RULE, V2-453); the loop heartbeat
+  (met goals close with an event — no second mouth, the delivery announced itself). Typed by the WIDGET
+  touched, never by an errand's words — the doctrine's word-swap test holds. F2-F4 named in the initiative:
+  widget-declared verifiers (his CRITERIA, the language), worker goals closed by delivery events, bounded
+  iteration, and the clarifying-question hinge (a «¿te refieres a X?» + yes should bind to the original
+  request; `dispatch_confirm` parks only PERMISSION questions). Node **3.33** (18 cases); five disarms,
+  mutations asserted, all red. ⚠️ NOT verified live end-to-end.
+
+- **A widget_data cut by the TOKEN CAP escalates with the doc surface instead of apologizing (V2-658,
+  2026-09-10)**: «le he dicho un documento y no lo ha hecho» — measured twice in consecutive sessions
+  (the Declaration of Independence): the model opened an EMPTY `documento`, promised twice, finally
+  pasted the FULL text inline into ONE `widget_data` → `finish_reason: length`, the action was
+  discarded (V2-171's recording worked), and the turn fell to the mute backstop's «Perdona, ¿me lo
+  repites?» over an errand it had in hand. Content that exceeds a voice turn is a WORKER's delivery
+  (V2-644's doc surface), never an inline retry: `_drop_tool_call` records **`args_head`** (the head of
+  what the model was writing — the operator's bare turn text at the incident was «Venga, estoy
+  esperando.», useless as an errand), `oversized_widget_write()` names exactly the token-capped
+  `widget_data` class (the other two drop classes are different faults, V2-566, and are NOT escalated),
+  and both channels rescue: the voice provider escalates the request with `surface=documento` BEFORE
+  the holding line so the turn speaks it, the probe synthesizes the same `escalate_to_slowbrain` before
+  action classification. The `documento` manifest teaches the rule (costs prompt only with the card
+  open — exactly the failing state). The same session live-verified V2-657: ~90 s of wedding room talk,
+  zero responses. Node **3.32**; four disarms, mutations asserted, all red. ⚠️ NOT verified live
+  end-to-end (needs a real worker run).
+
+- **The conversation can DIE during table talk: the aside, the spoken shut-up, and the honest provider
+  label (V2-657, 2026-09-10)**: the operator's dinner session (130418ed), read event by event. With a
+  window open, every table utterance was admitted `active_window` (V2-531: inside a live window nobody
+  judges), the model ANSWERED the room («Acostaros» → «Buenas noches, Ricardo»; «Luis, disfrutemos de
+  las noticias…» → a clarifying question; «¿Mi copa de vino?» → a hallucinated denial), and both the
+  admission (`note_directed`) and the answer's falling edge (V2-655) re-anchored the 5 s window — the
+  conversation structurally could not die while anybody talked near the mic, until «¿Por qué sigues
+  escuchando? Maldita sea, cállate. Apaga.» and the ⏻ by hand (killing a live worker with it). Three
+  mechanisms: **(1) `[[aparte]]`** — the model's SANCTIONED silence for a turn clearly addressed to
+  somebody else present (rule rides the wake-word block of `style_directive.prompt_lines`; ante la
+  mínima duda, contesta): the channel marks the turn handled (never on TYPED, V2-646), skips the hollow
+  repairs (a sanctioned silence is not a hole for V2-642's closer to fill), and
+  **`attention.retract_last_directed()`** rolls back exactly that admission's window refresh — refusing
+  once anything newer re-anchored, because deafness is the worse failure (V2-655); the window then
+  expires from the operator's own last word. Probe mirrors the backstop skip. **(2) A spoken SHUT-UP
+  order** («cállate», «silencio», «deja de escuchar»; per-sentence, vocative-stripped, interjections
+  admitted — the session's literal «Maldita sea, cállate.») is an ATTENTION order resolved at the gate
+  BEFORE any model: `attention.close_window()` (shared `_wipe_window()` with the V2-656 mode flip, same
+  `orb:attention` emit) and the turn is swallowed — answering it would re-anchor the window it ordered
+  shut. «apaga/apágate» deliberately stay out: they name the power or a device. **(3) The provider
+  LABEL derives from the endpoint** (`model_spec._provider_label`; `ollama` honoured — it IS routing):
+  that session's every brain event said `engine: aimlapi` while every request went to
+  `api.deepseek.com`, and the stale label had been resurrected at 21:59 by the remote PROFILE, whose
+  `fast` section still declared the broker under a rationale that stopped being true when the cloud
+  moved to DeepSeek direct — profile aligned to the canonical table titular, with a test measuring it
+  AGAINST the table. Node **3.31**; six disarms, mutations asserted, all red — one came back GREEN
+  first because the wiring guard's anchor also matched the second occurrence of the same expression
+  (the V2-571 lesson, paid again; re-anchored on the unique `or (` shape). ⚠️ NOT verified live —
+  needs an engine restart. Open, named: a filler can still sound over an aside turn (the addressee is
+  only known post-model until V2-651 F1), and «apaga» by voice reaches no power switch on purpose.
+
+- **A bare boot loads the PRODUCT, a dead session is VISIBLE and recycles, the ◉ reads the speaker side,
+  and no conversational pause exceeds 5s (V2-656, 2026-09-10)**: the operator's integrity review after an
+  evening lost to a restart without `BRAIN=nucleo` — the profile default handed the AgentSession the raw
+  broker plugin (no FlashBrain, no memory, no relay), the fundless provider 403'd every turn, LiveKit
+  closed the session as unrecoverable at 38 s, and the ◉ said «Todo bien» while he talked to a grey orb.
+  **(1)** Both profiles default `llm` to `nucleo` (`profile.py`) — baselines stay one env var away; booting
+  the real product never again depends on remembering one. **(2)** A close-with-error records
+  `health_state("voice","dead")`, alerts the timeline, and asks `homeostasis.request_recycle()` (new seam
+  `_consume_recycle_request`: honoured next beat, survives the cooldown, never loops); the `/api/status`
+  voice row goes RED and `StatusPanel.js` stops overwriting a server-side error with the browser's green —
+  the browser's room stays connected when the server session dies, so it structurally cannot see this
+  failure. **(3)** `voiceStatus` says the two silent «no me habla» causes (blocked playback, the 🔊 mute);
+  `server/system_audio.py` reads the MACHINE's output (macOS osascript, cached): volume 0 / muted → warn,
+  and an unmeasured OS gets NO row, never a fake green. A genuinely dead ElevenLabs key reddens the TTS
+  row via the balance probe; a key that 401s only `user_read` records nothing — measured first: the
+  operator's scoped key serves TTS fine. **(4)** The broker left every DEFAULT path (profile default gone;
+  the stale `fast.provider` label removed from the operator's v2.json → the canonical table's DeepSeek
+  titular governs). **(5)** Operator directive superseding 2026-09-09's ceiling: **no pause over 5 s** —
+  `attention_window.MAX_S`=5 (the shape scale stays, every rung clamps), and `window_s()` clamps AFTER the
+  env override in smart mode, because the ⚙ knob offered 15-120 s and an old stored value would have
+  silently defeated the rule (options now 3/4/5). Livable because V2-655 anchors at the agent's LAST word.
+  **(6)** A mode FLIP closes the standing window NOW (`attention.on_mode_change`, called from the single
+  `settings.update()` seam only on a REAL change — a bulk save re-sending the same mode wipes nothing) and
+  announces `orb:attention`, where `sse.js` now also darkens the ring: he measured 20+ s of orange after
+  activating wake-word mode, riding out a window opened under the previous mode. Node **9.3** + additions
+  to 9.1 and the attention suite; four disarms, mutations asserted, all red. ⚠️ NOT verified live: the
+  3-second ring darken and a recycle after a real death.
+
+- **IF IT TALKS TO YOU IT LISTENS TO YOU · the core is not modifiable · ⏻ stopped resumes nothing
+  (V2-655, 2026-09-10)**: the operator, on the forensics of session 85eec898 — «arregla todo eso, no
+  podemos permitir la sordera». Three defects, one shape: every piece does something correct and the
+  SUM fails in silence.
+  **A · THE DEAFNESS.** Sixteen of his turns in a row classified `🙉 ambiente`, «¿Qué te ha pasado?
+  ¿Te has colgado?» and «Hola otra vez ×3» among them — 44% of that session. The window opened at
+  16:31:55 sized 15 s and expired at 16:32:10 while the agent was still working; it then spoke for
+  **90 seconds** and ended with «¿Sigo?», and the answer two seconds after its last word was room
+  noise. Structural, not a classifier miss: `note_bot_speech` could only HOLD a window somebody else
+  opened, so **the agent's own mouth could never grant attention** and the silence clock ran down
+  during its own monologue — with the irony that a proactive delivery DOES reach `note_reply`, so one
+  ending in `?` computed a 15 s `window_hint` for a window nobody opened. `attention.
+  note_addressed_speech()` now ARMS the window before the agent speaks and the falling edge ANCHORS it
+  at the LAST word (arming and not anchoring is the whole point: anchoring at the first word of a 90 s
+  delivery IS the bug); `proactive.notify(opens_window=True)` by default, because that is what a
+  proactive delivery IS. **The kickoff stays closed** — the written decision was always about the
+  GREETING, and the guard was re-scoped to say that rather than weakened. `loop.py` stopped opening the
+  window BEFORE its own 10-20 s of TTS. And **ambient sound does not touch the counters** (his rule,
+  verbatim): `sse.js` did `else store.clearAttentionHit()`, so **a stray word from the room turned off
+  his «te escucho» ring** while the engine's window was wide open — the client contradicting the engine
+  about the one thing the ring reports; both verdicts carry `window_open` now, the ring darkens only
+  when the engine says the window closed, and never re-arms a ring already lit. **Deliberately NOT
+  done**: widening the gate (the 09:24 session has 603 discarded turns and ZERO directed, with nobody
+  ever saying the name — that is V2-647 working), and any new signal (his call: ambient is ignored,
+  full stop).
+  **B · THE CORE IS NOT MODIFIABLE.** His directive: voice, chat or any interface with permissions may
+  only modify WIDGETS. A message he pasted into the chat, written for a DEV agent, became an errand to
+  a `claude_code` worker **in the same second** the model asked «¿Me pongo?»; the only thing that
+  stopped it was the SPEND gate, and `danger.py` is money/commerce vocabulary with **not one word about
+  touching the engine** — a coincidence, not a control. The protection that seemed to exist was
+  accidental: the `architect` branch is also `kind="code"` WITHOUT being a widget task, and that one
+  does not go through the confined generator — a CLI worker with `Write`+`Edit` and **the whole
+  repository as cwd**, reachable by voice. `nucleo/protected_core.py`, two layers: MECHANISM
+  (`writes_are_confined` — the question is the ERRAND, not the kind; only the widget generator and the
+  cluster dev worker write, everything else gets a scratch cwd and no Write/Edit; fails CLOSED) and
+  INTENT (`touches_the_engine` — grammar, never intent, exempted when the sentence names a widget,
+  applied at the SINGLE gateway so the errand never comes to exist: no record, no sheet, no name; the
+  refusal is spoken and lands on the timeline, because refusing in silence reads as a fault). **No
+  `confirmed` escape hatch**: the spend gate is lifted by a yes, this one is not. ⚠️ Measured while
+  writing it: the Spanish SUBJUNCTIVE slipped through — `modific\w*` does not match «modifiques»
+  (modifi-QUE-s), so «quiero que modifiques el motor de voz» passed clean; prefixes cut before the
+  alternation now. 10 vetoes + 12 legitimate errands, 0 failures both ways. The cluster `dev` channel
+  stays outside on purpose and says so.
+  **C · ⏻ STOPPED.** With `{"state":"stopped","src":"operator"}` persisted, boot resurrected a stale
+  errand and spawned a GLM Brain Worker; `rehydrate.py` consulted the switch in NO line. The gate goes
+  at the TOP, before `forget()` consumes the trail and `_bump()` burns a `RESUME_CAP` life — gating six
+  seconds later at the dispatch door rejects correctly and **destroys the interrupted work in
+  silence**, the very failure that module exists to prevent (*postpone, don't lose*, the rule
+  `loop._fire_due` already applies to crons). `runstate.blocks_new_work()` is the ONE answer for the
+  three spending doors and **fails CLOSED**: all three carried their own try/except and **all three
+  failed OPEN**, so an unreadable switch meant «go ahead and spend» (the asymmetry with `stopped()` is
+  deliberate and written down). Second door found and closed: `resume_interrupted_generations` relaunches
+  a real `claude -p` and was gated by neither the switch nor the active brain.
+  **D · A QUESTION IS NOT THEATRE.** `clarifying.asks_permission` is a NEW grammar and deliberately not
+  the existing `asks_for_missing_detail`, which is about a missing DATUM and keeps courtesy OUT; the
+  distinguishing feature is what the question is about — STARTING («¿me pongo?») versus REPORTING LATER
+  («¿te aviso cuando lo tenga?»). The errand is PARKED in `dispatch_confirm`, which already collects the
+  yes/no deterministically, tells the brain something is stopped so it does not narrate progress, and
+  expires silence into «esa tarea NUNCA empezó» rather than into execution; the line says OFFERED, never
+  IRREVERSIBLE. Fails CLOSED. ⚠️ A disarm came back GREEN and accused the CODE: the courtesy veto guarded
+  NOTHING («te aviso» was never a permission phrase) and would have vetoed «¿te lo busco y te aviso
+  cuando lo tenga?», which IS asking — **a guard that guards nothing is worse than none**, deleted.
+  Nodes **3.27-3.30**, 16 disarms with each mutation asserted. The architecture ratchet went red three
+  times and was paid by EXTRACTING (the attention gate → `attention_turn.py`, nucleo.py 3049→3033),
+  never by raising a ceiling. ⚠️ **NOT verified live** — needs an engine restart.
+
+- **THE MICROPHONE SWITCH has ONE door, and it is not the wake-word mode (V2-654, 2026-09-10)**: the
+  operator, reading the forensics of session 85eec898 — «cuando yo desactivo el icono, ese estado es
+  TOTAL … el estado se debe controlar en un solo sitio y controla todo el sistema. No puede fallar
+  nunca.» He was right and it was worse than it looked: `store.micMuted` + `hb_mic_muted` had **SIX
+  writers and four of them only painted an icon** — the boot probe on both shells, the ⏻ power button on
+  both shells, the mobile dock, the server-stopped branch — because `applyMic()` was not on their path;
+  and there was **no fourth thing to move at all**, since the engine had no notion of a microphone
+  switch, so a correct client could not be checked and a wrong one could not be caught. Measured: the
+  icon read CLOSED while the track published, the engine transcribed him for seven minutes and escalated
+  an errand off what it heard. The mobile file's own comment already NAMED the failure («the phone would
+  paint itself off with the mic open — the state that lies, again») and the line under it still only
+  painted. Two secondary faults in the same path: `setMicrophoneEnabled` returns a PROMISE whose
+  rejection a synchronous `catch` cannot see (a failed publish change was a silent divergence), and
+  nothing re-asserted after a republished track. **`frontend/app/services/mic.js` is THE door**: one
+  write moves the SIGNAL, the STORAGE, the live TRACK and the ENGINE (`POST /api/mic`), with the
+  transport injected by whichever session engine is live and **registering APPLYING** (the reconnect
+  hole). **`voice/mic_input.py` is THE holder**, and its `blocks_turn()` is consulted in the turn path
+  ABOVE the attention gate: a closed mic reaches no model, no tool, no widget, no memory, no errand.
+  Failure directions are deliberate and asymmetric — **muted is STICKY** (a client that mutes then dies
+  leaves the engine muted, the safe side) and **the boot default is OPEN** (a stale client must never
+  leave the agent deaf forever — deafness is the OTHER failure that same session paid for, 16 turns
+  discarded in a row); the **session heartbeat re-asserts every ~4 s**, so a divergence in either
+  direction self-corrects without anyone remembering to, and `muted` stays OPTIONAL on the beat so an
+  older client beats as before. **NOT the attention mode, and neither may be written in terms of the
+  other** (operator's clarification mid-build): the 🤖 wake-word mode is what makes a permanently open
+  microphone livable — audio arrives, is transcribed, and `attention.py` decides turn by turn what was
+  addressed to us — and **those rules are untouched**; a hard close is consulted first and **no wake word
+  lifts it**, lifting the close **changes no attention state**, and a swallowed turn never reaches
+  `note_directed()`. The one exemption is the TYPED turn, because muting in order to type IS the use
+  case: consumed **one-shot** (`attention.consume_typed`, beside the window-based `was_typed` the mute
+  backstop owns), never on a time window — with a window, typing and then speaking walks the spoken turn
+  straight through the closed switch. It is deliberately **not a privacy boundary against the browser**:
+  a live track still reaches STT and the transcript still lands in observability, because that transcript
+  is the EVIDENCE of a divergence and hiding it is what made this cost seven minutes to see. Nodes
+  **3.26** (engine) and **4.152** (the frontend RATCHET — nobody writes the mic state outside the door,
+  nobody touches the track outside a session engine; the incident was not a broken function, it was six
+  writers of one state, and *a rule each caller has to remember is not a rule*). Nine disarms, each
+  mutation asserted, all red. The architecture ratchet went red mid-build and was paid by EXTRACTING the
+  rule to `mic_input` rather than raising the ceiling. ⚠️ **NOT verified live** — needs an engine restart
+  and a page reload.
+
+- **The CANVAS ARBITER — one decision tree for every widget mutation, shadow first (V2-653 F0,
+  2026-09-10)**: the operator's structural verdict after 30 days of widget incidents — «cada vez que
+  hago una prueba me falla por un lado o por otro… un catálogo de <15 widgets: un sistema de puertas
+  lógicas podría manejarlo; los usuarios van a forkear widgets, el sistema tiene que ser
+  estructuralmente sólido; decisión piramidal, pocas opciones por nivel» — and this pass's own census
+  agrees: ~8 doors mutate the canvas, ~13 guards veto a posteriori across ~10 modules and 2 channels,
+  each correct and measured, and the SUM is a blacklist that never converges (every session finds the
+  next gap) whose pieces now collide (the V2-652 silent tail = two correct guards interacting).
+  `nucleo/canvas_arbiter.py` inverts the posture: every mutation is judged by ONE pyramidal tree
+  needing TWO credentials — PROVENANCE (closed set: user/system/worker:tid/actionmap/flash/backstop;
+  an unknown src or op inherits NOBODY's pass) and a LICENSE (the operator's words in THIS turn, a
+  task that owns the surface, or his own hands). The proven guard modules are the tree's LEAVES
+  (`canvas_license`, `close_guards`, manifest-driven `producers`/`actions.is_view`/`runtime.identify`),
+  so a user-forked widget inherits the rails from its OWN manifest with zero code of ours.
+  **F0 is SHADOW, deliberately** (the V2-651 pattern): `decide()` is enforced nowhere; ONE tap in
+  `observer.emit` — the funnel every canvas command already travels as a `widget` event with `src`
+  (V2-039), every turn as a `transcript`, every gate ruling as an `ambient` — assembles context and
+  emits `kind="arbiter"` verdicts (allow/veto · rule · evidence; `_CAT` family `widget`; kill-switch
+  `ZAELAR_ARBITER_SHADOW=0`; re-entrancy-guarded, fail-open). `data:*` order logs now CARRY their
+  payload, so `payload-in-turn` is judged precisely. **The conformance suite is the month replayed**:
+  V2-567 (a close order licenses no show), V2-605, V2-635 (insults close nothing; pausing is not
+  fullscreen), V2-650 (a replayed play order is an order; the dentist duplicate stays dead), V2-650b
+  (chatter reopens nothing), V2-652 (the drag turn), ambient credit, backstop duplication — node
+  **3.25**, all green against `decide()` first try. Its own first run found `op=None` walking out as
+  `lifecycle` (op vocabulary validated BEFORE the provenance ladder now), and a carrier disarm came
+  back green TWICE (the tap test hands in its own dict; then the fix's regex died on the first paren
+  and failed on GOOD code, masked by a pipe eating pytest's exit code — measure both directions, with
+  pipefail). **Gate F0→F1, the operator's condition**: ZERO false vetoes over his real sessions,
+  audited from the shadow verdicts. Then F1 arms data-ops at `widgets/server_api._dispatch` (verdict
+  travels as a ticket via `provenance`), F2 funnels the ~15 scattered `emit("widget","show"/"close")`
+  sites through `arbiter.command()`, F3 RETIRES each absorbed guard (dedupe cross-turn, `show_
+  contradicts_the_order`, the probe's duplicated wiring) with its disarm inverted — the system ends
+  with FEWER pieces. Census, tree diagram and full plan: the V2-653 initiative.
+
+- **An internal message never reaches the operator's ears, a cover matches the order, and the agenda
+  never invents an hour (V2-652, 2026-09-10)**: the operator's manual session (7f77e2cc, «pide cita
+  previa en Hacienda»), read event by event — five defect classes, four closed here. **(1)** `add_meeting`'s
+  retry instruction («vuelve a llamar a add_meeting con el título, el día (YYYY-MM-DD)…») was SPOKEN aloud
+  and painted into the chat as zaelar's own words, twice: `data_ops.report_failure` (V2-603) voiced
+  `message or error`, and `error` is often literally addressed to the MODEL. Now only `message` (the
+  speakable sentence, the V2-463/V2-650b convention) is voiced; a bare `error` still corrects the model
+  through the [SISTEMA] note but never becomes agent speech — and the agenda's empty-add refusal carries
+  both keys. **(2)** «…Añade en la agenda mañana una cita» was covered with «Un momento, que lo busco…» and
+  the complaint «Te he dicho que hagas una acción sobre la agenda» with «Déjame que lo mire…»:
+  `filler_kind` now judges per SENTENCE with the leading vocative stripped (the order lives in the LAST
+  sentence of a spoken turn), `_ACTION_VERB_RE` knows the data-write verbs (añade/apunta/anota/recuérdame…,
+  es+en), `_SOCIAL_RE` knows complaint shapes, and an explicit imperative outranks the complaint beside it.
+  **(3)** The «17:00» item he read as us copying his «reunión a las cinco» was `add_meeting`'s own
+  `default="17:00"` over the promise backstop's hour-less write: a missing hour is a FACT — no hour → an
+  all-day entry, and a timed add of the same day+title SETTLES that twin in place (one row, the dictated
+  hour) instead of standing beside it («dos ítems»). **(4)** The errand escalated onto `lista` and the
+  worker delivered a booking as a comparison sheet of non-options: the escalation `surface` gloss now
+  teaches that a GESTIÓN (reservar, pedir cita, tramitar) is voz — delivered DONE, never a list — paid
+  under the shared catalog ceiling by compacting the same tool. **(5a)** The worker typed the placeholder
+  NIF «12345678Z» into Hacienda's REAL form twice and ground the census-validation modal for minutes: the
+  web prompt's RECON/ASK discipline now says recon ENDS at a validated personal field — ask
+  (`worker_bridge ask`) or deliver the blocker naming the datum, never retry with invented values. Nodes
+  5.15 / 2.50-family files / 4.6 / 4.151; nine disarms, mutations asserted, all red — one came back GREEN
+  first because its strip anchor matched an earlier «bucle» in the file and nothing had mutated (assert the
+  mutation before measuring, paid again), and the V2-650 checkout-over-uncommitted-fix trap was paid once
+  more before switching to commit-before-disarm. **Open, named in the initiative**: the SILENT TAIL (ten
+  consecutive zero-char replies while the dedupe swallowed a context-bled add_meeting — a spoken DIRECTED
+  deduped turn still counts «handled», V2-646's rule is typed-only), «Quítalo inmediatamente» never
+  reaching `cancel_meeting`, Flash reframing a booking as research in the escalation brief, and showing
+  the worker's browser for a voz-surface errand.
+
+- **Knowing WHO is talking — the browser computes it, F0 measures in shadow (V2-651 F0, 2026-09-10)**:
+  the operator's order — identify HIS voice and give it priority (which is also what lets Zaelar follow him
+  over a TV: a TV voice is a human voice, only the voiceprint separates it), know that other people are
+  present without profiling them, and NEVER let a third party's «yo soy Pedro» rename him or dirty his
+  single profile. Architectural directive: **the browser carries the cost** — in cloud the backend is on the
+  server and the browser on the client's laptop, so the fingerprint is computed CLIENT-SIDE and only a tiny
+  label would cross the wire, never the audio-to-analyze (local self-host is one machine, so the split is
+  free). This ships **F0 only: shadow measurement, ZERO behaviour change.** `frontend/app/lib/speaker-id.js`
+  is a pure DSP core (autocorrelation pitch + spectral centroid + loudness, unit-tested with synthetic
+  frames) plus a thin `SpeakerID` AnalyserNode adapter that self-segments (its own energy gate — the LiveKit
+  engine gives the browser no VAD signal), auto-enrolls the operator's first speech segments, and classifies
+  every later segment against a MAP of profiles (`classify`) — operator today, household voices tomorrow, an
+  ONNX embedding (CAM++/onnxruntime-web) later behind the SAME interface, all without changing this file.
+  `session-lk.js` runs it in a best-effort rAF started after `audio.initMic` and stopped in `stop()`, logging
+  each verdict (label · score · operator score · pitch/centroid/rms) through the EXISTING `api.clientLog` seam
+  into observability — nothing gated, no memory written, killable with `?nospk=1` / `zaelar_spk_shadow=0`.
+  Its whole job is to produce the separability numbers on the operator's real mic/room BEFORE any later phase
+  thresholds against it (measure, don't deduce). Node **4.150** (8 groups); five disarms verified red.
+  **A review pass the same day found three real defects in this very build, all fixed here**: (1) the coarse
+  vote is unusable as a measurement — `matchScore` is a 3-criteria vote, and measured across 60 distinct
+  synthetic voices it returns exactly THREE distinct values, so every verdict now also carries `distancesTo`,
+  a CONTINUOUS per-feature z-distance (that is what F1's threshold gets chosen from); (2) the agent's OWN TTS
+  comes back through the mic and could be auto-enrolled AS the operator, poisoning the measurement — a
+  `suppressed()` predicate wired to `store.botSpeaking()` now discards anything in flight and fingerprints
+  nothing while zaelar talks; (3) TWO wiring assertions were weak in the same way — `_stopSpeakerShadow()`
+  also matched the function DEFINITION, and the start-ordering check merely asserted two independent
+  substrings existed, staying GREEN with the lines swapped — both re-anchored on the real call sites and
+  re-disarmed. Measured cost: `pitchOf` is 0.91 ms/frame ⇒ ~27 ms/s ≈ **2.7% of one core**, only while speech
+  is active.
+  ⚠️ **NOT verified live**: the real mic tap and the fingerprint's accuracy in a room need the operator's
+  engine — F0 exists precisely to gather that. Next, per the study: F1 identity shield (operator-voice-only
+  writes to identity/state, closing the empty-profile and correction-bypass holes), F2 the «environment
+  people» roster + a compact per-turn presence line the FlashBrain manages cheaply (no per-turn prompt/traffic
+  cost when nobody else is there), F3 the opt-in hard voice-lock. **Mechanism, limits and how to read the
+  shadow log: `.meshkore/docs/modules/zaelar-speaker-identity.md`** (the phase plan lives in the initiative,
+  which is not published). One measured interaction named there and load-bearing for F1: `attention.py`'s
+  active-conversation shortcut (V2-531) means that INSIDE a live window nothing is judged — with a TV on, room
+  lines were logged `👂 dirigido a zaelar` and answered — so a speaker check must be consulted BEFORE that
+  shortcut or a perfect voiceprint would change nothing.
+
+- **A just-closed widget does not reopen on chatter, and a garbled list name resolves or refuses
+  naming what exists (V2-650b, 2026-09-10)**: the operator's very next live minute (sid 3d394…), read
+  event by event. «Johnny, cierra el widget de YouTube» worked exactly as designed (the V2-567 guard
+  discarded the model's spurious show, the backstop closed) — and eight seconds later ROOM CHATTER
+  («Avisando de… cuidado, que aquí está pasando algo») made the model re-emit that DISCARDED
+  show_widget, and nothing blocked it: the card he had just closed reopened over nobody's order.
+  V2-635 built licenses for close, video and fullscreen; **SHOW had none**. New
+  `canvas_license.reopen_license` (narrow on purpose): only a widget the OPERATOR ordered closed in
+  the last two minutes is gated, and it reopens on a conjugated media/show request or when his own
+  words resolve to that widget through the V2-082 certainty resolver — never on chatter; a discarded
+  drag counts as handled (`deduped`). Every close door records the close (`note_operator_close`: the
+  tag funnel, the named-close backstop, the close-not-delete guard, the action map's fast lane), and
+  both channels consult the license (probe mirrored, parallel-impl rule). In the same minute, «arranca
+  la lista de Trublo» (the STT's rendering of «True Blue») was served TWICE by two mechanisms — the
+  `play_music` tool played the SONG, then a re-emitted `play_playlist` data-op failed
+  `playlist_not_found` on the garble and the correction path read the RAW CODE aloud
+  («playlistnotfound») over music already playing. `play_playlist` now resolves a spoken garble by
+  unique-winner similarity (≥0.6 with the runner-up under 0.5 — «Trublo»→«True Blue» measures 0.71
+  against 0.27 for the next list; two near-matches stay a refusal, never a guess) and its refusal is a
+  SENTENCE that names the existing lists (V2-463 — `report_failure` already speaks `message` when one
+  exists). The provider ratchet (3043) was paid by extracting the whole show_widget resolution to
+  `show_target.resolve_show` (guard-target passed IN — importing it there would add an upward
+  dependency the V2-569 ratchet freezes); nucleo.py ended at 3036. Node **4.149** (+3 cases in
+  4.148's musica file); four disarms, mutations asserted, all red — run AFTER committing the fix,
+  which is the V2-531 lesson applied instead of re-paid. Detail: the V2-650 initiative.
+
+- **The desktop wallpaper is a SPOKEN property (V2-641, 2026-09-09)** — texto íntegro en `decisions-archive.md`

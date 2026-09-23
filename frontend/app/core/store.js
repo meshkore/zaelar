@@ -150,6 +150,27 @@ export const [voiceFlash, setVoiceFlash] = createSignal({ text: "", show: false 
 export const [orbDock, setOrbDockRaw] = createSignal(localStorage.getItem("hb_orb_dock") === "bar" ? "bar" : "eye");
 export const setOrbDock = (v) => { const m = v === "bar" ? "bar" : "eye"; setOrbDockRaw(m); try { localStorage.setItem("hb_orb_dock", m); } catch (_) {} };
 
+// V2-757 — THE ORB STEPS ASIDE ON ITS OWN WHEN SOMETHING GOES FULL-SCREEN. Operator, live session
+// f84f91ef (2026-09-23), watching a video full-bleed: «en el frontend se ve el orbe con el pulso, y eso
+// molesta cuando estás viendo un vídeo a pantalla completa. Yo creo que automáticamente cuando algo se
+// pone en pantalla completa, el orbe tiene que desaparecer y irse a la barra inferior».
+//
+// It is the dock V2-623 already built, driven by the screen instead of by his hand — and it writes
+// through `setOrbDockRaw`, NOT `setOrbDock`, on purpose: this is OUR temporary decision, so it must not
+// overwrite the shape he chose. `_before` holds that shape and gives it back on the way out; it is not
+// re-entrant on purpose (a second fullscreen while one is up must not record "bar" as his preference).
+let _dockBeforeFullscreen = null;
+export const orbDockForFullscreen = (on) => {
+  if (on) {
+    if (_dockBeforeFullscreen === null) _dockBeforeFullscreen = orbDock();
+    setOrbDockRaw("bar");
+  } else if (_dockBeforeFullscreen !== null) {
+    const back = _dockBeforeFullscreen;
+    _dockBeforeFullscreen = null;
+    setOrbDockRaw(back);
+  }
+};
+
 export const [captionsOn, setCaptionsOn] = createSignal(localStorage.getItem("hb_captions_on") !== "0");
 export const [captionSeg, setCaptionSeg] = createSignal(null);
 let _capSeq = 0;

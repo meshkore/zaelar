@@ -295,6 +295,30 @@ async def _exec_allow(action: str, payload: dict, rec) -> dict:
                     wid = _rd.instance_id(_sid)
         except Exception:
             pass
+        # V2-757 — AN ID THAT DOES NOT EXIST IS NOT MOUNTED, AND CERTAINLY DOES NOT ANSWER `ok`.
+        #
+        # MEASURED LIVE (session f84f91ef, 2026-09-23, +306.6 s). The worker went to read the bridge's help
+        # and typed `act show --help`; argparse took `show` as the action and `--help` as the payload, this
+        # emitted `widget/show` with id «--help», the canvas mounted an instance, the browser failed to
+        # import `/widgets/--help/widget.js` — a CLIENT error, therefore invisible — and a broken card
+        # reading «help» stayed on his screen. He saw it: «Hay un widget ahí que pone help… no sé lo que es,
+        # ha aparecido en pantalla ahora. Ciérralo inmediatamente». This call had answered
+        # `OK: {"widget": "--help"}`.
+        #
+        # The rule is the CATALOGUE, not a list of forbidden names: what exists is what opens. And the
+        # error NAMES what does exist, because a worker that gets an id wrong needs the catalogue, not a
+        # «no». CLOSE is not validated: closing what is not there is harmless, and its id may be a live
+        # instance the catalogue does not list.
+        if action == "show_widget":
+            _base = str(wid).split("::", 1)[0].strip().lower()
+            try:
+                from widgets import runtime as _rt
+                _ids = sorted(str(w.get("id") or "") for w in _rt.catalog() if w.get("id"))
+            except Exception:  # noqa: BLE001 — a broken catalogue may not take the worker down
+                _ids = []
+            if _ids and _base not in _ids:
+                return {"ok": False, "error": f"no widget «{wid}» exists — the ones there are: "
+                                              + ", ".join(_ids)}
         try:
             from voice.observer import emit
             _src = f"worker:{getattr(rec, 'task_id', '')}"        # V2-039: provenance — Brain Worker command

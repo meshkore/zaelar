@@ -129,7 +129,6 @@ def test_T4_a_VALID_model_call_is_not_overruled_by_a_confident_wrong_verdict(on_
 
 @pytest.mark.parametrize("kind,why", [
     ("comment", "a comment that names an action must not move the player"),
-    ("question", "«¿el siguiente es de la NASA?» is not «next»"),
     ("greeting", "phatic contact"),
 ])
 def test_a_CONFIDENT_remark_never_completes_an_empty_turn(on_screen, kind, why):
@@ -141,6 +140,16 @@ def test_a_CONFIDENT_remark_never_completes_an_empty_turn(on_screen, kind, why):
     fired, s = _complete(_brief({_tb.TARGET_KEY: ("youtube:pause", 0.97),
                                  _tb.REQUEST_KEY: (kind, 0.9)}), "Pero veo que es incapaz de pararlo.")
     assert fired == "" and s.applied == [], why
+
+
+def test_a_question_that_is_really_an_ORDER_completes_the_turn(on_screen):
+    """V2-757 — `question` left this list too, twelve hours later and for the same reason `complaint`
+    did. «¿Puedes enseñarme el catálogo?» measured `show_tab` 0.85 with `question` 0.64: in Spanish a
+    polite order is shaped like a question, and every GENUINE question answers `none` on the screen
+    side anyway (0.78-0.94, measured), so the entry could only ever be wrong. Node 2.76."""
+    fired, s = _complete(_brief({_tb.TARGET_KEY: ("youtube:pause", 0.97),
+                                 _tb.REQUEST_KEY: ("question", 0.64)}), "¿Puedes parar el vídeo?")
+    assert fired == "pause" and s.applied == [("youtube", "pause", {})]
 
 
 def test_a_COMPLAINT_about_what_we_just_failed_to_do_IS_an_order(on_screen):

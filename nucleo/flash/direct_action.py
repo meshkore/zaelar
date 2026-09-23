@@ -244,7 +244,113 @@ def enum_fill(widget_id: str, action: str, words: str) -> dict:
 #: `complaint` is deliberately NOT here: a complaint about what was just done IS an order to do it
 #: properly (V2-750, node 2.70), and one with nothing to redo answers `none` on the screen question
 #: anyway («Vale, hasta aquí bien, aunque te ha costado bastante» → none 0.92).
-NOT_AIMED_AT_THE_SCREEN = ("comment", "question", "greeting")
+#:
+#: V2-757 — AND NEITHER IS `question`, WHICH THIS LIST GOT WRONG THE SAME WAY. Live session f84f91ef
+#: (2026-09-23, +95.2 s): «¿Puedes enseñarme el catálogo?» measured `screen_action = youtube:show_tab`
+#: at **0.85** and `request_type = question` at 0.64, so this list refused it, the card never moved,
+#: and the turn PROMISED it instead — «Voy a quitar el vídeo para que quede el catálogo a la vista» —
+#: which he read out loud: «Bueno, dices que vas a hacer eso, pero no lo haces.»
+#:
+#: In Spanish a polite order IS shaped like a question, and that is not a rare form — it is how he
+#: talks to it. Measured over the same 47 candidates of that session:
+#:
+#:     «¿Puedes, por favor, reproducir el vídeo número dos?»  question-shaped · play_result 0.56
+#:     «¿Me pones el siguiente?»                              question-shaped · next        0.75
+#:     «¿Puedes parar el vídeo?»                              question-shaped · pause       1.00
+#:     «¿el siguiente es de la NASA?»                          a real question  · none        0.94
+#:     «¿cuántos vídeos hay en la cola?»                       a real question  · none        0.78
+#:     «¿de qué año es este documental?»                       a real question  · none        0.94
+#:     «¿quién sale en el vídeo?»                              a real question  · none        0.91
+#:     «¿tú crees que llegaron a la luna de verdad?»           a real question  · none        0.90
+#:
+#: Every genuine question answers `none`, so this entry could never SAVE a turn — and `complete` only
+#: ever fires where the screen question is CONFIDENT about a concrete action, which is exactly the
+#: case where it did damage. Same shape as the gate this list replaced: a weaker reader vetoing a
+#: stronger one. What stays are the two that name a turn with no addressee at all.
+NOT_AIMED_AT_THE_SCREEN = ("comment", "greeting")
+
+#: A turn made of NOTHING BUT A NUMBER. A closed class — the tens, the units, the scales and the words
+#: that glue them — not a verb table: nothing is ever added to Spanish's list of numerals, which is why
+#: this one can be written down without becoming the thing CLAUDE.md forbids. Digits count too: the STT
+#: writes «69» as often as «sesenta y nueve».
+_NUMERIC_ONLY = frozenset(
+    "cero un uno una dos tres cuatro cinco seis siete ocho nueve diez once doce trece catorce quince "
+    "dieciseis diecisiete dieciocho diecinueve veinte veintiuno veintidos veintitres veinticuatro "
+    "veinticinco veintiseis veintisiete veintiocho veintinueve treinta cuarenta cincuenta sesenta "
+    "setenta ochenta noventa cien ciento cientos doscientos trescientos cuatrocientos quinientos "
+    "seiscientos setecientos ochocientos novecientos mil millon millones "
+    "zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen "
+    "sixteen seventeen eighteen nineteen twenty thirty forty fifty sixty seventy eighty ninety "
+    "hundred thousand million "
+    "y e el la los las un una de del al o and the of a an".split())
+
+
+def only_a_number(words: str) -> bool:
+    """Is this turn nothing but a spoken number? «sesenta y nueve.» yes; «páusalo» no; "" no."""
+    import re as _re
+    import unicodedata as _ud
+    n = "".join(c for c in _ud.normalize("NFKD", words or "") if not _ud.combining(c)).lower()
+    toks = _re.findall(r"[a-z0-9]+", n)
+    if not toks:
+        return False
+    if not any(t.isdigit() or t in _NUMERIC_ONLY for t in toks):
+        return False
+    return all(t.isdigit() or t in _NUMERIC_ONLY for t in toks)
+
+
+def a_fragment_moves_nothing(operator_text: str, *, brief=None, last_reply: str = "") -> str:
+    """Why this turn may not touch a card at all, or "" when it may.
+
+    THE DEFECT (live session f84f91ef, 2026-09-23, +49.1 s). He said, in one breath:
+
+        «Vale, páralo, y ahora búscame vídeos del alunizaje en el año … sesenta y nueve.»
+
+    The acoustic layer closed the turn on «en el año» — which the lexical rule reads as a FINISHED
+    sentence (measured: `segmenter.looks_incomplete` returns False for it, so layer 2 was never even
+    consulted) — and handed «sesenta y nueve.» over as a turn of its own 0.7 s later. The model read
+    three words with a number in them, called `youtube:set_volume {volume: 69}`, and the card answered
+    «Dime un nivel entre 0 y 100.» He said: «Yo no he dicho nada de ningún volumen.» The engine's own
+    auditor filed it the same minute: «[P1·routing] Fragmento de cola del mismo turno ejecutado como
+    comando de widget».
+
+    THREE CONDITIONS, AND ALL THREE ARE THE INCIDENT. Each one alone is a guard I would not ship:
+
+      · `escalation_guard.is_a_fragment` — the SAME reader that already annuls a commission a turn this
+        thin could not have made, exemption and all (a confirmation is short BY NATURE, because the
+        directive was in OUR sentence). One rule, two consequences, not two rules.
+      · the turn is ONLY A NUMBER (`only_a_number`). Without this the guard reaches «páusalo» and
+        «páralo» — measured: `too_thin_to_commission` calls both fragments, because its
+        `_ALSO_A_VERB` escape hatch matches «para» and the enclitic «páralo» is a different token. His
+        commonest orders are exactly that shape, and putting them behind «Jev must be sure» is the
+        regression V2-755 and V2-756 both spent themselves repairing.
+      · the VERDICT ANSWERED AND NAMED NOTHING. A text guard may not contradict the screen verdict —
+        that rule cost V2-741 and V2-748 — so an absent, failed or disabled brief stands this down
+        entirely, the same fail-open V2-754 promised in the other direction. On the measured turn the
+        verdict said `none` at **0.31** and the arbiter said `⛔ data-drag`: three readers, no dissent.
+
+    Returns the reason (for the timeline), never raises.
+    """
+    words = (operator_text or "").strip()
+    if not only_a_number(words):
+        return ""
+    try:
+        from nucleo.flash import turn_brief as _tb
+        _choice, _info = _tb.read(brief, _tb.TARGET_KEY, "")
+        if _info is None:
+            return ""                     # nobody asked, or nobody answered: today's path
+        wid, name = from_brief(brief)
+        if wid and name:
+            return ""                     # the verdict names an action on an open card: it decides
+    except Exception:  # noqa: BLE001 — a guard may never break a turn
+        return ""
+    try:
+        from nucleo.flash import escalation_guard as _eg
+        if not _eg.is_a_fragment(words, brief=brief, last_reply=last_reply):
+            return ""
+    except Exception:  # noqa: BLE001
+        return ""
+    return "un número suelto, y el veredicto no nombra ninguna acción"
+
 
 #: Spoken numbers reach us as words — Deepgram writes «el vídeo número tres», never «el vídeo 3».
 _SPELLED = {"un": 1, "uno": 1, "una": 1, "primero": 1, "primera": 1, "dos": 2, "segundo": 2,

@@ -268,6 +268,12 @@ export class Desktop {
     // canvas look sloppy. It applies to PLACEMENT, DRAG and RESIZE alike: snapping only some of them produces
     // edges that ALMOST align, which reads worse than no grid at all.
     this.grid = 5;
+    // V2-757 — THE ORB STEPS ASIDE WHILE SOMETHING IS FULL-SCREEN. The SCREEN is what says so, never a
+    // flag each branch has to remember to move: six places add or remove `hb-cinema`/`hb-fullwide`
+    // (maximize, restore, close, resize, the reset and the native toggle) and a rule every caller has to
+    // remember is not a rule. They all call one method and that method LOOKS. Leaving native fullscreen
+    // with Escape goes through none of them: hence the event.
+    try{ document.addEventListener("fullscreenchange", ()=>this._syncOrbDock()); }catch(_){}
     this._actId = null; this._actTimer = null;
     this._ver = {};                                        // id -> cache-bust version (bumped after a modify)
     this._busy = new Set();                                // ids with an agent in-flight → don't stack create/modify
@@ -1218,6 +1224,18 @@ export class Desktop {
   // puede. Así que por defecto se MAXIMIZA dentro de la app (ocupa casi todo el lienzo, la voz sigue ahí), y la
   // nativa se reserva a los widgets que la declaran en su manifest (`"fullscreen":"native"`, p.ej. el vídeo).
   // La decisión es del WIDGET, no del modelo: una elección declarada no se enruta mal.
+  // V2-757 — is anything full-screen RIGHT NOW? Ask the DOM, which is where the answer lives, and tell the
+  // orb. Operator's ask while watching a video full-bleed: «se ve el orbe con el pulso, y eso molesta…
+  // cuando algo se pone en pantalla completa el orbe tiene que irse a la barra inferior». His own choice of
+  // place is NOT overwritten: `orbDockForFullscreen` keeps it and hands it back on the way out.
+  _syncOrbDock(){
+    try{
+      const on = !!(document.fullscreenElement
+                    || this.stage.querySelector(".hb-win.hb-cinema, .hb-win.hb-fullwide"));
+      store.orbDockForFullscreen(on);
+    }catch(_){}
+  }
+
   fullscreen(id){
     const meta = this._meta && this._meta[(id||"").split("::")[0]];
     if(meta && meta.fullscreen === "native") return this.nativeFullscreen(id);
@@ -1283,6 +1301,7 @@ export class Desktop {
           const wantNative = !!(m2 && m2.fullscreen === "native");
           card.classList.remove("hb-cinema","hb-fullwide");
           card.classList.add(wantNative ? "hb-cinema" : "hb-fullwide");
+          this._syncOrbDock();   // V2-757
         }).catch(()=>{});
       }
     }
@@ -1297,6 +1316,7 @@ export class Desktop {
         mx.title = tr(maxed ? "desktop.restore_tooltip" : "desktop.maximize_tooltip");
       }
     }catch(_){}
+    this._syncOrbDock();                               // V2-757: the orb follows full-screen
     this._bringFront(card); this._persist(); this._uiAudit("maximize", id);
     return true;
   }
@@ -1388,6 +1408,7 @@ export class Desktop {
       sx=e.clientX; sy=e.clientY; sw=r.width; sh=r.height; sl=r.left; st=r.top; live=true;
       card._restore = null;                       // redimensionar a mano invalida el "volver" de maximizar
       card.classList.remove("hb-cinema","hb-fullwide");  // V2-596/658: with the way back gone, neither may linger
+      this._syncOrbDock();                               // V2-757
       card.style.maxWidth="none"; card.style.maxHeight="none";
       card.classList.add("rz"); this._bringFront(card);
       h.setPointerCapture(e.pointerId); e.preventDefault(); e.stopPropagation();
@@ -1407,6 +1428,7 @@ export class Desktop {
     const card = w.card;
     card._restore = null;
     card.classList.remove("hb-cinema","hb-fullwide");   // V2-596/658: an explicit resize leaves either state
+    this._syncOrbDock();                                // V2-757
     const _c = this.canvas(), _min = this._minSize(id);
     if(opts.width != null){
       const maxW = _c.x1 - _c.x0;
@@ -1580,6 +1602,7 @@ export class Desktop {
         const r=c.getBoundingClientRect(); placed.push({left:r.left,top:r.top,right:r.right,bottom:r.bottom});
       }
     }
+    this._syncOrbDock();                                 // V2-757: compacting undoes full-screen
     this._persist();
     return {ok:true, n:cards.length};
   }

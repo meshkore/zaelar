@@ -653,6 +653,7 @@ def apply_action(action: str, payload: dict = None) -> dict:
             or bool(_drop_blocked(list(prev), db.get("blocked_channels") or [])[1]))
         if prev and not _stale and _norm(q) == _norm(str(db.get("search_query") or "")):
             db["adding"] = ""
+            _goto(db, "inicio")          # V2-757: nothing is re-run, but he still gets to SEE the answer
             store.save(WID, db)
             return {"ok": True, "unchanged": True, "count": len(prev), "query": q,
                     "results": [r.get("title") for r in prev],
@@ -687,6 +688,15 @@ def apply_action(action: str, payload: dict = None) -> dict:
                                  "source": "youtube"} for h in hits]
         db["search_query"] = q
         db["searched_at"] = int(time.time())
+        # V2-757 — A BAND HE CANNOT SEE IS NOT AN ANSWER. Live session f84f91ef (2026-09-23): with
+        # Ronaldinho playing, he asked for videos of the moon landing. The search ran, six numbered
+        # results landed on the dashboard — and the card stayed on the PLAYER, so all he had in front of
+        # him was the old video. «Ya, pero yo no veo el catálogo, solo veo el vídeo de Ronaldinho.»
+        # Three turns of friction followed, and the engine spent them insisting the results were there.
+        # This is the exact mirror of what V2-755 installed for playback («a video ARRIVING means
+        # watching it»): a search ARRIVING means looking at what it found. The player is untouched —
+        # whatever was sounding keeps sounding, which is V2-366's rule and has not changed.
+        _goto(db, "inicio")
         store.save(WID, db)
         out = {"ok": True, "results": [r["title"] for r in db["search_results"]],
                "count": len(db["search_results"]), "query": q}

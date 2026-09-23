@@ -54,10 +54,24 @@ writers, and the distinction between them is the whole of V2-755:
   twice with nothing on screen changing (live session 665e666a);
 - **the automatic advance when a video ends writes nothing** — he reads the queue while one plays, and
   yanking his view on a track change is the same defect with the sign flipped.
+- **a SEARCH** writes `goto_tab → inicio` (V2-757), for the mirror reason: a search arriving means looking
+  at what it found. With Ronaldinho playing he asked for videos of the moon landing, six numbered results
+  landed on the dashboard, the card stayed on the player, and he spent three turns saying «yo no veo el
+  catálogo, solo veo el vídeo de Ronaldinho» while the engine insisted they were there. The player is NOT
+  touched — whatever is sounding keeps sounding (V2-366). The «that question is already answered» branch of
+  V2-756 writes it too: nothing is re-run, but the reason he asks twice is almost always that he cannot see
+  the answer.
 
 And the card refuses one stored order: the player's face with no video in it. `goto_tab` is persisted and
 the consumed sequence is module-lived, so a reload replays the last order — onto a blank Reproductor, which
 is the dead end V2-753 exists to prevent.
+
+⚠️ **A FORK OF THIS CARD SHADOWS IT, AND IT IS GITIGNORED** (V2-757). `widgets/_user/youtube/` wins over
+`widgets/youtube/` in the catalogue, in `identify`, in the `widget.js` that is served and in the Python
+imports (`widgets/paths.roots()` puts the generated root first and `_sync_import_path` applies it to the
+package). Measured on 2026-09-23: a Brain Worker forked this card and rewrote 249 lines of its CSS, so for
+several hours the operator's engine was running a copy — and **V2-755 and V2-756 were inert on his machine**
+while `git status` stayed clean. Before diagnosing anything about this widget, ask which FILE is running.
 
 **Anchored to the parent** (operator's rule, 2026-09-05): `.hb-yt` is `width:100%` + `border-box` — the CARD
 decides the width in every state (maximize, manual resize, arrange); the default footprint is declared in

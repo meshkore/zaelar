@@ -458,8 +458,6 @@ Los agentes DEBEN trabajar dentro de esta estructura — no crear `docs/` ni car
 | Modules | `.meshkore/docs/modules/zaelar-modules.md` |
 | **Conectores — la LISTA (qué conectamos hoy, qué está declarado y dónde se cablea cada pieza)** | `.meshkore/docs/modules/zaelar-connectors-inventory.md` |
 | **Una cita que pide OTRO — el criterio de autorización de las propuestas** | `.meshkore/docs/modules/zaelar-appointment-proposals.md` |
-| **⭐ El MODELO DE DECISIÓN — el primitivo de elección acotada, dónde puede sentarse y por qué (leer ANTES de añadir un llamador)** | `.meshkore/docs/modules/zaelar-decision-model.md` |
-| **La TAREA — el registro durable de un encargo: la tabla, el resultado que sobrevive a su hoja, y cómo se vuelve a encontrar («lo del piso que te dije»)** | `.meshkore/docs/modules/zaelar-user-tasks.md` |
 | **Contactos — importar/sincronizar con Google, y quién gana un conflicto** | `.meshkore/docs/modules/zaelar-contacts-sync.md` |
 | Security | `.meshkore/docs/security/zaelar-security.md` |
 | **Change protocol** | `.meshkore/docs/ops/zaelar-change-protocol.md` |
@@ -712,55 +710,36 @@ cierra a los 381 ms— sí habría que pagarlo, y entonces se mide antes de cabl
 
 ### Y el veredicto solo puede elegir lo que LLEGA a la pregunta (V2-753, 2026-09-23)
 
-Cuarta vez con la misma forma, y esta añade una mitad nueva. «Páralo, y vuelve al inicio» sobre un vídeo
-sonando: el modelo emitió `widget_data(youtube, close)` —declarada como «lo detiene de verdad y lo quita del
-reproductor», las dos mitades de la orden— y el guarda de V2-635 no encontró verbo de cerrar («parar» no lo
-es, y no debe serlo) y se la comió **cinco veces en noventa segundos**, mientras la voz decía «lo paro y
-vuelvo al inicio».
+«Páralo, y vuelve al inicio» sobre un vídeo sonando: el guarda de V2-635 se comió `youtube:close`
+**cinco veces en noventa segundos** mientras la voz decía que lo paraba. Tres reglas:
 
-Tres cosas que dejar escritas:
-
-1. **Un guarda que se instala en dos ramas lleva la lista de ramas dentro.** El escape de Jev del `[[close]]`
-   de canvas existía desde V2-635 y nunca llegó a la data-op `close`, que es la que dispara sobre el
-   reproductor de verdad. `looks_like_close` aparece en seis puntos de voz y tres del probe.
-2. **⭐ Un descriptor RECORTADO no enruta nada.** `turn_brief` cortaba cada `desc` declarado a 90 caracteres,
-   y eso decapitaba justo la frase que V2-742 metió en el manifiesto para que «vuelve al catálogo» fuera
-   alcanzable. Medido contra la API real: `none` 0,77 a 90 chars → `youtube:show_tab` **0,96** a 200, sin
-   cambio de latencia. Antes de acusar al modelo de decisión de no elegir una acción, mirar **cuánto de su
-   descriptor llega a la pregunta** — `turn_brief.MAX_DESC_CHARS`.
-3. **Un backstop no contradice un veredicto ya pagado.** La promesa vacía que dejó ese guarda disparó una
-   escalada FORZADA a un worker `claude_code` con navegador headless, cuatro minutos, sobre un brief que
-   decía `escalate_or_inline = handle_inline` a 1,00. Un backstop existe para cuando NO hay información;
-   cuando la hay, la lee. Y una promesa que vaciamos nosotros no es un encargo: es un bug, y gastar minutos
-   en él lo convierte en dos.
+1. **Un guarda instalado en dos ramas lleva la lista de ramas dentro.** El escape de Jev existía desde
+   V2-635 y nunca llegó a la data-op que dispara sobre el reproductor de verdad.
+2. **⭐ Un descriptor RECORTADO no enruta nada.** El brief cortaba cada `desc` a 90 caracteres y decapitaba
+   la frase que hacía alcanzable «vuelve al catálogo»: `none` 0,77 a 90 chars → `show_tab` **0,96** a 200,
+   sin cambio de latencia. Antes de acusar al modelo de no elegir una acción, mirar cuánto de su descriptor
+   LLEGA a la pregunta (`turn_brief.MAX_DESC_CHARS`).
+3. **Un backstop no contradice un veredicto ya pagado.** Existe para cuando NO hay información; cuando la
+   hay, la lee. Una promesa que vaciamos nosotros no es un encargo: es un bug, y gastar cuatro minutos de
+   worker en él lo convierte en dos.
 
 ### EL VEREDICTO COMPLETA AL MODELO, NUNCA LO DESMIENTE (V2-754, 2026-09-23)
 
-Sesión `3afe34a8`, cuatro órdenes para volver al catálogo de vídeos: el brief dijo `show_tab` (0,96 y 0,88)
-donde el modelo llamó `play_item` sobre un ítem inexistente y luego nada; el modelo llamó `show_tab` donde el
-brief dijo `restart` a 0,99. **Cada lector acertó exactamente donde el otro falló, y nadie los cruzaba.** El
-papel de Jev era una segunda opinión leída por guardas sueltos; no un enrutador. Y no puede serlo solo: a 0,99
-habría reiniciado el vídeo que él pedía dejar.
+Cuatro órdenes de volver al catálogo: el brief acertó donde el modelo falló y el modelo acertó donde el
+brief decía `restart` a 0,99. **Cada lector acertó donde el otro falló y nadie los cruzaba** — y Jev solo no
+puede decidir: a 0,99 habría reiniciado el vídeo que él pedía dejar. La regla
+(`nucleo/flash/direct_action.complete`), en el único sentido que la evidencia permite:
 
-**La regla** (`nucleo/flash/direct_action.complete`), en el único sentido que la evidencia permite:
-
-1. Una llamada VÁLIDA y resoluble del modelo corre siempre. Si el veredicto discrepa, se registra
-   (`⚖️ el modelo y el veredicto discrepan`) — esa es la medición que dirá a quién creer.
+1. Una llamada VÁLIDA y resoluble del modelo corre siempre; si el veredicto discrepa, se REGISTRA (`⚖️`).
 2. Donde el modelo dejó el turno VACÍO o su llamada no resolvió, la acción del veredicto sobre la tarjeta
-   abierta rellena el hueco — por `apply_widget_data`, la misma puerta `action_mode_now` que toda llamada.
-   **Nada nuevo ejecuta; algo declarado deja de quedarse sin ejecutar.**
-3. El turno vacío solo se completa si el brief lo leyó como ORDEN o RESPUESTA. Un comentario que nombra una
-   acción no mueve nada. Sin veredicto, inseguro, tarjeta cerrada, Jev apagado → la ruta de hoy bit a bit.
+   abierta rellena el hueco, por la misma puerta `action_mode_now`. **Nada nuevo ejecuta; algo declarado
+   deja de quedarse sin ejecutar.**
+3. Sin veredicto, inseguro, tarjeta cerrada o Jev apagado → la ruta de hoy bit a bit.
 
-Dos cosas más que dejar dichas: **un alias declarado es dato de producto y lo leen los dos lados** —
-`inicio (home, dashboard, catálogo) | player (reproductor) | …` en el manifiesto, `widgets/enums.py` el único
-parser, el widget acepta cualquiera y el modelo ve las palabras que puede usar (un `unknown_tab` sobre `home`
-era una orden correcta tirada por vocabulario). Y **la palabra que él usa para una pantalla no puede vivir en
-el descriptor de otra acción**: «vuelve al inicio DEL VÍDEO» en `restart`, escrito la noche anterior para
-separarlo de `show_tab`, puso `restart` a 0,99 sobre «inicio del widget de vídeo». Se mide antes y después.
-
-**Valorado y retirado**: tolerar muletillas en la tabla hash (V2-539). Su doctrina escrita lo prohíbe y era
-exactamente la pieza de más.
+Corolarios: **un alias declarado es dato de producto** y lo leen los dos lados (`widgets/enums.py` es el
+único parser; un `unknown_tab` sobre `home` era una orden correcta tirada por vocabulario); y **la palabra
+que él usa para una pantalla no puede vivir en el descriptor de otra acción** — «vuelve al inicio DEL VÍDEO»
+en `restart` lo puso a 0,99 sobre «inicio del widget de vídeo». Se mide antes y después.
 
 ### UN DESCRIPTOR LE ROBA LA PALABRA AL VECINO (V2-755, 2026-09-23)
 
@@ -1054,5 +1033,33 @@ sesiones. La pregunta que faltaba la contesta un veredicto, **nunca una regex** 
 `_talks_about_the_operator` sería una tabla de verbos, y además ciega fuera del alfabeto latino.
 ⚠️ Aquí la dirección de fallo es **CERRADA** (ausente/inseguro → no renombra), al revés que el resto: negar
 de más cuesta repetir un renombrado, conceder de más cuesta una identidad que él nunca dio.
+
+## CONSTRUIR O REESCRIBIR UNA TARJETA SUYA SE LE PREGUNTA ANTES (norma del operador, 2026-09-23)
+
+> «hay que pedir confirmación siempre que pidamos crear un widget o modificar un widget… Eso ya que sea
+> **algo de sistema**, porque así nos evitaremos que se empiecen a generar widgets por ahí fuera de
+> cualquier manera.»
+
+La puerta está en `dispatch._run_session`, junto al gate de irreversibles: es la ÚNICA por la que se
+enciende un worker, y allí `kind == "code"` ya significa «va a escribir el código de una tarjeta». Al
+generador se llega por seis sitios, y *una regla que cada llamador tiene que recordar no es una regla*.
+Reusa el confirm-gate entero (sí/no, la línea que impide narrar progreso, la caducidad). **No dice
+«irreversible»**: construir no es peligroso, es caro y visible. Exento el dev-worker de cluster. V2-757.
+
+⚠️ **`widgets/_user/<id>/` ENSOMBRECE al built-in y está gitignoreado** (catálogo, `identify`, `widget.js`,
+imports de Python). Un fork deja `git status` limpio mientras la tarjeta que CORRE no es la del repo — dos
+iniciativas llevaban horas inertes por esto. Antes de diagnosticar un widget: **qué fichero corre**.
+
+### Una pregunta educada es una orden; un número suelto no lo es
+
+- **`question` fuera de `NOT_AIMED_AT_THE_SCREEN`**: en castellano la orden educada tiene forma de pregunta
+  («¿Puedes enseñarme el catálogo?» → `show_tab` 0,85, vetado). Medido: toda pregunta de verdad contesta
+  `none` (0,78-0,94), así que esa entrada no salvaba nada y hacía daño donde la pantalla estaba segura.
+- **Un turno que es SOLO UN NÚMERO no mueve nada** si el veredicto contestó y no nombró acción — la cola de
+  una frase («…en el año» / «sesenta y nueve.») se ejecutó como `set_volume 69`. Reusa `is_a_fragment`: una
+  regla, dos consecuencias. Las tres condiciones son obligatorias; sin «solo un número» alcanza a «páusalo».
+
+Y dos raíles que ya existían: una búsqueda que llega **es para mirarla** (trae su cara delante sin tocar lo
+que suena), y el orbe **se va a la barra** cuando algo se pone a pantalla completa, y vuelve al salir.
 
 <!-- OPERATOR_CONTENT_END -->

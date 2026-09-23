@@ -1047,6 +1047,45 @@ async def _run_session(task: "Task") -> None:
             sync_state()
         return
 
+    # THE GATE FOR TOUCHING A CARD OF HIS (V2-757, 2026-09-23). A card of his is not built and not
+    # rewritten without him having said so, out loud, knowing he said it.
+    #
+    # MEASURED LIVE (session f84f91ef). With the mic open, the operator dictated a several-minute design
+    # brief to ANOTHER conversation («hace el header ese más bonito», «todos los gráficos a la misma
+    # escala», «un grid de veinte puntos»). The turn read it as his to us — `escalate_or_inline=escalate`
+    # at 0.73, and neither of the turn's two questions contradicts that, because it WAS an errand; what it
+    # was not is OURS — answered «lo mando hacer», and a Brain Worker started rewriting `widgets/youtube`.
+    # Forty seconds later: «Olvídate de eso, no va por ti», and the worker carried on. A minute after
+    # that: «Lo de modificar el widget de YouTube ha sido un error, y no estaba hablando contigo. Eso lo
+    # tienes que parar y deshacer».
+    #
+    # THE OPERATOR'S RULE, from that same session: «hay que pedir confirmación siempre que pidamos crear
+    # un widget o modificar un widget… que sea algo de sistema, porque así nos evitaremos que se empiecen
+    # a generar widgets por ahí fuera de cualquier manera».
+    #
+    # IT GOES HERE, AND THE PLACE IS HALF THE REPAIR. The generator is reached from six different doors —
+    # the voice turn, the text channel, the probe, V2-118's create-widget backstop, the promise backstop,
+    # and a turn promoted from an injection — and a rule every caller has to remember to apply is not a
+    # rule (`zaelar-signup-and-access.md`, same lesson). `_run_session` is the ONLY door that starts a
+    # worker, and `kind` is already classified by the time it runs: `kind == "code"` IS «this is going to
+    # write or rewrite a card's code», decided by `errand_kind` and not by a verb list of this file's own.
+    #
+    # Out of scope: the CLUSTER dev worker with code permission (V2-076). That one never touches the
+    # operator's catalogue — it brings its own repo and its own authorisation.
+    if (kind == "code" and not bool(task.context.get("confirmed"))
+            and not _dev_worker_params(task.context)):
+        from nucleo import errand_kind as _ek_gate
+        logger.info(f"dispatch: task {key} STOPPED by the widget confirm-gate: {req[:80]}")
+        rec = _SESSIONS.get(key)
+        if rec:
+            rec.status = "done"
+            rec.result_summary = _ek_gate.code_change_question(req)
+            await _deliver_confirm(rec)
+            _SESSIONS.pop(key, None)
+            remember_code_change(key, req, task, sheet=sheet_of(rec))
+            sync_state()
+        return
+
     rec = _SESSIONS.get(key)
     if rec is None:
         return
@@ -1369,6 +1408,7 @@ from nucleo.dispatch_confirm import (  # noqa: E402,F401
     _sweep_confirm,
     confirm_line,
     pending_confirm,
+    remember_code_change,
     remember_confirm,
     resolve_confirm,
 )

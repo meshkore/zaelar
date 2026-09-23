@@ -82,6 +82,27 @@ def remember_confirm(task_id: str, request: str, task: "Task", *, sheet: str = "
         "sheet": str(sheet or ""), "ts": time.time()}
 
 
+def remember_code_change(task_id: str, request: str, task: "Task", *, sheet: str = "") -> None:
+    """Park an errand that would BUILD OR REWRITE one of his cards, and keep the question (V2-757).
+
+    Same registry as the irreversible gate on purpose — it already solves everything hard here: the yes/no
+    arrives through `turn/confirm_gates.py`'s deterministic classifier, `confirm_line()` tells the brain
+    something is stopped so it cannot narrate progress, `_sweep_confirm` turns a silence into «that never
+    started» instead of into an execution, and `resolve_confirm` relaunches through the SAME door with
+    `confirmed` set. What differs is the SENTENCE and what the brain is told about it: building a card is
+    not a dangerous act, it is an expensive and visible one, and calling it «irreversible» to his face
+    would make him answer a different question.
+    """
+    from nucleo import errand_kind as _ek
+    _sweep_confirm()
+    _EXPIRED_CONFIRM.pop(str(task_id), None)
+    _PENDING_CONFIRM[str(task_id)] = {
+        "request": request, "kind": (task.kind or "code"), "trusted": bool(task.trusted),
+        "context": dict(task.context or {}), "question": _ek.code_change_question(request),
+        "sheet": str(sheet or ""), "code_change": _ek.code_change(request) or "modify",
+        "ts": time.time()}
+
+
 def remember_offer(request: str, *, context: dict, question: str) -> None:
     """Aparca un encargo que el turno OFRECIÓ en vez de lanzar (V2-655).
 
@@ -131,6 +152,16 @@ def confirm_line() -> str:
     money = (" MUEVE DINERO: le prometiste decirle el importe exacto ANTES de cobrar nada, así que ni lo pagues"
              " ni digas que está pagado hasta haber mirado la cifra y habértela confirmado él."
              if _danger_line.moves_money(p["request"]) else "")
+    if p.get("code_change"):
+        # V2-757 — not «irreversible»: a card being built or rewritten is expensive and visible, not
+        # dangerous, and the brain must not dress the question up as a warning. What it MUST not do is
+        # say it is under way: measured in session f84f91ef, the turn answered «lo dejo estar y sigo con
+        # los ajustes del widget» while nothing of his had been touched.
+        _what = ("CONSTRUIR una tarjeta nueva" if p["code_change"] == "create"
+                 else "MODIFICAR una tarjeta suya")
+        return (f"LE HAS PREGUNTADO SI {_what} y AÚN NO ha contestado: «{p['request'][:120]}». No has "
+                f"tocado NI UNA LÍNEA de esa tarjeta, así que no digas que estás con ello ni que va en "
+                f"marcha. Si dice que SÍ, arranca; si dice que NO, olvídalo y confírmaselo.")
     if p.get("offered"):
         # V2-655: no es una acción irreversible, es algo que TÚ te ofreciste a hacer. Decirle «irreversible» a
         # una oferta corriente asusta sin motivo y le hace contestar otra cosa.

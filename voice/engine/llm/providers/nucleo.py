@@ -1112,6 +1112,17 @@ class NucleoLLMStream(llm.LLMStream):
             from widgets import actions as _wactions
             wid = (wid or "").strip().lower()
             action_name = (action_name or "").strip()
+            # V2-757 — THE TAIL OF A SENTENCE IS NOT AN ORDER. Here because this is where the tool and the
+            # tag converge: a rule installed in one of two branches is this repo's own named way of fixing
+            # half a defect. The why and the measurement: `direct_action.a_fragment_moves_nothing`.
+            if (_frag_why := _direct_action.a_fragment_moves_nothing(
+                    _bnotes.operator_half(text), brief=_brief,
+                    last_reply=getattr(brain, "_last_reply", "") or "")):
+                emit("brain", "🧩 trozo de frase — no mueve nada en pantalla",
+                     text=f"{_bnotes.operator_half(text).strip()[:80]} → {wid}:{action_name}",
+                     role="system", extra={"cat": "flash", "why": _frag_why,
+                                           "id": wid, "action": action_name})
+                return
             mode = _frontend.action_mode_now(wid, action_name, payload)   # V2-712: decidido para ESTA llamada
 
             def _log_dataop(m: str) -> None:

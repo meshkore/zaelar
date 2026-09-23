@@ -449,6 +449,17 @@ lleva `op`+`ids` afectados (`services/sse.js` → `store.pushMemPulse`). Fuente:
 4. ¿zaelar mudo? Suele ser: (a) el FlashBrain devuelve 4xx del proveedor rápido (mira el log de zaelar
    `fast brain error`), (b) TTS Metal tropieza el bug de shapes de mlx-audio y el fallback Kokoro-FastAPI no está
    arriba. Ver INI-012 §TTS.
+5. ⚠️ **¿Un widget se comporta como si tu arreglo no existiera? Mira QUÉ FICHERO CORRE** (V2-757).
+   `widgets/_user/<id>/` ensombrece a `widgets/<id>/` en el catálogo, en `identify`, en el `widget.js` que
+   se sirve y en los **imports de Python** (`widgets/paths.roots()` pone el generado primero), y está
+   **gitignoreado**: un fork deja `git status` limpio mientras lo que corre no es el repo. Medido el
+   2026-09-23: un Brain Worker bifurcó la tarjeta de vídeo y dos iniciativas entregadas quedaron inertes
+   varias horas sin una sola señal.
+   `ls widgets/_user/` · `./.venv/bin/python -c "import widgets.<id>.data as m; print(m.__file__)"`.
+6. **Un error del CLIENTE no aparece donde lo buscas.** Un `widget mount failed` («Failed to fetch
+   dynamically imported module») vive en la familia `client`, que por defecto es ruido — y mientras tanto
+   la llamada del servidor que lo provocó pudo contestar `ok`. Si algo apareció roto en su pantalla y el
+   servidor dice que todo fue bien, filtra por `client` antes de dudar de él.
 
 ## El tester independiente (INI-013) usa esta observabilidad
 

@@ -145,6 +145,38 @@ guards agree exactly where it matters and only the request-type one was ever wro
     «hoy juega el Barça»             comment  1.00  · screen_action none 0.87
     «Bórrame los tres últimos…»      order    1.00  · screen_action remove 0.98
 
+⚠️ **A POLITE ORDER is shaped like a question, so `question` cannot be on that list** (V2-757). The
+refusal list above shipped with `question` in it, and it cost a real order twelve hours later:
+«¿Puedes enseñarme el catálogo?» measured `screen_action = youtube:show_tab` **0.85** and
+`request_type = question` 0.64, so nothing fired, the turn promised the move instead, and he said
+«Bueno, dices que vas a hacer eso, pero no lo haces.» In Spanish that IS how he gives orders.
+
+Measured over the same 50 candidates, and this is the shape of the whole list's justification: every
+GENUINE question answers `none`, so the entry could never save a turn — while `complete` only ever
+fires where the screen question is CONFIDENT about a concrete action, which is exactly where it did
+damage. A weaker reader vetoing a stronger one, one more time.
+
+    «¿Puedes, por favor, reproducir el vídeo número dos?»  play_result 0.56   ← an order
+    «¿Me pones el siguiente?»                              next        0.75   ← an order
+    «¿Puedes parar el vídeo?»                              pause       1.00   ← an order
+    «¿el siguiente es de la NASA?»                         none        0.94
+    «¿cuántos vídeos hay en la cola?»                      none        0.78
+    «¿de qué año es este documental?»                      none        0.94
+    «¿quién sale en el vídeo?»                             none        0.91
+    «¿tú crees que llegaron a la luna de verdad?»          none        0.90
+
+**The standing test for any entry on that list**: name a turn it would SAVE that the screen question
+does not already answer `none`. If there is none, the entry can only ever be wrong.
+
+⚠️ **A text guard may compose with the verdict, never contradict it** (V2-757). `direct_action.
+a_fragment_moves_nothing` is the shape that is allowed: it refuses a turn that is ONLY A NUMBER
+(«sesenta y nueve.», the tail of a sentence the acoustic layer closed early, executed as
+`set_volume 69`) — but only when the verdict ANSWERED and named nothing, and only reusing
+`escalation_guard.is_a_fragment` rather than a reader of its own. Absent, failed or disabled brief →
+it stands down entirely. Its narrowing to numbers is not fastidiousness: without it the guard reaches
+«páusalo» and «páralo», which `too_thin_to_commission` also calls fragments (its `_ALSO_A_VERB` hatch
+matches «para» and the enclitic is a different token), and those are his commonest orders.
+
 ⚠️ **Measure against the candidate set of the turn you are repairing** (V2-756). The screen question is
 enumerated PER CALL from what was open and possible at that moment, so a set borrowed from another
 session is a different question. «Bórrame los tres últimos de la cola» measured `clear_list` 0.59

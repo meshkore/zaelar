@@ -133,6 +133,18 @@ class LangSpec:
     irreversible_confirm: str = ("Antes de seguir necesito tu OK: esto puede ser irreversible («{what}»). "
                                  "¿Confirmas que quieres que lo haga?")
     confirm_cancelled: str = "Vale, no toco nada."
+    # V2-757 — TOUCHING A CARD OF HIS IS ASKED FIRST. Measured live (session f84f91ef, 2026-09-23): with
+    # the mic open the operator dictated a design brief to ANOTHER conversation, and the turn read it as
+    # his to us — «lo mando hacer», a Brain Worker started rewriting the video card, and his «Olvídate de
+    # eso, no va por ti» arrived when the task had already been running for a minute. His rule, from that
+    # same day: «recuerda que hay que pedir confirmación siempre que pidamos crear un widget o modificar
+    # un widget… que sea algo de sistema, porque así nos evitaremos que se empiecen a generar widgets por
+    # ahí fuera de cualquier manera». The question is phrased the way HE put it — «si no me equivoco me
+    # estás pidiendo que modifique esto» — because its whole job is to let him say NO.
+    widget_build_confirm: str = ("Si no te he entendido mal, me pides que te CONSTRUYA una tarjeta nueva "
+                                 "(«{what}»). Tarda unos minutos y se queda en tu catálogo. ¿La hago?")
+    widget_change_confirm: str = ("Si no te he entendido mal, me pides que MODIFIQUE una tarjeta tuya y "
+                                  "deje una versión nueva («{what}»). ¿Lo hago?")
     # ── V2-707 F6 — THE CONFIRM GATE'S OWN SENTENCES ────────────────────────────────────────────────────
     # V2-682 moved `danger.py`'s two gates here and left the OTHER gate — the one that asks about a widget's
     # own data — composing its prose inside `voice/engine/llm/providers/confirm_gate.py`. Measured on
@@ -582,6 +594,11 @@ LANGUAGES: dict[str, LangSpec] = {
         irreversible_confirm=("Before I go on I need your OK: this could be irreversible («{what}»). "
                               "Do you confirm you want me to do it?"),
         confirm_cancelled="Alright, I won't touch anything.",
+        widget_build_confirm=("If I've got this right, you're asking me to BUILD you a new card "
+                              "(«{what}»). It takes a few minutes and it stays in your catalogue. "
+                              "Shall I?"),
+        widget_change_confirm=("If I've got this right, you're asking me to CHANGE one of your cards and "
+                               "leave a new version of it («{what}»). Shall I?"),
         sweep_confirm_one="I'm about to delete 1 appointment {span}{keeping}. It's permanent. Shall I?",
         sweep_confirm_many="I'm about to delete {n} appointments {span}{keeping}. It's permanent. Shall I?",
         sweep_span_one="on {since}",

@@ -272,11 +272,23 @@ def test_an_UNSURE_request_type_no_longer_vetoes_a_near_certain_screen_verdict(o
     assert done == "pause" and seen == [("youtube", "pause", {})]
 
 
-@pytest.mark.parametrize("kind", ["comment", "question", "greeting"])
+@pytest.mark.parametrize("kind", ["comment", "greeting"])
 def test_a_CONFIDENT_remark_still_moves_nothing(on_screen, kind):
-    """The measured guard, kept: «¿el siguiente es de la NASA?» reads question 1.00."""
+    """The measured guard, kept — for the two kinds that name a turn with no addressee at all.
+
+    V2-757 — `question` LEFT this list twelve hours later, and for the same reason `complaint` was never
+    on it: in Spanish a polite order is shaped like a question. «¿Puedes enseñarme el catálogo?» measured
+    `show_tab` **0.85** and `question` 0.64, so the card never moved and the turn promised it instead —
+    «Bueno, dices que vas a hacer eso, pero no lo haces.» Measured over the same candidates, every
+    genuine question answers `none` (0.78-0.94), so the entry could never SAVE a turn. Node 2.76."""
     brief = _brief({_tb.TARGET_KEY: ("youtube:next", 0.99), _tb.REQUEST_KEY: (kind, 0.95)})
-    assert _fire(brief, "¿el siguiente es de la NASA?") == ("", [])
+    assert _fire(brief, "hoy juega el Barça") == ("", [])
+
+
+def test_a_POLITE_ORDER_shaped_like_a_question_does_move(on_screen):
+    """The case that took `question` off the list (V2-757, session f84f91ef, +95.2 s)."""
+    brief = _brief({_tb.TARGET_KEY: ("youtube:pause", 0.95), _tb.REQUEST_KEY: ("question", 0.64)})
+    assert _fire(brief, "¿Puedes parar el vídeo?")[0] == "pause"
 
 
 @pytest.mark.parametrize("kind", ["order", "answer", "complaint"])
@@ -288,9 +300,11 @@ def test_an_order_an_answer_and_a_COMPLAINT_all_pass(on_screen, kind):
 
 
 def test_the_refusal_list_is_a_named_constant_with_its_measurement():
-    assert _da.NOT_AIMED_AT_THE_SCREEN == ("comment", "question", "greeting")
+    assert _da.NOT_AIMED_AT_THE_SCREEN == ("comment", "greeting")
     body = (_ENGINE / "nucleo/flash/direct_action.py").read_text(encoding="utf-8")
     assert "none 0.95" in body and "comment  0.45" in body, "the numbers that chose it stay next to it"
+    # …and the numbers that took `question` OFF it, for the same reason (V2-757).
+    assert "«¿Puedes enseñarme el catálogo?»" in body and "pause       1.00" in body
 
 
 def test_the_verdict_can_now_complete_a_turn_with_the_number_he_said(on_screen):

@@ -162,6 +162,42 @@ def classify_kind(request: str) -> str:
     return "generic"
 
 
+def code_change(request: str) -> str:
+    """`"create"` / `"modify"` / `""` — WHICH widget-code work this errand is, from the SAME readers
+    `classify_kind` uses to answer `"code"`.
+
+    V2-757. It exists so the confirmation gate can NAME what it is about to do («construya una tarjeta
+    nueva» vs «modifique una tuya») without a second table of verbs beside this one — the classifier and
+    the sentence the operator hears have to agree by construction, not by maintenance.
+    """
+    r = request or ""
+    try:
+        from nucleo.flash import router as _router
+        if _router.looks_like_create_widget(r):
+            return "create"
+    except Exception:  # noqa: BLE001
+        pass
+    if (_MODIFY_CODE_RE.search(r) and not _DATA_NOT_CODE_RE.search(r)) or _ARCHITECT_RE.search(r):
+        return "modify"
+    return ""
+
+
+def code_change_question(request: str) -> str:
+    """The sentence the operator HEARS before we build or rewrite one of his cards (V2-757).
+
+    Phrased as HE asked for it — «si no me equivoco me estás pidiendo que modifique esto y que cree una
+    nueva versión» — because the gate's whole job is to let him say «no, that was not for you». It comes
+    out of the language table for the same reason `danger.confirm_question` does (V2-682): a gate that
+    stops the product doing something has to explain itself in HIS language or it reads as a fault.
+    """
+    t = (request or "").strip()
+    short = (t[:120] + "…") if len(t) > 120 else t
+    from i18n import langs as _lg
+    sp = _lg.current_language()
+    tpl = sp.widget_build_confirm if code_change(t) == "create" else sp.widget_change_confirm
+    return tpl.format(what=short)
+
+
 def default_label(kind: str, request: str = "") -> str:
     return {"web": "Buscando en la web…", "code": "Trabajando en un widget…",
             "memory": "Actualizando la memoria…", "research": "Investigando…"}.get(kind, "Pensando…")
