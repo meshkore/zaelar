@@ -49,6 +49,12 @@ entregada siga citada aquí.
   superficie (el mecanismo de nombres, no una regla), «los míos/customizados» abre la subpestaña Custom, y el
   catálogo que ve el modelo marca por fila qué widget es suyo — «las personalizadas no me salen en la lista
   que veo» era literal. Icono de pestaña = silueta maciza de «widgets»; cajas ≤56 px, cabe el catálogo entero.
+  **(7) Y AUN CON EL CÓDIGO NUEVO, EL MODELO DECIDÍA DISTINTO CADA VEZ**: sus seis frases, tres rondas con
+  ventana limpia → `show_panel` 10-13 de 18; el resto se negaba, prometía sin tool o lanzaba un WORKER a «listar
+  sus widgets personalizados». Lo decide ahora el NOMBRE, antes del modelo (`nucleo/flash/wall_lane.py`, carril
+  hermano del de renombrar, espejo en el probe): el resolvedor nombra una superficie que es pestaña del muro sin
+  ningún widget → se abre. Para el catálogo basta el nombre (su propia lista incluye «dime qué widgets tengo
+  disponibles», sin verbo); para el chat sigue haciendo falta una orden de abrir. **21/21** en vivo.
 - **El pulgar abajo marca un fallo en un clic, y la evidencia son los ÚLTIMOS eventos (V2-760, 2026-09-24)**:
   *«cada vez que la gente detecte un fallo, les pediré que clique en este pulgar hacia abajo… así el usuario no
   tiene que estar rellenando un mail o un texto… quedará vinculado por ID de agente con los datos de
