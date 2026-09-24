@@ -417,6 +417,8 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
         # V2-079: abre el PANEL nativo lateral (chat/procesos/crons) por voz — espejo del provider (emite `panel`).
         _sp = next(t for t in tool_calls if t["name"] == "show_panel")
         action = "panel:" + _router._canon_panel(_sp["args"].get("panel"))
+        if action == "panel:apps":   # V2-761 — mirror: his words pick the Custom sub-tab
+            action = "panel:" + _wall_tab_for("apps", text)
     elif "manage_widget_alias" in names:
         # V2-082 — classification only (the provider writes manifests); body lives with its siblings in
         # `show_target.py` since the 2026-09-03 ratchet pass.

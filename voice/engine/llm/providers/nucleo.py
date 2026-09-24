@@ -1571,6 +1571,8 @@ class NucleoLLMStream(llm.LLMStream):
                 if "show_panel" not in _tool_fired:
                     _tool_fired.add("show_panel")
                     _tab = _router._canon_panel(args.get("panel"))
+                    if _tab == "apps":      # V2-761: «¿qué apps tengo CUSTOMIZADAS?» → the Custom sub-tab
+                        _tab = _wall_tab_for("apps", _router.operator_words(operator_text, text))
                     # 2026-08-10: también CIERRA. Antes solo abría, así que «cierra el chat» no tenía a dónde ir y
                     # el turno acababa en un «vale, cerrado» que era falso.
                     _act = _router._canon_panel_action(args.get("action"))

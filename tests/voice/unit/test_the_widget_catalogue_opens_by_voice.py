@@ -214,3 +214,13 @@ def test_both_channels_try_the_lane_before_the_model():
     probe = (ENGINE / "nucleo/flash/probe_actionmap.py").read_text(encoding="utf-8")
     chain = probe.split("def try_fast_lanes")[1].split("\ndef ")[0]
     assert "try_wall_tab(text" in chain
+
+
+def test_the_models_show_panel_apps_lands_on_custom_when_he_asked_for_his():
+    """Measured: «¿Qué APPs tengo customizadas?» → `show_panel(panel='apps')` — the right tab, the wrong sub-tab.
+    His words refine the model's argument in both channels."""
+    prov = (ENGINE / "voice/engine/llm/providers/nucleo.py").read_text(encoding="utf-8")
+    seg = prov.split('elif name == "show_panel":')[1].split("elif name ==")[0]
+    assert '_wall_tab_for("apps", _router.operator_words(operator_text, text))' in seg
+    probe = (ENGINE / "nucleo/flash/probe.py").read_text(encoding="utf-8")
+    assert 'action = "panel:" + _wall_tab_for("apps", text)' in probe
