@@ -613,7 +613,17 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
             # Mirror of the voice provider: a reply that ASKS the operator for the detail it needs is not a
             # promise it failed to keep, so nothing is re-derived from it (V2-534). Wired in BOTH channels
             # because this class of defect survives by diverging between them.
+            _ar = None
             if _routerc.promises_action(spoken) and not _routerc.asks_for_missing_detail(spoken):
+                # V2-764 — mirror of the voice repair (`act_repair`). This channel fires no brief of its own,
+                # so it asks for one HERE, only on a turn that promised and called nothing.
+                from . import act_repair as _act_repair
+                _ar = await _act_repair.probe_call_for_promise(text, spoken, spec)
+            if _ar:
+                action = f"widget_data:{_ar['widget_id']}:{_ar['action']}"
+                tool_calls.append({"name": "widget_data", "args": {"widget_id": _ar["widget_id"],
+                                   "action": _ar["action"], "payload": _ar["payload"], "_repair": True}})
+            elif _routerc.promises_action(spoken) and not _routerc.asks_for_missing_detail(spoken):
                 if (_routerc.looks_like_create_widget(text) or _routerc.looks_like_escalate_task(text)
                         or _routerc.looks_like_create_widget(spoken) or _routerc.looks_like_escalate_task(spoken)):
                     action = "escalate"

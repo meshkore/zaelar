@@ -3156,6 +3156,12 @@ DOMAINS: list[dict] = [
                                 "palabra a «la aplicación de música» ni al catálogo del vídeo",
             "ch": UNIT,
             "paths": ["tests/voice/unit/test_the_widget_catalogue_opens_by_voice.py"]},
+        # V2-764 — «voy a por la serie Sherlock en torrent y te enseño el catálogo», and no tool: the turn's verdict
+        # named the card, the action existed. One bounded pass asks the model for the call it promised — only the
+        # named card, only a declared action — before the backstop spends a worker on it.
+        {"id": "2.81", "title": "Prometió actuar sobre una tarjeta y no llamó a nada — una segunda pasada pide la "
+                                "llamada (solo la tarjeta nombrada, solo una acción declarada) antes de gastar un worker",
+            "ch": UNIT, "paths": ["tests/voice/unit/test_a_promise_to_act_on_a_card_gets_its_call.py"]},
         {"id": "2.78", "title": "Una tarjeta a pantalla completa TAPA TODO (chat acoplado y barra incluidos) "
                                 "y siempre hay salida: la X de sistema, doble clic, Esc — RENDERIZADO en el "
                                 "DOM real",
