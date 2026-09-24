@@ -21,6 +21,26 @@ entregada siga citada aquí.
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **Torrents dentro de Archivos, y una promesa sobre una tarjeta recibe su llamada (V2-764, 2026-09-24)**:
+  *«si hay un widget de torrents separado… lo fusionas con el de los archivos… biblioteca y torrents… dashboard,
+  descargas y semillas… cuando alguien pida una búsqueda de torrents, a esa sección, en formato cine»*. Medido:
+  el `search` del widget viejo DESCARGABA el primer magnet (no había catálogo) cuando el agente de la red
+  (`seedhound`) ya devuelve diez versiones; sus magnets llegaban con `&amp;` (los trackers no se leían) y cada
+  versión traía un `torrent_url` con la clave de su indexador. Archivos tiene ahora dos secciones; Torrents con
+  Catálogo (sin descargar, sin magnets hacia la tarjeta), Descargas y Semillas; el widget `torrent` retirado y
+  sus palabras son alias de Archivos y rejillas del mapa de acciones. **El enrutado, medido**: el modelo
+  PROMETÍA («voy a por la serie Sherlock en torrent») sin llamar → `nucleo/flash/act_repair.py`: una pasada con
+  UNA tool y las acciones declaradas de la tarjeta que nombra el veredicto, antes del respaldo que gasta un
+  worker. Queda ~25% que el modelo escala a worker, y Jev dice «escalate» 0,91-0,99 también en los encargos de
+  verdad: no se puede convertir en acción sin desmentir un veredicto pagado — descartado y escrito. Nodos 5.60,
+  2.81. `7617f869`, `ee004671`.
+- **El muro no contradice al orbe (V2-763, 2026-09-24)**: *«el orbe está en gris… lo que no puede ser es que se
+  apague y que el micro siga escuchando, transcribiendo y aceptando órdenes»*. Medido (sesión 2ffe9713): 90 s
+  de monólogo sin palabra de activación, todo AMBIENTE, cero turnos del cerebro — nada se aceptó, pero el
+  fail-open de 9 s de la retención lo pintó como burbujas suyas (el veredicto de una frase inacabada llegó a los
+  415 s de un turno empezado a los 324 s) y la transcripción final reescribía el subtítulo sin mirar el anillo.
+  El fail-open pregunta ahora al orbe (`paintsProvisional`): encendido, como antes; apagado, espera su veredicto
+  (dirigido pinta, ambiente descarta, sin veredicto en 180 s descarta). `b67d83a6`.
 - **Un recall tardío DEGRADA la memoria durable, nunca la borra (V2-762, 2026-09-24)**: *«necesitamos la memoria
   permanente, ya sea a través del proveedor principal o del de failover… lo que no podemos es hacer que falle y
   no tener memoria permanente»*. Medido: 6 de 21 recalls de sus últimas sesiones no cerraron en 0,8 s y esos
