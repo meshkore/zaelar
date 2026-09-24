@@ -431,6 +431,10 @@ export function routeEvent(desktop, d) {
         store.setPausing(false);
         const off = label === "stop";
         if (off !== store.powerOff()) store.setPowerOff(off);
+        // V2-765 — the agent was stopped by the MISSING LANGUAGE, not by ⏻, and the picker just lifted it.
+        // The boot probe muted the mic and the speaker on its way to «stopped» (main.js); ⏻'s own click undoes
+        // that, and here nobody clicked ⏻ — so main.js is told, and does what ⏻ ON does.
+        if (!off && (d.extra || {}).src === "language") document.dispatchEvent(new CustomEvent("hb:language-ready"));
       }
     } else if (d.kind === "notify") {                                             // proactive push (a native cron fired)
       // NO floating toast. When a voice session is live, zaelar SPEAKS it → the live caption comes from the

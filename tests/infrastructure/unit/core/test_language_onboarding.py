@@ -263,7 +263,10 @@ def test_state_reports_whether_a_language_has_ever_been_chosen(monkeypatch):
     assert r.json()["chosen"] is True
 
 
-def test_choose_locks_onboarding_and_speaks_the_confirmation(monkeypatch):
+def test_choose_locks_onboarding_and_speaks_nothing(monkeypatch):
+    """V2-765 — the click locks the language and SAYS nothing: there is no voice session behind the picker any
+    more, and a proactive notice with none became a brain note repeating «ya está todo listo» after his first
+    answer. The greeting of the session that starts afterwards is the first thing he hears."""
     from server import i18n_api
 
     captured = {}
@@ -283,7 +286,7 @@ def test_choose_locks_onboarding_and_speaks_the_confirmation(monkeypatch):
     r = _client().post("/api/i18n/choose/fr")
     assert r.json()["ok"] is True
     assert captured == {"code": "fr", "onboarding": True}
-    assert spoken["text"] == "Bonjour !"
+    assert spoken == {}, "the click spoke over a session that does not exist"
 
 
 def test_detect_text_classifies_then_locks_the_same_way_a_spoken_answer_would(monkeypatch):

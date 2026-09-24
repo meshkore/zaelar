@@ -284,6 +284,7 @@ async def lock(code: str, *, onboarding: bool = False) -> dict:
     code, region = _split(full)
     if not re.fullmatch(r"[a-z]{2,3}", code) or (region and not re.fullmatch(r"[A-Z0-9]{2,3}", region)):
         return {"ok": False, "code": full}
+    was_gated = should_detect()                     # V2-765: this lock is the one that lifts the agent's gate
     logger.info(f"i18n.detect: locking operator language → '{code}'"
                 + (f" ({region})" if region else "") + (" (onboarding)" if onboarding else ""))
     try:
@@ -382,4 +383,14 @@ async def lock(code: str, *, onboarding: bool = False) -> dict:
         emit("language", phase, role="system", extra={"code": code, "phase": phase})  # → frontend applyLang(code)
     except Exception:
         pass
+    # V2-765 — NO LANGUAGE, NO AGENT, and this is the door out: the agent was stopped by the missing language
+    # (`nucleo/runstate.language_pending`) and starts now, AFTER the UI already has its language, so the voice
+    # session that follows greets in it. Only on the lock that lifted the gate: a ⚙ switch must not re-start
+    # an agent the operator stopped, nor open a new observability session.
+    if was_gated:
+        try:
+            from nucleo import runstate as _run
+            await _run.language_ready()
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"i18n.detect: could not lift the language gate: {e}")
     return {"ok": True, "code": code, "confirm_text": confirm_text}

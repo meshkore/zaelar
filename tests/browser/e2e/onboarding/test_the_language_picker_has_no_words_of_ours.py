@@ -228,23 +228,21 @@ def _run_mark(steps=()):
     return asyncio.run(go())
 
 
-def test_the_first_screen_marks_ONE_language_and_a_click_moves_the_mark(playwright_available):
-    """The operator, on a fresh install (2026-09-20): *«cuando esto arranca… te quedan seleccionados los dos
-    idiomas. Tienes que seleccionar solo uno y entonces el usuario puede clicar otro, pero no los dos a la
-    vez.»*
-
-    «Destacados arriba» had been drawn with the accent border — the same colour that means *chosen*
-    everywhere else in the product — so both shipped rows read as already picked, and a click had nothing
-    left to change on screen. Prominence is now the stronger neutral line; the accent marks exactly one row.
+def test_the_first_screen_marks_NOTHING_and_a_click_marks_exactly_one(playwright_available):
+    """The operator, on a fresh install (2026-09-20): *«te quedan seleccionados los dos idiomas. Tienes que
+    seleccionar solo uno»* — so V2-730 marked ONE row, the engine's running language. And after his reset of
+    2026-09-24 (V2-765): *«no quiero que ninguno esté seleccionado por defecto. El usuario tiene que hacer
+    clic»*. A row already marked on the first screen reads as a choice made for him, on the one screen
+    whose point is that nothing is chosen until he chooses. The accent appears on the row he clicks, and
+    moves if he clicks another; it never accumulates.
     """
     m = _run_mark()
     assert not m["errors"], f"page errors: {m['errors']}"
-    assert m["marked"] == ["en-US"], (
-        f"exactly one language may wear the accent at boot, got {m['marked']}")
-    assert m["pressed"] == ["en-US"], f"and it must say so to a screen reader, got {m['pressed']}"
+    assert m["marked"] == [], f"no language may wear the accent before a click, got {m['marked']}"
+    assert m["pressed"] == [], f"and none may say so to a screen reader, got {m['pressed']}"
     borders = dict(m["pinnedBorders"])
-    assert borders["en-US"] != borders["es-ES"], (
-        "the two shipped rows cannot look identical — one of them is the chosen one")
+    assert borders["en-US"] == borders["es-ES"], (
+        "the two shipped rows must look the same until one is clicked — neither is chosen yet")
 
     async def click_spanish(pg):
         # keep step two out of the way: since V2-732 the folder question appears as soon as the server says

@@ -123,11 +123,24 @@ try { document.getElementById("preboot")?.remove(); } catch { /* noop */ }
 // `chosen` field says whether ANY language has ever been explicitly picked — false only on a brand-new install
 // (or one that wiped config/settings.json on reset). A returning operator, or one who already answered, never
 // sees this: the effect below fires at most once (`_langOnboardChecked` guard). ----
+// V2-765 — the check RETRIES until the engine answers. It used to ask once and give up on any error, and a
+// picker that never opens is not a skipped step any more: with no language the engine keeps the agent
+// stopped, so a lost answer would have left a dead agent behind no screen at all.
 let _langOnboardChecked = false;
+async function _langStateUntilAnswered() {
+  for (let i = 0; i < 90; i++) {
+    try {
+      const r = await fetch("/api/i18n/state", { cache: "no-store" });
+      if (r.ok) return await r.json();
+    } catch { /* the engine is still coming up */ }
+    await new Promise(res => setTimeout(res, 2000));
+  }
+  return null;
+}
 createEffect(() => {
   if (_langOnboardChecked || !store.bootReady()) return;
   _langOnboardChecked = true;
-  fetch("/api/i18n/state", { cache: "no-store" }).then(r => r.json()).then(s => {
+  _langStateUntilAnswered().then(s => {
     if (!s || s.chosen !== false) return;
     // V2-735 — this is a FIRST RUN, and the browser may still be wearing the previous install's shape:
     // `hb_orb_dock=bar` docks the orb in the bottom bar, `hb_power_off=1` comes up with the voice off,
@@ -184,6 +197,9 @@ session.startVisuals({ orbCanvas: $("#orb"), vizCanvas: $("#viz") });
 // once the server has confirmed. Idempotency was never the issue — ORDER was.
 function ensureVoice() {
   if (store.powerOff()) return;
+  // V2-765 — nothing listens while the language picker is up. The engine refuses the session anyway (no
+  // language, no agent); this keeps the browser from even asking for the microphone behind the veil.
+  if (store.langOnboardOpen()) return;
   if (store.powerOnPending()) return;
   if (!store.started() && !store.starting()) session.start().catch(() => {});
 }
@@ -256,8 +272,15 @@ document.addEventListener("hb:blocking-fault", () => {
 // (startup seeding does call `ensureVoice()`). A state fixed only by reloading is exactly the state that lies.
 // `ensureVoice()` is idempotent: if it is already running, it does nothing.
 createEffect(() => {
-  if (store.powerOff()) return;
+  if (store.powerOff() || store.langOnboardOpen()) return;   // the veil closing is a way back to voice too
   ensureVoice();
+});
+
+// V2-765 — the picker lifted the language gate: undo what the boot probe did on its way to «stopped» (mic and
+// speaker muted), exactly as ⏻ ON does. `powerOff` itself already dropped with the `run` event.
+document.addEventListener("hb:language-ready", () => {
+  mic.setMuted(false, "language-ready");
+  store.setBotMuted(false); try { localStorage.setItem("hb_bot_muted", "0"); } catch { /* private window */ }
 });
 
 // ---- CLIENT STATE → observability (2026-08-10) ----------------------------------------------------------

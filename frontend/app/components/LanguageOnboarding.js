@@ -12,8 +12,11 @@
 // (voice/engine/pipeline/agent.py's onboarding branch).
 //
 // The rows come from GET /api/i18n/state's `picker` (i18n/catalog.py) — the two we SHIP first, the rest
-// alphabetical by native name. A spoken answer still works: the mic is live and the server classifies it the
-// same as any turn (i18n/init/detect.py), which is why this modal is an escape hatch and not the only door.
+// alphabetical by native name. THIS IS THE ONLY DOOR (V2-765). A spoken answer used to work too — the mic was
+// live behind this card and the first thing it heard was classified and locked — until a sentence the operator
+// said to somebody else chose his language for him, closed the card and got answered. Now the engine keeps
+// the agent STOPPED until a row here is clicked (nucleo/runstate.language_pending): no microphone, no turn,
+// no worker. His words: «es una pantalla sine qua non».
 //
 // Phases (store.langOnboardPhase): "ask" → "detected" → "ready". The phase is the ENGINE's account of
 // where the language is; what is on the card is decided by `view()` below, and since V2-732 the two are
@@ -65,11 +68,12 @@ export function LanguageOnboarding() {
   const [filter, setFilter] = createSignal("");
   const [folder, setFolder] = createSignal(null);     // null = not asked yet / not applicable
   const [problem, setProblem] = createSignal("");
-  // V2-730 — which row wears the accent. ONE, always: the language the engine is actually running in
-  // ("en" until /api/i18n/state says otherwise). Until this signal existed the accent was baked into
-  // `.pinned`, so the first screen of a fresh install showed English AND Spanish already chosen, and
-  // there was no way to tell which one a click had just changed.
-  const [active, setActive] = createSignal("en");
+  // Which row wears the accent: the one he CLICKED, and none before that (V2-765). V2-730 took the
+  // accent off `.pinned` (English AND Spanish looked chosen) but marked the engine's running language
+  // instead — so a fresh install still opened with a row already chosen, on a screen whose whole point is
+  // that nothing is chosen until he chooses it. The operator: «no quiero que ninguno esté seleccionado por
+  // defecto. El usuario tiene que hacer clic».
+  const [active, setActive] = createSignal("");
 
   // The catalog is fetched once, when the component is built. main.js only mounts this after bootReady(),
   // and the same endpoint already had to answer for the modal to open at all.
@@ -77,9 +81,6 @@ export function LanguageOnboarding() {
     .then(r => r.json())
     .then(s => {
       if (s && Array.isArray(s.picker) && s.picker.length) setRows(s.picker);
-      // V2-734 — the row is a regional variant now, so the mark follows the full code («en-GB»), and the
-      // region comes from the same answer rather than being guessed from the language.
-      if (s && s.active) setActive(String(s.active).toLowerCase() + (s.region ? "-" + s.region : ""));
     })
     .catch(() => {});
 
@@ -180,6 +181,7 @@ export function LanguageOnboarding() {
   // that the language's FIRST variant carries it — which is also the one whose voice is the default.
   const markedCode = () => {
     const want = String(active() || "").toLowerCase();
+    if (!want) return "";                             // nothing clicked yet: nothing marked
     const all = rows();
     if (all.some(r => String(r.code).toLowerCase() === want)) return want;
     const base = want.split("-")[0];

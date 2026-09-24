@@ -19,8 +19,12 @@ import pytest
 
 
 @pytest.fixture(autouse=True)
-def _agente_en_marcha():
+def _agente_en_marcha(monkeypatch):
+    """…and with a language (V2-765): a missing language also reads as STOPPED, and whether the workspace the
+    suite runs against has one is exactly the kind of environmental state this fixture exists to remove. The
+    gate's own tests turn it back on with `ZAELAR_LANGUAGE_GATE=1`."""
     from nucleo import runstate
+    monkeypatch.setenv("ZAELAR_LANGUAGE_GATE", "0")
     runstate._state.update({"value": runstate.RUNNING, "at": 0.0, "src": "test"})
     yield
     runstate._reset_for_tests()

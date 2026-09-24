@@ -21,6 +21,14 @@ entregada siga citada aquí.
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **No language, no agent — the picker is the only door (V2-765, 2026-09-24)**: *«no quiero que ninguno esté
+  seleccionado por defecto… si no hace clic, el micrófono, el agente personal, todo está parado… es una pantalla
+  sine qua non»*. Measured on his factory reset: the voice session was live behind the picker (V2-101's «a spoken
+  answer still works»), and a sentence said to somebody else — ruled ambient — was classified `es`, LOCKED, closed
+  the picker and got answered; the picker opened with a row already marked. A missing language now reads as a
+  STOPPED agent through `runstate` (derived from `stt_language`, no second copy): no LiveKit token, no worker, no
+  tick, and ⏻ cannot start it. `detect.lock()` is the only way out and starts the agent through ⏻'s own `start()`
+  (unless he had stopped it). The voice no longer locks a language; no row is marked before the click. Node 3.80.
 - **Torrents dentro de Archivos, y una promesa sobre una tarjeta recibe su llamada (V2-764, 2026-09-24)**:
   *«si hay un widget de torrents separado… lo fusionas con el de los archivos… biblioteca y torrents… dashboard,
   descargas y semillas… cuando alguien pida una búsqueda de torrents, a esa sección, en formato cine»*. Medido:

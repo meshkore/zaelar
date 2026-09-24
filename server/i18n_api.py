@@ -61,14 +61,12 @@ async def i18n_ensure(code: str):
 
 
 async def _lock_and_speak(code: str) -> dict:
-    result = await _detect.lock(code, onboarding=True)
-    if result.get("ok") and result.get("confirm_text"):
-        try:
-            from voice import proactive
-            await proactive.notify("", result["confirm_text"], kind="language")
-        except Exception:
-            pass
-    return result
+    """The picker's click. It used to SPEAK a confirmation too, over the voice session that was already live
+    behind the picker. There is none now (V2-765: no language, no agent — the session is refused until this
+    lock lifts the gate), so the first thing the operator hears is the normal greeting, in his language, from
+    the session that starts once the veil is gone. A proactive notice here would have become a note for the
+    brain to repeat «ya está todo listo» after his first answer."""
+    return await _detect.lock(code, onboarding=True)
 
 
 @router.post("/api/i18n/choose/{code}")

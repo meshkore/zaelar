@@ -429,6 +429,15 @@ class NucleoLLMStream(llm.LLMStream):
         if not first_turn and mic_input.blocks_turn(text):
             _release_acc_trace_if_fresh(brain)   # este turno no llega a offer() — ver docstring
             return
+        # V2-765 — no language, no turn. The session should not even exist (the token is refused), so this is
+        # the backstop for one that outlived the gate: nothing heard before the picker is used reaches the brain.
+        if not first_turn:
+            from nucleo import runstate as _rs_lang
+            if _rs_lang.language_pending():
+                emit("mic", "🌐 turno DESCARTADO — falta elegir el idioma", text=text[:200], role="user",
+                     extra={"reason": "language"})
+                _release_acc_trace_if_fresh(brain)
+                return
 
         if not first_turn:
             # T134 — un turno no dirigido no se atiende. El bloque entero vive en `attention_turn.judge`

@@ -97,13 +97,25 @@ try { document.getElementById("preboot")?.remove(); } catch { /* noop */ }
 
 // ---- V2-101 first-run language onboarding: identical gate to the desktop's (checked ONCE after bootReady flips).
 // It matters MORE here: a phone is plausibly the first place someone ever opens their agent. ----
+// V2-765: retried until the engine answers — with no language the agent stays stopped, so a picker that
+// never opens would be a dead agent behind no screen at all.
 let _langOnboardChecked = false;
+async function _langStateUntilAnswered() {
+  for (let i = 0; i < 90; i++) {
+    try {
+      const r = await fetch("/api/i18n/state", { cache: "no-store" });
+      if (r.ok) return await r.json();
+    } catch { /* the Machine is still waking */ }
+    await new Promise((res) => setTimeout(res, 2000));
+  }
+  return null;
+}
 createEffect(() => {
   if (_langOnboardChecked || !store.bootReady()) return;
   _langOnboardChecked = true;
-  fetch("/api/i18n/state", { cache: "no-store" }).then((r) => r.json()).then((s) => {
+  _langStateUntilAnswered().then((s) => {
     if (s && s.chosen === false) store.setLangOnboardOpen(true);
-  }).catch(() => {});
+  });
 });
 
 // ---- THE HOST. `openSSE(deck)` is the whole point of the split: sse.js does not know which shell it is driving,
@@ -127,8 +139,19 @@ session.startVisuals({ orbCanvas: $("#orb"), vizCanvas: $("#viz") });
 // an explicit, persisted ⏻ off, or the very tap on ⏻ would re-arm the session it just stopped. ----
 function ensureVoice() {
   if (store.powerOff()) return;
+  if (store.langOnboardOpen()) return;              // V2-765: nothing listens while the language picker is up
   if (!store.started() && !store.starting()) session.start().catch(() => {});
 }
+// V2-765 — the language picker lifts the gate: the `run` event drops `powerOff`, and this brings the voice up
+// without waiting for another tap; the mic and speaker the boot probe muted come back as with ⏻ ON.
+createEffect(() => {
+  if (store.powerOff() || store.langOnboardOpen()) return;
+  ensureVoice();
+});
+document.addEventListener("hb:language-ready", () => {
+  mic.setMuted(false, "language-ready");
+  store.setBotMuted(false); try { localStorage.setItem("hb_bot_muted", "0"); } catch { /* private window */ }
+});
 if (store.powerOff()) store.setBootReady(true);   // nothing to wait for: don't leave the veil stuck (same as desktop)
 ensureVoice();
 // `pointerdown`, not `touchstart`: iOS requires a user gesture for the mic, and pointerdown fires for both.

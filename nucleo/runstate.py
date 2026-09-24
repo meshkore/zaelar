@@ -121,13 +121,44 @@ def _persist(value: str, src: str) -> None:
         logger.warning(f"runstate: el estado no se pudo persistir ({e!r}) — vale para esta ejecución")
 
 
+# ── NO LANGUAGE, NO AGENT (V2-765) ─────────────────────────────────────────────────────────────────────────
+# A brand-new install — or one a factory reset just started over — has no language yet, and until it has one
+# the agent is STOPPED, by the same switch as ⏻ and with everything ⏻ already stops: no voice session (the
+# LiveKit token is refused), no turn, no worker, no background tick, no cron. Measured 2026-09-24 on the
+# operator's own reset: the picker was on screen, the microphone was already live, and a sentence he said to
+# somebody else («Vale, quiero que mejores ahora un poquito») was classified as Spanish, LOCKED the language,
+# closed the picker and got answered. His words: «es una pantalla sine qua non… hasta que no se ha
+# inicializado el idioma, no se puede trabajar con él».
+#
+# DERIVED, never persisted: the fact lives in `config/settings.json` (`stt_language`, the same field the
+# picker writes and a reset wipes), so there is no second copy to fall out of step. The operator's own ⏻
+# intention is untouched underneath — choosing a language starts the agent only if HE had not stopped it.
+# The only way out is the picker (`i18n.init.detect.lock`), which calls `language_ready()` below.
+LANGUAGE_SRC = "language"
+
+
+def language_pending() -> bool:
+    """True while no language has been chosen. `ZAELAR_LANGUAGE_GATE=0` is the test suite's switch — the suite
+    runs against a workspace whose settings may carry no language, and the gate's own tests turn it back on."""
+    if os.getenv("ZAELAR_LANGUAGE_GATE", "1") == "0":
+        return False
+    try:
+        from i18n.init import detect as _detect
+        return bool(_detect.should_detect())
+    except Exception:  # noqa: BLE001 — no i18n module is no gate, never a dead agent
+        return False
+
+
 def state() -> str:
     """`"running"` | `"stopped"`. Never raises: when in doubt, “running” (a read failure must not leave the
-    operator with an agent that refuses to work)."""
+    operator with an agent that refuses to work). A missing language reads as stopped (V2-765, above)."""
     try:
-        return _load()
+        val = _load()
     except Exception:
         return RUNNING
+    if val == RUNNING and language_pending():
+        return STOPPED
+    return val
 
 
 def stopped() -> bool:
@@ -166,7 +197,9 @@ def snapshot() -> dict:
     that stretch on purpose: underneath, nothing has actually stopped yet."""
     val = state()
     effective = "pausing" if (val == RUNNING and _pending["stop"]) else val
-    return {"state": effective, "running": val == RUNNING, "at": _state["at"], "src": _state["src"]}
+    gated = val == STOPPED and _state["value"] == RUNNING      # stopped by the missing language, not by ⏻
+    return {"state": effective, "running": val == RUNNING, "at": _state["at"],
+            "src": LANGUAGE_SRC if gated else _state["src"], **({"reason": LANGUAGE_SRC} if gated else {})}
 
 
 def _emit(label: str, text: str, extra: dict) -> None:
@@ -248,6 +281,10 @@ async def start(src: str = "operator") -> dict:
     click while it's blinking "pausing", calls this same endpoint (it's the "turn on" button from its point of
     view, not a new one). Since nothing had actually been frozen yet, cancelling is free — the rest of this
     (idempotent) body just confirms it's still running."""
+    if language_pending():
+        # V2-765 — ⏻ cannot start an agent that has no language: the picker is the only way out.
+        _emit("stop", f"⏻ de {src} rechazado — falta elegir el idioma", {"src": LANGUAGE_SRC, "refused": src})
+        return {"ok": False, "state": STOPPED, "reason": LANGUAGE_SRC}
     if _pending["stop"]:
         _pending["stop"] = False
         _pending["src"] = ""
@@ -301,6 +338,23 @@ async def start(src: str = "operator") -> dict:
                 f"(los widgets NO se reanudan: los reanuda el operador)")
     _emit("start", f"en marcha por {src}: {resumed} worker(s) continúan", {"src": src, "workers": resumed})
     return {"ok": True, "state": RUNNING, "workers": resumed, "heartbeat": heartbeat}
+
+
+async def language_ready() -> dict:
+    """The language was just chosen (V2-765): lift the gate. Starts the agent — with ⏻'s own `start()`, so a
+    new observability session opens and every tab learns it through the `run` event — unless the operator's
+    persisted intention is STOPPED, which a language choice does not override. Never raises."""
+    try:
+        if os.getenv("ZAELAR_LANGUAGE_GATE", "1") == "0":
+            return {"ok": True, "skipped": "gate off"}   # nothing was gated, so there is nothing to lift
+        if language_pending():
+            return {"ok": False, "state": STOPPED, "reason": LANGUAGE_SRC}
+        if _load() == STOPPED:
+            return {"ok": True, "state": STOPPED, "src": _state["src"]}
+        return await start(src=LANGUAGE_SRC)
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"runstate.language_ready failed: {e!r}")
+        return {"ok": False, "error": str(e)}
 
 
 def _reset_for_tests() -> None:

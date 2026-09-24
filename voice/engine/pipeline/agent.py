@@ -405,57 +405,11 @@ async def entrypoint(ctx: JobContext) -> None:
             except Exception:
                 pass
 
-    # FIRST-RUN LANGUAGE AUTO-DETECTION (V2-089 P3, extended by V2-101): on a brand-new install, detect the
-    # operator's language from their first utterance(s) and lock it — no trip to settings. Fires at most once
-    # per session; a no-op after a language has been chosen (i18n.init.detect.should_detect()). Off the hot
-    # path: classify runs in a thread. `onboarding` is flipped True by the kickoff block below when this is the
-    # explicit "what language do you want?" turn (blocking modal on the frontend) rather than the old silent
-    # background guess — it changes what `lock()` does (see detect.lock's onboarding docstring) and makes this
-    # function speak the confirmation once ready. `misses` is the fail-open valve: STT noise or an unclear
-    # answer must never leave a first-run operator stuck behind a modal forever.
-    _lang_detect = {"busy": False, "done": False, "onboarding": False, "misses": 0}
-
-    def _maybe_detect_language(text: str) -> None:
-        if _lang_detect["done"] or _lang_detect["busy"]:
-            return
-        try:
-            from i18n.init import detect as _d
-        except Exception:
-            _lang_detect["done"] = True
-            return
-        if not _d.should_detect():
-            _lang_detect["done"] = True
-            return
-        if len((text or "").strip()) < 2:
-            return
-        _lang_detect["busy"] = True
-
-        async def _run() -> None:
-            try:
-                code = await asyncio.to_thread(_d.classify, text)
-                if not code and _lang_detect["onboarding"]:
-                    _lang_detect["misses"] += 1
-                    if _lang_detect["misses"] >= 3:
-                        logger.warning("i18n onboarding: 3 unclear answers — falling back to English")
-                        code = "en"
-                if code:
-                    result = await _d.lock(code, onboarding=_lang_detect["onboarding"])
-                    _lang_detect["done"] = True
-                    if _lang_detect["onboarding"] and result.get("confirm_text"):
-                        try:
-                            from voice import proactive
-                            await proactive.notify("", result["confirm_text"], kind="language")
-                        except Exception as e:  # noqa: BLE001
-                            logger.warning("i18n onboarding confirmation speech failed: %s", e)
-            except Exception as e:  # noqa: BLE001
-                logger.warning("i18n first-run detect failed: %s", e)
-            finally:
-                _lang_detect["busy"] = False
-
-        try:
-            asyncio.create_task(_run())
-        except RuntimeError:
-            _lang_detect["busy"] = False
+    # FIRST-RUN LANGUAGE: the voice NEVER chooses it (V2-765). It used to — the first final transcript of a
+    # brand-new install was classified and LOCKED, «so a spoken answer still works» — and on 2026-09-24 a
+    # sentence the operator said to somebody else, with the picker on screen, chose Spanish, closed the picker
+    # and got answered. The picker is the only door now, and until it is used this session does not exist:
+    # `nucleo/runstate.language_pending()` keeps the agent stopped and the LiveKit token refused.
 
     # V2-749b — WHEN THE PAID EAR LAST PRODUCED A FINISHED TURN. Read by the wake backstop to tell «he
     # only said the name and stopped» (nothing arrived, so the browser's own text is all there is) from
@@ -469,7 +423,6 @@ async def entrypoint(ctx: JobContext) -> None:
             _wake["last_user_final"] = time.time()
             # → observer/SSE: chat wall + the front-end voice-command fast-path (show/close widgets) consume this.
             _emit("transcript", "🗣", text=ev.transcript, role="user")
-            _maybe_detect_language(ev.transcript)
         else:
             _emit("interim", "…", text=ev.transcript, role="user")   # live, UI-only (dedup/no-disk in observer)
             # INSTANT wake-word spotting (2026-09-09): a regex over the interim stream — the orb lights the
@@ -848,7 +801,6 @@ async def entrypoint(ctx: JobContext) -> None:
     # whether to say anything at all on a brand-new install, live in `first_air.py` with the operator's
     # own words behind the decision.
     if silent_first_run():
-        _lang_detect["onboarding"] = True
         _mark_kickoff(ctx.room.name)
         _emit("brain", "🤐 kickoff en silencio — no hay idioma elegido todavía (el selector manda)",
               role="system")

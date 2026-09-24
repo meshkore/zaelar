@@ -716,6 +716,14 @@ DOMAINS: list[dict] = [
                                 "canal léxico local; y un recall lento no dice «deepseek no responde»",
             "ch": UNIT,
             "paths": ["tests/agent_headless/unit/turn/test_a_late_recall_still_brings_durable_memory.py"]},
+        # V2-765 — «es una pantalla sine qua non». After his factory reset the picker was on screen with the voice
+        # session already live, and a sentence he said to somebody else chose Spanish and closed it. A missing
+        # language now reads as a STOPPED agent (the ⏻ switch, derived from `stt_language`): no token, no turn,
+        # no worker; the picker's lock is the only door out, and the voice can no longer lock a language.
+        {"id": "3.80", "title": "Sin idioma no hay agente — el selector es la ÚNICA puerta: parado hasta el clic, "
+                                "ninguna fila marcada, y la voz ya no elige idioma",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/test_no_language_no_agent.py"]},
         {"id": "2.15", "title": "Idioma del operador en un canal SIN voz (primera ejecución)", "ch": UNIT,
             "paths": ["tests/agent_headless/unit/test_first_run_language.py"]},
         # 2026-08-20: el relleno de nunca-mudo decía CUATRO veces la misma frase («Vale, dame un momento que lo
