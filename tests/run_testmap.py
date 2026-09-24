@@ -708,6 +708,14 @@ DOMAINS: list[dict] = [
         {"id": "2.28", "title": "El recall se compone fuera del loop y acotado en LOS DOS canales; el que NO "
                                 "llega se VE, y el que llega TARDE es la nota del turno siguiente — o de nadie",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/turn/test_the_recall_budget_is_shared.py"]},
+        # V2-762 — «necesitamos la memoria permanente, ya sea a través del proveedor principal o del de failover».
+        # Live the full recall took 1-3.5 s (remote embeddings) and every miss left the turn with NO durable
+        # memory. The local FTS5 half (3-27 ms) now runs beside it and is what a late turn carries; and the heart's
+        # «titular answers» is judged by the heart, not by an amber recall on the same row.
+        {"id": "3.79", "title": "Un recall tardío DEGRADA la memoria durable, nunca la borra — el turno lleva el "
+                                "canal léxico local; y un recall lento no dice «deepseek no responde»",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/turn/test_a_late_recall_still_brings_durable_memory.py"]},
         {"id": "2.15", "title": "Idioma del operador en un canal SIN voz (primera ejecución)", "ch": UNIT,
             "paths": ["tests/agent_headless/unit/test_first_run_language.py"]},
         # 2026-08-20: el relleno de nunca-mudo decía CUATRO veces la misma frase («Vale, dame un momento que lo

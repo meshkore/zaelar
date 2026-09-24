@@ -749,14 +749,14 @@ def reinforce_ids_for(mems: list[dict]) -> list[int]:
 
 
 def query(prompt: str, budget_tokens: int = DEFAULT_BUDGET_TOKENS, limit: int = 12,
-          expand: bool = True, reinforce_used: bool = True) -> dict:
+          expand: bool = True, reinforce_used: bool = True, lexical_only: bool = False) -> dict:
     """Ruta caliente: compone el contexto mínimo = estado (SIEMPRE) + recuerdos relevantes al presupuesto.
 
     Devuelve {'state': dict, 'memories': list[dict], 'ids': list[int]}. Encola el refuerzo de los usados."""
     from . import retriever as _retriever  # import perezoso (evita ciclos en import-time)
 
     st = _state.read()
-    mems = _retriever.search(prompt, limit=limit, expand=expand, reinforce=False)
+    mems = _retriever.search(prompt, limit=limit, expand=expand, reinforce=False, lexical_only=lexical_only)
     # THE CHOKEPOINT for the background-slot rule (2026-08-21). Every surface that shows pills to a model gets
     # them from here, and `query` already has the request the rule needs — so applying it once, at the source,
     # is what makes a FUTURE surface inherit it instead of re-deriving it. The list-of-surfaces approach was

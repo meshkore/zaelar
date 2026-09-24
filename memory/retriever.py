@@ -328,12 +328,19 @@ def search(
     expand: bool = True,
     reinforce: bool = False,
     rerank: bool = True,
+    lexical_only: bool = False,
 ) -> list[dict]:
-    """Ruta caliente: devuelve recuerdos relevantes ordenados por score (con `score` en cada dict)."""
+    """Ruta caliente: devuelve recuerdos relevantes ordenados por score (con `score` en cada dict).
+
+    `lexical_only` (V2-762): the FTS5 channel alone — no embedding call, no reranker. It is the half of the recall
+    that lives entirely on this machine (15-90 ms measured), and the turn's recall budget runs it BESIDE the full
+    search so that a slow embedding provider degrades the recall instead of erasing it."""
     db = _db.get_db()
     from .clock import now as _clock_now
     now = _clock_now()
-    qvec = _emb.embed(prompt)
+    if lexical_only:
+        rerank = False
+    qvec = None if lexical_only else _emb.embed(prompt)
     # A query embedded in the WRONG SPACE is worse than no vector channel at all (2026-08-18). The write path has
     # refused to insert a vector on a space mismatch since V2-103 (`writer._mark_embed_pending`), but the READ
     # path had no equivalent check: it embedded the query with whatever backend happened to be active and fused
@@ -348,11 +355,11 @@ def search(
     # worse today", which is the shape of failure this module has already paid for three times.
     # Fail-open on the question itself: `space_ok()` returns True when there is no verdict (fresh DB, no stamp).
     from . import reembed as _reembed
-    space_ok = _reembed.space_ok() and not getattr(_emb, "last_degraded", False)
+    space_ok = (not lexical_only) and _reembed.space_ok() and not getattr(_emb, "last_degraded", False)
     vec = vec_search(qvec, k=k) if space_ok else []
     kw = fts_search(prompt, k=k)                        # lexical: always, it does not depend on any space
     para = vec_search_paraphrases(qvec, k=k) if space_ok else []  # V2-031 T2: third channel, mapped to memory_id
-    if not space_ok:
+    if not space_ok and not lexical_only:
         _warn_wrong_space()
 
     fused = rrf(vec, kw, para)

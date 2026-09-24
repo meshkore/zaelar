@@ -322,10 +322,17 @@ async def status():
         elif _mp.get("fail_streak"):
             mem_state, mem_detail = "warn", f"{_mp['model']} · {_mp['fail_streak']} fallo(s) recientes"
         elif mem_err:
+            # V2-762 — NOT prefixed with the heart's model: a slow recall (remote embeddings), a degraded vector
+            # space or REM is not the distiller, and «deepseek-flash · el recall no cerró» blamed it by position.
             mem_state = "warn"
-            mem_detail = f"{_mp['model']} · {_mem_says or 'degradada'}"[:160]
+            mem_detail = (_mem_says or "degradada")[:160]
         else:
             mem_state, mem_detail = "ok", f"{_mp['model']}"
+        # Whether the heart's TITULAR is answering is the heart's own fact — never the row's colour. Derived from
+        # the row, an amber recall read «deepseek no responde» all afternoon (2026-09-24) over a heart that was
+        # writing every pill normally.
+        _heart_ok = not (_mp.get("degraded") or _mp.get("fail_streak")
+                         or (mem_err and mem_err.get("kind") == "outage"))
         # V2-758 — THE MEMORY BOX SAYS WHO IS WRITING, exactly like the FlashBrain one, and it travels as DATA
         # so the panel writes the two lines in his language. The heart has failed over since 2026-08-19 and the
         # panel could not show it: whoever answered, the row read «deepseek-flash». And amber, never red, while
@@ -342,7 +349,7 @@ async def status():
                              "serving": {"model": _mp.get("serving_model"),
                                          "provider": (_rungs[1].get("provider") if len(_rungs) > 1 else "")}}
             else:
-                mem_extra = {"titular": _tit, "titular_ok": mem_state == "ok"}
+                mem_extra = {"titular": _tit, "titular_ok": _heart_ok}
                 if len(_rungs) > 1:
                     mem_extra["standby"] = {"model": _rungs[1].get("model"),
                                             "provider": _rungs[1].get("provider")}

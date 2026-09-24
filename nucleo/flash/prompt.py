@@ -63,7 +63,8 @@ def _observability_on() -> bool:
     return (_os.getenv("ZAELAR_MEM_OBSERVABILITY", "1").strip().lower() not in ("0", "false", "no", "off"))
 
 
-def compose_recall(recall_query: str = "", timings: dict | None = None) -> tuple[str, list[int]]:
+def compose_recall(recall_query: str = "", timings: dict | None = None,
+                   lexical_only: bool = False) -> tuple[str, list[int]]:
     """Turn-specific SEMANTIC recall (`memory.query`). Returns (recall_block, used_ids). The STATE block
     (name/form of address/location/topics) does NOT go here: it comes from the session cache (`memory_cache`, T114). Best-effort.
 
@@ -87,7 +88,7 @@ def compose_recall(recall_query: str = "", timings: dict | None = None) -> tuple
         # abandoned when the budget expired while the thread still finished, increasing weight and resetting
         # pill expiry for questions never answered with them. The delivery layer (`nucleo/turn/recall_budget`)
         # reinforces via `reinforce_ids`; selection still belongs to `memory/`, and only travels through here.
-        res = memory.query(recall_query, limit=40, reinforce_used=False)
+        res = memory.query(recall_query, limit=40, reinforce_used=False, lexical_only=lexical_only)
         if timings is not None:
             timings["recall_reinforce_ids"] = list(res.get("reinforce_ids") or [])
         mems = res.get("memories") or []

@@ -120,12 +120,21 @@ async def compose(query: str, timings: dict | None = None) -> tuple[str, list[in
         _GEN += 1
         mi_gen = _GEN
     propias: dict = {}
+    lex_propias: dict = {}
+    lex = None
     try:
         from nucleo.flash import prompt as _prompt
+        loop = asyncio.get_running_loop()
         # `run_in_executor` + `shield`, not `to_thread` + bare `wait_for`: the timeout must abandon the WAIT
         # without cancelling the FUTURE, or the salvage below never sees a result. (`wait_for` cancels what it
         # wraps; a cancelled task drops the thread's result on the floor — measured while building this.)
-        fut = asyncio.get_running_loop().run_in_executor(None, _prompt.compose_recall, q, propias)
+        fut = loop.run_in_executor(None, _prompt.compose_recall, q, propias)
+        # V2-762 — THE LOCAL HALF, BESIDE IT. The full recall needs an embedding from a remote provider; live it
+        # took 1-3.5 s on the operator's engine (2026-09-24) against 0.3-0.5 s measured alone, and every miss
+        # left the turn with NO durable memory at all. The lexical channel (FTS5) lives on this machine: 3-27 ms
+        # measured. It starts now, and it is what the turn carries when the full one is late — degraded recall,
+        # never erased recall. The full one still arrives as the next turn's note (salvage, below).
+        lex = loop.run_in_executor(None, _lexical, _prompt, q, lex_propias)
         got = await asyncio.wait_for(asyncio.shield(fut), timeout=budget_s())
         _reinforce_delivered(propias)     # delivered to the turn → THAT is using the memory
         if timings is not None:
@@ -134,15 +143,60 @@ async def compose(query: str, timings: dict | None = None) -> tuple[str, list[in
     except asyncio.TimeoutError:
         if timings is not None:
             timings["recall_timeout"] = True
+        fut.add_done_callback(lambda f: _salvage(f, q, mi_gen, propias))
+        got_lex = await _lexical_result(lex)
+        if got_lex and got_lex[0]:
+            if timings is not None:
+                timings["recall_lexical"] = True
+            _reinforce_delivered(lex_propias)
+            _publish_lexical(q)
+            _LOG.info(f"recall over budget ({budget_s():.1f}s) — el turno lleva el recall LÉXICO")
+            return got_lex
         detalle = f"el recall no cerró en {budget_s():.1f}s — el turno sigue SIN memoria durable"
         _publish("timeout", detalle, q)
         _LOG.info(f"recall over budget ({budget_s():.1f}s) — el turno sigue sin recall durable")
-        fut.add_done_callback(lambda f: _salvage(f, q, mi_gen, propias))
     except Exception as e:  # noqa: BLE001
         detalle = f"el recall falló: {str(e)[:120]} — el turno sigue SIN memoria durable"
         _publish("error", detalle, q)
         _LOG.warning(f"recall omitido (el turno sigue): {e}")
     return "", []
+
+
+def _lexical(prompt_mod, query: str, propias: dict) -> tuple[str, list[int]]:
+    """The FTS5-only recall (V2-762). Never raises: the local half must not be the thing that fails."""
+    try:
+        return prompt_mod.compose_recall(query, propias, lexical_only=True)
+    except Exception:  # noqa: BLE001
+        return "", []
+
+
+#: How long the turn waits for the LOCAL half once the full one is late. It started at the same moment and
+#: measured 3-27 ms, so this is a ceiling for a pathological disk, not a second budget.
+_LEXICAL_GRACE_S = 0.15
+
+
+async def _lexical_result(lex) -> tuple[str, list[int]] | None:
+    if lex is None:
+        return None
+    try:
+        return await asyncio.wait_for(asyncio.shield(lex), timeout=_LEXICAL_GRACE_S)
+    except Exception:  # noqa: BLE001 — late or failed: the turn goes on with what it has (state + window)
+        return None
+
+
+def _publish_lexical(query: str) -> None:
+    """A DEGRADED delivery, not a lost one: a timeline row, and no light. The light is for the turn that went
+    without durable memory — that one still records amber in `_publish`. Painting a lexical delivery amber too
+    is how the memory box read «no responde» all afternoon over a heart that was writing normally."""
+    try:
+        from voice.observer import emit
+        emit("memory", "recall léxico entregado", role="system",
+             text=f"el vectorial no cerró en {budget_s():.1f}s — el turno lleva el recall léxico (local); "
+                  "el completo llega como nota al siguiente",
+             extra={"module": "nucleo.turn.recall_budget", "reason": "lexical",
+                    "budget_ms": round(budget_s() * 1000), "query": (query or "")[:80]})
+    except Exception:  # noqa: BLE001
+        pass
 
 
 def _salvage(fut, query: str, asked_gen: int, propias: dict | None = None) -> None:
