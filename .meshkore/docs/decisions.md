@@ -21,6 +21,26 @@ entregada siga citada aquí.
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **La pestaña «Apps»: el catálogo de widgets, Sistema · Custom, por voz o a mano (V2-761, 2026-09-24)**:
+  *«necesito un icono de app… en realidad va a ser la pestaña de widgets… quiero que responda a todo… dos
+  subtabuladores, uno sería para sistema y la otra sería custom… cuando alguien modifique uno de esos widgets
+  de sistema… en gris pálido y encima un mensaje que pone Custom»*. **(1) UNA PESTAÑA DEL MURO, no una
+  superficie propia**, con un solo GET (`/widgets/registry` ya traía `origin` y `forked`) y el clic por la
+  puerta de siempre (`hb:open-card`). Un widget de sistema bifurcado aparece DOS veces a propósito: pálido con
+  «Custom» en Sistema —el nativo ya no corre— y como suyo en Custom. Icono: 3×3 PUNTOS, porque los botones de
+  ordenar del raíl son CUADRADOS. **(2) TRES PUERTAS DE VOZ**: semillas del mapa de acciones (es/en, paquetes a
+  v10 — sin subir versión, una frase nueva no llega a ninguna instalación existente), `show_panel` con `apps`
+  (pagado comprimiendo su propia descripción: techos del catálogo y del prompt intactos) y `show_widget`
+  nombrando la superficie de sistema `apps`, que el proveedor y su espejo `probe` enrutan ya al panel en vez de
+  preguntar «¿qué widget?». **(3) ⭐ LOS ALIAS SE MIDEN CONTRA EL VECINDARIO**: el resolvedor difumina los alias
+  de UNA palabra; un «aplicaciones» suelto habría cazado «abre la APLICACIÓN de música». Multipalabra donde hay
+  vecino, y el test fija las frases que deben llegar Y las que no deben moverse. **(4) MEDIDO AL RENDERIZAR, no
+  pedido:** con CUATRO pestañas, a 320 px (el flotante por defecto) Conectores ya quedaba tras una barra de
+  scroll oculta — la tira necesitaba 183 px y tenía 132. Por debajo de 400 px el rótulo fijo de la pestaña
+  activa cede; ninguna pestaña queda fuera de 260 a 800 px. **(5) No había workflow para una superficie
+  NATIVA** — ahora `docs/ops/zaelar-native-surface-workflow.md`, con los 13 puntos que fallan en silencio.
+  Y el pulgar de V2-760 se movió ENCIMA del lanzador, sin disco, mano negra, solo escritorio. Nodos 4.212 y
+  2.80. `f4b8ca82`, `7a0d443e`.
 - **El pulgar abajo marca un fallo en un clic, y la evidencia son los ÚLTIMOS eventos (V2-760, 2026-09-24)**:
   *«cada vez que la gente detecte un fallo, les pediré que clique en este pulgar hacia abajo… así el usuario no
   tiene que estar rellenando un mail o un texto… quedará vinculado por ID de agente con los datos de

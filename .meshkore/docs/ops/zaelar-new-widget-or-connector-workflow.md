@@ -20,6 +20,7 @@ la mitad de este documento es una lista de sitios que tocar, no de código que e
 |---|---|
 | **crear una pieza NUEVA** (widget, conector, o los dos) | **este documento** |
 | cambiar el SISTEMA de widgets (contrato de manifest, despacho, storage, gate) | `zaelar-widgets-workflow.md` |
+| añadir una superficie NATIVA (panel, pestaña del muro, overlay de sistema) | `zaelar-native-surface-workflow.md` |
 | cambiar un widget que ya existe, dentro de su carpeta | su `notes.md` y nada más |
 | cerrar cualquier tanda que cambie comportamiento | `../../../.meshkore/docs/ops/zaelar-initiative-closure.md` (raíz) |
 

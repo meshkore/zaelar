@@ -466,6 +466,7 @@ Los agentes DEBEN trabajar dentro de esta estructura — no crear `docs/` ni car
 | **⭐ ESTÁNDAR de cabecera de widget — las dos barras y la puerta a los conectores** | `.meshkore/docs/conventions/zaelar-widget-header-standard.md` |
 | **Widgets change workflow** | `.meshkore/docs/ops/zaelar-widgets-workflow.md` |
 | **⭐ Widget o conector NUEVO — el workflow completo** | `.meshkore/docs/ops/zaelar-new-widget-or-connector-workflow.md` |
+| **⭐ Superficie NATIVA nueva (panel, pestaña del muro, overlay) — los 13 puntos que fallan en silencio** | `.meshkore/docs/ops/zaelar-native-surface-workflow.md` |
 | **Memory change workflow** | `.meshkore/docs/ops/zaelar-memory-workflow.md` |
 | **Alignment review** | `.meshkore/docs/ops/zaelar-alignment-review.md` |
 | **Model/latency benchmarks** | `.meshkore/docs/ops/zaelar-model-benchmarks.md` |
