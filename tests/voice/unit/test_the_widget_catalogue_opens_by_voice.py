@@ -152,3 +152,65 @@ def test_the_packs_were_versioned_so_existing_installs_import_them():
     for lang in ("es", "en"):
         pack = json.loads((ENGINE / f"nucleo/actionmap/seeds/{lang}.json").read_text(encoding="utf-8"))
         assert pack["version"] >= 10, f"{lang}: the pack carries the apps phrases under an old version"
+
+
+# ── the lane: an order that NAMES the tab opens it without the model ──────────────────────────────────────
+# Measured after F1 with a clean window per phrase, three rounds of his six phrases: `show_panel` 10-13 of 18.
+# The rest refused, promised with no tool, or spent a worker listing what the tab shows. The name decides now.
+@pytest.mark.parametrize("phrase,tab", [
+    ("Enséñame el catálogo de aplicaciones.", "apps"), ("Vale, enséñame el catálogo de widgets.", "apps"),
+    ("Vale, ábreme la lista de widgets customizados.", "apps-custom"), ("O los widgets. Ábreme esa lista.", "apps"),
+    ("Ábreme la lista de apps", "apps"), ("Johnny, ábreme las apps", "apps"),
+    ("enséñame mis widgets personalizados", "apps-custom"),
+])
+def test_an_order_that_names_the_tab_is_decided_by_the_name(phrase, tab):
+    from nucleo.flash.wall_lane import named_wall_tab
+    assert named_wall_tab(phrase) == tab
+
+
+@pytest.mark.parametrize("phrase", [
+    "¿Qué APPs tengo customizadas?",          # a question: the model answers it, from its own catalogue
+    "abre la aplicación de música", "ábreme el vídeo", "ábreme whatsapp", "abre el widget de música",
+    "cierra las apps", "hazme un widget de recetas", "crea una app de notas", "no me abras las apps",
+])
+def test_the_lane_leaves_everything_else_to_the_model(phrase):
+    from nucleo.flash.wall_lane import named_wall_tab
+    assert named_wall_tab(phrase) == "", phrase
+
+
+def test_the_voice_lane_opens_the_tab_and_records_the_exchange():
+    import asyncio
+    from voice.engine.llm.providers import fast_lane
+
+    class _Brain:
+        _window: list = []
+        _acc = None
+
+    events = []
+    brain = _Brain()
+    brain._window = []
+    real = fast_lane._speak_ack
+
+    async def _no_mouth(_b):
+        return None
+    fast_lane._speak_ack = _no_mouth
+    try:
+        took = asyncio.run(fast_lane.wall_tab(brain, "Vale, ábreme la lista de widgets customizados.",
+                                              lambda *a, **k: events.append((a, k)), first_turn=False, window_max=20))
+        missed = asyncio.run(fast_lane.wall_tab(brain, "¿Qué APPs tengo customizadas?",
+                                                lambda *a, **k: events.append((a, k)), first_turn=False, window_max=20))
+    finally:
+        fast_lane._speak_ack = real
+    assert took is True and missed is False
+    panel = [k for a, k in events if a[:2] == ("panel", "open")]
+    assert panel == [{"extra": {"tab": "apps-custom", "src": "flash"}}], events
+    assert brain._window[-1] == {"role": "assistant", "content": "[panel:apps-custom]"}
+
+
+def test_both_channels_try_the_lane_before_the_model():
+    prov = (ENGINE / "voice/engine/llm/providers/nucleo.py").read_text(encoding="utf-8")
+    lanes = prov.split("from voice.engine.llm.providers import fast_lane as _fast_lane")[1].split("return")[0]
+    assert "_fast_lane.wall_tab(brain, text, emit" in lanes
+    probe = (ENGINE / "nucleo/flash/probe_actionmap.py").read_text(encoding="utf-8")
+    chain = probe.split("def try_fast_lanes")[1].split("\ndef ")[0]
+    assert "try_wall_tab(text" in chain

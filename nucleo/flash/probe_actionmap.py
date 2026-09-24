@@ -18,7 +18,7 @@ from __future__ import annotations
 
 def try_fast_lanes(text: str, sess, *, execute: bool, trace_id: str, spec, pick_ack=None,
                    smalltalk_book: dict | None = None) -> dict | None:
-    """The three lanes that answer WITHOUT a model, in the same order the voice channel tries them.
+    """The lanes that answer WITHOUT a model, in the same order the voice channel tries them.
 
     One entry point rather than a chain written out at the call site: the two channels have drifted apart
     three times (V2-252), and a lane added to one of them is invisible in the other until somebody notices.
@@ -38,6 +38,9 @@ def try_fast_lanes(text: str, sess, *, execute: bool, trace_id: str, spec, pick_
     if got is not None:
         return got
     got = try_rename(text, sess, trace_id=trace_id, spec=spec, execute=execute)
+    if got is not None:
+        return got
+    got = try_wall_tab(text, trace_id=trace_id, spec=spec, execute=execute, pick_ack=pick_ack)
     if got is not None:
         return got
     # `bounce_pending` is the SESSION's state here, not a brain attribute — a probe session is this
@@ -65,6 +68,23 @@ def try_rename(text: str, sess, *, trace_id: str, spec, execute: bool) -> dict |
             _mem_rn.set_state({"assistant_name": name})
         phrase = getattr(spec, "data_ack", "") or ""
         return {"ok": True, "reply": [phrase] if phrase else [], "action": "rename_assistant",
+                "tool_calls": [], "tags": [], "trace": trace_id}
+    except Exception:  # noqa: BLE001 — fail-open: the turn proceeds to the model
+        return None
+
+
+def try_wall_tab(text: str, *, trace_id: str, spec, execute: bool, pick_ack=None) -> dict | None:
+    """The wall-tab lane's probe mirror (V2-761) — same verdict (`wall_lane.named_wall_tab`) as the voice lane."""
+    try:
+        from .wall_lane import named_wall_tab
+        tab = named_wall_tab(text)
+        if not tab:
+            return None
+        if execute:
+            from voice.observer import emit as _emit_wt
+            _emit_wt("panel", "open", extra={"tab": tab, "src": "flash"})
+        phrase = (pick_ack() if callable(pick_ack) else "") or getattr(spec, "data_ack", "") or ""
+        return {"ok": True, "reply": [phrase] if phrase else [], "action": f"panel:{tab}",
                 "tool_calls": [], "tags": [], "trace": trace_id}
     except Exception:  # noqa: BLE001 — fail-open: the turn proceeds to the model
         return None

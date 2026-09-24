@@ -258,6 +258,35 @@ async def rename(brain, text: str, emit, *, first_turn: bool, window_max: int) -
     return True
 
 
+# ── WALL TAB lane (V2-761) ───────────────────────────────────────────────────────────────────────────────
+# «Ábreme la lista de widgets» names a tab of the wall with certainty; the model called `show_panel` for it 10-13
+# times in 18 and otherwise refused, promised with nothing behind it, or spent a worker listing what the tab
+# already shows. The verdict lives in `nucleo/flash/wall_lane.py` (the probe reads the same one).
+async def wall_tab(brain, text: str, emit, *, first_turn: bool, window_max: int) -> bool:
+    """Open the wall on the tab his words name, without the model. False = not such an order → turn untouched."""
+    if first_turn or (getattr(brain, "_acc", None) and brain._acc.fragments):
+        return False
+    from nucleo.flash.wall_lane import named_wall_tab
+    tab = named_wall_tab(text)
+    if not tab:
+        return False
+    emit("panel", "open", extra={"tab": tab, "src": "flash"})
+    emit("brain", "🗂️ pestaña del muro por su NOMBRE (sin modelo)", text=tab, role="system",
+         extra={"cat": "flash", "engine": "wall_tab", "origin": "wall_tab", "src": "fast_lane"})
+    from nucleo.flash import dialog as _dialog_wt
+    _dialog_wt.push_user(brain._window, text)
+    brain._window.append({"role": "assistant", "content": f"[panel:{tab}]"})
+    del brain._window[:-window_max]
+    try:
+        from nucleo import style_policy as _style
+        _ack_on = _style.confirm_short_actions()
+    except Exception:
+        _ack_on = True
+    if _ack_on:
+        await _speak_ack(brain)
+    return True
+
+
 def _presence_names() -> tuple[str, ...]:
     """The assistant's own names, so «Johnny, hola» strips down to «hola». Best-effort: the phrasebook must
     not hard-depend on the attention gate (V2-665's lesson about where the authority lives)."""
