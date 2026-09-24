@@ -609,11 +609,18 @@ const _TAB_ALIAS = { tareas: ["procesos", "live"], tasks: ["procesos", "live"], 
                      workers: ["procesos", "live"], crons: ["procesos", "recurring"],
                      cron: ["procesos", "recurring"],
                      programadas: ["procesos", "scheduled"], scheduled: ["procesos", "scheduled"] };
-const _TABS = ["chat", "procesos", "clusters", "conectores"];
+// V2-761 — «Apps» (the widget catalogue) has two sub-tabs, Sistema and Custom, and the operator calls it
+// «apps» or «widgets» indifferently; both words, and the custom sub-tab by name, land here.
+const _APPS_ALIAS = { apps: "system", app: "system", widgets: "system", aplicaciones: "system",
+                      "apps-custom": "custom", custom: "custom" };
+const _TABS = ["chat", "procesos", "clusters", "conectores", "apps"];
+const [appsScope, setAppsScope] = createSignal("system");      // "system" | "custom"
+export { appsScope, setAppsScope };
 export const setChatTab = (tab) => {
   const raw = String(tab || "chat");
   const alias = _TAB_ALIAS[raw];
   if (alias) { setTaskScope(alias[1]); _setChatTab(alias[0]); return; }
+  if (_APPS_ALIAS[raw]) { setAppsScope(_APPS_ALIAS[raw]); _setChatTab("apps"); return; }
   _setChatTab(_TABS.includes(raw) ? raw : "chat");
 };
 const [chatMsgs, _setChatMsgs]         = createSignal([]);     // [{ role:"you"|"agent", text }]

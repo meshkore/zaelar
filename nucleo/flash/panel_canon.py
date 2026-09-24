@@ -7,13 +7,16 @@ a pure string→string function with no state and one caller.
 """
 from __future__ import annotations
 
+import re
+
 
 def canon_panel(v) -> str:
     """Normalizes the `show_panel` `panel` to a canonical ChatWall destination.
 
     V2-728 — the wall now has four tabs, and «Procesos» has four SUB-tabs. This still answers a single
     string, because that is what the frontend's one door (`store.setChatTab`) takes: `chat` · `clusters` ·
-    `conectores` · `procesos` (En curso) · `crons` (Periódicos) · `programadas` (Programados).
+    `conectores` · `apps` (V2-761, the widget catalogue — `apps-custom` for its Custom sub-tab) · `procesos`
+    (En curso) · `crons` (Periódicos) · `programadas` (Programados).
 
     ⚠️ V2-744 — «TAREA» NO LONGER MEANS THIS PANEL, and that is the whole point of the rename. The
     operator's rule: *«a las tareas que yo hago las llamo procesos (jobs en inglés) y las separo de las
@@ -33,7 +36,7 @@ def canon_panel(v) -> str:
     tool description, not here. Default `procesos`, the most requested case.
     """
     p = str(v or "").strip().lower()
-    if p in ("chat", "procesos", "crons", "programadas", "clusters", "conectores", "tareas"):
+    if p in ("chat", "procesos", "crons", "programadas", "clusters", "conectores", "tareas", "apps", "apps-custom"):
         return "procesos" if p == "tareas" else p
     # 'clusters' BEFORE the rest: "cluster" contains the substring "clus", not "cron", but the order makes
     # explicit that the network is evaluated first — and prevents a future ambiguous synonym from landing on the wrong side.
@@ -41,6 +44,10 @@ def canon_panel(v) -> str:
         return "clusters"
     if any(k in p for k in ("conector", "connector", "integracion", "integración")):
         return "conectores"
+    # V2-761 — the widget catalogue. AFTER the connectors on purpose: «app» is inside «whatsapp», so it is
+    # matched as a WORD, and a connector named in the argument keeps winning.
+    if re.search(r"\b(apps?|widgets?|aplicacion(es)?|aplicación)\b", p):
+        return "apps-custom" if re.search(r"\b(custom|personaliz|propi|mios|mías|mias|míos)", p) else "apps"
     # …and 'periódica' BEFORE 'programada': a recurring job IS scheduled, so the narrower word has to win or
     # everything lands on the same list, which is the defect this split exists to remove.
     if any(k in p for k in ("cron", "periodic", "periódic", "recurren", "cada semana", "cada dia", "cada día",

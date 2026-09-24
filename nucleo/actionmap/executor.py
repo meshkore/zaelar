@@ -31,7 +31,7 @@ _ALLOWED: dict[str, tuple[str, ...]] = {
 
 # V2-728 — `tareas` (the merged tab) and `programadas` (its one-shot sub-tab) join the vocabulary;
 # `procesos` stays because stored action-map rows already carry it and the frontend maps it.
-_PANEL_TABS = ("chat", "tareas", "procesos", "crons", "programadas", "clusters", "conectores")
+_PANEL_TABS = ("chat", "tareas", "procesos", "crons", "programadas", "clusters", "conectores", "apps", "apps-custom")
 _MOVE_WHERE = ("left", "right", "center", "top", "bottom")
 
 

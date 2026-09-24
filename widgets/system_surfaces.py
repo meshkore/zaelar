@@ -30,6 +30,16 @@ SYSTEM_SURFACES: dict[str, dict] = {
         "aliases": ["chat", "muro", "muro de texto", "muro de chat", "escribirte", "hablarte por texto",
                     "conversacion", "conversación", "el chat contigo", "wall", "text wall", "chat wall"],
     },
+    # V2-761 — the widget catalogue, a TAB of the wall; named here so `identify` routes «ábreme las apps» to it.
+    "apps": {
+        "name": "Apps",
+        "aliases": ["apps", "widgets", "mis apps", "mis widgets",
+                    "las apps", "los widgets", "lista de apps", "lista de widgets",
+                    "catalogo de apps", "catálogo de apps", "catalogo de widgets", "catálogo de widgets",
+                    "las aplicaciones", "mis aplicaciones", "lista de aplicaciones", "widgets disponibles",
+                    "apps disponibles", "my apps", "my widgets", "app list",
+                    "widget list", "app catalog", "widget catalog", "the applications"],
+    },
     "status": {
         "name": "Status",
         "aliases": ["estado", "estado del sistema", "status", "panel de estado", "salud del sistema",

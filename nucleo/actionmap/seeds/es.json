@@ -1,6 +1,6 @@
 {
- "_comment": "Genesis seed pack (Spanish) for the action map (V2-539). Every entry is an UNAMBIGUOUS, whole-utterance command mapped to one allowlisted direct action. Phrases are normalized on import (accents/punctuation don't matter here). Courtesy/word-order variants are separate entries ON PURPOSE — the matcher is not allowed to understand. When a phrase could plausibly mean something richer than the mapped action, it does NOT belong in this pack: the model handles it. · V2-682 — the possessive and the courtesy form were the whole hole. Measured on the operator's own English session (2026-09-12): «open the agenda» matched and «can you open MY agenda, please» did not, so a widget SHOW fell through to the model and from there to a Brain Worker that died on a provider 400. Spanish had the identical hole («abre mi agenda», «abreme la agenda»), which is why the fix lands in BOTH packs: this was never an English defect. Courtesy and modal forms are ENTRIES here, never something the matcher is allowed to understand (normalize.py doctrine).",
- "version": 9,
+ "_comment": "Genesis seed pack (Spanish) for the action map (V2-539). Every entry is an UNAMBIGUOUS, whole-utterance command mapped to one allowlisted direct action. Phrases are normalized on import (accents/punctuation don't matter here). Courtesy/word-order variants are separate entries ON PURPOSE — the matcher is not allowed to understand. When a phrase could plausibly mean something richer than the mapped action, it does NOT belong in this pack: the model handles it. · V2-682 — the possessive and the courtesy form were the whole hole. Measured on the operator's own English session (2026-09-12): «open the agenda» matched and «can you open MY agenda, please» did not, so a widget SHOW fell through to the model and from there to a Brain Worker that died on a provider 400. Spanish had the identical hole («abre mi agenda», «abreme la agenda»), which is why the fix lands in BOTH packs: this was never an English defect. Courtesy and modal forms are ENTRIES here, never something the matcher is allowed to understand (normalize.py doctrine). · V2-761 — the widget catalogue («Apps») joins as a panel tab; the operator calls it apps or widgets indifferently, so both words are entries.",
+ "version": 10,
  "grids": [
   {
    "_comment": "VERB x OBJECT grid for mensajeria's LENSES (V2-545). «Abreme el Telegram» is not «show the card»: WhatsApp/Telegram/correo are VIEWS OF a card, and the model reads them as card names because they are also the widget's aliases - measured live, three turns of «Aqui lo tienes» over an unmoved card. Expanded into ordinary exact-match entries at import; a view op also brings the card up (executor), so one order gets both halves. `$` is filled with the value.",
@@ -509,6 +509,134 @@
    "action": {
     "do": "show_panel",
     "tab": "clusters",
+    "action": "open"
+   }
+  },
+  {
+   "phrase": "abre las apps",
+   "action": {
+    "do": "show_panel",
+    "tab": "apps",
+    "action": "open"
+   }
+  },
+  {
+   "phrase": "abreme las apps",
+   "action": {
+    "do": "show_panel",
+    "tab": "apps",
+    "action": "open"
+   }
+  },
+  {
+   "phrase": "abre los widgets",
+   "action": {
+    "do": "show_panel",
+    "tab": "apps",
+    "action": "open"
+   }
+  },
+  {
+   "phrase": "abreme los widgets",
+   "action": {
+    "do": "show_panel",
+    "tab": "apps",
+    "action": "open"
+   }
+  },
+  {
+   "phrase": "abre la lista de widgets",
+   "action": {
+    "do": "show_panel",
+    "tab": "apps",
+    "action": "open"
+   }
+  },
+  {
+   "phrase": "abreme la lista de widgets",
+   "action": {
+    "do": "show_panel",
+    "tab": "apps",
+    "action": "open"
+   }
+  },
+  {
+   "phrase": "abre la lista de apps",
+   "action": {
+    "do": "show_panel",
+    "tab": "apps",
+    "action": "open"
+   }
+  },
+  {
+   "phrase": "abre el catalogo de widgets",
+   "action": {
+    "do": "show_panel",
+    "tab": "apps",
+    "action": "open"
+   }
+  },
+  {
+   "phrase": "abreme el catalogo de widgets",
+   "action": {
+    "do": "show_panel",
+    "tab": "apps",
+    "action": "open"
+   }
+  },
+  {
+   "phrase": "abre el catalogo de apps",
+   "action": {
+    "do": "show_panel",
+    "tab": "apps",
+    "action": "open"
+   }
+  },
+  {
+   "phrase": "abreme el catalogo de apps",
+   "action": {
+    "do": "show_panel",
+    "tab": "apps",
+    "action": "open"
+   }
+  },
+  {
+   "phrase": "que widgets tengo",
+   "action": {
+    "do": "show_panel",
+    "tab": "apps",
+    "action": "open"
+   }
+  },
+  {
+   "phrase": "que widgets tengo disponibles",
+   "action": {
+    "do": "show_panel",
+    "tab": "apps",
+    "action": "open"
+   }
+  },
+  {
+   "phrase": "que apps tengo",
+   "action": {
+    "do": "show_panel",
+    "tab": "apps",
+    "action": "open"
+   }
+  },
+  {
+   "phrase": "ensename los widgets",
+   "action": {
+    "do": "show_panel",
+    "tab": "apps",
+    "action": "open"
+   }
+  },
+  {
+   "phrase": "ensename las apps",
+   "action": {
+    "do": "show_panel",
+    "tab": "apps",
     "action": "open"
    }
   },

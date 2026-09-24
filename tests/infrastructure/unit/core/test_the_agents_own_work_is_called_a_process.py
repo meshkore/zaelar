@@ -70,7 +70,8 @@ def test_the_tab_ID_moved_with_the_label_because_the_ID_is_what_a_voice_order_ca
     it answered to «tareas», «ábreme las tareas» opened the agent's own job list — which is exactly the
     thing the operator asked to stop calling by that name."""
     store = (ENGINE / "frontend/app/core/store.js").read_text(encoding="utf-8")
-    assert 'const _TABS = ["chat", "procesos", "clusters", "conectores"];' in store
+    # V2-761 added «apps» (the widget catalogue); what this pins is that «tareas» is still NOT a tab id.
+    assert 'const _TABS = ["chat", "procesos", "clusters", "conectores", "apps"];' in store
     wall = (ENGINE / "frontend/app/components/ChatWall.js").read_text(encoding="utf-8")
     assert 'store.setChatTab("procesos")' in wall
     assert 'store.setChatTab("tareas")' not in wall

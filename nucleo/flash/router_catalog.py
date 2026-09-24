@@ -132,7 +132,8 @@ TOOLS: list[dict] = [
                 "Abre o CIERRA el PANEL lateral NATIVO del operador — es UI fija, NUNCA show_widget ni "
                 "[[show]]. `panel`: 'procesos' (TU trabajo en marcha; sus TAREAS personales no son esto, "
                 "van en el widget agenda) | 'crons' (periódicos) | 'programadas' (una vez, luego) | "
-                "'chat' (el muro de texto) | 'clusters' (la red MeshKore) | 'conectores' (sus cuentas). "
+                "'chat' (muro de texto) | 'clusters' (red MeshKore) | 'conectores' (sus cuentas) | "
+                "'apps' (catálogo de apps/widgets, «qué widgets tengo»). "
                 "Solo si quiere VER la lista; un dato suelto se dice hablando. Con `action:'close'` lo "
                 "CIERRA. El chat NO es un widget: [[close]] no lo cierra — es ESTA."
             ),
@@ -140,7 +141,7 @@ TOOLS: list[dict] = [
                 "type": "object",
                 "properties": {
                     "panel": {"type": "string",
-                              "description": "cuál: 'procesos'|'crons'|'programadas'|'chat'|'clusters'|'conectores'"},
+                              "description": "cuál (los de arriba)"},
                     "action": {"type": "string",
                                "description": "'open' (por defecto) o 'close' si pide cerrarlo/quitarlo"},
                 },

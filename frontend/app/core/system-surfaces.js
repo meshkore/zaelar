@@ -76,7 +76,7 @@ export const SYSTEM_SURFACES = [
   // The two selectors moved to ⚙ → Voz, where a device choice belongs; only reply latency lost its chip, and
   // the real per-turn timings live in ◷ with far more detail than «resp — ms».
   // ── PANELES / OVERLAYS / MODALES (a nivel de body, por encima del escritorio) ──
-  // NOTE: the wall has FOUR tabs (Chat / Procesos / Clusters / Conectores). V2-728 merged the former
+  // NOTE: the wall has FIVE tabs (Chat / Procesos / Clusters / Conectores / Apps — V2-761). V2-728 merged the former
   // «Procesos» and «Crons» into one tab with four sub-tabs (En curso · Hechos · Periódicos · Programados):
   // they were the same object seen twice, a commission the brain is carrying out and one with a clock on it.
   // "abre el chat" → the Chat tab; «procesos»/«jobs», «crons» and «clusters» (the MeshKore NETWORK,
@@ -87,10 +87,19 @@ export const SYSTEM_SURFACES = [
   // The network is NATIVE on purpose: it is system infrastructure (the link to the outside), not a user
   // widget — which is why it sits beside Procesos and not in the catalog.
   { id: "chat",       comp: ChatWall,     target: "body", phase: "overlay", kind: "panel",
-    toggle: "store.chatOpen + store.chatTab (Chat/Jobs/Clusters/Connectors)",
-    label: "Chat + Jobs + Clusters + Connectors (4 tabs)",
+    toggle: "store.chatOpen + store.chatTab (Chat/Jobs/Clusters/Connectors/Apps)",
+    label: "Chat + Jobs + Clusters + Connectors + Apps (5 tabs)",
     name: "Chat", aliases: ["chat", "muro", "muro de texto", "muro de chat", "escribirte", "hablarte por texto",
       "conversacion", "conversación", "el chat contigo", "wall", "text wall", "chat wall"] },
+  // V2-761 — «Apps»: the widget catalogue, a TAB of the wall (Sistema · Custom), not a component of its own —
+  // `phase: "tab"` is never mounted (main.js mounts only scaffold/overlay). It is listed so the voice can NAME
+  // it: «ábreme las apps / la lista de widgets / el catálogo de widgets» resolves here and the provider opens
+  // the wall on this tab. The aliases are MULTI-WORD on purpose where a single word would be a near-miss of
+  // something else: the resolver's voice tolerance fuzzes single-word aliases, and a bare «aplicaciones»
+  // would catch «abre la APLICACIÓN de música» and open this list instead of the music card.
+  { id: "apps",       comp: null,         target: "body", phase: "tab", kind: "panel",
+    toggle: "store.chatTab = apps (ChatWall's Apps tab)", label: "Apps — the widget catalogue (System · Custom)",
+    name: "Apps", aliases: ["apps", "widgets", "mis apps", "mis widgets", "las apps", "los widgets", "lista de apps", "lista de widgets", "catalogo de apps", "catálogo de apps", "catalogo de widgets", "catálogo de widgets", "las aplicaciones", "mis aplicaciones", "lista de aplicaciones", "widgets disponibles", "apps disponibles", "my apps", "my widgets", "app list", "widget list", "app catalog", "widget catalog", "the applications"] },
   { id: "status",     comp: StatusPanel,  target: "body", phase: "overlay", kind: "panel",
     toggle: "store.statusOpen (◉)", label: "System status panel",
     name: "Status", aliases: ["estado", "estado del sistema", "status", "panel de estado", "salud del sistema",

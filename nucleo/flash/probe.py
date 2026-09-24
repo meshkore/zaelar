@@ -465,7 +465,7 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
             action = ("guard:show-of-just-closed-widget" if _reopen_drag else
                       f"canvas:show:{_rid}" if _rid else
                       "clarify" if _show_ask else
-                      "panel:chat" if _sys == "chat" else "clarify")
+                      f"panel:{_sys}" if _sys in ("chat", "apps") else "clarify")
     elif "fullscreen_widget" in names:
         # BUG real 2026-07-23 — espejo del provider: pone/quita pantalla completa de verdad. Resuelve el id por
         # nombre/alias con certeza (V2-082); sin match → pregunta (no fabrica).

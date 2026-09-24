@@ -274,9 +274,12 @@ body.chatdock-r .statuspanel,body.chatdock-r .cronpanel{right:calc(18px + var(--
      box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--hb-accent) 55%,transparent)}
 .chatwall.cw-narrow .cw-tab-label{display:none}
 .chatwall.cw-narrow .cw-tab{padding:var(--sp-2)}
-.cw-tasks,.cw-clusters,.cw-conn{flex:1 1 auto;min-height:0;flex-direction:column;overflow:hidden}
+/* V2-761 — too narrow even for the name beside the icons: the name goes, the icons tighten; no tab hides. */
+.chatwall.cw-tight .cw-tabname{display:none}
+.chatwall.cw-tight .cw-tab{padding:var(--sp-2) 5px}
+.cw-tasks,.cw-clusters,.cw-conn,.cw-apps{flex:1 1 auto;min-height:0;flex-direction:column;overflow:hidden}
 /* only the active tab's panel is shown (all hidden by default) */
-.chatwall .cw-list,.chatwall .cw-tasks,.chatwall .cw-clusters,.chatwall .cw-conn,.chatwall .cw-input{display:none}
+.chatwall .cw-list,.chatwall .cw-tasks,.chatwall .cw-clusters,.chatwall .cw-conn,.chatwall .cw-apps,.chatwall .cw-input{display:none}
 .chatwall .cw-wconfirm{display:none}
 .chatwall.tab-chat .cw-wconfirm{display:block}
 .chatwall.tab-chat .cw-list{display:flex}
@@ -284,6 +287,27 @@ body.chatdock-r .statuspanel,body.chatdock-r .cronpanel{right:calc(18px + var(--
 .chatwall.tab-procesos .cw-tasks{display:flex}
 .chatwall.tab-clusters .cw-clusters{display:flex}
 .chatwall.tab-conectores .cw-conn{display:flex}
+.chatwall.tab-apps .cw-apps{display:flex}
+/* V2-761 — Apps: the widget catalogue. Two columns (his «en una o dos columnas»), a thumbnail box and the name
+   under it. No real thumbnails yet: the box carries the generic apps glyph, tinted with the accent. A SYSTEM
+   widget he has forked is drawn PALE — the glyph in grey, the box without colour — with a «Custom» mark over
+   it: the native one is no longer the one that runs, and the copy lives under Custom. */
+.ap-grid{flex:1 1 auto;min-height:0;overflow-y:auto;padding:12px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:10px;align-content:start}
+.ap-tile{display:flex;flex-direction:column;align-items:stretch;gap:6px;padding:8px;border:1px solid var(--hb-line);
+  border-radius:var(--hb-r-m,10px);background:var(--hb-bg-soft);color:var(--hb-ink);font:inherit;cursor:pointer;text-align:left;
+  transition:background var(--hb-t-fast) ease,border-color var(--hb-t-fast) ease}
+.ap-tile:hover{background:var(--hb-hover);border-color:color-mix(in srgb,var(--hb-accent) 55%,transparent)}
+.ap-thumb{position:relative;display:flex;align-items:center;justify-content:center;aspect-ratio:16/10;border-radius:var(--hb-r-s);
+  background:color-mix(in srgb,var(--hb-accent) 16%,transparent);color:var(--hb-accent)}
+.ap-thumb svg{width:34%;height:auto;max-width:56px}
+.ap-name{font-size:var(--fs-ui);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ap-meta{font-size:var(--fs-micro);color:var(--hb-muted-2)}
+.ap-customized .ap-thumb{background:color-mix(in srgb,var(--hb-muted) 10%,transparent);color:color-mix(in srgb,var(--hb-muted) 45%,transparent)}
+.ap-customized .ap-name{color:var(--hb-muted)}
+.ap-badge{position:absolute;inset:auto 0 auto 0;top:50%;transform:translateY(-50%);margin:0 auto;width:max-content;
+  padding:3px 10px;border-radius:999px;border:1px solid var(--hb-line);background:var(--hb-bubble);color:var(--hb-ink);
+  font-size:var(--fs-micro);font-weight:800;letter-spacing:.04em;text-transform:uppercase}
 /* V2-728 — the four sub-tabs of «Procesos». A quieter row than the top tabs on purpose: they divide ONE
    subject, so they must not compete with the four that divide the panel. */
 .cw-subtabs{display:flex;gap:2px;padding:8px 10px 0;flex:0 0 auto;align-items:center}

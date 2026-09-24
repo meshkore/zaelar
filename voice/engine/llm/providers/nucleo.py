@@ -1547,10 +1547,11 @@ class NucleoLLMStream(llm.LLMStream):
                                 acted["widget_id"] = _rid
                                 emit("brain", "🪟 show_widget → canvas", text=_rid, role="system",
                                      extra={"empty": _surface_is_empty(_rid)})
-                        elif _sys == "chat":
-                            # nombró el CHAT (superficie de sistema, no un widget) → abre el panel nativo.
-                            emit("panel", "open", extra={"tab": "chat", "src": "flash"})
-                            emit("brain", "🗂️ show_widget→chat (superficie de sistema)", role="system")
+                        elif _sys in ("chat", "apps"):
+                            # It named the CHAT, or the widget catalogue (V2-761: «ábreme las apps») — two
+                            # tabs of the native wall, not widgets → open the wall on that tab.
+                            emit("panel", "open", extra={"tab": _sys, "src": "flash"})
+                            emit("brain", f"🗂️ show_widget→{_sys} (superficie de sistema)", role="system")
                             acted["widget"] = True
                         else:
                             # V2-082: NO se fabrica un widget cuando no hay match. Si nombró una pieza de sistema o

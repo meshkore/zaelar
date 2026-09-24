@@ -2211,6 +2211,14 @@ DOMAINS: list[dict] = [
         # (reutiliza feedback-api.js, nunca un fetch inline) + que un `not-possible` no ofrezca botón.
         {"id": "4.108", "title": "Pestaña nativa «Conectores» del ChatWall (catálogo global, V2-526/V2-561)",
             "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_connectors_tab.py"]},
+        # V2-761 — the wall's «Apps» tab, RENDERED: the widget catalogue in two sub-tabs (Sistema · Custom), a
+        # launcher-of-dots icon that cannot be mistaken for the rail's squares, two columns, a forked SYSTEM
+        # widget drawn pale with a «Custom» mark while his copy is listed under Custom, and a tile that opens its
+        # card through `hb:open-card`. «apps» and «widgets» land on the same tab.
+        {"id": "4.212", "title": "Pestaña «Apps» del ChatWall — el catálogo de widgets, Sistema · Custom, y el "
+                                 "de sistema que él personalizó se ve pálido con la marca «Custom»",
+            "ch": UNIT,
+            "paths": ["tests/browser/unit/widgets/test_the_apps_tab_lists_every_widget_and_says_which_is_his.py"]},
         # V2-088: el chat es una VISTA, no un modo. Estos tests impiden que alguien vuelva a cablear el panel
         # con el altavoz — el acoplamiento anterior era indistinguible de un TTS averiado.
         {"id": "4.9", "title": "Chat y voz INDEPENDIENTES (el icono es el único dueño del silencio, V2-088)",
@@ -3133,6 +3141,13 @@ DOMAINS: list[dict] = [
                                 "confirma",
             "ch": UNIT,
             "paths": ["tests/voice/unit/test_leaving_full_screen_is_its_own_order.py"]},
+        # V2-761 — «ábreme la lista de widgets / el catálogo de apps / qué widgets tengo» opens the Apps tab by
+        # all three doors (action map, `show_panel`, and `show_widget` naming the system surface), while the
+        # neighbours keep their words: «la aplicación de música», «vuelve al catálogo», «abre whatsapp».
+        {"id": "2.80", "title": "El catálogo de widgets se abre por voz por las tres puertas — y no le roba la "
+                                "palabra a «la aplicación de música» ni al catálogo del vídeo",
+            "ch": UNIT,
+            "paths": ["tests/voice/unit/test_the_widget_catalogue_opens_by_voice.py"]},
         {"id": "2.78", "title": "Una tarjeta a pantalla completa TAPA TODO (chat acoplado y barra incluidos) "
                                 "y siempre hay salida: la X de sistema, doble clic, Esc — RENDERIZADO en el "
                                 "DOM real",
@@ -3731,7 +3746,8 @@ DOMAINS: list[dict] = [
                       "tests/browser/unit/feedback/test_a_report_says_what_kind_it_is.py",
                       "tests/browser/unit/feedback/test_an_image_never_swallows_the_message.py"]},
         # V2-760 — the thumbs-down: «this went wrong» in ONE click, the report IS the session, and the toast
-        # fades by itself. Rendered: the colour, the position left of the launcher, one request per click. It
+        # fades by itself. Rendered: a bare black hand ABOVE the launcher (no disc), hidden on phones and while
+        # the panel is open, one request per click. It
         # also carries the defect it exposed — a capped evidence read returned the FIRST 200 events, so every
         # report carried the start of the session and never the failure (measured: the first 39 s of 2:18).
         {"id": "4.211", "title": "El pulgar abajo marca un fallo en UN clic — el informe es la sesión, con un "

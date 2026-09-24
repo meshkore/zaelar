@@ -20,7 +20,7 @@ import * as session from "../services/session.js?v=3";
 import * as api from "../services/api.js?v=2";
 import * as feedbackApi from "../services/feedback-api.js?v=1";
 import { makeResizable } from "../lib/resizable.js?v=1";
-import { CLOSE_ICON, TRASH_ICON, MESSAGE_SQUARE_ICON, ACTIVITY_ICON, CLOCK_ICON, SERVER_ICON, LINK_ICON } from "../lib/icons.js?v=1";
+import { CLOSE_ICON, TRASH_ICON, MESSAGE_SQUARE_ICON, ACTIVITY_ICON, CLOCK_ICON, SERVER_ICON, LINK_ICON, APPS_ICON } from "../lib/icons.js?v=1";
 import { renderMarkdownLite } from "../lib/markdown-lite.js?v=1";
 import { t } from "../core/i18n.js?v=1";
 
@@ -37,7 +37,7 @@ const SEND_SVG = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" st
 // V2-621 — the ONE map from a tab id to its label key: the header's standing name (`.cw-tabname`) and each
 // tab button's own label read the same entry, so they cannot drift apart.
 const TAB_LABEL = { chat: "chat.tabChat", procesos: "chat.tabTasks",
-                    clusters: "chat.tabClusters", conectores: "chat.tabConnectors" };
+                    clusters: "chat.tabClusters", conectores: "chat.tabConnectors", apps: "chat.tabApps" };
 // V2-728 — the FOUR sub-tabs of «Procesos», in the order the operator reads them: what is happening now, what
 // is over, what repeats, what is waiting for its moment. Same ONE-map rule as TAB_LABEL above: the button,
 // the empty state and the fetch all key off this, so they cannot drift.
@@ -442,6 +442,47 @@ export function ChatWall() {
     return out;
   };
 
+  // ── APPS tab (V2-761): the widget catalogue — Sistema (shipped) · Custom (his own + his forks) ──────────
+  // One GET (`/widgets/registry`, the resolver's own read model) and nothing else: `origin` says who built
+  // it and `forked` says a shipped widget has been replaced by his copy. A FORKED system widget shows twice
+  // ON PURPOSE: under Sistema greyed with a «Custom» mark — so he can see that the native one is no longer
+  // the one running — and under Custom as the one he actually opens. A click opens the card through the
+  // same door every other button uses (`hb:open-card`); this tab holds no second way of opening a widget.
+  const [appRows, setAppRows] = createSignal([]);
+  const refreshApps = async () => {
+    const r = await api.getWidgetsRegistry();
+    setAppRows(((r && r.registry) || []).filter(w => w && w.surface === "user"));
+  };
+  const _byName = (a, b) => String(a.name || a.id).localeCompare(String(b.name || b.id));
+  const systemApps = () => appRows().filter(w => w.origin === "builtin" || w.forked).sort(_byName);
+  const customApps = () => appRows().filter(w => w.origin !== "builtin").sort(_byName);
+  const openApp = (id) => { try { document.dispatchEvent(new CustomEvent("hb:open-card", { detail: { id } })); } catch (_) {} };
+  const appTile = (w, scope) => {
+    const customized = scope === "system" && !!w.forked;
+    return h("button", { class: "ap-tile" + (customized ? " ap-customized" : ""), "data-app": w.id,
+                         title: () => customized ? t("chat.appsCustomizedNote") : (w.name || w.id),
+                         onClick: () => openApp(w.id) },
+      h("span", { class: "ap-thumb" }, raw(APPS_ICON),
+        customized ? h("span", { class: "ap-badge" }, () => t("chat.appsCustomBadge")) : null),
+      h("span", { class: "ap-name" }, w.name || w.id),
+      scope === "custom" && w.forked ? h("span", { class: "ap-meta" }, () => t("chat.appsForkOf")) : null,
+    );
+  };
+  const APP_SCOPES = [{ id: "system", label: "chat.appsSystem", empty: "chat.appsSystemEmpty" },
+                      { id: "custom", label: "chat.appsCustom", empty: "chat.appsCustomEmpty" }];
+  const appsBody = () => {
+    const sc = APP_SCOPES.find(x => x.id === store.appsScope()) || APP_SCOPES[0];
+    const rows = sc.id === "custom" ? customApps() : systemApps();
+    return [
+      h("div", { class: "cw-subtabs" },
+        ...APP_SCOPES.map(x => h("button", { class: "cw-subtab" + (x.id === sc.id ? " on" : ""),
+                                             onClick: () => store.setAppsScope(x.id) }, () => t(x.label)))),
+      rows.length
+        ? h("div", { class: "ap-grid" }, ...rows.map(w => appTile(w, sc.id)))
+        : h("div", { class: "cw-empty" }, () => t(sc.empty)),
+    ];
+  };
+
   // The dock classes are set IMPERATIVELY by applyDock/applyFloat, and this binding rewrites the whole
   // className whenever the tab or the open flag changes — so it silently wiped `docked`/`dock-left` while the
   // `dockSide` variable stayed set. The wall then rendered as a floating panel at left:0 and still reserved a
@@ -453,7 +494,8 @@ export function ChatWall() {
   // className on any tab/open change and would wipe an imperative class — the exact V2-608 dock-class trap,
   // which this file has now paid for twice.
   const [narrow, setNarrow] = createSignal(false);
-  const wall = h("div", { id: "chatwall", ref: el => (wallEl = el), class: () => "chatwall tab-" + store.chatTab() + (store.chatOpen() ? " open" : "") + dockClass() + (narrow() ? " cw-narrow" : "") },
+  const [tight, setTight] = createSignal(false);
+  const wall = h("div", { id: "chatwall", ref: el => (wallEl = el), class: () => "chatwall tab-" + store.chatTab() + (store.chatOpen() ? " open" : "") + dockClass() + (narrow() ? " cw-narrow" : "") + (tight() ? " cw-tight" : "") },
     h("div", { class: "cw-head", ref: el => (headEl = el) },
       // V2-621 — the header reads «active tab NAME (fixed min-width) | five icon tabs | ⧉ ×» (operator,
       // 2026-09-08). The standing name says WHERE you are once the tabs are icons; CSS hides it when the
@@ -468,6 +510,7 @@ export function ChatWall() {
         h("button", { class: () => "cw-tab" + (store.chatTab() === "procesos" ? " on" : ""), title: () => t("chat.tabTasks"), onClick: () => store.setChatTab("procesos") }, raw(ACTIVITY_ICON), h("span", { class: "cw-tab-label" }, () => t("chat.tabTasks"))),
         h("button", { class: () => "cw-tab" + (store.chatTab() === "clusters" ? " on" : ""), title: () => t("chat.tabClusters"), onClick: () => store.setChatTab("clusters") }, raw(SERVER_ICON), h("span", { class: "cw-tab-label" }, () => t("chat.tabClusters"))),
         h("button", { class: () => "cw-tab" + (store.chatTab() === "conectores" ? " on" : ""), title: () => t("chat.tabConnectors"), onClick: () => store.setChatTab("conectores") }, raw(LINK_ICON), h("span", { class: "cw-tab-label" }, () => t("chat.tabConnectors"))),
+        h("button", { class: () => "cw-tab" + (store.chatTab() === "apps" ? " on" : ""), title: () => t("chat.tabApps"), onClick: () => store.setChatTab("apps") }, raw(APPS_ICON), h("span", { class: "cw-tab-label" }, () => t("chat.tabApps"))),
       ),
       // MODE TOGGLE — the box↔column switch, visible in BOTH shapes (operator, 2026-09-08: «en la box se
       // tienen que ver tb los 2 icons a la derecha, para pasar el formato box a columna»). Docked, it gives
@@ -522,6 +565,8 @@ export function ChatWall() {
     h("div", { class: "cw-conn" },
       h("div", { class: "cl-list" }, () => connFamilySections()),
     ),
+    // APPS (V2-761) — the widget catalogue, Sistema · Custom.
+    h("div", { class: "cw-apps" }, () => appsBody()),
     // INPUT (Chat only — CSS hides it in the other tabs)
     h("div", { class: "cw-input" },
       h("textarea", {
@@ -543,6 +588,7 @@ export function ChatWall() {
     if (t === "procesos") { store.fetchTasks(); store.fetchTaskScope(store.taskScope()); }
     else if (t === "clusters") store.fetchClusters();
     else if (t === "conectores") refreshConnectors();
+    else if (t === "apps") refreshApps();
   });
   // When live processes change (a task finishes) while we are viewing “Processes”, refresh the history so
   // the task that just finished moves from the "running" block to "history".
@@ -571,14 +617,22 @@ export function ChatWall() {
   // opens the wall by SSE, `[[close]]` shuts it). Those are as much «where he left it» as a click is.
   createEffect(() => { store.chatOpen(); store.chatTab(); saveOpen(); });
 
-  // V2-619/V2-621: below this width the five tabs cannot all carry icon+label, so the labels give way to
+  // V2-619/V2-621 (V2-761: six now): below this width the tabs cannot all carry icon+label, so the labels give way to
   // the icons and the header's standing tab NAME takes over (CSS keys off `cw-narrow`). Measured on the wall
   // itself, so a dock resize, a float resize and a profile's larger type all take the same door. 660, not
   // V2-619's 580: wide tabs now keep their icons BESIDE the labels (~24px more per tab).
-  const TABS_NARROW_BELOW = 660;
+  const TABS_NARROW_BELOW = 760;             // V2-761: +100 for the Apps tab's icon + label
+  // V2-761 — below this even the ICONS do not fit beside the standing tab name: measured with five tabs, the
+  // strip needs 183px and a 320px wall (the default float) gave it 132, so the last two tabs sat behind a
+  // hidden scrollbar — and with four, Conectores already did. Here the name gives way (the active tab is
+  // still marked, and every icon keeps its title) rather than a tab becoming unreachable.
+  const TABS_TIGHT_BELOW = 400;
   try {
     new ResizeObserver(() => {
-      if (wallEl.offsetWidth > 0) setNarrow(wallEl.offsetWidth < TABS_NARROW_BELOW);
+      if (wallEl.offsetWidth > 0) {
+        setNarrow(wallEl.offsetWidth < TABS_NARROW_BELOW);
+        setTight(wallEl.offsetWidth < TABS_TIGHT_BELOW);
+      }
     }).observe(wallEl);
   } catch (_) {}
 

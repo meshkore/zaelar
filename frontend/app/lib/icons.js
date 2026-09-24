@@ -47,4 +47,9 @@ export const USER_ICON = `<svg ${S}><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0
 export const MESSAGE_SQUARE_ICON = `<svg ${S}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M12 7v6"/><path d="M9 10h6"/></svg>`;
 // V2-760 — the one-click «this went wrong» marker beside the feedback launcher (lucide thumbs-down).
 export const THUMBS_DOWN_ICON = `<svg ${S}><path d="M17 14V2"/><path d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22a3.13 3.13 0 0 1-3-3.88Z"/></svg>`;
+// V2-761 — the APPS tab: a 3×3 grid of dots, the launcher every OS uses for «all my apps». Dots, not squares,
+// on purpose: the widget rail's own buttons (show all / compact) are drawn with SQUARES and mean «arrange the
+// cards», so the two must not read as the same thing.
+export const APPS_ICON = `<svg ${S}>${[5, 12, 19].flatMap(y => [5, 12, 19].map(x =>
+  `<circle cx="${x}" cy="${y}" r="1.9" fill="currentColor" stroke="none"/>`)).join("")}</svg>`;
 export const SEND_ICON = `<svg ${S}><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4 20-7z"/></svg>`;
