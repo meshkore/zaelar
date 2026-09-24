@@ -3730,6 +3730,14 @@ DOMAINS: list[dict] = [
                       # while 600 KB of screenshots stay is a retry that fails again for the same reason.
                       "tests/browser/unit/feedback/test_a_report_says_what_kind_it_is.py",
                       "tests/browser/unit/feedback/test_an_image_never_swallows_the_message.py"]},
+        # V2-760 — the thumbs-down: «this went wrong» in ONE click, the report IS the session, and the toast
+        # fades by itself. Rendered: the colour, the position left of the launcher, one request per click. It
+        # also carries the defect it exposed — a capped evidence read returned the FIRST 200 events, so every
+        # report carried the start of the session and never the failure (measured: the first 39 s of 2:18).
+        {"id": "4.211", "title": "El pulgar abajo marca un fallo en UN clic — el informe es la sesión, con un "
+                                 "marcador de dónde pulsó; y la evidencia son los ÚLTIMOS eventos, no los primeros",
+            "ch": UNIT,
+            "paths": ["tests/browser/unit/feedback/test_the_thumb_marks_a_failure_in_one_click.py"]},
         # RENDERS on purpose: 4.33 proves the decision and the wiring, and would still pass with the node in
         # the DOM and zero pixels — which is exactly how the thank-you shipped. This measures box, opacity and
         # that the text is the translation and not the key (a key is truthy and passes any source-level test).

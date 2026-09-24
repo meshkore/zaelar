@@ -15,7 +15,7 @@ import { createEffect, createSignal } from "../core/reactive.js?v=2";
 import * as store from "../core/store.js?v=2";
 import { t } from "../core/i18n.js?v=1";
 import { makeDraggable } from "../lib/draggable.js?v=2";
-import { CLOSE_ICON, MIC_ICON, MESSAGE_SQUARE_ICON, PAPERCLIP_ICON, SEND_ICON } from "../lib/icons.js?v=2";
+import { CLOSE_ICON, MIC_ICON, MESSAGE_SQUARE_ICON, PAPERCLIP_ICON, SEND_ICON, THUMBS_DOWN_ICON } from "../lib/icons.js?v=2";
 import * as feedbackApi from "../services/feedback-api.js?v=1";
 import { sendOutcome, listOutcome, lineFor } from "../services/feedback-state.js?v=1";
 import * as dictation from "../services/feedback-dictation.js?v=1";
@@ -97,6 +97,31 @@ export function FeedbackWidget() {
   // never tell those apart, so whoever reads the inbox could not either. Two options, one always picked,
   // and the placeholder follows it: the cheap half of «tell us what you need».
   const [kind, setKind] = createSignal("issue");
+  // V2-760 — THE THUMBS-DOWN. The operator: «cada vez que la gente detecte un fallo, les pediré que clique en
+  // este pulgar hacia abajo… así el usuario no tiene que estar rellenando un mail o un texto… y cuando se clique
+  // saldrá un mensaje hacia la izquierda… dura dos o tres segundos, el tiempo que sea necesario para leerlo, y
+  // desaparece en un fundido. Y el icono vuelve al color original también». One click, no form; the report is
+  // the session, composed server-side. `thumb` is idle | sending | done | failed; the toast text is kept through
+  // the fade and only cleared once it is invisible, so the words never vanish before the fade does.
+  const THUMB_SHOW_MS = 3000, THUMB_FADE_MS = 600;
+  const [thumb, setThumb] = createSignal("idle");
+  const [thumbText, setThumbText] = createSignal("");
+  const [thumbShown, setThumbShown] = createSignal(false);
+  let thumbTimers = [];
+  const sendThumb = async () => {
+    if (thumb() !== "idle") return;                        // one mark per click, never a burst of duplicates
+    setThumb("sending");
+    const res = await feedbackApi.sendThumbsDown();
+    const ok = !!(res && res.ok);
+    setThumb(ok ? "done" : "failed");
+    setThumbText(t(ok ? "feedback.thumbsDownThanks" : "feedback.thumbsDownFailed"));
+    setThumbShown(true);
+    thumbTimers.forEach(clearTimeout);
+    thumbTimers = [
+      setTimeout(() => setThumbShown(false), THUMB_SHOW_MS),                      // starts the fade
+      setTimeout(() => { setThumbText(""); setThumb("idle"); }, THUMB_SHOW_MS + THUMB_FADE_MS),
+    ];
+  };
   // The pictures attached to THIS report, and the sentence that says why one was refused. A picture
   // dropped in silence is a picture the person believes they sent.
   const [shots, setShots] = createSignal([]);
@@ -207,6 +232,17 @@ export function FeedbackWidget() {
   );
 
   const wrap = h("div", { class: "fw-wrap", ref: el => (wrapEl = el) },
+    // V2-760 — the thumb sits to the LEFT of the launcher and its message further left, so neither ever
+    // covers the launcher or the panel that opens above it.
+    h("div", { class: "fw-quick" },
+      h("div", { class: () => "fw-thumb-toast" + (thumbShown() ? " show" : "") + (thumb() === "failed" ? " failed" : ""),
+                 role: "status", "aria-live": "polite" }, () => thumbText()),
+      h("button", {
+        class: () => "fw-thumb fw-thumb-" + thumb(),
+        title: () => t("feedback.thumbsDownLabel"), "aria-label": () => t("feedback.thumbsDownLabel"),
+        onClick: sendThumb,
+      }, raw(THUMBS_DOWN_ICON)),
+    ),
     h("button", {
       class: "fw-launcher", ref: el => (btnEl = el), title: () => t("feedback.launcherLabel"),
       onClick: () => store.setFeedbackOpen(!store.feedbackOpen()),

@@ -53,11 +53,20 @@ def test_the_builder_ACTUALLY_applies_the_trim(monkeypatch):
     deleting its call from `_build_evidence` — the exact shipped bug — left every test green."""
     from observability import flows
     monkeypatch.setattr(flows, "session", lambda sid: {"id": sid})
-    monkeypatch.setattr(flows, "events", lambda session_id, limit: _events(200))
+    # V2-760 — the double must accept `tail`, and the builder must ASK for it: a capped read without it
+    # returns the FIRST events of the session, never the failure being reported. A fixed-signature double
+    # here would raise TypeError inside the builder's fail-open `except` and read as «no evidence».
+    asked = {}
+
+    def _ev(session_id, limit, tail=False):
+        asked["tail"] = tail
+        return _events(200)
+    monkeypatch.setattr(flows, "events", _ev)
     out = fb._build_evidence("s1")
     assert out is not None
     assert len(json.dumps(out, ensure_ascii=False).encode("utf-8")) <= fb._MAX_EVIDENCE_BYTES
     assert out["truncated"]["of"] == 200
+    assert asked.get("tail") is True, "the builder asked for the OLDEST events of the session"
 
 
 def test_a_summary_that_cannot_fit_attaches_nothing():

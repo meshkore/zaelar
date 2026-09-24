@@ -29,7 +29,10 @@ router = APIRouter()
 
 _FEEDBACK_URL_DEFAULT = "https://zaelar-control-plane.rjj.workers.dev"
 #: What a report may SAY it is. Anything else becomes «issue» rather than travelling unrecognised.
-_KINDS = ("issue", "idea")
+# V2-760 — `thumbs_down` is the one-click «this went wrong» marker: no text from the operator, the session
+# bundle is the whole report. A separate kind so the backoffice can list the marks on their own and send
+# each one straight to the session it points at.
+_KINDS = ("issue", "idea", "thumbs_down")
 #: The picture budget, and it is enforced HERE as well as in the browser: a client is not a guard, and
 #: this endpoint is reachable by anything that can speak HTTP to the loopback.
 _MAX_SHOTS = 3
@@ -126,7 +129,9 @@ def _build_evidence(session_id: str) -> dict | None:
         summary = _flows.session(session_id)
         if not summary:
             return None
-        events = _flows.events(session_id=session_id, limit=_MAX_EVIDENCE_EVENTS)
+        # The NEWEST events (V2-760): a report is about what just happened, and the capped read used to
+        # return the first 200 — the start of the session, never the failure being reported.
+        events = _flows.events(session_id=session_id, limit=_MAX_EVIDENCE_EVENTS, tail=True)
         return _fit_evidence(summary, events)
     except Exception:
         return None
@@ -165,7 +170,6 @@ async def submit_feedback(
     kind: str = Body("issue", embed=True),
     shots: list | None = Body(None, embed=True),
 ):
-    from nucleo import cloud_account
     from observability import identity as _identity
 
     message = (message or "").strip()
@@ -188,17 +192,28 @@ async def submit_feedback(
     if evidence is not None:
         body["session_evidence"] = evidence
 
-    async def _post(payload: dict):
-        async with httpx.AsyncClient(timeout=_TIMEOUT_S) as client:
-            if cloud_account.is_cloud_account() and _control_plane_url():
-                return await client.post(
-                    _control_plane_url().rstrip("/") + "/feedback",
-                    json=payload,
-                    headers={"X-Service-Token": _service_token()},
-                )
-            payload = {**payload, "install_id": _identity.user_id()}
-            return await client.post(_feedback_url() + "/feedback/anonymous", json=payload)
+    return await _deliver(body, evidence)
 
+
+async def _post(payload: dict):
+    """ONE door out for every kind of report — a cloud engine presents its workload credential, a self-host
+    one goes to the anonymous route with its install id. Shared by the form and the thumbs-down (V2-760), so
+    the two can never disagree about where a report goes."""
+    from nucleo import cloud_account
+    from observability import identity as _identity
+    async with httpx.AsyncClient(timeout=_TIMEOUT_S) as client:
+        if cloud_account.is_cloud_account() and _control_plane_url():
+            return await client.post(
+                _control_plane_url().rstrip("/") + "/feedback",
+                json=payload,
+                headers={"X-Service-Token": _service_token()},
+            )
+        payload = {**payload, "install_id": _identity.user_id()}
+        return await client.post(_feedback_url() + "/feedback/anonymous", json=payload)
+
+
+async def _deliver(body: dict, evidence) -> dict:
+    """Send, shedding the heavy attachments on a 4xx — see the note inside. Never raises."""
     try:
         resp = await _post(body)
         # THE MESSAGE IS THE POINT; the session bundle is an ATTACHMENT. A refusal while carrying one is
@@ -229,3 +244,86 @@ async def submit_feedback(
         return out
     except Exception as e:  # noqa: BLE001 — fail-open, the user still sees a clear "couldn't send" state
         return {"ok": False, "error": "send_failed", "detail": str(e)}
+
+
+# ── V2-760 · THE THUMBS-DOWN: «this went wrong», in one click ────────────────────────────────────────────────
+# The operator, 2026-09-24: «cada vez que la gente detecte un fallo, les pediré que clique en este pulgar hacia
+# abajo… así el usuario no tiene que estar rellenando un mail o un texto de descripción… quedará vinculado por
+# ID de agente personal en nuestro backoffice, con los datos de observabilidad… así sabremos que de ahí para
+# atrás la gente tiene que leer la observabilidad».
+#
+# So the report IS the session: the same capped bundle the form attaches, plus a MARKER that says exactly where
+# in it the click landed (session, last turn's trace, time). The message is composed here from his last turn
+# and the agent's answer, so the inbox row reads as something before anyone opens the evidence — and it is the
+# only text in the report, because asking him to write one is precisely what this button exists to avoid.
+_THUMBS_TURN_CHARS = 180
+
+
+def _last_turn(events: list) -> tuple[str, str, str]:
+    """(what he asked last, what the agent said after it, that turn's trace) — from the bundle's own events,
+    newest first. Empty strings when the session holds no conversation yet."""
+    import json as _json
+    asked = answered = trace = ""
+    for e in reversed(events or []):
+        if (e or {}).get("kind") != "transcript":
+            continue
+        try:
+            pl = _json.loads(e.get("payload") or "{}")
+        except Exception:  # noqa: BLE001
+            pl = {}
+        text = str(pl.get("text") or "").strip()
+        if not text:
+            continue
+        who = str(e.get("label") or pl.get("label") or "")
+        if who == "zaelar" and not answered and not asked:
+            answered = text
+        elif who != "zaelar" and not asked:
+            asked = text
+            trace = str(pl.get("trace") or e.get("corr_id") or "")
+            break
+    return asked, answered, trace
+
+
+def _thumbs_session_id() -> str:
+    """The session the click is about: the live one, or — with no voice session open, e.g. from the written
+    chat — the most recent one this engine recorded."""
+    from observability import flows as _flows
+    from observability import identity as _identity
+    sid = _identity.session_info().get("session_id") or ""
+    if sid:
+        return sid
+    try:
+        recent = _flows.sessions(limit=1)
+        return str((recent[0] if recent else {}).get("session_id") or "")
+    except Exception:  # noqa: BLE001
+        return ""
+
+
+@router.post("/api/feedback/thumbs_down")
+async def thumbs_down():
+    import datetime as _dt
+
+    sid = _thumbs_session_id()
+    evidence = _build_evidence(sid) if sid else None
+    asked, answered, trace = _last_turn((evidence or {}).get("events") or [])
+    marked_at = _dt.datetime.now(_dt.timezone.utc).isoformat(timespec="seconds")
+    lines = ["👎 El usuario marcó que el agente no hizo bien lo que había pedido — revisar la observabilidad."]
+    if asked:
+        lines.append(f"Última petición: «{asked[:_THUMBS_TURN_CHARS]}»")
+    if answered:
+        lines.append(f"Respuesta del agente: «{answered[:_THUMBS_TURN_CHARS]}»")
+    body: dict = {"message": "\n".join(lines), "type": "thumbs_down"}
+    if evidence is not None:
+        # The marker rides INSIDE the bundle (free JSON on the far side), so no column or schema change is
+        # needed to carry it, and it survives exactly as long as the evidence it points into.
+        evidence = {**evidence, "marker": {"session_id": sid, "trace": trace, "at": marked_at}}
+        body["session_evidence"] = evidence
+    out = await _deliver(body, evidence)
+    if out.get("ok"):
+        try:
+            from voice.observer import emit
+            emit("feedback", "👎 marcado como fallo", text=(asked or "")[:120], role="system",
+                 extra={"cat": "system", "session": sid, "trace": trace})
+        except Exception:  # noqa: BLE001
+            pass
+    return out

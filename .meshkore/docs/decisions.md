@@ -21,6 +21,28 @@ entregada siga citada aquí.
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **El pulgar abajo marca un fallo en un clic, y la evidencia son los ÚLTIMOS eventos (V2-760, 2026-09-24)**:
+  *«cada vez que la gente detecte un fallo, les pediré que clique en este pulgar hacia abajo… así el usuario no
+  tiene que estar rellenando un mail o un texto… quedará vinculado por ID de agente con los datos de
+  observabilidad… sale un mensaje hacia la izquierda, dura dos o tres segundos y desaparece en un fundido, y el
+  icono vuelve al color original»* — local y nube. **(1) EL INFORME ES LA SESIÓN.** Un botón junto al lanzador
+  de feedback, mismo color y un tamaño menor; un clic → `POST /api/feedback/thumbs_down` sin cuerpo: el servidor
+  compone la frase con su ÚLTIMA petición y la respuesta que recibió, adjunta la evidencia y le añade un
+  `marker` (sesión, traza del turno, hora) dentro del propio paquete, así que el otro lado no necesita columna
+  nueva para saber dónde pulsó. Sin sesión de voz abierta (chat escrito) marca la más reciente. Sale por la
+  MISMA puerta que el formulario (`_post`/`_deliver`, extraídas): credencial de workload en la nube, id de
+  instalación en self-host. El aviso sale a la izquierda en su idioma, dura 3 s, se funde en 0,6 s y el icono
+  vuelve al acento; un segundo clic mientras se ve no manda otro. **(2) ⭐ EL DEFECTO QUE DESTAPÓ, debajo de
+  TODO el feedback:** `flows.events(limit=200)` devuelve los 200 PRIMEROS eventos de una sesión. Medido en la
+  suya de hoy (621 eventos, 12:26:54-12:29:12): cualquier informe llevaba 12:26:54-12:27:33 — **los primeros
+  39 segundos**, así que un aviso enviado al final nunca contenía el fallo que describía. `events(tail=True)`
+  lee los últimos y los devuelve en orden; los lectores con cursor (`since_id`) no cambian. Y el doble de un
+  test vecino tenía la firma fija: con el parámetro nuevo lanzaba `TypeError` dentro del `except` del producto,
+  que lo leía como «sin evidencia» — reanclado para EXIGIR la cola. **Limitación dicha:** el tope de 30 KB lo
+  llenan pocos eventos pesados (en esa sesión, los últimos 10 s); por eso el marcador importa más que el
+  paquete: quien lo revise puede abrir la sesión ENTERA desde ese punto. Nodo 4.211, 14 tests, **13 desarmes rojos**.
+  **No probado por voz ni contra la nube desplegada desde el propio botón.**
+
 - **La pantalla completa TAPA TODO y siempre tiene salida; salir es su propia orden (V2-759, 2026-09-24)**:
   sesión `ee542271`, con V2-758 ya funcionando (la foto del Cobra salió). Él: *«que se ponga por encima de
   absolutamente todo y siempre de sistema con alguna especie de iconito para cerrarlo, arriba del todo a la

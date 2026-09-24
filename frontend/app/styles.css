@@ -1368,6 +1368,24 @@ body.dbg-open .orbwrap{left:calc(50% - var(--dbg-w) / 2)}
   display:flex;align-items:center;justify-content:center;touch-action:none}
 .fw-launcher:hover{filter:brightness(1.08)}
 .fw-launcher svg{width:26px;height:26px}
+/* V2-760 — the thumbs-down: same accent as the launcher (his «quizás en este color»), a size smaller so the
+   launcher stays the primary control. While its message shows it wears the RISK colour — «marked as a
+   failure» — and goes back to the accent when the message has faded. The message sits to its LEFT and
+   fades out by itself; nothing to close. */
+.fw-quick{position:absolute;right:calc(58px + 12px);bottom:6px;display:flex;align-items:center;gap:10px}
+.fw-thumb{width:46px;height:46px;border-radius:50%;border:none;cursor:pointer;color:var(--canvas);
+  background:var(--hb-accent);box-shadow:var(--hb-shadow-1);display:flex;align-items:center;justify-content:center;
+  transition:background .25s ease, opacity .2s ease}
+.fw-thumb:hover{filter:brightness(1.08)}
+.fw-thumb svg{width:21px;height:21px}
+.fw-thumb.fw-thumb-sending{opacity:.6;cursor:progress}
+.fw-thumb.fw-thumb-done,.fw-thumb.fw-thumb-failed{background:var(--hb-risk)}
+.fw-thumb-toast{max-width:min(340px,60vw);padding:9px 14px;border-radius:12px;background:var(--hb-bubble);
+  color:var(--hb-ink);border:1px solid var(--hb-line);box-shadow:var(--hb-shadow-1);font-size:.84rem;line-height:1.35;
+  opacity:0;transition:opacity .6s ease;pointer-events:none}
+.fw-thumb-toast:empty{display:none}
+.fw-thumb-toast.show{opacity:1}
+.fw-thumb-toast.failed{border:1px solid var(--hb-risk)}
 /* V2-681 T-2 — a FIXED height. It declared only a max-height before, so the panel was as tall as its
    content happened to be: MEASURED on the real page, the New tab was 390px and the Sent tab with an empty
    list 138px, so switching tabs made the box collapse and spring back («esa cajita se hace súper pequeña y

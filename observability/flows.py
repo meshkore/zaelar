@@ -193,7 +193,8 @@ def session(session_id: str) -> dict:
     return row if row and row.get("events") else {}
 
 
-def events(session_id: str = "", corr_id: str = "", since_id: int = 0, limit: int = 500) -> list[dict]:
+def events(session_id: str = "", corr_id: str = "", since_id: int = 0, limit: int = 500,
+           tail: bool = False) -> list[dict]:
     """Los eventos EN CRUDO y en orden, con su payload completo — el material de la auditoría (2026-08-10).
 
     `since_id` es lo que hace posible **seguir una sesión viva sin repetirse**: el que lee guarda el último `id`
@@ -213,14 +214,20 @@ def events(session_id: str = "", corr_id: str = "", since_id: int = 0, limit: in
         where.append("id > ?")
         args.append(int(since_id))
     args.append(int(limit))
-    return _rows(
+    # `tail` (V2-760): the LAST `limit` events, still returned in order. Without it a capped read is the
+    # FIRST `limit` — right for a cursor that walks forward, wrong for «what just happened». Measured
+    # 2026-09-24: in a 2 min 18 s session of 621 events, every feedback report carried 12:26:54-12:27:33 —
+    # the first 39 seconds — so a report sent at the end never included the failure it was about.
+    order = "DESC" if tail else "ASC"
+    rows = _rows(
         f"""
         SELECT id, ts_ms, topic, corr_id, session_id, user_id, cat, kind, label, span, ms, model,
                tokens_in, tokens_out, ver, payload
-        FROM events WHERE {' AND '.join(where)} ORDER BY id ASC LIMIT ?
+        FROM events WHERE {' AND '.join(where)} ORDER BY id {order} LIMIT ?
         """,
         tuple(args),
     )
+    return list(reversed(rows)) if tail else rows
 
 
 def stats() -> dict:

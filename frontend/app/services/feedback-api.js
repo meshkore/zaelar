@@ -17,3 +17,9 @@ export const sendFeedback = ({ message, email = "", includeSessionEvidence = fal
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ message, email, include_session_evidence: includeSessionEvidence, kind, shots }),
   }).then(r => r.json()).catch(() => ({ ok: false, error: "send_failed" }));
+
+// V2-760 — the one-click «this went wrong» marker. No body at all: the server composes the report from the
+// session itself (his last turn, the agent's answer, the evidence bundle and a marker of when he clicked).
+export const sendThumbsDown = () =>
+  fetch("/api/feedback/thumbs_down", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" })
+    .then(r => r.json()).catch(() => ({ ok: false, error: "send_failed" }));
