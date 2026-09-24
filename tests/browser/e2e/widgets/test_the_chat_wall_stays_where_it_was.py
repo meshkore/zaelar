@@ -259,12 +259,17 @@ def docked(run):
                   iconShown: !!svg && svg.getBoundingClientRect().width > 0,
                   nameShown: !!nr && nr.width > 0,
                   nameText: name ? name.textContent.trim() : '',
-                  nameMinW: name ? parseFloat(getComputedStyle(name).minWidth) || 0 : 0};
+                  nameMinW: name ? parseFloat(getComputedStyle(name).minWidth) || 0 : 0,
+                  stripFits: (() => { const s = w.querySelector('.cw-tabs');
+                                      return !!s && s.scrollWidth <= s.clientWidth + 1; })()};
         }"""
         out["tabs_at_420"] = pg.evaluate(_tabs)
         pg.evaluate("() => { document.querySelector('#chatwall').style.width = '720px'; }")
         pg.wait_for_timeout(250)
         out["tabs_at_720"] = pg.evaluate(_tabs)
+        pg.evaluate("() => { document.querySelector('#chatwall').style.width = '665px'; }")
+        pg.wait_for_timeout(250)
+        out["tabs_at_665"] = pg.evaluate(_tabs)   # the narrowest width that still shows the words
         pg.evaluate("() => { document.querySelector('#chatwall').style.width = '420px'; }")
         pg.wait_for_timeout(250)
         # V2-623 — the system bar moved to the BOTTOM edge, so the dock-left column's east grip lives at the
@@ -399,6 +404,11 @@ def test_narrow_tabs_are_icons_and_wide_tabs_are_words(docked):
     assert n["narrow"] and n["iconShown"] and not n["labelShown"], f"420px must show icon-tabs: {n}"
     assert not w["narrow"] and w["labelShown"], f"720px must show the labels again: {w}"
     assert w["iconShown"], f"wide tabs keep the icon beside the label (V2-621): {w}"
+    # V2-761 added a fifth tab; the words may come back only where all five FIT — a label strip that
+    # scrolls hides the last tab behind a scrollbar nobody sees.
+    e = docked["tabs_at_665"]
+    assert not e["narrow"] and e["stripFits"], f"the words came back where the five tabs do not fit: {e}"
+    assert w["stripFits"] and n["stripFits"], f"the tab strip overflows: 420 {n} · 720 {w}"
 
 
 def test_the_header_NAMES_the_active_tab_once_the_tabs_are_icons(docked):

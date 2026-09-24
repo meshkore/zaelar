@@ -251,6 +251,10 @@ def measured():
             pg.wait_for_timeout(900)
             pg.evaluate("() => window.zaelar.panel('chat')")
             pg.wait_for_timeout(400)
+            # V2-761 — below 400px the wall's standing tab name gives way so five icon tabs fit, which left the
+            # default 320px box with no words of its own to measure. 480px is the narrow layout WITH its name.
+            pg.evaluate("() => { const w = document.querySelector('#chatwall'); if (w) w.style.width = '480px'; }")
+            pg.wait_for_timeout(250)
             pg.evaluate(_SEED_CHAT)
             pg.wait_for_timeout(300)
             rows += [dict(r, screen="desk+agenda") for r in pg.evaluate(_AUDIT)]

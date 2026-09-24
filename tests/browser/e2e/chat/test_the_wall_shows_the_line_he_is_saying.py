@@ -119,6 +119,9 @@ def seen(run):
           const s = await import('/static/app/core/store.js?v=2');
           s.setChatMsgs([]); s.setChatTab('chat'); s.setChatOpen(true);
           s.setAttentionMode('smart');            // there IS a gate: nothing is released without a verdict
+          // …and the orb is LISTENING (he said the name). V2-763: a caption is «you are being heard», and it
+          // is only painted while the orb says so — the grey half is pinned on its own below.
+          s.pulseAttentionHit(120);
           s.clearLiveChat();
         }""")
         pg.wait_for_timeout(400)
@@ -168,6 +171,29 @@ def seen(run):
         }""", room)
         pg.wait_for_timeout(400)
         out["room_settled"] = pg.evaluate(READ)
+
+        # 4b · V2-763 — the orb GREY. His 2026-09-24 screenshot: a dashed «being heard» line over a grey orb,
+        # for a monologue the gate had ruled ambient. With the ring off nothing is painted as heard, not even
+        # as a caption; the verdict alone decides.
+        grey = "esto se lo estoy contando a otra persona"
+        pg.evaluate("""async (t) => {
+          const s = await import('/static/app/core/store.js?v=2');
+          s.clearAttentionHit();
+          const sse = await import('/static/app/services/sse.js?v=2');
+          const ev = (k, text) => sse.routeEvent(window.__zaelarDesktop,
+                                                 { kind: k, label: k, text, role: 'user' });
+          ev('interim', 'esto se lo estoy');
+          ev('transcript', t);
+        }""", grey)
+        pg.wait_for_timeout(300)
+        out["grey"] = pg.evaluate(READ)
+        pg.evaluate("""async (t) => {
+          const sse = await import('/static/app/services/sse.js?v=2');
+          sse.settleHeldTurns(window.__zaelarDesktop, t, false);
+          const s = await import('/static/app/core/store.js?v=2');
+          s.pulseAttentionHit(120);
+        }""", grey)
+        pg.wait_for_timeout(300)
 
         # 5 · THE LAST METRE. Everything above enters through `routeEvent`; this proves the live subscription
         # actually calls it, by swapping `EventSource` for a double and re-opening the stream. Without it the
@@ -246,6 +272,13 @@ def test_the_ROOM_leaves_NOTHING_on_the_wall(seen):
     assert seen["room_settled"]["live"] == [], seen["room_settled"]
     texts = [b["text"] for b in seen["room_settled"]["bubbles"]]
     assert texts == [FINAL], f"the room reached his wall: {texts}"
+
+
+def test_with_the_orb_GREY_nothing_is_painted_as_heard(seen):
+    """V2-763 — the orb and the wall may not contradict each other: grey means «not listening to you», so no
+    caption and no bubble until a verdict says the turn was his."""
+    assert seen["grey"]["live"] == [], seen["grey"]
+    assert [b["text"] for b in seen["grey"]["bubbles"]] == [FINAL], seen["grey"]
 
 
 def test_a_real_SSE_FRAME_reaches_the_caption(seen):

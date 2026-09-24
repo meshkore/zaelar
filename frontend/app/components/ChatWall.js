@@ -566,7 +566,9 @@ export function ChatWall() {
       h("div", { class: "cl-list" }, () => connFamilySections()),
     ),
     // APPS (V2-761) — the widget catalogue, Sistema · Custom.
-    h("div", { class: "cw-apps" }, () => appsBody()),
+    // Drawn only while it is the open tab: hidden, its Sistema · Custom bar was a second `.cw-subtabs` in the
+    // DOM beside the tasks tab's own, and anything reading «the sub-tabs» read six instead of four.
+    h("div", { class: "cw-apps" }, () => (store.chatTab() === "apps" ? appsBody() : null)),
     // INPUT (Chat only — CSS hides it in the other tabs)
     h("div", { class: "cw-input" },
       h("textarea", {
@@ -621,7 +623,7 @@ export function ChatWall() {
   // the icons and the header's standing tab NAME takes over (CSS keys off `cw-narrow`). Measured on the wall
   // itself, so a dock resize, a float resize and a profile's larger type all take the same door. 660, not
   // V2-619's 580: wide tabs now keep their icons BESIDE the labels (~24px more per tab).
-  const TABS_NARROW_BELOW = 760;             // V2-761: +100 for the Apps tab's icon + label
+  const TABS_NARROW_BELOW = 660;
   // V2-761 — below this even the ICONS do not fit beside the standing tab name: measured with five tabs, the
   // strip needs 183px and a 320px wall (the default float) gave it 132, so the last two tabs sat behind a
   // hidden scrollbar — and with four, Conectores already did. Here the name gives way (the active tab is
