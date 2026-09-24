@@ -21,6 +21,17 @@ entregada siga citada aquí.
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **Un recall tardío DEGRADA la memoria durable, nunca la borra (V2-762, 2026-09-24)**: *«necesitamos la memoria
+  permanente, ya sea a través del proveedor principal o del de failover… lo que no podemos es hacer que falle y
+  no tener memoria permanente»*. Medido: 6 de 21 recalls de sus últimas sesiones no cerraron en 0,8 s y esos
+  turnos iban SIN memoria de largo plazo; en vivo el recall tardaba 1-3,5 s (solo 0,3-0,5 s aislado), casi todo
+  la llamada de embeddings a OpenAI. El canal LÉXICO (FTS5) vive en esta máquina — 3-27 ms — y ahora corre AL
+  LADO del completo: si el completo llega tarde, el turno lleva el léxico y el completo llega como nota al
+  siguiente. Ámbar solo si no llegó nada. Y el recuadro que fotografió mentía: «deepseek no responde» salía del
+  COLOR de la fila (ámbar por el recall) con el corazón escribiendo todo el día sin relevo ni heurística; ahora el
+  titular lo juzga el corazón. Descartado: keep-alive en embeddings (~100 ms) — los tests interceptan `urlopen` y
+  habrían llegado a OpenAI sin notarlo. ABIERTO: la CALIDAD de lo que se guarda como largo plazo (frases de
+  charla como píldoras mid/long). Nodo 3.79. `16820de6`.
 - **La pestaña «Apps»: el catálogo de widgets, Sistema · Custom, por voz o a mano (V2-761, 2026-09-24)**:
   *«necesito un icono de app… en realidad va a ser la pestaña de widgets… quiero que responda a todo… dos
   subtabuladores, uno sería para sistema y la otra sería custom… cuando alguien modifique uno de esos widgets
