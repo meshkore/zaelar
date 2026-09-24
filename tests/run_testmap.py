@@ -2295,7 +2295,7 @@ DOMAINS: list[dict] = [
         {"id": "4.154", "title": "Maximizar cubre TODO el viewport para cualquier widget, salvo la barra "
                                  "inferior del sistema — el vídeo conserva su cine inmersivo sin cambios",
             "ch": UNIT, "paths": [
-                "tests/browser/e2e/widgets/test_maximize_covers_the_screen_but_not_the_rail.py"]},
+                "tests/browser/e2e/widgets/test_maximize_covers_the_whole_screen_rail_included.py"]},
         # V2-661 (sesión 1cdcb08e): «¿has guardado la declaración en mis archivos?» → el worker escribió el .md
         # en el directorio del widget navegador (la única ruta que conocía) y la tarjeta `archivos` no lo enseñó.
         # La biblioteca archiva un texto (save_text), el gestor lo declara (save_document), la hoja exporta lo que
@@ -3128,6 +3128,16 @@ DOMAINS: list[dict] = [
                                 "identidad que no habla de él tiene su propia pregunta",
             "ch": UNIT,
             "paths": ["tests/memory/unit/test_a_search_term_does_not_rename_the_assistant.py"]},
+        {"id": "2.79", "title": "Salir de pantalla completa es su PROPIA orden — dirección explícita, "
+                                "idempotente, y un «ya está» sin nada llamado se completa si la pantalla lo "
+                                "confirma",
+            "ch": UNIT,
+            "paths": ["tests/voice/unit/test_leaving_full_screen_is_its_own_order.py"]},
+        {"id": "2.78", "title": "Una tarjeta a pantalla completa TAPA TODO (chat acoplado y barra incluidos) "
+                                "y siempre hay salida: la X de sistema, doble clic, Esc — RENDERIZADO en el "
+                                "DOM real",
+            "ch": UNIT,
+            "paths": ["tests/browser/unit/widgets/test_full_screen_covers_everything_and_always_has_a_way_out.py"]},
         {"id": "2.77", "title": "«Cerebro rápido caído» era un fallo NUESTRO — un bug del motor no condena "
                                 "a un proveedor sano, la misma petición se reenvía al suplente en el mismo "
                                 "turno, y las dos cajas dicen quién está contestando",

@@ -409,7 +409,7 @@
  "desktop.create_failed": "No se pudo crear el widget: {error}",
  "desktop.creating": "Creando el widget…",
  "desktop.delete_btn": "Borrar",
- "desktop.exit_cinema_tooltip": "Salir de pantalla completa",
+ "desktop.exit_cinema_tooltip": "Salir de pantalla completa (también doble clic o Esc)",
  "desktop.load_failed": "No se pudo cargar este widget.",
  "desktop.maximize_tooltip": "Maximizar a pantalla completa",
  "desktop.minimize_tooltip": "Minimizar",

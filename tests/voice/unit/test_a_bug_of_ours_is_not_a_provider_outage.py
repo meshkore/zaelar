@@ -548,6 +548,13 @@ class _FakeStream:
         return gen()
 
 
+class _RunawayLadder(BaseException):
+    """Raised by the fake client when the ladder will not stop. A BaseException ON PURPOSE: the connect loop
+    catches `Exception`, so anything softer would be read as one more provider failure and walked again —
+    and the loop never yields to the event loop, so no asyncio deadline can interrupt it (measured: a disarm
+    of the one-hop guard hung a whole batch for twenty minutes)."""
+
+
 def _fake_client(fail_urls: dict, seen: list):
     """A stand-in for the OpenAI client: raises for the endpoints in `fail_urls`, streams otherwise."""
     class _Completions:
@@ -556,6 +563,8 @@ def _fake_client(fail_urls: dict, seen: list):
 
         async def create(self, **kw):
             seen.append((self._url, kw.get("model"), tuple(sorted((kw.get("extra_body") or {}).keys()))))
+            if len(seen) > 6:
+                raise _RunawayLadder(f"{len(seen)} calls")
             if self._url in fail_urls:
                 err = RuntimeError(fail_urls[self._url])
                 err.status_code = 402
@@ -615,6 +624,7 @@ def test_the_request_that_failed_is_re_sent_to_the_other_model(monkeypatch):
     text, m = asyncio.run(go())
     assert text == "hola Ricart", f"the relayed turn produced {text!r} — the request was not saved"
     assert [s[0] for s in seen] == ["https://api.deepseek.com", "https://api.openai.com/v1"], seen
+    assert seen[1][1] == "gpt-4.1-mini", f"the stand-in was asked for the TITULAR's model: {seen[1]}"
     assert m.get("relayed_from") == "deepseek-flash" and m.get("relayed_to") == "gpt-4.1-mini", m
 
 
@@ -652,8 +662,16 @@ def test_when_both_rungs_fail_the_turn_raises_once_not_forever(monkeypatch):
         async for _ in fc.FastClient().stream([{"role": "user", "content": "hola"}], spec=spec, metrics={}):
             pass
 
-    with pytest.raises(Exception):
+    # Without the one-hop guard this does not fail — it HANGS: titular → stand-in → titular → … forever, each
+    # rung pointing at the other. `_RunawayLadder` turns that into a red instead of a hang.
+    raised = None
+    try:
         asyncio.run(go())
+    except _RunawayLadder:
+        pytest.fail(f"the ladder never stopped walking — {len(seen)} calls and counting: one hop only")
+    except Exception as e:  # noqa: BLE001
+        raised = e
+    assert raised is not None, "both rungs failed and the turn did not say so"
     assert len(seen) == 2, f"the ladder was walked {len(seen)} times — one hop only"
 
 

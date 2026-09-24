@@ -190,19 +190,26 @@ TOOLS: list[dict] = [
                 # mapped fine — «quita la pantalla completa» worked nine seconds later — so the fix goes
                 # in the ARGUMENT, not here: the catalogue is paid on every voice turn (INI-027) and this
                 # one was three characters under its ceiling.
-                "PANTALLA COMPLETA de un widget — interruptor: «minimízalo»/«quítala» van aquí (la quita). "
-                "Acción del CANVAS, NO de datos: play/pausa/volumen son widget_data."
+                # V2-759: IT IS NO LONGER A TOGGLE, and that is what pays for `mode` below. The same failure as
+                # V2-609 came back on 2026-09-24 («Y sal de pantalla completa.» → «Ya está» with nothing
+                # called): asking a model to LEAVE by calling the tool that ENTERS is asking for the inverse of
+                # what its name says. The direction is now its own argument, and it is required because —
+                # unlike `widget_id` in V2-609 — it can always be filled: every sentence either puts it or takes
+                # it off.
+                "PANTALLA COMPLETA (canvas; play/pausa/volumen van por widget_data)."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
+                    "mode": {"type": "string", "enum": ["on", "off"],
+                             "description": "on=poner · off=SALIR («sal»/«quítala»/«minimízalo»)"},
                     "widget_id": {"type": "string",
                                   # VACÍO is the whole V2-609 fix, and it costs less than the prose it
                                   # replaced: the salida is the one order with no object to name.
-                                  "description": ("id o nombre del widget; "
+                                  "description": ("id o nombre; "
                                                   "VACÍO = el que esté a pantalla completa")},
                 },
-                "required": [],
+                "required": ["mode"],
             },
         },
     },

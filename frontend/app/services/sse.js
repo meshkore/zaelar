@@ -168,7 +168,10 @@ export function routeEvent(desktop, d) {
       else if (d.label === "arrange") desktop.arrange && desktop.arrange();       // V2-464: rejilla alineada (showcase/API)
       else if (d.label === "move" && d.id) desktop.move(d.id, d.where);            // reposition on the canvas (left/right/…)
       else if (d.label === "resize" && d.id) desktop.resize(d.id, d.data);          // resize a widget (HERMES-ONLY)
-      else if (d.label === "fullscreen" && d.id) desktop.fullscreen(d.id);          // toggle native fullscreen
+      // V2-759: `on` carries the DIRECTION (true enters, false leaves, absent = the old toggle). Leaving needs no
+      // id — «sal de pantalla completa» names no card, and the desktop knows which one covers the screen.
+      else if (d.label === "fullscreen" && (d.id || d.on === false))
+        desktop.fullscreen(d.id || "", d.on === true ? true : (d.on === false ? false : undefined));
       else if (d.label === "minimize" && d.id) desktop.shrink(d.id);                // V2-635: one honest step down
       // A widget's STORED data changed (its own ctx.action, or Hermes via [[widget.data]]) — widgets/store.py is
       // the single choke point that emits this. No polling anywhere: re-fetch + re-render ONLY if that widget

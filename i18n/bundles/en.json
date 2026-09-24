@@ -409,7 +409,7 @@
  "desktop.create_failed": "Couldn't create the widget: {error}",
  "desktop.creating": "Creating the widget…",
  "desktop.delete_btn": "Delete",
- "desktop.exit_cinema_tooltip": "Exit full screen",
+ "desktop.exit_cinema_tooltip": "Exit full screen (or double-click, or Esc)",
  "desktop.load_failed": "Couldn't load this widget.",
  "desktop.maximize_tooltip": "Maximize to full screen",
  "desktop.minimize_tooltip": "Minimize",

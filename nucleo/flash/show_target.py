@@ -278,7 +278,18 @@ def fullscreen_dispatch(args: dict, text: str, tag_emit, emit, deduped: dict) ->
              extra={"cat": "flash", "kind_diag": "fullscreen_without_order"})
         deduped["v"] = True
         return
+    # V2-759 — THE DIRECTION IS AN ARGUMENT NOW. `mode` says which way; the licence above still decides
+    # whether the turn talks about screen size at all (a bleed stays discarded in either direction).
+    mode = str(args.get("mode") or "").strip().lower()
     rid = fullscreen_target((args.get("widget_id") or "").strip(), text)
+    if mode == "off":
+        # Leaving never needs a name: an empty id means «whichever card covers the screen», and the desktop's
+        # exit is idempotent — a card that is not full screen is left exactly as it is, never shrunk to the rail
+        # and never blown up (the two things the old toggle and `minimize` could do to a normal card).
+        tag_emit("fullscreen", {"id": rid, "on": False})
+        emit("brain", "⤡ fullscreen_widget(off) → salir de pantalla completa", text=rid or "(la que esté)",
+             role="system")
+        return
     if not rid:
         return
     if verdict == "minimize":
@@ -286,8 +297,49 @@ def fullscreen_dispatch(args: dict, text: str, tag_emit, emit, deduped: dict) ->
         emit("brain", "⤵️ fullscreen_widget con orden de ENCOGER → canvas minimize", text=rid, role="system")
         return
     tag_emit("show", {"id": rid})     # por si no estaba abierto todavía
-    tag_emit("fullscreen", {"id": rid})
+    # `on: True` only when the model SAID so: then entering twice is a no-op instead of the toggle taking it
+    # back out. With no `mode` (an older call shape) the event keeps its old meaning, toggle included.
+    tag_emit("fullscreen", {"id": rid, **({"on": True} if mode == "on" else {})})
     emit("brain", "⛶ fullscreen_widget → canvas", text=rid, role="system")
+
+
+def fullscreen_exit_due(text: str, *, fired: bool) -> str:
+    """The DECISION behind `fullscreen_exit_backstop`, with no side effect: the card to bring back, or "".
+    Separate so the text channel reads the same answer the voice acts on (V2-252 — one decision, both
+    channels); the conditions are documented on the function below."""
+    if fired:
+        return ""
+    try:
+        from nucleo.flash import canvas_license as _lic
+        if _lic.fullscreen_license(text) != "minimize":
+            return ""
+        from memory import api as _memapi
+        return str(((_memapi.state() or {}).get("maximized_widget") or "")).strip()
+    except Exception:  # noqa: BLE001 — a backstop never adds an exception to a turn
+        return ""
+
+
+def fullscreen_exit_backstop(text: str, *, fired: bool, tag_emit, emit) -> bool:
+    """V2-759 — «Y sal de pantalla completa.» answered «Ya está, fuera de pantalla completa.» with NOTHING
+    called. Twice now: V2-609 (2026-09-07) and again 2026-09-24, and in both the engine's own friction
+    detector logged «data-op fantasma» in the same second while nobody repaired it. Making the argument
+    optional (V2-609) and the direction explicit (above) both improve the odds; neither makes the claim true.
+
+    So when the model called nothing, the exit is completed here — and it is safe to complete, which is what
+    makes it a mechanism and not a verb table deciding intent. Three conditions, all required:
+      · the turn is one the EXISTING licence already reads as leaving or shrinking (`minimize`) — no new words;
+      · a card IS covering the screen, according to the canvas itself (`state.maximized_widget`), a fact and
+        not a reading;
+      · the consequence is the one idempotent exit: that card goes back to where it was, and nothing else
+        on the screen moves.
+    Returns whether it acted."""
+    maxw = fullscreen_exit_due(text, fired=fired)
+    if not maxw:
+        return False
+    tag_emit("fullscreen", {"id": maxw, "on": False})
+    emit("brain", "⤡ salida de pantalla completa COMPLETADA — el modelo lo dijo y no llamó a nada",
+         text=maxw, role="system", extra={"cat": "flash", "kind_diag": "fullscreen_exit_backstop"})
+    return True
 
 
 # ── Jev canvas verdict (T-jev-show-close): the VERB before the model writes text ──

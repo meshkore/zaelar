@@ -1,4 +1,16 @@
-"""Maximizing ANY widget now covers the whole viewport — except the bottom system rail (V2-658 follow-up).
+"""Maximizing ANY widget covers the whole viewport — the bottom rail INCLUDED since V2-759.
+
+⚠️ V2-759 (2026-09-24) REVERSED THIS FILE'S ORIGINAL RULE, and the file is kept rather than deleted because the
+history below is why the reversal is safe. The operator: «que se ponga por encima de absolutamente todo… con
+alguna especie de iconito para cerrarlo… para que la gente no se quede sin poder ver la barra». The rail used
+to stay on top so there was always a way back; the way back is now the SYSTEM EXIT every full-screen card
+carries (a discreet corner X with a large hit area, a double click anywhere, Escape), so the card covers
+everything. It was called `…_but_not_the_rail.py` and it kept passing after the product changed — this file
+copies the CSS into its own page, so it measures its COPY: a test defending a rule its owner had withdrawn.
+The real stylesheet in the real DOM is measured by
+`tests/browser/unit/widgets/test_full_screen_covers_everything_and_always_has_a_way_out.py` (node 2.78).
+
+The original docstring follows, unchanged, as the record of V2-658.
 
 The operator, after seeing his own screenshot of a maximized `archivos` card that still sat under the top
 icon cluster (Reset, ⚙, ☾, …): *"cuando... se pone en modo pantalla completa significa que cubras toda la
@@ -32,11 +44,11 @@ _HTML = """<!doctype html><html><head><meta charset="utf-8"><style>
   .hb-win{position:absolute;left:80px;top:100px;width:400px;height:300px;background:#223}
   .hb-win.hb-cinema{position:fixed;top:0!important;left:0!important;width:100vw!important;height:100vh!important;
     max-width:none!important;max-height:none!important;padding:0;background:#000;border:0;border-radius:0}
-  .hb-stage:has(.hb-win.hb-cinema){z-index:99900}
+  .hb-stage:has(.hb-win.hb-cinema){z-index:100500}
   .hb-win.hb-fullwide{position:fixed;top:0!important;left:0!important;width:100vw!important;
-    height:calc(100vh - 60px)!important;
+    height:100vh!important;
     max-width:none!important;max-height:none!important;padding:0;background:#fff;border:0;border-radius:0}
-  .hb-stage:has(.hb-win.hb-fullwide){z-index:9001}
+  .hb-stage:has(.hb-win.hb-fullwide){z-index:100500}
 </style></head><body>
   <div class="me"></div><div id="wrail"></div>
   <div id="desk"><div id="wstage" class="hb-stage"></div></div>
@@ -106,7 +118,7 @@ def _run(script):
     return asyncio.run(go())
 
 
-def test_a_non_native_widget_maximizes_full_viewport_below_the_rail(playwright_available):
+def test_a_non_native_widget_maximizes_full_viewport_OVER_the_rail(playwright_available):
     out, errors = _run("""async () => {
       const c = window.__mk("archivos");
       window.__d.maximize("archivos");
@@ -122,15 +134,14 @@ def test_a_non_native_widget_maximizes_full_viewport_below_the_rail(playwright_a
     }""")
     assert not errors, errors
     assert "hb-fullwide" in out["classes"] and "hb-cinema" not in out["classes"], out["classes"]
-    # V2-693 — the band is RESERVED, not covered. The whole reason a normal widget gets fullwide instead of
-    # cinema is that the dock stays reachable on top of it; a card that ran to the viewport floor was simply
-    # hiding its own last rows behind the dock it was deliberately staying under.
+    # V2-759 — the band is COVERED. V2-693 reserved it so the dock stayed reachable on top; the system exit
+    # (corner X, double click, Escape) is now the way back, and he asked for the card over everything.
     assert out["w"] >= 1199, f"must cover the full width: {out}"
-    assert abs((out["top"] + out["h"]) - out["railTop"]) <= 1, (
-        f"a maximized window must END where the dock begins: bottom={out['top'] + out['h']} rail={out['railTop']}")
+    assert out["top"] + out["h"] >= out["railTop"] + 59, (
+        f"a maximized window must run OVER the dock now: bottom={out['top'] + out['h']} rail={out['railTop']}")
     assert out["top"] == 0 and out["left"] == 0
-    assert int(out["stageZ"]) < int(out["railZ"]), (
-        f"the fullwide stage must stay BELOW the bottom rail: stage={out['stageZ']} rail={out['railZ']}")
+    assert int(out["stageZ"]) > int(out["railZ"]), (
+        f"the fullwide stage must sit ABOVE the bottom rail: stage={out['stageZ']} rail={out['railZ']}")
 
 
 def test_a_native_declared_widget_still_gets_cinema_not_fullwide(playwright_available):

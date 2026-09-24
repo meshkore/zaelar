@@ -332,7 +332,9 @@ def test_the_host_really_does_give_every_card_those_controls():
     — which is what makes «I can't resize or maximize widgets» a false sentence rather than a limitation."""
     src = open("frontend/app/widgets/desktop.js", encoding="utf-8").read()
     i = src.index("const card=document.createElement(\"div\"); card.className=\"hb-win loading\"")
-    fresh = src[i:i + 4000]
+    # Bounded by the fresh block's own tail (`_watchSize`), not by a character count: V2-759 added the system
+    # exit's double click to this block and a 4000-char window silently stopped reaching the handles.
+    fresh = src[i:src.index("this._watchSize(card)", i)]
     for piece in ('className="hb-x"', 'className="hb-max"', "_addHandles(card)",
                   "_wireDrag(card)", "_wireResize(card"):
         assert piece in fresh, f"a fresh card stopped getting {piece}"

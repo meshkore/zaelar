@@ -65,6 +65,7 @@ def _session(sid: str) -> ProbeSession:
 from .show_target import (  # noqa: F401
     _ctx_ids, _identify_ctx, _running_goals, _show_target, classify_alias_call,
     fullscreen_target as _fullscreen_target,
+    fullscreen_exit_due as _fullscreen_exit_due,   # V2-759
     last_assistant_line as _last_assistant_line, show_card as _show_card,
     show_instance as _show_instance,
 )
@@ -480,7 +481,11 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
             action = "chat"
         else:
             _frid = _fullscreen_target((_fw["args"].get("widget_id") or "").strip(), text)
-            action = f"canvas:{_fsv}:{_frid}" if _frid else "clarify"
+            # V2-759 — the direction is an argument now, same as the voice: `off` never needs a name.
+            if str(_fw["args"].get("mode") or "").strip().lower() == "off":
+                action = f"canvas:unfullscreen:{_frid}"
+            else:
+                action = f"canvas:{_fsv}:{_frid}" if _frid else "clarify"
     elif "arrange_canvas" in names:
         # V2-588 — espejo del provider (cablear en AMBOS): ordenar el canvas es una acción global, sin id.
         action = "canvas:arrange"
@@ -565,6 +570,14 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
                   else "canvas:" + ",".join(t["action"] for t in tags))
     else:
         action = "chat"
+        # V2-759 — espejo del provider: «sal de pantalla completa» answered with nothing called still leaves,
+        # when a card IS covering the screen. Same decision (`show_target.fullscreen_exit_due`), reported here.
+        try:
+            _fx = _fullscreen_exit_due(text, fired=False)
+            if _fx:
+                action = f"canvas:unfullscreen:{_fx}"
+        except Exception:  # noqa: BLE001
+            pass
 
     # GUARD DETERMINISTA de SHOW-por-nombre (V2-038, espejo del provider `nucleo.py::_run` — impl PARALELA,
     # cablear en AMBOS): si el modelo ESCALÓ o buscó una petición que en realidad es MOSTRAR un widget que YA

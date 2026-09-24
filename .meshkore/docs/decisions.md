@@ -21,6 +21,42 @@ entregada siga citada aquí.
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **La pantalla completa TAPA TODO y siempre tiene salida; salir es su propia orden (V2-759, 2026-09-24)**:
+  sesión `ee542271`, con V2-758 ya funcionando (la foto del Cobra salió). Él: *«que se ponga por encima de
+  absolutamente todo y siempre de sistema con alguna especie de iconito para cerrarlo, arriba del todo a la
+  derecha… una pequeña X que no se vea mucho… o hacer doble clic en la pantalla y que todo vuelva a la visión
+  normal… para que la gente no se quede sin poder ver la barra»*. **(1) NO PODÍA TAPAR EL CHAT, POR NINGÚN
+  Z-INDEX.** `#desk` lleva `transform` (V2-608): es el bloque contenedor de todo `position:fixed` de dentro Y
+  un contexto de apilamiento. La tarjeta «a pantalla completa» se medía desde el escritorio —empezaba donde
+  acaba el chat acoplado— y su `z-index:99900` solo competía dentro de `#desk`; el chat vive fuera, en el
+  `body`. Su captura lo enseña exacto: chat visible, y tapados solo la barra y el orbe (que viven DENTRO).
+  Mientras algo está a pantalla completa, `#desk` suelta el `transform` y sube a **9300**: por encima de chat,
+  paneles y feedback; **por debajo** del mapa de memoria, la configuración, la bóveda y los modales, que abre
+  él a propósito y no pueden quedar nunca bajo un vídeo. **(2) TODOS LOS WIDGETS IGUAL**: la franja de la barra
+  deja de reservarse (V2-658) — la salida de sistema es ahora el camino de vuelta; la cabecera se queda (V2-693).
+  **(3) LA SALIDA DE SISTEMA**: una X pequeña y tenue con una zona de 52 px en la esquina, la misma en todos los
+  estados, dibujada por el escritorio y nunca por un widget, y por encima de un iframe (encima de un vídeo es la
+  única salida que siempre funciona); **doble clic en cualquier sitio**, salvo la cabecera (ya conmuta sola), un
+  campo de texto, o un widget que usa el doble clic para sí (archivos, música); y **Esc**, que la nativa ya
+  hacía y la de la app no. Todas restauran la geometría exacta de antes. **(4) ENTRAR Y SALIR ERAN UN
+  INTERRUPTOR**, y ahí estaba el «ya está» falso: «Y sal de pantalla completa.» → «Ya está, fuera de pantalla
+  completa.» **sin llamar a nada** —el mismo fallo que V2-609, cuyo arreglo no aguantó—; su queja «No, sigues
+  estando en pantalla completa» se leyó como ENTRAR y solo salió porque el frontend conmuta (sobre una tarjeta
+  normal la habría agrandado). La dirección es ahora un argumento obligatorio (`mode: on|off`), las dos
+  operaciones son idempotentes, y cuando el modelo no llama a nada en un turno que la licencia EXISTENTE ya lee
+  como salida y **la pantalla dice que hay una tarjeta a pantalla completa**, la salida se completa — acotada a
+  que esa tarjeta vuelva a su sitio, sin palabras nuevas. El catálogo lo pagó compactando: 23.597/23.600, techo
+  intacto. **(5) Un test que copiaba el CSS defendía la regla derogada** —`…_but_not_the_rail.py` seguía verde
+  con el producto cambiado, porque medía su COPIA—: reanclado y renombrado. El test nuevo monta el DOM REAL
+  (`#desk` con su `transform`, chat fuera, barra dentro) con la hoja de estilos real, y afirma PUNTOS de
+  pantalla: quién está encima ahí. Nodos 2.78/2.79, 43 tests, **31 desarmes rojos**, incluido el que devuelve
+  el chat por encima (su captura). De paso, cerrados los 5 desarmes pendientes de V2-758: **el de «un solo
+  salto» no fallaba, se COLGABA** —la escalera rebotaba titular↔suplente sin fin, y el bucle nunca cedía al
+  event loop, así que ningún plazo de asyncio podía cortarlo—: era lo que tuvo 20 minutos parado el lote de
+  ayer. Ahora el doble lanza una `BaseException` a la séptima llamada. **No probado por voz.** Pendiente y
+  dicho: «vuelve al tamaño normal» no lo reconoce la licencia (sigue vetándolo); el banner de avisos (z 60)
+  queda por debajo de una pantalla completa, igual que ya quedaba bajo el chat.
+
 - **Un fallo NUESTRO no es un proveedor caído (V2-758, 2026-09-23)**: él fotografió el banner rojo —
   *«Cerebro rápido caído — turno degradado»*— y preguntó *«tengo que saber qué pasa… identificarlo»*. **No era
   el proveedor.** `server.log` de esa tarde: nueve turnos con `cannot access local variable '_cvis'`. `_cvis`

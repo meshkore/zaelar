@@ -107,7 +107,7 @@ function injectStyles(){
      raised card under the rail (9002) and the chat (9001). */
   .hb-win.hb-cinema{position:fixed;top:0!important;left:0!important;width:100vw!important;height:100vh!important;
     max-width:none!important;max-height:none!important;padding:0;background:#000;border:0;border-radius:0}
-  .hb-stage:has(.hb-win.hb-cinema){z-index:99900}
+  .hb-stage:has(.hb-win.hb-cinema){z-index:100500}
   /* GENERIC full-screen maximize (V2-658): every OTHER widget's double-click-header / ⤢ / voice "pantalla
      completa" gets the same full-viewport treatment as cinema, minus TWO things the operator asked to keep
      reachable while a widget fills the screen: the bottom system rail (#wrail, z-index 9002 — orb, mic, the
@@ -126,31 +126,44 @@ function injectStyles(){
      So fullwide now changes exactly ONE thing about the card, which is the only thing the gesture means: its
      GEOMETRY. The header, the three controls, the padding and the scrolling are all the same object the
      operator was using a second earlier. What it does drop is the resize handles, which have nothing left to
-     resize, and the floating exit button, whose job the restored header already does.
+     resize. (It used to drop the floating exit too; V2-759 brought it back as the one system exit every
+     full-screen card shares.)
      CINEMA (fullscreen:"native", the video) keeps the full-bleed chrome-less treatment: there the content IS
      the window, and V2-600 asked for that by name.
-     The band at the bottom is RESERVED, not covered: the dock stays reachable on top (that is why fullwide
-     exists instead of cinema), so a window that ran under it was hiding its own last rows behind it. */
+     (Superseded by V2-759: the band at the bottom used to be RESERVED so the dock stayed reachable; the way
+     back is now the system exit, and the card covers the whole screen.) */
+  /* V2-759 — THE BAND IS NO LONGER RESERVED. The operator, 2026-09-24: «que se ponga por encima de
+     absolutamente todo… con alguna especie de iconito para cerrarlo… para que la gente no se quede sin poder
+     ver la barra». The rail stayed on top so there was always a way back; that way back is now the system
+     exit below (the discreet corner X, a double click anywhere, Escape), so the card takes the whole screen.
+     The header stays, exactly as V2-693 asked. */
   .hb-win.hb-fullwide{position:fixed;top:0!important;left:0!important;width:100vw!important;
-    height:calc(100vh - var(--wrail-h,58px))!important;
+    height:100vh!important;
     max-width:none!important;max-height:none!important;padding:0;background:var(--hb-bg,#12151A);
     border:0;border-top:0;border-radius:0}
-  .hb-stage:has(.hb-win.hb-fullwide){z-index:9001}
+  .hb-stage:has(.hb-win.hb-fullwide){z-index:100500}
   .hb-win:fullscreen{padding:0}
   .hb-win.hb-cinema .hb-head,.hb-win.hb-cinema .hb-rz,
   .hb-win.hb-fullwide .hb-rz,
   .hb-win:fullscreen .hb-head,.hb-win:fullscreen .hb-rz{display:none}
   .hb-win.hb-cinema .hb-scroll,.hb-win:fullscreen .hb-scroll{overflow:hidden;padding:0}
   .hb-win.hb-cinema .hb-body,.hb-win:fullscreen .hb-body{height:100%}
-  .hb-cinexit{display:none;position:absolute;top:10px;right:10px;z-index:6;width:36px;height:36px;border:0;
-    border-radius:10px;background:rgba(0,0,0,.55);color:#fff;font-size:16px;line-height:1;cursor:pointer;
-    align-items:center;justify-content:center}
-  .hb-cinexit:hover{background:rgba(0,0,0,.8)}
-  /* V2-693 — the floating exit is for the states that have NO header to come back to. In fullwide the header
-     is back, so a second, differently-shaped restore control beside it is one control too many; it was also
-     the only one left when the header was hidden, and it was painted near-white on a light wash, which is how
-     a screen could end up with no visible way out at all. */
-  .hb-win.hb-cinema .hb-cinexit,.hb-win:fullscreen .hb-cinexit{display:flex}
+  /* V2-759 — THE SYSTEM EXIT. One control, the same on every card and in every full-screen state, drawn by
+     the desktop and never by a widget. His spec: «una pequeña X que no se vea mucho, pero que al poner el ratón
+     encima de toda esa zona, de una zona grande… sí que me permita clicar». So the HIT AREA is the whole
+     corner (52px square) and the glyph is small and faint until the pointer enters that area. It sits on top
+     of an embedded player too: an iframe swallows clicks and double clicks, but this element is ours and lies
+     above it, so over the video this corner is the one exit that always works. */
+  .hb-cinexit{display:none;position:absolute;top:0;right:0;z-index:30;width:52px;height:52px;border:0;padding:0;
+    background:transparent;cursor:pointer;align-items:flex-start;justify-content:flex-end}
+  .hb-cinexit span{display:flex;align-items:center;justify-content:center;width:22px;height:22px;margin:8px 8px 0 0;
+    border-radius:6px;color:#fff;font-size:12px;line-height:1;opacity:.35;
+    background:rgba(0,0,0,.45);transition:opacity .15s ease, background .15s ease}
+  .hb-cinexit:hover span,.hb-cinexit:focus-visible span{opacity:1;background:rgba(0,0,0,.78)}
+  /* V2-693 kept this exit to the headerless states. V2-759 shows it in EVERY full-screen state: with the
+     card now covering the rail and the chat, one control that is always in the same corner, always the same
+     shape, is what he asked for — «de sistema». */
+  .hb-win.hb-cinema .hb-cinexit,.hb-win:fullscreen .hb-cinexit,.hb-win.hb-fullwide .hb-cinexit{display:flex}
   .hb-win.loading{padding:22px;min-width:120px;min-height:120px;display:flex;align-items:center;justify-content:center}
   .hb-win.loading .hb-scroll,.hb-win.loading .hb-head,.hb-win.loading .hb-rz{display:none}
   /* Widget HEADER (V2-082, left-aligned since V2-616): the NAME used to open it + a config button that expands
@@ -166,6 +179,10 @@ function injectStyles(){
   .hb-head{flex:0 0 auto;display:flex;align-items:center;gap:var(--sp-2,8px);height:var(--hb-head-h,40px);
     padding:0 var(--sp-2,8px) 0 var(--sp-3,12px);box-sizing:border-box;
     background:var(--hb-bg-soft,#171B21);border-bottom:1px solid var(--hb-line-subtle,rgba(255,255,255,.06))}
+  /* In fullwide the header is still there, and its own three controls also live at the right: they step out
+     of the exit's corner instead of sitting under it, where a click meant for «leave full screen» would hit
+     the card's CLOSE. */
+  .hb-win.hb-fullwide .hb-head{padding-right:56px}
   /* The widget's MARK. There is no per-widget icon anywhere in the catalog (no manifest carries one), and
      inventing fifteen glyphs by hand would be a second naming system to keep in sync with the registry — so
      the mark is a MONOGRAM tile built from the name the header already shows. It costs nothing, it is always
@@ -274,6 +291,13 @@ export class Desktop {
     // remember is not a rule. They all call one method and that method LOOKS. Leaving native fullscreen
     // with Escape goes through none of them: hence the event.
     try{ document.addEventListener("fullscreenchange", ()=>this._syncOrbDock()); }catch(_){}
+    // V2-759 — Escape leaves the IN-APP full screen as well. The native one already exits on Escape by itself,
+    // and a voice order lands on the in-app road (no gesture, V2-583), so without this the same key meant «out»
+    // or nothing depending on a road he cannot see. A widget that uses Escape for itself calls preventDefault.
+    try{ document.addEventListener("keydown", (e)=>{
+      if(e.key !== "Escape" || e.defaultPrevented || document.fullscreenElement) return;
+      if(this.stage && this.stage.querySelector(".hb-win.hb-cinema, .hb-win.hb-fullwide")) this.exitFullscreen("");
+    }); }catch(_){}
     this._actId = null; this._actTimer = null;
     this._ver = {};                                        // id -> cache-bust version (bumped after a modify)
     this._busy = new Set();                                // ids with an agent in-flight → don't stack create/modify
@@ -716,10 +740,29 @@ export class Desktop {
       // CINEMA exit (V2-596): in cinema state the header chrome is hidden, so this floating button is the manual
       // way back the operator asked for («as long as there is a button to minimize it»). It exits TRUE fullscreen
       // when engaged; otherwise it restores the maximize toggle. Only visible in cinema/:fullscreen (CSS).
-      const cx=document.createElement("button"); cx.className="hb-cinexit"; cx.textContent="⤡";
-      cx.title=tr("desktop.exit_cinema_tooltip");
-      cx.onclick=()=>{ if(document.fullscreenElement===card){ document.exitFullscreen?.(); return; }
-                       this.maximize(id); };
+      // V2-759 — the SYSTEM exit, now shown in every full-screen state (CSS). The glyph lives in a span so the
+      // button itself can be the whole corner: the hit area is large, the mark is small. It calls the one
+      // idempotent exit, never the maximize toggle — a toggle clicked on a card that is already back to normal
+      // would blow it up again.
+      const cx=document.createElement("button"); cx.className="hb-cinexit";
+      const cxg=document.createElement("span"); cxg.textContent="✕"; cxg.setAttribute("aria-hidden","true");
+      cx.append(cxg);
+      cx.title=tr("desktop.exit_cinema_tooltip"); cx.setAttribute("aria-label", tr("desktop.exit_cinema_tooltip"));
+      cx.onclick=(e)=>{ e.stopPropagation(); this.exitFullscreen(id); };
+      // V2-759 — DOUBLE CLICK ANYWHERE brings the card back. His words: «hacer doble clic en la pantalla y que todo
+      // vuelva a la visión normal». Three things keep it from stealing a double click that means something else:
+      // the header already toggles on its own double click (running both would exit and re-enter); a field the
+      // operator is typing in selects a word on double click; and a widget that handles double click itself
+      // (archivos opens a file, musica plays a row) owns that gesture — detected by walking up to the card for
+      // an ondblclick handler, which is how both of them wire it, or by the widget calling preventDefault.
+      card.addEventListener("dblclick", (e)=>{
+        if(!this._isFull(card) || e.defaultPrevented) return;
+        const t = e.target;
+        if(t && t.closest && (t.closest(".hb-head") || t.closest(".hb-cinexit")
+            || t.closest("input,textarea,select,[contenteditable=''],[contenteditable='true']"))) return;
+        for(let n=t; n && n!==card; n=n.parentElement){ if(typeof n.ondblclick === "function") return; }
+        this.exitFullscreen(id);
+      });
       // HEADER (V2-082): NAME button + config to view/edit ALIASES. The name is populated from the registry.
       const head=document.createElement("div"); head.className="hb-head";
       const mark=document.createElement("div"); mark.className="hb-wicon"; mark.setAttribute("aria-hidden","true");
@@ -1236,10 +1279,46 @@ export class Desktop {
     }catch(_){}
   }
 
-  fullscreen(id){
+  // V2-759 — ENTERING AND LEAVING ARE TWO OPERATIONS, NOT ONE TOGGLE. With only the toggle, «sal de pantalla
+  // completa» had to be sent as the very command that ENTERS it, and his complaint «no, sigues estando en
+  // pantalla completa» got the enter licence and only worked because the card happened to be full screen — on
+  // a normal card the same sentence would have blown it up. `on` is now explicit: true enters and does nothing
+  // if already in, false leaves and does nothing if already out. Undefined keeps the old toggle, so every
+  // caller that has not been told about this behaves exactly as before.
+  fullscreen(id, on){
+    if(on === false) return this.exitFullscreen(id);
+    const w = this.wins.get(id);
+    if(on === true && w && w.card && this._isFull(w.card)) return true;
     const meta = this._meta && this._meta[(id||"").split("::")[0]];
     if(meta && meta.fullscreen === "native") return this.nativeFullscreen(id);
     return this.maximize(id);
+  }
+
+  // Is this card covering the screen right now, by either road (native API or the in-app states)?
+  _isFull(card){
+    return !!(card && (document.fullscreenElement === card
+      || card.classList.contains("hb-cinema") || card.classList.contains("hb-fullwide")));
+  }
+
+  // THE one way out (V2-759), used by the corner X, the double click, Escape and a voice «sal de pantalla
+  // completa». Idempotent and never destructive: a card that is not full screen is left exactly as it is —
+  // unlike shrink(), which on a normal card sends it to the rail, and unlike maximize(), which on a normal card
+  // blows it UP. An empty or unknown id means «whichever card is full screen», because the order that leaves
+  // is the one order that has no object to name (V2-609). Returns whether anything changed.
+  exitFullscreen(id){
+    let w = id ? this.wins.get(id) : null;
+    if(!w || !w.card || !this._isFull(w.card)){
+      w = null;
+      for(const [k, v] of this.wins){ if(v && v.card && this._isFull(v.card)){ w = v; id = k; break; } }
+    }
+    if(!w) return false;
+    const card = w.card;
+    if(document.fullscreenElement === card){ document.exitFullscreen?.(); this._uiAudit("unfullscreen", id); return true; }
+    if(card._restore){ this.maximize(id); this._uiAudit("unfullscreen", id); return true; }
+    // Classes with no geometry to come back to (a card restored on reload already maximized): just drop them.
+    card.classList.remove("hb-cinema","hb-fullwide"); this._syncOrbDock(); this._persist();
+    this._uiAudit("unfullscreen", id);
+    return true;
   }
 
   // TRUE fullscreen (native Fullscreen API — Escape exits it, no extra tag needed). Toggle: calling it again

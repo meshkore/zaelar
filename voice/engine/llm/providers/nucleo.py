@@ -2492,6 +2492,18 @@ class NucleoLLMStream(llm.LLMStream):
         # he was describing the first wrongful close. A turn that MENTIONS fullscreen is about a screen state
         # (leaving it, or narrating it), never a whole-widget close order for a backstop to guess at; if the
         # operator really wants it closed the model can still emit [[close]] itself.
+        # V2-759 — «Y sal de pantalla completa.» → «Ya está, fuera de pantalla completa.» with NOTHING called,
+        # for the second time (V2-609 was the first). Completed here only when a card IS covering the screen
+        # and the existing licence reads the turn as leaving — see `show_target.fullscreen_exit_backstop` for
+        # why that is safe. It runs BEFORE the close backstop and marks the tool as fired, so a turn that is
+        # about leaving full screen can never be read below as an order to close the whole widget.
+        try:
+            if _show_target.fullscreen_exit_backstop(
+                    _bnotes.operator_half(text), fired="fullscreen_widget" in _tool_fired,
+                    tag_emit=_tag_emit, emit=emit):
+                _tool_fired.add("fullscreen_widget")
+        except Exception:  # noqa: BLE001 — a backstop never adds an exception to a turn
+            pass
         if (not acted.get("closed")) and _canvas_lic.close_license(text, brief=_brief) \
                 and not _router.looks_like_create_widget(text) \
                 and not music_req["v"] and not data_done["v"] \

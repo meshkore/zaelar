@@ -220,12 +220,15 @@ def test_fullscreen_keeps_the_voice_reachable_unless_the_widget_says_otherwise()
     a results sheet —the operator enlarges it PRECISELY to keep correcting the search by voice—. So
     by default it is maximized INSIDE the app, and the widget requests native full-screen in its manifest."""
     src = _desktop()
-    fs = src[src.index("\n  fullscreen(id){"):src.index("nativeFullscreen(id){")]
+    fs = src[src.index("\n  fullscreen(id, on){"):src.index("nativeFullscreen(id){")]   # V2-759: `on` = direction
     assert 'fullscreen === "native"' in fs and "this.maximize(id)" in fs
     man = json.loads(pathlib.Path("widgets/youtube/manifest.json").read_text())
     assert man.get("fullscreen") == "native", "un vídeo SÍ quiere tapar la pantalla"
+    # V2-759: in-app full screen now covers the orb too (the operator asked for «por encima de absolutamente
+    # todo»); what a data sheet keeps is its HEADER and its scrolling (V2-693), and the way back is the system
+    # exit. The distinction this asserts — native only where the manifest asks for it — still stands.
     assert "fullscreen" not in json.loads(pathlib.Path("widgets/results/manifest.json").read_text()), \
-        "una hoja de datos no: se maximiza sin perder el orbe"
+        "una hoja de datos no pide la nativa: se maximiza dentro de la app, con su cabecera"
 
 
 def test_maximizing_is_a_toggle_that_can_be_undone():

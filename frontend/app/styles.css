@@ -133,6 +133,17 @@ canvas#viz{position:absolute;left:0;right:0;bottom:0;width:100%;height:30px;disp
    (incluidos orbe/cámara con posición inline arrastrada, que el offset por-elemento NO podía mover). left/right =
    the docked chat reservation. Undocked (0/0) = identical to full screen. */
 #desk{position:fixed;top:0;bottom:0;left:var(--chatdock-l);right:var(--chatdock-r);transform:translate3d(0,0,0)}
+/* V2-759 — WHILE A CARD IS FULL SCREEN, #desk STOPS BEING A CONTAINING BLOCK AND RISES ABOVE THE CHAT.
+   The transform above makes every position:fixed descendant measure itself from #desk, not from the window,
+   and makes #desk a stacking context at z-index auto — so a full-screen card could never cover what lives
+   OUTSIDE it, whatever z-index the card carried. Measured on his screen 2026-09-24: the image viewer
+   «full screen» started at the docked chat's right edge, the chat stayed on top, and only the rail and the
+   orb (which live INSIDE #desk) were covered. Dropping the transform only while something is full screen
+   hands the fixed card the viewport; every other card slides by the chat's width, underneath, unseen.
+   9300 is deliberate: above the chat, the panels and the feedback button (9001-9200); BELOW the memory map,
+   the settings, the vault and every modal (9500+), which he opens on purpose and must never land under a
+   video. */
+body:has(.hb-win.hb-cinema, .hb-win.hb-fullwide) #desk{transform:none;z-index:9300}
 /* panels/overlays live OUTSIDE #desk (top-right) → move them away from the right dock manually */
 body.chatdock-r .statuspanel,body.chatdock-r .cronpanel{right:calc(18px + var(--chatdock-r))}
 /* V2-689 — the wall's header IS the Toolbar component's geometry (44px, 12px padding, hairline under it) and
