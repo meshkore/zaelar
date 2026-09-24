@@ -88,7 +88,8 @@ def test_power_coming_back_ON_brings_the_voice_up_without_a_click():
     this tab (SSE `run`, another window), nobody called `session.start()` again and the voice sat waiting for a
     pointer that may never come."""
     code = _code(MAIN)
-    assert "if (store.powerOff()) return;\nensureVoice();" in code, \
+    # V2-765: the same effect also waits for the language picker to close — the veil is a way back too.
+    assert "if (store.powerOff() || store.langOnboardOpen()) return;" in code and "ensureVoice();\n});" in code, \
         "an effect has to watch `powerOff` going FALSE and re-arm the voice (ensureVoice is idempotent)"
 
 

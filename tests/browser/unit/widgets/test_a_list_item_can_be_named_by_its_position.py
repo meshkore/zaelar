@@ -140,7 +140,11 @@ def test_ninguna_otra_accion_del_catalogo_cambia_de_respuesta():
     neither selector can be a key ending in `id` — they declare `ref` for exactly the reason the meeting
     actions above did. `done` is deliberately NOT among them: it keeps `taskId` and the V2-026 suffix
     convention, because `refs` has been resolving «márcame hecha la del daemon» into that key since the
-    convention existed, and there was nothing there to fix."""
+    convention existed, and there was nothing there to fix.
+
+    V2-764 added ONE: `archivos:torrent_download`. A catalogue row is named by its number or its title («la
+    segunda», «la de 720p»), so it declares `ref: item` — and a live download keeps `id`, a different field, so
+    «la segunda» of the catalogue can never cancel the second download."""
     from widgets import runtime
 
     def sufijo_solo(wid: str, action: str):
@@ -160,6 +164,7 @@ def test_ninguna_otra_accion_del_catalogo_cambia_de_respuesta():
         ("agenda", "delete_list"), ("agenda", "delete_task"), ("agenda", "move_meeting"),
         ("agenda", "rename_list"), ("agenda", "rsvp_meeting"), ("agenda", "set_reminder"),
         ("agenda", "update_meeting"), ("agenda", "update_task"),
+        ("archivos", "torrent_download"),
         ("youtube", "move"), ("youtube", "play_item"), ("youtube", "remove"),
     ], cambian
 

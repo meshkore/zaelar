@@ -60,7 +60,8 @@ CATALOG = _catalog()
 
 def test_the_catalog_is_not_empty():
     """The harness is worthless if the walk silently finds nothing — the failure mode of every ratchet."""
-    assert len({w for w, _, _ in CATALOG}) >= 12, f"only {len({w for w, _, _ in CATALOG})} widgets walked"
+    # 11 since V2-764: the separate `torrent` widget was retired into Archivos' Torrents section.
+    assert len({w for w, _, _ in CATALOG}) >= 11, f"only {len({w for w, _, _ in CATALOG})} widgets walked"
     assert len(CATALOG) >= 150, f"only {len(CATALOG)} declared actions walked"
 
 

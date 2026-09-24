@@ -57,7 +57,7 @@ TOOLS: list[dict] = [
                 "o día ([[cron.create]]); ESCRIBIR a un contacto o concertar CON él "
                 "(mensajeria:send_to +objective; el motor lo sigue); una cita o un mensaje "
                 "(widget_data: la agenda ES el calendario); MOSTRAR lo que YA existe (show_widget); "
-                "vídeo/música/podcast (play_video/play_music); FOTOS (show_images); TORRENTS"
+                "vídeo/música/podcast (play_video/play_music); enseñar FOTOS (show_images); TORRENTS"
                 " (archivos:torrent_search). "
                 "VARIAS tareas = una llamada CADA UNA (a la vez) "
                 "y no estar en el catálogo NO es motivo para negarte: se construye. Ante la duda, escala. "
@@ -134,7 +134,7 @@ TOOLS: list[dict] = [
                 "[[show]]. `panel`: 'procesos' (TU trabajo en marcha; sus TAREAS van en el widget agenda) | "
                 "'crons' (periódicos) | 'programadas' (una vez, luego) | "
                 "'chat' (muro de texto) | 'clusters' (red MeshKore) | 'conectores' (cuentas) | "
-                "'apps' (catálogo de apps/widgets, de sistema y suyos). "
+                "'apps' (catálogo de apps/widgets). "
                 "Solo si quiere VER la lista; un dato suelto se dice hablando. Con `action:'close'` lo "
                 "CIERRA. El chat NO es un widget: [[close]] no lo cierra — es ESTA."
             ),
@@ -142,7 +142,7 @@ TOOLS: list[dict] = [
                 "type": "object",
                 "properties": {
                     "panel": {"type": "string",
-                              "description": "cuál (los de arriba)"},
+                              "description": "cuál (clusters…)"},
                     "action": {"type": "string",
                                "description": "'open' (por defecto) o 'close' si pide cerrarlo/quitarlo"},
                 },
