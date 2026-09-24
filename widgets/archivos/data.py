@@ -48,6 +48,7 @@ from __future__ import annotations
 import time
 
 from .. import store
+from . import torrents as _tor
 
 WIDGET_ID = "archivos"
 DB_VERSION = 2
@@ -57,6 +58,8 @@ FRESH_S = 120
 # What travels into the prompt when the card is open.
 DIGEST_ENTRIES = 25
 _MODES = ("list", "grid")
+_LIBRARY_VERBS = ("refresh", "open_folder", "go_up", "go_home", "search_files", "clear_search", "open_file",
+                  "reveal_local_file", "rename_file", "copy_file", "delete_file", "set_provider")
 
 _SHELF_LABEL = {"video": "Vídeo", "audio": "Audio", "documents": "Documentos",
                 "images": "Imágenes", "downloads": "Descargas"}
@@ -147,6 +150,9 @@ def view_data(q: str = ""):
         "count": len(db.get("entries") or []),
         "needs_refresh": bool(stale and not db.get("error")),
         "updated": int(db.get("updated") or 0),
+        # V2-764 — the two sections of the file manager: his library, and the torrents on their way to it.
+        "section": db.get("section") if db.get("section") in _tor.SECTIONS else "biblioteca",
+        "torrents": _tor.view(db),
     }
 
 
@@ -154,8 +160,9 @@ def ref_index() -> list[dict]:
     """The entries currently on screen, so `widgets/refs.py` can turn «the videos folder»/«that file» into a
     real id. `field` differs by kind: a folder is opened with `folderId`, a file targeted with `fileId` — one
     field shared by `open_file`/`rename_file`/`copy_file`/`delete_file`, all of which target the same rows."""
-    out = []
-    for e in (_load().get("entries") or [])[:400]:
+    db = _load()
+    out = _tor.refs(db)          # V2-764: catalogue rows (`item`) and live downloads (`id`) — their own fields
+    for e in (db.get("entries") or [])[:400]:
         eid = str(e.get("id") or "")
         if not eid:
             continue
@@ -174,6 +181,8 @@ def _where(db: dict) -> str:
 def prompt_digest() -> str:
     """What the brain sees while this card is OPEN (consumed by `widgets/brief.py` through `refs.prompt_digest`)."""
     db = _load()
+    if db.get("section") == "torrents":
+        return _tor.digest(db)
     provider = db.get("provider") or "local"
     label = "tu biblioteca" if provider == "local" else f"({provider})"
     entries = db.get("entries") or []
@@ -542,6 +551,16 @@ def apply_action(action: str, payload: dict | None = None):
     payload = payload or {}
     act = str(action or "").strip()
     db = _load()
+
+    # V2-764 — the Torrents section (and the section switch itself) live in `torrents.py`.
+    _tres = _tor.handle(db, act, payload)
+    if _tres is not None:
+        _save(db)
+        return _tres
+    # Any library verb brings the Biblioteca back in front: «abre la carpeta de vídeo» while looking at the
+    # torrents means the library.
+    if act in _LIBRARY_VERBS:
+        db["section"] = "biblioteca"
 
     if act == "sync_providers":
         # Cheap, read-only-feeling refresh of the header's provider chips — the icon row must be able to show

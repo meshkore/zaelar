@@ -138,7 +138,45 @@ def test_file_it_refuses_an_unfinished_download_without_touching_the_session(mon
     assert out["ok"] is False and "terminado" in out["error"]
 
 
-# ── 5 · the widget's backend: a MANAGER over `service.active()`, never its own player (redesign) ────────────
+# ── 5 · the surface's backend: a MANAGER over `service.active()`, never its own player ──────────────────────
+# V2-764 — the separate `torrent` widget became the Torrents SECTION of `archivos` (`widgets/archivos/torrents.py`).
+# Every guarantee below is the same; the adapter only renames the verbs (`open` → `torrent_open`, …) and reads the
+# section out of Archivos' view. Two changed meaning ON PURPOSE and say so: a search now builds a CATALOGUE and
+# downloads nothing, and the digest speaks per tab.
+class _Section:
+    _MAP = {"search": "torrent_search", "add_magnet": "torrent_download", "open": "torrent_open",
+            "save": "torrent_save", "remove": "torrent_remove"}
+
+    def __init__(self, mp):
+        self._mp = mp
+        self._svc = None
+
+    def _wire(self):
+        from widgets.archivos import torrents as tor
+        if self._svc is not None:
+            self._mp.setattr(tor, "_svc", self._svc)
+
+    def apply_action(self, action, payload=None):
+        self._wire()
+        from widgets.archivos import data as arx
+        return arx.apply_action(self._MAP.get(action, action), dict(payload or {}))
+
+    def view_data(self):
+        self._wire()
+        from widgets.archivos import data as arx
+        return arx.view_data()["torrents"]
+
+    def prompt_digest(self, tab="descargas"):
+        self._wire()
+        from widgets.archivos import data as arx
+        arx.apply_action("show_section", {"section": "torrents", "tab": tab})
+        return arx.prompt_digest()
+
+    def ref_index(self):
+        self._wire()
+        from widgets.archivos import data as arx
+        return [r for r in arx.ref_index() if r.get("field") == "id"]
+
 
 @pytest.fixture
 def wdata(monkeypatch, tmp_path):
@@ -146,19 +184,17 @@ def wdata(monkeypatch, tmp_path):
     from widgets import store
     monkeypatch.setattr(store, "DATA_DIR", str(tmp_path))
     store._last_hash.clear()
-    from widgets.torrent import data as wd
-    return wd
+    return _Section(monkeypatch)
 
 
-def test_search_action_adds_a_row_to_downloads(monkeypatch, wdata):
+def test_a_search_builds_the_catalogue_and_adds_NO_download(monkeypatch, wdata):
     fake = _FakeSvc()
     monkeypatch.setattr(wdata, "_svc", lambda: fake)
     res = wdata.apply_action("search", {"query": "the movie"})
-    assert res["ok"] and res["id"] == "HASH"
+    assert res["ok"] and res["count"] == 1
     view = wdata.view_data()
-    assert view["seeds"] == [] and len(view["downloads"]) == 1
-    row = view["downloads"][0]
-    assert row["id"] == "HASH" and row["kind"] == "video" and row["playable"] is True
+    assert view["seeds"] == [] and view["downloads"] == [], "a SEARCH started a download"
+    assert view["catalog"]["releases"][0]["title"] == "The Movie"
 
 
 def test_a_search_miss_is_stored_as_a_spoken_error_and_adds_nothing(monkeypatch, wdata):
@@ -167,7 +203,7 @@ def test_a_search_miss_is_stored_as_a_spoken_error_and_adds_nothing(monkeypatch,
     res = wdata.apply_action("search", {"query": "ghost"})
     assert res["ok"] is False
     view = wdata.view_data()
-    assert view["error"] and view["seeds"] == [] and view["downloads"] == []
+    assert view["catalog"]["error"] and view["seeds"] == [] and view["downloads"] == []
 
 
 def test_an_empty_query_never_reaches_the_connector(monkeypatch, wdata):
@@ -259,15 +295,14 @@ def test_save_action_files_a_finished_download(monkeypatch, wdata):
     assert res["ok"] and fake.filed == ["A"]
 
 
-def test_prompt_digest_names_downloading_and_seeding_counts(monkeypatch, wdata):
+def test_prompt_digest_names_what_each_tab_holds(monkeypatch, wdata):
     fake = _FakeSvc()
     monkeypatch.setattr(wdata, "_svc", lambda: fake)
-    assert "no hay ninguna descarga" in wdata.prompt_digest().lower()
+    assert "vacío" in wdata.prompt_digest("descargas").lower()
     fake.put("A", kind="video", state="downloading", progress=0.3, name="The Movie")
     fake.put("B", kind="video", state="seeding", progress=1.0, name="Old Film")
-    dig = wdata.prompt_digest()
-    assert "1 descargando" in dig and "The Movie" in dig
-    assert "1 completadas" in dig or "completada" in dig
+    assert "The Movie" in wdata.prompt_digest("descargas") and "Old Film" not in wdata.prompt_digest("descargas")
+    assert "Old Film" in wdata.prompt_digest("semillas")
 
 
 def test_ref_index_lists_live_rows_by_title(monkeypatch, wdata):
@@ -275,7 +310,7 @@ def test_ref_index_lists_live_rows_by_title(monkeypatch, wdata):
     fake.put("A", kind="video", name="The Movie")
     monkeypatch.setattr(wdata, "_svc", lambda: fake)
     idx = wdata.ref_index()
-    assert idx == [{"id": "A", "label": "The Movie", "field": "id"}]
+    assert idx == [{"id": "A", "label": "The Movie", "field": "id", "hint": "descarga"}]
 
 
 def test_view_data_reports_unavailable_with_a_reason(monkeypatch, wdata):
@@ -287,6 +322,9 @@ def test_view_data_reports_unavailable_with_a_reason(monkeypatch, wdata):
 class _UnavailableSvc:
     def available(self):
         return False
+
+    def active(self):
+        return []
 
     def unavailable_reason(self):
         return "el cliente de descargas está desactivado en la configuración"
@@ -328,6 +366,13 @@ class _FakeSvc:
     def add_magnet(self, magnet, keep=False):
         self.put("HASH2", kind="video")
         return {"ok": True, "id": "HASH2"}
+
+    def catalog(self, query):
+        if not self._find_ok:
+            return {"ok": False, "error": "no encontré nada para eso"}
+        return {"ok": True, "agent": "a", "releases": [{"title": "The Movie", "magnet": _M, "size": "1 GB",
+                                                        "seeders": 5, "leechers": 1, "resolution": "", "kind": "movie",
+                                                        "published": "", "info_hash": "h"}]}
 
     def status(self, rid):
         return self._handles.get(rid) or {"ok": False, "error": "ese torrent ya no está activo"}

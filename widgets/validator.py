@@ -439,10 +439,8 @@ _STDLIB_EXEMPT = {"musica", "agenda", "archivos", "fotos", "youtube", "results",
                    # signature for view_data needs `connectors.email.config`, lazily, exactly like
                    # `youtube`'s own `_svc()` reaches its connector.
                    "mensajeria",
-                   # V2-637: the `torrent` widget IS a connector surface — its data.py reaches
-                   # `connectors.torrent.service` (which owns the libtorrent session), deferred so the
-                   # catalog never imports libtorrent just to list the widget.
-                   "torrent",
+                   # V2-637 → V2-764: the torrent client's surface now lives INSIDE `archivos`
+                   # (already exempt above), deferred so the catalog never imports libtorrent.
                    # V2-644: a report errand binds this sheet to its task, and the Proceso view is derived
                    # per read from `nucleo.dispatch.task_progress` — deferred + fail-open, the same seam
                    # `results` already has for its live view.

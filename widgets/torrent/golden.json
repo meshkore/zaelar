@@ -1,9 +1,0 @@
-{
-  "view_data_shape": {
-    "available": "bool",
-    "downloads": "list",
-    "error": "str",
-    "seeds": "list",
-    "unavailable_reason": "str"
-  }
-}

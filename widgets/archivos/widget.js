@@ -16,6 +16,39 @@
 const STYLE_ID = "hb-archivos-style";
 
 const CSS = `
+/* V2-764 — the TORRENTS section: a sub-tab bar, a cinema-style catalogue and the two live lists. */
+.arx-pchip.tor.on{border-color:var(--hb-accent,#2f6df6)}
+.arx-tabs{display:flex;gap:4px;padding:8px 12px 0;flex:0 0 auto}
+.arx-tab{flex:0 0 auto;padding:6px 12px;border:0;border-radius:8px 8px 0 0;background:transparent;font:inherit;
+  font-weight:700;color:var(--hb-muted-2,#9aa4b2);cursor:pointer;display:flex;align-items:center;gap:6px}
+.arx-tab:hover{color:var(--hb-ink,#0d1622);background:var(--hb-bg-soft,#f5f7fb)}
+.arx-tab.on{color:var(--hb-ink,#0d1622);background:var(--hb-bg-soft,#f5f7fb);box-shadow:inset 0 -2px 0 var(--hb-accent,#2f6df6)}
+.arx-tab .arx-n{font-size:11px;font-weight:700;padding:0 6px;border-radius:999px;background:var(--hb-line,#eef1f6);color:var(--hb-muted,#67707d)}
+.arx-cine{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
+.arx-film{display:flex;flex-direction:column;border:1px solid var(--hb-line,#eef1f6);border-radius:12px;overflow:hidden;
+  background:var(--hb-bg-soft,#f5f7fb)}
+.arx-poster{position:relative;aspect-ratio:16/9;display:grid;place-items:center;font-size:34px;
+  background:linear-gradient(135deg,color-mix(in srgb,var(--hb-accent,#2f6df6) 26%,#111),#111)}
+.arx-poster .arx-num{position:absolute;top:8px;left:8px;min-width:22px;height:22px;padding:0 6px;border-radius:999px;
+  background:rgba(0,0,0,.6);color:#fff;font-size:12px;font-weight:800;display:grid;place-items:center}
+.arx-poster .arx-res{position:absolute;top:8px;right:8px;padding:1px 7px;border-radius:6px;background:rgba(0,0,0,.6);
+  color:#fff;font-size:11px;font-weight:800;letter-spacing:.03em}
+.arx-film-b{display:flex;flex-direction:column;gap:6px;padding:10px}
+.arx-film-t{font-weight:700;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word}
+.arx-film-m{display:flex;flex-wrap:wrap;gap:6px;color:var(--hb-muted,#67707d);font-size:12px}
+.arx-film-m .seed{color:var(--hb-accent2,#12a594);font-weight:700}
+.arx-dl{margin-top:2px;padding:7px 10px;border:0;border-radius:8px;background:var(--hb-accent,#2f6df6);color:#fff;
+  font:inherit;font-weight:700;cursor:pointer}
+.arx-dl:hover{filter:brightness(1.08)}
+.arx-trow{display:flex;flex-direction:column;gap:6px;padding:10px 12px;border:1px solid var(--hb-line,#eef1f6);
+  border-radius:10px;margin-bottom:8px}
+.arx-trow-h{display:flex;align-items:center;gap:8px;min-width:0}
+.arx-trow-t{flex:1 1 auto;min-width:0;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.arx-tbar{height:6px;border-radius:999px;background:var(--hb-line,#eef1f6);overflow:hidden}
+.arx-tbar>i{display:block;height:100%;background:var(--hb-accent,#2f6df6)}
+.arx-trow-s{display:flex;flex-wrap:wrap;gap:10px;color:var(--hb-muted,#67707d);font-size:12px}
+.arx-tnote{padding:18px 6px;color:var(--hb-muted,#67707d);text-align:center}
+
 .arx{display:flex;flex-direction:column;width:100%;height:100%;min-height:0;box-sizing:border-box;
   position:relative;background:var(--hb-bg,#fff);border-radius:14px;overflow:hidden;
   font:13px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial;color:var(--hb-ink,#0d1622)}
@@ -288,11 +321,25 @@ export function render(root, data, ctx) {
   layout.appendChild(sidebar(d, act));
   const main = el("div", "arx-main");
   main.appendChild(header(d, act, ui));
-  main.appendChild(body(d, act, ui));
-  if (d.selected) main.appendChild(footer(d.selected, act));
+  const onTorrents = d.section === "torrents";
+  if (onTorrents) {
+    main.appendChild(torrentTabs(d, act));
+    main.appendChild(torrentBody(d, act, ui));
+  } else {
+    main.appendChild(body(d, act, ui));
+    if (d.selected) main.appendChild(footer(d.selected, act));
+  }
   layout.appendChild(main);
   root.appendChild(layout);
-  if (ui.preview) root.appendChild(lightbox(ui, act));
+  if (ui.preview && !onTorrents) root.appendChild(lightbox(ui, act));
+
+  // V2-764 — keep the live lists moving while anything is still filling (the retired widget's own rule:
+  // one timer per card, cleared and re-armed on every render, stopped once nothing is downloading).
+  if (root._arxPoll) { clearTimeout(root._arxPoll); root._arxPoll = 0; }
+  const tor = d.torrents || {};
+  if (onTorrents && tor.available && (tor.downloads || []).some(r => r.progress < 100)) {
+    root._arxPoll = setTimeout(() => act("torrent_poll", {}), 1500);
+  }
 
   if (d.needs_refresh && !root._arxAsked) {
     root._arxAsked = true;
@@ -349,6 +396,22 @@ function sidebar(d, act) {
     });
   }
 
+  // V2-764 — the Torrents section and its three tabs, reachable from the quick-access column too.
+  const tor = d.torrents || {};
+  const torHead = el("button", "arx-side-head", tt("tor_section", null, "Torrents"));
+  torHead.onclick = () => act("show_section", { section: "torrents" });
+  side.appendChild(torHead);
+  TOR_TABS().forEach(tb => {
+    const on = d.section === "torrents" && tor.tab === tb.id;
+    const item = el("button", "arx-side-item" + (on ? " on" : ""));
+    item.appendChild(el("span", "arx-ic", tb.icon));
+    item.appendChild(el("span", "arx-side-nm", tb.label));
+    const n = tb.count(tor);
+    if (n) item.appendChild(el("span", "arx-side-count", String(n)));
+    item.onclick = () => act("show_section", { section: "torrents", tab: tb.id });
+    side.appendChild(item);
+  });
+
   const gear = el("button", "arx-side-item", null);
   gear.appendChild(el("span", "arx-ic", "⚙"));
   gear.appendChild(el("span", "arx-side-nm", tt("cloud_services", null, "Servicios en la nube")));
@@ -367,10 +430,18 @@ function header(d, act, ui) {
   const isLocal = d.provider === "local";
 
   const chips = el("div", "arx-chips");
-  const local = el("button", "arx-pchip" + (isLocal ? " on" : ""), "💻");
+  const onTor = d.section === "torrents";
+  const local = el("button", "arx-pchip" + (isLocal && !onTor ? " on" : ""), "💻");
   local.title = tt("device_lib", null, "Este dispositivo — tu biblioteca");
   local.onclick = () => { ui.preview = null; act("set_provider", { provider: "local" }); };
   chips.appendChild(local);
+  // V2-764 — the Torrents section's own door, beside the library's («debería haber un icono ahí para poder
+  // acceder al apartado de torrent»).
+  const torChip = el("button", "arx-pchip tor" + (onTor ? " on" : ""), "🧲");
+  torChip.title = tt("tor_section_tip", null, "Torrents — catálogo, descargas y semillas");
+  torChip.dataset.section = "torrents";
+  torChip.onclick = () => { ui.preview = null; act("show_section", { section: "torrents" }); };
+  chips.appendChild(torChip);
 
   (d.providers || []).forEach(p => {
     const letter = String(p.label || p.id || "?").trim().charAt(0).toUpperCase() || "?";
@@ -390,8 +461,13 @@ function header(d, act, ui) {
   bar.appendChild(chips);
   bar.appendChild(el("div", "arx-divider"));
 
-  bar.appendChild(crumbsRow(d, ui, act));
-  bar.appendChild(toolsRow(d, act));
+  if (onTor) {
+    bar.appendChild(torrentCrumbs(d, act));
+    bar.appendChild(torrentTools(d, act));
+  } else {
+    bar.appendChild(crumbsRow(d, ui, act));
+    bar.appendChild(toolsRow(d, act));
+  }
   return bar;
 }
 
@@ -909,3 +985,209 @@ async function beginConsent(provider, tier, btn, act, ctx) {
     setTimeout(() => { btn.disabled = false; if (btn.textContent === tt("opening", null, "Abriendo…")) btn.textContent = prev; }, 1500);
   }
 }
+
+// ── V2-764 · TORRENTS ─────────────────────────────────────────────────────────────────────────────────────
+// Evaluated per paint (V2-694): a label table built at import time freezes the language it was built in.
+function TOR_TABS() {
+  return [
+    { id: "catalogo", icon: "🎞", label: tt("tor_catalog", null, "Catálogo"),
+      count: t => ((t.catalog || {}).releases || []).length },
+    { id: "descargas", icon: "⬇", label: tt("tor_downloads", null, "Descargas"), count: t => (t.downloads || []).length },
+    { id: "semillas", icon: "🌱", label: tt("tor_seeds", null, "Semillas"), count: t => (t.seeds || []).length },
+  ];
+}
+
+function torHuman(n) {
+  n = Number(n) || 0;
+  if (n < 1024) return n + " B";
+  if (n < 1048576) return (n / 1024).toFixed(0) + " KB";
+  if (n < 1073741824) return (n / 1048576).toFixed(1) + " MB";
+  return (n / 1073741824).toFixed(2) + " GB";
+}
+
+function torState(r) {
+  if ((r.state === "downloading" || r.state === "downloading_metadata") && r.progress <= 0)
+    return tt("st_sources", null, "Buscando fuentes");
+  switch (String(r.state || "")) {
+    case "seeding": return tt("st_seeding", null, "Compartiendo (semilla)");
+    case "finished": return tt("st_finished", null, "Terminada");
+    case "checking_files": case "checking_resume_data": return tt("st_checking", null, "Comprobando");
+    case "queued_for_checking": return tt("st_queued", null, "En cola");
+    case "allocating": return tt("st_allocating", null, "Reservando espacio");
+  }
+  return r.complete ? tt("st_finished", null, "Terminada") : tt("st_downloading", null, "Descargando");
+}
+
+function torrentCrumbs(d, act) {
+  const crumbs = el("div", "arx-crumbs");
+  const tor = d.torrents || {};
+  const root = el("button", "arx-crumb", tt("tor_section", null, "Torrents"));
+  root.onclick = () => act("show_section", { section: "torrents", tab: "catalogo" });
+  crumbs.appendChild(root);
+  const tb = TOR_TABS().find(x => x.id === tor.tab) || TOR_TABS()[0];
+  crumbs.appendChild(el("span", "arx-sep", "›"));
+  const here = el("button", "arx-crumb", tb.label);
+  here.disabled = true;
+  crumbs.appendChild(here);
+  const q = (tor.catalog || {}).query;
+  if (tor.tab === "catalogo" && q) {
+    crumbs.appendChild(el("span", "arx-sep", "›"));
+    const qq = el("button", "arx-crumb", "«" + q + "»");
+    qq.disabled = true;
+    crumbs.appendChild(qq);
+  }
+  return crumbs;
+}
+
+function torrentTools(d, act) {
+  const tools = el("div", "arx-tools");
+  const back = el("button", "arx-btn", "↩");
+  back.title = tt("tor_back_lib", null, "Volver a la biblioteca");
+  back.onclick = () => act("show_section", { section: "biblioteca" });
+  tools.appendChild(back);
+  const find = el("div", "arx-find");
+  find.appendChild(el("span", "arx-find-ic", "🧲"));
+  const input = document.createElement("input");
+  input.type = "search";
+  input.className = "arx-tor-q";
+  input.placeholder = tt("tor_search", null, "Buscar torrents…");
+  input.value = ((d.torrents || {}).catalog || {}).query || "";
+  input.onkeydown = (ev) => {
+    if (ev.key !== "Enter") return;
+    const q = input.value.trim();
+    if (q) act("torrent_search", { query: q });
+  };
+  find.appendChild(input);
+  tools.appendChild(find);
+  const ref = el("button", "arx-btn", "⟳");
+  ref.title = tt("refresh", null, "Actualizar");
+  ref.onclick = () => act("torrent_poll", {});
+  tools.appendChild(ref);
+  return tools;
+}
+
+function torrentTabs(d, act) {
+  const bar = el("div", "arx-tabs");
+  const tor = d.torrents || {};
+  TOR_TABS().forEach(tb => {
+    const b = el("button", "arx-tab" + (tor.tab === tb.id ? " on" : ""));
+    b.dataset.tab = tb.id;
+    b.appendChild(el("span", null, tb.icon + " " + tb.label));
+    const n = tb.count(tor);
+    if (n) b.appendChild(el("span", "arx-n", String(n)));
+    b.onclick = () => act("show_section", { section: "torrents", tab: tb.id });
+    bar.appendChild(b);
+  });
+  return bar;
+}
+
+function torrentBody(d, act, ui) {
+  const box = el("div", "arx-body");
+  const tor = d.torrents || {};
+  if (tor.error) box.appendChild(el("div", "arx-tnote", tor.error));
+  if (tor.tab === "descargas" || tor.tab === "semillas") {
+    if (!tor.available) {
+      box.appendChild(el("div", "arx-tnote", tor.unavailable_reason || tt("tor_unavailable", null, "El cliente de descargas no está disponible.")));
+      return box;
+    }
+    const rows = tor.tab === "semillas" ? (tor.seeds || []) : (tor.downloads || []);
+    if (ui.torConfirm && !rows.some(r => r.id === ui.torConfirm)) ui.torConfirm = "";
+    if (!rows.length) {
+      box.appendChild(el("div", "arx-tnote", tor.tab === "semillas"
+        ? tt("tor_empty_seeds", null, "No hay nada compartiéndose como semilla.")
+        : tt("tor_empty_downloads", null, "No se está descargando nada. Busca en el catálogo y pulsa «Descargar».")));
+      return box;
+    }
+    rows.forEach(r => box.appendChild(torrentRow(r, act, ui)));
+    return box;
+  }
+  const cat = tor.catalog || {};
+  if (cat.error) box.appendChild(el("div", "arx-tnote", cat.error));
+  const rels = cat.releases || [];
+  if (!rels.length) {
+    if (!cat.error) box.appendChild(el("div", "arx-tnote", tt("tor_empty_catalog", null,
+      "Busca una peli, una serie o un disco y aquí verás lo que ofrece la red para descargar.")));
+    return box;
+  }
+  const grid = el("div", "arx-cine");
+  rels.forEach(r => grid.appendChild(filmCard(r, act)));
+  box.appendChild(grid);
+  return box;
+}
+
+const FILM_ICON = { movie: "🎬", tv: "📺", music: "🎵", audio: "🎵", book: "📚", software: "💿", game: "🎮" };
+
+function filmCard(r, act) {
+  const card = el("div", "arx-film");
+  card.dataset.n = String(r.n);
+  const poster = el("div", "arx-poster", FILM_ICON[r.kind] || "🎞");
+  poster.appendChild(el("span", "arx-num", String(r.n)));
+  if (r.resolution) poster.appendChild(el("span", "arx-res", r.resolution));
+  card.appendChild(poster);
+  const b = el("div", "arx-film-b");
+  const t = el("div", "arx-film-t", r.title);
+  t.title = r.title;
+  b.appendChild(t);
+  const m = el("div", "arx-film-m");
+  if (r.size) m.appendChild(el("span", null, r.size));
+  m.appendChild(el("span", "seed", tt("tor_seeders", { n: r.seeders }, "▲ " + r.seeders + " semillas")));
+  if (r.published) m.appendChild(el("span", null, r.published.slice(0, 4)));
+  b.appendChild(m);
+  const dl = el("button", "arx-dl", tt("tor_download", null, "Descargar"));
+  dl.onclick = () => act("torrent_download", { item: r.n });
+  b.appendChild(dl);
+  card.appendChild(b);
+  return card;
+}
+
+function torrentRow(r, act, ui) {
+  const row = el("div", "arx-trow");
+  row.dataset.id = r.id;
+  const h = el("div", "arx-trow-h");
+  h.appendChild(el("span", "arx-ic", r.kind === "video" ? "🎬" : r.kind === "audio" ? "🎵" : "📦"));
+  const t = el("div", "arx-trow-t", r.title);
+  t.title = r.title;
+  h.appendChild(t);
+  if (r.can_play) {
+    const play = el("button", "arx-btn", "▶");
+    play.title = tt("tor_play", null, "Reproducir");
+    play.onclick = () => act("torrent_open", { id: r.id });
+    h.appendChild(play);
+  }
+  if (r.complete) {
+    const save = el("button", "arx-btn", "💾");
+    save.title = tt("tor_save", null, "Guardar en la biblioteca");
+    save.onclick = () => act("torrent_save", { id: r.id });
+    h.appendChild(save);
+  }
+  const x = el("button", "arx-btn", "✕");
+  x.title = tt("tor_cancel", null, "Cancelar y borrar el fichero");
+  x.onclick = () => { ui.torConfirm = r.id; act("torrent_poll", {}); };
+  h.appendChild(x);
+  row.appendChild(h);
+  if (!r.complete) {
+    const bar = el("div", "arx-tbar");
+    const fill = document.createElement("i");
+    fill.style.width = Math.max(0, Math.min(100, r.progress || 0)) + "%";
+    bar.appendChild(fill);
+    row.appendChild(bar);
+  }
+  const s = el("div", "arx-trow-s");
+  s.appendChild(el("span", null, (r.progress || 0) + "% · " + torState(r)));
+  if (r.size) s.appendChild(el("span", null, torHuman(r.size)));
+  if (!r.complete && r.download_rate > 0) s.appendChild(el("span", null, torHuman(r.download_rate) + "/s"));
+  if (r.num_peers) s.appendChild(el("span", null, tt("tor_peers", { n: r.num_peers }, r.num_peers + " pares")));
+  row.appendChild(s);
+  if (ui.torConfirm === r.id) {
+    const c = el("div", "arx-trow-s");
+    c.appendChild(el("span", null, tt("tor_confirm", null, "¿Cancelo la descarga y borro el fichero?")));
+    const yes = el("button", "arx-btn", tt("tor_yes", null, "Sí, borrar"));
+    yes.onclick = () => { ui.torConfirm = ""; act("torrent_remove", { id: r.id }); };
+    const no = el("button", "arx-btn", tt("tor_no", null, "No"));
+    no.onclick = () => { ui.torConfirm = ""; act("torrent_poll", {}); };
+    c.appendChild(yes); c.appendChild(no);
+    row.appendChild(c);
+  }
+  return row;
+}
+

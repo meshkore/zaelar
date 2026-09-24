@@ -84,7 +84,7 @@ def test_no_confirmation_recites_prose_written_for_the_model():
 
 
 @pytest.mark.parametrize("wid,act", [("youtube", "clear_history"), ("archivos", "delete_file"),
-                                     ("mensajeria", "clear_signature"), ("torrent", "remove")])
+                                     ("mensajeria", "clear_signature"), ("archivos", "torrent_remove")])
 def test_the_question_is_a_sentence_a_person_hears(wid, act):
     q = _manifest(wid)["actions"][act]["confirm_q"]
     assert q.endswith("?") or "?" in q, q

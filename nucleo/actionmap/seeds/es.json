@@ -1,6 +1,6 @@
 {
- "_comment": "Genesis seed pack (Spanish) for the action map (V2-539). Every entry is an UNAMBIGUOUS, whole-utterance command mapped to one allowlisted direct action. Phrases are normalized on import (accents/punctuation don't matter here). Courtesy/word-order variants are separate entries ON PURPOSE — the matcher is not allowed to understand. When a phrase could plausibly mean something richer than the mapped action, it does NOT belong in this pack: the model handles it. · V2-682 — the possessive and the courtesy form were the whole hole. Measured on the operator's own English session (2026-09-12): «open the agenda» matched and «can you open MY agenda, please» did not, so a widget SHOW fell through to the model and from there to a Brain Worker that died on a provider 400. Spanish had the identical hole («abre mi agenda», «abreme la agenda»), which is why the fix lands in BOTH packs: this was never an English defect. Courtesy and modal forms are ENTRIES here, never something the matcher is allowed to understand (normalize.py doctrine). · V2-761 — the widget catalogue («Apps») joins as a panel tab; the operator calls it apps or widgets indifferently, so both words are entries.",
- "version": 10,
+ "_comment": "Genesis seed pack (Spanish) for the action map (V2-539). Every entry is an UNAMBIGUOUS, whole-utterance command mapped to one allowlisted direct action. Phrases are normalized on import (accents/punctuation don't matter here). Courtesy/word-order variants are separate entries ON PURPOSE — the matcher is not allowed to understand. When a phrase could plausibly mean something richer than the mapped action, it does NOT belong in this pack: the model handles it. · V2-682 — the possessive and the courtesy form were the whole hole. Measured on the operator's own English session (2026-09-12): «open the agenda» matched and «can you open MY agenda, please» did not, so a widget SHOW fell through to the model and from there to a Brain Worker that died on a provider 400. Spanish had the identical hole («abre mi agenda», «abreme la agenda»), which is why the fix lands in BOTH packs: this was never an English defect. Courtesy and modal forms are ENTRIES here, never something the matcher is allowed to understand (normalize.py doctrine). · V2-761 — the widget catalogue («Apps») joins as a panel tab; the operator calls it apps or widgets indifferently, so both words are entries. · V2-764 — the `torrent` widget merged into `archivos` (section Torrents): its names open that section.",
+ "version": 11,
  "grids": [
   {
    "_comment": "VERB x OBJECT grid for mensajeria's LENSES (V2-545). «Abreme el Telegram» is not «show the card»: WhatsApp/Telegram/correo are VIEWS OF a card, and the model reads them as card names because they are also the widget's aliases - measured live, three turns of «Aqui lo tienes» over an unmoved card. Expanded into ordinary exact-match entries at import; a view op also brings the card up (executor), so one order gets both halves. `$` is filled with the value.",
@@ -137,11 +137,6 @@
     "mis archivos": "archivos",
     "el documento": "documento",
     "el buscador": "search",
-    "las descargas": "torrent",
-    "el widget de descargas": "torrent",
-    "el torrent": "torrent",
-    "los torrents": "torrent",
-    "torrent": "torrent",
     "mi agenda": "agenda",
     "mi calendario": "agenda",
     "el widget de la agenda": "agenda",
@@ -214,11 +209,11 @@
     "el explorador de archivos": "archivos",
     "el documento": "documento",
     "el buscador": "search",
-    "las descargas": "torrent",
-    "el widget de descargas": "torrent",
-    "el torrent": "torrent",
-    "los torrents": "torrent",
-    "torrent": "torrent",
+    "las descargas": "archivos",
+    "el widget de descargas": "archivos",
+    "el torrent": "archivos",
+    "los torrents": "archivos",
+    "torrent": "archivos",
     "la mensajeria": "mensajeria",
     "los mensajes": "mensajeria",
     "el whatsapp": "mensajeria",
@@ -257,6 +252,92 @@
    "action": {
     "do": "close_widget",
     "widget": "$"
+   }
+  },
+  {
+   "_comment": "V2-764 — the Torrents section of Archivos. «Ábreme los torrents» is not «show the card»: it is a SECTION of the file manager (the retired `torrent` widget lives there now), so the order opens the card AND lands on it — the mensajeria-lens shape. `$` fills the declared enum; the widget resolves aliases.",
+   "verbs": [
+    "abre",
+    "ábreme",
+    "ábreme ahora",
+    "muestra",
+    "muéstrame",
+    "muéstrame ahora",
+    "enséñame",
+    "enséñame ahora",
+    "ponme",
+    "sacame",
+    "saca",
+    "pon",
+    "puedes abrir",
+    "puedes abrirme",
+    "puedes ensenarme",
+    "puedes mostrarme",
+    "por favor abre",
+    "por favor abreme",
+    "quiero ver",
+    "abreme ya"
+   ],
+   "objects": {
+    "los torrents": "torrents",
+    "el torrent": "torrents",
+    "mis torrents": "torrents",
+    "torrent": "torrents",
+    "la seccion de torrents": "torrents",
+    "el apartado de torrents": "torrents",
+    "la biblioteca": "biblioteca",
+    "mi biblioteca": "biblioteca"
+   },
+   "action": {
+    "do": "widget_data",
+    "widget": "archivos",
+    "action": "show_section",
+    "payload": {
+     "section": "$"
+    }
+   }
+  },
+  {
+   "_comment": "V2-764 — the Torrents section of Archivos. «Ábreme los torrents» is not «show the card»: it is a SECTION of the file manager (the retired `torrent` widget lives there now), so the order opens the card AND lands on it — the mensajeria-lens shape. `$` fills the declared enum; the widget resolves aliases.",
+   "verbs": [
+    "abre",
+    "ábreme",
+    "ábreme ahora",
+    "muestra",
+    "muéstrame",
+    "muéstrame ahora",
+    "enséñame",
+    "enséñame ahora",
+    "ponme",
+    "sacame",
+    "saca",
+    "pon",
+    "puedes abrir",
+    "puedes abrirme",
+    "puedes ensenarme",
+    "puedes mostrarme",
+    "por favor abre",
+    "por favor abreme",
+    "quiero ver",
+    "abreme ya"
+   ],
+   "objects": {
+    "las descargas": "descargas",
+    "mis descargas": "descargas",
+    "el widget de descargas": "descargas",
+    "lo que se esta descargando": "descargas",
+    "las semillas": "semillas",
+    "las semillas de torrent": "semillas",
+    "el catalogo de torrents": "catalogo",
+    "el catalogo de descargas": "catalogo"
+   },
+   "action": {
+    "do": "widget_data",
+    "widget": "archivos",
+    "action": "show_section",
+    "payload": {
+     "tab": "$"
+    }
    }
   }
  ],

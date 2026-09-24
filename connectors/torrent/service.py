@@ -53,10 +53,22 @@ def search_and_play(query: str, *, want: str = "media", keep: bool = False) -> d
     return {"ok": True, "id": added["id"], "title": found.get("title") or query, "agent": found.get("agent")}
 
 
+def catalog(query: str) -> dict:
+    """The releases the network offers for a query — `{ok, releases, agent}` — WITHOUT downloading anything
+    (V2-764). Needs no libtorrent: looking is not downloading, so it answers even with the client switched off."""
+    try:
+        found = search.find_releases(query)
+    except Exception as e:  # noqa: BLE001 — fail-safe by contract
+        return {"ok": False, "error": f"no pude consultar la red: {str(e)[:120]}"}
+    if not found.get("ok"):
+        return {"ok": False, "error": found.get("reason") or "no encontré nada para eso"}
+    return {"ok": True, "releases": found.get("releases") or [], "agent": found.get("agent")}
+
+
 def add_magnet(magnet: str, *, want: str = "media", keep: bool = False) -> dict:
     if not available():
         return {"ok": False, "error": unavailable_reason()}
-    return session.add_magnet(magnet, want=want, keep=keep)
+    return session.add_magnet(search._clean_magnet(magnet), want=want, keep=keep)
 
 
 def status(rid: str) -> dict:

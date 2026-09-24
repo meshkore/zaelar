@@ -14,7 +14,9 @@
     "providers_stale": "bool",
     "query": "str",
     "reason": "str",
+    "section": "str",
     "selected": "NoneType",
+    "torrents": "dict",
     "trail": "list",
     "updated": "int"
   }

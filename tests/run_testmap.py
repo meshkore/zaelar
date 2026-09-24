@@ -4052,7 +4052,13 @@ DOMAINS: list[dict] = [
                                 "todo falla a salvo",
             "ch": UNIT, "paths": [
                 "tests/connectors/unit/torrent/test_the_torrent_addon_finds_streams_and_fails_safe.py",
-                "tests/browser/unit/torrent/test_the_torrent_widget_downloads_any_format.py"]},
+                # V2-764: the separate torrent widget merged into `archivos`; its any-format test moved there.
+                "tests/browser/unit/archivos/test_torrents_live_inside_archivos.py"]},
+        # V2-764 — «cada botón, cada sección, cada tabla, cada breadcrumb… todo operativo»: the Torrents section of
+        # Archivos RENDERED, every control clicked and the action it sends read back.
+        {"id": "5.60", "title": "Torrents dentro de Archivos — catálogo sin descarga, cada botón de la sección "
+                                "(pestañas, migas, buscador, Descargar, ▶, 💾, ✕ confirmado) hace lo que dice",
+            "ch": UNIT, "paths": ["tests/browser/unit/archivos/test_every_torrent_control_does_what_it_says.py"]},
     ]},
     {"id": "6", "name": "CLUSTER (meshkore)", "nodes": [
         {"id": "6.1", "title": "Cápsula / framing (una sola mente)", "ch": PEER, "paths": [

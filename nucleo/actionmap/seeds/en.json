@@ -1,6 +1,6 @@
 {
- "_comment": "Genesis seed pack (English) for the action map (V2-539). Same rules as es.json: unambiguous whole-utterance commands only; variants are separate entries; anything that could mean more than the mapped action stays out and goes to the model. · V2-682 — the possessive and the courtesy form were the whole hole. Measured on the operator's own English session (2026-09-12): «open the agenda» matched and «can you open MY agenda, please» did not, so a widget SHOW fell through to the model and from there to a Brain Worker that died on a provider 400. Spanish had the identical hole («abre mi agenda», «abreme la agenda»), which is why the fix lands in BOTH packs: this was never an English defect. Courtesy and modal forms are ENTRIES here, never something the matcher is allowed to understand (normalize.py doctrine). · V2-761 — the widget catalogue («Apps») joins as a panel tab; the operator calls it apps or widgets indifferently, so both words are entries.",
- "version": 10,
+ "_comment": "Genesis seed pack (English) for the action map (V2-539). Same rules as es.json: unambiguous whole-utterance commands only; variants are separate entries; anything that could mean more than the mapped action stays out and goes to the model. · V2-682 — the possessive and the courtesy form were the whole hole. Measured on the operator's own English session (2026-09-12): «open the agenda» matched and «can you open MY agenda, please» did not, so a widget SHOW fell through to the model and from there to a Brain Worker that died on a provider 400. Spanish had the identical hole («abre mi agenda», «abreme la agenda»), which is why the fix lands in BOTH packs: this was never an English defect. Courtesy and modal forms are ENTRIES here, never something the matcher is allowed to understand (normalize.py doctrine). · V2-761 — the widget catalogue («Apps») joins as a panel tab; the operator calls it apps or widgets indifferently, so both words are entries. · V2-764 — the `torrent` widget merged into `archivos` (section Torrents): its names open that section.",
+ "version": 11,
  "grids": [
   {
    "_comment": "VERB x OBJECT grid for mensajeria's LENSES (V2-545). «Abreme el Telegram» is not «show the card»: WhatsApp/Telegram/correo are VIEWS OF a card, and the model reads them as card names because they are also the widget's aliases - measured live, three turns of «Aqui lo tienes» over an unmoved card. Expanded into ordinary exact-match entries at import; a view op also brings the card up (executor), so one order gets both halves. `$` is filled with the value.",
@@ -110,11 +110,6 @@
     "my files": "archivos",
     "the document": "documento",
     "the search": "search",
-    "the downloads": "torrent",
-    "the downloads widget": "torrent",
-    "the torrent": "torrent",
-    "the torrents": "torrent",
-    "torrent": "torrent",
     "my agenda": "agenda",
     "my calendar": "agenda",
     "the agenda widget": "agenda",
@@ -187,11 +182,11 @@
     "my files": "archivos",
     "the document": "documento",
     "the search": "search",
-    "the downloads": "torrent",
-    "the downloads widget": "torrent",
-    "the torrent": "torrent",
-    "the torrents": "torrent",
-    "torrent": "torrent",
+    "the downloads": "archivos",
+    "the downloads widget": "archivos",
+    "the torrent": "archivos",
+    "the torrents": "archivos",
+    "torrent": "archivos",
     "the messages": "mensajeria",
     "whatsapp": "mensajeria",
     "telegram": "mensajeria",
@@ -229,6 +224,85 @@
    "action": {
     "do": "close_widget",
     "widget": "$"
+   }
+  },
+  {
+   "_comment": "V2-764 — the Torrents section of Archivos. «Ábreme los torrents» is not «show the card»: it is a SECTION of the file manager (the retired `torrent` widget lives there now), so the order opens the card AND lands on it — the mensajeria-lens shape. `$` fills the declared enum; the widget resolves aliases.",
+   "verbs": [
+    "open",
+    "show",
+    "show me",
+    "show me now",
+    "bring up",
+    "let me see",
+    "display",
+    "pull up",
+    "put up",
+    "can you open",
+    "can you show",
+    "can you show me",
+    "can you bring up",
+    "please open",
+    "please show me",
+    "i want to see",
+    "i wanna see",
+    "open up"
+   ],
+   "objects": {
+    "the torrents": "torrents",
+    "the torrent": "torrents",
+    "my torrents": "torrents",
+    "torrent": "torrents",
+    "the torrents section": "torrents",
+    "my library": "biblioteca",
+    "the library": "biblioteca"
+   },
+   "action": {
+    "do": "widget_data",
+    "widget": "archivos",
+    "action": "show_section",
+    "payload": {
+     "section": "$"
+    }
+   }
+  },
+  {
+   "_comment": "V2-764 — the Torrents section of Archivos. «Ábreme los torrents» is not «show the card»: it is a SECTION of the file manager (the retired `torrent` widget lives there now), so the order opens the card AND lands on it — the mensajeria-lens shape. `$` fills the declared enum; the widget resolves aliases.",
+   "verbs": [
+    "open",
+    "show",
+    "show me",
+    "show me now",
+    "bring up",
+    "let me see",
+    "display",
+    "pull up",
+    "put up",
+    "can you open",
+    "can you show",
+    "can you show me",
+    "can you bring up",
+    "please open",
+    "please show me",
+    "i want to see",
+    "i wanna see",
+    "open up"
+   ],
+   "objects": {
+    "the downloads": "descargas",
+    "my downloads": "descargas",
+    "the downloads widget": "descargas",
+    "the seeds": "semillas",
+    "the torrent catalog": "catalogo",
+    "the torrent catalogue": "catalogo"
+   },
+   "action": {
+    "do": "widget_data",
+    "widget": "archivos",
+    "action": "show_section",
+    "payload": {
+     "tab": "$"
+    }
    }
   }
  ],

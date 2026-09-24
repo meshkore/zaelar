@@ -1,9 +1,9 @@
 {
   "id": "archivos",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "title": "Archivos",
-  "description": "Un gestor de archivos de verdad: primero tu BIBLIOTECA propia (vídeo, audio, documentos, imágenes, descargas) con carpetas, renombrar/copiar/borrar y abrir con doble clic — y, con un icono en la cabecera, tus servicios en la nube conectados (Google Drive, OneDrive) para navegarlos y buscarlos igual.",
-  "whenToUse": "Cuando el usuario habla de SUS archivos —biblioteca local o nube (Drive, OneDrive)—: navegar, buscar, abrir, renombrar, copiar o borrar. FRONTERA: texto ya escrito → `documento`; fotos por internet → `imagenes`; buscar en internet → `search`.",
+  "description": "Un gestor de archivos de verdad con DOS secciones: tu BIBLIOTECA propia (vídeo, audio, documentos, imágenes, descargas) con carpetas, renombrar/copiar/borrar y abrir con doble clic —y tus nubes conectadas (Google Drive, OneDrive)—; y TORRENTS: el catálogo de lo que se puede bajar por la red, lo que se está descargando y lo que ya está como semilla.",
+  "whenToUse": "SUS archivos (biblioteca o nube) y TORRENTS: buscar algo para bajar («torrents de…», «un magnet de…»), descargarlo, ver descargas y semillas. FRONTERA: buscar torrents va SIEMPRE aquí (torrent_search), nunca a `search`/`results` ni a un worker; texto escrito → `documento`; otra web → `search`.",
   "keywords": [
     "archivos",
     "mis archivos",
@@ -20,14 +20,25 @@
     "gestor de archivos",
     "files",
     "folder",
-    "my drive"
+    "my drive",
+    "torrent",
+    "torrents",
+    "magnet",
+    "magnets",
+    "descargar",
+    "semilla",
+    "semillas",
+    "peli para descargar",
+    "catálogo de torrents",
+    "download",
+    "seeds"
   ],
   "entry": "widget.js",
   "size": {
     "w": 820,
     "h": 600
   },
-  "usage": "El gestor de archivos: por defecto navega TU BIBLIOTECA (video/audio/documents/images/downloads); con `set_provider` cambia a un servicio conectado en la nube. Para NAVEGAR usa open_folder (con folderId — un id de carpeta de la nube, o `video`/`audio`/`documents`/`images`/`downloads` para una carpeta local), go_up y go_home. Para CONTESTAR «¿tengo un contrato de Axa?» o «¿tengo descargada esa peli?» usa search_files: filtra la vista Y devuelve los que casan en `result.matches`. open_file ABRE el archivo: si es un vídeo o un audio local reproducible lo manda al reproductor correspondiente y lo enseña; si es una imagen o un documento local reproducible lo enseña dentro de esta misma tarjeta; si es un fichero de la nube devuelve su `web_url` y decides tú qué hacer con él. Para GUARDAR un texto como fichero («guárdalo en mis archivos») usa save_document {name, text}: escribe el fichero en la biblioteca y abre la carpeta donde quedó — un texto largo que no cabe en un turno lo guarda el worker por esa misma acción, o con `save_to_library` desde la hoja `documento` si ya está en pantalla. rename_file/copy_file/delete_file SOLO funcionan en la biblioteca local (un servicio en la nube los rechaza con el motivo). Si no hay ningún servicio en la nube conectado, open_connectors abre el asistente de conexión dentro de la tarjeta — pero la biblioteca local funciona siempre, sin conectar nada.",
+  "usage": "El gestor de archivos: por defecto navega TU BIBLIOTECA (video/audio/documents/images/downloads); con `set_provider` cambia a un servicio conectado en la nube. Para NAVEGAR usa open_folder (con folderId — un id de carpeta de la nube, o `video`/`audio`/`documents`/`images`/`downloads` para una carpeta local), go_up y go_home. Para CONTESTAR «¿tengo un contrato de Axa?» o «¿tengo descargada esa peli?» usa search_files: filtra la vista Y devuelve los que casan en `result.matches`. open_file ABRE el archivo: si es un vídeo o un audio local reproducible lo manda al reproductor correspondiente y lo enseña; si es una imagen o un documento local reproducible lo enseña dentro de esta misma tarjeta; si es un fichero de la nube devuelve su `web_url` y decides tú qué hacer con él. Para GUARDAR un texto como fichero («guárdalo en mis archivos») usa save_document {name, text}: escribe el fichero en la biblioteca y abre la carpeta donde quedó — un texto largo que no cabe en un turno lo guarda el worker por esa misma acción, o con `save_to_library` desde la hoja `documento` si ya está en pantalla. rename_file/copy_file/delete_file SOLO funcionan en la biblioteca local (un servicio en la nube los rechaza con el motivo). Si no hay ningún servicio en la nube conectado, open_connectors abre el asistente de conexión dentro de la tarjeta — pero la biblioteca local funciona siempre, sin conectar nada. SECCIÓN TORRENTS (V2-764): torrent_search {query} busca en la red MeshKore y deja el CATÁLOGO en pantalla (NO descarga nada) — devuelve los primeros en `result.matches`, numerados; torrent_download {item} descarga uno del catálogo por número o título («la segunda», «la de 1080p») o {magnet} un enlace concreto; torrent_open {id} reproduce una descarga (vídeo → reproductor, audio terminado → música); torrent_save {id} la pasa a la biblioteca; torrent_remove {id} la cancela y borra el fichero. show_section cambia de sección (biblioteca | torrents) y de pestaña dentro de torrents (catalogo | descargas | semillas).",
   "actions": {
     "sync_providers": {
       "desc": "refresca qué servicios de archivos en la nube están registrados/conectados, para la fila de iconos",
@@ -160,6 +171,58 @@
       "confirm_q": "¿Desconecto «{item}»? Tendrás que volver a darle permiso para leer tus archivos.",
       "consent_class": "account.disconnect",
       "singleton": true
+    },
+    "show_section": {
+      "desc": "CAMBIA de sección o de pestaña SIN tocar nada: «enséñame los torrents», «qué se está descargando», «las semillas», «vuelve a la biblioteca»",
+      "payload": {
+        "section": "biblioteca (mis archivos, la biblioteca, las carpetas) | torrents (torrent, descargas, las descargas, semillas, catálogo de torrents)",
+        "tab": "catalogo (catálogo, dashboard, resultados, buscador) | descargas (descargando, en curso, bajando) | semillas (seeds, compartiendo, terminadas)"
+      },
+      "view": true
+    },
+    "torrent_search": {
+      "desc": "BUSCA TORRENTS en la red y enseña el CATÁLOGO sin descargar: «búscame torrents de X», «tráeme un magnet de X», «pelis de esas que se descargan»",
+      "payload": {
+        "query": "qué buscar: título de la peli, serie, disco, programa…"
+      },
+      "view": true
+    },
+    "torrent_download": {
+      "desc": "DESCARGA uno del catálogo de torrents por número o título («bájate la segunda», «la de 1080p») o un enlace magnet concreto",
+      "payload": {
+        "item": "número o parte del título del catálogo",
+        "magnet": "opcional: un enlace magnet:?… concreto en vez de uno del catálogo"
+      },
+      "ref": "item",
+      "view": true
+    },
+    "torrent_open": {
+      "desc": "REPRODUCE una descarga de torrent: el vídeo va al reproductor, el audio (ya terminado) a la música",
+      "payload": {
+        "id": "el id de la descarga"
+      },
+      "ref": "id",
+      "view": true
+    },
+    "torrent_save": {
+      "desc": "GUARDA una descarga de torrent TERMINADA en la biblioteca (para un formato no reproducible, o para quedársela)",
+      "payload": {
+        "id": "el id de la descarga"
+      },
+      "ref": "id"
+    },
+    "torrent_remove": {
+      "desc": "CANCELA una descarga de torrent y BORRA el fichero — irreversible",
+      "confirm_q": "¿Cancelo la descarga de «{item}» y borro el fichero? No se puede deshacer.",
+      "payload": {
+        "id": "el id de la descarga"
+      },
+      "ref": "id",
+      "confirm": true
+    },
+    "torrent_poll": {
+      "desc": "refresca el progreso de las descargas de torrent",
+      "payload": {}
     }
   },
   "name": "Archivos",
@@ -172,9 +235,21 @@
     "onedrive",
     "mi nube",
     "el explorador de archivos",
-    "el gestor de archivos"
+    "el gestor de archivos",
+    "los torrents",
+    "el torrent",
+    "las descargas",
+    "el widget de descargas",
+    "mis descargas",
+    "el catálogo de torrents",
+    "downloads",
+    "the downloads",
+    "torrents",
+    "the torrents",
+    "my downloads"
   ],
   "origin": "builtin",
   "live_title": true,
-  "security": "standard"
+  "security": "standard",
+  "worker_guide": "Para buscar torrents desde un worker: `python -m nucleo.widget_cli data archivos torrent_search @q.json` con {\"query\":\"lo que sea\"} (deja el catálogo en pantalla), y para bajar uno `python -m nucleo.widget_cli data archivos torrent_download @d.json` con {\"item\": 2}. La lista completa se lee con `python -m nucleo.widget_cli data archivos` (clave `torrents`)."
 }

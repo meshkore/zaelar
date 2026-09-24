@@ -155,3 +155,20 @@
     verified red (tier threshold, the close button's existence) before shipping. `make test-widgets` 15/15
     (golden untouched — `view_data()`'s own keys did not change, only a new field on already-existing local
     rows). **NOT verified live** — needs an engine restart and the operator's own eyes on the real card.
+
+## V2-764 — the Torrents section (the `torrent` widget merged in, 2026-09-24)
+
+The operator asked for one place: *«uno será la biblioteca del sistema de archivos y la otra sección será la de
+torrents… tres subapartados: el dashboard (catálogo), descargas y semillas»*. The separate `torrent` widget was
+retired; its code moved to `torrents.py` (this widget's own module), its words («los torrents», «las descargas»,
+«the downloads») became this card's aliases and the action map's section grids.
+
+- **Catálogo** is new: `torrent_search` asks the network (`connectors.torrent.service.catalog` → the `seedhound`
+  agent) and shows the releases WITHOUT downloading. The old `search` downloaded the first magnet straight away.
+  The catalogue lives in this store (magnets included); the card receives it without magnets, numbered from 1.
+- **Descargas / Semillas** are the old widget's two lists, unchanged in meaning (live from `service.active()`).
+- The agent's releases carry a `torrent_url` with its indexer API key: dropped in `connectors/torrent/search.py`,
+  never stored, never shown. Its magnets arrive HTML-escaped (`&amp;tr=`): un-escaped there too.
+- `show_section {section, tab}` switches with aliases declared in the manifest (the V2-754 enum mechanism).
+- A library verb (`open_folder`, `go_home`, `search_files`…) brings the Biblioteca back in front.
+- The retired widget's own decision log lives in git history: `git show 7a0d443e:widgets/torrent/notes.md`.

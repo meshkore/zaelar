@@ -80,13 +80,13 @@ def test_the_card_is_titled_in_the_operators_language():
     rows = {r["id"]: r["name"] for r in registry.registry()}
     assert rows["mensajeria"] == "Messages", "an English session read «Mensajería» on the card — the whole report"
     assert rows["agenda"] == "Calendar"
-    assert rows["torrent"] == "Downloads"
+    assert rows["timer"] == "Timer"   # V2-764: was the retired torrent widget
 
     registry, _ = _with_language("es")
     rows = {r["id"]: r["name"] for r in registry.registry()}
     assert rows["mensajeria"] == "Mensajería", "and a Castilian session must not start reading English"
     assert rows["agenda"] == "Agenda"
-    assert rows["torrent"] == "Descargas"
+    assert rows["timer"] == "Temporizador"
 
 
 def test_a_system_surface_is_named_in_the_operators_language_too():
@@ -110,8 +110,8 @@ def test_both_spellings_open_the_same_card_in_an_english_session():
     _, runtime = _with_language("en")
     for said in ("messages", "mensajería", "mensajeria"):
         assert runtime.identify(said).get("match") == "mensajeria", f"«{said}» did not reach the card"
-    for said in ("downloads", "descargas"):
-        assert runtime.identify(said).get("match") == "torrent", f"«{said}» did not reach the card"
+    for said in ("timer", "temporizador"):
+        assert runtime.identify(said).get("match") == "timer", f"«{said}» did not reach the card"
 
 
 def test_the_castilian_name_is_still_an_alias_when_the_ui_is_english():
@@ -155,7 +155,7 @@ def test_a_language_with_no_row_for_a_name_falls_back_to_ENGLISH_not_to_castilia
     registry, _ = _with_language("sv")           # no bundle shipped, none generated in a test workspace
     rows = {r["id"]: r["name"] for r in registry.registry()}
     assert rows["mensajeria"] == "Messages", rows["mensajeria"]
-    assert rows["torrent"] == "Downloads"
+    assert rows["timer"] == "Timer"   # V2-764: was the retired torrent widget
 
 
 def test_a_system_surface_is_reachable_by_its_translated_name():
@@ -196,7 +196,7 @@ def test_a_GENERATED_language_renames_the_cards_and_the_vocabulary_with_them(tmp
     rows = {r["id"]: r for r in registry.registry()}
     assert rows["mensajeria"]["name"] == "Meddelanden", "a generated language must rename the card"
     assert rows["wizard"]["name"] == "Installationsguide"
-    assert rows["torrent"]["name"] == "Downloads", "…and a key it has no row for degrades to English"
+    assert rows["timer"]["name"] == "Timer", "…and a key it has no row for degrades to English"
 
     assert runtime.identify("meddelanden").get("match") == "mensajeria", \
         "the operator has to be able to SAY what the card says"

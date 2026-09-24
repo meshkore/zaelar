@@ -39,7 +39,7 @@ _RUNS = [
     ("archivos", "delete_file", {"fileId": "f9"}, "borra el informe.pdf"),
     ("mensajeria", "trash", {"n": 3}, "tira ese correo"),
     ("youtube", "delete_list", {"name": "Rock"}, "borra la lista Rock"),
-    ("torrent", "remove", {"id": "t3"}, "cancela esa descarga"),
+    ("archivos", "torrent_remove", {"id": "t3"}, "cancela esa descarga"),   # V2-764: was torrent:remove
     ("musica", "disconnect", {}, "desconecta Spotify"),
     ("agenda", "disconnect", {}, "desconecta el calendario"),
     ("mensajeria", "send_draft", {}, "envía el borrador"),

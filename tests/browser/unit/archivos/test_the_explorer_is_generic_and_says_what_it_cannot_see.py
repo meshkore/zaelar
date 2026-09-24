@@ -121,7 +121,8 @@ _FILES = [
 
 # ── the contract with the brain ────────────────────────────────────────────────────────────────────────────
 def test_every_declared_action_is_handled_and_every_handled_one_is_declared():
-    src = (_WIDGET / "data.py").read_text(encoding="utf-8")
+    # V2-764: the Torrents section's verbs live in `torrents.py` — the same widget, one more file.
+    src = (_WIDGET / "data.py").read_text(encoding="utf-8") + (_WIDGET / "torrents.py").read_text(encoding="utf-8")
     handled = set(re.findall(r'act == "([a-z_]+)"', src))
     for grp in re.findall(r"act in \(([^)]*)\)", src):
         handled |= {x.strip().strip('"') for x in grp.split(",") if x.strip()}

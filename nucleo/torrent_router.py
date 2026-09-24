@@ -1,6 +1,7 @@
-"""nucleo/torrent_router.py — hand a Descargas row to the widget that can play it.
+"""nucleo/torrent_router.py — hand a torrent row to the widget that can play it.
 
-The `torrent` widget (`widgets/torrent/`) is a MANAGER: it lists what is downloading and seeding and lets the
+The Torrents section of `archivos` (`widgets/archivos/torrents.py`, V2-764 — it was the separate `torrent` widget
+until then) is a MANAGER: it lists what is downloading and seeding and lets the
 operator remove a download or save a finished file, but it never plays anything itself. Playing a video or a
 finished audio file belongs to the surface built for it — `youtube` (V2-638's `play_torrent`, which can also
 ADOPT an id already in Descargas) and `musica` (`play_local`, once the file is filed onto its shelf).
@@ -8,7 +9,7 @@ ADOPT an id already in Descargas) and `musica` (`play_local`, once the file is f
 A widget's own `apply_action` must never reach into a sibling's store — "widgets are dumb and never talk to
 each other" (widgets/AGENTS.md). This module is the orchestrator that DOES cross that line, the same layer
 `nucleo/docsheet.py` already uses to open a widget bound to state that lives outside it (there: a worker's
-errand; here: a download the operator clicked "▶" on). `widgets/torrent/data.py` calls this instead of
+errand; here: a download the operator clicked "▶" on). `widgets/archivos/torrents.py` calls this instead of
 importing `widgets.youtube`/`widgets.musica` directly.
 """
 from __future__ import annotations
