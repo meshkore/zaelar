@@ -162,6 +162,9 @@ def test_the_packs_were_versioned_so_existing_installs_import_them():
     ("Vale, ábreme la lista de widgets customizados.", "apps-custom"), ("O los widgets. Ábreme esa lista.", "apps"),
     ("Ábreme la lista de apps", "apps"), ("Johnny, ábreme las apps", "apps"),
     ("enséñame mis widgets personalizados", "apps-custom"),
+    # the catalogue is named only to look at it — his own list includes a question with no open verb:
+    ("¿Qué APPs tengo customizadas?", "apps-custom"), ("dime qué widgets tengo disponibles", "apps"),
+    ("abre el chat", "chat"),
 ])
 def test_an_order_that_names_the_tab_is_decided_by_the_name(phrase, tab):
     from nucleo.flash.wall_lane import named_wall_tab
@@ -169,8 +172,7 @@ def test_an_order_that_names_the_tab_is_decided_by_the_name(phrase, tab):
 
 
 @pytest.mark.parametrize("phrase", [
-    "¿Qué APPs tengo customizadas?",          # a question: the model answers it, from its own catalogue
-    "abre la aplicación de música", "ábreme el vídeo", "ábreme whatsapp", "abre el widget de música",
+    "abre la aplicación de música", "no quiero ver las apps", "te lo pongo en el chat", "ábreme el vídeo", "ábreme whatsapp", "abre el widget de música",
     "cierra las apps", "hazme un widget de recetas", "crea una app de notas", "no me abras las apps",
 ])
 def test_the_lane_leaves_everything_else_to_the_model(phrase):
@@ -197,7 +199,7 @@ def test_the_voice_lane_opens_the_tab_and_records_the_exchange():
     try:
         took = asyncio.run(fast_lane.wall_tab(brain, "Vale, ábreme la lista de widgets customizados.",
                                               lambda *a, **k: events.append((a, k)), first_turn=False, window_max=20))
-        missed = asyncio.run(fast_lane.wall_tab(brain, "¿Qué APPs tengo customizadas?",
+        missed = asyncio.run(fast_lane.wall_tab(brain, "te lo pongo en el chat",
                                                 lambda *a, **k: events.append((a, k)), first_turn=False, window_max=20))
     finally:
         fast_lane._speak_ack = real
