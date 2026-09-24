@@ -232,6 +232,15 @@ def _identify(text: str) -> str | None:
         return None
 
 
+def _identify_system(text: str) -> str | None:
+    """The SYSTEM surface the phrase names (`identify()["system"]`), or None — the half `_identify` drops."""
+    try:
+        from widgets import runtime
+        return (runtime.identify(text) or {}).get("system")
+    except Exception:
+        return None
+
+
 def _identify_is_widget(wid: str) -> bool:
     """¿`wid` es un id EXACTO del catálogo? (para decidir si hay que resolverlo flojito antes de borrar)."""
     try:

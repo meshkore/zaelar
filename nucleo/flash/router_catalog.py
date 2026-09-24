@@ -133,7 +133,7 @@ TOOLS: list[dict] = [
                 "[[show]]. `panel`: 'procesos' (TU trabajo en marcha; sus TAREAS personales no son esto, "
                 "van en el widget agenda) | 'crons' (periódicos) | 'programadas' (una vez, luego) | "
                 "'chat' (muro de texto) | 'clusters' (red MeshKore) | 'conectores' (sus cuentas) | "
-                "'apps' (catálogo de apps/widgets, «qué widgets tengo»). "
+                "'apps' (lista/catálogo de apps, aplicaciones o widgets). "
                 "Solo si quiere VER la lista; un dato suelto se dice hablando. Con `action:'close'` lo "
                 "CIERRA. El chat NO es un widget: [[close]] no lo cierra — es ESTA."
             ),

@@ -61,8 +61,6 @@ def test_a_named_widget_is_never_stolen_by_the_catalogue(phrase, widget):
 def test_asking_for_HIS_widgets_opens_the_custom_sub_tab(phrase, tab):
     from nucleo.flash.panel_canon import apps_tab
     assert apps_tab(phrase) == tab
-    prov = (ENGINE / "voice/engine/llm/providers/nucleo.py").read_text(encoding="utf-8")
-    assert '"tab": _apps_tab(text) if _sys == "apps" else _sys' in prov
 
 
 def test_the_models_catalogue_says_which_widgets_are_his():
@@ -89,13 +87,36 @@ def test_the_video_cards_own_catalogue_is_not_this_one():
 
 
 def test_the_provider_and_its_probe_route_the_surface_to_the_panel():
-    """Source anchors, because the branch lives in the middle of the provider's streaming loop: the named
-    surface is forwarded as the TAB, not hard-coded to the chat."""
+    """Source anchors, because the branch lives in the middle of the provider's streaming loop: a named surface
+    that is a TAB of the wall is forwarded through ONE reader (`panel_canon.wall_tab_for`) in both channels."""
     prov = (ENGINE / "voice/engine/llm/providers/nucleo.py").read_text(encoding="utf-8")
-    assert 'elif _sys in ("chat", "apps"):' in prov
-    assert 'emit("panel", "open", extra={"tab": _apps_tab(text) if _sys == "apps" else _sys,' in prov
+    assert "elif _wall_tab_for(_sys, text):" in prov
+    assert 'emit("panel", "open", extra={"tab": _wall_tab_for(_sys, text), "src": "flash"})' in prov
     probe = (ENGINE / "nucleo/flash/probe.py").read_text(encoding="utf-8")
-    assert '''f"panel:{_apps_tab(text) if _sys == 'apps' else _sys}" if _sys in ("chat", "apps")''' in probe
+    assert 'f"panel:{_wall_tab_for(_sys, text)}" if _wall_tab_for(_sys, text) else "clarify"' in probe
+
+
+def test_a_promise_to_open_the_tab_with_no_tool_opens_it():
+    """Measured on the live engine after F1: «Te abro el panel de apps, que es donde salen los widgets que
+    tienes» with NO tool call. The promise backstop only knew CARDS; a named wall tab now opens too — in the
+    provider and in its mirror."""
+    prov = (ENGINE / "voice/engine/llm/providers/nucleo.py").read_text(encoding="utf-8")
+    seg = prov.split("elif _router.looks_like_show_strict(_op_text):")[1].split("elif _router.promises_music")[0]
+    assert "_wall_tab_for(_identify_system(_op_text), _op_text)" in seg
+    assert 'emit("panel", "open", extra={"tab": _wtab, "src": "flash"})' in seg
+    probe = (ENGINE / "nucleo/flash/probe.py").read_text(encoding="utf-8")
+    pseg = probe.split("elif _routerc.looks_like_show_strict(text):")[1].split("elif _routerc.promises_music")[0]
+    assert 'action = f"panel:{_wtab}"' in pseg
+
+
+@pytest.mark.parametrize("sid,phrase,tab", [
+    ("apps", "O los widgets. Ábreme esa lista.", "apps"),
+    ("apps", "Vale, ábreme la lista de widgets customizados.", "apps-custom"),
+    ("chat", "abre el chat", "chat"), ("config", "abre los ajustes", ""), (None, "hola", ""),
+])
+def test_only_a_tab_of_the_wall_becomes_a_panel_event(sid, phrase, tab):
+    from nucleo.flash.panel_canon import wall_tab_for
+    assert wall_tab_for(sid, phrase) == tab
 
 
 # ── door 2: the show_panel tool ────────────────────────────────────────────────────────────────────────────

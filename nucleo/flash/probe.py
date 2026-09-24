@@ -31,7 +31,7 @@ import os
 import time
 from dataclasses import dataclass, field
 from nucleo.errors import brief as _brief
-from nucleo.flash.panel_canon import apps_tab as _apps_tab
+from nucleo.flash.panel_canon import wall_tab_for as _wall_tab_for
 from nucleo.flash import music_turn as _music_turn, reminder_guards as _rg_mute
 from nucleo.flash import image_turn as _image_turn, listing_turn as _lt
 from nucleo.flash import video_turn as _video_turn
@@ -466,8 +466,7 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
             action = ("guard:show-of-just-closed-widget" if _reopen_drag else
                       f"canvas:show:{_rid}" if _rid else
                       "clarify" if _show_ask else
-                      f"panel:{_apps_tab(text) if _sys == 'apps' else _sys}" if _sys in ("chat", "apps")
-                      else "clarify")
+                      f"panel:{_wall_tab_for(_sys, text)}" if _wall_tab_for(_sys, text) else "clarify")
     elif "fullscreen_widget" in names:
         # BUG real 2026-07-23 — espejo del provider: pone/quita pantalla completa de verdad. Resuelve el id por
         # nombre/alias con certeza (V2-082); sin match → pregunta (no fabrica).
@@ -632,9 +631,13 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
                     _window_goal = _wgoal
                 elif _routerc.looks_like_show_strict(text):
                     from widgets import runtime as _rtp
-                    _pw = (_rtp.identify(text) or {}).get("match")
+                    _idp = _rtp.identify(text) or {}
+                    _pw = _idp.get("match")
+                    _wtab = "" if _pw else _wall_tab_for(_idp.get("system"), text)
                     if _pw:
                         action = f"canvas:show:{_pw}"
+                    elif _wtab:
+                        action = f"panel:{_wtab}"      # V2-761 — mirror: a promised TAB of the wall
                 elif _routerc.promises_music(spoken):
                     action = "music"
         except Exception:
@@ -1065,6 +1068,12 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
                 _parts = action.split(":", 2)
                 spoken = _rg_show.show_ack(_lg, _parts[2] if len(_parts) > 2 else "",
                                            chose=_show_chose)
+            elif action.startswith("panel:"):
+                # V2-761 — a native panel opened with no spoken line. The provider counts it as `acted["widget"]`
+                # and speaks `show_ack`; this mirror fell to the MUTE backstop and blamed itself («se me ha
+                # cruzado algo») over a panel that had opened — measured on his own Apps phrases.
+                from . import router_guards as _rg_panel
+                spoken = _rg_panel.show_ack(_lg, "")
             elif action in ("escalate", "send_to_worker", "stop_worker", "answer_worker", "authenticate_web",
                             "connect_cluster"):
                 # V2-189: nunca la MISMA frase dos veces (espejo del provider — cablear en AMBOS).

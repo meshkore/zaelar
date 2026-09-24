@@ -71,3 +71,19 @@ def apps_tab(text) -> str:
     asks for HIS widgets («mis widgets customizados», «qué apps tengo personalizadas»), `apps` otherwise. The
     one place both the `show_panel` argument and a `show_widget` that named the surface are read."""
     return "apps-custom" if _CUSTOM_RE.search(str(text or "")) else "apps"
+
+
+# The system surfaces that are TABS of the wall, and therefore opened by the `panel` event rather than shown
+# as a card. `apps` resolves its sub-tab from the phrase; the chat has none.
+_WALL_SURFACES = ("chat", "apps")
+
+
+def wall_tab_for(system_id, text) -> str:
+    """The wall tab a phrase opens when the name resolver said it NAMES a system surface (`identify()["system"]`),
+    or "" when that surface is not a tab of the wall. One reader for every place that turns a named surface into
+    a panel event: `show_widget` naming it, and the promise backstop when the model said «te abro el panel de
+    apps» and called nothing (V2-761, measured on his own phrases)."""
+    sid = str(system_id or "")
+    if sid not in _WALL_SURFACES:
+        return ""
+    return apps_tab(text) if sid == "apps" else sid

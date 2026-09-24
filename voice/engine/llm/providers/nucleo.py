@@ -23,7 +23,7 @@ from livekit.agents import DEFAULT_API_CONNECT_OPTIONS, llm, utils
 from livekit.agents.llm import ChatChunk, ChoiceDelta
 
 from .. import registry
-from nucleo.flash.panel_canon import apps_tab as _apps_tab
+from nucleo.flash.panel_canon import wall_tab_for as _wall_tab_for
 from nucleo.flash import (build_decision as _build_decision, canvas_license as _canvas_lic,  # V2-750 grammar only proposes / V2-650 a replay can be an order
                           canvas_visibility as _cvis,                          # V2-723: ONE door to present
                           close_guards as _closeg,                             # V2-635: close needs the words
@@ -1548,11 +1548,10 @@ class NucleoLLMStream(llm.LLMStream):
                                 acted["widget_id"] = _rid
                                 emit("brain", "🪟 show_widget → canvas", text=_rid, role="system",
                                      extra={"empty": _surface_is_empty(_rid)})
-                        elif _sys in ("chat", "apps"):
+                        elif _wall_tab_for(_sys, text):
                             # It named the CHAT, or the widget catalogue (V2-761: «ábreme las apps») — two
                             # tabs of the native wall, not widgets → open the wall on that tab.
-                            emit("panel", "open", extra={"tab": _apps_tab(text) if _sys == "apps" else _sys,
-                                                         "src": "flash"})
+                            emit("panel", "open", extra={"tab": _wall_tab_for(_sys, text), "src": "flash"})
                             emit("brain", f"🗂️ show_widget→{_sys} (superficie de sistema)", role="system")
                             acted["widget"] = True
                         else:
@@ -2443,11 +2442,18 @@ class NucleoLLMStream(llm.LLMStream):
                      text=(_win_goal or _op_text)[:80], role="system")
             elif _router.looks_like_show_strict(_op_text):    # abrir/mostrar/enseñar un widget existente → show
                 _pw = _identify(_op_text)
+                _wtab = "" if _pw else _wall_tab_for(_identify_system(_op_text), _op_text)
                 if _pw:
                     acted["widget"] = True
                     _shown_ids.add(_pw)          # V2-660: a shown card is an end state the harness verifies
                     _cvis.present(_pw, reason="turn-order", src="flash", emit=emit)
                     emit("brain", "🪟 show por backstop de promesa (prometió mostrar sin tool)", text=_pw, role="system")
+                elif _wtab:
+                    # V2-761 — it named a TAB of the wall («te abro el panel de apps», nothing called).
+                    acted["widget"] = True
+                    emit("panel", "open", extra={"tab": _wtab, "src": "flash"})
+                    emit("brain", "🗂️ panel por backstop de promesa (prometió abrirlo sin tool)", text=_wtab,
+                         role="system")
             elif _router.promises_music(spoken_text):     # 'voy a poner algo de rock' sin tool → reproduce
                 music_req["v"] = {"query": _op_text, "action": "play"}
                 emit("brain", "🎵 música por backstop (prometió poner música sin tool)", text=_op_text[:80], role="system")
@@ -3256,5 +3262,5 @@ class NucleoLLMStream(llm.LLMStream):
 # trinquete (2026-09-02): son puros sobre el texto y no saben nada de un turno. Se reexportan porque los
 # puntos de llamada de este fichero —y los tests que los alcanzan por aquí— los nombran sin prefijo.
 from voice.engine.llm.providers.widget_intent import (  # noqa: E402
-    _close_target, _identify, _identify_is_widget, _is_meta_widget_question,
+    _close_target, _identify, _identify_is_widget, _identify_system, _is_meta_widget_question,
     _norm_nfkd, _show_guard_target, _show_target_instance, _widget_fallback)
