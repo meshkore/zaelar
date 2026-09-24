@@ -103,3 +103,39 @@ def handle(err_text: str, *, role: str, stalled: bool = False, spec=None) -> dic
     except Exception:  # noqa: BLE001
         pass
     return {"relay": relay, "dry": dry}
+
+
+# ── OUR OWN BUG IS NOT A PROVIDER OUTAGE (V2-758, 2026-09-23) ────────────────────────────────────────────────
+# Measured on his engine that evening: NINE turns reported to him as «Cerebro rápido caído — turno degradado»
+# while DeepSeek answered perfectly. The real cause was `UnboundLocalError: cannot access local variable
+# '_cvis'` — a local in `_on_tool_call` shadowing this repo's alias for `canvas_visibility`, so `show_images`
+# and the music/messaging guards could not run at all.
+#
+# The error handler treated every exception as the provider's, which had three consequences, all wrong and all
+# invisible: a cooldown opened on a HEALTHY tier, the panel painted the model amber/red, and the stand-in was
+# promoted to serve traffic the titular could have served. A failover cannot fix a bug of ours — the same
+# exception fires on the stand-in — so relaying is not merely useless here, it spends his more expensive rung
+# on a fault it cannot cure and lies about whose fault it is.
+#
+# THE TEST IS THE EXCEPTION, NOT THE TEXT. A provider failure arrives as an HTTP status (402, 429, 5xx) or a
+# transport error; a bug of ours arrives as one of Python's programming errors with no status attached. The
+# status guard is kept because an SDK may wrap a real HTTP failure in a TypeError, and a real 402 must never be
+# excused as «our bug».
+_ENGINE_FAULTS = (UnboundLocalError, NameError, AttributeError, TypeError, KeyError, IndexError,
+                  ImportError, ZeroDivisionError, AssertionError)
+
+
+def is_engine_fault(exc: BaseException | None) -> bool:
+    """Is this OUR bug rather than the provider's failure? `False` for anything carrying an HTTP status."""
+    if exc is None or not isinstance(exc, _ENGINE_FAULTS):
+        return False
+    return not (getattr(exc, "status_code", None) or getattr(exc, "status", None))
+
+
+def engine_fault_line(exc: BaseException | None) -> str:
+    """What the timeline and the panel say about a fault of ours — it NAMES the defect, because the operator's
+    first question is always «tengo que saber qué pasa… identificarlo», and «flash layer error» answered none
+    of it. Deliberately not spoken: he hears the ordinary stumble; this is for the ◷ and the ◉."""
+    if exc is None:
+        return "fallo interno del motor"
+    return f"fallo interno del motor · {type(exc).__name__}: {str(exc)[:160]}"

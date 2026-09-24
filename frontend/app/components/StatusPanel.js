@@ -27,23 +27,37 @@ export function StatusPanel() {
   // través de este otro modelo». It reads the structured `extra` the server sends and writes the sentence
   // here, in his language — a line he reads belongs in the i18n table, not composed server-side.
   const modelName = (m) => m ? ((m.model || "?") + (m.provider ? " · " + m.provider : "")) : "";
-  const llmLines = (it) => {
+  // V2-758 — the SAME two lines now serve the memory row. Operator, 2026-09-23: «en la misma cajita donde pone
+  // memoria corazón tendríamos que poner el modelo principal y debajo el modelo secundario. Uno en rojo y otro
+  // en verde». It is one ladder rendered twice, not two renderers — the second copy is how the two halves of a
+  // status row drift apart.
+  //
+  // And the HEALTHY case is drawn too (`titular_ok`), which it was not before: the ladder was invisible until
+  // the day it had to work, so there was no way to see a stand-in was configured — or that it was not.
+  const ladderLines = (it) => {
     const x = it && it.extra;
     if (!x || !x.titular) return null;
-    const out = [{ txt: t("status.llm_titular_down", { model: modelName(x.titular) }), tone: "bad" }];
+    const out = [x.titular_ok
+      ? { txt: t("status.llm_titular_ok", { model: modelName(x.titular) }), tone: "good" }
+      : { txt: t("status.llm_titular_down", { model: modelName(x.titular) }), tone: "bad" }];
     if (x.serving) out.push({ txt: t("status.llm_serving", { model: modelName(x.serving) }), tone: "good" });
     else if (x.standby) out.push({ txt: t("status.llm_standby", { model: modelName(x.standby) }), tone: "warn" });
     return out;
   };
 
   const row = (it, secondary) => {
-    const lines = it.key === "llm" ? llmLines(it) : null;
+    // The row's own `detail` is NEVER dropped for the ladder (V2-758): on the memory row it carries the actual
+    // fact — «el recall no cerró en 0.8s» — and replacing it with «X responde» would answer a question he did
+    // not ask while hiding the one he did. When the row is healthy the ladder's first line only repeats the
+    // model that `detail` already names, so it is left out and just the stand-in is shown.
+    let lines = (it.key === "llm" || it.key === "memory") ? ladderLines(it) : null;
+    if (lines && it.state === "ok") lines = lines.filter((l) => l.tone !== "good");
     return h("div", { class: "st-row st-" + (it.state || "unknown") + (secondary ? " st-2" : "") },
       h("span", { class: "st-dot " + (DOT_CLS[it.state] || "") }),
       h("div", { class: "st-main" },
         h("div", { class: "st-name" }, it.label || it.key),
-        ...(lines ? lines.map(l => h("div", { class: "st-detail st-line-" + l.tone }, l.txt))
-                  : [h("div", { class: "st-detail" }, it.detail || "")]),
+        h("div", { class: "st-detail" }, it.detail || ""),
+        ...((lines || []).map(l => h("div", { class: "st-detail st-line-" + l.tone }, l.txt))),
       ),
     );
   };

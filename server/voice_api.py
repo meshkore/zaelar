@@ -245,26 +245,53 @@ async def status():
     # The two lines travel as DATA (`extra.titular` / `extra.serving`), not as a composed sentence: the panel
     # writes them in the operator's own language from the i18n table, which is where a sentence he reads
     # belongs (the V2-676 lesson — this row's own `detail` is still a Spanish literal, older debt, untouched).
+    # V2-758 — THE LADDER IS READ ON EVERY POLL, NOT ONLY WHEN THE LIGHT IS ALREADY ON. Operator, 2026-09-23:
+    # «tiene que haber una cajita solo para el flash brain que se muestre que estamos llamando al v4 flash como
+    # principal, y también tiene que haber el modelo failover… cuando falla el primero pones el segundo y ya me
+    # marcas el amarillo».
+    #
+    # The old version only looked inside `if state in ("error","warn")`, and that hid the case he cares about
+    # MOST: once the stand-in answers, `fast_client` clears the model light on the first chunk (a provider DID
+    # reply), so a successfully relayed turn painted the row GREEN — the engine running on the substitute and
+    # the panel saying everything was fine. WHO IS ANSWERING is a fact about the ladder, not about whether an
+    # error is still fresh, so it is read from the ladder every time.
     llm_extra = None
-    if state in ("error", "warn"):
-        try:
-            from nucleo.flash import provider_chain as _pc
-            _ch = _pc.chain(_pc.ROLE_VOICE)
-            _serving = _pc.pick(_pc.ROLE_VOICE)
-            if _ch and _serving and _serving.get("name") != _ch[0].get("name"):
-                # A stand-in is answering: degraded, not down.
-                state = "warn"
-                llm_extra = {"titular": {"model": _ch[0].get("model"), "provider": _ch[0].get("provider")},
-                             "serving": {"model": _serving.get("model"), "provider": _serving.get("provider")}}
-            elif _ch and len(_ch) > 1:
-                llm_extra = {"titular": {"model": _ch[0].get("model"), "provider": _ch[0].get("provider")},
-                             "standby": {"model": _ch[1].get("model"), "provider": _ch[1].get("provider")}}
-        except Exception:  # noqa: BLE001 — a status row must never be the thing that breaks
-            llm_extra = None
-    _llm_item = {"key": "llm", "label": "Modelo LLM", "state": state, "detail": llm_detail}
+    try:
+        from nucleo.flash import provider_chain as _pc
+        _ch = _pc.chain(_pc.ROLE_VOICE)
+        _serving = _pc.pick(_pc.ROLE_VOICE)
+        if _ch and _serving and _serving.get("name") != _ch[0].get("name"):
+            # A stand-in is answering: degraded, and that is AMBER, never red. A titular down WITH a stand-in
+            # answering is a system that works; painting it red teaches him to read red as «probably fine».
+            state = "warn"
+            llm_extra = {"titular": {"model": _ch[0].get("model"), "provider": _ch[0].get("provider")},
+                         "serving": {"model": _serving.get("model"), "provider": _serving.get("provider")}}
+        elif _ch:
+            # Healthy, or down with nobody behind: name the primary, and the stand-in when there is one, so he
+            # can see the ladder EXISTS before the day it has to work.
+            llm_extra = {"titular": {"model": _ch[0].get("model"), "provider": _ch[0].get("provider")},
+                         "titular_ok": bool(_serving and _serving.get("name") == _ch[0].get("name"))}
+            # «Relevo listo» is a PROMISE, so it is only made about a rung that could actually take over. With
+            # both tiers in cooldown `pick()` returns None, the titular line goes red, and offering a stand-in
+            # that is equally down would be the panel telling him he is covered when he is not — «si fallaran
+            # los dos, entonces sí que habría que marcarlo en rojo».
+            if len(_ch) > 1 and _pc.tier_available(_ch[1]):
+                llm_extra["standby"] = {"model": _ch[1].get("model"), "provider": _ch[1].get("provider")}
+    except Exception:  # noqa: BLE001 — a status row must never be the thing that breaks
+        llm_extra = None
+    _llm_item = {"key": "llm", "label": "Cerebro rápido · FlashBrain", "state": state, "detail": llm_detail}
     if llm_extra:
         _llm_item["extra"] = llm_extra
     items.append(_llm_item)
+
+    # ── A BUG OF OURS GETS ITS OWN ROW (V2-758) ─────────────────────────────────────────────────────────────
+    # It only exists when there IS one: a permanently green «engine: fine» row is noise, and noise is how a
+    # panel stops being read. When it appears it NAMES the exception, because that is the whole difference
+    # between «tengo que saber qué pasa» and the five days this defect went unnoticed under a provider's name.
+    _eng = health_state.get("engine")
+    if _eng:
+        items.append({"key": "engine", "label": "Motor · fallo interno", "state": "error",
+                      "detail": (_eng.get("text") or "un turno falló dentro del motor")[:160]})
 
     # ── Memory · write HEART (V2-066, operator request: no banner, only the status ◉) ─────────────────────────
     try:
@@ -299,7 +326,32 @@ async def status():
             mem_detail = f"{_mp['model']} · {_mem_says or 'degradada'}"[:160]
         else:
             mem_state, mem_detail = "ok", f"{_mp['model']}"
-        items.append({"key": "memory", "label": "Memoria · CORAZÓN", "state": mem_state, "detail": mem_detail})
+        # V2-758 — THE MEMORY BOX SAYS WHO IS WRITING, exactly like the FlashBrain one, and it travels as DATA
+        # so the panel writes the two lines in his language. The heart has failed over since 2026-08-19 and the
+        # panel could not show it: whoever answered, the row read «deepseek-flash». And amber, never red, while
+        # a stand-in is writing — «si fallaran los dos, entonces sí que habría que marcarlo en rojo».
+        mem_extra = None
+        try:
+            from config import models as _mtbl
+            _rungs = _mtbl.rungs("memory_writer") or []
+            _tit = {"model": _mp.get("model"), "provider": (_rungs[0].get("provider") if _rungs else "")}
+            if _mp.get("relayed"):
+                if mem_state != "error":
+                    mem_state = "warn"          # a stand-in that WRITES is degraded, not down
+                mem_extra = {"titular": _tit,
+                             "serving": {"model": _mp.get("serving_model"),
+                                         "provider": (_rungs[1].get("provider") if len(_rungs) > 1 else "")}}
+            else:
+                mem_extra = {"titular": _tit, "titular_ok": mem_state == "ok"}
+                if len(_rungs) > 1:
+                    mem_extra["standby"] = {"model": _rungs[1].get("model"),
+                                            "provider": _rungs[1].get("provider")}
+        except Exception:  # noqa: BLE001 — a status row must never be the thing that breaks
+            mem_extra = None
+        _mem_item = {"key": "memory", "label": "Memoria · CORAZÓN", "state": mem_state, "detail": mem_detail}
+        if mem_extra:
+            _mem_item["extra"] = mem_extra
+        items.append(_mem_item)
     except Exception:
         items.append({"key": "memory", "label": "Memoria · CORAZÓN", "state": "warn", "detail": "no disponible"})
 

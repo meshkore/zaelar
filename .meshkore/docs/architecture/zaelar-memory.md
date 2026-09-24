@@ -533,6 +533,19 @@ memoria, key POR ENDPOINT — lección del incidente: una key suelta enviada al 
 > `zaelar-model-benchmarks.md §12.3` (destilar) y **§12.4** (consolidar); los informes CRUDOS de cada corrida están
 > versionados en `tests/memory/e2e/bot/resultados/` y los arneses son reproducibles.
 
+> ⛔ **Y LA RESPUESTA CANÓNICA A «PONLE UN FAILOVER A LOS EMBEDDINGS» ES QUE NO SE PUEDE** (V2-758,
+> 2026-09-23, preguntado por el operador). El CORAZÓN y el REM sí relevan —son modelos de chat y el escalón
+> siguiente contesta la misma pregunta—, pero un modelo de **embeddings DEFINE el espacio vectorial** en el
+> que ya vive cada píldora de `zaelar.db`: un suplente distinto no contesta más barato, contesta en
+> coordenadas que no se pueden comparar con nada guardado. Moverlo es **re-embeber la memoria entera**
+> (`memory/reembed.py`), nunca una edición de config. El único suplente honesto es el MISMO modelo por otra
+> puerta, y hoy no existe: medido el 2026-09-23 contra las claves reales, OpenAI `text-embedding-3-small`
+> contesta 200 en 269 ms, **AIMLAPI da 403 `error code: 1010`** y DeepSeek no tiene endpoint de embeddings.
+> Así que lo que se hizo fue **hacer VISIBLE la caída** —ámbar en la caja de memoria diciendo que el recuerdo
+> se guarda SIN vector y que la búsqueda por significado cae a léxica— en vez de taparla con un sustituto que
+> envenenaría el recall en silencio. `test_the_embeddings_row_still_declares_NO_stand_in` (nodo 2.77) se pone
+> rojo el día que alguien «arregle» la tabla.
+
 **La memoria usa LLM en DOS sitios, los dos de ESCRITURA y los dos off-hot-path. LEER no usa LLM nunca** (retriever
 sqlite-vec + FTS5 + RRF + reranker CPU) — ese es el invariante que hace que la latencia de estos modelos no le
 cueste nada al turno de voz.

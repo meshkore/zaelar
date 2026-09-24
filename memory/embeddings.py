@@ -571,9 +571,54 @@ def embed_batch(texts: list[str]) -> list[list[float]]:
     # SOLO la caída EN CALIENTE es degradación (backend real que falla → hash de emergencia). Un backend 'hash'
     # CONFIGURADO (tests/dev) es su propio espacio consistente — lo gobierna la firma embedsig, no este flag.
     last_degraded = out is None and _backend != "hash"
+    _report_live_outcome(degraded=last_degraded)
     if out is None:  # backend hash configurado, o caída en caliente → hashing determinista (a la dim activa)
         out = [_hash_embed(t, d) for t in texts]
     return [_l2_normalize(_fit_dim(v, d)) for v in out]
+
+
+# ── THE FALL THAT NOBODY COULD SEE (V2-758, 2026-09-23) ──────────────────────────────────────────────────────
+# `_report_degraded` above fires when the BACKEND is demoted (cloud → fastembed → hash), which is rare. What is
+# NOT rare is the titular answering a live call badly: `_cloud_embed` returns None, `last_degraded` goes true,
+# the writer defers the vector and the reader drops to lexical — all of it correct, and all of it SILENT. The
+# panel said «Memoria · CORAZÓN — deepseek-flash» and nothing else while the semantic half of recall was off.
+#
+# ⚠️ AND THIS IS WHY THERE IS NO SECOND MODEL TO CALL HERE, which is the one thing a reader will want to
+# "fix" next. The operator asked for an embeddings failover in the same breath as the FlashBrain one, and for
+# every other service that is right. Here it is not: an embedding model DEFINES the vector space every pill in
+# the database already lives in, so a stand-in model does not answer the same question — it answers a
+# different one, in coordinates that cannot be compared with anything stored. Moving it is a re-embed of the
+# whole memory (`memory/reembed.py`), never a failover. The only honest stand-in is the SAME model through
+# another door, and there is none today: DeepSeek has no embeddings endpoint (404) and AIMLAPI answers 403
+# (re-measured 2026-09-23 against his key: `error code: 1010`). So the degradation is made VISIBLE instead of
+# being papered over with a substitute that would quietly poison recall — the defect V2-103 cost an audit.
+_last_live_degraded: bool | None = None
+
+
+def _report_live_outcome(*, degraded: bool) -> None:
+    """Amber while the titular is failing live calls, and clear it the moment one succeeds. Only on CHANGE:
+    this runs on every insert and every query, and re-recording an unchanged fact would keep refreshing its
+    timestamp so a stale amber could never age out."""
+    global _last_live_degraded
+    if degraded == _last_live_degraded:
+        return
+    _last_live_degraded = degraded
+    try:
+        from voice import health_state
+        if degraded:
+            health_state.record("memory", "degraded",
+                                f"embeddings: «{_active_model_name()}» no contestó — el recuerdo se guarda SIN "
+                                f"vector y la búsqueda por significado cae a léxica (no se cambia de espacio)")
+        else:
+            # ONE LIGHT, FOURTEEN WRITERS — `health_state["memory"]` is shared with the heart, REM, the
+            # retriever and the turn's recall budget. Clearing it because OUR fact recovered would wipe
+            # somebody else's, which is the exact failure mode that made this row unreadable in the first
+            # place. Only the amber we wrote is ours to take down.
+            _cur = health_state.get("memory") or {}
+            if str(_cur.get("text") or "").startswith("embeddings:"):
+                health_state.clear("memory")
+    except Exception:  # noqa: BLE001
+        pass  # la observabilidad NUNCA rompe la memoria
 
 
 def embed(text: str) -> list[float]:

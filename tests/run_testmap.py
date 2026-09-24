@@ -3128,6 +3128,11 @@ DOMAINS: list[dict] = [
                                 "identidad que no habla de él tiene su propia pregunta",
             "ch": UNIT,
             "paths": ["tests/memory/unit/test_a_search_term_does_not_rename_the_assistant.py"]},
+        {"id": "2.77", "title": "«Cerebro rápido caído» era un fallo NUESTRO — un bug del motor no condena "
+                                "a un proveedor sano, la misma petición se reenvía al suplente en el mismo "
+                                "turno, y las dos cajas dicen quién está contestando",
+            "ch": UNIT,
+            "paths": ["tests/voice/unit/test_a_bug_of_ours_is_not_a_provider_outage.py"]},
         {"id": "2.76", "title": "Construir o reescribir una tarjeta suya SE LE PREGUNTA antes — y un id "
                                 "que no existe no se monta, una búsqueda se VE, la cola de una frase no "
                                 "es una orden, y el orbe se aparta de la pantalla completa",

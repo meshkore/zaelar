@@ -21,6 +21,57 @@ entregada siga citada aquí.
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **Un fallo NUESTRO no es un proveedor caído (V2-758, 2026-09-23)**: él fotografió el banner rojo —
+  *«Cerebro rápido caído — turno degradado»*— y preguntó *«tengo que saber qué pasa… identificarlo»*. **No era
+  el proveedor.** `server.log` de esa tarde: nueve turnos con `cannot access local variable '_cvis'`. `_cvis`
+  es el alias de módulo de `canvas_visibility`; una **local del mismo nombre** en el `connect_cluster` de
+  `_on_tool_call` (ahí desde V2-086) lo volvía local para TODA la función, así que los tres usos anteriores
+  —`show_images`, el guarda de música y el de mensajería— reventaban con `UnboundLocalError` antes de llegar a
+  esa línea. Vivo desde que nació el alias el **2026-09-18** (`91d60052`): cinco días en los que pedir una foto
+  no podía funcionar. **(1) UNA LOCAL QUE ENSOMBRECE UN MÓDULO IMPORTADO MATA TODOS SUS USOS ANTERIORES, EN
+  SILENCIO** — y un test anclado al CÓDIGO FUENTE no lo ve nunca: la línea `_cvis.present(...)` estaba escrita,
+  presente y correcta, solo que no podía ejecutarse. El trinquete es de la CLASE, no del caso: symtable
+  contesta «¿es local aquí?» y ast «¿se lee antes de escribirse?»; medido en todo el motor, dos sombras
+  inocuas y CERO vivas. **(2) EL MANEJADOR CULPABA AL PROVEEDOR de cualquier excepción**: abría un cooldown
+  sobre un escalón sano, encendía la luz del modelo acusando a DeepSeek mientras DeepSeek contestaba, y
+  ascendía al suplente para un fallo que ningún suplente puede curar —la misma excepción salta en el suplente—.
+  Ahora el turno pregunta **de quién es la culpa antes de tocar la escalera**, y la prueba es la EXCEPCIÓN, no
+  su texto: un fallo de proveedor trae un estado HTTP, uno nuestro es un error de Python pelado. **(3) LA
+  ALERTA VIAJABA COMO EL LITERAL «flash layer error»**, con la excepción tirada, así que la observabilidad
+  enseñaba seis alertas idénticas sin causa y el diagnóstico había que hacerlo grepeando el log del proceso —
+  justo lo que él pedía no tener que hacer. **(4) EL FAILOVER SOLO MOVÍA EL TURNO SIGUIENTE.** *«Para eso
+  tenemos un failover, para que esa misma request que ha fallado se vuelva a enviar al otro modelo.»* Ahora se
+  reenvía, y vive en el bucle de CONEXIÓN de `fast_client`: es el único momento del turno en que el proveedor
+  ha fallado y no ha salido ni un token, así que reenviar no cuesta ni media frase hablada ni una tool
+  disparada dos veces. Un solo salto, nunca a la puerta que acaba de fallar, y **el cuerpo se reconstruye para
+  el proveedor nuevo** (`thinking:disabled` es de DeepSeek y un 400 en OpenAI: reusarlo haría parecer roto a un
+  suplente sano). Un fallo a mitad de stream sigue perdiendo el turno, a propósito. **(5) EL PANEL LEE LA
+  ESCALERA EN CADA SONDEO**, no solo con la luz ya encendida — que era el caso invisible: en cuanto contesta el
+  suplente, `fast_client` apaga la luz al primer chunk, así que un motor relevado con éxito pintaba la fila
+  VERDE. Quién contesta es un hecho de la escalera, no de si un error sigue fresco. La caja del modelo se llama
+  ya **«Cerebro rápido · FlashBrain»**, nombra al titular siempre, enseña al suplente aun sano, y pasa a ámbar
+  con dos líneas cuando el suplente sirve; la de **memoria lleva las mismas dos líneas** (el CORAZÓN releva
+  desde 2026-08-19 y nada fuera de `process()` podía verlo: `status()` reportaba el titular contestara quien
+  contestara); y un fallo NUESTRO tiene **fila propia, solo cuando existe**, con el nombre de la excepción. Un
+  relevo es ÁMBAR, nunca rojo —*«si fallaran los dos, entonces sí que habría que marcarlo en rojo»*—. **(6) LA
+  CAÍDA DE EMBEDDINGS ERA MUDA**: `_report_degraded` solo saltaba al DEGRADAR el backend; que el titular falle
+  una llamada viva difiere el vector y tira el recall a léxico sin decir nada. Ahora lo dice, una vez por
+  cambio, y solo se apaga su propio ámbar («una luz, catorce escritores»). **⛔ Y LO ÚNICO QUE PIDIÓ Y NO SE HA
+  HECHO: los embeddings NO PUEDEN tener un modelo de relevo, y construirlo sería el bug.** Un modelo de
+  embeddings DEFINE el espacio vectorial en el que ya vive cada píldora de `zaelar.db`: un suplente distinto no
+  contesta la misma pregunta más barato, contesta en coordenadas que no se pueden comparar con nada guardado.
+  Moverlo es re-embeber la memoria entera, nunca una edición de config. El único suplente honesto es el MISMO
+  modelo por otra puerta, y hoy no hay: medido contra sus claves ese día, OpenAI 200 en 269 ms, **AIMLAPI 403
+  `error code: 1010`** (clave muerta) y DeepSeek sin endpoint de embeddings. Así que se hizo VISIBLE la
+  degradación en vez de taparla con un sustituto que envenenaría el recall en silencio, con un test que se pone
+  rojo el día que alguien «arregle» la tabla. Decisión suya pendiente: el camino barato a un relevo real de
+  embeddings es una clave de AIMLAPI que funcione (mismo modelo, mismo espacio, sin migración). Nodo 2.77, 39
+  tests, **28 desarmes rojos** — cuatro nacieron VERDES y los cuatro acusaban al test: `UnboundLocalError` es
+  **subclase de `NameError`** (quitar solo el primero no cambia nada), la rebanada del bucle de conexión cogía
+  la primera de DOS ocurrencias del mismo comentario y abarcaba media clase, el ámbar de embeddings se probaba
+  llamando a la función y no al CABLEADO (lección de V2-756), y un ancla que no existe no es un verde.
+  **No probado por voz.**
+
 - **Tocar una tarjeta suya se le PREGUNTA antes (V2-757, 2026-09-23)**: sesión `f84f91ef`, sobre el build
   de V2-756. Con el micro abierto, el operador dictó un encargo de diseño a OTRA conversación; el turno lo
   leyó como suyo (`escalate` 0,73 — y no se equivocaba: ERA un encargo, lo que no era es NUESTRO), contestó

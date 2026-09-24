@@ -1690,12 +1690,20 @@ class NucleoLLMStream(llm.LLMStream):
                 # PÚBLICO (MeshKore Commons: tokenless por diseño) se descartaba en silencio: la tool se llamaba,
                 # no pasaba nada y el operador no recibía ni un "no puedo". Ahora basta el cluster_id cuando el
                 # cluster es público; el token solo es obligatorio en los privados.
-                _cvis = (args.get("vis") or "").strip().lower()
-                if _cvis not in ("public", "private", ""):
-                    _cvis = ""
-                if _ccid and not _ctok and not _cvis:
-                    _cvis = "public"          # id sin token = solo puede ser un cluster abierto
-                if _ccid and (_ctok or _cvis == "public"):
+                # ⚠️ THE NAME IS `_cluster_vis`, NOT `_cvis`, AND THAT IS THE WHOLE POINT (V2-758).
+                # `_cvis` is this module's alias for `nucleo.flash.canvas_visibility` (top of the file). Assigning
+                # to that name ANYWHERE in this function makes it LOCAL for the WHOLE function — so the three
+                # branches above that call `_cvis.present(...)` (show_images, the music guard, the messaging
+                # guard) raised `UnboundLocalError` before this line ever ran. Measured on his engine
+                # 2026-09-23: nine turns, every one of them reported to him as «Cerebro rápido caído — turno
+                # degradado» while DeepSeek was answering perfectly. A local that shadows a module alias is not
+                # a style problem: it silently kills every earlier use of that module in the same scope.
+                _cluster_vis = (args.get("vis") or "").strip().lower()
+                if _cluster_vis not in ("public", "private", ""):
+                    _cluster_vis = ""
+                if _ccid and not _ctok and not _cluster_vis:
+                    _cluster_vis = "public"   # id sin token = solo puede ser un cluster abierto
+                if _ccid and (_ctok or _cluster_vis == "public"):
                     _cname = (args.get("name") or "meshcore").strip() or "meshcore"
                     _chandle = (args.get("handle") or "").strip() or None
                     # PERMISOS al conectar (V2-076): si el operador concede código, se persiste con la conexión.
@@ -1703,7 +1711,7 @@ class NucleoLLMStream(llm.LLMStream):
                     if bool(args.get("code")):
                         _cperms = {"workers": True, "code": True, "repo": (args.get("repo") or "").strip() or None}
                     _request_cluster_confirm(_cname, _ccid, _ctok, _chandle, perms=_cperms,
-                                             vis=("public" if _cvis == "public" else ""))
+                                             vis=("public" if _cluster_vis == "public" else ""))
             elif name == "cluster_send":
                 # V2-086: enviar al cluster, ahora como tool de 1ª clase (antes iba por widget_data sobre el
                 # widget `cluster-registro`, que ya no existe). Sale por el MISMO camino que el tag
@@ -1917,6 +1925,7 @@ class NucleoLLMStream(llm.LLMStream):
         errored = False
         stalled = False          # se atascó UN turno (≠ el cerebro está caído) — cambia lo que se le cuenta al operador
         err_text = ""
+        err_exc: BaseException | None = None   # V2-758 — the exception ITSELF: only it can say whose fault this is
         llm_metrics: dict = {}   # totalizadores de tamaño/tokens/latencia del modelo (observabilidad, FASE 0)
         # SET CONTEXTUAL DE TOOLS (V2-035): omite las situacionales que no aplican este turno (confirmar-borrado sin
         # borrado en el aire, login-hecho sin login en curso) → prompt más corto y menos ruido de decisión.
@@ -2085,6 +2094,7 @@ class NucleoLLMStream(llm.LLMStream):
                         # frase corta y honesta + aviso — nunca un minuto de silencio que parece un cuelgue.
                         errored = True
                         stalled = True
+                        err_exc = None
                         err_text = f"flash brain stalled: {_quiet_ms} ms sin un solo chunk"
                         emit("brain", "⏱️ turno ATASCADO — el modelo no emitía nada, lo corto", role="system",
                              extra={"cat": "flash", "quiet_ms": _quiet_ms, "spoken_chars": len("".join(spoken)),
@@ -2123,6 +2133,7 @@ class NucleoLLMStream(llm.LLMStream):
         except Exception as e:
             errored = True
             err_text = str(e)
+            err_exc = e          # V2-758: the EXCEPTION, not only its text — see `provider_failure.is_engine_fault`
             logger.warning(f"nucleo fast brain error (not spoken raw): {e}")
         if errored:
             # DEGRADED: sin Hermes al que caer — frase de reserva segura (nunca el error crudo, nunca mudo).
@@ -2138,11 +2149,44 @@ class NucleoLLMStream(llm.LLMStream):
             # duplicación mordió tres veces: la última dejó al arnés ocho horas sin poder medir, con el texto
             # devolviendo un 402 en el mismo segundo en que el log decía «relevo a aimlapi-failover». Lo que NO se
             # comparte, a propósito, es lo que cada canal DICE: esta habla, el otro devuelve un objeto.
+            # ── V2-758 · WHOSE FAULT IS THIS? ─────────────────────────────────────────────────────────────
+            # Asked FIRST, because everything below assumes the provider failed. On 2026-09-23 nine turns were
+            # reported to him as «Cerebro rápido caído» while DeepSeek answered perfectly: the real cause was an
+            # `UnboundLocalError` of ours. Treating it as the provider's opened a cooldown on a healthy tier,
+            # painted the model light, and promoted the stand-in to serve traffic the titular could have
+            # served — and no failover can cure a bug of ours, because the same exception fires on the
+            # stand-in too. So a fault of ours takes its own exit: no ladder, no light, and the timeline NAMES
+            # the defect instead of blaming a provider that was up.
+            _mine = ""
+            try:
+                from nucleo.flash import provider_failure as _pfail
+                if _pfail.is_engine_fault(err_exc):
+                    _mine = _pfail.engine_fault_line(err_exc)
+            except Exception:  # noqa: BLE001
+                _mine = ""
+            if _mine:
+                logger.error(f"FALLO INTERNO del turno rápido (el proveedor NO tiene la culpa): {err_text}")
+                emit("alert", "Fallo del motor — este turno no salió. El modelo no tiene la culpa.",
+                     text=_mine, extra={"cat": "flash", "engine_fault": type(err_exc).__name__})
+                emit("error", "nucleo flash brain engine fault", text=_mine)
+                try:
+                    from voice import health_state as _hs_mine
+                    _hs_mine.record("engine", "bug", _mine)
+                except Exception:  # noqa: BLE001
+                    pass
+                send("Uf, se me ha ido un momento. ¿Me lo repites?")
+                return
+
             _v = {}
             try:
                 from nucleo.flash import provider_chain as _pchain1
-                from nucleo.flash import provider_failure as _pfail
-                _v = _pfail.handle(err_text, role=_pchain1.ROLE_VOICE, stalled=bool(stalled), spec=spec)
+                # `fast_client` may ALREADY have relayed inside this very turn and marked both tiers on the
+                # way (V2-758). Marking again from here would punish the titular for a failure the stand-in
+                # produced — the class of silent mis-attribution V2-307 paid for.
+                if not (llm_metrics or {}).get("relayed_to"):
+                    _v = _pfail.handle(err_text, role=_pchain1.ROLE_VOICE, stalled=bool(stalled), spec=spec)
+                else:
+                    _v = {"relay": None, "dry": _pchain1.pick(_pchain1.ROLE_VOICE) is None}
             except Exception:
                 pass
             # RELAY on a HARD failure, not just a slow one (2026-08-15 addendum to V2-094): `note_slow` below
@@ -2164,7 +2208,17 @@ class NucleoLLMStream(llm.LLMStream):
                 emit("alert", "Sin proveedor de modelo — no es un tropiezo, no hay a quién preguntar.",
                      text=err_text[:200] or "provider chain exhausted", extra=_pchain2.dry_alert_extra())
             else:
-                emit("alert", "Cerebro rápido caído — turno degradado.", text="flash layer error")
+                # V2-758 — the alert CARRIES the cause. It used to travel as the literal string «flash layer
+                # error», so the timeline could not say why the brain fell and every diagnosis had to go
+                # digging in `server.log`. His first question is always the same: «tengo que saber qué pasa…
+                # identificarlo». `_relayed` says whether the stand-in was tried and failed too, which is a
+                # different sentence from «the titular failed».
+                _relayed_to = (llm_metrics or {}).get("relayed_to") or ""
+                emit("alert", "Cerebro rápido caído — turno degradado.",
+                     text=(err_text or "flash layer error")[:200],
+                     extra={"cat": "flash", "relayed_to": _relayed_to,
+                            "relayed_from": (llm_metrics or {}).get("relayed_from") or "",
+                            "exc": type(err_exc).__name__ if err_exc is not None else ""})
             emit("error", "nucleo flash brain error")
             # V2-243 — «¿ME LO REPITES?» ES UNA MENTIRA CUANDO NO QUEDA NINGÚN PROVEEDOR. Esa frase es la
             # correcta ante un tropiezo: el siguiente intento puede ir bien. Con la cadena entera seca, el

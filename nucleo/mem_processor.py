@@ -216,10 +216,28 @@ _last_ok_ts: float = 0.0
 _alerted = False
 
 
+# V2-758 — WHO ACTUALLY WROTE THE LAST PILL. The failover loop in `process()` has relayed since 2026-08-19,
+# but nothing outside that function could SEE it: `status()` reported the configured titular, so the panel said
+# «deepseek-flash» whether deepseek-flash had answered or the stand-in had. The operator asked for exactly this
+# distinction: «en la misma cajita donde pone memoria corazón tendríamos que poner el modelo principal y debajo
+# el modelo secundario… o simplemente me marcas la memoria en amarillo y me dices que estamos funcionando con
+# el proveedor secundario».
+_served_rung: tuple[str, str] | None = None     # (base_url, model) of the rung that served the LAST distillation
+
+
 def status() -> dict:
-    """Salud del CORAZÓN para el área de config / diagnóstico."""
+    """Salud del CORAZÓN para el área de config / diagnóstico.
+
+    `model`/`url` are the TITULAR (what is configured); `serving_model`/`serving_url` are who answered last, and
+    `relayed` says whether those two differ. They are separate keys on purpose: a caller that wants the
+    configuration must not silently start reading the relay, which is how a relayed write became
+    indistinguishable from a normal one in the first place."""
+    _srv = _served_rung
     return {"model": _model(), "url": _url(), "fail_streak": _fail_streak,
-            "last_error": _last_error, "last_ok_ts": _last_ok_ts, "degraded": _alerted}
+            "last_error": _last_error, "last_ok_ts": _last_ok_ts, "degraded": _alerted,
+            "serving_model": (_srv[1] if _srv else _model()),
+            "serving_url": (_srv[0] if _srv else _url()),
+            "relayed": bool(_srv and (_srv[1] != _model() or _srv[0] != _url()))}
 
 
 def _mark_ok() -> None:
@@ -701,6 +719,7 @@ async def process(text: str, *, state: dict | None = None) -> list[dict] | None:
             if not _served:
                 _mark_fail(" · ".join(_fails)[:300] or "sin proveedor")
                 return None
+            globals()["_served_rung"] = _served      # V2-758: the panel asks `status()` who is answering
             if _served != (_rungs[0][0], _rungs[0][1]):
                 # A relay means the titular is DOWN — visible in the ◉, never a lone log line (three incidents in
                 # this module were exactly a failure that stayed in a `logger.warning`).

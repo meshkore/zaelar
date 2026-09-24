@@ -743,36 +743,20 @@ en `restart` lo puso a 0,99 sobre «inicio del widget de vídeo». Se mide antes
 
 ### UN DESCRIPTOR LE ROBA LA PALABRA AL VECINO (V2-755, 2026-09-23)
 
-Tercera vez con esta forma exacta, y las tres son mías. Sesión `665e666a`: «**Vale, para el vídeo**» volvió
-`none` 0,65 y hubo que decirlo dos veces. `pause` estaba declarado en cuatro palabras y `close`, engordado
-en V2-753 para ganar «Páralo, y vuelve al inicio», abría con «**PARA** el vídeo de verdad». Igual que V2-754
-con «inicio» dentro de `restart`.
+Tercera vez con esta forma, y las tres mías. «Vale, para el vídeo» volvió `none` 0,65: `close`, engordado en
+V2-753, abría con «**PARA** el vídeo de verdad» y desangró a `pause`. Cinco reglas, detalle en la iniciativa:
 
-1. **⭐ Al tocar un descriptor se mide el VECINDARIO, no la frase que se persigue.** Engordar al ganador de
-   una frase desangra a su vecino y el síntoma aparece dos días después en otra sesión. La medición mínima
-   son las frases de las acciones que comparten vocabulario, antes y después: «Vale, para el vídeo» `none`
-   0,67 → `pause` **0,98**, con close 0,89-1,00 y restart 1,00 sin moverse.
-2. **Un homógrafo se cierra NOMBRÁNDOLO.** «para» es verbo y preposición: «Vale, para el vídeo.» se lee «OK,
-   for the video.». Citar las frases sin explicar eso daba `none` 0,47; decir «ahí «para» es el verbo, no la
-   preposición» da 0,98. La declaración es dato de producto y puede hablar de la lengua.
-3. **Escribir por encima del corte es escribir para nadie.** V2-753 subió `MAX_DESC_CHARS` a 200; el
-   `show_tab` de V2-754 tiene 485, así que «al inicio del widget de vídeo» nunca llegó y su frase volvía
-   `restart`. **48 de 220** acciones estaban por encima; quedan **45**, con trinquete (nodo 2.74).
-4. **Un vídeo que LLEGA y un vídeo que se CAMBIA no son lo mismo.** La tarjeta solo veía el primero
-   (`!st.key.slice(2)`), así que «ponme el vídeo número seis» desde el catálogo cargó el sexto **sin mover la
-   pantalla**, dos veces, y el tercer intento lo comió —con razón— el guarda de re-emisión. Una orden de
-   reproducir declara la cara del reproductor en la **capa de datos**, por el raíl `goto_tab` de V2-742; el
-   avance automático al terminar un vídeo NO, porque leer la cola mientras suena uno es cosa suya.
-5. **⭐ No afirmes en el prompt lo que no has verificado.** El arnés de encargos llevaba tres minutos
-   diciéndole al modelo «la hoja `youtube` sigue VACÍA» sobre seis resultados y un vídeo sonando: `verify`
-   devolvía «ilegible» y se callaba —como manda el docstring del módulo— pero `prompt_lines` imprimía todo
-   objetivo abierto como vacío sin preguntarle. La regla estaba instalada en la rama que nadie lee. Ahora el
-   prompt solo habla de lo que un verificador encontró incumplido, la tarjeta de vídeo declara `empty`, y una
-   tarjeta ilegible deja una línea (`🫥 arnés: objetivo NO verificable`) en vez de silencio.
-
-**No tocado a propósito**: la tabla de verbos del backstop de promesas («le doy al pause» no casa
-`_COMMITTED_RE`) — sería la quinta del mes. Y queda anotado que el árbitro **vetó en sombra un `pause`
-legítimo** (`data-drag`): es un falso veto en sesión real, que es justo el portón F0→F1 de V2-653.
+1. **⭐ Al tocar un descriptor se mide el VECINDARIO, no la frase que se persigue** — antes y después, sobre
+   las acciones que comparten vocabulario. «Vale, para el vídeo» `none` 0,67 → `pause` **0,98**, con close y
+   restart sin moverse.
+2. **Un homógrafo se cierra NOMBRÁNDOLO** («ahí «para» es el verbo, no la preposición»): 0,47 → 0,98.
+3. **Escribir por encima del corte es escribir para nadie** — `MAX_DESC_CHARS`; 48 de 220 acciones estaban
+   por encima, quedan 45, con trinquete (nodo 2.74).
+4. **Un vídeo que LLEGA y uno que se CAMBIA no son lo mismo**: una orden de reproducir declara la cara del
+   reproductor en la capa de datos (raíl `goto_tab`); el avance al terminar, NO.
+5. **⭐ No afirmes en el prompt lo que no has verificado** — el arnés decía «la hoja sigue VACÍA» sobre seis
+   resultados y un vídeo sonando: la regla estaba instalada en la rama que nadie lee. Una tarjeta ilegible
+   deja una línea, no silencio.
 
 ### UN NÚMERO QUE ÉL HA DICHO NO ES UNA INVENCIÓN (V2-756, 2026-09-23)
 
@@ -821,6 +805,30 @@ nuevo. El arnés de desarme debe borrar `__pycache__` al restaurar.
 **⚠️ Una medición contra el conjunto de candidatos equivocado ACUSA al arreglo**: medí «los tres últimos»
 con los candidatos de otra sesión, donde `remove` ni estaba, y parecía que lo empeoraba. El conjunto se
 saca del `probabilities` del turno que se arregla.
+
+## A BUG OF OURS IS NOT A PROVIDER OUTAGE (V2-758, 2026-09-23)
+
+«Cerebro rápido caído — turno degradado», nine times, with DeepSeek answering. The cause was
+`UnboundLocalError: '_cvis'` — a local shadowing this repo's alias for `canvas_visibility`, which killed
+`show_images` and the music/messaging guards for five days. **A local that shadows an imported module makes
+every EARLIER use of it unreachable, silently, and a source-anchored test cannot see it** (the line was
+written and correct). Ratchet: node 2.77, symtable + ast, floor zero.
+
+Three consequences, all fixed: the handler blamed the PROVIDER for any exception (cooldown on a healthy tier,
+light accusing DeepSeek, relay to a rung no failover can help) — the turn now asks whose fault it is first,
+and the test is the EXCEPTION (HTTP status = theirs, bare Python error = ours); the alert travelled as the
+literal «flash layer error» with the cause thrown away; and the ladder only moved the NEXT turn — *«para eso
+tenemos un failover, para que esa misma request que ha fallado se vuelva a enviar al otro modelo»* — so the
+relay now lives in `fast_client`'s CONNECT loop, the only moment nothing has been emitted yet. One hop, never
+the door that just failed, body rebuilt for the new provider.
+
+**The panel reads the ladder on EVERY poll, not only when a light is on**: a successful relay clears the light
+at the first chunk, so a relayed engine painted GREEN. Both boxes now name titular + stand-in, amber while the
+substitute serves — «si fallaran los dos, entonces sí que habría que marcarlo en rojo».
+
+⛔ **Embeddings CANNOT have a failover model** — it defines the vector space every stored pill lives in, so a
+stand-in answers in incomparable coordinates. Moving it is a re-embed, never a config edit. Measured
+2026-09-23: OpenAI 200/269 ms, AIMLAPI **403 `1010`**, DeepSeek no endpoint. The fall is made VISIBLE instead.
 
 ## Decisiones clave — están en su propio fichero
 

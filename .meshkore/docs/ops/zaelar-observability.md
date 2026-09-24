@@ -460,6 +460,24 @@ lleva `op`+`ids` afectados (`services/sse.js` → `store.pushMemPulse`). Fuente:
    dynamically imported module») vive en la familia `client`, que por defecto es ruido — y mientras tanto
    la llamada del servidor que lo provocó pudo contestar `ok`. Si algo apareció roto en su pantalla y el
    servidor dice que todo fue bien, filtra por `client` antes de dudar de él.
+7. ⚠️⚠️ **«Cerebro rápido caído» NO significa que el proveedor esté caído** (V2-758). Hasta el 2026-09-23 esa
+   alerta se disparaba ante CUALQUIER excepción del turno, incluidas las nuestras, y además viajaba con el
+   texto literal `flash layer error`, sin la causa: nueve turnos seguidos acusaron a DeepSeek mientras
+   DeepSeek contestaba, y el motivo real —un `UnboundLocalError` del motor— solo estaba en `server.log`.
+   Ahora se distinguen y se leen distinto:
+   - **fila «Motor · fallo interno» en el panel ◉ + alerta «Fallo del motor — el modelo no tiene la culpa»**
+     → es NUESTRO. La alerta y la fila NOMBRAN la excepción; ninguna escalera se toca y ninguna luz de
+     proveedor se enciende. Se arregla en el código, no cambiando de modelo.
+   - **«Cerebro rápido caído — turno degradado»** → es del proveedor, y la alerta trae ya `text` con el error
+     real y `extra.relayed_from`/`relayed_to` si se intentó el suplente dentro del mismo turno.
+   El relevo en caliente solo ocurre en la fase de CONEXIÓN: si el fallo llegó a mitad de stream el turno se
+   pierde a propósito (reintentar duplicaría lo que ya sonó).
+8. **El panel dice QUIÉN está contestando, y el ámbar no es el rojo.** Las cajas «Cerebro rápido · FlashBrain»
+   y «Memoria · CORAZÓN» nombran titular y suplente en cada sondeo — no solo cuando hay una luz encendida, que
+   era el caso invisible: en cuanto el suplente contesta, `fast_client` apaga la luz al primer chunk, así que
+   un motor relevado con éxito pintaba VERDE. Ámbar = funciona sobre el suplente; rojo = no contesta nadie.
+   Y la fila de memoria conserva su propio `detail` (ahí vive «el recall no cerró en 0.8s», que es un hecho
+   distinto de qué modelo escribe).
 
 ## El tester independiente (INI-013) usa esta observabilidad
 

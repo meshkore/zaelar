@@ -265,6 +265,73 @@ class _AnthropicSSE:
         return out
 
 
+def _extra_body_for(spec: ModelSpec) -> dict[str, Any]:
+    """The provider-specific half of the request body, rebuilt FROM THE SPEC.
+
+    V2-758 pulled this out of `_stream_inner` for one reason: an in-turn failover changes the provider
+    mid-request, and these fields do not travel. `thinking:disabled` is DeepSeek's; sending it to OpenAI is a
+    400, so a relay that reused the titular's body would fail for a reason that has nothing to do with why the
+    titular failed — and would look, from the outside, exactly like «the stand-in is broken too»."""
+    extra_body: dict[str, Any] = {}
+    r = spec.reasoning_effort()
+    if r:
+        extra_body["reasoning_effort"] = r
+    if "deepseek" in (spec.model or "").lower():
+        # VOZ = NO-RAZONADOR (invariante duro). DeepSeek V4 Flash PIENSA por defecto → en el A/B (2026-07-31)
+        # el modo thinking sobre-actuaba (abrió un widget en un turno de contradicción) y bajaba el routing
+        # (4/5→3/5 intel); el non-thinking iguala al titular anterior en inteligencia (5/5) con MENOS TTFT. Forzamos
+        # non-thinking en el path rápido — campo `thinking` (api-docs.deepseek.com, OpenAI/Anthropic-compat).
+        #
+        # ⚠️ **Este parámetro se manda igual por los dos endpoints, pero solo UNO lo OBEDECE.** Medido el
+        # 2026-08-14 con el prompt real de voz (13.488 chars, 23 tools), 6 turnos por brazo:
+        #
+        #   AIMLAPI `thinking:disabled` → TTFT p50 4,24 s · max 14,71 s · **2.138 tokens de razonamiento**
+        #   DIRECTO `thinking:disabled` → TTFT p50 1,01 s · max  1,30 s · **0**
+        #
+        # O sea que el broker acepta el campo y razona de todas formas (ya se sospechaba el 2026-08-02 por el
+        # tiempo: «lo reduce, no lo apaga»; ahora se LEE en `usage.completion_tokens_details.reasoning_tokens`,
+        # que es la prueba que entonces no teníamos). El titular de voz es por eso `api.deepseek.com`.
+        extra_body.setdefault("thinking", {"type": "disabled"})
+    if spec.is_local():
+        # Mantén el modelo local caliente durante toda la sesión (evita recargas de ~60s tras un hueco).
+        extra_body["keep_alive"] = "30m"
+    return extra_body
+
+
+def relay_spec_for(spec: ModelSpec, role: str) -> ModelSpec | None:
+    """The stand-in to try RIGHT NOW, in this same request, or None if there is nobody else to ask.
+
+    V2-758, the operator's words: «para eso tenemos un failover, para que esa misma request que ha fallado se
+    vuelva a enviar al otro modelo». Until now the ladder only moved BETWEEN turns: a failure opened a cooldown
+    so the NEXT turn started on the stand-in, and the turn that failed was simply lost — he heard «se me ha ido
+    un momento, ¿me lo repites?» and had to say it again. A stand-in that cannot save the request that failed
+    is not a failover, it is a note for later.
+
+    Returns a tier DIFFERENT from the one that just failed — never the same endpoint under another name, which
+    is the trap `models.default.json` already warns about (a relay that also pointed at `api.deepseek.com`, so
+    a DeepSeek outage took both rungs)."""
+    try:
+        from nucleo.flash import provider_chain as pc
+    except Exception:  # noqa: BLE001
+        return None
+    try:
+        here = (spec.resolved_base_url() or "").strip().rstrip("/").lower()
+        here_model = str(spec.model or "").strip().lower()
+        for t in pc.chain(role):
+            if not pc.tier_available(t):
+                continue
+            base = (t.get("base_url") or "").strip().rstrip("/").lower()
+            model = str(t.get("model") or "").strip().lower()
+            if base == here and model == here_model:
+                continue                      # that is the one that just failed
+            cand = pc.spec_for(t)
+            if cand is not None and cand.resolved_api_key():
+                return cand
+    except Exception as e:  # noqa: BLE001 — a broken ladder must never add an exception to the one in flight
+        logger.warning(f"relay_spec_for({role}): no pude resolver el relevo: {e!r}")
+    return None
+
+
 class FastClient:
     """Streaming client for the fast model. STATELESS with respect to the model: each `stream()` receives its `ModelSpec`.
     Underlying AsyncOpenAI clients are cached by (base_url, api_key, ua) to reuse connections."""
@@ -535,6 +602,7 @@ class FastClient:
         on_tool_call=None,
         max_tokens: int | None = None,
         metrics: dict | None = None,
+        role: str = "voice",          # V2-758: which ladder the in-turn relay walks (`provider_chain.ROLE_*`)
         **kwargs: Any,
     ) -> AsyncIterator[str]:
         """Thin wrapper over `_stream_inner()` that tracks "a real model request is in flight" for
@@ -550,7 +618,7 @@ class FastClient:
         try:
             async for chunk in self._stream_inner(
                 messages, spec=spec, tools=tools, on_tool_call=on_tool_call,
-                max_tokens=max_tokens, metrics=metrics, **kwargs,
+                max_tokens=max_tokens, metrics=metrics, role=role, **kwargs,
             ):
                 yield chunk
         finally:
@@ -565,6 +633,7 @@ class FastClient:
         on_tool_call=None,
         max_tokens: int | None = None,
         metrics: dict | None = None,
+        role: str = "voice",          # V2-758: which ladder the in-turn relay walks (`provider_chain.ROLE_*`)
         **kwargs: Any,
     ) -> AsyncIterator[str]:
         """Async generator: emits each chunk's text as it arrives (to push it to TTS immediately). Raises
@@ -581,29 +650,7 @@ class FastClient:
                                              on_tool_call=on_tool_call, metrics=metrics):
                 yield _t
             return
-        extra_body: dict[str, Any] = {}
-        r = spec.reasoning_effort()
-        if r:
-            extra_body["reasoning_effort"] = r
-        if "deepseek" in (spec.model or "").lower():
-            # VOZ = NO-RAZONADOR (invariante duro). DeepSeek V4 Flash PIENSA por defecto → en el A/B (2026-07-31)
-            # el modo thinking sobre-actuaba (abrió un widget en un turno de contradicción) y bajaba el routing
-            # (4/5→3/5 intel); el non-thinking iguala al titular anterior en inteligencia (5/5) con MENOS TTFT. Forzamos
-            # non-thinking en el path rápido — campo `thinking` (api-docs.deepseek.com, OpenAI/Anthropic-compat).
-            #
-            # ⚠️ **Este parámetro se manda igual por los dos endpoints, pero solo UNO lo OBEDECE.** Medido el
-            # 2026-08-14 con el prompt real de voz (13.488 chars, 23 tools), 6 turnos por brazo:
-            #
-            #   AIMLAPI `thinking:disabled` → TTFT p50 4,24 s · max 14,71 s · **2.138 tokens de razonamiento**
-            #   DIRECTO `thinking:disabled` → TTFT p50 1,01 s · max  1,30 s · **0**
-            #
-            # O sea que el broker acepta el campo y razona de todas formas (ya se sospechaba el 2026-08-02 por el
-            # tiempo: «lo reduce, no lo apaga»; ahora se LEE en `usage.completion_tokens_details.reasoning_tokens`,
-            # que es la prueba que entonces no teníamos). El titular de voz es por eso `api.deepseek.com`.
-            extra_body.setdefault("thinking", {"type": "disabled"})
-        if spec.is_local():
-            # Mantén el modelo local caliente durante toda la sesión (evita recargas de ~60s tras un hueco).
-            extra_body["keep_alive"] = "30m"
+        extra_body = _extra_body_for(spec)
         call_kwargs = dict(
             model=spec.model,
             messages=messages,
@@ -645,18 +692,62 @@ class FastClient:
             pass
 
         # Reintento SOLO de la fase de conexión (aún no se ha emitido ningún token) → seguro ante blips transitorios.
+        #
+        # V2-758 — AND THE FAILOVER LIVES HERE FOR THE SAME REASON. This loop is the one place in the turn where
+        # the provider has failed and NOTHING has been emitted yet, so re-sending the request costs the operator
+        # nothing but the extra round-trip: no half-spoken sentence to undo, no tool call fired twice. Once the
+        # `async for` below has yielded anything, a retry would duplicate speech, so the relay is NOT attempted
+        # from there — a mid-stream failure stays a failed turn, which is the honest outcome.
         _attempt = 0
+        _relayed = False
         while True:
             try:
                 stream = await self._client_for(spec).chat.completions.create(**call_kwargs)
                 break
             except Exception as e:  # noqa: BLE001
-                if _attempt >= _CONNECT_RETRIES or not _is_transient(e):
+                if _attempt < _CONNECT_RETRIES and _is_transient(e):
+                    _attempt += 1
+                    logger.warning(f"fast_client: blip transitorio al conectar ({type(e).__name__}), "
+                                   f"reintento {_attempt}/{_CONNECT_RETRIES}")
+                    await asyncio.sleep(_RETRY_BACKOFF_S * _attempt)
+                    continue
+                _relay = None if _relayed else relay_spec_for(spec, role)
+                if _relay is None:
+                    if _relayed:
+                        # The STAND-IN failed too. Mark IT, not the titular — the titular was already marked
+                        # when we relayed away from it, and marking it twice would punish the one tier that
+                        # might still be the right place to start the next turn.
+                        try:
+                            from nucleo.flash import provider_failure as _pf2
+                            _pf2.handle(str(e), role=role, spec=spec)
+                        except Exception:  # noqa: BLE001
+                            pass
                     raise
-                _attempt += 1
-                logger.warning(f"fast_client: blip transitorio al conectar ({type(e).__name__}), "
-                               f"reintento {_attempt}/{_CONNECT_RETRIES}")
-                await asyncio.sleep(_RETRY_BACKOFF_S * _attempt)
+                # Mark the tier that just failed BEFORE relaying, so the next turn starts where this one ended
+                # instead of paying the same failure again. Never fatal: this runs inside an error path.
+                try:
+                    from nucleo.flash import provider_failure as _pf
+                    _pf.handle(str(e), role=role, spec=spec)
+                except Exception:  # noqa: BLE001
+                    pass
+                logger.warning(f"fast_client: {spec.model} falló al conectar ({type(e).__name__}) → RELEVO EN EL "
+                               f"MISMO TURNO a {_relay.model} @ {_relay.resolved_base_url()}")
+                m["relayed_from"] = spec.model
+                m["relayed_to"] = _relay.model
+                m["relay_reason"] = str(e)[:160]
+                _relayed = True
+                _attempt = 0
+                spec = _relay
+                # The body is rebuilt for the NEW provider: `thinking:disabled` is DeepSeek's and a 400 at
+                # OpenAI. Reusing the titular's body would make a healthy stand-in look broken.
+                call_kwargs["model"] = spec.model
+                _eb = _extra_body_for(spec)
+                if _eb:
+                    call_kwargs["extra_body"] = _eb
+                else:
+                    call_kwargs.pop("extra_body", None)
+                m["model"] = spec.model
+                m["provider"] = spec.provider
         calls: dict[int, dict] = {}
         _completion_chars = 0
         _seen_output = False     # ¿ha contestado ya el proveedor? (→ retirar el fallo registrado, ver abajo)
