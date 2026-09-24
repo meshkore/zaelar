@@ -341,16 +341,25 @@ async def start(src: str = "operator") -> dict:
 
 
 async def language_ready() -> dict:
-    """The language was just chosen (V2-765): lift the gate. Starts the agent — with ⏻'s own `start()`, so a
-    new observability session opens and every tab learns it through the `run` event — unless the operator's
-    persisted intention is STOPPED, which a language choice does not override. Never raises."""
+    """The language was just chosen (V2-765): lift the gate and START the agent — with ⏻'s own `start()`, so a
+    new observability session opens and every tab learns it through the `run` event.
+
+    ALWAYS starts, whatever ⏻ said before. This only runs on a first run or after a factory reset, and the
+    operator's rule for both (2026-09-24): *«hay que olvidarse de cuál era el estado anterior… las instalaciones
+    que empiezan de cero tienen que empezar con todo arrancado»*. Measured the same evening: ⏻ presses on the
+    boot veil, before the picker, persisted «stopped by the operator», and the brand-new agent stayed off after
+    he chose his language. Never raises."""
     try:
         if os.getenv("ZAELAR_LANGUAGE_GATE", "1") == "0":
             return {"ok": True, "skipped": "gate off"}   # nothing was gated, so there is nothing to lift
         if language_pending():
             return {"ok": False, "state": STOPPED, "reason": LANGUAGE_SRC}
-        if _load() == STOPPED:
-            return {"ok": True, "state": STOPPED, "src": _state["src"]}
+        try:   # the action map for the new language, seeded off the loop before his first turn reads it
+            import asyncio as _aio
+            from nucleo.actionmap import store as _am_store
+            _aio.get_running_loop().run_in_executor(None, _am_store.index)
+        except Exception:  # noqa: BLE001
+            pass
         return await start(src=LANGUAGE_SRC)
     except Exception as e:  # noqa: BLE001
         logger.warning(f"runstate.language_ready failed: {e!r}")

@@ -320,6 +320,13 @@ async def _lifespan(app: FastAPI):
 
         from i18n import runtime as _i18n_rt
 
+        def _detect_pending() -> bool:
+            try:
+                from i18n.init import detect as _d
+                return bool(_d.should_detect())
+            except Exception:  # noqa: BLE001
+                return False
+
         async def _top_up_language() -> None:
             code = _i18n_rt.active_code()
             try:
@@ -332,6 +339,12 @@ async def _lifespan(app: FastAPI):
 
         if _first_lifespan_entry:
             app.state._i18n_topup = _aio.create_task(_top_up_language())
+            # V2-765 — the action map seeds itself on first read, and the first read was the operator's first
+            # TURN: after a reset (3100 rows, 3.3 s alone, far more under a live session) his «¿Me oyes?» waited
+            # 24 s and the STT errored out. Seeded here, off the loop, before anybody speaks.
+            if not _detect_pending():
+                from nucleo.actionmap import store as _am_store
+                app.state._am_warm = _aio.create_task(_aio.to_thread(_am_store.index))
     except Exception as e:  # noqa: BLE001
         logger.warning(f"i18n top-up not scheduled (UI unaffected): {e}")
     # Widget layer: a restart mid-generation kills the headless agent — resume what the journal says was in

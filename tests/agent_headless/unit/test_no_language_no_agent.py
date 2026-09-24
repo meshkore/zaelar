@@ -107,11 +107,14 @@ def test_a_later_language_switch_does_not_start_anything(workspace):
     assert not [r for r in workspace["runs"] if r["label"] == "start"]
 
 
-def test_choosing_a_language_does_not_override_his_own_stop(workspace):
+def test_a_fresh_start_forgets_any_earlier_power_off(workspace):
+    """«Hay que olvidarse de cuál era el estado anterior… tienen que empezar con todo arrancado» (2026-09-24).
+    Measured that evening: ⏻ presses on the boot veil persisted «stopped by the operator», and the agent stayed
+    off after he chose his language."""
     runstate._persist(runstate.STOPPED, "operator")
     from i18n.init import detect
     asyncio.run(detect.lock("es", onboarding=True))
-    assert runstate.stopped() is True, "the language choice overrode the operator's own ⏻"
+    assert runstate.stopped() is False, "a brand-new agent inherited a ⏻ off from before its language existed"
 
 
 def test_the_voice_can_never_choose_the_language():
