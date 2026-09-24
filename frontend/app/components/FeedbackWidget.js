@@ -232,8 +232,8 @@ export function FeedbackWidget() {
   );
 
   const wrap = h("div", { class: "fw-wrap", ref: el => (wrapEl = el) },
-    // V2-760 — the thumb sits to the LEFT of the launcher and its message further left, so neither ever
-    // covers the launcher or the panel that opens above it.
+    // V2-760 — the thumb sits ABOVE the launcher and its message to its left; it hides while the panel is
+    // open (the panel opens over that spot) and on phones (CSS).
     h("div", { class: "fw-quick" },
       h("div", { class: () => "fw-thumb-toast" + (thumbShown() ? " show" : "") + (thumb() === "failed" ? " failed" : ""),
                  role: "status", "aria-live": "polite" }, () => thumbText()),

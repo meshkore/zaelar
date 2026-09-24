@@ -1368,18 +1368,21 @@ body.dbg-open .orbwrap{left:calc(50% - var(--dbg-w) / 2)}
   display:flex;align-items:center;justify-content:center;touch-action:none}
 .fw-launcher:hover{filter:brightness(1.08)}
 .fw-launcher svg{width:26px;height:26px}
-/* V2-760 — the thumbs-down: same accent as the launcher (his «quizás en este color»), a size smaller so the
-   launcher stays the primary control. While its message shows it wears the RISK colour — «marked as a
-   failure» — and goes back to the accent when the message has faded. The message sits to its LEFT and
-   fades out by itself; nothing to close. */
-.fw-quick{position:absolute;right:calc(58px + 12px);bottom:6px;display:flex;align-items:center;gap:10px}
-.fw-thumb{width:46px;height:46px;border-radius:50%;border:none;cursor:pointer;color:var(--canvas);
-  background:var(--hb-accent);box-shadow:var(--hb-shadow-1);display:flex;align-items:center;justify-content:center;
-  transition:background .25s ease, opacity .2s ease}
-.fw-thumb:hover{filter:brightness(1.08)}
-.fw-thumb svg{width:21px;height:21px}
+/* V2-760 — the thumbs-down. His second pass: ABOVE the launcher, no disc, no accent — just the glyph on the
+   dark desk, a SOLID hand in the canvas black with a thin light outline so the silhouette reads. While its
+   message shows the hand fills with the RISK colour — «marked as a failure» — and goes back to black when the
+   message has faded. The message sits to its LEFT and fades out by itself; nothing to close. Desktop only:
+   on a phone the corner is the thumb's reach for the launcher and the panel is the whole screen. */
+.fw-quick{position:absolute;right:0;bottom:calc(58px + 8px);display:flex;align-items:center;gap:10px}
+.fw-thumb{width:58px;height:44px;padding:0;border:none;background:transparent;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;transition:opacity .2s ease}
+.fw-thumb svg{width:28px;height:28px;fill:var(--canvas);stroke:var(--hb-muted);stroke-width:1.6;
+  transition:fill .25s ease, stroke .25s ease}
+.fw-thumb:hover svg{stroke:var(--hb-ink)}
 .fw-thumb.fw-thumb-sending{opacity:.6;cursor:progress}
-.fw-thumb.fw-thumb-done,.fw-thumb.fw-thumb-failed{background:var(--hb-risk)}
+.fw-thumb.fw-thumb-done svg,.fw-thumb.fw-thumb-failed svg{fill:var(--hb-risk);stroke:var(--hb-risk)}
+.fw-wrap:has(.fw-panel.open) .fw-quick{display:none}
+@media (max-width:640px), (hover:none) and (pointer:coarse){ .fw-quick{display:none} }
 .fw-thumb-toast{max-width:min(340px,60vw);padding:9px 14px;border-radius:12px;background:var(--hb-bubble);
   color:var(--hb-ink);border:1px solid var(--hb-line);box-shadow:var(--hb-shadow-1);font-size:.84rem;line-height:1.35;
   opacity:0;transition:opacity .6s ease;pointer-events:none}

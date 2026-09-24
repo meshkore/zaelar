@@ -250,20 +250,47 @@ def widget():
 def _state(pg):
     return pg.evaluate("""() => { const b = document.querySelector('.fw-thumb'), t = document.querySelector('.fw-thumb-toast');
         const tr = t.getBoundingClientRect(), br = b.getBoundingClientRect(), lr = document.querySelector('.fw-launcher').getBoundingClientRect();
-        return {btn: b.className, bg: getComputedStyle(b).backgroundColor, text: t.textContent,
-                show: t.classList.contains('show'), op: parseFloat(getComputedStyle(t).opacity),
-                toastRight: tr.right, btnLeft: br.left, btnRight: br.right, launcherLeft: lr.left}; }""")
+        const cs = getComputedStyle(b), svg = getComputedStyle(b.querySelector('svg'));
+        return {btn: b.className, bg: cs.backgroundColor, radius: cs.borderRadius, shadow: cs.boxShadow,
+                fill: svg.fill, visible: cs.display !== 'none' && getComputedStyle(b.parentElement).display !== 'none',
+                text: t.textContent, show: t.classList.contains('show'), op: parseFloat(getComputedStyle(t).opacity),
+                toastRight: tr.right, btnLeft: br.left, btnRight: br.right, btnBottom: br.bottom,
+                btnCx: (br.left + br.right) / 2, launcherLeft: lr.left, launcherTop: lr.top,
+                launcherCx: (lr.left + lr.right) / 2}; }""")
 
 
-def test_it_sits_beside_the_launcher_in_the_same_colour(widget):
+def test_it_sits_ABOVE_the_launcher_as_a_bare_black_hand(widget):
+    """His second pass: «encima del icono del feedback… no quiero un círculo de color lila… solo el icono
+    sobre el fondo negro… la silueta en negro… la mano maciza»."""
     st = _state(widget)
-    launcher_bg = widget.evaluate("() => getComputedStyle(document.querySelector('.fw-launcher')).backgroundColor")
-    assert st["bg"] == launcher_bg, f"«quizás en este color»: thumb {st['bg']} vs launcher {launcher_bg}"
-    assert st["btnRight"] <= st["launcherLeft"], "the thumb overlaps the launcher"
+    canvas = widget.evaluate("""() => { const p = document.createElement('div'); p.style.color = 'var(--canvas)';
+        document.body.append(p); const c = getComputedStyle(p).color; p.remove(); return c; }""")
+    assert st["btnBottom"] <= st["launcherTop"], "the thumb is not above the launcher"
+    assert abs(st["btnCx"] - st["launcherCx"]) <= 2, "the thumb is not centred over the launcher"
+    assert st["bg"] in ("rgba(0, 0, 0, 0)", "transparent"), f"there is still a disc behind the hand: {st['bg']}"
+    assert st["shadow"] == "none", "a shadow still draws the old disc"
+    assert st["fill"] == canvas, f"the hand is not a solid black silhouette: fill {st['fill']} vs canvas {canvas}"
+
+
+def test_it_is_desktop_only(widget):
+    try:
+        widget.set_viewport_size({"width": 390, "height": 800})
+        assert not _state(widget)["visible"], "the thumb shows on a phone-width screen"
+    finally:
+        widget.set_viewport_size({"width": 1280, "height": 800})
+    assert _state(widget)["visible"]
+
+
+def test_it_hides_while_the_panel_is_open(widget):
+    widget.evaluate("() => document.querySelector('.fw-panel').classList.add('open')")
+    try:
+        assert not _state(widget)["visible"], "the thumb pokes through the open panel"
+    finally:
+        widget.evaluate("() => document.querySelector('.fw-panel').classList.remove('open')")
 
 
 def test_one_click_shows_thanks_to_the_LEFT_then_fades_and_the_icon_comes_back(widget):
-    idle_bg = _state(widget)["bg"]
+    idle_fill = _state(widget)["fill"]
     widget._thumb_calls.clear()
     widget._thumb_status["body"] = {"ok": True, "id": "fb1"}
     widget.click(".fw-thumb")
@@ -273,13 +300,13 @@ def test_one_click_shows_thanks_to_the_LEFT_then_fades_and_the_icon_comes_back(w
     assert on["text"] == _ES["feedback.thumbsDownThanks"], f"the toast says {on['text']!r}"
     assert on["op"] > 0.95, "the message is not readable while it is meant to be"
     assert on["toastRight"] <= on["btnLeft"], "the message is not to the LEFT of the thumb"
-    assert "fw-thumb-done" in on["btn"] and on["bg"] != idle_bg, "the icon did not change colour while marked"
+    assert "fw-thumb-done" in on["btn"] and on["fill"] != idle_fill, "the icon did not change colour while marked"
     widget.click(".fw-thumb")                               # a second click while it is showing…
     widget.wait_for_timeout(3200)                            # …then past show + fade
     off = _state(widget)
     assert not off["show"] and off["op"] < 0.05, "the message did not fade away"
     assert off["text"] == "", "the text lingered after the fade"
-    assert "fw-thumb-idle" in off["btn"] and off["bg"] == idle_bg, "the icon did not return to its colour"
+    assert "fw-thumb-idle" in off["btn"] and off["fill"] == idle_fill, "the icon did not return to its colour"
     assert len(widget._thumb_calls) == 1, f"one click, one mark — got {len(widget._thumb_calls)} requests"
 
 
