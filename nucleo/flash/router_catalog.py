@@ -196,18 +196,18 @@ TOOLS: list[dict] = [
                 # what its name says. The direction is now its own argument, and it is required because —
                 # unlike `widget_id` in V2-609 — it can always be filled: every sentence either puts it or takes
                 # it off.
-                "PANTALLA COMPLETA (canvas; play/pausa/volumen van por widget_data)."
+                "PANTALLA COMPLETA (canvas; play/pausa/volumen: widget_data)."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
                     "mode": {"type": "string", "enum": ["on", "off"],
-                             "description": "on=poner · off=SALIR («sal»/«quítala»/«minimízalo»)"},
+                             "description": "on=poner, off=SALIR (sal/quítala/minimízalo)"},
                     "widget_id": {"type": "string",
                                   # VACÍO is the whole V2-609 fix, and it costs less than the prose it
                                   # replaced: the salida is the one order with no object to name.
                                   "description": ("id o nombre; "
-                                                  "VACÍO = el que esté a pantalla completa")},
+                                                  "VACÍO = el de pantalla completa")},
                 },
                 "required": ["mode"],
             },

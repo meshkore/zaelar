@@ -23,10 +23,22 @@ import pathlib
 
 import pytest
 
+from tests.waiting import until_sync
+
 from server import feedback_api as fb
 
 ENGINE = pathlib.Path(__file__).resolve().parents[4]
+_ES = json.loads((ENGINE / "i18n/bundles/es.json").read_text(encoding="utf-8"))
 
+
+
+def _listening(port: int) -> bool:
+    import socket as _s
+    try:
+        _s.create_connection(("127.0.0.1", port), 0.2).close()
+        return True
+    except OSError:
+        return False
 
 def _tr(label, text, trace=""):
     return {"kind": "transcript", "label": label,
@@ -192,11 +204,7 @@ def widget():
     s = socket.socket(); s.bind(("127.0.0.1", 0)); port = s.getsockname()[1]; s.close()
     srv = subprocess.Popen([sys.executable, "-m", "http.server", str(port), "--bind", "127.0.0.1"],
                            cwd=ENGINE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    for _ in range(50):
-        try:
-            socket.create_connection(("127.0.0.1", port), 0.2).close(); break
-        except OSError:
-            time.sleep(0.1)
+    until_sync(lambda: _listening(port), "the static server to accept connections", timeout_s=10)
     # The shape `/api/i18n/bundle/<code>` really answers: {strings: {...}}. A bare bundle loads nothing and
     # every string comes back as its raw key.
     es = json.dumps({"strings": json.loads((ENGINE / "i18n/bundles/es.json").read_text(encoding="utf-8"))})
@@ -262,7 +270,7 @@ def test_one_click_shows_thanks_to_the_LEFT_then_fades_and_the_icon_comes_back(w
     widget.wait_for_function("() => document.querySelector('.fw-thumb-toast').classList.contains('show')", timeout=3000)
     widget.wait_for_timeout(700)                             # past the fade-IN
     on = _state(widget)
-    assert "Gracias" in on["text"] and "error" in on["text"], f"the toast says {on['text']!r}"
+    assert on["text"] == _ES["feedback.thumbsDownThanks"], f"the toast says {on['text']!r}"
     assert on["op"] > 0.95, "the message is not readable while it is meant to be"
     assert on["toastRight"] <= on["btnLeft"], "the message is not to the LEFT of the thumb"
     assert "fw-thumb-done" in on["btn"] and on["bg"] != idle_bg, "the icon did not change colour while marked"
@@ -281,5 +289,5 @@ def test_a_failed_mark_says_so_instead_of_thanking(widget):
     widget.wait_for_function("() => document.querySelector('.fw-thumb-toast').classList.contains('show')", timeout=3000)
     st = _state(widget)
     widget.wait_for_timeout(3700)
-    assert "Gracias" not in st["text"] and st["text"], f"a failed mark thanked him: {st['text']!r}"
+    assert st["text"] == _ES["feedback.thumbsDownFailed"], f"a failed mark said {st['text']!r}"
     assert not widget._errors, widget._errors

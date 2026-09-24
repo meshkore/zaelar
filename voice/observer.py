@@ -109,6 +109,9 @@ _CAT = {
     # browser reports through `/api/ui-event`).
     "error": "system", "alert": "system", "homeostasis": "system", "language": "system", "client": "system",
     "energy": "system",
+    # `feedback` (V2-760): the operator pressed the thumbs-down — «from here backwards, something went wrong».
+    # In the system family so it shows on the same timeline it points into.
+    "feedback": "system",
     # `run` = the agent's GLOBAL switch (⏻ → nucleo/runstate.py): what was frozen and what continued. It goes in
     # `system` with `session`/`state`, its proper family: it is system state, not turn activity.
     "run": "system",

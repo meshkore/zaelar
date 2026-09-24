@@ -137,7 +137,9 @@ def test_session_evidence_opt_in_uses_the_current_session_only(monkeypatch):
 
     monkeypatch.setattr(_identity, "session_info", lambda: {"session_id": "sess-1"})
     monkeypatch.setattr(_flows, "session", lambda sid: {"session_id": sid, "events": 3} if sid == "sess-1" else {})
-    monkeypatch.setattr(_flows, "events", lambda session_id, limit: [{"id": 1, "kind": "flash"}] if session_id == "sess-1" else [])
+    # V2-760: `tail` is how the builder asks for the NEWEST events — a double without it raises TypeError inside
+    # the builder's fail-open `except` and reads as «no evidence».
+    monkeypatch.setattr(_flows, "events", lambda session_id, limit, tail=False: [{"id": 1, "kind": "flash"}] if session_id == "sess-1" else [])
 
     captured = {}
     monkeypatch.setattr(httpx, "AsyncClient", lambda **kw: _FakeClient(capture=captured))

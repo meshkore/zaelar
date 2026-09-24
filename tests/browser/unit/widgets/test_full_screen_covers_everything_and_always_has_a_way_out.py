@@ -28,6 +28,8 @@ import time
 
 import pytest
 
+from tests.waiting import until_sync
+
 pytest.importorskip("playwright.sync_api")
 from playwright.sync_api import sync_playwright
 
@@ -51,6 +53,15 @@ _REGISTRY = {"widgets": [{"id": "visor", "name": "Visor", "fullscreen": "native"
                          {"id": "hoja", "name": "Hoja"}]}
 
 
+
+def _listening(port: int) -> bool:
+    import socket as _s
+    try:
+        _s.create_connection(("127.0.0.1", port), 0.2).close()
+        return True
+    except OSError:
+        return False
+
 def _free_port() -> int:
     s = socket.socket()
     s.bind(("127.0.0.1", 0))
@@ -64,12 +75,7 @@ def page():
     port = _free_port()
     srv = subprocess.Popen([sys.executable, "-m", "http.server", str(port), "--bind", "127.0.0.1"],
                            cwd=_ENGINE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    for _ in range(50):
-        try:
-            socket.create_connection(("127.0.0.1", port), 0.2).close()
-            break
-        except OSError:
-            time.sleep(0.1)
+    until_sync(lambda: _listening(port), "the static server to accept connections", timeout_s=10)
     try:
         with sync_playwright() as pw:
             browser = pw.chromium.launch()
