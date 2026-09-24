@@ -15,7 +15,8 @@ import { createEffect, createSignal } from "../core/reactive.js?v=2";
 import * as store from "../core/store.js?v=2";
 import { t } from "../core/i18n.js?v=1";
 import { makeDraggable } from "../lib/draggable.js?v=2";
-import { CLOSE_ICON, MIC_ICON, MESSAGE_SQUARE_ICON, PAPERCLIP_ICON, SEND_ICON, THUMBS_DOWN_ICON } from "../lib/icons.js?v=2";
+import { CLOSE_ICON, MIC_ICON, MESSAGE_SQUARE_ICON, PAPERCLIP_ICON, SEND_ICON, THUMBS_DOWN_ICON,
+         THUMBS_UP_ICON } from "../lib/icons.js?v=2";
 import * as feedbackApi from "../services/feedback-api.js?v=1";
 import { sendOutcome, listOutcome, lineFor } from "../services/feedback-state.js?v=1";
 import * as dictation from "../services/feedback-dictation.js?v=1";
@@ -97,31 +98,34 @@ export function FeedbackWidget() {
   // never tell those apart, so whoever reads the inbox could not either. Two options, one always picked,
   // and the placeholder follows it: the cheap half of «tell us what you need».
   const [kind, setKind] = createSignal("issue");
-  // V2-760 — THE THUMBS-DOWN. The operator: «cada vez que la gente detecte un fallo, les pediré que clique en
-  // este pulgar hacia abajo… así el usuario no tiene que estar rellenando un mail o un texto… y cuando se clique
-  // saldrá un mensaje hacia la izquierda… dura dos o tres segundos, el tiempo que sea necesario para leerlo, y
-  // desaparece en un fundido. Y el icono vuelve al color original también». One click, no form; the report is
-  // the session, composed server-side. `thumb` is idle | sending | done | failed; the toast text is kept through
-  // the fade and only cleared once it is invisible, so the words never vanish before the fade does.
-  const THUMB_SHOW_MS = 3000, THUMB_FADE_MS = 600;
-  const [thumb, setThumb] = createSignal("idle");
-  const [thumbText, setThumbText] = createSignal("");
-  const [thumbShown, setThumbShown] = createSignal(false);
-  let thumbTimers = [];
-  const sendThumb = async () => {
-    if (thumb() !== "idle") return;                        // one mark per click, never a burst of duplicates
-    setThumb("sending");
-    const res = await feedbackApi.sendThumbsDown();
-    const ok = !!(res && res.ok);
-    setThumb(ok ? "done" : "failed");
-    setThumbText(t(ok ? "feedback.thumbsDownThanks" : "feedback.thumbsDownFailed"));
-    setThumbShown(true);
-    thumbTimers.forEach(clearTimeout);
-    thumbTimers = [
-      setTimeout(() => setThumbShown(false), THUMB_SHOW_MS),                      // starts the fade
-      setTimeout(() => { setThumbText(""); setThumb("idle"); }, THUMB_SHOW_MS + THUMB_FADE_MS),
-    ];
+  // V2-766 — THE QUICK MARKS, in the form's own footer. V2-760 put a thumbs-down floating above the launcher;
+  // the operator, a day later: «vamos a quitar el signo ese del pulgar hacia abajo… no me gusta. Mételo en el
+  // feedback… a la izquierda del todo una mano hacia arriba y otra hacia abajo… la mano hacia arriba es un quick
+  // feedback de que todo está yendo bien… hacia abajo, de que todo ha ido mal… cuando se dé a ese botón se cambia
+  // toda la pantalla y se pone gracias… y un botón de cerrar, y se cierra el formulario». One click, no text:
+  // the report is the session, composed server-side. `quick` is "" | "sending" | "done" | "failed", and `quickDir`
+  // which hand was pressed; "done" and "failed" replace the whole form with their own screen.
+  const [quick, setQuick] = createSignal("");
+  const [quickDir, setQuickDir] = createSignal("");
+  const sendQuick = async (dir) => {
+    if (quick()) return;                                   // one mark per click, never a burst of duplicates
+    setQuickDir(dir);
+    setQuick("sending");
+    const res = await feedbackApi.sendThumbs(dir);
+    setQuick(res && res.ok ? "done" : "failed");
   };
+  const resetQuick = () => { setQuick(""); setQuickDir(""); };
+  const closeAfterQuick = () => { store.setFeedbackOpen(false); resetQuick(); };
+  const quickText = () => (quick() === "failed" ? t("feedback.quickFailed")
+    : t(quickDir() === "up" ? "feedback.thumbsUpThanks" : "feedback.thumbsDownThanks"));
+  const quickView = () => h("div", { class: () => "fw-quickdone" + (quick() === "failed" ? " failed" : "") },
+    h("div", { class: () => "fw-quickdone-mark " + (quickDir() === "up" ? "up" : "down"),
+               html: quickDir() === "up" ? THUMBS_UP_ICON : THUMBS_DOWN_ICON }),
+    h("div", { class: "fw-quickdone-text", role: "status", "aria-live": "polite" }, () => quickText()),
+    quick() === "failed"
+      ? h("button", { class: "fw-quickdone-btn", onClick: resetQuick }, () => t("feedback.back"))
+      : h("button", { class: "fw-quickdone-btn", onClick: closeAfterQuick }, () => t("feedback.close")),
+  );
   // The pictures attached to THIS report, and the sentence that says why one was refused. A picture
   // dropped in silence is a picture the person believes they sent.
   const [shots, setShots] = createSignal([]);
@@ -232,23 +236,13 @@ export function FeedbackWidget() {
   );
 
   const wrap = h("div", { class: "fw-wrap", ref: el => (wrapEl = el) },
-    // V2-760 — the thumb sits ABOVE the launcher and its message to its left; it hides while the panel is
-    // open (the panel opens over that spot) and on phones (CSS).
-    h("div", { class: "fw-quick" },
-      h("div", { class: () => "fw-thumb-toast" + (thumbShown() ? " show" : "") + (thumb() === "failed" ? " failed" : ""),
-                 role: "status", "aria-live": "polite" }, () => thumbText()),
-      h("button", {
-        class: () => "fw-thumb fw-thumb-" + thumb(),
-        title: () => t("feedback.thumbsDownLabel"), "aria-label": () => t("feedback.thumbsDownLabel"),
-        onClick: sendThumb,
-      }, raw(THUMBS_DOWN_ICON)),
-    ),
     h("button", {
       class: "fw-launcher", ref: el => (btnEl = el), title: () => t("feedback.launcherLabel"),
       onClick: () => store.setFeedbackOpen(!store.feedbackOpen()),
     }, raw(MESSAGE_SQUARE_ICON)),
     h("div", {
-      class: () => "fw-panel tab-" + store.feedbackTab() + (store.feedbackOpen() ? " open" : ""),
+      class: () => "fw-panel tab-" + store.feedbackTab() + (store.feedbackOpen() ? " open" : "")
+                   + (quick() === "done" || quick() === "failed" ? " quick" : ""),
       ref: el => (panelEl = el), onPaste, onDrop, onDragOver: e => e.preventDefault(),
     },
       // V2-695 — the grip the operator asked for: «que lo pueda redimensionar yo». It sits on the TOP
@@ -271,6 +265,8 @@ export function FeedbackWidget() {
       // exact moment it was meant to appear. That was the SECOND independent reason nothing showed —
       // the first is the bare ternary below, which read the signal once while the tree was being
       // built and appended nothing, no error anywhere (V2-124's detached-canvas lesson again).
+      // V2-766 — after a quick mark the whole panel is its thank-you (CSS hides everything else).
+      () => (quick() === "done" || quick() === "failed" ? quickView() : null),
       h("div", { class: "fw-status" },
         () => (justSent()
           ? h("div", { class: "fw-thanks" }, () => t("feedback.thanks"))
@@ -316,7 +312,16 @@ export function FeedbackWidget() {
         h("input", { type: "file", class: "fw-file", accept: "image/*", multiple: true,
                      ref: el => (fileEl = el),
                      onChange: () => { addFiles(fileEl.files); fileEl.value = ""; } }),
+        // V2-766 — the operator's footer: the two quick hands at the far LEFT; the mic, the clip and a
+        // compact «Enviar» packed together at the right.
         h("div", { class: "fw-row" },
+          h("button", { class: () => "fw-hand up" + (quick() === "sending" && quickDir() === "up" ? " sending" : ""),
+                        title: () => t("feedback.thumbsUpLabel"), "aria-label": () => t("feedback.thumbsUpLabel"),
+                        onClick: () => sendQuick("up") }, raw(THUMBS_UP_ICON)),
+          h("button", { class: () => "fw-hand down" + (quick() === "sending" && quickDir() === "down" ? " sending" : ""),
+                        title: () => t("feedback.thumbsDownLabel"), "aria-label": () => t("feedback.thumbsDownLabel"),
+                        onClick: () => sendQuick("down") }, raw(THUMBS_DOWN_ICON)),
+          h("span", { class: "fw-row-gap" }),
           h("button", {
             class: () => "fw-mic" + (listening() ? " on" : "") + (dictation.isSupported() ? "" : " hidden"),
             title: () => (listening() ? t("feedback.dictating") : t("feedback.dictate")),

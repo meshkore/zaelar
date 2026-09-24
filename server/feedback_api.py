@@ -32,7 +32,8 @@ _FEEDBACK_URL_DEFAULT = "https://zaelar-control-plane.rjj.workers.dev"
 # V2-760 — `thumbs_down` is the one-click «this went wrong» marker: no text from the operator, the session
 # bundle is the whole report. A separate kind so the backoffice can list the marks on their own and send
 # each one straight to the session it points at.
-_KINDS = ("issue", "idea", "thumbs_down")
+# V2-766 — `thumbs_up` is its mirror, «everything is going well», pressed from the same form footer.
+_KINDS = ("issue", "idea", "thumbs_down", "thumbs_up")
 #: The picture budget, and it is enforced HERE as well as in the browser: a client is not a guard, and
 #: this endpoint is reachable by anything that can speak HTTP to the loopback.
 _MAX_SHOTS = 3
@@ -299,20 +300,31 @@ def _thumbs_session_id() -> str:
         return ""
 
 
-@router.post("/api/feedback/thumbs_down")
-async def thumbs_down():
+#: V2-766 — the two quick marks: what the inbox row says, and the timeline line when it lands.
+_THUMBS = {
+    "down": ("thumbs_down", "👎 El usuario marcó que el agente no hizo bien lo que había pedido — revisar la observabilidad.",
+             "👎 marcado como fallo"),
+    "up": ("thumbs_up", "👍 El usuario marcó que todo está yendo bien.", "👍 marcado como bien"),
+}
+
+
+async def _thumbs(direction: str) -> dict:
+    """One click, no text: the report is the session itself, with a marker of where he clicked. The thumbs-down
+    (V2-760) says «this went wrong»; the thumbs-up (V2-766) «this is going well» — same evidence, so a good
+    session can be read as closely as a bad one."""
     import datetime as _dt
 
+    kind, headline, timeline = _THUMBS[direction]
     sid = _thumbs_session_id()
     evidence = _build_evidence(sid) if sid else None
     asked, answered, trace = _last_turn((evidence or {}).get("events") or [])
     marked_at = _dt.datetime.now(_dt.timezone.utc).isoformat(timespec="seconds")
-    lines = ["👎 El usuario marcó que el agente no hizo bien lo que había pedido — revisar la observabilidad."]
+    lines = [headline]
     if asked:
         lines.append(f"Última petición: «{asked[:_THUMBS_TURN_CHARS]}»")
     if answered:
         lines.append(f"Respuesta del agente: «{answered[:_THUMBS_TURN_CHARS]}»")
-    body: dict = {"message": "\n".join(lines), "type": "thumbs_down"}
+    body: dict = {"message": "\n".join(lines), "type": kind}
     if evidence is not None:
         # The marker rides INSIDE the bundle (free JSON on the far side), so no column or schema change is
         # needed to carry it, and it survives exactly as long as the evidence it points into.
@@ -322,8 +334,18 @@ async def thumbs_down():
     if out.get("ok"):
         try:
             from voice.observer import emit
-            emit("feedback", "👎 marcado como fallo", text=(asked or "")[:120], role="system",
+            emit("feedback", timeline, text=(asked or "")[:120], role="system",
                  extra={"cat": "system", "session": sid, "trace": trace})
         except Exception:  # noqa: BLE001
             pass
     return out
+
+
+@router.post("/api/feedback/thumbs_down")
+async def thumbs_down():
+    return await _thumbs("down")
+
+
+@router.post("/api/feedback/thumbs_up")
+async def thumbs_up():
+    return await _thumbs("up")

@@ -1394,34 +1394,13 @@ body.dbg-open .orbwrap{left:calc(50% - var(--dbg-w) / 2)}
   display:flex;align-items:center;justify-content:center;touch-action:none}
 .fw-launcher:hover{filter:brightness(1.08)}
 .fw-launcher svg{width:26px;height:26px}
-/* V2-760 — the thumbs-down. His second pass: ABOVE the launcher, no disc, no accent — just the glyph on the
-   dark desk, a SOLID hand in the canvas black with a thin light outline so the silhouette reads. While its
-   message shows the hand fills with the RISK colour — «marked as a failure» — and goes back to black when the
-   message has faded. The message sits to its LEFT and fades out by itself; nothing to close. Desktop only:
-   on a phone the corner is the thumb's reach for the launcher and the panel is the whole screen. */
-.fw-quick{position:absolute;right:0;bottom:calc(58px + 8px);display:flex;align-items:center;gap:10px}
-.fw-thumb{width:58px;height:44px;padding:0;border:none;background:transparent;cursor:pointer;
-  display:flex;align-items:center;justify-content:center;transition:opacity .2s ease}
-.fw-thumb svg{width:28px;height:28px;fill:var(--canvas);stroke:var(--hb-muted);stroke-width:1.6;
-  transition:fill .25s ease, stroke .25s ease}
-.fw-thumb:hover svg{stroke:var(--hb-ink)}
-.fw-thumb.fw-thumb-sending{opacity:.6;cursor:progress}
-.fw-thumb.fw-thumb-done svg,.fw-thumb.fw-thumb-failed svg{fill:var(--hb-risk);stroke:var(--hb-risk)}
-.fw-wrap:has(.fw-panel.open) .fw-quick{display:none}
-@media (max-width:640px), (hover:none) and (pointer:coarse){ .fw-quick{display:none} }
-.fw-thumb-toast{max-width:min(340px,60vw);padding:9px 14px;border-radius:12px;background:var(--hb-bubble);
-  color:var(--hb-ink);border:1px solid var(--hb-line);box-shadow:var(--hb-shadow-1);font-size:.84rem;line-height:1.35;
-  opacity:0;transition:opacity .6s ease;pointer-events:none}
-.fw-thumb-toast:empty{display:none}
-.fw-thumb-toast.show{opacity:1}
-.fw-thumb-toast.failed{border:1px solid var(--hb-risk)}
 /* V2-681 T-2 — a FIXED height. It declared only a max-height before, so the panel was as tall as its
    content happened to be: MEASURED on the real page, the New tab was 390px and the Sent tab with an empty
    list 138px, so switching tabs made the box collapse and spring back («esa cajita se hace súper pequeña y
    baja y sube… el tamaño debe ser fijo»). 585px is his +50% applied to the 390 that was actually there,
    not to the 200-300 he estimated. The max-height stays as a clamp for a short screen — a fixed height
    taller than the viewport would put the send button out of reach. */
-.fw-panel{position:fixed;right:20px;bottom:90px;z-index:9199;width:400px;height:470px;max-height:min(90vh,900px);
+.fw-panel{position:fixed;right:20px;bottom:90px;z-index:9199;width:400px;height:540px;max-height:min(90vh,900px);
   display:none;flex-direction:column;background:var(--hb-bg);border:1px solid var(--hb-line);border-radius:var(--hb-r-l);
   box-shadow:0 10px 30px rgba(0,0,0,.3);overflow:hidden;color:var(--hb-ink)}
 .fw-panel.open{display:flex}
@@ -1518,12 +1497,32 @@ body.dbg-open .orbwrap{left:calc(50% - var(--dbg-w) / 2)}
 .fw-mic.hidden{display:none}
 /* the send button SAYS send, full width, unmissable — his words: «el botón bastante grande… muy claro todo» */
 /* flex:1 — it shares the row with the mic now and takes everything the mic leaves. */
-.fw-send{flex:1 1 auto;min-width:0;height:46px;border-radius:var(--hb-r-m,12px);border:none;cursor:pointer;color:var(--canvas);
+.fw-send{flex:0 0 auto;padding:0 18px;height:40px;border-radius:var(--hb-r-m,12px);border:none;cursor:pointer;color:var(--canvas);
   background:var(--hb-accent);display:flex;align-items:center;justify-content:center;gap:9px;
   font:600 var(--fs-ui,0.875rem) var(--sans)}
 .fw-send svg{width:17px;height:17px}
 .fw-send:hover{filter:brightness(1.08)}
 .fw-send[disabled]{opacity:.55;cursor:default;filter:none}
+/* V2-766 — the two quick hands at the far left of the footer, and the gap that packs the rest to the right. */
+.fw-row-gap{flex:1 1 auto}
+.fw-hand{width:38px;height:38px;flex:none;border-radius:10px;border:1px solid var(--hb-line);background:var(--hb-bg);
+  color:var(--hb-muted);display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0}
+.fw-hand svg{width:18px;height:18px}
+.fw-hand.up:hover{border-color:var(--hb-ok);color:var(--hb-ok)}
+.fw-hand.down:hover{border-color:var(--hb-risk);color:var(--hb-risk)}
+.fw-hand.sending{opacity:.55;cursor:progress}
+/* …and what a click turns the whole panel into: the thanks, and one button that closes it. */
+.fw-panel.quick .fw-status,.fw-panel.quick .fw-new,.fw-panel.quick .fw-sent,.fw-panel.quick .fw-tabs{display:none!important}
+.fw-quickdone{flex:1 1 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;
+  padding:28px;text-align:center}
+.fw-quickdone-mark svg{width:48px;height:48px}
+.fw-quickdone-mark.up{color:var(--hb-ok)}
+.fw-quickdone-mark.down{color:var(--hb-risk)}
+.fw-quickdone.failed .fw-quickdone-mark{color:var(--hb-muted)}
+.fw-quickdone-text{font-size:1rem;line-height:1.45;max-width:30ch}
+.fw-quickdone-btn{height:40px;padding:0 22px;border-radius:var(--hb-r-m,12px);border:none;cursor:pointer;
+  background:var(--hb-accent);color:var(--canvas);font:600 var(--fs-ui,0.875rem) var(--sans)}
+.fw-quickdone-btn:hover{filter:brightness(1.08)}
 .fw-thanks{font-size:0.7812rem;color:var(--hb-accent2);background:color-mix(in srgb,var(--hb-accent2) 12%,transparent);
   border-radius:9px;padding:7px 10px}
 /* V2-256 — the failure has to occupy the same slot, and the same visual weight, as the thank-you.

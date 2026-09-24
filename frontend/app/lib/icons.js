@@ -46,6 +46,8 @@ export const MOON_ICON = `<svg ${S}><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0
 export const USER_ICON = `<svg ${S}><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`;
 export const MESSAGE_SQUARE_ICON = `<svg ${S}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M12 7v6"/><path d="M9 10h6"/></svg>`;
 // V2-760 — the one-click «this went wrong» marker beside the feedback launcher (lucide thumbs-down).
+// V2-766 — the thumbs-up, the same Lucide hand mirrored: «todo está yendo bien».
+export const THUMBS_UP_ICON = `<svg ${S}><path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z"/></svg>`;
 export const THUMBS_DOWN_ICON = `<svg ${S}><path d="M17 14V2"/><path d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22a3.13 3.13 0 0 1-3-3.88Z"/></svg>`;
 // V2-761 — the APPS tab: a 3×3 grid of dots, the launcher every OS uses for «all my apps». Dots, not squares,
 // on purpose: the widget rail's own buttons (show all / compact) are drawn with SQUARES and mean «arrange the

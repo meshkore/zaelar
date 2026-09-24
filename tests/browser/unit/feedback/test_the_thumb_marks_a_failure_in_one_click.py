@@ -163,7 +163,19 @@ def test_a_refused_send_says_so(monkeypatch):
 
 
 def test_the_kind_is_one_the_engine_accepts():
-    assert "thumbs_down" in fb._KINDS
+    assert "thumbs_down" in fb._KINDS and "thumbs_up" in fb._KINDS
+
+
+def test_the_thumbs_up_is_the_same_mark_saying_it_went_WELL(monkeypatch):
+    """V2-766 — «la mano hacia arriba es un quick feedback… de que todo está yendo bien». Same evidence and
+    marker, its own kind, and a row that reads as good news."""
+    sent = _capture(monkeypatch, cloud=False, sid="ok-1")
+    out = asyncio.run(fb.thumbs_up())
+    assert out.get("ok") is True, out
+    body = sent[0][1]
+    assert body["type"] == "thumbs_up", body
+    assert "bien" in body["message"] and "revisar" not in body["message"].lower(), body["message"]
+    assert (body.get("session_evidence") or {}).get("marker", {}).get("session_id") == "ok-1"
 
 
 # ── C · THE EVIDENCE IS THE END OF THE SESSION, NOT ITS BEGINNING ────────────────────────────────────────────
@@ -221,7 +233,11 @@ def widget():
                 pg._thumb_calls.append(1)
                 route.fulfill(status=200, content_type="application/json",
                               body=json.dumps(pg._thumb_status["body"]))
-            pg.route("**/api/feedback/thumbs_down", _thumb)
+            def _thumb_any(route):
+                pg._thumb_urls.append(route.request.url.rsplit("/", 1)[-1])
+                _thumb(route)
+            pg._thumb_urls = []
+            pg.route("**/api/feedback/thumbs_*", _thumb_any)
             pg.route("**/api/i18n/bundle/*", lambda r: r.fulfill(status=200, content_type="application/json", body=es))
             pg.route("**/api/i18n/state", lambda r: r.fulfill(status=200, content_type="application/json",
                                                                body=json.dumps({"lang": "es", "language": "es"})))
@@ -239,7 +255,7 @@ def widget():
                 const m = await import(`http://127.0.0.1:${port}/frontend/app/components/FeedbackWidget.js?v=1`);
                 document.body.append(m.FeedbackWidget());
             }""", port)
-            pg.wait_for_selector(".fw-thumb", timeout=5000)
+            pg.wait_for_selector(".fw-launcher", timeout=5000)
             pg._errors = errors
             yield pg
             b.close()
@@ -247,74 +263,81 @@ def widget():
         srv.terminate(); srv.wait(timeout=10)
 
 
-def _state(pg):
-    return pg.evaluate("""() => { const b = document.querySelector('.fw-thumb'), t = document.querySelector('.fw-thumb-toast');
-        const tr = t.getBoundingClientRect(), br = b.getBoundingClientRect(), lr = document.querySelector('.fw-launcher').getBoundingClientRect();
-        const cs = getComputedStyle(b), svg = getComputedStyle(b.querySelector('svg'));
-        return {btn: b.className, bg: cs.backgroundColor, radius: cs.borderRadius, shadow: cs.boxShadow,
-                fill: svg.fill, visible: cs.display !== 'none' && getComputedStyle(b.parentElement).display !== 'none',
-                text: t.textContent, show: t.classList.contains('show'), op: parseFloat(getComputedStyle(t).opacity),
-                toastRight: tr.right, btnLeft: br.left, btnRight: br.right, btnBottom: br.bottom,
-                btnCx: (br.left + br.right) / 2, launcherLeft: lr.left, launcherTop: lr.top,
-                launcherCx: (lr.left + lr.right) / 2}; }""")
+def _open(pg):
+    pg.evaluate("async () => { const s = await import('/frontend/app/core/store.js?v=2'); s.setFeedbackOpen(true); }")
+    pg.wait_for_selector(".fw-panel.open .fw-row", timeout=3000)
 
 
-def test_it_sits_ABOVE_the_launcher_as_a_bare_black_hand(widget):
-    """His second pass: «encima del icono del feedback… no quiero un círculo de color lila… solo el icono
-    sobre el fondo negro… la silueta en negro… la mano maciza»."""
-    st = _state(widget)
-    canvas = widget.evaluate("""() => { const p = document.createElement('div'); p.style.color = 'var(--canvas)';
-        document.body.append(p); const c = getComputedStyle(p).color; p.remove(); return c; }""")
-    assert st["btnBottom"] <= st["launcherTop"], "the thumb is not above the launcher"
-    assert abs(st["btnCx"] - st["launcherCx"]) <= 2, "the thumb is not centred over the launcher"
-    assert st["bg"] in ("rgba(0, 0, 0, 0)", "transparent"), f"there is still a disc behind the hand: {st['bg']}"
-    assert st["shadow"] == "none", "a shadow still draws the old disc"
-    assert st["fill"] == canvas, f"the hand is not a solid black silhouette: fill {st['fill']} vs canvas {canvas}"
+def _footer(pg):
+    return pg.evaluate("""() => {
+        const row = document.querySelector('.fw-row'), rr = row.getBoundingClientRect();
+        const box = sel => { const e = row.querySelector(sel); if (!e) return null;
+                             const r = e.getBoundingClientRect(); return {l: r.left, r: r.right, w: r.width}; };
+        const panel = document.querySelector('.fw-panel');
+        return {up: box('.fw-hand.up'), down: box('.fw-hand.down'), mic: box('.fw-mic'), clip: box('.fw-clip'),
+                send: box('.fw-send'), sendText: row.querySelector('.fw-send').textContent.trim(),
+                rowL: rr.left, rowR: rr.right, rowW: rr.width, panelH: panel.getBoundingClientRect().height,
+                floating: !!document.querySelector('.fw-quick, .fw-thumb')}; }""")
 
 
-def test_it_is_desktop_only(widget):
-    try:
-        widget.set_viewport_size({"width": 390, "height": 800})
-        assert not _state(widget)["visible"], "the thumb shows on a phone-width screen"
-    finally:
-        widget.set_viewport_size({"width": 1280, "height": 800})
-    assert _state(widget)["visible"]
+def _screen(pg):
+    return pg.evaluate("""() => { const q = document.querySelector('.fw-quickdone');
+        const vis = sel => { const e = document.querySelector(sel); return !!e && getComputedStyle(e).display !== 'none'; };
+        return {quick: !!q, text: q ? q.querySelector('.fw-quickdone-text').textContent : '',
+                btn: q ? q.querySelector('.fw-quickdone-btn').textContent : '',
+                form: vis('.fw-panel .fw-new'), open: document.querySelector('.fw-panel').classList.contains('open')}; }""")
 
 
-def test_it_hides_while_the_panel_is_open(widget):
-    widget.evaluate("() => document.querySelector('.fw-panel').classList.add('open')")
-    try:
-        assert not _state(widget)["visible"], "the thumb pokes through the open panel"
-    finally:
-        widget.evaluate("() => document.querySelector('.fw-panel').classList.remove('open')")
+def test_the_floating_thumb_is_gone(widget):
+    """«Vamos a quitar el signo ese del pulgar hacia abajo… no me gusta. Mételo en el feedback.»"""
+    assert not _footer(widget)["floating"], "the floating thumb over the launcher is still there"
 
 
-def test_one_click_shows_thanks_to_the_LEFT_then_fades_and_the_icon_comes_back(widget):
-    idle_fill = _state(widget)["fill"]
-    widget._thumb_calls.clear()
+def test_the_footer_is_hands_left_then_mic_clip_and_a_compact_send_right(widget):
+    """«…el botón comprimido hacia la derecha, solo con su texto, enviar… los dos iconitos pegados a ese botón y
+    a la izquierda del todo… una mano hacia arriba y otra hacia abajo». And the form a bit taller."""
+    _open(widget)
+    f = _footer(widget)
+    assert f["up"] and f["down"], f"the two hands are not in the footer: {f}"
+    assert f["up"]["l"] - f["rowL"] <= 2 and f["up"]["r"] <= f["down"]["l"], f"the hands are not far left: {f}"
+    assert f["down"]["r"] < f["mic"]["l"] < f["clip"]["l"] < f["send"]["l"], f"footer order is wrong: {f}"
+    assert f["rowR"] - f["send"]["r"] <= 2, "send is not at the right edge"
+    assert f["clip"]["r"] <= f["send"]["l"] and f["send"]["l"] - f["clip"]["r"] <= 12, "the icons are not beside send"
+    assert f["send"]["w"] < f["rowW"] * 0.4, f"send is not compact: {f['send']['w']} of {f['rowW']}"
+    assert f["sendText"] == _ES["feedback.send"] == "Enviar", f["sendText"]
+    assert f["panelH"] >= 520, f"the form did not grow: {f['panelH']}"
+
+
+@pytest.mark.parametrize("hand,key,url", [("up", "feedback.thumbsUpThanks", "thumbs_up"),
+                                          ("down", "feedback.thumbsDownThanks", "thumbs_down")])
+def test_a_hand_turns_the_panel_into_its_thanks_and_close_closes_it(widget, hand, key, url):
+    """«Cuando se dé a ese botón, se cambia toda la pantalla y se pone gracias… y un botón de cerrar, y se
+    cierra el formulario de feedback.»"""
+    _open(widget)
     widget._thumb_status["body"] = {"ok": True, "id": "fb1"}
-    widget.click(".fw-thumb")
-    widget.wait_for_function("() => document.querySelector('.fw-thumb-toast').classList.contains('show')", timeout=3000)
-    widget.wait_for_timeout(700)                             # past the fade-IN
-    on = _state(widget)
-    assert on["text"] == _ES["feedback.thumbsDownThanks"], f"the toast says {on['text']!r}"
-    assert on["op"] > 0.95, "the message is not readable while it is meant to be"
-    assert on["toastRight"] <= on["btnLeft"], "the message is not to the LEFT of the thumb"
-    assert "fw-thumb-done" in on["btn"] and on["fill"] != idle_fill, "the icon did not change colour while marked"
-    widget.click(".fw-thumb")                               # a second click while it is showing…
-    widget.wait_for_timeout(3200)                            # …then past show + fade
-    off = _state(widget)
-    assert not off["show"] and off["op"] < 0.05, "the message did not fade away"
-    assert off["text"] == "", "the text lingered after the fade"
-    assert "fw-thumb-idle" in off["btn"] and off["fill"] == idle_fill, "the icon did not return to its colour"
-    assert len(widget._thumb_calls) == 1, f"one click, one mark — got {len(widget._thumb_calls)} requests"
+    widget._thumb_urls.clear()
+    widget.click(f".fw-hand.{hand}")
+    widget.wait_for_selector(".fw-quickdone", timeout=3000)
+    st = _screen(widget)
+    assert st["text"] == _ES[key], st
+    assert not st["form"], "the form is still showing under the thanks"
+    assert st["btn"] == _ES["feedback.close"], st
+    assert widget._thumb_urls == [url], f"one click, one mark to the right door — got {widget._thumb_urls}"
+    widget.click(".fw-quickdone-btn")
+    widget.wait_for_timeout(150)
+    after = _screen(widget)
+    assert not after["open"] and not after["quick"], f"close did not close the form: {after}"
 
 
-def test_a_failed_mark_says_so_instead_of_thanking(widget):
+def test_a_failed_mark_says_so_and_goes_back_to_the_form(widget):
+    _open(widget)
     widget._thumb_status["body"] = {"ok": False, "error": "send_failed"}
-    widget.click(".fw-thumb")
-    widget.wait_for_function("() => document.querySelector('.fw-thumb-toast').classList.contains('show')", timeout=3000)
-    st = _state(widget)
-    widget.wait_for_timeout(3700)
-    assert st["text"] == _ES["feedback.thumbsDownFailed"], f"a failed mark said {st['text']!r}"
+    widget.click(".fw-hand.down")
+    widget.wait_for_selector(".fw-quickdone", timeout=3000)
+    st = _screen(widget)
+    assert st["text"] == _ES["feedback.quickFailed"] and st["btn"] == _ES["feedback.back"], st
+    widget.click(".fw-quickdone-btn")
+    widget.wait_for_timeout(150)
+    back = _screen(widget)
+    assert back["open"] and back["form"] and not back["quick"], f"«Volver» did not bring the form back: {back}"
     assert not widget._errors, widget._errors
