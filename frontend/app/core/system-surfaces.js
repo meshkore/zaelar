@@ -99,7 +99,8 @@ export const SYSTEM_SURFACES = [
   // would catch «abre la APLICACIÓN de música» and open this list instead of the music card.
   { id: "apps",       comp: null,         target: "body", phase: "tab", kind: "panel",
     toggle: "store.chatTab = apps (ChatWall's Apps tab)", label: "Apps — the widget catalogue (System · Custom)",
-    name: "Apps", aliases: ["apps", "widgets", "mis apps", "mis widgets", "las apps", "los widgets", "lista de apps", "lista de widgets", "catalogo de apps", "catálogo de apps", "catalogo de widgets", "catálogo de widgets", "las aplicaciones", "mis aplicaciones", "lista de aplicaciones", "widgets disponibles", "apps disponibles", "my apps", "my widgets", "app list", "widget list", "app catalog", "widget catalog", "the applications"] },
+    name: "Apps", aliases: ["apps", "widgets", "mis apps", "mis widgets", "las apps", "los widgets", "lista de apps", "lista de widgets", "catalogo de apps", "catálogo de apps", "catalogo de widgets", "catálogo de widgets", "las aplicaciones", "mis aplicaciones", "lista de aplicaciones", "widgets disponibles", "apps disponibles", "my apps", "my widgets", "app list", "widget list", "app catalog", "widget catalog", "the applications",
+      "catalogo de aplicaciones", "catálogo de aplicaciones", "apps customizadas", "widgets customizados", "apps personalizadas", "widgets personalizados", "mis apps customizadas", "mis widgets customizados"] },
   { id: "status",     comp: StatusPanel,  target: "body", phase: "overlay", kind: "panel",
     toggle: "store.statusOpen (◉)", label: "System status panel",
     name: "Status", aliases: ["estado", "estado del sistema", "status", "panel de estado", "salud del sistema",

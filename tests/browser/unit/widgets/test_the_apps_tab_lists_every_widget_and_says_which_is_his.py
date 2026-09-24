@@ -103,14 +103,9 @@ def _tiles(pg):
         left: t.getBoundingClientRect().left }))""")
 
 
-def test_the_wall_has_an_apps_tab_whose_icon_is_a_grid_of_dots_not_the_rails_squares(wall):
-    info = wall.evaluate("""() => { const b = [...document.querySelectorAll('.cw-tab')].find(x =>
-        x.textContent.includes(%s)); if (!b) return null;
-        return {dots: b.querySelectorAll('svg circle').length, rects: b.querySelectorAll('svg rect').length}; }"""
-                         % json.dumps(_ES["chat.tabApps"]))
-    assert info, "there is no «Apps» tab button on the wall"
-    assert info["dots"] == 9 and info["rects"] == 0, \
-        f"the icon must be the 3×3 launcher of dots (the rail's arrange buttons are squares): {info}"
+def test_the_wall_has_an_apps_tab(wall):
+    assert wall.evaluate("""() => [...document.querySelectorAll('.cw-tab')].some(x => x.textContent.includes(%s))"""
+                         % json.dumps(_ES["chat.tabApps"])), "there is no «Apps» tab button on the wall"
 
 
 def test_clicking_the_tab_opens_the_catalogue(wall):
@@ -142,11 +137,30 @@ def test_custom_lists_his_widgets_including_the_fork(wall):
     assert not any(t["customized"] for t in _tiles(wall)), "under Custom the fork is HIS widget, not a pale one"
 
 
-def test_the_grid_is_two_columns(wall):
+def test_the_tiles_are_small_enough_for_a_dozen_to_fit_on_one_screen(wall):
+    """His second pass: «hacer esas cajas más pequeñas… tenemos solo 10 o 12… adaptarlo al tamaño de esa
+    imagen». The whole shipped catalogue (14 today) in a 340×560 wall must fit without scrolling, and each box hugs its image."""
+    wall.evaluate("""() => { const c = document.querySelector('#chatwall'); c.style.width = '340px'; c.style.height = '560px'; }""")
     _open_apps(wall)
-    tiles = _tiles(wall)
-    lefts = sorted({round(t["left"]) for t in tiles})
-    assert len(lefts) == 2, f"«en una o dos columnas»: the tiles sit on {len(lefts)} columns ({lefts})"
+    wall.evaluate("""() => { const g = document.querySelector('.cw-apps .ap-grid'), t = g.querySelector('.ap-tile');
+        for (let i = 0; i < 11; i++) g.append(t.cloneNode(true)); }""")         # 3 + 11 = 14 tiles
+    m = wall.evaluate("""() => { const g = document.querySelector('.cw-apps .ap-grid'), t = g.querySelector('.ap-tile');
+        const th = t.querySelector('.ap-thumb').getBoundingClientRect(), tr = t.getBoundingClientRect();
+        return {n: g.querySelectorAll('.ap-tile').length, scroll: g.scrollHeight, client: g.clientHeight,
+                tileH: tr.height, thumbH: th.height, thumbW: th.width}; }""")
+    wall.evaluate("() => { const c = document.querySelector('#chatwall'); c.style.width = ''; c.style.height = ''; }")
+    assert m["n"] == 14
+    assert m["scroll"] <= m["client"] + 1, f"fourteen tiles do not fit on one screen: {m}"
+    assert m["tileH"] <= m["thumbH"] + 44, f"the box does not hug its image: {m}"
+    assert abs(m["thumbW"] - m["thumbH"]) <= 2, f"the image is not square: {m}"
+
+
+def test_the_tab_icon_is_the_solid_widgets_silhouette(wall):
+    info = wall.evaluate("""() => { const b = [...document.querySelectorAll('.cw-tab')].find(x =>
+        x.textContent.includes(%s)); const svg = b.querySelector('svg');
+        return {fill: svg.getAttribute('fill'), rects: svg.querySelectorAll('rect').length,
+                turned: svg.querySelectorAll('rect[transform]').length}; }""" % json.dumps(_ES["chat.tabApps"]))
+    assert info == {"fill": "currentColor", "rects": 4, "turned": 1}, info
 
 
 def test_a_tile_opens_its_widget_through_the_one_door(wall):

@@ -35,6 +35,10 @@ ENGINE = Path(__file__).resolve().parents[3]
 @pytest.mark.parametrize("phrase", [
     "ábreme las apps", "abre la lista de widgets", "ábreme el catálogo de widgets", "abre el catálogo de apps",
     "dime qué widgets tengo disponibles", "abre mis aplicaciones", "open my widgets", "open the app catalog",
+    # his exact words in session 952923e3 (2026-09-24), each of which ended in «no tengo un catálogo»:
+    "Enséñame el catálogo de aplicaciones.", "Vale, enséñame el catálogo de widgets.",
+    "Vale, ábreme la lista de widgets customizados.", "¿Qué APPs tengo customizadas?",
+    "O los widgets. Ábreme esa lista.",
 ])
 def test_the_catalogue_phrases_name_the_apps_surface(phrase):
     res = runtime.identify(phrase)
@@ -50,6 +54,36 @@ def test_a_named_widget_is_never_stolen_by_the_catalogue(phrase, widget):
     assert res["match"] == widget and res["system"] is None, f"{phrase!r} resolved to {res}"
 
 
+@pytest.mark.parametrize("phrase,tab", [
+    ("Vale, ábreme la lista de widgets customizados.", "apps-custom"), ("¿Qué APPs tengo customizadas?", "apps-custom"),
+    ("abre mis widgets personalizados", "apps-custom"), ("Enséñame el catálogo de aplicaciones.", "apps"),
+])
+def test_asking_for_HIS_widgets_opens_the_custom_sub_tab(phrase, tab):
+    from nucleo.flash.panel_canon import apps_tab
+    assert apps_tab(phrase) == tab
+    prov = (ENGINE / "voice/engine/llm/providers/nucleo.py").read_text(encoding="utf-8")
+    assert '"tab": _apps_tab(text) if _sys == "apps" else _sys' in prov
+
+
+def test_the_models_catalogue_says_which_widgets_are_his():
+    """«Las tarjetas personalizadas que tengas tú hechas no me salen en la lista que veo» — the fact existed
+    (`origin`, `forked_from`) and never reached the model. The row now carries it."""
+    from widgets import brief, runtime as rt, selection
+    cat = [{"id": "youtube", "whenToUse": "vídeo", "origin": "user", "forked_from": {"origin": "builtin"}},
+           {"id": "canvas-shows-day", "whenToUse": "mi día", "origin": "user"},
+           {"id": "musica", "whenToUse": "música"}]
+    real = selection.candidates
+    selection.candidates = lambda *a, **k: [{"w": w} for w in cat]
+    try:
+        out = brief.for_prompt([], [], "")
+    finally:
+        selection.candidates = real
+    rows = {ln.split(" — ")[0].strip("- "): ln for ln in out.splitlines() if ln.startswith("- ")}
+    assert "custom (su copia de la de sistema)" in rows["youtube"]
+    assert "custom (creada por él)" in rows["canvas-shows-day"]
+    assert "custom" not in rows["musica"]
+
+
 def test_the_video_cards_own_catalogue_is_not_this_one():
     assert runtime.identify("vuelve al catálogo")["system"] is None
 
@@ -59,9 +93,9 @@ def test_the_provider_and_its_probe_route_the_surface_to_the_panel():
     surface is forwarded as the TAB, not hard-coded to the chat."""
     prov = (ENGINE / "voice/engine/llm/providers/nucleo.py").read_text(encoding="utf-8")
     assert 'elif _sys in ("chat", "apps"):' in prov
-    assert 'emit("panel", "open", extra={"tab": _sys, "src": "flash"})' in prov
+    assert 'emit("panel", "open", extra={"tab": _apps_tab(text) if _sys == "apps" else _sys,' in prov
     probe = (ENGINE / "nucleo/flash/probe.py").read_text(encoding="utf-8")
-    assert 'f"panel:{_sys}" if _sys in ("chat", "apps")' in probe
+    assert '''f"panel:{_apps_tab(text) if _sys == 'apps' else _sys}" if _sys in ("chat", "apps")''' in probe
 
 
 # ── door 2: the show_panel tool ────────────────────────────────────────────────────────────────────────────

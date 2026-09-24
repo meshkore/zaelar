@@ -47,7 +47,7 @@ def canon_panel(v) -> str:
     # V2-761 — the widget catalogue. AFTER the connectors on purpose: «app» is inside «whatsapp», so it is
     # matched as a WORD, and a connector named in the argument keeps winning.
     if re.search(r"\b(apps?|widgets?|aplicacion(es)?|aplicación)\b", p):
-        return "apps-custom" if re.search(r"\b(custom|personaliz|propi|mios|mías|mias|míos)", p) else "apps"
+        return apps_tab(p)
     # …and 'periódica' BEFORE 'programada': a recurring job IS scheduled, so the narrower word has to win or
     # everything lands on the same list, which is the defect this split exists to remove.
     if any(k in p for k in ("cron", "periodic", "periódic", "recurren", "cada semana", "cada dia", "cada día",
@@ -61,3 +61,13 @@ def canon_panel(v) -> str:
     if any(k in p for k in ("proces", "process", "job", "worker", "trabajo", "encarg", "activ", "curso", "marcha")):
         return "procesos"
     return "procesos"
+
+
+_CUSTOM_RE = re.compile(r"\b(custom|personaliz|propi|mios|mías|mias|míos)", re.I)
+
+
+def apps_tab(text) -> str:
+    """Which sub-tab of «Apps» a phrase that already named the catalogue means (V2-761): `apps-custom` when it
+    asks for HIS widgets («mis widgets customizados», «qué apps tengo personalizadas»), `apps` otherwise. The
+    one place both the `show_panel` argument and a `show_widget` that named the surface are read."""
+    return "apps-custom" if _CUSTOM_RE.search(str(text or "")) else "apps"

@@ -23,6 +23,7 @@ from livekit.agents import DEFAULT_API_CONNECT_OPTIONS, llm, utils
 from livekit.agents.llm import ChatChunk, ChoiceDelta
 
 from .. import registry
+from nucleo.flash.panel_canon import apps_tab as _apps_tab
 from nucleo.flash import (build_decision as _build_decision, canvas_license as _canvas_lic,  # V2-750 grammar only proposes / V2-650 a replay can be an order
                           canvas_visibility as _cvis,                          # V2-723: ONE door to present
                           close_guards as _closeg,                             # V2-635: close needs the words
@@ -1550,7 +1551,8 @@ class NucleoLLMStream(llm.LLMStream):
                         elif _sys in ("chat", "apps"):
                             # It named the CHAT, or the widget catalogue (V2-761: «ábreme las apps») — two
                             # tabs of the native wall, not widgets → open the wall on that tab.
-                            emit("panel", "open", extra={"tab": _sys, "src": "flash"})
+                            emit("panel", "open", extra={"tab": _apps_tab(text) if _sys == "apps" else _sys,
+                                                         "src": "flash"})
                             emit("brain", f"🗂️ show_widget→{_sys} (superficie de sistema)", role="system")
                             acted["widget"] = True
                         else:

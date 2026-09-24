@@ -187,6 +187,13 @@ def for_prompt(open_ids=None, recent_ids=None, query: str = "", stats: dict | No
         tag = "  ◀ EN PANTALLA" if widl in opened else ("  · usado hace poco" if widl in recent else "")
         if widl and widl == maxw:
             tag += " · A PANTALLA COMPLETA ahora (para salir: fullscreen_widget, es un interruptor)"
+        # V2-761 — WHOSE card it is. «¿Qué apps tengo customizadas?» got «las personalizadas no me salen en la
+        # lista que veo»: the fact existed (`registry.origin_of`, the fork's `forked_from`) and never reached the
+        # model. Costs bytes only on the rows that ARE custom.
+        if w.get("forked_from"):
+            tag += " · custom (su copia de la de sistema)"
+        elif _registry_origin(w) == "user":
+            tag += " · custom (creada por él)"
         row = f"- {wid} — {purpose}{tag}"
         # Declared actions (names only, inline): the vocabulary referenced by the widget_data tool. Payload shapes
         # are omitted; the model infers them from the tool example, and agenda.data/refs normalize values (V2-026).
@@ -294,3 +301,12 @@ def for_brain() -> str:
     except Exception:
         pass
     return "\n".join(lines)
+
+
+def _registry_origin(w: dict) -> str:
+    """`builtin` | `user` for one catalogue row — the registry's own rule, read lazily (registry imports runtime)."""
+    try:
+        from . import registry as _registry
+        return _registry.origin_of(w)
+    except Exception:  # noqa: BLE001 — an unreadable origin simply adds no mark
+        return "builtin"

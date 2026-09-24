@@ -20,7 +20,7 @@ import * as session from "../services/session.js?v=3";
 import * as api from "../services/api.js?v=2";
 import * as feedbackApi from "../services/feedback-api.js?v=1";
 import { makeResizable } from "../lib/resizable.js?v=1";
-import { CLOSE_ICON, TRASH_ICON, MESSAGE_SQUARE_ICON, ACTIVITY_ICON, CLOCK_ICON, SERVER_ICON, LINK_ICON, APPS_ICON } from "../lib/icons.js?v=1";
+import { CLOSE_ICON, TRASH_ICON, MESSAGE_SQUARE_ICON, ACTIVITY_ICON, CLOCK_ICON, SERVER_ICON, LINK_ICON, APPS_ICON, WIDGETS_ICON } from "../lib/icons.js?v=1";
 import { renderMarkdownLite } from "../lib/markdown-lite.js?v=1";
 import { t } from "../core/i18n.js?v=1";
 
@@ -510,7 +510,7 @@ export function ChatWall() {
         h("button", { class: () => "cw-tab" + (store.chatTab() === "procesos" ? " on" : ""), title: () => t("chat.tabTasks"), onClick: () => store.setChatTab("procesos") }, raw(ACTIVITY_ICON), h("span", { class: "cw-tab-label" }, () => t("chat.tabTasks"))),
         h("button", { class: () => "cw-tab" + (store.chatTab() === "clusters" ? " on" : ""), title: () => t("chat.tabClusters"), onClick: () => store.setChatTab("clusters") }, raw(SERVER_ICON), h("span", { class: "cw-tab-label" }, () => t("chat.tabClusters"))),
         h("button", { class: () => "cw-tab" + (store.chatTab() === "conectores" ? " on" : ""), title: () => t("chat.tabConnectors"), onClick: () => store.setChatTab("conectores") }, raw(LINK_ICON), h("span", { class: "cw-tab-label" }, () => t("chat.tabConnectors"))),
-        h("button", { class: () => "cw-tab" + (store.chatTab() === "apps" ? " on" : ""), title: () => t("chat.tabApps"), onClick: () => store.setChatTab("apps") }, raw(APPS_ICON), h("span", { class: "cw-tab-label" }, () => t("chat.tabApps"))),
+        h("button", { class: () => "cw-tab" + (store.chatTab() === "apps" ? " on" : ""), title: () => t("chat.tabApps"), onClick: () => store.setChatTab("apps") }, raw(WIDGETS_ICON), h("span", { class: "cw-tab-label" }, () => t("chat.tabApps"))),
       ),
       // MODE TOGGLE — the box↔column switch, visible in BOTH shapes (operator, 2026-09-08: «en la box se
       // tienen que ver tb los 2 icons a la derecha, para pasar el formato box a columna»). Docked, it gives

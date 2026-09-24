@@ -41,6 +41,14 @@ entregada siga citada aquí.
   NATIVA** — ahora `docs/ops/zaelar-native-surface-workflow.md`, con los 13 puntos que fallan en silencio.
   Y el pulgar de V2-760 se movió ENCIMA del lanzador, sin disco, mano negra, solo escritorio. Nodos 4.212 y
   2.80. `f4b8ca82`, `7a0d443e`.
+  **(6) SU PRIMERA PRUEBA FALLÓ CINCO VECES — y la causa principal fue que el motor corría el código de ANTES**
+  (`3.33+43b2a2ad`): la pestaña llega refrescando el navegador, el cerebro solo con `make restart`, y no se
+  reinició porque él estaba en sesión. Lección: una entrega que cruza frontend y cerebro no está «en su
+  pantalla» hasta que el motor que la sirve lleva el commit — se comprueba el `ver` de la sesión antes de
+  darla por probable. Además: «catálogo de aplicaciones» y «widgets customizados» pasan a ser ALIAS de la
+  superficie (el mecanismo de nombres, no una regla), «los míos/customizados» abre la subpestaña Custom, y el
+  catálogo que ve el modelo marca por fila qué widget es suyo — «las personalizadas no me salen en la lista
+  que veo» era literal. Icono de pestaña = silueta maciza de «widgets»; cajas ≤56 px, cabe el catálogo entero.
 - **El pulgar abajo marca un fallo en un clic, y la evidencia son los ÚLTIMOS eventos (V2-760, 2026-09-24)**:
   *«cada vez que la gente detecte un fallo, les pediré que clique en este pulgar hacia abajo… así el usuario no
   tiene que estar rellenando un mail o un texto… quedará vinculado por ID de agente con los datos de

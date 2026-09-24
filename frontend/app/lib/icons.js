@@ -52,4 +52,11 @@ export const THUMBS_DOWN_ICON = `<svg ${S}><path d="M17 14V2"/><path d="M9 18.12
 // cards», so the two must not read as the same thing.
 export const APPS_ICON = `<svg ${S}>${[5, 12, 19].flatMap(y => [5, 12, 19].map(x =>
   `<circle cx="${x}" cy="${y}" r="1.9" fill="currentColor" stroke="none"/>`)).join("")}</svg>`;
+// V2-761 — the Apps TAB: the classic «widgets» silhouette — three rounded tiles and one turned on its corner,
+// SOLID. The operator asked for something that reads as «an app / a widget» at a glance; a solid silhouette
+// also cannot be confused with the widget rail's arrange buttons, which are OUTLINED squares.
+export const WIDGETS_ICON = `<svg viewBox="0 0 24 24" fill="currentColor" stroke="none">` +
+  `<rect x="3" y="3" width="8" height="8" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/>` +
+  `<rect x="13" y="13" width="8" height="8" rx="2"/>` +
+  `<rect x="13.4" y="3.4" width="7.2" height="7.2" rx="1.8" transform="rotate(45 17 7)"/></svg>`;
 export const SEND_ICON = `<svg ${S}><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4 20-7z"/></svg>`;
