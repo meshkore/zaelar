@@ -30,6 +30,19 @@
 // the tests drive THIS module — not a copy of it (the re-implemented-test lesson).
 export const HOLD_MS = 9000;
 
+// V2-763 — THE WALL MAY NOT CONTRADICT THE ORB. Operator, 2026-09-24, with the screenshot: «el orbe está en
+// gris… lo que no puede ser es que se apague y que el micro siga escuchando, transcribiendo y aceptando
+// órdenes». Measured in that session (2ffe9713): a 90-second monologue with no wake word, every fragment
+// ruled AMBIENT and not one brain turn run — but the gate holds an unfinished sentence until it ends (the
+// verdict landed at 415 s for a turn begun at 324 s), so this fail-open fired at 9 s and painted his words as
+// ordinary bubbles under a grey orb. Nothing was accepted; everything on screen said it was.
+//
+// So the fail-open now asks the orb. While it says «te escucho» (`listening()`), a verdict-less turn is
+// released exactly as before — never lose a word he said TO zaelar. While it is off, the turn keeps waiting
+// for its verdict: DIRECTED still paints it, AMBIENT drops it, and one that never gets a verdict is dropped at
+// HOLD_CEILING_MS — the same ceiling the engine puts on an active voice without a falling edge.
+export const HOLD_CEILING_MS = 180000;
+
 // V2-743 — `settled` fires once per batch that LEAVES the hold, in either direction: delivered, or dropped
 // by a verdict that ruled the room. The live caption on the wall (store.liveChat) is what listens to it, so
 // the provisional line disappears exactly when its turn stops being provisional — without this module
@@ -60,13 +73,24 @@ export const HOLD_MS = 9000;
 const _joinSpoken = (parts) => parts.map(s => String(s || "").trim()).filter(Boolean).join(" ");
 
 export function createAttentionHold({ mode, deliver, settled = () => {}, holdMs = HOLD_MS,
+                                      listening = () => true, ceilingMs = HOLD_CEILING_MS,
                                       setTimer = setTimeout, clearTimer = clearTimeout }) {
   let held = [];
   let timer = null;
+  let waited = 0;                 // ms this batch has waited without a verdict (V2-763)
+
+  const expire = () => {
+    timer = null;
+    waited += holdMs;
+    if (listening()) return release(false);          // the orb says «te escucho»: fail open, as always
+    if (waited < ceilingMs) { timer = setTimer(expire, holdMs); return; }   // orb off: keep waiting
+    held = []; waited = 0;                           // never ruled, never heard: it was not for zaelar
+    settled("dropped");
+  };
 
   const release = (judged) => {
     const batch = held; held = [];
-    clearTimer(timer); timer = null;
+    clearTimer(timer); timer = null; waited = 0;
     // The CANVAS still sees every fragment (V2-664 tuned it that way); the WALL sees the paragraph.
     for (const h of batch) deliver(h.text, h.isFinal, judged, false);
     if (batch.length) deliver(_joinSpoken(batch.map(h => h.text)), true, judged, true);
@@ -82,7 +106,7 @@ export function createAttentionHold({ mode, deliver, settled = () => {}, holdMs 
         return settled("delivered");
       }
       held.push({ text, isFinal });
-      if (!timer) timer = setTimer(() => release(false), holdMs);     // V2-664: a timeout judged nothing
+      if (!timer) timer = setTimer(expire, holdMs);                   // V2-664: a timeout judged nothing
     },
     /** The gate ruled. `directed` releases everything waiting; otherwise the turns this verdict COVERS are
      *  dropped — the verdict carries the accumulated phrase, so anything outside it belongs to a later turn
@@ -93,7 +117,7 @@ export function createAttentionHold({ mode, deliver, settled = () => {}, holdMs 
       const hay = (verdictText || "").toLowerCase();
       const before = held.length;
       held = held.filter(h => !(!hay || hay.includes((h.text || "").toLowerCase().trim())));
-      if (!held.length) { clearTimer(timer); timer = null; }
+      if (!held.length) { clearTimer(timer); timer = null; waited = 0; }
       if (held.length < before) settled("dropped");
     },
     /** What he has said SO FAR in the turn still waiting for its verdict — the caption's left half, so the

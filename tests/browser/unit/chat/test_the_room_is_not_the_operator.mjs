@@ -135,4 +135,64 @@ function harness(mode = "smart", holdMs = 40) {
     "the ungated fast-path call must be gone");
 }
 
-console.log("ok — the room is not the operator (9 groups)");
+// ── V2-763 · THE WALL MAY NOT CONTRADICT THE ORB ─────────────────────────────────────────────────────────
+// Session 2ffe9713 (2026-09-24): a 90 s monologue with no wake word, every fragment ruled AMBIENT, zero brain
+// turns — and the fail-open painted it as his bubbles under a grey orb, because the gate holds an unfinished
+// sentence until it ends (verdict at 415 s for a turn begun at 324 s). With the orb OFF the fail-open waits.
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+function ringHarness(lit, ceilingMs = 10000) {
+  const wall = [];
+  const settledWhy = [];
+  const hold = createAttentionHold({
+    mode: () => "smart", holdMs: 30, ceilingMs, listening: () => lit.v,
+    deliver: (text, _f, judged, whole) => { if (whole) wall.push({ text, judged }); },
+    settled: (why) => settledWhy.push(why),
+  });
+  return { hold, wall, settledWhy };
+}
+{
+  const lit = { v: false };
+  const { hold, wall } = ringHarness(lit);
+  hold.spoken("Mira, este es el widget de archivos.", true);
+  await sleep(150);                                               // five fail-open deadlines go by
+  assert.deepEqual(wall, [], "with the orb OFF a verdict-less turn was painted anyway — the wall said «heard»");
+  assert.equal(hold.pending(), 1, "…and it must still be waiting for its verdict, not lost");
+  hold.verdict("Mira, este es el widget de archivos.", false);
+  assert.deepEqual(wall, [], "the late AMBIENT verdict drops it");
+  assert.equal(hold.pending(), 0);
+}
+{
+  const lit = { v: false };
+  const { hold, wall } = ringHarness(lit);
+  hold.spoken("Johnny, mira esto", true);
+  await sleep(100);
+  hold.verdict("Johnny, mira esto", true);
+  assert.deepEqual(wall.map(w => w.text), ["Johnny, mira esto"], "a late DIRECTED verdict still paints it");
+}
+{
+  const lit = { v: false };
+  const { hold, wall, settledWhy } = ringHarness(lit, 90);
+  hold.spoken("nadie dice nada", true);
+  await sleep(250);
+  assert.deepEqual(wall, [], "a turn never ruled with the orb off is not his words to zaelar");
+  assert.equal(hold.pending(), 0, "…and it is dropped at the ceiling, not held forever");
+  assert.ok(settledWhy.includes("dropped"), "the provisional caption must be told to go");
+}
+{
+  const lit = { v: true };
+  const { hold, wall } = ringHarness(lit);
+  hold.spoken("Johnny, y otra cosa", true);
+  await sleep(80);
+  assert.deepEqual(wall.map(w => w.text), ["Johnny, y otra cosa"],
+    "with the orb ON the fail-open still paints — never lose a word he said TO zaelar");
+}
+{
+  const { readFileSync } = await import("node:fs");
+  const src = readFileSync(new URL("../../../../frontend/app/services/sse.js", import.meta.url), "utf8");
+  assert.ok(/listening:\s*\(\)\s*=>\s*paintsProvisional\(store\.attentionMode\(\),\s*store\.attentionHit\(\)\)/.test(src),
+    "the hold must ask the ORB whether it may fail open");
+  assert.ok(/holdSpokenTurn\(desktop, d\.text, isFinal\);[\s\S]{0,400}if \(paintsProvisional\(store\.attentionMode\(\), store\.attentionHit\(\)\)\) captionPartial\(""\);/.test(src),
+    "the FINAL segment rewrote the caption with the ring off — the dashed line of his screenshot");
+}
+
+console.log("ok — the room is not the operator (14 groups)");

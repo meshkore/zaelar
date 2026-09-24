@@ -29,6 +29,8 @@ let _voiceActive = false;   // V2-661b: his VAD is ON — his silence has not st
 // arrives just after. See that module for the measured session this comes from.
 const _hold = createAttentionHold({
   mode: () => store.attentionMode(),
+  // V2-763 — whether the orb is saying «te escucho» right now: the fail-open may only paint while it is.
+  listening: () => paintsProvisional(store.attentionMode(), store.attentionHit()),
   // V2-745 — `whole` says WHICH of the two halves of a release this call is. The fragments drive the
   // CANVAS (V2-664 tuned that path against fragments); the joined paragraph is the one line that reaches
   // the wall, because «lo conviertes en dos frases separadas cuando es el mismo párrafo» was the STT's
@@ -251,7 +253,10 @@ export function routeEvent(desktop, d) {
           // of the turn now, so `spokenSoFar()` already includes it — setting the caption to `d.text` alone
           // beforehand is precisely the reset that made his earlier words blink out.
           holdSpokenTurn(desktop, d.text, isFinal);
-          captionPartial("");
+          // V2-763 — the SAME rule as the interim branch above. Ungated here, a final segment rewrote the
+          // caption with everything held so far while the ring was off: the dashed «he is being heard» line
+          // of his 2026-09-24 screenshot, over a grey orb, for a monologue the gate had ruled ambient.
+          if (paintsProvisional(store.attentionMode(), store.attentionHit())) captionPartial("");
         }
       }
     } else if (d.kind === "alert") {                                              // hard notice (e.g. no LLM credit) → red banner
