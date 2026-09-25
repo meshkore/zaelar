@@ -1504,7 +1504,8 @@ SCENARIOS: list[UseCaseScenario] = [
              "2. Recuerda que Pedro es alérgico al marisco.\n"
              "3. Búscame tres zapatillas de trail de menos de 120 euros y compáralas.\n"
              "4. Busca un restaurante italiano bien valorado en el centro de Madrid para esa cena, sin marisco.\n"
-             "5. Prepárame una comparativa de tres bicis eléctricas plegables de menos de 1.500 euros.\n"
+             "5. Prepárame una comparativa de tres bicis eléctricas plegables nuevas, para ciudad, de menos de "
+             "1.500 euros y con entrega en España.\n"
              "6. A partir de ahora, cuando te pida el resumen del día, empieza por lo que tenga que ver con ZAELAR.",
              "lists.closed,errands.dinner_with_pedro,errands.pedro_allergy,errands.two_workers_at_a_time"),
             ("¿Cómo ha ido lo que te dejé?", ""),
