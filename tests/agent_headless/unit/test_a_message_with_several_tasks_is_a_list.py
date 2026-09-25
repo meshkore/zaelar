@@ -16,6 +16,12 @@ from nucleo.batch import detect, runner, split
 
 ROOT = pathlib.Path(__file__).resolve().parents[3]
 
+
+@pytest.fixture(autouse=True)
+def _no_settle(monkeypatch):
+    """No real dispatcher here: nothing registers late, so a step does not wait for it."""
+    monkeypatch.setattr(runner, "_SETTLE_S", 0.0)
+
 LIST = "\n".join([
     "SETUP", "Do these in order.", "",
     "1. IDENTITY", "Your name is Johnny.", "",
@@ -374,3 +380,29 @@ def test_a_list_step_never_drains_the_operators_notes():
     about it. `lists=False` (a step) must leave `brain_notes` for his next turn."""
     src = (ROOT / "nucleo/flash/probe.py").read_text()
     assert "_notes = _bn.drain() if lists else []" in src
+
+
+def test_a_worker_a_step_started_by_another_door_is_still_waited_for(monkeypatch):
+    """Errands case: a product search went through the listings lane, which starts its worker inside and
+    reports only its words — the step read DONE and the report would have gone out over a live worker."""
+    monkeypatch.setattr(runner, "_SETTLE_S", 0.0)
+    monkeypatch.setattr(runner, "_POLL_S", 0.01)
+    live = {"ids": set()}
+    monkeypatch.setattr(runner, "_live_workers", lambda: set(live["ids"]))
+    finished = {"n": 0}
+
+    def state(tid):
+        finished["n"] += 1
+        return "done" if finished["n"] >= 3 else ""
+    monkeypatch.setattr(runner, "_worker_state", state)
+    uid = runner.create("msg", [{"title": "shoes", "kind": "task", "say": "Find trail shoes."}])
+
+    async def turn(text, **kw):
+        live["ids"].add("17")                          # the lane started a worker and said nothing about it
+        return {"ok": True, "reply": "Voy a buscarlas.", "action": "listings"}
+
+    async def nothing(*a, **k):
+        return None
+    s = asyncio.run(runner.run(uid, turn=turn, ingest=nothing, notify=nothing, worker_wait_s=1))
+    assert "workers:17" in runner.steps_of(uid)[0]["outcome"] and finished["n"] >= 3
+    assert [r["title"] for r in s["done"]] == ["shoes"]

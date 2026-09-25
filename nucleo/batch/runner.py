@@ -167,11 +167,33 @@ async def _turn(turn, text: str, sid: str) -> dict:
         return {"ok": False, "error": f"{type(e).__name__}: {e}"}
 
 
+def _live_workers() -> set[str]:
+    """The ids of every worker the dispatcher knows right now (queued, running or waiting)."""
+    try:
+        from nucleo import dispatch
+        return {str(x.get("id")) for x in dispatch.active_sessions() if x.get("id") is not None}
+    except Exception:  # noqa: BLE001
+        return set()
+
+
+#: How long after a step's turn a worker it started may still be registering (the escalation travels the bus).
+_SETTLE_S = 1.5
+
+
 async def _run_step(uid: str, row: dict, turn, ingest) -> None:
     ts = _store()
     ts.task_patch(row["id"], state="running", started_at=int(time.time()))
     _emit("📋 lista: paso", text=row["goal"], step=row["id"])
+    before = _live_workers()
     r = await _turn(turn, row["goal"], uid)
+    # The workers THIS step started, whatever door it used. Measured on the errands case: a product search went
+    # through the listings lane, which starts its worker inside and reports only what it said — so the step read
+    # DONE and the list would have reported over a worker still searching. The dispatcher's own registry, before
+    # and after, says it without trusting any one path to report its ids.
+    await asyncio.sleep(_SETTLE_S)
+    started = sorted(_live_workers() - before)
+    if started and isinstance(r, dict) and not (r.get("task_ids") or r.get("task_id")):
+        r = {**r, "task_ids": started}
     if str(row.get("kind") or "") in ACTION_KINDS and outcome_of(r)[0] == "done" and not acted(r):
         # ONE retry, in a fresh session: the list's own window now holds the claim («Adding it now»), and a
         # model that reads its own claim answers «already done». Still nothing → failed, and the report says so.
