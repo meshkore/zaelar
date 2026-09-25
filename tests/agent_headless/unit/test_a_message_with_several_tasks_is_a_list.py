@@ -387,8 +387,8 @@ def test_a_worker_a_step_started_by_another_door_is_still_waited_for(monkeypatch
     reports only its words — the step read DONE and the report would have gone out over a live worker."""
     monkeypatch.setattr(runner, "_SETTLE_S", 0.0)
     monkeypatch.setattr(runner, "_POLL_S", 0.01)
-    live = {"ids": set()}
-    monkeypatch.setattr(runner, "_live_workers", lambda: set(live["ids"]))
+    live = {"ids": {}}
+    monkeypatch.setattr(runner, "_live_workers", lambda: dict(live["ids"]))
     finished = {"n": 0}
 
     def state(tid):
@@ -398,7 +398,7 @@ def test_a_worker_a_step_started_by_another_door_is_still_waited_for(monkeypatch
     uid = runner.create("msg", [{"title": "shoes", "kind": "task", "say": "Find trail shoes."}])
 
     async def turn(text, **kw):
-        live["ids"].add("17")                          # the lane started a worker and said nothing about it
+        live["ids"]["u-17"] = "17"                     # the lane started a worker and said nothing about it
         return {"ok": True, "reply": "Voy a buscarlas.", "action": "listings"}
 
     async def nothing(*a, **k):
@@ -406,3 +406,17 @@ def test_a_worker_a_step_started_by_another_door_is_still_waited_for(monkeypatch
     s = asyncio.run(runner.run(uid, turn=turn, ingest=nothing, notify=nothing, worker_wait_s=1))
     assert "workers:17" in runner.steps_of(uid)[0]["outcome"] and finished["n"] >= 3
     assert [r["title"] for r in s["done"]] == ["shoes"]
+
+
+def test_a_relay_of_another_steps_worker_is_not_this_steps_worker(monkeypatch):
+    """Run 4: the trainers search was relayed (new worker id, SAME commission uid) while the restaurant step ran;
+    the restaurant step had only SAID «voy con el restaurante» and was counted as waiting on that worker."""
+    from nucleo import dispatch
+    sessions = [{"id": 1, "uid": "b-1"}]
+    monkeypatch.setattr(dispatch, "active_sessions", lambda: list(sessions))
+    before = runner._live_workers()
+    sessions[:] = [{"id": 2, "uid": "b-1"}]            # the relay: new id, inherited uid
+    after = runner._live_workers()
+    assert set(after) - set(before) == set()
+    sessions.append({"id": 3, "uid": "b-3"})           # a genuinely new commission
+    assert [runner._live_workers()[k] for k in set(runner._live_workers()) - set(before)] == ["3"]

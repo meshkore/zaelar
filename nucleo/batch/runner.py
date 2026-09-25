@@ -167,13 +167,23 @@ async def _turn(turn, text: str, sid: str) -> dict:
         return {"ok": False, "error": f"{type(e).__name__}: {e}"}
 
 
-def _live_workers() -> set[str]:
-    """The ids of every worker the dispatcher knows right now (queued, running or waiting)."""
+def _live_workers() -> dict[str, str]:
+    """{durable commission uid: worker id} for every worker the dispatcher knows right now.
+
+    Keyed by the DURABLE uid, not the worker id: a relay (quota → stand-in) is a NEW worker id for the SAME
+    commission and inherits its uid. Measured on the errands case, run 4: the trainers search was relayed while the
+    restaurant step ran, the new id looked like «a worker this step started», and the restaurant step — which had
+    only SAID «voy con el restaurante» — was counted as waiting on somebody else's worker."""
     try:
         from nucleo import dispatch
-        return {str(x.get("id")) for x in dispatch.active_sessions() if x.get("id") is not None}
+        out = {}
+        for x in dispatch.active_sessions():
+            if x.get("id") is None:
+                continue
+            out[str(x.get("uid") or x.get("id"))] = str(x.get("id"))
+        return out
     except Exception:  # noqa: BLE001
-        return set()
+        return {}
 
 
 #: How long after a step's turn a worker it started may still be registering (the escalation travels the bus).
@@ -191,7 +201,8 @@ async def _run_step(uid: str, row: dict, turn, ingest) -> None:
     # DONE and the list would have reported over a worker still searching. The dispatcher's own registry, before
     # and after, says it without trusting any one path to report its ids.
     await asyncio.sleep(_SETTLE_S)
-    started = sorted(_live_workers() - before)
+    after = _live_workers()
+    started = sorted(after[k] for k in set(after) - set(before))
     if started and isinstance(r, dict) and not (r.get("task_ids") or r.get("task_id")):
         r = {**r, "task_ids": started}
     if str(row.get("kind") or "") in ACTION_KINDS and outcome_of(r)[0] == "done" and not acted(r):
