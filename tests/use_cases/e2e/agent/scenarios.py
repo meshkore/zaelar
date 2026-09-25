@@ -1480,7 +1480,8 @@ SCENARIOS: list[UseCaseScenario] = [
         ),
     ),
     # The kind of list the operator says people will really hand over: errands, not setup. Three of them need
-    # a Brain Worker, so this also measures the pool — two at a time, the third queued (V2-771).
+    # a Brain Worker, so this also measures the pool — two at a time, the third queued (V2-771). (First run
+    # asked for the F1 calendar there, and a web search answered it inline: only two workers, no queue.)
     UseCaseScenario(
         id="long-commission-errands",
         locale="es",
@@ -1503,7 +1504,7 @@ SCENARIOS: list[UseCaseScenario] = [
              "2. Recuerda que Pedro es alérgico al marisco.\n"
              "3. Búscame tres zapatillas de trail de menos de 120 euros y compáralas.\n"
              "4. Busca un restaurante italiano bien valorado en el centro de Madrid para esa cena, sin marisco.\n"
-             "5. Mira qué carreras de Fórmula 1 quedan este año y cuándo son.\n"
+             "5. Prepárame una comparativa de tres bicis eléctricas plegables de menos de 1.500 euros.\n"
              "6. A partir de ahora, cuando te pida el resumen del día, empieza por lo que tenga que ver con ZAELAR.",
              "lists.closed,errands.dinner_with_pedro,errands.pedro_allergy,errands.two_workers_at_a_time"),
             ("¿Cómo ha ido lo que te dejé?", ""),
