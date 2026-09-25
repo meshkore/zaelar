@@ -69,6 +69,28 @@ def end_of_month_ahead(n: int, ref: _dt.date | None = None) -> _dt.date:
     return month_ahead(n + 1, ref) - _dt.timedelta(days=1)
 
 
+def demo_dates(ref: _dt.date | None = None) -> dict[str, _dt.date]:
+    """The operator's DEMO INITIALIZATION (V2-771), re-anchored on every run with its own spacing kept.
+
+    His message was written on 2026-09-25 around a Monday three days later (September 28): three meetings that
+    day, one the next, a lunch on the Thursday, the vet 39 days on, his wife's holiday 83-98 days on, and a
+    service, two insurances and a registration around them. The OFFSETS are the case; the calendar dates were
+    only the day he wrote it."""
+    d = ref or today()
+    mon = d + _dt.timedelta(days=(0 - d.weekday()) % 7 or 7)
+    if (mon - d).days < 2:
+        mon += _dt.timedelta(days=7)
+    off = lambda n: mon + _dt.timedelta(days=n)  # noqa: E731
+    reg = month_ahead(8, mon)
+    return {"mon": mon, "tue": off(1), "thu": off(3), "vet": off(39), "vac_from": off(83), "vac_to": off(98),
+            "service": off(-18), "tesla_ins": off(165), "ducati_ins": off(112), "registration": reg}
+
+
+def en_full(d: _dt.date) -> str:
+    """«September 28, 2026» — the way the demo message writes a date."""
+    return f"{d.strftime('%B')} {d.day}, {d.year}"
+
+
 def _tokens() -> dict[str, str]:
     sat, sun = next_weekend()
     in3w = days_ahead(21)
@@ -94,6 +116,10 @@ def _tokens() -> dict[str, str]:
         "{TUESDAY_AFTER_NEXT}": en(tue2),
         "{MONTH_IN_2}": month_ahead(2).strftime("%B"),
         "{END_OF_MONTH_IN_3}": f"the end of {month_ahead(3).strftime('%B')}",
+        # V2-771 — the demo setup message (see `demo_dates`)
+        **{f"{{DEMO_{k.upper()}}}": en_full(v) for k, v in demo_dates().items() if k != "registration"},
+        "{DEMO_REGISTRATION}": demo_dates()["registration"].strftime("%B %Y"),
+        "{VIERNES_QUE_VIENE}": es(demo_dates()["mon"] + _dt.timedelta(days=4)),
     }
 
 

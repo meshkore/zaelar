@@ -127,12 +127,13 @@ _assign("money",
         "smog-check-before-deadline")
 
 _assign("widgets",
-        "build-workout-tracker-widget", "video-exit-fullscreen-unnamed", "three-tasks-at-once")
+        "build-workout-tracker-widget", "video-exit-fullscreen-unnamed", "three-tasks-at-once",
+        "long-commission-errands")
 
 _assign("standing",
         "cancel-trial-before-it-charges", "grocery-restock-reactive", "gym-membership-no-silent-renew",
         "moms-birthday-flowers-recurring", "track-price-drop-buy", "watch-flight-rebook-automatically",
-        "knows-who-i-am-without-being-told-again")
+        "knows-who-i-am-without-being-told-again", "demo-initialization")
 
 _assign("agents",
         "confirm-restaurant-reservation-together", "confirm-restaurant-together",

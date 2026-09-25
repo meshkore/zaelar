@@ -173,6 +173,8 @@ SEGMENTS: dict[str, Segment] = {
     "what-does-my-week-look-like": _done(),
     "weekly-appointment-until-june": _done(),
     "agenda-everyday-edits": _done(),
+    "demo-initialization": _done(),
+    "long-commission-errands": _done(),
     # ── FUTURE CASES: written before their mechanism, and GATED by it ────────────────────────────
     # This is not `capability` in the old sense (a capability nobody has planned): it is a capability with
     # an open initiative and a concrete phase. That is why these have `blocked_by` and the harness refuses to
@@ -413,6 +415,8 @@ FINDINGS_EXEMPT = {
     "what-does-my-week-look-like",
     "weekly-appointment-until-june",
     "agenda-everyday-edits",
+    # · demo-initialization → a SETUP list: what it delivers is memory, a name and calendar entries.
+    "demo-initialization",
 }
 # And the one that DOES deliver findings, stated so it is not dragged along by thematic similarity: in
 # `find-videos-on-a-topic-no-ai-slop` the operator asked to CHOOSE among 3 or 4 named options. That is exactly

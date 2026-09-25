@@ -161,6 +161,12 @@ CASES: list[UseCase] = [
             "open and close the DETAIL card (never the agenda), rename, description, hour, end, move ONE day of "
             "the series, skip one, end it from a month, cancel, delete the whole series. One red step = FAIL.",
             status="promoted"),
+    # Added 2026-09-25 (V2-771): «gente nos dice: quiero que me hagas esto, esto, esto… le da al botón y se pira».
+    UseCase("long-commission-errands", "es", 2, "Un encargo largo con varias tareas, dejado de golpe",
+            "Johnny, te dejo unas cuantas cosas y me voy: 1. Apúntame una cena con Pedro… 6. A partir de ahora…",
+            "Recognised as a LIST, acknowledged in one line; the dinner lands in the agenda, the allergy in "
+            "memory, the three searches become errands and never more than two workers run at once; ONE report.",
+            status="promoted"),
     UseCase("what-does-my-week-look-like", "es", 1, "La agenda contesta la verdad — también cuando no hay nada",
             "Apúntame dos cosas: dentista el {FECHA_FUTURA_CERCANA} a las nueve y media, y cena con Laura "
             "dos días después a las nueve de la noche.",
@@ -609,6 +615,13 @@ CASES: list[UseCase] = [
             "Put the dentist down for next Thursday at ten in the morning",
             "Fourteen loose operations, each checked against the agenda's real state (see the es case). One red "
             "step = FAIL.",
+            status="promoted"),
+    # Added 2026-09-25 (V2-771): the operator's own twelve-section DEMO INITIALIZATION, pasted in one message.
+    UseCase("demo-initialization", "us", 1, "A whole setup message pasted at once becomes a list that lands",
+            "DEMO INITIALIZATION — Execute the following setup tasks separately and in order…",
+            "Name, profile, interests, family, friends, car, motorbike and pet in memory; seven calendar entries "
+            "(one spanning two weeks, the vet visit once); one report when done; later questions answered "
+            "from memory without asking again.",
             status="promoted"),
     UseCase("dentist-appointment-into-agenda", "us", 1, "A told appointment lands whole in the agenda",
             "Hey, jot this down: the kids have a dentist appointment on {NEAR_FUTURE_DATE} "

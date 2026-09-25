@@ -5,7 +5,7 @@ This is the readable catalog for the `use_cases` suite (`tests/use_cases/suite.j
 `tests/voice/e2e/agent/anexos/catalogo-escenarios.md`'s role for the voice suite: the catalog of
 what gets tested is public and useful; per-run diaries are not (see `tests/README.md`).
 
-**Status: mostly backlog, 24 promoted.** Every case below is registered and browsable
+**Status: mostly backlog, 26 promoted.** Every case below is registered and browsable
 (`python -m tests list`, the Observatory at `http://127.0.0.1:8765`, `/api/catalog/use_cases`).
 Cases get promoted to executable one at a time. Promotion doesn't mean "wire a simple
 request/response pytest" — these are open-ended, non-deterministic real-world tasks, so a promoted

@@ -189,3 +189,6 @@ GEMINI.md
 # opened, so it can appear under any folder of the repo and turns up as untracked work that is not
 # work. The workspace rule is «raíz limpia»; this is the same rule one level in.
 .DS_Store
+
+# V2-771 — the operator's own words for a use case stay on his machine; the catalogue carries a neutral twin
+tests/use_cases/e2e/agent/private/

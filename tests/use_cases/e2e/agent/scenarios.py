@@ -7,6 +7,23 @@ the point: this suite exists to prove the agent handles a request the way a real
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from pathlib import Path
+
+
+def _fixture(name: str) -> str:
+    """A long message a case says verbatim. The operator's OWN words stay on his machine (`private/`,
+    gitignored — the catalogue is public, the diary is not); the committed twin in `fixtures/` has the same
+    structure with anything personal made neutral, so the case runs anywhere."""
+    import os
+    here = Path(__file__).resolve().parent
+    # His verbatim copy only on request: it carries the calendar dates of the day he wrote it, which expire;
+    # the committed twin carries date TOKENS (`dates.demo_dates`) and is identical to it on that day.
+    folders = ("private", "fixtures") if os.getenv("UC_PRIVATE_FIXTURES") == "1" else ("fixtures",)
+    for folder in folders:
+        f = here / folder / f"{name}.txt"
+        if f.exists():
+            return f.read_text(encoding="utf-8").strip()
+    return ""
 
 
 @dataclass
@@ -1429,6 +1446,67 @@ SCENARIOS: list[UseCaseScenario] = [
             ("What do I have next Thursday?", ""),
             ("Cancel the Dr Ruiz appointment", "agenda.ruiz_cancelled"),
             ("And get rid of the piano completely, the whole series", "agenda.whole_series_gone"),
+        ),
+    ),
+    # ── V2-771: a message that hands over SEVERAL tasks is a LIST ─────────────────────────────────────────
+    # The operator's own demo setup, twelve numbered sections in ONE message. Before V2-771 it was one turn and
+    # six per-turn limits each dropped part of it. Graded on memory, agenda and the task board, never on the
+    # reply: the receipt is one line by design, and the report comes when the list is done.
+    UseCaseScenario(
+        id="demo-initialization__us",
+        locale="us",
+        tier=1,
+        opening_line="(the whole demo setup message, see `script`)",
+        persona_brief="Fixed script (see `script`): the operator pastes his whole DEMO INITIALIZATION message — "
+                      "twelve numbered setup sections — and then asks two questions that need what it stored.",
+        success_checks=(
+            "The message is recognised as a LIST and acknowledged in ONE short line (never read back). Every "
+            "section lands where it belongs: the assistant is called Johnny; the profile, interests, family, "
+            "friends, car, motorbike and pet facts are in memory; the seven calendar entries exist on their "
+            "dates and hours, «Anna vacation» covers every day of her holiday (a span, not a weekly series), the vet "
+            "visit (said twice in the message) is ONE entry. The list closes with one report, no step failed. "
+            "Then «when does my Tesla insurance renew?» is answered from memory, with the date the message "
+            "gave, without asking."
+        ),
+        expected_signals=["widget"],
+        turns=8,
+        channel="probe",
+        script=(
+            (_fixture("demo-initialization"),
+             "lists.closed,lists.closed_clean,demo.assistant_is_johnny,demo.profile,demo.interests,demo.family,"
+             "demo.friends,demo.car,demo.motorbike,demo.pet,demo.events,demo.anna_vacation_span,demo.vet_once"),
+            ("Johnny, when does my Tesla insurance renew?", ""),
+            ("What do I have on {DEMO_MON}?", ""),
+        ),
+    ),
+    # The kind of list the operator says people will really hand over: errands, not setup. Three of them need
+    # a Brain Worker, so this also measures the pool — two at a time, the third queued (V2-771).
+    UseCaseScenario(
+        id="long-commission-errands",
+        locale="es",
+        tier=2,
+        opening_line="(un encargo largo con varias tareas, ver `script`)",
+        persona_brief="Guion fijo (ver `script`): el operador deja de golpe un encargo con seis cosas — una cita, "
+                      "un dato, tres búsquedas y una regla — y se va.",
+        success_checks=(
+            "El mensaje se reconoce como LISTA y se acusa en UNA frase corta, sin leerla de vuelta. La cena con "
+            "Pedro queda en la agenda, la alergia de Pedro en memoria, las tres búsquedas se lanzan como encargos "
+            "y NUNCA corren más de dos workers a la vez; la lista termina con UN parte que dice cuántas se "
+            "hicieron y cuál falló, si alguna."
+        ),
+        expected_signals=["widget", "worker"],
+        turns=10,
+        channel="probe",
+        script=(
+            ("Johnny, te dejo unas cuantas cosas y me voy:\n"
+             "1. Apúntame una cena con Pedro el {VIERNES_QUE_VIENE} a las nueve de la noche.\n"
+             "2. Recuerda que Pedro es alérgico al marisco.\n"
+             "3. Búscame tres zapatillas de trail de menos de 120 euros y compáralas.\n"
+             "4. Busca un restaurante italiano bien valorado en el centro de Madrid para esa cena, sin marisco.\n"
+             "5. Mira qué carreras de Fórmula 1 quedan este año y cuándo son.\n"
+             "6. A partir de ahora, cuando te pida el resumen del día, empieza por lo que tenga que ver con ZAELAR.",
+             "lists.closed,errands.dinner_with_pedro,errands.pedro_allergy,errands.two_workers_at_a_time"),
+            ("¿Cómo ha ido lo que te dejé?", ""),
         ),
     ),
     UseCaseScenario(
