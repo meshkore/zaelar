@@ -21,6 +21,22 @@ entregada siga citada aquí.
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **The everyday edits of an appointment, and a verdict that is READ where the reply only claims (V2-770,
+  2026-09-25)**: *«abrir un item para que aparezca la ficha, pedir cerrarla, modificar el título, la descripción o
+  la hora, cancelar una cita recursiva… la gente no pide las cosas de forma precisa»*. Measured with 13 loose
+  phrasings against the real model in a sandbox: **3/13** landed, most turns answering «Hecho.» over nothing.
+  Four causes, none of them the model alone: (1) missing doors — no way to open/close the detail card, say an end
+  time (`update_meeting` dropped `endTime`, a key it knew), move ONE day of a series, or end a series «from» a
+  date — now `widgets/agenda/edit.py`; (2) the open card's `usage` — the ONE place the model learns an action's
+  fields — never mentioned series, the card or the end; (3) the promise repair (`act_repair`) waited for a regex
+  to see a PROMISE, and a reply that CLAIMS slipped under it while the paid verdict already named the action —
+  now `direct_action.names_an_order` gates it in both channels; (4) the text channel fired no turn brief and its
+  repaired call was labelled so the executor never ran it (since V2-764), so it measured a product voice does not
+  run. And one inversion: «ya la puedes cerrar» over a detail card closed the whole AGENDA — the canvas verb reads
+  «close», only the action question knows WHAT closes (`order_is_inside`). Result: es 12/13, en 11/13. Open: the
+  model still sometimes claims without calling on a sentence Jev reads as a remark («el martes 6 no hay clase» →
+  `request_type=comment`); and in the text channel a question answered by a view op reads out the card's index.
+
 - **A repeating appointment is ONE row with a rule (V2-769, 2026-09-25)**: *«no solo poner un ítem un día,
   sino también hacerlo recursivo entre el período que yo te digo»*. Measured on his agenda: the model sent
   `recurrence: "weekly", repeatUntil: "2027-06-30"` and `add_meeting` dropped both keys in silence (one Tuesday
