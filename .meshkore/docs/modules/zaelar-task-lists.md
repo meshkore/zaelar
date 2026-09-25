@@ -94,6 +94,13 @@ kept the list waiting on a RAM ghost; `protected_core` refused a bike comparison
 the brief said «revisa autonomía, motor y batería» (repaired by subtraction: an ambiguous noun with another owner,
 or listed as a feature, is not ours); and the next step swallowed that refusal note.
 
+Errands run 5 (all fixes in): 4/4 store checks — the dinner, the allergy, the list closed, never more than two
+workers at once; the retry rescued a «voy con ello» with no call; the report said «5 of 6 done — I need to know
+where you live» (the restaurant step's own question). The judge gave 3/5 for the WORKERS' output (an invented
+product, «on screen» with the sheet closed, 41 searches) — delivery quality, open outside this mechanism. The
+queue of two was never forced live (a search answered inline, then clarifying questions); it is measured on the
+dispatcher's real semaphore instead (unit test: five sessions, never more than two inside, all five finish).
+
 ## Deliberately out of scope (v1)
 
 - **A spoken list longer than the accumulator valve** (40 words / 1 200 chars) arrives as several turns; each
