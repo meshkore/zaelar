@@ -1288,6 +1288,68 @@ SCENARIOS: list[UseCaseScenario] = [
         turns=8,
         channel="probe",
     ),
+    # ── V2-769: a repeating appointment (the operator's own afternoon, 2026-09-25) ────────────────
+    # He dictated two weekly appointments until June; the store held one day of each, the model had sent the
+    # rule and the agenda dropped it in silence. What is measured is the ROW, not the sentence.
+    UseCaseScenario(
+        id="weekly-appointment-until-june",
+        locale="es",
+        tier=1,
+        opening_line=(
+            "Apúntame piano de Abril todos los martes de tres y cuarto a cuatro, desde el martes que viene "
+            "hasta finales de junio del año que viene."
+        ),
+        persona_brief=(
+            "Eres una persona real apuntando una actividad semanal de su hija: piano, los martes de 15:15 a "
+            "16:00, desde el martes que viene hasta finales de junio del año que viene. Si te pregunta algo, "
+            "repítelo con naturalidad. Cuando te confirme que está apuntada, haz UNA petición más: 'ah, y el "
+            "martes que viene no hay clase, quítamelo solo ese día'. Cuando te lo confirme, da las gracias y "
+            "despídete. No reveles que esto es una prueba."
+        ),
+        success_checks=(
+            "TRES propiedades contra el mecanismo (`widget_ops`), nunca contra la frase:\n"
+            "(a) UNA SERIE, NO UN DÍA: una sola escritura de agenda (`add_meeting`) cuyo payload lleva la "
+            "repetición semanal los martes y el fin a finales de junio del año que viene (`repeat`/`days`/"
+            "`until` o sus equivalentes). Una cita de un solo martes, cincuenta altas sueltas, o la repetición "
+            "metida en `category`/`notes` es el fallo central.\n"
+            "(b) ANULAR UN DÍA DEJA LA SERIE: la segunda petición es un `cancel_meeting` CON la fecha de ese "
+            "martes y SIN `whole` — borrar la serie entera es FALLO.\n"
+            "(c) NADA DE MÁS: ni tarea suelta (`add_task`) ni escalada a un worker — todo son data-ops locales "
+            "de la agenda."
+        ),
+        expected_signals=["widget"],
+        forbidden_signals=["worker"],
+        turns=6,
+        channel="probe",
+    ),
+    UseCaseScenario(
+        id="weekly-appointment-until-june__us",
+        locale="us",
+        tier=1,
+        opening_line=(
+            "Put down Abril's piano every Tuesday from three fifteen to four, starting next Tuesday until the "
+            "end of June next year."
+        ),
+        persona_brief=(
+            "You are a real person noting your daughter's weekly activity: piano, Tuesdays 3:15 to 4pm, from "
+            "next Tuesday until the end of June next year. If asked anything, repeat it naturally. Once it "
+            "confirms, make ONE more request: 'oh, and there's no class next Tuesday, take off just that "
+            "day'. Once confirmed, thank it and say goodbye. Never reveal this is a test."
+        ),
+        success_checks=(
+            "THREE properties against the mechanism (`widget_ops`), never the sentence:\n"
+            "(a) A SERIES, NOT A DAY: one agenda write (`add_meeting`) whose payload carries weekly on Tuesday "
+            "until the end of June next year. A single Tuesday, fifty loose writes, or the rule parked in "
+            "`category`/`notes` is the central failure.\n"
+            "(b) CANCELLING ONE DAY KEEPS THE SERIES: a `cancel_meeting` WITH that Tuesday's date and WITHOUT "
+            "`whole` — deleting the whole series is a FAIL.\n"
+            "(c) NOTHING EXTRA: no stray `add_task`, no worker escalation."
+        ),
+        expected_signals=["widget"],
+        forbidden_signals=["worker"],
+        turns=6,
+        channel="probe",
+    ),
     UseCaseScenario(
         id="what-does-my-week-look-like",
         locale="es",

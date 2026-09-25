@@ -144,6 +144,15 @@ CASES: list[UseCase] = [
             "The appointment is created, MOVED without duplicating (one appointment at the new time, never "
             "two), and cancelled taking its default reminder with it — no orphan alarm survives (V2-473).",
             status="promoted"),
+    # Added 2026-09-25 (V2-769): the operator's own afternoon — two weekly appointments until June, stored as
+    # one day each. A repeating appointment is a basic of any agenda and no case measured it.
+    UseCase("weekly-appointment-until-june", "es", 1, "Una cita que se repite cada semana hasta una fecha",
+            "Apúntame piano de Abril todos los martes de tres y cuarto a cuatro, desde el martes que viene "
+            "hasta finales de junio del año que viene.",
+            "ONE agenda write carrying the rule (weekly, Tuesday, until the end of June next year) — never a "
+            "single day, never fifty copies, never the rule parked in the category or the notes; cancelling "
+            "ONE Tuesday afterwards leaves the rest of the series; no Brain Worker, no stray task.",
+            status="promoted"),
     UseCase("what-does-my-week-look-like", "es", 1, "La agenda contesta la verdad — también cuando no hay nada",
             "Apúntame dos cosas: dentista el {FECHA_FUTURA_CERCANA} a las nueve y media, y cena con Laura "
             "dos días después a las nueve de la noche.",
@@ -582,6 +591,12 @@ CASES: list[UseCase] = [
             status="blocked", depends_on=_BLOCKED_DEPENDENCIES),
 
     # --- US / tier 1: bounded single-site action --------------------------------------------
+    UseCase("weekly-appointment-until-june", "us", 1, "An appointment that repeats every week until a date",
+            "Put down Abril's piano every Tuesday from three fifteen to four, starting next Tuesday until the "
+            "end of June next year.",
+            "ONE agenda write carrying the rule (weekly, Tuesday, until the end of June next year); cancelling "
+            "ONE Tuesday afterwards leaves the rest of the series; no Brain Worker, no stray task.",
+            status="promoted"),
     UseCase("dentist-appointment-into-agenda", "us", 1, "A told appointment lands whole in the agenda",
             "Hey, jot this down: the kids have a dentist appointment on {NEAR_FUTURE_DATE} "
             "at three in the afternoon.",

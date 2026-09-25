@@ -1010,7 +1010,7 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
                 # V2-469 — the links the operator pasted all travel: two links in one message, the model's
                 # single add carried one. His own words verbatim, so completing invents nothing.
                 return_extra_exec = await _widget_data_turn.execute(
-                    _widget_data_turn.complete_pasted_links(tool_calls, text))
+                    _widget_data_turn.complete_pasted_links(tool_calls, text), text=text)
             else:
                 return_extra_exec = {}
         except Exception as e:  # noqa: BLE001

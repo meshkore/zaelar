@@ -59,6 +59,7 @@ class LangSpec:
     agenda_no_data: str = ("No he llegado a apuntar la cita: no me ha quedado claro el título, el día o "
                            "la hora.")
     agenda_no_title: str = "No la he apuntado porque no sé de qué es la cita. ¿Cómo la llamo?"
+    agenda_series_scope: str = "Esa cita se repite: ¿quito solo un día (cuál) o toda la serie?"
     #: A DESTRUCTIVE widget action that arrived with no selector (V2-705, `widgets/contract.py`). The
     #: operator hears this instead of «done» — and instead of losing everything, which is what an empty
     #: `cancel_meeting` did to his Google Calendar on 2026-09-15. `{options}` is the widget's own menu.
@@ -560,6 +561,7 @@ LANGUAGES: dict[str, LangSpec] = {
         unverified_fact="I couldn't check that just now, so I'd rather not give you a made-up figure.",
         agenda_no_data="I haven't put the appointment in: I'm not sure about the title, the day or the time.",
         agenda_no_title="I haven't put it in because I don't know what it's for. What should I call it?",
+        agenda_series_scope="That appointment repeats: do I remove just one day (which one) or the whole series?",
         widget_selector_missing="I couldn't tell which one to remove, so I left everything as it is. "
                                 "Which of these? {options}",
         widget_selector_missing_bare="I couldn't tell which one to remove, so I left everything as it is. "

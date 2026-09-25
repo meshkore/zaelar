@@ -433,3 +433,52 @@ def skip(m: dict, date: str) -> bool:
     if date not in m["repeat"]["skip"]:
         m["repeat"]["skip"] = sorted(m["repeat"]["skip"] + [date])
     return True
+
+
+# ── the model's own names for the fields, before anything reads them ─────────────────────────────────────
+# Measured in the live use case (2026-09-25, sandbox 20260925-125624): the model sees action NAMES, never their
+# payload shapes (`widgets/brief.py`, on purpose — shapes cost tokens every turn), so it NAMES the fields
+# itself. It got the end right (`endDate` → until) and the rest wrong for us: the series landed on the day it
+# was said (a Friday), all-day, because `startDate`, `start` and `dayOfWeek` were keys nobody read. A natural
+# alias must never cost the fact (the V2-341/V2-473 rule), so they are mapped HERE, once, for every write.
+_HHMM = re.compile(r"^\s*\d{1,2}([:h.]\d{2})?\s*(h|am|pm)?\s*$", re.I)
+_DATE_ALIASES = ("startDate", "start_date", "fromDate", "from_date", "from", "desde", "firstDate", "first_date",
+                 "day", "dia")
+_START_ALIASES = ("start", "startHour", "start_hour", "hour", "hora", "startAt", "horaInicio", "hora_inicio")
+_END_ALIASES = ("end", "endHour", "end_hour", "endAt", "horaFin", "hora_fin")
+_DAYS_ALIASES = ("dayOfWeek", "day_of_week", "weekday", "byday", "dia_semana", "diaSemana")
+
+
+def normalize(payload: dict) -> dict:
+    """A copy of `payload` with the model's natural field names mapped onto the agenda's own — only where the
+    canonical key is absent, so an explicit field always wins. `start`/`end` go to the HOUR when they look like
+    one and to the DAY when they look like a date (`end` as a date is the END of a series)."""
+    p = dict(payload or {})
+
+    def _take(keys):
+        for k in keys:
+            if p.get(k) not in (None, "", []):
+                return k, p.pop(k)
+        return None, None
+    for k in ("start", "end"):
+        v = p.get(k)
+        if isinstance(v, str) and _date(v) and not _HHMM.match(v):
+            p.pop(k)
+            p.setdefault("date" if k == "start" else "until", v)
+    if not p.get("date"):
+        k, v = _take(_DATE_ALIASES)
+        if k:
+            p["date"] = v
+    if not (p.get("startTime") or p.get("time")):
+        k, v = _take(_START_ALIASES)
+        if k:
+            p["startTime"] = v
+    if not p.get("endTime"):
+        k, v = _take(_END_ALIASES)
+        if k:
+            p["endTime"] = v
+    if not any(p.get(k) for k in DAYS_KEYS):
+        k, v = _take(_DAYS_ALIASES)
+        if k:
+            p["days"] = v
+    return p

@@ -306,7 +306,7 @@ def radius(action: str, payload: dict | None = None) -> int | None:
 
 def apply_action(action: str, payload: dict | None = None) -> dict:
     """Widget actions (HANDOFF §9.3): mark done / not now / snooze / drop / replan. Mutates the isolated store."""
-    payload = payload or {}
+    payload = recur.normalize(payload) if action in ("add_meeting", "update_meeting") else (payload or {})
     db = load_db()
     _extra: dict = {}
 
@@ -464,6 +464,8 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
         # `clear_range` — an ambiguous title is a question back to him, not a bulk delete. Persist + answer here.
         res, stuck = sweep.cancel_meeting(db, payload)
         if not res.get("ok"):
+            if res.get("code") == "series_needs_scope":        # V2-769: he hears a question, the model its fix
+                res = {**res, "message": _spoken("agenda_series_scope")}
             return {**view_data(), **res}
         db["currentPlan"] = compute_plan(db)
         store.save(WIDGET_ID, db)

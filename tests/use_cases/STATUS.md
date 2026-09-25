@@ -3,7 +3,7 @@
 **Generated** by `tests/use_cases/e2e/agent/status.py`; do not edit by hand — it is rewritten by
 every run of `python -m tests.use_cases.e2e.agent.run`. Source of truth: `status.json` next to it.
 
-Last updated: **2026-09-02 21:50**
+Last updated: **2026-09-25 16:50**
 
 `✅ PASS` = judge overall ≥ 4 **and** mechanism ≥ 3 (a measured mechanism defect never shows green, however good the average) · `❌ FAIL` = ran and fell short · `⚠️ INFRA` = harness/network problem,
 says nothing about the use case itself. `sandbox` = ran against an isolated engine (own DB/port), not
@@ -43,6 +43,8 @@ the improvement loop work it can never close. Operator's rule, 2026-08-20.
 | 🔒 | `restaurant-tonight-madrid` | 1 | 2 | ? | 2026-08-27 07:20 | yes | No está listo para producción: el bloqueador nº1 es que zaelar no cierra la tarea ni entrega resultados concretos en tiempo útil — el worker se atascó 3+ min… |
 | 🔒 | `restaurant-tonight-nyc__us` | 1 | 2 | `glm-5.3` | 2026-08-28 06:46 | yes | No está listo para producción: falló el objetivo principal (no reservó ni presentó opciones) y cometió un fallo grave de confianza al prometer una llamada te… |
 | ✅ | `watch-a-video-not-listen-to-it` | 1 | 5 | — | 2026-08-31 11:40 | yes | El caso de uso está listo para producción en su núcleo (reproducción y transporte de vídeo), pero debe revisarse el manejo de gestos de cierre y la supresión… |
+| ✅ | `weekly-appointment-until-june` | 1 | 5 | — | 2026-09-25 16:47 | yes | Listo para producción en este caso de uso. Zaelar ejecutó impecablemente la serie repetida, anuló un solo día dejando la serie intacta y operó estrictamente … |
+| ✅ | `weekly-appointment-until-june__us` | 1 | 5 | — | 2026-09-25 16:50 | yes | Listo para producción. Las tres propiedades críticas se cumplen sin ambigüedad: serie semanal creada en una sola escritura, cancelación de un día aislado pre… |
 | 🔒 | `best-pediatric-dentists__us` | 2 | 2 | `deepseek-v4-flash` | 2026-08-28 09:26 | yes | No está listo para producción: el bloqueador nº1 es que zaelar retiene resultados que ya tiene en su prompt y no entrega ratings ni intenta la reserva, dejan… |
 | ❌ | `best-plumber-same-day__es` | 2 | 3 | `deepseek-v4-flash` | 2026-08-28 05:39 | yes | El caso no está listo para producción. El bloqueador nº1 es la incapacidad del modelo para sincronizar su narrativa con el estado real del sistema (negación … |
 | ❌ | `best-plumber-same-day__us` | 2 | 3 | `claude-opus-4-8[1m]+deepseek-v4-flash` | 2026-08-28 11:10 | yes | El entregable existe y la recomendación de Ace Plumbing & Rooter está bien verificada (reseñas, teléfono, licencia, horario), pero este caso no está listo pa… |
@@ -87,7 +89,7 @@ the improvement loop work it can never close. Operator's rule, 2026-08-20.
 | ✅ | `three-tasks-at-once` | 4 | 4 | ? | 2026-08-20 17:53 | yes | Este caso de uso está listo para producción: la concurrencia real de tres tareas de tipos distintos, la atribución casi siempre correcta y la fluidez del hil… |
 | ❌ | `two-searches-two-sheets` | 4 | 2 | `deepseek-v4-flash` | 2026-08-28 06:58 | yes | No listo. El sistema ejecutó la concurrencia técnicamente (2 workers, 2 hojas), pero zaelar falló en la gestión de los estados: cerró mal sin preguntar y mez… |
 
-**7 passing · 29 failing · 13 infra** of 49 scenarios we can actually finish.
+**9 passing · 29 failing · 13 infra** of 51 scenarios we can actually finish.
 
 Plus **1 🌍 parked** for an environmental wall a user in that country would not hit (the sibling twin proves the capability). Visible, not counted, each with its reason:
 - `cheapest-monitor__us` — Amazon geolocaliza por IP: aun con un perfil en-US limpio sirve «Deliver to Spain» y precios de España. El gemelo ES está verde (4/5), así que la capacidad está probada; desde una IP de EEUU el muro no existe.
@@ -100,21 +102,21 @@ Plus **16 🔒 capped** (need the user's own credentials; measured for honesty o
 
 | segment | scenarios | run | passing |
 |---|---|---|---|
-| ✅ completable | 87 | 49 | 7 |
+| ✅ completable | 104 | 51 | 9 |
 | 🔑 credentials | 54 | 17 | 0 |
 | 🚧 capability | 27 | 0 | 0 |
 
-## Coverage of the RUNNABLE list — 49 of 87 ever run (38 never run)
+## Coverage of the RUNNABLE list — 51 of 104 ever run (53 never run)
 
 An unrun case is **not** a passing one. This is the walk's progress board, and its denominator is the `completable` segment only — a blocked case is not pending work, it is waiting on something outside the harness.
 
 | tier | locale | run | of | passing |
 |---|---|---|---|---|
-| 1 | es | 8 | 13 | 1 |
-| 1 | us | 1 | 3 | 0 |
-| 2 | es | 22 | 40 | 2 |
+| 1 | es | 9 | 19 | 2 |
+| 1 | us | 2 | 4 | 1 |
+| 2 | es | 22 | 45 | 2 |
 | 2 | us | 13 | 19 | 3 |
-| 3 | es | 3 | 5 | 0 |
+| 3 | es | 3 | 10 | 0 |
 | 3 | us | 0 | 2 | 0 |
 | 4 | es | 2 | 2 | 1 |
 | 7 | es | 0 | 2 | 0 |

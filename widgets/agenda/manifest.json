@@ -112,7 +112,7 @@
       "confirm_q": "¿Dejo una de cada cita repetida y borro las copias?"
     },
     "cancel_meeting": {
-      "desc": "cancela/elimina una cita ya agendada por completo, con todas sus copias idénticas si las tiene. Para dejar UNA de varias repetidas, usa dedupe_meetings. En una cita que se REPITE: con `date` anula SOLO ese día («este jueves no hay flauta»); sin `date`, o con `whole: true`, borra la serie entera",
+      "desc": "cancela/elimina una cita ya agendada por completo, con todas sus copias idénticas si las tiene. Para dejar UNA de varias repetidas, usa dedupe_meetings. En una cita que se REPITE: con `date` anula SOLO ese día («este jueves no hay flauta»); con `whole: true` borra la serie entera; sin ninguno de los dos no borra nada y pregunta",
       "ref": "title",
       "payload": {
         "title": "string",

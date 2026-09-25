@@ -4086,7 +4086,133 @@
         "initiative": ".meshkore/roadmap/initiatives/V2-492-uc-search-buy-guitar-us.md",
         "task": ""
       }
+    },
+    "weekly-appointment-until-june": {
+      "last_run": "2026-09-25 16:47",
+      "overall": 5,
+      "judge": "glm-4.6",
+      "brain": "",
+      "state": "PASS",
+      "infra_reason": null,
+      "scores": {
+        "naturalidad": 4,
+        "adaptacion": 5,
+        "resultado": 5,
+        "mecanismo": 5,
+        "eficiencia": 5
+      },
+      "verdict": "Listo para producción en este caso de uso. Zaelar ejecutó impecablemente la serie repetida, anuló un solo día dejando la serie intacta y operó estrictamente dentro del widget de agenda sin escaladas innecesarias. No hay bloqueadores funcionales.",
+      "missing_signals": [],
+      "blind_turns": 0,
+      "audit_anomalies": [
+        {
+          "clase": "sin_evidencia_externa",
+          "certeza": "hecho",
+          "que": "ni un solo evento con `evidence`: el mundo exterior no trajo nada"
+        }
+      ],
+      "sandboxed": true,
+      "provisional": "corrida con --allow-dirty: el arbol se movia, el numero no cuenta como medicion",
+      "tier": 1,
+      "turns_used": 4,
+      "families": [
+        "flash",
+        "memory",
+        "system",
+        "widget"
+      ],
+      "drive_model": "deepseek-directo",
+      "code": {
+        "sha": "2e536c48",
+        "n_dirty": 14,
+        "dirty": [
+          ".meshkore/log/2026-09-21.md",
+          "CLAUDE.md",
+          "i18n/langs.py",
+          "nucleo/energy_meter.py",
+          "nucleo/flash/probe.py",
+          "nucleo/flash/reminder_guards.py",
+          "nucleo/flash/router_catalog.py",
+          "nucleo/flash/widget_data_turn.py",
+          "nucleo/flash/write_outcome.py",
+          "nucleo/jev.py",
+          "widgets/agenda/data.py",
+          "widgets/agenda/manifest.json"
+        ]
+      },
+      "machine": {
+        "gpu_models": [
+          {
+            "name": "qwen3.6:27b-mlx",
+            "size": "31 GB"
+          }
+        ],
+        "n": 1
+      }
+    },
+    "weekly-appointment-until-june__us": {
+      "last_run": "2026-09-25 16:50",
+      "overall": 5,
+      "judge": "glm-4.6",
+      "brain": "",
+      "state": "PASS",
+      "infra_reason": null,
+      "scores": {
+        "naturalidad": 5,
+        "adaptacion": 5,
+        "resultado": 5,
+        "mecanismo": 5,
+        "eficiencia": 5
+      },
+      "verdict": "Listo para producción. Las tres propiedades críticas se cumplen sin ambigüedad: serie semanal creada en una sola escritura, cancelación de un día aislado preservando la serie, y ausencia de operaciones de más.",
+      "missing_signals": [],
+      "blind_turns": 0,
+      "audit_anomalies": [
+        {
+          "clase": "sin_evidencia_externa",
+          "certeza": "hecho",
+          "que": "ni un solo evento con `evidence`: el mundo exterior no trajo nada"
+        }
+      ],
+      "sandboxed": true,
+      "provisional": "corrida con --allow-dirty: el arbol se movia, el numero no cuenta como medicion",
+      "tier": 1,
+      "turns_used": 3,
+      "families": [
+        "flash",
+        "memory",
+        "system",
+        "widget"
+      ],
+      "drive_model": "deepseek-directo",
+      "code": {
+        "sha": "2e536c48",
+        "n_dirty": 14,
+        "dirty": [
+          ".meshkore/log/2026-09-21.md",
+          "CLAUDE.md",
+          "i18n/langs.py",
+          "nucleo/energy_meter.py",
+          "nucleo/flash/probe.py",
+          "nucleo/flash/reminder_guards.py",
+          "nucleo/flash/router_catalog.py",
+          "nucleo/flash/widget_data_turn.py",
+          "nucleo/flash/write_outcome.py",
+          "nucleo/jev.py",
+          "widgets/agenda/data.py",
+          "widgets/agenda/manifest.json"
+        ]
+      },
+      "machine": {
+        "gpu_models": [
+          {
+            "name": "qwen3.6:27b-mlx",
+            "size": "31 GB"
+          }
+        ],
+        "n": 1
+      }
     }
   },
-  "updated": "2026-09-02 21:50"
+  "updated": "2026-09-25 16:50"
 }

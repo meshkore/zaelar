@@ -197,8 +197,14 @@ def already_in_agenda(note: dict) -> bool:
     mine = _content_words(str(note.get("title") or ""))
     if not mine:
         return False
+    try:                              # V2-769 — a repeating appointment is on every day its rule lands on
+        from widgets.agenda import recur as _recur
+        _on = _recur.on
+    except Exception:  # noqa: BLE001
+        def _on(m, d):
+            return str(m.get("date") or "") == d
     for m in meetings:
-        if str((m or {}).get("date") or "") != str(note.get("date") or ""):
+        if not _on(m or {}, str(note.get("date") or "")):
             continue
         theirs = _content_words(str((m or {}).get("title") or ""))
         if theirs and len(mine & theirs) >= min(2, len(mine)):

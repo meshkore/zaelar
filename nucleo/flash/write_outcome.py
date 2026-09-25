@@ -72,6 +72,21 @@ def reset() -> None:
     _last.clear()
 
 
+def declared_fields(wid: str, action: str) -> list[str]:
+    """The payload keys the widget's manifest declares for this action — what the model should have used.
+    The model sees action NAMES only (`widgets/brief.py`), so a correction that does not name them invites the
+    same guess again."""
+    try:
+        from widgets import runtime
+        for w in runtime.catalog():
+            if str(w.get("id")) == wid:
+                spec = (w.get("actions") or {}).get(action) or {}
+                return [str(k) for k in (spec.get("payload") or {})]
+    except Exception:  # noqa: BLE001
+        pass
+    return []
+
+
 def ignored_note(wid: str, action: str, res) -> str:
     """The correction for a write that landed WITHOUT some of what it was told, or "" when nothing was lost."""
     if not isinstance(res, dict) or res.get("ok") is False:
@@ -81,4 +96,6 @@ def ignored_note(wid: str, action: str, res) -> str:
         return ""
     return (f"[SISTEMA] «{action}» sobre «{wid}» SÍ se guardó, pero SIN estos datos, que la tarjeta no sabe "
             f"guardar: {', '.join(lost[:8])}. Si le dijiste que quedaba con eso, corrígelo en tu PRÓXIMA "
-            f"respuesta — lo que está guardado es lo que dice la tarjeta, no lo que mandaste.")
+            f"respuesta — lo que está guardado es lo que dice la tarjeta, no lo que mandaste."
+            + (f" Sus campos son: {', '.join(fields)}; si hay que rehacerlo, usa ESOS."
+               if (fields := declared_fields(wid, action)) else ""))

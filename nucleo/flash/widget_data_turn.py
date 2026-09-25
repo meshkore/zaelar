@@ -34,7 +34,7 @@ def _primera_clave(widget_id: str, action: str) -> str:
     return ""
 
 
-async def execute(tool_calls: list) -> dict:
+async def execute(tool_calls: list, text: str = "") -> dict:
     """Dispatch the turn's data-ops and return the report, or say which was skipped and WHY.
 
     V2-391—SEVERAL, not one. Which ones enter is decided by `data_ops.admite_data_op`, shared with voice
@@ -96,8 +96,23 @@ async def execute(tool_calls: list) -> dict:
         if mode != _wa.FAST:
             saltadas.append({"widget": wid, "act": act, "mode": str(mode)})
             continue
+        # V2-769 — the SAME write rules as the voice path (`data_ops.dispatch_and_report`): a rule installed
+        # in one of two branches is half a fix. The order is logged WITH its payload (the text channel logged
+        # only the action name, so a dropped field could not be seen), a piece of a sentence is taken back out
+        # when the whole one arrives, and a write that lost fields is corrected.
+        from nucleo.flash import write_outcome as _wo
+        try:
+            from voice.observer import emit as _emit_op
+            _emit_op("widget", f"data:{act}", text=str(text or "")[:160],
+                     extra={"id": wid, "action": act, "mode": "fast", "src": "probe", "payload": pl})
+        except Exception:  # noqa: BLE001
+            pass
+        if (_prev := _wo.superseded(wid, act, text)):
+            await _rg._revert(wid, _prev)
         res = await _brain_action(wid, act, pl)
         res = res if isinstance(res, dict) else {}
+        _wo.remember(wid, act, text, res)
+        await _rg._report_ignored(wid, act, res)
         if res.get("error") or res.get("ok") is False:
             fallidas.append({"widget": wid, "act": act,
                              "message": str(res.get("message") or res.get("error") or "")[:160]})

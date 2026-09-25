@@ -19,8 +19,17 @@ import time
 from . import config, probe_client
 
 
+#: `cat: worker` events that are the engine's own MACHINERY, not a Brain Worker (V2-769). The agenda's
+#: background tick, a backed widget starting and the browser pool's ready/stopped all carry `cat: worker`, in
+#: every round, so a case that forbids `worker` failed its mechanism score on a clean run: measured on
+#: `weekly-appointment-until-june` (sandbox 20260925-163928: 38 ticks, 2 `backed`, 2 `navegador`, no worker
+#: started — and the judge wrote «el motor levantó un worker»). A real one leaves `worker_start`/`task` rows.
+_MACHINERY_KINDS = frozenset({"background", "backed", "navegador"})
+
+
 def families_in(events: list[dict]) -> set[str]:
-    return {e.get("cat") for e in events if e.get("cat")}
+    return {e.get("cat") for e in events if e.get("cat")
+            and not (e.get("cat") == "worker" and e.get("kind") in _MACHINERY_KINDS)}
 
 
 def _fields(e: dict) -> dict:

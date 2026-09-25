@@ -326,6 +326,16 @@ def cancel_meeting(db: dict, payload: dict) -> tuple[dict, list[dict]]:
     # hay flauta»). Without one — or with `whole` — the series goes entirely, like any appointment.
     from . import recur
     _day = _data._resolve_date(str(payload.get("date") or "")) if str(payload.get("date") or "").strip() else ""
+    # A SERIES named with no day and no `whole` is a QUESTION, never the whole series (V2-769). Measured in the
+    # live use case: «el martes que viene no hay clase, quítamelo solo ese día» arrived as
+    # `cancel_meeting {title}` — no date — and every Tuesday until June went with it.
+    if not _day and not payload.get("whole") and any(isinstance(m.get("repeat"), dict) for m in hits):
+        ser = next(m for m in hits if isinstance(m.get("repeat"), dict))
+        why = (f"«{ser.get('title')}» se repite ({recur.describe(ser['repeat'])}): para quitar UN día vuelve a "
+               f"llamar con `date` (ese día, p.ej. «el martes que viene»); para borrar la serie entera, con "
+               f"`whole: true`. No he borrado nada.")
+        # `error` is what the correction note reads (`data_ops.report_failure`): the sentence, not a code.
+        return {"ok": False, "code": "series_needs_scope", "error": why, "detail": why}, []
     if _day and not payload.get("whole"):
         once = [m for m in hits if isinstance(m.get("repeat"), dict)]
         if once and all(recur.skip(m, _day) for m in once):

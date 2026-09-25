@@ -132,10 +132,29 @@ def test_cancelling_one_day_keeps_the_rest_of_the_series():
     assert wk2 not in days and (TUE + dt.timedelta(weeks=2)).isoformat() in days and len(days) == 30
 
 
-def test_cancelling_without_a_day_removes_the_series():
+def test_cancelling_a_series_with_no_day_is_a_question_not_a_deletion():
+    """The live use case: «quítamelo solo ese día» arrived with no date, and every Tuesday went."""
     _piano()
-    agenda.apply_action("cancel_meeting", {"title": "piano"})
+    res = agenda.apply_action("cancel_meeting", {"title": "piano"})
+    assert res.get("ok") is False and "`date`" in res["error"] and "whole" in res["error"], res
+    # …and what HE hears is a question, never the instruction to the model (the third live run read him
+    # «vuelve a llamar con `date`» out loud).
+    assert res.get("message") and "`" not in res["message"] and "serie" in res["message"], res.get("message")
+    assert len(_days("Piano de Abril")) == 31, "nothing may be deleted while the scope is unknown"
+
+
+def test_the_whole_series_goes_when_he_says_so():
+    _piano()
+    agenda.apply_action("cancel_meeting", {"title": "piano", "whole": True})
     assert _days("Piano de Abril") == []
+
+
+def test_the_promise_backstop_sees_a_series_on_its_later_days():
+    """The dated-note backstop wrote «piano de abril todos los» beside the series: it compared first days only."""
+    from nucleo.flash import reminder_guards
+    _piano()
+    later = (TUE + dt.timedelta(weeks=3)).isoformat()
+    assert reminder_guards.already_in_agenda({"title": "piano de Abril", "date": later}) is True
 
 
 def test_clearing_one_week_leaves_the_other_weeks():
@@ -295,3 +314,59 @@ def test_the_sync_does_not_bring_our_own_series_back_as_loose_rows(monkeypatch):
     ids = [m.get("googleId") for m in db["meetings"]]
     assert "abc_1" not in ids and "abc_2" not in ids, f"our series came back as loose rows: {ids}"
     assert "zzz_1" in ids, "a series convened by somebody else must still arrive"
+
+
+def test_the_field_names_the_model_invents_are_understood():
+    """The live use case, 2026-09-25: the model sees action NAMES, not their fields, and named them itself.
+    With `startDate`/`start`/`dayOfWeek` unread, the series landed on the day it was said, all-day."""
+    res = agenda.apply_action("add_meeting", {
+        "title": "Piano de Abril", "frequency": "weekly", "dayOfWeek": "tuesday",
+        "startDate": TUE.isoformat(), "endDate": UNTIL.isoformat(), "start": "15:15", "end": "16:00"})
+    assert not res.get("ignored"), res.get("ignored")
+    row = agenda.load_db()["meetings"][0]
+    assert (row["date"], row.get("startTime"), row.get("endTime")) == (TUE.isoformat(), "15:15", "16:00"), row
+    assert row["repeat"]["days"] == [1] and row["repeat"]["until"] == UNTIL.isoformat() and not row.get("allDay")
+
+
+def test_the_text_channel_applies_the_same_write_rules(monkeypatch):
+    """The live use case ran on the TEXT channel, which executes data-ops through `widget_data_turn`, not
+    through `data_ops.dispatch_and_report` — a rule installed in one of two branches is half a fix."""
+    import widgets
+    import widgets.server_api as sapi
+    from nucleo.flash import widget_data_turn, write_outcome
+    from voice import brain_notes
+    write_outcome.reset()
+    seen = []
+    monkeypatch.setattr("voice.observer.emit", lambda kind, label="", **k: seen.append((kind, label, k)))
+
+    async def _brain(wid, act, pl):
+        return agenda.apply_action(act, pl)
+
+    async def _dispatch(tag, body):
+        d = body["data"]
+        return agenda.apply_action(d["action"], d["payload"])
+    monkeypatch.setattr(sapi, "brain_action", _brain)
+    monkeypatch.setattr(widgets, "dispatch_tag", _dispatch)
+    brain_notes.drain()
+
+    def _call(action, payload):
+        return [{"name": "widget_data", "args": {"widget_id": "agenda", "action": action, "payload": payload}}]
+    asyncio.run(widget_data_turn.execute(_call("add_task", {"title": "Tarea semanal de los jueves"}),
+                                         text="recursiva los jueves"))
+    asyncio.run(widget_data_turn.execute(
+        _call("add_meeting", {"title": "Flauta", "date": _next(3).isoformat(), "startTime": "15:30",
+                              "repeat": "weekly", "until": UNTIL.isoformat(), "colour": "azul"}),
+        text="créame una tarea recursiva los jueves de tres y media, llevar a Abril a flauta"))
+    assert not any(t.get("title") == "Tarea semanal de los jueves" for t in agenda.load_db()["tasks"])
+    assert "colour" in " ".join(str(n) for n in brain_notes.drain())
+    logged = [k["extra"] for kind, label, k in seen if label == "data:add_meeting"]
+    assert logged and logged[0]["payload"].get("repeat") == "weekly", "the order must be logged WITH its payload"
+
+
+def test_the_harness_does_not_call_the_engines_machinery_a_worker():
+    """Every round carries `cat: worker` ticks; a case forbidding `worker` failed on a clean run."""
+    from tests.use_cases.e2e.agent import verify
+    clean = [{"cat": "worker", "kind": k} for k in ("background", "backed", "navegador")] + [
+        {"cat": "widget", "kind": "widget"}]
+    assert "worker" not in verify.families_in(clean)
+    assert "worker" in verify.families_in(clean + [{"cat": "worker", "kind": "worker_start"}])
