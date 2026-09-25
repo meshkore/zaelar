@@ -83,7 +83,10 @@ def test_both_channels_ask_for_the_call_before_the_promise_backstop_spends_a_wor
     assert repair < backstop, "the worker backstop runs before the repair — the promise becomes minutes of worker"
     assert '_bd_ar.named_card(_brief)' in prov, "the card must come from the turn's own verdict"
     probe = (ENGINE / "nucleo/flash/probe.py").read_text(encoding="utf-8")
-    assert "_act_repair.probe_call_for_promise(text, spoken, spec)" in probe
+    # V2-770: the text channel asks with the operator's OWN words (not the turn text with notes glued on), and
+    # first against the card its verdict names — then, with none named, lets the repair find one.
+    assert "_act_repair.call_for_promise(operator_text, spoken, _ar_wid, spec=spec)" in probe
+    assert "_act_repair.probe_call_for_promise(operator_text, spoken, spec)" in probe
 
 
 def test_the_escalate_tool_says_a_torrent_is_not_an_errand():
