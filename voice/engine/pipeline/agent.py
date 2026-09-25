@@ -206,6 +206,7 @@ async def entrypoint(ctx: JobContext) -> None:
     try:
         from ..speech import live_tts as _live_tts
         _live_tts.attach(tts, SETTINGS.tts_provider)
+        _live_tts.apply_current()   # `tts` was usually prewarmed before the language existed (V2-772)
     except Exception as e:  # noqa: BLE001 — never let bookkeeping stop a session from coming up
         logger.warning("live_tts: could not register the live TTS (%s)", e)
     turn_detection = build_turn_detection() or "vad"   # None (disabled) → VAD-based EOU (no ML InferenceRunner)

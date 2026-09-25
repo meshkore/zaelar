@@ -189,8 +189,12 @@ def effective() -> dict:
         cur_idx = int(S.STATE.get("voice", 0)) % len(vs)
     except Exception:
         cur_idx = 0
-    voice_opts = [(v["label"], v["voice"]) for v in vs]
-    voices_by_provider = {n: [{"label": v["label"], "value": v["voice"]} for v in voices_for(n)]
+    # A voice reads as «Eric · English (US) ♂», not «Eric»: which variant it is native to is the one thing the
+    # operator needs to choose well, and a bare name hid it (2026-09-25). Rows without a language (Kokoro,
+    # Cartesia) keep their own label, which already says it.
+    from voice.engine.speech.voices import describe_voice as _vlabel
+    voice_opts = [(_vlabel(v), v["voice"]) for v in vs]
+    voices_by_provider = {n: [{"label": _vlabel(v), "value": v["voice"]} for v in voices_for(n)]
                           for n in tts_available()}
 
     def knob(key, label, value, options, applies, note=""):

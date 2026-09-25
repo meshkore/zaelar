@@ -173,7 +173,8 @@ def test_an_unreachable_api_still_offers_a_real_choice(monkeypatch):
     monkeypatch.setattr(ev, "_read_cache", lambda: {})
     monkeypatch.setattr(ev, "_api_key", lambda: "")
     rows = ev.for_language("en")
-    assert len(rows) >= 4 and all(r["source"] == "shipped" for r in rows)
+    assert len(rows) >= 4 and all(r["source"] in ("pinned", "shipped") for r in rows)
+    assert rows[0]["source"] == "pinned", "the pinned default is there even with no network"
 
 
 def test_no_castilian_voice_is_hardcoded_for_every_language():
@@ -236,6 +237,9 @@ def test_spain_and_latin_america_are_not_the_same_voice(monkeypatch):
     sat one row below.
     """
     ev = _fake_catalog(monkeypatch, account=_ES_ACCOUNT, library=_ES_LIBRARY, lang="es")
+    # Since 2026-09-25 the shipped variants have a PINNED voice; this rule is what a variant WITHOUT one
+    # gets, so it is measured with the table empty. The pin itself: test_the_default_voice_is_pinned_*.
+    monkeypatch.setattr(ev, "_PINNED", {})
     assert ev.default_voice("es", "ES") == "sara", "«español de España» is the peninsular one"
     assert ev.default_voice("es", "419") == "brian", "«español latino» is not"
     assert ev.default_voice("es") == "elena", (
@@ -540,3 +544,86 @@ def test_the_language_dropdown_never_renders_empty(monkeypatch):
     monkeypatch.setattr(catalog, "picker", lambda: (_ for _ in ()).throw(RuntimeError("boom")))
     rows = st._ui_languages()
     assert [r["code"] for r in rows] == ["en", "es"]
+
+
+# ── one default per variant, chosen on purpose (2026-09-25) ───────────────────────────────────────────────
+
+def test_the_default_voice_is_pinned_per_variant_whatever_the_api_order(monkeypatch):
+    """The operator: *«la voz es diferente varias veces y me ha parecido que es random… si pido el idioma
+    inglés de Estados Unidos, tiene que ser un hombre o una mujer que hable inglés perfecto de Estados
+    Unidos. Ahora me has puesto una chica italiana»*. The default used to be «first native voice with the
+    right accent» in the API's order (account list, then the library by «trending»), which moves. Here the
+    catalog is shuffled against the pin and carries a trending impostor: the pin still wins, every time."""
+    ev = _fake_catalog(
+        monkeypatch,
+        account=[{"voice": "it1", "label": "Giulia", "gender": "f", "lang": "en", "accent": "italian"},
+                 {"voice": "us1", "label": "Roger", "gender": "m", "lang": "en", "accent": "american"}],
+        library=[{"voice": "tr1", "label": "Trending", "gender": "m", "lang": "es", "accent": "latin american"}],
+        lang="en")
+    for variant, want in (("en-US", "cjVigY5qzO86Huf0OWal"), ("en-GB", "JBFqnCBsd6RMkjVDRZzb"),
+                          ("es-ES", "LlZr3QuzbW4WrPjgATHG"), ("es-419", "94zOad0g7T7K4oa7zhDq")):
+        lang, region = variant.split("-")
+        assert ev.default_voice(lang, region) == want, variant
+        pin = ev.pinned_voice(lang, region)
+        assert pin["lang"] == lang and pin["accent"] in ev.accents_for(region), (
+            f"{variant}: the pinned voice must be NATIVE to the variant — {pin}")
+    assert ev.default_voice("en") == ev.default_voice("en", "US"), "a bare «en» is the first variant listed"
+    assert ev.default_voice("es") == ev.default_voice("es", "ES")
+    # and the pin is decided by the TABLE, not by where the list happens to put it: a list in any other
+    # order (here: the impostors first and no pinned rows at all) still yields the pin.
+    monkeypatch.setattr(ev, "for_language", lambda lang: [
+        {"voice": "it1", "lang": "en", "accent": "american", "native": True},
+        {"voice": "tr1", "lang": "es", "accent": "peninsular", "native": True}])
+    assert ev.default_voice("en", "US") == "cjVigY5qzO86Huf0OWal"
+    assert ev.default_voice("es", "ES") == "LlZr3QuzbW4WrPjgATHG"
+
+
+def test_a_pinned_voice_is_always_on_the_list_so_it_is_never_dropped(monkeypatch):
+    """`selected_voice` keeps a saved voice only if TODAY's list carries it — and a library voice that
+    stopped trending fell off the list and was silently replaced. The pinned ones are always there."""
+    ev = _fake_catalog(monkeypatch, account=[], library=[], lang="es")
+    ids = [r["voice"] for r in ev.for_language("es")]
+    assert ids[:2] == ["LlZr3QuzbW4WrPjgATHG", "94zOad0g7T7K4oa7zhDq"], ids
+    assert all(r["native"] for r in ev.for_language("es")[:2])
+
+
+def test_the_settings_dropdown_says_which_variant_each_voice_speaks():
+    """«Que cada uno tenga en el catálogo, en los combos, en los desplegables, todas las voces… con la voz y
+    el idioma preferido para esa voz.» A bare «Elena» hid that she is Peruvian."""
+    from voice.engine.speech import voices as V
+    assert V.describe_voice({"label": "Elena", "lang": "es", "accent": "peruvian", "gender": "f"}) \
+        == "Elena · Español (Latinoamérica) \u2640"
+    assert V.describe_voice({"label": "George", "lang": "en", "accent": "british", "gender": "m"}) \
+        == "George · English (UK) \u2642"
+    assert V.describe_voice({"label": "Charlie", "lang": "en", "accent": "australian", "gender": "m"}) \
+        == "Charlie · English (australian) \u2642", "an accent with no picker variant still says which"
+    assert V.describe_voice({"label": "Dora (es)", "voice": "ef_dora"}) == "Dora (es)", "no language, no guess"
+    src = (ROOT / "config" / "settings.py").read_text(encoding="utf-8")
+    assert "describe_voice as _vlabel" in src and "(_vlabel(v), v[\"voice\"])" in src
+
+
+def test_a_session_re_points_its_prewarmed_tts_to_todays_voice(monkeypatch):
+    """The TTS is built in `prewarm`, in the idle worker, BEFORE a language is chosen, and the session reuses
+    it. Measured on a factory reset: worker 21:29:38, language locked 21:29:55, job 21:29:57, no re-point —
+    that session spoke with the voice of an older state. The pipeline must re-point it right after `attach`."""
+    from voice.engine.speech import live_tts, voices as V
+
+    class _TTS:
+        def __init__(self):
+            self.got = None
+        def update_options(self, voice_id=None, language=None):
+            self.got = (voice_id, language)
+
+    t = _TTS()
+    monkeypatch.setattr(V, "selected_voice", lambda prov=None: "")
+    monkeypatch.setattr(V, "default_voice_for", lambda prov=None, lang=None, region=None: "today-voice")
+    live_tts.attach(t, "elevenlabs")
+    try:
+        assert live_tts.apply_current() is True
+        assert t.got and t.got[0] == "today-voice"
+    finally:
+        live_tts.detach(t)
+    agent = (ROOT / "voice" / "engine" / "pipeline" / "agent.py").read_text(encoding="utf-8")
+    i_attach = agent.index("_live_tts.attach(tts, SETTINGS.tts_provider)")
+    i_apply = agent.index("_live_tts.apply_current()")
+    assert i_attach < i_apply < i_attach + 400, "re-point right after attach, in the same place"

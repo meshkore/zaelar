@@ -53,6 +53,42 @@ _SHIPPED: tuple[dict, ...] = (
     {"voice": "XrExE9yKIg1WjnnlVkGX", "label": "Matilda", "gender": "f", "lang": "en", "accent": "american"},
 )
 
+# THE DEFAULT VOICE OF EACH VARIANT THE PICKER SHIPS — chosen on purpose, never by list order (2026-09-25).
+#
+# The operator: *«la voz es diferente varias veces y me ha parecido que es random… si pido el idioma inglés de
+# Estados Unidos, tiene que ser un hombre o una mujer que hable inglés perfecto de Estados Unidos. Ahora me has
+# puesto una chica italiana intentando hablar inglés… Investiga y setea las voces por defecto»*. Nothing here
+# was random: `default_voice` took the FIRST native voice with the right accent, and that order is the API's —
+# the account list as it comes back, then the Voice Library sorted by «trending», re-fetched every week. So
+# es-419 was «whoever trends this week», and a saved library voice that stopped trending was dropped and
+# replaced. A default is a decision; it lives here, in a table, and the API only ever ADDS options to it.
+#
+# One coherent set, measured against the live library the same day: a middle-aged male voice whose use case
+# is CONVERSATIONAL (an assistant talks, it does not narrate), native to the variant, and among the most
+# used for it. en-US/en-GB are ElevenLabs' global premade voices (present on every account); es-ES/es-419 are
+# Voice Library voices, which synthesise by id on any account (measured, see the module docstring). The
+# metadata rides with the id so the pin works offline and before the first catalog fetch.
+_PINNED: dict[str, dict] = {
+    "en-US": {"voice": "cjVigY5qzO86Huf0OWal", "label": "Eric", "gender": "m", "lang": "en",
+              "accent": "american"},           # premade · «Smooth, Trustworthy» · conversational
+    "en-GB": {"voice": "JBFqnCBsd6RMkjVDRZzb", "label": "George", "gender": "m", "lang": "en",
+              "accent": "british"},            # premade · «Warm, Captivating» · the premade British male
+    "es-ES": {"voice": "LlZr3QuzbW4WrPjgATHG", "label": "Martin Osborne", "gender": "m", "lang": "es",
+              "accent": "peninsular"},         # library · Castilian · «perfect for dialogues & casual conversation»
+    "es-419": {"voice": "94zOad0g7T7K4oa7zhDq", "label": "Mauricio", "gender": "m", "lang": "es",
+               "accent": "latin american"},    # library · «Neutral Spanish, conversational and calm»
+}
+# A bare language code (an older picker, a typed «en») means the variant we list FIRST for it.
+_DEFAULT_REGION = {"en": "US", "es": "ES"}
+
+
+def pinned_voice(lang: str, region: str = "") -> dict:
+    """The pinned row for (lang, region), {} when that variant has no pin."""
+    lang = (lang or "").strip().lower()
+    region = (region or "").strip().upper() or _DEFAULT_REGION.get(lang, "")
+    return dict(_PINNED.get(f"{lang}-{region}") or {})
+
+
 _API = "https://api.elevenlabs.io/v1"
 _TTL_S = 7 * 24 * 3600          # the Voice Library moves in weeks, not minutes
 _LIBRARY_PER_LANG = 12          # enough to choose from; a picker nobody scrolls is not a better picker
@@ -184,7 +220,10 @@ def for_language(lang: str) -> list[dict]:
     if not account and not library:
         account = [dict(v, source="shipped") for v in _SHIPPED]
 
-    native_acc = [v for v in account if v.get("lang") == lang and lang]
+    # The pinned voices of this language go FIRST and are always there — the default can never be a voice
+    # the list no longer carries (a library voice that stopped trending used to be dropped and replaced).
+    pinned = [dict(v, source="pinned") for v in _PINNED.values() if v.get("lang") == lang and lang]
+    native_acc = pinned + [v for v in account if v.get("lang") == lang and lang]
     native_lib = [v for v in library if v.get("lang") == lang and lang]
     other = [v for v in account if v not in native_acc]
     # English-native first among the fallbacks: the multilingual models were trained with English as the
@@ -232,6 +271,9 @@ def default_voice(lang: str, region: str = "") -> str:
     '' when we know nothing — the TTS builder then keeps the plugin's own default rather than a
     wrong-language id.
     """
+    pin = pinned_voice(lang, region)
+    if pin:
+        return pin["voice"]
     rows = for_language(lang)
     if not rows:
         return ""
@@ -246,4 +288,42 @@ def default_voice(lang: str, region: str = "") -> str:
     return rows[0]["voice"]
 
 
-__all__ = ["for_language", "default_voice", "accents_for", "refresh"]
+_GENDER_MARK = {"m": "\u2642", "f": "\u2640"}
+
+
+def describe(v: dict) -> str:
+    """How a voice reads in the ⚙ dropdown: its name, the language VARIANT it is native to, and a gender mark
+    — «Eric · English (United States) ♂». A bare name («Roger», «Elena») hid that one of them was Peruvian.
+    The variant's name is the picker's own (i18n/catalog.py), so it is the same words the operator chose
+    his language with; an accent we cannot map shows as the accent itself."""
+    name = (v.get("label") or v.get("voice") or "").strip()
+    lang = (v.get("lang") or "").strip().lower()
+    accent = (v.get("accent") or "").strip().lower()
+    where = ""
+    if lang:
+        region = next((r for r, accs in _REGION_ACCENTS.items() if accent in accs), "")
+        if region:
+            where = _variant_name(f"{lang}-{region}") or f"{lang} ({accent})"
+        else:   # an accent the picker has no variant for (Australian, Indian…) still says which one it is
+            base = _variant_name(lang) or lang
+            where = f"{base} ({accent})" if accent else base
+    mark = _GENDER_MARK.get((v.get("gender") or "").strip().lower(), "")
+    return " ".join(x for x in (name, "·" if where else "", where, mark) if x)
+
+
+def _variant_name(code: str) -> str:
+    try:
+        from i18n import catalog
+        for row in catalog.picker():
+            if str(row.get("code") or "").lower() == code.lower():
+                return str(row.get("native") or row.get("name") or "")
+        base = code.split("-")[0].lower()
+        for row in catalog.picker():
+            if str(row.get("base") or row.get("code") or "").lower() == base and "-" not in code:
+                return str(row.get("native") or row.get("name") or "").split(" (")[0]
+    except Exception:  # noqa: BLE001 — a label is never worth an exception
+        pass
+    return ""
+
+
+__all__ = ["for_language", "default_voice", "accents_for", "refresh", "pinned_voice", "describe"]

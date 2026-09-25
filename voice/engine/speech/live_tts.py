@@ -104,4 +104,23 @@ def apply_voice(voice_id: str, lang: str | None = None) -> bool:
     return True
 
 
-__all__ = ["attach", "detach", "apply_voice", "live_provider"]
+def apply_current() -> bool:
+    """Re-point the TTS just attached to the voice the settings say NOW (2026-09-25).
+
+    The TTS a session speaks with is built in `prewarm`, in the IDLE worker, before anyone has chosen a
+    language — and the session reuses it. Measured on a factory reset: worker built 21:29:38, language locked
+    21:29:55, job 21:29:57 with the prewarmed TTS and no `live voice →` line, because at lock time there was no
+    session to re-point. So each session spoke with whatever voice was right when its idle worker was built,
+    which is what the operator heard as a «random» voice. Called once, right after `attach`."""
+    try:
+        from . import voices as _v
+        from ..core import langs as _langs
+        prov = _live["provider"] or _v.tts_provider()
+        want = _v.selected_voice(prov) or _v.default_voice_for(prov)
+        return apply_voice(want, _langs.current_code()) if want else False
+    except Exception as e:  # noqa: BLE001 — never let this stop a session from coming up
+        logger.warning("live_tts: could not re-point the prewarmed voice ({})", e)
+        return False
+
+
+__all__ = ["attach", "detach", "apply_voice", "apply_current", "live_provider"]

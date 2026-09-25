@@ -133,6 +133,18 @@ def default_voice_for(provider: str | None = None, lang: str | None = None,
     return ""                    # Cartesia's voices are multilingual — one voice speaks any language
 
 
+def describe_voice(v: dict) -> str:
+    """How a voice reads in the ⚙: «Eric · English (US) ♂» — the facade over the ElevenLabs catalog's own
+    `describe`, so config/ never reaches into the motor's internals. A row without a language keeps its label."""
+    if v.get("lang"):
+        try:
+            from .elevenlabs_voices import describe
+            return describe(v) or v.get("label") or ""
+        except Exception:  # noqa: BLE001
+            pass
+    return v.get("label") or ""
+
+
 def voice_is_aligned(provider: str | None, voice: str, lang: str | None = None,
                      region: str | None = None) -> bool:
     """Is `voice` a sound choice for `lang` under `provider`? The question a LANGUAGE CHANGE has to ask.
@@ -229,4 +241,4 @@ def selected_voice(provider: str | None = None) -> str:
 
 __all__ = ["VOICES_BY_PROVIDER", "voices_for", "kokoro_voices", "kokoro_default_voice",
            "elevenlabs_voices", "elevenlabs_default_voice", "default_voice_for", "voice_is_aligned",
-           "tts_provider", "selected_voice"]
+           "tts_provider", "selected_voice", "describe_voice"]

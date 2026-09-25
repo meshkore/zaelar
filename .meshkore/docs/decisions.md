@@ -21,6 +21,17 @@ entregada siga citada aquí.
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **After ANY reset the agent comes up listening, the folder step is not skipped, and each language variant has
+  ONE chosen voice (V2-772, 2026-09-25)**: after his reset the folder question flashed and went, the mic and
+  speaker came up muted, and the voice «seemed random — an Italian girl trying to speak English». Four causes,
+  none random: (1) a preset language's `ready` beat the click's POST and the veil was held only after it; (2) the
+  SSE read `d.extra.src` while the bus is FLAT, so the unmute on the language lock never fired (the same nested
+  read hid the pushed Energy balance); (3) only `--factory` reset the ⏻, and nothing reset the attention mode
+  or the browser's mute keys; (4) the ElevenLabs default was «first native voice» in the API's trending order,
+  and the session reused a TTS built in the idle worker before the language existed. Now: hold before the POST;
+  `sse.js::field()`; `reset_switches()` + ⏻ + a per-epoch browser sweep on every reset; `_PINNED` voices
+  (Eric, George, Martin Osborne, Mauricio — all conversational, native, synthesis-tested) and
+  `live_tts.apply_current()` after `attach`. The ⚙ labels each voice with its variant. Node 4.217 + 8.6.
 - **A message with several tasks in it is a LIST — split, queued, run step by step, reported once (V2-771,
   2026-09-25)**: *«tanto si nos las vomita por voz como si nos las pega, el sistema tiene que ver que esto es una
   acción que para completarse necesita realizar todo lo que se pide… "vale, entiendo que me pides unas cuantas
