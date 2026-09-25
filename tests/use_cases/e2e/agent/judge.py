@@ -288,7 +288,10 @@ def mechanism_facts(mech: dict) -> str:
                      f"{len(_bad)} en ROJO" + (": " + "; ".join(f"paso {st.get('step')} «{str(st.get('said'))[:60]}» "
                                                            f"→ {st.get('check')} NO se cumplió"
                                                            for st in _bad[:6]) if _bad else ", todos cumplidos")
-                     + ". Un paso en rojo con una respuesta que dice «hecho» es una AFIRMACIÓN FALSA.")
+                     + ". Un paso en rojo con una respuesta que dice «hecho» es una AFIRMACIÓN FALSA. Estas "
+                     "comprobaciones SON el resultado y el mecanismo: un paso en verde está hecho aunque el estado "
+                     "FINAL del widget no lo muestre — el estado final es el que deja el ÚLTIMO paso del guion (si "
+                     "el guion acaba borrando, una agenda vacía al final es lo esperado, no una pérdida).")
     tid = (mech.get("navegador_task_id") or "").strip()
     if tid:
         lines.append(f"· Hubo tarea de navegador ({tid}); su estado real está en `navegador_task`.")

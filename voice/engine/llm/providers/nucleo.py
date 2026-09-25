@@ -2358,6 +2358,22 @@ class NucleoLLMStream(llm.LLMStream):
                                         emit=emit, present=_cvis.present,
                                         apply_widget_data=_apply_widget_data):
                 acted["widget"] = True
+            # V2-770 — the rung fills ONE key; a data-op of two («a partir de noviembre ya no hay piano» →
+            # cancel_meeting {title, from}) gets one pass with the named card's fields before a worker.
+            elif (_esc_owner := _direct_action.from_brief(_brief)[0]):
+                from nucleo import danger as _danger_esc
+                from nucleo.flash import act_repair as _act_repair_esc
+                _ar = (None if _danger_esc.is_dangerous(operator_text) else
+                       await _act_repair_esc.call_for_promise(operator_text, str(escalate_req.get("v") or ""),
+                                                              _esc_owner, spec=spec))
+                if _ar:
+                    _cvis.present(_ar["widget_id"], reason="turn-order", src="flash", emit=emit)
+                    _apply_widget_data(_ar["widget_id"], _ar["action"], _ar["payload"])
+                    escalate_req["v"], escalate_req["more"] = None, []
+                    acted["widget"] = True
+                    emit("brain", "🎯 acción declarada en vez de un worker (segunda pasada con sus campos)",
+                         text=f"{_ar['widget_id']}:{_ar['action']}", role="system",
+                         extra={"cat": "flash", "widget": _ar["widget_id"], "action": _ar["action"]})
 
         # JEV ESCALATE GATE (T-jev-escalate): a commission that SURVIVED the grammar guards gets a
         # cheap second opinion before it spends money. A confident `handle_inline` annuls it in the

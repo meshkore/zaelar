@@ -904,6 +904,24 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
         except Exception:
             pass
 
+    # V2-770 — a commission about to cost minutes whose verdict names an action of an OPEN card gets one pass
+    # with that card's fields first (`act_repair`). Measured: «a partir de noviembre ya no hay piano» →
+    # `agenda:cancel_meeting` at 0.96, and a worker was spawned for a two-field data-op the rung below cannot
+    # fill by itself. Mirror of the voice provider; a dangerous sentence never takes this path.
+    if action == "escalate" and "widget_data" not in names:
+        try:
+            from nucleo import danger as _danger_ar
+            from . import act_repair as _ar_esc, direct_action as _da_esc
+            _owner = _da_esc.from_brief(_tbrief)[0]
+            if _owner and not _danger_ar.is_dangerous(operator_text):
+                _ar = await _ar_esc.call_for_promise(operator_text, spoken or text, _owner, spec=spec)
+                if _ar:
+                    tool_calls.append({"name": "widget_data", "args": {"widget_id": _ar["widget_id"],
+                                       "action": _ar["action"], "payload": _ar["payload"], "_repair": True}})
+                    action, spoken = "widget_data", ""
+        except Exception:
+            pass
+
     if execute:
         # CONFIRMACIÓN de una TAREA irreversible parada por el confirm-gate (V2-126) y del navegador parado en
         # un clic (V2-202). Va ANTES que el resto: un «sí» reanuda lo PARADO, no abre nada nuevo, así que tiene

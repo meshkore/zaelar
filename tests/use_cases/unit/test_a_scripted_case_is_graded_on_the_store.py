@@ -110,3 +110,16 @@ def test_the_judge_is_told_which_steps_are_red():
     txt = judge.mechanism_facts({"script_checks": [{"step": 3, "said": "Vale, ya la puedes cerrar",
                                                     "check": "agenda.card_closed", "ok": False}]})
     assert "GUION" in txt and "agenda.card_closed" in txt and "1 en ROJO" in txt
+
+
+def test_the_sandbox_is_pinned_to_the_case_language_before_it_boots(tmp_path):
+    """The preflight's «di solo: ok» locked Italian twice and a Spanish round answered in English."""
+    from tests.use_cases.e2e.agent import run
+    run.seed_language(tmp_path, "es")
+    import json
+    assert json.loads((tmp_path / "config" / "settings.json").read_text())["stt_language"] == "es"
+
+
+def test_the_judge_is_told_an_empty_agenda_after_a_deleting_script_is_expected():
+    txt = judge.mechanism_facts({"script_checks": [{"step": 1, "check": "agenda.a", "ok": True}]})
+    assert "ÚLTIMO paso" in txt

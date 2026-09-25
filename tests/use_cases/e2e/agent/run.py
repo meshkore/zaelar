@@ -1434,7 +1434,26 @@ def _live_rung_first(chain: list) -> tuple[list, str]:
     return chain, f"NINGÚN escalón contesta; se deja el orden del operador ({why0[:60]})"
 
 
-def brain_preflight(*, timeout: float = 210.0) -> str:
+def seed_language(ws, lang: str) -> None:
+    """Pin the sandbox's language BEFORE it boots (V2-770).
+
+    `ZAELAR_LANGUAGE` in the environment does not stop the text channel's first-run guess
+    (`i18n/init/detect.lock_from_text`), which locks whatever the FIRST sentence reads as. Measured
+    2026-09-25: the preflight's «di solo: ok» locked Italian twice, and a Spanish round came back in
+    English. A sandbox has a known locale, so it is written where an operator's choice would be.
+    """
+    try:
+        import json as _json
+        f = ws / "config" / "settings.json"
+        f.parent.mkdir(parents=True, exist_ok=True)
+        cur = _json.loads(f.read_text()) if f.exists() else {}
+        cur["stt_language"] = lang
+        f.write_text(_json.dumps(cur, ensure_ascii=False, indent=2))
+    except Exception as e:  # noqa: BLE001 — a round without the pin still runs; the detector guesses
+        print(f"  ⚠️ no pude fijar el idioma del sandbox ({e})")
+
+
+def brain_preflight(*, timeout: float = 210.0, lang: str = "es") -> str:
     """CAN THE BRAIN SPEAK AT ALL? Returns "" when it can, or the refusal to print when it cannot.
 
     On 2026-08-21 the whole provider chain ran out at once — DeepSeek answered HTTP 402 «Insufficient
@@ -1453,7 +1472,8 @@ def brain_preflight(*, timeout: float = 210.0) -> str:
     score is written — which is the same distinction INFRA exists for, moved earlier so it costs nothing.
     """
     try:
-        out = probe_client.say("di solo: ok", session=f"preflight-{int(time.time())}",
+        out = probe_client.say("di solo: ok" if lang == "es" else "just say: ok",
+                               session=f"preflight-{int(time.time())}",
                                execute=False, ingest=False, timeout=timeout)
     except Exception as e:
         return (f"✗ el motor no contesta al canal de prueba ({type(e).__name__}: {str(e)[:120]}).\n"
@@ -1779,6 +1799,7 @@ def _sandbox_batch(chosen: list, args: argparse.Namespace, *, verify_tasks: dict
         raise SystemExit(3)
     ws = config.RUNS_DIR / "sandbox" / time.strftime("%Y%m%d-%H%M%S", time.localtime())
     _chain = seed_provider_chain(ws)
+    seed_language(ws, lang)
     if _chain:
         print(f"  ▸ cadena de proveedores sembrada desde la config real: {_chain}")
     port = ports.sandbox_port(lang)
@@ -1804,7 +1825,7 @@ def _sandbox_batch(chosen: list, args: argparse.Namespace, *, verify_tasks: dict
         config.SANDBOX_DB = str(eng.workspace / "memory" / "_data" / "sandbox.db")
         # ONE THROWAWAY TURN before the batch: see `brain_preflight`. Exit 4 keeps it apart from the
         # dirty-tree refusal (3) so a caller can tell «I must not measure» from «I cannot measure».
-        _pf = brain_preflight()
+        _pf = brain_preflight(lang=lang)
         if _pf:
             print(_pf)
             raise SystemExit(4)
