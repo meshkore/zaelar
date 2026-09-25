@@ -113,6 +113,33 @@ def outcome_of(r: dict) -> tuple[str, str, list[str]]:
     return "done", reply[:200], []
 
 
+#: The step's reply ended in a question: is it one the list cannot answer for him, or a courtesy offer?
+#: Measured on the first live run of his demo (2026-09-25): «Got it, Richard — … I'll keep all of that in mind.
+#: Should I…?» and «Noted… Anything you want me to dig up?» — two steps DONE, reported as needing him because
+#: the reply ended in «?». A question mark is punctuation, not a verdict; Jev reads what the question is FOR.
+_NEEDS_KEY = "step_reply"
+_NEEDS_INSTRUCTIONS = ("The assistant was given ONE task and this is its reply. Can the task be finished "
+                       "without the user answering the reply's question?")
+_NEEDS_CRITERIA = {
+    "needs_answer": "No: the reply asks which one, asks for a missing detail, or asks permission before acting — "
+                    "nothing was done yet",
+    "done": "Yes: the reply says the task is done or noted; its question only offers further help or chats",
+}
+
+
+def reply_needs_him(task: str, reply: str) -> bool:
+    """True when a question-ending reply is a real question back. Blocking (a Jev trip); unsure or no answer
+    → True, the honest side: the report asks him, it never claims a step it did not see done."""
+    try:
+        from nucleo import jev
+        v = jev.choose_sync(_NEEDS_KEY, f"TASK: {task[:600]}\nREPLY: {reply[:600]}",
+                            instructions=_NEEDS_INSTRUCTIONS, criteria=_NEEDS_CRITERIA,
+                            question_id="list-step-reply")
+    except Exception:  # noqa: BLE001
+        v = None
+    return not (v and v.get("choice") == "done" and float(v.get("confidence") or 0) >= 0.7)
+
+
 async def _run_step(uid: str, row: dict, turn, ingest) -> None:
     ts = _store()
     ts.task_patch(row["id"], state="running", started_at=int(time.time()))
@@ -122,6 +149,8 @@ async def _run_step(uid: str, row: dict, turn, ingest) -> None:
     except Exception as e:  # noqa: BLE001 — one broken step never takes the list down
         r = {"ok": False, "error": f"{type(e).__name__}: {e}"}
     state, note, tids = outcome_of(r)
+    if state == "needs_you" and not await asyncio.to_thread(reply_needs_him, row["goal"], note):
+        state = "done"
     # Memory, awaited — see the module note. A step that failed still said something true about him.
     try:
         await ingest(row["goal"])

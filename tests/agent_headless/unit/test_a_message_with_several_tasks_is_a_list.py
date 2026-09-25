@@ -278,3 +278,48 @@ def test_every_list_line_exists_in_spanish_and_english(field):
     from i18n import langs
     es, en = langs.LANGUAGES["es"], langs.LANGUAGES["en"]
     assert getattr(es, field) and getattr(en, field) and getattr(es, field) != getattr(en, field)
+
+
+def test_the_text_channel_receipt_is_a_string_like_every_other_reply(monkeypatch):
+    """Measured in the first live run: a list-shaped `reply` reached the harness as an empty line."""
+    from types import SimpleNamespace
+
+    from nucleo.flash import probe
+
+    async def fake_intake(text, **kw):
+        return {"ack": "Got it."}
+    monkeypatch.setattr(batch, "intake", fake_intake)
+    sess = SimpleNamespace(window=[])
+    got = asyncio.run(probe._task_list(LIST, sess))
+    assert got["reply"] == "Got it." and got["action"] == "task_list"
+    assert sess.window[-1] == {"role": "assistant", "content": "Got it."}
+
+
+def test_a_courtesy_question_is_not_a_step_that_needs_him(monkeypatch):
+    """First live run: «Noted… Anything you want me to dig up?» — DONE, reported as needing him because the
+    reply ended in «?». Jev reads what the question is for; unsure or silent keeps the honest side."""
+    monkeypatch.setattr(runner, "_worker_state", lambda tid: "done")
+    verdicts = {"Which one do you mean?": {"choice": "needs_answer", "confidence": 1.0},
+                "Noted. Anything else?": {"choice": "done", "confidence": 0.99}}
+    monkeypatch.setattr("nucleo.jev.choose_sync",
+                        lambda key, state, **k: verdicts.get(state.split("REPLY: ", 1)[1]))
+    assert runner.reply_needs_him("Book the usual.", "Which one do you mean?") is True
+    assert runner.reply_needs_him("Remember X.", "Noted. Anything else?") is False
+    assert runner.reply_needs_him("Remember X.", "Something unknown?") is True          # no verdict
+    monkeypatch.setattr("nucleo.jev.choose_sync", lambda *a, **k: {"choice": "done", "confidence": 0.5})
+    assert runner.reply_needs_him("Remember X.", "Noted. Anything else?") is True        # unsure
+
+    monkeypatch.setattr("nucleo.jev.choose_sync",
+                        lambda key, state, **k: verdicts.get(state.split("REPLY: ", 1)[1]))
+    uid = runner.create("msg", [{"title": "fact", "kind": "memory", "say": "Remember X."},
+                                {"title": "ask", "kind": "agenda", "say": "Book the usual."}])
+    replies = {"Remember X.": {"ok": True, "reply": "Noted. Anything else?"},
+               "Book the usual.": {"ok": True, "reply": "Which one do you mean?"}}
+
+    async def turn(text, **kw):
+        return replies[text]
+
+    async def nothing(*a, **k):
+        return None
+    s = asyncio.run(runner.run(uid, turn=turn, ingest=nothing, notify=nothing, worker_wait_s=0.1))
+    assert [r["title"] for r in s["done"]] == ["fact"] and [r["title"] for r in s["needs_you"]] == ["ask"]

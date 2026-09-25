@@ -85,7 +85,7 @@ async def _task_list(text: str, sess) -> dict | None:
     from . import dialog
     dialog.remember_what_was_said(sess, text, _WINDOW_MAX)
     sess.window.append({"role": "assistant", "content": got["ack"]})
-    return {"ok": True, "reply": [got["ack"]], "action": "task_list", "tool_calls": [], "tags": []}
+    return {"ok": True, "reply": got["ack"], "action": "task_list", "tool_calls": [], "tags": []}
 
 
 async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, model: str = "",
