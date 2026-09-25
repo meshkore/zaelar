@@ -105,6 +105,10 @@
     "visor de imágenes"
   ],
   "fullscreen": "native",
+  "size": {
+    "w": 520,
+    "h": 600
+  },
   "runtime": {
     "produce": [
       "slideshow"

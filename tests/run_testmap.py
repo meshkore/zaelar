@@ -2235,6 +2235,13 @@ DOMAINS: list[dict] = [
                                  "de sistema que él personalizó se ve pálido con la marca «Custom»",
             "ch": UNIT,
             "paths": ["tests/browser/unit/widgets/test_the_apps_tab_lists_every_widget_and_says_which_is_his.py"]},
+        # The image viewer OPENS with everything in view (operator, 2026-09-25): on a laptop the thumbnails
+        # were below the card's edge (fixed 380px stage vs the card's 82vh cap), and twelve of them made the
+        # card as wide as all twelve. Rendered on the REAL canvas with the REAL widget at 1280x650.
+        {"id": "4.213", "title": "El visor de imágenes se abre con todo a la vista — la foto se adapta, la tira de "
+                                 "miniaturas cabe en la tarjeta y se recorre (rueda, arrastre)",
+            "ch": UNIT,
+            "paths": ["tests/browser/unit/widgets/test_the_image_viewer_opens_with_everything_in_view.py"]},
         # V2-088: el chat es una VISTA, no un modo. Estos tests impiden que alguien vuelva a cablear el panel
         # con el altavoz — el acoplamiento anterior era indistinguible de un TTS averiado.
         {"id": "4.9", "title": "Chat y voz INDEPENDIENTES (el icono es el único dueño del silencio, V2-088)",

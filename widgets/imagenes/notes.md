@@ -43,3 +43,13 @@
 - **Ahora hay bloque `runtime`** (`produce: [slideshow]`, `suspend: slideshow_stop`, `active_when: {auto}`):
   revisa el juicio de V2-465 — la foto QUIETA no produce (sigue igual), el visor que AVANZA solo sí, así que
   el ⏻ global lo para y el gate de agente parado no lo arranca.
+
+## Opens with everything in view (2026-09-25)
+
+The operator's screenshot: the card opened with the thumbnails below its edge, and twelve thumbnails made the
+card as wide as all twelve. The stage was a fixed `min(52vh,380px)`, and the card is capped at 82vh, so on a
+laptop the strip fell off. Now the stage FLEXES (min 140px) and the header, source line and strip are fixed. The
+manifest declares `size` 520×600 (clamped to the canvas). The strip is `width:0;min-width:100%`, so it never
+widens a card that is still sizing itself; it scrolls with a visible bar, the mouse wheel moves it sideways, it
+can be dragged (a drag is not a click), and the current photo's thumbnail scrolls into view. Node 4.213.
+⚠️ No backticks inside the injected `<style>` template: one in a comment killed the whole module (caught by 4.213).

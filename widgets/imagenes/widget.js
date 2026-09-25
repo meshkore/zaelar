@@ -13,7 +13,11 @@ function injectStyles(){
   .hb-imgv{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
            color:var(--hb-ink,#0d1622);width:100%;box-sizing:border-box;background:var(--hb-bg,#fff);
            border:1px solid var(--hb-line,#eef1f6);border-radius:16px;padding:12px 12px 10px;
-           display:flex;flex-direction:column;gap:10px}
+           display:flex;flex-direction:column;gap:10px;height:100%;min-height:0}
+  /* The STAGE takes what the card has left and nothing more (operator, 2026-09-25: the card opened with the
+     thumbnails below its edge). It used to be a fixed min(52vh,380px): on a laptop the card's own 82vh ceiling
+     cut the strip off, so the one row that says «there are twelve of these» was the part nobody saw. The header,
+     the source line and the strip are fixed; the picture flexes, down to a floor that still reads as a photo. */
   .hb-imgv .imghd{display:flex;align-items:baseline;gap:8px;min-height:18px}
   .hb-imgv .imghd b{font-size:15px;font-weight:600;line-height:1.25;overflow:hidden;
                     text-overflow:ellipsis;white-space:nowrap;flex:1}
@@ -23,7 +27,7 @@ function injectStyles(){
   .hb-imgv .imgsrc a{color:var(--hb-accent,#2F6FEB);text-decoration:none}
   .hb-imgv .imgsrc a:hover{text-decoration:underline}
   .hb-imgv .imgstage{position:relative;background:var(--hb-bg-soft,#f6f8fb);border-radius:12px;
-                     border:1px solid var(--hb-line,#eef1f6);height:min(52vh,380px);
+                     border:1px solid var(--hb-line,#eef1f6);flex:1 1 auto;min-height:140px;
                      display:flex;align-items:center;justify-content:center;overflow:hidden}
   .hb-imgv .imgstage img{max-width:100%;max-height:100%;object-fit:contain;display:block}
   .hb-imgv .imgnav{position:absolute;top:50%;transform:translateY(-50%);width:34px;height:34px;
@@ -32,11 +36,21 @@ function injectStyles(){
                    display:flex;align-items:center;justify-content:center;padding:0}
   .hb-imgv .imgnav:hover{opacity:1}
   .hb-imgv .imgprev{left:8px} .hb-imgv .imgnext{right:8px}
-  .hb-imgv .imgstrip{display:flex;gap:6px;overflow-x:auto;padding:2px 0 4px;scrollbar-width:thin}
+  /* The strip is exactly as wide as the card and SCROLLS (operator, 2026-09-25: «crecen hasta el infinito hacia
+     la derecha… tengo que ampliar el ancho del widget y eso no es correcto»). A thin overlay scrollbar was
+     invisible to a mouse, so the bar is always drawn, the wheel moves it sideways, and it can be dragged.
+     width:0 + min-width:100% is what stops it widening a card that is still sizing itself to its content. */
+  .hb-imgv .imgstrip{display:flex;gap:6px;overflow-x:auto;overflow-y:hidden;padding:2px 0 6px;flex:none;
+                     width:0;min-width:100%;cursor:grab;scrollbar-width:thin;
+                     scrollbar-color:var(--hb-line-strong,#6b7485) transparent}
+  .hb-imgv .imgstrip.dragging{cursor:grabbing;user-select:none}
+  .hb-imgv .imgstrip::-webkit-scrollbar{height:6px}
+  .hb-imgv .imgstrip::-webkit-scrollbar-thumb{background:var(--hb-line-strong,#6b7485);border-radius:3px}
+  .hb-imgv .imghd,.hb-imgv .imgsrc{flex:none}
   .hb-imgv .imgthumb{flex:none;width:74px;height:52px;border-radius:8px;overflow:hidden;cursor:pointer;
                      border:2px solid transparent;background:var(--hb-bg-soft,#f6f8fb);padding:0;
                      display:flex;align-items:center;justify-content:center}
-  .hb-imgv .imgthumb img{width:100%;height:100%;object-fit:cover;display:block}
+  .hb-imgv .imgthumb img{width:100%;height:100%;object-fit:cover;display:block;-webkit-user-drag:none;pointer-events:none}
   .hb-imgv .imgthumb.on{border-color:var(--hb-accent,#2F6FEB)}
   .hb-imgv .imgfb{color:var(--hb-muted,#5b6b82)}
   .hb-imgv .imgempty{color:var(--hb-muted,#5b6b82);font-size:13px;text-align:center;padding:22px 12px}
@@ -162,14 +176,39 @@ export function render(el, data, ctx){
       b.title=String(it.title||it.site||`Foto ${k+1}`);
       const t=document.createElement("img");
       t.src=String(it.thumb||it.url||""); t.alt=""; t.loading="lazy"; t.referrerPolicy="no-referrer";
+      t.draggable=false;   // the browser's own image drag cancelled the strip's drag after a few pixels
       t.onerror=()=>{ b.style.display="none"; };
       b.appendChild(t);
       // Selecting by NUMBER, not by URL: `select` resolves 1-N in the widget, which is the same path voice
       // takes ("the third"), so clicking and speaking cannot diverge.
-      b.onclick=()=>{ try{ctx.action("select",{item:String(k+1)});}catch(_){} };
+      b.onclick=(e)=>{ if(strip._dragged){ e.preventDefault(); return; }
+                       try{ctx.action("select",{item:String(k+1)});}catch(_){} };
       strip.appendChild(b);
     });
+    // The WHEEL moves the strip sideways: a mouse has no horizontal wheel, and without this the only way to
+    // the twelfth thumbnail was to widen the card. A trackpad's own sideways swipe is left alone.
+    strip.addEventListener("wheel", (e)=>{
+      if(strip.scrollWidth <= strip.clientWidth || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+      strip.scrollLeft += e.deltaY; e.preventDefault();
+    }, {passive:false});
+    // …and it can be DRAGGED. A drag that moved more than a few pixels is not a click on the thumbnail under it.
+    let dx0=0, sl0=0, down=false;
+    strip.addEventListener("pointerdown", (e)=>{ if(e.button!==0) return; down=true; strip._dragged=false;
+      dx0=e.clientX; sl0=strip.scrollLeft; });
+    strip.addEventListener("pointermove", (e)=>{ if(!down) return; const d=e.clientX-dx0;
+      if(!strip._dragged && Math.abs(d)>5){ strip._dragged=true; strip.classList.add("dragging");
+        try{ strip.setPointerCapture(e.pointerId); }catch(_){} }
+      if(strip._dragged) strip.scrollLeft = sl0 - d; });
+    const up = ()=>{ down=false; strip.classList.remove("dragging"); setTimeout(()=>{ strip._dragged=false; }, 0); };
+    strip.addEventListener("pointerup", up); strip.addEventListener("pointercancel", up);
     el.appendChild(strip);
+    // The photo on the stage is always one you can SEE in the strip — «next» by voice walks past the edge too.
+    const on = strip.children[i];
+    if(on) requestAnimationFrame(()=>{ try{
+      const l = on.offsetLeft - strip.offsetLeft, r = l + on.offsetWidth;
+      if(l < strip.scrollLeft) strip.scrollLeft = l - 6;
+      else if(r > strip.scrollLeft + strip.clientWidth) strip.scrollLeft = r - strip.clientWidth + 6;
+    }catch(_){} });
   }
 
   // ── KEYBOARD: ← → to move through photos (V2-465) ───────────────────────────────────────────────
