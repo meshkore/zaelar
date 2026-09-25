@@ -103,7 +103,7 @@ _assign("travel",
 
 _assign("agenda",
         "agenda-appointment-lifecycle", "dentist-appointment-into-agenda", "what-does-my-week-look-like",
-        "remember-and-remind-deadline", "weekly-appointment-until-june")
+        "remember-and-remind-deadline", "weekly-appointment-until-june", "agenda-everyday-edits")
 
 _assign("messaging",
         "show-my-messages", "dictate-a-reply-honestly", "messaging-detail-inside-messages",

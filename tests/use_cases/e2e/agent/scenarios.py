@@ -55,6 +55,10 @@ class UseCaseScenario:
     # land, the judge must know: penalizing the agent for not remembering something that was never saved
     # measures the distiller, not the agent.
     seed_probe_query: str = ""
+    # V2-770 — a SCRIPTED case: fixed loose lines, each graded against the widget's real state
+    # (`scripted.Step(say, check, open_card)`). Set, it replaces the persona driver and any red step FAILS
+    # the case whatever the judge scored. For a catalogue of operations a persona would wander through.
+    script: tuple = ()
 
 
 SCENARIOS: list[UseCaseScenario] = [
@@ -1349,6 +1353,83 @@ SCENARIOS: list[UseCaseScenario] = [
         forbidden_signals=["worker"],
         turns=6,
         channel="probe",
+    ),
+    # ── V2-770: the everyday edits of an appointment, said loosely (operator, 2026-09-25) ───────────────
+    # «abrir un item para que aparezca la ficha, pedir cerrarla, modificar el título, la descripción o la hora,
+    # cancelar una cita recursiva… la gente no pide las cosas de forma precisa». Scripted: every step is graded
+    # against the agenda's real state, because «Hecho.» over nothing reads fine in a transcript (3/13 measured).
+    UseCaseScenario(
+        id="agenda-everyday-edits",
+        locale="es",
+        tier=1,
+        opening_line="Apúntame el dentista el jueves que viene a las diez de la mañana",
+        persona_brief="Guion fijo (ver `script`): catorce gestiones de agenda dichas como las dice una persona.",
+        success_checks=(
+            "Cada paso del guion se comprueba contra el estado REAL de la agenda (`script_checks` del informe): "
+            "crear, crear una serie semanal, abrir la ficha, cerrarla (la ficha, NO la agenda), renombrar, poner "
+            "descripción, cambiar la hora, la hora de fin, mover SOLO un día de la serie, anular un día, cortar la "
+            "serie desde un mes dado, cancelar y borrar la serie entera. Un paso en rojo es FALLO aunque la "
+            "respuesta suene bien. Nada de workers."
+        ),
+        expected_signals=["widget"],
+        forbidden_signals=["worker"],
+        turns=24,
+        channel="probe",
+        script=(
+            ("Apúntame el dentista el jueves que viene a las diez de la mañana", "agenda.dentist_next_thursday_10",
+             "agenda"),
+            ("Y la clase de piano de Abril, todos los martes de cinco a seis de la tarde hasta {FINAL_DE_MES_EN_3}",
+             "agenda.piano_every_tuesday_17_for_three_months"),
+            ("Ábreme la ficha del dentista, que quiero verla", "agenda.card_open_on_dentist"),
+            ("Vale, ya la puedes cerrar", "agenda.card_closed"),
+            ("Cámbiale el nombre al dentista, ponle revisión dental con el doctor Ruiz", "agenda.renamed_to_ruiz"),
+            ("Y apúntale en la descripción que tengo que llevar las radiografías", "agenda.notes_xrays"),
+            ("Oye, al final lo del doctor Ruiz es a las once y media", "agenda.starts_11_30"),
+            ("Y que dure hasta la una", "agenda.ends_13_00"),
+            ("El piano del martes que viene pásalo al miércoles, solo esa semana",
+             "agenda.one_tuesday_moved_to_wednesday"),
+            ("El {MARTES_SIGUIENTE_AL_PROXIMO} no hay clase de piano", "agenda.one_tuesday_skipped"),
+            ("A partir de {MES_EN_2} ya no hay piano", "agenda.series_ends_before_month_in_2"),
+            ("¿Qué tengo el jueves que viene?", ""),
+            ("Cancela lo del doctor Ruiz", "agenda.ruiz_cancelled"),
+            ("Y quita el piano entero, toda la serie", "agenda.whole_series_gone"),
+        ),
+    ),
+    UseCaseScenario(
+        id="agenda-everyday-edits__us",
+        locale="us",
+        tier=1,
+        opening_line="Put the dentist down for next Thursday at ten in the morning",
+        persona_brief="Fixed script (see `script`): fourteen agenda operations said the way a person says them.",
+        success_checks=(
+            "Every script step is checked against the agenda's REAL state (`script_checks` in the report): "
+            "create, create a weekly series, open the detail card, close it (the card, NOT the agenda), rename, "
+            "add a description, change the hour, the end, move ONE day of the series, skip a day, end the series "
+            "from a given month, cancel, delete the whole series. A red step is a FAIL however good the reply reads. "
+            "No workers."
+        ),
+        expected_signals=["widget"],
+        forbidden_signals=["worker"],
+        turns=24,
+        channel="probe",
+        script=(
+            ("Put the dentist down for next Thursday at ten in the morning", "agenda.dentist_next_thursday_10",
+             "agenda"),
+            ("And Abril's piano lesson, every Tuesday from five to six pm until {END_OF_MONTH_IN_3}",
+             "agenda.piano_every_tuesday_17_for_three_months"),
+            ("Pull up the dentist appointment for me, I want to see it", "agenda.card_open_on_dentist"),
+            ("Ok, you can close that now", "agenda.card_closed"),
+            ("Rename the dentist one to dental checkup with Dr Ruiz", "agenda.renamed_to_ruiz"),
+            ("And add a note that I need to bring the x-rays", "agenda.notes_xrays"),
+            ("Actually the Dr Ruiz thing is at eleven thirty", "agenda.starts_11_30"),
+            ("And make it last until one", "agenda.ends_13_00"),
+            ("Move next Tuesday's piano to Wednesday, just that week", "agenda.one_tuesday_moved_to_wednesday"),
+            ("There's no piano on {TUESDAY_AFTER_NEXT}", "agenda.one_tuesday_skipped"),
+            ("From {MONTH_IN_2} on there's no more piano", "agenda.series_ends_before_month_in_2"),
+            ("What do I have next Thursday?", ""),
+            ("Cancel the Dr Ruiz appointment", "agenda.ruiz_cancelled"),
+            ("And get rid of the piano completely, the whole series", "agenda.whole_series_gone"),
+        ),
     ),
     UseCaseScenario(
         id="what-does-my-week-look-like",

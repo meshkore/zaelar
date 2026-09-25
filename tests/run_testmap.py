@@ -2255,7 +2255,8 @@ DOMAINS: list[dict] = [
                                  "«ella» es la cita de la que hablamos, y la serie llega entera a Google",
             "ch": UNIT,
             "paths": ["tests/agent_headless/unit/test_the_everyday_agenda_edits.py",
-                      "tests/browser/unit/agenda/test_the_card_opens_and_closes_by_voice.py"]},
+                      "tests/browser/unit/agenda/test_the_card_opens_and_closes_by_voice.py",
+                      "tests/use_cases/unit/test_a_scripted_case_is_graded_on_the_store.py"]},
         # V2-088: el chat es una VISTA, no un modo. Estos tests impiden que alguien vuelva a cablear el panel
         # con el altavoz — el acoplamiento anterior era indistinguible de un TTS averiado.
         {"id": "4.9", "title": "Chat y voz INDEPENDIENTES (el icono es el único dueño del silencio, V2-088)",

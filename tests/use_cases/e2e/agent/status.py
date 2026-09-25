@@ -236,6 +236,11 @@ def _state(overall, r: dict) -> str:
                          "Exit code 2 y NINGUNA página se alcanzó (cuelgue del Chromium o del bridge)")
     if overall is None:
         return _infra(r, "el juez no devolvió nota")
+    # V2-770 — a SCRIPTED case's checks are the mechanism, read off the widget: one red step is a FAIL
+    # whatever the judge scored. Measured live: «Hecho.» over an untouched agenda reads well in a transcript.
+    _steps = mech_.get("script_checks") or []
+    if _steps and any(st.get("check") and st.get("ok") is not True for st in _steps):
+        return "FAIL"
     # MECHANISM takes precedence over the aggregate score. Measured on 2026-08-19: `reorder-prescription__es` got overall 4
     # (flawless behavior: 5 for naturalness, adaptation, and outcome) with **mechanism 1**, and the judge itself
     # wrote “critical desynchronization: the system reports state 'working' with zero background activity”. The

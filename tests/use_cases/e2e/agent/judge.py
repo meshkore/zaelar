@@ -279,6 +279,16 @@ def mechanism_facts(mech: dict) -> str:
         lines.append("· OJO con el límite de ese hecho: «worker» significa que un Brain Worker ARRANCÓ. "
                      "NO prueba que devolviera nada aprovechable. Un worker que arranca y no entrega es un "
                      "fallo de «resultado» — pero descríbelo así, no como una señal ausente.")
+    # V2-770 — a SCRIPTED case: each step was graded against the widget's real state. These are facts, and a
+    # red one fails the case in `status._state` whatever is scored here.
+    _steps = mech.get("script_checks") or []
+    if _steps:
+        _bad = [st for st in _steps if st.get("check") and st.get("ok") is not True]
+        lines.append(f"· GUION: {len(_steps)} paso(s), comprobado cada uno contra el estado REAL del widget — "
+                     f"{len(_bad)} en ROJO" + (": " + "; ".join(f"paso {st.get('step')} «{str(st.get('said'))[:60]}» "
+                                                           f"→ {st.get('check')} NO se cumplió"
+                                                           for st in _bad[:6]) if _bad else ", todos cumplidos")
+                     + ". Un paso en rojo con una respuesta que dice «hecho» es una AFIRMACIÓN FALSA.")
     tid = (mech.get("navegador_task_id") or "").strip()
     if tid:
         lines.append(f"· Hubo tarea de navegador ({tid}); su estado real está en `navegador_task`.")

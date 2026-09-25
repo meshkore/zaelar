@@ -52,9 +52,27 @@ def en(d: _dt.date, *, with_weekday: bool = True) -> str:
     return d.strftime("%A %B %-d") if with_weekday else d.strftime("%B %-d")
 
 
+def tuesday_after_next(ref: _dt.date | None = None) -> _dt.date:
+    """The Tuesday one week after the NEXT one (never today) — a day of a weekly series that is not its first."""
+    d = ref or today()
+    return d + _dt.timedelta(days=((1 - d.weekday()) % 7 or 7) + 7)
+
+
+def month_ahead(n: int, ref: _dt.date | None = None) -> _dt.date:
+    """The FIRST day of the month `n` months after today's."""
+    d = ref or today()
+    y, m = divmod(d.month - 1 + n, 12)
+    return _dt.date(d.year + y, m + 1, 1)
+
+
+def end_of_month_ahead(n: int, ref: _dt.date | None = None) -> _dt.date:
+    return month_ahead(n + 1, ref) - _dt.timedelta(days=1)
+
+
 def _tokens() -> dict[str, str]:
     sat, sun = next_weekend()
     in3w = days_ahead(21)
+    tue2 = tuesday_after_next()
     return {
         # Spanish
         "{FIN_DE_SEMANA}": f"este fin de semana ({es(sat)} y {es(sun)})",
@@ -63,6 +81,9 @@ def _tokens() -> dict[str, str]:
         "{EN_UNAS_SEMANAS}": f"alrededor del {es(in3w, with_weekday=False)}",
         "{DENTRO_DE_UN_MES}": f"alrededor del {es(days_ahead(30), with_weekday=False)}",
         "{FECHA_FUTURA_CERCANA}": es(days_ahead(10), with_weekday=False),
+        "{MARTES_SIGUIENTE_AL_PROXIMO}": es(tue2),
+        "{MES_EN_2}": _MESES_ES[month_ahead(2).month - 1],
+        "{FINAL_DE_MES_EN_3}": f"finales de {_MESES_ES[month_ahead(3).month - 1]}",
         # EN
         "{THIS_WEEKEND}": f"this weekend ({en(sat)} and {en(sun)})",
         "{SATURDAY}": en(sat),
@@ -70,6 +91,9 @@ def _tokens() -> dict[str, str]:
         "{IN_A_FEW_WEEKS}": f"around {en(in3w, with_weekday=False)}",
         "{IN_A_MONTH}": f"around {en(days_ahead(30), with_weekday=False)}",
         "{NEAR_FUTURE_DATE}": en(days_ahead(10), with_weekday=False),
+        "{TUESDAY_AFTER_NEXT}": en(tue2),
+        "{MONTH_IN_2}": month_ahead(2).strftime("%B"),
+        "{END_OF_MONTH_IN_3}": f"the end of {month_ahead(3).strftime('%B')}",
     }
 
 

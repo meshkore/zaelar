@@ -153,6 +153,14 @@ CASES: list[UseCase] = [
             "single day, never fifty copies, never the rule parked in the category or the notes; cancelling "
             "ONE Tuesday afterwards leaves the rest of the series; no Brain Worker, no stray task.",
             status="promoted"),
+    # Added 2026-09-25 (V2-770): «confírmame que funciona todo el manejo de la agenda… abrir la ficha, cerrarla,
+    # cambiar título, descripción u hora, cancelar una recursiva». SCRIPTED — every step graded on the store.
+    UseCase("agenda-everyday-edits", "es", 1, "Las gestiones de todos los días en la agenda, dichas a medias",
+            "Apúntame el dentista el jueves que viene a las diez de la mañana",
+            "Fourteen loose operations, each checked against the agenda's real state: create, weekly series, "
+            "open and close the DETAIL card (never the agenda), rename, description, hour, end, move ONE day of "
+            "the series, skip one, end it from a month, cancel, delete the whole series. One red step = FAIL.",
+            status="promoted"),
     UseCase("what-does-my-week-look-like", "es", 1, "La agenda contesta la verdad — también cuando no hay nada",
             "Apúntame dos cosas: dentista el {FECHA_FUTURA_CERCANA} a las nueve y media, y cena con Laura "
             "dos días después a las nueve de la noche.",
@@ -596,6 +604,11 @@ CASES: list[UseCase] = [
             "end of June next year.",
             "ONE agenda write carrying the rule (weekly, Tuesday, until the end of June next year); cancelling "
             "ONE Tuesday afterwards leaves the rest of the series; no Brain Worker, no stray task.",
+            status="promoted"),
+    UseCase("agenda-everyday-edits", "us", 1, "The everyday edits of an appointment, said loosely",
+            "Put the dentist down for next Thursday at ten in the morning",
+            "Fourteen loose operations, each checked against the agenda's real state (see the es case). One red "
+            "step = FAIL.",
             status="promoted"),
     UseCase("dentist-appointment-into-agenda", "us", 1, "A told appointment lands whole in the agenda",
             "Hey, jot this down: the kids have a dentist appointment on {NEAR_FUTURE_DATE} "

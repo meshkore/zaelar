@@ -19,6 +19,7 @@ import uuid
 from . import bus as busmod
 from . import config, driver as drivermod, judge as judgemod, probe_client, report as reportmod, scenarios as SC
 from . import initiative as initiativemod
+from . import scripted as scriptedmod
 from . import llm as llmmod
 from . import status as statusmod
 from . import verify as verifymod
@@ -129,7 +130,10 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
     # and a 504 while reading the previous case's widgets would otherwise void this one.
     probe_client.clear_read_failures()
     probe_client.reset(session)
-    driver = drivermod.Driver(scenario, persona_name=config.PERSONA_NAME)
+    # V2-770 — a SCRIPTED case says fixed lines and grades each against the widget (see `scripted.py`).
+    _scripted = bool(getattr(scenario, "script", None))
+    driver = (scriptedmod.ScriptedDriver(scenario) if _scripted
+              else drivermod.Driver(scenario, persona_name=config.PERSONA_NAME))
     # The Observatory's window opens HERE, not when the report is written: everything below is the round
     # happening, and until 2026-09-16 none of it left this process (see bus.py).
     busmod.case_started(scenario, sandboxed=sandboxed, session=session)
@@ -269,7 +273,8 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
             mech_hint = concurrency.hint()
         elif scenario.expected_signals:
             mech_hint = verifymod.live_navegador_snapshot(scenario_started_ms)
-        verdict = watchdogmod.evaluate(scenario, transcript, mech_hint)
+        verdict = ({"action": "continue"} if _scripted       # a script has no drift to watch
+                   else watchdogmod.evaluate(scenario, transcript, mech_hint))
         if verdict["action"] != "continue":
             watchdog_log.append(verdict)
             busmod.watchdog(scenario, verdict)
@@ -296,10 +301,13 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
                 continue
             break
         utterance = driver.reply(nudge=pending_nudge)
+        if driver.done:                   # a script ends on its last check, not on a farewell line
+            break
         note("tester", utterance)
         print(f"  tester  · {utterance}")
         turn += 1
 
+    script_checks = driver.finish() if _scripted else []
     busmod.step_finished(scenario, "turns",
                          detail=f"{sum(1 for row in transcript if row['who'] == 'tester')} turnos")
     busmod.step_started(scenario, "verify")
@@ -658,6 +666,9 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
     # y confirmada». `widget_data` devuelve None cuando no se pudo mirar, que es la verdad.
     _ag = probe_client.widget_data("agenda")
     mech["agenda_meetings"] = None if _ag is None else (_ag.get("meetings") or [])
+    if _scripted:
+        # The graded steps, for the judge AND for `status._state`, which fails the case on any red one.
+        mech["script_checks"] = script_checks
     if _ag is None:
         mech["agenda_error"] = "no se pudo leer el widget agenda (ver ground_truth_unreadable)"
 
