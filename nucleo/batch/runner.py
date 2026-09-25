@@ -188,17 +188,26 @@ async def _run_step(uid: str, row: dict, turn, ingest) -> None:
 
 
 def _worker_state(tid: str) -> str:
-    """'' while the worker is alive; its ending otherwise. A record that left the registry is looked up in
-    the durable table (V2-728) — a finished worker is dropped from RAM, its row is not."""
+    """'' while the commission is alive; its ending otherwise.
+
+    The DURABLE row speaks first once it is closed. A relay (`nucleo/workers/relay.py`) continues the same
+    commission under a NEW worker id and inherits the row, so the first worker's RAM record stays `relevada`
+    for good — measured on the errands case: the row said `failed` at 20:30 and the list, reading the RAM
+    record, would have waited its whole 45 minutes. The RAM record answers while the row is still open (the
+    row does not track `running`)."""
     try:
         from nucleo import dispatch, tasks as _tasks
+        row = _store().task_get(_tasks.task_uid(tid)) or {}
+        st = str(row.get("state") or "")
+        if st in ("done", "failed", "cancelled"):
+            return st
         rec = dispatch.get_record(tid)
         if rec is not None:
             st = str(getattr(rec, "status", "") or "")
             return "" if st in ("queued", "running", "relevada", "") else st
-        row = _store().task_get(_tasks.task_uid(tid)) or {}
-        st = str(row.get("state") or "")
-        return "" if st in ("pending", "running", "waiting") else (st or "done")
+        if row:
+            return ""                     # open row, no live record yet (queued behind the pool)
+        return "done"                     # nothing anywhere: never wait forever on a ghost
     except Exception:  # noqa: BLE001
         return "done"
 

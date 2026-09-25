@@ -348,3 +348,19 @@ def test_an_action_step_whose_turn_did_nothing_is_retried_once_then_failed(monke
     assert [r["title"] for r in s["done"]] == ["fact", "lunch"] and [r["title"] for r in s["failed"]] == ["vet"]
     assert "no action taken" in runner.steps_of(uid)[2]["outcome"]
     assert runner.acted({"action": "rename"}) and not runner.acted({"action": "chat", "reply": "Hecho."})
+
+
+def test_a_relayed_worker_is_over_when_its_durable_row_says_so(monkeypatch):
+    """Errands case: worker 1 was relayed to another provider (new id 3, same row). Its RAM record stays
+    `relevada` for good; the row said `failed` — the list must read the row, not wait 45 minutes."""
+    from types import SimpleNamespace
+
+    from nucleo import dispatch, tasks as _tasks
+    ts = runner._store()
+    monkeypatch.setattr(dispatch, "get_record", lambda tid: SimpleNamespace(status="relevada"))
+    ts.task_put({"id": _tasks.task_uid("91"), "title": "x", "state": "running"})
+    assert runner._worker_state("91") == ""                       # row open, relay still working
+    ts.task_patch(_tasks.task_uid("91"), state="failed")
+    assert runner._worker_state("91") == "failed"                 # the row closed: over, whatever RAM says
+    monkeypatch.setattr(dispatch, "get_record", lambda tid: None)
+    assert runner._worker_state("does-not-exist") == "done"       # a ghost is never waited on
