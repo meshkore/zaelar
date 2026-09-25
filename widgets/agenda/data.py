@@ -11,7 +11,7 @@ from .. import store
 from . import gcal, sweep
 from .reminders import _cancel_reminder, _schedule_reminder  # noqa: F401  (V2-705)
 from .details import _apply_details, _norm_attendees, _norm_status  # noqa: F401
-from . import planner, recur, tasklists
+from . import edit, planner, recur, tasklists
 
 
 # `_strip_accents` travelled with the spoken-date resolver it serves (V2-744); re-exported under its
@@ -307,6 +307,13 @@ def radius(action: str, payload: dict | None = None) -> int | None:
 def apply_action(action: str, payload: dict | None = None) -> dict:
     """Widget actions (HANDOFF §9.3): mark done / not now / snooze / drop / replan. Mutates the isolated store."""
     payload = recur.normalize(payload) if action in ("add_meeting", "update_meeting") else (payload or {})
+    if action == "update_meeting" and any(str(payload.get(k) or "").strip() for k in edit.TIME_KEYS):
+        # V2-770 — WHEN inside an edit («que dure hasta las cinco») is a reschedule: the door that owns the
+        # notice takes it, then whatever else the edit said lands below. It was dropped here before.
+        _moved = apply_action("move_meeting", payload)
+        payload = {k: v for k, v in payload.items() if k not in edit.TIME_KEYS}
+        if _moved.get("ok") is False or not (set(payload) - {"title", "date", "whole"}):
+            return _moved
     db = load_db()
     _extra: dict = {}
 
@@ -416,6 +423,7 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
             _dup = any(_twin_of(m) for m in _meets)        # timed or all-day — either way it already exists
             if not _dup:
                 gcal.commit_meeting(db, _new)   # no auto reminder: ~2h before needs an hour
+                edit.touch(db, _new)
         else:
             _ad = next((m for m in _meets if m.get("allDay") and _twin_of(m)), None)
             if _ad is not None:
@@ -446,6 +454,7 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
                 if _new.get("repeat"):
                     _new["remindFor"] = _rday
                 gcal.commit_meeting(db, _new)
+                edit.touch(db, _new)
     elif action == "dedupe_meetings":
         # «Simplify to one» (V2-710): keeps one of each identical group. Same persist/answer shape as
         # `cancel_meeting`, and the duplicate KEY is shared with it so the two cannot disagree.
@@ -466,6 +475,12 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
         if not res.get("ok"):
             if res.get("code") == "series_needs_scope":        # V2-769: he hears a question, the model its fix
                 res = {**res, "message": _spoken("agenda_series_scope")}
+            elif res.get("error") == "ambiguous" and res.get("options"):   # V2-770: never a bare code aloud
+                res = {**res, "message": _spoken("ask_which_item").replace("{cands}", ", ".join(res["options"][:4]))}
+            elif res.get("error") == "not_found":
+                _soon = sorted({str(m.get("title") or "") for m in db.get("meetings", []) if m.get("title")})[:4]
+                res = {**res, "message": (_spoken("widget_selector_missing").replace("{options}", ", ".join(_soon))
+                                          if _soon else _spoken("widget_selector_missing_bare"))}
             return {**view_data(), **res}
         db["currentPlan"] = compute_plan(db)
         store.save(WIDGET_ID, db)
@@ -590,19 +605,11 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
 
     elif action == "move_meeting":
         # V2-639 — moving an appointment had NO name: the only path was cancel + re-add, two turns the model
-        # never chains (the clear_all lesson: a frequent intention with no action cannot be gotten right).
-        # Finds the meeting like cancel_meeting does; the reminder MOVES with it (an alarm for the old day
-        # fires a ghost, the V2-473 rule).
-        title = _strip_accents((payload.get("title") or "").strip().lower())
-        raw_date = payload.get("date", "")
-        date = _resolve_date(raw_date) if raw_date else ""
-        _hits = [m for m in db.get("meetings", [])
-                 if (not title or title in _strip_accents(m.get("title", "").strip().lower()))
-                 and (not date or recur.on(m, date))]
-        if not title or not _hits:
-            return {"ok": False,
-                    "error": "no encuentro esa cita en la agenda — dime el título tal como está "
-                             "apuntada (y la fecha si hay varias)"}
+        # never chains. The reminder MOVES with it (an alarm for the old day fires a ghost, the V2-473 rule).
+        # V2-770 — found tolerantly like cancel; an END can be said; a DATED move of a series moves that day only.
+        _hits = edit.find(db, payload)
+        if not _hits:
+            return {"ok": False, "error": edit.missing(db, payload)}
         _rawnew = str(payload.get("newDate") or payload.get("new_date") or payload.get("day")
                       or payload.get("to") or "").strip()
         _rawtime = str(payload.get("newTime") or payload.get("new_time") or payload.get("startTime")
@@ -612,43 +619,48 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
             _rawnew = _mgl.group(1)
             if not _rawtime:
                 _rawtime = _mgl.group(2)
-        if not _rawnew and not _rawtime:
+        _rawend = any(str(payload.get(k) or "").strip() for k in edit.TIME_KEYS[6:])
+        if not _rawnew and not _rawtime and not _rawend:
             return {"ok": False,
-                    "error": "me falta el destino — mándame `newDate` (mañana, jueves, YYYY-MM-DD) "
-                             "y/o `newTime` (HH:MM)"}
+                    "error": "me falta el destino — mándame `newDate` (mañana, jueves, YYYY-MM-DD), "
+                             "`newTime` (HH:MM) y/o `endTime`"}
         m = _hits[0]
+        _day = _resolve_date(str(payload["date"])) if str(payload.get("date") or "").strip() else ""
+        if _day and isinstance(m.get("repeat"), dict) and not payload.get("whole"):
+            _one = edit.detach(db, m, _day)                # this day leaves the series; the rest stays put
+            if _one is None:
+                return {"ok": False, "error": f"«{m.get('title')}» no cae el {_day} — dime qué día es"}
+            gcal.patch_google(m)
+            m = gcal.commit_meeting(db, _one)
         new_date = _resolve_date(_rawnew) if _rawnew else str(m.get("date") or _today())
         new_start = _resolve_time(_rawtime) if _rawtime else str(m.get("startTime") or "17:00")
-        try:                                               # the end keeps the meeting's duration
-            _dur = (_m2(m.get("endTime")) - _m2(m.get("startTime"))) or 60
-        except Exception:  # noqa: BLE001
-            _dur = 60
-        _endm = (_m2(new_start) + max(15, _dur)) % (24 * 60)
+        _end = edit.end_of(m, payload, new_start)
         _cancel_reminder(m)
         if _rawnew and (m.get("repeat") or {}).get("freq") == "weekly":   # V2-769: a series moves every week
             m["repeat"]["days"] = [recur.weekday(new_date)]
-        m["date"], m["startTime"] = new_date, new_start
-        m["endTime"] = f"{_endm // 60:02d}:{_endm % 60:02d}"
+        m["date"], m["startTime"], m["endTime"] = new_date, new_start, _end
         m.pop("reminder_id", None); m.pop("remindAt", None)
         gcal.patch_google(m)   # V2-679: a moved Google-origin meeting is rescheduled on Google too
-        _jid, _at = _schedule_reminder(m.get("title", "Cita"), new_date, new_start)
+        _jid, _at = _schedule_reminder(m.get("title", "Cita"), recur.next_occurrence(m, _today()) or new_date,
+                                       new_start)
         if _jid:
             m["reminder_id"], m["remindAt"] = _jid, _at
+        _extra = {"stored": dict(m)}
+        edit.touch(db, m)
+    elif action in ("open_meeting", "close_meeting"):
+        # V2-770 — the appointment's CARD, by voice: a view push like `show_day`, nothing else is written.
+        res = edit.open_detail(db, payload) if action == "open_meeting" else edit.close_detail(db)
+        if not res.get("ok"):
+            return res
+        _extra = res
     elif action == "update_meeting":
         # V2-643 — the DETAILS of an appointment already in the agenda: «el dentista ya me lo ha
         # confirmado», «apunta que vienen cuatro», «es en la clínica Ruiz». Date and time are NOT edited
         # here — moving an appointment reschedules its notice, and that belongs to move_meeting, which
         # owns the reminder. One door per consequence.
-        title = _strip_accents((payload.get("title") or "").strip().lower())
-        raw_date = payload.get("date", "")
-        date = _resolve_date(raw_date) if raw_date else ""
-        _hits = [m for m in db.get("meetings", [])
-                 if (not title or title in _strip_accents(m.get("title", "").strip().lower()))
-                 and (not date or recur.on(m, date))]
-        if not title or not _hits:
-            return {"ok": False,
-                    "error": "no encuentro esa cita en la agenda — dime el título tal como está "
-                             "apuntada (y la fecha si hay varias)"}
+        _hits = edit.find(db, payload)
+        if not _hits:
+            return {"ok": False, "error": edit.missing(db, payload)}
         _fields = ("notes", "details", "location", "place", "category", "attendees", "people", "with",
                    "status", "confirmed", "allDay", "all_day", "newTitle") + recur.ALL_KEYS
         if not any(k in payload for k in _fields):
@@ -663,6 +675,7 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
         _nt = str(payload.get("newTitle") or "").strip()
         if _nt:
             m["title"] = _nt[:160]
+        edit.touch(db, m)
         gcal.patch_google(m)   # V2-679: an edited Google-origin meeting is patched on Google too
     elif action == "invite":
         # V2-718 — «¿me puedes mandar el enlace por mail?» / «mándale la invitación». The verb the agenda

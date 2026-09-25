@@ -123,6 +123,9 @@ def patch_google(m: dict) -> None:
     pushed to (`m['source'] == 'google'`). Mutates `m` in place with whatever Google echoes back; a failure
     leaves the local edit standing — the operator's change is never lost, it just risks a divergence the next
     sync cannot yet self-heal (named, not solved, in this build)."""
+    if m.get("googleSeriesId") and m.get("source") != "google":
+        _patch_series(m)
+        return
     if m.get("source") != "google":
         return
     s = svc()
@@ -133,6 +136,21 @@ def patch_google(m: dict) -> None:
         if r.get("ok"):
             for k, v in r["meeting"].items():
                 m[k] = v
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def _patch_series(m: dict) -> None:
+    """V2-770 — mirror an edit of OUR series onto its one Google master: the rule, the days it skips (EXDATE),
+    title, hours, details. The echo is NOT folded back — Google answers with the master's first instance,
+    and our row is the series. Best-effort like every mirror here; the local edit stands either way."""
+    s = svc()
+    if s is None or not isinstance(m.get("repeat"), dict):
+        return
+    from . import recur
+    try:
+        s.patch_event({**m, "googleId": m["googleSeriesId"]},
+                      {**m, "rrule": recur.to_rrule(m["repeat"]), "exdates": list(m["repeat"].get("skip") or [])})
     except Exception:  # noqa: BLE001
         pass
 

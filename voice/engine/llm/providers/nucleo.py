@@ -959,6 +959,12 @@ class NucleoLLMStream(llm.LLMStream):
             # GUARD close sin orden (V2-635, espejo del GUARD 2 de stop_worker): «Johnny eres tonto» acabó en
             # un [[close]] que NADIE pidió (34386d8f). Gramática (looks_like_close ya excluye negaciones y
             # narraciones): sin verbo de cerrar EN el turno del operador, el close del modelo es arrastre.
+            if action == "close" and _direct_action.order_is_inside(_brief, str((extra or {}).get("id") or "")):
+                # V2-770 — the order is an action INSIDE the card («ciérrala» over a detail card): not this tag.
+                emit("brain", "🛡️ close ignorado — la orden es una acción DENTRO de la tarjeta",
+                     text=(text or "")[:120], role="system", extra={"cat": "flash", "kind_diag": "close_inside_card"})
+                deduped["v"] = True
+                return
             if action == "close" and not _closeg.looks_like_close(text):
                 # ...unless the shared reader licenses it: Jev independently reads a close order with
                 # confidence (T-jev-show-close) — two readers agreeing forgives a grammar miss. A "neither"
@@ -997,6 +1003,15 @@ class NucleoLLMStream(llm.LLMStream):
                     return
                 _shown_ids.add(_sid)
                 extra["reason"] = "turn-order"       # V2-723: the guards above ARE the turn's license
+                # V2-770 — showing a card that is ALREADY open, on a turn whose verdict names an action INSIDE it
+                # («ábreme la ficha del dentista» → `agenda:open_meeting`), is not the act: the turn stays open to
+                # the verdict's completion and the promise repair below.
+                if _direct_action.order_is_inside(_brief, _sid):
+                    emit("brain", "🪟 show de una tarjeta ya abierta — la orden es una acción DENTRO",
+                         text=_sid, role="system", extra={"cat": "flash", "kind_diag": "show_inside_card"})
+                    extra["src"] = "flash"
+                    emit("widget", action, extra=extra)
+                    return
             acted["widget"] = True
             if action == "close":
                 acted["closed"] = True                   # el backstop de cierre corto no re-cierra (ver post-stream)
@@ -1249,7 +1264,8 @@ class NucleoLLMStream(llm.LLMStream):
             # claramente CERRAR (verbo de cerrar, sin verbo de borrar, ≤5 palabras — sin más sustancia que el
             # pronombre/el widget) se redirige DETERMINISTA a la tag de canvas. Una frase larga con "cierra"
             # dentro ("cierra la sesión de spotify del widget") NO entra aquí (pasa a su data-op normal).
-            if _closeg.is_short_close_order(text) and runtime.get(wid) is not None:   # V2-713 R3: extraída
+            if (_closeg.is_short_close_order(text) and runtime.get(wid) is not None   # V2-713 R3: extraída
+                    and _direct_action.from_brief(_brief) != (wid, action_name)):   # V2-770: both readers agree
                 emit("brain", "🙈 orden corta de CERRAR → close (no data-op)", text=f"{wid} (era {action_name})",
                      role="system")
                 _tag_emit("close", {"id": wid})
@@ -2425,7 +2441,8 @@ class NucleoLLMStream(llm.LLMStream):
             _no_tool = False
         # V2-764 — it PROMISED to act on a card the verdict names and called nothing: one pass for the call
         # (`act_repair`), before any backstop decides it was a web errand and spends a worker on it.
-        if (_no_tool and spoken_text and not clarify["msg"] and _router.promises_action(spoken_text)
+        if (_no_tool and spoken_text and not clarify["msg"]
+                and (_router.promises_action(spoken_text) or _direct_action.names_an_order(_brief))
                 and not _router.asks_for_missing_detail(spoken_text)):
             from nucleo.flash import act_repair as _act_repair, build_decision as _bd_ar
             _ar_wid = _bd_ar.named_card(_brief)

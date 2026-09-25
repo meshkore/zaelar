@@ -177,12 +177,21 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
     # (show/close/neither) en su propio hilo mientras se monta el prompt y corre el modelo, lista en los
     # guardas de canvas. Consultiva: un "close" seguro licencia un [[close]] que la gramática no ve;
     # lo demás mantiene el camino de hoy. Nunca rompe el turno (None = solo gramática).
-    canvas_h = None
+    # V2-770 — the WHOLE turn brief, as the voice provider fires it (`_brief = canvas_h = ask_for_turn`): it
+    # carries the canvas verb too, and without it this channel had no verdict about WHICH action of an open
+    # card was meant, so what it measured was a product voice does not run.
+    canvas_h = _tbrief = None
     try:
-        from nucleo.flash import show_target as _st_cnv
-        canvas_h = _st_cnv.ask_canvas_async(operator_text)
+        from nucleo.flash import turn_brief as _tb_probe
+        canvas_h = _tbrief = _tb_probe.ask_for_turn(operator_text)
     except Exception:
-        canvas_h = None
+        canvas_h = _tbrief = None
+    if canvas_h is None:
+        try:
+            from nucleo.flash import show_target as _st_cnv
+            canvas_h = _st_cnv.ask_canvas_async(operator_text)
+        except Exception:
+            canvas_h = None
 
     # (a2) DRENA brain_notes como el provider (paridad voz/probe, V2-053): las notas [SISTEMA] pendientes
     # (SlowBrain, proactive, Susurro repair_say) se anteponen al turno — sin esto el canal de prueba no podía
@@ -235,7 +244,9 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
             # V2-635 (espejo del guarda del provider) + licencia Jev (T-jev-show-close, lector COMPARTIDO
             # `show_target.close_has_order`, nunca una segunda implementación): un [[close]] sin orden se
             # descarta; un "close" seguro de Jev lo licencia (dos lectores de acuerdo).
-            from nucleo.flash import show_target as _st_close
+            from nucleo.flash import direct_action as _da_close, show_target as _st_close
+            if _da_close.order_is_inside(_tbrief, str((extra or {}).get("id") or "")):
+                return                           # V2-770 — the order is an action inside the card, not this tag
             _has_order, _order_src = _st_close.close_has_order(text, canvas_h)
             if not _has_order:
                 return
@@ -519,7 +530,9 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
                 action = f"canvas:show:{_wid}"
             # V2-713 R3 — the short-close redirect, which had lived only in the voice rail. Shared as a
             # FUNCTION, never copied; the incident and the reason are in `close_guards.is_short_close_order`.
-            elif _cg.is_short_close_order(text) and _rt.get(_wid) is not None:
+            elif (_cg.is_short_close_order(text) and _rt.get(_wid) is not None
+                  # V2-770 — unless the verdict names THIS very action: «ya la puedes cerrar» → close_meeting
+                  and __import__("nucleo.flash.direct_action", fromlist=["x"]).from_brief(_tbrief) != (_wid, _act)):
                 action = f"canvas:close:{_wid}"
             elif _fe.action_mode(_wid, _act) is None:
                 # ESPEJO de la voz (misma decisión compartida, `frontend.resolve_undeclared_action` — cablear
@@ -607,6 +620,14 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
     _window_goal = ""    # V2-132: objetivo recuperado de la ventana cuando la promesa no lo lleva en su turno
     # BACKSTOP PROMESA-SIN-ACCIÓN UNIFICADO (espejo del provider): el modelo charló una promesa sin tool → re-deriva
     # la intención. Gated por la promesa en la RESPUESTA. Generaliza sobre conjugaciones/cortesías.
+    # V2-770 — a show of a card that is already open, on a turn whose verdict names an action INSIDE it, is not
+    # the act («ábreme la ficha del dentista» → show_widget(agenda) over an open agenda): the repair runs.
+    try:
+        from . import direct_action as _da_show
+        if action.startswith("canvas:show:") and _da_show.order_is_inside(_tbrief, action.split(":", 2)[2]):
+            action = "chat"
+    except Exception:
+        pass
     if action == "chat" and spoken:
         try:
             from . import router as _routerc
@@ -614,15 +635,21 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
             # promise it failed to keep, so nothing is re-derived from it (V2-534). Wired in BOTH channels
             # because this class of defect survives by diverging between them.
             _ar = None
-            if _routerc.promises_action(spoken) and not _routerc.asks_for_missing_detail(spoken):
-                # V2-764 — mirror of the voice repair (`act_repair`). This channel fires no brief of its own,
-                # so it asks for one HERE, only on a turn that promised and called nothing.
-                from . import act_repair as _act_repair
-                _ar = await _act_repair.probe_call_for_promise(text, spoken, spec)
+            from . import direct_action as _da_probe
+            if ((_routerc.promises_action(spoken) or _da_probe.names_an_order(_tbrief))
+                    and not _routerc.asks_for_missing_detail(spoken)):
+                # V2-764 — mirror of the voice repair (`act_repair`), gated like it on the verdict too (V2-770).
+                from . import act_repair as _act_repair, build_decision as _bd_probe
+                _ar_wid = _bd_probe.named_card(_tbrief)
+                _ar = (await _act_repair.call_for_promise(operator_text, spoken, _ar_wid, spec=spec) if _ar_wid
+                       else await _act_repair.probe_call_for_promise(operator_text, spoken, spec))
             if _ar:
-                action = f"widget_data:{_ar['widget_id']}:{_ar['action']}"
+                # «widget_data», the label the executor matches — a richer label here meant the repaired call was
+                # recorded and never RUN in this channel (V2-770: «Hecho.» over an untouched agenda).
+                action = "widget_data"
                 tool_calls.append({"name": "widget_data", "args": {"widget_id": _ar["widget_id"],
                                    "action": _ar["action"], "payload": _ar["payload"], "_repair": True}})
+                spoken = ""          # its words were about a call it never made; the result speaks now
             elif _routerc.promises_action(spoken) and not _routerc.asks_for_missing_detail(spoken):
                 if (_routerc.looks_like_create_widget(text) or _routerc.looks_like_escalate_task(text)
                         or _routerc.looks_like_create_widget(spoken) or _routerc.looks_like_escalate_task(spoken)):
@@ -697,6 +724,19 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
     # estaba en esta lista → el backstop de cierre de abajo CERRABA el widget entero en vez de solo salir de
     # fullscreen (fullscreen_widget YA resolvió la intención real este turno).
     _already = action.startswith(("music", "video", "search", "widget_data", "canvas:fullscreen", "canvas:minimize"))
+    # V2-770 — the mirror of the voice `direct_action.complete`: a turn with no call whose verdict names an action
+    # INSIDE an open card («ya la puedes cerrar» → agenda:close_meeting) runs that action — and the close
+    # backstop below, which would have shut the whole card, never sees it.
+    if not _already and not any(t["action"] == "close" for t in tags):
+        try:
+            from . import direct_action as _da_bs
+            if _da_bs.names_an_order(_tbrief) and (_rung := _da_bs.resolve(operator_text, brief=_tbrief,
+                                                                           operator_text=operator_text)):
+                tool_calls.append({"name": "widget_data", "args": {"widget_id": _rung["widget"],
+                                   "action": _rung["action"], "payload": _rung["payload"], "_verdict": True}})
+                action, _already, spoken = "widget_data", True, ""
+        except Exception:
+            pass
     if not _already and not any(t["action"] == "close" for t in tags):
         try:
             from . import close_guards as _closeg, router as _router0

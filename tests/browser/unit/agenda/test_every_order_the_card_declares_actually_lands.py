@@ -78,6 +78,8 @@ _SCRIPT = [
     ("invite", {"who": "ivan@example.com", "meeting": "Reunión con Iván", "date": "TOM"}, None),
     ("dedupe_meetings", {"title": "Reunión con Iván", "date": "TOM"}, None),
     ("show_day", {"day": "month"}, None),
+    ("open_meeting", {"title": "Reunión con Iván"}, None),
+    ("close_meeting", {}, None),
     ("rsvp_meeting", {"title": "Reunión con Iván", "date": "TOM", "answer": "yes"}, "invitación"),
     ("cancel_meeting", {"title": "Reunión con Iván", "date": "TOM"}, None),
     ("clear_range", {"from": "TOM", "to": "TOM"}, None),

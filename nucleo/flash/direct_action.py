@@ -129,6 +129,41 @@ def from_brief(brief) -> tuple:
         return ("", "")
 
 
+def order_is_inside(brief, widget_id: str = "") -> bool:
+    """Does the verdict put this turn's order INSIDE a card — on one of its declared actions — so that a
+    [[close]] of that same card is not the order?
+
+    Measured live on the agenda (V2-770): «vale, ya la puedes cerrar» with a detail card open. The brief
+    answered `screen_action = agenda:close_meeting` at 0.99; the model called exactly that AND emitted
+    [[close]], the grammar saw «cerrar» and licensed the tag, and the canvas precedence closed the whole
+    AGENDA. The canvas verb reads «close»; only the action question knows WHAT closes."""
+    try:
+        owner, name = from_brief(brief)
+        if not owner or not name:
+            return False
+        return not widget_id or _base_of(owner) == _base_of(widget_id)
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def names_an_order(brief) -> bool:
+    """Does the turn's verdict name a declared action of an open card, on a turn it does not read as a remark?
+
+    The gate for the promise repair (`act_repair`), in both channels (V2-770). That repair used to wait for a
+    regex to find a PROMISE in the reply, and a reply that CLAIMS instead of promising slipped under it: measured
+    live on the agenda, «el piano del martes pásalo al miércoles» → «Ya está: la del miércoles», «el martes 6
+    no hay clase» → «Vale, quito la del 6», with no tool and a card that still had both. The verdict was already
+    paid for and named the action; the wording of the reply is not the evidence, the verdict is."""
+    try:
+        from nucleo.flash import turn_brief as _tb
+        if not from_brief(brief)[1]:
+            return False
+        kind, info = _tb.read(brief, _tb.REQUEST_KEY, "")
+        return info is not None and kind not in NOT_AIMED_AT_THE_SCREEN
+    except Exception:  # noqa: BLE001
+        return False
+
+
 def resolve(commission: str, *, brief=None, swallowed=None, operator_text: str = "") -> dict:
     """The whole rung in one call. `{}` when there is none — every caller's fallback is today's path.
 

@@ -72,7 +72,7 @@
   ],
   "entry": "widget.js",
   "dataSchemaRef": "schema:DB",
-  "usage": "Añade citas con add_meeting (title+date+startTime; opcionales attendees/location/category/notes/allDay; cada cita crea su aviso ~2h antes) y TAREAS sin hora con add_task. Cancela con cancel_meeting, MUEVE de día/hora con move_meeting (title + newDate/newTime) y cambia sus DETALLES con update_meeting (status confirmed/pending cuando la otra parte responda, attendees, location, category, notes, newTitle). set_reminder mueve el aviso de una cita, y SIN title + con date pone avisos a todas las citas de ese día. Estado de tareas: done/snooze/not_now/drop (taskId). Para VACIARLA ENTERA y para siempre usa clear_all (confirma; nunca tires elementos de uno en uno). Para limpiar UN TRAMO usa clear_range con from y to (fechas habladas valen: «hoy», «mañana», «el lunes») — «esta semana» es from=lunes to=domingo. Si dice «menos X» o «excepto X», eso va en keep, que admite un nombre suelto («el zerohash») o {title, date, time} cuando nombre una hora («lo de mañana a las 15h» → {date:«mañana», time:«15:00»}). clear_all NO sabe conservar nada: cualquier orden con una excepción es clear_range. Para CAMBIAR LA VISTA («la agenda de hoy/mañana», «enséñame el jueves», «vista semanal», «vista de mes», «la lista de lo que viene») usa show_day con day=hoy|mañana|<día>|semana|mes|lista — es la ÚNICA forma de mover lo que se ve; reabrir el widget siempre abre por hoy. Los detalles de cada cita (hora, aviso, quién viene, si está confirmada, notas) los tienes en su digest cuando la agenda está abierta, así que contéstalos sin preguntar. Para ENLAZAR con Google Calendar usa connect: deja la tarjeta en el paso de conectar y tú le dices que pulse el botón — el permiso lo da él en la ventana de Google, tú no puedes. ▸ TAREAS (la otra sección de esta tarjeta, la personal del operador — NO los procesos del agente): add_task(title[, list, date, time]) apunta una; sin `list` va a «General». Las listas se crean con add_list(name) y se nombran por NÚMERO o por nombre indistintamente: «la lista 2», «la compra». Dentro de una lista, cada ítem tiene su NÚMERO tal como lo ve en pantalla, así que «el ítem 2 de la compra» es task='2' + list='la compra' — el digest de esta tarjeta te da esos números, úsalos. done/delete_task/update_task(newTitle|date|time|newList|status) operan sobre un ítem; clear_list VACÍA una lista (confirma) y delete_list se la lleva entera (confirma); rename_list la renombra. Para ABRIR la sección de tareas o una lista concreta usa show_tasks(list) — es la única forma, reabrir el widget abre por la agenda.",
+  "usage": "Añade citas con add_meeting (title+date+startTime[+endTime]; opcionales attendees/location/category/notes/allDay; cada cita crea su aviso ~2h antes) y TAREAS sin hora con add_task. Una cita que SE REPITE es UNA sola: add_meeting con repeat:'weekly'|'daily'|'monthly', days:'martes' y until:'AAAA-MM-DD'. Con una cita: open_meeting(title[,date]) ABRE SU FICHA en pantalla y close_meeting la cierra (no cierra la agenda). update_meeting cambia título (newTitle), descripción (notes), lugar, quién viene, estado o su repetición. move_meeting cambia día (newDate), hora (newTime) o fin (endTime o duration) — en una que se repite, CON date = SOLO ese día («el piano del martes que viene pásalo al miércoles» → date del martes + newDate), sin date = toda la serie. cancel_meeting la borra; en una que se repite: date = anula SOLO ese día, from = la termina desde ese día («a partir de noviembre»), whole:true = borra la serie entera. set_reminder mueve el aviso de una cita, y SIN title + con date pone avisos a todas las citas de ese día. Estado de tareas: done/snooze/not_now/drop (taskId). Para VACIARLA ENTERA y para siempre usa clear_all (confirma; nunca tires elementos de uno en uno). Para limpiar UN TRAMO usa clear_range con from y to (fechas habladas valen: «hoy», «mañana», «el lunes») — «esta semana» es from=lunes to=domingo. Si dice «menos X» o «excepto X», eso va en keep, que admite un nombre suelto («el zerohash») o {title, date, time} cuando nombre una hora («lo de mañana a las 15h» → {date:«mañana», time:«15:00»}). clear_all NO sabe conservar nada: cualquier orden con una excepción es clear_range. Para CAMBIAR LA VISTA («la agenda de hoy/mañana», «enséñame el jueves», «vista semanal», «vista de mes», «la lista de lo que viene») usa show_day con day=hoy|mañana|<día>|semana|mes|lista — es la ÚNICA forma de mover lo que se ve; reabrir el widget siempre abre por hoy. Los detalles de cada cita (hora, aviso, quién viene, si está confirmada, notas) los tienes en su digest cuando la agenda está abierta, así que contéstalos sin preguntar. Para ENLAZAR con Google Calendar usa connect: deja la tarjeta en el paso de conectar y tú le dices que pulse el botón — el permiso lo da él en la ventana de Google, tú no puedes. ▸ TAREAS (la otra sección de esta tarjeta, la personal del operador — NO los procesos del agente): add_task(title[, list, date, time]) apunta una; sin `list` va a «General». Las listas se crean con add_list(name) y se nombran por NÚMERO o por nombre indistintamente: «la lista 2», «la compra». Dentro de una lista, cada ítem tiene su NÚMERO tal como lo ve en pantalla, así que «el ítem 2 de la compra» es task='2' + list='la compra' — el digest de esta tarjeta te da esos números, úsalos. done/delete_task/update_task(newTitle|date|time|newList|status) operan sobre un ítem; clear_list VACÍA una lista (confirma) y delete_list se la lleva entera (confirma); rename_list la renombra. Para ABRIR la sección de tareas o una lista concreta usa show_tasks(list) — es la única forma, reabrir el widget abre por la agenda.",
   "actions": {
     "add_meeting": {
       "desc": "añade una cita/reunión al día — crea SOLA su aviso por defecto (~2h antes), no hace falta pedirlo; acepta también quién viene, dónde, categoría y notas. Si SE REPITE («todos los jueves», «cada semana hasta junio», «los martes y jueves») es UNA sola cita con `repeat` + `days` + `until`: nunca la apuntes suelta ni metas la repetición en category o notes",
@@ -112,13 +112,28 @@
       "confirm_q": "¿Dejo una de cada cita repetida y borro las copias?"
     },
     "cancel_meeting": {
-      "desc": "cancela/elimina una cita ya agendada por completo, con todas sus copias idénticas si las tiene. Para dejar UNA de varias repetidas, usa dedupe_meetings. En una cita que se REPITE: con `date` anula SOLO ese día («este jueves no hay flauta»); con `whole: true` borra la serie entera; sin ninguno de los dos no borra nada y pregunta",
+      "desc": "cancela/elimina una cita. Si se REPITE: `date` = anula SOLO ese día («este jueves no hay flauta»); `from` = la termina desde ese día («a partir de enero ya no hay piano»); `whole: true` = borra la serie; sin nada, pregunta. Se lleva sus copias idénticas (para dejar UNA de varias duplicadas: dedupe_meetings)",
       "ref": "title",
       "payload": {
         "title": "string",
         "date": "YYYY-MM-DD (opcional, filtra por fecha)",
-        "whole": "true para borrar TODA la serie de una cita que se repite (opcional)"
+        "whole": "true para borrar TODA la serie de una cita que se repite (opcional)",
+        "from": "YYYY-MM-DD o «enero» — desde cuándo deja de repetirse (opcional)"
       }
+    },
+    "open_meeting": {
+      "desc": "ABRE LA FICHA de una cita en pantalla, en su día («ábreme la cita del dentista», «enséñame el piano del martes», «qué pone en la reunión de mañana»). Solo muestra: no cambia nada",
+      "ref": "title",
+      "view": true,
+      "payload": {
+        "title": "string (título de la cita, aunque sea parcial)",
+        "date": "YYYY-MM-DD o «el martes» (opcional; en una que se repite, ese día)"
+      }
+    },
+    "close_meeting": {
+      "desc": "CIERRA LA FICHA de la cita abierta y deja la agenda donde estaba («cierra la ficha», «vale, quítala de la pantalla»). No borra nada ni cierra la agenda",
+      "view": true,
+      "payload": {}
     },
     "done": {
       "positional": true,
@@ -195,13 +210,14 @@
       }
     },
     "move_meeting": {
-      "desc": "MUEVE una cita existente a otro día y/u hora («pásame el dentista al jueves», «la reunión a las 10») — el aviso se mueve con ella. En una cita que se REPITE mueve la serie entera (todas las semanas) al nuevo día/hora",
+      "desc": "CAMBIA EL DÍA, LA HORA O LA DURACIÓN de una cita («pásame el dentista al jueves», «la reunión a las 10», «que dure hasta las cinco») — el aviso se mueve con ella. Si se REPITE: con `date` mueve SOLO ese día; sin `date`, la serie entera",
       "ref": "title",
       "payload": {
         "title": "string (título de la cita, aunque sea parcial)",
-        "date": "YYYY-MM-DD (opcional, si hay varias con ese título)",
-        "newDate": "«mañana», un día de la semana o YYYY-MM-DD",
-        "newTime": "HH:MM (opcional — conserva la hora si no viene)"
+        "date": "YYYY-MM-DD (opcional: el día que se mueve; en una cita que se repite, SOLO ese día)",
+        "newDate": "«mañana», un día de la semana o YYYY-MM-DD (opcional — conserva el día si no viene)",
+        "newTime": "HH:MM de inicio (opcional — conserva la hora si no viene)",
+        "endTime": "HH:MM de fin, o `duration` en minutos (opcional — conserva la duración si no viene)"
       },
       "confirm_q": "¿Muevo «{title}»? Hay alguien más contando con esa hora y habrá que avisarle."
     },

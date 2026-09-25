@@ -339,9 +339,10 @@ def describe(rep: dict, lang: str = "es") -> str:
     else:
         s += " (no end date)" if en else " (sin fecha de fin)"
     if rep.get("skip"):
-        n = len(rep["skip"])
-        s += (f", {n} occurrence{'s' if n != 1 else ''} cancelled" if en
-              else f", {n} día{'s' if n != 1 else ''} anulado{'s' if n != 1 else ''}")
+        # WHICH days, not how many (V2-770): with «1 día anulado» on the page the model answered «el martes 6
+        # no hay clase» with «ese día ya está anulado» — the cancelled one was the 29th — and wrote nothing.
+        days = ", ".join(sorted(rep["skip"])[:6]) + ("…" if len(rep["skip"]) > 6 else "")
+        s += f", except {days}" if en else f", salvo {days} (anulados)"
     return s
 
 
@@ -444,8 +445,9 @@ def skip(m: dict, date: str) -> bool:
 _HHMM = re.compile(r"^\s*\d{1,2}([:h.]\d{2})?\s*(h|am|pm)?\s*$", re.I)
 _DATE_ALIASES = ("startDate", "start_date", "fromDate", "from_date", "from", "desde", "firstDate", "first_date",
                  "day", "dia")
-_START_ALIASES = ("start", "startHour", "start_hour", "hour", "hora", "startAt", "horaInicio", "hora_inicio")
-_END_ALIASES = ("end", "endHour", "end_hour", "endAt", "horaFin", "hora_fin")
+_START_ALIASES = ("start", "startHour", "start_hour", "hour", "hora", "startAt", "horaInicio", "hora_inicio",
+                  "start_time", "starttime")
+_END_ALIASES = ("end", "endHour", "end_hour", "endAt", "horaFin", "hora_fin", "end_time", "endtime")
 _DAYS_ALIASES = ("dayOfWeek", "day_of_week", "weekday", "byday", "dia_semana", "diaSemana")
 
 

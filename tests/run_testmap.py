@@ -2250,6 +2250,12 @@ DOMAINS: list[dict] = [
             "ch": UNIT,
             "paths": ["tests/agent_headless/unit/test_a_repeating_appointment_is_one_row.py",
                       "tests/browser/unit/agenda/test_a_repeating_appointment_is_on_every_week.py"]},
+        {"id": "4.215", "title": "Las gestiones de todos los días en la agenda — abrir y cerrar la ficha por voz, "
+                                 "hora de fin, mover o anular UN día de una serie, cortarla desde una fecha, "
+                                 "«ella» es la cita de la que hablamos, y la serie llega entera a Google",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/test_the_everyday_agenda_edits.py",
+                      "tests/browser/unit/agenda/test_the_card_opens_and_closes_by_voice.py"]},
         # V2-088: el chat es una VISTA, no un modo. Estos tests impiden que alguien vuelva a cablear el panel
         # con el altavoz — el acoplamiento anterior era indistinguible de un TTS averiado.
         {"id": "4.9", "title": "Chat y voz INDEPENDIENTES (el icono es el único dueño del silencio, V2-088)",

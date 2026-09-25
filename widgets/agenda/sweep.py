@@ -222,7 +222,10 @@ def _matches(db: dict, payload: dict) -> list[dict]:
         # A folded substring (his phrasing is usually a slice of the real title) OR a tolerant score over the
         # floor (a typo, a C for a K). Substring stays because a 3-word slice of a 6-word title can fall under
         # the score floor on length alone, and a slice is a deliberate, precise reference.
-        if fref in ftitle or textmatch.score(ref, m.get("title") or "") >= 0.72:
+        # V2-770 — and the other way round: the model's reference often CARRIES the title plus its own gloss
+        # («Clase de piano de Abril del martes 2026-10-06»), and a gloss is not a different appointment.
+        if (fref in ftitle or (len(ftitle) >= 6 and f" {ftitle} " in f" {fref} ")
+                or textmatch.score(ref, m.get("title") or "") >= 0.72):
             out.append(m)
     return out
 
@@ -316,7 +319,13 @@ def cancel_meeting(db: dict, payload: dict) -> tuple[dict, list[dict]]:
                 if str(m.get("date") or "") >= _data._today()][:8]
         return {"ok": False, "error": "not_found",
                 "detail": "no appointment matches that title" + (f" (upcoming: {'; '.join(soon)})" if soon else "")}, []
-    distinct = {dup_key(m) for m in hits}          # the SAME grouping `dedupe_meetings` keeps one of
+    # V2-770 — «the whole series» is the series AND the days that were moved out of it (`edit.detach`): they are
+    # the same appointment to him, and counting them as a second one made `whole` answer «ambiguous».
+    _sers = [m for m in hits if isinstance(m.get("repeat"), dict)]
+    if _sers and (payload.get("whole") or any(str(payload.get(k) or "").strip() for k in ("from", "fromDate", "since", "desde"))):
+        _firsts = {str(m.get("date") or "") for m in _sers}
+        hits = [m for m in hits if m in _sers or str(m.get("fromSeries") or "") in _firsts]
+    distinct = {dup_key(m) for m in hits if not m.get("fromSeries")}   # the SAME grouping `dedupe_meetings` keeps one of
     if len(distinct) > 1 and not str(payload.get("date") or "").strip():
         rows = sorted(distinct, key=lambda k: (k[1], k[2]))
         return {"ok": False, "error": "ambiguous",
@@ -326,6 +335,20 @@ def cancel_meeting(db: dict, payload: dict) -> tuple[dict, list[dict]]:
     # hay flauta»). Without one — or with `whole` — the series goes entirely, like any appointment.
     from . import recur
     _day = _data._resolve_date(str(payload.get("date") or "")) if str(payload.get("date") or "").strip() else ""
+    # V2-770 — «a partir de enero ya no hay piano»: the series ENDS the day before; nothing earlier is touched.
+    from . import edit
+    _ser = [m for m in hits if isinstance(m.get("repeat"), dict)]
+    if _ser and not payload.get("whole") and all(edit.cut_from(m, payload) for m in _ser):
+        for m in _ser:
+            gcal.patch_google(m)
+        _ends = {str(m.get("date") or ""): m["repeat"]["until"] for m in _ser}
+        for m in [m for m in hits if str(m.get("fromSeries") or "") in _ends
+                  and str(m.get("date") or "") > _ends[str(m["fromSeries"])]]:
+            if gcal.delete_google(m):                  # a day moved out of it, past the new end, ends with it
+                _data._cancel_reminder(m)
+                db["meetings"] = [x for x in db.get("meetings", []) if x is not m]
+        return {"ok": True, "removed": 0, "title": str(_ser[0].get("title") or ""),
+                "until": _ser[0]["repeat"]["until"], "series_kept": True}, []
     # A SERIES named with no day and no `whole` is a QUESTION, never the whole series (V2-769). Measured in the
     # live use case: «el martes que viene no hay clase, quítamelo solo ese día» arrived as
     # `cancel_meeting {title}` — no date — and every Tuesday until June went with it.
@@ -333,12 +356,14 @@ def cancel_meeting(db: dict, payload: dict) -> tuple[dict, list[dict]]:
         ser = next(m for m in hits if isinstance(m.get("repeat"), dict))
         why = (f"«{ser.get('title')}» se repite ({recur.describe(ser['repeat'])}): para quitar UN día vuelve a "
                f"llamar con `date` (ese día, p.ej. «el martes que viene»); para borrar la serie entera, con "
-               f"`whole: true`. No he borrado nada.")
+               f"`whole: true`; para dejarla de tener desde un día, con `from`. No he borrado nada.")
         # `error` is what the correction note reads (`data_ops.report_failure`): the sentence, not a code.
         return {"ok": False, "code": "series_needs_scope", "error": why, "detail": why}, []
     if _day and not payload.get("whole"):
         once = [m for m in hits if isinstance(m.get("repeat"), dict)]
         if once and all(recur.skip(m, _day) for m in once):
+            for m in once:
+                gcal.patch_google(m)                   # V2-770: the skipped day leaves Google too
             hits = [m for m in hits if m not in once]
             if not hits:
                 return {"ok": True, "removed": 1, "title": str(once[0].get("title") or ""), "date": _day,

@@ -54,6 +54,8 @@ def _resolve_date(raw: str) -> str:
     if len(s) >= 8 and s[:4].isdigit() and "-" in s:      # already comes as YYYY-MM-DD
         return s[:10]
     n = _strip_accents(s)
+    if (_named := _calendar_date(n)):
+        return _named
     today = _t.localtime()
     base = _t.mktime(today)
     day = 86400
@@ -70,6 +72,37 @@ def _resolve_date(raw: str) -> str:
             delta = delta or 7                             # weekday references mean the next matching day, not today
             return _t.strftime("%Y-%m-%d", _t.localtime(base + delta * day))
     return _today()
+
+
+_MONTHS = {"enero": 1, "febrero": 2, "marzo": 3, "abril": 4, "mayo": 5, "junio": 6, "julio": 7, "agosto": 8,
+           "septiembre": 9, "setiembre": 9, "octubre": 10, "noviembre": 11, "diciembre": 12,
+           "january": 1, "february": 2, "march": 3, "april": 4, "may": 5, "june": 6, "july": 7, "august": 8,
+           "september": 9, "october": 10, "november": 11, "december": 12}
+
+
+def _calendar_date(n: str) -> str:
+    """«el 14 de octubre», «October 14th», «14/10» → the next such day (V2-770). Before this, any date said by
+    its NAME fell through to TODAY: «pásame el dentista al 14 de octubre» moved it to the day it was said."""
+    import datetime as _dt
+    m = re.search(r"\b(\d{1,2})\s*/\s*(\d{1,2})(?:\s*/\s*(\d{2,4}))?\b", n)
+    if m:
+        d, mo, y = int(m.group(1)), int(m.group(2)), m.group(3)
+    else:
+        mo = next((v for k, v in _MONTHS.items() if re.search(rf"\b{k}\b", n)), 0)
+        m = re.search(r"\b(\d{1,2})(?:st|nd|rd|th|º)?\b(?!\s*[:h.]\d)", n) if mo else None
+        if not m:
+            return ""
+        d = int(m.group(1))
+        y = (re.search(r"\b(20\d{2})\b", n) or [None, None])[1]
+    t = _dt.date.today()
+    year = (int(y) + (2000 if int(y) < 100 else 0)) if y else t.year
+    try:
+        day = _dt.date(year, mo, d)
+    except ValueError:
+        return ""
+    if not y and day < t:
+        day = day.replace(year=t.year + 1)
+    return day.isoformat()
 
 
 def _resolve_time(raw: str, default: str = "17:00") -> str:

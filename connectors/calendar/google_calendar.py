@@ -201,6 +201,10 @@ def meeting_to_event(m: dict) -> dict:
     if str(m.get("rrule") or "").startswith("RRULE:"):   # a repeating appointment goes up as ONE series
         body["recurrence"] = [str(m["rrule"])]
         body["start"]["timeZone"] = body["end"]["timeZone"] = _local_tz_name()
+        hms = "000000" if m.get("allDay") else str(m.get("startTime") or "00:00").replace(":", "") + "00"
+        days = [str(d).replace("-", "") for d in (m.get("exdates") or []) if d]
+        if days:                                         # the days the series skips (V2-770)
+            body["recurrence"].append(f"EXDATE;TZID={_local_tz_name()}:" + ",".join(f"{d}T{hms}" for d in days))
     who = [w for w in (m.get("attendees") or []) if w and "@" in str(w)]  # Google needs an email per attendee;
     if who:                                                               # a bare name with no email cannot be
         body["attendees"] = [{"email": w} for w in who]                  # invited, so it is simply not sent.

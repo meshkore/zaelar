@@ -1860,12 +1860,19 @@ export function render(el, data, ctx){
   // yanks what the operator is reading — but asking twice for the same day still lands, because the token
   // is a counter and not the day itself.
   const pushed = data.view;
-  if(pushed && pushed.n !== S.viewN){
+  if(pushed && pushed.n !== S.viewN && pushed.close){
+    // V2-770 — «cierra la ficha»: the detail card goes, and nothing else he is looking at moves.
+    S.viewN = pushed.n; S.sel = null; S.confirmDel = false;
+  } else if(pushed && pushed.n !== S.viewN){
     S.viewN = pushed.n;
     const want = String(pushed.sel||"");
-    if(want==="week" || want==="month" || want==="list"){ S.view = want; S.anchor = today; }
+    // V2-770 — «ábreme la cita del dentista»: the detail card by voice. Opening keeps the lens he is using
+    // and moves it to that day.
+    if(pushed.open && /^\d{4}-\d{2}-\d{2}$/.test(want)){ S.anchor = want; if(S.view === "list") S.view = "day"; }
+    else if(want==="week" || want==="month" || want==="list"){ S.view = want; S.anchor = today; }
     else if(/^\d{4}-\d{2}-\d{2}$/.test(want)){ S.view = "day"; S.anchor = want; }
-    S.sel = null;
+    S.sel = null; S.confirmDel = false;
+    S.openWant = pushed.open || null;
     // A pushed view is a NAVIGATION order: it has to leave the connectors screen, or the day it asked for
     // renders underneath a setup screen and the order looks ignored (V2-626's lesson, one widget over).
     // V2-744 — …and it has to leave the TASKS section for the same reason: «enséñame el jueves» answered
@@ -2114,6 +2121,11 @@ export function render(el, data, ctx){
   el.appendChild(body);
 
   // ── overlays ───────────────────────────────────────────────────────────────────────────────────────
+  if(S.openWant){                                 // resolved here: event keys exist only once `all` is built
+    const w = S.openWant; S.openWant = null;
+    const ev = all.find(e=>e.meeting && e.date===w.date && e.title===w.title);
+    if(ev) S.sel = ev.key;
+  }
   if(S.sel){
     const ev = all.find(e=>e.key===S.sel);
     if(ev) renderDetail(el, ev, ctx, S, redraw); else S.sel = null;
