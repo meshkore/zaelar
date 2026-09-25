@@ -463,7 +463,8 @@ class NucleoLLMStream(llm.LLMStream):
         # fast_lane.py (mirrors in probe.py).
         try:
             from voice.engine.llm.providers import fast_lane as _fast_lane
-            if (await _fast_lane.handled(brain, text, emit, first_turn=first_turn,
+            if (await _fast_lane.task_list(brain, text, emit, first_turn=first_turn, window_max=_WINDOW_MAX)
+                    or await _fast_lane.handled(brain, text, emit, first_turn=first_turn,
                                          t_entry=_t_entry, window_max=_WINDOW_MAX)
                     or await _fast_lane.presence(brain, text, emit, first_turn=first_turn,
                                                  window_max=_WINDOW_MAX)

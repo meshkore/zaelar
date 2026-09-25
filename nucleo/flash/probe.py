@@ -76,8 +76,20 @@ from .show_target import (  # noqa: F401
 
 
 
+async def _task_list(text: str, sess) -> dict | None:
+    """The text channel's side of `fast_lane.task_list` (V2-771): the receipt line, or None → normal turn."""
+    from nucleo import batch
+    got = await batch.intake(text, origin="chat")
+    if not got:
+        return None
+    from . import dialog
+    dialog.remember_what_was_said(sess, text, _WINDOW_MAX)
+    sess.window.append({"role": "assistant", "content": got["ack"]})
+    return {"ok": True, "reply": [got["ack"]], "action": "task_list", "tool_calls": [], "tags": []}
+
+
 async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, model: str = "",
-                   execute: bool = False) -> dict:
+                   execute: bool = False, lists: bool = True) -> dict:
     """Run ONE headless FlashBrain turn and return an evaluable dict. Reproduces the core of
     `nucleo.py::_run` (real prompt + real model + real tools + dialogue safeguards) without voice or execution.
     `model` (optional) forces another fast model for the turn (A/B model testing, same provider/base/key).
@@ -148,6 +160,9 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
 
     # Lanes that skip the model, MIRRORING the provider (map V2-539 · knock V2-640 · phrasebook V2-674).
     from voice.engine.core import langs as _lg_am
+    # V2-771 — a list goes before every lane (see `fast_lane.task_list`); `lists=False` is a step of one.
+    if lists and execute and (_tl := await _task_list(text, sess)):
+        return _tl
     _lane = _fast_lanes(text, sess, execute=execute, trace_id=_trace_id, spec=_lg_am.spec,
                         pick_ack=_lg_am.pick_ack, smalltalk_book=_lg_am.smalltalk_book())
     if _lane is not None:

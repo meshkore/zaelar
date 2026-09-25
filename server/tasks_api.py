@@ -77,3 +77,31 @@ async def tasks_reopen(payload: dict | None = None):
     return JSONResponse(out, headers={"Cache-Control": "no-cache"})
 
 
+
+
+@router.post("/api/lists")
+async def lists_submit(body: dict):
+    """Hand the engine a LIST of tasks from any channel that is not a turn (V2-771) — automation, a message the
+    operator forwards, a test harness. `{"text": "..."}` → `{"ok", "uid", "n"}`.
+
+    Unlike a turn, this route does not ask whether the text IS a list: the caller already said so by choosing
+    it. It splits, stores and starts it (`nucleo.batch.start`), and the list reports when it ends like any
+    other. `{"wait": true}` holds the reply until the list has been SPLIT, so the caller gets its uid."""
+    text = str((body or {}).get("text") or "").strip()
+    if not text:
+        return JSONResponse({"ok": False, "error": "empty"}, status_code=400)
+    from nucleo import batch
+    origin = str((body or {}).get("origin") or "api")[:24]
+    uid = await batch.start(text, origin=origin, run=False)
+    batch.run_later(uid)
+    return {"ok": True, "uid": uid, "n": len(batch.status(uid).get("steps") or [])}
+
+
+@router.get("/api/lists/{uid}")
+async def lists_status(uid: str):
+    """One list and its steps, as stored — the read a reviewer or a harness needs (V2-771)."""
+    from nucleo import batch
+    got = batch.status(uid)
+    if not got:
+        return JSONResponse({"ok": False, "error": "not found"}, status_code=404)
+    return {"ok": True, **got}

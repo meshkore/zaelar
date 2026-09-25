@@ -182,6 +182,11 @@ def parse(payload: dict, start_date: str, today: _dt.date | None = None) -> tupl
             freq = _freq_of(s)
             if not days_raw:
                 days_raw = [d for d in _days(s)] or None
+    if not freq and raw is None and not days_raw:
+        # V2-771 — an END DATE with no rule and no weekdays is a SPAN, not a series: «Anna vacation, December 20
+        # through January 4» is every day of that stretch. It fell to `weekly` below and showed on the 20th and
+        # the 27th only. A weekly series names its day («every Tuesday») or its rule, and both still go to weekly.
+        freq = "daily"
     if not freq:
         freq = "weekly" if (days_raw or raw is True or raw is None) else ""
     if freq not in FREQS:

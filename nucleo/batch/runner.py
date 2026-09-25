@@ -1,0 +1,276 @@
+"""The LIST: durable, run one step at a time through the ordinary turn, reported once (V2-771).
+
+Storage is the task table (V2-728): the list is one visible row (`kind="lista"`) and each step a child row
+(`parent_id`, hidden — the board shows the commission, not its plumbing). A restart therefore loses nothing:
+`resume()` picks up every list that still has pending steps.
+
+Each step runs as an ORDINARY TURN of the text channel (`probe.run_turn(execute=True)`): the Jev brief, the
+real prompt, the model, the widgets, the workers — the whole machine, one step at a time, so each step sits
+well inside the per-turn limits the unsplit message collided with. All steps share one conversation session,
+so step 9 («Anna vacation») is read with steps 1-8 behind it.
+
+Memory is written by THIS module, awaited, step by step — not fire-and-forget like a live turn. The distiller
+serialises its calls and falls back to a lossy heuristic when more than two are waiting
+(`mem_processor._QUEUE_MAX`); eighteen steps three seconds apart would have landed exactly there.
+
+A step that hands work to a Brain Worker does not block the list: the worker takes its seat in the pool
+(two at a time since V2-771, FIFO behind that) and the list moves on. The list's report waits for those
+workers, so «I've finished» is never said over work still running (V2-743).
+
+One list at a time (`_LOCK`): a second list queues behind the first instead of interleaving steps with it.
+"""
+from __future__ import annotations
+
+import asyncio
+import secrets
+import time
+
+from loguru import logger
+
+#: How long the report waits for the workers a list started. Past it the report goes out anyway and says
+#: which ones are still running — a list must never go quiet forever behind one stuck worker.
+WORKER_WAIT_S = 45 * 60
+_POLL_S = 5.0
+
+_LOCK: asyncio.Lock | None = None
+_RUNNING: set[str] = set()
+
+
+def _lock() -> asyncio.Lock:
+    global _LOCK
+    if _LOCK is None:
+        _LOCK = asyncio.Lock()
+    return _LOCK
+
+
+def _emit(label: str, **extra) -> None:
+    try:
+        from voice.observer import emit
+        emit("brain", label, text=str(extra.pop("text", ""))[:400], role="system",
+             extra={"cat": "flash", "engine": "lista", **extra})
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def _store():
+    from memory import tasks_store
+    return tasks_store
+
+
+def new_uid() -> str:
+    return f"lista:{time.strftime('%Y%m%d-%H%M%S')}-{secrets.token_hex(2)}"
+
+
+def step_id(uid: str, i: int) -> str:
+    return f"{uid}#{i:02d}"
+
+
+def create(text: str, steps: list[dict], *, origin: str = "voz", how: str = "model") -> str:
+    """Write the list and its steps. Returns the list's uid."""
+    ts = _store()
+    uid = new_uid()
+    now = int(time.time())
+    first = next((s["title"] for s in steps if s.get("title")), "")
+    ts.task_put({"id": uid, "title": f"{len(steps)} × {first}"[:120] if first else f"{len(steps)} tareas",
+                 "goal": (text or "")[:8000], "kind": "lista", "mode": "now", "state": "pending",
+                 "visible": True, "origin": origin, "surface": "voz", "outcome": f"0/{len(steps)}",
+                 "created_at": now})
+    for i, s in enumerate(steps, 1):
+        ts.task_put({"id": step_id(uid, i), "title": s.get("title") or s["say"][:60], "goal": s["say"],
+                     "kind": s.get("kind") or "other", "mode": "now", "state": "pending", "visible": False,
+                     "origin": "lista", "surface": "voz", "parent_id": uid, "created_at": now})
+    ts.artifact_put(uid, "steps", {"how": how, "steps": steps})
+    return uid
+
+
+def steps_of(uid: str) -> list[dict]:
+    """The list's step rows in order (their ids sort by position)."""
+    ts = _store()
+    try:
+        rows = ts._db_mod.get_db().query("SELECT * FROM tasks WHERE parent_id=? ORDER BY id ASC", (uid,))
+        return [ts._row(r) for r in rows]
+    except Exception:  # noqa: BLE001
+        return []
+
+
+def outcome_of(r: dict) -> tuple[str, str, list[str]]:
+    """(state, note, worker task ids) of one step from the turn's own report.
+
+    `waiting` means a worker is carrying it. `needs_you` — the turn answered with a QUESTION: the list cannot
+    answer for him, so the step is left for the report to ask instead of being counted as done."""
+    r = r if isinstance(r, dict) else {}
+    reply = r.get("reply")
+    reply = " ".join(reply) if isinstance(reply, list) else str(reply or "")
+    if not r.get("ok", True) or r.get("error"):
+        return "failed", str(r.get("error") or "")[:200], []
+    if r.get("execute_error") or r.get("executed") == "widget_data_failed":
+        return "failed", str(r.get("execute_error") or reply)[:200], []
+    tids = [str(t) for t in (r.get("task_ids") or ([r["task_id"]] if r.get("task_id") else [])) if t]
+    if tids:
+        return "waiting", reply[:200], tids
+    if reply.rstrip().endswith(("?", "？")):
+        return "needs_you", reply[:300], []
+    return "done", reply[:200], []
+
+
+async def _run_step(uid: str, row: dict, turn, ingest) -> None:
+    ts = _store()
+    ts.task_patch(row["id"], state="running", started_at=int(time.time()))
+    _emit("📋 lista: paso", text=row["goal"], step=row["id"])
+    try:
+        r = await turn(row["goal"], sid=uid, ingest=False, execute=True, lists=False)
+    except Exception as e:  # noqa: BLE001 — one broken step never takes the list down
+        r = {"ok": False, "error": f"{type(e).__name__}: {e}"}
+    state, note, tids = outcome_of(r)
+    # Memory, awaited — see the module note. A step that failed still said something true about him.
+    try:
+        await ingest(row["goal"])
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"lista {uid}: memory ingest failed on {row['id']}: {e!r}")
+    fields = {"state": "running" if state == "waiting" else ("waiting" if state == "needs_you" else state),
+              "outcome": (f"workers:{','.join(tids)} " if tids else "") + f"[{state}] {note}"}
+    if state in ("done", "failed"):
+        fields["finished_at"] = int(time.time())
+    ts.task_patch(row["id"], **fields)
+    _emit(f"📋 lista: paso {state}", text=note, step=row["id"])
+
+
+def _worker_state(tid: str) -> str:
+    """'' while the worker is alive; its ending otherwise. A record that left the registry is looked up in
+    the durable table (V2-728) — a finished worker is dropped from RAM, its row is not."""
+    try:
+        from nucleo import dispatch, tasks as _tasks
+        rec = dispatch.get_record(tid)
+        if rec is not None:
+            st = str(getattr(rec, "status", "") or "")
+            return "" if st in ("queued", "running", "relevada", "") else st
+        row = _store().task_get(_tasks.task_uid(tid)) or {}
+        st = str(row.get("state") or "")
+        return "" if st in ("pending", "running", "waiting") else (st or "done")
+    except Exception:  # noqa: BLE001
+        return "done"
+
+
+async def _wait_workers(uid: str, *, wait_s: float = WORKER_WAIT_S, poll_s: float | None = None) -> None:
+    ts = _store()
+    poll_s = _POLL_S if poll_s is None else poll_s
+    deadline = time.time() + wait_s
+    while True:
+        pending = 0
+        for row in steps_of(uid):
+            out = str(row.get("outcome") or "")
+            if row.get("state") != "running" or not out.startswith("workers:"):
+                continue
+            tids = out.split(" ", 1)[0][len("workers:"):].split(",")
+            states = [_worker_state(t) for t in tids if t]
+            if all(states):
+                ok = all(s == "done" for s in states)
+                ts.task_patch(row["id"], state="done" if ok else "failed", finished_at=int(time.time()),
+                              outcome=out.replace("[waiting]", "[done]" if ok else "[failed]"))
+            else:
+                pending += 1
+        if not pending or time.time() >= deadline:
+            return
+        await asyncio.sleep(poll_s)
+
+
+def summary(uid: str) -> dict:
+    rows = steps_of(uid)
+    by = {"done": [], "failed": [], "needs_you": [], "running": [], "pending": []}
+    for r in rows:
+        st = str(r.get("state") or "pending")
+        key = "needs_you" if st == "waiting" else st
+        by.setdefault(key, []).append(r)
+    return {"n": len(rows), **{k: v for k, v in by.items()}}
+
+
+def report_text(uid: str) -> str:
+    """ONE report, counts first, then only what he has to know: what failed, what needs him, what is still
+    running. Never a step-by-step narration of what went fine."""
+    from voice.engine.core import langs
+    L = langs.current_language()
+    s = summary(uid)
+    parts = [L.list_done.format(ok=len(s["done"]), n=s["n"])]
+    if s["failed"]:
+        parts.append(L.list_failed.format(items="; ".join(r["title"] for r in s["failed"][:6])))
+    if s["needs_you"]:
+        parts.append(L.list_needs_you.format(items="; ".join(
+            str(r.get("outcome") or "").split("] ", 1)[-1][:160] for r in s["needs_you"][:4])))
+    if s["running"]:
+        parts.append(L.list_still_running.format(n=len(s["running"])))
+    return " ".join(parts)
+
+
+async def run(uid: str, *, turn=None, ingest=None, notify=None, worker_wait_s: float = WORKER_WAIT_S) -> dict:
+    """Run every pending step of a list in order, wait for its workers, close it and report. Idempotent over a
+    restart: steps already done are skipped."""
+    if turn is None:
+        from nucleo.flash.probe import run_turn as turn
+    if ingest is None:
+        from nucleo.memory_agent import ingest_utterance
+
+        async def ingest(text):
+            return await ingest_utterance(text, role="operator")
+    if notify is None:
+        from voice.proactive import notify
+    if uid in _RUNNING:
+        return {}
+    _RUNNING.add(uid)
+    ts = _store()
+    try:
+        async with _lock():
+            ts.task_patch(uid, state="running", started_at=int(time.time()))
+            _emit("📋 lista: empieza", text=uid)
+            for row in steps_of(uid):
+                if row.get("state") == "pending":
+                    await _run_step(uid, row, turn, ingest)
+                    s = summary(uid)
+                    ts.task_patch(uid, outcome=f"{len(s['done'])}/{s['n']}")
+        await _wait_workers(uid, wait_s=worker_wait_s)
+        s = summary(uid)
+        text = report_text(uid)
+        # Closed once reported, even with workers still out: they are rows of their own on the board and each
+        # announces its own ending — a list left `running` would be resumed, and REPORTED, a second time after
+        # the next restart.
+        ts.task_patch(uid, state="failed" if s["failed"] else "done",
+                      outcome=f"{len(s['done'])}/{s['n']} · {text}"[:400], finished_at=int(time.time()))
+        _emit("📋 lista: terminada", text=text)
+        try:
+            await notify("lista", text)
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"lista {uid}: report not delivered: {e!r}")
+        return s
+    finally:
+        _RUNNING.discard(uid)
+
+
+def resume() -> list[str]:
+    """Lists that a restart interrupted, relaunched. Called once at boot; returns the uids it restarted.
+    A step left `running` by the restart is run again — its turn never reported, so nothing claims it."""
+    ts = _store()
+    out = []
+    try:
+        rows = ts._db_mod.get_db().query(
+            "SELECT id FROM tasks WHERE kind='lista' AND state IN ('pending','running')", ())
+    except Exception:  # noqa: BLE001
+        return []
+    for (uid,) in [tuple(r) for r in rows]:
+        for st in steps_of(uid):
+            if st.get("state") == "running" and not str(st.get("outcome") or "").startswith("workers:"):
+                ts.task_patch(st["id"], state="pending")
+        try:
+            asyncio.get_running_loop().create_task(_after(RESUME_DELAY_S, run(uid)))
+            out.append(uid)
+        except RuntimeError:
+            break
+    return out
+
+
+#: A resumed list waits for the engine to finish booting (memory cache, widgets, the dispatcher) before its
+#: first step runs — the lifespan calls `resume()` well before the first turn could.
+RESUME_DELAY_S = 20.0
+
+
+async def _after(delay: float, coro):
+    await asyncio.sleep(delay)
+    return await coro

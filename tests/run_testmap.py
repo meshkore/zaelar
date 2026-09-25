@@ -2257,6 +2257,11 @@ DOMAINS: list[dict] = [
             "paths": ["tests/agent_headless/unit/test_the_everyday_agenda_edits.py",
                       "tests/browser/unit/agenda/test_the_card_opens_and_closes_by_voice.py",
                       "tests/use_cases/unit/test_a_scripted_case_is_graded_on_the_store.py"]},
+        {"id": "4.216", "title": "Un mensaje con varias tareas es una LISTA — se detecta (forma + Jev), se parte en "
+                                 "pasos autónomos, se guarda, corre paso a paso por el turno normal, espera a sus "
+                                 "workers (2 a la vez) y da UN parte; la cita de varios días ocupa todos sus días",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/test_a_message_with_several_tasks_is_a_list.py"]},
         # V2-088: el chat es una VISTA, no un modo. Estos tests impiden que alguien vuelva a cablear el panel
         # con el altavoz — el acoplamiento anterior era indistinguible de un TTS averiado.
         {"id": "4.9", "title": "Chat y voz INDEPENDIENTES (el icono es el único dueño del silencio, V2-088)",

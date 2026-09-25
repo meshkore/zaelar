@@ -116,6 +116,11 @@ _DEFAULTS = {
     # met by the FLAG, which the direct endpoint obeys (the broker accepts and ignores it — that is why the
     # broker was banned from this row), and `gpt-4.1-mini` one rung below meets it natively.
     "paraphrase": ("https://api.deepseek.com", "deepseek-flash", True),
+    # batch_split (V2-771): a message that hands over SEVERAL tasks is split into ordered, self-contained steps
+    # (`nucleo/batch/split.py`). Off the voice turn — the operator already heard «me pongo con ello» — but in
+    # front of a list he is waiting on, and it asks for STRICT JSON under a long instruction: the shape the
+    # `paraphrase` note above measured a reasoner burning its whole budget on. Reasoning OFF, same seat.
+    "batch_split": ("https://api.deepseek.com", "deepseek-flash", True),
 }
 
 # ── FAILOVER: the operator's provider ORDER, as data ──────────────────────────────────────────────────────────
@@ -172,6 +177,7 @@ _FAILOVER: dict[str, tuple[tuple[str, str], ...]] = {
     # ⛔ NOT `gpt-4o-mini`: cheaper and VETOED (puts an allergy stated in English into `slot=operator.diet`,
     # which a later diet change would erase).
     "distill": ((_OAI, "gpt-4.1-mini"),),
+    "batch_split": ((_OAI, "gpt-4.1-mini"),),
     # paraphrase — this task only works with reasoning OFF (measured 2026-08-18: with it on the whole budget
     # goes to reasoning and `content` comes back EMPTY at every budget tried), which is why the broker's
     # DeepSeek was already banned from this row: it ACCEPTS `thinking:disabled` and ignores it, so it would

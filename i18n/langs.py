@@ -283,6 +283,15 @@ class LangSpec:
     work_started: str = "Me pongo a ello y te aviso."
     op_failed: str = "No he podido completarlo."
     op_unknown: str = "Lo he lanzado, pero no he podido confirmar que quedara hecho."
+    # V2-771 — a message that hands over SEVERAL tasks is a list (`nucleo/batch`). On receipt he hears that it
+    # is a list and that work started — never the list read back to him, and no count: the count needs the
+    # split (~5 s) and the receipt must not wait for it. The report comes ONCE, at
+    # the end: counts, then only what failed, what needs him, and what is still running.
+    list_started: str = "Entendido, me pides varias cosas. Me pongo con ellas y te aviso cuando termine."
+    list_done: str = "He terminado tu lista: {ok} de {n} hechas."
+    list_failed: str = "No he podido con: {items}."
+    list_needs_you: str = "Necesito que me aclares: {items}"
+    list_still_running: str = "Aún siguen {n} en marcha; te aviso al acabar."
     # data-op ack variants (V2-038, post-P1/P2 test): two consecutive data-ops with the SAME "Done." triggered
     # the loop detector (LOOP×2) → consecutive functional responses are phrased differently. The provider chooses one
     # that does NOT repeat the previous one. Localized copy (lives in the language catalog, not test data).
@@ -684,6 +693,11 @@ LANGUAGES: dict[str, LangSpec] = {
         data_ack="Done.",
         data_acks=("Done.", "There you go.", "All set.", "Got it.", "Noted."),
         work_started="On it — I'll tell you when it's done.",
+        list_started="Got it — that's several things. I'm on them and I'll let you know when I'm done.",
+        list_done="I've finished your list: {ok} of {n} done.",
+        list_failed="I couldn't do: {items}.",
+        list_needs_you="I need you to clarify: {items}",
+        list_still_running="{n} are still running; I'll tell you when they finish.",
         op_failed="I couldn't get that done.",
         op_unknown="I started it, but I couldn't confirm it went through.",
         secret_reveal="Your {label}: {value}",

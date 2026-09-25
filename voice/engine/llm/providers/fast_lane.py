@@ -258,6 +258,41 @@ async def rename(brain, text: str, emit, *, first_turn: bool, window_max: int) -
     return True
 
 
+# ── TASK LIST lane (V2-771) ──────────────────────────────────────────────────────────────────────────────
+# A message that hands over several tasks is not a turn: it is a list, and `nucleo.batch` runs it step by step
+# through the ordinary turn. This lane goes FIRST — before the rename lane, which on a one-line paste took the
+# whole message for «your name is Johnny» and dropped the rest — and before the provider's input clamp, which
+# kept the last 1 600 chars of it. Below the shape floor it returns at once, so a normal turn pays nothing.
+# Mirror in `probe.run_turn`.
+async def task_list(brain, text: str, emit, *, first_turn: bool, window_max: int) -> bool:
+    """Start a list from his message and say the one receipt line. False = not a list → turn untouched."""
+    if first_turn:
+        return False
+    from nucleo import batch
+    got = await batch.intake(text, origin="voz")
+    if not got:
+        return False
+    phrase = got["ack"]
+    from nucleo.flash import dialog as _dialog_tl
+    _dialog_tl.push_user(brain._window, text)
+    brain._window.append({"role": "assistant", "content": phrase})
+    del brain._window[:-window_max]
+    from voice import proactive
+    speak = proactive.speaker()
+    if speak is None:
+        await proactive.notify("lista", phrase)   # chat-only: the UI line + a note for the next turn
+        return True
+    try:
+        brain._last_spoken = phrase
+        brain._last_spoke_at = time.time()
+    except Exception:
+        pass
+    r = speak(phrase)
+    if asyncio.iscoroutine(r):
+        await r
+    return True
+
+
 # ── WALL TAB lane (V2-761) ───────────────────────────────────────────────────────────────────────────────
 # «Ábreme la lista de widgets» names a tab of the wall with certainty; the model called `show_panel` for it 10-13
 # times in 18 and otherwise refused, promised with nothing behind it, or spent a worker listing what the tab

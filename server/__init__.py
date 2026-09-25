@@ -278,6 +278,14 @@ async def _lifespan(app: FastAPI):
                                 .format(_reh["found"], len(_reh.get("resume") or []), len(_reh.get("buried") or [])))
             except Exception as e:
                 logger.warning(f"rehydrate at_boot failed (voice/chat unaffected): {e}")
+            # V2-771 — a LIST a restart interrupted resumes from its first unfinished step (`nucleo/batch`).
+            try:
+                from nucleo import batch as nucleo_batch
+                _lists = nucleo_batch.resume()
+                if _lists:
+                    logger.info(f"Listas reanudadas tras el reinicio: {len(_lists)}")
+            except Exception as e:
+                logger.warning(f"task-list resume failed (voice/chat unaffected): {e}")
     # «Susurro» (V2-053): off-hot-path conversational auditor. It plugs in ONLY through the bus (turn.completed +
     # friction signals) — zero coupling with the voice provider. First-class kill switch: config §susurro.enabled
     # (UI) + ZAELAR_SUSURRO. Fail-open: its failure never touches voice.

@@ -97,8 +97,12 @@ _DEFAULTS: dict[str, dict] = {
         # use from Claude Code"), the worker uses it through ANTHROPIC_BASE_URL + ANTHROPIC_AUTH_TOKEN; the token is
         # resolved from the credential store by endpoint (z.ai → Z_AI_API_KEY), never from this JSON.
         "base_url": "",
-        "max_parallel": 3,                                  # POOL: max concurrent Claude Code sessions (V2-036) —
+        "max_parallel": 2,                                  # POOL: max concurrent Claude Code sessions (V2-036) —
         #                                                     avoid saturating machine/tokens; env CODE_AGENT_MAX_PARALLEL.
+        #                                                     V2-771: 3 → 2. «Si nos encargan seis tareas complejas, no
+        #                                                     hace falta abrir seis brain workers a la vez… dos tareas a
+        #                                                     la vez, el resto en cola» — a list of errands must not
+        #                                                     spend the energy in one burst and leave all of them half done.
         # Explicit RELAY chain (2026-08-03): the operator manually orders primary→failover→failover (each one
         # {name, base_url, env|api_key, model, plan}). `nucleo.workers.providers.chain()` reads it if NOT empty;
         # empty (default) = usual behavior (base_url above + KNOWN catalog + local license).

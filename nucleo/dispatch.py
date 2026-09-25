@@ -193,9 +193,9 @@ def _max_parallel() -> int:
         pass
     try:
         from config import v2 as _v2
-        return max(1, int(_v2.get("code_agent").get("max_parallel", 3)))
+        return max(1, int(_v2.get("code_agent").get("max_parallel", 2)))
     except Exception:
-        return 3
+        return 2          # V2-771 — two at a time, the rest queued (see config/v2.py §code_agent)
 
 
 _sem: "asyncio.Semaphore | None" = None
