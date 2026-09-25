@@ -140,14 +140,42 @@ def reply_needs_him(task: str, reply: str) -> bool:
     return not (v and v.get("choice") == "done" and float(v.get("confidence") or 0) >= 0.7)
 
 
+#: Step kinds that exist to CHANGE something (the split's own label). A turn for one of these that executed
+#: nothing did not do it, whatever its reply says. Measured on the second live run of his demo (2026-09-25):
+#: «Create a calendar event … “Call with accountant”» → «I'll put that on your agenda now.» and no call, twice in
+#: seven, with nothing open on the canvas — so neither the promise detector (a phrase table that knew none of
+#: those replies) nor the verdict (`catalog_widget=none` 1.00) could repair it, and the list counted it DONE.
+ACTION_KINDS = frozenset({"agenda", "reminder", "message", "task"})
+
+
+def acted(r: dict) -> bool:
+    """Did the turn EXECUTE anything? The turn's own report, never its words: a tool call, a tag, an execution
+    record or a worker. A lane that answered without the model (rename, action map) reports its own action."""
+    r = r if isinstance(r, dict) else {}
+    if r.get("tool_calls") or r.get("tags") or r.get("executed") or r.get("task_ids") or r.get("task_id"):
+        return True
+    return str(r.get("action") or "chat") not in ("chat", "")
+
+
+async def _turn(turn, text: str, sid: str) -> dict:
+    try:
+        return await turn(text, sid=sid, ingest=False, execute=True, lists=False)
+    except Exception as e:  # noqa: BLE001 — one broken step never takes the list down
+        return {"ok": False, "error": f"{type(e).__name__}: {e}"}
+
+
 async def _run_step(uid: str, row: dict, turn, ingest) -> None:
     ts = _store()
     ts.task_patch(row["id"], state="running", started_at=int(time.time()))
     _emit("📋 lista: paso", text=row["goal"], step=row["id"])
-    try:
-        r = await turn(row["goal"], sid=uid, ingest=False, execute=True, lists=False)
-    except Exception as e:  # noqa: BLE001 — one broken step never takes the list down
-        r = {"ok": False, "error": f"{type(e).__name__}: {e}"}
+    r = await _turn(turn, row["goal"], uid)
+    if str(row.get("kind") or "") in ACTION_KINDS and outcome_of(r)[0] == "done" and not acted(r):
+        # ONE retry, in a fresh session: the list's own window now holds the claim («Adding it now»), and a
+        # model that reads its own claim answers «already done». Still nothing → failed, and the report says so.
+        _emit("📋 lista: paso sin acción — reintento", text=str(r.get("reply") or "")[:200], step=row["id"])
+        r = await _turn(turn, row["goal"], f"{uid}:{row['id'][-2:]}")
+        if outcome_of(r)[0] == "done" and not acted(r):
+            r = {"ok": False, "error": f"no action taken — «{str(r.get('reply') or '')[:160]}»"}
     state, note, tids = outcome_of(r)
     if state == "needs_you" and not await asyncio.to_thread(reply_needs_him, row["goal"], note):
         state = "done"

@@ -323,3 +323,28 @@ def test_a_courtesy_question_is_not_a_step_that_needs_him(monkeypatch):
         return None
     s = asyncio.run(runner.run(uid, turn=turn, ingest=nothing, notify=nothing, worker_wait_s=0.1))
     assert [r["title"] for r in s["done"]] == ["fact"] and [r["title"] for r in s["needs_you"]] == ["ask"]
+
+
+def test_an_action_step_whose_turn_did_nothing_is_retried_once_then_failed(monkeypatch):
+    """Second live run: «Create a calendar event …» → «I'll put that on your agenda now.» and NO call, twice in
+    seven; the list counted both DONE. The turn's report says whether it acted, never its words."""
+    monkeypatch.setattr(runner, "_worker_state", lambda tid: "done")
+    uid = runner.create("msg", [{"title": "fact", "kind": "memory", "say": "Remember X."},
+                                {"title": "lunch", "kind": "agenda", "say": "Create lunch."},
+                                {"title": "vet", "kind": "agenda", "say": "Create vet."}])
+    calls = []
+
+    async def turn(text, **kw):
+        calls.append((text, kw["sid"]))
+        if text == "Create lunch." and kw["sid"] != uid:           # the retry, in a fresh session, acts
+            return {"ok": True, "reply": "Done.", "action": "widget_data", "tool_calls": [{"name": "widget_data"}]}
+        return {"ok": True, "reply": "Adding it now.", "action": "chat", "tool_calls": []}
+
+    async def nothing(*a, **k):
+        return None
+    s = asyncio.run(runner.run(uid, turn=turn, ingest=nothing, notify=nothing, worker_wait_s=0.1))
+    assert [c[0] for c in calls] == ["Remember X.", "Create lunch.", "Create lunch.", "Create vet.", "Create vet."]
+    assert calls[1][1] == uid and calls[2][1] != uid                # the retry does not read its own claim
+    assert [r["title"] for r in s["done"]] == ["fact", "lunch"] and [r["title"] for r in s["failed"]] == ["vet"]
+    assert "no action taken" in runner.steps_of(uid)[2]["outcome"]
+    assert runner.acted({"action": "rename"}) and not runner.acted({"action": "chat", "reply": "Hecho."})
