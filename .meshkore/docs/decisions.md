@@ -21,6 +21,15 @@ entregada siga citada aquí.
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **A health notice never opens the door, and the agent knows what did (V2-768, 2026-09-25)**: *«estaba
+  activada la word activation… el sistema no tendría que haberse puesto a escuchar nada… yo en ningún momento he
+  dicho la palabra clave»*. Measured: a transient LiveKit stall made `homeostasis` SAY an alert aloud; every
+  proactive delivery opens the reply window (V2-655), so his next sentence — to somebody on the phone — ran as an
+  order and the chain lasted until ⏻; asked why, the agent said «oí tu nombre», which was false.
+  `homeostasis._alert` is screen-only (the `homeostasis` event; never `proactive.notify`, not even `speak=False`,
+  which would slip it into his next answer). `voice/attention_opening.py` records what opened the conversation
+  (a cold turn's verdict reason, or our own delivery with its words) and the wake-word prompt line states it with
+  «nunca inventes otra causa». Node 8.18.
 - **No language, no agent — the picker is the only door (V2-765, 2026-09-24)**: *«no quiero que ninguno esté
   seleccionado por defecto… si no hace clic, el micrófono, el agente personal, todo está parado… es una pantalla
   sine qua non»*. Measured on his factory reset: the voice session was live behind the picker (V2-101's «a spoken

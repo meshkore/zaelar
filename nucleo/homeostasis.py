@@ -163,14 +163,21 @@ def _emit(label: str, text: str = "", extra: dict | None = None) -> None:
 
 
 async def _alert(key: str, title: str, text: str) -> None:
-    """Avisa al operador UNA vez por incidente (voz + UI + chat, sin toasts). Dedup por `key`."""
+    """Tell the operator ONCE per incident, ON SCREEN ONLY (chat + panel, no toasts). Dedup by `key`.
+
+    V2-768 — never spoken. Measured 2026-09-25 (session c20ffd8e): in wake-word mode, with the operator on the
+    phone to somebody else, this alert was said aloud, opened the reply window every spoken delivery opens,
+    and his next sentence — to the other person — ran as an order; the conversation chained for a minute and a
+    half. A health notice nobody asked for is not a delivery he is owed: it must not take the floor, and it
+    must not become a note the brain slips into his next answer either (`proactive.notify(speak=False)` does
+    that). Only the UI half of `notify` is kept."""
     if key in _alerted:
         return
     _alerted.add(key)
     _emit("alert", f"{title}: {text}")
     try:
-        from voice import proactive
-        await proactive.notify(title, text, speak=proactive.has_voice(), kind="homeostasis")
+        from voice.observer import emit
+        emit("homeostasis", ("🔔 " + title)[:60], text=text, role="assistant", extra={"title": title})
     except Exception:
         pass
 

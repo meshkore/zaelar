@@ -4669,6 +4669,14 @@ DOMAINS: list[dict] = [
                                 "contar como una frase sin contestar",
             "ch": UNIT,
             "paths": ["tests/voice/unit/test_the_word_is_the_only_way_in.py"]},
+        # V2-768 — medido el 2026-09-25 (sesión c20ffd8e), modo palabra de activación, él al teléfono con otra
+        # persona: un aviso de salud del motor se DIJO en voz alta, abrió la ventana de respuesta y su frase
+        # siguiente, a la otra persona, corrió como una orden. Preguntado por qué, el agente dijo «oí tu
+        # nombre» — nadie lo había dicho.
+        {"id": "8.18", "title": "Un aviso de salud del motor sale solo en pantalla y no abre la ventana — y el "
+                                "agente sabe qué abrió la conversación en vez de inventárselo",
+            "ch": UNIT,
+            "paths": ["tests/voice/unit/test_a_health_notice_never_opens_the_door.py"]},
         {"id": "8.10", "title": "El trabajo del agente se llama PROCESO (job): ninguna etiqueta del frontend "
                                 "lo llama «tarea», y el id de la pestaña se mudó con el rótulo",
             "ch": UNIT,

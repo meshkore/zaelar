@@ -236,6 +236,10 @@ async def notify(title: str, text: str, *, speak: bool = True, kind: str = "noti
                 try:
                     from voice import attention as _attn
                     _attn.note_addressed_speech()
+                    # V2-768 — and the window it opens is remembered as OURS, with our words: asked why it
+                    # interrupted, the agent must be able to say «I spoke first», not guess «I heard my name».
+                    from voice import attention_opening as _opening
+                    _opening.note("addressed", spoken)
                 except Exception:  # noqa: BLE001
                     pass
             r = _speaker(spoken)

@@ -80,6 +80,18 @@ def prompt_lines(mstate: dict) -> list[str]:
             f"siempre»), LLAMA a set_style_directive con esa orden tal cual — el sistema lo aplica al instante; "
             f"no pidas ningún dato más y nunca digas que está hecho sin haber llamado a la tool.")
         if att_mode in ("smart", "wakeword"):
+            # V2-768 — WHY it is listening, as a fact: asked «¿por qué me has interrumpido?» after a window
+            # its own spoken alert had opened, the model answered «porque oí tu nombre» — the likeliest cause,
+            # and false. See `voice/attention_opening.py`.
+            try:
+                from voice import attention_opening as _opening
+                why = _opening.why_listening()
+            except Exception:
+                why = ""
+            if why:
+                lines.append(
+                    f"POR QUÉ ESTÁS EN CONVERSACIÓN AHORA — {why} Si te pregunta por qué entraste, te activaste "
+                    f"o le interrumpiste, di ESTO con tus palabras; nunca inventes otra causa.")
             # V2-657 — the ASIDE exit. Measured at the 2026-09-10 dinner: «Acostaros» got «Buenas noches»,
             # «Luis, disfrutemos de las noticias» got a clarifying question — the model had no way to let a
             # turn PASS, so it answered room talk and every answer kept the conversation window alive.

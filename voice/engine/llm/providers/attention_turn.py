@@ -63,6 +63,10 @@ async def judge(text: str, *, context: str, emit) -> tuple[bool, str, float]:
                     "window_s": attention.window_s(), "window_open": False})
         return False, text, gate_ms
 
+    if verdict.reason != "active_window":
+        # V2-768 — a cold turn let in: the conversation starts HERE, and the agent must be able to say why.
+        from voice import attention_opening
+        attention_opening.note(verdict.reason, text)
     attention.note_directed()
     if verdict.reason == "wakeword":
         text = attention.reclaim_ambient_tail(text)
