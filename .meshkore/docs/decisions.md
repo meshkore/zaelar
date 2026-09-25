@@ -35,9 +35,11 @@ entregada siga citada aquí.
   (resumed at boot); each step runs as an ORDINARY text-channel turn, memory written and AWAITED per step (the
   distiller turns lossy past two queued writes), workers go to a pool of TWO (was 3), and ONE report waits for
   them. A question-ending step reply is asked to Jev — «Anything else I can dig up?» is a courtesy, not a need
-  (three done steps were reported as needing him on the first live run). Found on the way: an end date with no
+  (three done steps were reported as needing him on the first live run) — and an ACTION step whose turn executed
+  nothing is retried once, then failed: «Done — it's on for Monday» with no call happened twice per run with no
+  card open, where neither the phrase-table promise detector nor the verdict (`catalog_widget=none`) could see it. Found on the way: an end date with no
   rule was a WEEKLY series (a holiday showed on two days); now a daily span. Live, sandbox, real models: his demo
-  → 25 steps in 2 min 47 s, 12/13 store checks green on the first run. Open: a spoken list past the accumulator
+  → 25 steps in 2 min 47 s; after the two fixes, run 3: 26/26 steps, 13/13 store checks, judge 5/5. Open: a spoken list past the accumulator
   valve still arrives as several turns; WhatsApp/Telegram/cluster are not order channels (a trust decision); a
   step's own outcome is read from its turn, not witnessed on the store; one step answered in Chinese (model
   language drift, no reply-language guard exists). Mechanism doc: `.meshkore/docs/modules/zaelar-task-lists.md`.

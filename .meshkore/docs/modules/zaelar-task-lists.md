@@ -50,6 +50,12 @@ None of them was wrong. The message was not a turn.
    with the Jev brief, the real prompt, the model, widgets, memory and workers. So each step sits inside the
    per-turn limits instead of colliding with them. All steps share one conversation session (step 9 is read
    with steps 1-8 behind it). `lists=False` stops a step from being read as a list again.
+5b. **A step is not believed on its words.** An ACTION step (split kind `agenda`/`reminder`/`message`/`task`)
+   whose turn EXECUTED nothing (no tool call, tag, execution, worker or lane action in the turn's own report) is
+   retried once in a fresh session, and failed if it still does nothing. Measured: «Done — Meshcore architecture
+   is on for Monday» with no call, twice per run, while nothing was open for the verdict to repair against.
+   A reply that ends in a question is asked to Jev (`step_reply`: needs an answer vs courtesy offer) before the
+   step is left for the operator.
 6. **Memory** is written by the runner, AWAITED, per step — not fire-and-forget: the distiller serialises and
    falls to a lossy heuristic when more than two writes wait (`mem_processor._QUEUE_MAX`), which a list would
    reach in seconds.
@@ -69,6 +75,14 @@ None of them was wrong. The message was not a turn.
 | Voice / typed chat | `fast_lane.task_list`, first lane, before the input clamp and the rename lane | |
 | Text channel (`/api/flash/say`) | `probe._task_list`, before `_fast_lanes`, only with `execute` | mirror of the above |
 | Anything else authorised by the operator | `POST /api/lists {"text"}` | does not ask «is it a list?» — the caller chose |
+
+## Measured live (sandbox, real models, 2026-09-25)
+
+| Run | What happened | Store checks | Judge |
+|---|---|---|---|
+| demo 1 | 25 steps in 2 min 47 s; 3 DONE steps reported as «needs you» (courtesy «?») | 12/13 | fail (that step) |
+| demo 2 | courtesy fixed; 2 of 7 calendar steps promised and called nothing, counted DONE | 11/13 | fail |
+| demo 3 | action-step retry live: 2 retries rescued «Done —» claims; 26/26 | **13/13** | **5/5 on all five** |
 
 ## Deliberately out of scope (v1)
 
