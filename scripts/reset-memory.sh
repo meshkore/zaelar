@@ -200,13 +200,20 @@ if [[ "$FACTORY" == "1" ]]; then
   fi
   for f in "${FACTORY_PATHS[@]}"; do [[ -e "$f" ]] && rm -f "$f"; done
   for d in "${FACTORY_DIRS_CONTENTS[@]}"; do [[ -d "$d" ]] && find "$d" -mindepth 1 -delete 2>/dev/null || true; done
-  # V2-765 — the ⏻ intention starts over too. With memory KEPT, `sys_kv` survives, and a ⏻ off from before the
-  # reset would outlive it: the language picker lifts its gate, finds «stopped by the operator», and the brand-new
-  # agent stays off with nothing on screen saying why. A first run is RUNNING once the language exists.
-  if [[ -n "$PY_BIN" && -e "memory/_data/zaelar.db" ]]; then
+fi
+
+# 5b) THE SWITCHES (ALWAYS, whatever the checkboxes). The operator (2026-09-25): after ANY reset the agent comes
+# up running — orb listening, mic and speaker on, no wake word — «aunque estuviera antes diferente». V2-765 did
+# the ⏻ only under --factory; with memory KEPT, `sys_kv` survives and a ⏻ off from before the reset outlived it.
+# The browser's own switches (mic/speaker mute, orb dock) go with the desktop epoch bumped below (first-run.js).
+PY_BIN="./.venv/bin/python"; [[ -x "$PY_BIN" ]] || PY_BIN="$(command -v python3 || true)"
+if [[ -n "$PY_BIN" ]]; then
+  if [[ -e "memory/_data/zaelar.db" ]]; then
     "$PY_BIN" -c "from memory import api; api.kv_del('run:state')" 2>/dev/null \
       || echo "  ⚠ no pude limpiar el ⏻ guardado (sigo con el resto)"
   fi
+  "$PY_BIN" -c "from config.settings import reset_switches; reset_switches()" 2>/dev/null \
+    || echo "  ⚠ no pude devolver el modo de atención a su valor inicial (sigo con el resto)"
 fi
 
 # 6) THE AGENT'S FILES (only if --wipe-files).

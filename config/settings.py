@@ -487,6 +487,28 @@ AGENT_KEYS = frozenset({
 })
 
 
+# The SWITCHES a reset puts back to a fresh install's position, on EVERY reset and not only «empezar de cero»
+# (operator, 2026-09-25): *«después de un reset o una inicialización de cero, el agente empieza arrancado… el
+# orbe escuchando, el micrófono activo, el altavoz activo y el word activation desactivado… Aunque estuviera
+# antes diferente»*. Dropping the key IS the reset: the knob's default (`always`, no wake word) takes over.
+# The ⏻ lives in `sys_kv` and the browser's own switches in localStorage — see scripts/reset-memory.sh.
+SWITCH_KEYS = frozenset({"attention_mode", "attention_window"})
+
+
+def reset_switches() -> list:
+    """Drop the SWITCH_KEYS from settings.json. Returns what went. Never raises — a reset goes on without it."""
+    try:
+        d = json.loads(SETTINGS_FILE.read_text(encoding="utf-8")) if SETTINGS_FILE.exists() else {}
+        gone = sorted(k for k in d if k in SWITCH_KEYS)
+        if gone:
+            SETTINGS_FILE.write_text(json.dumps({k: v for k, v in d.items() if k not in SWITCH_KEYS},
+                                                ensure_ascii=False, indent=2), encoding="utf-8")
+        return gone
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"reset_switches: settings.json sin tocar ({e})")
+        return []
+
+
 def factory_reset() -> dict:
     """Strip settings.json down to what a FRESH INSTALL would have: the installation's own setup, nothing else.
 

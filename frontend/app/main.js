@@ -126,6 +126,12 @@ try { document.getElementById("preboot")?.remove(); } catch { /* noop */ }
 // V2-765 — the check RETRIES until the engine answers. It used to ask once and give up on any error, and a
 // picker that never opens is not a skipped step any more: with no language the engine keeps the agent
 // stopped, so a lost answer would have left a dead agent behind no screen at all.
+// Any reset (not only a factory one) puts the browser's switches back to a fresh install's: the engine bumps a
+// wipe epoch on every reset and first-run.js sweeps our namespace once per epoch (operator, 2026-09-25).
+firstRun.takeoverOnReset({
+  fetchEpoch: () => fetch("/api/desktop/epoch", { cache: "no-store" }).then(r => r.json()).then(j => j && j.epoch),
+  local: localStorage, session: sessionStorage, reload: () => location.reload(),
+}).catch(() => {});
 let _langOnboardChecked = false;
 async function _langStateUntilAnswered() {
   for (let i = 0; i < 90; i++) {

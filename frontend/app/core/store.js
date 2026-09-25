@@ -485,7 +485,9 @@ export const [langOnboardPreparing, setLangOnboardPreparing] = createSignal(fals
 
 function _maybeCloseLangOnboard() {
   if (!_langReady || langOnboardHold()) return;
-  setTimeout(() => setLangOnboardOpen(false), 550);   // let the CSS fade (.gone) play, then unmount
+  // let the CSS fade (.gone) play, then unmount — and look AGAIN when the timer fires: a hold taken during
+  // the fade (the folder question) must keep the veil up, or a scheduled close skips the step it guards.
+  setTimeout(() => { if (_langReady && !langOnboardHold()) setLangOnboardOpen(false); }, 550);
 }
 
 export function requestLangOnboardClose() {

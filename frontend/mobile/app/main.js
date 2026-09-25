@@ -16,6 +16,7 @@
 import { h, mount, $ } from "../../app/core/dom.js?v=2";
 import { createEffect } from "../../app/core/reactive.js?v=2";
 import * as store from "../../app/core/store.js?v=2";
+import * as firstRun from "../../app/core/first-run.js?v=1";
 import * as session from "../../app/services/session.js?v=3";
 import * as mic from "../../app/services/mic.js?v=1";
 import { openSSE } from "../../app/services/sse.js?v=4";
@@ -99,6 +100,12 @@ try { document.getElementById("preboot")?.remove(); } catch { /* noop */ }
 // It matters MORE here: a phone is plausibly the first place someone ever opens their agent. ----
 // V2-765: retried until the engine answers — with no language the agent stays stopped, so a picker that
 // never opens would be a dead agent behind no screen at all.
+// Any reset (not only a factory one) puts the browser's switches back to a fresh install's: the engine bumps a
+// wipe epoch on every reset and first-run.js sweeps our namespace once per epoch (operator, 2026-09-25).
+firstRun.takeoverOnReset({
+  fetchEpoch: () => fetch("/api/desktop/epoch", { cache: "no-store" }).then(r => r.json()).then(j => j && j.epoch),
+  local: localStorage, session: sessionStorage, reload: () => location.reload(),
+}).catch(() => {});
 let _langOnboardChecked = false;
 async function _langStateUntilAnswered() {
   for (let i = 0; i < 90; i++) {

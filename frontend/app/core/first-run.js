@@ -68,4 +68,36 @@ export function takeoverOnFirstRun({ local, session, reload }) {
   return true;
 }
 
+/**
+ * The same takeover for EVERY reset, not only a first run (operator, 2026-09-25): *«en cuanto hago un reset,
+ * todas esas variables de estado pasan al estado inicial de cualquier instalación como si fuera de cero»* —
+ * orb listening, mic and speaker on. A reset that KEEPS the language never reaches `takeoverOnFirstRun`
+ * (`chosen` stays true), so the previous `hb_mic_muted=1` / `hb_bot_muted=1` / `hb_orb_dock=bar` survived it.
+ *
+ * `scripts/reset-memory.sh` bumps a wipe EPOCH on every reset (`GET /api/desktop/epoch`); this browser keeps
+ * the last one it obeyed in `hb_wipe`. A new epoch → wipe our namespace, remember the epoch, reload once.
+ * A browser that never saw an epoch and holds nothing of ours just records it — nothing to wipe, no reload.
+ */
+export async function takeoverOnReset({ fetchEpoch, local, session, reload }) {
+  let epoch = "";
+  try { epoch = String((await fetchEpoch()) || ""); } catch (_) { return false; }
+  if (!epoch) return false;
+  try {
+    if (local.getItem(WIPE_KEY) === epoch) return false;
+    const guard = RESET_GUARD + epoch;
+    if (session.getItem(guard)) return false;     // already attempted for this epoch in this tab
+    session.setItem(guard, "1");
+  } catch (_) {
+    return false;                                  // no storage → nothing inherited, and no loop risked
+  }
+  const gone = clearInheritedViewState(local).filter(k => k !== WIPE_KEY);
+  try { local.setItem(WIPE_KEY, epoch); } catch (_) { /* private window */ }
+  if (!gone.length) return false;
+  reload();
+  return true;
+}
+
+const WIPE_KEY = "hb_wipe";                       // shared with widgets/desktop.js::restore
+const RESET_GUARD = "hb_reset_takeover:";
+
 export const _GUARD_KEY = GUARD;

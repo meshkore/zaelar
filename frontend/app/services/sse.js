@@ -84,6 +84,15 @@ export function openSSE(desktop) {
 // `settleHeldTurns`) — which proves the mapping and never the wiring. Its own disarm caught that: deleting
 // the whole `interim` branch left node 4.199 green, because the test was calling `captionPartial` directly.
 // Nothing about the routing changed; it only became reachable.
+// A field the engine put in `extra`. `voice/observer.emit` FLATTENS extra into the event (`ev.update(extra)`),
+// so on the wire it is `d.src`, never `d.extra.src` — reading the nested spelling found nothing, silently:
+// after a factory reset the mic and speaker stayed muted (hb:language-ready never fired, measured 2026-09-25),
+// and the Energy battery never dropped live. The nested read stays only as a fallback for a hand-built event.
+function field(d, key) {
+  if (d && d[key] !== undefined) return d[key];
+  return ((d && d.extra) || {})[key];
+}
+
 export function routeEvent(desktop, d) {
     if (!d) return;
     if (d.kind === "bot_speech") {                              // gate person-voice visuals + drive live captions + latency
@@ -406,10 +415,10 @@ export function routeEvent(desktop, d) {
     } else if (d.kind === "energy") {                                             // Energy balance → the BATTERY drops LIVE
       // The balance is pushed; there is no notice to go fetch it: the integer fits in the event, so the battery
       // drops while the worker runs, without a fetch for every spend.
-      const x = d.extra || {};
-      if (typeof x.balance === "number") {
-        store.setEnergy({ cloud: true, known: true, balance: x.balance,
-                          capacity: typeof x.capacity === "number" ? x.capacity : (store.energy() || {}).capacity });
+      const balance = field(d, "balance"), capacity = field(d, "capacity");
+      if (typeof balance === "number") {
+        store.setEnergy({ cloud: true, known: true, balance,
+                          capacity: typeof capacity === "number" ? capacity : (store.energy() || {}).capacity });
       }
     } else if (d.kind === "run") {                                                // V2-092: the GLOBAL switch changed
       // The server (nucleo/runstate.py) holds the truth of «is the agent stopped?», and this event is how
@@ -434,7 +443,7 @@ export function routeEvent(desktop, d) {
         // V2-765 — the agent was stopped by the MISSING LANGUAGE, not by ⏻, and the picker just lifted it.
         // The boot probe muted the mic and the speaker on its way to «stopped» (main.js); ⏻'s own click undoes
         // that, and here nobody clicked ⏻ — so main.js is told, and does what ⏻ ON does.
-        if (!off && (d.extra || {}).src === "language") document.dispatchEvent(new CustomEvent("hb:language-ready"));
+        if (!off && field(d, "src") === "language") document.dispatchEvent(new CustomEvent("hb:language-ready"));
       }
     } else if (d.kind === "notify") {                                             // proactive push (a native cron fired)
       // NO floating toast. When a voice session is live, zaelar SPEAKS it → the live caption comes from the

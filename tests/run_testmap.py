@@ -2434,6 +2434,14 @@ DOMAINS: list[dict] = [
                                  "que sobrevive al reset se limpia una vez (V2-735)",
             "ch": UNIT, "paths": [
                 "tests/browser/unit/arranque/test_a_first_run_does_not_wear_the_previous_install.py"]},
+        # 2026-09-25, after his reset: the mic and speaker stayed muted (the SSE read `d.extra.src` and the bus is
+        # FLAT), a reset that kept the language kept the ⏻ and the wake word, and the folder step flashed and went.
+        {"id": "4.217", "title": "Tras CUALQUIER reset el agente arranca escuchando: ⏻ en marcha, micrófono y "
+                                 "altavoz abiertos, sin palabra de activación — y la pregunta de la carpeta "
+                                 "no se la come el «ready» de un idioma preinstalado",
+            "ch": UNIT, "paths": [
+                "tests/browser/unit/arranque/test_the_language_lock_brings_the_voice_back.py",
+                "tests/browser/unit/arranque/test_any_reset_starts_the_agent_listening.py"]},
         {"id": "4.194", "title": "Un idioma YA inicializado no enseña ninguna pantalla (V2-732) — y cuando "
                                  "el trabajo es real, suelo de 2,2 s armado por el SSE, barra con el "
                                  "contador de pasos DEL MOTOR, y sin denominador barre en vez de "

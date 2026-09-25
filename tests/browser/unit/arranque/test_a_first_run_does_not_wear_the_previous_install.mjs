@@ -92,4 +92,43 @@ for (const k of ["theme", "lang", "", null, "myapp_hb_theme"]) assert.ok(!isOurs
   assert.deepEqual(clearInheritedViewState(angry), [], "a blocked store has nothing to inherit either");
 }
 
+// ── 7. ANY reset, not only a first run (operator, 2026-09-25) ───────────────────────────────────────────
+// «en cuanto hago un reset, todas esas variables de estado pasan al estado inicial». A reset that keeps the
+// language never reaches takeoverOnFirstRun, so the mic and speaker came back muted. The reset's EPOCH does.
+{
+  const { takeoverOnReset } = await import("../../../../frontend/app/core/first-run.js?v=1");
+  const local = fakeStorage({ hb_wipe: "100", hb_mic_muted: "1", hb_bot_muted: "1", hb_orb_dock: "bar",
+                              unrelated_key: "keep me" });
+  const session = fakeStorage();
+  let reloaded = 0;
+  const took = await takeoverOnReset({ fetchEpoch: async () => 200, local, session, reload: () => reloaded++ });
+  assert.equal(took, true, "THE BUG: a reset left the previous mute switches in the browser");
+  assert.equal(reloaded, 1);
+  assert.deepEqual(local._keys().sort(), ["hb_wipe", "unrelated_key"], local._keys());
+  assert.equal(local.getItem("hb_wipe"), "200", "the epoch obeyed is remembered, so it happens once");
+
+  // the same epoch again (next page load): nothing
+  local.setItem("hb_mic_muted", "1");            // he mutes on purpose AFTER the reset
+  assert.equal(await takeoverOnReset({ fetchEpoch: async () => 200, local, session: fakeStorage(),
+                                       reload: () => reloaded++ }), false);
+  assert.equal(local.getItem("hb_mic_muted"), "1", "a choice made after the reset is his, and it stays");
+  assert.equal(reloaded, 1);
+}
+{
+  const { takeoverOnReset } = await import("../../../../frontend/app/core/first-run.js?v=1");
+  // a brand-new browser: records the epoch, wipes nothing, never blinks
+  const local = fakeStorage({ unrelated_key: "x" });
+  let reloaded = 0;
+  assert.equal(await takeoverOnReset({ fetchEpoch: async () => 300, local, session: fakeStorage(),
+                                       reload: () => reloaded++ }), false);
+  assert.equal(reloaded, 0);
+  assert.equal(local.getItem("hb_wipe"), "300");
+  // no epoch served, or the engine unreachable: nothing happens
+  const l2 = fakeStorage({ hb_mic_muted: "1" });
+  assert.equal(await takeoverOnReset({ fetchEpoch: async () => 0, local: l2, session: fakeStorage(), reload() {} }), false);
+  assert.equal(await takeoverOnReset({ fetchEpoch: async () => { throw new Error("down"); }, local: l2,
+                                       session: fakeStorage(), reload() {} }), false);
+  assert.equal(l2.getItem("hb_mic_muted"), "1");
+}
+
 console.log("ok: a first run does not wear the previous install");

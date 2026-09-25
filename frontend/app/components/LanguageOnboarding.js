@@ -91,13 +91,15 @@ export function LanguageOnboarding() {
   const pick = async (code) => {
     if (busy()) return;
     setActive(code);                                  // the mark follows the finger, not the round-trip
+    // Hold the veil BEFORE the choose POST, not after it: on a preset language the engine has nothing to
+    // generate and its "ready" lands while this POST is still in flight. Held only after it, the close was
+    // already scheduled and step two flashed for a second and vanished (operator, 2026-09-25, after a reset).
+    store.holdLangOnboard(true);
     setBusy(true);
     await api.chooseLanguage(code).catch(() => {});
     setBusy(false);
     // Ask the SERVER whether this deployment may choose a folder at all — a cloud account may not, and the
-    // answer also says whether a native picker can be drawn on this machine. Holding the veil BEFORE the
-    // answer arrives is deliberate: the "ready" event can beat this round-trip on a preset language.
-    store.holdLangOnboard(true);
+    // answer also says whether a native picker can be drawn on this machine.
     const st = await fetch("/api/library/base", { cache: "no-store" }).then(r => r.json()).catch(() => null);
     if (st && st.ok && st.can_choose) setFolder(st);
     else store.holdLangOnboard(false);                // nothing to ask — the language's own readiness decides

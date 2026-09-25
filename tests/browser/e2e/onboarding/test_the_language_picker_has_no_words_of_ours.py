@@ -491,3 +491,45 @@ def test_a_folder_that_cannot_be_used_says_so_instead_of_failing_silently(playwr
     m = _run_folder([refuse])
     assert m["problem"] == "Dieser Ordner geht nicht.", m["problem"]
     assert m["showing"], "a refusal leaves him on the step, able to try again"
+
+
+def test_a_preset_language_ready_before_the_click_returns_does_not_skip_the_folder_step(playwright_available):
+    """The operator after a factory reset (2026-09-25): *«la ha mostrado durante un segundo y ha pasado de ella
+    directamente al escritorio sin preguntarle al usuario»*.
+
+    For a PRESET language (en/es) the engine has nothing to generate, so its «ready» event lands while the
+    click's own POST is still in flight. Nothing held the veil yet, so the close was scheduled; the folder
+    step then appeared and was taken away by a timer that never looked again. Here «ready» is played
+    DURING the POST, exactly in that order, and the question must still be there a second later.
+    """
+    async def go():
+        from playwright.async_api import async_playwright
+        async with async_playwright() as pw:
+            b, pg, errors = await _boot(pw)
+
+            async def slow_choose(route):
+                await asyncio.sleep(1.5)       # well past the 550 ms close timer
+                await route.fulfill(status=200, content_type="application/json", body='{"ok": true}')
+            await pg.route("http://zaelar.test/api/i18n/choose/**",
+                           lambda r: asyncio.ensure_future(slow_choose(r)))
+            await pg.click('.lang-onb-pinned .lang-onb-row[lang="es-ES"]')
+            # what sse.js does for a preset language, while the click is still waiting for its answer
+            await pg.evaluate("""() => {
+              window.__store.setLangOnboardPhase("detected");
+              window.__store.setLangOnboardPhase("ready");
+              window.__store.requestLangOnboardClose();
+            }""")
+            await pg.wait_for_function("() => !!document.querySelector('.lang-onb-folder')")
+            await pg.wait_for_timeout(1200)       # longer than the close's fade timer
+            out = await pg.evaluate("""() => ({
+              open: window.__store.langOnboardOpen(),
+              showing: !!document.querySelector(".lang-onb-folder"),
+              gone: document.querySelector(".lang-onb").classList.contains("gone"),
+            })""")
+            out["errors"] = errors
+            await b.close()
+            return out
+    m = asyncio.run(go())
+    assert not m["errors"], f"page errors: {m['errors']}"
+    assert m["open"], "the veil closed under an unanswered folder question — the step was skipped"
+    assert m["showing"] and not m["gone"], m
