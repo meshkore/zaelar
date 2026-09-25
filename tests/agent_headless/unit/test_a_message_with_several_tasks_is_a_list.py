@@ -420,3 +420,30 @@ def test_a_relay_of_another_steps_worker_is_not_this_steps_worker(monkeypatch):
     assert set(after) - set(before) == set()
     sessions.append({"id": 3, "uid": "b-3"})           # a genuinely new commission
     assert [runner._live_workers()[k] for k in set(runner._live_workers()) - set(before)] == ["3"]
+
+
+def test_five_errands_never_run_more_than_two_at_a_time(monkeypatch):
+    """«Si nos encargan seis tareas complejas, no hace falta abrir seis brain workers a la vez… dos a la vez, el
+    resto en cola.» Measured on the dispatcher's REAL semaphore — the one `_run_session` enters — not on the
+    number in the config: five sessions, at most two inside, and all five finish (queued, not dropped)."""
+    from nucleo import dispatch
+    monkeypatch.delenv("CODE_AGENT_MAX_PARALLEL", raising=False)
+    monkeypatch.setattr("config.v2.get", lambda section: {})
+    monkeypatch.setattr(dispatch, "_sem", None)
+    inside = {"now": 0, "max": 0, "done": 0}
+
+    async def session():
+        async with dispatch._pool():
+            inside["now"] += 1
+            inside["max"] = max(inside["max"], inside["now"])
+            await asyncio.sleep(0.01)
+            inside["now"] -= 1
+            inside["done"] += 1
+
+    async def _go():
+        await asyncio.gather(*(session() for _ in range(5)))
+    asyncio.run(_go())
+    monkeypatch.setattr(dispatch, "_sem", None)
+    assert inside == {"now": 0, "max": 2, "done": 5}
+    src = (ROOT / "nucleo/dispatch.py").read_text()
+    assert "async with _pool():" in src            # the gate every worker session passes through
