@@ -21,6 +21,27 @@ entregada siga citada aquí.
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **A message with several tasks in it is a LIST — split, queued, run step by step, reported once (V2-771,
+  2026-09-25)**: *«tanto si nos las vomita por voz como si nos las pega, el sistema tiene que ver que esto es una
+  acción que para completarse necesita realizar todo lo que se pide… "vale, entiendo que me pides unas cuantas
+  cosas, me pongo a trabajar en ello"»* and *«dos tareas a la vez, el resto en cola»*. Measured on his 12-section
+  setup message: it was ONE turn, and six per-turn limits each dropped part of it silently (the input clamp kept
+  its LAST 1 600 chars, the distiller read its FIRST 600, 5 widget writes, 1+2 workers, 1 200 output tokens, the
+  rename lane took a one-line paste whole). None of those limits was wrong — the message was not a turn. Now
+  `nucleo/batch`: a shape floor (no vocabulary) and ONE Jev question decide «list?» before every lane and before
+  the clamp; the receipt is one lang-table line (never the list read back, no count — it must not wait for the
+  split); a `memllm` call splits it into self-contained steps (oversized ones cut at sentences, never mid-fact;
+  fail-open to its sections, then to one step); the list is a visible `tasks` row with hidden child rows
+  (resumed at boot); each step runs as an ORDINARY text-channel turn, memory written and AWAITED per step (the
+  distiller turns lossy past two queued writes), workers go to a pool of TWO (was 3), and ONE report waits for
+  them. A question-ending step reply is asked to Jev — «Anything else I can dig up?» is a courtesy, not a need
+  (three done steps were reported as needing him on the first live run). Found on the way: an end date with no
+  rule was a WEEKLY series (a holiday showed on two days); now a daily span. Live, sandbox, real models: his demo
+  → 25 steps in 2 min 47 s, 12/13 store checks green on the first run. Open: a spoken list past the accumulator
+  valve still arrives as several turns; WhatsApp/Telegram/cluster are not order channels (a trust decision); a
+  step's own outcome is read from its turn, not witnessed on the store; one step answered in Chinese (model
+  language drift, no reply-language guard exists). Mechanism doc: `.meshkore/docs/modules/zaelar-task-lists.md`.
+
 - **The everyday edits of an appointment, and a verdict that is READ where the reply only claims (V2-770,
   2026-09-25)**: *«abrir un item para que aparezca la ficha, pedir cerrarla, modificar el título, la descripción o
   la hora, cancelar una cita recursiva… la gente no pide las cosas de forma precisa»*. Measured with 13 loose

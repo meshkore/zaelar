@@ -123,3 +123,31 @@ def test_the_sandbox_is_pinned_to_the_case_language_before_it_boots(tmp_path):
 def test_the_judge_is_told_an_empty_agenda_after_a_deleting_script_is_expected():
     txt = judge.mechanism_facts({"script_checks": [{"step": 1, "check": "agenda.a", "ok": True}]})
     assert "ÚLTIMO paso" in txt
+
+
+def test_a_step_with_several_checks_reads_each_from_its_own_source(monkeypatch):
+    """V2-771 — a list is graded on memory, agenda and the task board; one result row per check."""
+    monkeypatch.setattr(scripted.time, "sleep", lambda s: None)
+    monkeypatch.setitem(scripted.SOURCES, "memory", lambda: {"state": {"assistant": "Johnny"}, "pills": []})
+    monkeypatch.setitem(scripted.SOURCES, "agenda", lambda: {"meetings": []})
+    monkeypatch.setitem(scripted.WAITS, "demo.assistant_is_johnny", 0)
+    monkeypatch.setitem(scripted.WAITS, "demo.events", 0)
+    d = scripted.ScriptedDriver(_scn((("the whole list", "demo.assistant_is_johnny,demo.events"),)))
+    d.opening()
+    d.hears("Got it.")
+    d.reply()
+    assert [(r["check"], r["ok"]) for r in d.results] == [("demo.assistant_is_johnny", True),
+                                                          ("demo.events", False)]
+    assert scripted.failed(d.results) == [d.results[1]]
+
+
+def test_the_demo_is_re_anchored_with_the_spacing_he_wrote_it_with():
+    """His message said Monday 28 September 2026 and dated everything around it; a case never expires."""
+    got = dates.demo_dates(dt.date(2026, 9, 25))
+    assert {k: v.isoformat() for k, v in got.items()} == {
+        "mon": "2026-09-28", "tue": "2026-09-29", "thu": "2026-10-01", "vet": "2026-11-06",
+        "vac_from": "2026-12-20", "vac_to": "2027-01-04", "service": "2026-09-10", "tesla_ins": "2027-03-12",
+        "ducati_ins": "2027-01-18", "registration": "2027-05-01"}
+    later = dates.demo_dates(dt.date(2027, 2, 3))
+    assert later["mon"].weekday() == 0 and (later["mon"] - dt.date(2027, 2, 3)).days >= 2
+    assert "{" not in dates.resolve(scenarios._fixture("demo-initialization"))
