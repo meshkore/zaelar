@@ -51,11 +51,14 @@ def ref_index() -> list[dict]:
     # further down the list. The model then re-emitted the same empty selector, because the menu it was
     # handed named nothing it could use. `prompt_digest` has always sorted this way; the index that feeds
     # the REFUSAL never did, so the brain's two views of the same card disagreed on what comes next.
-    _future = [m for m in db.get("meetings", []) if str(m.get("date") or "") >= today]
-    for m in sorted(_future, key=lambda m: (str(m.get("date") or ""), str(m.get("startTime") or ""))):
+    # V2-769 — a SERIES is named once, by its next day: «el piano» is one thing, not forty Tuesdays.
+    from . import recur
+    _future = [(recur.next_occurrence(m, today), m) for m in db.get("meetings", [])]
+    for nxt, m in sorted(((n, m) for n, m in _future if n), key=lambda t: (t[0], str(t[1].get("startTime") or ""))):
         label = m.get("title") or "Cita"
+        _rule = f" · {recur.describe(m['repeat'])}" if isinstance(m.get("repeat"), dict) else ""
         out.append({"id": label, "label": label, "field": "title",
-                    "hint": f"cita {m.get('date', '')} {m.get('startTime', '')}".strip()})
+                    "hint": f"cita {nxt} {m.get('startTime', '')}".strip() + _rule})
     return out
 
 
@@ -71,12 +74,18 @@ def prompt_digest() -> str:
 
     db = load_db()
     today = _today()
-    meets = sorted((m for m in db.get("meetings", []) if str(m.get("date") or "") >= today),
-                   key=lambda m: (str(m.get("date") or ""), str(m.get("startTime") or "")))
+    # V2-769 — a SERIES is listed once, at its NEXT day, with its rule said out loud: the model read «una
+    # única fecha, la del 1 de octubre» off a row that had no rule, and told him so.
+    from . import recur
+    _nx = [(recur.next_occurrence(m, today), m) for m in db.get("meetings", [])]
+    _nx = sorted(((n, m) for n, m in _nx if n), key=lambda t: (t[0], str(t[1].get("startTime") or "")))
+    meets = [m for _n, m in _nx]
     lines: list[str] = []
-    for m in meets[:12]:
+    for nxt, m in _nx[:12]:
         _hour = "todo el día" if m.get("allDay") else str(m.get("startTime") or "")
-        row = f"  · {m.get('date', '?')} {_hour} «{m.get('title', 'Cita')}»"
+        row = f"  · {nxt} {_hour} «{m.get('title', 'Cita')}»"
+        if isinstance(m.get("repeat"), dict):
+            row += f" · SE REPITE {recur.describe(m['repeat'])} (primera: {m.get('date')})"
         if m.get("location"):
             row += f" en {str(m['location'])[:60]}"
         # V2-643 — who is coming and whether they answered. «¿Cuántos somos el jueves?» and «¿me lo

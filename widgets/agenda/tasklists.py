@@ -380,7 +380,10 @@ def apply(action: str, payload: dict, db: dict) -> dict:
         t = {"id": tid, "title": title, "status": "todo", "listId": lst["id"], "createdAt": _today()}
         _details(t, p)
         db.setdefault("tasks", []).append(t)
-        return {"ok": True, "task": tid, "list": lst["id"], "no": len(items(db, lst["id"]))}
+        # V2-769 — `revert` names the call that takes this row back out: the turn layer runs it when the
+        # whole sentence arrives and this write turns out to have come from a piece of it.
+        return {"ok": True, "task": tid, "list": lst["id"], "no": len(items(db, lst["id"])),
+                "revert": {"action": "delete_task", "payload": {"taskId": tid}}}
 
     if act in ("update_task", "delete_task", "done", "drop", "snooze", "not_now"):
         lst, why = pick_list(db, p.get("list") or p.get("listId"))

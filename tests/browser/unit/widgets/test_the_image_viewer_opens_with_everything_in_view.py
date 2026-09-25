@@ -17,12 +17,13 @@ import pathlib
 import socket
 import subprocess
 import sys
-import time
 
 import pytest
 
 pytest.importorskip("playwright.sync_api")
 from playwright.sync_api import sync_playwright
+
+from tests.waiting import until_sync  # noqa: E402
 
 _ENGINE = pathlib.Path(__file__).resolve().parents[4]
 _MANIFEST = json.loads((_ENGINE / "widgets/imagenes/manifest.json").read_text(encoding="utf-8"))
@@ -30,6 +31,14 @@ _PIX = ("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='
         "<rect width='300' height='200' fill='%23c33'/></svg>")
 _ITEMS = [{"title": f"Lotus Esprit {k}", "url": _PIX, "thumb": _PIX, "site": "es.wikipedia.org",
            "w": 2983, "h": 1352} for k in range(1, 13)]
+
+
+def _listening(port: int) -> bool:
+    try:
+        socket.create_connection(("127.0.0.1", port), 0.2).close()
+        return True
+    except OSError:
+        return False
 
 
 def _free_port() -> int:
@@ -42,12 +51,7 @@ def viewer():
     port = _free_port()
     srv = subprocess.Popen([sys.executable, "-m", "http.server", str(port), "--bind", "127.0.0.1"],
                            cwd=_ENGINE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    for _ in range(50):
-        try:
-            socket.create_connection(("127.0.0.1", port), 0.2).close()
-            break
-        except OSError:
-            time.sleep(0.1)
+    until_sync(lambda: _listening(port), "the static server to accept connections", timeout_s=10)
     index = {"widgets": [{k: _MANIFEST[k] for k in ("id", "name", "title", "size", "fullscreen") if k in _MANIFEST}]}
     try:
         with sync_playwright() as pw:

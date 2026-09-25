@@ -28,6 +28,7 @@ from __future__ import annotations
 import json as _json
 
 from nucleo.flash import op_receipt as _receipt
+from nucleo.flash import write_outcome as _outcome
 
 #: Techo of data-ops by turn. Cinco enlaces pegados of a vez es a request; cincuenta es a model roto.
 MAX_DATA_OPS = 5
@@ -165,7 +166,8 @@ async def report_failure(wid: str, action: str, res: dict) -> bool:
     return told
 
 
-async def dispatch_and_report(wid: str, action_name: str, payload: dict, *, seal=None, receipt: bool = False) -> None:
+async def dispatch_and_report(wid: str, action_name: str, payload: dict, *, seal=None, receipt: bool = False,
+                              text: str = "") -> None:
     """Dispatch a widget data-op AND announce it if it failed (V2-603).
 
     The dispatch itself stays detached — the turn must never wait on a widget's network call — but the RESULT
@@ -185,11 +187,17 @@ async def dispatch_and_report(wid: str, action_name: str, payload: dict, *, seal
     # irreversible action a human already confirmed): paying an extra widget read on every fast data-op would
     # buy nothing and slow the common turn.
     before = await _receipt.read_signature(wid) if receipt else ""
+    # V2-769 — this create's sentence COMPLETES an earlier create's: that one came from a piece of it, and its
+    # row goes back out with the call its own widget named. See `write_outcome.py` for the measured case.
+    if (_prev := _outcome.superseded(wid, action_name, text)):
+        await _revert(wid, _prev)
     try:
         res = await widgets.dispatch_tag(
             "widget.data", {"id": wid, "data": {"action": action_name, "payload": payload or {}}})
     except Exception:
         return
+    _outcome.remember(wid, action_name, text, res)
+    await _report_ignored(wid, action_name, res)
     if callable(seal):
         try:
             seal(not (isinstance(res, dict) and res.get("ok") is False))
@@ -205,6 +213,45 @@ async def dispatch_and_report(wid: str, action_name: str, payload: dict, *, seal
         return
     try:
         await report_failure(wid, action_name, res)
+    except Exception:
+        pass
+
+
+async def _revert(wid: str, prev: dict) -> None:
+    """Take out the row a piece of a sentence wrote. Never raises; says so on the timeline either way."""
+    import widgets
+    rv = prev.get("revert") or {}
+    ok = False
+    try:
+        r = await widgets.dispatch_tag("widget.data", {"id": wid, "data": {
+            "action": str(rv.get("action") or ""), "payload": dict(rv.get("payload") or {})}})
+        ok = isinstance(r, dict) and r.get("ok") is not False and not r.get("error")
+    except Exception:
+        pass
+    _outcome.forget(wid)
+    try:
+        from voice.observer import emit
+        emit("widget", "🧩 la frase completa sustituye lo que escribió un trozo de ella",
+             text=str(prev.get("text") or "")[:120],
+             extra={"id": wid, "action": prev.get("action"), "revert": rv, "ok": ok})
+    except Exception:
+        pass
+
+
+async def _report_ignored(wid: str, action: str, res) -> None:
+    """A write that landed without part of what it was told is corrected, never left standing (V2-769)."""
+    note = _outcome.ignored_note(wid, action, res)
+    if not note:
+        return
+    try:
+        from voice import brain_notes
+        brain_notes.push(note)
+    except Exception:
+        pass
+    try:
+        from voice.observer import emit
+        emit("widget", "🩹 data-op guardada SIN parte de sus datos → nota al modelo", text=note[:200],
+             extra={"id": wid, "action": action, "ignored": list(res.get("ignored") or [])})
     except Exception:
         pass
 

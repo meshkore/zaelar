@@ -2242,6 +2242,14 @@ DOMAINS: list[dict] = [
                                  "miniaturas cabe en la tarjeta y se recorre (rueda, arrastre)",
             "ch": UNIT,
             "paths": ["tests/browser/unit/widgets/test_the_image_viewer_opens_with_everything_in_view.py"]},
+        # V2-769 — medido en SU agenda el 2026-09-25: «piano los martes hasta junio de 2027» se guardó como UN
+        # martes; el modelo mandó `recurrence`+`repeatUntil` y la agenda los tiró sin avisar mientras la voz
+        # prometía «hasta junio». Una serie es UNA fila con su regla, y todo lector la expande.
+        {"id": "4.214", "title": "Una cita que se repite es UNA fila con su regla — sale todas las semanas en el "
+                                 "calendario, el plan, lo que lee el modelo y Google; se anula un día o la serie",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/test_a_repeating_appointment_is_one_row.py",
+                      "tests/browser/unit/agenda/test_a_repeating_appointment_is_on_every_week.py"]},
         # V2-088: el chat es una VISTA, no un modo. Estos tests impiden que alguien vuelva a cablear el panel
         # con el altavoz — el acoplamiento anterior era indistinguible de un TTS averiado.
         {"id": "4.9", "title": "Chat y voz INDEPENDIENTES (el icono es el único dueño del silencio, V2-088)",

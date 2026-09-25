@@ -676,6 +676,20 @@ function tt(key, params, fb){
   if(params) for(const k in params) s = s.split("{"+k+"}").join(String(params[k]));
   return s;
 }
+// V2-769 — the rule of a repeating appointment, in his language: weekday names come from Intl, never a table.
+function repeatLabel(r){
+  if(!r) return "";
+  const names = (r.days||[]).map(d=>fmtDate(new Date(2024,0,1+Number(d)), {weekday:"long"}, String(d)));
+  let s = r.freq === "daily" ? tt("repeat_daily", null, "Se repite cada día")
+        : r.freq === "monthly" ? tt("repeat_monthly", null, "Se repite cada mes")
+        : tt("repeat_weekly", {days: names.join(", ")}, "Se repite cada semana: {days}");
+  if(r.until){
+    const u = parseYmd(r.until);
+    s += " · " + tt("repeat_until", {until: u ? fmtDate(u, {day:"numeric", month:"long", year:"numeric"}, r.until)
+                                               : r.until}, "hasta el {until}");
+  }
+  return s;
+}
 function intl(opts){ try{ return new Intl.DateTimeFormat(_LANG, opts); }catch(_){ return null; } }
 function fmtDate(d, opts, fb){ const f=intl(opts); return f ? f.format(d) : fb; }
 
@@ -775,7 +789,9 @@ function eventsOf(data){
       // what each guest answered, and what YOU answered. The connector has written these since the first
       // import; nothing copied them here, so the detail card could not show what Google plainly knew.
       guests:Array.isArray(m.guests)?m.guests:[], organizer:m.organizer||"",
-      myRsvp:m.myRsvp||"", meetLink:m.meetLink||"", htmlLink:m.htmlLink||"", source:m.source||""});
+      myRsvp:m.myRsvp||"", meetLink:m.meetLink||"", htmlLink:m.htmlLink||"", source:m.source||"",
+      // V2-769 — a repeating appointment arrives as its days; each one knows the rule it belongs to.
+      repeat:(m.repeat && typeof m.repeat === "object") ? m.repeat : null});
   });
   // V2-728 — the SYSTEM's own timed work, read from the task table (`data.systemTasks`, never copied into
   // `meetings`). One event at the next moment it will happen: a recurring job has no single date, and its
@@ -1259,6 +1275,8 @@ function renderDetail(root, ev, ctx, state, redraw){
     p.appendChild(st);
   }
 
+  if(ev.repeat) p.appendChild(el2("div","agnote", "↻ " + repeatLabel(ev.repeat)));
+
   // Only actions that map to a DECLARED data-op — a button that promises what the API cannot do is the
   // failure this widget's own history is made of (V2-540).
   if(ev.meeting){
@@ -1294,8 +1312,15 @@ function renderDetail(root, ev, ctx, state, redraw){
       acts.appendChild(b);
     }
     if(state.confirmDel){
-      const yes = el2("button","risk", tt("delete_yes", null, "Sí, cancélala"));
+      // V2-769 — one day of a series, or the whole series: two different deletions, two buttons.
+      const yes = el2("button","risk", ev.repeat ? tt("delete_once", null, "Solo este día")
+                                                 : tt("delete_yes", null, "Sí, cancélala"));
       yes.onclick = ()=>call("cancel_meeting", {title: ev.title, date: ev.date});
+      if(ev.repeat){
+        const all = el2("button","risk", tt("delete_series", null, "Toda la serie"));
+        all.onclick = ()=>call("cancel_meeting", {title: ev.title, date: ev.date, whole: true});
+        acts.appendChild(all);
+      }
       const no = el2("button",null, tt("delete_no", null, "No"));
       no.onclick = ()=>{ state.confirmDel=false; redraw(); };
       acts.appendChild(yes); acts.appendChild(no);

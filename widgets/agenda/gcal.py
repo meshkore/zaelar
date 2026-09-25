@@ -85,6 +85,17 @@ def commit_meeting(db: dict, m: dict) -> dict:
         try:
             if s.connected():
                 default_cal = (db.get("google") or {}).get("defaultCalendarId") or ""
+                if isinstance(m.get("repeat"), dict):
+                    # V2-769 — a SERIES goes up as ONE recurring event (RRULE), and stays OUR row: Google hands
+                    # back its instances one by one (`singleEvents`), and the sync drops the ones whose master
+                    # is `googleSeriesId` here — otherwise his Tuesdays would come back as forty loose rows.
+                    from . import recur
+                    res = s.create_event({**m, "rrule": recur.to_rrule(m["repeat"])}, default_cal)
+                    if res.get("ok"):
+                        m["googleSeriesId"] = res["meeting"].get("googleId") or ""
+                        m["googleCalendarId"] = res["meeting"].get("googleCalendarId") or default_cal
+                    db.setdefault("meetings", []).append(m)
+                    return m
                 res = s.create_event(m, default_cal)
                 if res.get("ok"):
                     enriched = res["meeting"]
@@ -165,11 +176,13 @@ def delete_google(m: dict) -> bool:
 
     A row that is not `source: google` has nothing to delete there and answers True: there is no debt.
     Still best-effort in the sense that it never raises — but the caller now LEARNS, and can say so."""
-    if m.get("source") != "google":
+    if m.get("source") != "google" and not m.get("googleSeriesId"):
         return True
     s = svc()
     if s is None:
         return False
+    if m.get("googleSeriesId"):          # V2-769 — our series: deleting its MASTER takes every instance
+        m = {**m, "googleId": m["googleSeriesId"]}
     try:
         res = s.delete_event(m) or {}
     except Exception as e:  # noqa: BLE001

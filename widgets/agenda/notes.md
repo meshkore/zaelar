@@ -342,3 +342,27 @@ action, right reference, no rows to match against. Three causes, all in the seam
 `tasklists.pick_list` resolves it (it understands «2», «la 2», «la compra»). That is why «ábreme la lista
 número 3» answers «no tienes ninguna lista número 3 — tienes 2: 1. General; 2. Obra» rather than refusing
 blankly. Verified live against the operator's own store, read-only.
+
+## A repeating appointment is ONE row with a rule (V2-769)
+
+Measured on the operator's own agenda (2026-09-25): «piano de Abril, los martes de 15:15 a 16:00 hasta junio
+de 2027» was stored as one Tuesday. The model DID send `recurrence: "weekly", repeatUntil: "2027-06-30"`;
+`add_meeting` did not know either key and dropped them without a word, while the reply promised «hasta junio».
+
+- **The shape.** A series is one meeting carrying `repeat: {freq, interval, days, until, skip}` (`recur.py`).
+  Its `date` is the first occurrence. Nothing stores copies.
+- **Every reader asks `recur`.** `view_data()["meetings"]` sends the occurrences (today−100 … today+400)
+  with `seriesDate` and `repeat`, so the card needs no date maths of its own; `planner.plan_day`,
+  `prompt_digest`, `ref_index`, `read_query`, `today_line` and the sweeps all go through it. A new reader
+  that walks `db["meetings"]` by `date` will silently see only the first day — use `recur.on_date` /
+  `recur.expand`.
+- **Edits.** `cancel_meeting` with a `date` cancels ONE day (`skip`), without one (or with `whole`) the
+  series; `clear_range` skips the days inside the window; `update_meeting` sets/replaces the rule, moves
+  only `until`, or drops it (`repeat: none`); `move_meeting` moves the whole series.
+- **The notice** is the series' NEXT day; `reminders.roll_series` (from `tick`) moves it on once that day
+  has passed, marking `remindFor` so it does not retry every tick.
+- **Nothing is dropped in silence.** A key no one reads comes back in `ignored`; `nucleo/flash/write_outcome`
+  turns that into a correction for the model.
+- **Google.** A series goes up as ONE recurring event (RRULE + IANA zone) and stays our row
+  (`googleSeriesId`); the sync skips its instances. Not mirrored yet: a skipped single day and later edits
+  of the rule stay local.

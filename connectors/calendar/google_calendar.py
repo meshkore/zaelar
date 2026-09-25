@@ -39,6 +39,22 @@ def _err_of(resp) -> str:
     return f"Google Calendar respondió {resp.status_code}" + (f" ({reason or msg[:80]})" if (reason or msg) else "")
 
 
+def _local_tz_name() -> str:
+    """The machine's IANA zone («Europe/Madrid»). Google REQUIRES it on a recurring event — an offset alone
+    would pin every week to the summer hour and shift the series by one hour after the clocks change."""
+    import os
+    tz = os.environ.get("TZ", "").lstrip(":")
+    if "/" in tz:
+        return tz
+    try:
+        real = os.path.realpath("/etc/localtime")
+        if "zoneinfo/" in real:
+            return real.split("zoneinfo/", 1)[1]
+    except OSError:
+        pass
+    return "UTC"
+
+
 def _local_offset() -> str:
     """This machine's UTC offset as '+02:00'/'-05:00' — sent inline in every dateTime we WRITE so Google never
     needs an IANA zone name from us (`zoneinfo` cannot reliably name the local zone on every platform)."""
@@ -156,6 +172,8 @@ def event_to_meeting(ev: dict, calendar_id: str, calendar_color: str = "") -> di
         m["organizer"] = org
     if ev.get("htmlLink"):
         m["htmlLink"] = ev["htmlLink"]
+    if ev.get("recurringEventId"):          # one instance of a series — the sync needs to know whose
+        m["googleSeriesId"] = str(ev["recurringEventId"])
     return m
 
 
@@ -180,6 +198,9 @@ def meeting_to_event(m: dict) -> dict:
         body["location"] = str(m["location"])[:1024]
     if m.get("notes"):
         body["description"] = str(m["notes"])[:8192]
+    if str(m.get("rrule") or "").startswith("RRULE:"):   # a repeating appointment goes up as ONE series
+        body["recurrence"] = [str(m["rrule"])]
+        body["start"]["timeZone"] = body["end"]["timeZone"] = _local_tz_name()
     who = [w for w in (m.get("attendees") or []) if w and "@" in str(w)]  # Google needs an email per attendee;
     if who:                                                               # a bare name with no email cannot be
         body["attendees"] = [{"email": w} for w in who]                  # invited, so it is simply not sent.

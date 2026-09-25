@@ -87,7 +87,19 @@ def in_window(db: dict, payload: dict) -> list[dict]:
     """The appointments the window covers, kept and doomed alike — what any decision about this sweep has to
     be measured against, and the list the refusal below reads its options from."""
     lo, hi = window(payload)
-    return [m for m in db.get("meetings", []) if lo <= str(m.get("date") or "") <= hi]
+    # V2-769 — a SERIES contributes the days it has inside the window (copies carrying `seriesDate`), so
+    # the count, the keepers and the refusal all see what the calendar shows.
+    from . import recur
+    return [m for m in recur.expand(db.get("meetings", []), lo, hi) if lo <= str(m.get("date") or "") <= hi]
+
+
+def _series_of(db: dict, occ: dict) -> dict | None:
+    """The stored SERIES row an expanded occurrence came from, or None for a plain row."""
+    if not occ.get("seriesDate"):
+        return None
+    return next((m for m in db.get("meetings", []) if isinstance(m.get("repeat"), dict)
+                 and m.get("date") == occ["seriesDate"] and m.get("title") == occ.get("title")
+                 and m.get("startTime") == occ.get("startTime")), None)
 
 
 def unmatched(rows: list[dict], keep: list[dict]) -> list[dict]:
@@ -155,6 +167,15 @@ def clear_range(db: dict, payload: dict) -> tuple[dict, list[dict]]:
                            f"Ahí hay: {'; '.join(have[:12]) or '(nada)'}.")}, []
     doomed = [m for m in rows if not kept(m, keep)]
     gone, stuck = [], []
+    # V2-769 — a series loses the DAYS inside the window, never the whole series: «vacía esta semana» must
+    # leave next week's piano where it is.
+    from . import recur
+    skipped = 0
+    for occ in [m for m in doomed if m.get("seriesDate")]:
+        ser = _series_of(db, occ)
+        if ser is not None and recur.skip(ser, occ["date"]):
+            skipped += 1
+    doomed = [m for m in doomed if not m.get("seriesDate")]
     for m in doomed:
         if gcal.delete_google(m):
             _data._cancel_reminder(m)
@@ -165,7 +186,7 @@ def clear_range(db: dict, payload: dict) -> tuple[dict, list[dict]]:
     for b in list(db.get("blocks", [])):
         if lo <= str(b.get("date") or "") <= hi:
             db["blocks"].remove(b)
-    res = {"removed": len(gone), "from": lo, "to": hi,
+    res = {"removed": len(gone) + skipped, "from": lo, "to": hi,
            "kept": [m.get("title") for m in db.get("meetings", [])
                     if lo <= str(m.get("date") or "") <= hi and kept(m, keep)]}
     if stuck:
@@ -191,8 +212,9 @@ def _matches(db: dict, payload: dict) -> list[dict]:
     raw_date = str(payload.get("date") or "")
     date = _data._resolve_date(raw_date) if raw_date else ""
     out = []
+    from . import recur
     for m in db.get("meetings", []):
-        if date and m.get("date") != date:
+        if date and not recur.on(m, date):             # V2-769 — one day of a series names the series
             continue
         ftitle = textmatch.fold(m.get("title") or "")
         if not ftitle:
@@ -300,6 +322,17 @@ def cancel_meeting(db: dict, payload: dict) -> tuple[dict, list[dict]]:
         return {"ok": False, "error": "ambiguous",
                 "options": [f"«{t}» {d} {h}".strip() for t, d, h in rows][:8],
                 "detail": "that title matches several different appointments — say which day (or hour)"}, []
+    # V2-769 — WITH a date, one day of a series is cancelled and the rest of the series stays («este jueves no
+    # hay flauta»). Without one — or with `whole` — the series goes entirely, like any appointment.
+    from . import recur
+    _day = _data._resolve_date(str(payload.get("date") or "")) if str(payload.get("date") or "").strip() else ""
+    if _day and not payload.get("whole"):
+        once = [m for m in hits if isinstance(m.get("repeat"), dict)]
+        if once and all(recur.skip(m, _day) for m in once):
+            hits = [m for m in hits if m not in once]
+            if not hits:
+                return {"ok": True, "removed": 1, "title": str(once[0].get("title") or ""), "date": _day,
+                        "series_kept": True}, []
     gone, stuck = [], []
     for m in hits:
         if gcal.delete_google(m):

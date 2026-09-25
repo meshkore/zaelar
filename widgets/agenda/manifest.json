@@ -75,7 +75,7 @@
   "usage": "Añade citas con add_meeting (title+date+startTime; opcionales attendees/location/category/notes/allDay; cada cita crea su aviso ~2h antes) y TAREAS sin hora con add_task. Cancela con cancel_meeting, MUEVE de día/hora con move_meeting (title + newDate/newTime) y cambia sus DETALLES con update_meeting (status confirmed/pending cuando la otra parte responda, attendees, location, category, notes, newTitle). set_reminder mueve el aviso de una cita, y SIN title + con date pone avisos a todas las citas de ese día. Estado de tareas: done/snooze/not_now/drop (taskId). Para VACIARLA ENTERA y para siempre usa clear_all (confirma; nunca tires elementos de uno en uno). Para limpiar UN TRAMO usa clear_range con from y to (fechas habladas valen: «hoy», «mañana», «el lunes») — «esta semana» es from=lunes to=domingo. Si dice «menos X» o «excepto X», eso va en keep, que admite un nombre suelto («el zerohash») o {title, date, time} cuando nombre una hora («lo de mañana a las 15h» → {date:«mañana», time:«15:00»}). clear_all NO sabe conservar nada: cualquier orden con una excepción es clear_range. Para CAMBIAR LA VISTA («la agenda de hoy/mañana», «enséñame el jueves», «vista semanal», «vista de mes», «la lista de lo que viene») usa show_day con day=hoy|mañana|<día>|semana|mes|lista — es la ÚNICA forma de mover lo que se ve; reabrir el widget siempre abre por hoy. Los detalles de cada cita (hora, aviso, quién viene, si está confirmada, notas) los tienes en su digest cuando la agenda está abierta, así que contéstalos sin preguntar. Para ENLAZAR con Google Calendar usa connect: deja la tarjeta en el paso de conectar y tú le dices que pulse el botón — el permiso lo da él en la ventana de Google, tú no puedes. ▸ TAREAS (la otra sección de esta tarjeta, la personal del operador — NO los procesos del agente): add_task(title[, list, date, time]) apunta una; sin `list` va a «General». Las listas se crean con add_list(name) y se nombran por NÚMERO o por nombre indistintamente: «la lista 2», «la compra». Dentro de una lista, cada ítem tiene su NÚMERO tal como lo ve en pantalla, así que «el ítem 2 de la compra» es task='2' + list='la compra' — el digest de esta tarjeta te da esos números, úsalos. done/delete_task/update_task(newTitle|date|time|newList|status) operan sobre un ítem; clear_list VACÍA una lista (confirma) y delete_list se la lleva entera (confirma); rename_list la renombra. Para ABRIR la sección de tareas o una lista concreta usa show_tasks(list) — es la única forma, reabrir el widget abre por la agenda.",
   "actions": {
     "add_meeting": {
-      "desc": "añade una cita/reunión al día — crea SOLA su aviso por defecto (~2h antes), no hace falta pedirlo; acepta también quién viene, dónde, categoría y notas",
+      "desc": "añade una cita/reunión al día — crea SOLA su aviso por defecto (~2h antes), no hace falta pedirlo; acepta también quién viene, dónde, categoría y notas. Si SE REPITE («todos los jueves», «cada semana hasta junio», «los martes y jueves») es UNA sola cita con `repeat` + `days` + `until`: nunca la apuntes suelta ni metas la repetición en category o notes",
       "payload": {
         "title": "string",
         "date": "YYYY-MM-DD (hoy si se omite)",
@@ -86,7 +86,10 @@
         "location": "dónde (opcional)",
         "category": "trabajo | personal | salud | social | viaje | … — solo colorea la cita (opcional)",
         "allDay": "true si es de todo el día (sin hora)",
-        "meet": "true si la cita lleva videollamada de Google Meet — se crea el enlace con la cita y se ve en la tarjeta (solo si el calendario de Google está conectado)"
+        "meet": "true si la cita lleva videollamada de Google Meet — se crea el enlace con la cita y se ve en la tarjeta (solo si el calendario de Google está conectado)",
+        "repeat": "weekly | daily | monthly (opcional — SOLO si se repite; `date` es el primer día o el día en que empieza)",
+        "days": "días de la semana en que se repite, si es weekly: «martes», «lunes y jueves» o [0..6] con lunes=0 (sin él, el día de `date`)",
+        "until": "último día de la repetición, YYYY-MM-DD (o «junio de 2027» = hasta el 30 de junio); sin él no acaba"
       }
     },
     "set_reminder": {
@@ -109,11 +112,12 @@
       "confirm_q": "¿Dejo una de cada cita repetida y borro las copias?"
     },
     "cancel_meeting": {
-      "desc": "cancela/elimina una cita ya agendada por completo, con todas sus copias idénticas si las tiene. Para dejar UNA de varias repetidas, usa dedupe_meetings",
+      "desc": "cancela/elimina una cita ya agendada por completo, con todas sus copias idénticas si las tiene. Para dejar UNA de varias repetidas, usa dedupe_meetings. En una cita que se REPITE: con `date` anula SOLO ese día («este jueves no hay flauta»); sin `date`, o con `whole: true`, borra la serie entera",
       "ref": "title",
       "payload": {
         "title": "string",
-        "date": "YYYY-MM-DD (opcional, filtra por fecha)"
+        "date": "YYYY-MM-DD (opcional, filtra por fecha)",
+        "whole": "true para borrar TODA la serie de una cita que se repite (opcional)"
       }
     },
     "done": {
@@ -180,7 +184,7 @@
     },
     "add_task": {
       "positional": true,
-      "desc": "apunta una TAREA del operador (no una cita, no un proceso tuyo): algo que él tiene que hacer. Sin `list` va a la lista «General»; con `list` (número o nombre) va a esa. `date`/`time` solo si los dice — una tarea sin hora es normal y no se planifica sola",
+      "desc": "apunta una TAREA del operador (no una cita, no un proceso tuyo): algo que él tiene que hacer. Sin `list` va a la lista «General»; con `list` (número o nombre) va a esa. `date`/`time` solo si los dice — una tarea sin hora es normal y no se planifica sola. Una tarea NO se repite: si algo va «todos los jueves de 15:30 a 16:15» es una CITA que se repite (add_meeting con repeat), aunque él la llame tarea",
       "payload": {
         "title": "string — lo que hay que hacer, tal como lo dijo",
         "list": "número o nombre de la lista («2», «la compra»); sin él, General",
@@ -191,7 +195,7 @@
       }
     },
     "move_meeting": {
-      "desc": "MUEVE una cita existente a otro día y/u hora («pásame el dentista al jueves», «la reunión a las 10») — el aviso se mueve con ella",
+      "desc": "MUEVE una cita existente a otro día y/u hora («pásame el dentista al jueves», «la reunión a las 10») — el aviso se mueve con ella. En una cita que se REPITE mueve la serie entera (todas las semanas) al nuevo día/hora",
       "ref": "title",
       "payload": {
         "title": "string (título de la cita, aunque sea parcial)",
@@ -202,7 +206,7 @@
       "confirm_q": "¿Muevo «{title}»? Hay alguien más contando con esa hora y habrá que avisarle."
     },
     "update_meeting": {
-      "desc": "cambia los DETALLES de una cita que ya existe: si la otra parte la ha confirmado («el dentista ya me lo ha confirmado» → status=confirmed), quién viene, dónde, categoría, notas o su título. NO mueve la fecha ni la hora — para eso está move_meeting",
+      "desc": "cambia los DETALLES de una cita que ya existe: si la otra parte la ha confirmado («el dentista ya me lo ha confirmado» → status=confirmed), quién viene, dónde, categoría, notas o su título. NO mueve la fecha ni la hora — para eso está move_meeting. También cambia su REPETICIÓN: `repeat`/`days`/`until` para ponerla o cambiarla, solo `until` para alargarla o acortarla, `repeat: none` para que deje de repetirse",
       "ref": "title",
       "payload": {
         "title": "string (título de la cita, aunque sea parcial)",
@@ -213,7 +217,10 @@
         "category": "trabajo | personal | salud | social | viaje | …",
         "notes": "detalles",
         "newTitle": "para renombrarla",
-        "meet": "true si la cita lleva videollamada de Google Meet — se crea el enlace con la cita y se ve en la tarjeta (solo si el calendario de Google está conectado)"
+        "meet": "true si la cita lleva videollamada de Google Meet — se crea el enlace con la cita y se ve en la tarjeta (solo si el calendario de Google está conectado)",
+        "repeat": "weekly | daily | monthly | none",
+        "days": "días de la semana (si es weekly)",
+        "until": "YYYY-MM-DD — hasta cuándo se repite"
       }
     },
     "invite": {

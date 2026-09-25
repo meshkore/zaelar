@@ -21,6 +21,15 @@ entregada siga citada aquí.
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **A repeating appointment is ONE row with a rule (V2-769, 2026-09-25)**: *«no solo poner un ítem un día,
+  sino también hacerlo recursivo entre el período que yo te digo»*. Measured on his agenda: the model sent
+  `recurrence: "weekly", repeatUntil: "2027-06-30"` and `add_meeting` dropped both keys in silence (one Tuesday
+  stored, «hasta junio» promised); the Thursday one before it had no field at all, so «recursiva» went into the
+  category; and «recursiva los jueves», delivered as a turn of its own, wrote a junk task. Now a meeting carries
+  `repeat` (`widgets/agenda/recur.py`) and every reader expands it — card, planner, digest, query, sweeps,
+  notice (rolled forward by `tick`), Google (one RRULE series, its instances skipped by the sync). A key the
+  widget does not read comes back in `ignored` and `nucleo/flash/write_outcome.py` corrects the model; a create
+  whose sentence CONTAINS an earlier create's sentence takes that one back out (`revert`). Node 4.214.
 - **A health notice never opens the door, and the agent knows what did (V2-768, 2026-09-25)**: *«estaba
   activada la word activation… el sistema no tendría que haberse puesto a escuchar nada… yo en ningún momento he
   dicho la palabra clave»*. Measured: a transient LiveKit stall made `homeostasis` SAY an alert aloud; every

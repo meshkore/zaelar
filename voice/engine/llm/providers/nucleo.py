@@ -1191,7 +1191,7 @@ class NucleoLLMStream(llm.LLMStream):
                         brain._last_dataop = (_w, _a, _p, time.time())
 
                 try:
-                    _spawn(_data_ops.dispatch_and_report(wid, action_name, payload or {}, seal=_seal),
+                    _spawn(_data_ops.dispatch_and_report(wid, action_name, payload or {}, seal=_seal, text=_bnotes.operator_half(text)),
                            "widget-data")
                 except Exception:
                     pass

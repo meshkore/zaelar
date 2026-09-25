@@ -115,6 +115,9 @@ def sync(db: dict, provider_id: str = _DEFAULT_PROVIDER) -> dict:
             g["defaultCalendarId"] = primary or (g["calendars"][0]["id"] if g["calendars"] else "")
 
         by_gid = {m.get("googleId"): m for m in db.get("meetings", []) if m.get("source") == "google"}
+        # A series WE pushed stays our row (the rule lives there); its instances coming back are not new rows.
+        ours = {m.get("googleSeriesId") for m in db.get("meetings", []) if m.get("source") != "google"
+                and m.get("googleSeriesId")}
         colors = {c["id"]: c.get("backgroundColor", "") for c in g["calendars"]}
         tokens = g.setdefault("syncTokens", {})
 
@@ -137,7 +140,7 @@ def sync(db: dict, provider_id: str = _DEFAULT_PROVIDER) -> dict:
                     continue
             for ev in res.get("events") or []:
                 m = _gc.event_to_meeting(ev, cid, colors.get(cid, ""))
-                if not m:
+                if not m or (m.get("googleSeriesId") in ours) or (m.get("googleId") in ours):
                     continue
                 gid = m["googleId"]
                 prev = by_gid.get(gid)

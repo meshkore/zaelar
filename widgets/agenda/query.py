@@ -96,9 +96,19 @@ def _row(m: dict) -> str:
         if m.get(key):
             row += f" · {label} {m[key]}"
             break
+    if isinstance(m.get("repeat"), dict):                    # V2-769 — one row, many days: say which
+        from . import recur
+        row += f" · SE REPITE {recur.describe(m['repeat'])}"
+        nxt = recur.next_occurrence(m, _today())
+        row += f" · próxima {nxt}" if nxt else " · ya no quedan días"
     if m.get("notes"):
         row += f" — {str(m['notes'])[:200]}"
     return row
+
+
+def _today() -> str:
+    import time
+    return time.strftime("%Y-%m-%d")
 
 
 def read_query(question: str) -> str:

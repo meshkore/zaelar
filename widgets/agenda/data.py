@@ -11,7 +11,7 @@ from .. import store
 from . import gcal, sweep
 from .reminders import _cancel_reminder, _schedule_reminder  # noqa: F401  (V2-705)
 from .details import _apply_details, _norm_attendees, _norm_status  # noqa: F401
-from . import planner, tasklists
+from . import planner, recur, tasklists
 
 
 # `_strip_accents` travelled with the spoken-date resolver it serves (V2-744); re-exported under its
@@ -99,6 +99,10 @@ def load_db() -> dict:
 
 def _today() -> str:
     return time.strftime("%Y-%m-%d")
+
+
+def _shift(days: int) -> str:
+    return time.strftime("%Y-%m-%d", time.localtime(time.time() + days * 86400))
 
 
 def _now() -> str:
@@ -204,7 +208,8 @@ def view_data(q: str = "") -> dict:
         "plan": plan,
         "active": planner.active_block(plan, _now()),
         "days": days, "todayIndex": 0,
-        "meetings": db.get("meetings", []),           # dated meetings -> full MONTH view (client-side calendar)
+        # dated meetings -> full MONTH view (client-side calendar); a SERIES arrives as its days (V2-769)
+        "meetings": recur.expand(db.get("meetings", []), _shift(-100), _shift(400)),
         "projects": db.get("projects", []),
         # The pushed VIEW (show_day). The widget honours it when its token moves and otherwise leaves the
         # operator's own tab alone — a refresh must never yank the day he is reading out from under him.
@@ -303,6 +308,7 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
     """Widget actions (HANDOFF §9.3): mark done / not now / snooze / drop / replan. Mutates the isolated store."""
     payload = payload or {}
     db = load_db()
+    _extra: dict = {}
 
     # V2-744 — every TASK verb, and the numbered lists they now live in, belong to `tasklists.py`. ONE
     # branch instead of five: «hecha» on a shopping item and «hecha» on a project task are the same verb,
@@ -385,6 +391,12 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
         # V2-643 adds the rest of what a calendar entry is: who is coming, where, which category, and
         # whether the other side has confirmed.
         _apply_details(_new, payload)
+        # V2-769 — the RULE travels with the row (`recur.py`), and a key nothing reads is reported, not dropped.
+        if (_why := recur.attach(_new, payload, _today())):
+            return {"ok": False, "error": _why}
+        date = str(_new.get("date") or date)
+        _extra = {"ignored": recur.ignored_keys(payload), "stored": dict(_new),
+                  "revert": {"action": "cancel_meeting", "payload": {"title": title, "date": date, "whole": True}}}
         if "status" not in _new:
             # An appointment WITH other people starts awaiting their answer; one you simply put in your own
             # day is settled the moment you say it. Same default every calendar uses for an invitation.
@@ -427,9 +439,12 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
                 # asking (INI-026 A2); moving it is `set_reminder`. Best-effort: a scheduler failure must
                 # not lose the WRITE — but it is stored on the meeting, so the state never claims a notice
                 # that does not exist.
-                _jid, _at = _schedule_reminder(title, date, _new.get("startTime", ""))
+                _rday = recur.next_occurrence(_new, _today()) or date
+                _jid, _at = _schedule_reminder(title, _rday, _new.get("startTime", ""))
                 if _jid:
                     _new["reminder_id"], _new["remindAt"] = _jid, _at
+                if _new.get("repeat"):
+                    _new["remindFor"] = _rday
                 gcal.commit_meeting(db, _new)
     elif action == "dedupe_meetings":
         # «Simplify to one» (V2-710): keeps one of each identical group. Same persist/answer shape as
@@ -469,7 +484,7 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
         date = _resolve_date(raw_date) if raw_date else ""
         _hits = [m for m in db.get("meetings", [])
                  if (not title or title in _strip_accents(m.get("title", "").strip().lower()))
-                 and (not date or m.get("date") == date)]
+                 and (not date or recur.on(m, date))]
         # V2-639 — «ponme avisos a TODAS las citas del jueves» is one intention, not N turns: a date with
         # no title means every meeting of that day. `at` is optional in bulk (default ~2h before each).
         if not title and date and _hits:
@@ -501,9 +516,10 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
                              "o YYYY-MM-DD HH:MM)"}
         m = _hits[0]
         _cancel_reminder(m)
-        _when_date = _mm.group(1) or m.get("date") or _today()
+        _occ = date or recur.next_occurrence(m, _today()) or m.get("date")   # V2-769: a series' next day
+        _when_date = _mm.group(1) or _occ or _today()
         _hhmm = f"{int(_mm.group(2)[:_mm.group(2).index(':')]):02d}:{_mm.group(2)[-2:]}"
-        _jid, _disp = _schedule_reminder(m.get("title", "Cita"), m.get("date", _when_date),
+        _jid, _disp = _schedule_reminder(m.get("title", "Cita"), _occ or _when_date,
                                          m.get("startTime", ""), at=f"{_when_date} {_hhmm}")
         if not _jid:
             return {"ok": False, "error": f"no pude programar el aviso: {_disp}"}
@@ -580,7 +596,7 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
         date = _resolve_date(raw_date) if raw_date else ""
         _hits = [m for m in db.get("meetings", [])
                  if (not title or title in _strip_accents(m.get("title", "").strip().lower()))
-                 and (not date or m.get("date") == date)]
+                 and (not date or recur.on(m, date))]
         if not title or not _hits:
             return {"ok": False,
                     "error": "no encuentro esa cita en la agenda — dime el título tal como está "
@@ -607,6 +623,8 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
             _dur = 60
         _endm = (_m2(new_start) + max(15, _dur)) % (24 * 60)
         _cancel_reminder(m)
+        if _rawnew and (m.get("repeat") or {}).get("freq") == "weekly":   # V2-769: a series moves every week
+            m["repeat"]["days"] = [recur.weekday(new_date)]
         m["date"], m["startTime"] = new_date, new_start
         m["endTime"] = f"{_endm // 60:02d}:{_endm % 60:02d}"
         m.pop("reminder_id", None); m.pop("remindAt", None)
@@ -624,18 +642,21 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
         date = _resolve_date(raw_date) if raw_date else ""
         _hits = [m for m in db.get("meetings", [])
                  if (not title or title in _strip_accents(m.get("title", "").strip().lower()))
-                 and (not date or m.get("date") == date)]
+                 and (not date or recur.on(m, date))]
         if not title or not _hits:
             return {"ok": False,
                     "error": "no encuentro esa cita en la agenda — dime el título tal como está "
                              "apuntada (y la fecha si hay varias)"}
         _fields = ("notes", "details", "location", "place", "category", "attendees", "people", "with",
-                   "status", "confirmed", "allDay", "all_day", "newTitle")
+                   "status", "confirmed", "allDay", "all_day", "newTitle") + recur.ALL_KEYS
         if not any(k in payload for k in _fields):
             return {"ok": False,
                     "error": "no me has dicho qué cambiar — manda alguno de: status (confirmed/pending), "
                              "attendees, location, category, notes o newTitle"}
         m = _hits[0]
+        if (_why := recur.update(m, payload, _today())):            # V2-769 — its rule is a detail too
+            return {"ok": False, "error": _why}
+        _extra = {"ignored": recur.ignored_keys(payload), "stored": dict(m)}
         _apply_details(m, payload)
         _nt = str(payload.get("newTitle") or "").strip()
         if _nt:
@@ -676,7 +697,7 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
         date = _resolve_date(raw_date) if raw_date else ""
         _hits = [m for m in db.get("meetings", [])
                  if (not title or title in _strip_accents(m.get("title", "").strip().lower()))
-                 and (not date or m.get("date") == date)]
+                 and (not date or recur.on(m, date))]
         if not title or not _hits:
             return {"ok": False,
                     "error": "no encuentro esa invitación — dime el título tal como está apuntada "
@@ -751,7 +772,7 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
     # 'replan' (and any action) just recomputes below
     db["currentPlan"] = compute_plan(db)  # persist the updated plan too, not just the mutation
     store.save(WIDGET_ID, db)   # persist the mutation; the plan is derived fresh in view_data()
-    return view_data()
+    return {**view_data(), **{k: v for k, v in (_extra or {}).items() if v}}
 
 
 def coach_context() -> str:
@@ -786,7 +807,7 @@ def today_line(limit: int = 8) -> str:
     try:
         db = load_db()
         today = _today()
-        meets = sorted((m for m in db.get("meetings", []) if str(m.get("date") or "") == today),
+        meets = sorted(recur.on_date(db.get("meetings", []), today),
                        key=lambda m: (bool(not m.get("allDay")), str(m.get("startTime") or "")))
     except Exception:
         return ""
@@ -811,6 +832,8 @@ def today_line(limit: int = 8) -> str:
 def tick(ctx) -> None:
     """Background sync with Google Calendar (`widgets/background.py`'s scheduler contract needs this name in
     THIS file — the body lives in `gcal.py` to pay the architecture ratchet by extraction)."""
+    from .reminders import roll_series
+    roll_series(load_db, lambda db: store.save(WIDGET_ID, db))   # V2-769 — a series' notice moves on
     gcal.tick(ctx)
 
 

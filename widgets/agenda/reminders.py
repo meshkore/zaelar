@@ -71,3 +71,31 @@ def _cancel_reminder(meeting: dict) -> None:
         _sched.cancel(ref)
     except Exception:  # noqa: BLE001
         pass
+
+
+def roll_series(load, save) -> bool:
+    """A REPEATING appointment's notice moves on to its next occurrence (V2-769). Called from the agenda's
+    background tick: a series stores ONE notice — the next one — and once that day has passed, the one after
+    is scheduled. `remindFor` marks which occurrence the stored notice belongs to, so a notice that could
+    not be scheduled (its instant already gone) is not retried on every tick. True when something changed."""
+    import time as _t
+    from . import recur
+    db = load()
+    today, changed = _t.strftime("%Y-%m-%d"), False
+    for m in db.get("meetings", []):
+        if not isinstance(m.get("repeat"), dict) or m.get("allDay") or not m.get("startTime"):
+            continue
+        nxt = recur.next_occurrence(m, today)
+        if not nxt or m.get("remindFor") == nxt:
+            continue
+        _cancel_reminder(m)
+        m.pop("reminder_id", None)
+        m.pop("remindAt", None)
+        jid, at = _schedule_reminder(m.get("title", "Cita"), nxt, m.get("startTime", ""))
+        if jid:
+            m["reminder_id"], m["remindAt"] = jid, at
+        m["remindFor"] = nxt
+        changed = True
+    if changed:
+        save(db)
+    return changed
