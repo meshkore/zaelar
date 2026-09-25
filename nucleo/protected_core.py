@@ -73,6 +73,33 @@ _WIDGET_OBJECT_RE = re.compile(_CHANGE_VERB + r"\b((?:(?!" + _ENGINE_NOUN + r"\b
                                re.I)
 
 
+# V2-771 — TWO SUBTRACTIONS, never an added pattern (the house rule for a guard that reads words: `danger.py`).
+# Measured live on a list of errands (2026-09-25): «prepárame una comparativa de tres bicis eléctricas
+# plegables…» was refused as «eso me pide cambiarme a mí por dentro» — the worker's own brief listed what to
+# compare, «revisa autonomía, motor y batería», and `revisa … motor` read as an order to touch OUR motor. The
+# nouns below are the AMBIGUOUS ones: every bike, car, shop and coupon has a motor, a server or a code. They stop
+# counting when the sentence itself says they are SOMEBODY ELSE'S:
+#   1. an owner follows that is not us — «el motor DE LA BICI», «el código DE DESCUENTO»;
+#   2. they are an ITEM in a list of features — «autonomía, motor y batería».
+# «cambia el enrutado del motor», «modifica el motor de voz» and a bare «toca el motor» still refuse; the
+# unambiguous nouns (núcleo, prompt, dispatcher, cableado, rails…) are not touched by either subtraction.
+# ⚠️ What is left on purpose: «revisa que el motor esté bien» said about a car with no owner in the clause still
+# refuses. This guard only makes the refusal LEGIBLE — the protection is `writes_are_confined` — so a residual
+# false positive costs an errand said back, never a write.
+_AMBIGUOUS = r"(?:motor|engine|core|servidor|server|backend|codigo|code|repositorio|repo|arquitectura|pipeline)"
+_OURS = r"(?:voz|zaelar|asistente|assistant|agente|agent|sistema|system|ti|you|yourself|voice)\b"
+_NOT_OURS_RE = re.compile(r"\b" + _AMBIGUOUS + r"(?=\s+(?:de|del|of)\s+"
+                          r"(?!(?:(?:la|el|los|las|the|tu|tus|your)\s+)?" + _OURS + r")\w)", re.I)
+_LISTED_RE = re.compile(r"(?:(?<=,)|(?<=\())\s*" + _AMBIGUOUS + r"\b(?=\s*(?:,|\)|\by\b|\be\b|\band\b|\bo\b|\bor\b))"
+                        r"|\b" + _AMBIGUOUS + r"\b(?=\s*,)(?=[^.!?]*,[^.!?]*,)", re.I)
+
+
+def _subtract_other_owners(t: str) -> str:
+    """The sentence with every ambiguous engine noun that it says is somebody else's blanked out."""
+    t = _NOT_OURS_RE.sub(" _ ", t)
+    return _LISTED_RE.sub(" _ ", t)
+
+
 def _norm(text: str) -> str:
     n = unicodedata.normalize("NFKD", text or "")
     return "".join(c for c in n if not unicodedata.combining(c))
@@ -85,6 +112,7 @@ def touches_the_engine(request: str) -> bool:
     t = _norm(request or "")
     if not t.strip():
         return False
+    t = _subtract_other_owners(t)
     if not (_TOUCH_RE.search(t) or _TOUCH_REV_RE.search(t)):
         return False
     # Nombrar un widget exime solo si el widget es LO QUE SE CAMBIA — ver la nota sobre el coladero.

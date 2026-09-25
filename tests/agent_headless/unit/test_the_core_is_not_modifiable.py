@@ -153,3 +153,25 @@ def test_the_cluster_dev_channel_is_deliberately_outside_this_rule():
     src = Path(__file__).resolve().parents[3] / "nucleo/flash/escalate.py"
     text = re.sub(r"(?m)#.*$", "", src.read_text(encoding="utf-8"))
     assert 'ctx0.get("kind") != "dev"' in text
+
+
+# V2-771 — measured live on a list of errands: «prepárame una comparativa de tres bicis eléctricas» was refused
+# as «cambiarme a mí por dentro» because the brief said «revisa autonomía, motor y batería». Two SUBTRACTIONS
+# (an owner that is not us; an item in a list of features), never an added pattern.
+@pytest.mark.parametrize("req", [
+    "Comparativa de bicis eléctricas: revisa autonomía, motor y batería de cada una.",
+    "Buscar tres bicis plegables y compararlas (precio, autonomía, peso, potencia del motor, tamaño plegada).",
+    "Compara tres portátiles: revisa procesador, RAM, servidor y pantalla.",
+    "Busca un cupón y revisa el código de descuento",
+    "revisa el motor de la bici que me compré",
+])
+def test_a_motor_that_the_sentence_says_is_somebody_elses_is_not_ours(req):
+    assert not pc.touches_the_engine(req)
+
+
+@pytest.mark.parametrize("req", [
+    "toca el motor", "revisa el motor, que va lento", "modifica el código del sistema",
+    "modifica el código de ti mismo", "cambia el motor, el prompt y el dispatcher",
+])
+def test_the_subtractions_leave_our_own_engine_refused(req):
+    assert pc.touches_the_engine(req)

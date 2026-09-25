@@ -203,6 +203,9 @@ def test_the_step_outcome_is_read_from_the_turn_itself():
     assert runner.outcome_of({"ok": True, "reply": ["Vale."], "task_id": "3"}) == ("waiting", "Vale.", ["3"])
     assert runner.outcome_of({"ok": True, "reply": ["¿Cuál de las dos?"]})[0] == "needs_you"
     assert runner.outcome_of({"ok": True, "reply": ["Apuntado."]})[0] == "done"
+    # an escalation the portal refused (id 0): no errand was born, so the step did not happen
+    assert runner.outcome_of({"ok": True, "reply": "Voy a por ellas.", "executed": "escalate",
+                              "task_id": 0, "task_ids": [0]})[0] == "failed"
 
 
 # ── the door ─────────────────────────────────────────────────────────────────────────────────────────────
@@ -364,3 +367,10 @@ def test_a_relayed_worker_is_over_when_its_durable_row_says_so(monkeypatch):
     assert runner._worker_state("91") == "failed"                 # the row closed: over, whatever RAM says
     monkeypatch.setattr(dispatch, "get_record", lambda tid: None)
     assert runner._worker_state("does-not-exist") == "done"       # a ghost is never waited on
+
+
+def test_a_list_step_never_drains_the_operators_notes():
+    """Errands case: the step after a refused search swallowed the refusal note meant for him and answered
+    about it. `lists=False` (a step) must leave `brain_notes` for his next turn."""
+    src = (ROOT / "nucleo/flash/probe.py").read_text()
+    assert "_notes = _bn.drain() if lists else []" in src

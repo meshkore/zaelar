@@ -103,6 +103,10 @@ def outcome_of(r: dict) -> tuple[str, str, list[str]]:
     tids = [str(t) for t in (r.get("task_ids") or ([r["task_id"]] if r.get("task_id") else [])) if t]
     if tids:
         return "waiting", reply[:200], tids
+    if r.get("executed") == "escalate":
+        # The portal refused it (id 0): no errand was ever born. Measured on the errands case — the protected-core
+        # guard refused a bike comparison and the step, having CALLED escalate, was counted done.
+        return "failed", ("not started — " + reply)[:200], []
     if reply.rstrip().endswith(("?", "？")):
         return "needs_you", reply[:300], []
     return "done", reply[:200], []
@@ -152,6 +156,10 @@ def acted(r: dict) -> bool:
     return str(r.get("action") or "chat") not in ("chat", "")
 
 
+# A step runs with `lists=False`, which also keeps it from draining `brain_notes`: those notes are the
+# operator's (a worker finishing, a refusal) and belong to HIS next turn. Measured on the errands case: the step
+# after a refused search swallowed the refusal note and answered about it — «Las bicis ya están en marcha…
+# no puedo cambiarme por dentro» — to a step that only set a standing rule, and was reported as needing him.
 async def _turn(turn, text: str, sid: str) -> dict:
     try:
         return await turn(text, sid=sid, ingest=False, execute=True, lists=False)

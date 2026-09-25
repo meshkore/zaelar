@@ -214,7 +214,7 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
     try:
         from voice import brain_notes as _bn
         from voice.observer import emit as _emit_note
-        _notes = _bn.drain()
+        _notes = _bn.drain() if lists else []    # V2-771: a list step never eats HIS notes (see runner)
         if _notes:
             for _n in _notes:
                 _emit_note("brain", "📩 system note → FlashBrain (probe)", text=_n, role="system")
