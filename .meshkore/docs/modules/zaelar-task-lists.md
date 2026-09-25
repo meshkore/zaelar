@@ -56,6 +56,10 @@ None of them was wrong. The message was not a turn.
    is on for Monday» with no call, twice per run, while nothing was open for the verdict to repair against.
    A reply that ends in a question is asked to Jev (`step_reply`: needs an answer vs courtesy offer) before the
    step is left for the operator.
+5c. **A step never eats the operator's notes and never claims a refused errand.** It runs with `lists=False`,
+   which also stops it draining `brain_notes` (a worker's result or a refusal is for HIS next turn), and an
+   escalation the portal refused (id 0) fails the step. A relayed worker (quota → stand-in, new id, same task row)
+   is over when its durable row closes, not when its first RAM record does.
 6. **Memory** is written by the runner, AWAITED, per step — not fire-and-forget: the distiller serialises and
    falls to a lossy heuristic when more than two writes wait (`mem_processor._QUEUE_MAX`), which a list would
    reach in seconds.
@@ -83,6 +87,12 @@ None of them was wrong. The message was not a turn.
 | demo 1 | 25 steps in 2 min 47 s; 3 DONE steps reported as «needs you» (courtesy «?») | 12/13 | fail (that step) |
 | demo 2 | courtesy fixed; 2 of 7 calendar steps promised and called nothing, counted DONE | 11/13 | fail |
 | demo 3 | action-step retry live: 2 retries rescued «Done —» claims; 26/26 | **13/13** | **5/5 on all five** |
+
+Errands case (es, six mixed errands) exposed four defects on its first two runs, all fixed: the F1 question
+was answered inline (no queue to measure — the case now asks for three worker-sized searches); a relayed worker
+kept the list waiting on a RAM ghost; `protected_core` refused a bike comparison as «reprogram yourself» because
+the brief said «revisa autonomía, motor y batería» (repaired by subtraction: an ambiguous noun with another owner,
+or listed as a feature, is not ours); and the next step swallowed that refusal note.
 
 ## Deliberately out of scope (v1)
 

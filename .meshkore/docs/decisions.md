@@ -37,7 +37,11 @@ entregada siga citada aquí.
   them. A question-ending step reply is asked to Jev — «Anything else I can dig up?» is a courtesy, not a need
   (three done steps were reported as needing him on the first live run) — and an ACTION step whose turn executed
   nothing is retried once, then failed: «Done — it's on for Monday» with no call happened twice per run with no
-  card open, where neither the phrase-table promise detector nor the verdict (`catalog_widget=none`) could see it. Found on the way: an end date with no
+  card open, where neither the phrase-table promise detector nor the verdict (`catalog_widget=none`) could see it. The errands case found three more, all product-wide: `protected_core` refused «prepárame una comparativa de
+  bicis eléctricas» as «reprogram yourself» (the brief listed «revisa autonomía, motor y batería») — repaired by
+  SUBTRACTING an ambiguous engine noun that the sentence gives another owner or lists as a feature; a list step
+  drained the operator's system notes (a step no longer does); and a relayed worker kept the list waiting on
+  its first RAM record (the closed durable row decides). Found on the way: an end date with no
   rule was a WEEKLY series (a holiday showed on two days); now a daily span. Live, sandbox, real models: his demo
   → 25 steps in 2 min 47 s; after the two fixes, run 3: 26/26 steps, 13/13 store checks, judge 5/5. Open: a spoken list past the accumulator
   valve still arrives as several turns; WhatsApp/Telegram/cluster are not order channels (a trust decision); a
