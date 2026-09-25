@@ -230,6 +230,28 @@ def tasks_where(states: tuple = LIVE_STATES, *, modes: tuple = (), visible_only:
         return []
 
 
+def tasks_children(parent_id: str) -> list[dict]:
+    """The rows whose `parent_id` is this one, in id order — the steps of a list (V2-771)."""
+    try:
+        rows = _db_mod.get_db().query("SELECT * FROM tasks WHERE parent_id=? ORDER BY id ASC", (str(parent_id),))
+        return [_row(r) for r in rows]
+    except Exception:  # noqa: BLE001
+        return []
+
+
+def tasks_of_kind(kind: str, states: tuple = LIVE_STATES) -> list[dict]:
+    """Every row of one kind in these states, visible or not — what a boot-time resume needs (V2-771)."""
+    if not states:
+        return []
+    try:
+        rows = _db_mod.get_db().query(
+            "SELECT * FROM tasks WHERE kind=? AND state IN (%s) ORDER BY created_at ASC"
+            % ",".join("?" for _ in states), (str(kind), *states))
+        return [_row(r) for r in rows]
+    except Exception:  # noqa: BLE001
+        return []
+
+
 def tasks_due(now: float | None = None, limit: int = 20) -> list[dict]:
     """Scheduled/recurring tasks whose moment has arrived. Read once a second by the loop, so it is indexed."""
     ts = int(time.time() if now is None else now)

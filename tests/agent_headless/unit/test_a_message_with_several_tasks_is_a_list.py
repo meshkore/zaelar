@@ -31,25 +31,25 @@ def test_a_short_request_never_asks_anybody(monkeypatch):
     def _boom(*a, **k):
         raise AssertionError("Jev must not be asked below the shape floor")
     monkeypatch.setattr("nucleo.jev.choose_sync", _boom)
-    assert detect.is_a_list("Apúntame el dentista el jueves a las diez y llama a Pedro") == (False, {"by": "shape"})
+    assert asyncio.run(detect.is_a_list("Apúntame el dentista el jueves a las diez y llama a Pedro")) == (False, {"by": "shape"})
     # short, but shaped like a list: still below the floor — a short message is one turn whatever its shape
-    assert detect.is_a_list("1. pan\n2. leche\n3. huevos\n4. fruta. Y ya.") == (False, {"by": "shape"})
+    assert asyncio.run(detect.is_a_list("1. pan\n2. leche\n3. huevos\n4. fruta. Y ya.")) == (False, {"by": "shape"})
 
 
 def test_past_the_floor_jev_decides_in_both_directions(monkeypatch):
     monkeypatch.setattr("nucleo.jev.choose_sync", lambda *a, **k: {"choice": "several", "confidence": 0.93})
-    assert detect.is_a_list(LIST)[0] is True
+    assert asyncio.run(detect.is_a_list(LIST))[0] is True
     monkeypatch.setattr("nucleo.jev.choose_sync", lambda *a, **k: {"choice": "single", "confidence": 0.95})
-    assert detect.is_a_list(LIST)[0] is False
+    assert asyncio.run(detect.is_a_list(LIST))[0] is False
     monkeypatch.setattr("nucleo.jev.choose_sync", lambda *a, **k: {"choice": "several", "confidence": 0.5})
-    assert detect.is_a_list(LIST)[0] is False          # an unsure «several» stays one turn
+    assert asyncio.run(detect.is_a_list(LIST))[0] is False          # an unsure «several» stays one turn
 
 
 def test_without_jev_only_an_unmistakable_shape_is_a_list(monkeypatch):
     monkeypatch.setattr("nucleo.jev.choose_sync", lambda *a, **k: None)
-    assert detect.is_a_list(LIST) == (True, {"by": "shape-fallback"})
+    assert asyncio.run(detect.is_a_list(LIST)) == (True, {"by": "shape-fallback"})
     long_single = "Busca un piso en Madrid, " + ", ".join(f"condición {i}" for i in range(80)) + "."
-    assert detect.could_be_a_list(long_single) and detect.is_a_list(long_single)[0] is False
+    assert detect.could_be_a_list(long_single) and asyncio.run(detect.is_a_list(long_single))[0] is False
 
 
 # ── split ────────────────────────────────────────────────────────────────────────────────────────────────
@@ -303,11 +303,11 @@ def test_a_courtesy_question_is_not_a_step_that_needs_him(monkeypatch):
                 "Noted. Anything else?": {"choice": "done", "confidence": 0.99}}
     monkeypatch.setattr("nucleo.jev.choose_sync",
                         lambda key, state, **k: verdicts.get(state.split("REPLY: ", 1)[1]))
-    assert runner.reply_needs_him("Book the usual.", "Which one do you mean?") is True
-    assert runner.reply_needs_him("Remember X.", "Noted. Anything else?") is False
-    assert runner.reply_needs_him("Remember X.", "Something unknown?") is True          # no verdict
+    assert asyncio.run(runner.reply_needs_him("Book the usual.", "Which one do you mean?")) is True
+    assert asyncio.run(runner.reply_needs_him("Remember X.", "Noted. Anything else?")) is False
+    assert asyncio.run(runner.reply_needs_him("Remember X.", "Something unknown?")) is True          # no verdict
     monkeypatch.setattr("nucleo.jev.choose_sync", lambda *a, **k: {"choice": "done", "confidence": 0.5})
-    assert runner.reply_needs_him("Remember X.", "Noted. Anything else?") is True        # unsure
+    assert asyncio.run(runner.reply_needs_him("Remember X.", "Noted. Anything else?")) is True        # unsure
 
     monkeypatch.setattr("nucleo.jev.choose_sync",
                         lambda key, state, **k: verdicts.get(state.split("REPLY: ", 1)[1]))

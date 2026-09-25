@@ -28,7 +28,7 @@ _TASKS: set = set()
 
 def ack() -> str:
     """What he hears on receipt: that it is a list and that work has started. Never the list."""
-    from voice.engine.core import langs
+    from i18n import langs
     return langs.current_language().list_started
 
 
@@ -58,7 +58,7 @@ async def intake(text: str, *, origin: str = "voz") -> dict | None:
     try:
         if not detect.could_be_a_list(text):
             return None
-        is_list, why = await asyncio.to_thread(detect.is_a_list, text)
+        is_list, why = await detect.is_a_list(text)
         runner._emit("📋 lista: ¿es una lista?", text=text[:200], verdict=why, is_list=is_list)
         if not is_list:
             return None

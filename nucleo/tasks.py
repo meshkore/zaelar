@@ -475,6 +475,13 @@ def scheduled_forgotten(job_id) -> None:
 # reaching in directly would make the memory boundary a three-caller seam rather than a one-caller one. The
 # boundary ratchet (`tests/memory/unit/test_memory_boundary.py`) counts exactly that, and paying it by
 # raising its ceiling would be the move its own docstring tells you not to make.
+def store():
+    """The task table, for the brain-side owners of task rows that are not workers — a LIST and its steps
+    (`nucleo/batch`, V2-771). Handed out from here so `memory.tasks_store` keeps one production importer
+    (the memory boundary ratchet counts exactly that)."""
+    return _ts
+
+
 def search(query: str, limit: int = 5) -> list[dict]:
     """Finished commissions this phrase could be about, newest first. Lexical only — never a model."""
     return _ts.task_search(query, limit=limit)

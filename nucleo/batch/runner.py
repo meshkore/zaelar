@@ -53,8 +53,8 @@ def _emit(label: str, **extra) -> None:
 
 
 def _store():
-    from memory import tasks_store
-    return tasks_store
+    from nucleo import tasks
+    return tasks.store()
 
 
 def new_uid() -> str:
@@ -85,12 +85,7 @@ def create(text: str, steps: list[dict], *, origin: str = "voz", how: str = "mod
 
 def steps_of(uid: str) -> list[dict]:
     """The list's step rows in order (their ids sort by position)."""
-    ts = _store()
-    try:
-        rows = ts._db_mod.get_db().query("SELECT * FROM tasks WHERE parent_id=? ORDER BY id ASC", (uid,))
-        return [ts._row(r) for r in rows]
-    except Exception:  # noqa: BLE001
-        return []
+    return _store().tasks_children(uid)
 
 
 def outcome_of(r: dict) -> tuple[str, str, list[str]]:
@@ -127,14 +122,14 @@ _NEEDS_CRITERIA = {
 }
 
 
-def reply_needs_him(task: str, reply: str) -> bool:
-    """True when a question-ending reply is a real question back. Blocking (a Jev trip); unsure or no answer
+async def reply_needs_him(task: str, reply: str) -> bool:
+    """True when a question-ending reply is a real question back (a Jev trip, in a thread). Unsure or no answer
     → True, the honest side: the report asks him, it never claims a step it did not see done."""
     try:
         from nucleo import jev
-        v = jev.choose_sync(_NEEDS_KEY, f"TASK: {task[:600]}\nREPLY: {reply[:600]}",
-                            instructions=_NEEDS_INSTRUCTIONS, criteria=_NEEDS_CRITERIA,
-                            question_id="list-step-reply")
+        v = await asyncio.to_thread(jev.choose_sync, _NEEDS_KEY, f"TASK: {task[:600]}\nREPLY: {reply[:600]}",
+                                    instructions=_NEEDS_INSTRUCTIONS, criteria=_NEEDS_CRITERIA,
+                                    question_id="list-step-reply")
     except Exception:  # noqa: BLE001
         v = None
     return not (v and v.get("choice") == "done" and float(v.get("confidence") or 0) >= 0.7)
@@ -177,7 +172,7 @@ async def _run_step(uid: str, row: dict, turn, ingest) -> None:
         if outcome_of(r)[0] == "done" and not acted(r):
             r = {"ok": False, "error": f"no action taken — «{str(r.get('reply') or '')[:160]}»"}
     state, note, tids = outcome_of(r)
-    if state == "needs_you" and not await asyncio.to_thread(reply_needs_him, row["goal"], note):
+    if state == "needs_you" and not await reply_needs_him(row["goal"], note):
         state = "done"
     # Memory, awaited — see the module note. A step that failed still said something true about him.
     try:
@@ -244,7 +239,7 @@ def summary(uid: str) -> dict:
 def report_text(uid: str) -> str:
     """ONE report, counts first, then only what he has to know: what failed, what needs him, what is still
     running. Never a step-by-step narration of what went fine."""
-    from voice.engine.core import langs
+    from i18n import langs
     L = langs.current_language()
     s = summary(uid)
     parts = [L.list_done.format(ok=len(s["done"]), n=s["n"])]
@@ -306,12 +301,7 @@ def resume() -> list[str]:
     A step left `running` by the restart is run again — its turn never reported, so nothing claims it."""
     ts = _store()
     out = []
-    try:
-        rows = ts._db_mod.get_db().query(
-            "SELECT id FROM tasks WHERE kind='lista' AND state IN ('pending','running')", ())
-    except Exception:  # noqa: BLE001
-        return []
-    for (uid,) in [tuple(r) for r in rows]:
+    for uid in [r["id"] for r in ts.tasks_of_kind("lista", ("pending", "running"))]:
         for st in steps_of(uid):
             if st.get("state") == "running" and not str(st.get("outcome") or "").startswith("workers:"):
                 ts.task_patch(st["id"], state="pending")

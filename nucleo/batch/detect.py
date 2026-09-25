@@ -14,6 +14,7 @@ as a list; anything else stays one turn — today's path, which is the safe fail
 """
 from __future__ import annotations
 
+import asyncio
 import re
 
 #: Below this a message is one request, whatever it says. A short «apúntame el dentista y llama a Pedro» is
@@ -65,25 +66,26 @@ def unmistakable(text: str) -> bool:
     return s["chars"] >= 400 and s["enumerated"] >= 3
 
 
-def ask(text: str) -> dict | None:
-    """Jev's verdict on the message, or None when it could not be asked. Blocking — call it in a thread."""
+async def ask(text: str) -> dict | None:
+    """Jev's verdict on the message, or None when it could not be asked. The blocking call runs in a thread —
+    never on the event loop the voice turn shares (node 3.61)."""
     try:
         from nucleo import jev
         # The verdict needs the SHAPE, not every word: the head and the tail of a long paste carry it, and a
         # 4 000-char state is a slower question for no better answer.
         t = (text or "").strip()
         state = t if len(t) <= 3000 else t[:2000] + "\n…\n" + t[-800:]
-        return jev.choose_sync(QUESTION_KEY, state, instructions=_INSTRUCTIONS, criteria=CRITERIA,
-                               question_id="message-shape")
+        return await asyncio.to_thread(jev.choose_sync, QUESTION_KEY, state, instructions=_INSTRUCTIONS,
+                                       criteria=CRITERIA, question_id="message-shape")
     except Exception:  # noqa: BLE001 — a classifier never breaks a turn
         return None
 
 
-def is_a_list(text: str) -> tuple[bool, dict]:
+async def is_a_list(text: str) -> tuple[bool, dict]:
     """(is it a list?, why). Never raises; every doubt answers «no», which is today's path."""
     if not could_be_a_list(text):
         return False, {"by": "shape"}
-    verdict = ask(text)
+    verdict = await ask(text)
     if verdict and verdict.get("choice"):
         several = verdict["choice"] == "several" and float(verdict.get("confidence") or 0) >= MIN_CONFIDENCE
         return several, {"by": "jev", "choice": verdict["choice"],
