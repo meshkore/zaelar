@@ -223,9 +223,17 @@ def _possible_now(widget_id: str, action: str) -> bool:
 #: twin: same question one step earlier, and the only one of the two that can answer «ábreme el
 #: vídeo» with nothing on screen.
 CATALOG_KEY = "catalog_widget"
+#: V2-773 — the question used to ask which card he NAMES («to open»), and an order a card carries out went
+#: unnamed: «Message Ethan on Telegram» none 0.63, «Find me a free slot tomorrow» none 0.52 — both then spent
+#: a Brain Worker. Asked as «which card would carry it out or answer it», measured on ten sentences: messaging
+#: 1.0 / agenda 0.97 / música 1.0 / markets 0.99, and the errands stay none (weekend plan 0.79, a table at a
+#: restaurant 0.86, monitors under $400 0.63).
 CATALOG_INSTRUCTIONS = (
-    "The operator asks for a card that is NOT on screen. Which widget of the catalogue does he "
-    "mean, by the words he uses for it? Answer 'none' when no widget is being named.")
+    "The operator gives an order with no card of ours on screen. Which widget of the catalogue would CARRY IT "
+    "OUT or ANSWER it — the card whose declared actions do what he asks (send a message, add or move an "
+    "appointment, play a song, show photos) or whose content holds the answer (his calendar, his contacts, his "
+    "files)? Answer 'none' when the order needs the outside world (the web, a booking at an external site, "
+    "products, a trip) or fits no widget.")
 
 #: A catalogue question is worth one when the whole catalogue fits in it. Past this the answer is
 #: retrieval, not a bigger enumeration (INI-027 §7: an index narrows, a model chooses).

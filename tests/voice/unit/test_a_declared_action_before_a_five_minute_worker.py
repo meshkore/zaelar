@@ -439,6 +439,13 @@ def test_a_commission_naming_a_CLOSED_card_of_ours_is_read_before_the_worker(mon
     esc = {"v": "book a table", "more": []}
     assert asyncio.run(card_commission.before_worker(esc, {"v": None}, **kw)) == "" and esc["v"] == "book a table", (
         "nothing called → the worker keeps the errand")
+    # K1: a card that cannot ANSWER (messaging) still takes the CALL — the worker is never the door to a send
+    monkeypatch.setattr(build_decision, "named_card", lambda brief: "mensajeria")
+    answer = {"kind": "call", "widget_id": "mensajeria", "action": "send_to", "payload": {"contact": "Ethan", "text": "16:30"}}
+    esc = {"v": "message Ethan", "more": []}
+    assert asyncio.run(card_commission.before_worker(esc, {"v": None}, **dict(kw, operator_text="Message Ethan on Telegram"))) == "call"
+    assert applied[-1] == ("mensajeria", "send_to", {"contact": "Ethan", "text": "16:30"}) and esc["v"] is None
+    monkeypatch.setattr(build_decision, "named_card", lambda brief: "agenda")
     answer = {"kind": "read", "widget_id": "agenda", "question": "?"}
     esc = {"v": "delete everything", "more": []}
     assert asyncio.run(card_commission.before_worker(esc, {"v": None}, **dict(kw, operator_text="delete everything"))) == ""

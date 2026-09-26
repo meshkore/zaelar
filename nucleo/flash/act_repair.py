@@ -115,8 +115,10 @@ _SYS_COMMISSION = (
     "tarjeta: (1) si una acción declarada de «{wid}» cumple la orden, llama a `widget_data` con ella; (2) si la "
     "RESPUESTA está en lo que la tarjeta guarda (sus citas y huecos libres, sus contactos, sus ficheros…), llama a "
     "`read_widget` con widget_id «{wid}» y la pregunta concreta que hay que resolver contra ella (con la fecha "
-    "absoluta y la franja que él dijo); (3) solo si hace falta el mundo exterior —la web, reservar en un sitio "
-    "externo, buscar productos— no llames a nada.\n\nAcciones de «{wid}»:\n{actions}{card}")
+    "absoluta y la franja que él dijo) — solo si esa herramienta se te ofrece; (3) solo si hace falta el mundo "
+    "exterior —la web, reservar en un sitio externo, buscar productos— no llames a nada. Un mensaje a un contacto "
+    "es la acción de enviar de la tarjeta, con el texto redactado por ti a partir de lo que él quiere decir."
+    "\n\nAcciones de «{wid}»:\n{actions}{card}")
 
 
 def _tool_named(name: str) -> dict | None:
@@ -138,8 +140,12 @@ async def call_or_read_for_commission(operator_text: str, commission: str, widge
             return None
         from widgets import runtime as _rt
         manifest = _rt.get(wid) or {}
-        tools = [t for t in (_tool_named("widget_data"), _tool_named("read_widget")) if t]
-        if not manifest or len(tools) != 2:
+        # The read option only for a card that can ANSWER (`widget_read.can_answer`): a messaging card gets the
+        # call («message Ethan on Telegram» → send_to) and never a read it cannot serve.
+        from nucleo.flash import widget_read as _wr0
+        tools = [t for t in (_tool_named("widget_data"),
+                             _tool_named("read_widget") if _wr0.can_answer(wid) else None) if t]
+        if not manifest or not tools:
             return None
         digest = ""
         try:

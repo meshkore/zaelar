@@ -29,10 +29,11 @@ async def before_worker(escalate_req: dict, read_req: dict, *, brief, operator_t
     the two rungs before this one found no OPEN card. Never raises: a second pass never breaks a turn."""
     try:
         from nucleo import danger as _danger
-        from nucleo.flash import act_repair as _repair, build_decision as _bd, widget_read as _wread
+        from nucleo.flash import act_repair as _repair, build_decision as _bd
         card = _bd.named_card(brief)
-        if not card or not _wread.can_answer(card) or _danger.is_dangerous(operator_text):
+        if not card or _danger.is_dangerous(operator_text):
             return ""
+        # Any card the verdict names may take the CALL; the read half is offered only to one that can answer.
         got = await _repair.call_or_read_for_commission(operator_text, str(escalate_req.get("v") or ""), card,
                                                         spec=spec)
         if not got:

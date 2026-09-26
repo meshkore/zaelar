@@ -7,7 +7,7 @@
     "gate": "nucleo"
   },
   "title": "Mensajería",
-  "description": "Tu mensajería unificada (WhatsApp + Telegram + Email), ya triada: solo lo que va dirigido a ti o debes atender, en un solo sitio. WhatsApp/Telegram se vinculan por QR; el email por correo + contraseña de aplicación. Puedes dictar una respuesta, revisarla en el cuadro de texto y mandarla por voz o con el botón, a las tres plataformas — el email lleva firma propia si la tienes puesta.",
+  "description": "WhatsApp, Telegram y correo en un sitio: leer, filtrar y ENVIAR o contestar mensajes («message Ethan on Telegram», «escríbele a Anna», «reply to that email»), ya triado a lo que va dirigido a ti. Se vinculan por QR (WhatsApp/Telegram) o correo + contraseña de aplicación; puedes dictar una respuesta y mandarla.",
   "whenToUse": "Cuando pide ver sus mensajes, quién le ha escrito, su WhatsApp/Telegram/correo, responder o mandar un mensaje/email, RESUMIR una conversación o grupo, buscar mensajes PASADOS en el archivo («¿cuándo me escribió X?»), traer mensajes del conector, el AUTORRESPONDEDOR, su firma, o conectar un canal.",
   "keywords": [
     "mensajes",

@@ -142,3 +142,17 @@ def test_a_commission_that_names_a_card_is_read_or_called_before_it_costs_a_work
     _Client.answer = [("read_widget", {"widget_id": "contactos", "question": "?"})]
     assert _run_cr("x", "x", "agenda") is None, "another card's call is not this card's answer"
     assert widget_read.can_answer("agenda") and not widget_read.can_answer("no-such-widget")
+
+
+def test_a_card_that_cannot_answer_still_takes_the_call(client, monkeypatch):
+    """Coordination block (K1): «Message Ethan on Telegram» went to a Brain Worker — the messaging card cannot
+    answer questions, so the pass was never offered to it. Any named card may take the CALL; only one that
+    can answer is offered the read."""
+    from nucleo.flash import widget_read
+    monkeypatch.setattr(widget_read, "read", lambda wid: "")
+    monkeypatch.setattr(widget_read, "can_answer", lambda wid: wid == "agenda")
+    _Client.answer = [("widget_data", {"widget_id": "mensajeria", "action": "send_to",
+                                       "payload": {"contact": "Ethan", "channel": "telegram", "text": "16:30"}})]
+    got = _run_cr("Message Ethan on Telegram and tell him the new meeting time.", "send Ethan…", "mensajeria")
+    assert got and got["kind"] == "call" and got["action"] == "send_to", got
+    assert [t["function"]["name"] for t in _Client.calls[-1]["tools"]] == ["widget_data"], "no read for a card that cannot answer"
