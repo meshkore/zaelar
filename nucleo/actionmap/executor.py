@@ -25,6 +25,7 @@ _ALLOWED: dict[str, tuple[str, ...]] = {
     "move": ("widget", "where"),
     "fullscreen": ("widget",),
     "minimize": ("widget",),     # V2-635: one step smaller (exit fullscreen → restore maximize → rail chip)
+    "minimize_all": (),          # V2-773: every open card to the rail («minimise those while you work»)
     "arrange": (),               # V2-588: snap the whole canvas to the aligned grid — no target, no data
     "widget_data": ("widget", "action"),   # FAST-classified declared ops only, checked at execute
 }
@@ -111,6 +112,8 @@ def describe(action: dict) -> str:
     do = action.get("do")
     if do == "close_all":
         return "canvas:close"
+    if do == "minimize_all":
+        return "canvas:minimize"
     if do == "close_widget":
         return f"canvas:close:{action.get('widget')}"
     if do == "show_widget":
@@ -186,6 +189,20 @@ def execute(action: dict, emit, phrase: str = "") -> bool:
         return True
     if do == "fullscreen":
         emit("widget", "fullscreen", text=said, extra={"id": wid, **src})
+        return True
+    if do == "minimize_all":
+        # V2-773 — the demo's kickoff launches three errands whose sheets and browser tabs sit on the canvas;
+        # «Minimise those while you work» had no route and the reply narrated a shrink nobody saw. Every open
+        # card, resolved by the canvas report, one honest step down each (desktop.shrink).
+        try:
+            from server.voice_api import open_instances
+            ids = [str(x) for x in open_instances() if str(x or "").strip()]
+        except Exception:  # noqa: BLE001
+            ids = []
+        if not ids:
+            return False                     # nothing known open: let the model answer
+        for cid in ids:
+            emit("widget", "minimize", text=said, extra={"id": cid, **src})
         return True
     if do == "minimize":
         # V2-635 — «minimiza el vídeo» had NO deterministic route: the model chose the fullscreen TOGGLE,

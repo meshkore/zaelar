@@ -248,6 +248,11 @@ def which_card(widget_id: str, action: str, *, open_ids=(), brief=None) -> tuple
     owner, _, verdict_action = str(choice or "").rpartition(":")
     if owner and verdict_action == name and owner in cards and _tb.owner_still_open(brief, owner):
         return ("keep", None) if owner == wid else ("card", owner)
+    # V2-773 — a CONFIDENT «none» says the order is no action on an open card: the model's own choice is the
+    # only evidence there is, and it is not a coin flip («Show me a chart of Apple stock» → `markets:show` asked
+    # «documento or markets?» because both declare `show`). Only an absent or unsure verdict asks.
+    if str(choice or "") == "none" and isinstance(_info, dict) and _info.get("used"):
+        return ("keep", None)
     return ("ask", [_tb._card_label(c) for c in cards])
 
 

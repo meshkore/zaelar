@@ -1200,6 +1200,14 @@ class NucleoLLMStream(llm.LLMStream):
                          extra={"id": wid, "action": action_name, "payload": payload or {}})
                     deduped["v"] = True
                     return
+                # V2-773 — the SAME op the widget just refused, with the SAME payload, is the model re-reading the
+                # failure note, not a corrected call: it cannot succeed where it just failed, and it dragged a photo
+                # `select` through two chart turns. A corrected retry carries a different payload and runs.
+                if _data_ops.is_identical_retry_of_refused(wid, action_name, payload):
+                    emit("brain", "🛡️ reintento idéntico de una op rechazada — ignorado", text=f"{wid}:{action_name}",
+                         role="system", extra={"id": wid, "action": action_name, "payload": payload or {}})
+                    deduped["v"] = True
+                    return
                 acted["widget"] = True
                 data_done["v"] = True
                 _log_dataop("fast")
@@ -1210,9 +1218,12 @@ class NucleoLLMStream(llm.LLMStream):
                     pass
 
                 def _seal(ok: bool, _w=wid, _a=action_name, _p=dict(payload or {})) -> None:
-                    """Remember this mutation ONLY if it happened. A refusal leaves no trace to drag."""
+                    """Remember this mutation ONLY if it happened. A refusal leaves no trace to drag — but it is
+                    remembered as REFUSED, so the identical re-emit cannot run again (V2-773)."""
                     if ok:
                         brain._last_dataop = (_w, _a, _p, time.time())
+                    else:
+                        _data_ops.remember_refusal(_w, _a, _p)
 
                 try:
                     _spawn(_data_ops.dispatch_and_report(wid, action_name, payload or {}, seal=_seal, text=_bnotes.operator_half(text)),
@@ -2518,7 +2529,8 @@ class NucleoLLMStream(llm.LLMStream):
             if await _cardc2.after_show(acted, brief=_brief, operator_text=_op_text, spoken_text=spoken_text, spec=spec,
                                         emit=emit, present=_cvis.present, apply_widget_data=_apply_widget_data):
                 data_done["v"] = True
-        if (_no_tool and spoken_text and _router.promises_action(spoken_text)
+        if (_no_tool and spoken_text
+                and (_router.promises_action(spoken_text) or _direct_action.verdict_escalates(_brief))
                 and not _router.asks_for_missing_detail(spoken_text)):
             _win_goal = ""
             if not (_router.looks_like_create_widget(_op_text) or _router.looks_like_escalate_task(_op_text)):
@@ -2543,7 +2555,10 @@ class NucleoLLMStream(llm.LLMStream):
                             _win_goal = _cand
                 except Exception:
                     _win_goal = ""
-            if _router.looks_like_create_widget(_op_text) or _router.looks_like_escalate_task(_op_text) or _win_goal:
+            # V2-773 — …or the brief's own verdict said this order needs a worker (kickoff A1: «On it — I'll show
+            # you the options» over nothing; the verb tables know «búscame», not every way of asking).
+            if (_router.looks_like_create_widget(_op_text) or _router.looks_like_escalate_task(_op_text) or _win_goal
+                    or _direct_action.verdict_escalates(_brief)):
                 # crear widget (o sinónimo: panel/gadget) = código → escala; marketplace/informe = navegador → escala
                 escalate_req["v"] = _win_goal or _op_text
                 emit("brain", "🧭 escalada por backstop (prometió crear/gestionar sin escalar)",
@@ -2950,7 +2965,9 @@ class NucleoLLMStream(llm.LLMStream):
         if worker_acted["v"] not in ("stop",) and escalate_req["v"] is None:
             try:
                 from nucleo import dispatch as _disp2
-                if _disp2.has_active() and _router.looks_like_stop_work(text):
+                # V2-773 — «Stop it and close the video widget» is about the CARD the verdict names, never the
+                # errands running behind it (two were cancelled on the demo's kickoff).
+                if _disp2.has_active() and _router.looks_like_stop_work(text) and not _direct_action.aims_at_a_card(_brief):
                     tids = _disp2.cancel_soon(text)
                     if tids:
                         worker_acted["v"] = "stop"

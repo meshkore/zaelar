@@ -277,6 +277,32 @@ def is_view_op(wid: str, action: str) -> bool:
         return False
 
 
+#: The last op a widget REFUSED (wid, action, payload, ts). V2-773 (demo, images → markets): «Open the second
+#: one» reached `imagenes:select` with no item and was refused with the menu; the failure note asked the model to
+#: re-call with the item, and the NEXT two turns — «Show me a chart of Apple stock», «the last month instead» —
+#: re-emitted the identical empty `select`, refused again, noted again, and the chart's turn spent its tools on
+#: a photo card. A refusal is not remembered as DONE (V2-707), so the anti-drag guard cannot see it; this does:
+#: the same op with the same payload cannot succeed where it just failed, and a corrected retry differs.
+_REFUSED: dict = {"v": None}
+_REFUSED_S = 180.0
+
+
+def remember_refusal(wid: str, action: str, payload: dict | None) -> None:
+    import time as _t
+    _REFUSED["v"] = (str(wid or "").strip().lower(), str(action or "").strip(), dict(payload or {}), _t.time())
+
+
+def is_identical_retry_of_refused(wid: str, action: str, payload: dict | None, *, now: float | None = None) -> bool:
+    import time as _t
+    last = _REFUSED["v"]
+    if not last:
+        return False
+    l_wid, l_action, l_payload, l_ts = last
+    if l_wid != str(wid or "").strip().lower() or l_action != str(action or "").strip() or l_payload != dict(payload or {}):
+        return False
+    return ((now if now is not None else _t.time()) - l_ts) < _REFUSED_S
+
+
 def is_context_bleed(last, wid: str, action: str, payload: dict | None, said: str, *, now: float | None = None) -> bool:
     """The V2-038 anti-drag rule, unchanged for what it was built for: a MUTATION identical to the one that
     just ran (<120 s), whose content the turn does not even mention, is the model dragging the previous

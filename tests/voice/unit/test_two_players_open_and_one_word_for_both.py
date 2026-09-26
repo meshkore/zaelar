@@ -204,3 +204,14 @@ def test_the_sentence_the_operator_HEARS_is_actually_produced():
         assert plan["ask"], f"[{code}] the ASK branch produced no sentence"
         assert "{" not in plan["ask"], f"[{code}] an unfilled placeholder survived: {plan['ask']!r}"
         assert "youtube" in plan["ask"] and "musica" in plan["ask"], plan["ask"]
+
+
+def test_a_confident_none_keeps_the_models_own_card():
+    """V2-773 (demo, M1): «Show me a chart of Apple stock» → `markets:show` asked «documento or markets?»
+    because both declare `show` and the verdict was a confident «none» — which says the order is no action on
+    an open card, not that the model's card is a coin flip. Only an absent or unsure verdict asks."""
+    assert fe.which_card("markets", "show", open_ids=["documento", "markets"], brief=_brief("none", 0.75)) == ("keep", None)
+    route, _ = fe.which_card("markets", "show", open_ids=["documento", "markets"], brief=_brief("none", 0.3))
+    assert route == "ask", "an unsure «none» is no verdict"
+    route, _ = fe.which_card("markets", "show", open_ids=["documento", "markets"], brief=None)
+    assert route == "ask", "no brief: the question stands, as V2-740 wrote it"

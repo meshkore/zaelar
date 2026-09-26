@@ -1069,6 +1069,66 @@
     "do": "close_widget",
     "widget": "markets"
    }
+  },
+  {
+   "phrase": "minimise those",
+   "action": {
+    "do": "minimize_all"
+   }
+  },
+  {
+   "phrase": "minimize those",
+   "action": {
+    "do": "minimize_all"
+   }
+  },
+  {
+   "phrase": "minimise them",
+   "action": {
+    "do": "minimize_all"
+   }
+  },
+  {
+   "phrase": "minimize them",
+   "action": {
+    "do": "minimize_all"
+   }
+  },
+  {
+   "phrase": "minimise everything",
+   "action": {
+    "do": "minimize_all"
+   }
+  },
+  {
+   "phrase": "minimize everything",
+   "action": {
+    "do": "minimize_all"
+   }
+  },
+  {
+   "phrase": "minimise those while you work",
+   "action": {
+    "do": "minimize_all"
+   }
+  },
+  {
+   "phrase": "minimize those while you work",
+   "action": {
+    "do": "minimize_all"
+   }
+  },
+  {
+   "phrase": "minimise all the widgets",
+   "action": {
+    "do": "minimize_all"
+   }
+  },
+  {
+   "phrase": "minimize all the widgets",
+   "action": {
+    "do": "minimize_all"
+   }
   }
  ]
 }

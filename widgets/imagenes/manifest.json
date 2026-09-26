@@ -54,7 +54,8 @@
       "payload": {
         "item": "número 1-N o texto del título/fuente"
       },
-      "view": true
+      "view": true,
+      "ref": "item"
     },
     "next": {
       "desc": "pasa a la foto siguiente",

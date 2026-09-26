@@ -1285,6 +1285,42 @@
     "do": "close_widget",
     "widget": "markets"
    }
+  },
+  {
+   "phrase": "minimizalos",
+   "action": {
+    "do": "minimize_all"
+   }
+  },
+  {
+   "phrase": "minimiza todo",
+   "action": {
+    "do": "minimize_all"
+   }
+  },
+  {
+   "phrase": "minimiza todos",
+   "action": {
+    "do": "minimize_all"
+   }
+  },
+  {
+   "phrase": "minimiza todos los widgets",
+   "action": {
+    "do": "minimize_all"
+   }
+  },
+  {
+   "phrase": "minimizalo todo",
+   "action": {
+    "do": "minimize_all"
+   }
+  },
+  {
+   "phrase": "minimiza esos",
+   "action": {
+    "do": "minimize_all"
+   }
   }
  ]
 }

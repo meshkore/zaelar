@@ -235,3 +235,33 @@ def test_an_order_names_a_card_through_either_twin(monkeypatch):
     assert not _da.names_an_order(nobody)
     open_ = _brief({_tb.TARGET_KEY: ("youtube:search", 0.91), _tb.REQUEST_KEY: ("order", 0.9)}, open_ids=("youtube",))
     assert _da.names_an_order(open_), "…and screen_action still names it while open"
+
+
+def test_a_stop_aimed_at_a_card_never_kills_the_errands(monkeypatch):
+    """V2-773 (demo kickoff + video): «Stop it and close the video widget» with the verdict at `youtube:close`
+    0.97 and canvas=close 1.0 — the stop-worker backstop read «stop it» as «stop the background work» and
+    CANCELLED the two errands launched a minute earlier."""
+    from nucleo.flash import direct_action as _da
+    monkeypatch.setattr(_tb, "owner_still_open", lambda _b, _o: True)
+    video = _brief({_tb.TARGET_KEY: ("youtube:close", 0.97), _tb.CANVAS_KEY: ("close", 1.0)}, open_ids=("youtube",))
+    assert _da.aims_at_a_card(video)
+    canvas_only = _brief({_tb.CANVAS_KEY: ("close", 0.9)})
+    assert _da.aims_at_a_card(canvas_only)
+    work = _brief({_tb.CANVAS_KEY: ("neither", 0.95), _tb.REQUEST_KEY: ("order", 0.9)})
+    assert not _da.aims_at_a_card(work), "«stop the search» names no card: the backstop keeps its job"
+    src = (_ENGINE / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
+    assert "_router.looks_like_stop_work(text) and not _direct_action.aims_at_a_card(_brief)" in src
+
+
+def test_the_verdict_alone_can_send_an_unkept_order_to_a_worker():
+    """V2-773 (demo kickoff, A1): «find me three 27-inch 4K monitors under 400 dollars» — the verdict said
+    escalate, the model answered «On it — I'll show you the options as soon as I have them» and called
+    nothing, and no errand was born: the backstop only knew the verb tables."""
+    from nucleo.flash import direct_action as _da
+    assert _da.verdict_escalates(_brief({_tb.ESCALATE_KEY: ("escalate", 1.0), _tb.REQUEST_KEY: ("order", 0.99)}))
+    assert not _da.verdict_escalates(_brief({_tb.ESCALATE_KEY: ("handle_inline", 0.9), _tb.REQUEST_KEY: ("order", 0.99)}))
+    assert not _da.verdict_escalates(_brief({_tb.ESCALATE_KEY: ("escalate", 1.0), _tb.REQUEST_KEY: ("comment", 0.9)})), (
+        "a remark is not an order, whatever it would take to act on it")
+    assert not _da.verdict_escalates(_brief({_tb.ESCALATE_KEY: ("escalate", 0.3), _tb.REQUEST_KEY: ("order", 0.99)})), "unsure"
+    src = (_ENGINE / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
+    assert "or _direct_action.verdict_escalates(_brief))" in src and "or _direct_action.verdict_escalates(_brief)):" in src

@@ -105,3 +105,11 @@ def test_a_slow_geocoder_gets_only_the_time_that_is_left(monkeypatch):
     now[0] = 1000.0
     mp._geocode("Anywhere")                                # no deadline: the plain cap, twice
     assert seen == [2.5, 2.5]
+
+
+def test_a_select_declares_which_key_names_the_row():
+    """V2-773 (demo, I3): «Open the second one» → `imagenes:select` with no item, refused with the menu, while
+    the resolver answered «nothing to resolve» — the action never said which payload key names the row."""
+    from widgets import refs
+    assert refs.id_field_for_action("imagenes", "select") == "item"
+    assert refs.id_field_for_action("map", "select") == "item"

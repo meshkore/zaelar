@@ -506,3 +506,21 @@ def test_a_close_from_the_map_closes_the_open_card_not_the_piece(monkeypatch):
     monkeypatch.setattr(voice_api, "open_instances", lambda: [])
     assert executor.execute({"do": "close_widget", "widget": "agenda"}, emit, phrase="Close the calendar.")
     assert [e[2].get("id") for e in seen if e[1] == "close"] == ["agenda"], "nothing known open: the plain id, as before"
+
+
+def test_minimise_those_puts_every_open_card_on_the_rail(monkeypatch):
+    """V2-773 (demo kickoff, A4): three errands' sheets and a browser tab on the canvas, «Minimise those while
+    you work» — no route, and the reply narrated a shrink nobody saw."""
+    from nucleo.actionmap import executor
+    from server import voice_api
+    seen = []
+    emit = lambda kind, label, **k: seen.append((label, (k.get("extra") or {}).get("id")))
+    monkeypatch.setattr(voice_api, "open_instances", lambda: ["results::d3-1", "navegador::t1", "documento"])
+    assert executor.execute({"do": "minimize_all"}, emit, phrase="Minimise those while you work.")
+    assert seen == [("minimize", "results::d3-1"), ("minimize", "navegador::t1"), ("minimize", "documento")]
+    monkeypatch.setattr(voice_api, "open_instances", lambda: [])
+    assert executor.execute({"do": "minimize_all"}, emit, phrase="minimise those") is False, "nothing known open: the model answers"
+    from nucleo.actionmap import store
+    for lang, phrase in (("en", "minimise those while you work"), ("es", "minimiza todo")):
+        pack = store._pack_entries(lang) if hasattr(store, "_pack_entries") else []
+        assert any(e.get("phrase") == phrase and e.get("action", {}).get("do") == "minimize_all" for e in pack), (lang, phrase)

@@ -168,3 +168,22 @@ def test_a_read_widget_counts_as_the_look_so_the_promise_is_not_repaired_twice()
     i = src.index("_did_act = bool(")
     expr = "\n".join(src[i:].splitlines()[:4])            # the one expression, four lines long
     assert 'read_req["v"] is not None' in expr, expr
+
+
+def test_an_identical_retry_of_a_refused_op_is_dropped_and_a_corrected_one_runs():
+    """V2-773 (demo, images → markets): «Open the second one» reached `imagenes:select` with no item and was
+    refused with the menu; the failure note asked for a re-call, and the next two turns («a chart of Apple
+    stock», «the last month instead») re-emitted the identical empty `select` and spent their tools on a
+    photo card. A refusal is not remembered as DONE (V2-707), so the anti-drag guard could not see it."""
+    from nucleo.flash import data_ops as d
+    d.remember_refusal("imagenes", "select", {})
+    assert d.is_identical_retry_of_refused("imagenes", "select", {}, now=d._REFUSED["v"][3] + 5)
+    assert not d.is_identical_retry_of_refused("imagenes", "select", {"item": "2"}), "the corrected call runs"
+    assert not d.is_identical_retry_of_refused("markets", "show", {})
+    assert not d.is_identical_retry_of_refused("imagenes", "select", {}, now=d._REFUSED["v"][3] + 400), "it expires"
+    d._REFUSED["v"] = None
+    assert not d.is_identical_retry_of_refused("imagenes", "select", {})
+    import pathlib as _pl
+    src = (_pl.Path(__file__).resolve().parents[4] / "voice/engine/llm/providers/nucleo.py").read_text(encoding="utf-8")
+    assert "if _data_ops.is_identical_retry_of_refused(wid, action_name, payload):" in src
+    assert "_data_ops.remember_refusal(_w, _a, _p)" in src, "the seal must remember the refusal too"

@@ -146,6 +146,41 @@ def order_is_inside(brief, widget_id: str = "") -> bool:
         return False
 
 
+def aims_at_a_card(brief) -> bool:
+    """Is this turn's order aimed at a CARD on screen — an action of one, or the canvas itself (show/close)?
+
+    V2-773 (demo, kickoff + video): «Stop it and close the video widget» with the verdict at
+    `youtube:close` 0.97 and canvas=close 1.0 — and the deterministic stop-worker backstop read «stop it» as
+    «stop the background work» and CANCELLED the two errands launched a minute earlier. A verdict that names
+    a card says whose the order is; a worker kill over it is the wrong reading of the same words."""
+    try:
+        from nucleo.flash import turn_brief as _tb
+        if from_brief(brief)[0]:
+            return True
+        verb, _info = _tb.read(brief, _tb.CANVAS_KEY, "neither")
+        return str(verb or "") in ("show", "close")
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def verdict_escalates(brief) -> bool:
+    """Did the brief say this order needs a WORKER (`escalate_or_inline = escalate`, sure) on an order turn?
+
+    V2-773 (demo kickoff, A1): «find me three 27-inch 4K monitors under 400 dollars» — the verdict said
+    escalate, the model answered «On it — I'll show you the options as soon as I have them» and called
+    nothing, and the promise backstop only knew the verb tables («hazme/búscame…»), so no errand was born.
+    The verdict was paid for; it is the evidence the backstop was missing."""
+    try:
+        from nucleo.flash import turn_brief as _tb
+        esc, info = _tb.read(brief, _tb.ESCALATE_KEY, "")
+        if info is None or str(esc or "") != "escalate":
+            return False
+        kind, _k = _tb.read(brief, _tb.REQUEST_KEY, "")
+        return _k is not None and kind not in NOT_AIMED_AT_THE_SCREEN
+    except Exception:  # noqa: BLE001
+        return False
+
+
 def names_an_order(brief) -> bool:
     """Does the turn's verdict name a declared action of an open card, on a turn it does not read as a remark?
 
