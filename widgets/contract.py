@@ -193,7 +193,8 @@ def _spoken(menu: str, field: str = "") -> str:
 _ALIASES: dict[str, tuple[str, ...]] = {
     "text": ("message", "msg", "body", "content", "mensaje", "texto"),
     "message": ("text", "msg", "body", "mensaje"),
-    "contact": ("to", "recipient", "person", "who", "para", "destinatario"),
+    # `name` (demo run 2026-09-26: {"name": "Oscar", "platform": "telegram"} was refused «no recipient»)
+    "contact": ("to", "recipient", "person", "who", "para", "destinatario", "name"),
     "channel": ("platform", "via", "canal"),
     "title": ("name", "label", "summary", "titulo", "título"),
     "name": ("title", "label", "nombre"),
@@ -203,6 +204,9 @@ _ALIASES: dict[str, tuple[str, ...]] = {
     "date": ("day", "fecha", "dia", "día"),
     "time": ("hour", "startTime", "hora"),
     "startTime": ("time", "hour", "hora"),
+    # the END had its twin (`newEndTime`) and the START did not: «Move it 30 minutes later» stretched the
+    # meeting instead of moving it (demo run, 2026-09-26)
+    "newTime": ("newStartTime", "new_start_time", "newStart"),
 }
 
 
