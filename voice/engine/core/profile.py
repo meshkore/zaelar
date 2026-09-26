@@ -33,7 +33,7 @@ PROFILE = env("ZAELAR_PROFILE", "remote")
 # operator's install after a factory reset). `tests/infrastructure/unit/config/test_the_deployment_picks_the_profile.py`
 # is the ratchet — change the table and this row goes red until it follows.
 _DEFAULTS: dict[str, dict[str, str]] = {
-    "remote": {"stt": "deepgram", "tts": "elevenlabs", "llm": "nucleo"},
+    "remote": {"stt": "deepgram", "tts": "inworld", "llm": "nucleo"},
     "local": {"stt": "whisper_local", "tts": "kokoro_local", "llm": "nucleo"},
 }
 

@@ -19,7 +19,7 @@ def test_two_shipped_profiles():
     assert loc["voice"]["stt_provider"] == "whisper_local"
     assert loc["v2"]["fast"]["provider"] == "ollama"
     assert loc["v2"]["memory"]["embed_provider"] == "ollama"
-    assert cloud["voice"]["tts_provider"] == "elevenlabs"
+    assert cloud["voice"]["tts_provider"] == "inworld"   # V2-774
     # V2-657: the canonical table's titular (DeepSeek direct) — the broker rationale went stale when the
     # cloud moved to the direct endpoint, and the stale profile kept resurrecting the label in v2.json.
     assert cloud["v2"]["fast"]["provider"] == "deepseek"
@@ -73,7 +73,7 @@ def test_apply_writes_both_stores(tmp_path, monkeypatch):
     # switching to cloud re-coordinates everything
     profiles.apply("cloud")
     assert v2.get("fast")["provider"] == "deepseek"   # V2-657: the canonical table's titular
-    assert settings.get("tts_provider") == "elevenlabs"
+    assert settings.get("tts_provider") == "inworld"   # V2-774
     assert settings.get("zaelar_profile") == "remote"
     assert profiles.active() == "cloud"
 

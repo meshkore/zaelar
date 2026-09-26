@@ -4,6 +4,7 @@
 livekit-agents[silero,turn-detector]>=1.6,<2   # AgentSession: streaming, turnos, VAD, barge-in, preemptive-gen
 livekit-plugins-openai==1.6.6                          # LLM OpenAI-compat (aimlapi/glm/local/direct) + STT/TTS OpenAI
 livekit-plugins-cartesia==1.6.6                        # TTS Sonic (remoto)
+livekit-plugins-inworld==1.6.6                          # TTS Inworld (cloud, titular · V2-774)
 livekit-plugins-elevenlabs==1.6.6                       # TTS ElevenLabs (cloud fiable, eleven_flash_v2_5 barato/multilingüe · V2-035)
 livekit-plugins-deepgram==1.6.6                        # STT nova-3 (alternativa)
 livekit-plugins-mistralai==1.6.6                       # STT Voxtral (default remoto)

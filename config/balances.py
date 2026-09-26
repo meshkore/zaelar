@@ -154,7 +154,7 @@ def _reactive(service_keys: list[str]) -> dict:
 # maps EXTERNAL service → INTERNAL services (health_state) through which its errors manifest.
 _REACTIVE_MAP = {
     "aimlapi": ["llm"], "xai": ["llm"], "groq": ["llm"], "gemini": ["llm"],
-    "deepgram": ["stt", "tts"], "mistral": ["stt"], "cartesia": ["tts"], "elevenlabs": ["tts"],
+    "deepgram": ["stt", "tts"], "mistral": ["stt"], "cartesia": ["tts"], "elevenlabs": ["tts"], "inworld": ["tts"],
 }
 _CREDIT_KIND = {"credit": ("error", "SIN SALDO/cuota"), "auth": ("error", "credencial inválida"),
                 "outage": ("warn", "el proveedor no responde"),

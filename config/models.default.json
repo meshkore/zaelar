@@ -158,13 +158,19 @@
     "tts": {
       "label": "Voice · TTS (text to speech)",
       "titular": {
+        "provider": "inworld",
+        "model": "",
+        "base_url": "",
+        "key_env": "INWORLD_API_KEY"
+      },
+      "failover": {
         "provider": "elevenlabs",
         "model": "",
         "base_url": "",
         "key_env": "ELEVENLABS_API_KEY"
       },
-      "failover": null,
-      "why": "No stand-in, and said out loud: Cartesia was ruled out by the operator on cost and Kokoro is local (it does not exist in the cloud). If ElevenLabs runs out, the voice stops sounding — and that has to be VISIBLE in the panel, not guessed."
+      "why": "Operator, 2026-09-26: Inworld first, ElevenLabs second. Measured through the engine's own LiveKit plugins (V2-774): inworld-tts-2 first audio 185/168 ms (es/en) vs 194/175 for eleven_turbo_v2_5, at half the price ($25 vs ~$50 per 1M chars). The model is chosen by the builder (`voice/engine/speech/tts/inworld.py`, env ZAELAR_INWORLD_TTS_MODEL) and billed per CHARACTER by `energy_tariffs`, not per token, so it is not named here. Cartesia was ruled out on cost and Kokoro is local.",
+      "failover_why": "ElevenLabs stays selectable in the panel and is the documented second. There is NO automatic TTS failover in the engine today: if Inworld runs out of balance the voice stops, and that has to be VISIBLE in the panel, not guessed — switch the panel to ElevenLabs."
     },
     "triage": {
       "label": "Messaging · triage of what arrives",

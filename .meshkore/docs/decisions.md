@@ -21,6 +21,19 @@ entregada siga citada aquí.
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **Inworld is the default TTS, ElevenLabs the second; STT stays on Deepgram — measured, not claimed (V2-774,
+  2026-09-26)**: the operator was told Inworld is faster than ElevenLabs with equal or better voices, and asked for
+  proof before changing anything, including whether it could replace Deepgram too. Measured through the engine's
+  own LiveKit plugins: `inworld-tts-2` first audio 185/168 ms (es/en) vs 194/175 for the `eleven_turbo_v2_5` it
+  replaces, 855/700 vs 933/732 with the text streamed word by word, at half the price — faster than what we ran,
+  but a TIE with `eleven_flash_v2_5`, so «faster than ElevenLabs» is only true against the model we had chosen.
+  Inworld's own STT was accurate (WER 0) and ~5x slower to close a turn (1.5-1.9 s vs 0.26-0.33 s), and tuning its
+  end-of-turn knobs did not move it — so Deepgram stays; unifying accounts would have cost a second per turn.
+  Voices were chosen per variant on evidence (Inworld STT's voice profile for accent/age/gender + Deepgram WER):
+  Alvaro, Salvador, Reed, Freddie. A new provider has to reach EVERY surface or it fails silently — `_ENGINE_TTS`
+  drops unknown values from settings.json, a missing tariff bills the catch-all, a missing key row paints «ok» —
+  so the test pins each one (node 8.19). There is still NO automatic TTS failover: «second» means one click in
+  the ⚙. Quality is not something a script can judge; the operator's ear is the real gate.
 - **The demo batch, audited: one owner per key, an ack only after a real act, a spin is the same ANSWER too
   (V2-773, 2026-09-26)**: the operator asked for the twenty commits of the demo run to be put on the table and
   audited deeply. Read in context with one checklist — does the change go through the door that exists, does it

@@ -66,7 +66,7 @@ _PROFILES: dict[str, dict] = {
         "label": "Nube · sin instalar modelos",
         "summary": "Todo por proveedores de nube (STT/TTS/cerebro/memoria). No necesita GPU ni Ollama, solo tus "
                    "claves de API. Es el perfil del despliegue en servidor.",
-        "voice": {"stt_provider": "deepgram", "tts_provider": "elevenlabs"},
+        "voice": {"stt_provider": "deepgram", "tts_provider": "inworld"},
         "v2": {
             # Named a two-versions-old model until 2026-08-19, which stopped being the titular on 2026-08-02, so
             # anyone who picked this profile in the wizard was silently overwriting the live default with a

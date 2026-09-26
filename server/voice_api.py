@@ -385,7 +385,8 @@ async def status():
     # elevenlabs was MISSING from this map (2026-09-10): with no key at all — or a revoked one — the row said
     # «ok · Voz ElevenLabs» while every synthesis would 401. Presence here; validity comes from the balance
     # probe recording health_state («auth») when the provider answers 401.
-    needs_key = {"cartesia": "CARTESIA_API_KEY", "elevenlabs": "ELEVENLABS_API_KEY"}.get(prov)
+    needs_key = {"cartesia": "CARTESIA_API_KEY", "elevenlabs": "ELEVENLABS_API_KEY",
+                 "inworld": "INWORLD_API_KEY"}.get(prov)
     if tts_err:
         tts_state, tts_detail = "error", f"{prov} · {tts_err['kind']}"
     elif needs_key and not has(needs_key):

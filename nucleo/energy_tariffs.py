@@ -47,6 +47,8 @@ from loguru import logger
 #   deepgram  — deepgram.com/pricing (Nova-3, pay-as-you-go, monolingual)
 #   elevenlabs— elevenlabs.io/pricing/api (Flash/Turbo v2.5)
 #   cartesia  — cartesia.ai/pricing (Sonic, pay-as-you-go)
+#   inworld   — inworld.ai/pricing, verified 2026-09-26 (Realtime TTS-2 on-demand $25/1M chars; the engine
+#               runs `inworld-tts-2`. TTS-2 Flash is $15/1M — bill at the dearer model until a rate says so)
 #
 # LOCAL BACKENDS ARE DELIBERATELY ABSENT. `whisper_local`/`kokoro_local` are free, and free is a
 # PROPERTY OF THE PROVIDER, not a rate of zero somebody can later mistake for "unpriced". The caller
@@ -61,6 +63,7 @@ DEFAULT_STT_USD_PER_MIN: dict[str, float] = {
 DEFAULT_TTS_USD_PER_1K_CHARS: dict[str, float] = {
     "elevenlabs": 0.05,
     "cartesia": 0.04,
+    "inworld": 0.025,
 }
 
 # $ per PARTICIPANT-minute of real-time transport. Source: livekit.com/pricing, 2026-08-16 —

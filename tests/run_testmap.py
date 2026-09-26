@@ -4644,6 +4644,14 @@ DOMAINS: list[dict] = [
                                "que dice la tabla",
             "ch": UNIT,
             "paths": ["tests/infrastructure/unit/config/test_the_deployment_picks_the_profile.py"]},
+        # V2-774 — el operador, 2026-09-26: Inworld de titular y ElevenLabs de segunda. Medido con los mismos
+        # plugins de LiveKit que corre el motor (inworld-tts-2 185/168 ms al primer audio frente a 194/175 del
+        # eleven_turbo que reemplaza, a mitad de precio). Un proveedor construible que falta en UNA superficie
+        # falla en silencio (el ⚙ lo descarta, se factura al catch-all), así que se fija cada una.
+        {"id": "8.19", "title": "Inworld es el TTS titular y cada superficie lo conoce; una voz medida por "
+                                "variante (es-ES, es-419, en-US, en-GB)",
+            "ch": UNIT,
+            "paths": ["tests/voice/unit/test_inworld_is_the_default_tts.py"]},
         # V2-672 — el operador, viendo su instalación recién reseteada: «me pide los idiomas, pero por detrás
         # está hablando ya en un idioma por defecto». Era una DECISIÓN escrita en agent.py, no un despiste. Y
         # la otra mitad: una única voz castellana cableada para TODOS los idiomas, así que el inglés salía con

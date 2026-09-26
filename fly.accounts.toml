@@ -22,7 +22,7 @@ primary_region = "iad"   # same region as zaelar-demo
   DEPLOY_ENV = "fly·iad·accounts"
   # Same provider wiring as fly.demo.toml / machineConfig.js's BASE_PROVIDER_ENV — MUST stay in sync
   # by hand (two deployables, no shared build step).
-  ZAELAR_TTS = "elevenlabs"
+  ZAELAR_TTS = "inworld"   # V2-774 — needs the INWORLD_API_KEY secret on the app
   # FlashBrain = deepseek-v4-flash vía AIMLAPI. Es el único que enruta 12/12 (benchmarks §9); grok queda VETADO por
   # mis-rutear («conversaciones absurdas»). Requiere el secret AIMLAPI_KEY del app zaelar-accounts (puesto
   # 2026-08-13).

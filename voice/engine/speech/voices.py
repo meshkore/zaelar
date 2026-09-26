@@ -120,6 +120,18 @@ def elevenlabs_default_voice(lang: str | None = None, region: str | None = None)
                          picked_region() if region is None else region)
 
 
+def inworld_voices(lang: str | None = None) -> list:
+    """Inworld voices for a language (active language if None) — every one native to it (V2-774)."""
+    from .inworld_voices import for_language
+    return for_language(lang or langs.current_code())
+
+
+def inworld_default_voice(lang: str | None = None, region: str | None = None) -> str:
+    """The Inworld voice for this language/region when the operator has not picked one (V2-774)."""
+    from .inworld_voices import default_voice
+    return default_voice(lang or langs.current_code(), picked_region() if region is None else region)
+
+
 def default_voice_for(provider: str | None = None, lang: str | None = None,
                       region: str | None = None) -> str:
     """The right voice for (provider, language, region) when nothing has been chosen — the seam the
@@ -130,6 +142,8 @@ def default_voice_for(provider: str | None = None, lang: str | None = None,
         return kokoro_default_voice(lang)     # local voices have one accent each; a region cannot narrow it
     if p == "elevenlabs":
         return elevenlabs_default_voice(lang, region)
+    if p == "inworld":
+        return inworld_default_voice(lang, region)
     return ""                    # Cartesia's voices are multilingual — one voice speaks any language
 
 
@@ -165,6 +179,9 @@ def voice_is_aligned(provider: str | None, voice: str, lang: str | None = None,
         return False
     if p == "kokoro":
         return any(v["voice"] == voice for v in kokoro_voices(lang))
+    if p == "inworld":
+        from .inworld_voices import is_aligned
+        return is_aligned(voice, lang or langs.current_code(), picked_region() if region is None else region)
     if p == "elevenlabs":
         rows = elevenlabs_voices(lang)
         natives = [v for v in rows if v.get("native")]
@@ -209,6 +226,8 @@ def voices_for(provider: str | None = None, lang: str | None = None) -> list:
         return kokoro_voices(lang)
     if p == "elevenlabs":
         return elevenlabs_voices(lang)
+    if p == "inworld":
+        return inworld_voices(lang)
     return VOICES_BY_PROVIDER.get(p) or VOICES_BY_PROVIDER["cartesia"]
 
 
@@ -240,5 +259,6 @@ def selected_voice(provider: str | None = None) -> str:
 
 
 __all__ = ["VOICES_BY_PROVIDER", "voices_for", "kokoro_voices", "kokoro_default_voice",
-           "elevenlabs_voices", "elevenlabs_default_voice", "default_voice_for", "voice_is_aligned",
+           "elevenlabs_voices", "elevenlabs_default_voice",
+           "inworld_voices", "inworld_default_voice", "default_voice_for", "voice_is_aligned",
            "tts_provider", "selected_voice", "describe_voice"]

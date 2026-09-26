@@ -64,7 +64,7 @@ def get(key: str, default=None):
 # settings.json: map legacy names where we can (kokoro → kokoro_local), drop unknown ones (auto/browser/deepgram-
 # TTS…) so a stale ⚙ value can't poison the engine's ZAELAR_* env. The operator re-picks a valid one in the ⚙.
 _ENGINE_STT = {"voxtral", "deepgram", "whisper_local"}
-_ENGINE_TTS = {"cartesia", "elevenlabs", "kokoro_local"}   # elevenlabs = TTS cloud fiable (V2-035)
+_ENGINE_TTS = {"cartesia", "elevenlabs", "inworld", "kokoro_local"}   # elevenlabs = TTS cloud fiable (V2-035)
 _LEGACY_TTS_ALIAS = {"kokoro": "kokoro_local"}   # old zaelar catalog name → engine name (preserve the choice)
 
 
@@ -125,7 +125,8 @@ def load_into_env():
 _STT_LABELS = {"voxtral": "Voxtral · Mistral (cloud)", "deepgram": "Deepgram Nova-3 (cloud)",
                "whisper_local": "Whisper local (privado · gratis)"}
 _TTS_LABELS = {"cartesia": "Cartesia Sonic (cloud)", "kokoro_local": "Kokoro local (privado · gratis)",
-               "elevenlabs": "ElevenLabs (cloud · voz nativa por idioma)"}
+               "elevenlabs": "ElevenLabs (cloud · voz nativa por idioma)",
+               "inworld": "Inworld (cloud · titular · voz nativa por idioma)"}
 
 
 def _current_locale() -> str:
