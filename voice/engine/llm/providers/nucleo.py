@@ -1219,6 +1219,13 @@ class NucleoLLMStream(llm.LLMStream):
                     from widgets import effects as _fx
                     if _fx.carries(wid, action_name, _fx.PRESENT_MOUNT):
                         _cvis.present(wid, reason="producer-mount", action=action_name, src="flash", emit=emit)
+                    # A LENS on a closed card brings the card (V2-773 final pass, C2): «Show me that time in my
+                    # calendar» ran `agenda:show_day` — a view-op, writes nothing — over a canvas with no agenda
+                    # on it, and the day changed on a card nobody could see. The model chose to change what
+                    # THIS card displays, on his order: that is a turn-order for the card. A write is not this
+                    # (it may run behind the screen on purpose); a lens nobody can see is a silent nothing.
+                    elif _fx.carries(wid, action_name, _fx.DATA_READ) and not _cvis.is_open(wid):
+                        _cvis.present(wid, reason="turn-order", action=action_name, src="flash", emit=emit)
                 except Exception:
                     pass
             elif mode == _wactions.CONFIRM:

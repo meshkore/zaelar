@@ -371,7 +371,9 @@ def to_rrule(rep: dict) -> str:
 #: dropped in silence — the dropped `recurrence` is how his Tuesdays vanished while the reply promised them.
 MEETING_KEYS = frozenset(("title", "date", "startTime", "time", "endTime", "notes", "details", "location",
                           "place", "category", "attendees", "people", "with", "status", "confirmed", "allDay",
-                          "all_day", "meet", "newTitle", "id", "item", "widget_id", "action") + ALL_KEYS)
+                          "all_day", "meet", "newTitle", "id", "item", "widget_id", "action",
+                          # a DURATION says the end (V2-773): read by add_meeting and move_meeting alike
+                          "duration", "durationMinutes", "minutes") + ALL_KEYS)
 
 
 def ignored_keys(payload: dict) -> list[str]:

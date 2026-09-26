@@ -390,8 +390,17 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
             start = _resolve_time(_rawtime)
             end = payload.get("endTime", "")
             if not re.match(r"^\d{1,2}[:h]\d{2}$|^\d{2}:\d{2}$", str(end)):
-                eh = (int(start[:2]) + 1) % 24             # no explicit end -> +1h
-                end = f"{eh:02d}:{start[3:5]}"
+                # A DURATION is how he says the end («a 45-minute slot»): the model sent `duration: 45` and
+                # the card answered «no sé guardar duration», wrote a one-hour row and told him so (V2-773
+                # final pass, C3). The same keys `move_meeting` already reads (`edit._DUR_KEYS`).
+                _dur = next((str(payload.get(k) or "") for k in edit._DUR_KEYS if str(payload.get(k) or "").strip()), "")
+                _m = re.search(r"\d{1,3}", _dur)
+                if _m and 0 < int(_m.group()) <= 24 * 60:
+                    _t = int(start[:2]) * 60 + int(start[3:5]) + int(_m.group())
+                    end = f"{(_t // 60) % 24:02d}:{_t % 60:02d}"
+                else:
+                    eh = (int(start[:2]) + 1) % 24         # no explicit end -> +1h
+                    end = f"{eh:02d}:{start[3:5]}"
             _new = {"title": title, "date": date, "startTime": start, "endTime": end}
         # V2-639 — the operator asks WHAT an appointment is («qué es ese punto del dentista»); a title is
         # a label, the substance travels in `notes` (place, who with, what to bring…), shown in the digest.

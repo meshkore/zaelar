@@ -157,3 +157,18 @@ def test_three_months_is_a_period_of_its_own(fake_yahoo):
     got = mk.apply_action("range", {"range": "3 months"})
     assert got["range"] == "3mo" and "range=3mo" in fake_yahoo[-1] and "three months" in got["summary"]
     assert "3mo" in mk.view_data()["ranges"]
+
+
+def test_a_lens_on_a_closed_card_brings_the_card():
+    """V2-773 final pass (C2): «Show me that time in my calendar» ran `agenda:show_day` — a view-op — over a
+    canvas with no agenda on it, and the day changed on a card nobody could see. A lens the model chose on
+    his order is a turn-order for that card; a write is not (it may run behind the screen on purpose)."""
+    import pathlib
+    import re
+    src = (pathlib.Path(__file__).resolve().parents[4] / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
+    i = src.index("def _apply_widget_data(")
+    body = src[i:i + 9000]
+    assert re.search(r"elif _fx\.carries\(wid, action_name, _fx\.DATA_READ\) and not _cvis\.is_open\(wid\):\s*\n"
+                     r"\s*_cvis\.present\(wid, reason=\"turn-order\"", body), "a view-op on a closed card must bring it"
+    from widgets import effects as fx
+    assert fx.carries("agenda", "show_day", fx.DATA_READ) and not fx.carries("agenda", "add_meeting", fx.DATA_READ)
