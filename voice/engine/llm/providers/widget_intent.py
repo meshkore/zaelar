@@ -84,6 +84,21 @@ def _close_target(wid: str, text: str = "") -> dict:
         return {"id": wid, "ids": [wid], "ask": "", "options": []}
 
 
+def with_also_named(ids, text: str) -> list[str]:
+    """The cards to close: the resolved ones plus the OTHER open cards the sentence names (V2-773 — «Close the
+    map and the results» closed the map and asked which one for the rest). Fail-soft to the list given."""
+    out = [str(x) for x in (ids or []) if str(x or "").strip()]
+    try:
+        from server.voice_api import open_instances
+        from widgets import instances as _inst
+        for x in _inst.also_named(text, open_instances(), exclude=out):
+            if x not in out:
+                out.append(x)
+    except Exception:  # noqa: BLE001
+        pass
+    return out
+
+
 def _widget_fallback(text: str, emit, ask=None, last_spoken: str = "") -> bool:
     """Si la frase es una orden clara de mostrar/cerrar un widget conocido y el modelo no emitió la tag, la
     emitimos nosotros (idempotente). Reutiliza el identificador de `widgets/runtime`. Devuelve True si ACTUÓ

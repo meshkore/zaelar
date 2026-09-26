@@ -28,6 +28,8 @@ failure this removes.
 """
 from __future__ import annotations
 
+import re
+
 import re as _re
 import unicodedata as _ud
 
@@ -202,6 +204,46 @@ def show_id(target, open_ids, text: str = "") -> str:
     """
     out = resolve_show(target, open_ids, text)
     return str(out.get("id") or target or "")
+
+
+def data_target(target, open_ids) -> str:
+    """WHICH card a data-op on a BASE id lands on: the one open instance of that piece, when there is exactly one.
+
+    V2-773 (demo, «Open the most interesting one» over a worker's sheet `results::9194df-1`): the model calls
+    `widget_data(widget_id="results")` — the only name it has for the card — and the op ran on the base
+    sheet, which is empty: «no encuentro ese resultado en la hoja». With one instance open there is nothing
+    to ask; with several, the base travels as before and the ask paths above decide."""
+    tid = str(target or "").strip().lower()
+    if not tid or SEP in tid:
+        return tid
+    abiertas = instances_of(tid, open_ids)
+    return abiertas[0] if len(abiertas) == 1 else tid
+
+
+def also_named(text: str, open_ids, exclude=()) -> list[str]:
+    """The OTHER open cards a sentence names — «Close the map and the results» closes both (V2-773). Read by
+    the card's own id, name and aliases (the words it declares for itself), never by context; an open card the
+    sentence does not name is left alone."""
+    t = _strip_accents(str(text or "").lower())
+    if not t:
+        return []
+    skip = {base_of(x) for x in (exclude or [])}
+    out: list[str] = []
+    try:
+        from . import runtime as _rt
+    except Exception:  # noqa: BLE001
+        return []
+    for wid in (open_ids or []):
+        w = str(wid or "").strip()
+        b = base_of(w)
+        if not b or b in skip or w in out:
+            continue
+        man = _rt.get(b) or {}
+        words = [b, str(man.get("name") or ""), str(man.get("title") or "")] + [str(a) for a in (man.get("aliases") or [])]
+        words = [_strip_accents(x.lower()).strip() for x in words if str(x).strip()]
+        if any(re.search(r"(?<![a-z0-9])" + re.escape(x) + r"(?![a-z0-9])", t) for x in words if len(x) >= 3):
+            out.append(w)
+    return out
 
 
 def resolve_close(target, open_ids, text: str = "") -> dict:

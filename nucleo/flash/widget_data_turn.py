@@ -60,6 +60,12 @@ async def execute(tool_calls: list, text: str = "") -> dict:
     hechas, saltadas, fallidas = [], [], []
     for a in admitidas:
         wid = str(a.get("widget_id") or "").strip().lower()
+        try:                                              # V2-773 — mirror of the voice rail: the one open instance
+            from server.voice_api import open_instances as _open_inst
+            from widgets import instances as _inst_dt
+            wid = _inst_dt.data_target(wid, _open_inst()) or wid
+        except Exception:  # noqa: BLE001
+            pass
         act = str(a.get("action") or "").strip()
         pl = a.get("payload") if isinstance(a.get("payload"), dict) else {}
         # THE ITEM REFERENCE TRAVELS (V2-463). The tool declares `item` as its own argument («natural-language

@@ -1046,7 +1046,7 @@ class NucleoLLMStream(llm.LLMStream):
                         emit("brain", "❓ cerrar: varias tarjetas abiertas", text=wid, role="system",
                              extra={"options": _t["options"]})
                         return
-                    for _cid in (_t.get("ids") or [_t["id"] or wid]):
+                    for _cid in with_also_named(_t.get("ids") or [_t["id"] or wid], turn_text):
                         emit("widget", "close", extra={"id": _cid, "src": "flash"})
                         _canvas_lic.note_operator_close(_cid)                 # V2-650b
                     emit("brain", "🙈 cerrar (no borrar) — guard cerrar≠borrar", text=wid, role="system")
@@ -1139,6 +1139,14 @@ class NucleoLLMStream(llm.LLMStream):
             no declarada o vía de escape) → escala al SlowBrain. Punto de convergencia de la tool y el tag."""
             from widgets import actions as _wactions
             wid = (wid or "").strip().lower()
+            # V2-773 — a data-op on a BASE id lands on its one open instance (a worker's sheet `results::9194df-1`
+            # is the only «results» the model can name); several instances keep today's path.
+            try:
+                from server.voice_api import open_instances as _open_inst
+                from widgets import instances as _inst_dt
+                wid = _inst_dt.data_target(wid, _open_inst()) or wid
+            except Exception:  # noqa: BLE001
+                pass
             action_name = (action_name or "").strip()
             # V2-757 — THE TAIL OF A SENTENCE IS NOT AN ORDER. Here because this is where the tool and the
             # tag converge: a rule installed in one of two branches is this repo's own named way of fixing
@@ -2650,7 +2658,7 @@ class NucleoLLMStream(llm.LLMStream):
             if _cw:
                 acted["widget"] = True
                 acted["closed"] = True
-                for _cid in (_t.get("ids") or [_t["id"] or _cw]):
+                for _cid in with_also_named(_t.get("ids") or [_t["id"] or _cw], text):
                     emit("widget", "close", extra={"id": _cid, "src": "flash"})
                     _canvas_lic.note_operator_close(_cid)                     # V2-650b
                 emit("brain", "🙈 close por backstop (cerrar widget nombrado sin [[close]])",
@@ -3385,4 +3393,4 @@ class NucleoLLMStream(llm.LLMStream):
 # puntos de llamada de este fichero —y los tests que los alcanzan por aquí— los nombran sin prefijo.
 from voice.engine.llm.providers.widget_intent import (  # noqa: E402
     _close_target, _identify, _identify_is_widget, _identify_system, _is_meta_widget_question,
-    _norm_nfkd, _show_guard_target, _show_target_instance, _widget_fallback)
+    _norm_nfkd, _show_guard_target, _show_target_instance, _widget_fallback, with_also_named)
