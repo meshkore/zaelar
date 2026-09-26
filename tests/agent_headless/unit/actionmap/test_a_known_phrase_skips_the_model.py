@@ -520,7 +520,7 @@ def test_minimise_those_puts_every_open_card_on_the_rail(monkeypatch):
     assert seen == [("minimize", "results::d3-1"), ("minimize", "navegador::t1"), ("minimize", "documento")]
     monkeypatch.setattr(voice_api, "open_instances", lambda: [])
     assert executor.execute({"do": "minimize_all"}, emit, phrase="minimise those") is False, "nothing known open: the model answers"
-    from nucleo.actionmap import store
+    import json as _json
     for lang, phrase in (("en", "minimise those while you work"), ("es", "minimiza todo")):
-        pack = store._pack_entries(lang) if hasattr(store, "_pack_entries") else []
-        assert any(e.get("phrase") == phrase and e.get("action", {}).get("do") == "minimize_all" for e in pack), (lang, phrase)
+        pack = _json.loads((Path(__file__).resolve().parents[4] / f"nucleo/actionmap/seeds/{lang}.json").read_text("utf-8"))
+        assert any(e.get("phrase") == phrase and e.get("action", {}).get("do") == "minimize_all" for e in pack["entries"]), (lang, phrase)

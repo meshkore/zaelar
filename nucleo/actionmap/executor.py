@@ -148,6 +148,20 @@ def execute(action: dict, emit, phrase: str = "") -> bool:
     if do == "show_panel":
         emit("panel", action.get("action", "open"), text=said, extra={"tab": action["tab"], **src})
         return True
+    if do == "minimize_all":
+        # V2-773 — the demo's kickoff launches three errands whose sheets and browser tabs sit on the canvas;
+        # «Minimise those while you work» had no route and the reply narrated a shrink nobody saw. Every open
+        # card, resolved by the canvas report, one honest step down each (desktop.shrink).
+        try:
+            from server.voice_api import open_instances
+            ids = [str(x) for x in open_instances() if str(x or "").strip()]
+        except Exception:  # noqa: BLE001
+            ids = []
+        if not ids:
+            return False                     # nothing known open: let the model answer
+        for cid in ids:
+            emit("widget", "minimize", text=said, extra={"id": cid, **src})
+        return True
     wid = _resolve_widget(action["widget"])
     if not wid:
         return False
@@ -189,20 +203,6 @@ def execute(action: dict, emit, phrase: str = "") -> bool:
         return True
     if do == "fullscreen":
         emit("widget", "fullscreen", text=said, extra={"id": wid, **src})
-        return True
-    if do == "minimize_all":
-        # V2-773 — the demo's kickoff launches three errands whose sheets and browser tabs sit on the canvas;
-        # «Minimise those while you work» had no route and the reply narrated a shrink nobody saw. Every open
-        # card, resolved by the canvas report, one honest step down each (desktop.shrink).
-        try:
-            from server.voice_api import open_instances
-            ids = [str(x) for x in open_instances() if str(x or "").strip()]
-        except Exception:  # noqa: BLE001
-            ids = []
-        if not ids:
-            return False                     # nothing known open: let the model answer
-        for cid in ids:
-            emit("widget", "minimize", text=said, extra={"id": cid, **src})
         return True
     if do == "minimize":
         # V2-635 — «minimiza el vídeo» had NO deterministic route: the model chose the fullscreen TOGGLE,
