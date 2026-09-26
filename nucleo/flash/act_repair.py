@@ -22,10 +22,27 @@ from __future__ import annotations
 import json
 
 #: What the repair tells the model. Short on purpose: the ask is «make the call you promised», not a new turn.
-_SYS = ("Eres el cerebro de un asistente de voz. En el turno anterior PROMETISTE hacer algo sobre la tarjeta "
-        "«{wid}» y NO llamaste a ninguna herramienta. Haz AHORA exactamente la llamada `widget_data` que "
-        "cumple lo que prometiste, con widget_id «{wid}», una de estas acciones declaradas y el payload sacado "
-        "de las palabras del operador. Si ninguna encaja, no llames a nada.\n\nAcciones de «{wid}»:\n{actions}")
+_SYS = ("Eres el cerebro de un asistente de voz. En el turno anterior PROMETISTE (o AFIRMASTE haber hecho) algo "
+        "sobre la tarjeta «{wid}» y NO llamaste a ninguna herramienta. Haz AHORA exactamente la llamada "
+        "`widget_data` que cumple lo que dijiste, con widget_id «{wid}», una de estas acciones declaradas y el "
+        "payload sacado de las palabras del operador y de lo que hay en la tarjeta (una hora relativa —«media "
+        "hora más tarde»— se calcula sobre la cita que hay). Si ninguna encaja, no llames a nada.\n\n"
+        "Acciones de «{wid}»:\n{actions}{card}")
+#: What the card holds, so a relative order («move it 30 minutes later») can be turned into a call. The
+#: demo run (2026-09-26): the model computed «It's now at 2:00 PM, running until 2:45» in the turn — it had the
+#: digest — and this pass, which had only his words, could not, and returned nothing in silence.
+_CARD = "\n\nLO QUE HAY EN LA TARJETA «{wid}» AHORA:\n{digest}"
+
+
+def _note(wid: str, why: str, **extra) -> None:
+    """The pass ran and gave NO call — said on the timeline, because a silent None here was a turn that
+    claimed an act nobody could find (V2-773 audit)."""
+    try:
+        from voice.observer import emit
+        emit("brain", "🔁 la segunda pasada no dio llamada", text=f"{wid}: {why}", role="system",
+             extra={"cat": "flash", "widget": wid, "why": why, **extra})
+    except Exception:  # noqa: BLE001
+        pass
 
 
 def _actions_block(manifest: dict) -> str:
@@ -59,9 +76,16 @@ async def call_for_promise(operator_text: str, reply: str, widget_id: str, spec=
         if not declared or not tool:
             return None
         got: list[tuple[str, dict]] = []
+        digest = ""
+        try:
+            from nucleo.flash import widget_read as _wr
+            digest = str(_wr.read(wid) or "").strip()[:1500]
+        except Exception:  # noqa: BLE001 — without the card the pass still runs on his words
+            digest = ""
+        card = _CARD.format(wid=wid, digest=digest) if digest else ""
         from nucleo.flash.fast_client import FastClient
         await FastClient().complete(
-            [{"role": "system", "content": _SYS.format(wid=wid, actions=_actions_block(manifest))},
+            [{"role": "system", "content": _SYS.format(wid=wid, actions=_actions_block(manifest), card=card)},
              {"role": "user", "content": f"Operador: «{operator_text.strip()[:400]}»\n"
                                          f"Tu respuesta (sin llamada): «{(reply or '').strip()[:300]}»"}],
             spec=spec, max_tokens=300, tools=[tool], no_thinking=True,
@@ -70,12 +94,16 @@ async def call_for_promise(operator_text: str, reply: str, widget_id: str, spec=
             if name != "widget_data":
                 continue
             if str(args.get("widget_id") or "").strip().lower() != wid:
+                _note(wid, "la llamada nombra otra tarjeta", other=str(args.get("widget_id") or "")[:40])
                 continue
             action = str(args.get("action") or "").strip()
             if action not in declared:
+                _note(wid, "acción no declarada", action=action[:40])
                 continue
             payload = args.get("payload") if isinstance(args.get("payload"), dict) else {}
             return {"widget_id": wid, "action": action, "payload": payload}
+        if not got:
+            _note(wid, "el modelo no llamó a nada")
         return None
     except Exception:  # noqa: BLE001 — a repair must never take down a live turn
         return None

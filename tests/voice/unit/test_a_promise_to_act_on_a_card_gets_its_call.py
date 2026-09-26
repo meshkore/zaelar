@@ -94,3 +94,26 @@ def test_the_escalate_tool_says_a_torrent_is_not_an_errand():
     desc = next(t for t in rc.TOOLS if t["function"]["name"] == "escalate_to_slowbrain")["function"]["description"]
     no = desc.split("NO:")[1]
     assert "TORRENTS" in no and "archivos:torrent_search" in no
+
+
+def test_the_pass_sees_the_card_so_a_relative_order_can_become_a_call(client, monkeypatch):
+    """V2-773 audit (demo, C4): «Move it 30 minutes later» → the turn said «It's now at 2:00 PM, running until
+    2:45» with NO call. The main turn had the agenda digest (13:30–14:15) and computed the hour; this pass had
+    only his words, so it could not, and returned None in silence. Now it reads the same card."""
+    from nucleo.flash import widget_read
+    monkeypatch.setattr(widget_read, "read", lambda wid: "citas próximas (1):\n  · 2026-09-27 13:30 «Catch up with Ethan»")
+    seen = []
+    from voice import observer
+    monkeypatch.setattr(observer, "emit", lambda *a, **k: seen.append((a, k)))
+    _Client.answer = [("widget_data", {"widget_id": "agenda", "action": "move_meeting",
+                                       "payload": {"title": "Catch up with Ethan", "newTime": "14:00"}})]
+    got = _run("Move it 30 minutes later.", "It's now at 2:00 PM, running until 2:45.", "agenda")
+    assert got == {"widget_id": "agenda", "action": "move_meeting",
+                   "payload": {"title": "Catch up with Ethan", "newTime": "14:00"}}
+    sys_prompt = _Client.calls[-1]["messages"][0]["content"]
+    assert "13:30 «Catch up with Ethan»" in sys_prompt, "the card's own rows ride the pass"
+    assert "AFIRMASTE" in sys_prompt, "a claim of completion is repaired like a promise"
+    # …and a pass that gives no call SAYS so on the timeline
+    _Client.answer = []
+    assert _run("Move it 30 minutes later.", "Done.", "agenda") is None
+    assert any("segunda pasada no dio llamada" in str(a) for a, k in seen), seen
