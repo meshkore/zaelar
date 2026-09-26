@@ -1304,7 +1304,8 @@ DOMAINS: list[dict] = [
             "paths": ["tests/agent_headless/unit/flash/test_login_handoff_actually_happens.py"]},
         {"id": "2.19", "title": "Lo que el operador dijo sobrevive a un turno que falla (y el fallo se reporta)",
             "ch": UNIT,
-            "paths": ["tests/agent_headless/unit/flash/test_what_was_said_survives_a_failed_turn.py"]},
+            "paths": ["tests/agent_headless/unit/flash/test_what_was_said_survives_a_failed_turn.py",
+                      "tests/agent_headless/unit/flash/test_a_silent_action_closes_its_order_in_the_window.py"]},
         {"id": "2.9", "title": "Sandbox de ejecución ligero (V2-076)", "ch": UNIT, "paths": [
             "tests/agent_headless/unit/test_sandbox.py"]},
         {"id": "2.10", "title": "Puente git acotado + dev worker (V2-076)", "ch": UNIT, "paths": [

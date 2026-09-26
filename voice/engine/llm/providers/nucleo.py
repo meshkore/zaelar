@@ -3058,6 +3058,8 @@ class NucleoLLMStream(llm.LLMStream):
             # Guarda la respuesta SANEADA (anti-degeneración V2-032): si el modelo empalmó/repitió, no reinyectamos
             # esa basura al turno siguiente → cortamos el bucle de realimentación que degrada al modelo pequeño.
             brain._window.append({"role": "assistant", "content": _dialog.sanitize_reply(spoken_text)})
+        elif _tool_handled:
+            _dialog.record_silent_action(brain._window, _say().data_ack)
         del brain._window[:-_WINDOW_MAX]
         if not first_turn:
             brain._turn_count += 1   # INI-018 T6: solo turnos conversacionales reales cuentan para el cap demo

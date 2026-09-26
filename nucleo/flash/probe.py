@@ -1222,6 +1222,9 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
     dialog.push_user(sess.window, text)
     if spoken:
         sess.window.append({"role": "assistant", "content": spoken})
+    elif tags or tool_calls:
+        from i18n import langs as _lg
+        dialog.record_silent_action(sess.window, _lg.current_language().data_ack)
     del sess.window[:-_WINDOW_MAX]
     sess.last_action = action
 

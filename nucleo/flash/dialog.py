@@ -130,6 +130,20 @@ def push_user(window: list[dict], text: str) -> None:
     window.append({"role": "user", "content": t})
 
 
+def record_silent_action(window: list[dict], ack: str) -> None:
+    """A turn that ACTED and said nothing still answered — write that down (demo run, 2026-09-26).
+
+    «Play video number 2» played it with no spoken reply, so the window held «Play video number 2» and then
+    «Make it fullscreen» as two user lines with nothing between them — the shape `remember_what_was_said` uses
+    on purpose for a turn that went UNANSWERED. The model read the first as still pending, re-emitted
+    `youtube:play_result {item: 2}`, the context-bleed guard rightly dropped it, and the turn ended «Sorry, I
+    lost that» with no fullscreen. The short ack (`data_ack`, «Done.») closes the order in the window; a model
+    that imitates it says «Done.», which is harmless.
+    """
+    if window and window[-1].get("role") == "user" and (ack or "").strip():
+        window.append({"role": "assistant", "content": ack.strip()})
+
+
 # ── 2) PODA DE HISTORIAL ─────────────────────────────────────────────────────────────────────────────────
 def prune_window(window: list[dict]) -> list[dict]:
     """Colapsa respuestas del asistente casi idénticas para no reforzar el patrón. Conserva el orden y **los
