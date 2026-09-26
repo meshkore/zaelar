@@ -161,6 +161,7 @@ def view_data(q: str = "") -> dict:
         "chars": len(body),
         "empty": not (body or src),
         "process": _process(db),
+        "focus": db.get("focus") if isinstance(db.get("focus"), dict) else None,   # V2-773 — set by `goto`
     }
 
 
@@ -234,6 +235,53 @@ def _stamp(db: dict) -> dict:
     return db
 
 
+_STOP = {"the", "and", "that", "with", "this", "from", "show", "section", "part", "where", "which", "what", "about",
+         "explaining", "explains", "why", "los", "las", "del", "que", "una", "sobre", "sección", "parte", "donde",
+         "enséñame", "muéstrame", "llévame"}
+
+
+def _blocks(body: str) -> list:
+    """Headings on their own, paragraphs as one block each — the units the card renders."""
+    out, buf = [], []
+    for line in str(body or "").splitlines():
+        t = line.strip()
+        if t.startswith("#"):
+            if buf:
+                out.append(" ".join(buf)); buf = []
+            out.append(t)
+        elif not t:
+            if buf:
+                out.append(" ".join(buf)); buf = []
+        else:
+            buf.append(t)
+    if buf:
+        out.append(" ".join(buf))
+    return out
+
+
+def _best_block(body: str, query: str) -> str:
+    """The block that best matches: an exact phrase wins; else most query words, a heading winning a tie."""
+    q = str(query or "").strip().lower()
+    if not q:
+        return ""
+    blocks = _blocks(body)
+    for b in blocks:
+        if len(q) >= 8 and q in b.lower():
+            return b.lstrip("# ").strip()
+    words = {w.strip(".,;:«»\"'()?¿!¡") for w in q.split()}
+    words = {w for w in words if len(w) >= 4 and w not in _STOP}
+    if not words:
+        return ""
+    best, score = "", 0.0
+    for i, b in enumerate(blocks):
+        low = b.lower()
+        n = sum(1 for w in words if w[:6] in low)          # a stem, so «colonies» finds «Colonies», «grievance» «grievances»
+        sc = n + (0.5 if b.startswith("#") else 0) - i * 1e-4
+        if n and sc > score:
+            best, score = b.lstrip("# ").strip(), sc
+    return best
+
+
 def apply_action(action: str, payload: dict = None) -> dict:
     p = payload or {}
     a = str(action or "").strip().lower()
@@ -254,6 +302,7 @@ def apply_action(action: str, payload: dict = None) -> dict:
             # An empty `show` must NOT blank a sheet the operator is reading (the `imagenes` lesson): they
             # would be left staring at nothing with no way back, and the honest report is that nothing came.
             return {"ok": False, "error": "no llegó ningún contenido para la hoja ('body' vacío)"}
+        db.pop("focus", None)
         db.update({"kind": kind, "body": "" if kind == "pdf" else body, "src": resolved,
                    "title": _text(p.get("title"), 120),
                    "subtitle": _text(p.get("subtitle") or p.get("summary"), 200),
@@ -282,6 +331,22 @@ def apply_action(action: str, payload: dict = None) -> dict:
             db["title"] = _text(p.get("title"), 120)
         store.save(WIDGET_ID, _stamp(db))
         return {"ok": True, "added": len(body) - len(old), "chars": len(body)}
+
+    if a == "goto":
+        # «Show me the section explaining why the colonies wanted independence» over the Declaration on screen
+        # (demo run, 2026-09-26): the reply described the passage and the sheet never moved — no action could.
+        # The best-matching heading or passage becomes the FOCUS; the card scrolls to it and marks it.
+        body = str(db.get("body") or "")
+        if _kind(db.get("kind")) == "pdf" or not body.strip():
+            return {"ok": False, "error": "no hay texto en la hoja al que ir"}
+        hit = _best_block(body, str(p.get("text") or p.get("section") or p.get("query") or p.get("item") or ""))
+        if not hit:
+            heads = [b.lstrip("# ").strip() for b in _blocks(body) if b.startswith("#")][:12]
+            return {"ok": False, "error": "no encuentro ese pasaje — pásame un título o una frase suya",
+                    "headings": heads}
+        db["focus"] = {"text": hit[:160], "at": time.time()}
+        store.save(WIDGET_ID, _stamp(db))
+        return {"ok": True, "found": hit[:200]}
 
     if a == "clear":
         store.save(WIDGET_ID, _stamp(_seed()))

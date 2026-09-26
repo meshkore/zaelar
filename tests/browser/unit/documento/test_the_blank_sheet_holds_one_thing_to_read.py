@@ -54,8 +54,11 @@ def test_the_three_actions_are_declared_and_showing_is_a_view():
     from widgets import actions as wactions
     acts = _manifest()["actions"]
     # V2-661 added `save_to_library`: «guárdalo en mis archivos» with the sheet on screen is the operator's own
-    # ask, and one data-op beats a worker re-fetching a text that is already here. Still no fifth.
-    assert set(acts) == {"show", "append", "clear", "save_to_library"}, "keep the vocabulary small — that was the ask"
+    # ask, and one data-op beats a worker re-fetching a text that is already here.
+    # V2-773 added `goto`, also his own ask: his demo script says «Show me the section explaining why the colonies
+    # wanted independence» with the Declaration on screen, and the card could not move. Still no sixth.
+    assert set(acts) == {"show", "append", "goto", "clear", "save_to_library"}, \
+        "keep the vocabulary small — that was the ask"
     assert wactions.is_view(acts["show"], "show"), "`show` FILLS the sheet: it must be a view action (V2-547)"
     assert wactions.is_view(acts["append"], "append")
     assert wactions.classify(acts["clear"], "clear") == wactions.FAST

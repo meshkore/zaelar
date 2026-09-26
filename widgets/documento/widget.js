@@ -29,6 +29,7 @@ function injectStyles(){
   .hbd-src{font-size:11.5px;color:var(--hb-muted-2,#9aa7b8);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   /* V2-644 — the report reads like PAPER: a white page on the desk, whatever the theme. The page keeps the
      .hbd-sheet class so every content selector below still applies; colors inside are fixed light-scheme. */
+  .hbd-focus{background:color-mix(in srgb,#F2CE6B 38%,transparent);border-radius:4px;box-shadow:0 0 0 4px color-mix(in srgb,#F2CE6B 38%,transparent)}
   .hbd-scroll{flex:1 1 auto;min-height:0;overflow:auto;background:var(--hb-bg-soft,#eceef1);padding:16px 14px 22px}
   .hbd-sheet{max-width:760px;margin:0 auto;background:#fff;color:#111827;border-radius:6px;
              box-shadow:0 1px 3px rgba(15,23,42,.16),0 10px 30px rgba(15,23,42,.10);
@@ -381,4 +382,15 @@ export function render(root, data, ctx){
   const sheet = scroll.appendChild(el("div","hbd-sheet"));
   if(kind === "html") htmlInto(sheet, d.body);
   else markdownInto(sheet, d.body);
+  // V2-773 — a FOCUS set by `goto`: scroll to the block that carries it and mark it, once per focus.
+  const f = d.focus && String(d.focus.text || "").trim();
+  if(f){
+    const want = f.toLowerCase().slice(0, 80);
+    const hit = [...sheet.querySelectorAll("h1,h2,h3,h4,h5,h6,p,li,blockquote")]
+      .find(n => (n.textContent || "").toLowerCase().includes(want));
+    if(hit){
+      hit.classList.add("hbd-focus");
+      requestAnimationFrame(() => { try{ scroll.scrollTop = Math.max(0, hit.offsetTop - 12); }catch(_){} });
+    }
+  }
 }

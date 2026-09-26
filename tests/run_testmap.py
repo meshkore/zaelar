@@ -162,7 +162,8 @@ DOMAINS: list[dict] = [
         {"id": "4.101", "title": "La hoja en blanco sostiene UNA cosa para leer: markdown/html/pdf, sin ejecutar "
                                  "lo pegado y sin borrarse cuando no llega nada",
             "ch": UNIT,
-            "paths": ["tests/browser/unit/documento/test_the_blank_sheet_holds_one_thing_to_read.py"]},
+            "paths": ["tests/browser/unit/documento/test_the_blank_sheet_holds_one_thing_to_read.py",
+                      "tests/browser/unit/documento/test_the_sheet_goes_to_a_section.py"]},
         {"id": "2.2", "title": "Bucle de diálogo y anti-degeneración", "ch": UNIT, "paths": [
             "tests/agent_headless/unit/flash/test_dialog.py", "tests/agent_headless/unit/test_loop.py",
             # veredicto de latencia del turno: prompt grande vs proveedor vs frío vs trabajo real

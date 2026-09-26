@@ -41,6 +41,13 @@
       },
       "view": true
     },
+    "goto": {
+      "desc": "LLEVA la hoja a una SECCIÓN o pasaje y lo resalta («show me the section about…», «ve a la parte de…», «where it says…»): un título o una frase suya",
+      "payload": {
+        "text": "título de la sección o una frase del pasaje"
+      },
+      "view": true
+    },
     "clear": {
       "desc": "quita lo que haya y deja la hoja en blanco",
       "payload": {}
