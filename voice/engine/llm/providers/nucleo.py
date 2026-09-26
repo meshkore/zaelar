@@ -3192,9 +3192,12 @@ class NucleoLLMStream(llm.LLMStream):
         }
         # V2-587 — this turn's «did anything actually run» fact, computed ONCE and read by the empty-wait
         # guard here and by the promise backstop below (two copies of a nine-flag expression is how they drift).
+        # …and a READ is an act (V2-773 audit): «Let me check your calendar» followed by a `read_widget` and its
+        # answer was judged «promised to look and did not», read AGAIN with the raw sentence, and the second
+        # answer — over the summary this time — contradicted the first out loud.
         _did_act = bool(acted["widget"] or data_done["v"] or worker_acted["v"] or escalate_req["v"] is not None
                         or search_req["v"] is not None or music_req["v"] is not None or confirm_state.get("opened")
-                        or clarify.get("msg"))
+                        or clarify.get("msg") or read_req["v"] is not None)
         # The three HOLLOW-turn repairs — V2-572 bare «Hecho.» · V2-587 empty wait · V2-642 MUTE after a
         # sounded cover («Déjame que mire…» then silence forever, session 651c25ac) — live in ONE seam:
         # `second_pass.hollow_repairs`. The turn always closes; failing everything, the honest closer speaks.

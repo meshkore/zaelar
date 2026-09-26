@@ -44,9 +44,46 @@ def _norm(s) -> str:
 
 
 def _terms(question: str) -> list[str]:
-    """The words a question is actually ASKING ABOUT."""
-    words = [w for w in re.split(r"[^\wÁÉÍÓÚÜÑáéíóúüñ]+", _norm(question)) if len(w) > 2]
+    """The words a question is actually ASKING ABOUT. A bare number is never one: «2026» sat in the haystack of
+    EVERY row (its date), so a question about one afternoon came back «7 appointments match» (V2-773 audit).
+    Dates are read by `_dates_in` and scope the answer instead."""
+    words = [w for w in re.split(r"[^\wÁÉÍÓÚÜÑáéíóúüñ]+", _norm(question)) if len(w) > 2 and not w.isdigit()]
     return [w for w in dict.fromkeys(words) if w not in _STOP][:8]
+
+
+_ISO_DATE = re.compile(r"\b(\d{4}-\d{2}-\d{2})\b")
+_RELATIVE = (
+    (re.compile(r"\bpasado ma[nñ]ana\b|\bday after tomorrow\b"), 2),
+    (re.compile(r"\btomorrow\b|(?<!por la )(?<!de la )(?<!esta )(?<!por )(?<!pasado )\bma[nñ]ana\b"), 1),
+    (re.compile(r"\btoday\b|\bhoy\b"), 0),
+    (re.compile(r"\byesterday\b|\bayer\b"), -1),
+)
+
+
+def _dates_in(question: str) -> list[str]:
+    """The DAYS a question is about: ISO dates written in it, and today/tomorrow/yesterday resolved against
+    the clock. A question that names a day is answered with that day's record — all of it, or its emptiness —
+    never with whatever rows happen to share a word with it."""
+    q = _norm(question)
+    found = list(dict.fromkeys(_ISO_DATE.findall(q)))
+    import datetime as _dt
+    try:
+        base = _dt.date.fromisoformat(_today())
+    except ValueError:
+        return found
+    for pat, delta in _RELATIVE:
+        if pat.search(q):
+            d = (base + _dt.timedelta(days=delta)).isoformat()
+            if d not in found:
+                found.append(d)
+    return found
+
+
+def _on_day(m: dict, day: str) -> bool:
+    if isinstance(m.get("repeat"), dict):
+        from . import recur
+        return recur.next_occurrence(m, day) == day
+    return str(m.get("date") or "") == day
 
 
 def _hits(terms: list[str], hay: str) -> int:
@@ -119,13 +156,28 @@ def read_query(question: str) -> str:
     precisely what cannot answer it.
     """
     terms = _terms(question)
-    if not terms:
+    days = _dates_in(question)
+    if not terms and not days:
         return ""
     try:
         from . import data as _data
         meets = list((_data.load_db() or {}).get("meetings") or [])
     except Exception:                                    # noqa: BLE001 — a broken read answers nothing
         return ""
+    if days:
+        # A DAY is asked about: its whole record, in time order — «What do I have tomorrow afternoon?» over an
+        # empty Sunday used to return every row of the calendar (the year matched them all) and the model
+        # then read Monday's meetings as tomorrow's. An empty day is an answer, not an absence.
+        rows = [m for m in meets if any(_on_day(m, d) for d in days)]
+        if terms:
+            named = [m for m in rows if _hits(terms, _haystack(m))]
+            rows = named or rows
+        rows.sort(key=lambda m: (str(m.get("date") or ""), not m.get("allDay"), str(m.get("startTime") or "")))
+        when = ", ".join(days)
+        if not rows:
+            return f"Ningún compromiso el {when}: ese día está LIBRE en el calendario (esto SÍ es el registro completo del día)."
+        return "\n".join([f"Citas del {when} — el registro COMPLETO de ese día ({len(rows)}):"]
+                         + [_row(m) for m in rows[:_MAX_ROWS * 2]])
     if not meets:
         return ""
     scored = []

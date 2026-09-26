@@ -156,3 +156,15 @@ def test_both_channels_carry_the_branch():
     src = open("nucleo/flash/second_pass.py", encoding="utf-8").read()
     assert src.count("a_promise_left_hanging(") == 2, "voice and probe must both carry the branch"
     assert src.count("promise_repair(") >= 3        # the def + both callers
+
+
+def test_a_read_widget_counts_as_the_look_so_the_promise_is_not_repaired_twice():
+    """V2-773 audit: «Let me check your calendar…» + a `read_widget` + its answer was judged «promised and did
+    not look», read AGAIN with the raw sentence over the summary, and the second answer contradicted the first
+    out loud («nothing booked» … «your afternoon is mostly taken»). A read is the look."""
+    from pathlib import Path
+    import re
+    src = (Path(__file__).resolve().parents[4] / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
+    i = src.index("_did_act = bool(")
+    expr = "\n".join(src[i:].splitlines()[:4])            # the one expression, four lines long
+    assert 'read_req["v"] is not None' in expr, expr
