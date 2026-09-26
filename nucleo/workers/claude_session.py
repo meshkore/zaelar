@@ -40,6 +40,16 @@ _ZAELAR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file
 # (`workers/workdir.py`) y ahí escribir su propio JSON es la operación más pequeña que hay; MODIFICAR ficheros
 # que ya existen es otra cosa y nadie la ha pedido. Con `deny_tools` (input no confiable) sigue sin nada.
 _DEFAULT_TOOLS = ["Read", "Write"]
+
+
+def worker_shell(current: str) -> str:
+    """The shell the worker's Bash tool runs in: bash, never zsh. zsh ABORTS a command whose unquoted `?` or `*`
+    matches no file — `nav_cli goto https://www.amazon.com/s?k=27+inch+4k+monitor` failed with «no matches found»
+    (demo run, 2026-09-26) where bash passes the word through. The operator's login shell is his; this is ours."""
+    for sh in ("/bin/bash", "/usr/bin/bash"):
+        if os.path.exists(sh):
+            return sh
+    return current
 # PUENTES agnósticos que un worker CONFIABLE puede usar (Bash acotado a estos CLIs, nunca un Bash abierto).
 # hbmem/hbnote/hbweb (V2-036) + hbask/hbact (V2-038, plano request/response). Se omiten si deny_tools (§v3·P).
 # Puentes del worker (hbmem/hbnote/hbweb/hbask/hbwidget). El allowlist casa por PREFIJO LITERAL del comando, así
@@ -253,6 +263,7 @@ class ClaudeCodeSession(WorkerBackend):
         # process basics the CLI needs and the ONE credential its tier resolved above.
         if spec.kind == "dev":
             env = _dev_env_allowlist(env)
+        env["SHELL"] = worker_shell(env.get("SHELL", ""))
 
         logger.info(f"worker[{self._task_id}]: ClaudeCodeSession start (model={spec.model or 'default'}, "
                     f"tools={len(tools)}, deny={spec.deny_tools}, cwd={cwd})")

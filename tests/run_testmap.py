@@ -426,6 +426,7 @@ DOMAINS: list[dict] = [
             # + un turno correctivo si aun así choca.
             "tests/agent_headless/unit/workers/test_the_gate_is_ours.py",
             "tests/agent_headless/unit/workers/test_a_worker_spinning_on_one_step_is_stopped.py",
+            "tests/agent_headless/unit/workers/test_the_workers_shell_is_bash.py",
             # V2-277: le decíamos al worker WEB que corría «desde la raíz del repo» —falso desde V2-117— y
             # luego le bloqueábamos el `cd` con el que iba a llegar; y las reglas del cajón de V2-211 solo se
             # las dábamos al worker GENÉRICO, o sea a todos menos al que más shell compone. El guarda es de la
