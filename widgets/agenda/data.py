@@ -612,7 +612,11 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
             return {"ok": False, "error": edit.missing(db, payload)}
         _rawnew = str(payload.get("newDate") or payload.get("new_date") or payload.get("day")
                       or payload.get("to") or "").strip()
-        _rawtime = str(payload.get("newTime") or payload.get("new_time") or payload.get("startTime")
+        # `newStartTime` because its END twin `newEndTime` was already read (`edit._END_KEYS`) and the start
+        # was not: «Move it 30 minutes later» → {newStartTime 16:45, newEndTime 17:30} STRETCHED the meeting to
+        # 16:15-17:30 while the reply said «moved it to 4:45» (demo run, 2026-09-26).
+        _rawtime = str(payload.get("newTime") or payload.get("new_time") or payload.get("newStartTime")
+                       or payload.get("new_start_time") or payload.get("startTime")
                        or payload.get("time") or "").strip()
         _mgl = re.match(r"^\s*(\d{4}-\d{2}-\d{2})[T ]+(\d{1,2}:\d{2})\s*$", _rawnew)
         if _mgl:                                           # glued «YYYY-MM-DD HH:MM» is both fields in one

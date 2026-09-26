@@ -3276,7 +3276,8 @@ DOMAINS: list[dict] = [
                                  "un selector que no nombra nada PREGUNTA en vez de acertar por vecindad",
             "ch": UNIT,
             "paths": ["tests/browser/unit/agenda/"
-                      "test_every_order_the_card_declares_actually_lands.py"]},
+                      "test_every_order_the_card_declares_actually_lands.py",
+                      "tests/browser/unit/agenda/test_a_move_keeps_its_start_and_end_together.py"]},
         {"id": "4.203", "title": "La mitad de TAREAS son dos paneles delimitados con una tabla dentro — y el ＋ "
                                  "de «nueva lista» no puede irse de la pantalla con 100 listas",
             "ch": UNIT,
