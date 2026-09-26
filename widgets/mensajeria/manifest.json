@@ -57,7 +57,7 @@
   ],
   "actions": {
     "show_view": {
-      "desc": "CAMBIA LO QUE SE VE en la mensajería y CONTESTA: 'all' vuelve a la LISTA PRINCIPAL unificada (y cierra el chat abierto); 'whatsapp'|'telegram'|'email' filtra solo ese canal. Devuelve los chats que casan en `result.chats` para que respondas con sus nombres. Es obligatoria para eso — mostrar el widget de nuevo NO cambia la vista Con `window_h` (HORAS) fija además el CRITERIO de esa vista: enseña las CONVERSACIONES con actividad en esa ventana (72 = últimos 3 días; 0 lo quita) — queda fijado por plataforma hasta cambiarlo, y devuelve las que casan en `result.activity`",
+      "desc": "FILTRA lo que se ve por CANAL y PERIODO y CONTESTA («solo los correos de hoy», «show me only today's emails», «los whatsapps de esta semana»): platform email|whatsapp|telegram + window_h en horas (24 = hoy). 'all' vuelve a la LISTA PRINCIPAL unificada (y cierra el chat abierto). Devuelve los chats que casan en `result.chats` para que respondas con sus nombres. Es obligatoria para eso — mostrar el widget de nuevo NO cambia la vista. `window_h` (HORAS) fija el CRITERIO de esa vista: enseña las CONVERSACIONES con actividad en esa ventana (72 = últimos 3 días; 0 lo quita) — queda fijado por plataforma hasta cambiarlo, y devuelve las que casan en `result.activity`",
       "payload": {
         "platform": "string ('all' = lista principal | whatsapp | telegram | email)",
         "window_h": "number opcional (horas de la ventana de actividad; 72 = 3 días; 0 = quitar el criterio)"

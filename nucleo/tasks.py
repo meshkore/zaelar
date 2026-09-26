@@ -372,7 +372,8 @@ def interrupted(entry: dict) -> None:
     tid = str((entry or {}).get("id") or "").strip()
     if not tid:
         return
-    uid = task_uid(tid)
+    # The row the errand REALLY has: after a restart `task_uid(tid)` names the NEW boot's row, not this one.
+    uid = str((entry or {}).get("uid") or "").strip() or task_uid(tid)
     now = int(time.time())
     if _ts.task_get(uid) is None:
         _ts.task_put({"id": uid, "title": str(entry.get("goal") or ""), "goal": str(entry.get("goal") or ""),

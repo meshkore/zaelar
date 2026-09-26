@@ -374,3 +374,41 @@ def test_a_reset_in_a_test_never_touches_the_operators_real_widget_data(tmp_path
     kept = json.loads((sandbox / "results" / "state.json").read_text(encoding="utf-8"))
     assert not (kept.get("items") or []), "en el sandbox SÍ deja la hoja en blanco"
     assert str(sandbox) != real, "y el sandbox no puede ser el directorio real"
+
+
+# ── 3. the errand keeps ONE row across the restart (demo run, 2026-09-26) ─────────────────────────────────────
+def test_the_interrupted_row_is_the_errands_own_not_a_new_boots(fresh_db):
+    """One five-day search left THREE rows: the original stuck «pending» forever (the board and every «is it
+    done?» kept waiting on it), a duplicate «interrupted», and the resumed worker's. `task_uid(id)` recomputed
+    after a restart names the NEW boot's row — the errand's real row is the uid it was recorded under."""
+    from memory import tasks_store as ts
+    from nucleo import tasks
+    ts.task_put({"id": "oldboot-1", "title": "five free days", "goal": VELEROS, "kind": "web", "mode": "now",
+                 "state": "pending", "visible": True, "origin": "voz", "created_at": 1, "started_at": 1})
+    R.remember([_live(uid="oldboot-1")])
+    R.at_boot(schedule=False)
+    assert ts.task_get("oldboot-1")["state"] == "failed", "the errand's own row carries the cut"
+    assert len(tasks.board("done")) == 1, "and no second row is made for it"
+
+
+def test_the_resumed_worker_continues_the_same_row(fresh_db):
+    import asyncio
+
+    from nucleo.flash import escalate
+    calls = []
+
+    async def _run():
+        orig = escalate.escalate_to_slowbrain
+        escalate.escalate_to_slowbrain = lambda req, context=None: calls.append((req, context or {})) or 1
+        try:
+            R.remember([_live(uid="oldboot-1")])
+            R.at_boot(delay=0.0)
+            for _ in range(50):
+                await asyncio.sleep(0.01)
+                if calls:
+                    break
+        finally:
+            escalate.escalate_to_slowbrain = orig
+
+    asyncio.run(_run())
+    assert calls and calls[0][1].get("task_uid") == "oldboot-1", "a resume is a continuation, like a relay"

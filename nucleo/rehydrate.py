@@ -152,7 +152,10 @@ def classify(sessions: list[dict], *, at: float, now: float, marks: dict | None 
             continue
         goal = str(s.get("goal") or "").strip()
         kind = str(s.get("kind") or "generic")
-        ent = {"id": str(s.get("id") or "?"), "goal": goal, "kind": kind,
+        # `uid` — the DURABLE row of this errand. `task_uid(id)` recomputed after the restart names a row of the
+        # NEW boot, so the original stayed «pending» forever while a resumed worker opened a third one (demo run,
+        # 2026-09-26: one five-day search left three rows on the board).
+        ent = {"id": str(s.get("id") or "?"), "uid": str(s.get("uid") or ""), "goal": goal, "kind": kind,
                "phase": str(s.get("phase") or ""), "age_s": int(age)}
         n = int((marks.get(_goal_key(goal)) or {}).get("n") or 0)
         if not goal:
@@ -218,7 +221,8 @@ def at_boot(*, now: float | None = None, schedule: bool = True, delay: float | N
     try:
         from nucleo import tasks as _tasks
         for ent in plan["buried"] + plan["resume"]:
-            _tasks.interrupted({"id": ent["id"], "kind": ent.get("kind", ""), "goal": ent.get("goal", ""),
+            _tasks.interrupted({"id": ent["id"], "uid": ent.get("uid", ""), "kind": ent.get("kind", ""),
+                                "goal": ent.get("goal", ""),
                                 "started_at": float(snap.get("at") or now)})
     except Exception:  # noqa: BLE001
         pass
@@ -271,9 +275,11 @@ def _schedule(entries: list[dict], delay: float) -> None:
                     # de ≥40 candidatos en una ronda 2 de ≥80, endureciendo el encargo cada vez que se moría, con
                     # el mismo reloj. Pasando el `brief_task` se ENTRA POR LA VÍA YA PREVISTA para esto (reutilizar
                     # el brief tal cual): mismos criterios, misma ronda, misma amplitud.
-                    escalate.escalate_to_slowbrain(
-                        ent["goal"], context={"kind": ent.get("kind") or "generic", "rehydrated": True,
-                                              "resume": {"brief_task": str(ent.get("id") or "")}})
+                    _ctx = {"kind": ent.get("kind") or "generic", "rehydrated": True,
+                            "resume": {"brief_task": str(ent.get("id") or "")}}
+                    if ent.get("uid"):
+                        _ctx["task_uid"] = ent["uid"]      # the resumed worker CONTINUES the same row (as a relay)
+                    escalate.escalate_to_slowbrain(ent["goal"], context=_ctx)
                     logger.info(f"rehidratación: re-escalada «{ent['goal'][:70]}»")
                 except Exception as e:  # noqa: BLE001
                     logger.warning(f"rehidratación: re-escalar «{ent['goal'][:40]}» falló: {e}")
