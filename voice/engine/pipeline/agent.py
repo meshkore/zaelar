@@ -744,6 +744,11 @@ async def entrypoint(ctx: JobContext) -> None:
                 # generate_reply is at fault (session busy); if “received” is absent → the data packet did not arrive.
                 # (2026-07-07)
                 _emit("brain", "📥 chat/paste recibido", text=txt, role="user")
+                # V2-773 — HIS LINE ON EVERY WALL. The tab that typed it paints its own bubble; every other
+                # tab (his Chrome while an orchestrator drives the agent, the phone) saw only the replies, and
+                # `sse.js` had been waiting for a `text-injected` transcript nobody emitted. Same shape as the
+                # STT's final transcript, so a typed order and a spoken one leave the same trace on screen.
+                _emit("transcript", "text-injected chat", text=txt, role="user")
                 # generate_reply() is SYNC (returns a SpeechHandle and schedules the reply itself); calling it
                 # directly (wrapping in create_task raised "a coroutine was expected"). (fix 2026-07-07)
                 try:

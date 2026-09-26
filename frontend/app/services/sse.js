@@ -253,7 +253,15 @@ export function routeEvent(desktop, d) {
         // those turns was correctly judged «no dirigido a zaelar» and answered with silence — and every one
         // of them still landed in the chat as if he had said it). So a spoken turn is HELD until the verdict
         // says it was for us; typed text bypasses the hold, being directed by construction.
-        if (typed) { handleWidgetVoice(desktop, d.text, isFinal); store.pushChat({ role: "you", text: d.text }); }
+        if (typed) {
+          handleWidgetVoice(desktop, d.text, isFinal);
+          // V2-773 — the engine now announces every typed line (`text-injected chat`), so a tab that did not
+          // type it (his Chrome while an orchestrator drives the agent) paints it too. The tab that typed it
+          // already pushed its own bubble in `submitChat`: an identical last line of his is that one, not a repeat.
+          const xs = (store.chatMsgs && store.chatMsgs()) || [];
+          const last = xs[xs.length - 1];
+          if (!(last && last.role === "you" && last.text === d.text)) store.pushChat({ role: "you", text: d.text });
+        }
         else {
           // The FINAL text firms up the caption while the verdict is still pending — the interim stream has
           // stopped by now, so without this the line would freeze on the last partial (often a word short of

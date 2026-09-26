@@ -73,3 +73,35 @@ def present_if_show(read_req: dict, *, brief, operator_text: str, is_open: Calla
         return bool(present(wid, reason="turn-order", src="flash", emit=emit))
     except Exception:  # noqa: BLE001
         return False
+
+
+async def after_show(acted: dict, *, brief, operator_text: str, spoken_text: str, spec, emit, present: Callable,
+                     apply_widget_data: Callable) -> bool:
+    """The turn SHOWED a card and said it would do something on it — the show is not the act (V2-773, email
+    block). Two measured turns: «Show me only the emails from today that need my attention» opened the messaging
+    card from the catalogue and promised «let me pull your inbox up and flag what needs you» — no `show_view`;
+    «Open the most important one» over the open card had its spurious `escalate` turned into a show the door
+    suppressed («already open»), the reply said «Opening that one now», and nothing opened. Both had the card
+    in front and a promise (or a verdict naming the action); one pass asks for the call. True when a call ran."""
+    try:
+        from nucleo import danger as _danger
+        from nucleo.flash import act_repair as _repair, clarifying as _cl, direct_action as _da, router as _router
+        wid = str(acted.get("widget_id") or "").strip().lower()
+        if not wid or not (spoken_text or "").strip() or _danger.is_dangerous(operator_text):
+            return False
+        if _cl.asks_for_missing_detail(spoken_text):
+            return False
+        if not (acted.get("show_suppressed") or _router.promises_action(spoken_text) or _da.names_an_order(brief)):
+            return False
+        got = await _repair.call_for_promise(operator_text, spoken_text, wid, spec=spec)
+        if not got or str(got.get("action") or "") in ("show", "open_widget"):
+            return False
+        present(got["widget_id"], reason="turn-order", src="flash", emit=emit)
+        apply_widget_data(got["widget_id"], got["action"], got["payload"])
+        emit("brain", "🔁 abrió la tarjeta y prometió más — la llamada, en una segunda pasada",
+             text=f"{got['widget_id']}:{got['action']}", role="system",
+             extra={"cat": "flash", "widget": got["widget_id"], "action": got["action"],
+                    "suppressed": bool(acted.get("show_suppressed"))})
+        return True
+    except Exception:  # noqa: BLE001
+        return False

@@ -2351,7 +2351,10 @@ class NucleoLLMStream(llm.LLMStream):
                 escalate_req["v"] = None
                 search_req["v"] = None
                 acted["widget"] = True
-                _cvis.present(_guard_wid, reason="turn-order", src="flash", emit=emit)
+                # V2-773 — a show the door SUPPRESSES (already open) is not the act: the turn's order was inside
+                # the card («Open the most important one»), and `card_commission.after_show` asks for the call.
+                acted["show_suppressed"] = not _cvis.present(_guard_wid, reason="turn-order", src="flash", emit=emit)
+                acted["widget_id"] = acted.get("widget_id") or _guard_wid
                 emit("brain", "🪟 show por guard determinista (tool espuria evitada)",
                      text=f"{_guard_wid} ({'search' if _was_search else 'escalate'}→show"
                           f"{', licencia Jev' if _guard_src == 'jev' else ''})", role="system")
@@ -2500,6 +2503,13 @@ class NucleoLLMStream(llm.LLMStream):
                 emit("brain", "🔁 prometió actuar sin tool — la llamada, en una segunda pasada",
                      text=f"{_ar['widget_id']}:{_ar['action']}", role="system",
                      extra={"cat": "flash", "widget": _ar["widget_id"], "action": _ar["action"]})
+        # V2-773 — the turn SHOWED a card and promised more on it, or its show was suppressed over the open card
+        # with the verdict naming an action: the show is not the act (`card_commission.after_show`).
+        if acted.get("widget_id") and not data_done["v"] and spoken_text and not clarify["msg"]:
+            from nucleo.flash import card_commission as _cardc2
+            if await _cardc2.after_show(acted, brief=_brief, operator_text=_op_text, spoken_text=spoken_text, spec=spec,
+                                        emit=emit, present=_cvis.present, apply_widget_data=_apply_widget_data):
+                data_done["v"] = True
         if (_no_tool and spoken_text and _router.promises_action(spoken_text)
                 and not _router.asks_for_missing_detail(spoken_text)):
             _win_goal = ""

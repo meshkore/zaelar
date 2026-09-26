@@ -471,3 +471,41 @@ def test_a_read_the_verdict_says_to_SHOW_brings_the_card(monkeypatch):
     verb[0] = "neither"
     assert not card_commission.present_if_show({"v": {"widget_id": "agenda"}}, is_open=lambda w: False, **kw), (
         "a question with no show in it stays a read")
+
+
+def test_a_show_with_a_promise_on_it_is_not_the_act(monkeypatch):
+    """V2-773 email block: «Show me only the emails from today that need my attention» opened the messaging
+    card and promised «let me pull your inbox up and flag what needs you» — no `show_view`; «Open the most
+    important one» had its spurious escalate turned into a show the door SUPPRESSED (already open), the reply
+    said «Opening that one now», and nothing opened. The show is not the act: one pass asks for the call."""
+    src = _provider_src()
+    assert 'acted["show_suppressed"] = not _cvis.present(_guard_wid, reason="turn-order"' in src, (
+        "the guard show must record whether the door actually presented")
+    assert "_cardc2.after_show(acted, brief=_brief" in src
+    import asyncio
+    from nucleo import danger
+    from nucleo.flash import act_repair, card_commission, clarifying, direct_action, router
+    monkeypatch.setattr(danger, "is_dangerous", lambda t: False)
+    monkeypatch.setattr(clarifying, "asks_for_missing_detail", lambda r: r.endswith("?"))
+    monkeypatch.setattr(router, "promises_action", lambda r: "let me" in r)
+    monkeypatch.setattr(direct_action, "names_an_order", lambda b: False)
+    answer = {"widget_id": "mensajeria", "action": "show_view", "payload": {"platform": "email", "window_h": 24}}
+
+    async def pass_(operator_text, reply, wid, spec=None):
+        return answer
+    monkeypatch.setattr(act_repair, "call_for_promise", pass_)
+    applied = []
+    kw = dict(brief={"x": 1}, operator_text="Show me only the emails from today", spec=None, emit=lambda *a, **k: None,
+              present=lambda *a, **k: True, apply_widget_data=lambda w, a, p: applied.append((w, a, p)))
+    acted = {"widget_id": "mensajeria", "show_suppressed": False}
+    assert asyncio.run(card_commission.after_show(acted, spoken_text="On it — let me pull your inbox up", **kw))
+    assert applied == [("mensajeria", "show_view", {"platform": "email", "window_h": 24})]
+    # a bare show («show me my messages, here it is») with no promise and no suppressed show asks nothing
+    assert not asyncio.run(card_commission.after_show(acted, spoken_text="Here are your messages.", **kw))
+    # a suppressed show over the open card asks even without a promise wording
+    answer = {"widget_id": "mensajeria", "action": "open", "payload": {"item": "Cryptonite"}}
+    assert asyncio.run(card_commission.after_show({"widget_id": "mensajeria", "show_suppressed": True},
+                                                   spoken_text="Opening that one now.", **kw))
+    assert applied[-1] == ("mensajeria", "open", {"item": "Cryptonite"})
+    # a reply that ASKS for the detail it needs is not a promise left hanging
+    assert not asyncio.run(card_commission.after_show(acted, spoken_text="What should the reply say?", **kw))
