@@ -64,10 +64,17 @@ def _get(url: str) -> dict:
     raise last
 
 
+#: The short codes a model writes («1M» measured live, 2026-09-26 — it fell to «today»).
+_CODES = {"1m": "1mo", "30d": "1mo", "1month": "1mo", "6m": "6mo", "3m": "6mo", "1w": "5d", "7d": "5d",
+          "1wk": "5d", "12m": "1y", "1yr": "1y", "ytd": "1y", "5yr": "5y", "today": "1d", "1day": "1d"}
+
+
 def _range_of(raw) -> str:
     r = str(raw or "").strip().lower()
     if r in RANGES:
         return r
+    if r.replace(" ", "") in _CODES:
+        return _CODES[r.replace(" ", "")]
     for pat, code in _RANGE_WORDS:
         if re.search(pat, r):
             return code

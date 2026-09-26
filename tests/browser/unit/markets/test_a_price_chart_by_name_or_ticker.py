@@ -62,7 +62,8 @@ def test_the_last_month_instead_moves_against_the_start_of_the_period(fake_yahoo
 
 @pytest.mark.parametrize("said,want", [("today", "1d"), ("this week", "5d"), ("last month", "1mo"),
                                        ("el último mes", "1mo"), ("six months", "6mo"), ("this year", "1y"),
-                                       ("the whole year", "1y"), ("5 years", "5y"), ("1mo", "1mo"), ("", "1d")])
+                                       ("the whole year", "1y"), ("5 years", "5y"), ("1mo", "1mo"), ("", "1d"),
+                                       ("1M", "1mo"), ("6M", "6mo"), ("1W", "5d"), ("1Y", "1y")])
 def test_the_period_words_map_onto_a_range(said, want):
     assert mk._range_of(said) == want
 

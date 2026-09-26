@@ -1316,7 +1316,9 @@ class NucleoLLMStream(llm.LLMStream):
             # está en pantalla ni se nombra: el incidente, la trampa de las acciones de CREAR y la razón de
             # escalar el turno CRUDO están en `frontend.absent_widget_misroute` — la MISMA función que usa
             # el probe, donde vivía copiada y hubo que arreglarla dos veces por separado.
-            if _frontend.absent_widget_misroute(wid, action_name, ref, resolved=res.ok,
+            # An AMBIGUOUS reference found this card's own rows — it is a «which one?», never a worker's job
+            # (demo run: «Move it 30 minutes later» over two same-named meetings started a Brain Worker).
+            if _frontend.absent_widget_misroute(wid, action_name, ref, resolved=res.ok or res.needs == "ambiguous",
                                                 named_widget=_identify(text)):
                 emit("brain", "🧭 data-op en widget ausente/no-nombrado (pronombre/ítem sin anclar) → escala con contexto",
                      role="system", text=f"{wid}:{action_name}:{ref or '∅'}", extra={"needs": res.needs})

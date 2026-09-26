@@ -2728,7 +2728,8 @@ DOMAINS: list[dict] = [
                                  "resolvedor no pueden discrepar, POSICIÓN es otra declaración distinta, y si "
                                  "el modelo no nombra nada se lee SU FRASE",
             "ch": UNIT, "paths": ["tests/browser/unit/widgets/"
-                                  "test_the_item_he_named_is_not_thrown_away.py"]},
+                                  "test_the_item_he_named_is_not_thrown_away.py",
+                      "tests/agent_headless/unit/flash/test_a_reference_with_a_time_picks_its_row.py"]},
         {"id": "4.187", "title": "«Simplifica a una» DEJA una: dedupe_meetings colapsa cada grupo repetido "
                                  "sin llevarse la cita, cancel_meeting sigue llevándose todas sus copias, y "
                                  "las dos agrupan por la MISMA función",

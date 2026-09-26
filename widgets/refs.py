@@ -489,6 +489,17 @@ def resolve(widget_id: str, action: str, ref: str, payload: dict | None = None,
     if len(exact) == 1:
         payload[field] = exact[0]["id"]
         return RefResult(True, payload)
+    # Same-named rows, and the reference carries the TIME or DATE that tells them apart — «Catch up with Oscar
+    # tomorrow September 27 at 16:15» over two «Catch up with Oscar» at 15:30 and 16:15 (demo run, 2026-09-26):
+    # it came back ambiguous, and the «27» was about to be read as a row NUMBER. Read from the RAW reference
+    # (normalising strips the colon) against the rows' own hints; exactly one match, or nothing changes.
+    _toks = set(re.findall(r"\b\d{1,2}:\d{2}\b|\b\d{4}-\d{2}-\d{2}\b", f"{ref or ''} {given}"))
+    if _toks:
+        _named = [i for i in idx if _norm(i["label"]) and _norm(i["label"]) in query]
+        _by_time = [i for i in _named if any(t in str(i.get("hint") or "") for t in _toks)]
+        if len(_named) > 1 and len(_by_time) == 1:
+            payload[field] = _by_time[0]["id"]
+            return RefResult(True, payload)
     # Two rows with the SAME label are two DIFFERENT things, so more than one exact hit falls THROUGH to the
     # scorer, which ties them and makes the tie-break ask. The old code iterated the index and returned the
     # first match: measured on 29 rows all titled «New» that arrived in one day, `cancel_meeting` resolved
