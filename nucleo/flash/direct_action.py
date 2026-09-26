@@ -181,8 +181,13 @@ def verdict_escalates(brief) -> bool:
         return False
 
 
-def names_an_order(brief) -> bool:
+def names_an_order(brief, *, sure: float = 0.0) -> bool:
     """Does the turn's verdict name a declared action of an open card, on a turn it does not read as a remark?
+
+    `sure` — a floor on the ACTION verdict's confidence for the callers that will WRITE on it (V2-773, demo v3
+    C2): «Find me a free 45-minute slot» read `agenda:add_meeting` at 0.54, the reply was an ANSWER (the day's
+    gaps), and the promise repair booked «Call with Ethan» — a write nobody ordered. An answer with an unsure
+    action behind it is not a promise left hanging; a PROMISE in the reply is judged by its own detector.
 
     The gate for the promise repair (`act_repair`), in both channels (V2-770). That repair used to wait for a
     regex to find a PROMISE in the reply, and a reply that CLAIMS instead of promising slipped under it: measured
@@ -196,6 +201,10 @@ def names_an_order(brief) -> bool:
         # and «Show me only today's emails» promised or denied with no call and no repair ever looked.
         if not from_brief(brief)[1] and not _bd.named_card(brief):
             return False
+        if sure and from_brief(brief)[1]:
+            _c, _i = _tb.read(brief, _tb.TARGET_KEY, "", min_confidence=sure)
+            if _i is None or not _i.get("used"):
+                return False
         kind, info = _tb.read(brief, _tb.REQUEST_KEY, "")
         return info is not None and kind not in NOT_AIMED_AT_THE_SCREEN
     except Exception:  # noqa: BLE001

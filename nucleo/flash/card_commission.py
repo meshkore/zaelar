@@ -21,6 +21,39 @@ from __future__ import annotations
 from typing import Callable
 
 
+def named_or_catalogue(brief, operator_text: str, *, wait_s: float = 1.2) -> str:
+    """The card an order names — by the brief, or by ONE late catalogue question when the brief could not know.
+
+    The brief asks `screen_action` while cards are open and `catalog_widget` only when nothing is, on purpose
+    (V2-726). So an order for a CLOSED card while other cards are open reads as a confident «none» and names
+    nobody: demo v3, C5 — «Message Ethan on Telegram» with the agenda open — read `none` 0.91, the model
+    answered from the agenda and nothing was sent. When the screen verdict is a sure «none» and nothing was
+    called, one bounded catalogue question (the same criteria, the same reader) says which closed card it is.
+    Returns "" when unsure or when nothing can be asked; never waits past `wait_s`; never raises."""
+    try:
+        from nucleo import jev as _jev
+        from nucleo.flash import build_decision as _bd, turn_brief as _tb
+        card = _bd.named_card(brief)
+        if card:
+            return card
+        choice, info = _tb.read(brief, _tb.TARGET_KEY, "")
+        if str(choice or "") != "none" or not (isinstance(info, dict) and info.get("used")):
+            return ""
+        q = _tb.catalog_question()
+        if not q or not (operator_text or "").strip():
+            return ""
+        import concurrent.futures as _cf
+        with _cf.ThreadPoolExecutor(max_workers=1) as ex:
+            fut = ex.submit(_jev.choose_sync, "catalog_widget", operator_text, instructions=q["instructions"],
+                            criteria=q["criteria"], question_id="catalog_widget")
+            v = fut.result(timeout=wait_s)
+        cat = str((v or {}).get("choice") or "").strip()
+        conf = float((v or {}).get("confidence") or 0.0)
+        return cat if cat and cat != "none" and conf >= _jev.MIN_CONFIDENCE else ""
+    except Exception:  # noqa: BLE001
+        return ""
+
+
 async def before_worker(escalate_req: dict, read_req: dict, *, brief, operator_text: str, spec, emit,
                         present: Callable, apply_widget_data: Callable) -> str:
     """Try the card the catalogue verdict names. Returns "call", "read" or "" (the worker keeps the errand).
@@ -30,7 +63,7 @@ async def before_worker(escalate_req: dict, read_req: dict, *, brief, operator_t
     try:
         from nucleo import danger as _danger
         from nucleo.flash import act_repair as _repair, build_decision as _bd
-        card = _bd.named_card(brief)
+        card = named_or_catalogue(brief, operator_text)
         if not card or _danger.is_dangerous(operator_text):
             return ""
         # Any card the verdict names may take the CALL; the read half is offered only to one that can answer.
@@ -91,7 +124,7 @@ async def after_show(acted: dict, *, brief, operator_text: str, spoken_text: str
             return False
         if _cl.asks_for_missing_detail(spoken_text):
             return False
-        if not (acted.get("show_suppressed") or _router.promises_action(spoken_text) or _da.names_an_order(brief)):
+        if not (acted.get("show_suppressed") or _router.promises_action(spoken_text) or _da.names_an_order(brief, sure=0.8)):
             return False
         got = await _repair.call_for_promise(operator_text, spoken_text, wid, spec=spec)
         if not got or str(got.get("action") or "") in ("show", "open_widget"):

@@ -265,3 +265,17 @@ def test_the_verdict_alone_can_send_an_unkept_order_to_a_worker():
     assert not _da.verdict_escalates(_brief({_tb.ESCALATE_KEY: ("escalate", 0.3), _tb.REQUEST_KEY: ("order", 0.99)})), "unsure"
     src = (_ENGINE / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
     assert "or _direct_action.verdict_escalates(_brief))" in src and "or _direct_action.verdict_escalates(_brief)):" in src
+
+
+def test_a_repair_that_may_write_needs_a_sure_action_verdict(monkeypatch):
+    """V2-773 (demo v3, C2): «Find me a free 45-minute slot» read `agenda:add_meeting` at 0.54, the reply was
+    an ANSWER, and the promise repair booked «Call with Ethan» — a write nobody ordered."""
+    from nucleo.flash import direct_action as _da
+    monkeypatch.setattr(_tb, "owner_still_open", lambda _b, _o: True)
+    unsure = _brief({_tb.TARGET_KEY: ("agenda:add_meeting", 0.54), _tb.REQUEST_KEY: ("order", 0.84)}, open_ids=("agenda",))
+    assert _da.names_an_order(unsure), "it names the card — the mute question still reads it"
+    assert not _da.names_an_order(unsure, sure=0.8), "…but a WRITE on it needs a sure action"
+    sure = _brief({_tb.TARGET_KEY: ("agenda:add_meeting", 0.93), _tb.REQUEST_KEY: ("order", 0.84)}, open_ids=("agenda",))
+    assert _da.names_an_order(sure, sure=0.8)
+    src = (_ENGINE / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
+    assert "_direct_action.names_an_order(_brief, sure=0.8)" in src, "the promise repair's gate must carry the floor"

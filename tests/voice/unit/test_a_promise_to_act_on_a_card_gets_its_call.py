@@ -81,7 +81,7 @@ def test_both_channels_ask_for_the_call_before_the_promise_backstop_spends_a_wor
     repair = prov.index("_act_repair.call_for_promise(_op_text, spoken_text, _ar_wid, spec=spec)")
     backstop = prov.index('emit("brain", "🧭 escalada por backstop (prometió crear/gestionar sin escalar)"')
     assert repair < backstop, "the worker backstop runs before the repair — the promise becomes minutes of worker"
-    assert '_bd_ar.named_card(_brief)' in prov, "the card must come from the turn's own verdict"
+    assert '_cardc_ar.named_or_catalogue(_brief, _op_text)' in prov, "the card must come from the turn's own verdict"
     probe = (ENGINE / "nucleo/flash/probe.py").read_text(encoding="utf-8")
     # V2-770: the text channel asks with the operator's OWN words (not the turn text with notes glued on), and
     # first against the card its verdict names — then, with none named, lets the repair find one.

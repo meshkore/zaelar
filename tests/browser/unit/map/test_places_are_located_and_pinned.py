@@ -113,3 +113,13 @@ def test_a_select_declares_which_key_names_the_row():
     from widgets import refs
     assert refs.id_field_for_action("imagenes", "select") == "item"
     assert refs.id_field_for_action("map", "select") == "item"
+
+
+def test_the_map_publishes_an_index_so_the_second_one_resolves(fake):
+    """V2-773 (demo v3, W2): «Highlight the second one» asked «which one?» — the card published no index."""
+    from widgets import refs
+    mp.apply_action("show", {"places": ["Griffith Observatory", "Crypto.com Arena", "Runyon Canyon"], "near": "Los Angeles"})
+    idx = mp.ref_index()
+    assert [i["id"] for i in idx] == ["1", "2", "3"] and idx[1]["label"].startswith("2. Crypto") and idx[0]["field"] == "item"
+    monkeypatch_free = refs.resolve("map", "select", "the second one", {}, order="Highlight the second one.")
+    assert monkeypatch_free.ok and monkeypatch_free.payload.get("item") == "2", monkeypatch_free

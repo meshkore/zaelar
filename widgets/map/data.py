@@ -139,6 +139,16 @@ def prompt_digest() -> str:
         return ""
 
 
+def ref_index() -> list:
+    """Voice-referenceable rows — «the second one», «the observatory» — in the shape `widgets/refs` reads
+    (V2-773 demo, W2: «Highlight the second one» asked «which one?» because this card published no index)."""
+    try:
+        return [{"id": str(i + 1), "label": f"{i + 1}. {p.get('name', '')}", "field": "item"}
+                for i, p in enumerate(_load().get("places") or [])]
+    except Exception:  # noqa: BLE001
+        return []
+
+
 def _numbered(db: dict) -> list:
     return [f"{i + 1}. {p['name']}" for i, p in enumerate(db.get("places") or [])]
 

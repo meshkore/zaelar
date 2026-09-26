@@ -2509,10 +2509,11 @@ class NucleoLLMStream(llm.LLMStream):
         # V2-764 — it PROMISED to act on a card the verdict names and called nothing: one pass for the call
         # (`act_repair`), before any backstop decides it was a web errand and spends a worker on it.
         if (_no_tool and spoken_text and not clarify["msg"]
-                and (_router.promises_action(spoken_text) or _direct_action.names_an_order(_brief))
+                and (_router.promises_action(spoken_text) or _direct_action.names_an_order(_brief, sure=0.8))
                 and not _router.asks_for_missing_detail(spoken_text)):
             from nucleo.flash import act_repair as _act_repair, build_decision as _bd_ar
-            _ar_wid = _bd_ar.named_card(_brief)
+            from nucleo.flash import card_commission as _cardc_ar
+            _ar_wid = _cardc_ar.named_or_catalogue(_brief, _op_text)   # V2-773: a closed card while others are open
             _ar = await _act_repair.call_for_promise(_op_text, spoken_text, _ar_wid, spec=spec) if _ar_wid else None
             if _ar:
                 _cvis.present(_ar["widget_id"], reason="turn-order", src="flash", emit=emit)
