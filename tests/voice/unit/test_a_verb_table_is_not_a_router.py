@@ -204,3 +204,18 @@ def test_the_question_is_asked_on_every_turn():
     assert "BUILD_KEY" in src, "build_or_use is not in the turn brief"
     assert "if " not in src.split("BUILD_KEY")[0].split("qs: dict")[-1], (
         "the question is conditional — it has to ride every brief")
+
+
+def test_the_card_is_certain_even_when_the_action_is_not(monkeypatch):
+    """V2-773 final pass (C3): «Schedule it as Catch up with Ethan» over the open agenda read
+    `agenda:update_meeting` 0.51 · `agenda:add_meeting` 0.27 · none 0.18 — unsure as an ACTION, 0.82 as a
+    CARD — and the claim «booked» with no call escaped the repair whose only gate is this name."""
+    monkeypatch.setattr(_tb, "owner_still_open", lambda _b, _o: _o == "agenda")
+    brief = _brief({_tb.TARGET_KEY: ("agenda:update_meeting", 0.48)}, open_ids=("agenda",))
+    brief["result"][_tb.TARGET_KEY]["probs"] = {"agenda:update_meeting": 0.51, "agenda:add_meeting": 0.27,
+                                                "none": 0.18, "agenda:add_task": 0.04}
+    assert _bd.named_card(brief) == "agenda"
+    brief["result"][_tb.TARGET_KEY]["probs"] = {"agenda:update_meeting": 0.30, "youtube:play": 0.30, "none": 0.40}
+    assert _bd.named_card(brief) == "", "mass split across cards names nobody"
+    brief["result"][_tb.TARGET_KEY]["probs"] = {"youtube:play": 0.9, "none": 0.1}
+    assert _bd.named_card(brief) == "", "a card no longer open is no card"

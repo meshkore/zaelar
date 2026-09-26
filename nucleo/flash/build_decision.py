@@ -87,6 +87,30 @@ def build_question() -> dict:
     return {"instructions": BUILD_INSTRUCTIONS, "criteria": dict(BUILD_CHOICE)}
 
 
+def card_mass(brief) -> str:
+    """The card the `screen_action` probabilities point at, summed by owner, when that sum is SURE and the
+    card is still open — "" otherwise. Reads the verdict's own distribution; never waits, never raises."""
+    try:
+        from nucleo import jev as _jev
+        from nucleo.flash import turn_brief as _tb
+        verdict = _jev.peek(brief)
+        ans = (verdict or {}).get(_tb.TARGET_KEY) or {}
+        probs = ans.get("probs") or ans.get("probabilities") or {}
+        mass: dict = {}
+        for key, p in probs.items():
+            owner, sep, _name = str(key).rpartition(":")
+            if sep and owner:
+                mass[owner] = mass.get(owner, 0.0) + float(p or 0.0)
+        if not mass:
+            return ""
+        owner, total = max(mass.items(), key=lambda kv: kv[1])
+        if total < _jev.MIN_CONFIDENCE or not _tb.owner_still_open(brief, owner):
+            return ""
+        return owner
+    except Exception:  # noqa: BLE001
+        return ""
+
+
 def named_card(brief) -> str:
     """Which card of ours the order names — "" when none does, or when the verdict is unsure.
 
@@ -103,6 +127,13 @@ def named_card(brief) -> str:
         owner, _action = _da.from_brief(brief)      # screen_action, re-validated against what is open
         if owner:
             return str(owner)
+        # V2-773 — the CARD can be certain while the ACTION is not: «Schedule it as Catch up with Ethan» over
+        # the open agenda read `agenda:update_meeting` 0.51 · `agenda:add_meeting` 0.27 · none 0.18 — unsure
+        # as an action, 0.82 as a card — and the claim «booked» with no call escaped the repair whose only
+        # gate is this name. «Which card» and «which action» are two questions; the second answers the first.
+        owner = card_mass(brief)
+        if owner:
+            return owner
         cat, _c = _tb.read(brief, _tb.CATALOG_KEY, "")
         cat = str(cat or "").strip()
         return "" if cat == "none" else cat
