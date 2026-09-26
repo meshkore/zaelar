@@ -83,7 +83,12 @@ export async function takeoverOnReset({ fetchEpoch, local, session, reload }) {
   try { epoch = String((await fetchEpoch()) || ""); } catch (_) { return false; }
   if (!epoch) return false;
   try {
-    if (local.getItem(WIPE_KEY) === epoch) return false;
+    const seen = local.getItem(WIPE_KEY);
+    if (seen === epoch) return false;
+    // A browser that never recorded an epoch has nothing from a PREVIOUS reset to shed: whatever `hb_` keys it
+    // holds were written by THIS boot, before the epoch answered. Sweeping them reloaded every fresh browser
+    // once and cut its voice session (measured 2026-09-26, the demo driver). Record the epoch and go on.
+    if (seen === null) { local.setItem(WIPE_KEY, epoch); return false; }
     const guard = RESET_GUARD + epoch;
     if (session.getItem(guard)) return false;     // already attempted for this epoch in this tab
     session.setItem(guard, "1");

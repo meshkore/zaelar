@@ -116,13 +116,15 @@ for (const k of ["theme", "lang", "", null, "myapp_hb_theme"]) assert.ok(!isOurs
 }
 {
   const { takeoverOnReset } = await import("../../../../frontend/app/core/first-run.js?v=1");
-  // a brand-new browser: records the epoch, wipes nothing, never blinks
-  const local = fakeStorage({ unrelated_key: "x" });
+  // a brand-new browser: records the epoch, wipes nothing, never blinks — even though its OWN boot already
+  // wrote hb_ keys before the epoch answered (that sweep reloaded every fresh browser once, 2026-09-26)
+  const local = fakeStorage({ unrelated_key: "x", hb_orb_dock: "eye", hb_desktop: "[]" });
   let reloaded = 0;
   assert.equal(await takeoverOnReset({ fetchEpoch: async () => 300, local, session: fakeStorage(),
                                        reload: () => reloaded++ }), false);
   assert.equal(reloaded, 0);
   assert.equal(local.getItem("hb_wipe"), "300");
+  assert.equal(local.getItem("hb_desktop"), "[]", "this boot's own keys stay");
   // no epoch served, or the engine unreachable: nothing happens
   const l2 = fakeStorage({ hb_mic_muted: "1" });
   assert.equal(await takeoverOnReset({ fetchEpoch: async () => 0, local: l2, session: fakeStorage(), reload() {} }), false);
