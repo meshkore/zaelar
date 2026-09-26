@@ -33,7 +33,7 @@ from .when import _m2, _resolve_date, _resolve_time, _today
 TIME_KEYS = ("newDate", "new_date", "newTime", "new_time", "startTime", "time", "endTime", "newEndTime",
              "new_end_time", "duration", "durationMinutes")
 _END_KEYS = ("newEndTime", "new_end_time", "endTime", "end")
-_DUR_KEYS = ("duration", "durationMinutes", "minutes")
+_DUR_KEYS = ("duration", "durationMinutes", "duration_minutes", "minutes", "length")
 _FROM_KEYS = ("from", "fromDate", "from_date", "since", "desde", "startingFrom", "a_partir_de")
 
 

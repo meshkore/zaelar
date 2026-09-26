@@ -117,3 +117,28 @@ def test_the_pass_sees_the_card_so_a_relative_order_can_become_a_call(client, mo
     _Client.answer = []
     assert _run("Move it 30 minutes later.", "Done.", "agenda") is None
     assert any("segunda pasada no dio llamada" in str(a) for a, k in seen), seen
+
+
+def _run_cr(*a, **k):
+    return asyncio.run(act_repair.call_or_read_for_commission(*a, **k))
+
+
+def test_a_commission_that_names_a_card_is_read_or_called_before_it_costs_a_worker(client, monkeypatch):
+    """V2-773 final pass (C1): «Find me a free 45-minute slot tomorrow afternoon» went to a Brain Worker while
+    the agenda — named by the catalogue verdict — held the whole answer. One pass with the card in front."""
+    from nucleo.flash import widget_read
+    monkeypatch.setattr(widget_read, "read", lambda wid: "citas próximas (3): …")
+    _Client.answer = [("read_widget", {"widget_id": "agenda", "question": "What is free on 2026-09-27 between 12:00 and 18:00?"})]
+    got = _run_cr("Find me a free 45-minute slot tomorrow afternoon to talk with Ethan.", "Find a free slot…", "agenda")
+    assert got == {"kind": "read", "widget_id": "agenda", "question": "What is free on 2026-09-27 between 12:00 and 18:00?"}
+    offered = [t["function"]["name"] for t in _Client.calls[-1]["tools"]]
+    assert offered == ["widget_data", "read_widget"], offered
+    assert "citas próximas (3)" in _Client.calls[-1]["messages"][0]["content"], "the card rides the pass"
+    _Client.answer = [("widget_data", {"widget_id": "agenda", "action": "add_meeting", "payload": {"title": "x", "date": "2026-09-27"}})]
+    got = _run_cr("Put a meeting tomorrow", "…", "agenda")
+    assert got and got["kind"] == "call" and got["action"] == "add_meeting"
+    _Client.answer = []
+    assert _run_cr("Book me a table for two", "book a table", "agenda") is None, "nothing called → the worker keeps the errand"
+    _Client.answer = [("read_widget", {"widget_id": "contactos", "question": "?"})]
+    assert _run_cr("x", "x", "agenda") is None, "another card's call is not this card's answer"
+    assert widget_read.can_answer("agenda") and not widget_read.can_answer("no-such-widget")

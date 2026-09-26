@@ -2,7 +2,7 @@
   "id": "agenda",
   "version": "0.3.0",
   "title": "Agenda",
-  "description": "Dos secciones en una tarjeta. AGENDA: tu calendario completo con vistas de día, semana, mes y lista, las citas coloreadas por categoría, su aviso, quién asiste y si la otra parte ha confirmado. TAREAS: las tareas personales del operador en listas NUMERADAS que él crea («la compra», «casa»), cada una con su progreso y su identificador. Además planifica el día y hace de coach de productividad.",
+  "description": "Tu calendario y tareas: citas, reuniones, tu día, huecos libres («find me a free slot», «cuándo estoy libre»), listas de tareas. Vistas de día, semana, mes y lista; citas por categoría con aviso, asistentes y confirmación; planifica el día y hace de coach.",
   "whenToUse": "Cuando pide su agenda, su día, sus citas, su planning o coaching. TAMBIÉN sus TAREAS y sus LISTAS («ábreme las tareas», «la lista de la compra»): las personales del operador viven aquí, no en Procesos. Y la agenda —no mensajería— tiene el conector de GOOGLE CALENDAR.",
   "confirm_ui": false,
   "background": {

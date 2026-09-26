@@ -373,7 +373,7 @@ MEETING_KEYS = frozenset(("title", "date", "startTime", "time", "endTime", "note
                           "place", "category", "attendees", "people", "with", "status", "confirmed", "allDay",
                           "all_day", "meet", "newTitle", "id", "item", "widget_id", "action",
                           # a DURATION says the end (V2-773): read by add_meeting and move_meeting alike
-                          "duration", "durationMinutes", "minutes") + ALL_KEYS)
+                          "duration", "durationMinutes", "duration_minutes", "minutes", "length") + ALL_KEYS)
 
 
 def ignored_keys(payload: dict) -> list[str]:

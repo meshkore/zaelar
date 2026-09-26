@@ -2394,6 +2394,15 @@ class NucleoLLMStream(llm.LLMStream):
                     emit("brain", "🎯 acción declarada en vez de un worker (segunda pasada con sus campos)",
                          text=f"{_ar['widget_id']}:{_ar['action']}", role="system",
                          extra={"cat": "flash", "widget": _ar["widget_id"], "action": _ar["action"]})
+            # V2-773 — the card is CLOSED and the verdict names it from the catalogue: a commission whose answer
+            # lives in one of our cards is a READ (or a declared call), never a five-minute worker. The decision
+            # and its two outcomes live in `card_commission`; None keeps the worker.
+            else:
+                from nucleo.flash import card_commission as _cardc
+                if await _cardc.before_worker(escalate_req, read_req, brief=_brief, operator_text=operator_text,
+                                              spec=spec, emit=emit, present=_cvis.present,
+                                              apply_widget_data=_apply_widget_data) == "call":
+                    acted["widget"] = True
 
         # JEV ESCALATE GATE (T-jev-escalate): a commission that SURVIVED the grammar guards gets a
         # cheap second opinion before it spends money. A confident `handle_inline` annuls it in the
@@ -2666,6 +2675,11 @@ class NucleoLLMStream(llm.LLMStream):
         if read_req["v"] is not None and escalate_req["v"] is None and search_req["v"] is None \
                 and reveal_req["v"] is None:
             from nucleo.flash import widget_read as _wread
+            # V2-773 — «Show me that time in my calendar»: a read answers in words, and the card he asked to SEE
+            # stayed closed. When the verdict says the canvas should SHOW, the card comes up (`card_commission`).
+            from nucleo.flash import card_commission as _cardc
+            _cardc.present_if_show(read_req, brief=_brief, operator_text=operator_text, is_open=_cvis.is_open,
+                                   present=_cvis.present, emit=emit)
             _cover_work("widget", _wread.cover_target(read_req["v"] or {}, operator_text))
             await speak(await _wread.prepare(read_req["v"] or {}, operator_text, _prompt_mod._lang_lock(), emit),
                         operator_text, 220, "read_widget compose")

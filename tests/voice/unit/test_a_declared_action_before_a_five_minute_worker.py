@@ -395,3 +395,72 @@ def test_the_degraded_recall_line_compares_the_signatures_instead_of_printing_bo
     assert "active == stored" in block, (
         "the two embedding signatures are still printed side by side instead of compared")
     assert "EMBEDDER" in block, "the embedder-down cause is not named"
+
+
+
+def test_a_commission_naming_a_CLOSED_card_of_ours_is_read_before_the_worker(monkeypatch):
+    """V2-773 final pass (C1): the two rungs above only see a card the brief names through `screen_action`,
+    which exists only for OPEN cards; with the agenda closed the catalogue verdict named it (0.79) and the
+    commission still went to a worker. The third branch asks the card-or-worker pass (`card_commission`) and
+    turns a read into the turn's own `read_req`, which the read path below then serves."""
+    src = _provider_src()
+    window = src[src.index("# V2-741 · THE THIRD RUNG"):src.index("_eguard.settle_commission(")]
+    assert "_cardc.before_worker(escalate_req, read_req" in window
+    # …and every `if` on the way to that call is LIVE: `if False and await …` keeps every word above.
+    tree = ast.parse(src)
+    guards = [n for n in ast.walk(tree) if isinstance(n, ast.If)
+              and any(isinstance(c, ast.Call) and getattr(c.func, "attr", "") == "before_worker" for c in ast.walk(n))]
+    assert guards and all("Constant(value=False)" not in ast.dump(g.test) for g in guards), "a dead guard reaches the rung"
+    assert src.index("_cardc.before_worker(") < src.index('if read_req["v"] is not None and escalate_req["v"] is None'), (
+        "the read path must run AFTER the rung fills read_req")
+    import asyncio
+    from nucleo import danger
+    from nucleo.flash import act_repair, build_decision, card_commission, widget_read
+    monkeypatch.setattr(build_decision, "named_card", lambda brief: "agenda")
+    monkeypatch.setattr(widget_read, "can_answer", lambda wid: wid == "agenda")
+    monkeypatch.setattr(danger, "is_dangerous", lambda text: "delete everything" in text)
+    answer = {"kind": "read", "widget_id": "agenda", "question": "free between 12:00 and 18:00 on 2026-09-27?"}
+
+    async def pass_(operator_text, commission, wid, spec=None):
+        return answer
+    monkeypatch.setattr(act_repair, "call_or_read_for_commission", pass_)
+    seen, applied = [], []
+    kw = dict(brief={"x": 1}, operator_text="Find me a free 45-minute slot tomorrow afternoon", spec=None,
+              emit=lambda *a, **k: seen.append(a), present=lambda *a, **k: True,
+              apply_widget_data=lambda w, a, p: applied.append((w, a, p)))
+    esc, rd = {"v": "find a slot", "more": ["x"]}, {"v": None}
+    assert asyncio.run(card_commission.before_worker(esc, rd, **kw)) == "read"
+    assert rd["v"] == {"widget_id": "agenda", "question": answer["question"]} and esc["v"] is None and esc["more"] == []
+    answer = {"kind": "call", "widget_id": "agenda", "action": "add_meeting", "payload": {"title": "x"}}
+    esc, rd = {"v": "put it in", "more": []}, {"v": None}
+    assert asyncio.run(card_commission.before_worker(esc, rd, **kw)) == "call"
+    assert applied == [("agenda", "add_meeting", {"title": "x"})] and esc["v"] is None
+    answer = None
+    esc = {"v": "book a table", "more": []}
+    assert asyncio.run(card_commission.before_worker(esc, {"v": None}, **kw)) == "" and esc["v"] == "book a table", (
+        "nothing called → the worker keeps the errand")
+    answer = {"kind": "read", "widget_id": "agenda", "question": "?"}
+    esc = {"v": "delete everything", "more": []}
+    assert asyncio.run(card_commission.before_worker(esc, {"v": None}, **dict(kw, operator_text="delete everything"))) == ""
+    assert esc["v"] == "delete everything", "an irreversible order never takes this shortcut"
+
+
+def test_a_read_the_verdict_says_to_SHOW_brings_the_card(monkeypatch):
+    """V2-773 final pass (C2): «Show me that time in my calendar» was answered by a read, in words, with the
+    agenda closed — the verdict had said canvas=show (0.74). The card he asked to see comes up."""
+    src = _provider_src()
+    i = src.index('if read_req["v"] is not None and escalate_req["v"] is None')
+    assert "_cardc.present_if_show(read_req" in src[i:i + 1200]
+    from nucleo.flash import card_commission, turn_brief, widget_read
+    monkeypatch.setattr(widget_read, "resolve", lambda arg, text="": "agenda" if "agenda" in (arg + text) else None)
+    verb = ["show"]
+    monkeypatch.setattr(turn_brief, "read", lambda brief, key, fb, **k: (verb[0], {"used": True}))
+    shown = []
+    kw = dict(brief={"x": 1}, operator_text="Show me that time in my calendar", emit=lambda *a, **k: None,
+              present=lambda wid, **k: shown.append((wid, k.get("reason"))) or True)
+    assert card_commission.present_if_show({"v": {"widget_id": "agenda"}}, is_open=lambda w: False, **kw)
+    assert shown == [("agenda", "turn-order")]
+    assert not card_commission.present_if_show({"v": {"widget_id": "agenda"}}, is_open=lambda w: True, **kw), "open: nothing to do"
+    verb[0] = "neither"
+    assert not card_commission.present_if_show({"v": {"widget_id": "agenda"}}, is_open=lambda w: False, **kw), (
+        "a question with no show in it stays a read")

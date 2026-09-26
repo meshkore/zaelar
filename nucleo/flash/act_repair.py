@@ -109,6 +109,69 @@ async def call_for_promise(operator_text: str, reply: str, widget_id: str, spec=
         return None
 
 
+_SYS_COMMISSION = (
+    "Eres el cerebro de un asistente de voz. El operador ha dado una ORDEN que nombra la tarjeta «{wid}», y el "
+    "turno iba a mandarla a un proceso de fondo de VARIOS MINUTOS. Antes de gastarlos, decide con lo que hay en la "
+    "tarjeta: (1) si una acción declarada de «{wid}» cumple la orden, llama a `widget_data` con ella; (2) si la "
+    "RESPUESTA está en lo que la tarjeta guarda (sus citas y huecos libres, sus contactos, sus ficheros…), llama a "
+    "`read_widget` con widget_id «{wid}» y la pregunta concreta que hay que resolver contra ella (con la fecha "
+    "absoluta y la franja que él dijo); (3) solo si hace falta el mundo exterior —la web, reservar en un sitio "
+    "externo, buscar productos— no llames a nada.\n\nAcciones de «{wid}»:\n{actions}{card}")
+
+
+def _tool_named(name: str) -> dict | None:
+    try:
+        from nucleo.flash import router_catalog as _rc
+        return next((t for t in _rc.TOOLS if t.get("function", {}).get("name") == name), None)
+    except Exception:  # noqa: BLE001
+        return None
+
+
+async def call_or_read_for_commission(operator_text: str, commission: str, widget_id: str, spec=None) -> dict | None:
+    """A commission that names one of our cards, before it costs a worker (V2-773 final pass, C1): «Find me a
+    free 45-minute slot tomorrow afternoon» was delegated to a Brain Worker (three minutes) when the agenda was
+    the whole answer. One pass with the card in front decides: `{"kind": "call", widget_id, action, payload}`,
+    `{"kind": "read", widget_id, question}`, or None — and None keeps today's path, the worker. Never raises."""
+    try:
+        wid = str(widget_id or "").strip().lower()
+        if not wid or not (operator_text or "").strip():
+            return None
+        from widgets import runtime as _rt
+        manifest = _rt.get(wid) or {}
+        tools = [t for t in (_tool_named("widget_data"), _tool_named("read_widget")) if t]
+        if not manifest or len(tools) != 2:
+            return None
+        digest = ""
+        try:
+            from nucleo.flash import widget_read as _wr
+            digest = str(_wr.read(wid) or "").strip()[:1500]
+        except Exception:  # noqa: BLE001
+            digest = ""
+        card = _CARD.format(wid=wid, digest=digest) if digest else ""
+        got: list[tuple[str, dict]] = []
+        from nucleo.flash.fast_client import FastClient
+        await FastClient().complete(
+            [{"role": "system", "content": _SYS_COMMISSION.format(wid=wid, actions=_actions_block(manifest), card=card)},
+             {"role": "user", "content": f"Operador: «{operator_text.strip()[:400]}»\n"
+                                         f"El encargo que iba a un worker: «{(commission or '').strip()[:300]}»"}],
+            spec=spec, max_tokens=300, tools=tools, no_thinking=True,
+            on_tool_call=lambda name, args: got.append((name, args if isinstance(args, dict) else {})))
+        declared = manifest.get("actions") or {}
+        for name, args in got:
+            if str(args.get("widget_id") or "").strip().lower() != wid:
+                continue
+            if name == "read_widget":
+                q = str(args.get("question") or "").strip() or operator_text.strip()
+                return {"kind": "read", "widget_id": wid, "question": q[:300]}
+            if name == "widget_data" and str(args.get("action") or "").strip() in declared:
+                payload = args.get("payload") if isinstance(args.get("payload"), dict) else {}
+                return {"kind": "call", "widget_id": wid, "action": str(args["action"]).strip(), "payload": payload}
+        _note(wid, "el encargo sigue su camino al worker" if not got else "la llamada no era de esta tarjeta")
+        return None
+    except Exception:  # noqa: BLE001 — never take down a live turn
+        return None
+
+
 async def probe_call_for_promise(operator_text: str, reply: str, spec=None, *, wait_s: float = 3.0) -> dict | None:
     """The text channel's mirror: it has no brief in flight, so it fires one and waits for it (bounded) —
     only on the turn that already promised and called nothing. Same verdict, same repair, never raises."""

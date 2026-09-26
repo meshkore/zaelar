@@ -30,7 +30,7 @@ def test_a_move_said_with_start_and_end_moves_both(ag, start_key):
     assert (m.get("startTime"), m.get("endTime")) == ("16:45", "17:30"), m
 
 
-@pytest.mark.parametrize("key", ["duration", "durationMinutes", "minutes"])
+@pytest.mark.parametrize("key", ["duration", "durationMinutes", "duration_minutes", "minutes"])
 def test_a_duration_says_the_end_of_a_new_meeting(ag, key):
     """V2-773 final pass (C3): «Schedule it as Catch up with Ethan» arrived as {time: 16:00, duration: 45}; the
     card wrote 16:00–17:00 and told him it could not keep `duration`. The keys `move_meeting` already reads."""

@@ -109,6 +109,17 @@ def lookup(wid: str, question: str) -> str:
         return ""
 
 
+def can_answer(wid: str) -> bool:
+    """Does this widget ANSWER questions about what it holds (`read_query`)? The gate for treating a commission
+    that names it as a read rather than a worker's errand (V2-773): a card that only publishes a digest is not
+    a record anyone can resolve a question against."""
+    try:
+        import importlib
+        return callable(getattr(importlib.import_module(f"widgets.{str(wid or '').strip().lower()}.data"), "read_query", None))
+    except Exception:  # noqa: BLE001
+        return False
+
+
 def read(wid: str) -> str:
     """What the widget holds, as text the model can reason over. The seams the widgets already publish for the
     prompt, in order of richness: `prompt_digest` (the interior — agenda, contactos, archivos, results, youtube,
