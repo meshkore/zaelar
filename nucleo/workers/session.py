@@ -175,6 +175,8 @@ class WorkerSession:
         # From the second hit onward nobody told it anything and it died silently, exactly what the network
         # intended to prevent. Now every hit is corrected up to a cap, and the LAST one changes its message.
         self._perm_hits = 0
+        self._spin: dict = {}              # identical consecutive steps (stall.spin_count)
+        self._spin_dead = False
         self._ctx_warned = False           # the wrap-up turn is injected ONCE (incident 2026-08-18): repeating it
                                             # every message past the budget would spend the little room that is left
 
@@ -210,6 +212,13 @@ class WorkerSession:
                     break
                 self._touch()
                 self._on_event(ev)
+                if self._spin_dead:
+                    _stall.mark_spinning(rec, self._emit_chip, self._spin.get("n", 0))
+                    try:
+                        await self._b.stop(grace=2.0)
+                    except Exception:  # noqa: BLE001
+                        pass
+                    break
                 if ev.type == "done":
                     break
         except asyncio.CancelledError:
@@ -252,6 +261,11 @@ class WorkerSession:
                 self._emit_chip("phase", rec.phase)
         elif ev.type == "step":
             self._emit_step(d)                                 # V2-048: concrete WHERE + WHAT of this step
+            _n = _stall.spin_count(self._spin, d.get("action", ""), d.get("target") or "")
+            if _n == _stall.SPIN_WARN:
+                asyncio.create_task(self._say_deliver_now(_n, str(d.get("target") or "")[:80]))
+            elif _n >= _stall.SPIN_KILL:
+                self._spin_dead = True
             # V2-059: besides the panel row, STORE the step in the record (ring, cap 12) → /api/tasks + STATE
             # see the worker's REAL activity (not only the coarse phase). _tool_step composes where/what.
             try:
@@ -609,6 +623,16 @@ class WorkerSession:
         except Exception:
             pass
         asyncio.create_task(self._explain_permissions(last=last))
+
+    async def _say_deliver_now(self, n: int, target: str) -> None:
+        """The spin warning (stall.SPIN_WARN): the same step `n` times — deliver, do not probe again."""
+        try:
+            await self._b.send(
+                f"AVISO DEL SISTEMA: llevas {n} veces seguidas el mismo paso («{target}») sin avanzar. Para. "
+                "Entrega AHORA lo que ya tengas por el camino de entrega habitual y di qué te ha faltado; si "
+                "repites ese paso más veces, la tarea se cerrará sin tu entrega.")
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"worker[{self._rec.task_id}]: no pude avisar del bucle: {e}")
 
     async def _explain_permissions(self, *, last: bool = False) -> None:
         """Injects the corrective turn. Separate coroutine because `_on_event` is synchronous."""

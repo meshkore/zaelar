@@ -248,6 +248,8 @@ class LangSpec:
                                   "Si me dices por dónde seguir, lo retomo por otra vía.")
     worker_stalled: str = ("El proveedor dejó de responder ({minutes} min sin un solo evento) y aborté la "
                            "tarea. Se puede relanzar.")
+    worker_spinning: str = ("Mi proceso de fondo se quedó dando vueltas sobre el mismo paso sin avanzar y lo he "
+                            "parado. Se puede relanzar.")
     worker_gave_up_provider: str = ("He intentado esa tarea {times} veces y el proveedor que mueve mis "
                                     "procesos de fondo ha fallado las {times}, así que paro. Lo tienes en el "
                                     "panel de estado.")
@@ -675,6 +677,8 @@ LANGUAGES: dict[str, LangSpec] = {
                                "which way to go and I'll pick it up another way."),
         worker_stalled=("The provider stopped answering ({minutes} min without a single event) and I aborted "
                         "the task. It can be relaunched."),
+        worker_spinning=("My background process got stuck repeating the same step without getting anywhere, so "
+                         "I stopped it. It can be relaunched."),
         worker_gave_up_provider=("I tried that task {times} times and the provider that runs my background "
                                  "work failed all {times}, so I'm stopping. It's in the status panel."),
         widget_data_failed="I couldn't: {reason}",

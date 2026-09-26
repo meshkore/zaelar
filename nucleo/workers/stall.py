@@ -91,6 +91,38 @@ def mark_stalled(rec, emit_chip) -> None:
     rec.result_summary = rec.result_summary or _lg_st.current_language().worker_stalled.format(minutes=mins)
 
 
+# ── the same step, over and over (demo run, 2026-09-26) ────────────────────────────────────────────────────
+# A worker that hit the permission gate while writing its sheet then ran `true` again and again for 15+ minutes:
+# every step was an event, so the silence watchdog above never fired, and it held one of the two pool slots
+# while delivering nothing. Counting IDENTICAL consecutive steps is mechanical — it judges nothing about the
+# errand: at SPIN_WARN it is told to deliver what it has, at SPIN_KILL it is stopped with an honest ending.
+SPIN_WARN = 6
+SPIN_KILL = 20
+
+
+def spin_count(state: dict, action: str, target: str) -> int:
+    """Consecutive repeats of this exact step, kept in `state` (the session's own dict)."""
+    key = (str(action or "").strip(), str(target or "").strip()[:120])
+    if not key[0] and not key[1]:
+        return 0
+    state["n"] = state.get("n", 0) + 1 if state.get("key") == key else 1
+    state["key"] = key
+    return state["n"]
+
+
+def mark_spinning(rec, emit_chip, n: int) -> None:
+    """The honest ending for a worker that repeated one step `n` times without progress."""
+    logger.warning(f"worker[{rec.task_id}]: SPINNING — the same step {n} times in a row, stopping")
+    try:
+        emit_chip("stalled", f"el mismo paso {n} veces seguidas sin avanzar — aborto la tarea", ok=False)
+    except Exception:  # noqa: BLE001
+        pass
+    rec.status = "error"
+    rec.ok = False
+    from i18n import langs as _lg_sp
+    rec.result_summary = rec.result_summary or _lg_sp.current_language().worker_spinning
+
+
 # ── the gate's refusal, read (V2-241) ──────────────────────────────────────────────────────────────────────
 # WHICH fragment the gate stopped. A correction repeating general rules does not say WHICH command is
 # unnecessary; the CLI names it in three different measured forms. Returns "" if the text does not say —
