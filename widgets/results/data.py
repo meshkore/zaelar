@@ -792,6 +792,21 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
         return {"ok": True, "where": _wh}
 
     # ── THE OTHER THREE TABS ─────────────────────────────────────────────────────────────────────────────────
+    if action == "layout":
+        # «Compare them visually» over a sheet already on screen (demo run, 2026-09-26): the model promised to put
+        # them side by side and had no way to — the template could only arrive with `present`, which re-sends
+        # every item. This re-shapes what is there; the surface still owns the geometry (presentation.py rule 1).
+        lay = str(payload.get("layout") or payload.get("view") or "").strip().lower()
+        if lay not in _LAYOUTS:
+            return {"ok": False, "error": "layout needs one of: tile (side by side, with photos) · row (a dense "
+                                          "list) · card (photo left) · compare (composite proposals)"}
+        data = view_data(sheet)
+        data["layout"] = lay
+        data["tab"] = "results"
+        data.pop("view", None)
+        _save(data, sheet)
+        return {"ok": True, "layout": lay, "items": len(data.get("items") or [])}
+
     if action == "tab":
         tab = str(payload.get("tab") or payload.get("name") or "").strip().lower()
         tab = _TAB_ALIASES.get(tab, tab)

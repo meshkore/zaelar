@@ -2442,6 +2442,11 @@ DOMAINS: list[dict] = [
         # 2026-09-26, his demo script: «Show me a chart of Apple stock today» got «I can't actually display a
         # chart here». One shipped price-chart card, prices only.
         # 2026-09-26, his demo script: «Show them on a map» got «I don't have a map widget».
+        # 2026-09-26, his demo script: «Compare them visually» over the monitors sheet — a promise with no way
+        # to keep it; «Open the best value option» — the verb lived nowhere in `detail`.
+        {"id": "4.220", "title": "La hoja de resultados en pantalla cambia de FORMA sin reenviar nada (compararlos "
+                                 "en paralelo) y «abre el mejor» nombra el expediente",
+            "ch": UNIT, "paths": ["tests/browser/unit/results/test_a_sheet_on_screen_can_change_its_shape.py"]},
         {"id": "4.219", "title": "MAPA: los sitios por nombre y ciudad se geolocalizan aquí (con relevo), uno que "
                                  "nadie encuentra se DICE en vez de inventarlo, todas las chinchetas caben en la "
                                  "vista y la tarjeta RENDERIZADA elige por la misma puerta que la voz",

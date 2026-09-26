@@ -132,7 +132,7 @@
       }
     },
     "detail": {
-      "desc": "Abre el EXPEDIENTE completo de UN item: galería, valoración con su porqué, todos sus `facts`, la ficha a medida y cada pieza con su enlace y horarios. Acepta `title` o `index` 1-based — el ordinal sobrevive al STT mucho mejor que un nombre comercial largo.",
+      "desc": "OPENS ONE result in full («open the best value option», «open the second one», «show me that one») — Abre el EXPEDIENTE completo de UN item: galería, valoración con su porqué, todos sus `facts`, la ficha a medida y cada pieza con su enlace y horarios. Acepta `title` o `index` 1-based — el ordinal sobrevive al STT mucho mejor que un nombre comercial largo.",
       "payload": {
         "index": 1
       },
@@ -141,6 +141,13 @@
     "list": {
       "desc": "Vuelve del expediente a la lista.",
       "payload": {},
+      "view": true
+    },
+    "layout": {
+      "desc": "CAMBIA CÓMO SE VEN los resultados ya pintados («compare them visually», «side by side», «ponlos en fila»): tile = en paralelo con foto · row = lista densa · card = foto a la izquierda",
+      "payload": {
+        "layout": "tile | row | card | compare"
+      },
       "view": true
     },
     "tab": {
