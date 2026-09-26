@@ -2437,6 +2437,14 @@ DOMAINS: list[dict] = [
                 "tests/browser/unit/arranque/test_a_first_run_does_not_wear_the_previous_install.py"]},
         # 2026-09-25, after his reset: the mic and speaker stayed muted (the SSE read `d.extra.src` and the bus is
         # FLAT), a reset that kept the language kept the ⏻ and the wake word, and the folder step flashed and went.
+        # 2026-09-26, his demo script: «Show me a chart of Apple stock today» got «I can't actually display a
+        # chart here». One shipped price-chart card, prices only.
+        {"id": "4.218", "title": "MERCADOS: una gráfica de precio por nombre o ticker, el cambio contra el cierre "
+                                 "de ayer («hoy») o contra el inicio del periodo, las palabras del periodo, el "
+                                 "429 reintentado en el host gemelo — y la tarjeta RENDERIZADA",
+            "ch": UNIT, "paths": [
+                "tests/browser/unit/markets/test_a_price_chart_by_name_or_ticker.py",
+                "tests/browser/e2e/widgets/test_markets_render.py"]},
         {"id": "4.217", "title": "Tras CUALQUIER reset el agente arranca escuchando: ⏻ en marcha, micrófono y "
                                  "altavoz abiertos, sin palabra de activación — y la pregunta de la carpeta "
                                  "no se la come el «ready» de un idioma preinstalado",

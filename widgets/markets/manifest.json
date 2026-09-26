@@ -1,0 +1,19 @@
+{
+  "id": "markets",
+  "version": "0.1.0",
+  "title": "Markets",
+  "name": "Markets",
+  "description": "A price chart for one stock, index, currency or crypto: the price now, the change over the period, and the line — today, this week, a month, six months or a year.",
+  "whenToUse": "When the user wants to SEE how a stock, share, market index, currency pair or crypto is doing, as a chart: «show me a chart of Apple stock», «how is the Nasdaq today», «Tesla over the last month», «bitcoin this year».",
+  "keywords": ["stock", "stocks", "share price", "stock price", "stock chart", "ticker", "stock market", "nasdaq", "s&p 500", "dow jones", "bolsa", "acciones", "cotización", "cotizacion", "gráfica de bolsa", "índice bursátil", "bitcoin price", "precio del bitcoin"],
+  "aliases": ["markets", "the stock chart", "the chart", "stocks", "bolsa", "la gráfica", "la gráfica de bolsa", "mercados", "cotización"],
+  "entry": "widget.js",
+  "size": {"w": 560, "h": 430},
+  "usage": "To chart something use 'show' with 'symbol' — a ticker (AAPL, ^IXIC, BTC-USD, EURUSD=X) or just the name ('Apple', 'Nasdaq', 'bitcoin'): it is looked up — and 'range' (1d = today, 5d = this week, 1mo = last month, 6mo, 1y, 5y; default 1d). 'range' changes the PERIOD of the chart already on screen («show me the last month instead»). 'refresh' updates it. Both return the name, price, currency and change: say them in one short sentence. It only shows prices; it never buys or sells.",
+  "actions": {
+    "show": {"desc": "SHOWS the price chart of a stock, index, currency or crypto («a chart of Apple stock», «how is the Nasdaq»): by ticker or by name, over a period (1d today · 5d · 1mo · 6mo · 1y · 5y)", "payload": {"symbol": "ticker or name, e.g. AAPL or Apple", "range": "1d | 5d | 1mo | 6mo | 1y | 5y (optional, default 1d)"}, "view": true},
+    "range": {"desc": "CHANGES THE PERIOD of the chart on screen («the last month instead», «show me the whole year», «just today»)", "payload": {"range": "1d | 5d | 1mo | 6mo | 1y | 5y"}, "view": true},
+    "refresh": {"desc": "updates the chart on screen with the latest price", "payload": {}, "view": true}
+  },
+  "security": "standard"
+}

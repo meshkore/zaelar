@@ -1590,5 +1590,16 @@
  "wizard.set": "guardada",
  "wizard.stepCredencialesTitle": "② Credenciales",
  "wizard.stepHuecosTitle": "① Configura lo que falta",
- "wizard.title": "Configuración"
+ "wizard.title": "Configuración",
+ "widgets.markets.name": "Mercados",
+ "widgets.markets.empty": "Pide una acción, un índice o una moneda — «una gráfica de Apple» — y aparece aquí.",
+ "widgets.markets.as_of": "Último precio {when}",
+ "widgets.markets.no_points": "No hay histórico de precios para este periodo.",
+ "widgets.markets.stale": "La fuente de precios no ha contestado; es la última gráfica que dio.",
+ "widgets.markets.r_1d": "1D",
+ "widgets.markets.r_5d": "5D",
+ "widgets.markets.r_1mo": "1M",
+ "widgets.markets.r_6mo": "6M",
+ "widgets.markets.r_1y": "1A",
+ "widgets.markets.r_5y": "5A"
 }

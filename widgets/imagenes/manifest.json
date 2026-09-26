@@ -50,7 +50,7 @@
       "view": true
     },
     "select": {
-      "desc": "pone en grande una foto concreta (por número 1-N o por parte de su título/fuente)",
+      "desc": "ABRE en grande una foto concreta del visor («abre la segunda», «open the second one», «enséñame la tercera», «la de Wikipedia») — por número 1-N o por parte de su título/fuente",
       "payload": {
         "item": "número 1-N o texto del título/fuente"
       },

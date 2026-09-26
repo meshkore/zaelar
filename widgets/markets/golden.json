@@ -1,0 +1,18 @@
+{
+  "view_data_shape": {
+    "as_of": "int",
+    "change": "NoneType",
+    "change_pct": "NoneType",
+    "currency": "str",
+    "error": "str",
+    "exchange": "str",
+    "fetched_at": "int",
+    "name": "str",
+    "points": "list",
+    "price": "NoneType",
+    "range": "str",
+    "ranges": "list",
+    "summary": "str",
+    "symbol": "str"
+  }
+}

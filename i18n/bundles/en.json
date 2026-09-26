@@ -1590,5 +1590,16 @@
  "wizard.set": "set",
  "wizard.stepCredencialesTitle": "② Credentials",
  "wizard.stepHuecosTitle": "① Set up what's missing",
- "wizard.title": "Setup"
+ "wizard.title": "Setup",
+ "widgets.markets.name": "Markets",
+ "widgets.markets.empty": "Ask for a stock, an index or a coin — «a chart of Apple» — and it shows up here.",
+ "widgets.markets.as_of": "Last price {when}",
+ "widgets.markets.no_points": "No price history for this period.",
+ "widgets.markets.stale": "The price source did not answer; this is the last chart it gave.",
+ "widgets.markets.r_1d": "1D",
+ "widgets.markets.r_5d": "5D",
+ "widgets.markets.r_1mo": "1M",
+ "widgets.markets.r_6mo": "6M",
+ "widgets.markets.r_1y": "1Y",
+ "widgets.markets.r_5y": "5Y"
 }
