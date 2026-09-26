@@ -1601,5 +1601,7 @@
  "widgets.markets.r_1mo": "1M",
  "widgets.markets.r_6mo": "6M",
  "widgets.markets.r_1y": "1A",
- "widgets.markets.r_5y": "5A"
+ "widgets.markets.r_5y": "5A",
+ "widgets.map.name": "Mapa",
+ "widgets.map.empty": "Pide ver sitios en un mapa — «enséñamelos en un mapa» — y aparecen aquí marcados."
 }

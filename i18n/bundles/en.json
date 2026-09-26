@@ -1601,5 +1601,7 @@
  "widgets.markets.r_1mo": "1M",
  "widgets.markets.r_6mo": "6M",
  "widgets.markets.r_1y": "1Y",
- "widgets.markets.r_5y": "5Y"
+ "widgets.markets.r_5y": "5Y",
+ "widgets.map.name": "Map",
+ "widgets.map.empty": "Ask to see places on a map — «show them on a map» — and they are pinned here."
 }

@@ -1,0 +1,20 @@
+{
+  "id": "map",
+  "version": "0.1.0",
+  "title": "Map",
+  "name": "Map",
+  "description": "A map with a few places pinned and numbered — the results of a search, the stops of a plan, the options of a trip — and the list beside it.",
+  "whenToUse": "When places should be SEEN on a map: «show them on a map», «where is it», «put the restaurants on a map», «map of the options». Pass the places by name and address or city; they are located here.",
+  "keywords": ["map", "maps", "on a map", "show on a map", "where is", "mapa", "en un mapa", "en el mapa", "dónde está", "ubicación", "location"],
+  "aliases": ["map", "the map", "mapa", "el mapa"],
+  "entry": "widget.js",
+  "size": {"w": 640, "h": 520},
+  "usage": "To pin places use 'show' with 'places': a list of {name, address, note, url} — the address may be just the city («Griffith Observatory, Los Angeles»); 'near' adds a city to every place that has none. 'show' replaces what is on the map, 'add' adds to it. 'select' with 'item' (number on the map or name) highlights one. Places are geocoded here: never invent coordinates. The result lists the numbered places and any that could not be found.",
+  "actions": {
+    "show": {"desc": "PUTS PLACES ON A MAP («show them on a map», «where are those three»): places by name + address or city, numbered on the map", "payload": {"places": "list of {name, address, note, url}", "near": "optional city for places without an address", "title": "optional"}, "view": true, "effects": ["present.mount"]},
+    "add": {"desc": "adds more places to the map on screen, keeping the ones there", "payload": {"places": "list of {name, address, note, url}", "near": "optional city"}, "view": true, "effects": ["present.mount"]},
+    "select": {"desc": "HIGHLIGHTS one place of the map («the second one», «the observatory»): by its number or its name", "payload": {"item": "number on the map (1-N) or part of its name"}, "view": true, "effects": ["present.mount"]},
+    "clear": {"desc": "empties the map", "payload": {}}
+  },
+  "security": "standard"
+}

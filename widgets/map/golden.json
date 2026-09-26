@@ -1,0 +1,9 @@
+{
+  "view_data_shape": {
+    "misses": "list",
+    "places": "list",
+    "selected": "int",
+    "title": "str",
+    "updated": "int"
+  }
+}
