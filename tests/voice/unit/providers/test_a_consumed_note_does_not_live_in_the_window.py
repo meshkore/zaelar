@@ -54,3 +54,13 @@ def test_the_success_path_stores_his_words_not_the_composed_turn():
     assert "_dialog.push_user(brain._window, operator_text)" in code
     assert code.count("_dialog.push_user(brain._window, text)") == 1, (
         "only the barge-in path — the turn that never answered — may keep the composed text")
+
+
+def test_nor_in_the_conversation_record():
+    """Demo run (2026-09-26): the short-term conversation record stored «Operador: Show me a chart of Apple stock
+    today. [SISTEMA] Avisos pendientes…» — the composed turn, notes included. It keeps HIS words, like the window."""
+    import pathlib, re
+    src = (pathlib.Path(__file__).resolve().parents[4] / "voice/engine/llm/providers/nucleo.py").read_text(encoding="utf-8")
+    m = re.search(r'memory\.write\(f"Operador: \{(\w+)\[:200\]\}.*?"u": (\w+)\[:400\]', src, re.S)
+    assert m, "the conversation-record write moved — update this test"
+    assert m.group(1) == "operator_text" and m.group(2) == "operator_text", m.groups()

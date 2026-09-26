@@ -3107,11 +3107,14 @@ class NucleoLLMStream(llm.LLMStream):
             try:
                 from memory import api as memory
                 _a = spoken_text or "(me pongo con ello)"
-                memory.write(f"Operador: {text[:200]} · zaelar: {_a[:200]}",
+                # HIS words, not the composed turn: `text` carries the one-shot system notes prepended above, and
+                # a «[SISTEMA] Avisos pendientes…» block landed in the conversation record (demo run 2026-09-26) —
+                # the same leak fix08 closed for the window.
+                memory.write(f"Operador: {operator_text[:200]} · zaelar: {_a[:200]}",
                              kind="conv", level="short", importance=0.2, ttl_days=2.0,
                              # u/a estructurados → `memory.recent_window` reconstruye la ventana verbatim sin
                              # parsear el string (circuito de corto plazo, 2026-07-14).
-                             meta={"source": "conv", "u": text[:400], "a": _a[:400]})
+                             meta={"source": "conv", "u": operator_text[:400], "a": _a[:400]})
             except Exception:
                 pass
 
