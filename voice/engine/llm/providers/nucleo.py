@@ -1211,6 +1211,16 @@ class NucleoLLMStream(llm.LLMStream):
                            "widget-data")
                 except Exception:
                     pass
+                # An action whose output only exists ON SCREEN (`present.mount`, declared or derived) brings its
+                # card, through the one door. «Show me a chart of Apple stock» ran markets:show and the card never
+                # opened — «Apple's chart is on screen» over an empty canvas (demo run, 2026-09-26). The door
+                # refuses an open card, so this never raises one he is reading.
+                try:
+                    from widgets import effects as _fx
+                    if _fx.carries(wid, action_name, _fx.PRESENT_MOUNT):
+                        _cvis.present(wid, reason="producer-mount", action=action_name, src="flash", emit=emit)
+                except Exception:
+                    pass
             elif mode == _wactions.CONFIRM:
                 acted["widget"] = True
                 _log_dataop("confirm")

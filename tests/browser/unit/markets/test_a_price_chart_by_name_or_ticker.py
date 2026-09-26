@@ -107,3 +107,20 @@ def test_the_widget_is_shipped_and_declares_exactly_what_it_handles():
     assert set(man["actions"]) == {"show", "range", "refresh"}
     for a in man["actions"]:
         assert "unknown action" not in str(mk.apply_action(a, {}).get("error", "")), a
+
+
+def test_the_chart_declares_that_its_output_only_exists_on_screen():
+    """Demo run: markets:show ran and the card never opened — «Apple's chart is on screen» over an empty canvas."""
+    from widgets import effects as fx
+    for a in ("show", "range", "refresh"):
+        assert fx.carries("markets", a, fx.PRESENT_MOUNT), a
+
+
+def test_the_voice_path_brings_the_card_of_a_mount_action_through_the_one_door():
+    import pathlib
+    import re
+    src = (pathlib.Path(__file__).resolve().parents[4] / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
+    i = src.index("def _apply_widget_data(")
+    body = src[i:i + 9000]
+    assert re.search(r"_fx\.carries\(wid, action_name, _fx\.PRESENT_MOUNT\):\s*\n\s*_cvis\.present\(wid, "
+                     r"reason=\"producer-mount\"", body), "a FAST data-op with present.mount must present its card"
