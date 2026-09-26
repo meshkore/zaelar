@@ -28,6 +28,49 @@ _LOCK = threading.Lock()
 
 _POLL_S = 0.15
 
+#: How long a timed-out ask keeps listening for its LATE answer. Measured 2026-09-26: Telegram answered in
+#: 24 s and 27 s (address book + 56 groups' members) against a 25 s wait — so the import never landed,
+#: every time, and «trae mis contactos de Telegram» did nothing. The answer is not lost any more: the
+#: subscription outlives the wait, and `take_late` hands it to the contacts cron, which absorbs it.
+_LATE_S = 300.0
+_late: dict[str, tuple] = {}          # platform → (subscription, deadline)
+_late_lock = threading.Lock()
+
+
+def _match(ev, platform: str) -> dict | None:
+    if str((ev or {}).get("platform") or "").lower() != platform:
+        return None
+    if ev.get("error"):
+        return {"ok": False, "error": str(ev["error"])}
+    return {"ok": True, "contacts": ev.get("contacts") or [], "groups": ev.get("groups") or [],
+            "partial": bool(ev.get("partial"))}
+
+
+def take_late(platform: str) -> dict | None:
+    """The answer to an ask that timed out, if it has arrived since. None when nothing is waiting, or it is
+    still on its way. A listener past its deadline is dropped. Never raises."""
+    platform = (platform or "").strip().lower()
+    with _late_lock:
+        held = _late.get(platform)
+        if not held:
+            return None
+        sub, deadline = held
+        got = None
+        while True:
+            try:
+                ev = sub.queue.get_nowait()
+            except Exception:
+                break
+            got = _match(ev, platform) or got
+        if got is None and time.time() < deadline:
+            return None
+        _late.pop(platform, None)
+    try:
+        unsubscribe(sub)
+    except Exception:  # noqa: BLE001
+        pass
+    return got
+
 
 def request(platform: str, *, timeout: float = 25.0) -> dict:
     """Ask `platform` for its contacts and groups, and wait for the one answer.
@@ -52,14 +95,22 @@ def request(platform: str, *, timeout: float = 25.0) -> dict:
                     ev = sub.queue.get_nowait()
                 except Exception:
                     break
-                if str((ev or {}).get("platform") or "").lower() == platform:
-                    if ev.get("error"):
-                        return {"ok": False, "error": str(ev["error"])}
-                    return {"ok": True, "contacts": ev.get("contacts") or [],
-                            "groups": ev.get("groups") or [], "partial": bool(ev.get("partial"))}
+                got = _match(ev, platform)
+                if got is not None:
+                    return got
             time.sleep(_POLL_S)
-        return {"ok": False,
-                "error": f"{platform} no contestó a tiempo — lo reintento en la próxima pasada"}
+        # Keep listening past the wait: the answer is usually on its way (see _LATE_S).
+        with _late_lock:
+            old = _late.pop(platform, None)
+            _late[platform] = (sub, time.time() + _LATE_S)
+        if old is not None:
+            try:
+                unsubscribe(old[0])
+            except Exception:  # noqa: BLE001
+                pass
+        sub = None                       # handed over — the finally below must not close it
+        return {"ok": False, "pending": True,
+                "error": f"{platform} sigue trayendo los contactos — los añado en cuanto lleguen"}
     except Exception as e:  # noqa: BLE001
         logger.warning(f"contacts_bus: {platform} falló ({e})")
         return {"ok": False, "error": str(e)}

@@ -115,13 +115,20 @@ def _payload(source: str) -> dict:
 
 def sync_now(source: str) -> dict:
     """One pass of one source, right now. Returns the counts `apply_action` speaks back."""
-    from . import data as _d, imports
     source = (source or "").strip().lower()
     if source not in KNOWN:
         return {"ok": False, "error": f"no sé importar contactos de «{source}» — tengo {', '.join(KNOWN)}"}
     if source != "meshkore" and not connected(source):
         return {"ok": False, "error": f"{source} no está conectado todavía — conéctalo y vuelve a pedírmelo"}
     got = _payload(source)
+    if got.get("pending"):
+        return {"ok": False, "pending": True, "error": str(got.get("error") or "")}
+    return _absorb(source, got)
+
+
+def _absorb(source: str, got: dict) -> dict:
+    """Fold one connector answer into the directory — the answer asked for now, or one that arrived late."""
+    from . import data as _d, imports
     db = _d.load_db()
     st = state(db)[source]
     if not got.get("ok", True) or got.get("error"):
@@ -155,6 +162,17 @@ def tick(ctx) -> None:
     """Continuous import, from the widget cron. Best-effort and quiet: a source that cannot be read is a
     line in the log and a message on the card, never a raised turn."""
     from . import data as _d
+    # An answer that came back after its ask gave up is absorbed here, whether or not the source is «on»:
+    # he asked for it, and it arrived (2026-09-26 — Telegram takes ~25 s, the ask waited 25 s).
+    for s in ("telegram", "whatsapp"):
+        try:
+            from connectors.messaging import contacts_bus
+            late = contacts_bus.take_late(s)
+            if late is not None:
+                r = _absorb(s, late)
+                logger.info(f"contactos.sources: respuesta tardía de {s} incorporada → {r.get('added', 0)} nuevos")
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"contactos.sources: no pude incorporar la respuesta tardía de {s}: {e}")
     try:
         db = _d.load_db()
         due = [s for s, st in state(db).items()

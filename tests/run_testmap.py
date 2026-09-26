@@ -2851,6 +2851,7 @@ DOMAINS: list[dict] = [
         {"id": "4.96", "title": "CONTACTOS: un directorio para todas las identidades — la vista es una acción "
                                 "que contesta (renderizado + manifest + datos)",
             "ch": UNIT, "paths": ["tests/browser/unit/contactos/test_one_directory_for_every_identity.py",
+                                   "tests/browser/unit/contactos/test_a_late_contacts_answer_is_still_imported.py",
                                   # V2-683 — POR DÓNDE se escribe a alguien: los canales del contacto, el
                                   # preferido, y lo que el directorio aprende solo del tráfico que ya llega.
                                   "tests/browser/unit/contactos/test_a_contact_carries_how_to_reach_him.py",
