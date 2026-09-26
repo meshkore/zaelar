@@ -159,14 +159,27 @@ def execute(action: dict, emit, phrase: str = "") -> bool:
         # the fast lane stays fast. Same posture as everything here: False is a routing decision, not an error.
         if _widget_has_live_work(wid):
             return False
-        emit("widget", "close", text=said, extra={"id": wid, **src})
+        # V2-773 — the CARD, not the piece: «Close the results» over a worker's sheet `results::9194df-3` emitted
+        # a close for the base id and the sheet stayed on screen. One decision for every path that closes
+        # (`instances.resolve_close`): one instance → that one; several → the model asks which, as elsewhere.
         try:
-            # V2-650b: a fast-lane close is by definition operator-ordered (a seeded phrase) — record it
-            # so a model-emitted show of the same widget needs his words again.
-            from nucleo.flash import canvas_license as _lic
-            _lic.note_operator_close(wid)
-        except Exception:
-            pass
+            from server.voice_api import open_instances
+            from widgets import instances as _inst
+            _t = _inst.resolve_close(wid, open_instances(), said)
+            if _t.get("ask"):
+                return False
+            ids = [str(x) for x in (_t.get("ids") or [wid]) if str(x or "").strip()] or [wid]
+        except Exception:  # noqa: BLE001
+            ids = [wid]
+        for cid in ids:
+            emit("widget", "close", text=said, extra={"id": cid, **src})
+            try:
+                # V2-650b: a fast-lane close is by definition operator-ordered (a seeded phrase) — record it
+                # so a model-emitted show of the same widget needs his words again.
+                from nucleo.flash import canvas_license as _lic
+                _lic.note_operator_close(cid)
+            except Exception:
+                pass
         return True
     if do == "move":
         emit("widget", "move", text=said, extra={"id": wid, "where": action["where"], **src})

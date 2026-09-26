@@ -484,3 +484,25 @@ def test_the_measured_media_orders_are_deterministic_now():
         got = by_phrase.get(normalize(phrase))
         assert got == {"do": "widget_data", "widget": widget, "action": action}, (phrase, got)
         assert executor.validate(got) == "", (phrase, executor.validate(got))
+
+
+def test_a_close_from_the_map_closes_the_open_card_not_the_piece(monkeypatch):
+    """V2-773 (travel block): «Close the results» over a worker's sheet `results::9194df-3` closed the BASE id
+    and the sheet stayed on screen. The map resolves the card like every other close path; with two open
+    sheets it steps aside so the model asks which."""
+    from nucleo.actionmap import executor
+    from server import voice_api
+    monkeypatch.setattr(executor, "_widget_has_live_work", lambda wid: False)
+    seen = []
+    emit = lambda kind, label, **k: seen.append((kind, label, k.get("extra") or {}))
+    monkeypatch.setattr(voice_api, "open_instances", lambda: ["results::9194df-3", "agenda"])
+    assert executor.execute({"do": "close_widget", "widget": "results"}, emit, phrase="Close the results.")
+    assert [e[2].get("id") for e in seen if e[1] == "close"] == ["results::9194df-3"]
+    seen.clear()
+    monkeypatch.setattr(voice_api, "open_instances", lambda: ["results::a", "results::b"])
+    assert executor.execute({"do": "close_widget", "widget": "results"}, emit, phrase="Close the results.") is False, (
+        "two sheets: the fast lane steps aside and the model asks which")
+    assert not seen
+    monkeypatch.setattr(voice_api, "open_instances", lambda: [])
+    assert executor.execute({"do": "close_widget", "widget": "agenda"}, emit, phrase="Close the calendar.")
+    assert [e[2].get("id") for e in seen if e[1] == "close"] == ["agenda"], "nothing known open: the plain id, as before"
