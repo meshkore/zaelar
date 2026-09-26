@@ -522,5 +522,6 @@ def test_minimise_those_puts_every_open_card_on_the_rail(monkeypatch):
     assert executor.execute({"do": "minimize_all"}, emit, phrase="minimise those") is False, "nothing known open: the model answers"
     import json as _json
     for lang, phrase in (("en", "minimise those while you work"), ("es", "minimiza todo")):
-        pack = _json.loads((Path(__file__).resolve().parents[4] / f"nucleo/actionmap/seeds/{lang}.json").read_text("utf-8"))
+        import pathlib as _pl
+        pack = _json.loads((_pl.Path(__file__).resolve().parents[4] / f"nucleo/actionmap/seeds/{lang}.json").read_text("utf-8"))
         assert any(e.get("phrase") == phrase and e.get("action", {}).get("do") == "minimize_all" for e in pack["entries"]), (lang, phrase)
