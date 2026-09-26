@@ -26,6 +26,7 @@ _ALLOWED: dict[str, tuple[str, ...]] = {
     "fullscreen": ("widget",),
     "minimize": ("widget",),     # V2-635: one step smaller (exit fullscreen → restore maximize → rail chip)
     "minimize_all": (),          # V2-773: every open card to the rail («minimise those while you work»)
+    "unfullscreen": (),          # V2-773: the card at full screen, one step down («exit fullscreen»)
     "arrange": (),               # V2-588: snap the whole canvas to the aligned grid — no target, no data
     "widget_data": ("widget", "action"),   # FAST-classified declared ops only, checked at execute
 }
@@ -114,6 +115,8 @@ def describe(action: dict) -> str:
         return "canvas:close"
     if do == "minimize_all":
         return "canvas:minimize"
+    if do == "unfullscreen":
+        return "canvas:unfullscreen"
     if do == "close_widget":
         return f"canvas:close:{action.get('widget')}"
     if do == "show_widget":
@@ -161,6 +164,19 @@ def execute(action: dict, emit, phrase: str = "") -> bool:
             return False                     # nothing known open: let the model answer
         for cid in ids:
             emit("widget", "minimize", text=said, extra={"id": cid, **src})
+        return True
+    if do == "unfullscreen":
+        # V2-773 (demo, V4): «Exit fullscreen» over the player at full screen — the model called nothing and the
+        # promise repair can only make data-ops; the canvas step is a tag. The target is the card the canvas
+        # itself reports at full screen (`state.maximized_widget`), never a guess; none → the model answers.
+        try:
+            from memory import api as _memapi
+            maxw = str(((_memapi.state() or {}).get("maximized_widget") or "")).strip()
+        except Exception:  # noqa: BLE001
+            maxw = ""
+        if not maxw:
+            return False
+        emit("widget", "minimize", text=said, extra={"id": maxw, **src})
         return True
     wid = _resolve_widget(action["widget"])
     if not wid:

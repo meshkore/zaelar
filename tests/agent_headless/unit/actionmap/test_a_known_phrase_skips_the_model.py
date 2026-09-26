@@ -525,3 +525,22 @@ def test_minimise_those_puts_every_open_card_on_the_rail(monkeypatch):
         import pathlib as _pl
         pack = _json.loads((_pl.Path(__file__).resolve().parents[4] / f"nucleo/actionmap/seeds/{lang}.json").read_text("utf-8"))
         assert any(e.get("phrase") == phrase and e.get("action", {}).get("do") == "minimize_all" for e in pack["entries"]), (lang, phrase)
+
+
+def test_exit_fullscreen_steps_the_maximised_card_down(monkeypatch):
+    """V2-773 (demo, V4): «Exit fullscreen» over the player at full screen — the model called nothing, the
+    promise repair only makes data-ops, and the card stayed full screen. The target is the one the canvas
+    reports at full screen; none → the model answers."""
+    from nucleo.actionmap import executor
+    from memory import api as memapi
+    seen = []
+    emit = lambda kind, label, **k: seen.append((label, (k.get("extra") or {}).get("id")))
+    monkeypatch.setattr(memapi, "state", lambda: {"maximized_widget": "youtube"})
+    assert executor.execute({"do": "unfullscreen"}, emit, phrase="Exit fullscreen.")
+    assert seen == [("minimize", "youtube")]
+    monkeypatch.setattr(memapi, "state", lambda: {})
+    assert executor.execute({"do": "unfullscreen"}, emit, phrase="exit fullscreen") is False
+    import json as _json, pathlib as _pl
+    for lang, phrase in (("en", "exit fullscreen"), ("es", "sal de pantalla completa")):
+        pack = _json.loads((_pl.Path(__file__).resolve().parents[4] / f"nucleo/actionmap/seeds/{lang}.json").read_text("utf-8"))
+        assert any(e.get("phrase") == phrase and e.get("action", {}).get("do") == "unfullscreen" for e in pack["entries"]), (lang, phrase)
