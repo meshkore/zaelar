@@ -160,13 +160,33 @@ def _alert_order(goal: str) -> bool:
     return bool(_ALERT_WORDS.search(str(goal or "")))
 
 
+#: Tools that only LOOK. A step told to create, send or schedule has not done it by reading — the demo's
+#: reseed list (2026-09-26): «Create a calendar event tomorrow at 3 PM…» read the agenda, answered «No, there
+#: isn't a meeting tomorrow at 3 PM», and was counted done. Nothing was created; the report said 4 of 5.
+_READ_ONLY = frozenset({"read_widget", "recall", "read_memory"})
+
+
 def acted(r: dict) -> bool:
     """Did the turn EXECUTE anything? The turn's own report, never its words: a tool call, a tag, an execution
     record or a worker. A lane that answered without the model (rename, action map) reports its own action."""
     r = r if isinstance(r, dict) else {}
-    if r.get("tool_calls") or r.get("tags") or r.get("executed") or r.get("task_ids") or r.get("task_id"):
+    calls = [t for t in (r.get("tool_calls") or []) if isinstance(t, dict)]
+    if any(str(t.get("name") or "") not in _READ_ONLY for t in calls):
         return True
-    return str(r.get("action") or "chat") not in ("chat", "")
+    if r.get("tags") or r.get("executed") or r.get("task_ids") or r.get("task_id"):
+        return True
+    return str(r.get("action") or "chat") not in ("chat", "", *_READ_ONLY)
+
+
+def report_of(r: dict) -> dict:
+    """The step's RAW report, for the timeline: what the list judged it by (V2-773 audit). A step marked done
+    with nothing on screen could not be audited from «Done.» alone."""
+    r = r if isinstance(r, dict) else {}
+    return {"action": str(r.get("action") or ""),
+            "tools": [str(t.get("name") or "") for t in (r.get("tool_calls") or []) if isinstance(t, dict)][:8],
+            "tags": [str(t.get("action") or t) for t in (r.get("tags") or [])][:8] if isinstance(r.get("tags"), list) else [],
+            "executed": str(r.get("executed") or ""), "execute_error": str(r.get("execute_error") or "")[:200],
+            "task_ids": list(r.get("task_ids") or []), "acted": acted(r)}
 
 
 # A step runs with `lists=False`, which also keeps it from draining `brain_notes`: those notes are the
@@ -230,6 +250,7 @@ async def _run_step(uid: str, row: dict, turn, ingest) -> None:
     except Exception as e:  # noqa: BLE001
         logger.warning(f"lista {uid}: memory ingest failed on {row['id']}: {e!r}")
     kind = str(row.get("kind") or "")
+    judged = r                                   # the turn the verdict is about (a synthetic failure replaces `r`)
     # …but a TIMED ALERT («remind me Friday at 9 to call the vet») is an alarm, and memory is not an alarm: a step
     # that asked for one and only got remembered would be reported done with nothing set to ring (V2-773 audit).
     kept = kind == "reminder" and wrote and not _alert_order(row["goal"])
@@ -238,6 +259,7 @@ async def _run_step(uid: str, row: dict, turn, ingest) -> None:
         # model that reads its own claim answers «already done». Still nothing → failed, and the report says so.
         _emit("📋 lista: paso sin acción — reintento", text=str(r.get("reply") or "")[:200], step=row["id"])
         r = await _turn(turn, row["goal"], f"{uid}:{row['id'][-2:]}")
+        judged = r
         if outcome_of(r)[0] == "done" and not acted(r):
             r = {"ok": False, "error": f"no action taken — «{str(r.get('reply') or '')[:160]}»"}
     state, note, tids = outcome_of(r)
@@ -248,7 +270,7 @@ async def _run_step(uid: str, row: dict, turn, ingest) -> None:
     if state in ("done", "failed"):
         fields["finished_at"] = int(time.time())
     ts.task_patch(row["id"], **fields)
-    _emit(f"📋 lista: paso {state}", text=note, step=row["id"])
+    _emit(f"📋 lista: paso {state}", text=note, step=row["id"], kind=kind, report=report_of(judged), memory_atoms=wrote)
 
 
 def _worker_state(tid: str) -> str:

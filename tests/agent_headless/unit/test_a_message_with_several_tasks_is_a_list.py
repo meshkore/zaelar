@@ -496,3 +496,33 @@ def test_a_timed_alert_that_was_only_remembered_is_not_done(monkeypatch):
         assert runner._alert_order(said), said
     for said in ("remember that my insurance renews on March 12", "recuerda que Anna está de vacaciones"):
         assert not runner._alert_order(said), said
+
+
+def test_a_step_that_only_read_has_not_acted_and_every_step_reports_what_it_was_judged_by(monkeypatch):
+    """Demo reseed list (2026-09-26): «Create a calendar event tomorrow at 3 PM…» called `read_widget`, answered
+    «No, there isn't a meeting tomorrow at 3 PM», and was counted DONE — nothing was created, the report said
+    4 of 5. A read is not the act a create step asks for; and the timeline now carries the raw report."""
+    assert not runner.acted({"ok": True, "reply": "No.", "action": "read_widget",
+                             "tool_calls": [{"name": "read_widget", "args": {}}], "tags": []})
+    assert runner.acted({"ok": True, "reply": "Done.", "action": "widget_data",
+                         "tool_calls": [{"name": "widget_data", "args": {}}], "tags": []})
+    assert runner.acted({"ok": True, "reply": "x", "action": "chat", "tool_calls": [], "tags": [],
+                         "task_ids": ["7"]})
+    seen = []
+    monkeypatch.setattr(runner, "_emit", lambda label, **extra: seen.append((label, extra)))
+    monkeypatch.setattr(runner, "_worker_state", lambda tid: "done")
+    uid = runner.create("msg", [{"title": "vet", "kind": "agenda", "say": "Create vet tomorrow at 3."}])
+
+    async def turn(text, **kw):
+        return {"ok": True, "reply": "No, there isn't one.", "action": "read_widget",
+                "tool_calls": [{"name": "read_widget", "args": {"widget_id": "agenda"}}], "tags": []}
+
+    async def ingest(text):
+        return {"atoms": 0}
+
+    async def nothing(*a, **k):
+        return None
+    s = asyncio.run(runner.run(uid, turn=turn, ingest=ingest, notify=nothing, worker_wait_s=0.1))
+    assert [r["title"] for r in s["failed"]] == ["vet"], s
+    ended = [x for l, x in seen if l.startswith("📋 lista: paso failed")]
+    assert ended and ended[-1]["report"]["tools"] == ["read_widget"] and ended[-1]["report"]["acted"] is False, seen

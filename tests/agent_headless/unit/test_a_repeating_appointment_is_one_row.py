@@ -395,3 +395,17 @@ def test_a_question_about_a_day_gets_that_days_record_and_an_empty_day_is_an_ans
     assert q._dates_in("mañana por la mañana") == [tomorrow] and q._dates_in("esta mañana") == []
     named = agenda.read_query(f"when is the product meeting on {monday}?")
     assert "Product" in named and "Meshcore" not in named, "a name inside a day narrows to that row"
+
+
+def test_the_digest_says_how_far_each_day_is():
+    """V2-773 audit: on a Saturday the model read «2026-09-28 09:00 «ZAELAR weekly review»» as tomorrow's."""
+    tomorrow = (TODAY + dt.timedelta(days=1)).isoformat()
+    in3 = (TODAY + dt.timedelta(days=3)).isoformat()
+    for title, day in (("Weekly review", tomorrow), ("Accountant", in3)):
+        assert "error" not in agenda.apply_action("add_meeting", {"title": title, "date": day, "startTime": "09:00",
+                                                                  "endTime": "09:30"})
+    d = agenda.prompt_digest()
+    assert f"{tomorrow} (mañana, " in d and f"{in3} (" in d and "en 3 días) 09:00 «Accountant»" in d, d
+    from widgets.agenda import index as _ix
+    assert _ix._day_label(TODAY.isoformat(), TODAY.isoformat()) == " (hoy)"
+    assert _ix._day_label("nonsense", TODAY.isoformat()) == ""

@@ -62,6 +62,28 @@ def ref_index() -> list[dict]:
     return out
 
 
+_WEEKDAYS = ("lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo")
+
+
+def _day_label(day: str, today: str) -> str:
+    """« (mañana, domingo)», « (lunes, en 2 días)», « (hoy)» — how far the day is, so a date is never misread."""
+    try:
+        import datetime as _dt
+        n = (_dt.date.fromisoformat(day) - _dt.date.fromisoformat(today)).days
+        wd = _WEEKDAYS[_dt.date.fromisoformat(day).weekday()]
+    except (ValueError, TypeError):
+        return ""
+    if n == 0:
+        return " (hoy)"
+    if n == 1:
+        return f" (mañana, {wd})"
+    if n == 2:
+        return f" (pasado mañana, {wd})"
+    if 0 < n < 7:
+        return f" ({wd}, en {n} días)"
+    return f" ({wd})"
+
+
 def prompt_digest() -> str:
     """What the brain sees while the agenda card is OPEN (`refs.prompt_digest` contract, capped there).
 
@@ -83,7 +105,9 @@ def prompt_digest() -> str:
     lines: list[str] = []
     for nxt, m in _nx[:12]:
         _hour = "todo el día" if m.get("allDay") else str(m.get("startTime") or "")
-        row = f"  · {nxt} {_hour} «{m.get('title', 'Cita')}»"
+        # V2-773 audit — the day SAID, not only written: with «2026-09-28 09:00 «ZAELAR weekly review»» in
+        # front of it on a Saturday, the model told him there was «already a weekly review tomorrow at 9».
+        row = f"  · {nxt}{_day_label(nxt, today)} {_hour} «{m.get('title', 'Cita')}»"
         if isinstance(m.get("repeat"), dict):
             row += f" · SE REPITE {recur.describe(m['repeat'])} (primera: {m.get('date')})"
         if m.get("location"):
