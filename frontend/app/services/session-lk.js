@@ -26,7 +26,7 @@ import * as api from "./api.js?v=2";
 
 let _capSeen = false;   // V2-752: the audio-synced caption channel has been heard from this session
 import * as mic from "./mic.js?v=1";
-import { openSSE } from "./sse.js?v=4";
+import { openSSE } from "./sse.js?v=5";
 import { clearDebugBuffer } from "./debugbus.js?v=2";
 import { startVisualizer } from "./visualizer.js?v=2";
 import { SpeakerID } from "../lib/speaker-id.js?v=1";

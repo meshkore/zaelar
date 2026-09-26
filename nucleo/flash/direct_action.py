@@ -155,8 +155,11 @@ def names_an_order(brief) -> bool:
     no hay clase» → «Vale, quito la del 6», with no tool and a card that still had both. The verdict was already
     paid for and named the action; the wording of the reply is not the evidence, the verdict is."""
     try:
-        from nucleo.flash import turn_brief as _tb
-        if not from_brief(brief)[1]:
+        from nucleo.flash import build_decision as _bd, turn_brief as _tb
+        # V2-773 — either twin names the card: `screen_action` while it is open, the CATALOGUE while it is
+        # closed. Read through `screen_action` alone, «Message Ethan on Telegram» (catalogue: messaging 1.0)
+        # and «Show me only today's emails» promised or denied with no call and no repair ever looked.
+        if not from_brief(brief)[1] and not _bd.named_card(brief):
             return False
         kind, info = _tb.read(brief, _tb.REQUEST_KEY, "")
         return info is not None and kind not in NOT_AIMED_AT_THE_SCREEN

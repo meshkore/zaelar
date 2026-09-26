@@ -219,3 +219,19 @@ def test_the_card_is_certain_even_when_the_action_is_not(monkeypatch):
     assert _bd.named_card(brief) == "", "mass split across cards names nobody"
     brief["result"][_tb.TARGET_KEY]["probs"] = {"youtube:play": 0.9, "none": 0.1}
     assert _bd.named_card(brief) == "", "a card no longer open is no card"
+
+
+def test_an_order_names_a_card_through_either_twin(monkeypatch):
+    """V2-773 (K1, E1 of the demo): «Message Ethan on Telegram» with no card open read catalogue=messaging 1.0,
+    the model promised «I'll send Ethan a Telegram now» and called nothing — and `names_an_order`, reading
+    `screen_action` alone, said no card was named, so no repair ever looked at the promise."""
+    from nucleo.flash import direct_action as _da
+    monkeypatch.setattr(_tb, "owner_still_open", lambda _b, _o: True)
+    closed = _brief({_tb.CATALOG_KEY: ("mensajeria", 0.99), _tb.REQUEST_KEY: ("order", 0.96)})
+    assert _da.names_an_order(closed), "the catalogue names the card while it is closed"
+    remark = _brief({_tb.CATALOG_KEY: ("mensajeria", 0.99), _tb.REQUEST_KEY: ("comment", 0.9)})
+    assert not _da.names_an_order(remark), "a remark about a card is not an order on it"
+    nobody = _brief({_tb.CATALOG_KEY: ("none", 0.97), _tb.REQUEST_KEY: ("order", 0.96)})
+    assert not _da.names_an_order(nobody)
+    open_ = _brief({_tb.TARGET_KEY: ("youtube:search", 0.91), _tb.REQUEST_KEY: ("order", 0.9)}, open_ids=("youtube",))
+    assert _da.names_an_order(open_), "…and screen_action still names it while open"

@@ -15,7 +15,7 @@ import * as mic from "./mic.js?v=1";
 import { SpeakerGate } from "../lib/speaker-gate.js?v=2";
 import { startMicVAD, stopMicVAD } from "./vad.js?v=2";
 import { startBrowserSTT, stopBrowserSTT } from "./stt.js?v=2";
-import { openSSE } from "./sse.js?v=4";
+import { openSSE } from "./sse.js?v=5";
 import { startVisualizer } from "./visualizer.js?v=2";
 import { t } from "../core/i18n.js?v=1";
 
