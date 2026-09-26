@@ -359,6 +359,28 @@ def test_an_action_step_whose_turn_did_nothing_is_retried_once_then_failed(monke
     assert runner.acted({"action": "rename"}) and not runner.acted({"action": "chat", "reply": "Hecho."})
 
 
+def test_a_reminder_step_that_was_remembered_is_done_but_an_agenda_step_still_needs_its_call(monkeypatch):
+    """His demo run (2026-09-26): «Remember these future responsibilities even when they are not on the calendar:
+    Tesla insurance renewal: March 12, 2027…» was split as `reminder`, the four renewals landed in memory, and
+    the step was failed «no action taken» — the report told him «I couldn't do: Personal reminders». For a
+    reminder, remembering IS the action; for an agenda entry it never is."""
+    monkeypatch.setattr(runner, "_worker_state", lambda tid: "done")
+    uid = runner.create("msg", [{"title": "renewals", "kind": "reminder", "say": "Remember the renewals."},
+                                {"title": "vet", "kind": "agenda", "say": "Create vet."}])
+
+    async def turn(text, **kw):
+        return {"ok": True, "reply": "Noted.", "action": "chat", "tool_calls": []}
+
+    async def ingest(text):
+        return {"source": "processor", "atoms": 4}          # memory wrote for BOTH steps
+
+    async def nothing(*a, **k):
+        return None
+    s = asyncio.run(runner.run(uid, turn=turn, ingest=ingest, notify=nothing, worker_wait_s=0.1))
+    assert [r["title"] for r in s["done"]] == ["renewals"], s
+    assert [r["title"] for r in s["failed"]] == ["vet"], "a calendar entry is never «done» by remembering it"
+
+
 def test_a_relayed_worker_is_over_when_its_durable_row_says_so(monkeypatch):
     """Errands case: worker 1 was relayed to another provider (new id 3, same row). Its RAM record stays
     `relevada` for good; the row said `failed` — the list must read the row, not wait 45 minutes."""

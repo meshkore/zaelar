@@ -39,7 +39,8 @@ Rules:
 - Instructions about how to process THIS message («do them in order», «treat each section separately») are NOT steps.
 - Headings are not steps; their content is.
 - kind is one of: identity (the assistant's own name/role), memory (facts about the user), preference, rule
-  (standing behaviour), agenda (create/change a calendar entry), reminder, task (research, search, booking,
+  (standing behaviour), agenda (create/change a calendar entry), reminder (ONLY a timed alert: «remind me on Friday
+  at 9 to…»; dated facts to keep in mind — «remember that the insurance renews on…» — are memory), task (research, search, booking,
   shopping, organising — work that takes time), message (contact someone), question, other.
 
 Answer ONLY with JSON: {"steps": [{"title": "<3-6 words>", "kind": "<kind>", "say": "<the step>"}]}"""

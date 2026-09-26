@@ -120,10 +120,17 @@ def sync_now(source: str) -> dict:
         return {"ok": False, "error": f"no sé importar contactos de «{source}» — tengo {', '.join(KNOWN)}"}
     if source != "meshkore" and not connected(source):
         return {"ok": False, "error": f"{source} no está conectado todavía — conéctalo y vuelve a pedírmelo"}
+    t0 = time.time()
     got = _payload(source)
+    logger.info(f"contactos: {source} contestó en {time.time() - t0:.1f}s → ok={got.get('ok')} "
+                f"pending={bool(got.get('pending'))} {len(got.get('contacts') or [])} personas")
     if got.get("pending"):
         return {"ok": False, "pending": True, "error": str(got.get("error") or "")}
-    return _absorb(source, got)
+    try:
+        return _absorb(source, got)
+    except Exception as e:  # noqa: BLE001 — it runs in a pool thread that nobody awaits past 8 s: say it HERE
+        logger.exception(f"contactos: no pude incorporar lo que trajo {source}: {e}")
+        return {"ok": False, "error": f"no pude incorporar los contactos de {source}: {e}"}
 
 
 def _absorb(source: str, got: dict) -> dict:

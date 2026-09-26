@@ -205,7 +205,19 @@ async def _run_step(uid: str, row: dict, turn, ingest) -> None:
     started = sorted(after[k] for k in set(after) - set(before))
     if started and isinstance(r, dict) and not (r.get("task_ids") or r.get("task_id")):
         r = {**r, "task_ids": started}
-    if str(row.get("kind") or "") in ACTION_KINDS and outcome_of(r)[0] == "done" and not acted(r):
+    # Memory, awaited — see the module note. A step that failed still said something true about him. Written
+    # BEFORE the action check because, for a REMINDER, remembering is the action: «Remember these future
+    # responsibilities even when they are not on the calendar» was stored whole (four renewals) and the step
+    # was still failed «no action taken», and the report told him «I couldn't do: Personal reminders» (his demo
+    # run, 2026-09-26). An agenda or message step still needs its call; memory never stands in for those.
+    wrote = 0
+    try:
+        got = await ingest(row["goal"])
+        wrote = int((got or {}).get("atoms") or 0) if isinstance(got, dict) else 0
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"lista {uid}: memory ingest failed on {row['id']}: {e!r}")
+    kind = str(row.get("kind") or "")
+    if kind in ACTION_KINDS and outcome_of(r)[0] == "done" and not acted(r) and not (kind == "reminder" and wrote):
         # ONE retry, in a fresh session: the list's own window now holds the claim («Adding it now»), and a
         # model that reads its own claim answers «already done». Still nothing → failed, and the report says so.
         _emit("📋 lista: paso sin acción — reintento", text=str(r.get("reply") or "")[:200], step=row["id"])
@@ -215,11 +227,6 @@ async def _run_step(uid: str, row: dict, turn, ingest) -> None:
     state, note, tids = outcome_of(r)
     if state == "needs_you" and not await reply_needs_him(row["goal"], note):
         state = "done"
-    # Memory, awaited — see the module note. A step that failed still said something true about him.
-    try:
-        await ingest(row["goal"])
-    except Exception as e:  # noqa: BLE001
-        logger.warning(f"lista {uid}: memory ingest failed on {row['id']}: {e!r}")
     fields = {"state": "running" if state == "waiting" else ("waiting" if state == "needs_you" else state),
               "outcome": (f"workers:{','.join(tids)} " if tids else "") + f"[{state}] {note}"}
     if state in ("done", "failed"):
