@@ -509,3 +509,28 @@ def test_a_show_with_a_promise_on_it_is_not_the_act(monkeypatch):
     assert applied[-1] == ("mensajeria", "open", {"item": "Cryptonite"})
     # a reply that ASKS for the detail it needs is not a promise left hanging
     assert not asyncio.run(card_commission.after_show(acted, spoken_text="What should the reply say?", **kw))
+
+
+def test_a_show_of_a_catalogue_named_card_asks_for_the_rest_of_the_order(monkeypatch):
+    """V2-773 (demo v3, E1): «Show me only the emails from today that need my attention» opened the messaging
+    card and DENIED the filter its own `show_view` declares — no promise wording, no sure action verdict, so the
+    after-show pass never asked. The catalogue named the card for an order with more in it than «open it»."""
+    import asyncio
+    from nucleo import danger
+    from nucleo.flash import act_repair, card_commission, clarifying, direct_action, router
+    monkeypatch.setattr(danger, "is_dangerous", lambda t: False)
+    monkeypatch.setattr(clarifying, "asks_for_missing_detail", lambda r: False)
+    monkeypatch.setattr(router, "promises_action", lambda r: False)
+    monkeypatch.setattr(direct_action, "names_an_order", lambda b, **k: False)
+    monkeypatch.setattr(card_commission, "named_or_catalogue", lambda brief, text, **k: "mensajeria")
+
+    async def pass_(operator_text, reply, wid, spec=None):
+        return {"widget_id": "mensajeria", "action": "show_view", "payload": {"platform": "email", "window_h": 24}}
+    monkeypatch.setattr(act_repair, "call_for_promise", pass_)
+    applied = []
+    kw = dict(brief={"x": 1}, operator_text="Show me only the emails from today that need my attention.", spec=None,
+              emit=lambda *a, **k: None, present=lambda *a, **k: True, apply_widget_data=lambda w, a, p: applied.append((w, a, p)))
+    assert asyncio.run(card_commission.after_show({"widget_id": "mensajeria"}, spoken_text="I can't filter by today from here.", **kw))
+    assert applied == [("mensajeria", "show_view", {"platform": "email", "window_h": 24})]
+    monkeypatch.setattr(card_commission, "named_or_catalogue", lambda brief, text, **k: "")
+    assert not asyncio.run(card_commission.after_show({"widget_id": "mensajeria"}, spoken_text="Here they are.", **kw))

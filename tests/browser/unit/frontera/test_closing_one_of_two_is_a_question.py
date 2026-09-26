@@ -285,3 +285,15 @@ def test_a_close_takes_every_card_the_sentence_names():
     assert src.count("with_also_named(_t.get(\"ids\")") == 2, "both close sites must take the other named cards"
     from voice.engine.llm.providers import widget_intent
     assert callable(widget_intent.with_also_named)
+
+
+def test_an_open_sheet_is_named_by_its_own_title(monkeypatch):
+    """V2-773 (demo v3, S1): «Show me the monitors» → «I don't have anything like that in your set of cards» —
+    the worker's sheet was titled «27-inch 4K monitors under $400» and only aliases named cards."""
+    from widgets import runtime
+    monkeypatch.setattr(instances, "card_face", lambda wid: {"label": "27-inch 4K monitors under $400", "blank": False}
+                        if wid == "results::x1" else {})
+    assert runtime.identify_named("Show me the monitors", open_ids=["results::x1", "documento"]) == "results::x1"
+    assert runtime.identify_named("Show me the monitor sheet", open_ids=["results::x1"]) == "results::x1", "singular too"
+    assert runtime.identify_named("Show me the results", open_ids=["results::x1"]) == "results", "an alias still wins, and narrows later"
+    assert runtime.identify_named("Show me the map", open_ids=["results::x1"]) != "results::x1", "a word not in the title names nothing"

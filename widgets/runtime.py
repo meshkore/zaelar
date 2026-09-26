@@ -285,6 +285,25 @@ def identify(query: str, open_ids: list | None = None, recent_ids: list | None =
         s = _alias_score(q, q_padded, q_tokens, row["aliases"], row["alias_tokens"])
         if s >= _THRESHOLD:
             scored.append((s, row["w"]))
+    # V2-773 — an OPEN INSTANCE is named by what it SHOWS: a worker's sheet titled «27-inch 4K monitors under
+    # $400» is «the monitors» to the operator (demo v3, S1: «Show me the monitors» → «I don't have anything like
+    # that in your set of cards»). Read from the card's own face (`instances.card_face`), never from a description;
+    # a distinctive word of the title in the phrase names it, and it scores just under an exact alias.
+    for inst in (open_ids or []):
+        inst = str(inst or "").strip()
+        if "::" not in inst:
+            continue
+        try:
+            from . import instances as _inst
+            face = _inst.card_face(inst).get("label") or ""
+        except Exception:  # noqa: BLE001
+            face = ""
+        f_tokens = {t for t in _norm(face).split() if len(t) >= 4 and t not in _STOP}
+        f_stems = {x.rstrip("s") for x in f_tokens}
+        hit = {t for t in q_tokens if len(t) >= 4 and (t in f_tokens or t.rstrip("s") in f_stems)}
+        if hit and not any(w.get("id") == inst for _s, w in scored):
+            base = get(inst.split("::", 1)[0]) or {}
+            scored.append((0.9, {**base, "id": inst, "title": face}))
     scored.sort(key=lambda s: (-s[0], s[1].get("id", "")))
     # The candidate's TITLE is read back to the operator when the phrase is ambiguous («¿cuál te enseño?»), so
     # it is the label they can SEE, not the manifest's own wording (V2-694, and V2-605's rule that a card is

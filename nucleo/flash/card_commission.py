@@ -21,7 +21,7 @@ from __future__ import annotations
 from typing import Callable
 
 
-def named_or_catalogue(brief, operator_text: str, *, wait_s: float = 1.2) -> str:
+def named_or_catalogue(brief, operator_text: str, *, wait_s: float = 2.5) -> str:
     """The card an order names — by the brief, or by ONE late catalogue question when the brief could not know.
 
     The brief asks `screen_action` while cards are open and `catalog_widget` only when nothing is, on purpose
@@ -49,7 +49,14 @@ def named_or_catalogue(brief, operator_text: str, *, wait_s: float = 1.2) -> str
             v = fut.result(timeout=wait_s)
         cat = str((v or {}).get("choice") or "").strip()
         conf = float((v or {}).get("confidence") or 0.0)
-        return cat if cat and cat != "none" and conf >= _jev.MIN_CONFIDENCE else ""
+        named = cat if cat and cat != "none" and conf >= _jev.MIN_CONFIDENCE else ""
+        try:
+            from voice.observer import emit as _emit
+            _emit("brain", "🧭 catálogo tardío (la pantalla dijo «none»)", role="system",
+                  text=f"{cat or '?'} ({conf:.2f}) → {named or 'nadie'}", extra={"cat": "flash", "card": named, "choice": cat, "confidence": conf})
+        except Exception:  # noqa: BLE001
+            pass
+        return named
     except Exception:  # noqa: BLE001
         return ""
 
@@ -124,7 +131,11 @@ async def after_show(acted: dict, *, brief, operator_text: str, spoken_text: str
             return False
         if _cl.asks_for_missing_detail(spoken_text):
             return False
-        if not (acted.get("show_suppressed") or _router.promises_action(spoken_text) or _da.names_an_order(brief, sure=0.8)):
+        # …or the card was named by the catalogue for an order with more in it than «open it» (demo v3, E1:
+        # «Show me only the emails from today that need my attention» opened the card and DENIED the filter
+        # its own action declares). The pass is told to call nothing when the show was the whole order.
+        if not (acted.get("show_suppressed") or _router.promises_action(spoken_text) or _da.names_an_order(brief, sure=0.8)
+                or named_or_catalogue(brief, operator_text) == wid):
             return False
         got = await _repair.call_for_promise(operator_text, spoken_text, wid, spec=spec)
         if not got or str(got.get("action") or "") in ("show", "open_widget"):
