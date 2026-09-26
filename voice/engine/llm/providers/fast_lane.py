@@ -75,6 +75,14 @@ async def handled(brain, text: str, emit, *, first_turn: bool, t_entry: float, w
                 "pre_ms": round((time.time() - t_entry) * 1000, 1), "src": "actionmap"})
     from nucleo.flash import dialog as _dialog0
     _dialog0.push_user(brain._window, text)
+    try:
+        # The map ACTED; say so in the window, or the next turn reads this order as unanswered and redoes it —
+        # «Close the music player» (map, silent) then «Find me a free slot…» → «closing the player now» and the
+        # player reopened (demo run, 2026-09-26).
+        from i18n import langs as _lg0
+        _dialog0.record_silent_action(brain._window, _lg0.current_language().data_ack)
+    except Exception:
+        pass
     del brain._window[:-window_max]
     try:
         # Conv buffer (mirror of the provider's post-reply write): the NEXT turn — and a worker's

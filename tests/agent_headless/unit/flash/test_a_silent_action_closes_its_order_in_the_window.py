@@ -42,3 +42,11 @@ def test_the_text_channel_records_it_too():
     src = (ROOT / "nucleo/flash/probe.py").read_text(encoding="utf-8")
     assert re.search(r"sess\.window\.append\(\{\"role\": \"assistant\", \"content\": spoken\}\)\n\s+elif tags or "
                      r"tool_calls:\n.*\n\s+dialog\.record_silent_action\(sess\.window, ", src), "text channel parity"
+
+
+def test_the_action_map_lane_records_it_too():
+    """«Close the music player» went through the action map (no model, silent); the next turn answered it
+    again — «closing the player now» — and reopened the player."""
+    src = (ROOT / "voice/engine/llm/providers/fast_lane.py").read_text(encoding="utf-8")
+    i = src.index("_dialog0.push_user(brain._window, text)")
+    assert "_dialog0.record_silent_action(brain._window," in src[i:i + 600]
