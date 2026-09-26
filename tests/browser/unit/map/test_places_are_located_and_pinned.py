@@ -17,7 +17,7 @@ def fake(monkeypatch):
     _mem.clear()
     calls = []
 
-    def geocode(q):
+    def geocode(q, deadline=None):
         calls.append(q)
         for k, (lat, lon) in _COORDS.items():
             if k in q.lower():
@@ -56,7 +56,7 @@ def test_add_keeps_and_select_takes_a_number_or_a_name(fake):
 def test_the_stand_in_geocoder_answers_when_the_first_fails(monkeypatch):
     seen = []
 
-    def get(url):
+    def get(url, timeout=None):
         seen.append(url)
         if "photon" in url:
             raise OSError("down")
@@ -80,3 +80,28 @@ def test_the_card_is_shipped_and_brings_itself_on_screen():
     assert registry.origin_of({"id": "map"}) == "builtin"
     for a in ("show", "add", "select"):
         assert fx.carries("map", a, fx.PRESENT_MOUNT), a
+
+
+def test_a_slow_geocoder_gets_only_the_time_that_is_left(monkeypatch):
+    """V2-773 audit: the deadline was read only BETWEEN places, so one place started with a second to spare
+    could still run two services × 2.5 s, and three slow places blew past the widget pool's 8 s. Every call
+    is now capped at what is left, and a call that cannot land in time is not made."""
+    import time as _t
+    seen = []
+    now = [1000.0]
+    monkeypatch.setattr(mp.time, "time", lambda: now[0])
+
+    def get(url, timeout=mp._TIMEOUT_S):
+        seen.append(round(timeout, 2))
+        now[0] += timeout                                  # the service uses every second it is given
+        raise TimeoutError("slow")
+    monkeypatch.setattr(mp, "_get", get)
+    assert mp._geocode("Griffith Observatory", deadline=1003.0) is None
+    assert seen == [2.5, 0.5], "photon got the full cap, nominatim only the half second that was left"
+    seen.clear()
+    assert mp._geocode("Somewhere", deadline=1000.2) is None
+    assert seen == [], "no time left: no call is made"
+    seen.clear()
+    now[0] = 1000.0
+    mp._geocode("Anywhere")                                # no deadline: the plain cap, twice
+    assert seen == [2.5, 2.5]

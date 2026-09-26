@@ -110,6 +110,22 @@ def spin_count(state: dict, action: str, target: str) -> int:
     return state["n"]
 
 
+def spin_result(state: dict, text) -> None:
+    """What the repeated step ANSWERED. A different answer is progress, and the count starts over.
+
+    The same step is not the same work: a worker that scrolls a long listing runs `scroll` twenty times and
+    each snapshot is new, and one that polls a page until it loads reads it again and again on purpose. What
+    `true` did for fifteen minutes was repeat one step AND get the same nothing back every time. So the
+    count only survives a result that matches the previous one (V2-773 audit); a step nobody answers keeps
+    the plain count above — a stream with no results has no progress to show either."""
+    if not isinstance(state, dict) or state.get("key") is None:
+        return
+    sig = hash(str(text or "").strip()[:2000])
+    if "sig" in state and state["sig"] != sig:
+        state["n"] = 1                    # this repeat brought something new: not a spin
+    state["sig"] = sig
+
+
 def mark_spinning(rec, emit_chip, n: int) -> None:
     """The honest ending for a worker that repeated one step `n` times without progress."""
     logger.warning(f"worker[{rec.task_id}]: SPINNING — the same step {n} times in a row, stopping")

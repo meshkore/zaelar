@@ -3070,7 +3070,16 @@ class NucleoLLMStream(llm.LLMStream):
             # Guarda la respuesta SANEADA (anti-degeneración V2-032): si el modelo empalmó/repitió, no reinyectamos
             # esa basura al turno siguiente → cortamos el bucle de realimentación que degrada al modelo pequeño.
             brain._window.append({"role": "assistant", "content": _dialog.sanitize_reply(spoken_text)})
-        elif _tool_handled:
+        elif _ht.turn_handled(typed=_typed_turn, widget=acted["widget"], data=data_done["v"],
+                              worker=worker_acted["v"], style=style_fired["v"], deduped=False, aside=False,
+                              escalated=escalate_req["v"] is not None, searched=search_req["v"] is not None,
+                              music=music_req["v"] is not None, video=("play_video" in _tool_fired),
+                              images=images_req["v"] is not None,
+                              confirm=bool(confirm_state.get("opened") or confirm_state.get("handled"))):
+            # The ack closes an order that was CARRIED OUT. `_tool_handled` above is a wider question («may
+            # this turn stay mute?») and says yes to a turn whose only act was a re-emitted op the anti-drag
+            # guard threw away, or an aside — writing «Done.» after those records a thing that never happened,
+            # and the next turn believes it (V2-773 audit: «Make it fullscreen» + a dropped replay = «Done.»).
             _dialog.record_silent_action(brain._window, _say().data_ack)
         del brain._window[:-_WINDOW_MAX]
         if not first_turn:

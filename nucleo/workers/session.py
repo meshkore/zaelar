@@ -276,6 +276,7 @@ class WorkerSession:
             except Exception:
                 pass
         elif ev.type == "step_result":
+            _stall.spin_result(getattr(self, "_spin", None), d.get("text"))   # a new answer to the same step is progress
             self._emit_step_result(d)                          # 2026-08-10: what ANSWERED that step
             self._maybe_unstick_permission(d)                  # V2-211: did it hit OUR own gate?
             self._maybe_hand_web(d)                            # V2-236: what the SEARCH brought to the conversation

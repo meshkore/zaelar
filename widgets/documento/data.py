@@ -344,9 +344,12 @@ def apply_action(action: str, payload: dict = None) -> dict:
             heads = [b.lstrip("# ").strip() for b in _blocks(body) if b.startswith("#")][:12]
             return {"ok": False, "error": "no encuentro ese pasaje — pásame un título o una frase suya",
                     "headings": heads}
-        db["focus"] = {"text": hit[:160], "at": time.time()}
+        # As the reader will SEE it: the card matches this against rendered text, where «**refused**» is
+        # «refused» and a wrapped paragraph is one line (V2-773 audit — a passage with emphasis never matched).
+        plain = " ".join(re.sub(r"[*_`~>#\[\]]+", "", hit).split())
+        db["focus"] = {"text": plain[:160], "at": time.time()}
         store.save(WIDGET_ID, _stamp(db))
-        return {"ok": True, "found": hit[:200]}
+        return {"ok": True, "found": plain[:200]}
 
     if a == "clear":
         store.save(WIDGET_ID, _stamp(_seed()))

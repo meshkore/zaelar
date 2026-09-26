@@ -78,3 +78,32 @@ def test_the_run_loop_stops_a_spinning_worker():
     src = (pathlib.Path(__file__).resolve().parents[4] / "nucleo/workers/session.py").read_text("utf-8")
     assert re.search(r"self\._on_event\(ev\)\n\s+if self\._spin_dead:\n\s+_stall\.mark_spinning\(rec, "
                      r"self\._emit_chip, self\._spin\.get\(\"n\", 0\)\)\n\s+try:\n\s+await self\._b\.stop", src)
+
+
+def _result(s, text):
+    from nucleo.workers.base import WorkerEvent
+    s._on_event(WorkerEvent(task_id="7", type="step_result", data={"where": "", "text": text}))
+
+
+def test_the_same_step_with_a_new_answer_each_time_is_progress_not_a_spin():
+    """V2-773 audit: a worker scrolling a long listing runs `scroll` twenty times, and a worker polling a page
+    reads it again until it loads — the same step, a different answer. `true` repeated the step AND got the
+    same nothing back. Only the second is a spin."""
+    async def go():
+        s = _session()
+        for i in range(3 * stall.SPIN_KILL):
+            _step(s, "scroll")
+            _result(s, f"snapshot #{i}: more listings")
+        await asyncio.sleep(0)
+        assert not s._spin_dead and not s._b.sent, "new content every time: nobody is told to stop"
+        s2 = _session()
+        for _ in range(stall.SPIN_KILL):
+            _step(s2, "true")
+            _result(s2, "")
+        assert s2._spin_dead, "the same step with the same empty answer is the demo's fifteen minutes"
+        s3 = _session()
+        for _ in range(stall.SPIN_KILL):
+            _step(s3, "true")                          # a stream that never answers keeps the plain count
+        assert s3._spin_dead
+        await asyncio.sleep(0)
+    asyncio.run(go())

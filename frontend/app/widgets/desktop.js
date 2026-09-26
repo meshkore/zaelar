@@ -502,12 +502,18 @@ export class Desktop {
     // reset; si es más nueva que la nuestra, vaciamos el escritorio local → sesión en blanco, como recién instalado.
     try{
       const { epoch } = await fetch("/api/desktop/epoch").then(r=>r.json());
-      if(epoch && localStorage.getItem("hb_wipe") !== String(epoch)){
+      // V2-773 — this key is OURS and `hb_wipe` is first-run.js's. Both readers fetch the same epoch at boot and
+      // used to record it under the same key, so whichever answered first spent the other's turn: when this
+      // restore won, `takeoverOnReset` found the epoch already obeyed and the mic/speaker mutes survived the
+      // reset (the very thing V2-772 was for). Two owners, two keys — and ours sits in the `hb_` namespace on
+      // purpose: the takeover's sweep removes it, so after its reload this branch runs again and clears the
+      // SERVER state too (`_reportOpen`), which a sweep of localStorage alone never reaches.
+      if(epoch && localStorage.getItem("hb_desktop_epoch") !== String(epoch)){
         localStorage.removeItem("hb_desktop");
         // The chat wall remembers being open since V2-550, and a wipe has to reach it too — otherwise a reset
         // leaves a desktop that is blank except for the one panel that outlived it.
         try{ const m = await import("../components/ChatWall.js?v=5"); m.forgetChatPlacement && m.forgetChatPlacement(); }catch(_){}
-        localStorage.setItem("hb_wipe", String(epoch));
+        localStorage.setItem("hb_desktop_epoch", String(epoch));
         this._reportOpen();               // the server STATE is also cleared
         return;                           // starts with no widgets
       }

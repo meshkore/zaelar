@@ -78,3 +78,14 @@ def test_the_card_scrolls_to_the_focus_and_marks_it(playwright_available):
     m = asyncio.run(go())
     assert m["marked"] == ["He has refused his Assent to L"], m
     assert m["scrolled"] > 200, "the sheet must move to the passage, not just mark it off-screen"
+
+
+def test_the_focus_is_stored_as_the_reader_sees_it(doc):
+    """V2-773 audit: a passage with emphasis («He has **refused**…») was stored with its marks and the card,
+    matching against rendered text, never found it — the reply said «here it is» and nothing moved."""
+    from widgets.documento import data as dd
+    dd.apply_action("show", {"body": "# Grievances\n\nHe has **refused** his _Assent_ to Laws,\nthe most wholesome.",
+                             "title": "D"})
+    got = dd.apply_action("goto", {"text": "refused his Assent"})
+    assert got["ok"] and got["found"].startswith("He has refused his Assent to Laws, the most wholesome"), got
+    assert dd.view_data()["focus"]["text"] == "He has refused his Assent to Laws, the most wholesome."

@@ -33,9 +33,22 @@ def test_it_never_invents_an_answer_where_nothing_was_asked_or_one_was_given():
 
 def test_the_voice_channel_records_it_when_a_tool_handled_the_turn():
     src = (ROOT / "voice/engine/llm/providers/nucleo.py").read_text(encoding="utf-8")
-    assert re.search(r"brain\._window\.append\(\{\"role\": \"assistant\", \"content\": _dialog\.sanitize_reply"
-                     r"\(spoken_text\)\}\)\n\s+elif _tool_handled:\n\s+_dialog\.record_silent_action\("
-                     r"brain\._window, _say\(\)\.data_ack\)", src), "voice: a silent tool turn must close its order"
+    m = re.search(r"brain\._window\.append\(\{\"role\": \"assistant\", \"content\": _dialog\.sanitize_reply"
+                  r"\(spoken_text\)\}\)\n\s+elif _ht\.turn_handled\((?P<args>[^:]*?)\):\n(?:\s+#.*\n)*"
+                  r"\s+_dialog\.record_silent_action\(brain\._window, _say\(\)\.data_ack\)", src)
+    assert m, "voice: a silent tool turn must close its order"
+    # V2-773 audit — but only a turn that DID something. `_tool_handled` also says yes to a dropped replay
+    # (deduped) and to an aside, and «Done.» after those records an act that never happened.
+    assert "deduped=False" in m.group("args") and "aside=False" in m.group("args"), m.group("args")
+    for real in ("widget=acted", "data=data_done", "worker=worker_acted", "escalated=", "music=", "video="):
+        assert real in m.group("args"), f"the ack must still follow a real {real}"
+
+
+def test_a_dropped_replay_is_not_an_act():
+    from nucleo.flash import harness_turn as ht
+    assert ht.turn_handled(typed=False, deduped=True), "the mute question: a voice turn may stay silent"
+    assert not ht.turn_handled(typed=False, deduped=False, aside=False), "the ack question: nothing was done"
+    assert ht.turn_handled(typed=False, deduped=False, aside=False, data=True)
 
 
 def test_the_text_channel_records_it_too():

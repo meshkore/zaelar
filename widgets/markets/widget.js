@@ -50,7 +50,8 @@ function txt(tag, cls, s){ const e=document.createElement(tag); if(cls)e.classNa
 const SVGNS = "http://www.w3.org/2000/svg";
 function rangeLabel(r){
   return ({ "1d": tt("r_1d", null, "1D"), "5d": tt("r_5d", null, "5D"), "1mo": tt("r_1mo", null, "1M"),
-            "6mo": tt("r_6mo", null, "6M"), "1y": tt("r_1y", null, "1Y"), "5y": tt("r_5y", null, "5Y") })[r] || r;
+            "3mo": tt("r_3mo", null, "3M"), "6mo": tt("r_6mo", null, "6M"), "1y": tt("r_1y", null, "1Y"),
+            "5y": tt("r_5y", null, "5Y") })[r] || r;
 }
 
 function drawChart(box, pts, up, rng, lang){
@@ -128,7 +129,7 @@ export function render(el, data, ctx){
   if(d.error) el.appendChild(txt("div", "mkterr", tt("stale", null, "The price source did not answer; this is the last chart it gave.")));
 
   const tabs = txt("div", "mkttabs");
-  for(const r of (Array.isArray(d.ranges) && d.ranges.length ? d.ranges : ["1d","5d","1mo","6mo","1y","5y"])){
+  for(const r of (Array.isArray(d.ranges) && d.ranges.length ? d.ranges : ["1d","5d","1mo","3mo","6mo","1y","5y"])){
     const b = txt("button", "mkttab" + (r === d.range ? " is-on" : ""), rangeLabel(r));
     b.type = "button";
     b.setAttribute("aria-pressed", r === d.range ? "true" : "false");

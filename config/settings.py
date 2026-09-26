@@ -496,7 +496,13 @@ AGENT_KEYS = frozenset({
 # orbe escuchando, el micrófono activo, el altavoz activo y el word activation desactivado… Aunque estuviera
 # antes diferente»*. Dropping the key IS the reset: the knob's default (`always`, no wake word) takes over.
 # The ⏻ lives in `sys_kv` and the browser's own switches in localStorage — see scripts/reset-memory.sh.
-SWITCH_KEYS = frozenset({"attention_mode", "attention_window"})
+#
+# …and the VOICE (V2-773 audit). A fresh install speaks with the variant's pinned voice (V2-772); a reset that
+# kept `assistant_voice` never reached that default, because the language lock only replaces a voice that is
+# MISALIGNED with the language — and the one it found (an earlier «first native» pick, or a past choice) was
+# aligned enough to stay. Measured on the operator's own install after the reset: settings still carried a
+# premade American voice that was not the pin. «Como si fuera de cero» includes the voice.
+SWITCH_KEYS = frozenset({"attention_mode", "attention_window", "assistant_voice"})
 
 
 def reset_switches() -> list:

@@ -22,6 +22,7 @@ One list at a time (`_LOCK`): a second list queues behind the first instead of i
 from __future__ import annotations
 
 import asyncio
+import re
 import secrets
 import time
 
@@ -147,6 +148,18 @@ async def reply_needs_him(task: str, reply: str) -> bool:
 ACTION_KINDS = frozenset({"agenda", "reminder", "message", "task"})
 
 
+#: An order for something to RING, in the words people use for it. «Remember that the insurance renews on
+#: March 12» is a fact to keep; «remind me on March 12» asks for an alert, and only a scheduled one delivers it.
+_ALERT_WORDS = re.compile(
+    r"\b(remind me|set (?:a |an )?(?:reminder|alarm|alert)|alert me|wake me|ping me|"
+    r"recu[eé]rdame|av[ií]same|ponme (?:un |una )?(?:aviso|alarma|recordatorio)|despi[eé]rtame|"
+    r"programa (?:un |una )?(?:aviso|alarma|recordatorio))\b", re.I)
+
+
+def _alert_order(goal: str) -> bool:
+    return bool(_ALERT_WORDS.search(str(goal or "")))
+
+
 def acted(r: dict) -> bool:
     """Did the turn EXECUTE anything? The turn's own report, never its words: a tool call, a tag, an execution
     record or a worker. A lane that answered without the model (rename, action map) reports its own action."""
@@ -217,7 +230,10 @@ async def _run_step(uid: str, row: dict, turn, ingest) -> None:
     except Exception as e:  # noqa: BLE001
         logger.warning(f"lista {uid}: memory ingest failed on {row['id']}: {e!r}")
     kind = str(row.get("kind") or "")
-    if kind in ACTION_KINDS and outcome_of(r)[0] == "done" and not acted(r) and not (kind == "reminder" and wrote):
+    # …but a TIMED ALERT («remind me Friday at 9 to call the vet») is an alarm, and memory is not an alarm: a step
+    # that asked for one and only got remembered would be reported done with nothing set to ring (V2-773 audit).
+    kept = kind == "reminder" and wrote and not _alert_order(row["goal"])
+    if kind in ACTION_KINDS and outcome_of(r)[0] == "done" and not acted(r) and not kept:
         # ONE retry, in a fresh session: the list's own window now holds the claim («Adding it now»), and a
         # model that reads its own claim answers «already done». Still nothing → failed, and the report says so.
         _emit("📋 lista: paso sin acción — reintento", text=str(r.get("reply") or "")[:200], step=row["id"])

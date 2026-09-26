@@ -44,10 +44,10 @@
   "usage": "To chart something use 'show' with 'symbol' — a ticker (AAPL, ^IXIC, BTC-USD, EURUSD=X) or just the name ('Apple', 'Nasdaq', 'bitcoin'): it is looked up — and 'range' (1d = today, 5d = this week, 1mo = last month, 6mo, 1y, 5y; default 1d). 'range' changes the PERIOD of the chart already on screen («show me the last month instead»). 'refresh' updates it. Both return the name, price, currency and change: say them in one short sentence. It only shows prices; it never buys or sells.",
   "actions": {
     "show": {
-      "desc": "SHOWS the price chart of a stock, index, currency or crypto («a chart of Apple stock», «how is the Nasdaq»): by ticker or by name, over a period (1d today · 5d · 1mo · 6mo · 1y · 5y)",
+      "desc": "SHOWS the price chart of a stock, index, currency or crypto («a chart of Apple stock», «how is the Nasdaq»): by ticker or by name, over a period (1d today · 5d · 1mo · 3mo · 6mo · 1y · 5y)",
       "payload": {
         "symbol": "ticker or name, e.g. AAPL or Apple",
-        "range": "1d | 5d | 1mo | 6mo | 1y | 5y (optional, default 1d)"
+        "range": "1d | 5d | 1mo | 3mo | 6mo | 1y | 5y (optional, default 1d)"
       },
       "view": true,
       "effects": [
@@ -57,7 +57,7 @@
     "range": {
       "desc": "CHANGES THE PERIOD of the chart on screen («the last month instead», «show me the whole year», «just today»)",
       "payload": {
-        "range": "1d | 5d | 1mo | 6mo | 1y | 5y"
+        "range": "1d | 5d | 1mo | 3mo | 6mo | 1y | 5y"
       },
       "view": true,
       "effects": [

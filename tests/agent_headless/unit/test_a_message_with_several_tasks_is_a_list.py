@@ -469,3 +469,30 @@ def test_five_errands_never_run_more_than_two_at_a_time(monkeypatch):
     assert inside == {"now": 0, "max": 2, "done": 5}
     src = (ROOT / "nucleo/dispatch.py").read_text()
     assert "async with _pool():" in src            # the gate every worker session passes through
+
+
+def test_a_timed_alert_that_was_only_remembered_is_not_done(monkeypatch):
+    """V2-773 audit: «Remind me on Friday at 9 to call the vet» is an ALARM. Memory writing an atom about it is
+    not the alarm — reported done, nothing would ever ring. The reminder exemption is for facts to keep
+    («remember that the insurance renews…») that the split still labels `reminder`."""
+    monkeypatch.setattr(runner, "_worker_state", lambda tid: "done")
+    uid = runner.create("msg", [{"title": "vet call", "kind": "reminder",
+                                 "say": "Remind me on Friday at 9 to call the vet."},
+                                {"title": "renewals", "kind": "reminder",
+                                 "say": "Remember that the Tesla insurance renews on March 12, 2027."}])
+
+    async def turn(text, **kw):
+        return {"ok": True, "reply": "Noted.", "action": "chat", "tool_calls": []}
+
+    async def ingest(text):
+        return {"source": "processor", "atoms": 1}
+
+    async def nothing(*a, **k):
+        return None
+    s = asyncio.run(runner.run(uid, turn=turn, ingest=ingest, notify=nothing, worker_wait_s=0.1))
+    assert [r["title"] for r in s["failed"]] == ["vet call"], s
+    assert [r["title"] for r in s["done"]] == ["renewals"], s
+    for said in ("recuérdame el viernes a las 9", "avísame mañana", "set a reminder for 5pm", "wake me at 7"):
+        assert runner._alert_order(said), said
+    for said in ("remember that my insurance renews on March 12", "recuerda que Anna está de vacaciones"):
+        assert not runner._alert_order(said), said

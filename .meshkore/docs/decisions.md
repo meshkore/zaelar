@@ -21,6 +21,23 @@ entregada siga citada aquí.
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **The demo batch, audited: one owner per key, an ack only after a real act, a spin is the same ANSWER too
+  (V2-773, 2026-09-26)**: the operator asked for the twenty commits of the demo run to be put on the table and
+  audited deeply. Read in context with one checklist — does the change go through the door that exists, does it
+  leave a second owner, does it lie to a reader (the window, the report, the timeline), does its test measure the
+  wiring — nine findings, all fixed with a disarmed-red test: (1) `desktop.js` and `first-run.js` BOTH recorded
+  the reset epoch under `hb_wipe`, so whichever fetch answered first spent the other's turn and the mutes could
+  survive the reset V2-772 had just fixed — two readers, two keys, the desktop's inside the swept namespace so it
+  re-runs after the reload; (2) the silent «Done.» was written after a dropped replay or an aside — the ack asks
+  its own question (`turn_handled` with `deduped=False, aside=False`), not the mute one; (3) the spin guard
+  counted `scroll` ×20 over a long listing like `true` ×20 — a different answer to the same step resets it
+  (`stall.spin_result`); (4) a timed alert that was only remembered was reported done with nothing set to ring —
+  the reminder exemption skips alert orders (`_alert_order`); (5) the pinned voice never reached an install whose
+  settings held an aligned non-pin voice — `assistant_voice` joins the keys a reset drops; (6-8) markets looks a
+  ticker-shaped name up when its chart is empty and knows `3mo`; the map caps every geocoder call at the time
+  left; the document stores its focus plain. Dismissed by measurement: the voice re-point at attach IS live, the
+  pinned list has no duplicates, `layout` follows `tab`. The full table and the touched-architecture map live in
+  the initiative.
 - **After ANY reset the agent comes up listening, the folder step is not skipped, and each language variant has
   ONE chosen voice (V2-772, 2026-09-25)**: after his reset the folder question flashed and went, the mic and
   speaker came up muted, and the voice «seemed random — an Italian girl trying to speak English». Four causes,

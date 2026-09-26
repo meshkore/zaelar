@@ -10,9 +10,9 @@ import pytest
 from widgets.markets import data as mk
 
 
-def _chart(symbol="AAPL", closes=(100.0, 102.0, 110.0), prev=105.0, price=110.0):
+def _chart(symbol="AAPL", closes=(100.0, 102.0, 110.0), prev=105.0, price=110.0, name="Apple Inc."):
     return {"chart": {"result": [{
-        "meta": {"symbol": symbol, "currency": "USD", "shortName": "Apple Inc.", "regularMarketPrice": price,
+        "meta": {"symbol": symbol, "currency": "USD", "shortName": name, "regularMarketPrice": price,
                  "previousClose": prev, "chartPreviousClose": prev, "regularMarketTime": 1790366400,
                  "fullExchangeName": "NasdaqGS"},
         "timestamp": [1790300000 + i * 300 for i in range(len(closes))],
@@ -98,7 +98,7 @@ def test_view_data_never_touches_the_network(monkeypatch, tmp_path):
         raise AssertionError("view_data reached the network — it is the hot path, it serves the cache")
     monkeypatch.setattr(mk.urllib.request, "urlopen", boom)
     v = mk.view_data()
-    assert v["ranges"] == ["1d", "5d", "1mo", "6mo", "1y", "5y"] and v["symbol"] == ""
+    assert v["ranges"] == ["1d", "5d", "1mo", "3mo", "6mo", "1y", "5y"] and v["symbol"] == ""
 
 
 def test_the_widget_is_shipped_and_declares_exactly_what_it_handles():
@@ -125,3 +125,35 @@ def test_the_voice_path_brings_the_card_of_a_mount_action_through_the_one_door()
     body = src[i:i + 9000]
     assert re.search(r"_fx\.carries\(wid, action_name, _fx\.PRESENT_MOUNT\):\s*\n\s*_cvis\.present\(wid, "
                      r"reason=\"producer-mount\"", body), "a FAST data-op with present.mount must present its card"
+
+
+def test_a_name_in_capitals_that_is_no_ticker_falls_back_to_the_search(monkeypatch, tmp_path):
+    """V2-773 audit: «NASDAQ» is ticker-shaped and was sent as one — Yahoo has no chart under that spelling
+    and the card answered «the price source did not answer». Looked up after all, it is ^IXIC."""
+    monkeypatch.setenv("ZAELAR_WORKSPACE", str(tmp_path))
+    calls = []
+
+    def get(url):
+        calls.append(url)
+        if "/search?" in url:
+            return {"quotes": [{"symbol": "^IXIC", "shortname": "NASDAQ Composite", "quoteType": "INDEX"}]}
+        if "/chart/NASDAQ?" in url:
+            return {"chart": {"result": None}}
+        return _chart("^IXIC", name="NASDAQ Composite")
+    monkeypatch.setattr(mk, "_get", get)
+    monkeypatch.setattr(mk.store, "load", lambda wid, seed, **k: json.loads(json.dumps(_mem.get(wid, seed))))
+    monkeypatch.setattr(mk.store, "save", lambda wid, db: _mem.__setitem__(wid, json.loads(json.dumps(db))))
+    _mem.clear()
+    got = mk.apply_action("show", {"symbol": "NASDAQ"})
+    assert got["ok"] and got["symbol"] == "^IXIC" and got["name"] == "NASDAQ Composite", got
+    assert [("/chart/NASDAQ?" in u, "/search?" in u, "/chart/^IXIC?" in u) for u in calls] == \
+        [(True, False, False), (False, True, False), (False, False, True)], calls
+
+
+def test_three_months_is_a_period_of_its_own(fake_yahoo):
+    """V2-773 audit: «3M» used to land on six months."""
+    assert mk._range_of("3M") == "3mo" and mk._range_of("three months") == "3mo" and mk._range_of("un trimestre") == "3mo"
+    mk.apply_action("show", {"symbol": "AAPL"})
+    got = mk.apply_action("range", {"range": "3 months"})
+    assert got["range"] == "3mo" and "range=3mo" in fake_yahoo[-1] and "three months" in got["summary"]
+    assert "3mo" in mk.view_data()["ranges"]

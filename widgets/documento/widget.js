@@ -383,11 +383,14 @@ export function render(root, data, ctx){
   if(kind === "html") htmlInto(sheet, d.body);
   else markdownInto(sheet, d.body);
   // V2-773 — a FOCUS set by `goto`: scroll to the block that carries it and mark it, once per focus.
-  const f = d.focus && String(d.focus.text || "").trim();
+  // Both sides flattened the same way: no markdown marks, one space between words — the focus is stored as
+  // plain text, but a body rendered from HTML or with soft wraps still carries its own whitespace.
+  const flat = s => String(s || "").toLowerCase().replace(/[*_`~>#\[\]]+/g, "").replace(/\s+/g, " ").trim();
+  const f = d.focus && flat(d.focus.text);
   if(f){
-    const want = f.toLowerCase().slice(0, 80);
+    const want = f.slice(0, 80);
     const hit = [...sheet.querySelectorAll("h1,h2,h3,h4,h5,h6,p,li,blockquote")]
-      .find(n => (n.textContent || "").toLowerCase().includes(want));
+      .find(n => flat(n.textContent).includes(want));
     if(hit){
       hit.classList.add("hbd-focus");
       requestAnimationFrame(() => { try{ scroll.scrollTop = Math.max(0, hit.offsetTop - 12); }catch(_){} });

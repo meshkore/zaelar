@@ -102,7 +102,10 @@ export async function takeoverOnReset({ fetchEpoch, local, session, reload }) {
   return true;
 }
 
-const WIPE_KEY = "hb_wipe";                       // shared with widgets/desktop.js::restore
+// OWNED HERE, and nowhere else (V2-773). `widgets/desktop.js::restore` reads the same epoch for its own wipe and
+// records it under ITS key (`hb_desktop_epoch`): when both wrote this one, the restore that answered first left
+// the takeover believing the epoch was already obeyed, and the mutes survived the reset.
+const WIPE_KEY = "hb_wipe";
 const RESET_GUARD = "hb_reset_takeover:";
 
 export const _GUARD_KEY = GUARD;

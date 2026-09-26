@@ -28,10 +28,11 @@ _TIMEOUT_S = 3.5              # two calls must fit inside the widget pool's 8 s
 _MAX_POINTS = 320
 
 #: range → Yahoo interval. The period names are the ones the operator says; `_range_of` maps his words onto them.
-RANGES = {"1d": "5m", "5d": "30m", "1mo": "1d", "6mo": "1d", "1y": "1wk", "5y": "1mo"}
+RANGES = {"1d": "5m", "5d": "30m", "1mo": "1d", "3mo": "1d", "6mo": "1d", "1y": "1wk", "5y": "1mo"}
 _RANGE_WORDS = (
     (r"\b(today|intraday|day|hoy|d[ií]a)\b", "1d"),
     (r"\b(week|5\s*d(ays)?|semana|5\s*d[ií]as)\b", "5d"),
+    (r"\b(3|three|tres)\s*(mo|months?|meses)\b|\bquarter\b|\btrimestre\b", "3mo"),
     (r"\b(6|six|seis)\s*(mo|months?|meses)\b|\bhalf\s*(a\s*)?year\b|\bsemestre\b", "6mo"),
     (r"\b(5|five|cinco)\s*(y|years?|a[nñ]os)\b", "5y"),
     (r"\b(month|30\s*d(ays)?|1\s*mo|mes|[uú]ltimo mes)\b", "1mo"),
@@ -65,8 +66,9 @@ def _get(url: str) -> dict:
 
 
 #: The short codes a model writes («1M» measured live, 2026-09-26 — it fell to «today»).
-_CODES = {"1m": "1mo", "30d": "1mo", "1month": "1mo", "6m": "6mo", "3m": "6mo", "1w": "5d", "7d": "5d",
-          "1wk": "5d", "12m": "1y", "1yr": "1y", "ytd": "1y", "5yr": "5y", "today": "1d", "1day": "1d"}
+_CODES = {"1m": "1mo", "30d": "1mo", "1month": "1mo", "6m": "6mo", "3m": "3mo", "90d": "3mo", "1q": "3mo",
+          "1w": "5d", "7d": "5d", "1wk": "5d", "12m": "1y", "1yr": "1y", "ytd": "1y", "5yr": "5y",
+          "today": "1d", "1day": "1d"}
 
 
 def _range_of(raw) -> str:
@@ -132,8 +134,8 @@ def _summary(db: dict) -> str:
         return ""
     name = db.get("name") or db["symbol"]
     p, cur, pct = db.get("price"), db.get("currency") or "", db.get("change_pct")
-    period = {"1d": "today", "5d": "this week", "1mo": "over the last month", "6mo": "over six months",
-              "1y": "over the last year", "5y": "over five years"}.get(db.get("range"), "")
+    period = {"1d": "today", "5d": "this week", "1mo": "over the last month", "3mo": "over three months",
+              "6mo": "over six months", "1y": "over the last year", "5y": "over five years"}.get(db.get("range"), "")
     move = "" if pct is None else f", {'up' if pct >= 0 else 'down'} {abs(pct):.2f}% {period}"
     when = time.strftime("%a %d %b %H:%M", time.localtime(db["as_of"])) if db.get("as_of") else ""
     return f"{name} ({db['symbol']}) {p:,.2f} {cur}{move}" + (f" — last price {when}" if when else "") \
@@ -179,7 +181,22 @@ def apply_action(action: str, payload: dict = None) -> dict:
             sym, name = _lookup(query)
             if not sym:
                 return {"ok": False, "error": f"I could not find a market symbol for «{query}» — try its ticker"}
-            return _fetch_into(db, sym, _range_of(p.get("range")), name)
+            try:
+                return _fetch_into(db, sym, _range_of(p.get("range")), name)
+            except Exception:  # noqa: BLE001
+                # A NAME that looks like a ticker («NASDAQ», «TESLA», «IBEX») was taken as one and has no
+                # chart under that spelling: look it up after all before giving up (V2-773 audit).
+                if name or not _TICKER.match(query.upper()):
+                    raise
+                got = _get("https://query1.finance.yahoo.com/v1/finance/search?"
+                           + urllib.parse.urlencode({"q": query, "quotesCount": 6, "newsCount": 0}))
+                alt = next((str(it["symbol"]) for it in (got.get("quotes") or [])
+                            if it.get("symbol") and str(it["symbol"]).upper() != sym), "")
+                if not alt:
+                    raise
+                return _fetch_into(db, alt, _range_of(p.get("range")),
+                                   next((str(it.get("shortname") or it.get("longname") or "")
+                                         for it in got.get("quotes") or [] if it.get("symbol") == alt), ""))
         if action in ("range", "refresh"):
             if not db.get("symbol"):
                 return {"ok": False, "error": "there is no chart on screen yet — use 'show' with a symbol first"}

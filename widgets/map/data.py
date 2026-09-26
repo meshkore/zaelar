@@ -29,19 +29,30 @@ def _load() -> dict:
     return store.load(WID, _seed())
 
 
-def _get(url: str):
+_MIN_CALL_S = 0.4          # below this there is no point asking: the answer cannot arrive in time
+
+
+def _get(url: str, timeout: float = _TIMEOUT_S):
     req = urllib.request.Request(url, headers={"User-Agent": _UA, "Accept": "application/json"})
-    with urllib.request.urlopen(req, timeout=_TIMEOUT_S) as r:
+    with urllib.request.urlopen(req, timeout=timeout) as r:
         return json.loads(r.read().decode("utf-8", "replace"))
 
 
-def _geocode(query: str) -> dict | None:
-    """(lat, lon, label) for a place said by name/address. None when neither service knows it."""
+def _geocode(query: str, deadline: float | None = None) -> dict | None:
+    """(lat, lon, label) for a place said by name/address. None when neither service knows it — or when the
+    `deadline` leaves no time to ask: each call is capped at what is LEFT, so three slow places cannot add up
+    to four services × 2.5 s past the widget pool's 8 s (V2-773 audit; the deadline used to be read only
+    between places, and one place started with a second to spare could run ten)."""
     q = " ".join(str(query or "").split())[:200]
     if not q:
         return None
+
+    def _left() -> float:
+        return _TIMEOUT_S if deadline is None else min(_TIMEOUT_S, deadline - time.time())
     try:
-        got = _get("https://photon.komoot.io/api/?" + urllib.parse.urlencode({"q": q, "limit": 1}))
+        if _left() < _MIN_CALL_S:
+            return None
+        got = _get("https://photon.komoot.io/api/?" + urllib.parse.urlencode({"q": q, "limit": 1}), _left())
         f = (got.get("features") or [None])[0]
         if f:
             lon, lat = f["geometry"]["coordinates"][:2]
@@ -51,8 +62,10 @@ def _geocode(query: str) -> dict | None:
     except Exception:  # noqa: BLE001 — fall through to the stand-in
         pass
     try:
+        if _left() < _MIN_CALL_S:
+            return None
         got = _get("https://nominatim.openstreetmap.org/search?" + urllib.parse.urlencode(
-            {"q": q, "format": "json", "limit": 1}))
+            {"q": q, "format": "json", "limit": 1}), _left())
         if got:
             return {"lat": float(got[0]["lat"]), "lon": float(got[0]["lon"]),
                     "found": str(got[0].get("display_name") or "")[:120]}
@@ -96,7 +109,7 @@ def _locate(places: list, near: str, deadline: float) -> tuple[list, list]:
                 missed.append(p["name"])
                 continue
             q = ", ".join(x for x in (p["name"], p["address"] or near) if x)
-            hit = _geocode(q) or (_geocode(p["address"]) if p["address"] else None)
+            hit = _geocode(q, deadline) or (_geocode(p["address"], deadline) if p["address"] else None)
             if not hit:
                 missed.append(p["name"])
                 continue
