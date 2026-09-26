@@ -99,7 +99,8 @@ DOMAINS: list[dict] = [
             "tests/memory/unit/test_vault.py", "tests/memory/unit/test_vault_flow.py",
             "tests/memory/unit/test_vault_ingest.py", "tests/memory/unit/test_vault_rules.py",
             "tests/memory/unit/test_secrets.py", "tests/memory/unit/test_pill_slot.py",
-            "tests/memory/unit/test_slots_audit.py", "tests/memory/unit/test_location_grounding.py",
+            "tests/memory/unit/test_slots_audit.py",
+                "tests/memory/unit/test_an_order_is_not_its_outcome.py", "tests/memory/unit/test_location_grounding.py",
             "tests/memory/unit/test_critical_health.py",
             # V2-499 (2026-08-29): the critical line matched the CATEGORY (“celiac”) rather than what the person says
             # they CANNOT do (“cannot eat gluten”)—authorized by the operator, accepting the false positives

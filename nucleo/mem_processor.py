@@ -324,6 +324,14 @@ Por CADA píldora decides:
   NUNCA descartes PETICIONES, TAREAS, COMPROMISOS, CITAS o RECADOS, aunque vengan de otra persona ("X me pidió Y
   para el día Z", "tengo cita el jueves", "me han encargado…"): guárdalos (long si son relevantes/importan más de
   un día; short si son solo de hoy). Tampoco descartes datos concretos con NÚMEROS/fechas/importes/direcciones.
+  ★ UNA ORDEN NO ES SU RESULTADO. Cuando el operador ORDENA al asistente crear, mover, cambiar, cancelar, enviar
+  o reservar algo («agéndalo como X», «muévelo media hora», «escríbele a Oscar»), TÚ NO SABES si se hizo: lo
+  registra la agenda o el conector que lo ejecuta, no tú. NUNCA lo escribas como un hecho o un evento ya
+  ocurrido («tiene una cita X», «la reunión se movió 30 minutos»). Escríbelo como kind="result" con la forma
+  «Pidió al asistente que …» (con la fecha absoluta), o descártalo si es una operación de pantalla sin
+  compromiso duradero (poner música, abrir o cerrar algo, enseñar una gráfica o unas fotos). Lo que la orden
+  REVELA de él sigue valiendo y se infiere aparte («pon algo de Madonna» → le gusta Madonna). Distinto es cuando
+  ÉL te INFORMA de algo que ya existe («mi cita del dentista es el martes a las 5»): eso SÍ es un hecho/evento.
   ★ FECHAS RELATIVAS → SIEMPRE ABSOLUTAS. Una píldora se leerá meses después, sola, sin el turno que la originó:
   "hace tres días", "la semana que viene", "ayer", "el jueves" NO significan nada fuera de hoy y con el tiempo se
   vuelven FALSAS. Usa la FECHA Y HORA ACTUAL de arriba para convertirlas a fecha absoluta dentro del texto de la
