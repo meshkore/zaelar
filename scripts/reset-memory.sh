@@ -166,9 +166,26 @@ if [[ "$YES" != "1" ]]; then
 fi
 
 # 1) stop the server (the DB is open in WAL mode) — releases the lock and port for the restart.
+# A server that ignores SIGTERM kept its handle on the DB while this script deleted it (measured 2026-09-27: the
+# same PID answered after the reset, on a database that no longer existed on disk). So: TERM, WAIT for the port,
+# KILL if it refused, and never delete anything under a live server.
 if command -v lsof >/dev/null 2>&1; then
-  PIDS="$(lsof -ti :43917 2>/dev/null || true)"
-  [[ -n "$PIDS" ]] && { echo "▶ parando el server ($PIDS)…"; kill $PIDS 2>/dev/null || true; sleep 2; }
+  _listening() { lsof -ti tcp:43917 -sTCP:LISTEN 2>/dev/null || true; }
+  PIDS="$(_listening)"
+  if [[ -n "$PIDS" ]]; then
+    echo "▶ parando el server ($PIDS)…"
+    kill $PIDS 2>/dev/null || true
+    for _ in $(seq 1 30); do [[ -z "$(_listening)" ]] && break; sleep 0.3; done
+    if [[ -n "$(_listening)" ]]; then
+      echo "  ignoró la parada — forzando"
+      kill -9 $(_listening) 2>/dev/null || true
+      for _ in $(seq 1 15); do [[ -z "$(_listening)" ]] && break; sleep 0.3; done
+    fi
+    if [[ -n "$(_listening)" ]]; then
+      echo "✗ el server sigue vivo en 43917: NO se borra nada (borrar la base bajo un server vivo la deja huérfana)" >&2
+      exit 1
+    fi
+  fi
 fi
 
 # 2) delete observability (ALWAYS).

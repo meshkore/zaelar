@@ -2383,6 +2383,10 @@ DOMAINS: list[dict] = [
         {"id": "3.93", "title": "Una orden de un paso se hace en el sitio, un encargo de verdad va a un worker",
             "ch": UNIT, "live": True, "paths": ["tests/voice/unit/test_a_one_step_order_is_not_a_worker.py"],
             "cmd": "ZAELAR_LIVE_JEV=1 ./.venv/bin/pytest -q -s tests/voice/unit/test_a_one_step_order_is_not_a_worker.py"},
+        # V2-776 (2026-09-27): el reset mandaba UN SIGTERM, dormía 2 s y borraba la base; el servidor lo ignoró y
+        # siguió vivo sobre una base borrada. Ahora espera el puerto, fuerza, y si sigue vivo no borra nada.
+        {"id": "3.94", "title": "El reset nunca borra la base bajo un servidor vivo",
+            "ch": UNIT, "paths": ["tests/infrastructure/unit/config/test_a_reset_never_deletes_under_a_live_server.py"]},
         # V2-627 (2026-09-09): y AUN ASÍ hacían falta DOS pulsaciones. Los dos arreglos del nodo de arriba son
         # del MISMO día y se estorban: `setPowerOff(false)` corre síncrono dentro del clic, así que el efecto
         # que revive la voz arranca una sesión ANTES de que salga `POST /api/run/start`; esa sesión pregunta al
