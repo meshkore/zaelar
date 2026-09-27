@@ -2397,6 +2397,10 @@ DOMAINS: list[dict] = [
         # nombra (o la más reciente), nunca la base vacía.
         {"id": "3.98", "title": "«Show me the monitors» trae su hoja cerrada, no una caja vacía",
             "ch": UNIT, "paths": ["tests/browser/unit/results/test_show_me_the_monitors_brings_back_their_closed_sheet.py"]},
+        # V2-776 (2026-09-27): el guarda «pregunta META sobre un widget» leía el turno CON nuestras notas [SISTEMA];
+        # una nota sobre un encargo cerrado tiró «Show me the monitors» → «Sorry, I lost that».
+        {"id": "3.99", "title": "Una nota del sistema nunca veta su show — los guardas leen SOLO sus palabras",
+            "ch": UNIT, "paths": ["tests/voice/unit/providers/test_a_system_note_never_vetoes_his_show.py"]},
         # V2-776 (2026-09-27): la pregunta de escalado a Jev decía «ante la duda, escala» y mandaba a un worker
         # 11 de 11 órdenes de un paso (música, Telegram, agenda, gráfica). Nombra ahora lo que hacen las tarjetas.
         # EN VIVO: vieja 5/17, nueva 16/17.

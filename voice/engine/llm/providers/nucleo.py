@@ -994,7 +994,9 @@ class NucleoLLMStream(llm.LLMStream):
             # El modelo a veces emite [[show:X]] cuando el operador solo PREGUNTA por un widget ("¿por qué abriste
             # proyectos?") → abría un widget espurio en mitad de otra conversación (bug 2026-07-12). Una pregunta
             # META sobre una acción pasada NO es una orden de mostrar → ignora el show del modelo.
-            if action == "show" and _is_meta_widget_question(_norm_nfkd(text)):
+            # V2-776 — HIS words only (V2-678): the composed turn carries our `[SISTEMA]` notes, and a note about a
+            # closed errand read as a meta question and dropped «Show me the monitors» (verification 2026-09-27).
+            if action == "show" and _is_meta_widget_question(_norm_nfkd(_bnotes.operator_half(text))):
                 emit("brain", "🚫 show ignorado (pregunta META sobre un widget, no una orden)",
                      text=str(extra.get("id") or ""), role="system")
                 return
@@ -3167,7 +3169,7 @@ class NucleoLLMStream(llm.LLMStream):
         # nosotros. Va ANTES del login-fallback a propósito (V2-023): "abre mensajería y dime si WhatsApp está
         # conectado" es un SHOW de widget, NUNCA un login — así el login-fallback no roba un turno de widget.
         if not _tool_handled:
-            if _widget_fallback(text, emit, ask=lambda m: clarify.__setitem__("msg", m), last_spoken=brain._last_spoken or ""):
+            if _widget_fallback(_bnotes.operator_half(text), emit, ask=lambda m: clarify.__setitem__("msg", m), last_spoken=brain._last_spoken or ""):
                 acted["widget"] = True
 
         # LOGIN FALLBACK (V2-022): "conéctame a X" / "inicia sesión en mi Y" que el modelo NO accionó (se despistó
