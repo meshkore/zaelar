@@ -1352,6 +1352,12 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/voice/unit/test_debug_stacks.py"]},
         {"id": "3.19", "title": "El nexo suena ANTES de la respuesta (audio en su locución) y solo si el turno tarda",
             "ch": UNIT, "paths": ["tests/voice/unit/test_filler_audio.py"]},
+        # V2-773, 2026-09-27 — Inworld sin saldo (402 en cada síntesis): LiveKit reintenta, se rinde y nunca
+        # añade el ítem del asistente, y el transcript sale de ahí. El muro se quedó en blanco con un worker
+        # arrancando: la respuesta estaba escrita y nadie la vio. Lo que se le da a la voz es lo que pinta el muro.
+        {"id": "3.81", "title": "La respuesta llega al muro aunque la voz no pueda decirla (TTS rendido → "
+                                "transcript marcado tts_failed, y nunca dos veces)",
+            "ch": UNIT, "paths": ["tests/voice/unit/test_a_reply_reaches_the_wall_when_the_voice_cannot.py"]},
         # V2-716 — measured in session 928c8761 (2026-09-17, English, 15 min): 21 covers, TWENTY of them out
         # of the neutral pool and FIFTEEN with no reply behind them. «Good question…» answered «the one in
         # Telegram» (an answer to OUR question) and «I'll check that now…» answered «close everything». The

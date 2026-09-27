@@ -32,6 +32,7 @@ from livekit.agents import (
     cli,
 )
 
+from . import reply_wall as _reply_wall
 from ..core import langs
 from ..core.config import SETTINGS
 from ..core.logging import setup_console_logging
@@ -440,7 +441,8 @@ async def entrypoint(ctx: JobContext) -> None:
     def _on_item(ev) -> None:
         item = ev.item
         role, text = getattr(item, "role", None), getattr(item, "text_content", None)
-        if role == "assistant" and text:
+        # V2-773 — already on the wall because the voice could not say it (reply_wall.surface): not twice.
+        if role == "assistant" and text and not _reply_wall.already_surfaced(text):
             # SAFE to label with active() (source audit 2026-08-16, unlike the OPERATOR transcript below in
             # _on_transcript): the assistant item is added AFTER the turn's LLM+TTS chain has run — its trace
             # already exists; it is not about to begin.
@@ -489,8 +491,13 @@ async def entrypoint(ctx: JobContext) -> None:
 
     @session.on("error")
     def _on_error(ev) -> None:
-        _emit("error", "⚠️ " + str(getattr(ev, "error", ev))[:200], role="system")
-        logger.error("session error: %s", getattr(ev, "error", ev))
+        _err = getattr(ev, "error", ev)
+        _emit("error", "⚠️ " + str(_err)[:200], role="system")
+        logger.error("session error: %s", _err)
+        # V2-773 — a synthesis LiveKit gave up on never adds the assistant item, so the transcript above never
+        # fires: the reply the model wrote still reaches the wall (measured with Inworld out of credits).
+        if _reply_wall.is_tts_dead(_err):
+            _reply_wall.surface(_emit)
 
     # PROACTIVE VOICE: let PROCESS-LEVEL callers (the orchestrator loop's scheduled tasks/sparks, SlowBrain
     # escalation delivery) SPEAK a specific text through this live session's TTS — no brain turn, no re-generation.

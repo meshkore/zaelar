@@ -43,5 +43,6 @@ class ZaelarAgent(Agent):
 
     def tts_node(self, text, model_settings):
         from voice.engine.speech import say_numbers as _sn
-        return _sn.tts_node_speaking_figures(self, Agent.default.tts_node, text, model_settings,
+        from . import reply_wall as _rw     # V2-773: what the voice is fed is what the wall gets if it fails
+        return _sn.tts_node_speaking_figures(self, Agent.default.tts_node, _rw.tee(text), model_settings,
                                              langs.current_code())
