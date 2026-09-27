@@ -143,7 +143,9 @@ async def after_show(acted: dict, *, brief, operator_text: str, spoken_text: str
                 or _da.names_an_order(brief, sure=0.8) or named_or_catalogue(brief, operator_text) == wid):
             return False
         got = await _repair.call_for_promise(operator_text, spoken_text, wid, spec=spec)
-        if not got or str(got.get("action") or "") in ("show", "open_widget"):
+        # A bare `show` is the card coming up, which already happened; a `show` WITH content («markets:show
+        # {symbol: AAPL}») is the order itself.
+        if not got or (str(got.get("action") or "") in ("show", "open_widget") and not got.get("payload")):
             return False
         present(got["widget_id"], reason="turn-order", src="flash", emit=emit)
         apply_widget_data(got["widget_id"], got["action"], got["payload"])
