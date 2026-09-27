@@ -2302,6 +2302,11 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_desktop_rehydrate.py",
                                   # V2-773: a results sheet with no data and no errand is a ghost — pruned, never restored
                                   "tests/browser/unit/widgets/test_a_sheet_without_data_is_a_ghost.py"]},
+        # 2026-09-27, his rule: «los widgets tienen que abrirse a tamaños correctos» — the messaging card froze at
+        # its first render, 1700×380 on a 16" desk. The first render is judged against the desk before it is kept.
+        {"id": "4.223", "title": "Una tarjeta se abre con un tamaño LEGIBLE: nunca más ancha que medio escritorio, "
+                                 "nunca una tira; lo que el operador guardó es suyo (V2-773)",
+            "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_a_card_opens_at_a_readable_footprint.py"]},
         # 2026-08-12: tras un reset, la hoja de resultados sacó ENTERA la búsqueda anterior mientras el worker de la
         # nueva trabajaba — el reset cerraba las tarjetas pero no vaciaba sus DATOS. Aquí van las dos mitades: lo
         # derivado se vacía y el registro del operador (agenda, credenciales, perfil del navegador) NO; y el worker

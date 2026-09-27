@@ -15,6 +15,7 @@
 // Backend contract used:  GET /widgets/{id}/data?q=  ·  GET /widgets/{id}/widget.js  ·  POST /widgets/{id}/action
 // ============================================================================
 
+import { saneFootprint } from "./footprint.js?v=1";
 import { t as tr } from "../core/i18n.js?v=1";
 import * as store from "../core/store.js?v=2";
 
@@ -1463,8 +1464,15 @@ export class Desktop {
     const haveW = !!card.style.width, haveH = !!card.style.height;
     if(haveW && haveH) return;
     const c=this.canvas(), min=this._minSize(id || card.dataset.wid);
-    if(!haveW) card.style.width  = this._snap(Math.max(min.w, Math.min(card.offsetWidth,  c.x1 - c.x0))) + "px";
-    if(!haveH) card.style.height = this._snap(Math.max(min.h, Math.min(card.offsetHeight, c.y1 - c.y0))) + "px";
+    // V2-773 — the first render is JUDGED before it is frozen (footprint.js): a card that declared no size and
+    // measured as a strip (the messaging card, 1700×380 on his 16" desk) opens as a readable card instead.
+    // Only the dimensions still auto-sized are touched; anything the operator saved stays his.
+    const cw = c.x1 - c.x0, chh = c.y1 - c.y0;
+    const sane = saneFootprint({ w: haveW ? parseFloat(card.style.width) : card.offsetWidth,
+                                 h: haveH ? parseFloat(card.style.height) : card.offsetHeight,
+                                 canvasW: cw, canvasH: chh, minW: min.w, minH: min.h });
+    if(!haveW) card.style.width  = this._snap(Math.max(min.w, Math.min(sane.w, cw))) + "px";
+    if(!haveH) card.style.height = this._snap(Math.max(min.h, Math.min(sane.h, chh))) + "px";
     card.style.maxWidth="none"; card.style.maxHeight="none";
     this._fit(card, id);
   }

@@ -1,5 +1,9 @@
 {
   "id": "mensajeria",
+  "size": {
+    "w": 760,
+    "h": 640
+  },
   "version": "0.7.0",
   "kind": "backed",
   "backend": {
