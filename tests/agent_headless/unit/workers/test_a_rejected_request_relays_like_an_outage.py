@@ -92,7 +92,7 @@ def test_the_real_400_relays_to_the_next_tier(monkeypatch):
     _both_tiers(monkeypatch)
     assert prov.pick()["name"] == "z.ai"
     nxt = prov.note_failure(REAL_400, prov.pick())
-    assert nxt is not None and nxt["name"] == "deepseek", "a tier that refuses every call must be relieved"
+    assert nxt is not None and nxt["next"] == "deepseek", "a tier that refuses every call must be relieved"
     assert prov.pick()["name"] == "deepseek", "and the NEXT spawn must not choose the broken one again"
 
 
@@ -152,3 +152,23 @@ def test_the_voice_chain_relays_on_a_rejected_request_too(monkeypatch):
     assert pc.pick(pc.ROLE_CLUSTER)["name"] == "uno"
     nxt = pc.note_failure(REAL_400, role=pc.ROLE_CLUSTER)
     assert nxt is not None and nxt["name"] == "dos"
+
+
+# ── the CLI's own synthetic wording (demo pass, 2026-09-28) ──────────────────────────────────────────
+# Z.ai's coding plan answered `429 [1310] Weekly/Monthly Limit Exhausted` for every GLM, but the Claude Code
+# CLI does not pass that through: its `result` said only the line below, with no status code. Nothing matched,
+# nothing relayed, and the operator's errand (the demo's monitor search) died on its first second with that
+# sentence as its "result" — while DeepSeek, the next tier, was answering fine.
+CLI_MODEL_ISSUE = ("There's an issue with the selected model (glm-5.3). It may not exist or you may not have "
+                   "access to it. Run --model to pick a different model.")
+
+
+def test_the_cli_wording_for_an_unreachable_model_is_a_broken_request():
+    assert prov.is_broken_request(CLI_MODEL_ISSUE) is True
+
+
+def test_the_cli_wording_relays_to_the_next_tier(monkeypatch):
+    _both_tiers(monkeypatch)
+    nxt = prov.note_failure(CLI_MODEL_ISSUE, prov.pick())
+    assert nxt is not None and nxt["next"] == "deepseek"
+    assert prov.pick()["name"] == "deepseek"

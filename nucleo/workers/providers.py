@@ -379,7 +379,11 @@ def is_depleted(text: str) -> bool:
 # minutes rather than days.
 _BROKEN_RE = re.compile(
     r"\b(?:400|404|422)\b|invalid[ _]?(?:api[ _]?)?parameter|invalid[ _]request|"
-    r"unsupported[ _](?:parameter|model)|model[ _](?:not[ _]found|does[ _]not[ _]exist)|unknown[ _]model",
+    r"unsupported[ _](?:parameter|model)|model[ _](?:not[ _]found|does[ _]not[ _]exist)|unknown[ _]model|"
+    # The Claude Code CLI's own wording: it swallows the provider's answer (measured 2026-09-28: a Z.ai
+    # `429 [1310] Weekly/Monthly Limit Exhausted` came out as only this line, no status code), so the CLI
+    # sentence is all we get. Either reading — model gone or access gone — means THIS tier cannot serve.
+    r"issue with the selected model|may not have access to it",
     re.I)
 
 

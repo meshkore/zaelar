@@ -109,7 +109,7 @@ def test_exhaustion_hands_over_and_respects_the_providers_own_reset_date(monkeyp
     assert prov.pick()["name"] == "z.ai"
 
     nxt = prov.note_failure(REAL_429, {"name": "z.ai", "base_url": "https://api.z.ai/api/anthropic"})
-    assert nxt["name"] == "licencia-claude"
+    assert nxt["next"] == "licencia-claude"
     assert prov.pick()["name"] == "licencia-claude"          # the next spawn already starts on the failover
     # the cooldown comes from the DATE supplied by the provider, not an invented timeout
     assert prov._store._cooldown["z.ai"] == time.mktime(time.strptime(RESET_DATE, "%Y-%m-%d"))
@@ -395,7 +395,7 @@ def test_the_window_limit_actually_relays_and_waits(monkeypatch):
     monkeypatch.setenv("Z_AI_API_KEY", "k")
     prov._store._cooldown.clear()
     nxt = prov.note_failure(WINDOW_429, {"name": "z.ai", "base_url": "https://api.z.ai/api/anthropic"})
-    assert nxt and nxt["name"] != "z.ai", "hay que relevar, no reintentar contra el mismo"
+    assert nxt and nxt["next"] != "z.ai", "hay que relevar, no reintentar contra el mismo"
     import time
     assert prov._store._cooldown["z.ai"] > time.time() + 3600, (
         "el cooldown tiene que llegar a la hora anunciada, no a los 5-30 minutos del suelo: si no, todos los "
