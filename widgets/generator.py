@@ -295,10 +295,18 @@ def _run_agent(prompt: str, token: str = "", *, target: str) -> tuple[bool, str]
         except OSError:
             pass
     if p.returncode not in (0, None):
-        logger.warning(f"widget-agent: claude exited {p.returncode}: {(stderr or '')[:300]}")
         # A killed process (terminate/kill) returns rc!=0, so treat it as incomplete and let _discard clean up.
         if p.returncode and p.returncode < 0:
             return False, "generation cancelled"
+        # V2-776 D4 — THE AGENT DID NOT RUN. This used to fall through to `return True, ""`, so a CLI that exited 1
+        # in three seconds was reported as a build that «ran», the gate then said «no manifest.json produced», a
+        # repair pass was spent on it, and the reason was lost: `--output-format json` writes the CLI's error to
+        # STDOUT and only stderr was logged (measured 2026-09-27, 12:49 and 15:47, both empty).
+        reason = _cli_error(stdout) or (stderr or "").strip() or f"exit {p.returncode}"
+        from nucleo.failure_class import classify
+        cls = classify(reason)
+        logger.warning(f"widget-agent: claude exited {p.returncode} [{cls}]: {reason[:300]}")
+        return False, f"agent failed [{cls}]: {reason[:240]}"
     # Energy metering (2026-08-05, closes the gap noted in INI-019 addenda): `--output-format json` already includes
     # `usage`/`model`, with the same shape as the stream-json "result" metered for interactive Brain Workers (see
     # nucleo/workers/session.py). Previously stdout was discarded unread, so widget generation/modification never
@@ -320,6 +328,26 @@ def _run_agent(prompt: str, token: str = "", *, target: str) -> tuple[bool, str]
         except Exception:
             pass
     return True, ""
+
+
+def _cli_error(stdout: str) -> str:
+    """The error the CLI wrote to STDOUT with `--output-format json` (`{"is_error": true, "result": "…"}`), or
+    "" when stdout is empty or not that shape."""
+    try:
+        import json as _json
+        obj = _json.loads(stdout or "")
+    except Exception:  # noqa: BLE001
+        return (stdout or "").strip()[:300]
+    if not isinstance(obj, dict):
+        return ""
+    return str(obj.get("result") or obj.get("error") or obj.get("subtype") or "").strip()
+
+
+def failure_class(error: str) -> str:
+    """The A5 class a generator error was stamped with (`agent failed [<class>]: …`), or "" if it is a gate or
+    spec error — those are the widget's problem, not a provider's."""
+    m = re.match(r"agent failed \[(\w+)\]", str(error or ""))
+    return m.group(1) if m else ""
 
 
 def generate_widget(spec: str, wid: str = "", title: str = "", token: str = "") -> dict:
@@ -345,7 +373,7 @@ def generate_widget(spec: str, wid: str = "", title: str = "", token: str = "") 
                 token=token, target=dst)
         if not ran:
             _discard(wid)                              # a killed/timed-out agent may leave a half-written folder
-            return {"ok": False, "id": wid, "error": err}
+            return {"ok": False, "id": wid, "error": err, "error_class": failure_class(err)}
         ok, verr = _validate(wid, stamp_origin=True)
         repaired = False
         if not ok:

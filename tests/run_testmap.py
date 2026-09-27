@@ -1990,6 +1990,9 @@ DOMAINS: list[dict] = [
         {"id": "3.86", "title": "FlashBrain lee el REGISTRO de tareas: horas después sabe que el widget falló y "
                                 "no puede decir «sigue en curso»",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_the_turn_reads_the_task_record.py"]},
+        {"id": "3.87", "title": "Un generador de widgets que no llegó a correr dice POR QUÉ (red, saldo, "
+                                "credencial, saturación o nuestro) — sin reparación inútil y con la clase en la fila",
+            "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_a_generator_that_did_not_run_says_why.py"]},
     ]},
     {"id": "4", "name": "WIDGETS", "nodes": [
         {"id": "4.1", "title": "Ciclo de vida / acciones / refs / generador / background", "ch": UNIT, "paths": [

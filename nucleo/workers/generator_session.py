@@ -94,7 +94,13 @@ class GeneratorBackend(WorkerBackend):
                               extra={"id": self._task_id, "action": action, "widget": existing or ""})
                 except Exception:
                     pass
-                await self._emit("result", summary=f"No pude {verb}.", ok=False, data={"error": err})
+                # V2-776 D4 — a provider failure says WHICH kind, in the operator's words and in the row.
+                cls = str(res.get("error_class") or "")
+                why = {"network": " — no hay conexión con el proveedor", "credit": " — el proveedor se ha quedado "
+                       "sin saldo o cuota", "auth": " — el proveedor rechaza la credencial",
+                       "rate": " — el proveedor está saturado, prueba en un momento"}.get(cls, "")
+                await self._emit("result", summary=f"No pude {verb}{why}.", ok=False,
+                                 data={"error": err, "error_class": cls})
         except asyncio.CancelledError:
             raise
         except Exception as e:  # noqa: BLE001

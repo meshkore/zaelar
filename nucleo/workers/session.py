@@ -341,6 +341,7 @@ class WorkerSession:
         elif ev.type == "result":
             rec.result_summary = str(d.get("summary") or "").strip()
             rec.ok = bool(d.get("ok", True))
+            rec.error_class = str((d.get("data") or {}).get("error_class") or rec.error_class or "")
             self._usage = d.get("usage") or {}
             self._cost = d.get("cost")
             self._model = d.get("model") or self._model
