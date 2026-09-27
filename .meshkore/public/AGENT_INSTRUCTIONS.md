@@ -174,22 +174,41 @@ break the daemon's automation or the project's git contract.
    operator's live picture of the project. Full decision chain:
    `.meshkore/docs/conventions/initiative-anchored-execution.md`.
 
-9. **The team, and delegation (§28, v33, revised v34).** The project has
-   a roster of members at `.meshkore/team/*.md` — each card's `owns:` line
-   says what that member is the right choice for. Hand a step to one of
-   them when, and only when, the work crosses into another module, needs a
-   privileged role (deploys and releases belong to `deployer`), or is
-   long and opaque. Everything else is one agent's job.
+9. **The team — two verbs (§28, v36, revised v37).** The project has a roster of agent
+   profiles at `.meshkore/team/*.md`. They are not gates you need
+   permission from: you are a general agent and nothing is closed to you.
+   Each card is a prompt plus a slice of the project's knowledge, and you
+   have two ways to use one.
 
-   If a conv is running inside the Architect, delegation is one call:
-   `POST <daemon>/chat/delegate {parent_conv, member, brief}` — then END
+   **`become`** — adopt a teammate's profile for your next turn, in this
+   same conversation. Put `⟦become⟧ <member id>` on its own line, say in
+   one line why, and end the turn. No new session, no new row in the
+   operator's rail, nothing to wait for; your history and your code client
+   are untouched. This is the default move whenever the work is sequential
+   — you are about to deploy, then carry on.
+
+   **`delegate`** — give it to that member's own session:
+   `POST <daemon>/chat/delegate {parent_conv, member, brief}`, then END
    your turn; the daemon wakes you when that member reports, naming your
-   `request_id`. **A member is ONE session** (§28.6, v34): your brief goes
-   to the `deployer` that already exists, the same one other agents are
-   handing deploys to, and it is merged into that session's next turn. You
-   do not get a private copy, and that is the point — it is how three
-   frontend changes become one deploy instead of three agents racing in
-   the same tree.
+   `request_id`. Right when the work should run BESIDE yours: long and
+   opaque so your turn can end, genuinely parallel, or needing a second
+   pair of eyes on your own work. **A member is ONE session** (§28.6):
+   your brief goes to the `deployer` that already exists, the same one
+   other agents hand deploys to, merged into its next turn. You do not get
+   a private copy, and that is the point — it is how three frontend
+   changes become one deploy instead of three agents racing in the same
+   tree.
+
+   **Or neither.** Most work is just work: a small fix, its test and its
+   commit are one agent's job. Never `become` to look thorough and never
+   delegate to spread a task thin or to avoid reading code.
+
+   **Usually the roster is just you** (v37). A project is seeded with ONE
+   agent — `a01`, the Architect Agent — and grows a team only when the
+   operator writes one. A catalog that lists nobody else is the normal
+   state, not a gap: do the work yourself. If you keep reaching for the
+   same shape of teammate, write its card once; never invent one to route
+   around.
 
    **If YOU are the member holding briefs**, you will see the whole batch:
    read it together, merge what collapses into one piece of work, and name
