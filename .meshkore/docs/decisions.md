@@ -2522,3 +2522,22 @@ entregada siga citada aquí.
 
 - **«Sal de pantalla completa» needs no name — the canvas knew which card and never said so (V2-609, 2026-09-07)** (2026-09-07; V2-026, V2-540, V2-600, V2-609)
 - **The video widget OWNS its library; the connector only EXTENDS it (V2-604, 2026-09-07)** (2026-09-07; V2-366, V2-384, V2-603, V2-604)
+
+## V2-773 (27-09) — the clean-reset pass of the demo
+
+- **A reset reaches a tab that stayed open.** The wipe epoch was read at boot only; the operator's tab re-reported its
+  old cards to the restarted server and every other tab rehydrated them. The SSE re-open runs the boot's takeover
+  again, and the server prunes a `results::` sheet with no data and no live errand on read and on write.
+- **What the voice is fed is what the wall gets when the voice fails.** With Inworld out of credit the assistant item
+  was never added and the wall stayed blank; `reply_wall.py` tees `tts_node` and surfaces the text on an
+  unrecoverable TTS error, marked `tts_failed`, never twice.
+- **The verdict judges a show in a closing turn** (`canvas_license.closing_turn`), not a table of verbs; the fast
+  lens door asks it too. Measured: V7 and E5 reopened the card the order had just closed.
+- **A finished errand's closed sheet is a card he can ask for by what it shows** (`instances.recent_faces`,
+  `runtime.identify` at 0.85, the live block lists up to three), and a «show me X» that names a card we have is
+  shown before any worker. An answered question is not an errand; an undone sure order over a catalogue-named
+  card is.
+- **A card opens at a readable footprint** (`footprint.js`): the first render is judged against the desk before
+  V2-630 freezes it — never wider than half the desk, never a strip; the operator's saved size is his.
+- **Demo setup, not product:** the driver takes the session lock and mutes the microphone; a local contact «Ethan»
+  with the demo Telegram handle is recreated after a reset; TTS switched to Cartesia while Inworld has no credit.
