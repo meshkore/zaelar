@@ -534,3 +534,31 @@ def test_a_show_of_a_catalogue_named_card_asks_for_the_rest_of_the_order(monkeyp
     assert applied == [("mensajeria", "show_view", {"platform": "email", "window_h": 24})]
     monkeypatch.setattr(card_commission, "named_or_catalogue", lambda brief, text, **k: "")
     assert not asyncio.run(card_commission.after_show({"widget_id": "mensajeria"}, spoken_text="Here they are.", **kw))
+
+
+def test_a_silent_show_of_a_catalogue_named_card_still_asks_for_the_rest(monkeypatch):
+    """V2-773 (demo M1, 2026-09-27): «Show me a chart of Apple stock today» — the catalogue named `markets` (0.99),
+    the model called show_widget and said NOTHING; the empty reply skipped the after-show pass and the card came
+    up with no chart, so «the last month instead» failed on «no chart on screen yet». Silence is not an exemption:
+    only the promise reading needs words."""
+    import asyncio
+    from nucleo import danger
+    from nucleo.flash import act_repair, card_commission, clarifying, direct_action, router
+    monkeypatch.setattr(danger, "is_dangerous", lambda t: False)
+    monkeypatch.setattr(clarifying, "asks_for_missing_detail", lambda r: r.endswith("?"))
+    monkeypatch.setattr(router, "promises_action", lambda r: "let me" in r)
+    monkeypatch.setattr(direct_action, "names_an_order", lambda b, **k: False)
+    monkeypatch.setattr(card_commission, "named_or_catalogue", lambda brief, text, **k: "markets")
+
+    async def pass_(operator_text, reply, wid, spec=None):
+        return {"widget_id": "markets", "action": "show", "payload": {"symbol": "AAPL", "range": "1d"}}
+    monkeypatch.setattr(act_repair, "call_for_promise", pass_)
+    applied = []
+    kw = dict(brief={"x": 1}, operator_text="Show me a chart of Apple stock today.", spec=None,
+              emit=lambda *a, **k: None, present=lambda *a, **k: True, apply_widget_data=lambda w, a, p: applied.append((w, a, p)))
+    assert asyncio.run(card_commission.after_show({"widget_id": "markets"}, spoken_text="", **kw)), (
+        "THE BUG: a silent show skipped the pass and the chart stayed empty")
+    assert applied == [("markets", "show", {"symbol": "AAPL", "range": "1d"})]
+    # …while a silent show the catalogue did NOT name asks nothing, as before
+    monkeypatch.setattr(card_commission, "named_or_catalogue", lambda brief, text, **k: "")
+    assert not asyncio.run(card_commission.after_show({"widget_id": "markets"}, spoken_text="", **kw))

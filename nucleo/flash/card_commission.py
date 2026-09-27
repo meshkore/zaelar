@@ -127,15 +127,20 @@ async def after_show(acted: dict, *, brief, operator_text: str, spoken_text: str
         from nucleo import danger as _danger
         from nucleo.flash import act_repair as _repair, clarifying as _cl, direct_action as _da, router as _router
         wid = str(acted.get("widget_id") or "").strip().lower()
-        if not wid or not (spoken_text or "").strip() or _danger.is_dangerous(operator_text):
+        if not wid or _danger.is_dangerous(operator_text):
             return False
-        if _cl.asks_for_missing_detail(spoken_text):
+        # A SILENT show is not exempt (demo M1, 2026-09-27): «Show me a chart of Apple stock today» — the catalogue
+        # named `markets` (0.99), the model called show_widget and said nothing, and the card came up EMPTY: no
+        # `show` with the symbol, and «the last month instead» then failed on «no chart on screen yet». The
+        # promise reading needs words; the catalogue and the verdict do not.
+        spoken_text = (spoken_text or "").strip()
+        if spoken_text and _cl.asks_for_missing_detail(spoken_text):
             return False
         # …or the card was named by the catalogue for an order with more in it than «open it» (demo v3, E1:
         # «Show me only the emails from today that need my attention» opened the card and DENIED the filter
         # its own action declares). The pass is told to call nothing when the show was the whole order.
-        if not (acted.get("show_suppressed") or _router.promises_action(spoken_text) or _da.names_an_order(brief, sure=0.8)
-                or named_or_catalogue(brief, operator_text) == wid):
+        if not (acted.get("show_suppressed") or (spoken_text and _router.promises_action(spoken_text))
+                or _da.names_an_order(brief, sure=0.8) or named_or_catalogue(brief, operator_text) == wid):
             return False
         got = await _repair.call_for_promise(operator_text, spoken_text, wid, spec=spec)
         if not got or str(got.get("action") or "") in ("show", "open_widget"):
