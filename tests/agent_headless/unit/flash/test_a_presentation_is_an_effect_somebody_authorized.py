@@ -276,3 +276,17 @@ def test_both_channels_hand_over_what_we_said():
     # channel fires no brief yet, so the argument is what keeps the two from drifting apart.
     assert "video_license(text, _last_assistant_line(sess.window), brief=" in probe
     assert 'role == "assistant"' in arb and "last_reply=str(_last_turn" in arb
+
+
+def test_the_door_puts_the_CARD_on_screen_not_the_piece():
+    """V2-776 (2026-09-27): «Show me the monitors» resolved to the monitor sheet `results::94b220-ls1` and the door
+    emitted bare `results` — the empty base — so every order on «the monitors» after it worked on nothing."""
+    from nucleo.flash import canvas_visibility as cv
+    seen = []
+    ok = cv.present("results::94b220-ls1", reason="turn-order", known=[],
+                    emit=lambda kind, label, extra=None: seen.append((label, (extra or {}).get("id"))))
+    assert ok and ("show", "results::94b220-ls1") in seen, seen
+    seen.clear()
+    assert cv.present("agenda", reason="turn-order", known=[],
+                      emit=lambda kind, label, extra=None: seen.append((label, (extra or {}).get("id"))))
+    assert ("show", "agenda") in seen

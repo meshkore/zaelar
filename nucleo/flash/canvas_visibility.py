@@ -96,6 +96,11 @@ def present(widget_id: str, *, reason: str, action: str = "", src: str = "flash"
     A refusal is EMITTED, not swallowed: «suppressed effects» are the half of a trace that explains why
     the screen did not change, and without them this door would be a new silence."""
     wid = str(widget_id or "").split("::", 1)[0].strip().lower()
+    # The CARD is what goes on screen: an instance keeps its suffix. Only the declaration checks read the base.
+    # V2-776 (2026-09-27): «Show me the monitors» resolved to `results::94b220-ls1` and this door emitted bare
+    # `results` — the empty base — so «Open the best value option» then failed on a box with nothing in it.
+    _raw = str(widget_id or "").strip()
+    card = (wid + "::" + _raw.split("::", 1)[1].strip()) if "::" in _raw and _raw.split("::", 1)[1].strip() else wid
     why = str(reason or "").strip()
 
     def _emit(kind, label, extra):
@@ -128,7 +133,7 @@ def present(widget_id: str, *, reason: str, action: str = "", src: str = "flash"
             return _suppress("no se pudo leer la declaración del widget")
     if is_open(wid, known=known):
         return _suppress("ya está abierta")
-    _emit("widget", "show", {"id": wid, "src": src, "action": action, "reason": why})
+    _emit("widget", "show", {"id": card, "src": src, "action": action, "reason": why})
     return True
 
 
