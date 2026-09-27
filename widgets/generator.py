@@ -207,6 +207,29 @@ def kill_all() -> int:
 
 
 def _run_agent(prompt: str, token: str = "", *, target: str) -> tuple[bool, str]:
+    """Run the agent on the worker provider chain, relaying ONCE if the provider (not the build) failed.
+
+    V2-776 D4 — the generator used to read `v2.external_worker_env()`, a single endpoint with no cooldowns, while
+    the Brain Workers read the provider CHAIN. Measured 2026-09-27: the workers had already relayed from an
+    exhausted z.ai to DeepSeek, and the generator kept spawning on another tier and died in three seconds —
+    twice. Same chain now, and a provider failure is noted (cooldown + alert) and relayed like a worker's."""
+    ran, err, tier = _run_agent_once(prompt, token, target=target)
+    if ran or failure_class(err) not in ("credit", "auth", "rate"):
+        return ran, err
+    try:
+        from nucleo.workers import providers as _prov
+        cause = _prov.note_failure(err, tier)
+    except Exception:  # noqa: BLE001
+        cause = None
+    if not (cause and cause.get("next")):
+        return ran, err
+    logger.warning(f"widget-agent: provider «{cause.get('provider')}» failed ({cause.get('kind')}) "
+                   f"→ relaying to «{cause['next']}»")
+    ran, err2, _ = _run_agent_once(prompt, token, target=target)
+    return ran, (err2 if not ran else "")
+
+
+def _run_agent_once(prompt: str, token: str = "", *, target: str) -> tuple[bool, str, dict | None]:
     """Spawn ONE atomic headless Claude Code agent. Prompt via STDIN (claude 2.1.x truncates large positional
     prompts; MeshKore hit this). File tools only, hard timeout. Killable by `token` (V2-038): Popen + communicate
     registered in _PROCS, so `kill(token)` can terminate it from another thread. Returns (ran, error).
@@ -227,7 +250,7 @@ def _run_agent(prompt: str, token: str = "", *, target: str) -> tuple[bool, str]
       (T-09's doctrine — a jail that degrades to a warning is a convention, not a control)."""
     claude = _find_claude()
     if not claude:
-        return False, "Claude Code CLI not found (set CLAUDE_BIN)"
+        return False, "Claude Code CLI not found (set CLAUDE_BIN)", None
     import tempfile
     from nucleo import dev_worker_guard as _guard
     target = os.path.realpath(target)
@@ -238,7 +261,7 @@ def _run_agent(prompt: str, token: str = "", *, target: str) -> tuple[bool, str]
         _guard.write_settings_file(settings_path)
     except Exception as e:  # noqa: BLE001
         shutil.rmtree(workdir, ignore_errors=True)
-        return False, f"could not write the write-jail settings — refusing to run unjailed: {e}"
+        return False, f"could not write the write-jail settings — refusing to run unjailed: {e}", None
     cmd = [claude, "-p", "--allowedTools", "Write Edit Read",
            "--permission-mode", "acceptEdits", "--output-format", "json",
            "--settings", settings_path, "--add-dir", target]
@@ -253,15 +276,18 @@ def _run_agent(prompt: str, token: str = "", *, target: str) -> tuple[bool, str]
     # brain workers. If routed and there is no explicit override, use the §code_agent model.
     model = GEN_MODEL
     base_url = ""       # actual endpoint used for Energy metering below; "" means local license
+    tier = None         # V2-776 D4 — the chain tier serving this spawn, so a failure can be noted against it
     try:
         from config import v2 as _v2
-        _ext = _v2.external_worker_env()
+        from nucleo.workers import providers as _prov
+        _ext = _prov.env_for_worker()     # the SAME chain the Brain Workers use (cooldowns, relays)
+        tier = _prov.pick()
         if _ext:
             env.update(_ext)
             env.pop("ANTHROPIC_API_KEY", None)
             base_url = _ext.get("ANTHROPIC_BASE_URL", "")
             if not model:
-                model = _v2.code_agent_model("code")
+                model = (tier or {}).get("model") or _v2.code_agent_model("code")
     except Exception:
         pass
     if model:
@@ -271,7 +297,7 @@ def _run_agent(prompt: str, token: str = "", *, target: str) -> tuple[bool, str]
                              stderr=subprocess.PIPE, text=True, env=env)
     except Exception as e:
         shutil.rmtree(workdir, ignore_errors=True)
-        return False, f"agent failed to start: {e}"
+        return False, f"agent failed to start: {e}", tier
     if token:
         with _PROCS_LOCK:
             _PROCS[str(token)] = p
@@ -282,9 +308,9 @@ def _run_agent(prompt: str, token: str = "", *, target: str) -> tuple[bool, str]
             p.kill(); p.communicate()
         except Exception:
             pass
-        return False, "the agent timed out"
+        return False, "the agent timed out", tier
     except Exception as e:
-        return False, f"agent failed: {e}"
+        return False, f"agent failed: {e}", tier
     finally:
         if token:
             with _PROCS_LOCK:
@@ -297,7 +323,7 @@ def _run_agent(prompt: str, token: str = "", *, target: str) -> tuple[bool, str]
     if p.returncode not in (0, None):
         # A killed process (terminate/kill) returns rc!=0, so treat it as incomplete and let _discard clean up.
         if p.returncode and p.returncode < 0:
-            return False, "generation cancelled"
+            return False, "generation cancelled", tier
         # V2-776 D4 — THE AGENT DID NOT RUN. This used to fall through to `return True, ""`, so a CLI that exited 1
         # in three seconds was reported as a build that «ran», the gate then said «no manifest.json produced», a
         # repair pass was spent on it, and the reason was lost: `--output-format json` writes the CLI's error to
@@ -306,7 +332,7 @@ def _run_agent(prompt: str, token: str = "", *, target: str) -> tuple[bool, str]
         from nucleo.failure_class import classify
         cls = classify(reason)
         logger.warning(f"widget-agent: claude exited {p.returncode} [{cls}]: {reason[:300]}")
-        return False, f"agent failed [{cls}]: {reason[:240]}"
+        return False, f"agent failed [{cls}]: {reason[:240]}", tier
     # Energy metering (2026-08-05, closes the gap noted in INI-019 addenda): `--output-format json` already includes
     # `usage`/`model`, with the same shape as the stream-json "result" metered for interactive Brain Workers (see
     # nucleo/workers/session.py). Previously stdout was discarded unread, so widget generation/modification never
@@ -327,7 +353,7 @@ def _run_agent(prompt: str, token: str = "", *, target: str) -> tuple[bool, str]
                 )
         except Exception:
             pass
-    return True, ""
+    return True, "", tier
 
 
 def _cli_error(stdout: str) -> str:
