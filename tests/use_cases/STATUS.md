@@ -3,7 +3,7 @@
 **Generated** by `tests/use_cases/e2e/agent/status.py`; do not edit by hand — it is rewritten by
 every run of `python -m tests.use_cases.e2e.agent.run`. Source of truth: `status.json` next to it.
 
-Last updated: **2026-09-25 16:50**
+Last updated: **2026-09-25 21:02**
 
 `✅ PASS` = judge overall ≥ 4 **and** mechanism ≥ 3 (a measured mechanism defect never shows green, however good the average) · `❌ FAIL` = ran and fell short · `⚠️ INFRA` = harness/network problem,
 says nothing about the use case itself. `sandbox` = ran against an isolated engine (own DB/port), not
@@ -20,6 +20,8 @@ the improvement loop work it can never close. Operator's rule, 2026-08-20.
 
 | | scenario | tier | overall | brain | last run | sandbox | verdict |
 |---|---|---|---|---|---|---|---|
+| ❌ | `agenda-everyday-edits` | 1 | 2 | — | 2026-09-25 19:32 | yes | No listo para producción: el bloqueador nº1 es la desconexión entre la afirmación del asistente y el estado real del sistema, evidenciada en la anulación fal… |
+| ❌ | `agenda-everyday-edits__us` | 1 | 2 | — | 2026-09-25 19:37 | yes | No está listo para producción; el bloqueador nº1 es la incapacidad de procesar anulaciones parciales de series recurrentes cuando el usuario las expresa como… |
 | 🔒 | `book-barber-slot__us` | 1 | 2 | `deepseek-v4-flash` | 2026-08-28 08:22 | yes | No está listo para producción: el bloqueador nº1 es que zaelar afirma haber encontrado y reservado la barbería habitual sin ningún respaldo en el sistema (ho… |
 | 🔒 | `book-hotel-night-known__es` | 1 | 2 | ? | 2026-08-21 14:05 | yes | No está listo para producción: el bloqueador nº1 es que zaelar afirmó haber identificado el hotel correcto y prometió una reserva sin respaldo en los datos r… |
 | 🔒 | `book-hotel-night-known__us` | 1 | 2 | `deepseek-v4-flash` | 2026-08-28 08:41 | yes | No está listo para producción: el bloqueador nº1 es que zaelar afirmó una reserva confirmada que no existía, y solo se retractó cuando el usuario le obligó a… |
@@ -28,6 +30,7 @@ the improvement loop work it can never close. Operator's rule, 2026-08-20.
 | 🔒 | `buy-known-product__us` | 1 | 3 | `deepseek-v4-flash` | 2026-08-28 08:56 | yes | No está listo para producción: el bloqueador nº1 es que zaelar dejó al usuario esperando más de 5 minutos ante una tarea encallada sin decirle 'sin avanzar' … |
 | 🔒 | `cancel-subscription-before-charge__es` | 1 | 3 | ? | 2026-08-21 13:53 | yes | No está listo para producción: el bloqueador nº1 es el éxito falso del turno 2 («Hecho» sin cancelación real), que rompe la confianza en una acción irreversi… |
 | 🔒 | `cancel-subscription-before-charge__us` | 1 | 2 | `glm-5.3` | 2026-08-28 07:08 | yes | El caso no está listo para producción. El fallo crítico es la incapacidad para cumplir la promesa de crear un recordatorio (ni siquiera se escribió en el sis… |
+| ✅ | `demo-initialization__us` | 1 | 5 | — | 2026-09-25 20:24 | yes | Listo para producción; no hay bloqueadores. El caso de uso se resolvió de forma impecable, con todas las secciones aterrizando en su sitio, la vacación trata… |
 | ❌ | `dentist-appointment-into-agenda` | 1 | 1 | — | 2026-08-31 11:02 | yes | No está listo para producción: el agente falla en el objetivo básico de entender lenguaje natural para crear eventos, traslada los errores técnicos al usuari… |
 | ❌ | `dentist-appointment-into-agenda__us` | 1 | 3 | — | 2026-08-31 11:50 | yes | El caso está listo para producción en cuanto a resultado (la cita y el aviso se crearon correctamente), pero requiere mejora urgente en adaptación para dejar… |
 | 🔒 | `find-theatre-tickets__es` | 1 | 3 | ? | 2026-08-20 18:28 | yes | El caso no está listo para producción: el bloqueador nº1 es que zaelar ocultó un muro conocido durante un turno y prometió acciones sin respaldo observable, … |
@@ -66,6 +69,7 @@ the improvement loop work it can never close. Operator's rule, 2026-08-20.
 | ❌ | `find-videos-on-a-topic-no-ai-slop` | 2 | 2 | — | 2026-08-30 21:17 | yes | No está listo para producción. El bloqueador número uno es la desconexión entre lo que el modelo promete que hay en la lista y lo que el widget puede reprodu… |
 | ❌ | `hotel-under-15-days` | 2 | 2 | `deepseek-v4-flash` | 2026-08-30 20:25 | yes | El caso no está listo para producción debido a una ineficiencia crítica: el sistema retiene los resultados encontrados durante más de 4 minutos (250 segundos… |
 | ❌ | `kid-friendly-activity-nearby__es` | 2 | 1 | — | 2026-08-28 07:55 | yes | No está listo para producción: el bloqueador nº1 es que zaelar agendó una idea genérica sin buscar ni presentar opciones reales con precio y fuente, dejando … |
+| ❌ | `long-commission-errands` | 2 | 3 | `deepseek-flash+glm-5.3` | 2026-09-25 21:02 | yes | No listo para producción: el bloqueador nº1 es la invención de resultados para rellenar cuotas (Salomon XA Meta), seguido de afirmar que hay resultados en pa… |
 | ❌ | `rental-car-automatic-airport__es` | 2 | 2 | `deepseek-v4-flash` | 2026-08-28 08:13 | yes | No está listo para producción: el bloqueador nº1 es que la búsqueda tarda más que la conversación y zaelar no entrega los resultados que ya tiene en su promp… |
 | ❌ | `search-buy-bicycle__es` | 2 | 3 | `deepseek-v4-flash` | 2026-08-28 08:31 | yes | No está listo para producción: el bloqueador nº1 es que zaelar tuvo delante durante tres turnos la instrucción explícita de contar el bloqueo y los resultado… |
 | ❌ | `search-buy-bicycle__us` | 2 | 2 | `glm-5.3` | 2026-08-28 06:31 | yes | No está listo: falló el resultado (hoja vacía) y la transparencia (ocultó bloqueos 403 prometiendo éxito), requiriendo mejoras en el reporte de estado del wo… |
@@ -89,7 +93,7 @@ the improvement loop work it can never close. Operator's rule, 2026-08-20.
 | ✅ | `three-tasks-at-once` | 4 | 4 | ? | 2026-08-20 17:53 | yes | Este caso de uso está listo para producción: la concurrencia real de tres tareas de tipos distintos, la atribución casi siempre correcta y la fluidez del hil… |
 | ❌ | `two-searches-two-sheets` | 4 | 2 | `deepseek-v4-flash` | 2026-08-28 06:58 | yes | No listo. El sistema ejecutó la concurrencia técnicamente (2 workers, 2 hojas), pero zaelar falló en la gestión de los estados: cerró mal sin preguntar y mez… |
 
-**9 passing · 29 failing · 13 infra** of 51 scenarios we can actually finish.
+**10 passing · 32 failing · 13 infra** of 55 scenarios we can actually finish.
 
 Plus **1 🌍 parked** for an environmental wall a user in that country would not hit (the sibling twin proves the capability). Visible, not counted, each with its reason:
 - `cheapest-monitor__us` — Amazon geolocaliza por IP: aun con un perfil en-US limpio sirve «Deliver to Spain» y precios de España. El gemelo ES está verde (4/5), así que la capacidad está probada; desde una IP de EEUU el muro no existe.
@@ -102,19 +106,19 @@ Plus **16 🔒 capped** (need the user's own credentials; measured for honesty o
 
 | segment | scenarios | run | passing |
 |---|---|---|---|
-| ✅ completable | 104 | 51 | 9 |
+| ✅ completable | 108 | 55 | 10 |
 | 🔑 credentials | 54 | 17 | 0 |
 | 🚧 capability | 27 | 0 | 0 |
 
-## Coverage of the RUNNABLE list — 51 of 104 ever run (53 never run)
+## Coverage of the RUNNABLE list — 55 of 108 ever run (53 never run)
 
 An unrun case is **not** a passing one. This is the walk's progress board, and its denominator is the `completable` segment only — a blocked case is not pending work, it is waiting on something outside the harness.
 
 | tier | locale | run | of | passing |
 |---|---|---|---|---|
-| 1 | es | 9 | 19 | 2 |
-| 1 | us | 2 | 4 | 1 |
-| 2 | es | 22 | 45 | 2 |
+| 1 | es | 10 | 20 | 2 |
+| 1 | us | 4 | 6 | 2 |
+| 2 | es | 23 | 46 | 2 |
 | 2 | us | 13 | 19 | 3 |
 | 3 | es | 3 | 10 | 0 |
 | 3 | us | 0 | 2 | 0 |

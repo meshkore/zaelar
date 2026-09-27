@@ -4212,7 +4212,259 @@
         ],
         "n": 1
       }
+    },
+    "agenda-everyday-edits": {
+      "last_run": "2026-09-25 19:32",
+      "overall": 2,
+      "judge": "glm-4.6",
+      "brain": "",
+      "state": "FAIL",
+      "infra_reason": null,
+      "scores": {
+        "naturalidad": 2,
+        "adaptacion": 4,
+        "resultado": 3,
+        "mecanismo": 3,
+        "eficiencia": 2
+      },
+      "verdict": "No listo para producción: el bloqueador nº1 es la desconexión entre la afirmación del asistente y el estado real del sistema, evidenciada en la anulación fallida del martes 6 de octubre (paso 10) y la agenda vacía al final, lo que significa que el usuario se iría creyendo que su cita está anulada o modificada cuando no lo está.",
+      "missing_signals": [],
+      "blind_turns": 0,
+      "audit_anomalies": [
+        {
+          "clase": "sin_evidencia_externa",
+          "certeza": "hecho",
+          "que": "ni un solo evento con `evidence`: el mundo exterior no trajo nada"
+        }
+      ],
+      "sandboxed": true,
+      "provisional": "corrida con --allow-dirty: el arbol se movia, el numero no cuenta como medicion",
+      "tier": 1,
+      "turns_used": 14,
+      "families": [
+        "flash",
+        "main",
+        "memory",
+        "system",
+        "widget"
+      ],
+      "drive_model": "",
+      "code": {
+        "sha": "b0dffe9d",
+        "n_dirty": 4,
+        "dirty": [
+          ".meshkore/log/2026-09-21.md",
+          "CLAUDE.md",
+          "nucleo/energy_meter.py",
+          "nucleo/jev.py"
+        ]
+      },
+      "machine": {
+        "gpu_models": [],
+        "n": 0,
+        "error": "[Errno 2] No such file or directory: 'ollama'"
+      }
+    },
+    "agenda-everyday-edits__us": {
+      "last_run": "2026-09-25 19:37",
+      "overall": 2,
+      "judge": "glm-4.6",
+      "brain": "",
+      "state": "FAIL",
+      "infra_reason": null,
+      "scores": {
+        "naturalidad": 4,
+        "adaptacion": 2,
+        "resultado": 2,
+        "mecanism": 4,
+        "eficiencia": 4
+      },
+      "verdict": "No está listo para producción; el bloqueador nº1 es la incapacidad de procesar anulaciones parciales de series recurrentes cuando el usuario las expresa como hechos negativos ('no hay piano el martes'), tratándolas en cambio como un reto a verificar.",
+      "missing_signals": [],
+      "blind_turns": 0,
+      "audit_anomalies": [
+        {
+          "clase": "sin_evidencia_externa",
+          "certeza": "hecho",
+          "que": "ni un solo evento con `evidence`: el mundo exterior no trajo nada"
+        }
+      ],
+      "sandboxed": true,
+      "provisional": "corrida con --allow-dirty: el arbol se movia, el numero no cuenta como medicion",
+      "tier": 1,
+      "turns_used": 14,
+      "families": [
+        "flash",
+        "main",
+        "memory",
+        "system",
+        "widget"
+      ],
+      "drive_model": "",
+      "code": {
+        "sha": "b0dffe9d",
+        "n_dirty": 4,
+        "dirty": [
+          ".meshkore/log/2026-09-21.md",
+          "CLAUDE.md",
+          "nucleo/energy_meter.py",
+          "nucleo/jev.py"
+        ]
+      },
+      "machine": {
+        "gpu_models": [],
+        "n": 0,
+        "error": "[Errno 2] No such file or directory: 'ollama'"
+      }
+    },
+    "demo-initialization__us": {
+      "last_run": "2026-09-25 20:24",
+      "overall": 5,
+      "judge": "glm-4.6",
+      "brain": "",
+      "state": "PASS",
+      "infra_reason": null,
+      "scores": {
+        "naturalidad": 5,
+        "adaptacion": 5,
+        "resultado": 5,
+        "mecanismo": 5,
+        "eficiencia": 5
+      },
+      "verdict": "Listo para producción; no hay bloqueadores. El caso de uso se resolvió de forma impecable, con todas las secciones aterrizando en su sitio, la vacación tratada como un intervalo, el veterinario sin duplicar y la respuesta desde memoria sin re-preguntar.",
+      "missing_signals": [],
+      "blind_turns": 0,
+      "audit_anomalies": [
+        {
+          "clase": "sin_evidencia_externa",
+          "certeza": "hecho",
+          "que": "ni un solo evento con `evidence`: el mundo exterior no trajo nada"
+        }
+      ],
+      "sandboxed": true,
+      "provisional": "corrida con --allow-dirty: el arbol se movia, el numero no cuenta como medicion",
+      "tier": 1,
+      "turns_used": 3,
+      "families": [
+        "flash",
+        "memory",
+        "system",
+        "widget"
+      ],
+      "drive_model": "",
+      "code": {
+        "sha": "8c980bb0",
+        "n_dirty": 4,
+        "dirty": [
+          ".meshkore/log/2026-09-21.md",
+          "CLAUDE.md",
+          "nucleo/energy_meter.py",
+          "nucleo/jev.py"
+        ]
+      },
+      "machine": {
+        "gpu_models": [],
+        "n": 0,
+        "error": "[Errno 2] No such file or directory: 'ollama'"
+      }
+    },
+    "long-commission-errands": {
+      "last_run": "2026-09-25 21:02",
+      "overall": 3,
+      "judge": "glm-4.6",
+      "brain": "deepseek-flash+glm-5.3",
+      "state": "FAIL",
+      "infra_reason": null,
+      "scores": {
+        "naturalidad": 4,
+        "adaptacion": 4,
+        "resultado": 3,
+        "mecanismo": 2,
+        "eficiencia": 2
+      },
+      "verdict": "No listo para producción: el bloqueador nº1 es la invención de resultados para rellenar cuotas (Salomon XA Meta), seguido de afirmar que hay resultados en pantalla cuando el widget nunca se abrió.",
+      "missing_signals": [],
+      "blind_turns": 0,
+      "audit_anomalies": [
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/task «↩ zaelar ⚠️ error»: Exit code 1 no puedo leer el payload de busca.json: [Errno 2] No such file or directory: 'busca.json' · ruta RELATIVA a tu directorio de trabajo: /private/var/folders/51/mq51gxn13sg84_d8ctz8gm140000gn · lo que se intentó: `/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine/.venv/bin/python -m nucleo.worker_bridge act use_tool @busca.json`"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/task «✏️ código ⚠️ error»: <tool_use_error>Error: No such tool available: Write. Write exists but is not enabled in this context. Use one of the available tools instead.</tool_use_error>"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/task «· paso ⚠️ error»: This command requires approval · lo que se intentó: `/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine/.venv/bin/python -c \"q=chr(34);b=chr(123);e=chr(125);open('prueba.json','w').write(b+q+'hola'+q+':'+q+'mundo'+q+e)\"`"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/task «· paso ⚠️ error»: This command requires approval · lo que se intentó: `/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine/.venv/bin/python -c \"print(1)\"`"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/task «↩ zaelar ⚠️ error»: This command requires approval · lo que se intentó: `/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine/.venv/bin/python -c \"import nucleo.worker_bridge as w, inspect, sys; print([n for n in dir(w) if not n.startswith('_')])\"`"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/task «↩ zaelar ⚠️ error»: Exit code 1 no puedo leer el payload de busca.json: [Errno 2] No such file or directory: 'busca.json' · ruta RELATIVA a tu directorio de trabajo: /private/var/folders/51/mq51gxn13sg84_d8ctz8gm140000gn · lo que se intentó: `/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine/.venv/bin/python -m nucleo.worker_bridge act use_tool @busca.json`"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/task «📄 archivo ⚠️ error»: File does not exist. Note: your current working directory is /private/var/folders/51/mq51gxn13sg84_d8ctz8gm140000gn/T/zaelar-workers/cff69f-3."
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/task «· paso ⚠️ error»: Exit code 2 uso: hbwidget data <widget_id> <action> [payload-json] · lo que se intentó: `/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine/.venv/bin/python -m nucleo.widget_cli data documento`"
+        },
+        {
+          "clase": "span_con_error",
+          "certeza": "hecho",
+          "que": "worker:2: 4 error(es), último paso «end»"
+        },
+        {
+          "clase": "span_con_error",
+          "certeza": "hecho",
+          "que": "worker:3: 4 error(es), último paso «data»"
+        }
+      ],
+      "sandboxed": true,
+      "provisional": "corrida con --allow-dirty: el arbol se movia, el numero no cuenta como medicion",
+      "tier": 2,
+      "turns_used": 2,
+      "families": [
+        "flash",
+        "memory",
+        "system",
+        "widget",
+        "worker"
+      ],
+      "drive_model": "",
+      "code": {
+        "sha": "4472dd52",
+        "n_dirty": 4,
+        "dirty": [
+          ".meshkore/log/2026-09-21.md",
+          "CLAUDE.md",
+          "nucleo/energy_meter.py",
+          "nucleo/jev.py"
+        ]
+      },
+      "machine": {
+        "gpu_models": [],
+        "n": 0,
+        "error": "[Errno 2] No such file or directory: 'ollama'"
+      }
     }
   },
-  "updated": "2026-09-25 16:50"
+  "updated": "2026-09-25 21:02"
 }
