@@ -288,3 +288,20 @@ def test_a_repair_that_may_write_needs_a_sure_action_verdict(monkeypatch):
     assert _da.names_an_order(sure, sure=0.8)
     src = (_ENGINE / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
     assert "_direct_action.names_an_order(_brief, sure=0.8)" in src, "the promise repair's gate must carry the floor"
+
+
+def test_a_show_that_names_a_card_we_have_beats_the_worker_and_an_undone_order_over_a_card_escalates():
+    """V2-773 (demo S1 / F1, 2026-09-27). S1: «Show me the monitors» over the finished errand's CLOSED sheet — the
+    escalate verdict fired before the show branch and a second worker searched the monitors again. F1: «Write me
+    a one-page summary … in a document» — the catalogue named `documento` (0.86), nothing was called, the
+    escalation verdict was unsure (0.15), and «on its way» was on its way nowhere."""
+    from nucleo.flash import direct_action as _da
+    assert _da.order_over_a_card_left_undone(_brief({_tb.REQUEST_KEY: ("order", 0.59), _tb.CATALOG_KEY: ("documento", 0.86)}))
+    assert not _da.order_over_a_card_left_undone(_brief({_tb.REQUEST_KEY: ("question", 0.9), _tb.CATALOG_KEY: ("agenda", 0.9)})), "a question is not work owed"
+    assert not _da.order_over_a_card_left_undone(_brief({_tb.REQUEST_KEY: ("order", 0.9), _tb.CATALOG_KEY: ("none", 0.8)})), "no card named: the other gates decide"
+    assert not _da.order_over_a_card_left_undone(_brief({_tb.REQUEST_KEY: ("order", 0.3), _tb.CATALOG_KEY: ("documento", 0.9)})), "unsure"
+    src = (_ENGINE / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
+    i_show = src.index('_pw = _identify(_op_text) if _router.looks_like_show_strict(_op_text) else ""')
+    i_esc = src.index("🧭 escalada por backstop (prometió crear/gestionar sin escalar)", i_show)
+    assert src.index("🪟 show por backstop de promesa", i_show) < i_esc, "a named card is shown BEFORE the worker gate"
+    assert "or _direct_action.order_over_a_card_left_undone(_brief)):" in src[i_show:i_esc]

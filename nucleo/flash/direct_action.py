@@ -189,6 +189,23 @@ def verdict_escalates(brief, *, answered: bool = False) -> bool:
         return False
 
 
+def order_over_a_card_left_undone(brief) -> bool:
+    """A sure ORDER the catalogue addressed to a card, on a turn the caller knows called nothing and asked for
+    nothing — the work is still owed (V2-773, demo F1, 2026-09-27): «Write me a one-page summary of the
+    Declaration of Independence in a document» — the catalogue named `documento` (0.86), the card-or-worker
+    pass got no call, the escalation verdict was unsure (0.15), the reply said «on its way» and nothing was on
+    its way. The caller supplies «nothing called, nothing asked»; this reads only the verdicts."""
+    try:
+        from nucleo.flash import turn_brief as _tb
+        kind, k = _tb.read(brief, _tb.REQUEST_KEY, "")
+        if k is None or str(kind) != "order":
+            return False
+        card, c = _tb.read(brief, _tb.CATALOG_KEY, "")
+        return c is not None and bool(card) and str(card) != "none"
+    except Exception:  # noqa: BLE001
+        return False
+
+
 def names_an_order(brief, *, sure: float = 0.0) -> bool:
     """Does the turn's verdict name a declared action of an open card, on a turn it does not read as a remark?
 

@@ -2558,21 +2558,25 @@ class NucleoLLMStream(llm.LLMStream):
                     _win_goal = ""
             # V2-773 — …or the brief's own verdict said this order needs a worker (kickoff A1: «On it — I'll show
             # you the options» over nothing; the verb tables know «búscame», not every way of asking).
-            if (_router.looks_like_create_widget(_op_text) or _router.looks_like_escalate_task(_op_text) or _win_goal
-                    or _direct_action.verdict_escalates(_brief, answered=not _router.promises_action(spoken_text))):
+            # V2-773 (demo S1) — a «show me X» that NAMES a card we have (open, or a finished errand's closed sheet)
+            # is a show, before any worker: the escalate verdict fired first and a second worker searched the
+            # monitors again over their own closed sheet.
+            _pw = _identify(_op_text) if _router.looks_like_show_strict(_op_text) else ""
+            if _pw:
+                acted["widget"] = True
+                _shown_ids.add(_pw)          # V2-660: a shown card is an end state the harness verifies
+                _cvis.present(_pw, reason="turn-order", src="flash", emit=emit)
+                emit("brain", "🪟 show por backstop de promesa (prometió mostrar sin tool)", text=_pw, role="system")
+            elif (_router.looks_like_create_widget(_op_text) or _router.looks_like_escalate_task(_op_text) or _win_goal
+                    or _direct_action.verdict_escalates(_brief, answered=not _router.promises_action(spoken_text))
+                    or _direct_action.order_over_a_card_left_undone(_brief)):
                 # crear widget (o sinónimo: panel/gadget) = código → escala; marketplace/informe = navegador → escala
                 escalate_req["v"] = _win_goal or _op_text
                 emit("brain", "🧭 escalada por backstop (prometió crear/gestionar sin escalar)",
                      text=(_win_goal or _op_text)[:80], role="system")
-            elif _router.looks_like_show_strict(_op_text):    # abrir/mostrar/enseñar un widget existente → show
-                _pw = _identify(_op_text)
-                _wtab = "" if _pw else _wall_tab_for(_identify_system(_op_text), _op_text)
-                if _pw:
-                    acted["widget"] = True
-                    _shown_ids.add(_pw)          # V2-660: a shown card is an end state the harness verifies
-                    _cvis.present(_pw, reason="turn-order", src="flash", emit=emit)
-                    emit("brain", "🪟 show por backstop de promesa (prometió mostrar sin tool)", text=_pw, role="system")
-                elif _wtab:
+            elif _router.looks_like_show_strict(_op_text):    # it named no card: a TAB of the wall, or nothing
+                _wtab = _wall_tab_for(_identify_system(_op_text), _op_text)
+                if _wtab:
                     # V2-761 — it named a TAB of the wall («te abro el panel de apps», nothing called).
                     acted["widget"] = True
                     emit("panel", "open", extra={"tab": _wtab, "src": "flash"})
