@@ -2401,6 +2401,10 @@ DOMAINS: list[dict] = [
         # una nota sobre un encargo cerrado tiró «Show me the monitors» → «Sorry, I lost that».
         {"id": "3.99", "title": "Una nota del sistema nunca veta su show — los guardas leen SOLO sus palabras",
             "ch": UNIT, "paths": ["tests/voice/unit/providers/test_a_system_note_never_vetoes_his_show.py"]},
+        # V2-776 (2026-09-27): un `canvas = show` SEGURO en una orden sin tool trae la tarjeta que la frase nombra —
+        # la red de «prometió mostrar» dependía de una tabla de verbos que no conoce «bringing it back up».
+        {"id": "3.100", "title": "Un veredicto seguro de mostrar trae la tarjeta nombrada aunque el modelo no llame",
+            "ch": UNIT, "paths": ["tests/voice/unit/test_a_sure_show_verdict_brings_the_named_card.py"]},
         # V2-776 (2026-09-27): la pregunta de escalado a Jev decía «ante la duda, escala» y mandaba a un worker
         # 11 de 11 órdenes de un paso (música, Telegram, agenda, gráfica). Nombra ahora lo que hacen las tarjetas.
         # EN VIVO: vieja 5/17, nueva 16/17.

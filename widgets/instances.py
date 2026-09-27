@@ -316,8 +316,8 @@ def _closed_card_for(base: str, text: str) -> str:
 
     Demo pass v7 (2026-09-27, S1): the monitor sheet had been closed two blocks earlier, «Show me the monitors»
     showed the bare `results` — EMPTY — and «compare them» / «open the best value» then worked on nothing. The
-    sheet whose title shares a word with the phrase wins; with none sharing one, the most recent sheet (a bare
-    «show me the results» means the last ones, never an empty box)."""
+    sheet whose title shares a word with the phrase wins; with none sharing one, the only recent sheet if there is
+    exactly one — several and no word to choose by is the base, as before."""
     rows = [r for r in recent_faces(8) if str(r.get("id") or "").split(SEP, 1)[0] == base]
     if not rows:
         return ""
@@ -325,7 +325,9 @@ def _closed_card_for(base: str, text: str) -> str:
     for r in rows:
         if said & {w.lower() for w in _WORD.findall(str(r.get("label") or ""))}:
             return str(r["id"])
-    return str(rows[0]["id"])
+    # Nothing in the phrase names one: bring the sheet back only when there is ONE to bring. «The most recent»
+    # opened the TRIP sheet for «Open the best value option» over the monitors (verification, 2026-09-27).
+    return str(rows[0]["id"]) if len(rows) == 1 else ""
 
 
 def resolve_show(target, open_ids, text: str = "", last_spoken: str = "") -> dict:

@@ -18,9 +18,16 @@ def test_the_sheet_named_by_the_phrase_comes_back(monkeypatch):
     assert out["id"] == "results::94b220-ls1", out
 
 
-def test_a_bare_request_brings_the_most_recent_sheet(monkeypatch):
-    _recent(monkeypatch, [{"id": "results::b", "label": "Weekend plan"}, {"id": "results::a", "label": "Monitors"}])
-    assert instances.resolve_show("results", [], "Show me the results.")["id"] == "results::b"
+def test_a_bare_request_brings_the_only_sheet(monkeypatch):
+    _recent(monkeypatch, [{"id": "results::a", "label": "Monitors"}])
+    assert instances.resolve_show("results", [], "Show me the results.")["id"] == "results::a"
+
+
+def test_several_sheets_and_no_word_to_choose_by_is_not_a_guess(monkeypatch):
+    """«Open the best value option» opened the TRIP sheet when «the most recent» was the rule."""
+    _recent(monkeypatch, [{"id": "results::trip", "label": "Warm-weather getaway - LAX"},
+                          {"id": "results::mon", "label": "27-inch 4K monitors under 400 dollars"}])
+    assert instances.resolve_show("results", [], "Open the best value option.")["id"] == "results"
 
 
 def test_with_no_sheet_at_all_the_base_as_always(monkeypatch):

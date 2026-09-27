@@ -146,6 +146,23 @@ def order_is_inside(brief, widget_id: str = "") -> bool:
         return False
 
 
+def verdict_shows(brief) -> bool:
+    """Did the brief say, SURE, that this order brings a card up (`canvas = show`) on an order turn?
+
+    V2-776 (verification after the demo pass, 2026-09-27): «Show me the monitors.» — canvas=show 0.98, the model
+    said «Bringing the monitor comparison back up» and called nothing. The promise backstop that shows the named
+    card gated on a verb table that knows «te lo abro», not «bringing it back up»; the verdict was already paid for."""
+    try:
+        from nucleo.flash import turn_brief as _tb
+        verb, info = _tb.read(brief, _tb.CANVAS_KEY, "")
+        if info is None or str(verb or "") != "show":
+            return False
+        kind, k = _tb.read(brief, _tb.REQUEST_KEY, "")
+        return k is not None and str(kind) == "order"
+    except Exception:  # noqa: BLE001
+        return False
+
+
 def aims_at_a_card(brief) -> bool:
     """Is this turn's order aimed at a CARD on screen — an action of one, or the canvas itself (show/close)?
 

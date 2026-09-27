@@ -2542,7 +2542,8 @@ class NucleoLLMStream(llm.LLMStream):
                                         emit=emit, present=_cvis.present, apply_widget_data=_apply_widget_data):
                 data_done["v"] = True
         if (_no_tool and spoken_text
-                and (_router.promises_action(spoken_text) or _direct_action.verdict_escalates(_brief, answered=not _router.promises_action(spoken_text)))
+                and (_router.promises_action(spoken_text) or _direct_action.verdict_escalates(_brief, answered=not _router.promises_action(spoken_text))
+                     or _direct_action.verdict_shows(_brief))
                 and not _router.asks_for_missing_detail(spoken_text)):
             _win_goal = ""
             if not (_router.looks_like_create_widget(_op_text) or _router.looks_like_escalate_task(_op_text)):
@@ -2572,7 +2573,8 @@ class NucleoLLMStream(llm.LLMStream):
             # V2-773 (demo S1) — a «show me X» that NAMES a card we have (open, or a finished errand's closed sheet)
             # is a show, before any worker: the escalate verdict fired first and a second worker searched the
             # monitors again over their own closed sheet.
-            _pw = _identify(_op_text) if _router.looks_like_show_strict(_op_text) else ""
+            _pw = (_identify(_op_text) if (_router.looks_like_show_strict(_op_text) or _direct_action.verdict_shows(_brief))
+                   else "")
             if _pw:
                 acted["widget"] = True
                 _shown_ids.add(_pw)          # V2-660: a shown card is an end state the harness verifies
