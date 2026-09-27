@@ -134,6 +134,9 @@ def test_a_commission_that_names_a_card_is_read_or_called_before_it_costs_a_work
     offered = [t["function"]["name"] for t in _Client.calls[-1]["tools"]]
     assert offered == ["widget_data", "read_widget"], offered
     assert "citas próximas (3)" in _Client.calls[-1]["messages"][0]["content"], "the card rides the pass"
+    # demo v4, C5: the pass sent `contact: "@cryptonitefund"` — a handle from memory, misspelt — and the card
+    # answered «no tengo a @cryptonitefund en el directorio»; the contact is the NAME he said.
+    assert "NOMBRE de la persona" in _Client.calls[-1]["messages"][0]["content"]
     _Client.answer = [("widget_data", {"widget_id": "agenda", "action": "add_meeting", "payload": {"title": "x", "date": "2026-09-27"}})]
     got = _run_cr("Put a meeting tomorrow", "…", "agenda")
     assert got and got["kind"] == "call" and got["action"] == "add_meeting"

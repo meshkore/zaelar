@@ -117,7 +117,9 @@ _SYS_COMMISSION = (
     "`read_widget` con widget_id «{wid}» y la pregunta concreta que hay que resolver contra ella (con la fecha "
     "absoluta y la franja que él dijo) — solo si esa herramienta se te ofrece; (3) solo si hace falta el mundo "
     "exterior —la web, reservar en un sitio externo, buscar productos— no llames a nada. Un mensaje a un contacto "
-    "es la acción de enviar de la tarjeta, con el texto redactado por ti a partir de lo que él quiere decir."
+    "es la acción de enviar de la tarjeta, con el texto redactado por ti a partir de lo que él quiere decir, y "
+    "`contact` es el NOMBRE de la persona tal como él lo dijo («Ethan»), nunca su @usuario, teléfono o correo: "
+    "la tarjeta lo resuelve en su directorio."
     "\n\nAcciones de «{wid}»:\n{actions}{card}")
 
 
