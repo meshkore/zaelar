@@ -58,6 +58,7 @@ MUST_HIT_ES = [
     ("Muéstrame ahora el Telegram", "widget_data"),
     ("enséñame el correo", "widget_data"),
     ("abre la agenda", "show_widget"),
+    ("Ponlo en pantalla completa.", "fullscreen"),
     ("abre el calendario", "show_widget"),
     ("abre las alarmas", "show_panel"),
 ]
@@ -71,6 +72,7 @@ MUST_HIT_EN = [
     ("show me the telegram messages", "widget_data"),
     ("open the agenda", "show_widget"),
     ("open the crons", "show_panel"),
+    ("Make it fullscreen.", "fullscreen"),     # demo pass 2026-09-28, V3: the model said «going fullscreen now», called nothing
 ]
 
 
@@ -569,3 +571,16 @@ def test_minimise_that_targets_the_card_in_front(monkeypatch):
     for lang, phrase in (("en", "minimise that while you work"), ("es", "minimiza eso")):
         pack = _json.loads((_pl.Path(__file__).resolve().parents[4] / f"nucleo/actionmap/seeds/{lang}.json").read_text("utf-8"))
         assert any(e.get("phrase") == phrase and e.get("action") == {"do": "minimize", "widget": "*"} for e in pack["entries"]), (lang, phrase)
+
+
+def test_a_pronoun_fullscreen_targets_the_card_in_front(monkeypatch):
+    """Demo pass 2026-09-28, V3: «Make it fullscreen.» over the playing video had no entry; the model answered
+    «Yep, going fullscreen now.» and called nothing. The seed cannot name the widget — «it» is the card in front."""
+    from memory import api as memapi
+    from server import voice_api
+    seen = []
+    emit = lambda kind, label, **k: seen.append((label, (k.get("extra") or {}).get("id")))
+    monkeypatch.setattr(memapi, "state", lambda: {})
+    monkeypatch.setattr(voice_api, "open_instances", lambda: ["youtube"])
+    assert executor.execute({"do": "fullscreen", "widget": "*"}, emit, phrase="Make it fullscreen.")
+    assert seen == [("fullscreen", "youtube")]
