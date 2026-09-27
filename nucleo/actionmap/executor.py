@@ -72,6 +72,23 @@ def _resolve_widget(name: str) -> str:
         return ""
 
 
+def _card_in_front() -> str:
+    """The card an order means by «that»: the one at full screen, else the only open one; otherwise ''."""
+    try:
+        from memory import api as memapi
+        maxw = str((memapi.state() or {}).get("maximized_widget") or "").strip().lower()
+        if maxw:
+            return maxw
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        from server.voice_api import open_instances
+        ids = [str(i) for i in open_instances() if str(i)]
+        return ids[0] if len(ids) == 1 else ""
+    except Exception:  # noqa: BLE001
+        return ""
+
+
 def _show_card(wid: str) -> str:
     """The CARD to raise for `wid` — its live instance when that is unambiguous, else the base (V2-605 F3).
 
@@ -178,7 +195,10 @@ def execute(action: dict, emit, phrase: str = "") -> bool:
             return False
         emit("widget", "minimize", text=said, extra={"id": maxw, **src})
         return True
-    wid = _resolve_widget(action["widget"])
+    # V2-773 — «minimise THAT while you work» (demo A2): the seed cannot name a widget, the order names what is
+    # in front. `*` resolves to the card at full screen, else the ONLY open card; two cards and no full screen
+    # is a question, and this lane cannot ask, so it falls through to the model (its screen verdict decides).
+    wid = _card_in_front() if str(action.get("widget") or "") == "*" else _resolve_widget(action["widget"])
     if not wid:
         return False
     if do == "show_widget":
@@ -225,7 +245,7 @@ def execute(action: dict, emit, phrase: str = "") -> bool:
         # which on a non-maximized card does the exact OPPOSITE (measured 2026-09-09, session 34386d8f).
         # The frontend decides the one honest step down (desktop.shrink): exit fullscreen if engaged, else
         # restore a maximized card, else minimize to the rail chip.
-        emit("widget", "minimize", text=said, extra={"id": wid, **src})
+        emit("widget", "minimize", text=said, extra={"id": _show_card(wid), **src})
         return True
     if do == "widget_data":
         # Only ops the widget DECLARES as FAST run without the model; everything else falls through.

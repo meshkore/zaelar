@@ -544,3 +544,28 @@ def test_exit_fullscreen_steps_the_maximised_card_down(monkeypatch):
     for lang, phrase in (("en", "exit fullscreen"), ("es", "sal de pantalla completa")):
         pack = _json.loads((_pl.Path(__file__).resolve().parents[4] / f"nucleo/actionmap/seeds/{lang}.json").read_text("utf-8"))
         assert any(e.get("phrase") == phrase and e.get("action", {}).get("do") == "unfullscreen" for e in pack["entries"]), (lang, phrase)
+
+
+def test_minimise_that_targets_the_card_in_front(monkeypatch):
+    """V2-773 (demo kickoff, A2): «Minimise that while you work» with ONE sheet open — no route, and the model
+    asked «what would you like me to minimise?». «That» is the card at full screen, else the only open card;
+    two cards and nothing at full screen is a question this lane cannot ask, so the model answers."""
+    from nucleo.actionmap import executor
+    from memory import api as memapi
+    from server import voice_api
+    seen = []
+    emit = lambda kind, label, **k: seen.append((label, (k.get("extra") or {}).get("id")))
+    monkeypatch.setattr(memapi, "state", lambda: {})
+    monkeypatch.setattr(voice_api, "open_instances", lambda: ["results::c44e34-ls1"])
+    assert executor.execute({"do": "minimize", "widget": "*"}, emit, phrase="Minimise that while you work.")
+    assert seen == [("minimize", "results::c44e34-ls1")], "the only open card, by its full instance id"
+    seen.clear()
+    monkeypatch.setattr(voice_api, "open_instances", lambda: ["results::c44e34-ls1", "youtube"])
+    assert executor.execute({"do": "minimize", "widget": "*"}, emit, phrase="minimise that") is False, "two cards: the model asks"
+    monkeypatch.setattr(memapi, "state", lambda: {"maximized_widget": "youtube"})
+    assert executor.execute({"do": "minimize", "widget": "*"}, emit, phrase="minimise that")
+    assert seen == [("minimize", "youtube")], "at full screen, «that» is the one filling the screen"
+    import json as _json, pathlib as _pl
+    for lang, phrase in (("en", "minimise that while you work"), ("es", "minimiza eso")):
+        pack = _json.loads((_pl.Path(__file__).resolve().parents[4] / f"nucleo/actionmap/seeds/{lang}.json").read_text("utf-8"))
+        assert any(e.get("phrase") == phrase and e.get("action") == {"do": "minimize", "widget": "*"} for e in pack["entries"]), (lang, phrase)
