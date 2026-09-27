@@ -87,6 +87,7 @@ def mark_stalled(rec, emit_chip) -> None:
         pass
     rec.status = "error"
     rec.ok = False
+    rec.error_class = "stalled"               # V2-776 D2 — what `relay.restart_stalled` and the row read
     from i18n import langs as _lg_st          # V2-682 — a spoken ending belongs to the language table
     rec.result_summary = rec.result_summary or _lg_st.current_language().worker_stalled.format(minutes=mins)
 
@@ -135,6 +136,7 @@ def mark_spinning(rec, emit_chip, n: int) -> None:
         pass
     rec.status = "error"
     rec.ok = False
+    rec.error_class = "stalled"
     from i18n import langs as _lg_sp
     rec.result_summary = rec.result_summary or _lg_sp.current_language().worker_spinning
 

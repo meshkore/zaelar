@@ -108,3 +108,41 @@ def relay_out_of_fuel(rec, relay_cap: int) -> None:
             rec.result_summary = _say().worker_gave_up_context.format(times=_veces)
         else:
             rec.result_summary = _say().worker_gave_up_provider.format(times=_veces)
+
+
+#: How many times a STALLED commission is restarted. One: a worker that goes silent twice on the same errand is
+#: not unlucky, and a third try would only spend another five minutes of the operator's wait on the same wall.
+STALL_RESTARTS = 1
+
+
+def restart_stalled(rec) -> None:
+    """A worker the watchdog stopped for SILENCE gets ONE fresh start, carrying what it learned (V2-776 D2).
+
+    The operator (2026-09-27): the pulse «se va a encargar de … vigilarlos y de ver cuando uno se cuelga para
+    reiniciarlo». Until this a stall was the end: `mark_stalled` wrote an honest death and the errand was over,
+    so a provider stream that hung once cost the operator the whole commission. The count lives in the durable
+    row (`tasks.attempts`), not on the record: every restart builds a fresh record, and a per-record flag is the
+    unbounded-relay bug `relay_gen` exists for (six workers for one car search, 2026-08-17). Mutates `rec`;
+    never raises. A second stall ends the errand with `error_class=stalled`, and the ending says so."""
+    if (str(getattr(rec, "error_class", "") or "") != "stalled" or rec.status == "cancelled" or rec.handoff):
+        return
+    uid = str(getattr(rec, "uid", "") or "")
+    try:
+        from nucleo import tasks as _tasks
+        row = _tasks.get(uid) if uid else None
+        if row is None or int(row.get("attempts") or 0) >= STALL_RESTARTS:
+            return
+        _tasks.store().task_patch(uid, attempts=int(row.get("attempts") or 0) + 1)
+        from nucleo.flash import escalate as _esc
+        _esc.escalate_to_slowbrain(context_handoff(rec), context={
+            "src": "stall_restart", "kind": rec.kind, "trace": rec.trace_id,
+            "sheet": str(getattr(rec, "sheet", "") or ""),
+            "surface": str(getattr(rec, "surface", "") or ""),
+            "task_uid": uid,
+            "depth": int(rec.depth or 0), "relay_gen": int(rec.relay_gen or 0) + 1})
+        rec.result_summary = ""            # no delivery: the fresh worker picks it up
+        rec.ok = False
+        rec.handoff = "sin señales → reiniciada una vez con lo aprendido"
+        logger.warning(f"worker[{rec.task_id}]: stalled → restarted once (task {uid})")
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"worker[{rec.task_id}]: stall restart failed: {e}")

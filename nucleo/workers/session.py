@@ -24,6 +24,7 @@ from .base import WorkerBackend, WorkerSpec
 from .goal import check_and_relay as _harness
 from .relay import _say
 from .relay import relay_out_of_fuel as _relay_out_of_fuel
+from .relay import restart_stalled as _restart_stalled
 
 
 # CONTEXT BUDGET (incident 2026-08-18). Not the model's real ceiling — deliberately well below it, because the
@@ -90,6 +91,9 @@ class SessionRecord:
     # moves on every stream event, so it says «the process is alive»; this says «it told us where it is», which is
     # the obligation the pulse enforces (D2). 0.0 = it has not reported once.
     reported_at: float = 0.0
+    # V2-776 D2 — WHY it failed, in the A5 vocabulary (network | credit | auth | rate | stalled | ours). Written by
+    # whoever detects the cause (the stall watchdog, the generator), copied into the durable row on close.
+    error_class: str = ""
     injects: list = field(default_factory=list)     # [Inject]
     paused: bool = False           # V2-065: SIGSTOP'd (⏻ del operador) — sigue "running" para el registro, pero
                                     # frozen; do not confuse with status=cancelled (that is irreversible)
@@ -360,6 +364,8 @@ class WorkerSession:
         # A SESSION THAT RAN OUT OF FUEL PASSES THE BATON — context blown, provider without quota,
         # or the chain capped. `workers/relay.py` owns the three rules and the incidents behind them.
         _relay_out_of_fuel(rec, self._RELAY_CAP)
+        # V2-776 D2 — …and one that went SILENT gets one fresh start (the count lives in the durable row).
+        _restart_stalled(rec)
 
         # V2-241 — A SILENT ENDING AFTER HITTING THE GATE. The three measured cases died without saying anything,
         # and the cause appeared only by cross-checking the engine log. If the session ends without delivery or

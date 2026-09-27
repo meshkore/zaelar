@@ -335,6 +335,10 @@ class LangSpec:
     worker_budget_killed: str = ("He parado «{goal}»: agotó su tiempo. Te dejo en la tarjeta lo que ha "
                                  "encontrado hasta ahora.")
     worker_timeout_running: str = "El proceso «{goal}» lleva ya {minutes} minutos. ¿Quieres que lo pare o que siga?"
+    # V2-776 D2 — said by the pulse when a worker goes SILENT (no event at all for STUCK_SECS). The stall
+    # watchdog stops it a couple of minutes later and it is restarted ONCE (`workers/relay.restart_stalled`).
+    worker_stuck: str = ("El proceso «{goal}» lleva {minutes} minutos sin dar señales. Si no reacciona en un "
+                         "par de minutos lo reinicio una vez.")
     # CONFIRMATION TIMEOUT (2026-08-16): a pending irreversible-action confirmation the operator never answered
     # (`widgets/confirm.py`'s 90s TTL) must not just vanish — the task stays undone and the operator has no way
     # to know unless told. Spoken/chatted once by `nucleo/loop.py::_supervise_confirms`, same proactive rails as
@@ -518,6 +522,8 @@ LANGUAGES: dict[str, LangSpec] = {
                               "card."),
         worker_timeout_running=("The «{goal}» process has been running for {minutes} minutes now. Want me to "
                                 "stop it or keep going?"),
+        worker_stuck=("The «{goal}» process hasn't shown a sign of life for {minutes} minutes. If it doesn't "
+                      "react in a couple of minutes I'll restart it once."),
         confirm_expired=("I stopped waiting for your confirmation on: {question} Just tell me again if you still "
                          "want me to do it."),
         spark_pending="I've still got something pending: {title}. Should we pick it back up?",

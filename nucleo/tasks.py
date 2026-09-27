@@ -223,7 +223,8 @@ def closed(rec, *, outcome: str = "") -> None:
         _ts.task_patch(uid, state=state)
         return
     said = (outcome or str(getattr(rec, "result_summary", "") or ""))[:400]
-    _ts.task_patch(uid, state=state, finished_at=int(time.time()), outcome=said)
+    _ts.task_patch(uid, state=state, finished_at=int(time.time()), outcome=said,
+                   error_class=str(getattr(rec, "error_class", "") or "") if state == "failed" else "")
     kept_result(rec)
     remembered(rec, state=state, outcome=said)
 

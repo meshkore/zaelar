@@ -32,6 +32,7 @@ from . import sparks as _sparks
 # V2-227 scope B2: how many seconds between heartbeats for a live task. Few, because the failure it fixes is the
 # SILENCE —seven minutes of a motionless screen— and no less, because a PERSON reads the rail: one heartbeat per
 # second is not information, it is timestamped noise. Adjustable through the environment so it can be measured.
+_STUCK_KEY = "worker_stuck:"          # V2-776 D2 — retractable key of the «it went quiet» notice
 _BEAT_SECS = float(os.getenv("ZAELAR_TASK_BEAT_SECS", "15") or 15)
 # V2-776 D2 — a worker that has not reported ITSELF (`hbnote`) for this long is told to. The stream shows it
 # is alive; only its own report says WHERE it is, and «encourage it in the prompt» measured as optional.
@@ -372,6 +373,12 @@ class OrchestratorLoop:
                 # to be checked. Fall back to `age` if the snapshot is old and lacks the field.
                 self._stuck_informed.add(tid)
                 _emit("worker.stuck", {"id": tid, "age_s": age, "silent_s": int(s.get("silent_s", age))})
+                # V2-776 D2 — and SAID. It used to be only an event: the operator waited on a worker that had
+                # gone quiet and nobody told him until the watchdog killed it and the death note arrived.
+                goal = _errand_title.provisional(s.get("title") or s.get("goal") or self._lang().generic_task, 48)
+                await self._deliver_keyed("zaelar", self._say(
+                    "worker_stuck", goal=goal, minutes=max(1, int(s.get("silent_s", age)) // 60)),
+                    _STUCK_KEY + str(tid))
 
     async def _supervise_confirms(self, now: float) -> None:
         """A pending irreversible-action confirmation the operator never answered must not die in silence
@@ -459,6 +466,8 @@ class OrchestratorLoop:
                 worker_budget_killed = ("He parado «{goal}»: agotó su tiempo. Te dejo en la tarjeta lo que ha "
                                        "encontrado hasta ahora.")
                 worker_timeout_running = "El proceso «{goal}» lleva ya {minutes} minutos. ¿Quieres que lo pare o que siga?"
+                worker_stuck = ("El proceso «{goal}» lleva {minutes} minutos sin dar señales. Si no reacciona en "
+                                "un par de minutos lo reinicio una vez.")
                 confirm_expired = ("Dejé de esperar tu confirmación sobre: {question} Dímelo otra vez si quieres "
                                    "que lo haga.")
                 generic_task = "la tarea"
