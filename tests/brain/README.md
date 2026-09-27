@@ -107,3 +107,11 @@ measuring itself.
 - **C2 (source of truth by kind)** — `demo-z1-whats-on-my-plate-tomorrow`.
 
 A case that was green on this date stays green: that is the initiative's third definition-of-done line.
+
+**Added 2026-09-27 (V2-776 D0, the operator's local test that afternoon)** — 44 cases · 8 open:
+
+- **B3 (retire a guard only against the bank)** — `session-3a9a082c-madonna-concert-the-guard-drops-the-play`:
+  the model called `play_video` and the `video_without_order` text guard dropped it.
+- `session-3a9a082c-yes-do-it-the-fragment-guard-annuls-the-build` is GREEN here and red in the voice
+  channel: the «fragment, not an errand» guard that annulled the model's escalation lives in the voice
+  provider. It is in the bank so that B2, which brings that channel in, cannot land without it.
