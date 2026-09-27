@@ -530,6 +530,7 @@ def live_state() -> str:
     # V2-348 — el bloque de TAREAS DE FONDO se mudó a `live_blocks.py` por el mismo trinquete y con
     # el mismo precedente que el del navegador (V2-276): mismo texto, mismas ramas, mismo fail-open.
     lines.extend(_live_blocks.pending_task_lines())
+    lines.extend(_live_blocks.record_lines())    # V2-776 D3: RAM is silent → the durable record speaks
     # V2-276 — el bloque del NAVEGADOR vive en `live_blocks.py` desde el 2026-08-24 (trinquete de
     # arquitectura). Mismo texto, mismas caras, mismo fail-open: solo se mudó de fichero.
     lines.extend(_live_blocks.navegador_lines())

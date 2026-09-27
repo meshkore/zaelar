@@ -213,3 +213,42 @@ def pending_task_lines() -> list[str]:
     except Exception:
         pass
     return lines
+
+
+#: How far back the durable record is quoted once RAM has nothing to say. RAM keeps an ending for five minutes
+#: (`workers/ended.JUST_ENDED_S`); the operator asks «¿se ha creado ya la aplicación?» hours later.
+RECORD_WINDOW_S = 12 * 3600.0
+_RECORD_VERB = {"done": "TERMINÓ", "failed": "FALLÓ", "cancelled": "se CANCELÓ"}
+
+
+def record_lines(now: float | None = None) -> list[str]:
+    """V2-776 D3 — when the RAM blocks are silent, the DURABLE record speaks, in one line.
+
+    Measured 2026-09-27 (session 3a9a082c): at 15:46 the operator asked «Have you finished?» about a widget whose
+    worker had died at 12:50, and the turn answered «Not yet — the accountancy widget is still being built». No
+    live session, no ending inside the five-minute RAM window: the only thing the model had was its own promise
+    three hours earlier («I'll start that accountancy widget again now», which launched nothing). The task row
+    knew the truth the whole time. This puts it in front of the model — only when the live and just-ended blocks
+    are empty, so it never contradicts them, and only for the operator's own commissions.
+    """
+    import time as _t
+    now = float(now if now is not None else _t.time())
+    try:
+        from nucleo import dispatch as _disp
+        if _disp.pending_summaries() or _disp.recently_ended_sessions(now=now):
+            return []
+        from nucleo import tasks as _tasks
+        rows = _tasks.store().tasks_where(states=("done", "failed", "cancelled"), modes=("now",),
+                                          visible_only=True, limit=1, newest_first=True)
+    except Exception:  # noqa: BLE001 — a record that cannot be read adds nothing, and never breaks the turn
+        return []
+    last = rows[0] if rows else None
+    if not last or now - float(last.get("finished_at") or 0) > RECORD_WINDOW_S:
+        return []
+    name = _short_note(str(last.get("title") or last.get("goal") or "la tarea"), 70)
+    when = _t.strftime("%H:%M", _t.localtime(float(last["finished_at"])))
+    line = (f"TAREAS DE FONDO (registro): NINGUNA en marcha ahora mismo. La última, «{name}», "
+            f"{_RECORD_VERB.get(str(last.get('state')), 'terminó')} a las {when}")
+    if last.get("outcome"):
+        line += f" — {_short_note(str(last['outcome']), 100)}"
+    return [line + ". Si pregunta por ella, eso es lo que hay: NUNCA digas que sigue en curso."]

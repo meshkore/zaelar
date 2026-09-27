@@ -1987,6 +1987,9 @@ DOMAINS: list[dict] = [
         {"id": "3.85", "title": "Un worker que se cuelga se ANUNCIA, se reinicia UNA vez (la cuenta vive en la "
                                 "fila) y a la segunda falla diciendo por qué",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_a_stalled_worker_is_restarted_once.py"]},
+        {"id": "3.86", "title": "FlashBrain lee el REGISTRO de tareas: horas después sabe que el widget falló y "
+                                "no puede decir «sigue en curso»",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_the_turn_reads_the_task_record.py"]},
     ]},
     {"id": "4", "name": "WIDGETS", "nodes": [
         {"id": "4.1", "title": "Ciclo de vida / acciones / refs / generador / background", "ch": UNIT, "paths": [

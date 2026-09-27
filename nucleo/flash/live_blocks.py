@@ -768,7 +768,7 @@ def done_ops_lines() -> list[str]:
         return []
 
 
-from nucleo.flash.task_block import _short_note, pending_task_lines  # noqa: E402,F401 — re-export
+from nucleo.flash.task_block import _short_note, pending_task_lines, record_lines  # noqa: E402,F401 — re-export
 
 
 def _cron_line() -> str:
