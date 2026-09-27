@@ -2299,7 +2299,9 @@ DOMAINS: list[dict] = [
         # rehidrata, y Procesos deja de pintar con un ✓ lo que un reinicio cortó a medias.
         {"id": "4.13", "title": "Rehidratación del escritorio (tarjetas + posiciones tras recargar o cambiar de "
                                 "navegador) · «interrumpido» visible en Procesos",
-            "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_desktop_rehydrate.py"]},
+            "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_desktop_rehydrate.py",
+                                  # V2-773: a results sheet with no data and no errand is a ghost — pruned, never restored
+                                  "tests/browser/unit/widgets/test_a_sheet_without_data_is_a_ghost.py"]},
         # 2026-08-12: tras un reset, la hoja de resultados sacó ENTERA la búsqueda anterior mientras el worker de la
         # nueva trabajaba — el reset cerraba las tarjetas pero no vaciaba sus DATOS. Aquí van las dos mitades: lo
         # derivado se vacía y el registro del operador (agenda, credenciales, perfil del navegador) NO; y el worker

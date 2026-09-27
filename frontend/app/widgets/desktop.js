@@ -534,6 +534,13 @@ export class Desktop {
       items=srv.items;
       console.info("desktop: restored from server (this browser had no saved desktop)");
     }
+    // V2-773 — a GHOST SHEET is a `results::` card with nothing behind it: no data on disk, no live errand. After
+    // a reset the operator's tab kept four of them in ITS localStorage (and re-saved them to the server, which
+    // now prunes them); this browser's own list gets the same judgment, from the server's `sheets` + `live`.
+    if(Array.isArray(srv.sheets)){
+      const real = new Set([...srv.sheets, ...(Array.isArray(srv.live)?srv.live:[])].map(String));
+      items = items.filter(it=>{ const id=String(it.id||""); return !(id.startsWith("results::") && !real.has(id)); });
+    }
     // V2-351 — THE FOSSIL SWEEP. A bare BASE card next to an instance of the same base is the ghost the round
     // report names («se abrió la pieza BASE encima de su propia instancia, vacía»): the pre-V2-261 echo used to
     // open base cards and _persist saved them forever, so every restore resurrected an empty «Resultados» ON TOP

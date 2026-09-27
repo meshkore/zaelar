@@ -24,7 +24,7 @@ import { submitChat } from "./components/ChatWall.js?v=5";
 import { SYSTEM_SURFACES } from "./core/system-surfaces.js?v=3";
 import * as api from "./services/api.js?v=2";
 
-import { Desktop } from "./widgets/desktop.js?v=5";
+import { Desktop } from "./widgets/desktop.js?v=6";
 
 // ---- V2-752 · AN EXCEPTION IN THE BROWSER IS INVISIBLE FROM HERE, and that is an instrument we lacked ----
 // Auditing session fce3eff3 the question «did the audio-synced caption channel fire at all?» could not be

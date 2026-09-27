@@ -116,8 +116,12 @@ def _body(resp) -> dict:
     return json.loads(bytes(resp.body).decode("utf-8"))
 
 
-def test_the_server_remembers_the_desktop_across_a_restart(fresh_db):
+def test_the_server_remembers_the_desktop_across_a_restart(fresh_db, tmp_path, monkeypatch):
     from server.voice_api import canvas_layout, canvas_state
+    # V2-773: a sheet is remembered because its DATA is — one with nothing on disk and no errand is a ghost
+    from widgets import store
+    monkeypatch.setattr(store, "DATA_DIR", str(tmp_path / "wd"))
+    store.save("results--ab12cd-1", {"title": "the sheet he was looking at", "items": [{"title": "x"}]})
 
     layout = [{"id": "results::ab12cd-1", "q": "ab12cd-1", "left": "120px", "top": "80px", "z": "22"},
               {"id": "navegador", "q": "", "left": "540px", "top": "90px", "z": "23"}]

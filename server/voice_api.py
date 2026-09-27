@@ -658,7 +658,7 @@ async def canvas_state(payload: dict):
                 # w/h included since V2-630: a size the operator set is part of "where he left it" — dropping
                 # them made a cross-browser restore fall back to auto-size, the exact dance the rule forbids.
                 clean.append({k: str(it.get(k) or "")[:120] for k in ("id", "q", "left", "top", "z", "w", "h")})
-            memory.kv_set("canvas_layout", {"at": time.time(), "items": clean})
+            memory.kv_set("canvas_layout", {"at": time.time(), "items": _prune_ghost_sheets(clean)})
     except Exception:  # noqa: BLE001
         pass
     return JSONResponse({"ok": True, "open_widgets": seen})
@@ -678,6 +678,36 @@ def open_instances() -> list[str]:
     of inventing an ambiguity.
     """
     return list(getattr(canvas_state, "_last_inst", None) or [])
+
+
+def _sheet_ids_on_disk() -> list:
+    """The results sheets that HAVE data (a `state.json`), as canvas ids. A bare `results--x` directory is not
+    one: `store.data_dir()` creates it on the first read, which is exactly what a ghost card's own fetch does."""
+    out: list = []
+    try:
+        from widgets import store as _st
+        for name in sorted(os.listdir(_st.DATA_DIR)):
+            if name.startswith("results--") and os.path.exists(os.path.join(_st.DATA_DIR, name, "state.json")):
+                out.append(_st.canvas_id(name))
+    except Exception:  # noqa: BLE001
+        pass
+    return out
+
+
+def _prune_ghost_sheets(items: list, live: list | None = None) -> list:
+    """Drop the results sheets nothing stands behind (V2-773, 2026-09-27). After `make reset` the operator's
+    tab, open across it, re-reported its old cards and the server saved them again; every tab with no desktop
+    of its own then rehydrated four empty «Resultados» from here, and their own reads recreated their folders.
+    A sheet is real when its data is on disk or its errand is live; anything else named `results::…` is a ghost."""
+    live_set = set(str(x) for x in (live if live is not None else _live_canvas_instances()))
+    on_disk = set(_sheet_ids_on_disk())
+    out = []
+    for it in items or []:
+        cid = str((it.get("id") if isinstance(it, dict) else it) or "")
+        if cid.startswith("results::") and cid not in on_disk and cid not in live_set:
+            continue
+        out.append(it)
+    return out
 
 
 def _live_canvas_instances() -> list:
@@ -728,14 +758,16 @@ async def canvas_layout():
     browser, another profile, or the same zaelar through another origin (localhost:43917 vs
     local.zaelar.com:44317, two distinct stores for the same desktop). Read-only."""
     live = _live_canvas_instances()
+    sheets = _sheet_ids_on_disk()     # V2-773: the sheets a browser may keep — a `results::` id off this list is a ghost
     try:
         from memory import api as memory
         snap = memory.kv_get("canvas_layout")
         if isinstance(snap, dict) and isinstance(snap.get("items"), list):
-            return JSONResponse({"items": snap["items"], "at": snap.get("at") or 0, "live": live})
+            return JSONResponse({"items": _prune_ghost_sheets(snap["items"], live), "at": snap.get("at") or 0,
+                                 "live": live, "sheets": sheets})
     except Exception:  # noqa: BLE001
         pass
-    return JSONResponse({"items": [], "at": 0, "live": live})
+    return JSONResponse({"items": [], "at": 0, "live": live, "sheets": sheets})
 
 
 @router.get("/api/energy")
