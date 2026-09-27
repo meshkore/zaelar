@@ -2389,6 +2389,10 @@ DOMAINS: list[dict] = [
         # sin el id la reparación tras el show no corría y Markets salía VACÍA.
         {"id": "3.96", "title": "Un show por etiqueta anota su tarjeta — la reparación tras el show la completa",
             "ch": UNIT, "paths": ["tests/voice/unit/providers/test_a_tag_show_names_its_card.py"]},
+        # V2-776 (2026-09-27): el «Done.» que escribe el motor tras una acción silenciosa no es el modelo repitiéndose;
+        # dos seguidos disparaban el nudge anti-bucle y el turno siguiente preguntaba o prometía sin actuar.
+        {"id": "3.97", "title": "Nuestro «Done.» tras acciones silenciosas no dispara el anti-bucle",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_our_own_done_is_not_a_loop.py"]},
         # V2-776 (2026-09-27): la pregunta de escalado a Jev decía «ante la duda, escala» y mandaba a un worker
         # 11 de 11 órdenes de un paso (música, Telegram, agenda, gráfica). Nombra ahora lo que hacen las tarjetas.
         # EN VIVO: vieja 5/17, nueva 16/17.

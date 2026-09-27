@@ -42,11 +42,27 @@ def similar(a: str, b: str, thr: float = 0.8) -> bool:
     return len(wa & wb) / len(wa | wb) >= thr
 
 
+def _is_silent_ack(text: str) -> bool:
+    """Is this the engine's own «Done.» written by `record_silent_action` — in any language we ship? Matched by TEXT,
+    because the window's dicts go to the model API as they are and an extra key is not ours to add there."""
+    try:
+        from i18n import langs as _lg
+        acks = {_norm(a) for sp in _lg.supported()
+                for a in (getattr(sp, "data_ack", ""), *(getattr(sp, "data_acks", ()) or ())) if a}
+    except Exception:  # noqa: BLE001
+        acks = set()
+    return bool(text) and _norm(text) in {a for a in acks if a}
+
+
 # ── 1) BREAK-LOOP ────────────────────────────────────────────────────────────────────────────────────────
 def repeated_replies(window: list[dict], look: int = 3) -> int:
     """Cuántas de las últimas `look` respuestas del asistente son casi idénticas entre sí (la racha desde el
     final). ≥2 = el cerebro está en un bucle de repetición."""
-    replies = [m.get("content", "") for m in window if m.get("role") == "assistant"][-look:]
+    # The engine's own «Done.» after a silent action is not a reply the model repeated (V2-776, 2026-09-27: two
+    # silent orders in a row — «Schedule it…», «Move it 30 minutes later» — left «Done.», «Done.», the nudge
+    # fired on the next turn, and «Message Ethan on Telegram» came back as a needless question with no send).
+    replies = [m.get("content", "") for m in window
+               if m.get("role") == "assistant" and not _is_silent_ack(m.get("content", ""))][-look:]
     if len(replies) < 2:
         return 0
     last = replies[-1]
