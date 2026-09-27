@@ -340,7 +340,12 @@ def cmd_start(wait: float = 180.0, brain: str = "nucleo") -> int:
         _say("  run `make stop` first (or `make restart`, which does it for you).")
         return 1
 
-    env = dict(os.environ)
+    # An engine started from inside a Claude Code session (an agent's shell) must not inherit that session's own
+    # routing — `ANTHROPIC_BASE_URL` pointed every worker at api.anthropic.com and skipped the provider chain
+    # (demo pass 2026-09-28). Workers scrub it themselves too; this covers every other `claude` the engine spawns.
+    env = {k: v for k, v in os.environ.items()
+           if k not in ("ANTHROPIC_BASE_URL", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_MODEL", "CLAUDECODE")
+           and not k.startswith(("CLAUDE_CODE_", "CLAUDE_AGENT_SDK_"))}
     env.setdefault("BRAIN", brain)
     py = _venv_python()
 
