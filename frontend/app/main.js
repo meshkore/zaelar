@@ -10,7 +10,7 @@ import { h, mount, $ } from "./core/dom.js?v=2";
 import { createEffect } from "./core/reactive.js?v=2";
 import * as session from "./services/session.js?v=3";
 import * as mic from "./services/mic.js?v=1";
-import { openSSE } from "./services/sse.js?v=5";
+import { openSSE } from "./services/sse.js?v=6";
 import * as store from "./core/store.js?v=2";
 import * as firstRun from "./core/first-run.js?v=1";
 import { startStatusPolling } from "./services/status.js?v=2";
@@ -128,10 +128,7 @@ try { document.getElementById("preboot")?.remove(); } catch { /* noop */ }
 // stopped, so a lost answer would have left a dead agent behind no screen at all.
 // Any reset (not only a factory one) puts the browser's switches back to a fresh install's: the engine bumps a
 // wipe epoch on every reset and first-run.js sweeps our namespace once per epoch (operator, 2026-09-25).
-firstRun.takeoverOnReset({
-  fetchEpoch: () => fetch("/api/desktop/epoch", { cache: "no-store" }).then(r => r.json()).then(j => j && j.epoch),
-  local: localStorage, session: sessionStorage, reload: () => location.reload(),
-}).catch(() => {});
+firstRun.takeoverOnReset(firstRun.browserTakeoverArgs()).catch(() => {});
 let _langOnboardChecked = false;
 async function _langStateUntilAnswered() {
   for (let i = 0; i < 90; i++) {

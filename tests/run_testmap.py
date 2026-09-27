@@ -2439,6 +2439,13 @@ DOMAINS: list[dict] = [
                                  "que sobrevive al reset se limpia una vez (V2-735)",
             "ch": UNIT, "paths": [
                 "tests/browser/unit/arranque/test_a_first_run_does_not_wear_the_previous_install.py"]},
+        # 2026-09-27, his reset with the tab open: the epoch was read at BOOT only, so the tab came back from
+        # the restart with every old card and re-reported them to the server as open — the ghosts were in the
+        # server's canvas state before anyone typed. The SSE re-open IS the restart seen from the tab.
+        {"id": "4.221", "title": "Un reset alcanza a la pestaña que se quedó abierta: al reconectar el "
+                                 "stream se vuelve a leer la época y se barre (V2-773)",
+            "ch": UNIT, "paths": [
+                "tests/browser/unit/arranque/test_a_reset_reaches_a_tab_that_stayed_open.py"]},
         # 2026-09-25, after his reset: the mic and speaker stayed muted (the SSE read `d.extra.src` and the bus is
         # FLAT), a reset that kept the language kept the ⏻ and the wake word, and the folder step flashed and went.
         # 2026-09-26, his demo script: «Show me a chart of Apple stock today» got «I can't actually display a

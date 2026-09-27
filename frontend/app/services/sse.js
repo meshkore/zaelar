@@ -12,6 +12,7 @@ import * as vault from "./vault.js?v=1";
 import { t, applyLang } from "../core/i18n.js?v=1";
 import { paintsProvisional } from "./wakeword.js?v=1";
 import { setWallpaper } from "./theme.js?v=2";
+import { takeoverOnReset, browserTakeoverArgs } from "../core/first-run.js?v=1";
 
 // V2-464 — SHOWCASE mode: ?showcase=1 in the URL. The use-case recorder (recorder.py) uses it to keep the chat
 // open and the grid auto-arranged, so the video is readable without hands.
@@ -64,14 +65,30 @@ export function captionPartial(text) {
 }
 export function settleHeldTurns(desktop, verdictText, directed) { _holdDesk = desktop; _hold.verdict(verdictText, directed); }
 
-let es = null;
+let es = null, _opens = 0;
+
+/** The first open is the boot (main.js already swept); every later one is a reconnect and sweeps again.
+ *  Never throws: a failed sweep must not take the event stream down with it. Returns true when it swept. */
+export function sweepOnReopen(opens, sweep) {
+  if (opens <= 1) return false;
+  try { const p = sweep(); if (p && typeof p.catch === "function") p.catch(() => {}); } catch (_) {}
+  return true;
+}
 
 export function openSSE(desktop) {
   if (es) return;               // already subscribed: reopening would kill the live stream and lose in-flight events
   es = new EventSource("/events");
   // V2-038: on (re)connect, RECONCILE activity chips against the server's truth (GET /api/tasks reads the RAM
   // registry) → no more orphaned chips after a restart/crash. STATE leads; the UI is its mirror.
-  es.onopen = () => { try { store.fetchTasks(); } catch (_) {} };
+  es.onopen = () => {
+    try { store.fetchTasks(); } catch (_) {}
+    // V2-773 — a RESET while this tab stayed open. `make reset` bumps the wipe epoch and restarts the engine;
+    // the epoch is only ever read at boot, so the operator's tab came back from the restart with every old card
+    // still on it, re-reported them as open and put the ghosts back into the server's canvas state (measured
+    // 2026-09-27: four result sheets and a document on a «blank» desktop). A re-open of this stream IS the
+    // restart seen from the tab; the same takeover the boot runs decides whether the epoch moved.
+    sweepOnReopen(++_opens, () => takeoverOnReset(browserTakeoverArgs()));
+  };
   es.onmessage = ev => {
     let d; try { d = JSON.parse(ev.data); } catch (_) { return; }
     routeEvent(desktop, d);

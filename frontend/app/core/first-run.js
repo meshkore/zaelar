@@ -108,4 +108,16 @@ export async function takeoverOnReset({ fetchEpoch, local, session, reload }) {
 const WIPE_KEY = "hb_wipe";
 const RESET_GUARD = "hb_reset_takeover:";
 
+/**
+ * The takeover's arguments as THIS browser supplies them — one place, because the takeover now has two
+ * callers (the boot in main.js and the SSE reconnect in services/sse.js) and two hand-written copies of
+ * «fetch the epoch, no cache» is how one of them ends up reading a cached epoch and never wiping.
+ */
+export function browserTakeoverArgs() {
+  return {
+    fetchEpoch: () => fetch("/api/desktop/epoch", { cache: "no-store" }).then(r => r.json()).then(j => j && j.epoch),
+    local: localStorage, session: sessionStorage, reload: () => location.reload(),
+  };
+}
+
 export const _GUARD_KEY = GUARD;
