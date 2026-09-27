@@ -3352,6 +3352,11 @@ DOMAINS: list[dict] = [
         # V2-764 — «voy a por la serie Sherlock en torrent y te enseño el catálogo», and no tool: the turn's verdict
         # named the card, the action existed. One bounded pass asks the model for the call it promised — only the
         # named card, only a declared action — before the backstop spends a worker on it.
+        {"id": "2.84", "title": "An errand nobody labelled is read for what the operator will look at — «find me three "
+                                "monitors» opens its sheet at once instead of falling back to voice",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/"
+                      "test_an_errand_nobody_labelled_is_read_for_its_surface.py"]},
         {"id": "2.83", "title": "A name written into the id field reaches the contact, and a handle that is only "
                                 "his name never overwrites the real one (demo INIT «use his Telegram»)",
             "ch": UNIT,

@@ -1668,7 +1668,10 @@ async def run_listener(stop: "asyncio.Event | None" = None) -> None:
             # Susurro). Lo that declaro the cerebro manda; if no declaro nothing —or said something that no es of the
             # vocabulario— is deriva of the kind. Sellar tarde significaria open the sheet when already there is response,
             # that es exactamente it that this cambio exists for no do.
-            surfaces.set_once(rec, ctx.get("surface"))
+            _declared = ctx.get("surface")
+            if not surfaces.normalize(_declared) and not getattr(rec, "surface", ""):   # nobody said: Jev reads it
+                _declared = await asyncio.to_thread(surfaces.decided, request) or _declared
+            surfaces.set_once(rec, _declared)
             # …and if esa superficie es the sheet, is ABRE YA, empty and with the tab of proceso. Aqui, and no in the
             # entrega, es donde the operator leaves of mirar a pantalla in blanco.
             if surfaces.opens_sheet(getattr(rec, "surface", "")):

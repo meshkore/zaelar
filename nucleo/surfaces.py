@@ -75,6 +75,36 @@ def resolve(declared=None, kind: str = "generic") -> str:
     return normalize(declared) or _BY_KIND.get(str(kind or "").strip().lower(), DEFAULT)
 
 
+# When NOBODY declared a surface, the kind fallback answers «voice» for every `generic` errand — which is how «find
+# me three 27-inch monitors… show me when you have them» (demo A1, 2026-09-28, and v6 before it) opened no sheet:
+# the operator watched an empty screen, «minimise that» had nothing to minimise, and the results turned up minutes
+# later in the middle of a video. What the operator will LOOK AT is a reading of the request, so Jev reads it —
+# the same closed vocabulary, never a verb table. Unsure or unavailable → "" and the kind fallback stands as today.
+_JEV_KEY = "errand_surface"
+_JEV_INSTRUCTIONS = ("An assistant is starting a background errand with this request. When it is done, what will "
+                     "the user look at?")
+_JEV_CRITERIA = {
+    LIST: "several things to compare or pick from (options, products, places, flights, results)",
+    ITEM: "one single thing with its details",
+    DOC: "one written piece to read (a summary, a report, a document, an essay)",
+    VOICE: "nothing to look at: the answer is simply told",
+    SILENT: "nothing to show or tell: something just gets done",
+}
+
+
+def decided(request: str) -> str:
+    """Jev's reading of which surface this errand ends on, or "" when unsure. Blocking: call it off the loop."""
+    try:
+        from nucleo import jev
+        v = jev.choose_sync(_JEV_KEY, str(request or "")[:600], instructions=_JEV_INSTRUCTIONS,
+                            criteria=_JEV_CRITERIA, question_id="errand-surface")
+    except Exception:  # noqa: BLE001
+        return ""
+    if v and float(v.get("confidence") or 0) >= 0.7:
+        return normalize(v.get("choice"))
+    return ""
+
+
 def set_once(rec, value) -> str:
     """Stamp the surface on a session record the FIRST time and never again (rule 3). Returns what stands.
 
