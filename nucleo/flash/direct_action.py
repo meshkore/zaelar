@@ -163,8 +163,14 @@ def aims_at_a_card(brief) -> bool:
         return False
 
 
-def verdict_escalates(brief) -> bool:
+def verdict_escalates(brief, *, answered: bool = False) -> bool:
     """Did the brief say this order needs a WORKER (`escalate_or_inline = escalate`, sure) on an order turn?
+
+    `answered` — the reply already ANSWERED and promised nothing. A QUESTION the model answered from memory is
+    not an errand, whatever the verdict guessed before the answer existed (V2-773, demo R1, 2026-09-27: «When
+    does my Tesla insurance renew?» → «March 12, 2027», verdict `escalate` 0.84, and a Brain Worker went to
+    the web with a browser tab and a sheet over a fact the turn had just said). An order keeps the verdict:
+    «find me three monitors» is work whether or not the reply sounds finished.
 
     V2-773 (demo kickoff, A1): «find me three 27-inch 4K monitors under 400 dollars» — the verdict said
     escalate, the model answered «On it — I'll show you the options as soon as I have them» and called
@@ -176,7 +182,9 @@ def verdict_escalates(brief) -> bool:
         if info is None or str(esc or "") != "escalate":
             return False
         kind, _k = _tb.read(brief, _tb.REQUEST_KEY, "")
-        return _k is not None and kind not in NOT_AIMED_AT_THE_SCREEN
+        if _k is None or kind in NOT_AIMED_AT_THE_SCREEN:
+            return False
+        return not (answered and str(kind) == "question")
     except Exception:  # noqa: BLE001
         return False
 

@@ -263,8 +263,17 @@ def test_the_verdict_alone_can_send_an_unkept_order_to_a_worker():
     assert not _da.verdict_escalates(_brief({_tb.ESCALATE_KEY: ("escalate", 1.0), _tb.REQUEST_KEY: ("comment", 0.9)})), (
         "a remark is not an order, whatever it would take to act on it")
     assert not _da.verdict_escalates(_brief({_tb.ESCALATE_KEY: ("escalate", 0.3), _tb.REQUEST_KEY: ("order", 0.99)})), "unsure"
+    # V2-773 (demo R1, 2026-09-27): «When does my Tesla insurance renew?» → «March 12, 2027» — the verdict said
+    # escalate (0.84) and a Brain Worker went to the web over a fact the turn had just said. A QUESTION the reply
+    # answered without a promise is not an errand; an ORDER keeps the verdict whatever the reply sounds like.
+    q = _brief({_tb.ESCALATE_KEY: ("escalate", 0.84), _tb.REQUEST_KEY: ("question", 0.6)})
+    assert _da.verdict_escalates(q), "unanswered, the question may well be work («what's the cheapest flight?»)"
+    assert not _da.verdict_escalates(q, answered=True), "THE BUG: an answered question spawned a worker"
+    o = _brief({_tb.ESCALATE_KEY: ("escalate", 1.0), _tb.REQUEST_KEY: ("order", 0.99)})
+    assert _da.verdict_escalates(o, answered=True), "an order is work even when the reply sounds finished"
     src = (_ENGINE / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
-    assert "or _direct_action.verdict_escalates(_brief))" in src and "or _direct_action.verdict_escalates(_brief)):" in src
+    assert src.count("_direct_action.verdict_escalates(_brief, answered=not _router.promises_action(spoken_text))") == 2, (
+        "both backstop gates pass whether the reply answered")
 
 
 def test_a_repair_that_may_write_needs_a_sure_action_verdict(monkeypatch):

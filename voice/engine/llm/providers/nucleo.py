@@ -2531,7 +2531,7 @@ class NucleoLLMStream(llm.LLMStream):
                                         emit=emit, present=_cvis.present, apply_widget_data=_apply_widget_data):
                 data_done["v"] = True
         if (_no_tool and spoken_text
-                and (_router.promises_action(spoken_text) or _direct_action.verdict_escalates(_brief))
+                and (_router.promises_action(spoken_text) or _direct_action.verdict_escalates(_brief, answered=not _router.promises_action(spoken_text)))
                 and not _router.asks_for_missing_detail(spoken_text)):
             _win_goal = ""
             if not (_router.looks_like_create_widget(_op_text) or _router.looks_like_escalate_task(_op_text)):
@@ -2559,7 +2559,7 @@ class NucleoLLMStream(llm.LLMStream):
             # V2-773 — …or the brief's own verdict said this order needs a worker (kickoff A1: «On it — I'll show
             # you the options» over nothing; the verb tables know «búscame», not every way of asking).
             if (_router.looks_like_create_widget(_op_text) or _router.looks_like_escalate_task(_op_text) or _win_goal
-                    or _direct_action.verdict_escalates(_brief)):
+                    or _direct_action.verdict_escalates(_brief, answered=not _router.promises_action(spoken_text))):
                 # crear widget (o sinónimo: panel/gadget) = código → escala; marketplace/informe = navegador → escala
                 escalate_req["v"] = _win_goal or _op_text
                 emit("brain", "🧭 escalada por backstop (prometió crear/gestionar sin escalar)",
