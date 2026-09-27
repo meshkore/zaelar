@@ -3352,6 +3352,11 @@ DOMAINS: list[dict] = [
         # V2-764 — «voy a por la serie Sherlock en torrent y te enseño el catálogo», and no tool: the turn's verdict
         # named the card, the action existed. One bounded pass asks the model for the call it promised — only the
         # named card, only a declared action — before the backstop spends a worker on it.
+        {"id": "2.82", "title": "A worker's endpoint comes from its spec or the provider chain, never from the "
+                                "engine's inherited shell (a host Claude Code session's ANTHROPIC_BASE_URL)",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/workers/"
+                      "test_a_host_shell_never_routes_the_worker.py"]},
         {"id": "2.81", "title": "Prometió actuar sobre una tarjeta y no llamó a nada — una segunda pasada pide la "
                                 "llamada (solo la tarjeta nombrada, solo una acción declarada) antes de gastar un worker",
             "ch": UNIT, "paths": ["tests/voice/unit/test_a_promise_to_act_on_a_card_gets_its_call.py"]},

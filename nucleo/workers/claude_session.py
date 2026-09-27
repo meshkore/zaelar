@@ -95,6 +95,21 @@ _DEV_ENV_KEEP = ("PATH", "HOME", "TMPDIR", "LANG", "LC_ALL", "TERM", "SHELL", "U
                  "NO_PROXY", "HTTP_PROXY", "HTTPS_PROXY")
 
 
+# Where a worker's model is served is decided by `spec.env` or the provider chain — NEVER by the environment the
+# engine process happened to inherit. Measured 2026-09-28 (demo pass, A1): the engine was restarted from inside a
+# Claude Code session, whose shell exports `ANTHROPIC_BASE_URL=https://api.anthropic.com` (plus its own CLAUDECODE
+# / CLAUDE_CODE_* session markers). `"ANTHROPIC_BASE_URL" in env` then read as «the caller pinned an endpoint», the
+# chain was skipped, `glm-5.3` was asked of Anthropic, and every errand died in two seconds with «There's an issue
+# with the selected model» — three relays in a row to a tier the worker never actually reached.
+_HOST_ROUTING = ("ANTHROPIC_BASE_URL", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_MODEL", "CLAUDECODE")
+_HOST_ROUTING_PREFIXES = ("CLAUDE_CODE_", "CLAUDE_AGENT_SDK_")
+
+
+def _without_host_routing(env: dict) -> dict:
+    return {k: v for k, v in env.items()
+            if k not in _HOST_ROUTING and not k.startswith(_HOST_ROUTING_PREFIXES)}
+
+
 def _dev_env_allowlist(env: dict) -> dict:
     return {k: v for k, v in env.items() if k in _DEV_ENV_KEEP or k.startswith("ZAELAR_")}
 
@@ -204,7 +219,7 @@ class ClaudeCodeSession(WorkerBackend):
         if spec.extra_args:
             cmd += list(spec.extra_args)
 
-        env = dict(os.environ)
+        env = _without_host_routing(dict(os.environ))
         env["PATH"] = os.path.dirname(claude) + os.pathsep + env.get("PATH", "")
         env.update(spec.env or {})
         # Endpoint de razonamiento EXTERNO (2026-07-31): si §code_agent.base_url apunta a un proveedor Anthropic-
