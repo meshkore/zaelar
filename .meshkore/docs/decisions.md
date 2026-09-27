@@ -2564,3 +2564,43 @@ entregada siga citada aquí.
   and `min` (clock and timer got theirs). Node 4.224.
 - **Demo setup, not product:** the driver takes the session lock and mutes the microphone; a local contact «Ethan»
   with the demo Telegram handle is recreated after a reset; TTS switched to Cartesia while Inworld has no credit.
+
+## V2-776 D (27-09) — the Brain Worker's state is durable, supervised and readable
+
+The operator's local test on 2026-09-27 (session `3a9a082c`): a video that opened only when he named the
+widget, a custom widget that «never started», a worker he asked about for three hours. Measured causes, and
+what each became:
+
+- **The task row cannot lie.** A normal errand read `pending` for its whole run (the worker's `running` lived in
+  RAM only) and every early exit of `_run_session` skipped `tasks.closed()` — the accountancy-widget rows sat
+  `pending` for hours after the widget gate asked and his «Yes» launched a NEW commission. Now: `running` when the
+  worker starts, gated rows are forgotten, provider-asleep/cancelled-in-pool close, and the pulse settles any
+  worker row (`<boot>-<n>`) that no live session carries (`tasks.reconciled`). Node 3.82.
+- **The worker's live state is a column, not a RAM dict** (schema v8: `phase`, `progress`, `heartbeat_at`,
+  `reported_at`, `error_class`, `attempts`), written by the pulse's 15-second beat — a few writes a minute, never
+  per event. `reported_at` is what the worker said ITSELF (`agent_report`), distinct from «its stream moved».
+  Node 3.83.
+- **Reporting is an obligation, not advice.** A worker silent about where it is for 90 s
+  (`ZAELAR_WORKER_REPORT_SECS`) gets a report demand in its inbox, once per window; never the widget generator
+  (cannot report) nor a frozen worker. The worker prompt says so. Node 3.84.
+- **The pulse supervises.** A worker silent for `STUCK_SECS` is SAID to the operator (`worker_stuck`, es/en), not
+  only emitted; a worker the stall/spin watchdog stops is restarted ONCE on the same row with what it learned
+  (`relay.restart_stalled`) — the count lives in `tasks.attempts`, because a per-record flag resets on every
+  relay (the six-workers bug). A second stall fails with `error_class=stalled`. Node 3.85.
+- **FlashBrain reads the record.** When no worker is live and nothing ended in the five-minute RAM window, the
+  state carries one line from the table (none running + his last commission of the last 12 h and how it ended).
+  Measured: «Have you finished?» → «still being built» three hours after the worker died. Node 3.86.
+- **A generator that did not run says why.** `_run_agent` treated a CLI exit 1 as «ran»; the gate then said «no
+  manifest.json produced», a repair pass was wasted, and the CLI's error — on STDOUT with `--output-format json`
+  — was never read. Now it is read, classified by `nucleo/failure_class` (network | credit | auth | rate | ours,
+  the A5 vocabulary) and spoken; and the generator rides the SAME provider chain as the workers (it used a
+  single endpoint with no cooldowns while the workers had already relayed from an exhausted z.ai), relaying once
+  on a provider failure. Node 3.87.
+- **Seen in both places.** The Tasks tab shows silence, restarts and the failure class (rendered in Chromium,
+  node 3.88); the pulse's decisions are observer events of kind `task`, so the Master's «Brain Workers» column
+  shows them with no change on its side.
+- **A new brain failure is a CASE.** Both routing failures of the session were a guard overriding a correct
+  model call: `video_without_order` dropped `play_video` (open bank case, B3), and the voice provider's «fragment,
+  not an errand» guard annulled the escalation of «Yes. Do it.» (green on the probe channel; B2 must keep it
+  green). The video one had a second cause that is not a guard: the accumulator peeled «So open me a video.» off
+  as «already answered» though its turn died before saying a word — `Accumulator.unanswered` (node 3.89).
