@@ -79,6 +79,7 @@ async def agent_report(tid: str = Body(..., embed=True), token: str = Body("", e
         from nucleo import dispatch
         if orphan:
             raise _NotMine      # an orphan does not get to write in the STATE of its relief (V2-350)
+        dispatch.session_reported(tid)      # V2-776 D1 — the clock the pulse's report obligation reads
         if phase.strip():
             dispatch.session_phase(tid, phase.strip())
         if plan.strip():

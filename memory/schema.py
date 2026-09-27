@@ -44,7 +44,7 @@ EMBED_DIM = 768
 #   had to stitch two row shapes by hand. A durable row per task —with its result hanging off it and an FTS
 #   index over what it was about— is what lets the operator hand a commission over and forget it, and lets the
 #   brain answer «the flat-hunting task I told you about» weeks later. Purely additive: IF NOT EXISTS, no ALTER.
-SCHEMA_VERSION = 7
+SCHEMA_VERSION = 8
 
 
 # ── Tablas base (siempre) ──────────────────────────────────────────────────────────────────────────────────
@@ -413,6 +413,25 @@ CREATE TABLE IF NOT EXISTS task_artifacts (
   PRIMARY KEY (task_id, slot)
 )
 """
+
+# v7 → v8 (V2-776 D1, 2026-09-27): the LIVE STATE of a worker, durable. Before this the phase, the progress and
+# «when did it last show a sign of life» lived only in RAM (`dispatch._SESSIONS`), so the only thing the pulse,
+# FlashBrain and the Master could read durably was `state` — which read `pending` for a whole run. Written by the
+# pulse's 15-second beat, never per event: a row still changes a handful of times a minute, not per second.
+#   · `phase`        the worker's readable phase («mirando results»)
+#   · `progress`     JSON {done, total, pct, note, plan, waiting_on, ask, backend}
+#   · `heartbeat_at` last event of ANY kind from the worker (its stream, a tool call, a report)
+#   · `reported_at`  last report the worker made ITSELF (`hbnote`) — the obligation D2 enforces
+#   · `error_class`  why it failed, in the A5 vocabulary (network | credit | auth | rate | stalled | ours)
+#   · `attempts`     restarts the pulse gave it (a stalled worker is restarted ONCE, then failed honestly)
+TASKS_STATUS_COLUMNS = [
+    ("phase", "ALTER TABLE tasks ADD COLUMN phase TEXT"),
+    ("progress", "ALTER TABLE tasks ADD COLUMN progress TEXT"),
+    ("heartbeat_at", "ALTER TABLE tasks ADD COLUMN heartbeat_at INTEGER"),
+    ("reported_at", "ALTER TABLE tasks ADD COLUMN reported_at INTEGER"),
+    ("error_class", "ALTER TABLE tasks ADD COLUMN error_class TEXT"),
+    ("attempts", "ALTER TABLE tasks ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0"),
+]
 
 TASKS_INDEXES = [
     # The hot read is the tab: «live, mine, in this mode». Composite for the same reason `idx_mem_lvu` is —

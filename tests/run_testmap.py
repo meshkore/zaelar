@@ -1978,6 +1978,9 @@ DOMAINS: list[dict] = [
         {"id": "3.82", "title": "La fila de la tarea dice la verdad: «running» mientras trabaja, ninguna fila "
                                 "viva tras la puerta de confirmación, y el pulso cierra las huérfanas",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/test_the_task_row_never_lies.py"]},
+        {"id": "3.83", "title": "El estado vivo del worker (fase, progreso, latido, último auto-reporte) queda en "
+                                "su fila: lo escribe el latido del pulso y `hbnote` pone el reloj del reporte",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/test_the_worker_state_is_durable.py"]},
     ]},
     {"id": "4", "name": "WIDGETS", "nodes": [
         {"id": "4.1", "title": "Ciclo de vida / acciones / refs / generador / background", "ch": UNIT, "paths": [

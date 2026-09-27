@@ -86,6 +86,10 @@ class SessionRecord:
     # separate from `steps`, which are the raw steps derived from the stream and are shown to nobody.
     phases: list = field(default_factory=list)     # [{"t": <ts>, "s": "entrando en booking.com"}]
     last_event_at: float = field(default_factory=time.time)
+    # V2-776 D1 — the last report the worker made ITSELF (`hbnote` via `/api/agent/report`). `last_event_at`
+    # moves on every stream event, so it says «the process is alive»; this says «it told us where it is», which is
+    # the obligation the pulse enforces (D2). 0.0 = it has not reported once.
+    reported_at: float = 0.0
     injects: list = field(default_factory=list)     # [Inject]
     paused: bool = False           # V2-065: SIGSTOP'd (⏻ del operador) — sigue "running" para el registro, pero
                                     # frozen; do not confuse with status=cancelled (that is irreversible)

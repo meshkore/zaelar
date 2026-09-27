@@ -135,6 +135,11 @@ class Database:
                 self.conn.execute("UPDATE memories SET valid_at = created WHERE valid_at IS NULL")
             for stmt in _schema.MEMORIES_V5_INDEXES:
                 self.conn.execute(stmt)
+            # v7->v8 (V2-776 D1): the worker's live state, durable. Same idempotent per-column ALTER as above.
+            tcols = {r[1] for r in self.conn.execute("PRAGMA table_info(tasks)").fetchall()}
+            for name, stmt in _schema.TASKS_STATUS_COLUMNS:
+                if tcols and name not in tcols:
+                    self.conn.execute(stmt)
             # v5->v6 (V2-242): give background pills their author in the KEY. Runs ONCE, gated on the version.
             if version < 6:
                 self._namespace_widget_slots()

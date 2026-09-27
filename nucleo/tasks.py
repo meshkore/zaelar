@@ -119,6 +119,23 @@ def started(rec) -> None:
     _ts.task_patch(uid, state="running", started_at=int(time.time()))
 
 
+def status_written(live: dict, *, now: float | None = None) -> None:
+    """Copy one live session's STATE into its durable row (V2-776 D1). `live` is an `active_sessions()` entry.
+
+    The pulse calls this on its 15-second beat — the same clock that already speaks «sigue con ello» — so the
+    row changes a few times a minute, never per event (`tasks_store`'s «two write rates» rule holds). What it
+    buys: the pulse, FlashBrain and the Master read ONE durable answer to «where is this worker and when did it
+    last show a sign of life», instead of a RAM dict a restart empties and the Master cannot see at all."""
+    uid = str((live or {}).get("uid") or "")
+    if not uid or _ts.task_get(uid) is None:
+        return
+    progress = {k: live.get(k) for k in ("done", "total", "pct", "note", "plan", "waiting_on", "ask", "backend")
+                if live.get(k) not in (None, "", [], -1)}
+    _ts.task_patch(uid, phase=str(live.get("phase") or "")[:160], progress=progress,
+                   heartbeat_at=int(live.get("heartbeat_at") or 0) or None,
+                   reported_at=int(live.get("reported_at") or 0) or None)
+
+
 def withdrawn(rec) -> None:
     """A row for a commission that never became one: it stopped at a CONFIRMATION gate (V2-007 danger,
     V2-757 widget) before any worker started. The operator's «sí» dispatches a NEW commission with its own

@@ -31,7 +31,9 @@ LIVE_STATES = ("pending", "running", "waiting")
 DONE_STATES = ("done", "failed", "cancelled")
 
 _COLUMNS = ("id", "title", "goal", "kind", "mode", "state", "visible", "origin", "schedule", "surface",
-            "sheet", "trace_id", "parent_id", "outcome", "created_at", "started_at", "due_at", "finished_at")
+            "sheet", "trace_id", "parent_id", "outcome", "created_at", "started_at", "due_at", "finished_at",
+            # V2-776 D1 — the worker's live state (see the v7→v8 note in `memory/schema.py`)
+            "phase", "progress", "heartbeat_at", "reported_at", "error_class", "attempts")
 
 
 def _row(r) -> dict:
@@ -46,6 +48,10 @@ def _row(r) -> dict:
     else:
         d["schedule"] = {}
     d["visible"] = bool(d.get("visible", 1))
+    try:
+        d["progress"] = json.loads(d["progress"]) if d.get("progress") else {}
+    except Exception:  # noqa: BLE001 — same as `schedule`: a corrupt blob does not cost the row
+        d["progress"] = {}
     return d
 
 
@@ -95,7 +101,7 @@ def task_patch(task_id: str, **fields) -> None:
     for k, v in fields.items():
         if k not in _COLUMNS or k == "id":
             continue
-        if k == "schedule":
+        if k in ("schedule", "progress"):
             v = json.dumps(v or {}, ensure_ascii=False) if v else ""
         elif k == "visible":
             v = 1 if v else 0

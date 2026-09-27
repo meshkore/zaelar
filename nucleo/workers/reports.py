@@ -50,6 +50,15 @@ def session_phase(tid, phase: str) -> None:
         pass
 
 
+def session_reported(tid) -> None:
+    """V2-776 D1 — the worker spoke for itself (any `hbnote` report). Only the clock; the content lands through
+    the setters above. Kept apart from `last_event_at` because a process that streams tool calls is alive but
+    can still be silent about WHERE it is, and that silence is what the pulse asks it to break."""
+    r = _dispatch()._SESSIONS.get(str(tid))
+    if r is not None:
+        r.reported_at = time.time()
+
+
 def session_alive(tid) -> str:
     """A LATIDO: the same fase, diciendo how much lleva. No touches the record (V2-227 ambito B2).
 

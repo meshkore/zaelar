@@ -322,6 +322,11 @@ class OrchestratorLoop:
                     dispatch.session_alive(tid)
                 except Exception:
                     pass
+                try:    # V2-776 D1 — the same beat makes the worker's state durable (pulse, FlashBrain, Master)
+                    from nucleo import tasks as _tasks
+                    _tasks.status_written(s, now=now)
+                except Exception:  # noqa: BLE001
+                    pass
             if age >= self._max_secs and tid not in self._timeout_informed:
                 self._timeout_informed.add(tid)
                 goal = (s.get("goal") or self._lang().generic_task)[:40]

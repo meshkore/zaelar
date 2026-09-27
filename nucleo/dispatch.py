@@ -249,6 +249,12 @@ def active_sessions() -> list[dict]:
             "plan": list(r.plan), "done": r.done, "total": len(r.plan), "pct": _progress_pct(r),
             "note": r.note, "steps": list(r.steps)[-6:],
             "considered": r.considered, "kept": r.kept,     # amplitud de una investigación (-1 = no aplica)
+            # V2-776 D1 — how long since the worker last reported ITSELF (`hbnote`), and when it last showed any
+            # sign of life. The pulse writes both into the durable row and enforces the first.
+            "unreported_s": int(now - (getattr(r, "reported_at", 0.0) or r.started)),
+            "reported": bool(getattr(r, "reported_at", 0.0)),
+            "heartbeat_at": int(r.last_event_at or r.started),
+            "reported_at": int(getattr(r, "reported_at", 0.0) or 0),
         })
     return out
 
@@ -361,7 +367,8 @@ def record_phase(tid, phase: str) -> bool:
 # V2-059 — lo que el worker REPORTA de sí mismo (fase, plan, progreso, amplitud) vive junto en
 # `workers/reports.py`. Re-exportado: `agent_api`, `agentes/worker` y 4 tests llaman por aquí.
 from nucleo.workers.reports import (  # noqa: E402,F401 — re-export
-    _progress_pct, session_alive, session_considered, session_phase, session_plan, session_progress)
+    _progress_pct, session_alive, session_considered, session_phase, session_plan, session_progress,
+    session_reported)
 
 
 _last_sync: tuple | None = None
