@@ -2604,3 +2604,37 @@ what each became:
   not an errand» guard annulled the escalation of «Yes. Do it.» (green on the probe channel; B2 must keep it
   green). The video one had a second cause that is not a guard: the accumulator peeled «So open me a video.» off
   as «already answered» though its turn died before saying a word — `Accumulator.unanswered` (node 3.89).
+
+## V2-776 E (27-09) — the demo pass after the reset: what broke, measured, and why it was not a guard
+
+Pass v6/v7 of the demo script on the operator's live engine, after a reset that kept the connectors. Every item
+is a mechanism fix with its own test seen red when disarmed; where the failure was the MODEL's decision it became
+a bank case instead (two opened, `tests/brain/cases/sessions.json`, scope B1).
+
+- **The voice went mute after a list.** The task-list lane awaited its receipt inside the turn's generation;
+  `session.say` queues behind that generation → deadlock, `thinking` forever, every later reply generated and
+  never spoken. The receipt is now fire-and-forget. Node 3.90.
+- **A tab that lost the voice lock looped** `stalled↔starting` ~140/s: the `ensureVoice` effect re-ran `start()`
+  the moment `starting` dropped, bypassing the 3 s retry. `start()` defers to the armed timer. Node 4.225.
+- **Remote control is blue** (operator request): a tab whose voice another session holds is its own agent state,
+  `remote`, painted in `--hb-remote` and blinking — not the amber of a fault. Node 4.226.
+- **Two sheet-less errands shared the bare `results`**, so the Ferrari search replaced the monitors. An errand now
+  gets its own sheet on first delivery (`worker_api._own_sheet`). Node 3.91.
+- **«Close the results» stepped aside for ANY live worker** (a Telegram follow-up) and the model promised a close
+  it never made. Only an errand delivering into that very sheet blocks it. Node 3.92.
+- **The escalate question to Jev said «when in doubt, escalate»** and never named what the cards do: 11/11 one-step
+  orders (music, Telegram, calendar, a chart) went to 50-60 s workers. It now names the cards' capabilities.
+  Live: old wording 5/17, new 16/17. Node 3.93 (live, `ZAELAR_LIVE_JEV=1`).
+- **The reset deleted the DB under a live server** (one SIGTERM, 2 s sleep, the server ignored it). It now waits,
+  forces, and deletes nothing if the port is still held. Node 3.94.
+- **«Minimise that» over several cards** fell to the model; «that» is now the card on top (highest z, not
+  minimised) from the canvas report. Node 3.95.
+- **A `[[show:X]]` tag did not record its card**, so the after-show repair never ran and Markets came up empty.
+  Node 3.96.
+- **Our own «Done.» fired the anti-loop nudge**: two silent actions in a row read as the model repeating itself,
+  and the nudge («admit the limit or ask something else») produced the needless question at C5 and the claim with
+  no call at W2. The detector skips the engine's acks. Node 3.97.
+- Nine i18n keys the agenda and markets used were missing: an English session showed Spanish labels.
+
+Still open, as bank cases: a sure order answered with words and no call (the promise repair gates on a verb
+table), a completion claimed with no call. Both are the B1 question — who acts when the model does not.
