@@ -2576,6 +2576,14 @@ class NucleoLLMStream(llm.LLMStream):
             _pw = (_identify(_op_text) if (_router.looks_like_show_strict(_op_text) or _direct_action.verdict_shows(_brief))
                    else "")
             if _pw:
+                # V2-776 — the CARD, not the piece: a bare `results` is resolved like the tool path resolves it
+                # (open instance, or the closed sheet the phrase names), or «Show me the monitors» opened the base.
+                try:
+                    _r_pw = _show_target_instance(_pw, _op_text, brain._last_spoken or "")
+                    if not _r_pw.get("ask"):
+                        _pw = _r_pw.get("id") or _pw
+                except Exception:  # noqa: BLE001
+                    pass
                 acted["widget"] = True
                 _shown_ids.add(_pw)          # V2-660: a shown card is an end state the harness verifies
                 _cvis.present(_pw, reason="turn-order", src="flash", emit=emit)
