@@ -261,6 +261,25 @@ El contrato completo vive en `engine/tests/README.md`; el nodo **7.53** vigila a
 Requisitos: zaelar UP (Paso 0) + claves del tester en `.env`/`.meshkore/credentials/tester.env`
 (`TESTER_AIMLAPI_KEY`, `CARTESIA_API_KEY`, `DEEPGRAM_API_KEY`, `TESTER_ZAI_KEY`).
 
+## Driving the operator's LIVE engine remotely (assisted testing / demo passes)
+
+When an agent drives the operator's own local engine from a scripted browser (Playwright typing into the chat,
+the way the demo passes run), these rules hold (operator, 2026-09-27):
+
+- **Microphone AND speaker off by default.** The pulse and the running agent may be visible; the agent must
+  neither hear the room (his voice once entered a demo as a turn) nor speak out loud. The driver mutes the mic
+  (`POST /api/mic {"muted": true}` + `mic.setMuted(true)` in its page) and the bot's voice output.
+- **The driver takes the session lock and keeps it.** A tab the operator left open holds the single voice
+  session; the driver calls `POST /api/session/steal` at start AND before each step — the operator's tab
+  retries every 3 s and takes the lock back whenever it lapses, after which the driver's orders silently reach
+  nobody (measured 2026-09-27: seven steps lost).
+- **Remote control is BLUE.** While a session is driven remotely the ⏻ blinks, and blue is the default colour of
+  every remote-control indicator: on a filled control, blue background with white text/icon; on an icon drawn
+  straight on the desktop (no background), the ⏻ outline itself in blue, blinking. *(Requested — not built yet.)*
+- **What a pass may touch.** The operator's connected calendar and the demo contacts he designated; any other
+  real contact (e.g. a WhatsApp test contact) only after asking him. The list of those contacts is private and
+  lives in the workspace's own `.meshkore/`, never here.
+
 ---
 
 ## Cómo se EVALÚA (distinguir señal de ruido)
