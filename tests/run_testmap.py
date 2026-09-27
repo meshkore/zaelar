@@ -2385,6 +2385,10 @@ DOMAINS: list[dict] = [
         # según el último informe del lienzo; con empate se aparta como antes.
         {"id": "3.95", "title": "«Minimise that» con varias tarjetas abiertas minimiza la de encima",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/actionmap/test_minimise_that_means_the_card_on_top.py"]},
+        # V2-776 (2026-09-27, demo M1): un `[[show:X]]` escrito por el modelo anota QUÉ tarjeta abrió, como la tool;
+        # sin el id la reparación tras el show no corría y Markets salía VACÍA.
+        {"id": "3.96", "title": "Un show por etiqueta anota su tarjeta — la reparación tras el show la completa",
+            "ch": UNIT, "paths": ["tests/voice/unit/providers/test_a_tag_show_names_its_card.py"]},
         # V2-776 (2026-09-27): la pregunta de escalado a Jev decía «ante la duda, escala» y mandaba a un worker
         # 11 de 11 órdenes de un paso (música, Telegram, agenda, gráfica). Nombra ahora lo que hacen las tarjetas.
         # EN VIVO: vieja 5/17, nueva 16/17.

@@ -1016,6 +1016,10 @@ class NucleoLLMStream(llm.LLMStream):
                     emit("widget", action, extra=extra)
                     return
             acted["widget"] = True
+            if action == "show" and extra.get("id"):
+                # V2-776 — WHICH card, as the tool path records it: without the id the after-show repair never ran
+                # for a tag show, and «Show me a chart of Apple stock today» left the Markets card EMPTY (demo v7).
+                acted["widget_id"] = acted.get("widget_id") or str(extra.get("id"))
             if action == "close":
                 acted["closed"] = True                   # el backstop de cierre corto no re-cierra (ver post-stream)
                 _canvas_lic.note_operator_close(str(extra.get("id") or ""))   # V2-650b: reopen needs his words
