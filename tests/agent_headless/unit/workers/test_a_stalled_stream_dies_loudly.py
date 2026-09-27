@@ -46,6 +46,9 @@ def _run(coro):
 
 def test_a_hung_stream_ends_the_session_with_an_honest_summary(monkeypatch):
     monkeypatch.setattr(stall_mod, "_STALL_S", 0.2)
+    # The watchdog waits in `_TICK_S` slices (5 s since V2-747's hibernation check). Left at 5 s, the first
+    # slice alone consumed the whole 5 s outer bound below, so this test timed out instead of measuring.
+    monkeypatch.setattr(stall_mod, "_TICK_S", 0.05)
     b = _HangingBackend()
     rec = SessionRecord(task_id="t1", goal="revisa el grupo del viaje", kind="generic")
     s = WorkerSession(b, type("S", (), {"model": "", "kind": "generic"})(), rec)
