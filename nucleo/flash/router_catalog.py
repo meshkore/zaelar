@@ -44,10 +44,13 @@ TOOLS: list[dict] = [
             #   and the NO-list names «tocar la LISTA de un widget», which is what «apúntamela en la agenda»
             #   looks like. Paid for by REPLACEMENT, as every change here is: «dar de baja» (cancelar already
             #   carries undo), «puntual», «distintas», «corren», and «contenido que» for «lo que».
+            # V2-402/V2-463 guards («poner/BUSCAR», «aunque las pida verificadas/de verdad») were dropped by V2-705 to
+            #   pay for its bytes, silently re-opening the 4-minute worker for «que sea de verdad»; restored, paid
+            #   by the «(memoria, código, navegador)» gloss, which was prose, not a routing rule.
             # V2-457 — showing photos is also removed from the YES-list: it was a worker request (355 s and $1.96 measured
             # 2026-08-28) and is now a 3 s turn through `show_images`. What remains here is CURATING photos.
             "description": (
-                "Delega: lanza un worker de fondo (memoria, código, navegador). "
+                "Delega: lanza un worker de fondo. "
                 "SÍ: investigar/informe/comparativa a fondo; operar una web o marketplace "
                 "(anuncios→search_listings); "
                 "crear o arreglar el CÓDIGO de un widget; recordar algo de OTRAS sesiones "
@@ -57,7 +60,8 @@ TOOLS: list[dict] = [
                 "o día ([[cron.create]]); ESCRIBIR a un contacto o concertar CON él "
                 "(mensajeria:send_to +objective; el motor lo sigue); una cita o un mensaje "
                 "(widget_data: la agenda ES el calendario); MOSTRAR lo que YA existe (show_widget); "
-                "vídeo/música/podcast (play_video/play_music); enseñar FOTOS (show_images); TORRENTS"
+                "poner/BUSCAR vídeo/música/podcast (play_video/play_music); enseñar FOTOS aunque las pida "
+                "verificadas/de verdad (show_images); TORRENTS"
                 " (archivos:torrent_search). "
                 "VARIAS tareas = una llamada CADA UNA (a la vez) "
                 "y no estar en el catálogo NO es motivo para negarte: se construye. Ante la duda, escala. "
