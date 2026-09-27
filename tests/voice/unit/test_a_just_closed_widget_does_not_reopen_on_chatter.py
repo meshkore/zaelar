@@ -78,3 +78,37 @@ def test_the_voice_guard_counts_the_turn_as_handled_not_void():
     assert m, "the guard block moved — re-anchor this test"
     assert 'deduped["v"] = True' in m.group(0), \
         "a discarded drag is handled (V2-635), never a void for the mute backstop"
+
+
+# ── V2-773 (2026-09-27, demo V7): the VERDICT closes, the model shows — the show loses ────────────────────
+def _brief_reading(verdicts: dict):
+    """A fake `turn_brief.read`: (choice, {"used": True}) for the keys given, the fallback otherwise."""
+    def _read(handle, key, fallback, *, min_confidence=None):
+        if key in verdicts:
+            return verdicts[key], {"used": True, "confidence": 0.97}
+        return fallback, {"used": False}
+    return _read
+
+
+def test_a_show_of_the_card_the_verdict_closes_is_a_closing_turn(monkeypatch):
+    """«Stop it and close the video widget»: canvas=close (1.00), screen_action=youtube:close (0.97); the player
+    closed and the model still called show_widget(youtube). The text guard saw nothing; the verdict does."""
+    from nucleo.flash import turn_brief as tb
+    monkeypatch.setattr(tb, "read", _brief_reading({tb.CANVAS_KEY: "close", tb.TARGET_KEY: "youtube:close"}))
+    assert lic.closing_turn(object(), "youtube") is True, "THE BUG: the card came straight back"
+    assert lic.closing_turn(object(), "agenda") is False, "a close naming another card leaves this show alone"
+
+
+def test_a_close_naming_nobody_shows_nothing_and_any_other_verdict_shows(monkeypatch):
+    from nucleo.flash import turn_brief as tb
+    monkeypatch.setattr(tb, "read", _brief_reading({tb.CANVAS_KEY: "close", tb.TARGET_KEY: "none"}))
+    assert lic.closing_turn(object(), "youtube") is True
+    monkeypatch.setattr(tb, "read", _brief_reading({tb.CANVAS_KEY: "show"}))
+    assert lic.closing_turn(object(), "youtube") is False
+    monkeypatch.setattr(tb, "read", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("no brief")))
+    assert lic.closing_turn(None, "youtube") is False, "no brief, no veto"
+
+
+def test_the_show_branch_asks_the_verdict_next_to_the_text_guard():
+    src = pathlib.Path("voice/engine/llm/providers/nucleo.py").read_text(encoding="utf-8")
+    assert "if _router.show_contradicts_the_order(text) or _canvas_lic.closing_turn(_brief, _wid):" in src

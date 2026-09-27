@@ -390,3 +390,26 @@ def reopen_license(wid: str, text: str, open_ids=None, recent_ids=None, last_rep
         # An unreadable resolver over a just-closed widget: staying closed is the cheap wrong — the
         # operator can reopen with a word; a card resurrected over chatter is the measured bug.
         return False
+
+
+def closing_turn(brief, wid: str) -> bool:
+    """True when the turn's own verdict says the order CLOSES and `wid` is the card it closes — so a show of
+    that card is the contradiction the text guard (`close_guards.show_contradicts_the_order`) was written
+    for and could not see (V2-773, 2026-09-27, demo V7): «Stop it and close the video widget» — the verdict
+    read `canvas=close` (1.00) and `screen_action=youtube:close` (0.97), the player closed, the model still
+    called `show_widget(youtube)` and the card came straight back. A close that names ANOTHER card leaves
+    this show alone («close the video and show me the calendar»); a close naming nobody closes what is in
+    front, and nothing is shown over it. Never raises: no brief, no veto."""
+    try:
+        from nucleo.flash import turn_brief as _tb
+        w = str(wid or "").strip().lower()
+        canvas, info = _tb.read(brief, _tb.CANVAS_KEY, "neither")
+        if str(canvas or "") != "close" or not (isinstance(info, dict) and info.get("used")):
+            return False
+        target, tinfo = _tb.read(brief, _tb.TARGET_KEY, "")
+        t = str(target or "").strip().lower()
+        if t and t != "none" and isinstance(tinfo, dict) and tinfo.get("used"):
+            return t.split(":", 1)[0] == w
+        return True
+    except Exception:  # noqa: BLE001
+        return False

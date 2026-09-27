@@ -1568,7 +1568,7 @@ class NucleoLLMStream(llm.LLMStream):
                     # UNA orden produjo DOS mutaciones. El probe ya tenía la regla escrita («un canvas:show ESPURIO
                     # en un turno de cerrar SÍ debe corregirse») y este canal no la aplicaba. El show se descarta y
                     # el backstop de cierre de más abajo hace el cierre — una orden, una mutación. V2-750 — AND THE GRAMMAR ONLY PROPOSES BELOW. Measured (session b41925f6): «vamos a HACER una cosa, ábreme el WIDGET de vídeo» matched `hacer una cosa, abreme el widget` and built a duplicate video player called `entonces-vamos-cosa`, while this same turn's verdict said `catalog_widget=youtube` at 1.00 and nobody read it. `build_decision` composes that verdict with `build_or_use`: it VETOES a create over a card we already have, and REACHES the generator where no table of ours can read the script (zh/ja/hi 6/9 → 9/9, node 2.68).
-                    if _router.show_contradicts_the_order(text):
+                    if _router.show_contradicts_the_order(text) or _canvas_lic.closing_turn(_brief, _wid):
                         emit("brain", "🚧 show_widget descartado: la orden dice CERRAR, no abrir",
                              text=(_wid or "?")[:40], role="system")
                     # GUARD: CREAR un widget nuevo NO es show → escala al generador (el modelo elige show_widget para
