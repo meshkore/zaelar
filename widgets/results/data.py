@@ -487,6 +487,12 @@ def _find(items: list[dict], title: str = "", index=None) -> dict | None:
         if 1 <= i <= len(items):                 # 1-based: the operator counts from one, not from zero
             return items[i - 1]
     t = (title or "").strip().lower()
+    if not t and isinstance(index, str) and not index.strip().isdigit():
+        t = index.strip().lower()           # a reference in words arrived in the index slot (the resolver's habit)
+    elif not t and isinstance(index, str) and index.strip().isdigit():
+        i = int(index.strip())
+        if 1 <= i <= len(items):
+            return items[i - 1]
     if not t:
         return None
     for it in items:
@@ -495,7 +501,11 @@ def _find(items: list[dict], title: str = "", index=None) -> dict | None:
     for it in items:
         if t in (it.get("title") or "").strip().lower():
             return it
-    return None
+    # …and by the BADGE the sheet shows him (V2-776, verification 2026-09-27): «Open the best value option» over a
+    # sheet whose cards say BEST VALUE / BEST REVIEWED / CHEAPEST found nothing — only titles and ordinals were
+    # read, and the words he used are printed on the card itself. One badge named = that item; two = no guess.
+    named = [it for it in items if (b := str(it.get("badge") or "").strip().lower()) and b in t]
+    return named[0] if len(named) == 1 else None
 
 
 # ── THE TASK OPENS AND CLOSES THE SHEET (V2-227 scope C · extracted to `widgets/results/lifecycle.py`, V2-530) ─

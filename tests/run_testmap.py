@@ -2416,6 +2416,10 @@ DOMAINS: list[dict] = [
         {"id": "3.102", "title": "Una acción sobre una hoja llega a ESA hoja — y un show por etiqueta no abre la base vacía",
             "ch": UNIT, "paths": ["tests/browser/unit/results/test_an_action_on_a_sheet_reaches_that_sheet.py",
                                   "tests/voice/unit/providers/test_a_tag_show_names_its_card.py"]},
+        # V2-776 (2026-09-27): «Open the best value option» abre la tarjeta cuya ETIQUETA dice «Best value» — la hoja
+        # solo casaba títulos y ordinales (abierto desde la v5 de la mañana como «S3 falla el detail»).
+        {"id": "3.103", "title": "«La mejor relación calidad-precio» abre la tarjeta que lo dice en su etiqueta",
+            "ch": UNIT, "paths": ["tests/browser/unit/results/test_the_best_value_option_is_the_card_that_says_so.py"]},
         # V2-776 (2026-09-27): la pregunta de escalado a Jev decía «ante la duda, escala» y mandaba a un worker
         # 11 de 11 órdenes de un paso (música, Telegram, agenda, gráfica). Nombra ahora lo que hacen las tarjetas.
         # EN VIVO: vieja 5/17, nueva 16/17.
