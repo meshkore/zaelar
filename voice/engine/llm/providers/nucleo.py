@@ -126,6 +126,7 @@ from voice.engine.llm.providers import acc_notices as _accn
 from voice.engine.llm.providers import attention_turn as _attention_turn
 from nucleo.flash import harness_turn as _ht   # V2-661: what a turn OWES (shared with the probe)
 from nucleo.flash import reminder_guards as _rg   # its canned lines: holding, mute backstop, follow-up
+from nucleo.flash import accumulator as _acc_mod   # V2-776 D0: a turn that died unanswered is un-consumed
 
 _ACC_NUDGE_S = _accn._ACC_NUDGE_S
 _acc_notice_plan = _accn._acc_notice_plan
@@ -321,6 +322,7 @@ class NucleoLLMStream(llm.LLMStream):
                 kept = True
             except Exception:
                 pass
+        _acc_mod.unanswered_by(self._llm, text)   # V2-776 D0 — pre-stream: nothing of it was answered
         emit("brain", "✂️ turno descartado — sin respuesta", text=text[:200], role="system",
              extra={"cat": "flash", "reason": reason, "phase": getattr(self, "_phase", "?"),
                     "text_kept": kept})
@@ -2194,6 +2196,8 @@ class NucleoLLMStream(llm.LLMStream):
             # trozos acumulativos del STT no duplican la frase.
             _dialog.push_user(brain._window, text)
             del brain._window[:-_WINDOW_MAX]
+            if not "".join(spoken):
+                _acc_mod.unanswered_by(brain, text)   # V2-776 D0 — cut before its first word
             # El relleno de ESTE turno se va con él: es audio DENTRO de la locución de la respuesta (V2-529),
             # así que el barge-in que cancela el turno lo corta también — sin lifecycle propio que cancelar.
             self._death_logged = True   # ya se relata aquí, con métricas; la envoltura de `_run` no duplica

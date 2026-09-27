@@ -236,6 +236,19 @@ class Accumulator:
         self.fragments.clear()
         self.first_at = self.last_at = 0.0
 
+    def unanswered(self, text: str) -> None:
+        """The turn that consumed `text` DIED WITHOUT ANSWERING IT (V2-776 D0) — take it back off the watermark.
+
+        `consumed_head` says «these words were answered», and `offer` peels them off the front of the next
+        growing turn. That is right when a reply went out, and wrong when the turn was cancelled first. Measured
+        2026-09-27 (session 3a9a082c, 12:39): «So open me a video.» was delivered, its turn was superseded by
+        «Of the» before saying a word, and the next offer — «So open me a video. Of the» — had the order peeled
+        off as «already answered». The sentence completed as «Of the Madonna. Concert Some of them, I don't
+        care.», no video in it, and the model's correct `play_video` was dropped as context bleed."""
+        t = (text or "").strip()
+        if t and self.consumed_head.endswith(t):
+            self.consumed_head = self.consumed_head[: -len(t)].strip()
+
     # ── la entrega ──────────────────────────────────────────────────────────────────────────────────────────
     def _deliver(self, candidate: str, now: float, reason: str, dropped: str) -> tuple[str, str, str, str]:
         """The ONE exit for every `act`, so the watermark and the peel cannot be forgotten by one path.
@@ -503,3 +516,14 @@ def set_judge(fn) -> None:
     `segmenter.judge`."""
     global _judge
     _judge = fn or _default_judge
+
+
+def unanswered_by(brain, text: str) -> None:
+    """V2-776 D0 — the voice provider's door to `Accumulator.unanswered` for a turn cancelled before it said a
+    word. Lives here so the provider (under its size ratchet) only carries the call. Fail-soft."""
+    try:
+        acc = getattr(brain, "_acc", None)
+        if acc is not None and text:
+            acc.unanswered(text)
+    except Exception:  # noqa: BLE001
+        pass

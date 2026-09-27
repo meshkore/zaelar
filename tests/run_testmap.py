@@ -1996,6 +1996,9 @@ DOMAINS: list[dict] = [
         {"id": "3.88", "title": "La pestaña Tareas ENSEÑA lo que sabe el pulso: cuánto lleva callado un worker, "
                                 "cuántas veces se reinició y por qué falló (renderizado en Chromium)",
             "ch": UNIT, "paths": ["tests/browser/unit/chat/test_the_task_rows_show_what_the_pulse_knows.py"]},
+        {"id": "3.89", "title": "Una orden cuyo turno murió SIN contestar no se pela como «ya contestada»: «So "
+                                "open me a video.» sobrevive a la frase partida (sesión 3a9a082c, 12:39)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_an_unanswered_order_is_not_peeled.py"]},
     ]},
     {"id": "4", "name": "WIDGETS", "nodes": [
         {"id": "4.1", "title": "Ciclo de vida / acciones / refs / generador / background", "ch": UNIT, "paths": [
