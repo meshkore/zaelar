@@ -2393,6 +2393,10 @@ DOMAINS: list[dict] = [
         # dos seguidos disparaban el nudge anti-bucle y el turno siguiente preguntaba o prometía sin actuar.
         {"id": "3.97", "title": "Nuestro «Done.» tras acciones silenciosas no dispara el anti-bucle",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_our_own_done_is_not_a_loop.py"]},
+        # V2-776 (2026-09-27, demo S1): sin hoja abierta, «Show me the monitors» trae la hoja CERRADA que la frase
+        # nombra (o la más reciente), nunca la base vacía.
+        {"id": "3.98", "title": "«Show me the monitors» trae su hoja cerrada, no una caja vacía",
+            "ch": UNIT, "paths": ["tests/browser/unit/results/test_show_me_the_monitors_brings_back_their_closed_sheet.py"]},
         # V2-776 (2026-09-27): la pregunta de escalado a Jev decía «ante la duda, escala» y mandaba a un worker
         # 11 de 11 órdenes de un paso (música, Telegram, agenda, gráfica). Nombra ahora lo que hacen las tarjetas.
         # EN VIVO: vieja 5/17, nueva 16/17.

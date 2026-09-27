@@ -308,6 +308,26 @@ def resolve_close(target, open_ids, text: str = "") -> dict:
             "options": abiertas}
 
 
+_WORD = _re.compile(r"[^\W\d_]{4,}", _re.UNICODE)
+
+
+def _closed_card_for(base: str, text: str) -> str:
+    """With no card of `base` open, the CLOSED one with content that the phrase means — or "" for the bare base.
+
+    Demo pass v7 (2026-09-27, S1): the monitor sheet had been closed two blocks earlier, «Show me the monitors»
+    showed the bare `results` — EMPTY — and «compare them» / «open the best value» then worked on nothing. The
+    sheet whose title shares a word with the phrase wins; with none sharing one, the most recent sheet (a bare
+    «show me the results» means the last ones, never an empty box)."""
+    rows = [r for r in recent_faces(8) if str(r.get("id") or "").split(SEP, 1)[0] == base]
+    if not rows:
+        return ""
+    said = {w.lower() for w in _WORD.findall(str(text or ""))}
+    for r in rows:
+        if said & {w.lower() for w in _WORD.findall(str(r.get("label") or ""))}:
+            return str(r["id"])
+    return str(rows[0]["id"])
+
+
 def resolve_show(target, open_ids, text: str = "", last_spoken: str = "") -> dict:
     """WHICH card a «enséñamelo» refers to — the mirror image of `resolve_close`, measured from the opposite side (V2-300).
 
@@ -325,6 +345,9 @@ def resolve_show(target, open_ids, text: str = "", last_spoken: str = "") -> dic
         return {"id": tid, "ids": [tid], "ask": "", "options": []}   # ya vino desambiguado
     abiertas = instances_of(tid, open_ids)
     if not abiertas:
+        back = _closed_card_for(tid, text)
+        if back:
+            return {"id": back, "ids": [back], "ask": "", "options": [back]}
         return {"id": tid, "ids": [tid], "ask": "", "options": []}   # no instances: the base, as always
     if len(abiertas) == 1:
         return {"id": abiertas[0], "ids": [abiertas[0]], "ask": "", "options": abiertas}
