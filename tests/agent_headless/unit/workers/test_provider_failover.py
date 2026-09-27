@@ -112,7 +112,10 @@ def test_exhaustion_hands_over_and_respects_the_providers_own_reset_date(monkeyp
     assert nxt["next"] == "licencia-claude"
     assert prov.pick()["name"] == "licencia-claude"          # the next spawn already starts on the failover
     # the cooldown comes from the DATE supplied by the provider, not an invented timeout
-    assert prov._store._cooldown["z.ai"] == time.mktime(time.strptime(RESET_DATE, "%Y-%m-%d"))
+    # …read in Z.ai's own clock, UTC+8 (demo pass 2026-09-28)
+    from datetime import datetime, timedelta, timezone
+    assert prov._store._cooldown["z.ai"] == datetime.strptime(RESET_DATE, "%Y-%m-%d").replace(
+        tzinfo=timezone(timedelta(hours=8))).timestamp()
 
 
 def test_without_a_reset_date_it_retries_in_a_while(monkeypatch):
@@ -464,3 +467,27 @@ def test_the_iso_and_24h_forms_still_work():
     assert _t.localtime(iso).tm_hour == 6
     h24 = prov._reset_epoch("Usage limit reached, resets 23:45")
     assert _t.localtime(h24).tm_hour == 23 and _t.localtime(h24).tm_min == 45
+
+
+# ── demo pass 2026-09-28: a spent Z.ai quota must hand over in seconds, at the right hour ─────────────
+ZAI_1310 = ("API Error: Request rejected (429) · [1310][Weekly/Monthly Limit Exhausted. Your limit will reset "
+            "at 2026-09-29 01:39:02][202609280705538d9cac0cb4be42e8]")
+
+
+def test_a_zai_reset_stamp_is_their_clock_not_ours():
+    """The API wrote «2026-09-29 01:39:02»; the operator's own usage page said 19:39 in Madrid: UTC+8."""
+    from datetime import datetime, timezone
+    want = datetime(2026, 9, 28, 17, 39, 2, tzinfo=timezone.utc).timestamp()
+    assert prov._reset_epoch(ZAI_1310) == want
+
+
+def test_a_stamp_without_their_code_stays_local():
+    import time as _t
+    txt = "Usage limit reached · resets at 2026-09-29 01:39:02"
+    assert prov._reset_epoch(txt) == _t.mktime(_t.strptime("2026-09-29 01:39:02", "%Y-%m-%d %H:%M:%S"))
+
+
+def test_an_external_tier_does_not_spend_minutes_retrying_a_spent_quota(monkeypatch):
+    _cfg(monkeypatch)
+    monkeypatch.setenv("Z_AI_API_KEY", "zzz")
+    assert prov.env_for_worker()["CLAUDE_CODE_MAX_RETRIES"] == "3"

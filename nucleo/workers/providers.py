@@ -228,7 +228,10 @@ def env_for_worker() -> dict:
     tok = (t.get("api_key") or "").strip() or _token_for(t)
     if not tok:
         return {}
-    out = {"ANTHROPIC_BASE_URL": t["base_url"], "ANTHROPIC_AUTH_TOKEN": tok}
+    # The CLI's own default is ten retries with backoff: against a spent quota (a `429` that will not clear for
+    # hours) that is ~3 minutes before the worker gives up and the chain can relay (measured 2026-09-28, the demo's
+    # monitor search). Three retries still ride out a blip; a dead tier is handed on in seconds.
+    out = {"ANTHROPIC_BASE_URL": t["base_url"], "ANTHROPIC_AUTH_TOKEN": tok, "CLAUDE_CODE_MAX_RETRIES": "3"}
     out.update(vision_env(t))
     return out
 
@@ -277,6 +280,7 @@ def vision_env(tier: dict | None) -> dict:
 _RESET_RE = re.compile(
     r"reset(?:s|ting)?(?:\s+(?:at|on|in))?\s*[:\s]\s*"
     r"(\d{4}-\d{2}-\d{2}(?:[ T]\d{2}:\d{2}(?::\d{2})?)?|\d{1,2}:\d{2}(?::\d{2})?\s*(?:am|pm)?)", re.I)
+_ZAI_CODE_RE = re.compile(r"\[1[23]\d\d\]")
 # Un límite de VENTANA (5 h, diario) no es un rate-limit pasajero: no se arregla reintentando en dos segundos, se
 # arregla esperando a la hora que el propio proveedor dice. Tratarlo como `rate` era no ponerle cooldown NI relevar.
 # V2-309 — «session limit» es la MISMA clase y no casaba con ninguna: medido el 2026-08-25 04:36, el worker
@@ -498,6 +502,16 @@ def _reset_epoch(text: str) -> float:
     _mp = re.match(r"^(\d{1,2}:\d{2}(?::\d{2})?)\s*(am|pm)$", raw, re.I)
     if _mp:
         raw = f"{_mp.group(1)} {_mp.group(2).upper()}"
+    # Z.ai / BigModel write their stamp in THEIR clock, UTC+8, with no zone. Read as local it made the Madrid
+    # cooldown six hours too long (measured 2026-09-28: «reset at 2026-09-29 01:39:02» on the API, «19:39» on the
+    # operator's own usage page). Their errors carry a `[13xx]` business code; nobody else's do.
+    if _ZAI_CODE_RE.search(text or ""):
+        from datetime import datetime, timedelta, timezone
+        for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%Y-%m-%d"):
+            try:
+                return datetime.strptime(raw, fmt).replace(tzinfo=timezone(timedelta(hours=8))).timestamp()
+            except Exception:
+                pass
     for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%Y-%m-%d"):
         try:
             return time.mktime(time.strptime(raw, fmt))

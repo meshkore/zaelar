@@ -128,7 +128,10 @@ def test_exhaustion_hands_over_and_respects_the_providers_own_reset_date(monkeyp
     # el llamador tiene que poder DECIR que se quedó sin escalones en vez de morirse intentando usar uno.
     assert nxt is None, f"no hay segundo escalón que ofrecer, y devolvió {nxt!r}"
     # La fecha de reset del proveedor se respeta igual: cuando vuelva, vuelve solo.
-    assert pc._store._cooldown["deepseek-directo"] == time.mktime(time.strptime(RESET_DATE, "%Y-%m-%d"))
+    # (the fixture text is Z.ai's `[1310]`, whose stamp is their clock, UTC+8 — demo pass 2026-09-28)
+    from datetime import datetime, timedelta, timezone
+    assert pc._store._cooldown["deepseek-directo"] == datetime.strptime(RESET_DATE, "%Y-%m-%d").replace(
+        tzinfo=timezone(timedelta(hours=8))).timestamp()
 
 
 def test_without_a_reset_date_it_retries_in_a_while(monkeypatch):
