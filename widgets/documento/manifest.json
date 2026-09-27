@@ -73,6 +73,10 @@
     "w": 660,
     "h": 620
   },
+  "min": {
+    "w": 400,
+    "h": 400
+  },
   "live_title": true,
   "fullscreen": "native",
   "security": "standard"

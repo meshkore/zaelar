@@ -15,7 +15,8 @@
 // Backend contract used:  GET /widgets/{id}/data?q=  ·  GET /widgets/{id}/widget.js  ·  POST /widgets/{id}/action
 // ============================================================================
 
-import { saneFootprint } from "./footprint.js?v=1";
+import { saneFootprint, preferredFootprint } from "./footprint.js?v=2";
+import { bestSpot, overlaps as _overlaps } from "./placement.js?v=1";
 import { t as tr } from "../core/i18n.js?v=1";
 import * as store from "../core/store.js?v=2";
 
@@ -268,9 +269,7 @@ function injectStyles(){
 // The floor of every automatic resize (V2-608). A widget may raise it through `manifest.min`; nothing lowers it.
 const MIN_W = 240, MIN_H = 150;
 
-function _overlap(a, b, pad=12){
-  return !(a.right+pad<=b.left || a.left>=b.right+pad || a.bottom+pad<=b.top || a.top>=b.bottom+pad);
-}
+function _overlap(a, b, pad=12){ return _overlaps(a, b, pad); }   // one definition, in placement.js (V2-773)
 
 export class Desktop {
   constructor(stage){
@@ -795,7 +794,7 @@ export class Desktop {
       if(pos && pos.left){                              // restored: honor the SAVED position instead of auto-placing
         card.style.left=pos.left; card.style.top=pos.top;
         const pz=parseInt(pos.z)||0; if(pz){ card.style.zIndex=pz; this.z=Math.max(this.z, pz); } else if(!background) this._bringFront(card);
-      } else { this._place(card); if(!background) this._bringFront(card); }   // fit into free space without overlapping anything
+      } else { this._place(card, this._expected(baseId)); if(!background) this._bringFront(card); }   // free space, at the size it will have (V2-773)
       if(pos && (pos.w || pos.h)) this._applyGeom(card, pos.w, pos.h);   // …y con el tamaño que le dejó el operador
       if(pos && pos.min) card.classList.add("hb-minned");                // V2-537: minimized survives a reload
       this._wireDrag(card);
@@ -889,6 +888,7 @@ export class Desktop {
       // encogería a la anchura de su tarjeta más estrecha. Lo declara su manifest (`size`), no lo adivina el canvas.
       if(fresh) this._applyPreferred(w.card, baseId, !!(pos && pos.w), !!(pos && pos.h));
       if(fresh) this._freezeSize(w.card, baseId);      // V2-630: after this, content changes never resize the card
+      if(fresh && !(pos && pos.left)) this._settle(w.card, id);   // V2-773: at its REAL size, still in a free spot
       if(fresh){ w.card.classList.add("boop"); setTimeout(()=>w.card.classList.remove("boop"),460); }
       // Remember signature/module/ctx so refreshData() (SSE-triggered, NO polling) can re-render on change, and
       // the DATA itself (V2-613) so a language switch can re-render with the identical content, just re-translated.
@@ -1445,9 +1445,12 @@ export class Desktop {
   _applyPreferred(card, baseId, haveW, haveH){
     const size = this._meta && this._meta[baseId] && this._meta[baseId].size;
     if(!size) return;
-    const c=this.canvas(), maxW = c.x1 - c.x0, maxH = c.y1 - c.y0;
-    if(size.w && !haveW) card.style.width  = Math.min(Number(size.w), maxW) + "px";
-    if(size.h && !haveH) card.style.height = Math.min(Number(size.h), maxH) + "px";
+    // V2-773 — the declared size is the IDEAL on a large desk; on a smaller one the card takes a proportion of
+    // the desk (footprint.js), never below the widget's own minimum. A 920px agenda on a 13" laptop is not 920px.
+    const c=this.canvas(), min=this._minSize(baseId);
+    const pf = preferredFootprint({ size, canvasW: c.x1 - c.x0, canvasH: c.y1 - c.y0, minW: min.w, minH: min.h });
+    if(size.w && !haveW) card.style.width  = this._snap(pf.w) + "px";
+    if(size.h && !haveH) card.style.height = this._snap(pf.h) + "px";
     if((size.w && !haveW) || (size.h && !haveH)){ card.style.maxWidth="none"; card.style.maxHeight="none"; }
     // Reposition: the card was placed at the default size (400×340) and may have grown beyond the canvas.
     this._fit(card, baseId);
@@ -1552,59 +1555,41 @@ export class Desktop {
   // widget, the camera, or the voice orb. While there's free room nothing ever lands on top. Only when nothing
   // fits do we cascade on top. The default tile size is reserved while the card is still loading (its real size
   // isn't known yet); later widgets collide against the LIVE rects, so they tuck around the rendered sizes. ----
-  _place(card){
-    const W=Math.max(card.offsetWidth, this.tile.w), H=Math.max(card.offsetHeight, this.tile.h);
-    const pad=this.tile.pad, top=this.tile.top, step=this.grid, obs=this._obstacles(card);
-    // The scan ORIGIN is snapped up to the grid, not just the step: starting at an unaligned x (the rail's
-    // right edge + pad) and stepping by 5 keeps that offset forever, so every card lands 4px off the grid and
-    // the grid buys nothing.
-    const cv=this.canvas();
-    const xmin=this._snapUp(cv.x0), ytop=this._snapUp(cv.y0), xmax=cv.x1, ymax=cv.y1;
-    // COLUMN-MAJOR, and that order IS the feature (V2-551): the operator asked for cards «colocados
-    // verticalmente pegados unos a otros». Row-major fills left-to-right first and scatters a session across
-    // the top of the screen; sweeping y INSIDE x stacks each new card under the previous one and only starts a
-    // new column when this one is full — which is also how a person tidies a desk.
-    for(let x=xmin; x+W<=xmax; x+=step){
-      for(let y=ytop; y+H<=ymax; y+=step){
-        const r={left:x, top:y, right:x+W, bottom:y+H};
-        if(!obs.some(o=>_overlap(r,o))){ card.style.left=x+"px"; card.style.top=y+"px"; return; }
-      }
-    }
-    // NOTHING FITS. The old fallback cascaded near the centre with `Math.max` on both axes and no upper bound,
-    // so a tall or wide card hung off the bottom-right — the operator saw exactly that: «se abre un widget de
-    // imagen y medio widget está en el área visible y medio aparece como si estuviera fuera de la pantalla».
-    // A clamp is not enough either: it would pile every overflow card in the same corner. So we put it in the
-    // LARGEST FREE GAP (his words) and bring it to the front, which is the honest answer to «there is no room»:
-    // it overlaps as little as possible, it is wholly visible, and it is the one you can see and move.
-    const gap = this._largestGap(obs, W, H, xmin, top, pad);
-    card.style.left = gap.x + "px";
-    card.style.top  = gap.y + "px";
-    this._fit(card);
-    // (no `_bringFront` here: every caller of `_place` already does it. A second call measured nothing and
-    // made a guard look like it was testing this branch when it was testing the caller.)
+  _place(card, expected=null){
+    // V2-773 — the footprint is the one the card WILL have (its manifest size, proportional to the desk), not
+    // the loading tile: a 920×640 agenda dropped into a 400×340 pocket grew over its neighbours. When nothing is
+    // declared (a clock, a building placeholder) the tile stays the reservation and `_settle` corrects it after
+    // the first render. The spot itself is the engine's: the corner of the EMPTIEST region (placement.js).
+    const W=Math.max(card.offsetWidth, (expected && expected.w) || this.tile.w);
+    const H=Math.max(card.offsetHeight, (expected && expected.h) || this.tile.h);
+    const spot = bestSpot({ w: W, h: H, box: this.canvas(), obstacles: this._obstacles(card),
+                            grid: this.grid, pad: this.tile.pad, mode: "free" });
+    card.style.left = spot.x + "px"; card.style.top = spot.y + "px";
+    // NOTHING FITS: the engine answered with the least-overlapping, wholly-visible spot — the honest answer to
+    // «there is no room» (the operator saw «medio widget fuera de la pantalla» before there was one). It
+    // overlaps as little as possible and it is the one you can see and move.
+    if(!spot.fits) this._fit(card);
+    // (no `_bringFront` here: every caller of `_place` already does it.)
   }
 
-  // The free-est spot for a WxH card: scan the grid and keep the position whose overlap with existing cards is
-  // smallest. Not a rectangle-packing algorithm — the canvas is a few dozen cards at 5px resolution, and the
-  // answer only has to be the one a person would point at.
-  _largestGap(obs, W, H, xmin, top, pad){
-    const step = Math.max(this.grid, 20);          // coarser here: this only runs when nothing fits at all
-    const cv = this.canvas();
-    const maxX = Math.max(xmin, cv.x1 - W), maxY = Math.max(top, cv.y1 - H);
-    let best = {x: xmin, y: top, cover: Infinity};
-    for(let x=xmin; x<=maxX; x+=step){
-      for(let y=top; y<=maxY; y+=step){
-        const r={left:x, top:y, right:x+W, bottom:y+H};
-        let cover = 0;
-        for(const o of obs){
-          const ow = Math.min(r.right,o.right) - Math.max(r.left,o.left);
-          const oh = Math.min(r.bottom,o.bottom) - Math.max(r.top,o.top);
-          if(ow>0 && oh>0) cover += ow*oh;
-        }
-        if(cover < best.cover){ best = {x, y, cover}; if(!cover) return best; }
-      }
-    }
-    return best;
+  // The footprint a FRESH card of this widget will open at: its manifest size, proportional to the desk
+  // (footprint.js), or nothing when it declares none.
+  _expected(baseId){
+    const meta=this._meta && this._meta[(baseId||"").split("::")[0]];
+    const size=meta && meta.size; if(!size) return null;
+    const c=this.canvas(), min=this._minSize(baseId);
+    return preferredFootprint({ size, canvasW: c.x1 - c.x0, canvasH: c.y1 - c.y0, minW: min.w, minH: min.h });
+  }
+
+  // After the first render a card has its REAL size (preferred, or frozen from its content). If that size now
+  // overlaps a neighbour or sticks out — it was placed at a reservation, and the reservation was smaller — it
+  // is placed again, at this size. Only a card nobody has touched: a restored position is the operator's.
+  _settle(card, id){
+    if(!card || card.classList.contains("hb-minned")) return;
+    const c=this.canvas(), r=this._toDesk(card.getBoundingClientRect());
+    const out = r.right > c.x1 + 1 || r.bottom > c.y1 + 1 || r.left < c.x0 - 1 || r.top < c.y0 - 1;
+    const over = this._obstacles(card).some(o=>_overlap(r, o));
+    if(out || over){ this._place(card, {w:r.width, h:r.height}); this._fit(card, id); }
   }
 
   // A card is ALWAYS WHOLLY VISIBLE, and snapped to the grid (V2-551). This is the guarantee the canvas lacked:
@@ -1672,8 +1657,7 @@ export class Desktop {
     this.revealAll();          // a layout with invisible holes in it is not a layout
     const cards=[...this.wins.values()].map(w=>w.card).filter(c=>c && c.isConnected);
     if(!cards.length) return {ok:true, n:0};
-    const pad=this.tile.pad, top=this._snapUp(this.tile.top);
-    const cv=this.canvas(), xmin=this._snapUp(cv.x0), step=this.grid;
+    const pad=this.tile.pad, cv=this.canvas(), step=this.grid;
     const placed=[];
     const fixed=this._obstacles(null).filter(r=>!cards.some(c=>{
       const cr=c.getBoundingClientRect(); return Math.abs(cr.left-r.left)<1 && Math.abs(cr.top-r.top)<1; }));
@@ -1687,20 +1671,12 @@ export class Desktop {
       c._restore=null;                                   // a compacted card is no longer «maximized, restorable»
       c.classList.remove("hb-cinema","hb-fullwide");     // V2-596/658: nor full-screen, which rides on that state
       const W=c.offsetWidth, H=c.offsetHeight;
-      let put=false;
-      for(let x=xmin; !put && x+W<=cv.x1; x+=step){
-        for(let y=top; y+H<=cv.y1; y+=step){
-          const r={left:x, top:y, right:x+W, bottom:y+H};
-          if(![...placed,...fixed].some(o=>_overlap(r,o))){
-            c.style.left=x+"px"; c.style.top=y+"px"; placed.push(r); put=true; break;
-          }
-        }
-      }
-      if(!put){                                          // genuinely no room at this size: least-overlap, whole
-        const g=this._largestGap([...placed,...fixed], W, H, xmin, top, pad);
-        c.style.left=g.x+"px"; c.style.top=g.y+"px"; this._fit(c);
-        const r=c.getBoundingClientRect(); placed.push({left:r.left,top:r.top,right:r.right,bottom:r.bottom});
-      }
+      // V2-773 — the same engine a fresh card uses, in TIGHT mode: the first hole in column order, so the gaps
+      // close; when nothing fits at this size, the least-overlapping whole position.
+      const spot=bestSpot({ w:W, h:H, box:cv, obstacles:[...placed,...fixed], grid:step, pad, mode:"tight" });
+      c.style.left=spot.x+"px"; c.style.top=spot.y+"px";
+      if(!spot.fits) this._fit(c);
+      const r=this._toDesk(c.getBoundingClientRect()); placed.push({left:r.left,top:r.top,right:r.right,bottom:r.bottom});
     }
     this._syncOrbDock();                                 // V2-757: compacting undoes full-screen
     this._persist();
@@ -1717,7 +1693,9 @@ export class Desktop {
     // is the point. Nothing else may treat a floating panel as an edge (see canvas()).
     const pad=this.tile.pad, cv=this.canvas();
     let x0=cv.x0, x1=cv.x1;
-    const y0=cv.y0, y1=innerHeight-150;                      // 150 = orb/status strip, this gesture's own
+    // V2-773 — the bottom is the CANVAS's (`canvas()` already subtracts the system bar), like every other
+    // gesture: «the viewport minus 150» was this button's private guess and left a dead band above the bar.
+    const y0=cv.y0, y1=cv.y1;
     const cw=document.querySelector("#chatwall");
     if(cw && cw.classList.contains("open") && !cw.classList.contains("docked")){
       const r=this._toDesk(cw.getBoundingClientRect());
@@ -1729,12 +1707,21 @@ export class Desktop {
     const n=cards.length;
     const cols=n===1?1:(n<=4?2:Math.ceil(Math.sqrt(n)));
     const rows=Math.ceil(n/cols);
-    const cellW=Math.floor((x1-x0-(cols-1)*pad)/cols), cellH=Math.floor((y1-y0-(rows-1)*pad)/rows);
+    // ON THE GRID, with the gap never narrower than `pad`: snapping a left edge and a width independently
+    // could bring two cells to within 8px of each other. The gap is snapped UP first and the cell is what is left.
+    const g=this.grid||1, gap=this._snapUp(pad), gx0=this._snapUp(x0), gy0=this._snapUp(y0);
+    const cellW=Math.floor((x1-gx0-(cols-1)*gap)/cols/g)*g, cellH=Math.floor((y1-gy0-(rows-1)*gap)/rows/g)*g;
     cards.forEach((c,i)=>{
       const row=Math.floor(i/cols), col=i%cols;
-      c.style.left=(x0+col*(cellW+pad))+"px"; c.style.top=(y0+row*(cellH+pad))+"px";
-      c.style.width=Math.max(320, cellW)+"px"; c.style.height=Math.max(240, cellH)+"px";
+      c._restore=null;                                   // a tiled card is no longer «maximized, restorable»
+      c.classList.remove("hb-cinema","hb-fullwide");     // nor full-screen, which rides on that state
+      c.style.maxWidth="none"; c.style.maxHeight="none";
+      const min=this._minSize(this._idOf(c));            // the widget's own floor, never a private 320×240
+      c.style.left=(gx0+col*(cellW+gap))+"px"; c.style.top=(gy0+row*(cellH+gap))+"px";
+      c.style.width=this._snap(Math.max(min.w, cellW))+"px"; c.style.height=this._snap(Math.max(min.h, cellH))+"px";
+      this._fit(c, this._idOf(c));                       // a cell below the floor still ends wholly on the desk
     });
+    this._syncOrbDock();                                 // V2-757: tiling undoes full-screen
     this._persist();
     return {ok:true, n};
   }

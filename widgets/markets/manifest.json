@@ -41,6 +41,10 @@
     "w": 560,
     "h": 430
   },
+  "min": {
+    "w": 420,
+    "h": 300
+  },
   "usage": "To chart something use 'show' with 'symbol' — a ticker (AAPL, ^IXIC, BTC-USD, EURUSD=X) or just the name ('Apple', 'Nasdaq', 'bitcoin'): it is looked up — and 'range' (1d = today, 5d = this week, 1mo = last month, 6mo, 1y, 5y; default 1d). 'range' changes the PERIOD of the chart already on screen («show me the last month instead»). 'refresh' updates it. Both return the name, price, currency and change: say them in one short sentence. It only shows prices; it never buys or sells.",
   "actions": {
     "show": {

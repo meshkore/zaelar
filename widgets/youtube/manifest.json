@@ -375,6 +375,10 @@
     "w": 680,
     "h": 560
   },
+  "min": {
+    "w": 480,
+    "h": 340
+  },
   "runtime": {
     "output": "audio",
     "produce": [

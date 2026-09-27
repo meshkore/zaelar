@@ -253,6 +253,10 @@
     "w": 720,
     "h": 560
   },
+  "min": {
+    "w": 460,
+    "h": 360
+  },
   "live_title": true,
   "security": "standard"
 }

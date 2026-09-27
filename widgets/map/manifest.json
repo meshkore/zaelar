@@ -29,6 +29,10 @@
     "w": 640,
     "h": 520
   },
+  "min": {
+    "w": 400,
+    "h": 320
+  },
   "usage": "To pin places use 'show' with 'places': a list of {name, address, note, url} — the address may be just the city («Griffith Observatory, Los Angeles»); 'near' adds a city to every place that has none. 'show' replaces what is on the map, 'add' adds to it. 'select' with 'item' (number on the map or name) highlights one. Places are geocoded here: never invent coordinates. The result lists the numbered places and any that could not be found.",
   "actions": {
     "show": {

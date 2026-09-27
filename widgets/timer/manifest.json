@@ -24,5 +24,13 @@
     "countdown",
     "tiempo restante"
   ],
-  "security": "standard"
+  "security": "standard",
+  "size": {
+    "w": 380,
+    "h": 300
+  },
+  "min": {
+    "w": 280,
+    "h": 200
+  }
 }

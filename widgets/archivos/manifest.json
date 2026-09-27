@@ -38,6 +38,10 @@
     "w": 820,
     "h": 600
   },
+  "min": {
+    "w": 480,
+    "h": 360
+  },
   "usage": "El gestor de archivos: por defecto navega TU BIBLIOTECA (video/audio/documents/images/downloads); con `set_provider` cambia a un servicio conectado en la nube. Para NAVEGAR usa open_folder (con folderId — un id de carpeta de la nube, o `video`/`audio`/`documents`/`images`/`downloads` para una carpeta local), go_up y go_home. Para CONTESTAR «¿tengo un contrato de Axa?» o «¿tengo descargada esa peli?» usa search_files: filtra la vista Y devuelve los que casan en `result.matches`. open_file ABRE el archivo: si es un vídeo o un audio local reproducible lo manda al reproductor correspondiente y lo enseña; si es una imagen o un documento local reproducible lo enseña dentro de esta misma tarjeta; si es un fichero de la nube devuelve su `web_url` y decides tú qué hacer con él. Para GUARDAR un texto como fichero («guárdalo en mis archivos») usa save_document {name, text}: escribe el fichero en la biblioteca y abre la carpeta donde quedó — un texto largo que no cabe en un turno lo guarda el worker por esa misma acción, o con `save_to_library` desde la hoja `documento` si ya está en pantalla. rename_file/copy_file/delete_file SOLO funcionan en la biblioteca local (un servicio en la nube los rechaza con el motivo). Si no hay ningún servicio en la nube conectado, open_connectors abre el asistente de conexión dentro de la tarjeta — pero la biblioteca local funciona siempre, sin conectar nada. SECCIÓN TORRENTS (V2-764): torrent_search {query} busca en la red MeshKore y deja el CATÁLOGO en pantalla (NO descarga nada) — devuelve los primeros en `result.matches`, numerados; torrent_download {item} descarga uno del catálogo por número o título («la segunda», «la de 1080p») o {magnet} un enlace concreto; torrent_open {id} reproduce una descarga (vídeo → reproductor, audio terminado → música); torrent_save {id} la pasa a la biblioteca; torrent_remove {id} la cancela y borra el fichero. show_section cambia de sección (biblioteca | torrents) y de pestaña dentro de torrents (catalogo | descargas | semillas).",
   "actions": {
     "sync_providers": {

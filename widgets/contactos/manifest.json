@@ -51,6 +51,10 @@
     "w": 720,
     "h": 520
   },
+  "min": {
+    "w": 420,
+    "h": 360
+  },
   "usage": "El directorio ÚNICO de contactos del operador: personas, empresas, sitios, grupos y agentes, con etiquetas libres («amigos del trabajo», «restaurantes»), ciudad y favoritos — un restaurante favorito ES una entrada de este directorio, nunca una lista aparte. Una entrada puede llevar VARIOS teléfonos y correos (add_phone/add_email), y las personas cuelgan de su empresa o de su sitio con link_contact. Añade con add_contact (mismo nombre y ciudad ACTUALIZA, no duplica), cambia con update_contact, borra con remove_contact (pide confirmación) u oculta con hide_contact, y marca con set_favorite. Para VER o CONSULTAR («mi restaurante favorito en Barcelona», «las empresas de Madrid», «mis contactos de Telegram») usa show_view: filtra por tipo, plataforma, grupo o ciudad Y devuelve los que casan en `result.matches`. La ficha de uno concreto es show_contact; las fuentes y su sincronización, show_connectors. POR DÓNDE se le escribe a alguien vive aquí: set_channel guarda su WhatsApp, Telegram o correo y cuál es el preferido — eso es lo que luego usa `send_to` de mensajería para escribirle sin preguntar.",
   "actions": {
     "add_contact": {

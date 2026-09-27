@@ -2539,5 +2539,14 @@ entregada siga citada aquí.
   card is.
 - **A card opens at a readable footprint** (`footprint.js`): the first render is judged against the desk before
   V2-630 freezes it — never wider than half the desk, never a strip; the operator's saved size is his.
+- **A new card lands in the EMPTIEST zone, at the size it will have; one placement engine for every automatic
+  gesture** (`placement.js`, operator's rule 2026-09-27). Measured: a card was placed at a 400×340 loading tile
+  and then grew to its manifest size over its neighbours; the ⤢ button tiled against «viewport minus 150» with
+  a private 320×240 floor. Now `_place` reserves the footprint the card will open with (its declared size,
+  proportional to the desk — at most 60 %×85 % of it, never below its `min`), `_settle` re-places a card whose
+  real size still overlaps, the spot is the corner of the largest empty rectangle (a person's «zona más vacía»,
+  tidy against the region's edge, ties top-to-bottom then left-to-right), the ▦ repack is the same engine in
+  tight mode, and ⤢ tiles inside `canvas()` with each widget's own minimum. Every card widget declares `size`
+  and `min` (clock and timer got theirs). Node 4.224.
 - **Demo setup, not product:** the driver takes the session lock and mutes the microphone; a local contact «Ethan»
   with the demo Telegram handle is recreated after a reset; TTS switched to Cartesia while Inworld has no credit.

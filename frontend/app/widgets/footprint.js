@@ -26,3 +26,18 @@ export function saneFootprint({ w, h, canvasW, canvasH, minW = 240, minH = 150 }
   if (W / H < RATIO_MIN) W = Math.min(maxW, Math.max(W, Math.round(H * 0.6)));
   return { w: Math.min(W, cw), h: Math.min(H, ch), changed: W !== (Number(w) || 0) || H !== (Number(h) || 0) };
 }
+
+// V2-773 — a DECLARED size is the ideal on a large desk; on a smaller one the card takes a proportion of the
+// desk instead («un tamaño predeterminado para abrirse respecto al tamaño de la pantalla»), never below the
+// widget's own minimum. The operator resizes from there.
+export const OPEN_SHARE_W = 0.6;     // a fresh card takes at most this share of the desk's width…
+export const OPEN_SHARE_H = 0.85;    // …and of its height
+
+/** {w, h} for a card that declares `size` on a desk of (canvasW, canvasH). Pure. */
+export function preferredFootprint({ size, canvasW, canvasH, minW = 240, minH = 150 }) {
+  const cw = Math.max(minW, Number(canvasW) || 0), ch = Math.max(minH, Number(canvasH) || 0);
+  const capW = Math.max(minW, Math.round(cw * OPEN_SHARE_W)), capH = Math.max(minH, Math.round(ch * OPEN_SHARE_H));
+  const w = Math.min(cw, Math.max(minW, Math.min(Number(size && size.w) || minW, capW)));
+  const h = Math.min(ch, Math.max(minH, Math.min(Number(size && size.h) || minH, capH)));
+  return { w, h };
+}

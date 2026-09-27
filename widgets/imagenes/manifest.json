@@ -110,6 +110,10 @@
     "w": 520,
     "h": 600
   },
+  "min": {
+    "w": 360,
+    "h": 360
+  },
   "runtime": {
     "produce": [
       "slideshow"

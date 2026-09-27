@@ -24,7 +24,7 @@ def test_a_strip_becomes_a_card_and_a_clock_stays_a_clock():
 
 def test_the_freeze_judges_the_first_render_before_keeping_it():
     src = DESKTOP.read_text(encoding="utf-8")
-    assert 'import { saneFootprint } from "./footprint.js' in src
+    assert 'saneFootprint' in src and 'from "./footprint.js' in src
     body = src[src.index("_freezeSize(card, id){"):src.index("_wireResize(card, id){")]
     assert "saneFootprint({" in body and "sane.w" in body and "sane.h" in body, "the measured size is judged, not copied"
     assert "if(!haveW)" in body and "if(!haveH)" in body, "the operator's own dimensions stay his"

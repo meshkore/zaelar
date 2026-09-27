@@ -2307,6 +2307,9 @@ DOMAINS: list[dict] = [
         {"id": "4.223", "title": "Una tarjeta se abre con un tamaño LEGIBLE: nunca más ancha que medio escritorio, "
                                  "nunca una tira; lo que el operador guardó es suyo (V2-773)",
             "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_a_card_opens_at_a_readable_footprint.py"]},
+        {"id": "4.224", "title": "Una tarjeta nueva cae en la zona MÁS VACÍA del escritorio, al tamaño que va a tener; "
+                                 "los botones ▦ y ⤢ de la barra usan el mismo motor y el mismo lienzo (V2-773)",
+            "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_a_new_card_lands_in_the_emptiest_zone.py"]},
         # 2026-08-12: tras un reset, la hoja de resultados sacó ENTERA la búsqueda anterior mientras el worker de la
         # nueva trabajaba — el reset cerraba las tarjetas pero no vaciaba sus DATOS. Aquí van las dos mitades: lo
         # derivado se vacía y el registro del operador (agenda, credenciales, perfil del navegador) NO; y el worker
