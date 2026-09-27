@@ -984,6 +984,16 @@ class NucleoLLMStream(llm.LLMStream):
                 contextual = _show_guard_target(text, brain._window, brain._last_action)
                 if contextual:
                     extra = {**(extra or {}), "id": contextual}
+                # V2-776 — the CARD, as the tool path resolves it: `[[show:results]]` with the monitor sheet open
+                # put the bare, empty base beside it (verification 2026-09-27, «Compare them visually»).
+                _tid = str((extra or {}).get("id") or "").strip()
+                if _tid and "::" not in _tid:
+                    try:
+                        _r_tag = _show_target_instance(_tid, _bnotes.operator_half(text), brain._last_spoken or "")
+                        if not _r_tag.get("ask") and _r_tag.get("id"):
+                            extra = {**(extra or {}), "id": _r_tag["id"]}
+                    except Exception:  # noqa: BLE001
+                        pass
             # GUARD anti-clutter (2026-07-12): el modelo tiende a emitir [[show:navegador]] al pedir una búsqueda,
             # abriendo el navegador VACÍO ("Nuevo navegador") ADEMÁS de la tarjeta de la tarea → dos/tres cajas de
             # navegador en pantalla. La búsqueda se ve en SU tarjeta (navegador::tN, la abre la tarea sola); el

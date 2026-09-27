@@ -28,6 +28,14 @@ async def dispatch_tag(action: str, extra: dict) -> dict:
     if not name:
         return {"ok": False, "error": "no action named"}
     payload = data.get("payload") or {}
+    # A CARD of an instancing widget (`results::be35a9-1`) is the base widget with its instance in `q` — the
+    # canvas's own convention (it splits `results::<corr>` and hands the suffix over as `q`). Passed through
+    # verbatim, the trust boundary's `_safe` stripped the colons into `resultsbe35a9-1`, no such widget, and
+    # «Compare them visually» failed on the sheet it had just opened (V2-776, 2026-09-27).
+    if "::" in wid:
+        wid, _inst = (x.strip() for x in wid.split("::", 1))
+        if _inst and isinstance(payload, dict) and not payload.get("sheet") and not payload.get("q"):
+            payload = {**payload, "q": _inst}
     try:
         from .server_api import brain_action
         res = await brain_action(wid, name, payload if isinstance(payload, dict) else {})

@@ -32,3 +32,11 @@ def test_the_after_show_repair_is_still_gated_on_that_id():
     """The premise: if the repair stopped reading `widget_id`, this guard would protect nothing."""
     text = SRC.read_text(encoding="utf-8")
     assert re.search(r'if acted\.get\("widget_id"\) and not data_done\["v"\]', text)
+
+
+def test_a_tag_show_resolves_to_the_open_card():
+    """Verification 2026-09-27: `[[show:results]]` over the open monitor sheet opened the empty base beside it."""
+    text = SRC.read_text(encoding="utf-8")
+    i = text.index('contextual = _show_guard_target(text, brain._window, brain._last_action)')
+    j = text.index('GUARD anti-clutter', i)
+    assert "_show_target_instance(_tid" in text[i:j]

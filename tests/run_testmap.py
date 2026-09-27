@@ -2411,6 +2411,11 @@ DOMAINS: list[dict] = [
         {"id": "3.101", "title": "Una acción sobre una hoja la declara su widget — nunca un worker por un layout",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_an_action_on_a_sheet_is_declared_by_its_widget.py",
                                   "tests/agent_headless/unit/flash/test_a_presentation_is_an_effect_somebody_authorized.py"]},
+        # V2-776 (2026-09-27): una data-op sobre una HOJA llega al widget base con la hoja en `q` (el id con «::»
+        # se destrozaba en la frontera de confianza), y un `[[show:results]]` con la hoja abierta la resuelve a ELLA.
+        {"id": "3.102", "title": "Una acción sobre una hoja llega a ESA hoja — y un show por etiqueta no abre la base vacía",
+            "ch": UNIT, "paths": ["tests/browser/unit/results/test_an_action_on_a_sheet_reaches_that_sheet.py",
+                                  "tests/voice/unit/providers/test_a_tag_show_names_its_card.py"]},
         # V2-776 (2026-09-27): la pregunta de escalado a Jev decía «ante la duda, escala» y mandaba a un worker
         # 11 de 11 órdenes de un paso (música, Telegram, agenda, gráfica). Nombra ahora lo que hacen las tarjetas.
         # EN VIVO: vieja 5/17, nueva 16/17.
