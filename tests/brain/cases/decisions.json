@@ -1,0 +1,96 @@
+[
+  {
+    "id": "v2-754-vuelve-al-dashboard-verdict-vs-model",
+    "lang": "es",
+    "phrase": "Vuelve al dashboard, quiero seguir viendo el catálogo",
+    "source": "decisions.md V2-754 (session 3afe34a8): brief `show_tab` 0.96 ✓, the model `play_item` on a non-existent item ✗ → «¿a cuál te refieres?»",
+    "screen": {"open": ["youtube"]},
+    "model": {"say": "", "tools": [{"name": "widget_data", "args": {"widget_id": "youtube", "action": "play_item", "item": "catálogo"}}]},
+    "brief": {"screen_action": ["youtube:show_tab", 0.96]},
+    "expect": "data-op youtube:show_tab",
+    "forbid": ["worker", "second-card"],
+    "open": "V2-776 B1: the model's own call wins over a sure verdict on the same card (V2-754 wrote «the verdict completes, never contradicts» — B1 decides the precedence once)"
+  },
+  {
+    "id": "v2-755-vuelve-al-inicio-al-catalogo",
+    "lang": "es",
+    "phrase": "Vuelve, por favor, al inicio. Al catálogo inicial.",
+    "source": "decisions.md V2-755 (session 665e666a): `show_tab` 0.97, alias `home` resolved — the one that held",
+    "screen": {"open": ["youtube"]},
+    "model": {"say": "", "tools": [{"name": "widget_data", "args": {"widget_id": "youtube", "action": "show_tab", "payload": {"tab": "home"}}}]},
+    "brief": {"screen_action": ["youtube:show_tab", 0.97]},
+    "expect": "data-op youtube:show_tab",
+    "forbid": ["worker", "close"]
+  },
+  {
+    "id": "v2-755-vale-para-el-video-model-called-nothing",
+    "lang": "es",
+    "phrase": "Vale, para el vídeo.",
+    "source": "decisions.md V2-755 (1): `screen_action` none 0.65 and the model called nothing — he had to say it twice. After naming the homograph: `pause` 0.98. A sure order the model ignored gets its call (V2-712/V2-754)",
+    "screen": {"open": ["youtube"]},
+    "model": {"say": "Vale.", "tools": []},
+    "brief": {"screen_action": ["youtube:pause", 0.98], "request_type": ["order", 0.9]},
+    "expect": "data-op youtube:pause",
+    "forbid": ["worker", "close"]
+  },
+  {
+    "id": "v2-755-ponme-el-video-numero-seis",
+    "lang": "es",
+    "phrase": "Ponme el vídeo número seis",
+    "source": "decisions.md V2-755 (3): `play_result` fired and the screen did not move — the decision was right, the face was not",
+    "screen": {"open": ["youtube"]},
+    "model": {"say": "", "tools": [{"name": "widget_data", "args": {"widget_id": "youtube", "action": "play_result", "item": "6"}}]},
+    "expect": "data-op youtube:play_result",
+    "forbid": ["worker", "second-card"]
+  },
+  {
+    "id": "v2-756-quita-los-tres-ultimos",
+    "lang": "es",
+    "phrase": "Quita los tres últimos",
+    "source": "decisions.md V2-756 (2): the model understood («quito el 4, el 5 y el 6») and the verdict, with nothing better, said `clear_list` — the WHOLE queue. `remove` is plural now",
+    "screen": {"open": ["youtube"]},
+    "model": {"say": "Quito el 4, el 5 y el 6.", "tools": [{"name": "widget_data", "args": {"widget_id": "youtube", "action": "remove", "item": "4,5,6"}}]},
+    "brief": {"screen_action": ["youtube:remove", 0.98]},
+    "expect": "data-op youtube:remove",
+    "forbid": ["worker", "close"]
+  },
+  {
+    "id": "v2-567-cierra-los-mensajes",
+    "lang": "es",
+    "phrase": "Cierra los mensajes",
+    "source": "decisions.md V2-567 (2026-09-03 19:01): the action map hit in 0.08 ms — exact, silent, no model",
+    "screen": {"open": ["mensajeria"]},
+    "expect": "close mensajeria",
+    "forbid": ["model", "show"]
+  },
+  {
+    "id": "v2-567-muestrame-la-agenda",
+    "lang": "es",
+    "phrase": "Muéstrame la agenda",
+    "source": "V2-567: every card has a deterministic open and close phrase in both languages",
+    "screen": {"open": []},
+    "expect": "show agenda",
+    "forbid": ["model", "worker"]
+  },
+  {
+    "id": "v2-567-ensename-mis-restaurantes-favoritos",
+    "lang": "es",
+    "phrase": "Enséñame mis restaurantes favoritos.",
+    "source": "V2-567: favourites live in the contacts directory (V2-541) — the seed phrase opens that card, not a search",
+    "screen": {"open": []},
+    "expect": "show contactos",
+    "forbid": ["model", "worker", "search"]
+  },
+  {
+    "id": "v2-567-cierra-los-mensajes-y-ensename-la-agenda",
+    "lang": "es",
+    "phrase": "cierra los mensajes y enséñame la agenda",
+    "source": "V2-567 / V2-688: a compound turn — the open verb licenses the show AND the close still closes the named card",
+    "screen": {"open": ["mensajeria"]},
+    "model": {"say": "Aquí tienes la agenda.", "tools": [{"name": "show_widget", "args": {"widget_id": "agenda"}}]},
+    "expect": "show agenda",
+    "also": ["close mensajeria"],
+    "forbid": ["worker"],
+    "open": "V2-776 B2: the probe channel reports ONE action and its close backstop overwrites the model's show — a compound turn cannot be judged until both channels share a decision step that can say two things"
+  }
+]
