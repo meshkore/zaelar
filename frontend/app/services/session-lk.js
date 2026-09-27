@@ -442,6 +442,7 @@ export async function start() {
   if (acq && acq.ok === false) {
     starting = false; store.setStarting(false); started = false; store.setStarted(false); store.setConnState("—");
     store.setMicBlocked({ show: true, msg: t("voice.session_open_other_tab") });
+    store.setRemoteHeld(true);
     if (_blockedRetry) clearTimeout(_blockedRetry);
     _blockedRetry = setTimeout(() => { _blockedRetry = null; start(); }, 3000);
     if (!_everBooted) _unblockBoot();   // do not leave the UI trapped on the splash while blocked
@@ -482,7 +483,7 @@ export async function start() {
     // would have closed the mic and set `stream = null`, so carrying on means `initMic(null)` — the original error.
     if (gen !== _gen) return _abortedStartup(gen, null);
     if (videoEl) videoEl.srcObject = stream;
-    started = true; store.setStarted(true);
+    started = true; store.setStarted(true); store.setRemoteHeld(false);
     api.obsSessionStart("voice");   // opens (or reattaches) the work session grouping events — see api.js
     audio.initMic(stream);   // AudioContext + mic analyser → orb visualiser + mic-level meter keep working
     _startSpeakerShadow();   // V2-651 F0: fingerprint each speech segment in the browser, log-only (shadow)

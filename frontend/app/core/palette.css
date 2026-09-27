@@ -116,6 +116,9 @@
      screen: as a small label on the widget ground it measured 4.7:1, and WHITE on top of it measured 3.1:1.
      At #AE90FF it reads 6.6:1 as text and carries dark ink at 7.3:1, so the SAME token works in both
      directions. The rule that goes with it: text on a lilac surface is always the DARK ink, never white. */
+  /* REMOTE CONTROL (operator, 2026-09-27): blue is the colour of «this is being driven from another session»;
+     on a filled control it is the background and the ink goes white (--hb-remote-ink). */
+  --hb-remote:#4C8DFF; --hb-remote-ink:#FFFFFF;
   --hb-accent:#AE90FF; --hb-accent2:#6FD6F5; --hb-risk:#FF8A92; --hb-risk-soft:rgba(255,138,146,.16);
   /* semantic status colors: ok/warn share the risk/accent pattern — ONE value across themes. */
   --hb-ok:#6FE0B0; --hb-warn:#F2CE6B;
@@ -165,6 +168,7 @@
   /* on paper the heliotrope goes the OTHER way — darker, not lighter: 4.6:1 as text was the same
      borderline the dark theme had, arrived at from the opposite side. 5.5:1 now. */
   --hb-accent:#6D4AE8;
+  --hb-remote:#1F5FE0; --hb-remote-ink:#FFFFFF;
   --hb-accent2:#0E7BAE; --hb-risk:#C9303B; --hb-risk-soft:rgba(201,48,59,.10);
   --hb-ok:#16875B; --hb-warn:#966C12;
   --hb-shadow-1:0 1px 2px rgba(16,20,26,.06), 0 4px 12px rgba(16,20,26,.07);

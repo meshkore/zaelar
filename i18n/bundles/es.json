@@ -568,6 +568,7 @@
  "orb.power_off": "zaelar apagado — pulsa para encender",
  "orb.power_pausing": "Parando — esperando a que termine la petición en curso. Pulsa otra vez para cancelar",
  "orb.power_stalled": "zaelar DEBERÍA estar funcionando y no lo está — nadie te escucha. Pulsa para rearrancarlo",
+ "orb.power_remote": "Otra sesión controla a zaelar ahora mismo (otra pestaña o un control remoto) — aquí no escucha ni habla",
  "orb.power_starting": "zaelar está arrancando…",
  "orb.speaker_muted": "Silenciado — pulsa para volver a oírlo",
  "orb.speaker_unmuted": "Pulsa para silenciar (el agente sigue en marcha)",

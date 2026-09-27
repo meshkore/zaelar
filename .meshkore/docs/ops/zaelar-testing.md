@@ -275,7 +275,8 @@ the way the demo passes run), these rules hold (operator, 2026-09-27):
   nobody (measured 2026-09-27: seven steps lost).
 - **Remote control is BLUE.** While a session is driven remotely the ⏻ blinks, and blue is the default colour of
   every remote-control indicator: on a filled control, blue background with white text/icon; on an icon drawn
-  straight on the desktop (no background), the ⏻ outline itself in blue, blinking. *(Requested — not built yet.)*
+  straight on the desktop (no background), the ⏻ outline itself in blue, blinking. Built for the ⏻ (agent state
+  `remote`, token `--hb-remote`); any new remote-control indicator uses the same token.
 - **What a pass may touch.** The operator's connected calendar and the demo contacts he designated; any other
   real contact (e.g. a WhatsApp test contact) only after asking him. The list of those contacts is private and
   lives in the workspace's own `.meshkore/`, never here.

@@ -2363,6 +2363,10 @@ DOMAINS: list[dict] = [
         # la pestaña alternaba stalled↔starting ~140 veces por segundo.
         {"id": "4.225", "title": "Una pestaña que perdió la sesión de voz reintenta cada 3 s, no en bucle",
             "ch": UNIT, "paths": ["tests/browser/unit/voice/test_a_tab_that_lost_the_session_waits_its_turn.py"]},
+        # V2-776 (2026-09-27, operador): una pestaña cuya voz la tiene otra sesión (otra pestaña, un control remoto)
+        # pinta el ⏻ en AZUL de control remoto, parpadeando — no el ámbar de «caído».
+        {"id": "4.226", "title": "Controlado desde otra sesión: el ⏻ en azul de control remoto, parpadeando",
+            "ch": UNIT, "paths": ["tests/browser/unit/orbe/test_a_tab_driven_from_elsewhere_shows_remote_blue.py"]},
         # V2-776 (2026-09-27): el acuse de una LISTA se habla DESPUÉS de su turno. Esperarlo dentro del turno
         # interbloqueaba la voz (el `say` va en cola detrás de la generación que lo espera): tras el INIT de la demo
         # el agente se quedó en «thinking» y ninguna respuesta posterior llegó a sonar ni al muro.

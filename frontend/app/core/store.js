@@ -80,7 +80,10 @@ export const powerOnPending = () => { const t = powerOnAt(); return t > 0 && (Da
 export const [pausing, setPausing] = createSignal(false);
 
 export const [botSpeaking, setBotSpeaking] = createSignal(false);            // gates person-voice visuals
-export const [micBlocked, setMicBlocked]   = createSignal({ show: false, msg: "" });  // 🚫 ring over the orb
+export const [micBlocked, setMicBlocked]   = createSignal({ show: false, msg: "" });
+// Another tab or a remote driver holds the single voice session (V2-776, 2026-09-27): this tab is not broken,
+// it is being CONTROLLED FROM ELSEWHERE, and the ⏻ says so in blue instead of the amber of a fault.
+export const [remoteHeld, setRemoteHeld] = createSignal(false);  // 🚫 ring over the orb
 export const [micLevel, setMicLevel]       = createSignal(0);               // true mic RMS (0..1) for the meter
 
 // ── attention gate (V2-016 + 2026-09-09): the 🤖 mode + a real-time "I'm listening to YOU" ring ─────────────
@@ -125,6 +128,7 @@ export const agentState = () => {
   if (pausing()) return "pausing";
   if (powerOff()) return "off";
   if (started()) return "live";
+  if (remoteHeld()) return "remote";
   // `!bootReady()` covers the STARTUP gap: between the page loading and `session.start()` setting
   // `starting`, nothing has been set yet — without this, every load would open in «stalled» (everything in alarm)
   // for a few moments. `bootReady` is false only on the first startup, so a session that goes down AFTERWARD does

@@ -568,6 +568,7 @@
  "orb.power_off": "zaelar off — click to turn on",
  "orb.power_pausing": "Stopping — waiting for the current request to finish. Click again to cancel",
  "orb.power_stalled": "zaelar should be running but ISN'T — nobody is listening. Click to restart it",
+ "orb.power_remote": "Another session is driving zaelar right now (another tab or a remote control) — this one neither listens nor speaks",
  "orb.power_starting": "zaelar is starting up…",
  "orb.speaker_muted": "Muted — click to hear it again",
  "orb.speaker_unmuted": "Click to mute (the agent keeps running)",

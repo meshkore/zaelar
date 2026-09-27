@@ -713,6 +713,10 @@ canvas#orb.frozen{opacity:.32;filter:grayscale(1)}
 @media (prefers-reduced-motion:reduce){ .orbic.vu svg{transform:none} }
 .orbic.pwr-stalled{color:var(--hb-warn);opacity:1;animation:pwrAlert 1.6s ease-in-out infinite}
 .orbic.pwr-starting{color:var(--hb-muted);opacity:.85;animation:pwrBoot 1.4s ease-in-out infinite}
+/* `remote` (V2-776, operator 2026-09-27): another session holds the voice — a remote driver, another tab. Not a
+   fault, so not amber: the remote-control BLUE, blinking like the alert so it is still noticed. The ⏻ has no
+   background here, so it is the outline itself that goes blue. */
+.orbic.pwr-remote{color:var(--hb-remote);opacity:1;animation:pwrAlert 1.6s ease-in-out infinite}
 /* "pausing" (V2-092 addenda, 2026-08-15): a stop requested with a turn in flight — the agent keeps genuinely
    running underneath (nothing has been frozen yet), so it's deliberately painted differently from `stalled`
    (a REAL fault): same amber family as --hb-warn but the SOFTER tone (--hb-warn-ink) and a slow breathe instead
@@ -722,7 +726,7 @@ canvas#orb.frozen{opacity:.32;filter:grayscale(1)}
 @keyframes pwrBoot{0%,100%{opacity:.45}50%{opacity:.95}}
 @keyframes pwrPausing{0%,100%{opacity:1}50%{opacity:.4}}
 @media (prefers-reduced-motion:reduce){
-  .orbic.pwr-stalled,.orbic.pwr-starting,.orbic.pwr-pausing{animation:none}
+  .orbic.pwr-stalled,.orbic.pwr-starting,.orbic.pwr-pausing,.orbic.pwr-remote{animation:none}
 }
 /* the UPPER LID **IS** THE ICONS (v4, operator 2026-07-22: "arriba van los iconos, no una raya"). Inner 5
    (nth-child 2-6) sit ON the almond circle the ECG draws below (R=(S²+a²)/2a ≈ 2.5·orbRadius; icon x = 0/±45/±90
