@@ -304,6 +304,24 @@ def identify(query: str, open_ids: list | None = None, recent_ids: list | None =
         if hit and not any(w.get("id") == inst for _s, w in scored):
             base = get(inst.split("::", 1)[0]) or {}
             scored.append((0.9, {**base, "id": inst, "title": face}))
+    # …and a CLOSED sheet of a finished errand is named the same way, just under an open one (V2-773, demo S1:
+    # «Show me the monitors» over the closed monitor sheet read «no monitor widget» and spawned a second worker).
+    if q_tokens:
+        try:
+            from . import instances as _inst2
+            faces = _inst2.recent_faces()
+        except Exception:  # noqa: BLE001
+            faces = []
+        opened = {str(i or "").strip() for i in (open_ids or [])}
+        for r in faces:
+            rid = str(r.get("id") or "")
+            if not rid or rid in opened or any(w.get("id") == rid for _s, w in scored):
+                continue
+            f_tokens = {t for t in _norm(str(r.get("label") or "")).split() if len(t) >= 4 and t not in _STOP}
+            f_stems = {x.rstrip("s") for x in f_tokens}
+            if any(len(t) >= 4 and (t in f_tokens or t.rstrip("s") in f_stems) for t in q_tokens):
+                base = get(rid.split("::", 1)[0]) or {}
+                scored.append((0.85, {**base, "id": rid, "title": str(r.get("label") or "")}))
     scored.sort(key=lambda s: (-s[0], s[1].get("id", "")))
     # The candidate's TITLE is read back to the operator when the phrase is ambiguous («¿cuál te enseño?»), so
     # it is the label they can SEE, not the manifest's own wording (V2-694, and V2-605's rule that a card is

@@ -799,3 +799,24 @@ def _cron_line() -> str:
     except Exception:
         pass
     return line
+
+
+def shelf_lines() -> list[str]:
+    """The finished errands' sheets he can ask for by what they show — closed, and one `show_widget` away.
+
+    V2-773 (demo S1, 2026-09-27): the monitor errand had finished, its sheet was closed, and «Show me the
+    monitors» read «no monitor widget in your setup» — a second worker went to search the same monitors again.
+    The sheet was on disk the whole time; the model had no name for it. Three at most, most recent first,
+    open ones left out (they are already on screen)."""
+    try:
+        from memory import api as _memapi
+        from widgets import instances as _inst
+        open_now = {str(w).strip() for w in ((_memapi.state() or {}).get("open_widgets") or [])}
+        rows = [r for r in _inst.recent_faces(5) if str(r.get("id")) not in open_now][:3]
+    except Exception:  # noqa: BLE001
+        return []
+    if not rows:
+        return []
+    names = " · ".join(f"«{str(r['label'])[:60]}» ({r['id']})" for r in rows)
+    return [f"HOJAS CERRADAS de encargos ya hechos, que puede pedir por lo que muestran — `show_widget` con ese id "
+            f"la trae de vuelta, sin buscar nada de nuevo: {names}."]

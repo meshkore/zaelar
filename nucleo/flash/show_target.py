@@ -164,6 +164,10 @@ def resolve_show(wid_arg: str, text: str, window, last_action, guard_target) -> 
             res = {"match": contextual, "system": None}
         elif wid_arg and runtime.get(wid_arg) is not None:       # exact catalog id
             res = {"match": wid_arg, "system": None}
+        elif wid_arg and "::" in wid_arg and runtime.get(wid_arg.split("::", 1)[0]) is not None:
+            # V2-773 — an INSTANCE id, verbatim: the model can only name one it was told about (a finished
+            # errand's sheet, `instances.recent_faces`), and the alias resolver would read it as noise.
+            res = {"match": wid_arg, "system": None}
         else:                                                    # name/alias → real id or system surface
             res = runtime.identify(wid_arg or text, open_ids=open_ids, recent_ids=recent_ids) or {}
     except Exception:

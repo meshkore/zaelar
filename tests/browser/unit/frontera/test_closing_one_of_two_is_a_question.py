@@ -297,3 +297,64 @@ def test_an_open_sheet_is_named_by_its_own_title(monkeypatch):
     assert runtime.identify_named("Show me the monitor sheet", open_ids=["results::x1"]) == "results::x1", "singular too"
     assert runtime.identify_named("Show me the results", open_ids=["results::x1"]) == "results", "an alias still wins, and narrows later"
     assert runtime.identify_named("Show me the map", open_ids=["results::x1"]) != "results::x1", "a word not in the title names nothing"
+
+
+def test_a_closed_sheet_of_a_finished_errand_is_named_by_its_title(monkeypatch):
+    """V2-773 (demo S1, 2026-09-27): the monitor errand had finished and its sheet was CLOSED; «Show me the
+    monitors» read «no monitor widget in your setup» and a second worker searched the same monitors again. A
+    closed sheet is still his card, named by what it shows, just under an open one."""
+    from widgets import runtime
+    monkeypatch.setattr(instances, "card_face", lambda wid: {})
+    monkeypatch.setattr(instances, "recent_faces", lambda limit=5: [{"id": "results::m1", "label": "Three 27\" 4K monitors under $400"},
+                                                                    {"id": "results::t9", "label": "Five clear days with Anna"}])
+    assert runtime.identify_named("Show me the monitors", open_ids=["documento"]) == "results::m1", "THE BUG"
+    assert runtime.identify_named("Show me the monitors", open_ids=[]) == "results::m1", "nothing open at all"
+    assert runtime.identify_named("Show me the results", open_ids=[]) == "results", "an alias still wins"
+    assert runtime.identify_named("Show me the map", open_ids=[]) != "results::m1"
+    # an OPEN sheet with the same words outranks the closed one
+    monkeypatch.setattr(instances, "card_face", lambda wid: {"label": "monitors on sale", "blank": False} if wid == "results::o1" else {})
+    assert runtime.identify_named("Show me the monitors", open_ids=["results::o1"]) == "results::o1"
+    src = (Path(__file__).resolve().parents[4] / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
+    assert '_rid if (_rid and runtime.get(_rid.split("::", 1)[0]) is not None) else ""' in src, (
+        "the show path must keep an INSTANCE id the resolver named")
+
+
+def test_the_results_piece_lists_its_titled_sheets_most_recent_first(tmp_path, monkeypatch):
+    from widgets import store
+    monkeypatch.setattr(store, "DATA_DIR", str(tmp_path))
+    from widgets.results import data as rd
+    import time as _t
+    store.save("results--a-1", {"title": "Three 27\" 4K monitors under $400", "items": [{"title": "x", "url": "https://a"}]})
+    _t.sleep(0.02)
+    store.save("results--b-1", {"title": "Resultados", "items": [{"title": "y", "url": "https://b"}]})   # untitled: names nothing
+    _t.sleep(0.02)
+    store.save("results--c-1", {"title": "Consulta seguro", "items": []})                                # empty: names nothing
+    _t.sleep(0.02)
+    store.save("results--d-1", {"title": "Five clear days with Anna", "items": [{"title": "z", "url": "https://d"}]})
+    assert [r["id"] for r in rd.recent_faces()] == ["results::d-1", "results::a-1"]
+    assert instances.recent_faces()[0]["label"] == "Five clear days with Anna"
+
+
+def test_an_instance_id_the_model_names_passes_through_the_show_resolver():
+    from nucleo.flash import show_target
+    res, _o, _r = show_target.resolve_show("results::m1", "Show me the monitors", None, None, lambda *a: "")
+    assert res.get("match") == "results::m1"
+    res, _o, _r = show_target.resolve_show("nosuch::m1", "Show me the monitors", None, None, lambda *a: "")
+    assert res.get("match") != "nosuch::m1", "an instance of a piece that does not exist names nothing"
+
+
+def test_the_turn_is_told_which_closed_sheets_it_can_bring_back(monkeypatch):
+    """The resolver names a closed sheet, but the model has to KNOW it exists to ask for it (demo S1: «no
+    monitor widget in your setup»). Three at most, most recent first, the open ones left out."""
+    from memory import api as memapi
+    from nucleo.flash import live_blocks, prompt
+    monkeypatch.setattr(instances, "recent_faces", lambda limit=5: [{"id": "results::m1", "label": "Three monitors"},
+                                                                    {"id": "results::o1", "label": "Open one"},
+                                                                    {"id": "results::t9", "label": "Trips"}])
+    monkeypatch.setattr(memapi, "state", lambda: {"open_widgets": ["results::o1"]})
+    lines = live_blocks.shelf_lines()
+    assert len(lines) == 1 and "results::m1" in lines[0] and "results::t9" in lines[0] and "results::o1" not in lines[0], lines
+    monkeypatch.setattr(instances, "recent_faces", lambda limit=5: [])
+    assert live_blocks.shelf_lines() == []
+    src = (Path(__file__).resolve().parents[4] / "nucleo/flash/prompt.py").read_text("utf-8")
+    assert "lines.extend(_live_blocks.shelf_lines())" in src[src.index("def live_state"):], "the live block must carry it"

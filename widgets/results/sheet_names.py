@@ -136,3 +136,26 @@ def card_face(instance: str = "") -> dict:
     if title.lower() == "resultados":
         title = ""
     return {"label": title, "blank": not view.get("items")}
+
+
+def recent_faces(limit: int = 5) -> list[dict]:
+    """The CLOSED-or-open sheets a phrase may name, most recent first: `[{"id": "results::x", "label": title}]`.
+
+    V2-773 (demo S1, 2026-09-27): the monitor errand had finished and its sheet was closed; «Show me the monitors»
+    read `catalog_widget = none`, the model said «no monitor widget in your setup» and a NEW worker went to
+    search the same monitors again. A finished errand's sheet is a card the operator can ask for by what it
+    shows, exactly like an open one (`card_face`), and only the piece that names sheets can list them. Untitled
+    or empty sheets name nothing and are left out."""
+    out: list[dict] = []
+    try:
+        for sid in reversed([x for x in sheets() if x]):
+            face = card_face(sid)
+            label = str(face.get("label") or "").strip()
+            if not label or face.get("blank"):
+                continue
+            out.append({"id": instance_id(sid), "label": label})
+            if len(out) >= max(1, limit):
+                break
+    except Exception:  # noqa: BLE001
+        return out
+    return out

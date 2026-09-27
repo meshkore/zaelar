@@ -53,7 +53,8 @@ import unicodedata as _ud
 
 from .. import store
 from .sheet_names import (  # noqa: F401 — re-export: this module IS the sheet contract
-    WIDGET_ID, _INSTANCE_SEP, _MAX_SHEETS, _safe_sheet, card_face, instance_id, prune_sheets, sheet_key, sheets)
+    WIDGET_ID, _INSTANCE_SEP, _MAX_SHEETS, _safe_sheet, card_face, instance_id, prune_sheets, recent_faces,  # noqa: F401
+    sheet_key, sheets)
 
 # How one VALUE from a payload becomes something paintable — the rating, the photos, the lines and the closed
 # block vocabulary of a dynamic record (`widgets/results/record.py`, V2-702; moved byte for byte to pay the

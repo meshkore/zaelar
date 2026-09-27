@@ -89,6 +89,32 @@ def card_face(widget_id: str) -> dict:
     return {"label": str(out.get("label") or "").strip(), "blank": bool(out.get("blank"))}
 
 
+def recent_faces(limit: int = 5) -> list[dict]:
+    """The cards an instancing piece could bring BACK, named by what they show — `[{"id", "label"}]`, most
+    recent first. Asked of every piece that answers `data.recent_faces` (today: `results`, a finished errand's
+    sheet). A closed sheet is still the operator's card (V2-773, demo S1: «Show me the monitors» over a closed,
+    finished sheet went to a second worker). Never raises; a piece without the hook contributes nothing."""
+    out: list[dict] = []
+    try:
+        import importlib
+        from . import runtime as _rt
+        for w in _rt.catalog():
+            base = str(w.get("id") or "").strip()
+            if not base:
+                continue
+            try:
+                fn = getattr(importlib.import_module(f"widgets.{base}.data"), "recent_faces", None)
+                rows = fn(limit) if fn else []
+            except Exception:  # noqa: BLE001
+                rows = []
+            for r in rows or []:
+                if isinstance(r, dict) and r.get("id") and r.get("label"):
+                    out.append({"id": str(r["id"]), "label": str(r["label"])})
+    except Exception:  # noqa: BLE001
+        pass
+    return out[:max(1, limit)]
+
+
 def _label(widget_id: str) -> str:
     """What THIS card is called for the operator: what it SHOWS, never its id.
 

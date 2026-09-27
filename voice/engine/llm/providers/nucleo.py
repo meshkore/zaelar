@@ -1584,7 +1584,7 @@ class NucleoLLMStream(llm.LLMStream):
                         _res, _open, _recent = _show_target.resolve_show(
                             _wid, text, brain._window, brain._last_action, _show_guard_target)
                         _rid = _res.get("match") or ""
-                        _rid = _rid if (_rid and runtime.get(_rid) is not None) else ""
+                        _rid = _rid if (_rid and runtime.get(_rid.split("::", 1)[0]) is not None) else ""
                         _sys = _res.get("system")
                         # V2-650b: a widget the operator JUST closed does not reopen over chatter — the
                         # model re-emitted its DISCARDED show and the card came back over nobody's order.
