@@ -47,3 +47,19 @@ def test_his_own_tab_echoing_the_canvas_never_counts(monkeypatch):
     cf._reset()
     _turn(("show", "agenda", "user"), ("close", "agenda", "user"))
     assert cf.last_turn_card(["agenda", "youtube"]) == ""
+
+
+def test_exit_fullscreen_reaches_the_full_screen_he_ordered_when_the_canvas_says_nothing(monkeypatch):
+    """V4: two tabs report the canvas; the last one to speak had nothing maximised, «Exit fullscreen» found no
+    target, and the model said «Done, back to normal» over a video still at full screen."""
+    cf._reset()
+    _turn(("fullscreen", "youtube", "actionmap"))
+    from memory import api as memapi
+    monkeypatch.setattr(memapi, "state", lambda: {"maximized_widget": ""})
+    seen = []
+    ok = executor.execute({"do": "unfullscreen"},
+                          lambda kind, label, **k: seen.append((label, (k.get("extra") or {}).get("id"))),
+                          phrase="Exit fullscreen.")
+    assert ok and seen == [("minimize", "youtube")], seen
+    cf.note("widget", "minimize", extra={"id": "youtube", "src": "actionmap"})
+    assert cf.ordered_fullscreen() == "", "undone once it is taken out"

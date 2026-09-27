@@ -18,7 +18,7 @@ import threading
 _ACTS = ("show", "fullscreen", "maximize", "minimize", "action", "select")
 _OPERATOR = ("actionmap", "flash", "probe", "jev")
 _lock = threading.Lock()
-_state = {"current": [], "previous": []}
+_state = {"current": [], "previous": [], "fs": ""}
 
 
 def _src_rank(src: str) -> int:
@@ -45,6 +45,15 @@ def note(kind: str, label: str, role: str = "", extra: dict | None = None) -> No
         cid = str(e.get("id") or "").strip()
         rank = _src_rank(e.get("src"))
         lab = str(label or "")
+        # The full screen HE ordered, until something undoes it — a second witness for «exit fullscreen» when
+        # the canvas report says nothing (two tabs report, and the last one to speak may not be maximised:
+        # demo pass 2026-09-28, V4 answered «Done, back to normal» and left the video at full screen).
+        if cid and rank == 2 and lab == "fullscreen":
+            with _lock:
+                _state["fs"] = cid
+        elif cid and lab in ("minimize", "close") and cid.split("::", 1)[0] == _state["fs"].split("::", 1)[0]:
+            with _lock:
+                _state["fs"] = ""
         if not cid or not rank or not (lab in _ACTS or lab.startswith("data:")):
             return
         with _lock:
@@ -70,6 +79,12 @@ def last_turn_card(open_ids: list[str]) -> str:
     return ""
 
 
+def ordered_fullscreen() -> str:
+    """The card his own order put at full screen and nothing has taken out since, or ""."""
+    with _lock:
+        return _state["fs"]
+
+
 def _reset() -> None:                                   # tests
     with _lock:
-        _state["current"], _state["previous"] = [], []
+        _state["current"], _state["previous"], _state["fs"] = [], [], ""

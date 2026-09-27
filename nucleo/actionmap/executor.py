@@ -233,6 +233,12 @@ def execute(action: dict, emit, phrase: str = "") -> bool:
         except Exception:  # noqa: BLE001
             maxw = ""
         if not maxw:
+            try:                           # …or the full screen his own order set and nothing undid (V4)
+                from nucleo import canvas_focus
+                maxw = canvas_focus.ordered_fullscreen()
+            except Exception:  # noqa: BLE001
+                maxw = ""
+        if not maxw:
             return False
         emit("widget", "minimize", text=said, extra={"id": maxw, **src})
         return True
