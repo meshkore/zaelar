@@ -76,6 +76,20 @@ async def execute(tool_calls: list, text: str = "") -> dict:
         # if it does not resolve, the raw text travels in the id field as well so the widget's OWN resolver
         # (e.g. the one in `imagenes`, which matches by tokens) gets its chance and its refusal can show the menu.
         _ref = str(a.get("item") or "").strip()
+        if not _ref:
+            # …and a NAME written straight into the id field is a reference too (INIT of the demo pass,
+            # 2026-09-28: `set_channel {contactId: "Ethan"}` → «no encuentro ese contacto», with Ethan on file).
+            # `resolve` already reads what sits in the id field; it just was never called without `item`. An id
+            # that exists is kept as is, and a name that resolves to nothing leaves the payload untouched.
+            try:
+                from widgets import refs as _refs0
+                _f0 = _refs0.id_field_for_action(wid, act)
+                if _f0 and str(pl.get(_f0) or "").strip():
+                    _r0 = _refs0.resolve(wid, act, "", pl)
+                    if getattr(_r0, "ok", False) and isinstance(_r0.payload, dict):
+                        pl = _r0.payload
+            except Exception:  # noqa: BLE001
+                pass
         if _ref:
             try:
                 from widgets import refs as _refs

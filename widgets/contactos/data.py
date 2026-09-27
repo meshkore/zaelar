@@ -447,6 +447,14 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
             d = view_data(q)
             d.update({"ok": True, "result": {"contact": _public(c), "removed_channel": p}})
             return d
+        # A handle that is only his NAME with an «@» in front is the model filling a required-looking slot,
+        # not a handle anybody told it (INIT of the demo pass, 2026-09-28: «use his Telegram» came as
+        # `handle: "@Ethan"` over Ethan's real `@cryptonite_fund`, and would have overwritten it). Over a channel
+        # we already have, it is dropped and the call only moves the preference, which is what was asked.
+        _has_p = any(ch.get("platform") == p for ch in c.get("channels") or [])
+        if handle and _has_p and _norm(handle.lstrip("@")) in {_norm(c.get("name") or ""),
+                                                               _norm(str(c.get("name") or "").split(" ")[0])}:
+            handle = ""
         if handle or chat_id:
             _merge_channel(c, {"platform": p, "handle": handle, "chatId": chat_id,
                                "source": "operator", "volume": 0, "last_seen": 0.0})

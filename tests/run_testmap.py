@@ -3352,6 +3352,11 @@ DOMAINS: list[dict] = [
         # V2-764 — «voy a por la serie Sherlock en torrent y te enseño el catálogo», and no tool: the turn's verdict
         # named the card, the action existed. One bounded pass asks the model for the call it promised — only the
         # named card, only a declared action — before the backstop spends a worker on it.
+        {"id": "2.83", "title": "A name written into the id field reaches the contact, and a handle that is only "
+                                "his name never overwrites the real one (demo INIT «use his Telegram»)",
+            "ch": UNIT,
+            "paths": ["tests/browser/unit/contactos/"
+                      "test_a_name_in_the_id_field_reaches_the_contact.py"]},
         {"id": "2.82", "title": "A worker's endpoint comes from its spec or the provider chain, never from the "
                                 "engine's inherited shell (a host Claude Code session's ANTHROPIC_BASE_URL)",
             "ch": UNIT,
