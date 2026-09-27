@@ -73,7 +73,7 @@ def _resolve_widget(name: str) -> str:
 
 
 def _card_in_front() -> str:
-    """The card an order means by «that»: the one at full screen, else the only open one; otherwise ''."""
+    """The card an order means by «that»: the one at full screen, else the only open one, else the one on top."""
     try:
         from memory import api as memapi
         maxw = str((memapi.state() or {}).get("maximized_widget") or "").strip().lower()
@@ -84,9 +84,24 @@ def _card_in_front() -> str:
     try:
         from server.voice_api import open_instances
         ids = [str(i) for i in open_instances() if str(i)]
-        return ids[0] if len(ids) == 1 else ""
     except Exception:  # noqa: BLE001
         return ""
+    if len(ids) == 1:
+        return ids[0]
+    # Several open: «that» is the card ON TOP — the highest z the canvas reported, minimised ones aside (V2-776,
+    # demo A2 2026-09-27: the results sheet had just opened over two cards the INIT left behind, and «Minimise that
+    # while you work» fell to the model, which said «tucking it out of your way» and moved nothing).
+    try:
+        from memory import api as memapi
+        items = ((memapi.kv_get("canvas_layout") or {}).get("items") or [])
+        z = {str(it.get("id") or ""): int(str(it.get("z") or "0") or 0) for it in items
+             if isinstance(it, dict) and str(it.get("min") or "0") in ("", "0")}
+        ranked = sorted((z[i], i) for i in ids if i in z)
+        if ranked and (len(ranked) == 1 or ranked[-1][0] > ranked[-2][0]):
+            return ranked[-1][1]
+    except Exception:  # noqa: BLE001
+        pass
+    return ""
 
 
 def _show_card(wid: str) -> str:

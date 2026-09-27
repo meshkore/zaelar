@@ -2381,6 +2381,10 @@ DOMAINS: list[dict] = [
         # ajeno (seguimiento de Telegram) mandaba «Close the results» al modelo, que prometió y no cerró.
         {"id": "3.92", "title": "Un worker ajeno no bloquea «Close the results» — solo el que entrega en esa hoja",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/actionmap/test_an_unrelated_worker_does_not_block_a_close.py"]},
+        # V2-776 (2026-09-27, demo A2): «Minimise that» con varias tarjetas = la de ENCIMA (z más alto, no minimizada)
+        # según el último informe del lienzo; con empate se aparta como antes.
+        {"id": "3.95", "title": "«Minimise that» con varias tarjetas abiertas minimiza la de encima",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/actionmap/test_minimise_that_means_the_card_on_top.py"]},
         # V2-776 (2026-09-27): la pregunta de escalado a Jev decía «ante la duda, escala» y mandaba a un worker
         # 11 de 11 órdenes de un paso (música, Telegram, agenda, gráfica). Nombra ahora lo que hacen las tarjetas.
         # EN VIVO: vieja 5/17, nueva 16/17.
