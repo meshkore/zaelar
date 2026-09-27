@@ -372,7 +372,10 @@ def _covered(needles: list[str], hay: list[str]) -> float:
         return 0.0
     hits = 0.0
     for t in needles:
-        if t in hay or any(t in h or h in t for h in hay):
+        # A substring counts only when the shorter side is a real word: a lone initial in a label («Rebecca H»,
+        # «Caroline N Farhat», «uno-e») sat INSIDE «ethan», so over 2,693 synced contacts «Ethan» tied with
+        # three strangers and came back ambiguous (demo pass INIT, 2026-09-28).
+        if t in hay or any((t in h or h in t) and min(len(t), len(h)) >= 3 for h in hay):
             hits += 1
         elif difflib.get_close_matches(t, hay, n=1, cutoff=0.82):
             hits += 0.8

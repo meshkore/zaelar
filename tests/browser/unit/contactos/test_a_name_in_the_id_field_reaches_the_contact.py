@@ -64,3 +64,13 @@ def test_the_name_in_contactId_is_resolved_on_the_text_path(ct, monkeypatch):
     asyncio.run(wdt.execute(calls, "use his Telegram"))
     assert seen["pl"]["contactId"] == _ethan(ct)["id"], seen
     assert _ethan(ct)["preferred"] == "telegram"
+
+
+def test_a_lone_initial_in_a_strangers_name_does_not_tie_with_him(ct):
+    """Demo pass INIT, 2026-09-28, with the operator's 2,693 synced contacts: «Ethan» came back AMBIGUOUS
+    against «Rebecca H», «Caroline N Farhat» and «uno-e» — each lone letter sat inside «ethan»."""
+    for name in ("Rebecca H", "Caroline N Farhat", "uno-e"):
+        ct.apply_action("add_contact", {"name": name})
+    from widgets import refs
+    r = refs.resolve("contactos", "set_channel", "", {"contactId": "Ethan", "platform": "telegram"})
+    assert r.ok and r.payload["contactId"] == _ethan(ct)["id"], (r.needs, r.candidates)
