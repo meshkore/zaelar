@@ -190,6 +190,11 @@ class WorkerSession:
         rec.status = "running"
         rec.backend = self._b.name
         rec.phase = "arrancando"
+        try:    # V2-776 D1 — the durable row says it too, or the store reads «pending» for the whole run
+            from nucleo import tasks as _tasks
+            _tasks.started(rec)
+        except Exception:  # noqa: BLE001
+            pass
         self._touch()
         self._emit_chip("start", rec.label or _default_label(rec.kind))
         self._bus("worker.spawned", {"id": rec.task_id, "kind": rec.kind, "goal": rec.goal[:120]})

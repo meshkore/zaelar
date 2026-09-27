@@ -19,6 +19,7 @@ THREE THINGS LIVE HERE AND NOTHING ELSE:
 """
 from __future__ import annotations
 
+import re
 import time
 
 from memory import tasks_store as _ts
@@ -105,6 +106,72 @@ def opened(rec, ctx: dict | None = None) -> str:
         "started_at": now,
     })
     return uid
+
+
+def started(rec) -> None:
+    """The worker actually BEGAN (V2-776 D1). Until this a row was written `pending` at dispatch and nothing
+    moved it to `running` — the worker's own status lived only in RAM — so every normal errand read as
+    «queued» in the store for its whole life, and anything reading the store could not tell a task at work
+    from one nobody had started."""
+    uid = str(getattr(rec, "uid", "") or "")
+    if not uid or _ts.task_get(uid) is None:
+        return
+    _ts.task_patch(uid, state="running", started_at=int(time.time()))
+
+
+def withdrawn(rec) -> None:
+    """A row for a commission that never became one: it stopped at a CONFIRMATION gate (V2-007 danger,
+    V2-757 widget) before any worker started. The operator's «sí» dispatches a NEW commission with its own
+    row, so this one would stay `pending` forever — measured 2026-09-27: two accountancy-widget rows sat
+    «pending» for hours after the widget gate asked, the operator said «Yes», and a fresh task ran and died.
+    The question itself is remembered by the dispatcher (`remember_confirm`/`remember_code_change`); the row
+    is not the record of it."""
+    uid = str(getattr(rec, "uid", "") or "")
+    if uid:
+        _ts.task_forget(uid)
+
+
+def ended_early(rec, *, state: str, outcome: str = "") -> None:
+    """A commission that ended BEFORE its worker started (provider chain asleep, cancelled in the pool
+    queue). `closed()` cannot be used: it reads the worker's status, and these paths set `done` on the record
+    to reuse the one-liner delivery — which would paint a launch that never happened as a success."""
+    uid = str(getattr(rec, "uid", "") or "")
+    if not uid or _ts.task_get(uid) is None:
+        return
+    _ts.task_patch(uid, state=state, finished_at=int(time.time()),
+                   outcome=(outcome or str(getattr(rec, "result_summary", "") or ""))[:400])
+
+
+#: A worker commission's durable id: `<boot_id>-<seq>` (see `task_uid`). Lists, errands and scheduled jobs
+#: have their own namespaced ids and their own owners, so the reconciler never touches them.
+_WORKER_UID = re.compile(r"^([0-9a-f]{6})-\d+$")
+
+
+def reconciled(live_uids, *, now: float | None = None, grace_s: float = 60.0) -> int:
+    """Close the worker rows that say «alive» while no live session carries them. Returns how many.
+
+    The store is only worth reading if it cannot lie, and it could: every early exit that skipped `closed()`
+    left a row live forever, and a row from a previous boot was only settled if the boot's rehydrate knew about
+    it. The pulse calls this, so the fix does not depend on every exit path remembering (a rule each caller
+    has to remember is not a rule). `grace_s` covers the seconds of a relay, when the old session has ended
+    and the new one — carrying the same uid — has not registered yet."""
+    now = float(now if now is not None else time.time())
+    live = {str(u) for u in (live_uids or ()) if u}
+    n = 0
+    for row in _ts.tasks_where(states=_ts.LIVE_STATES, modes=("now",), visible_only=False, limit=500):
+        uid = str(row.get("id") or "")
+        m = _WORKER_UID.match(uid)
+        if not m or uid in live:
+            continue
+        if m.group(1) == _boot_id():
+            if now - float(row.get("started_at") or row.get("created_at") or now) < grace_s:
+                continue
+            outcome = "terminó sin cerrarse (ningún worker la llevaba)"
+        else:
+            outcome = "interrumpido por un reinicio del motor"
+        _ts.task_patch(uid, state="failed", finished_at=int(now), outcome=outcome)
+        n += 1
+    return n
 
 
 def retitled(rec) -> None:

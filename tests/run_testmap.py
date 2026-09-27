@@ -1971,6 +1971,13 @@ DOMAINS: list[dict] = [
             "ch": UNIT,
             "paths": ["tests/infrastructure/unit/core/"
                       "test_the_guardrails_speak_the_operators_language.py"]},
+        # V2-776 D — THE BRAIN WORKER'S STATE IS DURABLE AND SUPERVISED. Measured 2026-09-27 (session 3a9a082c):
+        # two accountancy-widget rows sat «pending» for hours after the widget gate asked and the «Yes» launched a
+        # fresh commission; every normal errand read «pending» for its whole run. The pulse and FlashBrain read
+        # this row, so it cannot lie.
+        {"id": "3.82", "title": "La fila de la tarea dice la verdad: «running» mientras trabaja, ninguna fila "
+                                "viva tras la puerta de confirmación, y el pulso cierra las huérfanas",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/test_the_task_row_never_lies.py"]},
     ]},
     {"id": "4", "name": "WIDGETS", "nodes": [
         {"id": "4.1", "title": "Ciclo de vida / acciones / refs / generador / background", "ch": UNIT, "paths": [

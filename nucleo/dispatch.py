@@ -1001,6 +1001,17 @@ async def _compose_context(request: str, kind: str) -> str:
 from nucleo.engine_url import _own_base_url  # noqa: E402,F401 — re-export
 
 
+def _task_row(how: str, rec, **kw) -> None:
+    """V2-776 D1 — the durable row of an errand that ended BEFORE its worker ran. Each early return of
+    `_run_session` used to skip `tasks.closed()` (only the `finally` below reaches it), so the row stayed
+    `pending` forever. Best-effort: a store that failed must not change how the errand ended."""
+    try:
+        from nucleo import tasks as _tasks
+        getattr(_tasks, how)(rec, **kw)
+    except Exception:  # noqa: BLE001
+        logger.debug(f"dispatch: task row {how} failed", exc_info=True)
+
+
 async def _run_session(task: "Task") -> None:
     """Crea and conduce UNA session bajo the pool. Never lanza (corre como task suelta)."""
     from nucleo import danger
@@ -1044,6 +1055,7 @@ async def _run_session(task: "Task") -> None:
             # paradas by the gate, ninguna contada al operator).
             # …with su HOJA: already esta abierta in pantalla and the «si» has that volver a ELLA (V2-508).
             remember_confirm(key, req, task, sheet=sheet_of(rec))
+            _task_row("withdrawn", rec)
             sync_state()
         return
 
@@ -1083,6 +1095,7 @@ async def _run_session(task: "Task") -> None:
             await _deliver_confirm(rec)
             _SESSIONS.pop(key, None)
             remember_code_change(key, req, task, sheet=sheet_of(rec))
+            _task_row("withdrawn", rec)
             sync_state()
         return
 
@@ -1123,12 +1136,14 @@ async def _run_session(task: "Task") -> None:
         rec.result_summary = _sleep_reason
         await _deliver_confirm(rec)          # same one-liner path the confirm-gate uses: speak it and be done
         _SESSIONS.pop(key, None)
+        _task_row("ended_early", rec, state="failed")
         sync_state()
         return
 
     async with _pool():
         if rec.status == "cancelled":         # cancelada mientras esperaba el pool
             _SESSIONS.pop(key, None)
+            _task_row("ended_early", rec, state="cancelled")
             return
         ctx = await _compose_context(req, kind)
         env = {"ZAELAR_TASK_REQUEST": req,       # req crudo → registry (elige generador) + backend

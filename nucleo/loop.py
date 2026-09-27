@@ -111,6 +111,9 @@ class OrchestratorLoop:
         self._stale_flow_secs = float(os.getenv("ZAELAR_STALE_FLOW_SECS", "900"))       # 15 min by default
         self._stale_flow_check_every_s = float(os.getenv("ZAELAR_STALE_FLOW_CHECK_SECS", "60"))
         self._last_stale_flow_check = 0.0
+        # V2-776 D1 — how often the pulse settles task rows no live worker carries (a SQL read, not RAM).
+        self._reconcile_every_s = float(os.getenv("ZAELAR_TASK_RECONCILE_SECS", "30"))
+        self._last_reconcile = 0.0
 
     # ── lifecycle ────────────────────────────────────────────────────────────────────────────────────────
     def start(self) -> None:
@@ -226,6 +229,17 @@ class OrchestratorLoop:
         except Exception:
             sessions = []
         live_ids = {s["id"] for s in sessions}
+        # (1b) V2-776 D1 — the store must not say «alive» about work nobody is doing. Any exit path that
+        # skipped closing its row is settled here, whatever that path was.
+        if now - self._last_reconcile >= self._reconcile_every_s:
+            self._last_reconcile = now
+            try:
+                from nucleo import tasks as _tasks
+                n = _tasks.reconciled({s.get("uid") for s in sessions}, now=now)
+                if n:
+                    _emit("task.reconciled", {"n": n})
+            except Exception:  # noqa: BLE001
+                pass
         # clear marks for sessions that no longer exist (to avoid unbounded growth)
         self._stuck_informed &= live_ids
         self._last_beat = {k: v for k, v in self._last_beat.items() if k in live_ids}
