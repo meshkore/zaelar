@@ -47,6 +47,17 @@ REPORT_DEMAND = ("INFORME DE ESTADO OBLIGATORIO: llevas un rato sin decir dónde
                  "<pasos hechos>`. Luego sigue.")
 
 
+def _observe(label: str, text: str = "", **extra) -> None:
+    """V2-776 D5 — a pulse decision about a worker, on the OBSERVER timeline (family `task` → the Master's
+    «Brain Workers» column and the local ◷ viewer). The bus signal above is for in-process listeners; the
+    operator and the Master read this one. Observability is always two surfaces over one datum."""
+    try:
+        from voice.observer import emit
+        emit("task", label, role="system", text=text[:200], extra=extra)
+    except Exception:  # noqa: BLE001
+        pass
+
+
 def _emit(topic: str, payload: dict | None = None) -> None:
     """Publish a loop signal through the Nervous System (best-effort, loop-agnostic)."""
     try:
@@ -251,6 +262,7 @@ class OrchestratorLoop:
                 n = _tasks.reconciled({s.get("uid") for s in sessions}, now=now)
                 if n:
                     _emit("task.reconciled", {"n": n})
+                    _observe("🧹 tareas huérfanas cerradas", f"{n} fila(s) sin worker vivo → failed", n=n)
             except Exception:  # noqa: BLE001
                 pass
         # clear marks for sessions that no longer exist (to avoid unbounded growth)
@@ -353,6 +365,8 @@ class OrchestratorLoop:
                     if rec is not None and rec.session is not None:
                         await rec.session.inject(REPORT_DEMAND)
                         _emit("worker.report_demanded", {"id": tid, "unreported_s": s.get("unreported_s")})
+                        _observe("📋 informe de estado exigido", s.get("title") or s.get("goal") or "",
+                                 id=tid, unreported_s=s.get("unreported_s"))
                 except Exception:  # noqa: BLE001
                     pass
             if age >= self._max_secs and tid not in self._timeout_informed:
@@ -373,6 +387,8 @@ class OrchestratorLoop:
                 # to be checked. Fall back to `age` if the snapshot is old and lacks the field.
                 self._stuck_informed.add(tid)
                 _emit("worker.stuck", {"id": tid, "age_s": age, "silent_s": int(s.get("silent_s", age))})
+                _observe("🥶 worker sin señales", s.get("title") or s.get("goal") or "",
+                         id=tid, silent_s=int(s.get("silent_s", age)))
                 # V2-776 D2 — and SAID. It used to be only an event: the operator waited on a worker that had
                 # gone quiet and nobody told him until the watchdog killed it and the death note arrived.
                 goal = _errand_title.provisional(s.get("title") or s.get("goal") or self._lang().generic_task, 48)

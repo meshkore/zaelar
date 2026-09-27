@@ -104,3 +104,22 @@ def test_the_pulse_SAYS_a_worker_went_quiet(monkeypatch):
     asyncio.run(loop._supervise_workers(time.time() + 1))     # once, not every second
     stuck = [t for t, k in said if k == L._STUCK_KEY + "5"]
     assert len(stuck) == 1 and "Gràcia" in stuck[0]
+
+
+def test_the_pulse_decisions_reach_the_observer_timeline(fresh_db, escalations, monkeypatch):
+    """Two surfaces, one datum: what the pulse decided is on the timeline the Master and the ◷ viewer read."""
+    from voice import observer
+    seen = []
+    monkeypatch.setattr(observer, "emit", lambda kind, label, **kw: seen.append((kind, label)))
+    relay.restart_stalled(_stalled_rec())
+    rec = SessionRecord(task_id="5", goal="búscame piso", status="running", backend="claude_code")
+    rec.started = time.time() - dispatch.STUCK_SECS - 30
+    rec.last_event_at = time.time() - dispatch.STUCK_SECS - 10
+    rec.session = type("I", (), {"inject": staticmethod(lambda t: asyncio.sleep(0))})()
+    monkeypatch.setattr(dispatch, "_SESSIONS", {"5": rec})
+
+    async def _noop(*a, **k):
+        return None
+    asyncio.run(L.OrchestratorLoop(deliver=_noop)._supervise_workers(time.time()))
+    labels = " | ".join(lbl for kind, lbl in seen if kind == "task")
+    assert "reiniciado" in labels and "sin señales" in labels and "informe de estado" in labels, labels
