@@ -132,6 +132,19 @@ def inworld_default_voice(lang: str | None = None, region: str | None = None) ->
     return default_voice(lang or langs.current_code(), picked_region() if region is None else region)
 
 
+def cartesia_voices(lang: str | None = None) -> list:
+    """Cartesia voices native to a language (active language if None) — V2-775."""
+    from .cartesia_voices import for_language
+    return for_language(lang or langs.current_code())
+
+
+def cartesia_default_voice(lang: str | None = None, region: str | None = None) -> str:
+    """The Cartesia voice for this language/region when the operator has not picked one (V2-775). Before it,
+    one Castilian voice spoke every language and US English came out with a Spanish accent."""
+    from .cartesia_voices import default_voice
+    return default_voice(lang or langs.current_code(), picked_region() if region is None else region)
+
+
 def default_voice_for(provider: str | None = None, lang: str | None = None,
                       region: str | None = None) -> str:
     """The right voice for (provider, language, region) when nothing has been chosen — the seam the
@@ -144,7 +157,9 @@ def default_voice_for(provider: str | None = None, lang: str | None = None,
         return elevenlabs_default_voice(lang, region)
     if p == "inworld":
         return inworld_default_voice(lang, region)
-    return ""                    # Cartesia's voices are multilingual — one voice speaks any language
+    if p == "cartesia":
+        return cartesia_default_voice(lang, region)
+    return ""
 
 
 def describe_voice(v: dict) -> str:
@@ -182,6 +197,9 @@ def voice_is_aligned(provider: str | None, voice: str, lang: str | None = None,
     if p == "inworld":
         from .inworld_voices import is_aligned
         return is_aligned(voice, lang or langs.current_code(), picked_region() if region is None else region)
+    if p == "cartesia":
+        from .cartesia_voices import is_aligned as _cartesia_aligned
+        return _cartesia_aligned(voice, lang or langs.current_code(), picked_region() if region is None else region)
     if p == "elevenlabs":
         rows = elevenlabs_voices(lang)
         natives = [v for v in rows if v.get("native")]
@@ -228,6 +246,8 @@ def voices_for(provider: str | None = None, lang: str | None = None) -> list:
         return elevenlabs_voices(lang)
     if p == "inworld":
         return inworld_voices(lang)
+    if p == "cartesia":
+        return cartesia_voices(lang) or VOICES_BY_PROVIDER["cartesia"]
     return VOICES_BY_PROVIDER.get(p) or VOICES_BY_PROVIDER["cartesia"]
 
 
@@ -260,5 +280,5 @@ def selected_voice(provider: str | None = None) -> str:
 
 __all__ = ["VOICES_BY_PROVIDER", "voices_for", "kokoro_voices", "kokoro_default_voice",
            "elevenlabs_voices", "elevenlabs_default_voice",
-           "inworld_voices", "inworld_default_voice", "default_voice_for", "voice_is_aligned",
+           "inworld_voices", "inworld_default_voice", "cartesia_voices", "cartesia_default_voice", "default_voice_for", "voice_is_aligned",
            "tts_provider", "selected_voice", "describe_voice"]

@@ -66,3 +66,35 @@ def test_the_live_voice_swap_can_repoint_it():
     from livekit.plugins import inworld
     params = inspect.signature(inworld.TTS.update_options).parameters
     assert "voice" in params and "language" in params
+
+
+# ── V2-775 — Cartesia had ONE voice (a Castilian one) for every language ────────────────────────────────────
+
+
+def test_cartesia_speaks_each_variant_with_a_native_voice():
+    """The operator heard US English with a Spanish accent: Inworld was out of credits, the TTS fell to
+    Cartesia, and Cartesia's only default was `CARTESIA_VOICE_ID` = Marcos (Castilian) for every language."""
+    from voice.engine.speech import voices as V
+    marcos = "13ff5deb-2591-42ad-a356-63a04e524411"
+    assert V.default_voice_for("cartesia", "es", "ES") == marcos
+    assert V.default_voice_for("cartesia", "es", "419") == "2fc4f1ec-bfd0-46f1-8e6d-d4279eaaf838"   # Mateo
+    assert V.default_voice_for("cartesia", "en", "US") == "47c38ca4-5f35-497b-b1a3-415245fb35e1"    # Daniel
+    assert V.default_voice_for("cartesia", "en", "GB") == "4bc3cb8c-adb9-4bb8-b5d5-cbbef950b991"    # George
+    assert not V.voice_is_aligned("cartesia", marcos, "en", "US")      # a language switch realigns it
+
+
+def test_the_cartesia_builder_asks_the_language_before_the_env():
+    """The env id must be the LAST rung, below the variant's pin — it was the only one."""
+    import inspect
+    from voice.engine.speech.tts import cartesia
+    src = inspect.getsource(cartesia.build)
+    assert src.index("cartesia_default_voice") < src.index("SETTINGS.tts_voice_id")
+
+
+def test_every_provider_has_a_native_voice_for_the_four_variants():
+    from voice.engine.speech import voices as V
+    for prov in ("inworld", "cartesia", "elevenlabs"):
+        for lang, region in (("es", "ES"), ("es", "419"), ("en", "US"), ("en", "GB")):
+            v = V.default_voice_for(prov, lang, region)
+            assert v, (prov, lang, region)
+            assert V.voice_is_aligned(prov, v, lang, region), (prov, lang, region, v)

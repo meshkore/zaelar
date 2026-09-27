@@ -5,6 +5,7 @@ from livekit.plugins import cartesia as _cartesia
 
 from ...core import langs
 from ...core.config import SETTINGS
+from .. import voices as _voices
 from ..voices import selected_voice
 from . import registry
 
@@ -18,8 +19,10 @@ def build():
         api_key=SETTINGS.cartesia_api_key or None,
         language=langs.current_code(),
     )
-    # Voice priority: the operator's ⚙-picked Cartesia voice > CARTESIA_VOICE_ID env > plugin default.
-    voice = selected_voice("cartesia") or SETTINGS.tts_voice_id
+    # Voice priority: the operator's ⚙-picked Cartesia voice > the language variant's pinned voice (V2-775) >
+    # CARTESIA_VOICE_ID env > plugin default. The env used to be the ONLY default, for every language — a
+    # Castilian voice speaking US English with a Spanish accent, which is what the operator heard.
+    voice = selected_voice("cartesia") or _voices.cartesia_default_voice() or SETTINGS.tts_voice_id
     if voice:
         kwargs["voice"] = voice
     return _cartesia.TTS(**kwargs)

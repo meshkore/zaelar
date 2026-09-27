@@ -21,6 +21,14 @@ entregada siga citada aquí.
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **Cartesia had ONE voice for every language — a Castilian one (V2-775, 2026-09-27)**: the operator heard a US
+  English demo «like a Spaniard speaking English». It was not Inworld's voice: Inworld had run out of credits
+  («You have no credits remaining»), the local TTS had been switched to Cartesia, and Cartesia's only default was
+  `CARTESIA_VOICE_ID` = Marcos, Castilian, for every language — the V2-672 defect one provider over, hidden by
+  `voices.py` calling Cartesia «multilingual». Cartesia now has a native voice per variant, picked from its own
+  API metadata (`accents[].is_native`, `country`): Marcos es-ES, Mateo es-419, Daniel en-US, George en-GB, all
+  15/15 and 14/14 words through Deepgram. The env id is the LAST rung now, below the variant's pin, and a test
+  asserts every provider (Inworld, Cartesia, ElevenLabs) has an aligned default for the four variants.
 - **Inworld is the default TTS, ElevenLabs the second; STT stays on Deepgram — measured, not claimed (V2-774,
   2026-09-26)**: the operator was told Inworld is faster than ElevenLabs with equal or better voices, and asked for
   proof before changing anything, including whether it could replace Deepgram too. Measured through the engine's
