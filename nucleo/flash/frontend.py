@@ -67,7 +67,7 @@ def action_mode(widget_id: str, action: str) -> str | None:
     `widgets/actions.py`; cualquier error cae a None (fail-safe)."""
     try:
         from widgets import actions, runtime
-        wid = (widget_id or "").strip().lower()
+        wid = (widget_id or "").split("::", 1)[0].strip().lower()   # the BASE declares; an instance is one card of it
         name = (action or "").strip()
         if not wid or not name:
             return None
@@ -103,7 +103,7 @@ def declared_actions(widget_id: str) -> dict:
     invented action. Read-only; any error yields {} (fail-safe toward today's path)."""
     try:
         from widgets import runtime
-        wid = (widget_id or "").strip().lower()
+        wid = (widget_id or "").split("::", 1)[0].strip().lower()   # the BASE declares; an instance is one card of it
         if not wid:
             return {}
         return dict((runtime.get(wid) or {}).get("actions") or {})
@@ -346,7 +346,7 @@ def resolve_undeclared_action(widget_id: str, action: str, text: str,
     ordinary local call. A caller that cannot afford to block says so, and gets today's escalate.
     """
     from widgets import runtime
-    wid = (widget_id or "").strip().lower()
+    wid = (widget_id or "").split("::", 1)[0].strip().lower()   # the BASE declares; an instance is one card of it
     name = (action or "").strip()
     if not wid or not name or runtime.get(wid) is None:
         return ("escalate", None)
@@ -526,7 +526,7 @@ def action_is_view(widget_id: str, action: str) -> bool:
     exactly like `action_mode`. Fails CLOSED (False = only show the card) on anything it cannot read."""
     try:
         from widgets import actions, runtime
-        wid = (widget_id or "").strip().lower()
+        wid = (widget_id or "").split("::", 1)[0].strip().lower()   # the BASE declares; an instance is one card of it
         name = (action or "").strip()
         if not wid or not name:
             return False

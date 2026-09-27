@@ -2405,6 +2405,12 @@ DOMAINS: list[dict] = [
         # la red de «prometió mostrar» dependía de una tabla de verbos que no conoce «bringing it back up».
         {"id": "3.100", "title": "Un veredicto seguro de mostrar trae la tarjeta nombrada aunque el modelo no llame",
             "ch": UNIT, "paths": ["tests/voice/unit/test_a_sure_show_verdict_brings_the_named_card.py"]},
+        # V2-776 (2026-09-27): una acción sobre una HOJA (`results::x:layout`) la declara el widget base; buscarla por
+        # el id de la instancia decía «no declarada» y la ESCALABA a un worker. Y la puerta de presentación emite la
+        # tarjeta, no la base (test en test_a_presentation_is_an_effect_somebody_authorized).
+        {"id": "3.101", "title": "Una acción sobre una hoja la declara su widget — nunca un worker por un layout",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_an_action_on_a_sheet_is_declared_by_its_widget.py",
+                                  "tests/agent_headless/unit/flash/test_a_presentation_is_an_effect_somebody_authorized.py"]},
         # V2-776 (2026-09-27): la pregunta de escalado a Jev decía «ante la duda, escala» y mandaba a un worker
         # 11 de 11 órdenes de un paso (música, Telegram, agenda, gráfica). Nombra ahora lo que hacen las tarjetas.
         # EN VIVO: vieja 5/17, nueva 16/17.
