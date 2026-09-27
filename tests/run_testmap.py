@@ -4649,6 +4649,13 @@ DOMAINS: list[dict] = [
             "tests/infrastructure/unit/core/test_llm_egress.py"]},
         {"id": "8.1e", "title": "Tarifas: el precio SIGUE al proveedor que corre", "ch": UNIT, "paths": [
             "tests/infrastructure/unit/core/test_energy_tariffs.py"]},
+        # V2-767 — el otro lado del 8.1b: no basta con que nadie gaste FUERA del contador, hace falta
+        # que dentro se cobre un precio que alguien haya elegido. `deepseek-flash` (titular de 5 piezas)
+        # no tenía fila y facturaba al catch-all punitivo; `deepseek-v4-pro` llevaba un precio 4,7×
+        # barato que el real. Ninguno de los dos falló nada.
+        {"id": "8.1f", "title": "Cada modelo de la tabla tiene precio propio", "ch": UNIT, "paths": [
+            "tests/infrastructure/unit/core/test_every_model_in_the_table_has_a_price.py",
+            "tests/infrastructure/unit/core/test_the_decision_model_is_billed.py"]},
         # POLÍTICA DE MODELOS: DeepSeek V4 Pro es el único titular y un proveedor retirado no puede volver a
         # colarse. Es un BARRIDO del árbol, no una aserción de config: el fallo es un NOMBRE reapareciendo en un
         # default, en una lista de candidatos o en un banco, y solo un barrido ve los tres a la vez. Ya había
@@ -5413,6 +5420,17 @@ DOMAINS: list[dict] = [
         {"id": "10.71", "title": "Una hoja escrita que nadie abrió se cuenta, se nombra y se atribuye al "
                                  "mecanismo (no a las respuestas)",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_a_written_sheet_nobody_opened.py"]},
+    ]},
+    # V2-776 A1 — the DECISION BANK: real turns frozen at the point where the brain decides (recorded
+    # model, recorded Jev brief, seeded screen and memory), one expected decision each. It is the net under
+    # which the brain is compacted: a guard leaves only when its cases are green, and a new failure of the
+    # brain is written here as a CASE, never as a guard. Cases marked `open` run as strict xfail.
+    {"id": "11", "name": "CEREBRO (banco de decisiones)", "nodes": [
+        {"id": "11.1", "title": "Cada turno del banco decide lo que su caso espera (42 casos ES+EN, 7 abiertos)",
+            "ch": UNIT, "paths": ["tests/brain/unit/test_the_bank.py"]},
+        {"id": "11.2", "title": "El banco mide el PRODUCTO: tres desarmes (mapa de acciones, cierre, veredicto) "
+                                "ponen su caso en rojo",
+            "ch": UNIT, "paths": ["tests/brain/unit/test_the_bank_measures_the_product.py"]},
     ]},
 ]
 

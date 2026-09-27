@@ -1,0 +1,12 @@
+{
+  "schema": 1,
+  "id": "brain",
+  "label": "Cerebro · banco de decisiones",
+  "description": "Turnos reales congelados en el punto de decisión (modelo y veredicto grabados), una decisión esperada por caso — V2-776",
+  "domain_ids": ["11"],
+  "requirements": ["python"],
+  "steps": [
+    {"id": "11.1", "label": "El banco decide lo que espera cada caso", "kind": "unit"},
+    {"id": "11.2", "label": "Desarmes: el banco mide el producto", "kind": "unit"}
+  ]
+}
