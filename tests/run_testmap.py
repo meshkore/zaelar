@@ -3307,6 +3307,11 @@ DOMAINS: list[dict] = [
             "paths": ["tests/browser/unit/agenda/"
                       "test_every_order_the_card_declares_actually_lands.py",
                       "tests/browser/unit/agenda/test_a_move_keeps_its_start_and_end_together.py"]},
+        # V2-773, 2026-09-27 — «Anna vacation, Dec 20 through Jan 4» llegó dos veces (la segunda con el fin);
+        # la regla de gemelos vio el mismo título el mismo día y tiró la escritura rica: un solo día en el calendario.
+        {"id": "4.222", "title": "Una segunda escritura de la MISMA cita que trae la regla que la fila no tenía "
+                                 "la asienta en la fila (un tramo o una serie no se pierde por gemela)",
+            "ch": UNIT, "paths": ["tests/browser/unit/agenda/test_a_rule_settles_on_its_twin.py"]},
         {"id": "4.203", "title": "La mitad de TAREAS son dos paneles delimitados con una tabla dentro — y el ＋ "
                                  "de «nueva lista» no puede irse de la pantalla con 100 listas",
             "ch": UNIT,

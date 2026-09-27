@@ -60,6 +60,21 @@ def _is_same_meeting(a: dict, b: dict) -> bool:
     return _titles_overlap(a.get("title"), b.get("title"))
 
 
+def _settle_rule(db: dict, twin: dict, new: dict) -> bool:
+    """A second write of the SAME appointment that carries a repeat rule the row lacks settles the rule on the
+    row (V2-773, 2026-09-27). «Anna vacation, December 20 through January 4» reached the card twice from the
+    demo's INIT list: first as one all-day entry, then — the repair pass, with the end date this time — as a
+    daily span. The twin rule saw the same title on the same day and dropped the richer write, so her
+    vacation was a single day on the calendar. A rule the row already has is never overwritten here: that is
+    `update_meeting`'s call, with the operator's words behind it."""
+    if not isinstance(new.get("repeat"), dict) or twin.get("repeat"):
+        return False
+    twin["repeat"] = dict(new["repeat"])
+    gcal.patch_google(twin)
+    edit.touch(db, twin)
+    return True
+
+
 def _titles_overlap(ta, tb) -> bool:
     """One title's meaningful tokens equal to or a subset of the other's — the V2-473 round-6 rule,
     extracted so the hour-less-twin settlement (V2-652) compares titles with the exact same judgment."""
@@ -429,10 +444,12 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
                     and _titles_overlap(m.get("title"), _new.get("title")))
 
         if _new.get("allDay"):
-            _dup = any(_twin_of(m) for m in _meets)        # timed or all-day — either way it already exists
-            if not _dup:
+            _twin = next((m for m in _meets if _twin_of(m)), None)   # timed or all-day — either way it exists
+            if _twin is None:
                 gcal.commit_meeting(db, _new)   # no auto reminder: ~2h before needs an hour
                 edit.touch(db, _new)
+            elif _settle_rule(db, _twin, _new):
+                _extra["stored"] = dict(_twin)
         else:
             _ad = next((m for m in _meets if m.get("allDay") and _twin_of(m)), None)
             if _ad is not None:
@@ -448,7 +465,10 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
                     _ad["reminder_id"], _ad["remindAt"] = _jid, _at
             # V2-208: the SAME meeting twice (see `_is_same_meeting`). A duplicate notice is heard once; a
             # duplicate meeting is SEEN, and remains there until someone deletes it manually.
-            elif not any(_is_same_meeting(_new, m) for m in _meets):
+            elif (_same := next((m for m in _meets if _is_same_meeting(_new, m)), None)) is not None:
+                if _settle_rule(db, _same, _new):     # V2-773: the twin takes the rule it did not carry
+                    _extra["stored"] = dict(_same)
+            else:
                 # V2-473 — the default reminder is the AGENDA's job, not the model's conduct. Measured in
                 # `dentist-appointment-into-agenda` round 2: asked for a notice, the model escalated to a
                 # WORKER that died on Google's login screen, said «Hecho», and `scheduled_jobs` stayed
