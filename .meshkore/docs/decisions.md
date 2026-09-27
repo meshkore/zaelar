@@ -42,6 +42,20 @@ entregada siga citada aquí.
   drops unknown values from settings.json, a missing tariff bills the catch-all, a missing key row paints «ok» —
   so the test pins each one (node 8.19). There is still NO automatic TTS failover: «second» means one click in
   the ⚙. Quality is not something a script can judge; the operator's ear is the real gate.
+- **One active initiative: the compact brain and the measured memory (V2-776, 2026-09-27)**: the operator asked
+  for a global read of where the product stands against Hermes and OpenClaw and then ordered the roadmap around
+  the answer — everything open went to the backlog (121 initiatives parked, previous status kept in `parked:`)
+  and V2-776 is the only active one. Measured: the voice provider is 3,419 lines with 35 verb-table calls and
+  19 «is the card open» checks inside the turn; `nucleo/flash/` is 82 files / 20.8k lines with no single
+  precedence, so each new sentence costs a guard (the v5 demo pass added seven in a day); the memory bench
+  (membot 1000-step bot, LoCoMo adapter, judge) exists and last ran 2026-09-03 with no number anywhere; and
+  the memory heart card blamed «sin proveedor» for a two-minute DNS outage (`[Errno 8]`, 12:17–12:19) that hit
+  every provider and the contacts sync alike. Order of work: the instruments first — a fixed decision bank as a
+  suite of its own with a nightly control run, ONE `decision` event per turn (rungs consulted, winner, reason),
+  the memory numbers nightly, provider health by CLASS (network/credit/auth/rate/ours) — then the brain (one
+  decision step with explicit precedence, the provider shrunk to an adapter, guards retired only against the
+  bank, a held-out slice for unforeseen input) and the memory (embeddings measured, source of truth by kind,
+  consolidation visible, LoCoMo published) together with joint testing. E2/S3/Z1 become bank cases, not guards.
 - **The demo batch, audited: one owner per key, an ack only after a real act, a spin is the same ANSWER too
   (V2-773, 2026-09-26)**: the operator asked for the twenty commits of the demo run to be put on the table and
   audited deeply. Read in context with one checklist — does the change go through the door that exists, does it
