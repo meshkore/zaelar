@@ -1981,6 +1981,9 @@ DOMAINS: list[dict] = [
         {"id": "3.83", "title": "El estado vivo del worker (fase, progreso, latido, último auto-reporte) queda en "
                                 "su fila: lo escribe el latido del pulso y `hbnote` pone el reloj del reporte",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/test_the_worker_state_is_durable.py"]},
+        {"id": "3.84", "title": "El worker está OBLIGADO a reportar: si calla dónde está, el pulso se lo exige "
+                                "(una vez por ventana; nunca al generador ni a uno congelado)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/test_a_silent_worker_is_asked_to_report.py"]},
     ]},
     {"id": "4", "name": "WIDGETS", "nodes": [
         {"id": "4.1", "title": "Ciclo de vida / acciones / refs / generador / background", "ch": UNIT, "paths": [

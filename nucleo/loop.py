@@ -33,6 +33,17 @@ from . import sparks as _sparks
 # SILENCE —seven minutes of a motionless screen— and no less, because a PERSON reads the rail: one heartbeat per
 # second is not information, it is timestamped noise. Adjustable through the environment so it can be measured.
 _BEAT_SECS = float(os.getenv("ZAELAR_TASK_BEAT_SECS", "15") or 15)
+# V2-776 D2 — a worker that has not reported ITSELF (`hbnote`) for this long is told to. The stream shows it
+# is alive; only its own report says WHERE it is, and «encourage it in the prompt» measured as optional.
+_REPORT_SECS = float(os.getenv("ZAELAR_WORKER_REPORT_SECS", "90") or 90)
+#: Backends that can run `hbnote`. The widget generator is a one-shot CLI with file tools only: it cannot
+#: report, and nudging it would be a message nobody reads.
+_REPORTING_BACKENDS = frozenset({"claude_code", "codex", "grok_build"})
+#: What the pulse injects. Worker-facing prompt text, in the language of the worker prompts.
+REPORT_DEMAND = ("INFORME DE ESTADO OBLIGATORIO: llevas un rato sin decir dónde estás. Ahora mismo, antes de "
+                 "tu siguiente paso, ejecuta `python -m nucleo.agent_report phase \"<qué estás haciendo, en una "
+                 "frase>\"` y, si declaraste un plan, `python -m nucleo.agent_report progress \"<nota>\" --done "
+                 "<pasos hechos>`. Luego sigue.")
 
 
 def _emit(topic: str, payload: dict | None = None) -> None:
@@ -81,6 +92,7 @@ class OrchestratorLoop:
         self._stuck_informed: set[str] = set()    # tids already notified of being stuck
         self._timeout_informed: set[str] = set()  # tids already notified of timeout
         self._budget_nudged: set[str] = set()     # tids already urged to DELIVER (budget phase 1)
+        self._report_asked: dict[str, float] = {}  # V2-776 D2 — when each tid was last told to report
         # V2-227 scope B2: when each task last beat. The operator asked for «something every few seconds
         # while it is alive»; without the marker, this loop (~1 Hz) would emit one heartbeat per SECOND and drown
         # the rail that the heartbeat exists to make legible.
@@ -245,6 +257,7 @@ class OrchestratorLoop:
         self._last_beat = {k: v for k, v in self._last_beat.items() if k in live_ids}
         self._timeout_informed &= live_ids
         self._budget_nudged &= live_ids
+        self._report_asked = {k: v for k, v in self._report_asked.items() if k in live_ids}
         # (2) relay the ACTIVE (oldest) ask ONCE, with attribution + open the attention window (§v3·D/N).
         try:
             a = worker_api.active_ask()
@@ -325,6 +338,20 @@ class OrchestratorLoop:
                 try:    # V2-776 D1 — the same beat makes the worker's state durable (pulse, FlashBrain, Master)
                     from nucleo import tasks as _tasks
                     _tasks.status_written(s, now=now)
+                except Exception:  # noqa: BLE001
+                    pass
+            # V2-776 D2 — THE REPORT OBLIGATION. Silent about where it is for `_REPORT_SECS` → told to say so,
+            # again every `_REPORT_SECS` while it stays silent. Not an alarm and not a kill: stuck and budget
+            # below still judge the worker; this only makes its state readable in the durable row.
+            if (s.get("backend") in _REPORTING_BACKENDS and not s.get("paused")
+                    and int(s.get("unreported_s") or 0) >= _REPORT_SECS
+                    and now - self._report_asked.get(tid, 0.0) >= _REPORT_SECS):
+                self._report_asked[tid] = now
+                try:
+                    rec = dispatch.get_record(tid)
+                    if rec is not None and rec.session is not None:
+                        await rec.session.inject(REPORT_DEMAND)
+                        _emit("worker.report_demanded", {"id": tid, "unreported_s": s.get("unreported_s")})
                 except Exception:  # noqa: BLE001
                     pass
             if age >= self._max_secs and tid not in self._timeout_informed:
