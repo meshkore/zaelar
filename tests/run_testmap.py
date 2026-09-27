@@ -2363,6 +2363,11 @@ DOMAINS: list[dict] = [
         # la pestaña alternaba stalled↔starting ~140 veces por segundo.
         {"id": "4.225", "title": "Una pestaña que perdió la sesión de voz reintenta cada 3 s, no en bucle",
             "ch": UNIT, "paths": ["tests/browser/unit/voice/test_a_tab_that_lost_the_session_waits_its_turn.py"]},
+        # V2-776 (2026-09-27): el acuse de una LISTA se habla DESPUÉS de su turno. Esperarlo dentro del turno
+        # interbloqueaba la voz (el `say` va en cola detrás de la generación que lo espera): tras el INIT de la demo
+        # el agente se quedó en «thinking» y ninguna respuesta posterior llegó a sonar ni al muro.
+        {"id": "3.90", "title": "El acuse de una lista no bloquea su propio turno — la voz no se queda en «pensando»",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/voice/test_the_list_receipt_never_blocks_its_own_turn.py"]},
         # V2-627 (2026-09-09): y AUN ASÍ hacían falta DOS pulsaciones. Los dos arreglos del nodo de arriba son
         # del MISMO día y se estorban: `setPowerOff(false)` corre síncrono dentro del clic, así que el efecto
         # que revive la voz arranca una sesión ANTES de que salga `POST /api/run/start`; esa sesión pregunta al

@@ -297,8 +297,16 @@ async def task_list(brain, text: str, emit, *, first_turn: bool, window_max: int
         pass
     r = speak(phrase)
     if asyncio.iscoroutine(r):
-        await r
+        # NOT awaited: this lane runs INSIDE the turn's generation, and `session.say` queues its speech behind
+        # that very generation — awaiting it here deadlocked the voice (measured 2026-09-27: after the demo's
+        # INIT list the agent sat in «thinking» and every later reply was generated and never spoken).
+        _bg = asyncio.ensure_future(r)
+        _ACKS.add(_bg)
+        _bg.add_done_callback(_ACKS.discard)
     return True
+
+
+_ACKS: set = set()   # the receipts in flight — a reference so the loop does not collect them mid-sentence
 
 
 # ── WALL TAB lane (V2-761) ───────────────────────────────────────────────────────────────────────────────
