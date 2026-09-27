@@ -391,6 +391,10 @@ function _abortedStartup(gen, captured) {
 
 export async function start() {
   if (started || starting) return;
+  // Another tab holds the session and the 3 s retry below is armed: only that timer retries. main.js's
+  // `ensureVoice` effect re-runs the moment `starting` drops, so without this line a tab that lost the lock
+  // (another window stole it) re-asked ~140 times a second instead of every 3 s (measured 2026-09-27).
+  if (_blockedRetry) return;
   const gen = _gen;   // see the SESSION GENERATION note above: if it bumps, this startup is no longer the current one
   starting = true; store.setStarting(true); store.setConnState(t("voice.conn_requesting"));
   audit.silent = false; store.setMicBlocked({ show: false, msg: "" });
