@@ -1993,6 +1993,9 @@ DOMAINS: list[dict] = [
         {"id": "3.87", "title": "Un generador de widgets que no llegó a correr dice POR QUÉ (red, saldo, "
                                 "credencial, saturación o nuestro) — sin reparación inútil y con la clase en la fila",
             "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_a_generator_that_did_not_run_says_why.py"]},
+        {"id": "3.88", "title": "La pestaña Tareas ENSEÑA lo que sabe el pulso: cuánto lleva callado un worker, "
+                                "cuántas veces se reinició y por qué falló (renderizado en Chromium)",
+            "ch": UNIT, "paths": ["tests/browser/unit/chat/test_the_task_rows_show_what_the_pulse_knows.py"]},
     ]},
     {"id": "4", "name": "WIDGETS", "nodes": [
         {"id": "4.1", "title": "Ciclo de vida / acciones / refs / generador / background", "ch": UNIT, "paths": [

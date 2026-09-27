@@ -1603,5 +1603,13 @@
  "widgets.markets.r_1y": "1A",
  "widgets.markets.r_5y": "5A",
  "widgets.map.name": "Mapa",
- "widgets.map.empty": "Pide ver sitios en un mapa — «enséñamelos en un mapa» — y aparecen aquí marcados."
+ "widgets.map.empty": "Pide ver sitios en un mapa — «enséñamelos en un mapa» — y aparecen aquí marcados.",
+ "chat.procSilent": "sin señales hace {t}",
+ "chat.procRestarted": "reiniciada {n}×",
+ "chat.errClass.network": "sin conexión con el proveedor",
+ "chat.errClass.credit": "proveedor sin saldo o cuota",
+ "chat.errClass.auth": "credencial rechazada",
+ "chat.errClass.rate": "proveedor saturado",
+ "chat.errClass.stalled": "se colgó",
+ "chat.errClass.ours": "fallo interno"
 }

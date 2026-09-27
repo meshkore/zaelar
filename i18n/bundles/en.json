@@ -1603,5 +1603,13 @@
  "widgets.markets.r_1y": "1Y",
  "widgets.markets.r_5y": "5Y",
  "widgets.map.name": "Map",
- "widgets.map.empty": "Ask to see places on a map — «show them on a map» — and they are pinned here."
+ "widgets.map.empty": "Ask to see places on a map — «show them on a map» — and they are pinned here.",
+ "chat.procSilent": "no sign of life for {t}",
+ "chat.procRestarted": "restarted {n}×",
+ "chat.errClass.network": "no connection to the provider",
+ "chat.errClass.credit": "provider out of credit or quota",
+ "chat.errClass.auth": "credential rejected",
+ "chat.errClass.rate": "provider overloaded",
+ "chat.errClass.stalled": "hung",
+ "chat.errClass.ours": "internal failure"
 }

@@ -173,6 +173,10 @@ export function ChatWall() {
       task.startedAt ? t("chat.procElapsed", { t: dur(nowS() - task.startedAt) }) : "",
       task.startedAt ? t("chat.procSince", {
         t: new Date(task.startedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) }) : "",
+      // V2-776 D5 — the pulse's view, on the row: a worker quiet for a minute or more says so, and one the pulse
+      // restarted says how many times. Both come from the durable row (`silent_s` merged live, `attempts`).
+      (task.silentS >= 60 ? t("chat.procSilent", { t: dur(task.silentS * 1000) }) : ""),
+      (task.attempts > 0 ? t("chat.procRestarted", { n: task.attempts }) : ""),
     ].filter(Boolean).join(" · ");
     return h("div", { class: "cw-proc-row live " + icon },
       h("span", { class: "cw-proc-dot" }, gl),
@@ -201,6 +205,10 @@ export function ChatWall() {
     const gl = st === "error" ? "✕" : st === "cancelled" ? "⊘" : st === "cut" ? "✂" : "✓";
     const meta = [
       e.kind,
+      // V2-776 D5 — WHY it failed, in the closed A5 vocabulary (`tasks.error_class`), so a dead row says
+      // «proveedor sin saldo» or «se colgó» instead of leaving the operator to guess from the outcome text.
+      (st === "error" && e.error_class ? t("chat.errClass." + e.error_class) : ""),
+      (e.attempts > 0 ? t("chat.procRestarted", { n: e.attempts }) : ""),
       ago(e.finished_at),
       e.visible === false ? t("chat.taskInternal") : "",
     ].filter(Boolean).join(" · ");
@@ -287,6 +295,7 @@ export function ChatWall() {
     pct: typeof r.pct === "number" ? r.pct : -1, stepTag: "",
     waiting: r.state === "waiting" || r.waiting_on === "user", paused: !!r.paused,
     internal: r.visible === false,
+    silentS: typeof r.silent_s === "number" ? r.silent_s : 0, attempts: r.attempts || 0,
   });
 
   const tasksBody = () => [
