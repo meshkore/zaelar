@@ -100,9 +100,15 @@ def decided(request: str) -> str:
                             criteria=_JEV_CRITERIA, question_id="errand-surface")
     except Exception:  # noqa: BLE001
         return ""
-    if v and float(v.get("confidence") or 0) >= 0.7:
-        return normalize(v.get("choice"))
-    return ""
+    out = normalize(v.get("choice")) if v and float(v.get("confidence") or 0) >= 0.7 else ""
+    try:                                   # traceable: what was read, how sure, and what the errand got
+        from voice.observer import emit
+        emit("task", "🧭 superficie leída (nadie la declaró)", role="system", text=str(request or "")[:160],
+             extra={"surface": out or "(fallback por kind)", "jev": (v or {}).get("choice", ""),
+                    "confidence": float((v or {}).get("confidence") or 0)})
+    except Exception:  # noqa: BLE001
+        pass
+    return out
 
 
 def set_once(rec, value) -> str:

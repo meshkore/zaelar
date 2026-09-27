@@ -431,6 +431,11 @@ def emit(kind: str, label: str, text: str = "", role: str = "", extra: dict | No
         except Exception:
             pass
     stamp_identity(ev)
+    try:                                   # «it»/«that» = the card the operator's last turn acted on
+        from nucleo import canvas_focus as _cf
+        _cf.note(kind, label, role, extra)
+    except Exception:
+        pass
     _events.append(ev)
     if len(_events) > 5000:
         del _events[:1000]

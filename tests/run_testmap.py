@@ -3352,6 +3352,11 @@ DOMAINS: list[dict] = [
         # V2-764 — «voy a por la serie Sherlock en torrent y te enseño el catálogo», and no tool: the turn's verdict
         # named the card, the action existed. One bounded pass asks the model for the call it promised — only the
         # named card, only a declared action — before the backstop spends a worker on it.
+        {"id": "2.85", "title": "«It» / «that» is the card his last turn acted on — a sheet that arrives meanwhile does "
+                                "not steal «make it fullscreen», and the errand he just commissioned is «that»",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/actionmap/"
+                      "test_that_is_the_card_his_last_turn_acted_on.py"]},
         {"id": "2.84", "title": "An errand nobody labelled is read for what the operator will look at — «find me three "
                                 "monitors» opens its sheet at once instead of falling back to voice",
             "ch": UNIT,

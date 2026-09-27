@@ -88,6 +88,24 @@ def _card_in_front() -> str:
         return ""
     if len(ids) == 1:
         return ids[0]
+    # Several open: «that» is what his LAST TURN acted on (demo pass 2026-09-28, V3 — see `canvas_focus`), never a
+    # card that arrived on its own meanwhile. Minimised cards aside, like below. None of them → the canvas stack.
+    try:
+        from nucleo import canvas_focus
+        from memory import api as memapi
+        _minned = {str(it.get("id") or "") for it in ((memapi.kv_get("canvas_layout") or {}).get("items") or [])
+                   if isinstance(it, dict) and str(it.get("min") or "0") not in ("", "0")}
+        _c = canvas_focus.last_turn_card([i for i in ids if i not in _minned])
+        if _c:
+            try:
+                from voice.observer import emit as _emit_that
+                _emit_that("actionmap", "🎯 «that» = la tarjeta del turno anterior", role="system", text=_c,
+                           extra={"open": ids, "minimised": sorted(_minned)})
+            except Exception:  # noqa: BLE001
+                pass
+            return _c
+    except Exception:  # noqa: BLE001
+        pass
     # Several open: «that» is the card ON TOP — the highest z the canvas reported, minimised ones aside (V2-776,
     # demo A2 2026-09-27: the results sheet had just opened over two cards the INIT left behind, and «Minimise that
     # while you work» fell to the model, which said «tucking it out of your way» and moved nothing).
