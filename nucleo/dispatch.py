@@ -263,6 +263,24 @@ def has_active() -> bool:
     return any(r.status in LIVE_SESSION_STATES for r in _SESSIONS.values())
 
 
+def sheets_have_live_work(card_ids) -> bool:
+    """Is a LIVE errand delivering into one of these results cards (`results` or `results::<sheet>`)?
+
+    Closing a sheet orphans only the errand that writes INTO it. `has_active()` answered for every worker, so
+    an unrelated live errand (a Telegram follow-up watching for a reply) made «Close the results» fall through
+    to the model, which then did something else (demo pass 2026-09-27, S4)."""
+    live = [r for r in _SESSIONS.values() if r.status in LIVE_SESSION_STATES]
+    for cid in card_ids or ():
+        sheet = str(cid or "").split("::", 1)[1] if "::" in str(cid or "") else ""
+        for r in live:
+            own = sheet_of(r)
+            if sheet and own == sheet:
+                return True
+            if not sheet and not own and surfaces.opens_sheet(getattr(r, "surface", "")):
+                return True
+    return False
+
+
 # V2-354 — the RELOJES viven in `dispatch_thresholds` (trinquete); is re-exportan: `dispatch` es the contrato.
 from nucleo.dispatch_thresholds import NO_STEP_SECS, STUCK_SECS  # noqa: F401,E402
 

@@ -2373,6 +2373,10 @@ DOMAINS: list[dict] = [
         {"id": "3.91", "title": "Cada encargo entrega en SU hoja — el segundo no pisa al primero",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_two_sheetless_errands_never_share_a_sheet.py",
                                   "tests/agent_headless/unit/workers/test_show_results_means_my_results.py"]},
+        # V2-776 (2026-09-27): cerrar la hoja solo se aparta si un encargo vivo entrega EN ESA hoja — un worker
+        # ajeno (seguimiento de Telegram) mandaba «Close the results» al modelo, que prometió y no cerró.
+        {"id": "3.92", "title": "Un worker ajeno no bloquea «Close the results» — solo el que entrega en esa hoja",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/actionmap/test_an_unrelated_worker_does_not_block_a_close.py"]},
         # V2-627 (2026-09-09): y AUN ASÍ hacían falta DOS pulsaciones. Los dos arreglos del nodo de arriba son
         # del MISMO día y se estorban: `setPowerOff(false)` corre síncrono dentro del clic, así que el efecto
         # que revive la voz arranca una sesión ANTES de que salga `POST /api/run/start`; esa sesión pregunta al

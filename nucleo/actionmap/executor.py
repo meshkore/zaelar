@@ -210,7 +210,7 @@ def execute(action: dict, emit, phrase: str = "") -> bool:
         # than «hide a card», which is all this table is allowed to mean. With live work behind the widget the
         # turn falls through WHOLE to the model, which can warn «hay una tarea en curso» or ask; without any,
         # the fast lane stays fast. Same posture as everything here: False is a routing decision, not an error.
-        if _widget_has_live_work(wid):
+        if wid == "navegador" and _widget_has_live_work(wid):
             return False
         # V2-773 — the CARD, not the piece: «Close the results» over a worker's sheet `results::9194df-3` emitted
         # a close for the base id and the sheet stayed on screen. One decision for every path that closes
@@ -224,6 +224,15 @@ def execute(action: dict, emit, phrase: str = "") -> bool:
             ids = [str(x) for x in (_t.get("ids") or [wid]) if str(x or "").strip()] or [wid]
         except Exception:  # noqa: BLE001
             ids = [wid]
+        # …and for a results card, live work means an errand delivering into THAT card — checked once the
+        # cards are known, never «any worker at all» (2026-09-27: a Telegram follow-up blocked every close).
+        if wid == "results" or wid.startswith("results-"):
+            try:
+                from nucleo import dispatch as _dp
+                if _dp.sheets_have_live_work(ids):
+                    return False
+            except Exception:  # noqa: BLE001 — fail-CLOSED, as `_widget_has_live_work`
+                return False
         for cid in ids:
             emit("widget", "close", text=said, extra={"id": cid, **src})
             try:
