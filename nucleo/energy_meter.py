@@ -68,9 +68,28 @@ _RATES_PER_1M_TOKENS_USD: dict[str, tuple[float, float]] = {
 # is what has a price; the endpoint is just where it is served. So the model decides, and base_url is
 # only the fallback for endpoints that really do serve a single price.
 _MODEL_RATES: dict[str, tuple[float, float]] = {
-    # Serves TWO pieces since 2026-08-09: the FlashBrain (config §fast) and the memory CORAZÓN
-    # (config §memory.mem_processor_model — see zaelar-model-benchmarks.md §12.3). Measured cost of
-    # one distilled turn: ~4076 in + ~389 out tokens => ~$0.00068, i.e. $0.68 per 1000 turns.
+    # ── DeepSeek DIRECT (the table's titular for everything that is not the Brain Worker) ──────────
+    # Prices read from api-docs.deepseek.com/quick_start/pricing on 2026-09-25, PEAK tier.
+    #
+    # PEAK, always, on purpose: DeepSeek bills peak/off-peak with off-peak at HALF price. This table is
+    # static, so billing the peak rate over-charges by at most 2x during the cheap window and never
+    # under-charges — the same stance as `_FALLBACK_RATE_USD`. (This closes the ⚠️ left open in
+    # `_CACHED_READ_RATES_USD` below: the pricing page now publishes both tiers.)
+    #
+    # `deepseek-flash` IS DeepSeek-V4.1-Flash — the model `config/models.default.json` names as titular of
+    # voice_brain, memory_writer, memory_rem, triage and susurro, i.e. the hottest path in the product.
+    # It had NO row (the table only knew the older broker name `deepseek-v4-flash`), so every voice turn
+    # on a cloud account metered at the punitive catch-all (1.00, 5.00) — 3.3x input and 4.2x output of
+    # its real price. Measured 2026-09-25 by calling `_rate_for()` with the model the table actually names.
+    "deepseek-flash": (0.30, 1.20),
+    # brief_composer's titular. It DID have a row and the row was too CHEAP — (0.28, 0.42) against a real
+    # (1.32, 3.96), so this one was under-metering by 4.7x input / 9.4x output, which loses real money
+    # instead of over-charging. Both errors come from the same cause: a price written once and never
+    # re-read against the provider's page.
+    "deepseek-v4-pro": (1.32, 3.96),
+    # The OLD broker route (AIMLAPI `deepseek/deepseek-v4-flash`), kept because Machines created before
+    # 2026-08-30 still run it — see the master's «Las superficies». Its price is the broker's, not
+    # DeepSeek's, so it does NOT move with the rows above.
     "deepseek-v4-flash": (0.14, 0.28),
     # The memory's EMBEDDINGS (V2-501, 2026-08-30). They have no output tokens at all — an embedding is not
     # generated text — so the output rate is a real zero and not a placeholder. A row is needed even though the
@@ -102,9 +121,18 @@ _MODEL_RATES: dict[str, tuple[float, float]] = {
     "grok-4.6": (2.00, 6.00),
     "grok-4.3": (3.00, 15.00),
     # Los del relay de los workers, también por modelo (la fila por base_url se queda de respaldo).
+    # `glm-5.3` es HOY el titular del Brain Worker en la tabla. Acertaba de rebote por la fila de
+    # `api.z.ai`, no por su nombre: un worker servido por otro endpoint (o un relevo) habría caído al
+    # catch-all. Precio verificado en docs.z.ai/guides/overview/pricing el 2026-09-25 — idéntico al de
+    # 5.2. ⚠️ Esto tarifa el plan de PAGO POR TOKEN de Z.AI; el worker corre hoy con el FORFAIT del plan
+    # de código, cuyo coste marginal real es la cuota, no el token (ver la nota de este panel en
+    # `.meshkore/docs/ops/zaelar-energy-accounting.md` — decisión de negocio, no técnica).
+    "glm-5.3": (1.40, 4.40),
     "glm-5.2": (1.40, 4.40),
     "kimi-k2.6": (0.95, 4.00),
-    "deepseek-v4-pro": (0.28, 0.42),
+    # (`deepseek-v4-pro` vivía aquí con (0.28, 0.42) y AQUÍ GANABA: una clave repetida en un literal de
+    # dict se queda con el ÚLTIMO valor, así que la fila de arriba —la buena— era letra muerta. El precio
+    # correcto, verificado, está en el bloque de DeepSeek al principio de la tabla.)
 }
 
 # Applied when neither table above has a row for the (base_url, model) actually used. Deliberately NOT
@@ -252,16 +280,13 @@ _CACHED_READ_RATES_USD: dict[str, float] = {
     "grok-4.6": 0.30,
     "glm-5.2": 0.26,           # precio público de Z.AI para input cacheado
     "glm-5.3": 0.26,           # 2026-08-14: se hereda el de 5.2 hasta que Z.AI publique el suyo (ver ⚠️ abajo)
-    # ⚠️ **DeepSeek: SIN CONFIRMAR, y a propósito por el lado seguro.** El endpoint directo entró el 2026-08-14 y
-    # reporta `prompt_cache_hit_tokens`, así que el hit se tarifica; lo que no tenemos es su PRECIO oficial de
-    # cache-hit para la familia V4. NO se inventa: sin fila propia cae a `_CACHED_READ_FALLBACK_FRACTION` (25% del
-    # input = $0,035/1M), que sobre-cobra si el descuento real es mayor. Sobre-cobrar un poco es la política
-    # (2026-08-13); cobrar el hit al precio de input completo sería sobre-cobrar ~10× y eso ya no vale.
-    #
-    # ⚠️ **Y desde el 2026-08-17 DeepSeek pasa a precio PICO/VALLE, con el valle a la MITAD del pico** (aviso del
-    # proveedor). Esta tabla es estática, así que factura siempre a PICO: en valle sobre-cobra hasta 2×, acotado y
-    # en el sentido seguro. Cerrarlo bien necesita las horas exactas de la ventana y los importes de la página de
-    # precios — datos del operador, no adivinables desde aquí. Tarea en V2-097.
+    # DeepSeek, CONFIRMADO el 2026-09-25 en su página de precios (cierra el ⚠️ que esta tabla llevaba
+    # abierto desde el 2026-08-14, cuando el precio de cache-hit de la familia V4 no era público). Tarifa
+    # PICO, como las filas de input/output: el valle es la mitad y facturar el caro nunca cobra de menos.
+    # El descuento real es ENORME —50× frente al input fresco—, así que la fracción del 25% que se venía
+    # aplicando sobre-cobraba el hit unas 12×, y el hit es justo lo que más crece en una sesión larga.
+    "deepseek-flash": 0.006,
+    "deepseek-v4-pro": 0.044,
 }
 _CACHED_READ_FALLBACK_FRACTION = 0.25      # del rate de input, cuando no hay fila propia
 
@@ -750,6 +775,38 @@ def report_transport_usage(*, participant_seconds: float | None, provider: str =
     _fire_and_forget(energy, "transport",
                      {"provider": provider,
                       "participant_seconds": round(float(participant_seconds or 0.0), 1)})
+
+
+# $ per ROUND TRIP for the decision model (Jev / TypeSafe System One, `nucleo/jev.py`). Priced per
+# TRIP and not per question on purpose, because that is how it bills and how it is used: one call
+# carries the whole turn's questions (1 question 800 ms, 100 questions 1041 ms — `nucleo/jev.py:16`).
+#
+# ⚠️ MEASURED, NOT PUBLISHED: $0.0005 comes from the repo's own measurement of 2026-09-20 (one trip,
+# 100 candidates, `nucleo/jev.py:356`), the same stance as grok's cached-read rate. Re-verify against
+# the provider's invoice — this is the only rate here with no pricing page behind it.
+_DECISION_USD_PER_REQUEST: dict[str, float] = {
+    "typesafe": 0.0005,
+    "": 0.0005,
+}
+
+
+def decision_cost_to_energy(*, provider: str = "typesafe") -> float:
+    """Pure. Energy units for ONE round trip of the decision model."""
+    raw_usd = _DECISION_USD_PER_REQUEST.get((provider or "").lower(), _DECISION_USD_PER_REQUEST[""])
+    return (raw_usd * MARGIN_MULTIPLIER) / EUR_PER_ENERGY_UNIT
+
+
+@_never_raises
+def report_decision_usage(*, provider: str = "typesafe", questions: int = 1) -> None:
+    """Call after a Jev round trip answered. It is the ONLY paid provider the meter did not know
+    about (found 2026-09-25): ~1.4 trips per voice turn, every turn, billing to nobody. Small per
+    call and not small per month — and the rule of this module is that nothing paid is ever free.
+
+    `questions` travels for the ledger's detail only: the price is the trip."""
+    if not enabled():
+        return
+    _fire_and_forget(decision_cost_to_energy(provider=provider), "decision",
+                     {"provider": provider, "questions": int(questions)})
 
 
 @_never_raises

@@ -219,7 +219,21 @@ def _post_question(answer_key: str, state: str, instructions: str, criteria: dic
         method="POST",
     )
     with urllib.request.urlopen(req, timeout=timeout_s) as resp:
-        return json.loads(resp.read().decode("utf-8"))
+        payload = json.loads(resp.read().decode("utf-8"))
+    _meter(1)
+    return payload
+
+
+def _meter(questions: int) -> None:
+    """Report the round trip to Energy. Jev is a PAID provider and until 2026-09-25 it was the only
+    one the meter did not know about — roughly 1.4 trips per voice turn, every turn, billed to
+    nobody. Reported after the answer, like every other call site: a trip that never came back is
+    not a trip anybody charges us for. Never raises: metering must not be able to break a verdict."""
+    try:
+        from nucleo import energy_meter
+        energy_meter.report_decision_usage(provider="typesafe", questions=questions)
+    except Exception:
+        pass
 
 
 def _post(state: str, timeout_s: float) -> dict:
@@ -295,7 +309,11 @@ def _post_many(state: str, questions: dict, timeout_s: float) -> dict:
         headers={"Authorization": f"Bearer {_read_key()}", "Content-Type": "application/json"},
         method="POST")
     with urllib.request.urlopen(req, timeout=timeout_s) as resp:
-        return json.loads(resp.read().decode("utf-8"))
+        payload = json.loads(resp.read().decode("utf-8"))
+    # ONE trip, whatever the number of questions — that is what is billed and the reason this
+    # function exists (`nucleo/jev.py` module note: «the cost is the ROUND TRIP, not the questions»).
+    _meter(len(questions or {}))
+    return payload
 
 
 def choose_many_sync(state: str, questions: dict, *, timeout_s: float | None = None,

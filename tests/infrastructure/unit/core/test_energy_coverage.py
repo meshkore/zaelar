@@ -29,14 +29,24 @@ _SENALES = (
     "api.anthropic.com", "api.elevenlabs.io", "api.deepgram.com",
     "api.perplexity.ai", "api.tavily.com", "api.search.brave.com",
     "api.brightdata.com",
+    # The decision model (Jev / TypeSafe System One). It was missing from this list, and that is the
+    # whole reason it went unmetered: the gate only looks for what it has been told to look for, so a
+    # provider that nobody added here is invisible to the very test written to make spending visible.
+    # Added 2026-09-25, the day it was found — ~1.4 paid round trips per voice turn, billed to nobody.
+    "api.typesafe.ai",
 )
 
 # Proof that the file participates in the energy system.
 _MARCAS = ("energy_meter", "report_llm_usage", "report_worker_usage",
-           "report_tts_usage", "report_stt_usage", "report_search_usage")
+           "report_tts_usage", "report_stt_usage", "report_search_usage",
+           "report_decision_usage")
 
 # Folders that are not the production engine.
-_FUERA = ("tests/", ".venv/", "node_modules/", "widgets/_data/", "vendor/", "scripts/")
+_FUERA = ("tests/", ".venv/", "node_modules/", "widgets/_data/", "vendor/", "scripts/",
+          # Frozen copies of a PAST state of the tree, kept for forensics. Asking an archive to meter
+          # usage is meaningless — it never runs — and it would pin every new signal added here to
+          # whatever the code looked like months ago.
+          ".meshkore/snapshots/")
 
 # EXEMPTIONS, each with its reason. Adding one is a decision, not a formality: if the reason cannot be
 # written in one honest line, the file probably needs to meter usage.

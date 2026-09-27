@@ -6,6 +6,7 @@ Voxtral ran and no test, log or alarm noticed for months. Fixing the number alon
 mechanism that produced it completely intact.
 """
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -44,7 +45,11 @@ def _cloud_provider(var: str) -> str | None:
     for line in _MACHINE_CONFIG.read_text(encoding="utf-8").splitlines():
         stripped = line.strip()
         if stripped.startswith(f"{var}:"):
-            return stripped.split(":", 1)[1].strip().strip(",").strip("'\"")
+            # The VALUE is the first quoted literal after the colon. A trailing `// comment` (V2-774 put one
+            # on ZAELAR_TTS) used to be read as part of it, so the ratchet reported a provider that has a
+            # rate as one that does not — red for the wrong reason, which trains people to ignore it.
+            m = re.match(r"""\s*(['"])(.*?)\1""", stripped.split(":", 1)[1])
+            return m.group(2) if m else stripped.split(":", 1)[1].split("//", 1)[0].strip().strip(",")
     return None
 
 
