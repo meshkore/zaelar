@@ -14,18 +14,25 @@ when the turn neither escalated nor touched another tool, it escalates.
 from __future__ import annotations
 
 ESCALATE_INSTRUCTIONS = (
-    "Decide whether this turn needs a background worker. "
-    "A worker costs minutes and money: answer handle_inline ONLY for what is clearly not an "
-    "errand (a dictation fragment, a spelling, a reaction, chatter, something answerable on "
-    "the spot). When in doubt, escalate — a missed errand is worse than a wasted question."
+    "Decide whether this turn needs a background worker. The assistant already does these ON THE SPOT, "
+    "with its own cards, in one step: play or pause music, play videos, show images, charts and maps, "
+    "send or read a message, read or change the calendar, read a document already on screen, recall what "
+    "it remembers, open or close a card. Those are handle_inline even when phrased as orders. A worker costs "
+    "minutes and money: escalate only real background work — researching or comparing things on the web, "
+    "navigating websites, WRITING a new document or summary, building a widget, a multi-step errand."
 )
 
 ESCALATE_CHOICE = {
-    "handle_inline": "The turn needs no background worker: a fragment, a reaction, chatter, "
-                     "or something answerable right now",
-    "escalate": "The turn commissions real background work: research, navigation, building, "
-                "or any multi-step errand",
+    "handle_inline": "Answerable or doable right now with the assistant's own cards and memory: a fragment, "
+                     "a reaction, chatter, a question, or a one-step order to music, video, images, charts, "
+                     "maps, messages, the calendar or a card",
+    "escalate": "The turn commissions real background work: web research or comparison, navigation, "
+                "writing a new document or summary, building, or any multi-step errand",
 }
+
+# V2-776 (2026-09-27) — the question used to say «handle_inline ONLY for what is clearly not an errand … when in
+# doubt, escalate». Measured live on the demo's phrases it escalated 11 of 11 one-step orders (music, Telegram,
+# the calendar, a stock chart) with confidence up to 0.99, and each one became a 50-60 s worker.
 
 
 def judge_escalation_from_brief(brief) -> str:

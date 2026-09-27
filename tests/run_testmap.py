@@ -2377,6 +2377,12 @@ DOMAINS: list[dict] = [
         # ajeno (seguimiento de Telegram) mandaba «Close the results» al modelo, que prometió y no cerró.
         {"id": "3.92", "title": "Un worker ajeno no bloquea «Close the results» — solo el que entrega en esa hoja",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/actionmap/test_an_unrelated_worker_does_not_block_a_close.py"]},
+        # V2-776 (2026-09-27): la pregunta de escalado a Jev decía «ante la duda, escala» y mandaba a un worker
+        # 11 de 11 órdenes de un paso (música, Telegram, agenda, gráfica). Nombra ahora lo que hacen las tarjetas.
+        # EN VIVO: vieja 5/17, nueva 16/17.
+        {"id": "3.93", "title": "Una orden de un paso se hace en el sitio, un encargo de verdad va a un worker",
+            "ch": UNIT, "live": True, "paths": ["tests/voice/unit/test_a_one_step_order_is_not_a_worker.py"],
+            "cmd": "ZAELAR_LIVE_JEV=1 ./.venv/bin/pytest -q -s tests/voice/unit/test_a_one_step_order_is_not_a_worker.py"},
         # V2-627 (2026-09-09): y AUN ASÍ hacían falta DOS pulsaciones. Los dos arreglos del nodo de arriba son
         # del MISMO día y se estorban: `setPowerOff(false)` corre síncrono dentro del clic, así que el efecto
         # que revive la voz arranca una sesión ANTES de que salga `POST /api/run/start`; esa sesión pregunta al
