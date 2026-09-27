@@ -112,3 +112,11 @@ def test_a_close_naming_nobody_shows_nothing_and_any_other_verdict_shows(monkeyp
 def test_the_show_branch_asks_the_verdict_next_to_the_text_guard():
     src = pathlib.Path("voice/engine/llm/providers/nucleo.py").read_text(encoding="utf-8")
     assert "if _router.show_contradicts_the_order(text) or _canvas_lic.closing_turn(_brief, _wid):" in src
+
+
+def test_the_fast_lens_door_asks_the_verdict_too():
+    """Demo E5 (2026-09-27): «Close my messages» — the card closed, the model ran `mensajeria:close` (a view-op)
+    over the now-closed card, and the lens door brought it back as a «turn-order». A close never brings the card."""
+    src = pathlib.Path("voice/engine/llm/providers/nucleo.py").read_text(encoding="utf-8")
+    i = src.index("_fx.carries(wid, action_name, _fx.DATA_READ) and not _cvis.is_open(wid)")
+    assert "not _canvas_lic.closing_turn(_brief, wid)" in src[i:i + 200]

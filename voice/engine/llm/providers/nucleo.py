@@ -1243,7 +1243,8 @@ class NucleoLLMStream(llm.LLMStream):
                     # on it, and the day changed on a card nobody could see. The model chose to change what
                     # THIS card displays, on his order: that is a turn-order for the card. A write is not this
                     # (it may run behind the screen on purpose); a lens nobody can see is a silent nothing.
-                    elif _fx.carries(wid, action_name, _fx.DATA_READ) and not _cvis.is_open(wid):
+                    elif (_fx.carries(wid, action_name, _fx.DATA_READ) and not _cvis.is_open(wid)
+                          and not _canvas_lic.closing_turn(_brief, wid)):   # V2-773 E5: a close never brings the card
                         _cvis.present(wid, reason="turn-order", action=action_name, src="flash", emit=emit)
                 except Exception:
                     pass
