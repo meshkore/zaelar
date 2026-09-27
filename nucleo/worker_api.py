@@ -45,6 +45,22 @@ _ACTS: dict[str, dict] = {}
 from nucleo.runtime_ids import next_seq as _next_seq
 
 
+def _own_sheet(rec) -> str:
+    """This errand's results sheet — OPENED NOW if it has none yet. A worker whose surface did not open a sheet at
+    dispatch used to deliver into the BARE `results`, the one box every sheet-less worker shares: measured
+    2026-09-27, the monitor search delivered there and the Ferrari search that came next REPLACED it, so «show me
+    the monitors» found nothing. The first delivery is when this errand's own box is minted."""
+    from nucleo import sheets as _sh
+    sid = _sh.sheet_of(rec)
+    if not sid:
+        try:
+            _sh._sheet_open(rec)
+        except Exception:  # noqa: BLE001 — fail-soft: the base sheet is still a place to deliver
+            logger.debug("worker_api: could not open the errand's sheet", exc_info=True)
+        sid = _sh.sheet_of(rec)
+    return sid
+
+
 def _decide_deadline(payload: dict) -> float | None:
     """Seconds a worker is willing to wait for a bounded decision, bounded by us (V2-726 A1).
 
@@ -285,11 +301,12 @@ async def _exec_allow(action: str, payload: dict, rec) -> dict:
         # base `results` beside its instances, empty; V2-351 swept the RESTORE-time fossils but this opener is
         # live, mid-round). Same decision the voice channel took in 246007a («enséñamelo» resolves to the
         # ERRAND's sheet): when this worker's errand has a sheet, the bare `results` resolves to it. A worker
-        # with no sheet keeps the base — the default sheet IS its sheet.
+        # with no sheet gets one on its first show (`_own_sheet`).
         try:
             if str(wid).strip().lower() == "results":
                 from nucleo import sheets as _sh
-                _sid = _sh.sheet_of(rec)
+                # showing is a delivery (its own box, minted now); closing never mints one
+                _sid = _own_sheet(rec) if action == "show_widget" else _sh.sheet_of(rec)
                 if _sid:
                     from widgets.results import data as _rd
                     wid = _rd.instance_id(_sid)
@@ -347,8 +364,7 @@ async def _exec_allow(action: str, payload: dict, rec) -> dict:
         # An explicit `sheet` is respected in case it is ever needed, but nobody tells it about this.
         if wid == "results" and not str(data_payload.get("sheet") or "").strip():
             try:
-                from nucleo.dispatch import sheet_of as _sheet_of_rec
-                _own = _sheet_of_rec(rec)
+                _own = _own_sheet(rec)
             except Exception:  # noqa: BLE001
                 _own = ""
             if _own:

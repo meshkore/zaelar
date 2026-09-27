@@ -30,11 +30,15 @@ def test_show_results_resolves_to_the_errand_sheet(monkeypatch):
     assert ids == ["results::c4e44e-1"], ids
 
 
-def test_a_worker_with_no_sheet_keeps_the_base(monkeypatch):
+def test_a_worker_with_no_sheet_gets_its_own_on_show(monkeypatch):
+    """Changed 2026-09-27: «keeps the base» was the defect. Every sheet-less worker shared the bare `results`, so
+    the next one REPLACED what the previous had delivered (the demo's monitors, overwritten by the Ferraris)."""
     got = _shows(monkeypatch)
-    rec = SimpleNamespace(task_id="7", trace_id="", sheet="")
+    rec = SimpleNamespace(task_id="7", trace_id="", sheet="", goal="find monitors", title="Monitors")
     asyncio.run(worker_api._exec_allow("show_widget", {"id": "results"}, rec))
-    assert [x[1].get("id") for x in got] == ["results"]
+    ids = [x[1].get("id") for x in got]
+    assert rec.sheet, "the errand's sheet is sealed on its first show"
+    assert ids and all(i == f"results::{rec.sheet}" for i in ids), ids
 
 
 def test_other_widgets_pass_through_untouched(monkeypatch):

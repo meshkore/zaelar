@@ -2368,6 +2368,11 @@ DOMAINS: list[dict] = [
         # el agente se quedó en «thinking» y ninguna respuesta posterior llegó a sonar ni al muro.
         {"id": "3.90", "title": "El acuse de una lista no bloquea su propio turno — la voz no se queda en «pensando»",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/voice/test_the_list_receipt_never_blocks_its_own_turn.py"]},
+        # V2-776 (2026-09-27): dos encargos SIN hoja propia ya no comparten la `results` base. En la pasada de la demo
+        # la búsqueda de Ferraris REEMPLAZÓ a la de monitores y «show me the monitors» no encontró nada.
+        {"id": "3.91", "title": "Cada encargo entrega en SU hoja — el segundo no pisa al primero",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_two_sheetless_errands_never_share_a_sheet.py",
+                                  "tests/agent_headless/unit/workers/test_show_results_means_my_results.py"]},
         # V2-627 (2026-09-09): y AUN ASÍ hacían falta DOS pulsaciones. Los dos arreglos del nodo de arriba son
         # del MISMO día y se estorban: `setPowerOff(false)` corre síncrono dentro del clic, así que el efecto
         # que revive la voz arranca una sesión ANTES de que salga `POST /api/run/start`; esa sesión pregunta al
