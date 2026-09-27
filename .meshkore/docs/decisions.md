@@ -2636,5 +2636,22 @@ a bank case instead (two opened, `tests/brain/cases/sessions.json`, scope B1).
   no call at W2. The detector skips the engine's acks. Node 3.97.
 - Nine i18n keys the agenda and markets used were missing: an English session showed Spanish labels.
 
+Found by the live re-verification after the pass (each confirmed on the running engine, not only in tests):
+
+- **A tag show did not record its card** (Markets came up empty) and **a tag show opened the bare base** beside an
+  open sheet — both now resolve the CARD like the tool path. Nodes 3.96, 3.102.
+- **A system note vetoed his show**: the «meta question» guard read the composed turn, and a `[SISTEMA]` note
+  about a closed errand dropped «Show me the monitors». Both call sites read `operator_half`. Node 3.99.
+- **A sure `canvas = show` verdict now wakes the named-card backstop** when the model calls nothing — the promise
+  verb table does not know «bringing it back up». Node 3.100.
+- **The presentation door cut every id to its base**, so a resolved sheet came up as the empty `results`; and an
+  action on a sheet looked its manifest up by the instance id, read «undeclared» and was ESCALATED to a worker
+  (the engine log had said `widget.data no-declarada (results::…) — escalando` since the morning). Node 3.101.
+- **An action on a sheet reached the trust boundary as `resultsx`** (`_safe` strips colons): it now goes to the
+  base widget with the instance in `q`, the canvas's own convention. Node 3.102.
+- **A closed sheet is brought back by the phrase** («Show me the monitors» → the monitor sheet), the latest of two
+  on the same subject, never «the most recent» of unrelated ones. Node 3.98.
+- **«Open the best value option»** finds the card whose badge says so (open since the morning's v5). Node 3.103.
+
 Still open, as bank cases: a sure order answered with words and no call (the promise repair gates on a verb
 table), a completion claimed with no call. Both are the B1 question — who acts when the model does not.
