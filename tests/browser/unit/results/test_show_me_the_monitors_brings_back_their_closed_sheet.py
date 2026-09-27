@@ -38,3 +38,14 @@ def test_with_no_sheet_at_all_the_base_as_always(monkeypatch):
 def test_an_open_sheet_still_wins(monkeypatch):
     _recent(monkeypatch, [{"id": "results::old", "label": "Monitors"}])
     assert instances.resolve_show("results", ["results::live"], "Show me the monitors.")["id"] == "results::live"
+
+
+def test_two_closed_sheets_on_the_same_subject_name_the_latest(monkeypatch):
+    """Verification re-run: a second monitor sheet (from a re-run search) tied the first at the same score, the
+    phrase read as ambiguous, and «Show me the monitors» brought up nothing at all."""
+    from widgets import runtime
+    monkeypatch.setattr(instances, "recent_faces", lambda limit=5: [
+        {"id": "results::new", "label": "27-inch 4K monitors under USD 400"},
+        {"id": "results::old", "label": "27-inch 4K monitors under 400 dollars"}])
+    monkeypatch.setattr(instances, "card_face", lambda wid: {})
+    assert runtime.identify_named("Show me the monitors.", open_ids=[]) == "results::new"

@@ -313,7 +313,7 @@ def identify(query: str, open_ids: list | None = None, recent_ids: list | None =
         except Exception:  # noqa: BLE001
             faces = []
         opened = {str(i or "").strip() for i in (open_ids or [])}
-        for r in faces:
+        for _rank, r in enumerate(faces):
             rid = str(r.get("id") or "")
             if not rid or rid in opened or any(w.get("id") == rid for _s, w in scored):
                 continue
@@ -321,7 +321,10 @@ def identify(query: str, open_ids: list | None = None, recent_ids: list | None =
             f_stems = {x.rstrip("s") for x in f_tokens}
             if any(len(t) >= 4 and (t in f_tokens or t.rstrip("s") in f_stems) for t in q_tokens):
                 base = get(rid.split("::", 1)[0]) or {}
-                scored.append((0.85, {**base, "id": rid, "title": str(r.get("label") or "")}))
+                # Most recent first, by a hair: two finished sheets on the same subject (a search run twice) are
+                # not a question — the last one is what he means (V2-776, 2026-09-27: two monitor sheets tied at
+                # 0.85, the phrase read as ambiguous and «Show me the monitors» brought up nothing).
+                scored.append((0.85 - 0.001 * _rank, {**base, "id": rid, "title": str(r.get("label") or "")}))
     scored.sort(key=lambda s: (-s[0], s[1].get("id", "")))
     # The candidate's TITLE is read back to the operator when the phrase is ambiguous («¿cuál te enseño?»), so
     # it is the label they can SEE, not the manifest's own wording (V2-694, and V2-605's rule that a card is
