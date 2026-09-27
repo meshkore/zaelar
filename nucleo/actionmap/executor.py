@@ -94,7 +94,15 @@ def _card_in_front() -> str:
     try:
         from memory import api as memapi
         items = ((memapi.kv_get("canvas_layout") or {}).get("items") or [])
-        z = {str(it.get("id") or ""): int(str(it.get("z") or "0") or 0) for it in items
+        # Ranked by `t` first — when the card last ARRIVED or was FOCUSED — then z. z alone named the wrong card
+        # (demo pass 2026-09-28, A2): the errand's sheet opens in the background with no z, by design, under the
+        # agenda that had one, and «Minimise that» tucked the agenda away.
+        def _num(v):
+            try:
+                return int(float(str(v or "0") or 0))
+            except ValueError:
+                return 0
+        z = {str(it.get("id") or ""): (_num(it.get("t")), _num(it.get("z"))) for it in items
              if isinstance(it, dict) and str(it.get("min") or "0") in ("", "0")}
         ranked = sorted((z[i], i) for i in ids if i in z)
         if ranked and (len(ranked) == 1 or ranked[-1][0] > ranked[-2][0]):

@@ -473,7 +473,7 @@ export class Desktop {
       // reached a model that could not name the target and answered «Hecho.» without doing anything (measured
       // live 2026-09-07 18:54:27). It rides the report that already travels on every _persist().
       items.push({id, q:w.q||"", left:(r?r.left:c.style.left), top:(r?r.top:c.style.top), z:c.style.zIndex||"",
-                  min:c.classList.contains("hb-minned")?1:0, max:r?1:0,
+                  min:c.classList.contains("hb-minned")?1:0, max:r?1:0, t:c._t||0,
                   w:(r?r.w:c.style.width)||"", h:(r?r.h:c.style.height)||""}); });
     return items;
   }
@@ -741,6 +741,10 @@ export class Desktop {
     let w = this.wins.get(id), fresh=!w;
     if(fresh){
       const card=document.createElement("div"); card.className="hb-win loading"; card.dataset.wid=id;
+      // `_t` — when this card last ARRIVED or was FOCUSED. «Minimise that» means the card he last saw come or
+      // touched, and z alone cannot say it: a worker's sheet opens in the background (no z, by design) under a
+      // card that already had one (demo pass 2026-09-28, A2 minimised the agenda). Reported in `_layout()`.
+      card._t=Date.now();
       // THE THREE WINDOW CONTROLS (V2-689) — minimize · maximize/restore · close, in that order, on every card.
       // Minimize was the one gesture with an API (`minimize()`, V2-537) and no BUTTON: it could only be reached
       // by voice or by the rail's ⊟, so a mouse had two of the three window controls every desktop has.
@@ -1770,7 +1774,8 @@ export class Desktop {
   // asked to be able to tell at a glance which window he is working in, and z-order is the product's own
   // existing answer to that question — reusing it means the visual state can never disagree with the stack.
   _bringFront(card){
-    card.style.zIndex = Math.min(8000, ++this.z);       // stay BELOW the camera (9000) and orb (100000)
+    card.style.zIndex = Math.min(8000, ++this.z);
+    card._t = Date.now();       // stay BELOW the camera (9000) and orb (100000)
     try{
       const was = card.classList.contains("hb-focus");
       this.wins.forEach(w=>{ if(w && w.card && w.card!==card) w.card.classList.remove("hb-focus"); });

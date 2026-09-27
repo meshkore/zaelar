@@ -37,3 +37,20 @@ def test_a_tie_still_steps_aside(monkeypatch):
     ok, seen = _run(monkeypatch, ["agenda", "contactos"],
                     [{"id": "agenda", "z": "4", "min": "0"}, {"id": "contactos", "z": "4", "min": "0"}])
     assert ok is False and not seen
+
+
+def test_the_card_that_just_arrived_beats_an_older_card_with_a_higher_z(monkeypatch):
+    """Demo pass 2026-09-28, A2: the errand's sheet opens in the BACKGROUND (no z, by design) under the agenda,
+    which has one. «That» is the sheet he just saw arrive — the canvas reports when each card last arrived or
+    was focused (`t`), and that decides before z."""
+    ok, seen = _run(monkeypatch, ["agenda", "results::c90b45-1"],
+                    [{"id": "agenda", "z": "28", "min": "", "t": "1790548700000"},
+                     {"id": "results::c90b45-1", "z": "", "min": "", "t": "1790548790000"}])
+    assert ok and ("minimize", "results::c90b45-1") in seen, seen
+
+
+def test_a_card_he_focused_afterwards_is_that(monkeypatch):
+    ok, seen = _run(monkeypatch, ["agenda", "results::c90b45-1"],
+                    [{"id": "agenda", "z": "29", "min": "", "t": "1790548800000"},
+                     {"id": "results::c90b45-1", "z": "", "min": "", "t": "1790548790000"}])
+    assert ok and ("minimize", "agenda") in seen, seen
