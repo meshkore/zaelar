@@ -123,7 +123,8 @@ _NEEDS_INSTRUCTIONS = ("The assistant was given ONE task and this is its reply. 
 _NEEDS_CRITERIA = {
     "needs_answer": "No: the reply asks which one, asks for a missing detail, or asks permission before acting — "
                     "nothing was done yet",
-    "done": "Yes: the reply says the task is done or noted; its question only offers further help or chats",
+    "done": ("Yes: the reply says the task is done or noted; its question only offers further help, asks what "
+             "to do next («what can I do for you?») or chats"),
 }
 
 
