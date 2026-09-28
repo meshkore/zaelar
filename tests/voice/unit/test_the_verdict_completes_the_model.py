@@ -383,3 +383,16 @@ def test_a_pronoun_still_means_the_card_his_last_turn_touched(on_screen, monkeyp
     monkeypatch.setattr(canvas_focus, "last_turn_card", lambda ids: "youtube")
     b = _brief({_tb.CANVAS_KEY: ("close", 1.0), _tb.REQUEST_KEY: ("order", 1.0)}, open_ids=("youtube", "markets"))
     assert _canvas_said(b, "ok close that", ["youtube", "markets"], monkeypatch) == ("close", [("close", "youtube")])
+
+
+def test_I1_a_turn_that_called_any_tool_is_not_an_empty_turn():
+    """Demo pass 2026-09-28, I1: «show me a red ferari f40» called show_images and the pictures came up, and the
+    verdict also «completed» the turn with a YouTube search: `_no_tool` did not count the image, listing, recall,
+    read, reopen or reveal requests."""
+    from pathlib import Path
+    src = (Path(__file__).resolve().parents[3] / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
+    i = src.index("        _no_tool = (not acted")
+    expr = src[i:src.index("_op_text = _router.operator_words", i)]
+    for req in ("images_req", "listing_req", "recall_req", "read_req", "reopen_req", "reveal_req",
+                "search_req", "escalate_req", "music_req"):
+        assert req in expr, f"{req} does not count as a tool the model called"
