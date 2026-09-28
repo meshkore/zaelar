@@ -151,6 +151,17 @@ def target_question(open_ids) -> dict | None:
     if not ids:
         return None
     from nucleo.flash import frontend as _fe
+    # Which card the conversation is ABOUT: the one his last turn acted on (demo pass 2026-09-28 — E2: «open the
+    # most important one» right after the inbox came up read `results:detail`; U3: «pause it a sec» right after
+    # the music started read `youtube:pause`). Two cards that can do the same thing differ in THIS, and the
+    # question carried nothing that said it. Measured with the live reader: as a label on the card it moved
+    # nothing (0/3); stated in the instructions, 3/3 — with the named-kind counterweights («pause the video»,
+    # «next song», «the second monitor in the results») still 4/4 on their own card.
+    try:
+        from nucleo import canvas_focus as _cf
+        focus = _cf.last_turn_card(ids)
+    except Exception:  # noqa: BLE001
+        focus = ""
     criteria: dict[str, str] = {}
     for wid in ids[:MAX_OPEN_CARDS]:
         face = _card_label(wid)
@@ -162,7 +173,13 @@ def target_question(open_ids) -> dict | None:
     if not criteria:
         return None
     criteria["none"] = "the order is not aimed at anything on screen"
-    return {"instructions": TARGET_INSTRUCTIONS, "criteria": criteria}
+    instructions = TARGET_INSTRUCTIONS
+    if focus:
+        instructions += (f" His previous turn acted on «{focus}». An order that does not say what KIND of thing it "
+                         f"is about («it», «that», «this one», «the most important one») continues on that card when "
+                         f"it can do it. An order that names a kind of thing (a song, a video, an email, a result, "
+                         f"the calendar) goes to the card that holds that kind, whichever it is.")
+    return {"instructions": instructions, "criteria": criteria}
 
 
 def _base_of(widget_id: str) -> str:

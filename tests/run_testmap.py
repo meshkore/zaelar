@@ -3352,6 +3352,10 @@ DOMAINS: list[dict] = [
         # V2-764 — «voy a por la serie Sherlock en torrent y te enseño el catálogo», and no tool: the turn's verdict
         # named the card, the action existed. One bounded pass asks the model for the call it promised — only the
         # named card, only a declared action — before the backstop spends a worker on it.
+        {"id": "2.98", "title": "An order that does not say which card continues on the one his last turn acted on — "
+                                "the screen question says which",
+            "ch": UNIT,
+            "paths": ["tests/voice/unit/test_an_unnamed_order_continues_on_the_card_of_the_last_turn.py"]},
         {"id": "2.97", "title": "A scheduled alert says its time is when it RINGS — never read back as the meeting's time",
             "ch": UNIT,
             "paths": ["tests/agent_headless/unit/flash/test_an_alert_time_is_not_the_meeting_time.py"]},
