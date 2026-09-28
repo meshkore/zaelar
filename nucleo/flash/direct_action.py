@@ -554,7 +554,7 @@ def completes(brief, widget_id: str, *, model_action: str = "") -> str:
 
 
 def complete(brief, *, operator_text: str, emit, present, apply_widget_data,
-             widget_id: str = "", instead_of: str = "", require_order: bool = True) -> str:
+             widget_id: str = "", instead_of: str = "", require_order: bool = True, close=None) -> str:
     """THE ARBITER'S ONE RULE, spent (V2-754): the verdict COMPLETES the model, it never overrules it.
 
     Live session 3afe34a8 (2026-09-23), four orders to get back to the video catalogue. The brief
@@ -592,6 +592,18 @@ def complete(brief, *, operator_text: str, emit, present, apply_widget_data,
             return ""
         if instead_of and name == instead_of:
             return ""
+        # A SURE «close the card» is about the card, never its data (demo pass 2026-09-28, R4: «ok close the
+        # calendar», canvas=close 1.00 and screen_action=agenda:close_meeting 0.60 — the data action ran, the
+        # card was shown again, and the reply said «calendar's closed»). The completion is the card's own close.
+        verb, _vinfo = _tb.read(brief, _tb.CANVAS_KEY, "", min_confidence=0.9)
+        if str(verb or "") == "close":
+            if close is None:
+                return ""
+            close(wid)
+            emit("brain", "🎯 el veredicto completa al modelo (sin tool) — cierra la tarjeta", text=wid,
+                 role="system", extra={"cat": "flash", "widget": wid, "action": "close",
+                                       "said": (operator_text or "")[:120]})
+            return "close"
         rung = resolve(operator_text, brief=brief, operator_text=operator_text)
     except Exception:  # noqa: BLE001
         return ""

@@ -267,3 +267,23 @@ def test_the_provider_completes_an_EMPTY_turn_and_logs_a_disagreement():
     assert k < j, "the disagreement is logged where the model's call runs"
     assert body.index("_direct_action.fill_missing(", k, j) > k, (
         "and the empty key is repaired before the call is applied, not after (V2-756)")
+
+
+# ── demo pass 2026-09-28, R4 — a SURE «close the card» completes with the card's close ─────────────────
+
+def test_a_sure_close_closes_the_card_and_never_runs_a_data_action(on_screen):
+    """«ok close the calendar»: the model called nothing and said «calendar's closed»; the brief had canvas=close
+    at 1.00 and screen_action=agenda:close_meeting at 0.60. The data action ran, the card was shown again."""
+    closed = []
+    b = _brief({_tb.TARGET_KEY: ("agenda:close_meeting", 0.6), _tb.CANVAS_KEY: ("close", 1.0),
+                _tb.REQUEST_KEY: ("order", 1.0)}, open_ids=("agenda",))
+    fired, s = _complete(b, "ok close the calendar", close=closed.append)
+    assert fired == "close" and closed == ["agenda"]
+    assert not s.applied and not s.presented, "no data action, and the card is not brought back up"
+
+
+def test_without_a_way_to_close_it_completes_nothing(on_screen):
+    b = _brief({_tb.TARGET_KEY: ("agenda:close_meeting", 0.6), _tb.CANVAS_KEY: ("close", 1.0),
+                _tb.REQUEST_KEY: ("order", 1.0)}, open_ids=("agenda",))
+    fired, s = _complete(b, "ok close the calendar")
+    assert fired == "" and not s.applied
