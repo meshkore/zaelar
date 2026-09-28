@@ -39,6 +39,24 @@ _NL_RUN       = re.compile(r"\n{3,}")
 _META_LINE    = re.compile(r"^\s*(?:\*\*[^*]+\*\*|[A-Z][\w /-]{0,30})\s*[:：]\s*\S.*$")
 
 
+# A STAGE DIRECTION is not speech (demo pass 2026-09-28): «Tidying up — [spreading them out now].» was read out
+# loud, brackets and all. After links (`[text](url)` → text) and brain tags (`[[…]]`) are gone, a single-bracketed
+# aside is dropped whatever its language, with the dash or space it leaves dangling.
+_STAGE        = re.compile(r"(?<!\[)\[(?!\[)[^\[\]\n]{1,120}\](?![\]\(])")
+_PUNCT        = ".!?…,;:。！？，、；："
+_DANGLING     = re.compile(rf"\s*[—–-]+\s*(?=[{_PUNCT}]|$)")
+_SPACE_PUNCT  = re.compile(rf"[ \t]+([{_PUNCT}])")
+
+
+def drop_stage_directions(text: str) -> str:
+    out = _STAGE.sub("", text or "")
+    if out == text:
+        return text
+    out = _DANGLING.sub("", out)
+    out = _SPACE_PUNCT.sub(r"\1", out)
+    return out if out.strip(" \t—–-" + _PUNCT) else text
+
+
 def _strip_markup(text: str, *, drop_code: bool) -> str:
     """Turn markdown/tag noise into plain speakable characters. Shared by sanitize() and inline()."""
     if drop_code:
@@ -48,6 +66,7 @@ def _strip_markup(text: str, *, drop_code: bool) -> str:
     text = _LINK.sub(r"\1", text)
     text = _INLINE_CODE.sub(r"\1", text)
     text = _BRAIN_TAG.sub("", text)
+    text = drop_stage_directions(text)
     text = _FENCE_BLOCK.sub("", text)
     text = _HR.sub("", text)
     text = _TABLE_SEP.sub("", text)
@@ -72,7 +91,7 @@ def sanitize(text: str, *, drop_metadata: bool = True) -> str:
     out = "\n".join(ln.strip() for ln in out.splitlines())
     out = out.strip()
     # Nothing but punctuation/symbols left → nothing to say.
-    if not re.search(r"[A-Za-zÀ-ÿ0-9]", out):
+    if not re.search(r"[^\W_]", out):          # a letter or digit of ANY script (CJK prose is prose)
         return ""
     return out
 

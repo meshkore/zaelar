@@ -18,6 +18,8 @@ agnósticas de idioma es/en) que COMPARTEN el turno de VOZ (`nucleo.py::_run`) y
 from __future__ import annotations
 
 import re
+
+from voice import speech as _speech
 import unicodedata
 
 
@@ -235,7 +237,9 @@ def sanitize_reply(text: str) -> str:
     t = " ".join(dedup)
     # bloques de palabras repetidos contiguos (sin puntuación de por medio)
     t = _collapse_repeated_phrase(t)
+    t = _speech.drop_stage_directions(t)
     return re.sub(r"\s+", " ", t).strip()
+
 
 
 def looks_degenerate(text: str) -> bool:
