@@ -642,7 +642,18 @@ async def canvas_state(payload: dict):
                     break
         except Exception:  # noqa: BLE001
             _maxw = ""
-        memory.set_state({"open_widgets": seen, "maximized_widget": _maxw})
+        # …and which ones are MINIMIZED: open on the canvas, not on the screen (full27 S1: «show me» over the
+        # minimized sheet was suppressed as «already open», and «here they are» spoke over nothing visible).
+        _minw: list = []
+        try:
+            for it in ((payload or {}).get("layout") or [])[:40]:
+                if isinstance(it, dict) and it.get("min"):
+                    _m = str(it.get("id") or "").split("::", 1)[0].strip().lower()
+                    if _m and _m not in _minw:
+                        _minw.append(_m)
+        except Exception:  # noqa: BLE001
+            _minw = []
+        memory.set_state({"open_widgets": seen, "maximized_widget": _maxw, "minimized_widgets": _minw})
         # V2-078: widgets that BECOME open enter the `recent_widgets` MRU (2nd scoping layer open>recent>catalog).
         # It persists after closing → "the one I used a moment ago" still has priority. Single hook: every show
         # (from the operator OR the brain via [[show]]) re-reports the canvas here.

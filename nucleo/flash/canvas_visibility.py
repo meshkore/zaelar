@@ -132,10 +132,20 @@ def present(widget_id: str, *, reason: str, action: str = "", src: str = "flash"
                 return _suppress("la acción no declara que su salida necesite la tarjeta")
         except Exception:  # noqa: BLE001
             return _suppress("no se pudo leer la declaración del widget")
-    if is_open(wid, known=known):
+    if is_open(wid, known=known) and not is_minimized(wid):
         return _suppress("ya está abierta", already_open=True)
     _emit("widget", "show", {"id": card, "src": src, "action": action, "reason": why})
     return True
+
+
+def is_minimized(widget_id: str) -> bool:
+    """Open on the canvas but put away in the rail — not in front of him. A show brings it back (desktop.js)."""
+    wid = str(widget_id or "").split("::", 1)[0].strip().lower()
+    try:
+        from memory import api as _memapi
+        return bool(wid) and wid in {str(w).strip().lower() for w in ((_memapi.state() or {}).get("minimized_widgets") or [])}
+    except Exception:  # noqa: BLE001
+        return False
 
 
 def mount_needed(extra: dict | None, action: str, *, known=None) -> bool:
