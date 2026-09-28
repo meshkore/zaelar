@@ -54,3 +54,14 @@ def test_an_order_that_owes_words_is_answered_too(monkeypatch):
     b["result"][tb.WORDS_KEY] = {"choice": "act", "confidence": 0.95}
     assert cc.question_left_to_a_lens(b, ops=[{"widget_id": "youtube", "action": "show_tab"}], acted={}) == ""
     assert tb.WORDS_KEY in tb.build("find me five days and tell me the dates")
+
+
+def test_a_read_of_a_card_this_turn_changed_waits_for_the_change():
+    """full11 M3: «and the nasdaq, over the whole year» switched the chart and the read, a few ms later, answered
+    «the only thing on the chart is Apple — I've got no Nasdaq figures». The read waits (bounded) for this turn's
+    dispatches to the same card."""
+    prov = (ROOT / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
+    assert "_turn_op_tasks.append((wid, _spawn(_data_ops.dispatch_and_report(" in prov
+    i = prov.index("_pending = [t for w, t in _turn_op_tasks")
+    assert i < prov.index("await speak(await _wread.prepare(read_req", i)
+    assert "await asyncio.wait(_pending, timeout=6.0)" in prov

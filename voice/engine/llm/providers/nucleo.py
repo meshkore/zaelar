@@ -210,10 +210,11 @@ def _resolve_pending_confirm(ok: bool) -> bool:
 from nucleo.flash.surface_ack import saved_state_is_empty as _surface_is_empty  # noqa: E402
 
 
-def _spawn(coro, label: str) -> None:
+def _spawn(coro, label: str):
     task = asyncio.create_task(coro)
     _TAG_TASKS.add(task)
     task.add_done_callback(lambda t: _TAG_TASKS.discard(t))
+    return task
 
 
 @registry.register("nucleo")
@@ -1246,9 +1247,9 @@ class NucleoLLMStream(llm.LLMStream):
                         _data_ops.remember_refusal(_w, _a, _p)
 
                 try:
-                    _spawn(_data_ops.dispatch_and_report(wid, action_name, payload or {}, seal=_seal, text=_bnotes.operator_half(text),
-                                                         said=lambda: getattr(brain, "_last_spoken", "")),
-                           "widget-data")
+                    _turn_op_tasks.append((wid, _spawn(_data_ops.dispatch_and_report(
+                        wid, action_name, payload or {}, seal=_seal, text=_bnotes.operator_half(text),
+                        said=lambda: getattr(brain, "_last_spoken", "")), "widget-data")))
                 except Exception:
                     pass
                 # An action whose output only exists ON SCREEN (`present.mount`, declared or derived) brings its
@@ -1424,6 +1425,7 @@ class NucleoLLMStream(llm.LLMStream):
 
         _tool_fired: set = set()
         _data_ops_hechas: list = []      # V2-391: las data-ops YA ejecutadas de este turno, en orden
+        _turn_op_tasks: list = []        # the dispatches of THIS turn's data-ops — a read of their card waits for them
 
         def _word_overlap(a: str, b: str) -> int:
             wa = {w for w in (a or "").lower().split() if len(w) > 3}
@@ -2829,6 +2831,12 @@ class NucleoLLMStream(llm.LLMStream):
             _cardc.present_if_show(read_req, brief=_brief, operator_text=operator_text, is_open=_cvis.is_open,
                                    present=_cvis.present, emit=emit)
             _cover_work("widget", _wread.cover_target(read_req["v"] or {}, operator_text))
+            # A card this turn just changed is read AFTER the change lands (demo pass 2026-09-28, full11 M3: the chart
+            # was switched to the Nasdaq and the read, a few ms later, answered «the only thing on the chart is Apple»).
+            _rw = str((read_req["v"] or {}).get("widget_id") or "").split("::")[0]
+            _pending = [t for w, t in _turn_op_tasks if str(w).split("::")[0] == _rw and not t.done()]
+            if _pending:
+                await asyncio.wait(_pending, timeout=6.0)
             await speak(await _wread.prepare(read_req["v"] or {}, operator_text, _prompt_mod._lang_lock(), emit),
                         operator_text, 220, "read_widget compose")
             spoken_text = "".join(spoken).strip()
