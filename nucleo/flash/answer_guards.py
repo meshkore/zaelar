@@ -356,7 +356,13 @@ _PROMISE_TO_LOOK_RE = _re.compile(
     r"(?:voy|vamos)\s+a\s+(?:mirar|comprobar|abrir|revisar|buscar|verlo|ver|leer|consultar)\w*\b|"
     r"d[eé]ja(?:me)?\s+(?:que\s+)?(?:lo\s+|la\s+|los\s+|las\s+)?(?:mire|compruebe|abra|revise|busque|vea|lea|consulte)\b|"
     r"ahora\s+(?:mismo\s+)?(?:lo|la|te\s+lo|te\s+la)\s+(?:miro|compruebo|reviso|busco|abro|leo|consulto)\b|"
-    r"(?:lo|la|te\s+lo)\s+(?:miro|compruebo|reviso|busco|abro|leo|consulto)\s+(?:ahora|ya|enseguida)\b)", _re.I)
+    r"(?:lo|la|te\s+lo)\s+(?:miro|compruebo|reviso|busco|abro|leo|consulto)\s+(?:ahora|ya|enseguida)\b|"
+    # the PROGRESSIVE form, said as the look starts (demo pass 2026-09-28, Z1: «Checking your agenda for
+    # tomorrow…» with nothing read — two turns later it answered «nothing on the calendar» over four meetings)
+    r"^(?:i'?m\s+|i\s+am\s+)?(?:checking|looking\s+(?:at|into|through)|pulling\s+up|reading|reviewing)\s+"
+    r"(?:your|the|it|that|this)\b|"
+    r"^(?:estoy\s+)?(?:mirando|comprobando|revisando|consultando|leyendo)\s+(?:tu|tus|la|el|lo|los|las)\b)",
+    _re.I)
 
 
 def a_promise_left_hanging(operator_text: str, reply: str, *, acted: bool, anything_running: bool) -> bool:
@@ -365,9 +371,17 @@ def a_promise_left_hanging(operator_text: str, reply: str, *, acted: bool, anyth
     `acted` = the turn executed something visible (a widget op, a read, a search, an escalation, a confirm);
     `anything_running` = a worker is live (a promise over live work is honest). A question in the reply is
     left alone — «shall I open Telegram?» asks, it does not promise."""
-    if acted or anything_running:
-        return False
     a = _fold(reply or "").strip()
-    if not a or "?" in a:
+    if acted or not a or "?" in a:
         return False
-    return bool(_PROMISE_TO_LOOK_RE.search(a))
+    if not _PROMISE_TO_LOOK_RE.search(a):
+        return False
+    if anything_running:
+        # Live work only covers a promise that could be ABOUT it. One that names a card we can read (Z1: the trip
+        # worker was running, the promise was «checking your agenda») is kept by reading that card.
+        try:
+            from nucleo.flash import widget_read as _wr
+            return bool(_wr.resolve("", reply or ""))
+        except Exception:  # noqa: BLE001
+            return False
+    return True

@@ -111,7 +111,10 @@ def test_a_healthy_reply_is_left_alone(reply):
 def test_a_promise_kept_by_an_act_or_over_live_work_is_honest():
     p = REAL_PROMISES[0]
     assert not ag.a_promise_left_hanging(SAID, p, acted=True, anything_running=False)
-    assert not ag.a_promise_left_hanging(SAID, p, acted=False, anything_running=True)
+    # live work covers a promise that could be ABOUT it — one naming no card we can read (demo pass 2026-09-28)…
+    assert not ag.a_promise_left_hanging(SAID, "Let me look into the flights now.", acted=False, anything_running=True)
+    # …while one that names a readable card is kept by reading it, worker or not (Z1: «Checking your agenda…»)
+    assert ag.a_promise_left_hanging(SAID, p, acted=False, anything_running=True)
 
 
 def test_the_repair_is_the_look_it_promised(monkeypatch):
@@ -187,3 +190,22 @@ def test_an_identical_retry_of_a_refused_op_is_dropped_and_a_corrected_one_runs(
     src = (_pl.Path(__file__).resolve().parents[4] / "voice/engine/llm/providers/nucleo.py").read_text(encoding="utf-8")
     assert "if _data_ops.is_identical_retry_of_refused(wid, action_name, payload):" in src
     assert "_data_ops.remember_refusal(_w, _a, _p)" in src, "the seal must remember the refusal too"
+
+
+# ── demo pass 2026-09-28, Z1 — «Checking your agenda for tomorrow…», nothing read, a trip worker running ──────
+
+def test_the_progressive_form_is_a_promise_to_look():
+    from nucleo.flash import answer_guards as ag
+    assert ag.a_promise_left_hanging("what's on my plate tomorrow", "Checking your agenda for tomorrow…",
+                                     acted=False, anything_running=False)
+    assert not ag.a_promise_left_hanging("move it", "Checking… moved it to 2 PM.", acted=False,
+                                         anything_running=False), "a claim of an act is not a promise to look"
+
+
+def test_unrelated_live_work_does_not_cover_a_promise_that_names_a_card():
+    """The trip worker was running; the promise was about the AGENDA — two turns later the model said «nothing on
+    the calendar for tomorrow» over four meetings, because nothing had been read."""
+    from nucleo.flash import answer_guards as ag
+    assert ag.a_promise_left_hanging("x", "Checking your agenda for tomorrow…", acted=False, anything_running=True)
+    assert not ag.a_promise_left_hanging("x", "Looking into the flights now.", acted=False, anything_running=True), \
+        "a promise that names no readable card stays covered by the live errand"
