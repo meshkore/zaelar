@@ -316,6 +316,52 @@ def _post_many(state: str, questions: dict, timeout_s: float) -> dict:
     return payload
 
 
+def _hedge_after_s() -> float:
+    """When to send a second, identical brief if the first has not answered (0 = never).
+
+    Demo pass 2026-09-28 (full18): the provider's p50 was 317 ms and p90 450 ms, and 6 briefs in 78 hit the 2 s
+    wall — each one a turn read with no verdict at all (C5b «tidy up the screen» and E4 «leave that inworld one
+    as unread» both went wrong that way). Passes 16-17 had none. A tail that rare and that long is what a hedged
+    request is for: one more trip for the few slow ones, the first answer wins."""
+    try:
+        return max(0.0, int(os.getenv("ZAELAR_JEV_HEDGE_MS", "900")) / 1000.0)
+    except Exception:
+        return 0.9
+
+
+_HEDGE_POOL = None
+
+
+def _post_many_hedged(state: str, questions: dict, timeout_s: float) -> dict:
+    """`_post_many`, with a second identical call if the first is still out after `_hedge_after_s()`. Whichever
+    answers first is returned; the deadline stays `timeout_s` from the first send. Both failing raises the first
+    call's error, exactly as a single call would."""
+    global _HEDGE_POOL
+    hedge = _hedge_after_s()
+    if hedge <= 0 or hedge >= timeout_s:
+        return _post_many(state, questions, timeout_s)
+    from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
+    if _HEDGE_POOL is None:
+        _HEDGE_POOL = ThreadPoolExecutor(max_workers=8, thread_name_prefix="jev-hedge")
+    t0 = time.monotonic()
+    calls = [_HEDGE_POOL.submit(_post_many, state, questions, timeout_s)]
+    done, _ = wait(calls, timeout=hedge)
+    if not done:
+        calls.append(_HEDGE_POOL.submit(_post_many, state, questions, max(0.1, timeout_s - hedge)))
+    first_error = None
+    pending = set(calls)
+    while pending:
+        left = timeout_s - (time.monotonic() - t0)
+        if left <= 0:
+            break
+        done, pending = wait(pending, timeout=left, return_when=FIRST_COMPLETED)
+        for f in done:
+            if f.exception() is None:
+                return f.result()
+            first_error = first_error or f.exception()
+    raise first_error or TimeoutError("The read operation timed out")
+
+
 def choose_many_sync(state: str, questions: dict, *, timeout_s: float | None = None,
                      question_id: str = "brief") -> dict | None:
     """Blocking verdicts for N enumerated questions in ONE trip.
@@ -337,7 +383,7 @@ def choose_many_sync(state: str, questions: dict, *, timeout_s: float | None = N
     call_id = new_call_id()
     t0 = time.monotonic()
     try:
-        payload = _post_many(state, questions, _timeout_s() if timeout_s is None else timeout_s)
+        payload = _post_many_hedged(state, questions, _timeout_s() if timeout_s is None else timeout_s)
     except Exception as e:  # noqa: BLE001 — no caller may ever break on a classifier
         _emit(state, choice="", confidence=0.0, probs={},
               latency_ms=int((time.monotonic() - t0) * 1000),
