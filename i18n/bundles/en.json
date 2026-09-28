@@ -1264,6 +1264,7 @@
  "widgets.mensajeria.save_draft_hint": "Save what you typed without sending (it also saves on its own when you stop typing)",
  "widgets.mensajeria.saved": "Saved ✓",
  "widgets.mensajeria.send": "Send ➤",
+ "widgets.mensajeria.sent": "Sent ✓",
  "widgets.mensajeria.settings": "Settings",
  "widgets.mensajeria.show_less": "show less",
  "widgets.mensajeria.show_more": "show more",

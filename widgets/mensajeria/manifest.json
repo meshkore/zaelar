@@ -198,7 +198,10 @@
         "attach_from": "opcional: el mensaje cuyos ADJUNTOS van en el envío — su `n` en la lista, {\"messageId\": …}, o {} para el correo que está ABIERTO (solo por email)"
       },
       "confirm": false,
-      "usage": "Si no tienes su canal guardado, guárdalo antes con contactos/set_channel. Si no sabes a cuál de dos se refiere, PREGÚNTASELO: nunca escribas a alguien por parecido. NO se pide confirmación para esto (V2-692): quien la llama está ejecutando una orden que el operador acaba de dar, y su permiso ya viene con la orden — preguntarle otra vez es hacerle dar el mismo permiso dos veces. `reply` SÍ la sigue pidiendo: contestar a algo que llegó no es una orden suya."
+      "usage": "Si no tienes su canal guardado, guárdalo antes con contactos/set_channel. Si no sabes a cuál de dos se refiere, PREGÚNTASELO: nunca escribas a alguien por parecido. NO se pide confirmación para esto (V2-692): quien la llama está ejecutando una orden que el operador acaba de dar, y su permiso ya viene con la orden — preguntarle otra vez es hacerle dar el mismo permiso dos veces. `reply` SÍ la sigue pidiendo: contestar a algo que llegó no es una orden suya.",
+      "effects": [
+        "present.mount"
+      ]
     },
     "forward": {
       "desc": "REENVÍA por correo un mensaje que llegó —con sus ADJUNTOS (factura, PDF…)— a una PERSONA, con una nota tuya: «mándale a Andrew la factura de este correo», «reenvíale esto a X». Sin `n`, el correo que está ABIERTO. NO es `reply` (eso contesta al que lo envió).",

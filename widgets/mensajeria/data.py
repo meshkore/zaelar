@@ -195,7 +195,10 @@ def view_data(q: str = "") -> dict:
     # widget auto-closed it: there was nothing to come back to and no way to continue a conversation.
     active_items = _thread_view(db, active, pending_here) if active_key else []
     thread_meta = _thread_meta(db, active) if active_key else None
-    if active and not active_items:
+    composing = _composing(db)
+    writing_here = bool(composing and active_key
+                        and (composing.get("platform"), str(composing.get("chatId"))) == active_key)
+    if active and not active_items and not writing_here:
         # Only when there is nothing at all — no pending item AND no history. The auto-close existed because
         # reading used to destroy the messages; keeping it unconditional would now throw the operator out of a
         # conversation he can still read.
@@ -251,7 +254,36 @@ def view_data(q: str = "") -> dict:
         # V2-624 — the autoresponder state, for the settings panel and read_widget. Only platforms with any
         # config at all; {} costs nothing.
         "autoresponder": _autoresponder_view(db),
+        # A message to a person, being written on screen right now (see `_COMPOSE_*`): the card types it into
+        # that conversation's box and presses send at `send_at`, the moment the queued order is released.
+        "composing": composing,
     }
+
+
+# SEEN BEING SENT (operator's demo note, 2026-09-28): «que se vea cómo se lo mandamos y cómo se le da el botón» —
+# a voice-ordered message went out in the background and, without sound, nobody watching could tell anything had
+# been sent. `send_to` now opens that conversation, and the order waits in the queue for as long as typing the
+# text takes; the card types it and presses its own send button at the moment the order is released. The send
+# itself is the same queued order either way: with the card closed it simply leaves a few seconds later.
+_COMPOSE_BASE_S = 1.2
+_COMPOSE_PER_CHAR_S = 0.03
+_COMPOSE_MAX_S = 7.0
+_COMPOSE_LINGER_S = 4.0
+
+
+def _compose_seconds(text: str) -> float:
+    return min(_COMPOSE_MAX_S, _COMPOSE_BASE_S + _COMPOSE_PER_CHAR_S * len(str(text or "")))
+
+
+def _composing(db: dict) -> dict | None:
+    c = db.get("composing")
+    now = time.time()
+    if not isinstance(c, dict) or now > float(c.get("send_at") or 0) + _COMPOSE_LINGER_S:
+        return None
+    # Relative times, so the card re-anchors them on ITS clock: a browser a few seconds off would otherwise
+    # press the button before (or after) the order actually leaves.
+    return {**c, "elapsed_s": round(now - float(c.get("started") or now), 2),
+            "left_s": round(max(0.0, float(c.get("send_at") or 0) - now), 2)}
 
 
 def _email_signature() -> list:
@@ -636,8 +668,18 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
             if t.get("platform") != "email":
                 return {"ok": False, "error": "attachments_need_email",
                         "message": "Solo sé enviar adjuntos por correo — dime su dirección de email."}
+        # A chat message is written on screen before it leaves (`_composing`); an email is a document, not a
+        # line typed into a conversation, and goes straight out.
+        seen = t.get("platform") != "email" and bool(str(t.get("chatId") or "").strip())
+        send_at = time.time() + _compose_seconds(payload.get("text")) if seen else 0.0
         order = _outbound.enqueue(db, t, payload.get("text"), subject=str(payload.get("subject") or ""),
-                                  objective=str(payload.get("objective") or ""), attachments=atts)
+                                  objective=str(payload.get("objective") or ""), attachments=atts,
+                                  not_before=send_at)
+        if seen:
+            db["active_chat"] = {"platform": t.get("platform"), "chatId": t.get("chatId")}
+            db["composing"] = {"ref": order.get("ref"), "platform": t.get("platform"), "chatId": t.get("chatId"),
+                               "name": t.get("name") or "", "text": str(payload.get("text") or ""),
+                               "started": time.time(), "send_at": send_at}
         store.save(WIDGET_ID, db)
         return {"ok": True, "result": {"to": t.get("name"), "channel": t.get("platform"),
                                        "ref": order.get("ref"), "attachments": len(atts)}}

@@ -349,6 +349,8 @@ function injectStyles(){
   .hb-msg .thread.plat-telegram .composerow .bt-primary{background:#2AABEE}
   .hb-msg .thread.plat-email .tbrow.out .tbubble,
   .hb-msg .thread.plat-email .composerow .bt-primary{background:#D8452D}
+  .hb-msg .compose .bt-primary.pressing{transform:scale(.92);box-shadow:0 0 0 5px rgba(42,171,238,.35);transition:transform .12s,box-shadow .12s}
+  .hb-msg .compose .bt-primary.sent{opacity:.85}
   .hb-msg .tbfrom{font-size:12px;font-weight:700;margin-bottom:2px;color:var(--hb-accent,#3D6FE0)}
   .hb-msg .tbtitle{font-size:14px;font-weight:600;margin:0 0 3px}
   .hb-msg .tbbody{font-size:14px;line-height:1.45;white-space:pre-wrap;word-break:break-word}
@@ -1242,7 +1244,40 @@ function composeBar(ctx, data, targetPayload, activeChat, rerender, mailItem){
   side.append(send, save);
   main.append(box, side);
   wrap.appendChild(main);
+  const c = data.composing;
+  if(c && activeChat && c.platform === activeChat.platform && String(c.chatId) === String(activeChat.chatId))
+    _playCompose(c, box, send);
   return wrap;
+}
+
+// SEEN BEING SENT (data.py `_composing`): a message he ordered by voice is typed into this box and the send button
+// is pressed at the moment the engine releases the queued order. Nothing here sends — the order is already in the
+// queue — so the button is only ever pressed for show, and a rerender mid-way simply picks the typing up again.
+// The clock is the server's, re-anchored on each render (`elapsed_s`/`left_s`), so a skewed browser clock
+// cannot make the press land before or after the real send.
+function _playCompose(c, box, send){
+  const text = String(c.text || "");
+  const now0 = Date.now();
+  const t0 = now0 - Number(c.elapsed_s || 0) * 1000;
+  const t1 = now0 + Number(c.left_s || 0) * 1000;
+  const typeEnd = t0 + Math.max(300, (t1 - t0) - 600);     // a beat with the text complete before the press
+  box.readOnly = true;
+  const done = () => {
+    box.value = ""; box.readOnly = false;
+    send.classList.remove("pressing"); send.classList.add("sent");
+    send.textContent = tt("sent", null, "Enviado ✓"); send.disabled = true;
+  };
+  const tick = () => {
+    if(!box.isConnected) return;
+    const now = Date.now();
+    if(now >= t1) return done();
+    const f = Math.max(0, Math.min(1, (now - t0) / Math.max(1, typeEnd - t0)));
+    box.value = text.slice(0, Math.round(f * text.length));
+    send.disabled = !box.value.trim();
+    send.classList.toggle("pressing", now >= t1 - 250);
+    requestAnimationFrame(tick);
+  };
+  tick();
 }
 
 function messageActions(it, ctx){

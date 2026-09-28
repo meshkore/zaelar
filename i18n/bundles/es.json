@@ -1264,6 +1264,7 @@
  "widgets.mensajeria.save_draft_hint": "Guardar lo escrito sin enviarlo (también se guarda solo al dejar de escribir)",
  "widgets.mensajeria.saved": "Guardado ✓",
  "widgets.mensajeria.send": "Enviar ➤",
+ "widgets.mensajeria.sent": "Enviado ✓",
  "widgets.mensajeria.settings": "Ajustes",
  "widgets.mensajeria.show_less": "mostrar menos",
  "widgets.mensajeria.show_more": "mostrar más",

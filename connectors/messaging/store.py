@@ -513,12 +513,14 @@ def take_pending_send(platform: str | None = None) -> list[dict]:
     the id it resolved (`connector.msg_out` carrying this `ref`) instead of the caller inventing one."""
     db = load()
     pending = db.get("pending_send", [])
+    now = time.time()
+    due = lambda k: float(k.get("not_before") or 0) <= now   # noqa: E731 — an order being typed on screen waits
     if platform is None:
-        mine, rest = list(pending), []
+        mine = [k for k in pending if due(k)]
     else:
-        mine = [k for k in pending if k.get("platform") == platform]
-        rest = [k for k in pending if k.get("platform") != platform]
-    if pending:
+        mine = [k for k in pending if k.get("platform") == platform and due(k)]
+    rest = [k for k in pending if k not in mine]
+    if mine:
         db["pending_send"] = rest
         save(db)
     return mine

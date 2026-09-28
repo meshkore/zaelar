@@ -264,7 +264,7 @@ def attachments_of(db: dict, ref: dict) -> list[str]:
 
 
 def enqueue(db: dict, target: dict, text: str, *, subject: str = "", objective: str = "",
-            ref: str = "", attachments: list | None = None) -> dict:
+            ref: str = "", attachments: list | None = None, not_before: float = 0.0) -> dict:
     """Put ONE send in the store's outbound queue. The owner flushes it to the bus, exactly as it does with a
     reply — this function never touches the network and never publishes."""
     order = {
@@ -283,5 +283,7 @@ def enqueue(db: dict, target: dict, text: str, *, subject: str = "", objective: 
         order["objective"] = objective
     if attachments:
         order["attachments"] = [str(a) for a in attachments]
+    if not_before:
+        order["not_before"] = float(not_before)   # held in the queue until then — see `take_pending_send`
     db.setdefault("pending_send", []).append(order)
     return order
