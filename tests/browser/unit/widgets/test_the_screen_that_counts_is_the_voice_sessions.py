@@ -44,3 +44,8 @@ def test_the_desktop_sends_its_session_id():
     src = (pathlib.Path(__file__).resolve().parents[4] / "frontend/app/widgets/desktop.js").read_text("utf-8")
     i = src.index('fetch("/api/canvas/state"')
     assert 'sessionStorage.getItem("zaelar_sid")' in src[i:i + 400]
+
+
+def test_a_report_with_no_session_id_is_not_the_voice_screen_either(lock):
+    """A tab loaded before this rule sends no sid: M4 of the next pass closed the agenda again through it."""
+    assert _post({"open": []}).get("ignored")

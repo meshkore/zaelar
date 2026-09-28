@@ -581,7 +581,8 @@ async def canvas_state(payload: dict):
     try:
         from server import livekit_api as _lk
         _sid = str((payload or {}).get("sid") or "")
-        if _sid and _lk._active.get("sid") and not _lk._free(time.time()) and _lk._active["sid"] != _sid:
+        # (a report with NO sid is a tab older than this rule — the voice tab always carries one)
+        if _lk._active.get("sid") and not _lk._free(time.time()) and _lk._active["sid"] != _sid:
             return JSONResponse({"ok": True, "ignored": "not the screen of the voice session"})
     except Exception:  # noqa: BLE001
         pass
