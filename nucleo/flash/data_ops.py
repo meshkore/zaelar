@@ -321,6 +321,29 @@ _REFUSED: dict = {"v": None}
 _REFUSED_S = 180.0
 
 
+def repeats_last_view(last, wid: str, action: str, payload: dict | None, *, now: float | None = None,
+                      window_s: float = 180.0) -> bool:
+    """Is this call the SAME lens the card already applied on the previous data-op — a view that changes nothing?
+
+    Demo pass 2026-09-28, E2: «open the most important one» with the inbox already filtered by the turn before;
+    the verdict read `mensajeria:open` at 0.97 and the model re-sent the identical `show_view {platform: email}`.
+    V2-754 lets a valid model call run over a disagreeing verdict (its counter-case — `show_tab` against a wrong
+    `restart` at 0.99 — is real), and that is kept: only a lens that REPEATS what is already on the card yields."""
+    import time as _t
+    try:
+        if not last or not is_view_op(wid, action):
+            return False
+        lw, la, lp, lts = last
+        if str(lw).split("::")[0] != str(wid).split("::")[0] or la != action:
+            return False
+        if ((now if now is not None else _t.time()) - float(lts)) > window_s:
+            return False
+        mine = {k: v for k, v in (payload or {}).items() if v not in (None, "", [])}
+        return all(lp.get(k) == v for k, v in mine.items())
+    except Exception:  # noqa: BLE001
+        return False
+
+
 def remember_refusal(wid: str, action: str, payload: dict | None) -> None:
     import time as _t
     _REFUSED["v"] = (str(wid or "").strip().lower(), str(action or "").strip(), dict(payload or {}), _t.time())

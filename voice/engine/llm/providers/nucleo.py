@@ -1397,6 +1397,16 @@ class NucleoLLMStream(llm.LLMStream):
             # V2-754 — una llamada VÁLIDA del modelo corre aunque el veredicto discrepe (a 0,99 habría REINICIADO el
             # vídeo); la discrepancia se registra, que es lo que permitirá medir a quién creer.
             if (_dis := _direct_action.completes(_brief, _cd["card"], model_action=action_name)):
+                if (_data_ops.repeats_last_view(brain._last_dataop, _cd["card"], action_name, res.payload)
+                        and _direct_action.complete(_brief, operator_text=_bnotes.operator_half(text), emit=emit,
+                                                    present=_cvis.present, apply_widget_data=_apply_widget_data,
+                                                    widget_id=_cd["card"], instead_of=action_name,
+                                                    require_order=False)):
+                    emit("brain", "⚖️ el modelo repitió la vista que ya estaba — completa el veredicto", role="system",
+                         text=f"{_cd['card']}: modelo={action_name} · veredicto={_dis}",
+                         extra={"cat": "flash", "id": _cd["card"], "model": action_name, "verdict": _dis})
+                    acted["widget"] = True
+                    return
                 emit("brain", "⚖️ el modelo y el veredicto discrepan — corre el modelo", role="system",
                      text=f"{_cd['card']}: modelo={action_name} · veredicto={_dis}",
                      extra={"cat": "flash", "id": _cd["card"], "model": action_name, "verdict": _dis})

@@ -248,3 +248,20 @@ def test_live_work_about_something_else_does_not_cover_a_promise(monkeypatch):
                                      acted=False, anything_running=True)
     assert not ag.a_promise_left_hanging("how's the warm trip for anna going", "Let me look into the trip now.",
                                          acted=False, anything_running=True), "a promise about the live errand is covered"
+
+
+def test_a_lens_that_repeats_the_last_one_changes_nothing():
+    """Demo pass 2026-09-28, E2: «open the most important one» with the inbox already filtered; the verdict read
+    `mensajeria:open` 0.97 and the model re-sent the identical `show_view {platform: email}`. Only a lens that
+    REPEATS the card's last op yields to the verdict — V2-754's counter-case (a new `show_tab`) still runs."""
+    import time as _t
+    from nucleo.flash import data_ops as d
+    last = ("mensajeria", "show_view", {"platform": "email", "window_h": 24}, _t.time() - 20)
+    assert d.repeats_last_view(last, "mensajeria", "show_view", {"platform": "email"})
+    assert not d.repeats_last_view(last, "mensajeria", "show_view", {"platform": "telegram"})
+    assert not d.repeats_last_view(last, "youtube", "show_tab", {"tab": "home"})
+    assert not d.repeats_last_view(("mensajeria", "show_view", {"platform": "email"}, _t.time() - 900),
+                                   "mensajeria", "show_view", {"platform": "email"}), "an old lens is not a repeat"
+    from pathlib import Path
+    src = (Path(__file__).resolve().parents[4] / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
+    assert "_data_ops.repeats_last_view(brain._last_dataop, _cd[\"card\"], action_name, res.payload)" in src
