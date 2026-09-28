@@ -789,7 +789,7 @@ async def _deliver(rec: "SessionRecord") -> None:
     try:
         from voice import brain_notes
         head = "Tarea completada" if rec.ok else "Tarea sin completar"
-        brain_notes.push(f"[SISTEMA] Brain worker · {head}: {summary[:400]}")
+        brain_notes.push(f"[SISTEMA] Brain worker · {head}: {summary[:400]}", key=f"delivery:{rec.task_id}")
     except Exception:
         pass
     # MEMORY: only SUCCESS is remembered as a durable result (2026-07-14 audit — the P2 refactor lost the one-shot
@@ -808,6 +808,14 @@ async def _deliver(rec: "SessionRecord") -> None:
             pass
     try:
         from voice import proactive
-        await proactive.notify("zaelar", summary, speak=True)
+        if await proactive.notify("zaelar", summary, speak=True):
+            # SPOKEN: he has heard it, and it sits in the conversation as our own words. The note above would
+            # hand it to the next turn as news «to add after answering», and the demo pass (2026-09-28) heard the
+            # same three monitors three times — the delivery, then two replies that «by the way» repeated it.
+            from voice import brain_notes as _bn
+            if _bn.retract(f"delivery:{rec.task_id}"):
+                from voice.observer import emit as _emit_d
+                _emit_d("task", "🔔 entrega dicha en voz — su aviso al cerebro se retira", role="system",
+                        text=summary[:120], extra={"id": rec.task_id})
     except Exception as e:  # noqa: BLE001
         logger.warning(f"worker[{rec.task_id}]: entrega proactiva falló: {e}")

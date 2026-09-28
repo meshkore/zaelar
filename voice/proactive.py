@@ -153,17 +153,20 @@ def ephemeral_speaker():
 
 
 async def notify(title: str, text: str, *, speak: bool = True, kind: str = "notify",
-                 key: str = "", opens_window: bool = True) -> None:
+                 key: str = "", opens_window: bool = True) -> bool:
     """Deliver a proactive message: UI always, voice if a session is live. Best-effort — never raises.
 
     `opens_window` (V2-655) — this delivery is ADDRESSED TO the operator, so his answer to it is directed by
     construction and reaches the brain without him having to say the wake word again. Default True because
     that is what a proactive delivery IS: an errand he asked for reporting back, a question we are asking
     him, a correction of something he ordered. Pass False for an utterance that is genuinely not soliciting
-    anything from him. See `voice/attention.note_addressed_speech` for the session this cost."""
+    anything from him. See `voice/attention.note_addressed_speech` for the session this cost.
+
+    Returns True only when the operator was actually SPOKEN to (demo pass 2026-09-28): a caller that also left a
+    note for the brain retracts it then, or the next turn announces the same result a second time."""
     text = (text or "").strip()
     if not text:
-        return
+        return False
     try:
         from voice.observer import emit
         emit(kind, ("🔔 " + (title or "zaelar"))[:60], text=text, role="assistant", extra={"title": title or ""})
@@ -189,13 +192,13 @@ async def notify(title: str, text: str, *, speak: bool = True, kind: str = "noti
                              f"lo sabe.", key=key)
         except Exception as e:  # noqa: BLE001
             logger.warning(f"proactive notify (nota al cerebro) failed: {e}")
-        return
+        return False
     # SPEECH GATE: the UI keeps the raw text (debug), but the SPEAKER only ever gets clean operator-facing prose.
     # If nothing speakable survives (pure metadata / markdown / empty), stay silent on voice — the UI already has it.
     from voice import speech
     spoken = speech.sanitize(text)
     if not spoken:
-        return
+        return False
     # PREEMPTION (INI-008 F2) + QUEUE (2026-08-31): the OPERATOR's voice takes precedence, and proactive messages
     # go ONE AT A TIME and in arrival order — see the ticket queue below. Each message waits for its turn, and then
     # waits for a silent opening; if the total allows no respite, the message is NOT lost: it becomes a [SISTEMA]
@@ -212,14 +215,15 @@ async def notify(title: str, text: str, *, speak: bool = True, kind: str = "noti
     ticket = _take_ticket()
     if not await asyncio.to_thread(_wait_turn, ticket, _QUEUE_MAX_WAIT):
         _degrade("la cola de entregas no avanzó a tiempo")
-        return
+        return False
+    said = False
     try:
         # The budget counts from ARRIVAL: a message that already queued behind a long explanation gets the
         # remainder, not a fresh 45 s — otherwise a burst of finishes could hold the floor for minutes.
         left = PROACTIVE_MAX_WAIT - (time.monotonic() - t_arrival)
         if not await _wait_for_quiet(max(0.0, left)):
             _degrade("no hubo silencio para hablarla")
-            return
+            return False
         # THE BREATH between two queued deliveries (`_BOT_GRACE_SECS` — defined since INI-008, used by nobody
         # until 2026-08-31). Back-to-back, message B would start the very instant A's playout ends: two notices
         # in a burst that sound like one. Only paid when the previous delivery just ended; a floor that has
@@ -245,6 +249,7 @@ async def notify(title: str, text: str, *, speak: bool = True, kind: str = "noti
             r = _speaker(spoken)
             if asyncio.iscoroutine(r):
                 await r
+            said = True
         finally:
             _last_spoke[0] = time.monotonic()
     except Exception as e:  # noqa: BLE001
@@ -261,6 +266,7 @@ async def notify(title: str, text: str, *, speak: bool = True, kind: str = "noti
             pass
     finally:
         _release(ticket)   # always: a held ticket after a crash would mute every delivery that follows
+    return said
 
 
 # How long to wait for a silent opening before degrading to a [SISTEMA] note; and the pause after the bot's voice.
