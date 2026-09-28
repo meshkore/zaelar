@@ -287,3 +287,15 @@ def test_without_a_way_to_close_it_completes_nothing(on_screen):
                 _tb.REQUEST_KEY: ("order", 1.0)}, open_ids=("agenda",))
     fired, s = _complete(b, "ok close the calendar")
     assert fired == "" and not s.applied
+
+
+def test_the_promise_repair_closes_instead_of_writing_when_the_order_is_a_close():
+    """S4: «ok close the results» → the model promised «Closing it now.» and called nothing; the promise repair
+    ran `results:clear` and emptied the sheet. Both doors read the same predicate before touching data."""
+    import inspect
+    from voice.engine.llm.providers import nucleo as prov
+    src = inspect.getsource(prov)
+    i = src.index("_act_repair.call_for_promise(")
+    assert "_direct_action.sure_close(_brief)" in src[i - 700:i], "the close check runs BEFORE the repair call"
+    b = _brief({_tb.CANVAS_KEY: ("close", 1.0)})
+    assert _da.sure_close(b) and not _da.sure_close(_brief({_tb.CANVAS_KEY: ("close", 0.6)}))

@@ -553,6 +553,18 @@ def completes(brief, widget_id: str, *, model_action: str = "") -> str:
     return "" if name == (model_action or "") else name
 
 
+def sure_close(brief) -> bool:
+    """Is this turn, SURELY, an order to close a card? Then no data action completes it — closing a card is never
+    a write to its data (demo pass 2026-09-28: R4 ran `agenda:close_meeting`, S4 ran `results:clear` and emptied
+    the sheet he was about to close)."""
+    try:
+        from nucleo.flash import turn_brief as _tb
+        verb, _info = _tb.read(brief, _tb.CANVAS_KEY, "", min_confidence=0.9)
+        return str(verb or "") == "close"
+    except Exception:  # noqa: BLE001
+        return False
+
+
 def complete(brief, *, operator_text: str, emit, present, apply_widget_data,
              widget_id: str = "", instead_of: str = "", require_order: bool = True, close=None) -> str:
     """THE ARBITER'S ONE RULE, spent (V2-754): the verdict COMPLETES the model, it never overrules it.
@@ -595,8 +607,7 @@ def complete(brief, *, operator_text: str, emit, present, apply_widget_data,
         # A SURE «close the card» is about the card, never its data (demo pass 2026-09-28, R4: «ok close the
         # calendar», canvas=close 1.00 and screen_action=agenda:close_meeting 0.60 — the data action ran, the
         # card was shown again, and the reply said «calendar's closed»). The completion is the card's own close.
-        verb, _vinfo = _tb.read(brief, _tb.CANVAS_KEY, "", min_confidence=0.9)
-        if str(verb or "") == "close":
+        if sure_close(brief):
             if close is None:
                 return ""
             close(wid)

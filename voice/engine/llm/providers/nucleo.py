@@ -2537,6 +2537,14 @@ class NucleoLLMStream(llm.LLMStream):
             from nucleo.flash import act_repair as _act_repair, build_decision as _bd_ar
             from nucleo.flash import card_commission as _cardc_ar
             _ar_wid = _cardc_ar.named_or_catalogue(_brief, _op_text)   # V2-773: a closed card while others are open
+            if _ar_wid and _direct_action.sure_close(_brief):
+                # the promise was to CLOSE it: the card's own close, never a data action (S4 emptied the sheet)
+                _tag_emit("close", {"id": _ar_wid})
+                acted["widget"] = True
+                _no_tool = False
+                emit("brain", "🔁 prometió cerrar sin tool — cierra la tarjeta", text=_ar_wid, role="system",
+                     extra={"cat": "flash", "widget": _ar_wid, "action": "close"})
+                _ar_wid = ""
             _ar = await _act_repair.call_for_promise(_op_text, spoken_text, _ar_wid, spec=spec) if _ar_wid else None
             if _ar:
                 _cvis.present(_ar["widget_id"], reason="turn-order", src="flash", emit=emit)
