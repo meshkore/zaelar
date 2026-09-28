@@ -61,15 +61,18 @@ def session_heartbeat(payload: dict = Body(...)) -> dict:
     before and simply leaves the switch where the explicit `POST /api/mic` last put it."""
     sid = str((payload or {}).get("sid") or "")
     muted = (payload or {}).get("muted")
-    if isinstance(muted, bool):
-        from voice import mic_input
-        mic_input.set_muted(muted, source="heartbeat")
     now = _time.time()
     with _lock_mx:
-        if _active["sid"] == sid or _free(now):
+        owner = _active["sid"] == sid or _free(now)
+        if owner:
             _active["sid"], _active["ts"] = sid, now
-            return {"ok": True}
-        return {"ok": False, "held": True}
+    # Only the OWNER's beat speaks for the microphone. A tab that has just lost the voice beats once more before it
+    # learns so, and its «unmuted» used to re-open the engine's mic under whoever took it (demo 2026-09-28: the
+    # operator's tab, left with mic and speaker on, while the demo driver held the session).
+    if owner and isinstance(muted, bool):
+        from voice import mic_input
+        mic_input.set_muted(muted, source="heartbeat")
+    return {"ok": True} if owner else {"ok": False, "held": True}
 
 
 @router.post("/api/session/steal")

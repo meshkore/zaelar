@@ -179,6 +179,12 @@ function _startHeartbeat() {
         console.warn("session lock perdido — otra sesión tomó el control; cierro esta.");
         stop();
         store.setMicBlocked({ show: true, msg: t("voice.session_active_other_tab") });
+        // …and say WHO has it: the remote-control blue, not «stalled» amber (operator, demo 2026-09-28: his tab
+        // watched the demo driver take the voice and read as a fallen agent). Then wait for it back exactly as a
+        // tab that STARTS with the voice held elsewhere does — `start()` is refused, keeps the blue, retries.
+        store.setRemoteHeld(true);
+        if (_blockedRetry) clearTimeout(_blockedRetry);
+        _blockedRetry = setTimeout(() => { _blockedRetry = null; start(); }, 3000);
       }
     });
   }, 4000);

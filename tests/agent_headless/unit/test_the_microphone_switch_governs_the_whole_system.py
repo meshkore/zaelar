@@ -200,3 +200,23 @@ def test_a_non_boolean_muted_is_ignored_rather_than_guessed():
     assert mic_input.is_muted() is True
     session_heartbeat({"sid": "tab-1", "muted": None})
     assert mic_input.is_muted() is True
+
+
+def test_a_tab_that_lost_the_voice_does_not_speak_for_the_microphone():
+    """Demo 2026-09-28: the demo driver took the voice from the operator's tab; the tab beats once more before it
+    learns, and its «unmuted» re-opened the engine's microphone under the driver. Only the owner's beat counts."""
+    from server import livekit_api as la
+    la.session_steal("driver")
+    mic_input.set_muted(True, source="orb")
+    got = la.session_heartbeat({"sid": "operator-tab", "muted": False})
+    assert got["ok"] is False and mic_input.is_muted() is True
+    la.session_release("driver")
+
+
+def test_a_tab_that_loses_the_voice_shows_who_has_it_and_waits_for_it():
+    import pathlib
+    js = (pathlib.Path(__file__).resolve().parents[3] / "frontend/app/services/session-lk.js").read_text("utf-8")
+    i = js.index("function _startHeartbeat()")
+    body = js[i:js.index("\nfunction _stopHeartbeat", i)]
+    assert "store.setRemoteHeld(true)" in body, "a stolen tab must read as remote-controlled, not as a fallen agent"
+    assert "start()" in body, "and ask for the voice back when it is free"
