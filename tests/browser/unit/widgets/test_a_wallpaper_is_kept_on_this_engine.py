@@ -59,3 +59,19 @@ def test_only_this_engines_own_copy_passes_as_a_path():
     assert _sanitize_wallpaper({"url": "/widgets/desktop/asset/wallpaper-ab12.jpg"})["url"]
     assert _sanitize_wallpaper({"url": "/etc/passwd"}) == {}
     assert _sanitize_wallpaper({"url": "/widgets/desktop/asset/a\\\")x"}) == {}
+
+
+@pytest.mark.skipif(__import__("shutil").which("node") is None, reason="node not installed")
+def test_the_desk_paints_this_engines_copy():
+    """Full16 B2: the server kept `/widgets/desktop/asset/…` and the client's own URL check (http(s) only) took it
+    straight off the desk — he saw the search and the pictures, never the backdrop. Both seams accept the copy."""
+    import pathlib
+    import re
+    import subprocess
+    src = (pathlib.Path(__file__).resolve().parents[4] / "frontend/app/services/theme.js").read_text("utf-8")
+    rx = re.search(r"const _WALL_URL_RE = (/.+/);", src).group(1)
+    js = (f"const re={rx}; console.log(JSON.stringify(["
+          "'/widgets/desktop/asset/wallpaper-ab12.jpg','https://x/y.jpg','/etc/passwd','javascript:alert(1)']"
+          ".map(u => re.test(u))))")
+    out = subprocess.run(["node", "-e", js], capture_output=True, text=True, timeout=30).stdout.strip()
+    assert out == "[true,true,false,false]", out

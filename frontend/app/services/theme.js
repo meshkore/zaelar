@@ -94,7 +94,9 @@ export function toggleTheme() {
 // — config/settings.py is the security seam; this regex is only the belt to its braces, because the URL is
 // echoed into a CSS url("…") and a quote inside it would otherwise open a style-injection door). Applied as
 // one custom property + a body class, so the CSS owns how the photo sits under the canvas glow and scrim.
-const _WALL_URL_RE = /^https?:\/\/[^\s"'\\<>]+$/;
+// …or the engine's OWN copy of it (a same-origin path, `widgets/desktop_props._local_copy`): without this the
+// server kept the backdrop and this regex quietly took it off the desk (demo pass 2026-09-28, full16 B2).
+const _WALL_URL_RE = /^(?:https?:\/\/|\/widgets\/desktop\/asset\/)[^\s"'\\<>]+$/;
 let _wallpaper = {};
 try { _wallpaper = JSON.parse(localStorage.getItem("hb_wallpaper") || "{}") || {}; } catch (_) {}
 
