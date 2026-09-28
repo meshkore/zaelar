@@ -3352,6 +3352,9 @@ DOMAINS: list[dict] = [
         # V2-764 — «voy a por la serie Sherlock en torrent y te enseño el catálogo», and no tool: the turn's verdict
         # named the card, the action existed. One bounded pass asks the model for the call it promised — only the
         # named card, only a declared action — before the backstop spends a worker on it.
+        {"id": "2.106", "title": "An act that LEAVES (≥ sensitive) runs only when the verdict does not name another action — a draft never becomes a sent email",
+            "ch": UNIT,
+            "paths": ["tests/voice/unit/test_an_act_that_leaves_needs_both_readers.py"]},
         {"id": "2.105", "title": "A cut document digest names every section — a truncation is not an absence",
             "ch": UNIT,
             "paths": ["tests/browser/unit/widgets/test_a_cut_document_still_names_its_sections.py"]},

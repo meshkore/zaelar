@@ -517,6 +517,21 @@ def action_mode_now(widget_id: str, action: str, payload: dict | None = None) ->
         return _wa.CONFIRM
 
 
+def at_least_sensitive(widget_id: str, action: str) -> bool:
+    """Is this action's declared consent level `sensitive` or above (a message that leaves, a payment…)?"""
+    try:
+        from nucleo import consent
+        from widgets import runtime
+        wid = (widget_id or "").split("::", 1)[0].strip().lower()
+        man = runtime.get(wid) or {}
+        spec = (man.get("actions") or {}).get((action or "").strip())
+        spec = spec if isinstance(spec, dict) else {}
+        lvl = consent.level_of(spec, widget_security=str(man.get("security") or ""), action=action)
+        return consent.LEVELS.index(lvl) >= consent.LEVELS.index("sensitive")
+    except Exception:  # noqa: BLE001 — unreadable: treat as sensitive, the guard it feeds only ever adds friction
+        return True
+
+
 def action_is_view(widget_id: str, action: str) -> bool:
     """True if the action is DECLARED by that widget and only changes what is DISPLAYED (V2-545).
 

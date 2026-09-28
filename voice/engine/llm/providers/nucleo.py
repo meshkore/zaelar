@@ -1181,6 +1181,33 @@ class NucleoLLMStream(llm.LLMStream):
                                            "id": wid, "action": action_name})
                 return
             mode = _frontend.action_mode_now(wid, action_name, payload)   # V2-712: decidido para ESTA llamada
+            # TWO READERS DISAGREE ON AN ACT THAT LEAVES (demo pass 2026-09-28, full12 E3): «draft a short reply
+            # saying i'll send the meet link…» — the verdict read `mensajeria:draft` at 1.00, the model called
+            # `reply`, V2-712 ran it without a question (clear order, resolved target) and a real email went to a
+            # third party. V2-754 lets a valid model call beat a disagreeing verdict because a wrong verdict costs
+            # a reversible view; for an act of level ≥ sensitive the costs are reversed, so the verdict's action
+            # runs instead — and if it cannot, he is asked. Agreement, or no verdict at all, changes nothing.
+            if mode == _wactions.FAST and _frontend.at_least_sensitive(wid, action_name):
+                _vdis = _direct_action.completes(_brief, wid, model_action=action_name)
+                if _vdis:
+                    emit("brain", "🛑 acto que sale fuera y el veredicto dice otra cosa — corre el veredicto",
+                         text=f"{wid}: modelo={action_name} · veredicto={_vdis}", role="system",
+                         extra={"cat": "flash", "id": wid, "model": action_name, "verdict": _vdis})
+                    # the model already wrote the content: it travels to the verdict's action, filtered to what
+                    # that action declares (a reply's `text` is a draft's `text`)
+                    _vkeys = set(_direct_action._payload_spec(wid, _vdis))
+                    _vpay = {k: v for k, v in (payload or {}).items() if k in _vkeys and str(v or "").strip()}
+                    if _vpay:
+                        acted["widget"] = True
+                        _gate_card = wid          # this gate's own, already-decided card
+                        _apply_widget_data(_gate_card, _vdis, _vpay)
+                        return
+                    if _direct_action.complete(_brief, operator_text=_bnotes.operator_half(text), emit=emit,
+                                               present=_cvis.present, apply_widget_data=_apply_widget_data,
+                                               widget_id=wid, instead_of=action_name, require_order=False):
+                        acted["widget"] = True
+                        return
+                    mode = _wactions.CONFIRM
 
             def _log_dataop(m: str) -> None:
                 """REGISTRO DE ACCIONES DE WIDGET (2026-08-09, petición del operador). Hasta ahora una data-op
