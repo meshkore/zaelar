@@ -136,6 +136,11 @@ def sync_now(source: str) -> dict:
 def _absorb(source: str, got: dict) -> dict:
     """Fold one connector answer into the directory — the answer asked for now, or one that arrived late."""
     from . import data as _d, imports
+    with _d.store.mutating(_d.WIDGET_ID):         # the merge and a concurrent add must not erase each other
+        return _absorb_locked(source, got, _d, imports)
+
+
+def _absorb_locked(source: str, got: dict, _d, imports) -> dict:
     db = _d.load_db()
     st = state(db)[source]
     if not got.get("ok", True) or got.get("error"):

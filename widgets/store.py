@@ -23,6 +23,25 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(str(_workspace.root()), "widgets", "_data")
 os.makedirs(DATA_DIR, exist_ok=True)
 _lock = threading.Lock()
+_mut_locks: dict = {}
+_mut_guard = threading.Lock()
+
+
+def mutating(widget_id: str):
+    """THE read-modify-write of one widget's data, as one step: hold this around load → change → save.
+
+    `load` and `save` are each atomic on their own and that is not enough: a background import that loaded the
+    contacts, spent seconds merging 2,692 rows, and saved, erased a contact added in between (demo pass
+    2026-09-28 — «Ethan» vanished and his Telegram message could not be sent). Reentrant, so a caller already
+    holding it can call helpers that take it again. Every widget action runs inside it (`server_api`)."""
+    key = _safe_id(str(widget_id or "").split("::", 1)[0])
+    with _mut_guard:
+        lk = _mut_locks.get(key)
+        if lk is None:
+            lk = _mut_locks[key] = threading.RLock()
+    return lk
+
+
 _last_hash: dict = {}   # widget_id -> hash of last-saved content, so an idempotent re-save neither rewrites nor emits
 
 

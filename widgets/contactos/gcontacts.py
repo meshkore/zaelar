@@ -216,21 +216,22 @@ def tick(ctx) -> None:
     if sv is None or o is None or not o.tokens_present("google-contacts"):
         return
     from . import data as _d
-    db = _d.load_db()
-    s = db.get("sync") or {}
-    if not bool(s.get("auto", True)):
-        return
-    if (_time.time() - float(s.get("last") or 0.0)) < PERIOD:
-        return
-    res = sync(db, merge=_d._merge_imported, since=float(s.get("last") or 0.0), remove=_d._drop_deleted)
-    if not res.get("ok"):
-        # A pass that failed still moves `last`, or a dead token would make every tick retry forever and
-        # hammer Google from a loop nobody is watching. The error rides in `lastResult` for the card.
-        db.setdefault("sync", {})["last"] = _time.time()
-        db["sync"]["lastResult"] = {"error": str(res.get("error") or "")[:200]}
+    with _d.store.mutating(_d.WIDGET_ID):         # load → Google pass → save is ONE step (see store.mutating)
+        db = _d.load_db()
+        s = db.get("sync") or {}
+        if not bool(s.get("auto", True)):
+            return
+        if (_time.time() - float(s.get("last") or 0.0)) < PERIOD:
+            return
+        res = sync(db, merge=_d._merge_imported, since=float(s.get("last") or 0.0), remove=_d._drop_deleted)
+        if not res.get("ok"):
+            # A pass that failed still moves `last`, or a dead token would make every tick retry forever and
+            # hammer Google from a loop nobody is watching. The error rides in `lastResult` for the card.
+            db.setdefault("sync", {})["last"] = _time.time()
+            db["sync"]["lastResult"] = {"error": str(res.get("error") or "")[:200]}
+            ctx.save(db)
+            return
         ctx.save(db)
-        return
-    ctx.save(db)
 
 
 def _mark_pushed(rows: list[dict]) -> None:

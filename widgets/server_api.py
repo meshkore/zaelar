@@ -53,6 +53,10 @@ def _call_widget(wid: str, fn: str, caller):
     target = getattr(mod, fn, None) if mod else None
     if not callable(target):
         return _MISSING
+    if fn == "apply_action":                  # one action = one read-modify-write of that widget's data
+        from widgets import store as _store
+        with _store.mutating(wid):
+            return caller(target)
     return caller(target)
 
 
