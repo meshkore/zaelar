@@ -81,3 +81,16 @@ def test_a_data_op_that_answers_is_the_answer():
     assert "_data_ops.answer_of(_t.result())" in prov and "op answer compose" in prov
     src = (ROOT / "nucleo/flash/data_ops.py").read_text("utf-8")
     assert "return res          # the RESULT" in src
+
+
+def test_the_answer_knows_the_card_it_came_from_is_on_screen():
+    """Demo pass 2026-09-28 (full13 M1): «how's apple stock doing today, show me the chart» — the chart was on
+    screen and the answer composed from the op's data said «I can't pull up a chart for you here». The second
+    pass saw the numbers and not the card: an open card is part of what it answers with."""
+    from pathlib import Path
+    from nucleo.flash import widget_read
+    on = widget_read.compose_system("L", "show me the chart", "markets", "q", "AAPL 341", answered=True, on_screen=True)
+    off = widget_read.compose_system("L", "show me the chart", "markets", "q", "AAPL 341", answered=True)
+    assert "YA ESTÁ ABIERTA" in on and "YA ESTÁ ABIERTA" not in off
+    prov = (Path(__file__).resolve().parents[3] / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
+    assert "on_screen=_cvis.is_open(_op_answer[0])" in prov

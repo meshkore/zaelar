@@ -181,7 +181,7 @@ def title(wid: str) -> str:
 
 
 def compose_system(lang_lock: str, operator_text: str, wid: str, question: str, block: str,
-                   answered: bool = False) -> str:
+                   answered: bool = False, on_screen: bool = False) -> str:
     """The second pass's system prompt: the widget's content is the ONLY source; an absence is stated, never
     filled. Same doctrine as `recall`'s pass and V2-210 («no des un dato inventado»).
 
@@ -209,6 +209,9 @@ def compose_system(lang_lock: str, operator_text: str, wid: str, question: str, 
         "tienes delante nada que permita afirmar eso. Si el propio bloque dice que él lo es todo, ignóralo "
         "cuando también diga que hay más entradas."
     )
+    seen = (f"La tarjeta «{name}» YA ESTÁ ABIERTA en su pantalla mostrando esto (la gráfica, la lista, el mensaje): "
+            "lo que pidió ver ya lo está viendo. Nunca digas que no puedes enseñarlo; contesta a lo que pregunta.\n"
+            if on_screen else "")
     return (
         f"{head}\n"
         f"Necesitabas LEER lo que guarda el widget «{name}» ({wid}) para contestar; aquí está su contenido. "
@@ -216,7 +219,7 @@ def compose_system(lang_lock: str, operator_text: str, wid: str, question: str, 
         "dato exacto (hora, fecha, nombre) tal cual figura. Nunca digas «widget», «datos» ni «leer»: hablas "
         f"como quien simplemente lo sabe. Lo prohibido es INVENTAR un dato, no RAZONAR con los que hay: un día "
         "sin citas es un día libre, un hueco se calcula entre dos horas, una duración se cuenta — si te pide días "
-        f"libres y el tramo está vacío, están todos libres, y los das.\n{doctrine}\n\n"
+        f"libres y el tramo está vacío, están todos libres, y los das.\n{doctrine}\n{seen}\n"
         f"PREGUNTA: {question or operator_text}\n\nPETICIÓN DEL OPERADOR: {operator_text}\n\n"
         f"LO QUE GUARDA «{name}»:\n{src}"
     )

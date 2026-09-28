@@ -2672,7 +2672,8 @@ class NucleoLLMStream(llm.LLMStream):
                  text=f"{_op_answer[0]} ← {_op_text[:100]}", role="system", extra={"cat": "flash", "widget": _op_answer[0]})
             await speak(_wread_oa.compose_system(_prompt_mod._lang_lock(), _op_text, _op_answer[0], _op_text,
                                                  _json_oa.dumps(_op_answer[1], ensure_ascii=False, default=str)[:3500],
-                                                 answered=True), _op_text, 220, "op answer compose")
+                                                 answered=True, on_screen=_cvis.is_open(_op_answer[0])),
+                        _op_text, 220, "op answer compose")
             spoken_text = "".join(spoken).strip()
         elif read_req["v"] is None and escalate_req["v"] is None and search_req["v"] is None and not clarify["msg"]:
             from nucleo.flash import card_commission as _cardc3
