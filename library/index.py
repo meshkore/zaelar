@@ -102,7 +102,7 @@ def file_into_place(src_path, *, name: str = "") -> dict:
     return {"ok": True, "rel": paths.rel_of(dest), "entry": entry_for(paths.rel_of(dest))}
 
 
-def save_text(name: str, text: str, *, kind: str = "documents") -> dict:
+def save_text(name: str, text: str, *, kind: str = "documents", replace: str = "") -> dict:
     """Write a TEXT the agent produced (a transcript, a report, notes) into the library as a file (V2-661).
 
     Measured need (session 1cdcb08e, 2026-09-11): asked to save the Declaration of Independence «en mis
@@ -116,15 +116,24 @@ def save_text(name: str, text: str, *, kind: str = "documents") -> dict:
         return {"ok": False, "error": "no hay texto que guardar"}
     leaf = os.path.basename(str(name or "").strip().replace("\\", "/")) or "documento"
     leaf = "".join(c for c in leaf if c.isalnum() or c in " ._-()áéíóúñÁÉÍÓÚÑüÜçÇ").strip(" .") or "documento"
+    # one space where a dropped «—» left two: the name on disk IS the name we report (demo pass 2026-09-28 —
+    # «Independence␣␣A One-Page» on disk, «Independence A One-Page» in the answer, every later rename refused)
+    leaf = " ".join(leaf.split())
     stem, ext = os.path.splitext(leaf)
     if formats.kind_of(leaf) != "document":
         stem, ext = leaf, ".md"          # «(EE. UU.)» is not an extension — the whole name is the stem
     dest_dir = paths.dir_for(kind if kind in paths.KINDS else "documents")
-    dest = dest_dir / f"{stem}{ext}"
-    n = 1
-    while dest.exists():
-        dest = dest_dir / f"{stem} ({n}){ext}"
-        n += 1
+    # `replace` — the caller's OWN earlier save of this same text (a document saved again is updated, not
+    # duplicated). Only a file that still exists inside the library; anything else falls back to a new name.
+    own = paths.resolve(replace) if replace else None
+    if own is not None and own.is_file():
+        dest = own
+    else:
+        dest = dest_dir / f"{stem}{ext}"
+        n = 1
+        while dest.exists():
+            dest = dest_dir / f"{stem} ({n}){ext}"
+            n += 1
     try:
         dest.write_text(body, encoding="utf-8")
     except OSError as e:

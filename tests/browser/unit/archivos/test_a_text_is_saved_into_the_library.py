@@ -135,3 +135,28 @@ def test_the_dispatcher_appends_the_block_to_every_trusted_worker():
     src = (_ENGINE / "nucleo" / "dispatch.py").read_text(encoding="utf-8")
     j = src.index("trusted_blocks(")
     assert "if trusted and not _dev:" in src[j - 400:j], "trusted workers only — the dev channel keeps its own prompt"
+
+
+# ── demo pass 2026-09-28 — the name on disk is the name reported, and a document saved again is updated ─────
+def test_the_name_on_disk_is_the_name_it_reports(ws):
+    """«The Declaration of Independence — A One-Page Summary»: the dash was dropped, two spaces stayed on disk,
+    one space went back in the answer, and every rename/delete by that name was refused afterwards."""
+    from library import index
+    res = index.save_text("The Declaration of Independence — A One-Page Summary", "x")
+    assert pathlib.Path(res["path"]).name == "The Declaration of Independence A One-Page Summary.md"
+    assert res["entry"]["name"] == pathlib.Path(res["path"]).name
+
+
+def test_the_document_sheet_saved_again_updates_its_own_file(ws):
+    """Each save made «(1)», «(2)»…, and the worker spent minutes deleting its own duplicates — asking him."""
+    from widgets.documento import data as doc
+    from library import index
+    doc.apply_action("show", {"title": "One-Page Summary", "body": "# v1"})
+    first = doc.apply_action("save_to_library", {})
+    doc.apply_action("append", {"text": "more"})
+    second = doc.apply_action("save_to_library", {})
+    assert first["file"]["rel"] == second["file"]["rel"], "the same file, updated"
+    assert len([e for e in index.listing("document") if "One-Page Summary" in e["rel"]]) == 1
+    doc.apply_action("show", {"title": "Another document", "body": "# other"})
+    third = doc.apply_action("save_to_library", {})
+    assert third["file"]["rel"] != first["file"]["rel"], "a different document never overwrites the first"

@@ -303,6 +303,8 @@ def apply_action(action: str, payload: dict = None) -> dict:
             # would be left staring at nothing with no way back, and the honest report is that nothing came.
             return {"ok": False, "error": "no llegó ningún contenido para la hoja ('body' vacío)"}
         db.pop("focus", None)
+        if _text(p.get("title"), 120) != db.get("title"):
+            db.pop("saved_rel", None)                      # another document: it gets its own file
         db.update({"kind": kind, "body": "" if kind == "pdf" else body, "src": resolved,
                    "title": _text(p.get("title"), 120),
                    "subtitle": _text(p.get("subtitle") or p.get("summary"), 200),
@@ -368,9 +370,13 @@ def apply_action(action: str, payload: dict = None) -> dict:
         name = _text(p.get("name") or p.get("filename") or db.get("title"), 160) or "documento"
         if kind == "html" and not os.path.splitext(name)[1]:
             name += ".html"
-        res = _lib.save_text(name, body, kind="documents")
+        # The sheet OWNS its file: saving again updates it (demo pass 2026-09-28 — each save made «(1)», «(2)»…,
+        # and the worker spent minutes renaming and deleting its own duplicates, asking him to authorise it).
+        res = _lib.save_text(name, body, kind="documents", replace=str(db.get("saved_rel") or ""))
         if not res.get("ok"):
             return {"ok": False, "error": res.get("error") or "no pude guardar el fichero"}
+        db["saved_rel"] = res.get("rel") or ""
+        store.save(WIDGET_ID, db)
         ent = res.get("entry") or {}
         return {"ok": True, "file": {"name": ent.get("name") or name, "rel": res.get("rel") or ""},
                 "path": res.get("path") or "", "where": "documents",
