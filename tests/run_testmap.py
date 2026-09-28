@@ -2424,7 +2424,7 @@ DOMAINS: list[dict] = [
         # 11 de 11 órdenes de un paso (música, Telegram, agenda, gráfica). Nombra ahora lo que hacen las tarjetas.
         # EN VIVO: vieja 5/17, nueva 16/17.
         {"id": "3.93", "title": "Una orden de un paso se hace en el sitio, un encargo de verdad va a un worker",
-            "ch": UNIT, "live": True, "paths": ["tests/voice/unit/test_a_one_step_order_is_not_a_worker.py"],
+            "ch": UNIT, "paths": ["tests/voice/unit/test_a_one_step_order_is_not_a_worker.py"],
             "cmd": "ZAELAR_LIVE_JEV=1 ./.venv/bin/pytest -q -s tests/voice/unit/test_a_one_step_order_is_not_a_worker.py"},
         # V2-776 (2026-09-27): el reset mandaba UN SIGTERM, dormía 2 s y borraba la base; el servidor lo ignoró y
         # siguió vivo sobre una base borrada. Ahora espera el puerto, fuerza, y si sigue vivo no borra nada.
