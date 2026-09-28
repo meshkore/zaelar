@@ -717,6 +717,23 @@ def live_state() -> str:
     return "\n".join(lines)
 
 
+def _people_block(turn_text: str) -> str:
+    """The people his sentence names who ARE in his contacts (`contactos.people_named`) — so an order to write to
+    «andrew» knows Andrew exists and by which channels, whether or not the directory card is open. Per-turn and
+    outside the stable prefix; empty when nobody is named."""
+    try:
+        from widgets.contactos import data as _cd
+        rows = _cd.people_named(turn_text)
+    except Exception:  # noqa: BLE001
+        return ""
+    if not rows:
+        return ""
+    return ("\n\n── PERSONAS QUE NOMBRA Y ESTÁN EN SUS CONTACTOS (escríbeles por su nombre; el canal lo pone la "
+            "puerta de envío) ──\n" + "\n".join(
+                f"· {r.get('name')}" + (f" — canales: {', '.join(r['channels'])}" if r.get("channels") else "")
+                + (f" · preferido {r['preferred']}" if r.get("preferred") else "") for r in rows))
+
+
 def build_flash_system(directive: str = "", recall_query: str = "", recall_block: str = "",
                        recent_block: str = "", timings: dict | None = None,
                        turn_text: str = "") -> tuple[str, list[int]]:
@@ -775,6 +792,7 @@ def build_flash_system(directive: str = "", recall_query: str = "", recall_block
         + ("\n\n" + memory_block if memory_block else "")
         + ("\n\n" + recent_block if recent_block else "")
         + ("\n\n" + recall_block if recall_block else "")
+        + _people_block(turn_text)
         + _directive_block(directive)
         # CONTEXT PACKS (V2-675) go AFTER the operator's own style directive and BEFORE the live state: a
         # directive is HIS instruction and a pack is OURS; and a pack is about a STRETCH of the relationship,

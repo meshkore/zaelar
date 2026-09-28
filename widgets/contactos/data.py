@@ -251,6 +251,33 @@ def prompt_digest() -> str:
     return "\n".join(lines)
 
 
+def people_named(text: str, limit: int = 4) -> list[dict]:
+    """The directory rows the operator's sentence NAMES — the compact public row, platforms only.
+
+    Demo pass 2026-09-28 (full14 E3): «send the invoice to andrew…» was answered «I don't see an Andrew in your
+    contacts» with Andrew saved. The directory reaches the prompt only as the card's digest (first rows of
+    ~2,700, and only while the card is open), so a person he names by first name was invisible to the turn that
+    had to write to him. A whole name in the sentence wins; otherwise a name whose FIRST word is a word of the
+    sentence (several «Andrew» come back together, and the model asks which). Names under three letters never
+    match — they are words, not people."""
+    import re as _re
+    words = set(_re.findall(r"[^\W\d_]{3,}", (text or "").lower()))
+    if not words:
+        return []
+    full, first = [], []
+    for c in visible(load_db()):
+        if c.get("kind") not in (None, "", "person"):
+            continue
+        toks = _re.findall(r"[^\W\d_]+", str(c.get("name") or "").lower())
+        if not toks or len(toks[0]) < 3:
+            continue
+        if len(toks) > 1 and all(t in words for t in toks):
+            full.append(c)
+        elif toks[0] in words:
+            first.append(c)
+    return [_public(c) for c in (full or first)[:limit]]
+
+
 def visible(db: dict) -> list[dict]:
     """The rows the operator is meant to SEE. One reader, because «hidden» has to mean the same thing in
     the card, in the brain's digest, in the voice index and in whoever asks next (V2-714).

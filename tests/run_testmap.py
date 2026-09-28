@@ -3352,6 +3352,9 @@ DOMAINS: list[dict] = [
         # V2-764 — «voy a por la serie Sherlock en torrent y te enseño el catálogo», and no tool: the turn's verdict
         # named the card, the action existed. One bounded pass asks the model for the call it promised — only the
         # named card, only a declared action — before the backstop spends a worker on it.
+        {"id": "2.108", "title": "A person the operator names reaches the turn: the directory rows his sentence names ride the prompt (platforms only)",
+            "ch": UNIT,
+            "paths": ["tests/browser/unit/contactos/test_a_person_he_names_reaches_the_turn.py"]},
         {"id": "2.107", "title": "Forwarding what arrived: send_to carries a message's attachments (a NEW mail, never «Re:»), and a mail goes back to unread in the real mailbox",
             "ch": UNIT,
             "paths": ["tests/browser/unit/mensajeria/test_forwarding_an_attachment_and_leaving_it_unread.py"]},
