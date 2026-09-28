@@ -573,6 +573,18 @@ async def canvas_state(payload: dict):
     brain know "what the operator has in front of them" and resolve "modify the X widget" without asking.
     Best-effort, fire-and-forget from `desktop._persist()`. Normalizes instance ids (navegador::t3 → navegador)
     and dedupes."""
+    # THE SCREEN THE CONVERSATION IS ABOUT is the one holding the voice session. Two tabs (or a phone and a
+    # desktop) report different canvases, and the server used to take the last word: in the demo pass of
+    # 2026-09-28 the operator's watching tab, which had no chart, «closed» Markets 268 ms into «ok close that»,
+    # the verdict no longer saw the chart and the agenda was closed instead. While a live session holds the
+    # lock, another tab's report is not the operator's screen. No live session → every report counts, as before.
+    try:
+        from server import livekit_api as _lk
+        _sid = str((payload or {}).get("sid") or "")
+        if _sid and _lk._active.get("sid") and not _lk._free(time.time()) and _lk._active["sid"] != _sid:
+            return JSONResponse({"ok": True, "ignored": "not the screen of the voice session"})
+    except Exception:  # noqa: BLE001
+        pass
     raw = payload.get("open") or []
     seen: list[str] = []
     inst: list[str] = []                        # V2-047 F9: full INSTANCE ids, as-is (navegador::t1)

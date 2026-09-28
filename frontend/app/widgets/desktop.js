@@ -493,7 +493,8 @@ export class Desktop {
     clearTimeout(this._openTimer);
     this._openTimer=setTimeout(()=>{
       try{ fetch("/api/canvas/state",{method:"POST",headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({open:this.list(), layout:this._layout()})}); }catch(_){}
+        body:JSON.stringify({open:this.list(), layout:this._layout(),
+                             sid:(()=>{ try{ return sessionStorage.getItem("zaelar_sid")||""; }catch(_){ return ""; } })()})}); }catch(_){}
     }, 250);
   }
   async restore(){

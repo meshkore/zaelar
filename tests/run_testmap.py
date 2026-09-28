@@ -3352,6 +3352,10 @@ DOMAINS: list[dict] = [
         # V2-764 — «voy a por la serie Sherlock en torrent y te enseño el catálogo», and no tool: the turn's verdict
         # named the card, the action existed. One bounded pass asks the model for the call it promised — only the
         # named card, only a declared action — before the backstop spends a worker on it.
+        {"id": "2.91", "title": "The canvas that counts is the one of the tab holding the voice session — a watching "
+                                "tab cannot «close» what the operator is looking at",
+            "ch": UNIT,
+            "paths": ["tests/browser/unit/widgets/test_the_screen_that_counts_is_the_voice_sessions.py"]},
         {"id": "2.90", "title": "A silent show of an EMPTY card gets its second pass — «show me the chart» opens Apple's "
                                 "chart, not an empty one",
             "ch": UNIT,
