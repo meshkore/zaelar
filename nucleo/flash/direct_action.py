@@ -911,3 +911,17 @@ def verdict_elsewhere(brief, widget_id: str) -> bool:
     """The verdict SURELY names an action on a card other than `widget_id` — the turn is about something else."""
     wid, name = from_brief(brief)
     return bool(wid and name) and _base_of(wid) != _base_of(widget_id) and _action_sure(brief)
+
+
+def order_card_after_read(brief, operator_text: str, read_widget: str) -> str:
+    """The card an ORDER is on when the turn read a DIFFERENT card for it, or "": the brief is sure it is an order
+    and his words name exactly one other card (by its name, an alias or a word it declares)."""
+    try:
+        from nucleo.flash import turn_brief as _tb
+        kind, info = _tb.read(brief, _tb.REQUEST_KEY, "", min_confidence=0.8)
+        if str(kind or "") != "order" or not info:
+            return ""
+        named = [c for c in named_cards(operator_text) if _base_of(c) != _base_of(read_widget)]
+        return _base_of(named[0]) if len(named) == 1 else ""
+    except Exception:  # noqa: BLE001
+        return ""

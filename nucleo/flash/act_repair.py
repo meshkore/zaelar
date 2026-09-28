@@ -128,6 +128,112 @@ async def call_for_promise(operator_text: str, reply: str, widget_id: str, spec=
         return None
 
 
+_SYS_REPEAT = (
+    "Eres el cerebro de un asistente de voz. El operador dio una orden y tu única llamada fue `{repeated}` sobre la "
+    "tarjeta «{wid}» — lo que ya estaba abierto en su pantalla: no cumplió nada. La orden, leída por separado, es "
+    "`{verdict}` sobre «{wid}». Si sus palabras piden eso, haz AHORA exactamente la llamada `widget_data` con "
+    "widget_id «{wid}» y action «{verdict}», con el payload sacado de sus palabras, de la conversación y de lo que hay "
+    "en la tarjeta (una nota que él dicta se redacta tú; a una persona se la nombra como él la dijo). Si sus palabras "
+    "NO piden eso, no llames a nada.\n\nAcciones de «{wid}»:\n{actions}{card}")
+
+
+async def call_for_repeated_view(operator_text: str, widget_id: str, repeated: str, verdict: str, spec=None, *,
+                                 window=None) -> dict | None:
+    """The model's only call RE-OPENED what was already on screen, and the verdict names an action on that card
+    that needs a payload only a model can write — ask once, for that call. `{widget_id, action, payload}` or None.
+
+    Demo pass 2026-09-28 (full20 E3): «send the invoice to andrew, tell him we're already trying inworld and he
+    should book it» over the open Inworld receipt → the model called `open` (again), the verdict read
+    `mensajeria:forward` at 0.61. The verdict alone cannot complete a forward — the note to Andrew has to be
+    written — so the turn ended having done nothing. Bounded like `call_for_promise`: one card, its declared
+    action, the caller's usual gate. Never raises."""
+    try:
+        wid = str(widget_id or "").strip().lower()
+        verdict = str(verdict or "").strip()
+        if not wid or not verdict or not (operator_text or "").strip():
+            return None
+        from widgets import runtime as _rt
+        manifest = _rt.get(wid) or {}
+        declared = manifest.get("actions") or {}
+        tool = _widget_data_tool()
+        if verdict not in declared or not tool:
+            return None
+        digest = ""
+        try:
+            from nucleo.flash import widget_read as _wr
+            digest = str(_wr.read(wid) or "").strip()[:1500]
+        except Exception:  # noqa: BLE001
+            digest = ""
+        card = _CARD.format(wid=wid, digest=digest) if digest else ""
+        got: list[tuple[str, dict]] = []
+        from nucleo.flash.fast_client import FastClient
+        await FastClient().complete(
+            [{"role": "system", "content": _SYS_REPEAT.format(wid=wid, repeated=repeated, verdict=verdict,
+                                                              actions=_actions_block(manifest), card=card)},
+             {"role": "user", "content": f"Operador: «{operator_text.strip()[:400]}»" + conversation(window)}],
+            spec=spec, max_tokens=400, tools=[tool], no_thinking=True,
+            on_tool_call=lambda name, args: got.append((name, args if isinstance(args, dict) else {})))
+        for name, args in got:
+            if (name == "widget_data" and str(args.get("widget_id") or "").strip().lower() == wid
+                    and str(args.get("action") or "").strip() == verdict):
+                payload = args.get("payload") if isinstance(args.get("payload"), dict) else {}
+                return {"widget_id": wid, "action": verdict, "payload": payload}
+        _note(wid, "el modelo no hizo la llamada del veredicto", action=verdict)
+        return None
+    except Exception:  # noqa: BLE001
+        return None
+
+
+_SYS_AFTER_READ = (
+    "Eres el cerebro de un asistente de voz. El operador dio una ORDEN sobre la tarjeta «{wid}». Para cumplirla leíste "
+    "antes la tarjeta «{read}» — esto es lo que guarda:\n{block}\n\nAhora cumple la orden: haz la llamada "
+    "`widget_data` con widget_id «{wid}», una de sus acciones declaradas y el payload sacado de sus palabras y de lo "
+    "que acabas de leer (un mensaje lo redactas tú; a una persona se la nombra como él la dijo). Si su frase no pide "
+    "hacer nada en «{wid}», no llames a nada.\n\nAcciones de «{wid}»:\n{actions}{card}")
+
+
+async def call_after_read(operator_text: str, read_widget: str, widget_id: str, spec=None, *,
+                          window=None) -> dict | None:
+    """The turn READ one card to get what an order on ANOTHER card needed — and the read path ends the turn with
+    words only. `{widget_id, action, payload}` for the order, or None. Never raises.
+
+    Demo pass 2026-09-28 (full20 C5): «send ethan a telegram with the new time» — the model read the agenda for the
+    new time (sensible), and the read's answer pass, which has no tools, said «I can't send a Telegram, I don't have
+    any messaging tool available here». The order stood; this pass carries it out with what was read."""
+    try:
+        wid = str(widget_id or "").strip().lower()
+        rid = str(read_widget or "").strip().lower()
+        if not wid or not rid or wid == rid or not (operator_text or "").strip():
+            return None
+        from widgets import runtime as _rt
+        manifest = _rt.get(wid) or {}
+        declared = manifest.get("actions") or {}
+        tool = _widget_data_tool()
+        if not declared or not tool:
+            return None
+        from nucleo.flash import widget_read as _wr
+        block = str(_wr.read(rid) or "").strip()[:1500] or "(vacía)"
+        digest = str(_wr.read(wid) or "").strip()[:800]
+        card = _CARD.format(wid=wid, digest=digest) if digest else ""
+        got: list[tuple[str, dict]] = []
+        from nucleo.flash.fast_client import FastClient
+        await FastClient().complete(
+            [{"role": "system", "content": _SYS_AFTER_READ.format(wid=wid, read=rid, block=block,
+                                                                  actions=_actions_block(manifest), card=card)},
+             {"role": "user", "content": f"Operador: «{operator_text.strip()[:400]}»" + conversation(window)}],
+            spec=spec, max_tokens=400, tools=[tool], no_thinking=True,
+            on_tool_call=lambda name, args: got.append((name, args if isinstance(args, dict) else {})))
+        for name, args in got:
+            action = str(args.get("action") or "").strip()
+            if name == "widget_data" and str(args.get("widget_id") or "").strip().lower() == wid and action in declared:
+                payload = args.get("payload") if isinstance(args.get("payload"), dict) else {}
+                return {"widget_id": wid, "action": action, "payload": payload}
+        _note(wid, "tras leer, el modelo no hizo la llamada de la orden", read=rid)
+        return None
+    except Exception:  # noqa: BLE001
+        return None
+
+
 _SYS_COMMISSION = (
     "Eres el cerebro de un asistente de voz. El operador ha dado una ORDEN que nombra la tarjeta «{wid}», y el "
     "turno iba a mandarla a un proceso de fondo de VARIOS MINUTOS. Antes de gastarlos, decide con lo que hay en la "

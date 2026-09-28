@@ -776,6 +776,7 @@ class NucleoLLMStream(llm.LLMStream):
         confirm_state = {"handled": False}
         clarify = {"msg": None}          # V2-026: pregunta a decir si una referencia a un item no se resolvió
         _closed_by_tool: set = set()      # the cards `close_widget` closed this turn — each one once
+        _repeat_repair: dict = {"v": None}  # (card, repeated view, verdict action) — see `call_for_repeated_view`
         data_done = {"v": False}         # V2-026: se despachó una data-op FAST → ack hablado si el modelo no habló
         deduped = {"v": False}           # V2-634: el guarda anti context-bleed descartó un duplicado — el turno
                                          # fue ATENDIDO (dedupe deliberado), no un vacío que disculpar
@@ -1474,6 +1475,10 @@ class NucleoLLMStream(llm.LLMStream):
                          extra={"cat": "flash", "id": _cd["card"], "model": action_name, "verdict": _dis})
                     acted["widget"] = True
                     return
+                # …and a REPEATED view with a verdict that needs a written payload (full20 E3: `open` again, verdict
+                # `forward`): the view runs, and one repair pass after the turn asks for the verdict's call.
+                if _data_ops.repeats_last_view(brain._last_dataop, _cd["card"], action_name, res.payload):
+                    _repeat_repair["v"] = (_cd["card"], action_name, _dis)
                 emit("brain", "⚖️ el modelo y el veredicto discrepan — corre el modelo", role="system",
                      text=f"{_cd['card']}: modelo={action_name} · veredicto={_dis}",
                      extra={"cat": "flash", "id": _cd["card"], "model": action_name, "verdict": _dis})
@@ -2686,6 +2691,17 @@ class NucleoLLMStream(llm.LLMStream):
                 emit("brain", "🔁 prometió actuar sin tool — la llamada, en una segunda pasada",
                      text=f"{_ar['widget_id']}:{_ar['action']}", role="system",
                      extra={"cat": "flash", "widget": _ar["widget_id"], "action": _ar["action"]})
+        if _repeat_repair["v"] and not clarify["msg"]:
+            from nucleo.flash import act_repair as _act_repair_rv
+            _rv_card, _rv_seen, _rv_act = _repeat_repair["v"]
+            _rv = await _act_repair_rv.call_for_repeated_view(_op_text, _rv_card, _rv_seen, _rv_act, spec=spec,
+                                                               window=list(brain._window))
+            if _rv:
+                _apply_widget_data(_rv["widget_id"], _rv["action"], _rv["payload"])
+                acted["widget"] = True
+                emit("brain", "🔁 solo repitió la vista — la llamada del veredicto, en una segunda pasada",
+                     text=f"{_rv['widget_id']}:{_rv['action']}", role="system",
+                     extra={"cat": "flash", "widget": _rv["widget_id"], "action": _rv["action"]})
         # V2-773 — the turn SHOWED a card and promised more on it, or its show was suppressed over the open card
         # with the verdict naming an action: the show is not the act (`card_commission.after_show`).
         if acted.get("widget_id") and not data_done["v"] and not clarify["msg"]:   # a SILENT show too (M1)
@@ -2949,9 +2965,27 @@ class NucleoLLMStream(llm.LLMStream):
             _pending = [t for w, t in _turn_op_tasks if str(w).split("::")[0] == _rw and not t.done()]
             if _pending:
                 await asyncio.wait(_pending, timeout=6.0)
-            await speak(await _wread.prepare(read_req["v"] or {}, operator_text, _prompt_mod._lang_lock(), emit),
-                        operator_text, 220, "read_widget compose")
-            spoken_text = "".join(spoken).strip()
+            # A read that serves an ORDER on another card (full20 C5: «send ethan a telegram with the new time» read
+            # the agenda for the time) — the order is carried out with what was read, instead of a words-only pass
+            # that has no tools and says it cannot.
+            _after = None
+            _order_card = _direct_action.order_card_after_read(_brief, _op_text, _rw)
+            if _order_card:
+                from nucleo.flash import act_repair as _act_repair_rd
+                _after = await _act_repair_rd.call_after_read(_op_text, _rw, _order_card, spec=spec,
+                                                              window=list(brain._window))
+            if _after:
+                _cvis.present(_after["widget_id"], reason="turn-order", src="flash", emit=emit)
+                _apply_widget_data(_after["widget_id"], _after["action"], _after["payload"])
+                acted["widget"] = True
+                data_done["v"] = True
+                emit("brain", "🔁 leyó para una orden — la llamada, con lo leído", role="system",
+                     text=f"{_rw} → {_after['widget_id']}:{_after['action']}",
+                     extra={"cat": "flash", "widget": _after["widget_id"], "action": _after["action"]})
+            else:
+                await speak(await _wread.prepare(read_req["v"] or {}, operator_text, _prompt_mod._lang_lock(), emit),
+                            operator_text, 220, "read_widget compose")
+                spoken_text = "".join(spoken).strip()
 
         # V2-728 — RECUPERAR UN ENCARGO TERMINADO. La decisión ENTERA (índice léxico → Jev → preguntar si hay
         # varios) y su descripción viven en `task_recall.voice_turn`; aquí solo lo propio del canal.
