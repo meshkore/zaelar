@@ -558,7 +558,22 @@ async def _loop() -> None:
                 await fn(mb)
             except Exception as e:  # noqa: BLE001
                 logger.debug(f"Email {what} tick: {e}")
-        await asyncio.sleep(config.poll_interval())
+        await _nap(config.poll_interval())
+
+
+_NAP_STEP_S = 0.5
+
+
+async def _nap(total: float) -> None:
+    """Sleep until the next poll — or until an ON-DEMAND order arrives (demo pass 31, E2: «did inworld send me
+    something?» asked the mailbox for the receipt, «open it» came 14 s later, and the mail landed 3 s after that:
+    the history order had waited out the 20 s poll). A send, a history or a fetch order is the operator waiting."""
+    loop = asyncio.get_running_loop()
+    end = loop.time() + max(0.0, float(total))
+    while loop.time() < end:
+        if any(i is not None and i.pending() for i in (_history_inbox, _send_inbox, _fetch_inbox)):
+            return
+        await asyncio.sleep(min(_NAP_STEP_S, max(0.0, end - loop.time())))
 
 
 def start() -> None:

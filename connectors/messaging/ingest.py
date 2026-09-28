@@ -151,6 +151,14 @@ class _PlatformInbox:
                 out.append(ev)
         return out
 
+    def pending(self) -> bool:
+        """Is anything waiting (for any platform — `drain` discards the rest)? Lets a polling connector WAKE
+        for an on-demand order instead of sleeping through its interval."""
+        try:
+            return not self._sub.queue.empty()
+        except Exception:  # noqa: BLE001
+            return False
+
     def close(self) -> None:
         try:
             self._sub.close()

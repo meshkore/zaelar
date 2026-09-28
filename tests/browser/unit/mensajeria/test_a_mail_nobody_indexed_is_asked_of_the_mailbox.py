@@ -95,3 +95,10 @@ def test_what_the_mailbox_found_is_asked_into_the_card(mailbox, monkeypatch):
     monkeypatch.setattr("widgets.supervisor.enqueue_from_thread", lambda wid, a, p: asked.append((wid, a, p)) or True)
     data.read_query("did inworld send me something?")
     assert ("mensajeria", "search_archive", {"q": "inworld", "platform": "email"}) in asked, asked
+
+
+def test_query_is_read_as_q(mailbox):
+    """Pass 31, E1: the model's first call was `search_archive {query: "Inworld"}` and was refused for lacking a
+    criterion. `query` is what a search's text is called almost everywhere; it is read as `q`."""
+    res = data.answer_action("search_archive", {"query": "inworld"})
+    assert "result" in res and res["result"]["count"] == 1, res

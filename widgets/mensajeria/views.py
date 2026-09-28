@@ -202,7 +202,7 @@ def archive_rows(payload: dict) -> list:
     """The archive rows a `search_archive` payload asks for (newest first); [] without any criterion."""
     from connectors.messaging import archive
     from . import data as _d
-    q = str(payload.get("q") or payload.get("text") or "").strip() or None
+    q = str(payload.get("q") or payload.get("query") or payload.get("text") or "").strip() or None
     sender = str(payload.get("sender") or payload.get("from") or "").strip() or None
     chat = str(payload.get("chat") or payload.get("group") or payload.get("name") or "").strip() or None
     platform = str(payload.get("platform") or "").strip().lower()
@@ -326,7 +326,7 @@ def _search_archive_answer(payload: dict) -> dict:
     is how «you have none» gets said over a period we simply never recorded (the V2-606 lesson)."""
     from connectors.messaging import archive
     from . import data as _d
-    q = str(payload.get("q") or payload.get("text") or "").strip() or None
+    q = str(payload.get("q") or payload.get("query") or payload.get("text") or "").strip() or None
     sender = str(payload.get("sender") or payload.get("from") or "").strip() or None
     chat = str(payload.get("chat") or payload.get("group") or payload.get("name") or "").strip() or None
     platform = str(payload.get("platform") or "").strip().lower()
