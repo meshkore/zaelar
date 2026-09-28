@@ -122,7 +122,7 @@ def test_the_voice_path_brings_the_card_of_a_mount_action_through_the_one_door()
     import re
     src = (pathlib.Path(__file__).resolve().parents[4] / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
     i = src.index("def _apply_widget_data(")
-    body = src[i:i + 9000]
+    body = src[i:src.index("\n        def ", i + 10)]
     assert re.search(r"_fx\.carries\(wid, action_name, _fx\.PRESENT_MOUNT\):\s*\n\s*_cvis\.present\(wid, "
                      r"reason=\"producer-mount\"", body), "a FAST data-op with present.mount must present its card"
 
@@ -167,9 +167,10 @@ def test_a_lens_on_a_closed_card_brings_the_card():
     import re
     src = (pathlib.Path(__file__).resolve().parents[4] / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
     i = src.index("def _apply_widget_data(")
-    body = src[i:i + 9000]
-    assert re.search(r"elif _fx\.carries\(wid, action_name, _fx\.DATA_READ\) and not _cvis\.is_open\(wid\):\s*\n"
-                     r"\s*_cvis\.present\(wid, reason=\"turn-order\"", body), "a view-op on a closed card must bring it"
+    body = src[i:src.index("\n        def ", i + 10)]
+    assert re.search(r"elif \(?_fx\.carries\(wid, action_name, _fx\.DATA_READ\) and not _cvis\.is_open\(wid\)"
+                     r"[\s\S]{0,240}?_cvis\.present\(wid, reason=\"turn-order\"", body), \
+        "a view-op on a closed card must bring it"
     from widgets import effects as fx
     assert fx.carries("agenda", "show_day", fx.DATA_READ) and not fx.carries("agenda", "add_meeting", fx.DATA_READ)
 
