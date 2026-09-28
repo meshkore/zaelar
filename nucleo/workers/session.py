@@ -715,6 +715,39 @@ class WorkerSession:
         except Exception:
             pass
 
+    def _relay_search(self) -> None:
+        """The provider's built-in search is out of quota: tell THIS worker, once, to use Zaelar's (2026-09-28).
+
+        Blindness was detected and announced, and nothing changed for the worker: it kept calling the dead tool
+        or reasoning without material (demo pass 30 — Z.ai's web reader answering 429 while the model worked).
+        The operator's rule: the provider's own search first while it works, OURS when its quota runs out — the
+        same search the FlashBrain uses, reached through the per-task bridge. The spawn prompt already names both;
+        this is the moment the second one becomes the only one, delivered on the worker's next bridge contact."""
+        if getattr(self, "_search_relayed", False):
+            return
+        self._search_relayed = True
+        try:
+            from nucleo.workers.claude_session import bridge_python
+            py = bridge_python() or "python"
+        except Exception:  # noqa: BLE001
+            py = "python"
+        msg = ("Tu buscador integrado se ha quedado SIN CUOTA y no vuelve en esta tarea: no lo uses más. Busca "
+               "con el de Zaelar: escribe con Write en `busca.json` un "
+               '{"tool":"web_search","args":{"query":"<qué buscas>"}} y lanza '
+               f"`{py} -m nucleo.worker_bridge act use_tool @busca.json`. Para leer una página, el navegador: "
+               f"`{py} -m nucleo.nav_cli`.")
+        try:
+            import asyncio as _aio
+            _aio.get_running_loop().create_task(self.inject(msg))
+        except RuntimeError:
+            self._rec.injects.append(Inject(text=msg, ts=time.time()))   # no loop: the bridge piggyback still delivers it
+        try:
+            from voice.observer import emit
+            emit("task", "🔁 búsqueda → la de Zaelar (cuota del proveedor agotada)", role="system",
+                 extra={"id": self._rec.task_id, "span": f"worker:{self._rec.task_id}"})
+        except Exception:  # noqa: BLE001
+            pass
+
     def _emit_step_result(self, d: dict) -> None:
         """The step's EVIDENCE: what the tool answered (2026-08-10).
 
@@ -744,8 +777,9 @@ class WorkerSession:
             if bad:
                 try:
                     from nucleo.workers import providers as _prov
-                    _prov.note_tool_blindness(body, tool=str(d.get("tool") or ""),
-                                              provider=str(d.get("provider") or ""))
+                    if _prov.note_tool_blindness(body, tool=str(d.get("tool") or ""),
+                                                 provider=str(d.get("provider") or "")):
+                        self._relay_search()
                 except Exception:
                     pass
         except Exception:

@@ -3357,6 +3357,9 @@ DOMAINS: list[dict] = [
         # named the card, the action existed. One bounded pass asks the model for the call it promised — only the
         # named card, only a declared action — before the backstop spends a worker on it.
         # Demo pass 2026-09-28 (V2-776 E) — the fixes of the passes, one node each.
+        {"id": "2.139", "title": "A worker whose own search runs out of quota is moved to Zaelar's search",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/workers/test_a_blind_worker_is_moved_to_our_search.py"]},
         {"id": "2.138", "title": "A backed widget's owner can be asked from a thread",
             "ch": UNIT,
             "paths": ["tests/browser/unit/widgets/test_an_owner_can_be_asked_from_a_thread.py"]},

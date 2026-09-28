@@ -513,9 +513,19 @@ def _drawer_rules(py: str = "") -> str:
             "(«Contains brace with quote character»): escríbelo con Write a un fichero de tu directorio y "
             "pásalo con `@fichero.json`. Todos los puentes lo aceptan.\n"
             "  · Solo los puentes. Ni `curl`, ni `wget`, ni scripts propios: para ABRIR una página usa "
-            f"{_puente}, y para BUSCAR pídelo por {_busca}. Lo que traigas "
+            f"{_puente}. Lo que traigas "
             "con `curl` además no pasa por el navegador del operador, así que ni ve las cookies ni cuenta como "
             "evidencia.\n"
+            # TWO search engines, and the order between them (operator, 2026-09-28): the provider's own built-in
+            # search is the most direct when it works; when its quota runs out, the worker falls over to ours —
+            # the same search the FlashBrain uses (Google + several APIs), reached through the per-task bridge.
+            "  · Para BUSCAR en la web tienes DOS buscadores. Primero el TUYO, si tu proveedor te lo da (tu "
+            "herramienta integrada de búsqueda o de lectura web): es el más directo. Si falla por cuota o límite "
+            "(«429», «quota», «limit», «usage»), o no lo tienes, usa el de Zaelar, que es el mismo que usa el "
+            "asistente: escribe con Write en `busca.json` un "
+            "{\"tool\":\"web_search\",\"args\":{\"query\":\"<qué buscas>\"}} y lanza "
+            f"{_busca} act use_tool @busca.json. No insistas con el tuyo después de un fallo de cuota: no vuelve "
+            "en esta tarea.\n"
             "  · Si un comando te pide aprobación, lo escribiste mal: REESCRÍBELO en la forma de arriba. No lo "
             "reintentes igual, no busques otra vía y no te calles — si de verdad no hay forma, DILO como "
             "resultado (`hbnote`/tu entrega) en vez de terminar en silencio.\n\n")

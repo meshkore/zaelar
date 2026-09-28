@@ -95,7 +95,8 @@ def _verify(task_id: str, token: str):
         rec = dispatch.get_record(task_id)
         if rec is None:
             return None
-        if dispatch.rec_token(rec) != (token or ""):
+        # constant-time: the per-task token is the bridge's only credential, and `!=` leaks its prefix by timing
+        if not secrets.compare_digest(dispatch.rec_token(rec).encode(), str(token or "").encode()):
             return None
         return rec
     except Exception:
