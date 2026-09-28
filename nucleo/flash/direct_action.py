@@ -483,22 +483,19 @@ def a_fragment_moves_nothing(operator_text: str, *, brief=None, last_reply: str 
     return "un número suelto, y el veredicto no nombra ninguna acción"
 
 
-#: Spoken numbers reach us as words — Deepgram writes «el vídeo número tres», never «el vídeo 3».
-_SPELLED = {"un": 1, "uno": 1, "una": 1, "primero": 1, "primera": 1, "dos": 2, "segundo": 2,
-            "segunda": 2, "tres": 3, "tercero": 3, "tercera": 3, "cuatro": 4, "cuarto": 4,
-            "cuarta": 4, "cinco": 5, "quinto": 5, "quinta": 5, "seis": 6, "sexto": 6, "sexta": 6,
-            "siete": 7, "septimo": 7, "ocho": 8, "octavo": 8, "nueve": 9, "noveno": 9, "diez": 10}
-
-
+#: Spoken numbers reach us as words — Deepgram writes «el vídeo número tres» / «number five», never «3». The
+#: words are the ONE closed class `widgets/refs.number_words()` keeps for every language pack we speak.
 def _spell(m) -> str:
     import unicodedata as _ud
+    from widgets import refs as _refs
     w = "".join(c for c in _ud.normalize("NFKD", m.group(0).lower()) if not _ud.combining(c))
-    return str(_SPELLED.get(w, m.group(0)))
+    return str(_refs.number_words().get(w, m.group(0)))
 
 
 def _word_numbers_re():
     import re as _re
-    return _re.compile("|".join(r"\b%s\b" % w for w in sorted(_SPELLED, key=len, reverse=True)),
+    from widgets import refs as _refs
+    return _re.compile("|".join(r"\b%s\b" % w for w in sorted(_refs.number_words(), key=len, reverse=True)),
                        _re.IGNORECASE)
 
 
@@ -520,7 +517,13 @@ def number_fill(widget_id: str, action: str, words: str) -> dict:
         spec = str(_payload_spec(widget_id, action).get(key) or "").lower()
         if not any(m in spec for m in ("1-based", "1-n", "número del resultado", "numero del resultado")):
             return {}
-        nums = [int(x) for x in _re.findall(r"\b(\d{1,2})\b", _WORD_NUMBERS.sub(_spell, words or ""))]
+        nums = [int(_spell(m)) for m in _WORD_NUMBERS.finditer(words or "")]       # a SPOKEN number counts
+        # …a DIGIT only when it is marked as one («number 3», «nº 3», «el 6», «#3») or is all he said: «Apolo 11»
+        # is a title, not row eleven.
+        nums += [int(x) for x in _re.findall(r"(?:\b(?:number|n[uú]mero|n[º°o]\.?|el|la|the)\s*|#)(\d{1,2})\b",
+                                                words or "", _re.IGNORECASE)]
+        if _re.fullmatch(r"\s*(\d{1,2})\s*[.!]?\s*", words or ""):
+            nums.append(int(_re.sub(r"\D", "", words)))
         nums = [n for n in nums if 1 <= n <= 99]
         return {key: nums[0]} if len(set(nums)) == 1 else {}
     except Exception:  # noqa: BLE001

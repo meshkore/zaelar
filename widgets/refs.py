@@ -195,7 +195,16 @@ _ORDINALS = {
     "noveno": 8, "novena": 8, "nueve": 8, "ninth": 8,
     "decimo": 9, "decima": 9, "diez": 9, "tenth": 9,
     "ultimo": -1, "ultima": -1, "last": -1,
+    # English CARDINALS (demo pass 2026-09-28: «put on number five» was no number at all in an English
+    # session). «one» stays out on purpose — «the red one» is not row 1 (`_POS_FILLER` drops it).
+    "two": 1, "three": 2, "four": 3, "five": 4, "six": 5, "seven": 6, "eight": 7, "nine": 8, "ten": 9,
 }
+
+
+def number_words() -> dict:
+    """The spoken numbers this module understands, 1-BASED (the manifests' convention) — the one table every
+    reader of «number three» / «the fifth» / «cinco» shares. «last» is a position, not a number: left out."""
+    return {w: i + 1 for w, i in _ORDINALS.items() if i >= 0}
 
 
 # Nouns that name the CONTAINER or the KIND of thing, never a particular one: «el primer VÍDEO de la LISTA»

@@ -185,6 +185,10 @@ def test_remove_DECLARES_the_plural_so_a_reader_can_find_it(card):
     ("¿Puedes, por favor, reproducir el video número dos?", 2),
     ("ponme el 6", 6),
     ("reproduce el primero", 1),
+    # demo pass 2026-09-28, an English session: «five» was no number at all, and a self-correction repeats it
+    ("put on number five… no wait, yeah five", 5),
+    ("play the fifth one", 5),
+    ("play number 4", 4),
 ])
 def test_a_number_he_said_fills_an_index_key(said, want):
     assert _da.number_fill("youtube", "play_result", said) == {"item": want}
