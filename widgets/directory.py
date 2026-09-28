@@ -142,6 +142,20 @@ def channel_for(contact: dict, platform: str = "") -> dict | None:
     return None
 
 
+def reachable(question: str) -> str:
+    """The people a free-text question names, with how each one is reached — for a card that WRITES to people.
+
+    Demo pass 2026-09-28, C5: asked «is there a contact called Ethan? does he have Telegram?», the messaging card
+    could only see its inbox and said no, while its own `send_to` resolves through this module. A card that sends
+    answers recipient questions from here; this layer asks the directory's own lookup, so no widget imports
+    another. "" when nobody is named."""
+    try:
+        from .contactos.lookup import read_query as _lookup
+        return str(_lookup(question) or "").strip()
+    except Exception:  # noqa: BLE001
+        return ""
+
+
 def resolve(name: str) -> list[dict]:
     """The contacts `name` can mean. Exact name wins outright; otherwise every contact whose name contains
     all the words said. An empty name resolves to NOBODY — «mándale un mensaje» with no name must ask, and

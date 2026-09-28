@@ -128,8 +128,8 @@ def read_query(question: str) -> str:
     would have sent at once. The card's reading and the card's action now see the same people."""
     inbox = _inbox_answer(question)
     try:
-        from widgets.contactos.lookup import read_query as _directory
-        people = str(_directory(question) or "").strip()
+        from widgets import directory as _directory       # the layer every outbound door asks — never a widget
+        people = _directory.reachable(question)
     except Exception:  # noqa: BLE001
         people = ""
     return "\n\n".join(x for x in (people, inbox) if x)
