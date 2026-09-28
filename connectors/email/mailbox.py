@@ -258,6 +258,20 @@ def _other_recipients(msg, from_addr: str) -> list:
     return out[:25]                            # a mailing-list blast is not a conversation to answer
 
 
+def _is_own_address(addr: str) -> bool:
+    """A mail FROM the operator's own address is the echo of one he sent — a copy that lands back in INBOX when
+    the recipient is a list or alias he is on. Demo pass 2026-09-28 (full13 E3): the invoice forwarded to Andrew
+    in an earlier run came back as «rjj@proars.com · Hi Andrew, forwarding the Inworld receipt», sat first in
+    his «for you» list, and the model took it for a mail FROM Andrew and asked which thread to send from. What
+    he wrote himself is not something to triage for him."""
+    try:
+        from . import config as _cfg
+        own = _cfg.address().strip().lower()
+    except Exception:
+        return False
+    return bool(own) and (addr or "").strip().lower() == own
+
+
 def parse_message(uid: str, raw_bytes: bytes, media_dir: str | None = None) -> dict | None:
     """Raw email (RFC822) → normalized dict for triage/store, or None if it should be ignored (automatic).
     `uid` = IMAP UID (str) → used as messageId (stable per mailbox). RFC Message-ID goes in `msgid`.
@@ -267,7 +281,7 @@ def parse_message(uid: str, raw_bytes: bytes, media_dir: str | None = None) -> d
     from_raw = msg.get("From", "")
     from_addr = extract_email_address(from_raw)
     headers = dict(msg.items())
-    if is_automated_sender(from_addr, headers):
+    if is_automated_sender(from_addr, headers) or _is_own_address(from_addr):
         return None
     subject = decode_header_value(msg.get("Subject", "(sin asunto)"))
     body = (extract_text_body(msg) or "").strip()[:MAX_BODY_LENGTH]

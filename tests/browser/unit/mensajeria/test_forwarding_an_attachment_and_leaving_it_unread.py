@@ -132,3 +132,16 @@ def test_a_message_named_by_who_sent_it_is_found_in_its_thread_too(box):
     assert r["ok"] and r["result"]["attachments"] == 1, r
     r2 = box.apply_action("unread", {"from": "Inworld"})
     assert r2["ok"] and box.load_db()["pending_unread"][0]["messageId"] == "220440"
+
+
+def test_a_mail_from_his_own_address_is_his_echo_not_mail_for_him(monkeypatch):
+    """Demo pass 2026-09-28 (full13 E3): the invoice forwarded to Andrew in an earlier run came back into INBOX
+    from the operator's OWN address, sat first in his «for you» list, and the model took it for a mail from Andrew
+    and asked which thread to send from — the send never happened."""
+    from connectors.email import config as ecfg, mailbox as mbx
+    monkeypatch.setattr(ecfg, "address", lambda: "Me@Example.com")
+    raw = (b"From: Me <me@example.com>\r\nTo: andrew@example.com\r\nSubject: Fwd: Your receipt\r\n"
+           b"Message-ID: <a@b>\r\n\r\nHi Andrew, forwarding the receipt.\r\n")
+    assert mbx.parse_message("9", raw) is None
+    other = raw.replace(b"From: Me <me@example.com>", b"From: Inworld AI <billing@inworld.ai>")
+    assert (mbx.parse_message("10", other) or {}).get("senderId") == "billing@inworld.ai"
