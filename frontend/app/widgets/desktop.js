@@ -1659,8 +1659,7 @@ export class Desktop {
   // go, and it would end up in the largest-gap fallback ON TOP of the tidy ones — a «tidy» gesture that buries
   // a card is worse than not tidying.
   compact(){
-    this.revealAll();          // a layout with invisible holes in it is not a layout
-    const cards=[...this.wins.values()].map(w=>w.card).filter(c=>c && c.isConnected);
+    const cards=this._onScreen();
     if(!cards.length) return {ok:true, n:0};
     const pad=this.tile.pad, cv=this.canvas(), step=this.grid;
     const placed=[];
@@ -1689,8 +1688,7 @@ export class Desktop {
   }
 
   arrange(){
-    this.revealAll();          // "ordénalo todo" is a show-all gesture: a grid with invisible holes is not a grid
-    const cards=[...this.wins.values()].map(w=>w.card).filter(c=>c && c.isConnected);
+    const cards=this._onScreen();
     if(!cards.length) return {ok:true, n:0};
     // V2-608 — the DOCK-aware bounds are `canvas()` now, shared by every gesture on the canvas. What stays
     // local is avoiding a FLOATING wall: tiling into cells would lay cards straight under it, and unlike the
@@ -1762,6 +1760,13 @@ export class Desktop {
   }
   isMinimized(id){ const w = this.wins.get(id); return !!(w && w.card && w.card.classList.contains("hb-minned")); }
   minimizeAll(){ [...this.wins.keys()].forEach(id=>{ const w=this.wins.get(id); if(w&&w.card)w.card.classList.add("hb-minned"); }); this._persist(); }
+  // WHAT a tidy lays out: the cards on screen. Both gestures used to `revealAll()` first («a grid with invisible
+  // holes is not a grid») — and the demo pass of 2026-09-28 measured the cost: «tidy up the screen» over a
+  // calendar and a chat brought back the errand sheet he had put away, four cards where he asked for order.
+  // A minimized card stays in the rail; bringing everything back is its own gesture (the rail's «show all»).
+  _onScreen(){
+    return [...this.wins.values()].map(w=>w.card).filter(c=>c && c.isConnected && !c.classList.contains("hb-minned"));
+  }
   revealAll(){ [...this.wins.keys()].forEach(id=>{ const w=this.wins.get(id); if(w&&w.card)w.card.classList.remove("hb-minned"); }); this._persist(); }
 
   // In DESK coordinates (V2-608 F3) — the placement scan compares these against candidate `style.left`/`top`,
