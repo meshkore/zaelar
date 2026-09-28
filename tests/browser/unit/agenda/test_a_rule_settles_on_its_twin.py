@@ -52,3 +52,20 @@ def test_a_rule_the_row_already_has_is_not_overwritten_by_a_twin(ag):
                                     "repeat": "daily", "until": "2026-10-10"})
     rows = _rows(ag, "Yoga")
     assert len(rows) == 1 and rows[0]["repeat"]["freq"] == "weekly", "changing a rule is update_meeting's, with his words"
+
+
+def test_a_stay_of_several_days_is_declared_so_the_model_can_ask_for_it(ag):
+    """Demo pass 2026-09-28 (full13 INIT): «December 20, 2026 through January 4, 2027: Anna vacation» — the model
+    answered «I can't make a single event span two weeks» and wrote nothing. The card has taken a span since V2-771
+    (`until` with no rule); the manifest only described `until` as the end of a REPETITION, so a stay was a thing
+    the model had no name for. The declared shape — `allDay` + `date` + `until`, no `repeat` — is one row, every day."""
+    import json
+    from pathlib import Path
+    add = json.loads((Path(ag.__file__).parent / "manifest.json").read_text("utf-8"))["actions"]["add_meeting"]
+    assert "VARIOS DÍAS" in add["desc"] and "tramo" in add["payload"]["until"], "the span is not declared"
+    r = ag.apply_action("add_meeting", {"title": "Anna vacation", "date": "2026-12-20", "until": "2027-01-04",
+                                        "allDay": True})
+    assert r.get("ok") is not False, r
+    assert len(_rows(ag, "Anna vacation")) == 1
+    days = {m["date"] for m in ag.view_data()["meetings"] if m["title"] == "Anna vacation"}
+    assert {"2026-12-20", "2027-01-01", "2027-01-04"} <= days and "2027-01-05" not in days, sorted(days)
