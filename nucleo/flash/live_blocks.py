@@ -810,7 +810,11 @@ def _cron_line() -> str:
             # Saying so was not enough (full16 C1: «review at 7, product at 9, meshcore at 1» — every alert
             # time read as its meeting, and C2 then booked Ethan on top of the 3 pm meeting it «ended at 2»).
             # A notice that belongs to an appointment names the appointment's own time next to its bell.
-            line += (" Ya programado (hora a la que SUENA el aviso, no la de la cita): "
+            # …and it is NOT the day's agenda (full25 Z1: «what's on my plate tomorrow» was answered from this line —
+            # two of the four meetings, because six notices is not a calendar). Soonest first, and it says so.
+            jobs = sorted(jobs, key=lambda j: str(j.get("next_run") or j.get("schedule") or ""))
+            line += (" Ya programado (hora a la que SUENA el aviso, no la de la cita — una lista PARCIAL de avisos, "
+                     "NO la agenda: lo que hay un día se lee en la agenda con read_widget, nunca de aquí): "
                      + "; ".join(_job_line(j) for j in jobs[:6]) + ".")
     except Exception:
         pass
