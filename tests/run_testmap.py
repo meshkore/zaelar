@@ -3357,6 +3357,9 @@ DOMAINS: list[dict] = [
         # named the card, the action existed. One bounded pass asks the model for the call it promised — only the
         # named card, only a declared action — before the backstop spends a worker on it.
         # Demo pass 2026-09-28 (V2-776 E) — the fixes of the passes, one node each.
+        {"id": "2.136", "title": "A widget action"s trace keeps what it carried (a player error keeps its code and video)",
+            "ch": UNIT,
+            "paths": ["tests/browser/unit/youtube/test_a_player_error_keeps_its_code_in_the_trace.py"]},
         {"id": "2.135", "title": "A bare sentence given to an action with one declared field is that field",
             "ch": UNIT,
             "paths": ["tests/agent_headless/unit/workers/test_a_bare_sentence_is_the_actions_one_field.py"]},

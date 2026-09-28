@@ -416,6 +416,28 @@ def _note_done(wid: str, action: str, payload: dict, res) -> None:
         pass
 
 
+_SECRET_KEY_RE = __import__("re").compile(r"pass|secret|token|key|auth|cred|cookie|session|otp|pin", __import__("re").I)
+
+
+def _payload_digest(payload) -> dict:
+    """What an action CARRIED, for the trace — scalars only, clipped, and never a field whose name says secret.
+
+    Demo pass 30 (2026-09-28, V6): the player reported `player_error` and the trace kept only the action's
+    NAME — not the code (101/150 = embedding refused by the owner) nor which video, so a correct fallback and
+    a broken player read the same from outside. The widget sends both; the event now keeps them."""
+    out: dict = {}
+    if not isinstance(payload, dict):
+        return out
+    for k, v in list(payload.items())[:12]:
+        if _SECRET_KEY_RE.search(str(k)):
+            continue
+        if isinstance(v, (str, int, float, bool)) or v is None:
+            out[str(k)[:40]] = v if not isinstance(v, str) else v[:120]
+        elif isinstance(v, (list, tuple)):
+            out[str(k)[:40]] = f"[{len(v)}]"
+    return out
+
+
 @router.post("/widgets/{wid}/action")
 async def widget_action(wid: str, payload: dict):
     wid = _safe(wid)
@@ -426,7 +448,8 @@ async def widget_action(wid: str, payload: dict):
         from widgets import provenance as _prov
         from voice.observer import emit as _emit
         _prov.note(wid, "user")
-        _emit("widget", "action", extra={"id": wid, "action": str(action), "src": "user"})
+        _emit("widget", "action", extra={"id": wid, "action": str(action), "src": "user",
+                                         "payload": _payload_digest(data)})
     except Exception:
         pass
     res = await _dispatch(wid, action, data)
@@ -457,7 +480,8 @@ async def brain_action(wid: str, action: str, payload: dict) -> dict:
     try:
         from voice.observer import emit as _emit
         from widgets import provenance as _prov
-        _emit("widget", "action", extra={"id": wid, "action": str(action), "src": _prov.who(wid)})
+        _emit("widget", "action", extra={"id": wid, "action": str(action), "src": _prov.who(wid),
+                                         "payload": _payload_digest(payload)})
     except Exception:
         pass
     res = await _dispatch(wid, action, payload or {})
