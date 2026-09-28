@@ -3327,7 +3327,9 @@ class NucleoLLMStream(llm.LLMStream):
                 spoken_text = await _second.hollow_repairs(
                     text, spoken_text, brain._window, spec, did_act=_did_act,
                     covered=bool(_fa_cl.last_fired_at() and _fa_cl.last_fired_at() >= _t_stream0),
-                    speak=lambda _r: send(speech.sanitize(_r, drop_metadata=False)),
+                    # a delta after what was already said is never glued to it («…for tomorrow.Tomorrow, Tuesday»)
+                    speak=lambda _r, _sp=spoken_text: send((" " if (_sp or "").strip() else "")
+                                                         + speech.sanitize(_r, drop_metadata=False)),
                     emit=emit, pick_closer=_lg_cl.pick_closer)
             except Exception:
                 pass

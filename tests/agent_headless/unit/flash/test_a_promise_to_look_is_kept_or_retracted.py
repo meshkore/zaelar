@@ -209,3 +209,16 @@ def test_unrelated_live_work_does_not_cover_a_promise_that_names_a_card():
     assert ag.a_promise_left_hanging("x", "Checking your agenda for tomorrow…", acted=False, anything_running=True)
     assert not ag.a_promise_left_hanging("x", "Looking into the flights now.", acted=False, anything_running=True), \
         "a promise that names no readable card stays covered by the live errand"
+
+
+def test_the_repair_is_spoken_as_a_separate_sentence_not_glued():
+    """Demo pass 2026-09-28, C1/Z1: «Let me pull up your agenda for tomorrow.Tomorrow, Tuesday…» — the repair was
+    sent as a delta right after the promise, and `speech.sanitize` strips a leading space, so the chat glued the
+    two. The space goes AFTER sanitizing, and only when something was already said this turn."""
+    from pathlib import Path
+    src = (Path(__file__).resolve().parents[4] / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
+    i = src.index("_second.hollow_repairs(")
+    call = src[i:i + 700]
+    assert 'send((" " if (_sp or "").strip() else "")' in call, call
+    from voice import speech
+    assert speech.sanitize(" x", drop_metadata=False) == "x", "if sanitize stops stripping, this guard is moot"
