@@ -81,8 +81,7 @@ def _clean():
 @pytest.fixture
 def pushed(monkeypatch):
     out: list = []
-    import voice.brain_notes as bn
-    monkeypatch.setattr(bn, "push", lambda text, **k: out.append(text))
+    monkeypatch.setattr(findings, "_deliver", lambda tid, body: out.append(body))
     return out
 
 

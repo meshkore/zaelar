@@ -18,6 +18,11 @@ It is the same hole that V2-223 closed for what the BROWSER extracts, through th
 substrate (`WorkerSession._on_event`), where `where` is already normalized, so it covers Claude Code, Codex, and Grok
 —and each CLI’s NATIVE tools, where the harness measured the loss— in one place; and
 and also in `worker_api`, which is OUR search lent to the worker.
+
+Demo pass 30 (2026-09-28) changed WHERE it is delivered, not WHETHER: a pushed note rode whatever turn came
+next («alright close the pictures» → news of the monitor errand), so the finding is now kept as the errand's
+latest lead and the background-task block shows it beside its task. `_taken()` reads that lead the way
+`brain_notes.drain()` used to read the note — and the note path must stay empty.
 """
 import pytest
 
@@ -57,6 +62,13 @@ def sesion():
     brain_notes.drain()
 
 
+def _taken() -> list:
+    """What the session delivered, read once — the lead on its errand (and never a note into the next turn)."""
+    assert brain_notes.drain() == [], "a web finding was pushed into the next turn as a note"
+    lead = findings._LEADS.pop("t1", "")
+    return [lead] if lead else []
+
+
 def _web(text, **kw):
     return {"where": "web", "text": text, "tool": "WebSearch", **kw}
 
@@ -69,7 +81,7 @@ def _web(text, **kw):
 def test_un_step_result_de_web_llega_a_la_conversacion(sesion):
     from nucleo.workers.base import WorkerEvent
     sesion._on_event(WorkerEvent(task_id="t1", type="step_result", data=_web(RESPUESTA)))
-    notas = brain_notes.drain()
+    notas = _taken()
     assert notas, "el enganche no está en `_on_event`: en producción no se empuja nada"
     assert "Philips 27E1N1800A" in notas[0]
 
@@ -78,42 +90,41 @@ def test_un_step_result_de_web_llega_a_la_conversacion(sesion):
 
 def test_lo_que_devuelve_la_busqueda_llega_a_la_conversacion(sesion):
     sesion._maybe_hand_web(_web(RESPUESTA))
-    notas = brain_notes.drain()
+    notas = _taken()
     assert notas, "la respuesta vivía y moría dentro del worker"
     assert "Philips 27E1N1800A" in notas[0] and "159,00 €" in notas[0]
 
 
-def test_va_por_el_camino_que_SI_llega(sesion):
-    """PUSHED note, not a prompt line: measured 3 out of 3 versus 0 out of 13 (V2-222). And with its task in front of it, which
-    is what lets the turn judge whether the answer is useful."""
+def test_va_por_el_camino_que_SI_llega(sesion, monkeypatch):
+    """The lead is shown BESIDE its task in the background-task block — with the task in front of it, which is
+    what lets the turn judge whether the answer is useful, and only there."""
+    from nucleo import dispatch
+    from nucleo.flash import task_block
     sesion._maybe_hand_web(_web(RESPUESTA))
-    n = brain_notes.drain()[0]
-    assert n.startswith("[SISTEMA]")
-    assert "el monitor más barato" in n
+    monkeypatch.setattr(dispatch, "pending_summaries", lambda: [
+        {"id": "t1", "request": "el monitor más barato que sirva para trabajar", "secs": 30}])
+    block = " ".join(task_block.pending_task_lines())
+    assert "Philips 27E1N1800A" in block and "el monitor más barato" in block
 
 
-def test_el_JUICIO_se_queda_en_el_cerebro(sesion):
-    """It is not instructed to announce it: the fact is delivered and the evidence is named. An instruction to “say this” would end up
-    offering the first result of a failed search as though it were the answer — exactly what
-    V2-223 avoided with the €25 flamenco show."""
+def test_el_JUICIO_se_queda_en_el_cerebro(sesion, monkeypatch):
+    """It is not ordered announced: the block labels it as a LEAD — a page is not a candidate — and leaves the
+    judgment to the turn that is actually about this errand."""
+    from nucleo import dispatch
+    from nucleo.flash import task_block
     sesion._maybe_hand_web(_web(RESPUESTA))
-    n = brain_notes.drain()[0]
-    # V2-510 rewrote the WORDING (“say whether it is useful” → “saying what it IS”, with the page branch
-    # made explicit) because the old imperative ordered delivery of anything with a name and price, and what
-    # comes back from a search is usually an item. The INVARIANT of this test does not change and is what it
-    # now asserts: a JUDGMENT is requested —what it is and whether it is useful—, never an advertisement alone. Pinning it to the literal
-    # would have forced a choice between fixing the defect and preserving the guard.
-    assert "NÓMBRALO EN ESTE TURNO" in n
-    assert "diciendo lo que ES" in n              # the judgment is REQUESTED
-    assert "si es un artículo" in n               # …and the “does not respond” branch is still there
-    assert "NUNCA lo ofrezcas como una opción" in n   # stronger than before: it is not instructed to advertise
+    monkeypatch.setattr(dispatch, "pending_summaries", lambda: [
+        {"id": "t1", "request": "el monitor más barato", "secs": 30}])
+    block = " ".join(task_block.pending_task_lines())
+    assert "NO un candidato" in block
+    assert "NÓMBRALO EN ESTE TURNO" not in block
 
 
 def test_un_FALLO_de_la_tool_no_es_un_hallazgo(sesion):
     """Sensitivity. An `is_error` has its own path (the panel chip, V2-211’s permission gate);
     pushing it as a finding would put a tool error into the conversation as though it were a result."""
     sesion._maybe_hand_web(_web("Error: quota exceeded", is_error=True))
-    assert brain_notes.drain() == []
+    assert _taken() == []
 
 
 def test_un_paso_que_no_es_web_no_empuja_nada(sesion):
@@ -121,28 +132,28 @@ def test_un_paso_que_no_es_web_no_empuja_nada(sesion):
     to the worker’s memory would end up in the conversation."""
     for donde in ("memoria", "codigo", "archivo", "navegador", "sistema", ""):
         sesion._maybe_hand_web({"where": donde, "text": RESPUESTA})
-    assert brain_notes.drain() == []
+    assert _taken() == []
 
 
 def test_la_misma_respuesta_dos_veces_no_son_dos_hallazgos(sesion):
     sesion._maybe_hand_web(_web(RESPUESTA))
-    brain_notes.drain()
+    _taken()
     sesion._maybe_hand_web(_web(RESPUESTA))
-    assert brain_notes.drain() == []
+    assert _taken() == []
 
 
 def test_una_respuesta_DISTINTA_si_se_empuja(sesion):
     """And the converse, because otherwise deduplication would turn this fix into “only the first search counts”."""
     sesion._maybe_hand_web(_web(RESPUESTA))
-    brain_notes.drain()
+    _taken()
     sesion._maybe_hand_web(_web('MSI MP273U — 27" IPS — 164,00 €'))
-    assert "MSI MP273U" in brain_notes.drain()[0]
+    assert "MSI MP273U" in _taken()[0]
 
 
 def test_un_ok_pelado_no_es_un_hallazgo(sesion):
     for ruido in ("", "   ", "ok", "done"):
         sesion._maybe_hand_web(_web(ruido))
-    assert brain_notes.drain() == []
+    assert _taken() == []
 
 
 def test_no_puede_tumbar_al_worker(sesion):
@@ -189,17 +200,17 @@ def test_una_respuesta_vacia_no_produce_nota(sesion):
     """The failure string already has its own path (`websearch.note_failure` + the status line): pushing an
     empty note would say “I found this: nothing”."""
     sesion._maybe_hand_web(_web(findings.render_search({"answer": "", "results": []})))
-    assert brain_notes.drain() == []
+    assert _taken() == []
 
 
 # ── the findings memory goes away with the session ──────────────────────────────────────────────────────────
 
 def test_al_terminar_la_sesion_se_olvida_lo_entregado(sesion):
     sesion._maybe_hand_web(_web(RESPUESTA))
-    brain_notes.drain()
+    _taken()
     findings.forget("t1")
     sesion._maybe_hand_web(_web(RESPUESTA))
-    assert brain_notes.drain(), "un encargo NUEVO tiene derecho a que le cuenten lo mismo otra vez"
+    assert _taken(), "un encargo NUEVO tiene derecho a que le cuenten lo mismo otra vez"
 
 
 def test_el_dispatcher_lo_olvida_de_verdad():

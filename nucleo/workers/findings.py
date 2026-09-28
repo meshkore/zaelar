@@ -103,6 +103,7 @@ def clip(text: str) -> str:
 def forget(task_id) -> None:
     """The session ended: its memory of findings goes with it."""
     _HANDED.pop(str(task_id), None)
+    _LEADS.pop(str(task_id), None)
 
 
 def render_search(res: dict, k: int = 4) -> str:
@@ -129,16 +130,41 @@ def render_search(res: dict, k: int = 4) -> str:
     return "; ".join(rows)
 
 
+#: task_id → the LATEST lead a web search brought (demo pass 30, 2026-09-28). Read by the background-task block.
+_LEADS: dict[str, str] = {}
+LEAD_CHARS = 320         # what one task's lead may cost in EVERY turn's prompt
+
+
+def last_lead(task_id) -> str:
+    """The latest web lead of this errand, clipped for the prompt — "" when it has none."""
+    t = _LEADS.get(str(task_id), "")
+    return t if len(t) <= LEAD_CHARS else t[:LEAD_CHARS].rstrip() + "…"
+
+
+def _deliver(task_id, body: str) -> None:
+    """Where a web finding goes: onto its errand, as the latest lead. Separate so tests can watch the door."""
+    _LEADS[str(task_id)] = body
+
+
 def hand_web_finding(task_id, text: str, goal: str = "") -> bool:
-    """Pushes to the brain what a web search has just returned. Returns whether it was pushed.
+    """Keeps what a web search has just returned as the errand's LATEST LEAD. Returns whether it was kept.
+
+    It used to be pushed to the brain as a one-shot note ordering «NÓMBRALO EN ESTE TURNO», and a note rides
+    the NEXT turn whatever that turn is about. Demo pass 30 (2026-09-28): «alright close the pictures» was
+    answered «Both are off your screen. On the monitors, what came back just now are two roundup articles…» —
+    news of an errand nobody had asked about, in the middle of another conversation, several times a pass.
+
+    The finding does not need the note to survive: the rows already reach the errand's SHEET
+    (`hand_search_rows`), and the task block reads that sheet («YA ENTREGADO») every turn. So the lead now
+    lives on the errand, where the block shows it next to the task it belongs to — it is said when the
+    operator asks about THAT errand, and nothing is pushed into a turn about something else.
 
     Entirely fail-soft: this runs inside a live worker's event loop and cannot bring it down.
     """
     body = clip(text)
     if len(body) < MIN_CHARS:
         return False
-    # V2-511 — what TELLS what happened is not pushed as though it BROUGHT something. V2-510 fixed the imperative
-    # (a page is not a candidate); this removes what is not even a page from the way.
+    # V2-511 — what TELLS what happened is not kept as though it BROUGHT something.
     if not looks_like_a_finding(body):
         return False
     key = str(task_id)
@@ -147,24 +173,8 @@ def hand_web_finding(task_id, text: str, goal: str = "") -> bool:
     if sig in seen:
         return False
     seen.add(sig)
-    what = str(goal or "").strip()[:70] or "la tarea de fondo"
     try:
-        from voice import brain_notes
-        brain_notes.push(
-            f"[SISTEMA] Una búsqueda web ha devuelto esto, trabajando en «{what}»: {body}. Nadie más lo sabe: no "
-            f"está en la conversación hasta que tú lo digas, y el worker puede morirse antes de entregarlo. "
-            # V2-510 — THIS IS A LEAD UNTIL PROVEN TO BE A CANDIDATE, and the imperative must say so. What
-            # returns from a search is almost always PAGES: comparison headlines, a store's homepage, the body
-            # of a 403. Ordering «give it with name, price, and link» in that situation means ordering an article
-            # to be offered as though it were the product — measured in `cheapest-monitor__us`
-            # (20260830-125532): turn 4 delivered «The 6 Best Budget And Cheap Monitors of 2026 -
-            # RTINGS.com» while the eight REAL monitors waited in the sheet.
-            f"OJO CON LO QUE ES: lo que vuelve de una búsqueda suele ser una PÁGINA —el titular de una "
-            f"comparativa, un listado, un error del sitio—, y una página NO es un candidato. NÓMBRALO EN ESTE "
-            f"TURNO diciendo lo que ES: si trae ya la cosa concreta con su nombre y su precio, dásela como "
-            f"resultado; si es un artículo, un buscador o un error, cuéntalo como por dónde vas a mirar y "
-            f"NUNCA lo ofrezcas como una opción para elegir. No digas que no hay resultados ni que sigues "
-            f"buscando sin más.")
+        _deliver(key, body)
         return True
     except Exception:  # noqa: BLE001
         return False

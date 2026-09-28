@@ -1,96 +1,79 @@
 #
-# test_a_search_return_is_a_lead_not_a_candidate.py — V2-510.
+# test_a_search_return_is_a_lead_not_a_candidate.py — V2-510, and demo pass 30 (2026-09-28).
 #
-# V2-376 already taught the SHEET path that «what comes back from a search is a LEAD, NOT a candidate» and
-# marks the row's origin. The NOTE path — the one that actually moves the brain (V2-222 measured a pushed note
-# at 3/3 against a rendered prompt line at 0/13) — never learned it, and its imperative ordered the opposite:
-# «give it to them with a name, price or piece of data and a link».
+# V2-376 taught the SHEET path that «what comes back from a search is a LEAD, NOT a candidate». V2-510 taught
+# the note path the same. Measured on `cheapest-monitor__us` round 20260830-125532: the brain offered
+# «The 6 Best Budget And Cheap Monitors of 2026 - RTINGS.com» — an article headline — while eight real
+# monitors waited in the sheet.
 #
-# Measured on `cheapest-monitor__us` round 20260830-125532, with V2-508's double sheet already out of the way:
-#   offered   → «Best 1440p Monitor 2026…», «The 6 Best Budget And Cheap Monitors of 2026 - RTINGS.com»,
-#               «The server returned HTTP 403 Forbidden…», «The web page content you provided contains only
-#               RTINGS.com's site navigation…»
-#   in sheet  → Dell S2722QC · LG 27UP850N-W · LG 32UN650-W · Samsung ViewFinity S7 · ASUS ProArt PA279CV …
-#   delivered → turn 4: a listicle headline.  turn 20: ONE real monitor.
-#
-# The brain was not disobeying: it was told to name what came back, with price and link, and what came back
-# was an article. Raising the cut does not help — they are the first of the DOM, not the relevant ones.
-#
-# Run: .venv/bin/pytest tests/agent_headless/unit/workers/test_a_search_return_is_a_lead_not_a_candidate.py
+# Demo pass 30 moved the finding OFF the note: a one-shot note rides the next turn whatever it is about, and
+# «alright close the pictures» came back with news of the monitor errand. The lead now lives on its errand and
+# the background-task block shows it next to that task, still labelled for what it is.
 #
 import pytest
 
+from nucleo import dispatch
+from nucleo.flash import task_block
 from nucleo.workers import findings
 
 
 @pytest.fixture(autouse=True)
 def _clean():
     findings._HANDED.clear()
+    findings._LEADS.clear()
     yield
     findings._HANDED.clear()
-
-
-@pytest.fixture
-def pushed(monkeypatch):
-    out: list[str] = []
-    import voice.brain_notes as bn
-    monkeypatch.setattr(bn, "push", lambda text, **k: out.append(text))
-    return out
+    findings._LEADS.clear()
 
 
 _HEADLINE = "The 6 Best Budget And Cheap Monitors of 2026 - RTINGS.com — a roundup of picks — https://rtings.com/x"
 
 
-def test_the_note_says_a_page_is_not_a_candidate(pushed):
+def _block(monkeypatch) -> str:
+    monkeypatch.setattr(dispatch, "pending_summaries", lambda: [
+        {"id": "1", "request": "monitor barato", "phase": "buscando", "secs": 40}])
+    return " ".join(task_block.pending_task_lines())
+
+
+def test_a_search_return_is_not_pushed_into_the_next_turn(monkeypatch):
+    pushed: list = []
+    import voice.brain_notes as bn
+    monkeypatch.setattr(bn, "push", lambda text, **k: pushed.append(text))
     assert findings.hand_web_finding("1", _HEADLINE, "monitor barato") is True
-    note = pushed[0]
-    assert "no es un candidato" in note.lower()
-    assert "nunca lo ofrezcas como una opción para elegir" in note.lower()
+    assert pushed == [], "a web lead rode the next turn as a note — the demo-pass-30 bleed"
 
 
-def test_it_no_longer_orders_the_lead_delivered_with_price_and_link(pushed):
-    """The old imperative — «give it to them with a name, price or piece of data and a link» — applied to WHATEVER came back. That
-    single clause is what turned an article headline into a delivered recommendation."""
+def test_the_lead_sits_next_to_its_task_labelled_as_a_lead(monkeypatch):
     findings.hand_web_finding("1", _HEADLINE, "monitor barato")
-    note = pushed[0]
-    assert "dáselo con nombre, precio o dato y enlace" not in note, (
-        "the unconditional delivery order is the defect; it must not survive")
+    block = _block(monkeypatch)
+    assert "ÚLTIMA PISTA DE LA WEB" in block and "RTINGS.com" in block
+    assert "NO un candidato" in block
 
 
-def test_a_real_answer_is_STILL_ordered_delivered(pushed):
-    """The direction that keeps V2-236 alive. That initiative exists because clean data — «Philips
-    27E1N1800A/00 — 27\" UHD 4K — 159,00 €» — was dying inside dead workers. Turning the note into «do not
-    offer it» would swallow exactly the case it was built for."""
+def test_a_real_answer_can_still_be_given(monkeypatch):
+    """V2-236's direction: clean data was dying inside dead workers. The label leaves the door open to give
+    it when it already names the thing and its price."""
     findings.hand_web_finding("1", _HEADLINE, "monitor barato")
-    note = pushed[0]
-    assert "dásela como resultado" in note.lower()
-    assert "nombre y su precio" in note.lower()
+    assert "nombre y su precio" in _block(monkeypatch)
 
 
-def test_it_is_still_ONE_instruction_with_the_branch_inside(pushed):
-    """V2-226: two orders in one note get resolved by coin flip. The branch lives inside a single imperative,
-    and the sentence that can never be true stays forbidden."""
+def test_the_finding_itself_still_travels_verbatim():
     findings.hand_web_finding("1", _HEADLINE, "monitor barato")
-    note = pushed[0]
-    assert note.count("NÓMBRALO EN ESTE TURNO") == 1
-    assert "no digas que no hay resultados" in note.lower()
+    assert _HEADLINE in findings.last_lead("1")
 
 
-def test_the_finding_itself_still_travels_verbatim(pushed):
-    """It carries the text, never a rewrite of it (`observability/evidence.py`'s doctrine)."""
-    findings.hand_web_finding("1", _HEADLINE, "monitor barato")
-    assert _HEADLINE in pushed[0]
-
-
-def test_the_same_return_is_not_a_second_finding(pushed):
-    findings.hand_web_finding("1", _HEADLINE, "monitor barato")
+def test_the_same_return_is_not_a_second_finding():
+    assert findings.hand_web_finding("1", _HEADLINE, "monitor barato") is True
     assert findings.hand_web_finding("1", _HEADLINE, "monitor barato") is False
-    assert len(pushed) == 1
+
+
+def test_the_lead_goes_with_its_session():
+    findings.hand_web_finding("1", _HEADLINE, "monitor barato")
+    findings.forget("1")
+    assert findings.last_lead("1") == ""
 
 
 def test_the_sheet_path_still_marks_the_origin_too():
-    """One lesson, both paths — the whole point. If V2-376's marking is ever dropped from the sheet row, the
-    note would be the only place that knows, and the two would disagree about the same return."""
     import inspect
     src = inspect.getsource(findings.hand_search_rows)
     assert '"Origen"' in src and "búsqueda web" in src

@@ -146,6 +146,16 @@ def pending_task_lines() -> list[str]:
                     elif _up is False:
                         bit += (" [su hoja NO está en pantalla: la cerró — si pide verla, "
                                 "ÁBRELA; no digas que la tiene delante]")
+                # The errand's latest WEB LEAD (demo pass 30): it used to arrive as a note pushed into
+                # whatever the next turn was about. Here it sits next to its own task, and it is a lead.
+                try:
+                    from nucleo.workers import findings as _fd
+                    _lead = _fd.last_lead(t.get("id"))
+                except Exception:  # noqa: BLE001
+                    _lead = ""
+                if _lead:
+                    bit += (f" — ÚLTIMA PISTA DE LA WEB (una página: artículo, listado o error, NO un candidato "
+                            f"salvo que ya traiga la cosa con su nombre y su precio): «{_lead}»")
                 bits.append(bit + f' (llevas {t.get("secs", 0)}s)')
             for _t in _ofrecer:
                 _disp.mark_stall_offered([_t])     # V2-454: este turno la lleva delante
