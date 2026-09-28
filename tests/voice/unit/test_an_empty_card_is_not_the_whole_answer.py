@@ -14,7 +14,7 @@ def _run(monkeypatch, empty, got):
     import nucleo.flash.act_repair as ar
     seen = {}
 
-    async def call_for_promise(operator_text, said, wid, spec=None):
+    async def call_for_promise(operator_text, said, wid, spec=None, **_kw):
         seen["said"] = said
         return got
     monkeypatch.setattr(sa, "nothing_to_show", lambda wid: empty)

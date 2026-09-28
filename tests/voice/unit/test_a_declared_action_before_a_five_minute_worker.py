@@ -421,7 +421,7 @@ def test_a_commission_naming_a_CLOSED_card_of_ours_is_read_before_the_worker(mon
     monkeypatch.setattr(danger, "is_dangerous", lambda text: "delete everything" in text)
     answer = {"kind": "read", "widget_id": "agenda", "question": "free between 12:00 and 18:00 on 2026-09-27?"}
 
-    async def pass_(operator_text, commission, wid, spec=None):
+    async def pass_(operator_text, commission, wid, spec=None, **_kw):
         return answer
     monkeypatch.setattr(act_repair, "call_or_read_for_commission", pass_)
     seen, applied = [], []
@@ -491,7 +491,7 @@ def test_a_show_with_a_promise_on_it_is_not_the_act(monkeypatch):
     monkeypatch.setattr(direct_action, "names_an_order", lambda b: False)
     answer = {"widget_id": "mensajeria", "action": "show_view", "payload": {"platform": "email", "window_h": 24}}
 
-    async def pass_(operator_text, reply, wid, spec=None):
+    async def pass_(operator_text, reply, wid, spec=None, **_kw):
         return answer
     monkeypatch.setattr(act_repair, "call_for_promise", pass_)
     applied = []
@@ -527,7 +527,7 @@ def test_a_show_of_a_catalogue_named_card_asks_for_the_rest_of_the_order(monkeyp
     monkeypatch.setattr(surface_ack, "nothing_to_show", lambda wid: False)   # the inbox HAS mail (an empty card
     #                                                                          is its own reason — node 2.90)
 
-    async def pass_(operator_text, reply, wid, spec=None):
+    async def pass_(operator_text, reply, wid, spec=None, **_kw):
         return {"widget_id": "mensajeria", "action": "show_view", "payload": {"platform": "email", "window_h": 24}}
     monkeypatch.setattr(act_repair, "call_for_promise", pass_)
     applied = []
@@ -555,7 +555,7 @@ def test_a_silent_show_of_a_catalogue_named_card_still_asks_for_the_rest(monkeyp
     from nucleo.flash import surface_ack
     monkeypatch.setattr(surface_ack, "nothing_to_show", lambda wid: False)   # isolate the catalogue's own reason
 
-    async def pass_(operator_text, reply, wid, spec=None):
+    async def pass_(operator_text, reply, wid, spec=None, **_kw):
         return {"widget_id": "markets", "action": "show", "payload": {"symbol": "AAPL", "range": "1d"}}
     monkeypatch.setattr(act_repair, "call_for_promise", pass_)
     applied = []
@@ -584,7 +584,7 @@ def test_a_spoken_claim_over_a_show_on_an_order_gets_its_pass(monkeypatch):
     monkeypatch.setattr(card_commission, "named_or_catalogue", lambda brief, text, **k: "")
     monkeypatch.setattr(surface_ack, "nothing_to_show", lambda wid: False)
 
-    async def pass_(operator_text, reply, wid, spec=None):
+    async def pass_(operator_text, reply, wid, spec=None, **_kw):
         return {"widget_id": "mensajeria", "action": "open", "payload": {"item": "Fincalista"}}
     monkeypatch.setattr(act_repair, "call_for_promise", pass_)
     applied = []
