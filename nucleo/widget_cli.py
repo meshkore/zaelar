@@ -140,6 +140,42 @@ def _read_payload(raw: str):
     return payload
 
 
+def _declared_payload(wid: str, action: str) -> dict:
+    """The payload an action DECLARES in its widget's manifest ({field: description}), or {} if unknown."""
+    try:
+        from widgets import runtime as _rt
+        man = _rt.get(str(wid).split("::", 1)[0]) or {}
+    except Exception:  # noqa: BLE001
+        man = {}
+    acts = man.get("actions") or {}
+    spec = acts.get(action) if isinstance(acts, dict) else None
+    return spec if isinstance(spec, dict) else {}
+
+
+def _bare_text_payload(wid: str, action: str, raw: str):
+    """A bare sentence where a JSON object was expected → that object, when the action leaves no doubt which field
+    it is. None = not a bare sentence, or ambiguous (the JSON path then explains the shape).
+
+    Demo pass 30 (2026-09-28, F1): `widget_cli data documento goto "Bottom line"` died with «no es JSON válido».
+    The worker said exactly what it meant; the action `goto` declares ONE field (`text`, and names it as its
+    `ref`). Refusing a sentence whose only possible reading is declared by the widget itself is a format error
+    on our side, not on the worker's — and every failed step costs a round and a ⚠️ on the operator's panel."""
+    t = (raw or "").strip()
+    if not t or t == "-" or t.startswith(("@", "{", "[")):
+        return None
+    spec = _declared_payload(wid, action)
+    fields = [k for k in (spec.get("payload") or {}) if isinstance(k, str)]
+    ref = spec.get("ref")
+    key = ref if isinstance(ref, str) and ref in fields else (fields[0] if len(fields) == 1 else "")
+    if not key:
+        if fields:
+            example = json.dumps({f: "…" for f in fields}, ensure_ascii=False)
+            print(f"el payload de «{action}» es un objeto JSON con sus campos, no una frase: '{example}' "
+                  f"(o escríbelo a un fichero y pásalo como @fichero.json)")
+        return None
+    return {key: t}
+
+
 def main(argv: list[str]) -> int:
     if len(argv) < 2:
         print(__doc__)
@@ -191,7 +227,11 @@ def main(argv: list[str]) -> int:
             print("uso: hbwidget data <widget_id> <action> [payload-json]")
             return 2
         wid, action = argv[2], argv[3]
-        payload = _read_payload(argv[4] if len(argv) >= 5 else "")
+        raw = argv[4] if len(argv) >= 5 else ""
+        bare = _bare_text_payload(wid, action, raw)
+        if bare is not None:
+            return _report(_act("widget_data", {"widget_id": wid, "action": action, "payload": bare}))
+        payload = _read_payload(raw)
         if payload is None:
             return 2
         return _report(_act("widget_data", {"widget_id": wid, "action": action, "payload": payload}))
