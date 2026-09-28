@@ -152,7 +152,8 @@ def request_from(args: dict, fallback_text: str) -> dict:
             "condition": str(args.get("condition") or "").strip()}
 
 
-async def voice_turn(req: dict, operator_text: str, *, spec=None, on_delta=None) -> "tuple[dict, str]":
+async def voice_turn(req: dict, operator_text: str, *, spec=None, on_delta=None,
+                     already_said: str = "") -> "tuple[dict, str]":
     """The WHOLE body of both channels' `search_listings` branch: fast pass + composed spoken reply.
 
     It lives here and not there for the reason `image_turn.voice_turn` already states: the voice provider and
@@ -176,11 +177,20 @@ async def voice_turn(req: dict, operator_text: str, *, spec=None, on_delta=None)
         logger.warning(f"listing_turn: la pasada rápida falló, el turno sigue ({e!r})")
         res = {"delivered": False, "n": 0, "escalated": 0, "ctx": "", "reason": str(e), "sheet": ""}
     said = ""
+    # The turn already SPOKE (demo pass 2026-09-28, full14 A1: «…pull them onto your screen when I've got them.») and
+    # nothing landed on the sheet yet — the search went to the background. A second sentence would only repeat the
+    # promise, glued to it («…got them.I'm already digging deep…»). Rows that DID land are news, and get told.
+    if (already_said or "").strip() and not res.get("delivered"):
+        return res, ""
+    face = compose_face(res, operator_text)
+    if (already_said or "").strip():
+        face += (f"\n\nYA LE HAS DICHO en este turno: «{already_said.strip()[:400]}». No lo repitas: di solo lo "
+                 "que es nuevo (lo que ya está en la hoja).")
     try:
         from .fast_client import FastClient
         parts: list[str] = []
         async for delta in FastClient().stream(
-                [{"role": "system", "content": compose_face(res, operator_text)},
+                [{"role": "system", "content": face},
                  {"role": "user", "content": operator_text}], spec=spec, max_tokens=240):
             parts.append(delta)
             if on_delta is not None:

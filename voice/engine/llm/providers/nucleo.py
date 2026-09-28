@@ -2994,13 +2994,18 @@ class NucleoLLMStream(llm.LLMStream):
         if listing_req["v"] is not None and reveal_req["v"] is None and escalate_req["v"] is None:
             emit("brain", "🛒 búsqueda de anuncios", text=listing_req["v"]["query"], role="system")
             buf = ""   # descarta cualquier resto de tags del 1º pase antes de componer la respuesta
+            _said_before = "".join(spoken).strip()
+            _lsep = [bool(_said_before)]      # a second pass after spoken words starts with a space, once
 
             def _listing_delta(_d: str) -> None:
                 nonlocal buf
+                if _lsep[0] and _d.strip():
+                    _d, _lsep[0] = " " + _d.lstrip(), False
                 buf += _d
                 send(speech.inline(take(False)))
 
-            await _lt.voice_turn(listing_req["v"], operator_text or text, spec=spec, on_delta=_listing_delta)
+            await _lt.voice_turn(listing_req["v"], operator_text or text, spec=spec, on_delta=_listing_delta,
+                                 already_said=_said_before)
             send(speech.sanitize(take(True), drop_metadata=False))
             spoken_text = "".join(spoken).strip()
             brain._last_action = "listings"
