@@ -309,5 +309,15 @@ def operator_words(operator_text: str, turn_text: str) -> str:
 
     The rule, which is not only about this one note: **a system note is context; it can never be the thing to go
     and do.** Falls back to the turn's text when there is no operator text, so a caller that never separated the
-    two behaves exactly as before."""
-    return (operator_text or "").strip() or (turn_text or "")
+    two behaves exactly as before.
+
+    And the notes are cut off whichever of the two it gets (demo pass 30, 2026-09-28, I4): «alright close the
+    pictures» reached the canvas completion as the COMPOSED turn, with a web-search note about the monitors
+    glued under it, and `also_named` read «results» in our own note — the picture viewer and BOTH monitor
+    sheets were closed. `brain_notes.operator_half` is the one function that knows where the notes begin."""
+    raw = (operator_text or "").strip() or (turn_text or "")
+    try:
+        from voice.brain_notes import operator_half
+        return operator_half(raw)
+    except Exception:  # noqa: BLE001
+        return raw
