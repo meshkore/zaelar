@@ -13,7 +13,7 @@ import pytest
 
 from nucleo.flash import act_repair as ar
 
-pytestmark = pytest.mark.skipif(os.getenv("ZAELAR_LIVE_JEV") != "1", reason="live model — set ZAELAR_LIVE_JEV=1")
+_live = pytest.mark.skipif(os.getenv("ZAELAR_LIVE_JEV") != "1", reason="live model — set ZAELAR_LIVE_JEV=1")
 
 CASES = [
     ("agenda", "find me a free 45 minutes tomorrow afternoon to talk with ethan",
@@ -25,6 +25,7 @@ CASES = [
 ]
 
 
+@_live
 @pytest.mark.parametrize("wid,said,reply,want", CASES)
 def test_a_claim_gets_its_call_and_an_answer_does_not(wid, said, reply, want):
     import server.common  # noqa: F401 — the credential store, for the live model
@@ -34,3 +35,15 @@ def test_a_claim_gets_its_call_and_an_answer_does_not(wid, said, reply, want):
 
 def test_the_prompt_asks_it_to_judge():
     assert "PROPUSISTE" in ar._SYS and "AFIRMASTE" in ar._SYS
+
+
+def test_a_reply_that_asks_him_is_never_acted_on(monkeypatch):
+    """C2 (demo pass 2026-09-28): «…Want me to put the call with Ethan there?» — the pass booked it anyway, and
+    C3 then booked it again. A reply ending in a question to him is waiting for his answer."""
+    called = []
+    import nucleo.flash.fast_client as fc
+    monkeypatch.setattr(fc.FastClient, "complete", lambda *a, **k: called.append(1))
+    got = asyncio.run(ar.call_for_promise("find me a free 45 minutes tomorrow afternoon",
+                                          "4:30 to 5:15 fits nicely. Want me to put the call with Ethan there?",
+                                          "agenda"))
+    assert got is None and not called, "no model call, no write"

@@ -71,6 +71,12 @@ async def call_for_promise(operator_text: str, reply: str, widget_id: str, spec=
         wid = str(widget_id or "").strip().lower()
         if not wid or not (operator_text or "").strip():
             return None
+        # A reply that ENDS ASKING HIM is waiting for his answer: acting now would answer it for him (demo pass
+        # 2026-09-28, C2: «…4:30 to 5:15 fits nicely. Want me to put the call with Ethan there?» — the pass booked
+        # it, and C3's own booking then made a duplicate). His consent, not our reading of the reply, decides.
+        if str(reply or "").rstrip().endswith(("?", "？")):
+            _note(wid, "la respuesta le pregunta: se espera su respuesta")
+            return None
         from widgets import runtime as _rt
         manifest = _rt.get(wid) or {}
         declared = manifest.get("actions") or {}
