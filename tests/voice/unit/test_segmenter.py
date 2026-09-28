@@ -148,12 +148,14 @@ def test_el_juez_esta_ENCENDIDO_por_defecto(monkeypatch):
 def test_parse_judge_lee_los_tres_veredictos():
     assert sg._parse_judge('{"verdict": "COMPLETE", "question": null}') == ("complete", "")
     assert sg._parse_judge('{"verdict": "INCOMPLETE", "question": null}') == ("incomplete", "")
-    assert sg._parse_judge('{"verdict": "ASK", "question": "¿Qué canción?"}') == ("ask", "¿Qué canción?")
+    # demo pass 2026-09-28: the judge only decides whether he FINISHED; a request-shaped ASK is finished and the
+    # brain (screen + conversation in front of it) decides whether to ask
+    assert sg._parse_judge('{"verdict": "ASK", "question": "¿Qué canción?"}') == ("complete", "")
 
 
 def test_parse_judge_ASK_sin_pregunta_hace_fail_open():
-    """An ASK without question text is not actionable — there is nothing to say aloud."""
-    assert sg._parse_judge('{"verdict": "ASK", "question": null}') == ("incomplete", "")
+    """A model that still answers ASK (not offered any more) has judged the utterance request-shaped: finished."""
+    assert sg._parse_judge('{"verdict": "ASK", "question": null}') == ("complete", "")
 
 
 def test_parse_judge_tolera_code_fences_como_el_de_i18n():

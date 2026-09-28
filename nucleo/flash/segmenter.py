@@ -271,17 +271,14 @@ _JUDGE_SYSTEM = (
     "text of their utterance so far (it may be a fragment, possibly built by gluing several pauses together). "
     "The person may speak ANY language — judge by MEANING, never by a fixed word list.\n\n"
     "Give exactly ONE verdict:\n"
-    "  COMPLETE — a full, actionable request or question. Casual/short is fine. Includes a sentence that trails "
-    "off on a dropped-accent pronoun or a subject casual speech omits (e.g. Spanish ending in unaccented \"mi\" "
-    "meaning \"mí\" — \"give me what you know about mi\" reads oddly in English but is complete in Spanish).\n"
-    "  ASK — actionable-shaped, but missing one specific piece a real assistant would need and would ask about, "
-    "rather than silently guess or silently wait.\n"
+    "  COMPLETE — a full request or question, even a short, casual or elliptical one («and the nasdaq, over the "
+    "whole year» follows the conversation). Includes a sentence that trails off on a dropped-accent pronoun or a "
+    "subject casual speech omits (e.g. Spanish ending in unaccented \"mi\" meaning \"mí\").\n"
     "  INCOMPLETE — clearly trails off mid-thought (an unfinished clause, a dangling connector) and the person "
-    "is very likely about to keep talking.\n\n"
-    "Reply with STRICT JSON only, no prose, no code fences: "
-    "{\"verdict\": \"COMPLETE\"|\"ASK\"|\"INCOMPLETE\", \"question\": string or null}. "
-    "`question` is a SHORT, natural clarifying question IN THE SAME LANGUAGE as the utterance, ONLY when verdict "
-    "is ASK — otherwise null."
+    "is very likely about to keep talking.\n"
+    "Whether the request has everything it needs is NOT your question: the assistant sees the screen and the "
+    "conversation and asks if it must.\n\n"
+    "Reply with STRICT JSON only, no prose, no code fences: {\"verdict\": \"COMPLETE\"|\"INCOMPLETE\"}."
 )
 
 
@@ -306,9 +303,11 @@ def _parse_judge(raw: str | None) -> tuple[str, str]:
     if verdict == "COMPLETE":
         return "complete", ""
     if verdict == "ASK":
-        q = d.get("question")
-        q = str(q).strip() if isinstance(q, str) else ""
-        return ("ask", q) if q else ("incomplete", "")   # ASK with no question text isn't actionable — fail open
+        # Not offered any more (demo pass 2026-09-28): this judge decides whether he FINISHED speaking. «And the
+        # nasdaq, over the whole year» over the open chart was answered «What would you like to know about the
+        # Nasdaq?» here, before the brain — which sees the screen and the conversation — ever read it. A request-
+        # shaped utterance is finished; asking for what is missing is the brain's call.
+        return "complete", ""
     return "incomplete", ""
 
 
