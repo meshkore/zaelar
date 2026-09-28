@@ -800,6 +800,8 @@ export class Desktop {
         card.style.left=pos.left; card.style.top=pos.top;
         const pz=parseInt(pos.z)||0; if(pz){ card.style.zIndex=pz; this.z=Math.max(this.z, pz); } else if(!background) this._bringFront(card);
       } else { this._place(card, this._expected(baseId)); if(!background) this._bringFront(card); }   // free space, at the size it will have (V2-773)
+      card._bg = !!background;                          // opened by a worker, not by him (see `_yieldBackground`)
+      if(!background){ this._yieldBackground(card); setTimeout(()=>this._yieldBackground(card), 900); }
       if(pos && (pos.w || pos.h)) this._applyGeom(card, pos.w, pos.h);   // …y con el tamaño que le dejó el operador
       if(pos && pos.min) card.classList.add("hb-minned");                // V2-537: minimized survives a reload
       this._wireDrag(card);
@@ -825,7 +827,7 @@ export class Desktop {
       // go, show me» raised the minimized sheet's z and left it hidden, and the detail opened on it next turn was
       // invisible). A worker's show stays in the background, minimized included.
       if(!background && w.card.classList.contains("hb-minned")){ w.card.classList.remove("hb-minned"); this._persist(); }
-      if(!background) this._bringFront(w.card);
+      if(!background){ w.card._bg = false; this._bringFront(w.card); this._yieldBackground(w.card); }
       // Already open, no new data pushed, same query → just surface it (no re-fetch, no re-render, no flicker).
       if(providedData === null && q === w.q) return;
     }
@@ -1764,6 +1766,25 @@ export class Desktop {
   }
   isMinimized(id){ const w = this.wins.get(id); return !!(w && w.card && w.card.classList.contains("hb-minned")); }
   minimizeAll(){ [...this.wins.keys()].forEach(id=>{ const w=this.wins.get(id); if(w&&w.card)w.card.classList.add("hb-minned"); }); this._persist(); }
+  // A CARD HE ASKED FOR WINS THE SPACE over a sheet a worker opened in the background (demo pass 2026-09-28, full21
+  // Z1: «what's on tomorrow» brought the agenda up under the trip errand's sheet, 64% of it covered). Background
+  // work opens beside, never over — and when there is no «beside» left, the background sheet tucks into the rail
+  // instead of sitting on what he is looking at. A sheet he brought up himself (`_bg` false) is never moved.
+  _yieldBackground(card){
+    try{
+      if(!card || !card.isConnected || card.classList.contains("hb-minned")) return;
+      const a=card.getBoundingClientRect(); if(!a.width || !a.height) return;
+      let moved=false;
+      this.wins.forEach(w=>{
+        const c=w && w.card;
+        if(!c || c===card || !c._bg || !c.isConnected || c.classList.contains("hb-minned")) return;
+        const b=c.getBoundingClientRect(); if(!b.width || !b.height) return;
+        const ov=Math.max(0, Math.min(a.right,b.right)-Math.max(a.left,b.left)) * Math.max(0, Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top));
+        if(ov > 0.2*Math.min(a.width*a.height, b.width*b.height)){ c.classList.add("hb-minned"); moved=true; }
+      });
+      if(moved){ this._persist(); try{ document.dispatchEvent(new CustomEvent("hb:canvas-changed")); }catch(_){} }
+    }catch(_){}
+  }
   // WHAT a tidy lays out: the cards on screen. Both gestures used to `revealAll()` first («a grid with invisible
   // holes is not a grid») — and the demo pass of 2026-09-28 measured the cost: «tidy up the screen» over a
   // calendar and a chat brought back the errand sheet he had put away, four cards where he asked for order.

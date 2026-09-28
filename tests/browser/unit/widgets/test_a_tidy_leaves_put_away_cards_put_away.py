@@ -10,7 +10,7 @@ JS = (Path(__file__).resolve().parents[4] / "frontend/app/widgets/desktop.js").r
 
 
 def _body(name):
-    i = JS.index(f"\n  {name}(){{")
+    i = JS.index(f"\n  {name}(") if name == "_yieldBackground" else JS.index(f"\n  {name}(){{")
     return JS[i:JS.index("\n  }\n", i)]
 
 
@@ -36,3 +36,16 @@ def test_showing_a_card_he_put_away_brings_it_back_but_a_workers_show_does_not()
     body = JS[i:JS.index("\n  }\n", i)]
     assert re.search(r'if\(!background && w\.card\.classList\.contains\("hb-minned"\)\)\{ w\.card\.classList\.remove'
                      r'\("hb-minned"\)', body)
+
+
+def test_a_card_he_asks_for_wins_the_space_over_a_background_sheet():
+    """full21 Z1: «what's on tomorrow» brought the agenda up under the trip errand's sheet, 64% covered. A sheet a
+    worker opened in the background tucks into the rail when an operator card needs its place; one he brought up
+    himself is never moved."""
+    i = JS.index("\n  async show(rawId")
+    show = JS[i:JS.index("\n  }\n", i)]
+    assert "card._bg = !!background;" in show
+    assert "if(!background){ this._yieldBackground(card);" in show
+    assert "w.card._bg = false;" in show, "his own show of a sheet makes it his"
+    y = _body("_yieldBackground")
+    assert "!c._bg" in y and 'c.classList.add("hb-minned")' in y and "0.2*" in y
