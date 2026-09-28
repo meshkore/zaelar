@@ -28,7 +28,9 @@ _SYS = ("Eres el cerebro de un asistente de voz. En el turno anterior contestast
         "que lo cumple, con widget_id «{wid}», una de estas acciones declaradas y el payload sacado de las palabras "
         "del operador y de lo que hay en la tarjeta (una hora relativa —«media hora más tarde»— se calcula sobre la "
         "cita que hay). Si solo CONTESTASTE, PROPUSISTE o PREGUNTASTE — sin prometer ni afirmar un acto —, o si "
-        "ninguna acción encaja, no llames a nada.\n\n"
+        "ninguna acción encaja, no llames a nada. OFRECER hacerlo («¿quieres que lo reserve?», «want me to put it "
+        "there?») NO es hacerlo: espera su sí. Pero si AFIRMASTE un acto y además ofreces OTRO («movida a las 2:45; "
+        "¿aviso a Ethan?»), haz la llamada del que afirmaste.\n\n"
         "Acciones de «{wid}»:\n{actions}{card}")
 #: What the card holds, so a relative order («move it 30 minutes later») can be turned into a call. The
 #: demo run (2026-09-26): the model computed «It's now at 2:00 PM, running until 2:45» in the turn — it had the
@@ -70,12 +72,6 @@ async def call_for_promise(operator_text: str, reply: str, widget_id: str, spec=
     try:
         wid = str(widget_id or "").strip().lower()
         if not wid or not (operator_text or "").strip():
-            return None
-        # A reply that ENDS ASKING HIM is waiting for his answer: acting now would answer it for him (demo pass
-        # 2026-09-28, C2: «…4:30 to 5:15 fits nicely. Want me to put the call with Ethan there?» — the pass booked
-        # it, and C3's own booking then made a duplicate). His consent, not our reading of the reply, decides.
-        if str(reply or "").rstrip().endswith(("?", "？")):
-            _note(wid, "la respuesta le pregunta: se espera su respuesta")
             return None
         from widgets import runtime as _rt
         manifest = _rt.get(wid) or {}

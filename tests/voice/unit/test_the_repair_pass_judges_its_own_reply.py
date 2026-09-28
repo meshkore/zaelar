@@ -22,12 +22,30 @@ CASES = [
     ("mensajeria", "draft a short reply saying i'll send the meet link right after our call",
      "I've got a draft ready saying you'll send the Meet link right after your call.", "draft"),
     ("agenda", "actually move it half an hour later", "Checking… moved it to 2 PM.", "move_meeting"),
+    # demo pass 2026-09-28: an OFFER is not the act (C2 booked it once) — but a claimed act followed by an offer
+    # of ANOTHER one still gets its call (C4: «Moved to 2:45. Want me to let Ethan know it's on?», nothing moved)
+    ("agenda", "find me a free 45 minutes tomorrow afternoon to talk with ethan",
+     "4:30 to 5:15 fits nicely with nothing in the way. Want me to put the call with Ethan there?", None),
+    ("agenda", "actually move it half an hour later", "Moved to 2:45.\n\nWant me to let Ethan know it's on?",
+     "move_meeting"),
 ]
+
+
+@pytest.fixture
+def agenda_with_the_meeting(tmp_path, monkeypatch):
+    """The card as it was: the meeting a «move it» refers to is ON it (an empty agenda has nothing to move)."""
+    import datetime
+    from widgets import store
+    monkeypatch.setattr(store, "DATA_DIR", str(tmp_path))
+    from widgets.agenda import data as ag
+    tomorrow = (datetime.date.today() + datetime.timedelta(days=1)).isoformat()
+    ag.apply_action("add_meeting", {"title": "Catch up with Ethan", "date": tomorrow,
+                                    "startTime": "14:15", "endTime": "15:00"})
 
 
 @_live
 @pytest.mark.parametrize("wid,said,reply,want", CASES)
-def test_a_claim_gets_its_call_and_an_answer_does_not(wid, said, reply, want):
+def test_a_claim_gets_its_call_and_an_answer_does_not(agenda_with_the_meeting, wid, said, reply, want):
     import server.common  # noqa: F401 — the credential store, for the live model
     got = asyncio.run(ar.call_for_promise(said, reply, wid))
     assert (got or {}).get("action") == want, got
@@ -35,15 +53,3 @@ def test_a_claim_gets_its_call_and_an_answer_does_not(wid, said, reply, want):
 
 def test_the_prompt_asks_it_to_judge():
     assert "PROPUSISTE" in ar._SYS and "AFIRMASTE" in ar._SYS
-
-
-def test_a_reply_that_asks_him_is_never_acted_on(monkeypatch):
-    """C2 (demo pass 2026-09-28): «…Want me to put the call with Ethan there?» — the pass booked it anyway, and
-    C3 then booked it again. A reply ending in a question to him is waiting for his answer."""
-    called = []
-    import nucleo.flash.fast_client as fc
-    monkeypatch.setattr(fc.FastClient, "complete", lambda *a, **k: called.append(1))
-    got = asyncio.run(ar.call_for_promise("find me a free 45 minutes tomorrow afternoon",
-                                          "4:30 to 5:15 fits nicely. Want me to put the call with Ethan there?",
-                                          "agenda"))
-    assert got is None and not called, "no model call, no write"
