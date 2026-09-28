@@ -478,6 +478,17 @@ def _save(data: dict, sheet: str = "") -> None:
     store.save(sheet_key(sheet), d)
 
 
+def _named(payload: dict) -> str:
+    """The item a payload names, under whichever key the caller used. Demo pass 2026-09-28 (S3): «open the one
+    that's the best deal» arrived as `detail {"item": "Dell S2725QS"}` — the name of the first row, under the
+    key other cards (map, youtube) use for a row — and was answered «I can't find that result on the sheet»."""
+    for k in ("title", "item", "name"):
+        v = payload.get(k)
+        if isinstance(v, str) and v.strip():
+            return v
+    return ""
+
+
 def _find(items: list[dict], title: str = "", index=None) -> dict | None:
     """Resolve WHICH item the operator means. By exact title, else by a forgiving contains-match, else by ordinal.
     The ordinal matters because this arrives from VOICE: "show me proposal number one" is far more likely to
@@ -763,7 +774,7 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
 
     if action == "detail":
         data = view_data(sheet)
-        it = _find(data.get("items") or [], str(payload.get("title", "")), payload.get("index"))
+        it = _find(data.get("items") or [], _named(payload), payload.get("index"))
         if not it:
             return {"ok": False, "error": "no encuentro ese resultado en la hoja (pasa el title o index 1-based)"}
         data["view"] = "detail"

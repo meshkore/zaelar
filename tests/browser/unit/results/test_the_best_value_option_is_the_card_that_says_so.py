@@ -24,3 +24,12 @@ def test_titles_and_ordinals_still_win_and_a_string_number_counts():
 
 def test_nothing_named_is_still_nothing():
     assert data._find(ITEMS, "", "the one with the red stand") is None
+
+
+def test_detail_reads_the_row_under_the_key_other_cards_use(monkeypatch, tmp_path):
+    """Demo pass 2026-09-28 (S3): «open the one that's the best deal» arrived as `detail {"item": "Dell S2725QS"}`
+    — the row key the map and youtube cards declare — and the sheet answered «no encuentro ese resultado»."""
+    monkeypatch.setenv("ZAELAR_WORKSPACE", str(tmp_path))
+    assert data.apply_action("present", {"items": ITEMS}).get("ok")
+    got = data.apply_action("detail", {"item": "LG 27US500-W Ultrafine"})
+    assert got.get("ok") and got["detail"].startswith("LG"), got
