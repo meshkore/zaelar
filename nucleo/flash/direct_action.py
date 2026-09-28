@@ -616,6 +616,31 @@ def complete_canvas(brief, *, tag_emit, emit, operator_text: str = "") -> str:
         return ""
 
 
+def subject_card(widget_id: str, action: str, operator_text: str) -> str:
+    """The card the verdict's action lands on: the verdict's own, unless HIS words name no card and the card his
+    last turn acted on declares the same action — then «it» is that one.
+
+    Demo pass 2026-09-28, U3: «no, put like a prayer» played on the open music card, then «pause it a sec» read
+    `youtube:pause` (1.00) — both cards declare `pause`, the video's description is the richer one, and the verdict
+    cannot know which card the conversation is about. `canvas_focus` does. A card he NAMES («pause the video»)
+    always wins. Never raises; returns `widget_id` whenever in doubt."""
+    try:
+        from widgets import runtime as _rt
+        if _rt.identify_named(operator_text or ""):
+            return widget_id
+        from memory import api as _memapi
+        from nucleo import canvas_focus as _cf
+        from nucleo.flash import frontend as _fe
+        focus = _cf.last_turn_card(list((_memapi.state() or {}).get("open_widgets") or []))
+        if not focus or _base_of(focus) == _base_of(widget_id):
+            return widget_id
+        if action in (_fe.declared_actions(_base_of(focus)) or {}):
+            return focus
+    except Exception:  # noqa: BLE001
+        pass
+    return widget_id
+
+
 def complete(brief, *, operator_text: str, emit, present, apply_widget_data,
              widget_id: str = "", instead_of: str = "", require_order: bool = True) -> str:
     """THE ARBITER'S ONE RULE, spent (V2-754): the verdict COMPLETES the model, it never overrules it.
@@ -665,6 +690,8 @@ def complete(brief, *, operator_text: str, emit, present, apply_widget_data,
         return ""
     if not rung:
         return ""
+    if rung.get("source") == "no-payload":           # a payload read from words belongs to the card it was read for
+        rung = {**rung, "widget": subject_card(rung["widget"], rung["action"], operator_text)}
     try:
         present(rung["widget"], reason="turn-order", src="flash", emit=emit)
         apply_widget_data(rung["widget"], rung["action"], rung["payload"])

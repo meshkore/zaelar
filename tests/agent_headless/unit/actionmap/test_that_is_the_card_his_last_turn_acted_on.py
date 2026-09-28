@@ -72,3 +72,40 @@ def test_exit_fullscreen_reaches_the_full_screen_he_ordered_when_the_canvas_says
     assert ok and seen == [("minimize", "youtube")], seen
     cf.note("widget", "minimize", extra={"id": "youtube", "src": "actionmap"})
     assert cf.ordered_fullscreen() == "", "undone once it is taken out"
+
+
+# ── demo pass 2026-09-28, U3 — «pause it a sec» paused the VIDEO while the music he had just asked for played ──
+
+def _subject(monkeypatch, phrase, open_ids=("youtube", "musica")):
+    from memory import api as memapi
+    from nucleo.flash import direct_action as da
+    monkeypatch.setattr(memapi, "state", lambda: {"open_widgets": list(open_ids)})
+    return da.subject_card("youtube", "pause", phrase)
+
+
+def test_a_show_over_the_open_card_is_a_touch_and_it_becomes_it(monkeypatch):
+    # «put like a prayer» on the music card that was already up: the door refuses the show as `already_open`
+    cf.note("transcript", "text-injected", role="user")
+    cf.note("widget", "🚫 presentación suprimida", extra={"id": "musica", "src": "flash", "already_open": True})
+    cf.note("transcript", "text-injected", role="user")                # «pause it a sec»
+    assert _subject(monkeypatch, "pause it a sec") == "musica"
+
+
+def test_a_card_he_names_always_wins(monkeypatch):
+    cf.note("transcript", "text-injected", role="user")
+    cf.note("widget", "show", extra={"id": "musica", "src": "flash"})
+    cf.note("transcript", "text-injected", role="user")
+    assert _subject(monkeypatch, "pause the video") == "youtube"
+
+
+def test_a_suppressed_show_for_another_reason_is_no_touch():
+    cf.note("transcript", "text-injected", role="user")
+    cf.note("widget", "🚫 presentación suprimida", extra={"id": "musica", "src": "flash", "already_open": False})
+    cf.note("transcript", "text-injected", role="user")
+    assert cf.last_turn_card(["musica", "youtube"]) == ""
+
+
+def test_the_door_marks_the_already_open_refusal():
+    from pathlib import Path
+    src = (Path(__file__).resolve().parents[4] / "nucleo/flash/canvas_visibility.py").read_text("utf-8")
+    assert 'return _suppress("ya está abierta", already_open=True)' in src

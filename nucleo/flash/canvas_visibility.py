@@ -115,9 +115,10 @@ def present(widget_id: str, *, reason: str, action: str = "", src: str = "flash"
         except Exception:  # noqa: BLE001
             pass
 
-    def _suppress(detail: str) -> bool:
+    def _suppress(detail: str, already_open: bool = False) -> bool:
         _emit("widget", "🚫 presentación suprimida",
-              {"id": wid, "src": src, "action": action, "reason": why, "detail": detail, "cat": "widget"})
+              {"id": wid, "src": src, "action": action, "reason": why, "detail": detail, "cat": "widget",
+               "already_open": already_open})
         return False
 
     if not wid:
@@ -132,7 +133,7 @@ def present(widget_id: str, *, reason: str, action: str = "", src: str = "flash"
         except Exception:  # noqa: BLE001
             return _suppress("no se pudo leer la declaración del widget")
     if is_open(wid, known=known):
-        return _suppress("ya está abierta")
+        return _suppress("ya está abierta", already_open=True)
     _emit("widget", "show", {"id": card, "src": src, "action": action, "reason": why})
     return True
 

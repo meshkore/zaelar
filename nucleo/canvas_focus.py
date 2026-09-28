@@ -45,6 +45,10 @@ def note(kind: str, label: str, role: str = "", extra: dict | None = None) -> No
         cid = str(e.get("id") or "").strip()
         rank = _src_rank(e.get("src"))
         lab = str(label or "")
+        if e.get("already_open"):
+            # A show of a card that is already up is still the turn aiming at it (demo pass 2026-09-28, U3: «no,
+            # put like a prayer» played on the open music card; «pause it a sec» then paused the VIDEO card).
+            lab = "show"
         # The full screen HE ordered, until something undoes it — a second witness for «exit fullscreen» when
         # the canvas report says nothing (two tabs report, and the last one to speak may not be maximised:
         # demo pass 2026-09-28, V4 answered «Done, back to normal» and left the video at full screen).
