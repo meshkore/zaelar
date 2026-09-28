@@ -171,10 +171,12 @@ def _tools_for(kind: str, trusted: bool, may_write: bool = False) -> list[str] |
     # —la rama `architect`— pedía escritura sobre el motor y la recibía por llamarse igual.
     if kind == "code" and may_write:
         return ["Read", "Write", "Edit", "WebSearch", "WebFetch"]
-    # `Write` for every trusted errand: the prompt hands every bridge payload through a relative file it writes
-    # itself (see `claude_session._DEFAULT_TOOLS`, 2026-08-28). This list REPLACES that default, and it never had
-    # it — demo pass 2026-09-28: «No such tool available: Write», a `printf` blocked over «$400», and a monitor
-    # errand whose verified results never reached the sheet.
+    if kind == "code":                      # V2-655 — a `code` errand that is not the widget generator
+        return ["Read", "WebSearch", "WebFetch"]   # works on the ENGINE: it never writes
+    # `Write` for every other trusted errand: the prompt hands every bridge payload through a relative file it
+    # writes itself (see `claude_session._DEFAULT_TOOLS`, 2026-08-28). This list REPLACES that default, and it
+    # never had it — demo pass 2026-09-28: «No such tool available: Write», a `printf` blocked over «$400», and a
+    # monitor errand whose verified results never reached the sheet.
     return ["Read", "Write", "WebSearch", "WebFetch"]
 
 

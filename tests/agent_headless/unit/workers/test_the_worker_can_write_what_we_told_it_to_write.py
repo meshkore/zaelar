@@ -72,3 +72,4 @@ def test_the_errand_allowlists_carry_write_too():
     for kind in ("web", "generic", "research"):
         assert "Write" in dispatch._tools_for(kind, trusted=True), kind
     assert dispatch._tools_for("web", trusted=False) == [], "an untrusted turn still gets nothing"
+    assert "Write" not in dispatch._tools_for("code", trusted=True), "V2-655: a non-widget `code` errand never writes"
