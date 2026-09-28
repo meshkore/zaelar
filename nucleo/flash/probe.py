@@ -657,11 +657,12 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
             # because this class of defect survives by diverging between them.
             _ar = None
             from . import direct_action as _da_probe
-            if ((_routerc.promises_action(spoken) or _da_probe.names_an_order(_tbrief))
+            if ((_routerc.promises_action(spoken) or _da_probe.names_an_order(_tbrief)
+                 or _da_probe.reads_as_order(_tbrief))
                     and not _routerc.asks_for_missing_detail(spoken)):
                 # V2-764 — mirror of the voice repair (`act_repair`), gated like it on the verdict too (V2-770).
-                from . import act_repair as _act_repair, build_decision as _bd_probe
-                _ar_wid = _bd_probe.named_card(_tbrief)
+                from . import act_repair as _act_repair, card_commission as _cardc_probe
+                _ar_wid = _cardc_probe.named_or_catalogue(_tbrief, operator_text)
                 _ar = (await _act_repair.call_for_promise(operator_text, spoken, _ar_wid, spec=spec) if _ar_wid
                        else await _act_repair.probe_call_for_promise(operator_text, spoken, spec))
             if _ar:

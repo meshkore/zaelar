@@ -159,3 +159,19 @@ def test_a_card_that_cannot_answer_still_takes_the_call(client, monkeypatch):
     got = _run_cr("Message Ethan on Telegram and tell him the new meeting time.", "send Ethan…", "mensajeria")
     assert got and got["kind"] == "call" and got["action"] == "send_to", got
     assert [t["function"]["name"] for t in _Client.calls[-1]["tools"]] == ["widget_data"], "no read for a card that cannot answer"
+
+
+def test_an_order_reading_is_enough_to_ask_the_repair_in_both_channels():
+    """Demo pass 2026-09-28, W1: «put griffith observatory, mount baldy and the getty on a map» → «I'll pull those
+    three up on the map for you.», no call; the wording table knew neither «I'll pull up» nor «I'll put», and no card
+    was named. A turn the verdict reads as an ORDER now asks the repair, which finds the card through the late
+    catalogue question and judges its own reply."""
+    import threading
+    from nucleo.flash import direct_action as da, turn_brief as tb
+    ev = threading.Event(); ev.set()
+    order = {"event": ev, "turn_id": "t", "open_ids": [], "result": {tb.REQUEST_KEY: {"choice": "order", "confidence": 0.9}}}
+    remark = {"event": ev, "turn_id": "t", "open_ids": [], "result": {tb.REQUEST_KEY: {"choice": "comment", "confidence": 0.9}}}
+    assert da.reads_as_order(order) and not da.reads_as_order(remark) and not da.reads_as_order(None)
+    prov = (ENGINE / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
+    probe = (ENGINE / "nucleo/flash/probe.py").read_text("utf-8")
+    assert "_direct_action.reads_as_order(_brief)" in prov and "_da_probe.reads_as_order(_tbrief)" in probe

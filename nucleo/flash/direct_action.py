@@ -237,6 +237,21 @@ def order_over_a_card_left_undone(brief) -> bool:
         return False
 
 
+def reads_as_order(brief) -> bool:
+    """The verdict read this turn as an ORDER — whatever card it names, or none.
+
+    The gate for the act repair when no card was named yet (demo pass 2026-09-28, W1: «put griffith observatory,
+    mount baldy and the getty on a map» → «I'll pull those three up on the map for you.», no call, no card open, and
+    the promise-wording table knew neither «I'll pull up» nor «I'll put»). The repair finds the card through the
+    late catalogue question and judges its own reply; a verb table is not needed for either."""
+    try:
+        from nucleo.flash import turn_brief as _tb
+        kind, info = _tb.read(brief, _tb.REQUEST_KEY, "")
+        return info is not None and str(kind or "") == "order"
+    except Exception:  # noqa: BLE001
+        return False
+
+
 def names_an_order(brief, *, sure: float = 0.0) -> bool:
     """Does the turn's verdict name a declared action of an open card, on a turn it does not read as a remark?
 
