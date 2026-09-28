@@ -477,3 +477,11 @@ def test_a_normal_successful_task_is_delivered_exactly_as_before(monkeypatch):
     assert rec.ok and rec.status == "done"
     assert delivered == ["He encontrado 3 guitarras zurdas."]
     assert not escalations and not b.sent
+
+
+def test_a_price_is_not_a_status_code():
+    """Demo pass 2026-09-28: a verified report said «ASUS ProArt PA279CRV — $399.00 (list $429.00)», the «429»
+    was read as a rate-limit, and the operator heard «the provider gave me a problem» over three good monitors."""
+    real = ("Three 27-inch 4K monitors under $400, verified live on Amazon.com today: 1. Samsung ViewFinity S7 "
+            "— $189.99 (list $299.99)… 3. ASUS ProArt PA279CRV — $399.00 (list $429.00). Blocked by B&H (403).")
+    assert operator_safe_summary(real) == real

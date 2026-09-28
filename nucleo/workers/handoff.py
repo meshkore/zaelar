@@ -22,6 +22,12 @@ if TYPE_CHECKING:                       # pragma: no cover — solo para el anot
     from nucleo.workers.session import SessionRecord
 
 
+#: How a provider (or the CLI relaying it) opens the message when the worker died of it — measured forms only.
+_PROVIDER_OPENINGS = ("api error", "error", "request rejected", "there's an issue with the selected model",
+                      "you've hit your", "usage limit", "rate limit", "insufficient", "invalid api key",
+                      "unauthorized", "authentication", "401", "403", "429", "overloaded", "prompt is too long")
+
+
 def operator_safe_summary(summary: str) -> str:
     """LAST GATE before a worker's summary is spoken and written to the chat wall (incident 2026-08-18).
 
@@ -44,6 +50,12 @@ def operator_safe_summary(summary: str) -> str:
     # Spanish prose and called it a translation.
     from i18n import langs as _lg
     sp = _lg.current_language()
+    # …but only a text that IS a provider message is classified. The classifier matches codes anywhere, and a
+    # report is prose about the world: «ASUS ProArt — $399.00 (list $429.00)» read as a 429, and the demo pass
+    # (2026-09-28) heard «the provider gave me a problem» over three verified monitors. Errors open with their
+    # own wording; a report never does.
+    if not t.lower().lstrip("⚠️ ").startswith(_PROVIDER_OPENINGS):
+        return t
     try:
         from nucleo.workers import providers as _prov
         if _prov.is_context_overflow(t):
