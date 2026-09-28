@@ -3352,6 +3352,9 @@ DOMAINS: list[dict] = [
         # V2-764 — «voy a por la serie Sherlock en torrent y te enseño el catálogo», and no tool: the turn's verdict
         # named the card, the action existed. One bounded pass asks the model for the call it promised — only the
         # named card, only a declared action — before the backstop spends a worker on it.
+        {"id": "2.93", "title": "Under remote control the pulse keeps beating, in the remote-control blue",
+            "ch": UNIT,
+            "paths": ["tests/browser/unit/widgets/test_the_remote_pulse_beats_in_blue.py"]},
         {"id": "2.92", "title": "One widget action is one read-modify-write — a background import no longer erases a "
                                 "contact added meanwhile",
             "ch": UNIT,

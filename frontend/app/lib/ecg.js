@@ -102,19 +102,23 @@ export function startEcg(canvas) {
   // signal on the screen, stayed fully active over a stopped agent. A stopped agent now shows a FLAT line, the honest
   // reading: it does not beat because it is not running. (The 2026-07-23 fix addressed only EXTRA load beats—
   // `activeLoad`—not the base pulse.)
+  // REMOTE is alive too (operator, 2026-09-28): another session drives the agent, and the pulse must keep
+  // showing it — at rest, busy, racing — in the remote-control blue, instead of going flat as if it were off.
+  const remote = () => store.agentState() === "remote";
+  const beating = () => store.agentLive() || remote();
   let lastSeq = 0;
   createEffect(() => {
     const p = store.pulse();
     if (!p || p.seq === lastSeq) return;
     lastSeq = p.seq;                          // still consume it: turning on again does not drain the queue
-    if (!store.agentLive()) return;
+    if (!beating()) return;
     triggerBeat(p.kind === "turn" ? 1.15 : 0.85);
   });
 
   // V2-065: a PAUSED task (⏻) is deliberately frozen—it must not keep accelerating the pulse, or "off" would
   // contradict its own visual signal (the pulse would keep running while everything is still).
   const activeLoad = () =>
-    store.agentLive()      // stopped = neither base nor load beats: the line is genuinely flat
+    beating()              // stopped = neither base nor load beats: the line is genuinely flat
       ? (store.tasks() || []).filter(t => !t.done && !t.paused).length + (store.botSpeaking() ? 1 : 0)
       : 0;
 
@@ -158,7 +162,7 @@ export function startEcg(canvas) {
   function draw() {
     ctx.clearRect(0, 0, W, H);
     if (!N) return;
-    const accent = css("--hb-accent", "#2DD4BF");
+    const accent = remote() ? css("--hb-remote", "#3D6FE0") : css("--hb-accent", "#2DD4BF");
     ctx.lineJoin = "round"; ctx.lineCap = "round";
     // LOWER LID = the live ECG trace (the pulse) — the ONLY stroke this canvas draws (operator 2026-07-22: "abajo
     // the eye carries the pulse, and the icons go above, not a line"). The UPPER lid is formed by the ICONS themselves,
