@@ -2698,10 +2698,15 @@ class NucleoLLMStream(llm.LLMStream):
             except Exception:
                 _openw = []
             _cw = None
+            # THE VERDICT NAMES THE CARD before any word match does (demo pass 2026-09-28, V7: «ok stop the video
+            # and close it» — the video was already closed, «video» then tied navegador↔youtube, «the open one
+            # wins» picked the worker's browser card, and the backstop closed THAT). Already closed → nothing to do.
+            _vc = _direct_action.verdict_card(_brief) if _direct_action.sure_canvas(_brief) == "close" else ""
             try:
                 from widgets import runtime as _rt_close
                 # los ABIERTOS desempatan ("cierra el vídeo": vídeo empata navegador↔youtube; gana el abierto)
-                _idc = _rt_close.identify(text, open_ids=_openw) or {}
+                _idc = ({"match": _vc if _vc in _openw else ""} if _vc
+                        else (_rt_close.identify(text, open_ids=_openw) or {}))
                 # NOMBRE resuelto y NO ambiguo = cerramos aunque el turno sea largo (señal fuerte: cerrar + widget
                 # nombrado). No exigimos que esté en open_widgets: el frontend puede no haberlo reportado y cerrar
                 # uno ya cerrado es no-op inofensivo; el valor real es CANCELAR la escalada espuria.
@@ -2710,7 +2715,7 @@ class NucleoLLMStream(llm.LLMStream):
             except Exception:
                 _cw = None
             # sin nombre resuelto: solo el caso corto genérico ("ciérralo") con un único widget abierto.
-            if not _cw and _closeg.is_short_order(text) and len(_openw) == 1:
+            if not _cw and not _vc and _closeg.is_short_order(text) and len(_openw) == 1:
                 _cw = _openw[0]
             if _cw:
                 _t = _close_target(_cw, text)

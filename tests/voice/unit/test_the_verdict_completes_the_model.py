@@ -329,3 +329,14 @@ def test_an_action_named_surely_is_an_order_even_when_the_request_type_is_unsure
         "C2's unsure write stays out"
     assert not _da.names_an_order(_brief({_tb.TARGET_KEY: ("mensajeria:draft", 0.74),
                                           _tb.REQUEST_KEY: ("comment", 0.95)}, open_ids=("mensajeria",)), sure=0.7)
+
+
+def test_V7_the_close_backstop_takes_the_verdicts_card_even_when_it_is_already_closed():
+    """«ok stop the video and close it»: the video was already closed, «video» tied navegador↔youtube and the
+    word backstop closed the worker's browser card. The verdict (youtube:close 0.97) names the card, open or not."""
+    b = _brief({_tb.TARGET_KEY: ("youtube:close", 0.97), _tb.CANVAS_KEY: ("close", 0.98)}, open_ids=("navegador",))
+    assert _da.verdict_card(b) == "youtube"
+    import inspect
+    from voice.engine.llm.providers import nucleo as prov
+    src = inspect.getsource(prov)
+    assert '_direct_action.verdict_card(_brief) if _direct_action.sure_canvas(_brief) == "close"' in src

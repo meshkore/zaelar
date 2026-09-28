@@ -129,6 +129,18 @@ def from_brief(brief) -> tuple:
         return ("", "")
 
 
+def verdict_card(brief) -> str:
+    """The card the verdict names, OPEN OR NOT — for a close, a card already gone is an answer («nothing left to
+    do»), not a reason to look for another one (demo pass 2026-09-28, V7)."""
+    try:
+        from nucleo.flash import turn_brief as _tb
+        choice, _info = _tb.read(brief, _tb.TARGET_KEY, "")
+        owner, sep, _name = str(choice or "").rpartition(":")
+        return owner if sep else ""
+    except Exception:  # noqa: BLE001
+        return ""
+
+
 def order_is_inside(brief, widget_id: str = "") -> bool:
     """Does the verdict put this turn's order INSIDE a card — on one of its declared actions — so that a
     [[close]] of that same card is not the order?
