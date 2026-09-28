@@ -821,6 +821,10 @@ export class Desktop {
       // to load still occupies the canvas, and a card on the canvas without a chip is exactly what the rail forbids.
       try{ document.dispatchEvent(new CustomEvent("hb:canvas-changed")); }catch(_){}
     } else {
+      // «show me» on a card he put away brings it BACK (demo pass 2026-09-28, full17 S1: «so how did the monitors
+      // go, show me» raised the minimized sheet's z and left it hidden, and the detail opened on it next turn was
+      // invisible). A worker's show stays in the background, minimized included.
+      if(!background && w.card.classList.contains("hb-minned")){ w.card.classList.remove("hb-minned"); this._persist(); }
       if(!background) this._bringFront(w.card);
       // Already open, no new data pushed, same query → just surface it (no re-fetch, no re-render, no flicker).
       if(providedData === null && q === w.q) return;
