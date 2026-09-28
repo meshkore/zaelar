@@ -2709,6 +2709,23 @@ when disarmed; a model slip with no mechanism behind it stayed a slip (listed at
   second save updates it); the messaging card answers recipient questions from the directory it sends through.
 - An errand nobody labelled takes its surface from the turn brief (monitors → the sheet opens at once).
 
+**Second half of the batch (full pass 6).**
+- **A refused data-op is corrected while the turn is still his** (`act_repair.call_for_refusal` +
+  `data_ops.corrected_retry`, both channels): the refusal and the card go to one small pass that may re-issue
+  only the SAME action on the SAME card with a different payload — so the same gate. «open the one that's the best
+  deal» (sheet badge «Best value») and a move sent with a meeting's field names used to fail into a note for the
+  next turn: silence, then a misplaced apology. Node 2.95.
+- **A move is a write**: `move_meeting` reads the same natural field names as add/update (`recur.normalize`).
+- **A worker still speaking its delivery is not an orphan**: the pulse reconciler read only live statuses and
+  settled the monitors search as «failed» while it waited to speak; the FlashBrain then said it had failed and ran
+  it again. It now reads every session whose run has not reached `tasks.closed()`.
+- **The client lane only opens.** Closing and moving belong to the engine: the client closed Markets on «ok close
+  that» and the engine's verdict then closed the agenda — two mutations for one order.
+- A spoken reply over a show, on a turn the verdict reads as an order, gets the after-show pass (the pass judges
+  its own reply; «…so I'm opening that one» matched no verb table).
+- The forensic turn capture records the model's raw calls (`model_calls`); a repair spoken after the reply is its
+  own sentence («…tomorrow.Tomorrow»).
+
 **Still open — model slips, no mechanism to fix.** A time read from memory shifted by two hours (C1, once); a
 goodbye that asserted «nothing on the calendar tomorrow» with the agenda closed (Z3, twice); a sure verdict
 overruled by a valid but wrong call (`tab` for `detail`). The FlashBrain prompt is still in Spanish with an
