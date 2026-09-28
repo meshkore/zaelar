@@ -80,3 +80,16 @@ def test_finding_a_free_slot_is_declared_a_question_not_a_booking(ag):
     from pathlib import Path
     desc = json.loads((Path(ag.__file__).parent / "manifest.json").read_text("utf-8"))["actions"]["add_meeting"]["desc"]
     assert "SOLO cuando él pide" in desc and "es una PREGUNTA" in desc
+
+
+def test_booking_the_slot_just_booked_renames_it_instead_of_doubling_it(ag):
+    """Demo passes 2026-09-28 (full12-full15, C2→C3): the ambiguous «find me a free 45 minutes… to talk with ethan»
+    got booked as «Call with Ethan»; «ok book it, call it catch up with ethan» then booked a SECOND one in the same
+    slot and «move it half an hour later» had to ask which."""
+    slot = {"date": "2026-10-06", "startTime": "16:00", "endTime": "16:45"}
+    ag.apply_action("add_meeting", {"title": "Call with Ethan", **slot})
+    r = ag.apply_action("add_meeting", {"title": "Catch up with Ethan", **slot})
+    assert r.get("renamed") and [m["title"] for m in _rows(ag, "Catch up with Ethan")] == ["Catch up with Ethan"]
+    assert not _rows(ag, "Call with Ethan"), "one appointment, under the name he gave it last"
+    ag.apply_action("add_meeting", {"title": "Lunch with Laura", **slot})
+    assert _rows(ag, "Lunch with Laura") and _rows(ag, "Catch up with Ethan"), "nobody in common: a double booking is his"

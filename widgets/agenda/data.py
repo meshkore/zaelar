@@ -60,6 +60,39 @@ def _is_same_meeting(a: dict, b: dict) -> bool:
     return _titles_overlap(a.get("title"), b.get("title"))
 
 
+def _names_in(title) -> set:
+    """The capitalised words of a title past its first — the PEOPLE and places in it («Call with Ethan» → Ethan)."""
+    words = re.findall(r"\w+", str(title or ""))
+    return {_strip_accents(w).lower() for w in words[1:] if w[:1].isupper()}
+
+
+def _the_one_just_booked(db: dict, meets: list, new: dict, window_s: float = 600.0):
+    """The meeting this write RENAMES rather than doubles, or None.
+
+    Demo passes 2026-09-28 (full12-full15, C2→C3): «find me a free 45 minutes tomorrow afternoon to talk with ethan»
+    is ambiguous enough that the model booked it («Call with Ethan», 16:00-16:45) — and «ok book it, call it catch up
+    with ethan» then booked a SECOND one in the same slot, so «move it half an hour later» had to ask which. The same
+    exact slot as the appointment the conversation is ON (the agenda's focus, touched minutes ago), for the same
+    person, is that appointment under the name he now gives it. A different slot, a stale focus, or nobody in common
+    stays a new meeting: a double-booked hour is still his business (V2-473)."""
+    focus = db.get("focus") or {}
+    try:
+        fresh = time.time() - float(focus.get("at") or 0) <= window_s
+    except (TypeError, ValueError):
+        fresh = False
+    if not fresh:
+        return None
+    for m in meets:
+        if (str(m.get("title") or "") == str(focus.get("title") or "")
+                and str(m.get("date") or "") == str(new.get("date") or "")
+                and str(m.get("startTime") or "") == str(new.get("startTime") or "")
+                and str(m.get("endTime") or "") == str(new.get("endTime") or "")
+                and m.get("title") != new.get("title")
+                and _names_in(m.get("title")) & _names_in(new.get("title"))):
+            return m
+    return None
+
+
 def _settle_rule(db: dict, twin: dict, new: dict) -> bool:
     """A second write of the SAME appointment that carries a repeat rule the row lacks settles the rule on the
     row (V2-773, 2026-09-27). «Anna vacation, December 20 through January 4» reached the card twice from the
@@ -470,6 +503,19 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
                 _jid, _at = _schedule_reminder(_ad.get("title", title), date, _ad.get("startTime", ""))
                 if _jid:
                     _ad["reminder_id"], _ad["remindAt"] = _jid, _at
+            elif (_renamed := _the_one_just_booked(db, _meets, _new)) is not None:
+                _cancel_reminder(_renamed)
+                _renamed["title"] = _new["title"]
+                for k in ("attendees", "notes", "location", "category"):
+                    if _new.get(k) and not _renamed.get(k):
+                        _renamed[k] = _new[k]
+                gcal.patch_google(_renamed)
+                _jid, _at = _schedule_reminder(_renamed["title"], date, _renamed.get("startTime", ""))
+                if _jid:
+                    _renamed["reminder_id"], _renamed["remindAt"] = _jid, _at
+                edit.touch(db, _renamed)
+                _extra["stored"] = dict(_renamed)
+                _extra["renamed"] = True
             # V2-208: the SAME meeting twice (see `_is_same_meeting`). A duplicate notice is heard once; a
             # duplicate meeting is SEEN, and remains there until someone deletes it manually.
             elif (_same := next((m for m in _meets if _is_same_meeting(_new, m)), None)) is not None:
