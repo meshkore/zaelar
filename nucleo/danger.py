@@ -224,7 +224,11 @@ _PURCHASE_ADJUNCT_RE = re.compile(
     # «cuál comprar» / «which one to buy» is the QUESTION a comparison answers, and it is the phrase a
     # research errand is most likely to carry — it names the decision the operator has NOT taken yet.
     r"(?:cual|cuales|que)\s+comprar\w*|which\s+(?:one\s+)?to\s+buy|what\s+to\s+buy|"
-    r"available\s+for\s+purchase|for\s+purchase|for\s+sale|to\s+buy|worth\s+buying)\b", re.I)
+    r"available\s+for\s+purchase|for\s+purchase|for\s+sale|to\s+buy|worth\s+buying|"
+    # a MODAL buy describes what is being looked for — «three models the operator can buy» (demo pass 31: a
+    # monitor search was parked as a charge). «buy it» with no modal keeps its imperative.
+    r"(?:can|could|may|might|would)\s+(?:\w+\s+)?(?:buy|purchase)|"
+    r"(?:pueda|puede|pueden|puedan|podria|podrian)\s+comprar\w*)\b", re.I)
 
 
 # An AMOUNT QUESTION is not a payment (V2-645). Measured live (the La Mella session, 2026-09-09): the
