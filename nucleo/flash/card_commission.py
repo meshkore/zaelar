@@ -37,7 +37,11 @@ def named_or_catalogue(brief, operator_text: str, *, wait_s: float = 2.5) -> str
         if card:
             return card
         choice, info = _tb.read(brief, _tb.TARGET_KEY, "")
-        if str(choice or "") != "none" or not (isinstance(info, dict) and info.get("used")):
+        # …or when the screen verdict is UNSURE (demo pass 2026-09-28, R3: «find me five days in her vacation where
+        # i'm free» read `agenda:show_day` at 0.40 — unsure, so no card, and the commission went to a five-minute
+        # worker for what the agenda answers). A sure answer naming an action was handled above; only a sure
+        # «none» and an unsure anything are left, and both mean «the screen question could not say».
+        if not isinstance(info, dict) or (info.get("used") and str(choice or "") != "none"):
             return ""
         q = _tb.catalog_question()
         if not q or not (operator_text or "").strip():

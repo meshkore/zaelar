@@ -611,3 +611,23 @@ def test_the_commission_pass_sees_the_conversation():
     assert act_repair.conversation([]) == ""
     prov = (Path(__file__).resolve().parents[3] / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
     assert prov.count("window=list(brain._window)") >= 3, "commission, after-show and promise passes all get it"
+
+
+def test_R3_an_unsure_screen_verdict_asks_the_catalogue_too(monkeypatch):
+    """Demo pass 2026-09-28, R3: «find me five days in her vacation where i'm free» read `agenda:show_day` at 0.40
+    — unsure, so no card — and the commission went to a five-minute worker for what the agenda answers. An unsure
+    screen verdict, like a sure «none», means the screen question could not say: the catalogue is asked."""
+    import threading
+    from nucleo import jev
+    from nucleo.flash import build_decision, card_commission as cc, turn_brief as tb
+    monkeypatch.setattr(build_decision, "named_card", lambda brief: "")
+    monkeypatch.setattr(tb, "catalog_question", lambda: {"instructions": "i", "criteria": {"agenda": "a"}})
+    monkeypatch.setattr(jev, "choose_sync", lambda *a, **k: {"choice": "agenda", "confidence": 0.9})
+    ev = threading.Event(); ev.set()
+
+    def brief(choice, conf):
+        return {"event": ev, "turn_id": "t", "open_ids": ["agenda"],
+                "result": {tb.TARGET_KEY: {"choice": choice, "confidence": conf}}}
+    assert cc.named_or_catalogue(brief("agenda:show_day", 0.40), "find me five days where i'm free") == "agenda"
+    assert cc.named_or_catalogue(brief("none", 0.95), "find me five days where i'm free") == "agenda"
+    assert cc.named_or_catalogue(brief("agenda:show_day", 0.95), "x") == "", "a sure action is handled elsewhere"
