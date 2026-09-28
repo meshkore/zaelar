@@ -381,7 +381,18 @@ def a_promise_left_hanging(operator_text: str, reply: str, *, acted: bool, anyth
         # worker was running, the promise was «checking your agenda») is kept by reading that card.
         try:
             from nucleo.flash import widget_read as _wr
-            return bool(_wr.resolve("", reply or ""))
+            if _wr.resolve("", reply or ""):
+                return True
+        except Exception:  # noqa: BLE001
+            pass
+        # …and one about a request nothing live is doing (demo pass 2026-09-28, Z1: «what's on my plate tomorrow»
+        # → «…let me look at Tuesday for you.», no read, the TRIP worker running — and two turns later «Tuesday's
+        # clear, nothing booked» over four meetings). The conservative V2-176 predicate: covered unless it can tell.
+        try:
+            from nucleo import dispatch as _d
+            from nucleo.flash import router_guards as _rgd
+            live = [str(r.get("request") or "") for r in _d.pending_summaries()]
+            return bool(live) and _rgd.nothing_running_for(operator_text or "", live)
         except Exception:  # noqa: BLE001
             return False
     return True

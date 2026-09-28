@@ -235,3 +235,16 @@ def test_a_second_pass_knows_what_the_turn_already_said():
     body = body[:body.index("from voice.engine.llm.providers.vault_intercept")]
     assert '_said = "".join(spoken).strip()' in body and "En este turno ya le has dicho" in body
     assert '_lead = [" " if _said else ""]' in body and "_out(speech.inline(take(False)))" in body
+
+
+def test_live_work_about_something_else_does_not_cover_a_promise(monkeypatch):
+    """Demo pass 2026-09-28, Z1: «what's on my plate tomorrow» → «…let me look at Tuesday for you.», nothing read,
+    the trip worker running; two turns later «Tuesday's clear — nothing booked» over four meetings."""
+    from nucleo import dispatch
+    from nucleo.flash import answer_guards as ag
+    monkeypatch.setattr(dispatch, "pending_summaries", lambda: [
+        {"request": "Plan a five-day warm trip from LAX for Anna and me, December 21 to 25, under 2000"}])
+    assert ag.a_promise_left_hanging("what's on my plate tomorrow", "…let me look at Tuesday for you.",
+                                     acted=False, anything_running=True)
+    assert not ag.a_promise_left_hanging("how's the warm trip for anna going", "Let me look into the trip now.",
+                                         acted=False, anything_running=True), "a promise about the live errand is covered"
