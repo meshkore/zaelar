@@ -806,6 +806,15 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
             _sel = _resolve_date(_raw)                 # spoken relative date -> YYYY-MM-DD (today if unsaid)
         import time as _tm
         db["view"] = {"sel": _sel, "n": int((db.get("view") or {}).get("n", 0)) + 1, "at": _tm.time()}
+        # WHAT the card now shows, as the action's answer (demo pass 31, R2). «when does anna's vacation start?
+        # show me in the calendar» → show_day 2026-12-20, where «Anna vacation» sits; the turn then answered from
+        # the op's return — the generic view, i.e. THIS week — and said «there's nothing in your calendar about
+        # Anna's vacation». A day view answers with that day's rows.
+        if re.match(r"^\d{4}-\d{2}-\d{2}$", str(_sel)):
+            from . import query as _q_sd
+            _extra = {"result": {"day": _sel, "meetings": [
+                {k: m.get(k) for k in ("title", "date", "time", "end", "allDay", "status") if m.get(k) not in (None, "")}
+                for m in (db.get("meetings") or []) if _q_sd._on_day(m, _sel)]}}
     elif action == "find_free":
         # A QUESTION about the day, answered without writing (see `free.py`): the day's free stretches, and the
         # card moves to that day so what he is told is what he sees.

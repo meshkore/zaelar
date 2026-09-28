@@ -272,6 +272,11 @@ def answer_of(res) -> dict:
     email, did inworld send me something?» found the Inworld receipt and the turn said «let me check»)."""
     if not isinstance(res, dict) or _receipt.failed(res):
         return {}
+    # An action that says what it ANSWERS puts it under `result`; the rest of its return is the card's whole
+    # view, and read as the answer it is a different record (demo pass 31, R2: a day view of 20 December answered
+    # from this week's meetings — «nothing about Anna's vacation»).
+    if isinstance(res.get("result"), dict) and res["result"]:
+        return {"result": res["result"]}
     return {k: v for k, v in res.items() if k not in _ACK_KEYS and v not in (None, "", [], {})}
 
 
