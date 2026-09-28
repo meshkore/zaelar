@@ -48,3 +48,12 @@ def test_both_channels_wire_it():
     assert "_direct_action.closes_the_named_card(_brief, _op_text, data_done.get(\"ops\"))" in voice
     assert 'data_done.setdefault("ops", []).append((wid, action_name))' in voice
     assert "closes_the_named_card(_tbrief, operator_text, _ops)" in probe
+
+
+def test_the_in_card_guard_lets_the_named_close_through():
+    """full18 V7: the close was emitted and the «order is an action INSIDE the card» guard dropped it."""
+    voice = (ENGINE / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
+    assert '_tag_emit("close", {"id": _cn, "named": True})' in voice
+    i = voice.index('close ignorado — la orden es una acción DENTRO de la tarjeta')
+    guard = voice[voice.rindex("if (action", 0, i):i]
+    assert 'not (extra or {}).get("named")' in guard

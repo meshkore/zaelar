@@ -966,7 +966,10 @@ class NucleoLLMStream(llm.LLMStream):
             # GUARD close sin orden (V2-635, espejo del GUARD 2 de stop_worker): «Johnny eres tonto» acabó en
             # un [[close]] que NADIE pidió (34386d8f). Gramática (looks_like_close ya excluye negaciones y
             # narraciones): sin verbo de cerrar EN el turno del operador, el close del modelo es arrastre.
-            if action == "close" and _direct_action.order_is_inside(_brief, str((extra or {}).get("id") or "")):
+            # `named` = `closes_the_named_card` already told the op inside the card from the card named to close
+            # (full18 V7: this guard dropped exactly that close, and the video card stayed over everything).
+            if (action == "close" and not (extra or {}).get("named")
+                    and _direct_action.order_is_inside(_brief, str((extra or {}).get("id") or ""))):
                 # V2-770 — the order is an action INSIDE the card («ciérrala» over a detail card): not this tag.
                 emit("brain", "🛡️ close ignorado — la orden es una acción DENTRO de la tarjeta",
                      text=(text or "")[:120], role="system", extra={"cat": "flash", "kind_diag": "close_inside_card"})
@@ -2623,7 +2626,7 @@ class NucleoLLMStream(llm.LLMStream):
         if data_done["v"] and not clarify["msg"] and "close_widget" not in _tool_fired:
             _cn = _direct_action.closes_the_named_card(_brief, _op_text, data_done.get("ops"))
             if _cn:
-                _tag_emit("close", {"id": _cn})
+                _tag_emit("close", {"id": _cn, "named": True})
                 emit("brain", "🎯 el veredicto completa al modelo — close", text=_cn, role="system",
                      extra={"cat": "flash", "widget": _cn, "action": "close", "said": (_op_text or "")[:120]})
         # V2-764 — it PROMISED to act on a card the verdict names and called nothing: one pass for the call
