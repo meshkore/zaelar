@@ -95,3 +95,12 @@ def test_an_order_on_a_card_the_turn_never_touched_is_carried_out():
     assert "_missed = _direct_action.order_card_after_read(_brief, _op_text, next(iter(_ops_cards)))" in src
     assert "if _missed and _missed not in _ops_cards:" in src
     assert "call_after_read(_op_text, next(iter(_ops_cards)), _missed" in src
+
+
+def test_an_answering_lens_yields_to_a_verdict_that_changes_the_screen():
+    """full26 E2: «open it» → the model searched the archive again («nothing matching»), the verdict read
+    `mensajeria:open` at 0.87. Both are lenses; the one that only answers in words yields when the turn wants an act."""
+    from nucleo.flash import data_ops
+    assert data_ops.a_view_where_the_verdict_acts("mensajeria", "search_archive", "open", "act")
+    assert not data_ops.a_view_where_the_verdict_acts("mensajeria", "search_archive", "open", "tell")
+    assert not data_ops.a_view_where_the_verdict_acts("mensajeria", "show_view", "open", "act"), "two plain lenses: the model's"

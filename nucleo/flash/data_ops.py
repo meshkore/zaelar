@@ -376,8 +376,19 @@ def a_view_where_the_verdict_acts(wid: str, model_action: str, verdict_action: s
     disagreeing verdict) protects a model that is RIGHT from a wrong verdict — its counter-case would have restarted a
     video. A lens changes nothing, so yielding it costs nothing; and when the turn wants an act (`wants_words=act`)
     and the verdict names one that is not a lens, the lens is the reading that cannot be what he asked."""
-    return bool(str(words or "") == "act" and verdict_action and is_view_op(wid, model_action)
-                and not is_view_op(wid, verdict_action))
+    if not (str(words or "") == "act" and verdict_action and is_view_op(wid, model_action)):
+        return False
+    if not is_view_op(wid, verdict_action):
+        return True
+    # …and a lens that only ANSWERS in words (`output.answer`) where the turn wants the screen to change and the
+    # verdict names a lens that does not (full26 E2: «open it» → the model searched the archive again and said
+    # «nothing matching», the verdict read `mensajeria:open` at 0.87). Both are lenses; only one is what he asked.
+    try:
+        from widgets import effects as _fx
+        return (_fx.carries(wid, model_action, _fx.OUTPUT_ANSWER)
+                and not _fx.carries(wid, verdict_action, _fx.OUTPUT_ANSWER))
+    except Exception:  # noqa: BLE001
+        return False
 
 
 def remember_refusal(wid: str, action: str, payload: dict | None) -> None:

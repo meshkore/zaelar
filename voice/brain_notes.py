@@ -44,7 +44,21 @@ def compose_turn(operator_text: str, notes: list[str]) -> str:
         return op
     if not op:
         return "\n".join(ns)
-    return op + "\n\n" + _AFTER_HEADER + "\n" + "\n".join(ns)
+    return op + "\n\n" + _AFTER_HEADER + "\n" + _language_line() + "\n".join(ns)
+
+
+def _language_line() -> str:
+    """The notes are written in the system's internal language; the reply is not (demo pass 2026-09-28, full26 C2:
+    a note «Traída de Email hecha…» rode along an English turn and the whole reply came out in Spanish, in the middle
+    of an English demo). One line, after the header — never inside it: `operator_half` finds the header verbatim —
+    naming the configured language from the catalogue."""
+    try:
+        from voice.engine.core import langs
+        spec = langs.current_language()
+        return (f"(Estos avisos están en el idioma interno del sistema; tu respuesta va ENTERA en {spec.native} "
+                f"({spec.name}), como siempre.)\n")
+    except Exception:  # noqa: BLE001
+        return ""
 
 
 def operator_half(turn_text: str) -> str:
