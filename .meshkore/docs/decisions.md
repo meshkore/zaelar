@@ -2655,3 +2655,61 @@ Found by the live re-verification after the pass (each confirmed on the running 
 
 Still open, as bank cases: a sure order answered with words and no call (the promise repair gates on a verb
 table), a completion claimed with no call. Both are the B1 question — who acts when the model does not.
+
+## V2-776 F (28-09) — the demo pass from zero, said like a person says it
+
+The workflow run end to end from a reset, then with a HUMAN script (`steps-human.json` in the workspace's
+workflow: dictation lower-case, fillers, a typo, vague references, a self-correction). The operator's rule for the
+batch: understand the request, fewer rails, no tricks. Every item below is a mechanism with its test seen red
+when disarmed; a model slip with no mechanism behind it stayed a slip (listed at the end).
+
+**Infrastructure first — none of these failed loudly.**
+- **A host shell routed the workers.** The engine, restarted from inside a Claude Code session, inherited its
+  `ANTHROPIC_BASE_URL=https://api.anthropic.com`; every Brain Worker skipped the provider chain and asked
+  Anthropic for `glm-5.3` («There's an issue with the selected model»). Workers and `zaelar.py start` drop the
+  host's routing; the CLI's wording also relays now; external tiers spawn with `CLAUDE_CODE_MAX_RETRIES=3`
+  (a spent quota handed over in 7 s instead of ~3 min); a Z.ai `[13xx]` reset stamp is read in UTC+8.
+  Nodes 2.82 and the failover suite.
+- **One widget action = one read-modify-write** (`store.mutating`): a background Telegram import loaded the empty
+  directory, merged 2,692 rows and saved — erasing a contact added meanwhile. Node 2.92.
+- **The screen that counts is the voice session's tab**: two tabs reported different canvases and a watching
+  tab «closed» the chart 268 ms into «ok close that». Node 2.91.
+- **A web errand's worker could not write the payload file its prompt asks for** (`_tools_for` replaced the
+  default that carried `Write`); **a price in a report read as a 429** («list $429.00» → «the provider gave me a
+  problem»); **a delivery spoken to him was announced again** by the next two replies; **a worker's interim
+  `say` rode his answers** when no quiet moment came (`notify(carry=False)`). Nodes 2.86 and the worker suites.
+
+**Canvas: a gesture is a gesture, never a data write.**
+- **Closing is a tool, like opening** (`close_widget {widget_id, mode: close|minimize}`): with only the
+  `[[close]]` tag, every model measured (deepseek flash/pro, glm-5.3) reached for `agenda:close_meeting` or
+  `results:clear` — which emptied the sheet. Node 2.88.
+- **The canvas verdict knows the size gestures** (fullscreen / exit_fullscreen / minimize) and, when the model
+  calls nothing, `complete_canvas` performs the gesture on the turn's card. Closing the piece closes its one open
+  card; the close backstop takes the verdict's card, never a word match («video» tied navegador↔youtube).
+- **«It» / «that» is the card his last turn acted on** (`canvas_focus`, fed by the event funnel): a sheet that
+  arrived in the background no longer steals «make it fullscreen». Node 2.85.
+
+**The repair passes judge instead of guessing.**
+- The promise/claim repair (`act_repair`) now READS its own reply: a promise or a claimed act gets its call; an
+  answer, a proposal, or an OFFER («want me to put it there?») gets none — while a claimed act followed by an
+  offer of another one still gets the claimed call. Its gate lost the confidence floor that stood in for this
+  judgement. Node 2.89 (live).
+- A silent show of an EMPTY card gets its second pass («show me the chart» → an empty Markets). Node 2.90.
+- «Checking your agenda…» is a promise to look; unrelated live work no longer covers a promise that names a
+  readable card.
+
+**Words.**
+- One closed class of spoken numbers (`refs.number_words`), English included — «put on number five» was no number
+  in an English session; a digit counts only when marked («number 3», «el 6»), «Apolo 11» is a title.
+- A position in his own sentence is the reference when the model named nothing («open the second one»); a widget
+  that matches its own references gets his words for an empty key (the document's `goto`).
+- The accumulator's turn judge decides whether he FINISHED, not what is missing: «and the nasdaq, over the whole
+  year» was answered «What would you like to know?» before the brain ever read it.
+- «Show me a few more of those» ADDS pictures (`show_images more:true`); the document sheet owns its file (a
+  second save updates it); the messaging card answers recipient questions from the directory it sends through.
+- An errand nobody labelled takes its surface from the turn brief (monitors → the sheet opens at once).
+
+**Still open — model slips, no mechanism to fix.** A time read from memory shifted by two hours (C1, once); a
+goodbye that asserted «nothing on the calendar tomorrow» with the agenda closed (Z3, twice); a sure verdict
+overruled by a valid but wrong call (`tab` for `detail`). The FlashBrain prompt is still in Spanish with an
+«answer in English» rule, which is where a Spanish word leaked into one English reply.
