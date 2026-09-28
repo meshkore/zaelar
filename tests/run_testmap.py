@@ -3352,6 +3352,9 @@ DOMAINS: list[dict] = [
         # V2-764 — «voy a por la serie Sherlock en torrent y te enseño el catálogo», and no tool: the turn's verdict
         # named the card, the action existed. One bounded pass asks the model for the call it promised — only the
         # named card, only a declared action — before the backstop spends a worker on it.
+        {"id": "2.105", "title": "A cut document digest names every section — a truncation is not an absence",
+            "ch": UNIT,
+            "paths": ["tests/browser/unit/widgets/test_a_cut_document_still_names_its_sections.py"]},
         {"id": "2.104", "title": "A QUESTION answered by a view alone gets its answer read from that card (and SKIP when already said)",
             "ch": UNIT,
             "paths": ["tests/voice/unit/test_a_question_answered_by_a_view_gets_its_answer.py"]},

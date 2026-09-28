@@ -227,6 +227,13 @@ def prompt_digest() -> str:
     cut = body[:1400]
     if len(body) > len(cut):
         cut = cut.rsplit("\n", 1)[0] + "\n…"
+        # The WHOLE outline rides with the cut: demo pass 2026-09-28, full11 F2 — «go to the part about the complaints
+        # against the king» over a document that HAS «## The grievances against King George III», and the reply said
+        # «the grievances aren't written up yet», because the digest stopped at the natural-rights section. A cut is
+        # not an absence, and the headings say what lies past it.
+        heads = [h.strip("# ").strip() for h in re.findall(r"(?m)^#{1,4} .+$", body)]
+        if heads:
+            cut += ("\n(Recortado: el documento sigue. TODAS sus secciones, en orden: " + " · ".join(heads[:30]) + ")")
     return f"En la hoja, {head} ({kind}):\n{cut}"
 
 
