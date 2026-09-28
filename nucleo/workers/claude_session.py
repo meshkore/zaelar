@@ -511,6 +511,12 @@ class ClaudeCodeSession(WorkerBackend):
                     # quiet=True cuando hay `step`: el step ES la fila del panel → no duplicar con la fase coarse,
                     # pero rec.phase (el prompt "PROCESOS DE FONDO") SÍ se actualiza con la coarse.
                     yield self._ev("phase", label=lbl, quiet=bool(step))
+                # EVERY tool_use is remembered by its id, not only the ones that paint a row (2026-09-28, demo
+                # pass 30): an `agent_report plan "…under $400…"` has no step, so its rejection fell back to
+                # `_last_step` and the log blamed the previous `nav_cli scroll down`, which had succeeded.
+                self._steps().setdefault(str(block.get("id") or ""), {
+                    "tool": name, "where": (step or {}).get("where", ""),
+                    "cmd": str((tin or {}).get("command") or "")[:220]})
                 if step:
                     # Se recuerda el ÚLTIMO paso para poder atribuirle su respuesta: el `tool_result` llega en el
                     # mensaje siguiente (rol `user`) y NO dice de qué tool era más que por `tool_use_id`.
@@ -522,7 +528,6 @@ class ClaudeCodeSession(WorkerBackend):
                     # solo se emite cuando el paso FALLA: ver `session._emit_step_result`.
                     _meta = {"tool": name, "where": step.get("where", ""),
                              "cmd": str((tin or {}).get("command") or "")[:220]}
-                    self._steps().setdefault(str(block.get("id") or ""), _meta)
                     self._last_step = dict(_meta)
                     yield self._ev("step", tool=name, model=self._model, **step)
             return
