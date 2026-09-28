@@ -42,7 +42,7 @@ TOOL_DEF = {
             "type": "object",
             "properties": {
                 "widget_id": {"type": "string", "description": "id del catálogo o su nombre natural"},
-                "question": {"type": "string", "description": "qué quieres saber, autocontenido"},
+                "question": {"type": "string", "description": "qué quieres saber, autocontenido; cada fecha en AAAA-MM-DD (un periodo: sus dos extremos)"},
             },
             "required": ["widget_id", "question"],
         },

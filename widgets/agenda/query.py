@@ -76,7 +76,66 @@ def _dates_in(question: str) -> list[str]:
             d = (base + _dt.timedelta(days=delta)).isoformat()
             if d not in found:
                 found.append(d)
+    for d in _named_dates(q):
+        if d not in found:
+            found.append(d)
     return found
+
+
+def _named_dates(q: str) -> list[str]:
+    """Dates written by their month's NAME («December 20, 2026», «el 4 de enero»), through the calendar's own
+    resolver (`when._calendar_date`, the table the calendar already writes with) — one per month named."""
+    from . import when as _when
+    out = []
+    months = "|".join(sorted(_when._MONTHS, key=len, reverse=True))
+    day = r"\d{1,2}(?:st|nd|rd|th|º)?"
+    year = r"(?:,?\s*(?:de\s+|del\s+)?20\d{2})?"
+    for m in re.finditer(rf"\b(?:{day}\s+(?:de\s+)?(?:{months})|(?:{months})\s+{day}\b){year}", q):
+        d = _when._calendar_date(m.group(0))
+        if d and d not in out:
+            out.append(d)
+    return sorted(out)
+
+
+_MAX_SPAN_DAYS = 62
+
+
+def _span(days: list[str]) -> list[str]:
+    """Two dates or more are a PERIOD: every day from the first to the last. Demo pass 34 (R3): «find me five
+    days in her vacation where i'm free» read the agenda for «December 20, 2026 and January 4, 2027», got the
+    next eight appointments instead (the dates were not understood) and answered it could not tell. A day
+    between the two ends is exactly as much the question as the ends are."""
+    import datetime as _dt
+    try:
+        ds = sorted(_dt.date.fromisoformat(d) for d in days)
+    except ValueError:
+        return []
+    if len(ds) < 2 or (ds[-1] - ds[0]).days > _MAX_SPAN_DAYS:
+        return []
+    return [(ds[0] + _dt.timedelta(days=i)).isoformat() for i in range((ds[-1] - ds[0]).days + 1)]
+
+
+def _period_record(meets: list[dict], days: list[str]) -> str:
+    """The whole period, day by day: what has an hour on each day, which days have none, and the all-day rows
+    (a trip, somebody's holiday) said once — they cover the days, the reader decides whether they block him."""
+    timed, whole = {}, {}
+    for m in meets:
+        for d in days:
+            if _on_day(m, d):
+                if m.get("allDay"):
+                    whole.setdefault(id(m), m)
+                else:
+                    timed.setdefault(d, []).append(m)
+    free = [d for d in days if d not in timed]
+    lines = [f"Periodo {days[0]} → {days[-1]} ({len(days)} días) — el registro COMPLETO de esos días:"]
+    for d in days:
+        for m in sorted(timed.get(d, []), key=lambda m: str(m.get("startTime") or "")):
+            lines.append(_row(m).replace(f"· {m.get('date', '?')}", f"· {d}", 1))
+    lines.append(f"Días SIN ninguna cita con hora ({len(free)}): " + (", ".join(free) if free else "ninguno"))
+    if whole:
+        lines.append("De todo el día en ese periodo (no tienen hora; cubren esos días):")
+        lines += [_row(m) for m in whole.values()]
+    return "\n".join(lines)
 
 
 def _on_day(m: dict, day: str) -> bool:
@@ -164,6 +223,9 @@ def read_query(question: str) -> str:
         meets = list((_data.load_db() or {}).get("meetings") or [])
     except Exception:                                    # noqa: BLE001 — a broken read answers nothing
         return ""
+    period = _span(days)
+    if period:
+        return _period_record(meets, period)
     if days:
         # A DAY is asked about: its whole record, in time order — «What do I have tomorrow afternoon?» over an
         # empty Sunday used to return every row of the calendar (the year matched them all) and the model

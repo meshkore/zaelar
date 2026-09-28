@@ -3357,6 +3357,9 @@ DOMAINS: list[dict] = [
         # named the card, the action existed. One bounded pass asks the model for the call it promised — only the
         # named card, only a declared action — before the backstop spends a worker on it.
         # Demo pass 2026-09-28 (V2-776 E) — the fixes of the passes, one node each.
+        {"id": "2.148", "title": "A calendar question about a period is answered day by day",
+            "ch": UNIT,
+            "paths": ["tests/browser/unit/agenda/test_a_period_is_read_day_by_day.py"]},
         {"id": "2.147", "title": "The messaging usage names the unread toggle with the other read-state actions",
             "ch": UNIT,
             "paths": ["tests/browser/unit/mensajeria/test_the_usage_names_the_unread_toggle.py"]},
