@@ -270,15 +270,18 @@ def close_target(widget_id: str) -> str:
     """The card `close_widget` means: the one it names, or — empty — the card his last turn acted on, else the
     only one open. "" when that cannot be said (the tag's own resolution then asks)."""
     wid = (widget_id or "").strip()
-    if wid:
-        return wid
     try:
         from nucleo import canvas_focus
         from server.voice_api import open_instances
         ids = [str(i) for i in open_instances() if str(i)]
-        return canvas_focus.last_turn_card(ids) or (ids[0] if len(ids) == 1 else "")
     except Exception:  # noqa: BLE001
-        return ""
+        return wid
+    if wid:
+        # the PIECE named, the CARD closed: «results» with its one sheet `results::c79ebf-1` open is that sheet
+        # (demo pass 2026-09-28, S4: the close went to the bare id and the sheet stayed on screen)
+        same = [i for i in ids if i.split("::", 1)[0] == wid.split("::", 1)[0]]
+        return same[0] if (wid not in ids and len(same) == 1) else wid
+    return canvas_focus.last_turn_card(ids) or (ids[0] if len(ids) == 1 else "")
 
 
 def close_dispatch(args: dict, tag_emit, emit) -> str:

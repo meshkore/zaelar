@@ -65,3 +65,12 @@ def test_a_close_is_not_acknowledged_as_an_open():
     from nucleo.flash import probe
     src = inspect.getsource(probe)
     assert 'if _parts[1] == "show" else _lg.data_ack' in src
+
+
+def test_the_piece_named_closes_its_one_open_card(monkeypatch):
+    """S4: the close went to the bare «results» and the sheet `results::c79ebf-1` stayed on screen."""
+    from server import voice_api
+    monkeypatch.setattr(voice_api, "open_instances", lambda: ["contactos", "results::c79ebf-1"])
+    assert show_target.close_target("results") == "results::c79ebf-1"
+    monkeypatch.setattr(voice_api, "open_instances", lambda: ["results::a-1", "results::b-1"])
+    assert show_target.close_target("results") == "results", "two sheets: the tag's own resolution asks"

@@ -2544,7 +2544,7 @@ class NucleoLLMStream(llm.LLMStream):
             _ar_wid = _cardc_ar.named_or_catalogue(_brief, _op_text)   # V2-773: a closed card while others are open
             if _ar_wid and _direct_action.sure_canvas(_brief) == "close":
                 # the promise was to CLOSE it: the card's own close, never a data action (S4 emptied the sheet)
-                _tag_emit("close", {"id": _ar_wid})
+                _tag_emit("close", {"id": _show_target.close_target(_ar_wid)})
                 acted["widget"] = True
                 _no_tool = False
                 emit("brain", "🔁 prometió cerrar sin tool — cierra la tarjeta", text=_ar_wid, role="system",

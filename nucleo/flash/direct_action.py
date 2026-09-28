@@ -585,10 +585,8 @@ def complete_canvas(brief, *, tag_emit, emit, operator_text: str = "") -> str:
         verb = sure_canvas(brief)
         if not verb:
             return ""
-        wid = from_brief(brief)[0]
-        if not wid:
-            from nucleo.flash import show_target as _st
-            wid = _st.close_target("")
+        from nucleo.flash import show_target as _st
+        wid = _st.close_target(from_brief(brief)[0])
         if not wid:
             return ""
         if verb == "close":
