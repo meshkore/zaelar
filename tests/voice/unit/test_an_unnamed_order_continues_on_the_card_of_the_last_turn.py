@@ -6,22 +6,18 @@ conversation is about, and the screen question carried nothing that said it. Mea
 (scratchpad jev_focus.py, 2026-09-28): 0/3 without the fact, 3/3 with it in the instructions, and the orders that
 name a kind of thing («pause the video», «next song», «the second monitor in the results») 4/4 either way.
 """
-from nucleo import canvas_focus as cf
-from nucleo.flash import turn_brief as tb
+import importlib
 
 
 def _q(monkeypatch, ids, focus):
-    cf._reset()
-    if focus:
-        cf.note("transcript", "x", role="user")
-        cf.note("widget", "show", extra={"id": focus, "src": "flash"})
-        cf.note("transcript", "x", role="user")
+    # The fact comes from `canvas_focus` (its own tests cover how it is kept); here only what the QUESTION does
+    # with it. Both modules are read at call time: another test in the same run may have reloaded either.
+    cf = importlib.import_module("nucleo.canvas_focus")
+    tb = importlib.import_module("nucleo.flash.turn_brief")
+    monkeypatch.setattr(cf, "last_turn_card", lambda open_ids: focus)
     monkeypatch.setattr(tb, "_possible_now", lambda w, a: True)
     monkeypatch.setattr(tb, "_card_label", lambda w: w)
-    try:
-        return tb.target_question(ids)
-    finally:
-        cf._reset()
+    return tb.target_question(ids)
 
 
 def test_the_question_says_which_card_his_last_turn_acted_on(monkeypatch):
@@ -32,4 +28,4 @@ def test_the_question_says_which_card_his_last_turn_acted_on(monkeypatch):
 
 def test_without_a_last_card_the_question_is_unchanged(monkeypatch):
     q = _q(monkeypatch, ["youtube", "musica"], "")
-    assert q["instructions"] == tb.TARGET_INSTRUCTIONS
+    assert q["instructions"] == importlib.import_module("nucleo.flash.turn_brief").TARGET_INSTRUCTIONS
