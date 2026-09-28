@@ -103,7 +103,12 @@
     "fotos",
     "el visor de fotos",
     "la galería",
-    "visor de imágenes"
+    "visor de imágenes",
+    "images",
+    "pictures",
+    "picture viewer",
+    "photo viewer",
+    "gallery"
   ],
   "fullscreen": "native",
   "size": {
