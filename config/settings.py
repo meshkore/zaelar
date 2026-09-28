@@ -356,6 +356,12 @@ def update(payload: dict) -> dict:
                     attention.on_mode_change(val)
                 except Exception as e:  # noqa: BLE001
                     logger.warning(f"update: attention.on_mode_change failed ({e})")
+    # V2-675 — the introduction phase, once over. It had no branch here, so `update` dropped it with «sin
+    # cambios» and the phase «closed» on every turn without ever persisting: 79 closes in one demo pass, and
+    # after forty turns the agent was still asking «since we've only just started talking…» (2026-09-28, S4).
+    if "intro_done" in payload:
+        d["intro_done"] = bool(payload["intro_done"])
+        applied.append("intro_done")
     # Boolean knobs (apply live, without reconnecting): e.g. memory_observability.
     for k in BOOL_DEFAULTS:
         if k in payload:

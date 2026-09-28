@@ -313,3 +313,15 @@ def test_the_flag_starts_the_relationship_over_on_a_factory_reset():
     assert introduction.FLAG in settings.AGENT_KEYS, (
         "the introduction flag records something about the RELATIONSHIP, so «empezar de cero» must clear it")
     assert introduction.FLAG not in settings.INSTALL_KEYS
+
+
+def test_closing_persists_through_the_REAL_settings_store():
+    """Demo pass 2026-09-28 (full15 S4): the phase «closed» on every turn — 79 times — and after forty turns the
+    agent still asked «since we've only just started talking, mind if I ask one thing?». `settings.update` had no
+    branch for `intro_done` and dropped it with «sin cambios»; every test above replaces `update` with a dict, so
+    none of them could see it. This one writes through the real store (the conftest sandboxes the file)."""
+    from config import settings
+    from nucleo.context_packs import introduction as intro
+    settings.update({"intro_done": None})
+    intro.close("ya sabemos su nombre")
+    assert settings.get("intro_done") is True
