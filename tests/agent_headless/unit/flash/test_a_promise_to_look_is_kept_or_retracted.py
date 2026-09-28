@@ -222,3 +222,16 @@ def test_the_repair_is_spoken_as_a_separate_sentence_not_glued():
     assert 'send((" " if (_sp or "").strip() else "")' in call, call
     from voice import speech
     assert speech.sanitize(" x", drop_metadata=False) == "x", "if sanitize stops stripping, this guard is moot"
+
+
+def test_a_second_pass_knows_what_the_turn_already_said():
+    """Demo pass 2026-09-28, C3: the model asked «which slot do you want, the 1:00 or the 4:00?» and called
+    read_widget; the read answer, composed from his words alone, then said «I don't have any free-afternoon slot
+    details» — and was glued to the question («…4:00?You've got three things»). The shared second pass (`speak`,
+    used by read_widget and recall) is told what was already said and never glues its first words to it."""
+    from pathlib import Path
+    src = (Path(__file__).resolve().parents[4] / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
+    body = src[src.index("async def speak(sys2: str"):]
+    body = body[:body.index("from voice.engine.llm.providers.vault_intercept")]
+    assert '_said = "".join(spoken).strip()' in body and "En este turno ya le has dicho" in body
+    assert '_lead = [" " if _said else ""]' in body and "_out(speech.inline(take(False)))" in body

@@ -1997,13 +1997,27 @@ class NucleoLLMStream(llm.LLMStream):
             it cannot live outside this closure; the routes themselves live in their modules and inject it."""
             nonlocal buf
             buf = ""                        # discard any tag leftovers from the first pass
+            # What this turn ALREADY said, so the second pass continues it instead of contradicting it (demo pass
+            # 2026-09-28, C3: «which slot do you want, the 1:00 or the 4:00?» followed by a read answer saying «I
+            # don't have any free-afternoon slot details») — and its first words are never glued to it
+            # («…your day.Tomorrow, Tuesday»).
+            _said = "".join(spoken).strip()
+            if _said:
+                user_text = (f"{user_text}\n\n(En este turno ya le has dicho: «{_said[:400]}». Continúa desde ahí: "
+                             f"no lo repitas ni lo contradigas.)")
+            _lead = [" " if _said else ""]
+
+            def _out(piece: str) -> None:
+                if piece and _lead[0]:
+                    piece, _lead[0] = _lead[0] + piece, ""
+                send(piece)
             try:
                 async for delta in FastClient().stream(
                         [{"role": "system", "content": sys2}, {"role": "user", "content": user_text}],
                         spec=spec, max_tokens=max_tokens):
                     buf += delta
-                    send(speech.inline(take(False)))
-                send(speech.sanitize(take(True), drop_metadata=False))
+                    _out(speech.inline(take(False)))
+                _out(speech.sanitize(take(True), drop_metadata=False))
             except asyncio.CancelledError:
                 raise
             except Exception as e:  # noqa: BLE001
