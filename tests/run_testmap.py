@@ -3357,7 +3357,7 @@ DOMAINS: list[dict] = [
         # named the card, the action existed. One bounded pass asks the model for the call it promised — only the
         # named card, only a declared action — before the backstop spends a worker on it.
         # Demo pass 2026-09-28 (V2-776 E) — the fixes of the passes, one node each.
-        {"id": "2.136", "title": "A widget action"s trace keeps what it carried (a player error keeps its code and video)",
+        {"id": "2.136", "title": "A widget action's trace keeps what it carried (a player error keeps its code and video)",
             "ch": UNIT,
             "paths": ["tests/browser/unit/youtube/test_a_player_error_keeps_its_code_in_the_trace.py"]},
         {"id": "2.135", "title": "A bare sentence given to an action with one declared field is that field",
@@ -3366,7 +3366,7 @@ DOMAINS: list[dict] = [
         {"id": "2.134", "title": "A system note glued under the turn never names a card to close",
             "ch": UNIT,
             "paths": ["tests/agent_headless/unit/flash/test_a_system_note_never_names_a_card_to_close.py"]},
-        {"id": "2.133", "title": "The background-task block says whether the errand"s sheet is on screen now",
+        {"id": "2.133", "title": "The background-task block says whether the errand's sheet is on screen now",
             "ch": UNIT,
             "paths": ["tests/agent_headless/unit/flash/test_the_task_block_says_whether_its_sheet_is_open.py"]},
         {"id": "2.132", "title": "A card with no free room re-tiles the desk instead of landing on another card",
