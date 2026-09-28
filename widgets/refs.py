@@ -612,11 +612,17 @@ def prompt_digest(widget_id: str) -> str:
     Best-effort: a broken widget cannot break the turn."""
     try:
         import importlib
-        mod = importlib.import_module(f"widgets.{widget_id}.data")
+        import inspect
+        # An INSTANCE (`results::4e8213-ls1`) is its base's module and that sheet (demo pass 2026-09-28, S3: the
+        # read of the monitors sheet came back EMPTY because `widgets.results::4e8213-ls1.data` does not exist,
+        # and the repair pass, with nothing in front of it, answered with a title from another errand).
+        base, _, inst = str(widget_id or "").partition("::")
+        mod = importlib.import_module(f"widgets.{base}.data")
         fn = getattr(mod, "prompt_digest", None)
         if not callable(fn):
             return ""
-        out = str(fn() or "").strip()
+        takes_sheet = bool(inst) and bool(inspect.signature(fn).parameters)
+        out = str((fn(inst) if takes_sheet else fn()) or "").strip()
     except Exception:
         return ""
     if len(out) > _MAX_DIGEST_CHARS:
