@@ -44,13 +44,13 @@ def request_from(tool_calls: list) -> dict:
         n = int(args.get("n") or DEFAULT_N)
     except Exception:  # noqa: BLE001
         n = DEFAULT_N
-    return {"query": str(args.get("query") or "").strip(), "n": max(1, min(n, 24))}
+    return {"query": str(args.get("query") or "").strip(), "n": max(1, min(n, 24)), "more": bool(args.get("more"))}
 
 
 _WALLPAPER_INTENT_RE = re.compile(r"fondo de (?:escritorio|pantalla)|wallpaper|\bde fondo\b", re.I)
 
 
-async def execute(query: str, n: int = DEFAULT_N) -> dict:
+async def execute(query: str, n: int = DEFAULT_N, more: bool = False) -> dict:
     """Search the pictures and load the viewer; return the report of what HAPPENED, so the mouth need not guess.
 
     Same rail as everything else that puts something on the canvas (`brain_action` -> the widget's own
@@ -63,9 +63,19 @@ async def execute(query: str, n: int = DEFAULT_N) -> dict:
     if not q:
         parte["message"] = "no dijiste de qué"
         return parte
+    # «MORE of those» (demo pass 2026-09-28, I2: «cool, show me a few more of those» re-ran the same search and
+    # REPLACED the viewer with the same twelve): the same query asked deeper, handed to the viewer's own `add`,
+    # whose merge drops what is already there — so only new pictures join.
+    shown = 0
+    if more:
+        try:
+            from widgets import store as _st
+            shown = len((_st.load("imagenes") or {}).get("items") or [])
+        except Exception:  # noqa: BLE001
+            shown = 0
     try:
         from nucleo import browser_search as _bs
-        res = await _bs.images(q, n)
+        res = await _bs.images(q, n + shown if more else n)
         res = res if isinstance(res, dict) else {}
         items = [it for it in (res.get("items") or []) if isinstance(it, dict) and it.get("url")]
         # V2-641 — a WALLPAPER search wants big files, not relevant thumbnails: there are 2900x1440 monitors
@@ -90,9 +100,14 @@ async def execute(query: str, n: int = DEFAULT_N) -> dict:
             _evidence(parte)
             return parte
         from widgets.server_api import brain_action
-        loaded = await brain_action("imagenes", "show",
-                                    {"items": items, "query": q, "source": parte.get("source") or ""})
-        loaded = loaded if isinstance(loaded, dict) else {}
+        if more and shown:
+            loaded = await brain_action("imagenes", "add", {"items": items})
+            loaded = loaded if isinstance(loaded, dict) else {}
+            parte["added"] = int(loaded.get("added") or 0)
+        else:
+            loaded = await brain_action("imagenes", "show",
+                                        {"items": items, "query": q, "source": parte.get("source") or ""})
+            loaded = loaded if isinstance(loaded, dict) else {}
         parte["ok"] = bool(loaded.get("ok"))
         parte["count"] = int(loaded.get("n") or 0)
         # THE CARD OPENS WHERE THE DATA LANDS (V2-463). The voice provider emits its own early `show` for
@@ -168,6 +183,13 @@ def spoken_for(parte: dict, ack: str) -> str:
     # tester answered in English, zaelar in Spanish, for the whole conversation. Same resolution as
     # `music_flow._lang()`: the engine is monolingual per process, so one read decides the set.
     en = _lang() == "en"
+    if parte.get("ok") and "added" in parte:            # «more of those»: say what JOINED, not the whole set
+        a = int(parte.get("added") or 0)
+        if not a:
+            return ("That search has nothing new beyond what's on screen." if en else
+                    "Esa búsqueda no tiene nada nuevo aparte de lo que ya ves.")
+        return (f"I've added {a} more — {parte.get('count')} on screen now." if en else
+                f"Te he añadido {a} más — ya hay {parte.get('count')} en pantalla.")
     if parte.get("ok"):
         n = int(parte.get("count") or 0)
         sites = [s for s in (parte.get("sites") or []) if s]
@@ -208,7 +230,7 @@ async def voice_turn(req: dict, *, silent: bool) -> "tuple[dict, str]":
     existing response counts it twice, and staying silent after a tool leaves the next turn believing that the
     request is still unhandled.
     """
-    parte = await execute(req.get("query") or "", req.get("n") or DEFAULT_N)
+    parte = await execute(req.get("query") or "", req.get("n") or DEFAULT_N, bool(req.get("more")))
     if not silent:
         return parte, ""
     try:

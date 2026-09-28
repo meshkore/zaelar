@@ -15,7 +15,7 @@ def _items(n=3):
 # ── what the tool requested ────────────────────────────────────────────────────────────────────────────
 def test_lee_la_peticion_y_acota_cuantas():
     assert image_turn.request_from([{"name": "show_images", "args": {"query": "  Ferrari Amalfi "}}]) == {
-        "query": "Ferrari Amalfi", "n": image_turn.DEFAULT_N}
+        "query": "Ferrari Amalfi", "n": image_turn.DEFAULT_N, "more": False}
     assert image_turn.request_from([{"name": "show_images", "args": {"query": "x", "n": 3}}])["n"] == 3
     # An absurd `n` cannot turn a lightweight turn into a load of a hundred images, and an unreadable one
     # (the model writes "cinco") falls back to the default instead of crashing.

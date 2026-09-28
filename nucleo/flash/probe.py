@@ -1093,7 +1093,8 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
                 return_extra_exec = {"executed": "arrange"}
             elif action == "canvas:show:imagenes" and images_req:
                 # V2-457/463 — mismo rail que la voz (`image_turn`), que además abre la TARJETA: aquí no.
-                return_extra_exec = await _image_turn.execute(images_req["query"], images_req.get("n") or 12)
+                return_extra_exec = await _image_turn.execute(images_req["query"], images_req.get("n") or 12,
+                                                              bool(images_req.get("more")))
             elif action == "canvas:show:youtube" and video_req:
                 # V2-383 — EL VÍDEO SE PONE, NO SE ROTULA. Hermano de la música: mismo rail que la voz
                 # (`brain_action` → `load` del widget `youtube`), que es quien de verdad busca y carga.

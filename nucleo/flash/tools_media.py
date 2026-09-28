@@ -95,9 +95,9 @@ TOOLS: list[dict] = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "query": {"type": "string",
-                              "description": "qué foto VER, en lenguaje natural (se busca en un buscador de imágenes)"},
+                    "query": {"type": "string", "description": "qué foto VER, en lenguaje natural"},
                     "n": {"type": "integer", "description": "cuántas fotos (1-24, def 12)"},
+                    "more": {"type": "boolean", "description": "true = AÑADIR otras a las que ya hay («más de esas»)"},
                 },
                 "required": ["query"],
             },
