@@ -326,11 +326,10 @@ async def _drain_sends(mb) -> None:
         if ics.strip():
             ok, info = await asyncio.to_thread(mb.send_invitation, to, subject, text, ics,
                                                str(r.get("ics_method") or "REQUEST"), None)
-        elif atts:
-            # files ride with the message: a NEW mail (not a «Re:») carrying them
-            ok, info = await asyncio.to_thread(mb.send_message, to, subject, text, atts)
         else:
-            ok, info = await asyncio.to_thread(mb.send_reply, to, subject, text, "", None)
+            # a FIRST message is a new mail, never a «Re:» (it went out as «Re: Hola» — 2026-09-28); files, if the
+            # order carries them, ride with it
+            ok, info = await asyncio.to_thread(mb.send_message, to, subject, text, atts)
         if ok:
             logger.info(f"Email: mensaje enviado a {to} (ref {r.get('ref')})")
             import time as _t

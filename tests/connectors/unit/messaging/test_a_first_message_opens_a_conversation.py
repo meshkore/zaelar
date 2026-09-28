@@ -176,8 +176,10 @@ def test_email_sends_with_its_OWN_subject_and_no_threading(bus, monkeypatch):
 
     class _MB:
         @staticmethod
-        def send_reply(to, subject, body, in_reply_to="", cc=None):
-            sent.update({"to": to, "subject": subject, "body": body, "in_reply_to": in_reply_to})
+        def send_message(to, subject, body, attachments=None):
+            # a first message is a NEW mail: no thread to continue, so nothing to thread on (2026-09-28: it went
+            # out through send_reply as «Re: Hola»)
+            sent.update({"to": to, "subject": subject, "body": body, "in_reply_to": ""})
             return True, "<newid@x>"
 
     monkeypatch.setattr(em, "_send_inbox", _Inbox({**_ORDER, "platform": "email", "to": "ivan@example.com",
@@ -198,7 +200,7 @@ def test_email_falls_back_to_a_subject_rather_than_sending_none(bus, monkeypatch
 
     class _MB:
         @staticmethod
-        def send_reply(to, subject, body, in_reply_to="", cc=None):
+        def send_message(to, subject, body, attachments=None):
             sent["subject"] = subject
             return True, "<id>"
 
@@ -213,7 +215,7 @@ def test_email_reports_a_failed_send(bus, monkeypatch):
 
     class _MB:
         @staticmethod
-        def send_reply(to, subject, body, in_reply_to="", cc=None):
+        def send_message(to, subject, body, attachments=None):
             return False, "mailbox unavailable"
 
     monkeypatch.setattr(em, "_send_inbox", _Inbox({**_ORDER, "platform": "email", "to": "ivan@example.com"}))
