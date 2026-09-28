@@ -116,3 +116,17 @@ def test_free_days_across_a_stretch_are_found_without_booking(ag):
     assert got["free_days"] == ["2026-12-20", "2026-12-21", "2026-12-23", "2026-12-24"], got
     assert [d["date"] for d in got["days_with_appointments"]] == ["2026-12-22"]
     assert len(ag.load_db()["meetings"]) == before
+
+
+def test_a_free_time_search_with_no_day_is_refused_not_answered_for_today(ag):
+    """full21 R3: find_free {} answered about TODAY («that's the only day I have, so I can't give you five dates»)
+    for «five days in her vacation»."""
+    got = ag.apply_action("find_free", {"duration_min": 45})
+    assert got["ok"] is False and "date" in got["error"] and "until" in got["error"]
+
+
+def test_dates_under_from_and_to_are_the_stretch(ag):
+    """full21 R3: the model sent the vacation as {from: 2026-12-20, to: 2027-01-04} — dates, not clock times."""
+    ag.apply_action("add_meeting", {"title": "Dentist", "date": "2026-12-22", "startTime": "10:00", "endTime": "11:00"})
+    got = ag.apply_action("find_free", {"duration": "5 days", "from": "2026-12-20", "to": "2026-12-24"})
+    assert got["ok"] and got["free_days"] == ["2026-12-20", "2026-12-21", "2026-12-23", "2026-12-24"], got

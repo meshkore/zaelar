@@ -810,7 +810,20 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
         # A QUESTION about the day, answered without writing (see `free.py`): the day's free stretches, and the
         # card moves to that day so what he is told is what he sees.
         from . import free as _free
-        _day = _resolve_date(str(payload.get("date") or payload.get("day") or payload.get("from_date") or ""))
+        # A DATE under `from`/`to` is the stretch, not a clock window (full21 R3: {from: 2026-12-20, to: 2027-01-04}).
+        _is_date = lambda v: bool(re.match(r"^\d{4}-\d{2}-\d{2}", str(v or "").strip()))  # noqa: E731
+        if _is_date(payload.get("from")) and not payload.get("date"):
+            payload = {**payload, "date": payload["from"], "from": ""}
+        if _is_date(payload.get("to")) and not payload.get("until"):
+            payload = {**payload, "until": payload["to"], "to": ""}
+        _said = str(payload.get("date") or payload.get("day") or payload.get("from_date") or "").strip()
+        if not _said:
+            # full21 R3: «five days in her vacation where i'm free» arrived as find_free {} — the resolver's «today»
+            # default answered about today and «I can't give you five dates». A search with no day is refused and
+            # says what is missing, so the same-turn correction can ask the right thing.
+            return {"ok": False, "error": "find_free needs `date` (the day, or the first day) — and `until` "
+                                          "(the last day) to search a stretch, e.g. a vacation's dates"}
+        _day = _resolve_date(_said)
         _until = str(payload.get("until") or payload.get("to_date") or payload.get("end_date") or "").strip()
         import time as _tm
         db["view"] = {"sel": _day if not _until else "month", "n": int((db.get("view") or {}).get("n", 0)) + 1,
