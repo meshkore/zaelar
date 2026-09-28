@@ -3352,6 +3352,10 @@ DOMAINS: list[dict] = [
         # V2-764 — «voy a por la serie Sherlock en torrent y te enseño el catálogo», and no tool: the turn's verdict
         # named the card, the action existed. One bounded pass asks the model for the call it promised — only the
         # named card, only a declared action — before the backstop spends a worker on it.
+        {"id": "2.89", "title": "The repair pass judges its own reply — a claimed or promised act gets its call, an "
+                                "answer or a proposal does not (live)",
+            "ch": UNIT,
+            "paths": ["tests/voice/unit/test_the_repair_pass_judges_its_own_reply.py"]},
         {"id": "2.88", "title": "Closing a card is a TOOL, like opening one — «ok close the calendar» no longer sends "
                                 "every model to the nearest data action",
             "ch": UNIT,

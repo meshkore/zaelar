@@ -286,9 +286,11 @@ def test_a_repair_that_may_write_needs_a_sure_action_verdict(monkeypatch):
     assert not _da.names_an_order(unsure, sure=0.7), "…but a WRITE on it needs a sure action"
     sure = _brief({_tb.TARGET_KEY: ("agenda:add_meeting", 0.93), _tb.REQUEST_KEY: ("order", 0.84)}, open_ids=("agenda",))
     assert _da.names_an_order(sure, sure=0.7)
-    src = (_ENGINE / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
-    # 0.7 since the demo pass of 2026-09-28 (E3: a sure 0.74 draft was left unrepaired) — C2's 0.54 stays out
-    assert "_direct_action.names_an_order(_brief, sure=0.7)" in src, "the promise repair's gate must carry the floor"
+    # Since the demo pass of 2026-09-28 the repair JUDGES its own reply (C2's proposal → no call, E3's claimed
+    # draft → the call), so the provider's gate no longer needs the floor; `sure` stays for callers that WRITE
+    # on the verdict alone. Measured live in `act_repair`'s own test.
+    from nucleo.flash import act_repair as _ar
+    assert "PROPUSISTE" in _ar._SYS and "AFIRMASTE" in _ar._SYS, "the promise repair's gate must carry the floor"
 
 
 def test_a_show_that_names_a_card_we_have_beats_the_worker_and_an_undone_order_over_a_card_escalates():

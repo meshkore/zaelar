@@ -22,11 +22,13 @@ from __future__ import annotations
 import json
 
 #: What the repair tells the model. Short on purpose: the ask is «make the call you promised», not a new turn.
-_SYS = ("Eres el cerebro de un asistente de voz. En el turno anterior PROMETISTE (o AFIRMASTE haber hecho) algo "
-        "sobre la tarjeta «{wid}» y NO llamaste a ninguna herramienta. Haz AHORA exactamente la llamada "
-        "`widget_data` que cumple lo que dijiste, con widget_id «{wid}», una de estas acciones declaradas y el "
-        "payload sacado de las palabras del operador y de lo que hay en la tarjeta (una hora relativa —«media "
-        "hora más tarde»— se calcula sobre la cita que hay). Si ninguna encaja, no llames a nada.\n\n"
+_SYS = ("Eres el cerebro de un asistente de voz. En el turno anterior contestaste SIN llamar a ninguna herramienta. "
+        "Lee lo que dijiste: si PROMETISTE hacer algo sobre la tarjeta «{wid}» o AFIRMASTE haberlo hecho (un "
+        "borrador listo, una cita movida, algo abierto o cambiado), haz AHORA exactamente la llamada `widget_data` "
+        "que lo cumple, con widget_id «{wid}», una de estas acciones declaradas y el payload sacado de las palabras "
+        "del operador y de lo que hay en la tarjeta (una hora relativa —«media hora más tarde»— se calcula sobre la "
+        "cita que hay). Si solo CONTESTASTE, PROPUSISTE o PREGUNTASTE — sin prometer ni afirmar un acto —, o si "
+        "ninguna acción encaja, no llames a nada.\n\n"
         "Acciones de «{wid}»:\n{actions}{card}")
 #: What the card holds, so a relative order («move it 30 minutes later») can be turned into a call. The
 #: demo run (2026-09-26): the model computed «It's now at 2:00 PM, running until 2:45» in the turn — it had the
