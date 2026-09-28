@@ -694,6 +694,81 @@ def complete_canvas(brief, *, tag_emit, emit, operator_text: str = "") -> str:
         return ""
 
 
+_NAMES_CACHE: dict = {}
+
+
+def catalogue_names(widget_id: str) -> list[str]:
+    """What the card is CALLED — its id, its manifest name and its translated catalogue name in every language
+    bundle there is. Never its aliases: those name what it HOLDS («video», «clip»), not the card."""
+    base = _base_of(widget_id)
+    if base in _NAMES_CACHE:
+        return _NAMES_CACHE[base]
+    names = {base}
+    try:
+        from widgets import runtime as _rt
+        names.add(str((_rt.get(base) or {}).get("name") or ""))
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        import json
+        import pathlib
+        root = pathlib.Path(__file__).resolve().parents[2] / "i18n"
+        files = list((root / "bundles").glob("*.json"))
+        try:
+            from i18n import store as _i18n_store
+            files += [_i18n_store._path(c) for c in _i18n_store.codes()]
+        except Exception:  # noqa: BLE001
+            pass
+        for f in files:
+            try:
+                b = json.loads(pathlib.Path(f).read_text("utf-8"))
+                b = b.get("strings", b) if isinstance(b, dict) else {}
+                names.add(str(b.get(f"widgets.{base}.name") or ""))
+            except Exception:  # noqa: BLE001
+                continue
+    except Exception:  # noqa: BLE001
+        pass
+    out = sorted({n.strip() for n in names if n and n.strip()}, key=len, reverse=True)
+    _NAMES_CACHE[base] = out
+    return out
+
+
+def _says_the_name(operator_text: str, widget_id: str) -> bool:
+    import re
+    import unicodedata
+
+    def fold(x: str) -> str:
+        return "".join(c for c in unicodedata.normalize("NFKD", x.casefold()) if not unicodedata.combining(c))
+    t = fold(operator_text or "")
+    return any(re.search(r"(?<!\w)" + re.escape(fold(n)) + r"(?!\w)", t) for n in catalogue_names(widget_id)
+               if len(n) >= 3)
+
+
+def closes_the_named_card(brief, operator_text: str, done_ops, *, floor: float = 0.75) -> str:
+    """The card to close AFTER the model's own data-op, or "".
+
+    Demo pass 2026-09-28 (V7, twice): «ok stop the video and close youtube» ran `youtube:close` — which empties
+    the player, as its manifest says — and the card stayed open, hiding every card after it. Two orders, one call.
+    The verdict alone cannot tell them apart: Jev reads «close the video» (the player's content, V2-753) and
+    «close youtube» (the card) both as canvas=close. What does is whether his words call the card by what it is
+    CALLED (`catalogue_names`), in any language the catalogue has — «close the video» names only what it holds."""
+    try:
+        from nucleo.flash import turn_brief as _tb
+        verb, _info = _tb.read(brief, _tb.CANVAS_KEY, "", min_confidence=floor)
+        if str(verb or "") != "close":
+            return ""
+        from nucleo.flash import show_target as _st
+        open_now = _open_now()
+        for wid, _action in (done_ops or []):
+            if _says_the_name(operator_text, wid):
+                target = _st.close_target(wid)
+                if target and target in open_now:
+                    return target
+        return ""
+    except Exception:  # noqa: BLE001
+        return ""
+
+
 def subject_card(widget_id: str, action: str, operator_text: str) -> str:
     """The card the verdict's action lands on: the verdict's own, unless HIS words name no card and the card his
     last turn acted on declares the same action — then «it» is that one.

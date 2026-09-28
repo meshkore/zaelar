@@ -1258,6 +1258,7 @@ class NucleoLLMStream(llm.LLMStream):
                     return
                 acted["widget"] = True
                 data_done["v"] = True
+                data_done.setdefault("ops", []).append((wid, action_name))
                 _log_dataop("fast")
                 try:
                     from widgets import provenance as _prov
@@ -2614,6 +2615,14 @@ class NucleoLLMStream(llm.LLMStream):
                                            apply_widget_data=_apply_widget_data)):
             acted["widget"] = True
             _no_tool = False
+        # …and a data-op INSIDE a card he also told to close by its name («stop the video and close youtube»): the
+        # card closes after the op (`closes_the_named_card`).
+        if data_done["v"] and not clarify["msg"] and "close_widget" not in _tool_fired:
+            _cn = _direct_action.closes_the_named_card(_brief, _op_text, data_done.get("ops"))
+            if _cn:
+                _tag_emit("close", {"id": _cn})
+                emit("brain", "🎯 el veredicto completa al modelo — close", text=_cn, role="system",
+                     extra={"cat": "flash", "widget": _cn, "action": "close", "said": (_op_text or "")[:120]})
         # V2-764 — it PROMISED to act on a card the verdict names and called nothing: one pass for the call
         # (`act_repair`), before any backstop decides it was a web errand and spends a worker on it.
         if (_no_tool and spoken_text and not clarify["msg"]

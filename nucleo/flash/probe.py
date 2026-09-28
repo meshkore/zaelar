@@ -764,6 +764,18 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
                 _already, spoken = True, ""
         except Exception:
             pass
+    # Mirror of the voice `closes_the_named_card` (demo pass 2026-09-28, V7): a data-op inside a card he ALSO told
+    # to close by its name closes the card after the op.
+    if action == "widget_data" and not any(t["action"] == "close" for t in tags):
+        try:
+            from . import direct_action as _da_cn
+            _ops = [(str((c.get("args") or {}).get("widget_id") or ""), str((c.get("args") or {}).get("action") or ""))
+                    for c in tool_calls if c.get("name") == "widget_data"]
+            _cn = _da_cn.closes_the_named_card(_tbrief, operator_text, _ops)
+            if _cn:
+                tags.append({"action": "close", "extra": {"id": _cn, "verdict": True}})
+        except Exception:
+            pass
     # V2-770 — the mirror of the voice `direct_action.complete`: a turn with no call whose verdict names an action
     # INSIDE an open card («ya la puedes cerrar» → agenda:close_meeting) runs that action — and the close
     # backstop below, which would have shut the whole card, never sees it.

@@ -75,7 +75,7 @@
     },
     "open": {
       "ref": "name",
-      "desc": "Abre un CHAT concreto (pasa a ver sus mensajes uno a uno): por `name` («abre el chat/mensaje de Jose Vicente») o por `n` de la lista de chats. «Ábrelo / open it» justo después de hablar de UN correo o mensaje concreto es ESTE: abre ese, con `name` = quien lo mandó — no la bandeja (eso es show_view)",
+      "desc": "Abre un CHAT concreto por `name` («abre el chat de Jose Vicente») o por `n`. «Ábrelo / open it» tras hablar de UN correo o mensaje es ESTE, con `name` = quien lo mandó, no la bandeja (show_view)",
       "payload": {
         "name": "string opcional (nombre del chat/persona tal como aparece)",
         "n": "int opcional (número del chat en la lista)"
@@ -204,7 +204,7 @@
       ]
     },
     "forward": {
-      "desc": "REENVÍA por correo un mensaje que llegó —con sus ADJUNTOS (factura, PDF…)— a una PERSONA, con una nota tuya: «mándale a Andrew la factura de este correo», «reenvíale esto a X». Sin `n`, el correo que está ABIERTO. NO es `reply` (eso contesta al que lo envió).",
+      "desc": "REENVÍA por correo un mensaje que llegó, con sus ADJUNTOS (factura, PDF…), a una PERSONA: «mándale a Andrew la factura de este correo». Sin `n`, el correo ABIERTO. No es `reply`",
       "payload": {
         "contact": "string (a quién, el nombre tal como lo dijo el operador, o una dirección)",
         "text": "string (la nota corta que acompaña)",
