@@ -119,7 +119,7 @@ def test_the_timeout_stopped_cancelling_its_own_calls(monkeypatch):
     """900 ms against a measured p50 of 800 dropped 5% of canvas verdicts and 28% of the escalate
     gate's AFTER paying for them. Since F1 nobody blocks on the answer, so 2 s costs a thread."""
     monkeypatch.delenv("ZAELAR_JEV_TIMEOUT_MS", raising=False)
-    assert jev._timeout_s() == 2.0
+    assert jev._timeout_s() == 3.5          # full24 A2: the brief is read 2-4 s after it is fired
     monkeypatch.setenv("ZAELAR_JEV_TIMEOUT_MS", "500")
     assert jev._timeout_s() == 0.5
 

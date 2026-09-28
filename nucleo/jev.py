@@ -139,7 +139,10 @@ def _read_key() -> str:
 
 
 def _timeout_s() -> float:
-    """2 s since V2-726 F5, up from 900 ms.
+    """3.5 s since the demo pass of 2026-09-28 (full24 A2): with the brief fired at t0 and read by `peek` 2-4 s later,
+    a 2 s wall threw away answers that would have landed in time — both hedged calls ran out at 2010 ms, every read
+    after it saw «absent», and «put that away» was answered «tucked away» with nothing tucked. 2 s since V2-726 F5,
+    up from 900 ms.
 
     900 against a measured p50 of 800 was the engine cancelling its own calls at the edge: 5% of the
     canvas verdicts and **28% of the escalate gate's** crossed it and were dropped AFTER being paid
@@ -147,9 +150,9 @@ def _timeout_s() -> float:
     fired at t0 and read by `peek` 2-4 s later, so a slow call costs a daemon thread and nothing
     else — and the turn that would have thrown the verdict away now uses it."""
     try:
-        return max(0.1, int(os.getenv("ZAELAR_JEV_TIMEOUT_MS", "2000")) / 1000.0)
+        return max(0.1, int(os.getenv("ZAELAR_JEV_TIMEOUT_MS", "3500")) / 1000.0)
     except Exception:
-        return 2.0
+        return 3.5
 
 
 # ── circuit breaker (V2-726 F5) ──────────────────────────────────────────────────────────────────

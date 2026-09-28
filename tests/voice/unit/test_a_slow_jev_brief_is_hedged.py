@@ -49,3 +49,11 @@ def test_both_failing_still_fails_like_one_call(hedge_at_100ms, monkeypatch):
 def test_the_brief_goes_through_the_hedge():
     import inspect
     assert "_post_many_hedged(state, questions" in inspect.getsource(jev.choose_many_sync)
+
+
+def test_the_brief_is_not_cut_before_its_readers_read_it(monkeypatch):
+    """full24 A2: both hedged calls ran out at the 2 s wall and every later read saw «absent». The brief is read
+    2-4 s after it is fired, so its deadline covers that window."""
+    monkeypatch.delenv("ZAELAR_JEV_TIMEOUT_MS", raising=False)
+    assert jev._timeout_s() >= 3.5
+    assert jev._hedge_after_s() < jev._timeout_s() / 2
