@@ -364,7 +364,12 @@ class ClusterBridge:
                     peer=p, peer_text=pending))
             self._notify_registry()
         elif t == "status":
-            _emit("cluster", f"{cluster}: {ev.get('status')}", extra={"cluster": cluster, "status": ev.get("status")})
+            # the WHY travels with it (demo pass 30: «meshcore: error» with an empty text — the client knew the
+            # reason and the detail, the event dropped them)
+            _why = " · ".join(str(x) for x in (ev.get("reason"), ev.get("detail")) if x)
+            _emit("cluster", f"{cluster}: {ev.get('status')}", text=_why[:200],
+                  extra={"cluster": cluster, "status": ev.get("status"), "reason": ev.get("reason") or "",
+                         "detail": str(ev.get("detail") or "")[:200]})
             self._notify_registry()
         elif t == "ack":
             if ev.get("delivered") == 0:
