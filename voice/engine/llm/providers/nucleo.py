@@ -2847,8 +2847,9 @@ class NucleoLLMStream(llm.LLMStream):
             # apologising for since V2-135, and the half that was missing in BOTH is what cost the operator his
             # «don't you have access to the Internet?» turn.
             from nucleo.flash import search_turn as _st
+            from nucleo import canvas_focus as _cf_s
             sys2 = _st.compose_system(operator_text, query, res, ctx,
-                                      today=time.strftime("%A %d %b %Y (%Y-%m-%d)"))
+                                      today=time.strftime("%A %d %b %Y (%Y-%m-%d)"), on_screen=_cf_s.this_turn_cards())
             await speak(sys2, operator_text or query, _st.MAX_TOKENS, "web_search compose")
             spoken_text = "".join(spoken).strip()
             # THE BACKSTOP. The prompt above forbids the sentence; this catches it when the model says it

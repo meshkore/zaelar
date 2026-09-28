@@ -3352,6 +3352,10 @@ DOMAINS: list[dict] = [
         # V2-764 — «voy a por la serie Sherlock en torrent y te enseño el catálogo», and no tool: the turn's verdict
         # named the card, the action existed. One bounded pass asks the model for the call it promised — only the
         # named card, only a declared action — before the backstop spends a worker on it.
+        {"id": "2.94", "title": "The web-search answer knows what this turn put on screen — no «I can't display a chart» "
+                                "over the chart it just opened",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/flash/test_the_search_answer_knows_what_is_on_screen.py"]},
         {"id": "2.93", "title": "Under remote control the pulse keeps beating, in the remote-control blue",
             "ch": UNIT,
             "paths": ["tests/browser/unit/widgets/test_the_remote_pulse_beats_in_blue.py"]},

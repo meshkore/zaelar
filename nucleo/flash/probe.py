@@ -893,7 +893,8 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
             # parallel impl since V2-135, and the missing half — telling the model WHY a search came back
             # empty — was missing in both). `denial_repair` is the backstop for the sentence the prompt bans.
             from . import search_turn as _st
-            _sys2 = _st.compose_system(operator_text, _sq, _res, _ctx)
+            from nucleo import canvas_focus as _cf_s
+            _sys2 = _st.compose_system(operator_text, _sq, _res, _ctx, on_screen=_cf_s.this_turn_cards())
             _parts = []
             async for _delta in FastClient().stream(
                     [{"role": "system", "content": _sys2}, {"role": "user", "content": operator_text or _sq}],

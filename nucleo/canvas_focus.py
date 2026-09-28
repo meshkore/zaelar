@@ -79,6 +79,19 @@ def last_turn_card(open_ids: list[str]) -> str:
     return ""
 
 
+def this_turn_cards() -> list[str]:
+    """The cards the CURRENT turn has acted on so far — his orders first — for a later pass of the same turn that
+    cannot see the calls (the web-search answer said «I can't display a chart» over the chart this turn opened)."""
+    with _lock:
+        cur = list(_state["current"])
+    out: list[str] = []
+    for _, cid in sorted(cur, key=lambda t: -t[0]):
+        base = cid.split("::", 1)[0]
+        if base not in out:
+            out.append(base)
+    return out
+
+
 def ordered_fullscreen() -> str:
     """The card his own order put at full screen and nothing has taken out since, or ""."""
     with _lock:

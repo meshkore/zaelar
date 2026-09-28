@@ -68,7 +68,8 @@ def _why_empty(res: dict) -> str:
             "buscador y navegador— y quien te escucha es el dueño de este sistema.")
 
 
-def compose_system(operator_text: str, query: str, res: dict, ctx: str, *, today: str = "") -> str:
+def compose_system(operator_text: str, query: str, res: dict, ctx: str, *, today: str = "",
+                   on_screen: list | None = None) -> str:
     """The system prompt for the pass that turns web results into one spoken answer."""
     from . import prompt as _prompt
     head = _prompt._lang_lock()
@@ -89,6 +90,12 @@ def compose_system(operator_text: str, query: str, res: dict, ctx: str, *, today
         "estén en ellos."
     )
     tail = ("" if (res or {}).get("results") else _why_empty(res))
+    if on_screen:
+        # What THIS turn already put in front of him (demo pass 2026-09-28, M1: the Markets chart of Apple was on
+        # screen and this pass said «I'm not able to display a chart here; I can only talk», and the next two
+        # turns repeated the false limit). The card answers the visual half; the results, the spoken one.
+        tail += (f"\nEN PANTALLA, abierto en este mismo turno: {', '.join(on_screen)}. Eso YA se le está "
+                 "enseñando: no digas que no puedes mostrarlo; completa con el dato de los resultados.")
     return (head + body + tail
             + f"\n\nPREGUNTA DEL OPERADOR: {operator_text}"
             + f"\nBÚSQUEDA REALIZADA: {query}\n\nRESULTADOS:\n{ctx or '(sin resultados)'}")
