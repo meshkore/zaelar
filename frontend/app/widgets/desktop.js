@@ -1579,8 +1579,24 @@ export class Desktop {
     // NOTHING FITS: the engine answered with the least-overlapping, wholly-visible spot — the honest answer to
     // «there is no room» (the operator saw «medio widget fuera de la pantalla» before there was one). It
     // overlaps as little as possible and it is the one you can see and move.
-    if(!spot.fits) this._fit(card);
+    if(!spot.fits){ this._fit(card); this._tileIfCrowded(); }
     // (no `_bringFront` here: every caller of `_place` already does it.)
+  }
+
+  // NOTHING FITS → TILE (demo pass 30, 2026-09-28). The least-overlapping spot is still ON another card: a
+  // document landed on the monitor results at 47%, a trip sheet at 43%. When a new card has no free room the
+  // desk re-tiles itself — the same `arrange()` the ▦ button and «tidy up the screen» run — so every card
+  // shrinks into its own cell instead of one burying another. Deferred one tick so the new card is attached
+  // and measured, and only if an overlap is really still there by then.
+  _tileIfCrowded(){
+    clearTimeout(this._tileT);
+    this._tileT = setTimeout(() => {
+      const cards = this._onScreen();
+      if(cards.length < 2) return;
+      const rect = c => this._toDesk(c.getBoundingClientRect());
+      const crowded = cards.some((a, i) => cards.slice(i + 1).some(b => _overlap(rect(a), rect(b), 0)));
+      if(crowded) this.arrange();
+    }, 60);
   }
 
   // The footprint a FRESH card of this widget will open at: its manifest size, proportional to the desk
