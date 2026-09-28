@@ -100,12 +100,49 @@ def _row(it: dict, body_cap: int) -> str:
     return f"· {head}: «{body}»" if body else f"· {head}"
 
 
+_SENT_WINDOW_S = 30 * 60
+_MAX_SENT_ROWS = 3
+
+
+def _sent_lately() -> list[str]:
+    """What this card SENT in the last half hour, newest first — and what is still waiting to leave.
+
+    Demo pass 2026-09-28 (full18 C5b): the Telegram to Ethan went out, the next turn said «let me just send that
+    to Ethan first»: nothing the model reads said it had been sent (the digest is the inbox, and the inbox is what
+    came IN). A send is a fact of this card like any message waiting."""
+    try:
+        from . import data as _data
+        db = _data.load_db()
+    except Exception:  # noqa: BLE001
+        return []
+    now, rows = time.time(), []
+    for k, th in (db.get("threads") or {}).items():
+        if not isinstance(th, dict):
+            continue
+        plat = str(k).split("|", 1)[0]
+        for m in th.get("msgs") or []:
+            try:
+                ts = float(m.get("ts") or 0)
+            except (TypeError, ValueError):
+                continue
+            if m.get("dir") == "out" and now - ts <= _SENT_WINDOW_S:
+                body = re.sub(r"\s+", " ", str(m.get("body") or "")).strip()[:_MAX_BODY_DIGEST]
+                rows.append((ts, f"· ENVIADO por {plat} a {th.get('name') or '?'} ({_when({'ts': ts})}): «{body}»"))
+    out = [r for _ts, r in sorted(rows, key=lambda t: -t[0])[:_MAX_SENT_ROWS]]
+    for o in (db.get("pending_send") or [])[:_MAX_SENT_ROWS]:
+        out.append(f"· SALIENDO ahora por {o.get('platform')} a {o.get('name') or o.get('to')}: "
+                   f"«{str(o.get('text') or '')[:_MAX_BODY_DIGEST]}» (ya está en camino — no lo envíes otra vez)")
+    return out
+
+
 def prompt_digest() -> str:
-    """Who is waiting, in one glance. "" when the inbox is empty — an empty inbox has nothing to say, and
-    saying «no tienes mensajes» from here would be this module asserting something the reader should infer."""
+    """Who is waiting, in one glance — and what the card just sent. "" when there is neither: an empty inbox has
+    nothing to say, and saying «no tienes mensajes» from here would be this module asserting something the reader
+    should infer."""
     items = _items()
+    sent = _sent_lately()
     if not items:
-        return ""
+        return "\n".join(["LO QUE ACABAS DE ENVIAR:"] + sent) if sent else ""
     plats: dict = {}
     for it in items:
         plats[str(it.get("platform") or "?")] = plats.get(str(it.get("platform") or "?"), 0) + 1
@@ -115,6 +152,8 @@ def prompt_digest() -> str:
     rows = [_row(it, _MAX_BODY_DIGEST) for it in items[:_MAX_DIGEST_ROWS]]
     if len(items) > _MAX_DIGEST_ROWS:
         rows.append(f"· … y {len(items) - _MAX_DIGEST_ROWS} más (la tarjeta los enseña todos).")
+    if sent:
+        rows += ["LO QUE ACABAS DE ENVIAR:"] + sent
     return "\n".join([head] + rows)
 
 
