@@ -637,7 +637,7 @@ def sure_canvas(brief) -> str:
         from nucleo.flash import turn_brief as _tb
         verb, _info = _tb.read(brief, _tb.CANVAS_KEY, "", min_confidence=0.9)
         v = str(verb or "")
-        return v if v in ("close", "minimize", "fullscreen", "exit_fullscreen") else ""
+        return v if v in ("close", "minimize", "fullscreen", "exit_fullscreen", "arrange") else ""
     except Exception:  # noqa: BLE001
         return ""
 
@@ -677,6 +677,12 @@ def complete_canvas(brief, *, tag_emit, emit, operator_text: str = "") -> str:
         verb = sure_canvas(brief)
         if not verb:
             return ""
+        if verb == "arrange":
+            # the whole canvas, no card to pick: the same emit `arrange_canvas` and POST /api/canvas/arrange make
+            emit("widget", "arrange", extra={"src": "flash"})
+            emit("brain", "🎯 el veredicto completa al modelo (sin tool) — arrange", role="system",
+                 extra={"cat": "flash", "action": "arrange", "said": (operator_text or "")[:120]})
+            return verb
         from nucleo.flash import show_target as _st
         verdict_wid = from_brief(brief)[0]
         named = named_cards(operator_text)
@@ -697,6 +703,14 @@ def complete_canvas(brief, *, tag_emit, emit, operator_text: str = "") -> str:
             else:
                 targets = [_st.close_target("")]
         targets = [t for t in targets if t]
+        if verb == "close" and targets:
+            # …and the OTHER open cards his sentence names (full21 C6: «close the calendar and the messages» — the
+            # verdict's card was the messages; the calendar stayed and the reply said both were off the screen)
+            try:
+                from widgets import instances as _inst
+                targets += [x for x in _inst.also_named(operator_text, _open_now(), exclude=targets) if x not in targets]
+            except Exception:  # noqa: BLE001
+                pass
         if not targets:
             return ""
         for wid in targets:

@@ -757,7 +757,9 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
             _cc: list = []
             _verb = _da_cc.complete_canvas(_tbrief, tag_emit=lambda a, x: _cc.append((a, x)), emit=_emit_cc,
                                            operator_text=operator_text)
-            if _verb and _cc:
+            if _verb == "arrange":
+                action, _already, spoken = "canvas:arrange", True, ""
+            elif _verb and _cc:
                 _cid = str(_cc[0][1].get("id") or "")
                 action = {"close": f"canvas:close:{_cid}", "minimize": f"canvas:minimize:{_cid}",
                           "fullscreen": f"canvas:fullscreen:{_cid}"}.get(_verb, f"canvas:unfullscreen:{_cid}")

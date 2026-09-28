@@ -50,7 +50,7 @@ def test_the_canvas_question_offers_show_close_and_neither(monkeypatch):
     monkeypatch.setattr("voice.observer.emit", lambda *a, **k: None)
     out = jev.choose_sync("canvas", "ciérralo", instructions=st.CANVAS_INSTRUCTIONS,
                           criteria=st.CANVAS_VERBS, question_id="canvas")
-    assert set(seen["criteria"]) == {"show", "close", "fullscreen", "exit_fullscreen", "minimize", "neither"}
+    assert set(seen["criteria"]) == {"show", "close", "fullscreen", "exit_fullscreen", "minimize", "arrange", "neither"}
     assert seen["answer_key"] == "canvas"
     assert "ciérralo" in seen["state"]
     assert out["choice"] == "close"

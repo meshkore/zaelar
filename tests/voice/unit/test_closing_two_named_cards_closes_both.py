@@ -58,3 +58,19 @@ def test_the_in_card_guard_spares_a_card_called_by_its_name():
     i = src.index("close ignorado — la orden es una acción DENTRO de la tarjeta")
     guard = src[src.rindex("if (action", 0, i):i]
     assert "_direct_action._says_the_name(_bnotes.operator_half(text)" in guard
+
+
+def test_the_verdicts_own_close_also_takes_the_other_named_card(monkeypatch):
+    """full21 C6: the model called nothing, the verdict closed its own card (the messages) and the calendar stayed,
+    while the reply said both were off the screen."""
+    from nucleo.flash import direct_action as da
+    from nucleo.flash import turn_brief as tb
+    monkeypatch.setattr(tb, "read", lambda b, k, d="", min_confidence=0.0:
+                        ("close", {"used": True}) if k == tb.CANVAS_KEY else ("mensajeria:close", {"used": True}))
+    monkeypatch.setattr(tb, "owner_still_open", lambda brief, owner: True)
+    monkeypatch.setattr(da, "_open_now", lambda: ["agenda", "mensajeria"])
+    monkeypatch.setattr(st, "close_target", lambda wid: wid.split(":")[0] if wid else "")
+    closed = []
+    da.complete_canvas({"x": 1}, tag_emit=lambda a, x: closed.append(x["id"]), emit=lambda *a, **k: None,
+                       operator_text="close the calendar and the messages")
+    assert sorted(closed) == ["agenda", "mensajeria"], closed

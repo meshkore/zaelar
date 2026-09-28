@@ -404,7 +404,7 @@ def fullscreen_exit_backstop(text: str, *, fired: bool, tag_emit, emit) -> bool:
 # through the same tags, license and guards as today's path.
 CANVAS_INSTRUCTIONS = ("Does the user's turn ask to change what is visible on the widget canvas? "
                         "SHOW means putting a widget or card on screen; CLOSE means taking one off; the other "
-                        "gestures change how big a card is. Anything else — questions, chatter, orders that act "
+                        "gestures change how big a card is, or lay all the cards out. Anything else — questions, chatter, orders that act "
                         "inside a card — is neither.")
 CANVAS_VERBS = {
     "show": "the turn asks to show, open, display or bring up a widget or card",
@@ -415,7 +415,10 @@ CANVAS_VERBS = {
     "fullscreen": "the turn asks to make a card full screen or bigger",
     "exit_fullscreen": "the turn asks to leave full screen / go back to the normal size",
     "minimize": "the turn asks to put a card away, minimise it or tuck it aside without closing it",
-    "neither": "the turn asks for nothing about showing, closing or resizing widgets",
+    # demo pass 2026-09-28 (full21 C5b): «tidy up the screen a bit» → «screen's sorted» with no call, and the verdict
+    # could only say `neither`. Laying out every card is a canvas gesture too.
+    "arrange": "the turn asks to tidy, arrange, organise or lay out the cards on the screen (all of them)",
+    "neither": "the turn asks for nothing about showing, closing, resizing or arranging widgets",
 }
 
 

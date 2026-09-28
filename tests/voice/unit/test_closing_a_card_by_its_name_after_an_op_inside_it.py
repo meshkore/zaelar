@@ -57,3 +57,19 @@ def test_the_in_card_guard_lets_the_named_close_through():
     i = voice.index('close ignorado — la orden es una acción DENTRO de la tarjeta')
     guard = voice[voice.rindex("if (action", 0, i):i]
     assert 'not (extra or {}).get("named")' in guard
+
+
+def test_tidying_the_screen_is_a_canvas_gesture_the_verdict_can_complete(monkeypatch):
+    """full21 C5b: «tidy up the screen a bit» → «screen's sorted» with no call; the canvas verdict could only say
+    `neither`, because laying the cards out was not one of its gestures."""
+    from nucleo.flash import show_target as st
+    from nucleo.flash import turn_brief as tb
+    assert "arrange" in st.CANVAS_VERBS
+    monkeypatch.setattr(tb, "read", lambda b, k, d="", min_confidence=0.0:
+                        ("arrange", {"used": True}) if k == tb.CANVAS_KEY else (d, None))
+    ev = []
+    assert da.complete_canvas({"x": 1}, tag_emit=lambda a, x: ev.append(("tag", a)),
+                              emit=lambda *a, **k: ev.append(a[:2]), operator_text="tidy up the screen") == "arrange"
+    assert ("widget", "arrange") in ev and not any(e[0] == "tag" for e in ev)
+    probe = (ENGINE / "nucleo/flash/probe.py").read_text("utf-8")
+    assert 'if _verb == "arrange":' in probe
