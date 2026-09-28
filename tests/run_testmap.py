@@ -3352,6 +3352,11 @@ DOMAINS: list[dict] = [
         # V2-764 — «voy a por la serie Sherlock en torrent y te enseño el catálogo», and no tool: the turn's verdict
         # named the card, the action existed. One bounded pass asks the model for the call it promised — only the
         # named card, only a declared action — before the backstop spends a worker on it.
+        {"id": "2.87", "title": "The card that sends knows who it sends to — a question to the messaging card about a "
+                                "recipient is answered from the directory it sends through",
+            "ch": UNIT,
+            "paths": ["tests/browser/unit/mensajeria/"
+                      "test_the_card_that_sends_knows_who_it_sends_to.py"]},
         {"id": "2.86", "title": "A result spoken to him is not handed to the next turn as news — the monitors were "
                                 "announced three times",
             "ch": UNIT,

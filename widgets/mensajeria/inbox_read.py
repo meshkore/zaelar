@@ -119,6 +119,23 @@ def prompt_digest() -> str:
 
 
 def read_query(question: str) -> str:
+    """The messages this question is about — and, when it is about a PERSON, how this card would reach him.
+
+    The card SENDS through the contact directory (`outbound.py` → `widgets/directory.py`), so a question put to it
+    about a recipient is answered from that same directory. Demo pass 2026-09-28, C5: «send ethan a telegram with
+    the new time» → the model asked this card «is there a contact called Ethan? does he have Telegram?», got only
+    the inbox, answered «I can't find any contact named Ethan», and a worker spent a minute sending what `send_to`
+    would have sent at once. The card's reading and the card's action now see the same people."""
+    inbox = _inbox_answer(question)
+    try:
+        from widgets.contactos.lookup import read_query as _directory
+        people = str(_directory(question) or "").strip()
+    except Exception:  # noqa: BLE001
+        people = ""
+    return "\n\n".join(x for x in (people, inbox) if x)
+
+
+def _inbox_answer(question: str) -> str:
     """The messages this question is about. "" when it names nothing findable — which falls through to the
     digest, and `compose_system` then says out loud that a summary is not a record."""
     terms = _terms(question)
