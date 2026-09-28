@@ -356,7 +356,7 @@
     "show_tab": {
       "desc": "CAMBIA de pantalla dentro del reproductor SIN tocar lo que suena. «vuelve al catálogo», «al inicio del widget de vídeo», «al dashboard», «enséñame la lista» → tab inicio; y player, cola, listas, subs",
       "payload": {
-        "tab": "inicio (home, dashboard, catálogo, la lista de resultados, el catálogo de vídeos, search, search results, results, list of videos) | player (reproductor, la pantalla del vídeo) | cola (queue, lista de reproducción) | listas (guardadas, mis listas) | subs (suscripciones, canales)"
+        "tab": "inicio (home, dashboard, catálogo, la lista de resultados, el catálogo de vídeos, search, search results, results, list of videos, list, the list, video list) | player (reproductor, la pantalla del vídeo) | cola (queue, lista de reproducción) | listas (guardadas, mis listas) | subs (suscripciones, canales)"
       },
       "view": true
     }

@@ -354,5 +354,5 @@ def test_the_list_of_videos_is_reached_by_its_english_names_too():
     """full19 V5: «go back to the list of videos» arrived as `show_tab {tab: search}` — the list is where a search
     lands, and the declared aliases of `inicio` only said it in Spanish — refused as unknown_tab twice."""
     from widgets.youtube import data as yt
-    for w in ("search", "search results", "results", "list of videos"):
+    for w in ("search", "search results", "results", "list of videos", "list", "the list"):
         assert yt._tab_alias(w) == "inicio", w
