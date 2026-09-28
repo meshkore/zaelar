@@ -155,7 +155,21 @@ def order_is_inside(brief, widget_id: str = "") -> bool:
         owner, name = from_brief(brief)
         if not owner or not name:
             return False
+        # With the CANVAS verdict sure it is a close, only an action verdict just as sure says otherwise (demo
+        # pass 2026-09-28, M4: «ok close that» — canvas=close 1.00, screen_action=agenda:close_meeting 0.55 —
+        # threw away the model's own close and the completion then closed the AGENDA over the chart he meant).
+        if sure_canvas(brief) == "close" and not _action_sure(brief):
+            return False
         return not widget_id or _base_of(owner) == _base_of(widget_id)
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def _action_sure(brief, floor: float = 0.8) -> bool:
+    try:
+        from nucleo.flash import turn_brief as _tb
+        _c, info = _tb.read(brief, _tb.TARGET_KEY, "", min_confidence=floor)
+        return bool(info) and bool(info.get("used"))
     except Exception:  # noqa: BLE001
         return False
 
@@ -640,6 +654,11 @@ def complete_canvas(brief, *, tag_emit, emit, operator_text: str = "") -> str:
             return ""
         from nucleo.flash import show_target as _st
         verdict_wid = from_brief(brief)[0]
+        named = named_cards(operator_text)
+        if verdict_wid and not named and not _action_sure(brief):
+            # an UNSURE card verdict over words that name no card: «that» is the card his last turn acted on
+            # (M4: the Nasdaq chart he had just asked for, not the agenda at 0.55)
+            verdict_wid = _st.close_target("") or verdict_wid
         if verdict_wid:
             targets = [_st.close_target(verdict_wid)]
         else:
@@ -647,7 +666,6 @@ def complete_canvas(brief, *, tag_emit, emit, operator_text: str = "") -> str:
             # open — the gesture fell back to the card his last turn touched and closed the VIDEO). Named cards
             # that are open get the gesture; named cards that are not open mean there is nothing to do, and no
             # other card stands in for them.
-            named = named_cards(operator_text)
             if named:
                 open_now = _open_now()
                 targets = [t for t in (_st.close_target(n) for n in named) if t in open_now]

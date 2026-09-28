@@ -396,3 +396,21 @@ def test_I1_a_turn_that_called_any_tool_is_not_an_empty_turn():
     for req in ("images_req", "listing_req", "recall_req", "read_req", "reopen_req", "reveal_req",
                 "search_req", "escalate_req", "music_req"):
         assert req in expr, f"{req} does not count as a tool the model called"
+
+
+def test_M4_an_unsure_action_verdict_does_not_swallow_a_sure_close(on_screen, monkeypatch):
+    """Demo pass 2026-09-28, M4: «ok close that» right after the Nasdaq chart — canvas=close 1.00,
+    screen_action=agenda:close_meeting 0.55. The model's own close was thrown away as «an action inside the card»
+    and the completion closed the AGENDA. An unsure action verdict neither vetoes the close nor picks its card."""
+    from nucleo import canvas_focus
+    b = _brief({_tb.TARGET_KEY: ("agenda:close_meeting", 0.55), _tb.CANVAS_KEY: ("close", 1.0),
+                _tb.REQUEST_KEY: ("order", 1.0)}, open_ids=("agenda", "markets"))
+    assert not _da.order_is_inside(b, "")
+    monkeypatch.setattr(canvas_focus, "last_turn_card", lambda ids: "markets")
+    assert _canvas_said(b, "ok close that", ["agenda", "markets"], monkeypatch) == ("close", [("close", "markets")])
+
+
+def test_V2_770_a_sure_action_inside_the_card_still_wins(on_screen):
+    b = _brief({_tb.TARGET_KEY: ("agenda:close_meeting", 0.99), _tb.CANVAS_KEY: ("close", 1.0),
+                _tb.REQUEST_KEY: ("order", 1.0)}, open_ids=("agenda",))
+    assert _da.order_is_inside(b, "agenda")
