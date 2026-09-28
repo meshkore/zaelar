@@ -43,6 +43,7 @@ def mutating(widget_id: str):
 
 
 _last_hash: dict = {}   # widget_id -> hash of last-saved content, so an idempotent re-save neither rewrites nor emits
+_rev: dict[str, int] = {}
 
 
 def _safe_id(widget_id: str) -> str:
@@ -129,6 +130,12 @@ def load(widget_id: str, default: dict | None = None, *, version: int | None = N
     return data
 
 
+def revision(widget_id: str) -> int:
+    """How many REAL changes this card's data has had in this process — `save` is change-gated, so an idempotent
+    poll never moves it. A caller that remembers a refusal stamps this and knows when the world has changed since."""
+    return _rev.get(canvas_id(widget_id), 0)
+
+
 def save(widget_id: str, data: dict) -> dict:
     p = _path(widget_id)
     # CHANGE-GATED: a connector's poll loop (e.g. messaging, _POLL=1s) re-saves the SAME content constantly. Writing
@@ -146,6 +153,7 @@ def save(widget_id: str, data: dict) -> dict:
             f.write(body)
         os.replace(tmp, p)   # atomic: readers never see a half-written file
         _last_hash[widget_id] = h
+        _rev[canvas_id(widget_id)] = _rev.get(canvas_id(widget_id), 0) + 1
     # THE single choke point for "this widget's data CHANGED" — every mutation path (a widget's own ctx.action,
     # Hermes via [[widget.data]], a connector writing directly, the generator seeding defaults) ends up here, so
     # this is the ONE place that needs to notify the canvas. The open widget (if any) gets pushed one SSE event and

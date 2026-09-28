@@ -396,18 +396,33 @@ def a_view_where_the_verdict_acts(wid: str, model_action: str, verdict_action: s
         return False
 
 
+def _card_revision(wid: str) -> int:
+    try:
+        from widgets import store as _wstore
+        return _wstore.revision(wid)
+    except Exception:  # noqa: BLE001
+        return 0
+
+
 def remember_refusal(wid: str, action: str, payload: dict | None) -> None:
     import time as _t
-    _REFUSED["v"] = (str(wid or "").strip().lower(), str(action or "").strip(), dict(payload or {}), _t.time())
+    w = str(wid or "").strip().lower()
+    _REFUSED["v"] = (w, str(action or "").strip(), dict(payload or {}), _t.time(), _card_revision(w))
 
 
 def is_identical_retry_of_refused(wid: str, action: str, payload: dict | None, *, now: float | None = None) -> bool:
+    """…and it can only fail again while the card holds what it held. Demo pass 31 (E2→E3): `open {name: Inworld}`
+    was refused 3 s before the mail's history fetch landed on the card; the retry one turn later would have
+    found it, and this guard ate it twice — the forward never went out and E4 said «Done». Once the card's data
+    has changed since the refusal, the same call is a new question."""
     import time as _t
     last = _REFUSED["v"]
     if not last:
         return False
-    l_wid, l_action, l_payload, l_ts = last
+    l_wid, l_action, l_payload, l_ts, l_rev = last
     if l_wid != str(wid or "").strip().lower() or l_action != str(action or "").strip() or l_payload != dict(payload or {}):
+        return False
+    if _card_revision(l_wid) != l_rev:
         return False
     return ((now if now is not None else _t.time()) - l_ts) < _REFUSED_S
 

@@ -3357,6 +3357,9 @@ DOMAINS: list[dict] = [
         # named the card, the action existed. One bounded pass asks the model for the call it promised — only the
         # named card, only a declared action — before the backstop spends a worker on it.
         # Demo pass 2026-09-28 (V2-776 E) — the fixes of the passes, one node each.
+        {"id": "2.146", "title": "A refused op can be retried once new data lands on its card",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/flash/test_a_refusal_expires_when_the_card_changes.py"]},
         {"id": "2.145", "title": "A day view answers with that day's rows",
             "ch": UNIT,
             "paths": ["tests/browser/unit/agenda/test_a_day_view_answers_with_that_day.py"]},
