@@ -270,6 +270,7 @@
         "name": "string opcional (el chat/grupo tal como aparece; sin él usa la conversación abierta)",
         "limit": "int opcional (máx 40)"
       },
+      "view": true,
       "safe": true
     },
     "set_autoresponder": {

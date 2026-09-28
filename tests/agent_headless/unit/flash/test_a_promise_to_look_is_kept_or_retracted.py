@@ -304,3 +304,18 @@ def test_a_promise_naming_no_card_reads_the_card_the_catalogue_names(monkeypatch
     out = asyncio.run(sp.promise_repair("what's on my plate tomorrow", "Let me check your day for tomorrow.", [],
                                         _ModelSpec(), lambda *a, **k: None, channel="voice"))
     assert seen["wid"] == "agenda" and "weekly review" in out
+
+
+def test_a_look_where_the_turn_asks_to_do_yields_to_the_verdict():
+    """Demo pass 2026-09-28 (full15 E4): «oh and leave that inworld one as unread» — verdict `mensajeria:unread` at
+    1.00, the model called `peek {n: 3}`. A look changes nothing; when the turn wants an act and the verdict names
+    one that is not a look, the look yields. A model ACT over a verdict still runs (V2-754's counter-case)."""
+    from nucleo.flash import data_ops as d
+    assert d.is_view_op("mensajeria", "peek"), "peek reads and changes nothing"
+    assert d.a_view_where_the_verdict_acts("mensajeria", "peek", "unread", "act")
+    assert not d.a_view_where_the_verdict_acts("mensajeria", "peek", "unread", "tell"), "he asked to be told"
+    assert not d.a_view_where_the_verdict_acts("youtube", "restart", "show_tab", "act"), "a model act is not a look"
+    assert not d.a_view_where_the_verdict_acts("mensajeria", "show_view", "open", "act"), "a look over a look runs"
+    from pathlib import Path
+    src = (Path(__file__).resolve().parents[4] / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
+    assert "_data_ops.a_view_where_the_verdict_acts(_cd[\"card\"], action_name, _dis, _vw_words)" in src

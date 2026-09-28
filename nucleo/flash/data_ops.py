@@ -368,6 +368,18 @@ def repeats_last_view(last, wid: str, action: str, payload: dict | None, *, now:
         return False
 
 
+def a_view_where_the_verdict_acts(wid: str, model_action: str, verdict_action: str, words: str) -> bool:
+    """The model only LOOKED where the turn asks to DO something else on the same card.
+
+    Demo pass 2026-09-28 (full15 E4): «oh and leave that inworld one as unread» — the verdict read `mensajeria:unread`
+    at 1.00 and the model called `peek {n: 3}`, a lens. V2-754's precedence (a valid model call runs over a
+    disagreeing verdict) protects a model that is RIGHT from a wrong verdict — its counter-case would have restarted a
+    video. A lens changes nothing, so yielding it costs nothing; and when the turn wants an act (`wants_words=act`)
+    and the verdict names one that is not a lens, the lens is the reading that cannot be what he asked."""
+    return bool(str(words or "") == "act" and verdict_action and is_view_op(wid, model_action)
+                and not is_view_op(wid, verdict_action))
+
+
 def remember_refusal(wid: str, action: str, payload: dict | None) -> None:
     import time as _t
     _REFUSED["v"] = (str(wid or "").strip().lower(), str(action or "").strip(), dict(payload or {}), _t.time())
