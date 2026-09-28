@@ -34,3 +34,10 @@ def test_the_turn_prompt_carries_them():
     import inspect
     src = inspect.getsource(prompt.build_flash_system)
     assert "_people_block(turn_text)" in src
+
+
+def test_a_name_in_a_script_without_spaces_is_found_inside_the_sentence(cd):
+    """The agent speaks any language (operator, 2026-09-28): a name written without spaces around it is a run of
+    characters in the sentence, not a separate word."""
+    cd.apply_action("add_contact", {"name": "王小明", "email": "w@example.com"})
+    assert [r["name"] for r in cd.people_named("把发票发给王小明")] == ["王小明"]

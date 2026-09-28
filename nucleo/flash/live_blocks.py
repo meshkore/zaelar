@@ -771,6 +771,15 @@ def done_ops_lines() -> list[str]:
 from nucleo.flash.task_block import _short_note, pending_task_lines, record_lines  # noqa: E402,F401 — re-export
 
 
+def _job_line(j: dict) -> str:
+    """One scheduled job for the prompt: its bell, and — when it is an appointment's notice — the appointment."""
+    import re as _re
+    # A date followed by a time, whatever words sit between them — the notice's text is in HIS language.
+    m = _re.search(r"(\d{4}-\d{2}-\d{2})\D{1,16}?(\d{1,2}:\d{2})", str(j.get("prompt") or ""))
+    when = f"la cita es el {m.group(1)} a las {m.group(2)}; " if m else ""
+    return f"{j.get('name')} ({when}el aviso suena {j.get('schedule')})"
+
+
 def _cron_line() -> str:
     """One line of proactivity (cron tags) plus anything already scheduled, if present. Concise (V2-027).
 
@@ -798,8 +807,11 @@ def _cron_line() -> str:
             # The time is when the ALERT rings, not when the thing happens (demo pass 2026-09-28, Z1: «ZAELAR
             # weekly review (2026-09-29 07:00)» — the meeting's own 2-hours-early alert — was read back to him as
             # the meeting at 7). The datum says what it is; the meeting's time lives on the agenda.
+            # Saying so was not enough (full16 C1: «review at 7, product at 9, meshcore at 1» — every alert
+            # time read as its meeting, and C2 then booked Ethan on top of the 3 pm meeting it «ended at 2»).
+            # A notice that belongs to an appointment names the appointment's own time next to its bell.
             line += (" Ya programado (hora a la que SUENA el aviso, no la de la cita): "
-                     + "; ".join(f"{j['name']} (suena {j['schedule']})" for j in jobs[:6]) + ".")
+                     + "; ".join(_job_line(j) for j in jobs[:6]) + ".")
     except Exception:
         pass
     return line

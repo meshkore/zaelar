@@ -261,19 +261,23 @@ def people_named(text: str, limit: int = 4) -> list[dict]:
     sentence (several «Andrew» come back together, and the model asks which). Names under three letters never
     match — they are words, not people."""
     import re as _re
-    words = set(_re.findall(r"[^\W\d_]{3,}", (text or "").lower()))
-    if not words:
-        return []
+    low = (text or "").lower()
+    words = set(_re.findall(r"[^\W\d_]{3,}", low))
     full, first = [], []
     for c in visible(load_db()):
         if c.get("kind") not in (None, "", "person"):
             continue
-        toks = _re.findall(r"[^\W\d_]+", str(c.get("name") or "").lower())
-        if not toks or len(toks[0]) < 3:
+        name = str(c.get("name") or "").strip().lower()
+        toks = _re.findall(r"[^\W\d_]+", name)
+        if not toks:
             continue
-        if len(toks) > 1 and all(t in words for t in toks):
+        # The whole name inside his sentence — which also works for scripts written without spaces between
+        # words, where a name is a run of characters rather than a separate word.
+        if len(name) >= 2 and (len(toks) > 1 or not name.isascii()) and name in low:
             full.append(c)
-        elif toks[0] in words:
+        elif len(toks) > 1 and all(t in words for t in toks):
+            full.append(c)
+        elif len(toks[0]) >= 3 and toks[0] in words:
             first.append(c)
     return [_public(c) for c in (full or first)[:limit]]
 

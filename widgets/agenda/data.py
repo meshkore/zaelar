@@ -60,21 +60,16 @@ def _is_same_meeting(a: dict, b: dict) -> bool:
     return _titles_overlap(a.get("title"), b.get("title"))
 
 
-def _names_in(title) -> set:
-    """The capitalised words of a title past its first — the PEOPLE and places in it («Call with Ethan» → Ethan)."""
-    words = re.findall(r"\w+", str(title or ""))
-    return {_strip_accents(w).lower() for w in words[1:] if w[:1].isupper()}
-
-
 def _the_one_just_booked(db: dict, meets: list, new: dict, window_s: float = 600.0):
     """The meeting this write RENAMES rather than doubles, or None.
 
     Demo passes 2026-09-28 (full12-full15, C2→C3): «find me a free 45 minutes tomorrow afternoon to talk with ethan»
     is ambiguous enough that the model booked it («Call with Ethan», 16:00-16:45) — and «ok book it, call it catch up
     with ethan» then booked a SECOND one in the same slot, so «move it half an hour later» had to ask which. The same
-    exact slot as the appointment the conversation is ON (the agenda's focus, touched minutes ago), for the same
-    person, is that appointment under the name he now gives it. A different slot, a stale focus, or nobody in common
-    stays a new meeting: a double-booked hour is still his business (V2-473)."""
+    exact slot as the appointment the conversation is ON (the agenda's focus, touched minutes ago) is that
+    appointment under the name he now gives it. A different slot or a stale focus stays a new
+    meeting: a double-booked hour is still his business (V2-473). Nothing here reads the titles' words — the
+    agent speaks any language, and the slot and the focus are the same in all of them."""
     focus = db.get("focus") or {}
     try:
         fresh = time.time() - float(focus.get("at") or 0) <= window_s
@@ -87,8 +82,7 @@ def _the_one_just_booked(db: dict, meets: list, new: dict, window_s: float = 600
                 and str(m.get("date") or "") == str(new.get("date") or "")
                 and str(m.get("startTime") or "") == str(new.get("startTime") or "")
                 and str(m.get("endTime") or "") == str(new.get("endTime") or "")
-                and m.get("title") != new.get("title")
-                and _names_in(m.get("title")) & _names_in(new.get("title"))):
+                and m.get("title") != new.get("title")):
             return m
     return None
 

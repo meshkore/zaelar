@@ -91,5 +91,13 @@ def test_booking_the_slot_just_booked_renames_it_instead_of_doubling_it(ag):
     r = ag.apply_action("add_meeting", {"title": "Catch up with Ethan", **slot})
     assert r.get("renamed") and [m["title"] for m in _rows(ag, "Catch up with Ethan")] == ["Catch up with Ethan"]
     assert not _rows(ag, "Call with Ethan"), "one appointment, under the name he gave it last"
-    ag.apply_action("add_meeting", {"title": "Lunch with Laura", **slot})
-    assert _rows(ag, "Lunch with Laura") and _rows(ag, "Catch up with Ethan"), "nobody in common: a double booking is his"
+    ag.apply_action("add_meeting", {"title": "Lunch with Laura", "date": "2026-10-06", "startTime": "16:30",
+                                    "endTime": "17:30"})
+    assert _rows(ag, "Lunch with Laura") and _rows(ag, "Catch up with Ethan"), "another slot is another meeting"
+    import time as _t
+    from widgets import store
+    db = store.load("agenda", {})
+    db["focus"]["at"] = _t.time() - 3600                          # the conversation moved on
+    store.save("agenda", db)
+    ag.apply_action("add_meeting", {"title": "Dentist", **slot})
+    assert _rows(ag, "Dentist") and _rows(ag, "Catch up with Ethan"), "a stale focus renames nothing"
