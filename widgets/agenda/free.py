@@ -71,3 +71,32 @@ def find(meetings: list, day: str, payload: dict) -> dict:
             "busy": [{"from": _hhmm(s), "to": _hhmm(e), "title": t} for s, e, t in taken],
             "booked": False,
             "note": "nothing was booked — say the free time and wait for him to ask to book it (add_meeting)"}
+
+
+_MAX_SPAN_DAYS = 62
+
+
+def find_span(meetings: list, first: str, last: str, payload: dict) -> dict:
+    """Across days («five days in her vacation where I'm free»): which days in [first, last] have NO timed
+    appointment — and, for the others, whether the slot asked for still fits. An all-day entry (her vacation
+    itself) blocks nothing by the clock, as on one day."""
+    import datetime as _dt
+    try:
+        d0, d1 = _dt.date.fromisoformat(first), _dt.date.fromisoformat(last)
+    except ValueError:
+        return {"ok": False, "error": "until must be a date (YYYY-MM-DD) on or after date"}
+    if d1 < d0:
+        d0, d1 = d1, d0
+    days = [(d0 + _dt.timedelta(days=i)).isoformat() for i in range(min((d1 - d0).days + 1, _MAX_SPAN_DAYS))]
+    free_days, busy_days = [], []
+    for day in days:
+        taken = busy(meetings, day)
+        if not taken:
+            free_days.append(day)
+        else:
+            fits = find(meetings, day, payload)["free"]
+            busy_days.append({"date": day, "busy": [f"{_hhmm(s)}-{_hhmm(e)} {t}" for s, e, t in taken],
+                              "still_fits": bool(fits)})
+    return {"ok": True, "from": days[0], "until": days[-1], "free_days": free_days, "days_with_appointments": busy_days,
+            "booked": False, "note": "nothing was booked — say the free days he asked for"}
+

@@ -100,3 +100,19 @@ def test_finding_free_time_is_an_action_that_books_nothing(ag, monkeypatch):
     from widgets import effects as fx
     assert fx.carries("agenda", "find_free", fx.DATA_READ) and not fx.carries("agenda", "find_free", fx.DATA_WRITE)
 
+
+
+def test_free_days_across_a_stretch_are_found_without_booking(ag):
+    """full18 R3: «find me five days in her vacation where i'm free» — find_free looked at one day only, the model
+    called nothing and the turn went to a worker. With `until` it reads every day of the stretch; her vacation
+    (all-day) blocks nothing by the clock."""
+    ag.apply_action("add_meeting", {"title": "Anna vacation", "date": "2026-12-20", "until": "2027-01-04",
+                                    "allDay": True})
+    ag.apply_action("add_meeting", {"title": "Dentist", "date": "2026-12-22", "startTime": "10:00",
+                                    "endTime": "11:00"})
+    before = len(ag.load_db()["meetings"])
+    got = ag.apply_action("find_free", {"date": "2026-12-20", "until": "2026-12-24"})
+    assert got["ok"] and got["booked"] is False
+    assert got["free_days"] == ["2026-12-20", "2026-12-21", "2026-12-23", "2026-12-24"], got
+    assert [d["date"] for d in got["days_with_appointments"]] == ["2026-12-22"]
+    assert len(ag.load_db()["meetings"]) == before

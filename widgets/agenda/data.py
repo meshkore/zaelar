@@ -810,10 +810,14 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
         # A QUESTION about the day, answered without writing (see `free.py`): the day's free stretches, and the
         # card moves to that day so what he is told is what he sees.
         from . import free as _free
-        _day = _resolve_date(str(payload.get("date") or payload.get("day") or ""))
+        _day = _resolve_date(str(payload.get("date") or payload.get("day") or payload.get("from_date") or ""))
+        _until = str(payload.get("until") or payload.get("to_date") or payload.get("end_date") or "").strip()
         import time as _tm
-        db["view"] = {"sel": _day, "n": int((db.get("view") or {}).get("n", 0)) + 1, "at": _tm.time()}
+        db["view"] = {"sel": _day if not _until else "month", "n": int((db.get("view") or {}).get("n", 0)) + 1,
+                      "at": _tm.time()}
         store.save(WIDGET_ID, db)
+        if _until:
+            return _free.find_span(db.get("meetings") or [], _day, _resolve_date(_until), payload)
         return _free.find(db.get("meetings") or [], _day, payload)
     elif action in ("connect", "disconnect", "set_default_calendar"):
         # V2-679 — Google Calendar connect/disconnect/default-picker; body in `gcal.py` (ratchet extraction).

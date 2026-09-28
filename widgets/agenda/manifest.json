@@ -93,13 +93,14 @@
       }
     },
     "find_free": {
-      "desc": "FINDS FREE TIME on a day («find me a free 45 minutes tomorrow afternoon», «búscame un hueco», «¿cuándo puedo verle?»): returns the free slots and books NOTHING",
+      "desc": "FINDS FREE TIME on a day or across days («find me a free 45 minutes tomorrow afternoon», «five free days in her vacation», «¿cuándo puedo verle?»): returns it and books NOTHING",
       "payload": {
         "date": "«mañana», a weekday or YYYY-MM-DD",
         "duration_min": "minutes needed",
         "from": "optional HH:MM, start of the window («afternoon» = 12:00)",
         "to": "optional HH:MM, end of the window",
-        "after_last": "optional true: only after the day's last appointment"
+        "after_last": "optional true: only after the day's last appointment",
+        "until": "optional YYYY-MM-DD: search every day from date to until (free days)"
       },
       "view": true,
       "effects": [
