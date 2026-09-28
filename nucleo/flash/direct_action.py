@@ -89,7 +89,9 @@ def fillable_key(widget_id: str, action: str) -> str:
         key = str(required[0])
         # A key that names an item ALREADY ON the card is a selector, not a query: filling it with a
         # sentence would ask the widget to play a row that does not exist.
-        if (_refs.id_field_for_action(base, action) or "") == key:
+        # …unless the widget publishes no row index and matches the reference ITSELF (a passage in a document):
+        # there his words ARE the reference (refs.resolve's own rule — demo pass 2026-09-28, F2).
+        if (_refs.id_field_for_action(base, action) or "") == key and _refs._exposes_ref_index(base):
             return ""
         # Nor is a sentence one of an enumeration's values (V2-742).
         if any(m in str(payload.get(key) or "") for m in _ENUM_MARKS):

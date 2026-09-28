@@ -340,3 +340,14 @@ def test_V7_the_close_backstop_takes_the_verdicts_card_even_when_it_is_already_c
     from voice.engine.llm.providers import nucleo as prov
     src = inspect.getsource(prov)
     assert '_direct_action.verdict_card(_brief) if _direct_action.sure_canvas(_brief) == "close"' in src
+
+
+def test_F2_a_self_matching_reference_is_filled_with_his_words(on_screen):
+    """«go to the part about the complaints against the king»: documento:goto at 1.00, no call. The document
+    matches passages itself (no row index), so its reference key is fillable from his words — while an indexed
+    widget's selector (youtube play_item) still is not."""
+    b = _brief({_tb.TARGET_KEY: ("documento:goto", 1.0), _tb.REQUEST_KEY: ("order", 0.78)}, open_ids=("documento",))
+    rung = _da.resolve("go to the part about the complaints against the king", brief=b,
+                       operator_text="go to the part about the complaints against the king")
+    assert rung and rung["action"] == "goto" and "king" in rung["payload"]["text"]
+    assert _da.fillable_key("youtube", "play_item") == ""
