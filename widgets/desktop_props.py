@@ -24,6 +24,27 @@ WALL_NS = "desktop"
 _WALL_MAX = 15 * 1024 * 1024
 
 
+_WALL_UA = "Mozilla/5.0 (Zaelar wallpaper)"
+
+
+def fetchable(url: str, timeout: float = 2.5) -> bool:
+    """Whether `_local_copy` could fetch this picture: an image answer to the SAME request it makes. Read by a
+    wallpaper search to put the pictures that can become a backdrop first (demo pass 2026-09-28, full17 B2: the
+    first nebula came from a site that answers 403 to anything but its own pages, and «set the first one» left the
+    desk bare while the reply said it was set). Reads one byte, never the file."""
+    import urllib.request
+    if not str(url or "").startswith(("http://", "https://")):
+        return False
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": _WALL_UA})
+        with urllib.request.urlopen(req, timeout=timeout) as r:            # noqa: S310 — http(s) checked above
+            ctype = str(r.headers.get("Content-Type") or "").split(";")[0].strip().lower()
+            r.read(1)
+            return ctype in ("image/jpeg", "image/png", "image/webp")
+    except Exception:  # noqa: BLE001
+        return False
+
+
 def _local_copy(url: str, timeout: float = 5.0) -> str:
     """The wallpaper served from THIS engine's origin, or "" when it cannot be fetched.
 
@@ -39,7 +60,7 @@ def _local_copy(url: str, timeout: float = 5.0) -> str:
         return ""
     try:
         from widgets import store
-        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (Zaelar wallpaper)"})
+        req = urllib.request.Request(url, headers={"User-Agent": _WALL_UA})
         with urllib.request.urlopen(req, timeout=timeout) as r:            # noqa: S310 — http(s) checked above
             ctype = str(r.headers.get("Content-Type") or "").split(";")[0].strip().lower()
             ext = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp"}.get(ctype)
@@ -68,12 +89,15 @@ def set_wallpaper(url: str, title: str = "") -> dict:
     """Persist + push the desktop wallpaper. Returns the STORED value ({} = the sanitizer refused it) — the
     caller reports against what was actually kept, never against what it asked for."""
     from config import settings as _settings
-    url = _local_copy(str(url or "")) or str(url or "")
+    local = _local_copy(str(url or ""))
+    url = local or str(url or "")
     _settings.update({"wallpaper": {"url": str(url or ""), "title": str(title or "")}})
     stored = _settings.wallpaper()
     if stored.get("url"):
         _emit_wallpaper(stored["url"], stored.get("title") or "")
-    return stored
+    # `copied` false = the desk now depends on that site letting the browser show it, which is exactly what failed
+    # before; the caller says so instead of announcing a backdrop nobody may see.
+    return {**stored, "copied": bool(local)} if stored.get("url") else stored
 
 
 def clear_wallpaper() -> bool:

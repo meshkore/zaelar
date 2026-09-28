@@ -258,6 +258,9 @@ def apply_action(action: str, payload: dict = None) -> dict:
         store.save(WIDGET_ID, _clamp(db))
         out = {"ok": True, "wallpaper": stored["url"], "i": k + 1, "n": len(items),
                "shown": it.get("title") or it.get("site") or ""}
+        if stored.get("copied") is False:
+            out["warning"] = (f"{it.get('site') or 'ese sitio'} no me deja descargar la imagen: el fondo puede no "
+                              "verse. Dilo así y ofrece otra de las que hay en pantalla")
         try:
             w, hgt = int(it.get("w") or 0), int(it.get("h") or 0)
             if 0 < w < 1200:

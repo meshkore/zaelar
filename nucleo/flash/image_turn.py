@@ -50,6 +50,19 @@ def request_from(tool_calls: list) -> dict:
 _WALLPAPER_INTENT_RE = re.compile(r"fondo de (?:escritorio|pantalla)|wallpaper|\bde fondo\b", re.I)
 
 
+async def _fetchable_first(items: list, budget_s: float = 3.0) -> list:
+    """`items` with the pictures `desktop_props.fetchable` can download first, order otherwise kept. Out of time
+    or out of luck, the order stays as it was."""
+    import asyncio
+    try:
+        from widgets import desktop_props as _dp
+        oks = await asyncio.wait_for(asyncio.gather(*(asyncio.to_thread(_dp.fetchable, str(it.get("url") or ""))
+                                                      for it in items)), timeout=budget_s)
+    except Exception:  # noqa: BLE001
+        return items
+    return [it for it, ok in zip(items, oks) if ok] + [it for it, ok in zip(items, oks) if not ok]
+
+
 async def execute(query: str, n: int = DEFAULT_N, more: bool = False) -> dict:
     """Search the pictures and load the viewer; return the report of what HAPPENED, so the mouth need not guess.
 
@@ -89,6 +102,9 @@ async def execute(query: str, n: int = DEFAULT_N, more: bool = False) -> dict:
             # the demo pass of 2026-09-28 (B2) — blurred and cropped. Wider-than-tall first, then the biggest.
             items.sort(key=lambda it: (int(it.get("w") or 0) <= int(it.get("h") or 0),
                                        -(int(it.get("w") or 0) * int(it.get("h") or 0))))
+            # …and one that can BECOME the backdrop before one that cannot (full17 B2: the first nebula's site
+            # answers 403 to a download, and «set the first one» left the desk bare). Asked at once, bounded.
+            items = await _fetchable_first(items)
             parte["large_pref"] = True
         parte["source"] = str(res.get("source") or "")
         if res.get("degraded_from"):
