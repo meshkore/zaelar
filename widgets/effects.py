@@ -31,6 +31,7 @@ overlapping ones.
     output.start     makes the widget produce on its channel (audio, video)
     output.stop      suspends what it is producing
     external.send    reaches the world outside this machine
+    output.answer    exists to ANSWER him: what it returns is what the turn says (agenda `find_free`)
 
 `external.send` is the one that is NOT derivable today: a `consent_class` says an action is sensitive, not
 that it leaves the machine, and guessing from names is exactly what this repo's doctrine forbids. It is
@@ -45,10 +46,14 @@ PRESENT_MOUNT = "present.mount"
 OUTPUT_START = "output.start"
 OUTPUT_STOP = "output.stop"
 EXTERNAL_SEND = "external.send"
+# An action whose result IS the reply (demo pass 2026-09-28, full18 C2: «find me a free 45 minutes…» ran
+# `find_free`, got the slots back and said nothing — the verdict read the sentence as an order, not a question,
+# and only a question's op got its data spoken). Not derivable: a lens that also answers is the manifest's call.
+OUTPUT_ANSWER = "output.answer"
 
 #: Everything a manifest may name in an action's `effects`. A name outside this set is ignored: a typo must
 #: never become an effect nobody implements, and it must never silently authorize one either.
-KNOWN = frozenset({DATA_READ, DATA_WRITE, PRESENT_MOUNT, OUTPUT_START, OUTPUT_STOP, EXTERNAL_SEND})
+KNOWN = frozenset({DATA_READ, DATA_WRITE, PRESENT_MOUNT, OUTPUT_START, OUTPUT_STOP, EXTERNAL_SEND, OUTPUT_ANSWER})
 
 
 def _manifest(wid: str) -> dict:

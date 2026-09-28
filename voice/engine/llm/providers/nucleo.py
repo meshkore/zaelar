@@ -1201,6 +1201,9 @@ class NucleoLLMStream(llm.LLMStream):
                     # that action declares (a reply's `text` is a draft's `text`)
                     _vkeys = set(_direct_action._payload_spec(wid, _vdis))
                     _vpay = {k: v for k, v in (payload or {}).items() if k in _vkeys and str(v or "").strip()}
+                    # …and the recipient his sentence names, which the model's call for the OTHER action did not
+                    # carry (full18 E3: `reply` has no recipient; the verdict's `forward` needs one)
+                    _vpay.update(_direct_action.person_fill(wid, _vdis, _vpay, _bnotes.operator_half(text)))
                     if _vpay:
                         acted["widget"] = True
                         _gate_card = wid          # this gate's own, already-decided card
@@ -2671,7 +2674,9 @@ class NucleoLLMStream(llm.LLMStream):
             from nucleo.flash import turn_brief as _tbw
             _wk, _wi = _tbw.read(_brief, _tbw.WORDS_KEY, "")
             _rk, _ri = _tbw.read(_brief, _tbw.REQUEST_KEY, "")
-            if (_wi is not None and str(_wk) == "tell") or (_ri is not None and str(_rk) == "question"):
+            from widgets import effects as _fx_ans
+            _answers = any(_fx_ans.carries(_w, _a, _fx_ans.OUTPUT_ANSWER) for _w, _a in (data_done.get("ops") or []))
+            if _answers or (_wi is not None and str(_wk) == "tell") or (_ri is not None and str(_rk) == "question"):
                 _pend = [t for _w, t in _turn_op_tasks if not t.done()]
                 if _pend:
                     await asyncio.wait(_pend, timeout=6.0)

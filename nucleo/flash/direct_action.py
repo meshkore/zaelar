@@ -579,6 +579,23 @@ def number_fill(widget_id: str, action: str, words: str) -> dict:
         return {}
 
 
+def person_fill(widget_id: str, action: str, payload: dict, words: str) -> dict:
+    """`{"contact": <name>}` when the action declares a `contact`, the call left it empty and his sentence names
+    exactly ONE person of the directory; `{}` otherwise — two named, or none, is the model's to ask.
+
+    Demo pass 2026-09-28 (full18 E3): «send the invoice to andrew…» — the model called `reply` (to the invoice's
+    SENDER), the outward-act gate rightly ran the verdict's `forward` instead, with the reply's payload: no
+    recipient, and the forward was refused. The recipient was in his sentence; the directory knows who that is."""
+    try:
+        if "contact" not in _payload_spec(widget_id, action) or str((payload or {}).get("contact") or "").strip():
+            return {}
+        from widgets.contactos import data as _ct
+        named = _ct.people_named(words or "")
+        return {"contact": str(named[0].get("name") or "")} if len(named) == 1 and named[0].get("name") else {}
+    except Exception:  # noqa: BLE001
+        return {}
+
+
 def fill_missing(widget_id: str, action: str, payload: dict, words: str) -> dict:
     """What the MODEL's own call left out and his words can supply honestly, or `{}`.
 
@@ -592,6 +609,8 @@ def fill_missing(widget_id: str, action: str, payload: dict, words: str) -> dict
     its key is untouched — this repairs an omission, it never edits a decision.
     """
     try:
+        if (who := person_fill(widget_id, action, payload, words)):
+            return who
         spec = _payload_spec(widget_id, action)
         required = [k for k, v in spec.items() if not _optional(v)]
         if len(required) != 1:                       # zero or several: nothing single to repair

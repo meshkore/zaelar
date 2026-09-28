@@ -101,7 +101,10 @@
         "to": "optional HH:MM, end of the window",
         "after_last": "optional true: only after the day's last appointment"
       },
-      "view": true
+      "view": true,
+      "effects": [
+        "output.answer"
+      ]
     },
     "set_reminder": {
       "desc": "mueve el AVISO de una cita («avísame a mediodía»); SIN title y CON date pone avisos a TODAS las citas de ese día («avisos para todas las citas del jueves»)",
