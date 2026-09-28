@@ -125,20 +125,38 @@ def _spec_for_naming():
     return _research_spec()[0]
 
 
+def _language() -> str:
+    """The name of the language the personal agent was set up in — the title is read on HIS screen and spoken
+    in HIS voice, so it is written in that language, whatever language the brief happens to be in."""
+    try:
+        from i18n.langs import current_language
+        lang = current_language()
+        return f"{lang.name} ({lang.native})" if lang.native and lang.native != lang.name else lang.name
+    except Exception:  # noqa: BLE001
+        return ""
+
+
 def _messages(goal: str) -> list[dict]:
     """One instruction per block, and the fork inside the imperative — two orders in one sentence come out as a
-    coin flip (the lesson of V2-226, written into the prompt rules)."""
+    coin flip (the lesson of V2-226, written into the prompt rules).
+
+    The instruction is in ENGLISH and names the output language explicitly (demo pass 30, 2026-09-28): it used
+    to be written in Spanish and say «in the language of the request», and an English brief («Plan a 5-day
+    warm-weather trip…») came back as «Viaje 5 días Los Ángeles para dos» — the model followed the language of
+    the instruction, not the one it was told to follow."""
+    lang = _language()
+    in_lang = f"Write it in {lang}." if lang else "Write it in the language of the request."
     return [
         {"role": "system",
          "content": (
-             "Nombras encargos. Te dan lo que una persona le pidió a su asistente, tal cual lo dijo, con sus "
-             "saludos y sus rodeos, y devuelves el NOMBRE del encargo.\n"
-             "Devuelve SOLO el nombre: sin comillas, sin punto final, sin explicar nada.\n"
-             f"Como mucho {TITLE_MAX} caracteres, en el idioma en el que está escrito el encargo.\n"
-             "Nombra lo que hay que HACER y sobre qué, no lo que la persona dijo: si el encargo va de pedir "
-             "cita con un traumatólogo en un centro concreto, el nombre lleva la cita y el centro, no el «oye, "
-             "una cosita» con el que empezó.\n"
-             "Si de verdad no se ve ningún encargo dentro, devuelve exactamente: -"
+             "You name errands. You get what a person asked their assistant, as they said it, with greetings and "
+             "detours, and you return the NAME of the errand.\n"
+             "Return ONLY the name: no quotes, no final period, no explanation.\n"
+             f"At most {TITLE_MAX} characters. {in_lang}\n"
+             "Name what has to be DONE and about what, not what the person said: if the errand is booking an "
+             "appointment with a specialist at a given clinic, the name carries the appointment and the clinic, "
+             "not the «hey, one thing» it started with.\n"
+             "If there really is no errand in it, return exactly: -"
          )},
         {"role": "user", "content": (goal or "").strip()[:1200]},
     ]

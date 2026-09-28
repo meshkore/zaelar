@@ -3357,6 +3357,9 @@ DOMAINS: list[dict] = [
         # named the card, the action existed. One bounded pass asks the model for the call it promised — only the
         # named card, only a declared action — before the backstop spends a worker on it.
         # Demo pass 2026-09-28 (V2-776 E) — the fixes of the passes, one node each.
+        {"id": "2.131", "title": "An errand title is written in the language the agent was set up in",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/test_an_errand_title_is_in_the_agents_language.py"]},
         {"id": "2.130", "title": "A price with $ in double quotes is a shell variable — the worker is told, and a refused command is blamed on itself",
             "ch": UNIT,
             "paths": ["tests/agent_headless/unit/workers/test_a_dollar_in_double_quotes_is_a_variable.py"]},
