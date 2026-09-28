@@ -164,7 +164,10 @@
       },
       "confirm": true,
       "usage": "Úsala vía la tool reply_message del cerebro, que pide confirmación antes de enviar. Enviar no se deshace.",
-      "consent_class": "messaging.send_new"
+      "consent_class": "messaging.send_new",
+      "effects": [
+        "external.send"
+      ]
     },
     "draft": {
       "desc": "Escribe (o actualiza) el texto de respuesta en el CUADRO visible del widget, SIN enviarlo — dile al operador que se lo lees para que lo revise antes de que lo mande él (con 'send_draft' o el botón)",
@@ -185,7 +188,10 @@
       "confirm": true,
       "usage": "El botón «Enviar» de la propia tarjeta hace exactamente esto. Por voz: primero 'draft' con el texto, luego (con su confirmación) 'send_draft'.",
       "consent_class": "messaging.send_new",
-      "singleton": true
+      "singleton": true,
+      "effects": [
+        "external.send"
+      ]
     },
     "send_to": {
       "desc": "Escribe a una PERSONA del directorio de contactos por su canal (el preferido si no dices cuál), ABRIENDO la conversación si no existía. Es lo que se usa para «mándale un mensaje a X», «escríbele a X», «contacta con X» — `reply` solo sirve para contestar a algo que YA llegó. También REENVÍA lo que llegó: con `attach_from` los adjuntos de ese mensaje (una factura, un PDF) viajan en el correo — «mándale a X la factura de este correo».",
@@ -200,7 +206,8 @@
       "confirm": false,
       "usage": "Si no tienes su canal guardado, guárdalo antes con contactos/set_channel. Si no sabes a cuál de dos se refiere, PREGÚNTASELO: nunca escribas a alguien por parecido. NO se pide confirmación para esto (V2-692): quien la llama está ejecutando una orden que el operador acaba de dar, y su permiso ya viene con la orden — preguntarle otra vez es hacerle dar el mismo permiso dos veces. `reply` SÍ la sigue pidiendo: contestar a algo que llegó no es una orden suya.",
       "effects": [
-        "present.mount"
+        "present.mount",
+        "external.send"
       ]
     },
     "forward": {
@@ -212,7 +219,10 @@
         "n": "opcional: número del mensaje en la lista SOLO si lo ves en ella (sin n ni from, el que está abierto)",
         "subject": "opcional (por defecto «Fwd: …» del original)"
       },
-      "confirm": false
+      "confirm": false,
+      "effects": [
+        "external.send"
+      ]
     },
     "open_connectors": {
       "desc": "Si se nombra la plataforma (email/gmail/outlook, whatsapp, telegram), entra DIRECTAMENTE en la pantalla de ESE conector — su asistente paso a paso si no está conectado, o su estado si ya lo está. Sin plataforma, abre la lista de todos los conectores. Úsala siempre que el operador pida conectar/vincular/añadir un canal. No pidas tú credenciales por voz.",

@@ -1218,6 +1218,14 @@ class NucleoLLMStream(llm.LLMStream):
                         acted["widget"] = True
                         return
                     mode = _wactions.CONFIRM
+                elif _direct_action.verdict_elsewhere(_brief, wid):
+                    # …and an act that leaves which the verdict does not back at all — it surely names an action on
+                    # ANOTHER card (full19 C2: «find me a free 45 minutes… to talk with ethan» → agenda:find_free,
+                    # and the model also wrote to Ethan). Not dropped: asked, with the text, before it leaves.
+                    emit("brain", "🛑 acto que sale fuera sin respaldo del veredicto — se pregunta",
+                         text=f"{wid}:{action_name} · veredicto en otra tarjeta", role="system",
+                         extra={"cat": "flash", "id": wid, "model": action_name})
+                    mode = _wactions.CONFIRM
 
             def _log_dataop(m: str) -> None:
                 """REGISTRO DE ACCIONES DE WIDGET (2026-08-09, petición del operador). Hasta ahora una data-op
@@ -1446,6 +1454,22 @@ class NucleoLLMStream(llm.LLMStream):
                                                     widget_id=_cd["card"], instead_of=action_name,
                                                     require_order=False)):
                     emit("brain", "⚖️ el modelo solo miró (o repitió la vista) — completa el veredicto", role="system",
+                         text=f"{_cd['card']}: modelo={action_name} · veredicto={_dis}",
+                         extra={"cat": "flash", "id": _cd["card"], "model": action_name, "verdict": _dis})
+                    acted["widget"] = True
+                    return
+                # A QUESTION the verdict is sure of, over a WRITE the model made on the same card (full19 C2: «find me
+                # a free 45 minutes…» → verdict find_free 0.91, model add_meeting): the write is the costly mistake
+                # — it lands in his calendar — so the answer runs instead. `output.answer` is declared, never guessed.
+                from widgets import effects as _fx_q
+                if (_fx_q.carries(_cd["card"], _dis, _fx_q.OUTPUT_ANSWER)
+                        and _fx_q.carries(_cd["card"], action_name, _fx_q.DATA_WRITE)
+                        and _direct_action._action_sure(_brief)
+                        and _direct_action.complete(_brief, operator_text=_bnotes.operator_half(text), emit=emit,
+                                                    present=_cvis.present, apply_widget_data=_apply_widget_data,
+                                                    widget_id=_cd["card"], instead_of=action_name,
+                                                    require_order=False)):
+                    emit("brain", "❓ la pregunta gana a la escritura — corre el veredicto", role="system",
                          text=f"{_cd['card']}: modelo={action_name} · veredicto={_dis}",
                          extra={"cat": "flash", "id": _cd["card"], "model": action_name, "verdict": _dis})
                     acted["widget"] = True

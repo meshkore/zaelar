@@ -109,3 +109,32 @@ def _cloud_embeddings_never_reach_the_network():
         yield
     finally:
         emb._cloud_embed = real
+
+
+@pytest.fixture(autouse=True)
+def _jev_never_reaches_the_network_and_starts_closed():
+    """The decision model is a PAID remote API, and inside the suite it behaves like the embeddings above: a test
+    that fires a turn brief without faking the transport used to go out to the internet with the operator's real
+    key (measured 2026-09-28: six real calls in one run of `tests/voice/unit`).
+
+    That was invisible while the provider answered fast. The day it went slow those calls timed out, three in a row
+    opened the module's circuit breaker — which is process-global — and twelve Jev tests further down the run read
+    «disabled» and failed, while each one passed on its own.
+
+    So: the endpoint is a closed local port — a call that was not faked fails at once, offline and unbilled, the
+    way an unreachable provider fails (every test that means to talk to Jev fakes the transport already) — and the
+    breaker starts closed for every test. `ZAELAR_TEST_JEV_LIVE=1` lets the real call through. Set and restored by
+    hand, without `monkeypatch`, for the ordering reason given on the reranker fixture."""
+    import os
+    from nucleo import jev
+
+    saved_endpoint, saved_breaker = jev.ENDPOINT, dict(jev._breaker)
+    jev._breaker.update({"fails": 0, "open_until": 0.0})
+    if os.environ.get("ZAELAR_TEST_JEV_LIVE") != "1":
+        jev.ENDPOINT = "http://127.0.0.1:9/v1/systemone"
+    try:
+        yield
+    finally:
+        jev.ENDPOINT = saved_endpoint
+        jev._breaker.clear()
+        jev._breaker.update(saved_breaker)

@@ -905,3 +905,9 @@ def on_screen_now(widget_id: str) -> bool:
         return base in _cf.this_turn_cards()
     except Exception:  # noqa: BLE001
         return False
+
+
+def verdict_elsewhere(brief, widget_id: str) -> bool:
+    """The verdict SURELY names an action on a card other than `widget_id` — the turn is about something else."""
+    wid, name = from_brief(brief)
+    return bool(wid and name) and _base_of(wid) != _base_of(widget_id) and _action_sure(brief)
