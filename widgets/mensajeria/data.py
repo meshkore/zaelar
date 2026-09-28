@@ -294,6 +294,41 @@ def _email_signature() -> list:
         return []
 
 
+_BRING_BACK_MAX = 2
+
+
+def _bring_back_found_mail(payload: dict) -> int:
+    """A mail the archive found but this card no longer holds is asked back from the mailbox, attachments included.
+
+    Demo pass 2026-09-28 (full28 E1→E3): «did inworld send me something?» found the receipt in the archive; the card
+    holds only the 30 most recent unread, and with newer mail since, the receipt was not among them — «open it» found
+    no chat and «send the invoice to andrew» had nothing to forward. The archive keeps the mailbox UID, so the
+    card's own «load previous» order (the connector's `fetch_older`, one message just below UID+1) brings exactly
+    that mail into its conversation. Never raises; returns how many orders were queued."""
+    try:
+        from . import views as _v
+        db = load_db()
+        held = {str(it.get("chatId")) for it in db.get("items", []) if it.get("platform") == "email"}
+        held |= {str(k).partition("|")[2] for k in (db.get("threads") or {}) if str(k).startswith("email|")}
+        queued, seen = 0, set()
+        for r in _v.archive_rows(payload):
+            if queued >= _BRING_BACK_MAX:
+                break
+            chat, uid = str(r.get("chat_id") or ""), str(r.get("msg_id") or "")
+            if (r.get("platform") != "email" or r.get("direction") != "in" or not chat or not uid.isdigit()
+                    or chat in held or chat in seen):
+                continue
+            seen.add(chat)
+            db.setdefault("pending_history", []).append(
+                {"platform": "email", "chatId": chat, "beforeTs": 0, "beforeId": str(int(uid) + 1), "limit": 1})
+            queued += 1
+        if queued:
+            store.save(WIDGET_ID, db)
+        return queued
+    except Exception:  # noqa: BLE001
+        return 0
+
+
 def answer_action(action: str, payload: dict | None = None) -> dict | None:
     """READ-ONLY answer/validation for the backed route (V2-543). The owner's mailbox keeps one writer but
     swallowed every return: `show_view`'s answer (the matching chats) and the teach-the-shape errors never
@@ -556,7 +591,10 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
 
     # `peek` (V2-624), `search_archive` and `chat_digest` (V2-628) are ANSWER-ONLY: answer_action returns the conversation's content and nothing here has
     # anything to mutate. Falling through to the generic branch would re-save the store for a read.
-    if action in ("peek", "search_archive", "chat_digest"):
+    if action == "search_archive":
+        _bring_back_found_mail(payload)
+        return view_data()
+    if action in ("peek", "chat_digest"):
         return view_data()
 
     # Connection control, executed by the supervisor, not the widget.

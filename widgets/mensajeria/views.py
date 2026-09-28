@@ -197,6 +197,37 @@ _ARCHIVE_MAX_ROWS = 20
 _ARCHIVE_MAX_BODY = 200
 
 
+def archive_rows(payload: dict) -> list:
+    """The archive rows a `search_archive` payload asks for (newest first); [] without any criterion."""
+    from connectors.messaging import archive
+    from . import data as _d
+    q = str(payload.get("q") or payload.get("text") or "").strip() or None
+    sender = str(payload.get("sender") or payload.get("from") or "").strip() or None
+    chat = str(payload.get("chat") or payload.get("group") or payload.get("name") or "").strip() or None
+    platform = str(payload.get("platform") or "").strip().lower()
+    platform = _d._PLAT_ALIASES.get(platform, platform) or None
+    direction = payload.get("direction") if payload.get("direction") in ("in", "out") else None
+    since = until = None
+    for key, sign in (("since_days", "since"), ("until_days", "until")):
+        try:
+            days = float(payload.get(key))
+        except (TypeError, ValueError):
+            continue
+        cut = time.time() - max(0.0, days) * 86400
+        if sign == "since":
+            since = cut
+        else:
+            until = cut
+    if not any((q, sender, chat, platform, direction, since, until)):
+        return []
+    try:
+        limit = max(1, min(_ARCHIVE_MAX_ROWS, int(payload.get("limit") or _ARCHIVE_MAX_ROWS)))
+    except (TypeError, ValueError):
+        limit = _ARCHIVE_MAX_ROWS
+    return archive.search(q, sender=sender, chat=chat, platform=platform,
+                          since=since, until=until, direction=direction, limit=limit)
+
+
 def _search_archive_answer(payload: dict) -> dict:
     """The PERMANENT communications archive, answered as data (V2-628 F1). A question about PAST messages
     («when did the school write?», «did I ever answer it?») channels HERE — never to memory recall: the
@@ -227,12 +258,7 @@ def _search_archive_answer(payload: dict) -> dict:
         return {"ok": False,
                 "error": "search_archive necesita algún criterio: `q` (texto), `sender`, `chat`, `platform`, "
                          "`since_days`, `until_days` o `direction`"}
-    try:
-        limit = max(1, min(_ARCHIVE_MAX_ROWS, int(payload.get("limit") or _ARCHIVE_MAX_ROWS)))
-    except (TypeError, ValueError):
-        limit = _ARCHIVE_MAX_ROWS
-    rows = archive.search(q, sender=sender, chat=chat, platform=platform,
-                          since=since, until=until, direction=direction, limit=limit)
+    rows = archive_rows(payload)
     st = archive.stats()
     oldest = st.get("oldest")
     matches = []
