@@ -139,10 +139,17 @@ async def after_show(acted: dict, *, brief, operator_text: str, spoken_text: str
         # …or the card was named by the catalogue for an order with more in it than «open it» (demo v3, E1:
         # «Show me only the emails from today that need my attention» opened the card and DENIED the filter
         # its own action declares). The pass is told to call nothing when the show was the whole order.
+        # …or the card it opened is EMPTY (demo pass 2026-09-28, M1: «how's apple stock doing today, show me the
+        # chart» → show_widget(markets), no symbol, no words, no verdict naming the action, and an empty chart).
+        # An empty card is never the whole answer to words that asked for something; the pass judges what is due.
+        from nucleo.flash import surface_ack as _sa
+        empty = _sa.nothing_to_show(wid)
         if not (acted.get("show_suppressed") or (spoken_text and _router.promises_action(spoken_text))
-                or _da.names_an_order(brief, sure=0.8) or named_or_catalogue(brief, operator_text) == wid):
+                or _da.names_an_order(brief, sure=0.8) or named_or_catalogue(brief, operator_text) == wid
+                or empty):
             return False
-        got = await _repair.call_for_promise(operator_text, spoken_text, wid, spec=spec)
+        said = spoken_text or (f"(Abrí la tarjeta «{wid}» y está VACÍA: aún no he hecho lo que pidió.)" if empty else "")
+        got = await _repair.call_for_promise(operator_text, said, wid, spec=spec)
         # A bare `show` is the card coming up, which already happened; a `show` WITH content («markets:show
         # {symbol: AAPL}») is the order itself.
         if not got or (str(got.get("action") or "") in ("show", "open_widget") and not got.get("payload")):

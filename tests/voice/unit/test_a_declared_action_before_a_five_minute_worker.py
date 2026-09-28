@@ -523,6 +523,9 @@ def test_a_show_of_a_catalogue_named_card_asks_for_the_rest_of_the_order(monkeyp
     monkeypatch.setattr(router, "promises_action", lambda r: False)
     monkeypatch.setattr(direct_action, "names_an_order", lambda b, **k: False)
     monkeypatch.setattr(card_commission, "named_or_catalogue", lambda brief, text, **k: "mensajeria")
+    from nucleo.flash import surface_ack
+    monkeypatch.setattr(surface_ack, "nothing_to_show", lambda wid: False)   # the inbox HAS mail (an empty card
+    #                                                                          is its own reason — node 2.90)
 
     async def pass_(operator_text, reply, wid, spec=None):
         return {"widget_id": "mensajeria", "action": "show_view", "payload": {"platform": "email", "window_h": 24}}
@@ -549,6 +552,8 @@ def test_a_silent_show_of_a_catalogue_named_card_still_asks_for_the_rest(monkeyp
     monkeypatch.setattr(router, "promises_action", lambda r: "let me" in r)
     monkeypatch.setattr(direct_action, "names_an_order", lambda b, **k: False)
     monkeypatch.setattr(card_commission, "named_or_catalogue", lambda brief, text, **k: "markets")
+    from nucleo.flash import surface_ack
+    monkeypatch.setattr(surface_ack, "nothing_to_show", lambda wid: False)   # isolate the catalogue's own reason
 
     async def pass_(operator_text, reply, wid, spec=None):
         return {"widget_id": "markets", "action": "show", "payload": {"symbol": "AAPL", "range": "1d"}}
