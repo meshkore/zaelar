@@ -4,8 +4,17 @@ V3: he had just asked for video number 2; while it loaded, the monitor errand's 
 and «it» went to the sheet. A2 the other way round: the only thing his turn produced was the errand's sheet, and
 «Minimise that» has to reach it.
 """
+import pytest
+
 from nucleo import canvas_focus as cf
 from nucleo.actionmap import executor
+
+
+@pytest.fixture(autouse=True)
+def _no_leftover_focus():
+    cf._reset()
+    yield
+    cf._reset()
 
 
 def _turn(*touches):

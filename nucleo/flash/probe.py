@@ -65,6 +65,7 @@ def _session(sid: str) -> ProbeSession:
 # 2026-08-29 (architecture ratchet).
 from .show_target import (  # noqa: F401
     _ctx_ids, _identify_ctx, _running_goals, _show_target, classify_alias_call,
+    close_target as _close_target,   # demo pass 2026-09-28: close is a tool too
     fullscreen_target as _fullscreen_target,
     fullscreen_exit_due as _fullscreen_exit_due,   # V2-759
     last_assistant_line as _last_assistant_line, show_card as _show_card,
@@ -495,6 +496,11 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
                       f"canvas:show:{_rid}" if _rid else
                       "clarify" if _show_ask else
                       f"panel:{_wall_tab_for(_sys, text)}" if _wall_tab_for(_sys, text) else "clarify")
+    elif "close_widget" in names:
+        _cw = next(t for t in tool_calls if t["name"] == "close_widget")
+        _crid = _close_target(str(_cw["args"].get("widget_id") or ""))
+        _cmode = "minimize" if str(_cw["args"].get("mode") or "") == "minimize" else "close"
+        action = f"canvas:{_cmode}:{_crid}" if _crid else "clarify"
     elif "fullscreen_widget" in names:
         # BUG real 2026-07-23 — espejo del provider: pone/quita pantalla completa de verdad. Resuelve el id por
         # nombre/alias con certeza (V2-082); sin match → pregunta (no fabrica).
@@ -738,15 +744,17 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
     # BUG real 2026-07-23: "quita la pantalla completa" (verbo amplio 'quita' + turno corto + 1 widget abierto) NO
     # estaba en esta lista → el backstop de cierre de abajo CERRABA el widget entero en vez de solo salir de
     # fullscreen (fullscreen_widget YA resolvió la intención real este turno).
-    _already = action.startswith(("music", "video", "search", "widget_data", "canvas:fullscreen", "canvas:minimize"))
+    _already = action.startswith(("music", "video", "search", "widget_data", "canvas:fullscreen", "canvas:minimize",
+                                  "canvas:close"))            # close_widget already decided (demo pass 2026-09-28)
     # V2-770 — the mirror of the voice `direct_action.complete`: a turn with no call whose verdict names an action
     # INSIDE an open card («ya la puedes cerrar» → agenda:close_meeting) runs that action — and the close
     # backstop below, which would have shut the whole card, never sees it.
     if not _already and not any(t["action"] == "close" for t in tags):
         try:
             from . import direct_action as _da_bs
-            if _da_bs.names_an_order(_tbrief) and (_rung := _da_bs.resolve(operator_text, brief=_tbrief,
-                                                                           operator_text=operator_text)):
+            if (_da_bs.names_an_order(_tbrief) and not _da_bs.sure_close(_tbrief)   # a close is never a data action
+                    and (_rung := _da_bs.resolve(operator_text, brief=_tbrief,
+                                                                           operator_text=operator_text))):
                 tool_calls.append({"name": "widget_data", "args": {"widget_id": _rung["widget"],
                                    "action": _rung["action"], "payload": _rung["payload"], "_verdict": True}})
                 action, _already, spoken = "widget_data", True, ""
@@ -1151,8 +1159,10 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
                 # `split(":")[-1]` NO sirve: una tarjeta de INSTANCIA lleva dos puntos dentro
                 #                 (`canvas:show:navegador::t1` → «t1», que no es ningún widget).
                 _parts = action.split(":", 2)
-                spoken = _rg_show.show_ack(_lg, _parts[2] if len(_parts) > 2 else "",
-                                           chose=_show_chose)
+                # the OPEN phrase only for an open: «I've opened it, though there's nothing in it yet» over a close
+                # was the demo pass's S4 (2026-09-28)
+                spoken = (_rg_show.show_ack(_lg, _parts[2] if len(_parts) > 2 else "", chose=_show_chose)
+                          if _parts[1] == "show" else _lg.data_ack)
             elif action.startswith("panel:"):
                 # V2-761 — a native panel opened with no spoken line. The provider counts it as `acted["widget"]`
                 # and speaks `show_ack`; this mirror fell to the MUTE backstop and blamed itself («se me ha

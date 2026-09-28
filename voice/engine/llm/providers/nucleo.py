@@ -1692,6 +1692,10 @@ class NucleoLLMStream(llm.LLMStream):
                         else:
                             clarify["msg"] = _res.get("error") or _say().alias_failed
                         emit("brain", f"🏷️ manage_widget_alias {_op} → {_rid}", text=_alias, role="system")
+            elif name == "close_widget":
+                if "close_widget" not in _tool_fired and _show_target.close_dispatch(args, _tag_emit, emit):
+                    _tool_fired.add("close_widget")
+                    acted["widget"] = True
             elif name == "fullscreen_widget":
                 # BUG 2026-07-23: sin tool, el modelo confabulaba éxito. Cuerpo (resolución V2-609 + licencia y
                 # dirección V2-635: «pausa el vídeo» disparaba fullscreen; «minimiza» ya no cae en el toggle al
@@ -3102,8 +3106,10 @@ class NucleoLLMStream(llm.LLMStream):
             try:
                 from voice.engine.core import langs as _langs
                 from nucleo.flash import router_guards as _rg_show2
-                spoken_text = _rg_show2.show_ack(_langs.current_language(), str(acted.get("widget_id") or ""),
-                                                 chose=str(acted.get("show_chose") or ""))
+                _lg_ack = _langs.current_language()
+                spoken_text = (_rg_show2.show_ack(_lg_ack, str(acted.get("widget_id") or ""),
+                                                  chose=str(acted.get("show_chose") or ""))
+                               if acted.get("widget_id") else _lg_ack.data_ack)   # a close is not an open (S4)
             except Exception:
                 spoken_text = "Aquí lo tienes."
             send(speech.sanitize(spoken_text, drop_metadata=False))

@@ -266,6 +266,33 @@ def fullscreen_target(widget_id: str, text: str = "") -> str:
     return ""
 
 
+def close_target(widget_id: str) -> str:
+    """The card `close_widget` means: the one it names, or — empty — the card his last turn acted on, else the
+    only one open. "" when that cannot be said (the tag's own resolution then asks)."""
+    wid = (widget_id or "").strip()
+    if wid:
+        return wid
+    try:
+        from nucleo import canvas_focus
+        from server.voice_api import open_instances
+        ids = [str(i) for i in open_instances() if str(i)]
+        return canvas_focus.last_turn_card(ids) or (ids[0] if len(ids) == 1 else "")
+    except Exception:  # noqa: BLE001
+        return ""
+
+
+def close_dispatch(args: dict, tag_emit, emit) -> str:
+    """The provider's `close_widget` branch body, shared with the probe: close or put away a card through the
+    SAME canvas route the [[close]] tag and the canvas minimize already take. Returns the card, or ""."""
+    rid = close_target(str(args.get("widget_id") or ""))
+    if not rid:
+        return ""
+    mode = str(args.get("mode") or "close").strip().lower()
+    tag_emit("minimize" if mode == "minimize" else "close", {"id": rid})
+    emit("brain", f"🪟 close_widget({mode}) → canvas", text=rid, role="system")
+    return rid
+
+
 def fullscreen_dispatch(args: dict, text: str, tag_emit, emit, deduped: dict) -> None:
     """The provider's whole `fullscreen_widget` branch body (extracted paying the architecture ratchet,
     V2-635): resolve the card (V2-609, above) and route by what the turn actually SAYS. Measured 2026-09-09

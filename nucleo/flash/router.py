@@ -76,7 +76,7 @@ from nucleo.flash.router_catalog import TOOLS   # V2-556: el catálogo (dato pur
 # which block enters and which stays out, instead of 22 separate gates. It is NOT an intent classifier.
 FAMILIES: dict[str, tuple[str, ...]] = {
     "core":      ("escalate_to_slowbrain", "set_style_directive"),
-    "widgets":   ("show_widget", "widget_data", "delete_widget", "restore_widget", "confirm_widget_delete",
+    "widgets":   ("show_widget", "close_widget", "widget_data", "delete_widget", "restore_widget", "confirm_widget_delete",
                   "fullscreen_widget", "manage_widget_alias", "show_panel", "arrange_canvas"),
     "workers":   ("send_to_worker", "stop_worker", "answer_worker"),
     "cluster":   ("connect_cluster", "set_cluster_objective", "cluster_send"),
@@ -105,6 +105,7 @@ def family_of(name: str) -> str:
 # If a tool cannot be disabled by state, it is OFFERED; it is not guessed.
 _SITUATIONAL = {
     "show_widget":           lambda ctx: ctx.get("has_widgets", True),   # only if there are widgets to show
+    "close_widget":          lambda ctx: ctx.get("has_widgets", True),
     "widget_data":           lambda ctx: ctx.get("has_widgets", True),   # only if there are widgets with actions
     "delete_widget":         lambda ctx: ctx.get("has_widgets", True),   # only if there are widgets to delete
     "manage_widget_alias":   lambda ctx: ctx.get("has_widgets", True),   # V2-082: edit widget names/aliases

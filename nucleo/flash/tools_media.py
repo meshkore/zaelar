@@ -53,14 +53,12 @@ TOOLS: list[dict] = [
         "function": {
             "name": "play_video",
             "description": (
-                "Reproduce un VÍDEO en el widget `youtube` — VER en pantalla: 'pon el vídeo de…', un videoclip, "
-                "un tráiler, una peli, un directo. También «el último vídeo de <alguien>». `query` = qué vídeo, en lenguaje natural. No es "
-                "play_music (eso es OÍR) ni web_search (un dato que se cuenta). Tarda unos segundos: habla en "
-                "presente o futuro ('lo busco'), NUNCA en pasado — decir 'hecho' antes de que cargue es mentir, "
-                "aunque ya hubiera otro vídeo en pantalla. BUSCAR para ver/oír y ELEGIR ('búscame vídeos de X', "
-                "'qué documentales hay', un podcast) también es ESTA tool, con action=list: resultados NUMERADOS "
-                "al Inicio (luego play_result/add_results). Un ENLACE ya PEGADO NO se reproduce: se AÑADE a la cola con "
-                "widget_data(youtube, add); cortarle lo que ve es un defecto. No lo escales ni lo mandes a la hoja."
+                "VER un VÍDEO en el widget `youtube`: un videoclip, tráiler, peli, directo, «el último vídeo de X». "
+                "`query` = qué vídeo, en lenguaje natural. No es play_music (OÍR) ni web_search. Tarda: habla en "
+                "presente/futuro ('lo busco'), NUNCA en pasado antes de que cargue. BUSCAR para elegir ('búscame "
+                "vídeos de X', documentales, un podcast) es ESTA tool con action=list: resultados NUMERADOS al "
+                "Inicio (luego play_result/add_results). Un ENLACE ya PEGADO se AÑADE a la cola con "
+                "widget_data(youtube, add), no se reproduce. No lo escales ni lo mandes a la hoja."
             ),
             "parameters": {
                 "type": "object",

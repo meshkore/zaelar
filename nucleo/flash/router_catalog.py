@@ -126,6 +126,28 @@ TOOLS: list[dict] = [
         },
     },
     {
+        # CLOSE is a tool too (demo pass 2026-09-28). Showing had a tool and closing only the [[close]] tag, so
+        # «ok close the calendar» sent EVERY model measured (deepseek flash/pro, glm-5.3) to the nearest
+        # function it could see — `agenda:close_meeting`, `results:clear` (which emptied the sheet) — or to a
+        # show+close pair. Same remedy as show_widget and fullscreen_widget: tool-vs-tool. It converges on the
+        # same canvas route as the tag ([[close:id]] / the canvas minimize), guards included.
+        "type": "function",
+        "function": {
+            "name": "close_widget",
+            "description": ("CIERRA una tarjeta del canvas, o la APARTA (mode=minimize: «quítala de en medio», "
+                            "«mientras trabajas»). No borra el widget (delete_widget) ni toca sus datos "
+                            "(widget_data). widget_id vacío = la de delante."),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "widget_id": {"type": "string", "description": "id o nombre; vacío = la de delante"},
+                    "mode": {"type": "string", "enum": ["close", "minimize"]},
+                },
+                "required": ["mode"],
+            },
+        },
+    },
+    {
         # V2-079: the operator's native side PANEL (chat wall + Processes + Crons, with tabs) is native UI
         # UNTOUCHABLE (not a canvas widget): opening it by voice needs its own tool (tool-vs-tool, like
         # show_widget/fullscreen_widget). The SYNONYMS live in the DESCRIPTION (the model maps them; no hardcoded
@@ -296,17 +318,12 @@ TOOLS: list[dict] = [
             # Condensed (V2-035): preserve "do not give a fact from memory and then search" (contradiction, V2-029)
             # and the marketplace→escalate boundary (bug from confusing fact lookup with store navigation).
             "description": (
-                "Busca en la web un dato factual puntual del mundo que cambia con el tiempo y no tienes (un precio, "
-                "el tiempo, un resultado, una noticia, una cotización). Vuelve en este turno y lo dices tú, sin "
-                "tarjeta ni navegador. DOS datos en una pregunta van en la MISMA `query`: una búsqueda, "
-                "respuesta completa. Solo trae TEXTO — nunca una foto: si piden VERLA es show_images. "
-                "NUNCA para datos PROPIOS del operador (su agenda, "
-                "mensajes, ficheros, conectores): eso es read_widget o tu ESTADO. NUNCA la hora ni la "
-                "fecha LOCALES (están en tu ESTADO) — pero la hora en OTRO sitio SÍ se busca, jamás la calcules a "
-                "ojo. Tampoco es web_search buscar ANUNCIOS/productos en venta o alquiler (search_listings), ni un "
-                "INFORME/comparativa a fondo, ni HACER algo en una web (reservar, tramitar, rellenar, comprar, "
-                "«hazlo tú»): esos dos últimos son escalate_to_slowbrain. Llámala YA en vez de dar el dato a ojo; "
-                "como mucho una frase corta de espera."
+                "Un dato factual del mundo que cambia y no tienes (precio, tiempo, resultado, noticia, cotización): "
+                "vuelve en este turno y lo dices tú, sin tarjeta. DOS datos en una pregunta: la MISMA `query`. Solo TEXTO "
+                "(VER una foto es show_images). NUNCA datos PROPIOS del operador (agenda, mensajes, ficheros: "
+                "read_widget/tu ESTADO) ni la hora/fecha LOCALES (ESTADO); la hora de OTRO sitio SÍ, nunca a ojo. "
+                "No es para ANUNCIOS en venta/alquiler (search_listings), ni un INFORME a fondo ni HACER algo en una "
+                "web (reservar, comprar…): eso es escalate_to_slowbrain. Llámala YA en vez de dar el dato a ojo."
             ),
             "parameters": {
                 "type": "object",
