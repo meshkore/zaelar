@@ -95,6 +95,14 @@
       },
       "safe": true
     },
+    "unread": {
+      "desc": "Deja SIN LEER en su app real (correo) el mensaje N de la lista, o el que está ABIERTO si no dices cuál — «déjalo como no leído», «márcalo sin leer»",
+      "payload": {
+        "n": "opcional: int (número en la lista)",
+        "messageId": "opcional"
+      },
+      "safe": true
+    },
     "readchat": {
       "desc": "Marca TODO el chat N como leído (en su app real) sin necesidad de abrirlo",
       "payload": {
@@ -177,13 +185,14 @@
       "singleton": true
     },
     "send_to": {
-      "desc": "Escribe a una PERSONA del directorio de contactos por su canal (el preferido si no dices cuál), ABRIENDO la conversación si no existía. Es lo que se usa para «mándale un mensaje a X», «escríbele a X», «contacta con X» — `reply` solo sirve para contestar a algo que YA llegó.",
+      "desc": "Escribe a una PERSONA del directorio de contactos por su canal (el preferido si no dices cuál), ABRIENDO la conversación si no existía. Es lo que se usa para «mándale un mensaje a X», «escríbele a X», «contacta con X» — `reply` solo sirve para contestar a algo que YA llegó. También REENVÍA lo que llegó: con `attach_from` los adjuntos de ese mensaje (una factura, un PDF) viajan en el correo — «mándale a X la factura de este correo».",
       "payload": {
         "contact": "string (el nombre tal y como lo dijo el operador; también vale una dirección de correo suelta)",
         "text": "string (lo que hay que decirle)",
         "channel": "opcional: whatsapp | telegram | email — sin esto va por su canal preferido",
         "subject": "opcional, solo email",
-        "objective": "opcional: si esto abre una gestión que habrá que seguir («organizar una reunión esta tarde»), para qué, con las palabras del operador"
+        "objective": "opcional: si esto abre una gestión que habrá que seguir («organizar una reunión esta tarde»), para qué, con las palabras del operador",
+        "attach_from": "opcional: el mensaje cuyos ADJUNTOS van en el envío — su `n` en la lista, {\"messageId\": …}, o {} para el correo que está ABIERTO (solo por email)"
       },
       "confirm": false,
       "usage": "Si no tienes su canal guardado, guárdalo antes con contactos/set_channel. Si no sabes a cuál de dos se refiere, PREGÚNTASELO: nunca escribas a alguien por parecido. NO se pide confirmación para esto (V2-692): quien la llama está ejecutando una orden que el operador acaba de dar, y su permiso ya viene con la orden — preguntarle otra vez es hacerle dar el mismo permiso dos veces. `reply` SÍ la sigue pidiendo: contestar a algo que llegó no es una orden suya."

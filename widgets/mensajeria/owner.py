@@ -333,6 +333,11 @@ class _Owner:
                 ingest.publish_mark_read(key)
         except Exception as e:
             logger.debug(f"mensajeria mark_read flush: {e}")
+        try:
+            for key in msgstore.take_pending_unread():
+                ingest.publish_mark_unread(key)
+        except Exception as e:
+            logger.debug(f"mensajeria mark_unread flush: {e}")
         # Same for replies to send (V2-051): that platform's connector, today email, sends them.
         try:
             for rep in msgstore.take_pending_reply():

@@ -493,6 +493,16 @@ def take_pending_reply(platform: str | None = None) -> list[dict]:
     return mine
 
 
+def take_pending_unread() -> list[dict]:
+    """Return (and REMOVE) the keys to put back to unread in their app."""
+    db = load()
+    mine = list(db.get("pending_unread", []) or [])
+    if mine:
+        db["pending_unread"] = []
+        save(db)
+    return mine
+
+
 def take_pending_send(platform: str | None = None) -> list[dict]:
     """Return (and REMOVE) pending sends to a PERSON (V2-683) — the sibling of `take_pending_reply` for the
     orders that OPEN a conversation instead of answering one. Each order:

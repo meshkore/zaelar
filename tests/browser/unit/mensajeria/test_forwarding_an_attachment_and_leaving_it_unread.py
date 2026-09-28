@@ -1,0 +1,108 @@
+"""Forwarding what arrived, and leaving the original unread (operator, 2026-09-28).
+
+The demo he asked for: open the unread Inworld AI receipt, take its invoice and send it to Andrew with a short
+note («we're already trying Inworld, please book the invoice») — and at the end leave the original UNREAD, never
+archived, because the same rehearsal runs again. None of it existed: `send_to` carried text only, the email
+connector's first message was a «Re:» with no files, and nothing could put a mail back to unread.
+
+No network anywhere below: the stores are isolated, SMTP and IMAP are doubles.
+"""
+from __future__ import annotations
+
+import email
+import os
+
+import pytest
+
+
+@pytest.fixture
+def box(tmp_path, monkeypatch):
+    from widgets import store
+    monkeypatch.setattr(store, "DATA_DIR", str(tmp_path))
+    monkeypatch.setattr(store, "_last_hash", {})
+    from widgets.contactos import data as cd
+    from widgets.mensajeria import data as md
+    cd.apply_action("add_contact", {"name": "Andrew", "email": "andrew@example.com"})
+    media = store.data_dir("mensajeria")
+    os.makedirs(media, exist_ok=True)
+    name = "eml_220440_0_Invoice-INW-263277.pdf"
+    with open(os.path.join(media, name), "wb") as fh:
+        fh.write(b"%PDF-1.4 invoice")
+    db = md.load_db()
+    db["items"] = [{"platform": "email", "chatId": "billing@inworld.ai", "messageId": "220440",
+                    "senderId": "billing@inworld.ai", "from": "Inworld AI", "subject": "Your receipt",
+                    "body": "Thanks", "media": [{"url": f"/widgets/mensajeria/asset/{name}", "type": "document",
+                                                  "name": name}]}]
+    store.save("mensajeria", db)
+    return md
+
+
+def test_the_invoice_of_the_message_on_the_list_travels_with_the_send(box):
+    r = box.apply_action("send_to", {"contact": "Andrew", "channel": "email", "subject": "Inworld invoice",
+                                     "text": "We're already testing Inworld — please book this invoice.",
+                                     "attach_from": 1})
+    assert r["ok"] and r["result"]["attachments"] == 1, r
+    order = box.load_db()["pending_send"][0]
+    assert order["to"] == "andrew@example.com"
+    assert [os.path.basename(a) for a in order["attachments"]] == ["eml_220440_0_Invoice-INW-263277.pdf"]
+
+
+def test_asked_for_and_absent_is_a_refusal_not_a_mail_without_its_file(box):
+    r = box.apply_action("send_to", {"contact": "Andrew", "channel": "email", "text": "here", "attach_from": 9})
+    assert r["ok"] is False and r["error"] == "no_attachment"
+    assert not box.load_db().get("pending_send")
+
+
+def test_the_original_goes_back_to_unread_in_his_app(box):
+    r = box.apply_action("unread", {"n": 1})
+    assert r["ok"], r
+    assert box.load_db()["pending_unread"] == [{"platform": "email", "chatId": "billing@inworld.ai",
+                                                 "messageId": "220440", "senderId": "billing@inworld.ai"}]
+
+
+def test_the_connector_sends_a_new_mail_with_the_file_and_takes_seen_off(tmp_path, monkeypatch):
+    from connectors.email import mailbox as mbx
+    sent = []
+
+    class _SMTP:
+        def send_message(self, msg):
+            sent.append(msg)
+
+        def quit(self):
+            pass
+
+    mb = mbx.Mailbox.__new__(mbx.Mailbox)
+    mb.address = "me@example.com"
+    monkeypatch.setattr(mbx.Mailbox, "_connect_smtp", lambda self: _SMTP())
+    monkeypatch.setattr(mbx.Mailbox, "_smtp_login", lambda self, s: None)
+    pdf = tmp_path / "eml_220440_0_Invoice-INW-263277.pdf"
+    pdf.write_bytes(b"%PDF-1.4 invoice")
+    ok, _ = mb.send_message("andrew@example.com", "Inworld invoice", "please book it", [str(pdf)])
+    assert ok
+    msg = email.message_from_string(sent[0].as_string())
+    assert msg["Subject"] == "Inworld invoice", "a forward is a NEW mail, never a «Re:»"
+    names = [p.get_filename() for p in msg.walk() if p.get_filename()]
+    assert names == ["Invoice-INW-263277.pdf"]
+    ok, why = mb.send_message("andrew@example.com", "x", "y", [str(tmp_path / "missing.pdf")])
+    assert not ok and "adjunto" in why
+
+    stored = []
+
+    class _IMAP:
+        def select(self, box):
+            pass
+
+        def uid(self, *a):
+            stored.append(a)
+
+        def logout(self):
+            pass
+    monkeypatch.setattr(mbx.Mailbox, "_imap", lambda self: _IMAP())
+    assert mb.mark_unseen(["220440"])
+    assert stored == [("store", "220440", "-FLAGS", "(\\Seen)")]
+
+
+def test_the_owner_flushes_unread_orders_to_the_bus():
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[4] / "widgets/mensajeria/owner.py").read_text("utf-8")
+    assert "msgstore.take_pending_unread()" in src and "ingest.publish_mark_unread(key)" in src

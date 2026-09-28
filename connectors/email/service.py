@@ -110,6 +110,7 @@ _shown: set[str] = set()         # direct path: messageIds already surfaced
 _mark_inbox = None               # v2: msg.mark_read subscription (created in THIS loop)
 _reply_inbox = None              # v2: msg.reply subscription (created in THIS loop)
 _send_inbox = None               # V2-683: msg.send — writing to somebody who has not written
+_unread_inbox = None             # msg.mark_unread — put a mail back to unread (the rehearsal rule)
 _archive_inbox = None            # V2-543: msg.archive subscription
 _trash_inbox = None              # V2-543: msg.trash subscription
 _history_inbox = None            # V2-546: msg.history subscription ("load previous")
@@ -234,6 +235,21 @@ async def _drain_reads(mb) -> None:
             store.requeue_pending_read(keys)
 
 
+async def _drain_unreads(mb) -> None:
+    """Put mails back to UNREAD in the real mailbox (msg.mark_unread). A failure re-queues, like mark-read."""
+    if _unread_inbox is None:
+        return
+    keys = _unread_inbox.drain()
+    if not keys:
+        return
+    uids = [k.get("messageId") for k in keys if k.get("messageId")]
+    ok = await asyncio.to_thread(mb.mark_unseen, uids)
+    if not ok:
+        logger.warning("Email mark-unread falló (reintento luego)")
+        for k in keys:
+            ingest.publish_mark_unread(k)
+
+
 async def _drain_replies(mb) -> None:
     """Drain pending replies (V2-051): send by SMTP with threading. v2 path only (widget owner enqueues in
     pending_reply → publishes msg.reply to the bus). Marks the original read after replying."""
@@ -306,9 +322,13 @@ async def _drain_sends(mb) -> None:
         # recipient or the words, it is that the message has a calendar object inside it that the other
         # person's client can accept. Anything without `ics` takes the byte-identical path it always took.
         ics = str(r.get("ics") or "")
+        atts = [str(a) for a in (r.get("attachments") or []) if str(a).strip()]
         if ics.strip():
             ok, info = await asyncio.to_thread(mb.send_invitation, to, subject, text, ics,
                                                str(r.get("ics_method") or "REQUEST"), None)
+        elif atts:
+            # files ride with the message: a NEW mail (not a «Re:») carrying them
+            ok, info = await asyncio.to_thread(mb.send_message, to, subject, text, atts)
         else:
             ok, info = await asyncio.to_thread(mb.send_reply, to, subject, text, "", None)
         if ok:
@@ -477,6 +497,7 @@ async def _drain_disposals(mb) -> None:
 
 async def _loop() -> None:
     global _mark_inbox, _reply_inbox, _send_inbox, _archive_inbox, _trash_inbox, _history_inbox, _fetch_inbox
+    global _unread_inbox
     _set_status("starting", None, "Conectando con el servidor de correo…")
     mb = config.mailbox()
     if mb is None:
@@ -497,6 +518,8 @@ async def _loop() -> None:
             _reply_inbox = ingest.ReplyInbox(PLATFORM)
         if _send_inbox is None:
             _send_inbox = ingest.SendInbox(PLATFORM)
+        if _unread_inbox is None:
+            _unread_inbox = ingest.MarkUnreadInbox(PLATFORM)
         if _archive_inbox is None:
             _archive_inbox = ingest.ArchiveInbox(PLATFORM)
         if _trash_inbox is None:
@@ -524,7 +547,7 @@ async def _loop() -> None:
             await _drain_disposals(mb)
         except Exception as e:
             logger.debug(f"Email disposal tick: {e}")
-        for what, fn in (("sends", _drain_sends), ("flags", _poll_external_flags),
+        for what, fn in (("sends", _drain_sends), ("unreads", _drain_unreads), ("flags", _poll_external_flags),
                          ("history", _drain_history), ("fetch", _drain_fetch)):
             try:
                 await fn(mb)
@@ -551,17 +574,17 @@ def start() -> None:
 
 
 async def stop() -> None:
-    global _task, _mark_inbox, _reply_inbox, _send_inbox, _archive_inbox, _trash_inbox
+    global _task, _mark_inbox, _reply_inbox, _send_inbox, _archive_inbox, _trash_inbox, _unread_inbox
     if _task:
         _task.cancel()
         _task = None
-    for inbox in (_mark_inbox, _reply_inbox, _send_inbox, _archive_inbox, _trash_inbox):
+    for inbox in (_mark_inbox, _reply_inbox, _send_inbox, _archive_inbox, _trash_inbox, _unread_inbox):
         try:
             if inbox is not None:
                 inbox.close()
         except Exception:
             pass
-    _mark_inbox = _reply_inbox = _send_inbox = _archive_inbox = _trash_inbox = None
+    _mark_inbox = _reply_inbox = _send_inbox = _archive_inbox = _trash_inbox = _unread_inbox = None
     _seen.clear()
     _set_unread_total(-1)
     _published.clear()

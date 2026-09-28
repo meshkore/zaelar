@@ -3352,6 +3352,9 @@ DOMAINS: list[dict] = [
         # V2-764 — «voy a por la serie Sherlock en torrent y te enseño el catálogo», and no tool: the turn's verdict
         # named the card, the action existed. One bounded pass asks the model for the call it promised — only the
         # named card, only a declared action — before the backstop spends a worker on it.
+        {"id": "2.107", "title": "Forwarding what arrived: send_to carries a message's attachments (a NEW mail, never «Re:»), and a mail goes back to unread in the real mailbox",
+            "ch": UNIT,
+            "paths": ["tests/browser/unit/mensajeria/test_forwarding_an_attachment_and_leaving_it_unread.py"]},
         {"id": "2.106", "title": "An act that LEAVES (≥ sensitive) runs only when the verdict does not name another action — a draft never becomes a sent email",
             "ch": UNIT,
             "paths": ["tests/voice/unit/test_an_act_that_leaves_needs_both_readers.py"]},

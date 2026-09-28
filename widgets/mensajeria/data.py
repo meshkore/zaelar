@@ -619,11 +619,38 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
         t = _outbound.resolve_target(payload)
         if not t.get("ok"):
             return t
+        # FORWARDING what arrived (the operator's demo, 2026-09-28: «open the Inworld receipt and send the invoice
+        # to Andrew»): `attach_from` points at a message on the card — its `n`, its `messageId`, or `{}` for the
+        # one open — and its files travel with this send. Asked for and absent is a refusal, never a mail that
+        # announces an attachment it does not carry.
+        atts = []
+        if "attach_from" in payload:
+            ref = payload.get("attach_from")
+            ref = ref if isinstance(ref, dict) else ({"n": ref} if str(ref or "").strip() else {})
+            atts = _outbound.attachments_of(db, ref)
+            if not atts:
+                return {"ok": False, "error": "no_attachment",
+                        "message": "Ese mensaje no tiene adjuntos que pueda enviar — ábrelo o dime cuál es."}
+            if t.get("platform") != "email":
+                return {"ok": False, "error": "attachments_need_email",
+                        "message": "Solo sé enviar adjuntos por correo — dime su dirección de email."}
         order = _outbound.enqueue(db, t, payload.get("text"), subject=str(payload.get("subject") or ""),
-                                  objective=str(payload.get("objective") or ""))
+                                  objective=str(payload.get("objective") or ""), attachments=atts)
         store.save(WIDGET_ID, db)
         return {"ok": True, "result": {"to": t.get("name"), "channel": t.get("platform"),
-                                       "ref": order.get("ref")}}
+                                       "ref": order.get("ref"), "attachments": len(atts)}}
+
+    if action == "unread":
+        # Back to UNREAD in his real app (email today): the message he points at, or the one open. The rule the
+        # operator set for rehearsals: never archive what the demo opened — leave it unread for the next run.
+        db = load_db()
+        m = _outbound._message_ref(db, payload)
+        if not m or not m.get("messageId"):
+            return {"ok": False, "error": "no_message", "message": "Dime qué mensaje dejo sin leer."}
+        db.setdefault("pending_unread", []).append(_key(m))
+        store.save(WIDGET_ID, db)
+        return {"ok": True, "result": {"unread": 1, "from": m.get("from") or m.get("who") or "",
+                                       "subject": m.get("subject") or ""}}
 
     # V2-611 — the EMAIL SIGNATURE, appended once by the connector at real send time (service.py's
     # `_drain_replies`), never here: this only writes the config the connector reads. `config/connectors.py`

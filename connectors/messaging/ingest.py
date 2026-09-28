@@ -19,6 +19,7 @@ import bus
 TOPIC_MSG = "connector.msg"
 TOPIC_STATUS = "connector.status"
 TOPIC_MARK_READ = "msg.mark_read"
+TOPIC_MARK_UNREAD = "msg.mark_unread"   # widget asks to put a message back to UNREAD in its app (email today)
 TOPIC_REPLY = "msg.reply"          # V2-051: widget asks to SEND a reply; that platform's connector sends it
 # V2-683 — writing to a PERSON who has not written to us. Deliberately NOT `msg.reply`: that one carries a
 # `chatId` that exists because somebody already wrote, and this one carries a `to` the connector still has to
@@ -86,6 +87,14 @@ def publish_mark_read(key: dict) -> None:
     its `MarkReadInbox` and marks it in its app."""
     try:
         bus.emit_sync(TOPIC_MARK_READ, dict(key or {}))
+    except Exception:
+        pass
+
+
+def publish_mark_unread(key: dict) -> None:
+    """Widget asks to mark-UNREAD: {platform, chatId, messageId, senderId}. Email drains it and takes \\Seen off."""
+    try:
+        bus.emit_sync(TOPIC_MARK_UNREAD, dict(key or {}))
     except Exception:
         pass
 
@@ -170,6 +179,11 @@ def publish_trash(key: dict) -> None:
 class MarkReadInbox(_PlatformInbox):
     """Per-platform subscription to `msg.mark_read`. Replaces `store.take_pending_read(platform)` in the v2 path."""
     _TOPIC = TOPIC_MARK_READ
+
+
+class MarkUnreadInbox(_PlatformInbox):
+    """Per-platform subscription to `msg.mark_unread`."""
+    _TOPIC = TOPIC_MARK_UNREAD
 
 
 class ArchiveInbox(_PlatformInbox):

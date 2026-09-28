@@ -731,6 +731,29 @@ class Mailbox:
         except Exception:
             return False
 
+    def mark_unseen(self, uids: list[str]) -> bool:
+        """Take \\Seen OFF the given UIDs — the mail reads as unread again in his own client. True if OK.
+
+        The operator's demo rule (2026-09-28): a mail the assistant opened for a rehearsal is left UNREAD at the
+        end, never archived, so the same rehearsal can run again."""
+        uids = [u for u in (uids or []) if u]
+        if not uids:
+            return True
+        try:
+            im = self._imap()
+            try:
+                im.select("INBOX")
+                for uid in uids:
+                    try:
+                        im.uid("store", uid, "-FLAGS", "(\\Seen)")
+                    except Exception:
+                        pass
+            finally:
+                im.logout()
+            return True
+        except Exception:
+            return False
+
     # -- SMTP ------------------------------------------------------------------------------------------------------
     def _connect_smtp(self) -> smtplib.SMTP:
         ctx = ssl.create_default_context()
@@ -798,6 +821,53 @@ class Mailbox:
         if cc_list:
             msg["Cc"] = ", ".join(cc_list)
         msg["Subject"] = subject or "Invitación"
+        msg["Date"] = formatdate(localtime=True)
+        domain = self.address.split("@")[-1] if "@" in self.address else "zaelar.local"
+        mid = f"<zaelar-{uuid.uuid4().hex[:12]}@{domain}>"
+        msg["Message-ID"] = mid
+        try:
+            s = self._connect_smtp()
+            try:
+                self._smtp_login(s)
+                s.send_message(msg)
+            finally:
+                try:
+                    s.quit()
+                except Exception:
+                    s.close()
+            return True, mid
+        except Exception as e:
+            return False, str(e)
+
+    def send_message(self, to_addr: str, subject: str, body: str, attachments: list | None = None) -> tuple[bool, str]:
+        """A NEW message (no «Re:», no thread) carrying files — what forwarding an invoice to somebody is.
+
+        `attachments` are local paths; each travels with its own filename and a type guessed from it. A path that
+        cannot be read fails the send rather than dropping the file in silence: a mail announcing an invoice
+        that arrives without it is the failure this exists to avoid. Returns (ok, message_id|error)."""
+        import mimetypes
+        import os
+        from email.mime.application import MIMEApplication
+        to_addr = (to_addr or "").strip()
+        if not to_addr:
+            return False, "sin destinatario"
+        msg = MIMEMultipart("mixed")
+        msg.attach(MIMEText(body or "", "plain", "utf-8"))
+        for path in attachments or []:
+            try:
+                with open(path, "rb") as fh:
+                    data = fh.read()
+            except OSError as e:
+                return False, f"no puedo leer el adjunto {os.path.basename(str(path))}: {e}"
+            name = os.path.basename(str(path))
+            name = name.split("_", 3)[-1] if name.startswith("eml_") and name.count("_") >= 3 else name
+            ctype = mimetypes.guess_type(name)[0] or "application/octet-stream"
+            part = MIMEApplication(data, _subtype=ctype.split("/", 1)[1])
+            part.add_header("Content-Disposition", "attachment", filename=name)
+            msg.attach(part)
+        msg["From"] = self.address
+        msg["To"] = to_addr
+        msg["Subject"] = subject or ""
         msg["Date"] = formatdate(localtime=True)
         domain = self.address.split("@")[-1] if "@" in self.address else "zaelar.local"
         mid = f"<zaelar-{uuid.uuid4().hex[:12]}@{domain}>"

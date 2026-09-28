@@ -205,8 +205,48 @@ def new_ref() -> str:
     return f"s{int(time.time() * 1000) % 10_000_000}-{secrets.token_urlsafe(6)}"
 
 
+def _message_ref(db: dict, ref: dict) -> dict | None:
+    """ONE message the operator points at: `n` of the list on screen, a `messageId`, or — with neither — the
+    last message received in the conversation that is OPEN (what «this email» means). Its item or thread row."""
+    from . import data as _d, thread as _th
+    ref = ref if isinstance(ref, dict) else {}
+    n, mid = ref.get("n"), str(ref.get("messageId") or "").strip()
+    if n is not None or mid:
+        for it in _d._visible_items(db):
+            if (n is not None and str(it.get("n")) == str(n)) or (mid and str(it.get("messageId")) == mid):
+                return it
+        if not mid:
+            return None
+    chat = db.get("active_chat")
+    if not chat:
+        return None
+    msgs = [m for m in _th.window(db, chat.get("platform"), chat.get("chatId")) if m.get("dir") == "in"]
+    if mid:
+        msgs = [m for m in msgs if str(m.get("id")) == mid]
+    if not msgs:
+        return None
+    m = msgs[-1]
+    return {**m, "platform": chat.get("platform"), "chatId": chat.get("chatId"), "messageId": m.get("id")}
+
+
+def attachments_of(db: dict, ref: dict) -> list[str]:
+    """The files of the message he points at, as local paths inside this widget's own data dir — the only
+    place they can be (the connector saved them there on ingestion, and the asset route serves nothing else)."""
+    import os
+    from .. import store
+    m = _message_ref(db, ref)
+    base = store.data_dir("mensajeria")
+    out = []
+    for med in (m or {}).get("media") or []:
+        name = os.path.basename(str((med or {}).get("name") or ""))
+        path = os.path.join(base, name)
+        if name and os.path.isfile(path):
+            out.append(path)
+    return out
+
+
 def enqueue(db: dict, target: dict, text: str, *, subject: str = "", objective: str = "",
-            ref: str = "") -> dict:
+            ref: str = "", attachments: list | None = None) -> dict:
     """Put ONE send in the store's outbound queue. The owner flushes it to the bus, exactly as it does with a
     reply — this function never touches the network and never publishes."""
     order = {
@@ -223,5 +263,7 @@ def enqueue(db: dict, target: dict, text: str, *, subject: str = "", objective: 
         order["subject"] = subject
     if objective:
         order["objective"] = objective
+    if attachments:
+        order["attachments"] = [str(a) for a in attachments]
     db.setdefault("pending_send", []).append(order)
     return order
