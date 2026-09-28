@@ -2013,11 +2013,27 @@ class NucleoLLMStream(llm.LLMStream):
             # («…your day.Tomorrow, Tuesday»).
             _said = "".join(spoken).strip()
             if _said:
-                user_text = (f"{user_text}\n\n(En este turno ya le has dicho: «{_said[:400]}». Continúa desde ahí: "
-                             f"no lo repitas ni lo contradigas.)")
+                user_text = (f"{user_text}\n\n(En este turno ya le has dicho: «{_said[:400]}». Continúa desde ahí, "
+                             f"en SU idioma: no lo repitas ni lo contradigas. Si eso YA contesta lo que preguntó, "
+                             f"responde exactamente SKIP y nada más.)")
             _lead = [" " if _said else ""]
+            # SKIP is held back until it can be told apart from an answer — a model asked for an EMPTY reply
+            # says «you're all set» instead, so the silence is a word we recognise and never speak.
+            _held = [""] if _said else None
 
             def _out(piece: str) -> None:
+                if _held is not None:
+                    if _held[0] is None:
+                        return                                   # decided: SKIP — nothing of this pass is spoken
+                    if _held[0] is not False:
+                        _held[0] += piece or ""
+                        head = _held[0].strip().upper()
+                        if head.startswith("SKIP"):
+                            _held[0] = None
+                            return
+                        if len(head) < 4 and "SKIP".startswith(head):
+                            return                               # still could be SKIP: keep holding
+                        piece, _held[0] = _held[0], False
                 if piece and _lead[0]:
                     piece, _lead[0] = _lead[0] + piece, ""
                 send(piece)
@@ -2600,6 +2616,14 @@ class NucleoLLMStream(llm.LLMStream):
                                         emit=emit, present=_cvis.present, apply_widget_data=_apply_widget_data,
                                         window=list(brain._window)):
                 data_done["v"] = True
+        # A QUESTION answered by a lens alone gets its answer read from that card (C1/Z1, `question_left_to_a_lens`).
+        if read_req["v"] is None and escalate_req["v"] is None and search_req["v"] is None and not clarify["msg"]:
+            from nucleo.flash import card_commission as _cardc3
+            _qlens = _cardc3.question_left_to_a_lens(_brief, ops=list(_data_ops_hechas), acted=acted)
+            if _qlens:
+                read_req["v"] = {"widget_id": _qlens, "question": _op_text}
+                emit("brain", "📖 una pregunta contestada solo con una vista — leo la tarjeta y contesto",
+                     text=f"{_qlens} ← {_op_text[:100]}", role="system", extra={"cat": "flash", "widget": _qlens})
         if (_no_tool and spoken_text
                 and (_router.promises_action(spoken_text) or _direct_action.verdict_escalates(_brief, answered=not _router.promises_action(spoken_text))
                      or _direct_action.verdict_shows(_brief))

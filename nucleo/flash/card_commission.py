@@ -167,3 +167,29 @@ async def after_show(acted: dict, *, brief, operator_text: str, spoken_text: str
         return True
     except Exception:  # noqa: BLE001
         return False
+
+
+def question_left_to_a_lens(brief, *, ops: list, acted: dict) -> str:
+    """The card to READ when a QUESTION was answered by a lens alone — "" otherwise.
+
+    Demo pass 2026-09-28: «johnny what do i have tomorrow» → `agenda:show_day` and silence (C1); «what's on my plate
+    tomorrow» → «Let me pull your day up.» + the same view, and no answer (Z1). A view is where he LOOKS; a question
+    wants the answer SAID. The read's second pass is told what was already said and stays silent when that already
+    answers (`speak`), so this needs no reading of the reply's wording — only the verdict («question») and the fact
+    that everything the turn did was a lens."""
+    try:
+        from nucleo.flash import data_ops as _do, turn_brief as _tb
+        kind, info = _tb.read(brief, _tb.REQUEST_KEY, "")
+        if info is None or str(kind or "") != "question":
+            return ""
+        ops = [o for o in (ops or []) if isinstance(o, dict)]
+        if any(not _do.is_view_op(str(o.get("widget_id") or ""), str(o.get("action") or "")) for o in ops):
+            return ""
+        wid = str((ops[-1].get("widget_id") if ops else acted.get("widget_id")) or "").strip()
+        if not wid:
+            return ""
+        from nucleo.flash import widget_read as _wr
+        return wid if _wr.can_answer(wid.split("::")[0]) or _wr.read(wid) else ""
+    except Exception:  # noqa: BLE001
+        return ""
+

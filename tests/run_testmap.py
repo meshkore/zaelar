@@ -3352,6 +3352,9 @@ DOMAINS: list[dict] = [
         # V2-764 — «voy a por la serie Sherlock en torrent y te enseño el catálogo», and no tool: the turn's verdict
         # named the card, the action existed. One bounded pass asks the model for the call it promised — only the
         # named card, only a declared action — before the backstop spends a worker on it.
+        {"id": "2.104", "title": "A QUESTION answered by a view alone gets its answer read from that card (and SKIP when already said)",
+            "ch": UNIT,
+            "paths": ["tests/voice/unit/test_a_question_answered_by_a_view_gets_its_answer.py"]},
         {"id": "2.103", "title": "A card INSTANCE (results::<sheet>) is read as its own sheet — never an empty read",
             "ch": UNIT,
             "paths": ["tests/browser/unit/widgets/test_an_instance_is_read_as_its_own_sheet.py"]},
