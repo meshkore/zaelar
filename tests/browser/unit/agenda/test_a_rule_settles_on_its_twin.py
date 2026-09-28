@@ -69,3 +69,14 @@ def test_a_stay_of_several_days_is_declared_so_the_model_can_ask_for_it(ag):
     assert len(_rows(ag, "Anna vacation")) == 1
     days = {m["date"] for m in ag.view_data()["meetings"] if m["title"] == "Anna vacation"}
     assert {"2026-12-20", "2027-01-01", "2027-01-04"} <= days and "2027-01-05" not in days, sorted(days)
+
+
+def test_finding_a_free_slot_is_declared_a_question_not_a_booking(ag):
+    """Demo passes 2026-09-28 (full12, full13 C2): «find me a free 45 minutes tomorrow afternoon to talk with ethan»
+    booked «Call with Ethan» on his real calendar; the next order («ok book it, call it catch up with ethan») then
+    booked a SECOND one at the same hour and C4 had to ask which to move. The only description of `add_meeting`
+    the model reads said what it adds, never when it must not."""
+    import json
+    from pathlib import Path
+    desc = json.loads((Path(ag.__file__).parent / "manifest.json").read_text("utf-8"))["actions"]["add_meeting"]["desc"]
+    assert "SOLO cuando él pide" in desc and "es una PREGUNTA" in desc
