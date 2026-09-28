@@ -3352,6 +3352,13 @@ DOMAINS: list[dict] = [
         # V2-764 — «voy a por la serie Sherlock en torrent y te enseño el catálogo», and no tool: the turn's verdict
         # named the card, the action existed. One bounded pass asks the model for the call it promised — only the
         # named card, only a declared action — before the backstop spends a worker on it.
+        {"id": "2.96", "title": "«Show me a few more of those» ADDS pictures to the viewer instead of reloading the same ones",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/flash/test_more_of_those_adds_pictures.py"]},
+        {"id": "2.95", "title": "A data-op the card refused gets ONE corrected re-call in the same turn — same action, "
+                                "same card, the refusal in hand",
+            "ch": UNIT,
+            "paths": ["tests/voice/unit/test_a_refused_call_is_corrected_in_the_same_turn.py"]},
         {"id": "2.94", "title": "The web-search answer knows what this turn put on screen — no «I can't display a chart» "
                                 "over the chart it just opened",
             "ch": UNIT,

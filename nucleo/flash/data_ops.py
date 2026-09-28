@@ -166,6 +166,37 @@ async def report_failure(wid: str, action: str, res: dict) -> bool:
     return told
 
 
+async def corrected_retry(wid: str, action: str, payload: dict, res, text: str, dispatch) -> tuple[dict, dict] | None:
+    """ONE corrected re-call of a FAST data-op the card refused, while the turn is still the operator's.
+
+    `act_repair.call_for_refusal` owns the why and the bounds (same action, same card, a different payload);
+    this is the seam both channels share — the voice path through `dispatch_and_report`, the text channel
+    through `widget_data_turn.execute` — so the rule is not installed in one of two branches. `dispatch` is the
+    channel's own way to run a data-op. Returns `(payload, result)` of the corrected call, or None."""
+    if not isinstance(res, dict) or _receipt.is_pool_timeout(res) or not _receipt.failed(res):
+        return None
+    why = str(res.get("message") or res.get("error") or "").strip()
+    if not why or not (text or "").strip():
+        return None
+    try:
+        from nucleo.flash import act_repair as _ar
+        fix = await _ar.call_for_refusal(text, wid, action, payload or {}, why)
+        if not fix:
+            return None
+        res2 = await dispatch(wid, action, fix["payload"])
+        res2 = res2 if isinstance(res2, dict) else {}
+        try:
+            from voice.observer import emit
+            emit("widget", "🔁 data-op rechazada → corregida en el mismo turno", text=why[:160],
+                 extra={"id": wid, "action": action, "refused": payload or {}, "payload": fix["payload"],
+                        "ok": not _receipt.failed(res2)})
+        except Exception:  # noqa: BLE001
+            pass
+        return fix["payload"], res2
+    except Exception:  # noqa: BLE001
+        return None
+
+
 async def dispatch_and_report(wid: str, action_name: str, payload: dict, *, seal=None, receipt: bool = False,
                               text: str = "") -> None:
     """Dispatch a widget data-op AND announce it if it failed (V2-603).
@@ -191,11 +222,14 @@ async def dispatch_and_report(wid: str, action_name: str, payload: dict, *, seal
     # row goes back out with the call its own widget named. See `write_outcome.py` for the measured case.
     if (_prev := _outcome.superseded(wid, action_name, text)):
         await _revert(wid, _prev)
+    async def _run(w, a, p):
+        return await widgets.dispatch_tag("widget.data", {"id": w, "data": {"action": a, "payload": p or {}}})
     try:
-        res = await widgets.dispatch_tag(
-            "widget.data", {"id": wid, "data": {"action": action_name, "payload": payload or {}}})
+        res = await _run(wid, action_name, payload)
     except Exception:
         return
+    if not receipt and (_fixed := await corrected_retry(wid, action_name, payload, res, text, _run)):
+        payload, res = _fixed
     _outcome.remember(wid, action_name, text, res)
     await _report_ignored(wid, action_name, res)
     if callable(seal):

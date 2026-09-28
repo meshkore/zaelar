@@ -369,6 +369,7 @@ class NucleoLLMStream(llm.LLMStream):
         # `brain` because `_close_flow_now` only receives that object — same ownership (and same overlapping-turn
         # caveat under preemptive generation) as `_acc_trace_id`/`_escalated_trace_id` right next to it.
         brain._turn_tools = set()
+        brain._turn_calls = []   # the model's raw calls this turn, for the forensic capture (V2-776 F)
 
         # T136 — interrupción DURA: "cierra los widgets / para / silencio" se atiende SIEMPRE (salta el gate)
         # y se ejecuta de forma DETERMINISTA, nunca enterrada en un turno gigante. Fue el bug real (el `close`
@@ -1455,6 +1456,7 @@ class NucleoLLMStream(llm.LLMStream):
             # so it must not weigh on the end-of-turn flow-merge decision (V2-123, `_merge_target`).
             try:
                 brain._turn_tools.add(name)
+                brain._turn_calls.append({"name": name, "args": dict(args or {})})
             except Exception:
                 pass
 
@@ -3357,7 +3359,11 @@ class NucleoLLMStream(llm.LLMStream):
                           "searched": bool(search_req["v"] is not None), "widget_acted": acted["widget"],
                           "worker_acted": worker_acted["v"], "data_done": data_done["v"],
                           "confirm_opened": bool(confirm_state.get("opened")), "clarify": bool(clarify["msg"]),
-                          "shown_ids": sorted(_shown_ids), "reply": (spoken_text or "")[:400]},
+                          "shown_ids": sorted(_shown_ids), "reply": (spoken_text or "")[:400],
+                          # WHAT the model asked for, verbatim — a call a guard ate or a completion replaced is
+                          # otherwise invisible (demo pass 2026-09-28, S3: `results:detail {}` with no trace of
+                          # whether the model or the verdict wrote the empty payload).
+                          "model_calls": list(getattr(brain, "_turn_calls", None) or [])[:12]},
                       extra={"turn_ms": _reply_extra.get("total_ms")})
         except Exception:
             pass

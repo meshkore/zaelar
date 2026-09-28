@@ -1240,6 +1240,7 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
         from voice import observer as _obs
         _obs.turn_detail(system=system, window=dialog.prune_window(sess.window)[-_WINDOW_MAX:], tools=_turn_tools,
                          user=text, decision={"action": action, "tool_calls": [t["name"] for t in tool_calls],
+                                              "model_calls": [{"name": t.get("name"), "args": t.get("args")} for t in tool_calls][:12],
                                               "tags": [t["action"] for t in tags], "reply": spoken or ""})
     except Exception:
         pass

@@ -184,6 +184,73 @@ async def call_or_read_for_commission(operator_text: str, commission: str, widge
         return None
 
 
+_SYS_REFUSAL = (
+    "Eres el cerebro de un asistente de voz. Para cumplir lo que dijo el operador llamaste a `widget_data` con la "
+    "acción «{action}» sobre la tarjeta «{wid}» y el payload {payload}, y la tarjeta la RECHAZÓ: «{why}». Corrige "
+    "esa llamada: la MISMA acción sobre la MISMA tarjeta, con el dato que falta o que no encajaba sacado de sus "
+    "palabras y de lo que hay en la tarjeta. Una referencia por cualidad («la mejor oferta», «el más barato», «la "
+    "de mañana») se resuelve LEYENDO la tarjeta y pasando el título o el número de ese elemento; una hora relativa "
+    "se calcula sobre lo que hay. Si con eso no se puede saber, no llames a nada."
+    "\n\nAcciones de «{wid}»:\n{actions}{card}")
+
+
+def _same_card(asked: str, wid: str) -> bool:
+    a, w = (asked or "").strip().lower(), (wid or "").strip().lower()
+    return bool(a) and (a == w or a.split("::")[0] == w.split("::")[0])
+
+
+async def call_for_refusal(operator_text: str, widget_id: str, action: str, payload: dict, why: str,
+                           spec=None) -> dict | None:
+    """The corrected payload for a call the card REFUSED, or None. Never raises.
+
+    Demo pass 2026-09-28: «open the one that's the best deal» reached `results:detail` with nothing the sheet
+    could match (its badge says «Best value»), and «move it half an hour later» reached `move_meeting` with field
+    names it did not read. Both refusals were true and both went to a note for the NEXT turn, so the operator got
+    silence and then, one order later, an apology stapled to an unrelated answer. The refusal is exactly what the
+    model needs to get it right, and it arrives while the turn is still his: one small pass, with the reason and
+    the card in front, allowed to re-issue ONLY the same action on the same card — so it passes the same gate the
+    refused call already passed, and it can change what the call says, never what it does."""
+    try:
+        wid = str(widget_id or "").strip().lower()
+        action = str(action or "").strip()
+        if not wid or not action or not (operator_text or "").strip():
+            return None
+        from widgets import runtime as _rt
+        manifest = _rt.get(wid.split("::")[0]) or _rt.get(wid) or {}
+        tool = _widget_data_tool()
+        if action not in (manifest.get("actions") or {}) or not tool:
+            return None
+        digest = ""
+        try:
+            from nucleo.flash import widget_read as _wr
+            digest = str(_wr.read(wid) or "").strip()[:1500]
+        except Exception:  # noqa: BLE001
+            digest = ""
+        card = _CARD.format(wid=wid, digest=digest) if digest else ""
+        got: list[tuple[str, dict]] = []
+        from nucleo.flash.fast_client import FastClient
+        await FastClient().complete(
+            [{"role": "system", "content": _SYS_REFUSAL.format(
+                wid=wid, action=action, payload=json.dumps(payload or {}, ensure_ascii=False)[:300],
+                why=str(why or "")[:300], actions=_actions_block(manifest), card=card)},
+             {"role": "user", "content": f"Operador: «{operator_text.strip()[:400]}»"}],
+            spec=spec, max_tokens=300, tools=[tool], no_thinking=True,
+            on_tool_call=lambda name, args: got.append((name, args if isinstance(args, dict) else {})))
+        for name, args in got:
+            if name != "widget_data" or not _same_card(str(args.get("widget_id") or ""), wid):
+                continue
+            if str(args.get("action") or "").strip() != action:
+                _note(wid, "la corrección cambiaba de acción", action=str(args.get("action") or "")[:40])
+                continue
+            fixed = args.get("payload") if isinstance(args.get("payload"), dict) else {}
+            if fixed and fixed != (payload or {}):
+                return {"widget_id": wid, "action": action, "payload": fixed}
+        _note(wid, "el rechazo no tiene corrección", action=action)
+        return None
+    except Exception:  # noqa: BLE001 — a repair must never take down a live turn
+        return None
+
+
 async def probe_call_for_promise(operator_text: str, reply: str, spec=None, *, wait_s: float = 3.0) -> dict | None:
     """The text channel's mirror: it has no brief in flight, so it fires one and waits for it (bounded) —
     only on the turn that already promised and called nothing. Same verdict, same repair, never raises."""
