@@ -475,16 +475,10 @@ def test_the_negation_guard_hears_english_written_out():
 
 
 def test_the_client_lane_carries_the_same_rule():
-    """V2-252/V2-555: this decision genuinely exists twice, and the client half executes with no server."""
+    """V2-252/V2-555 said this decision existed twice; V2-776 F removed the client copy instead of keeping the two
+    in step: the client lane closes nothing, so the negation/clause rule lives only on the engine."""
     src = open("frontend/app/services/voiceCommands.js", encoding="utf-8").read()
-    # Anchor on the CALL SITE, never on the name — `closesTheWholeCanvas(n)` also matches the function's own
-    # definition, so a disarm that reverted the call stayed green (the V2-571 lesson, paid again here).
-    assert "if (closesTheWholeCanvas(n)) {" in src, (
-        "the close-all lane still asks its two questions of the whole turn")
-    assert "ALL_RE.test(n) || quantifiesTheCanvas(n)" not in src, (
-        "the whole-turn test is back in the close-all branch")
-    assert "NO_CLOSE_RE" in src, "the client lane had no negation check at all"
-    assert "CLAUSE_SPLIT_RE" in src
+    assert "closeAll(" not in src and "desktop.close(" not in src, "the client lane closes again"
 
 
 # ── L · A third party answers in the language we ASK in (V2-678) ─────────────────────────────────────────

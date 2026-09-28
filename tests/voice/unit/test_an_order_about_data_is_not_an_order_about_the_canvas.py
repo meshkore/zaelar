@@ -98,18 +98,8 @@ def test_a_stop_order_is_untouched():
 
 
 # ── the client carries the SAME rule (parallel implementation, V2-252/V2-555) ─────────────────────────────
-def test_the_canvas_fast_lane_mirrors_the_quantifier_rule():
+def test_the_canvas_fast_lane_no_longer_closes_anything():
+    """V2-776 F: the client's close branch — the third copy of this rule — is gone. Closing belongs to the engine,
+    where the quantifier rule lives once (`attention._quantifies_the_canvas`)."""
     src = open(os.path.join(ENG, "frontend", "app", "services", "voiceCommands.js"), encoding="utf-8").read()
-    assert "quantifiesTheCanvas(n)" in src, "the client fast lane must consult the same rule"
-    assert "const ALL_RE   = /\\b(widgets|tarjetas|cards|" in src, \
-        "the bare quantifiers must be OUT of the card-noun list — that is what fired on «todas esas entradas»"
-    # V2-678 renegotiated the SHAPE, deliberately and without weakening the rule: the decision moved into
-    # `closesTheWholeCanvas`, which still asks this question and now also requires the close verb and the
-    # quantifier to share a CLAUSE and vetoes a negation. So the assertion moves from the old call shape to
-    # the PROPERTY — the quantifier rule is consulted inside the function the closeAll branch calls, and
-    # nowhere else decides it. Pinning the shape is what made this test red on a strictly stronger guard.
-    i = src.index("function closesTheWholeCanvas(n)")
-    body = src[i:i + 600]
-    assert "quantifiesTheCanvas(c)" in body, "the canvas decision must consult the quantifier rule"
-    j = src.index("if (closesTheWholeCanvas(n)) {")
-    assert "desktop.closeAll()" in src[j:j + 120], "closeAll must be reached only through that decision"
+    assert "closeAll(" not in src and "desktop.close(" not in src and "desktop.move(" not in src

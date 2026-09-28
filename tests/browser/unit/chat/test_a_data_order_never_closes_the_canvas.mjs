@@ -60,7 +60,9 @@ for (const txt of ["cierra todos los widgets",
                    "limpia la pantalla",
                    "close everything"]) {
   const calls = await said(txt);
-  assert.ok(calls.includes("closeAll"), "an order about the CARDS must still close them all: " + txt);
+  // V2-776 F: the client no longer closes AT ALL — even an order about the cards goes to the engine, which
+  // closes them from its action map / verdict. Two lanes on one order closed the next card by mistake.
+  assert.ok(!calls.some(c => c.startsWith("close")), "the client lane never closes — the engine does: " + txt);
 }
 
 // ── the counterweights V2-600/V2-647 already bought must not have moved ─────────────────────────────────

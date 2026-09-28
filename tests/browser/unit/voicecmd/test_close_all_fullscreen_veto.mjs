@@ -44,19 +44,14 @@ for (const heard of ["Cierra la pantalla completa.", "Cierra la pantalla complet
     `«${heard}» is a screen-state order and closed: ${d.calls}`);
 }
 
-// Counterweight: a REAL close-all still closes — the veto must not eat the order it sits next to.
-{
+// V2-776 F (2026-09-28): the client lane no longer closes at all — a real close-all goes to the engine (the
+// action map's exact seeds «cierra la pantalla» / «clear the screen», then the brain). Two lanes on one order
+// closed the NEXT card by mistake («ok close that» → Markets here, the agenda there).
+for (const heard of ["Cierra todos los widgets.", "Cierra la pantalla.", "close that"]) {
   const d = fakeDesktop();
   const mod = await freshMod();
-  await mod.handleWidgetVoice(d, "Cierra todos los widgets.", true);
-  assert.deepEqual(d.calls, ["closeAll"], `close-all lost: ${d.calls}`);
-}
-// …and «cierra la pantalla» WITHOUT the fullscreen word keeps its historical meaning (the whole canvas).
-{
-  const d = fakeDesktop();
-  const mod = await freshMod();
-  await mod.handleWidgetVoice(d, "Cierra la pantalla.", true);
-  assert.deepEqual(d.calls, ["closeAll"], `bare «cierra la pantalla» changed meaning: ${d.calls}`);
+  await mod.handleWidgetVoice(d, heard, true);
+  assert.deepEqual(d.calls.filter(c => c.startsWith("close")), [], `«${heard}» closed on the client: ${d.calls}`);
 }
 
 console.log("close-all fullscreen veto: OK");
