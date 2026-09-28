@@ -199,7 +199,7 @@ async def corrected_retry(wid: str, action: str, payload: dict, res, text: str, 
 
 
 async def dispatch_and_report(wid: str, action_name: str, payload: dict, *, seal=None, receipt: bool = False,
-                              text: str = "", said=None) -> None:
+                              text: str = "", said=None):
     """Dispatch a widget data-op AND announce it if it failed (V2-603).
 
     The dispatch itself stays detached — the turn must never wait on a widget's network call — but the RESULT
@@ -253,11 +253,26 @@ async def dispatch_and_report(wid: str, action_name: str, payload: dict, *, seal
             await _receipt.settle(wid, action_name, res, before=before)
         except Exception:
             pass
-        return
+        return res
     try:
         await report_failure(wid, action_name, res)
     except Exception:
         pass
+    return res          # the RESULT, for a turn that owes words and waits on it (`answer_of`)
+
+
+#: The keys every result carries — an ack, not an answer.
+_ACK_KEYS = frozenset({"ok", "queued", "id", "error", "message", "widget", "action"})
+
+
+def answer_of(res) -> dict:
+    """What a data-op RETURNED beyond its ack — the matches a `search_archive` found, a `peek`'s messages —
+    or {} when it only acknowledged. Actions that ANSWER put their data in the result (`answer_action`); the
+    voice path dispatches detached, so until now that data reached nobody (demo pass 2026-09-28: «check my
+    email, did inworld send me something?» found the Inworld receipt and the turn said «let me check»)."""
+    if not isinstance(res, dict) or _receipt.failed(res):
+        return {}
+    return {k: v for k, v in res.items() if k not in _ACK_KEYS and v not in (None, "", [], {})}
 
 
 async def _revert(wid: str, prev: dict) -> None:

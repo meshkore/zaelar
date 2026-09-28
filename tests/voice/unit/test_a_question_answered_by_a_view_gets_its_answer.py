@@ -65,3 +65,19 @@ def test_a_read_of_a_card_this_turn_changed_waits_for_the_change():
     i = prov.index("_pending = [t for w, t in _turn_op_tasks")
     assert i < prov.index("await speak(await _wread.prepare(read_req", i)
     assert "await asyncio.wait(_pending, timeout=6.0)" in prov
+
+
+def test_a_data_op_that_answers_is_the_answer():
+    """Demo pass 2026-09-28 (E block, isolated): «check my email, did inworld send me something?» — the model called
+    search_archive, it found the Inworld receipt, and the turn said «Let me check your inbox»: the voice path
+    dispatches detached and only ever read a result that FAILED. A turn that owes words waits for its ops (bounded)
+    and answers with what they returned."""
+    from nucleo.flash import data_ops as d
+    assert d.answer_of({"ok": True, "queued": True, "id": "mensajeria", "matches": [{"from": "Inworld AI"}]}) == \
+        {"matches": [{"from": "Inworld AI"}]}
+    assert d.answer_of({"ok": True, "queued": True, "id": "mensajeria"}) == {}
+    assert d.answer_of({"ok": False, "error": "x", "matches": [1]}) == {}
+    prov = (ROOT / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
+    assert "_data_ops.answer_of(_t.result())" in prov and "op answer compose" in prov
+    src = (ROOT / "nucleo/flash/data_ops.py").read_text("utf-8")
+    assert "return res          # the RESULT" in src

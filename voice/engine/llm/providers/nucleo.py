@@ -2646,8 +2646,35 @@ class NucleoLLMStream(llm.LLMStream):
                                         emit=emit, present=_cvis.present, apply_widget_data=_apply_widget_data,
                                         window=list(brain._window)):
                 data_done["v"] = True
+        # An order that owes WORDS whose data-op RETURNED data (search_archive, peek…): the answer is that data
+        # (`data_ops.answer_of`) — composed with it as the only source, after the op lands (bounded wait).
+        _op_answer = None
+        if read_req["v"] is None and escalate_req["v"] is None and search_req["v"] is None and _turn_op_tasks:
+            from nucleo.flash import turn_brief as _tbw
+            _wk, _wi = _tbw.read(_brief, _tbw.WORDS_KEY, "")
+            _rk, _ri = _tbw.read(_brief, _tbw.REQUEST_KEY, "")
+            if (_wi is not None and str(_wk) == "tell") or (_ri is not None and str(_rk) == "question"):
+                _pend = [t for _w, t in _turn_op_tasks if not t.done()]
+                if _pend:
+                    await asyncio.wait(_pend, timeout=6.0)
+                for _w, _t in _turn_op_tasks:
+                    try:
+                        _ans = _data_ops.answer_of(_t.result()) if _t.done() and not _t.cancelled() else {}
+                    except Exception:  # noqa: BLE001
+                        _ans = {}
+                    if _ans:
+                        _op_answer = (_w, _ans)
         # A QUESTION answered by a lens alone gets its answer read from that card (C1/Z1, `question_left_to_a_lens`).
-        if read_req["v"] is None and escalate_req["v"] is None and search_req["v"] is None and not clarify["msg"]:
+        if _op_answer is not None:
+            import json as _json_oa
+            from nucleo.flash import widget_read as _wread_oa
+            emit("brain", "📖 la data-op DEVOLVIÓ datos y el turno debe palabras — contesto con ellos",
+                 text=f"{_op_answer[0]} ← {_op_text[:100]}", role="system", extra={"cat": "flash", "widget": _op_answer[0]})
+            await speak(_wread_oa.compose_system(_prompt_mod._lang_lock(), _op_text, _op_answer[0], _op_text,
+                                                 _json_oa.dumps(_op_answer[1], ensure_ascii=False, default=str)[:3500],
+                                                 answered=True), _op_text, 220, "op answer compose")
+            spoken_text = "".join(spoken).strip()
+        elif read_req["v"] is None and escalate_req["v"] is None and search_req["v"] is None and not clarify["msg"]:
             from nucleo.flash import card_commission as _cardc3
             _qlens = _cardc3.question_left_to_a_lens(_brief, ops=list(_data_ops_hechas), acted=acted)
             if _qlens:
