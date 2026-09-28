@@ -157,3 +157,13 @@ def test_the_mail_he_names_is_the_one_that_opens(box):
     assert refs.resolve("mensajeria", "unread", "Inworld", {}).payload == {"from": "Inworld"}
     r = box.apply_action("open", res.payload)
     assert r.get("ok") is not False, r
+
+
+def test_open_it_after_talking_about_one_mail_is_declared_that_mail():
+    """Demo pass 2026-09-28 (full14 E2): «open it», right after «Inworld AI sent you a receipt», reached
+    `show_view {platform: email}` — the inbox, not the receipt. The only text the model reads about `open` never
+    said that «it» after one mail is that mail."""
+    import json
+    from pathlib import Path
+    m = json.loads((Path(__file__).resolve().parents[4] / "widgets/mensajeria/manifest.json").read_text("utf-8"))
+    assert "open it" in m["actions"]["open"]["desc"] and "no la bandeja" in m["actions"]["open"]["desc"]
