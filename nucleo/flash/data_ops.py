@@ -166,7 +166,8 @@ async def report_failure(wid: str, action: str, res: dict) -> bool:
     return told
 
 
-async def corrected_retry(wid: str, action: str, payload: dict, res, text: str, dispatch) -> tuple[dict, dict] | None:
+async def corrected_retry(wid: str, action: str, payload: dict, res, text: str, dispatch,
+                          said: str = "") -> tuple[dict, dict] | None:
     """ONE corrected re-call of a FAST data-op the card refused, while the turn is still the operator's.
 
     `act_repair.call_for_refusal` owns the why and the bounds (same action, same card, a different payload);
@@ -180,7 +181,7 @@ async def corrected_retry(wid: str, action: str, payload: dict, res, text: str, 
         return None
     try:
         from nucleo.flash import act_repair as _ar
-        fix = await _ar.call_for_refusal(text, wid, action, payload or {}, why)
+        fix = await _ar.call_for_refusal(text, wid, action, payload or {}, why, said=said)
         if not fix:
             return None
         res2 = await dispatch(wid, action, fix["payload"])
@@ -198,7 +199,7 @@ async def corrected_retry(wid: str, action: str, payload: dict, res, text: str, 
 
 
 async def dispatch_and_report(wid: str, action_name: str, payload: dict, *, seal=None, receipt: bool = False,
-                              text: str = "") -> None:
+                              text: str = "", said=None) -> None:
     """Dispatch a widget data-op AND announce it if it failed (V2-603).
 
     The dispatch itself stays detached — the turn must never wait on a widget's network call — but the RESULT
@@ -228,7 +229,15 @@ async def dispatch_and_report(wid: str, action_name: str, payload: dict, *, seal
         res = await _run(wid, action_name, payload)
     except Exception:
         return
-    if not receipt and (_fixed := await corrected_retry(wid, action_name, payload, res, text, _run)):
+    # `said` is read AFTER the refusal: by then the turn's reply has usually been spoken, and a correction that
+    # picks a different row from the one the reply just named (demo pass 2026-09-28, S3: «the best deal is the
+    # Samsung» → the retry opened the LG) contradicts us out loud.
+    _said = ""
+    try:
+        _said = str(said() if callable(said) else (said or ""))
+    except Exception:  # noqa: BLE001
+        _said = ""
+    if not receipt and (_fixed := await corrected_retry(wid, action_name, payload, res, text, _run, said=_said)):
         payload, res = _fixed
     _outcome.remember(wid, action_name, text, res)
     await _report_ignored(wid, action_name, res)

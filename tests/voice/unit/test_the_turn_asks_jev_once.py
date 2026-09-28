@@ -69,8 +69,9 @@ def test_the_whole_brief_is_one_call(wire):
     # is the most expensive one a turn can get wrong.
     from nucleo.flash import build_decision as _bd
     from nucleo import surfaces as _sf           # demo pass 2026-09-28: what an errand will end on, same trip
+    # demo pass 2026-09-28 (R3/M1): does the order owe an answer in words — same trip
     assert asked == {tb.CANVAS_KEY, tb.REQUEST_KEY, tb.ESCALATE_KEY, tb.TARGET_KEY,
-                     _bd.BUILD_KEY, _sf.SURFACE_KEY}, asked
+                     _bd.BUILD_KEY, _sf.SURFACE_KEY, tb.WORDS_KEY}, asked
 
 
 def test_the_canvas_verb_travels_in_the_brief_and_reads_the_same(wire):

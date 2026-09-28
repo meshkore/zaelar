@@ -219,7 +219,7 @@ def _same_card(asked: str, wid: str) -> bool:
 
 
 async def call_for_refusal(operator_text: str, widget_id: str, action: str, payload: dict, why: str,
-                           spec=None) -> dict | None:
+                           spec=None, *, said: str = "") -> dict | None:
     """The corrected payload for a call the card REFUSED, or None. Never raises.
 
     Demo pass 2026-09-28: «open the one that's the best deal» reached `results:detail` with nothing the sheet
@@ -252,7 +252,9 @@ async def call_for_refusal(operator_text: str, widget_id: str, action: str, payl
             [{"role": "system", "content": _SYS_REFUSAL.format(
                 wid=wid, action=action, payload=json.dumps(payload or {}, ensure_ascii=False)[:300],
                 why=str(why or "")[:300], actions=_actions_block(manifest), card=card)},
-             {"role": "user", "content": f"Operador: «{operator_text.strip()[:400]}»"}],
+             {"role": "user", "content": f"Operador: «{operator_text.strip()[:400]}»"
+                                         + (f"\nLo que le acabas de decir: «{said.strip()[:300]}» — si ahí nombraste "
+                                            f"cuál, la corrección es ESE." if (said or "").strip() else "")}],
             spec=spec, max_tokens=300, tools=[tool], no_thinking=True,
             on_tool_call=lambda name, args: got.append((name, args if isinstance(args, dict) else {})))
         for name, args in got:

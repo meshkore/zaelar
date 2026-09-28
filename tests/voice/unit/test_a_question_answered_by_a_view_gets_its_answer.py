@@ -40,3 +40,17 @@ def test_the_second_pass_can_stay_silent_and_the_provider_wires_it():
     body = prov[prov.index("async def speak(sys2: str"):]
     body = body[:body.index("from voice.engine.llm.providers.vault_intercept")]
     assert "responde exactamente SKIP" in body and 'head.startswith("SKIP")' in body
+
+
+def test_an_order_that_owes_words_is_answered_too(monkeypatch):
+    """R3 «find me five days in her vacation where i'm free and tell me the dates» and M1 «how's apple stock doing
+    today, show me the chart» read as ORDERS and got a view and silence. The brief's `wants_words` question (live:
+    14/15 over the demo's phrases) says when an order owes an answer."""
+    from nucleo.flash import card_commission as cc, turn_brief as tb, widget_read
+    monkeypatch.setattr(widget_read, "can_answer", lambda w: True)
+    b = _brief("order")
+    b["result"][tb.WORDS_KEY] = {"choice": "tell", "confidence": 0.95}
+    assert cc.question_left_to_a_lens(b, ops=[{"widget_id": "markets", "action": "show"}], acted={}) == "markets"
+    b["result"][tb.WORDS_KEY] = {"choice": "act", "confidence": 0.95}
+    assert cc.question_left_to_a_lens(b, ops=[{"widget_id": "youtube", "action": "show_tab"}], acted={}) == ""
+    assert tb.WORDS_KEY in tb.build("find me five days and tell me the dates")

@@ -96,3 +96,18 @@ def test_both_channels_share_the_seam():
 def test_the_pass_refuses_to_run_without_his_words(client):
     assert asyncio.run(act_repair.call_for_refusal("", "results", "detail", {}, "x")) is None
     assert client.calls == []
+
+
+def test_the_correction_follows_what_the_turn_just_said(client):
+    """Demo pass 2026-09-28, full10 S3: «open the one that's the best deal» — the reply said «The best deal is the
+    Samsung ViewFinity S7», the detail was refused, and the correction opened the LG. The pass now hears the reply,
+    read after the refusal, and a row it named is the correction."""
+    import asyncio
+    client.answer = [("widget_data", {"widget_id": "results", "action": "detail", "payload": {"index": 3}})]
+    asyncio.run(act_repair.call_for_refusal("open the one that's the best deal", "results::x", "detail", {}, "no match",
+                                            said="The best deal is the Samsung ViewFinity S7 S70H at $189.99."))
+    user = client.calls[0]["messages"][1]["content"]
+    assert "Samsung ViewFinity S7" in user and "la corrección es ESE" in user
+    from pathlib import Path
+    prov = (Path(__file__).resolve().parents[3] / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
+    assert 'said=lambda: getattr(brain, "_last_spoken", "")' in prov

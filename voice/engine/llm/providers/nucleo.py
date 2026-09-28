@@ -1246,7 +1246,8 @@ class NucleoLLMStream(llm.LLMStream):
                         _data_ops.remember_refusal(_w, _a, _p)
 
                 try:
-                    _spawn(_data_ops.dispatch_and_report(wid, action_name, payload or {}, seal=_seal, text=_bnotes.operator_half(text)),
+                    _spawn(_data_ops.dispatch_and_report(wid, action_name, payload or {}, seal=_seal, text=_bnotes.operator_half(text),
+                                                         said=lambda: getattr(brain, "_last_spoken", "")),
                            "widget-data")
                 except Exception:
                     pass

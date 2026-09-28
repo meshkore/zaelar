@@ -184,7 +184,11 @@ def question_left_to_a_lens(brief, *, ops: list, acted: dict) -> str:
     try:
         from nucleo.flash import data_ops as _do, turn_brief as _tb
         kind, info = _tb.read(brief, _tb.REQUEST_KEY, "")
-        if info is None or str(kind or "") != "question":
+        words, winfo = _tb.read(brief, _tb.WORDS_KEY, "")
+        # a question, or an order that owes words (R3 «…and tell me the dates», M1 «how's apple doing, show me the
+        # chart» — both read as orders, both answered with a view and silence)
+        if not ((info is not None and str(kind or "") == "question")
+                or (winfo is not None and str(words or "") == "tell")):
             return ""
         ops = [o for o in (ops or []) if isinstance(o, dict)]
         if any(not _do.is_view_op(str(o.get("widget_id") or ""), str(o.get("action") or "")) for o in ops):

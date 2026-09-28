@@ -87,6 +87,20 @@ def escalate_question(*, running_goals: list | None = None, has_workers: bool = 
             "criteria": dict(_eg.ESCALATE_CHOICE)}
 
 
+#: Does he expect to be TOLD something in words? A different question from `request_type`: «find me five days in her
+#: vacation where I'm free and tell me the dates» is an ORDER that owes an answer, and «go back to the list» is an
+#: order that owes none (demo pass 2026-09-28, R3 and M1: a lens alone and silence, because the turn was not read as
+#: a «question»). Read by `card_commission.question_left_to_a_lens`.
+WORDS_KEY = "wants_words"
+WORDS_INSTRUCTIONS = ("Beyond anything done or shown on screen, does the operator expect to be TOLD something in "
+                      "words in this turn?")
+WORDS_CRITERIA = {
+    "tell": "he asks to be told something: a fact, a figure, dates, a price, how something is going, an answer",
+    "act": "he only asks for something to be done, opened, shown, played, closed or changed — no answer in words "
+           "is owed beyond acknowledging it",
+}
+
+
 def request_question(last_reply: str = "") -> dict:
     """What kind of turn this is — the question `filler_audio.arm` used to ask on its own socket.
 
@@ -311,6 +325,7 @@ def build(operator_text: str, *, open_ids=None, running_goals=None, has_workers:
         _bd.BUILD_KEY: _bd.build_question(),
         ESCALATE_KEY: escalate_question(
             running_goals=running_goals, has_workers=has_workers, ask_pending=ask_pending)}
+    qs[WORDS_KEY] = {"instructions": WORDS_INSTRUCTIONS, "criteria": dict(WORDS_CRITERIA)}
     # What he will LOOK AT if this becomes an errand — read by the escalation only when the model declared none.
     from nucleo import surfaces as _sf
     qs[_sf.SURFACE_KEY] = _sf.question()
