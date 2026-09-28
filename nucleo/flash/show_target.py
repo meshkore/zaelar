@@ -284,15 +284,32 @@ def close_target(widget_id: str) -> str:
     return canvas_focus.last_turn_card(ids) or (ids[0] if len(ids) == 1 else "")
 
 
-def close_dispatch(args: dict, tag_emit, emit) -> str:
+def close_dispatch(args: dict, tag_emit, emit, text: str = "", done=None) -> str:
     """The provider's `close_widget` branch body, shared with the probe: close or put away a card through the
-    SAME canvas route the [[close]] tag and the canvas minimize already take. Returns the card, or ""."""
+    SAME canvas route the [[close]] tag and the canvas minimize already take. Returns the card, or "".
+
+    A close also takes the OTHER open cards his sentence names (`widgets.instances.also_named`), as the [[close]]
+    tag path already did: «close the calendar and the messages» closed the calendar only (demo pass 2026-09-28,
+    C6). `done` is the turn's set of cards already closed — each card once, never a second close of the same."""
     rid = close_target(str(args.get("widget_id") or ""))
     if not rid:
         return ""
+    done = done if done is not None else set()
     mode = str(args.get("mode") or "close").strip().lower()
-    tag_emit("minimize" if mode == "minimize" else "close", {"id": rid})
-    emit("brain", f"🪟 close_widget({mode}) → canvas", text=rid, role="system")
+    targets = [rid]
+    if mode != "minimize" and text:
+        try:
+            from server.voice_api import open_instances
+            from widgets import instances as _inst
+            targets += [x for x in _inst.also_named(text, open_instances(), exclude=[rid]) if x not in targets]
+        except Exception:  # noqa: BLE001
+            pass
+    for t in targets:
+        if t in done:
+            continue
+        done.add(t)
+        tag_emit("minimize" if mode == "minimize" else "close", {"id": t})
+        emit("brain", f"🪟 close_widget({mode}) → canvas", text=t, role="system")
     return rid
 
 

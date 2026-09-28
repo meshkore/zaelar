@@ -265,7 +265,15 @@ def also_named(text: str, open_ids, exclude=()) -> list[str]:
         if not b or b in skip or w in out:
             continue
         man = _rt.get(b) or {}
-        words = [b, str(man.get("name") or ""), str(man.get("title") or "")] + [str(a) for a in (man.get("aliases") or [])]
+        # …and what it is called in every language the catalogue has: the manifest's own name is ONE language, so
+        # «close the calendar and the messages» never reached «Mensajería» (demo pass 2026-09-28, C6).
+        try:
+            from . import naming as _naming
+            called = _naming.catalogue_names(b)
+        except Exception:  # noqa: BLE001
+            called = []
+        words = ([b, str(man.get("name") or ""), str(man.get("title") or "")] + list(called)
+                 + [str(a) for a in (man.get("aliases") or [])])
         words = [_strip_accents(x.lower()).strip() for x in words if str(x).strip()]
         if any(re.search(r"(?<![a-z0-9])" + re.escape(x) + r"(?![a-z0-9])", t) for x in words if len(x) >= 3):
             out.append(w)

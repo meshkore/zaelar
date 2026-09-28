@@ -694,54 +694,14 @@ def complete_canvas(brief, *, tag_emit, emit, operator_text: str = "") -> str:
         return ""
 
 
-_NAMES_CACHE: dict = {}
-
-
 def catalogue_names(widget_id: str) -> list[str]:
-    """What the card is CALLED — its id, its manifest name and its translated catalogue name in every language
-    bundle there is. Never its aliases: those name what it HOLDS («video», «clip»), not the card."""
-    base = _base_of(widget_id)
-    if base in _NAMES_CACHE:
-        return _NAMES_CACHE[base]
-    names = {base}
-    try:
-        from widgets import runtime as _rt
-        names.add(str((_rt.get(base) or {}).get("name") or ""))
-    except Exception:  # noqa: BLE001
-        pass
-    try:
-        import json
-        import pathlib
-        root = pathlib.Path(__file__).resolve().parents[2] / "i18n"
-        files = list((root / "bundles").glob("*.json"))
-        try:
-            from i18n import store as _i18n_store
-            files += [_i18n_store._path(c) for c in _i18n_store.codes()]
-        except Exception:  # noqa: BLE001
-            pass
-        for f in files:
-            try:
-                b = json.loads(pathlib.Path(f).read_text("utf-8"))
-                b = b.get("strings", b) if isinstance(b, dict) else {}
-                names.add(str(b.get(f"widgets.{base}.name") or ""))
-            except Exception:  # noqa: BLE001
-                continue
-    except Exception:  # noqa: BLE001
-        pass
-    out = sorted({n.strip() for n in names if n and n.strip()}, key=len, reverse=True)
-    _NAMES_CACHE[base] = out
-    return out
+    from widgets import naming as _naming
+    return _naming.catalogue_names(_base_of(widget_id))
 
 
 def _says_the_name(operator_text: str, widget_id: str) -> bool:
-    import re
-    import unicodedata
-
-    def fold(x: str) -> str:
-        return "".join(c for c in unicodedata.normalize("NFKD", x.casefold()) if not unicodedata.combining(c))
-    t = fold(operator_text or "")
-    return any(re.search(r"(?<!\w)" + re.escape(fold(n)) + r"(?!\w)", t) for n in catalogue_names(widget_id)
-               if len(n) >= 3)
+    from widgets import naming as _naming
+    return _naming.says_the_name(operator_text, _base_of(widget_id))
 
 
 def closes_the_named_card(brief, operator_text: str, done_ops, *, floor: float = 0.75) -> str:

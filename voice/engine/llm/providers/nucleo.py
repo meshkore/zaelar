@@ -775,6 +775,7 @@ class NucleoLLMStream(llm.LLMStream):
         acted = {"widget": False}
         confirm_state = {"handled": False}
         clarify = {"msg": None}          # V2-026: pregunta a decir si una referencia a un item no se resolvió
+        _closed_by_tool: set = set()      # the cards `close_widget` closed this turn — each one once
         data_done = {"v": False}         # V2-026: se despachó una data-op FAST → ack hablado si el modelo no habló
         deduped = {"v": False}           # V2-634: el guarda anti context-bleed descartó un duplicado — el turno
                                          # fue ATENDIDO (dedupe deliberado), no un vacío que disculpar
@@ -1739,7 +1740,9 @@ class NucleoLLMStream(llm.LLMStream):
                             clarify["msg"] = _res.get("error") or _say().alias_failed
                         emit("brain", f"🏷️ manage_widget_alias {_op} → {_rid}", text=_alias, role="system")
             elif name == "close_widget":
-                if "close_widget" not in _tool_fired and _show_target.close_dispatch(args, _tag_emit, emit):
+                # Each CARD once, not the tool once: «close the calendar and the messages» may be two calls.
+                if _show_target.close_dispatch(args, _tag_emit, emit, text=_bnotes.operator_half(text),
+                                               done=_closed_by_tool):
                     _tool_fired.add("close_widget")
                     acted["widget"] = True
             elif name == "fullscreen_widget":

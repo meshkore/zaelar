@@ -62,3 +62,51 @@ def not_found(name: str, varios: list[str] | None = None) -> str:
         ids = []
     cola = f" · los que hay: {', '.join(ids[:14])}" + ("…" if len(ids) > 14 else "") if ids else ""
     return f"el widget «{name}» no existe{cola}"
+
+
+_NAMES_CACHE: dict = {}
+
+
+def catalogue_names(widget_id: str) -> list[str]:
+    """What the card is CALLED — its id, its manifest name and its translated catalogue name in every language
+    bundle there is. Never its aliases: those name what it HOLDS («video», «clip»), not the card."""
+    base = str(widget_id or "").split("::")[0].strip().lower()
+    if base in _NAMES_CACHE:
+        return _NAMES_CACHE[base]
+    names = {base}
+    try:
+        from widgets import runtime as _rt
+        names.add(str((_rt.get(base) or {}).get("name") or ""))
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        import json
+        import pathlib
+        root = pathlib.Path(__file__).resolve().parents[1] / "i18n"
+        files = list((root / "bundles").glob("*.json"))
+        try:
+            from i18n import store as _i18n_store
+            files += [_i18n_store._path(c) for c in _i18n_store.codes()]
+        except Exception:  # noqa: BLE001
+            pass
+        for f in files:
+            try:
+                b = json.loads(pathlib.Path(f).read_text("utf-8"))
+                b = b.get("strings", b) if isinstance(b, dict) else {}
+                names.add(str(b.get(f"widgets.{base}.name") or ""))
+            except Exception:  # noqa: BLE001
+                continue
+    except Exception:  # noqa: BLE001
+        pass
+    out = sorted({n.strip() for n in names if n and n.strip()}, key=len, reverse=True)
+    _NAMES_CACHE[base] = out
+    return out
+
+
+def says_the_name(text: str, widget_id: str) -> bool:
+    """Whether `text` calls the card by what it is CALLED (`catalogue_names`), as a whole word, accent- and
+    case-blind. An alias («video» for the player) does not count: it names what the card holds."""
+    import re
+    t = _norm(text)
+    return any(re.search(r"(?<!\w)" + re.escape(_norm(x)) + r"(?!\w)", t)
+               for x in catalogue_names(widget_id) if len(x) >= 3)
