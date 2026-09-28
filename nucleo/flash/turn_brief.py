@@ -175,10 +175,13 @@ def target_question(open_ids) -> dict | None:
     criteria["none"] = "the order is not aimed at anything on screen"
     instructions = TARGET_INSTRUCTIONS
     if focus:
-        instructions += (f" His previous turn acted on «{focus}». An order that does not say what KIND of thing it "
-                         f"is about («it», «that», «this one», «the most important one») continues on that card when "
-                         f"it can do it. An order that names a kind of thing (a song, a video, an email, a result, "
-                         f"the calendar) goes to the card that holds that kind, whichever it is.")
+        instructions += (f" His previous turn acted on «{focus}». An order that points at something ALREADY on "
+                         f"screen without naming it («it», «that», «this one», «the most important one», «pause») "
+                         f"continues on that card when it can do it. An order that names a kind of thing (a song, a "
+                         f"video, an email, a result, the calendar) goes to the card that holds that kind. An order "
+                         f"that asks for NEW content («show me a red car», «find flights») is NOT continued by this: "
+                         f"the previous turn never makes a search or a new lookup land on its card — judge such an "
+                         f"order exactly as if nothing had been acted on.")
     return {"instructions": instructions, "criteria": criteria}
 
 
