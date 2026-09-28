@@ -175,3 +175,16 @@ def test_an_order_reading_is_enough_to_ask_the_repair_in_both_channels():
     prov = (ENGINE / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
     probe = (ENGINE / "nucleo/flash/probe.py").read_text("utf-8")
     assert "_direct_action.reads_as_order(_brief)" in prov and "_da_probe.reads_as_order(_tbrief)" in probe
+
+
+def test_a_sure_act_reading_is_an_order_even_when_the_request_type_is_unsure():
+    """full11 C5: «send ethan a telegram with the new time» → request_type order at 0.46 (unsure), wants_words act at
+    0.92; «Sending it now» over nothing and no repair."""
+    import threading
+    from nucleo.flash import direct_action as da, turn_brief as tb
+    ev = threading.Event(); ev.set()
+    b = {"event": ev, "turn_id": "t", "open_ids": [], "result": {
+        tb.REQUEST_KEY: {"choice": "order", "confidence": 0.46}, tb.WORDS_KEY: {"choice": "act", "confidence": 0.92}}}
+    assert da.reads_as_order(b)
+    b["result"][tb.WORDS_KEY] = {"choice": "tell", "confidence": 0.92}
+    assert not da.reads_as_order(b)

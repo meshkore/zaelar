@@ -261,7 +261,13 @@ def reads_as_order(brief) -> bool:
     try:
         from nucleo.flash import turn_brief as _tb
         kind, info = _tb.read(brief, _tb.REQUEST_KEY, "")
-        return info is not None and str(kind or "") == "order"
+        if info is not None and str(kind or "") == "order":
+            return True
+        # …or the sure «he only asks for something to be DONE» of the words question (demo pass 2026-09-28, full11
+        # C5: «send ethan a telegram with the new time» read `order` at 0.46 — unsure — and `act` at 0.92; the reply
+        # said «Sending it now» over nothing, and the repair was never asked).
+        words, winfo = _tb.read(brief, _tb.WORDS_KEY, "")
+        return winfo is not None and str(words or "") == "act"
     except Exception:  # noqa: BLE001
         return False
 

@@ -140,7 +140,9 @@ _SYS_COMMISSION = (
     "`contact` es el NOMBRE de la persona tal como él lo dijo («Ethan»), nunca su @usuario, teléfono o correo: "
     "la tarjeta lo resuelve en su directorio. Una orden de HACER algo (enviar, escribir, apuntar, mover) se cumple "
     "con su acción aunque dependa de un dato que la tarjeta guarda: la tarjeta lo comprueba al ejecutar y dice si "
-    "falta — leer para comprobarlo antes no cumple la orden."
+    "falta — leer para comprobarlo antes no cumple la orden. Pero ENCONTRAR, buscar o decirle algo (un hueco libre, "
+    "una fecha, un dato) es SABERLO: se lee, y no se apunta ni se envía nada que él no haya pedido — «búscame un "
+    "hueco para hablar con Ethan» no es reservar ni escribirle a Ethan."
     "\n\nAcciones de «{wid}»:\n{actions}{card}")
 
 
@@ -153,7 +155,7 @@ def _tool_named(name: str) -> dict | None:
 
 
 async def call_or_read_for_commission(operator_text: str, commission: str, widget_id: str, spec=None, *,
-                                      window=None) -> dict | None:
+                                      window=None, may_read: bool = True) -> dict | None:
     """A commission that names one of our cards, before it costs a worker (V2-773 final pass, C1): «Find me a
     free 45-minute slot tomorrow afternoon» was delegated to a Brain Worker (three minutes) when the agenda was
     the whole answer. One pass with the card in front decides: `{"kind": "call", widget_id, action, payload}`,
@@ -168,7 +170,7 @@ async def call_or_read_for_commission(operator_text: str, commission: str, widge
         # call («message Ethan on Telegram» → send_to) and never a read it cannot serve.
         from nucleo.flash import widget_read as _wr0
         tools = [t for t in (_tool_named("widget_data"),
-                             _tool_named("read_widget") if _wr0.can_answer(wid) else None) if t]
+                             _tool_named("read_widget") if (may_read and _wr0.can_answer(wid)) else None) if t]
         if not manifest or not tools:
             return None
         digest = ""

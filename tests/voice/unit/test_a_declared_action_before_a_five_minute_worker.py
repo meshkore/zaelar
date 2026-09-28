@@ -631,3 +631,14 @@ def test_R3_an_unsure_screen_verdict_asks_the_catalogue_too(monkeypatch):
     assert cc.named_or_catalogue(brief("agenda:show_day", 0.40), "find me five days where i'm free") == "agenda"
     assert cc.named_or_catalogue(brief("none", 0.95), "find me five days where i'm free") == "agenda"
     assert cc.named_or_catalogue(brief("agenda:show_day", 0.95), "x") == "", "a sure action is handled elsewhere"
+
+
+def test_finding_is_knowing_and_an_act_order_is_not_offered_a_read():
+    """full11 C2: «find me a free 45 minutes tomorrow afternoon to talk with ethan» — the commission pass booked
+    the meeting (nobody asked). C5: offered a read, the pass checked the directory instead of sending. Live: C2 read
+    4/4; C5 with no read offered, send 3/4."""
+    from pathlib import Path
+    src = (Path(__file__).resolve().parents[3] / "nucleo/flash/act_repair.py").read_text("utf-8")
+    assert "ENCONTRAR, buscar o decirle algo" in src and "may_read and _wr0.can_answer(wid)" in src
+    cc = (Path(__file__).resolve().parents[3] / "nucleo/flash/card_commission.py").read_text("utf-8")
+    assert "may_read = not (_wi is not None and str(_w or \"\") == \"act\")" in cc

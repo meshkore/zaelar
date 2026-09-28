@@ -78,8 +78,13 @@ async def before_worker(escalate_req: dict, read_req: dict, *, brief, operator_t
         if not card or _danger.is_dangerous(operator_text):
             return ""
         # Any card the verdict names may take the CALL; the read half is offered only to one that can answer.
+        # An order the verdict reads as owing NO words («send ethan a telegram with the new time», wants_words=act)
+        # is not answered by a read: offering one made the pass check the directory instead of sending (C5, 2/4).
+        from nucleo.flash import turn_brief as _tbw
+        _w, _wi = _tbw.read(brief, _tbw.WORDS_KEY, "")
+        may_read = not (_wi is not None and str(_w or "") == "act")
         got = await _repair.call_or_read_for_commission(operator_text, str(escalate_req.get("v") or ""), card,
-                                                        spec=spec, window=window)
+                                                        spec=spec, window=window, may_read=may_read)
         if not got:
             return ""
         if got["kind"] == "call":
