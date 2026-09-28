@@ -41,3 +41,23 @@ def test_a_duration_says_the_end_of_a_new_meeting(ag, key):
     r2 = ag.apply_action("add_meeting", {"title": "Long one", "date": "2026-09-27", "time": "23:30", key: "90 min"})
     row2 = next(m for m in ag.view_data()["meetings"] if m["title"] == "Long one")
     assert row2["endTime"] == "01:00", row2
+
+
+def test_a_move_named_like_a_meeting_moves(ag):
+    """Demo pass 2026-09-28, C4: «actually move it half an hour later» arrived as {date, start, end} — the names
+    the model gives a meeting — and was refused as «no destination»; the next turn re-sent the move instead of
+    the Telegram he asked for. A move is a write, so it reads the same natural names as one."""
+    day = _tomorrow()
+    ag.apply_action("add_meeting", {"title": "Catch up with Ethan", "date": day, "start": "13:00", "end": "13:45"})
+    got = ag.apply_action("move_meeting", {"title": "Catch up with Ethan", "date": day,
+                                           "start": "13:30", "end": "14:15"})
+    assert got.get("ok") is not False, got
+    m = got.get("stored") or {}
+    assert (m.get("date"), m.get("startTime"), m.get("endTime")) == (day, "13:30", "14:15"), m
+
+
+def test_a_bare_day_in_a_move_is_where_it_goes(ag):
+    day = _tomorrow()
+    ag.apply_action("add_meeting", {"title": "Dentist", "date": day, "startTime": "10:00", "endTime": "11:00"})
+    got = ag.apply_action("move_meeting", {"title": "Dentist", "day": "2026-12-01"})
+    assert (got.get("stored") or {}).get("date") == "2026-12-01", got

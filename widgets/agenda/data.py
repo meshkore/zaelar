@@ -321,7 +321,14 @@ def radius(action: str, payload: dict | None = None) -> int | None:
 
 def apply_action(action: str, payload: dict | None = None) -> dict:
     """Widget actions (HANDOFF §9.3): mark done / not now / snooze / drop / replan. Mutates the isolated store."""
-    payload = recur.normalize(payload) if action in ("add_meeting", "update_meeting") else (payload or {})
+    if action == "move_meeting" and (payload or {}).get("day") and not payload.get("newDate"):
+        payload = {**payload, "newDate": payload["day"]}   # in a move, a bare `day` is where it goes
+        payload.pop("day")
+    # A move is a write too: the model names its fields the way it names a meeting's (demo pass 2026-09-28, C4:
+    # «move it half an hour later» → {date, start: 13:30, end: 14:15} refused as «no destination», and the next
+    # turn re-sent the move instead of the Telegram he asked for).
+    payload = recur.normalize(payload) if action in ("add_meeting", "update_meeting", "move_meeting") \
+        else (payload or {})
     if action == "update_meeting" and any(str(payload.get(k) or "").strip() for k in edit.TIME_KEYS):
         # V2-770 — WHEN inside an edit («que dure hasta las cinco») is a reschedule: the door that owns the
         # notice takes it, then whatever else the edit said lands below. It was dropped here before.
