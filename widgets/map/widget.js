@@ -6,7 +6,9 @@
 // goes through ctx.action("select"), the same door as the voice. Place names come from outside: textContent only.
 
 const TILE = 256;
-const TILES = "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png";
+// OpenStreetMap's own tiles, no key. CARTO's basemaps (used until 2026-09-28) started answering EVERY tile with an
+// «API KEY REQUIRED» image — measured in the demo pass that day: the map card showed only that watermark.
+const TILES = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 
 function injectStyles(){
   if(document.getElementById("hb-map-css"))return;

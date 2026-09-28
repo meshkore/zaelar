@@ -42,7 +42,7 @@ def test_the_pins_fit_the_view_and_select_through_the_voice_door(playwright_avai
             pg = await b.new_page(viewport={"width": 900, "height": 700})
             tiles, errors = [], []
             pg.on("pageerror", lambda e: errors.append(str(e)))
-            await pg.route("https://*.basemaps.cartocdn.com/**", lambda r: (tiles.append(r.request.url),
+            await pg.route("https://tile.openstreetmap.org/**", lambda r: (tiles.append(r.request.url),
                            asyncio.ensure_future(r.fulfill(status=200, content_type="image/png", body=b""))))
             await pg.route("http://map.test/", lambda r: asyncio.ensure_future(r.fulfill(
                 status=200, content_type="text/html", body=_HTML.replace("__DATA__", json.dumps(DATA)))))
@@ -76,6 +76,11 @@ def test_the_pins_fit_the_view_and_select_through_the_voice_door(playwright_avai
     assert m["nums"] == ["1", "2", "3"] and m["on"] == ["2"], m
     assert m["rows"][0] == "Griffith Observatory" and "<img" in m["rows"][1] and not m["injected"]
     assert m["tiles"] >= 4 and m["tile_urls"], "the fitted view is covered by tiles"
-    z = {int(u.split("/voyager/")[1].split("/")[0]) for u in m["tile_urls"]}
+    z = {int(u.split("tile.openstreetmap.org/")[1].split("/")[0]) for u in m["tile_urls"]}
     assert len(z) == 1 and 11 <= z.pop() <= 15, "three places across LA fit at city zoom"
     assert m["acts"] and m["acts"][0][0] == "select"
+
+
+def test_the_tiles_come_from_a_provider_that_needs_no_key():
+    """Demo pass 2026-09-28 (full14 W1): every CARTO basemap tile came back as an «API KEY REQUIRED» image."""
+    assert "cartocdn" not in WJS and "tile.openstreetmap.org" in WJS
