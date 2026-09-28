@@ -293,8 +293,10 @@ export function routeEvent(desktop, d) {
           if (paintsProvisional(store.attentionMode(), store.attentionHit())) captionPartial("");
         }
       }
-    } else if (d.kind === "alert") {                                              // hard notice (e.g. no LLM credit) → red banner
-      store.showAlert(d.label || t("sse.llm_problem"));
+    } else if (d.kind === "alert") {                                              // engine fault → the ◉ status monitor
+      // No top banner (operator, 2026-09-28): «un turno se atascó» painted a red strip across the desk
+      // mid-demo. Faults live in ONE place — the floating ◉ icon turns amber/red and its status monitor
+      // says where. The only fault that still takes the screen is the BLOCKING one below.
       refreshStatus();                                                           // turn the ◉ status icon red now
       // V2-676 — a BLOCKING fault is not a banner. The engine marks it, and it carries facts (which model,
       // which key, which credentialed rung is silenced) that this client renders in the operator's own

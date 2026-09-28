@@ -617,7 +617,6 @@
  "settings.test": "probar",
  "settings.title": "Ajustes",
  "settings.voiceTestError": "✗ no se pudo reproducir la voz ({err})",
- "sse.llm_problem": "⚠️ Problema con el modelo de lenguaje",
  "sse.secret_default": "Secreto",
  "status.check_balance": "revisa el saldo",
  "status.checking": "Comprobando estado…",

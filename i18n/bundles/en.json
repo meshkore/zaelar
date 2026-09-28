@@ -617,7 +617,6 @@
  "settings.test": "test",
  "settings.title": "Settings",
  "settings.voiceTestError": "✗ couldn't play the voice ({err})",
- "sse.llm_problem": "⚠️ Problem with the language model",
  "sse.secret_default": "Secret",
  "status.check_balance": "check balance",
  "status.checking": "Checking status…",
