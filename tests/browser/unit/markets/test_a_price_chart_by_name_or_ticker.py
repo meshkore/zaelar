@@ -172,3 +172,17 @@ def test_a_lens_on_a_closed_card_brings_the_card():
                      r"\s*_cvis\.present\(wid, reason=\"turn-order\"", body), "a view-op on a closed card must bring it"
     from widgets import effects as fx
     assert fx.carries("agenda", "show_day", fx.DATA_READ) and not fx.carries("agenda", "add_meeting", fx.DATA_READ)
+
+
+def test_the_nasdaq_is_the_index_not_a_futures_contract(monkeypatch):
+    """Demo pass 2026-09-28 (full15 M3): «and the nasdaq, over the whole year» charted `NQ=F` «Nasdaq 100 Dec 26» —
+    the search ranks the future first. An index in the results outranks a future; «gold» keeps the search's order."""
+    res = {"Nasdaq": [("NQ=F", "FUTURE", "Nasdaq 100 Dec 26"), ("^IXIC", "INDEX", "NASDAQ Composite")],
+           "gold": [("GOLD", "EQUITY", "Gold.com, Inc."), ("GC=F", "FUTURE", "Gold Dec 26")]}
+
+    def get(url):
+        q = mk.urllib.parse.parse_qs(mk.urllib.parse.urlparse(url).query)["q"][0]
+        return {"quotes": [{"symbol": s, "quoteType": t, "shortname": n} for s, t, n in res[q]]}
+    monkeypatch.setattr(mk, "_get", get)
+    assert mk._lookup("Nasdaq") == ("^IXIC", "NASDAQ Composite")
+    assert mk._lookup("gold")[0] == "GOLD"

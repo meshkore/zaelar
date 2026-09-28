@@ -92,10 +92,17 @@ def _lookup(query: str) -> tuple[str, str]:
         return q.upper(), ""
     got = _get("https://query1.finance.yahoo.com/v1/finance/search?"
                + urllib.parse.urlencode({"q": q, "quotesCount": 6, "newsCount": 0}))
-    for it in got.get("quotes") or []:
-        if str(it.get("quoteType") or "").upper() in ("EQUITY", "ETF", "INDEX", "CRYPTOCURRENCY", "CURRENCY",
-                                                       "MUTUALFUND", "FUTURE") and it.get("symbol"):
-            return str(it["symbol"]), str(it.get("shortname") or it.get("longname") or "")
+    quotes = [it for it in (got.get("quotes") or [])
+              if str(it.get("quoteType") or "").upper() in ("EQUITY", "ETF", "INDEX", "CRYPTOCURRENCY", "CURRENCY",
+                                                              "MUTUALFUND", "FUTURE") and it.get("symbol")]
+    # «the nasdaq» is the INDEX, not a futures contract (demo pass 2026-09-28, full15 M3: the search ranks
+    # `NQ=F` «Nasdaq 100 Dec 26» first and the chart showed the future). An index in the results outranks a
+    # future; otherwise the search's own order stands — «gold» still reaches what the index ranks first.
+    idx = [it for it in quotes if str(it.get("quoteType") or "").upper() == "INDEX"]
+    if idx and str(quotes[0].get("quoteType") or "").upper() == "FUTURE":
+        quotes = idx + quotes
+    for it in quotes:
+        return str(it["symbol"]), str(it.get("shortname") or it.get("longname") or "")
     if _TICKER.match(q.upper()):
         return q.upper(), ""
     return "", ""
