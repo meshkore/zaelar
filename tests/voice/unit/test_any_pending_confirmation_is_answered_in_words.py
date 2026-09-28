@@ -24,4 +24,4 @@ def test_the_tool_is_offered_whenever_something_waits_for_his_yes():
 def test_the_tool_says_it_resolves_any_pending_confirmation_not_only_a_deletion():
     spec = next(t for t in router_catalog.TOOLS if t["function"]["name"] == "confirm_widget_delete")
     desc = spec["function"]["description"]
-    assert "ENVIAR un mensaje" in desc and "CUALQUIER" in desc
+    assert "ENVIAR un mensaje" in desc and "CUALQUIER" in desc and "borrado pendiente" not in desc

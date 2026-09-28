@@ -481,17 +481,15 @@ TOOLS: list[dict] = [
         "function": {
             "name": "confirm_widget_delete",
             "description": (
-                "Resuelve la CONFIRMACIÓN pendiente (la verás en tu estado) — la de CUALQUIER «¿lo hago?» que hayas "
-                "preguntado: borrar algo, ENVIAR un mensaje o un correo, cualquier acción con su botón de aceptar. "
-                "`confirmed=true` si su respuesta lo autoriza, en las palabras y el idioma que sean («sí, te "
-                "autorizo», «acepto que lo envíes», «go ahead, send it»); `false` si lo cancela. Luego una frase corta."
+                "Resuelve CUALQUIER confirmación pendiente (borrar, ENVIAR un mensaje…): `confirmed=true` si su "
+                "respuesta lo autoriza, diga lo que diga («te autorizo», «envíalo»); `false` si lo cancela."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
                     "confirmed": {
                         "type": "boolean",
-                        "description": "true = el operador autorizó lo que se le preguntó; false = lo canceló.",
+                        "description": "true = lo autorizó; false = lo canceló.",
                     }
                 },
                 "required": ["confirmed"],
