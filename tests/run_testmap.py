@@ -3357,6 +3357,9 @@ DOMAINS: list[dict] = [
         # named the card, the action existed. One bounded pass asks the model for the call it promised — only the
         # named card, only a declared action — before the backstop spends a worker on it.
         # Demo pass 2026-09-28 (V2-776 E) — the fixes of the passes, one node each.
+        {"id": "2.142", "title": "A data-op with no item is resolved from the operator's sentence in the text channel too",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/flash/test_the_sentence_resolves_a_missing_contact.py"]},
         {"id": "2.141", "title": "An order the second pass carried out is said after the model's words",
             "ch": UNIT,
             "paths": ["tests/voice/unit/test_a_repaired_act_is_said_after_the_words.py"]},

@@ -76,6 +76,14 @@ async def execute(tool_calls: list, text: str = "") -> dict:
         # if it does not resolve, the raw text travels in the id field as well so the widget's OWN resolver
         # (e.g. the one in `imagenes`, which matches by tokens) gets its chance and its refusal can show the menu.
         _ref = str(a.get("item") or "").strip()
+        # HIS sentence is the reference of last resort (V2-708) — the voice path has passed it since then and this
+        # one never did: the demo's INIT («when I ask you to contact Ethan, use his Telegram») reached contactos as
+        # `set_channel {platform}` with no contact, and was refused with Ethan on file (demo pass 31).
+        try:
+            from voice import brain_notes as _bn_wd
+            _order = _bn_wd.operator_half(text or "")
+        except Exception:  # noqa: BLE001
+            _order = text or ""
         if not _ref:
             # …and a NAME written straight into the id field is a reference too (INIT of the demo pass,
             # 2026-09-28: `set_channel {contactId: "Ethan"}` → «no encuentro ese contacto», with Ethan on file).
@@ -84,8 +92,8 @@ async def execute(tool_calls: list, text: str = "") -> dict:
             try:
                 from widgets import refs as _refs0
                 _f0 = _refs0.id_field_for_action(wid, act)
-                if _f0 and str(pl.get(_f0) or "").strip():
-                    _r0 = _refs0.resolve(wid, act, "", pl)
+                if _f0:
+                    _r0 = _refs0.resolve(wid, act, "", pl, order=_order)
                     if getattr(_r0, "ok", False) and isinstance(_r0.payload, dict):
                         pl = _r0.payload
             except Exception:  # noqa: BLE001
@@ -93,7 +101,7 @@ async def execute(tool_calls: list, text: str = "") -> dict:
         if _ref:
             try:
                 from widgets import refs as _refs
-                _rr = _refs.resolve(wid, act, _ref, pl)
+                _rr = _refs.resolve(wid, act, _ref, pl, order=_order)
                 if getattr(_rr, "ok", False) and isinstance(_rr.payload, dict):
                     pl = _rr.payload
                 # WHERE the reference lands is specified by the MANIFEST, not an invented key (V2-467). First the
