@@ -265,3 +265,42 @@ def test_a_lens_that_repeats_the_last_one_changes_nothing():
     from pathlib import Path
     src = (Path(__file__).resolve().parents[4] / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
     assert "_data_ops.repeats_last_view(brain._last_dataop, _cd[\"card\"], action_name, res.payload)" in src
+
+
+class _ModelSpec:
+    """What the LIVE voice turn hands the repairs: the model's spec, not a language table."""
+    model = "deepseek-flash"
+
+
+def test_the_retraction_sounds_with_the_spec_the_live_turn_passes(monkeypatch):
+    """Demo pass 2026-09-28 (full13 Z1): «Let me check your day for tomorrow.» and then silence — the retraction
+    was read as `getattr(spec, "promise_retracted", "")` off the MODEL spec the voice channel passes, which is
+    always "". The sentence belongs to the operator's language table."""
+    from nucleo.flash import widget_read
+    monkeypatch.setattr(widget_read, "resolve", lambda *_a, **_k: None)
+    monkeypatch.setattr(sp, "_card_the_catalogue_names", lambda *_a, **_k: asyncio.sleep(0, ""))
+    monkeypatch.setattr(langs, "current_language", lambda: langs.spec("en"))
+    out = asyncio.run(sp.probe_hollow_repairs("is it done?", "Let me check that now.", [], _ModelSpec()))
+    assert out == "Let me check that now. " + langs.spec("en").promise_retracted
+
+
+def test_a_promise_naming_no_card_reads_the_card_the_catalogue_names(monkeypatch):
+    """Same turn: neither «what's on my plate tomorrow» nor «Let me check your day» says «calendar». Which card
+    holds tomorrow is a question of meaning, asked of the catalogue reader — and the promise is kept by reading it."""
+    from nucleo import jev
+    from nucleo.flash import widget_read
+    seen = {}
+    monkeypatch.setattr(widget_read, "resolve", lambda *_a, **_k: None)
+    monkeypatch.setattr(jev, "choose_sync", lambda *_a, **_k: {"choice": "agenda", "confidence": 0.93})
+
+    async def _prepare(args, text, lock, emit, channel=""):
+        seen["wid"] = args["widget_id"]
+        return "SYS2"
+
+    async def _collect(sys2, user_text, spec, max_tokens=240):
+        return "Tomorrow you have the weekly review at 9 and the product meeting at 11."
+    monkeypatch.setattr(widget_read, "prepare", _prepare)
+    monkeypatch.setattr(sp, "collect", _collect)
+    out = asyncio.run(sp.promise_repair("what's on my plate tomorrow", "Let me check your day for tomorrow.", [],
+                                        _ModelSpec(), lambda *a, **k: None, channel="voice"))
+    assert seen["wid"] == "agenda" and "weekly review" in out

@@ -199,6 +199,46 @@ async def mute_cover_repair(operator_text: str, window: list, spec) -> str:
         return ""
 
 
+def _lang_text(spec, name: str) -> str:
+    """A sentence from the operator's LANGUAGE table. `spec` in this module is two things at once: the tests hand
+    in a `LangSpec`, the live voice turn hands in the MODEL spec (it is what `collect` needs) — which has none of
+    these fields, so in production `getattr(spec, "promise_retracted", "")` was always "" and the honest
+    retraction never sounded (demo pass 2026-09-28, Z1: «Let me check your day for tomorrow.» and then silence).
+    The table of the configured language is the source; the one handed in only wins when it IS a table."""
+    got = getattr(spec, name, "")
+    if isinstance(got, str) and got:
+        return got
+    try:
+        from i18n import langs as _langs
+        return str(getattr(_langs.current_language(), name, "") or "")
+    except Exception:  # noqa: BLE001
+        return ""
+
+
+async def _card_the_catalogue_names(operator_text: str, wait_s: float = 3.0) -> str:
+    """The card a question is about when neither it nor the promise NAMES one — asked of the same catalogue reader
+    the brief uses (`catalog_widget`), bounded. Demo pass 2026-09-28, Z1: «what's on my plate tomorrow» → «Let me
+    check your day for tomorrow.» and no read; neither sentence says «calendar», so the repair found nothing to
+    read. Which card holds tomorrow is a question of meaning, not of words: the reader answers it. "" when unsure."""
+    try:
+        from nucleo import jev as _jev
+        from nucleo.flash import turn_brief as _tb
+        from widgets import runtime
+        q = _tb.catalog_question()
+        if not q or not (operator_text or "").strip():
+            return ""
+        v = await asyncio.wait_for(asyncio.to_thread(
+            _jev.choose_sync, "catalog_widget", operator_text, instructions=q["instructions"],
+            criteria=q["criteria"], question_id="catalog_widget"), timeout=wait_s)
+        cat = str((v or {}).get("choice") or "").strip().split(":")[0]
+        if cat and cat != "none" and float((v or {}).get("confidence") or 0.0) >= _jev.MIN_CONFIDENCE \
+                and runtime.get(cat) is not None:
+            return cat
+    except Exception:  # noqa: BLE001
+        pass
+    return ""
+
+
 async def promise_repair(operator_text: str, reply: str, window: list, spec, emit, channel: str = "") -> str:
     """The fourth sibling (V2-717): the reply PROMISED to look («Let me check your Telegram…») and the turn
     looked at nothing. The repair is the look itself, not a better sentence: the widget the promise NAMES is
@@ -210,6 +250,8 @@ async def promise_repair(operator_text: str, reply: str, window: list, spec, emi
     try:
         from nucleo.flash import dialog, prompt as _prompt, widget_read as _wread
         wid = _wread.resolve("", reply or "") or _wread.resolve("", operator_text or "")
+        if not wid:
+            wid = await _card_the_catalogue_names(operator_text)
         if not wid:
             return ""
         sys2 = await _wread.prepare({"widget_id": wid, "question": operator_text}, operator_text,
@@ -251,7 +293,7 @@ async def probe_hollow_repairs(operator_text: str, spoken: str, window: list, sp
         # V2-677 — the same first branch as the voice channel: a denial of the canvas is corrected with a
         # FACT from the language table, never re-composed by a model.
         if _ag.a_reply_denies_the_screen(spoken):
-            rep = getattr(spec, "screen_denied_repair", "")
+            rep = _lang_text(spec, "screen_denied_repair")
             if rep:
                 return (spoken + " " + rep).strip()
         if _ag.a_bare_ack_answers_a_question(operator_text, spoken):
@@ -263,7 +305,7 @@ async def probe_hollow_repairs(operator_text: str, spoken: str, window: list, sp
         if _ag.a_promise_left_hanging(operator_text, spoken, acted=False, anything_running=running):
             rep = await promise_repair(operator_text, spoken, _dialog.prune_window(window), spec,
                                        lambda *a, **k: None, channel="probe")      # V2-717 mirror
-            return (spoken + " " + (rep or getattr(spec, "promise_retracted", "") or "")).strip()
+            return (spoken + " " + (rep or _lang_text(spec, "promise_retracted") or "")).strip()
     except Exception:  # noqa: BLE001
         pass
     return spoken
@@ -293,7 +335,7 @@ async def hollow_repairs(text: str, spoken_text: str, window: list, spec, *,
         if _ag.a_reply_denies_the_screen(spoken_text):
             emit("brain", "🪟 negó una capacidad de pantalla que SÍ tiene — lo corrijo",
                  text=spoken_text[:160], role="system", extra={"cat": "flash"})
-            rep = getattr(spec, "screen_denied_repair", "")
+            rep = _lang_text(spec, "screen_denied_repair")
             if rep:
                 speak(rep)
                 return (spoken_text + " " + rep).strip()
@@ -326,7 +368,7 @@ async def hollow_repairs(text: str, spoken_text: str, window: list, spec, *,
                  text=spoken_text[:160], role="system", extra={"cat": "flash"})
             rep = await promise_repair(text, spoken_text, list(window), spec, emit, channel="voice")
             if not rep:
-                rep = getattr(spec, "promise_retracted", "") or ""
+                rep = _lang_text(spec, "promise_retracted") or ""
             if rep:
                 speak(rep)
                 return (spoken_text + " " + rep).strip()
