@@ -269,10 +269,12 @@ def answer_action(action: str, payload: dict | None = None) -> dict | None:
     the ANSWER and vetoes an invalid order without touching the store; the mutation still goes through the
     owner. Must never call store.save."""
     payload = payload or {}
-    if action == "send_to":
+    if action in ("send_to", "forward"):
         # V2-683 — the veto runs BEFORE the order reaches the owner's mailbox: an unresolvable recipient must
         # never be queued and then fail out of sight, and the sentence that says what is missing is the only
         # thing that makes the next attempt succeed.
+        if action == "forward":
+            payload = {**payload, "contact": payload.get("contact") or payload.get("to"), "channel": "email"}
         t = _outbound.resolve_target(payload)
         if not t.get("ok"):
             return t
@@ -639,6 +641,18 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
         store.save(WIDGET_ID, db)
         return {"ok": True, "result": {"to": t.get("name"), "channel": t.get("platform"),
                                        "ref": order.get("ref"), "attachments": len(atts)}}
+
+    if action == "forward":
+        # FORWARD = a send to a person carrying the files of a message that arrived (the operator's demo: «send the
+        # invoice to Andrew»). One name for what he asks, instead of a parameter the model has to remember — measured
+        # 2026-09-28: the model reached for `reply` (to the SENDER of the invoice) and the files never travelled.
+        src = {k: payload[k] for k in ("n", "messageId") if payload.get(k) not in (None, "")}
+        db0 = load_db()
+        orig = _outbound._message_ref(db0, src) or {}
+        subj = str(payload.get("subject") or "").strip() or (f"Fwd: {orig.get('subject')}" if orig.get("subject") else "Fwd")
+        text = str(payload.get("text") or "").strip() or subj
+        return apply_action("send_to", {"contact": payload.get("contact") or payload.get("to"), "channel": "email",
+                                        "text": text, "subject": subj, "attach_from": src})
 
     if action == "unread":
         # Back to UNREAD in his real app (email today): the message he points at, or the one open. The rule the

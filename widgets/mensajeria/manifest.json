@@ -197,6 +197,16 @@
       "confirm": false,
       "usage": "Si no tienes su canal guardado, guárdalo antes con contactos/set_channel. Si no sabes a cuál de dos se refiere, PREGÚNTASELO: nunca escribas a alguien por parecido. NO se pide confirmación para esto (V2-692): quien la llama está ejecutando una orden que el operador acaba de dar, y su permiso ya viene con la orden — preguntarle otra vez es hacerle dar el mismo permiso dos veces. `reply` SÍ la sigue pidiendo: contestar a algo que llegó no es una orden suya."
     },
+    "forward": {
+      "desc": "REENVÍA por correo un mensaje que llegó —con sus ADJUNTOS (factura, PDF…)— a una PERSONA, con una nota tuya: «mándale a Andrew la factura de este correo», «reenvíale esto a X». Sin `n`, el correo que está ABIERTO. NO es `reply` (eso contesta al que lo envió).",
+      "payload": {
+        "contact": "string (a quién, el nombre tal como lo dijo el operador, o una dirección)",
+        "text": "string (la nota corta que acompaña)",
+        "n": "opcional: número del mensaje en la lista (sin él, el que está abierto)",
+        "subject": "opcional (por defecto «Fwd: …» del original)"
+      },
+      "confirm": false
+    },
     "open_connectors": {
       "desc": "Si se nombra la plataforma (email/gmail/outlook, whatsapp, telegram), entra DIRECTAMENTE en la pantalla de ESE conector — su asistente paso a paso si no está conectado, o su estado si ya lo está. Sin plataforma, abre la lista de todos los conectores. Úsala siempre que el operador pida conectar/vincular/añadir un canal. No pidas tú credenciales por voz.",
       "payload": {

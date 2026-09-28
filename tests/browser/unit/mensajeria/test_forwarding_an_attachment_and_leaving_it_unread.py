@@ -106,3 +106,13 @@ def test_the_owner_flushes_unread_orders_to_the_bus():
     import pathlib
     src = (pathlib.Path(__file__).resolve().parents[4] / "widgets/mensajeria/owner.py").read_text("utf-8")
     assert "msgstore.take_pending_unread()" in src and "ingest.publish_mark_unread(key)" in src
+
+
+def test_forward_is_one_name_for_a_send_with_the_files(box):
+    """Measured 2026-09-28 (E block): for «send the invoice to andrew» the model reached for `reply` — to the
+    SENDER — and the files never travelled. `forward` names what he asks: the message's files, to a person."""
+    r = box.apply_action("forward", {"contact": "Andrew", "n": 1, "text": "Please book this invoice."})
+    assert r["ok"] and r["result"]["attachments"] == 1, r
+    order = box.load_db()["pending_send"][0]
+    assert order["to"] == "andrew@example.com" and order["subject"] == "Fwd: Your receipt"
+    assert order["attachments"]
