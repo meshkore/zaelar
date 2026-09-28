@@ -291,6 +291,9 @@ def build(operator_text: str, *, open_ids=None, running_goals=None, has_workers:
         _bd.BUILD_KEY: _bd.build_question(),
         ESCALATE_KEY: escalate_question(
             running_goals=running_goals, has_workers=has_workers, ask_pending=ask_pending)}
+    # What he will LOOK AT if this becomes an errand — read by the escalation only when the model declared none.
+    from nucleo import surfaces as _sf
+    qs[_sf.SURFACE_KEY] = _sf.question()
     # V2-752 — is he telling us the last thing we did is WRONG? Asked only when there IS something we
     # just did, because with nothing behind us the answer could only be «unrelated». See `redo_decision`
     # for the two corrections this engine swallowed in a row while saying it would act on them.

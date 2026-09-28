@@ -127,6 +127,7 @@ from voice.engine.llm.providers import attention_turn as _attention_turn
 from nucleo.flash import harness_turn as _ht   # V2-661: what a turn OWES (shared with the probe)
 from nucleo.flash import reminder_guards as _rg   # its canned lines: holding, mute backstop, follow-up
 from nucleo.flash import accumulator as _acc_mod   # V2-776 D0: a turn that died unanswered is un-consumed
+from nucleo import surfaces as _surfaces_mod   # demo A1 2026-09-28: an errand nobody labelled takes the brief's surface
 
 _ACC_NUDGE_S = _accn._ACC_NUDGE_S
 _acc_notice_plan = _accn._acc_notice_plan
@@ -2524,7 +2525,8 @@ class NucleoLLMStream(llm.LLMStream):
         # V2-754 — sin tool del modelo y con una ORDEN sobre una tarjeta abierta en el brief («Sí, el catálogo» →
         # `show_tab` 0,88 y «te dejo el catálogo» sobre nada): el veredicto completa el turno por la misma puerta.
         if _no_tool and not clarify["msg"] and _direct_action.complete(
-                _brief, operator_text=_op_text, emit=emit, present=_cvis.present, apply_widget_data=_apply_widget_data):
+                _brief, operator_text=_op_text, emit=emit, present=_cvis.present, apply_widget_data=_apply_widget_data,
+                close=lambda _w: _tag_emit("close", {"id": _w})):
             acted["widget"] = True
             _no_tool = False
         # V2-764 — it PROMISED to act on a card the verdict names and called nothing: one pass for the call
@@ -3384,7 +3386,8 @@ class NucleoLLMStream(llm.LLMStream):
                 except Exception:
                     pass
                 _escalate_mod.escalate_to_slowbrain(
-                    req, context={"src": "voice", "surface": escalate_req["surface"].get(req, ""),
+                    req, context={"src": "voice", "surface": (escalate_req["surface"].get(req, "")
+                                                              or _surfaces_mod.from_brief(_brief)),
                                   "asked": spoken_text})   # V2-655: si el turno pidió permiso, se APARCA
                 emit("brain", "🧭 Flash → Brain Worker (escalada registrada)", text=req, role="system")
 

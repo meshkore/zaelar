@@ -78,37 +78,33 @@ def resolve(declared=None, kind: str = "generic") -> str:
 # When NOBODY declared a surface, the kind fallback answers «voice» for every `generic` errand — which is how «find
 # me three 27-inch monitors… show me when you have them» (demo A1, 2026-09-28, and v6 before it) opened no sheet:
 # the operator watched an empty screen, «minimise that» had nothing to minimise, and the results turned up minutes
-# later in the middle of a video. What the operator will LOOK AT is a reading of the request, so Jev reads it —
-# the same closed vocabulary, never a verb table. Unsure or unavailable → "" and the kind fallback stands as today.
-_JEV_KEY = "errand_surface"
-_JEV_INSTRUCTIONS = ("An assistant is starting a background errand with this request. When it is done, what will "
-                     "the user look at?")
-_JEV_CRITERIA = {
-    LIST: "several things to compare or pick from (options, products, places, flights, results)",
-    ITEM: "one single thing with its details",
-    DOC: "one written piece to read (a summary, a report, a document, an essay)",
-    VOICE: "nothing to look at: the answer is simply told",
-    SILENT: "nothing to show or tell: something just gets done",
+# later in the middle of a video. What the operator will LOOK AT is a reading of the request, so it is one more
+# question of the turn brief (same trip, nothing blocks) — the same closed vocabulary, never a verb table.
+SURFACE_KEY = "errand_surface"
+_QUESTION = {
+    "instructions": "If this request becomes a background errand, what will the user look at when it is done?",
+    "criteria": {
+        LIST: "several things to compare or pick from (options, products, places, flights, results)",
+        ITEM: "one single thing with its details",
+        DOC: "one written piece to read (a summary, a report, a document, an essay)",
+        VOICE: "nothing to look at: the answer is simply told",
+        SILENT: "nothing to show or tell: something just gets done",
+    },
 }
 
 
-def decided(request: str) -> str:
-    """Jev's reading of which surface this errand ends on, or "" when unsure. Blocking: call it off the loop."""
+def question() -> dict:
+    return {"instructions": _QUESTION["instructions"], "criteria": dict(_QUESTION["criteria"])}
+
+
+def from_brief(brief) -> str:
+    """The brief's SURE reading of the surface, or "" — the escalation fills it only when the model declared none."""
     try:
-        from nucleo import jev
-        v = jev.choose_sync(_JEV_KEY, str(request or "")[:600], instructions=_JEV_INSTRUCTIONS,
-                            criteria=_JEV_CRITERIA, question_id="errand-surface")
+        from nucleo.flash import turn_brief as _tb
+        choice, info = _tb.read(brief, SURFACE_KEY, "", min_confidence=0.7)
+        return normalize(choice) if info is not None else ""
     except Exception:  # noqa: BLE001
         return ""
-    out = normalize(v.get("choice")) if v and float(v.get("confidence") or 0) >= 0.7 else ""
-    try:                                   # traceable: what was read, how sure, and what the errand got
-        from voice.observer import emit
-        emit("task", "🧭 superficie leída (nadie la declaró)", role="system", text=str(request or "")[:160],
-             extra={"surface": out or "(fallback por kind)", "jev": (v or {}).get("choice", ""),
-                    "confidence": float((v or {}).get("confidence") or 0)})
-    except Exception:  # noqa: BLE001
-        pass
-    return out
 
 
 def set_once(rec, value) -> str:

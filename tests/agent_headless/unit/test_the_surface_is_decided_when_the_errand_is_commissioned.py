@@ -155,7 +155,7 @@ def test_the_dispatcher_stamps_it_at_the_ONLY_door_they_all_pass_through():
 
     from nucleo import dispatch
     src = inspect.getsource(dispatch.run_listener)
-    assert 'surfaces.set_once(rec, _declared)' in src
+    assert 'surfaces.set_once(rec, ctx.get("surface"))' in src
 
 
 def test_and_the_live_projection_publishes_it():
