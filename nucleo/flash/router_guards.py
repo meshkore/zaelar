@@ -315,7 +315,12 @@ def hands_public_lookup_back(reply: str) -> bool:
 # missing stopword creates a spurious overlap and simply keeps today's conduct.
 _NON_TOPIC = frozenset({"para", "por", "con", "sin", "sobre", "desde", "hasta", "entre", "una", "uno", "unos",
                         "unas", "los", "las", "del", "las", "que", "más", "mas", "muy", "solo", "algo", "cosa",
-                        "for", "with", "from", "about", "some", "any", "just"})
+                        "for", "with", "from", "about", "some", "any", "just",
+                        # the verbs of ASKING are not what an errand is about — «find me a free slot» and «find three
+                        # monitors» share «find» and nothing else (demo pass 2026-09-28, C2)
+                        "find", "search", "look", "show", "get", "need", "want", "can", "could", "please",
+                        "busca", "buscar", "búscame", "buscame", "encuentra", "encuéntrame", "encuentrame", "mira",
+                        "muestra", "muéstrame", "muestrame", "enseña", "enséñame", "quiero", "necesito", "puedes"})
 
 
 def _topic_words(text: str) -> set[str]:

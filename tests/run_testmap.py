@@ -3352,6 +3352,12 @@ DOMAINS: list[dict] = [
         # V2-764 — «voy a por la serie Sherlock en torrent y te enseño el catálogo», and no tool: the turn's verdict
         # named the card, the action existed. One bounded pass asks the model for the call it promised — only the
         # named card, only a declared action — before the backstop spends a worker on it.
+        {"id": "2.102", "title": "«Still on it» on a mute turn only about live work that is about THIS request",
+            "ch": UNIT,
+            "paths": ["tests/voice/unit/test_still_on_it_is_only_about_this.py"]},
+        {"id": "2.101", "title": "What the model returned, raw (text, tool calls, hidden reasoning), is on the turn's record",
+            "ch": UNIT,
+            "paths": ["tests/voice/unit/test_the_model_raw_output_is_on_record.py"]},
         {"id": "2.100", "title": "The WHOLE prompt of every turn is on disk (logs/prompts/<session>.jsonl), joined by trace",
             "ch": UNIT,
             "paths": ["tests/voice/unit/test_the_whole_prompt_is_on_disk.py"]},

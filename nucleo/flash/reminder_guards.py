@@ -628,12 +628,25 @@ def mute_line(window, lang=None) -> str:
     return str(getattr(lang, "mute_stuck", "") or lines[-1])
 
 
-def mute_backstop(window, lang, has_work: bool) -> str:
+def mute_backstop(window, lang, has_work: bool, operator_text: str = "") -> str:
     """The WHOLE decision for a turn that came back mute, so the two channels share it instead of mirroring it.
 
     Background work running → say so. Nothing running → `mute_line`, which rotates and owns the fault. Both
     halves used to be written out at each call site, which is how the pending branch got V2-189's
     anti-repetition and the other one kept a single hardcoded «Perdona, ¿me lo repites?» for a year."""
+    # «Still on it» only about work that is about THIS (demo pass 2026-09-28, C2: «find me a free 45 minutes
+    # tomorrow afternoon…» came back mute while the MONITOR search ran, and the operator was told «Still on it;
+    # I'll let you know» about a request nothing was doing — our own canned line, lying). The predicate is the
+    # conservative V2-176 one: it only says «nothing for this» when it can tell.
+    if has_work and operator_text:
+        try:
+            from nucleo import dispatch as _d
+            from nucleo.flash import router_guards as _rgd
+            live = [str(r.get("request") or r.get("goal") or "") for r in _d.pending_summaries()]
+            if _rgd.nothing_running_for(operator_text, live):
+                has_work = False
+        except Exception:  # noqa: BLE001
+            pass
     if has_work:
         return str(getattr(lang, "filler_still_working", "") or "Sigo con ello.")
     return mute_line(window, lang)

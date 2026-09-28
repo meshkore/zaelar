@@ -230,6 +230,9 @@ def est_tokens(chars: int) -> int:
     return int(round((chars or 0) / _CHARS_PER_TOKEN))
 
 
+#: How much of the model's raw output a turn keeps on record (text and each tool call's arguments).
+_RAW_CAP = 2000
+
 class _AnthropicSSE:
     """PURE state machine for the Anthropic Messages SSE stream (the protocol spoken by direct Z.AI). Deliberately
     separate from HTTP transport → testable with synthetic `data:` objects (see tests). `feed(obj)` receives ONE
@@ -799,6 +802,14 @@ class FastClient:
                     except Exception:
                         pass
                 text = getattr(delta, "content", None) or ""
+                # WHAT THE MODEL RETURNED, raw — before any sanitizer, tag parser or tool gate (demo pass
+                # 2026-09-28, C2: 127 completion tokens, 0 characters, no tool call reached the turn, and nothing
+                # on record could say what those tokens were). Text and hidden reasoning, capped.
+                _rc = getattr(delta, "reasoning_content", None) or ""
+                if _rc:
+                    m["reasoning_chars"] = int(m.get("reasoning_chars") or 0) + len(_rc)
+                if text and len(m.get("raw_text") or "") < _RAW_CAP:
+                    m["raw_text"] = (m.get("raw_text") or "") + text[:_RAW_CAP]
                 if text:
                     _completion_chars += len(text)
                     yield text
@@ -857,6 +868,11 @@ class FastClient:
                     cache_hit_tokens=m.get("prompt_cache_hit_tokens"),
                 )
             except Exception:
+                pass
+            try:
+                m["raw_tool_calls"] = [{"name": c.get("name") or "", "arguments": (c.get("arguments") or "")[:_RAW_CAP]}
+                                       for c in calls.values()][:8]
+            except Exception:  # noqa: BLE001
                 pass
             if on_tool_call and calls:
                 import json

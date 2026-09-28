@@ -1206,7 +1206,7 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
                 # silencio total — y el turno SIGUIENTE, viendo ese hueco en la ventana, acabó ECOANDO la propia
                 # pregunta del operador ("Dime algo, por favor. ¿Se relanzó la búsqueda...?", literalmente sus
                 # palabras). Espejo del backstop genérico de `nucleo.py` (impl PARALELA, cablear en AMBOS).
-                spoken = _rg_mute.mute_backstop(sess.window, _lg, _hw)   # V2-603: rotates, owns the fault
+                spoken = _rg_mute.mute_backstop(sess.window, _lg, _hw, operator_text=text)   # V2-603: rotates, owns the fault
         except Exception:
             pass
 

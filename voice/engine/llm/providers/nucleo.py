@@ -3187,7 +3187,8 @@ class NucleoLLMStream(llm.LLMStream):
         if not spoken_text and not _tool_handled:
             try:
                 from voice.engine.core import langs                      # V2-603: the shared decision
-                spoken_text = _rg.mute_backstop(brain._window, langs.current_language(), _prev_pending)
+                spoken_text = _rg.mute_backstop(brain._window, langs.current_language(), _prev_pending,
+                                                  operator_text=_op_text)
             except Exception:
                 spoken_text = _say().still_on_it if _prev_pending else _say().say_again
             send(speech.sanitize(spoken_text, drop_metadata=False))
@@ -3324,6 +3325,10 @@ class NucleoLLMStream(llm.LLMStream):
             # FASE 3: contención local activa al arrancar el turno (para correlacionar con el TTFT)
             "busy_at_start": _busy_at_start or None, "contended": bool(_busy_at_start),
             "engine": spec.provider, "model": spec.model,
+            # WHAT THE MODEL RETURNED, raw (demo pass 2026-09-28, C2: 127 tokens, 0 chars, no call — unreadable).
+            "finish_reason": llm_metrics.get("finish_reason"), "raw_text": llm_metrics.get("raw_text"),
+            "raw_tool_calls": llm_metrics.get("raw_tool_calls"), "reasoning_chars": llm_metrics.get("reasoning_chars"),
+            "dropped_tool_calls": llm_metrics.get("dropped_tool_calls"),
         }
         # V2-587 — this turn's «did anything actually run» fact, computed ONCE and read by the empty-wait
         # guard here and by the promise backstop below (two copies of a nine-flag expression is how they drift).
