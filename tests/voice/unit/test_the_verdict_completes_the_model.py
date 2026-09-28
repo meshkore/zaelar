@@ -299,3 +299,16 @@ def test_the_promise_repair_closes_instead_of_writing_when_the_order_is_a_close(
     assert "_direct_action.sure_close(_brief)" in src[i - 700:i], "the close check runs BEFORE the repair call"
     b = _brief({_tb.CANVAS_KEY: ("close", 1.0)})
     assert _da.sure_close(b) and not _da.sure_close(_brief({_tb.CANVAS_KEY: ("close", 0.6)}))
+
+
+def test_an_action_named_surely_is_an_order_even_when_the_request_type_is_unsure(on_screen):
+    """E3: «draft a short reply…» — mensajeria:draft 0.74, request_type 0.48 (unsure), the reply «I've got a draft
+    ready» with no call. The repair gate is the verdict on the action; an unsure request type is no veto."""
+    b = _brief({_tb.TARGET_KEY: ("mensajeria:draft", 0.74), _tb.REQUEST_KEY: ("order", 0.48)},
+               open_ids=("mensajeria",))
+    assert _da.names_an_order(b, sure=0.7)
+    assert not _da.names_an_order(_brief({_tb.TARGET_KEY: ("agenda:add_meeting", 0.54),
+                                          _tb.REQUEST_KEY: ("order", 0.48)}, open_ids=("agenda",)), sure=0.7), \
+        "C2's unsure write stays out"
+    assert not _da.names_an_order(_brief({_tb.TARGET_KEY: ("mensajeria:draft", 0.74),
+                                          _tb.REQUEST_KEY: ("comment", 0.95)}, open_ids=("mensajeria",)), sure=0.7)

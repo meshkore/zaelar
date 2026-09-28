@@ -283,11 +283,12 @@ def test_a_repair_that_may_write_needs_a_sure_action_verdict(monkeypatch):
     monkeypatch.setattr(_tb, "owner_still_open", lambda _b, _o: True)
     unsure = _brief({_tb.TARGET_KEY: ("agenda:add_meeting", 0.54), _tb.REQUEST_KEY: ("order", 0.84)}, open_ids=("agenda",))
     assert _da.names_an_order(unsure), "it names the card — the mute question still reads it"
-    assert not _da.names_an_order(unsure, sure=0.8), "…but a WRITE on it needs a sure action"
+    assert not _da.names_an_order(unsure, sure=0.7), "…but a WRITE on it needs a sure action"
     sure = _brief({_tb.TARGET_KEY: ("agenda:add_meeting", 0.93), _tb.REQUEST_KEY: ("order", 0.84)}, open_ids=("agenda",))
-    assert _da.names_an_order(sure, sure=0.8)
+    assert _da.names_an_order(sure, sure=0.7)
     src = (_ENGINE / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
-    assert "_direct_action.names_an_order(_brief, sure=0.8)" in src, "the promise repair's gate must carry the floor"
+    # 0.7 since the demo pass of 2026-09-28 (E3: a sure 0.74 draft was left unrepaired) — C2's 0.54 stays out
+    assert "_direct_action.names_an_order(_brief, sure=0.7)" in src, "the promise repair's gate must carry the floor"
 
 
 def test_a_show_that_names_a_card_we_have_beats_the_worker_and_an_undone_order_over_a_card_escalates():

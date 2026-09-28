@@ -243,12 +243,19 @@ def names_an_order(brief, *, sure: float = 0.0) -> bool:
         # and «Show me only today's emails» promised or denied with no call and no repair ever looked.
         if not from_brief(brief)[1] and not _bd.named_card(brief):
             return False
+        named_sure = False
         if sure and from_brief(brief)[1]:
             _c, _i = _tb.read(brief, _tb.TARGET_KEY, "", min_confidence=sure)
             if _i is None or not _i.get("used"):
                 return False
+            named_sure = True
         kind, info = _tb.read(brief, _tb.REQUEST_KEY, "")
-        return info is not None and kind not in NOT_AIMED_AT_THE_SCREEN
+        if info is not None:
+            return kind not in NOT_AIMED_AT_THE_SCREEN
+        # An UNSURE request type is not a veto when the action itself is named surely (demo pass 2026-09-28, E3:
+        # «draft a short reply…» → mensajeria:draft 0.74, request_type 0.48, the reply «I've got a draft ready»
+        # and no call). Only a SURE reading that he was not giving an order stops the repair.
+        return named_sure
     except Exception:  # noqa: BLE001
         return False
 
