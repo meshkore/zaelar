@@ -86,3 +86,12 @@ def test_the_voice_read_path_uses_it():
     src = (ENGINE / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
     assert "_order_card = _direct_action.order_card_after_read(_brief, _op_text, _rw)" in src
     assert "call_after_read(_op_text, _rw, _order_card" in src
+
+
+def test_an_order_on_a_card_the_turn_never_touched_is_carried_out():
+    """full23 C5: «send ethan a telegram with the new time» re-wrote the meeting on the agenda and the reply said «he's
+    getting the update now» — nothing was sent. The order's card, untouched by the turn's ops, gets its call."""
+    src = (ENGINE / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
+    assert "_missed = _direct_action.order_card_after_read(_brief, _op_text, next(iter(_ops_cards)))" in src
+    assert "if _missed and _missed not in _ops_cards:" in src
+    assert "call_after_read(_op_text, next(iter(_ops_cards)), _missed" in src

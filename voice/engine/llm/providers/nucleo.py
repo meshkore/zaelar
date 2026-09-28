@@ -2691,6 +2691,22 @@ class NucleoLLMStream(llm.LLMStream):
                 emit("brain", "🔁 prometió actuar sin tool — la llamada, en una segunda pasada",
                      text=f"{_ar['widget_id']}:{_ar['action']}", role="system",
                      extra={"cat": "flash", "widget": _ar["widget_id"], "action": _ar["action"]})
+        # An order on ONE card while the turn only touched OTHERS (full23 C5: «send ethan a telegram with the new
+        # time» re-wrote the meeting on the agenda and the reply said «he's getting the update now» — nothing was
+        # sent). The order is carried out on its card, with what the touched card holds.
+        _ops_cards = {str(w).split("::")[0] for w, _a in (data_done.get("ops") or [])}
+        if _ops_cards and not clarify["msg"] and "close_widget" not in _tool_fired:
+            _missed = _direct_action.order_card_after_read(_brief, _op_text, next(iter(_ops_cards)))
+            if _missed and _missed not in _ops_cards:
+                from nucleo.flash import act_repair as _act_repair_oc
+                _oc = await _act_repair_oc.call_after_read(_op_text, next(iter(_ops_cards)), _missed, spec=spec,
+                                                           window=list(brain._window))
+                if _oc:
+                    _cvis.present(_oc["widget_id"], reason="turn-order", src="flash", emit=emit)
+                    _apply_widget_data(_oc["widget_id"], _oc["action"], _oc["payload"])
+                    emit("brain", "🔁 la orden era sobre otra tarjeta — la llamada, en una segunda pasada",
+                         role="system", text=f"{sorted(_ops_cards)} → {_oc['widget_id']}:{_oc['action']}",
+                         extra={"cat": "flash", "widget": _oc["widget_id"], "action": _oc["action"]})
         if _repeat_repair["v"] and not clarify["msg"]:
             from nucleo.flash import act_repair as _act_repair_rv
             _rv_card, _rv_seen, _rv_act = _repeat_repair["v"]
