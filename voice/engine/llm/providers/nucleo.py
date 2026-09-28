@@ -2465,7 +2465,8 @@ class NucleoLLMStream(llm.LLMStream):
                 from nucleo.flash import card_commission as _cardc
                 if await _cardc.before_worker(escalate_req, read_req, brief=_brief, operator_text=operator_text,
                                               spec=spec, emit=emit, present=_cvis.present,
-                                              apply_widget_data=_apply_widget_data) == "call":
+                                              apply_widget_data=_apply_widget_data,
+                                              window=list(brain._window)) == "call":
                     acted["widget"] = True
 
         # JEV ESCALATE GATE (T-jev-escalate): a commission that SURVIVED the grammar guards gets a
@@ -2571,7 +2572,8 @@ class NucleoLLMStream(llm.LLMStream):
                 emit("brain", "🔁 prometió cerrar sin tool — cierra la tarjeta", text=_ar_wid, role="system",
                      extra={"cat": "flash", "widget": _ar_wid, "action": "close"})
                 _ar_wid = ""
-            _ar = await _act_repair.call_for_promise(_op_text, spoken_text, _ar_wid, spec=spec) if _ar_wid else None
+            _ar = (await _act_repair.call_for_promise(_op_text, spoken_text, _ar_wid, spec=spec,
+                                                      window=list(brain._window)) if _ar_wid else None)
             if _ar:
                 _cvis.present(_ar["widget_id"], reason="turn-order", src="flash", emit=emit)
                 _apply_widget_data(_ar["widget_id"], _ar["action"], _ar["payload"])
@@ -2585,7 +2587,8 @@ class NucleoLLMStream(llm.LLMStream):
         if acted.get("widget_id") and not data_done["v"] and not clarify["msg"]:   # a SILENT show too (M1)
             from nucleo.flash import card_commission as _cardc2
             if await _cardc2.after_show(acted, brief=_brief, operator_text=_op_text, spoken_text=spoken_text, spec=spec,
-                                        emit=emit, present=_cvis.present, apply_widget_data=_apply_widget_data):
+                                        emit=emit, present=_cvis.present, apply_widget_data=_apply_widget_data,
+                                        window=list(brain._window)):
                 data_done["v"] = True
         if (_no_tool and spoken_text
                 and (_router.promises_action(spoken_text) or _direct_action.verdict_escalates(_brief, answered=not _router.promises_action(spoken_text))

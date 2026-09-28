@@ -38,6 +38,19 @@ _SYS = ("Eres el cerebro de un asistente de voz. En el turno anterior contestast
 _CARD = "\n\nLO QUE HAY EN LA TARJETA «{wid}» AHORA:\n{digest}"
 
 
+def conversation(window, n: int = 6) -> str:
+    """The last turns, as the model that spoke them saw them — so a repair pass knows what «the new time», «that
+    one» or «it» is (demo pass 2026-09-28, C5: «send ethan a telegram with the new time» reached a pass that saw
+    only his sentence and the messaging card; the time lived two turns back, on the agenda)."""
+    try:
+        rows = [m for m in (window or []) if (m or {}).get("role") in ("user", "assistant")][-n:]
+        lines = [f"{'Operador' if m['role'] == 'user' else 'Tú'}: {str(m.get('content') or '').strip()[:300]}"
+                 for m in rows if str(m.get("content") or "").strip()]
+        return ("\n\nLA CONVERSACIÓN HASTA AHORA (lo último abajo):\n" + "\n".join(lines)) if lines else ""
+    except Exception:  # noqa: BLE001
+        return ""
+
+
 def _note(wid: str, why: str, **extra) -> None:
     """The pass ran and gave NO call — said on the timeline, because a silent None here was a turn that
     claimed an act nobody could find (V2-773 audit)."""
@@ -67,7 +80,8 @@ def _widget_data_tool() -> dict | None:
         return None
 
 
-async def call_for_promise(operator_text: str, reply: str, widget_id: str, spec=None) -> dict | None:
+async def call_for_promise(operator_text: str, reply: str, widget_id: str, spec=None, *,
+                           window=None) -> dict | None:
     """`{widget_id, action, payload}` — the call the model should have made — or None. Never raises."""
     try:
         wid = str(widget_id or "").strip().lower()
@@ -91,7 +105,8 @@ async def call_for_promise(operator_text: str, reply: str, widget_id: str, spec=
         await FastClient().complete(
             [{"role": "system", "content": _SYS.format(wid=wid, actions=_actions_block(manifest), card=card)},
              {"role": "user", "content": f"Operador: «{operator_text.strip()[:400]}»\n"
-                                         f"Tu respuesta (sin llamada): «{(reply or '').strip()[:300]}»"}],
+                                         f"Tu respuesta (sin llamada): «{(reply or '').strip()[:300]}»"
+                                         + conversation(window)}],
             spec=spec, max_tokens=300, tools=[tool], no_thinking=True,
             on_tool_call=lambda name, args: got.append((name, args if isinstance(args, dict) else {})))
         for name, args in got:
@@ -123,7 +138,9 @@ _SYS_COMMISSION = (
     "exterior —la web, reservar en un sitio externo, buscar productos— no llames a nada. Un mensaje a un contacto "
     "es la acción de enviar de la tarjeta, con el texto redactado por ti a partir de lo que él quiere decir, y "
     "`contact` es el NOMBRE de la persona tal como él lo dijo («Ethan»), nunca su @usuario, teléfono o correo: "
-    "la tarjeta lo resuelve en su directorio."
+    "la tarjeta lo resuelve en su directorio. Una orden de HACER algo (enviar, escribir, apuntar, mover) se cumple "
+    "con su acción aunque dependa de un dato que la tarjeta guarda: la tarjeta lo comprueba al ejecutar y dice si "
+    "falta — leer para comprobarlo antes no cumple la orden."
     "\n\nAcciones de «{wid}»:\n{actions}{card}")
 
 
@@ -135,7 +152,8 @@ def _tool_named(name: str) -> dict | None:
         return None
 
 
-async def call_or_read_for_commission(operator_text: str, commission: str, widget_id: str, spec=None) -> dict | None:
+async def call_or_read_for_commission(operator_text: str, commission: str, widget_id: str, spec=None, *,
+                                      window=None) -> dict | None:
     """A commission that names one of our cards, before it costs a worker (V2-773 final pass, C1): «Find me a
     free 45-minute slot tomorrow afternoon» was delegated to a Brain Worker (three minutes) when the agenda was
     the whole answer. One pass with the card in front decides: `{"kind": "call", widget_id, action, payload}`,
@@ -165,7 +183,8 @@ async def call_or_read_for_commission(operator_text: str, commission: str, widge
         await FastClient().complete(
             [{"role": "system", "content": _SYS_COMMISSION.format(wid=wid, actions=_actions_block(manifest), card=card)},
              {"role": "user", "content": f"Operador: «{operator_text.strip()[:400]}»\n"
-                                         f"El encargo que iba a un worker: «{(commission or '').strip()[:300]}»"}],
+                                         f"El encargo que iba a un worker: «{(commission or '').strip()[:300]}»"
+                                         + conversation(window)}],
             spec=spec, max_tokens=300, tools=tools, no_thinking=True,
             on_tool_call=lambda name, args: got.append((name, args if isinstance(args, dict) else {})))
         declared = manifest.get("actions") or {}

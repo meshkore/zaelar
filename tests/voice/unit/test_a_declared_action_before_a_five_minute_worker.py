@@ -595,3 +595,19 @@ def test_a_spoken_claim_over_a_show_on_an_order_gets_its_pass(monkeypatch):
     assert applied == [("mensajeria", "open", {"item": "Fincalista"})]
     # a SILENT show of a card nobody named, on the same verdict, still asks nothing (no words to judge)
     assert not asyncio.run(card_commission.after_show({"widget_id": "mensajeria"}, spoken_text="", **kw))
+
+
+def test_the_commission_pass_sees_the_conversation():
+    """Demo pass 2026-09-28, C5: «send ethan a telegram with the new time» reached a pass that saw his sentence and
+    the messaging card, not the turns where the time was set — it read the directory instead of sending. Measured
+    live with the last turns in front: 7/8 sends with the right time (1/4 before)."""
+    from pathlib import Path
+    from nucleo.flash import act_repair
+    w = [{"role": "user", "content": "actually move it half an hour later"},
+         {"role": "assistant", "content": "Moved — it's now 4:45 to 5:30 PM tomorrow."},
+         {"role": "system", "content": "internal"}]
+    ctx = act_repair.conversation(w)
+    assert "4:45 to 5:30" in ctx and "Operador: actually move it" in ctx and "internal" not in ctx
+    assert act_repair.conversation([]) == ""
+    prov = (Path(__file__).resolve().parents[3] / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
+    assert prov.count("window=list(brain._window)") >= 3, "commission, after-show and promise passes all get it"

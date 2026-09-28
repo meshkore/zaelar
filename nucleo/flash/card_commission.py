@@ -62,7 +62,7 @@ def named_or_catalogue(brief, operator_text: str, *, wait_s: float = 2.5) -> str
 
 
 async def before_worker(escalate_req: dict, read_req: dict, *, brief, operator_text: str, spec, emit,
-                        present: Callable, apply_widget_data: Callable) -> str:
+                        present: Callable, apply_widget_data: Callable, window=None) -> str:
     """Try the card the catalogue verdict names. Returns "call", "read" or "" (the worker keeps the errand).
 
     The caller owns the precondition — a commission survived every guard and nothing in the turn acted — and
@@ -75,7 +75,7 @@ async def before_worker(escalate_req: dict, read_req: dict, *, brief, operator_t
             return ""
         # Any card the verdict names may take the CALL; the read half is offered only to one that can answer.
         got = await _repair.call_or_read_for_commission(operator_text, str(escalate_req.get("v") or ""), card,
-                                                        spec=spec)
+                                                        spec=spec, window=window)
         if not got:
             return ""
         if got["kind"] == "call":
@@ -116,7 +116,7 @@ def present_if_show(read_req: dict, *, brief, operator_text: str, is_open: Calla
 
 
 async def after_show(acted: dict, *, brief, operator_text: str, spoken_text: str, spec, emit, present: Callable,
-                     apply_widget_data: Callable) -> bool:
+                     apply_widget_data: Callable, window=None) -> bool:
     """The turn SHOWED a card and said it would do something on it — the show is not the act (V2-773, email
     block). Two measured turns: «Show me only the emails from today that need my attention» opened the messaging
     card from the catalogue and promised «let me pull your inbox up and flag what needs you» — no `show_view`;
@@ -153,7 +153,7 @@ async def after_show(acted: dict, *, brief, operator_text: str, spoken_text: str
                 or (spoken_text and _da.names_an_order(brief)) or empty):
             return False
         said = spoken_text or (f"(Abrí la tarjeta «{wid}» y está VACÍA: aún no he hecho lo que pidió.)" if empty else "")
-        got = await _repair.call_for_promise(operator_text, said, wid, spec=spec)
+        got = await _repair.call_for_promise(operator_text, said, wid, spec=spec, window=window)
         # A bare `show` is the card coming up, which already happened; a `show` WITH content («markets:show
         # {symbol: AAPL}») is the order itself.
         if not got or (str(got.get("action") or "") in ("show", "open_widget") and not got.get("payload")):
