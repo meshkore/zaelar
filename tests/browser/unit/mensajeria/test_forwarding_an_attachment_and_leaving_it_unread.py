@@ -145,3 +145,15 @@ def test_a_mail_from_his_own_address_is_his_echo_not_mail_for_him(monkeypatch):
     assert mbx.parse_message("9", raw) is None
     other = raw.replace(b"From: Me <me@example.com>", b"From: Inworld AI <billing@inworld.ai>")
     assert (mbx.parse_message("10", other) or {}).get("senderId") == "billing@inworld.ai"
+
+
+def test_the_mail_he_names_is_the_one_that_opens(box):
+    """Demo pass 2026-09-28 (full13 E2): «open it» after «did inworld send me something?» reached
+    `open` with `item: "Inworld AI"` and an EMPTY payload — `open` never said which key names a chat, so the
+    reference fell on the floor and the card showed the list instead of the receipt."""
+    from widgets import refs
+    res = refs.resolve("mensajeria", "open", "Inworld AI", {})
+    assert res.ok and res.payload == {"name": "Inworld AI"}, res
+    assert refs.resolve("mensajeria", "unread", "Inworld", {}).payload == {"from": "Inworld"}
+    r = box.apply_action("open", res.payload)
+    assert r.get("ok") is not False, r

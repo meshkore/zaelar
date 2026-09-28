@@ -74,6 +74,7 @@
       "view": true
     },
     "open": {
+      "ref": "name",
       "desc": "Abre un CHAT concreto (pasa a ver sus mensajes uno a uno): por `name` («abre el chat/mensaje de Jose Vicente») o por `n` de la lista de chats",
       "payload": {
         "name": "string opcional (nombre del chat/persona tal como aparece)",
@@ -96,6 +97,7 @@
       "safe": true
     },
     "unread": {
+      "ref": "from",
       "desc": "Deja SIN LEER en su app real (correo) el mensaje N de la lista, o el que está ABIERTO si no dices cuál — «déjalo como no leído», «márcalo sin leer»",
       "payload": {
         "from": "de quién es o de qué va («el de Inworld»)",
