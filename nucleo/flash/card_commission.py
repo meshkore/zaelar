@@ -21,6 +21,14 @@ from __future__ import annotations
 from typing import Callable
 
 
+#: The late catalogue question names a card for a repair that acts IN THE MODEL'S PLACE, on a card nobody sees
+#: yet — so it needs more than the classifier's «not a shrug». Demo pass 35 (2026-09-29, B1): «find me the
+#: wallpaper cosmic eye in the sky» read `navegador` at 0.63; the repair ran a browser search, and that card sat
+#: on the canvas until the end of the demo. Every late read that named the right card across passes 20-35 was
+#: at 0.74 or more.
+LATE_CATALOGUE_MIN = 0.7
+
+
 def named_or_catalogue(brief, operator_text: str, *, wait_s: float = 3.5) -> str:
     """The card an order names — by the brief, or by ONE late catalogue question when the brief could not know.
 
@@ -53,7 +61,7 @@ def named_or_catalogue(brief, operator_text: str, *, wait_s: float = 3.5) -> str
             v = fut.result(timeout=wait_s)
         cat = str((v or {}).get("choice") or "").strip()
         conf = float((v or {}).get("confidence") or 0.0)
-        named = cat if cat and cat != "none" and conf >= _jev.MIN_CONFIDENCE else ""
+        named = cat if cat and cat != "none" and conf >= LATE_CATALOGUE_MIN else ""
         try:
             from voice.observer import emit as _emit
             _emit("brain", "🧭 catálogo tardío (la pantalla dijo «none»)", role="system",
