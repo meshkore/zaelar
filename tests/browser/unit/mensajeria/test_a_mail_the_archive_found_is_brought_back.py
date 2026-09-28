@@ -39,3 +39,27 @@ def test_a_mail_brought_back_carries_its_files():
     src = (ENGINE / "connectors/email/service.py").read_text("utf-8")
     i = src.index("async def _drain_history")
     assert '"media": store._media_entries(m)' in src[i:i + 2500]
+
+
+def test_a_mail_brought_back_keeps_its_subject_for_the_forward(monkeypatch):
+    """Demo pass 31, E3: the forward went out to Andrew titled «Fwd» — the history row folded the subject into the
+    body and never carried the field the thread keeps (V2-680) and `forward` names itself from."""
+    import asyncio
+
+    from connectors.email import service
+    got = []
+
+    class _Inbox:
+        def drain(self):
+            return [{"chatId": "invoice+statements@inworld.ai", "beforeId": "220441", "limit": 1}]
+
+    class _Mb:
+        def fetch_older(self, chat, before, limit, media_dir):
+            return [{"messageId": "220440", "senderName": "Inworld AI", "chatId": chat, "senderId": chat,
+                     "subject": "Your receipt from Inworld AI #2281-4878", "body": "Amount paid $25.00",
+                     "timestamp": 1.0}], True
+
+    monkeypatch.setattr(service, "_history_inbox", _Inbox())
+    monkeypatch.setattr(service.ingest, "publish_history", lambda plat, chat, rows, **k: got.extend(rows))
+    asyncio.run(service._drain_history(_Mb()))
+    assert got and got[0]["subject"] == "Your receipt from Inworld AI #2281-4878", got

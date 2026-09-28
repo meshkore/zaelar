@@ -2691,6 +2691,11 @@ class NucleoLLMStream(llm.LLMStream):
                 emit("brain", "🔁 prometió actuar sin tool — la llamada, en una segunda pasada",
                      text=f"{_ar['widget_id']}:{_ar['action']}", role="system",
                      extra={"cat": "flash", "widget": _ar["widget_id"], "action": _ar["action"]})
+                # the words did not promise it (they may have REFUSED it): what was done is said after them
+                _ar_tail = _act_repair.after_the_repair(spoken_text, _router.promises_action(spoken_text))
+                if _ar_tail:
+                    send(speech.sanitize(_ar_tail, drop_metadata=False))
+                    spoken_text = spoken_text + _ar_tail
         # An order on ONE card while the turn only touched OTHERS (full23 C5: «send ethan a telegram with the new
         # time» re-wrote the meeting on the agenda and the reply said «he's getting the update now» — nothing was
         # sent). The order is carried out on its card, with what the touched card holds.

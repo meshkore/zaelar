@@ -411,6 +411,9 @@ async def _drain_history(mb) -> None:
                 # as a title, so joining them here needs no special case downstream.
                 "body": f"{subject}\n{body}" if subject else body,
                 "ts": m.get("timestamp") or 0, "read": True,
+                # …and the mail's own fields, which the thread keeps (V2-680) and `forward` names its subject from:
+                # a mail brought back without them went out to Andrew as «Fwd» (demo pass 31, E3)
+                **{k: m[k] for k in ("subject", "senderId", "recipients") if m.get(k)},
                 # …with its files, in the shape ingestion gives them: a mail brought back to be FORWARDED must carry
                 # what it carried (full28 E3: the Inworld invoice)
                 **({"media": store._media_entries(m)} if m.get("mediaUrls") else {}),

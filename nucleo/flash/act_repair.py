@@ -80,6 +80,24 @@ def _widget_data_tool() -> dict | None:
         return None
 
 
+def after_the_repair(spoken: str, promised: bool) -> str:
+    """What the VOICE adds once the second pass has carried out an order the model's words did not promise.
+
+    Demo pass 31 (2026-09-28, E4): «leave that inworld one as unread» — the model called nothing and said «there's
+    no unread toggle for a mail message»; the verdict's second pass then marked it unread. The action was done and
+    the last thing heard was that it could not be. The text channel drops the model's words and lets the result
+    speak; the voice cannot unsay what already streamed, so it says what happened after it — the same rule as a
+    worker stopped by the backstop («never a silent kill»). Nothing is added when the words already promised the
+    act, or when nothing was said (the ordinary data ack covers that)."""
+    if promised or not (spoken or "").strip():
+        return ""
+    try:
+        from voice.engine.core import langs as _langs
+        return " " + (_langs.current_language().data_ack or "").strip()
+    except Exception:  # noqa: BLE001
+        return ""
+
+
 async def call_for_promise(operator_text: str, reply: str, widget_id: str, spec=None, *,
                            window=None) -> dict | None:
     """`{widget_id, action, payload}` — the call the model should have made — or None. Never raises."""
