@@ -213,6 +213,9 @@ def ranked(terms: list[str], *, platform: str | None = None, limit: int = 8) -> 
         return []
     try:
         conn = _conn()
+        named = _naming_terms(conn, terms)
+        if named:
+            return _ranked_by_name(conn, named, platform=platform, limit=limit)
         sql = ("SELECT m.*, bm25(messages_fts) AS score FROM messages_fts JOIN messages m ON m.id = messages_fts.rowid"
                " WHERE messages_fts MATCH ?")
         args: list = [" OR ".join(_fts_term(t) for t in terms)]
@@ -224,6 +227,48 @@ def ranked(terms: list[str], *, platform: str | None = None, limit: int = 8) -> 
         return [dict(r) for r in conn.execute(sql, args).fetchall()]
     except Exception:  # noqa: BLE001
         return []
+
+
+def _naming_terms(conn, terms: list[str]) -> list[str]:
+    """The words of a question that NAME a sender or a chat: they appear in the sender/chat_name column, and they
+    are among the less common words of the question here (a group called «The …» must not make «the» a name).
+
+    Demo pass 35 (2026-09-29, E1): «Is there any email from Inworld (inworld.ai) in the inbox? What is it about and
+    when did it arrive?» ranked four long Telegram posts first — BM25 over the OR of thirteen words adds up the
+    filler, and a trading channel holds a lot of it. No list of filler words, in any language: the column says
+    who is a sender, and the counts say which words are common."""
+    df = {t: doc_count(t) for t in terms}
+    seen = sorted(n for n in df.values() if n > 0)
+    if not seen:
+        return []
+    median = seen[len(seen) // 2]
+    out = []
+    for t in terms:
+        if not df[t] or df[t] > median:
+            continue
+        hit = conn.execute("SELECT count(*) FROM messages_fts WHERE messages_fts MATCH ?",
+                           ("{sender chat_name}: " + _fts_term(t),)).fetchone()[0]
+        if hit:
+            out.append(t)
+    return out
+
+
+def _ranked_by_name(conn, named: list[str], *, platform: str | None, limit: int) -> list[dict]:
+    """Rows from the named sender/chat first, then rows that only mention the name — each group by BM25 over the
+    naming words alone, so filler never weighs in."""
+    q = " OR ".join(_fts_term(t) for t in named)
+    lim = max(1, min(int(limit or 8), 50))
+    base = ("SELECT m.*, bm25(messages_fts) AS score FROM messages_fts JOIN messages m ON m.id = messages_fts.rowid"
+            " WHERE messages_fts MATCH ?")
+    tail = (" AND m.platform = ?" if platform else "") + " ORDER BY score LIMIT ?"
+    out, ids = [], set()
+    for match in ("{sender chat_name}: (" + q + ")", q):
+        args: list = [match] + ([str(platform)] if platform else []) + [lim]
+        for r in conn.execute(base + tail, args).fetchall():
+            if r["id"] not in ids and len(out) < lim:
+                ids.add(r["id"])
+                out.append(dict(r))
+    return out
 
 
 def replied(platform: str, chat_id, after_ts: float) -> dict | None:
