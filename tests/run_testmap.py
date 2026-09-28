@@ -3352,6 +3352,9 @@ DOMAINS: list[dict] = [
         # V2-764 — «voy a por la serie Sherlock en torrent y te enseño el catálogo», and no tool: the turn's verdict
         # named the card, the action existed. One bounded pass asks the model for the call it promised — only the
         # named card, only a declared action — before the backstop spends a worker on it.
+        {"id": "2.97", "title": "A scheduled alert says its time is when it RINGS — never read back as the meeting's time",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/flash/test_an_alert_time_is_not_the_meeting_time.py"]},
         {"id": "2.96", "title": "«Show me a few more of those» ADDS pictures to the viewer instead of reloading the same ones",
             "ch": UNIT,
             "paths": ["tests/agent_headless/unit/flash/test_more_of_those_adds_pictures.py"]},

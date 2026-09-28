@@ -795,7 +795,11 @@ def _cron_line() -> str:
         from nucleo import scheduler
         jobs = scheduler.list_jobs(active_only=True)
         if jobs:
-            line += " Ya programado: " + "; ".join(f"{j['name']} ({j['schedule']})" for j in jobs[:6]) + "."
+            # The time is when the ALERT rings, not when the thing happens (demo pass 2026-09-28, Z1: «ZAELAR
+            # weekly review (2026-09-29 07:00)» — the meeting's own 2-hours-early alert — was read back to him as
+            # the meeting at 7). The datum says what it is; the meeting's time lives on the agenda.
+            line += (" Ya programado (hora a la que SUENA el aviso, no la de la cita): "
+                     + "; ".join(f"{j['name']} (suena {j['schedule']})" for j in jobs[:6]) + ".")
     except Exception:
         pass
     return line
