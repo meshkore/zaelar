@@ -2528,9 +2528,10 @@ class NucleoLLMStream(llm.LLMStream):
         _op_text = _router.operator_words(operator_text, text)   # a note is CONTEXT, never the errand
         # V2-754 — sin tool del modelo y con una ORDEN sobre una tarjeta abierta en el brief («Sí, el catálogo» →
         # `show_tab` 0,88 y «te dejo el catálogo» sobre nada): el veredicto completa el turno por la misma puerta.
-        if _no_tool and not clarify["msg"] and _direct_action.complete(
-                _brief, operator_text=_op_text, emit=emit, present=_cvis.present, apply_widget_data=_apply_widget_data,
-                close=lambda _w: _tag_emit("close", {"id": _w})):
+        if _no_tool and not clarify["msg"] and (
+                _direct_action.complete_canvas(_brief, tag_emit=_tag_emit, emit=emit, operator_text=_op_text)
+                or _direct_action.complete(_brief, operator_text=_op_text, emit=emit, present=_cvis.present,
+                                           apply_widget_data=_apply_widget_data)):
             acted["widget"] = True
             _no_tool = False
         # V2-764 — it PROMISED to act on a card the verdict names and called nothing: one pass for the call
@@ -2541,7 +2542,7 @@ class NucleoLLMStream(llm.LLMStream):
             from nucleo.flash import act_repair as _act_repair, build_decision as _bd_ar
             from nucleo.flash import card_commission as _cardc_ar
             _ar_wid = _cardc_ar.named_or_catalogue(_brief, _op_text)   # V2-773: a closed card while others are open
-            if _ar_wid and _direct_action.sure_close(_brief):
+            if _ar_wid and _direct_action.sure_canvas(_brief) == "close":
                 # the promise was to CLOSE it: the card's own close, never a data action (S4 emptied the sheet)
                 _tag_emit("close", {"id": _ar_wid})
                 acted["widget"] = True

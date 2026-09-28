@@ -563,20 +563,49 @@ def completes(brief, widget_id: str, *, model_action: str = "") -> str:
     return "" if name == (model_action or "") else name
 
 
-def sure_close(brief) -> bool:
-    """Is this turn, SURELY, an order to close a card? Then no data action completes it — closing a card is never
-    a write to its data (demo pass 2026-09-28: R4 ran `agenda:close_meeting`, S4 ran `results:clear` and emptied
-    the sheet he was about to close)."""
+def sure_canvas(brief) -> str:
+    """The canvas gesture this turn SURELY asks for — close, minimize, fullscreen, exit_fullscreen — or ""."""
     try:
         from nucleo.flash import turn_brief as _tb
         verb, _info = _tb.read(brief, _tb.CANVAS_KEY, "", min_confidence=0.9)
-        return str(verb or "") == "close"
+        v = str(verb or "")
+        return v if v in ("close", "minimize", "fullscreen", "exit_fullscreen") else ""
     except Exception:  # noqa: BLE001
-        return False
+        return ""
+
+
+def complete_canvas(brief, *, tag_emit, emit, operator_text: str = "") -> str:
+    """The model called NOTHING and the brief SURELY names a canvas gesture: do that gesture on the card the
+    turn is about (the verdict's card, else the card his last turn acted on, else the only one open), through
+    the same tag funnel the model's own calls use. Returns the gesture, or "". Never raises.
+
+    Demo pass 2026-09-28: R4 «ok close the calendar» and V3 «can you make it bigger, like full screen» were both
+    answered as done («calendar's closed», «it's full screen now») with nothing called."""
+    try:
+        verb = sure_canvas(brief)
+        if not verb:
+            return ""
+        wid = from_brief(brief)[0]
+        if not wid:
+            from nucleo.flash import show_target as _st
+            wid = _st.close_target("")
+        if not wid:
+            return ""
+        if verb == "close":
+            tag_emit("close", {"id": wid})
+        elif verb == "minimize":
+            tag_emit("minimize", {"id": wid})
+        else:
+            tag_emit("fullscreen", {"id": wid, "on": verb == "fullscreen"})
+        emit("brain", f"🎯 el veredicto completa al modelo (sin tool) — {verb}", text=wid, role="system",
+             extra={"cat": "flash", "widget": wid, "action": verb, "said": (operator_text or "")[:120]})
+        return verb
+    except Exception:  # noqa: BLE001
+        return ""
 
 
 def complete(brief, *, operator_text: str, emit, present, apply_widget_data,
-             widget_id: str = "", instead_of: str = "", require_order: bool = True, close=None) -> str:
+             widget_id: str = "", instead_of: str = "", require_order: bool = True) -> str:
     """THE ARBITER'S ONE RULE, spent (V2-754): the verdict COMPLETES the model, it never overrules it.
 
     Live session 3afe34a8 (2026-09-23), four orders to get back to the video catalogue. The brief
@@ -617,14 +646,8 @@ def complete(brief, *, operator_text: str, emit, present, apply_widget_data,
         # A SURE «close the card» is about the card, never its data (demo pass 2026-09-28, R4: «ok close the
         # calendar», canvas=close 1.00 and screen_action=agenda:close_meeting 0.60 — the data action ran, the
         # card was shown again, and the reply said «calendar's closed»). The completion is the card's own close.
-        if sure_close(brief):
-            if close is None:
-                return ""
-            close(wid)
-            emit("brain", "🎯 el veredicto completa al modelo (sin tool) — cierra la tarjeta", text=wid,
-                 role="system", extra={"cat": "flash", "widget": wid, "action": "close",
-                                       "said": (operator_text or "")[:120]})
-            return "close"
+        if sure_canvas(brief):
+            return ""                         # a canvas gesture is never a data action — `complete_canvas` owns it
         rung = resolve(operator_text, brief=brief, operator_text=operator_text)
     except Exception:  # noqa: BLE001
         return ""

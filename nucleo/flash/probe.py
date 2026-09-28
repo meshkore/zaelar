@@ -746,13 +746,29 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
     # fullscreen (fullscreen_widget YA resolvió la intención real este turno).
     _already = action.startswith(("music", "video", "search", "widget_data", "canvas:fullscreen", "canvas:minimize",
                                   "canvas:close"))            # close_widget already decided (demo pass 2026-09-28)
+    # Mirror of the voice `complete_canvas` (demo pass 2026-09-28): no call, no tag, and the brief SURELY names a
+    # canvas gesture → that gesture on the turn's card.
+    if not _already and not tool_calls and not tags:
+        try:
+            from voice.observer import emit as _emit_cc
+            from . import direct_action as _da_cc
+            _cc: list = []
+            _verb = _da_cc.complete_canvas(_tbrief, tag_emit=lambda a, x: _cc.append((a, x)), emit=_emit_cc,
+                                           operator_text=operator_text)
+            if _verb and _cc:
+                _cid = str(_cc[0][1].get("id") or "")
+                action = {"close": f"canvas:close:{_cid}", "minimize": f"canvas:minimize:{_cid}",
+                          "fullscreen": f"canvas:fullscreen:{_cid}"}.get(_verb, f"canvas:unfullscreen:{_cid}")
+                _already, spoken = True, ""
+        except Exception:
+            pass
     # V2-770 — the mirror of the voice `direct_action.complete`: a turn with no call whose verdict names an action
     # INSIDE an open card («ya la puedes cerrar» → agenda:close_meeting) runs that action — and the close
     # backstop below, which would have shut the whole card, never sees it.
     if not _already and not any(t["action"] == "close" for t in tags):
         try:
             from . import direct_action as _da_bs
-            if (_da_bs.names_an_order(_tbrief) and not _da_bs.sure_close(_tbrief)   # a close is never a data action
+            if (_da_bs.names_an_order(_tbrief) and not _da_bs.sure_canvas(_tbrief)   # a canvas gesture is never data
                     and (_rung := _da_bs.resolve(operator_text, brief=_tbrief,
                                                                            operator_text=operator_text))):
                 tool_calls.append({"name": "widget_data", "args": {"widget_id": _rung["widget"],

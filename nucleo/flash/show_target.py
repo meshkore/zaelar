@@ -383,12 +383,19 @@ def fullscreen_exit_backstop(text: str, *, fired: bool, tag_emit, emit) -> bool:
 # and a confident verb never opens/closes anything by itself — the existing executor does that,
 # through the same tags, license and guards as today's path.
 CANVAS_INSTRUCTIONS = ("Does the user's turn ask to change what is visible on the widget canvas? "
-                        "SHOW means putting a widget or card on screen; CLOSE means taking one off. "
-                        "Anything else — questions, chatter, orders that act without showing — is neither.")
+                        "SHOW means putting a widget or card on screen; CLOSE means taking one off; the other "
+                        "gestures change how big a card is. Anything else — questions, chatter, orders that act "
+                        "inside a card — is neither.")
 CANVAS_VERBS = {
     "show": "the turn asks to show, open, display or bring up a widget or card",
     "close": "the turn asks to close, hide or remove a widget or card from the screen",
-    "neither": "the turn asks for nothing about showing or closing widgets",
+    # demo pass 2026-09-28 (human script): «can you make it bigger, like full screen» → «There you go — it's full
+    # screen now» with no call, and the verdict could only say `neither`. The gestures that change a card's size
+    # are canvas gestures too.
+    "fullscreen": "the turn asks to make a card full screen or bigger",
+    "exit_fullscreen": "the turn asks to leave full screen / go back to the normal size",
+    "minimize": "the turn asks to put a card away, minimise it or tuck it aside without closing it",
+    "neither": "the turn asks for nothing about showing, closing or resizing widgets",
 }
 
 

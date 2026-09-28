@@ -269,36 +269,53 @@ def test_the_provider_completes_an_EMPTY_turn_and_logs_a_disagreement():
         "and the empty key is repaired before the call is applied, not after (V2-756)")
 
 
-# ── demo pass 2026-09-28, R4 — a SURE «close the card» completes with the card's close ─────────────────
+# ── demo pass 2026-09-28 — a SURE canvas gesture completes with that gesture, never with a data action ──────
 
-def test_a_sure_close_closes_the_card_and_never_runs_a_data_action(on_screen):
-    """«ok close the calendar»: the model called nothing and said «calendar's closed»; the brief had canvas=close
-    at 1.00 and screen_action=agenda:close_meeting at 0.60. The data action ran, the card was shown again."""
-    closed = []
+def _canvas(b):
+    tags, events = [], []
+    got = _da.complete_canvas(b, tag_emit=lambda a, x: tags.append((a, x.get("id"), x.get("on"))),
+                              emit=lambda *a, **k: events.append(a), operator_text="x")
+    return got, tags
+
+
+def test_R4_a_sure_close_closes_the_card(on_screen):
+    """«ok close the calendar»: canvas=close 1.00, screen_action=agenda:close_meeting 0.60, no call from the model,
+    and the old completion ran the data action and showed the card again."""
     b = _brief({_tb.TARGET_KEY: ("agenda:close_meeting", 0.6), _tb.CANVAS_KEY: ("close", 1.0),
                 _tb.REQUEST_KEY: ("order", 1.0)}, open_ids=("agenda",))
-    fired, s = _complete(b, "ok close the calendar", close=closed.append)
-    assert fired == "close" and closed == ["agenda"]
-    assert not s.applied and not s.presented, "no data action, and the card is not brought back up"
-
-
-def test_without_a_way_to_close_it_completes_nothing(on_screen):
-    b = _brief({_tb.TARGET_KEY: ("agenda:close_meeting", 0.6), _tb.CANVAS_KEY: ("close", 1.0),
-                _tb.REQUEST_KEY: ("order", 1.0)}, open_ids=("agenda",))
+    assert _canvas(b) == ("close", [("close", "agenda", None)])
     fired, s = _complete(b, "ok close the calendar")
-    assert fired == "" and not s.applied
+    assert fired == "" and not s.applied, "the data completion never runs over a canvas gesture"
+
+
+def test_V3_a_sure_fullscreen_goes_full_screen(on_screen):
+    """«can you make it bigger, like full screen» → «There you go — it's full screen now», nothing called."""
+    b = _brief({_tb.TARGET_KEY: ("youtube:play_result", 0.95), _tb.CANVAS_KEY: ("fullscreen", 0.97)},
+               open_ids=("youtube",))
+    assert _canvas(b) == ("fullscreen", [("fullscreen", "youtube", True)])
+    b2 = _brief({_tb.TARGET_KEY: ("youtube:play_result", 0.95), _tb.CANVAS_KEY: ("exit_fullscreen", 0.97)},
+                open_ids=("youtube",))
+    assert _canvas(b2) == ("exit_fullscreen", [("fullscreen", "youtube", False)])
+
+
+def test_an_unsure_gesture_does_nothing(on_screen):
+    b = _brief({_tb.TARGET_KEY: ("youtube:play_result", 0.95), _tb.CANVAS_KEY: ("fullscreen", 0.6)},
+               open_ids=("youtube",))
+    assert _canvas(b) == ("", [])
 
 
 def test_the_promise_repair_closes_instead_of_writing_when_the_order_is_a_close():
-    """S4: «ok close the results» → the model promised «Closing it now.» and called nothing; the promise repair
-    ran `results:clear` and emptied the sheet. Both doors read the same predicate before touching data."""
+    """S4: «ok close the results» → «Closing it now.» and no call; the promise repair ran `results:clear`."""
     import inspect
     from voice.engine.llm.providers import nucleo as prov
     src = inspect.getsource(prov)
     i = src.index("_act_repair.call_for_promise(")
-    assert "_direct_action.sure_close(_brief)" in src[i - 700:i], "the close check runs BEFORE the repair call"
-    b = _brief({_tb.CANVAS_KEY: ("close", 1.0)})
-    assert _da.sure_close(b) and not _da.sure_close(_brief({_tb.CANVAS_KEY: ("close", 0.6)}))
+    assert '_direct_action.sure_canvas(_brief) == "close"' in src[i - 700:i]
+
+
+def test_the_canvas_verdict_knows_the_size_gestures():
+    from nucleo.flash import show_target as st
+    assert {"fullscreen", "exit_fullscreen", "minimize", "close", "show", "neither"} <= set(st.CANVAS_VERBS)
 
 
 def test_an_action_named_surely_is_an_order_even_when_the_request_type_is_unsure(on_screen):

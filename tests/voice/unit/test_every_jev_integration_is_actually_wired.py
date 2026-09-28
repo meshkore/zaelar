@@ -76,7 +76,7 @@ def test_the_canvas_verb_reaches_the_transport(wire):
     _settle(st.ask_canvas_async("abre mis mensajes"))
     assert len(wire.calls) == 1, "the canvas verb never asked Jev anything"
     assert wire.calls[0]["key"] == "canvas"
-    assert set(wire.calls[0]["criteria"]) == {"show", "close", "neither"}
+    assert set(wire.calls[0]["criteria"]) == {"show", "close", "fullscreen", "exit_fullscreen", "minimize", "neither"}
 
 
 def test_the_escalate_gate_reaches_the_transport(wire):
