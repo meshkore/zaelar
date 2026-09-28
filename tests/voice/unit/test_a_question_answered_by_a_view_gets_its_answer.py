@@ -93,7 +93,7 @@ def test_the_answer_knows_the_card_it_came_from_is_on_screen():
     off = widget_read.compose_system("L", "show me the chart", "markets", "q", "AAPL 341", answered=True)
     assert "YA ESTÁ ABIERTA" in on and "YA ESTÁ ABIERTA" not in off
     prov = (Path(__file__).resolve().parents[3] / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
-    assert "on_screen=_cvis.is_open(_op_answer[0])" in prov
+    assert "on_screen=_direct_action.on_screen_now(_op_answer[0])" in prov, "report OR this turn (full17 M1)"
 
 
 def test_the_card_that_answered_wins_over_a_web_search_in_the_same_turn():

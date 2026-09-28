@@ -868,3 +868,21 @@ def take_rung(escalate_req: dict, *, brief, operator_text: str, emit, present,
     escalate_req["v"] = None
     escalate_req["more"] = []
     return True
+
+
+def on_screen_now(widget_id: str) -> bool:
+    """Whether the card is in front of him NOW — open by the canvas report, or brought by THIS turn. The report
+    comes from the browser and lags the turn that presents a card: full17 M1 «show me the chart» opened it and the
+    answer said «I can't pull up the chart itself here» over it, because the report still said closed."""
+    base = str(widget_id or "").split("::", 1)[0].strip().lower()
+    try:
+        from nucleo.flash import canvas_visibility as _cvis
+        if _cvis.is_open(base):
+            return True
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        from nucleo import canvas_focus as _cf
+        return base in _cf.this_turn_cards()
+    except Exception:  # noqa: BLE001
+        return False
