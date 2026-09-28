@@ -3357,6 +3357,9 @@ DOMAINS: list[dict] = [
         # named the card, the action existed. One bounded pass asks the model for the call it promised — only the
         # named card, only a declared action — before the backstop spends a worker on it.
         # Demo pass 2026-09-28 (V2-776 E) — the fixes of the passes, one node each.
+        {"id": "2.133", "title": "The background-task block says whether the errand"s sheet is on screen now",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/flash/test_the_task_block_says_whether_its_sheet_is_open.py"]},
         {"id": "2.132", "title": "A card with no free room re-tiles the desk instead of landing on another card",
             "ch": UNIT,
             "paths": ["tests/browser/unit/widgets/test_a_card_with_no_room_retiles_the_desk.py"]},

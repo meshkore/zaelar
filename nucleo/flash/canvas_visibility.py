@@ -59,6 +59,28 @@ def is_open(widget_id: str, *, known=None) -> bool:
     return bool(wid) and wid in ids
 
 
+def card_is_open(card_id: str, *, known=None):
+    """Is THIS card — instance included — open right now? True / False, or None when the canvas has not
+    reported since the engine started (unknown is not «closed»).
+
+    `open_widgets` in the memory state is normalized to base ids (`results::c29838-ls1` → `results`), right
+    for «is the browser up», wrong for «is THIS errand's sheet up»: with the monitors sheet closed and another
+    results card open, the base answers yes (demo pass 30, S1). The raw instances are `open_instances()`."""
+    cid = str(card_id or "").strip().lower()
+    if not cid:
+        return None
+    if known is None:
+        try:
+            from server.voice_api import open_instances
+            known = open_instances()
+        except Exception:  # noqa: BLE001
+            known = []
+    ids = {str(w).strip().lower() for w in (known or []) if str(w).strip()}
+    if not ids:
+        return None
+    return cid in ids
+
+
 #: WHY a card is being put on screen. A presentation effect is spent by some authorization, and the emitter
 #: is the only one who knows which — so it says so, in a closed vocabulary, and the door checks what it can
 #: check. This is the audit's «explicit, scoped effects as the contract» at its smallest useful size: not a

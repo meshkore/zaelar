@@ -135,6 +135,17 @@ def pending_task_lines() -> list[str]:
                 _f = rows_of_sheet(str(t.get("sheet") or ""), 3) if t.get("sheet") else []   # V2-451
                 if _f:
                     bit += " — YA ENTREGADO (de su hoja): " + "; ".join(_f)
+                    # WHERE that sheet is NOW, as a fact (demo pass 30, S1). The block below says «negar una
+                    # entrega que el operador tiene delante en la pantalla…», and with the sheet CLOSED the
+                    # model answered «the shortlist is on your screen» to «show me» — and opened nothing. The
+                    # canvas reports what is open; the block now says it instead of leaving it to be assumed.
+                    from nucleo.flash import canvas_visibility as _cv
+                    _up = _cv.card_is_open(str(t.get("sheet") or ""))
+                    if _up is True:
+                        bit += " [su hoja ESTÁ abierta ahora]"
+                    elif _up is False:
+                        bit += (" [su hoja NO está en pantalla: la cerró — si pide verla, "
+                                "ÁBRELA; no digas que la tiene delante]")
                 bits.append(bit + f' (llevas {t.get("secs", 0)}s)')
             for _t in _ofrecer:
                 _disp.mark_stall_offered([_t])     # V2-454: este turno la lleva delante
