@@ -45,3 +45,16 @@ def test_minimize_takes_only_the_card_it_names(canvas):
     st.close_dispatch({"widget_id": "agenda", "mode": "minimize"}, lambda a, x: closed.append((a, x["id"])),
                       lambda *a, **k: None, text="minimize the calendar and the messages", done=set())
     assert closed == [("minimize", "agenda")]
+
+
+def test_the_in_card_guard_spares_a_card_called_by_its_name():
+    """full18 C6: the verdict read `mensajeria:close` (the chat inside) and the guard for «an order INSIDE the card»
+    dropped the close of the Messages card he had named. «close the chat» still reaches the chat."""
+    import pathlib
+    from nucleo.flash import direct_action as da
+    assert da._says_the_name("close the calendar and the messages", "mensajeria")
+    assert not da._says_the_name("close the chat", "mensajeria")
+    src = (pathlib.Path(__file__).resolve().parents[3] / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
+    i = src.index("close ignorado — la orden es una acción DENTRO de la tarjeta")
+    guard = src[src.rindex("if (action", 0, i):i]
+    assert "_direct_action._says_the_name(_bnotes.operator_half(text)" in guard

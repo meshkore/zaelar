@@ -968,7 +968,10 @@ class NucleoLLMStream(llm.LLMStream):
             # narraciones): sin verbo de cerrar EN el turno del operador, el close del modelo es arrastre.
             # `named` = `closes_the_named_card` already told the op inside the card from the card named to close
             # (full18 V7: this guard dropped exactly that close, and the video card stayed over everything).
+            # …and neither is any close of a card his words CALL by its name (full18 C6: «close the calendar and the
+            # messages» — the verdict read `mensajeria:close`, the chat inside, and this guard kept the card open).
             if (action == "close" and not (extra or {}).get("named")
+                    and not _direct_action._says_the_name(_bnotes.operator_half(text), str((extra or {}).get("id") or ""))
                     and _direct_action.order_is_inside(_brief, str((extra or {}).get("id") or ""))):
                 # V2-770 — the order is an action INSIDE the card («ciérrala» over a detail card): not this tag.
                 emit("brain", "🛡️ close ignorado — la orden es una acción DENTRO de la tarjeta",
