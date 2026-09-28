@@ -94,3 +94,14 @@ def test_the_answer_knows_the_card_it_came_from_is_on_screen():
     assert "YA ESTÁ ABIERTA" in on and "YA ESTÁ ABIERTA" not in off
     prov = (Path(__file__).resolve().parents[3] / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
     assert "on_screen=_cvis.is_open(_op_answer[0])" in prov
+
+
+def test_the_card_that_answered_wins_over_a_web_search_in_the_same_turn():
+    """Demo pass 2026-09-28 (full15 M1): «how's apple stock doing today, show me the chart» — the model called
+    `markets:show` AND `web_search`; the chart came with its price, and the search answered «the search results
+    only gave me quote pages, so I can't tell you». The card of this turn is the source; the search does not run."""
+    from pathlib import Path
+    prov = (Path(__file__).resolve().parents[3] / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
+    block = prov.split("_op_answer = None", 1)[1].split("A QUESTION answered by a lens alone", 1)[0]
+    assert 'search_req["v"] is None and _turn_op_tasks' not in block, "a search must not keep the card from answering"
+    assert 'if _op_answer is not None and search_req["v"] is not None' in block and 'search_req["v"] = None' in block

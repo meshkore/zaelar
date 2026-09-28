@@ -2652,7 +2652,7 @@ class NucleoLLMStream(llm.LLMStream):
         # An order that owes WORDS whose data-op RETURNED data (search_archive, peek…): the answer is that data
         # (`data_ops.answer_of`) — composed with it as the only source, after the op lands (bounded wait).
         _op_answer = None
-        if read_req["v"] is None and escalate_req["v"] is None and search_req["v"] is None and _turn_op_tasks:
+        if read_req["v"] is None and escalate_req["v"] is None and _turn_op_tasks:
             from nucleo.flash import turn_brief as _tbw
             _wk, _wi = _tbw.read(_brief, _tbw.WORDS_KEY, "")
             _rk, _ri = _tbw.read(_brief, _tbw.REQUEST_KEY, "")
@@ -2667,6 +2667,13 @@ class NucleoLLMStream(llm.LLMStream):
                         _ans = {}
                     if _ans:
                         _op_answer = (_w, _ans)
+            # The card of THIS turn already brought the answer, so a web search next to it is the second-best
+            # source (full15 M1: the Apple chart was up with its price, and «the search results only gave me quote
+            # pages, so I can't tell you» was what he heard). The card answers; the search does not run.
+            if _op_answer is not None and search_req["v"] is not None:
+                emit("brain", "🔎 la tarjeta ya trae la respuesta — la búsqueda web sobra", role="system",
+                     text=f"{_op_answer[0]} ← {search_req['v'][:100]}", extra={"cat": "flash"})
+                search_req["v"] = None
         # A QUESTION answered by a lens alone gets its answer read from that card (C1/Z1, `question_left_to_a_lens`).
         if _op_answer is not None:
             import json as _json_oa
