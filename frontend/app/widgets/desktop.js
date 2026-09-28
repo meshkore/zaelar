@@ -1722,8 +1722,15 @@ export class Desktop {
       c.classList.remove("hb-cinema","hb-fullwide");     // nor full-screen, which rides on that state
       c.style.maxWidth="none"; c.style.maxHeight="none";
       const min=this._minSize(this._idOf(c));            // the widget's own floor, never a private 320×240
+      // A cell SHRINKS a card to fit, it never blows one up: with a single card the cell is the whole desk, and
+      // «tidy up the screen» turned the monitor results into a full-screen wall that every later card landed on
+      // (demo pass 2026-09-28, full14 C5b→M3, 100% overlap). The ceiling is the larger of its size now and its
+      // own preferred footprint.
+      const exp=this._expected(this._idOf(c)) || {};
+      const capW=Math.max(c.offsetWidth||0, Number(exp.w)||0, min.w), capH=Math.max(c.offsetHeight||0, Number(exp.h)||0, min.h);
       c.style.left=(gx0+col*(cellW+gap))+"px"; c.style.top=(gy0+row*(cellH+gap))+"px";
-      c.style.width=this._snap(Math.max(min.w, cellW))+"px"; c.style.height=this._snap(Math.max(min.h, cellH))+"px";
+      c.style.width=this._snap(Math.max(min.w, Math.min(cellW, capW)))+"px";
+      c.style.height=this._snap(Math.max(min.h, Math.min(cellH, capH)))+"px";
       this._fit(c, this._idOf(c));                       // a cell below the floor still ends wholly on the desk
     });
     this._syncOrbDock();                                 // V2-757: tiling undoes full-screen

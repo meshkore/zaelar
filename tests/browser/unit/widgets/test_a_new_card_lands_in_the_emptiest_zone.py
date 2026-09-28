@@ -183,3 +183,18 @@ def test_both_bulk_buttons_keep_every_card_whole_and_apart(page):
         assert r["w"] >= 300 and r["h"] >= 240, (wid, r)          # the widget's own floor, never below
         assert r["b"] <= canvas["y1"] + 1, f"{wid} tiled below the canvas: {r} vs {canvas}"
     assert not page._hb_errors, page._hb_errors
+
+
+def test_a_lone_card_is_never_blown_up_to_the_whole_desk(page):
+    """Demo pass 2026-09-28 (full14 C5b): «tidy up the screen» with ONE card open — the cell was the whole desk,
+    and the monitor results became a full-screen wall every later card (photos, map, chart) landed on, 100%
+    overlapped. A cell shrinks a card to fit; it never grows one past its own size."""
+    for wid in ("dos", "tres", "cuatro"):
+        page.evaluate("(id) => window.__desk.close(id)", wid)
+    page.wait_for_timeout(150)
+    before = _rects(page)["uno"]
+    page.evaluate("() => window.__desk.arrange()")
+    page.wait_for_timeout(100)
+    after, canvas = _rects(page)["uno"], page.evaluate("() => window.__desk.canvas()")
+    assert after["w"] <= before["w"] + 4 and after["h"] <= before["h"] + 4, (before, after, canvas)
+    assert not page._hb_errors, page._hb_errors
