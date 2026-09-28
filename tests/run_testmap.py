@@ -3352,6 +3352,9 @@ DOMAINS: list[dict] = [
         # V2-764 — «voy a por la serie Sherlock en torrent y te enseño el catálogo», and no tool: the turn's verdict
         # named the card, the action existed. One bounded pass asks the model for the call it promised — only the
         # named card, only a declared action — before the backstop spends a worker on it.
+        {"id": "2.99", "title": "A card read may REASON with what it holds (no meetings = free days) and never invents",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/flash/test_a_read_reasons_with_what_it_has.py"]},
         {"id": "2.98", "title": "An order that does not say which card continues on the one his last turn acted on — "
                                 "the screen question says which",
             "ch": UNIT,

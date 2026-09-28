@@ -214,7 +214,9 @@ def compose_system(lang_lock: str, operator_text: str, wid: str, question: str, 
         f"Necesitabas LEER lo que guarda el widget «{name}» ({wid}) para contestar; aquí está su contenido. "
         "Responde a la pregunta del operador en 1-2 frases HABLADAS y naturales usando SOLO lo que hay aquí — el "
         "dato exacto (hora, fecha, nombre) tal cual figura. Nunca digas «widget», «datos» ni «leer»: hablas "
-        f"como quien simplemente lo sabe.\n{doctrine}\n\n"
+        f"como quien simplemente lo sabe. Lo prohibido es INVENTAR un dato, no RAZONAR con los que hay: un día "
+        "sin citas es un día libre, un hueco se calcula entre dos horas, una duración se cuenta — si te pide días "
+        f"libres y el tramo está vacío, están todos libres, y los das.\n{doctrine}\n\n"
         f"PREGUNTA: {question or operator_text}\n\nPETICIÓN DEL OPERADOR: {operator_text}\n\n"
         f"LO QUE GUARDA «{name}»:\n{src}"
     )
