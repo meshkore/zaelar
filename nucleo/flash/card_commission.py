@@ -21,7 +21,7 @@ from __future__ import annotations
 from typing import Callable
 
 
-def named_or_catalogue(brief, operator_text: str, *, wait_s: float = 2.5) -> str:
+def named_or_catalogue(brief, operator_text: str, *, wait_s: float = 3.5) -> str:
     """The card an order names — by the brief, or by ONE late catalogue question when the brief could not know.
 
     The brief asks `screen_action` while cards are open and `catalog_widget` only when nothing is, on purpose

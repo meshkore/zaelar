@@ -57,3 +57,11 @@ def test_the_brief_is_not_cut_before_its_readers_read_it(monkeypatch):
     monkeypatch.delenv("ZAELAR_JEV_TIMEOUT_MS", raising=False)
     assert jev._timeout_s() >= 3.5
     assert jev._hedge_after_s() < jev._timeout_s() / 2
+
+
+def test_the_late_catalogue_question_waits_as_long_as_jev_may_take():
+    """full24 E3: the catalogue question gave up at 2.5 s, the commission found no card and a browser worker went to
+    send the invoice from webmail. It waits the same window the brief now has."""
+    import inspect
+    from nucleo.flash import card_commission
+    assert inspect.signature(card_commission.named_or_catalogue).parameters["wait_s"].default >= jev._timeout_s()
