@@ -3352,6 +3352,9 @@ DOMAINS: list[dict] = [
         # V2-764 — «voy a por la serie Sherlock en torrent y te enseño el catálogo», and no tool: the turn's verdict
         # named the card, the action existed. One bounded pass asks the model for the call it promised — only the
         # named card, only a declared action — before the backstop spends a worker on it.
+        {"id": "2.111", "title": "A wallpaper is copied once and served from this engine — a third party's hotlink policy never leaves the desk bare",
+            "ch": UNIT,
+            "paths": ["tests/browser/unit/widgets/test_a_wallpaper_is_kept_on_this_engine.py"]},
         {"id": "2.110", "title": "The listing pass does not repeat a promise already spoken — rows that landed are told, spaced",
             "ch": UNIT,
             "paths": ["tests/agent_headless/unit/flash/test_a_listing_pass_does_not_repeat_the_promise.py"]},

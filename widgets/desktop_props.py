@@ -18,10 +18,57 @@ def _emit_wallpaper(url: str, title: str) -> None:
         pass
 
 
+#: Where a wallpaper is kept once copied: the framework's own asset namespace, not `imagenes`' — that widget lists
+#: every picture in its directory as «on this computer», and the desktop's backdrop is not one of his photos.
+WALL_NS = "desktop"
+_WALL_MAX = 15 * 1024 * 1024
+
+
+def _local_copy(url: str, timeout: float = 5.0) -> str:
+    """The wallpaper served from THIS engine's origin, or "" when it cannot be fetched.
+
+    Demo pass 2026-09-28 (full15 B2): the chosen nebula came from a site that answers with
+    `Cross-Origin-Resource-Policy: same-origin` — the browser refused it as a background and the desk stayed
+    bare, while the reply said it was set. The viewer had fallen back to the thumbnail without anyone noticing.
+    A backdrop the desk wears all day should not depend on a third party's hotlink policy at all: fetch it once,
+    keep it, serve it from here. Bounded (size, time, image types only); any failure keeps the remote URL."""
+    import hashlib
+    import os
+    import urllib.request
+    if not str(url or "").startswith(("http://", "https://")):
+        return ""
+    try:
+        from widgets import store
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (Zaelar wallpaper)"})
+        with urllib.request.urlopen(req, timeout=timeout) as r:            # noqa: S310 — http(s) checked above
+            ctype = str(r.headers.get("Content-Type") or "").split(";")[0].strip().lower()
+            ext = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp"}.get(ctype)
+            if not ext:
+                return ""
+            body = r.read(_WALL_MAX + 1)
+        if not body or len(body) > _WALL_MAX:
+            return ""
+        d = store.data_dir(WALL_NS)
+        os.makedirs(d, exist_ok=True)
+        name = "wallpaper-" + hashlib.sha1(body).hexdigest()[:16] + ext
+        with open(os.path.join(d, name), "wb") as fh:
+            fh.write(body)
+        for old in os.listdir(d):                   # one backdrop on disk, never a growing pile of them
+            if old.startswith("wallpaper-") and old != name:
+                try:
+                    os.remove(os.path.join(d, old))
+                except OSError:
+                    pass
+        return f"/widgets/{WALL_NS}/asset/{name}"
+    except Exception:  # noqa: BLE001 — the remote URL is still a wallpaper when the copy fails
+        return ""
+
+
 def set_wallpaper(url: str, title: str = "") -> dict:
     """Persist + push the desktop wallpaper. Returns the STORED value ({} = the sanitizer refused it) — the
     caller reports against what was actually kept, never against what it asked for."""
     from config import settings as _settings
+    url = _local_copy(str(url or "")) or str(url or "")
     _settings.update({"wallpaper": {"url": str(url or ""), "title": str(title or "")}})
     stored = _settings.wallpaper()
     if stored.get("url"):

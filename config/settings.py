@@ -287,7 +287,8 @@ def _sanitize_wallpaper(raw) -> dict:
     if not isinstance(raw, dict):
         return {}
     url = str(raw.get("url") or "").strip()
-    if not (8 < len(url) <= 2000) or not url.startswith(("http://", "https://")):
+    # …or the engine's own copy of it (`widgets.desktop_props._local_copy`), a same-origin path.
+    if not (8 < len(url) <= 2000) or not url.startswith(("http://", "https://", "/widgets/desktop/asset/")):
         return {}
     if any(c in url for c in "\"'\\<>\n\r\t ") or any(ord(c) < 0x20 for c in url):
         return {}
