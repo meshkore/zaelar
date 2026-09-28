@@ -123,3 +123,23 @@ def test_the_map_publishes_an_index_so_the_second_one_resolves(fake):
     assert [i["id"] for i in idx] == ["1", "2", "3"] and idx[1]["label"].startswith("2. Crypto") and idx[0]["field"] == "item"
     monkeypatch_free = refs.resolve("map", "select", "the second one", {}, order="Highlight the second one.")
     assert monkeypatch_free.ok and monkeypatch_free.payload.get("item") == "2", monkeypatch_free
+
+
+def test_three_slow_places_are_all_located_within_one_deadline(monkeypatch):
+    """Demo pass 2026-09-28 (W1): three places geocoded one after the other at Photon's ~2 s each spent the whole
+    6.5 s on the first — the map showed one pin and «highlight the second one» had no second one. Asked at once,
+    three 2.4 s answers fit."""
+    import time
+    _mem.clear()
+
+    def slow(q, deadline=None):
+        time.sleep(2.4)
+        if deadline is not None and time.time() > deadline:
+            return None
+        return {"lat": 34.0, "lon": -118.0, "found": "Los Angeles"}
+    monkeypatch.setattr(mp, "_geocode", slow)
+    monkeypatch.setattr(mp.store, "load", lambda wid, seed, **k: json.loads(json.dumps(_mem.get(wid, seed))))
+    monkeypatch.setattr(mp.store, "save", lambda wid, db: _mem.__setitem__(wid, json.loads(json.dumps(db))))
+    got = mp.apply_action("show", {"places": ["Griffith Observatory", "Mount Baldy", "The Getty Center"]})
+    assert got["ok"] and got["not_found"] == [], got
+    assert got["places"] == ["1. Griffith Observatory", "2. Mount Baldy", "3. The Getty Center"], "the order said"

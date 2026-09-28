@@ -101,20 +101,27 @@ def _places_in(payload: dict) -> list:
 
 
 def _locate(places: list, near: str, deadline: float) -> tuple[list, list]:
-    """Geocode what has no coordinates, within the time left. Returns (placed, missed names)."""
-    placed, missed = [], []
-    for p in places:
-        if "lat" not in p:
-            if time.time() > deadline:
-                missed.append(p["name"])
-                continue
-            q = ", ".join(x for x in (p["name"], p["address"] or near) if x)
-            hit = _geocode(q, deadline) or (_geocode(p["address"], deadline) if p["address"] else None)
-            if not hit:
-                missed.append(p["name"])
-                continue
-            p = {**p, "lat": hit["lat"], "lon": hit["lon"], "address": p["address"] or hit["found"]}
-        placed.append(p)
+    """Geocode what has no coordinates, within the time left. Returns (placed, missed names), in the order said.
+
+    The places are asked for AT ONCE (demo pass 2026-09-28, W1): one after the other, Photon's ~2 s per place
+    spent the whole deadline on the first and «Mount Baldy» and «the Getty» came back missed — the map showed one
+    pin and «highlight the second one» had no second one."""
+    from concurrent.futures import ThreadPoolExecutor
+
+    def one(p):
+        if "lat" in p:
+            return p
+        if time.time() > deadline:
+            return None
+        q = ", ".join(x for x in (p["name"], p["address"] or near) if x)
+        hit = _geocode(q, deadline) or (_geocode(p["address"], deadline) if p["address"] else None)
+        if not hit:
+            return None
+        return {**p, "lat": hit["lat"], "lon": hit["lon"], "address": p["address"] or hit["found"]}
+    with ThreadPoolExecutor(max_workers=max(1, min(len(places), 6))) as pool:
+        got = list(pool.map(one, places))
+    placed = [g for g in got if g]
+    missed = [p["name"] for p, g in zip(places, got) if not g]
     return placed, missed
 
 
