@@ -108,3 +108,25 @@ def test_the_pulse_runs_the_reconciler(fresh_db):
     loop = OrchestratorLoop(deliver=_noop)
     asyncio.run(loop._supervise_workers(time.time()))
     assert ts.task_get(f"{boot}-7")["state"] == "failed"
+
+
+def test_a_finished_worker_still_speaking_its_delivery_is_not_an_orphan(fresh_db, monkeypatch):
+    """Demo pass 2026-09-28, S1: the monitors search was `done` and waiting for a moment to SPEAK its delivery
+    (still in `_SESSIONS`, its row not yet closed). The pulse read only LIVE statuses, settled the row as «failed
+    — nobody was carrying it», and the FlashBrain told him the finished search had failed and ran it again."""
+    from types import SimpleNamespace
+    from nucleo.loop import OrchestratorLoop
+    boot = T._boot_id()
+    _row(f"{boot}-8", age_s=600, state="running")
+    rec = SimpleNamespace(uid=f"{boot}-8", status="done", task_id=8, kind="web", backend="", goal="x")
+    monkeypatch.setitem(dispatch._SESSIONS, "8", rec)
+
+    async def _noop(*a, **k):
+        return None
+    loop = OrchestratorLoop(deliver=_noop)
+    loop._last_reconcile = 0
+    try:
+        asyncio.run(loop._supervise_workers(time.time()))
+    except Exception:  # noqa: BLE001 — the fake record is only what the reconciler reads
+        pass
+    assert ts.task_get(f"{boot}-8")["state"] == "running", "a delivery in progress was settled as an orphan"

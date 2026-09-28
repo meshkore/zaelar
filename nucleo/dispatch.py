@@ -213,6 +213,16 @@ def _pool():
 
 
 # ── proyeccion for ESTADO / prompt / /api/tasks (the sincroniza the LOOP ~1 Hz, §v2·C) ───────────────────────
+def unclosed_uids() -> set[str]:
+    """The durable ids of every session whose run has not reached `tasks.closed()` yet — LIVE or not.
+
+    A session is `done` the moment its result exists, but it stays in `_SESSIONS` while `_finish` waits for a
+    moment to SPEAK the delivery, and only its `finally` closes the row. The reconciler read `active_sessions()`
+    (live states only) and settled that row as «failed — nobody was carrying it» in the gap; the FlashBrain then
+    told the operator the finished search had failed and ran it again (demo pass 2026-09-28, S1)."""
+    return {str(getattr(r, "uid", "") or "") for r in list(_SESSIONS.values())} - {""}
+
+
 def active_sessions() -> list[dict]:
     """Serializable snapshot of LIVE sessions (without handles). Source of truth for STATE and /api/tasks.
 

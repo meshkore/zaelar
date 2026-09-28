@@ -259,7 +259,7 @@ class OrchestratorLoop:
             self._last_reconcile = now
             try:
                 from nucleo import tasks as _tasks
-                n = _tasks.reconciled({s.get("uid") for s in sessions}, now=now)
+                n = _tasks.reconciled(dispatch.unclosed_uids(), now=now)
                 if n:
                     _emit("task.reconciled", {"n": n})
                     _observe("🧹 tareas huérfanas cerradas", f"{n} fila(s) sin worker vivo → failed", n=n)
