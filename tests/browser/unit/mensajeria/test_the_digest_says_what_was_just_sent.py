@@ -42,3 +42,21 @@ def test_a_send_still_leaving_says_do_not_send_it_again(md):
     md.store.save(md.WIDGET_ID, db)
     d = inbox_read.prompt_digest()
     assert "SALIENDO" in d and "no lo envíes otra vez" in d
+
+
+def test_searching_the_archive_is_a_read_that_answers_and_brings_the_card():
+    """full21 E1→E2: «did inworld send me something?» was answered by `search_archive` with the card closed — the
+    action counted as a WRITE (it was not declared a view), so no card came; «open it» then had nothing on screen
+    to point at and opened the inbox."""
+    from widgets import effects as fx
+    assert fx.carries("mensajeria", "search_archive", fx.DATA_READ)
+    assert not fx.carries("mensajeria", "search_archive", fx.DATA_WRITE)
+    assert fx.carries("mensajeria", "search_archive", fx.OUTPUT_ANSWER)
+
+
+def test_a_forward_without_its_note_is_refused_in_its_own_name():
+    """full21 E3: `forward {contact: Andrew}` was refused in words that named `send_to`, and the same-turn correction
+    retried the wrong action. The refusal names forward and asks for the note."""
+    from widgets.mensajeria import data
+    got = data.answer_action("forward", {"contact": "Andrew"})
+    assert got["ok"] is False and "forward" in got["error"] and "send_to" not in got["error"]

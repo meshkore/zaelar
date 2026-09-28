@@ -306,6 +306,12 @@ def answer_action(action: str, payload: dict | None = None) -> dict | None:
         # never be queued and then fail out of sight, and the sentence that says what is missing is the only
         # thing that makes the next attempt succeed.
         if action == "forward":
+            # full21 E3: `forward {contact: Andrew}` with no note was refused by `resolve_target` in words that named
+            # `send_to` — another action — so the same-turn correction retried the wrong one and nothing went out.
+            if not str(payload.get("text") or "").strip():
+                return {"ok": False, "error": "falta `text` en forward: la nota para esa persona con lo que el "
+                                              "operador quiere decirle — vuelve a llamar a forward con contact, "
+                                              "text y from"}
             payload = {**payload, "contact": payload.get("contact") or payload.get("to"), "channel": "email"}
         t = _outbound.resolve_target(payload)
         if not t.get("ok"):

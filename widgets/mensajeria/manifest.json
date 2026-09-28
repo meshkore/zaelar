@@ -324,7 +324,11 @@
         "check_reply": "bool opcional: comprueba si el mensaje encontrado tuvo respuesta nuestra",
         "limit": "int opcional (máx 20)"
       },
-      "safe": true
+      "safe": true,
+      "view": true,
+      "effects": [
+        "output.answer"
+      ]
     }
   },
   "entry": "widget.js",
