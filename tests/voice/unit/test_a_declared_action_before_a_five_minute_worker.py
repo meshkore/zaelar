@@ -567,3 +567,31 @@ def test_a_silent_show_of_a_catalogue_named_card_still_asks_for_the_rest(monkeyp
     # …while a silent show the catalogue did NOT name asks nothing, as before
     monkeypatch.setattr(card_commission, "named_or_catalogue", lambda brief, text, **k: "")
     assert not asyncio.run(card_commission.after_show({"widget_id": "markets"}, spoken_text="", **kw))
+
+
+def test_a_spoken_claim_over_a_show_on_an_order_gets_its_pass(monkeypatch):
+    """Demo pass 2026-09-28, E2: «open the most important one» → the messaging card came up and the reply said
+    «…the closest thing to urgent is the Fincalista reminder, so I'm opening that one» — and nothing opened. No
+    promise wording matched and the action verdict was unsure; the verdict DID read an order. The pass judges its
+    own reply, so a spoken reply on an order is enough to ask it."""
+    import asyncio
+    from nucleo import danger
+    from nucleo.flash import act_repair, card_commission, clarifying, direct_action, router, surface_ack
+    monkeypatch.setattr(danger, "is_dangerous", lambda t: False)
+    monkeypatch.setattr(clarifying, "asks_for_missing_detail", lambda r: False)
+    monkeypatch.setattr(router, "promises_action", lambda r: False)
+    monkeypatch.setattr(direct_action, "names_an_order", lambda b, sure=0.0: not sure)
+    monkeypatch.setattr(card_commission, "named_or_catalogue", lambda brief, text, **k: "")
+    monkeypatch.setattr(surface_ack, "nothing_to_show", lambda wid: False)
+
+    async def pass_(operator_text, reply, wid, spec=None):
+        return {"widget_id": "mensajeria", "action": "open", "payload": {"item": "Fincalista"}}
+    monkeypatch.setattr(act_repair, "call_for_promise", pass_)
+    applied = []
+    kw = dict(brief={"x": 1}, operator_text="open the most important one", spec=None, emit=lambda *a, **k: None,
+              present=lambda *a, **k: True, apply_widget_data=lambda w, a, p: applied.append((w, a, p)))
+    assert asyncio.run(card_commission.after_show(
+        {"widget_id": "mensajeria"}, spoken_text="…so I'm opening that one.", **kw))
+    assert applied == [("mensajeria", "open", {"item": "Fincalista"})]
+    # a SILENT show of a card nobody named, on the same verdict, still asks nothing (no words to judge)
+    assert not asyncio.run(card_commission.after_show({"widget_id": "mensajeria"}, spoken_text="", **kw))

@@ -144,9 +144,13 @@ async def after_show(acted: dict, *, brief, operator_text: str, spoken_text: str
         # An empty card is never the whole answer to words that asked for something; the pass judges what is due.
         from nucleo.flash import surface_ack as _sa
         empty = _sa.nothing_to_show(wid)
+        # …or it SPOKE on a turn the verdict reads as an order (demo pass 2026-09-28, E2: «open the most important
+        # one» → the card came up and «…so I'm opening that one», which no promise wording table knows). The pass
+        # judges its own reply — a promise or a claim gets its call, an answer or an offer does not — so the
+        # reading of the words is its job, not a verb table's.
         if not (acted.get("show_suppressed") or (spoken_text and _router.promises_action(spoken_text))
                 or _da.names_an_order(brief, sure=0.8) or named_or_catalogue(brief, operator_text) == wid
-                or empty):
+                or (spoken_text and _da.names_an_order(brief)) or empty):
             return False
         said = spoken_text or (f"(Abrí la tarjeta «{wid}» y está VACÍA: aún no he hecho lo que pidió.)" if empty else "")
         got = await _repair.call_for_promise(operator_text, said, wid, spec=spec)
