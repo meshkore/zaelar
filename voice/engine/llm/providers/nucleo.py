@@ -3551,7 +3551,11 @@ class NucleoLLMStream(llm.LLMStream):
         # answer — over the summary this time — contradicted the first out loud.
         _did_act = bool(acted["widget"] or data_done["v"] or worker_acted["v"] or escalate_req["v"] is not None
                         or search_req["v"] is not None or music_req["v"] is not None or confirm_state.get("opened")
-                        or clarify.get("msg") or read_req["v"] is not None)
+                        or clarify.get("msg") or read_req["v"] is not None
+                        # every other door a turn acts through (full27 A1: `search_listings` launched the monitor
+                        # errand and the promise guard, not counting it, added «I haven't looked, nothing is running»)
+                        or any(r["v"] is not None for r in (listing_req, images_req, recall_req, reopen_req,
+                                                            reveal_req)))
         # The three HOLLOW-turn repairs — V2-572 bare «Hecho.» · V2-587 empty wait · V2-642 MUTE after a
         # sounded cover («Déjame que mire…» then silence forever, session 651c25ac) — live in ONE seam:
         # `second_pass.hollow_repairs`. The turn always closes; failing everything, the honest closer speaks.
