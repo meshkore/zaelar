@@ -257,7 +257,7 @@ def which_card(widget_id: str, action: str, *, open_ids=(), brief=None) -> tuple
 
 
 def absent_widget_misroute(widget_id: str, action: str, item: str, *,
-                           resolved: bool = True, named_widget: str = "") -> bool:
+                           resolved: bool = True, named_widget: str = "", payload: dict | None = None) -> bool:
     """A LOOSE PRONOUN as the item, on a card that is neither open nor named → the verb mis-routed.
 
     The incident (2026-07-21, «hay que cancelarlo»): the model hooked the verb «cancelar» to `agenda.drop`
@@ -279,6 +279,13 @@ def absent_widget_misroute(widget_id: str, action: str, item: str, *,
     from nucleo.flash import router as _router
     from widgets import refs as _refs
     wid = (widget_id or "").strip().lower()
+    # The row may be named in the PAYLOAD, under the key the action declares — not only in `item` (demo pass
+    # 2026-09-28, full16 E2: «open it» → `open {name: "Inworld AI"}` with the mail just talked about; an empty
+    # `item` read as a loose pronoun and the open was escalated instead of run).
+    if not str(item or "").strip() and isinstance(payload, dict):
+        _field = _refs.id_field_for_action(wid, (action or "").strip())
+        if _field and str(payload.get(_field) or "").strip():
+            item = str(payload.get(_field))
     # `resolved=False` is the voice rail's other half: a reference that did not resolve AT ALL reaches the
     # same question. The probe never resolves one, so it passes the default and only the pronoun path runs.
     bare = (bool(_refs.id_field_for_action(wid, (action or "").strip()))

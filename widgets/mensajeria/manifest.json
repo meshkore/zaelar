@@ -114,7 +114,7 @@
       "safe": true
     },
     "dismiss": {
-      "desc": "Descarta el mensaje N del widget SIN marcarlo leído en su app",
+      "desc": "QUITA el mensaje N de ESTA lista (no toca su app: allí sigue como estaba) — «quítalo de aquí», «ese no me interesa». «Déjalo sin leer / márcalo como no leído» NO es esto: eso es `unread`",
       "payload": {
         "n": "int"
       },

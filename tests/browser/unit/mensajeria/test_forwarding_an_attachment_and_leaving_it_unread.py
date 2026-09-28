@@ -167,3 +167,22 @@ def test_open_it_after_talking_about_one_mail_is_declared_that_mail():
     from pathlib import Path
     m = json.loads((Path(__file__).resolve().parents[4] / "widgets/mensajeria/manifest.json").read_text("utf-8"))
     assert "open it" in m["actions"]["open"]["desc"] and "no la bandeja" in m["actions"]["open"]["desc"]
+
+
+def test_a_message_named_in_the_payload_is_not_a_loose_pronoun(monkeypatch):
+    """Demo pass 2026-09-28 (full16 E2): «open it» right after the Inworld receipt was talked about — the model
+    called `open {name: "Inworld AI"}` with an empty `item`, the card was not on screen, and the guard against a
+    loose pronoun on an absent card escalated it instead of opening the mail. The name in the payload IS the
+    anchor; a truly empty call on an absent card still escalates."""
+    from memory import api as _mem
+    monkeypatch.setattr(_mem, "state", lambda: {"open_widgets": []})
+    from nucleo.flash import frontend as fe
+    assert not fe.absent_widget_misroute("mensajeria", "open", "", payload={"name": "Inworld AI"})
+    assert fe.absent_widget_misroute("mensajeria", "open", "", payload={})
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[4]
+    assert "named_widget=_identify(text), payload=payload)" in (
+        root / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
+    assert "payload=_wd[\"args\"].get(\"payload\")" in (root / "nucleo/flash/probe.py").read_text("utf-8")
+    m = __import__("json").loads((root / "widgets/mensajeria/manifest.json").read_text("utf-8"))["actions"]
+    assert "NO es esto" in m["dismiss"]["desc"], "«leave it unread» belongs to unread, not to dismiss"

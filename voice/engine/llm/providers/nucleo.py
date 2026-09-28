@@ -1395,7 +1395,7 @@ class NucleoLLMStream(llm.LLMStream):
             # An AMBIGUOUS reference found this card's own rows — it is a «which one?», never a worker's job
             # (demo run: «Move it 30 minutes later» over two same-named meetings started a Brain Worker).
             if _frontend.absent_widget_misroute(wid, action_name, ref, resolved=res.ok or res.needs == "ambiguous",
-                                                named_widget=_identify(text)):
+                                                named_widget=_identify(text), payload=payload):
                 emit("brain", "🧭 data-op en widget ausente/no-nombrado (pronombre/ítem sin anclar) → escala con contexto",
                      role="system", text=f"{wid}:{action_name}:{ref or '∅'}", extra={"needs": res.needs})
                 acted["widget"] = True

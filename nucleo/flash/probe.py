@@ -576,7 +576,8 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
             # …y el mis-ruteo por pronombre suelto, que vivía COPIADO aquí y en el provider: el porqué y
             # las dos veces que hubo que arreglarlo por separado están en `frontend.absent_widget_misroute`.
             if action == "widget_data" and _fe.absent_widget_misroute(
-                    _wid, _act, str(_wd["args"].get("item") or ""), named_widget=_identify_ctx(_rt, text)):
+                    _wid, _act, str(_wd["args"].get("item") or ""), named_widget=_identify_ctx(_rt, text),
+                    payload=_wd["args"].get("payload") if isinstance(_wd["args"].get("payload"), dict) else None):
                 action = "escalate"
         except Exception:
             pass
