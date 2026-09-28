@@ -473,6 +473,17 @@ def resolve(widget_id: str, action: str, ref: str, payload: dict | None = None,
     if not field:
         return RefResult(True, payload)                       # nothing to resolve (e.g. add_meeting)
 
+    # A widget that publishes NO index resolves its references itself (a passage in a document, a free-text
+    # target): his words fill an empty key and its own matcher decides (demo pass 2026-09-28, F2: «go to the part
+    # about the complaints against the king» → `goto {}` → «no encuentro ese pasaje», over the section «The
+    # Grievances Against the King» the document's matcher finds from exactly those words).
+    if not _exposes_ref_index(widget_id):
+        if not str(payload.get(field) or "").strip():
+            words = (ref or "").strip() or (order or "").strip()
+            if words:
+                payload[field] = words
+        return RefResult(True, payload)
+
     idx = [i for i in _ref_index(widget_id) if i.get("field") == field]
 
     # If the model ALREADY gave an id that really EXISTS, respect it (do not overwrite it).

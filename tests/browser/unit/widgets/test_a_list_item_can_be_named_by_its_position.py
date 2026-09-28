@@ -336,3 +336,13 @@ def test_his_sentence_that_also_names_a_title_word_goes_to_the_matcher(monkeypat
     monkeypatch.setattr(refs, "_ref_index", lambda wid: _idx(5))
     r = refs.resolve("youtube", "play_item", "", {}, order="play the second one about artemis")
     assert r.payload != {"item": "2"} or not r.ok, "a title word he said is not thrown away for a position"
+
+
+def test_a_widget_that_resolves_its_own_references_gets_his_words(monkeypatch):
+    """F2 (demo pass 2026-09-28): «go to the part about the complaints against the king» → `goto {}` → «no
+    encuentro ese pasaje». The document publishes no row index — it matches passages itself — so his words fill
+    the empty reference key and its matcher finds «The Grievances Against the King»."""
+    r = refs.resolve("documento", "goto", "", {}, order="go to the part about the complaints against the king")
+    assert r.ok and r.payload == {"text": "go to the part about the complaints against the king"}
+    r2 = refs.resolve("documento", "goto", "", {"text": "Grievances"}, order="whatever he said")
+    assert r2.payload == {"text": "Grievances"}, "a key the model filled is never overwritten"

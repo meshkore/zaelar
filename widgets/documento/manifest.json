@@ -46,7 +46,8 @@
       "payload": {
         "text": "título de la sección o una frase del pasaje"
       },
-      "view": true
+      "view": true,
+      "ref": "text"
     },
     "clear": {
       "desc": "quita lo que haya y deja la hoja en blanco",
