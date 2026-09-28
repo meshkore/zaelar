@@ -100,6 +100,34 @@ def _places_in(payload: dict) -> list:
     return [p for p in (_clean(r) for r in raw) if p][:_MAX_PLACES]
 
 
+def _queries(p: dict, near: str) -> list[str]:
+    """The ways to ask for one place, most specific first. A description the caller composed can be what sinks it
+    (full27 W1: «Mount Baldy, San Gabriel Mountains, CA» found nothing, «Mount Baldy» alone was found), so the
+    place's own name — the first part of what was said — is asked too, with and without the region at the end."""
+    full = ", ".join(x for x in (p["name"], p["address"] or near) if x)
+    parts = [x.strip() for x in (p["name"] or "").split(",") if x.strip()]
+    head = parts[0] if parts else ""
+    region = parts[-1] if len(parts) > 1 else (near or "")
+    out = [full, p["address"], f"{head}, {region}" if head and region else "", head]
+    seen, uniq = set(), []
+    for q in out:
+        if q and q not in seen:
+            seen.add(q)
+            uniq.append(q)
+    return uniq
+
+
+def _first_hit(queries: list[str], deadline: float):
+    """Ask every way at once, keep the most specific answer that came back — sequentially, three slow tries of ~3 s
+    each would not fit the widget pool's deadline."""
+    from concurrent.futures import ThreadPoolExecutor
+    if not queries:
+        return None
+    with ThreadPoolExecutor(max_workers=len(queries)) as pool:
+        hits = list(pool.map(lambda q: _geocode(q, deadline), queries))
+    return next((h for h in hits if h), None)
+
+
 def _locate(places: list, near: str, deadline: float) -> tuple[list, list]:
     """Geocode what has no coordinates, within the time left. Returns (placed, missed names), in the order said.
 
@@ -113,8 +141,7 @@ def _locate(places: list, near: str, deadline: float) -> tuple[list, list]:
             return p
         if time.time() > deadline:
             return None
-        q = ", ".join(x for x in (p["name"], p["address"] or near) if x)
-        hit = _geocode(q, deadline) or (_geocode(p["address"], deadline) if p["address"] else None)
+        hit = _first_hit(_queries(p, near), deadline)
         if not hit:
             return None
         return {**p, "lat": hit["lat"], "lon": hit["lon"], "address": p["address"] or hit["found"]}

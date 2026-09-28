@@ -143,3 +143,20 @@ def test_three_slow_places_are_all_located_within_one_deadline(monkeypatch):
     got = mp.apply_action("show", {"places": ["Griffith Observatory", "Mount Baldy", "The Getty Center"]})
     assert got["ok"] and got["not_found"] == [], got
     assert got["places"] == ["1. Griffith Observatory", "2. Mount Baldy", "3. The Getty Center"], "the order said"
+
+
+def test_a_composed_description_that_finds_nothing_falls_back_to_the_places_own_name(monkeypatch):
+    """full27 W1: the model sent «Mount Baldy, San Gabriel Mountains, CA», which no geocoder knows; «Mount Baldy»
+    alone is found. The place's own name is asked too, at the same time."""
+    _mem.clear()
+    asked = []
+
+    def geocode(q, deadline=None):
+        asked.append(q)
+        return {"lat": 34.2, "lon": -117.6, "found": "Mount Baldy, CA"} if q in ("Mount Baldy", "Mount Baldy, CA") else None
+    monkeypatch.setattr(mp, "_geocode", geocode)
+    monkeypatch.setattr(mp.store, "load", lambda wid, seed, **k: json.loads(json.dumps(_mem.get(wid, seed))))
+    monkeypatch.setattr(mp.store, "save", lambda wid, db: _mem.__setitem__(wid, json.loads(json.dumps(db))))
+    got = mp.apply_action("show", {"places": ["Mount Baldy, San Gabriel Mountains, CA"]})
+    assert got["ok"] and got["not_found"] == [], (got, asked)
+    assert asked[0] == "Mount Baldy, San Gabriel Mountains, CA", "the most specific phrasing is still asked"
