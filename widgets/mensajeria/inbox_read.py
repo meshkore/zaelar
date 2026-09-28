@@ -171,7 +171,17 @@ def read_query(question: str) -> str:
         people = _directory.reachable(question)
     except Exception:  # noqa: BLE001
         people = ""
-    return "\n\n".join(x for x in (people, inbox) if x)
+    # The inbox is the newest 30; the ARCHIVE is everything, and what it never indexed is asked of the real
+    # mailbox (demo pass 30, E1: «did inworld send me something?» → the receipt was the 34th unread, and the
+    # answer was «nothing from Inworld»). Only when the inbox found nothing: a hit there is fresher.
+    past = ""
+    if not inbox:
+        try:
+            from . import views as _views
+            past = _views.read_query_answer(question)
+        except Exception:  # noqa: BLE001
+            past = ""
+    return "\n\n".join(x for x in (people, inbox, past) if x)
 
 
 def _inbox_answer(question: str) -> str:

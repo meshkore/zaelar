@@ -9,6 +9,7 @@
 # data.py itself: stdlib plus the `widgets` package — `connectors` only LAZILY and only because this
 # widget sits in validator's curated _STDLIB_EXEMPT (V2-611: the email signature; V2-628: the archive).
 #
+import re
 import time
 import unicodedata
 from datetime import datetime
@@ -228,6 +229,94 @@ def archive_rows(payload: dict) -> list:
                           since=since, until=until, direction=direction, limit=limit)
 
 
+_WORD_RE = re.compile(r"\w{3,}", re.UNICODE)
+_MAILBOX_MAX_TERMS = 5
+_MAILBOX_MAX_HITS = 5
+_MAILBOX_ASKED_TTL = 600.0
+_MAILBOX_ASKED: dict = {}   # term → when it was last asked of the mailbox: a filler word costs one SEARCH, not one per turn
+
+
+def mailbox_fill(terms) -> int:
+    """Ask the REAL mailbox for mail whose sender or subject holds any of `terms`, and INDEX what it returns in the
+    permanent archive. Returns how many rows were new. Never raises; 0 when email is not connected.
+
+    Demo pass 30 (2026-09-28, E1): after a reset the archive held only what the connector had pulled since — the
+    30 newest unread — and the receipt asked about was the 34th. The archive is the index; the mailbox is the
+    source; a question the index cannot answer is asked of the source, and the answer is indexed on the way back,
+    so the next question about it is local. Read-only on the mailbox side (BODY.PEEK, folder opened read-only)."""
+    now = time.time()
+    terms = [t for t in (str(x).strip().lower() for x in (terms or []))
+             if t and now - _MAILBOX_ASKED.get(t, 0.0) > _MAILBOX_ASKED_TTL][:_MAILBOX_MAX_TERMS]
+    if not terms:
+        return 0
+    for t in terms:
+        _MAILBOX_ASKED[t] = now
+    try:
+        from connectors.email import config as _ecfg
+        mb = _ecfg.mailbox()
+        if mb is None:
+            return 0
+        from connectors.email.search import search_text
+        msgs = search_text(mb, terms, limit=_MAILBOX_MAX_HITS)
+    except Exception:  # noqa: BLE001
+        return 0
+    from connectors.messaging import archive
+    n = 0
+    for m in msgs or []:
+        if not isinstance(m, dict) or not m.get("chatId"):
+            continue
+        n += archive.record("email", m["chatId"], [m], direction="in", chat_name=str(m.get("senderName") or ""))
+    return n
+
+
+def _unknown_terms(text: str) -> list[str]:
+    """The words of a question the archive has NEVER seen — the ones that carry news (a sender, a product, an
+    invoice number). A word the archive already holds adds nothing the local search did not already weigh."""
+    from connectors.messaging import archive
+    out: list[str] = []
+    for w in dict.fromkeys(_WORD_RE.findall(str(text or "").lower())):
+        if archive.doc_count(w) == 0:
+            out.append(w)
+    return out
+
+
+def read_query_answer(question: str) -> str:
+    """The archive's rows a free-text question is about, best first — the `read_query` seam of `widget_read`.
+
+    Before this, a read of the messaging card answered from its SUMMARY: the newest few conversations. «Did
+    Inworld send me something?» was answered «nothing from Inworld» about a card that simply did not show it.
+    Now the question is resolved against the permanent archive (BM25 over every word, so the rare word that
+    names the sender outranks the filler), and words the archive has never seen are asked of the real mailbox
+    first — indexing what it returns. "" when nothing matches: the summary then answers, marked as a summary."""
+    from connectors.messaging import archive
+    words = list(dict.fromkeys(_WORD_RE.findall(str(question or "").lower())))
+    if not words:
+        return ""
+    unknown = _unknown_terms(question)
+    if unknown and mailbox_fill(unknown):
+        # …and the card is asked to bring what the mailbox found INTO its conversation (attachments included),
+        # through its one writer: «open it» and «send the invoice to andrew» act on the card, not on the archive.
+        # `search_archive` on the owner's path is the door that already does exactly that (_bring_back_found_mail).
+        try:
+            from widgets import supervisor as _sup
+            for t in unknown:
+                if archive.search(t, platform="email", limit=1):
+                    _sup.enqueue_from_thread("mensajeria", "search_archive", {"q": t, "platform": "email"})
+        except Exception:  # noqa: BLE001
+            pass
+    rows = archive.ranked(words, limit=8)
+    if not rows:
+        return ""
+    lines = ["Del ARCHIVO permanente de comunicaciones (y del buzón real para lo que no estaba indexado), lo más "
+             "relevante primero:"]
+    for r in rows:
+        when = datetime.fromtimestamp(float(r.get("ts") or 0)).strftime("%Y-%m-%d %H:%M")
+        who = "yo" if r.get("direction") == "out" else (r.get("sender") or r.get("chat_name") or "?")
+        body = " ".join(str(r.get("body") or "").split())[:240]
+        lines.append(f"· {when} · {r.get('platform')} · {who} <{r.get('chat_id')}> · {body}")
+    return "\n".join(lines)
+
+
 def _search_archive_answer(payload: dict) -> dict:
     """The PERMANENT communications archive, answered as data (V2-628 F1). A question about PAST messages
     («when did the school write?», «did I ever answer it?») channels HERE — never to memory recall: the
@@ -259,6 +348,10 @@ def _search_archive_answer(payload: dict) -> dict:
                 "error": "search_archive necesita algún criterio: `q` (texto), `sender`, `chat`, `platform`, "
                          "`since_days`, `until_days` o `direction`"}
     rows = archive_rows(payload)
+    if not rows and (q or sender) and platform in (None, "email"):
+        # Nothing indexed: ask the real mailbox, index what it returns, and look again (demo pass 30, E1).
+        if mailbox_fill(([sender] if sender else []) + (_WORD_RE.findall(q.lower()) if q else [])):
+            rows = archive_rows(payload)
     st = archive.stats()
     oldest = st.get("oldest")
     matches = []

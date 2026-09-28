@@ -31,6 +31,8 @@ from nucleo.flash import image_turn as _image_turn  # V2-457 (image_turn is a le
 from nucleo.flash.video_turn import normalize_action as _video_action  # V2-402 (video_turn is a leaf)
 from typing import Any
 
+from voice.brain_notes import operator_half as _operator_half   # a leaf: re + threading + loguru
+
 # ── kind vocabulary ─────────────────────────────────────────────────────────────────────────────────────
 CHAT = "chat"          # handled by the fast layer itself (conversation, state, canvas via tag)
 STYLE = "style"        # the operator set a session interaction preference
@@ -315,9 +317,4 @@ def operator_words(operator_text: str, turn_text: str) -> str:
     pictures» reached the canvas completion as the COMPOSED turn, with a web-search note about the monitors
     glued under it, and `also_named` read «results» in our own note — the picture viewer and BOTH monitor
     sheets were closed. `brain_notes.operator_half` is the one function that knows where the notes begin."""
-    raw = (operator_text or "").strip() or (turn_text or "")
-    try:
-        from voice.brain_notes import operator_half
-        return operator_half(raw)
-    except Exception:  # noqa: BLE001
-        return raw
+    return _operator_half((operator_text or "").strip() or (turn_text or ""))

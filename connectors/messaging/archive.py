@@ -187,6 +187,45 @@ def search(q: str | None = None, *, sender: str | None = None, chat: str | None 
         return []
 
 
+def _fts_term(t: str) -> str:
+    return '"' + str(t).replace('"', "") + '"'
+
+
+def doc_count(term: str) -> int:
+    """How many archived messages contain `term` (FTS) — how COMMON a word is here. 0 on any failure."""
+    try:
+        conn = _conn()
+        return int(conn.execute("SELECT count(*) FROM messages_fts WHERE messages_fts MATCH ?",
+                                (_fts_term(term),)).fetchone()[0])
+    except Exception:  # noqa: BLE001
+        return 0
+
+
+def ranked(terms: list[str], *, platform: str | None = None, limit: int = 8) -> list[dict]:
+    """Messages matching ANY of `terms`, best first by BM25 — the free-text question's lookup.
+
+    `search()` ANDs every word, which is right for a structured `q` and wrong for a sentence: «has inworld sent
+    any email recently» matches nothing, because no message holds all seven words. BM25 over an OR weighs each
+    word by how rare it is here, so the one that names the sender outranks «email» and «any» without anybody
+    having to list which words are filler — in any language."""
+    terms = [t for t in (str(x).strip() for x in (terms or [])) if t][:12]
+    if not terms:
+        return []
+    try:
+        conn = _conn()
+        sql = ("SELECT m.*, bm25(messages_fts) AS score FROM messages_fts JOIN messages m ON m.id = messages_fts.rowid"
+               " WHERE messages_fts MATCH ?")
+        args: list = [" OR ".join(_fts_term(t) for t in terms)]
+        if platform:
+            sql += " AND m.platform = ?"
+            args.append(str(platform))
+        sql += " ORDER BY score LIMIT ?"
+        args.append(max(1, min(int(limit or 8), 50)))
+        return [dict(r) for r in conn.execute(sql, args).fetchall()]
+    except Exception:  # noqa: BLE001
+        return []
+
+
 def replied(platform: str, chat_id, after_ts: float) -> dict | None:
     """«Did we ever answer it?» — the first OUT row in that chat after the instant. A JOIN, not a memory."""
     try:

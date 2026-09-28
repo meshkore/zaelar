@@ -166,6 +166,29 @@ def enqueue(wid: str, action: str, payload: dict) -> bool:
     return svc.enqueue(action, payload)
 
 
+def enqueue_from_thread(wid: str, action: str, payload: dict) -> bool:
+    """`enqueue` for a caller running OFF the event loop (a widget read runs in `asyncio.to_thread`). An asyncio
+    Queue is not thread-safe, so the put is handed to the owner's own loop. Falls back to `enqueue` when there is
+    no loop to hand it to (tests, or a caller already on that loop)."""
+    svc = _services.get(wid)
+    if svc is None:
+        return False
+    try:
+        loop = svc.task.get_loop() if svc.task is not None else None
+    except Exception:  # noqa: BLE001
+        loop = None
+    if loop is None or not loop.is_running():
+        return svc.enqueue(action, payload)
+    try:
+        import asyncio as _aio
+        if _aio.get_running_loop() is loop:
+            return svc.enqueue(action, payload)
+    except RuntimeError:
+        pass
+    loop.call_soon_threadsafe(svc.enqueue, action, payload)
+    return True
+
+
 def info(wid: str) -> dict:
     """Supervised owner state for a backed widget (for the FlashBrain bridge, `nucleo/flash/procs.py`). `running` =
     has a live supervised task; `disabled` = disabled after MAX_FAILS. `backed=False` if the widget is not backed /
