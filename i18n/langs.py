@@ -332,6 +332,11 @@ class LangSpec:
     # budget timeouts, spontaneous sparks, and messaging notices. Placeholders use `.format(...)`.
     worker_ask_named: str = "Oye, el proceso «{goal}» pregunta: {question}"
     worker_ask_generic: str = "Oye, uno de los procesos en marcha pregunta: {question}"
+    # A worker's action that needs his yes (`nucleo/worker_policy.py`) — they were Spanish literals and reached
+    # an English session as «El worker quiere hacer «delete_file»… ¿Lo autorizas?» (demo pass 2026-09-28).
+    worker_confirm_channel: str = "El worker quiere enviar algo al canal «{channel}». ¿Lo hago?"
+    worker_confirm_widget: str = "El worker quiere hacer «{action}» en «{widget}», y no se puede deshacer. ¿Lo autorizas?"
+    worker_confirm_generic: str = "El worker quiere ejecutar «{action}». ¿Lo autorizas?"
     worker_budget_killed: str = ("He parado «{goal}»: agotó su tiempo. Te dejo en la tarjeta lo que ha "
                                  "encontrado hasta ahora.")
     worker_timeout_running: str = "El proceso «{goal}» lleva ya {minutes} minutos. ¿Quieres que lo pare o que siga?"
@@ -518,6 +523,9 @@ LANGUAGES: dict[str, LangSpec] = {
                        "stop it and try another way?"),
         worker_ask_named="Hey, the «{goal}» process is asking: {question}",
         worker_ask_generic="Hey, one of the running processes is asking: {question}",
+        worker_confirm_channel="The background task wants to send something to «{channel}». Shall I?",
+        worker_confirm_widget="The background task wants to do «{action}» on «{widget}», and it can't be undone. Is that OK?",
+        worker_confirm_generic="The background task wants to run «{action}». Is that OK?",
         worker_budget_killed=("I stopped «{goal}»: it ran out of time. I've left what it found so far on the "
                               "card."),
         worker_timeout_running=("The «{goal}» process has been running for {minutes} minutes now. Want me to "

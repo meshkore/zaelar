@@ -144,11 +144,12 @@ def classify_act(action: str, payload: dict) -> str:
 
 
 def _confirm_question(action: str, payload: dict) -> str:
+    """The question put to him, in HIS language (the table in `i18n/langs.py`, never a literal here)."""
+    from i18n import langs as _lg
+    sp = _lg.current_language()
     if action == "push_channel":
-        ch = (payload or {}).get("channel", "")
-        return f"El worker quiere enviar algo al canal «{ch}». ¿Lo hago?"
+        return sp.worker_confirm_channel.format(channel=(payload or {}).get("channel", ""))
     if action == "widget_data":
         wid = (payload or {}).get("widget_id") or (payload or {}).get("id") or ""
-        act = (payload or {}).get("action") or ""
-        return f"El worker quiere hacer «{act}» en el widget «{wid}» (acción irreversible). ¿Lo autorizas?"
-    return f"El worker quiere ejecutar «{action}». ¿Lo autorizas?"
+        return sp.worker_confirm_widget.format(action=(payload or {}).get("action") or "", widget=wid)
+    return sp.worker_confirm_generic.format(action=action)
