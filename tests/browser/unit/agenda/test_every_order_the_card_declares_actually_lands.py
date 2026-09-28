@@ -78,6 +78,7 @@ _SCRIPT = [
     ("invite", {"who": "ivan@example.com", "meeting": "Reunión con Iván", "date": "TOM"}, None),
     ("dedupe_meetings", {"title": "Reunión con Iván", "date": "TOM"}, None),
     ("show_day", {"day": "month"}, None),
+    ("find_free", {"date": "tomorrow", "duration_min": 45, "from": "12:00"}, None),
     ("open_meeting", {"title": "Reunión con Iván"}, None),
     ("close_meeting", {}, None),
     ("rsvp_meeting", {"title": "Reunión con Iván", "date": "TOM", "answer": "yes"}, "invitación"),

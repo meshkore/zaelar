@@ -92,6 +92,17 @@
         "until": "último día de la repetición o del tramo de varios días, YYYY-MM-DD (o «junio de 2027» = hasta el 30 de junio); sin él no acaba"
       }
     },
+    "find_free": {
+      "desc": "FINDS FREE TIME on a day («find me a free 45 minutes tomorrow afternoon», «búscame un hueco», «¿cuándo puedo verle?»): returns the free slots and books NOTHING",
+      "payload": {
+        "date": "«mañana», a weekday or YYYY-MM-DD",
+        "duration_min": "minutes needed",
+        "from": "optional HH:MM, start of the window («afternoon» = 12:00)",
+        "to": "optional HH:MM, end of the window",
+        "after_last": "optional true: only after the day's last appointment"
+      },
+      "view": true
+    },
     "set_reminder": {
       "desc": "mueve el AVISO de una cita («avísame a mediodía»); SIN title y CON date pone avisos a TODAS las citas de ese día («avisos para todas las citas del jueves»)",
       "ref": "title",

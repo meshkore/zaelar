@@ -60,33 +60,6 @@ def _is_same_meeting(a: dict, b: dict) -> bool:
     return _titles_overlap(a.get("title"), b.get("title"))
 
 
-def _the_one_just_booked(db: dict, meets: list, new: dict, window_s: float = 600.0):
-    """The meeting this write RENAMES rather than doubles, or None.
-
-    Demo passes 2026-09-28 (full12-full15, C2→C3): «find me a free 45 minutes tomorrow afternoon to talk with ethan»
-    is ambiguous enough that the model booked it («Call with Ethan», 16:00-16:45) — and «ok book it, call it catch up
-    with ethan» then booked a SECOND one in the same slot, so «move it half an hour later» had to ask which. The same
-    exact slot as the appointment the conversation is ON (the agenda's focus, touched minutes ago) is that
-    appointment under the name he now gives it. A different slot or a stale focus stays a new
-    meeting: a double-booked hour is still his business (V2-473). Nothing here reads the titles' words — the
-    agent speaks any language, and the slot and the focus are the same in all of them."""
-    focus = db.get("focus") or {}
-    try:
-        fresh = time.time() - float(focus.get("at") or 0) <= window_s
-    except (TypeError, ValueError):
-        fresh = False
-    if not fresh:
-        return None
-    for m in meets:
-        if (str(m.get("title") or "") == str(focus.get("title") or "")
-                and str(m.get("date") or "") == str(new.get("date") or "")
-                and str(m.get("startTime") or "") == str(new.get("startTime") or "")
-                and str(m.get("endTime") or "") == str(new.get("endTime") or "")
-                and m.get("title") != new.get("title")):
-            return m
-    return None
-
-
 def _settle_rule(db: dict, twin: dict, new: dict) -> bool:
     """A second write of the SAME appointment that carries a repeat rule the row lacks settles the rule on the
     row (V2-773, 2026-09-27). «Anna vacation, December 20 through January 4» reached the card twice from the
@@ -497,19 +470,6 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
                 _jid, _at = _schedule_reminder(_ad.get("title", title), date, _ad.get("startTime", ""))
                 if _jid:
                     _ad["reminder_id"], _ad["remindAt"] = _jid, _at
-            elif (_renamed := _the_one_just_booked(db, _meets, _new)) is not None:
-                _cancel_reminder(_renamed)
-                _renamed["title"] = _new["title"]
-                for k in ("attendees", "notes", "location", "category"):
-                    if _new.get(k) and not _renamed.get(k):
-                        _renamed[k] = _new[k]
-                gcal.patch_google(_renamed)
-                _jid, _at = _schedule_reminder(_renamed["title"], date, _renamed.get("startTime", ""))
-                if _jid:
-                    _renamed["reminder_id"], _renamed["remindAt"] = _jid, _at
-                edit.touch(db, _renamed)
-                _extra["stored"] = dict(_renamed)
-                _extra["renamed"] = True
             # V2-208: the SAME meeting twice (see `_is_same_meeting`). A duplicate notice is heard once; a
             # duplicate meeting is SEEN, and remains there until someone deletes it manually.
             elif (_same := next((m for m in _meets if _is_same_meeting(_new, m)), None)) is not None:
@@ -846,6 +806,15 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
             _sel = _resolve_date(_raw)                 # spoken relative date -> YYYY-MM-DD (today if unsaid)
         import time as _tm
         db["view"] = {"sel": _sel, "n": int((db.get("view") or {}).get("n", 0)) + 1, "at": _tm.time()}
+    elif action == "find_free":
+        # A QUESTION about the day, answered without writing (see `free.py`): the day's free stretches, and the
+        # card moves to that day so what he is told is what he sees.
+        from . import free as _free
+        _day = _resolve_date(str(payload.get("date") or payload.get("day") or ""))
+        import time as _tm
+        db["view"] = {"sel": _day, "n": int((db.get("view") or {}).get("n", 0)) + 1, "at": _tm.time()}
+        store.save(WIDGET_ID, db)
+        return _free.find(db.get("meetings") or [], _day, payload)
     elif action in ("connect", "disconnect", "set_default_calendar"):
         # V2-679 — Google Calendar connect/disconnect/default-picker; body in `gcal.py` (ratchet extraction).
         # connect/disconnect return the connector's result directly (never a credential crosses here, V2-520).

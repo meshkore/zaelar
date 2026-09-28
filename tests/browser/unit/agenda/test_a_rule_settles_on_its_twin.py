@@ -82,22 +82,21 @@ def test_finding_a_free_slot_is_declared_a_question_not_a_booking(ag):
     assert "SOLO cuando él pide" in desc and "es una PREGUNTA" in desc
 
 
-def test_booking_the_slot_just_booked_renames_it_instead_of_doubling_it(ag):
-    """Demo passes 2026-09-28 (full12-full15, C2→C3): the ambiguous «find me a free 45 minutes… to talk with ethan»
-    got booked as «Call with Ethan»; «ok book it, call it catch up with ethan» then booked a SECOND one in the same
-    slot and «move it half an hour later» had to ask which."""
-    slot = {"date": "2026-10-06", "startTime": "16:00", "endTime": "16:45"}
-    ag.apply_action("add_meeting", {"title": "Call with Ethan", **slot})
-    r = ag.apply_action("add_meeting", {"title": "Catch up with Ethan", **slot})
-    assert r.get("renamed") and [m["title"] for m in _rows(ag, "Catch up with Ethan")] == ["Catch up with Ethan"]
-    assert not _rows(ag, "Call with Ethan"), "one appointment, under the name he gave it last"
-    ag.apply_action("add_meeting", {"title": "Lunch with Laura", "date": "2026-10-06", "startTime": "16:30",
-                                    "endTime": "17:30"})
-    assert _rows(ag, "Lunch with Laura") and _rows(ag, "Catch up with Ethan"), "another slot is another meeting"
-    import time as _t
-    from widgets import store
-    db = store.load("agenda", {})
-    db["focus"]["at"] = _t.time() - 3600                          # the conversation moved on
-    store.save("agenda", db)
-    ag.apply_action("add_meeting", {"title": "Dentist", **slot})
-    assert _rows(ag, "Dentist") and _rows(ag, "Catch up with Ethan"), "a stale focus renames nothing"
+def test_finding_free_time_is_an_action_that_books_nothing(ag, monkeypatch):
+    """Demo passes 2026-09-28 (C2, three running): «find me a free 45 minutes tomorrow afternoon to talk with ethan»
+    booked the meeting — the description said it was a question, but the agenda had no action that FINDS time, so
+    the model took the nearest one, which writes. `find_free` answers the question and writes no meeting."""
+    ag.apply_action("add_meeting", {"title": "Weekly review", "date": "2026-10-06", "startTime": "09:00",
+                                    "endTime": "09:30"})
+    ag.apply_action("add_meeting", {"title": "Architecture", "date": "2026-10-06", "startTime": "15:00",
+                                    "endTime": "15:30"})
+    before = len(ag.load_db()["meetings"])
+    got = ag.apply_action("find_free", {"date": "2026-10-06", "duration_min": 45, "from": "12:00",
+                                        "after_last": True})
+    assert got["ok"] and got["booked"] is False
+    assert got["free"][0]["first_fit"] == "15:30-16:15", got
+    assert len(ag.load_db()["meetings"]) == before, "a question wrote a meeting"
+    assert ag.load_db()["view"]["sel"] == "2026-10-06", "the card shows the day he asked about"
+    from widgets import effects as fx
+    assert fx.carries("agenda", "find_free", fx.DATA_READ) and not fx.carries("agenda", "find_free", fx.DATA_WRITE)
+
