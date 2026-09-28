@@ -318,3 +318,21 @@ def test_el_widget_ACEPTA_lo_que_el_resolvedor_produce(tmp_path, monkeypatch):
     res = yt.apply_action("play_item", r.payload)
     assert res.get("ok") is True, res
     assert store.load("youtube").get("pos") == 2
+
+
+# ── demo pass 2026-09-28, I3 — his SENTENCE is the reference, verb included ────────────────────────────────
+
+@pytest.mark.parametrize("order,esperado", [
+    ("open the second one", "2"), ("play the fifth one", "5"), ("ábreme la tercera", "3"),
+])
+def test_a_position_in_his_own_sentence_resolves_when_the_model_named_nothing(monkeypatch, order, esperado):
+    """The model called `select` with no item; «open» turned a clear «second» into «Which one exactly?»."""
+    monkeypatch.setattr(refs, "_ref_index", lambda wid: _idx(5))
+    r = refs.resolve("youtube", "play_item", "", {}, order=order)
+    assert r.ok and r.payload == {"item": esperado}, (order, r.needs)
+
+
+def test_his_sentence_that_also_names_a_title_word_goes_to_the_matcher(monkeypatch):
+    monkeypatch.setattr(refs, "_ref_index", lambda wid: _idx(5))
+    r = refs.resolve("youtube", "play_item", "", {}, order="play the second one about artemis")
+    assert r.payload != {"item": "2"} or not r.ok, "a title word he said is not thrown away for a position"

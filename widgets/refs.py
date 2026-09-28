@@ -533,6 +533,18 @@ def resolve(widget_id: str, action: str, ref: str, payload: dict | None = None,
         if _pos is not None:                               # «the first one» / «3» — see `_position_ref`
             payload[field] = idx[_pos]["id"]
             return RefResult(True, payload)
+        # HIS SENTENCE carries its verb («open the second one»): when the reference is his words, one position
+        # word in them is the reference — unless what else he said names a row (then the title matcher decides).
+        # Demo pass 2026-09-28, I3: the model called `select` with no item, and «open» turned a clear «second»
+        # into «Which one exactly?» with the list on screen.
+        if not named:
+            _toks = [t for t in query.split() if t not in _STOP and t not in _POS_FILLER]
+            _got = _pos_token(_toks)
+            if _got and 1 <= _got[0] <= len(idx):
+                _labels = " ".join(_norm(i["label"]) for i in idx).split()
+                if not any(t in _labels for t in _got[1] if len(t) > 3):
+                    payload[field] = idx[_got[0] - 1]["id"]
+                    return RefResult(True, payload)
 
     scored = sorted(((_score(query, _norm(i["label"])), i) for i in idx), key=lambda s: -s[0])
     best_score, best = scored[0]
