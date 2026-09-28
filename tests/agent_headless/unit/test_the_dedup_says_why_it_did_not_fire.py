@@ -246,3 +246,18 @@ def test_a_crashed_second_half_is_not_recorded_as_separate(fresh_db, fake_backen
     dispatch._SESSIONS.clear()
     assert rows and rows[0]["model"] == "error:RuntimeError"
     # …and the errand still ran: an unreachable judge must never block work.
+
+
+def test_two_errands_that_name_no_widget_do_not_share_the_open_card(monkeypatch):
+    """Demo pass 2026-09-28, T1: with the monitor sheet open, «plan a five day trip somewhere warm…» and «find me
+    three 27 inch 4k monitors…» both resolved `results` BY CONTEXT, the trip «continued» the monitor search at 1.0
+    by widget, inherited its sheet and wrote the trip over the monitors. The dedup key is a widget the request
+    NAMES."""
+    from nucleo import dedup
+    from widgets import runtime
+    monkeypatch.setattr(runtime, "identify", lambda q, **k: {"match": "results", "by_context": True})
+    trip = "johnny, plan a five day trip somewhere warm for anna and me, from LAX, december 21 to 25, under 2000"
+    prev, ev = dedup.continues_ended(trip, "generic", [
+        {"id": "2", "goal": "hey johnny, can you find me like three 27 inch 4k monitors, under 400 bucks",
+         "sheet": "4e8213-ls1"}])
+    assert prev == "" and ev.get("by") != "widget", ev

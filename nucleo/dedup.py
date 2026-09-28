@@ -14,10 +14,16 @@ from nucleo import matching
 
 
 def target_widget(request: str) -> str:
-    """The EXISTING widget the request references ('' if none) — the dedup key for widget tasks."""
+    """The EXISTING widget the request NAMES ('' if none) — the dedup key for widget tasks.
+
+    NAMES, never «is open» (V2-666's rule, applied here): `identify()` returns the one open card by CONTEXT when
+    the sentence names nothing, and two errands that name nothing then shared a «target» — demo pass 2026-09-28,
+    T1: «plan a five day trip somewhere warm…» and «find me three 27 inch 4k monitors…» both read `results` (the
+    sheet on screen), the trip was judged to CONTINUE the monitor search at 1.0 «by widget», inherited its sheet
+    and wrote the trip over the monitors."""
     try:
-        from nucleo.agentes import code as _code
-        return _code._referenced_widget(request) or ""
+        from widgets import runtime as _rt
+        return _rt.identify_named(request or "") or ""
     except Exception:
         return ""
 
