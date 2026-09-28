@@ -304,6 +304,9 @@ def _warn_wrong_space() -> None:
             detail = (f"recall on FTS only: the embedder returned nothing this time — the space "
                       f"({active}) is the indexed one, so this is the EMBEDDER (key, quota or "
                       f"network), not a migration")
+            _why = str(getattr(_emb, "last_error", lambda: "")() or "")
+            if _why:
+                detail += f" — the provider said: {_why}"
         else:
             detail = (f"recall on FTS only: active embedding space ({active or '?'}) is not the "
                       f"indexed one ({stored or '?'}) — the index needs re-embedding")

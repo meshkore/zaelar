@@ -327,6 +327,21 @@ def _cloud_dims() -> int | None:
     return EMBED_DIM if any(m in _cloud_model().lower() for m in _MATRYOSHKA) else None
 
 
+#: The provider's own words for the last failed call (demo pass 2026-09-28: every recall ran on FTS alone for a
+#: whole pass and the diagnostic said «key, quota or network» — it was `insufficient_quota`, and the answer
+#: was sitting in the response body this module already reads).
+_LAST_ERROR = {"v": ""}
+
+
+def last_error() -> str:
+    return _LAST_ERROR["v"]
+
+
+def _note_failure(e: BaseException) -> None:
+    _LAST_ERROR["v"] = str(_error_body(e) or e)[:300]
+    logger.debug("cloud embeddings failed: %s", _LAST_ERROR["v"])
+
+
 def _cloud_embed(texts: list[str], *, timeout: float | None = None) -> list[list[float]] | None:
     """POST `{base_url}/embeddings`. Returns None on ANY failure — and returning None is a decision, not an
     omission: the caller turns it into `last_degraded`, the writer defers the vector and the database's space
@@ -362,7 +377,7 @@ def _cloud_embed(texts: list[str], *, timeout: float | None = None) -> list[list
             pass
         return out
     except Exception as e:  # noqa: BLE001
-        logger.debug("cloud embeddings failed: %s", _error_body(e) or e)
+        _note_failure(e)
         return None
 
 

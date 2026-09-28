@@ -190,6 +190,33 @@ def _on_screen_block(middle: str) -> str:
     return block + cut + "\n\n"
 
 
+PROMPTS_DIR = os.path.join(LOG_DIR, "prompts")
+
+
+def _full_prompt_record(system: str, window: list, user: str, decision: dict) -> None:
+    """The WHOLE prompt of the turn, beside the event's head+tail excerpt — one line per turn in
+    `.meshkore/logs/prompts/<session>.jsonl`, joined to the timeline by `trace`.
+
+    The excerpt keeps the persona and the live state and drops the middle, which is where the turn's MEMORY
+    block sits («Puede que venga a cuento…»). Demo pass 2026-09-28, R1: «when's the tesla insurance due
+    again?» → «I don't have a Tesla insurance renewal date on file», and nothing on disk could say whether
+    the fact reached the model. Kept out of the event stream on purpose: ~40 KB a turn is a file's job, not
+    the viewer's. Same `ZAELAR_LOG_PROMPTS` gate as the capture. Never raises."""
+    try:
+        import time
+
+        from voice import trace as _trace
+        os.makedirs(PROMPTS_DIR, exist_ok=True)
+        rec = {"t": round(time.time(), 3), "trace": _trace.current() or "", "user": user,
+               "system": system, "window": [{"role": m.get("role"), "content": m.get("content")} for m in window],
+               "decision": decision}
+        path = os.path.join(PROMPTS_DIR, f"{_session_file.get('sid') or 'nosid'}.jsonl")
+        with open(path, "a", encoding="utf-8") as fh:
+            fh.write(json.dumps(rec, ensure_ascii=False, default=str) + "\n")
+    except Exception:  # noqa: BLE001
+        pass
+
+
 def turn_detail(*, system: str, window: list | None = None, tools: list | None = None,
                 user: str = "", decision: dict | None = None, extra: dict | None = None) -> None:
     """FORENSIC capture of ONE FlashBrain turn (V2-040, operator request 2026-07-15: “messages, tokens,
@@ -214,6 +241,7 @@ def turn_detail(*, system: str, window: list | None = None, tools: list | None =
             payload.update(extra)
         emit("perf", "🧾 turno (prompt+ventana+tools+decisión)", role="system", text=(user or "")[:120],
              extra=payload)
+        _full_prompt_record(system or "", window or [], user or "", decision or {})
         # V2-053: SEMANTIC end-of-turn topic on the bus—the modularity connection point for programmatic
         # consumers (Susurro). turn_detail is the ONLY place BOTH paths close (voice provider and probe), so a
         # subscriber receives the complete turn without coupling to either one.
