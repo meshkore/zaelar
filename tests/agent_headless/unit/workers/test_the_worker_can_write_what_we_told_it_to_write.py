@@ -63,3 +63,12 @@ def test_the_set_is_passed_beside_the_allowlist():
     src = inspect.getsource(CS)
     i = src.index('cmd += ["--allowedTools"')
     assert '"--tools"' in src[i:i + 900], "the allowlist travels and the built-in set does not"
+
+
+def test_the_errand_allowlists_carry_write_too():
+    """The default above is REPLACED by the errand's own list, and `_tools_for` never had `Write` (demo pass
+    2026-09-28: «No such tool available: Write» and three verified monitors that never reached the sheet)."""
+    from nucleo import dispatch
+    for kind in ("web", "generic", "research"):
+        assert "Write" in dispatch._tools_for(kind, trusted=True), kind
+    assert dispatch._tools_for("web", trusted=False) == [], "an untrusted turn still gets nothing"
