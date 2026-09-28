@@ -44,3 +44,21 @@ def test_not_spoken_means_the_note_stays(monkeypatch):
     monkeypatch.setattr(proactive, "_speaker", None)
     asyncio.run(session._deliver(_rec()))
     assert [n for n in brain_notes.drain() if "Tarea completada" in n], "the text channel still learns it"
+
+
+def test_an_interim_word_that_finds_no_quiet_moment_stays_on_screen(monkeypatch):
+    """«On the monitors: a Philips… no price confirmed yet» rode his answers about Apple's chart and the music:
+    a worker's interim `say` that cannot be said is not carried into the conversation."""
+    monkeypatch.setattr(proactive, "_speaker", lambda t: None)
+    monkeypatch.setattr(proactive, "_wait_for_quiet", lambda *a, **k: asyncio.sleep(0, result=False))
+    said = asyncio.run(proactive.notify("zaelar", "On the monitors: a Philips came up", carry=False))
+    assert said is False and not brain_notes.drain()
+    asyncio.run(proactive.notify("zaelar", "the result", carry=True))
+    assert brain_notes.drain(), "a carried delivery still degrades to a note"
+
+
+def test_the_worker_say_route_does_not_carry():
+    import inspect
+    from nucleo import worker_api
+    src = inspect.getsource(worker_api.worker_say)
+    assert "carry=False" in src

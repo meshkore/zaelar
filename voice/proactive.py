@@ -153,7 +153,7 @@ def ephemeral_speaker():
 
 
 async def notify(title: str, text: str, *, speak: bool = True, kind: str = "notify",
-                 key: str = "", opens_window: bool = True) -> bool:
+                 key: str = "", opens_window: bool = True, carry: bool = True) -> bool:
     """Deliver a proactive message: UI always, voice if a session is live. Best-effort — never raises.
 
     `opens_window` (V2-655) — this delivery is ADDRESSED TO the operator, so his answer to it is directed by
@@ -163,7 +163,11 @@ async def notify(title: str, text: str, *, speak: bool = True, kind: str = "noti
     anything from him. See `voice/attention.note_addressed_speech` for the session this cost.
 
     Returns True only when the operator was actually SPOKEN to (demo pass 2026-09-28): a caller that also left a
-    note for the brain retracts it then, or the next turn announces the same result a second time."""
+    note for the brain retracts it then, or the next turn announces the same result a second time.
+
+    `carry=False` — a message that must NOT ride the conversation when it cannot be said: it stays on screen (the
+    event above) and that is all. A worker's interim `say` is that kind (demo pass 2026-09-28: «On the monitors: a
+    Philips… no price confirmed yet» appended to the answers about Apple's chart and the music)."""
     text = (text or "").strip()
     if not text:
         return False
@@ -183,6 +187,8 @@ async def notify(title: str, text: str, *, speak: bool = True, kind: str = "noti
     # The note is an INSTRUCTION, never the bare phrase (V2-214): its reader is the AGENT at a later moment, so
     # handing it prose reads as something to file rather than something to say.
     if not (speak and _speaker is not None):
+        if not carry:
+            return False
         try:
             from voice import brain_notes
             # V2-666: «después de contestarle», never «primero» — the note rides BEHIND his words now
@@ -204,6 +210,8 @@ async def notify(title: str, text: str, *, speak: bool = True, kind: str = "noti
     # waits for a silent opening; if the total allows no respite, the message is NOT lost: it becomes a [SISTEMA]
     # note for the next turn (the brain will say it itself, in context). The UI already showed it above.
     def _degrade(reason: str) -> None:
+        if not carry:
+            return
         try:
             from voice import brain_notes
             brain_notes.push(f"[SISTEMA] Entrega proactiva pendiente ({reason}): {spoken}", key=key)

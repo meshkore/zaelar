@@ -517,7 +517,9 @@ async def worker_say(task_id: str = Body(..., embed=True), token: str = Body("",
             pass
         try:
             from voice import proactive
-            await proactive.notify("zaelar", msg, speak=True)
+            # an INTERIM word: said if there is a quiet moment, otherwise it stays on screen and never rides his
+            # next answer (questions go through `ask`, the result through the delivery — both unaffected)
+            await proactive.notify("zaelar", msg, speak=True, carry=False)
         except Exception:
             pass
     return JSONResponse({"ok": True, "injections": inj})
