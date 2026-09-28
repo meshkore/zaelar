@@ -351,3 +351,35 @@ def test_F2_a_self_matching_reference_is_filled_with_his_words(on_screen):
                        operator_text="go to the part about the complaints against the king")
     assert rung and rung["action"] == "goto" and "king" in rung["payload"]["text"]
     assert _da.fillable_key("youtube", "play_item") == ""
+
+
+def _canvas_said(b, said, open_now, monkeypatch):
+    from server import voice_api
+    monkeypatch.setattr(voice_api, "open_instances", lambda: list(open_now))
+    tags = []
+    got = _da.complete_canvas(b, tag_emit=lambda a, x: tags.append((a, x.get("id"))),
+                              emit=lambda *a, **k: None, operator_text=said)
+    return got, tags
+
+
+def test_C6_named_cards_that_are_not_open_mean_nothing_to_close(on_screen, monkeypatch):
+    """Demo pass 2026-09-28, C6: «close the calendar and the messages», neither open, no card in the verdict —
+    the gesture fell back to the card his last turn touched and closed the VIDEO."""
+    from nucleo import canvas_focus
+    monkeypatch.setattr(canvas_focus, "last_turn_card", lambda ids: "youtube")
+    b = _brief({_tb.CANVAS_KEY: ("close", 1.0), _tb.REQUEST_KEY: ("order", 1.0)}, open_ids=("youtube", "markets"))
+    assert _canvas_said(b, "close the calendar and the messages", ["youtube", "markets"], monkeypatch) == ("", [])
+
+
+def test_C6_named_cards_that_are_open_are_all_closed(on_screen, monkeypatch):
+    b = _brief({_tb.CANVAS_KEY: ("close", 1.0), _tb.REQUEST_KEY: ("order", 1.0)},
+               open_ids=("agenda", "mensajeria", "youtube"))
+    got, tags = _canvas_said(b, "close the calendar and the messages", ["agenda", "mensajeria", "youtube"], monkeypatch)
+    assert got == "close" and sorted(tags) == [("close", "agenda"), ("close", "mensajeria")]
+
+
+def test_a_pronoun_still_means_the_card_his_last_turn_touched(on_screen, monkeypatch):
+    from nucleo import canvas_focus
+    monkeypatch.setattr(canvas_focus, "last_turn_card", lambda ids: "youtube")
+    b = _brief({_tb.CANVAS_KEY: ("close", 1.0), _tb.REQUEST_KEY: ("order", 1.0)}, open_ids=("youtube", "markets"))
+    assert _canvas_said(b, "ok close that", ["youtube", "markets"], monkeypatch) == ("close", [("close", "youtube")])

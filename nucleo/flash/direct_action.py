@@ -588,6 +588,30 @@ def sure_canvas(brief) -> str:
         return ""
 
 
+def named_cards(operator_text: str) -> list[str]:
+    """Every card his words NAME (alias or name, never context) — «the calendar and the messages» is two."""
+    try:
+        from widgets import runtime as _rt
+        res = _rt.identify(operator_text or "") or {}
+        if res.get("by_context"):
+            return []
+        if res.get("match"):
+            return [str(res["match"])]
+        cands = res.get("candidates") or []
+        top = max((float(c.get("score") or 0) for c in cands), default=0.0)
+        return [str(c["id"]) for c in cands if top > 0 and float(c.get("score") or 0) == top] if res.get("ambiguous") else []
+    except Exception:  # noqa: BLE001
+        return []
+
+
+def _open_now() -> list[str]:
+    try:
+        from server.voice_api import open_instances
+        return [str(i) for i in open_instances() if str(i)]
+    except Exception:  # noqa: BLE001
+        return []
+
+
 def complete_canvas(brief, *, tag_emit, emit, operator_text: str = "") -> str:
     """The model called NOTHING and the brief SURELY names a canvas gesture: do that gesture on the card the
     turn is about (the verdict's card, else the card his last turn acted on, else the only one open), through
@@ -600,17 +624,32 @@ def complete_canvas(brief, *, tag_emit, emit, operator_text: str = "") -> str:
         if not verb:
             return ""
         from nucleo.flash import show_target as _st
-        wid = _st.close_target(from_brief(brief)[0])
-        if not wid:
-            return ""
-        if verb == "close":
-            tag_emit("close", {"id": wid})
-        elif verb == "minimize":
-            tag_emit("minimize", {"id": wid})
+        verdict_wid = from_brief(brief)[0]
+        if verdict_wid:
+            targets = [_st.close_target(verdict_wid)]
         else:
-            tag_emit("fullscreen", {"id": wid, "on": verb == "fullscreen"})
-        emit("brain", f"🎯 el veredicto completa al modelo (sin tool) — {verb}", text=wid, role="system",
-             extra={"cat": "flash", "widget": wid, "action": verb, "said": (operator_text or "")[:120]})
+            # HIS words name the cards (demo pass 2026-09-28, C6: «close the calendar and the messages», neither
+            # open — the gesture fell back to the card his last turn touched and closed the VIDEO). Named cards
+            # that are open get the gesture; named cards that are not open mean there is nothing to do, and no
+            # other card stands in for them.
+            named = named_cards(operator_text)
+            if named:
+                open_now = _open_now()
+                targets = [t for t in (_st.close_target(n) for n in named) if t in open_now]
+            else:
+                targets = [_st.close_target("")]
+        targets = [t for t in targets if t]
+        if not targets:
+            return ""
+        for wid in targets:
+            if verb == "close":
+                tag_emit("close", {"id": wid})
+            elif verb == "minimize":
+                tag_emit("minimize", {"id": wid})
+            else:
+                tag_emit("fullscreen", {"id": wid, "on": verb == "fullscreen"})
+            emit("brain", f"🎯 el veredicto completa al modelo (sin tool) — {verb}", text=wid, role="system",
+                 extra={"cat": "flash", "widget": wid, "action": verb, "said": (operator_text or "")[:120]})
         return verb
     except Exception:  # noqa: BLE001
         return ""
