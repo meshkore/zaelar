@@ -85,7 +85,10 @@ async def execute(query: str, n: int = DEFAULT_N, more: bool = False) -> dict:
             big = [it for it in items if int(it.get("w") or 0) >= 1600]
             if len(big) >= 3:
                 items = big
-            items.sort(key=lambda it: -(int(it.get("w") or 0) * int(it.get("h") or 0)))
+            # A desktop is LANDSCAPE: a phone wallpaper (800x1422) stretched across it came first on area alone in
+            # the demo pass of 2026-09-28 (B2) — blurred and cropped. Wider-than-tall first, then the biggest.
+            items.sort(key=lambda it: (int(it.get("w") or 0) <= int(it.get("h") or 0),
+                                       -(int(it.get("w") or 0) * int(it.get("h") or 0))))
             parte["large_pref"] = True
         parte["source"] = str(res.get("source") or "")
         if res.get("degraded_from"):

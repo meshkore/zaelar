@@ -3352,6 +3352,9 @@ DOMAINS: list[dict] = [
         # V2-764 — «voy a por la serie Sherlock en torrent y te enseño el catálogo», and no tool: the turn's verdict
         # named the card, the action existed. One bounded pass asks the model for the call it promised — only the
         # named card, only a declared action — before the backstop spends a worker on it.
+        {"id": "2.109", "title": "A wallpaper search puts landscape pictures first — a phone wallpaper is not a desktop",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/flash/test_a_wallpaper_is_landscape_first.py"]},
         {"id": "2.108", "title": "A person the operator names reaches the turn: the directory rows his sentence names ride the prompt (platforms only)",
             "ch": UNIT,
             "paths": ["tests/browser/unit/contactos/test_a_person_he_names_reaches_the_turn.py"]},
