@@ -646,7 +646,7 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
         # FORWARD = a send to a person carrying the files of a message that arrived (the operator's demo: «send the
         # invoice to Andrew»). One name for what he asks, instead of a parameter the model has to remember — measured
         # 2026-09-28: the model reached for `reply` (to the SENDER of the invoice) and the files never travelled.
-        src = {k: payload[k] for k in ("n", "messageId") if payload.get(k) not in (None, "")}
+        src = {k: payload[k] for k in ("n", "messageId", "from") if payload.get(k) not in (None, "")}
         db0 = load_db()
         orig = _outbound._message_ref(db0, src) or {}
         subj = str(payload.get("subject") or "").strip() or (f"Fwd: {orig.get('subject')}" if orig.get("subject") else "Fwd")

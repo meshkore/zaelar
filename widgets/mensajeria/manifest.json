@@ -98,7 +98,8 @@
     "unread": {
       "desc": "Deja SIN LEER en su app real (correo) el mensaje N de la lista, o el que está ABIERTO si no dices cuál — «déjalo como no leído», «márcalo sin leer»",
       "payload": {
-        "n": "opcional: int (número en la lista)",
+        "from": "de quién es o de qué va («el de Inworld»)",
+        "n": "opcional: número en la lista, solo si lo ves",
         "messageId": "opcional"
       },
       "safe": true
@@ -202,7 +203,8 @@
       "payload": {
         "contact": "string (a quién, el nombre tal como lo dijo el operador, o una dirección)",
         "text": "string (la nota corta que acompaña)",
-        "n": "opcional: número del mensaje en la lista (sin él, el que está abierto)",
+        "from": "de QUIÉN es o de QUÉ va el correo a reenviar, tal como lo dijo («Inworld», «la factura de Vodafone») — lo más fiable",
+        "n": "opcional: número del mensaje en la lista SOLO si lo ves en ella (sin n ni from, el que está abierto)",
         "subject": "opcional (por defecto «Fwd: …» del original)"
       },
       "confirm": false

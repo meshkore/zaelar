@@ -211,6 +211,24 @@ def _message_ref(db: dict, ref: dict) -> dict | None:
     from . import data as _d, thread as _th
     ref = ref if isinstance(ref, dict) else {}
     n, mid = ref.get("n"), str(ref.get("messageId") or "").strip()
+    who = str(ref.get("from") or "").strip().lower()
+    if who:
+        # BY WHO SENT IT or WHAT IT IS ABOUT («the Inworld one») — the list on screen first, then every
+        # conversation this card keeps. Demo pass 2026-09-28: the model forwarded `n: 2` — a guess, the Inworld
+        # receipt was not on the visible list — and n 2 was somebody else's mail.
+        def _hit(m) -> bool:
+            hay = " ".join(str(m.get(k) or "") for k in ("from", "who", "senderId", "subject", "chatId")).lower()
+            return who in hay
+        for it in _d._visible_items(db):
+            if _hit(it):
+                return it
+        best = None
+        for tkey, th in (db.get("threads") or {}).items():
+            plat, _, chat = str(tkey).partition("|")
+            for m in (th or {}).get("msgs") or []:
+                if m.get("dir") == "in" and _hit(m) and (best is None or float(m.get("ts") or 0) > best[0]):
+                    best = (float(m.get("ts") or 0), {**m, "platform": plat, "chatId": chat, "messageId": m.get("id")})
+        return best[1] if best else None
     if n is not None or mid:
         for it in _d._visible_items(db):
             if (n is not None and str(it.get("n")) == str(n)) or (mid and str(it.get("messageId")) == mid):

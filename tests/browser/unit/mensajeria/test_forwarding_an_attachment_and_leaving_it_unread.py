@@ -116,3 +116,19 @@ def test_forward_is_one_name_for_a_send_with_the_files(box):
     order = box.load_db()["pending_send"][0]
     assert order["to"] == "andrew@example.com" and order["subject"] == "Fwd: Your receipt"
     assert order["attachments"]
+
+
+def test_a_message_named_by_who_sent_it_is_found_in_its_thread_too(box):
+    """Demo pass 2026-09-28: the model forwarded `n: 2`, a guess — the Inworld receipt was not on the visible list,
+    and n 2 was somebody else's mail. Naming it («Inworld») finds it in the list or in the conversations kept."""
+    from widgets import store
+    db = box.load_db()
+    item = db["items"].pop()
+    db.setdefault("threads", {})["email|billing@inworld.ai"] = {"msgs": [{
+        "id": "220440", "dir": "in", "who": "Inworld AI", "subject": "Your receipt", "ts": 1.0,
+        "media": item["media"], "senderId": "billing@inworld.ai"}]}
+    store.save("mensajeria", db)
+    r = box.apply_action("forward", {"contact": "Andrew", "from": "inworld", "text": "Please book it."})
+    assert r["ok"] and r["result"]["attachments"] == 1, r
+    r2 = box.apply_action("unread", {"from": "Inworld"})
+    assert r2["ok"] and box.load_db()["pending_unread"][0]["messageId"] == "220440"
