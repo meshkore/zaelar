@@ -1,246 +1,770 @@
 [
-  {
-    "id": "demo-a2-minimise-that",
-    "lang": "en",
-    "phrase": "Minimise that while you work.",
-    "source": "TMP/demo/02-demo-script-v2.txt A2 · 03-results v5: «¿qué quieres que minimice?» → seeds v14 `minimize *` = the card in front",
-    "screen": {"open": ["results"]},
-    "expect": "minimize",
-    "forbid": ["model", "worker"]
+ {
+  "id": "demo-a2-minimise-that",
+  "lang": "en",
+  "phrase": "Minimise that while you work.",
+  "source": "TMP/demo/02-demo-script-v2.txt A2 · 03-results v5: «¿qué quieres que minimice?» → seeds v14 `minimize *` = the card in front",
+  "screen": {
+   "open": [
+    "results"
+   ]
   },
-  {
-    "id": "demo-v1-starship-catalog",
-    "lang": "en",
-    "phrase": "Show me a catalog of SpaceX Starship test videos.",
-    "source": "TMP/demo/02-demo-script-v2.txt V1",
-    "screen": {"open": []},
-    "model": {"say": "Here is a catalog of Starship test flights.", "tools": [{"name": "play_video", "args": {"query": "SpaceX Starship test videos"}}]},
-    "expect": "show youtube",
-    "forbid": ["worker", "search"]
+  "expect": "minimize",
+  "forbid": [
+   "model",
+   "worker"
+  ]
+ },
+ {
+  "id": "demo-v1-starship-catalog",
+  "lang": "en",
+  "phrase": "Show me a catalog of SpaceX Starship test videos.",
+  "source": "TMP/demo/02-demo-script-v2.txt V1",
+  "screen": {
+   "open": []
   },
-  {
-    "id": "demo-v2-play-video-number-2",
-    "lang": "en",
-    "phrase": "Play video number 2.",
-    "source": "TMP/demo/02-demo-script-v2.txt V2",
-    "screen": {"open": ["youtube"]},
-    "model": {"say": "", "tools": [{"name": "widget_data", "args": {"widget_id": "youtube", "action": "play_item", "item": "2"}}]},
-    "expect": "data-op youtube:play_item",
-    "forbid": ["worker", "second-card"]
+  "model": {
+   "say": "Here is a catalog of Starship test flights.",
+   "tools": [
+    {
+     "name": "play_video",
+     "args": {
+      "query": "SpaceX Starship test videos"
+     }
+    }
+   ]
   },
-  {
-    "id": "demo-v4-exit-fullscreen",
-    "lang": "en",
-    "phrase": "Exit fullscreen.",
-    "source": "TMP/demo/02-demo-script-v2.txt V4 · 03-results v4: «exit fullscreen» is deterministic",
-    "screen": {"open": ["youtube"]},
-    "expect": "unfullscreen",
-    "forbid": ["model", "close"]
+  "expect": "show youtube",
+  "forbid": [
+   "worker",
+   "search"
+  ]
+ },
+ {
+  "id": "demo-v2-play-video-number-2",
+  "lang": "en",
+  "phrase": "Play video number 2.",
+  "source": "TMP/demo/02-demo-script-v2.txt V2",
+  "screen": {
+   "open": [
+    "youtube"
+   ]
   },
-  {
-    "id": "demo-v5-go-back-to-the-catalog",
-    "lang": "en",
-    "phrase": "Go back to the catalog.",
-    "source": "TMP/demo/02-demo-script-v2.txt V5 · V2-742/V2-753: the player has faces, `show_tab` is the way back",
-    "screen": {"open": ["youtube"]},
-    "model": {"say": "", "tools": [{"name": "widget_data", "args": {"widget_id": "youtube", "action": "show_tab", "payload": {"tab": "home"}}}]},
-    "expect": "data-op youtube:show_tab",
-    "forbid": ["close", "worker"]
+  "model": {
+   "say": "",
+   "tools": [
+    {
+     "name": "widget_data",
+     "args": {
+      "widget_id": "youtube",
+      "action": "play_item",
+      "item": "2"
+     }
+    }
+   ]
   },
-  {
-    "id": "demo-v7-stop-it-and-close-the-video",
-    "lang": "en",
-    "phrase": "Stop it and close the video widget.",
-    "source": "TMP/demo/02-demo-script-v2.txt V7 · 03-results v5: closed and the model REOPENED it → a close verdict discards the show",
-    "screen": {"open": ["youtube"]},
-    "model": {"say": "Done.", "tools": [{"name": "show_widget", "args": {"widget_id": "youtube"}}]},
-    "expect": "close youtube",
-    "forbid": ["show", "worker"]
+  "expect": "data-op youtube:play_item",
+  "forbid": [
+   "worker",
+   "second-card"
+  ]
+ },
+ {
+  "id": "demo-v4-exit-fullscreen",
+  "lang": "en",
+  "phrase": "Exit fullscreen.",
+  "source": "TMP/demo/02-demo-script-v2.txt V4 · 03-results v4: «exit fullscreen» is deterministic",
+  "screen": {
+   "open": [
+    "youtube"
+   ]
   },
-  {
-    "id": "demo-i3-open-the-second-one",
-    "lang": "en",
-    "phrase": "Open the second one.",
-    "source": "TMP/demo/02-demo-script-v2.txt I3 · 03-results pass 1: it opened an agenda appointment instead → `imagenes.select` descriptor (f3cc34e9)",
-    "screen": {"open": ["imagenes"]},
-    "model": {"say": "", "tools": [{"name": "widget_data", "args": {"widget_id": "imagenes", "action": "select", "item": "2"}}]},
-    "expect": "data-op imagenes:select",
-    "forbid": ["worker", "second-card"]
+  "expect": "unfullscreen",
+  "forbid": [
+   "model",
+   "close"
+  ]
+ },
+ {
+  "id": "demo-v5-go-back-to-the-catalog",
+  "lang": "en",
+  "phrase": "Go back to the catalog.",
+  "source": "TMP/demo/02-demo-script-v2.txt V5 · V2-742/V2-753: the player has faces, `show_tab` is the way back",
+  "screen": {
+   "open": [
+    "youtube"
+   ]
   },
-  {
-    "id": "demo-i3-open-the-second-one-model-picks-the-wrong-card",
-    "lang": "en",
-    "phrase": "Open the second one.",
-    "source": "TMP/demo/03-results.md pass 1 I3: the model aimed at the agenda while only the images were open; the screen verdict names the card that IS open (V2-754: the verdict completes the model)",
-    "screen": {"open": ["imagenes"]},
-    "model": {"say": "", "tools": [{"name": "widget_data", "args": {"widget_id": "agenda", "action": "open_meeting", "item": "2"}}]},
-    "brief": {"screen_action": ["imagenes:select", 0.95]},
-    "expect": "data-op imagenes:select",
-    "forbid": ["worker", "second-card"],
-    "open": "V2-776 B1: `which_card` moves a call only between OPEN cards that share the same action (V2-740, by design); a sure verdict naming the open card and its action does not outrank the model's call to a CLOSED card"
+  "model": {
+   "say": "",
+   "tools": [
+    {
+     "name": "widget_data",
+     "args": {
+      "widget_id": "youtube",
+      "action": "show_tab",
+      "payload": {
+       "tab": "home"
+      }
+     }
+    }
+   ]
   },
-  {
-    "id": "demo-m1-apple-chart-today",
-    "lang": "en",
-    "phrase": "Show me a chart of Apple stock today.",
-    "source": "TMP/demo/02-demo-script-v2.txt M1 · 03-results v5: the card opened EMPTY when the show was silent → a view op on a closed card brings it up with its data",
-    "screen": {"open": []},
-    "model": {"say": "Here is Apple today.", "tools": [{"name": "widget_data", "args": {"widget_id": "markets", "action": "show", "payload": {"symbol": "AAPL", "range": "1d"}}}]},
-    "expect": "data-op markets:show",
-    "forbid": ["worker", "search"]
+  "expect": "data-op youtube:show_tab",
+  "forbid": [
+   "close",
+   "worker"
+  ]
+ },
+ {
+  "id": "demo-v7-stop-it-and-close-the-video",
+  "lang": "en",
+  "phrase": "Stop it and close the video widget.",
+  "source": "TMP/demo/02-demo-script-v2.txt V7 · 03-results v5: closed and the model REOPENED it → a close verdict discards the show",
+  "screen": {
+   "open": [
+    "youtube"
+   ]
   },
-  {
-    "id": "demo-m4-close-the-chart",
-    "lang": "en",
-    "phrase": "Close the chart.",
-    "source": "TMP/demo/02-demo-script-v2.txt M4",
-    "screen": {"open": ["markets"]},
-    "expect": "close markets",
-    "forbid": ["model", "show"]
+  "model": {
+   "say": "Done.",
+   "tools": [
+    {
+     "name": "show_widget",
+     "args": {
+      "widget_id": "youtube"
+     }
+    }
+   ]
   },
-  {
-    "id": "demo-u3-pause-it",
-    "lang": "en",
-    "phrase": "Pause it.",
-    "source": "TMP/demo/02-demo-script-v2.txt U3",
-    "screen": {"open": ["musica"]},
-    "model": {"say": "", "tools": [{"name": "play_music", "args": {"action": "pause"}}]},
-    "expect": "music pause",
-    "forbid": ["worker", "close"]
+  "expect": "close youtube",
+  "forbid": [
+   "show",
+   "worker"
+  ]
+ },
+ {
+  "id": "demo-i3-open-the-second-one",
+  "lang": "en",
+  "phrase": "Open the second one.",
+  "source": "TMP/demo/02-demo-script-v2.txt I3 · 03-results pass 1: it opened an agenda appointment instead → `imagenes.select` descriptor (f3cc34e9)",
+  "screen": {
+   "open": [
+    "imagenes"
+   ]
   },
-  {
-    "id": "demo-c1-show-me-tomorrow",
-    "lang": "en",
-    "phrase": "Johnny, show me tomorrow in my calendar.",
-    "source": "TMP/demo/02-demo-script-v2.txt C1",
-    "screen": {"open": []},
-    "model": {"say": "Here is tomorrow.", "tools": [{"name": "widget_data", "args": {"widget_id": "agenda", "action": "show_day", "payload": {"date": "tomorrow"}}}]},
-    "expect": "data-op agenda:show_day",
-    "forbid": ["worker", "search"]
+  "model": {
+   "say": "",
+   "tools": [
+    {
+     "name": "widget_data",
+     "args": {
+      "widget_id": "imagenes",
+      "action": "select",
+      "item": "2"
+     }
+    }
+   ]
   },
-  {
-    "id": "demo-c4-move-it-30-minutes-later",
-    "lang": "en",
-    "phrase": "Move it 30 minutes later.",
-    "source": "TMP/demo/02-demo-script-v2.txt C4 · 03-results pass 1: it LENGTHENED the meeting instead of moving it (d08e026b)",
-    "screen": {"open": ["agenda"]},
-    "memory": {"agenda": [{"title": "Catch up with Ethan", "day": "+1", "start": "16:00", "end": "16:45"}]},
-    "model": {"say": "", "tools": [{"name": "widget_data", "args": {"widget_id": "agenda", "action": "move_meeting", "payload": {"title": "Catch up with Ethan", "startTime": "16:30"}}}]},
-    "expect": "data-op agenda:move_meeting",
-    "forbid": ["worker", "second-card"]
+  "expect": "data-op imagenes:select",
+  "forbid": [
+   "worker",
+   "second-card"
+  ]
+ },
+ {
+  "id": "demo-i3-open-the-second-one-model-picks-the-wrong-card",
+  "lang": "en",
+  "phrase": "Open the second one.",
+  "source": "TMP/demo/03-results.md pass 1 I3: the model aimed at the agenda while only the images were open; the screen verdict names the card that IS open (V2-754: the verdict completes the model)",
+  "screen": {
+   "open": [
+    "imagenes"
+   ]
   },
-  {
-    "id": "demo-c5-message-ethan-on-telegram",
-    "lang": "en",
-    "phrase": "Message Ethan on Telegram and tell him the new meeting time.",
-    "source": "TMP/demo/02-demo-script-v2.txt C5 · 03-results final pass K1: it went to a 2-minute WORKER; messaging had to reach the catalogue question (1.0)",
-    "screen": {"open": ["agenda"]},
-    "model": {"say": "Sent.", "tools": [{"name": "widget_data", "args": {"widget_id": "mensajeria", "action": "send_to", "payload": {"contact": "Ethan", "channel": "telegram", "text": "Our catch-up moved to 4:30 PM tomorrow."}}}]},
-    "expect": "data-op mensajeria:send_to",
-    "forbid": ["worker", "search"]
+  "model": {
+   "say": "",
+   "tools": [
+    {
+     "name": "widget_data",
+     "args": {
+      "widget_id": "agenda",
+      "action": "open_meeting",
+      "item": "2"
+     }
+    }
+   ]
   },
-  {
-    "id": "demo-r1-tesla-insurance-answered-from-memory",
-    "lang": "en",
-    "phrase": "When does my Tesla insurance renew?",
-    "source": "TMP/demo/02-demo-script-v2.txt R1",
-    "screen": {"open": []},
-    "model": {"say": "Your Tesla insurance renews on March 12, 2027.", "tools": []},
-    "expect": "talk",
-    "forbid": ["worker", "search", "show"]
+  "brief": {
+   "screen_action": [
+    "imagenes:select",
+    0.95
+   ]
   },
-  {
-    "id": "demo-r1-tesla-insurance-answered-then-escalated",
-    "lang": "en",
-    "phrase": "When does my Tesla insurance renew?",
-    "source": "TMP/demo/03-results.md v5 R1: correct answer AND a spurious web worker (a question already answered) → fixed the same day",
-    "screen": {"open": []},
-    "model": {"say": "Your Tesla insurance renews on March 12, 2027.", "tools": [{"name": "escalate_to_slowbrain", "args": {"request": "find out when the Tesla insurance renews"}}]},
-    "expect": "talk",
-    "forbid": ["worker", "search"],
-    "open": "V2-776 B1: 09759fef stopped the escalate VERDICT alone from spawning over an answered question; the model's own explicit `escalate_to_slowbrain` beside the answer still wins today"
+  "expect": "data-op imagenes:select",
+  "forbid": [
+   "worker",
+   "second-card"
+  ],
+  "open": "V2-776 B1: `which_card` moves a call only between OPEN cards that share the same action (V2-740, by design); a sure verdict naming the open card and its action does not outrank the model's call to a CLOSED card"
+ },
+ {
+  "id": "demo-m1-apple-chart-today",
+  "lang": "en",
+  "phrase": "Show me a chart of Apple stock today.",
+  "source": "TMP/demo/02-demo-script-v2.txt M1 · 03-results v5: the card opened EMPTY when the show was silent → a view op on a closed card brings it up with its data",
+  "screen": {
+   "open": []
   },
-  {
-    "id": "demo-w2-highlight-the-second-one",
-    "lang": "en",
-    "phrase": "Highlight the second one.",
-    "source": "TMP/demo/02-demo-script-v2.txt W2 · 03-results v4: highlights Mount Baldy",
-    "screen": {"open": ["map"]},
-    "model": {"say": "", "tools": [{"name": "widget_data", "args": {"widget_id": "map", "action": "select", "item": "2"}}]},
-    "expect": "data-op map:select",
-    "forbid": ["worker", "second-card"]
+  "model": {
+   "say": "Here is Apple today.",
+   "tools": [
+    {
+     "name": "widget_data",
+     "args": {
+      "widget_id": "markets",
+      "action": "show",
+      "payload": {
+       "symbol": "AAPL",
+       "range": "1d"
+      }
+     }
+    }
+   ]
   },
-  {
-    "id": "demo-e2-open-the-most-important-one",
-    "lang": "en",
-    "phrase": "Open the most important one.",
-    "source": "TMP/demo/02-demo-script-v2.txt E2 · 03-results v5 pending: the model calls `show_view` while the verdict says `open` (V2-776 absorbs it as a CASE, not a guard)",
-    "screen": {"open": ["mensajeria"]},
-    "model": {"say": "Opening that one now.", "tools": [{"name": "widget_data", "args": {"widget_id": "mensajeria", "action": "show_view", "payload": {"view": "important"}}}]},
-    "brief": {"screen_action": ["mensajeria:open", 0.9]},
-    "expect": "data-op mensajeria:open",
-    "forbid": ["worker", "second-card"],
-    "open": "V2-776 B1 · E2: a sure verdict on the SAME card names a different declared action and the model's own wins"
+  "expect": "data-op markets:show",
+  "forbid": [
+   "worker",
+   "search"
+  ]
+ },
+ {
+  "id": "demo-m4-close-the-chart",
+  "lang": "en",
+  "phrase": "Close the chart.",
+  "source": "TMP/demo/02-demo-script-v2.txt M4",
+  "screen": {
+   "open": [
+    "markets"
+   ]
   },
-  {
-    "id": "demo-e5-close-my-messages-model-reopens-it",
-    "lang": "en",
-    "phrase": "Close my messages.",
-    "source": "TMP/demo/02-demo-script-v2.txt E5 · 03-results v5: «E5 se reabría» → fixed",
-    "screen": {"open": ["mensajeria"]},
-    "model": {"say": "Closing your messages.", "tools": [{"name": "show_widget", "args": {"widget_id": "mensajeria"}}]},
-    "expect": "close mensajeria",
-    "forbid": ["show", "worker"]
+  "expect": "close markets",
+  "forbid": [
+   "model",
+   "show"
+  ]
+ },
+ {
+  "id": "demo-u3-pause-it",
+  "lang": "en",
+  "phrase": "Pause it.",
+  "source": "TMP/demo/02-demo-script-v2.txt U3",
+  "screen": {
+   "open": [
+    "musica"
+   ]
   },
-  {
-    "id": "demo-z1-whats-on-my-plate-tomorrow",
-    "lang": "en",
-    "phrase": "What's on my plate tomorrow?",
-    "source": "TMP/demo/02-demo-script-v2.txt Z1 · 03-results v5: said the wrong hours — answered from memory instead of reading the agenda (V2-776 C2: source of truth by kind)",
-    "screen": {"open": []},
-    "memory": {"agenda": [{"title": "Dentist", "day": "+1", "start": "09:30", "end": "10:00"}]},
-    "model": {"say": "Tomorrow you have the dentist at 11.", "tools": []},
-    "expect": "read agenda",
-    "forbid": ["worker", "search"],
-    "open": "V2-776 C2 · Z1: a question about the day is answered from the agenda's data, not from recall"
+  "model": {
+   "say": "",
+   "tools": [
+    {
+     "name": "play_music",
+     "args": {
+      "action": "pause"
+     }
+    }
+   ]
   },
-  {
-    "id": "demo-z2-close-everything",
-    "lang": "en",
-    "phrase": "Close everything.",
-    "source": "TMP/demo/02-demo-script-v2.txt Z2",
-    "screen": {"open": ["agenda", "mensajeria"]},
-    "expect": "close all",
-    "forbid": ["model", "worker"]
+  "expect": "music pause",
+  "forbid": [
+   "worker",
+   "close"
+  ]
+ },
+ {
+  "id": "demo-c1-show-me-tomorrow",
+  "lang": "en",
+  "phrase": "Johnny, show me tomorrow in my calendar.",
+  "source": "TMP/demo/02-demo-script-v2.txt C1",
+  "screen": {
+   "open": []
   },
-  {
-    "id": "demo-a1-monitors-errand",
-    "lang": "en",
-    "phrase": "Johnny, find me three 27-inch 4K monitors under 400 dollars — show me when you have them.",
-    "source": "TMP/demo/02-demo-script-v2.txt A1 · the one slow errand of the demo, started in the first minute",
-    "screen": {"open": []},
-    "model": {"say": "On it — I'll show you when I have them.", "tools": [{"name": "escalate_to_slowbrain", "args": {"request": "find three 27-inch 4K monitors under 400 dollars and present them", "surface": "results"}}]},
-    "expect": "escalate",
-    "forbid": ["show", "data-op"]
+  "model": {
+   "say": "Here is tomorrow.",
+   "tools": [
+    {
+     "name": "widget_data",
+     "args": {
+      "widget_id": "agenda",
+      "action": "show_day",
+      "payload": {
+       "date": "tomorrow"
+      }
+     }
+    }
+   ]
   },
-  {
-    "id": "demo-t1-trip-errand",
-    "lang": "en",
-    "phrase": "Johnny, plan a 5-day warm-weather trip for Anna and me from LAX, December 21st to 25th, under 2000 dollars total — show me when it's ready.",
-    "source": "TMP/demo/02-demo-script-v2.txt T1 · 03-results v4: T1 never started the errand (the engine died); v5: delivered",
-    "screen": {"open": []},
-    "model": {"say": "On it.", "tools": [{"name": "escalate_to_slowbrain", "args": {"request": "plan a 5-day warm-weather trip for two from LAX, Dec 21-25, under 2000 dollars", "surface": "results"}}]},
-    "expect": "escalate",
-    "forbid": ["show", "data-op"]
+  "expect": "data-op agenda:show_day",
+  "forbid": [
+   "worker",
+   "search"
+  ]
+ },
+ {
+  "id": "demo-c4-move-it-30-minutes-later",
+  "lang": "en",
+  "phrase": "Move it 30 minutes later.",
+  "source": "TMP/demo/02-demo-script-v2.txt C4 · 03-results pass 1: it LENGTHENED the meeting instead of moving it (d08e026b)",
+  "screen": {
+   "open": [
+    "agenda"
+   ]
   },
-  {
-    "id": "demo-z3-thanks-thats-all",
-    "lang": "en",
-    "phrase": "Thanks, that's all for today.",
-    "source": "TMP/demo/02-demo-script-v2.txt Z3",
-    "screen": {"open": []},
-    "model": {"say": "You're welcome, Richard. See you tomorrow.", "tools": []},
-    "expect": "talk",
-    "forbid": ["worker", "search", "show", "data-op"]
-  }
+  "memory": {
+   "agenda": [
+    {
+     "title": "Catch up with Ethan",
+     "day": "+1",
+     "start": "16:00",
+     "end": "16:45"
+    }
+   ]
+  },
+  "model": {
+   "say": "",
+   "tools": [
+    {
+     "name": "widget_data",
+     "args": {
+      "widget_id": "agenda",
+      "action": "move_meeting",
+      "payload": {
+       "title": "Catch up with Ethan",
+       "startTime": "16:30"
+      }
+     }
+    }
+   ]
+  },
+  "expect": "data-op agenda:move_meeting",
+  "forbid": [
+   "worker",
+   "second-card"
+  ]
+ },
+ {
+  "id": "demo-c5-message-ethan-on-telegram",
+  "lang": "en",
+  "phrase": "Message Ethan on Telegram and tell him the new meeting time.",
+  "source": "TMP/demo/02-demo-script-v2.txt C5 · 03-results final pass K1: it went to a 2-minute WORKER; messaging had to reach the catalogue question (1.0)",
+  "screen": {
+   "open": [
+    "agenda"
+   ]
+  },
+  "model": {
+   "say": "Sent.",
+   "tools": [
+    {
+     "name": "widget_data",
+     "args": {
+      "widget_id": "mensajeria",
+      "action": "send_to",
+      "payload": {
+       "contact": "Ethan",
+       "channel": "telegram",
+       "text": "Our catch-up moved to 4:30 PM tomorrow."
+      }
+     }
+    }
+   ]
+  },
+  "expect": "data-op mensajeria:send_to",
+  "forbid": [
+   "worker",
+   "search"
+  ]
+ },
+ {
+  "id": "demo-r1-tesla-insurance-answered-from-memory",
+  "lang": "en",
+  "phrase": "When does my Tesla insurance renew?",
+  "source": "TMP/demo/02-demo-script-v2.txt R1",
+  "screen": {
+   "open": []
+  },
+  "model": {
+   "say": "Your Tesla insurance renews on March 12, 2027.",
+   "tools": []
+  },
+  "expect": "talk",
+  "forbid": [
+   "worker",
+   "search",
+   "show"
+  ]
+ },
+ {
+  "id": "demo-r1-tesla-insurance-answered-then-escalated",
+  "lang": "en",
+  "phrase": "When does my Tesla insurance renew?",
+  "source": "TMP/demo/03-results.md v5 R1: correct answer AND a spurious web worker (a question already answered) → fixed the same day",
+  "screen": {
+   "open": []
+  },
+  "model": {
+   "say": "Your Tesla insurance renews on March 12, 2027.",
+   "tools": [
+    {
+     "name": "escalate_to_slowbrain",
+     "args": {
+      "request": "find out when the Tesla insurance renews"
+     }
+    }
+   ]
+  },
+  "expect": "talk",
+  "forbid": [
+   "worker",
+   "search"
+  ],
+  "open": "V2-776 B1: 09759fef stopped the escalate VERDICT alone from spawning over an answered question; the model's own explicit `escalate_to_slowbrain` beside the answer still wins today"
+ },
+ {
+  "id": "demo-w2-highlight-the-second-one",
+  "lang": "en",
+  "phrase": "Highlight the second one.",
+  "source": "TMP/demo/02-demo-script-v2.txt W2 · 03-results v4: highlights Mount Baldy",
+  "screen": {
+   "open": [
+    "map"
+   ]
+  },
+  "model": {
+   "say": "",
+   "tools": [
+    {
+     "name": "widget_data",
+     "args": {
+      "widget_id": "map",
+      "action": "select",
+      "item": "2"
+     }
+    }
+   ]
+  },
+  "expect": "data-op map:select",
+  "forbid": [
+   "worker",
+   "second-card"
+  ]
+ },
+ {
+  "id": "demo-e2-open-the-most-important-one",
+  "lang": "en",
+  "phrase": "Open the most important one.",
+  "source": "TMP/demo/02-demo-script-v2.txt E2 · 03-results v5 pending: the model calls `show_view` while the verdict says `open` (V2-776 absorbs it as a CASE, not a guard)",
+  "screen": {
+   "open": [
+    "mensajeria"
+   ]
+  },
+  "model": {
+   "say": "Opening that one now.",
+   "tools": [
+    {
+     "name": "widget_data",
+     "args": {
+      "widget_id": "mensajeria",
+      "action": "show_view",
+      "payload": {
+       "view": "important"
+      }
+     }
+    }
+   ]
+  },
+  "brief": {
+   "screen_action": [
+    "mensajeria:open",
+    0.9
+   ]
+  },
+  "expect": "data-op mensajeria:open",
+  "forbid": [
+   "worker",
+   "second-card"
+  ],
+  "open": "V2-776 B1 · E2: a sure verdict on the SAME card names a different declared action and the model's own wins"
+ },
+ {
+  "id": "demo-e5-close-my-messages-model-reopens-it",
+  "lang": "en",
+  "phrase": "Close my messages.",
+  "source": "TMP/demo/02-demo-script-v2.txt E5 · 03-results v5: «E5 se reabría» → fixed",
+  "screen": {
+   "open": [
+    "mensajeria"
+   ]
+  },
+  "model": {
+   "say": "Closing your messages.",
+   "tools": [
+    {
+     "name": "show_widget",
+     "args": {
+      "widget_id": "mensajeria"
+     }
+    }
+   ]
+  },
+  "expect": "close mensajeria",
+  "forbid": [
+   "show",
+   "worker"
+  ]
+ },
+ {
+  "id": "demo-z1-whats-on-my-plate-tomorrow",
+  "lang": "en",
+  "phrase": "What's on my plate tomorrow?",
+  "source": "TMP/demo/02-demo-script-v2.txt Z1 · 03-results v5: said the wrong hours — answered from memory instead of reading the agenda (V2-776 C2: source of truth by kind)",
+  "screen": {
+   "open": []
+  },
+  "memory": {
+   "agenda": [
+    {
+     "title": "Dentist",
+     "day": "+1",
+     "start": "09:30",
+     "end": "10:00"
+    }
+   ]
+  },
+  "model": {
+   "say": "Tomorrow you have the dentist at 11.",
+   "tools": []
+  },
+  "expect": "read agenda",
+  "forbid": [
+   "worker",
+   "search"
+  ],
+  "open": "V2-776 C2 · Z1: a question about the day is answered from the agenda's data, not from recall"
+ },
+ {
+  "id": "demo-z2-close-everything",
+  "lang": "en",
+  "phrase": "Close everything.",
+  "source": "TMP/demo/02-demo-script-v2.txt Z2",
+  "screen": {
+   "open": [
+    "agenda",
+    "mensajeria"
+   ]
+  },
+  "expect": "close all",
+  "forbid": [
+   "model",
+   "worker"
+  ]
+ },
+ {
+  "id": "demo-a1-monitors-errand",
+  "lang": "en",
+  "phrase": "Johnny, find me three 27-inch 4K monitors under 400 dollars — show me when you have them.",
+  "source": "TMP/demo/02-demo-script-v2.txt A1 · the one slow errand of the demo, started in the first minute",
+  "screen": {
+   "open": []
+  },
+  "model": {
+   "say": "On it — I'll show you when I have them.",
+   "tools": [
+    {
+     "name": "escalate_to_slowbrain",
+     "args": {
+      "request": "find three 27-inch 4K monitors under 400 dollars and present them",
+      "surface": "results"
+     }
+    }
+   ]
+  },
+  "expect": "escalate",
+  "forbid": [
+   "show",
+   "data-op"
+  ]
+ },
+ {
+  "id": "demo-t1-trip-errand",
+  "lang": "en",
+  "phrase": "Johnny, plan a 5-day warm-weather trip for Anna and me from LAX, December 21st to 25th, under 2000 dollars total — show me when it's ready.",
+  "source": "TMP/demo/02-demo-script-v2.txt T1 · 03-results v4: T1 never started the errand (the engine died); v5: delivered",
+  "screen": {
+   "open": []
+  },
+  "model": {
+   "say": "On it.",
+   "tools": [
+    {
+     "name": "escalate_to_slowbrain",
+     "args": {
+      "request": "plan a 5-day warm-weather trip for two from LAX, Dec 21-25, under 2000 dollars",
+      "surface": "results"
+     }
+    }
+   ]
+  },
+  "expect": "escalate",
+  "forbid": [
+   "show",
+   "data-op"
+  ]
+ },
+ {
+  "id": "demo-z3-thanks-thats-all",
+  "lang": "en",
+  "phrase": "Thanks, that's all for today.",
+  "source": "TMP/demo/02-demo-script-v2.txt Z3",
+  "screen": {
+   "open": []
+  },
+  "model": {
+   "say": "You're welcome, Richard. See you tomorrow.",
+   "tools": []
+  },
+  "expect": "talk",
+  "forbid": [
+   "worker",
+   "search",
+   "show",
+   "data-op"
+  ]
+ },
+ {
+  "id": "demo-b1-wallpaper-is-a-widgets-postcondition-not-a-worker",
+  "lang": "en",
+  "phrase": "now let's make it prettier, find me the wallpaper cosmic eye in the sky by tyler young, the helix nebula",
+  "source": "TMP/demo/run-full60 B1 (2026-09-29): the model called escalate_to_slowbrain «Find the wallpaper/artwork…» over a brief that said handle_inline 0.78 / use_existing 0.62; passes 56/58/59 did it inline through imagenes. A valid model call beats a disagreeing verdict (direct_action.py:790), so a 50-60 s worker searched art, and the wallpaper was set 20 minutes later by that worker",
+  "screen": {
+   "open": [
+    "results"
+   ]
+  },
+  "model": {
+   "say": "One sec — \"Cosmic Eye in the Sky\" by Tyler Young, the Helix Nebula version. Let me find it and set it.",
+   "tools": [
+    {
+     "name": "escalate_to_slowbrain",
+     "args": {
+      "request": "Find the wallpaper/artwork titled \"Cosmic Eye in the Sky\" by Tyler Young — the Helix Nebula (NGC 7293) image. Locate a high-resolution version online and set it as the desktop wallpaper."
+     }
+    }
+   ]
+  },
+  "brief": {
+   "escalate_or_inline": [
+    "handle_inline",
+    0.78
+   ],
+   "build_or_use": [
+    "use_existing",
+    0.62
+   ],
+   "request_type": [
+    "order",
+    0.87
+   ],
+   "screen_action": [
+    "none",
+    0.93
+   ]
+  },
+  "expect": "show imagenes",
+  "forbid": [
+   "worker",
+   "search"
+  ],
+  "open": "V2-776 L1: a request whose end state is a widget's own postcondition (the desktop wallpaper is imagenes.wallpaper) is served by that widget; the escalate call is not a decision the turn may take on its own over handle_inline"
+ },
+ {
+  "id": "demo-b2-background-is-not-the-results-sheets-choose",
+  "lang": "en",
+  "phrase": "set the first one as my background",
+  "source": "TMP/demo/run-full60 B2 (2026-09-29): imagenes was still closed (B1 had gone to a worker), the only open card was the monitors sheet, and the screen verdict completed the empty turn as results:choose over the first MONITOR; U2 then had the worker asking for an OK to click a Dell",
+  "screen": {
+   "open": [
+    "results"
+   ]
+  },
+  "model": {
+   "say": "Setting the first one as your background — hold on a tick while it loads.",
+   "tools": []
+  },
+  "brief": {
+   "screen_action": [
+    "results:choose",
+    0.98
+   ],
+   "request_type": [
+    "order",
+    0.94
+   ],
+   "escalate_or_inline": [
+    "handle_inline",
+    0.98
+   ]
+  },
+  "expect": "ask",
+  "forbid": [
+   "data-op",
+   "worker",
+   "second-card"
+  ],
+  "open": "V2-776 L1: a verdict completes the model only with a card whose declared action can be the phrase's end state («background» renders imagenes.wallpaper / desktop.wallpaper, never results.choose); with no such card on screen the turn asks for the datum (V2-712)"
+ },
+ {
+  "id": "demo-s1-a-docked-sheet-is-not-on-screen",
+  "lang": "en",
+  "phrase": "so how did the monitors go, show me",
+  "source": "TMP/demo/run-full59 S1 (2026-09-29): the sheet had been minimised at A2; done_ops said «results:present hace 140s… cuéntalo como hecho» and the results digest said the links were «ya en pantalla»; the model answered «Done.» with no tool and S2/S3 acted on an invisible card. Prompt fixed in 9b2a9f76; the decision itself is still the model's",
+  "screen": {
+   "open": [
+    "results"
+   ]
+  },
+  "memory": {
+   "state": {
+    "minimized_widgets": [
+     "results"
+    ]
+   }
+  },
+  "model": {
+   "say": "Done.",
+   "tools": []
+  },
+  "brief": {
+   "request_type": [
+    "answer",
+    0.51
+   ],
+   "wants_words": [
+    "tell",
+    0.28
+   ],
+   "screen_action": [
+    "none",
+    0.94
+   ]
+  },
+  "expect": "show results",
+  "forbid": [
+   "worker",
+   "search",
+   "data-op"
+  ],
+  "open": "V2-776 L2/L3: «on screen» is open minus minimized; a phrase that names a docked card's content brings it back without the model (the canvas clause of the spec: results visible)"
+ }
 ]
