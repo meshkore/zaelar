@@ -34,7 +34,7 @@ def test_showing_a_card_he_put_away_brings_it_back_but_a_workers_show_does_not()
     """full17 S1: «show me» on the minimized results sheet raised its z and left it hidden."""
     i = JS.index("\n  async show(rawId")
     body = JS[i:JS.index("\n  }\n", i)]
-    assert re.search(r'if\(!background && w\.card\.classList\.contains\("hb-minned"\)\)\{ w\.card\.classList\.remove'
+    assert re.search(r'if\(!background && w\.card\.classList\.contains\("hb-minned"\)\)\{\s*w\.card\.classList\.remove'
                      r'\("hb-minned"\)', body)
 
 
