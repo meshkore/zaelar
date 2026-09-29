@@ -230,3 +230,20 @@ def test_note_is_the_text_and_item_is_the_from():
     from widgets import contract, refs
     assert contract.fold_aliases("mensajeria", "forward", {"contact": "Andrew", "note": "book it"})["text"] == "book it"
     assert refs.id_field_for_action("mensajeria", "forward") == "from"
+
+
+def test_a_description_finds_a_mail_that_only_lives_in_its_thread(box):
+    """Demo pass 53, E3: the receipt came back from the history into its THREAD, not the visible list, and
+    «Inworld AI receipt invoice2281-4878» was scored against the list only — nothing matched, nothing was sent."""
+    from widgets import store
+    db = box.load_db()
+    item = db["items"].pop()
+    db["items"] = [{"platform": "email", "chatId": "support@ovh.invalid", "messageId": "501", "from": "Soporte de OVHcloud",
+                    "subject": "Your invoice is available", "body": "x"}]
+    db.setdefault("threads", {})["email|billing@inworld.ai"] = {"msgs": [
+        {"id": "220440", "dir": "in", "who": "Inworld AI", "ts": 1.0,
+         "body": "[Asunto: Your receipt from Inworld AI #2281-4878] Thanks", "media": item["media"]}]}
+    store.save("mensajeria", db)
+    from widgets.mensajeria import outbound
+    hit = outbound._message_ref(box.load_db(), {"from": "Inworld AI receipt invoice2281-4878"})
+    assert hit and hit["messageId"] == "220440", hit

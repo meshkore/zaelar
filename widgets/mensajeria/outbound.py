@@ -238,9 +238,22 @@ def _message_ref(db: dict, ref: dict) -> dict | None:
         if len(words) < 2:
             return None
         scored = []
+
+        def _score(m) -> int:
+            hay = (" ".join(str(m.get(k) or "") for k in ("from", "who", "senderId", "subject", "chatId"))
+                   + " " + str(m.get("body") or "")[:200]).lower()   # a thread keeps the subject in its body
+            return sum(1 for w in words if w in hay)
         for it in _d._visible_items(db):
-            hay = " ".join(str(it.get(k) or "") for k in ("from", "who", "senderId", "subject", "chatId")).lower()
-            scored.append((sum(1 for w in words if w in hay), it))
+            scored.append((_score(it), it))
+        # …and the conversations this card keeps: a mail brought back from the history lands in a THREAD, not on the
+        # visible list (demo pass 53, E3: «Inworld AI receipt invoice2281-4878» — the receipt was in its thread).
+        seen = {str(it.get("messageId")) for _s, it in scored}
+        for tkey, th in (db.get("threads") or {}).items():
+            plat, _, chat = str(tkey).partition("|")
+            for m in (th or {}).get("msgs") or []:
+                if m.get("dir") == "in" and str(m.get("id")) not in seen:
+                    scored.append((_score({**m, "chatId": chat}),
+                                   {**m, "platform": plat, "chatId": chat, "messageId": m.get("id")}))
         scored.sort(key=lambda t: -t[0])
         if scored and scored[0][0] >= 2 and (len(scored) == 1 or scored[0][0] > scored[1][0]):
             return scored[0][1]
