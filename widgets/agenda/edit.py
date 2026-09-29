@@ -103,7 +103,14 @@ def open_detail(db: dict, payload: dict) -> dict:
         day = _day_of(m, {})
     _push(db, sel=day, open={"title": str(m.get("title") or ""), "date": day})
     touch(db, m)
-    return {"ok": True, "opened": str(m.get("title") or ""), "date": day}
+    # …and it ANSWERS with that appointment (demo pass 46, R2: «when does anna's vacation start? show me in the
+    # calendar» opened it and was answered «there's no entry for it» — with no `result`, the answer was composed
+    # from the whole view, this week's meetings). The same shape `show_day` answers with.
+    row = {k: m.get(k) for k in ("title", "date", "time", "startTime", "end", "endTime", "allDay", "status", "location")
+           if m.get(k) not in (None, "")}
+    if isinstance(m.get("repeat"), dict):
+        row["repeats"] = recur.describe(m["repeat"])
+    return {"ok": True, "opened": str(m.get("title") or ""), "date": day, "result": {"meeting": row}}
 
 
 def close_detail(db: dict) -> dict:

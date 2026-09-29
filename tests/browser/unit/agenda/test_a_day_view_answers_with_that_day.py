@@ -29,3 +29,14 @@ def test_the_day_shown_is_the_answer(agenda):
         {"title": "Anna vacation", "date": "2026-12-20", "allDay": True, "status": "confirmed"}]}} \
         or [m["title"] for m in ans["result"]["meetings"]] == ["Anna vacation"], ans
     assert "Product meeting" not in str(ans)
+
+
+def test_an_opened_appointment_is_the_answer(agenda):
+    """Demo pass 46 (2026-09-29), R2: «when does anna's vacation start? show me in the calendar» opened the vacation
+    and was answered «there's no entry for it»: `open_meeting` returned no `result`, so the answer was composed from
+    the whole view — this week's meetings. It answers with the appointment it opened."""
+    res = agenda.apply_action("open_meeting", {"title": "Anna vacation"})
+    ans = data_ops.answer_of(res)
+    assert ans.get("result", {}).get("meeting", {}).get("title") == "Anna vacation", ans
+    assert ans["result"]["meeting"]["date"] == "2026-12-20"
+    assert "Product meeting" not in str(ans)
