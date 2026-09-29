@@ -837,7 +837,7 @@ class NucleoLLMStream(llm.LLMStream):
         # al backstop de siempre, que sigue con el modelo por si aporta más contexto.
         if not first_turn and had_pending_confirm:
             try:
-                _verdict_early = _wconfirm.classify_reply(text)
+                _verdict_early = _wconfirm.answers_pending(text)
             except Exception:
                 _verdict_early = None
             if _verdict_early:
@@ -3204,7 +3204,7 @@ class NucleoLLMStream(llm.LLMStream):
         # tool, pero el operador dijo claramente sí/no → resuélvelo igual (no depende del LLM, como hard_interrupt).
         if had_pending_confirm and not confirm_state["handled"]:
             try:
-                verdict = _wconfirm.classify_reply(text)
+                verdict = _wconfirm.answers_pending(text)
                 if verdict:
                     _resolve_confirm(verdict == "yes")
             except Exception:

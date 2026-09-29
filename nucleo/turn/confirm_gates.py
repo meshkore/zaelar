@@ -94,7 +94,7 @@ def _widget_gate():
 
     def _do(text):
         from widgets import confirm as _c
-        return _c.classify_reply(text)
+        return _c.answers_pending(text)
     return (_open, _do)
 
 

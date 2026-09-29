@@ -232,6 +232,66 @@ def classify_reply(text: str) -> str | None:
     return None
 
 
+#: A yes/no with more than this many other words may carry an order of its own.
+_PLAIN_ANSWER_WORDS = 3
+
+
+def answers_pending(text: str) -> str | None:
+    """`classify_reply`, for the confirmation actually pending — 'yes' | 'no' | None.
+
+    Demo pass 45 (2026-09-29), C2→C3: the model asked «I'll write to Ethan on Telegram: … Shall I send it?» for a
+    message nobody had asked for, and the next turn — «ok book it, call it catch up with ethan», an order about the
+    CALENDAR — matched `ok` and sent it. A bare yes/no is an answer and resolves at once, as before. One that
+    carries more words may be a different request that happens to start with «ok»: the turn reader is asked
+    whether it answers THIS question, with the question named; «something else» is not an answer. If the reader
+    cannot be asked, the word-level reading stands (today's behaviour)."""
+    v = classify_reply(text)
+    if v is None:
+        return None
+    n = _norm(text)
+    m = (_YES_RE if v == "yes" else _NO_RE).search(n)
+    rest = [w for w in re.findall(r"\w+", (n[:m.start()] + " " + n[m.end():]) if m else n)]
+    if len(rest) <= _PLAIN_ANSWER_WORDS:
+        return v
+    items = sorted(pending().values(), key=lambda p: p.get("ts", 0))
+    question = str((items[-1] if items else {}).get("question") or "").strip()
+    if not question:
+        return v
+    judged = _judge(question, text)
+    if judged is None:
+        return v
+    return None if judged == "other" else judged
+
+
+_JUDGE_SYS = ("You check whether a user's reply answers a confirmation question. The assistant asked: «{q}». "
+              "Reply with exactly one word: YES if the reply agrees to exactly that pending action, NO if it declines "
+              "it, OTHER if it asks for a different action or is about something else.")
+
+
+def _judge(question: str, reply: str, timeout: float = 4.0) -> str | None:
+    """'yes' | 'no' | 'other' from the fast model, or None when it cannot be asked. The turn reader (Jev) was
+    measured first on the C3 sentence and read it as a yes (0.85): «book» against «send» is a comparison of two
+    actions, which a classifier over fixed labels does not make and the conversation model does (4/4 live)."""
+    try:
+        import asyncio
+        import concurrent.futures as _cf
+
+        from nucleo.errand_title import _spec_for_naming
+        from nucleo.flash.fast_client import FastClient
+        spec = _spec_for_naming()
+        if spec is None:
+            return None
+        msgs = [{"role": "system", "content": _JUDGE_SYS.format(q=question[:300])},
+                {"role": "user", "content": reply[:300]}]
+        with _cf.ThreadPoolExecutor(max_workers=1) as ex:
+            out = ex.submit(asyncio.run, FastClient().complete(msgs, spec=spec, max_tokens=5,
+                                                               no_thinking=True)).result(timeout=timeout)
+        word = str(out or "").strip().split()[0].strip(".,!").lower() if str(out or "").strip() else ""
+        return word if word in ("yes", "no", "other") else None
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def reset() -> None:
     """Clear the registry for tests."""
     _PENDING.clear()
