@@ -26,7 +26,7 @@ ENGINE = Path(__file__).resolve().parents[3]
     ("Playing some Madonna now.", "play some madonna music", False),
 ])
 def test_an_english_promise_of_playback_is_read(reply, operator, music_open):
-    from nucleo.flash import router_guards as rg
+    from nucleo.flash import playback_promise as rg
     assert rg.promises_playback(reply, operator, music_open=music_open)
 
 
@@ -39,7 +39,7 @@ def test_an_english_promise_of_playback_is_read(reply, operator, music_open):
     ("There you go.", "what's on my plate tomorrow", True),                   # a claim, but no order to play
 ])
 def test_a_reply_that_promises_no_playback_is_left_alone(reply, operator, music_open):
-    from nucleo.flash import router_guards as rg
+    from nucleo.flash import playback_promise as rg
     assert not rg.promises_playback(reply, operator, music_open=music_open)
 
 
@@ -54,7 +54,7 @@ def test_a_reply_that_promises_no_playback_is_left_alone(reply, operator, music_
     ("Putting it on for you.", "yeah, can you play like a prayer by madonna", "like a prayer by madonna"),
 ])
 def test_the_query_is_the_title_the_words_carry(reply, operator, query):
-    from nucleo.flash import router_guards as rg
+    from nucleo.flash import playback_promise as rg
     assert rg.music_query(reply, operator) == query
 
 

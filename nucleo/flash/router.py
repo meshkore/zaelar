@@ -278,13 +278,15 @@ def is_escalation(name: str) -> bool:
 
 
 
+from nucleo.flash.playback_promise import music_query, promises_playback  # noqa: F401 — re-export (U2, 2026-09-29)
+
 # ── deterministic backstop guards (moved to router_guards.py, 2026-08-17 modularization pass) ─────────────────
 # Re-exported here so every existing call site (`router.looks_like_close(...)`, etc. — all of them import the
 # whole module, none import individual names) keeps working unchanged. See router_guards.py's docstring for why.
 from nucleo.flash.router_guards import (  # noqa: F401 — re-export, not a local use
     looks_like_web_task, looks_like_login_request, is_pure_show_request, show_request_blocks_data_action,
     is_music_service, looks_like_close, show_contradicts_the_order,
-    looks_like_create_widget, promises_music, promises_playback, music_query, promises_action, asks_for_missing_detail,
+    looks_like_create_widget, promises_music, promises_action, asks_for_missing_detail,
     looks_like_show_strict, looks_like_escalate_task,
     escalate_goal_from_window, hands_public_lookup_back, promises_a_dated_reminder, dated_reminder_backstop,
     create_widget_request, dated_note_backstop, already_in_agenda,
