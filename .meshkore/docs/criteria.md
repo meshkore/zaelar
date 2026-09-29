@@ -71,6 +71,10 @@ below is the first kind, or it names the mechanism that replaced the second.
   SOMEONE, and its «yes» returns to the click it stopped. — since 2026-09-18 · nodes 4.21, 2.29.
 - **CRIT-C7 · A transactional op never enters the task list** (deleting an item, sending a message); the list is
   for work that takes time and that he may come back to. — since 2026-09-21 · nodes 3.82.
+- **CRIT-C8 · A search is never gated as a charge.** A negated act («do not buy») and a first-person wish beside
+  a lookup order («I want to buy X, give me the link») are subtracted before the money verbs are read; the pay
+  click is where money stops. The core guard reads whole words only. — since 2026-09-29 · nodes 2.181, 3.29 ·
+  `nucleo/danger.py`, `nucleo/protected_core.py`.
 
 ## 3 · The canvas — whose card, what runs
 
@@ -123,6 +127,11 @@ below is the first kind, or it names the mechanism that replaced the second.
   `nucleo/errands/party.py`.
 - **CRIT-E7 · A worker's endpoint comes from its spec or the provider chain**, never from the inherited shell; a
   worker never depends on ONE provider. — since 2026-09-19 · nodes 2.82, 4.27.
+- **CRIT-E8 · A parked errand is still the errand.** The dedup compares against the errands waiting on his
+  yes/no as well as the live ones; a repeat folds into the parked one, the yes carries what he added, and the
+  brain repeats the QUESTION, not the work. An audit that comes back after the conversation moved (a turn of
+  his, a widget op) may record a finding but never acts or speaks. — since 2026-09-29 · nodes 2.182, 2.180 ·
+  `nucleo/dispatch_confirm.py`, `nucleo/susurro/engine.py`.
 
 ## 5 · Memory and rules
 

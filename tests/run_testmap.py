@@ -3366,6 +3366,21 @@ DOMAINS: list[dict] = [
         # named the card, the action existed. One bounded pass asks the model for the call it promised — only the
         # named card, only a declared action — before the backstop spends a worker on it.
         # Demo pass 2026-09-28 (V2-776 E) — the fixes of the passes, one node each.
+        # Session 81095d8d (2026-09-29) — one intention, four tasks: the parked errand was invisible to the dedup,
+        # the money gate read the fast brain's own «do not buy» as a charge, the core guard matched inside
+        # «stock»/«report», and a 25-second audit escalated a search the fast brain had resolved meanwhile.
+        {"id": "2.182", "title": "A parked errand is still the errand: a repeat folds into it instead of opening a "
+                                 "second task, and the yes carries the refinements",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/test_a_parked_errand_is_still_the_errand.py"]},
+        {"id": "2.181", "title": "A request for a link or a price is not a charge: a negated act and a first-person "
+                                 "wish beside a lookup order are subtracted before the money verbs are read",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/test_a_link_request_is_not_a_charge.py"]},
+        {"id": "2.180", "title": "A late audit does not act: a worker_action or repair drawn from a window the "
+                                 "conversation already moved past is dropped, the finding still lands",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/susurro/test_a_late_audit_does_not_act.py"]},
         # Demo passes 33-54 (2026-09-29) — the audit's fixes, one node each.
         {"id": "2.179", "title": "The promise detector speaks English — twenty replies measured on the demo",
             "ch": UNIT,
