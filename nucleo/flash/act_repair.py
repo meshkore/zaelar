@@ -334,7 +334,9 @@ def _other_open_cards(wid: str, *, limit: int = 2, chars: int = 900) -> str:
             digest = str(_wr.read(other) or "").strip()[:chars]
             if digest:
                 out.append(f"\n\nLO QUE HAY EN «{other}», TAMBIÉN EN SU PANTALLA (la fuente de un dato que la orden "
-                           f"nombra — una hora, una fecha —, por encima de lo que diga el encargo):\n{digest}")
+                           f"nombra — una hora, una fecha —, por encima de lo que diga el encargo). Es el estado de "
+                           f"AHORA, con los cambios que él ya pidió en la conversación YA APLICADOS: una hora de aquí "
+                           f"es la final, no se le vuelve a sumar ni restar nada:\n{digest}")
         return "".join(out)
     except Exception:  # noqa: BLE001
         return ""
