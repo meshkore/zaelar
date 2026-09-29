@@ -277,6 +277,9 @@ class LangSpec:
     # this table exists. `delivery.py` and `reminder_guards.py` read them from here now.
     not_on_screen_yet: str = "Perdona — todavía no está en pantalla. Te lo estoy preparando."
     data_ack: str = "Hecho."       # short "done" when a widget data-op ran with no spoken content of its own (V2-026)
+    # Demo pass 50: the words ASKED («…want me to write that?») and the order was carried out anyway — «?Done.» read
+    # as the answer to its own question. After a question the line says it went ahead.
+    data_ack_went_ahead: str = "Ya lo he hecho, tal como lo pediste."
     # V2-743 — the three beats of a CONFIRMED irreversible op. `work_started` replaces `data_ack` at the
     # moment the operator says yes: until today the gate answered «Hecho.» 0.86 s after DISPATCHING the
     # deletion and 7 s before any outcome existed. His own words for the beat he wanted: «me pongo a hacerlo
@@ -723,6 +726,7 @@ LANGUAGES: dict[str, LangSpec] = {
                               "relaunching it now."),
         not_on_screen_yet="Sorry — it's not on screen yet. I'm getting it ready for you.",
         data_ack="Done.",
+        data_ack_went_ahead="I've gone ahead and done it, as you asked.",
         data_acks=("Done.", "There you go.", "All set.", "Got it.", "Noted."),
         work_started="On it — I'll tell you when it's done.",
         list_started="Got it — that's several things. I'm on them and I'll let you know when I'm done.",

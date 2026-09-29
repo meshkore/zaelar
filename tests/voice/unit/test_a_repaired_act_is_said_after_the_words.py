@@ -37,3 +37,12 @@ def test_a_repaired_look_is_not_acknowledged_as_done(monkeypatch):
     assert act_repair.after_the_repair(asked, False, "agenda", "find_free") == ""
     assert act_repair.after_the_repair("There's no unread toggle.", False, "mensajeria", "unread").strip() == "Done."
     assert '_ar["widget_id"], _ar["action"])' in _NUCLEO.read_text("utf-8"), "the call site passes what was repaired"
+
+
+def test_after_a_question_it_says_it_went_ahead(monkeypatch):
+    """Demo pass 50 (2026-09-29), E3: «…Want me to write: "Already trying Inworld — go ahead and book it"?» and the
+    forward was carried out anyway — the voice said «…attached?Done.», an answer to its own question."""
+    monkeypatch.setenv("ZAELAR_LANGUAGE", "en")
+    tail = act_repair.after_the_repair("Want me to write that to Andrew?", False, "mensajeria", "forward")
+    assert tail.strip() == "I've gone ahead and done it, as you asked."
+    assert act_repair.after_the_repair("There's no unread toggle.", False, "mensajeria", "unread").strip() == "Done."
