@@ -102,3 +102,23 @@ def test_query_is_read_as_q(mailbox):
     criterion. `query` is what a search's text is called almost everywhere; it is read as `q`."""
     res = data.answer_action("search_archive", {"query": "inworld"})
     assert "result" in res and res["result"]["count"] == 1, res
+
+
+def test_a_sender_the_archive_already_held_is_asked_into_the_card_too(tmp_path, monkeypatch):
+    """Demo pass 38 (2026-09-29), E1→E3: «inworld» was already in the archive from an earlier session, so the
+    mailbox was not searched — and the bring-back only ran after a mailbox search. The card never got the receipt:
+    «open it» found no chat and the forward had no files. A sender the question names is brought back either way."""
+    monkeypatch.setattr(wstore, "DATA_DIR", str(tmp_path))
+    archive.reset()
+    from widgets.mensajeria import views
+    views._MAILBOX_ASKED.clear()
+    archive.record("email", "invoice+statements@inworld.ai", [dict(_RECEIPT, id="220440")], direction="in",
+                   chat_name="Inworld AI")
+    archive.record("email", "news@x.invalid", [{"id": "1", "body": "did you send the weekly news", "from": "News"}],
+                   direction="in", chat_name="News")
+    monkeypatch.setattr(views, "mailbox_fill", lambda terms: 0)          # the mailbox finds nothing new
+    asked = []
+    monkeypatch.setattr("widgets.supervisor.enqueue_from_thread", lambda wid, a, p: asked.append((wid, a, p)) or True)
+    assert "Inworld" in data.read_query("did inworld send me something?")
+    assert ("mensajeria", "search_archive", {"q": "inworld", "platform": "email"}) in asked, asked
+    archive.reset()

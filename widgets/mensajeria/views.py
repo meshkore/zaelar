@@ -317,17 +317,21 @@ def read_query_answer(question: str) -> str:
     if not words:
         return ""
     unknown = _unknown_terms(question)
-    if unknown and mailbox_fill(unknown):
-        # …and the card is asked to bring what the mailbox found INTO its conversation (attachments included),
-        # through its one writer: «open it» and «send the invoice to andrew» act on the card, not on the archive.
-        # `search_archive` on the owner's path is the door that already does exactly that (_bring_back_found_mail).
-        try:
-            from widgets import supervisor as _sup
-            for t in unknown:
-                if archive.search(t, platform="email", limit=1):
-                    _sup.enqueue_from_thread("mensajeria", "search_archive", {"q": t, "platform": "email"})
-        except Exception:  # noqa: BLE001
-            pass
+    filled = bool(unknown and mailbox_fill(unknown))
+    # …and the card is asked to bring what was found INTO its conversation (attachments included), through its
+    # one writer: «open it» and «send the invoice to andrew» act on the card, not on the archive. `search_archive`
+    # on the owner's path is the door that already does exactly that (_bring_back_found_mail). Demo pass 38
+    # (2026-09-29, E1→E3): it only asked when the mailbox had just been searched — with «inworld» already in the
+    # archive from an earlier session, nothing was brought, «open it» found no chat and the forward had no files.
+    # A sender the question names is brought back whether the archive or the mailbox found it.
+    try:
+        from widgets import supervisor as _sup
+        named = archive._naming_terms(archive._conn(), words)
+        for t in dict.fromkeys((unknown if filled else []) + named):
+            if archive.search(t, platform="email", limit=1):
+                _sup.enqueue_from_thread("mensajeria", "search_archive", {"q": t, "platform": "email"})
+    except Exception:  # noqa: BLE001
+        pass
     rows = archive.ranked(words, limit=8)
     if not rows:
         return ""
