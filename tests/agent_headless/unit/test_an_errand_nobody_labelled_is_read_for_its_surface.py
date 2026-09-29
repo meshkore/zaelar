@@ -39,5 +39,8 @@ def test_an_unsure_or_absent_reading_leaves_the_fallback():
 def test_the_escalation_uses_it_only_when_the_model_declared_none():
     from voice.engine.llm.providers import nucleo as prov
     src = inspect.getsource(prov)
-    i = src.index("or _surfaces_mod.from_brief(_brief)")
-    assert 'escalate_req["surface"].get(req, "")' in src[i - 120:i], "the model's own declaration comes first"
+    # demo pass 51: the declaration and the brief's reading go through `surfaces.pick`, which keeps the model's
+    # declaration except between two visual surfaces (tests/agent_headless/unit/test_between_two_visual_surfaces…)
+    i = src.index("_surfaces_mod.pick(")
+    assert 'escalate_req["surface"].get(req, "")' in src[i:i + 120], "the model's own declaration is the first input"
+    assert "_surfaces_mod.from_brief(_brief)" in src[i:i + 240]

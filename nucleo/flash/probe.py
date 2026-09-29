@@ -1048,7 +1048,7 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
                 _reqs = _reqs[:3] or [_window_goal or operator_text]
                 from nucleo.flash import escalate as _esc
                 _tids = [_esc.escalate_to_slowbrain(
-                    str(_r), context={"src": "probe", "trace": _trace_id, "surface": _surf.get(_r, ""),
+                    str(_r), context={"src": "probe", "trace": _trace_id, "surface": __import__("nucleo.surfaces", fromlist=["x"]).pick(_surf.get(_r, ""), __import__("nucleo.surfaces", fromlist=["x"]).from_brief(_tbrief)),
                                       "asked": text})   # V2-655: la DECISIÓN vive en el portal; aquí solo el dato
                     for _r in _reqs]
                 return_extra_exec = {"executed": "escalate", "task_id": _tids[0], "task_ids": _tids}

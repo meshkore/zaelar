@@ -3672,8 +3672,8 @@ class NucleoLLMStream(llm.LLMStream):
                 except Exception:
                     pass
                 _escalate_mod.escalate_to_slowbrain(
-                    req, context={"src": "voice", "surface": (escalate_req["surface"].get(req, "")
-                                                              or _surfaces_mod.from_brief(_brief)),
+                    req, context={"src": "voice", "surface": _surfaces_mod.pick(escalate_req["surface"].get(req, ""),
+                                                                               _surfaces_mod.from_brief(_brief)),
                                   "asked": spoken_text})   # V2-655: si el turno pidió permiso, se APARCA
                 emit("brain", "🧭 Flash → Brain Worker (escalada registrada)", text=req, role="system")
 

@@ -107,6 +107,27 @@ def from_brief(brief) -> str:
         return ""
 
 
+#: The surfaces the operator LOOKS at. Between two of these, what he will look at is a reading of his words.
+_VISUAL = frozenset({LIST, ITEM, DOC})
+
+
+def pick(declared, brief_reading: str = "") -> str:
+    """The surface for an escalation: what the model declared, or the brief's sure reading when both name a
+    VISUAL surface and disagree.
+
+    Demo passes 36-51 (2026-09-29), every escalation where the two readings differed: when both were visual, the
+    brief was right 6 times of 7 — «plan a five day trip… show me when it's ready» declared `informe` by the model
+    (a document sheet, and the browser's card on screen) against the brief's `lista`; «a one page summary… in a
+    document» declared `item` (an empty results sheet) against `informe`. When the model declared a non-visual
+    surface (a setup list done silently, a message sent) it was the model that was right, so that case is left
+    as it was. The brief answers exactly this question, with these criteria, about his words."""
+    d = normalize(declared)
+    b = normalize(brief_reading)
+    if d in _VISUAL and b in _VISUAL and d != b:
+        return b
+    return str(declared or "") or b
+
+
 def set_once(rec, value) -> str:
     """Stamp the surface on a session record the FIRST time and never again (rule 3). Returns what stands.
 

@@ -136,7 +136,7 @@ def test_a_turn_with_THREE_errands_keeps_three_surfaces():
     from nucleo.flash import probe
     src = inspect.getsource(probe)
     assert '_surf[_r] = str(_tc["args"].get("surface")' in src
-    assert '"surface": _surf.get(_r, "")' in src
+    assert '.pick(_surf.get(_r, "")' in src          # per request, then `surfaces.pick` with the brief (pass 51)
 
 
 def test_BOTH_channels_carry_it():
