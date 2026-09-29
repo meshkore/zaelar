@@ -3357,6 +3357,10 @@ DOMAINS: list[dict] = [
         # named the card, the action existed. One bounded pass asks the model for the call it promised — only the
         # named card, only a declared action — before the backstop spends a worker on it.
         # Demo pass 2026-09-28 (V2-776 E) — the fixes of the passes, one node each.
+        # Demo passes 33-54 (2026-09-29) — the audit's fixes, one node each.
+        {"id": "2.166", "title": "An English promise of playback is kept by the music backstop, with the title its words carry",
+            "ch": UNIT,
+            "paths": ["tests/voice/unit/test_an_english_promise_to_play_is_kept.py"]},
         {"id": "2.165", "title": "A card brought back from minimized re-tiles the desk if it lands on another",
             "ch": UNIT,
             "paths": ["tests/browser/unit/widgets/test_a_card_brought_back_retiles_the_desk.py"]},

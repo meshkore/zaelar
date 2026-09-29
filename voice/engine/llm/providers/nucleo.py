@@ -2805,8 +2805,12 @@ class NucleoLLMStream(llm.LLMStream):
                 read_req["v"] = {"widget_id": _qlens, "question": _op_text}
                 emit("brain", "📖 una pregunta contestada solo con una vista — leo la tarjeta y contesto",
                      text=f"{_qlens} ← {_op_text[:100]}", role="system", extra={"cat": "flash", "widget": _qlens})
+        # U2 (demo passes 34-51, 2026-09-29): «Sure — putting on Like a Prayer now» and no call — an ENGLISH promise
+        # of playback, read here with the same gate the branch below applies (music card open, or a music word).
+        _playback = _router.promises_playback(spoken_text, _op_text, music_open=_direct_action.on_screen_now("musica"))
         if (_no_tool and spoken_text
-                and (_router.promises_action(spoken_text) or _direct_action.verdict_escalates(_brief, answered=not _router.promises_action(spoken_text))
+                and (_router.promises_action(spoken_text) or _playback
+                     or _direct_action.verdict_escalates(_brief, answered=not _router.promises_action(spoken_text))
                      or _direct_action.verdict_shows(_brief))
                 and not _router.asks_for_missing_detail(spoken_text)):
             _win_goal = ""
@@ -2852,6 +2856,12 @@ class NucleoLLMStream(llm.LLMStream):
                 _shown_ids.add(_pw)          # V2-660: a shown card is an end state the harness verifies
                 _cvis.present(_pw, reason="turn-order", src="flash", emit=emit)
                 emit("brain", "🪟 show por backstop de promesa (prometió mostrar sin tool)", text=_pw, role="system")
+            elif _playback:
+                # BEFORE any worker or show: the song is on the player, not on the web. The query is the title the
+                # words carry, never his sentence whole («no, put like a prayer» is not a song).
+                music_req["v"] = {"query": _router.music_query(spoken_text, _op_text), "action": "play"}
+                emit("brain", "🎵 música por backstop (prometió ponerla sin tool, en inglés)",
+                     text=music_req["v"]["query"][:80], role="system")
             elif (_router.looks_like_create_widget(_op_text) or _router.looks_like_escalate_task(_op_text) or _win_goal
                     or _direct_action.verdict_escalates(_brief, answered=not _router.promises_action(spoken_text))
                     or _direct_action.order_over_a_card_left_undone(_brief)):

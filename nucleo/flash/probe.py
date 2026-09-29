@@ -674,6 +674,11 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
                 tool_calls.append({"name": "widget_data", "args": {"widget_id": _ar["widget_id"],
                                    "action": _ar["action"], "payload": _ar["payload"], "_repair": True}})
                 spoken = ""          # its words were about a call it never made; the result speaks now
+            elif (_routerc.promises_playback(spoken, text, music_open=_da_probe.on_screen_now("musica"))
+                  and not _routerc.asks_for_missing_detail(spoken)):
+                # mirror of the provider's U2 branch: an ENGLISH promise of playback plays, with the title its words carry
+                action = "music"
+                music_req = {"action": "play", "query": _routerc.music_query(spoken, text)}
             elif _routerc.promises_action(spoken) and not _routerc.asks_for_missing_detail(spoken):
                 if (_routerc.looks_like_create_widget(text) or _routerc.looks_like_escalate_task(text)
                         or _routerc.looks_like_create_widget(spoken) or _routerc.looks_like_escalate_task(spoken)):
