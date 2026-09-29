@@ -535,6 +535,9 @@ async def _loop() -> None:
             _fetch_inbox = ingest.FetchInbox(PLATFORM)
     _set_status("connected", None, f"Conectado como {config.address()}.")
     logger.info(f"Email conectado ({config.address()}) — escuchando tu buzón")
+    global _demand_task
+    if _demand_task is None or _demand_task.done():
+        _demand_task = asyncio.create_task(_serve_demands(mb))
     while True:
         # What the OPERATOR is waiting for goes first (demo pass 48, 2026-09-29: the receipt's history order,
         # asked at E1, landed 43 s later — after this tick's new-mail fetch, flag poll and the rest, each its own
@@ -570,6 +573,28 @@ async def _loop() -> None:
 
 
 _NAP_STEP_S = 0.5
+_demand_task: "asyncio.Task | None" = None
+
+
+async def _serve_demands(mb) -> None:
+    """The operator's on-demand orders — a send, a history fetch, a pull — served the moment they arrive, beside the
+    poll loop instead of inside it (demo pass 48: an order that arrives while a tick is mid-housekeeping waited for
+    the whole tick, 43 s, and the next two turns failed). Each drain opens its own IMAP/SMTP connection, so running
+    beside the housekeeping costs nothing but a second login; a queue is taken once, so nothing is done twice."""
+    while True:
+        try:
+            if any(i is not None and i.pending() for i in (_history_inbox, _send_inbox, _fetch_inbox)):
+                for what, fn in (("sends", _drain_sends), ("history", _drain_history), ("fetch", _drain_fetch)):
+                    try:
+                        await fn(mb)
+                    except Exception as e:  # noqa: BLE001
+                        logger.debug(f"Email {what} (on demand): {e}")
+            await asyncio.sleep(_NAP_STEP_S)
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:  # noqa: BLE001
+            logger.debug(f"Email demand loop: {e}")
+            await asyncio.sleep(_NAP_STEP_S)
 
 
 async def _nap(total: float) -> None:
@@ -603,9 +628,13 @@ def start() -> None:
 
 async def stop() -> None:
     global _task, _mark_inbox, _reply_inbox, _send_inbox, _archive_inbox, _trash_inbox, _unread_inbox
+    global _demand_task
     if _task:
         _task.cancel()
         _task = None
+    if _demand_task:
+        _demand_task.cancel()
+        _demand_task = None
     for inbox in (_mark_inbox, _reply_inbox, _send_inbox, _archive_inbox, _trash_inbox, _unread_inbox):
         try:
             if inbox is not None:

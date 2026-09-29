@@ -32,3 +32,37 @@ def test_history_is_drained_before_the_new_mail_fetch(monkeypatch):
     except asyncio.CancelledError:
         pass
     assert "_drain_history" in calls and calls.index("_drain_history") < calls.index("_ingest_new"), calls
+    assert service._demand_task is not None, "the loop never started the on-demand server beside it"
+    service._demand_task = None
+
+
+def test_an_order_arriving_mid_tick_is_served_beside_it(monkeypatch):
+    """…and one that arrives while a tick is busy is not held for the rest of it: a demand loop beside the poll
+    serves it at once."""
+    served = []
+
+    class _Inbox:
+        def __init__(self):
+            self.n = 1
+
+        def pending(self):
+            return self.n > 0
+    inbox = _Inbox()
+    monkeypatch.setattr(service, "_history_inbox", inbox)
+
+    async def _hist(mb):
+        served.append("history")
+        inbox.n = 0
+
+    async def _noop(mb):
+        return None
+    monkeypatch.setattr(service, "_drain_history", _hist)
+    monkeypatch.setattr(service, "_drain_sends", _noop)
+    monkeypatch.setattr(service, "_drain_fetch", _noop)
+
+    async def run():
+        t = asyncio.create_task(service._serve_demands(object()))
+        await asyncio.sleep(0.2)
+        t.cancel()
+    asyncio.run(run())
+    assert served == ["history"]
