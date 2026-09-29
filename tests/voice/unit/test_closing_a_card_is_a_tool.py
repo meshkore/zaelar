@@ -74,3 +74,25 @@ def test_the_piece_named_closes_its_one_open_card(monkeypatch):
     assert show_target.close_target("results") == "results::c79ebf-1"
     monkeypatch.setattr(voice_api, "open_instances", lambda: ["results::a-1", "results::b-1"])
     assert show_target.close_target("results") == "results", "two sheets: the tag's own resolution asks"
+
+
+# ── demo passes 38/45/47 (2026-09-29), S4: «ok close the results» with more than one «results» open ──────────────
+
+def test_a_bare_shell_beside_the_sheet_closes_the_sheet(monkeypatch):
+    """The base card («results») counted as open beside the sheet: the close went to the bare id, the sheet stayed."""
+    from server import voice_api
+    monkeypatch.setattr(voice_api, "open_instances", lambda: ["results", "results::cd18f5-ls1"])
+    assert show_target.close_target("results") == "results::cd18f5-ls1"
+
+
+def test_two_sheets_close_the_one_his_last_turn_acted_on(monkeypatch):
+    from nucleo import canvas_focus as cf
+    from server import voice_api
+    cf._reset()
+    cf.note("transcript", "", role="user")
+    cf.note("widget", "show", extra={"id": "results::b-1", "src": "flash"})
+    cf.note("transcript", "", role="user")
+    monkeypatch.setattr(voice_api, "open_instances", lambda: ["results::a-1", "results::b-1"])
+    assert show_target.close_target("results") == "results::b-1"
+    cf._reset()
+    assert show_target.close_target("results") == "results", "no focus, two real sheets: still a question"

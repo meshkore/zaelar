@@ -280,7 +280,19 @@ def close_target(widget_id: str) -> str:
         # the PIECE named, the CARD closed: «results» with its one sheet `results::c79ebf-1` open is that sheet
         # (demo pass 2026-09-28, S4: the close went to the bare id and the sheet stayed on screen)
         same = [i for i in ids if i.split("::", 1)[0] == wid.split("::", 1)[0]]
-        return same[0] if (wid not in ids and len(same) == 1) else wid
+        if wid not in ids and len(same) == 1:
+            return same[0]
+        if "::" not in wid and len(same) > 1:
+            # Several of the piece open (demo passes 38/45/47, 2026-09-29, S4: the base shell beside the sheet, or
+            # a phantom base card): the one his last turn acted on, else the ONE instance beside a bare shell.
+            # Two real sheets and no focus keep the bare id — the tag's own resolution asks.
+            focus = canvas_focus.last_turn_card(same)
+            if focus:
+                return focus
+            inst = [i for i in same if "::" in i]
+            if len(inst) == 1:
+                return inst[0]
+        return wid
     return canvas_focus.last_turn_card(ids) or (ids[0] if len(ids) == 1 else "")
 
 

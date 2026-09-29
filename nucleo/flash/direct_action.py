@@ -839,7 +839,7 @@ def complete(brief, *, operator_text: str, emit, present, apply_widget_data,
     if rung.get("source") == "no-payload":           # a payload read from words belongs to the card it was read for
         rung = {**rung, "widget": subject_card(rung["widget"], rung["action"], operator_text)}
     try:
-        present(rung["widget"], reason="turn-order", src="flash", emit=emit)
+        present(card_to_present(rung["widget"], operator_text), reason="turn-order", src="flash", emit=emit)
         apply_widget_data(rung["widget"], rung["action"], rung["payload"])
         emit("brain", "🎯 el veredicto completa al modelo" + (" (su llamada no resolvía)" if instead_of else " (sin tool)"),
              text=rung["label"][:120], role="system",
@@ -848,6 +848,30 @@ def complete(brief, *, operator_text: str, emit, present, apply_widget_data,
     except Exception:  # noqa: BLE001
         return ""
     return rung["action"]
+
+
+def card_to_present(widget_id: str, operator_text: str = "") -> str:
+    """The CARD a verdict's action brings up: the base id narrowed to its live instance.
+
+    Demo passes 38/44/47 (2026-09-29, S2): the brief names `results:layout` — the piece, not the sheet — and the
+    data-op landed on the sheet (`instances.data_target`) while the present opened a bare, empty `results` card
+    beside it; «close the results» then closed the phantom and the sheet stayed. One door for both halves:
+    `show_target.show_card` narrows and never asks; a base with no instance stays the base."""
+    try:
+        from nucleo.flash import show_target as _st
+        return _st.show_card(str(widget_id or ""), operator_text or "") or str(widget_id or "")
+    except Exception:  # noqa: BLE001
+        return str(widget_id or "")
+
+
+def close_op_is_the_card(brief, action: str) -> bool:
+    """A data-op NAMED «close» over a SURE close verdict is the card's own close, never its data.
+
+    Demo passes 36/42 (2026-09-29, E5): «close my mail» — the model called the messaging card's `close` (a view
+    action: back to the chat list), the canvas verdict read `close` sure, and the card stayed on screen while the
+    reply said the mail was closed. `complete` already refuses a data action under a sure canvas gesture; this is
+    the same rule for the model's OWN call, read by the door every data-op goes through."""
+    return str(action or "").strip().lower() == "close" and sure_canvas(brief) == "close"
 
 
 def endorses(brief, widget_id: str, action: str = "") -> bool:
@@ -890,7 +914,7 @@ def take_rung(escalate_req: dict, *, brief, operator_text: str, emit, present,
     if not rung:
         return False
     try:
-        present(rung["widget"], reason="turn-order", src="flash", emit=emit)
+        present(card_to_present(rung["widget"], operator_text), reason="turn-order", src="flash", emit=emit)
         apply_widget_data(rung["widget"], rung["action"], rung["payload"])
         emit("brain", "🎯 acción declarada en vez de un worker", text=rung["label"][:120],
              role="system",
