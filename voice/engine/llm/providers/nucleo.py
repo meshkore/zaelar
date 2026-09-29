@@ -2110,7 +2110,8 @@ class NucleoLLMStream(llm.LLMStream):
             if _said:
                 user_text = (f"{user_text}\n\n(En este turno ya le has dicho: «{_said[:400]}». Continúa desde ahí, "
                              f"en SU idioma: no lo repitas ni lo contradigas. Si eso YA contesta lo que preguntó, "
-                             f"responde exactamente SKIP y nada más.)")
+                             f"responde exactamente SKIP y nada más. Anunciar que vas a mirar o que lo estás "
+                             f"mirando NO es contestar: entonces da la respuesta.)")   # full53 R3: «let me look…» + SKIP
             _lead = [" " if _said else ""]
             # SKIP is held back until it can be told apart from an answer — a model asked for an EMPTY reply
             # says «you're all set» instead, so the silence is a word we recognise and never speak.
@@ -2125,6 +2126,9 @@ class NucleoLLMStream(llm.LLMStream):
                         head = _held[0].strip().upper()
                         if head.startswith("SKIP"):
                             _held[0] = None
+                            # visible on the timeline (full53 R3 went silent after «let me look…» and nothing said why)
+                            emit("brain", "🤐 segundo pase: SKIP — lo ya dicho contestaba", role="system",
+                                 text=f"{what}: {_said[:120]}", extra={"cat": "flash"})
                             return
                         if len(head) < 4 and "SKIP".startswith(head):
                             return                               # still could be SKIP: keep holding

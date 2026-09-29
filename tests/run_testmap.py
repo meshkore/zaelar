@@ -3357,6 +3357,9 @@ DOMAINS: list[dict] = [
         # named the card, the action existed. One bounded pass asks the model for the call it promised — only the
         # named card, only a declared action — before the backstop spends a worker on it.
         # Demo pass 2026-09-28 (V2-776 E) — the fixes of the passes, one node each.
+        {"id": "2.164", "title": "A promise to look is not an answer to SKIP, and a SKIP is visible",
+            "ch": UNIT,
+            "paths": ["tests/voice/unit/test_a_promise_to_look_is_not_an_answer_to_skip.py"]},
         {"id": "2.163", "title": "A sure lens beats a state change the model made over it",
             "ch": UNIT,
             "paths": ["tests/voice/unit/test_a_sure_lens_beats_a_state_change.py"]},
