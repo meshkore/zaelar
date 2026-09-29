@@ -3357,6 +3357,9 @@ DOMAINS: list[dict] = [
         # named the card, the action existed. One bounded pass asks the model for the call it promised — only the
         # named card, only a declared action — before the backstop spends a worker on it.
         # Demo pass 2026-09-28 (V2-776 E) — the fixes of the passes, one node each.
+        {"id": "2.160", "title": "A widget failure is said in the agent's language",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/flash/test_a_widget_failure_is_said_in_the_agents_language.py"]},
         {"id": "2.159", "title": "An operator's mail order goes first in the mail tick",
             "ch": UNIT,
             "paths": ["tests/connectors/unit/email/test_an_operator_order_goes_first_in_the_mail_tick.py"]},

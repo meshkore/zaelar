@@ -150,8 +150,13 @@ async def report_failure(wid: str, action: str, res: dict) -> bool:
         pass
     if speakable:
         try:
+            # …in the language the agent speaks: a widget's `message` is product copy in whatever language the
+            # widget was written in (demo pass 48, V6: «No hay resultados de búsqueda ahora mismo.» spoken verbatim
+            # into an English session). The same composer a finished errand's line goes through.
+            from nucleo.workers import spoken_delivery as _sd
+            said = await _sd.line(f"{wid}: {action}", speakable, ok=False)
             from voice import proactive
-            await proactive.notify("Conector", speakable, speak=True, kind="notify")
+            await proactive.notify("Conector", said or speakable, speak=True, kind="notify")
             told = True
         except Exception:
             pass
