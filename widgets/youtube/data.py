@@ -126,6 +126,23 @@ def _extract_id(s: str) -> str:
     return ""
 
 
+_RESULTS_RE = re.compile(r"youtube\.com/results\?([^\s\"'<>]+)")
+
+
+def _results_query(s: str) -> str:
+    """The decoded `search_query` of a YouTube RESULTS link anywhere in `s`, or "".
+
+    Live, 2026-09-29: «open this youtube search: https://www.youtube.com/results?search_query=Liverpool+Atletico…»
+    reached `search` with the WHOLE sentence — URL included — as the query, and the scraper answered a
+    question nobody asked. A pasted results link IS the query, already written: it is parsed, never read."""
+    m = _RESULTS_RE.search(s or "")
+    if not m:
+        return ""
+    qs = urllib.parse.parse_qs(m.group(1), keep_blank_values=False)
+    vals = qs.get("search_query") or qs.get("q") or []
+    return " ".join(str(v).strip() for v in vals if str(v).strip())[:200]
+
+
 def _norm(s: str) -> str:
     s = unicodedata.normalize("NFKD", str(s or "")).encode("ascii", "ignore").decode()
     return s.lower().strip()
@@ -527,6 +544,15 @@ def apply_action(action: str, payload: dict = None) -> dict:
         explicit = bool(vid) and str(p.get("pick") or "") != "ours"
         title = str(p.get("title") or "").strip()
         channel, published, latest = "", "", False
+        if vid and not title:
+            # Live, 2026-09-29: a bare `watch?v=` link played fine and the card's title was the URL itself. The
+            # link names the video; the public oembed endpoint names it back (fail-open to the URL, as `add`).
+            meta = _oembed_title(vid)
+            title, channel = meta["title"], meta["channel"]
+        if not vid:
+            rq = _results_query(raw)
+            if rq:                                       # a RESULTS link is a search, already written
+                return apply_action("search", {**p, "query": rq})
         if not vid:                                     # not URL/id → search by name
             q = str(p.get("query") or p.get("q") or raw or "").strip()
             db["last_query"] = q
@@ -635,6 +661,7 @@ def apply_action(action: str, payload: dict = None) -> dict:
         # previous one (results are a view of the last question, not an archive). NOTHING starts playing
         # (V2-366's rule holds), and player state is untouched: a search must not interrupt playback.
         q = str(p.get("query") or p.get("q") or "").strip()
+        q = _results_query(q) or q                       # a pasted results link is the query, decoded
         if not q:
             return {"ok": False, "error": "no_query", "message": "Dime qué vídeos busco."}
         # V2-756 — THE NUMBERS UNDER HIS FEET. Live session 74be8e9a (2026-09-23): «Ahora quiero que me

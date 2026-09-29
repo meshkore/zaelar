@@ -2194,6 +2194,11 @@ DOMAINS: list[dict] = [
                    # fills the card; the clipping the operator photographed cannot recur), hint only over
                    # an empty player.
                    "tests/browser/unit/youtube/test_the_player_dresses_like_the_product.py"]},
+        # Live, 2026-09-29: a pasted `watch?v=` link played with the URL as its title; a pasted `results?search_query=`
+        # link was searched as the WHOLE sentence, `+` signs and all.
+        {"id": "4.236", "title": "A pasted YouTube link is parsed, never read: a watch link gets its title, a results "
+                                 "link is its decoded query",
+            "ch": UNIT, "paths": ["tests/browser/unit/youtube/test_a_pasted_link_is_parsed_never_read.py"]},
         # Demo pass 59, E1 (2026-09-29): «did inworld send me something?» → «nothing from Inworld» with the receipt
         # in the archive — the inbox matched unrelated mails on «asunto» and the archive was asked only when the
         # inbox matched nothing.
