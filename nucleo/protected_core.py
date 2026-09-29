@@ -54,8 +54,14 @@ _CHANGE_VERB = (r"(?:modifi\w*|cambi\w*|reconfigur\w*|configur\w*|recable\w*|cab
 # El verbo y el sustantivo tienen que ir CERCA. Sin la ventana, «arregla la cita y de paso mira el motor del
 # coche» sería una orden de tocar el motor — y el coste de un falso positivo aquí es negarse a un encargo
 # legítimo del operador, que es exactamente el fallo que no queremos importar del otro lado.
-_TOUCH_RE = re.compile(_CHANGE_VERB + r"\b[^.!?]{0,60}\b" + _ENGINE_NOUN, re.I)
-_TOUCH_REV_RE = re.compile(_ENGINE_NOUN + r"\b[^.!?]{0,40}\b" + _CHANGE_VERB, re.I)
+#
+# ⚠️ Both sides are WHOLE WORDS (2026-09-29, session 81095d8d). Without the leading `\b` the verb stems matched
+# INSIDE other words and the noun matched a prefix: «confirm … it's in s|toc|k, and |repo|rt back the link» —
+# `toc\w*` inside «stock», `repo` at the head of «report» — and an Amazon product-link errand was refused with
+# «eso me pide cambiarme a mí por dentro». A stem anchored at a word start still catches every conjugation
+# (`\w*` runs to the end of the word); what it no longer does is find itself inside a stranger.
+_TOUCH_RE = re.compile(r"\b" + _CHANGE_VERB + r"\b[^.!?]{0,60}\b" + _ENGINE_NOUN + r"\b", re.I)
+_TOUCH_REV_RE = re.compile(r"\b" + _ENGINE_NOUN + r"\b[^.!?]{0,40}\b" + _CHANGE_VERB + r"\b", re.I)
 
 # EL CONTRAPESO, y es la mitad que decide si esto sirve o estorba: un WIDGET sí se puede modificar.
 #
@@ -69,8 +75,8 @@ _TOUCH_REV_RE = re.compile(_ENGINE_NOUN + r"\b[^.!?]{0,40}\b" + _CHANGE_VERB, re
 # MOTOR para que algo acabe en un widget. Gramaticalmente: el widget tiene que ser el objeto del verbo —
 # cerca, y sin una pieza del motor por medio. Misma idea de ventana corta que `errand_kind._MODIFY_CODE_RE`.
 _WIDGET_NOUN = r"(?:widget|tarjeta|panel|card)\w*"
-_WIDGET_OBJECT_RE = re.compile(_CHANGE_VERB + r"\b((?:(?!" + _ENGINE_NOUN + r"\b)[^.!?]){0,45}?)\b" + _WIDGET_NOUN,
-                               re.I)
+_WIDGET_OBJECT_RE = re.compile(r"\b" + _CHANGE_VERB + r"\b((?:(?!" + _ENGINE_NOUN + r"\b)[^.!?]){0,45}?)\b"
+                               + _WIDGET_NOUN, re.I)
 
 
 # V2-771 — TWO SUBTRACTIONS, never an added pattern (the house rule for a guard that reads words: `danger.py`).

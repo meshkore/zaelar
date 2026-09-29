@@ -53,6 +53,13 @@ def test_an_order_to_change_ZAELAR_ITSELF_is_recognised(req):
     "programa un aviso para mañana",
     "apaga el motor del coche en el videojuego",         # «motor» sin verbo de cambio cerca
     "ponme música",
+    # 2026-09-29, session 81095d8d — the worker brief for an Amazon product link, refused live: `toc\w*` was
+    # matching inside «stock» and `repo` at the head of «report». Stems are whole words now.
+    'Find the Amazon listing where Richard can BUY the book "Through the Moon (2020)" — and give him the '
+    "direct product link (URL) to the product page. Open the product page, confirm the exact price and that "
+    "it's in stock, and report back the direct link plus the price.",
+    "check the stock and report the price",
+    "edit the report and change the stock count",
 ])
 def test_a_legitimate_errand_is_NOT_blocked(req):
     """El contrapeso, y es la mitad que decide si esto sirve o estorba: un falso positivo aquí es negarse a
