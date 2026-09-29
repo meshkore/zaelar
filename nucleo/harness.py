@@ -134,9 +134,11 @@ async def verify(goal: dict) -> bool | None:
                 _emit("🫥 arnés: objetivo NO verificable — la tarjeta no declara si está vacía", goal)
         elif view.get("empty"):
             out = False
+            goal["why"] = "empty"
         else:
             opened = _card_is_open(goal["target"])
             out = True if opened is None else bool(opened)
+            goal["why"] = "" if out else "off_screen"
     goal["last"] = out
     goal["last_seen"] = {True: "met", False: "unmet"}.get(out, "unreadable")
     return out
@@ -169,7 +171,11 @@ async def false_claim(spoken: str, *, data_done: bool) -> dict | None:
         if g["kind"] != KIND_WIDGET_CONTENT:
             continue
         ok = await verify(g)
-        if ok is False:
+        # Demo pass 65, S1: «so how did the monitors go, show me» brought the sheet back from the dock with its three
+        # monitors, and the canvas report still listed it as minimized a moment later — «not on screen» read as
+        # «not delivered», and a worker was sent to «locate the content» of a full sheet. A worker cannot fix a card
+        # that is off screen; only an EMPTY sheet is a false claim of delivery.
+        if ok is False and g.get("why") == "empty":
             _emit("⚠️ arnés: afirmó entrega y la hoja sigue VACÍA", g, extra={"claim": spoken[:160]})
             return g
     return None

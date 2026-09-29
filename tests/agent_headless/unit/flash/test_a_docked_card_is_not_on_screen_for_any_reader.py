@@ -47,3 +47,17 @@ def test_a_collection_declared_from_the_view_is_read_from_the_view(monkeypatch):
     monkeypatch.setattr(truth, "widget_view", lambda wid: {"things": [{"id": "1", "title": "One"}, {"id": "2", "title": "Two"}]})
     assert [r["id"] for r in rows.select("demo", "things", {"title~": "two"})] == ["2"]
     assert rows.ops_for("demo", "things") == ("list",)
+
+
+def test_a_full_sheet_still_in_the_dock_is_not_a_false_claim(docked, monkeypatch):
+    """Demo pass 65, S1: the sheet came back from the dock with its three monitors; the canvas report still said
+    minimized, and a worker was sent to «locate the content» of a full sheet. Only an EMPTY sheet is a false claim."""
+    from nucleo import harness, truth
+    monkeypatch.setattr(truth, "widget_view", lambda wid: {"empty": False, "items": [1, 2, 3]})
+    g = {"kind": harness.KIND_WIDGET_CONTENT, "target": "results", "text": "monitors", "checks": 0, "status": "open"}
+    monkeypatch.setattr(harness, "open_goals", lambda now=None: [g])
+    monkeypatch.setattr(harness, "claims_done", lambda s: True)
+    assert asyncio.run(harness.false_claim("Here they are.", data_done=False)) is None
+    assert g["last"] is False and g["why"] == "off_screen"
+    monkeypatch.setattr(truth, "widget_view", lambda wid: {"empty": True, "items": []})
+    assert asyncio.run(harness.false_claim("Here they are.", data_done=False)) is g
