@@ -250,6 +250,56 @@ def _drop_amount_questions(order: str) -> str:
     return _AMOUNT_QUESTION_RE.sub(" ", order)
 
 
+# ── A NEGATED ACT IS NOT AN ORDER, AND A STATED WISH NEXT TO A LOOKUP IS NOT ONE EITHER (2026-09-29) ───────
+# Measured live, session 81095d8d. The operator typed «i want to buy Through the Moon (2020), gime the amazon
+# link». Three escalations followed, and the gate parked ALL of them as a charge:
+#
+#     «Open amazon.es … leave it at the homepage. Do not search for or buy anything yet.»        → parked
+#     «Find the Amazon listing where Richard can BUY the book … Do NOT make any purchase.»       → parked
+#     «i want to buy Through the Moon (2020), gime the amazon link»                             → parked
+#
+# The first two are the fast brain's own rewrite, and the words that tripped the gate are the ones it added
+# to say the OPPOSITE — «do not buy». A verb under a negation is the sentence saying what will not happen;
+# reading it as the order is how the product asked «this one moves money, shall I go on?» four times over a
+# request for a link. The clause is dropped from the negation to the end of the sentence, in both languages.
+#
+# The third is his: «I want to buy X» is a wish in the first person, and «give me the link» is the order —
+# what he asked the agent to DO is find where. `_LOOKUP_HEAD_RE` could not see it because the sentence does
+# not START with a lookup verb. So the wish is dropped only when the sentence carries a lookup order
+# elsewhere (link, where, find, price…): «quiero comprar el libro» on its own keeps its imperative, and
+# «quiero que compres» never matches (the verb is his agent's, second person, not a wish).
+#
+# Both are SUBTRACTIONS, per the house rule of this module: nothing added to the verb lists.
+_NEGATED_ACT_RE = re.compile(
+    r"\b(?:do\s+not|don'?t|never|without|not\s+to|no\s+need\s+to|nothing\s+to)\s+(?:\w+\s+){0,3}?"
+    r"(?:buy\w*|purchas\w*|pay\w*|checkout|charg\w*|subscrib\w*|renew\w*|order\w*)\b[^.!?;]*"
+    r"|\b(?:no|nunca|jamas|sin|ni)\s+(?:\w+\s+){0,2}?"
+    r"(?:compr\w*|pag\w*|abon\w*|contrat\w*|renuev\w*|suscrib\w*|transfier\w*|transfer\w*)\b[^.!?;]*",
+    re.I)
+_STATED_WISH_RE = re.compile(
+    r"\b(?:i\s+want\s+to|i\s+wanna|i'?d\s+like\s+to|i\s+would\s+like\s+to|i\s+need\s+to|"
+    r"quiero|querria|quisiera|me\s+gustaria|me\s+apetece|necesito)\s+"
+    r"(?:buy\w*|purchas\w*|get|order|comprar\w*|adquirir|pedir|pillar\w*)\b[^.!?;,:—–]*", re.I)
+_LOOKUP_ORDER_RE = re.compile(
+    r"\b(?:link|enlace|url|find\w*|search\w*|look\s+(?:up|for)|where|donde|busca\w*|encuentra\w*|localiza\w*|"
+    r"price|precio|cuanto|how\s+much|options?|opciones|compar\w*|cheapest|barat\w*|recommend\w*|recomiend\w*)\b",
+    re.I)
+
+
+def _drop_negated_acts(order: str) -> str:
+    """«Do not buy anything yet» names what will NOT happen — dropped before the verbs are looked for."""
+    return _NEGATED_ACT_RE.sub(" ", order)
+
+
+def _drop_stated_wish(order: str) -> str:
+    """«I want to buy X, give me the link»: the wish goes, the lookup order stays. Only when a lookup order is
+    actually there — a bare «quiero comprar el libro» keeps its imperative."""
+    if not _STATED_WISH_RE.search(order):
+        return order
+    rest = _STATED_WISH_RE.sub(" ", order)
+    return rest if _LOOKUP_ORDER_RE.search(rest) else order
+
+
 # ── WHAT SITS INSIDE AN AGENDA ROW IS ITS TITLE, NOT AN ORDER (V2-748) ─────────────────────────────────────
 # Measured live, session 48e85cd5 (2026-09-21). Two turns, both of them plain agenda work:
 #
@@ -342,9 +392,9 @@ def is_dangerous(text: str) -> bool:
     # accent — did not match and the note slipped through as an order. Same oversight that already cost
     # «resérvame» in site_catalog and «renuévame» in this very file: the form the operator SAYS is exactly
     # the one an unnormalised pattern cannot see.
-    order = _drop_past_acts(
+    order = _drop_stated_wish(_drop_negated_acts(_drop_past_acts(
         _drop_agenda_items(_drop_amount_questions(_drop_lookup_adjuncts(
-            _REMINDER_RE.sub(" ", _strip_accents(_order_text(text)))))))
+            _REMINDER_RE.sub(" ", _strip_accents(_order_text(text)))))))))
     return bool(_DANGER_RE.search(order) or _DANGER_CLITIC_RE.search(order)
                 or _DANGER_ASK_CLITIC_RE.search(order) or _DANGER_PROCLITIC_RE.search(order)
                 or _COMMITMENT_RE.search(order) or _DESTROY_OBJECT_RE.search(order)
@@ -438,9 +488,9 @@ def moves_money(text: str) -> bool:
     """
     # Accents off BEFORE the note is clipped — the same order as `is_dangerous`, and for the same reason:
     # `_REMINDER_RE` is written without accents and «recuérdame» is the form that gets spoken.
-    order = _drop_past_acts(
+    order = _drop_stated_wish(_drop_negated_acts(_drop_past_acts(
         _drop_agenda_items(_drop_amount_questions(_drop_lookup_adjuncts(
-            _REMINDER_RE.sub(" ", _strip_accents(_order_text(text)))))))
+            _REMINDER_RE.sub(" ", _strip_accents(_order_text(text)))))))))
     if _MONEY_RE.search(order):
         return True
     # Same gap as in `is_dangerous` (V2-141): «¿puedes pagarLA?» carries no bare form of the verb. Without
