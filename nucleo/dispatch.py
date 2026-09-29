@@ -1460,7 +1460,9 @@ from nucleo.dispatch_confirm import (  # noqa: E402,F401
     _PENDING_CONFIRM,
     _deliver_confirm,
     _sweep_confirm,
+    absorb_refinement,
     confirm_line,
+    parked_errands,
     pending_confirm,
     remember_code_change,
     remember_confirm,
@@ -1616,6 +1618,45 @@ async def run_listener(stop: "asyncio.Event | None" = None) -> None:
                 if not _merge_dedup_flow(ctx, dup):
                     _close_escalated_flow(ctx, ok=True, status="dedup_injected")
                 continue
+            # A PARKED ERRAND IS STILL THE ERRAND HE IS TALKING ABOUT (2026-09-29, session 81095d8d). The gate
+            # pops the record when it parks, so the live dedup above cannot see it — and every repetition of
+            # the order («provide the link», «give me the link and don't ask me again») opened another task,
+            # another sheet and asked the same question again: four errands for one intention. Same yardstick
+            # and same model half as the live dedup, over `parked_errands()`; a hit is folded into the parked
+            # one (`absorb_refinement`) and the brain is told which question is still waiting, so the next
+            # turn repeats the QUESTION instead of the work. A confirmed relaunch carries `confirmed` and is
+            # never compared here: it IS the parked errand coming back through the door.
+            if not bool(ctx.get("confirmed")):
+                _parked = parked_errands()
+                pdup = None
+                if _parked:
+                    pdup, _pev = _dedup.scan(request, kind if kind != "generic" else _classify_kind(request),
+                                             _parked)
+                    if not pdup:
+                        try:
+                            pdup = await asyncio.to_thread(about_a_live_errand, request, _parked) or None
+                        except Exception:  # noqa: BLE001 — fail-open, like the live half
+                            pdup = None
+                if pdup:
+                    question = absorb_refinement(pdup, request)
+                    try:
+                        from voice.observer import emit
+                        emit("task", "dedup", role="system", text=request[:120],
+                             extra={"id": pdup, "dropped_id": key, "by": "parked",
+                                    "reason": "va sobre una tarea APARCADA esperando su respuesta: no se abre otra"})
+                    except Exception:
+                        pass
+                    try:
+                        from voice import brain_notes
+                        brain_notes.push(
+                            "[SISTEMA] Eso es la MISMA tarea que está aparcada esperando su respuesta"
+                            + (f": «{question[:160]}»" if question else "")
+                            + ". No has abierto nada nuevo. Repítele la pregunta en una frase corta y espera "
+                              "su sí o su no.")
+                    except Exception:  # noqa: BLE001
+                        pass
+                    _close_escalated_flow(ctx, ok=True, status="dedup_parked")
+                    continue
             # THE NEGATIVE DECISION, SAID OUT LOUD (V2-507). Only the hit was emitted, so «the dedup did not
             # fire» could not be told from «there was nothing live to fire against» — opposite fixes, and the
             # round of 20260830-114302 spent a full replay of the event log without settling it. `live` is the

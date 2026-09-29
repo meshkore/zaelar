@@ -123,6 +123,41 @@ def remember_offer(request: str, *, context: dict, question: str) -> None:
         "question": question, "sheet": "", "offered": True, "ts": time.time()}
 
 
+def parked_errands() -> list[tuple[str, str]]:
+    """(task_id, request) of every errand PARKED on a question — the same shape `dispatch._live_errands()` hands
+    the dedup, because a parked errand has to be VISIBLE to it (2026-09-29, session 81095d8d).
+
+    The gate pops the session record when it parks (`_run_session` sets `done` and drops it from `_SESSIONS`),
+    so the dedup — which only compares against `queued|running` — saw `live: 0` every time the operator
+    repeated himself. Measured: «i want to buy Through the Moon (2020), gime the amazon link» → parked with
+    the money question; «provide the link to the product» → `dedup_miss live:0` → a SECOND errand, a second
+    sheet, the same question spoken again; «give me the link and don't ask me again» → a THIRD. Four tasks,
+    four result boxes on his screen, one intention. A task that is waiting on him is not dead, and the dedup
+    has to see it as what it is: the errand he is still talking about."""
+    _sweep_confirm()
+    return [(k, str(v.get("request") or "")) for k, v in _PENDING_CONFIRM.items()]
+
+
+def absorb_refinement(task_id: str, text: str) -> str:
+    """Fold a repeated/refined request into the errand parked as `task_id` instead of opening a second one.
+    Returns the QUESTION still waiting for him ("" when nothing was parked under that id).
+
+    The refinement travels with the «yes»: `resolve_confirm` re-escalates the request WITH what he added while
+    waiting, so the worker that finally runs has all of it. The clock is refreshed on purpose — repeating the
+    order is the opposite of forgetting it, and letting the ask expire under a still-talking operator is how
+    a gated task turns into narrated work (V2-190)."""
+    p = _PENDING_CONFIRM.get(str(task_id))
+    if not p:
+        return ""
+    refs = list(p.get("refinements") or [])
+    t = (text or "").strip()
+    if t and t not in refs and t != p.get("request"):
+        refs.append(t[:300])
+    p["refinements"] = refs[-5:]
+    p["ts"] = time.time()
+    return str(p.get("question") or "")
+
+
 def pending_confirm() -> dict | None:
     """The confirmation still waiting for a yes/no, or None. Most recent wins — a second irreversible ask
     supersedes the first, exactly like the widget gate."""
@@ -169,7 +204,9 @@ def confirm_line() -> str:
                 f"nada, así que no digas que está en marcha. Si dice que SÍ, arranca; si dice que NO, olvídalo.")
     return (f"CONFIRMACIÓN PENDIENTE de una acción IRREVERSIBLE: «{p['request'][:120]}».{money} Le preguntaste al "
             f"operador y AÚN NO ha contestado, así que la tarea está PARADA y no ha empezado nada — no digas "
-            f"que está en marcha. Si dice que SÍ, arranca; si dice que NO, olvídalo y confírmaselo.")
+            f"que está en marcha. Si dice que SÍ, arranca; si dice que NO, olvídalo y confírmaselo. Si vuelve a "
+            f"pedir LO MISMO con otras palabras, es ESTA tarea: no la escales otra vez, repítele la pregunta en "
+            f"una frase.")
 
 
 def resolve_confirm(ok: bool) -> dict | None:
@@ -185,6 +222,10 @@ def resolve_confirm(ok: bool) -> dict | None:
     # atajo: so preserves the trace, the dedup and the record of tasks. Lo only distinto es `confirmed`, that es
     # it that the gate mira for dejarla pasar this vez.
     ctx = {**p["context"], "confirmed": True, "kind": p["kind"]}
+    request = str(p["request"])
+    if p.get("refinements"):
+        # What he added while the question waited goes WITH the errand — see `absorb_refinement`.
+        request = request + "\n\nWhile waiting for the OK the operator added: " + " · ".join(p["refinements"])
     # La HOJA of the errand viaja with the «si». `_sheet_open` already sabe heredarla (compara contra the that le tocaria
     # a ESTE task_id: if the that trae no deriva of el, es of su predecesor and no is estrena). Sin this linea the
     # confirmado opens caja new al lado of the that the operator already has delante.
@@ -192,7 +233,7 @@ def resolve_confirm(ok: bool) -> dict | None:
         ctx["sheet"] = str(p["sheet"])
     try:
         from nucleo.flash import escalate as _esc
-        _esc.escalate_to_slowbrain(p["request"], context=ctx)
+        _esc.escalate_to_slowbrain(request, context=ctx)
     except Exception:
         logger.warning("resolve_confirm: no se pudo re-lanzar la tarea confirmada")
     return {**p, "ok": True}
