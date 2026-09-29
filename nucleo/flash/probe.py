@@ -664,7 +664,9 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
                 # V2-764 — mirror of the voice repair (`act_repair`), gated like it on the verdict too (V2-770).
                 from . import act_repair as _act_repair, card_commission as _cardc_probe
                 _ar_wid = _cardc_probe.named_or_catalogue(_tbrief, operator_text)
-                _ar = (await _act_repair.call_for_promise(operator_text, spoken, _ar_wid, spec=spec) if _ar_wid
+                _pv_o, _pv_a = _da_probe.from_brief(_tbrief)
+                _ar = (await _act_repair.call_for_promise_or_order(operator_text, spoken, _ar_wid,
+                                                                   _pv_a if _pv_o == _ar_wid else "", spec=spec) if _ar_wid
                        else await _act_repair.probe_call_for_promise(operator_text, spoken, spec))
             if _ar:
                 # «widget_data», the label the executor matches — a richer label here meant the repaired call was

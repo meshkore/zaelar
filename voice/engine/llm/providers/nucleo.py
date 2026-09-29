@@ -2682,8 +2682,9 @@ class NucleoLLMStream(llm.LLMStream):
                 emit("brain", "🔁 prometió cerrar sin tool — cierra la tarjeta", text=_ar_wid, role="system",
                      extra={"cat": "flash", "widget": _ar_wid, "action": "close"})
                 _ar_wid = ""
-            _ar = (await _act_repair.call_for_promise(_op_text, spoken_text, _ar_wid, spec=spec,
-                                                      window=list(brain._window)) if _ar_wid else None)
+            _ar_vo, _ar_va = _direct_action.from_brief(_brief)    # full41 E3: a refusal of the verdict's declared act
+            _ar = (await _act_repair.call_for_promise_or_order(_op_text, spoken_text, _ar_wid, _ar_va if _ar_vo == _ar_wid
+                                                               else "", spec=spec, window=list(brain._window)) if _ar_wid else None)
             if _ar:
                 _cvis.present(_ar["widget_id"], reason="turn-order", src="flash", emit=emit)
                 _apply_widget_data(_ar["widget_id"], _ar["action"], _ar["payload"])

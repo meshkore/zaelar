@@ -78,14 +78,14 @@ def test_no_named_card_no_model_call(client):
 
 def test_both_channels_ask_for_the_call_before_the_promise_backstop_spends_a_worker():
     prov = (ENGINE / "voice/engine/llm/providers/nucleo.py").read_text(encoding="utf-8")
-    repair = prov.index("_act_repair.call_for_promise(_op_text, spoken_text, _ar_wid, spec=spec,")
+    repair = prov.index("_act_repair.call_for_promise_or_order(_op_text, spoken_text, _ar_wid")   # full41 E3
     backstop = prov.index('emit("brain", "🧭 escalada por backstop (prometió crear/gestionar sin escalar)"')
     assert repair < backstop, "the worker backstop runs before the repair — the promise becomes minutes of worker"
     assert '_cardc_ar.named_or_catalogue(_brief, _op_text)' in prov, "the card must come from the turn's own verdict"
     probe = (ENGINE / "nucleo/flash/probe.py").read_text(encoding="utf-8")
     # V2-770: the text channel asks with the operator's OWN words (not the turn text with notes glued on), and
     # first against the card its verdict names — then, with none named, lets the repair find one.
-    assert "_act_repair.call_for_promise(operator_text, spoken, _ar_wid, spec=spec)" in probe
+    assert "_act_repair.call_for_promise_or_order(operator_text, spoken, _ar_wid," in probe
     assert "_act_repair.probe_call_for_promise(operator_text, spoken, spec)" in probe
 
 

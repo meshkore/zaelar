@@ -155,8 +155,34 @@ _SYS_REPEAT = (
     "NO piden eso, no llames a nada.\n\nAcciones de «{wid}»:\n{actions}{card}")
 
 
+_SYS_REFUSED = (
+    "Eres el cerebro de un asistente de voz. El operador dio una orden y no llamaste a nada: contestaste «{said}». "
+    "La orden, leída por separado, es `{verdict}` sobre la tarjeta «{wid}» — una acción que esa tarjeta SÍ tiene, "
+    "declarada abajo. Si sus palabras piden eso, haz AHORA exactamente la llamada `widget_data` con widget_id «{wid}» "
+    "y action «{verdict}», con el payload sacado de sus palabras, de la conversación y de lo que hay en la tarjeta "
+    "(una nota que él dicta se redacta tú; a una persona se la nombra como él la dijo). Si sus palabras NO piden "
+    "eso, no llames a nada.\n\nAcciones de «{wid}»:\n{actions}{card}")
+
+
+async def call_for_promise_or_order(operator_text: str, reply: str, widget_id: str, verdict: str = "", spec=None, *,
+                                    window=None) -> dict | None:
+    """`call_for_promise`, and when the words promised nothing — they REFUSED — the verdict's call.
+
+    Demo pass 41 (2026-09-29, E3): «send the invoice to andrew…» over the open receipt → «I can't send it myself —
+    sending mail isn't something I can do on my end», no call, the verdict reading `mensajeria:forward`. The promise
+    pass asks «did you promise an act?», and a refusal did not, so it rightly called nothing — and the mail never
+    went. A refusal of an action the card DECLARES, for an order the verdict names, is one more question to the
+    model, with the action named. Bounded like the others: one card, its declared action, the caller's gate."""
+    got = await call_for_promise(operator_text, reply, widget_id, spec, window=window)
+    if got or not verdict:
+        return got
+    said = " ".join(str(reply or "").split())[:300]
+    return await call_for_repeated_view(operator_text, widget_id, "", verdict, spec, window=window,
+                                        _sys=_SYS_REFUSED.replace("{said}", said.replace("{", "(").replace("}", ")")))
+
+
 async def call_for_repeated_view(operator_text: str, widget_id: str, repeated: str, verdict: str, spec=None, *,
-                                 window=None) -> dict | None:
+                                 window=None, _sys: str = "") -> dict | None:
     """The model's only call RE-OPENED what was already on screen, and the verdict names an action on that card
     that needs a payload only a model can write — ask once, for that call. `{widget_id, action, payload}` or None.
 
@@ -186,8 +212,8 @@ async def call_for_repeated_view(operator_text: str, widget_id: str, repeated: s
         got: list[tuple[str, dict]] = []
         from nucleo.flash.fast_client import FastClient
         await FastClient().complete(
-            [{"role": "system", "content": _SYS_REPEAT.format(wid=wid, repeated=repeated, verdict=verdict,
-                                                              actions=_actions_block(manifest), card=card)},
+            [{"role": "system", "content": (_sys or _SYS_REPEAT).format(wid=wid, repeated=repeated, verdict=verdict,
+                                                                     actions=_actions_block(manifest), card=card)},
              {"role": "user", "content": f"Operador: «{operator_text.strip()[:400]}»" + conversation(window)}],
             spec=spec, max_tokens=400, tools=[tool], no_thinking=True,
             on_tool_call=lambda name, args: got.append((name, args if isinstance(args, dict) else {})))
