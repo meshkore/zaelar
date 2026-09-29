@@ -90,5 +90,15 @@
   },
   "live_title": true,
   "fullscreen": "native",
-  "security": "standard"
+  "security": "standard",
+  "collections": {
+    "sections": {
+      "id": "n",
+      "label": "title",
+      "from": "view",
+      "ops": [
+        "list"
+      ]
+    }
+  }
 }

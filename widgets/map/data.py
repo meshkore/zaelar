@@ -155,7 +155,7 @@ def _locate(places: list, near: str, deadline: float) -> tuple[list, list]:
 def view_data(q: str = "") -> dict:
     try:
         db = _load()
-        return {k: db.get(k) for k in _seed()}
+        return {**{k: db.get(k) for k in _seed()}, "empty": not (db.get("places") or [])}   # V2-776 L2
     except Exception as e:  # noqa: BLE001 — never raise from the hot path
         return {**_seed(), "error": str(e)[:160]}
 

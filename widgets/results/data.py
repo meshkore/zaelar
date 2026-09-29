@@ -433,6 +433,7 @@ def view_data(q: str = "") -> dict:
     if _sc:
         if not (float(_sc.get("at") or 0) and (_tm.time() - float(_sc.get("at") or 0)) <= 120):
             data.pop("scroll", None)
+    data["empty"] = not data["items"]                # V2-776 L2 — the harness reads emptiness, never guesses it
     if not data["items"]:
         data.setdefault("note", "Sin resultados todavía.")
         data.pop("view", None)                   # no items ⇒ there is nothing to be showing the detail OF

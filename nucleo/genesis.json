@@ -115,5 +115,10 @@
       ],
       "brief": "Pide lo que falta antes de comprometer nada, confirma con la otra parte el día, la hora y el número de personas, y no des por hecha una reserva que no te han confirmado."
     }
+  },
+  "circuit": {
+    "_comment": "V2-776 L3 — THE CIRCUIT: a request is born with its end state (nucleo/spec.py), the pulse re-verifies it, and a worker's ending is judged against it (nucleo/circuit.py). `retries` = how many times an UNMET end state is relaunched carrying what is missing before the truth is told («hemos probado dos o tres veces, no somos capaces» — the operator, 2026-09-29); `ask_on_give_up` = whether a gave-up ending parks ONE retry on his answer. Overridable per install in <workspace>/config/circuit.json.",
+    "retries": 2,
+    "ask_on_give_up": true
   }
 }

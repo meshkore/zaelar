@@ -450,5 +450,23 @@
       "player_error": false
     }
   },
-  "security": "standard"
+  "security": "standard",
+  "collections": {
+    "search_results": {
+      "id": "videoId",
+      "label": "title",
+      "from": "view",
+      "ops": [
+        "list"
+      ]
+    },
+    "list": {
+      "id": "videoId",
+      "label": "title",
+      "from": "view",
+      "ops": [
+        "list"
+      ]
+    }
+  }
 }

@@ -31,10 +31,14 @@ def _language() -> str:
         return ""
 
 
-def _messages(goal: str, summary: str, ok: bool) -> list[dict]:
+def _messages(goal: str, summary: str, ok: bool, verdict: str = "") -> list[dict]:
     lang = _language()
     in_lang = f"Say it in {lang}." if lang else "Say it in the language of the request."
-    outcome = "It is done." if ok else "It could not be completed."
+    # V2-776 L3 — the outcome sentence is the CIRCUIT's verdict, never the worker's `ok`: «done» only over met,
+    # «done, unverified» over an end state nobody could read, «what is missing» over a gave-up ending.
+    from nucleo import circuit as _circuit
+    outcome = _circuit.outcome_line(verdict, ok)
+    rules = _circuit.voice_rules_line()
     return [
         {"role": "system",
          "content": (
@@ -42,7 +46,8 @@ def _messages(goal: str, summary: str, ok: bool) -> list[dict]:
              f"{outcome} Its full result is already on their screen.\n"
              f"Return ONLY what you will say out loud: at most two short spoken sentences. {in_lang}\n"
              "Name the outcome with its one or two most useful facts (the pick and its price, the date, the "
-             "place). No markdown, no lists, no headings, no links, no symbols to read out.")},
+             "place). No markdown, no lists, no headings, no links, no symbols to read out."
+             + (f"\n{rules}" if rules else ""))},
         {"role": "user", "content": f"Errand: {(goal or '').strip()[:400]}\n\nWorker's report:\n{summary[:3000]}"},
     ]
 
@@ -61,7 +66,7 @@ def clipped(summary: str) -> str:
     return out or text[:_MAX_CHARS].rsplit(" ", 1)[0]
 
 
-async def line(goal: str, summary: str, *, ok: bool = True, timeout: float = _TIMEOUT_S) -> str:
+async def line(goal: str, summary: str, *, ok: bool = True, verdict: str = "", timeout: float = _TIMEOUT_S) -> str:
     """The spoken line for a finished errand — composed in the agent's language, or `clipped(summary)`."""
     if not (summary or "").strip():
         return ""
@@ -75,7 +80,7 @@ async def line(goal: str, summary: str, *, ok: bool = True, timeout: float = _TI
         spec = _spec_for_naming()
         if spec is not None:
             out = await asyncio.wait_for(
-                FastClient().complete(_messages(goal, summary, ok), spec=spec, max_tokens=160, no_thinking=True),
+                FastClient().complete(_messages(goal, summary, ok, verdict), spec=spec, max_tokens=160, no_thinking=True),
                 timeout=timeout)
             said = " ".join(str(out or "").split())
             if said:

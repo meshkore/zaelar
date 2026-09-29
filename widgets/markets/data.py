@@ -152,7 +152,8 @@ def _summary(db: dict) -> str:
 def view_data(q: str = "") -> dict:
     try:
         db = _load()
-        return {**{k: db.get(k) for k in _seed()}, "ranges": list(RANGES), "summary": _summary(db)}
+        return {**{k: db.get(k) for k in _seed()}, "ranges": list(RANGES), "summary": _summary(db),
+                "empty": not str(db.get("symbol") or "")}                                  # V2-776 L2
     except Exception as e:  # noqa: BLE001 — never raise from the hot path
         return {**_seed(), "ranges": list(RANGES), "summary": "", "error": str(e)[:160]}
 

@@ -98,7 +98,8 @@ def view_data(q: str = "") -> dict:
         except Exception:
             pass
     try:
-        return store.load(WID, dict(_SEED))
+        db = store.load(WID, dict(_SEED))
+        return {**db, "empty": not str(db.get("url") or "")}     # V2-776 L2
     except Exception as e:
         return {**_SEED, "error": f"no data: {e}"}
 

@@ -180,9 +180,18 @@ def matches(row: dict, where: dict | None) -> bool:
 
 def _rows(widget_id: str, collection: str) -> list[dict]:
     try:
+        coll = str(collection or "").strip()
+        cspec = spec(widget_id, coll)
+        if str(cspec.get("from") or "") == "view":
+            # V2-776 L2 — a collection the widget DERIVES (what it sent, its headings, a series' occurrences)
+            # is read from its view, never from the store: the store holds rows, the view holds facts.
+            from nucleo import truth as _truth
+            view = _truth.widget_view(widget_id) or {}
+            rows = view.get(str(cspec.get("key") or coll))
+            return [r for r in rows if isinstance(r, dict)] if isinstance(rows, list) else []
         from . import store
         db = store.load(widget_id, {})
-        rows = db.get(str(collection or "").strip())
+        rows = db.get(coll)
         return [r for r in rows if isinstance(r, dict)] if isinstance(rows, list) else []
     except Exception:  # noqa: BLE001
         return []

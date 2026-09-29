@@ -185,7 +185,12 @@ def test_an_UNREADABLE_goal_neither_retries_nor_accuses(agenda, monkeypatch):
 
 def test_the_second_failure_tells_the_operator_the_TRUTH(agenda, monkeypatch):
     """«Iterar hasta que lo consiga» cannot mean forever. When the budget is gone the errand is not
-    delivered as done — it says what is missing, which is the V2-238 rule at this gate."""
+    delivered as done — it says what is missing, which is the V2-238 rule at this gate.
+
+    V2-776 L3: the bound is the operator's (`genesis.circuit.retries`, node 3.105) and a `goal_retried` record
+    counts as one spent try — so this pins the bound to one and measures the truth-telling, not the count."""
+    from nucleo import circuit
+    monkeypatch.setattr(circuit, "settings", lambda: {"retries": 1, "ask_on_give_up": False})
     escalations: list = []
     rec = _finished(_rec(done_when=GONE, goal_retried=True), monkeypatch, escalations)
     assert escalations == [], "no second automatic retry"

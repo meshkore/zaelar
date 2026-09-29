@@ -2194,6 +2194,20 @@ DOMAINS: list[dict] = [
                    # fills the card; the clipping the operator photographed cannot recur), hint only over
                    # an empty player.
                    "tests/browser/unit/youtube/test_the_player_dresses_like_the_product.py"]},
+        # V2-776 L2 (2026-09-29) — the truth is readable: what the demo's cards can attest.
+        {"id": "4.231", "title": "The messaging card declares what it SENT (and what is still leaving) as a read-only "
+                                 "collection from its view; send_to's postcondition is met by the message that left",
+            "ch": UNIT, "paths": ["tests/browser/unit/mensajeria/test_the_card_declares_what_it_sent.py"]},
+        {"id": "4.232", "title": "The document declares its sections and where it is looking; goto's postcondition reads "
+                                 "the focus",
+            "ch": UNIT, "paths": ["tests/browser/unit/documento/test_the_document_declares_its_sections.py"]},
+        {"id": "4.233", "title": "The player's search results and its list are read-only collections a spec can name",
+            "ch": UNIT, "paths": ["tests/browser/unit/youtube/test_the_players_lists_are_collections.py"]},
+        {"id": "4.234", "title": "The agenda attests occurrences: a series is one row and several days",
+            "ch": UNIT, "paths": ["tests/browser/unit/agenda/test_the_agenda_attests_its_occurrences.py"]},
+        {"id": "4.235", "title": "Every card the demo shows declares whether it is empty, and the harness reads the "
+                                 "error value, not the key",
+            "ch": UNIT, "paths": ["tests/browser/unit/test_a_card_declares_when_it_is_empty.py"]},
         # Live, 2026-09-29: a pasted `watch?v=` link played with the URL as its title; a pasted `results?search_query=`
         # link was searched as the WHOLE sentence, `+` signs and all.
         {"id": "4.236", "title": "A pasted YouTube link is parsed, never read: a watch link gets its title, a results "
@@ -2430,6 +2444,16 @@ DOMAINS: list[dict] = [
                                   "tests/voice/unit/providers/test_a_tag_show_names_its_card.py"]},
         # V2-776 (2026-09-27): «Open the best value option» abre la tarjeta cuya ETIQUETA dice «Best value» — la hoja
         # solo casaba títulos y ordinales (abierto desde la v5 de la mañana como «S3 falla el detail»).
+        # V2-776 L3 (2026-09-29) — one loop, one bound, one report.
+        {"id": "3.105", "title": "A worker's ending is judged by the circuit: unmet → relaunched carrying what is missing, "
+                                 "bounded by genesis, then the truth; a gave-up ending parks ONE retry on his answer; the "
+                                 "pulse re-verifies every open spec",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_the_circuit_judges_the_ending.py"]},
+        {"id": "3.106", "title": "A forced ending (budget kill, stall) asks the circuit for the end state before it speaks",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_an_ending_is_spoken_as_its_verdict.py"]},
+        {"id": "3.107", "title": "What the operator hears at the end is the verdict: done only over met, done-unverified "
+                                 "over unverifiable, what is missing over gave_up — obeying his voice rules",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_an_ending_is_spoken_as_its_verdict.py"]},
         {"id": "3.104", "title": "An errand's end state is born where the commission is recorded, persisted on its "
                                  "row, asked for once when the escalation brought none, and told to the worker",
             "ch": UNIT,
@@ -3386,6 +3410,10 @@ DOMAINS: list[dict] = [
         # the money gate read the fast brain's own «do not buy» as a charge, the core guard matched inside
         # «stock»/«report», and a 25-second audit escalated a search the fast brain had resolved meanwhile.
         # V2-776 L (2026-09-29) — the circuit: a request is born with its end state.
+        {"id": "2.184", "title": "A docked card is not on screen for any reader (harness, live state), and a collection "
+                                 "a widget declares from its view is read from the view",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/flash/test_a_docked_card_is_not_on_screen_for_any_reader.py"]},
         {"id": "2.183", "title": "A request is born with its end state: a widget action's postcondition renders "
                                  "from its manifest, the readers never guess, the door opens the spec before the "
                                  "op, and a verdict completion may only fire what attests the phrase's end state",

@@ -27,70 +27,14 @@ from loguru import logger
 
 
 def check_and_relay(rec, relay_cap: int) -> None:
-    """Measure the declared end state and act on it. Mutates `rec`; never raises."""
-    # ── V2-707 F2 · THE HARNESS: a task does not end because the worker SAYS it ended ───────────────
-    # The operator, 2026-09-16: «tiene que saber identificar la tarea que ha propuesto el usuario y
-    # determinar cuál es la manera de medir el éxito. Y así, después de todo el proceso, podemos ver si
-    # hemos llegado a ese punto. Si no hemos llegado, entiendo que es capaz de iterar hasta que lo
-    # consiga. Y si hiciéramos ese bucle, probablemente muchas tareas no quedarían huérfanas o a medias.»
-    #
-    # Until now this seam closed on `rec.ok`, which the worker sets itself, while `_METHOD_BLOCK` asked
-    # it in PROSE to verify and iterate — a rail on judgement, and the class of thing `principles.md`
-    # says to replace with a mechanism. The condition is still the model's to write (`hbnote goal`: it
-    # is the one that understood the errand); the CHECK is the engine's, against the product's own truth.
-    #
-    # Three answers and only one of them retries. `None` — nothing declared, or unreadable — is NEVER a
-    # failure: that is the V2-660 rule kept verbatim, because a wrong «you did not deliver» over a
-    # delivered errand is worse than silence, and an unreadable widget must not open a retry loop.
-    if rec.status != "cancelled" and not rec.handoff and getattr(rec, "done_when", None):
-        try:
-            from nucleo import verify as _verify
-            met = _verify.check(rec.done_when)
-        except Exception as e:  # noqa: BLE001
-            logger.debug(f"worker[{rec.task_id}]: el arnés no pudo leer el objetivo ({e!r})")
-            met = None
-        if met is False:
-            falta = "; ".join(_verify.missing(rec.done_when)) or "el objetivo declarado no se cumple"
-            if not rec.goal_retried and rec.relay_gen < relay_cap:
-                # ITERATE — once, and carrying WHAT IS MISSING, so the relaunch starts from the gap
-                # instead of from zero. Same machinery as the context and provider relays above; the
-                # cap is what stops «iterate until it works» becoming a worker that never stops.
-                rec.goal_retried = True
-                try:
-                    from nucleo.flash import escalate as _esc
-                    _esc.escalate_to_slowbrain(
-                        f"{rec.goal}\n\n[ARNÉS] Esto quedó SIN cumplir y es lo que hay que terminar: "
-                        f"{falta}. Lo demás ya está hecho: no lo repitas.",
-                        context={"src": "goal_unmet", "kind": rec.kind, "trace": rec.trace_id,
-                                 "sheet": str(getattr(rec, "sheet", "") or ""),
-                                 "surface": str(getattr(rec, "surface", "") or ""),
-                                 "done_when": dict(rec.done_when),
-                                 "depth": int(rec.depth or 0),
-                                 "relay_gen": int(rec.relay_gen or 0) + 1,
-                                 # V2-728 — the same commission, iterating; not a second task.
-                                 "task_uid": str(getattr(rec, "uid", "") or "")})
-                    rec.result_summary = ""       # sin entrega: la retoma el relevo, sin ruido
-                    rec.ok = False
-                    rec.handoff = f"objetivo sin cumplir → retomada ({falta[:80]})"
-                    logger.warning(f"worker[{rec.task_id}]: objetivo SIN cumplir → relanzada · {falta}")
-                except Exception as e:  # noqa: BLE001
-                    logger.warning(f"worker[{rec.task_id}]: no pude relanzar por objetivo: {e}")
-                    rec.ok = False
-            else:
-                # No budget left. Then the operator hears the TRUTH, which is the other half of the
-                # same rule: an errand nobody could finish must never be delivered as a finished one.
-                rec.ok = False
-                rec.result_summary = (f"No he podido dejarlo terminado. Queda: {falta}."
-                                      + (f" {rec.result_summary.strip()}" if rec.result_summary.strip() else ""))
-        try:
-            from voice.observer import emit as _emit
-            _emit("task", {True: "✅ arnés: objetivo CUMPLIDO y verificado",
-                           False: "❌ arnés: objetivo SIN cumplir",
-                           None: "🤷 arnés: objetivo no verificable — no se afirma nada"}[met],
-                  text=_verify.describe(rec.done_when),
-                  extra={"id": rec.task_id, "met": met, "retried": bool(rec.goal_retried)})
-        except Exception:  # noqa: BLE001
-            pass
+    """Measure the declared end state and act on it. Mutates `rec`; never raises.
+
+    V2-776 L3 — the judgement moved to `nucleo/circuit.py`, one place for every ending: the bound is the
+    operator's (`genesis.circuit.retries`), its count lives on the spec (persisted on the task row), unreadable
+    is a verdict of its own, and a gave-up ending parks ONE retry on his answer. This name stays because
+    `session._finish` and the tests drive it."""
+    from nucleo import circuit as _circuit
+    _circuit.close(rec, relay_cap)
 
 
 def session_goal(tid, done_when: dict) -> None:

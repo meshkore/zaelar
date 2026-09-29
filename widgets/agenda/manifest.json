@@ -463,6 +463,15 @@
         "patch": "rename_list",
         "put": "add_list"
       }
+    },
+    "occurrences": {
+      "id": "title",
+      "label": "title",
+      "from": "view",
+      "key": "meetings",
+      "ops": [
+        "list"
+      ]
     }
   },
   "security": "standard"

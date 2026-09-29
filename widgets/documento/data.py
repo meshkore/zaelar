@@ -162,7 +162,18 @@ def view_data(q: str = "") -> dict:
         "empty": not (body or src),
         "process": _process(db),
         "focus": db.get("focus") if isinstance(db.get("focus"), dict) else None,   # V2-773 — set by `goto`
+        # V2-776 L2 — the headings as rows: «go to the part about proof of work» has a section to be attested.
+        "sections": _sections(body),
     }
+
+
+def _sections(body: str) -> list:
+    out = []
+    for b in _blocks(body):
+        if b.startswith("#"):
+            level = len(b) - len(b.lstrip("#"))
+            out.append({"n": len(out) + 1, "title": b.lstrip("# ").strip(), "level": level})
+    return out
 
 
 # ── the errand binding (V2-644) — called by `nucleo/docsheet.py`, never by a worker action ──────────────────

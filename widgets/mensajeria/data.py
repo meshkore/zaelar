@@ -13,6 +13,7 @@ import time
 from .. import store
 from . import drafts as _drafts
 from . import outbound as _outbound
+from . import sent as _sent
 # The READ side lives in views.py since V2-624 (the architecture ratchet's extraction, along the real seam:
 # name resolution, the thread/activity views, peek, the autoresponder previews, and — since V2-626 — the
 # open reference and the effective notify policy). One direction only —
@@ -238,6 +239,8 @@ def view_data(q: str = "") -> dict:
         # but has not sent yet. `target` names WHAT it would go to, so a stale draft from a conversation that
         # is no longer open never gets rendered against the wrong screen.
         "draft": db.get("draft") or None,
+        # V2-776 L2 — what this card SENT (and what is still leaving), the rows `send_to`'s postcondition reads.
+        "sent": _sent.rows(db),
         # V2-680 — one draft PER CONVERSATION, keyed by `_draft_key`. Before this there was exactly one
         # draft in the whole widget, so starting a reply to a second conversation silently destroyed the
         # first. The widget reads its own screen's key out of this map; `draft` above stays the most recent.

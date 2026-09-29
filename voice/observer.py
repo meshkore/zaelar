@@ -75,6 +75,9 @@ _CAT = {
     # is not a process — it survives restarts, it waits hours between moves, and «when did this wake and what
     # did it decide» has to be countable apart from a worker's steps.
     "errand": "worker",
+    # `spec` (V2-776 L1): a request's measurable end state — born, met, unmet, unreadable. Family `worker`, beside
+    # `task` and `errand`, because it is the ledger those endings are judged against.
+    "spec": "worker",
     # ── Memory (ON)
     "memory": "memory",
     # ── Widgets (ON) — EVERY command against the canvas: show/close/move, data-ops (raise volume, maximize…),

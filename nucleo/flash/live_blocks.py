@@ -775,14 +775,15 @@ def done_ops_lines() -> list[str]:
 
 
 def _is_open(wid: str) -> bool:
-    """Whether a card of this widget (base id or any of its instances) is open now. Fail-open to True: a state
-    that cannot be read must not add a warning that may be false."""
+    """Whether a card of this widget (base id or any of its instances) is ON SCREEN now — open minus minimized
+    (V2-776 L2, the one reader in `nucleo/truth.py`). Fail-open to True: a state that cannot be read must not
+    add a warning that may be false."""
     try:
-        from memory import api as _memapi
-        open_now = {str(w).strip() for w in ((_memapi.state() or {}).get("open_widgets") or [])}
+        from nucleo import truth as _truth
+        state = _truth.canvas_state(wid)
     except Exception:  # noqa: BLE001
         return True
-    return any(w == wid or w.split("::", 1)[0] == wid for w in open_now)
+    return True if state is None else state in ("visible", "maximized")
 
 
 from nucleo.flash.task_block import _short_note, pending_task_lines, record_lines  # noqa: E402,F401 — re-export

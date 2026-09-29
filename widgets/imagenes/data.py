@@ -93,6 +93,7 @@ def view_data(q: str = "") -> dict:
         # V2-589 slideshow: widget.js re-arms its one-shot timer from these; producers reads `auto` too.
         "auto": bool(db.get("auto")),
         "every_s": int(db.get("every_s") or 6),
+        "empty": not items,                                  # V2-776 L2
     }
 
 

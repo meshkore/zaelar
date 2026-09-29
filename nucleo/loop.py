@@ -324,7 +324,21 @@ class OrchestratorLoop:
                 except Exception:  # noqa: BLE001
                     pass
                 goal = (s.get("goal") or self._lang().generic_task)[:60]
-                await self._deliver("zaelar", self._say("worker_budget_killed", goal=goal))
+                # V2-776 L3 — beside the clock, the END STATE: what he asked about is whether it got done.
+                note = ""
+                try:
+                    from nucleo import circuit as _circuit
+                    _rec = dispatch.get_record(tid)
+                    _v, _missing = _circuit.ending_note(_rec) if _rec is not None else ("", "")
+                    if _v == "met":
+                        note = " " + self._say("worker_end_state_met")
+                    elif _v == "unmet":
+                        note = " " + self._say("worker_end_state_unmet", missing=_missing[:160])
+                    elif _v == "unverifiable":
+                        note = " " + self._say("worker_end_state_unverifiable")
+                except Exception:  # noqa: BLE001
+                    note = ""
+                await self._deliver("zaelar", self._say("worker_budget_killed", goal=goal) + note)
                 continue
             if budget > 0 and age >= budget and tid not in self._budget_nudged:
                 # PHASE 1: urge it to DELIVER NOW (piggyback/stdin) — the worker closes with what it has.
@@ -423,6 +437,13 @@ class OrchestratorLoop:
                 await harness.sweep(now)
         except Exception as e:  # noqa: BLE001
             logger.debug(f"harness sweep skipped: {e}")
+        # V2-776 L3 — the circuit's ledger (inline actions and errands alike), re-verified here; met ones close
+        # with their event. No voice: the ending that meets a spec speaks for itself.
+        try:
+            from nucleo import circuit as _circuit
+            _circuit.tick(now)
+        except Exception as e:  # noqa: BLE001
+            logger.debug(f"circuit tick skipped: {e}")
 
     async def _supervise_stale_flows(self, now: float) -> None:
         """Closes a CONVERSATIONAL flow the operator started and then walked away from (2026-08-16, operator
@@ -481,6 +502,9 @@ class OrchestratorLoop:
                 worker_ask_generic = "Oye, uno de los procesos en marcha pregunta: {question}"
                 worker_budget_killed = ("He parado «{goal}»: agotó su tiempo. Te dejo en la tarjeta lo que ha "
                                        "encontrado hasta ahora.")
+                worker_end_state_met = "Aun así, lo que pediste sí quedó hecho: lo he comprobado."
+                worker_end_state_unmet = "Lo que pediste no quedó hecho: queda {missing}."
+                worker_end_state_unverifiable = "No he podido comprobar si lo que pediste quedó hecho."
                 worker_timeout_running = "El proceso «{goal}» lleva ya {minutes} minutos. ¿Quieres que lo pare o que siga?"
                 worker_stuck = ("El proceso «{goal}» lleva {minutes} minutos sin dar señales. Si no reacciona en "
                                 "un par de minutos lo reinicio una vez.")

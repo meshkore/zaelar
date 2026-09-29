@@ -374,6 +374,14 @@
       "ops": [
         "list"
       ]
+    },
+    "sent": {
+      "id": "id",
+      "label": "body",
+      "from": "view",
+      "ops": [
+        "list"
+      ]
     }
   },
   "security": "standard"

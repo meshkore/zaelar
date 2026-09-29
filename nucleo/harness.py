@@ -99,26 +99,22 @@ def reset() -> None:
 
 # ── the verifiers (the RESOURCE half: read the product's own truth, never a copy of it) ─────────────────
 async def _widget_view(wid: str) -> dict | None:
+    """V2-776 L2 — the one reader (`nucleo/truth.py`): the instance rides as `q`, and an `error` VALUE is what
+    makes a view unreadable — not the key (four seeds always carry `error: ""`)."""
     try:
-        from widgets.server_api import run_widget_hook, MISSING
-
-        def call(view_data):
-            try:
-                return view_data(q="")
-            except TypeError:
-                return view_data()
-        res = await run_widget_hook(wid, "view_data", call)
-        return res if isinstance(res, dict) and res is not MISSING else None
+        from nucleo import truth as _truth
+        return _truth.widget_view(wid)
     except Exception as e:  # noqa: BLE001
         logger.debug(f"harness: view of {wid} unreadable: {e}")
         return None
 
 
 def _card_is_open(wid: str) -> bool | None:
+    """On screen = open minus minimized (pass 59, S1: a docked sheet counted as open)."""
     try:
-        from memory import api as memory
-        opened = {str(w).strip().lower() for w in (memory.state().get("open_widgets") or [])}
-        return wid in opened
+        from nucleo import truth as _truth
+        state = _truth.canvas_state(wid)
+        return None if state is None else state in ("visible", "maximized")
     except Exception:
         return None
 
@@ -132,7 +128,7 @@ async def verify(goal: dict) -> bool | None:
     out: bool | None = None
     if goal["kind"] == KIND_WIDGET_CONTENT:
         view = await _widget_view(goal["target"])
-        if not view or "empty" not in view or "error" in view:
+        if not view or "empty" not in view or str(view.get("error") or "").strip():
             out = None                       # a widget that does not declare emptiness is unverifiable
             if goal.get("last_seen") != "unreadable":
                 _emit("🫥 arnés: objetivo NO verificable — la tarjeta no declara si está vacía", goal)

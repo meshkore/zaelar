@@ -122,6 +122,7 @@ def _live_fields(db: dict) -> dict:
         "yt": _yt_display(yt),
         "local": loc,
         "mode": mode,
+        "empty": mode == "idle",                             # V2-776 L2 — nothing playing, nothing to attest
     }
 
 
