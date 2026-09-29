@@ -80,7 +80,7 @@ def _widget_data_tool() -> dict | None:
         return None
 
 
-def after_the_repair(spoken: str, promised: bool) -> str:
+def after_the_repair(spoken: str, promised: bool, widget_id: str = "", action: str = "") -> str:
     """What the VOICE adds once the second pass has carried out an order the model's words did not promise.
 
     Demo pass 31 (2026-09-28, E4): «leave that inworld one as unread» — the model called nothing and said «there's
@@ -91,6 +91,14 @@ def after_the_repair(spoken: str, promised: bool) -> str:
     act, or when nothing was said (the ordinary data ack covers that)."""
     if promised or not (spoken or "").strip():
         return ""
+    try:
+        # …and a repaired LOOK changes nothing to acknowledge (demo pass 42, C2: «…want me to put it on your calendar
+        # at 4?» + a repaired `find_free` → «…at 4?Done.»). Its answer, if one is owed, comes from the op's data.
+        from nucleo.flash import data_ops as _dops
+        if widget_id and action and _dops.is_view_op(widget_id, action):
+            return ""
+    except Exception:  # noqa: BLE001
+        pass
     try:
         from voice.engine.core import langs as _langs
         return " " + (_langs.current_language().data_ack or "").strip()

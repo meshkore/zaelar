@@ -2694,7 +2694,8 @@ class NucleoLLMStream(llm.LLMStream):
                      text=f"{_ar['widget_id']}:{_ar['action']}", role="system",
                      extra={"cat": "flash", "widget": _ar["widget_id"], "action": _ar["action"]})
                 # the words did not promise it (they may have REFUSED it): what was done is said after them
-                _ar_tail = _act_repair.after_the_repair(spoken_text, _router.promises_action(spoken_text))
+                _ar_tail = _act_repair.after_the_repair(spoken_text, _router.promises_action(spoken_text),
+                                                        _ar["widget_id"], _ar["action"])
                 if _ar_tail:
                     send(speech.sanitize(_ar_tail, drop_metadata=False))
                     spoken_text = spoken_text + _ar_tail
