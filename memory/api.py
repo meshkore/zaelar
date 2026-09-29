@@ -35,7 +35,7 @@ __all__ = [
     "start", "stop",
     "write", "write_now", "ingest_message", "correction_targets", "widget_trace_ids", "task_trace_ids", "reinforce", "reinforce_ids_for", "pin", "unpin", "link",
     "forget", "unforget", "clear_conversation", "clear_slot_prefix",
-    "state", "set_state", "compose_state", "add_user_rule", "remove_user_rule",
+    "state", "set_state", "compose_state", "add_user_rule", "remove_user_rule", "rules_for",
     "kv_get", "kv_set",
     "query", "recent_short", "recent_window", "recent_by_source", "by_concepts",
     "seconds_since_last_conv",
@@ -620,10 +620,34 @@ def action_map_hit(entry_id: int) -> None:
         pass
 
 
-def add_user_rule(text: str) -> list:
+# Scope of a spoken rule (2026-09-29): the rule TEXT stays a flat list of strings (every old reader keeps working);
+# its scope, when it is not the default, lives beside it in `state.rule_scopes` {normalised text: scope}. The
+# scope is decided by the CALLER with a fixed classifier (`nucleo.style_policy.scope_of`) — memory owes nucleo
+# nothing, so it never classifies. `general` = every prompt that carries the memory context, exactly what every
+# rule did before; `voice` = how the voice speaks (acks, fillers, brevity, tone), which the brain worker never
+# needs and used to receive («Reglas del operador: no me confirmes las órdenes» in a browser errand's dossier).
+RULE_SCOPE_DEFAULT = "general"
+#: which scopes each prompt SURFACE carries. Unknown surface → everything (fail open, like before).
+_RULES_BY_SURFACE = {"voice": None, "worker": ("general",)}
+
+
+def rules_for(surface: str, st: dict | None = None) -> list:
+    """The operator's rules this SURFACE carries, in their stored order: `voice` gets all of them, `worker` only
+    the general ones. `st` lets a caller that already read the state avoid a second read."""
+    st = st if isinstance(st, dict) else state()
+    rules = [str(r).strip() for r in (st.get("rules") or []) if str(r).strip()]
+    scopes = st.get("rule_scopes") if isinstance(st.get("rule_scopes"), dict) else {}
+    wanted = _RULES_BY_SURFACE.get(str(surface or ""), None)
+    if wanted is None:
+        return rules
+    return [r for r in rules if scopes.get(_norm_rule(r), RULE_SCOPE_DEFAULT) in wanted]
+
+
+def add_user_rule(text: str, scope: str = RULE_SCOPE_DEFAULT) -> list:
     """Añade (o refuerza) una USER RULE del operador. Dedup por texto normalizado (re-decirla la sube a la más
     reciente), cap `_RULES_CAP` (fuera la más antigua). Devuelve la lista vigente. Emite memory.updated (por
-    set_state) → memory_cache recompone el ESTADO off-loop. Llamar SIEMPRE fuera del turno (to_thread)."""
+    set_state) → memory_cache recompone el ESTADO off-loop. Llamar SIEMPRE fuera del turno (to_thread).
+    `scope` (ver `rules_for`): el ámbito que el llamador decidió; el default es «a todos», como siempre."""
     t = (text or "").strip().rstrip(".") if text else ""
     if not t:
         return list(state().get("rules") or [])
@@ -632,7 +656,14 @@ def add_user_rule(text: str) -> list:
     cur = [r for r in cur if _norm_rule(r) != key]     # dedup: la nueva versión manda
     cur.append(t)
     cur = cur[-_RULES_CAP:]
-    set_state({"rules": cur})
+    keep = {_norm_rule(r) for r in cur}
+    scopes = dict(state().get("rule_scopes") or {}) if isinstance(state().get("rule_scopes"), dict) else {}
+    scopes = {k: v for k, v in scopes.items() if k in keep}      # the cap drops a rule's scope with the rule
+    if scope and scope != RULE_SCOPE_DEFAULT:
+        scopes[key] = str(scope)
+    else:
+        scopes.pop(key, None)
+    set_state({"rules": cur, "rule_scopes": scopes})
     return cur
 
 
@@ -657,7 +688,9 @@ def remove_user_rule(text: str) -> tuple[list, str]:
     if best_score < 0.45:      # sin señal suficiente → no retirar la regla equivocada
         return cur, ""
     cur = [r for r in cur if r != best]
-    set_state({"rules": cur})
+    scopes = dict(state().get("rule_scopes") or {}) if isinstance(state().get("rule_scopes"), dict) else {}
+    scopes.pop(_norm_rule(best), None)
+    set_state({"rules": cur, "rule_scopes": scopes})
     return cur, best
 
 # Cómo se lee cada estado de un run de rail en el prompt (V2-042). SOLO DATOS (la directiva de qué hacer con un

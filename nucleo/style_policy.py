@@ -14,6 +14,11 @@ Layering, exactly as the operator ordered it:
      an mtime cache — so a rule given by voice or chat GOVERNS THE VERY NEXT TURN, and survives restarts.
      Removing the rule (`retract_directive`) deletes the override and the genesis default is back.
 
+  3. SCOPE (2026-09-29): a spoken rule is stored with the scope `scope_of` gives it — `voice` for a manner
+     of speaking, `general` for everything else — and each prompt surface asks `memory.rules_for(surface)`
+     for its own: the brain worker no longer carries voice rules. Genesis is already per domain (style,
+     consent, library, errands, playbooks), each with its own override file.
+
 Scope: these flags gate the VOICE mouths only. The chat channel keeps its text acks — a written «Hecho.»
 interrupts nobody, while an empty chat bubble looks broken; the probe (text-channel parity harness) is
 untouched for the same reason.
@@ -151,6 +156,30 @@ def _flags_for(text: str) -> dict:
     elif _POS_FILLER_RE.search(n):
         flags["fillers"] = "on"
     return flags
+
+
+# ── The SCOPE of a spoken rule (2026-09-29): which prompts carry it ───────────────────────────────────────
+# Rules are hierarchical: genesis per domain (style/consent/library/errands/playbooks, each with its own override
+# file) and, above it, the operator's spoken rules — which used to be ONE flat list riding into every prompt that
+# carries the memory context, the brain worker's dossier included. A fixed classifier names the scope when the
+# rule is set; nothing here is a model. `voice` = a manner of speaking (what the style flags govern, plus brevity,
+# tone and address); anything not recognised with certainty stays `general` = everywhere, as before.
+_VOICE_MANNER_RE = re.compile(
+    r"\b(?:breve\w*|cort[ao]s?|conciso|escueto|una frase|frases?|palabras?|tono|trat\w+ de (?:usted|tu)|"
+    r"hablame de (?:usted|tu)|no (?:me )?narr\w*|sin narrar|verborrea|"
+    r"brief|short(?:er)?|concise|one sentence|sentences?|fewer words|tone|verbose|"
+    r"muletilla\w*|coletilla\w*|relleno\w*|fillers?|hecho|confirm\w*)\b")
+
+
+def scope_of(text: str) -> str:
+    """`"voice"` when the rule is about how the voice speaks, else `"general"`. Deterministic; the doubt goes to
+    `general`, which is exactly what every rule got before scopes existed."""
+    n = _norm(text)
+    if not n:
+        return "general"
+    if _flags_for(n):
+        return "voice"
+    return "voice" if _VOICE_MANNER_RE.search(n) else "general"
 
 
 def apply_directive(text: str) -> dict:

@@ -23,12 +23,13 @@ def handle(directive: str, text: str, brain, emit, spawn) -> bool:
     async def _persist_rule(d: str, removal: bool) -> None:
         try:
             from memory import api as _mem
+            from nucleo import style_policy as _stylep      # the scope the rule is stored with (fixed classifier)
             if removal:
                 _, gone = await asyncio.to_thread(_mem.remove_user_rule, d)
                 emit("brain", "🧬 user rule retirada" if gone else "🧬 user rule: sin match para retirar",
                      text=(gone or d)[:100], role="system")
             else:
-                await asyncio.to_thread(_mem.add_user_rule, d)
+                await asyncio.to_thread(_mem.add_user_rule, d, scope=_stylep.scope_of(d))
                 emit("brain", "🧬 user rule guardada (persiste)", text=d[:100], role="system")
         except Exception as e:  # noqa: BLE001
             logger.warning(f"user rule no persistida (voz sigue): {e}")
@@ -142,7 +143,7 @@ async def handle_probe(d: str, text: str, sess, ingest: bool):
             try:
                 from memory import api as _memapi
                 _stylep.apply_directive(d)
-                await asyncio.to_thread(_memapi.add_user_rule, d)
+                await asyncio.to_thread(_memapi.add_user_rule, d, scope=_stylep.scope_of(d))
             except Exception:
                 pass
     return None

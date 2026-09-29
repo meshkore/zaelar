@@ -3358,6 +3358,9 @@ DOMAINS: list[dict] = [
         # named card, only a declared action — before the backstop spends a worker on it.
         # Demo pass 2026-09-28 (V2-776 E) — the fixes of the passes, one node each.
         # Demo passes 33-54 (2026-09-29) — the audit's fixes, one node each.
+        {"id": "2.172", "title": "A spoken rule carries a scope: a manner of speaking stays out of the worker's dossier",
+            "ch": UNIT,
+            "paths": ["tests/memory/unit/test_a_voice_rule_stays_out_of_the_worker_dossier.py"]},
         {"id": "2.171", "title": "A fast listing pass that outlives its budget does not leave the turn mute",
             "ch": UNIT,
             "paths": ["tests/agent_headless/unit/flash/test_a_slow_listing_pass_does_not_mute_the_turn.py"]},

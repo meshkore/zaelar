@@ -21,6 +21,19 @@ entregada siga citada aquí.
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **A spoken rule carries a scope; the worker gets only its own (V2-776 H, 2026-09-29)**: the operator asked for
+  rules to be HIERARCHICAL — genesis per domain, and each prompt composed with only the rules that apply to it —
+  and for a fixed algorithm to decide, never a model. Measured first: genesis already is per domain (`style`,
+  `consent`, `library`, `errands`, `playbooks`, each with its own override file), and what had no hierarchy was
+  the spoken rule: `state.rules`, a flat list of ≤8 sentences riding into every prompt that carries the memory
+  context, the brain worker's dossier included («Reglas del operador: no me confirmes las órdenes» inside a
+  browser errand). Now `style_policy.scope_of` names the scope when the rule is set (`voice` = a manner of
+  speaking — the style flags plus brevity, tone, address; the doubt stays `general` = everywhere, exactly as
+  before), memory keeps it beside the text (`state.rule_scopes`; the list itself does not change shape) and
+  `memory.rules_for(surface)` serves each composer its own: the worker drops `voice`. Left for after the demo:
+  `widget:<id>` rules injected only with the card open (the `usage` seam in `brief.py`), and `errand` rules.
+  Found and not touched: the consent directive parser has no production caller; a factory reset keeps
+  `config/style.json`.
 - **One short line at most: a wordless act gets one ack, and «Done.» after a repair only over a denial (V2-776 G,
   2026-09-29)**: measured over 1,171 demo turns, the model answers 48 % of orders with a tool call and no words. The
   genesis of V2-633 kept the short ack OFF, so the same class of order came out sometimes spoken («Back to normal

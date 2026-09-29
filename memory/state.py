@@ -51,6 +51,10 @@ _DEFAULT: dict = {
     # provider al reconocer una regla (tool set_style_directive) vía memory.add_user_rule; la lee compose_state §B.
     # Es la capa APRENDIDA frente a las BRAIN RULES (genética primigenia hardcodeada). Ver V2-046-sistema-arena.
     "rules": [],
+    # 2026-09-29 — el ÁMBITO de cada regla dicha, {texto normalizado: scope}, solo cuando no es el default
+    # («general» = todos los prompts). Lo decide el llamador con un clasificador fijo (`style_policy.scope_of`);
+    # `memory.rules_for(surface)` lo lee. La lista de arriba no cambia de forma: los lectores viejos siguen igual.
+    "rule_scopes": {},
     "location": None,
     "recent": [],             # tareas/mensajes recientes (lista corta)
     "topics": [],             # temas hablados recientemente

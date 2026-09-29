@@ -113,7 +113,7 @@ DECLARED_SURFACE = {
     # is erased" includes the SEEDING of the window) and the `task.*` slots (the "we are doing X" pills). Soft
     # (`valid=0`), forget doctrine: excluded from all reads, retained for auditing.
     "clear_conversation", "clear_slot_prefix",
-    "state", "set_state", "compose_state", "add_user_rule", "remove_user_rule",
+    "state", "set_state", "compose_state", "add_user_rule", "remove_user_rule", "rules_for",
     "kv_get", "kv_set",
     "query", "recent_short", "recent_window", "recent_by_source", "by_concepts",
     "seconds_since_last_conv",
