@@ -35,8 +35,24 @@ import json
 import sys
 
 
+_USAGE = ['hbmesh find "<errand>"                       # who can serve it (asks nobody)',
+          'hbmesh serve "<errand>" [--prompt "…"] [--field k=v]   # find AND ask, with ABSOLUTE dates']
+_HINT = ("the errand is ONE quoted argument; no other flag exists (no --agent, no bare words after the "
+         "errand). Copy a form above.")
+
+
+class _Parser(argparse.ArgumentParser):
+    """V2-776 K3 (demo passes 56-58): a worker invented `--agent ybana` and passed the errand unquoted, one lost
+    round each time. The usage line IS the worker's guide, so a misuse answers the two exact forms as JSON."""
+
+    def error(self, message):  # noqa: D401
+        print(json.dumps({"ok": False, "reason": message, "usage": list(_USAGE), "hint": _HINT}, ensure_ascii=False))
+        raise SystemExit(2)
+
+
 def main(argv: list[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(prog="hbmesh", description="preguntar a la red MeshKore quién puede hacer esto")
+    ap = _Parser(prog="hbmesh", description="preguntar a la red MeshKore quién puede hacer esto",
+                 epilog="\n".join(_USAGE) + "\n" + _HINT, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     p_find = sub.add_parser("find", help="quién puede servir este encargo (no lo pide)")
