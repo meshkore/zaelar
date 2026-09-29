@@ -40,6 +40,10 @@ _STOP = {
     "what", "who", "whom", "when", "where", "which", "how", "the", "a", "an", "is", "are", "was", "were",
     "do", "does", "did", "have", "has", "had", "i", "my", "of", "on", "at", "in", "for", "with", "and", "or",
     "about", "tell", "show", "give", "said", "says", "say", "from", "there", "read", "latest", "last",
+    # What the model asks the card ABOUT a message, never what the message is about. Every email body starts with
+    # «[Asunto: …]», so «asunto» alone matched the whole inbox (demo pass 59, E1).
+    "asunto", "remitente", "fecha", "cuantos", "cuántos", "total", "subject", "sender", "date", "many", "check",
+    "send", "sent",
 }
 
 
@@ -173,9 +177,11 @@ def read_query(question: str) -> str:
         people = ""
     # The inbox is the newest 30; the ARCHIVE is everything, and what it never indexed is asked of the real
     # mailbox (demo pass 30, E1: «did inworld send me something?» → the receipt was the 34th unread, and the
-    # answer was «nothing from Inworld»). Only when the inbox found nothing: a hit there is fresher.
+    # answer was «nothing from Inworld»). Asked when the inbox found nothing, AND when the question names a word no
+    # message in the inbox carries: demo pass 59 (E1) matched four unrelated mails on a filler word, the archive was
+    # never asked, and the answer was «nothing from Inworld» with the receipt sitting in it.
     past = ""
-    if not inbox:
+    if not inbox or _unexplained(question):
         try:
             from . import views as _views
             past = _views.read_query_answer(question)
@@ -208,3 +214,14 @@ def _inbox_answer(question: str) -> str:
             f"{len(scored)} mensajes de la bandeja encajan con lo que se pregunta"
             + (f" — los {len(rows)} más recientes:" if len(scored) > len(rows) else ":"))
     return "\n".join([head] + rows)
+
+
+def _unexplained(question: str) -> list[str]:
+    """The question's words that no message in the inbox carries — a sender or subject the inbox cannot speak to,
+    so a hit on the other words is not an answer about it."""
+    terms = _terms(question)
+    if not terms:
+        return []
+    hay = [_norm(" ".join(str(it.get(k) or "") for k in ("from", "senderName", "group", "body", "platform", "motivo")))
+           for it in _items()]
+    return [t for t in terms if not any(t in h for h in hay)]
