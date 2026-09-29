@@ -21,6 +21,15 @@ entregada siga citada aquí.
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **One short line at most: a wordless act gets one ack, and «Done.» after a repair only over a denial (V2-776 G,
+  2026-09-29)**: measured over 1,171 demo turns, the model answers 48 % of orders with a tool call and no words. The
+  genesis of V2-633 kept the short ack OFF, so the same class of order came out sometimes spoken («Back to normal
+  size.») and sometimes mute — and the second pass stapled «Done.» onto words that already said it («…it's back to
+  showing as new. Done.», «Yep — putting Madonna on. Done.»), because the promise table is Spanish. The operator's
+  rule, verbatim: «si hay que contestar, que conteste; y si no, que no… como mucho puede decir: ok». One rule now,
+  replacing V2-633's silent default: an order that ran says AT MOST one short line — the model's own, or «Done.»
+  when it said nothing (`nucleo/genesis.json`); the repair tail (`act_repair.after_the_repair`) speaks only when the
+  words DENIED the act (`denies_the_act`, en/es) or asked a question. A spoken rule still turns the ack off.
 - **The audit of demo passes 33-54: seven doors, no new repair pass (V2-776 F, 2026-09-29)**: twenty-two full
   passes overnight, ~50 commits between them, and zero clean passes — the operator asked for an audit first, then
   the fixes. The audit (per-step table over 1,172 turns, root causes, the inventory of every second model call a

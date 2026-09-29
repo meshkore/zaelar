@@ -20,6 +20,7 @@ the turns that fail, and zero on every other turn.
 from __future__ import annotations
 
 import json
+import re
 
 #: What the repair tells the model. Short on purpose: the ask is «make the call you promised», not a new turn.
 _SYS = ("Eres el cerebro de un asistente de voz. En el turno anterior contestaste SIN llamar a ninguna herramienta. "
@@ -80,8 +81,21 @@ def _widget_data_tool() -> dict | None:
         return None
 
 
+# The words that DENY an act — the one case the repaired act has to be said after (see `after_the_repair`).
+# English and Spanish, the two languages the demo and the operator's sessions are measured in.
+_DENIED_RE = re.compile(
+    r"\b(?:can'?t|cannot|can not|couldn'?t|unable to|not something i can|no way (?:to|i can)|there(?:'s| is) no|"
+    r"there(?:'s| is)n'?t (?:a|any)|isn'?t (?:a|any|something)|"
+    r"no puedo|no es algo que pueda|no hay (?:forma|manera|ning[uú]n)|no tengo (?:forma|manera)|no existe)\b", re.I)
+
+
+def denies_the_act(spoken: str) -> bool:
+    """Do the model's words say the act cannot be done? Deterministic and narrow: a can't/there's-no shape."""
+    return bool(_DENIED_RE.search(spoken or ""))
+
+
 def after_the_repair(spoken: str, promised: bool, widget_id: str = "", action: str = "") -> str:
-    """What the VOICE adds once the second pass has carried out an order the model's words did not promise.
+    """What the VOICE adds once the second pass has carried out an order the model's words DENIED.
 
     Demo pass 31 (2026-09-28, E4): «leave that inworld one as unread» — the model called nothing and said «there's
     no unread toggle for a mail message»; the verdict's second pass then marked it unread. The action was done and
@@ -89,7 +103,13 @@ def after_the_repair(spoken: str, promised: bool, widget_id: str = "", action: s
     speak; the voice cannot unsay what already streamed, so it says what happened after it — the same rule as a
     worker stopped by the backstop («never a silent kill»). Nothing is added when the words already promised the
     act, or when nothing was said (the ordinary data ack covers that)."""
+    # One rule (demo passes 55-56, 2026-09-29): the words already carry the act unless they DENIED it. «Right… I
+    # left the Inworld one unread — it's back to showing as new.» and «Yep — putting Madonna on.» both got a
+    # «Done.» stapled on, because the promise table is Spanish and neither is a refusal. A claim or a promise in
+    # any language needs nothing after it; a denial does, and a question gets «went ahead» (below).
     if promised or not (spoken or "").strip():
+        return ""
+    if "?" not in (spoken or "") and not denies_the_act(spoken):
         return ""
     try:
         # …and a repaired LOOK changes nothing to acknowledge (demo pass 42, C2: «…want me to put it on your calendar

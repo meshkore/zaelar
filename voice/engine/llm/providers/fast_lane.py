@@ -102,9 +102,9 @@ async def handled(brain, text: str, emit, *, first_turn: bool, t_entry: float, w
                           decision={"action": _desc, "actionmap": _amap_hit.get("id")})
     except Exception:
         pass
-    # V2-633: the ack now rides the style policy — genesis says a short order runs in SILENCE (the pause IS
-    # the answer), superseding V2-572's always-ack; the operator re-enables it by rule («confírmame las
-    # órdenes») and it applies on the very next turn.
+    # V2-633: the ack rides the style policy; since 2026-09-29 genesis says a wordless act gets ONE short ack
+    # (half of all orders come back as a tool call with no words, and a silent genesis made the same order
+    # sometimes spoken, sometimes mute). The operator turns it off by rule («no me confirmes las órdenes»).
     try:
         from nucleo import style_policy as _style
         _ack_on = _style.confirm_short_actions()

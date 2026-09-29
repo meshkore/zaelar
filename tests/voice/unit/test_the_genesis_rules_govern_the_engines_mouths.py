@@ -49,8 +49,11 @@ def _isolated(monkeypatch, tmp_path):
 
 # ── 1 · the genesis defaults are the operator's order ────────────────────────────────────────────────────
 
-def test_genesis_ships_silent_short_orders_and_smart_fillers():
-    assert sp.confirm_short_actions() is False, "genesis: a pause that pauses needs no «Hecho.»"
+def test_genesis_ships_one_short_ack_and_smart_fillers():
+    """2026-09-29 (demo passes 55-57): the model answers half of all orders with a tool call and no words, so a
+    silent genesis made the same class of order sometimes spoken, sometimes mute. The rule is one and short: an
+    order that ran gets AT MOST one short line — the model's own, or «Done.» when it said nothing."""
+    assert sp.confirm_short_actions() is True, "genesis: a wordless act gets one short ack"
     assert sp.filler_mode() == "smart"
     assert sp.filler_allowed("action") is False, "«reproduce el vídeo» must not get «un segundo…»"
     assert sp.filler_allowed("neutral") is True, "a question that takes real work keeps its cover"
@@ -74,9 +77,11 @@ def test_the_missing_media_verbs_now_classify_as_action():
 def test_a_directive_overrides_and_a_retraction_restores():
     assert sp.apply_directive("quiero que me confirmes las órdenes") == {"confirm_short_actions": True}
     assert sp.confirm_short_actions() is True, "the override governs the very next read"
+    sp.apply_directive("no me confirmes las órdenes")
+    assert sp.confirm_short_actions() is False, "the override governs the very next read"
     released = sp.retract_directive("olvida lo de confirmarme las órdenes")
     assert "confirm_short_actions" in released
-    assert sp.confirm_short_actions() is False, "back to genesis"
+    assert sp.confirm_short_actions() is True, "back to genesis"
 
 
 def test_the_operators_literal_sentence_parses():
@@ -167,13 +172,13 @@ def _run_fast_lane(monkeypatch):
     return spoken
 
 
-def test_the_fast_lane_runs_in_silence_under_genesis(monkeypatch):
-    assert _run_fast_lane(monkeypatch) == [], "V2-572's ack is now opt-in: pause and say nothing"
+def test_the_fast_lane_says_one_short_ack_under_genesis(monkeypatch):
+    assert _run_fast_lane(monkeypatch) == ["ack"], "genesis 2026-09-29: a wordless act gets one short ack"
 
 
-def test_the_fast_lane_confirms_again_when_the_operator_asks(monkeypatch):
-    sp.apply_directive("confírmame las órdenes")
-    assert _run_fast_lane(monkeypatch) == ["ack"]
+def test_the_fast_lane_goes_silent_when_the_operator_asks(monkeypatch):
+    sp.apply_directive("no me confirmes las órdenes")
+    assert _run_fast_lane(monkeypatch) == []
 
 
 # ── 5 · the provider's never-mute backstops and the prompt line are wired (source contracts) ─────────────
@@ -194,10 +199,10 @@ def test_the_voice_backstops_consult_the_policy():
 
 
 def test_the_model_prompt_carries_the_silence_rule_only_while_silent():
+    assert sp.prompt_line() == "", "genesis confirms: the model keeps its own manners"
+    sp.apply_directive("no me confirmes las órdenes")
     line = sp.prompt_line()
-    assert line and "no digas nada" in line.lower()
-    sp.apply_directive("confírmame las órdenes")
-    assert sp.prompt_line() == "", "with confirmations on, the model keeps its old manners"
+    assert line and "no digas nada" in line.lower(), "silent orders by rule: the model is told so"
     src = (ENGINE / "nucleo/flash/prompt.py").read_text(encoding="utf-8")
     assert "prompt_lines(" in src, "prompt.py must append the runtime-mode lines (wake-word + silence)"
     shared = (ENGINE / "nucleo/flash/style_directive.py").read_text(encoding="utf-8")

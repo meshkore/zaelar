@@ -46,3 +46,18 @@ def test_after_a_question_it_says_it_went_ahead(monkeypatch):
     tail = act_repair.after_the_repair("Want me to write that to Andrew?", False, "mensajeria", "forward")
     assert tail.strip() == "I've gone ahead and done it, as you asked."
     assert act_repair.after_the_repair("There's no unread toggle.", False, "mensajeria", "unread").strip() == "Done."
+
+
+def test_words_that_already_carry_the_act_get_nothing(monkeypatch):
+    """Demo passes 55 (E4) and 56 (U1), 2026-09-29: «Right… I left the Inworld one unread — it's back to showing as
+    new. Done.» and «Yep — putting Madonna on. Done.» — a claim and an English promise, each with a «Done.» stapled
+    on because the promise table is Spanish. The tail is for words that DENIED the act, nothing else."""
+    monkeypatch.setenv("ZAELAR_LANGUAGE", "en")
+    claimed = "Right… I left the Inworld one unread — it's back to showing as new."
+    promised_en = "Yep — putting Madonna on."
+    assert act_repair.after_the_repair(claimed, False, "mensajeria", "unread") == ""
+    assert act_repair.after_the_repair(promised_en, False, "musica", "play") == ""
+    assert act_repair.after_the_repair("I can't send it myself — sending mail isn't something I can do.",
+                                       False, "mensajeria", "forward").strip() == "Done."
+    assert act_repair.after_the_repair("No puedo marcarlo, no hay forma de hacerlo.", False, "mensajeria",
+                                       "unread").strip() == "Done."
