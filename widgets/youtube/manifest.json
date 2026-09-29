@@ -350,8 +350,7 @@
       }
     },
     "clear_search": {
-      "desc": "quita la banda de resultados de búsqueda del inicio",
-      "view": true
+      "desc": "BORRA la banda de resultados de búsqueda del inicio (la lista numerada desaparece: «pon el cinco» ya no tiene de dónde). «Vuelve a la lista / a los resultados» NO es esto: eso es show_tab"
     },
     "show_tab": {
       "desc": "CAMBIA de pantalla dentro del reproductor SIN tocar lo que suena. «vuelve al catálogo», «al inicio del widget de vídeo», «al dashboard», «enséñame la lista» → tab inicio; y player, cola, listas, subs",

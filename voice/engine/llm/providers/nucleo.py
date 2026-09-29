@@ -1462,6 +1462,20 @@ class NucleoLLMStream(llm.LLMStream):
                 # A QUESTION the verdict is sure of, over a WRITE the model made on the same card (full19 C2: «find me
                 # a free 45 minutes…» → verdict find_free 0.91, model add_meeting): the write is the costly mistake
                 # — it lands in his calendar — so the answer runs instead. `output.answer` is declared, never guessed.
+                # full52 V5: «go back to the list of videos» → verdict youtube:show_tab 0.97, model clear_search (which
+                # ERASES the results band), and «put on number five» then had no list. A LENS the verdict is sure
+                # of changes nothing; a model call that changes the card's state, over it, is the costly reading.
+                if (_data_ops.is_view_op(_cd["card"], _dis) and not _data_ops.is_view_op(_cd["card"], action_name)
+                        and _direct_action._action_sure(_brief, floor=0.9)
+                        and _direct_action.complete(_brief, operator_text=_bnotes.operator_half(text), emit=emit,
+                                                    present=_cvis.present, apply_widget_data=_apply_widget_data,
+                                                    widget_id=_cd["card"], instead_of=action_name,
+                                                    require_order=False)):
+                    emit("brain", "👁 la vista segura gana a un cambio de estado — corre el veredicto", role="system",
+                         text=f"{_cd['card']}: modelo={action_name} · veredicto={_dis}",
+                         extra={"cat": "flash", "id": _cd["card"], "model": action_name, "verdict": _dis})
+                    acted["widget"] = True
+                    return
                 from widgets import effects as _fx_q
                 if (_fx_q.carries(_cd["card"], _dis, _fx_q.OUTPUT_ANSWER)
                         and _fx_q.carries(_cd["card"], action_name, _fx_q.DATA_WRITE)
