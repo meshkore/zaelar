@@ -25,6 +25,17 @@ entregada siga citada aquí.
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **What the demo left in v2, delivered as five mechanisms (V2-776 K, 2026-09-29)**: on the operator's
+  «ejecútalo tú mismo ahora». K1 — a send that cites a meeting carries the AGENDA's time (pass 56 sent a real
+  Telegram with «5:00 PM» over a 16:30 meeting): `nucleo/flash/meeting_time.py`, deterministic, at the model's
+  door in both channels, rewriting only when the last agenda mutation and the text name the same meeting and a
+  clock time is cited. K2 — a list row Jev named `rule` is stored as a rule (flags + memory with scope), no model
+  turn: the INIT's five rule rows had been answered «Done.» and kept nowhere. K3 — `hbmesh` answers a misuse with
+  its two exact forms as JSON (a worker invented `--agent` and passed the errand unquoted, twice per pass). K4 —
+  `promises_action` speaks English (`nucleo/flash/promise.py`, its own module by the ratchet; a participle
+  followed by a denial is not a promise); twenty measured replies. K5 — the harvest block sits after the memory
+  block in both scripts; the engine half was not needed. Nodes 2.176-2.179, each disarmed and seen red.
+
 - **The standing criteria are ONE document, and the diary is history (V2-776 J, 2026-09-29)**: the operator,
   verbatim: «me gustaría empezar a simplificar criterios y que no haya contradicciones… necesitaríamos realmente
   eliminar histórico y dejar solamente los últimos criterios de las cosas». Measured: four sources said what the
@@ -2095,13 +2106,11 @@ entregada siga citada aquí.
 - **A question about what a widget HOLDS is answered by the widget (V2-668, 2026-09-11)** — texto íntegro en `decisions-archive.md`
 - **An order NAMES its target, and a notice waits its turn (V2-666, 2026-09-11)** — texto íntegro en
   `decisions-archive.md`; cita además V2-584, V2-651, V2-656, V2-661, V2-667
-- **THE MICROPHONE SWITCH has ONE door, and it is not the wake-word mode (V2-654, 2026-09-10)** — texto
-  íntegro en `decisions-archive.md`; cita además V2-651
-
 ### Archived decisions — index (full text: `.meshkore/docs/decisions-archive.md`)
 
 #### Movidas el 2026-09-29 (V2-776 J)
 
+- **THE MICROPHONE SWITCH has ONE door, and it is not the wake-word mode (V2-654, 2026-09-10)** — texto íntegro en `decisions-archive.md` («Moved on 2026-09-29») — V2-651, V2-654
 - **A turn that calls a TOOL is covered at the SEAM (V2-669, 2026-09-11)** — texto íntegro en `decisions-archive.md` («Moved on 2026-09-29») — V2-189, V2-252, V2-571, V2-615, V2-669
 
 #### Movidas el 2026-09-23 (V2-757)

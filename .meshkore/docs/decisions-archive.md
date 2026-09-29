@@ -10293,3 +10293,6 @@ one-line index behind in the live log. Nothing below was edited or summarized on
   seat is a ROUTING bench («Pro routes 41/42, direct Flash 38/42»), and the second pass does no routing — but
   the allocation table is the operator's and `voice_brain` has no failover, so a split would add a second
   failure surface. His call.
+
+- **THE MICROPHONE SWITCH has ONE door, and it is not the wake-word mode (V2-654, 2026-09-10)** — texto
+  íntegro en `decisions-archive.md`; cita además V2-651
