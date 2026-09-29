@@ -3358,6 +3358,18 @@ DOMAINS: list[dict] = [
         # named card, only a declared action — before the backstop spends a worker on it.
         # Demo pass 2026-09-28 (V2-776 E) — the fixes of the passes, one node each.
         # Demo passes 33-54 (2026-09-29) — the audit's fixes, one node each.
+        {"id": "2.179", "title": "The promise detector speaks English — twenty replies measured on the demo",
+            "ch": UNIT,
+            "paths": ["tests/voice/unit/test_an_english_promise_is_a_promise.py"]},
+        {"id": "2.178", "title": "hbmesh names its two forms when a worker misuses it",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/workers/test_the_mesh_cli_names_its_forms_when_misused.py"]},
+        {"id": "2.177", "title": "A rule row in a list is stored as a rule, with its flags and scope, and takes no model turn",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/test_a_rule_row_in_a_list_is_stored_as_a_rule.py"]},
+        {"id": "2.176", "title": "A message that cites a meeting carries the agenda's time, not the model's memory",
+            "ch": UNIT,
+            "paths": ["tests/voice/unit/test_a_message_that_cites_a_meeting_carries_the_agendas_time.py"]},
         {"id": "2.175", "title": "The standing criteria are one document: dated, tested, no contradictions, CLAUDE.md only shrinks",
             "ch": UNIT,
             "paths": ["tests/infrastructure/unit/test_the_criteria_are_one_and_current.py"]},

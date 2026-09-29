@@ -224,8 +224,13 @@ from nucleo.flash.negation import clause_negated, unnegated_match  # noqa: F401 
 
 
 def promises_action(reply: str) -> bool:
-    """True if zaelar's REPLY promises a first-person action (it committed to doing something)."""
-    return unnegated_match(_PROMISE_RE, _norm_txt(reply))
+    """True if zaelar's REPLY promises a first-person action (it committed to doing something). Spanish here,
+    English in `nucleo/flash/promise.py` (V2-776 K4)."""
+    n = _norm_txt(reply)
+    if unnegated_match(_PROMISE_RE, n):
+        return True
+    from nucleo.flash.promise import promises_en
+    return promises_en(n)
 
 
 
