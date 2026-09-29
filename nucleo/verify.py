@@ -34,6 +34,18 @@ that selector rather than growing a second one that can disagree with it.
 `where` is `widgets/rows.py`'s expression, unchanged: `field` equals, `field~` contains, `field>=` `<=` `>`
 `<`, `field!` not-equal, a list value meaning «any of these», clauses AND'd, case and accents folded.
 
+V2-776 L1 added three clause kinds, because the end states the demo asks for were not rows of a collection
+(measured 2026-09-29: the row grammar reached 3 of ~18 widgets):
+
+    {"widget": "results", "field": "layout", "is": "compare"}          a scalar of the widget's view_data
+    {"widget": "documento", "field": "focus", "has": "proof of work"}  …contains (folded)
+    {"widget": "youtube", "field": "videoId", "expect": "changed"}     …differs from `baseline` (taken at birth)
+    {"desktop": "wallpaper", "has": "helix"} / {"desktop": "wallpaper", "expect": "changed"}
+    {"canvas": "results", "expect": "visible" | "minimized" | "maximized" | "closed"}
+
+`expect` on a field/desktop clause may also be `present` (non-empty) or `absent` (empty). The readers live in
+`nucleo/truth.py`; a `changed` clause carries its `baseline`, written by `nucleo/spec.py` when the spec is born.
+
 ## The three answers, and why the third is not False
 
 `True` met · `False` not met · **`None` = could not be read**, and None is never treated as failure. That is
@@ -47,6 +59,7 @@ from loguru import logger
 #: Operators a clause may use. Anything else is a condition this engine cannot check, and a condition it
 #: cannot check must READ as unverifiable (None), never as failure.
 EXPECTS = ("present", "absent")
+SCALAR_EXPECTS = ("present", "absent", "changed")
 
 
 def _clauses(done_when) -> tuple[str, list]:
@@ -56,7 +69,7 @@ def _clauses(done_when) -> tuple[str, list]:
             got = done_when.get(mode)
             if isinstance(got, list):
                 return mode, [c for c in got if isinstance(c, dict)]
-        if done_when.get("widget"):
+        if done_when.get("widget") or done_when.get("desktop") or done_when.get("canvas"):
             return "all", [done_when]
         return "", []
     if isinstance(done_when, list):
@@ -76,10 +89,78 @@ def _count_ok(n: int, want) -> bool:
         return False
 
 
+def kind_of(clause: dict) -> str:
+    """rows · field · desktop · canvas · "" (unreadable shape)."""
+    if not isinstance(clause, dict):
+        return ""
+    if clause.get("canvas"):
+        return "canvas"
+    if clause.get("desktop"):
+        return "desktop"
+    if clause.get("widget") and clause.get("field"):
+        return "field"
+    if clause.get("widget"):
+        return "rows"
+    return ""
+
+
+def current_value(clause: dict):
+    """What the product says NOW for a scalar clause (field or desktop) — the baseline of a `changed` clause,
+    and the value `_scalar` judges. None when unreadable."""
+    from nucleo import truth as _truth
+    k = kind_of(clause)
+    if k == "field":
+        return _truth.widget_field(str(clause.get("widget") or ""), str(clause.get("field") or ""))
+    if k == "desktop":
+        if str(clause.get("desktop") or "").strip().lower() != "wallpaper":
+            return None
+        return _truth.desktop_wallpaper()
+    return None
+
+
+def _scalar(clause: dict) -> bool | None:
+    from nucleo import truth as _truth
+    cur = current_value(clause)
+    if cur is None:
+        return None
+    if "is" in clause:
+        return _truth.fold(_truth.scalar_text(cur)) == _truth.fold(clause["is"])
+    if "has" in clause:
+        want = _truth.fold(clause["has"])
+        return bool(want) and want in _truth.fold(_truth.scalar_text(cur))
+    expect = str(clause.get("expect") or "present").strip().lower()
+    if expect == "changed":
+        if "baseline" not in clause:
+            return None                       # a `changed` with nothing to compare against is unreadable
+        return (not _truth.is_empty(cur)) and _truth.fold(_truth.scalar_text(cur)) != _truth.fold(
+            _truth.scalar_text(clause["baseline"]))
+    if expect not in SCALAR_EXPECTS:
+        return None
+    return (not _truth.is_empty(cur)) if expect == "present" else _truth.is_empty(cur)
+
+
+def _canvas(clause: dict) -> bool | None:
+    from nucleo import truth as _truth
+    state = _truth.canvas_state(str(clause.get("canvas") or ""))
+    if state is None:
+        return None
+    want = str(clause.get("expect") or "visible").strip().lower()
+    if want not in _truth.CANVAS_STATES:
+        return None
+    if want == "visible":
+        return state in ("visible", "maximized")
+    return state == want
+
+
 def check_clause(clause: dict, now: float | None = None) -> bool | None:
     """One clause against the product's own truth. None when it cannot be read — never a guess."""
     try:
-        wid = str(clause.get("widget") or "").strip().lower()
+        k = kind_of(clause)
+        if k in ("field", "desktop"):
+            return _scalar(clause)
+        if k == "canvas":
+            return _canvas(clause)
+        wid = str(clause.get("widget") or "").split("::", 1)[0].strip().lower()
         if not wid:
             return None
         from widgets import rows
@@ -122,6 +203,17 @@ def check(done_when, now: float | None = None) -> bool | None:
     return None if any(r is None for r in results) else True
 
 
+def _name(c: dict) -> str:
+    k = kind_of(c)
+    if k == "desktop":
+        return f"el fondo de escritorio"
+    if k == "canvas":
+        return f"la tarjeta «{c.get('canvas')}»"
+    if k == "field":
+        return f"«{str(c.get('widget')).split('::', 1)[0]}.{c.get('field')}»"
+    return f"«{c.get('widget', '?')}.{c.get('collection', '')}»"
+
+
 def missing(done_when, now: float | None = None) -> list[str]:
     """The clauses that are NOT met, said in a line each — what the worker is handed when it is relaunched,
     and what the operator is told when nobody could finish it. «Queda: la cita sigue en la agenda» is the
@@ -131,10 +223,26 @@ def missing(done_when, now: float | None = None) -> list[str]:
     for c in clauses:
         if check_clause(c, now) is not False:
             continue
+        k = kind_of(c)
+        if k in ("field", "desktop"):
+            if "is" in c:
+                out.append(f"{_name(c)} debía ser «{c['is']}»")
+            elif "has" in c:
+                out.append(f"{_name(c)} debía contener «{c['has']}»")
+            elif str(c.get("expect") or "").lower() == "changed":
+                out.append(f"{_name(c)} sigue como estaba")
+            elif str(c.get("expect") or "").lower() == "absent":
+                out.append(f"{_name(c)} sigue teniendo valor")
+            else:
+                out.append(f"{_name(c)} está vacío")
+            continue
+        if k == "canvas":
+            out.append(f"{_name(c)} no está {str(c.get('expect') or 'visible')}")
+            continue
         wid = str(c.get("widget") or "?")
         coll = str(c.get("collection") or "")
         where = c.get("where") if isinstance(c.get("where"), dict) else {}
-        said = ", ".join(f"{k}={v}" for k, v in where.items()) or "cualquiera"
+        said = ", ".join(f"{k2}={v}" for k2, v in where.items()) or "cualquiera"
         expect = str(c.get("expect") or "present").lower()
         if "count" in c:
             from widgets import rows
@@ -157,8 +265,17 @@ def describe(done_when) -> str:
         return ""
     bits = []
     for c in clauses:
+        k = kind_of(c)
+        if k in ("field", "desktop", "canvas"):
+            if "is" in c:
+                bits.append(f"{_name(c)} = {c['is']}")
+            elif "has" in c:
+                bits.append(f"{_name(c)} ∋ {c['has']}")
+            else:
+                bits.append(f"{_name(c)} {str(c.get('expect') or ('visible' if k == 'canvas' else 'present')).upper()}")
+            continue
         where = c.get("where") if isinstance(c.get("where"), dict) else {}
-        said = ", ".join(f"{k}={v}" for k, v in where.items())
+        said = ", ".join(f"{k2}={v}" for k2, v in where.items())
         bits.append(f"{c.get('widget', '?')}.{c.get('collection', '')}"
                     f"[{said}]{'' if str(c.get('expect', 'present')).lower() == 'present' else ' AUSENTE'}")
     return (" Y ".join(bits) if mode == "all" else " O ".join(bits))[:200]

@@ -105,6 +105,13 @@ def opened(rec, ctx: dict | None = None) -> str:
         "created_at": int(getattr(rec, "started", now) or now),
         "started_at": now,
     })
+    # V2-776 L1 — the errand's END STATE is born here, where every commission is recorded: opened and persisted
+    # when the escalation brought it, asked for once when it did not, and told to the worker either way.
+    try:
+        from nucleo import spec as _spec
+        _spec.born(rec, ctx)
+    except Exception:  # noqa: BLE001
+        pass
     return uid
 
 

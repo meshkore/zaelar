@@ -692,7 +692,7 @@
   "id": "demo-b2-background-is-not-the-results-sheets-choose",
   "lang": "en",
   "phrase": "set the first one as my background",
-  "source": "TMP/demo/run-full60 B2 (2026-09-29): imagenes was still closed (B1 had gone to a worker), the only open card was the monitors sheet, and the screen verdict completed the empty turn as results:choose over the first MONITOR; U2 then had the worker asking for an OK to click a Dell",
+  "source": "TMP/demo/run-full60 B2 (2026-09-29): imagenes was still closed (B1 had gone to a worker), the only open card was the monitors sheet, and the screen verdict completed the empty turn as results:choose over the first MONITOR; U2 then had the worker asking for an OK to click a Dell · L1: the brief's end_state names desktop:wallpaper (the spec B1 left open); results:choose attests nothing of it",
   "screen": {
    "open": [
     "results"
@@ -714,15 +714,19 @@
    "escalate_or_inline": [
     "handle_inline",
     0.98
+   ],
+   "end_state": [
+    "desktop:wallpaper",
+    0.92
    ]
   },
-  "expect": "ask",
+  "expect": "talk",
   "forbid": [
    "data-op",
    "worker",
    "second-card"
   ],
-  "open": "V2-776 L1: a verdict completes the model only with a card whose declared action can be the phrase's end state («background» renders imagenes.wallpaper / desktop.wallpaper, never results.choose); with no such card on screen the turn asks for the datum (V2-712)"
+  "note": "L1 closes the WRONG-CARD half: the completion is refused (end_state desktop:wallpaper, results:choose attests nothing) and the turn moves nothing. The ASK half — «which picture? they are not up yet» — is L3's bounded question; until then the model's own words stand (talk)."
  },
  {
   "id": "demo-s1-a-docked-sheet-is-not-on-screen",

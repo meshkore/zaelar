@@ -50,24 +50,22 @@ TOOLS: list[dict] = [
             # V2-457 — showing photos is also removed from the YES-list: it was a worker request (355 s and $1.96 measured
             # 2026-08-28) and is now a 3 s turn through `show_images`. What remains here is CURATING photos.
             "description": (
-                "Delega: lanza un worker de fondo. "
-                "SÍ: investigar/informe/comparativa a fondo; operar una web o marketplace "
+                "Delega a un worker. "
+                "SÍ: investigar/informe/comparativa; operar una web/marketplace "
                 "(anuncios→search_listings); "
-                "crear o arreglar el CÓDIGO de un widget; recordar algo de OTRAS sesiones "
-                "fuera del ESTADO; y HACER o DESHACER un compromiso en un SITIO sin conector "
+                "el CÓDIGO de un widget; recordar OTRAS sesiones; "
+                "HACER/DESHACER un compromiso en un SITIO sin conector "
                 "(reservar, pagar, dar de baja). "
-                "NO: charla; un dato del mundo (web_search); un aviso a una hora "
-                "o día ([[cron.create]]); ESCRIBIR a un contacto o concertar CON él "
-                "(mensajeria:send_to +objective; el motor lo sigue); una cita o un mensaje "
-                "(widget_data: la agenda ES el calendario); MOSTRAR lo que YA existe (show_widget); "
+                "NO: charla; un dato (web_search); un aviso ([[cron.create]]); ESCRIBIR a un contacto o "
+                "concertar CON él (mensajeria:send_to +objective); una cita "
+                "(widget_data: la agenda ES el calendario); MOSTRAR lo que existe (show_widget); "
                 "poner/BUSCAR vídeo/música/podcast (play_video/play_music); enseñar FOTOS aunque las pida "
                 "verificadas/de verdad (show_images); TORRENTS"
                 " (archivos:torrent_search). "
-                "VARIAS tareas = una llamada CADA UNA (a la vez) "
-                "y no estar en el catálogo NO es motivo para negarte: se construye. Ante la duda, escala. "
-                "Si hay una tarea EN CURSO no la repitas: di que sigues "
-                "con ello; PREGUNTAR POR ELLA NO es encargarla: se lee de tu "
-                "ESTADO, nunca se escala. Llámala YA en este turno; tu frase la acompaña, no la sustituye."
+                "VARIAS tareas = una llamada CADA UNA; "
+                "no estar en el catálogo NO es motivo para negarte: se construye. "
+                "Una tarea EN CURSO no se repite; PREGUNTAR POR ELLA NO es encargarla: se lee de tu "
+                "ESTADO, nunca se escala. Llámala YA; tu frase la acompaña."
             ),
             "parameters": {
                 "type": "object",
@@ -75,9 +73,8 @@ TOOLS: list[dict] = [
                     "request": {
                         "type": "string",
                         "description": (
-                            "La petición reformulada clara y autocontenida (quien la resuelve NO ve esta "
-                            "conversación). CONSERVA todas las restricciones que el operador no haya "
-                            "retirado — afloja solo lo que él aflojó, sin generalizar."
+                            "Petición reformulada y autocontenida (quien la resuelve NO ve esta conversación). "
+                            "CONSERVA las restricciones que él no haya retirado; afloja solo lo que él aflojó."
                         ),
                     },
                     "surface": {
@@ -87,15 +84,25 @@ TOOLS: list[dict] = [
                             # V2-652: «pedir cita previa en Hacienda» rode `lista` and the operator got a
                             # comparison sheet of non-options («¿Por qué me muestras el widget de
                             # resultados?»). A GESTIÓN's deliverable is that it gets DONE — that is voz.
-                            "Qué MIRARÁ el operador al acabar: lista=varias cosas que comparar; item=UNA "
-                            "ficha; informe=un ESCRITO que se lee entero → hoja de documento; "
-                            "widget=funcionalidad que él maneja; voz=se cuenta y ya — una GESTIÓN "
-                            "(reservar, pedir cita, tramitar) va aquí: quede HECHA, no una lista; "
-                            "silenciosa=nada que enseñar. Se abre al arrancar."
+                            "Qué MIRARÁ al acabar: lista=varias cosas que comparar; item=UNA ficha; "
+                            "informe=un ESCRITO entero → documento; widget=funcionalidad; "
+                            "voz=se cuenta y ya — una GESTIÓN (reservar, pedir cita, tramitar) va aquí: "
+                            "quede HECHA; silenciosa=nada que enseñar."
                         ),
-                    }
+                    },
+                "done_when": {
+                    "type": "object",
+                    # V2-776 L1 — the END STATE the engine CHECKS when the errand ends; born with the request, never
+                    # left to the worker. Grammar of `nucleo/verify.py`; the targets are the widgets' own `done_when`.
+                    "description": (
+                        "Qué será VERDAD al acabar (el motor lo COMPRUEBA): {\"all\":[…]} con "
+                        "{\"widget\":W,\"collection\":C,\"where\":{\"title~\":\"x\"}} · "
+                        "{\"widget\":W,\"field\":\"f\",\"is\"|\"has\":\"x\"|\"expect\":\"changed\"} · "
+                        "{\"desktop\":\"wallpaper\",\"expect\":\"changed\"}. Omítelo si nada de un widget quedará verdad."
+                    ),
                 },
-                "required": ["request", "surface"],
+            },
+            "required": ["request", "surface"],
             },
         },
     },

@@ -56,7 +56,12 @@
       "view": true,
       "effects": [
         "present.mount"
-      ]
+      ],
+      "done_when": {
+        "widget": "markets",
+        "field": "symbol",
+        "expect": "present"
+      }
     },
     "range": {
       "desc": "CHANGES THE PERIOD of the chart on screen («the last month instead», «show me the whole year», «just today»)",

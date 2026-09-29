@@ -45,7 +45,12 @@
       "view": true,
       "effects": [
         "present.mount"
-      ]
+      ],
+      "done_when": {
+        "widget": "map",
+        "field": "places",
+        "expect": "present"
+      }
     },
     "add": {
       "desc": "adds more places to the map on screen, keeping the ones there",
@@ -67,7 +72,12 @@
       "effects": [
         "present.mount"
       ],
-      "ref": "item"
+      "ref": "item",
+      "done_when": {
+        "widget": "map",
+        "field": "selected",
+        "expect": "changed"
+      }
     },
     "clear": {
       "desc": "empties the map",

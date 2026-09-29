@@ -90,6 +90,14 @@
         "repeat": "weekly | daily | monthly (opcional — SOLO si se repite; `date` es el primer día o el día en que empieza)",
         "days": "días de la semana en que se repite, si es weekly: «martes», «lunes y jueves» o [0..6] con lunes=0 (sin él, el día de `date`)",
         "until": "último día de la repetición o del tramo de varios días, YYYY-MM-DD (o «junio de 2027» = hasta el 30 de junio); sin él no acaba"
+      },
+      "done_when": {
+        "widget": "agenda",
+        "collection": "meetings",
+        "where": {
+          "title~": "{title}",
+          "date": "{date?}"
+        }
       }
     },
     "find_free": {
@@ -234,7 +242,16 @@
         "newTime": "HH:MM de inicio (opcional — conserva la hora si no viene)",
         "endTime": "HH:MM de fin, o `duration` en minutos (opcional — conserva la duración si no viene)"
       },
-      "confirm_q": "¿Muevo «{title}»? Hay alguien más contando con esa hora y habrá que avisarle."
+      "confirm_q": "¿Muevo «{title}»? Hay alguien más contando con esa hora y habrá que avisarle.",
+      "done_when": {
+        "widget": "agenda",
+        "collection": "meetings",
+        "where": {
+          "title~": "{title}",
+          "startTime": "{newTime?}",
+          "date": "{newDate?}"
+        }
+      }
     },
     "update_meeting": {
       "desc": "cambia los DETALLES de una cita que ya existe: si la otra parte la ha confirmado («el dentista ya me lo ha confirmado» → status=confirmed), quién viene, dónde, categoría, notas o su título. NO mueve la fecha ni la hora — para eso está move_meeting. También cambia su REPETICIÓN: `repeat`/`days`/`until` para ponerla o cambiarla, solo `until` para alargarla o acortarla, `repeat: none` para que deje de repetirse",

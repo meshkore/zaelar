@@ -377,6 +377,20 @@
       "desc": "reproduce UN resultado de la búsqueda del inicio, por número 1-based («el tercero» → item:3)",
       "payload": {
         "item": "número del resultado (1-based)"
+      },
+      "done_when": {
+        "all": [
+          {
+            "widget": "youtube",
+            "field": "videoId",
+            "expect": "changed"
+          },
+          {
+            "widget": "youtube",
+            "field": "paused",
+            "is": "false"
+          }
+        ]
       }
     },
     "add_results": {

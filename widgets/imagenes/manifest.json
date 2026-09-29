@@ -91,6 +91,10 @@
       "desc": "pone una de las imágenes en pantalla como fondo de escritorio (persistente)",
       "payload": {
         "item": "número (1-N) o parte del título/fuente; vacío = la imagen que se está viendo"
+      },
+      "done_when": {
+        "desktop": "wallpaper",
+        "expect": "changed"
       }
     },
     "wallpaper_clear": {

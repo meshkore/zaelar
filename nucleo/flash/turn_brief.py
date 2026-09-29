@@ -336,6 +336,17 @@ def build(operator_text: str, *, open_ids=None, running_goals=None, has_workers:
     redo = _redo.question()
     if redo:
         qs[_redo.REDO_KEY] = redo
+    # V2-776 L1 — WHICH ATTESTABLE END STATE the order implies (a wallpaper set, a meeting in the calendar, a
+    # video playing…), enumerated from the templates the widgets declare and from the specs still owed. Read by
+    # `spec.gate_completion`: a verdict completion may only fire an action that attests it (pass 60, B2: «set the
+    # first one as my background» completed as `results:choose` over the monitors sheet).
+    try:
+        from nucleo import spec as _spec
+        end = _spec.end_state_question(open_ids)
+        if end:
+            qs[_spec.END_KEY] = end
+    except Exception:  # noqa: BLE001
+        pass
     target = target_question(open_ids)
     if target:
         qs[TARGET_KEY] = target

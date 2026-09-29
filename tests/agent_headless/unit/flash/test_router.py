@@ -150,6 +150,10 @@ def test_tool_catalog_is_constant_sized(monkeypatch):
 # from three to two, and the two «eso es …» glosses became bare tool names); what remains is the pair of
 # negative boundaries against `web_search` and `show_widget`, which are exactly the two it would be
 # confused with, and the instruction to ASK on an ambiguity rather than open the wrong report.
+# V2-776 L1 added `done_when` to escalate_to_slowbrain (the END STATE the engine checks when the errand ends —
+# pass 60: 4 workers, 0 conditions declared) and PAID for it by compaction: its own description went from 527 to
+# ~260 chars and the escalate prose lost its glosses («el motor lo sigue», «a la vez», «Ante la duda, escala» —
+# the last one being the wording that sent one-step orders to 50-60 s workers, V2-776 E). Ceiling unchanged.
 MAX_CATALOG_CHARS = 23_600
 
 

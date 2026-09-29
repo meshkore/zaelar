@@ -224,6 +224,13 @@ async def dispatch_and_report(wid: str, action_name: str, payload: dict, *, seal
     # irreversible action a human already confirmed): paying an extra widget read on every fast data-op would
     # buy nothing and slow the common turn.
     before = await _receipt.read_signature(wid) if receipt else ""
+    # V2-776 L1 — the action's declared postcondition (`manifest.actions.<a>.done_when`) is an END STATE owed from
+    # this moment: opened BEFORE the op (a `changed` clause's baseline is what the value was), attested after.
+    try:
+        from nucleo import spec as _spec
+        _spec_entry = _spec.open_for_action(wid, action_name, payload, text=text)
+    except Exception:  # noqa: BLE001
+        _spec_entry = None
     # V2-769 — this create's sentence COMPLETES an earlier create's: that one came from a piece of it, and its
     # row goes back out with the call its own widget named. See `write_outcome.py` for the measured case.
     if (_prev := _outcome.superseded(wid, action_name, text)):
@@ -245,6 +252,12 @@ async def dispatch_and_report(wid: str, action_name: str, payload: dict, *, seal
     if not receipt and (_fixed := await corrected_retry(wid, action_name, payload, res, text, _run, said=_said)):
         payload, res = _fixed
     _outcome.remember(wid, action_name, text, res)
+    if _spec_entry is not None:
+        try:
+            from nucleo import spec as _spec
+            _spec.attest(_spec_entry)
+        except Exception:  # noqa: BLE001
+            pass
     await _report_ignored(wid, action_name, res)
     if callable(seal):
         try:

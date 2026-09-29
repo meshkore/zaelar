@@ -1616,6 +1616,7 @@ class NucleoLLMStream(llm.LLMStream):
                 _sf = str(args.get("surface") or "").strip()
                 if _sf:
                     escalate_req["surface"][req] = _sf
+                escalate_req.setdefault("done_when", {})[req] = args.get("done_when")   # V2-776 L1: the spec rides
                 if escalate_req["v"] is None:
                     escalate_req["v"] = req
                 elif (args.get("request") or "").strip():
@@ -3724,6 +3725,7 @@ class NucleoLLMStream(llm.LLMStream):
                 _escalate_mod.escalate_to_slowbrain(
                     req, context={"src": "voice", "surface": _surfaces_mod.pick(escalate_req["surface"].get(req, ""),
                                                                                _surfaces_mod.from_brief(_brief)),
+                                  "done_when": (escalate_req.get("done_when") or {}).get(req),   # V2-776 L1
                                   "asked": spoken_text})   # V2-655: si el turno pidió permiso, se APARCA
                 emit("brain", "🧭 Flash → Brain Worker (escalada registrada)", text=req, role="system")
 

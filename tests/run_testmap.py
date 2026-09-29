@@ -2194,6 +2194,13 @@ DOMAINS: list[dict] = [
                    # fills the card; the clipping the operator photographed cannot recur), hint only over
                    # an empty player.
                    "tests/browser/unit/youtube/test_the_player_dresses_like_the_product.py"]},
+        # Demo pass 59, E1 (2026-09-29): «did inworld send me something?» → «nothing from Inworld» with the receipt
+        # in the archive — the inbox matched unrelated mails on «asunto» and the archive was asked only when the
+        # inbox matched nothing.
+        {"id": "4.229", "title": "A sender the inbox never mentions is asked of the archive, even when other words "
+                                 "of the question match the inbox",
+            "ch": UNIT,
+            "paths": ["tests/browser/unit/mensajeria/test_a_sender_the_inbox_never_mentions_is_asked_of_the_archive.py"]},
         {"id": "4.5", "title": "Widget de mensajería", "ch": UNIT, "paths": ["tests/browser/unit/mensajeria/test_owner_v2.py",
                   "tests/browser/unit/mensajeria/test_notification_policy.py"]},
         {"id": "4.123", "title": "Mensajería RENDERIZA: un clic en un canal SALE de Conectores (no se queda "
@@ -2418,6 +2425,10 @@ DOMAINS: list[dict] = [
                                   "tests/voice/unit/providers/test_a_tag_show_names_its_card.py"]},
         # V2-776 (2026-09-27): «Open the best value option» abre la tarjeta cuya ETIQUETA dice «Best value» — la hoja
         # solo casaba títulos y ordinales (abierto desde la v5 de la mañana como «S3 falla el detail»).
+        {"id": "3.104", "title": "An errand's end state is born where the commission is recorded, persisted on its "
+                                 "row, asked for once when the escalation brought none, and told to the worker",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/workers/test_the_spec_is_born_with_the_errand.py"]},
         {"id": "3.103", "title": "«La mejor relación calidad-precio» abre la tarjeta que lo dice en su etiqueta",
             "ch": UNIT, "paths": ["tests/browser/unit/results/test_the_best_value_option_is_the_card_that_says_so.py"]},
         # V2-776 (2026-09-27): la pregunta de escalado a Jev decía «ante la duda, escala» y mandaba a un worker
@@ -3369,6 +3380,12 @@ DOMAINS: list[dict] = [
         # Session 81095d8d (2026-09-29) — one intention, four tasks: the parked errand was invisible to the dedup,
         # the money gate read the fast brain's own «do not buy» as a charge, the core guard matched inside
         # «stock»/«report», and a 25-second audit escalated a search the fast brain had resolved meanwhile.
+        # V2-776 L (2026-09-29) — the circuit: a request is born with its end state.
+        {"id": "2.183", "title": "A request is born with its end state: a widget action's postcondition renders "
+                                 "from its manifest, the readers never guess, the door opens the spec before the "
+                                 "op, and a verdict completion may only fire what attests the phrase's end state",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/flash/test_a_request_is_born_with_its_end_state.py"]},
         {"id": "2.182", "title": "A parked errand is still the errand: a repeat folds into it instead of opening a "
                                  "second task, and the yes carries the refinements",
             "ch": UNIT,
@@ -5876,6 +5893,11 @@ DOMAINS: list[dict] = [
         {"id": "11.2", "title": "El banco mide el PRODUCTO: tres desarmes (mapa de acciones, cierre, veredicto) "
                                 "ponen su caso en rojo",
             "ch": UNIT, "paths": ["tests/brain/unit/test_the_bank_measures_the_product.py"]},
+        # V2-776 L0 — the CIRCUIT cases: a spec (the done_when grammar), beats, and an expectation on the END STATE
+        # and on honesty. Strict xfail until L5 gives the bank beats and a spec judge.
+        {"id": "11.3", "title": "Las fixtures del circuito tienen la forma que L5 correrá (espec + beats + estado final); "
+                                "cada una es un xfail estricto hasta que exista el runner",
+            "ch": UNIT, "paths": ["tests/brain/unit/test_the_circuit_fixtures_wait_for_l5.py"]},
     ]},
 ]
 

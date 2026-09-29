@@ -136,7 +136,12 @@
       "payload": {
         "index": 1
       },
-      "view": true
+      "view": true,
+      "done_when": {
+        "widget": "results",
+        "field": "view",
+        "is": "detail"
+      }
     },
     "list": {
       "desc": "Vuelve del expediente a la lista.",
@@ -148,7 +153,12 @@
       "payload": {
         "layout": "tile | row | card | compare"
       },
-      "view": true
+      "view": true,
+      "done_when": {
+        "widget": "results",
+        "field": "layout",
+        "is": "{layout}"
+      }
     },
     "tab": {
       "desc": "Cambia de pestaña: `results` · `summary` (estado y recuentos) · `sources` (webs consultadas y qué pasó en cada una) · `criteria` (con qué se busca). Responde a «de dónde has sacado esto», «¿cómo va?», «con qué criterios buscas».",

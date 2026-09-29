@@ -109,7 +109,12 @@
         "query": "opcional: canción/artista a poner"
       },
       "sensitivity": "routine",
-      "activation": true
+      "activation": true,
+      "done_when": {
+        "widget": "musica",
+        "field": "now_playing",
+        "expect": "changed"
+      }
     },
     "play_local": {
       "desc": "reproduce un audio que ya está en la biblioteca del agente (por su ruta)",

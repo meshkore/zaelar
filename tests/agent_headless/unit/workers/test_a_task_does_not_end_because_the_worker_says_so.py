@@ -228,8 +228,11 @@ def test_the_worker_is_TOLD_it_can_declare_a_bar():
     from nucleo import dispatch_prompts
     block = dispatch_prompts._METHOD_BLOCK
     assert "agent_report goal" in block and "done_when" not in block.split("goal")[0][-200:]
-    assert "no declares nada" in block, (
-        "and it has to be told when NOT to declare one — a condition invented for a search is a retry loop")
+    # V2-776 L1: the condition is BORN with the errand (`nucleo/spec.py`, told as the first injected turn); the
+    # worker refines it and never retires it. The old «no declares nada» exemption for searches and reports is
+    # gone — an unreadable condition reads as None, never as a retry loop, so there is nothing to protect by
+    # leaving the errand blind (pass 60: 4 workers, 0 conditions, all «It is done.» on their own word).
+    assert "OBJETIVO MEDIBLE" in block and "nunca la retires" in block
 
 
 def test_the_harness_is_WIRED_INTO_the_ending_and_runs_BEFORE_delivery():

@@ -322,6 +322,21 @@ def resolve(commission: str, *, brief=None, swallowed=None, operator_text: str =
     wid, action = from_brief(brief)
     if not wid or not action:
         return {}
+    # V2-776 L1 — a rung is the ENGINE's own inference from the verdict (never the model's valid call), so it is
+    # held to the engine's own reading of the phrase: when the brief names an attestable END STATE, the rung has
+    # to be an action that attests it. Pass 60, B2: «set the first one as my background» with only the monitors
+    # sheet open resolved to `results:choose`; the wallpaper was the end state, and choose attests nothing of it.
+    # One site for both channels (the provider's `complete`/`take_rung` and the probe's mirror call this).
+    try:
+        from nucleo import spec as _spec
+        if (_why := _spec.gate_completion(brief, wid, action)):
+            from voice.observer import emit as _emit_ev
+            _emit_ev("brain", "🎯 el veredicto NO completa: la acción no atestigua el estado final de la frase",
+                     text=_why[:160], role="system",
+                     extra={"cat": "flash", "widget": wid, "action": action, "why": _why})
+            return {}
+    except Exception:  # noqa: BLE001
+        pass
     key = fillable_key(wid, action)
 
     # 1 · the model's own arguments, which a guard swallowed. The best source there is: they were

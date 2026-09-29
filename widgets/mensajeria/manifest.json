@@ -208,7 +208,15 @@
       "effects": [
         "present.mount",
         "external.send"
-      ]
+      ],
+      "done_when": {
+        "widget": "mensajeria",
+        "collection": "sent",
+        "where": {
+          "name~": "{contact}",
+          "body~": "{text}"
+        }
+      }
     },
     "forward": {
       "ref": "from",
@@ -223,7 +231,14 @@
       "confirm": false,
       "effects": [
         "external.send"
-      ]
+      ],
+      "done_when": {
+        "widget": "mensajeria",
+        "collection": "sent",
+        "where": {
+          "name~": "{contact}"
+        }
+      }
     },
     "open_connectors": {
       "desc": "Si se nombra la plataforma (email/gmail/outlook, whatsapp, telegram), entra DIRECTAMENTE en la pantalla de ESE conector — su asistente paso a paso si no está conectado, o su estado si ya lo está. Sin plataforma, abre la lista de todos los conectores. Úsala siempre que el operador pida conectar/vincular/añadir un canal. No pidas tú credenciales por voz.",
