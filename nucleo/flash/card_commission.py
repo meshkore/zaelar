@@ -213,9 +213,14 @@ async def after_show(acted: dict, *, brief, operator_text: str, spoken_text: str
         # one» → the card came up and «…so I'm opening that one», which no promise wording table knows). The pass
         # judges its own reply — a promise or a claim gets its call, an answer or an offer does not — so the
         # reading of the words is its job, not a verb table's.
+        # …or an ORDER whose words name no card at all (demo pass 65, E2: «open it» after «did inworld send me
+        # something?» brought the mail card up and said «Here you go.» — the receipt stayed shut; the card was closed
+        # when the brief fired, so no verdict could name `open`). The card came up by CONTEXT, which is a guess at the
+        # object, never the act; «show me the calendar» names its card and is left alone.
+        by_context = _da.reads_as_order(brief) and not _da.named_cards(operator_text)
         if not (acted.get("show_suppressed") or (spoken_text and _router.promises_action(spoken_text))
                 or _da.names_an_order(brief, sure=0.8) or named_or_catalogue(brief, operator_text) == wid
-                or (spoken_text and _da.names_an_order(brief)) or empty):
+                or (spoken_text and _da.names_an_order(brief)) or empty or by_context):
             return False
         said = spoken_text or (f"(Abrí la tarjeta «{wid}» y está VACÍA: aún no he hecho lo que pidió.)" if empty else "")
         got = await _repair.call_for_promise(operator_text, said, wid, spec=spec, window=window)
