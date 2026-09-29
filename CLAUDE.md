@@ -298,6 +298,8 @@ se incumple.
   un trinquete: extraer del fichero en vuelo de otro es peor que dejar la deuda.
 - **Nada de pasadas de diseño autónomas.** Un cambio visual se acuerda antes; no se «mejora» la interfaz por
   iniciativa propia.
+- **Lo VIGENTE está en `.meshkore/docs/criteria.md`** — un criterio por línea, con fecha y nodo de test, sin
+  histórico. Se lee ANTES de tocar el comportamiento del motor; el diario (`decisions.md`) cuenta por qué.
 - **Lo que no se ha verificado, se dice.** «No verificado en vivo» es una respuesta aceptable; afirmar que algo
   funciona sin haberlo medido, no. Si un test se pone verde al romper el producto, el sospechoso es el TEST.
 
@@ -306,6 +308,7 @@ se incumple.
 | Qué buscas | Dónde está |
 |---|---|
 | Las **reglas** para trabajar en este repo | este fichero |
+| Los **criterios vigentes** del motor — lo que obedece HOY, una línea cada uno, con su test | `.meshkore/docs/criteria.md` |
 | El **diario** del motor: qué se decidió, por qué, y el fallo real que lo motivó | `.meshkore/docs/decisions.md` (+ `.meshkore/docs/decisions-archive.md`) |
 | El **contexto invariante** del proyecto (visión, producto, stack, arquitectura, restricciones, glosario) | `.meshkore/context/` |
 | Los **roles de agente** — qué hace cada miembro del equipo, a quién delega, qué no toca nunca | `.meshkore/team/*.md` (una ficha por rol, con su `owns:` y sus `refs:`) |
@@ -373,7 +376,7 @@ context and stays in Spanish on purpose.
 > CATÁLOGO de qué se prueba es público y útil; el DIARIO de lo que se probó es nuestro. Igual con el roadmap —
 > saber cómo está construido el motor le sirve a quien lo clona; saber qué pensamos construir, no.
 
-## ⭐⭐ LO PRIMERO: mecanismos, no reglas (norma del operador, 2026-09-15)
+## ⭐⭐ LO PRIMERO: mecanismos, no reglas (CRIT-W1)
 
 > «Necesitamos un sistema que no esté educado, es decir, que sea inteligente y que sepa qué hacer. Yo no
 > puedo decirte todo caso por caso. Eso sería un sistema de if-elses… Al final estamos creando un SISTEMA,
@@ -393,41 +396,14 @@ Completo, con la cita entera del operador, la tabla de las dos clases de carril 
 existe un almacén de política POR OPERADOR que convierta su respuesta en el criterio de la próxima
 decisión): **`.meshkore/context/principles.md`**.
 
-## ⭐ Cómo se orienta CUALQUIER arreglo del agente (norma del operador, 2026-08-20)
+## ⭐ Cómo se orienta CUALQUIER arreglo del agente (CRIT-E3)
 
-El agente debe ser capaz de resolver **cualquier** encargo: reservar un hotel o un restaurante, montar una
-investigación sobre la cultura griega del siglo II a.C., sacar los planos o la lista de tareas para construir un
-cohete, inventar un libro, buscar un vehículo en Wallapop, o buscar casas en la zona de Los Ángeles usando las
-webs que sean populares **allí**, empezando por la más popular. **No hay lista de encargos soportados y no puede
-haberla.**
-
-De ahí sale la regla que gobierna todo cambio en el lado del worker, y son DOS MITADES con tratamientos opuestos:
-
-- **RECURSOS (el core) → clavados, completos y probados.** El manejo del navegador, que el worker reciba EN
-  TIEMPO REAL todo lo que tiene que recibir, el parseo de los datos, las capturas de pantalla cuando hagan falta,
-  los puentes, la evidencia y la entrega. Aquí un fallo es un bug.
-- **RAZONAMIENTO (el encargo) → abierto y general.** La lógica, la investigación y la ejecución no se cablean:
-  se construye un sistema capaz de **encontrar la fórmula** que llega al resultado que espera el operador. Los
-  prompts de los Brain Workers llevan **fórmulas, recursos y maneras de resolver**, nunca un guion.
-
-**Lo prohibido es adaptarse al caso de uso.** Un arreglo que hace pasar ESE escenario y se cae cuando cambian un
-dato, una coma o una condición no es un arreglo: es andamio. La prueba, antes de escribir nada: *cambia una
-palabra del encargo —hotel→restaurante, Sevilla→Los Ángeles, «4 estrellas»→«menos de 80 €»— ¿sigue en pie?* Y:
-*¿sirve para un encargo que nadie ha escrito todavía?* Si la respuesta es no, está apuntando a la mitad
-equivocada.
-
-Un conocimiento cableado del mundo (el catálogo de sitios) puede decir **«empieza por aquí»**; nunca **«solo
-aquí»**. En cuanto un encargo fuera del catálogo tiene MENOS capacidad que uno de dentro, el catálogo dejó de ser
-un atajo y es una valla.
-
-**Duda razonable → es un problema de RECURSOS hasta que se demuestre lo contrario.** Ha sido cierto todas las
-veces hasta hoy: el worker muriendo aprendiendo su propio CLI a tientas (V2-219), el compositor que leía la
-cadena de proveedores y nunca la escribía —y dejaba a ciegas TODA investigación— (V2-225), lo que el navegador
-encontraba sin llegar a nadie (V2-223), y la nota empujada 3/3 contra la línea de prompt 0/13 (V2-222). Ninguno
-tenía forma de escenario, y el arreglo con forma de escenario los habría tapado a los cuatro.
-
-Doctrina completa, con el contrato de recursos y el procedimiento al recibir una ronda fallida:
-**`.meshkore/docs/architecture/zaelar-brain-worker-doctrine.md`**.
+No hay lista de encargos soportados y no puede haberla. Dos mitades con tratamientos opuestos: **RECURSOS
+clavados, completos y probados** (navegador, datos en tiempo real, parseo, capturas, puentes, evidencia, entrega
+— aquí un fallo es un bug) y **RAZONAMIENTO abierto** (los prompts de los Brain Workers llevan fórmulas, recursos
+y maneras de resolver, nunca un guion). Lo prohibido es adaptarse al caso de uso: *cambia una palabra del encargo
+—hotel→restaurante, Sevilla→Los Ángeles— ¿sigue en pie?* Duda razonable → es un problema de RECURSOS. Doctrina
+completa en `.meshkore/docs/architecture/zaelar-brain-worker-doctrine.md`.
 
 **Otras formas de arrancar**: `BRAIN=direct`/`BRAIN=local` son baselines de modelo pelado (sin memoria ni
 tools); `make lk-server` y `make agent-worker` levantan las dos mitades por separado para depurar.
@@ -436,6 +412,8 @@ tools); `make lk-server` y `make agent-worker` levantan las dos mitades por sepa
 
 Este repo sigue el **MeshKore Standard v27**. Toda la documentación, módulos y roadmap viven en `.meshkore/`.
 Los agentes DEBEN trabajar dentro de esta estructura — no crear `docs/` ni carpetas ad-hoc fuera de ella.
+Instalación y arranque para quien clona: **[`README.md`](README.md)** (multi-plataforma); el detalle, en
+`zaelar-ops.md`. Mantener ambos alineados.
 
 ### Documentación canónica (`.meshkore/docs/`)
 
@@ -475,132 +453,37 @@ Los agentes DEBEN trabajar dentro de esta estructura — no crear `docs/` ni car
 | **Monitorización de conversaciones de cluster** | `.meshkore/docs/ops/zaelar-cluster-conversation-monitoring.md` |
 | Observabilidad / debug | `.meshkore/docs/ops/zaelar-observability.md` |
 
-> Instalación / arranque para quien clona el repo: **[`README.md`](README.md)** en la raíz (multi-plataforma
-> macOS/Windows/Linux). Es la puerta de entrada; el detalle vive en `zaelar-ops.md`. Mantener ambos alineados.
+### Workflows — la frase del operador y el doc que la ejecuta
 
-**Protocolo de cambio ("pasa el protocolo"):** cuando el operador dice *"pasa el protocolo"*, ejecutar la
-checklist de `zaelar-change-protocol.md` (reiniciar+verificar → versión → diario/iniciativa/contexto → commit →
-push si hay remote → deploy si hay prod). No hay que recordar los pasos de memoria: viven en ese doc.
+Los pasos NO se recuerdan de memoria: viven en su doc. Cada fila es un procedimiento completo.
 
-**Workflow de auditoría ("pasa la auditoría"):** cuando el operador dice *"pasa la auditoría"* / *"audita el
-sistema"*, ejecutar `zaelar-audit-workflow.md` — reconocimiento del contexto → fan-out en paralelo por 4 dominios
-(voz/cerebro/server · frontend/widgets · seguridad cluster · alineación docs) → síntesis → informe + plan P0-P3.
-Verifica que código, arquitectura, contexto y el módulo de seguridad siguen alineados cada vez que el proyecto crece.
+| Cuando el operador dice… | Ejecutar |
+|---|---|
+| «pasa el protocolo» | `.meshkore/docs/ops/zaelar-change-protocol.md` — reiniciar+verificar → versión → diario/iniciativa/contexto → commit → push → deploy |
+| «pasa la auditoría» / «audita el sistema» | `.meshkore/docs/ops/zaelar-audit-workflow.md` — reconocimiento → fan-out por 4 dominios → síntesis → informe + plan P0-P3 |
+| (todo cambio de ESTRUCTURA o de invariantes) | `.meshkore/docs/ops/zaelar-docs-sync.md` — README, `CLAUDE.md`, `cluster.yaml`, doc de categoría, diagramas de `web/` |
+| «pasa la revisión de alineación» (al cerrar un cambio de arquitectura/módulo/flujo) | `.meshkore/docs/ops/zaelar-alignment-review.md` — código ↔ contexto ↔ docs ↔ diagramas ↔ roadmap ↔ tests cuentan la MISMA historia |
+| «pasa el workflow de widgets» (cambio del SISTEMA de widgets) | `.meshkore/docs/ops/zaelar-widgets-workflow.md` — «qué tocaste → qué actualizar»; un cambio trivial dentro de un widget no lo dispara |
+| «añade un conector de X» / «haz un widget de Y» | `.meshkore/docs/ops/zaelar-new-widget-or-connector-workflow.md` — las cuatro decisiones previas, los 14 puntos de cableado que fallan VACÍOS, el último metro, declararlo HECHO, diez traps medidos |
+| «pasa el workflow de memoria» (cambio ESTRUCTURAL de la memoria) | `.meshkore/docs/ops/zaelar-memory-workflow.md` — mapa de escritores y lectores, migración, docs, tests; termina con la revisión de alineación |
+| «lanza un test del bot» / «lanza la batería» | `.meshkore/docs/ops/zaelar-testing.md` — Paso 0 ALINEACIÓN de escenarios → lanzar → JUEZ (bug real vs ruido STT vs rigidez) → informe archivado |
+| «cierra esto» / «documenta lo que has hecho» / «pasa el cierre» | los 8 pasos en el `.meshkore/` de la RAÍZ (privado); lo que es de ESTE repo, abajo |
 
-**Sync de docs/estructura (automático):** todo cambio que toque la **estructura** (módulos, layout, deps, instalación)
-o **decisiones/invariantes/seguridad** ejecuta `zaelar-docs-sync.md` — actualizar README (raíz, multi-plataforma),
-`CLAUDE.md`, `cluster.yaml`, la doc de categoría y el **diagrama de arquitectura**, con la regla de oro "que aparezca
-en contexto + docs + arquitectura". Es el paso de coherencia docs↔estructura dentro del change protocol.
+**Cerrar una tanda (lo que se salta siempre):** (1) el test con su NODO en `tests/run_testmap.py` — no está en el
+mapa = no existe para «¿está todo verde?»; (2) el WHY en `.meshkore/docs/decisions.md`, y una línea en
+`criteria.md` SOLO si una regla cambió; (3) la **bitácora del módulo** `.meshkore/modules/<módulo>/logs/<YYYY-MM>/`
+(las palabras del operador, lo medido, los commits; numeración `T-NNN` GLOBAL, prefijos `N-`/`MK-`/`S-`/`TS-`/`C-`;
+gitignoreada, en la lengua del operador).
 
-**Revisión de alineación ("pasa la revisión de alineación"):** al cerrar CUALQUIER cambio que toque arquitectura, un
-módulo, un flujo o una decisión/invariante, ejecutar `zaelar-alignment-review.md` — checklist reutilizable que
-verifica que **código ↔ contexto (CLAUDE.md) ↔ docs canónicas ↔ diagramas HTML (`/architecture`: pestañas
-Arquitectura/Memoria/FlashBrain/SlowBrain/Widgets + modelos-en-uso + sello "Actualizado") ↔ roadmap (tareas done +
-bitácora, servido al Architect por el daemon) ↔ tests** cuentan la MISMA historia (estado actual, sin dirty/legacy).
-Es la puerta de calidad de cada cambio; trae sondas `grep`/`node --check` y un template de informe.
+**Contrato de testing para agentes:** antes de probar, `tests/README.md`. La entrada es
+`./.venv/bin/python -m tests run <suite> [--case ID] --no-open` (exit code + Test Observatory en
+`http://127.0.0.1:8765`; la app real sigue en `43917`). No dos runs gestionados en paralelo; nunca contra la
+memoria real si hay fixture; todo test nuevo bajo `tests/<suite>/`; lo que cruce memoria + conversación +
+widgets/workers se cierra además con `-m tests run journey --no-open`.
 
-**Workflow de cambios en widgets ("pasa el workflow de widgets"):** cuando el operador dice **"pasa el workflow de
-widgets"** (o "revisa/cierra el cambio de widgets"), o al cerrar tú mismo un cambio ESTRUCTURAL del sistema de
-widgets (contrato de `manifest.json`/`data.py`/`widget.js`, protocolo de tags, despacho cerebro↔widget, storage,
-refresco, gate de validación), ejecutar `zaelar-widgets-workflow.md` — mapa "qué tocaste → qué actualizar" (contrato
-del generador, brief, prompt del FlashBrain, docs canónicas, **diagrama Y teoría** de `architecture.html`), repaso de
-impacto en widgets existentes, pruebas (`make test-widgets` + prueba en vivo si toca gobernanza), reinicio si hubo
-cambios `.py`, y commit/push SOLO si el operador lo pide. Un cambio trivial dentro de un solo widget (su propio
-`data.py`/`widget.js`) no lo dispara — solo actualiza el `notes.md` de ese widget.
-
-**Widget o conector NUEVO ("añade un conector de X" / "haz un widget de Y" / "pasa el workflow de widget
-nuevo"):** ejecutar `zaelar-new-widget-or-connector-workflow.md` — TODAS las acciones, en orden, para que una
-pieza nueva quede construida, cableada, probada, documentada y en el contexto. Es DISTINTO de
-`zaelar-widgets-workflow.md`, que gobierna cambios del SISTEMA de widgets; este gobierna piezas nuevas. Trae
-las cuatro decisiones previas (¿widget o conector? · ¿hace falta una tool nueva? casi siempre NO, las acciones
-declaradas SON las skills · ¿background? · ¿produce?), **la lista de los 14 puntos de cableado que fallan
-VACÍOS** (registro, routers, `_BUILTINS`, tarjeta Y familia del ⚙, `api.js`, i18n en+es, exención stdlib,
-testmap, manifiesto de catálogo, orden de familias del muro de chat, claves `chat.connFamily.*`, brief del
-cerebro, README de credenciales, la LISTA de conectores), la mitad de RUMBO que se olvida siempre (un
-conector añade ACCIONES y casi nunca las PALABRAS que llevan a ellas — V2-686), **§7-bis el ÚLTIMO METRO**
-(el consentimiento es un clic del operador; por voz la acción deja la tarjeta EN el paso del botón) y
-**§7-ter declararlo HECHO** (sacarlo de `planned`, alinear el id, la fila en la lista, el estado en el
-cerebro), el set de tests en sus cuatro clases —incluida la VIVA, que se construye entera aunque no haya
-credencial y SALTA con los pasos para habilitarla—, las fronteras que no se cruzan (la voz transporta
-intención y nunca una credencial; `widget.js` no toca la red; los widgets no se hablan entre sí) y una tabla
-de **diez traps medidos**. Nació del build de V2-557 y su razón de ser es que el siguiente sea corto.
-
-**Workflow de cambios en la memoria ("pasa el workflow de memoria"):** cuando el operador dice **"pasa el workflow
-de memoria"**, o al cerrar tú mismo un cambio ESTRUCTURAL de la memoria (schema/píldora, el CORAZÓN de escritura
-`mem_processor`/`memory_agent`, retriever/scoring, capas y velocidades de lectura, consolidador/olvido, cola/writer,
-observabilidad/visor), ejecutar `zaelar-memory-workflow.md` — **mapa de impacto "qué tocaste → qué revisar/notificar"**
-de TODOS los escritores (FlashBrain conv-buffer, `ingest_utterance`, `remember`, widgets/mensajería, reset, episódica)
-y lectores (`memory_cache`, `compose_recall`, `compose_context`, visor `/api/memory/map`) para verificar que sus
-interacciones (guardar Y leer) siguen alineadas con la versión nueva, + migración de schema, + docs (zaelar-memory.md,
-CLAUDE.md, diagrama Memoria de `/architecture`), + tests, + commit. Evita re-investigar cada vez a quién afecta un
-cambio de memoria. Termina SIEMPRE con la revisión de alineación.
-
-**CLOSING a batch ("cierra esto" / "documenta lo que has hecho" / "pasa el cierre"), and the MODULE LOG:** at
-the end of ANY batch that changes behaviour. The full eight steps live in the workspace ROOT's `.meshkore/`
-(`zaelar-initiative-closure.md`, PRIVATE repo — whoever clones this one does not have it, same as the roadmap);
-what belongs to THIS repo, and is therefore written here, are the three that keep being skipped:
-
-1. **The test with its NODE** in `tests/run_testmap.py`. Not in the map = it does not exist for «is everything
-   green?».
-2. **The decision in this file**, §Decisiones clave, with the WHY and the real failure that motivated it. It is
-   the only thing the next agent is certain to read.
-3. **The MODULE LOG** — `.meshkore/modules/<module>/logs/<YYYY-MM>/<PREFIX>-NNN-<slug>.md`. It is the only place
-   that keeps **the OPERATOR'S OWN WORDS for the request, what was MEASURED before touching anything, and the
-   COMMITS** that delivered it: the decision above says WHAT was decided and the initiative holds the detail, but
-   neither says where the task came from or which tree was walked to get there — which is exactly what is lost
-   when a session is cut short. Frontmatter `id/title/status/priority/owner/initiative/created/updated`, and a
-   table of commits at the end.
-   ⚠️ **`T-NNN` numbering is GLOBAL**, shared by EVERY module (frontend, voice, server…); the module-specific
-   prefixes run on their own (`N-` nucleo, `MK-` cluster, `S-` security, `TS-` tester, `C-` clusters). `ls` before
-   taking a number, exactly like an initiative.
-   ⚠️ **Gitignored on purpose** (the «neither our past nor our future gets published» rule): it lives on the
-   operator's machine and never travels with the repo. That is what makes it the place for the DIARY rather than
-   the catalogue — and why its entries are written in the operator's language, unlike everything else here.
-
-Measured 2026-09-11: the module log **was not on the closure checklist**, and the result was that it stalled at
-`2026-08` while the engine shipped through V2-669 — a month of batches with no record of the request, across two
-sessions that were lost. *A step that is not on the checklist is a step that does not get taken.*
-
-**Testing del bot ("lanza un test del bot"):** cuando el operador dice **"lanza un test del bot"**, **"lanza la
-batería (de escenarios)"** o **"prueba el bot en tuen"**, ejecutar `zaelar-testing.md` — el playbook autocontenido:
-**Paso 0 = ALINEACIÓN** (comprobar que `tests/voice/e2e/agent/scenarios.py` cubre los módulos principales y los cambios de las
-ÚLTIMAS 48 h — `git log --since` + decisiones `V2-0xx` nuevas; si falta, añadir el escenario ANTES de lanzar) →
-prioridades (latencia · coste bajo · memoria · búsqueda precisa · **navegación web profunda Wallapop/coches.net con
-extracción de datos reales, con/sin login** · robustez · multiidioma) → lanzar (`tests/voice/e2e/agent/run_battery.sh` con settle,
-o `cron_tick.sh`) → evaluar con el JUEZ distinguiendo **bug real (trace-confirmado) vs ruido de STT del tester vs
-rigidez del juez** (y comparación HUMANA de lo extraído en navegación) → arreglar código si hay bug → **archivar el
-informe del día en `tests/voice/e2e/agent/reports/<YYYYMMDD>-<desc>/`** (histórico consultable). Catálogo legible de escenarios en
-`tests/voice/e2e/agent/anexos/catalogo-escenarios.md`. No hay que recordar los pasos: viven en el playbook.
-
-**Contrato obligatorio para agentes de desarrollo:** antes de probar cualquier cambio, leer **`tests/README.md`**.
-Es la guía operativa corta compartida por Claude Code, Codex, humanos y CI; `zaelar-testing.md` conserva el
-diagnóstico profundo. La entrada preferida es `./.venv/bin/python -m tests run <suite> [--case ID] --no-open`:
-mantiene el exit code de terminal y, al mismo tiempo, publica cada ejecución en el **Test Observatory** estable de
-loopback **`http://127.0.0.1:8765`**. `--no-open` solo evita abrir una ventana: NO desactiva el visor, de modo que el
-operador puede observar mientras el agente trabaja. La aplicación real sigue en `http://127.0.0.1:43917`; no
-confundir ambos puertos. No ejecutar dos runs gestionados por el Observatory en paralelo, no probar contra la
-memoria real si existe fixture/corpus aislado y no recrear raíces `test/`/`tester/`: todo test nuevo vive bajo
-`tests/<suite>/`. Para cambios visuales, `browser` por sí solo cubre contratos deterministas; afirmar E2E visual
-requiere conducir Chromium/Playwright contra el Zaelar vivo. Para una capacidad nueva, mapear el caso en
-`suite.json`/provider y validar `tests/platform/tests`; cero casos `unmapped` es el objetivo.
-Los cambios que crucen memoria + conversación + widgets/workers/conectores se cierran además con
-`./.venv/bin/python -m tests run journey --no-open`: son 26 pasos sobre un único engine/DB/workspace aislado y cada
-caso posterior reconstruye su prefijo causal. Contrato y fronteras no cubiertas: `tests/journey/README.md`.
-
-> **Diagrama de arquitectura — MOVIDO al sitio público (2026-07-24):** `frontend/pages/architecture.html` y la
-> ruta `/architecture` de este repo se **retiraron** — ya no tenía sentido servir un panel interno (con editor de
-> modelos ⚙ en vivo) desde el propio motor. Los diagramas (Arquitectura general, FlashBrain, Brain Workers,
-> Memoria, Widgets) viven ahora como contenido **público, curado y en inglés** en `web/` bajo `/technology`
-> (`web/src/pages/technology/*.astro`), con las rutas de código internas, nombres de variable y detalle de
-> incidentes/costes RECORTADOS a propósito (audiencia externa, no engineering interno). **Ya NO es un espejo
-> automático del código** — es una foto seleccionada a mano. Si tocas topología/modelo/proveedor de forma
-> significativa, actualiza también los diagramas en `web/src/pages/technology/` como paso manual (no lo hace
-> ningún workflow todavía); la fuente de verdad DETALLADA sigue siendo `.meshkore/docs/architecture/` y este
-> `CLAUDE.md`. **Limpieza HECHA (2026-07-26, con autorización explícita del operador tras la auditoría):** los 5
-> workflows (`zaelar-docs-sync.md`, `zaelar-widgets-workflow.md`, `zaelar-memory-workflow.md`,
-> `zaelar-alignment-review.md`, `zaelar-audit-workflow.md`) ya apuntan a `web/src/pages/technology/*.astro` +
-> `web/src/lib/diagrams/*.ts` en vez del `architecture.html` retirado; las menciones que quedan son notas
-> históricas explícitas ("retirado el 2026-07-24"), no punteros activos a editar.
+> Los diagramas de arquitectura viven como contenido público en `web/src/pages/technology/*.astro` (foto curada,
+> NO espejo del código); `frontend/pages/architecture.html` se retiró el 2026-07-24. Si tocas topología, modelo o
+> proveedor, actualízalos a mano; la fuente detallada sigue siendo `.meshkore/docs/architecture/`.
 
 ### Módulos — el mapa corto
 
@@ -623,213 +506,35 @@ arranque `make run` → `python -m server`.
 
 **El detalle** — qué piezas forman cada módulo y por qué: `.meshkore/docs/modules/zaelar-module-map.md`.
 
-### Roadmap e iniciativas (`.meshkore/roadmap/`)
+### Roadmap, iniciativas y daemon
 
-Las iniciativas activas están en `.meshkore/roadmap/initiatives/`. Anclar cada tarea a una iniciativa. El diseño del
-cerebro «Colmena» vive en `.meshkore/roadmap/EPIC-v2-colmena.md`.
+Las iniciativas activas están en `.meshkore/roadmap/initiatives/`; anclar cada tarea a una. El diseño del cerebro
+«Colmena»: `.meshkore/roadmap/EPIC-v2-colmena.md`. El daemon de MeshKore es un **servicio único compartido**
+(`daemon.meshkore.com`): este repo NO arranca ni incluye uno — no crear `.meshkore/daemon.py`, ni targets
+`make meshkore`, ni bindear el puerto 5570.
 
-### Daemon (NO es por-proyecto)
+## Lo que el agente puede AFIRMAR, y a qué se pide permiso
 
-El daemon de MeshKore es un **servicio único compartido** (hospedado en `daemon.meshkore.com`), que da
-servicio a todos los proyectos del cluster. **Este repo NO arranca ni incluye un daemon propio.** La adopción
-del estándar se hace apuntando el front del Architect a la URL de la carpeta `.meshkore/` de zaelar; el daemon
-la lee, identifica el proyecto por `public/cluster.yaml` y lo onboarda (incluido el bloque `MESHKORE_PREAMBLE`).
-No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto 5570 desde aquí.
+Un «sí» se contesta con un ARRANQUE, nunca con una terminación (CRIT-V3); una op transaccional no entra en la
+lista de tareas (CRIT-C7); la agenda va DIRECTA y un borrado no pregunta, con papelera y `restore`
+(CRIT-C3). Todo en `.meshkore/docs/criteria.md` §1-2; el porqué, en el diario (V2-743, V2-748).
 
-## A REPORT IS NOT FILED BEFORE THE WORK (operator rule, 2026-09-21)
+## Quién decide a qué tarjeta va una orden
 
-Two rules from the same round, and they are opposite halves of one thing — what the agent is allowed to
-CLAIM. His words:
+Una tabla de verbos no es un enrutador: la gramática PROPONE, el modelo de decisión elige entre lo DECLARADO y
+un backstop no desmiente un veredicto ya pagado (CRIT-K1). El veredicto COMPLETA al modelo, nunca lo desmiente
+(CRIT-K2); un descriptor se escribe bajo el corte y se mide contra su VECINDARIO (CRIT-K7); un clasificador
+delante del modelo es un PRECIO que solo se paga donde la decisión no se puede leer después (CRIT-K9).
+`.meshkore/docs/criteria.md` §3; las alertas —lo que ya se probó y lo que costó— en
+`.meshkore/docs/architecture/zaelar-architecture.md` §«ALERTS», que se lee ANTES de escribir una regla que lea
+las PALABRAS del operador. ⚠️ Un desarme puede dejar bytecode rancio: el arnés borra `__pycache__` al restaurar
+(CRIT-W5).
 
-> «Ese arnés debería haberse dado cuenta que tenía que revisar tanto la memoria como el widget de la pantalla
-> y **no haber dicho que está hecho hasta que estuviera todo terminado**. Incluso previamente le tenía que
-> avisar al usuario, **me pongo a hacerlo ahora mismo y te aviso**.»
+## Un fallo nuestro no es un proveedor caído
 
-1. **A «yes» is answered with a START, never with a completion.** The confirm gate speaks `work_started`.
-   The outcome arrives later, from `nucleo/flash/op_receipt.py`, when the work actually settles — and a
-   POOL TIMEOUT is not an outcome (`widgets/server_api` gives up after 8 s; the thread keeps running and
-   usually finishes). The receipt witnesses those against the widget's own `view_data()`, compared to a
-   signature taken before the op: one read covers both halves he named, because the view is the screen and
-   it is derived from the store. `unknown` is a real third answer and it never claims success.
-
-2. **A TRANSACTIONAL op does not enter the user-visible task list.** Deleting or adding an agenda item,
-   sending a message — those are transactional. The task list is for work that takes time and that he may
-   want to come back and consult: *«coordíname una reunión con tal persona»*, *«búscame un restaurante para
-   mañana»*. He CONFIRMED current behaviour is right; it is written here so nobody «improves» it into a task
-   registry. V2-743.
-
-3. **LA AGENDA VA DIRECTA — un borrado de tarea no pregunta (regla del operador, 2026-09-21).** Sus
-   palabras: *«No quiero que me pida confirmación para borrar tareas. Añade esto ya como una regla por
-   defecto. La agenda va directa. Cuando digo borrar esto, lo borras sin preguntar. Otra cosa es que guardes
-   un rastro de lo que había, por si me he equivocado, y te digo restáuralo»*. Las dos mitades son una sola
-   regla y ninguna se instala sin la otra: `delete_task`/`add_task` no llevan `confirm`, y la agenda guarda
-   una papelera acotada con acción `restore` que devuelve la fila a SU HUECO (el número es la forma entera
-   en que él se dirige a una tarea). Lo que sí sigue preguntando, porque él habló de «esto» —un ítem— y no
-   de barridos: `clear_list`, `delete_list`, `clear_all`, `clear_range`.
-
-   ⚠️ **Y el gate de irreversibles no lee el CONTENIDO de una fila de la agenda.** «Añade una tarea que sea
-   comprar el pan» no es una orden de comprar nada. `nucleo/danger.py` se repara **RESTANDO** la cláusula
-   —nunca añadiendo un patrón— y el backstop de la voz no dispara con una data-op ya despachada: una
-   mutación de widget tiene embudo (`widgets/server_api._dispatch`, el contrato de V2-705, el snapshot de
-   `store.save`), y ese gate es para lo que NO lo tiene. V2-748.
-
-## UNA TABLA DE VERBOS NO ES UN ENRUTADOR (regla del operador, 2026-09-22)
-
-Medido tres veces en un mes, siempre igual: una ruta decidida por «¿contiene esta frase uno de estos verbos?»
-falla en los DOS sentidos, y ampliar la lista lo empeora. V2-741 (la licencia de gramática se comió la tool),
-V2-748 (el gate leyó el título de una fila de la agenda), V2-750 («vamos a hacer una cosa» construyó un widget
-duplicado). **Y ninguna de esas tablas sabe leer un alfabeto no latino**: medido, `looks_like_create_widget`
-devuelve `False` para «hazme un widget de ajedrez» en chino, japonés e hindi — o sea que ahí el generador es
-inalcanzable por voz, en silencio.
-
-**La regla:** enumerar las opciones DECLARADAS y que el modelo de decisión elija entre ellas
-(`nucleo/jev.py`, `.meshkore/docs/modules/zaelar-decision-model.md`). Una gramática puede **PROPONER** —es
-gratis e instantánea— pero no puede ser la que decide, y **no puede desmentir a un veredicto que ya se ha
-pagado**. El ejemplo trabajado es `nucleo/flash/build_decision.py`. Cuando un guarda sí tiene que leer texto,
-se repara **RESTANDO** la cláusula que no es la orden, nunca añadiendo un patrón: `nucleo/danger.py` lleva
-cinco restas y explica por qué en su propia cabecera.
-
-⛔ **Las alertas completas —lo que ya se ha probado y lo que costó— viven en
-`.meshkore/docs/architecture/zaelar-architecture.md`, sección «ALERTS», arriba del todo.** Se lee ANTES de
-escribir una regla que lea las PALABRAS del operador. Una entrada entra ahí con su incidente medido y su id de
-sesión, nunca por criterio.
-
-### Y un clasificador ANTES del modelo está AUTORIZADO cuando aporte (decisión suya, 2026-09-22)
-
-> «Jev es un modelo que tiene una latencia mínima y por lo tanto no nos retrasa especialmente. Allí donde
-> consideres que eso puede aportarnos claridad y eficiencia, puedes considerar ponerlo.»
-
-Esto **relaja** la regla de emplazamiento de V2-726, que decía «sirve a lo que se decide DESPUÉS del modelo».
-No la borra: el número sigue siendo el número. Un brief disparado al admitir el turno aterriza a **785 ms**; el
-prompt se ensambla a los **3 ms** y el catálogo de tools a los **381 ms**. Así que un clasificador delante del
-modelo **cuesta ~780 ms de espera al turno entero** — no es gratis, es un PRECIO.
-
-Criterio para pagarlo: solo cuando la decisión **no se pueda leer después** y la alternativa cueste más que
-ese segundo. El guarda de V2-750 corre a mitad de stream (pasados los 1.919 ms del primer token), así que
-**ahí no hacía falta** y no se ha puesto delante. Para una decisión que dé forma al catálogo de tools —que se
-cierra a los 381 ms— sí habría que pagarlo, y entonces se mide antes de cablearlo.
-
-### Y el veredicto solo puede elegir lo que LLEGA a la pregunta (V2-753, 2026-09-23)
-
-«Páralo, y vuelve al inicio» sobre un vídeo sonando: el guarda de V2-635 se comió `youtube:close`
-**cinco veces en noventa segundos** mientras la voz decía que lo paraba. Tres reglas:
-
-1. **Un guarda instalado en dos ramas lleva la lista de ramas dentro.** El escape de Jev existía desde
-   V2-635 y nunca llegó a la data-op que dispara sobre el reproductor de verdad.
-2. **⭐ Un descriptor RECORTADO no enruta nada.** El brief cortaba cada `desc` a 90 caracteres y decapitaba
-   la frase que hacía alcanzable «vuelve al catálogo»: `none` 0,77 a 90 chars → `show_tab` **0,96** a 200,
-   sin cambio de latencia. Antes de acusar al modelo de no elegir una acción, mirar cuánto de su descriptor
-   LLEGA a la pregunta (`turn_brief.MAX_DESC_CHARS`).
-3. **Un backstop no contradice un veredicto ya pagado.** Existe para cuando NO hay información; cuando la
-   hay, la lee. Una promesa que vaciamos nosotros no es un encargo: es un bug, y gastar cuatro minutos de
-   worker en él lo convierte en dos.
-
-### EL VEREDICTO COMPLETA AL MODELO, NUNCA LO DESMIENTE (V2-754, 2026-09-23)
-
-Cuatro órdenes de volver al catálogo: el brief acertó donde el modelo falló y el modelo acertó donde el
-brief decía `restart` a 0,99. **Cada lector acertó donde el otro falló y nadie los cruzaba** — y Jev solo no
-puede decidir: a 0,99 habría reiniciado el vídeo que él pedía dejar. La regla
-(`nucleo/flash/direct_action.complete`), en el único sentido que la evidencia permite:
-
-1. Una llamada VÁLIDA y resoluble del modelo corre siempre; si el veredicto discrepa, se REGISTRA (`⚖️`).
-2. Donde el modelo dejó el turno VACÍO o su llamada no resolvió, la acción del veredicto sobre la tarjeta
-   abierta rellena el hueco, por la misma puerta `action_mode_now`. **Nada nuevo ejecuta; algo declarado
-   deja de quedarse sin ejecutar.**
-3. Sin veredicto, inseguro, tarjeta cerrada o Jev apagado → la ruta de hoy bit a bit.
-
-Corolarios: **un alias declarado es dato de producto** y lo leen los dos lados (`widgets/enums.py` es el
-único parser; un `unknown_tab` sobre `home` era una orden correcta tirada por vocabulario); y **la palabra
-que él usa para una pantalla no puede vivir en el descriptor de otra acción** — «vuelve al inicio DEL VÍDEO»
-en `restart` lo puso a 0,99 sobre «inicio del widget de vídeo». Se mide antes y después.
-
-### UN DESCRIPTOR LE ROBA LA PALABRA AL VECINO (V2-755, 2026-09-23)
-
-Tercera vez con esta forma, y las tres mías. «Vale, para el vídeo» volvió `none` 0,65: `close`, engordado en
-V2-753, abría con «**PARA** el vídeo de verdad» y desangró a `pause`. Cinco reglas, detalle en la iniciativa:
-
-1. **⭐ Al tocar un descriptor se mide el VECINDARIO, no la frase que se persigue** — antes y después, sobre
-   las acciones que comparten vocabulario. «Vale, para el vídeo» `none` 0,67 → `pause` **0,98**, con close y
-   restart sin moverse.
-2. **Un homógrafo se cierra NOMBRÁNDOLO** («ahí «para» es el verbo, no la preposición»): 0,47 → 0,98.
-3. **Escribir por encima del corte es escribir para nadie** — `MAX_DESC_CHARS`; 48 de 220 acciones estaban
-   por encima, quedan 45, con trinquete (nodo 2.74).
-4. **Un vídeo que LLEGA y uno que se CAMBIA no son lo mismo**: una orden de reproducir declara la cara del
-   reproductor en la capa de datos (raíl `goto_tab`); el avance al terminar, NO.
-5. **⭐ No afirmes en el prompt lo que no has verificado** — el arnés decía «la hoja sigue VACÍA» sobre seis
-   resultados y un vídeo sonando: la regla estaba instalada en la rama que nadie lee. Una tarjeta ilegible
-   deja una línea, no silencio.
-
-### UN NÚMERO QUE ÉL HA DICHO NO ES UNA INVENCIÓN (V2-756, 2026-09-23)
-
-Sesión `74be8e9a`, sobre el build de V2-755 — que aguantó (el catálogo obedece, el arnés cierra sus
-objetivos, el veredicto completa turnos vacíos y registra discrepancias). Cinco capas nuevas:
-
-1. **⭐ Una pregunta hecha dos veces no puede cambiar su respuesta.** «ponme el vídeo número tres» volvió
-   como `play_video(action=list)` —una búsqueda— tres turnos seguidos, y cada una re-descargaba y
-   RENUMERABA la banda a la que sus números se referían: «Bueno, ponme el vídeo dos, que los has
-   cambiado». La misma query sobre la misma banda ahora se responde (`unchanged`), no se re-ejecuta. Con
-   su límite, que cazó un test vecino y no yo: si la banda lleva algo que él ha rechazado desde entonces,
-   repetir NO es la misma pregunta.
-2. **⭐ Un número que ÉL ha dicho es una LECTURA, no una invención.** V2-741 se niega a inventar un payload
-   y tiene razón; «el vídeo número tres» sobre una banda numerada no es inventar — misma clase que el
-   alias declarado del veredicto. Y destapó un defecto viejo: `resolve` metía la frase entera en `item`, y una
-   clave de índice no es una query.
-3. **Una capacidad que no se puede DECIR no existe.** «Bórrame los tres últimos de la cola» borró UNA fila:
-   `remove` tomaba un `item` mientras su espejo `add_results` acepta «1,3» desde hace un año, y la regla es una
-   acción por turno. El modelo lo había entendido («quito el 4, el 5 y el 6»). Acabó en «Eso es absurdo,
-   no estás entendiendo la tarea». Declarado el plural: `remove` 0,98-1,00 sobre sus frases, con
-   `clear_list` 0,94 sobre «vacía la cola entera», intacto.
-4. **Reparar una omisión no es editar una decisión.** `show_tab` sin `tab` volvía `unknown_tab` sobre una
-   frase que nombra la cara. `fill_missing` solo AÑADE una clave vacía, y solo por un alias declarado o un
-   número dicho. De paso: **un alias que casa con casi todas las frases no desambigua nada** — `player`
-   declaraba «el vídeo» en una tarjeta de VÍDEO.
-5. **⭐ Inseguro ≠ ausente, y un lector inseguro no veta a uno casi seguro.** «Para el vídeo» midió
-   `screen_action = pause` **0,95** con `request_type` partido (answer 0,49 / comment 0,39) y no pasó nada:
-   el gate exigía una orden CONFIADA. Ahora es una lista de rechazo (`comment`/`question`/`greeting`), y el
-   motivo está medido: la pregunta de pantalla contesta `none` **0,87-0,99** para toda observación
-   ambiental, así que los dos guardas coinciden donde importa y solo éste se equivocaba. `complaint` queda
-   fuera de la lista a propósito (V2-750). Sin respuesta ninguna se sigue fallando cerrado.
-
-**Observabilidad, las dos mitades que él pidió mirar.** El registro del prompt guardaba cabeza y cola y
-omitía el CENTRO — donde `widgets/brief` escribe lo que hay EN PANTALLA; para saber si el modelo veía la
-banda hubo que reconstruir el digest a mano contra un almacén que ya había cambiado (tercera vez que este
-recorte cuesta un diagnóstico). Y una discrepancia con una tool GLOBAL no dejaba rastro,
-porque el `⚖️` solo vivía dentro de la rama de `widget_data`.
-
-**⚠️⚠️ Un DESARME puede dejar bytecode rancio.** El arnés restaura con `cp`, y si eso cae en el mismo
-SEGUNDO en que se escribió el `.pyc` compilado desde la versión desarmada, Python da la caché por válida
-(mtime con granularidad de un segundo) y todo proceso posterior ejecuta el código DESARMADO — una pasada
-ancha entera corrió así sin que nada lo dijera. El síntoma es «rojo en la pasada, verde suelto»; se
-confirma con `fn.__code__.co_names`, NO con `inspect.getsource`, que lee el fichero y siempre enseña lo
-nuevo. El arnés de desarme debe borrar `__pycache__` al restaurar.
-
-**⚠️ Una medición contra el conjunto de candidatos equivocado ACUSA al arreglo**: medí «los tres últimos»
-con los candidatos de otra sesión, donde `remove` ni estaba, y parecía que lo empeoraba. El conjunto se
-saca del `probabilities` del turno que se arregla.
-
-## A BUG OF OURS IS NOT A PROVIDER OUTAGE (V2-758, 2026-09-23)
-
-«Cerebro rápido caído — turno degradado», nine times, with DeepSeek answering. The cause was
-`UnboundLocalError: '_cvis'` — a local shadowing this repo's alias for `canvas_visibility`, which killed
-`show_images` and the music/messaging guards for five days. **A local that shadows an imported module makes
-every EARLIER use of it unreachable, silently, and a source-anchored test cannot see it** (the line was
-written and correct). Ratchet: node 2.77, symtable + ast, floor zero.
-
-Three consequences, all fixed: the handler blamed the PROVIDER for any exception (cooldown on a healthy tier,
-light accusing DeepSeek, relay to a rung no failover can help) — the turn now asks whose fault it is first,
-and the test is the EXCEPTION (HTTP status = theirs, bare Python error = ours); the alert travelled as the
-literal «flash layer error» with the cause thrown away; and the ladder only moved the NEXT turn — *«para eso
-tenemos un failover, para que esa misma request que ha fallado se vuelva a enviar al otro modelo»* — so the
-relay now lives in `fast_client`'s CONNECT loop, the only moment nothing has been emitted yet. One hop, never
-the door that just failed, body rebuilt for the new provider.
-
-**The panel reads the ladder on EVERY poll, not only when a light is on**: a successful relay clears the light
-at the first chunk, so a relayed engine painted GREEN. Both boxes now name titular + stand-in, amber while the
-substitute serves — «si fallaran los dos, entonces sí que habría que marcarlo en rojo».
-
-⛔ **Embeddings CANNOT have a failover model** — it defines the vector space every stored pill lives in, so a
-stand-in answers in incomparable coordinates. Moving it is a re-embed, never a config edit. Measured
-2026-09-23: OpenAI 200/269 ms, AIMLAPI **403 `1010`**, DeepSeek no endpoint. The fall is made VISIBLE instead.
+La excepción decide de quién es la culpa (un status HTTP es suyo, un error de Python pelado es nuestro), la
+MISMA petición releva al suplente en el bucle de conexión, y los embeddings no tienen relevo (CRIT-R1, CRIT-R3).
+`.meshkore/docs/criteria.md` §6; el incidente, en el diario (V2-758).
 
 ## Decisiones clave — están en su propio fichero
 
@@ -837,7 +542,8 @@ El diario del motor (una entrada por tanda: qué se decidió, por qué, y el fal
 **`.meshkore/docs/decisions.md`**, y lo más viejo en `.meshkore/docs/decisions-archive.md`. Se lee ANTES de
 tocar una pieza — te dice qué se intentó ya y qué se descartó, que es la mitad del trabajo que no se repite.
 
-Al cerrar una tanda, la entrada se escribe allí, no aquí. Este fichero es de REGLAS y PUNTEROS.
+Al cerrar una tanda, la entrada se escribe allí, no aquí. Este fichero es de REGLAS y PUNTEROS, y el diario es
+HISTORIA: lo que el motor obedece HOY está, una línea por regla, en `.meshkore/docs/criteria.md`.
 
 ## Testing
 
@@ -907,57 +613,18 @@ abierta (`V2-091`); a partir de ahora, no añadir más.
 
 ## Hard rules
 
-- ⚠️ **UNA PASADA ANCHA SE LANZA CON EL VIGILANTE, NUNCA CON `pytest` A PELO.** Del 2026-09-15 al 2026-09-20
-  esto fue una PROHIBICIÓN: una pasada ancha le colgaba la máquina al operador y nadie sabía qué test lo hacía.
-  La regla se escribió con la causa **sin diagnosticar** —que era lo honesto— pero dejaba al motor sin poder
-  contestar «¿sigue pasando todo?». Corrección del operador (2026-09-20): *«todos los tests se pueden pasar…
-  había unos que se quedaban colgados… hay que buscar algún mecanismo de ejecución de tests que detecte si se
-  han colgado o no»*.
-
-  **LA CAUSA, MEDIDA EL 2026-09-20.** UN test —`tests/infrastructure/unit/config/test_model_policy.py`— barre
-  el árbol buscando un nombre de modelo prohibido. Lo hacía con `os.walk` y una **lista negra** de sufijos
-  binarios; `.mkv` no estaba en ella, y `library/downloads/` es la carpeta de descargas REAL del operador: el
-  barrido llamaba a `read_text()` sobre **un vídeo de 84 GB**. 90 GB de lecturas para un grep sobre 10.000
-  ficheros, sin una línea de salida, hasta que la máquina se rendía. Dos defectos en una línea, los dos
-  arreglados: una lista negra de formatos binarios es la lista de los que alguien SE ACORDÓ, y falla
-  **colgándose**, no dando error; y estaba leyendo contenido gitignoreado del operador, contra la propia regla
-  de la suite de que un test nunca toca su estado real. Ahora le pregunta a `git ls-files` qué es el árbol:
-  **0,8 s**, y no puede alcanzar sus descargas.
-
-  Con esa línea arreglada, **la suite determinista entera son ~7 minutos y no se cuelga en ningún sitio**
-  (medido: 57 chunks, 10.828 verdes).
-
-  **Cómo se lanza:**
+- ⚠️ **UNA PASADA ANCHA SE LANZA CON EL VIGILANTE, NUNCA CON `pytest` A PELO** (CRIT-W5):
 
   ```sh
-  ./.venv/bin/python tests/watchdog.py                           # todo lo determinista
+  ./.venv/bin/python tests/watchdog.py                           # todo lo determinista (~7 min, 10.8k verdes)
   ./.venv/bin/python tests/watchdog.py tests/voice/unit          # una carpeta
   ./.venv/bin/python tests/watchdog.py --impacted origin/main    # solo lo que tu diff alcanza
   ```
 
-  Tres capas cazan un cuelgue: el volcado de `faulthandler` (ya dentro de pytest, sin dependencias nuevas)
-  **nombra** fichero, línea y función del test colgado y corta en segundos; un muro de reloj por chunk cubre lo
-  que el volcado no ve (un import o una colección que bloquean); y se mata el **GRUPO** de procesos, no el
-  proceso — el incidente del 2026-09-15 dejó **71 Chromium huérfanos**, y matar pytest solo los habría dejado
-  exactamente donde estaban. El nodo **7.53** vigila al vigilante.
-
-  **Lo que NO ha cambiado:**
-  1. mientras iteras, el FICHERO que has tocado y su DESARME — eso es lo que demuestra que mides algo;
-  2. antes de commitear, `--impacted <base>`: elige por los imports que el test DECLARA, no por un mapa de
-     carpetas escrito a mano que se pudre en cuanto un módulo se mueve;
-  3. **nunca dos pasadas anchas a la vez sobre este checkout** — el corredor coge un cerrojo y se niega. Dos
-     barridos simultáneos midieron 1222 s y 1589 s para lo que solo tarda 9 minutos (2026-09-15). Las pasadas
-     estrechas y explícitas no llevan cerrojo: son baratas y tienen que poder anidarse.
-  4. `./.venv/bin/python tests/run_testmap.py` **sin argumentos** sigue siendo una pasada ancha a pelo, sin
-     vigilante y sin cerrojo. `--list` sí (solo imprime).
-
-  **Y lo que ya estaba medido sigue en pie (2026-09-15, V2-696):** los ~230 rojos que aparecían en cualquier
-  pasada ancha y NUNCA en aislamiento eran contaminación —un test purgaba `sys.modules` de todo
-  `widgets*`/`i18n*` sin devolver la tabla, así que el siguiente importador recibía un `widgets.store` recién
-  construido, con el sandbox del conftest perdido y la suite escribiendo en los datos REALES del operador—.
-  Arreglado, con trinquete. Así que un rojo dentro de una pasada ancha sigue mereciendo reproducirse en la
-  carpeta sola antes de tocar nada.
-
+  Nombra el test que se cuelga, mata el GRUPO de procesos y se niega a dos barridos a la vez (nodo 7.53). Mientras
+  iteras: el FICHERO que has tocado y su DESARME. `tests/run_testmap.py` sin argumentos es una pasada ancha a pelo;
+  `--list` solo imprime. Un rojo dentro de una pasada ancha se reproduce en su carpeta a solas antes de tocar nada
+  (CRIT-W6). La causa medida el 2026-09-20 —un test que leía un vídeo de 84 GB del operador— está en el diario.
 - **COMMITEA PRONTO Y SIEMPRE — cada agente y cada sesión commitea SU propio trabajo.** En cuanto una tarea está
   hecha se commitea, **incluso ANTES de probarla**: si algo sale mal se revierte (`git revert`/`reset`), pero perder
   código NO es reversible. Con varios agentes/sesiones trabajando en paralelo, **un árbol de trabajo sin commitear
@@ -1004,71 +671,18 @@ abierta (`V2-091`); a partir de ahora, no añadir más.
   Docker** — esa es la única parte donde Docker es aceptable.
 
 
-## LA COLUMNA DEL CHAT ES LA CONVERSACIÓN (norma del operador, 2026-09-22)
+## La columna del chat es la conversación
 
-> «La columna del chat tiene que ser algo que funcione al microsegundo y que funcione sin ningún tipo de
-> error. El motor de la conversación es una de las bases de nuestro proyecto… **no puede dar la sensación de
-> que se pierden cosas en el limbo y no puede ser, porque yo las veo en pantalla: eso es que las has
-> procesado.**»
+Una línea de voz se DEBE cuando la boca la empieza, su identidad es el `trace` del turno y un fragmento
+retenido solo se pega al siguiente si el siguiente lo continúa (CRIT-V7); una queja sobre lo recién hecho es una
+orden de rehacerlo, con la licencia de la op que corrige; el nombre del asistente cambia por veredicto y falla
+CERRADO (CRIT-V8). `.meshkore/docs/criteria.md` §1; el porqué, V2-752 y V2-747 en el diario.
 
-Tres reglas que salen de V2-752 y que gobiernan todo lo que se escriba en el muro:
+## Construir o reescribir una tarjeta suya se le pregunta antes
 
-1. **Una línea de voz se DEBE, no se escribe.** Llega al muro cuando el motor dice que la locución empezó
-   (`bot_speech speaking`), nunca al generarse ni al expirar un temporizador. Medido: 9 de 24 respuestas se
-   pintaron y no sonaron, y la siguiente las borraba — *pintar y borrar delante de él*. La evidencia de que
-   la voz habló es un EVENTO, no la ausencia de otro.
-2. **La identidad de una línea es el `trace` de su turno**, no su posición. El registro hablado llega con
-   mediana 7,3 s (máx 20,8 s) de retraso: comparándolo contra la última fila, cualquier frase suya en medio
-   lo convertía en una burbuja duplicada debajo de la suya.
-3. **Un fragmento retenido solo se pega al siguiente si el siguiente lo CONTINÚA.** Pegar por adyacencia
-   temporal produjo «quita este vídeo y vamos otra vez al No me estás oyendo», que Jev leyó como una orden
-   de cerrar (0,93). La pregunta la contesta `nucleo/flash/continuation.py` y **cuesta ~780 ms, solo en los
-   turnos con fragmento pendiente** (10 de 28 medidos) — es el precio que él autorizó, no un almuerzo gratis.
-
-### Y una queja sobre lo RECIÉN hecho es una orden de rehacerlo
-
-`request_type=complaint` se leía solo como «no empieces nada nuevo». Dos correcciones suyas correctas en el
-modelo murieron en un guarda mientras el agente decía en voz alta que las atendía. `nucleo/flash/redo_decision.py`
-pregunta, con lo que REALMENTE se hizo delante (`nucleo/done_ops.py`), y **solo concede la licencia de la op
-que corrige**. Corolario: cuando la acción fallida la hace una tarjeta con una llamada, la reparación es la
-LLAMADA — el susurro ya no arranca un worker de código para una búsqueda (4 minutos y cero resultados, medido).
-
-### El único slot de identidad que NO habla de él necesita su propia pregunta
-
-`assistant.name` está exento de la guarda «¿habla del operador?» y del anti-garble, **y ambas exenciones son
-correctas** (V2-747). Entre las dos lo dejaron escribible con la sola firma del modelo pequeño: «He dicho,
-Apollo once» renombró su asistente a «Apollo 11» y se llevó la palabra de activación, en silencio y entre
-sesiones. La pregunta que faltaba la contesta un veredicto, **nunca una regex** — una hermana de
-`_talks_about_the_operator` sería una tabla de verbos, y además ciega fuera del alfabeto latino.
-⚠️ Aquí la dirección de fallo es **CERRADA** (ausente/inseguro → no renombra), al revés que el resto: negar
-de más cuesta repetir un renombrado, conceder de más cuesta una identidad que él nunca dio.
-
-## CONSTRUIR O REESCRIBIR UNA TARJETA SUYA SE LE PREGUNTA ANTES (norma del operador, 2026-09-23)
-
-> «hay que pedir confirmación siempre que pidamos crear un widget o modificar un widget… Eso ya que sea
-> **algo de sistema**, porque así nos evitaremos que se empiecen a generar widgets por ahí fuera de
-> cualquier manera.»
-
-La puerta está en `dispatch._run_session`, junto al gate de irreversibles: es la ÚNICA por la que se
-enciende un worker, y allí `kind == "code"` ya significa «va a escribir el código de una tarjeta». Al
-generador se llega por seis sitios, y *una regla que cada llamador tiene que recordar no es una regla*.
-Reusa el confirm-gate entero (sí/no, la línea que impide narrar progreso, la caducidad). **No dice
-«irreversible»**: construir no es peligroso, es caro y visible. Exento el dev-worker de cluster. V2-757.
-
-⚠️ **`widgets/_user/<id>/` ENSOMBRECE al built-in y está gitignoreado** (catálogo, `identify`, `widget.js`,
-imports de Python). Un fork deja `git status` limpio mientras la tarjeta que CORRE no es la del repo — dos
-iniciativas llevaban horas inertes por esto. Antes de diagnosticar un widget: **qué fichero corre**.
-
-### Una pregunta educada es una orden; un número suelto no lo es
-
-- **`question` fuera de `NOT_AIMED_AT_THE_SCREEN`**: en castellano la orden educada tiene forma de pregunta
-  («¿Puedes enseñarme el catálogo?» → `show_tab` 0,85, vetado). Medido: toda pregunta de verdad contesta
-  `none` (0,78-0,94), así que esa entrada no salvaba nada y hacía daño donde la pantalla estaba segura.
-- **Un turno que es SOLO UN NÚMERO no mueve nada** si el veredicto contestó y no nombró acción — la cola de
-  una frase («…en el año» / «sesenta y nueve.») se ejecutó como `set_volume 69`. Reusa `is_a_fragment`: una
-  regla, dos consecuencias. Las tres condiciones son obligatorias; sin «solo un número» alcanza a «páusalo».
-
-Y dos raíles que ya existían: una búsqueda que llega **es para mirarla** (trae su cara delante sin tocar lo
-que suena), y el orbe **se va a la barra** cuando algo se pone a pantalla completa, y vuelve al salir.
+En la única puerta por la que se enciende un worker (`dispatch._run_session`, `kind == code`), con el
+confirm-gate entero; exento el dev-worker de cluster (CRIT-C4). ⚠️ `widgets/_user/<id>/` ENSOMBRECE al
+built-in y está gitignoreado: antes de diagnosticar un widget, **qué fichero corre**. Una pregunta educada es
+una orden; un turno que es SOLO un número no mueve nada (CRIT-K7). `.meshkore/docs/criteria.md` §2-3.
 
 <!-- OPERATOR_CONTENT_END -->

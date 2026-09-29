@@ -4,6 +4,10 @@
 No son instrucciones — las instrucciones viven en `CLAUDE.md`, que es lo que todo agente carga al empezar.
 Esto se lee cuando hace falta: antes de tocar una pieza, para saber qué se intentó ya y qué se descartó.
 
+**Este fichero es HISTORIA.** Lo que el motor obedece HOY —una línea por regla, con fecha y nodo de test,
+sin versiones anteriores— está en **`.meshkore/docs/criteria.md`** (2026-09-29). Una entrada de aquí puede
+estar superada por otra más nueva; el criterio vigente es el de `criteria.md`, nunca el de la entrada.
+
 **Dónde está el resto.** Las entradas más antiguas viven, íntegras y en su orden original, en
 `.meshkore/docs/decisions-archive.md`; abajo queda su línea de índice. El detalle denso de cada una está en
 su iniciativa, bajo `.meshkore/roadmap/initiatives/` (gitignoreado a propósito: no publicamos el roadmap).
@@ -20,6 +24,22 @@ entregada siga citada aquí.
 > when the size ratchet (`tests/infrastructure/unit/test_claude_md_ratchet.py`) trips, move the oldest
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
+
+- **The standing criteria are ONE document, and the diary is history (V2-776 J, 2026-09-29)**: the operator,
+  verbatim: «me gustaría empezar a simplificar criterios y que no haya contradicciones… necesitaríamos realmente
+  eliminar histórico y dejar solamente los últimos criterios de las cosas». Measured: four sources said what the
+  engine must do; `CLAUDE.md` carried eight dated «norma del operador» sections (420 lines of incident narrative);
+  the ack after a short order had three readable rules (V2-572, V2-633, 2026-09-29) of which only the last was
+  true; and `CLAUDE.md`, rendered from `AGENT_INSTRUCTIONS.md` and mirrored in `AGENTS.md`, had drifted 264 lines
+  from its source. Now: `.meshkore/docs/criteria.md` holds ONLY the standing rules — 46 lines in 7 groups, each
+  dated and citing the map node that guards it (5 marked as debt) — and this file declares itself history at the
+  top. `CLAUDE.md` went 1,074 → 688 lines: the eight sections became pointer paragraphs naming their criteria,
+  the workflow prose a table of trigger phrase → doc; the block is identical in the three rendered files. The
+  contradictions were resolved by one rule, «the newest rule with a test wins», and the table is in the
+  initiative; the ratchet (`test_the_criteria_are_one_and_current.py`, node 2.175) keeps every line dated and
+  tested, the table empty, the rendered files equal and `CLAUDE.md` only shrinking. `principles.md` stays: it IS
+  the base criterion. Paid on the way: this diary crossed its 400 KB ceiling and two of its oldest full entries
+  went to the archive, their index lines below.
 
 - **The rule lands where it applies: a widget's rule in its row, a consent rule in the gate, and a reset that
   forgets what was said (V2-776 I, 2026-09-29)**: the second stretch of the hierarchical rules, planned and run
@@ -2072,50 +2092,6 @@ entregada siga citada aquí.
   doing the work anyway. **NOT verified**: the native folder dialog headless (it cannot be), and the whole
   ceremony driven end to end by the operator.
 
-- **A turn that calls a TOOL is covered at the SEAM (V2-669, 2026-09-11)**: the operator, after the engine
-  moved onto the slower/better model — «si una pregunta como a qué hora tengo esta actividad en la agenda
-  tarda 8 segundos en resolverse, necesitamos alguna frase o palabra de relleno… o incluso más rápido que
-  dijera "dame unos segundos", porque si tenemos una locución demasiado larga alargaremos innecesariamente el
-  tiempo de respuesta». **Measured in his own observability before building anything** (`deepseek-v4-pro`):
-  the `read_widget` turn answering «¿a qué hora tengo la cita con Hacienda?» took **6 029 ms with
-  `ttft_ms: 0`** — the first pass returned a TOOL CALL and no text, so the reply stream stayed empty for the
-  whole turn — and across **7 real voice turns on a light route the turn ENDED 3.4-5.9 s AFTER the tool
-  event**, while the lead-in filler had sounded 1.0-3.3 s BEFORE it. Its ~1 s of audio was long over. Nothing
-  covered that stretch: both light-route branches went straight from the tool decision into the second pass,
-  and the `emit()` beside them is observability, not a mouth. **The lead-in cannot fix this by construction**:
-  it is chosen ~1.1 s in, before any model has spoken, so it can only ever be a blind thinking sound. The
-  node now keeps racing the model's first chunk after the lead-in settles and covers a SECOND time when the
-  provider publishes a work note at the seam (`filler_audio.note_work`, called from `read_widget`, `recall`
-  and `web_search`). **The cover NAMES the source** — «Lo miro en Agenda…», «Lo busco en internet…» — which
-  is the one thing the blind lead-in could not say, and is what keeps two covers from reading as the same
-  wait said twice: the failure this codebase already met once (V2-189, session 2bdc67ee, «Déjame que mire…»
-  then «Vale, dame un momento que lo miro.»). Guards, each disarmed: a second pass that answers inside
-  `_WORK_GRACE_S` beats it and nothing is said; it never sounds within `_COVER_MIN_GAP_S` of the lead-in's
-  FIRE (measured from the fire, because this node cannot know how long the TTS took); at most one per turn;
-  `fillers: off` silences it; it is stripped from the forwarded transcript; and it updates anti-echo but
-  **never `_last_reply`** — a cover carries no topic either, and feeding one to the directed-content judge is
-  the 2026-08-17 bug. Pools are per language (`covers_widget`/`covers_search`/`covers_recall`, es+en) behind
-  the same generated-pack seam the fillers use, so an onboarded language can eventually ship its own; a
-  length ceiling is enforced in the test, because **a cover cannot be cut mid-sentence, so its own length IS
-  latency** (his rule). **VOICE ONLY, and the module says why**: the text channel has no dead air to fill, so
-  the parallel-implementation rule (V2-252) deliberately does not reach this one — written down instead of
-  left as drift, with a guard that keeps `note_work` out of `probe.py`. Node **2.53**; eight disarms, each
-  mutation asserted before measuring, all red. ⚠️ **Two of them were MINE and green at first**: one left the
-  banned call alive inside the comment that replaced it, and one anchored on a line `pick_filler` carries
-  BYTE-IDENTICALLY, so it mutated the wrong function (the V2-571 lesson). ⚠️ **And the harness left a
-  mutation in the tree**: the mutation-landed assertion raised BEFORE the restore line, so a weakened
-  `pick_filler` sat in the working tree after the sweep had already gone green — the restore is in a
-  `finally` now. Also fixed here, and the same class: `test_filler_path_never_writes_last_reply` banned the
-  string `_last_reply` in the whole file, so DOCUMENTING that rule in a comment turned it red (V2-615's trap);
-  it reads comment-stripped code now and asserts BOTH mouths keep anti-echo. **Measured and NOT built,
-  reported instead**: the second pass runs on the TURN's spec, so `deepseek-v4-pro` is paid twice per light
-  route — 18 samples over the real agenda block put `deepseek-v4-flash` at **715-868 ms TTFT vs 805-949 ms**
-  and **909-1 155 ms total vs 1 248-1 769 ms**, with **zero confabulation in 6/6 runs** of the two
-  answer-is-absent cases (it states the absence AND names what IS there). The recorded reason pro holds the
-  seat is a ROUTING bench («Pro routes 41/42, direct Flash 38/42»), and the second pass does no routing — but
-  the allocation table is the operator's and `voice_brain` has no failover, so a split would add a second
-  failure surface. His call.
-
 - **A question about what a widget HOLDS is answered by the widget (V2-668, 2026-09-11)** — texto íntegro en `decisions-archive.md`
 - **An order NAMES its target, and a notice waits its turn (V2-666, 2026-09-11)** — texto íntegro en
   `decisions-archive.md`; cita además V2-584, V2-651, V2-656, V2-661, V2-667
@@ -2123,6 +2099,10 @@ entregada siga citada aquí.
   íntegro en `decisions-archive.md`; cita además V2-651
 
 ### Archived decisions — index (full text: `.meshkore/docs/decisions-archive.md`)
+
+#### Movidas el 2026-09-29 (V2-776 J)
+
+- **A turn that calls a TOOL is covered at the SEAM (V2-669, 2026-09-11)** — texto íntegro en `decisions-archive.md` («Moved on 2026-09-29») — V2-189, V2-252, V2-571, V2-615, V2-669
 
 #### Movidas el 2026-09-23 (V2-757)
 

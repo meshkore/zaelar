@@ -313,6 +313,8 @@ se incumple.
   un trinquete: extraer del fichero en vuelo de otro es peor que dejar la deuda.
 - **Nada de pasadas de diseño autónomas.** Un cambio visual se acuerda antes; no se «mejora» la interfaz por
   iniciativa propia.
+- **Lo VIGENTE está en `.meshkore/docs/criteria.md`** — un criterio por línea, con fecha y nodo de test, sin
+  histórico. Se lee ANTES de tocar el comportamiento del motor; el diario (`decisions.md`) cuenta por qué.
 - **Lo que no se ha verificado, se dice.** «No verificado en vivo» es una respuesta aceptable; afirmar que algo
   funciona sin haberlo medido, no. Si un test se pone verde al romper el producto, el sospechoso es el TEST.
 
@@ -321,6 +323,7 @@ se incumple.
 | Qué buscas | Dónde está |
 |---|---|
 | Las **reglas** para trabajar en este repo | este fichero |
+| Los **criterios vigentes** del motor — lo que obedece HOY, una línea cada uno, con su test | `.meshkore/docs/criteria.md` |
 | El **diario** del motor: qué se decidió, por qué, y el fallo real que lo motivó | `.meshkore/docs/decisions.md` (+ `.meshkore/docs/decisions-archive.md`) |
 | El **contexto invariante** del proyecto (visión, producto, stack, arquitectura, restricciones, glosario) | `.meshkore/context/` |
 | Los **roles de agente** — qué hace cada miembro del equipo, a quién delega, qué no toca nunca | `.meshkore/team/*.md` (una ficha por rol, con su `owns:` y sus `refs:`) |
@@ -388,7 +391,7 @@ context and stays in Spanish on purpose.
 > CATÁLOGO de qué se prueba es público y útil; el DIARIO de lo que se probó es nuestro. Igual con el roadmap —
 > saber cómo está construido el motor le sirve a quien lo clona; saber qué pensamos construir, no.
 
-## ⭐⭐ LO PRIMERO: mecanismos, no reglas (norma del operador, 2026-09-15)
+## ⭐⭐ LO PRIMERO: mecanismos, no reglas (CRIT-W1)
 
 > «Necesitamos un sistema que no esté educado, es decir, que sea inteligente y que sepa qué hacer. Yo no
 > puedo decirte todo caso por caso. Eso sería un sistema de if-elses… Al final estamos creando un SISTEMA,
@@ -408,41 +411,14 @@ Completo, con la cita entera del operador, la tabla de las dos clases de carril 
 existe un almacén de política POR OPERADOR que convierta su respuesta en el criterio de la próxima
 decisión): **`.meshkore/context/principles.md`**.
 
-## ⭐ Cómo se orienta CUALQUIER arreglo del agente (norma del operador, 2026-08-20)
+## ⭐ Cómo se orienta CUALQUIER arreglo del agente (CRIT-E3)
 
-El agente debe ser capaz de resolver **cualquier** encargo: reservar un hotel o un restaurante, montar una
-investigación sobre la cultura griega del siglo II a.C., sacar los planos o la lista de tareas para construir un
-cohete, inventar un libro, buscar un vehículo en Wallapop, o buscar casas en la zona de Los Ángeles usando las
-webs que sean populares **allí**, empezando por la más popular. **No hay lista de encargos soportados y no puede
-haberla.**
-
-De ahí sale la regla que gobierna todo cambio en el lado del worker, y son DOS MITADES con tratamientos opuestos:
-
-- **RECURSOS (el core) → clavados, completos y probados.** El manejo del navegador, que el worker reciba EN
-  TIEMPO REAL todo lo que tiene que recibir, el parseo de los datos, las capturas de pantalla cuando hagan falta,
-  los puentes, la evidencia y la entrega. Aquí un fallo es un bug.
-- **RAZONAMIENTO (el encargo) → abierto y general.** La lógica, la investigación y la ejecución no se cablean:
-  se construye un sistema capaz de **encontrar la fórmula** que llega al resultado que espera el operador. Los
-  prompts de los Brain Workers llevan **fórmulas, recursos y maneras de resolver**, nunca un guion.
-
-**Lo prohibido es adaptarse al caso de uso.** Un arreglo que hace pasar ESE escenario y se cae cuando cambian un
-dato, una coma o una condición no es un arreglo: es andamio. La prueba, antes de escribir nada: *cambia una
-palabra del encargo —hotel→restaurante, Sevilla→Los Ángeles, «4 estrellas»→«menos de 80 €»— ¿sigue en pie?* Y:
-*¿sirve para un encargo que nadie ha escrito todavía?* Si la respuesta es no, está apuntando a la mitad
-equivocada.
-
-Un conocimiento cableado del mundo (el catálogo de sitios) puede decir **«empieza por aquí»**; nunca **«solo
-aquí»**. En cuanto un encargo fuera del catálogo tiene MENOS capacidad que uno de dentro, el catálogo dejó de ser
-un atajo y es una valla.
-
-**Duda razonable → es un problema de RECURSOS hasta que se demuestre lo contrario.** Ha sido cierto todas las
-veces hasta hoy: el worker muriendo aprendiendo su propio CLI a tientas (V2-219), el compositor que leía la
-cadena de proveedores y nunca la escribía —y dejaba a ciegas TODA investigación— (V2-225), lo que el navegador
-encontraba sin llegar a nadie (V2-223), y la nota empujada 3/3 contra la línea de prompt 0/13 (V2-222). Ninguno
-tenía forma de escenario, y el arreglo con forma de escenario los habría tapado a los cuatro.
-
-Doctrina completa, con el contrato de recursos y el procedimiento al recibir una ronda fallida:
-**`.meshkore/docs/architecture/zaelar-brain-worker-doctrine.md`**.
+No hay lista de encargos soportados y no puede haberla. Dos mitades con tratamientos opuestos: **RECURSOS
+clavados, completos y probados** (navegador, datos en tiempo real, parseo, capturas, puentes, evidencia, entrega
+— aquí un fallo es un bug) y **RAZONAMIENTO abierto** (los prompts de los Brain Workers llevan fórmulas, recursos
+y maneras de resolver, nunca un guion). Lo prohibido es adaptarse al caso de uso: *cambia una palabra del encargo
+—hotel→restaurante, Sevilla→Los Ángeles— ¿sigue en pie?* Duda razonable → es un problema de RECURSOS. Doctrina
+completa en `.meshkore/docs/architecture/zaelar-brain-worker-doctrine.md`.
 
 **Otras formas de arrancar**: `BRAIN=direct`/`BRAIN=local` son baselines de modelo pelado (sin memoria ni
 tools); `make lk-server` y `make agent-worker` levantan las dos mitades por separado para depurar.
@@ -451,6 +427,8 @@ tools); `make lk-server` y `make agent-worker` levantan las dos mitades por sepa
 
 Este repo sigue el **MeshKore Standard v27**. Toda la documentación, módulos y roadmap viven en `.meshkore/`.
 Los agentes DEBEN trabajar dentro de esta estructura — no crear `docs/` ni carpetas ad-hoc fuera de ella.
+Instalación y arranque para quien clona: **[`README.md`](README.md)** (multi-plataforma); el detalle, en
+`zaelar-ops.md`. Mantener ambos alineados.
 
 ### Documentación canónica (`.meshkore/docs/`)
 
@@ -481,6 +459,7 @@ Los agentes DEBEN trabajar dentro de esta estructura — no crear `docs/` ni car
 | **⭐ ESTÁNDAR de cabecera de widget — las dos barras y la puerta a los conectores** | `.meshkore/docs/conventions/zaelar-widget-header-standard.md` |
 | **Widgets change workflow** | `.meshkore/docs/ops/zaelar-widgets-workflow.md` |
 | **⭐ Widget o conector NUEVO — el workflow completo** | `.meshkore/docs/ops/zaelar-new-widget-or-connector-workflow.md` |
+| **⭐ Superficie NATIVA nueva (panel, pestaña del muro, overlay) — los 13 puntos que fallan en silencio** | `.meshkore/docs/ops/zaelar-native-surface-workflow.md` |
 | **Memory change workflow** | `.meshkore/docs/ops/zaelar-memory-workflow.md` |
 | **Alignment review** | `.meshkore/docs/ops/zaelar-alignment-review.md` |
 | **Model/latency benchmarks** | `.meshkore/docs/ops/zaelar-model-benchmarks.md` |
@@ -489,132 +468,37 @@ Los agentes DEBEN trabajar dentro de esta estructura — no crear `docs/` ni car
 | **Monitorización de conversaciones de cluster** | `.meshkore/docs/ops/zaelar-cluster-conversation-monitoring.md` |
 | Observabilidad / debug | `.meshkore/docs/ops/zaelar-observability.md` |
 
-> Instalación / arranque para quien clona el repo: **[`README.md`](README.md)** en la raíz (multi-plataforma
-> macOS/Windows/Linux). Es la puerta de entrada; el detalle vive en `zaelar-ops.md`. Mantener ambos alineados.
+### Workflows — la frase del operador y el doc que la ejecuta
 
-**Protocolo de cambio ("pasa el protocolo"):** cuando el operador dice *"pasa el protocolo"*, ejecutar la
-checklist de `zaelar-change-protocol.md` (reiniciar+verificar → versión → diario/iniciativa/contexto → commit →
-push si hay remote → deploy si hay prod). No hay que recordar los pasos de memoria: viven en ese doc.
+Los pasos NO se recuerdan de memoria: viven en su doc. Cada fila es un procedimiento completo.
 
-**Workflow de auditoría ("pasa la auditoría"):** cuando el operador dice *"pasa la auditoría"* / *"audita el
-sistema"*, ejecutar `zaelar-audit-workflow.md` — reconocimiento del contexto → fan-out en paralelo por 4 dominios
-(voz/cerebro/server · frontend/widgets · seguridad cluster · alineación docs) → síntesis → informe + plan P0-P3.
-Verifica que código, arquitectura, contexto y el módulo de seguridad siguen alineados cada vez que el proyecto crece.
+| Cuando el operador dice… | Ejecutar |
+|---|---|
+| «pasa el protocolo» | `.meshkore/docs/ops/zaelar-change-protocol.md` — reiniciar+verificar → versión → diario/iniciativa/contexto → commit → push → deploy |
+| «pasa la auditoría» / «audita el sistema» | `.meshkore/docs/ops/zaelar-audit-workflow.md` — reconocimiento → fan-out por 4 dominios → síntesis → informe + plan P0-P3 |
+| (todo cambio de ESTRUCTURA o de invariantes) | `.meshkore/docs/ops/zaelar-docs-sync.md` — README, `CLAUDE.md`, `cluster.yaml`, doc de categoría, diagramas de `web/` |
+| «pasa la revisión de alineación» (al cerrar un cambio de arquitectura/módulo/flujo) | `.meshkore/docs/ops/zaelar-alignment-review.md` — código ↔ contexto ↔ docs ↔ diagramas ↔ roadmap ↔ tests cuentan la MISMA historia |
+| «pasa el workflow de widgets» (cambio del SISTEMA de widgets) | `.meshkore/docs/ops/zaelar-widgets-workflow.md` — «qué tocaste → qué actualizar»; un cambio trivial dentro de un widget no lo dispara |
+| «añade un conector de X» / «haz un widget de Y» | `.meshkore/docs/ops/zaelar-new-widget-or-connector-workflow.md` — las cuatro decisiones previas, los 14 puntos de cableado que fallan VACÍOS, el último metro, declararlo HECHO, diez traps medidos |
+| «pasa el workflow de memoria» (cambio ESTRUCTURAL de la memoria) | `.meshkore/docs/ops/zaelar-memory-workflow.md` — mapa de escritores y lectores, migración, docs, tests; termina con la revisión de alineación |
+| «lanza un test del bot» / «lanza la batería» | `.meshkore/docs/ops/zaelar-testing.md` — Paso 0 ALINEACIÓN de escenarios → lanzar → JUEZ (bug real vs ruido STT vs rigidez) → informe archivado |
+| «cierra esto» / «documenta lo que has hecho» / «pasa el cierre» | los 8 pasos en el `.meshkore/` de la RAÍZ (privado); lo que es de ESTE repo, abajo |
 
-**Sync de docs/estructura (automático):** todo cambio que toque la **estructura** (módulos, layout, deps, instalación)
-o **decisiones/invariantes/seguridad** ejecuta `zaelar-docs-sync.md` — actualizar README (raíz, multi-plataforma),
-`CLAUDE.md`, `cluster.yaml`, la doc de categoría y el **diagrama de arquitectura**, con la regla de oro "que aparezca
-en contexto + docs + arquitectura". Es el paso de coherencia docs↔estructura dentro del change protocol.
+**Cerrar una tanda (lo que se salta siempre):** (1) el test con su NODO en `tests/run_testmap.py` — no está en el
+mapa = no existe para «¿está todo verde?»; (2) el WHY en `.meshkore/docs/decisions.md`, y una línea en
+`criteria.md` SOLO si una regla cambió; (3) la **bitácora del módulo** `.meshkore/modules/<módulo>/logs/<YYYY-MM>/`
+(las palabras del operador, lo medido, los commits; numeración `T-NNN` GLOBAL, prefijos `N-`/`MK-`/`S-`/`TS-`/`C-`;
+gitignoreada, en la lengua del operador).
 
-**Revisión de alineación ("pasa la revisión de alineación"):** al cerrar CUALQUIER cambio que toque arquitectura, un
-módulo, un flujo o una decisión/invariante, ejecutar `zaelar-alignment-review.md` — checklist reutilizable que
-verifica que **código ↔ contexto (CLAUDE.md) ↔ docs canónicas ↔ diagramas HTML (`/architecture`: pestañas
-Arquitectura/Memoria/FlashBrain/SlowBrain/Widgets + modelos-en-uso + sello "Actualizado") ↔ roadmap (tareas done +
-bitácora, servido al Architect por el daemon) ↔ tests** cuentan la MISMA historia (estado actual, sin dirty/legacy).
-Es la puerta de calidad de cada cambio; trae sondas `grep`/`node --check` y un template de informe.
+**Contrato de testing para agentes:** antes de probar, `tests/README.md`. La entrada es
+`./.venv/bin/python -m tests run <suite> [--case ID] --no-open` (exit code + Test Observatory en
+`http://127.0.0.1:8765`; la app real sigue en `43917`). No dos runs gestionados en paralelo; nunca contra la
+memoria real si hay fixture; todo test nuevo bajo `tests/<suite>/`; lo que cruce memoria + conversación +
+widgets/workers se cierra además con `-m tests run journey --no-open`.
 
-**Workflow de cambios en widgets ("pasa el workflow de widgets"):** cuando el operador dice **"pasa el workflow de
-widgets"** (o "revisa/cierra el cambio de widgets"), o al cerrar tú mismo un cambio ESTRUCTURAL del sistema de
-widgets (contrato de `manifest.json`/`data.py`/`widget.js`, protocolo de tags, despacho cerebro↔widget, storage,
-refresco, gate de validación), ejecutar `zaelar-widgets-workflow.md` — mapa "qué tocaste → qué actualizar" (contrato
-del generador, brief, prompt del FlashBrain, docs canónicas, **diagrama Y teoría** de `architecture.html`), repaso de
-impacto en widgets existentes, pruebas (`make test-widgets` + prueba en vivo si toca gobernanza), reinicio si hubo
-cambios `.py`, y commit/push SOLO si el operador lo pide. Un cambio trivial dentro de un solo widget (su propio
-`data.py`/`widget.js`) no lo dispara — solo actualiza el `notes.md` de ese widget.
-
-**Widget o conector NUEVO ("añade un conector de X" / "haz un widget de Y" / "pasa el workflow de widget
-nuevo"):** ejecutar `zaelar-new-widget-or-connector-workflow.md` — TODAS las acciones, en orden, para que una
-pieza nueva quede construida, cableada, probada, documentada y en el contexto. Es DISTINTO de
-`zaelar-widgets-workflow.md`, que gobierna cambios del SISTEMA de widgets; este gobierna piezas nuevas. Trae
-las cuatro decisiones previas (¿widget o conector? · ¿hace falta una tool nueva? casi siempre NO, las acciones
-declaradas SON las skills · ¿background? · ¿produce?), **la lista de los 14 puntos de cableado que fallan
-VACÍOS** (registro, routers, `_BUILTINS`, tarjeta Y familia del ⚙, `api.js`, i18n en+es, exención stdlib,
-testmap, manifiesto de catálogo, orden de familias del muro de chat, claves `chat.connFamily.*`, brief del
-cerebro, README de credenciales, la LISTA de conectores), la mitad de RUMBO que se olvida siempre (un
-conector añade ACCIONES y casi nunca las PALABRAS que llevan a ellas — V2-686), **§7-bis el ÚLTIMO METRO**
-(el consentimiento es un clic del operador; por voz la acción deja la tarjeta EN el paso del botón) y
-**§7-ter declararlo HECHO** (sacarlo de `planned`, alinear el id, la fila en la lista, el estado en el
-cerebro), el set de tests en sus cuatro clases —incluida la VIVA, que se construye entera aunque no haya
-credencial y SALTA con los pasos para habilitarla—, las fronteras que no se cruzan (la voz transporta
-intención y nunca una credencial; `widget.js` no toca la red; los widgets no se hablan entre sí) y una tabla
-de **diez traps medidos**. Nació del build de V2-557 y su razón de ser es que el siguiente sea corto.
-
-**Workflow de cambios en la memoria ("pasa el workflow de memoria"):** cuando el operador dice **"pasa el workflow
-de memoria"**, o al cerrar tú mismo un cambio ESTRUCTURAL de la memoria (schema/píldora, el CORAZÓN de escritura
-`mem_processor`/`memory_agent`, retriever/scoring, capas y velocidades de lectura, consolidador/olvido, cola/writer,
-observabilidad/visor), ejecutar `zaelar-memory-workflow.md` — **mapa de impacto "qué tocaste → qué revisar/notificar"**
-de TODOS los escritores (FlashBrain conv-buffer, `ingest_utterance`, `remember`, widgets/mensajería, reset, episódica)
-y lectores (`memory_cache`, `compose_recall`, `compose_context`, visor `/api/memory/map`) para verificar que sus
-interacciones (guardar Y leer) siguen alineadas con la versión nueva, + migración de schema, + docs (zaelar-memory.md,
-CLAUDE.md, diagrama Memoria de `/architecture`), + tests, + commit. Evita re-investigar cada vez a quién afecta un
-cambio de memoria. Termina SIEMPRE con la revisión de alineación.
-
-**CLOSING a batch ("cierra esto" / "documenta lo que has hecho" / "pasa el cierre"), and the MODULE LOG:** at
-the end of ANY batch that changes behaviour. The full eight steps live in the workspace ROOT's `.meshkore/`
-(`zaelar-initiative-closure.md`, PRIVATE repo — whoever clones this one does not have it, same as the roadmap);
-what belongs to THIS repo, and is therefore written here, are the three that keep being skipped:
-
-1. **The test with its NODE** in `tests/run_testmap.py`. Not in the map = it does not exist for «is everything
-   green?».
-2. **The decision in this file**, §Decisiones clave, with the WHY and the real failure that motivated it. It is
-   the only thing the next agent is certain to read.
-3. **The MODULE LOG** — `.meshkore/modules/<module>/logs/<YYYY-MM>/<PREFIX>-NNN-<slug>.md`. It is the only place
-   that keeps **the OPERATOR'S OWN WORDS for the request, what was MEASURED before touching anything, and the
-   COMMITS** that delivered it: the decision above says WHAT was decided and the initiative holds the detail, but
-   neither says where the task came from or which tree was walked to get there — which is exactly what is lost
-   when a session is cut short. Frontmatter `id/title/status/priority/owner/initiative/created/updated`, and a
-   table of commits at the end.
-   ⚠️ **`T-NNN` numbering is GLOBAL**, shared by EVERY module (frontend, voice, server…); the module-specific
-   prefixes run on their own (`N-` nucleo, `MK-` cluster, `S-` security, `TS-` tester, `C-` clusters). `ls` before
-   taking a number, exactly like an initiative.
-   ⚠️ **Gitignored on purpose** (the «neither our past nor our future gets published» rule): it lives on the
-   operator's machine and never travels with the repo. That is what makes it the place for the DIARY rather than
-   the catalogue — and why its entries are written in the operator's language, unlike everything else here.
-
-Measured 2026-09-11: the module log **was not on the closure checklist**, and the result was that it stalled at
-`2026-08` while the engine shipped through V2-669 — a month of batches with no record of the request, across two
-sessions that were lost. *A step that is not on the checklist is a step that does not get taken.*
-
-**Testing del bot ("lanza un test del bot"):** cuando el operador dice **"lanza un test del bot"**, **"lanza la
-batería (de escenarios)"** o **"prueba el bot en tuen"**, ejecutar `zaelar-testing.md` — el playbook autocontenido:
-**Paso 0 = ALINEACIÓN** (comprobar que `tests/voice/e2e/agent/scenarios.py` cubre los módulos principales y los cambios de las
-ÚLTIMAS 48 h — `git log --since` + decisiones `V2-0xx` nuevas; si falta, añadir el escenario ANTES de lanzar) →
-prioridades (latencia · coste bajo · memoria · búsqueda precisa · **navegación web profunda Wallapop/coches.net con
-extracción de datos reales, con/sin login** · robustez · multiidioma) → lanzar (`tests/voice/e2e/agent/run_battery.sh` con settle,
-o `cron_tick.sh`) → evaluar con el JUEZ distinguiendo **bug real (trace-confirmado) vs ruido de STT del tester vs
-rigidez del juez** (y comparación HUMANA de lo extraído en navegación) → arreglar código si hay bug → **archivar el
-informe del día en `tests/voice/e2e/agent/reports/<YYYYMMDD>-<desc>/`** (histórico consultable). Catálogo legible de escenarios en
-`tests/voice/e2e/agent/anexos/catalogo-escenarios.md`. No hay que recordar los pasos: viven en el playbook.
-
-**Contrato obligatorio para agentes de desarrollo:** antes de probar cualquier cambio, leer **`tests/README.md`**.
-Es la guía operativa corta compartida por Claude Code, Codex, humanos y CI; `zaelar-testing.md` conserva el
-diagnóstico profundo. La entrada preferida es `./.venv/bin/python -m tests run <suite> [--case ID] --no-open`:
-mantiene el exit code de terminal y, al mismo tiempo, publica cada ejecución en el **Test Observatory** estable de
-loopback **`http://127.0.0.1:8765`**. `--no-open` solo evita abrir una ventana: NO desactiva el visor, de modo que el
-operador puede observar mientras el agente trabaja. La aplicación real sigue en `http://127.0.0.1:43917`; no
-confundir ambos puertos. No ejecutar dos runs gestionados por el Observatory en paralelo, no probar contra la
-memoria real si existe fixture/corpus aislado y no recrear raíces `test/`/`tester/`: todo test nuevo vive bajo
-`tests/<suite>/`. Para cambios visuales, `browser` por sí solo cubre contratos deterministas; afirmar E2E visual
-requiere conducir Chromium/Playwright contra el Zaelar vivo. Para una capacidad nueva, mapear el caso en
-`suite.json`/provider y validar `tests/platform/tests`; cero casos `unmapped` es el objetivo.
-Los cambios que crucen memoria + conversación + widgets/workers/conectores se cierran además con
-`./.venv/bin/python -m tests run journey --no-open`: son 26 pasos sobre un único engine/DB/workspace aislado y cada
-caso posterior reconstruye su prefijo causal. Contrato y fronteras no cubiertas: `tests/journey/README.md`.
-
-> **Diagrama de arquitectura — MOVIDO al sitio público (2026-07-24):** `frontend/pages/architecture.html` y la
-> ruta `/architecture` de este repo se **retiraron** — ya no tenía sentido servir un panel interno (con editor de
-> modelos ⚙ en vivo) desde el propio motor. Los diagramas (Arquitectura general, FlashBrain, Brain Workers,
-> Memoria, Widgets) viven ahora como contenido **público, curado y en inglés** en `web/` bajo `/technology`
-> (`web/src/pages/technology/*.astro`), con las rutas de código internas, nombres de variable y detalle de
-> incidentes/costes RECORTADOS a propósito (audiencia externa, no engineering interno). **Ya NO es un espejo
-> automático del código** — es una foto seleccionada a mano. Si tocas topología/modelo/proveedor de forma
-> significativa, actualiza también los diagramas en `web/src/pages/technology/` como paso manual (no lo hace
-> ningún workflow todavía); la fuente de verdad DETALLADA sigue siendo `.meshkore/docs/architecture/` y este
-> `CLAUDE.md`. **Limpieza HECHA (2026-07-26, con autorización explícita del operador tras la auditoría):** los 5
-> workflows (`zaelar-docs-sync.md`, `zaelar-widgets-workflow.md`, `zaelar-memory-workflow.md`,
-> `zaelar-alignment-review.md`, `zaelar-audit-workflow.md`) ya apuntan a `web/src/pages/technology/*.astro` +
-> `web/src/lib/diagrams/*.ts` en vez del `architecture.html` retirado; las menciones que quedan son notas
-> históricas explícitas ("retirado el 2026-07-24"), no punteros activos a editar.
+> Los diagramas de arquitectura viven como contenido público en `web/src/pages/technology/*.astro` (foto curada,
+> NO espejo del código); `frontend/pages/architecture.html` se retiró el 2026-07-24. Si tocas topología, modelo o
+> proveedor, actualízalos a mano; la fuente detallada sigue siendo `.meshkore/docs/architecture/`.
 
 ### Módulos — el mapa corto
 
@@ -637,18 +521,35 @@ arranque `make run` → `python -m server`.
 
 **El detalle** — qué piezas forman cada módulo y por qué: `.meshkore/docs/modules/zaelar-module-map.md`.
 
-### Roadmap e iniciativas (`.meshkore/roadmap/`)
+### Roadmap, iniciativas y daemon
 
-Las iniciativas activas están en `.meshkore/roadmap/initiatives/`. Anclar cada tarea a una iniciativa. El diseño del
-cerebro «Colmena» vive en `.meshkore/roadmap/EPIC-v2-colmena.md`.
+Las iniciativas activas están en `.meshkore/roadmap/initiatives/`; anclar cada tarea a una. El diseño del cerebro
+«Colmena»: `.meshkore/roadmap/EPIC-v2-colmena.md`. El daemon de MeshKore es un **servicio único compartido**
+(`daemon.meshkore.com`): este repo NO arranca ni incluye uno — no crear `.meshkore/daemon.py`, ni targets
+`make meshkore`, ni bindear el puerto 5570.
 
-### Daemon (NO es por-proyecto)
+## Lo que el agente puede AFIRMAR, y a qué se pide permiso
 
-El daemon de MeshKore es un **servicio único compartido** (hospedado en `daemon.meshkore.com`), que da
-servicio a todos los proyectos del cluster. **Este repo NO arranca ni incluye un daemon propio.** La adopción
-del estándar se hace apuntando el front del Architect a la URL de la carpeta `.meshkore/` de zaelar; el daemon
-la lee, identifica el proyecto por `public/cluster.yaml` y lo onboarda (incluido el bloque `MESHKORE_PREAMBLE`).
-No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto 5570 desde aquí.
+Un «sí» se contesta con un ARRANQUE, nunca con una terminación (CRIT-V3); una op transaccional no entra en la
+lista de tareas (CRIT-C7); la agenda va DIRECTA y un borrado no pregunta, con papelera y `restore`
+(CRIT-C3). Todo en `.meshkore/docs/criteria.md` §1-2; el porqué, en el diario (V2-743, V2-748).
+
+## Quién decide a qué tarjeta va una orden
+
+Una tabla de verbos no es un enrutador: la gramática PROPONE, el modelo de decisión elige entre lo DECLARADO y
+un backstop no desmiente un veredicto ya pagado (CRIT-K1). El veredicto COMPLETA al modelo, nunca lo desmiente
+(CRIT-K2); un descriptor se escribe bajo el corte y se mide contra su VECINDARIO (CRIT-K7); un clasificador
+delante del modelo es un PRECIO que solo se paga donde la decisión no se puede leer después (CRIT-K9).
+`.meshkore/docs/criteria.md` §3; las alertas —lo que ya se probó y lo que costó— en
+`.meshkore/docs/architecture/zaelar-architecture.md` §«ALERTS», que se lee ANTES de escribir una regla que lea
+las PALABRAS del operador. ⚠️ Un desarme puede dejar bytecode rancio: el arnés borra `__pycache__` al restaurar
+(CRIT-W5).
+
+## Un fallo nuestro no es un proveedor caído
+
+La excepción decide de quién es la culpa (un status HTTP es suyo, un error de Python pelado es nuestro), la
+MISMA petición releva al suplente en el bucle de conexión, y los embeddings no tienen relevo (CRIT-R1, CRIT-R3).
+`.meshkore/docs/criteria.md` §6; el incidente, en el diario (V2-758).
 
 ## Decisiones clave — están en su propio fichero
 
@@ -656,7 +557,8 @@ El diario del motor (una entrada por tanda: qué se decidió, por qué, y el fal
 **`.meshkore/docs/decisions.md`**, y lo más viejo en `.meshkore/docs/decisions-archive.md`. Se lee ANTES de
 tocar una pieza — te dice qué se intentó ya y qué se descartó, que es la mitad del trabajo que no se repite.
 
-Al cerrar una tanda, la entrada se escribe allí, no aquí. Este fichero es de REGLAS y PUNTEROS.
+Al cerrar una tanda, la entrada se escribe allí, no aquí. Este fichero es de REGLAS y PUNTEROS, y el diario es
+HISTORIA: lo que el motor obedece HOY está, una línea por regla, en `.meshkore/docs/criteria.md`.
 
 ## Testing
 
@@ -726,57 +628,18 @@ abierta (`V2-091`); a partir de ahora, no añadir más.
 
 ## Hard rules
 
-- ⚠️ **UNA PASADA ANCHA SE LANZA CON EL VIGILANTE, NUNCA CON `pytest` A PELO.** Del 2026-09-15 al 2026-09-20
-  esto fue una PROHIBICIÓN: una pasada ancha le colgaba la máquina al operador y nadie sabía qué test lo hacía.
-  La regla se escribió con la causa **sin diagnosticar** —que era lo honesto— pero dejaba al motor sin poder
-  contestar «¿sigue pasando todo?». Corrección del operador (2026-09-20): *«todos los tests se pueden pasar…
-  había unos que se quedaban colgados… hay que buscar algún mecanismo de ejecución de tests que detecte si se
-  han colgado o no»*.
-
-  **LA CAUSA, MEDIDA EL 2026-09-20.** UN test —`tests/infrastructure/unit/config/test_model_policy.py`— barre
-  el árbol buscando un nombre de modelo prohibido. Lo hacía con `os.walk` y una **lista negra** de sufijos
-  binarios; `.mkv` no estaba en ella, y `library/downloads/` es la carpeta de descargas REAL del operador: el
-  barrido llamaba a `read_text()` sobre **un vídeo de 84 GB**. 90 GB de lecturas para un grep sobre 10.000
-  ficheros, sin una línea de salida, hasta que la máquina se rendía. Dos defectos en una línea, los dos
-  arreglados: una lista negra de formatos binarios es la lista de los que alguien SE ACORDÓ, y falla
-  **colgándose**, no dando error; y estaba leyendo contenido gitignoreado del operador, contra la propia regla
-  de la suite de que un test nunca toca su estado real. Ahora le pregunta a `git ls-files` qué es el árbol:
-  **0,8 s**, y no puede alcanzar sus descargas.
-
-  Con esa línea arreglada, **la suite determinista entera son ~7 minutos y no se cuelga en ningún sitio**
-  (medido: 57 chunks, 10.828 verdes).
-
-  **Cómo se lanza:**
+- ⚠️ **UNA PASADA ANCHA SE LANZA CON EL VIGILANTE, NUNCA CON `pytest` A PELO** (CRIT-W5):
 
   ```sh
-  ./.venv/bin/python tests/watchdog.py                           # todo lo determinista
+  ./.venv/bin/python tests/watchdog.py                           # todo lo determinista (~7 min, 10.8k verdes)
   ./.venv/bin/python tests/watchdog.py tests/voice/unit          # una carpeta
   ./.venv/bin/python tests/watchdog.py --impacted origin/main    # solo lo que tu diff alcanza
   ```
 
-  Tres capas cazan un cuelgue: el volcado de `faulthandler` (ya dentro de pytest, sin dependencias nuevas)
-  **nombra** fichero, línea y función del test colgado y corta en segundos; un muro de reloj por chunk cubre lo
-  que el volcado no ve (un import o una colección que bloquean); y se mata el **GRUPO** de procesos, no el
-  proceso — el incidente del 2026-09-15 dejó **71 Chromium huérfanos**, y matar pytest solo los habría dejado
-  exactamente donde estaban. El nodo **7.53** vigila al vigilante.
-
-  **Lo que NO ha cambiado:**
-  1. mientras iteras, el FICHERO que has tocado y su DESARME — eso es lo que demuestra que mides algo;
-  2. antes de commitear, `--impacted <base>`: elige por los imports que el test DECLARA, no por un mapa de
-     carpetas escrito a mano que se pudre en cuanto un módulo se mueve;
-  3. **nunca dos pasadas anchas a la vez sobre este checkout** — el corredor coge un cerrojo y se niega. Dos
-     barridos simultáneos midieron 1222 s y 1589 s para lo que solo tarda 9 minutos (2026-09-15). Las pasadas
-     estrechas y explícitas no llevan cerrojo: son baratas y tienen que poder anidarse.
-  4. `./.venv/bin/python tests/run_testmap.py` **sin argumentos** sigue siendo una pasada ancha a pelo, sin
-     vigilante y sin cerrojo. `--list` sí (solo imprime).
-
-  **Y lo que ya estaba medido sigue en pie (2026-09-15, V2-696):** los ~230 rojos que aparecían en cualquier
-  pasada ancha y NUNCA en aislamiento eran contaminación —un test purgaba `sys.modules` de todo
-  `widgets*`/`i18n*` sin devolver la tabla, así que el siguiente importador recibía un `widgets.store` recién
-  construido, con el sandbox del conftest perdido y la suite escribiendo en los datos REALES del operador—.
-  Arreglado, con trinquete. Así que un rojo dentro de una pasada ancha sigue mereciendo reproducirse en la
-  carpeta sola antes de tocar nada.
-
+  Nombra el test que se cuelga, mata el GRUPO de procesos y se niega a dos barridos a la vez (nodo 7.53). Mientras
+  iteras: el FICHERO que has tocado y su DESARME. `tests/run_testmap.py` sin argumentos es una pasada ancha a pelo;
+  `--list` solo imprime. Un rojo dentro de una pasada ancha se reproduce en su carpeta a solas antes de tocar nada
+  (CRIT-W6). La causa medida el 2026-09-20 —un test que leía un vídeo de 84 GB del operador— está en el diario.
 - **COMMITEA PRONTO Y SIEMPRE — cada agente y cada sesión commitea SU propio trabajo.** En cuanto una tarea está
   hecha se commitea, **incluso ANTES de probarla**: si algo sale mal se revierte (`git revert`/`reset`), pero perder
   código NO es reversible. Con varios agentes/sesiones trabajando en paralelo, **un árbol de trabajo sin commitear
@@ -821,5 +684,20 @@ abierta (`V2-091`); a partir de ahora, no añadir más.
 - **El CORE de zaelar NO debe requerir Docker.** El servidor LiveKit corre desde el binario nativo `livekit-server`
   (`make install-livekit`); Docker es solo un fallback opcional. El **sistema de testing (INI-013) SÍ puede usar
   Docker** — esa es la única parte donde Docker es aceptable.
+
+
+## La columna del chat es la conversación
+
+Una línea de voz se DEBE cuando la boca la empieza, su identidad es el `trace` del turno y un fragmento
+retenido solo se pega al siguiente si el siguiente lo continúa (CRIT-V7); una queja sobre lo recién hecho es una
+orden de rehacerlo, con la licencia de la op que corrige; el nombre del asistente cambia por veredicto y falla
+CERRADO (CRIT-V8). `.meshkore/docs/criteria.md` §1; el porqué, V2-752 y V2-747 en el diario.
+
+## Construir o reescribir una tarjeta suya se le pregunta antes
+
+En la única puerta por la que se enciende un worker (`dispatch._run_session`, `kind == code`), con el
+confirm-gate entero; exento el dev-worker de cluster (CRIT-C4). ⚠️ `widgets/_user/<id>/` ENSOMBRECE al
+built-in y está gitignoreado: antes de diagnosticar un widget, **qué fichero corre**. Una pregunta educada es
+una orden; un turno que es SOLO un número no mueve nada (CRIT-K7). `.meshkore/docs/criteria.md` §2-3.
 
 <!-- OPERATOR_CONTENT_END -->

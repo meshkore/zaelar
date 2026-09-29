@@ -3358,6 +3358,9 @@ DOMAINS: list[dict] = [
         # named card, only a declared action — before the backstop spends a worker on it.
         # Demo pass 2026-09-28 (V2-776 E) — the fixes of the passes, one node each.
         # Demo passes 33-54 (2026-09-29) — the audit's fixes, one node each.
+        {"id": "2.175", "title": "The standing criteria are one document: dated, tested, no contradictions, CLAUDE.md only shrinks",
+            "ch": UNIT,
+            "paths": ["tests/infrastructure/unit/test_the_criteria_are_one_and_current.py"]},
         {"id": "2.174", "title": "A spoken consent rule moves the act-or-ask gate in both channels",
             "ch": UNIT,
             "paths": ["tests/voice/unit/test_a_spoken_consent_rule_moves_the_gate.py"]},
