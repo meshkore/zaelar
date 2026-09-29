@@ -357,6 +357,67 @@ async def search_images_bing(query: str, k: int = 12) -> dict:
 _IMAGE_ENGINES = ("google", "yandex", "bing")
 
 
+#: The last good answer of the FIRST index, per query — served when that index is blocked. Demo pass 36
+#: (2026-09-29, B1): Google answered a captcha for a few minutes (workers and the pass share one profile), the
+#: chain fell to Yandex, and «the wallpaper cosmic eye in the sky by tyler young» came back as six Pinterest
+#: nebulas, none of them his; minutes later Google answered it again, first tile the right one. A captcha is
+#: about our traffic, not about the pictures: what Google answered for this query an hour ago is still the
+#: better answer, and serving it is one request fewer against the index that just blocked us.
+_IMAGE_CACHE = os.path.join(str(_workspace.root()), "memory", "_data", "image_answers.json")
+_IMAGE_CACHE_TTL_S = 7 * 86400
+_IMAGE_CACHE_MAX = 300
+
+
+def _query_key(query: str) -> str:
+    """Word order, case and punctuation do not change a picture search — the model words the same request a
+    little differently every time («… by Tyler Young, Helix Nebula wallpaper» / «… Tyler Young Helix Nebula»)."""
+    import re as _re
+    return " ".join(sorted(set(w for w in _re.findall(r"\w+", (query or "").lower()) if len(w) > 2)))
+
+
+def _cache_load() -> dict:
+    import json as _json
+    try:
+        with open(_IMAGE_CACHE, encoding="utf-8") as f:
+            d = _json.load(f)
+        return d if isinstance(d, dict) else {}
+    except Exception:  # noqa: BLE001
+        return {}
+
+
+def remember_answer(query: str, res: dict) -> None:
+    import json as _json
+    import time as _t
+    key = _query_key(query)
+    if not key or not (res or {}).get("items"):
+        return
+    d = _cache_load()
+    d[key] = {"ts": _t.time(), "source": res.get("source") or "", "items": list(res["items"])}
+    if len(d) > _IMAGE_CACHE_MAX:
+        for old in sorted(d, key=lambda k: d[k].get("ts", 0))[: len(d) - _IMAGE_CACHE_MAX]:
+            d.pop(old, None)
+    try:
+        os.makedirs(os.path.dirname(_IMAGE_CACHE), exist_ok=True)
+        tmp = _IMAGE_CACHE + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            _json.dump(d, f, ensure_ascii=False)
+        os.replace(tmp, _IMAGE_CACHE)
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def remembered_answer(query: str, k: int = 12) -> dict | None:
+    import time as _t
+    hit = _cache_load().get(_query_key(query))
+    if not isinstance(hit, dict) or _t.time() - float(hit.get("ts") or 0) > _IMAGE_CACHE_TTL_S:
+        return None
+    items = list(hit.get("items") or [])[:k]
+    if not items:
+        return None
+    return {"query": query, "items": items, "source": hit.get("source") or "", "blocked": False,
+            "remembered_s": round(_t.time() - float(hit.get("ts") or 0))}
+
+
 async def images(query: str, k: int = 12) -> dict:
     """Pictures for a query, trying the indexes in order until one answers. One entry point for both channels.
 
@@ -381,6 +442,14 @@ async def images(query: str, k: int = 12) -> dict:
         res = res if isinstance(res, dict) else {}
         if not primero:
             primero = res
+            if res.get("items") and len(res["items"]) >= min(k, 3):
+                remember_answer(query, res)
+            elif res.get("blocked"):
+                kept = remembered_answer(query, k)
+                if kept:
+                    kept.update({"degraded_from": name, "degraded_because": "blocked", "tried": [name],
+                                 "blocked": True})
+                    return kept
         if res.get("items"):
             if intentados:
                 res["degraded_from"] = intentados[0]
