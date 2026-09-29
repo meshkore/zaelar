@@ -656,7 +656,15 @@ def holding_line_now(window, prev_pending: bool = False, *, after_filler: bool =
     this module already may, so the language lives on this side of the door. Fail-open to the plain sentence."""
     try:
         from voice.engine.core import langs as _langs
-        return holding_line(window, _langs.current_language(), after_filler=after_filler)
+        lang = _langs.current_language()
+        taken = str(getattr(lang, "filler_errand_taken", "") or "")
+        if after_filler and not prev_pending and taken:
+            # a NEW errand after a lead-in filler: neither the opener (the filler already said it) nor «still…»
+            recent = [str((m or {}).get("content") or "").strip()
+                      for m in (window or []) if (m or {}).get("role") == "assistant"][-3:]
+            if taken not in recent:
+                return taken
+        return holding_line(window, lang, after_filler=after_filler)
     except Exception:  # noqa: BLE001
         return "Sigo con ello." if prev_pending else "Vale, dame un momento."
 

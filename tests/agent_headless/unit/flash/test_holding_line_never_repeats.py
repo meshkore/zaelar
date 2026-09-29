@@ -125,3 +125,27 @@ def test_the_voice_channel_passes_the_played_filler():
 
     from voice.engine.llm.providers import nucleo as _provider
     assert "after_filler=_filler_audio.played_recently()" in inspect.getsource(_provider)
+
+
+# ── demo pass 39 (2026-09-29), T1: a NEW errand is not «still» anything ─────────────────────────────────────────
+# «plan a five day trip…» escalated with no words; a lead-in filler had just sounded, so the opener was burned and
+# the next variant — «Still on it; I'll let you know as soon as I have it.» — was said about work that had only
+# just been handed off. With nothing pending before the turn, the line claims no «still».
+
+def _as_english(monkeypatch):
+    from voice.engine.core import langs
+    monkeypatch.setattr(langs, "current_language", lambda: langs.spec("en"))
+
+
+def test_a_new_errand_after_a_filler_is_not_still_anything(monkeypatch):
+    _as_english(monkeypatch)
+    from nucleo.flash import reminder_guards as rg
+    line = rg.holding_line_now([], prev_pending=False, after_filler=True)
+    assert "still" not in line.lower(), line
+    assert line == "I'll let you know as soon as I have it."
+
+
+def test_work_that_was_already_running_can_still_be_still(monkeypatch):
+    _as_english(monkeypatch)
+    from nucleo.flash import reminder_guards as rg
+    assert "Still on it" in rg.holding_line_now([], prev_pending=True, after_filler=True)

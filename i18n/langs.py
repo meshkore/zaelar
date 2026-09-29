@@ -298,6 +298,9 @@ class LangSpec:
     # the loop detector (LOOP×2) → consecutive functional responses are phrased differently. The provider chooses one
     # that does NOT repeat the previous one. Localized copy (lives in the language catalog, not test data).
     data_acks: tuple = ("Hecho.", "Listo.", "Ya está.", "Vale, hecho.", "Apuntado.")
+    # Demo pass 39: a NEW errand whose turn said nothing, after a lead-in filler — the opener is burned (it would restate
+    # the filler) and the next variant said «Still on it» about work that had just started. This one claims no «still».
+    filler_errand_taken: str = "Te aviso en cuanto lo tenga."
     filler_still_working: str = "Sigo con ello; te aviso en cuanto lo tenga."  # V2-029: variation when a background task was ALREADY
                                     # a background task was already in progress when the turn began — do NOT repeat the same
                                     # filler_holding from turn to turn (the operator keeps insisting while the SlowBrain works)
@@ -511,6 +514,7 @@ LANGUAGES: dict[str, LangSpec] = {
         warm="Hello.",
         filler_holding="Alright, give me a moment to look into that.",
         filler_still_working="Still on it; I'll let you know as soon as I have it.",
+        filler_errand_taken="I'll let you know as soon as I have it.",
         holding_lines=("Alright, give me a moment to look into that.",
                        "Still on it; I'll let you know as soon as I have it.",
                        "It's still running; I'll tell you the moment I have something."),
