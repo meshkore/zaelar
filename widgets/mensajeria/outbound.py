@@ -271,9 +271,11 @@ def forward_without_files(db: dict, payload: dict) -> dict | None:
     src = {k: payload[k] for k in ("n", "messageId", "from") if payload.get(k) not in (None, "")}
     if attachments_of(db, src):
         return None
-    return {"ok": False, "error": "el mensaje señalado no trae adjuntos que reenviar — vuelve a llamar a forward "
-                                  "con `from` = quien mandó lo que hay que reenviar (o el `n` del que los trae), "
-                                  "no el primero de la lista"}
+    # Demo pass 45 (E3): «…o el `n` del que los trae» sent the same-turn correction looking for ANY sender with
+    # files — it retried with `from: Harry Boyd`. What is forwarded is what HE pointed at, never a stand-in.
+    return {"ok": False, "error": "el mensaje que él señaló no está en la tarjeta con sus adjuntos todavía — ábrelo "
+                                  "(open con su remitente) y vuelve a intentarlo, o dile que aún no lo tienes a mano; "
+                                  "NUNCA reenvíes el mensaje de otro remitente en su lugar"}
 
 
 def enqueue(db: dict, target: dict, text: str, *, subject: str = "", objective: str = "",

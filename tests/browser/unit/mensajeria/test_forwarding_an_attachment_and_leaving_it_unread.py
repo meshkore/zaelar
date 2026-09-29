@@ -200,6 +200,7 @@ def test_a_forward_of_a_message_without_files_is_refused_before_it_is_queued(box
     store.save("mensajeria", db)
     r = box.answer_action("forward", {"n": 1, "contact": "Andrew", "text": "please book it"})
     assert r and r["ok"] is False and "adjuntos" in r["error"], r
+    assert "NUNCA reenvíes el mensaje de otro remitente" in r["error"], "the refusal invites a stand-in sender"
 
 
 def test_a_forward_of_the_message_with_the_invoice_passes_the_pre_check(box):
