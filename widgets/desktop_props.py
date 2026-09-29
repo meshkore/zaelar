@@ -21,7 +21,10 @@ def _emit_wallpaper(url: str, title: str) -> None:
 #: Where a wallpaper is kept once copied: the framework's own asset namespace, not `imagenes`' — that widget lists
 #: every picture in its directory as «on this computer», and the desktop's backdrop is not one of his photos.
 WALL_NS = "desktop"
-_WALL_MAX = 15 * 1024 * 1024
+# Demo pass 46 (2026-09-29, B2): «Cosmic Eye in the Sky» is served as a 27 MB master; the old 15 MB cap refused the
+# copy and the desk fell back to hotlinking the third party — the failure this copy exists to remove. One backdrop
+# is kept on disk at a time, so the cap guards against a runaway body, not against a big photograph.
+_WALL_MAX = 60 * 1024 * 1024
 
 
 _WALL_UA = "Mozilla/5.0 (Zaelar wallpaper)"

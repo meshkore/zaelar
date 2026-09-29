@@ -75,3 +75,12 @@ def test_the_desk_paints_this_engines_copy():
           ".map(u => re.test(u))))")
     out = subprocess.run(["node", "-e", js], capture_output=True, text=True, timeout=30).stdout.strip()
     assert out == "[true,true,false,false]", out
+
+
+def test_a_big_master_image_is_still_copied(props, monkeypatch):
+    """Demo pass 46 (2026-09-29), B2: «Cosmic Eye in the Sky» is served as a 27 MB master; a 15 MB cap refused the
+    copy and the desk hotlinked the third party again. A photograph that size is still one backdrop."""
+    body = b"\xff\xd8" + b"0" * (27 * 1024 * 1024)
+    monkeypatch.setattr(urllib.request, "urlopen", lambda req, timeout=0: _Resp(body, "image/jpeg"))
+    got = props.set_wallpaper("https://images8.alphacoders.com/101/1012988.jpg", "Cosmic Eye in the Sky")
+    assert got["url"].startswith("/widgets/desktop/asset/wallpaper-") and got.get("copied") is True, got
