@@ -99,11 +99,11 @@ def test_user_rules_dedup_and_cap(fresh_db):
     memapi.add_user_rule("Responde solo sí o no")
     memapi.add_user_rule("responde solo si o no.")          # same rule, different spelling → dedup
     assert len(memapi.state()["rules"]) == 1
-    for i in range(10):
+    for i in range(14):
         memapi.add_user_rule(f"Regla número {i}")
     rules = memapi.state()["rules"]
-    assert len(rules) == 8                                   # cap
-    assert "Regla número 9" in rules[-1]                     # the most recent one wins
+    assert len(rules) == 12                                  # cap (12 since V2-776 K2)
+    assert "Regla número 13" in rules[-1]                    # the most recent one wins
 
 
 def test_user_rules_remove_fuzzy_and_no_false_removal(fresh_db):

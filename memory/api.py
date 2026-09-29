@@ -523,7 +523,7 @@ def kv_del(key: str) -> None:
 
 
 # ── USER RULES (V2-046 A1) — reglas de comportamiento impuestas por el operador, persistentes ─────────────
-_RULES_CAP = 8
+_RULES_CAP = 12   # 8 until 2026-09-29: an INIT with five rule rows (V2-776 K2) dropped its first ones
 
 
 def _norm_rule(text: str) -> str:

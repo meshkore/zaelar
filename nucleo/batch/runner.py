@@ -194,6 +194,36 @@ def report_of(r: dict) -> dict:
 # operator's (a worker finishing, a refusal) and belong to HIS next turn. Measured on the errands case: the step
 # after a refused search swallowed the refusal note and answered about it — «Las bicis ya están en marcha…
 # no puedo cambiarme por dentro» — to a step that only set a standing rule, and was reported as needing him.
+_SENTENCE_RE = re.compile(r"(?<=[.;!?])\s+|\n+")
+
+
+async def _store_rule(goal: str) -> dict:
+    """A rule row, sentence by sentence: the style and consent flags (the engine's mouths and gate), then the
+    sentence into memory with the scope the fixed classifier gives it. No model call. Never raises."""
+    stored = []
+    try:
+        from memory import api as _mem
+        from nucleo import consent as _consent, style_policy as _stylep
+        from nucleo.flash import rule_scope as _rscope
+        for s in _SENTENCE_RE.split(str(goal or "")):
+            s = " ".join(s.split()).strip().rstrip(".")
+            if len(s) < 8:
+                continue
+            try:
+                _stylep.apply_directive(s)
+                _consent.apply_directive(s)
+            except Exception:  # noqa: BLE001
+                pass
+            await asyncio.to_thread(_mem.add_user_rule, s, scope=_rscope.scope_of(s))
+            stored.append(s)
+        _emit("🧬 user rule guardada (lista)", text=" · ".join(x[:60] for x in stored), n=len(stored))
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "error": f"rule not stored — {type(e).__name__}: {e}"}
+    if not stored:
+        return {"ok": False, "error": "rule not stored — nothing to keep"}
+    return {"ok": True, "reply": [f"{len(stored)} rule(s) saved."], "executed": "rule"}
+
+
 async def _turn(turn, text: str, sid: str) -> dict:
     try:
         return await turn(text, sid=sid, ingest=False, execute=True, lists=False)
@@ -229,7 +259,12 @@ async def _run_step(uid: str, row: dict, turn, ingest) -> None:
     ts.task_patch(row["id"], state="running", started_at=int(time.time()))
     _emit("📋 lista: paso", text=row["goal"], step=row["id"])
     before = _live_workers()
-    r = await _turn(turn, row["goal"], uid)
+    # V2-776 K2 — a row Jev named `rule` («From now on…», «Confirm my orders…») is a RULE, not a turn: the
+    # model answered «Done.» and stored nothing (demo pass 57, the INIT). The directive handler's own path.
+    if str(row.get("kind") or "") == "rule":
+        r = await _store_rule(row["goal"])
+    else:
+        r = await _turn(turn, row["goal"], uid)
     # The workers THIS step started, whatever door it used. Measured on the errands case: a product search went
     # through the listings lane, which starts its worker inside and reports only what it said — so the step read
     # DONE and the list would have reported over a worker still searching. The dispatcher's own registry, before
