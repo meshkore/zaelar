@@ -21,6 +21,30 @@ entregada siga citada aquí.
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **The audit of demo passes 33-54: seven doors, no new repair pass (V2-776 F, 2026-09-29)**: twenty-two full
+  passes overnight, ~50 commits between them, and zero clean passes — the operator asked for an audit first, then
+  the fixes. The audit (per-step table over 1,172 turns, root causes, the inventory of every second model call a
+  turn can pay) found the failures were not one thing: ≈29 model-variance roots, ≈12 deterministic bugs, ≈9
+  introduced by the batch's own fixes, ≈5 external, and ≈25 cascades — three passes lost 6-8 steps each from ONE
+  root. The two biggest classes were mechanical, and both were fixed WITHOUT a new model pass: **E3** (9/21) — the
+  receipt reached the card from the archive as a row with no bytes and gate `4fe46c52` refused the forward six
+  times for files one read-only IMAP fetch away; `attachments_of` now asks the mailbox by the mail's own UID, in
+  the turn, and two contacts on one address are one recipient. **U2** (9/21) — «Sure — putting on Like a Prayer
+  now» and no tool: the promise backstop only knew Spanish and the act-repair door needs a card the catalogue
+  names (it said `none` with the music card open); `playback_promise` reads the English promise, gated on the
+  music card or a music word, and takes the TITLE from the words, never the sentence whole. Five more doors:
+  a verdict's action brings up the LIVE card (`card_to_present`) and a close of the piece closes its sheet (S2/S4
+  phantom `results`); a fast listing pass gets a 12 s budget and the turn says the errand is taken instead of
+  going mute (A1, a 40 s ads index); an act that LEAVES and the verdict does not back is DROPPED with a note —
+  asked instead, the pending question was what «ok book it» answered one turn later, and two Telegrams went to
+  Ethan (C2→C5); a data-op named `close` over a sure close verdict is the card's close (E5, the mail stayed);
+  the show-promise backstop shows the card the verdict names before `identify`'s contextual guess (C1, the monitor
+  sheet over the day he asked for). What the audit left as it is: the model-variance turns become bank cases, not
+  guards; S1-S3 depend on a 3-15 min Amazon worker (never finished in 5 passes) and B1 on a live image index — a
+  recorded demo wants a fixture; and the architecture ratchet was already red at HEAD (nucleo.py 3756 > 3043)
+  before this batch. Acceptance criterion proposed: per-step ≥ 95 % over 10 passes, none < 90 %, zero unscripted
+  side effects — «two consecutive clean passes» over 55 LLM-driven steps has probability ≈ 0 at today's rates.
+  Report: workspace `TMP/demo/04-audit-passes-33-54.md`.
 - **Cartesia had ONE voice for every language — a Castilian one (V2-775, 2026-09-27)**: the operator heard a US
   English demo «like a Spaniard speaking English». It was not Inworld's voice: Inworld had run out of credits
   («You have no credits remaining»), the local TTS had been switched to Cartesia, and Cartesia's only default was
