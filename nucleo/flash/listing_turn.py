@@ -152,6 +152,35 @@ def request_from(args: dict, fallback_text: str) -> dict:
             "condition": str(args.get("condition") or "").strip()}
 
 
+#: How long the turn waits for the fast pass before it speaks and lets the search finish on its own.
+FAST_PASS_BUDGET_S = 12.0
+
+
+def _taken_line() -> str:
+    """The language table's «I'll let you know as soon as I have it» — this module may not import the motor."""
+    try:
+        from i18n import langs as _langs
+        lang = _langs.current_language()
+        return str(getattr(lang, "filler_errand_taken", "") or getattr(lang, "work_started", "") or "")
+    except Exception:  # noqa: BLE001
+        return ""
+
+
+def _late_fast_pass(task) -> None:
+    """The fast pass that outlived its turn: its outcome is on the timeline, never lost in a thread."""
+    import asyncio as _aio
+    try:
+        res = task.result()
+        from voice.observer import emit as _emit
+        _emit("brain", "🛒 la pasada rápida acabó después del turno", role="system",
+              text=f"delivered={bool((res or {}).get('delivered'))} n={(res or {}).get('n', 0)} "
+                   f"sheet={(res or {}).get('sheet', '')}", extra={"cat": "flash", **{k: (res or {}).get(k) for k in ("delivered", "n", "sheet")}})
+    except _aio.CancelledError:
+        return                                  # the loop went down first; the thread's sheet write is unaffected
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"listing_turn: la pasada rápida tardía falló ({e!r})")
+
+
 async def voice_turn(req: dict, operator_text: str, *, spec=None, on_delta=None,
                      already_said: str = "") -> "tuple[dict, str]":
     """The WHOLE body of both channels' `search_listings` branch: fast pass + composed spoken reply.
@@ -166,11 +195,24 @@ async def voice_turn(req: dict, operator_text: str, *, spec=None, on_delta=None,
     `CancelledError` is re-raised on purpose: a cancelled turn must not look like a failed search.
     """
     import asyncio
+    task = asyncio.ensure_future(asyncio.to_thread(
+        run, str(req.get("query") or ""), price_max=req.get("price_max"),
+        price_min=req.get("price_min"), condition=str(req.get("condition") or "").strip(),
+        operator_text=operator_text))
+    done, _pending = await asyncio.wait({task}, timeout=FAST_PASS_BUDGET_S)
+    if not done:
+        # The search is still on the network (demo pass 52, 2026-09-29, A1: the ads index took ~40 s and the turn
+        # ended MUTE — no words, no card; the rows and «I'm on it» landed in the middle of the next order). The
+        # turn does not wait for it: it says the errand is taken and moves on. `run` keeps going in its thread and
+        # writes the sheet (or hands off to the deep pass) exactly as it would have; only the composed face is
+        # skipped — its news arrives with the sheet.
+        task.add_done_callback(_late_fast_pass)
+        line = "" if (already_said or "").strip() else _taken_line()
+        if line and on_delta is not None:
+            on_delta(line)
+        return {"delivered": False, "n": 0, "escalated": 0, "ctx": "", "sheet": "", "pending": True}, line
     try:
-        res = await asyncio.to_thread(
-            run, str(req.get("query") or ""), price_max=req.get("price_max"),
-            price_min=req.get("price_min"), condition=str(req.get("condition") or "").strip(),
-            operator_text=operator_text)
+        res = task.result()
     except asyncio.CancelledError:
         raise
     except Exception as e:  # noqa: BLE001 — a search that explodes must not take the turn with it
