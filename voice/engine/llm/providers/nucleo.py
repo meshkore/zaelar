@@ -1477,7 +1477,8 @@ class NucleoLLMStream(llm.LLMStream):
                     return
                 # …and a REPEATED view with a verdict that needs a written payload (full20 E3: `open` again, verdict
                 # `forward`): the view runs, and one repair pass after the turn asks for the verdict's call.
-                if _data_ops.repeats_last_view(brain._last_dataop, _cd["card"], action_name, res.payload):
+                if (_data_ops.repeats_last_view(brain._last_dataop, _cd["card"], action_name, res.payload)   # full37 E2:
+                        or _data_ops.a_view_where_the_verdict_acts(_cd["card"], action_name, _dis, _vw_words)):  # a lens
                     _repeat_repair["v"] = (_cd["card"], action_name, _dis)
                 emit("brain", "⚖️ el modelo y el veredicto discrepan — corre el modelo", role="system",
                      text=f"{_cd['card']}: modelo={action_name} · veredicto={_dis}",

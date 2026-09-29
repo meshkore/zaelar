@@ -148,7 +148,7 @@ async def call_for_promise(operator_text: str, reply: str, widget_id: str, spec=
 
 _SYS_REPEAT = (
     "Eres el cerebro de un asistente de voz. El operador dio una orden y tu única llamada fue `{repeated}` sobre la "
-    "tarjeta «{wid}» — lo que ya estaba abierto en su pantalla: no cumplió nada. La orden, leída por separado, es "
+    "tarjeta «{wid}» — solo MIRÓ (una vista o una consulta que ya estaba o que no cambia nada): no cumplió nada. La orden, leída por separado, es "
     "`{verdict}` sobre «{wid}». Si sus palabras piden eso, haz AHORA exactamente la llamada `widget_data` con "
     "widget_id «{wid}» y action «{verdict}», con el payload sacado de sus palabras, de la conversación y de lo que hay "
     "en la tarjeta (una nota que él dicta se redacta tú; a una persona se la nombra como él la dijo). Si sus palabras "

@@ -55,9 +55,14 @@ def test_any_other_call_is_not_taken(model):
     assert _run() is None
 
 
-def test_the_voice_schedules_it_only_for_a_repeated_view():
+def test_the_voice_schedules_it_for_a_repeated_view_or_a_lens_over_an_act():
+    """…and for a lens the verdict overrules but cannot complete alone (full37 E2: «open it» → the model searched
+    the archive, the verdict read `mensajeria:open` 0.85, and `open` needs the name only a model can write)."""
     src = (ENGINE / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
-    assert "if _data_ops.repeats_last_view(brain._last_dataop, _cd[\"card\"], action_name, res.payload):" in src
+    i = src.index('_repeat_repair["v"] = (_cd["card"], action_name, _dis)')
+    head = src[i - 400:i]
+    assert "repeats_last_view(brain._last_dataop, _cd[\"card\"], action_name, res.payload)" in head
+    assert "or _data_ops.a_view_where_the_verdict_acts(_cd[\"card\"], action_name, _dis, _vw_words)" in head
     assert "_repeat_repair[\"v\"] = (_cd[\"card\"], action_name, _dis)" in src
     assert "call_for_repeated_view(_op_text, _rv_card, _rv_seen, _rv_act" in src
 
