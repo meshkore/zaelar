@@ -27,6 +27,14 @@ import pytest
 from widgets import instances, store
 from widgets.results import data as sheet
 
+
+@pytest.fixture(autouse=True)
+def _spanish(monkeypatch):
+    """These cases measure the SPANISH question; since demo pass 62 (S1) it is in the agent's language, which the
+    suite must not take from the operator's live settings."""
+    from i18n import langs
+    monkeypatch.setattr(langs, "current_language", lambda: langs.spec("es"))
+
 ENGINE = Path(__file__).resolve().parents[4]
 #: The VOICE channel's code, which since the 2026-09-02 ratchet pass lives in TWO files: the turn itself in
 #: `nucleo.py` and the deterministic widget-intent readers (`_close_target`, `_widget_fallback`…) in

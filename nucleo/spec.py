@@ -369,6 +369,18 @@ def born(rec, ctx: dict | None = None) -> None:
         import asyncio
         dw = dict(getattr(rec, "done_when", None) or {})
         uid = str(getattr(rec, "uid", "") or "")
+        if dw and not (ctx or {}).get("relay_gen"):
+            # Demo pass 62: the model's own `done_when` on `escalate` was born without a baseline («the wallpaper
+            # CHANGED» could never be judged → «unverifiable», and the ending said «I couldn't verify it») and
+            # unsanitised (`documento.documents`, a collection nobody declares). It goes through what an inferred
+            # one does; nothing readable left → inferred, as if it had come without one.
+            dw = _sanitize(dw) or {}
+            if dw:
+                _snapshot(dw)
+                try:
+                    rec.done_when = dw
+                except Exception:  # noqa: BLE001
+                    pass
         if dw:
             e = open(dw, text=str(getattr(rec, "goal", "") or ""), source=str((ctx or {}).get("src") or "worker"),
                      task_id=uid, trace=str(getattr(rec, "trace_id", "") or ""))
@@ -459,9 +471,67 @@ async def _tell_worker(rec, e: dict, *, wait_s: float = 90.0) -> None:
 _INFER_TIMEOUT_S = 12.0
 
 
+def _readable() -> dict[str, dict]:
+    """What each card DECLARES a spec can read — its collections (manifest) and whether it declares `empty`
+    (its view). Live pass 62, A1: the model wrote `results.view[title~=27]` for a monitor hunt — a collection no
+    card declares — and the spec was born unverifiable. It can only name what is here."""
+    out: dict[str, dict] = {}
+    try:
+        from widgets import rows as _rows, runtime as _rt
+        from nucleo import truth as _truth
+        for w in _rt.catalog():
+            base = str(w.get("id") or "").strip().lower()
+            if not base:
+                continue
+            cols = sorted(_rows.declared(base))
+            view = _truth.widget_view(base) or {}
+            has_empty = isinstance(view, dict) and "empty" in view
+            if cols or has_empty:
+                out[base] = {"collections": cols, "empty": has_empty}
+    except Exception:  # noqa: BLE001
+        pass
+    return out
+
+
+def _sanitize(done_when: dict) -> dict | None:
+    """Keep only the clauses the product can read: a rows clause needs a DECLARED collection; one over an
+    undeclared collection of a card that declares `empty` becomes «the card is not empty» (what the model meant:
+    something landed there). Nothing readable left → None, and the spec is honestly unverifiable at birth."""
+    from nucleo import verify as _verify
+    from widgets import rows as _rows
+    mode, clauses = _verify._clauses(done_when)
+    kept: list[dict] = []
+    for c in clauses:
+        if _verify.kind_of(c) != "rows":
+            kept.append(c)
+            continue
+        wid = str(c.get("widget") or "").strip().lower().split("::", 1)[0]
+        coll = str(c.get("collection") or "").strip()
+        if coll and coll in _rows.declared(wid):
+            kept.append(c)
+            continue
+        try:
+            from nucleo import truth as _truth
+            view = _truth.widget_view(wid) or {}
+        except Exception:  # noqa: BLE001
+            view = {}
+        if isinstance(view, dict) and "empty" in view:
+            repl = {"widget": wid, "field": "empty", "is": "false"}
+            if repl not in kept:
+                kept.append(repl)
+    if not kept:
+        return None
+    return {mode or "all": kept}
+
+
 def _infer_messages(goal: str) -> list[dict]:
     cat = catalogue()
     listing = "\n".join(f"  · {t} ({wa})" for t, wa in list(cat.items())[:40]) or "  (none)"
+    readable = _readable()
+    cards = "\n".join(
+        f"  · {w}: " + ", ".join(([f"collections {', '.join(d['collections'])}"] if d["collections"] else [])
+                                + (["field `empty` (\"is\": \"false\" = something landed on the card)"] if d["empty"] else []))
+        for w, d in list(readable.items())[:30]) or "  (none)"
     return [
         {"role": "system",
          "content": (
@@ -475,7 +545,9 @@ def _infer_messages(goal: str) -> list[dict]:
              "  {\"desktop\": \"wallpaper\", \"has\": \"text\"} / \"expect\": \"changed\"\n"
              "  {\"canvas\": W, \"expect\": \"visible\"}\n"
              "Prefer \"expect\": \"changed\" when the errand only says WHICH by index or by «that one». Never invent "
-             "a target that is not listed. Targets the widgets attest (target → widget:action):\n" + listing)},
+             "a target that is not listed. A search or a hunt whose findings land on a card ends with that card's "
+             "`empty` field false. Targets the widgets attest (target → widget:action):\n" + listing
+             + "\nWhat each card declares a clause may read (only these collections and fields):\n" + cards)},
         {"role": "user", "content": (goal or "").strip()[:1200]},
     ]
 
@@ -515,6 +587,9 @@ def parse(text) -> dict | None:
         return None
     from nucleo import verify as _verify
     if not isinstance(got, dict) or not _verify._clauses(got)[1]:
+        return None
+    got = _sanitize(got)
+    if got is None:
         return None
     try:
         _snapshot(got)

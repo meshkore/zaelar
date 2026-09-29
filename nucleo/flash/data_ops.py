@@ -298,6 +298,22 @@ def answer_of(res) -> dict:
     return {k: v for k, v in res.items() if k not in _ACK_KEYS and v not in (None, "", [], {})}
 
 
+def answer_to_speak(answers: list, ops) -> tuple | None:
+    """Which of a turn's op answers the spoken reply is composed from: the first one whose op DECLARES it answers
+    (`effects.OUTPUT_ANSWER`), else the last. `answers` = [(widget_id, answer)] in dispatch order; `ops` = the
+    turn's (widget_id, action) pairs. Demo pass 62, C2: `agenda:find_free` answered the slot, a repair pass then
+    presented it on the results sheet, and the LAST answer — the sheet's view — was the one spoken."""
+    answers = [(w, a) for w, a in (answers or []) if a]
+    if not answers:
+        return None
+    try:
+        from widgets import effects as _fx
+        declares = {str(w).split("::", 1)[0] for w, a in (ops or []) if _fx.carries(w, a, _fx.OUTPUT_ANSWER)}
+    except Exception:  # noqa: BLE001
+        declares = set()
+    return next(((w, a) for w, a in answers if str(w).split("::", 1)[0] in declares), answers[-1])
+
+
 async def _revert(wid: str, prev: dict) -> None:
     """Take out the row a piece of a sentence wrote. Never raises; says so on the timeline either way."""
     import widgets

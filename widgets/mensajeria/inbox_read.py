@@ -139,14 +139,31 @@ def _sent_lately() -> list[str]:
     return out
 
 
+def _found_lately() -> list[str]:
+    """The mail the last archive search found, as a line the model can act on (demo pass 62, E2: «open it» after
+    «did inworld send me something?» came back as «nothing to open» — the receipt's conversation was on the card,
+    just not in the inbox list)."""
+    try:
+        from . import data as _data
+        lf = _data.last_found(_data.load_db())
+    except Exception:  # noqa: BLE001
+        return []
+    if not lf:
+        return []
+    what = f"«{lf.get('subject')}» de {lf.get('name')}" if lf.get("subject") else f"el correo de {lf.get('name')}"
+    return [f"LO ÚLTIMO QUE ENCONTRASTE EN EL ARCHIVO: {what} — está en esta tarjeta aunque no salga en la bandeja; "
+            "«ábrelo» es `open` sin nada (abre ESE), y reenviarlo o marcarlo actúan sobre él."]
+
+
 def prompt_digest() -> str:
     """Who is waiting, in one glance — and what the card just sent. "" when there is neither: an empty inbox has
     nothing to say, and saying «no tienes mensajes» from here would be this module asserting something the reader
     should infer."""
     items = _items()
     sent = _sent_lately()
+    tail = (["LO QUE ACABAS DE ENVIAR:"] + sent if sent else []) + _found_lately()
     if not items:
-        return "\n".join(["LO QUE ACABAS DE ENVIAR:"] + sent) if sent else ""
+        return "\n".join(tail)
     plats: dict = {}
     for it in items:
         plats[str(it.get("platform") or "?")] = plats.get(str(it.get("platform") or "?"), 0) + 1
@@ -156,8 +173,7 @@ def prompt_digest() -> str:
     rows = [_row(it, _MAX_BODY_DIGEST) for it in items[:_MAX_DIGEST_ROWS]]
     if len(items) > _MAX_DIGEST_ROWS:
         rows.append(f"· … y {len(items) - _MAX_DIGEST_ROWS} más (la tarjeta los enseña todos).")
-    if sent:
-        rows += ["LO QUE ACABAS DE ENVIAR:"] + sent
+    rows += tail
     return "\n".join([head] + rows)
 
 

@@ -2610,7 +2610,7 @@ class NucleoLLMStream(llm.LLMStream):
                 if await _cardc.before_worker(escalate_req, read_req, brief=_brief, operator_text=operator_text,
                                               spec=spec, emit=emit, present=_cvis.present,
                                               apply_widget_data=_apply_widget_data,
-                                              window=list(brain._window)) == "call":
+                                              window=list(brain._window), images_req=images_req) == "call":
                     acted["widget"] = True
 
         # JEV ESCALATE GATE (T-jev-escalate): a commission that SURVIVED the grammar guards gets a
@@ -2793,13 +2793,13 @@ class NucleoLLMStream(llm.LLMStream):
                 _pend = [t for _w, t in _turn_op_tasks if not t.done()]
                 if _pend:
                     await asyncio.wait(_pend, timeout=6.0)
+                _got = []
                 for _w, _t in _turn_op_tasks:
                     try:
-                        _ans = _data_ops.answer_of(_t.result()) if _t.done() and not _t.cancelled() else {}
+                        _got.append((_w, _data_ops.answer_of(_t.result()) if _t.done() and not _t.cancelled() else {}))
                     except Exception:  # noqa: BLE001
-                        _ans = {}
-                    if _ans:
-                        _op_answer = (_w, _ans)
+                        pass
+                _op_answer = _data_ops.answer_to_speak(_got, data_done.get("ops"))
             # The card of THIS turn already brought the answer, so a web search next to it is the second-best
             # source (full15 M1: the Apple chart was up with its price, and «the search results only gave me quote
             # pages, so I can't tell you» was what he heard). The card answers; the search does not run.

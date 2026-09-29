@@ -974,6 +974,14 @@ def order_card_after_read(brief, operator_text: str, read_widget: str) -> str:
         kind, info = _tb.read(brief, _tb.REQUEST_KEY, "", min_confidence=0.8)
         if str(kind or "") != "order" or not info:
             return ""
+        # Demo pass 62, C2: «find me a free 45 minutes tomorrow afternoon…» — the verdict said `agenda:find_free` at
+        # 0.91, the model ran exactly that, and this still sent the order to the monitors sheet (the answer was then
+        # read off the sheet: «nothing here with tomorrow's meetings»). A verdict SURE the order is on the card the
+        # turn touched means there is no other card.
+        target, t_info = _tb.read(brief, _tb.TARGET_KEY, "", min_confidence=0.8)
+        owner = str(target or "").rpartition(":")[0]
+        if t_info and owner and _base_of(owner) == _base_of(read_widget):
+            return ""
         named = [c for c in named_cards(operator_text) if _base_of(c) != _base_of(read_widget)]
         return _base_of(named[0]) if len(named) == 1 else ""
     except Exception:  # noqa: BLE001

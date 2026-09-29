@@ -90,6 +90,27 @@ _index = {"sig": None, "rows": []}
 _STOP = set("el la los las un una de del en al a y o que con para por me mi tu su es hay este esta ese esa lo se "
             "the a an of in on to and or is are my".split())
 
+# Words that never NAME a sheet by its title: the verbs and particles every request carries (demo pass 62 — «under»
+# made the trip «continue» the monitor search and inherit its sheet (T1), and «find» sent «find me a free 45
+# minutes…» to a sheet titled «Find 27 inch 4K monitors» (C2)). A title names a card by what it is ABOUT.
+_TITLE_STOP = set((
+    "find show open close give tell make plan want need like some more most less than then them they that this "
+    "these those with from into onto over under about after before when what where which while your yours have "
+    "just also only very much many each every other ready please could would should there here look search bring "
+    "back still again today tomorrow tonight week done sure okay good great nice best there's it's what's "
+    "busca buscame buscar encuentra encuentrame ensename muestrame abre abreme cierra dame dime quiero necesito "
+    "sobre desde hasta entre para como cuando donde cual cuales algo algun alguna algunos algunas unos unas menos "
+    "esto estos esas esos este esta tiene tengo tienes hazme planea planifica manana ahora despues antes todo "
+    "todos todas cada otro otra otros otras mejor listo cuanto cuantos").split())
+
+
+def title_words(text: str) -> set:
+    """The words of a phrase or a card's title that can NAME a sheet: ≥4 letters, not a number, not a request's
+    verb or particle. One reader for every «is this sheet named here?» question."""
+    return {t for t in _norm(text).split()
+            if len(t) >= 4 and not any(ch.isdigit() for ch in t) and t not in _STOP and t not in _TITLE_STOP}
+
+
 # The word "widget" (and synonyms the operator uses) is a namespace SELECTOR (V2-082): if it appears, the user refers
 # to a PIECE they built → resolve ONLY against user widgets, never against a system surface ("open the messaging
 # widget" never lands in system chat). LEXICAL mirror of router._WIDGET_SYN (here, not imported, so runtime remains
@@ -298,9 +319,9 @@ def identify(query: str, open_ids: list | None = None, recent_ids: list | None =
             face = _inst.card_face(inst).get("label") or ""
         except Exception:  # noqa: BLE001
             face = ""
-        f_tokens = {t for t in _norm(face).split() if len(t) >= 4 and t not in _STOP}
+        f_tokens = title_words(face)
         f_stems = {x.rstrip("s") for x in f_tokens}
-        hit = {t for t in q_tokens if len(t) >= 4 and (t in f_tokens or t.rstrip("s") in f_stems)}
+        hit = {t for t in title_words(query) if t in f_tokens or t.rstrip("s") in f_stems}
         if hit and not any(w.get("id") == inst for _s, w in scored):
             base = get(inst.split("::", 1)[0]) or {}
             scored.append((0.9, {**base, "id": inst, "title": face}))
@@ -317,9 +338,9 @@ def identify(query: str, open_ids: list | None = None, recent_ids: list | None =
             rid = str(r.get("id") or "")
             if not rid or rid in opened or any(w.get("id") == rid for _s, w in scored):
                 continue
-            f_tokens = {t for t in _norm(str(r.get("label") or "")).split() if len(t) >= 4 and t not in _STOP}
+            f_tokens = title_words(str(r.get("label") or ""))
             f_stems = {x.rstrip("s") for x in f_tokens}
-            if any(len(t) >= 4 and (t in f_tokens or t.rstrip("s") in f_stems) for t in q_tokens):
+            if any(t in f_tokens or t.rstrip("s") in f_stems for t in title_words(query)):
                 base = get(rid.split("::", 1)[0]) or {}
                 # Most recent first, by a hair: two finished sheets on the same subject (a search run twice) are
                 # not a question — the last one is what he means (V2-776, 2026-09-27: two monitor sheets tied at

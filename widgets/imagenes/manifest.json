@@ -2,7 +2,7 @@
   "id": "imagenes",
   "version": "0.1.0",
   "title": "Imágenes",
-  "description": "Visor de fotografías: una imagen grande, la tira de miniaturas debajo, flechas para pasar, y arriba el título de lo que se está viendo con su fuente. Solo mirar — ni edición ni retoque.",
+  "description": "Enseña imágenes y pone una de FONDO DE ESCRITORIO (wallpaper). Visor de fotografías: una imagen grande, la tira de miniaturas debajo, flechas para pasar, y arriba el título de lo que se está viendo con su fuente. Solo mirar — ni edición ni retoque.",
   "whenToUse": "Cuando el usuario quiere VER una o varias fotografías/imágenes en pantalla (una foto de algo, fotos de un sitio, imágenes de un producto), pasar de una a otra, o abrir las imágenes que ya están guardadas en este equipo.",
   "keywords": [
     "foto",

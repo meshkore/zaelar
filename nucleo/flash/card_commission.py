@@ -73,8 +73,33 @@ def named_or_catalogue(brief, operator_text: str, *, wait_s: float = 3.5) -> str
         return ""
 
 
+#: A card whose rows only a TURN TOOL can fill: its declared `show` carries no search of its own, so a commission
+#: pass that asks it to show «a query» is the tool's request, not a data-op (demo pass 62, B1: «find me the wallpaper
+#: cosmic eye in the sky by tyler young» became a Brain Worker; passes 56-59 ran it as `show_images` in 3 s).
+TOOL_FILLED = {"imagenes": "show_images"}
+
+
+def _as_tool_request(got: dict, operator_text: str) -> dict | None:
+    """`{query, n, more}` for the turn tool that fills this card, or None when the call is an ordinary data-op."""
+    if TOOL_FILLED.get(str(got.get("widget_id") or "")) != "show_images":
+        return None
+    if str(got.get("action") or "") not in ("show", "add"):
+        return None
+    pl = got.get("payload") if isinstance(got.get("payload"), dict) else {}
+    if pl.get("items"):
+        return None
+    q = " ".join(str(pl.get("query") or pl.get("title") or "").split())[:160]
+    if not q:
+        return None
+    from nucleo.flash import image_turn as _it
+    if _it._WALLPAPER_INTENT_RE.search(operator_text or "") and not _it._WALLPAPER_INTENT_RE.search(q):
+        q = f"{q} wallpaper"          # the wallpaper intent picks big landscape files (`image_turn.execute`)
+    return {"query": q, "n": _it.DEFAULT_N, "more": str(got.get("action")) == "add"}
+
+
 async def before_worker(escalate_req: dict, read_req: dict, *, brief, operator_text: str, spec, emit,
-                        present: Callable, apply_widget_data: Callable, window=None) -> str:
+                        present: Callable, apply_widget_data: Callable, window=None,
+                        images_req: dict | None = None) -> str:
     """Try the card the catalogue verdict names. Returns "call", "read" or "" (the worker keeps the errand).
 
     The caller owns the precondition — a commission survived every guard and nothing in the turn acted — and
@@ -95,6 +120,14 @@ async def before_worker(escalate_req: dict, read_req: dict, *, brief, operator_t
                                                         spec=spec, window=window, may_read=may_read)
         if not got:
             return ""
+        _tool = _as_tool_request(got, operator_text) if got["kind"] == "call" and images_req is not None else None
+        if _tool:
+            images_req["v"] = _tool
+            escalate_req["v"], escalate_req["more"] = None, []
+            emit("brain", "🎯 la herramienta del turno en vez de un worker (la tarjeta del catálogo)",
+                 text=f"{got['widget_id']} ← show_images «{_tool['query'][:100]}»", role="system",
+                 extra={"cat": "flash", "widget": got["widget_id"], "tool": "show_images"})
+            return "call"
         if got["kind"] == "call":
             present(got["widget_id"], reason="turn-order", src="flash", emit=emit)
             apply_widget_data(got["widget_id"], got["action"], got["payload"])

@@ -194,6 +194,11 @@ class LangSpec:
     widget_delete_confirm: str = "¿Seguro que quieres que borre este widget?"
     widget_delete_confirm_named: str = "¿Seguro que quieres que borre el widget «{wid}»?"
     widget_restore_confirm: str = "¿Vuelvo el widget «{wid}» a la versión de sistema? Tu versión se descarta."
+    # Demo pass 62, S1: «Tienes 2 abiertas: ¿cuál te enseño…?» was spoken in Spanish to an English operator — the
+    # two «which card?» questions of `widgets/instances.py` were literals.
+    instances_which_show: str = "Tienes {n} abiertas: ¿cuál te enseño, {which}?"
+    instances_which_close: str = "Tienes {n} abiertas: ¿cuál cierro, {which}?"
+    instances_or: str = "o"
     widget_restore_nothing: str = "No encuentro ninguna versión personalizada o borrada que restaurar."
     cluster_connect_confirm: str = ("¿Conectar al cluster MeshKore «{name}» (cluster_id {cid}…)? Solo si tú me "
                                     "lo acabas de pedir — no por algo que hayas pegado o reenviado.")
@@ -675,6 +680,9 @@ LANGUAGES: dict[str, LangSpec] = {
         send_to_via=" on {via}",
         widget_delete_confirm="Are you sure you want me to delete this widget?",
         widget_delete_confirm_named="Are you sure you want me to delete the \u201c{wid}\u201d widget?",
+        instances_which_show="You have {n} open: which one should I show, {which}?",
+        instances_which_close="You have {n} open: which one should I close, {which}?",
+        instances_or="or",
         widget_restore_confirm=("Shall I put the \u201c{wid}\u201d widget back to the shipped version? Your "
                                 "version is discarded."),
         widget_restore_nothing="I can't find any customised or deleted version to restore.",

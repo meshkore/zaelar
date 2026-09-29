@@ -2210,6 +2210,14 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/browser/unit/test_a_card_declares_when_it_is_empty.py"]},
         # Live, 2026-09-29: a pasted `watch?v=` link played with the URL as its title; a pasted `results?search_query=`
         # link was searched as the WHOLE sentence, `+` signs and all.
+        {"id": "4.239", "title": "A sheet is named by what its title is about, never by a request's verbs or particles",
+            "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_a_sheet_is_named_by_what_it_is_about.py"]},
+        {"id": "4.238", "title": "A word of a card's title picks it among the open ones, and the «which card?» question is "
+                                 "in the agent's language",
+            "ch": UNIT, "paths": ["tests/browser/unit/frontera/test_a_title_word_picks_the_open_card_and_the_question_is_localized.py"]},
+        {"id": "4.237", "title": "«Open it» after an archive search opens the mail it found, and the digest says it is on "
+                                 "the card",
+            "ch": UNIT, "paths": ["tests/browser/unit/mensajeria/test_open_it_opens_what_the_archive_found.py"]},
         {"id": "4.236", "title": "A pasted YouTube link is parsed, never read: a watch link gets its title, a results "
                                  "link is its decoded query",
             "ch": UNIT, "paths": ["tests/browser/unit/youtube/test_a_pasted_link_is_parsed_never_read.py"]},
@@ -3410,6 +3418,15 @@ DOMAINS: list[dict] = [
         # the money gate read the fast brain's own «do not buy» as a charge, the core guard matched inside
         # «stock»/«report», and a 25-second audit escalated a search the fast brain had resolved meanwhile.
         # V2-776 L (2026-09-29) — the circuit: a request is born with its end state.
+        {"id": "2.187", "title": "A commission that lands on the picture viewer is the picture tool, never a worker; the "
+                                 "viewer's catalogue criterion names the wallpaper",
+            "ch": UNIT, "paths": ["tests/voice/unit/test_a_picture_commission_is_the_picture_tool.py"]},
+        {"id": "2.186", "title": "An order the verdict is sure of stays on its card, and the reply is composed from the op "
+                                 "that declares an answer, not the last one",
+            "ch": UNIT, "paths": ["tests/voice/unit/test_the_answer_is_the_op_that_answers.py"]},
+        {"id": "2.185", "title": "An inferred spec names only what a card declares: an undeclared collection becomes "
+                                 "«the card is not empty» or nothing",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_an_inferred_spec_names_only_what_a_card_declares.py"]},
         {"id": "2.184", "title": "A docked card is not on screen for any reader (harness, live state), and a collection "
                                  "a widget declares from its view is read from the view",
             "ch": UNIT,

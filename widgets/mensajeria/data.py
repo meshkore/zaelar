@@ -332,6 +332,40 @@ def _bring_back_found_mail(payload: dict) -> int:
         return 0
 
 
+FOUND_TTL_S = 1800
+
+
+def _remember_found(payload: dict) -> None:
+    """The mail an archive search found, so «open it» has a referent (demo pass 62, E2).
+
+    «did inworld send me something?» found the receipt; its conversation was on the card (a thread with no name,
+    brought back by an earlier «load previous»), but not in the inbox list — and «open it» came back as «nothing to
+    open», then a repair pass opened the ONE chat the list showed: the wrong mail. What the card last found is a
+    fact of the card, like what it last sent. Never raises."""
+    try:
+        from . import views as _v
+        row = next((r for r in _v.archive_rows(payload) if r.get("direction") == "in" and r.get("chat_id")), None)
+        if row is None:
+            return
+        db = load_db()
+        body = str(row.get("body") or "")
+        subject = body[len("[Asunto: "):body.index("]")] if body.startswith("[Asunto: ") and "]" in body else ""
+        db["last_found"] = {"platform": str(row.get("platform") or ""), "chatId": str(row.get("chat_id")),
+                            "name": str(row.get("chat_name") or row.get("sender") or row.get("chat_id")),
+                            "subject": subject[:120], "at": time.time()}
+        store.save(WIDGET_ID, db)
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def last_found(db: dict) -> dict | None:
+    """The fresh `last_found` of this card, or None."""
+    lf = db.get("last_found")
+    if isinstance(lf, dict) and lf.get("chatId") and time.time() - float(lf.get("at") or 0) < FOUND_TTL_S:
+        return lf
+    return None
+
+
 def answer_action(action: str, payload: dict | None = None) -> dict | None:
     """READ-ONLY answer/validation for the backed route (V2-543). The owner's mailbox keeps one writer but
     swallowed every return: `show_view`'s answer (the matching chats) and the teach-the-shape errors never
@@ -598,6 +632,7 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
     # anything to mutate. Falling through to the generic branch would re-save the store for a read.
     if action == "search_archive":
         _bring_back_found_mail(payload)
+        _remember_found(payload)
         return view_data()
     if action in ("peek", "chat_digest"):
         return view_data()
@@ -866,6 +901,10 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
     if action == "open":
         n, name = _open_ref(payload)
         db = load_db()
+        # Demo pass 62, E2 — «open it» right after an archive search is the mail it found, not the inbox's first row.
+        _lf = last_found(db)
+        if _lf and n is None and not name and payload.get("chatId") is None:
+            payload = {**payload, "platform": _lf["platform"], "chatId": _lf["chatId"]}
         # V2-624 — a DIRECT identity (platform + chatId), the address an activity-view row carries. Only a
         # conversation we actually hold: opening an arbitrary identity would paint an empty thread.
         if payload.get("platform") and payload.get("chatId") is not None and n is None and not name:

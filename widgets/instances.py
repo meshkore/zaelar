@@ -307,16 +307,47 @@ def resolve_close(target, open_ids, text: str = "") -> dict:
         return {"id": _one, "ids": [_one], "ask": "", "options": abiertas}
     if wants_every(text):
         return {"id": None, "ids": list(abiertas), "ask": "", "options": abiertas}
+    _named = _named_by_title(abiertas, text)
+    if _named:
+        return {"id": _named, "ids": [_named], "ask": "", "options": abiertas}
     etiquetas = _distinguibles([_label(w) for w in abiertas], abiertas)
-    if len(etiquetas) == 2:
-        cuales = f"«{etiquetas[0]}» o «{etiquetas[1]}»"
-    else:
-        cuales = ", ".join(f"«{e}»" for e in etiquetas[:-1]) + f" o «{etiquetas[-1]}»"
-    return {"id": None, "ids": [], "ask": f"Tienes {len(abiertas)} abiertas: ¿cuál cierro, {cuales}?",
-            "options": abiertas}
+    return {"id": None, "ids": [], "ask": _ask("close", len(abiertas), _which(etiquetas)), "options": abiertas}
 
 
 _WORD = _re.compile(r"[^\W\d_]{4,}", _re.UNICODE)
+
+
+def _which(etiquetas: list[str]) -> str:
+    """«a» or «b» / «a», «b» or «c» — in the agent's language (demo pass 62, S1)."""
+    try:
+        from i18n import langs as _lg
+        orw = _lg.current_language().instances_or
+    except Exception:  # noqa: BLE001
+        orw = "o"
+    if len(etiquetas) == 2:
+        return f"«{etiquetas[0]}» {orw} «{etiquetas[1]}»"
+    return ", ".join(f"«{e}»" for e in etiquetas[:-1]) + f" {orw} «{etiquetas[-1]}»"
+
+
+def _ask(kind: str, n: int, which: str) -> str:
+    try:
+        from i18n import langs as _lg
+        tmpl = getattr(_lg.current_language(), f"instances_which_{kind}")
+    except Exception:  # noqa: BLE001
+        tmpl = "Tienes {n} abiertas: ¿cuál te enseño, {which}?" if kind == "show" else "Tienes {n} abiertas: ¿cuál cierro, {which}?"
+    return tmpl.format(n=n, which=which)
+
+
+def _named_by_title(abiertas: list[str], text: str) -> str:
+    """The ONE open card whose title shares a distinctive word with the phrase, or "" (demo pass 62, S1: «so how did
+    the monitors go, show me» with «27-inch 4K monitors under $400» and a second sheet open was asked «which one?»
+    — `_closed_card_for` already chose by the title's words; an open card had no such reading)."""
+    from .runtime import title_words
+    said = title_words(text)
+    if not said:
+        return ""
+    hits = [w for w in abiertas if said & title_words(_label(w))]
+    return hits[0] if len(hits) == 1 else ""
 
 
 def _closed_card_for(base: str, text: str) -> str:
@@ -370,12 +401,11 @@ def resolve_show(target, open_ids, text: str = "", last_spoken: str = "") -> dic
     abiertas = _with_something_to_show(abiertas)
     if len(abiertas) == 1:
         return {"id": abiertas[0], "ids": [abiertas[0]], "ask": "", "options": abiertas}
+    _named = _named_by_title(abiertas, text)
+    if _named:
+        return {"id": _named, "ids": [_named], "ask": "", "options": abiertas}
     etiquetas = _distinguibles([_label(w) for w in abiertas], abiertas)
-    if len(etiquetas) == 2:
-        cuales = f"«{etiquetas[0]}» o «{etiquetas[1]}»"
-    else:
-        cuales = ", ".join(f"«{e}»" for e in etiquetas[:-1]) + f" o «{etiquetas[-1]}»"
-    ask = f"Tienes {len(abiertas)} abiertas: ¿cuál te enseño, {cuales}?"
+    ask = _ask("show", len(abiertas), _which(etiquetas))
     if asked_already(ask, last_spoken):
         # V2-605 — ASKED ONCE. Measured on session `43b7bf79`: this exact sentence was spoken FIVE times while
         # the operator answered it, rephrased it, protested and finally insulted it — because `clarify` replaces
