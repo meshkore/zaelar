@@ -216,14 +216,25 @@ def _already_executed(request: str) -> dict | None:
 
 
 def apply_corrections(corrections: list[dict], *, reason: str, trace: str = "",
-                      findings_path: str | None = None, window: str = "") -> list[dict]:
+                      findings_path: str | None = None, window: str = "", advanced: int = 0) -> list[dict]:
     """Apply F1 (repair_say + finding) + F2 (worker_action). Return one record per correction with
-    before/after + status. `window` = the audited document, to require ANCHORING for the only correction that ACTS."""
+    before/after + status. `window` = the audited document, to require ANCHORING for the only correction that ACTS.
+    `advanced` = how much the conversation moved since the window was composed (`engine._advanced_since`):
+    when it is not zero, the corrections that act or speak are STALE and are dropped — a finding still lands."""
     findings_path = findings_path or FINDINGS_PATH
     applied: list[dict] = []
     known = None
     for c in corrections:
         t = c.get("type")
+        if t in ("repair_say", "worker_action") and advanced > 0:
+            # See `engine._audit`: the window this was written against is no longer the present.
+            what = str(c.get("text") or c.get("request") or "")
+            applied.append({"type": t, "ok": False, "before": None, "after": what, "stale": advanced,
+                            "child": "", "dedup": False})
+            _emit(f"⏭ {t} DESCARTADA (la conversación avanzó {advanced} paso/s desde la fricción — la "
+                  f"auditoría llegó tarde)", text=what,
+                  extra={"before": None, "after": what, "reason": reason, "stale": advanced, "ok": False})
+            continue
         if t == "repair_say":
             text = str(c.get("text") or "")
             now = time.time()

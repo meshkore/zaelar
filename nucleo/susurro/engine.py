@@ -134,6 +134,22 @@ async def _consume_observer(sub):
         pass
 
 
+def _advanced_since(t0: float) -> int:
+    """How many things happened since the audit was composed: operator turns seen by the ring, plus widget
+    mutations that actually ran (`done_ops`). Zero means the window is still the present."""
+    n = 0
+    try:
+        n += sum(1 for t in _TURN_RING if float(t.get("ts") or 0) > t0)
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        from nucleo import done_ops as _done
+        n += sum(1 for d in _done.recent(limit=40) if float(d.get("at") or 0) > t0)
+    except Exception:  # noqa: BLE001
+        pass
+    return n
+
+
 def _maybe_trigger(reason: str, signals: list[str], trace: str):
     global _auditing
     if not enabled():
@@ -201,7 +217,20 @@ async def _audit(reason: str, signals: list[str], trace: str):
                 _emit("⚠️ respuesta no parseable (fail-open)", text=(content or "")[:200])
                 return
             ok, downgraded = catalog.validate(parsed)
-            applied = apply.apply_corrections(ok + downgraded, reason=reason, trace=trace, window=doc)
+            # THE AUDIT IS A PHOTOGRAPH, AND THE CONVERSATION KEPT MOVING WHILE IT DEVELOPED (2026-09-29,
+            # session 81095d8d). The window is composed at `t0`; the memory reads and the auditor model took
+            # 25 s. In those 25 s the operator said three more turns, the fast brain ran `youtube:search` and
+            # `youtube:follow_channel`, and he heard «There you go». Then the audit came back with a
+            # `worker_action` written against the frozen window — «the fast brain never searched beyond his
+            # contacts» — and a Brain Worker spent $0.89 finding the man he had just subscribed to. What it
+            # decided was right about the tramo it saw and wrong about the present: an action drawn from a
+            # stale window is executed into a conversation that already resolved it. So anything that ACTS
+            # or SPEAKS is dropped when either side moved since `t0` — the operator (a turn) or the engine
+            # (a widget op). Findings still land: they are for the dev loop, and the tramo really was as
+            # described.
+            advanced = _advanced_since(t0)
+            applied = apply.apply_corrections(ok + downgraded, reason=reason, trace=trace, window=doc,
+                                              advanced=advanced)
             _stats["audits"] += 1
             _stats["corrections_applied"] += len(applied)
             _emit("✅ auditoría completa",
