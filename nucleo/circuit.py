@@ -118,7 +118,10 @@ def verdict_of(rec, now: float | None = None) -> tuple[str, str]:
     from nucleo import verify as _verify
     dw = getattr(rec, "done_when", None) or {}
     if not dw:
-        return ("unverifiable" if getattr(rec, "spec_unverifiable", False) else "undeclared"), ""
+        # Demo pass 62, T1: a trip plan's end state is the REPORT — nothing a widget attests — and «unverifiable»
+        # made the delivery say «I couldn't verify the prices myself». An errand whose spec could not be written is
+        # one whose result is its words: undeclared. «Unverifiable» is a DECLARED clause the product cannot read.
+        return "undeclared", ""
     try:
         met = _verify.check(dw, now)
     except Exception:  # noqa: BLE001

@@ -109,7 +109,8 @@ def test_undeclared_changes_nothing_and_unreadable_is_its_own_verdict(world, mon
     assert circuit.close(rec, relay_cap=2) == "unverifiable"
     assert esc == [] and rec.ok is True, "None is «cannot be read», never «failed» — and never a retry"
     rec = _rec(spec_unverifiable=True)
-    assert circuit.close(rec, relay_cap=2) == "unverifiable"
+    assert circuit.close(rec, relay_cap=2) == "undeclared", (
+        "a spec that could not be WRITTEN is an errand whose result is its words (pass 62, T1), not an unread one")
 
 
 def test_a_cancelled_or_relieved_ending_is_not_judged(world, monkeypatch):

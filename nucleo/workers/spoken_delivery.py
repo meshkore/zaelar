@@ -39,6 +39,17 @@ def _messages(goal: str, summary: str, ok: bool, verdict: str = "") -> list[dict
     from nucleo import circuit as _circuit
     outcome = _circuit.outcome_line(verdict, ok)
     rules = _circuit.voice_rules_line()
+    # Demo pass 62, T1: «johnny, plan a five day trip…» was delivered as «Johnny, the three trip plans…» — the
+    # errand opens with the ASSISTANT's name, and the composer took it for the person's.
+    names = ""
+    try:
+        from nucleo.flash import presence as _presence
+        own = [n for n in _presence.assistant_names() if n]
+        if own:
+            names = (f"\nYOUR own name is {own[0].title()}: when the errand opens with it, he was calling you — never "
+                     "call him by it.")
+    except Exception:  # noqa: BLE001
+        names = ""
     return [
         {"role": "system",
          "content": (
@@ -47,7 +58,7 @@ def _messages(goal: str, summary: str, ok: bool, verdict: str = "") -> list[dict
              f"Return ONLY what you will say out loud: at most two short spoken sentences. {in_lang}\n"
              "Name the outcome with its one or two most useful facts (the pick and its price, the date, the "
              "place). No markdown, no lists, no headings, no links, no symbols to read out."
-             + (f"\n{rules}" if rules else ""))},
+             + names + (f"\n{rules}" if rules else ""))},
         {"role": "user", "content": f"Errand: {(goal or '').strip()[:400]}\n\nWorker's report:\n{summary[:3000]}"},
     ]
 

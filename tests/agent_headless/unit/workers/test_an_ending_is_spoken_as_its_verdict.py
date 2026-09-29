@@ -64,3 +64,11 @@ def test_a_forced_ending_asks_the_circuit_for_the_end_state(monkeypatch):
     monkeypatch.setattr(verify, "check", lambda dw, now=None: True)
     assert circuit.ending_note(rec) == ("met", "")
     assert circuit.ending_note(SessionRecord(task_id="t4", goal="g")) == ("undeclared", "")
+
+
+def test_the_mouth_knows_its_own_name_is_not_his(monkeypatch):
+    """Demo pass 62, T1: «johnny, plan a five day trip…» came back as «Johnny, the three trip plans…»."""
+    from nucleo.flash import presence
+    monkeypatch.setattr(presence, "assistant_names", lambda: ("johnny",))
+    system = sd._messages("johnny, plan a five day trip", "Three plans.", True, verdict="undeclared")[0]["content"]
+    assert "YOUR own name is Johnny" in system and "never call him by it" in system
