@@ -348,6 +348,8 @@ def answer_action(action: str, payload: dict | None = None) -> dict | None:
                                               "operador quiere decirle — vuelve a llamar a forward con contact, "
                                               "text y from"}
             payload = {**payload, "contact": payload.get("contact") or payload.get("to"), "channel": "email"}
+            if (no_files := _outbound.forward_without_files(load_db(), payload)):
+                return no_files
         t = _outbound.resolve_target(payload)
         if not t.get("ok"):
             return t

@@ -186,3 +186,22 @@ def test_a_message_named_in_the_payload_is_not_a_loose_pronoun(monkeypatch):
     assert "payload=_wd[\"args\"].get(\"payload\")" in (root / "nucleo/flash/probe.py").read_text("utf-8")
     m = __import__("json").loads((root / "widgets/mensajeria/manifest.json").read_text("utf-8"))["actions"]
     assert "NO es esto" in m["dismiss"]["desc"], "«leave it unread» belongs to unread, not to dismiss"
+
+
+# ── demo pass 37 (2026-09-29), E3: the refusal reaches the turn ──────────────────────────────────────────────────
+# `forward {n: 1}` pointed at a message with no files; the owner refused it `no_attachment` out of sight and the
+# turn went on as if the invoice had gone to Andrew. The pre-check that runs BEFORE the order is queued says it.
+
+def test_a_forward_of_a_message_without_files_is_refused_before_it_is_queued(box):
+    db = box.load_db()
+    db["items"].insert(0, {"platform": "email", "chatId": "ago@x.invalid", "messageId": "999",
+                           "senderId": "ago@x.invalid", "from": "Andrew", "subject": "Re: invoice", "body": "ok"})
+    from widgets import store
+    store.save("mensajeria", db)
+    r = box.answer_action("forward", {"n": 1, "contact": "Andrew", "text": "please book it"})
+    assert r and r["ok"] is False and "adjuntos" in r["error"], r
+
+
+def test_a_forward_of_the_message_with_the_invoice_passes_the_pre_check(box):
+    r = box.answer_action("forward", {"from": "Inworld AI", "contact": "Andrew", "text": "please book it"})
+    assert r and r["ok"], r

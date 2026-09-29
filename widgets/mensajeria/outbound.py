@@ -263,6 +263,19 @@ def attachments_of(db: dict, ref: dict) -> list[str]:
     return out
 
 
+def forward_without_files(db: dict, payload: dict) -> dict | None:
+    """The refusal a `forward` would get from the owner for pointing at a message with no files — computed
+    BEFORE the order is queued. Demo pass 37 (2026-09-29, E3): `forward {n: 1}` pointed at our own mail to
+    Andrew; the owner refused it `no_attachment` out of sight and the turn went on as if the invoice had gone.
+    Answered here, the refusal reaches the turn and its same-turn correction. None when the message has files."""
+    src = {k: payload[k] for k in ("n", "messageId", "from") if payload.get(k) not in (None, "")}
+    if attachments_of(db, src):
+        return None
+    return {"ok": False, "error": "el mensaje señalado no trae adjuntos que reenviar — vuelve a llamar a forward "
+                                  "con `from` = quien mandó lo que hay que reenviar (o el `n` del que los trae), "
+                                  "no el primero de la lista"}
+
+
 def enqueue(db: dict, target: dict, text: str, *, subject: str = "", objective: str = "",
             ref: str = "", attachments: list | None = None, not_before: float = 0.0) -> dict:
     """Put ONE send in the store's outbound queue. The owner flushes it to the bus, exactly as it does with a
