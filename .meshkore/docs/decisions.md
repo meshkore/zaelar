@@ -21,6 +21,19 @@ entregada siga citada aquí.
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **The rule lands where it applies: a widget's rule in its row, a consent rule in the gate, and a reset that
+  forgets what was said (V2-776 I, 2026-09-29)**: the second stretch of the hierarchical rules, planned and run
+  on the operator's «planea el fix y la mejora y ejecuta». (1) A spoken rule that NAMES exactly one card —
+  «en la agenda, las reuniones siempre de 30 minutos», `direct_action.named_cards`, two cards is nobody's rule —
+  gets scope `widget:<id>` and is composed in that widget's own row of the resources block (`widgets/brief.py`),
+  every turn (an order about the agenda comes before the agenda is open), and out of the generic REGLAS line;
+  the worker keeps it — losing it there would cost more than carrying it. The filter has ONE home,
+  `memory/rules.py`. An `errand` scope was rejected as a no-op: the FlashBrain plans errands too. (2)
+  `consent.apply_directive` («pregúntame siempre antes» → ask at `sensitive`; «hazlo directamente» → `critical`)
+  had regexes, tests and no production caller: wired beside its style sibling in both channels, with its
+  retraction. (3) `scripts/reset-memory.sh` deletes `config/style.json` and `config/consent.json`: the overrides a
+  spoken rule writes are memory, not credentials — measured on the demo prep of pass 58, a rule set for pass 57
+  still governed after «start from zero». Nodes 2.172-2.174; each mechanism disarmed and its test seen red.
 - **A spoken rule carries a scope; the worker gets only its own (V2-776 H, 2026-09-29)**: the operator asked for
   rules to be HIERARCHICAL — genesis per domain, and each prompt composed with only the rules that apply to it —
   and for a fixed algorithm to decide, never a model. Measured first: genesis already is per domain (`style`,

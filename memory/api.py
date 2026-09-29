@@ -35,7 +35,7 @@ __all__ = [
     "start", "stop",
     "write", "write_now", "ingest_message", "correction_targets", "widget_trace_ids", "task_trace_ids", "reinforce", "reinforce_ids_for", "pin", "unpin", "link",
     "forget", "unforget", "clear_conversation", "clear_slot_prefix",
-    "state", "set_state", "compose_state", "add_user_rule", "remove_user_rule", "rules_for",
+    "state", "set_state", "compose_state", "add_user_rule", "remove_user_rule", "rules_for", "rules_by_widget",
     "kv_get", "kv_set",
     "query", "recent_short", "recent_window", "recent_by_source", "by_concepts",
     "seconds_since_last_conv",
@@ -622,25 +622,22 @@ def action_map_hit(entry_id: int) -> None:
 
 # Scope of a spoken rule (2026-09-29): the rule TEXT stays a flat list of strings (every old reader keeps working);
 # its scope, when it is not the default, lives beside it in `state.rule_scopes` {normalised text: scope}. The
-# scope is decided by the CALLER with a fixed classifier (`nucleo.style_policy.scope_of`) — memory owes nucleo
-# nothing, so it never classifies. `general` = every prompt that carries the memory context, exactly what every
-# rule did before; `voice` = how the voice speaks (acks, fillers, brevity, tone), which the brain worker never
-# needs and used to receive («Reglas del operador: no me confirmes las órdenes» in a browser errand's dossier).
-RULE_SCOPE_DEFAULT = "general"
-#: which scopes each prompt SURFACE carries. Unknown surface → everything (fail open, like before).
-_RULES_BY_SURFACE = {"voice": None, "worker": ("general",)}
+# scope is decided by the CALLER with a fixed classifier (`nucleo.flash.rule_scope`) — memory owes nucleo nothing,
+# so it never classifies. The filter has ONE home, `memory/rules.py` (this facade and `_prompt.py` both read it).
+from memory import rules as _rules  # noqa: E402
+
+RULE_SCOPE_DEFAULT = _rules.DEFAULT_SCOPE
 
 
 def rules_for(surface: str, st: dict | None = None) -> list:
-    """The operator's rules this SURFACE carries, in their stored order: `voice` gets all of them, `worker` only
-    the general ones. `st` lets a caller that already read the state avoid a second read."""
-    st = st if isinstance(st, dict) else state()
-    rules = [str(r).strip() for r in (st.get("rules") or []) if str(r).strip()]
-    scopes = st.get("rule_scopes") if isinstance(st.get("rule_scopes"), dict) else {}
-    wanted = _RULES_BY_SURFACE.get(str(surface or ""), None)
-    if wanted is None:
-        return rules
-    return [r for r in rules if scopes.get(_norm_rule(r), RULE_SCOPE_DEFAULT) in wanted]
+    """The operator's rules this SURFACE carries (see `memory/rules.py`). `st` lets a caller that already read
+    the state avoid a second read."""
+    return _rules.for_surface(st if isinstance(st, dict) else state(), surface)
+
+
+def rules_by_widget(st: dict | None = None) -> dict:
+    """{widget id: [rules]} — the rules scoped to a card, for that card's own row in the resources block."""
+    return _rules.by_widget(st if isinstance(st, dict) else state())
 
 
 def add_user_rule(text: str, scope: str = RULE_SCOPE_DEFAULT) -> list:

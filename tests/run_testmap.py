@@ -3358,6 +3358,12 @@ DOMAINS: list[dict] = [
         # named card, only a declared action — before the backstop spends a worker on it.
         # Demo pass 2026-09-28 (V2-776 E) — the fixes of the passes, one node each.
         # Demo passes 33-54 (2026-09-29) — the audit's fixes, one node each.
+        {"id": "2.174", "title": "A spoken consent rule moves the act-or-ask gate in both channels",
+            "ch": UNIT,
+            "paths": ["tests/voice/unit/test_a_spoken_consent_rule_moves_the_gate.py"]},
+        {"id": "2.173", "title": "A factory reset forgets the rules the operator said",
+            "ch": UNIT,
+            "paths": ["tests/infrastructure/unit/config/test_a_reset_forgets_the_spoken_rules.py"]},
         {"id": "2.172", "title": "A spoken rule carries a scope: a manner of speaking stays out of the worker's dossier",
             "ch": UNIT,
             "paths": ["tests/memory/unit/test_a_voice_rule_stays_out_of_the_worker_dossier.py"]},

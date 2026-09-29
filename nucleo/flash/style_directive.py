@@ -23,13 +23,13 @@ def handle(directive: str, text: str, brain, emit, spawn) -> bool:
     async def _persist_rule(d: str, removal: bool) -> None:
         try:
             from memory import api as _mem
-            from nucleo import style_policy as _stylep      # the scope the rule is stored with (fixed classifier)
+            from nucleo.flash import rule_scope as _rscope      # the scope the rule is stored with (fixed classifier)
             if removal:
                 _, gone = await asyncio.to_thread(_mem.remove_user_rule, d)
                 emit("brain", "🧬 user rule retirada" if gone else "🧬 user rule: sin match para retirar",
                      text=(gone or d)[:100], role="system")
             else:
-                await asyncio.to_thread(_mem.add_user_rule, d, scope=_stylep.scope_of(d))
+                await asyncio.to_thread(_mem.add_user_rule, d, scope=_rscope.scope_of(d))
                 emit("brain", "🧬 user rule guardada (persiste)", text=d[:100], role="system")
         except Exception as e:  # noqa: BLE001
             logger.warning(f"user rule no persistida (voz sigue): {e}")
@@ -45,6 +45,13 @@ def handle(directive: str, text: str, brain, emit, spawn) -> bool:
                      text=", ".join(released), role="system")
         except Exception:
             pass
+        try:
+            from nucleo import consent as _consent
+            freed = _consent.retract_directive(directive)
+            if freed:
+                emit("brain", "🧬 consentimiento: vuelve al génesis", text=", ".join(freed), role="system")
+        except Exception:
+            pass
         spawn(_persist_rule(directive, True), "user-rule")
     else:
         brain._directive = directive
@@ -54,6 +61,16 @@ def handle(directive: str, text: str, brain, emit, spawn) -> bool:
             if flags:
                 emit("brain", "🧬 flags de estilo aplicados (rigen ya)",
                      text=", ".join(f"{k}={v}" for k, v in flags.items()), role="system")
+        except Exception:
+            pass
+        # The act-or-ask gate hears the rule too (2026-09-29): «pregúntame siempre antes» / «hazlo directamente»
+        # had a parser with no production caller — the model got the sentence, the gate never did.
+        try:
+            from nucleo import consent as _consent
+            cflags = _consent.apply_directive(directive)
+            if cflags:
+                emit("brain", "🧬 consentimiento aplicado (rige ya)",
+                     text=", ".join(f"{k}={v}" for k, v in cflags.items()), role="system")
         except Exception:
             pass
         spawn(_persist_rule(directive, False), "user-rule")
@@ -133,7 +150,9 @@ async def handle_probe(d: str, text: str, sess, ingest: bool):
         if ingest:
             try:
                 from memory import api as _memapi
+                from nucleo import consent as _consent
                 _stylep.retract_directive(d)
+                _consent.retract_directive(d)
                 await asyncio.to_thread(_memapi.remove_user_rule, d)
             except Exception:
                 pass
@@ -142,8 +161,11 @@ async def handle_probe(d: str, text: str, sess, ingest: bool):
         if ingest:
             try:
                 from memory import api as _memapi
+                from nucleo import consent as _consent
+                from nucleo.flash import rule_scope as _rscope
                 _stylep.apply_directive(d)
-                await asyncio.to_thread(_memapi.add_user_rule, d, scope=_stylep.scope_of(d))
+                _consent.apply_directive(d)          # the act-or-ask gate hears the rule too (2026-09-29)
+                await asyncio.to_thread(_memapi.add_user_rule, d, scope=_rscope.scope_of(d))
             except Exception:
                 pass
     return None

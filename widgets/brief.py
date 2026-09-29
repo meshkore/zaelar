@@ -171,9 +171,15 @@ def for_prompt(open_ids=None, recent_ids=None, query: str = "", stats: dict | No
     # never this FACT, so «sal de pantalla completa» — an order whose object is obvious to anyone LOOKING at
     # the screen — reached a model that could see no object at all, and it answered «Hecho.» having called
     # nothing. Same shape as V2-603's connector: given a verb and no state, the model narrates.
+    wrules: dict = {}
     try:
         from memory import api as _memapi
-        maxw = str(((_memapi.state() or {}).get("maximized_widget") or "")).strip().lower()
+        _st = _memapi.state() or {}
+        maxw = str((_st.get("maximized_widget") or "")).strip().lower()
+        # 2026-09-29 — a spoken rule that names ONE card («en la agenda, las reuniones siempre de 30 minutos»)
+        # is composed HERE, in that card's row, every turn (an order about the agenda comes before it is open),
+        # and left out of the generic REGLAS line (`memory/rules.py`).
+        wrules = _memapi.rules_by_widget(_st) or {}
     except Exception:
         maxw = ""
 
@@ -206,6 +212,8 @@ def for_prompt(open_ids=None, recent_ids=None, query: str = "", stats: dict | No
                 names.append(f"{name}{mark}")
             row += "  · datos: " + ", ".join(names)
         lines.append(row)
+        for _rule in (wrules.get(widl) or [])[:3]:
+            lines.append(f"  [{wid}] regla del operador: {_rule[:120]}")
         # USAGE: V2-027 tersening had removed this entirely. A real 2026-07-23 bug with an open YouTube widget
         # lacked the "starts muted, use unmute/volume_up" hint, so the smaller model could not infer which action
         # solved the audio issue and escalated to regenerate the widget. Only for open widgets, using the same

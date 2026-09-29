@@ -56,6 +56,11 @@ MEMORY_FILES=(
   "memory/_data/zaelar.db-shm"
   "widgets/_data/mensajeria.json"
   "widgets/_data/whatsapp.json"
+  # The overrides a SPOKEN rule writes — «no me confirmes las órdenes», «pregúntame siempre antes» — are the
+  # learned layer over genesis, i.e. memory, not credentials. Measured 2026-09-29: a style rule survived a full
+  # reset and governed the next «start from zero». Settings, connectors and credentials stay untouched: header.
+  "config/style.json"
+  "config/consent.json"
 )
 MEMORY_DIRS_CONTENTS=(
   # Episodic blobs (paste/drop). They ARE memory's payload — `memory.write_episode` stores the binary here and
