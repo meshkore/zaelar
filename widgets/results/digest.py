@@ -125,7 +125,7 @@ def one(data: dict) -> str:
     if con_enlace:
         cuantos = ("TODOS estos resultados llevan" if con_enlace == len(items)
                    else f"{con_enlace} de los {len(items)} resultados llevan")
-        lines.append(f"[{cuantos} su ENLACE en la ficha, ya en pantalla. Si te pide el enlace o el anuncio, NO "
+        lines.append(f"[{cuantos} su ENLACE guardado en la ficha. Si te pide el enlace o el anuncio, NO "
                      "busques otra vez: dile de cuál es y ábrele su ficha.]")
     if data.get("view") == "detail" and data.get("focus"):
         lines.append(f"[viendo el DETALLE de «{data['focus']}»]")

@@ -763,9 +763,26 @@ def done_ops_lines() -> list[str]:
             return [head + " Eso YA PASÓ. Si el operador dice que has borrado o cambiado algo, TIENE RAZÓN: "
                     "no razones desde si hubo confirmación o no —eso es otra cosa— ni le digas que no se ha "
                     "tocado nada. Dile QUÉ se ejecutó y ofrécele deshacerlo o revisarlo."]
-        return [head + " Si pregunta por ello, cuéntalo como hecho en vez de volver a hacerlo."]
+        # Demo pass 59 (S1): «results:present hace 140s» + «cuéntalo como hecho» over a sheet he had put away,
+        # and «so how did the monitors go, show me» got «Done.» with the card still in the dock. Done to the
+        # DATA is not on the SCREEN: a card that is not open now says so, with the one call that brings it.
+        away = sorted({d["wid"] for d in rows if not _is_open(d["wid"])})
+        tail = (f" Ojo: {', '.join(away)} NO está en pantalla ahora — si pide verlo, `show_widget` lo trae; "
+                "decir «hecho» sin traerlo es mentirle.") if away else ""
+        return [head + " Si pregunta por ello, cuéntalo como hecho en vez de volver a hacerlo." + tail]
     except Exception:  # noqa: BLE001
         return []
+
+
+def _is_open(wid: str) -> bool:
+    """Whether a card of this widget (base id or any of its instances) is open now. Fail-open to True: a state
+    that cannot be read must not add a warning that may be false."""
+    try:
+        from memory import api as _memapi
+        open_now = {str(w).strip() for w in ((_memapi.state() or {}).get("open_widgets") or [])}
+    except Exception:  # noqa: BLE001
+        return True
+    return any(w == wid or w.split("::", 1)[0] == wid for w in open_now)
 
 
 from nucleo.flash.task_block import _short_note, pending_task_lines, record_lines  # noqa: E402,F401 — re-export
