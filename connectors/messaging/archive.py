@@ -242,9 +242,16 @@ def _naming_terms(conn, terms: list[str]) -> list[str]:
     if not seen:
         return []
     median = seen[len(seen) // 2]
+    # …or rare in the ARCHIVE as a whole (demo pass 46, 2026-09-29): «inworld» had grown to 21 messages — every
+    # earlier forward of the receipt mentions it — past the question's median word (10), and stopped being read
+    # as a sender. A word in under 2% of everything we hold is not filler whatever the question around it.
+    try:
+        total = int(conn.execute("SELECT count(*) FROM messages").fetchone()[0])
+    except Exception:  # noqa: BLE001
+        total = 0
     out = []
     for t in terms:
-        if not df[t] or df[t] > median:
+        if not df[t] or (df[t] > median and not (total and df[t] <= 0.02 * total)):
             continue
         hit = conn.execute("SELECT count(*) FROM messages_fts WHERE messages_fts MATCH ?",
                            ("{sender chat_name}: " + _fts_term(t),)).fetchone()[0]

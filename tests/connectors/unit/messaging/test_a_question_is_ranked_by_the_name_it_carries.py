@@ -44,3 +44,27 @@ def test_a_common_word_that_is_also_in_a_chat_name_is_not_a_name():
 def test_a_question_that_names_nobody_still_ranks_everything():
     rows = archive.ranked(["order", "shop"], limit=3)
     assert len(rows) == 3
+
+
+def test_a_sender_mentioned_in_many_forwards_is_still_a_name(tmp_path, monkeypatch):
+    """Demo pass 46 (2026-09-29), E1: «inworld» had grown to 21 messages — every earlier forward of the receipt
+    mentions it — past the question's median word, and stopped being read as a sender, so the receipt was never
+    brought to the card. A word in under 2% of the whole archive is not filler whatever the question around it."""
+    monkeypatch.setattr(archive, "_db_path", lambda: str(tmp_path / "big.db"))
+    archive.reset()
+    for i in range(1000):
+        archive.record("telegram", "-1", [{"id": f"x{i}", "body": f"market chatter number {i}", "ts": i}], direction="in")
+    for i in range(12):
+        archive.record("email", "ago@x.invalid", [{"id": f"fw{i}", "ts": 2000 + i,
+                       "body": "Hi Andrew, forwarding the Inworld receipt"}], direction="out")
+    # the question's other words, each in a handful of messages (as in the real archive: 3-10) — so the median
+    # word sits below the 13 messages that mention Inworld
+    for w, n in (("yes", 8), ("give", 8), ("sender", 4), ("subject", 10), ("date", 7), ("short", 3)):
+        for i in range(n):
+            archive.record("email", f"{w}@x.invalid", [{"id": f"{w}{i}", "ts": 4000 + i, "body": f"a note with {w}"}],
+                           direction="in")
+    archive.record("email", "invoice@inworld.ai", [{"id": "orig", "ts": 3000, "from": "Inworld AI",
+                   "body": "Your receipt"}], direction="in", chat_name="Inworld AI")
+    words = ["has", "any", "email", "arrived", "from", "inworld", "yes", "give", "sender", "subject", "date", "short"]
+    assert "inworld" in archive._naming_terms(archive._conn(), words)
+    archive.reset()
