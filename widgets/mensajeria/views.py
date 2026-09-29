@@ -225,8 +225,32 @@ def archive_rows(payload: dict) -> list:
         limit = max(1, min(_ARCHIVE_MAX_ROWS, int(payload.get("limit") or _ARCHIVE_MAX_ROWS)))
     except (TypeError, ValueError):
         limit = _ARCHIVE_MAX_ROWS
-    return archive.search(q, sender=sender, chat=chat, platform=platform,
+    rows = archive.search(q, sender=sender, chat=chat, platform=platform,
                           since=since, until=until, direction=direction, limit=limit)
+    return _named_sender_first(rows, q, sender, chat, platform, since, until, direction, limit)
+
+
+def _named_sender_first(rows, q, sender, chat, platform, since, until, direction, limit) -> list:
+    """A `q` that NAMES a sender puts that sender's own messages first. Demo pass 37 (2026-09-29): E1/E2 searched
+    `{"query": "inworld"}` and, newest first, the top rows were our own forwards of the receipt to Andrew from
+    earlier runs — E2 «opened» our mail to Andrew and E3 forwarded the wrong one. The receipt FROM Inworld was
+    there, below. Which word is a sender is read from the archive (`archive._naming_terms`), in any language."""
+    from connectors.messaging import archive
+    if not q or sender or chat:
+        return rows
+    try:
+        named = archive._naming_terms(archive._conn(), _WORD_RE.findall(q.lower()))
+    except Exception:  # noqa: BLE001
+        return rows
+    if not named:
+        return rows
+    first, seen = [], set()
+    for t in named:
+        for r in archive.search(None, sender=t, platform=platform, since=since, until=until,
+                                direction=direction, limit=limit):
+            if r["id"] not in seen:
+                seen.add(r["id"]); first.append(r)
+    return (first + [r for r in rows if r["id"] not in seen])[:limit]
 
 
 _WORD_RE = re.compile(r"\w{3,}", re.UNICODE)
