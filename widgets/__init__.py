@@ -36,6 +36,21 @@ async def dispatch_tag(action: str, extra: dict) -> dict:
         wid, _inst = (x.strip() for x in wid.split("::", 1))
         if _inst and isinstance(payload, dict) and not payload.get("sheet") and not payload.get("q"):
             payload = {**payload, "q": _inst}
+    # V2-776 K1 — a send that cites a meeting carries the agenda's time, not the model's memory (pass 56: «now
+    # at 5:00 PM» over a 16:30 meeting). One seam for every FAST data-op of the model; the UI route is not this.
+    try:
+        from nucleo.flash import meeting_time as _mt
+        _aligned, _why = _mt.align_payload(wid, name, payload if isinstance(payload, dict) else {})
+        if _why:
+            payload = _aligned
+            try:
+                from voice.observer import emit as _emit_mt
+                _emit_mt("brain", "🕒 hora del mensaje corregida con la agenda", role="system", text=_why,
+                         extra={"cat": "flash", "id": wid, "action": name})
+            except Exception:  # noqa: BLE001
+                pass
+    except Exception:  # noqa: BLE001
+        pass
     try:
         from .server_api import brain_action
         res = await brain_action(wid, name, payload if isinstance(payload, dict) else {})

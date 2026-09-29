@@ -137,6 +137,15 @@ async def execute(tool_calls: list, text: str = "") -> dict:
             pass
         if (_prev := _wo.superseded(wid, act, text)):
             await _rg._revert(wid, _prev)
+        # V2-776 K1 — the same door as the voice path (`widgets.dispatch_tag`): the agenda's time on a send
+        from nucleo.flash import meeting_time as _mt
+        pl, _mt_why = _mt.align_payload(wid, act, pl)
+        if _mt_why:
+            try:
+                _emit_op("brain", "🕒 hora del mensaje corregida con la agenda", text=_mt_why,
+                         extra={"cat": "flash", "id": wid, "action": act})
+            except Exception:  # noqa: BLE001
+                pass
         res = await _brain_action(wid, act, pl)
         res = res if isinstance(res, dict) else {}
         if (_fixed := await _rg.corrected_retry(wid, act, pl, res, text, _brain_action)):
