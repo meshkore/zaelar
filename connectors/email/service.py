@@ -536,6 +536,14 @@ async def _loop() -> None:
     _set_status("connected", None, f"Conectado como {config.address()}.")
     logger.info(f"Email conectado ({config.address()}) — escuchando tu buzón")
     while True:
+        # What the OPERATOR is waiting for goes first (demo pass 48, 2026-09-29: the receipt's history order,
+        # asked at E1, landed 43 s later — after this tick's new-mail fetch, flag poll and the rest, each its own
+        # IMAP login — with «open it» and the forward already failed). `_nap` wakes on these same three orders.
+        for what, fn in (("sends", _drain_sends), ("history", _drain_history), ("fetch", _drain_fetch)):
+            try:
+                await fn(mb)
+            except Exception as e:  # noqa: BLE001
+                logger.debug(f"Email {what} tick (first): {e}")
         try:
             await _ingest_new(mb)
         except Exception as e:
