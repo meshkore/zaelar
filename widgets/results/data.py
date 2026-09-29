@@ -513,6 +513,21 @@ def _find(items: list[dict], title: str = "", index=None) -> dict | None:
     for it in items:
         if t in (it.get("title") or "").strip().lower():
             return it
+    # Demo pass 63, S3: «open the one that's the best deal» arrived as title «KTC H27P22S — $254.98» — the compare
+    # view's own line, title AND price — and neither match above holds. The head before the decoration is the title;
+    # and a row whose whole title sits inside the reference is named by it (one such row, never a guess).
+    import re as _re
+    head = _re.split(r"\s+[—–|·]\s+|\s+-\s+", t, maxsplit=1)[0].strip()
+    if head and head != t:
+        for it in items:
+            if (it.get("title") or "").strip().lower() == head:
+                return it
+        for it in items:
+            if head in (it.get("title") or "").strip().lower():
+                return it
+    inside = [it for it in items if (tt := (it.get("title") or "").strip().lower()) and len(tt) >= 6 and tt in t]
+    if len(inside) == 1:
+        return inside[0]
     # …and by the BADGE the sheet shows him (V2-776, verification 2026-09-27): «Open the best value option» over a
     # sheet whose cards say BEST VALUE / BEST REVIEWED / CHEAPEST found nothing — only titles and ordinals were
     # read, and the words he used are printed on the card itself. One badge named = that item; two = no guess.

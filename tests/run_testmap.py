@@ -2210,6 +2210,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/browser/unit/test_a_card_declares_when_it_is_empty.py"]},
         # Live, 2026-09-29: a pasted `watch?v=` link played with the URL as its title; a pasted `results?search_query=`
         # link was searched as the WHOLE sentence, `+` signs and all.
+        {"id": "4.240", "title": "A row named with the decoration the sheet printed beside it (its price) is still that row",
+            "ch": UNIT, "paths": ["tests/browser/unit/results/test_a_row_named_with_its_price_is_still_that_row.py"]},
         {"id": "4.239", "title": "A sheet is named by what its title is about, never by a request's verbs or particles",
             "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_a_sheet_is_named_by_what_it_is_about.py"]},
         {"id": "4.238", "title": "A word of a card's title picks it among the open ones, and the «which card?» question is "

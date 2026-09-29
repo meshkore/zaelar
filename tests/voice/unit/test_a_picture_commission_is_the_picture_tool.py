@@ -22,7 +22,8 @@ def test_a_show_with_a_query_and_no_pictures_is_the_tool_request_and_keeps_the_w
                                 "payload": {"query": "ferrari f40"}}, "more of those")["more"] is True
 
 
-def test_a_real_data_op_is_left_alone():
+def test_a_real_data_op_is_left_alone(monkeypatch):
+    monkeypatch.setattr(cc, "_viewer_empty", lambda: False)
     assert cc._as_tool_request({"widget_id": "imagenes", "action": "show", "payload": {"items": [{"url": "u"}]}}, SAID) is None
     assert cc._as_tool_request({"widget_id": "imagenes", "action": "wallpaper", "payload": {"item": 1}}, SAID) is None
     assert cc._as_tool_request({"widget_id": "agenda", "action": "show", "payload": {"query": "x"}}, SAID) is None
@@ -55,3 +56,13 @@ def test_the_voice_turn_hands_its_image_request_to_the_rung():
     import pathlib
     src = (pathlib.Path(__file__).resolve().parents[3] / "voice/engine/llm/providers/nucleo.py").read_text(encoding="utf-8")
     assert "window=list(brain._window), images_req=images_req) == \"call\":" in src
+
+
+def test_an_order_on_an_EMPTY_viewer_is_first_a_search(monkeypatch):
+    """Demo pass 63, B1: the pass called `wallpaper` with nothing on the viewer, and it failed."""
+    monkeypatch.setattr(cc, "_viewer_empty", lambda: True)
+    got = cc._as_tool_request({"widget_id": "imagenes", "action": "wallpaper", "payload": {"item": 1}}, SAID)
+    assert got and "cosmic eye in the sky" in got["query"] and got["more"] is False
+    got = cc._as_tool_request({"widget_id": "imagenes", "action": "wallpaper",
+                               "payload": {"item": "cosmic eye in the sky helix nebula"}}, SAID)
+    assert got["query"].startswith("cosmic eye in the sky helix nebula") and "wallpaper" in got["query"]

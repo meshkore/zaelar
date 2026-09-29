@@ -79,16 +79,31 @@ def named_or_catalogue(brief, operator_text: str, *, wait_s: float = 3.5) -> str
 TOOL_FILLED = {"imagenes": "show_images"}
 
 
+def _viewer_empty() -> bool:
+    try:
+        from widgets import store as _st
+        return not ((_st.load("imagenes") or {}).get("items") or [])
+    except Exception:  # noqa: BLE001
+        return False
+
+
 def _as_tool_request(got: dict, operator_text: str) -> dict | None:
     """`{query, n, more}` for the turn tool that fills this card, or None when the call is an ordinary data-op."""
     if TOOL_FILLED.get(str(got.get("widget_id") or "")) != "show_images":
         return None
-    if str(got.get("action") or "") not in ("show", "add"):
-        return None
+    action = str(got.get("action") or "")
     pl = got.get("payload") if isinstance(got.get("payload"), dict) else {}
     if pl.get("items"):
         return None
-    q = " ".join(str(pl.get("query") or pl.get("title") or "").split())[:160]
+    if action not in ("show", "add"):
+        # Demo pass 63, B1: the pass called `wallpaper` straight away, with the viewer EMPTY — nothing to set. Any
+        # order on an empty viewer is first a search (the operator then picks: «set the first one»).
+        if not _viewer_empty():
+            return None
+    q = " ".join(str(pl.get("query") or pl.get("title") or
+                     (pl.get("item") if not str(pl.get("item") or "").strip().isdigit() else "") or "").split())[:160]
+    if not q and action not in ("show", "add"):
+        q = " ".join(str(operator_text or "").split())[:160]
     if not q:
         return None
     from nucleo.flash import image_turn as _it
