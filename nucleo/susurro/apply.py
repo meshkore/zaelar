@@ -20,6 +20,9 @@ FINDINGS_PATH = os.path.join(".meshkore", "logs", "susurro", "findings.jsonl")
 # (e.g. generator_fail), which without this would be relaunched on every subsequent friction trigger.
 _RECENT_REQUESTS: deque = deque(maxlen=20)   # [(request, ts), …]
 _REQUEST_COOLDOWN_S = 300
+#: How long a repair note stays true enough to say. Demo pass 48: «I don't think I've got your name yet» was queued 20 s
+#: after a reset, before the setup turn that gave the name, and said four minutes later in the middle of the demo.
+_REPAIR_TTL_S = 90
 
 # LOOP GUARD (2026-07-26 audit, 07/25 incident: Susurro F2 ↔ the execute-real-action widget spawned
 # chained code-workers, load 5.86, and overwhelmed voice/chat). The dedup above is only TEXT similarity — an auditor
@@ -235,7 +238,7 @@ def apply_corrections(corrections: list[dict], *, reason: str, trace: str = "",
                 ok = True
                 try:
                     from voice import brain_notes
-                    brain_notes.push(note)
+                    brain_notes.push(note, ttl_s=_REPAIR_TTL_S)   # a repair is about NOW, not four minutes later
                     _RECENT_REPAIRS.append((text, now))
                 except Exception:
                     ok = False

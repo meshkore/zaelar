@@ -20,6 +20,7 @@ _BLANK_LINE_RE = re.compile(r"\n\s*\n+")
 
 _lock = threading.Lock()
 _pending: list[tuple[str, str]] = []   # (key, text) — the key is "" for the vast majority
+_expires: dict[tuple[str, str], float] = {}   # (key, text) → time after which it is no longer true (opt-in)
 _MAX = 20                              # bound the mailbox; drop the oldest if a burst piles up (never grow unbounded)
 
 
@@ -88,7 +89,7 @@ def operator_half(turn_text: str) -> str:
     return t[:i].strip() or t
 
 
-def push(text: str, key: str = "") -> None:
+def push(text: str, key: str = "", ttl_s: float = 0.0) -> None:
     """Queue a one-shot system note for the brain's next turn. No-op on empty text. Best-effort.
 
     `key` (V2-353) marks a RETRACTABLE note: one that makes a claim about LIVE state and may stop being
@@ -115,6 +116,11 @@ def push(text: str, key: str = "") -> None:
         if key:
             _pending[:] = [(k, t) for k, t in _pending if k != key]
         _pending.append((key, text))
+        if ttl_s and ttl_s > 0:
+            # A claim about the moment it was made (demo pass 48: «I don't think I've got your name yet», queued before
+            # the setup that gave the name and delivered four minutes later, asked him his name mid-demo).
+            import time as _t
+            _expires[(key, text)] = _t.time() + float(ttl_s)
         if len(_pending) > _MAX:
             del _pending[: len(_pending) - _MAX]
     logger.info(f"brain-note queued: {text[:120]}")
@@ -140,9 +146,12 @@ def retract(key: str) -> int:
 
 def drain() -> list[str]:
     """Return all pending notes and clear the mailbox (call once per brain turn, before building the prompt)."""
+    import time as _t
+    now = _t.time()
     with _lock:
         if not _pending:
             return []
-        out = [t for _k, t in _pending]
+        out = [t for k, t in _pending if _expires.get((k, t), float("inf")) > now]
         _pending.clear()
+        _expires.clear()
     return out
