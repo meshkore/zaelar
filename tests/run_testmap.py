@@ -2643,6 +2643,15 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": [
                 "tests/browser/unit/youtube/test_the_player_mounts_a_video_for_local_sources.py",
                 "tests/browser/unit/youtube/test_the_player_plays_three_sources.py"]},
+        # 2026-09-29 — THE SUBSCRIPTIONS ARE CARDS AND A CHANNEL IS A PAGE: picture, subscribers and videos per
+        # followed channel (ours — nothing subscribes on YouTube), and a click opens the channel's sections,
+        # paged and cached, refreshed on every visit behind a loader, the last 24 h / 72 h flagged. The data
+        # half runs over canned pages (no network); the card half is RENDERED.
+        {"id": "4.228", "title": "The followed channels are cards, and a channel opens as a browsable page "
+                                 "refreshed on every visit",
+            "ch": UNIT, "paths": [
+                "tests/browser/unit/youtube/test_a_channel_page_is_read_without_an_account.py",
+                "tests/browser/unit/youtube/test_the_subscriptions_are_cards_and_a_channel_is_a_page.py"]},
         # V2-537 (2026-09-01): el mural. Un widget nuevo aterrizó DEBAJO del chat flotante (z 9001, encima del
         # tope 8000 de las tarjetas por diseño) y el operador no tenía forma de saber que existía. Renderiza el
         # escritorio en Chromium con backend falso por intercepción: colocación que esquiva el chat abierto,

@@ -137,7 +137,7 @@ def test_a_video_arriving_jumps_to_the_player_tab(_page):
 def test_search_results_render_numbered_on_the_dashboard_and_steer_by_click(_page):
     _mount(_page, _data(search_results=_RESULTS, search_query="gatitos"))
     # 2026-09-29 — the head names the band and the search box CARRIES the question being answered
-    assert "Resultados" in _page.locator(".hb-yt-hometitle").inner_text()
+    assert "Resultados" in _page.locator(".hb-yt-homehead .hb-yt-hometitle").inner_text()
     assert _page.locator(".hb-yt-search input").input_value() == "gatitos"
     nums = _page.eval_on_selector_all(".hb-yt-rnum", "els => els.map(e => e.textContent)")
     assert nums == ["1", "2", "3"], "the numbers ARE the voice index («reproduce el tercero»)"

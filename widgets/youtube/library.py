@@ -44,7 +44,10 @@ def seed_fields() -> dict:
     return {
         # Channels the operator follows — OUR subscription list, built by voice and owned by us. The mirror
         # image of `blocked_channels`: that one says what he refuses, this one says what he wants.
-        "channels": [],           # [{name, added_at}]
+        "channels": [],           # [{name, added_at, id?, meta?, resolved_at?}] — card facts: channels.py
+        # The channel PAGE that is open, if any ({id, name, tab, limit, playlist, rev, new_ids}). Only the
+        # pointer lives here; the pages themselves are cached per channel outside the state (channels.py).
+        "channel_view": {},
         # What was actually PLAYED, recorded by the player itself. This is the piece the YouTube API can
         # never give us (watchHistory has returned empty for every account since 2016, INI-032 §6): we own
         # it precisely BECAUSE we are the ones playing the video.

@@ -11,7 +11,7 @@ import urllib.parse
 import urllib.request
 
 from .. import store
-from . import account, library
+from . import account, channels, library     # channels: the followed channels as cards and pages
 
 WID = "youtube"
 
@@ -346,6 +346,7 @@ def view_data(q: str = "") -> dict:
     # three minutes (session 665e666a). Anything the operator can SEE counts: what is in the player, the
     # numbered search band, and the queue — the three surfaces the card renders.
     out["empty"] = not (db.get("videoId") or db.get("src") or db.get("search_results") or db.get("list"))
+    out["channel_cards"], out["channel_page"] = channels.cards(db), channels.page(db)
     return out
 
 
@@ -1037,7 +1038,7 @@ def apply_action(action: str, payload: dict = None) -> dict:
         db["pos"] = -1                                  # V2-366: close closes the VIDEO; the list survives
         return _bump(db, "close")
 
-    r = library.apply(action, p, db)                     # V2-604 — channels, history, preferences, saved lists
+    r = channels.apply(action, p, db) or library.apply(action, p, db)   # channel pages · V2-604 library
     if r is not None:
         return r
 

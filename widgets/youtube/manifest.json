@@ -274,6 +274,42 @@
         "n": "cuántos, 1-10 (opcional)"
       }
     },
+    "open_channel": {
+      "desc": "ABRE la página de un canal que sigue (sus vídeos, directos, shorts y listas, navegable) y busca sus vídeos nuevos. «ábreme el canal de X», «enséñame lo de X». No suscribe a nada en YouTube: las suscripciones son NUESTRAS",
+      "payload": {
+        "channel": "nombre del canal que sigue",
+        "tab": "videos | streams | shorts | playlists (opcional)"
+      }
+    },
+    "channel_tab": {
+      "desc": "en la página de canal abierta, cambia de sección: videos (vídeos), streams (directos, en directo), shorts, playlists (listas)",
+      "payload": {
+        "tab": "videos | streams | shorts | playlists"
+      }
+    },
+    "close_channel": {
+      "desc": "cierra la página del canal y vuelve a la lista de suscripciones",
+      "payload": {}
+    },
+    "refresh_channel": {
+      "desc": "(interno, la dispara la propia tarjeta al entrar en un canal) busca los últimos vídeos del canal abierto",
+      "payload": {}
+    },
+    "channel_more": {
+      "desc": "(interno, la dispara la propia tarjeta) carga la siguiente página de la sección abierta del canal",
+      "payload": {}
+    },
+    "channel_playlist": {
+      "desc": "(interno, la dispara la propia tarjeta) abre una lista del canal abierto; sin playlist vuelve a sus listas",
+      "payload": {
+        "playlist": "id de la lista",
+        "title": "título"
+      }
+    },
+    "sync_channels": {
+      "desc": "(interno, la dispara la propia tarjeta) trae la foto, suscriptores y nº de vídeos de los canales que sigue",
+      "payload": {}
+    },
     "save_list": {
       "desc": "guarda la lista actual con un nombre para poder recuperarla después",
       "payload": {
