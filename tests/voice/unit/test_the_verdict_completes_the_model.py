@@ -309,7 +309,7 @@ def test_the_promise_repair_closes_instead_of_writing_when_the_order_is_a_close(
     import inspect
     from voice.engine.llm.providers import nucleo as prov
     src = inspect.getsource(prov)
-    i = src.index("_act_repair.call_for_promise(")
+    i = src.index("_act_repair.call_for_promise_or_order(")
     assert '_direct_action.sure_canvas(_brief) == "close"' in src[i - 700:i]
 
 
