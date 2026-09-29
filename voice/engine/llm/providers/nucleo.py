@@ -1177,6 +1177,14 @@ class NucleoLLMStream(llm.LLMStream):
             except Exception:  # noqa: BLE001
                 pass
             action_name = (action_name or "").strip()
+            # E5 (demo passes 36/42, 2026-09-29): «close my mail» → the model called the card's own `close` VIEW
+            # action (back to the chat list) over a SURE close verdict, and the card stayed. The card's close, once.
+            if _direct_action.close_op_is_the_card(_brief, action_name):
+                _tag_emit("close", {"id": _show_target.close_target(wid)})
+                acted["widget"] = True
+                emit("brain", "🔁 data-op «close» sobre un cierre seguro — cierra la tarjeta", text=wid, role="system",
+                     extra={"cat": "flash", "widget": wid, "action": "close"})
+                return
             # V2-757 — THE TAIL OF A SENTENCE IS NOT AN ORDER. Here because this is where the tool and the
             # tag converge: a rule installed in one of two branches is this repo's own named way of fixing
             # half a defect. The why and the measurement: `direct_action.a_fragment_moves_nothing`.
@@ -1222,11 +1230,20 @@ class NucleoLLMStream(llm.LLMStream):
                 elif _direct_action.verdict_elsewhere(_brief, wid):
                     # …and an act that leaves which the verdict does not back at all — it surely names an action on
                     # ANOTHER card (full19 C2: «find me a free 45 minutes… to talk with ethan» → agenda:find_free,
-                    # and the model also wrote to Ethan). Not dropped: asked, with the text, before it leaves.
-                    emit("brain", "🛑 acto que sale fuera sin respaldo del veredicto — se pregunta",
+                    # and the model also wrote to Ethan). DROPPED, and the model told: asked instead, the pending
+                    # question was what «ok book it» answered one turn later — two Telegrams to Ethan he never
+                    # ordered (demo pass 45, 2026-09-29, C2→C5). An act he did not ask for is not offered either.
+                    emit("brain", "🛑 acto que sale fuera sin respaldo del veredicto — no se ejecuta",
                          text=f"{wid}:{action_name} · veredicto en otra tarjeta", role="system",
                          extra={"cat": "flash", "id": wid, "model": action_name})
-                    mode = _wactions.CONFIRM
+                    try:
+                        from voice import brain_notes as _bn_drop
+                        _bn_drop.push(f"[SISTEMA] La acción «{action_name}» sobre «{wid}» NO se ejecutó: el operador "
+                                      f"no la pidió (su orden era otra). No digas que se ha enviado ni lo ofrezcas; "
+                                      f"si él te lo pide explícitamente, llama entonces a «{action_name}».")
+                    except Exception:  # noqa: BLE001
+                        pass
+                    return
 
             def _log_dataop(m: str) -> None:
                 """REGISTRO DE ACCIONES DE WIDGET (2026-08-09, petición del operador). Hasta ahora una data-op
@@ -2695,11 +2712,13 @@ class NucleoLLMStream(llm.LLMStream):
         # the verdict unsure — and `promises_action` is a table of SPANISH promise forms, so an English promise never
         # opened this door. Whether the words promised or claimed an act is the repair pass's own question (its
         # prompt); the door only needs a card the turn names (`named_or_catalogue` below, "" = no pass).
+        _named_by_verdict = ""     # the card the verdict (brief or late catalogue) names for this order, if any
         if (_no_tool and spoken_text and not clarify["msg"]
                 and not _router.asks_for_missing_detail(spoken_text)):
             from nucleo.flash import act_repair as _act_repair, build_decision as _bd_ar
             from nucleo.flash import card_commission as _cardc_ar
             _ar_wid = _cardc_ar.named_or_catalogue(_brief, _op_text)   # V2-773: a closed card while others are open
+            _named_by_verdict = _ar_wid
             if _ar_wid and _direct_action.sure_canvas(_brief) == "close":
                 # the promise was to CLOSE it: the card's own close, never a data action (S4 emptied the sheet)
                 _tag_emit("close", {"id": _show_target.close_target(_ar_wid)})
@@ -2841,8 +2860,11 @@ class NucleoLLMStream(llm.LLMStream):
             # V2-773 (demo S1) — a «show me X» that NAMES a card we have (open, or a finished errand's closed sheet)
             # is a show, before any worker: the escalate verdict fired first and a second worker searched the
             # monitors again over their own closed sheet.
-            _pw = (_identify(_op_text) if (_router.looks_like_show_strict(_op_text) or _direct_action.verdict_shows(_brief))
-                   else "")
+            # C1 (demo pass 52, 2026-09-29): «show me what i've got tomorrow» — the catalogue named `agenda`, `identify`
+            # answered by CONTEXT with the minimized monitor sheet, and the sheet came up over the day he asked for.
+            # The card the verdict names wins over a contextual guess.
+            _pw = ((_named_by_verdict or _identify(_op_text))
+                   if (_router.looks_like_show_strict(_op_text) or _direct_action.verdict_shows(_brief)) else "")
             if _pw:
                 # V2-776 — the CARD, not the piece: a bare `results` is resolved like the tool path resolves it
                 # (open instance, or the closed sheet the phrase names), or «Show me the monitors» opened the base.

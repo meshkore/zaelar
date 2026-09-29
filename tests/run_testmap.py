@@ -3358,6 +3358,21 @@ DOMAINS: list[dict] = [
         # named card, only a declared action — before the backstop spends a worker on it.
         # Demo pass 2026-09-28 (V2-776 E) — the fixes of the passes, one node each.
         # Demo passes 33-54 (2026-09-29) — the audit's fixes, one node each.
+        {"id": "2.171", "title": "A fast listing pass that outlives its budget does not leave the turn mute",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/flash/test_a_slow_listing_pass_does_not_mute_the_turn.py"]},
+        {"id": "2.170", "title": "The show-promise backstop shows the card the verdict names before a contextual guess",
+            "ch": UNIT,
+            "paths": ["tests/voice/unit/test_the_show_backstop_shows_the_card_the_verdict_names.py"]},
+        {"id": "2.169", "title": "A data-op named close over a sure close verdict is the card's own close",
+            "ch": UNIT,
+            "paths": ["tests/voice/unit/test_a_close_op_over_a_sure_close_closes_the_card.py"]},
+        {"id": "2.168", "title": "An act that leaves and the verdict does not back is dropped, never offered",
+            "ch": UNIT,
+            "paths": ["tests/voice/unit/test_an_unbacked_outgoing_act_is_dropped.py"]},
+        {"id": "2.167", "title": "A verdict's action brings up the live card, never a bare phantom",
+            "ch": UNIT,
+            "paths": ["tests/voice/unit/test_a_verdict_action_lands_on_the_live_card.py"]},
         {"id": "2.166", "title": "An English promise of playback is kept by the music backstop, with the title its words carry",
             "ch": UNIT,
             "paths": ["tests/voice/unit/test_an_english_promise_to_play_is_kept.py"]},

@@ -4,8 +4,10 @@ Telegram. Twice, across two turns. Two rules close it:
 
 · a sure verdict naming an action declared `output.answer`, over a model WRITE on the same card, runs the answer:
   a write lands in his calendar and is the costly mistake;
-· an act that leaves (`external.send`) that the verdict does not back — it surely names another card — is ASKED
-  before it leaves, never dropped silently and never sent silently."""
+· an act that leaves (`external.send`) that the verdict does not back — it surely names another card — is DROPPED
+  and the model is told it did not run. It was ASKED until demo pass 45 (2026-09-29): the pending question was what
+  «ok book it» answered one turn later, and two Telegrams went to Ethan he never ordered. Never sent silently,
+  never left pending for the next «ok»."""
 import pathlib
 
 import pytest
@@ -45,7 +47,8 @@ def test_a_send_the_verdict_puts_on_another_card_is_asked(verdict):
 def test_the_voice_wires_both_rules():
     assert "elif _direct_action.verdict_elsewhere(_brief, wid):" in SRC
     i = SRC.index("acto que sale fuera sin respaldo del veredicto")
-    assert "mode = _wactions.CONFIRM" in SRC[i:i + 300]
+    seg = SRC[i:i + 900]
+    assert "no se ejecuta" in seg and "_bn_drop.push(" in seg and "mode = _wactions.CONFIRM" not in seg
     j = SRC.index("la pregunta gana a la escritura")
     block = SRC[SRC.rindex("if (_fx_q.carries", 0, j):j]
     assert "_fx_q.OUTPUT_ANSWER" in block and "_fx_q.DATA_WRITE" in block and "instead_of=action_name" in block
