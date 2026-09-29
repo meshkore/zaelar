@@ -306,6 +306,31 @@ def test_a_promise_naming_no_card_reads_the_card_the_catalogue_names(monkeypatch
     assert seen["wid"] == "agenda" and "weekly review" in out
 
 
+def test_a_promise_that_names_two_cards_reads_the_one_his_words_are_about(monkeypatch):
+    """Demo pass 38 (2026-09-29), Z1: «what's on my plate tomorrow» → «One moment — let me pull up your day and your
+    messages for tomorrow.», nothing called. «pull up your day» was not read as a promise (only «pull THAT up»
+    was), and the reply names the messages card by word — reading it would have answered with mail. His sentence
+    is the order: the catalogue on HIS words decides, the reply's naming comes last."""
+    from nucleo import jev
+    from nucleo.flash import widget_read
+    reply = "One moment — let me pull up your day and your messages for tomorrow."
+    assert ag.a_promise_left_hanging("what's on my plate tomorrow", reply, acted=False, anything_running=False)
+    seen = {}
+    monkeypatch.setattr(jev, "choose_sync", lambda *_a, **_k: {"choice": "agenda", "confidence": 0.93})
+
+    async def _prepare(args, text, lock, emit, channel=""):
+        seen["wid"] = args["widget_id"]
+        return "SYS2"
+
+    async def _collect(sys2, user_text, spec, max_tokens=240):
+        return "Tomorrow you have the weekly review at 9."
+    monkeypatch.setattr(widget_read, "prepare", _prepare)
+    monkeypatch.setattr(sp, "collect", _collect)
+    asyncio.run(sp.promise_repair("what's on my plate tomorrow", reply, [], _ModelSpec(), lambda *a, **k: None,
+                                  channel="voice"))
+    assert seen["wid"] == "agenda", seen
+
+
 def test_a_look_where_the_turn_asks_to_do_yields_to_the_verdict():
     """Demo pass 2026-09-28 (full15 E4): «oh and leave that inworld one as unread» — verdict `mensajeria:unread` at
     1.00, the model called `peek {n: 3}`. A look changes nothing; when the turn wants an act and the verdict names

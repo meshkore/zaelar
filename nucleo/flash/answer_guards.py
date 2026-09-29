@@ -350,9 +350,10 @@ def a_reply_denies_the_screen(reply: str) -> bool:
 # nothing is running. A promise on a turn that opened a card, escalated, searched or read is kept by the act.
 _PROMISE_TO_LOOK_RE = _re.compile(
     r"\b(?:let\s+me\s+(?:actually\s+|just\s+|go\s+)?(?:check|open|look|see|take\s+a\s+look|pull\s+(?:that|it|this)\s+up|"
+    r"pull\s+up|"   # full38 Z1: «let me pull up your day…» — the object after «up», not before it
     r"find\s+out|have\s+a\s+look|read|review|verify|dig)\b|"
     r"i(?:'ll|\s+will|\s+am\s+going\s+to|'m\s+going\s+to)\s+(?:check|open|look|take\s+a\s+look|find\s+out|read|"
-    r"review|verify|pull\s+(?:that|it|this)\s+up)\b|"
+    r"review|verify|pull\s+(?:that|it|this)\s+up|pull\s+up)\b|"
     r"(?:voy|vamos)\s+a\s+(?:mirar|comprobar|abrir|revisar|buscar|verlo|ver|leer|consultar)\w*\b|"
     r"d[eé]ja(?:me)?\s+(?:que\s+)?(?:lo\s+|la\s+|los\s+|las\s+)?(?:mire|compruebe|abra|revise|busque|vea|lea|consulte)\b|"
     r"ahora\s+(?:mismo\s+)?(?:lo|la|te\s+lo|te\s+la)\s+(?:miro|compruebo|reviso|busco|abro|leo|consulto)\b|"

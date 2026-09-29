@@ -249,9 +249,12 @@ async def promise_repair(operator_text: str, reply: str, window: list, spec, emi
     that stays in the air is the one outcome that cannot happen."""
     try:
         from nucleo.flash import dialog, prompt as _prompt, widget_read as _wread
-        wid = _wread.resolve("", reply or "") or _wread.resolve("", operator_text or "")
+        # HIS sentence is the order; the reply only echoes it, and can name more than one card (full38 Z1: «what's
+        # on my plate tomorrow» → «let me pull up your day and your messages» read the MESSAGES). His words first,
+        # then the catalogue on his words, and the reply's naming last.
+        wid = _wread.resolve("", operator_text or "") or await _card_the_catalogue_names(operator_text)
         if not wid:
-            wid = await _card_the_catalogue_names(operator_text)
+            wid = _wread.resolve("", reply or "")
         if not wid:
             return ""
         sys2 = await _wread.prepare({"widget_id": wid, "question": operator_text}, operator_text,
