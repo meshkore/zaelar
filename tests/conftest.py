@@ -138,3 +138,22 @@ def _jev_never_reaches_the_network_and_starts_closed():
         jev.ENDPOINT = saved_endpoint
         jev._breaker.clear()
         jev._breaker.update(saved_breaker)
+
+
+@pytest.fixture(autouse=True)
+def _composers_never_reach_the_network():
+    """The two small model calls a turn can make after the fact — a finished errand's spoken line
+    (`spoken_delivery.line`) and the confirmation judge (`widgets.confirm._judge`) — stay off the network inside the
+    suite, for the reason on the Jev fixture above: measured 2026-09-29, `test_context_budget` passed alone and failed
+    in a wide run, where an earlier test had left a model configured and the delivery was rewritten by a real call.
+    Tests that exercise them turn them back on (or fake the client). `ZAELAR_TEST_LLM_LIVE=1` lets them through."""
+    import os
+    from nucleo.workers import spoken_delivery
+    from widgets import confirm
+    saved = (spoken_delivery.LIVE, confirm._JUDGE_LIVE)
+    if os.environ.get("ZAELAR_TEST_LLM_LIVE") != "1":
+        spoken_delivery.LIVE, confirm._JUDGE_LIVE = False, False
+    try:
+        yield
+    finally:
+        spoken_delivery.LIVE, confirm._JUDGE_LIVE = saved

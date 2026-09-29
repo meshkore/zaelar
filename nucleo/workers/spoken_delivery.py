@@ -16,6 +16,9 @@ import re
 from loguru import logger
 
 _TIMEOUT_S = 6.0
+#: False inside the test suite (root conftest): a deterministic test that reaches this composer would otherwise call a
+#: paid model and hear its words instead of the summary it asserts on.
+LIVE = True
 _MAX_CHARS = 280
 
 
@@ -62,6 +65,8 @@ async def line(goal: str, summary: str, *, ok: bool = True, timeout: float = _TI
     """The spoken line for a finished errand — composed in the agent's language, or `clipped(summary)`."""
     if not (summary or "").strip():
         return ""
+    if not LIVE:
+        return clipped(summary)
     try:
         import asyncio
 

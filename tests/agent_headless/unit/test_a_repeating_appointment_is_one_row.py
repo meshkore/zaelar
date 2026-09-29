@@ -397,8 +397,11 @@ def test_a_question_about_a_day_gets_that_days_record_and_an_empty_day_is_an_ans
     assert "Product" in named and "Meshcore" not in named, "a name inside a day narrows to that row"
 
 
-def test_the_digest_says_how_far_each_day_is():
-    """V2-773 audit: on a Saturday the model read «2026-09-28 09:00 «ZAELAR weekly review»» as tomorrow's."""
+def test_the_digest_says_how_far_each_day_is(monkeypatch):
+    """V2-773 audit: on a Saturday the model read «2026-09-28 09:00 «ZAELAR weekly review»» as tomorrow's. The words
+    are the agent's language's own (demo pass 47); this pins the Spanish catalog the assertions below are written in."""
+    from i18n import langs
+    monkeypatch.setattr(langs, "current_language", lambda: langs.spec("es"))
     tomorrow = (TODAY + dt.timedelta(days=1)).isoformat()
     in3 = (TODAY + dt.timedelta(days=3)).isoformat()
     for title, day in (("Weekly review", tomorrow), ("Accountant", in3)):

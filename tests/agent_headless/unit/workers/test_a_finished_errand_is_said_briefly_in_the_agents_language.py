@@ -20,6 +20,7 @@ _REPORT = ("Hecho — las tres selecciones están en pantalla y completamente ve
 
 @pytest.fixture
 def world(monkeypatch):
+    monkeypatch.setattr(sd, "LIVE", True)          # this test fakes the client itself
     said, asked = [], []
 
     async def notify(title, text, **k):

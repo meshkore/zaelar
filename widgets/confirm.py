@@ -268,10 +268,16 @@ _JUDGE_SYS = ("You check whether a user's reply answers a confirmation question.
               "it, OTHER if it asks for a different action or is about something else.")
 
 
+#: False inside the test suite (root conftest) — see `nucleo.workers.spoken_delivery.LIVE`.
+_JUDGE_LIVE = True
+
+
 def _judge(question: str, reply: str, timeout: float = 4.0) -> str | None:
     """'yes' | 'no' | 'other' from the fast model, or None when it cannot be asked. The turn reader (Jev) was
     measured first on the C3 sentence and read it as a yes (0.85): «book» against «send» is a comparison of two
     actions, which a classifier over fixed labels does not make and the conversation model does (4/4 live)."""
+    if not _JUDGE_LIVE:
+        return None
     try:
         import asyncio
         import concurrent.futures as _cf
