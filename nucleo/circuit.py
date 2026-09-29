@@ -123,6 +123,11 @@ def verdict_of(rec, now: float | None = None) -> tuple[str, str]:
         # one whose result is its words: undeclared. «Unverifiable» is a DECLARED clause the product cannot read.
         return "undeclared", ""
     try:
+        from nucleo import spec as _spec
+        dw = _spec.bind_sheet(dw, getattr(rec, "sheet", ""))
+    except Exception:  # noqa: BLE001
+        pass
+    try:
         met = _verify.check(dw, now)
     except Exception:  # noqa: BLE001
         met = None
@@ -155,6 +160,12 @@ def _close(rec, relay_cap: int) -> str:
     verdict, missing = verdict_of(rec)
     entry = _entry_for(rec)
     tries = int((entry or {}).get("tries") or 0) + (1 if getattr(rec, "goal_retried", False) else 0)
+    # An INFERRED spec is the model's guess at the end state, never the operator's words (demo pass 64: the INIT list
+    # was given «contactos.contacts[title~=Richard]»). A guess may say «unverified»; it may never relaunch an errand
+    # — a relaunch repeats side effects — nor tell him the errand failed.
+    _src_entry = entry or _spec.of_task(str(getattr(rec, "uid", "") or "")) or {}
+    if verdict == "unmet" and "inferred" in str(_src_entry.get("source") or ""):
+        verdict, missing = "unverifiable", ""
     if verdict == "unmet":
         budget = retries()
         if tries < budget and int(getattr(rec, "relay_gen", 0) or 0) < relay_cap:

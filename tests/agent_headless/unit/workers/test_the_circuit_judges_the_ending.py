@@ -134,3 +134,34 @@ def test_the_bound_comes_from_genesis_with_a_default():
     import json, pathlib
     g = json.loads((pathlib.Path(circuit.__file__).parent / "genesis.json").read_text(encoding="utf-8"))
     assert "circuit" in g and int(g["circuit"]["retries"]) == 2
+
+
+# ── demo pass 64: a guess never relaunches, and a sheet clause reads the errand's own sheet ────────────────────
+def test_an_inferred_spec_unmet_is_unverified_never_a_relaunch(world, monkeypatch):
+    esc, parked = _stub(monkeypatch)
+    rec = _rec(done_when=GONE)
+    T.opened(rec, {"src": "voice"})
+    e = spec.of_task(rec.uid)
+    e["source"] = "voice+inferred"
+    spec.persist(rec.uid, e)
+    for x in spec.open_specs():
+        if x.get("task_id") == rec.uid:
+            x["source"] = "voice+inferred"
+    assert circuit.close(rec, relay_cap=5) == "unverifiable"
+    assert esc == [] and parked == [] and rec.ok is True and rec.result_summary == "Listo, cancelada y avisado."
+
+
+def test_a_sheet_clause_is_bound_to_the_errands_sheet():
+    dw = {"all": [{"widget": "results", "field": "empty", "is": "false"}, {"canvas": "results", "expect": "visible"},
+                  {"widget": "agenda", "collection": "meetings"}]}
+    got = spec.bind_sheet(dw, "135b0e-ls1")
+    assert [c.get("widget") or c.get("canvas") for c in got["all"]] == ["results::135b0e-ls1", "results::135b0e-ls1", "agenda"]
+    assert dw["all"][0]["widget"] == "results", "pure: the caller's spec is not mutated"
+    assert spec.bind_sheet(dw, "") is dw
+
+
+def test_the_verdict_reads_the_errands_own_sheet(world, monkeypatch):
+    from nucleo import truth
+    monkeypatch.setattr(truth, "widget_view", lambda wid: {"empty": wid != "results::s1", "items": []})
+    rec = _rec(done_when={"all": [{"widget": "results", "field": "empty", "is": "false"}]}, sheet="s1")
+    assert circuit.verdict_of(rec) == ("met", "")

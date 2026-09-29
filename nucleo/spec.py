@@ -100,6 +100,29 @@ def _fill(node, payload: dict):
     return node
 
 
+#: Cards whose content lives in per-errand INSTANCES (`<base>::<sheet>`): a clause naming the bare base reads an
+#: empty card (demo pass 64: «results.empty = false» read bare `results` while the monitors sat on
+#: `results::135b0e-ls1`, so a delivered hunt was judged unmet and relaunched).
+SHEET_CARDS = ("results",)
+
+
+def bind_sheet(done_when, sheet: str):
+    """`done_when` with every clause on a sheet card bound to the errand's own sheet. Pure; never raises."""
+    sheet = str(sheet or "").strip()
+    if not sheet or not isinstance(done_when, (dict, list)):
+        return done_when
+    import copy
+    dw = copy.deepcopy(done_when)
+    from nucleo import verify as _verify
+    _mode, clauses = _verify._clauses(dw)
+    for c in clauses:
+        for key in ("widget", "canvas"):
+            w = str(c.get(key) or "").strip()
+            if w in SHEET_CARDS:
+                c[key] = f"{w}::{sheet}"
+    return dw
+
+
 def _snapshot(done_when) -> None:
     """A clause with `expect: changed` remembers what the value WAS at birth — the only honest reading of «set
     it as my background» when the phrase names an index, not a title."""
@@ -376,6 +399,7 @@ def born(rec, ctx: dict | None = None) -> None:
             # one does; nothing readable left → inferred, as if it had come without one.
             dw = _sanitize(dw) or {}
             if dw:
+                dw = bind_sheet(dw, (ctx or {}).get("sheet") or getattr(rec, "sheet", ""))
                 _snapshot(dw)
                 try:
                     rec.done_when = dw
@@ -426,6 +450,7 @@ async def _ask_once(rec, ctx: dict) -> None:
             persist(uid, e)
         _emit("🫥 spec: el encargo no acaba en nada que un widget pueda atestiguar", e)
         return
+    dw = bind_sheet(dw, ctx.get("sheet") or getattr(rec, "sheet", ""))
     try:
         rec.done_when = dict(dw)
     except Exception:  # noqa: BLE001
