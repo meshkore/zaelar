@@ -75,6 +75,7 @@ class _Owner:
         self._read_sub = None             # V2-546: what he read there
         self._history_sub = None          # V2-546: older messages a connector went and fetched
         self._task: asyncio.Task | None = None
+        self._triage_task: asyncio.Task | None = None
         # NOTE (V2-607): the in-memory `_seen` set that used to live here is gone. It claimed to stop resurrecting
         # what the operator removed and could not: it started empty on every boot, while the mail it was meant to
         # suppress is still UNREAD at the provider and gets re-delivered on every connect. The ledger that
@@ -102,6 +103,9 @@ class _Owner:
         if self._task:
             self._task.cancel()
             self._task = None
+        if self._triage_task:
+            self._triage_task.cancel()
+            self._triage_task = None
         for sub in (self._msg_sub, self._status_sub, self._out_sub, self._read_sub, self._history_sub):
             try:
                 if sub is not None:
@@ -119,10 +123,13 @@ class _Owner:
                 self._apply_status()
             except Exception as e:
                 logger.debug(f"mensajeria owner status: {e}")
-            try:
-                await self._triage_batch()
-            except Exception as e:
-                logger.debug(f"mensajeria owner triage: {e}")
+            # Triage runs BESIDE this loop, one batch at a time — never in front of the operator's orders. Demo pass
+            # 45 (2026-09-29): «did inworld send me something?» queued the receipt's history fetch, and it left two
+            # minutes later, with E2 and E3 already failed on a card that did not hold it — the loop was parked in
+            # `_triage_batch`, whose announcement waits for silence in a conversation that had none. The queues
+            # below are flushed every tick whatever triage is doing.
+            if self._triage_task is None or self._triage_task.done():
+                self._triage_task = asyncio.create_task(self._triage_quietly())
             # V2-546 — the real apps moving on their own. These run AFTER triage on purpose: a message the
             # operator answered from his phone should reach the conversation and clear the chat in the same
             # tick it would otherwise have been surfaced in, not one tick later as a notification he has
@@ -208,6 +215,12 @@ class _Owner:
             platform = (ev or {}).get("platform")
             if platform:
                 msgstore.set_platform_status(platform, ev.get("status", "off"), ev.get("qr"), ev.get("detail"))
+
+    async def _triage_quietly(self) -> None:
+        try:
+            await self._triage_batch()
+        except Exception as e:  # noqa: BLE001
+            logger.debug(f"mensajeria owner triage: {e}")
 
     async def _triage_batch(self) -> None:
         """Drain the accumulated incoming-message batch, triage it, surface relevant items, save them to UI store
