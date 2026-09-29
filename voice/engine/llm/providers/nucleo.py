@@ -2668,9 +2668,11 @@ class NucleoLLMStream(llm.LLMStream):
                      extra={"cat": "flash", "widget": _cn, "action": "close", "said": (_op_text or "")[:120]})
         # V2-764 — it PROMISED to act on a card the verdict names and called nothing: one pass for the call
         # (`act_repair`), before any backstop decides it was a web errand and spends a worker on it.
+        # full44 M1: «Checking… Apple's up about 1.4% today, roughly $258 — pulling the chart up now.», nothing called,
+        # the verdict unsure — and `promises_action` is a table of SPANISH promise forms, so an English promise never
+        # opened this door. Whether the words promised or claimed an act is the repair pass's own question (its
+        # prompt); the door only needs a card the turn names (`named_or_catalogue` below, "" = no pass).
         if (_no_tool and spoken_text and not clarify["msg"]
-                and (_router.promises_action(spoken_text) or _direct_action.names_an_order(_brief)
-                     or _direct_action.reads_as_order(_brief))
                 and not _router.asks_for_missing_detail(spoken_text)):
             from nucleo.flash import act_repair as _act_repair, build_decision as _bd_ar
             from nucleo.flash import card_commission as _cardc_ar

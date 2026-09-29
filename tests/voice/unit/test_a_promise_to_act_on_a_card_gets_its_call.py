@@ -172,9 +172,16 @@ def test_an_order_reading_is_enough_to_ask_the_repair_in_both_channels():
     order = {"event": ev, "turn_id": "t", "open_ids": [], "result": {tb.REQUEST_KEY: {"choice": "order", "confidence": 0.9}}}
     remark = {"event": ev, "turn_id": "t", "open_ids": [], "result": {tb.REQUEST_KEY: {"choice": "comment", "confidence": 0.9}}}
     assert da.reads_as_order(order) and not da.reads_as_order(remark) and not da.reads_as_order(None)
+    # full44 M1 widened it: an English «pulling the chart up now» matched no (Spanish) promise form and the verdict
+    # was unsure. The door is now any mute-of-tools turn that spoke and names a card; the pass judges the words.
     prov = (ENGINE / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
     probe = (ENGINE / "nucleo/flash/probe.py").read_text("utf-8")
-    assert "_direct_action.reads_as_order(_brief)" in prov and "_da_probe.reads_as_order(_tbrief)" in probe
+    i = prov.index("V2-764 — it PROMISED to act on a card")
+    gate = prov[i:i + 1400]
+    assert "if (_no_tool and spoken_text and not clarify[\"msg\"]" in gate
+    assert "_router.promises_action(spoken_text) or" not in gate, "the door is a wording table again"
+    j = probe.index("mirror of the voice door")
+    assert "_routerc.promises_action(spoken)" not in probe[j - 300:j + 200]
 
 
 def test_a_sure_act_reading_is_an_order_even_when_the_request_type_is_unsure():
