@@ -300,7 +300,9 @@ _SYS_COMMISSION = (
     "con su acción aunque dependa de un dato que la tarjeta guarda: la tarjeta lo comprueba al ejecutar y dice si "
     "falta — leer para comprobarlo antes no cumple la orden. Pero ENCONTRAR, buscar o decirle algo (un hueco libre, "
     "una fecha, un dato) es SABERLO: se lee, y no se apunta ni se envía nada que él no haya pedido — «búscame un "
-    "hueco para hablar con Ethan» no es reservar ni escribirle a Ethan."
+    "hueco para hablar con Ethan» no es reservar ni escribirle a Ethan. El ENCARGO lo redactó otro paso y puede "
+    "traer un dato mal copiado: una hora, una fecha o un nombre que una tarjeta de su pantalla guarda se toma de la "
+    "TARJETA, no del encargo."
     "\n\nAcciones de «{wid}»:\n{actions}{card}")
 
 
@@ -310,6 +312,32 @@ def _tool_named(name: str) -> dict | None:
         return next((t for t in _rc.TOOLS if t.get("function", {}).get("name") == name), None)
     except Exception:  # noqa: BLE001
         return None
+
+
+def _other_open_cards(wid: str, *, limit: int = 2, chars: int = 900) -> str:
+    """What the OTHER cards on his screen hold — the facts a commission on this card usually refers to.
+
+    Demo pass 43 (2026-09-29), C5: «send ethan a telegram with the new time» — the meeting had just been moved to
+    4:30 on the open agenda (silently: no words in the window said so), the model's escalation said «17:00», and
+    this pass, which saw only the messaging card and that brief, wrote Ethan «moved to 5:00 PM». The time was on
+    the screen, in another card."""
+    try:
+        from memory import api as _memapi
+        from nucleo.flash import widget_read as _wr
+        ids = [str(x).split("::")[0].lower() for x in ((_memapi.state() or {}).get("open_widgets") or [])]
+        out = []
+        for other in dict.fromkeys(i for i in ids if i and i != wid):
+            if len(out) >= limit:
+                break
+            if not _wr.can_answer(other):
+                continue
+            digest = str(_wr.read(other) or "").strip()[:chars]
+            if digest:
+                out.append(f"\n\nLO QUE HAY EN «{other}», TAMBIÉN EN SU PANTALLA (la fuente de un dato que la orden "
+                           f"nombra — una hora, una fecha —, por encima de lo que diga el encargo):\n{digest}")
+        return "".join(out)
+    except Exception:  # noqa: BLE001
+        return ""
 
 
 async def call_or_read_for_commission(operator_text: str, commission: str, widget_id: str, spec=None, *,
@@ -337,7 +365,7 @@ async def call_or_read_for_commission(operator_text: str, commission: str, widge
             digest = str(_wr.read(wid) or "").strip()[:1500]
         except Exception:  # noqa: BLE001
             digest = ""
-        card = _CARD.format(wid=wid, digest=digest) if digest else ""
+        card = (_CARD.format(wid=wid, digest=digest) if digest else "") + _other_open_cards(wid)
         got: list[tuple[str, dict]] = []
         from nucleo.flash.fast_client import FastClient
         await FastClient().complete(
