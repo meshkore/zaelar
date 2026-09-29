@@ -124,6 +124,21 @@ def _resolve_recipient(who: str):
     return []
 
 
+def _one_mailbox(hits: list[dict], want: str, d) -> list[dict]:
+    """Several contacts that all reach the SAME place are one recipient — [the first] — else [].
+
+    Demo pass 54 (2026-09-29, E3): the same-turn correction retried the forward with the address itself, and the
+    directory held two contacts carrying it («Andrés Garcia · Andrew»). Asking which costs the turn and cannot
+    change where the mail goes. Two contacts with DIFFERENT channels stay an ambiguity, as before."""
+    keys = set()
+    for c in hits:
+        ch = d.channel_for(c, want)
+        if not ch:
+            return []
+        keys.add((str(ch.get("platform") or ""), str(ch.get("handle") or ch.get("chatId") or "").strip().lower()))
+    return [hits[0]] if len(keys) == 1 else []
+
+
 def resolve_target(payload: dict | None = None) -> dict:
     """WHO this is going to and HOW. Returns `{"ok": True, ...}` with the target, or `{"ok": False, "error"}`
     carrying a sentence that says what is missing — never a guess, never the first of several matches."""
@@ -144,6 +159,8 @@ def resolve_target(payload: dict | None = None) -> dict:
 
     hits = _resolve_recipient(who)
     d = _directory()
+    if len(hits) > 1:
+        hits = _one_mailbox(hits, want, d) or hits
     if len(hits) > 1:
         names = " · ".join(f"{c.get('name')}" + (f" ({c.get('city')})" if c.get("city") else "")
                            for c in hits[:5])
@@ -276,9 +293,73 @@ def _message_ref(db: dict, ref: dict) -> dict | None:
     return {**m, "platform": chat.get("platform"), "chatId": chat.get("chatId"), "messageId": m.get("id")}
 
 
+#: (chatId, UID) → the local paths one read-only mailbox fetch brought this session. The pre-check and the send
+#: both ask; the mailbox is read once.
+_MAILBOX_FILES: dict[tuple[str, str], list[str]] = {}
+_MAILBOX_MAX_ASKS = 2
+
+
+def _mailbox_files(chat_id: str, uid: str) -> list[str]:
+    """The files of ONE mail, asked of the real mailbox by its UID and saved where the card's assets live.
+
+    Demo passes 38-53 (2026-09-29, E3): the receipt reached the card from the archive — a row, no bytes — and
+    «send the invoice to andrew» was refused six times for files that were one IMAP read away. `fetch_older`
+    with the UID just above it returns exactly that mail (UIDs are monotonic), BODY.PEEK, attachments saved by
+    `parse_message`. [] when email is not connected, the UID is not one, or the fetch brings nothing."""
+    import os
+    key = (str(chat_id or "").strip(), str(uid or "").strip())
+    if not key[0] or not key[1].isdigit():
+        return []
+    if key in _MAILBOX_FILES:
+        return [p for p in _MAILBOX_FILES[key] if os.path.isfile(p)]
+    paths: list[str] = []
+    try:
+        from connectors.email import config as _ecfg
+        mb = _ecfg.mailbox()
+        if mb is None:
+            return []
+        from .. import store
+        msgs, _complete = mb.fetch_older(key[0], str(int(key[1]) + 1), 1, store.data_dir("mensajeria"))
+        for m in msgs or []:
+            if str((m or {}).get("messageId") or "") == key[1]:
+                paths = [str(p) for p in (m.get("mediaUrls") or []) if os.path.isfile(str(p))]
+    except Exception:  # noqa: BLE001 — a fetch that fails is the refusal the caller already knew how to give
+        paths = []
+    _MAILBOX_FILES[key] = paths
+    return paths
+
+
+def _mail_identities(m: dict | None, ref: dict) -> list[tuple[str, str]]:
+    """Where the mail he points at lives in the mailbox — (chatId, UID) pairs, the message found on the card first,
+    then what the ARCHIVE holds for the sender or description he gave. Never a mail of another sender: the archive
+    is asked by sender, and the free-text search only over inbound mail that matches his words."""
+    out: list[tuple[str, str]] = []
+    if m and str(m.get("platform") or "email") == "email":
+        out.append((str(m.get("chatId") or ""), str(m.get("messageId") or m.get("id") or "")))
+    who = str((ref or {}).get("from") or "").strip()
+    if who and len(out) < _MAILBOX_MAX_ASKS:
+        try:
+            from connectors.messaging import archive
+            rows = archive.search(None, sender=who, platform="email", direction="in", limit=2)
+            if not rows:
+                rows = archive.search(who, platform="email", direction="in", limit=2)
+            for r in rows:
+                out.append((str(r.get("chat_id") or ""), str(r.get("msg_id") or "")))
+        except Exception:  # noqa: BLE001
+            pass
+    seen: set[tuple[str, str]] = set()
+    keep = []
+    for pair in out:
+        if pair[0] and pair[1].isdigit() and pair not in seen:
+            seen.add(pair)
+            keep.append(pair)
+    return keep[:_MAILBOX_MAX_ASKS]
+
+
 def attachments_of(db: dict, ref: dict) -> list[str]:
     """The files of the message he points at, as local paths inside this widget's own data dir — the only
-    place they can be (the connector saved them there on ingestion, and the asset route serves nothing else)."""
+    place they can be (the connector saved them there on ingestion, and the asset route serves nothing else).
+    A mail the card holds WITHOUT them (brought back as an archive row) gets them from the mailbox, in the turn."""
     import os
     from .. import store
     m = _message_ref(db, ref)
@@ -289,7 +370,13 @@ def attachments_of(db: dict, ref: dict) -> list[str]:
         path = os.path.join(base, name)
         if name and os.path.isfile(path):
             out.append(path)
-    return out
+    if out:
+        return out
+    for chat_id, uid in _mail_identities(m, ref):
+        got = _mailbox_files(chat_id, uid)
+        if got:
+            return got
+    return []
 
 
 def forward_without_files(db: dict, payload: dict) -> dict | None:

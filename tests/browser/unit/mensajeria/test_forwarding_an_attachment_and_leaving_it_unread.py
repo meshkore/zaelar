@@ -247,3 +247,79 @@ def test_a_description_finds_a_mail_that_only_lives_in_its_thread(box):
     from widgets.mensajeria import outbound
     hit = outbound._message_ref(box.load_db(), {"from": "Inworld AI receipt invoice2281-4878"})
     assert hit and hit["messageId"] == "220440", hit
+
+
+# ── demo passes 38-53 (2026-09-29), E3: the mail on the card came WITHOUT its files ──────────────────────────────
+# Six passes ended «el mensaje que él señaló no está en la tarjeta con sus adjuntos todavía»: the receipt had been
+# brought back from the archive (a row, no bytes) and the forward's pre-check found nothing on disk. The archive
+# keeps the mailbox UID, so the files are ONE read-only IMAP fetch away — done in the turn, never a refusal that
+# sends the operator to «open it» again.
+
+class _Mailbox:
+    def __init__(self, log):
+        self.log = log
+
+    def fetch_older(self, address, before_uid, limit=30, media_dir=None):
+        self.log.append((address, before_uid, limit))
+        path = os.path.join(media_dir, "eml_220440_0_Invoice-INW-263277.pdf")
+        with open(path, "wb") as fh:
+            fh.write(b"%PDF-1.4 invoice")
+        return [{"messageId": "220440", "subject": "Your receipt", "mediaUrls": [path]}], True
+
+
+def test_a_mail_on_the_card_without_its_files_gets_them_from_the_mailbox_in_the_turn(box, monkeypatch):
+    from widgets import store
+    from widgets.mensajeria import outbound
+    db = box.load_db()
+    db["items"] = []
+    db.setdefault("threads", {})["email|billing@inworld.ai"] = {"msgs": [
+        {"id": "220440", "dir": "in", "who": "Inworld AI", "ts": 1.0, "subject": "Your receipt",
+         "body": "Your receipt from Inworld AI\nThanks"}]}
+    store.save("mensajeria", db)
+    os.remove(os.path.join(store.data_dir("mensajeria"), "eml_220440_0_Invoice-INW-263277.pdf"))
+    asked = []
+    from connectors.email import config as ecfg
+    monkeypatch.setattr(ecfg, "mailbox", lambda: _Mailbox(asked))
+    outbound._MAILBOX_FILES.clear()
+    r = box.answer_action("forward", {"from": "Inworld AI", "contact": "Andrew", "text": "please book it"})
+    assert r and r["ok"], r
+    r2 = box.apply_action("forward", {"from": "Inworld AI", "contact": "Andrew", "text": "please book it"})
+    assert r2["ok"] and r2["result"]["attachments"] == 1, r2
+    order = box.load_db()["pending_send"][0]
+    assert [os.path.basename(a) for a in order["attachments"]] == ["eml_220440_0_Invoice-INW-263277.pdf"]
+    assert asked == [("billing@inworld.ai", "220441", 1)], "one fetch by the mail's own UID; the send reuses it"
+
+
+def test_a_mail_only_the_archive_knows_is_fetched_by_its_archived_uid(box, monkeypatch):
+    """Nothing on the card at all (a reset, or a list that scrolled past it): the archive row names the chat and the
+    UID, and that is enough to bring the files — without a stand-in sender."""
+    from widgets import store
+    from widgets.mensajeria import outbound
+    from connectors.messaging import archive
+    db = box.load_db()
+    db["items"] = [{"platform": "email", "chatId": "support@ovh.invalid", "messageId": "501", "from": "Soporte de OVHcloud",
+                    "subject": "Your invoice is available", "body": "x"}]
+    db["threads"] = {}
+    store.save("mensajeria", db)
+    os.remove(os.path.join(store.data_dir("mensajeria"), "eml_220440_0_Invoice-INW-263277.pdf"))
+    archive.record("email", "billing@inworld.ai", [{"messageId": "220440", "body": "Your receipt from Inworld AI",
+                                                      "ts": 1.0, "from": "Inworld AI"}], direction="in",
+                   chat_name="Inworld AI")
+    asked = []
+    from connectors.email import config as ecfg
+    monkeypatch.setattr(ecfg, "mailbox", lambda: _Mailbox(asked))
+    outbound._MAILBOX_FILES.clear()
+    r = box.answer_action("forward", {"from": "Inworld AI", "contact": "Andrew", "text": "please book it"})
+    assert r and r["ok"], r
+    assert asked == [("billing@inworld.ai", "220441", 1)]
+
+
+def test_two_contacts_with_one_address_are_one_recipient(box):
+    """Demo pass 54 (2026-09-29), E3: the same-turn correction retried with the ADDRESS, and the directory held two
+    contacts with it — «tengo 2 contactos que encajan con ago@proars.com». Two names for one mailbox are one
+    recipient; asking which costs the turn and changes nothing about where the mail goes."""
+    from widgets.contactos import data as cd
+    from widgets.mensajeria import outbound
+    cd.apply_action("add_contact", {"name": "Andrés Garcia", "email": "andrew@example.com"})
+    t = outbound.resolve_target({"contact": "andrew@example.com", "channel": "email", "text": "book it"})
+    assert t["ok"] and t["to"] == "andrew@example.com", t
