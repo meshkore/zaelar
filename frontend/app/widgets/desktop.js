@@ -826,7 +826,12 @@ export class Desktop {
       // «show me» on a card he put away brings it BACK (demo pass 2026-09-28, full17 S1: «so how did the monitors
       // go, show me» raised the minimized sheet's z and left it hidden, and the detail opened on it next turn was
       // invisible). A worker's show stays in the background, minimized included.
-      if(!background && w.card.classList.contains("hb-minned")){ w.card.classList.remove("hb-minned"); this._persist(); }
+      if(!background && w.card.classList.contains("hb-minned")){
+        w.card.classList.remove("hb-minned"); this._persist();
+        // …where it was put away may be under what opened since (demo pass 53: the monitors' sheet came back over
+        // the agenda, covering it 100%): the desk re-tiles when anything now overlaps.
+        this._tileIfCrowded();
+      }
       if(!background){ w.card._bg = false; this._bringFront(w.card); this._yieldBackground(w.card); }
       // Already open, no new data pushed, same query → just surface it (no re-fetch, no re-render, no flicker).
       if(providedData === null && q === w.q) return;

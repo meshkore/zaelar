@@ -3357,6 +3357,9 @@ DOMAINS: list[dict] = [
         # named the card, the action existed. One bounded pass asks the model for the call it promised — only the
         # named card, only a declared action — before the backstop spends a worker on it.
         # Demo pass 2026-09-28 (V2-776 E) — the fixes of the passes, one node each.
+        {"id": "2.165", "title": "A card brought back from minimized re-tiles the desk if it lands on another",
+            "ch": UNIT,
+            "paths": ["tests/browser/unit/widgets/test_a_card_brought_back_retiles_the_desk.py"]},
         {"id": "2.164", "title": "A promise to look is not an answer to SKIP, and a SKIP is visible",
             "ch": UNIT,
             "paths": ["tests/voice/unit/test_a_promise_to_look_is_not_an_answer_to_skip.py"]},
