@@ -59,7 +59,8 @@ def test_the_voice_schedules_it_for_a_repeated_view_or_a_lens_over_an_act():
     """…and for a lens the verdict overrules but cannot complete alone (full37 E2: «open it» → the model searched
     the archive, the verdict read `mensajeria:open` 0.85, and `open` needs the name only a model can write)."""
     src = (ENGINE / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
-    i = src.index('_repeat_repair["v"] = (_cd["card"], action_name, _dis)')
+    anchor = src.index("or _data_ops.a_view_where_the_verdict_acts(_cd[\"card\"], action_name, _dis, _vw_words)):")
+    i = src.index('_repeat_repair["v"] = (_cd["card"], action_name, _dis)', anchor)
     head = src[i - 400:i]
     assert "repeats_last_view(brain._last_dataop, _cd[\"card\"], action_name, res.payload)" in head
     assert "or _data_ops.a_view_where_the_verdict_acts(_cd[\"card\"], action_name, _dis, _vw_words)" in head

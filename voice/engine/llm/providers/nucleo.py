@@ -1465,11 +1465,16 @@ class NucleoLLMStream(llm.LLMStream):
                 from widgets import effects as _fx_q
                 if (_fx_q.carries(_cd["card"], _dis, _fx_q.OUTPUT_ANSWER)
                         and _fx_q.carries(_cd["card"], action_name, _fx_q.DATA_WRITE)
-                        and _direct_action._action_sure(_brief)
-                        and _direct_action.complete(_brief, operator_text=_bnotes.operator_half(text), emit=emit,
-                                                    present=_cvis.present, apply_widget_data=_apply_widget_data,
-                                                    widget_id=_cd["card"], instead_of=action_name,
-                                                    require_order=False)):
+                        and _direct_action._action_sure(_brief)):
+                    # full51 C2: when the verdict cannot be completed alone (`find_free` needs the length and the
+                    # afternoon only a model reads), the WRITE still ran — «Call with Ethan» booked at 15:45 over
+                    # the 15:00 meeting, nobody having asked to book. The write never runs; the verdict's call is
+                    # asked of the model after the turn (the repeated-view repair pass).
+                    if not _direct_action.complete(_brief, operator_text=_bnotes.operator_half(text), emit=emit,
+                                                   present=_cvis.present, apply_widget_data=_apply_widget_data,
+                                                   widget_id=_cd["card"], instead_of=action_name,
+                                                   require_order=False):
+                        _repeat_repair["v"] = (_cd["card"], action_name, _dis)
                     emit("brain", "❓ la pregunta gana a la escritura — corre el veredicto", role="system",
                          text=f"{_cd['card']}: modelo={action_name} · veredicto={_dis}",
                          extra={"cat": "flash", "id": _cd["card"], "model": action_name, "verdict": _dis})

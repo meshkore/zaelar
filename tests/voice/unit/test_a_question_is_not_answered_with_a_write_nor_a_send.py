@@ -49,3 +49,16 @@ def test_the_voice_wires_both_rules():
     j = SRC.index("la pregunta gana a la escritura")
     block = SRC[SRC.rindex("if (_fx_q.carries", 0, j):j]
     assert "_fx_q.OUTPUT_ANSWER" in block and "_fx_q.DATA_WRITE" in block and "instead_of=action_name" in block
+
+
+def test_when_the_verdict_cannot_complete_alone_the_write_still_does_not_run():
+    """Demo pass 51 (2026-09-29), C2: «find me a free 45 minutes tomorrow afternoon…» → the model called add_meeting
+    (15:45, over the 15:00 meeting), the verdict read find_free at 0.86, and `complete` could not build find_free on
+    its own — so the write ran. Now the write never runs: the verdict's call is asked of the model after the turn,
+    and the branch returns either way."""
+    j = SRC.index("la pregunta gana a la escritura")
+    block = SRC[SRC.rindex("if (_fx_q.carries", 0, j):j + 400]
+    assert "and _direct_action._action_sure(_brief)):" in block, "complete() is part of the condition again"
+    assert '_repeat_repair["v"] = (_cd["card"], action_name, _dis)' in block
+    k = block.index("la pregunta gana a la escritura")
+    assert "return" in block[k:k + 400]
