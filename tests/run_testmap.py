@@ -3420,6 +3420,8 @@ DOMAINS: list[dict] = [
         # the money gate read the fast brain's own «do not buy» as a charge, the core guard matched inside
         # «stock»/«report», and a 25-second audit escalated a search the fast brain had resolved meanwhile.
         # V2-776 L (2026-09-29) — the circuit: a request is born with its end state.
+        {"id": "2.188", "title": "A courtesy question at the end of a list step's reply does not hold the step",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/test_a_courtesy_question_does_not_hold_a_list_step.py"]},
         {"id": "2.187", "title": "A commission that lands on the picture viewer is the picture tool, never a worker; the "
                                  "viewer's catalogue criterion names the wallpaper",
             "ch": UNIT, "paths": ["tests/voice/unit/test_a_picture_commission_is_the_picture_tool.py"]},
