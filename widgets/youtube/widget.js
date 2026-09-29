@@ -6,14 +6,19 @@
 function injectStyles(){
   if(document.getElementById("hb-yt-css")) return;
   const s = document.createElement("style"); s.id = "hb-yt-css"; s.textContent = `
-  /* Fluid width, ANCHORED to the parent card (operator, 2026-09-05: «el contenido interior debe ir anclado
-     al borde del widget, al contenedor parent»). The old width:min(680px,92vw) was content-sized: a
-     maximized or hand-grown card kept the widget at 680px hugging the left edge with a dead area beside it.
-     The CARD decides the width now (the default footprint moved to manifest.size); border-box or the
-     padding+border would overflow the card by 30px. */
-  .hb-yt{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
-         width:100%;box-sizing:border-box;background:var(--hb-bg,#fff);border:1px solid var(--hb-line,#eef1f6);
-         border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:10px}
+  /* ONE BOX (V2-717 applied here, 2026-09-29). The canvas window IS the frame: the root draws no border,
+     radius, background or padding of its own, and it switches the host scroller's inset and scroll OFF so
+     the bar sits flush under the window header and the content reaches the window's edges — operator:
+     «un marco que tiene la ventana y dentro otro espacio como de premarco… lo único que conseguimos es
+     perder espacio». The root fills the card (height:100%) and ONE inner region (.hb-yt-body) owns the
+     scroll, so the bar never scrolls away. Width stays the card's (anchored, 2026-09-05). */
+  .hb-scroll:has(> .hb-yt){overflow:hidden;padding:0}
+  .hb-yt{font-family:var(--sans,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif);
+         color:var(--hb-ink,#F2F4F7);width:100%;height:100%;min-height:0;box-sizing:border-box;
+         display:flex;flex-direction:column}
+  .hb-yt button,.hb-yt input{font-family:inherit}
+  .hb-yt-body{flex:1 1 auto;min-height:0;overflow:auto;display:flex;flex-direction:column;gap:var(--sp-3,12px);
+              padding:var(--sp-3,12px) var(--sp-4,16px) var(--sp-4,16px);box-sizing:border-box}
   /* V2-636 - ONE header line: title left (ellipsis), channel/date right. Saves a vertical row. */
   .hb-yt-tline{display:flex;align-items:baseline;gap:12px;min-width:0}
   .hb-yt-title{font-size:14px;font-weight:700;color:var(--hb-ink,#0d1622);line-height:1.3;
@@ -29,14 +34,18 @@ function injectStyles(){
      the player looks identical whatever the source. object-fit:contain letterboxes rather than crops: a
      film in the wrong aspect must not lose its edges. */
   .hb-yt-video{position:absolute;inset:0;width:100%;height:100%;background:#000;object-fit:contain}
-  /* V2-636 - the PLAYER tab is a flex column that FILLS the card: the frame takes every spare pixel
-     (YouTube letterboxes inside the iframe) and the control bar below stays pinned and visible at ANY
-     card size - the operator grew the card and the buttons were CLIPPED under its bottom edge. The
-     ancestors are card chrome (the scroller wraps the widget root), reached with :has, and connmode is
-     excluded: the connector shelf is a list and must keep its scroll. */
-  .hb-scroll:has(> .hb-yt.hb-yt-t-player:not(.hb-yt-connmode)){overflow:hidden}
-  .hb-yt.hb-yt-t-player:not(.hb-yt-connmode){height:100%}
-  .hb-yt.hb-yt-t-player:not(.hb-yt-connmode) .hb-yt-frame{flex:1 1 auto;min-height:140px;aspect-ratio:auto}
+  /* V2-636 - the PLAYER tab FILLS the card: the frame takes every spare pixel (YouTube letterboxes inside
+     the iframe) and the control bar below stays pinned and visible at ANY card size - the operator grew the
+     card and the buttons were CLIPPED under its bottom edge. Since the one-box pass the video also runs
+     EDGE TO EDGE: no inset and no radius around it, the title and the controls carry their own gutter.
+     connmode is excluded: the connector shelf is a list and must keep its scroll. */
+  .hb-yt.hb-yt-t-player:not(.hb-yt-connmode) .hb-yt-body{overflow:hidden;padding:0;gap:0}
+  .hb-yt.hb-yt-t-player:not(.hb-yt-connmode) .hb-yt-frame{flex:1 1 auto;min-height:140px;aspect-ratio:auto;
+    border-radius:0}
+  .hb-yt.hb-yt-t-player:not(.hb-yt-connmode) .hb-yt-tline{padding:var(--sp-2,8px) var(--sp-4,16px)}
+  .hb-yt.hb-yt-t-player:not(.hb-yt-connmode) .hb-yt-blockmsg{margin:0 var(--sp-4,16px) var(--sp-2,8px)}
+  .hb-yt.hb-yt-t-player:not(.hb-yt-connmode) .hb-yt-ctrls{margin:0;padding:var(--sp-2,8px) var(--sp-3,12px)}
+  .hb-yt.hb-yt-t-player:not(.hb-yt-connmode) .hb-yt-hint{padding:0 var(--sp-4,16px) var(--sp-3,12px)}
   .hb-yt-frame iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
   .hb-yt-empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
                color:var(--hb-muted-2,#9aa7b8);font-size:13px;text-align:center;padding:0 20px}
@@ -66,8 +75,10 @@ function injectStyles(){
                 align-items:center;gap:6px;background:rgba(0,0,0,.6);color:#fff;font-size:12.5px;
                 font-weight:600;padding:6px 12px;border-radius:999px;cursor:pointer}
   .hb-yt-unmute:hover{background:rgba(0,0,0,.75)}
-  .hb-yt-list{display:flex;flex-direction:column;gap:2px;border-top:1px solid var(--hb-line,#eef1f6);padding-top:8px}
-  .hb-yt-listh{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:var(--hb-ink,#0d1622)}
+  /* No rule above the list: the bar's hairline already closes the band, and a second one drew a double line. */
+  .hb-yt-list{display:flex;flex-direction:column;gap:2px}
+  .hb-yt-listh{display:flex;align-items:center;gap:8px;font-size:var(--fs-ui,14px);font-weight:600;
+               color:var(--hb-ink,#0d1622);padding-bottom:4px}
   .hb-yt-chip{font-size:11px;color:var(--hb-accent,#3D6FE0);border:1px solid var(--hb-line,#eef1f6);
               border-radius:999px;padding:1px 8px;display:inline-flex;align-items:center;gap:5px;cursor:pointer}
   .hb-yt-row{display:flex;align-items:center;gap:8px;padding:4px 6px;border-radius:8px;cursor:pointer;min-width:0}
@@ -95,21 +106,57 @@ function injectStyles(){
   /* TABS (V2-632): the operator's redesign — top tabs instead of the home<->player toggle. The bar is the
      ONE navigation surface; a tab click is a single state transition owned by selectTab (the V2-626 rule:
      it also clears the connectors screen, so no face can stay stuck underneath another). */
-  .hb-yt-nav{display:flex;gap:5px;align-items:center;flex-wrap:nowrap;overflow-x:auto;
-             border-bottom:1px solid var(--hb-line,#eef1f6);padding-bottom:9px;scrollbar-width:none}
-  .hb-yt-brand{width:27px;height:19px;border-radius:6px;background:#f03;color:#fff;display:flex;
-               align-items:center;justify-content:center;flex:0 0 auto;margin-right:3px}
-  .hb-yt-brand svg{width:9px;height:9px;display:block}
-  .hb-yt-tab{border:0;background:none;color:var(--hb-muted,#5b6b82);border-radius:999px;
-             padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;line-height:1.2;
-             white-space:nowrap;flex:0 0 auto}
-  .hb-yt-tab:hover{background:var(--hb-bg-soft,#fbfdff);color:var(--hb-ink,#0d1622)}
-  /* Active chip: INVERTED (ink on light theme, light on dark) - the operator's «color de fondo y el
-     texto invertido», which is also YouTube's own dark-mode chip. */
-  .hb-yt-tab.on{background:var(--hb-ink,#0d1622);color:var(--hb-bg,#fff)}
-  .hb-yt-conbtn{margin-left:auto;border:1px solid var(--hb-line,#eef1f6);background:var(--hb-bg-soft,#fbfdff);
-                border-radius:9px;padding:5px 9px;font-size:13px;cursor:pointer;line-height:1}
-  .hb-yt-conbtn.active,.hb-yt-conbtn:hover{border-color:var(--hb-accent,#3D6FE0)}
+  /* THE ONE BAR (house standard, V2-715): the window header above already says «YouTube» with its mark,
+     so the bar carries no brand of its own — view tabs on the left, then margin-left:auto and the source
+     icons + the plug, pinned to the RIGHT edge (the red mark that used to lead the strip was that sentence
+     said a second time). Flush under the window header, one hairline under it, never a box. */
+  .hb-yt-nav{display:flex;align-items:center;gap:var(--sp-2,8px);flex:0 0 auto;min-width:0;box-sizing:border-box;
+             padding:var(--sp-2,8px) var(--sp-3,12px);border-bottom:1px solid var(--hb-line-subtle,rgba(255,255,255,.09))}
+  .hb-yt-tabs{display:flex;align-items:center;gap:2px;min-width:0;flex:0 1 auto;overflow-x:auto;scrollbar-width:none}
+  .hb-yt-tabs::-webkit-scrollbar{display:none}
+  .hb-yt-tab{border:0;background:none;color:var(--hb-muted,#A9B1BD);border-radius:999px;
+             padding:6px 12px;font-size:var(--fs-caption,13.8px);font-weight:600;cursor:pointer;
+             line-height:var(--hb-lh-tight,1.35);white-space:nowrap;flex:0 0 auto;
+             transition:background var(--hb-t-fast,120ms),color var(--hb-t-fast,120ms)}
+  .hb-yt-tab:hover:not(:disabled){background:var(--hb-hover,rgba(255,255,255,.06));color:var(--hb-ink,#F2F4F7)}
+  .hb-yt-tab:focus-visible,.hb-yt-plug:focus-visible,.hb-yt-picon:focus-visible{outline:none;
+             box-shadow:var(--hb-focus-ring,0 0 0 2px #AE90FF)}
+  /* SELECTION is an accent-tinted chip with a ring and the label in ink at 700 (V2-690/691) — the one
+     «this is the face on screen» shape of the whole product. The inverted white pill it replaces was a
+     second filled language and the loudest thing on the card. */
+  .hb-yt-tab.on{background:color-mix(in srgb,var(--hb-accent,#AE90FF) 18%,transparent);
+                box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--hb-accent,#AE90FF) 55%,transparent);
+                color:var(--hb-ink,#F2F4F7);font-weight:700}
+  /* While the connectors screen is open no view is on screen: every tab goes quiet (the standard). */
+  .hb-yt-tab:disabled{opacity:.75;cursor:default}
+  .hb-yt-navright{margin-left:auto;display:flex;align-items:center;gap:var(--sp-2,8px);flex:0 0 auto}
+  /* The plug — the SAME control every connector widget wears (contactos' .ctplug): an icon, no word. */
+  .hb-yt-plug{width:var(--hb-ctl-h-sm,32px);height:var(--hb-ctl-h-sm,32px);flex:0 0 auto;padding:0;
+              border:1px solid var(--hb-line,rgba(255,255,255,.14));background:transparent;color:var(--hb-muted,#A9B1BD);
+              border-radius:var(--hb-r-s,8px);cursor:pointer;display:flex;align-items:center;justify-content:center}
+  .hb-yt-plug svg{width:15px;height:15px;display:block}
+  .hb-yt-plug:hover,.hb-yt-plug.on{border-color:var(--hb-accent,#AE90FF);color:var(--hb-accent,#AE90FF)}
+  /* INICIO's own head: what the grid below is, and a search box that carries the question on screen —
+     so the card works by hand as well as by voice (operator, 2026-09-29). Built ONCE, outside the grid
+     that is rebuilt per render, or an SSE repaint would eat what he is typing. */
+  .hb-yt-homehead{display:none;align-items:center;gap:var(--sp-3,12px);flex-wrap:wrap;min-width:0}
+  .hb-yt-hometitle{font-size:var(--fs-ui,14px);font-weight:600;color:var(--hb-ink,#F2F4F7);white-space:nowrap;
+                   display:flex;align-items:center;gap:var(--sp-2,8px)}
+  .hb-yt-homecount{font-weight:400;color:var(--hb-muted,#A9B1BD);font-variant-numeric:tabular-nums}
+  .hb-yt-search{margin-left:auto;flex:1 1 220px;max-width:420px;min-width:0;display:flex;align-items:center;
+                gap:var(--sp-2,8px);height:var(--hb-ctl-h-sm,32px);box-sizing:border-box;padding:0 4px 0 var(--sp-3,12px);
+                border:1px solid var(--hb-line,rgba(255,255,255,.14));border-radius:999px;
+                background:var(--hb-bg-soft,#272D35)}
+  .hb-yt-search:focus-within{border-color:var(--hb-accent,#AE90FF)}
+  .hb-yt-search input{flex:1 1 auto;min-width:0;border:0;outline:none;background:none;padding:0;
+                      color:var(--hb-ink,#F2F4F7);font-size:var(--fs-caption,13.8px)}
+  .hb-yt-search input::placeholder{color:var(--hb-muted,#A9B1BD)}
+  .hb-yt-sbtn{width:26px;height:26px;flex:0 0 auto;border:0;border-radius:999px;background:none;padding:0;
+              color:var(--hb-muted,#A9B1BD);cursor:pointer;display:flex;align-items:center;justify-content:center}
+  .hb-yt-sbtn svg{width:15px;height:15px;display:block}
+  .hb-yt-sbtn:hover{background:var(--hb-hover,rgba(255,255,255,.06));color:var(--hb-ink,#F2F4F7)}
+  .hb-yt-sbtn:focus-visible{outline:none;box-shadow:var(--hb-focus-ring,0 0 0 2px #AE90FF)}
+  .hb-yt-sbtn.go{color:var(--hb-ink,#F2F4F7)}
   /* Placeholder (V2-632): with no video, the player tab still SHOWS where the video will live. */
   .hb-yt-empt-ico{font-size:34px;opacity:.5;line-height:1}
   /* Search band on the dashboard (V2-632): numbered result tiles + a per-tile «a la cola» button. */
@@ -157,10 +204,13 @@ function injectStyles(){
   /* ACCOUNT layer (V2-597): platform icons in the nav row — bright = connected (click: its status screen),
      dimmed = not connected (click: its step wizard). The messaging .dots pattern: every channel always
      visible, never hidden and never disabled. */
-  .hb-yt-dots{display:flex;align-items:center;gap:8px;margin-left:auto}
-  .hb-yt-picon{width:20px;height:20px;cursor:pointer;opacity:.35;flex:0 0 auto}
+  .hb-yt-dots{display:flex;align-items:center;gap:4px}
+  .hb-yt-picon{width:var(--hb-icon-h,28px);height:var(--hb-icon-h,28px);border:0;background:none;padding:0;
+               border-radius:var(--hb-r-s,8px);cursor:pointer;opacity:.72;flex:0 0 auto;
+               display:flex;align-items:center;justify-content:center}
+  .hb-yt-picon:hover{opacity:1;background:var(--hb-hover,rgba(255,255,255,.06))}
   .hb-yt-picon.on{opacity:1}
-  .hb-yt-picon svg{width:100%;height:100%;display:block}
+  .hb-yt-picon svg{width:18px;height:18px;display:block}
   /* Connect screens (V2-597): the step wizard / status card replaces the card faces while open. */
   .hb-yt-conn{display:flex;flex-direction:column;gap:10px}
   .hb-ytw-crumb{font-size:12px;color:var(--hb-accent,#3D6FE0);cursor:pointer;font-weight:600;
@@ -194,7 +244,8 @@ function injectStyles(){
   .hb-yt-lib{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:2px 0 6px}
   .hb-yt-libh{font-size:12px;font-weight:700;color:var(--hb-fg,#0f1720);margin-right:2px}
   .hb-yt-libp{grid-column:1/-1;font-size:11px;color:var(--hb-muted-2,#9aa7b8);padding:0 0 8px}
-  .hb-yt-catch{grid-column:1/-1;border-top:1px solid var(--hb-line,#eef1f6);margin-top:4px}
+  .hb-yt-catch{grid-column:1/-1;border-top:1px solid var(--hb-line-subtle,rgba(255,255,255,.09));margin-top:4px}
+  .hb-yt-catch:last-child{display:none}              /* a divider with nothing after it divides nothing */
   /* View switching is CLASS-driven, never inline display (an inline style would beat the cinema rules
      below). V2-632: one class per TAB — every face hidden by default, each tab shows its own with the
      right display value. Cinema and connmode are declared AFTER and win by order at equal specificity. */
@@ -203,6 +254,7 @@ function injectStyles(){
   .hb-yt .hb-yt-list,.hb-yt .hb-yt-addrow,.hb-yt .hb-yt-home,.hb-yt .hb-yt-blocked,.hb-yt .hb-yt-subs,
   .hb-yt .hb-yt-mylists{display:none}
   .hb-yt.hb-yt-t-inicio .hb-yt-home{display:grid}
+  .hb-yt.hb-yt-t-inicio .hb-yt-homehead{display:flex}
   .hb-yt.hb-yt-t-inicio .hb-yt-blocked{display:block}
   .hb-yt.hb-yt-t-player .hb-yt-frame{display:block}
   .hb-yt.hb-yt-t-player .hb-yt-blockmsg{display:block}
@@ -220,15 +272,16 @@ function injectStyles(){
   .hb-yt.hb-yt-connmode .hb-yt-ctrls,.hb-yt.hb-yt-connmode .hb-yt-hint,.hb-yt.hb-yt-connmode .hb-yt-list,
   .hb-yt.hb-yt-connmode .hb-yt-addrow,.hb-yt.hb-yt-connmode .hb-yt-home,.hb-yt.hb-yt-connmode .hb-yt-subs,
   .hb-yt.hb-yt-connmode .hb-yt-mylists,.hb-yt.hb-yt-connmode .hb-yt-blocked,
-  .hb-yt.hb-yt-connmode .hb-yt-blockmsg{display:none}
+  .hb-yt.hb-yt-connmode .hb-yt-blockmsg,.hb-yt.hb-yt-connmode .hb-yt-homehead{display:none}
   .hb-yt:not(.hb-yt-connmode) .hb-yt-conn{display:none}
   /* CINEMA (V2-596): inside a maximized/fullscreen card the video IS the screen — the frame fills the card and
      the card-shaped furniture (title, controls, hint, playlist, add row) disappears. Without this, a voice
      "maximize the video" grew the CARD while the player kept its 56% card ratio inside a black void. The host
      sets .hb-cinema on the card (desktop.js) and its floating exit button restores everything; the unmute pill
      stays, it is the one control the browser's autoplay policy makes necessary. */
-  .hb-win.hb-cinema .hb-yt,.hb-win:fullscreen .hb-yt{width:100%;height:100%;max-width:none;padding:0;gap:0;
-    border:0;border-radius:0;background:#000}
+  .hb-win.hb-cinema .hb-yt,.hb-win:fullscreen .hb-yt{width:100%;height:100%;max-width:none;background:#000}
+  .hb-win.hb-cinema .hb-yt-body,.hb-win:fullscreen .hb-yt-body{padding:0;gap:0;overflow:hidden}
+  .hb-win.hb-cinema .hb-yt-homehead,.hb-win:fullscreen .hb-yt-homehead{display:none}
   .hb-win.hb-cinema .hb-yt-frame,.hb-win:fullscreen .hb-yt-frame{display:block;aspect-ratio:auto;
     flex:1 1 auto;min-height:0;border-radius:0}
   .hb-win.hb-cinema .hb-yt-tline,.hb-win.hb-cinema .hb-yt-ctrls,
@@ -259,7 +312,10 @@ const ICON_PAUSE    = `<svg ${_SF}><rect x="6" y="4" width="4" height="16"/><rec
 const ICON_VOL_DOWN = `<svg ${_SW}><path d="M11 5 6 9H2v6h4l5 4V5z"/></svg>`;
 const ICON_VOL_UP   = `<svg ${_SW}><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg>`;
 const ICON_MUTED    = `<svg ${_SW}><path d="M11 5 6 9H2v6h4l5 4V5z"/><line x1="22" y1="9" x2="16" y2="15"/><line x1="16" y1="9" x2="22" y2="15"/></svg>`;
-const ICON_TRIANGLE = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 4v16l14-8z"/></svg>`;
+// The plug is contactos' ICO_PLUG stroke for stroke: one door to the connectors, one drawing of it.
+const ICON_PLUG     = `<svg ${_SW}><path d="M9 2v6"/><path d="M15 2v6"/><path d="M6 8h12v3a6 6 0 0 1-12 0z"/><path d="M12 17v5"/></svg>`;
+const ICON_SEARCH   = `<svg ${_SW}><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.2" y2="16.2"/></svg>`;
+const ICON_CLEAR    = `<svg ${_SW}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
 
 function svgEl(markup){
   const t = document.createElement("template");
@@ -376,7 +432,7 @@ const _BRAND = {
 };
 
 function brandIcon(pid, on){
-  const wrap = el("span", "hb-yt-picon" + (on ? " on" : ""));
+  const wrap = el("button", "hb-yt-picon" + (on ? " on" : ""));
   const b = _BRAND[pid] || null;
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   svg.setAttribute("viewBox", "0 0 24 24");
@@ -414,6 +470,8 @@ function renderConn(E, root, data, ctx){
   if(!box) return;
   
   root.classList.toggle("hb-yt-connmode", !!_screen);
+  const plug = root.querySelector(".hb-yt-plug"); if(plug) plug.classList.toggle("on", !!_screen);
+  if(root._hbYtPaintTabs) root._hbYtPaintTabs();
   box.textContent = "";
   if(!_screen) return;
   const pid = _screen.platform || "youtube";
@@ -497,10 +555,10 @@ function renderConn(E, root, data, ctx){
   };
 
   if(row.connected && _screen.view !== "wizard"){
-    const st = stepBox("✓", 1, (row.label || "YouTube") + " conectado");
+    const st = stepBox("✓", 1, tt("connected_title", {label: row.label || "YouTube"}, "{label} conectado"));
     const body = el("div", "hb-ytw-body");
-    body.appendChild(el("div", "", tt("readonly_1", null, "Cuenta conectada en modo solo lectura: las sugerencias del inicio ")
-                                   + tt("readonly_2", null, "salen de tus suscripciones. Tu cuenta no se toca.")));
+    body.appendChild(el("div", "", tt("readonly", null,
+      "Cuenta conectada en modo solo lectura: las sugerencias del inicio salen de tus suscripciones. Tu cuenta no se toca.")));
     st.appendChild(body);
     const foot = el("div", "hb-ytw-foot");
     const sug = btn(tt("fetch_suggestions", null, "↻ Traer sugerencias"));
@@ -565,8 +623,8 @@ function renderConn(E, root, data, ctx){
   if(!builtin && step === 1){
     sb = stepBox(1, total, tt("wiz1_title", null, "Registra una app OAuth de Google"));
     const body = el("div", "hb-ytw-body");
-    body.appendChild(el("div", "", tt("wiz1_body_1", null, "Esta instalación todavía no trae una app de Google propia, así que hace ")
-                                   + tt("wiz1_body_2", null, "falta la tuya: se registra UNA vez y sirve también para Drive y Fotos.")));
+    body.appendChild(el("div", "", tt("wiz1_body", null,
+      "Esta instalación todavía no trae una app de Google propia, así que hace falta la tuya: se registra UNA vez y sirve también para Drive y Fotos.")));
     body.appendChild(row.app_configured
       ? el("div", "hb-ytw-ok", tt("wiz1_ok", null, "✓ App registrada — puedes continuar."))
       : el("div", "", tt("wiz1_note", null, "Las credenciales se guardan en Configuración; por esta tarjeta nunca viajan.")));
@@ -592,8 +650,8 @@ function renderConn(E, root, data, ctx){
   } else {
     sb = stepBox(builtin ? 1 : 2, total, tt("wiz2_title", null, "Autoriza tu cuenta de YouTube"));
     const body = el("div", "hb-ytw-body");
-    body.appendChild(el("div", "", tt("wiz2_body_1", null, "Se abrirá la ventana de Google para que des permiso de SOLO LECTURA a tus ")
-                                   + tt("wiz2_body_2", null, "suscripciones. Zaelar no puede tocar tu cuenta.")));
+    body.appendChild(el("div", "", tt("wiz2_body", null,
+      "Se abrirá la ventana de Google para que des permiso de SOLO LECTURA a tus suscripciones. Zaelar no puede tocar tu cuenta.")));
     body.appendChild(el("div", "", tt("wiz2_note", null, "En cuanto termines, esta tarjeta se actualiza sola.")));
     sb.appendChild(body);
     const foot = el("div", "hb-ytw-foot");
@@ -602,7 +660,7 @@ function renderConn(E, root, data, ctx){
       back.addEventListener("click", () => { _wizStep[pid] = 1; _connErr = ""; _connUrl = ""; repaint(); });
       foot.appendChild(back);
     }
-    const go = btn(_connBusy ? tt("connecting", null, "Conectando…") : tt("connect_", null, "Conectar ") + (row.label || "YouTube"), "bt-primary");
+    const go = btn(_connBusy ? tt("connecting", null, "Conectando…") : tt("connect_label", {label: row.label || "YouTube"}, "Conectar {label}"), "bt-primary");
     go.addEventListener("click", startConsent);
     foot.appendChild(go);
     sb.appendChild(foot);
@@ -751,54 +809,71 @@ export function render(root, data, ctx){
     applyTabClass(root);
 
     const nav = el("div", "hb-yt-nav");
-    const brand = el("div", "hb-yt-brand");           // the red play mark - the strip reads as a BAND
-    brand.appendChild(svgEl(ICON_TRIANGLE));
-    nav.appendChild(brand);
+    const tabsBox = el("div", "hb-yt-tabs");
+    nav.appendChild(tabsBox);
     const tabBtns = {};
     const selectTab = (tid) => {
       _tab = tid;
       _screen = null; _connErr = "";                       // choosing a tab is ONE transition (V2-626)
       applyTabClass(root);
-      Object.keys(tabBtns).forEach((k) => tabBtns[k].classList.toggle("on", k === _tab));
-      const cb = root.querySelector(".hb-yt-conbtn"); if(cb) cb.classList.remove("active");
+      paintTabs();
+      const cb = root.querySelector(".hb-yt-plug"); if(cb) cb.classList.remove("on");
       root.classList.remove("hb-yt-connmode");
       const connBox = root._hbYtEls && root._hbYtEls.conn; if(connBox) connBox.textContent = "";
       if(ctx && ctx.top) ctx.top();
+      const bd = root._hbYtEls && root._hbYtEls.body; if(bd) bd.scrollTop = 0;
+    };
+    // The tabs' lit/quiet state has ONE painter: the chosen face wears .on, and while the connectors screen
+    // is open no face is on screen, so none is lit and none is clickable (the header standard).
+    const paintTabs = () => {
+      Object.keys(tabBtns).forEach((k) => {
+        tabBtns[k].classList.toggle("on", !_screen && k === _tab);
+        tabBtns[k].disabled = !!_screen;
+      });
     };
     _TABS.forEach((tid) => {
       const b = el("button", "hb-yt-tab" + (tid === _tab ? " on" : ""), tabLabel(tid));
       b.dataset.tab = tid;
       b.addEventListener("click", () => selectTab(tid));
       tabBtns[tid] = b;
-      nav.appendChild(b);
+      tabsBox.appendChild(b);
     });
     root._hbYtSelectTab = selectTab;
     root._hbYtTabBtns = tabBtns;
-    // Platform icons (V2-597) + the connectors button (V2-632, the messaging 🔌 pattern) at the bar's right.
+    root._hbYtPaintTabs = paintTabs;
+    // RIGHT cluster (the header standard): the source icons, then the plug, pinned to the right edge.
+    const right = el("div", "hb-yt-navright");
     const dots = el("div", "hb-yt-dots");
-    nav.appendChild(dots);
-    const connBtn = el("button", "hb-yt-conbtn", "🔌");
+    right.appendChild(dots);
+    const connBtn = el("button", "hb-yt-plug");
+    connBtn.appendChild(svgEl(ICON_PLUG));
     connBtn.title = tt("sources_title", null, "Fuentes de vídeo / conectores");
+    connBtn.setAttribute("aria-label", tt("connectors", null, "Conectores"));
     connBtn.addEventListener("click", () => {
       if(_screen){ selectTab(_tab); return; }              // toggle off → back to the active tab
       _screen = {view: "shelf"}; _connErr = "";
-      connBtn.classList.add("active");
+      connBtn.classList.add("on");
+      paintTabs();
       renderConn(root._hbYtEls || {}, root, root._hbYtData || {}, ctx);
     });
-    nav.appendChild(connBtn);
+    right.appendChild(connBtn);
+    nav.appendChild(right);
     root.appendChild(nav);
+    // Everything under the bar lives in ONE scroll region, so the bar never scrolls away with the content.
+    const body = el("div", "hb-yt-body");
+    root.appendChild(body);
 
     const tline = el("div", "hb-yt-tline");           // V2-636: title left, channel/date right, ONE row
     const title = el("div", "hb-yt-title", data.title || "YouTube");
     tline.appendChild(title);
     const meta = el("div", "hb-yt-meta", "");          // channel · publication date (verifiable, V2-057)
     tline.appendChild(meta);
-    root.appendChild(tline);
+    body.appendChild(tline);
     // V2-634 — the playback-block banner: when the owner refuses embedding, the card SAYS what happened
     // (a swap of our own pick, or the honest «only on YouTube» for a pasted link) instead of leaving the
     // operator alone with the player's raw error screen. Filled per render from data.blocked_notice.
     const blockMsg = el("div", "hb-yt-blockmsg", "");
-    root.appendChild(blockMsg);
+    body.appendChild(blockMsg);
 
     const frame = el("div", "hb-yt-frame");
     let iframe = null;
@@ -865,14 +940,57 @@ export function render(root, data, ctx){
       ph.appendChild(inner);
       frame.appendChild(ph);
     }
-    root.appendChild(frame);
+    body.appendChild(frame);
 
+    // INICIO's head (2026-09-29): the title of what the grid holds + a real search box. Built once here and
+    // only its TEXT refreshed per render, so a repaint mid-typing never eats the words (see the CSS note).
+    const homeHead = el("div", "hb-yt-homehead");
+    const homeTitle = el("div", "hb-yt-hometitle");
+    homeHead.appendChild(homeTitle);
+    const sForm = el("form", "hb-yt-search");
+    sForm.setAttribute("role", "search");
+    const sInp = el("input", "");
+    sInp.type = "search";
+    sInp.name = "q";
+    sInp.autocomplete = "off";
+    sInp.placeholder = tt("search_ph", null, "Buscar en YouTube…");
+    sInp.setAttribute("aria-label", tt("search_label", null, "Buscar vídeos"));
+    sForm.appendChild(sInp);
+    const sClr = el("button", "hb-yt-sbtn");
+    sClr.type = "button";
+    sClr.appendChild(svgEl(ICON_CLEAR));
+    sClr.title = tt("clear_results", null, "Quitar los resultados de búsqueda");
+    sClr.setAttribute("aria-label", sClr.title);
+    sClr.addEventListener("click", () => {
+      sInp.value = "";
+      const dd = root._hbYtData || {};
+      if(ctx && ctx.action && ((dd.search_results || []).length || dd.search_query)) ctx.action("clear_search", {});
+      sClr.style.display = "none";
+      sInp.focus();
+    });
+    sForm.appendChild(sClr);
+    const sGo = el("button", "hb-yt-sbtn go");
+    sGo.type = "submit";
+    sGo.appendChild(svgEl(ICON_SEARCH));
+    sGo.title = tt("search_go", null, "Buscar");
+    sGo.setAttribute("aria-label", sGo.title);
+    sForm.appendChild(sGo);
+    sInp.addEventListener("input", () => { sClr.style.display = sInp.value ? "" : "none"; });
+    sForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const q = (sInp.value || "").trim();
+      if(!q || !ctx || !ctx.action) return;
+      sInp.blur();
+      ctx.action("search", {query: q});                  // the same data-op the voice uses; nothing plays
+    });
+    homeHead.appendChild(sForm);
+    body.appendChild(homeHead);
     const home = el("div", "hb-yt-home");             // populated on every render, like the list below
-    root.appendChild(home);
+    body.appendChild(home);
     const blockedLine = el("div", "hb-yt-blocked", "");
-    root.appendChild(blockedLine);
+    body.appendChild(blockedLine);
     const conn = el("div", "hb-yt-conn");             // connect screens (V2-597), rebuilt per render
-    root.appendChild(conn);
+    body.appendChild(conn);
 
     // Click controls (mirror of what can also be requested by voice) - ICON buttons since V2-636
     // («no sé si es necesario el texto Play en un botón de play»), the music widget's bar language.
@@ -885,7 +1003,7 @@ export function render(root, data, ctx){
       return b;
     };
     ctrls.appendChild(icbtn("", ICON_PREV, tt("prev", null, "Anterior"), "previous"));
-    const playBtn = icbtn("main", ICON_PLAY, "Play");  // face + action follow data.paused on each render
+    const playBtn = icbtn("main", ICON_PLAY, tt("play", null, "Play"));  // face + action follow data.paused on each render
     ctrls.appendChild(playBtn);
     ctrls.appendChild(icbtn("", ICON_NEXT, tt("next", null, "Siguiente"), "next"));
     ctrls.appendChild(icbtn("", ICON_VOL_DOWN, tt("vol_down", null, "Bajar volumen"), "volume_down"));
@@ -894,19 +1012,18 @@ export function render(root, data, ctx){
     ctrls.appendChild(muteBtn);
     const vol = el("div", "hb-yt-vol", "");
     ctrls.appendChild(vol);
-    root.appendChild(ctrls);
+    body.appendChild(ctrls);
 
-    root.appendChild(el("div", "hb-yt-hint",
-      tt("voice_hint_1", null, "Por voz: «pon el vídeo de…», «búscame vídeos de…» (salen en Inicio), «reproduce el tercero», ")
-      + tt("voice_hint_2", null, "«siguiente», «pausa», «sigue a este canal».")));
+    body.appendChild(el("div", "hb-yt-hint", tt("voice_hint", null,
+      "Por voz: «pon el vídeo de…», «búscame vídeos de…» (salen en Inicio), «reproduce el tercero», «siguiente», «pausa», «sigue a este canal».")));
 
     // The QUEUE (V2-366; V2-632 gives every row a thumbnail — «que se intuya mejor de qué vídeo hablamos»).
     const listBox = el("div", "hb-yt-list");
-    root.appendChild(listBox);
+    body.appendChild(listBox);
     const subsBox = el("div", "hb-yt-subs");             // V2-632: followed authors, OUR references
-    root.appendChild(subsBox);
+    body.appendChild(subsBox);
     const listsBox = el("div", "hb-yt-mylists");         // V2-632: saved lists
-    root.appendChild(listsBox);
+    body.appendChild(listsBox);
     const addRow = el("div", "hb-yt-addrow");
     const addInp = el("input", "hb-yt-addinp");
     addInp.placeholder = tt("add_ph", null, "Pega un enlace de YouTube o escribe un título…");
@@ -920,14 +1037,15 @@ export function render(root, data, ctx){
     addBtn.addEventListener("click", doAdd);
     addInp.addEventListener("keydown", (e) => { if(e.key === "Enter") doAdd(); });
     addRow.appendChild(addInp); addRow.appendChild(addBtn);
-    root.appendChild(addRow);
+    body.appendChild(addRow);
 
     root._hbYt = { id: id, key: pkey, seq: seq, loading: loading };   // "load" is already covered by new src → do not re-post as command
     root._hbYtBuilt = true;
     root._hbYtEls = { iframe: iframe, video: video, title: title, meta: meta, blockMsg: blockMsg, vol: vol,
                       muteBtn: muteBtn, playBtn: playBtn, unmuteHint: unmuteHint,
                       listBox: listBox, home: home, blockedLine: blockedLine, dots: dots, conn: conn,
-                      subsBox: subsBox, listsBox: listsBox };
+                      subsBox: subsBox, listsBox: listsBox, body: body,
+                      homeTitle: homeTitle, sInp: sInp, sClr: sClr };
   }
 
   // Dynamic refresh on EVERY render (title, verifiable metadata, mute-toggle button, volume).
@@ -938,9 +1056,27 @@ export function render(root, data, ctx){
   const PL = E.video || E.iframe;
   // Tab chrome per render: the Cola tab wears its count, the active tab wears .on (V2-632).
   if(root._hbYtTabBtns){
+    // Every label is re-read per paint from the bundle (V2-694): the Cola tab used to fall back to a
+    // hardcoded «Cola» whenever the queue was empty, so an English card said «Cola» (2026-09-29).
     const nQ = Array.isArray(data.list) ? data.list.length : 0;
-    if(root._hbYtTabBtns.cola) root._hbYtTabBtns.cola.textContent = nQ ? (tt("queue_", null, "Cola · ") + nQ) : "Cola";
-    Object.keys(root._hbYtTabBtns).forEach((k) => root._hbYtTabBtns[k].classList.toggle("on", k === _tab));
+    Object.keys(root._hbYtTabBtns).forEach((k) => {
+      const lab = tabLabel(k);
+      root._hbYtTabBtns[k].textContent = (k === "cola" && nQ) ? (lab + " · " + nQ) : lab;
+    });
+    if(root._hbYtPaintTabs) root._hbYtPaintTabs();
+  }
+  // INICIO's head: the title says what the grid holds; the box carries the question being answered —
+  // unless he is typing in it right now, in which case his words win over the repaint.
+  if(E.homeTitle){
+    const nR = Array.isArray(data.search_results) ? data.search_results.length : 0;
+    E.homeTitle.textContent = "";
+    E.homeTitle.appendChild(el("span", "", (nR || data.adding) ? tt("results", null, "Resultados")
+                                                               : tt("home_title", null, "Inicio")));
+    if(nR) E.homeTitle.appendChild(el("span", "hb-yt-homecount", String(nR)));
+  }
+  if(E.sInp && document.activeElement !== E.sInp){
+    E.sInp.value = String(data.adding || data.search_query || "");
+    if(E.sClr) E.sClr.style.display = E.sInp.value ? "" : "none";
   }
 
   // ACCOUNT layer (V2-597) — the card asks for ONE platform re-sync when the cache is stale (the archivos
@@ -979,8 +1115,9 @@ export function render(root, data, ctx){
     const list = rows.length ? rows : [{id: "youtube", label: "YouTube", connected: false, app_configured: false}];
     list.forEach((r) => {
       const ic = brandIcon(r.id, !!r.connected);
-      ic.title = (r.label || r.id) + (r.connected ? tt("dot_connected", null, ": cuenta conectada")
-                                                  : tt("dot_disconnected", null, ": sin conectar — toca para conectarla"));
+      ic.title = r.connected ? tt("dot_connected", {label: r.label || r.id}, "{label}: cuenta conectada")
+                             : tt("dot_disconnected", {label: r.label || r.id}, "{label}: sin conectar — toca para conectarla");
+      ic.setAttribute("aria-label", ic.title);
       ic.addEventListener("click", () => {
         _screen = {view: r.connected ? "status" : "wizard", platform: r.id};
         if(!_wizStep[r.id]) _wizStep[r.id] = 1;
@@ -1011,7 +1148,7 @@ export function render(root, data, ctx){
   if(E.meta){
     const bits = [];
     if(data.channel) bits.push(data.channel);
-    if(data.published) bits.push((data.latest ? tt("latest_", null, "más reciente · ") : "") + data.published);
+    if(data.published) bits.push(data.latest ? tt("latest_date", {date: data.published}, "más reciente · {date}") : data.published);
     E.meta.textContent = bits.join("  ·  ");
     E.meta.style.display = bits.length ? "" : "none";
   }
@@ -1020,7 +1157,7 @@ export function render(root, data, ctx){
     // ONE toggle, like the music bar: face shows what a click will DO (paused -> play triangle).
     E.playBtn.textContent = "";
     E.playBtn.appendChild(svgEl(data.paused ? ICON_PLAY : ICON_PAUSE));
-    E.playBtn.title = data.paused ? "Play" : tt("pause", null, "Pausa");
+    E.playBtn.title = data.paused ? tt("play", null, "Play") : tt("pause", null, "Pausa");
     E.playBtn.onclick = () => { if(ctx && ctx.action) ctx.action(data.paused ? "play" : "pause"); };
   }
   if(E.muteBtn){
@@ -1065,13 +1202,13 @@ export function render(root, data, ctx){
     const _rot = _nom || tt("list", null, "Lista");
     const head = el("div", "hb-yt-listh", lst.length ? (_rot + " · " + lst.length) : _rot);
     if(filt){
-      const chip = el("span", "hb-yt-chip", tt("filter_", null, "filtro: «") + filt + "» ✕");
+      const chip = el("span", "hb-yt-chip", tt("filter_chip", {q: filt}, "filtro: «{q}» ✕"));
       chip.title = tt("clear_filter", null, "Quitar el filtro");
       chip.addEventListener("click", () => { if(ctx && ctx.action) ctx.action("filter_list", {q: ""}); });
       head.appendChild(chip);
     }
     E.listBox.appendChild(head);
-    if(data.adding) E.listBox.appendChild(el("div", "hb-yt-note", tt("searching_", null, "Buscando «") + data.adding + "»…"));
+    if(data.adding) E.listBox.appendChild(el("div", "hb-yt-note", tt("searching_q", {q: data.adding}, "Buscando «{q}»…")));
     const pos = Number(data.pos != null ? data.pos : -1);
     let shown = 0;
     lst.forEach((it, i) => {
@@ -1123,17 +1260,11 @@ export function render(root, data, ctx){
     const res = Array.isArray(data.search_results) ? data.search_results : [];
     if(data.adding){
       const sh = el("div", "hb-yt-schead");
-      sh.appendChild(el("span", "", tt("searching_", null, "Buscando «") + data.adding + "»…"));
+      sh.appendChild(el("span", "", tt("searching_q", {q: data.adding}, "Buscando «{q}»…")));
       E.home.appendChild(sh);
     }
     if(res.length){
-      const sh = el("div", "hb-yt-schead");
-      sh.appendChild(el("span", "", tt("results_", null, "Resultados: «") + (data.search_query || "") + "»"));
-      const clr = el("span", "hb-yt-chip", tt("clear", null, "✕ quitar"));
-      clr.title = tt("clear_results", null, "Quitar los resultados de búsqueda");
-      clr.addEventListener("click", () => { if(ctx && ctx.action) ctx.action("clear_search", {}); });
-      sh.appendChild(clr);
-      E.home.appendChild(sh);
+      // The query and its ✕ live in the search box of the head above (2026-09-29): the grid is only tiles.
       res.forEach((it, i) => {
         const addB = el("button", "hb-yt-radd", tt("to_queue", null, "+ cola"));
         addB.title = tt("to_queue_hint", null, "Añadir a la cola sin reproducir");
@@ -1184,7 +1315,7 @@ export function render(root, data, ctx){
       sh.appendChild(el("span", "", tt("subs_suggestions", null, "Sugerencias de tus suscripciones")));
       const bits = [];
       if(data.suggested_at) bits.push(fmtAge(data.suggested_at));
-      if(data.suggested_channels) bits.push(data.suggested_channels + tt("n_channels", null, " canales"));
+      if(data.suggested_channels) bits.push(tt("n_channels", {n: data.suggested_channels}, "{n} canales"));
       if(bits.length) sh.appendChild(el("span", "hb-yt-sugsub", "· " + bits.join(" · ")));
       const rf = el("span", "hb-yt-chip", data.suggesting ? tt("loading", null, "buscando…") : tt("refresh", null, "↻ refrescar"));
       rf.title = tt("refresh_hint", null, "Traer los vídeos recientes de tus suscripciones");
@@ -1208,11 +1339,11 @@ export function render(root, data, ctx){
     const prefs = data.prefs || {};
     const notes = Array.isArray(data.prefs_notes) ? data.prefs_notes : [];
     const pbits = [];
-    if(prefs.min_definition) pbits.push(tt("min_", null, "mínimo ") + prefs.min_definition + "p");
+    if(prefs.min_definition) pbits.push(tt("min_def", {n: prefs.min_definition}, "mínimo {n}p"));
     if(prefs.captions === true) pbits.push(tt("cc_on", null, "subtítulos siempre"));
     if(prefs.captions === false) pbits.push(tt("cc_off", null, "sin subtítulos"));
-    if(prefs.volume != null) pbits.push(tt("volume_", null, "volumen ") + prefs.volume);
-    notes.forEach((n) => { const t = String(n && n.text || "").trim(); if(t) pbits.push(tt("note_", null, "nota: ") + t); });
+    if(prefs.volume != null) pbits.push(tt("volume_n", {n: prefs.volume}, "volumen {n}"));
+    notes.forEach((n) => { const t = String(n && n.text || "").trim(); if(t) pbits.push(tt("note", {text: t}, "nota: {text}")); });
     if(pbits.length) E.home.appendChild(el("div", "hb-yt-libp", pbits.join(" · ")));
 
     if(!res.length && !hist.length && !sug.length && !connectedAny && !data.adding && !data.suggesting){
@@ -1225,11 +1356,10 @@ export function render(root, data, ctx){
   if(E.subsBox){
     E.subsBox.textContent = "";
     const chans = Array.isArray(data.channels) ? data.channels : [];
-    E.subsBox.appendChild(el("div", "hb-yt-listh", tt("subs_", null, "Suscripciones · ") + chans.length));
+    E.subsBox.appendChild(el("div", "hb-yt-listh", tt("subs_n", {n: chans.length}, "Suscripciones · {n}")));
     if(!chans.length){
       E.subsBox.appendChild(el("div", "hb-yt-secmsg",
-        tt("subs_none_1", null, "No sigues a nadie todavía. Con un vídeo puesto, di «sigue a este canal» y guardo al autor — ")
-        + tt("subs_none_2", null, "sin tocar ninguna cuenta.")));
+        tt("subs_none", null, "No sigues a nadie todavía. Con un vídeo puesto, di «sigue a este canal» y guardo al autor — sin tocar ninguna cuenta.")));
     }
     chans.forEach((c) => {
       const nom = String(c && c.name || "").trim();
@@ -1238,7 +1368,7 @@ export function render(root, data, ctx){
       row.appendChild(el("span", "hb-yt-rown", "★"));
       row.appendChild(el("span", "hb-yt-rowt", nom));
       const vids = el("span", "hb-yt-chip", tt("videos_to_queue", null, "vídeos → cola"));
-      vids.title = tt("latest_from_", null, "Lo más reciente de ") + nom + tt("_to_queue", null, ", a la cola");
+      vids.title = tt("latest_to_queue", {name: nom}, "Lo más reciente de {name}, a la cola");
       vids.addEventListener("click", (e) => {
         e.stopPropagation();
         if(ctx && ctx.action) ctx.action("channel_videos", {channel: nom});
@@ -1260,7 +1390,7 @@ export function render(root, data, ctx){
   if(E.listsBox){
     E.listsBox.textContent = "";
     const saved = Array.isArray(data.lists) ? data.lists : [];
-    E.listsBox.appendChild(el("div", "hb-yt-listh", tt("saved_lists_", null, "Listas guardadas · ") + saved.length));
+    E.listsBox.appendChild(el("div", "hb-yt-listh", tt("saved_lists_n", {n: saved.length}, "Listas guardadas · {n}")));
     if(!saved.length){
       E.listsBox.appendChild(el("div", "hb-yt-secmsg",
         tt("lists_empty", null, "No hay listas guardadas. Monta una cola y di «guarda la lista como…».")));
@@ -1271,7 +1401,7 @@ export function render(root, data, ctx){
       const row = el("div", "hb-yt-row");
       row.appendChild(el("span", "hb-yt-rown", "≣"));
       row.appendChild(el("span", "hb-yt-rowt", nom));
-      row.appendChild(el("span", "hb-yt-rowc", (Array.isArray(L.items) ? L.items.length : 0) + tt("n_videos", null, " vídeos")));
+      row.appendChild(el("span", "hb-yt-rowc", tt("n_videos", {n: Array.isArray(L.items) ? L.items.length : 0}, "{n} vídeos")));
       const open = el("span", "hb-yt-chip", tt("open_to_queue", null, "abrir → cola"));
       open.addEventListener("click", (e) => {
         e.stopPropagation();
@@ -1306,7 +1436,7 @@ export function render(root, data, ctx){
 
   if(E.blockedLine){
     const blk = Array.isArray(data.blocked_channels) ? data.blocked_channels : [];
-    E.blockedLine.textContent = blk.length ? (tt("blocked_channels_", null, "🚫 Canales bloqueados: ") + blk.join(", ")) : "";
+    E.blockedLine.textContent = blk.length ? tt("blocked_channels", {list: blk.join(", ")}, "🚫 Canales bloqueados: {list}") : "";
     E.blockedLine.style.display = blk.length ? "" : "none";
   }
 

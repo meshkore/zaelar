@@ -136,7 +136,9 @@ def test_a_video_arriving_jumps_to_the_player_tab(_page):
 
 def test_search_results_render_numbered_on_the_dashboard_and_steer_by_click(_page):
     _mount(_page, _data(search_results=_RESULTS, search_query="gatitos"))
-    assert "Resultados: «gatitos»" in _page.locator(".hb-yt-schead").inner_text()
+    # 2026-09-29 — the head names the band and the search box CARRIES the question being answered
+    assert "Resultados" in _page.locator(".hb-yt-hometitle").inner_text()
+    assert _page.locator(".hb-yt-search input").input_value() == "gatitos"
     nums = _page.eval_on_selector_all(".hb-yt-rnum", "els => els.map(e => e.textContent)")
     assert nums == ["1", "2", "3"], "the numbers ARE the voice index («reproduce el tercero»)"
     # the per-tile «+ cola» queues WITHOUT playing and stays on the dashboard
@@ -176,7 +178,7 @@ def test_the_shelf_shows_every_source_disabled_with_its_reason(_page):
     """INI-027's wishlist rule on this widget: what we do NOT have is SHOWN — YouTube disabled says WHY
     (INI-032), a planned provider says it is not built. A box that cannot open never wears an active face."""
     _mount(_page, _data())
-    _page.click(".hb-yt-conbtn")
+    _page.click(".hb-yt-plug")
     boxes = _page.locator(".hb-yt-ibox")
     assert boxes.count() == 2
     assert all(_page.locator(".hb-yt-ibox").nth(i).evaluate("e => e.classList.contains('off')")
@@ -187,21 +189,32 @@ def test_the_shelf_shows_every_source_disabled_with_its_reason(_page):
     assert _page.evaluate("window.__calls") == [], "a disabled source must never fire a connect action"
 
 
-def test_choosing_a_tab_closes_the_connectors_screen(_page):
-    """The V2-626 rule, applied at birth instead of paid later: a tab choice is ONE transition — the shelf
-    cannot stay rendered underneath (mensajería's measured bug, and this widget's own named latent one)."""
+def test_the_connectors_screen_quiets_the_tabs_and_closing_it_is_ONE_transition(_page):
+    """The header standard: while the connectors screen is open no face is on screen, so no tab is lit and
+    none is clickable; the plug (or the crumb) takes him back to the face he left. And the V2-626 rule: the
+    way out is ONE transition — the shelf cannot stay rendered underneath, not even after the next repaint."""
     _mount(_page, _data())
-    _page.click(".hb-yt-conbtn")
-    assert "hb-yt-connmode" in _cls(_page)
     _page.click(".hb-yt-tab[data-tab=cola]")
+    _page.click(".hb-yt-plug")
+    assert "hb-yt-connmode" in _cls(_page)
+    assert _page.locator(".hb-yt-tab.on").count() == 0
+    assert _page.locator(".hb-yt-tab:disabled").count() == 5
+    assert "on" in _page.locator(".hb-yt-plug").get_attribute("class")
+    _page.click(".hb-yt-plug")
     assert "hb-yt-connmode" not in _cls(_page)
     assert "hb-yt-t-cola" in _cls(_page)
+    assert _page.locator(".hb-yt-tab.on").get_attribute("data-tab") == "cola"
+    assert _page.locator(".hb-yt-tab:disabled").count() == 0
     assert _page.locator(".hb-yt-igrid").count() == 0
     # …and it STAYS closed across the next data render: clearing only the pixels while the screen state
     # survives would resurrect the shelf on the first SSE repaint (the exact bug shape this guards).
     _remount(_page, _data())
     assert "hb-yt-connmode" not in _cls(_page)
     assert _page.locator(".hb-yt-igrid").count() == 0
+    # the crumb is the other way out, and it lands on the same face
+    _page.click(".hb-yt-plug")
+    _page.click(".hb-ytw-crumb")
+    assert "hb-yt-connmode" not in _cls(_page) and "hb-yt-t-cola" in _cls(_page)
 
 
 def test_recently_watched_band_renders_from_our_own_history(_page):
@@ -229,3 +242,39 @@ def test_the_block_banner_says_what_happened_and_only_when_something_did(_page):
     # nothing happened → no banner
     _remount(_page, _data(videoId="dQw4w9WgXcQ", title="Sano"))
     assert not _page.locator(".hb-yt-blockmsg").is_visible()
+
+
+def test_the_home_search_box_searches_by_hand_and_its_cross_clears(_page):
+    """Operator, 2026-09-29: «un campo de texto con un icono para iniciar una búsqueda y dentro el término
+    que estamos buscando ahora mismo, de tal manera que el usuario pudiera usar este widget manualmente»."""
+    _mount(_page, _data())
+    assert _page.locator(".hb-yt-homehead").is_visible(), "Inicio carries its own search head"
+    inp = _page.locator(".hb-yt-search input")
+    assert inp.input_value() == ""
+    inp.fill("veleros")
+    inp.press("Enter")
+    assert ["search", {"query": "veleros"}] in _page.evaluate("window.__calls")
+    assert "hb-yt-t-inicio" in _cls(_page), "a search is something to choose from: nothing jumps"
+    # the icon starts it too
+    _page.evaluate("window.__calls = []")
+    inp.fill("regatas")
+    _page.locator(".hb-yt-sbtn.go").click()
+    assert ["search", {"query": "regatas"}] in _page.evaluate("window.__calls")
+    # with results on screen the ✕ inside the box drops them
+    _mount(_page, _data(search_results=_RESULTS, search_query="gatitos"))
+    _page.locator(".hb-yt-search .hb-yt-sbtn:not(.go)").click()
+    assert ["clear_search", {}] in _page.evaluate("window.__calls")
+
+
+def test_a_repaint_never_eats_what_he_is_typing(_page):
+    _mount(_page, _data(search_results=_RESULTS, search_query="gatitos"))
+    inp = _page.locator(".hb-yt-search input")
+    inp.fill("medio escri")
+    _remount(_page, _data(search_results=_RESULTS, search_query="gatitos"))
+    assert inp.input_value() == "medio escri"
+
+
+def test_the_search_head_lives_only_on_inicio(_page):
+    _mount(_page, _data())
+    _page.click(".hb-yt-tab[data-tab=cola]")
+    assert not _page.locator(".hb-yt-homehead").is_visible()

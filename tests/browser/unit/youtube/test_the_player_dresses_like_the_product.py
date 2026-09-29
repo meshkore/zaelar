@@ -1,5 +1,6 @@
-# V2-636 — the video widget dresses like the product: a defined tab BAND whose active chip is inverted
-# (YouTube's dark-chip language) behind a red brand mark, title and date sharing ONE line, icon controls
+# V2-636 — the video widget dresses like the product: a defined tab BAND (since 2026-09-29 the house bar:
+# no brand of its own, the accent chip, sources + plug flush right, no frame inside the window), title and
+# date sharing ONE line, icon controls
 # in a bar that is pinned and VISIBLE at any card size (the operator grew the card with the mouse and the
 # buttons were clipped under its bottom edge), and the voice hint only over an empty player. None of this
 # is testable from source — every case renders the real widget.js, and the clipping case mounts it inside
@@ -55,7 +56,7 @@ _VID = _data(videoId="dQw4w9WgXcQ", title="Un vídeo con un título francamente 
 _CARD_CSS = """
   .hb-win{position:fixed;left:20px;top:20px;display:flex;flex-direction:column;
           padding:30px 16px 16px;overflow:hidden;box-sizing:border-box;background:#fff}
-  .hb-scroll{flex:1 1 auto;min-height:0;overflow:auto}
+  .hb-scroll{flex:1 1 auto;min-height:0;overflow:auto;padding:16px}
 """
 
 
@@ -115,24 +116,60 @@ def _remount(page, data):
 
 # ── the tab band ─────────────────────────────────────────────────────────────────────────────────────────
 
-def test_the_active_tab_is_an_inverted_chip_behind_the_red_brand_mark(_page):
+def test_the_bar_has_no_brand_of_its_own_and_the_active_tab_is_the_house_chip(_page):
+    """2026-09-29: the window header already says «YouTube» with its mark, so the red mark that led the
+    strip is gone; the lit tab is the product-wide accent chip (V2-690), not an inverted pill."""
     _mount(_page, _VID)
-    assert _page.locator(".hb-yt-nav .hb-yt-brand svg").count() == 1, "the brand mark leads the band"
-    brand_bg = _page.evaluate("getComputedStyle(document.querySelector('.hb-yt-brand')).backgroundColor")
-    assert brand_bg == "rgb(255, 0, 51)"
+    assert _page.locator(".hb-yt-brand").count() == 0, "the brand is the window's, never said twice"
     on = _page.locator(".hb-yt-tab.on")
     assert on.count() == 1
-    style = _page.evaluate(
-        """() => { const s = getComputedStyle(document.querySelector('.hb-yt-tab.on'));
-                   return [s.backgroundColor, s.color]; }""")
-    # Inverted: the chip's ground is the ink token, its text the page ground (fallbacks in the bare page).
-    assert style == ["rgb(13, 22, 34)", "rgb(255, 255, 255)"]
+    ring = _page.evaluate("getComputedStyle(document.querySelector('.hb-yt-tab.on')).boxShadow")
+    assert "inset" in ring, "selection wears an accent RING"
+    fw = _page.evaluate("getComputedStyle(document.querySelector('.hb-yt-tab.on')).fontWeight")
+    assert fw == "700"
     off = _page.evaluate(
         "getComputedStyle(document.querySelector('.hb-yt-tab:not(.on)')).backgroundColor")
     assert off in ("rgba(0, 0, 0, 0)", "transparent"), "inactive tabs stay quiet — one chip is lit"
     band = _page.evaluate(
         "getComputedStyle(document.querySelector('.hb-yt-nav')).borderBottomWidth")
-    assert band == "1px", "the strip is a DEFINED horizontal band, separated from the title below"
+    assert band == "1px", "the strip is a DEFINED horizontal band, separated from the content below"
+
+
+def test_the_sources_and_the_plug_are_pinned_to_the_RIGHT_edge(_page):
+    """The header standard: tabs left, then the source icons and the plug — the SAME plug every connector
+    widget wears — flush right. They used to split the free space and float in the middle of the bar."""
+    _mount(_page, {**_VID, "accounts_enabled": True,
+                   "platforms": [{"id": "youtube", "label": "YouTube", "connected": False}]}, card_w=900)
+    geo = _page.evaluate(
+        """() => { const r = (s) => document.querySelector(s).getBoundingClientRect();
+                   return {nav: r('.hb-yt-nav'), plug: r('.hb-yt-plug'), icon: r('.hb-yt-picon'),
+                           tabs: r('.hb-yt-tabs')}; }""")
+    assert geo["nav"]["right"] - geo["plug"]["right"] <= 16, "the plug closes the bar at its right edge"
+    assert 0 <= geo["plug"]["left"] - geo["icon"]["right"] <= 12, "the source icon sits right beside it"
+    assert geo["icon"]["left"] > geo["tabs"]["right"] + 40, "…with the free space BETWEEN tabs and sources"
+    assert _page.locator(".hb-yt-plug svg").count() == 1
+    assert _page.locator(".hb-yt-plug").inner_text().strip() == "", "an icon, no word and no emoji"
+
+
+def test_the_widget_draws_no_frame_inside_the_window(_page):
+    """«un marco que tiene la ventana y dentro otro espacio como de premarco» — the root paints nothing
+    and takes the host's inset away, so the bar is flush with the window's edges."""
+    _mount(_page, _VID, card_w=700, card_h=500)
+    st = _page.evaluate(
+        """() => { const r = getComputedStyle(document.querySelector('.hb-yt'));
+                   const sc = getComputedStyle(document.querySelector('.hb-scroll'));
+                   return [r.borderTopWidth, r.borderTopLeftRadius, r.paddingTop, r.backgroundColor,
+                           sc.paddingTop, sc.paddingLeft]; }""")
+    assert st[:3] == ["0px", "0px", "0px"], st
+    assert st[3] in ("rgba(0, 0, 0, 0)", "transparent"), st
+    assert st[4:] == ["0px", "0px"], "the host's inset is switched off for this card"
+    geo = _page.evaluate(
+        """() => { const s = document.querySelector('.hb-scroll').getBoundingClientRect();
+                   const n = document.querySelector('.hb-yt-nav').getBoundingClientRect();
+                   const f = document.querySelector('.hb-yt-frame').getBoundingClientRect();
+                   return {s, n, f}; }""")
+    assert abs(geo["n"]["left"] - geo["s"]["left"]) < 1 and abs(geo["n"]["top"] - geo["s"]["top"]) < 1
+    assert abs(geo["f"]["width"] - geo["s"]["width"]) < 1, "the video runs edge to edge"
 
 
 def test_the_tabs_lost_their_ascii_glyphs(_page):
@@ -218,9 +255,10 @@ def test_other_tabs_keep_their_scroll(_page):
              "thumb": ""} for i in range(1, 30)]
     _mount(_page, _data(**{**_VID, "list": rows}), card_w=520, card_h=380)
     _page.click(".hb-yt-tab[data-tab=cola]")
-    overflow = _page.evaluate(
-        "getComputedStyle(document.querySelector('.hb-scroll')).overflowY")
-    assert overflow == "auto", "the fill rule is the PLAYER tab's; a long queue must still scroll"
+    st = _page.evaluate(
+        """() => { const b = document.querySelector('.hb-yt-body');
+                   return [getComputedStyle(b).overflowY, b.scrollHeight > b.clientHeight]; }""")
+    assert st == ["auto", True], "the fill rule is the PLAYER tab's; a long queue must still scroll"
 
 
 # ── playing markers wear the brand red ───────────────────────────────────────────────────────────────────

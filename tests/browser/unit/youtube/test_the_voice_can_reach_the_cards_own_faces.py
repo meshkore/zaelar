@@ -204,7 +204,7 @@ def test_going_back_does_NOT_destroy_the_catalogue_it_goes_back_TO(_page):
     _mount(_page, _watching_with_a_catalogue_behind(_page, seq=1, tab="inicio"))
     nums = _page.eval_on_selector_all(".hb-yt-rnum", "els => els.map(e => e.textContent)")
     assert nums == ["1", "2", "3"], f"the numbered band he was choosing from is gone: {nums}"
-    assert "Apolo 11" in _page.locator(".hb-yt-schead").inner_text()
+    assert "Apolo 11" in _page.locator(".hb-yt-search input").input_value()
 
 
 def test_the_order_BEATS_the_auto_jump_and_not_the_other_way_round(_page):

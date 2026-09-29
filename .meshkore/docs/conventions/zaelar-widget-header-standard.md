@@ -1,7 +1,7 @@
 ---
 title: The widget header standard — two bars, and the door to the connectors
 category: conventions
-updated: 2026-09-17
+updated: 2026-09-29
 owner: ricart
 status: current
 ---
@@ -21,7 +21,7 @@ A desktop where every window invents its own chrome is a pile of demos. The bars
 
 **Reference implementations:** `widgets/contactos/widget.js` (V2-715, a card that lists many things) and
 `widgets/musica/widget.js` (V2-717, a card whose content can be ONE thing). `widgets/agenda/widget.js`
-(V2-679), `widgets/mensajeria/widget.js` and `widgets/youtube/widget.js` still carry the V2-699 shape — see
+(V2-679) and `widgets/mensajeria/widget.js` still carry the V2-699 shape — see
 the amendment below; they are a pending sweep, not a second standard.
 
 ---
@@ -106,7 +106,27 @@ that centres its content does not scroll when it overflows — it CLIPS, at both
 none the wiser. Size the object against the height that is actually there and let it shrink; test
 CONTAINMENT (is the top of the cover and the bottom of the scrubber inside the band?), never `scrollHeight`.
 
-Still pending the same sweep: `agenda`, `mensajeria`, `youtube`.
+Still pending the same sweep: `agenda`, `mensajeria`.
+
+### The third widget through it (2026-09-29, youtube): no inset either — the FLUSH template
+
+> «En todos lados tienes como un marco que tiene la ventana y dentro de la ventana hay otro espacio como de
+> premarco, que al final lo único que conseguimos con eso es perder espacio.»
+
+Dropping the widget's own box still left the HOST's 16 px inset around it, so the bar floated inside a
+gutter under the window header. `widgets/youtube/widget.js` is the first card on the flush template:
+
+- `.hb-scroll:has(> .<root>){overflow:hidden;padding:0}` — the widget takes the host's inset and scroll
+  away for its own card only (the same `:has` seam the player tab already used);
+- the root is `height:100%` flex column: the BAR (flush under the window header, one hairline) and ONE
+  body region that owns the scroll and carries the gutter, so the bar never scrolls away;
+- a media face (the player) goes EDGE TO EDGE inside that body: no inset, no radius; only its title
+  line and controls carry padding.
+
+It also fixed the two things this bar kept getting wrong: the source icons and the plug share ONE right
+cluster (`.hb-yt-navright`, `margin-left:auto`) — with two `margin-left:auto` siblings they split the free
+space and the icon floated mid-bar — and the plug is the contactos drawing, not a 🔌 emoji. Ratchets:
+`tests/browser/unit/youtube/test_the_player_dresses_like_the_product.py`.
 
 ---
 
