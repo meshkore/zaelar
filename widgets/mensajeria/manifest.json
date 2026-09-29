@@ -211,6 +211,7 @@
       ]
     },
     "forward": {
+      "ref": "from",
       "desc": "REENVÍA por correo un mensaje que llegó, con sus ADJUNTOS (factura, PDF…), a una PERSONA: «mándale a Andrew la factura de este correo». Sin `n`, el correo ABIERTO. No es `reply`",
       "payload": {
         "contact": "string (a quién, el nombre tal como lo dijo el operador, o una dirección)",

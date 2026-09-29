@@ -191,7 +191,7 @@ def _spoken(menu: str, field: str = "") -> str:
 # A fold is announced on the observer line like any other door decision — a rename that nobody can see is
 # how a payload starts meaning something the operator never said.
 _ALIASES: dict[str, tuple[str, ...]] = {
-    "text": ("message", "msg", "body", "content", "mensaje", "texto"),
+    "text": ("message", "msg", "body", "content", "mensaje", "texto", "note", "nota"),   # `note`: demo pass 52, E3
     "message": ("text", "msg", "body", "mensaje"),
     # `name` (demo run 2026-09-26: {"name": "Oscar", "platform": "telegram"} was refused «no recipient»)
     "contact": ("to", "recipient", "person", "who", "para", "destinatario", "name"),

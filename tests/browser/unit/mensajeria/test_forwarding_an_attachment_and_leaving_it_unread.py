@@ -206,3 +206,27 @@ def test_a_forward_of_a_message_without_files_is_refused_before_it_is_queued(box
 def test_a_forward_of_the_message_with_the_invoice_passes_the_pre_check(box):
     r = box.answer_action("forward", {"from": "Inworld AI", "contact": "Andrew", "text": "please book it"})
     assert r and r["ok"], r
+
+
+# ── demo pass 52 (2026-09-29), E3: a description, a `note`, and the stand-in it led to ─────────────────────────
+# The model sent `forward {to, note}` with the mail in `item`: «Inworld receipt email from September 27, 2026». `note`
+# was not read as the text, and the description matched no sender as one string, so the same-turn correction guessed
+# `from: Soporte de OVHcloud`. `note` is the text, `item` lands in `from`, and a description finds the message that
+# carries most of its words.
+
+def test_a_description_finds_the_message_it_describes(box):
+    from widgets import store
+    db = box.load_db()
+    db["items"].insert(0, {"platform": "email", "chatId": "support@ovh.invalid", "messageId": "501",
+                           "senderId": "support@ovh.invalid", "from": "Soporte de OVHcloud",
+                           "subject": "Your invoice is available", "body": "x"})
+    store.save("mensajeria", db)
+    from widgets.mensajeria import outbound
+    hit = outbound._message_ref(box.load_db(), {"from": "Inworld receipt email from September 27, 2026"})
+    assert hit and hit["messageId"] == "220440", hit
+
+
+def test_note_is_the_text_and_item_is_the_from():
+    from widgets import contract, refs
+    assert contract.fold_aliases("mensajeria", "forward", {"contact": "Andrew", "note": "book it"})["text"] == "book it"
+    assert refs.id_field_for_action("mensajeria", "forward") == "from"

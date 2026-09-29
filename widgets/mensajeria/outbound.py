@@ -228,7 +228,23 @@ def _message_ref(db: dict, ref: dict) -> dict | None:
             for m in (th or {}).get("msgs") or []:
                 if m.get("dir") == "in" and _hit(m) and (best is None or float(m.get("ts") or 0) > best[0]):
                     best = (float(m.get("ts") or 0), {**m, "platform": plat, "chatId": chat, "messageId": m.get("id")})
-        return best[1] if best else None
+        if best:
+            return best[1]
+        # …and a DESCRIPTION rather than a name (demo pass 52, E3: «Inworld receipt email from September 27, 2026»
+        # matched nothing as one string, and the retry guessed another sender): the message that carries most of its
+        # words wins; a tie or no word at all finds nothing, it never picks one at random.
+        import re as _re
+        words = [w for w in _re.findall(r"[^\W\d_]{4,}", who)]
+        if len(words) < 2:
+            return None
+        scored = []
+        for it in _d._visible_items(db):
+            hay = " ".join(str(it.get(k) or "") for k in ("from", "who", "senderId", "subject", "chatId")).lower()
+            scored.append((sum(1 for w in words if w in hay), it))
+        scored.sort(key=lambda t: -t[0])
+        if scored and scored[0][0] >= 2 and (len(scored) == 1 or scored[0][0] > scored[1][0]):
+            return scored[0][1]
+        return None
     if n is not None or mid:
         for it in _d._visible_items(db):
             if (n is not None and str(it.get("n")) == str(n)) or (mid and str(it.get("messageId")) == mid):
