@@ -301,6 +301,13 @@ class LangSpec:
     # Demo pass 39: a NEW errand whose turn said nothing, after a lead-in filler — the opener is burned (it would restate
     # the filler) and the next variant said «Still on it» about work that had just started. This one claims no «still».
     filler_errand_taken: str = "Te aviso en cuanto lo tenga."
+    # Demo pass 47: the agenda's digest labelled tomorrow «(mañana, miércoles)» in an English session, and the reply
+    # opened «mañana miércoles 30 you've got…». How far a date is travels in the language the agent speaks.
+    day_today: str = "hoy"
+    day_tomorrow: str = "mañana"
+    day_after_tomorrow: str = "pasado mañana"
+    day_in_days: str = "en {n} días"
+    weekdays: tuple = ("lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo")
     filler_still_working: str = "Sigo con ello; te aviso en cuanto lo tenga."  # V2-029: variation when a background task was ALREADY
                                     # a background task was already in progress when the turn began — do NOT repeat the same
                                     # filler_holding from turn to turn (the operator keeps insisting while the SlowBrain works)
@@ -515,6 +522,9 @@ LANGUAGES: dict[str, LangSpec] = {
         filler_holding="Alright, give me a moment to look into that.",
         filler_still_working="Still on it; I'll let you know as soon as I have it.",
         filler_errand_taken="I'll let you know as soon as I have it.",
+        day_today="today", day_tomorrow="tomorrow", day_after_tomorrow="the day after tomorrow",
+        day_in_days="in {n} days",
+        weekdays=("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"),
         holding_lines=("Alright, give me a moment to look into that.",
                        "Still on it; I'll let you know as soon as I have it.",
                        "It's still running; I'll tell you the moment I have something."),

@@ -65,22 +65,38 @@ def ref_index() -> list[dict]:
 _WEEKDAYS = ("lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo")
 
 
+def _day_words():
+    """(today, tomorrow, day after, «in {n} days», weekdays) in the language the agent speaks — the catalog's own
+    words, with the Spanish defaults when the catalog cannot be read."""
+    try:
+        from i18n.langs import current_language
+        L = current_language()
+        wds = tuple(getattr(L, "weekdays", ()) or ())
+        if len(wds) == 7:
+            return (L.day_today, L.day_tomorrow, L.day_after_tomorrow, L.day_in_days, wds)
+    except Exception:  # noqa: BLE001
+        pass
+    return ("hoy", "mañana", "pasado mañana", "en {n} días", _WEEKDAYS)
+
+
 def _day_label(day: str, today: str) -> str:
-    """« (mañana, domingo)», « (lunes, en 2 días)», « (hoy)» — how far the day is, so a date is never misread."""
+    """« (tomorrow, Sunday)», « (Monday, in 2 days)», « (today)» — how far the day is, so a date is never misread;
+    in the agent's language (demo pass 47: «(mañana, miércoles)» came back as «mañana miércoles 30 you've got…»)."""
     try:
         import datetime as _dt
         n = (_dt.date.fromisoformat(day) - _dt.date.fromisoformat(today)).days
-        wd = _WEEKDAYS[_dt.date.fromisoformat(day).weekday()]
+        w_today, w_tomorrow, w_after, w_in, wds = _day_words()
+        wd = wds[_dt.date.fromisoformat(day).weekday()]
     except (ValueError, TypeError):
         return ""
     if n == 0:
-        return " (hoy)"
+        return f" ({w_today})"
     if n == 1:
-        return f" (mañana, {wd})"
+        return f" ({w_tomorrow}, {wd})"
     if n == 2:
-        return f" (pasado mañana, {wd})"
+        return f" ({w_after}, {wd})"
     if 0 < n < 7:
-        return f" ({wd}, en {n} días)"
+        return f" ({wd}, {w_in.format(n=n)})"
     return f" ({wd})"
 
 
