@@ -2461,6 +2461,9 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_the_circuit_judges_the_ending.py"]},
         {"id": "3.106", "title": "A forced ending (budget kill, stall) asks the circuit for the end state before it speaks",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_an_ending_is_spoken_as_its_verdict.py"]},
+        {"id": "3.110", "title": "What the agent said on its own (a list's end, an errand's report) enters the brain's "
+                                 "window at the next prompt — the model never reads a finished list as still running",
+            "ch": UNIT, "paths": ["tests/voice/unit/test_what_we_said_on_our_own_is_in_the_window.py"]},
         {"id": "3.109", "title": "Every declared end state reads a field its widget's view has (or declares its absence), and "
                                  "the actions the v1 demo fires declare one",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_every_declared_end_state_reads_a_real_field.py"]},
@@ -3426,6 +3429,9 @@ DOMAINS: list[dict] = [
         # the money gate read the fast brain's own «do not buy» as a charge, the core guard matched inside
         # «stock»/«report», and a 25-second audit escalated a search the fast brain had resolved meanwhile.
         # V2-776 L (2026-09-29) — the circuit: a request is born with its end state.
+        {"id": "2.193", "title": "A list step that asked him something is run once more at the end, in a fresh session, "
+                                 "before the list reports — a later step of his own list may have answered it",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/test_a_list_step_that_asked_is_asked_again_at_the_end.py"]},
         {"id": "2.192", "title": "An instance card is empty only by its own view, never by the bare base card's state",
             "ch": UNIT, "paths": ["tests/voice/unit/test_an_instance_is_empty_only_by_its_own_view.py"]},
         {"id": "2.191", "title": "With both readings unsure, the operator's own question mark makes it a question",

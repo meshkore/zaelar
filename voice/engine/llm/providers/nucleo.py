@@ -734,6 +734,7 @@ class NucleoLLMStream(llm.LLMStream):
         except Exception:
             pass
         messages = [{"role": "system", "content": system}]
+        _dialog.drain_spoken(brain._window)      # what we said on our own since the last turn (a list's end, a report)
         messages += _dialog.prune_window(brain._window)[-_WINDOW_MAX:]   # colapsa turnos gemelos (anti-degeneración)
         messages.append({"role": "user", "content": text})
 

@@ -255,7 +255,7 @@ def _live_workers() -> dict[str, str]:
 _SETTLE_S = 1.5
 
 
-async def _run_step(uid: str, row: dict, turn, ingest) -> None:
+async def _run_step(uid: str, row: dict, turn, ingest, *, sid: str = "", remember: bool = True) -> None:
     ts = _store()
     ts.task_patch(row["id"], state="running", started_at=int(time.time()))
     _emit("📋 lista: paso", text=row["goal"], step=row["id"])
@@ -265,7 +265,7 @@ async def _run_step(uid: str, row: dict, turn, ingest) -> None:
     if str(row.get("kind") or "") == "rule":
         r = await _store_rule(row["goal"])
     else:
-        r = await _turn(turn, row["goal"], uid)
+        r = await _turn(turn, row["goal"], sid or uid)
     # The workers THIS step started, whatever door it used. Measured on the errands case: a product search went
     # through the listings lane, which starts its worker inside and reports only what it said — so the step read
     # DONE and the list would have reported over a worker still searching. The dispatcher's own registry, before
@@ -282,7 +282,7 @@ async def _run_step(uid: str, row: dict, turn, ingest) -> None:
     # run, 2026-09-26). An agenda or message step still needs its call; memory never stands in for those.
     wrote = 0
     try:
-        got = await ingest(row["goal"])
+        got = await ingest(row["goal"]) if remember else None
         wrote = int((got or {}).get("atoms") or 0) if isinstance(got, dict) else 0
     except Exception as e:  # noqa: BLE001
         logger.warning(f"lista {uid}: memory ingest failed on {row['id']}: {e!r}")
@@ -358,6 +358,20 @@ async def _wait_workers(uid: str, *, wait_s: float = WORKER_WAIT_S, poll_s: floa
         await asyncio.sleep(poll_s)
 
 
+async def _ask_again(uid: str, turn, ingest) -> None:
+    """A step that asked him something is run ONCE more at the end, in a fresh session, before the list reports.
+
+    Manual session 7850de3f (2026-09-30): the INIT's step 1 («Your name is Johnny…») asked «what's your name?», and
+    step 2 of the SAME list said «My name is Richard». The list closed on «25 of 26 done. I need you to clarify: …
+    what is it?» — a question he had already answered, which read as a list that had not finished. Later steps are
+    the operator's own words; by the end, memory holds them, and the re-run asks only what is still missing."""
+    for row in steps_of(uid):
+        if row.get("state") == "waiting" and str(row.get("outcome") or "").startswith("[needs_you]"):
+            _emit("📋 lista: el paso que preguntaba se repite al final", text=row["goal"][:200], step=row["id"])
+            await _run_step(uid, {**row, "state": "pending"}, turn, ingest, sid=f"{uid}:again:{row['id'][-2:]}",
+                            remember=False)
+
+
 def summary(uid: str) -> dict:
     rows = steps_of(uid)
     by = {"done": [], "failed": [], "needs_you": [], "running": [], "pending": []}
@@ -410,6 +424,7 @@ async def run(uid: str, *, turn=None, ingest=None, notify=None, worker_wait_s: f
                     await _run_step(uid, row, turn, ingest)
                     s = summary(uid)
                     ts.task_patch(uid, outcome=f"{len(s['done'])}/{s['n']}")
+            await _ask_again(uid, turn, ingest)
         await _wait_workers(uid, wait_s=worker_wait_s)
         s = summary(uid)
         text = report_text(uid)

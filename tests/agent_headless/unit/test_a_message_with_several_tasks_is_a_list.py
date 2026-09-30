@@ -131,9 +131,11 @@ def test_a_list_runs_every_step_in_order_as_an_ordinary_turn_and_reports_once(mo
     uid = runner.create("the whole message", STEPS, origin="chat")
     calls, ingested, notes = [], [], []
     s = _run(uid, calls=calls, ingested=ingested, notes=notes)
-    assert [c[0] for c in calls] == [x["say"] for x in STEPS]
+    # …and the step that asked is asked ONCE more at the end, in a fresh session (node 2.193)
+    assert [c[0] for c in calls] == [x["say"] for x in STEPS] + ["Book the usual."]
     # every step is a turn that EXECUTES, never re-read as a list, memory written by the list itself
-    assert all(kw == {"sid": uid, "ingest": False, "execute": True, "lists": False} for _, kw in calls)
+    assert all(kw == {"sid": uid, "ingest": False, "execute": True, "lists": False} for _, kw in calls[:-1])
+    assert calls[-1][1]["sid"].startswith(f"{uid}:again:")
     assert ingested == [x["say"] for x in STEPS]
     assert len(s["done"]) == 3 and [r["title"] for r in s["failed"]] == ["broken"]
     assert [r["title"] for r in s["needs_you"]] == ["ask"]

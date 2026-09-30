@@ -269,3 +269,30 @@ def remember_what_was_said(sess, text: str, cap: int) -> None:
     """
     push_user(sess.window, text)
     del sess.window[:-cap]
+
+
+# ── 1c) WHAT WE SAID ON OUR OWN IS PART OF THE CONVERSATION ─────────────────────────────────────────────────
+#: Proactive lines spoken since the last prompt (a list finishing, an errand reporting back), oldest first.
+_SPOKEN: list[str] = []
+_SPOKEN_MAX = 4
+
+
+def note_spoken(text: str) -> None:
+    """A proactive delivery that was actually SAID enters the brain's window at its next prompt.
+
+    Manual session 7850de3f (2026-09-30): the INIT list finished in three minutes and said «I've finished your
+    list: 25 of 26 done…» out loud — through `proactive.notify`, which writes the TTS and the chat wall but never
+    the brain's own window. An hour later the window still ended in «I'm on them and I'll let you know when I'm
+    done», and the model followed the conversation over the system block that said the list had ENDED: «it's all
+    still running in the background», then «I'm kicking it off now properly» with no tool. What it said is what
+    happened; the window is where the model reads what happened."""
+    t = sanitize_reply((text or "").strip()) if (text or "").strip() else ""
+    if t:
+        _SPOKEN.append(t)
+        del _SPOKEN[:-_SPOKEN_MAX]
+
+
+def drain_spoken(window: list[dict]) -> None:
+    """Move the pending proactive lines into `window` as our own turns, in the order they were said."""
+    while _SPOKEN:
+        window.append({"role": "assistant", "content": _SPOKEN.pop(0)})

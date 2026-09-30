@@ -258,6 +258,11 @@ async def notify(title: str, text: str, *, speak: bool = True, kind: str = "noti
             if asyncio.iscoroutine(r):
                 await r
             said = True
+            try:
+                from nucleo.flash import dialog as _dialog
+                _dialog.note_spoken(spoken)
+            except Exception:  # noqa: BLE001
+                pass
         finally:
             _last_spoke[0] = time.monotonic()
     except Exception as e:  # noqa: BLE001
