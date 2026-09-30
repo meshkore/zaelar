@@ -127,7 +127,7 @@ DOMAINS: list[dict] = [
     ]},
     {"id": "2", "name": "FLASHBRAIN (nucleo)", "nodes": [
         {"id": "2.1", "title": "Enrutado / elección de tool", "ch": UNIT, "paths": [
-            "tests/agent_headless/unit/flash/test_router.py", "tests/agent_headless/unit/flash/test_music_flow.py", "tests/agent_headless/unit/test_account_routing.py",
+            "tests/agent_headless/unit/flash/test_router.py", "tests/agent_headless/unit/flash/test_music_flow.py",
             # V2-544: «abre el mensaje de Francisco» went 4/4 to show_widget over an unmoved card — the
             # prompt commanded «jamás widget_data» while the catalog taught open{name}; the imperative wins.
             "tests/agent_headless/unit/flash/test_the_inside_of_a_widget_is_widget_data.py"]},
@@ -1320,7 +1320,6 @@ DOMAINS: list[dict] = [
     ]},
     {"id": "3", "name": "VOZ", "nodes": [
         {"id": "3.1", "title": "Atención / VAD / endpointing", "ch": VOICE, "paths": [
-            "tests/voice/unit/test_attention.py",
             "tests/voice/unit/test_an_unanswered_operator_is_not_judged.py",
             "tests/voice/unit/test_a_stop_keeps_the_rest_of_the_order.py",
             # V2-338: un 200 con cuerpo vacío no es una respuesta del juez — la regla existía solo en la pata
@@ -2350,8 +2349,7 @@ DOMAINS: list[dict] = [
         # se quedaba congelada en su primer render sin ningún síntoma).
         {"id": "4.10", "title": "Superficie genérica de presentación de resultados (hoja en blanco + present/append "
                                 "+ propuestas compuestas + detalle + refresco en vivo sin voz)",
-            "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_results_presentation.py",
-                                  "tests/browser/unit/widgets/test_live_updates_independent_of_voice.py",
+            "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_live_updates_independent_of_voice.py",
                                   "tests/browser/unit/widgets/test_presentation_quality.py",
                                   # 2026-08-24: la hoja llevaba 42 anuncios con su enlace y el digest del prompt
                                   # cargaba todos los campos del item MENOS ése, así que un «pásame el enlace»
@@ -2411,8 +2409,7 @@ DOMAINS: list[dict] = [
         # V2-776 (2026-09-27): dos encargos SIN hoja propia ya no comparten la `results` base. En la pasada de la demo
         # la búsqueda de Ferraris REEMPLAZÓ a la de monitores y «show me the monitors» no encontró nada.
         {"id": "3.91", "title": "Cada encargo entrega en SU hoja — el segundo no pisa al primero",
-            "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_two_sheetless_errands_never_share_a_sheet.py",
-                                  "tests/agent_headless/unit/workers/test_show_results_means_my_results.py"]},
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_two_sheetless_errands_never_share_a_sheet.py"]},
         # V2-776 (2026-09-27): cerrar la hoja solo se aparta si un encargo vivo entrega EN ESA hoja — un worker
         # ajeno (seguimiento de Telegram) mandaba «Close the results» al modelo, que prometió y no cerró.
         {"id": "3.92", "title": "Un worker ajeno no bloquea «Close the results» — solo el que entrega en esa hoja",
@@ -2445,21 +2442,21 @@ DOMAINS: list[dict] = [
         # el id de la instancia decía «no declarada» y la ESCALABA a un worker. Y la puerta de presentación emite la
         # tarjeta, no la base (test en test_a_presentation_is_an_effect_somebody_authorized).
         {"id": "3.101", "title": "Una acción sobre una hoja la declara su widget — nunca un worker por un layout",
-            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_an_action_on_a_sheet_is_declared_by_its_widget.py",
-                                  "tests/agent_headless/unit/flash/test_a_presentation_is_an_effect_somebody_authorized.py"]},
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_an_action_on_a_sheet_is_declared_by_its_widget.py"]},
         # V2-776 (2026-09-27): una data-op sobre una HOJA llega al widget base con la hoja en `q` (el id con «::»
         # se destrozaba en la frontera de confianza), y un `[[show:results]]` con la hoja abierta la resuelve a ELLA.
         {"id": "3.102", "title": "Una acción sobre una hoja llega a ESA hoja — y un show por etiqueta no abre la base vacía",
-            "ch": UNIT, "paths": ["tests/browser/unit/results/test_an_action_on_a_sheet_reaches_that_sheet.py",
-                                  "tests/voice/unit/providers/test_a_tag_show_names_its_card.py"]},
+            "ch": UNIT, "paths": ["tests/browser/unit/results/test_an_action_on_a_sheet_reaches_that_sheet.py"]},
         # V2-776 (2026-09-27): «Open the best value option» abre la tarjeta cuya ETIQUETA dice «Best value» — la hoja
         # solo casaba títulos y ordinales (abierto desde la v5 de la mañana como «S3 falla el detail»).
         # V2-776 L3 (2026-09-29) — one loop, one bound, one report.
         {"id": "3.105", "title": "A worker's ending is judged by the circuit: unmet → relaunched carrying what is missing, "
                                  "bounded by genesis, then the truth; a gave-up ending parks ONE retry on his answer; the "
-                                 "pulse re-verifies every open spec",
+                                 "pulse re-verifies every open spec "
+                                 "· An inline action's end state still unmet after its grace settles as unmet once, and the next reply is told what is missing — never re-read until its TTL, never said twice",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_the_circuit_judges_the_ending.py"]},
-        {"id": "3.106", "title": "A forced ending (budget kill, stall) asks the circuit for the end state before it speaks",
+        {"id": "3.106", "title": "A forced ending (budget kill, stall) asks the circuit for the end state before it speaks "
+                                 "· What the operator hears at the end is the verdict: done only over met, done-unverified over unverifiable, what is missing over gave_up — obeying his voice rules",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_an_ending_is_spoken_as_its_verdict.py"]},
         {"id": "3.110", "title": "What the agent said on its own (a list's end, an errand's report) enters the brain's "
                                  "window at the next prompt — the model never reads a finished list as still running",
@@ -2467,12 +2464,6 @@ DOMAINS: list[dict] = [
         {"id": "3.109", "title": "Every declared end state reads a field its widget's view has (or declares its absence), and "
                                  "the actions the v1 demo fires declare one",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_every_declared_end_state_reads_a_real_field.py"]},
-        {"id": "3.108", "title": "An inline action's end state still unmet after its grace settles as unmet once, and the "
-                                 "next reply is told what is missing — never re-read until its TTL, never said twice",
-            "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_the_circuit_judges_the_ending.py"]},
-        {"id": "3.107", "title": "What the operator hears at the end is the verdict: done only over met, done-unverified "
-                                 "over unverifiable, what is missing over gave_up — obeying his voice rules",
-            "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_an_ending_is_spoken_as_its_verdict.py"]},
         {"id": "3.104", "title": "An errand's end state is born where the commission is recorded, persisted on its "
                                  "row, asked for once when the escalation brought none, and told to the worker",
             "ch": UNIT,
@@ -2755,7 +2746,6 @@ DOMAINS: list[dict] = [
             # se lee y escribe en las coordenadas del CONTENEDOR real (containerBox), con listeners en la
             # ventana, y la posición persistida viaja en ese mismo espacio.
             "paths": ["tests/browser/e2e/widgets/test_the_canvas_refits_when_the_chat_takes_a_column.py",
-                      "tests/browser/e2e/widgets/test_the_chat_wall_stays_where_it_was.py",
                       "tests/browser/e2e/widgets/test_the_orb_drag_stays_under_the_cursor.py"]},
         # V2-608 F7, pestaña «Procesos» (operador, 2026-09-07): la fila de un encargo vivo nacía titulada
         # «leyendo brickset.com…» y MUTABA con cada fase y cada parte de progreso hasta que las actualizaciones
@@ -3104,7 +3094,6 @@ DOMAINS: list[dict] = [
             # list — a `return` before the branch that draws the thread, invisible to any source assertion.
             "paths": ["tests/browser/unit/mensajeria/test_the_view_is_an_action_and_the_manifest_says_so.py",
                       "tests/browser/unit/mensajeria/test_an_open_thread_paints_in_every_profile.py",
-                      "tests/browser/e2e/mensajeria/test_mensajeria_render.py",
                       "tests/connectors/unit/messaging/test_media_travel_to_the_store.py",
                       "tests/connectors/unit/email/test_attachments_and_disposal.py",
                       # 2026-09-18 (sesión 6d19df41, fix07): los botones de acción eran emoji y una fuente
@@ -3434,8 +3423,7 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/agent_headless/unit/test_every_request_that_acts_is_a_row.py"]},
         {"id": "2.196", "title": "The prompt's recent state is read from the record, always: six requests of six hours, facts only, "
                                  "a waiting one quoting its question, a list's steps and a live worker left to their own blocks",
-            "ch": UNIT, "paths": ["tests/agent_headless/unit/test_the_recent_state_is_read_from_the_record.py",
-                                  "tests/agent_headless/unit/flash/test_the_turn_reads_the_task_record.py"]},
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/test_the_recent_state_is_read_from_the_record.py"]},
         {"id": "2.198", "title": "The verdict closes every row: a worker's from the circuit, a list step's from its ops; an op he "
                                  "ordered that ends unmet is corrected out loud as soon as the verdict exists",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/test_the_verdict_closes_every_row.py"]},
@@ -4159,6 +4147,8 @@ DOMAINS: list[dict] = [
         {"id": "4.48", "title": "Un importe dentro de la PROSA del enlace no es un precio (y la tarjeta real no "
                                 "pierde el suyo)",
             "ch": UNIT, "paths": ["tests/browser/unit/navegador/test_an_amount_in_the_prose_is_not_a_price.py"]},
+        {"id": "4.241", "title": "A listing priced in dollars or pounds is a listing (the extractor reads $, US $ and cents in <sup>)",
+            "ch": UNIT, "paths": ["tests/browser/unit/navegador/test_a_dollar_price_is_a_price.py"]},
         {"id": "4.29", "title": "Contrato de PANTALLA de la hoja de proceso RENDERIZADO (pestaña activa, fases en "
                                 "orden, loader ANIMANDO, salto al primer resultado, historia al acabar)",
             "ch": UNIT, "live": True,
@@ -4317,11 +4307,7 @@ DOMAINS: list[dict] = [
                                 "resumen enseña lo dirigido a él, nadie interrumpe por defecto, y un reinicio "
                                 "no vuelve a avisar de lo mismo",
             "ch": UNIT,
-            "paths": ["tests/browser/unit/mensajeria/test_a_restart_does_not_announce_the_same_message_again.py",
-                      "tests/browser/unit/mensajeria/test_notification_policy.py",
-                      "tests/browser/unit/mensajeria/test_owner_v2.py",
-                      "tests/connectors/unit/messaging/test_brief_connector_state.py",
-                      "tests/browser/e2e/mensajeria/test_mensajeria_render.py"]},
+            "paths": ["tests/browser/unit/mensajeria/test_a_restart_does_not_announce_the_same_message_again.py"]},
         {"id": "5.18", "title": "La firma de email se añade UNA sola vez, solo al enviar de verdad — nunca "
                                 "por el widget, nunca por Gmail (que no interviene en un envío SMTP directo), "
                                 "y se lee fresca en cada envío, no cacheada desde el arranque",
@@ -4986,6 +4972,8 @@ DOMAINS: list[dict] = [
         # 2026-08-10: un guarda SOBRE LOS GUARDAS. Aparecieron tests verdes por la MÁQUINA y no por el código (la
         # config del operador —idioma, proveedores, atención, perfil— pisaba el entorno de la suite vía
         # `settings.load_into_env`). No es que fallaran: es que no se podía confiar en el verde.
+        {"id": "7.56", "title": "The test map is well formed: N.M ids, every path exists and runs once, a node with a missing file is red",
+            "ch": UNIT, "paths": ["tests/infrastructure/unit/test_the_map_is_well_formed.py"]},
         {"id": "7.55", "title": "No real identity (the operator's address, the demo's contacts) in a file the public repo tracks",
             "ch": UNIT, "paths": ["tests/infrastructure/unit/test_no_real_identity_in_a_public_file.py"]},
         {"id": "7.10", "title": "Aislamiento de la suite (la máquina del que corre no decide el resultado; el workspace está fijado y escribir su config falla por nombre)",
@@ -5200,22 +5188,22 @@ DOMAINS: list[dict] = [
             # sin mapear hasta el 2026-08-21: el agente headless del GENERADOR de widgets también se factura
             "tests/browser/unit/widgets/test_generator_energy.py",
             "tests/infrastructure/unit/core/test_energy_meter.py", "tests/infrastructure/unit/core/test_account_limits.py", "tests/infrastructure/unit/config/test_balances.py"]},
-        {"id": "8.1b", "title": "Cobertura de Energy: nadie gasta fuera del contador", "ch": UNIT, "paths": [
+        {"id": "8.20", "title": "Cobertura de Energy: nadie gasta fuera del contador", "ch": UNIT, "paths": [
             "tests/infrastructure/unit/core/test_energy_coverage.py",
             # V2-517 — z.ai has TWO wallets (coding-plan quota · pay-per-use credits): a flat red "sin
             # cuota" read as "z.ai dead" while the credits purse served completions. Measured, not read.
             "tests/infrastructure/unit/core/test_zai_has_two_wallets.py"]},
-        {"id": "8.1c", "title": "Arriendo de energía: techo local y fusible", "ch": UNIT, "paths": [
+        {"id": "8.21", "title": "Arriendo de energía: techo local y fusible", "ch": UNIT, "paths": [
             "tests/infrastructure/unit/core/test_energy_lease.py"]},
-        {"id": "8.1d", "title": "Egress de modelos: un código, dos despliegues", "ch": UNIT, "paths": [
+        {"id": "8.22", "title": "Egress de modelos: un código, dos despliegues", "ch": UNIT, "paths": [
             "tests/infrastructure/unit/core/test_llm_egress.py"]},
-        {"id": "8.1e", "title": "Tarifas: el precio SIGUE al proveedor que corre", "ch": UNIT, "paths": [
+        {"id": "8.23", "title": "Tarifas: el precio SIGUE al proveedor que corre", "ch": UNIT, "paths": [
             "tests/infrastructure/unit/core/test_energy_tariffs.py"]},
-        # V2-767 — el otro lado del 8.1b: no basta con que nadie gaste FUERA del contador, hace falta
+        # V2-767 — el otro lado del 8.20: no basta con que nadie gaste FUERA del contador, hace falta
         # que dentro se cobre un precio que alguien haya elegido. `deepseek-flash` (titular de 5 piezas)
         # no tenía fila y facturaba al catch-all punitivo; `deepseek-v4-pro` llevaba un precio 4,7×
         # barato que el real. Ninguno de los dos falló nada.
-        {"id": "8.1f", "title": "Cada modelo de la tabla tiene precio propio", "ch": UNIT, "paths": [
+        {"id": "8.24", "title": "Cada modelo de la tabla tiene precio propio", "ch": UNIT, "paths": [
             "tests/infrastructure/unit/core/test_every_model_in_the_table_has_a_price.py",
             "tests/infrastructure/unit/core/test_the_decision_model_is_billed.py"]},
         # POLÍTICA DE MODELOS: DeepSeek V4 Pro es el único titular y un proveedor retirado no puede volver a
@@ -6015,7 +6003,8 @@ def _run_node(paths: list[str]) -> tuple[bool, str]:
     summary = tail[-1] if tail else ""
     note = summary.strip("= ")
     if missing:
-        note += f" · ⚠ faltan {len(missing)}"
+        # V2-778 F0-8 — a node with one of its files gone is RED: a note was how a moved test stayed «green».
+        return False, note + f" · ⚠ faltan {len(missing)}: {', '.join(missing)}"
     return r.returncode == 0, note
 
 
