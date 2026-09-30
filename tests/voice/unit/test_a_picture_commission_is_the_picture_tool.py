@@ -66,3 +66,29 @@ def test_an_order_on_an_EMPTY_viewer_is_first_a_search(monkeypatch):
     got = cc._as_tool_request({"widget_id": "imagenes", "action": "wallpaper",
                                "payload": {"item": "cosmic eye in the sky helix nebula"}}, SAID)
     assert got["query"].startswith("cosmic eye in the sky helix nebula") and "wallpaper" in got["query"]
+
+
+def test_a_commission_on_an_empty_viewer_is_the_search_even_when_the_pass_calls_nothing(monkeypatch):
+    """Demo pass 66, B1: the catalogue named the viewer (0.71) and the pass still sent the wallpaper to a worker."""
+    monkeypatch.setattr(cc, "named_or_catalogue", lambda brief, text, **k: "imagenes")
+    monkeypatch.setattr(cc, "_viewer_empty", lambda: True)
+    from nucleo.flash import act_repair
+
+    async def _nothing(*a, **k):
+        return None
+    monkeypatch.setattr(act_repair, "call_or_read_for_commission", _nothing)
+    esc = {"v": 'Find the wallpaper artwork "Cosmic Eye in the Sky" by Tyler Young, featuring the Helix Nebula. '
+                'Download the highest-resolution version available.', "more": []}
+    images = {"v": None}
+    out = asyncio.run(cc.before_worker(esc, {"v": None}, brief={"x": 1}, operator_text=SAID, spec=None,
+                                       emit=lambda *a, **k: None, present=lambda *a, **k: True,
+                                       apply_widget_data=lambda *a: None, images_req=images))
+    assert out == "call" and esc["v"] is None
+    assert images["v"]["query"].startswith('Find the wallpaper artwork "Cosmic Eye in the Sky"')
+    assert "Download" not in images["v"]["query"]
+
+
+def test_wallpaper_names_the_viewer():
+    from widgets import runtime
+    assert runtime.identify_named("set that as my wallpaper") == "imagenes"
+    assert runtime.identify_named("ponlo de fondo de pantalla") == "imagenes"

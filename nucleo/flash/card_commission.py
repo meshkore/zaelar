@@ -18,6 +18,8 @@ the voice provider for the reason the architecture ratchet keeps giving: that fi
 """
 from __future__ import annotations
 
+import re
+
 from typing import Callable
 
 
@@ -133,6 +135,13 @@ async def before_worker(escalate_req: dict, read_req: dict, *, brief, operator_t
         may_read = not (_wi is not None and str(_w or "") == "act")
         got = await _repair.call_or_read_for_commission(operator_text, str(escalate_req.get("v") or ""), card,
                                                         spec=spec, window=window, may_read=may_read)
+        if (not got or got.get("kind") != "call") and images_req is not None and TOOL_FILLED.get(card) == "show_images" \
+                and _viewer_empty():
+            # Demo pass 66, B1: the catalogue named the viewer and the pass still sent «find me the wallpaper cosmic
+            # eye…» to a worker. An empty viewer's only way to hold anything is the picture search, so a commission
+            # that lands on it IS that search — its first sentence is the query.
+            first = re.split(r"(?<=[.!?])\s", str(escalate_req.get("v") or "").strip(), maxsplit=1)[0][:160]
+            got = {"kind": "call", "widget_id": card, "action": "show", "payload": {"query": first or operator_text}}
         if not got:
             return ""
         _tool = _as_tool_request(got, operator_text) if got["kind"] == "call" and images_req is not None else None
