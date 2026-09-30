@@ -214,6 +214,66 @@ async def corrected_retry(wid: str, action: str, payload: dict, res, text: str, 
         return None
 
 
+def _failed_line() -> str:
+    try:
+        from i18n import langs as _lg
+        return str(getattr(_lg.current_language(), "op_failed", "") or "")
+    except Exception:  # noqa: BLE001
+        return ""
+
+
+async def _say_it_did_not_run(wid: str, action_name: str, exc: BaseException, *, seal=None, row: str = "") -> dict:
+    """The op raised before any widget answered: settle its row, forget it as done, and SAY so (V2-778 F0-4).
+    Returns the failed result so a caller waiting on it reads a refusal, never an empty success."""
+    res = {"ok": False, "message": _failed_line(), "error": f"{type(exc).__name__}: {exc}"[:200]}
+    try:
+        from voice.observer import emit
+        emit("brain", "❌ data-op no se ejecutó", role="system", text=f"{wid}:{action_name} — {res['error']}",
+             extra={"id": wid, "action": action_name, "is_error": True, "cat": "flash"})
+    except Exception:  # noqa: BLE001
+        pass
+    if row:
+        try:
+            from nucleo import request_row as _rq
+            _rq.settle(row, "unmet", res["error"])
+        except Exception:  # noqa: BLE001
+            pass
+    if callable(seal):
+        try:
+            seal(False)
+        except Exception:  # noqa: BLE001
+            pass
+    try:
+        await report_failure(wid, action_name, res)
+    except Exception:  # noqa: BLE001
+        pass
+    return res
+
+
+def start_op(wid: str, action_name: str, payload: dict, *, seal, text, said, spawn):
+    """Start a fast data-op detached, or SAY that it could not start (V2-778 F0-4). Returns the task, or None.
+
+    The turn's call site used to wrap this in `except: pass`: when building the call raised, the op never ran,
+    «Done.» stood and nothing was logged. `text` may be a callable so building the operator's half of the turn
+    happens inside this guard too. A None return tells the caller the op is NOT done."""
+    try:
+        t = text() if callable(text) else text
+        return spawn(dispatch_and_report(wid, action_name, payload or {}, seal=seal, text=t, said=said),
+                     "widget-data")
+    except Exception as e:  # noqa: BLE001
+        try:
+            spawn(_say_it_did_not_run(wid, action_name, e, seal=seal), "widget-data-failed")
+            return None
+        except Exception:  # noqa: BLE001 — cannot even schedule the report: the model says it next turn
+            try:
+                from voice import brain_notes
+                brain_notes.push(f"[SISTEMA] La acción «{action_name}» sobre «{wid}» NO se ejecutó "
+                                 f"({type(e).__name__}). Dilo en tu PRÓXIMA respuesta y NO digas que está hecha.")
+            except Exception:  # noqa: BLE001
+                pass
+            return None
+
+
 async def dispatch_and_report(wid: str, action_name: str, payload: dict, *, seal=None, receipt: bool = False,
                               text: str = "", said=None):
     """Dispatch a widget data-op AND announce it if it failed (V2-603).
@@ -259,8 +319,8 @@ async def dispatch_and_report(wid: str, action_name: str, payload: dict, *, seal
         return await widgets.dispatch_tag("widget.data", {"id": w, "data": {"action": a, "payload": p or {}}})
     try:
         res = await _run(wid, action_name, payload)
-    except Exception:
-        return
+    except Exception as e:  # noqa: BLE001 — V2-778 F0-4: an op that raised is said, never left behind «Done.»
+        return await _say_it_did_not_run(wid, action_name, e, seal=seal, row=_row)
     # `said` is read AFTER the refusal: by then the turn's reply has usually been spoken, and a correction that
     # picks a different row from the one the reply just named (demo pass 2026-09-28, S3: «the best deal is the
     # Samsung» → the retry opened the LG) contradicts us out loud.

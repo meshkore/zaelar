@@ -1316,12 +1316,18 @@ class NucleoLLMStream(llm.LLMStream):
                     else:
                         _data_ops.remember_refusal(_w, _a, _p)
 
-                try:
-                    _turn_op_tasks.append((wid, _spawn(_data_ops.dispatch_and_report(
-                        wid, action_name, payload or {}, seal=_seal, text=_bnotes.operator_half(text),
-                        said=lambda: getattr(brain, "_last_spoken", "")), "widget-data")))
-                except Exception:
-                    pass
+                # V2-778 F0-4 — an op that could not start is NOT done: `start_op` says so, and the turn forgets
+                # it, so «Done.» never stands over an op that never ran.
+                _op_task = _data_ops.start_op(
+                    wid, action_name, payload or {}, seal=_seal, text=lambda: _bnotes.operator_half(text),
+                    said=lambda: getattr(brain, "_last_spoken", ""), spawn=_spawn)
+                if _op_task is not None:
+                    _turn_op_tasks.append((wid, _op_task))
+                else:
+                    _ops_left = data_done.get("ops", [])
+                    if (wid, action_name) in _ops_left:
+                        _ops_left.remove((wid, action_name))
+                    data_done["v"] = bool(_ops_left)
                 # An action whose output only exists ON SCREEN (`present.mount`, declared or derived) brings its
                 # card, through the one door. «Show me a chart of Apple stock» ran markets:show and the card never
                 # opened — «Apple's chart is on screen» over an empty canvas (demo run, 2026-09-26). The door
