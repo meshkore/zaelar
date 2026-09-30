@@ -4972,6 +4972,8 @@ DOMAINS: list[dict] = [
         # 2026-08-10: un guarda SOBRE LOS GUARDAS. Aparecieron tests verdes por la MÁQUINA y no por el código (la
         # config del operador —idioma, proveedores, atención, perfil— pisaba el entorno de la suite vía
         # `settings.load_into_env`). No es que fallaran: es que no se podía confiar en el verde.
+        {"id": "7.57", "title": "Files and functions only shrink: nothing new over 800 lines / 120 lines / 100 branches, no named offender grows",
+            "ch": UNIT, "paths": ["tests/infrastructure/unit/test_files_and_functions_only_shrink.py"]},
         {"id": "7.56", "title": "The test map is well formed: N.M ids, every path exists and runs once, a node with a missing file is red",
             "ch": UNIT, "paths": ["tests/infrastructure/unit/test_the_map_is_well_formed.py"]},
         {"id": "7.55", "title": "No real identity (the operator's address, the demo's contacts) in a file the public repo tracks",
