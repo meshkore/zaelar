@@ -2,6 +2,7 @@
 book it» over the open Inworld invoice — the model's only call was `open` (what was already on screen), the verdict
 read `mensajeria:forward`. A forward needs a note only a model can write, so the verdict could not complete it and
 the turn did nothing. One repair pass asks for the verdict's call."""
+from tests import voice_turn_source as _vts
 import asyncio
 import pathlib
 
@@ -58,7 +59,7 @@ def test_any_other_call_is_not_taken(model):
 def test_the_voice_schedules_it_for_a_repeated_view_or_a_lens_over_an_act():
     """…and for a lens the verdict overrules but cannot complete alone (full37 E2: «open it» → the model searched
     the archive, the verdict read `mensajeria:open` 0.85, and `open` needs the name only a model can write)."""
-    src = (ENGINE / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
+    src = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
     anchor = src.index("or _data_ops.a_view_where_the_verdict_acts(_cd[\"card\"], action_name, _dis, _vw_words)):")
     i = src.index('_repeat_repair["v"] = (_cd["card"], action_name, _dis)', anchor)
     head = src[i - 400:i]
@@ -89,7 +90,7 @@ def test_the_order_card_is_the_other_card_his_words_name(monkeypatch):
 
 
 def test_the_voice_read_path_uses_it():
-    src = (ENGINE / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
+    src = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
     assert "_order_card = _direct_action.order_card_after_read(_brief, _op_text, _rw)" in src
     assert "call_after_read(_op_text, _rw, _order_card" in src
 
@@ -97,7 +98,7 @@ def test_the_voice_read_path_uses_it():
 def test_an_order_on_a_card_the_turn_never_touched_is_carried_out():
     """full23 C5: «send rowan a telegram with the new time» re-wrote the meeting on the agenda and the reply said «he's
     getting the update now» — nothing was sent. The order's card, untouched by the turn's ops, gets its call."""
-    src = (ENGINE / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
+    src = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
     assert "_missed = _direct_action.order_card_after_read(_brief, _op_text, next(iter(_ops_cards)))" in src
     assert "if _missed and _missed not in _ops_cards:" in src
     assert "call_after_read(_op_text, next(iter(_ops_cards)), _missed" in src

@@ -5,6 +5,7 @@ fullscreen» back to back — the shape that means «that one went unanswered».
 `youtube:play_result {item: 2}`, the context-bleed guard dropped it, and the reply was «Sorry, I lost that»
 with no fullscreen. Both channels now close a silent action with the short ack.
 """
+from tests import voice_turn_source as _vts
 import pathlib
 import re
 
@@ -32,7 +33,7 @@ def test_it_never_invents_an_answer_where_nothing_was_asked_or_one_was_given():
 
 
 def test_the_voice_channel_records_it_when_a_tool_handled_the_turn():
-    src = (ROOT / "voice/engine/llm/providers/nucleo.py").read_text(encoding="utf-8")
+    src = _vts.read(ROOT / "voice/engine/llm/providers/nucleo.py")
     m = re.search(r"brain\._window\.append\(\{\"role\": \"assistant\", \"content\": _dialog\.sanitize_reply"
                   r"\(spoken_text\)\}\)\n\s+elif _ht\.turn_handled\((?P<args>[^:]*?)\):\n(?:\s+#.*\n)*"
                   r"\s+_dialog\.record_silent_action\(brain\._window, _say\(\)\.data_ack\)", src)

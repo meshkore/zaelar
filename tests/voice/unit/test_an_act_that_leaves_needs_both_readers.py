@@ -6,6 +6,7 @@
 valid model call beat a disagreeing verdict because a wrong verdict costs a reversible view; for an act that leaves
 (consent level ≥ sensitive) the costs are reversed. When the two readers disagree, the verdict's action runs with the
 model's content, or he is asked; agreement, or no verdict, changes nothing (C5's Telegram to Rowan still goes)."""
+from tests import voice_turn_source as _vts
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -19,7 +20,7 @@ def test_a_reply_is_an_act_that_leaves_and_a_draft_is_not():
 
 
 def test_the_single_data_op_gate_carries_the_rule():
-    prov = (ROOT / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
+    prov = _vts.read(ROOT / "voice/engine/llm/providers/nucleo.py")
     i = prov.index("mode = _frontend.action_mode_now(wid, action_name, payload)")
     block = prov[i:i + 3000]
     assert "_frontend.at_least_sensitive(wid, action_name)" in block

@@ -16,6 +16,8 @@ things on the operator's screen requires the operator to have said so in the ver
 """
 from __future__ import annotations
 
+from tests import voice_turn_source as _vts
+
 import json
 import pathlib
 
@@ -159,7 +161,7 @@ def test_fullscreen_dispatch_routes_by_direction_and_discards_the_drag(monkeypat
 # ── 4 · the provider and the probe carry the guards (source contracts) ───────────────────────────────────
 
 def test_the_voice_provider_gates_model_closes_and_delegates_the_bodies():
-    src = (ENGINE / "voice/engine/llm/providers/nucleo.py").read_text(encoding="utf-8")
+    src = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
     assert 'if action == "close" and not _closeg.looks_like_close(text):' in src, \
         "a model-emitted [[close]] with no close order in the turn is drag (the «eres tonto» close)"
     # V2-753 — the data-op close keeps needing a license; what changed is WHO grants it. The bare

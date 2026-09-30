@@ -1,3 +1,4 @@
+from tests import voice_turn_source as _vts
 """An errand that arrives with NO declared surface takes the turn brief's reading of it (demo A1, 2026-09-28).
 
 «Johnny, find me three 27-inch 4K monitors under 400 dollars — show me when you have them.» escalated without a
@@ -38,7 +39,7 @@ def test_an_unsure_or_absent_reading_leaves_the_fallback():
 
 def test_the_escalation_uses_it_only_when_the_model_declared_none():
     from voice.engine.llm.providers import nucleo as prov
-    src = inspect.getsource(prov)
+    src = _vts.turn_source()
     # demo pass 51: the declaration and the brief's reading go through `surfaces.pick`, which keeps the model's
     # declaration except between two visual surfaces (tests/agent_headless/unit/test_between_two_visual_surfaces…)
     i = src.index("_surfaces_mod.pick(")

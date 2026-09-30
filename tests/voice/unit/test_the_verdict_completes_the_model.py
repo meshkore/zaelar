@@ -40,6 +40,8 @@ Run: .venv/bin/pytest tests/voice/unit/test_the_verdict_completes_the_model.py
 """
 from __future__ import annotations
 
+from tests import voice_turn_source as _vts
+
 import pathlib
 import threading
 
@@ -248,7 +250,7 @@ def test_the_parser_does_not_mistake_a_free_text_hint_for_an_enumeration():
 # ── 5 · THE WIRING — a rule in a module nobody calls is V2-750's catalog_widget ───────────────────
 
 def test_the_provider_completes_an_UNRESOLVED_call_before_asking_which_item():
-    body = _PROVIDER.read_text(encoding="utf-8")
+    body = _vts.read(_PROVIDER)
     i = body.index("if not res.ok:")
     seg = body[i:i + 1200]
     assert "_direct_action.complete(" in seg and 'instead_of=action_name' in seg
@@ -256,7 +258,7 @@ def test_the_provider_completes_an_UNRESOLVED_call_before_asking_which_item():
 
 
 def test_the_provider_completes_an_EMPTY_turn_and_logs_a_disagreement():
-    body = _PROVIDER.read_text(encoding="utf-8")
+    body = _vts.read(_PROVIDER)
     i = body.index("_no_tool = (")
     assert "_direct_action.complete(" in body[i:i + 900], "the empty-turn site"
     # V2-756 — anchored on ORDER, not on a byte distance: the repair of a key the model left empty
@@ -390,7 +392,7 @@ def test_I1_a_turn_that_called_any_tool_is_not_an_empty_turn():
     verdict also «completed» the turn with a YouTube search: `_no_tool` did not count the image, listing, recall,
     read, reopen or reveal requests."""
     from pathlib import Path
-    src = (Path(__file__).resolve().parents[3] / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
+    src = _vts.read(Path(__file__).resolve().parents[3] / "voice/engine/llm/providers/nucleo.py")
     i = src.index("        _no_tool = (not acted")
     expr = src[i:src.index("_op_text = _router.operator_words", i)]
     for req in ("images_req", "listing_req", "recall_req", "read_req", "reopen_req", "reveal_req",

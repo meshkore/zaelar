@@ -4,6 +4,7 @@ the answer said. When the verdict reads a QUESTION and everything the turn did w
 answer composed — and that second pass, told what was already said, answers SKIP (held back, never spoken) when it
 already answered. Measured live: «Let me pull your day up.» → the four meetings 2/2; a full answer → SKIP, or only
 the meeting it had left out."""
+from tests import voice_turn_source as _vts
 import threading
 from pathlib import Path
 
@@ -35,7 +36,7 @@ def test_an_order_or_a_write_is_not_this(monkeypatch):
 
 
 def test_the_second_pass_can_stay_silent_and_the_provider_wires_it():
-    prov = (ROOT / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
+    prov = _vts.read(ROOT / "voice/engine/llm/providers/nucleo.py")
     assert "_cardc3.question_left_to_a_lens(_brief, ops=list(_data_ops_hechas), acted=acted," in prov
     body = prov[prov.index("async def speak(sys2: str"):]
     body = body[:body.index("from voice.engine.llm.providers.vault_intercept")]
@@ -60,7 +61,7 @@ def test_a_read_of_a_card_this_turn_changed_waits_for_the_change():
     """full11 M3: «and the nasdaq, over the whole year» switched the chart and the read, a few ms later, answered
     «the only thing on the chart is Apple — I've got no Nasdaq figures». The read waits (bounded) for this turn's
     dispatches to the same card."""
-    prov = (ROOT / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
+    prov = _vts.read(ROOT / "voice/engine/llm/providers/nucleo.py")
     assert "_op_task = _data_ops.start_op(" in prov and "_turn_op_tasks.append((wid, _op_task))" in prov
     i = prov.index("_pending = [t for w, t in _turn_op_tasks")
     assert i < prov.index("await speak(await _wread.prepare(read_req", i)
@@ -77,7 +78,7 @@ def test_a_data_op_that_answers_is_the_answer():
         {"matches": [{"from": "Inworld AI"}]}
     assert d.answer_of({"ok": True, "queued": True, "id": "mensajeria"}) == {}
     assert d.answer_of({"ok": False, "error": "x", "matches": [1]}) == {}
-    prov = (ROOT / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
+    prov = _vts.read(ROOT / "voice/engine/llm/providers/nucleo.py")
     assert "_data_ops.answer_of(_t.result())" in prov and "op answer compose" in prov
     src = (ROOT / "nucleo/flash/data_ops.py").read_text("utf-8")
     assert "return res          # the RESULT" in src
@@ -92,7 +93,7 @@ def test_the_answer_knows_the_card_it_came_from_is_on_screen():
     on = widget_read.compose_system("L", "show me the chart", "markets", "q", "AAPL 341", answered=True, on_screen=True)
     off = widget_read.compose_system("L", "show me the chart", "markets", "q", "AAPL 341", answered=True)
     assert "YA ESTÁ ABIERTA" in on and "YA ESTÁ ABIERTA" not in off
-    prov = (Path(__file__).resolve().parents[3] / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
+    prov = _vts.read(Path(__file__).resolve().parents[3] / "voice/engine/llm/providers/nucleo.py")
     assert "on_screen=_direct_action.on_screen_now(_op_answer[0])" in prov, "report OR this turn (full17 M1)"
 
 
@@ -101,7 +102,7 @@ def test_the_card_that_answered_wins_over_a_web_search_in_the_same_turn():
     `markets:show` AND `web_search`; the chart came with its price, and the search answered «the search results
     only gave me quote pages, so I can't tell you». The card of this turn is the source; the search does not run."""
     from pathlib import Path
-    prov = (Path(__file__).resolve().parents[3] / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
+    prov = _vts.read(Path(__file__).resolve().parents[3] / "voice/engine/llm/providers/nucleo.py")
     block = prov.split("_op_answer = None", 1)[1].split("A QUESTION answered by a lens alone", 1)[0]
     assert 'search_req["v"] is None and _turn_op_tasks' not in block, "a search must not keep the card from answering"
     assert 'if _op_answer is not None and search_req["v"] is not None' in block and 'search_req["v"] = None' in block

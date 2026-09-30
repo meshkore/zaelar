@@ -3,6 +3,7 @@
 The answer composed from the card's data was told whether the card is on screen by the canvas report — which
 comes from the browser and lags the very turn that presents the card. So it said «I can't pull up the chart
 itself here» over the chart. A card THIS turn brought counts as on screen."""
+from tests import voice_turn_source as _vts
 import pytest
 
 from nucleo import canvas_focus as cf
@@ -27,5 +28,5 @@ def test_a_card_nobody_brought_is_not(closed_report):
 
 def test_the_voice_answer_reads_it():
     import pathlib
-    src = (pathlib.Path(__file__).resolve().parents[3] / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
+    src = _vts.read(pathlib.Path(__file__).resolve().parents[3] / "voice/engine/llm/providers/nucleo.py")
     assert "answered=True, on_screen=_direct_action.on_screen_now(_op_answer[0])" in src

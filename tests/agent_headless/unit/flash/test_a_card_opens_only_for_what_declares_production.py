@@ -31,6 +31,8 @@ card jumped up on a `stop`: «I did pause it manually, and you did start it with
 """
 from __future__ import annotations
 
+from tests import voice_turn_source as _vts
+
 import re
 from pathlib import Path
 
@@ -164,7 +166,7 @@ def test_the_operators_own_hands_are_never_judged_by_this_rule():
 def test_the_voice_lane_goes_through_the_door_and_names_its_reason():
     """V2-723 moved the gate INTO the door: the lane no longer emits a show at all, it asks to present and
     says why. The claim is then checked against the widget's declaration inside `present`."""
-    src = (ENGINE / "voice/engine/llm/providers/nucleo.py").read_text(encoding="utf-8")
+    src = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
     m = re.search(r'_cvis\.present\(str\(_extra\.get\("widget"\).*?reason="producer-mount".*?'
                   r'action=mq\.get\("action"\)', src, re.S)
     assert m, "the music lane must present through the door, declaring `producer-mount` and its action"

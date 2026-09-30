@@ -6,6 +6,7 @@ meeting». The verdict said `agenda:find_free` at 0.91 and the model ran it; `fi
 the slot on the monitors sheet, and the answer loop kept the LAST op's answer — the sheet's view — so he heard
 «there's nothing here with tomorrow's meetings». C3, C4 and C5 fell after it.
 """
+from tests import voice_turn_source as _vts
 from nucleo.flash import data_ops, direct_action as da
 from nucleo.flash import turn_brief as tb
 
@@ -50,5 +51,5 @@ def test_without_a_declared_answer_the_last_one_stands_and_nothing_is_none():
 
 def test_the_voice_path_uses_the_selector():
     import pathlib
-    src = (pathlib.Path(__file__).resolve().parents[3] / "voice/engine/llm/providers/nucleo.py").read_text(encoding="utf-8")
+    src = _vts.read(pathlib.Path(__file__).resolve().parents[3] / "voice/engine/llm/providers/nucleo.py")
     assert "_op_answer = _data_ops.answer_to_speak(_got, data_done.get(\"ops\"))" in src

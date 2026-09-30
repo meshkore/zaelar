@@ -33,6 +33,8 @@
 #
 from __future__ import annotations
 
+from tests import voice_turn_source as _vts
+
 import ast
 import pathlib
 
@@ -173,7 +175,7 @@ def _backstop_condition() -> str:
     Read from the AST rather than by matching text near a marker: the first version of this test searched
     the 500 characters before the emit and matched the COMMENT that describes the fix, which is a test that
     passes because the explanation is still there after the code is gone."""
-    src = (ENGINE / "voice" / "engine" / "llm" / "providers" / "nucleo.py").read_text(encoding="utf-8")
+    src = _vts.read(ENGINE / "voice" / "engine" / "llm" / "providers" / "nucleo.py")
     tree = ast.parse(src)
     for node in ast.walk(tree):
         if not isinstance(node, ast.If):

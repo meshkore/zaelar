@@ -5,6 +5,7 @@ its manifest says — and the card stayed open, hiding every card after it. The 
 orders apart (measured: Jev reads «close the video» 0.99 and «close youtube» 0.99 both as canvas=close), and
 «close the video» must keep the card (V2-753). What separates them is whether his words call the card by what it
 is CALLED — its catalogue name in any bundle — or only by what it holds."""
+from tests import voice_turn_source as _vts
 import pathlib
 
 import pytest
@@ -43,7 +44,7 @@ def test_a_card_that_is_not_open_is_not_closed(close_verdict):
 
 
 def test_both_channels_wire_it():
-    voice = (ENGINE / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
+    voice = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
     probe = (ENGINE / "nucleo/flash/probe.py").read_text("utf-8")
     assert "_direct_action.closes_the_named_card(_brief, _op_text, data_done.get(\"ops\"))" in voice
     assert 'data_done.setdefault("ops", []).append((wid, action_name))' in voice
@@ -52,7 +53,7 @@ def test_both_channels_wire_it():
 
 def test_the_in_card_guard_lets_the_named_close_through():
     """full18 V7: the close was emitted and the «order is an action INSIDE the card» guard dropped it."""
-    voice = (ENGINE / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
+    voice = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
     assert '_tag_emit("close", {"id": _cn, "named": True})' in voice
     i = voice.index('close ignorado — la orden es una acción DENTRO de la tarjeta')
     guard = voice[voice.rindex("if (action", 0, i):i]

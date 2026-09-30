@@ -3,6 +3,7 @@ book it» over the open receipt → «I can't send it myself — sending mail is
 call, the verdict reading `mensajeria:forward`. The promise pass asks «did you promise an act?»; a refusal did not,
 so it rightly called nothing, and the mail never went. A refusal of an action the card DECLARES, for an order the
 verdict names, gets one more question with that action named."""
+from tests import voice_turn_source as _vts
 import asyncio
 import pathlib
 
@@ -75,7 +76,7 @@ def test_an_escalation_to_an_open_card_gets_the_verdicts_call_too():
     reading `mensajeria:forward`. The open-card pass asked «did you promise?» of the escalation text, got nothing,
     and a browser worker took the errand — its card sat on screen for the rest of the demo, and the mail went out
     minutes later. Both channels now ask the verdict's call there too."""
-    voice = (ENGINE / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
+    voice = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
     i = voice.index("V2-770 — the rung fills ONE key")
     assert "call_for_promise_or_order(operator_text, str(escalate_req" in voice[i:i + 1200]
     probe = (ENGINE / "nucleo/flash/probe.py").read_text("utf-8")

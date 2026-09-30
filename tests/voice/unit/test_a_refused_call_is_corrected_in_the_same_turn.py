@@ -10,6 +10,8 @@ call already passed), a DIFFERENT payload, nothing when the model still cannot t
 """
 from __future__ import annotations
 
+from tests import voice_turn_source as _vts
+
 import asyncio
 
 import pytest
@@ -109,5 +111,5 @@ def test_the_correction_follows_what_the_turn_just_said(client):
     user = client.calls[0]["messages"][1]["content"]
     assert "Samsung ViewFinity S7" in user and "la corrección es ESE" in user
     from pathlib import Path
-    prov = (Path(__file__).resolve().parents[3] / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
+    prov = _vts.read(Path(__file__).resolve().parents[3] / "voice/engine/llm/providers/nucleo.py")
     assert 'said=lambda: getattr(brain, "_last_spoken", "")' in prov

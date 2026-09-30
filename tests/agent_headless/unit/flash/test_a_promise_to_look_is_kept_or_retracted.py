@@ -28,6 +28,8 @@ Two mechanisms, each with its own section:
 """
 from __future__ import annotations
 
+from tests import voice_turn_source as _vts
+
 import asyncio
 import time
 
@@ -74,7 +76,7 @@ def test_the_hatches_of_the_write_guard_are_unchanged():
 
 
 def test_the_provider_calls_the_extracted_predicate_and_keeps_no_copy():
-    src = open("voice/engine/llm/providers/nucleo.py", encoding="utf-8").read()
+    src = _vts.read("voice/engine/llm/providers/nucleo.py")
     assert "_data_ops.is_context_bleed(" in src
     assert "(time.time() - _last[3]) < 120" not in src, "the inline copy of the rule must be gone"
 
@@ -167,7 +169,7 @@ def test_a_read_widget_counts_as_the_look_so_the_promise_is_not_repaired_twice()
     out loud («nothing booked» … «your afternoon is mostly taken»). A read is the look."""
     from pathlib import Path
     import re
-    src = (Path(__file__).resolve().parents[4] / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
+    src = _vts.read(Path(__file__).resolve().parents[4] / "voice/engine/llm/providers/nucleo.py")
     i = src.index("_did_act = bool(")
     expr = "\n".join(src[i:].splitlines()[:4])            # the one expression, four lines long
     assert 'read_req["v"] is not None' in expr, expr
@@ -187,7 +189,7 @@ def test_an_identical_retry_of_a_refused_op_is_dropped_and_a_corrected_one_runs(
     d._REFUSED["v"] = None
     assert not d.is_identical_retry_of_refused("imagenes", "select", {})
     import pathlib as _pl
-    src = (_pl.Path(__file__).resolve().parents[4] / "voice/engine/llm/providers/nucleo.py").read_text(encoding="utf-8")
+    src = _vts.read(_pl.Path(__file__).resolve().parents[4] / "voice/engine/llm/providers/nucleo.py")
     assert "if _data_ops.is_identical_retry_of_refused(wid, action_name, payload):" in src
     assert "_data_ops.remember_refusal(_w, _a, _p)" in src, "the seal must remember the refusal too"
 
@@ -216,7 +218,7 @@ def test_the_repair_is_spoken_as_a_separate_sentence_not_glued():
     sent as a delta right after the promise, and `speech.sanitize` strips a leading space, so the chat glued the
     two. The space goes AFTER sanitizing, and only when something was already said this turn."""
     from pathlib import Path
-    src = (Path(__file__).resolve().parents[4] / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
+    src = _vts.read(Path(__file__).resolve().parents[4] / "voice/engine/llm/providers/nucleo.py")
     i = src.index("_second.hollow_repairs(")
     call = src[i:i + 700]
     assert 'send((" " if (_sp or "").strip() else "")' in call, call
@@ -230,7 +232,7 @@ def test_a_second_pass_knows_what_the_turn_already_said():
     details» — and was glued to the question («…4:00?You've got three things»). The shared second pass (`speak`,
     used by read_widget and recall) is told what was already said and never glues its first words to it."""
     from pathlib import Path
-    src = (Path(__file__).resolve().parents[4] / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
+    src = _vts.read(Path(__file__).resolve().parents[4] / "voice/engine/llm/providers/nucleo.py")
     body = src[src.index("async def speak(sys2: str"):]
     body = body[:body.index("from voice.engine.llm.providers.vault_intercept")]
     assert '_said = "".join(spoken).strip()' in body and "En este turno ya le has dicho" in body
@@ -263,7 +265,7 @@ def test_a_lens_that_repeats_the_last_one_changes_nothing():
     assert not d.repeats_last_view(("mensajeria", "show_view", {"platform": "email"}, _t.time() - 900),
                                    "mensajeria", "show_view", {"platform": "email"}), "an old lens is not a repeat"
     from pathlib import Path
-    src = (Path(__file__).resolve().parents[4] / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
+    src = _vts.read(Path(__file__).resolve().parents[4] / "voice/engine/llm/providers/nucleo.py")
     assert "_data_ops.repeats_last_view(brain._last_dataop, _cd[\"card\"], action_name, res.payload)" in src
 
 
@@ -342,5 +344,5 @@ def test_a_look_where_the_turn_asks_to_do_yields_to_the_verdict():
     assert not d.a_view_where_the_verdict_acts("youtube", "restart", "show_tab", "act"), "a model act is not a look"
     assert not d.a_view_where_the_verdict_acts("mensajeria", "show_view", "open", "act"), "a look over a look runs"
     from pathlib import Path
-    src = (Path(__file__).resolve().parents[4] / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
+    src = _vts.read(Path(__file__).resolve().parents[4] / "voice/engine/llm/providers/nucleo.py")
     assert "_data_ops.a_view_where_the_verdict_acts(_cd[\"card\"], action_name, _dis, _vw_words)" in src

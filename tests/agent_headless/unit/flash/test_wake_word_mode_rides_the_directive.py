@@ -17,6 +17,8 @@ garble of it, transcribed verbatim in session 8a07e8d9.
 """
 from __future__ import annotations
 
+from tests import voice_turn_source as _vts
+
 import re
 
 from nucleo.flash import identity_actions
@@ -80,7 +82,7 @@ def test_the_prompt_says_when_the_mode_is_off(monkeypatch):
 # ── 3 · wiring guard: BOTH channels ride identity_actions (V2-108's parallel-impl trap) ─────────────────────
 
 def _stripped_source(path: str) -> str:
-    src = open(path, encoding="utf-8").read()
+    src = _vts.read(path)
     return re.sub(r"(?m)#.*$", "", src)
 
 

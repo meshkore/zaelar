@@ -1,3 +1,4 @@
+from tests import voice_turn_source as _vts
 """V2-214 — the alert existed and its CONTENT was broken.
 
 Measured on `remember-and-remind-deadline` (2026-08-20 15:49), and the judge named it precisely: «el `prompt` del
@@ -72,6 +73,6 @@ def test_BOTH_channels_go_through_it():
     # about which file holds the line, so it reads both — otherwise the next extraction turns a wiring
     # guard into a false alarm, and the fix would be to weaken it.
     doors = {"probe": inspect.getsource(probe) + inspect.getsource(probe_scheduling),
-             "voice provider": inspect.getsource(vp)}
+             "voice provider": _vts.turn_source()}
     for name, src in doors.items():
         assert "safe_reminder_prompt(" in src, name

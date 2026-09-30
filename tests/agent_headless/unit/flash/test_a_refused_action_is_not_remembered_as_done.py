@@ -34,6 +34,8 @@ Run: .venv/bin/pytest tests/agent_headless/unit/flash/test_a_refused_action_is_n
 """
 from __future__ import annotations
 
+from tests import voice_turn_source as _vts
+
 import asyncio
 import pathlib
 
@@ -142,7 +144,7 @@ def _fold(s: str) -> str:
 # ── structural: nothing may stamp the seal before the result ────────────────────────────────────────────
 
 def _fast_branch() -> str:
-    src = PROVIDER.read_text(encoding="utf-8")
+    src = _vts.read(PROVIDER)
     start = src.index("if mode == _wactions.FAST:")
     return src[start:src.index("elif mode == _wactions.CONFIRM:", start)]
 

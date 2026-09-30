@@ -17,6 +17,8 @@ Here the two guards are fixed separately, using the session’s REAL PHRASES as 
 """
 from __future__ import annotations
 
+from tests import voice_turn_source as _vts
+
 import re
 import unicodedata
 from pathlib import Path
@@ -77,7 +79,7 @@ def test_matar_exige_orden_explicita_de_parar(frase, puede_matar):
 def test_el_detector_del_fuente_es_este():
     """The detector lives in the provider (a local, non-importable function). This test compares the source REGEX with
     the one here: if someone loosens it there but not here, the cases above would cease to mean anything."""
-    body = NUCLEO.read_text(encoding="utf-8")
+    body = _vts.read(NUCLEO)
     i = body.index("def _says_stop(")
     block = body[i:i + 2600]      # the V2-585 docstring grew; the window must still reach the whole regex
     assert "par[ae]r(?:me|te|lo|la|los|las)?" in block, "cambió el regex del fuente: revisa los casos de este test"
@@ -88,7 +90,7 @@ def test_el_detector_del_fuente_es_este():
 def test_el_guarda_no_mata_a_quien_acaba_de_contestar():
     """CODE guard for the invariant: answering a worker and killing it in the same turn is inherently incoherent,
     and that happened in the session in the very same millisecond. The response wins, since it is non-destructive."""
-    body = NUCLEO.read_text(encoding="utf-8")
+    body = _vts.read(NUCLEO)
     i = body.index('elif name == "stop_worker":')
     block = body[i:i + 5200]     # through past `cancel_soon`, which it must precede
     assert 'worker_acted["v"] == "answer"' in block, "falta el guarda: se puede volver a matar al que contestas"

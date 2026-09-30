@@ -24,6 +24,8 @@ Run: .venv/bin/pytest tests/voice/unit/test_a_denial_of_a_close_is_not_a_close_o
 """
 from __future__ import annotations
 
+from tests import voice_turn_source as _vts
+
 import threading
 
 from nucleo.flash import canvas_license, router_guards, turn_brief
@@ -90,7 +92,7 @@ def test_the_provider_backstop_reads_the_licence_and_not_the_table():
     the repair above would have been invisible to the path that actually closed his card."""
     import pathlib
     src = pathlib.Path(__file__).resolve().parents[3] / "voice/engine/llm/providers/nucleo.py"
-    body = src.read_text(encoding="utf-8")
+    body = _vts.read(src)
     i = body.index('if (not acted.get("closed"))')
     guard = body[i:i + 400]
     assert "close_license" in guard and "brief=" in guard, (

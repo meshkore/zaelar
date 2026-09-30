@@ -2,6 +2,7 @@
 came back MUTE while the monitor search ran, and the mute backstop said «Still on it; I'll let you know as soon as I
 have it» — about a request nothing was doing. Our own canned line was the one lying. It now speaks of live work
 only when that work is about what he just asked (the conservative V2-176 predicate)."""
+from tests import voice_turn_source as _vts
 from types import SimpleNamespace as NS
 
 from nucleo.flash import reminder_guards as rg
@@ -34,5 +35,5 @@ def test_without_his_words_the_old_conduct_stands(monkeypatch):
 def test_both_channels_pass_his_words():
     from pathlib import Path
     root = Path(__file__).resolve().parents[3]
-    assert "operator_text=_op_text)" in (root / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
+    assert "operator_text=_op_text)" in _vts.read(root / "voice/engine/llm/providers/nucleo.py")
     assert "mute_backstop(sess.window, _lg, _hw, operator_text=text)" in (root / "nucleo/flash/probe.py").read_text("utf-8")

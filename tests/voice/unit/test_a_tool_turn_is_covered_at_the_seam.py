@@ -24,6 +24,8 @@ These tests drive the REAL node wrapper with fake inner generators, exactly like
 """
 from __future__ import annotations
 
+from tests import voice_turn_source as _vts
+
 import asyncio
 import inspect
 
@@ -216,7 +218,7 @@ def test_the_cover_never_repeats_the_lead_in_that_just_sounded():
 # ── wiring: both light routes of the VOICE channel, and deliberately NOT the text channel ─────────────────
 
 def test_all_three_light_routes_of_the_voice_channel_cover_their_seam():
-    src = inspect.getsource(__import__("voice.engine.llm.providers.nucleo", fromlist=["x"]))
+    src = _vts.turn_source()
     assert "_fa_w.note_work(brain, kind, target)" in src, "the voice channel must publish its work note"
     for call in ('_cover_work("widget"', '_cover_work("recall")', '_cover_work("search")'):
         assert call in src, f"the light route is not covered at its seam: {call}"

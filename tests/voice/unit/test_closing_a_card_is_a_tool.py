@@ -1,3 +1,4 @@
+from tests import voice_turn_source as _vts
 """Closing a card is a TOOL, like opening one (demo pass 2026-09-28).
 
 Showing had `show_widget`; closing only the [[close]] text tag. Measured on the human-script turns with the
@@ -55,7 +56,7 @@ def test_both_channels_route_it():
     import inspect
     from nucleo.flash import probe
     from voice.engine.llm.providers import nucleo as prov
-    assert 'name == "close_widget"' in inspect.getsource(prov)
+    assert 'name == "close_widget"' in _vts.turn_source()
     assert '"close_widget" in names' in inspect.getsource(probe)
 
 

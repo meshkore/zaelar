@@ -12,6 +12,8 @@ promise backstop that would otherwise have spent a worker on the turn.
 """
 from __future__ import annotations
 
+from tests import voice_turn_source as _vts
+
 import asyncio
 from pathlib import Path
 
@@ -77,7 +79,7 @@ def test_no_named_card_no_model_call(client):
 
 
 def test_both_channels_ask_for_the_call_before_the_promise_backstop_spends_a_worker():
-    prov = (ENGINE / "voice/engine/llm/providers/nucleo.py").read_text(encoding="utf-8")
+    prov = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
     repair = prov.index("_act_repair.call_for_promise_or_order(_op_text, spoken_text, _ar_wid")   # full41 E3
     backstop = prov.index('emit("brain", "🧭 escalada por backstop (prometió crear/gestionar sin escalar)"')
     assert repair < backstop, "the worker backstop runs before the repair — the promise becomes minutes of worker"
@@ -174,7 +176,7 @@ def test_an_order_reading_is_enough_to_ask_the_repair_in_both_channels():
     assert da.reads_as_order(order) and not da.reads_as_order(remark) and not da.reads_as_order(None)
     # full44 M1 widened it: an English «pulling the chart up now» matched no (Spanish) promise form and the verdict
     # was unsure. The door is now any mute-of-tools turn that spoke and names a card; the pass judges the words.
-    prov = (ENGINE / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
+    prov = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
     probe = (ENGINE / "nucleo/flash/probe.py").read_text("utf-8")
     i = prov.index("V2-764 — it PROMISED to act on a card")
     gate = prov[i:i + 1400]

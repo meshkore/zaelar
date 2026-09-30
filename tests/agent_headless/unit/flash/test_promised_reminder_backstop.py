@@ -13,6 +13,8 @@ what comes AFTER “I’ll remind you” is when the alert belongs.
 """
 from __future__ import annotations
 
+from tests import voice_turn_source as _vts
+
 import asyncio
 import time
 
@@ -869,7 +871,7 @@ def test_las_DOS_puertas_lo_llaman():
     from pathlib import Path
 
     def _limpio(ruta):
-        return "\n".join(ln for ln in Path(ruta).read_text().splitlines()
+        return "\n".join(ln for ln in _vts.read(ruta).splitlines()
                          if not ln.strip().startswith("#"))
     # Same reason as above: the probe channel is `probe.py` + `probe_scheduling.py` since the split.
     _probe_src = _limpio("nucleo/flash/probe.py") + _limpio("nucleo/flash/probe_scheduling.py")

@@ -8,6 +8,8 @@ erases it (the V2-605 lesson).
 """
 from __future__ import annotations
 
+from tests import voice_turn_source as _vts
+
 import asyncio
 
 import pytest
@@ -100,7 +102,7 @@ def test_both_channels_actually_wire_the_lane():
     channel disagree in silence."""
     import os
     eng = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
-    prov = open(os.path.join(eng, "voice/engine/llm/providers/nucleo.py")).read()
+    prov = _vts.read(os.path.join(eng, "voice/engine/llm/providers/nucleo.py"))
     assert "_fast_lane.presence(" in prov, "the voice provider no longer calls the presence lane"
     # The probe CHANNEL is two files since V2-674 (the lane chain moved to `probe_actionmap.py` paying the
     # architecture ratchet). A wiring guard names the CHANNEL, never one file — V2-555's lesson.

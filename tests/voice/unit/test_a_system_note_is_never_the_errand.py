@@ -19,6 +19,7 @@ So the fix was already sitting in the file as a variable. What was missing was u
 a promise into WORK — the one place where reading the wrong string does not just confuse an answer, it spends
 money and fills the screen.
 """
+from tests import voice_turn_source as _vts
 import pytest
 
 from nucleo.flash import router
@@ -59,7 +60,7 @@ NUCLEO = Path(__file__).resolve().parents[3] / "voice" / "engine" / "llm" / "pro
 
 
 def _backstop_block() -> str:
-    src = NUCLEO.read_text(encoding="utf-8")
+    src = _vts.read(NUCLEO)
     i = src.find('_no_tool = (not acted["widget"]')
     assert i > 0, "the backstop block moved: this guard would be watching nothing"
     j = src.find("BACKSTOP DETERMINISTA de CIERRE", i)
@@ -119,7 +120,7 @@ def test_the_other_three_work_making_seams_read_the_operator_too():
     """Same door, more handles: the irreversible-order backstop, the escalation's own fallback goal, and the
     same-turn create-widget backstop. Checked by their unique text, not by a region — a region wide enough to
     hold all three also holds lines that legitimately read the turn."""
-    src = NUCLEO.read_text(encoding="utf-8")
+    src = _vts.read(NUCLEO)
     for good, bad in (("is_dangerous(_op_text)", "is_dangerous(text)"),
                       ('req = escalate_req["v"] or _op_text', 'req = escalate_req["v"] or text'),
                       ("create_widget_request(_op_text)", "create_widget_request(text)")):
@@ -226,7 +227,7 @@ def test_the_accent_is_the_signal_and_is_not_normalized_away():
 
 def test_both_promise_gates_consult_it_and_so_does_the_probe():
     """Wired in BOTH channels: this class of defect survives by diverging between voice and probe."""
-    src = NUCLEO.read_text(encoding="utf-8")
+    src = _vts.read(NUCLEO)
     assert "asks_for_missing_detail(spoken_text)" in src, \
         "the no-tool backstop in the turn body has to consult it"
     pb = NUCLEO.parent / "promise_backstop.py"
@@ -261,7 +262,7 @@ def test_the_call_site_still_matches_the_module_it_calls():
 
     from voice.engine.llm.providers import promise_backstop as pb
 
-    tree = ast.parse(NUCLEO.read_text(encoding="utf-8"))
+    tree = ast.parse(_vts.read(NUCLEO))
     calls = [n for n in ast.walk(tree)
              if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
              and n.func.attr == "run" and getattr(n.func.value, "id", "") == "_promise_backstop"]

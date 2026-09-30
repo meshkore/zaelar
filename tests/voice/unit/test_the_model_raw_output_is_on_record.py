@@ -2,6 +2,7 @@
 turn — and nothing on record could say what those tokens were (hidden reasoning? a tool call that failed to parse?
 text a sanitizer ate?). The stream keeps the raw text, the raw tool calls and the hidden-reasoning size in the
 turn's metrics, and the reply event carries them."""
+from tests import voice_turn_source as _vts
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -15,7 +16,7 @@ def test_the_stream_keeps_what_the_model_returned():
 
 
 def test_the_reply_event_carries_it():
-    prov = (ROOT / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
+    prov = _vts.read(ROOT / "voice/engine/llm/providers/nucleo.py")
     body = prov[prov.index("        _reply_extra = {"):]
     body = body[:body.index("\n        }")]
     for k in ("raw_text", "raw_tool_calls", "reasoning_chars", "finish_reason", "dropped_tool_calls"):

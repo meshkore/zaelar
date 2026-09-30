@@ -11,6 +11,8 @@ so the guard's founding case («borra el reloj» dragging the dentist's add_meet
 """
 from __future__ import annotations
 
+from tests import voice_turn_source as _vts
+
 import pathlib
 import re
 
@@ -58,7 +60,7 @@ def test_the_dedupe_guard_consults_the_replay_license():
     """V2-717 moved the predicate out of the provider into `data_ops.is_context_bleed` (the file-size
     ratchet, and so a lens could be exempted in one place). The provider must call it, and the predicate
     must still ask the replay license before eating an identical data-op."""
-    src = (ENGINE / "voice/engine/llm/providers/nucleo.py").read_text(encoding="utf-8")
+    src = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
     m = re.search(r"_data_ops\.is_context_bleed\(brain\._last_dataop.*?deduped\[\"v\"\] = True", src, re.S)
     assert m, "the dedupe guard block moved — re-anchor this test"
     pred = (ENGINE / "nucleo/flash/data_ops.py").read_text(encoding="utf-8")

@@ -7,6 +7,7 @@ transcribed the operator for seven minutes with the 🎤 shut and escalated an e
 These cases pin the ENGINE half: the holder, the route, the heartbeat re-assert, and the turn gate — plus
 the one exemption that is the whole point of muting (typing), and the direction each failure must take.
 """
+from tests import voice_turn_source as _vts
 import pytest
 
 from voice import attention, mic_input
@@ -148,7 +149,7 @@ def test_the_gate_sits_ABOVE_the_attention_gate_and_below_nothing_else():
     import re
     from pathlib import Path
     src = Path(__file__).resolve().parents[3] / "voice/engine/llm/providers/nucleo.py"
-    text = re.sub(r"(?m)#.*$", "", src.read_text(encoding="utf-8"))
+    text = re.sub(r"(?m)#.*$", "", _vts.read(src))
     gate = text.find("mic_input.blocks_turn")
     # V2-655: la puerta de atención se extrajo a `attention_turn.judge`; el guarda sigue al CÓDIGO.
     attn = text.find("attention_turn.judge")

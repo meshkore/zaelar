@@ -1,3 +1,4 @@
+from tests import voice_turn_source as _vts
 """V2-653 F0 — the canvas arbiter: ONE decision tree for every canvas mutation, in shadow.
 
 This file is the CONFORMANCE SUITE the migration leans on: each case is a MEASURED incident from the
@@ -212,7 +213,7 @@ def test_the_tap_never_raises_even_on_garbage(verdicts):
 # ── the wiring, structural (comment-stripped, per the V2-573 lesson) ────────────────────────────────────
 
 def _stripped(path: str) -> str:
-    src = (ENGINE / path).read_text(encoding="utf-8")
+    src = _vts.read(ENGINE / path)
     return re.sub(r"(?m)#.*$", "", src)
 
 

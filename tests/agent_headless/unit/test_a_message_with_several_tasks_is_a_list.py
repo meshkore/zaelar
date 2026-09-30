@@ -6,6 +6,8 @@ first 600, five widget writes, three workers, and the rename lane took a one-lin
 """
 from __future__ import annotations
 
+from tests import voice_turn_source as _vts
+
 import asyncio
 import pathlib
 
@@ -245,7 +247,7 @@ def test_a_list_that_cannot_be_split_is_still_run_as_one_step(monkeypatch):
 
 # ── wiring: the list goes FIRST in both channels ─────────────────────────────────────────────────────────
 def test_both_channels_ask_about_a_list_before_any_other_lane():
-    voice = (ROOT / "voice/engine/llm/providers/nucleo.py").read_text()
+    voice = _vts.read(ROOT / "voice/engine/llm/providers/nucleo.py")
     i_list, i_rename, i_clamp = (voice.index("_fast_lane.task_list("), voice.index("_fast_lane.rename("),
                                  voice.index("attention.clamp_input("))
     i_handled = voice.index("_fast_lane.handled(")

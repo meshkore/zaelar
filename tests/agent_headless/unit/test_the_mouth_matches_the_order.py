@@ -13,6 +13,8 @@ Measured session, 2026-09-03 20:10-20:52, the operator's engine — three shapes
 """
 from __future__ import annotations
 
+from tests import voice_turn_source as _vts
+
 from pathlib import Path
 
 import pytest
@@ -112,7 +114,7 @@ def test_the_ack_exists_in_both_languages_and_varies():
 def test_the_voice_arm_carries_the_utterance():
     """`filler_kind` runs at ARM time, so the provider must hand the text over — an arm without it silently
     degrades every action order back to «Déjame ver…»."""
-    src = (ENGINE / "voice/engine/llm/providers/nucleo.py").read_text(encoding="utf-8")
+    src = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
     assert "_filler_audio.arm(brain, text" in src, "the provider arms the filler without the turn's text"
 
 
@@ -143,7 +145,7 @@ def test_both_channels_wire_the_repair():
     """V2-539's lesson yet again: a rule applied in one channel silently stops existing in the other. Since
     V2-642 the voice channel consults the ONE seam (`second_pass.hollow_repairs`) that holds guard + repair;
     the probe keeps its parallel wiring inline."""
-    voice = (ENGINE / "voice/engine/llm/providers/nucleo.py").read_text(encoding="utf-8")
+    voice = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
     seam = (ENGINE / "nucleo/flash/second_pass.py").read_text(encoding="utf-8")
     probe = (ENGINE / "nucleo/flash/probe.py").read_text(encoding="utf-8")
     assert "hollow_repairs(" in voice, "the voice channel dropped the hollow-turn seam"
@@ -208,7 +210,7 @@ def test_the_fast_lane_speaks_after_executing_and_the_probe_reply_carries_it():
     assert lane.index("execute(") < lane.index("await _speak_ack"), "the ack must follow the mutation"
     probe = (ENGINE / "nucleo/flash/probe.py").read_text(encoding="utf-8")
     assert "pick_ack" in probe, "the probe's fast lane answers silently again"
-    provider = (ENGINE / "voice/engine/llm/providers/nucleo.py").read_text(encoding="utf-8")
+    provider = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
     assert "fast_lane.handled" in provider or "_fast_lane.handled" in provider, \
         "the voice provider no longer routes through the extracted fast lane"
 

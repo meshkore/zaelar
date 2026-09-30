@@ -12,6 +12,8 @@ the merged sentence, found no video in it and dropped the call. The operator had
 """
 from __future__ import annotations
 
+from tests import voice_turn_source as _vts
+
 import asyncio
 
 import pytest
@@ -70,6 +72,6 @@ def test_the_voice_provider_calls_it_where_a_turn_dies_unanswered():
     had been said). A seam nobody calls is how this sentence lost its verb."""
     import inspect
     from voice.engine.llm.providers import nucleo
-    src = inspect.getsource(nucleo)
+    src = _vts.turn_source()
     assert src.count("_acc_mod.unanswered_by(") == 2
     assert 'if not "".join(spoken):\n                _acc_mod.unanswered_by(brain, text)' in src

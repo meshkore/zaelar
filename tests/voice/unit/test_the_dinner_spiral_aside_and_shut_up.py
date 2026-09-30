@@ -1,3 +1,4 @@
+from tests import voice_turn_source as _vts
 """V2-657 — the dinner spiral (measured 2026-09-10, session 130418ed): with the household talking near the
 mic, every table utterance landed inside the open conversation window, the model answered it («Acostaros» →
 «Buenas noches, Ricardo»), and both the utterance and the answer re-anchored the window — so the
@@ -32,7 +33,7 @@ def _clean(monkeypatch):
 
 
 def _src(rel: str) -> str:
-    return open(os.path.join(ENG, rel), encoding="utf-8").read()
+    return _vts.read(os.path.join(ENG, rel))
 
 
 # ── the shut-up grammar ─────────────────────────────────────────────────────────────────────────────────

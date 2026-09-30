@@ -24,6 +24,8 @@ que ha fallado** se vuelva a enviar al otro modelo», plus «tiene que haber una
 """
 from __future__ import annotations
 
+from tests import voice_turn_source as _vts
+
 import ast
 import pathlib
 import re
@@ -116,7 +118,7 @@ def test_no_function_reads_a_module_alias_it_later_shadows():
 
 def test_the_cluster_branch_no_longer_shadows_the_canvas_alias():
     """The instance, named, so a future edit cannot quietly reintroduce it under the old name."""
-    src = (ENGINE / "voice/engine/llm/providers/nucleo.py").read_text()
+    src = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
     assert "canvas_visibility as _cvis" in src, "the alias this test is about is gone — re-aim the test"
     assert not re.search(r'^\s+_cvis = \(args\.get\("vis"\)', src, re.M), \
         "`_cvis` is assigned as a local again: `show_images` and the music/messaging guards are dead"
@@ -164,7 +166,7 @@ def test_the_engine_fault_line_names_the_defect():
 
 def test_a_fault_of_ours_never_reaches_the_ladder():
     """The wiring, in the branch that runs BEFORE anything touches `provider_chain`."""
-    src = (ENGINE / "voice/engine/llm/providers/nucleo.py").read_text()
+    src = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
     i = src.index("if errored:")
     j = src.index("_v = {}", i)
     head = src[i:j]
@@ -181,7 +183,7 @@ def test_a_fault_of_ours_never_reaches_the_ladder():
 
 def test_the_degraded_alert_carries_the_real_error():
     """It travelled as the literal «flash layer error», so the timeline could not say why the brain fell."""
-    src = (ENGINE / "voice/engine/llm/providers/nucleo.py").read_text()
+    src = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
     m = re.search(r'emit\("alert", "Cerebro rápido caído — turno degradado\.",\s*\n\s*text=([^\n]+)', src)
     assert m, "the degraded alert is not where this test expects it"
     assert "err_text" in m.group(1), f"the alert still hides the cause: {m.group(1)}"
@@ -287,7 +289,7 @@ def test_the_stream_never_relays_once_it_has_spoken():
 def test_a_relayed_turn_is_not_marked_against_the_titular_twice():
     """`fast_client` already attributed the failure on the way out. Re-marking from the voice handler would
     punish the titular for what the stand-in did — the silent mis-attribution V2-307 paid for."""
-    src = (ENGINE / "voice/engine/llm/providers/nucleo.py").read_text()
+    src = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
     i = src.index("_v = {}")
     body = src[i:src.index("# RELAY on a HARD failure", i)]
     assert 'relayed_to' in body, "the handler no longer asks whether the relay already happened"

@@ -3,9 +3,10 @@ model read the agenda and said «Okay… let me look at your calendar across tha
 told «if what you already said answers it, reply SKIP», said nothing — the promise hung and the dates were never
 given. The instruction now says that announcing a look is not an answer, and a SKIP leaves a line on the timeline
 (it was silent, so the cause could not be confirmed from the run)."""
+from tests import voice_turn_source as _vts
 import pathlib
 
-SRC = (pathlib.Path(__file__).resolve().parents[3] / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
+SRC = _vts.read(pathlib.Path(__file__).resolve().parents[3] / "voice/engine/llm/providers/nucleo.py")
 
 
 def test_a_look_announced_is_not_an_answer():

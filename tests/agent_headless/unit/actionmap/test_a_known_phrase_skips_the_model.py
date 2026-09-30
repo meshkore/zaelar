@@ -1,3 +1,4 @@
+from tests import voice_turn_source as _vts
 #
 # test_a_known_phrase_skips_the_model.py — V2-539, the Phase-0 litmus encoded.
 #
@@ -339,7 +340,7 @@ def test_both_channels_are_wired():
     grepping the provider — is what keeps this from passing while the lane silently falls out of the path."""
     from pathlib import Path
     root = Path(__file__).resolve().parents[4]
-    provider = (root / "voice/engine/llm/providers/nucleo.py").read_text(encoding="utf-8")
+    provider = _vts.read(root / "voice/engine/llm/providers/nucleo.py")
     lane = (root / "voice/engine/llm/providers/fast_lane.py").read_text(encoding="utf-8")
     # Two files since V2-674: the call site in `probe.py`, the lane bodies in `probe_actionmap.py`.
     probe = ((root / "nucleo/flash/probe.py").read_text(encoding="utf-8")

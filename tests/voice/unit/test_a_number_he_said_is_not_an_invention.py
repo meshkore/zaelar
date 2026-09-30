@@ -66,6 +66,8 @@ Run: .venv/bin/pytest tests/voice/unit/test_a_number_he_said_is_not_an_invention
 """
 from __future__ import annotations
 
+from tests import voice_turn_source as _vts
+
 import json
 import pathlib
 import threading
@@ -241,7 +243,7 @@ def test_the_alias_that_matched_EVERY_sentence_is_gone():
 
 
 def test_the_provider_asks_for_the_repair_before_the_widget_refuses():
-    body = (_ENGINE / "voice/engine/llm/providers/nucleo.py").read_text(encoding="utf-8")
+    body = _vts.read(_ENGINE / "voice/engine/llm/providers/nucleo.py")
     assert "_direct_action.fill_missing(_cd[\"card\"], action_name, res.payload," in body
     assert body.index("_direct_action.fill_missing") < body.index(
         '_apply_widget_data(_cd["card"], action_name, res.payload, ref)'), \

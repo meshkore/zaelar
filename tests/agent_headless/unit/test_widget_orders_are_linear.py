@@ -14,6 +14,8 @@ Three fixes, three guards here:
 """
 from __future__ import annotations
 
+from tests import voice_turn_source as _vts
+
 import json
 from pathlib import Path
 
@@ -111,7 +113,7 @@ def test_both_channels_apply_the_guard():
     """V2-539's lesson, again: voice and probe are parallel implementations of the same decision, and a rule
     applied in one silently stops existing in the other — the probe carried this very rule IN PROSE while the
     voice channel executed the spurious show. Both must call the shared guard."""
-    voice = (ENGINE / "voice/engine/llm/providers/nucleo.py").read_text(encoding="utf-8")
+    voice = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
     probe = (ENGINE / "nucleo/flash/probe.py").read_text(encoding="utf-8")
     assert "show_contradicts_the_order" in voice, "the voice channel dropped the guard"
     assert "show_contradicts_the_order" in probe, "the probe channel dropped the guard"

@@ -21,6 +21,8 @@ go through this handoff.
 """
 from __future__ import annotations
 
+from tests import voice_turn_source as _vts
+
 import asyncio
 
 import pytest
@@ -182,7 +184,7 @@ def test_the_two_channels_share_ONE_body(fresh_db):
     import inspect
 
     from voice.engine.llm.providers import nucleo as voice_nucleo
-    src = inspect.getsource(voice_nucleo)
+    src = _vts.turn_source()
     start = src[src.index("def _start_web_auth"):]
     start = start[:start.index("\n        def ")] if "\n        def " in start else start
     assert "web_auth" in start, "la voz volvió a implementar el arranque del login por su cuenta"

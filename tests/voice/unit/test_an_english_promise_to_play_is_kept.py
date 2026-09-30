@@ -8,6 +8,8 @@ operator's whole sentence as a search. Both channels are wired (the provider and
 """
 from __future__ import annotations
 
+from tests import voice_turn_source as _vts
+
 from pathlib import Path
 
 import pytest
@@ -61,7 +63,7 @@ def test_the_query_is_the_title_the_words_carry(reply, operator, query):
 def test_both_channels_play_an_english_promise_before_any_worker():
     """The provider's branch runs BEFORE the escalate/show branches (a song is on the player, not on the web) and
     the probe mirrors it; both take the query from `music_query`, never the sentence whole."""
-    prov = (ENGINE / "voice/engine/llm/providers/nucleo.py").read_text(encoding="utf-8")
+    prov = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
     assert 'promises_playback(spoken_text, _op_text, music_open=_direct_action.on_screen_now("musica"))' in prov
     head, tail = prov.split("elif _playback:", 1)
     assert 'emit("brain", "🪟 show por backstop de promesa' in head

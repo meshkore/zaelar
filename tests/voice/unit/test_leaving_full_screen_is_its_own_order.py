@@ -23,6 +23,8 @@ which card is maximized — did not hold. Two structural causes, both fixed here
 """
 from __future__ import annotations
 
+from tests import voice_turn_source as _vts
+
 import json
 import pathlib
 import re
@@ -173,7 +175,7 @@ def test_the_completion_leaves_and_says_so(monkeypatch):
 def test_the_voice_turn_runs_the_completion_before_the_close_backstop_and_marks_it():
     """Order matters: a turn about leaving full screen must never be read below as an order to close the
     whole widget (the V2-600 incident)."""
-    src = (ENGINE / "voice/engine/llm/providers/nucleo.py").read_text(encoding="utf-8")
+    src = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
     i = src.index("_show_target.fullscreen_exit_backstop(")
     j = src.index('if (not acted.get("closed")) and _canvas_lic.close_license(text, brief=_brief)')
     assert i < j, "the completion runs AFTER the close backstop — a leave order could be read as a close"

@@ -22,6 +22,7 @@ third is a real defect:
 The fix is the V2-540/V2-603 lesson once more: the canvas KNEW which card was at full screen and never said
 so. A verb whose object the system can see and the model cannot is a verb the model declines to use.
 """
+from tests import voice_turn_source as _vts
 import re
 from pathlib import Path
 
@@ -183,7 +184,7 @@ def test_both_channels_resolve_the_target_through_the_same_function():
     drift. Both must call `show_target.fullscreen_target` — a second copy here would mean the probe reports
     a decision the voice does not take (the trap V2-252 exists for)."""
     root = Path(__file__).resolve().parents[4]
-    voice = (root / "voice" / "engine" / "llm" / "providers" / "nucleo.py").read_text(encoding="utf-8")
+    voice = _vts.read(root / "voice" / "engine" / "llm" / "providers" / "nucleo.py")
     probe = (root / "nucleo" / "flash" / "probe.py").read_text(encoding="utf-8")
     shared = (root / "nucleo" / "flash" / "show_target.py").read_text(encoding="utf-8")
     # V2-635 paid the provider's ratchet by moving the whole branch body into

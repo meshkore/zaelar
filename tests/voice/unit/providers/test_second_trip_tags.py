@@ -14,6 +14,8 @@ directions and were verified RED against the shipped bug (the exact pre-fix code
 """
 from __future__ import annotations
 
+from tests import voice_turn_source as _vts
+
 import re
 from pathlib import Path
 
@@ -24,7 +26,7 @@ def _second_trip_block() -> str:
     """The retry block, from its `_need_family` read to its except handler — anchored on markers that a
     refactor cannot silently drop: if the anchors go, this raises and the guard gets repointed, never
     left watching nothing (the V2-201 lesson: a guard aimed at the void stays green)."""
-    text = SRC.read_text(encoding="utf-8")
+    text = _vts.read(SRC)
     m = re.search(r"_need = getattr\(self, \"_need_family\".*?except Exception as e:", text, re.S)
     assert m, "the second-trip block moved — repoint this guard at wherever V2-096 F2's retry lives now"
     return m.group(0)

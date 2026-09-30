@@ -14,6 +14,8 @@ turn and a slow network, which is exactly the condition nobody can reproduce on 
 """
 from __future__ import annotations
 
+from tests import voice_turn_source as _vts
+
 import ast
 import pathlib
 
@@ -92,7 +94,7 @@ def test_the_voice_provider_names_no_blocking_jev_call():
     on purpose — so this check strips the `_from_brief` spellings first and whatever remains is a
     real call. A new one here is a new way to freeze STT, TTS and barge-in for up to the timeout.
     """
-    src = _PROVIDER.read_text(encoding="utf-8")
+    src = _vts.read(_PROVIDER)
     code = "\n".join(l.split("#", 1)[0] for l in src.splitlines())
     code = code.replace("judge_escalation_from_brief", "").replace("repair_action_from_brief", "")
     hits = sorted({n for n in BLOCKING_NAMES if f"{n}(" in code})
@@ -112,7 +114,7 @@ def test_the_brief_readers_are_what_it_uses_instead():
     provider's own text would have gone red for a refactor that changed no behaviour, and asserting
     nothing would have let the reader disappear.
     """
-    src = _PROVIDER.read_text(encoding="utf-8")
+    src = _vts.read(_PROVIDER)
     assert "turn_brief" in src, "the provider no longer fires the turn brief at all"
     assert "brief=_brief" in src, "the action repair no longer receives the brief"
     assert "settle_commission(" in src, "the provider no longer settles its commissions"
@@ -143,7 +145,7 @@ def test_the_brief_is_fired_AFTER_the_sentence_is_admitted():
     Overlap is not the reason it was early — the prompt is assembled 3 ms after admission and every
     reader is 2-4 s away — so there is nothing to trade off. It fires where the sentence is final.
     """
-    src = _PROVIDER.read_text(encoding="utf-8")
+    src = _vts.read(_PROVIDER)
     code = "\n".join(l.split("#", 1)[0] for l in src.splitlines())
     assert code.count("_turn_brief.ask_for_turn(") == 1, "the brief is fired in more than one place"
     fire = code.index("_turn_brief.ask_for_turn(")
@@ -159,7 +161,7 @@ def test_the_voice_provider_cannot_reach_the_blocking_repair():
     """Audit finding 9. With no brief, `resolve_undeclared_action` falls through to `repair_action`,
     a synchronous `urlopen` — called from inside the provider's `async def`. The ratchet above
     cannot see it: the provider names the wrapper, not the blocking function inside it."""
-    src = _PROVIDER.read_text(encoding="utf-8")
+    src = _vts.read(_PROVIDER)
     code = "\n".join(l.split("#", 1)[0] for l in src.splitlines())
     assert "resolve_undeclared_action(" in code, "the provider lost its undeclared-action door"
     call = code[code.index("resolve_undeclared_action("):][:220]
@@ -179,6 +181,6 @@ def test_the_filler_reads_the_brief_instead_of_asking(monkeypatch):
     assert "request_async(" not in code, (
         "`filler_audio` asks Jev on its own socket again — the turn brief already carries "
         "`request_type` (V2-726 A2)")
-    src = _PROVIDER.read_text(encoding="utf-8")
+    src = _vts.read(_PROVIDER)
     assert "brief=_brief" in src.split("_filler_audio.arm(")[1][:120], (
         "the provider arms the filler without handing it the brief, so its verdict is unreachable")

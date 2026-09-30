@@ -20,6 +20,8 @@ And the other four the same session measured, each one its own section below.
 """
 from __future__ import annotations
 
+from tests import voice_turn_source as _vts
+
 import inspect
 import os
 
@@ -313,8 +315,7 @@ def test_and_with_NO_brief_at_all_it_stands_down():
 def test_the_guard_sits_at_the_ONE_point_both_branches_converge_on():
     """The tag and the `widget_data` tool both end in `_apply_widget_data`. A rule installed in one of two
     branches is this repo's own named way of fixing half a defect."""
-    import voice.engine.llm.providers.nucleo as prov
-    src = inspect.getsource(prov)
+    src = _vts.turn_source()
     body = src[src.index("def _apply_widget_data(wid: str"):]
     body = body[:body.index("def _log_dataop")]
     # CODE only: the comment above the call names the function too, and a disarm that deleted the call

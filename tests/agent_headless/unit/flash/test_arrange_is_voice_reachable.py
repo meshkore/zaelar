@@ -10,6 +10,8 @@ tool, the action map's `arrange`, and the REST endpoint — all emit the same ("
 """
 from __future__ import annotations
 
+from tests import voice_turn_source as _vts
+
 from pathlib import Path
 
 ENGINE = Path(__file__).resolve().parents[4]
@@ -54,7 +56,7 @@ def test_both_seed_packs_carry_arrange_phrases_and_the_pack_version_moved():
 
 def test_both_channels_wire_the_tool():
     """The parallel-implementation trap, pinned as everywhere else: voice AND probe must handle it."""
-    voice = (ENGINE / "voice/engine/llm/providers/nucleo.py").read_text(encoding="utf-8")
+    voice = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
     probe = (ENGINE / "nucleo/flash/probe.py").read_text(encoding="utf-8")
     assert 'name == "arrange_canvas"' in voice, "the voice channel dropped the handler"
     assert '"arrange_canvas" in names' in probe, "the probe channel dropped the mirror"

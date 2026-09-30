@@ -6,6 +6,7 @@ failover), but on the cluster turn side (`connectors/meshkore/brain.py` → `nuc
 heartbeat repeated the SAME broken call in a loop — "cluster brain turn failed: 429" over and over, with no failover
 and without the panel saying anything.
 """
+from tests import voice_turn_source as _vts
 import time
 
 import pytest
@@ -347,7 +348,7 @@ def test_el_turno_de_VOZ_lo_pregunta_y_cambia_lo_que_dice():
     import inspect
     import pathlib
     src = pathlib.Path(inspect.getfile(pc)).parent.parent.parent / "voice/engine/llm/providers/nucleo.py"
-    txt = src.read_text(encoding="utf-8")
+    txt = _vts.read(src)
     # V2-252: the shared module resolves «is anyone left?» and this turn READS the verdict.
     assert '_dry = bool(_v.get("dry"))' in txt
     # Repointed 2026-08-31 (ratchet extraction): the wiring is unchanged — «¿me lo repites?» stays the
@@ -467,7 +468,7 @@ def test_el_turno_de_voz_NOMBRA_lo_que_esta_callado():
     import inspect
     import pathlib
     src = pathlib.Path(inspect.getfile(pc)).parent.parent.parent / "voice/engine/llm/providers/nucleo.py"
-    txt = src.read_text(encoding="utf-8")
+    txt = _vts.read(src)
     assert "_pchain2.suppressed_relays()" in txt
     assert "_pchain2.dry_chain_line" in txt
     line = pc.dry_chain_line(["deepseek-directo"])
@@ -544,7 +545,7 @@ def test_el_turno_de_voz_LO_LLAMA_cuando_se_atasca():
     import inspect
     import pathlib
     src = pathlib.Path(inspect.getfile(pc)).parent.parent.parent / "voice/engine/llm/providers/nucleo.py"
-    txt = src.read_text(encoding="utf-8")
+    txt = _vts.read(src)
     # V2-252: the turn passes the FACT (`stalled=`) and the shared module decides `note_stall` vs `note_failure`.
     # Both halves are checked: without the first the stall does not arrive; without the second it is not penalized.
     assert "stalled=bool(stalled)" in txt

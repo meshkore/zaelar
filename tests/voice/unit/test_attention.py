@@ -1,3 +1,4 @@
+from tests import voice_turn_source as _vts
 #
 # test_attention.py — attention gate (V2-015 · T134/T135/T136; content V2-??? 2026-08-16).
 #
@@ -577,7 +578,7 @@ def test_the_interim_stream_and_the_gate_are_both_wired():
     gate_src = _re.sub(r"(?m)#.*$", "",
                        open("voice/engine/llm/providers/attention_turn.py", encoding="utf-8").read())
     prov_src = _re.sub(r"(?m)#.*$", "",
-                       open("voice/engine/llm/providers/nucleo.py", encoding="utf-8").read())
+                       _vts.read("voice/engine/llm/providers/nucleo.py"))
     assert "note_wakeword_spotted()" in agent_src
     assert "reclaim_ambient_tail(" in gate_src and "note_ambient(" in gate_src
     assert "attention_turn.judge(" in prov_src, "…and the turn still goes through it"
@@ -615,7 +616,7 @@ def test_the_text_channel_stamps_it_and_the_provider_reads_it():
     eng = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
     handler = open(os.path.join(eng, "voice/engine/pipeline/agent.py")).read()
     assert "attention.note_typed()" in handler, "the chat/paste handler no longer stamps typed turns"
-    prov = open(os.path.join(eng, "voice/engine/llm/providers/nucleo.py")).read()
+    prov = _vts.read(os.path.join(eng, "voice/engine/llm/providers/nucleo.py"))
     assert "was_typed()" in prov, "the provider no longer reads whether the turn was typed"
     assert "typed=_typed_turn" in prov, "the provider no longer passes the fact to the handled decision"
     seam = open(os.path.join(eng, "nucleo/flash/harness_turn.py")).read()   # V2-661: the decision lives here

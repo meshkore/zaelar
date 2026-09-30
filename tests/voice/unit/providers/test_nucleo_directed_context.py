@@ -9,6 +9,7 @@ session this way. `_last_reply` is the fix: it mirrors `_last_spoken` but is wri
 (real model output), never from the filler path — this file locks that source-level invariant statically,
 since exercising the full streaming turn requires the live LiveKit session machinery that this suite does not build.
 """
+from tests import voice_turn_source as _vts
 import re
 
 from pathlib import Path
@@ -20,7 +21,7 @@ _GATE = Path(__file__).resolve().parents[4] / "voice" / "engine" / "llm" / "prov
 
 
 def _text() -> str:
-    return _SRC.read_text(encoding="utf-8")
+    return _vts.read(_SRC)
 
 
 def test_evaluate_content_reads_last_reply_not_last_spoken():

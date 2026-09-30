@@ -12,6 +12,8 @@ here too, and there is no second copy of the fact to fall out of step.
 """
 from __future__ import annotations
 
+from tests import voice_turn_source as _vts
+
 import asyncio
 import json
 from pathlib import Path
@@ -126,7 +128,7 @@ def test_the_voice_can_never_choose_the_language():
 
 def test_a_turn_heard_without_a_language_never_reaches_the_brain():
     """The backstop for a session that outlived the gate: after the mic switch, before the attention judge."""
-    src = (ENGINE / "voice/engine/llm/providers/nucleo.py").read_text(encoding="utf-8")
+    src = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
     mic = src.index("mic_input.blocks_turn(text)")
     gate = src.index("_rs_lang.language_pending()")
     judge = src.index("_attention_turn.judge(")

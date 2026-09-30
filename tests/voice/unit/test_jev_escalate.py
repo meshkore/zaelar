@@ -9,6 +9,8 @@ a surviving commission; it never commissions one.
 """
 from __future__ import annotations
 
+from tests import voice_turn_source as _vts
+
 import pytest
 
 from nucleo import jev
@@ -171,8 +173,8 @@ def test_the_provider_records_the_disposition_and_only_clears_on_annul():
     """The wiring, statically — the decision is worthless if the provider still clears on the raw
     verdict. It must call `annulment_verdict`, emit what it decided, and gate the clear on it."""
     import pathlib
-    src = (pathlib.Path(__file__).resolve().parents[3]
-           / "voice" / "engine" / "llm" / "providers" / "nucleo.py").read_text(encoding="utf-8")
+    src = _vts.read(pathlib.Path(__file__).resolve().parents[3]
+           / "voice" / "engine" / "llm" / "providers" / "nucleo.py")
     code = "\n".join(l.split("#", 1)[0] for l in src.splitlines())
     assert "settle_commission(" in code, (
         "the provider annuls on the raw verdict again instead of going through the gate (V2-726 A3)")

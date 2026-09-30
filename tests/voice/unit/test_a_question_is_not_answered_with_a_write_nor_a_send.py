@@ -8,12 +8,13 @@ Telegram. Twice, across two turns. Two rules close it:
   and the model is told it did not run. It was ASKED until demo pass 45 (2026-09-29): the pending question was what
   «ok book it» answered one turn later, and two Telegrams went to Rowan he never ordered. Never sent silently,
   never left pending for the next «ok»."""
+from tests import voice_turn_source as _vts
 import pathlib
 
 import pytest
 
 ENGINE = pathlib.Path(__file__).resolve().parents[3]
-SRC = (ENGINE / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
+SRC = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
 
 
 def test_a_message_to_a_person_is_an_act_that_leaves():

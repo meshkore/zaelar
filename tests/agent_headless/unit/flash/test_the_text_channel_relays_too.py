@@ -23,6 +23,7 @@ That is why the fix is not just the retry: the DECISION moves to `nucleo/flash/p
 and both channels use it. Two copies of a decision diverge silently, and the warning arrives when someone measures
 something that goes wrong for a reason other than the one being measured.
 """
+from tests import voice_turn_source as _vts
 import inspect
 import pathlib
 
@@ -123,7 +124,7 @@ def test_cuando_ni_asi_se_puede_lo_DICE(cadena):
 def test_los_DOS_canales_usan_la_MISMA_decision():
     """The structural fix, and what prevents a fourth time: the policy lives in one place and both read it."""
     voz = pathlib.Path(inspect.getfile(pc)).parent.parent.parent / "voice/engine/llm/providers/nucleo.py"
-    assert "provider_failure" in voz.read_text(encoding="utf-8")
+    assert "provider_failure" in _vts.read(voz)
     assert "provider_failure" in _probe_src()
 
 
@@ -170,7 +171,7 @@ def test_sin_spec_se_comporta_como_antes(cadena):
 def test_los_dos_canales_PASAN_el_spec():
     """WIRING GUARD: the predicate can be perfect while both channels still fail to say who ran."""
     voz = pathlib.Path(inspect.getfile(pc)).parent.parent.parent / "voice/engine/llm/providers/nucleo.py"
-    assert "spec=spec)" in voz.read_text(encoding="utf-8")
+    assert "spec=spec)" in _vts.read(voz)
     assert "role=_pchain_err.ROLE_VOICE, spec=spec)" in _probe_src()
 
 

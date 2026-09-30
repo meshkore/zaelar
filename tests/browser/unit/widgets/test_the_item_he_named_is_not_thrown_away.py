@@ -47,6 +47,8 @@ the second. That is the defect this file pins, in four parts:
 """
 from __future__ import annotations
 
+from tests import voice_turn_source as _vts
+
 import datetime as _dt
 import inspect
 import json
@@ -309,7 +311,7 @@ def test_the_voice_turn_passes_HIS_HALF_of_the_turn_as_the_last_resort():
     `[SISTEMA]` note, which in this very session listed the candidate titles themselves — feeding that in
     here would make every reference ambiguous."""
     from voice.engine.llm.providers import nucleo as prov
-    src = inspect.getsource(prov)
+    src = _vts.turn_source()
     assert "order=_bnotes.operator_half(text)" in src
     assert "refs.resolve(wid, action_name, ref, payload, order=" in src
 
@@ -319,7 +321,7 @@ def test_the_data_op_event_says_WHAT_ITEM_was_named():
     «the model sent nothing» apart from «the resolver threw away what it sent», and the first reading is
     the one that was believed. That is the week."""
     from voice.engine.llm.providers import nucleo as prov
-    src = inspect.getsource(prov)
+    src = _vts.turn_source()
     assert '"item": ref' in src
     assert "def _apply_widget_data(wid: str, action_name: str, payload: dict, ref: str = \"\")" in src
     assert "_apply_widget_data(wid, action_name, res.payload, ref)" in src

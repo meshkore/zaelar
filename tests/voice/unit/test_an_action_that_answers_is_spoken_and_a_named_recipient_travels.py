@@ -7,6 +7,7 @@ the verdict read the sentence as an order, and only a question's op had its data
 E3: «send the invoice to quinn…» — the model called `reply` (to the invoice's sender); the outward-act gate ran
 the verdict's `forward` with the reply's payload, which has no recipient, and the forward was refused. The person
 his sentence names, from the directory, fills an empty `contact`."""
+from tests import voice_turn_source as _vts
 import pathlib
 
 import pytest
@@ -17,7 +18,7 @@ ENGINE = pathlib.Path(__file__).resolve().parents[3]
 def test_find_free_is_declared_an_answer_and_the_turn_speaks_it():
     from widgets import effects as fx
     assert fx.carries("agenda", "find_free", fx.OUTPUT_ANSWER)
-    src = (ENGINE / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
+    src = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
     assert "_answers = any(_fx_ans.carries(_w, _a, _fx_ans.OUTPUT_ANSWER)" in src
     assert "if _answers or (_wi is not None" in src
 
@@ -41,5 +42,5 @@ def test_the_one_person_he_names_fills_an_empty_recipient(directory):
 
 
 def test_the_outward_act_gate_carries_the_named_recipient():
-    src = (ENGINE / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
+    src = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
     assert "_vpay.update(_direct_action.person_fill(wid, _vdis, _vpay, _bnotes.operator_half(text)))" in src

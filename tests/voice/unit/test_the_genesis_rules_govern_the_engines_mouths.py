@@ -14,6 +14,8 @@ per-install overrides written by the directive handler in the SAME turn, read pe
 """
 from __future__ import annotations
 
+from tests import voice_turn_source as _vts
+
 import asyncio
 import json
 import pathlib
@@ -184,7 +186,7 @@ def test_the_fast_lane_goes_silent_when_the_operator_asks(monkeypatch):
 # ── 5 · the provider's never-mute backstops and the prompt line are wired (source contracts) ─────────────
 
 def test_the_voice_backstops_consult_the_policy():
-    src = (ENGINE / "voice/engine/llm/providers/nucleo.py").read_text(encoding="utf-8")
+    src = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
     assert 'if data_done["v"] and not spoken_text and _ack_allowed' in src, \
         "the data-op «Hecho.» backstop must be gated by the style policy"
     assert 'if acted["widget"] and not spoken_text and _ack_allowed' in src, \
@@ -216,7 +218,7 @@ def test_an_acted_but_silent_turn_never_gets_the_stuck_apology():
     empty spoken_text and fell into the mute backstop — four «se me ha ido» apologies over turns that had
     worked, reading as not-understanding. The backstop must be gated on the turn having done NOTHING, and a
     context-bleed dedupe counts as handled (a deliberately ignored duplicate is not a void to apologize for)."""
-    src = (ENGINE / "voice/engine/llm/providers/nucleo.py").read_text(encoding="utf-8")
+    src = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
     assert "if not spoken_text and not _tool_handled:" in src, \
         "the mute backstop must skip turns that acted (V2-633 silence is design, not a void)"
     # V2-646 narrowed this by ONE state, and the narrowing is the point: a deduped duplicate still counts as

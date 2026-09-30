@@ -22,6 +22,8 @@ that goes silent, or the next one that appears unannounced, turns this red.
 """
 from __future__ import annotations
 
+from tests import voice_turn_source as _vts
+
 import pathlib
 import time
 
@@ -127,8 +129,8 @@ def test_the_retired_route_is_gone_from_the_engine(wire):
     from nucleo.flash import tool_selection as tsel
     for gone in ("ask_route_async", "resolve_route", "ROUTE_KINDS", "ROUTE_INSTRUCTIONS"):
         assert not hasattr(tsel, gone), f"`tool_selection.{gone}` is back — V2-726 F3 was cancelled"
-    provider = (pathlib.Path(__file__).resolve().parents[3]
-                / "voice" / "engine" / "llm" / "providers" / "nucleo.py").read_text(encoding="utf-8")
+    provider = _vts.read(pathlib.Path(__file__).resolve().parents[3]
+                / "voice" / "engine" / "llm" / "providers" / "nucleo.py")
     code = "\n".join(l.split("#", 1)[0] for l in provider.splitlines())
     assert "ask_route_async" not in code and "resolve_route" not in code, (
         "the voice provider still fires or consumes the retired route pre-choice")

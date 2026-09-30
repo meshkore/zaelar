@@ -11,6 +11,8 @@ it did not happen, and `report_failure` with the language's own `op_failed` line
 """
 from __future__ import annotations
 
+from tests import voice_turn_source as _vts
+
 import asyncio
 import re
 from pathlib import Path
@@ -68,8 +70,8 @@ def test_a_dispatch_that_raises_is_said(monkeypatch):
 
 
 def test_the_turn_forgets_an_op_that_did_not_start():
-    """SOURCE guard: the call site lives inside `_run_inner`'s closure until V2-778 F1 splits it out."""
-    src = PROVIDER.read_text(encoding="utf-8")
+    """SOURCE guard over the voice turn (provider + its tool executor, `tests/voice_turn_source.py`)."""
+    src = _vts.read(PROVIDER)
     m = re.search(r"_op_task = _data_ops\.start_op\((.*?)\n\s+# An action whose output only exists ON SCREEN", src, re.S)
     assert m, "the turn no longer starts its data-op through `start_op`"
     block = m.group(1)

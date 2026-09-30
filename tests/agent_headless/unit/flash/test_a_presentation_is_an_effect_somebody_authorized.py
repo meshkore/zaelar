@@ -29,6 +29,8 @@ it written down, so the canvas could not tell an honest mount from a drag.
 """
 from __future__ import annotations
 
+from tests import voice_turn_source as _vts
+
 import pathlib
 import re
 import subprocess
@@ -194,7 +196,7 @@ def test_the_number_of_anonymous_presentations_only_goes_down():
 
 def test_the_voice_provider_holds_none_of_them():
     """The channel the incidents came from is fully migrated, so its own tests stay honest."""
-    src = (ENGINE / "voice/engine/llm/providers/nucleo.py").read_text(encoding="utf-8")
+    src = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
     assert 'emit("widget", "show"' not in src
 
 
@@ -268,7 +270,7 @@ def test_the_reopen_license_binds_to_a_proposal_about_that_card():
 def test_both_channels_hand_over_what_we_said():
     """A fact only one channel reads is a mirror that drifts (V2-539): the provider, the probe and the
     arbiter's tap all pass the previous reply."""
-    prov = (ENGINE / "voice/engine/llm/providers/nucleo.py").read_text(encoding="utf-8")
+    prov = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
     probe = (ENGINE / "nucleo/flash/probe.py").read_text(encoding="utf-8")
     arb = (ENGINE / "nucleo/canvas_arbiter.py").read_text(encoding="utf-8")
     assert "last_reply=brain._last_reply" in prov

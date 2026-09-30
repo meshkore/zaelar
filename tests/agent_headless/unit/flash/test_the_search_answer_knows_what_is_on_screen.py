@@ -1,3 +1,4 @@
+from tests import voice_turn_source as _vts
 """The web-search answer knows what this turn put on screen (demo pass 2026-09-28, M1).
 
 «how's apple stock doing today, show me the chart» → the Markets chart of Apple opened, AND a web search ran; the
@@ -28,5 +29,5 @@ def test_both_channels_pass_it():
     import inspect
     from nucleo.flash import probe
     from voice.engine.llm.providers import nucleo as prov
-    assert "on_screen=_cf_s.this_turn_cards()" in inspect.getsource(prov)
+    assert "on_screen=_cf_s.this_turn_cards()" in _vts.turn_source()
     assert "on_screen=_cf_s.this_turn_cards()" in inspect.getsource(probe)

@@ -3,6 +3,7 @@
 «close my mail» — the model called the messaging card's `close` VIEW action (back to the chat list); the canvas
 verdict read `close` sure; the card stayed on screen while the reply said the mail was closed, and the next order
 found the mail still there."""
+from tests import voice_turn_source as _vts
 from pathlib import Path
 
 ENGINE = Path(__file__).resolve().parents[3]
@@ -18,7 +19,7 @@ def test_a_close_op_under_a_sure_close_verdict_is_the_card(monkeypatch):
 
 
 def test_the_data_op_door_closes_the_card_instead():
-    prov = (ENGINE / "voice/engine/llm/providers/nucleo.py").read_text(encoding="utf-8")
+    prov = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
     seg = prov.split("def _apply_widget_data(", 1)[1].split("_frag_why := ", 1)[0]
     assert "_direct_action.close_op_is_the_card(_brief, action_name)" in seg
     assert '_tag_emit("close", {"id": _show_target.close_target(wid)})' in seg

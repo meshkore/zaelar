@@ -61,6 +61,8 @@ Run: .venv/bin/pytest tests/voice/unit/test_stopping_the_video_is_not_a_close_ve
 """
 from __future__ import annotations
 
+from tests import voice_turn_source as _vts
+
 import json
 import pathlib
 import threading
@@ -203,7 +205,7 @@ def test_the_decision_is_attributable(on_screen):
 # ── 4 · THE SEAM — a verdict nobody reads is what V2-750 already paid for ─────────────────────────
 
 def test_the_data_op_guard_actually_asks_the_licence():
-    body = _PROVIDER.read_text(encoding="utf-8")
+    body = _vts.read(_PROVIDER)
     i = body.index('if action_name == "close"')
     assert "dataop_close_licensed" in body[i:i + 200], (
         "the guard must consult the shared reader, not `looks_like_close` alone")
@@ -212,7 +214,7 @@ def test_the_data_op_guard_actually_asks_the_licence():
 def test_the_pure_show_gate_asks_the_verdict_too():
     """The OTHER gate that ate a close in the same session (`gate_shadow · pure-show`, +3073.7), on
     «…y tampoco vuelves al inicio a ver el catálogo» — a sentence with «ver» in it."""
-    body = _PROVIDER.read_text(encoding="utf-8")
+    body = _vts.read(_PROVIDER)
     i = body.index("show_request_blocks_data_action(text, wid, action_name, payload)")
     assert "_direct_action.endorses" in body[i:i + 220]
 

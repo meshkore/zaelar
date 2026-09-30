@@ -16,6 +16,7 @@ closing the session.
 ledger blank, rehydration trace forgotten, widgets blanked, and the CONVERSATION buffer invalidated — «el chat
 se borra» includes the seed, or the wiped conversation walks back in through the side door.
 """
+from tests import voice_turn_source as _vts
 import time
 
 import pytest
@@ -141,7 +142,7 @@ def test_stop_worker_todo_also_discards_the_marks():
     """Source guard on the voice seam (this repo's convention): killing the workers without wiping the marks is
     the half-measure that made the next greeting resume a dead task. The handler must route «todo» through the
     same core the Reset button uses."""
-    src = "\n".join(l for l in NUCLEO.read_text(encoding="utf-8").splitlines()
+    src = "\n".join(l for l in _vts.read(NUCLEO).splitlines()
                     if not l.strip().startswith("#"))
     i = src.find('elif name == "stop_worker":')
     j = src.find('elif name == "answer_worker":', i)

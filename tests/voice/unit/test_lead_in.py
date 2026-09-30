@@ -24,6 +24,8 @@ through the stream either.
 """
 from __future__ import annotations
 
+from tests import voice_turn_source as _vts
+
 import pytest
 
 from voice.engine.core import langs
@@ -167,7 +169,7 @@ def test_V2529_el_relleno_es_audio_dentro_de_la_locucion_y_el_proveedor_solo_ARM
     place where the filler can play BEFORE the response (as its first SEGMENT)."""
     from pathlib import Path
 
-    nucleo_body = (Path(__file__).resolve().parents[3] / "voice/engine/llm/providers/nucleo.py").read_text()
+    nucleo_body = _vts.read(Path(__file__).resolve().parents[3] / "voice/engine/llm/providers/nucleo.py")
     assert "filler_audio.arm(" in nucleo_body or "_filler_audio.arm(" in nucleo_body, \
         "el proveedor tiene que ARMAR el relleno por turno — sin arm, ningún turno puede sonar uno"
     assert "lead_in_filler import" not in nucleo_body and "LeadInFiller(" not in nucleo_body, \

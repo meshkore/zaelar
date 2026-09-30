@@ -1,3 +1,4 @@
+from tests import voice_turn_source as _vts
 """Searching for videos is channelled to the PLAYER, never to the results sheet (V2-402).
 
 Seen live by the operator (2026-08-27): "find me videos about X" ended in the generic results sheet. The cause
@@ -115,8 +116,7 @@ def test_the_voice_channel_reaches_the_search_dataop():
     assert VT.voice_dispatch("search") == ("search", "🔎 vídeos → lista youtube")
     assert VT.voice_dispatch(None)[0] == "load"
     import inspect
-    import voice.engine.llm.providers.nucleo as prov
-    src = inspect.getsource(prov)
+    src = _vts.turn_source()
     # V2-635 moved the whole play_video branch body one level further, into `video_turn.voice_execute`
     # (paying the provider's ratchet); the guard follows the CHANNEL (V2-555): the provider consumes the
     # shared body, and the shared body consumes the ONE play/list decision.

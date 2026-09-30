@@ -29,6 +29,8 @@ is the whole of what changed.
 """
 from __future__ import annotations
 
+from tests import voice_turn_source as _vts
+
 import ast
 import inspect
 import pathlib
@@ -304,7 +306,7 @@ def test_dropping_a_fragment_says_so_and_leaves_a_real_one_alone():
 # ── WIRING · the provider must actually reach all of this ───────────────────────────────────────
 
 def _provider_src() -> str:
-    return _PROVIDER.read_text(encoding="utf-8")
+    return _vts.read(_PROVIDER)
 
 
 def test_the_provider_tries_the_rung_BEFORE_the_escalate_gate():
@@ -609,7 +611,7 @@ def test_the_commission_pass_sees_the_conversation():
     ctx = act_repair.conversation(w)
     assert "4:45 to 5:30" in ctx and "Operador: actually move it" in ctx and "internal" not in ctx
     assert act_repair.conversation([]) == ""
-    prov = (Path(__file__).resolve().parents[3] / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
+    prov = _vts.read(Path(__file__).resolve().parents[3] / "voice/engine/llm/providers/nucleo.py")
     assert prov.count("window=list(brain._window)") >= 3, "commission, after-show and promise passes all get it"
 
 

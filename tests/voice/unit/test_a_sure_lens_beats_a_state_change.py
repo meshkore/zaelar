@@ -2,11 +2,12 @@
 model called clear_search, which ERASES the results band (it was declared a `view`, which it is not), and «put on
 number five… yeah five» then found no list. A lens the verdict is sure of changes nothing; a model call that changes
 the card's state over it is the costly reading, so the lens runs."""
+from tests import voice_turn_source as _vts
 import pathlib
 
 from nucleo.flash import data_ops
 
-SRC = (pathlib.Path(__file__).resolve().parents[3] / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
+SRC = _vts.read(pathlib.Path(__file__).resolve().parents[3] / "voice/engine/llm/providers/nucleo.py")
 
 
 def test_clear_search_is_not_a_lens():

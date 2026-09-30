@@ -11,6 +11,8 @@ to its own imperative (V2-222: 0/13). These tests pin the un-contradicted mappin
 """
 from __future__ import annotations
 
+from tests import voice_turn_source as _vts
+
 import inspect
 import pathlib
 
@@ -171,7 +173,7 @@ def test_the_voice_rail_shows_the_card_AND_applies_the_view():
     """«Ábreme el Telegram» asks for two things at once: the card in front and that lens selected. The rail
     does both instead of guessing which one was meant — that is what dissolves the card-vs-inside ambiguity
     the text-matching version tried (and failed) to resolve."""
-    src = (ENGINE / "voice" / "engine" / "llm" / "providers" / "nucleo.py").read_text(encoding="utf-8")
+    src = _vts.read(ENGINE / "voice" / "engine" / "llm" / "providers" / "nucleo.py")
     i = src.index("show_request_blocks_data_action")
     window = src[i:i + 1200]
     assert window.count('_tag_emit("show"') >= 2, \

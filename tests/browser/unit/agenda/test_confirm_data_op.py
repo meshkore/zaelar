@@ -22,6 +22,8 @@ fixing it at the source, that case was moved to another surface.
 """
 from __future__ import annotations
 
+from tests import voice_turn_source as _vts
+
 import asyncio
 import json
 import pathlib
@@ -328,7 +330,7 @@ def test_una_confirmacion_abierta_no_puede_quedarse_MUDA_bajo_la_frase_del_model
 
     Ratchet de FUENTE porque el bloque vive dentro del turno del proveedor de voz, que no se monta aislado;
     el mismo patrón que `test_both_channels_wire_the_repair`. Lo que congela es la condición, no el texto."""
-    src = (ENGINE / "voice/engine/llm/providers/nucleo.py").read_text(encoding="utf-8")
+    src = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
     i = src.index('if confirm_state.get("opened")')
     cond = src[i:src.index(":\n", i)]
     assert "not spoken_text" not in cond, \

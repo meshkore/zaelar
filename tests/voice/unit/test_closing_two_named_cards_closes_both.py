@@ -3,6 +3,7 @@
 Two faults stacked. The sibling-card reader matched the manifest's name, which is ONE language («Mensajería»),
 so the English «messages» named nothing; and `close_widget` ran once per TURN, so a second call for the second
 card was dropped. Now the catalogue name in every bundle counts, and each card closes once."""
+from tests import voice_turn_source as _vts
 import pytest
 
 from nucleo.flash import show_target as st
@@ -54,7 +55,7 @@ def test_the_in_card_guard_spares_a_card_called_by_its_name():
     from nucleo.flash import direct_action as da
     assert da._says_the_name("close the calendar and the messages", "mensajeria")
     assert not da._says_the_name("close the chat", "mensajeria")
-    src = (pathlib.Path(__file__).resolve().parents[3] / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
+    src = _vts.read(pathlib.Path(__file__).resolve().parents[3] / "voice/engine/llm/providers/nucleo.py")
     i = src.index("close ignorado — la orden es una acción DENTRO de la tarjeta")
     guard = src[src.rindex("if (action", 0, i):i]
     assert "_direct_action._says_the_name(_bnotes.operator_half(text)" in guard

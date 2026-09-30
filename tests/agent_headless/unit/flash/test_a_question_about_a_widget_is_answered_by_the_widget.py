@@ -9,6 +9,8 @@ read what his own widget stores.
 """
 from __future__ import annotations
 
+from tests import voice_turn_source as _vts
+
 import re
 import time
 from pathlib import Path
@@ -141,7 +143,7 @@ def test_an_empty_block_is_declared_empty_never_filled():
 
 # ── both channels are wired (V2-252: parallel implementations drift unless both are read) ────────────────
 def _code(rel: str) -> str:
-    return re.sub(r"(?m)^\s*#.*$", "", Path(rel).read_text(encoding="utf-8"))
+    return re.sub(r"(?m)^\s*#.*$", "", _vts.read(rel))
 
 
 def test_the_voice_provider_captures_and_resolves_the_read():

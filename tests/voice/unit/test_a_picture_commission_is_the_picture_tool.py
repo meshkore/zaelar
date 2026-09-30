@@ -7,6 +7,7 @@ word «wallpaper»; now it leads with it), and even named, the viewer's `show` n
 the commission pass's «show {query}» becomes the `show_images` request instead of a data-op that returns «no
 pictures arrived».
 """
+from tests import voice_turn_source as _vts
 import asyncio
 
 from nucleo.flash import card_commission as cc
@@ -54,7 +55,7 @@ def test_the_viewer_criterion_names_the_wallpaper_before_the_cut():
 
 def test_the_voice_turn_hands_its_image_request_to_the_rung():
     import pathlib
-    src = (pathlib.Path(__file__).resolve().parents[3] / "voice/engine/llm/providers/nucleo.py").read_text(encoding="utf-8")
+    src = _vts.read(pathlib.Path(__file__).resolve().parents[3] / "voice/engine/llm/providers/nucleo.py")
     assert "window=list(brain._window), images_req=images_req) == \"call\":" in src
 
 
@@ -107,7 +108,7 @@ def test_a_promise_on_the_empty_viewer_is_the_search_too(monkeypatch):
 
 def test_the_promise_path_asks_the_helper():
     import pathlib
-    src = (pathlib.Path(__file__).resolve().parents[3] / "voice/engine/llm/providers/nucleo.py").read_text(encoding="utf-8")
+    src = _vts.read(pathlib.Path(__file__).resolve().parents[3] / "voice/engine/llm/providers/nucleo.py")
     assert "_cardc_ar.picture_search_for(_ar_wid, _op_text)" in src
 
 
@@ -123,6 +124,6 @@ def test_words_that_name_the_empty_viewer_are_the_picture_search(monkeypatch):
 
 def test_the_voice_turn_reads_the_named_viewer_before_the_ladder():
     import pathlib
-    src = (pathlib.Path(__file__).resolve().parents[3] / "voice/engine/llm/providers/nucleo.py").read_text(encoding="utf-8")
+    src = _vts.read(pathlib.Path(__file__).resolve().parents[3] / "voice/engine/llm/providers/nucleo.py")
     i = src.index("_cardc_pic.picture_named_by(operator_text)")
     assert i < src.index("_eguard.drop_if_fragment(escalate_req"), "before any rung can spend a worker"

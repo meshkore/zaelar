@@ -33,6 +33,8 @@ order would be a worse defect than the one it fixes.
 """
 from __future__ import annotations
 
+from tests import voice_turn_source as _vts
+
 import pytest
 
 from nucleo import danger
@@ -127,7 +129,7 @@ def test_the_voice_backstop_reads_the_classifier_and_says_when_it_does_not_escal
     the call AND the event that makes the decision visible in the timeline."""
     import inspect
     from voice.engine.llm.providers import nucleo as prov
-    src = inspect.getsource(prov)
+    src = _vts.turn_source()
     assert "_danger_bk.is_dangerous(_op_text)" in src, "the backstop stopped reading the shared classifier"
     assert "_danger_bk.about_a_past_act(_op_text)" in src
     assert "queja sobre lo ya hecho" in src, "the timeline has to show WHY nothing escalated"

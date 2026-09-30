@@ -4,6 +4,7 @@
 message»; the verdict's second pass then marked it unread. Done, and the last thing heard was that it could not be.
 The voice cannot unsay what already streamed, so it says what happened after it.
 """
+from tests import voice_turn_source as _vts
 import pathlib
 
 from nucleo.flash import act_repair
@@ -23,7 +24,7 @@ def test_words_that_promised_it_or_silence_get_nothing():
 
 
 def test_the_voice_turn_says_it_right_after_the_second_pass():
-    src = _NUCLEO.read_text("utf-8")
+    src = _vts.read(_NUCLEO)
     i = src.index("prometió actuar sin tool — la llamada, en una segunda pasada")
     assert "_act_repair.after_the_repair(spoken_text" in src[i:i + 900]
 
@@ -36,7 +37,7 @@ def test_a_repaired_look_is_not_acknowledged_as_done(monkeypatch):
     asked = "Say 4 to 4:45. Want me to put it on your calendar as a call with Rowan at 4?"
     assert act_repair.after_the_repair(asked, False, "agenda", "find_free") == ""
     assert act_repair.after_the_repair("There's no unread toggle.", False, "mensajeria", "unread").strip() == "Done."
-    assert '_ar["widget_id"], _ar["action"])' in _NUCLEO.read_text("utf-8"), "the call site passes what was repaired"
+    assert '_ar["widget_id"], _ar["action"])' in _vts.read(_NUCLEO), "the call site passes what was repaired"
 
 
 def test_after_a_question_it_says_it_went_ahead(monkeypatch):

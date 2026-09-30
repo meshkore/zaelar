@@ -2,6 +2,7 @@
 nobody had asked for; the next turn — «ok book it, call it catch up with rowan», an order about the CALENDAR —
 matched `ok` in the yes/no table and the Telegram went out. A bare answer still resolves at once; a reply that
 carries its own words is asked, with the pending question named, whether it answers it."""
+from tests import voice_turn_source as _vts
 import pytest
 
 from widgets import confirm
@@ -54,5 +55,5 @@ def test_without_the_reader_the_word_reading_stands(monkeypatch):
 def test_both_voice_sites_and_the_gate_use_it():
     from pathlib import Path
     root = Path(__file__).resolve().parents[3]
-    assert (root / "voice/engine/llm/providers/nucleo.py").read_text("utf-8").count("_wconfirm.answers_pending(text)") == 2
+    assert _vts.read(root / "voice/engine/llm/providers/nucleo.py").count("_wconfirm.answers_pending(text)") == 2
     assert "_c.answers_pending(text)" in (root / "nucleo/turn/confirm_gates.py").read_text("utf-8")

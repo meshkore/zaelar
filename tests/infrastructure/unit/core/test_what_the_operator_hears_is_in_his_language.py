@@ -29,6 +29,8 @@ new one is a decision somebody makes on purpose rather than a leak nobody sees u
 """
 from __future__ import annotations
 
+from tests import voice_turn_source as _vts
+
 import ast
 import dataclasses
 import re
@@ -157,7 +159,7 @@ def test_the_denial_guard_reads_the_answer_alone():
 def test_BOTH_channels_compose_through_the_same_home():
     """WIRING GUARD (V2-555 shape): the voice seam and the probe seam were a parallel implementation since
     V2-135, and the missing half was missing in BOTH. One home is what makes that impossible again."""
-    voice = (ENGINE / "voice/engine/llm/providers/nucleo.py").read_text(encoding="utf-8")
+    voice = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
     probe = (ENGINE / "nucleo/flash/probe.py").read_text(encoding="utf-8")
     for src, who in ((voice, "voice"), (probe, "probe")):
         assert "search_turn" in src, f"{who} must compose through flash/search_turn"
@@ -229,7 +231,7 @@ def test_the_confirmation_ack_comes_from_the_table():
     """«Vale, no toco nada.» was a literal at the voice mouth."""
     from i18n import langs as L
     assert L.LANGUAGES["en"].confirm_cancelled != L.LANGUAGES["es"].confirm_cancelled
-    src = (ENGINE / "voice/engine/llm/providers/nucleo.py").read_text(encoding="utf-8")
+    src = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
     assert "confirm_cancelled" in src and "Vale, no toco nada" not in src
 
 
@@ -238,7 +240,7 @@ def test_the_first_turn_is_spoken_in_his_language():
     reply on turn one. It was a literal in the provider."""
     from i18n import langs as L
     assert L.LANGUAGES["en"].kickoff_prompt.startswith("This is the first turn")
-    src = (ENGINE / "voice/engine/llm/providers/nucleo.py").read_text(encoding="utf-8")
+    src = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
     assert "kickoff_prompt" in src and "Es el primer turno" not in src
 
 

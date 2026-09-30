@@ -24,6 +24,8 @@ y lo que el operador HACE con cada una es opuesto.
 """
 from __future__ import annotations
 
+from tests import voice_turn_source as _vts
+
 import json
 import pathlib
 import re
@@ -166,7 +168,7 @@ def test_los_DOS_canales_llaman_a_la_misma_funcion_y_ninguno_la_copia():
     """Vivía suelta en el raíl de voz desde 2026-07-16 y el canal de texto —el que conduce los casos de uso—
     nunca la tuvo: contestaba «ciérralo» distinto del producto. Se EXTRAE, no se espeja: el propio trinquete
     dice «si dos canales necesitan la misma regla, extrae primero», y copiarla habría costado una marca."""
-    voz = (ENGINE / "voice" / "engine" / "llm" / "providers" / "nucleo.py").read_text(encoding="utf-8")
+    voz = _vts.read(ENGINE / "voice" / "engine" / "llm" / "providers" / "nucleo.py")
     txt = (ENGINE / "nucleo" / "flash" / "probe.py").read_text(encoding="utf-8")
     assert "is_short_close_order(text)" in voz and "is_short_close_order(text)" in txt
     for canal, src in (("voz", voz), ("texto", txt)):

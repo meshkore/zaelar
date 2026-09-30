@@ -28,6 +28,8 @@ what matters is that there is ONE decision, not which file it is in.
 """
 from __future__ import annotations
 
+from tests import voice_turn_source as _vts
+
 import asyncio
 
 import pytest
@@ -143,6 +145,6 @@ def test_el_parte_conserva_la_forma_singular_de_antes(rail):
 def test_la_voz_decide_con_el_MISMO_guarda():
     """If each channel brings its own, they diverge — which is how this kind of failure survives (V2-176)."""
     from pathlib import Path
-    src = Path("voice/engine/llm/providers/nucleo.py").read_text(encoding="utf-8")
+    src = _vts.read(Path("voice/engine/llm/providers/nucleo.py"))
     assert "_data_ops.admite_data_op(args, _data_ops_hechas)" in src
     assert '"widget_data" in _tool_fired:\n                    return' not in src

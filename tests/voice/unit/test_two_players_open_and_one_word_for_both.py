@@ -24,6 +24,8 @@ builds the answer by hand proves the mapping and never the wiring.
 """
 from __future__ import annotations
 
+from tests import voice_turn_source as _vts
+
 import threading
 
 import pytest
@@ -140,7 +142,7 @@ def test_the_ask_is_consents_second_question_and_not_a_new_one():
 import pathlib
 
 _ENGINE = pathlib.Path(__file__).resolve().parents[3]
-_VOICE = (_ENGINE / "voice/engine/llm/providers/nucleo.py").read_text(encoding="utf-8")
+_VOICE = _vts.read(_ENGINE / "voice/engine/llm/providers/nucleo.py")
 _PROBE = (_ENGINE / "nucleo/flash/probe.py").read_text(encoding="utf-8")
 
 

@@ -1,3 +1,4 @@
+from tests import voice_turn_source as _vts
 """What the agent said on its own enters the brain's window at its next prompt (node 3.110).
 
 Manual session 7850de3f (2026-09-30): the INIT list finished in three minutes and said «I've finished your list»
@@ -47,6 +48,6 @@ def test_the_prompt_is_built_after_the_drain():
     import inspect
 
     from voice.engine.llm.providers import nucleo
-    src = inspect.getsource(nucleo)
+    src = _vts.turn_source()
     assert src.index("_dialog.drain_spoken(brain._window)") < src.index(
         "messages += _dialog.prune_window(brain._window)")

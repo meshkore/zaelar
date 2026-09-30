@@ -4,13 +4,14 @@
 also called `mensajeria:send_to`. The guard turned the send into a pending CONFIRMATION («Shall I send it?»), and
 «ok book it» one turn later was read as its yes: two Telegrams to Rowan he never ordered. The unbacked act is
 dropped and the model is told it did not run — nothing is left pending for the next «ok» to answer."""
+from tests import voice_turn_source as _vts
 from pathlib import Path
 
 ENGINE = Path(__file__).resolve().parents[3]
 
 
 def test_the_unbacked_act_is_dropped_with_a_note_and_no_confirmation():
-    prov = (ENGINE / "voice/engine/llm/providers/nucleo.py").read_text(encoding="utf-8")
+    prov = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
     seg = prov.split("elif _direct_action.verdict_elsewhere(_brief, wid):", 1)[1].split("def _log_dataop", 1)[0]
     assert "no se ejecuta" in seg
     assert "_bn_drop.push(" in seg and "NO se ejecutó" in seg and "no la pidió" in seg

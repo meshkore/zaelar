@@ -2,6 +2,7 @@
 display a chart here». What is measured: a NAME resolves to a ticker, the move is against yesterday's close for
 «today» and against the period's start otherwise, the operator's period words map onto a range, a 429 retries on
 the twin host, and `view_data` never touches the network."""
+from tests import voice_turn_source as _vts
 import json
 import urllib.error
 
@@ -120,7 +121,7 @@ def test_the_chart_declares_that_its_output_only_exists_on_screen():
 def test_the_voice_path_brings_the_card_of_a_mount_action_through_the_one_door():
     import pathlib
     import re
-    src = (pathlib.Path(__file__).resolve().parents[4] / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
+    src = _vts.read(pathlib.Path(__file__).resolve().parents[4] / "voice/engine/llm/providers/nucleo.py")
     i = src.index("def _apply_widget_data(")
     body = src[i:src.index("\n        def ", i + 10)]
     assert re.search(r"_fx\.carries\(wid, action_name, _fx\.PRESENT_MOUNT\):\s*\n\s*_cvis\.present\(wid, "
@@ -165,7 +166,7 @@ def test_a_lens_on_a_closed_card_brings_the_card():
     his order is a turn-order for that card; a write is not (it may run behind the screen on purpose)."""
     import pathlib
     import re
-    src = (pathlib.Path(__file__).resolve().parents[4] / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
+    src = _vts.read(pathlib.Path(__file__).resolve().parents[4] / "voice/engine/llm/providers/nucleo.py")
     i = src.index("def _apply_widget_data(")
     body = src[i:src.index("\n        def ", i + 10)]
     assert re.search(r"elif \(?_fx\.carries\(wid, action_name, _fx\.DATA_READ\) and not _cvis\.is_open\(wid\)"

@@ -1,3 +1,4 @@
+from tests import voice_turn_source as _vts
 """V2-210 — a checkable fact about the world, answered with a figure and no source.
 
 Measured on `quick-fact-opening-hours` (2026-08-20 15:08), the cleanest failure on the board because there is
@@ -72,7 +73,7 @@ def test_the_voice_channel_is_left_out_ON_PURPOSE_and_says_why():
     import inspect
 
     from voice.engine.llm.providers import nucleo as vp
-    src = inspect.getsource(vp)
+    src = _vts.turn_source()
     assert "V2-210" in src and "AQUÍ NO" in src
     assert "answer_needs_a_source(" not in src
 

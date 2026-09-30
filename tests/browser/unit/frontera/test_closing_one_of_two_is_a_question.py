@@ -19,6 +19,7 @@ What is being established:
     one should I close, “Results” or “Results”?”;
   · and the rule lives ONCE, even though this close is emitted from three different places.
 """
+from tests import voice_turn_source as _vts
 import re
 from pathlib import Path
 
@@ -40,7 +41,8 @@ ENGINE = Path(__file__).resolve().parents[4]
 #: `nucleo.py` and the deterministic widget-intent readers (`_close_target`, `_widget_fallback`…) in
 #: `widget_intent.py`. These guards ask about the channel, not about a file, so they read both — a source guard
 #: pinned to one path stops guarding the moment the code is extracted, and does it by going GREEN, not red.
-_VOICE_SRC = ("voice/engine/llm/providers/nucleo.py", "voice/engine/llm/providers/widget_intent.py")
+_VOICE_SRC = ("voice/engine/llm/providers/nucleo.py", "voice/engine/llm/providers/widget_intent.py",
+              "nucleo/flash/tool_executor.py")   # V2-778 F1-10: the tool executor left the provider
 NUCLEO = ENGINE / "voice/engine/llm/providers/nucleo.py"
 #: The TEXT channel, likewise two files since the V2-605 extraction: the turn in `probe.py` and the shared
 #: show-instance body in `show_target.py`.
@@ -275,7 +277,7 @@ def test_a_data_op_on_the_base_id_lands_on_the_one_open_instance():
     assert instances.data_target("results", ["results::a", "results::b"]) == "results", "two sheets: today's path"
     assert instances.data_target("results::a", ["results::a", "results::b"]) == "results::a"
     assert instances.data_target("map", ["results::a"]) == "map"
-    src_v = (Path(__file__).resolve().parents[4] / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
+    src_v = _vts.read(Path(__file__).resolve().parents[4] / "voice/engine/llm/providers/nucleo.py")
     src_t = (Path(__file__).resolve().parents[4] / "nucleo/flash/widget_data_turn.py").read_text("utf-8")
     for src, ch in ((src_v, "voice"), (src_t, "text")):
         assert "_inst_dt.data_target(wid, _open_inst())" in src, f"{ch}: the data-op must land on the instance"
@@ -289,7 +291,7 @@ def test_a_close_takes_every_card_the_sentence_names():
     assert instances.also_named("Cierra el mapa y los resultados", open_ids, exclude=["map"]) == ["results::9194df-1"]
     assert instances.also_named("Close the map.", open_ids, exclude=["map"]) == [], "a card not named stays"
     assert instances.also_named("", open_ids) == []
-    src = (Path(__file__).resolve().parents[4] / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
+    src = _vts.read(Path(__file__).resolve().parents[4] / "voice/engine/llm/providers/nucleo.py")
     assert src.count("with_also_named(_t.get(\"ids\")") == 2, "both close sites must take the other named cards"
     from voice.engine.llm.providers import widget_intent
     assert callable(widget_intent.with_also_named)
@@ -322,7 +324,7 @@ def test_a_closed_sheet_of_a_finished_errand_is_named_by_its_title(monkeypatch):
     # an OPEN sheet with the same words outranks the closed one
     monkeypatch.setattr(instances, "card_face", lambda wid: {"label": "monitors on sale", "blank": False} if wid == "results::o1" else {})
     assert runtime.identify_named("Show me the monitors", open_ids=["results::o1"]) == "results::o1"
-    src = (Path(__file__).resolve().parents[4] / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
+    src = _vts.read(Path(__file__).resolve().parents[4] / "voice/engine/llm/providers/nucleo.py")
     assert '_rid if (_rid and runtime.get(_rid.split("::", 1)[0]) is not None) else ""' in src, (
         "the show path must keep an INSTANCE id the resolver named")
 

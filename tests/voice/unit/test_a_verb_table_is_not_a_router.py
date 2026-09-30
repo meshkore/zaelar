@@ -36,6 +36,8 @@ Run: .venv/bin/pytest tests/voice/unit/test_a_verb_table_is_not_a_router.py
 """
 from __future__ import annotations
 
+from tests import voice_turn_source as _vts
+
 import ast
 import pathlib
 import threading
@@ -165,7 +167,7 @@ def _create_guard_test() -> str:
     Read from the AST and not by matching text near the emit: the explanation of a fix survives the
     deletion of the fix, so a marker-based guard goes green on a file whose code is gone.
     """
-    tree = ast.parse(_PROVIDER.read_text(encoding="utf-8"))
+    tree = ast.parse(_vts.read(_PROVIDER))
     hits = []
     for node in ast.walk(tree):
         if not isinstance(node, ast.If):
@@ -190,7 +192,7 @@ def test_the_guard_reads_the_decision_and_not_the_bare_grammar():
 def test_the_grammar_is_handed_IN_so_the_two_never_disagree():
     """`decide` asks the regex itself when nobody hands it one. The provider hands its own, so the
     sentence is classified once per turn and one answer cannot drift from the other."""
-    src = _PROVIDER.read_text(encoding="utf-8")
+    src = _vts.read(_PROVIDER)
     i = src.index("show_widget→CREATE")
     window = src[max(0, i - 700):i]
     assert "proposed=" in window and "looks_like_create_widget" in window
@@ -249,7 +251,7 @@ def test_a_stop_aimed_at_a_card_never_kills_the_errands(monkeypatch):
     assert _da.aims_at_a_card(canvas_only)
     work = _brief({_tb.CANVAS_KEY: ("neither", 0.95), _tb.REQUEST_KEY: ("order", 0.9)})
     assert not _da.aims_at_a_card(work), "«stop the search» names no card: the backstop keeps its job"
-    src = (_ENGINE / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
+    src = _vts.read(_ENGINE / "voice/engine/llm/providers/nucleo.py")
     assert "_router.looks_like_stop_work(text) and not _direct_action.aims_at_a_card(_brief)" in src
 
 
@@ -271,7 +273,7 @@ def test_the_verdict_alone_can_send_an_unkept_order_to_a_worker():
     assert not _da.verdict_escalates(q, answered=True), "THE BUG: an answered question spawned a worker"
     o = _brief({_tb.ESCALATE_KEY: ("escalate", 1.0), _tb.REQUEST_KEY: ("order", 0.99)})
     assert _da.verdict_escalates(o, answered=True), "an order is work even when the reply sounds finished"
-    src = (_ENGINE / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
+    src = _vts.read(_ENGINE / "voice/engine/llm/providers/nucleo.py")
     assert src.count("_direct_action.verdict_escalates(_brief, answered=not _router.promises_action(spoken_text))") == 2, (
         "both backstop gates pass whether the reply answered")
 
@@ -303,7 +305,7 @@ def test_a_show_that_names_a_card_we_have_beats_the_worker_and_an_undone_order_o
     assert not _da.order_over_a_card_left_undone(_brief({_tb.REQUEST_KEY: ("question", 0.9), _tb.CATALOG_KEY: ("agenda", 0.9)})), "a question is not work owed"
     assert not _da.order_over_a_card_left_undone(_brief({_tb.REQUEST_KEY: ("order", 0.9), _tb.CATALOG_KEY: ("none", 0.8)})), "no card named: the other gates decide"
     assert not _da.order_over_a_card_left_undone(_brief({_tb.REQUEST_KEY: ("order", 0.3), _tb.CATALOG_KEY: ("documento", 0.9)})), "unsure"
-    src = (_ENGINE / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
+    src = _vts.read(_ENGINE / "voice/engine/llm/providers/nucleo.py")
     # V2-776: the show also wakes on a sure `canvas = show` verdict (`verdict_shows`), not only the verb table.
     i_show = src.index('_pw = (_identify(_op_text) if (_router.looks_like_show_strict(_op_text) or _direct_action.verdict_shows(_brief))')
     i_esc = src.index("🧭 escalada por backstop (prometió crear/gestionar sin escalar)", i_show)
