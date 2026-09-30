@@ -173,7 +173,25 @@ def repair_action_from_brief(widget_id: str, brief) -> str | None:
 
 #: What the brief's screen verdict must clear to move an order from the card the model named to another
 #: one. It is the module's own gate — a verdict below it is «I do not know», which is the ASK branch.
-def which_card(widget_id: str, action: str, *, open_ids=(), brief=None) -> tuple[str, object]:
+def _takes(card: str, action: str, payload) -> bool:
+    """Can this card's declared `action` take the call's payload? False only when the card declares its payload
+    keys and shares NONE with a non-empty payload (demo pass 66, M3: `markets:show {symbol}` was asked «imagenes
+    or markets?» — the viewer's `show` takes items/query, never a symbol). Undeclared → True (no evidence)."""
+    keys = {str(k) for k in (payload or {}) if str(k).strip()} if isinstance(payload, dict) else set()
+    if not keys:
+        return True
+    try:
+        from nucleo.flash import turn_brief as _tb
+        spec = (declared_actions(_tb._base_of(card)) or {}).get(action) or {}
+        declared = spec.get("payload") if isinstance(spec, dict) else None
+    except Exception:  # noqa: BLE001
+        return True
+    if not isinstance(declared, dict) or not declared:
+        return True
+    return bool(keys & {str(k) for k in declared})
+
+
+def which_card(widget_id: str, action: str, *, open_ids=(), brief=None, payload=None) -> tuple[str, object]:
     """Which OPEN CARD a declared data-op belongs to, when more than one can do it (V2-740).
 
     THE SITUATION, in the operator's words (2026-09-21): *«si tengo dos widgets que tienen las mismas
@@ -234,6 +252,9 @@ def which_card(widget_id: str, action: str, *, open_ids=(), brief=None) -> tuple
             cards.append(other)
     if wid not in cards:
         cards.append(wid)          # the model's own choice is always a candidate, open set or not
+    # A card whose declared action cannot take the call's fields is not a candidate for it (M3, pass 66).
+    if payload and _takes(wid, name, payload):
+        cards = [c for c in cards if c == wid or _takes(c, name, payload)]
     if len(cards) < 2:
         return ("keep", None)
 
@@ -300,7 +321,7 @@ def absent_widget_misroute(widget_id: str, action: str, item: str, *,
     return wid not in open_now and (named_widget or "").strip().lower() != wid
 
 
-def card_decision(widget_id: str, action: str, *, brief=None, ask_phrase: str = "") -> dict:
+def card_decision(widget_id: str, action: str, *, brief=None, ask_phrase: str = "", payload=None) -> dict:
     """`which_card`, shaped into what a CALL SITE does with it — so neither channel grows to hold this.
 
     Both callers live in files the architecture ratchet lists (the voice provider and `probe.py`), and its
@@ -313,7 +334,7 @@ def card_decision(widget_id: str, action: str, *, brief=None, ask_phrase: str = 
     rest is one observability event or nothing. It writes no state and speaks to nobody: the caller does.
     """
     wid = (widget_id or "").strip().lower()
-    route, alt = which_card(wid, action, brief=brief)
+    route, alt = which_card(wid, action, brief=brief, payload=payload)
     if route == "card":
         return {"card": str(alt), "ask": "",
                 "label": "🎯 la orden era de OTRA tarjeta — la reubica el veredicto de pantalla",

@@ -1455,7 +1455,8 @@ class NucleoLLMStream(llm.LLMStream):
                 return
             # V2-740 — ¿de QUIÉN era la orden, con dos tarjetas que saben hacer lo mismo? El porqué y la
             # forma del plan, en `frontend.card_decision`; el probe toma la misma por la misma función.
-            _cd = _frontend.card_decision(wid, action_name, brief=_brief, ask_phrase=_say().ask_which_item)
+            _cd = _frontend.card_decision(wid, action_name, brief=_brief, ask_phrase=_say().ask_which_item,
+                                          payload=payload)
             if _cd["label"]:
                 emit("brain", _cd["label"], role="system", text=_cd["text"], extra=_cd["extra"])
             if _cd["ask"]:

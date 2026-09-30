@@ -569,7 +569,7 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
             # V2-740 — ESPEJO de la voz, misma FUNCIÓN (nunca copiada). Sin brief que leer, la duda
             # se PREGUNTA: la segunda pregunta de V2-712, no una nueva.
             if action == "widget_data":
-                _cd = _fe.card_decision(_wid, _act)
+                _cd = _fe.card_decision(_wid, _act, payload=(_wd.get("args") or {}).get("payload"))
                 _wd["args"]["widget_id"] = _wid = _cd["card"]
                 if _cd["ask"]:
                     action = "clarify"
