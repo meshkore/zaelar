@@ -65,10 +65,12 @@ TOOLS: list[dict] = [
                 "properties": {
                     "query": {"type": "string",
                               "description": "qué vídeo VER, en lenguaje natural (se busca/carga en YouTube)"},
-                    "action": {"type": "string", "description": (
-                        "play (def: carga y reproduce el mejor resultado) | list (numerados al Inicio)")},
+                    # Demo pass 69, V1: «show me some videos of…» → play_video with no action → ONE video loaded,
+                    # and «play the second one» had no list. The choice is the model's, so it has to MAKE it.
+                    "action": {"type": "string", "enum": ["play", "list"],
+                               "description": "play = UN vídeo | list = VARIOS numerados"},
                 },
-                "required": ["query"],
+                "required": ["query", "action"],
             },
         },
     },

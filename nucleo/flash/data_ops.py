@@ -155,9 +155,20 @@ async def report_failure(wid: str, action: str, res: dict) -> bool:
             # into an English session). The same composer a finished errand's line goes through.
             from nucleo.workers import spoken_delivery as _sd
             said = await _sd.line(f"{wid}: {action}", speakable, ok=False)
-            from voice import proactive
-            await proactive.notify("Conector", said or speakable, speak=True, kind="notify")
-            told = True
+            if not said:
+                # Demo pass 69, V2: the composer came back empty and «No hay resultados de búsqueda ahora mismo.» was
+                # spoken raw into an English session. Widget copy is written in Spanish, so the raw sentence is only
+                # ever said to a Spanish-speaking agent; otherwise the note above makes the model say it next.
+                try:
+                    from i18n import langs as _lg
+                    same = str(_lg.current_code() or "es").lower().startswith("es")
+                except Exception:  # noqa: BLE001
+                    same = False
+                said = speakable if same else ""
+            if said:
+                from voice import proactive
+                await proactive.notify("Conector", said, speak=True, kind="notify")
+                told = True
         except Exception:
             pass
     try:

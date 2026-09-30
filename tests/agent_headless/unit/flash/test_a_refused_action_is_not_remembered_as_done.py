@@ -167,3 +167,32 @@ def test_the_guard_says_what_it_threw_away():
     emitted = branch[head:tail]
     assert "\"payload\"" in emitted and "\"action\"" in emitted, (
         "a guard that discards an action must record WHICH action and with what payload")
+
+
+def test_a_widgets_spanish_failure_is_never_spoken_raw_to_an_english_agent(monkeypatch):
+    """Demo pass 69, V2: «No hay resultados de búsqueda ahora mismo.» was spoken raw into an English session
+    when the composer came back empty. The note still reaches the model; the raw line is not voiced."""
+    import asyncio
+    from nucleo.flash import data_ops
+    from nucleo.workers import spoken_delivery as sd
+    from i18n import langs
+    from voice import proactive, brain_notes
+    said, noted = [], []
+
+    async def _line(*a, **k):
+        return ""
+
+    async def _notify(who, text, **k):
+        said.append(text)
+        return True
+    monkeypatch.setattr(sd, "line", _line)
+    monkeypatch.setattr(proactive, "notify", _notify)
+    monkeypatch.setattr(brain_notes, "push", lambda t, *a, **k: noted.append(t))
+    monkeypatch.setattr(langs, "current_code", lambda: "en")
+    res = {"ok": False, "message": "No hay resultados de búsqueda ahora mismo."}
+    asyncio.run(data_ops.report_failure("youtube", "play_result", res))
+    assert said == [] and noted, "English agent: nothing raw in Spanish, the model is told"
+    monkeypatch.setattr(langs, "current_code", lambda: "es")
+    res2 = {"ok": False, "message": "No hay resultados de búsqueda ahora mismo (2)."}
+    asyncio.run(data_ops.report_failure("youtube", "play_result", res2))
+    assert said == ["No hay resultados de búsqueda ahora mismo (2)."]

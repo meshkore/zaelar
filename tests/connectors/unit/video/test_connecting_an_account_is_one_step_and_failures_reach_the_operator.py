@@ -192,12 +192,15 @@ def test_a_failed_data_op_is_announced_instead_of_vanishing(rails):
     assert spoken == []
 
 
-def test_a_model_facing_error_is_never_spoken_but_a_message_is(rails):
+def test_a_model_facing_error_is_never_spoken_but_a_message_is(rails, monkeypatch):
     """V2-652, measured live (session 7f77e2cc): the agenda's retry instruction («vuelve a llamar a
     add_meeting con el título, el día (YYYY-MM-DD)…») was spoken aloud and painted into the chat as
     zaelar's own words. The two result keys have two audiences: `message` speaks, `error` only ever
-    reaches the model's [SISTEMA] note."""
+    reaches the model's [SISTEMA] note. (A Spanish-speaking agent: since demo pass 69 the raw Spanish line is
+    never voiced to another language.)"""
     from nucleo.flash import data_ops
+    from i18n import langs
+    monkeypatch.setattr(langs, "current_code", lambda: "es")
 
     pushed, spoken = rails
     told = asyncio.run(data_ops.report_failure(
