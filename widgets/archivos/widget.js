@@ -441,7 +441,10 @@ function header(d, act, ui) {
   torChip.title = tt("tor_section_tip", null, "Torrents — catálogo, descargas y semillas");
   torChip.dataset.section = "torrents";
   torChip.onclick = () => { ui.preview = null; act("show_section", { section: "torrents" }); };
-  chips.appendChild(torChip);
+  // V2-778 F0-6 — no door to a client that is not there (a hosted account has it off); kept while its section
+  // is open so the reason stays reachable.
+  const torOk = !!(d.torrents && d.torrents.available);
+  if (torOk || onTor) chips.appendChild(torChip);
 
   (d.providers || []).forEach(p => {
     const letter = String(p.label || p.id || "?").trim().charAt(0).toUpperCase() || "?";

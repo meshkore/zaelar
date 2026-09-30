@@ -4708,6 +4708,8 @@ DOMAINS: list[dict] = [
         # transmite (HTTP Range) al <video> mientras se descarga, y todo degrada a palabras si falta el wheel.
         # La sesión libtorrent no se toca en unit; se fija la extracción del magnet, la aritmética de Range,
         # la puerta `streamable` que espera el widget, y las acciones del widget (que SON las skills, V2-544).
+        {"id": "5.61", "title": "The torrent client is off in a hosted account unless the deployment turns it on",
+            "ch": UNIT, "paths": ["tests/connectors/unit/torrent/test_the_client_is_off_in_a_hosted_account.py"]},
         {"id": "5.22", "title": "Torrent embebido: el magnet viene de la red, el cliente lo transmite, y "
                                 "todo falla a salvo",
             "ch": UNIT, "paths": [
