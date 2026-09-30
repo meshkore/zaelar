@@ -19,8 +19,14 @@ from widgets.mensajeria import data
 
 @pytest.fixture(autouse=True)
 def _isolated_store(tmp_path, monkeypatch):
+    # V2-778 F0-1 — the autoresponder writes `config/consent.json` through the workspace root, which the store
+    # pin above does not reach: this file rewrote the operator's real consent on 2026-09-30.
+    from nucleo import consent
     monkeypatch.setattr(wstore, "DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("ZAELAR_WORKSPACE", str(tmp_path / "ws"))
+    consent._reset_for_tests()
     yield
+    consent._reset_for_tests()
 
 
 def _seed_threads(now=None):

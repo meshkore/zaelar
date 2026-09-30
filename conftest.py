@@ -35,6 +35,25 @@ os.environ.setdefault("ZAELAR_RESEARCH", "0")
 # with a changed environment.
 os.environ["ZAELAR_LANGUAGE"] = "en"
 
+# V2-778 F0-1 — THE WORKSPACE ITSELF IS PINNED (2026-09-30).
+#
+# Every block below pins ONE path onto ONE already imported module. The files that resolve their path PER CALL
+# from `nucleo.workspace.root()` — `config/consent.json` (nucleo/consent.py), `config/style.json`
+# (nucleo/style_policy.py), `config/library.json` and the `library/` base (library/paths.py), `config/circuit.json`,
+# `config/playbooks.json` — were reached by none of them, because `ZAELAR_WORKSPACE` was never set here and
+# `root()` falls back to the repo root. MEASURED: the audit's own wide pass rewrote the operator's real
+# `config/consent.json` (`messaging.autorespond: allow`) through a mensajeria test that pinned the widget store
+# and nothing else. Pinning the root once, before anything is imported, covers every per-call reader at once —
+# present and future. A runner that deliberately points at its own workspace is honoured, like `ZAELAR_DB` below.
+try:
+    import pathlib as _pl
+    _repo_root = _pl.Path(__file__).resolve().parent
+    _ws_env = (os.getenv("ZAELAR_WORKSPACE") or "").strip()
+    if not _ws_env or _pl.Path(_ws_env).resolve() == _repo_root:
+        os.environ["ZAELAR_WORKSPACE"] = tempfile.mkdtemp(prefix="zaelar-test-workspace-")
+except Exception:                                  # never let the harness's own guard stop the suite
+    pass
+
 # …AND THE OPERATOR'S CONFIG MUST NOT DECIDE THE SUITE RESULT (2026-08-10).
 #
 # Fixing `ZAELAR_LANGUAGE` above is NOT enough, and discovering that is the finding: `config/settings.load_into_env()` copies
@@ -240,4 +259,47 @@ try:
                 f"this test left ZAELAR_LANGUAGE as {after!r} (it was {before!r}) — every test after it "
                 f"would have measured that language. Use `tests.lang.speaking(code)`, which restores it.")
 except Exception:
+    pass
+
+
+# V2-778 F0-1 — A TEST THAT WRITES THE OPERATOR'S CONFIG FAILS, BY NAME (2026-09-30).
+#
+# The pin above makes the per-call readers safe; this makes the NEXT hole loud. A module that computes a real
+# path some other way (its own `Path(__file__)`, a cached absolute path, a subprocess without the env) would
+# write the operator's files again and nothing would say so — that is how the consent file was found rewritten,
+# by reading its mtime by hand after the sweep. So the three files the operator's own words write are stamped
+# before and after EVERY test, and the test after which one changed is named. `ZAELAR_TEST_GUARD_ROOT` moves
+# the watched root; it exists so the guard can be made red without touching the operator's real files.
+# If the operator's live engine wrote one of them during the run, the red names whichever test was running —
+# the message says so, so it is read as «check who wrote it», never as proof against that test.
+try:
+    import pathlib as _pl2
+
+    import pytest as _pytest4
+
+    _GUARDED_CONFIG = ("config/consent.json", "config/style.json", "config/library.json")
+
+    def _operator_config_stamp() -> dict:
+        base = _pl2.Path(os.getenv("ZAELAR_TEST_GUARD_ROOT") or _pl2.Path(__file__).resolve().parent)
+        out = {}
+        for rel in _GUARDED_CONFIG:
+            try:
+                st = (base / rel).stat()
+                out[str(base / rel)] = (st.st_mtime_ns, st.st_size)
+            except OSError:
+                out[str(base / rel)] = None
+        return out
+
+    @_pytest4.fixture(autouse=True)
+    def _the_operators_config_is_never_written():
+        before = _operator_config_stamp()
+        yield
+        after = _operator_config_stamp()
+        changed = [p for p in after if after[p] != before.get(p)]
+        if changed:
+            raise AssertionError(
+                f"the operator's real config changed during this test: {changed} — a test must never write "
+                f"them. Pin the path (the root conftest sets ZAELAR_WORKSPACE; a module that resolves its own "
+                f"absolute path escapes it). If the live engine wrote it at the same instant, check who did.")
+except Exception:                                  # never let the harness's own guard stop the suite
     pass

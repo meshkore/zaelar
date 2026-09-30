@@ -4972,7 +4972,7 @@ DOMAINS: list[dict] = [
         # 2026-08-10: un guarda SOBRE LOS GUARDAS. Aparecieron tests verdes por la MÁQUINA y no por el código (la
         # config del operador —idioma, proveedores, atención, perfil— pisaba el entorno de la suite vía
         # `settings.load_into_env`). No es que fallaran: es que no se podía confiar en el verde.
-        {"id": "7.10", "title": "Aislamiento de la suite (la máquina del que corre no decide el resultado)",
+        {"id": "7.10", "title": "Aislamiento de la suite (la máquina del que corre no decide el resultado; el workspace está fijado y escribir su config falla por nombre)",
             "ch": UNIT, "paths": ["tests/infrastructure/unit/test_suite_isolation.py"]},
         # 2026-08-13: el middleware de routing servía en LAS CUATRO ramas de rechazo (sin cookie, sin
         # config, lookup caído, token no reconocido). No era una debilidad teórica: una GET anónima al

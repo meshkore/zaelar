@@ -111,3 +111,53 @@ def test_the_operators_database_is_not_the_one_the_suite_reads():
     assert Path(db.db_path()).resolve() != real.resolve(), (
         "the suite is reading and writing the operator's REAL database: his memory, his event log and his "
         f"errands decide what green means. It points at: {db.db_path()}")
+
+
+def test_the_operators_workspace_is_not_the_one_the_suite_writes():
+    """Added 2026-09-30 (V2-778 F0-1). The per-call readers — `config/consent.json`, `config/style.json`,
+    `config/library.json`, the `library/` base — resolve from `nucleo.workspace.root()`, and nothing pinned it:
+    the audit's wide pass rewrote the operator's real consent file through a test that had pinned only the
+    widget store. Checked by what matters: the paths the product would write, not the variable."""
+    from library import paths as _lib
+    from nucleo import consent, style_policy, workspace
+
+    real = Path(__file__).resolve().parents[3]
+    assert workspace.root().resolve() != real, (
+        f"the suite's workspace is the operator's repo root ({real}): every per-call reader writes his files")
+    for p in (consent._overrides_path(), style_policy._overrides_path(), _lib._overrides_path(), _lib.base()):
+        q = Path(p).resolve()
+        assert q != real and real not in q.parents, f"{p} is the operator's own file"
+
+
+def test_a_test_that_writes_the_operators_config_FAILS_by_name(tmp_path):
+    """Measured by running pytest, because a fixture cannot be believed from inside the run it governs. The
+    watched root is moved to a throwaway copy (`ZAELAR_TEST_GUARD_ROOT`) so proving the guard never touches
+    the operator's real files."""
+    import subprocess
+    import sys
+
+    fake = tmp_path / "root"
+    (fake / "config").mkdir(parents=True)
+    (fake / "config" / "consent.json").write_text("{}", encoding="utf-8")
+    case = tmp_path / "test_writes_config.py"
+    case.write_text(
+        "import os, pathlib\n"
+        "def test_it_writes_the_consent():\n"
+        "    p = pathlib.Path(os.environ['ZAELAR_TEST_GUARD_ROOT']) / 'config' / 'consent.json'\n"
+        "    p.write_text('{\"classes\": {\"messaging.autorespond\": \"allow\"}}')\n", encoding="utf-8")
+    root = Path(__file__).resolve().parents[3]
+    env = dict(os.environ, ZAELAR_TEST_GUARD_ROOT=str(fake))
+    r = subprocess.run([sys.executable, "-m", "pytest", str(case), "-q", "--no-header", "-p", "conftest"],
+                       cwd=root, capture_output=True, text=True, env=env)
+    out = r.stdout + r.stderr
+    assert r.returncode != 0, "a write to the operator's config has to be a red run"
+    assert "consent.json" in out and "test_it_writes_the_consent" in out, "and it names the file and the test"
+
+
+def test_the_root_conftest_really_pins_the_workspace_and_installs_the_guard():
+    """Read comment-stripped: explaining this rule in prose must not be what satisfies it (V2-615's trap)."""
+    import re
+    src = (Path(__file__).resolve().parents[3] / "conftest.py").read_text(encoding="utf-8")
+    code = re.sub(r"#[^\n]*", "", re.sub(r'"""(?:.|\n)*?"""', "", src))
+    assert 'os.environ["ZAELAR_WORKSPACE"] = tempfile.mkdtemp' in code
+    assert "_the_operators_config_is_never_written" in code
