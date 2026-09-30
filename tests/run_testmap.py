@@ -3420,6 +3420,8 @@ DOMAINS: list[dict] = [
         # the money gate read the fast brain's own «do not buy» as a charge, the core guard matched inside
         # «stock»/«report», and a 25-second audit escalated a search the fast brain had resolved meanwhile.
         # V2-776 L (2026-09-29) — the circuit: a request is born with its end state.
+        {"id": "2.192", "title": "An instance card is empty only by its own view, never by the bare base card's state",
+            "ch": UNIT, "paths": ["tests/voice/unit/test_an_instance_is_empty_only_by_its_own_view.py"]},
         {"id": "2.191", "title": "With both readings unsure, the operator's own question mark makes it a question",
             "ch": UNIT, "paths": ["tests/voice/unit/test_a_question_mark_is_a_question_when_the_verdict_doubts.py"]},
         {"id": "2.190", "title": "A card whose declared action cannot take the call's fields is not asked about",

@@ -34,6 +34,18 @@ def nothing_to_show(widget_id: str) -> bool:
                 return True
         except Exception:
             return False
+    if "::" in wid:
+        # Demo pass 68, S1: «so how did the monitors go, show me» brought `results::1e8adc-ls1` up with its three
+        # monitors, and the ack said «there's nothing in it yet» — this read the BARE `results` card's saved state.
+        # An instance is read through its own view (V2-776 L2: every demo card declares `empty`).
+        try:
+            from nucleo import truth as _truth
+            view = _truth.widget_view(wid)
+            if isinstance(view, dict) and "empty" in view and not str(view.get("error") or "").strip():
+                return bool(view.get("empty"))
+        except Exception:  # noqa: BLE001
+            return False
+        return False
     return saved_state_is_empty(wid.split("::")[0])
 
 
