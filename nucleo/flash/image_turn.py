@@ -117,6 +117,7 @@ async def execute(query: str, n: int = DEFAULT_N, more: bool = False) -> dict:
             parte["message"] = str(res.get("error") or "")[:160] or "no encontré fotos de eso"
             # Also the one that came back EMPTY — it is exactly the one we need to be able to diagnose later.
             _evidence(parte)
+            _row_end("add" if more else "show", False, parte["message"])
             return parte
         from widgets.server_api import brain_action
         if more and shown:
@@ -149,6 +150,8 @@ async def execute(query: str, n: int = DEFAULT_N, more: bool = False) -> dict:
         if not parte["ok"]:
             parte["message"] = str(loaded.get("error") or "")[:160]
         _evidence(parte)
+        _row_end("add" if more and shown else "show", bool(parte["ok"] and (parte["count"] or parte.get("added"))),
+                 parte.get("message") or f"{parte['count']} fotos · {parte.get('first') or q}")
         return parte
     except Exception as e:  # noqa: BLE001
         parte["execute_error"] = str(e)[:200]
@@ -236,6 +239,15 @@ def _lang() -> str:
         return "en" if code.startswith("en") else "es"
     except Exception:  # noqa: BLE001
         return "es"
+
+
+def _row_end(action: str, ok: bool, outcome: str) -> None:
+    """The picture search is a request like any data-op (V2-776 M1): its row, and how it ended."""
+    try:
+        from nucleo import request_row as _rq
+        _rq.settle(_rq.opened("imagenes", action), "met" if ok else "unmet", outcome)
+    except Exception:  # noqa: BLE001
+        pass
 
 
 async def voice_turn(req: dict, *, silent: bool) -> "tuple[dict, str]":

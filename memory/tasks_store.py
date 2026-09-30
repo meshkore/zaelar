@@ -29,11 +29,14 @@ LIVE_STATES = ("pending", "running", "waiting")
 #: …and the ones it is over in. `cancelled` is kept apart from `failed` deliberately: the operator stopping
 #: something is not the same event as it breaking, and a list that conflates them cannot be read.
 DONE_STATES = ("done", "failed", "cancelled")
+INLINE_RETENTION_S = 48 * 3600          # V2-776 M1 — see `tasks_prune`
 
 _COLUMNS = ("id", "title", "goal", "kind", "mode", "state", "visible", "origin", "schedule", "surface",
             "sheet", "trace_id", "parent_id", "outcome", "created_at", "started_at", "due_at", "finished_at",
             # V2-776 D1 — the worker's live state (see the v7→v8 note in `memory/schema.py`)
-            "phase", "progress", "heartbeat_at", "reported_at", "error_class", "attempts")
+            "phase", "progress", "heartbeat_at", "reported_at", "error_class", "attempts",
+            # V2-776 M — the circuit's verdict on how the request ended (see the v8→v9 note in `memory/schema.py`)
+            "verdict")
 
 
 def _row(r) -> dict:
@@ -187,13 +190,20 @@ def tasks_prune(max_age_days: float = 30.0, now: float | None = None) -> int:
     Nothing LIVE is ever pruned, whatever its age. A task still running after a month is a task that needs
     looking at, not one that needs deleting.
     """
-    cutoff = int((time.time() if now is None else now) - max(0.0, float(max_age_days)) * 86400.0)
+    now = time.time() if now is None else now
+    cutoff = int(now - max(0.0, float(max_age_days)) * 86400.0)
     try:
         db = _db_mod.get_db()
         rows = db.query(
             "SELECT id FROM tasks WHERE state IN (%s) AND COALESCE(finished_at, created_at) < ?"
             % ",".join("?" for _ in DONE_STATES), (*DONE_STATES, cutoff))
         ids = [r["id"] for r in rows]
+        # V2-776 M1 — an inline request (an agenda add, a picture search) is worth two days, not a month: it is
+        # the recent state the prompt reads, and its lasting part is already in memory and in the widget.
+        ids += [r["id"] for r in db.query(
+            "SELECT id FROM tasks WHERE kind='inline' AND state IN (%s) AND COALESCE(finished_at, created_at) < ?"
+            % ",".join("?" for _ in DONE_STATES), (*DONE_STATES, int(now - INLINE_RETENTION_S)))
+            if r["id"] not in ids]
         for tid in ids:
             task_forget(tid)
         return len(ids)
@@ -211,7 +221,8 @@ def task_get(task_id: str) -> dict | None:
 
 
 def tasks_where(states: tuple = LIVE_STATES, *, modes: tuple = (), visible_only: bool = True,
-                limit: int = 100, newest_first: bool = False) -> list[dict]:
+                limit: int = 100, newest_first: bool = False, exclude_kinds: tuple = (),
+                since: float | None = None) -> list[dict]:
     """Tasks matching a state (and optionally a mode). The defaults are what the «En curso» sub-tab asks for.
 
     `visible_only` is the admission gate the operator chose: the list shows HIS commissions, and the internal
@@ -226,6 +237,12 @@ def tasks_where(states: tuple = LIVE_STATES, *, modes: tuple = (), visible_only:
         args.extend(modes)
     if visible_only:
         where.append("visible=1")
+    if exclude_kinds:
+        where.append("kind NOT IN (%s)" % ",".join("?" for _ in exclude_kinds))
+        args.extend(exclude_kinds)
+    if since is not None:
+        where.append("COALESCE(finished_at, started_at, created_at) >= ?")
+        args.append(int(since))
     order = "COALESCE(finished_at, created_at) DESC" if newest_first else "created_at ASC"
     try:
         rows = _db_mod.get_db().query(

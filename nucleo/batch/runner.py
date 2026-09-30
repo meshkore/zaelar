@@ -225,11 +225,15 @@ async def _store_rule(goal: str) -> dict:
     return {"ok": True, "reply": [f"{len(stored)} rule(s) saved."], "executed": "rule"}
 
 
-async def _turn(turn, text: str, sid: str) -> dict:
+async def _turn(turn, text: str, sid: str, step: str = "") -> dict:
+    from nucleo import request_row as _rq
+    tok = _rq.under(step)            # V2-776 M3 — the step's ops are rows hanging from the step
     try:
         return await turn(text, sid=sid, ingest=False, execute=True, lists=False)
     except Exception as e:  # noqa: BLE001 — one broken step never takes the list down
         return {"ok": False, "error": f"{type(e).__name__}: {e}"}
+    finally:
+        _rq._PARENT.reset(tok)
 
 
 def _live_workers() -> dict[str, str]:
@@ -265,7 +269,7 @@ async def _run_step(uid: str, row: dict, turn, ingest, *, sid: str = "", remembe
     if str(row.get("kind") or "") == "rule":
         r = await _store_rule(row["goal"])
     else:
-        r = await _turn(turn, row["goal"], sid or uid)
+        r = await _turn(turn, row["goal"], sid or uid, row["id"])
     # The workers THIS step started, whatever door it used. Measured on the errands case: a product search went
     # through the listings lane, which starts its worker inside and reports only what it said — so the step read
     # DONE and the list would have reported over a worker still searching. The dispatcher's own registry, before
@@ -295,17 +299,34 @@ async def _run_step(uid: str, row: dict, turn, ingest, *, sid: str = "", remembe
         # ONE retry, in a fresh session: the list's own window now holds the claim («Adding it now»), and a
         # model that reads its own claim answers «already done». Still nothing → failed, and the report says so.
         _emit("📋 lista: paso sin acción — reintento", text=str(r.get("reply") or "")[:200], step=row["id"])
-        r = await _turn(turn, row["goal"], f"{uid}:{row['id'][-2:]}")
+        r = await _turn(turn, row["goal"], f"{uid}:{row['id'][-2:]}", row["id"])
         judged = r
         if outcome_of(r)[0] == "done" and not acted(r):
             r = {"ok": False, "error": f"no action taken — «{str(r.get('reply') or '')[:160]}»"}
     state, note, tids = outcome_of(r)
     if state == "needs_you" and not await reply_needs_him(row["goal"], note):
         state = "done"
+    # V2-776 M3 — a step's verdict is its ops' (the inline rows hanging from it): a reply that says «Done.» over an
+    # op the circuit read UNMET is a failed step, whatever it said.
+    verdict = ""
+    try:
+        kids = [c for c in ts.tasks_children(row["id"]) if c.get("kind") == "inline"]
+        verdicts = [str(c.get("verdict") or "") for c in kids]
+        if "unmet" in verdicts:
+            verdict = "unmet"
+            if state == "done":
+                bad = next(c for c in kids if c.get("verdict") == "unmet")
+                state, note = "failed", f"not done — {str(bad.get('outcome') or '')[:160]}"
+        elif verdicts:
+            verdict = "met" if all(v == "met" for v in verdicts) else "unverifiable"
+    except Exception:  # noqa: BLE001
+        pass
     fields = {"state": "running" if state == "waiting" else ("waiting" if state == "needs_you" else state),
               "outcome": (f"workers:{','.join(tids)} " if tids else "") + f"[{state}] {note}"}
     if state in ("done", "failed"):
         fields["finished_at"] = int(time.time())
+    if verdict:
+        fields["verdict"] = verdict
     ts.task_patch(row["id"], **fields)
     _emit(f"📋 lista: paso {state}", text=note, step=row["id"], kind=kind, report=report_of(judged), memory_atoms=wrote)
 

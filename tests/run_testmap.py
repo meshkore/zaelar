@@ -3429,6 +3429,16 @@ DOMAINS: list[dict] = [
         # the money gate read the fast brain's own «do not buy» as a charge, the core guard matched inside
         # «stock»/«report», and a 25-second audit escalated a search the fast brain had resolved meanwhile.
         # V2-776 L (2026-09-29) — the circuit: a request is born with its end state.
+        {"id": "2.194", "title": "Every request that acts is ONE row of tasks (kind=inline): opened by its first op, reused by the rest "
+                                 "of the turn, ended with the circuit's verdict; the picture search too; the board shows it behind ⚙",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/test_every_request_that_acts_is_a_row.py"]},
+        {"id": "2.196", "title": "The prompt's recent state is read from the record, always: six requests of six hours, facts only, "
+                                 "a waiting one quoting its question, a list's steps and a live worker left to their own blocks",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/test_the_recent_state_is_read_from_the_record.py",
+                                  "tests/agent_headless/unit/flash/test_the_turn_reads_the_task_record.py"]},
+        {"id": "2.198", "title": "The verdict closes every row: a worker's from the circuit, a list step's from its ops; an op he "
+                                 "ordered that ends unmet is corrected out loud as soon as the verdict exists",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/test_the_verdict_closes_every_row.py"]},
         {"id": "2.193", "title": "A list step that asked him something is run once more at the end, in a fresh session, "
                                  "before the list reports — a later step of his own list may have answered it",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/test_a_list_step_that_asked_is_asked_again_at_the_end.py"]},

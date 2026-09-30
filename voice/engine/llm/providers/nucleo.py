@@ -463,6 +463,11 @@ class NucleoLLMStream(llm.LLMStream):
         if not first_turn:
             brain._utterance = {"text": text, "at": time.time()}
             self._turn_text = text
+            try:
+                from nucleo import request_row as _rq
+                _rq.begin(text)          # V2-776 M1 — the words the row of this request will carry
+            except Exception:  # noqa: BLE001
+                pass
 
         # ACTION MAP (V2-539) + PRESENCE knock (V2-640) + SMALL TALK (V2-674) skip the model: see
         # fast_lane.py (mirrors in probe.py).

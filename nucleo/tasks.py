@@ -231,7 +231,9 @@ def closed(rec, *, outcome: str = "") -> None:
         return
     said = (outcome or str(getattr(rec, "result_summary", "") or ""))[:400]
     _ts.task_patch(uid, state=state, finished_at=int(time.time()), outcome=said,
-                   error_class=str(getattr(rec, "error_class", "") or "") if state == "failed" else "")
+                   error_class=str(getattr(rec, "error_class", "") or "") if state == "failed" else "",
+                   # V2-776 M3 — the circuit's verdict (`circuit.close` set it on the record), never the worker's word
+                   verdict=str(getattr(rec, "verdict", "") or ""))
     kept_result(rec)
     remembered(rec, state=state, outcome=said)
 
@@ -389,6 +391,10 @@ def errand_mirrored(row: dict) -> None:
 SCOPES = ("live", "done", "recurring", "scheduled")
 
 
+#: The board is HIS commissions; an inline request (V2-776 M1) is a row the prompt reads, shown only behind ⚙.
+_BOARD_HIDDEN = ("inline",)
+
+
 def board(scope: str = "live", *, show_all: bool = False) -> list[dict]:
     """The rows behind one sub-tab, with the live detail merged on top.
 
@@ -404,12 +410,13 @@ def board(scope: str = "live", *, show_all: bool = False) -> list[dict]:
         scope = "live"
     if scope == "done":
         rows = _ts.tasks_where(states=_ts.DONE_STATES, modes=("now",), visible_only=not show_all,
-                               limit=60, newest_first=True)
+                               limit=60, newest_first=True, exclude_kinds=() if show_all else _BOARD_HIDDEN)
     elif scope in ("recurring", "scheduled"):
         rows = _ts.tasks_where(states=("pending", "running", "waiting"), modes=(scope,),
                                visible_only=not show_all, limit=100)
     else:
-        rows = _ts.tasks_where(states=_ts.LIVE_STATES, modes=("now",), visible_only=not show_all, limit=100)
+        rows = _ts.tasks_where(states=_ts.LIVE_STATES, modes=("now",), visible_only=not show_all, limit=100,
+                               exclude_kinds=() if show_all else _BOARD_HIDDEN)
     if not rows:
         return []
     live: dict = {}

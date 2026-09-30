@@ -140,6 +140,9 @@ class Database:
             for name, stmt in _schema.TASKS_STATUS_COLUMNS:
                 if tcols and name not in tcols:
                     self.conn.execute(stmt)
+            for name, stmt in _schema.TASKS_V9_COLUMNS:          # v8->v9 (V2-776 M): the row's verdict
+                if tcols and name not in tcols:
+                    self.conn.execute(stmt)
             # v5->v6 (V2-242): give background pills their author in the KEY. Runs ONCE, gated on the version.
             if version < 6:
                 self._namespace_widget_slots()

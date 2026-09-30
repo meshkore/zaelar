@@ -188,6 +188,11 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
     # V2-1xx: la petición REAL, ANTES de anteponer notas del sistema — ESPEJO del mismo fix en el provider de
     # voz (nucleo.py). El recall busca por esto, nunca por el turno con la nota pegada delante.
     operator_text = text
+    try:
+        from nucleo import request_row as _rq
+        _rq.begin(operator_text, parent=_rq.step_parent(sid), origin="chat")     # V2-776 M1
+    except Exception:  # noqa: BLE001
+        pass
 
     # JEV CANVAS VERDICT (T-jev-show-close, ESPEJO del provider): una pregunta Choice barata
     # (show/close/neither) en su propio hilo mientras se monta el prompt y corre el modelo, lista en los

@@ -236,40 +236,84 @@ def pending_task_lines() -> list[str]:
     return lines
 
 
-#: How far back the durable record is quoted once RAM has nothing to say. RAM keeps an ending for five minutes
-#: (`workers/ended.JUST_ENDED_S`); the operator asks «¿se ha creado ya la aplicación?» hours later.
-RECORD_WINDOW_S = 12 * 3600.0
-_RECORD_VERB = {"done": "TERMINÓ", "failed": "FALLÓ", "cancelled": "se CANCELÓ"}
+#: V2-776 M2 — how far back, and how many, requests the prompt carries from the record.
+RECENT_WINDOW_S = 6 * 3600.0
+RECENT_MAX = 6
+RECENT_MAX_CHARS = 700
+_STATE_WORD = {"running": "EN MARCHA", "pending": "EN COLA", "waiting": "ESPERA TU RESPUESTA",
+               "done": "HECHA", "failed": "FALLÓ", "cancelled": "CANCELADA"}
+_VERDICT_WORD = {"met": "comprobado en pantalla", "unverifiable": "sin comprobar", "gave_up": "sin terminar",
+                 "unmet": "no se cumplió"}
 
 
-def record_lines(now: float | None = None) -> list[str]:
-    """V2-776 D3 — when the RAM blocks are silent, the DURABLE record speaks, in one line.
+def _ago(secs: float) -> str:
+    m = int(max(0, secs) // 60)
+    return "ahora" if m < 1 else (f"hace {m} min" if m < 90 else f"hace {m // 60} h")
 
-    Measured 2026-09-27 (session 3a9a082c): at 15:46 the operator asked «Have you finished?» about a widget whose
-    worker had died at 12:50, and the turn answered «Not yet — the accountancy widget is still being built». No
-    live session, no ending inside the five-minute RAM window: the only thing the model had was its own promise
-    three hours earlier («I'll start that accountancy widget again now», which launched nothing). The task row
-    knew the truth the whole time. This puts it in front of the model — only when the live and just-ended blocks
-    are empty, so it never contradicts them, and only for the operator's own commissions.
+
+def recent_lines(now: float | None = None) -> list[str]:
+    """V2-776 M2 — what he asked for lately and how each one ended, read from the RECORD (`tasks`), always.
+
+    Replaces `record_lines` (D3), which quoted ONE row and only when both RAM blocks were silent. Manual session
+    7850de3f (2026-09-30): the INIT list had finished at 11:19 and an hour later the agent said «it's all still
+    running» — the record knew, the conversation did not, and a single fallback line lost to the window. Every
+    request that acts is a row now (M1: inline ones included), so the prompt reads the last few rows of the last
+    hours, one line each: what it was, its state and the circuit's verdict, when, and what came of it.
+
+    FACTS ONLY. No instruction rides this block, on purpose: the live-task paragraph above is the pattern this
+    replaces — a rule stacked per incident. A model that contradicts a correct line here is a bank CASE.
+
+    Not repeated: a worker still running (the live block above says it with its phase), one that ended in the
+    last five minutes (the just-ended block says it, until V2-776 M4 retires that block), and a list's own steps
+    (the list is the request; its steps are how it was done).
     """
     import time as _t
     now = float(now if now is not None else _t.time())
     try:
-        from nucleo import dispatch as _disp
-        if _disp.pending_summaries() or _disp.recently_ended_sessions(now=now):
-            return []
         from nucleo import tasks as _tasks
-        rows = _tasks.store().tasks_where(states=("done", "failed", "cancelled"), modes=("now",),
-                                          visible_only=True, limit=1, newest_first=True)
+        rows = _tasks.store().tasks_where(states=("pending", "running", "waiting", "done", "failed", "cancelled"),
+                                          modes=("now",), visible_only=True, limit=RECENT_MAX * 4,
+                                          newest_first=True, since=now - RECENT_WINDOW_S)
     except Exception:  # noqa: BLE001 — a record that cannot be read adds nothing, and never breaks the turn
         return []
-    last = rows[0] if rows else None
-    if not last or now - float(last.get("finished_at") or 0) > RECORD_WINDOW_S:
+    said: set[str] = set()
+    live: dict = {}
+    try:
+        from nucleo import dispatch as _disp
+        from nucleo import tasks as _tasks
+        live = {str(x.get("uid") or ""): x for x in _disp.active_sessions() if x.get("uid")}
+        said |= {u for u, x in live.items() if str(x.get("status") or "") in ("queued", "running")}
+        said |= {_tasks.task_uid(e.get("id")) for e in _disp.recently_ended_sessions(now=now)}
+    except Exception:  # noqa: BLE001
+        pass
+    out: list[str] = []
+    used = 0
+    for r in rows:
+        if r.get("parent_id") or str(r.get("id") or "") in said:
+            continue
+        name = _short_note(str(r.get("title") or r.get("goal") or "una petición"), 70)
+        st = str(r.get("state") or "")
+        bit = f"«{name}» · {_STATE_WORD.get(st, st)}"
+        if (v := _VERDICT_WORD.get(str(r.get("verdict") or ""))):
+            bit += f" ({v})"
+        when = float(r.get("finished_at") or r.get("started_at") or r.get("created_at") or now)
+        bit += f" · {_ago(now - when)}"
+        det = live.get(str(r.get("id") or "")) or {}
+        ask = str(det.get("ask") or (r.get("progress") or {}).get("ask") or "")
+        if st == "waiting" and ask:
+            bit += f" · te preguntó: «{_short_note(ask, 90)}»"
+        elif r.get("outcome"):
+            bit += f" · {_short_note(str(r['outcome']), 100)}"
+        if used + len(bit) > RECENT_MAX_CHARS and out:
+            break
+        out.append(bit)
+        used += len(bit)
+        if len(out) >= RECENT_MAX:
+            break
+    if not out:
         return []
-    name = _short_note(str(last.get("title") or last.get("goal") or "la tarea"), 70)
-    when = _t.strftime("%H:%M", _t.localtime(float(last["finished_at"])))
-    line = (f"TAREAS DE FONDO (registro): NINGUNA en marcha ahora mismo. La última, «{name}», "
-            f"{_RECORD_VERB.get(str(last.get('state')), 'terminó')} a las {when}")
-    if last.get("outcome"):
-        line += f" — {_short_note(str(last['outcome']), 100)}"
-    return [line + ". Si pregunta por ella, eso es lo que hay: NUNCA digas que sigue en curso."]
+    return ["LO ÚLTIMO QUE TE HA PEDIDO (registro de peticiones, lo más reciente primero): " + " | ".join(out) + "."]
+
+
+#: Kept as the name `prompt.live_state` and `live_blocks` import; the record now always speaks.
+record_lines = recent_lines

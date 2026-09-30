@@ -242,6 +242,15 @@ async def dispatch_and_report(wid: str, action_name: str, payload: dict, *, seal
         _spec_entry = _spec.open_for_action(wid, action_name, payload, text=text)
     except Exception:  # noqa: BLE001
         _spec_entry = None
+    # V2-776 M1 — the request this op belongs to is a ROW, opened by its first op (see `nucleo/request_row.py`).
+    try:
+        from nucleo import request_row as _rq
+        _row = _rq.opened(wid, action_name, text=text)
+    except Exception:  # noqa: BLE001
+        _row = ""
+    if _spec_entry is not None and _row:
+        _spec_entry["row"] = _row
+        _spec_entry["turn"] = _rq.current()      # his words, for the correction the circuit may have to say
     # V2-769 — this create's sentence COMPLETES an earlier create's: that one came from a piece of it, and its
     # row goes back out with the call its own widget named. See `write_outcome.py` for the measured case.
     if (_prev := _outcome.superseded(wid, action_name, text)):
@@ -263,12 +272,27 @@ async def dispatch_and_report(wid: str, action_name: str, payload: dict, *, seal
     if not receipt and (_fixed := await corrected_retry(wid, action_name, payload, res, text, _run, said=_said)):
         payload, res = _fixed
     _outcome.remember(wid, action_name, text, res)
+    _refused = bool(_receipt.failed(res)) if isinstance(res, dict) else False
+    _attested = None
     if _spec_entry is not None:
         try:
             from nucleo import spec as _spec
             # A refused op is told by `report_failure`; the circuit settles it without a second note.
-            _spec_entry["reported"] = bool(_receipt.failed(res)) if isinstance(res, dict) else False
-            _spec.attest(_spec_entry)
+            _spec_entry["reported"] = _refused
+            _attested = _spec.attest(_spec_entry)
+        except Exception:  # noqa: BLE001
+            pass
+    if _row:
+        try:
+            from nucleo import request_row as _rq
+            if _refused:
+                _rq.settle(_row, "unmet", str(res.get("message") or res.get("error") or "")[:200])
+            elif _spec_entry is None:
+                _rq.settle(_row, "undeclared")
+            elif _attested is not False:
+                _rq.settle(_row, _rq.verdict_of_attest(_attested))
+            # False: the widget may still be catching up — the circuit's pulse settles it (met, or unmet after
+            # its grace), and the row with it.
         except Exception:  # noqa: BLE001
             pass
     await _report_ignored(wid, action_name, res)

@@ -44,7 +44,7 @@ EMBED_DIM = 768
 #   had to stitch two row shapes by hand. A durable row per task —with its result hanging off it and an FTS
 #   index over what it was about— is what lets the operator hand a commission over and forget it, and lets the
 #   brain answer «the flat-hunting task I told you about» weeks later. Purely additive: IF NOT EXISTS, no ALTER.
-SCHEMA_VERSION = 8
+SCHEMA_VERSION = 9
 
 
 # ── Tablas base (siempre) ──────────────────────────────────────────────────────────────────────────────────
@@ -431,6 +431,12 @@ TASKS_STATUS_COLUMNS = [
     ("reported_at", "ALTER TABLE tasks ADD COLUMN reported_at INTEGER"),
     ("error_class", "ALTER TABLE tasks ADD COLUMN error_class TEXT"),
     ("attempts", "ALTER TABLE tasks ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0"),
+]
+
+# v8 → v9 (V2-776 M, 2026-09-30): every request is a row, and every row ends with the CIRCUIT's verdict — never a
+# word parsed out of `outcome`. `met | unmet | gave_up | unverifiable | undeclared | skipped` (nucleo/circuit.py).
+TASKS_V9_COLUMNS = [
+    ("verdict", "ALTER TABLE tasks ADD COLUMN verdict TEXT"),
 ]
 
 TASKS_INDEXES = [

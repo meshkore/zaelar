@@ -3,6 +3,9 @@
 Measured 2026-09-27 (session 3a9a082c, 15:46): «Have you finished?» → «Not yet — the accountancy widget is
 still being built». The worker had died at 12:50; RAM keeps an ending for five minutes; the only source left
 was the model's own unkept promise. The row said `failed` the whole time.
+
+V2-776 M2 (2026-09-30): the record no longer speaks only when RAM is silent — it is the block of recent requests,
+always (`task_block.recent_lines`). A live worker keeps its own richer block; its row is not repeated.
 """
 from __future__ import annotations
 
@@ -36,18 +39,18 @@ def _ended(uid, *, hours_ago, state="failed", visible=True, outcome="No pude cre
 def test_hours_later_the_turn_still_knows_the_widget_failed(fresh_db):
     _ended("abcdef-8", hours_ago=3)
     state = prompt.live_state()
-    assert "NINGUNA en marcha" in state
+    assert "LO ÚLTIMO QUE TE HA PEDIDO" in state
     assert "Widget de contabilidad" in state and "FALLÓ" in state and "No pude crear el widget" in state
 
 
-def test_a_live_worker_owns_the_block_and_the_record_stays_quiet(fresh_db, monkeypatch):
+def test_a_live_worker_does_not_silence_the_record_any_more(fresh_db, monkeypatch):
     _ended("abcdef-8", hours_ago=3)
     monkeypatch.setattr(dispatch, "pending_summaries",
                         lambda: [{"request": "búscame piso", "phase": "mirando", "id": "1"}])
-    assert "NINGUNA en marcha" not in prompt.live_state()
+    assert "Widget de contabilidad" in prompt.live_state()
 
 
 def test_old_or_internal_work_is_not_quoted(fresh_db):
     _ended("abcdef-1", hours_ago=30)
     _ended("abcdef-2", hours_ago=1, visible=False)          # the engine talking to itself
-    assert "(registro)" not in prompt.live_state()
+    assert "LO ÚLTIMO QUE TE HA PEDIDO" not in prompt.live_state()

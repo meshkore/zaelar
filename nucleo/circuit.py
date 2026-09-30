@@ -81,12 +81,50 @@ def tick(now: float | None = None) -> list[dict]:
             out = _spec.attest(e, now=now)
             if out is True:
                 closed.append(e)
+                _settle_row(e, "met")
             elif out is False and not e.get("task_id") and now - float(e.get("born") or now) >= INLINE_GRACE_S:
                 _settle_unmet_inline(e, now)
                 closed.append(e)
         except Exception as ex:  # noqa: BLE001
             logger.debug(f"circuit: attest skipped ({ex})")
     return closed
+
+
+def _settle_row(e: dict, verdict: str, outcome: str = "") -> None:
+    """The request row this inline spec belongs to (V2-776 M1) ends with the same verdict."""
+    if e.get("row"):
+        try:
+            from nucleo import request_row as _rq
+            _rq.settle(str(e["row"]), verdict, outcome)
+        except Exception:  # noqa: BLE001
+            pass
+
+
+def _say_now(e: dict, missing: str) -> bool:
+    """V2-776 M3 — an op he ordered ended UNMET. The turn's reply had already streamed when the op landed (the turn
+    never waits on a detached op), so whatever it said — «Done.», «There you go.» — he has not been told the truth.
+    The repair is a spoken correction as soon as the verdict exists, composed in the agent's language; whether the
+    reply «claimed» delivery is not asked, because reading that from its words is a phrase table (`claims_done`
+    does not know «Done.») and the operator needs the truth either way. Scheduled on the running loop; False when
+    there is none (the caller falls back to the note for the next turn)."""
+    try:
+        import asyncio
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        return False
+
+    async def _go():
+        try:
+            from nucleo.workers import spoken_delivery as _sd
+            from voice import proactive
+            goal = str((e.get("turn") or {}).get("text") or e.get("text") or "")
+            line = await _sd.line(goal, f"No ha quedado hecho. Falta: {missing}", ok=False, verdict="unmet")
+            if line:
+                await proactive.notify("circuito", line, speak=True, kind="notify")
+        except Exception as ex:  # noqa: BLE001
+            logger.debug(f"circuit: spoken correction failed ({ex})")
+    loop.create_task(_go())
+    return True
 
 
 def _settle_unmet_inline(e: dict, now: float) -> None:
@@ -100,6 +138,7 @@ def _settle_unmet_inline(e: dict, now: float) -> None:
     from nucleo import verify as _verify
     missing = "; ".join(_verify.missing(e.get("done_when"), now)) or "el objetivo declarado no se cumple"
     e["status"], e["met_at"] = "unmet", now
+    _settle_row(e, "unmet", missing)
     try:
         from nucleo import spec as _spec
         _spec._emit("❌ spec: SIN cumplir tras el plazo — se le dice al modelo", e, missing=missing[:300])
@@ -107,6 +146,8 @@ def _settle_unmet_inline(e: dict, now: float) -> None:
         pass
     if e.get("reported"):
         return                               # the op was refused and `report_failure` already told the model
+    if _say_now(e, missing):
+        return                               # he ordered it and it did not happen: said NOW, not at his next turn
     try:
         from voice import brain_notes
         what = f"«{e.get('action')}» sobre «{e.get('widget')}»" if e.get("action") else "la última acción"
